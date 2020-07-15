@@ -5,6 +5,8 @@
 - PR #939 Updated Notebooks to include new features and benchmarks
 - PR #944 OPG pagerank (dask)
 - PR #947 OPG pagerank (CUDA)
+- PR #964 OPG BFS (CUDA)
+- PR #993 Add persistent Handle for Comms
 - PR #979 Add hypergraph implementation to convert DataFrames into Graphs
 
 ## Improvements
@@ -33,6 +35,7 @@
 - PR #985 Add raft handle to BFS, BC and edge BC
 - PR #991 Update conda upload versions for new supported CUDA/Python
 - PR #988 Add clang and clang tools to the conda env
+- PR #997 Update setup.cfg to run pytests under cugraph tests directory only
 
 ## Bug Fixes
 - PR #936 Update Force Atlas 2 doc and wrapper

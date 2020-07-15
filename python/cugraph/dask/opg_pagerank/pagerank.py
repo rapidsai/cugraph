@@ -15,18 +15,19 @@
 
 from dask.distributed import wait, default_client
 from cugraph.dask.common.input_utils import get_local_data
-from cugraph.raft.dask.common.comms import worker_state
 from cugraph.opg.link_analysis import mg_pagerank_wrapper as mg_pagerank
+import cugraph.comms.comms as Comms
 import warnings
 
 
 def call_pagerank(sID, data, local_data, alpha, max_iter,
                   tol, personalization, nstart):
-    sessionstate = worker_state(sID)
+    wid = Comms.get_worker_id(sID)
+    handle = Comms.get_handle(sID)
     return mg_pagerank.mg_pagerank(data[0],
                                    local_data,
-                                   sessionstate['wid'],
-                                   sessionstate['handle'],
+                                   wid,
+                                   handle,
                                    alpha,
                                    max_iter,
                                    tol,
@@ -110,14 +111,13 @@ supported. Setting them to None")
     if(input_graph.local_data is not None and
        input_graph.local_data['by'] == 'dst'):
         data = input_graph.local_data['data']
-        comms = input_graph.local_data['comms']
     else:
-        data, comms = get_local_data(input_graph, by='dst')
+        data = get_local_data(input_graph, by='dst')
 
     result = dict([(data.worker_info[wf[0]]["rank"],
                     client.submit(
             call_pagerank,
-            comms.sessionId,
+            Comms.get_session_id(),
             wf[1],
             data.local_data,
             alpha,
