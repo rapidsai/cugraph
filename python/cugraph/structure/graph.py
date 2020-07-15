@@ -273,10 +273,9 @@ class Graph:
             distributed among multiple GPUs to avoid over-loading.
         """
         if self.distributed:
-            data, comms = get_local_data(self, by, load_balance)
+            data = get_local_data(self, by, load_balance)
             self.local_data = {}
             self.local_data['data'] = data
-            self.local_data['comms'] = comms
             self.local_data['by'] = by
         else:
             raise Exception('Graph should be a distributed graph')

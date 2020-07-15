@@ -7,6 +7,7 @@
 - PR #947 OPG pagerank (CUDA)
 - PR #964 OPG BFS (CUDA)
 - PR #990 MG Consolidation
+- PR #993 Add persistent Handle for Comms
 
 ## Improvements
 - PR #898 Add Edge Betweenness Centrality, and endpoints to BC
