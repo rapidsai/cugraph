@@ -1,4 +1,3 @@
-#
 # Copyright (c) 2020, NVIDIA CORPORATION.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -12,7 +11,6 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-#
 
 
 from collections.abc import Sequence
@@ -21,13 +19,12 @@ from collections import OrderedDict
 from dask_cudf.core import DataFrame as dcDataFrame
 from dask_cudf.core import Series as daskSeries
 
-from cugraph.raft.dask.common.comms import Comms
+import cugraph.comms.comms as Comms
 from cugraph.raft.dask.common.utils import get_client
 from cugraph.dask.common.part_utils import (_extract_partitions,
                                             load_balance_func)
 from dask.distributed import default_client
 from toolz import first
-
 from functools import reduce
 
 
@@ -210,8 +207,8 @@ def get_local_data(input_graph, by, load_balance=True):
     if load_balance:
         ddf = load_balance_func(ddf, by=by)
 
+    comms = Comms.get_comms()
     data = DistributedDataHandler.create(data=ddf)
-    comms = Comms(comms_p2p=False)
-    comms.init(data.workers)
     data.calculate_local_data(comms, by)
-    return data, comms
+
+    return data

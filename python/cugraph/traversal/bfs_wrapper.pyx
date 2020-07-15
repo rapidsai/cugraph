@@ -100,4 +100,5 @@ def bfs(input_graph, start, directed=True,
                                <double*> c_sp_counter_ptr,
                                <int> start,
                                directed)
+
     return df

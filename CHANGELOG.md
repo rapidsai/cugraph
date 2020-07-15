@@ -6,6 +6,8 @@
 - PR #944 OPG pagerank (dask)
 - PR #947 OPG pagerank (CUDA)
 - PR #963 Renumbering refactor, add multi GPU support
+- PR #964 OPG BFS (CUDA)
+- PR #993 Add persistent Handle for Comms
 
 ## Improvements
 - PR #898 Add Edge Betweenness Centrality, and endpoints to BC
@@ -22,6 +24,7 @@
 - PR #952 Updated get_test_data.sh to also (optionally) download and install datasets for benchmark runs
 - PR #953 fix setting RAFT_DIR from the RAFT_PATH env var
 - PR #954 Update cuGraph error handling to use RAFT
+- PR #968 Add build script for CI benchmark integration
 - PR #959 Add support for uint32_t and int64_t types for BFS (cpp side)
 - PR #962 Update dask pagerank
 - PR #975 Upgrade GitHub template
@@ -30,12 +33,17 @@
 - PR #987 Move graph out of experimental namespace
 - PR #984 Removing codecov until we figure out how to interpret failures that block CI
 - PR #985 Add raft handle to BFS, BC and edge BC
+- PR #991 Update conda upload versions for new supported CUDA/Python
+- PR #988 Add clang and clang tools to the conda env
+- PR #997 Update setup.cfg to run pytests under cugraph tests directory only
 
 ## Bug Fixes
 - PR #936 Update Force Atlas 2 doc and wrapper
 - PR #938 Quote conda installs to avoid bash interpretation
 - PR #966 Fix build error (debug mode)
 - PR #983 Fix offset calculation in COO to CSR
+- PR #989: Fix issue with incorrect docker image being used in local build script
+- PR #992 Fix unrenumber of predecessor
 
 # cuGraph 0.14.0 (03 Jun 2020)
 
