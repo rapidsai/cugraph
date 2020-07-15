@@ -6,6 +6,7 @@
 - PR #944 OPG pagerank (dask)
 - PR #947 OPG pagerank (CUDA)
 - PR #826 Bipartite Graph python API
+- PR #964 OPG BFS (CUDA)
 
 ## Improvements
 - PR #898 Add Edge Betweenness Centrality, and endpoints to BC
