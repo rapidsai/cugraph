@@ -6,7 +6,7 @@ from cugraph.tests.dask.opg_context import (OPGContext, enforce_rescale)
 
 # Get parameters from standard betwenness_centrality_test
 from cugraph.tests.test_betweenness_centrality import (
-    DIRECTED_GRAPH_OPTIONS,
+    #DIRECTED_GRAPH_OPTIONS,
     ENDPOINTS_OPTIONS,
     NORMALIZED_OPTIONS,
     DEFAULT_EPSILON,
@@ -25,6 +25,7 @@ from cugraph.tests.test_betweenness_centrality import (
 # =============================================================================
 # Parameters
 # =============================================================================
+DIRECTED_GRAPH_OPTIONS = [True] # FIXME: Undirected Distributed Graph currently not supported
 OPG_DEVICE_COUNT_OPTIONS = [1, 2, 3, 4]
 
 
@@ -77,6 +78,7 @@ def test_opg_betweenness_centrality(fixture_setup_opg,
                                             weight=weight,
                                             endpoints=endpoints,
                                             seed=subset_seed,
-                                            result_dtype=result_dtype)
+                                            result_dtype=result_dtype,
+                                            multi_gpu_batch=True)
     compare_scores(sorted_df, first_key="cu_bc", second_key="ref_bc",
                    epsilon=DEFAULT_EPSILON)

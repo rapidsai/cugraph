@@ -116,17 +116,17 @@ supported. Setting them to None")
 
     result = dict([(data.worker_info[wf[0]]["rank"],
                     client.submit(
-            call_pagerank,
-            comms.sessionId,
-            wf[1],
-            data.local_data,
-            alpha,
-            max_iter,
-            tol,
-            personalization,
-            nstart,
-            workers=[wf[0]]))
-            for idx, wf in enumerate(data.worker_to_parts.items())])
+                    call_pagerank,
+                    comms.sessionId,
+                    wf[1],
+                    data.local_data,
+                    alpha,
+                    max_iter,
+                    tol,
+                    personalization,
+                    nstart,
+                    workers=[wf[0]]))
+                    for idx, wf in enumerate(data.worker_to_parts.items())])
     wait(result)
 
     return result[0].result()

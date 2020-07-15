@@ -426,6 +426,7 @@ void betweenness_centrality(raft::handle_t const &handle,
 {
   if (handle.comms_initialized()) {
     int rank = handle.get_comms().get_rank();
+
     cugraph::opg::DSGGraphCSR<VT, ET, WT> local_holder(handle, graph);
     local_holder.distribute();
 

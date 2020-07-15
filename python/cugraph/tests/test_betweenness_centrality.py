@@ -62,7 +62,8 @@ def calc_betweenness_centrality(graph_file, directed=True,
                                 weight=None, endpoints=False,
                                 seed=None,
                                 result_dtype=np.float64,
-                                use_k_full=False):
+                                use_k_full=False,
+                                multi_gpu_batch=False):
     """ Generate both cugraph and networkx betweenness centrality
 
     Parameters
@@ -106,7 +107,16 @@ def calc_betweenness_centrality(graph_file, directed=True,
         The dataframe is expected to be sorted based on 'vertex', so that we
         can use cupy.isclose to compare the scores.
     """
-    G, Gnx = utils.build_cu_and_nx_graphs(graph_file, directed=directed)
+    G = None
+    Gnx = None
+
+    if multi_gpu_batch:
+        G, Gnx = utils.build_mg_batch_cu_and_nx_graphs(graph_file,
+                                                       directed=directed)
+    else:
+        G, Gnx = utils.build_cu_and_nx_graphs(graph_file, directed=directed)
+    assert G is not None and Gnx is not None
+
     calc_func = None
     if k is not None and seed is not None:
         calc_func = _calc_bc_subset
