@@ -150,7 +150,7 @@ class Graph:
                                     "Use multipartite option instead.")
                 self.bipartite = True
                 multipartite = bipartite
-                if len(set_names) == 2:
+                if multipartite not in set_names and len(set_names) == 2:
                     raise Exception("The Graph is set as bipartite and "
                                     "already has two partitions initialized.")
             self._nodes[multipartite] = cudf.Series(nodes)
