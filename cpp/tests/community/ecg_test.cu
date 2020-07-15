@@ -60,7 +60,7 @@ TEST(ecg, success)
 
   float modularity{0.0};
 
-  cugraph::nvgraph::analyzeClustering_modularity(
+  cugraph::ext_raft::analyzeClustering_modularity(
     graph_csr, max + 1, result_v.data().get(), &modularity);
 
   ASSERT_GT(modularity, 0.399);
@@ -121,7 +121,7 @@ TEST(ecg, dolphin)
 
   float modularity{0.0};
 
-  cugraph::nvgraph::analyzeClustering_modularity(
+  cugraph::ext_raft::analyzeClustering_modularity(
     graph_csr, max + 1, result_v.data().get(), &modularity);
 
   float random_modularity{0.95 * 0.4962422251701355};

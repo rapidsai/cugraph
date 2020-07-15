@@ -61,15 +61,15 @@ TEST(balanced_edge, success)
   int kmean_max_iter{100};
   float score;
 
-  cugraph::nvgraph::balancedCutClustering(G,
-                                          num_clusters,
-                                          num_eigenvectors,
-                                          evs_tolerance,
-                                          evs_max_iter,
-                                          kmean_tolerance,
-                                          kmean_max_iter,
-                                          result_v.data().get());
-  cugraph::nvgraph::analyzeClustering_edge_cut(G, num_clusters, result_v.data().get(), &score);
+  cugraph::ext_raft::balancedCutClustering(G,
+                                           num_clusters,
+                                           num_eigenvectors,
+                                           evs_tolerance,
+                                           evs_max_iter,
+                                           kmean_tolerance,
+                                           kmean_max_iter,
+                                           result_v.data().get());
+  cugraph::ext_raft::analyzeClustering_edge_cut(G, num_clusters, result_v.data().get(), &score);
 
   std::cout << "score = " << score << std::endl;
   ASSERT_LT(score, float{55.0});
