@@ -15,9 +15,9 @@
  */
 
 /** ---------------------------------------------------------------------------*
- * @brief Wrapper functions for Nvgraph
+ * @brief Wrapper functions for Spectral Clustering
  *
- * @file nvgraph_wrapper.cpp
+ * @file spectral_clustering.cu
  * ---------------------------------------------------------------------------**/
 
 #include <algorithms.hpp>
