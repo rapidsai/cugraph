@@ -1,7 +1,7 @@
 from dask.distributed import Client
 import gc
 import cudf
-import cugraph.comms.comms as Comms
+import cugraph.comms as Comms
 import cugraph
 import dask_cudf
 

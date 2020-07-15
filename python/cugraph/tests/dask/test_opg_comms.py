@@ -12,7 +12,7 @@
 # limitations under the License.
 
 import cugraph.dask as dcg
-import cugraph.comms.comms as Comms
+import cugraph.comms as Comms
 from dask.distributed import Client
 import gc
 import cugraph
