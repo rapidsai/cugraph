@@ -9,5 +9,13 @@ def unrenumber(renumber_map, df, col):
         cols = unrenumbered_df.columns.to_list()
         df = unrenumbered_df[cols[1:] + [cols[0]]]
     else:
-        df[col] = renumber_map[df[col]].reset_index(drop=True)
+        tmp = cudf.DataFrame()
+        tmp['OuTpUt'] = renumber_map
+        tmp['id'] = tmp.index
+        df['OrIgInAl'] = df.index
+        unrenumbered_df = df.merge(
+            tmp, left_on=col, right_on='id', how='left'
+        ).sort_values('OrIgInAl').reset_index(drop=True)
+        df[col] = unrenumbered_df['OuTpUt']
+        df = df.drop('OrIgInAl')
     return df

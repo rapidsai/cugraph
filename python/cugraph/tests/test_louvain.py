@@ -12,14 +12,12 @@
 # limitations under the License.
 
 import gc
-from itertools import product
 import time
 
 import pytest
 
 import cugraph
 from cugraph.tests import utils
-import rmm
 
 # Temporarily suppress warnings till networkX fixes deprecation warnings
 # (Using or importing the ABCs from 'collections' instead of from
@@ -67,25 +65,10 @@ def networkx_call(M):
     return parts
 
 
-DATASETS = ['../datasets/karate.csv',
-            '../datasets/dolphins.csv',
-            '../datasets/netscience.csv']
-
-
 # Test all combinations of default/managed and pooled/non-pooled allocation
-@pytest.mark.parametrize('managed, pool',
-                         list(product([False, True], [False, True])))
-@pytest.mark.parametrize('graph_file', DATASETS)
-def test_louvain_with_edgevals(managed, pool, graph_file):
+@pytest.mark.parametrize('graph_file', utils.DATASETS)
+def test_louvain_with_edgevals(graph_file):
     gc.collect()
-
-    rmm.reinitialize(
-        managed_memory=managed,
-        pool_allocator=pool,
-        initial_pool_size=2 << 27
-    )
-
-    assert(rmm.is_initialized())
 
     M = utils.read_csv_for_nx(graph_file)
     cu_M = utils.read_csv_file(graph_file)
@@ -105,24 +88,10 @@ def test_louvain_with_edgevals(managed, pool, graph_file):
     assert abs(cu_mod - cu_mod_nx) < .0001
 
 
-DATASETS = ['../datasets/karate.csv',
-            '../datasets/dolphins.csv']
-
-
 # Test all combinations of default/managed and pooled/non-pooled allocation
-@pytest.mark.parametrize('managed, pool',
-                         list(product([False, True], [False, True])))
-@pytest.mark.parametrize('graph_file', DATASETS)
-def test_louvain(managed, pool, graph_file):
+@pytest.mark.parametrize('graph_file', utils.DATASETS_2)
+def test_louvain(graph_file):
     gc.collect()
-
-    rmm.reinitialize(
-        managed_memory=managed,
-        pool_allocator=pool,
-        initial_pool_size=2 << 27
-    )
-
-    assert(rmm.is_initialized())
 
     M = utils.read_csv_for_nx(graph_file)
     cu_M = utils.read_csv_file(graph_file)
@@ -136,6 +105,7 @@ def test_louvain(managed, pool, graph_file):
     for i in range(len(cu_parts)):
         cu_map[cu_parts['vertex'][i]] = cu_parts['partition'][i]
     assert set(nx_parts.keys()) == set(cu_map.keys())
+
     cu_mod_nx = community.modularity(cu_map, Gnx)
     nx_mod = community.modularity(nx_parts, Gnx)
     assert len(cu_parts) == len(nx_parts)

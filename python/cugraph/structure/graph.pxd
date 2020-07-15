@@ -16,87 +16,177 @@
 # cython: embedsignature = True
 # cython: language_level = 3
 
-from cudf._lib.legacy.cudf cimport *
+from libcpp cimport bool
+from libcpp.memory cimport unique_ptr
 
+from rmm._lib.device_buffer cimport device_buffer
 
-cdef extern from "cugraph.h" namespace "cugraph":
+cdef extern from "raft/handle.hpp" namespace "raft":
+    cdef cppclass handle_t:
+        handle_t() except +
 
-    struct gdf_edge_list:
-        gdf_column *src_indices
-        gdf_column *dest_indices
-        gdf_column *edge_data
+cdef extern from "graph.hpp" namespace "cugraph":
 
-    struct gdf_adj_list:
-        gdf_column *offsets
-        gdf_column *indices
-        gdf_column *edge_data
-        void get_vertex_identifiers(gdf_column *identifiers)
-        void get_source_indices(gdf_column *indices)
+    ctypedef enum PropType:
+        PROP_UNDEF "cugraph::PROP_UNDEF"
+        PROP_FALSE "cugraph::PROP_FALSE"
+        PROP_TRUE "cugraph::PROP_TRUE"
 
-    struct gdf_dynamic:
-        void   *data
+    ctypedef enum DegreeDirection:
+        DIRECTION_IN_PLUS_OUT "cugraph::DegreeDirection::IN_PLUS_OUT"
+        DIRECTION_IN "cugraph::DegreeDirection::IN"
+        DIRECTION_OUT "cugraph::DegreeDirection::OUT"
 
-    ctypedef enum gdf_prop_type:
-        GDF_PROP_UNDEF = 0
-        GDF_PROP_FALSE
-        GDF_PROP_TRUE
-
-    struct Graph_properties:
+    struct GraphProperties:
         bool directed
         bool weighted
         bool multigraph
         bool bipartite
         bool tree
-        gdf_prop_type has_negative_edges
+        PropType has_negative_edges
 
-    struct Graph:
-        gdf_edge_list *edgeList
-        gdf_adj_list *adjList
-        gdf_adj_list *transposedAdjList
-        gdf_dynamic  *dynAdjList
-        Graph_properties *prop
-        size_t numberOfVertices
+    cdef cppclass GraphViewBase[VT,ET,WT]:
+        WT *edge_data
+        handle_t *handle;
+        GraphProperties prop
+        VT number_of_vertices
+        ET number_of_edges
+        VT* local_vertices
+        ET* local_edges
+        VT* local_offsets
+        void set_handle(handle_t*)
+        void set_local_data(VT* local_vertices_, ET* local_edges_, VT* local_offsets_)
+        void get_vertex_identifiers(VT *) const
+
+        GraphViewBase(WT*,VT,ET)
+
+    cdef cppclass GraphCOOView[VT,ET,WT](GraphViewBase[VT,ET,WT]):
+        VT *src_indices
+        VT *dst_indices
+
+        void degree(ET *,DegreeDirection) const
+
+        GraphCOOView()
+        GraphCOOView(const VT *, const ET *, const WT *, size_t, size_t)
+
+    cdef cppclass GraphCompressedSparseBaseView[VT,ET,WT](GraphViewBase[VT,ET,WT]):
+        ET *offsets
+        VT *indices
+
+        void get_source_indices(VT *) const
+        void degree(ET *,DegreeDirection) const
+
+        GraphCompressedSparseBaseView(const VT *, const ET *, const WT *, size_t, size_t)
+
+    cdef cppclass GraphCSRView[VT,ET,WT](GraphCompressedSparseBaseView[VT,ET,WT]):
+        GraphCSRView()
+        GraphCSRView(const VT *, const ET *, const WT *, size_t, size_t)
+
+    cdef cppclass GraphCSCView[VT,ET,WT](GraphCompressedSparseBaseView[VT,ET,WT]):
+        GraphCSCView()
+        GraphCSCView(const VT *, const ET *, const WT *, size_t, size_t)
+
+    cdef cppclass GraphCOOContents[VT,ET,WT]:
+        VT number_of_vertices
+        ET number_of_edges
+        unique_ptr[device_buffer] src_indices
+        unique_ptr[device_buffer] dst_indices
+        unique_ptr[device_buffer] edge_data
+
+    cdef cppclass GraphCOO[VT,ET,WT]:
+        GraphCOO(
+                VT nv,
+                ET ne,
+                bool has_data) except+
+        GraphCOOContents[VT,ET,WT] release()
+        GraphCOOView[VT,ET,WT] view()
+
+    cdef cppclass GraphSparseContents[VT,ET,WT]:
+        VT number_of_vertices
+        ET number_of_edges
+        unique_ptr[device_buffer] offsets
+        unique_ptr[device_buffer] indices
+        unique_ptr[device_buffer] edge_data
+
+    cdef cppclass GraphCSC[VT,ET,WT]:
+        GraphCSC(
+                VT nv,
+                ET ne,
+                bool has_data) except+
+        GraphSparseContents[VT,ET,WT] release()
+        GraphCSCView[VT,ET,WT] view()
+
+    cdef cppclass GraphCSR[VT,ET,WT]:
+        GraphCSR(
+                VT nv,
+                ET ne,
+                bool has_data) except+
+        GraphSparseContents[VT,ET,WT] release()
+        GraphCSRView[VT,ET,WT] view()
 
 
-    cdef void renumber_vertices(
-        const gdf_column *src,
-        const gdf_column *dst,
-        gdf_column *src_renumbered,
-        gdf_column *dst_renumbered,
-        gdf_column *numbering_map) except +
 
-    cdef void edge_list_view(
-        Graph *graph,
-        const gdf_column *source_indices,
-        const gdf_column *destination_indices,
-        const gdf_column *edge_data) except +
-    cdef void add_edge_list(Graph *graph) except +
-    cdef void delete_edge_list(Graph *graph) except +
+cdef extern from "algorithms.hpp" namespace "cugraph":
 
-    cdef void adj_list_view (
-        Graph *graph,
-        const gdf_column *offsets,
-        const gdf_column *indices,
-        const gdf_column *edge_data) except +
-    cdef void add_adj_list(Graph *graph) except +
-    cdef void delete_adj_list(Graph *graph) except +
+    cdef unique_ptr[GraphCOO[VT, ET, WT]] get_two_hop_neighbors[VT,ET,WT](
+        const GraphCSRView[VT, ET, WT] &graph) except +
 
-    cdef void transposed_adj_list_view (
-        Graph *graph,
-        const gdf_column *offsets,
-        const gdf_column *indices,
-        const gdf_column *edge_data) except +
-    cdef void add_transposed_adj_list(Graph *graph) except +
-    cdef void delete_transposed_adj_list(Graph *graph) except +
+cdef extern from "functions.hpp" namespace "cugraph":
 
-    cdef void get_two_hop_neighbors(
-        Graph* graph,
-        gdf_column* first,
-        gdf_column* second) except +
+    cdef unique_ptr[device_buffer] renumber_vertices[VT_IN,VT_OUT,ET](
+        ET number_of_edges,
+        const VT_IN *src,
+        const VT_IN *dst,
+        VT_OUT *src_renumbered,
+        VT_OUT *dst_renumbered,
+        ET *map_size) except +
 
-    cdef void degree(
-        Graph *graph,
-        gdf_column *degree,
-        int x) except +
 
-    cdef void number_of_vertices(Graph *graph) except +
+cdef extern from "<utility>" namespace "std" nogil:
+    cdef unique_ptr[GraphCOO[int,int,float]] move(unique_ptr[GraphCOO[int,int,float]])
+    cdef unique_ptr[GraphCOO[int,int,double]] move(unique_ptr[GraphCOO[int,int,double]])
+    cdef GraphCOOContents[int,int,float] move(GraphCOOContents[int,int,float])
+    cdef GraphCOOContents[int,int,double] move(GraphCOOContents[int,int,double])
+    cdef device_buffer move(device_buffer)
+    cdef unique_ptr[device_buffer] move(unique_ptr[device_buffer])
+    cdef unique_ptr[GraphCSR[int,int,float]] move(unique_ptr[GraphCSR[int,int,float]])
+    cdef unique_ptr[GraphCSR[int,int,double]] move(unique_ptr[GraphCSR[int,int,double]])
+    cdef GraphSparseContents[int,int,float] move(GraphSparseContents[int,int,float])
+    cdef GraphSparseContents[int,int,double] move(GraphSparseContents[int,int,double])
+
+ctypedef unique_ptr[GraphCOO[int,int,float]] GraphCOOPtrFloat
+ctypedef unique_ptr[GraphCOO[int,int,double]] GraphCOOPtrDouble
+
+ctypedef fused GraphCOOPtrType:
+    GraphCOOPtrFloat
+    GraphCOOPtrDouble
+
+ctypedef unique_ptr[GraphCSR[int,int,float]] GraphCSRPtrFloat
+ctypedef unique_ptr[GraphCSR[int,int,double]] GraphCSRPtrDouble
+
+ctypedef fused GraphCSRPtrType:
+    GraphCSRPtrFloat
+    GraphCSRPtrDouble
+
+ctypedef GraphCOOView[int,int,float] GraphCOOViewFloat
+ctypedef GraphCOOView[int,int,double] GraphCOOViewDouble
+ctypedef GraphCSRView[int,int,float] GraphCSRViewFloat
+ctypedef GraphCSRView[int,int,double] GraphCSRViewDouble
+
+ctypedef fused GraphCOOViewType:
+    GraphCOOViewFloat
+    GraphCOOViewDouble
+
+ctypedef fused GraphCSRViewType:
+    GraphCSRViewFloat
+    GraphCSRViewDouble
+
+ctypedef fused GraphViewType:
+    GraphCOOViewFloat
+    GraphCOOViewDouble
+    GraphCSRViewFloat
+    GraphCSRViewDouble
+
+cdef coo_to_df(GraphCOOPtrType graph)
+cdef csr_to_series(GraphCSRPtrType graph)
+cdef GraphViewType get_graph_view(input_graph, bool weightless=*, GraphViewType* dummy=*)

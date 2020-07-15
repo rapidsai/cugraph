@@ -12,13 +12,9 @@
 # limitations under the License.
 
 import gc
-from itertools import product
-
 import pytest
-
 import cugraph
 from cugraph.tests import utils
-import rmm
 
 # Temporarily suppress warnings till networkX fixes deprecation warnings
 # (Using or importing the ABCs from 'collections' instead of from
@@ -47,26 +43,13 @@ def calc_core_number(graph_file):
     nc = nx.core_number(Gnx)
     pdf = [nc[k] for k in sorted(nc.keys())]
     cn['nx_core_number'] = pdf
-    cn = cn.rename({'core_number': 'cu_core_number'})
+    cn = cn.rename(columns={'core_number': 'cu_core_number'}, copy=False)
     return cn
 
 
-DATASETS = ['../datasets/dolphins.csv',
-            '../datasets/netscience.csv']
-
-
-@pytest.mark.parametrize('managed, pool',
-                         list(product([False, True], [False, True])))
-@pytest.mark.parametrize('graph_file', DATASETS)
-def test_core_number(managed, pool, graph_file):
+@pytest.mark.parametrize('graph_file', utils.DATASETS)
+def test_core_number(graph_file):
     gc.collect()
-
-    rmm.reinitialize(
-        managed_memory=managed,
-        pool_allocator=pool
-    )
-
-    assert(rmm.is_initialized())
 
     cn = calc_core_number(graph_file)
 

@@ -20,11 +20,9 @@ from cugraph.structure.graph_new cimport *
 
 cdef extern from "algorithms.hpp" namespace "cugraph":
 
-    cdef void k_core[VT,ET,WT](
-        const GraphCOO[VT,ET,WT] &in_graph,
+    cdef unique_ptr[GraphCOO[VT,ET,WT]] k_core[VT,ET,WT](
+        const GraphCOOView[VT,ET,WT] &in_graph,
         int k,
         const VT *vertex_id,
         const VT *core_number,
-        VT num_vertex_ids,
-        GraphCOO[VT,ET,WT] &out_graph) except +
-
+        VT num_vertex_ids) except +

@@ -18,10 +18,10 @@
 
 #include <iostream>
 
-#include <cub/cub.cuh>
 #include <utilities/sm_utils.h>
-#include "utilities/error_utils.h"
+#include <cub/cub.cuh>
 #include "traversal_common.cuh"
+#include "utilities/error.hpp"
 namespace cugraph {
 namespace detail {
 namespace sssp_kernels {
@@ -30,24 +30,25 @@ namespace sssp_kernels {
 // nodes and predecessors
 template <typename IndexType, typename DistType>
 __global__ void populate_frontier_and_preds(
-    const IndexType* row_ptr,
-    const IndexType* col_ind,
-    const DistType* edge_weights,
-    const IndexType* frontier,
-    const IndexType frontier_size,
-    const IndexType totaldegree,
-    const IndexType max_items_per_thread,
-    IndexType* new_frontier,
-    IndexType* new_frontier_cnt,
-    const IndexType* frontier_degrees_exclusive_sum,
-    const IndexType* frontier_degrees_exclusive_sum_buckets_offsets,
-    int* next_frontier_bmap,
-    const int* relaxed_edges_bmap,
-    const int* isolated_bmap,
-    DistType* distances,
-    DistType* next_distances,
-    IndexType* predecessors,
-    const int* edge_mask) {
+  const IndexType* row_ptr,
+  const IndexType* col_ind,
+  const DistType* edge_weights,
+  const IndexType* frontier,
+  const IndexType frontier_size,
+  const IndexType totaldegree,
+  const IndexType max_items_per_thread,
+  IndexType* new_frontier,
+  IndexType* new_frontier_cnt,
+  const IndexType* frontier_degrees_exclusive_sum,
+  const IndexType* frontier_degrees_exclusive_sum_buckets_offsets,
+  int* next_frontier_bmap,
+  const int* relaxed_edges_bmap,
+  const int* isolated_bmap,
+  DistType* distances,
+  DistType* next_distances,
+  IndexType* predecessors,
+  const int* edge_mask)
+{
   // BlockScan
   typedef cub::BlockScan<IndexType, TOP_DOWN_EXPAND_DIMX> BlockScan;
   __shared__ typename BlockScan::TempStorage scan_storage;
@@ -56,15 +57,12 @@ __global__ void populate_frontier_and_preds(
   // This will contain the common offset of the block
   __shared__ IndexType frontier_common_block_offset;
 
-  __shared__ IndexType
-      shared_buckets_offsets[TOP_DOWN_EXPAND_DIMX - NBUCKETS_PER_BLOCK + 1];
-  __shared__ IndexType
-      shared_frontier_degrees_exclusive_sum[TOP_DOWN_EXPAND_DIMX + 1];
+  __shared__ IndexType shared_buckets_offsets[TOP_DOWN_EXPAND_DIMX - NBUCKETS_PER_BLOCK + 1];
+  __shared__ IndexType shared_frontier_degrees_exclusive_sum[TOP_DOWN_EXPAND_DIMX + 1];
 
   IndexType block_offset = (blockDim.x * blockIdx.x) * max_items_per_thread;
   IndexType n_items_per_thread_left =
-      (totaldegree - block_offset + TOP_DOWN_EXPAND_DIMX - 1) /
-      TOP_DOWN_EXPAND_DIMX;
+    (totaldegree - block_offset + TOP_DOWN_EXPAND_DIMX - 1) / TOP_DOWN_EXPAND_DIMX;
 
   n_items_per_thread_left = min(max_items_per_thread, n_items_per_thread_left);
 
@@ -74,15 +72,14 @@ __global__ void populate_frontier_and_preds(
        n_items_per_thread_left -= MAX_ITEMS_PER_THREAD_PER_OFFSETS_LOAD) {
     // In this loop, we will process batch_set_size batches
     IndexType nitems_per_thread =
-        min(n_items_per_thread_left,
-            (IndexType)MAX_ITEMS_PER_THREAD_PER_OFFSETS_LOAD);
+      min(n_items_per_thread_left, (IndexType)MAX_ITEMS_PER_THREAD_PER_OFFSETS_LOAD);
 
     // Loading buckets offset (see compute_bucket_offsets_kernel)
 
     if (threadIdx.x < (nitems_per_thread * NBUCKETS_PER_BLOCK + 1))
       shared_buckets_offsets[threadIdx.x] =
-          frontier_degrees_exclusive_sum_buckets_offsets
-              [block_offset / TOP_DOWN_BUCKET_SIZE + threadIdx.x];
+        frontier_degrees_exclusive_sum_buckets_offsets[block_offset / TOP_DOWN_BUCKET_SIZE +
+                                                       threadIdx.x];
 
     // We will use shared_buckets_offsets
     __syncthreads();
@@ -116,7 +113,7 @@ __global__ void populate_frontier_and_preds(
     // It is excepted to fit on the first try, that's why we start right =
     // nitems_per_thread
 
-    IndexType left = 0;
+    IndexType left  = 0;
     IndexType right = nitems_per_thread;
 
     while (left < nitems_per_thread) {
@@ -127,9 +124,8 @@ __global__ void populate_frontier_and_preds(
       // We need the next val for the binary search, hence the +1
       //
 
-      IndexType nvalues_to_load =
-          shared_buckets_offsets[right * NBUCKETS_PER_BLOCK] -
-          shared_buckets_offsets[left * NBUCKETS_PER_BLOCK] + 1;
+      IndexType nvalues_to_load = shared_buckets_offsets[right * NBUCKETS_PER_BLOCK] -
+                                  shared_buckets_offsets[left * NBUCKETS_PER_BLOCK] + 1;
 
       // If left = right + 1 we are sure to have nvalues_to_load <
       // TOP_DOWN_EXPAND_DIMX+1
@@ -137,25 +133,23 @@ __global__ void populate_frontier_and_preds(
         --right;
 
         nvalues_to_load = shared_buckets_offsets[right * NBUCKETS_PER_BLOCK] -
-            shared_buckets_offsets[left * NBUCKETS_PER_BLOCK] + 1;
+                          shared_buckets_offsets[left * NBUCKETS_PER_BLOCK] + 1;
       }
 
       IndexType nitems_per_thread_for_this_load = right - left;
 
       IndexType frontier_degrees_exclusive_sum_block_offset =
-          shared_buckets_offsets[left * NBUCKETS_PER_BLOCK];
+        shared_buckets_offsets[left * NBUCKETS_PER_BLOCK];
 
       if (threadIdx.x < nvalues_to_load) {
         shared_frontier_degrees_exclusive_sum[threadIdx.x] =
-            frontier_degrees_exclusive_sum
-                [frontier_degrees_exclusive_sum_block_offset + threadIdx.x];
+          frontier_degrees_exclusive_sum[frontier_degrees_exclusive_sum_block_offset + threadIdx.x];
       }
 
       if (nvalues_to_load == (TOP_DOWN_EXPAND_DIMX + 1) && threadIdx.x == 0) {
         shared_frontier_degrees_exclusive_sum[TOP_DOWN_EXPAND_DIMX] =
-            frontier_degrees_exclusive_sum
-                [frontier_degrees_exclusive_sum_block_offset +
-                 TOP_DOWN_EXPAND_DIMX];
+          frontier_degrees_exclusive_sum[frontier_degrees_exclusive_sum_block_offset +
+                                         TOP_DOWN_EXPAND_DIMX];
       }
 
       // shared_frontier_degrees_exclusive_sum is in shared mem, we will use
@@ -164,52 +158,43 @@ __global__ void populate_frontier_and_preds(
 
       // Now we will process the edges
       // Here each thread will process nitems_per_thread_for_this_load
-      for (IndexType item_index = 0;
-           item_index < nitems_per_thread_for_this_load;
+      for (IndexType item_index = 0; item_index < nitems_per_thread_for_this_load;
            item_index += TOP_DOWN_BATCH_SIZE) {
         // We process TOP_DOWN_BATCH_SIZE edge in parallel (instruction
         // parallism)
         // Reduces latency
 
         IndexType current_max_edge_index =
-            min(block_offset +
-                    (left + nitems_per_thread_for_this_load) * blockDim.x,
-                totaldegree);
+          min(block_offset + (left + nitems_per_thread_for_this_load) * blockDim.x, totaldegree);
 
         IndexType naccepted_vertices = 0;
         IndexType vec_frontier_candidate[TOP_DOWN_BATCH_SIZE];
 
 #pragma unroll
         for (IndexType iv = 0; iv < TOP_DOWN_BATCH_SIZE; ++iv) {
-          IndexType ibatch = left + item_index + iv;
-          IndexType gid = block_offset + ibatch * blockDim.x + threadIdx.x;
+          IndexType ibatch           = left + item_index + iv;
+          IndexType gid              = block_offset + ibatch * blockDim.x + threadIdx.x;
           vec_frontier_candidate[iv] = -1;
 
           if (gid < current_max_edge_index) {
-            IndexType start_off_idx =
-                (ibatch * blockDim.x + threadIdx.x) / TOP_DOWN_BUCKET_SIZE;
-            IndexType bucket_start = shared_buckets_offsets[start_off_idx] -
-                frontier_degrees_exclusive_sum_block_offset;
+            IndexType start_off_idx = (ibatch * blockDim.x + threadIdx.x) / TOP_DOWN_BUCKET_SIZE;
+            IndexType bucket_start =
+              shared_buckets_offsets[start_off_idx] - frontier_degrees_exclusive_sum_block_offset;
             IndexType bucket_end = shared_buckets_offsets[start_off_idx + 1] -
-                frontier_degrees_exclusive_sum_block_offset;
+                                   frontier_degrees_exclusive_sum_block_offset;
 
             IndexType k = traversal::binsearch_maxle(
-                              shared_frontier_degrees_exclusive_sum,
-                              gid,
-                              bucket_start,
-                              bucket_end) +
-                frontier_degrees_exclusive_sum_block_offset;
+                            shared_frontier_degrees_exclusive_sum, gid, bucket_start, bucket_end) +
+                          frontier_degrees_exclusive_sum_block_offset;
 
             IndexType src_id = frontier[k];  // origin of this edge
-            IndexType edge =
-                row_ptr[src_id] + gid - frontier_degrees_exclusive_sum[k];
+            IndexType edge   = row_ptr[src_id] + gid - frontier_degrees_exclusive_sum[k];
 
-            bool was_edge_relaxed =
-                relaxed_edges_bmap[gid / INT_SIZE] & (1 << (gid % INT_SIZE));
+            bool was_edge_relaxed = relaxed_edges_bmap[gid / INT_SIZE] & (1 << (gid % INT_SIZE));
             // Check if this edge was relaxed in relax_edges earlier
             if (was_edge_relaxed) {
-              IndexType dst_id = col_ind[edge];
-              DistType dst_val = next_distances[dst_id];
+              IndexType dst_id      = col_ind[edge];
+              DistType dst_val      = next_distances[dst_id];
               DistType expected_val = distances[src_id] + edge_weights[edge];
 
               if (expected_val == dst_val) {
@@ -219,8 +204,8 @@ __global__ void populate_frontier_and_preds(
                 // Set bit in next_frontier_bmap to 1 and check for old value
                 // to check for success
 
-                int old_val = atomicOr(&next_frontier_bmap[dst_id / INT_SIZE],
-                                       1 << (dst_id % INT_SIZE));
+                int old_val =
+                  atomicOr(&next_frontier_bmap[dst_id / INT_SIZE], 1 << (dst_id % INT_SIZE));
 
                 bool fail = (old_val >> (dst_id % INT_SIZE)) & 1;
 
@@ -228,9 +213,7 @@ __global__ void populate_frontier_and_preds(
                   // Add dst_id to frontier if dst is not isolated
                   // (Can't have zero degree verts in frontier for the
                   // bucket/prefix-sum logic to work)
-                  bool is_isolated = (isolated_bmap[dst_id / INT_SIZE] >>
-                                      (dst_id % INT_SIZE)) &
-                      1;
+                  bool is_isolated = (isolated_bmap[dst_id / INT_SIZE] >> (dst_id % INT_SIZE)) & 1;
 
                   if (!is_isolated) {
                     vec_frontier_candidate[iv] = dst_id;
@@ -238,9 +221,7 @@ __global__ void populate_frontier_and_preds(
                   }
 
                   // Add src_id to predecessor in either case if needed
-                  if (predecessors) {
-                    predecessors[dst_id] = src_id;
-                  }
+                  if (predecessors) { predecessors[dst_id] = src_id; }
                 }
                 // else lost the tie
               }
@@ -256,17 +237,14 @@ __global__ void populate_frontier_and_preds(
 
         // Computing block offsets
         IndexType thread_new_frontier_offset = 0;  // offset inside block
-        BlockScan(scan_storage)
-            .ExclusiveSum(naccepted_vertices, thread_new_frontier_offset);
+        BlockScan(scan_storage).ExclusiveSum(naccepted_vertices, thread_new_frontier_offset);
 
         if (threadIdx.x == (TOP_DOWN_EXPAND_DIMX - 1)) {
-          IndexType inclusive_sum =
-              thread_new_frontier_offset + naccepted_vertices;
+          IndexType inclusive_sum = thread_new_frontier_offset + naccepted_vertices;
           // for this thread, thread_new_frontier_offset + has_successor
           // (exclusive sum)
           if (inclusive_sum)
-            frontier_common_block_offset =
-                atomicAdd(new_frontier_cnt, inclusive_sum);
+            frontier_common_block_offset = atomicAdd(new_frontier_cnt, inclusive_sum);
         }
 
         // Broadcasting frontier_common_block_offset
@@ -277,8 +255,7 @@ __global__ void populate_frontier_and_preds(
           IndexType frontier_candidate = vec_frontier_candidate[iv];
 
           if (frontier_candidate != -1) {
-            IndexType off =
-                frontier_common_block_offset + thread_new_frontier_offset++;
+            IndexType off     = frontier_common_block_offset + thread_new_frontier_offset++;
             new_frontier[off] = frontier_candidate;
           }
         }
@@ -288,7 +265,7 @@ __global__ void populate_frontier_and_preds(
       __syncthreads();
 
       // Preparing for next load
-      left = right;
+      left  = right;
       right = nitems_per_thread;
     }
 
@@ -298,29 +275,26 @@ __global__ void populate_frontier_and_preds(
 }
 
 template <typename IndexType, typename DistType>
-__global__ void relax_edges(
-    const IndexType* row_ptr,
-    const IndexType* col_ind,
-    const DistType* edge_weights,
-    const IndexType* frontier,
-    const IndexType frontier_size,
-    const IndexType totaldegree,
-    const IndexType max_items_per_thread,
-    const IndexType* frontier_degrees_exclusive_sum,
-    const IndexType* frontier_degrees_exclusive_sum_buckets_offsets,
-    int* relaxed_edges_bmap,
-    DistType* distances,
-    DistType* next_distances,
-    const int* edge_mask) {
-  __shared__ IndexType
-      shared_buckets_offsets[TOP_DOWN_EXPAND_DIMX - NBUCKETS_PER_BLOCK + 1];
-  __shared__ IndexType
-      shared_frontier_degrees_exclusive_sum[TOP_DOWN_EXPAND_DIMX + 1];
+__global__ void relax_edges(const IndexType* row_ptr,
+                            const IndexType* col_ind,
+                            const DistType* edge_weights,
+                            const IndexType* frontier,
+                            const IndexType frontier_size,
+                            const IndexType totaldegree,
+                            const IndexType max_items_per_thread,
+                            const IndexType* frontier_degrees_exclusive_sum,
+                            const IndexType* frontier_degrees_exclusive_sum_buckets_offsets,
+                            int* relaxed_edges_bmap,
+                            DistType* distances,
+                            DistType* next_distances,
+                            const int* edge_mask)
+{
+  __shared__ IndexType shared_buckets_offsets[TOP_DOWN_EXPAND_DIMX - NBUCKETS_PER_BLOCK + 1];
+  __shared__ IndexType shared_frontier_degrees_exclusive_sum[TOP_DOWN_EXPAND_DIMX + 1];
 
   IndexType block_offset = (blockDim.x * blockIdx.x) * max_items_per_thread;
   IndexType n_items_per_thread_left =
-      (totaldegree - block_offset + TOP_DOWN_EXPAND_DIMX - 1) /
-      TOP_DOWN_EXPAND_DIMX;
+    (totaldegree - block_offset + TOP_DOWN_EXPAND_DIMX - 1) / TOP_DOWN_EXPAND_DIMX;
 
   n_items_per_thread_left = min(max_items_per_thread, n_items_per_thread_left);
 
@@ -330,15 +304,14 @@ __global__ void relax_edges(
        n_items_per_thread_left -= MAX_ITEMS_PER_THREAD_PER_OFFSETS_LOAD) {
     // In this loop, we will process batch_set_size batches
     IndexType nitems_per_thread =
-        min(n_items_per_thread_left,
-            (IndexType)MAX_ITEMS_PER_THREAD_PER_OFFSETS_LOAD);
+      min(n_items_per_thread_left, (IndexType)MAX_ITEMS_PER_THREAD_PER_OFFSETS_LOAD);
 
     // Loading buckets offset (see compute_bucket_offsets_kernel)
 
     if (threadIdx.x < (nitems_per_thread * NBUCKETS_PER_BLOCK + 1))
       shared_buckets_offsets[threadIdx.x] =
-          frontier_degrees_exclusive_sum_buckets_offsets
-              [block_offset / TOP_DOWN_BUCKET_SIZE + threadIdx.x];
+        frontier_degrees_exclusive_sum_buckets_offsets[block_offset / TOP_DOWN_BUCKET_SIZE +
+                                                       threadIdx.x];
 
     // We will use shared_buckets_offsets
     __syncthreads();
@@ -372,7 +345,7 @@ __global__ void relax_edges(
     // It is excepted to fit on the first try, that's why we start right =
     // nitems_per_thread
 
-    IndexType left = 0;
+    IndexType left  = 0;
     IndexType right = nitems_per_thread;
 
     while (left < nitems_per_thread) {
@@ -383,9 +356,8 @@ __global__ void relax_edges(
       // We need the next val for the binary search, hence the +1
       //
 
-      IndexType nvalues_to_load =
-          shared_buckets_offsets[right * NBUCKETS_PER_BLOCK] -
-          shared_buckets_offsets[left * NBUCKETS_PER_BLOCK] + 1;
+      IndexType nvalues_to_load = shared_buckets_offsets[right * NBUCKETS_PER_BLOCK] -
+                                  shared_buckets_offsets[left * NBUCKETS_PER_BLOCK] + 1;
 
       // If left = right + 1 we are sure to have nvalues_to_load <
       // TOP_DOWN_EXPAND_DIMX+1
@@ -393,25 +365,23 @@ __global__ void relax_edges(
         --right;
 
         nvalues_to_load = shared_buckets_offsets[right * NBUCKETS_PER_BLOCK] -
-            shared_buckets_offsets[left * NBUCKETS_PER_BLOCK] + 1;
+                          shared_buckets_offsets[left * NBUCKETS_PER_BLOCK] + 1;
       }
 
       IndexType nitems_per_thread_for_this_load = right - left;
 
       IndexType frontier_degrees_exclusive_sum_block_offset =
-          shared_buckets_offsets[left * NBUCKETS_PER_BLOCK];
+        shared_buckets_offsets[left * NBUCKETS_PER_BLOCK];
 
       if (threadIdx.x < nvalues_to_load) {
         shared_frontier_degrees_exclusive_sum[threadIdx.x] =
-            frontier_degrees_exclusive_sum
-                [frontier_degrees_exclusive_sum_block_offset + threadIdx.x];
+          frontier_degrees_exclusive_sum[frontier_degrees_exclusive_sum_block_offset + threadIdx.x];
       }
 
       if (nvalues_to_load == (TOP_DOWN_EXPAND_DIMX + 1) && threadIdx.x == 0) {
         shared_frontier_degrees_exclusive_sum[TOP_DOWN_EXPAND_DIMX] =
-            frontier_degrees_exclusive_sum
-                [frontier_degrees_exclusive_sum_block_offset +
-                 TOP_DOWN_EXPAND_DIMX];
+          frontier_degrees_exclusive_sum[frontier_degrees_exclusive_sum_block_offset +
+                                         TOP_DOWN_EXPAND_DIMX];
       }
 
       // shared_frontier_degrees_exclusive_sum is in shared mem, we will use
@@ -420,48 +390,40 @@ __global__ void relax_edges(
 
       // Now we will process the edges
       // Here each thread will process nitems_per_thread_for_this_load
-      for (IndexType item_index = 0;
-           item_index < nitems_per_thread_for_this_load;
+      for (IndexType item_index = 0; item_index < nitems_per_thread_for_this_load;
            item_index += TOP_DOWN_BATCH_SIZE) {
         // We process TOP_DOWN_BATCH_SIZE edge in parallel (instruction
         // parallism)
         // Reduces latency
 
         IndexType current_max_edge_index =
-            min(block_offset +
-                    (left + nitems_per_thread_for_this_load) * blockDim.x,
-                totaldegree);
+          min(block_offset + (left + nitems_per_thread_for_this_load) * blockDim.x, totaldegree);
 
 #pragma unroll
         for (IndexType iv = 0; iv < TOP_DOWN_BATCH_SIZE; ++iv) {
           IndexType ibatch = left + item_index + iv;
-          IndexType gid = block_offset + ibatch * blockDim.x + threadIdx.x;
+          IndexType gid    = block_offset + ibatch * blockDim.x + threadIdx.x;
 
           if (gid < current_max_edge_index) {
-            IndexType start_off_idx =
-                (ibatch * blockDim.x + threadIdx.x) / TOP_DOWN_BUCKET_SIZE;
-            IndexType bucket_start = shared_buckets_offsets[start_off_idx] -
-                frontier_degrees_exclusive_sum_block_offset;
+            IndexType start_off_idx = (ibatch * blockDim.x + threadIdx.x) / TOP_DOWN_BUCKET_SIZE;
+            IndexType bucket_start =
+              shared_buckets_offsets[start_off_idx] - frontier_degrees_exclusive_sum_block_offset;
             IndexType bucket_end = shared_buckets_offsets[start_off_idx + 1] -
-                frontier_degrees_exclusive_sum_block_offset;
+                                   frontier_degrees_exclusive_sum_block_offset;
 
             IndexType k = traversal::binsearch_maxle(
-                              shared_frontier_degrees_exclusive_sum,
-                              gid,
-                              bucket_start,
-                              bucket_end) +
-                frontier_degrees_exclusive_sum_block_offset;
+                            shared_frontier_degrees_exclusive_sum, gid, bucket_start, bucket_end) +
+                          frontier_degrees_exclusive_sum_block_offset;
 
             IndexType src_id = frontier[k];
-            IndexType edge =
-                row_ptr[frontier[k]] + gid - frontier_degrees_exclusive_sum[k];
+            IndexType edge   = row_ptr[frontier[k]] + gid - frontier_degrees_exclusive_sum[k];
             IndexType dst_id = col_ind[edge];
 
             // Try to relax non-masked edges
             if (!edge_mask || edge_mask[edge]) {
               DistType* update_addr = &next_distances[dst_id];
-              DistType old_val = distances[dst_id];
-              DistType new_val = distances[src_id] + edge_weights[edge];
+              DistType old_val      = distances[dst_id];
+              DistType new_val      = distances[src_id] + edge_weights[edge];
               if (new_val < old_val) {
                 // This edge can be relaxed
 
@@ -509,7 +471,7 @@ __global__ void relax_edges(
       __syncthreads();
 
       // Preparing for next load
-      left = right;
+      left  = right;
       right = nitems_per_thread;
     }
 
@@ -519,76 +481,75 @@ __global__ void relax_edges(
 }
 
 template <typename IndexType, typename DistType>
-void frontier_expand(
-    const IndexType* row_ptr,
-    const IndexType* col_ind,
-    const DistType* edge_weights,
-    const IndexType* frontier,
-    const IndexType frontier_size,
-    const IndexType totaldegree,
-    IndexType* new_frontier,
-    IndexType* new_frontier_cnt,
-    const IndexType* frontier_degrees_exclusive_sum,
-    const IndexType* frontier_degrees_exclusive_sum_buckets_offsets,
-    DistType* distances,
-    DistType* next_distances,
-    IndexType* predecessors,
-    const int* edge_mask,
-    int* next_frontier_bmap,
-    int* relaxed_edges_bmap,
-    const int* isolated_bmap,
-    cudaStream_t m_stream) {
-  if (!totaldegree)
-    return;
+void frontier_expand(const IndexType* row_ptr,
+                     const IndexType* col_ind,
+                     const DistType* edge_weights,
+                     const IndexType* frontier,
+                     const IndexType frontier_size,
+                     const IndexType totaldegree,
+                     IndexType* new_frontier,
+                     IndexType* new_frontier_cnt,
+                     const IndexType* frontier_degrees_exclusive_sum,
+                     const IndexType* frontier_degrees_exclusive_sum_buckets_offsets,
+                     DistType* distances,
+                     DistType* next_distances,
+                     IndexType* predecessors,
+                     const int* edge_mask,
+                     int* next_frontier_bmap,
+                     int* relaxed_edges_bmap,
+                     const int* isolated_bmap,
+                     cudaStream_t m_stream)
+{
+  if (!totaldegree) return;
 
   dim3 block;
   block.x = TOP_DOWN_EXPAND_DIMX;
 
-  IndexType max_items_per_thread =
-      (totaldegree + MAXBLOCKS * block.x - 1) / (MAXBLOCKS * block.x);
+  IndexType max_items_per_thread = (totaldegree + MAXBLOCKS * block.x - 1) / (MAXBLOCKS * block.x);
 
   dim3 grid;
-  grid.x = min((totaldegree + max_items_per_thread * block.x - 1) /
-                   (max_items_per_thread * block.x),
-               (IndexType)MAXBLOCKS);
+  grid.x =
+    min((totaldegree + max_items_per_thread * block.x - 1) / (max_items_per_thread * block.x),
+        (IndexType)MAXBLOCKS);
 
   // Relax edges going out from the current frontier
-  relax_edges<<<grid, block, 0, m_stream>>>(
-      row_ptr,
-      col_ind,
-      edge_weights,
-      frontier,
-      frontier_size,
-      totaldegree,
-      max_items_per_thread,
-      frontier_degrees_exclusive_sum,
-      frontier_degrees_exclusive_sum_buckets_offsets,
-      relaxed_edges_bmap,
-      distances,
-      next_distances,
-      edge_mask);
+  relax_edges<<<grid, block, 0, m_stream>>>(row_ptr,
+                                            col_ind,
+                                            edge_weights,
+                                            frontier,
+                                            frontier_size,
+                                            totaldegree,
+                                            max_items_per_thread,
+                                            frontier_degrees_exclusive_sum,
+                                            frontier_degrees_exclusive_sum_buckets_offsets,
+                                            relaxed_edges_bmap,
+                                            distances,
+                                            next_distances,
+                                            edge_mask);
 
   // Revisit relaxed edges and update the next frontier and preds
   populate_frontier_and_preds<<<grid, block, 0, m_stream>>>(
-      row_ptr,
-      col_ind,
-      edge_weights,
-      frontier,
-      frontier_size,
-      totaldegree,
-      max_items_per_thread,
-      new_frontier,
-      new_frontier_cnt,
-      frontier_degrees_exclusive_sum,
-      frontier_degrees_exclusive_sum_buckets_offsets,
-      next_frontier_bmap,
-      relaxed_edges_bmap,
-      isolated_bmap,
-      distances,
-      next_distances,
-      predecessors,
-      edge_mask);
+    row_ptr,
+    col_ind,
+    edge_weights,
+    frontier,
+    frontier_size,
+    totaldegree,
+    max_items_per_thread,
+    new_frontier,
+    new_frontier_cnt,
+    frontier_degrees_exclusive_sum,
+    frontier_degrees_exclusive_sum_buckets_offsets,
+    next_frontier_bmap,
+    relaxed_edges_bmap,
+    isolated_bmap,
+    distances,
+    next_distances,
+    predecessors,
+    edge_mask);
 
-  CUDA_CHECK_LAST();
+  CHECK_CUDA(m_stream);
 }
-} } } //namespace
+}  // namespace sssp_kernels
+}  // namespace detail
+}  // namespace cugraph

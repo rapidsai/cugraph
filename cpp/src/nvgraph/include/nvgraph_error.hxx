@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019, NVIDIA CORPORATION.
+ * Copyright (c) 2019-2020, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -23,26 +23,8 @@
  
 #include "stacktrace.h"
 
-//#define VERBOSE_DIAG
-//#define DEBUG 1
-
 namespace nvgraph {
 
-typedef void (*NVGRAPH_output_callback)(const char *msg, int length); 
-extern NVGRAPH_output_callback nvgraph_output;
-extern NVGRAPH_output_callback error_output;
-extern NVGRAPH_output_callback nvgraph_distributed_output;
-int nvgraph_printf(const char* fmt, ...);
-
-#if defined(DEBUG) || defined(VERBOSE_DIAG)
-#define nvgraph_printf_debug(fmt,...) nvgraph_printf(fmt,##__VA_ARGS__)
-#define device_printf(fmt,...) printf(fmt,##__VA_ARGS__)
-#else
-#define nvgraph_printf_debug(fmt,...)
-#define device_printf(fmt,...)
-#endif
-
-// print stacktrace only in debug mode
 #if defined(DEBUG) || defined(VERBOSE_DIAG)
 #define STACKTRACE "\nStack trace:\n" + std::string(e.trace())
 #define WHERE " at: " << __FILE__ << ':' << __LINE__
@@ -136,36 +118,6 @@ int NVGRAPH_GetErrorString( NVGRAPH_ERROR error, char* buffer, int buf_len);
     }
 #endif
 
-// This is a gap filler, and should be replaced with a RAPIDS-wise error handling mechanism.
-#undef rmmCheckError
-#if defined(DEBUG) || defined(VERBOSE_DIAG)
-#define rmmCheckError(e) {                              \
-  if (e != RMM_SUCCESS) {                               \
-    std::stringstream _error;                           \
-    _error << "RMM failure.";                           \
-    FatalError(_error.str(), NVGRAPH_ERR_CUDA_FAILURE); \
-  }                                                     \
-}
-#else // NO DEBUG
-#define rmmCheckError(e)                              \
-    {                                                 \
-        if (e != RMM_SUCCESS) {                       \
-            FatalError("", NVGRAPH_ERR_CUDA_FAILURE); \
-        }                                             \
-    }
-#endif
-
-#define CHECK_CUDA(call)                                                      \
-    {                                                                         \
-        cudaError_t _e = (call);                                              \
-        if (_e != cudaSuccess)                                                \
-        {                                                                     \
-            std::stringstream _error;                                         \
-            _error << "CUDA Runtime failure: '#" << _e << "'";                \
-            FatalError(_error.str(), NVGRAPH_ERR_CUDA_FAILURE);               \
-        }                                                                     \
-    }
-
 #define CHECK_CURAND(call)                                                    \
     {                                                                         \
         curandStatus_t _e = (call);                                           \
@@ -209,57 +161,5 @@ int NVGRAPH_GetErrorString( NVGRAPH_ERROR error, char* buffer, int buf_len);
             FatalError(_error.str(), NVGRAPH_ERR_CUDA_FAILURE);               \
         }                                                                     \
     }
-
-#define NVGRAPH_CATCHES(rc) catch (nvgraph_exception e) {                                            \
-    std::string err = "Caught nvgraph exception: " + std::string(e.what())                           \
-        + std::string(e.where()) + STACKTRACE + "\n";                                                \
-    error_output(err.c_str(), static_cast<int>(err.length()));                                       \
-    rc = e.reason();                                                                                 \
-  } catch (std::bad_alloc e) {                                                                       \
-    std::string err = "Not enough memory: " + std::string(e.what())                                  \
-        + "\nFile and line number are not available for this exception.\n";                          \
-    error_output(err.c_str(), static_cast<int>(err.length()));                                       \
-    rc = NVGRAPH_ERR_NO_MEMORY;                                                                      \
-  } catch (std::exception e) {                                                                       \
-    std::string err = "Caught unknown exception: " + std::string(e.what())                           \
-        + "\nFile and line number are not available for this exception.\n";                          \
-    error_output(err.c_str(), static_cast<int>(err.length()));                                       \
-    rc = NVGRAPH_ERR_UNKNOWN;                                                                        \
-  } catch (...) {                                                                                    \
-    std::string err =                                                                                \
-        "Caught unknown exception\nFile and line number are not available for this exception.\n";    \
-    error_output(err.c_str(), static_cast<int>(err.length()));                                       \
-    rc = NVGRAPH_ERR_UNKNOWN;                                                                        \
-  }
-
-// Since there is no global-level thrust dependency, we don't include this globally. May add later
-  /*
-  catch (thrust::system_error &e) {                                                                \
-    std::string err = "Thrust failure: " + std::string(e.what())                                     \
-        + "\nFile and line number are not available for this exception.\n";                          \
-    error_output(err.c_str(), static_cast<int>(err.length()));                                       \
-    rc = NVGRAPH_ERR_THRUST_FAILURE;                                                                    \
-  } catch (thrust::system::detail::bad_alloc e) {                                                    \
-    std::string err = "Thrust failure: " + std::string(e.what())                                     \
-        + "\nFile and line number are not available for this exception.\n";                          \
-    error_output(err.c_str(), static_cast<int>(err.length()));                                       \
-    rc = NVGRAPH_ERR_NO_MEMORY;                                                                      \
-  } 
-  */
-
-
-
-  // simple cuda timer
-  // can be called in cpp files
-  class cuda_timer {
-  public:
-   cuda_timer(); 
-   void start();
-   float stop(); // in ms
-  private:
-    struct event_pair;
-    event_pair* p;    
-  };
-
 } // namespace nvgraph
 

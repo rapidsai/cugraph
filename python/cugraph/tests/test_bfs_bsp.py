@@ -12,7 +12,6 @@
 # limitations under the License.
 
 import gc
-from itertools import product
 import queue
 import time
 
@@ -21,7 +20,6 @@ import pytest
 
 import cugraph
 from cugraph.tests import utils
-import rmm
 
 # compute once
 _int_max = 2**31 - 1
@@ -68,28 +66,11 @@ def base_call(M, start_vertex):
     return vertex, dist
 
 
-DATASETS = ['../datasets/dolphins.csv',
-            '../datasets/karate.csv',
-            '../datasets/polbooks.csv',
-            '../datasets/netscience.csv',
-            '../datasets/email-Eu-core.csv']
-
-
 # Test all combinations of default/managed and pooled/non-pooled allocation
 @pytest.mark.skip(reason="SG BFS is not yet formally supported")
-@pytest.mark.parametrize('managed, pool',
-                         list(product([False, True], [False, True])))
-@pytest.mark.parametrize('graph_file', DATASETS)
+@pytest.mark.parametrize('graph_file', utils.DATASETS)
 def test_bfs(managed, pool, graph_file):
     gc.collect()
-
-    rmm.reinitialize(
-        managed_memory=managed,
-        pool_allocator=pool,
-        initial_pool_size=2 << 27
-    )
-
-    assert(rmm.is_initialized())
 
     M = utils.read_csv_for_nx(graph_file)
     cu_M = utils.read_csv_file(graph_file)

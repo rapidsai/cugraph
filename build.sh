@@ -18,12 +18,13 @@ ARGS=$*
 # script, and that this script resides in the repo dir!
 REPODIR=$(cd $(dirname $0); pwd)
 
-VALIDARGS="clean libcugraph cugraph -v -g -n --show_depr_warn -h --help"
+VALIDARGS="clean libcugraph cugraph docs -v -g -n --show_depr_warn -h --help"
 HELP="$0 [<target> ...] [<flag> ...]
  where <target> is:
    clean            - remove all existing build artifacts and configuration (start over)
    libcugraph       - build the cugraph C++ code
    cugraph          - build the cugraph Python package
+   docs             - build the docs
  and <flag> is:
    -v               - verbose build mode
    -g               - build for debug
@@ -120,4 +121,26 @@ if (( ${NUMARGS} == 0 )) || hasArg cugraph; then
     else
 	python setup.py build_ext --inplace --library-dir=${LIBCUGRAPH_BUILD_DIR}
     fi
+fi
+
+################################################################################
+# Build the docs
+if (( ${NUMARGS} == 0 )) || hasArg docs; then
+
+    if [ ! -d ${LIBCUGRAPH_BUILD_DIR} ]; then
+        mkdir -p ${LIBCUGRAPH_BUILD_DIR}
+        cd ${LIBCUGRAPH_BUILD_DIR}
+        cmake -DCMAKE_INSTALL_PREFIX=${INSTALL_PREFIX} \
+            -DCMAKE_CXX11_ABI=${BUILD_ABI} \
+	        -DDISABLE_DEPRECATION_WARNING=${BUILD_DISABLE_DEPRECATION_WARNING} \
+            -DCMAKE_BUILD_TYPE=${BUILD_TYPE} ..
+    fi
+
+    cd ${LIBCUGRAPH_BUILD_DIR}
+    
+    make -j${PARALLEL_LEVEL} VERBOSE=${VERBOSE} docs_cugraph
+
+    cd ${REPODIR}/docs
+    make html
+
 fi

@@ -17,6 +17,7 @@
 // Author: Prasun Gera pgera@nvidia.com
 
 #pragma once
+#include <rmm/thrust_rmm_allocator.h>
 
 namespace cugraph {
 namespace detail {
@@ -34,23 +35,24 @@ class SSSP {
   bool computePredecessors;
   DistType* distances;
   DistType* next_distances;
+  rmm::device_vector<DistType> distances_vals;
+  rmm::device_vector<DistType> next_distances_vals;
   IndexType* predecessors;
   int* edge_mask;
 
   // Working data
   IndexType nisolated;
-  IndexType *frontier, *new_frontier;
+  rmm::device_vector<IndexType> frontier, new_frontier;
   IndexType vertices_bmap_size, edges_bmap_size;
-  int *isolated_bmap, *relaxed_edges_bmap, *next_frontier_bmap;
-  IndexType* vertex_degree;
-  void* iter_buffer;
+  int *relaxed_edges_bmap, *next_frontier_bmap;
+  rmm::device_vector<int> isolated_bmap;
+  rmm::device_vector<IndexType> vertex_degree;
+  rmm::device_buffer iter_buffer;
   size_t iter_buffer_size;
-  IndexType* frontier_vertex_degree;
-  IndexType* exclusive_sum_frontier_vertex_degree;
-  IndexType* exclusive_sum_frontier_vertex_buckets_offsets;
+  rmm::device_vector<IndexType> frontier_vertex_degree;
+  rmm::device_vector<IndexType> exclusive_sum_frontier_vertex_degree;
+  rmm::device_vector<IndexType> exclusive_sum_frontier_vertex_buckets_offsets;
   IndexType* d_new_frontier_cnt;
-  void* d_cub_exclusive_sum_storage;
-  size_t cub_exclusive_sum_storage_bytes;
 
   cudaStream_t stream;
 
@@ -66,16 +68,18 @@ class SSSP {
        const IndexType* _col_indices,
        const DistType* _edge_weights,
        cudaStream_t _stream = 0)
-      : n(_n),
-        nnz(_nnz),
-        row_offsets(_row_offsets),
-        edge_weights(_edge_weights),
-        col_indices(_col_indices),
-        stream(_stream) {
+    : n(_n),
+      nnz(_nnz),
+      row_offsets(_row_offsets),
+      edge_weights(_edge_weights),
+      col_indices(_col_indices),
+      stream(_stream)
+  {
     setup();
   }
 
   void configure(DistType* distances, IndexType* predecessors, int* edge_mask);
   void traverse(IndexType source_vertex);
 };
-} } //namespace
+}  // namespace detail
+}  // namespace cugraph

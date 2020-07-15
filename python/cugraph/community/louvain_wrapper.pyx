@@ -1,4 +1,4 @@
-# Copyright (c) 2019, NVIDIA CORPORATION.
+# Copyright (c) 2019-2020, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -16,14 +16,11 @@
 # cython: embedsignature = True
 # cython: language_level = 3
 
-cimport cugraph.community.louvain as c_louvain
-from cugraph.structure.graph cimport *
-from cugraph.structure import graph_wrapper
-from cugraph.utilities.column_utils cimport *
+from cugraph.community.louvain cimport louvain as c_louvain
+from cugraph.structure.graph_new cimport *
+from cugraph.structure import graph_new_wrapper
 from cugraph.utilities.unrenumber import unrenumber
-from libcpp cimport bool
 from libc.stdint cimport uintptr_t
-from libc.stdlib cimport calloc, malloc, free
 
 import cudf
 import rmm
@@ -34,73 +31,65 @@ def louvain(input_graph, max_iter=100):
     """
     Call louvain
     """
-    cdef uintptr_t graph = graph_wrapper.allocate_cpp_graph()
-    cdef Graph * g = <Graph*> graph
+    if not input_graph.adjlist:
+        input_graph.view_adj_list()
 
-    if input_graph.adjlist:
-        [offsets, indices] = graph_wrapper.datatype_cast([input_graph.adjlist.offsets, input_graph.adjlist.indices], [np.int32])
-        [weights] = graph_wrapper.datatype_cast([input_graph.adjlist.weights], [np.float32, np.float64])
-        graph_wrapper.add_adj_list(graph, offsets, indices, weights)
+    weights = None
+    final_modularity = None
+
+    [offsets, indices] = graph_new_wrapper.datatype_cast([input_graph.adjlist.offsets, input_graph.adjlist.indices], [np.int32])
+
+    num_verts = input_graph.number_of_vertices()
+    num_edges = input_graph.number_of_edges(directed_edges=True)
+
+    if input_graph.adjlist.weights is not None:
+        [weights] = graph_new_wrapper.datatype_cast([input_graph.adjlist.weights], [np.float32, np.float64])
     else:
-        [src, dst] = graph_wrapper.datatype_cast([input_graph.edgelist.edgelist_df['src'], input_graph.edgelist.edgelist_df['dst']], [np.int32])
-        if input_graph.edgelist.weights:
-            [weights] = graph_wrapper.datatype_cast([input_graph.edgelist.edgelist_df['weights']], [np.float32, np.float64])
-            graph_wrapper.add_edge_list(graph, src, dst, weights)
-        else:
-            graph_wrapper.add_edge_list(graph, src, dst)
-        add_adj_list(g)
-        offsets, indices, values = graph_wrapper.get_adj_list(graph)
-        input_graph.adjlist = input_graph.AdjList(offsets, indices, values)
+        weights = cudf.Series(np.full(num_edges, 1.0, dtype=np.float32))
 
-    # we should add get_number_of_vertices() to Graph (and this should be
-    # used instead of g.adjList.offsets.size - 1)
-    num_verts = g.adjList.offsets.size - 1
-
+    # Create the output dataframe
     df = cudf.DataFrame()
     df['vertex'] = cudf.Series(np.zeros(num_verts, dtype=np.int32))
-    cdef gdf_column c_index_col = get_gdf_column_view(df['vertex'])
-    g.adjList.get_vertex_identifiers(&c_index_col)
-    
-
     df['partition'] = cudf.Series(np.zeros(num_verts,dtype=np.int32))
-    #cdef uintptr_t c_louvain_parts_ptr = get_column_data_ptr(df['partition']._column)
-    cdef uintptr_t c_louvain_parts_ptr = df['partition'].__cuda_array_interface__['data'][0]
-    
-    cdef bool single_precision = False
-    # this implementation is tied to cugraph.cu line 503
-    # cudaDataType_t val_type = graph->adjList->edge_data?
-    #     gdf_to_cudadtype(graph->adjList->edge_data): CUDA_R_32F;
-    # this is tied to the low-level implementation detail of the lower level
-    # function, and very vulnerable to low level changes. Better be
-    # reimplemented, but we are planning to eventually remove nvgraph, so I may
-    # leave as is right at this moment.
-    if g.adjList.edge_data:
-        if g.adjList.edge_data.dtype == GDF_FLOAT32:
-            single_precision = True;
-    else:
-        single_precision = True;
 
-    cdef float final_modularity_single_precision = 1.0
-    cdef double final_modularity_double_precision = 1.0
+    cdef uintptr_t c_offsets = offsets.__cuda_array_interface__['data'][0]
+    cdef uintptr_t c_indices = indices.__cuda_array_interface__['data'][0]
+    cdef uintptr_t c_identifier = df['vertex'].__cuda_array_interface__['data'][0]
+    cdef uintptr_t c_partition = df['partition'].__cuda_array_interface__['data'][0]
+    cdef uintptr_t c_weights = weights.__cuda_array_interface__['data'][0]
+
+    cdef GraphCSRView[int,int,float] graph_float
+    cdef GraphCSRView[int,int,double] graph_double
+
+    cdef float final_modularity_float = 1.0
+    cdef double final_modularity_double = 1.0
     cdef int num_level = 0
-    
 
-    if single_precision:
-        c_louvain.louvain(<Graph*>g,
-                  <void*>&final_modularity_single_precision,
-                  <void*>&num_level, <void*>c_louvain_parts_ptr,
+    if weights.dtype == np.float32:
+        graph_float = GraphCSRView[int,int,float](<int*>c_offsets, <int*>c_indices,
+                                                  <float*>c_weights, num_verts, num_edges)
+
+        graph_float.get_vertex_identifiers(<int*>c_identifier)
+        c_louvain(graph_float,
+                  &final_modularity_float,
+                  &num_level,
+                  <int*> c_partition,
                   max_iter)
+
+        final_modularity = final_modularity_float
     else:
-        c_louvain.louvain(<Graph*>g,
-                  <void*>&final_modularity_double_precision,
-                  <void*>&num_level, <void*>c_louvain_parts_ptr,
+        graph_double = GraphCSRView[int,int,double](<int*>c_offsets, <int*>c_indices,
+                                                    <double*>c_weights, num_verts, num_edges)
+
+        graph_double.get_vertex_identifiers(<int*>c_identifier)
+        c_louvain(graph_double,
+                  &final_modularity_double,
+                  &num_level,
+                  <int*> c_partition,
                   max_iter)
-    
+        final_modularity = final_modularity_double
 
     if input_graph.renumbered:
         df = unrenumber(input_graph.edgelist.renumber_map, df, 'vertex')
 
-    if single_precision:
-        return df, <double>final_modularity_single_precision
-    else:
-        return df, final_modularity_double_precision
+    return df, final_modularity

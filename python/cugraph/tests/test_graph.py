@@ -12,21 +12,16 @@
 # limitations under the License.
 
 import gc
-from itertools import product
 
-import numpy as np
 import pandas as pd
 import pytest
 
 import scipy
 import cudf
+from cudf.tests.utils import assert_eq
 import cugraph
 from cugraph.tests import utils
-import rmm
-'''
-import socket
-import struct
-'''
+
 
 # Temporarily suppress warnings till networkX fixes deprecation warnings
 # (Using or importing the ABCs from 'collections' instead of from
@@ -159,50 +154,10 @@ def test_version():
     cugraph.__version__
 
 
-DATASETS = ['../datasets/karate.csv',
-            '../datasets/dolphins.csv',
-            '../datasets/netscience.csv']
-
-
-'''@pytest.mark.parametrize('graph_file', DATASETS)
-def test_read_csv_for_nx(graph_file):
-
-    Mnew = utils.read_csv_for_nx(graph_file, read_weights_in_sp=False)
-    if Mnew is None:
-        raise TypeError('Could not read the input graph')
-    if Mnew.shape[0] != Mnew.shape[1]:
-        raise TypeError('Shape is not square')
-
-    Mold = mmread(graph_file.replace('.csv', '.mtx')).asfptype()
-
-    minnew = Mnew.data.min()
-    minold = Mold.data.min()
-    epsilon = min(minnew, minold) / 1000.0
-
-    mdiff = abs(Mold - Mnew)
-    mdiff.data[mdiff.data < epsilon] = 0
-    mdiff.eliminate_zeros()
-
-    assert Mold.nnz == Mnew.nnz
-    assert Mold.shape == Mnew.shape
-    assert mdiff.nnz == 0
-'''
-
-
-# Test all combinations of default/managed and pooled/non-pooled allocation
-@pytest.mark.parametrize('managed, pool',
-                         list(product([False, True], [False, True])))
-@pytest.mark.parametrize('graph_file', DATASETS)
-def test_add_edge_list_to_adj_list(managed, pool, graph_file):
+# Test
+@pytest.mark.parametrize('graph_file', utils.DATASETS)
+def test_add_edge_list_to_adj_list(graph_file):
     gc.collect()
-
-    rmm.reinitialize(
-        managed_memory=managed,
-        pool_allocator=pool,
-        initial_pool_size=2 << 27
-    )
-
-    assert(rmm.is_initialized())
 
     cu_M = utils.read_csv_file(graph_file)
 
@@ -222,20 +177,10 @@ def test_add_edge_list_to_adj_list(managed, pool, graph_file):
     assert values_cu is None
 
 
-# Test all combinations of default/managed and pooled/non-pooled allocation
-@pytest.mark.parametrize('managed, pool',
-                         list(product([False, True], [False, True])))
-@pytest.mark.parametrize('graph_file', DATASETS)
-def test_add_adj_list_to_edge_list(managed, pool, graph_file):
+# Test
+@pytest.mark.parametrize('graph_file', utils.DATASETS)
+def test_add_adj_list_to_edge_list(graph_file):
     gc.collect()
-
-    rmm.reinitialize(
-        managed_memory=managed,
-        pool_allocator=pool,
-        initial_pool_size=2 << 27
-    )
-
-    assert(rmm.is_initialized())
 
     Mnx = utils.read_csv_for_nx(graph_file)
     N = max(max(Mnx['0']), max(Mnx['1'])) + 1
@@ -253,55 +198,16 @@ def test_add_adj_list_to_edge_list(managed, pool, graph_file):
     G = cugraph.DiGraph()
     G.from_cudf_adjlist(offsets, indices, None)
     edgelist = G.view_edge_list()
-    sources_cu = np.array(edgelist['src'])
-    destinations_cu = np.array(edgelist['dst'])
+    sources_cu = edgelist['src']
+    destinations_cu = edgelist['dst']
     assert compare_series(sources_cu, sources_exp)
     assert compare_series(destinations_cu, destinations_exp)
 
 
-# Test all combinations of default/managed and pooled/non-pooled allocation
-'''@pytest.mark.parametrize('managed, pool',
-                         list(product([False, True], [False, True])))
-@pytest.mark.parametrize('graph_file', DATASETS)
-def test_transpose_from_adj_list(managed, pool, graph_file):
+# Test
+@pytest.mark.parametrize('graph_file', utils.DATASETS)
+def test_view_edge_list_from_adj_list(graph_file):
     gc.collect()
-
-    rmm.reinitialize(
-        managed_memory=managed,
-        pool_allocator=pool,
-        initial_pool_size=2 << 27
-    )
-
-    assert(rmm.is_initialized())
-
-    M = utils.read_csv_for_nx(graph_file).tocsr()
-    offsets = cudf.Series(M.indptr)
-    indices = cudf.Series(M.indices)
-    G = cugraph.DiGraph()
-    G.add_adj_list(offsets, indices, None)
-    G.add_transposed_adj_list()
-    Mt = M.transpose().tocsr()
-    toff, tind, tval = G.view_transposed_adj_list()
-    assert compare_series(tind, Mt.indices)
-    assert compare_offsets(toff, Mt.indptr)
-    assert tval is None
-'''
-
-
-# Test all combinations of default/managed and pooled/non-pooled allocation
-@pytest.mark.parametrize('managed, pool',
-                         list(product([False, True], [False, True])))
-@pytest.mark.parametrize('graph_file', DATASETS)
-def test_view_edge_list_from_adj_list(managed, pool, graph_file):
-    gc.collect()
-
-    rmm.reinitialize(
-        managed_memory=managed,
-        pool_allocator=pool,
-        initial_pool_size=2 << 27
-    )
-
-    assert(rmm.is_initialized())
 
     Mnx = utils.read_csv_for_nx(graph_file)
     N = max(max(Mnx['0']), max(Mnx['1'])) + 1
@@ -320,20 +226,10 @@ def test_view_edge_list_from_adj_list(managed, pool, graph_file):
     assert compare_series(dst1, edgelist_df['dst'])
 
 
-# Test all combinations of default/managed and pooled/non-pooled allocation
-@pytest.mark.parametrize('managed, pool',
-                         list(product([False, True], [False, True])))
-@pytest.mark.parametrize('graph_file', DATASETS)
-def test_delete_edge_list_delete_adj_list(managed, pool, graph_file):
+# Test
+@pytest.mark.parametrize('graph_file', utils.DATASETS)
+def test_delete_edge_list_delete_adj_list(graph_file):
     gc.collect()
-
-    rmm.reinitialize(
-        managed_memory=managed,
-        pool_allocator=pool,
-        initial_pool_size=2 << 27
-    )
-
-    assert(rmm.is_initialized())
 
     Mnx = utils.read_csv_for_nx(graph_file)
     df = cudf.DataFrame()
@@ -359,21 +255,10 @@ def test_delete_edge_list_delete_adj_list(managed, pool, graph_file):
         G.view_edge_list()
 
 
-# Test all combinations of default/managed and pooled/non-pooled allocation
-@pytest.mark.parametrize('managed, pool',
-                         list(product([False, True], [False, True])))
-@pytest.mark.parametrize('graph_file', DATASETS)
-def test_add_edge_or_adj_list_after_add_edge_or_adj_list(
-        managed, pool, graph_file):
+# Test
+@pytest.mark.parametrize('graph_file', utils.DATASETS)
+def test_add_edge_or_adj_list_after_add_edge_or_adj_list(graph_file):
     gc.collect()
-
-    rmm.reinitialize(
-        managed_memory=managed,
-        pool_allocator=pool,
-        initial_pool_size=2 << 27
-    )
-
-    assert(rmm.is_initialized())
 
     Mnx = utils.read_csv_for_nx(graph_file)
     df = cudf.DataFrame()
@@ -410,20 +295,50 @@ def test_add_edge_or_adj_list_after_add_edge_or_adj_list(
     G.delete_adj_list()
 
 
-# Test all combinations of default/managed and pooled/non-pooled allocation
-@pytest.mark.parametrize('managed, pool',
-                         list(product([False, True], [False, True])))
-@pytest.mark.parametrize('graph_file', DATASETS)
-def test_view_edge_list_for_Graph(managed, pool, graph_file):
+# Test
+@pytest.mark.parametrize('graph_file', utils.DATASETS)
+def test_edges_for_Graph(graph_file):
     gc.collect()
 
-    rmm.reinitialize(
-        managed_memory=managed,
-        pool_allocator=pool,
-        initial_pool_size=2 << 27
+    cu_M = utils.read_csv_file(graph_file)
+
+    # Create nx Graph
+    pdf = cu_M.to_pandas()[['0', '1']]
+    nx_graph = nx.from_pandas_edgelist(pdf, source='0',
+                                       target='1',
+                                       create_using=nx.Graph)
+    nx_edges = nx_graph.edges()
+
+    # Create Cugraph Graph from DataFrame
+    # Force it to use renumber_from_cudf
+    G = cugraph.from_cudf_edgelist(cu_M, source=['0'],
+                                   destination=['1'],
+                                   create_using=cugraph.Graph)
+    cu_edge_list = G.edges()
+
+    # Check if number of Edges is same
+    assert len(nx_edges) == len(cu_edge_list)
+    assert nx_graph.number_of_edges() == G.number_of_edges()
+
+    # Compare nx and cugraph edges when viewing edgelist
+    edges = []
+    for edge in nx_edges:
+        if edge[0] > edge[1]:
+            edges.append([edge[1], edge[0]])
+        else:
+            edges.append([edge[0], edge[1]])
+    nx_edge_list = cudf.DataFrame(list(edges), columns=['src', 'dst'])
+    assert_eq(
+        nx_edge_list.sort_values(by=['src', 'dst']).reset_index(drop=True),
+        cu_edge_list.sort_values(by=['src', 'dst']).reset_index(drop=True),
+        check_dtype=False
     )
 
-    assert(rmm.is_initialized())
+
+# Test
+@pytest.mark.parametrize('graph_file', utils.DATASETS)
+def test_view_edge_list_for_Graph(graph_file):
+    gc.collect()
 
     cu_M = utils.read_csv_file(graph_file)
 
@@ -459,20 +374,10 @@ def test_view_edge_list_for_Graph(managed, pool, graph_file):
     assert cu_edge_list.equals(nx_edge_list)
 
 
-# Test all combinations of default/managed and pooled/non-pooled allocation
-@pytest.mark.parametrize('managed, pool',
-                         list(product([False, True], [False, True])))
-@pytest.mark.parametrize('graph_file', DATASETS)
-def test_networkx_compatibility(managed, pool, graph_file):
+# Test
+@pytest.mark.parametrize('graph_file', utils.DATASETS)
+def test_networkx_compatibility(graph_file):
     gc.collect()
-
-    rmm.reinitialize(
-        managed_memory=managed,
-        pool_allocator=pool,
-        initial_pool_size=2 << 27
-    )
-
-    assert(rmm.is_initialized())
 
     # test from_cudf_edgelist()
 
@@ -509,24 +414,10 @@ def test_networkx_compatibility(managed, pool, graph_file):
     G.clear()
 
 
-DATASETS2 = ['../datasets/karate.csv',
-             '../datasets/dolphins.csv']
-
-
-# Test all combinations of default/managed and pooled/non-pooled allocation
-@pytest.mark.parametrize('managed, pool',
-                         list(product([False, True], [False, True])))
-@pytest.mark.parametrize('graph_file', DATASETS2)
-def test_two_hop_neighbors(managed, pool, graph_file):
+# Test
+@pytest.mark.parametrize('graph_file', utils.DATASETS_2)
+def test_two_hop_neighbors(graph_file):
     gc.collect()
-
-    rmm.reinitialize(
-        managed_memory=managed,
-        pool_allocator=pool,
-        initial_pool_size=2 << 27
-    )
-
-    assert(rmm.is_initialized())
 
     cu_M = utils.read_csv_file(graph_file)
 
@@ -543,20 +434,10 @@ def test_two_hop_neighbors(managed, pool, graph_file):
     check_all_two_hops(df, Mcsr)
 
 
-# Test all combinations of default/managed and pooled/non-pooled allocation
-@pytest.mark.parametrize('managed, pool',
-                         list(product([False, True], [False, True])))
-@pytest.mark.parametrize('graph_file', DATASETS)
-def test_degree_functionality(managed, pool, graph_file):
+# Test
+@pytest.mark.parametrize('graph_file', utils.DATASETS)
+def test_degree_functionality(graph_file):
     gc.collect()
-
-    rmm.reinitialize(
-        managed_memory=managed,
-        pool_allocator=pool,
-        initial_pool_size=2 << 27
-    )
-
-    assert(rmm.is_initialized())
 
     M = utils.read_csv_for_nx(graph_file)
     cu_M = utils.read_csv_file(graph_file)
@@ -592,20 +473,10 @@ def test_degree_functionality(managed, pool, graph_file):
     assert err_degree == 0
 
 
-# Test all combinations of default/managed and pooled/non-pooled allocation
-@pytest.mark.parametrize('managed, pool',
-                         list(product([False, True], [False, True])))
-@pytest.mark.parametrize('graph_file', DATASETS)
-def test_degrees_functionality(managed, pool, graph_file):
+# Test
+@pytest.mark.parametrize('graph_file', utils.DATASETS)
+def test_degrees_functionality(graph_file):
     gc.collect()
-
-    rmm.reinitialize(
-        managed_memory=managed,
-        pool_allocator=pool,
-        initial_pool_size=2 << 27
-    )
-
-    assert(rmm.is_initialized())
 
     M = utils.read_csv_for_nx(graph_file)
     cu_M = utils.read_csv_file(graph_file)
@@ -634,20 +505,10 @@ def test_degrees_functionality(managed, pool, graph_file):
     assert err_out_degree == 0
 
 
-# Test all combinations of default/managed and pooled/non-pooled allocation
-@pytest.mark.parametrize('managed, pool',
-                         list(product([False, True], [False, True])))
-@pytest.mark.parametrize('graph_file', DATASETS)
-def test_number_of_vertices(managed, pool, graph_file):
+# Test
+@pytest.mark.parametrize('graph_file', utils.DATASETS)
+def test_number_of_vertices(graph_file):
     gc.collect()
-
-    rmm.reinitialize(
-        managed_memory=managed,
-        pool_allocator=pool,
-        initial_pool_size=2 << 27
-    )
-
-    assert(rmm.is_initialized())
 
     cu_M = utils.read_csv_file(graph_file)
 
@@ -663,20 +524,10 @@ def test_number_of_vertices(managed, pool, graph_file):
     assert(G.number_of_vertices() == Gnx.number_of_nodes())
 
 
-# Test all combinations of default/managed and pooled/non-pooled allocation
-@pytest.mark.parametrize('managed, pool',
-                         list(product([False, True], [False, True])))
-@pytest.mark.parametrize('graph_file', DATASETS2)
-def test_to_directed(managed, pool, graph_file):
+# Test
+@pytest.mark.parametrize('graph_file', utils.DATASETS_2)
+def test_to_directed(graph_file):
     gc.collect()
-
-    rmm.reinitialize(
-        managed_memory=managed,
-        pool_allocator=pool,
-        initial_pool_size=2 << 27
-    )
-
-    assert(rmm.is_initialized())
 
     cu_M = utils.read_csv_file(graph_file)
     cu_M = cu_M[cu_M['0'] <= cu_M['1']].reset_index(drop=True)
@@ -698,23 +549,14 @@ def test_to_directed(managed, pool, graph_file):
 
     edgelist_df = G.edgelist.edgelist_df
     for i in range(len(edgelist_df)):
-        assert DiGnx.has_edge(edgelist_df.loc[i][0], edgelist_df.loc[i][1])
+        assert DiGnx.has_edge(edgelist_df.iloc[i]['src'],
+                              edgelist_df.iloc[i]['dst'])
 
 
-# Test all combinations of default/managed and pooled/non-pooled allocation
-@pytest.mark.parametrize('managed, pool',
-                         list(product([False, True], [False, True])))
-@pytest.mark.parametrize('graph_file', DATASETS2)
-def test_to_undirected(managed, pool, graph_file):
+# Test
+@pytest.mark.parametrize('graph_file', utils.DATASETS_2)
+def test_to_undirected(graph_file):
     gc.collect()
-
-    rmm.reinitialize(
-        managed_memory=managed,
-        pool_allocator=pool,
-        initial_pool_size=2 << 27
-    )
-
-    assert(rmm.is_initialized())
 
     cu_M = utils.read_csv_file(graph_file)
     cu_M = cu_M[cu_M['0'] <= cu_M['1']].reset_index(drop=True)
@@ -737,23 +579,14 @@ def test_to_undirected(managed, pool, graph_file):
     edgelist_df = G.edgelist.edgelist_df
 
     for i in range(len(edgelist_df)):
-        assert Gnx.has_edge(edgelist_df.loc[i][0], edgelist_df.loc[i][1])
+        assert Gnx.has_edge(edgelist_df.iloc[i]['src'],
+                            edgelist_df.iloc[i]['dst'])
 
 
-# Test all combinations of default/managed and pooled/non-pooled allocation
-@pytest.mark.parametrize('managed, pool',
-                         list(product([False, True], [False, True])))
-@pytest.mark.parametrize('graph_file', DATASETS2)
-def test_has_edge(managed, pool, graph_file):
+# Test
+@pytest.mark.parametrize('graph_file', utils.DATASETS_2)
+def test_has_edge(graph_file):
     gc.collect()
-
-    rmm.reinitialize(
-        managed_memory=managed,
-        pool_allocator=pool,
-        initial_pool_size=2 << 27
-    )
-
-    assert(rmm.is_initialized())
 
     cu_M = utils.read_csv_file(graph_file)
     cu_M = cu_M[cu_M['0'] <= cu_M['1']].reset_index(drop=True)
@@ -767,20 +600,10 @@ def test_has_edge(managed, pool, graph_file):
         assert G.has_edge(cu_M.loc[i][1], cu_M.loc[i][0])
 
 
-# Test all combinations of default/managed and pooled/non-pooled allocation
-@pytest.mark.parametrize('managed, pool',
-                         list(product([False, True], [False, True])))
-@pytest.mark.parametrize('graph_file', DATASETS2)
-def test_has_node(managed, pool, graph_file):
+# Test
+@pytest.mark.parametrize('graph_file', utils.DATASETS_2)
+def test_has_node(graph_file):
     gc.collect()
-
-    rmm.reinitialize(
-        managed_memory=managed,
-        pool_allocator=pool,
-        initial_pool_size=2 << 27
-    )
-
-    assert(rmm.is_initialized())
 
     cu_M = utils.read_csv_file(graph_file)
     nodes = cudf.concat([cu_M['0'], cu_M['1']]).unique()
@@ -794,19 +617,11 @@ def test_has_node(managed, pool, graph_file):
 
 
 # Test all combinations of default/managed and pooled/non-pooled allocation
-@pytest.mark.parametrize('managed, pool',
-                         list(product([False, True], [False, True])))
-@pytest.mark.parametrize('graph_file', DATASETS2)
-def test_bipartite_api(managed, pool, graph_file):
+@pytest.mark.parametrize('graph_file', utils.DATASETS_2)
+def test_bipartite_api(graph_file):
+    # This test only tests the functionality of adding set of nodes and
+    # retrieving them. The datasets currently used are not truly bipartite.
     gc.collect()
-
-    rmm.reinitialize(
-        managed_memory=managed,
-        pool_allocator=pool,
-        initial_pool_size=2 << 27
-    )
-
-    assert(rmm.is_initialized())
 
     cu_M = utils.read_csv_file(graph_file)
     nodes = cudf.concat([cu_M['0'], cu_M['1']]).unique()
@@ -835,37 +650,25 @@ def test_bipartite_api(managed, pool, graph_file):
     assert set2.equals(set2_exp)
 
 
-'''@pytest.mark.parametrize('managed, pool',
-                         list(product([False, True], [False, True])))
-@pytest.mark.parametrize('graph_file', DATASETS)
-def test_Graph_from_MultiGraph(managed, pool, graph_file):
+# Test
+@pytest.mark.parametrize('graph_file', utils.DATASETS)
+def test_neighbors(graph_file):
     gc.collect()
 
-    rmm.reinitialize(
-        managed_memory=managed,
-        pool_allocator=pool,
-        initial_pool_size=2 << 27
-    )
-
-    assert(rmm.is_initialized())
-
     cu_M = utils.read_csv_file(graph_file)
+    nodes = cudf.concat([cu_M['0'], cu_M['1']]).unique()
+    print(nodes)
+    M = utils.read_csv_for_nx(graph_file)
 
-    # create dataframe for MultiGraph
-    cu_M['3'] = cudf.Series([2.0]*len(cu_M), dtype=np.float32)
-    cu_M['4'] = cudf.Series([3.0]*len(cu_M), dtype=np.float32)
-
-    # initialize MultiGraph
-    G_multi = cugraph.MultiGraph()
-    G_multi.from_cudf_edgelist(cu_M, source='0', destination='1',
-                               edge_attr=['2', '3', '4'])
-
-    # initialize Graph
     G = cugraph.Graph()
-    G.from_cudf_edgelist(cu_M, source='0', destination='1', edge_attr='2')
+    G.from_cudf_edgelist(cu_M, source='0', destination='1')
 
-    # create Graph from MultiGraph
-    G_from_multi = cugraph.Graph(G_multi, edge_attr='2')
-
-    assert G.edgelist.edgelist_df == G_from_multi.edgelist.edgelist_df
-'''
+    Gnx = nx.from_pandas_edgelist(M, source='0', target='1',
+                                  create_using=nx.Graph())
+    for n in nodes:
+        print("NODE: ", n)
+        cu_neighbors = G.neighbors(n).tolist()
+        nx_neighbors = [i for i in Gnx.neighbors(n)]
+        cu_neighbors.sort()
+        nx_neighbors.sort()
+        assert cu_neighbors == nx_neighbors

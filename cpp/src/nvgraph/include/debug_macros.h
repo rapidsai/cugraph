@@ -13,34 +13,30 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
- #pragma once
+#pragma once
 
 #include "nvgraph_error.hxx"
 
-#define CHECK_STATUS(...)                                                      \
-    do {                                                                       \
-        if (__VA_ARGS__) {                                                     \
-            FatalError(#__VA_ARGS__, NVGRAPH_ERR_UNKNOWN);                        \
-        }                                                                      \
-    } while (0)
+#define CHECK_STATUS(...)                                               \
+  do {                                                                  \
+    if (__VA_ARGS__) { FatalError(#__VA_ARGS__, NVGRAPH_ERR_UNKNOWN); } \
+  } while (0)
 
-#define CHECK_NVGRAPH(...)                                                        \
-    do {                                                                       \
-        NVGRAPH_ERROR e = __VA_ARGS__;                                            \
-        if (e != NVGRAPH_OK) {                                                    \
-            FatalError(#__VA_ARGS__, e)                                        \
-        }                                                                      \
-    } while (0)
+#define CHECK_NVGRAPH(...)                               \
+  do {                                                   \
+    NVGRAPH_ERROR e = __VA_ARGS__;                       \
+    if (e != NVGRAPH_OK) { FatalError(#__VA_ARGS__, e) } \
+  } while (0)
 
 #ifdef DEBUG
 #define COUT() (std::cout)
 #define CERR() (std::cerr)
-#define WARNING(message)                                                       \
-    do {                                                                       \
-        std::stringstream ss;                                                  \
-        ss << "Warning (" << __FILE__ << ":" << __LINE__ << "): " << message;  \
-        CERR() << ss.str() << std::endl;                                       \
-    } while (0)
-#else // DEBUG
+#define WARNING(message)                                                  \
+  do {                                                                    \
+    std::stringstream ss;                                                 \
+    ss << "Warning (" << __FILE__ << ":" << __LINE__ << "): " << message; \
+    CERR() << ss.str() << std::endl;                                      \
+  } while (0)
+#else  // DEBUG
 #define WARNING(message)
 #endif
