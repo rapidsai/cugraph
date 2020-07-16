@@ -524,7 +524,7 @@ class NumberMap:
             the the internal vertex id that should be converted
 
         internal_column_name: (optional) string
-            Name of the column name containing the internal vertex id.
+            Name of the column containing the internal vertex id.
             If df is a series then this parameter is ignored.  If df is
             a data frame this parameter is required.
 
@@ -578,6 +578,63 @@ class NumberMap:
         return self.implementation.col_names
 
     def renumber(df, source_columns, dest_columns):
+        """
+        Given a single GPU or distributed data frame, use source_columns and
+        dest_columns to identify the source vertex identifiers and destination
+        vertex identifiers, respectively.
+
+        Internal vertex identifiers will be created, numbering vertices as
+        integers starting from 0.
+
+        The function will return a data frame containing the original dataframe
+        contents with a new column labeled 'src' containing the renumbered
+        source vertices and a new column labeled 'dst' containing the
+        renumbered dest vertices, along with a NumberMap object that contains
+        the number map for the numbering that was used.
+
+        Note that this function does not guarantee order in single GPU mode,
+        and does not guarantee order or partitioning in multi-GPU mode.  If you
+        wish to preserve ordering, add an index column to df and sort the
+        return by that index column.
+
+        Parameters
+        ----------
+        df: cudf.DataFrame or dask_cudf.DataFrame
+            Contains a list of external vertex identifiers that will be
+            numbered by the NumberMap class.
+        src_col_names: list of strings
+            This list of 1 or more strings contain the names
+            of the columns that uniquely identify an external
+            vertex identifier for source vertices
+        dst_col_names: list of strings
+            This list of 1 or more strings contain the names
+            of the columns that uniquely identify an external
+            vertex identifier for destination vertices
+
+        Returns
+        ---------
+        df : cudf.DataFrame or dask_cudf.DataFrame
+            The original data frame columns exist unmodified.  Columns
+            are added to the data frame to identify the external vertex
+            identifiers. If external_columns is specified, these names
+            are used as the names of the output columns.  If external_columns
+            is not specifed the columns are labeled '0', ... 'n-1' based on
+            the number of columns identifying the external vertex identifiers.
+
+        number_map : NumberMap
+            The number map object object that retains the mapping between
+            internal vertex identifiers and external vertex identifiers.
+
+        Examples
+        --------
+        >>> M = cudf.read_csv('datasets/karate.csv', delimiter=' ',
+        >>>                   dtype=['int32', 'int32', 'float32'], header=None)
+        >>>
+        >>> df, number_map = NumberMap.renumber(df, '0', '1')
+        >>>
+        >>> G = cugraph.Graph()
+        >>> G.from_cudf_edgelist(df, 'src', 'dst')
+        """
         renumber_map = NumberMap()
 
         if isinstance(source_columns, list):
@@ -600,6 +657,51 @@ class NumberMap:
         return df, renumber_map
 
     def unrenumber(self, df, column_name):
+        """
+        Given a data frame containing internal vertex ids in the identified
+        column, replace this with external vertex ids.  If the renumbering
+        is from a single column, the output dataframe will use the same
+        name for the external vertex identifiers.  If the renumbering is from
+        a multi-column input, the output columns will be labeled 0 through
+        n-1 with a suffix of _column_name.
+
+        Note that this function does not guarantee order in single GPU mode,
+        and does not guarantee order or partitioning in multi-GPU mode.  If you
+        wish to preserve ordering, add an index column to df and sort the
+        return by that index column.
+
+        Parameters
+        ----------
+        df: cudf.DataFrame or dask_cudf.DataFrame
+            A data frame containing internal vertex identifiers that will be
+            converted into external vertex identifiers.
+
+        column_name: string
+            Name of the column containing the internal vertex id.
+
+        Returns
+        ---------
+        df : cudf.DataFrame or dask_cudf.DataFrame
+            The original data frame columns exist unmodified.  The external
+            vertex identifiers are added to the data frame, the internal
+            vertex identifier column is removed from the dataframe.
+
+        Examples
+        --------
+        >>> M = cudf.read_csv('datasets/karate.csv', delimiter=' ',
+        >>>                   dtype=['int32', 'int32', 'float32'], header=None)
+        >>>
+        >>> df, number_map = NumberMap.renumber(df, '0', '1')
+        >>>
+        >>> G = cugraph.Graph()
+        >>> G.from_cudf_edgelist(df, 'src', 'dst')
+        >>>
+        >>> pr = cugraph.pagerank(G, alpha = 0.85, max_iter = 500,
+        >>>                       tol = 1.0e-05)
+        >>>
+        >>> pr = number_map.unrenumber(pr, 'vertex')
+        >>>
+        """
         if len(self.implementation.col_names) == 1:
             # Output will be renamed to match input
             mapping = {"0": column_name}

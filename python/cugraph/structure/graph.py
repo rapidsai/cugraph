@@ -963,6 +963,51 @@ class Graph:
             return neighbors
 
     def unrenumber(self, df, column_name):
+        """
+        Given a data frame containing internal vertex ids in the identified
+        column, replace this with external vertex ids.  If the renumbering
+        is from a single column, the output dataframe will use the same
+        name for the external vertex identifiers.  If the renumbering is from
+        a multi-column input, the output columns will be labeled 0 through
+        n-1 with a suffix of _column_name.
+
+        Note that this function does not guarantee order in single GPU mode,
+        and does not guarantee order or partitioning in multi-GPU mode.  If you
+        wish to preserve ordering, add an index column to df and sort the
+        return by that index column.
+
+        Parameters
+        ----------
+        df: cudf.DataFrame or dask_cudf.DataFrame
+            A data frame containing internal vertex identifiers that will be
+            converted into external vertex identifiers.
+
+        column_name: string
+            Name of the column containing the internal vertex id.
+
+        Returns
+        ---------
+        df : cudf.DataFrame or dask_cudf.DataFrame
+            The original data frame columns exist unmodified.  The external
+            vertex identifiers are added to the data frame, the internal
+            vertex identifier column is removed from the dataframe.
+
+        Examples
+        --------
+        >>> M = cudf.read_csv('datasets/karate.csv', delimiter=' ',
+        >>>                   dtype=['int32', 'int32', 'float32'], header=None)
+        >>>
+        >>> df, number_map = NumberMap.renumber(df, '0', '1')
+        >>>
+        >>> G = cugraph.Graph()
+        >>> G.from_cudf_edgelist(df, 'src', 'dst')
+        >>>
+        >>> pr = cugraph.pagerank(G, alpha = 0.85, max_iter = 500,
+        >>>                       tol = 1.0e-05)
+        >>>
+        >>> pr = number_map.unrenumber(pr, 'vertex')
+        >>>
+        """
         return self.edgelist.renumber_map.unrenumber(df, column_name)
 
 
