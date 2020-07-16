@@ -36,7 +36,13 @@ def test_dask_opg_degree():
     g = cugraph.DiGraph()
     g.from_cudf_edgelist(df, 'src', 'dst')
 
-    assert dg.in_degree().equals(g.in_degree())
+    dg_in_degree = dg.in_degree()
+    g_in_degree = g.in_degree()
+
+    merge_df = dg.in_degree().merge(
+        g.in_degree(), on="vertex", suffixes=['_dg', '_g'])
+
+    assert merge_df['degree_dg'].equals(merge_df['degree_g'])
 
     Comms.destroy()
     client.close()

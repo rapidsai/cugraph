@@ -22,6 +22,11 @@ from cudf.tests.utils import assert_eq
 import cugraph
 from cugraph.tests import utils
 
+# MG
+import cugraph.dask as dcg
+from dask_cuda import LocalCUDACluster
+from dask.distributed import Client
+import dask_cudf
 
 # Temporarily suppress warnings till networkX fixes deprecation warnings
 # (Using or importing the ABCs from 'collections' instead of from
@@ -104,16 +109,19 @@ def compare_graphs(nx_graph, cu_graph):
     ds1 = pd.Series(list(cu_to_nx_graph.nodes)).sort_values(ignore_index=True)
 
     if not ds0.equals(ds1):
+        print('ds0 != ds1')
         return False
 
     # second compare edges
     diff = nx.difference(nx_graph, cu_to_nx_graph)
 
     if diff.number_of_edges() > 0:
+        print('diff.number_of_edges = ', diff.number_of_edges())
         return False
 
     diff = nx.difference(cu_to_nx_graph, nx_graph)
     if diff.number_of_edges() > 0:
+        print('2: diff.number_of_edges = ', diff.number_of_edges())
         return False
 
     if len(edgelist_df.columns) > 2:
@@ -121,6 +129,9 @@ def compare_graphs(nx_graph, cu_graph):
         df0 = df0.sort_values(by=["source", "target"]).reset_index(drop=True)
         df1 = df.sort_values(by=["source", "target"]).reset_index(drop=True)
         if not df0["weight"].equals(df1["weight"]):
+            print('weights different')
+            print('df0 = \n', df0)
+            print('df1 = \n', df1)
             return False
 
     return True
@@ -429,6 +440,9 @@ def test_networkx_compatibility(graph_file):
         edge_attr="weight",
         create_using=cugraph.DiGraph,
     )
+
+    print('g from gdf = \n', gdf)
+    print('nx from df = \n', df)
     assert compare_graphs(Gnx, G)
 
     Gnx.clear()
@@ -450,7 +464,39 @@ def test_networkx_compatibility(graph_file):
 
 
 # Test
-@pytest.mark.parametrize("graph_file", utils.DATASETS_2)
+@pytest.mark.parametrize('graph_file', utils.DATASETS)
+def test_consolidation(graph_file):
+    gc.collect()
+
+    cluster = LocalCUDACluster()
+    client = Client(cluster)
+    chunksize = dcg.get_chunksize(graph_file)
+
+    M = utils.read_csv_for_nx(graph_file)
+
+    df = pd.DataFrame()
+    df['source'] = pd.Series(M['0'])
+    df['target'] = pd.Series(M['1'])
+
+    ddf = dask_cudf.read_csv(graph_file, chunksize=chunksize,
+                             delimiter=' ',
+                             names=['source', 'target', 'weight'],
+                             dtype=['int32', 'int32', 'float32'], header=None)
+
+    Gnx = nx.from_pandas_edgelist(df, source='source', target='target',
+                                  create_using=nx.DiGraph)
+    G = cugraph.from_cudf_edgelist(ddf, source='source', destination='target',
+                                   create_using=cugraph.DiGraph)
+
+    assert compare_graphs(Gnx, G)
+    Gnx.clear()
+    G.clear()
+    client.close()
+    cluster.close()
+
+
+# Test
+@pytest.mark.parametrize('graph_file', utils.DATASETS_2)
 def test_two_hop_neighbors(graph_file):
     gc.collect()
 

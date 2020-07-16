@@ -147,7 +147,7 @@ class Graph:
 
         Parameters
         ----------
-        input_df : cudf.DataFrame
+        input_df : cudf.DataFrame or dask_cudf.DataFrame
             This cudf.DataFrame wraps source, destination and weight
             gdf_column of size E (E: number of edges)
             The 'src' column contains the source index for each edge.
@@ -159,6 +159,9 @@ class Graph:
             argument should be passed as True.
             For weighted graphs, dataframe contains 'weight' column
             containing the weight value for each edge.
+            If a dask_cudf.DataFrame is passed it will be reinterpreted as
+            a cudf.DataFrame. For the distributed path please use
+            from_dask_cudf_edgelist.
         source : str
             source argument is source column name
         destination : str
@@ -181,35 +184,46 @@ class Graph:
         if self.edgelist is not None or self.adjlist is not None:
             raise Exception("Graph already has values")
 
-        source_col = None
-        dest_col = None
-        value_col = None
-        renumber_map = None
-        df = None
+        # Consolidation
+        if isinstance(input_df, cudf.DataFrame):
+            if len(input_df[source]) > 2147483100:
+                raise Exception('cudf dataFrame edge list is too big \
+                                 to fit in a single GPU')
+            elist = input_df
+        elif isinstance(input_df, dask_cudf.DataFrame):
+            if len(input_df[source]) > 2147483100:
+                raise Exception('dask_cudf dataFrame edge list is too big \
+                                 to fit in a single GPU')
+            elist = input_df.compute().reset_index(drop=True)
+        else:
+            raise Exception('input should be a cudf.DataFrame or \
+                              a dask_cudf dataFrame')
 
+        renumber_map = None
         if renumber:
-            df, renumber_map = NumberMap.renumber(
-                input_df, source, destination
+            elist, renumber_map = NumberMap.renumber(
+                elist, source, destination
             )
             source = 'src'
             destination = 'dst'
             self.renumbered = True
         else:
-            df = input_df
+            if type(source) is list and type(destination) is list:
+                raise Exception('set renumber to True for multi column ids')
+
+        source_col = elist[source]
+        dest_col = elist[destination]
 
         if self.multi:
             if type(edge_attr) is not list:
                 raise Exception("edge_attr should be a list of column names")
             value_col = {}
             for col_name in edge_attr:
-                value_col[col_name] = df[col_name]
+                value_col[col_name] = elist[col_name]
         elif edge_attr is not None:
-            value_col = df[edge_attr]
+            value_col = elist[edge_attr]
         else:
             value_col = None
-
-        source_col = df[source]
-        dest_col = df[destination]
 
         if not self.symmetrized and not self.multi:
             if value_col is not None:
