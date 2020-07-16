@@ -92,7 +92,7 @@ Read the section on [building cuGraph from source](SOURCEBUILD.md) to validate t
 ```git remote add upstream https://github.com/rapidsai/cugraph.git```
 
 3. Checkout the latest branch
-cuGraph only allows contribution to the current branch and not master or a future branch.  PLease check the [cuGraph](https://github.com/rapidsai/cugraph) page for the name of the current branch.  
+cuGraph only allows contribution to the current branch and not main or a future branch.  PLease check the [cuGraph](https://github.com/rapidsai/cugraph) page for the name of the current branch.  
 ```git checkout branch-x.x```
 
 4. Code .....
@@ -155,7 +155,3 @@ All code must adhere to the [RAPIDS Style Guide](https://docs.rapids.ai/resource
 
 ### Tests
 All code must have associate test cases.  Code without test will not be accepted
-
-
-
-
