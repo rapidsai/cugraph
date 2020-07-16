@@ -106,13 +106,6 @@ def test_dask_pagerank():
     print("Mismatches in ", input_data_path2, ": ", err2)
     assert err1 == err2 == 0
 
-    #for i in range(len(result_pr2)):
-    #    if(abs(result_pr2['pagerank'].iloc[i]-expected_pr2['pagerank'].iloc[i])
-    #       > tol*1.1):
-    #        err2 = err2 + 1
-    #print("Mismatches in ", input_data_path2, ": ", err2)
-    #assert err1 == err2 == 0
-
     Comms.destroy()
     client.close()
     cluster.close()
