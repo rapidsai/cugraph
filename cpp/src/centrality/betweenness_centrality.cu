@@ -306,6 +306,11 @@ void BC<VT, ET, WT, result_t>::add_reached_endpoints_to_source_betweenness(VT so
 template <typename VT, typename ET, typename WT, typename result_t>
 void BC<VT, ET, WT, result_t>::add_vertices_dependencies_to_betweenness()
 {
+  thrust::host_vector<result_t> h_betweenness(number_of_vertices_, 0);
+  result_t *ptr = h_betweenness.data();
+  CUDA_TRY(
+    cudaMemcpy(ptr, betweenness_, number_of_vertices_ * sizeof(result_t), cudaMemcpyDeviceToHost));
+
   thrust::transform(rmm::exec_policy(stream_)->on(stream_),
                     deltas_,
                     deltas_ + number_of_vertices_,
@@ -426,9 +431,8 @@ void betweenness_centrality(raft::handle_t const &handle,
 {
   if (handle.comms_initialized()) {
     int rank = handle.get_comms().get_rank();
-
-    cugraph::opg::DSGGraphCSR<VT, ET, WT> local_holder(handle, graph);
-    local_holder.distribute();
+    cugraph::mg::ReplicatableGraphCSR<VT, ET, WT> local_holder(handle, graph);
+    local_holder.replicate();
 
     rmm::device_vector<result_t> betweenness(local_holder.graph.number_of_vertices, 0);
     detail::betweenness_centrality_impl(handle,
@@ -486,8 +490,8 @@ void edge_betweenness_centrality(raft::handle_t const &handle,
                                  VT total_number_of_sources_used)
 {
   if (handle.comms_initialized()) {
-    cugraph::opg::DSGGraphCSR<VT, ET, WT> local_holder(handle, graph);
-    local_holder.distribute();
+    cugraph::mg::ReplicatableGraphCSR<VT, ET, WT> local_holder(handle, graph);
+    local_holder.replicate();
 
     rmm::device_vector<result_t> betweenness(local_holder.graph.number_of_edges, 0);
     detail::edge_betweenness_centrality_impl(handle,

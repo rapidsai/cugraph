@@ -27,17 +27,17 @@ from libcpp cimport bool
 import cudf
 import numpy as np
 import numpy.ctypeslib as ctypeslib
-from cugraph.structure.utils_wrapper import *
+from cugraph.structure.utils_wrapper import coo2csr
 
 import dask_cudf
 import dask_cuda
 import cugraph.raft
 
 from cugraph.raft.dask.common.comms import Comms
-from cugraph.dask.common.opg_utils import (CommsInitAndDestroyContext,
-                                           opg_get_client,
-                                           opg_get_comms_using_client,
-                                           is_worker_organizer)
+from cugraph.dask.common.mg_utils import (CommsInitAndDestroyContext,
+                                          mg_get_client,
+                                          mg_get_comms_using_client,
+                                          is_worker_organizer)
 from cugraph.raft.dask.common.comms import (Comms, worker_state)
 import dask.distributed
 
@@ -60,7 +60,7 @@ def get_batch(sources, number_of_workers, current_worker):
     return batch
 
 
-def run_work(input_graph, normalized, endpoints,
+def run_work(input_data, normalized, endpoints,
              weights, sources,
              result_dtype, session_id):
     result = None
@@ -77,12 +77,11 @@ def run_work(input_graph, normalized, endpoints,
 
     # 4. Determine worker type
     is_organizer = is_worker_organizer(worker_idx)
-    print(sources)
     total_number_of_sources = len(sources)
 
     # 5. Dispatch to proper type
     if is_organizer:
-        result = run_organizer_work(handle, input_graph, normalized,
+        result = run_organizer_work(handle, input_data, normalized,
                                     endpoints, weights, batch,
                                     total_number_of_sources, result_dtype)
     else:
@@ -93,7 +92,7 @@ def run_work(input_graph, normalized, endpoints,
     return result
 
 
-def run_organizer_work(handle, input_graph, normalized, endpoints,
+def run_organizer_work(handle, input_data, normalized, endpoints,
                        weights,
                        batch,
                        total_number_of_sources, result_dtype):
@@ -106,43 +105,49 @@ def run_organizer_work(handle, input_graph, normalized, endpoints,
 
     cdef uintptr_t c_offsets = <uintptr_t> NULL
     cdef uintptr_t c_indices = <uintptr_t> NULL
+    cdef uintptr_t c_graph_weights = <uintptr_t> NULL
 
     cdef GraphCSRViewDouble graph_double
     cdef GraphCSRViewFloat graph_float
 
-    data, local_data = input_graph
+    _data, local_data, is_directed = input_data
 
-    data =  data[0]
+    data =  _data[0]
     src = data['src']
     dst = data['dst']
     src, dst = graph_new_wrapper.datatype_cast([src, dst], [np.int32])
-    offsets, indices, weights =  coo2csr(dst, src, None)
+    # FIXME: The following is not discarding nodes that have outward edges
+    offsets, indices, graph_weights = coo2csr(src, dst, None)
+    if graph_weights:
+        c_graph_weights = graph_weights.__cuda_array_interface__['data'][0]
     c_offsets = offsets.__cuda_array_interface__['data'][0]
     c_indices = indices.__cuda_array_interface__['data'][0]
+    worker = dask.distributed.get_worker()
 
-
-    number_of_vertices = local_data['verts'].sum()
-    number_of_edges = local_data['edges'].sum()
+    # number_of_vertices = local_data['verts'].sum()
+    # takes into  account all vertices without discarding non
+    number_of_vertices = len(offsets) - 1
+    number_of_edges = len(indices)
+    print("[DBG] Number of vertices", number_of_vertices)
 
     result_size = number_of_vertices
     result_df = get_output_df(result_size, result_dtype)
     number_of_sources_in_batch = len(batch)
     if result_dtype == np.float64:
-        graph_double = GraphCSRView[int, int, double](<int*>c_offsets,
-                                                      <int*>c_indices,
-                                                      <double*>c_weights,
+        graph_double = GraphCSRView[int, int, double](<int*> c_offsets,
+                                                      <int*> c_indices,
+                                                      <double*> c_graph_weights,
                                                       number_of_vertices,
                                                       number_of_edges)
-        #graph_double = get_graph_view[GraphCSRViewDouble](input_graph, False)
-        graph_double.prop.directed = type(input_graph) is DiGraph
+        graph_double.prop.directed = is_directed
         c_graph = <uintptr_t>&graph_double
     elif result_dtype == np.float32:
         graph_float = GraphCSRView[int, int, float](<int*>c_offsets,
                                                     <int*>c_indices,
-                                                    <float*>c_weights,
+                                                    <float*>c_graph_weights,
                                                     number_of_vertices,
                                                     number_of_edges)
-        graph_float.prop.directed = type(input_graph) is DiGraph
+        graph_float.prop.directed = is_directed
         c_graph = <uintptr_t>&graph_float
     else:
         raise ValueError("result_dtype can only be np.float64 or np.float32")
@@ -293,17 +298,18 @@ cdef void run_c_betweenness_centrality(uintptr_t c_handle,
         raise ValueError("result_dtype can only be np.float64 or np.float32")
 
 
-def mg_batch_betweenness_centrality(client, comms, input_data, normalized, endpoints,
+def mg_batch_betweenness_centrality(client, comms, input_graph, normalized, endpoints,
                                     weights, vertices, result_dtype):
     df = None
-    data, _ = cugraph.dask.common.input_utils.get_local_data(input_data, by='dst', load_balance=False)
-    print(input_data, normalized, endpoints, weights, vertices, result_dtype)
+    data, _ = cugraph.dask.common.input_utils.get_local_data(input_graph,
+                                                             by='dst',
+                                                             load_balance=False)
     with CommsInitAndDestroyContext(comms) as context:
         for dummy, worker in enumerate(client.has_what().keys()):
             if worker not in  data.worker_to_parts:
                 data.worker_to_parts[worker] = [[dummy], None]
         work_futures =  [client.submit(run_work,
-                                       (wf[1], data.local_data),
+                                       (wf[1], data.local_data, type(input_graph)),
                                        normalized,
                                        endpoints,
                                        weights,
@@ -336,8 +342,8 @@ def betweenness_centrality(input_graph, normalized, endpoints, weights,
     Call betweenness centrality
     """
     df = None
-    client =  opg_get_client()
-    comms = opg_get_comms_using_client(client)
+    client =  mg_get_client()
+    comms = mg_get_comms_using_client(client)
     if comms:
         assert input_graph.distributed == True, "When running on a dask " \
             "cluster the graph should be distributed"
@@ -360,5 +366,6 @@ def betweenness_centrality(input_graph, normalized, endpoints, weights,
     # Instead of having  the sources in ascending order
     if input_graph.renumbered:
         df = unrenumber(input_graph.edgelist.renumber_map, df, 'vertex')
+    print(len(df))
 
     return df

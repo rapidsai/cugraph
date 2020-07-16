@@ -87,6 +87,7 @@ class Graph:
         self.bipartite = bipartite
         self.multi = multi
         self.distributed = False
+        self.replicatable = False
         self.dynamic = dynamic
         self.edgelist = None
         self.adjlist = None
@@ -229,7 +230,8 @@ class Graph:
         if type(self) is Graph:
             raise Exception('Undirected distributed graph not supported')
         if isinstance(input_ddf, dask_cudf.DataFrame):
-            self.distributed = True
+            self.distributed = (input_ddf.npartitions > 1)
+            self.replicatable = (input_ddf.npartitions == 1)
             self.local_data = None
             self.edgelist = self.EdgeList(input_ddf)
         else:

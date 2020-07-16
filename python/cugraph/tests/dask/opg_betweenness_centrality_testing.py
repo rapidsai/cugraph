@@ -25,7 +25,8 @@ from cugraph.tests.test_betweenness_centrality import (
 # =============================================================================
 # Parameters
 # =============================================================================
-DIRECTED_GRAPH_OPTIONS = [True] # FIXME: Undirected Distributed Graph currently not supported
+ # FIXME: Undirected Replicated Graph currently not supported
+DIRECTED_GRAPH_OPTIONS = [True]
 OPG_DEVICE_COUNT_OPTIONS = [1, 2, 3, 4]
 
 

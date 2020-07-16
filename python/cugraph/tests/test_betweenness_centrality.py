@@ -19,7 +19,6 @@ import cugraph
 from cugraph.tests import utils
 import random
 import numpy as np
-import cupy
 import cudf
 
 # Temporarily suppress warnings till networkX fixes deprecation warnings
@@ -248,9 +247,13 @@ def _calc_bc_full(G, Gnx, normalized, weight, endpoints,
 # i.e: sorted_df[idx][first_key] should be compared to
 #      sorted_df[idx][second_key]
 def compare_scores(sorted_df, first_key, second_key, epsilon=DEFAULT_EPSILON):
-    errors = sorted_df[~cupy.isclose(sorted_df[first_key],
-                                     sorted_df[second_key],
-                                     rtol=epsilon)]
+    print(len(sorted_df[first_key]))
+    print(len(sorted_df[second_key]))
+    print(len(sorted_df[first_key].to_array()))
+    print(len(sorted_df[second_key].to_array()))
+    errors = sorted_df[~np.isclose(sorted_df[first_key].to_array(),
+                                   sorted_df[second_key].to_array(),
+                                   rtol=epsilon)]
     num_errors = len(errors)
     if num_errors > 0:
         print(errors)

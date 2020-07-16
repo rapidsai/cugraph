@@ -28,15 +28,16 @@ import numpy as np
 import numpy.ctypeslib as ctypeslib
 
 import cugraph.raft
-from cugraph.dask.common.opg_utils import (CommsInitAndDestroyContext,
-                                           opg_get_client,
-                                           opg_get_comms_using_client,
+from cugraph.dask.common.mg_utils import (CommsInitAndDestroyContext,
+                                           mg_get_client,
+                                           mg_get_comms_using_client,
                                            is_worker_organizer)
 from cugraph.raft.dask.common.comms import (Comms, worker_state)
 import dask.distributed
+from cugraph.structure.utils_wrapper import coo2csr
 
 
-def get_output_df(input_graph, result_dtype):
+def get_sg_output_df(input_graph, result_dtype):
     number_of_edges = input_graph.number_of_edges(directed_edges=True)
     df = cudf.DataFrame()
     df['src'] = cudf.Series(np.zeros(number_of_edges, dtype=np.int32))
@@ -44,6 +45,17 @@ def get_output_df(input_graph, result_dtype):
     df['betweenness_centrality'] = cudf.Series(np.zeros(number_of_edges,
                                                dtype=result_dtype))
     return df
+
+def get_mg_output_df(src, dst, result_dtype):
+    number_of_edges = len(dst)
+    df = cudf.DataFrame()
+    df['src'] = src.copy()
+    df['dst'] = dst.copy()
+    df['betweenness_centrality'] = cudf.Series(np.zeros(number_of_edges,
+                                               dtype=result_dtype))
+    return df
+
+
 
 
 def get_batch(sources, number_of_workers, current_worker):
@@ -56,7 +68,7 @@ def get_batch(sources, number_of_workers, current_worker):
     return batch
 
 
-def run_work(input_graph, normalized, sources, weights,
+def run_work(input_graph, normalized, weights, sources,
              result_dtype, session_id):
     result = None
     # 1. Get session information
@@ -76,20 +88,126 @@ def run_work(input_graph, normalized, sources, weights,
 
     # 5. Dispatch to proper type
     if is_organizer:
-        result = run_organizer_work(handle, input_graph, normalized,
-                                    batch, weights,
-                                    total_number_of_sources, result_dtype)
+        result = run_organizer_work(handle, input_graph, normalized, weights,
+                                    batch, total_number_of_sources,
+                                    result_dtype)
     else:
-        result = run_regular_work(handle, normalized,
-                                  batch, weights,
+        result = run_regular_work(handle, normalized, weights, batch,
                                   total_number_of_sources, result_dtype)
 
     return result
 
 
-def run_organizer_work(handle, input_graph, normalized, batch,
-                       weights,
+def run_organizer_work(handle, input_data, normalized, weights, batch,
                        total_number_of_sources, result_dtype):
+    cdef uintptr_t c_handle = <uintptr_t> NULL
+    cdef uintptr_t c_graph = <uintptr_t> NULL
+    cdef uintptr_t c_src_identifier = <uintptr_t> NULL
+    cdef uintptr_t c_dst_identifier = <uintptr_t> NULL
+    cdef uintptr_t c_weights = <uintptr_t> NULL
+    cdef uintptr_t c_betweenness = <uintptr_t> NULL
+    cdef uintptr_t c_batch = <uintptr_t> NULL
+
+    cdef uintptr_t c_offsets = <uintptr_t> NULL
+    cdef uintptr_t c_indices = <uintptr_t> NULL
+    cdef uintptr_t c_graph_weights = <uintptr_t> NULL
+
+    cdef GraphCSRViewDouble graph_double
+    cdef GraphCSRViewFloat graph_float
+
+    _data, local_data, is_directed =  input_data
+
+    data = _data[0]
+    src =  data['src']
+    dst =  data['dst']
+    src, dst = graph_new_wrapper.datatype_cast([src, dst], [np.int32])
+    offsets, indices, graph_weights = coo2csr(src, dst, None)
+    if graph_weights:
+        c_graph_weights = graph_weights.__cuda_array_interface__['data'][0]
+    c_offsets = offsets.__cuda_array_interface__['data'][0]
+    c_indices = indices.__cuda_array_interface__['data'][0]
+
+    number_of_vertices = local_data['verts'].sum()
+    number_of_edges = local_data['edges'].sum()
+
+    result_df = get_mg_output_df(src, dst, result_dtype)
+    number_of_sources_in_batch = len(batch)
+    if result_dtype == np.float64:
+        graph_double = GraphCSRView[int, int, double](<int*> c_offsets,
+                                                      <int*> c_indices,
+                                                      <double*> c_graph_weights,
+                                                      number_of_vertices,
+                                                      number_of_edges)
+        graph_double.prop.directed = is_directed
+        c_graph = <uintptr_t>&graph_double
+    elif result_dtype == np.float32:
+        graph_float = GraphCSRView[int, int, float](<int*>c_offsets,
+                                                    <int*>c_indices,
+                                                    <float*>c_graph_weights,
+                                                    number_of_vertices,
+                                                    number_of_edges)
+        graph_float.prop.directed = is_directed
+        c_graph = <uintptr_t>&graph_float
+    else:
+        raise ValueError("result_dtype can only be np.float64 or np.float32")
+
+    c_src_identifier = result_df['src'].__cuda_array_interface__['data'][0]
+    c_dst_identifier = result_df['dst'].__cuda_array_interface__['data'][0]
+    c_betweenness = result_df['betweenness_centrality'].__cuda_array_interface__['data'][0]
+    if weights is not None:
+        c_weights = weights.__cuda_array_interface__['data'][0]
+    c_batch = batch.__array_interface__['data'][0]
+    c_handle = <uintptr_t>handle.getHandle()
+
+    run_c_edge_betweenness_centrality(c_handle,
+                                      c_graph,
+                                      c_betweenness,
+                                      normalized,
+                                      c_weights,
+                                      number_of_sources_in_batch,
+                                      c_batch,
+                                      total_number_of_sources,
+                                      result_dtype)
+    if result_dtype == np.float64:
+        graph_double.get_source_indices(<int*>c_src_identifier)
+    elif result_dtype == np.float32:
+        graph_float.get_source_indices(<int*>c_src_identifier)
+    else:
+        raise ValueError("result_dtype can only be np.float64 or np.float32")
+
+    return result_df
+
+
+def run_regular_work(handle, normalized, weights, batch,
+                     total_number_of_sources, result_dtype):
+    cdef uintptr_t c_handle = <uintptr_t> NULL
+    cdef uintptr_t c_graph = <uintptr_t> NULL
+    cdef uintptr_t c_weights = <uintptr_t> NULL
+    cdef uintptr_t c_batch = <uintptr_t> NULL
+    cdef uintptr_t c_betweenness = <uintptr_t> NULL
+
+    number_of_sources_in_batch = len(batch)
+
+    c_batch = batch.__array_interface__['data'][0]
+    c_handle = <uintptr_t>handle.getHandle()
+    if weights is not None:
+        c_weights = weights.__cuda_array_interface__['data'][0]
+
+    run_c_edge_betweenness_centrality(c_handle,
+                                      c_graph,
+                                      c_betweenness,
+                                      normalized,
+                                      c_weights,
+                                      number_of_sources_in_batch,
+                                      c_batch,
+                                      total_number_of_sources,
+                                      result_dtype)
+    return None
+
+
+def run_sg_work(handle, input_graph, normalized,
+                weights, batch,
+                total_number_of_sources, result_dtype):
     cdef uintptr_t c_handle = <uintptr_t> NULL
     cdef uintptr_t c_graph = <uintptr_t> NULL
     cdef uintptr_t c_src_identifier = <uintptr_t> NULL
@@ -101,7 +219,7 @@ def run_organizer_work(handle, input_graph, normalized, batch,
     cdef GraphCSRViewDouble graph_double
     cdef GraphCSRViewFloat graph_float
 
-    result_df = get_output_df(input_graph, result_dtype)
+    result_df = get_sg_output_df(input_graph, result_dtype)
     number_of_sources_in_batch = len(batch)
     if result_dtype == np.float64:
         graph_double = get_graph_view[GraphCSRViewDouble](input_graph, False)
@@ -141,33 +259,6 @@ def run_organizer_work(handle, input_graph, normalized, batch,
     return result_df
 
 
-def run_regular_work(handle, normalized, batch, weights,
-                     total_number_of_sources, result_dtype):
-    cdef uintptr_t c_handle = <uintptr_t> NULL
-    cdef uintptr_t c_graph = <uintptr_t> NULL
-    cdef uintptr_t c_weights = <uintptr_t> NULL
-    cdef uintptr_t c_batch = <uintptr_t> NULL
-    cdef uintptr_t c_betweenness = <uintptr_t> NULL
-
-    number_of_sources_in_batch = len(batch)
-
-    c_batch = batch.__array_interface__['data'][0]
-    c_handle = <uintptr_t>handle.getHandle()
-    if weights is not None:
-        c_weights = weights.__cuda_array_interface__['data'][0]
-
-    run_c_edge_betweenness_centrality(c_handle,
-                                      c_graph,
-                                      c_betweenness,
-                                      normalized,
-                                      c_weights,
-                                      number_of_sources_in_batch,
-                                      c_batch,
-                                      total_number_of_sources,
-                                      result_dtype)
-    return None
-
-
 cdef void run_c_edge_betweenness_centrality(uintptr_t c_handle,
                                             uintptr_t c_graph,
                                             uintptr_t c_betweenness,
@@ -198,6 +289,41 @@ cdef void run_c_edge_betweenness_centrality(uintptr_t c_handle,
     else:
         raise ValueError("result_dtype can only be np.float64 or np.float32")
 
+def mg_batch_edge_betweenness_centrality(client, comms, input_graph,
+                                         normalized,
+                                         weights, vertices, result_dtype):
+    df = None
+    data, _ = cugraph.dask.common.input_utils.get_local_data(input_graph,
+                                                             by='dst',
+                                                             load_balance=False)
+    with CommsInitAndDestroyContext(comms) as context:
+        for dummy, worker in enumerate(client.has_what().keys()):
+            if worker not in  data.worker_to_parts:
+                data.worker_to_parts[worker] = [[dummy], None]
+        work_futures =  [client.submit(run_work,
+                                       (wf[1], data.local_data, type(input_graph)),
+                                       normalized,
+                                       weights,
+                                       vertices,
+                                       result_dtype,
+                                       comms.sessionId,
+                                       workers=[wf[0]]) for
+                         idx, wf in enumerate(data.worker_to_parts.items())]
+        dask.distributed.wait(work_futures)
+        df = work_futures[0].result()
+    return df
+
+
+def sg_edge_betweenness_centrality(input_graph, normalized, weights,
+                                   vertices, result_dtype):
+    total_number_of_sources = len(vertices)
+    handle = cugraph.raft.common.handle.Handle()
+    df = run_sg_work(handle, input_graph, normalized, weights,
+                     vertices, total_number_of_sources, result_dtype)
+    return df
+
+
+
 def edge_betweenness_centrality(input_graph, normalized, weights,
                                 vertices, result_dtype):
     """
@@ -208,26 +334,20 @@ def edge_betweenness_centrality(input_graph, normalized, weights,
     if not input_graph.adjlist:
         input_graph.view_adj_list()
 
-    client = opg_get_client()
-    comms  = opg_get_comms_using_client(client)
+    client = mg_get_client()
+    comms  = mg_get_comms_using_client(client)
     if comms:
-        with CommsInitAndDestroyContext(comms):
-            if len(comms.worker_addresses) > 1: # Fall back to regular EBC otherwise
-                main_worker = comms.worker_addresses[0]
-                future_pointer_to_input_graph =  client.scatter(input_graph, workers=[main_worker])
-                future_input_data = [idx for idx in enumerate(comms.worker_addresses)]
-                future_input_data[0] = future_pointer_to_input_graph
-                work_futures =  [client.submit(run_work, input_data, normalized,
-                                            vertices,
-                                            weights, result_dtype,
-                                            comms.sessionId,
-                                            workers=[worker_address]) for
-                                (worker_idx, worker_address), input_data in zip(enumerate(comms.worker_addresses), future_input_data)]
-                dask.distributed.wait(work_futures)
-                df = work_futures[0].result()
-    if df is None:
-        handle = cugraph.raft.common.handle.Handle()
-        df = run_organizer_work(handle, input_graph, normalized, vertices, weights, len(vertices), result_dtype)
+        assert input_graph.distributed == True, "When running on a dask " \
+            "cluster the graph should be distributed"
+        assert input_graph.edgelist.edgelist_df.npartitions == 1, "In order " \
+            "to run Batch Analytics on Multi GPU, the graph needs to be "     \
+            "located on a single GPU"
+        df = mg_batch_edge_betweenness_centrality(client, comms, input_graph, normalized,
+                                                  weights, vertices,
+                                                  result_dtype)
+    else:
+        df = sg_edge_betweenness_centrality(input_graph, normalized,
+                                            weights, vertices, result_dtype)
 
     # Same as Betweenness Centrality unrenumber resuls might be organized
     # in buckets

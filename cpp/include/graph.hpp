@@ -663,9 +663,9 @@ template <typename ET>
 struct invalid_edge_id : invalid_idx<ET> {
 };
 
-namespace opg {
+namespace mg {
 /**
- * @brief              A Distributed Single GPU Graph representation to replicate
+ * @brief              A Replicatable Graph representation to replicate
  *                     a graph using the handle
  *
  * @tparam VT              Type of vertex id
@@ -674,7 +674,7 @@ namespace opg {
  * @tparam GraphTypeView   Type of Graph View
  */
 template <typename VT, typename ET, typename WT, typename GraphTypeView>
-class DSGGraph {
+class ReplicatableGraph {
  public:
   /**
    * @brief                           Allows broadcast of a Graph via communicator and handle
@@ -682,25 +682,25 @@ class DSGGraph {
    *
    * @param[in] handle                Library handle (RAFT). If a communicator is expected
    * to be initialized already
-   * @param[in]  graph_to_distribute  Pointer to the graph, should be null if rank != 0
+   * @param[in]  graph_to_replicate  Pointer to the graph, should be null if rank != 0
    * != 0
    */
-  DSGGraph(const raft::handle_t &handle, GraphTypeView const *graph_to_distribute)
+  ReplicatableGraph(const raft::handle_t &handle, GraphTypeView const *graph_to_replicate)
   {
     handle_   = &handle;
     rank_     = handle_->get_comms().get_rank();
     has_data_ = false;
-    if (graph_to_distribute != nullptr) { graph = *graph_to_distribute; }
+    if (graph_to_replicate != nullptr) { graph = *graph_to_replicate; }
   }
 
-  virtual void distribute()
+  virtual void replicate()
   {
-    distribute_info();
+    replicate_info();
     if (rank_ != 0) { initialize_data(); }
-    distribute_data();
+    replicate_data();
   }
 
-  virtual void distribute_info()
+  virtual void replicate_info()
   {
     initialize_info_storage();
     if (rank_ == 0) { fill_info_storage(); }
@@ -735,7 +735,7 @@ class DSGGraph {
   }
 
   virtual void initialize_data() = 0;
-  virtual void distribute_data() = 0;
+  virtual void replicate_data()  = 0;
 
   virtual void initialize_edge_data()
   {
@@ -747,7 +747,7 @@ class DSGGraph {
     }
   }
 
-  virtual void distribute_edge_data()
+  virtual void replicate_edge_data()
   {
     size_t edge_data_size = graph.number_of_edges;
     handle_->get_comms().bcast(graph.edge_data, edge_data_size, 0, handle_->get_stream());
@@ -768,7 +768,7 @@ class DSGGraph {
 };
 
 /**
- * @brief              A Distributed Single GPU GraphCSR representation to replicate
+ * @brief              A Replicatable GPU GraphCSR representation to replicate
  *                     a graph using the handle
  *
  * @tparam VT              Type of vertex id
@@ -776,8 +776,8 @@ class DSGGraph {
  * @tparam WT              Type of weight
  */
 template <typename VT, typename ET, typename WT>
-class DSGGraphCSR : public DSGGraph<VT, ET, WT, GraphCSRView<VT, ET, WT>> {
-  using GT = DSGGraph<VT, ET, WT, GraphCSRView<VT, ET, WT>>;
+class ReplicatableGraphCSR : public ReplicatableGraph<VT, ET, WT, GraphCSRView<VT, ET, WT>> {
+  using GT = ReplicatableGraph<VT, ET, WT, GraphCSRView<VT, ET, WT>>;
 
  public:
   /**
@@ -786,11 +786,12 @@ class DSGGraphCSR : public DSGGraph<VT, ET, WT, GraphCSRView<VT, ET, WT>> {
    *
    * @param[in] handle                Library handle (RAFT). If a communicator is expected
    * to be initialized already
-   * @param[in]  graph_to_distribute  Pointer to the graph, should be null if rank != 0
+   * @param[in]  graph_to_replicate  Pointer to the graph, should be null if rank != 0
    * != 0
    */
-  DSGGraphCSR(const raft::handle_t &handle, GraphCSRView<VT, ET, WT> const *graph_to_distribute)
-    : GT(handle, graph_to_distribute)
+  ReplicatableGraphCSR(const raft::handle_t &handle,
+                       GraphCSRView<VT, ET, WT> const *graph_to_replicate)
+    : GT(handle, graph_to_replicate)
   {
   }
 
@@ -814,20 +815,20 @@ class DSGGraphCSR : public DSGGraph<VT, ET, WT, GraphCSRView<VT, ET, WT>> {
     GT::graph.indices = d_indices_.data().get();
   }
 
-  void distribute_data()
+  void replicate_data()
   {
-    distribute_offsets();
-    distribute_indices();
-    if (GT::has_data_) { GT::distribute_edge_data(); }
+    replicate_offsets();
+    replicate_indices();
+    if (GT::has_data_) { GT::replicate_edge_data(); }
   }
 
-  void distribute_offsets()
+  void replicate_offsets()
   {
     size_t offsets_size = GT::graph.number_of_vertices + 1;
     GT::handle_->get_comms().bcast(GT::graph.offsets, offsets_size, 0, GT::handle_->get_stream());
   }
 
-  void distribute_indices()
+  void replicate_indices()
   {
     size_t indices_size = GT::graph.number_of_edges;
     GT::handle_->get_comms().bcast(GT::graph.indices, indices_size, 0, GT::handle_->get_stream());
@@ -836,5 +837,5 @@ class DSGGraphCSR : public DSGGraph<VT, ET, WT, GraphCSRView<VT, ET, WT>> {
   rmm::device_vector<ET> d_offsets_;
   rmm::device_vector<VT> d_indices_;
 };
-}  // namespace opg
+}  // namespace mg
 }  // namespace cugraph
