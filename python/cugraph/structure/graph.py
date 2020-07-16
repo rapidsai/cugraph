@@ -53,11 +53,10 @@ class Graph:
                     self.edgelist_df['weights'] = edge_attr
 
         def __from_dask_cudf(self, ddf, renumber_map=None):
-            self.renumber_map = None
+            self.renumber_map = renumber_map
             self.edgelist_df = ddf
             self.weights = False
             # FIXME: Edge Attribute not handled
-
 
     class AdjList:
         def __init__(self, offsets, indices, value=None):
