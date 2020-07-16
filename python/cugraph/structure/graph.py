@@ -18,6 +18,7 @@ from cugraph.structure.renumber import renumber_from_cudf as multi_rnb
 from cugraph.dask.common.input_utils import get_local_data
 import cudf
 import dask_cudf
+import dask
 import numpy as np
 import warnings
 
@@ -31,7 +32,7 @@ class Graph:
 
     class EdgeList:
         def __init__(self, *args):
-            if len(args) == 1:
+            if len(args) <= 2: # ddf, renumber_map (when replicatable)
                 self.__from_dask_cudf(*args)
             else:
                 self.__from_cudf(*args)
@@ -51,16 +52,18 @@ class Graph:
                 else:
                     self.edgelist_df['weights'] = edge_attr
 
-        def __from_dask_cudf(self, ddf):
+        def __from_dask_cudf(self, ddf, renumber_map=None):
             self.renumber_map = None
             self.edgelist_df = ddf
             self.weights = False
+            # FIXME: Edge Attribute not handled
+
 
     class AdjList:
         def __init__(self, offsets, indices, value=None):
             self.offsets = offsets
             self.indices = indices
-            self.weights = value  # Should de a daftaframe for multiple weights
+            self.weights = value  # Should be a dataframe for multiple weights
 
     class transposedAdjList:
         def __init__(self, offsets, indices, value=None):
@@ -229,13 +232,57 @@ class Graph:
             raise Exception('Graph already has values')
         if type(self) is Graph:
             raise Exception('Undirected distributed graph not supported')
-        if isinstance(input_ddf, dask_cudf.DataFrame):
-            self.distributed = (input_ddf.npartitions > 1)
-            self.replicatable = (input_ddf.npartitions == 1)
-            self.local_data = None
-            self.edgelist = self.EdgeList(input_ddf)
-        else:
+        if not isinstance(input_ddf, dask_cudf.DataFrame):
             raise Exception('input should be a dask_cudf dataFrame')
+        self.distributed = True
+        self.replicatable = (input_ddf.npartitions == 1)
+        self.local_data = None
+
+        if not self.replicatable:  # MG Distributed
+            self.edgelist = self.EdgeList(input_ddf)
+        else:  # MG Batch
+            renumber = True  # FIXME: Handled option
+            edge_attr = None  # FIXME: Handle weights attributes
+            source = 'src'
+            destination = 'dst'
+            if self.multi:
+                if type(edge_attr) is not list:
+                    raise Exception('edge_attr should be a list of column names')
+                value_col = {}
+                for col_name in edge_attr:
+                    value_col[col_name] = input_ddf[col_name]
+            elif edge_attr is not None:
+                value_col = input_ddf[edge_attr]
+            else:
+                value_col = None
+            renumber_map = None
+            if renumber:
+                if type(source) is list and type(destination) is list:
+                    source_col, dest_col, renumber_map = multi_rnb(input_ddf,
+                                                                   source,
+                                                                   destination)
+                else:
+                    source_col, dest_col, renumber_map = rnb(input_ddf[source].compute(),
+                                                             input_ddf[destination].compute())
+                self.renumbered = True
+            else:
+                if type(source) is list and type(destination) is list:
+                    raise Exception('set renumber to True for multi column ids')
+                else:
+                    source_col = input_ddf[source]
+                    dest_col = input_ddf[destination]
+            if not self.symmetrized and not self.multi:
+                if value_col is not None:
+                    source_col, dest_col, value_col = symmetrize(source_col,
+                                                                 dest_col,
+                                                                 value_col)
+                else:
+                    source_col, dest_col = symmetrize(source_col, dest_col)
+
+            df = dask.delayed(cudf.DataFrame)({'src': source_col, 'dst': dest_col}, dtype=np.int32)
+            new_ddf = dask_cudf.from_cudf(df.compute(), npartitions=1)
+            new_ddf = new_ddf.persist()
+            self.edgelist = Graph.EdgeList(new_ddf, renumber_map)
 
     def compute_local_data(self, by, load_balance=True):
         """

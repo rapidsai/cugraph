@@ -56,8 +56,6 @@ def get_mg_output_df(src, dst, result_dtype):
     return df
 
 
-
-
 def get_batch(sources, number_of_workers, current_worker):
     batch_size = len(sources) // number_of_workers
     begin =  current_worker * batch_size

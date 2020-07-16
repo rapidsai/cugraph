@@ -116,19 +116,16 @@ def run_organizer_work(handle, input_data, normalized, endpoints,
     src = data['src']
     dst = data['dst']
     src, dst = graph_new_wrapper.datatype_cast([src, dst], [np.int32])
-    # FIXME: The following is not discarding nodes that have outward edges
+
     offsets, indices, graph_weights = coo2csr(src, dst, None)
+
     if graph_weights:
         c_graph_weights = graph_weights.__cuda_array_interface__['data'][0]
     c_offsets = offsets.__cuda_array_interface__['data'][0]
     c_indices = indices.__cuda_array_interface__['data'][0]
-    worker = dask.distributed.get_worker()
 
-    # number_of_vertices = local_data['verts'].sum()
-    # takes into  account all vertices without discarding non
     number_of_vertices = len(offsets) - 1
     number_of_edges = len(indices)
-    print("[DBG] Number of vertices", number_of_vertices)
 
     result_size = number_of_vertices
     result_df = get_output_df(result_size, result_dtype)
@@ -301,9 +298,7 @@ cdef void run_c_betweenness_centrality(uintptr_t c_handle,
 def mg_batch_betweenness_centrality(client, comms, input_graph, normalized, endpoints,
                                     weights, vertices, result_dtype):
     df = None
-    data, _ = cugraph.dask.common.input_utils.get_local_data(input_graph,
-                                                             by='dst',
-                                                             load_balance=False)
+    data, _ = cugraph.dask.common.input_utils.get_mg_batch_local_data(input_graph)
     with CommsInitAndDestroyContext(comms) as context:
         for dummy, worker in enumerate(client.has_what().keys()):
             if worker not in  data.worker_to_parts:
@@ -345,10 +340,9 @@ def betweenness_centrality(input_graph, normalized, endpoints, weights,
     client =  mg_get_client()
     comms = mg_get_comms_using_client(client)
     if comms:
-        assert input_graph.distributed == True, "When running on a dask " \
-            "cluster the graph should be distributed"
-        assert input_graph.edgelist.edgelist_df.npartitions == 1, "In order " \
-            "to run Batch Analytics on Multi GPU, the graph needs to be "     \
+        # FIXME: the distributed
+        assert input_graph.replicatable == True, "To run Batch Analytics on " \
+            "Multi GPU, the graph needs to be "     \
             "located on a single GPU"
         df = mg_batch_betweenness_centrality(client, comms, input_graph, normalized,
                                              endpoints, weights, vertices,
@@ -366,6 +360,5 @@ def betweenness_centrality(input_graph, normalized, endpoints, weights,
     # Instead of having  the sources in ascending order
     if input_graph.renumbered:
         df = unrenumber(input_graph.edgelist.renumber_map, df, 'vertex')
-    print(len(df))
 
     return df
