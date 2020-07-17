@@ -28,11 +28,10 @@ import numpy as np
 import numpy.ctypeslib as ctypeslib
 
 import cugraph.raft
-from cugraph.dask.common.mg_utils import (CommsInitAndDestroyContext,
-                                           mg_get_client,
-                                           mg_get_comms_using_client,
-                                           is_worker_organizer)
-from cugraph.raft.dask.common.comms import (Comms, worker_state)
+from cugraph.dask.common.mg_utils import (mg_get_client,
+                                          is_worker_organizer)
+import cugraph.comms.comms as Comms
+from cugraph.raft.dask.common.comms import worker_state
 import dask.distributed
 from cugraph.structure.utils_wrapper import coo2csr
 
@@ -291,24 +290,21 @@ def mg_batch_edge_betweenness_centrality(client, comms, input_graph,
                                          normalized,
                                          weights, vertices, result_dtype):
     df = None
-    data, _ = cugraph.dask.common.input_utils.get_local_data(input_graph,
-                                                             by='dst',
-                                                             load_balance=False)
-    with CommsInitAndDestroyContext(comms) as context:
-        for dummy, worker in enumerate(client.has_what().keys()):
-            if worker not in  data.worker_to_parts:
-                data.worker_to_parts[worker] = [[dummy], None]
-        work_futures =  [client.submit(run_work,
-                                       (wf[1], data.local_data, type(input_graph)),
-                                       normalized,
-                                       weights,
-                                       vertices,
-                                       result_dtype,
-                                       comms.sessionId,
-                                       workers=[wf[0]]) for
-                         idx, wf in enumerate(data.worker_to_parts.items())]
-        dask.distributed.wait(work_futures)
-        df = work_futures[0].result()
+    data  = cugraph.dask.common.input_utils.get_mg_batch_local_data(input_graph)
+    for placeholder, worker in enumerate(client.has_what().keys()):
+        if worker not in  data.worker_to_parts:
+            data.worker_to_parts[worker] = [[placeholder], None]
+    work_futures =  [client.submit(run_work,
+                                   (wf[1], data.local_data, type(input_graph)),
+                                   normalized,
+                                   weights,
+                                   vertices,
+                                   result_dtype,
+                                   comms.sessionId,
+                                   workers=[wf[0]]) for
+                     idx, wf in enumerate(data.worker_to_parts.items())]
+    dask.distributed.wait(work_futures)
+    df = work_futures[0].result()
     return df
 
 
@@ -333,12 +329,10 @@ def edge_betweenness_centrality(input_graph, normalized, weights,
         input_graph.view_adj_list()
 
     client = mg_get_client()
-    comms  = mg_get_comms_using_client(client)
+    comms = Comms.get_comms()
     if comms:
-        assert input_graph.distributed == True, "When running on a dask " \
-            "cluster the graph should be distributed"
-        assert input_graph.edgelist.edgelist_df.npartitions == 1, "In order " \
-            "to run Batch Analytics on Multi GPU, the graph needs to be "     \
+        assert input_graph.replicatable == True, "To run Batch Analytics on " \
+            "Multi GPU, the graph needs to be "     \
             "located on a single GPU"
         df = mg_batch_edge_betweenness_centrality(client, comms, input_graph, normalized,
                                                   weights, vertices,

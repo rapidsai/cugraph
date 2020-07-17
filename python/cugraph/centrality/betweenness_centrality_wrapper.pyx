@@ -296,9 +296,9 @@ def mg_batch_betweenness_centrality(client, comms, input_graph, normalized, endp
                                     weights, vertices, result_dtype):
     df = None
     data = cugraph.dask.common.input_utils.get_mg_batch_local_data(input_graph)
-    for dummy, worker in enumerate(client.has_what().keys()):
+    for placeholder, worker in enumerate(client.has_what().keys()):
         if worker not in  data.worker_to_parts:
-            data.worker_to_parts[worker] = [[dummy], None]
+            data.worker_to_parts[worker] = [[placeholder], None]
     work_futures =  [client.submit(run_work,
                                    (wf[1], data.local_data, type(input_graph)),
                                    normalized,

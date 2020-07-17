@@ -2,6 +2,7 @@ import time
 
 from dask.distributed import Client
 from dask_cuda import LocalCUDACluster as CUDACluster
+import cugraph.comms as Comms
 
 # Maximal number of verifications of the number of workers
 DEFAULT_MAX_ATTEMPT = 100
@@ -40,6 +41,7 @@ class OPGContext:
     def _prepare_opg(self):
         self._prepare_cluster()
         self._prepare_client()
+        self._prepare_comms()
 
     def _prepare_cluster(self):
         self._cluster = CUDACluster(
@@ -50,7 +52,11 @@ class OPGContext:
         self._client = Client(self._cluster)
         self._client.wait_for_workers(self._number_of_devices)
 
+    def _prepare_comms(self):
+        Comms.initialize()
+
     def _close(self):
+        Comms.destroy()
         if self._client is not None:
             self._client.close()
         if self._cluster is not None:

@@ -259,7 +259,7 @@ class Graph:
         if not self.replicatable:  # MG Distributed
             self.edgelist = self.EdgeList(input_ddf)
         else:  # MG Batch
-            renumber = True  # FIXME: Handled option
+            renumber = True  # FIXME: Handle option
             edge_attr = None  # FIXME: Handle weights attributes
             source = 'src'
             destination = 'dst'
@@ -376,8 +376,8 @@ class Graph:
             self.edgelist = self.EdgeList(src, dst, weights)
         if type(self) is Graph:
             edgelist_df = self.edgelist.edgelist_df[self.edgelist.edgelist_df[
-                          'src'] <= self.edgelist.edgelist_df['dst']].\
-                          reset_index(drop=True)
+                'src'] <= self.edgelist.edgelist_df['dst']].\
+                reset_index(drop=True)
             self.edge_count = len(edgelist_df)
         else:
             edgelist_df = self.edgelist.edgelist_df
@@ -541,7 +541,7 @@ class Graph:
                                   self.adjlist.weights)
             else:
                 off, ind, vals = graph_new_wrapper.\
-                                 view_transposed_adj_list(self)
+                    view_transposed_adj_list(self)
             self.transposedadjlist = self.transposedAdjList(off, ind, vals)
         return (self.transposedadjlist.offsets,
                 self.transposedadjlist.indices,
@@ -815,7 +815,7 @@ class Graph:
         if self.distributed:
             raise Exception("Not supported for distributed graph")
         vertex_col, in_degree_col, out_degree_col = graph_new_wrapper._degrees(
-                                                        self)
+            self)
 
         df = cudf.DataFrame()
         if vertex_subset is None:
