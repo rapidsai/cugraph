@@ -595,6 +595,8 @@ void sssp(GraphCSRView<VT, ET, WT> const &graph,
  *
  * @param[in] directed               Treat the input graph as directed
  *
+ * @param[in] mg_batch               If set to true use SG BFS path when comms are initialized.
+ *
  * @throws     cugraph::logic_error when an error occurs.
  */
 template <typename VT, typename ET, typename WT>
@@ -605,7 +607,7 @@ void bfs(raft::handle_t const &handle,
          double *sp_counters,
          const VT start_vertex,
          bool directed = true,
-         bool mg_batch = true);
+         bool mg_batch = false);
 
 /**
  * @brief      Louvain implementation

@@ -193,8 +193,14 @@ template <typename VT, typename ET, typename WT, typename result_t>
 void BC<VT, ET, WT, result_t>::compute_single_source(VT source_vertex)
 {
   // Step 1) Singe-source shortest-path problem
-  cugraph::bfs(
-    handle_, graph_, distances_, predecessors_, sp_counters_, source_vertex, graph_.prop.directed);
+  cugraph::bfs(handle_,
+               graph_,
+               distances_,
+               predecessors_,
+               sp_counters_,
+               source_vertex,
+               graph_.prop.directed,
+               true);
 
   // FIXME: Remove that with a BC specific class to gather
   //        information during traversal
