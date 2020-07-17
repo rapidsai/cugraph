@@ -300,7 +300,8 @@ def mg_batch_betweenness_centrality(client, comms, input_graph, normalized, endp
         if worker not in  data.worker_to_parts:
             data.worker_to_parts[worker] = [[placeholder], None]
     work_futures =  [client.submit(run_work,
-                                   (wf[1], data.local_data, type(input_graph)),
+                                   (wf[1], data.local_data, type(input_graph)
+                                    is DiGraph),
                                    normalized,
                                    endpoints,
                                    weights,

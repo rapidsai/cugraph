@@ -2,10 +2,11 @@ import pytest
 
 from cugraph.dask.core import get_visible_devices
 
-from cugraph.tests.dask.opg_context import (OPGContext, enforce_rescale)
+from cugraph.tests.dask.opg_context import OPGContext
 
 # Get parameters from standard betwenness_centrality_test
 from cugraph.tests.test_betweenness_centrality import (
+    DIRECTED_GRAPH_OPTIONS,
     ENDPOINTS_OPTIONS,
     NORMALIZED_OPTIONS,
     DEFAULT_EPSILON,
@@ -24,9 +25,8 @@ from cugraph.tests.test_betweenness_centrality import (
 # =============================================================================
 # Parameters
 # =============================================================================
-# FIXME: Undirected Replicated Graph currently not supported
-DIRECTED_GRAPH_OPTIONS = [True]
-OPG_DEVICE_COUNT_OPTIONS = [4]
+OPG_DEVICE_COUNT_OPTIONS = [1, 2, 3, 4]
+
 
 # FIXME: The following creates and destroys Comms at every call making the
 # testsuite quite slow

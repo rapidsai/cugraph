@@ -45,11 +45,11 @@ def get_sg_output_df(input_graph, result_dtype):
                                                dtype=result_dtype))
     return df
 
-def get_mg_output_df(src, dst, result_dtype):
-    number_of_edges = len(dst)
+def get_mg_output_df(src, indices, result_dtype):
+    number_of_edges = len(src)
     df = cudf.DataFrame()
     df['src'] = src.copy()
-    df['dst'] = dst.copy()
+    df['dst'] = indices.copy()
     df['betweenness_centrality'] = cudf.Series(np.zeros(number_of_edges,
                                                dtype=result_dtype))
     return df
@@ -127,7 +127,7 @@ def run_organizer_work(handle, input_data, normalized, weights, batch,
     number_of_vertices = local_data['verts'].sum()
     number_of_edges = local_data['edges'].sum()
 
-    result_df = get_mg_output_df(src, dst, result_dtype)
+    result_df = get_mg_output_df(src, indices, result_dtype)
     number_of_sources_in_batch = len(batch)
     if result_dtype == np.float64:
         graph_double = GraphCSRView[int, int, double](<int*> c_offsets,
@@ -295,7 +295,8 @@ def mg_batch_edge_betweenness_centrality(client, comms, input_graph,
         if worker not in  data.worker_to_parts:
             data.worker_to_parts[worker] = [[placeholder], None]
     work_futures =  [client.submit(run_work,
-                                   (wf[1], data.local_data, type(input_graph)),
+                                   (wf[1], data.local_data,
+                                    type(input_graph) is cugraph.DiGraph),
                                    normalized,
                                    weights,
                                    vertices,
@@ -310,6 +311,9 @@ def mg_batch_edge_betweenness_centrality(client, comms, input_graph,
 
 def sg_edge_betweenness_centrality(input_graph, normalized, weights,
                                    vertices, result_dtype):
+    if not input_graph.adjlist:
+        input_graph.view_adj_list()
+
     total_number_of_sources = len(vertices)
     handle = cugraph.raft.common.handle.Handle()
     df = run_sg_work(handle, input_graph, normalized, weights,
@@ -324,9 +328,6 @@ def edge_betweenness_centrality(input_graph, normalized, weights,
     Call betweenness centrality
     """
     df = None
-
-    if not input_graph.adjlist:
-        input_graph.view_adj_list()
 
     client = mg_get_client()
     comms = Comms.get_comms()
