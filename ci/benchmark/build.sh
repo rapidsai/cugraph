@@ -146,7 +146,7 @@ BECHMARK_META=$(jq -n \
   {
     "machineName": $NODE,
     "commitBranch": $MINOR_VER,
-    "requirements": $REQS,
+    "requirements": $REQS
   }
 ')
 
