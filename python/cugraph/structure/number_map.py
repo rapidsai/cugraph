@@ -43,6 +43,9 @@ class NumberMap:
                 )
                 for newname, oldname in zip(self.col_names, dst_col_names):
                     self.df[newname] = tmp[newname].append(tmp_dst[oldname])
+            else:
+                for newname, oldname in zip(self.col_names, dst_col_names):
+                    self.df[newname] = tmp[newname]
 
             self.numbered = False
 
@@ -66,10 +69,10 @@ class NumberMap:
             )
 
         def add_vertex_id(self, df, id_column_name, col_names,
-                          drop, preserveOrder):
+                          drop, preserve_order):
             ret = None
 
-            if preserveOrder:
+            if preserve_order:
                 tmp_df = df
                 tmp_df['InDeX'] = tmp_df.index
             else:
@@ -97,8 +100,8 @@ class NumberMap:
                 columns={"id": id_column_name}, copy=False
             )
 
-            if preserveOrder:
-                ret = ret.sort_values('InDeX')
+            if preserve_order:
+                ret = ret.sort_values('InDeX').reset_index(drop=True)
 
             return ret
 
@@ -265,28 +268,36 @@ class NumberMap:
             )["global_id"]
 
         def add_vertex_id(self, ddf, id_column_name, col_names, drop,
-                          preserveOrder):
-            # At the moment, preserveOrder cannot be done on
+                          preserve_order):
+            # At the moment, preserve_order cannot be done on
             # multi-GPU
-            if preserveOrder:
-                raise Exception("preserveOrder not supported for multi-GPU")
+            if preserve_order:
+                raise Exception("preserve_order not supported for multi-GPU")
 
             ret = None
             if col_names is None:
                 ret = ddf.merge(
                     self.ddf, on=self.col_names, how="left"
-                ).reset_index(drop=True)
+                )
+            elif col_names == self.col_names:
+                ret = ddf.merge(
+                    self.ddf, on=col_names, how="left"
+                )
             else:
                 ret = ddf.merge(
                     self.ddf, left_on=col_names, right_on=self.col_names
                 ).map_partitions(
-                    lambda df: df.drop(self.col_names).rename(
-                        columns={"global_id": id_column_name}, copy=False
-                    )
+                    lambda df: df.drop(self.col_names)
                 )
 
             if drop:
-                return ret.map_partitions(lambda df: df.drop(col_names))
+                ret = ret.map_partitions(lambda df: df.drop(col_names))
+
+            ret = ret.map_partitions(
+                lambda df: df.rename(
+                    columns={"global_id": id_column_name}, copy=False
+                )
+            )
 
             return ret
 
@@ -458,7 +469,7 @@ class NumberMap:
 
     def add_vertex_id(
         self, df, id_column_name="id", col_names=None, drop=False,
-        preserveOrder=False
+        preserve_order=False
     ):
         """
         Given a collection of external vertex ids, return the internal vertex
@@ -487,7 +498,7 @@ class NumberMap:
             If True, drop the column names specified in col_names from
             the returned DataFrame.  Defaults to False.
 
-        preserveOrder: (optional) boolean
+        preserve_order: (optional) boolean
             If True, do extra sorting work to preserve the order
             of the input DataFrame.  Defaults to False.
 
@@ -521,7 +532,7 @@ class NumberMap:
 
         return self.implementation.add_vertex_id(
             tmp_df, id_column_name, tmp_col_names, (drop and can_drop),
-            preserveOrder
+            preserve_order
         )
 
     def from_vertex_id(
@@ -599,7 +610,7 @@ class NumberMap:
         """
         return self.implementation.col_names
 
-    def renumber(df, source_columns, dest_columns):
+    def renumber(df, source_columns, dest_columns, preserve_order=False):
         """
         Given a single GPU or distributed DataFrame, use source_columns and
         dest_columns to identify the source vertex identifiers and destination
@@ -662,23 +673,27 @@ class NumberMap:
         if isinstance(source_columns, list):
             renumber_map.from_dataframe(df, source_columns, dest_columns)
             df = renumber_map.add_vertex_id(
-                df, "id", source_columns, drop=True
-            ).rename(columns={"id": "src"})
+                df, "src", source_columns, drop=True,
+                preserve_order=preserve_order
+            ) #.rename(columns={"id": "src"})
             df = renumber_map.add_vertex_id(
-                df, "id", dest_columns, drop=True
-            ).rename(columns={"id": "dst"})
+                df, "dst", dest_columns, drop=True,
+                preserve_order=preserve_order
+            ) #.rename(columns={"id": "dst"})
         else:
             renumber_map.from_dataframe(df, [source_columns], [dest_columns])
             df = renumber_map.add_vertex_id(
-                df, "id", source_columns, drop=True
-            ).rename(columns={"id": "src"})
+                df, "src", source_columns, drop=True,
+                preserve_order=preserve_order
+            ) #.rename(columns={"id": "src"})
             df = renumber_map.add_vertex_id(
-                df, "id", dest_columns, drop=True
-            ).rename(columns={"id": "dst"})
+                df, "dst", dest_columns, drop=True,
+                preserve_order=preserve_order
+            ) #.rename(columns={"id": "dst"})
 
         return df, renumber_map
 
-    def unrenumber(self, df, column_name):
+    def unrenumber(self, df, column_name, preserve_order=False):
         """
         Given a DataFrame containing internal vertex ids in the identified
         column, replace this with external vertex ids.  If the renumbering
@@ -687,10 +702,8 @@ class NumberMap:
         a multi-column input, the output columns will be labeled 0 through
         n-1 with a suffix of _column_name.
 
-        Note that this function does not guarantee order in single GPU mode,
-        and does not guarantee order or partitioning in multi-GPU mode.  If you
-        wish to preserve ordering, add an index column to df and sort the
-        return by that index column.
+        Note that this function does not guarantee order or partitioning in
+        multi-GPU mode.
 
         Parameters
         ----------
@@ -700,6 +713,10 @@ class NumberMap:
 
         column_name: string
             Name of the column containing the internal vertex id.
+
+        preserve_order: (optional) bool
+            If True, preserve the ourder of the rows in the output
+            DataFrame to match the input DataFrame
 
         Returns
         ---------
@@ -733,6 +750,12 @@ class NumberMap:
             for nm in self.implementation.col_names:
                 mapping[nm] = nm + "_" + column_name
 
+        if preserve_order:
+            df['InDeX'] = df.index
+
         df = self.from_vertex_id(df, column_name, drop=True)
+
+        if preserve_order:
+            df = df.sort_values('InDeX').drop('InDeX').reset_index(drop=True)
 
         return df.rename(columns=mapping, copy=False)

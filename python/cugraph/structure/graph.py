@@ -33,10 +33,7 @@ class Graph:
             else:
                 self.__from_cudf(*args)
 
-        def __from_cudf(
-            self, source, destination, edge_attr=None, renumber_map=None
-        ):
-            self.renumber_map = renumber_map
+        def __from_cudf(self, source, destination, edge_attr=None):
             self.edgelist_df = cudf.DataFrame()
             self.edgelist_df["src"] = source
             self.edgelist_df["dst"] = destination
@@ -50,7 +47,6 @@ class Graph:
                     self.edgelist_df["weights"] = edge_attr
 
         def __from_dask_cudf(self, ddf):
-            self.renumber_map = None
             self.edgelist_df = ddf
             self.weights = False
 
@@ -111,7 +107,7 @@ class Graph:
                     edge_attr=edge_attr,
                 )
                 self.renumbered = m_graph.renumbered
-                self.edgelist.renumber_map = m_graph.edgelist.renumber_map
+                self.renumber_map = m_graph.renumber_map
             else:
                 msg = "Graph can be initialized using MultiGraph\
  and DiGraph can be initialized using MultiDiGraph"
@@ -234,8 +230,9 @@ class Graph:
                 source_col, dest_col = symmetrize(source_col, dest_col)
 
         self.edgelist = Graph.EdgeList(
-            source_col, dest_col, value_col, renumber_map
+            source_col, dest_col, value_col
         )
+        self.renumber_map = renumber_map
 
     def add_edge_list(self, source, destination, value=None):
         warnings.warn(
@@ -273,10 +270,11 @@ class Graph:
                     input_ddf, "src", "dst"
                 )
                 self.edgelist = self.EdgeList(renumbered_ddf)
-                self.edgelist.renumber_map = number_map
+                self.renumber_map = number_map
                 self.renumbered = True
             else:
                 self.edgelist = self.EdgeList(input_ddf)
+                self.renumber_map = None
                 self.renumbered = False
         else:
             raise Exception('input should be a dask_cudf dataFrame')
@@ -871,7 +869,7 @@ class Graph:
                 source_col, dest_col = symmetrize(df["src"], df["dst"])
                 value_col = None
             G.edgelist = Graph.EdgeList(
-                source_col, dest_col, value_col, self.edgelist.renumber_map
+                source_col, dest_col, value_col
             )
 
             return G
@@ -892,7 +890,7 @@ class Graph:
             ddf = self.edgelist.edgelist_df[['src', 'dst']]
             return (ddf == n).any().any().compute()
         if self.renumbered:
-            tmp = self.edgelist.renumber_map.to_vertex_id(cudf.Series([n]))
+            tmp = self.renumber_map.to_vertex_id(cudf.Series([n]))
             return tmp[0] >= 0
         else:
             df = self.edgelist.edgelist_df[["src", "dst"]]
@@ -905,7 +903,7 @@ class Graph:
         if self.edgelist is None:
             raise Exception("Graph has no Edgelist.")
         if self.renumbered:
-            tmp = self.edgelist.renumber_map.to_vertex_id(cudf.Series([u, v]))
+            tmp = self.renumber_map.to_vertex_id(cudf.Series([u, v]))
 
             u = tmp[0]
             v = tmp[1]
@@ -938,7 +936,7 @@ class Graph:
             # FIXME: This relies un current implementation
             #        of NumberMap, should not really expose
             #        this, perhaps add a method to NumberMap
-            return self.edgelist.renumber_map.df["0"]
+            return self.renumber_map.df["0"]
         else:
             return cudf.concat([df["src"], df["dst"]]).unique()
 
@@ -949,7 +947,7 @@ class Graph:
             ddf = self.edgelist.edgelist_df
             return ddf[ddf['src'] == n]['dst'].reset_index(drop=True)
         if self.renumbered:
-            node = self.edgelist.renumber_map.to_vertex_id(cudf.Series([n]))
+            node = self.renumber_map.to_vertex_id(cudf.Series([n]))
             if len(node) == 0:
                 return cudf.Series(dtype="int")
             n = node[0]
@@ -958,11 +956,11 @@ class Graph:
         neighbors = df[df["src"] == n]["dst"].reset_index(drop=True)
         if self.renumbered:
             # FIXME:  Multi-column vertices
-            return self.edgelist.renumber_map.from_vertex_id(neighbors)["0"]
+            return self.renumber_map.from_vertex_id(neighbors)["0"]
         else:
             return neighbors
 
-    def unrenumber(self, df, column_name):
+    def unrenumber(self, df, column_name, preserve_order=False):
         """
         Given a DataFrame containing internal vertex ids in the identified
         column, replace this with external vertex ids.  If the renumbering
@@ -984,6 +982,10 @@ class Graph:
 
         column_name: string
             Name of the column containing the internal vertex id.
+
+        preserve_order: (optional) bool
+            If True, preserve the order of the rows in the output
+            DataFrame to match the input DataFrame
 
         Returns
         ---------
@@ -1008,7 +1010,7 @@ class Graph:
         >>> pr = number_map.unrenumber(pr, 'vertex')
         >>>
         """
-        return self.edgelist.renumber_map.unrenumber(df, column_name)
+        return self.renumber_map.unrenumber(df, column_name, preserve_order)
 
     def lookup_vertex_id(self, df, column_name=None):
         """
@@ -1033,10 +1035,10 @@ class Graph:
         series : cudf.Series or dask_cudf.Series
             The internal vertex identifiers
         """
-        return self.edgelist.renumber_map.to_vertex_id(df, column_name)
+        return self.renumber_map.to_vertex_id(df, column_name)
 
     def add_vertex_id(self, df, external_column_name, internal_column_name,
-                      drop=True, preserveOrder=False):
+                      drop=True, preserve_order=False):
         """
         Given a DataFrame containing external vertex ids in the identified
         columns, return a DataFrame containing the internal vertex ids as the
@@ -1058,7 +1060,7 @@ class Graph:
         drop: (optional) bool, defaults to True
             Drop the external columns from the returned DataFrame
 
-        preserveOrder: (optional) bool, defaults to False
+        preserve_order: (optional) bool, defaults to False
             Preserve the order of the data frame (requires an extra sort)
 
         Returns
@@ -1067,9 +1069,9 @@ class Graph:
             Original DataFrame with new column containing internal vertex
             id
         """
-        return self.edgelist.renumber_map.add_vertex_id(
+        return self.renumber_map.add_vertex_id(
             df, external_column_name, internal_column_name,
-            drop, preserveOrder)
+            drop, preserve_order)
 
 
 class DiGraph(Graph):
