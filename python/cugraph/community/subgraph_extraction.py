@@ -53,7 +53,7 @@ def subgraph(G, vertices):
     null_check(vertices)
 
     if G.renumbered:
-        vertices = G.edgelist.renumber_map.to_vertex_id(vertices)
+        vertices = G.lookup_vertex_id(vertices)
 
     result_graph = type(G)()
 

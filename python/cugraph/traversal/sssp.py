@@ -54,7 +54,7 @@ def sssp(G, source):
     """
 
     if G.renumbered is True:
-        source = G.edgelist.renumber_map.to_vertex_id(cudf.Series([source]))[0]
+        source = G.lookup_vertex_id(cudf.Series([source]))[0]
 
     df = sssp_wrapper.sssp(G, source)
 

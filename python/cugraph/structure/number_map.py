@@ -65,30 +65,40 @@ class NumberMap:
                 .reset_index()["id"]
             )
 
-        def add_vertex_id(self, df, id_column_name, col_names, drop):
+        def add_vertex_id(self, df, id_column_name, col_names,
+                          drop, preserveOrder):
             ret = None
+
+            if preserveOrder:
+                tmp_df = df
+                tmp_df['InDeX'] = tmp_df.index
+            else:
+                tmp_df = df
+
             if col_names is None:
-                ret = df.merge(self.df, on=self.col_names, how="left").rename(
-                    columns={"id": id_column_name}, copy=False
-                )
+                ret = tmp_df.merge(self.df, on=self.col_names, how="left")
             elif col_names == self.col_names:
-                ret = df.merge(self.df, on=self.col_names, how="left").rename(
-                    columns={"id": id_column_name}, copy=False
-                )
+                ret = tmp_df.merge(self.df, on=self.col_names, how="left")
             else:
                 ret = (
-                    df.merge(
+                    tmp_df.merge(
                         self.df,
                         left_on=col_names,
                         right_on=self.col_names,
                         how="left",
                     )
                     .drop(self.col_names)
-                    .rename(columns={"id": id_column_name}, copy=False)
                 )
 
             if drop:
-                return ret.drop(col_names)
+                ret = ret.drop(col_names)
+
+            ret = ret.rename(
+                columns={"id": id_column_name}, copy=False
+            )
+
+            if preserveOrder:
+                ret = ret.sort_values('InDeX')
 
             return ret
 
@@ -254,7 +264,13 @@ class NumberMap:
                 how="left",
             )["global_id"]
 
-        def add_vertex_id(self, ddf, id_column_name, col_names, drop):
+        def add_vertex_id(self, ddf, id_column_name, col_names, drop,
+                          preserveOrder):
+            # At the moment, preserveOrder cannot be done on
+            # multi-GPU
+            if preserveOrder:
+                raise Exception("preserveOrder not supported for multi-GPU")
+
             ret = None
             if col_names is None:
                 ret = ddf.merge(
@@ -313,7 +329,7 @@ class NumberMap:
     def from_dataframe(self, df, src_col_names, dst_col_names=None):
         """
         Populate the numbering map with vertices from the specified
-        columns of the provided data frame.
+        columns of the provided DataFrame.
 
         Parameters
         ----------
@@ -441,14 +457,15 @@ class NumberMap:
         return self.implementation.to_vertex_id(tmp_df, tmp_col_names)
 
     def add_vertex_id(
-        self, df, id_column_name="id", col_names=None, drop=False
+        self, df, id_column_name="id", col_names=None, drop=False,
+        preserveOrder=False
     ):
         """
         Given a collection of external vertex ids, return the internal vertex
         ids combined with the input data.
 
         If a series-type input is provided then the series will be in a column
-        named '0'. Otherwise the input column names in the data frame will be
+        named '0'. Otherwise the input column names in the DataFrame will be
         preserved.
 
         Parameters
@@ -468,15 +485,19 @@ class NumberMap:
 
         drop: (optional) boolean
             If True, drop the column names specified in col_names from
-            the returned data frame.  Defaults to False.
+            the returned DataFrame.  Defaults to False.
+
+        preserveOrder: (optional) boolean
+            If True, do extra sorting work to preserve the order
+            of the input DataFrame.  Defaults to False.
 
         Returns
         ---------
         df : cudf.DataFrame or dask_cudf.DataFrame
-            A data frame containing the input data (data frame or series)
+            A DataFrame containing the input data (DataFrame or series)
             with an additional column containing the internal vertex id.
             Note that there is no guarantee of the order or partitioning
-            of elements in the returned data frame.
+            of elements in the returned DataFrame.
 
         """
         tmp_df = None
@@ -499,7 +520,8 @@ class NumberMap:
                 tmp_col_names = [col_names]
 
         return self.implementation.add_vertex_id(
-            tmp_df, id_column_name, tmp_col_names, (drop and can_drop)
+            tmp_df, id_column_name, tmp_col_names, (drop and can_drop),
+            preserveOrder
         )
 
     def from_vertex_id(
@@ -510,7 +532,7 @@ class NumberMap:
         drop=False,
     ):
         """
-        Given a collection of internal vertex ids, return a data frame of
+        Given a collection of internal vertex ids, return a DataFrame of
         the external vertex ids
 
         Parameters
@@ -526,7 +548,7 @@ class NumberMap:
         internal_column_name: (optional) string
             Name of the column containing the internal vertex id.
             If df is a series then this parameter is ignored.  If df is
-            a data frame this parameter is required.
+            a DataFrame this parameter is required.
 
         external_column_names: (optional) string or list of strings
             Name of the columns that define an external vertex id.
@@ -534,13 +556,13 @@ class NumberMap:
 
         drop: (optional) boolean
             If True the internal column name will be dropped from the
-            data frame.  Defaults to False.
+            DataFrame.  Defaults to False.
 
         Returns
         ---------
         df : cudf.DataFrame or dask_cudf.DataFrame
-            The original data frame columns exist unmodified.  Columns
-            are added to the data frame to identify the external vertex
+            The original DataFrame columns exist unmodified.  Columns
+            are added to the DataFrame to identify the external vertex
             identifiers. If external_columns is specified, these names
             are used as the names of the output columns.  If external_columns
             is not specifed the columns are labeled '0', ... 'n-1' based on
@@ -579,14 +601,14 @@ class NumberMap:
 
     def renumber(df, source_columns, dest_columns):
         """
-        Given a single GPU or distributed data frame, use source_columns and
+        Given a single GPU or distributed DataFrame, use source_columns and
         dest_columns to identify the source vertex identifiers and destination
         vertex identifiers, respectively.
 
         Internal vertex identifiers will be created, numbering vertices as
         integers starting from 0.
 
-        The function will return a data frame containing the original dataframe
+        The function will return a DataFrame containing the original dataframe
         contents with a new column labeled 'src' containing the renumbered
         source vertices and a new column labeled 'dst' containing the
         renumbered dest vertices, along with a NumberMap object that contains
@@ -614,8 +636,8 @@ class NumberMap:
         Returns
         ---------
         df : cudf.DataFrame or dask_cudf.DataFrame
-            The original data frame columns exist unmodified.  Columns
-            are added to the data frame to identify the external vertex
+            The original DataFrame columns exist unmodified.  Columns
+            are added to the DataFrame to identify the external vertex
             identifiers. If external_columns is specified, these names
             are used as the names of the output columns.  If external_columns
             is not specifed the columns are labeled '0', ... 'n-1' based on
@@ -658,7 +680,7 @@ class NumberMap:
 
     def unrenumber(self, df, column_name):
         """
-        Given a data frame containing internal vertex ids in the identified
+        Given a DataFrame containing internal vertex ids in the identified
         column, replace this with external vertex ids.  If the renumbering
         is from a single column, the output dataframe will use the same
         name for the external vertex identifiers.  If the renumbering is from
@@ -673,7 +695,7 @@ class NumberMap:
         Parameters
         ----------
         df: cudf.DataFrame or dask_cudf.DataFrame
-            A data frame containing internal vertex identifiers that will be
+            A DataFrame containing internal vertex identifiers that will be
             converted into external vertex identifiers.
 
         column_name: string
@@ -682,8 +704,8 @@ class NumberMap:
         Returns
         ---------
         df : cudf.DataFrame or dask_cudf.DataFrame
-            The original data frame columns exist unmodified.  The external
-            vertex identifiers are added to the data frame, the internal
+            The original DataFrame columns exist unmodified.  The external
+            vertex identifiers are added to the DataFrame, the internal
             vertex identifier column is removed from the dataframe.
 
         Examples

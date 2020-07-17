@@ -62,7 +62,7 @@ def bfs(G, start, return_sp_counter=False):
         directed = True
 
     if G.renumbered is True:
-        start = G.edgelist.renumber_map.to_vertex_id(cudf.Series([start]))[0]
+        start = G.lookup_vertex_id(cudf.Series([start]))[0]
 
     df = bfs_wrapper.bfs(G, start, directed, return_sp_counter)
 

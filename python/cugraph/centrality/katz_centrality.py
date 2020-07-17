@@ -92,9 +92,7 @@ def katz_centrality(
 
     if nstart is not None:
         if G.renumbered is True:
-            nstart["vertex"] = G.edgelist.renumber_map.to_vertex_id(
-                nstart["vertex"]
-            )
+            nstart = G.add_vertex_id(nstart, 'vertex', 'vertex')
 
     df = katz_centrality_wrapper.katz_centrality(
         G, alpha, max_iter, tol, nstart, normalized

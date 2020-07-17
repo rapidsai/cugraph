@@ -67,19 +67,14 @@ def overlap_w(input_graph, weights, vertex_pair=None):
     >>> G.from_cudf_edgelist(M, source='0', destination='1')
     >>> df = cugraph.overlap_w(G, M[2])
     """
-
-    renumber_map = None
-
-    if input_graph.renumbered:
-        renumber_map = input_graph.edgelist.renumber_map
-
+    # FIXME: Add support for multi-column vertices
     if type(vertex_pair) == cudf.DataFrame:
         for col in vertex_pair.columns:
             null_check(vertex_pair[col])
             if input_graph.renumbered:
-                vertex_pair = renumber_map.add_vertex_id(
-                    vertex_pair, "id", col, drop=True
-                ).rename(columns={"id": col}, copy=False)
+                vertex_pair = input_graph.add_vertex_id(
+                    vertex_pair, col, col
+                )
     elif vertex_pair is None:
         pass
     else:

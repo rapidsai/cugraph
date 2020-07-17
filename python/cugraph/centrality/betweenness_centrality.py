@@ -265,10 +265,9 @@ def _initialize_vertices_from_indices_sampling(G, k, seed):
 
 
 def _initialize_vertices_from_identifiers_list(G, identifiers):
-    # FIXME: There might be a cleaner way to obtain the inverse mapping
     vertices = identifiers
     if G.renumbered:
-        vertices = G.edgelist.renumber_map.to_vertex_id(
+        vertices = G.lookup_vertex_id(
             cudf.Series(vertices)
         ).to_array()
 

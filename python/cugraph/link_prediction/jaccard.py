@@ -103,21 +103,17 @@ def jaccard(input_graph, vertex_pair=None):
     >>> G.from_cudf_edgelist(gdf, source='0', destination='1')
     >>> df = cugraph.jaccard(G)
     """
-    renumber_map = None
-
-    if input_graph.renumbered:
-        renumber_map = input_graph.edgelist.renumber_map
-
     if type(input_graph) is not Graph:
         raise Exception("input graph must be undirected")
 
+    # FIXME: Add support for multi-column vertices
     if type(vertex_pair) == cudf.DataFrame:
         for col in vertex_pair.columns:
             null_check(vertex_pair[col])
             if input_graph.renumbered:
-                vertex_pair = renumber_map.add_vertex_id(
-                    vertex_pair, "id", col, drop=True
-                ).rename(columns={"id": col}, copy=False)
+                vertex_pair = input_graph.add_vertex_id(
+                    vertex_pair, col, col
+                )
 
     elif vertex_pair is None:
         pass

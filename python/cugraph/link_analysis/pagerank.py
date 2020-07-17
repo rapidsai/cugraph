@@ -92,13 +92,13 @@ def pagerank(
         null_check(personalization["vertex"])
         null_check(personalization["values"])
         if G.renumbered is True:
-            personalization = G.edgelist.renumber_map.add_vertex_id(
+            personalization = G.add_vertex_id(
                 personalization, "vertex", "vertex"
             )
 
     if nstart is not None:
         if G.renumbered is True:
-            nstart = G.edgelist.renumber_map.add_vertex_id(
+            nstart = G.add_vertex_id(
                 nstart, "vertex", "vertex"
             )
 

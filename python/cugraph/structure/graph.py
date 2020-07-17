@@ -628,7 +628,7 @@ class Graph:
         Returns
         -------
         df : cudf.DataFrame
-            GPU data frame of size N (the default) or the size of the given
+            GPU DataFrame of size N (the default) or the size of the given
             vertices (vertex_subset) containing the in_degree. The ordering is
             relative to the adjacency list, or that given by the specified
             vertex_subset.
@@ -668,7 +668,7 @@ class Graph:
         Returns
         -------
         df : cudf.DataFrame
-            GPU data frame of size N (the default) or the size of the given
+            GPU DataFrame of size N (the default) or the size of the given
             vertices (vertex_subset) containing the out_degree. The ordering is
             relative to the adjacency list, or that given by the specified
             vertex_subset.
@@ -709,7 +709,7 @@ class Graph:
         Returns
         -------
         df : cudf.DataFrame
-            GPU data frame of size N (the default) or the size of the given
+            GPU DataFrame of size N (the default) or the size of the given
             vertices (vertex_subset) containing the degree. The ordering is
             relative to the adjacency list, or that given by the specified
             vertex_subset.
@@ -734,7 +734,7 @@ class Graph:
             raise Exception("Not supported for distributed graph")
         return self._degree(vertex_subset)
 
-    # FIXME:  vertex_subset could be a data frame for multi-column vertices
+    # FIXME:  vertex_subset could be a DataFrame for multi-column vertices
     def degrees(self, vertex_subset=None):
         """
         Compute vertex in-degree and out-degree. By default, this method
@@ -964,7 +964,7 @@ class Graph:
 
     def unrenumber(self, df, column_name):
         """
-        Given a data frame containing internal vertex ids in the identified
+        Given a DataFrame containing internal vertex ids in the identified
         column, replace this with external vertex ids.  If the renumbering
         is from a single column, the output dataframe will use the same
         name for the external vertex identifiers.  If the renumbering is from
@@ -979,7 +979,7 @@ class Graph:
         Parameters
         ----------
         df: cudf.DataFrame or dask_cudf.DataFrame
-            A data frame containing internal vertex identifiers that will be
+            A DataFrame containing internal vertex identifiers that will be
             converted into external vertex identifiers.
 
         column_name: string
@@ -988,8 +988,8 @@ class Graph:
         Returns
         ---------
         df : cudf.DataFrame or dask_cudf.DataFrame
-            The original data frame columns exist unmodified.  The external
-            vertex identifiers are added to the data frame, the internal
+            The original DataFrame columns exist unmodified.  The external
+            vertex identifiers are added to the DataFrame, the internal
             vertex identifier column is removed from the dataframe.
 
         Examples
@@ -1009,6 +1009,67 @@ class Graph:
         >>>
         """
         return self.edgelist.renumber_map.unrenumber(df, column_name)
+
+    def lookup_vertex_id(self, df, column_name=None):
+        """
+        Given a DataFrame containing external vertex ids in the identified
+        columns, or a Series containing external vertex ids, return a
+        Series with the vertex ids.
+
+        Note that this function does not guarantee order in single GPU mode,
+        and does not guarantee order or partitioning in multi-GPU mode.
+
+        Parameters
+        ----------
+        df: cudf.DataFrame, cudf.Series, dask_cudf.DataFrame, dask_cudf.Series
+            A DataFrame containing external vertex identifiers that will be
+            converted into internal vertex identifiers.
+
+        column_name: (optional) string
+            Name of the column containing the external vertex ids
+
+        Returns
+        ---------
+        series : cudf.Series or dask_cudf.Series
+            The internal vertex identifiers
+        """
+        return self.edgelist.renumber_map.to_vertex_id(df, column_name)
+
+    def add_vertex_id(self, df, external_column_name, internal_column_name,
+                      drop=True, preserveOrder=False):
+        """
+        Given a DataFrame containing external vertex ids in the identified
+        columns, return a DataFrame containing the internal vertex ids as the
+        specified column name.  Optionally drop the external vertex id columns.
+        Optionally preserve the order of the original DataFrame.
+        
+        Parameters
+        ----------
+        df: cudf.DataFrame or dask_cudf.DataFrame
+            A DataFrame containing external vertex identifiers that will be
+            converted into internal vertex identifiers.
+
+        external_column_name: string or list of strings
+            Name of the column(s) containing the external vertex ids
+
+        internal_column_name: string
+            Name of column to contain the internal vertex id
+
+        drop: (optional) bool, defaults to True
+            Drop the external columns from the returned DataFrame
+
+        preserveOrder: (optional) bool, defaults to False
+            Preserve the order of the data frame (requires an extra sort)
+
+        Returns
+        ---------
+        df : cudf.DataFrame or dask_cudf.DataFrame
+            Original DataFrame with new column containing internal vertex
+            id
+        """
+        return self.edgelist.renumber_map.add_vertex_id(
+            df, external_column_name, internal_column_name,
+            drop, preserveOrder)
 
 
 class DiGraph(Graph):

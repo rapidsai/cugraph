@@ -61,9 +61,9 @@ def k_core(G, k=None, core_number=None):
 
     if core_number is not None:
         if G.renumbered is True:
-            core_number = G.edgelist.renumber_map.add_vertex_id(
-                core_number, "id", "vertex", drop=True
-            ).rename(columns={"id": "vertex"}, copy=False)
+            core_number = G.add_vertex_id(
+                core_number, "vertex", "vertex", drop=True
+            )
     else:
         core_number = core_number_wrapper.core_number(G)
         core_number = core_number.rename(
