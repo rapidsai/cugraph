@@ -34,7 +34,7 @@ with warnings.catch_warnings():
 # =============================================================================
 # Parameters
 # =============================================================================
-DIRECTED_GRAPH_OPTIONS = [True]#[False, True]
+DIRECTED_GRAPH_OPTIONS = [False, True]
 ENDPOINTS_OPTIONS = [False, True]
 NORMALIZED_OPTIONS = [False, True]
 DEFAULT_EPSILON = 0.0001

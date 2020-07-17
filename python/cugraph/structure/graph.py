@@ -32,7 +32,7 @@ class Graph:
 
     class EdgeList:
         def __init__(self, *args):
-            if len(args) <= 2: # ddf, renumber_map (when replicatable)
+            if len(args) <= 2:
                 self.__from_dask_cudf(*args)
             else:
                 self.__from_cudf(*args)
@@ -265,7 +265,8 @@ class Graph:
             destination = 'dst'
             if self.multi:
                 if type(edge_attr) is not list:
-                    raise Exception('edge_attr should be a list of column names')
+                    raise Exception('edge_attr should be a list of column
+                                    'names')
                 value_col = {}
                 for col_name in edge_attr:
                     value_col[col_name] = input_ddf[col_name]
@@ -280,12 +281,14 @@ class Graph:
                                                                    source,
                                                                    destination)
                 else:
-                    source_col, dest_col, renumber_map = rnb(input_ddf[source].compute(),
-                                                             input_ddf[destination].compute())
+                    source_col, dest_col, renumber_map = rnb(
+                        input_ddf[source].compute(),
+                        input_ddf[destination].compute())
                 self.renumbered = True
             else:
                 if type(source) is list and type(destination) is list:
-                    raise Exception('set renumber to True for multi column ids')
+                    raise Exception('set renumber to True for multi column'
+                                    'ids')
                 else:
                     source_col = input_ddf[source]
                     dest_col = input_ddf[destination]
@@ -297,7 +300,9 @@ class Graph:
                 else:
                     source_col, dest_col = symmetrize(source_col, dest_col)
 
-            df = dask.delayed(cudf.DataFrame)({'src': source_col, 'dst': dest_col}, dtype=np.int32)
+            df = dask.delayed(cudf.DataFrame)({'src': source_col,
+                                               'dst': dest_col},
+                                               dtype=np.int32)
             new_ddf = dask_cudf.from_cudf(df.compute(), npartitions=1)
             new_ddf = new_ddf.persist()
             self.edgelist = Graph.EdgeList(new_ddf, renumber_map)
