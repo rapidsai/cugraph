@@ -96,10 +96,6 @@ def pagerank(input_graph,
     >>> pr = dcg.pagerank(dg)
     """
 
-    if tol != 1.0e-5:
-        warnings.warn("Tolerance is currently not supported. \
-Setting it to default 1.0e-5")
-    tol = 1.0e-5
     if personalization is not None or nstart is not None:
         warnings.warn("personalization and nstart currently not \
 supported. Setting them to None")
