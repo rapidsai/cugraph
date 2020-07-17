@@ -604,7 +604,8 @@ void bfs(raft::handle_t const &handle,
          VT *predecessors,
          double *sp_counters,
          const VT start_vertex,
-         bool directed = true);
+         bool directed = true,
+         bool mg_batch = true);
 
 /**
  * @brief      Louvain implementation
@@ -659,7 +660,8 @@ void louvain(GraphCSRView<VT, ET, WT> const &graph,
 template <typename VT, typename ET, typename WT>
 void ecg(GraphCSRView<VT, ET, WT> const &graph_csr, WT min_weight, VT ensemble_size, VT *ecg_parts);
 
-namespace nvgraph {
+namespace triangle {
+
 /**
  * @brief             Count the number of triangles in the graph
  *
@@ -677,7 +679,9 @@ namespace nvgraph {
  */
 template <typename VT, typename ET, typename WT>
 uint64_t triangle_count(GraphCSRView<VT, ET, WT> const &graph);
+}  // namespace triangle
 
+namespace subgraph {
 /**
  * @brief             Extract subgraph by vertices
  *
@@ -724,6 +728,9 @@ std::unique_ptr<GraphCOO<VT, ET, WT>> extract_subgraph_vertex(GraphCOOView<VT, E
  * @param[out] clustering            Pointer to device memory where the resulting clustering will
  * be stored
  */
+}  // namespace subgraph
+
+namespace ext_raft {
 template <typename VT, typename ET, typename WT>
 void balancedCutClustering(GraphCSRView<VT, ET, WT> const &graph,
                            VT num_clusters,
@@ -831,7 +838,7 @@ void analyzeClustering_ratio_cut(GraphCSRView<VT, ET, WT> const &graph,
                                  VT const *clustering,
                                  WT *score);
 
-}  // namespace nvgraph
+}  // namespace ext_raft
 
 namespace gunrock {
 /**

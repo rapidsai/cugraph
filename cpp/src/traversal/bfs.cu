@@ -18,6 +18,7 @@
 
 #include <utilities/error.hpp>
 #include "bfs_kernels.cuh"
+#include "opg/bfs.cuh"
 #include "traversal_common.cuh"
 #include "utilities/graph_utils.cuh"
 
@@ -477,7 +478,8 @@ void bfs(raft::handle_t const &handle,
          VT *predecessors,
          double *sp_counters,
          const VT start_vertex,
-         bool directed)
+         bool directed,
+         bool mg_batch)
 {
   static_assert(std::is_integral<VT>::value && sizeof(VT) >= sizeof(int32_t),
                 "Unsupported vertex id data type. Use integral types of size >= sizeof(int32_t)");
@@ -486,24 +488,25 @@ void bfs(raft::handle_t const &handle,
   static_assert(std::is_floating_point<WT>::value,
                 "Unsupported edge weight type. Use floating point types");  // actually, this is
                                                                             // unnecessary for BFS
-  // FIXME: If we rely on comms_initialized we can't run OPG-BC because it triggers
-  // the exception here.
-  // if (handle.comms_initialized()) { CUGRAPH_FAIL("Multi-GPU version of BFS is not implemented");
-  // }
+  if (handle.comms_initialized() && !mg_batch) {
+    CUGRAPH_EXPECTS(sp_counters == nullptr,
+                    "BFS Traversal shortest path is not supported in OPG path");
+    opg::bfs<VT, ET, WT>(handle, graph, distances, predecessors, start_vertex);
+  } else {
+    VT number_of_vertices = graph.number_of_vertices;
+    ET number_of_edges    = graph.number_of_edges;
 
-  VT number_of_vertices = graph.number_of_vertices;
-  ET number_of_edges    = graph.number_of_edges;
+    const VT *indices_ptr = graph.indices;
+    const ET *offsets_ptr = graph.offsets;
 
-  const VT *indices_ptr = graph.indices;
-  const ET *offsets_ptr = graph.offsets;
-
-  int alpha = 15;
-  int beta  = 18;
-  // FIXME: Use VT and ET in the BFS detail
-  cugraph::detail::BFS<VT> bfs(
-    number_of_vertices, number_of_edges, offsets_ptr, indices_ptr, directed, alpha, beta);
-  bfs.configure(distances, predecessors, sp_counters, nullptr);
-  bfs.traverse(start_vertex);
+    int alpha = 15;
+    int beta  = 18;
+    // FIXME: Use VT and ET in the BFS detail
+    cugraph::detail::BFS<VT> bfs(
+      number_of_vertices, number_of_edges, offsets_ptr, indices_ptr, directed, alpha, beta);
+    bfs.configure(distances, predecessors, sp_counters, nullptr);
+    bfs.traverse(start_vertex);
+  }
 }
 
 // Explicit Instantiation
@@ -513,7 +516,8 @@ template void bfs<uint32_t, uint32_t, float>(raft::handle_t const &handle,
                                              uint32_t *predecessors,
                                              double *sp_counters,
                                              const uint32_t source_vertex,
-                                             bool directed);
+                                             bool directed,
+                                             bool mg_batch);
 
 // Explicit Instantiation
 template void bfs<uint32_t, uint32_t, double>(raft::handle_t const &handle,
@@ -522,7 +526,8 @@ template void bfs<uint32_t, uint32_t, double>(raft::handle_t const &handle,
                                               uint32_t *predecessors,
                                               double *sp_counters,
                                               const uint32_t source_vertex,
-                                              bool directed);
+                                              bool directed,
+                                              bool mg_batch);
 
 // Explicit Instantiation
 template void bfs<int32_t, int32_t, float>(raft::handle_t const &handle,
@@ -531,7 +536,8 @@ template void bfs<int32_t, int32_t, float>(raft::handle_t const &handle,
                                            int32_t *predecessors,
                                            double *sp_counters,
                                            const int32_t source_vertex,
-                                           bool directed);
+                                           bool directed,
+                                           bool mg_batch);
 
 // Explicit Instantiation
 template void bfs<int32_t, int32_t, double>(raft::handle_t const &handle,
@@ -540,7 +546,8 @@ template void bfs<int32_t, int32_t, double>(raft::handle_t const &handle,
                                             int32_t *predecessors,
                                             double *sp_counters,
                                             const int32_t source_vertex,
-                                            bool directed);
+                                            bool directed,
+                                            bool mg_batch);
 
 // Explicit Instantiation
 template void bfs<int64_t, int64_t, float>(raft::handle_t const &handle,
@@ -549,7 +556,8 @@ template void bfs<int64_t, int64_t, float>(raft::handle_t const &handle,
                                            int64_t *predecessors,
                                            double *sp_counters,
                                            const int64_t source_vertex,
-                                           bool directed);
+                                           bool directed,
+                                           bool mg_batch);
 
 // Explicit Instantiation
 template void bfs<int64_t, int64_t, double>(raft::handle_t const &handle,
@@ -558,6 +566,7 @@ template void bfs<int64_t, int64_t, double>(raft::handle_t const &handle,
                                             int64_t *predecessors,
                                             double *sp_counters,
                                             const int64_t source_vertex,
-                                            bool directed);
+                                            bool directed,
+                                            bool mg_batch);
 
 }  // namespace cugraph

@@ -135,7 +135,7 @@ class Graph:
 
         Parameters
         ----------
-        input_df : cudf.DataFrame
+        input_df : cudf.DataFrame or dask_cudf.DataFrame
             This cudf.DataFrame wraps source, destination and weight
             gdf_column of size E (E: number of edges)
             The 'src' column contains the source index for each edge.
@@ -147,6 +147,9 @@ class Graph:
             argument should be passed as True.
             For weighted graphs, dataframe contains 'weight' column
             containing the weight value for each edge.
+            If a dask_cudf.DataFrame is passed it will be reinterpreted as
+            a cudf.DataFrame. For the distributed path please use
+            from_dask_cudf_edgelist.
         source : str
             source argument is source column name
         destination : str
@@ -168,32 +171,48 @@ class Graph:
         """
         if self.edgelist is not None or self.adjlist is not None:
             raise Exception('Graph already has values')
+
+        # Consolidation
+        if isinstance(input_df, cudf.DataFrame):
+            if len(input_df[source]) > 2147483100:
+                raise Exception('cudf dataFrame edge list is too big \
+                                 to fit in a single GPU')
+            elist = input_df
+        elif isinstance(input_df, dask_cudf.DataFrame):
+            if len(input_df[source]) > 2147483100:
+                raise Exception('dask_cudf dataFrame edge list is too big \
+                                 to fit in a single GPU')
+            elist = input_df.compute().reset_index(drop=True)
+        else:
+            raise Exception('input should be a cudf.DataFrame or \
+                              a dask_cudf dataFrame')
+
         if self.multi:
             if type(edge_attr) is not list:
                 raise Exception('edge_attr should be a list of column names')
             value_col = {}
             for col_name in edge_attr:
-                value_col[col_name] = input_df[col_name]
+                value_col[col_name] = elist[col_name]
         elif edge_attr is not None:
-            value_col = input_df[edge_attr]
+            value_col = elist[edge_attr]
         else:
             value_col = None
         renumber_map = None
         if renumber:
             if type(source) is list and type(destination) is list:
-                source_col, dest_col, renumber_map = multi_rnb(input_df,
+                source_col, dest_col, renumber_map = multi_rnb(elist,
                                                                source,
                                                                destination)
             else:
-                source_col, dest_col, renumber_map = rnb(input_df[source],
-                                                         input_df[destination])
+                source_col, dest_col, renumber_map = rnb(elist[source],
+                                                         elist[destination])
             self.renumbered = True
         else:
             if type(source) is list and type(destination) is list:
                 raise Exception('set renumber to True for multi column ids')
             else:
-                source_col = input_df[source]
-                dest_col = input_df[destination]
+                source_col = elist[source]
+                dest_col = elist[destination]
         if not self.symmetrized and not self.multi:
             if value_col is not None:
                 source_col, dest_col, value_col = symmetrize(source_col,
@@ -302,10 +321,9 @@ class Graph:
             distributed among multiple GPUs to avoid over-loading.
         """
         if self.distributed:
-            data, comms = get_local_data(self, by, load_balance)
+            data = get_local_data(self, by, load_balance)
             self.local_data = {}
             self.local_data['data'] = data
-            self.local_data['comms'] = comms
             self.local_data['by'] = by
         else:
             raise Exception('Graph should be a distributed graph')
