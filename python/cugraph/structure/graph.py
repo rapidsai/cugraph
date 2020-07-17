@@ -265,7 +265,7 @@ class Graph:
             destination = 'dst'
             if self.multi:
                 if type(edge_attr) is not list:
-                    raise Exception('edge_attr should be a list of column
+                    raise Exception('edge_attr should be a list of column'
                                     'names')
                 value_col = {}
                 for col_name in edge_attr:
@@ -302,7 +302,7 @@ class Graph:
 
             df = dask.delayed(cudf.DataFrame)({'src': source_col,
                                                'dst': dest_col},
-                                               dtype=np.int32)
+                                              dtype=np.int32)
             new_ddf = dask_cudf.from_cudf(df.compute(), npartitions=1)
             new_ddf = new_ddf.persist()
             self.edgelist = Graph.EdgeList(new_ddf, renumber_map)
