@@ -138,7 +138,6 @@ int Pagerank<VT, ET, WT>::solve(int max_iter, float tolerance, WT *pagerank)
         cugraph::detail::copy(v_glob, pr, prev_pr.data().get());
     }
     cugraph::detail::scal(v_glob, one / cugraph::detail::nrm1(v_glob, pr), pr);
-    std::cout << "it " << i << std::endl;
     return i;
   } else {
     CUGRAPH_FAIL("OPG PageRank : Solve was called before setup");
