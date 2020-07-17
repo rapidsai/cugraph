@@ -1044,7 +1044,7 @@ class Graph:
         columns, return a DataFrame containing the internal vertex ids as the
         specified column name.  Optionally drop the external vertex id columns.
         Optionally preserve the order of the original DataFrame.
-        
+
         Parameters
         ----------
         df: cudf.DataFrame or dask_cudf.DataFrame

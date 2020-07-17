@@ -675,21 +675,21 @@ class NumberMap:
             df = renumber_map.add_vertex_id(
                 df, "src", source_columns, drop=True,
                 preserve_order=preserve_order
-            ) #.rename(columns={"id": "src"})
+            )
             df = renumber_map.add_vertex_id(
                 df, "dst", dest_columns, drop=True,
                 preserve_order=preserve_order
-            ) #.rename(columns={"id": "dst"})
+            )
         else:
             renumber_map.from_dataframe(df, [source_columns], [dest_columns])
             df = renumber_map.add_vertex_id(
                 df, "src", source_columns, drop=True,
                 preserve_order=preserve_order
-            ) #.rename(columns={"id": "src"})
+            )
             df = renumber_map.add_vertex_id(
                 df, "dst", dest_columns, drop=True,
                 preserve_order=preserve_order
-            ) #.rename(columns={"id": "dst"})
+            )
 
         return df, renumber_map
 
