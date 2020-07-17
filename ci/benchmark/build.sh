@@ -65,26 +65,13 @@ source activate rapids
 
 
 # Enter dependencies to be shown in ASV tooltips.
-# These dependencies will also be installed by conda.
-# A dependency can exist in both arrays without causing issues.
 CUGRAPH_DEPS=(cudf rmm)
 LIBCUGRAPH_DEPS=(cudf rmm)
 
-# Concatenate dependency arrays, convert to JSON array,
-# and remove duplicates.
-X=("${CUGRAPH_DEPS[@]}" "${LIBCUGRAPH_DEPS[@]}")
-DEPS=$(printf '%s\n' "${X[@]}" | jq -R . | jq -s 'unique')
-
-# Create install args for conda (i.e. "cudf=0.15" "rmm=0.15")
-CONDA_INSTALL=
-for DEP in $(echo "${DEPS}" | jq -r '.[]'); do
-  CONDA_INSTALL+="${DEP}=${MINOR_VERSION}"
-  CONDA_INSTALL+=" "
-done
-
 logger "conda install required packages"
 conda install -c nvidia -c rapidsai -c rapidsai-nightly -c conda-forge -c defaults \
-      ${CONDA_INSTALL} \
+      "cudf=${MINOR_VERSION}" \
+      "rmm=${MINOR_VERSION}" \
       "cudatoolkit=$CUDA_REL" \
       "dask-cudf=${MINOR_VERSION}" \
       "dask-cuda=${MINOR_VERSION}" \
@@ -125,6 +112,12 @@ if (( ${ERRORCODE} != 0 )); then
     exit ${ERRORCODE}
 fi
 
+
+# Concatenate dependency arrays, convert to JSON array,
+# and remove duplicates.
+X=("${CUGRAPH_DEPS[@]}" "${LIBCUGRAPH_DEPS[@]}")
+DEPS=$(printf '%s\n' "${X[@]}" | jq -R . | jq -s 'unique')
+
 # Build object with k/v pairs of "dependency:version"
 DEP_VER_DICT=$(jq -n '{}')
 for DEP in $(echo "${DEPS}" | jq -r '.[]'); do
@@ -146,14 +139,25 @@ function getReqs() {
 
 REQS=$(getReqs "${CUGRAPH_DEPS[@]}")
 
+BECHMARK_META=$(jq -n \
+  --arg NODE "${NODE_NAME}" \
+  --arg MINOR_VER "${MINOR_VERSION}" \
+  --argjson REQS "${REQS}" '
+  {
+    "machineName": $NODE,
+    "commitBranch": $MINOR_VER,
+    "requirements": $REQS,
+  }
+')
+
 logger "Running Benchmarks..."
 cd $BENCHMARKS_DIR
 set +e
 time pytest -v -m "small and managedmem_on and poolallocator_on" \
     --benchmark-gpu-device=0 \
     --benchmark-gpu-max-rounds=3 \
-    --benchmark-asv-metadata="machineName=${NODE_NAME}, commitBranch=branch-${MINOR_VERSION}, requirements=${REQS}" \
-    --benchmark-asv-output-dir=${ASVRESULTS_DIR}
+    --benchmark-asv-output-dir="${ASVRESULTS_DIR}" \
+    --benchmark-asv-metadata="${BECHMARK_META}"
 
 
 
