@@ -39,12 +39,6 @@ import numpy as np
 from cugraph.structure.graph import Graph
 
 
-# An empty categorical string dtype
-_empty_cat_dt = cudf.core.dtypes.CategoricalDtype(
-    categories=np.array([], dtype="str"), ordered=False
-)
-
-
 def hypergraph(
     values,
     columns=None,
@@ -231,7 +225,7 @@ def hypergraph(
             NODETYPE=NODETYPE,
             categorical_metadata=categorical_metadata,
         )
-        nodes = cudf.concat([entities, events], ignore_index=True)
+        nodes = cudf.concat([entities, events])
         nodes.reset_index(drop=True, inplace=True)
 
     if WEIGHTS is not None:
@@ -273,10 +267,10 @@ def _create_entity_nodes(
     nodes = [cudf.DataFrame(dict([
         (NODEID, cudf.core.column.column_empty(0, "str")),
         (CATEGORY, cudf.core.column.column_empty(
-            0, "str" if not categorical_metadata else _empty_cat_dt
+            0, "str" if not categorical_metadata else _empty_cat_dt()
         )),
         (NODETYPE, cudf.core.column.column_empty(
-            0, "str" if not categorical_metadata else _empty_cat_dt
+            0, "str" if not categorical_metadata else _empty_cat_dt()
         ))
     ] + [
         (key, cudf.core.column.column_empty(0, col.dtype))
@@ -289,16 +283,18 @@ def _create_entity_nodes(
         col = col.nans_to_nulls().dropna() if dropna else col
         if len(col) == 0:
             continue
-        nodes.append(cudf.DataFrame({
+        df = cudf.DataFrame({
             key: cudf.core.column.as_column(col),
             NODEID: _prepend_str(col, cat + DELIM),
             CATEGORY: cat if not categorical_metadata
             else _str_scalar_to_category(len(col), cat),
             NODETYPE: key if not categorical_metadata
             else _str_scalar_to_category(len(col), key),
-        }))
+        })
+        df.reset_index(drop=True, inplace=True)
+        nodes.append(df)
 
-    nodes = cudf.concat(nodes, ignore_index=True)
+    nodes = cudf.concat(nodes)
     nodes = nodes.drop_duplicates(subset=[NODEID])
     nodes = nodes[[NODEID, NODETYPE, CATEGORY] + list(columns)]
     nodes.reset_index(drop=True, inplace=True)
@@ -349,12 +345,12 @@ def _create_hyper_edges(
             (EVENTID, cudf.core.column.column_empty(0, "str")),
             (ATTRIBID, cudf.core.column.column_empty(0, "str")),
             (EDGETYPE, cudf.core.column.column_empty(
-                0, "str" if not categorical_metadata else _empty_cat_dt
+                0, "str" if not categorical_metadata else _empty_cat_dt()
             ))
         ]) +
         ([] if len(categories) == 0 else [
             (CATEGORY, cudf.core.column.column_empty(
-                0, "str" if not categorical_metadata else _empty_cat_dt
+                0, "str" if not categorical_metadata else _empty_cat_dt()
             ))
         ]) +
         ([] if drop_edge_attrs else [
@@ -375,6 +371,7 @@ def _create_hyper_edges(
         df[EDGETYPE] = cat if not categorical_metadata \
             else _str_scalar_to_category(len(df), cat)
         df[ATTRIBID] = _prepend_str(col, cat + DELIM)
+        df.reset_index(drop=True, inplace=True)
         edges.append(df)
 
     columns = [EVENTID, EDGETYPE, ATTRIBID]
@@ -385,7 +382,7 @@ def _create_hyper_edges(
     if not drop_edge_attrs:
         columns += edge_attrs
 
-    edges = cudf.concat(edges, ignore_index=True)[columns]
+    edges = cudf.concat(edges)[columns]
     edges.reset_index(drop=True, inplace=True)
     return edges
 
@@ -418,12 +415,12 @@ def _create_direct_edges(
             (SOURCE, cudf.core.column.column_empty(0, "str")),
             (TARGET, cudf.core.column.column_empty(0, "str")),
             (EDGETYPE, cudf.core.column.column_empty(
-                0, "str" if not categorical_metadata else _empty_cat_dt
+                0, "str" if not categorical_metadata else _empty_cat_dt()
             ))
         ]) +
         ([] if len(categories) == 0 else [
             (CATEGORY, cudf.core.column.column_empty(
-                0, "str" if not categorical_metadata else _empty_cat_dt
+                0, "str" if not categorical_metadata else _empty_cat_dt()
             ))
         ]) +
         ([] if drop_edge_attrs else [
@@ -464,6 +461,7 @@ def _create_direct_edges(
                 )
             df[SOURCE] = _prepend_str(col1, cat1 + DELIM)
             df[TARGET] = _prepend_str(col2, cat2 + DELIM)
+            df.reset_index(drop=True, inplace=True)
             edges.append(df)
 
     columns = [EVENTID, EDGETYPE, SOURCE, TARGET]
@@ -474,7 +472,7 @@ def _create_direct_edges(
     if not drop_edge_attrs:
         columns += edge_attrs
 
-    edges = cudf.concat(edges, ignore_index=True)[columns]
+    edges = cudf.concat(edges)[columns]
     edges.reset_index(drop=True, inplace=True)
     return edges
 
@@ -496,3 +494,10 @@ def _prepend_str(col, val):
     if not cudf.utils.dtypes.is_string_dtype(col.dtype):
         col = col.astype("str")
     return cudf.Series(col.str().insert(0, val))
+
+
+# Make an empty categorical string dtype
+def _empty_cat_dt():
+    return cudf.core.dtypes.CategoricalDtype(
+        categories=np.array([], dtype="str"), ordered=False
+    )
