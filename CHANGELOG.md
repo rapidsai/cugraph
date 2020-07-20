@@ -46,7 +46,8 @@
 - PR #989: Fix issue with incorrect docker image being used in local build script
 - PR #992 Fix unrenumber of predecessor
 - PR #1008 Fix for cudf updates disabling iteration of Series/Columns/Index
-    
+- PR #1012 Fix Local build script README
+ 
 # cuGraph 0.14.0 (03 Jun 2020)
 
 ## New Features
