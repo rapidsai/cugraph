@@ -701,7 +701,7 @@ def test_has_node(graph_file):
     G = cugraph.Graph()
     G.from_cudf_edgelist(cu_M, source="0", destination="1")
 
-    for n in nodes:
+    for n in nodes.values_host:
         assert G.has_node(n)
 
 
@@ -717,10 +717,9 @@ def test_neighbors(graph_file):
     G = cugraph.Graph()
     G.from_cudf_edgelist(cu_M, source="0", destination="1")
 
-    Gnx = nx.from_pandas_edgelist(
-        M, source="0", target="1", create_using=nx.Graph()
-    )
-    for n in nodes:
+    Gnx = nx.from_pandas_edgelist(M, source='0', target='1',
+                                  create_using=nx.Graph())
+    for n in nodes.values_host:
         cu_neighbors = G.neighbors(n).tolist()
         nx_neighbors = [i for i in Gnx.neighbors(n)]
         cu_neighbors.sort()

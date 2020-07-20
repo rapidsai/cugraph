@@ -204,9 +204,9 @@ def _compare_bfs_spc(G, Gnx, source):
         columns={"sp_counter": "cu_spc"}, copy=False
     )
 
-    # This will allows to detect vertices identifier that could have been
+    # This allows to detect vertices identifier that could have been
     # wrongly present multiple times
-    cu_vertices = set(sorted_df["vertex"])
+    cu_vertices = set(sorted_df['vertex'].values_host)
     nx_vertices = nx_sp_counter.keys()
     assert len(cu_vertices.intersection(nx_vertices)) == len(
         nx_vertices
