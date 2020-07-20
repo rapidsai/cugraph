@@ -18,9 +18,15 @@ import pytest
 
 import scipy
 import cudf
+from cudf.tests.utils import assert_eq
 import cugraph
 from cugraph.tests import utils
 
+# MG
+import cugraph.dask as dcg
+from dask_cuda import LocalCUDACluster
+from dask.distributed import Client
+import dask_cudf
 
 # Temporarily suppress warnings till networkX fixes deprecation warnings
 # (Using or importing the ABCs from 'collections' instead of from
@@ -153,13 +159,8 @@ def test_version():
     cugraph.__version__
 
 
-DATASETS = ['../datasets/karate.csv',
-            '../datasets/dolphins.csv',
-            '../datasets/netscience.csv']
-
-
 # Test
-@pytest.mark.parametrize('graph_file', DATASETS)
+@pytest.mark.parametrize('graph_file', utils.DATASETS)
 def test_add_edge_list_to_adj_list(graph_file):
     gc.collect()
 
@@ -182,7 +183,7 @@ def test_add_edge_list_to_adj_list(graph_file):
 
 
 # Test
-@pytest.mark.parametrize('graph_file', DATASETS)
+@pytest.mark.parametrize('graph_file', utils.DATASETS)
 def test_add_adj_list_to_edge_list(graph_file):
     gc.collect()
 
@@ -209,7 +210,7 @@ def test_add_adj_list_to_edge_list(graph_file):
 
 
 # Test
-@pytest.mark.parametrize('graph_file', DATASETS)
+@pytest.mark.parametrize('graph_file', utils.DATASETS)
 def test_view_edge_list_from_adj_list(graph_file):
     gc.collect()
 
@@ -231,7 +232,7 @@ def test_view_edge_list_from_adj_list(graph_file):
 
 
 # Test
-@pytest.mark.parametrize('graph_file', DATASETS)
+@pytest.mark.parametrize('graph_file', utils.DATASETS)
 def test_delete_edge_list_delete_adj_list(graph_file):
     gc.collect()
 
@@ -260,7 +261,7 @@ def test_delete_edge_list_delete_adj_list(graph_file):
 
 
 # Test
-@pytest.mark.parametrize('graph_file', DATASETS)
+@pytest.mark.parametrize('graph_file', utils.DATASETS)
 def test_add_edge_or_adj_list_after_add_edge_or_adj_list(graph_file):
     gc.collect()
 
@@ -300,7 +301,47 @@ def test_add_edge_or_adj_list_after_add_edge_or_adj_list(graph_file):
 
 
 # Test
-@pytest.mark.parametrize('graph_file', DATASETS)
+@pytest.mark.parametrize('graph_file', utils.DATASETS)
+def test_edges_for_Graph(graph_file):
+    gc.collect()
+
+    cu_M = utils.read_csv_file(graph_file)
+
+    # Create nx Graph
+    pdf = cu_M.to_pandas()[['0', '1']]
+    nx_graph = nx.from_pandas_edgelist(pdf, source='0',
+                                       target='1',
+                                       create_using=nx.Graph)
+    nx_edges = nx_graph.edges()
+
+    # Create Cugraph Graph from DataFrame
+    # Force it to use renumber_from_cudf
+    G = cugraph.from_cudf_edgelist(cu_M, source=['0'],
+                                   destination=['1'],
+                                   create_using=cugraph.Graph)
+    cu_edge_list = G.edges()
+
+    # Check if number of Edges is same
+    assert len(nx_edges) == len(cu_edge_list)
+    assert nx_graph.number_of_edges() == G.number_of_edges()
+
+    # Compare nx and cugraph edges when viewing edgelist
+    edges = []
+    for edge in nx_edges:
+        if edge[0] > edge[1]:
+            edges.append([edge[1], edge[0]])
+        else:
+            edges.append([edge[0], edge[1]])
+    nx_edge_list = cudf.DataFrame(list(edges), columns=['src', 'dst'])
+    assert_eq(
+        nx_edge_list.sort_values(by=['src', 'dst']).reset_index(drop=True),
+        cu_edge_list.sort_values(by=['src', 'dst']).reset_index(drop=True),
+        check_dtype=False
+    )
+
+
+# Test
+@pytest.mark.parametrize('graph_file', utils.DATASETS)
 def test_view_edge_list_for_Graph(graph_file):
     gc.collect()
 
@@ -339,7 +380,7 @@ def test_view_edge_list_for_Graph(graph_file):
 
 
 # Test
-@pytest.mark.parametrize('graph_file', DATASETS)
+@pytest.mark.parametrize('graph_file', utils.DATASETS)
 def test_networkx_compatibility(graph_file):
     gc.collect()
 
@@ -378,12 +419,40 @@ def test_networkx_compatibility(graph_file):
     G.clear()
 
 
-DATASETS2 = ['../datasets/karate.csv',
-             '../datasets/dolphins.csv']
+# Test
+@pytest.mark.parametrize('graph_file', utils.DATASETS)
+def test_consolidation(graph_file):
+    gc.collect()
+
+    cluster = LocalCUDACluster()
+    client = Client(cluster)
+    chunksize = dcg.get_chunksize(graph_file)
+
+    M = utils.read_csv_for_nx(graph_file)
+
+    df = pd.DataFrame()
+    df['source'] = pd.Series(M['0'])
+    df['target'] = pd.Series(M['1'])
+
+    ddf = dask_cudf.read_csv(graph_file, chunksize=chunksize,
+                             delimiter=' ',
+                             names=['source', 'target', 'weight'],
+                             dtype=['int32', 'int32', 'float32'], header=None)
+
+    Gnx = nx.from_pandas_edgelist(df, source='source', target='target',
+                                  create_using=nx.DiGraph)
+    G = cugraph.from_cudf_edgelist(ddf, source='source', destination='target',
+                                   create_using=cugraph.DiGraph)
+
+    assert compare_graphs(Gnx, G)
+    Gnx.clear()
+    G.clear()
+    client.close()
+    cluster.close()
 
 
 # Test
-@pytest.mark.parametrize('graph_file', DATASETS2)
+@pytest.mark.parametrize('graph_file', utils.DATASETS_2)
 def test_two_hop_neighbors(graph_file):
     gc.collect()
 
@@ -403,7 +472,7 @@ def test_two_hop_neighbors(graph_file):
 
 
 # Test
-@pytest.mark.parametrize('graph_file', DATASETS)
+@pytest.mark.parametrize('graph_file', utils.DATASETS)
 def test_degree_functionality(graph_file):
     gc.collect()
 
@@ -442,7 +511,7 @@ def test_degree_functionality(graph_file):
 
 
 # Test
-@pytest.mark.parametrize('graph_file', DATASETS)
+@pytest.mark.parametrize('graph_file', utils.DATASETS)
 def test_degrees_functionality(graph_file):
     gc.collect()
 
@@ -474,7 +543,7 @@ def test_degrees_functionality(graph_file):
 
 
 # Test
-@pytest.mark.parametrize('graph_file', DATASETS)
+@pytest.mark.parametrize('graph_file', utils.DATASETS)
 def test_number_of_vertices(graph_file):
     gc.collect()
 
@@ -493,7 +562,7 @@ def test_number_of_vertices(graph_file):
 
 
 # Test
-@pytest.mark.parametrize('graph_file', DATASETS2)
+@pytest.mark.parametrize('graph_file', utils.DATASETS_2)
 def test_to_directed(graph_file):
     gc.collect()
 
@@ -522,7 +591,7 @@ def test_to_directed(graph_file):
 
 
 # Test
-@pytest.mark.parametrize('graph_file', DATASETS2)
+@pytest.mark.parametrize('graph_file', utils.DATASETS_2)
 def test_to_undirected(graph_file):
     gc.collect()
 
@@ -552,7 +621,7 @@ def test_to_undirected(graph_file):
 
 
 # Test
-@pytest.mark.parametrize('graph_file', DATASETS2)
+@pytest.mark.parametrize('graph_file', utils.DATASETS_2)
 def test_has_edge(graph_file):
     gc.collect()
 
@@ -569,7 +638,7 @@ def test_has_edge(graph_file):
 
 
 # Test
-@pytest.mark.parametrize('graph_file', DATASETS2)
+@pytest.mark.parametrize('graph_file', utils.DATASETS_2)
 def test_has_node(graph_file):
     gc.collect()
 
@@ -580,12 +649,12 @@ def test_has_node(graph_file):
     G = cugraph.Graph()
     G.from_cudf_edgelist(cu_M, source='0', destination='1')
 
-    for n in nodes:
+    for n in nodes.values_host:
         assert G.has_node(n)
 
 
 # Test
-@pytest.mark.parametrize('graph_file', DATASETS)
+@pytest.mark.parametrize('graph_file', utils.DATASETS)
 def test_neighbors(graph_file):
     gc.collect()
 
@@ -599,8 +668,7 @@ def test_neighbors(graph_file):
 
     Gnx = nx.from_pandas_edgelist(M, source='0', target='1',
                                   create_using=nx.Graph())
-    for n in nodes:
-        print("NODE: ", n)
+    for n in nodes.values_host:
         cu_neighbors = G.neighbors(n).tolist()
         nx_neighbors = [i for i in Gnx.neighbors(n)]
         cu_neighbors.sort()

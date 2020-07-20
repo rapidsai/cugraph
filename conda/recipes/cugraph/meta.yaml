@@ -4,7 +4,6 @@
 #   conda build -c nvidia -c rapidsai -c conda-forge -c defaults .
 {% set version = environ.get('GIT_DESCRIBE_TAG', '0.0.0.dev').lstrip('v') + environ.get('VERSION_SUFFIX', '') %}
 {% set minor_version =  version.split('.')[0] + '.' + version.split('.')[1] %}
-{% set git_revision_count=environ.get('GIT_DESCRIBE_NUMBER', 0) %}
 {% set py_version=environ.get('CONDA_PY', 36) %}
 package:
   name: cugraph
@@ -14,8 +13,8 @@ source:
   path: ../../..
 
 build:
-  number: {{ git_revision_count }}
-  string: py{{ py_version }}_{{ git_revision_count }}
+  number: {{ GIT_DESCRIBE_NUMBER }}
+  string: py{{ py_version }}_{{ GIT_DESCRIBE_HASH }}_{{ GIT_DESCRIBE_NUMBER }}
   script_env:
     - CC
     - CXX
@@ -28,11 +27,13 @@ requirements:
     - cython>=0.29,<0.30
     - libcugraph={{ version }}
     - cudf={{ minor_version }}
+    - ucx-py {{ minor_version }}
   run:
     - python x.x
     - libcugraph={{ version }}
     - cudf={{ minor_version }}
     - nccl>=2.5
+    - ucx-py {{ minor_version }}
 
 #test:
 #  commands:

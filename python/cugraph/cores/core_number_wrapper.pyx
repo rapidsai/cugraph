@@ -36,7 +36,7 @@ def core_number(input_graph):
     [offsets, indices] = graph_new_wrapper.datatype_cast([input_graph.adjlist.offsets, input_graph.adjlist.indices], [np.int32])
 
     num_verts = input_graph.number_of_vertices()
-    num_edges = len(indices)
+    num_edges = input_graph.number_of_edges(directed_edges=True)
 
     df = cudf.DataFrame()
     df['vertex'] = cudf.Series(np.zeros(num_verts, dtype=np.int32))

@@ -34,21 +34,18 @@ function(ConfigureTest CMAKE_TEST_NAME CMAKE_TEST_SRC CMAKE_EXTRA_LIBS)
         "${RMM_INCLUDE}"
         "${CUDF_INCLUDE}"
         "${CUDF_INCLUDE}/libcudf/libcudacxx"
+        "${NCCL_INCLUDE_DIRS}"
         "${CUB_INCLUDE_DIR}"
         "${CMAKE_SOURCE_DIR}/../thirdparty/mmio"
         "${CMAKE_SOURCE_DIR}/include"
         "${CMAKE_SOURCE_DIR}/src"
         "${CMAKE_CURRENT_SOURCE_DIR}"
+        "${RAFT_DIR}/cpp/include"
     )
 
     target_link_libraries(${CMAKE_TEST_NAME}
         PRIVATE
-        gtest gmock_main gmock cugraph ${CUDF_LIBRARY} ${RMM_LIBRARY} ${CMAKE_EXTRA_LIBS} cudart cuda)
-    if (BUILD_MPI)
-        include_directories(include ${MPI_CXX_INCLUDE_PATH} ${NCCL_INCLUDE_DIRS})
-        target_link_libraries(${CMAKE_TEST_NAME} PRIVATE ${MPI_C_LIBRARIES} ${NCCL_LIBRARIES} )
-        target_compile_options(${CMAKE_TEST_NAME} PUBLIC ${MPI_C_COMPILE_FLAGS})
-    endif(BUILD_MPI)
+        gtest gmock_main gmock cugraph ${CUDF_LIBRARY} ${RMM_LIBRARY} ${CMAKE_EXTRA_LIBS}  ${NCCL_LIBRARIES} cudart cuda cublas cusparse cusolver curand)
 
     if(OpenMP_CXX_FOUND)
         target_link_libraries(${CMAKE_TEST_NAME} PRIVATE
@@ -138,12 +135,18 @@ set(BETWEENNESS_TEST_SRC
 
   ConfigureTest(BETWEENNESS_TEST "${BETWEENNESS_TEST_SRC}" "")
 
+set(EDGE_BETWEENNESS_TEST_SRC
+    "${CMAKE_SOURCE_DIR}/../thirdparty/mmio/mmio.c"
+    "${CMAKE_CURRENT_SOURCE_DIR}/centrality/edge_betweenness_centrality_test.cu")
+
+  ConfigureTest(EDGE_BETWEENNESS_TEST "${EDGE_BETWEENNESS_TEST_SRC}" "")
+
 ###################################################################################################
 # - pagerank tests --------------------------------------------------------------------------------
 
 set(PAGERANK_TEST_SRC
     "${CMAKE_SOURCE_DIR}/../thirdparty/mmio/mmio.c"
-    "${CMAKE_CURRENT_SOURCE_DIR}/pagerank/pagerank_test.cu")
+    "${CMAKE_CURRENT_SOURCE_DIR}/pagerank/pagerank_test.cpp")
 
 ConfigureTest(PAGERANK_TEST "${PAGERANK_TEST_SRC}" "")
 
@@ -203,7 +206,7 @@ set(RENUMBERING_TEST_SRC
     "${CMAKE_SOURCE_DIR}/../thirdparty/mmio/mmio.c"
     "${CMAKE_CURRENT_SOURCE_DIR}/renumber/renumber_test.cu")
 
-ConfigureTest(RENUMBERING_TEST "${RENUMBERING_TEST_SRC}" "${NVSTRINGS_LIBRARY}")
+ConfigureTest(RENUMBERING_TEST "${RENUMBERING_TEST_SRC}" "")
 
 ###################################################################################################
 #-FORCE ATLAS 2  tests ------------------------------------------------------------------------------
@@ -221,7 +224,7 @@ set(CONNECT_TEST_SRC
     "${CMAKE_SOURCE_DIR}/../thirdparty/mmio/mmio.c"
     "${CMAKE_CURRENT_SOURCE_DIR}/components/con_comp_test.cu")
 
-  ConfigureTest(CONNECT_TEST "${CONNECT_TEST_SRC}" "")
+ConfigureTest(CONNECT_TEST "${CONNECT_TEST_SRC}" "")
 
 ###################################################################################################
 #-STRONGLY CONNECTED COMPONENTS  tests ---------------------------------------------------------------------
@@ -254,6 +257,15 @@ if (BUILD_MPI)
 
     ConfigureTest(NCCL_DEGREE_TEST "${NCCL_DEGREE_TEST_SRC}" "")
 endif(BUILD_MPI)
+
+###################################################################################################
+#-OPG tests ---------------------------------------------------------------------
+set(LB_TEST_SRC
+    "${CMAKE_SOURCE_DIR}/../thirdparty/mmio/mmio.c"
+    "${CMAKE_CURRENT_SOURCE_DIR}/traversal/load_balance.cu")
+
+ConfigureTest(LB_TEST "${LB_TEST_SRC}" "")
+
 
 ###################################################################################################
 ### enable testing ################################################################################

@@ -16,12 +16,11 @@
 
 #include <algorithms.hpp>
 
-#include <rmm/rmm.h>
 #include <rmm/thrust_rmm_allocator.h>
 #include <thrust/random.h>
-#include <utilities/error_utils.h>
 #include <converters/permute_graph.cuh>
 #include <ctime>
+#include <utilities/error.hpp>
 #include "utilities/graph_utils.cuh"
 
 namespace {
@@ -92,40 +91,38 @@ struct update_functor {
  * responsible for freeing the allocated memory using ALLOC_FREE_TRY().
  */
 template <typename T>
-void get_permutation_vector(T size, T seed, T *permutation)
+void get_permutation_vector(T size, T seed, T *permutation, cudaStream_t stream)
 {
   rmm::device_vector<float> randoms_v(size);
 
   thrust::counting_iterator<uint32_t> index(seed);
   thrust::transform(
-    rmm::exec_policy(nullptr)->on(nullptr), index, index + size, randoms_v.begin(), prg());
-  thrust::sequence(rmm::exec_policy(nullptr)->on(nullptr), permutation, permutation + size, 0);
+    rmm::exec_policy(stream)->on(stream), index, index + size, randoms_v.begin(), prg());
+  thrust::sequence(rmm::exec_policy(stream)->on(stream), permutation, permutation + size, 0);
   thrust::sort_by_key(
-    rmm::exec_policy(nullptr)->on(nullptr), randoms_v.begin(), randoms_v.end(), permutation);
+    rmm::exec_policy(stream)->on(stream), randoms_v.begin(), randoms_v.end(), permutation);
 }
 
 }  // anonymous namespace
 
 namespace cugraph {
-namespace nvgraph {
 
 template <typename VT, typename ET, typename WT>
-void ecg(experimental::GraphCSRView<VT, ET, WT> const &graph,
-         WT min_weight,
-         VT ensemble_size,
-         VT *ecg_parts)
+void ecg(GraphCSRView<VT, ET, WT> const &graph, WT min_weight, VT ensemble_size, VT *ecg_parts)
 {
   CUGRAPH_EXPECTS(graph.edge_data != nullptr, "API error, louvain expects a weighted graph");
   CUGRAPH_EXPECTS(ecg_parts != nullptr, "Invalid API parameter: ecg_parts is NULL");
 
-  rmm::device_vector<WT> ecg_weights_v(graph.number_of_edges, WT{0.0});
+  cudaStream_t stream{0};
+
+  rmm::device_vector<WT> ecg_weights_v(graph.edge_data, graph.edge_data + graph.number_of_edges);
 
   VT size{graph.number_of_vertices};
   VT seed{0};
   // VT seed{1};  // Note... this seed won't work for the unit tests... retest after fixing Louvain.
 
-  auto permuted_graph = std::make_unique<experimental::GraphCSR<VT, ET, WT>>(
-    size, graph.number_of_edges, graph.has_data());
+  auto permuted_graph =
+    std::make_unique<GraphCSR<VT, ET, WT>>(size, graph.number_of_edges, graph.has_data());
 
   // Iterate over each member of the ensemble
   for (VT i = 0; i < ensemble_size; i++) {
@@ -133,7 +130,7 @@ void ecg(experimental::GraphCSRView<VT, ET, WT> const &graph,
     rmm::device_vector<VT> permutation_v(size);
     VT *d_permutation = permutation_v.data().get();
 
-    get_permutation_vector(size, seed, d_permutation);
+    get_permutation_vector(size, seed, d_permutation, stream);
     seed += size;
 
     detail::permute_graph<VT, ET, WT>(graph, d_permutation, permuted_graph->view());
@@ -145,32 +142,32 @@ void ecg(experimental::GraphCSRView<VT, ET, WT> const &graph,
     WT final_modularity;
     VT num_level;
 
-    cugraph::nvgraph::louvain(permuted_graph->view(), &final_modularity, &num_level, d_parts, 1);
+    cugraph::louvain(permuted_graph->view(), &final_modularity, &num_level, d_parts, 1);
 
     // For each edge in the graph determine whether the endpoints are in the same partition
     // Keep a sum for each edge of the total number of times its endpoints are in the same partition
     dim3 grid, block;
     block.x = 512;
     grid.x  = min(VT{CUDA_MAX_BLOCKS}, (graph.number_of_edges / 512 + 1));
-    match_check_kernel<<<grid, block, 0, nullptr>>>(graph.number_of_edges,
-                                                    graph.number_of_vertices,
-                                                    graph.offsets,
-                                                    graph.indices,
-                                                    permutation_v.data().get(),
-                                                    d_parts,
-                                                    ecg_weights_v.data().get());
+    match_check_kernel<<<grid, block, 0, stream>>>(graph.number_of_edges,
+                                                   graph.number_of_vertices,
+                                                   graph.offsets,
+                                                   graph.indices,
+                                                   permutation_v.data().get(),
+                                                   d_parts,
+                                                   ecg_weights_v.data().get());
   }
 
   // Set weights = min_weight + (1 - min-weight)*sum/ensemble_size
   update_functor<WT> uf(min_weight, ensemble_size);
-  thrust::transform(rmm::exec_policy(nullptr)->on(nullptr),
+  thrust::transform(rmm::exec_policy(stream)->on(stream),
                     ecg_weights_v.data().get(),
                     ecg_weights_v.data().get() + graph.number_of_edges,
                     ecg_weights_v.data().get(),
                     uf);
 
   // Run Louvain on the original graph using the computed weights
-  experimental::GraphCSRView<VT, ET, WT> louvain_graph;
+  GraphCSRView<VT, ET, WT> louvain_graph;
   louvain_graph.indices            = graph.indices;
   louvain_graph.offsets            = graph.offsets;
   louvain_graph.edge_data          = ecg_weights_v.data().get();
@@ -179,19 +176,16 @@ void ecg(experimental::GraphCSRView<VT, ET, WT> const &graph,
 
   WT final_modularity;
   VT num_level;
-  cugraph::nvgraph::louvain(louvain_graph, &final_modularity, &num_level, ecg_parts, 100);
+  cugraph::louvain(louvain_graph, &final_modularity, &num_level, ecg_parts, 100);
 }
 
 // Explicit template instantiations.
-template void ecg<int32_t, int32_t, float>(
-  experimental::GraphCSRView<int32_t, int32_t, float> const &graph,
-  float min_weight,
-  int32_t ensemble_size,
-  int32_t *ecg_parts);
-template void ecg<int32_t, int32_t, double>(
-  experimental::GraphCSRView<int32_t, int32_t, double> const &graph,
-  double min_weight,
-  int32_t ensemble_size,
-  int32_t *ecg_parts);
-}  // namespace nvgraph
+template void ecg<int32_t, int32_t, float>(GraphCSRView<int32_t, int32_t, float> const &graph,
+                                           float min_weight,
+                                           int32_t ensemble_size,
+                                           int32_t *ecg_parts);
+template void ecg<int32_t, int32_t, double>(GraphCSRView<int32_t, int32_t, double> const &graph,
+                                            double min_weight,
+                                            int32_t ensemble_size,
+                                            int32_t *ecg_parts);
 }  // namespace cugraph

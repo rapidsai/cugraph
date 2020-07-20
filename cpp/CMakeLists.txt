@@ -104,13 +104,6 @@ set(CMAKE_EXE_LINKER_FLAGS "-Wl,--disable-new-dtags")
 option(BUILD_TESTS "Configure CMake to build tests"
        ON)
 
-option(BUILD_MPI "Build with MPI" OFF)
-if (BUILD_MPI)
-    find_package(MPI REQUIRED)
-    set (CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${MPI_C_COMPILE_FLAGS}")
-    set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${MPI_CXX_COMPILE_FLAGS}")
-    set (CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} ${MPI_CXX_LINK_FLAGS}")
-endif(BUILD_MPI)
 ###################################################################################################
 # - cmake modules ---------------------------------------------------------------------------------
 
@@ -263,7 +256,7 @@ endif(NOT NCCL_PATH)
 if(DEFINED ENV{RAFT_PATH})
   message(STATUS "RAFT_PATH environment variable detected.")
   message(STATUS "RAFT_DIR set to $ENV{RAFT_PATH}")
-  set(RAFT_DIR ENV{RAFT_PATH})
+  set(RAFT_DIR "$ENV{RAFT_PATH}")
 
   ExternalProject_Add(raft
     DOWNLOAD_COMMAND  ""
@@ -278,14 +271,14 @@ else(DEFINED ENV{RAFT_PATH})
 
   ExternalProject_Add(raft
     GIT_REPOSITORY    https://github.com/rapidsai/raft.git
-    GIT_TAG           e003de27fc4e4a096337f184dddbd7942a68bb5c
+    GIT_TAG           6391b63cd32f04ac4912edecf62ff2865c529cd9
     PREFIX            ${RAFT_DIR}
     CONFIGURE_COMMAND ""
     BUILD_COMMAND     ""
     INSTALL_COMMAND   "")
 
   # Redefining RAFT_DIR so it coincides with the one inferred by env variable.
-  set(RAFT_DIR ${RAFT_DIR}/src/raft/ CACHE STRING "Path to RAFT repo")
+  set(RAFT_DIR "${RAFT_DIR}/src/raft/")
 endif(DEFINED ENV{RAFT_PATH})
 
 
@@ -301,13 +294,15 @@ link_directories(
     "${CMAKE_CUDA_IMPLICIT_LINK_DIRECTORIES}")
 
 add_library(cugraph SHARED
-    src/comms/mpi/comms_mpi.cpp
     src/db/db_object.cu
     src/db/db_parser_integration_test.cu
     src/db/db_operators.cu
     src/utilities/cusparse_helper.cu
+    src/utilities/spmv_1D.cu
     src/structure/graph.cu
     src/link_analysis/pagerank.cu
+    src/link_analysis/pagerank_1D.cu
+    src/link_analysis/gunrock_hits.cpp
     src/traversal/bfs.cu
     src/traversal/sssp.cu
     src/link_prediction/jaccard.cu
@@ -316,8 +311,9 @@ add_library(cugraph SHARED
     src/converters/renumber.cu
     src/converters/COOtoCSR.cu
     src/community/spectral_clustering.cu
+    src/community/louvain.cpp
+    src/community/louvain_kernels.cu
     src/community/ktruss.cu
-    src/community/louvain.cu
     src/community/ECG.cu
     src/community/triangles_counting.cu
     src/community/extract_subgraph_by_vertex.cu
@@ -327,15 +323,6 @@ add_library(cugraph SHARED
     src/components/connectivity.cu
     src/centrality/katz_centrality.cu
     src/centrality/betweenness_centrality.cu
-    src/nvgraph/kmeans.cu
-    src/nvgraph/lanczos.cu
-    src/nvgraph/spectral_matrix.cu
-    src/nvgraph/modularity_maximization.cu
-    src/nvgraph/nvgraph_cusparse.cpp
-    src/nvgraph/nvgraph_cublas.cpp
-    src/nvgraph/nvgraph_lapack.cu
-    src/nvgraph/nvgraph_vector_kernels.cu
-    src/nvgraph/partition.cu
 )
 
 #
@@ -344,10 +331,6 @@ add_library(cugraph SHARED
 #
 add_dependencies(cugraph cugunrock)
 add_dependencies(cugraph raft)
-
-if (BUILD_MPI)
-    add_compile_definitions(ENABLE_OPG=1)
-endif (BUILD_MPI)
 
 ###################################################################################################
 # - include paths ---------------------------------------------------------------------------------
@@ -366,7 +349,6 @@ target_include_directories(cugraph
     "${CMAKE_CURRENT_SOURCE_DIR}/src"
     "${CUGUNROCK_DIR}/include"
     "${NCCL_INCLUDE_DIRS}"
-    "${MPI_CXX_INCLUDE_PATH}"
     "${RAFT_DIR}/cpp/include"
     PUBLIC
     "${CMAKE_CURRENT_SOURCE_DIR}/include"
@@ -376,7 +358,7 @@ target_include_directories(cugraph
 # - link libraries --------------------------------------------------------------------------------
 
 target_link_libraries(cugraph PRIVATE
-    ${RMM_LIBRARY} gunrock ${NVSTRINGS_LIBRARY} cublas cusparse curand cusolver cudart cuda ${LIBCYPHERPARSER_LIBRARY} ${MPI_CXX_LIBRARIES} ${NCCL_LIBRARIES})
+    ${RMM_LIBRARY} gunrock cublas cusparse curand cusolver cudart cuda ${LIBCYPHERPARSER_LIBRARY} ${MPI_CXX_LIBRARIES} ${NCCL_LIBRARIES})
 
 if(OpenMP_CXX_FOUND)
 target_link_libraries(cugraph PRIVATE

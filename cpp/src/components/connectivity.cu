@@ -8,7 +8,7 @@
 #include <graph.hpp>
 #include <iostream>
 #include <type_traits>
-#include "utilities/error_utils.h"
+#include "utilities/error.hpp"
 #include "utilities/graph_utils.cuh"
 
 #include "topology/topology.cuh"
@@ -41,7 +41,7 @@ namespace detail {
  */
 template <typename VT, typename ET, typename WT, int TPB_X = 32>
 std::enable_if_t<std::is_signed<VT>::value> connected_components_impl(
-  experimental::GraphCSRView<VT, ET, WT> const &graph,
+  GraphCSRView<VT, ET, WT> const &graph,
   cugraph_cc_t connectivity_type,
   VT *labels,
   cudaStream_t stream)
@@ -68,7 +68,7 @@ std::enable_if_t<std::is_signed<VT>::value> connected_components_impl(
 }  // namespace detail
 
 template <typename VT, typename ET, typename WT>
-void connected_components(experimental::GraphCSRView<VT, ET, WT> const &graph,
+void connected_components(GraphCSRView<VT, ET, WT> const &graph,
                           cugraph_cc_t connectivity_type,
                           VT *labels)
 {
@@ -80,8 +80,8 @@ void connected_components(experimental::GraphCSRView<VT, ET, WT> const &graph,
 }
 
 template void connected_components<int32_t, int32_t, float>(
-  experimental::GraphCSRView<int32_t, int32_t, float> const &, cugraph_cc_t, int32_t *);
+  GraphCSRView<int32_t, int32_t, float> const &, cugraph_cc_t, int32_t *);
 template void connected_components<int64_t, int64_t, float>(
-  experimental::GraphCSRView<int64_t, int64_t, float> const &, cugraph_cc_t, int64_t *);
+  GraphCSRView<int64_t, int64_t, float> const &, cugraph_cc_t, int64_t *);
 
 }  // namespace cugraph

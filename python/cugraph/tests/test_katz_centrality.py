@@ -55,15 +55,11 @@ def calc_katz(graph_file):
     nk = nx.katz_centrality(Gnx, alpha=katz_alpha)
     pdf = [nk[k] for k in sorted(nk.keys())]
     k_df['nx_katz'] = pdf
-    k_df = k_df.rename({'katz_centrality': 'cu_katz'})
+    k_df = k_df.rename(columns={'katz_centrality': 'cu_katz'}, copy=False)
     return k_df
 
 
-DATASETS = ['../datasets/dolphins.csv',
-            '../datasets/netscience.csv']
-
-
-@pytest.mark.parametrize('graph_file', DATASETS)
+@pytest.mark.parametrize('graph_file', utils.DATASETS)
 def test_katz_centrality(graph_file):
     gc.collect()
 

@@ -61,11 +61,7 @@ def compare_edges(cg, nxg):
     return True
 
 
-DATASETS = ['../datasets/dolphins.csv',
-            '../datasets/netscience.csv']
-
-
-@pytest.mark.parametrize('graph_file', DATASETS)
+@pytest.mark.parametrize('graph_file', utils.DATASETS)
 def test_core_number_DiGraph(graph_file):
     gc.collect()
 
@@ -74,7 +70,7 @@ def test_core_number_DiGraph(graph_file):
     assert compare_edges(cu_kcore, nx_kcore)
 
 
-@pytest.mark.parametrize('graph_file', DATASETS)
+@pytest.mark.parametrize('graph_file', utils.DATASETS)
 def test_core_number_Graph(graph_file):
     gc.collect()
 

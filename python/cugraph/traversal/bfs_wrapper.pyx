@@ -51,6 +51,9 @@ def bfs(input_graph, start, directed=True,
     if input_graph.adjlist is None:
         input_graph.view_adj_list()
 
+    cdef unique_ptr[handle_t] handle_ptr
+    handle_ptr.reset(new handle_t())
+
     # Step 3: Extract CSR offsets, indices, weights are not expected
     #         - offsets: int (signed, 32-bit)
     #         - indices: int (signed, 32-bit)
@@ -60,7 +63,7 @@ def bfs(input_graph, start, directed=True,
 
     # Step 4: Setup number of vertices and edges
     num_verts = input_graph.number_of_vertices()
-    num_edges = len(indices)
+    num_edges = input_graph.number_of_edges(directed_edges=True)
 
     # Step 5: Handle the case the graph has been renumbered
     #         The source given as input has to be renumbered
@@ -94,7 +97,8 @@ def bfs(input_graph, start, directed=True,
                                             num_edges)
     graph_float.get_vertex_identifiers(<int*> c_identifier_ptr)
     # Different pathing wether shortest_path_counting is required or not
-    c_bfs.bfs[int, int, float](graph_float,
+    c_bfs.bfs[int, int, float](handle_ptr.get()[0],
+                               graph_float,
                                <int*> c_distance_ptr,
                                <int*> c_predecessor_ptr,
                                <double*> c_sp_counter_ptr,
@@ -113,5 +117,7 @@ def bfs(input_graph, start, directed=True,
             df = unrenumbered_df[cols[1:n_cols + 1] + [cols[0]] + cols[n_cols:]]
         else: # Simple renumbering
             df = unrenumber(input_graph.edgelist.renumber_map, df, 'vertex')
-            df['predecessor'][df['predecessor'] > -1] = input_graph.edgelist.renumber_map[df['predecessor'][df['predecessor'] > -1]]
+            df = unrenumber(input_graph.edgelist.renumber_map, df, 'predecessor')
+            df['predecessor'].fillna(-1, inplace=True)
+
     return df

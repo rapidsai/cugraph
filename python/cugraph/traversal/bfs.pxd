@@ -23,6 +23,7 @@ from libcpp cimport bool
 cdef extern from "algorithms.hpp" namespace "cugraph":
 
     cdef void bfs[VT,ET,WT](
+        const handle_t &handle,
         const GraphCSRView[VT,ET,WT] &graph,
         VT *distances,
         VT *predecessors,

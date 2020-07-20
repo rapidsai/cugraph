@@ -1,25 +1,65 @@
 # cuGraph 0.15.0 (Date TBD)
 
 ## New Features
+- PR #937 Add wrapper for gunrock HITS algorithm
+- PR #939 Updated Notebooks to include new features and benchmarks
+- PR #944 OPG pagerank (dask)
+- PR #947 OPG pagerank (CUDA)
+- PR #964 OPG BFS (CUDA)
+- PR #990 MG Consolidation
+- PR #993 Add persistent Handle for Comms
 
 ## Improvements
+- PR #898 Add Edge Betweenness Centrality, and endpoints to BC
+- PR #913 Eliminate `rmm.device_array` usage
+- PR #903 Add short commit hash to conda package
+- PR #920 modify bfs test, update graph number_of_edges, update storage of transposedAdjList in Graph
+- PR #933 Update opg_degree to use raft, add python tests
+- PR #930 rename test_utils.h to utilities/test_utils.hpp and remove thrust dependency
+- PR #934 Update conda dev environment.yml dependencies to 0.15
+- PR #942 Removed references to deprecated RMM headers.
+- PR #941 Regression python/cudf fix
+- PR #945 Simplified benchmark --no-rmm-reinit option, updated default options
+- PR #946 Install meta packages for dependencies
+- PR #952 Updated get_test_data.sh to also (optionally) download and install datasets for benchmark runs
+- PR #953 fix setting RAFT_DIR from the RAFT_PATH env var
+- PR #954 Update cuGraph error handling to use RAFT
+- PR #968 Add build script for CI benchmark integration
+- PR #959 Add support for uint32_t and int64_t types for BFS (cpp side)
+- PR #962 Update dask pagerank
+- PR #975 Upgrade GitHub template
+- PR #976 Fix error in Graph.edges(), update cuDF rename() calls
+- PR #977 Update force_atlas2 to call on_train_end after iterating
+- PR #980 Replace nvgraph Spectral Clustering (SC) functionality with RAFT SC
+- PR #987 Move graph out of experimental namespace
+- PR #984 Removing codecov until we figure out how to interpret failures that block CI
+- PR #985 Add raft handle to BFS, BC and edge BC
+- PR #991 Update conda upload versions for new supported CUDA/Python
+- PR #988 Add clang and clang tools to the conda env
+- PR #997 Update setup.cfg to run pytests under cugraph tests directory only
+- PR #1009 Update benchmarks script to include requirements used
+- PR #1014 Fix benchmarks script variable name
 
 ## Bug Fixes
-
-# cuGraph 0.14.0 (Date TBD)
+- PR #936 Update Force Atlas 2 doc and wrapper
+- PR #938 Quote conda installs to avoid bash interpretation
+- PR #966 Fix build error (debug mode)
+- PR #983 Fix offset calculation in COO to CSR
+- PR #989: Fix issue with incorrect docker image being used in local build script
+- PR #992 Fix unrenumber of predecessor
+- PR #1008 Fix for cudf updates disabling iteration of Series/Columns/Index
+    
+# cuGraph 0.14.0 (03 Jun 2020)
 
 ## New Features
 - PR #756 Add Force Atlas 2 layout
 - PR #822 Added new functions in python graph class, similar to networkx
 - PR #840 OPG degree
-- PR #881 Raft integration infrastructure
 - PR #875 UVM notebook
-
+- PR #881 Raft integration infrastructure
 
 ## Improvements
-- PR #882 Add Force Atlas 2 to benchmarks
-- PR #876 Add BFS C++ tests
-- PR #817 Add native Betweenness Centrality with sources subset
+- PR #917 Remove gunrock option from Betweenness Centrality
 - PR #764 Updated sssp and bfs with GraphCSR, removed gdf_column, added nullptr weights test for sssp
 - PR #765 Remove gdf_column from connected components
 - PR #780 Remove gdf_column from cuhornet features
@@ -27,21 +67,22 @@
 - PR #782 Use Cython's `new_build_ext` (if available)
 - PR #788 Added options and config file to enable codecov
 - PR #793 Fix legacy cudf imports/cimports
-- PR #802 Removed use of gdf_column from db code
 - PR #798 Edit return graph type in algorithms return graphs
+- PR #799 Refactored graph class with RAII
+- PR #802 Removed use of gdf_column from db code
 - PR #803 Enable Ninja build
 - PR #804 Cythonize in parallel
-- PR #823 Remove gdf column from nvgraph
 - PR #807 Updating the Python docs
-- PR #820 OPG infra and all-gather smoke test
-- PR #799 Refactored graph class with RAII
+- PR #817 Add native Betweenness Centrality with sources subset
 - PR #818 Initial version of new "benchmarks" folder
+- PR #820 OPG infra and all-gather smoke test
+- PR #823 Remove gdf column from nvgraph
 - PR #829 Updated README and CONTRIBUTIOIN docs
-- PR #836 Remove SNMG code
 - PR #831 Updated Notebook - Added K-Truss, ECG, and Betweenness Centrality
 - PR #832 Removed RMM ALLOC from db subtree
 - PR #833 Update graph functions to use new Graph class
 - PR #834 Updated local gpuci build
+- PR #836 Remove SNMG code
 - PR #845 Add .clang-format & format all files
 - PR #859 Updated main docs
 - PR #862 Katz Centrality : Auto calculation of alpha parameter if set to none
@@ -49,16 +90,22 @@
 - PR #866 Use RAII graph class in KTruss
 - PR #867 Updates to support the latest flake8 version
 - PR #874 Update setup.py to use custom clean command
+- PR #876 Add BFS C++ tests
 - PR #878 Updated build script
+- PR #887 Updates test to common datasets
 - PR #879 Add docs build script to repository
-- PR #818 Initial version of new "benchmarks" folder
 - PR #880 Remove remaining gdf_column references
+- PR #882 Add Force Atlas 2 to benchmarks
 - PR #891 A few gdf_column stragglers
 - PR #893 Add external_repositories dir and raft symlink to .gitignore
 - PR #897 Remove RMM ALLOC calls
 - PR #899 Update include paths to remove deleted cudf headers
+- PR #906 Update Louvain notebook
+- PR #948 Move doc customization scripts to Jenkins
 
 ## Bug Fixes
+- PR #927 Update scikit learn dependency
+- PR #916 Fix CI error on Force Atlas 2 test
 - PR #763 Update RAPIDS conda dependencies to v0.14
 - PR #795 Fix some documentation
 - PR #800 Fix bfs error in optimization path
@@ -69,9 +116,17 @@
 - PR #852 Fix BFS Notebook
 - PR #855 Missed a file in the original SNMG PR
 - PR #860 Fix all Notebooks
+- PR #870 Fix Louvain
 - PR #889 Added missing conftest.py file to benchmarks dir
+- PR #896 opg dask infrastructure fixes
+- PR #907 Fix bfs directed missing vertices
+- PR #911 Env and changelog update
+- PR #923 Updated pagerank with @afender 's temp fix for double-free crash
+- PR #928 Fix scikit learn test install to work with libgcc-ng 7.3
+- PR 935 Merge
+- PR #956 Use new gpuCI image in local build script
 
-# cuGraph 0.13.0 (Date TBD)
+# cuGraph 0.13.0 (31 Mar 2020)
 
 ## New Features
 - PR #736 cuHornet KTruss integration

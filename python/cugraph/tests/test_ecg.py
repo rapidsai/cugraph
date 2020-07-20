@@ -11,10 +11,12 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# import gc
-# import pytest
+import gc
+
+import pytest
+
 import cugraph
-# from cugraph.tests import utils
+from cugraph.tests import utils
 
 
 def cugraph_call(G, min_weight, ensemble_size):
@@ -43,10 +45,6 @@ ENSEMBLE_SIZES = [16, 32]
 
 
 # Test all combinations of default/managed and pooled/non-pooled allocation
-
-# FIXME:
-# Disable all of the ECG tests... Louvain is broken
-'''
 @pytest.mark.parametrize('graph_file', DATASETS)
 @pytest.mark.parametrize('min_weight', MIN_WEIGHTS)
 @pytest.mark.parametrize('ensemble_size', ENSEMBLE_SIZES)
@@ -67,4 +65,3 @@ def test_ecg_clustering(graph_file,
     # Assert that the partitioning has better modularity than the random
     # assignment
     assert cu_score > (.95 * golden_score)
-'''

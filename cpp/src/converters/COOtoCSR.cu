@@ -19,13 +19,29 @@
 
 namespace cugraph {
 
-template std::unique_ptr<experimental::GraphCSR<int32_t, int32_t, float>>
-coo_to_csr<int32_t, int32_t, float>(
-  experimental::GraphCOOView<int32_t, int32_t, float> const &graph,
-  rmm::mr::device_memory_resource *);
-template std::unique_ptr<experimental::GraphCSR<int32_t, int32_t, double>>
-coo_to_csr<int32_t, int32_t, double>(
-  experimental::GraphCOOView<int32_t, int32_t, double> const &graph,
-  rmm::mr::device_memory_resource *);
+// Explicit instantiation for uint32_t + float
+template std::unique_ptr<GraphCSR<uint32_t, uint32_t, float>> coo_to_csr<uint32_t, uint32_t, float>(
+  GraphCOOView<uint32_t, uint32_t, float> const &graph, rmm::mr::device_memory_resource *);
+
+// Explicit instantiation for uint32_t + double
+template std::unique_ptr<GraphCSR<uint32_t, uint32_t, double>>
+coo_to_csr<uint32_t, uint32_t, double>(GraphCOOView<uint32_t, uint32_t, double> const &graph,
+                                       rmm::mr::device_memory_resource *);
+
+// Explicit instantiation for int + float
+template std::unique_ptr<GraphCSR<int32_t, int32_t, float>> coo_to_csr<int32_t, int32_t, float>(
+  GraphCOOView<int32_t, int32_t, float> const &graph, rmm::mr::device_memory_resource *);
+
+// Explicit instantiation for int + double
+template std::unique_ptr<GraphCSR<int32_t, int32_t, double>> coo_to_csr<int32_t, int32_t, double>(
+  GraphCOOView<int32_t, int32_t, double> const &graph, rmm::mr::device_memory_resource *);
+
+// Explicit instantiation for int64_t + float
+template std::unique_ptr<GraphCSR<int64_t, int64_t, float>> coo_to_csr<int64_t, int64_t, float>(
+  GraphCOOView<int64_t, int64_t, float> const &graph, rmm::mr::device_memory_resource *);
+
+// Explicit instantiation for int64_t + double
+template std::unique_ptr<GraphCSR<int64_t, int64_t, double>> coo_to_csr<int64_t, int64_t, double>(
+  GraphCOOView<int64_t, int64_t, double> const &graph, rmm::mr::device_memory_resource *);
 
 }  // namespace cugraph

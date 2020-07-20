@@ -12,3 +12,4 @@
 # limitations under the License.
 
 from cugraph.link_analysis.pagerank import pagerank
+from cugraph.link_analysis.hits import hits
