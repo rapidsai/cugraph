@@ -75,9 +75,9 @@ template <typename VT, typename ET, typename WT>
 int pagerank(raft::handle_t const &handle,
              const GraphCSCView<VT, ET, WT> &G,
              WT *pagerank_result,
-             const float damping_factor = 0.85,
-             const int n_iter           = 200,
-             const float tolerance      = 1e-4)
+             const double damping_factor = 0.85,
+             const int64_t n_iter        = 100,
+             const double tolerance      = 1e-5)
 {
   // null pointers check
   CUGRAPH_EXPECTS(G.offsets != nullptr, "Invalid API parameter - offsets is null");

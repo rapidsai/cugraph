@@ -267,8 +267,8 @@ void pagerank_impl(GraphCSCView<VT, ET, WT> const &graph,
                    VT *personalization_subset     = nullptr,
                    WT *personalization_values     = nullptr,
                    double alpha                   = 0.85,
-                   double tolerance               = 1e-4,
-                   int64_t max_iter               = 200,
+                   double tolerance               = 1e-5,
+                   int64_t max_iter               = 100,
                    bool has_guess                 = false)
 {
   bool has_personalization = false;
