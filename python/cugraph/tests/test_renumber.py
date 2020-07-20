@@ -52,11 +52,11 @@ def test_renumber_ips():
 
     numbering = NumberMap()
     numbering.from_series(gdf["source_as_int"], gdf["dest_as_int"])
-    src = numbering.to_vertex_id(gdf["source_as_int"])
-    dst = numbering.to_vertex_id(gdf["dest_as_int"])
+    src = numbering.to_internal_vertex_id(gdf["source_as_int"])
+    dst = numbering.to_internal_vertex_id(gdf["dest_as_int"])
 
-    check_src = numbering.from_vertex_id(src)["0"]
-    check_dst = numbering.from_vertex_id(dst)["0"]
+    check_src = numbering.from_internal_vertex_id(src)["0"]
+    check_dst = numbering.from_internal_vertex_id(dst)["0"]
 
     assert check_src.equals(gdf["source_as_int"])
     assert check_dst.equals(gdf["dest_as_int"])
@@ -86,11 +86,11 @@ def test_renumber_ips_cols():
 
     numbering = NumberMap()
     numbering.from_dataframe(gdf, ["source_as_int"], ["dest_as_int"])
-    src = numbering.to_vertex_id(gdf["source_as_int"])
-    dst = numbering.to_vertex_id(gdf["dest_as_int"])
+    src = numbering.to_internal_vertex_id(gdf["source_as_int"])
+    dst = numbering.to_internal_vertex_id(gdf["dest_as_int"])
 
-    check_src = numbering.from_vertex_id(src)["0"]
-    check_dst = numbering.from_vertex_id(dst)["0"]
+    check_src = numbering.from_internal_vertex_id(src)["0"]
+    check_dst = numbering.from_internal_vertex_id(dst)["0"]
 
     assert check_src.equals(gdf["source_as_int"])
     assert check_dst.equals(gdf["dest_as_int"])
@@ -118,11 +118,11 @@ def test_renumber_ips_str_cols():
 
     numbering = NumberMap()
     numbering.from_dataframe(gdf, ["source_list"], ["dest_list"])
-    src = numbering.to_vertex_id(gdf["source_list"])
-    dst = numbering.to_vertex_id(gdf["dest_list"])
+    src = numbering.to_internal_vertex_id(gdf["source_list"])
+    dst = numbering.to_internal_vertex_id(gdf["dest_list"])
 
-    check_src = numbering.from_vertex_id(src)["0"]
-    check_dst = numbering.from_vertex_id(dst)["0"]
+    check_src = numbering.from_internal_vertex_id(src)["0"]
+    check_dst = numbering.from_internal_vertex_id(dst)["0"]
 
     assert check_src.equals(gdf["source_list"])
     assert check_dst.equals(gdf["dest_list"])
@@ -138,11 +138,11 @@ def test_renumber_negative():
 
     numbering = NumberMap()
     numbering.from_dataframe(gdf, ["source_list"], ["dest_list"])
-    src = numbering.to_vertex_id(gdf["source_list"])
-    dst = numbering.to_vertex_id(gdf["dest_list"])
+    src = numbering.to_internal_vertex_id(gdf["source_list"])
+    dst = numbering.to_internal_vertex_id(gdf["dest_list"])
 
-    check_src = numbering.from_vertex_id(src)["0"]
-    check_dst = numbering.from_vertex_id(dst)["0"]
+    check_src = numbering.from_internal_vertex_id(src)["0"]
+    check_dst = numbering.from_internal_vertex_id(dst)["0"]
 
     assert check_src.equals(gdf["source_list"])
     assert check_dst.equals(gdf["dest_list"])
@@ -158,11 +158,11 @@ def test_renumber_negative_col():
 
     numbering = NumberMap()
     numbering.from_dataframe(gdf, ["source_list"], ["dest_list"])
-    src = numbering.to_vertex_id(gdf["source_list"])
-    dst = numbering.to_vertex_id(gdf["dest_list"])
+    src = numbering.to_internal_vertex_id(gdf["source_list"])
+    dst = numbering.to_internal_vertex_id(gdf["dest_list"])
 
-    check_src = numbering.from_vertex_id(src)["0"]
-    check_dst = numbering.from_vertex_id(dst)["0"]
+    check_src = numbering.from_internal_vertex_id(src)["0"]
+    check_dst = numbering.from_internal_vertex_id(dst)["0"]
 
     assert check_src.equals(gdf["source_list"])
     assert check_dst.equals(gdf["dest_list"])
@@ -188,12 +188,13 @@ def test_renumber_files(graph_file):
     numbering = NumberMap()
     numbering.from_series(df["src"], df["dst"])
 
-    renumbered_df = numbering.add_vertex_id(
-        numbering.add_vertex_id(df, "src_id", ["src"]), "dst_id", ["dst"]
+    renumbered_df = numbering.add_internal_vertex_id(
+        numbering.add_internal_vertex_id(df, "src_id", ["src"]),
+        "dst_id", ["dst"]
     )
 
-    check_src = numbering.from_vertex_id(renumbered_df, "src_id")
-    check_dst = numbering.from_vertex_id(renumbered_df, "dst_id")
+    check_src = numbering.from_internal_vertex_id(renumbered_df, "src_id")
+    check_dst = numbering.from_internal_vertex_id(renumbered_df, "dst_id")
 
     assert check_src["src"].equals(check_src["0"])
     assert check_dst["dst"].equals(check_dst["0"])
@@ -217,12 +218,13 @@ def test_renumber_files_col(graph_file):
     numbering = NumberMap()
     numbering.from_dataframe(gdf, ["src"], ["dst"])
 
-    renumbered_df = numbering.add_vertex_id(
-        numbering.add_vertex_id(gdf, "src_id", ["src"]), "dst_id", ["dst"]
+    renumbered_df = numbering.add_internal_vertex_id(
+        numbering.add_internal_vertex_id(gdf, "src_id", ["src"]),
+        "dst_id", ["dst"]
     )
 
-    check_src = numbering.from_vertex_id(renumbered_df, "src_id")
-    check_dst = numbering.from_vertex_id(renumbered_df, "dst_id")
+    check_src = numbering.from_internal_vertex_id(renumbered_df, "src_id")
+    check_dst = numbering.from_internal_vertex_id(renumbered_df, "dst_id")
 
     assert check_src["src"].equals(check_src["0"])
     assert check_dst["dst"].equals(check_dst["0"])
@@ -248,14 +250,16 @@ def test_renumber_files_multi_col(graph_file):
     numbering = NumberMap()
     numbering.from_dataframe(gdf, ["src", "src_old"], ["dst", "dst_old"])
 
-    renumbered_df = numbering.add_vertex_id(
-        numbering.add_vertex_id(gdf, "src_id", ["src", "src_old"]),
+    renumbered_df = numbering.add_internal_vertex_id(
+        numbering.add_internal_vertex_id(
+            gdf, "src_id", ["src", "src_old"]
+        ),
         "dst_id",
         ["dst", "dst_old"],
     )
 
-    check_src = numbering.from_vertex_id(renumbered_df, "src_id")
-    check_dst = numbering.from_vertex_id(renumbered_df, "dst_id")
+    check_src = numbering.from_internal_vertex_id(renumbered_df, "src_id")
+    check_dst = numbering.from_internal_vertex_id(renumbered_df, "dst_id")
 
     assert check_src["src"].equals(check_src["0"])
     assert check_src["src_old"].equals(check_src["1"])
@@ -291,14 +295,18 @@ def test_opg_renumber(graph_file, client_setup):
 
     numbering = NumberMap()
     numbering.from_dataframe(ddf, ["src", "src_old"], ["dst", "dst_old"])
-    renumbered_df = numbering.add_vertex_id(
-        numbering.add_vertex_id(ddf, "src_id", ["src", "src_old"]),
+    renumbered_df = numbering.add_internal_vertex_id(
+        numbering.add_internal_vertex_id(ddf, "src_id", ["src", "src_old"]),
         "dst_id",
         ["dst", "dst_old"],
     )
 
-    check_src = numbering.from_vertex_id(renumbered_df, "src_id").compute()
-    check_dst = numbering.from_vertex_id(renumbered_df, "dst_id").compute()
+    check_src = numbering.from_internal_vertex_id(
+        renumbered_df, "src_id"
+    ).compute()
+    check_dst = numbering.from_internal_vertex_id(
+        renumbered_df, "dst_id"
+    ).compute()
 
     assert check_src["0"].to_pandas().equals(check_src["src"].to_pandas())
     assert check_src["1"].to_pandas().equals(check_src["src_old"].to_pandas())
@@ -330,9 +338,9 @@ def test_opg_renumber2(graph_file, client_setup):
         ddf, ["src", "src_old"], ["dst", "dst_old"]
     )
 
-    check_src = num2.from_vertex_id(ren2, "src").compute()
+    check_src = num2.from_internal_vertex_id(ren2, "src").compute()
     check_src = check_src.sort_values('weight').reset_index(drop=True)
-    check_dst = num2.from_vertex_id(ren2, "dst").compute()
+    check_dst = num2.from_internal_vertex_id(ren2, "dst").compute()
     check_dst = check_dst.sort_values('weight').reset_index(drop=True)
 
     assert check_src["0"].to_pandas().equals(gdf["src"].to_pandas())

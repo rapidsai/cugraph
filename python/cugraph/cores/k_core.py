@@ -61,7 +61,7 @@ def k_core(G, k=None, core_number=None):
 
     if core_number is not None:
         if G.renumbered is True:
-            core_number = G.add_vertex_id(
+            core_number = G.add_internal_vertex_id(
                 core_number, "vertex", "vertex", drop=True
             )
     else:

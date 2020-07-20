@@ -56,7 +56,7 @@ class NumberMap:
                 self.df = tmp
                 self.numbered = True
 
-        def to_vertex_id(self, df, col_names):
+        def to_internal_vertex_id(self, df, col_names):
             tmp_df = df[col_names].rename(
                 columns=dict(zip(col_names, self.col_names)), copy=False
             )
@@ -68,8 +68,8 @@ class NumberMap:
                 .reset_index()["id"]
             )
 
-        def add_vertex_id(self, df, id_column_name, col_names,
-                          drop, preserve_order):
+        def add_internal_vertex_id(self, df, id_column_name, col_names,
+                                   drop, preserve_order):
             ret = None
 
             if preserve_order:
@@ -105,7 +105,7 @@ class NumberMap:
 
             return ret
 
-        def from_vertex_id(
+        def from_internal_vertex_id(
             self, df, internal_column_name, external_column_names
         ):
             tmp_df = df.merge(
@@ -259,7 +259,7 @@ class NumberMap:
                 self.ddf = numbering_map
                 self.numbered = True
 
-        def to_vertex_id(self, ddf, col_names):
+        def to_internal_vertex_id(self, ddf, col_names):
             return ddf.merge(
                 self.ddf,
                 left_on=col_names,
@@ -267,8 +267,8 @@ class NumberMap:
                 how="left",
             )["global_id"]
 
-        def add_vertex_id(self, ddf, id_column_name, col_names, drop,
-                          preserve_order):
+        def add_internal_vertex_id(self, ddf, id_column_name, col_names, drop,
+                                   preserve_order):
             # At the moment, preserve_order cannot be done on
             # multi-GPU
             if preserve_order:
@@ -301,7 +301,7 @@ class NumberMap:
 
             return ret
 
-        def from_vertex_id(
+        def from_internal_vertex_id(
             self, df, internal_column_name, external_column_names
         ):
             tmp_df = df.merge(
@@ -427,7 +427,7 @@ class NumberMap:
 
         self.implementation.compute()
 
-    def to_vertex_id(self, df, col_names=None):
+    def to_internal_vertex_id(self, df, col_names=None):
         """
         Given a collection of external vertex ids, return the internal
         vertex ids
@@ -446,9 +446,10 @@ class NumberMap:
         Returns
         ---------
         vertex_ids : cudf.Series or dask_cudf.Series
-            The vertex identifiers.  Note that to_vertex_id does not guarantee
-            order or partitioning (in the case of dask_cudf) of vertex ids.
-            If order matters use add_vertex_id
+            The vertex identifiers.  Note that to_internal_vertex_id
+            does not guarantee order or partitioning (in the case of
+            dask_cudf) of vertex ids. If order matters use
+            add_internal_vertex_id
 
         """
         tmp_df = None
@@ -465,9 +466,9 @@ class NumberMap:
             tmp_df = df
             tmp_col_names = col_names
 
-        return self.implementation.to_vertex_id(tmp_df, tmp_col_names)
+        return self.implementation.to_internal_vertex_id(tmp_df, tmp_col_names)
 
-    def add_vertex_id(
+    def add_internal_vertex_id(
         self, df, id_column_name="id", col_names=None, drop=False,
         preserve_order=False
     ):
@@ -530,12 +531,12 @@ class NumberMap:
             else:
                 tmp_col_names = [col_names]
 
-        return self.implementation.add_vertex_id(
+        return self.implementation.add_internal_vertex_id(
             tmp_df, id_column_name, tmp_col_names, (drop and can_drop),
             preserve_order
         )
 
-    def from_vertex_id(
+    def from_internal_vertex_id(
         self,
         df,
         internal_column_name=None,
@@ -592,7 +593,7 @@ class NumberMap:
         else:
             tmp_df = df
 
-        output_df = self.implementation.from_vertex_id(
+        output_df = self.implementation.from_internal_vertex_id(
             tmp_df, internal_column_name, external_column_names
         )
         if drop and can_drop:
@@ -672,21 +673,21 @@ class NumberMap:
 
         if isinstance(source_columns, list):
             renumber_map.from_dataframe(df, source_columns, dest_columns)
-            df = renumber_map.add_vertex_id(
+            df = renumber_map.add_internal_vertex_id(
                 df, "src", source_columns, drop=True,
                 preserve_order=preserve_order
             )
-            df = renumber_map.add_vertex_id(
+            df = renumber_map.add_internal_vertex_id(
                 df, "dst", dest_columns, drop=True,
                 preserve_order=preserve_order
             )
         else:
             renumber_map.from_dataframe(df, [source_columns], [dest_columns])
-            df = renumber_map.add_vertex_id(
+            df = renumber_map.add_internal_vertex_id(
                 df, "src", source_columns, drop=True,
                 preserve_order=preserve_order
             )
-            df = renumber_map.add_vertex_id(
+            df = renumber_map.add_internal_vertex_id(
                 df, "dst", dest_columns, drop=True,
                 preserve_order=preserve_order
             )
@@ -753,7 +754,7 @@ class NumberMap:
         if preserve_order:
             df['InDeX'] = df.index
 
-        df = self.from_vertex_id(df, column_name, drop=True)
+        df = self.from_internal_vertex_id(df, column_name, drop=True)
 
         if preserve_order:
             df = df.sort_values('InDeX').drop('InDeX').reset_index(drop=True)

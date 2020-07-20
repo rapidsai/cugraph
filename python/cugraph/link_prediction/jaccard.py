@@ -111,7 +111,7 @@ def jaccard(input_graph, vertex_pair=None):
         for col in vertex_pair.columns:
             null_check(vertex_pair[col])
             if input_graph.renumbered:
-                vertex_pair = input_graph.add_vertex_id(
+                vertex_pair = input_graph.add_internal_vertex_id(
                     vertex_pair, col, col
                 )
 

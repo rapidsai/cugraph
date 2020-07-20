@@ -890,7 +890,7 @@ class Graph:
             ddf = self.edgelist.edgelist_df[['src', 'dst']]
             return (ddf == n).any().any().compute()
         if self.renumbered:
-            tmp = self.renumber_map.to_vertex_id(cudf.Series([n]))
+            tmp = self.renumber_map.to_internal_vertex_id(cudf.Series([n]))
             return tmp[0] >= 0
         else:
             df = self.edgelist.edgelist_df[["src", "dst"]]
@@ -903,7 +903,7 @@ class Graph:
         if self.edgelist is None:
             raise Exception("Graph has no Edgelist.")
         if self.renumbered:
-            tmp = self.renumber_map.to_vertex_id(cudf.Series([u, v]))
+            tmp = self.renumber_map.to_internal_vertex_id(cudf.Series([u, v]))
 
             u = tmp[0]
             v = tmp[1]
@@ -947,7 +947,7 @@ class Graph:
             ddf = self.edgelist.edgelist_df
             return ddf[ddf['src'] == n]['dst'].reset_index(drop=True)
         if self.renumbered:
-            node = self.renumber_map.to_vertex_id(cudf.Series([n]))
+            node = self.renumber_map.to_internal_vertex_id(cudf.Series([n]))
             if len(node) == 0:
                 return cudf.Series(dtype="int")
             n = node[0]
@@ -956,7 +956,7 @@ class Graph:
         neighbors = df[df["src"] == n]["dst"].reset_index(drop=True)
         if self.renumbered:
             # FIXME:  Multi-column vertices
-            return self.renumber_map.from_vertex_id(neighbors)["0"]
+            return self.renumber_map.from_internal_vertex_id(neighbors)["0"]
         else:
             return neighbors
 
@@ -1012,11 +1012,11 @@ class Graph:
         """
         return self.renumber_map.unrenumber(df, column_name, preserve_order)
 
-    def lookup_vertex_id(self, df, column_name=None):
+    def lookup_internal_vertex_id(self, df, column_name=None):
         """
         Given a DataFrame containing external vertex ids in the identified
         columns, or a Series containing external vertex ids, return a
-        Series with the vertex ids.
+        Series with the internal vertex ids.
 
         Note that this function does not guarantee order in single GPU mode,
         and does not guarantee order or partitioning in multi-GPU mode.
@@ -1035,10 +1035,11 @@ class Graph:
         series : cudf.Series or dask_cudf.Series
             The internal vertex identifiers
         """
-        return self.renumber_map.to_vertex_id(df, column_name)
+        return self.renumber_map.to_internal_vertex_id(df, column_name)
 
-    def add_vertex_id(self, df, external_column_name, internal_column_name,
-                      drop=True, preserve_order=False):
+    def add_internal_vertex_id(self, df, external_column_name,
+                               internal_column_name,
+                               drop=True, preserve_order=False):
         """
         Given a DataFrame containing external vertex ids in the identified
         columns, return a DataFrame containing the internal vertex ids as the
@@ -1069,7 +1070,7 @@ class Graph:
             Original DataFrame with new column containing internal vertex
             id
         """
-        return self.renumber_map.add_vertex_id(
+        return self.renumber_map.add_internal_vertex_id(
             df, external_column_name, internal_column_name,
             drop, preserve_order)
 
