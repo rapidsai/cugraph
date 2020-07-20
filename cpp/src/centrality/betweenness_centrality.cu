@@ -313,10 +313,11 @@ template <typename VT, typename ET, typename WT, typename result_t>
 void BC<VT, ET, WT, result_t>::add_vertices_dependencies_to_betweenness()
 {
   thrust::host_vector<result_t> h_betweenness(number_of_vertices_, 0);
-  result_t *ptr = h_betweenness.data();
-  CUDA_TRY(
-    cudaMemcpy(ptr, betweenness_, number_of_vertices_ * sizeof(result_t), cudaMemcpyDeviceToHost));
-
+  CUDA_TRY(cudaMemcpyAsync(h_betweenness.data(),
+                           betweenness_,
+                           number_of_vertices_ * sizeof(result_t),
+                           cudaMemcpyDeviceToHost,
+                           stream_));
   thrust::transform(rmm::exec_policy(stream_)->on(stream_),
                     deltas_,
                     deltas_ + number_of_vertices_,
@@ -351,9 +352,11 @@ void BC<VT, ET, WT, result_t>::rescale()
   result_t rescale_factor = static_cast<result_t>(1);
   if (normalized_) {
     if (is_edge_betweenness_) {
-      rescale_edges_betweenness_centrality(rescale_factor, modified);
+      std::tie(rescale_factor, modified) =
+        rescale_edges_betweenness_centrality(rescale_factor, modified);
     } else {
-      rescale_vertices_betweenness_centrality(rescale_factor, modified);
+      std::tie(rescale_factor, modified) =
+        rescale_vertices_betweenness_centrality(rescale_factor, modified);
     }
   } else {
     if (!graph_.prop.directed) {
@@ -365,19 +368,20 @@ void BC<VT, ET, WT, result_t>::rescale()
 }
 
 template <typename VT, typename ET, typename WT, typename result_t>
-void BC<VT, ET, WT, result_t>::rescale_edges_betweenness_centrality(result_t &rescale_factor,
-                                                                    bool &modified)
+std::tuple<result_t, bool> BC<VT, ET, WT, result_t>::rescale_edges_betweenness_centrality(
+  result_t rescale_factor, bool modified)
 {
   result_t casted_number_of_vertices_ = static_cast<result_t>(number_of_vertices_);
   if (number_of_vertices_ > 1) {
     rescale_factor /= ((casted_number_of_vertices_) * (casted_number_of_vertices_ - 1));
     modified = true;
   }
+  return std::make_tuple(rescale_factor, modified);
 }
 
 template <typename VT, typename ET, typename WT, typename result_t>
-void BC<VT, ET, WT, result_t>::rescale_vertices_betweenness_centrality(result_t &rescale_factor,
-                                                                       bool &modified)
+std::tuple<result_t, bool> BC<VT, ET, WT, result_t>::rescale_vertices_betweenness_centrality(
+  result_t rescale_factor, bool modified)
 {
   result_t casted_number_of_vertices = static_cast<result_t>(number_of_vertices_);
   if (number_of_vertices_ > 2) {
@@ -388,6 +392,7 @@ void BC<VT, ET, WT, result_t>::rescale_vertices_betweenness_centrality(result_t 
     }
     modified = true;
   }
+  return std::make_tuple(rescale_factor, modified);
 }
 
 template <typename VT, typename ET, typename WT, typename result_t>

@@ -300,7 +300,7 @@ void force_atlas2(GraphCOOView<VT, ET, WT> &graph,
  * betweenness these vertices will serve as sources for the traversal
  * algorihtm to obtain shortest path counters.
  * @param[in] total_number_of_source_used   If specified use this number to normalize results
- * when using subsampling, it allows accumulation of results across multiple calls,
+ * when using subsampling, it allows accumulation of results across multiple calls.
  *
  */
 template <typename VT, typename ET, typename WT, typename result_t>
@@ -347,7 +347,7 @@ void betweenness_centrality(const raft::handle_t &handle,
  * betweenness these vertices will serve as sources for the traversal
  * algorihtm to obtain shortest path counters.
  * @param[in] total_number_of_source_used   If specified use this number to normalize results
- * when using subsampling, it allows accumulation of results across multiple calls,
+ * when using subsampling, it allows accumulation of results across multiple calls.
  *
  */
 template <typename VT, typename ET, typename WT, typename result_t>

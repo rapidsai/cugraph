@@ -11,7 +11,7 @@ DEFAULT_MAX_ATTEMPT = 100
 DEFAULT_WAIT_TIME = 0.5
 
 
-class OPGContext:
+class MGContext:
     """Utility Context Manager to start a multi GPU context using dask_cuda
 
     Parameters:
@@ -35,10 +35,10 @@ class OPGContext:
         return self._cluster
 
     def __enter__(self):
-        self._prepare_opg()
+        self._prepare_mg()
         return self
 
-    def _prepare_opg(self):
+    def _prepare_mg(self):
         self._prepare_cluster()
         self._prepare_client()
         self._prepare_comms()

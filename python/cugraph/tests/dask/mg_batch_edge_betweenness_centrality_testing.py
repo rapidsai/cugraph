@@ -2,7 +2,7 @@ import pytest
 
 from cugraph.dask.core import get_visible_devices
 
-from cugraph.tests.dask.opg_context import OPGContext
+from cugraph.tests.dask.mg_context import MGContext
 
 # Get parameters from standard betwenness_centrality_test
 from cugraph.tests.test_edge_betweenness_centrality import (
@@ -24,7 +24,7 @@ from cugraph.tests.test_edge_betweenness_centrality import (
 # =============================================================================
 # Parameters
 # =============================================================================
-OPG_DEVICE_COUNT_OPTIONS = [1, 2, 3, 4]
+MG_DEVICE_COUNT_OPTIONS = [1, 2, 3, 4]
 
 
 @pytest.mark.parametrize('graph_file', DATASETS)
@@ -34,22 +34,22 @@ OPG_DEVICE_COUNT_OPTIONS = [1, 2, 3, 4]
 @pytest.mark.parametrize('weight', [None])
 @pytest.mark.parametrize('subset_seed', SUBSET_SEED_OPTIONS)
 @pytest.mark.parametrize('result_dtype', RESULT_DTYPE_OPTIONS)
-@pytest.mark.parametrize('opg_device_count', OPG_DEVICE_COUNT_OPTIONS)
-def test_opg_edge_betweenness_centrality(graph_file,
+@pytest.mark.parametrize('mg_device_count', MG_DEVICE_COUNT_OPTIONS)
+def test_mg_edge_betweenness_centrality(graph_file,
                                          directed,
                                          subset_size,
                                          normalized,
                                          weight,
                                          subset_seed,
                                          result_dtype,
-                                         opg_device_count):
+                                         mg_device_count):
     prepare_test()
     visible_devices = get_visible_devices()
     number_of_visible_devices = len(visible_devices)
-    if opg_device_count > number_of_visible_devices:
+    if mg_device_count > number_of_visible_devices:
         pytest.skip("Not enough devices available to "
-                    "test OPG({})".format(opg_device_count))
-    with OPGContext(opg_device_count):
+                    "test MG({})".format(mg_device_count))
+    with MGContext(mg_device_count):
         sorted_df = calc_edge_betweenness_centrality(graph_file,
                                                      directed=directed,
                                                      normalized=normalized,

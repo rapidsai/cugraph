@@ -23,6 +23,7 @@
 #include <memory>
 #include <raft/handle.hpp>
 #include <rmm/device_buffer.hpp>
+#include <utilities/error.hpp>
 
 namespace cugraph {
 
@@ -687,6 +688,8 @@ class ReplicatableGraph {
    */
   ReplicatableGraph(const raft::handle_t &handle, GraphTypeView const *graph_to_replicate)
   {
+    CUGRAPH_EXPECTS(handle.comms_initialized(),
+                    "ReplicatableGraph must used with initialized comms.");
     handle_   = &handle;
     rank_     = handle_->get_comms().get_rank();
     has_data_ = false;
@@ -710,15 +713,9 @@ class ReplicatableGraph {
 
   virtual void initialize_info_storage()
   {
-    size_t info_size = get_required_size_for_info();
+    size_t info_size = sizeof(GraphTypeView);
     h_buffer_.resize(info_size);
     d_buffer_.resize(info_size);
-  }
-
-  virtual size_t get_required_size_for_info()
-  {
-    size_t required_size = sizeof(GraphTypeView);
-    return required_size;
   }
 
   virtual void fill_info_storage()

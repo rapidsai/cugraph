@@ -490,7 +490,7 @@ void bfs(raft::handle_t const &handle,
                                                                             // unnecessary for BFS
   if (handle.comms_initialized() && !mg_batch) {
     CUGRAPH_EXPECTS(sp_counters == nullptr,
-                    "BFS Traversal shortest path is not supported in OPG path");
+                    "BFS Traversal shortest path is not supported in MG path");
     opg::bfs<VT, ET, WT>(handle, graph, distances, predecessors, start_vertex);
   } else {
     VT number_of_vertices = graph.number_of_vertices;
