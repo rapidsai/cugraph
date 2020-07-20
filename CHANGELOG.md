@@ -38,6 +38,8 @@
 - PR #991 Update conda upload versions for new supported CUDA/Python
 - PR #988 Add clang and clang tools to the conda env
 - PR #997 Update setup.cfg to run pytests under cugraph tests directory only
+- PR #1009 Update benchmarks script to include requirements used
+- PR #1014 Fix benchmarks script variable name
 
 ## Bug Fixes
 - PR #936 Update Force Atlas 2 doc and wrapper
@@ -46,7 +48,8 @@
 - PR #983 Fix offset calculation in COO to CSR
 - PR #989: Fix issue with incorrect docker image being used in local build script
 - PR #992 Fix unrenumber of predecessor
-
+- PR #1008 Fix for cudf updates disabling iteration of Series/Columns/Index
+    
 # cuGraph 0.14.0 (03 Jun 2020)
 
 ## New Features

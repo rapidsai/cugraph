@@ -158,8 +158,10 @@ def test_renumber_files(graph_file):
 
     translate = 1000
 
-    source_translated = cudf.Series([x + translate for x in sources])
-    dest_translated = cudf.Series([x + translate for x in destinations])
+    source_translated = cudf.Series([x + translate for x in sources.
+                                    values_host])
+    dest_translated = cudf.Series([x + translate for x in destinations.
+                                  values_host])
 
     src, dst, numbering = cugraph.renumber(source_translated, dest_translated)
 
@@ -180,8 +182,9 @@ def test_renumber_files_col(graph_file):
     translate = 1000
 
     gdf = cudf.DataFrame()
-    gdf['src'] = cudf.Series([x + translate for x in sources])
-    gdf['dst'] = cudf.Series([x + translate for x in destinations])
+    gdf['src'] = cudf.Series([x + translate for x in sources.values_host])
+    gdf['dst'] = cudf.Series([x + translate for x in destinations.
+                             values_host])
 
     src, dst, numbering = cugraph.renumber_from_cudf(gdf, ['src'], ['dst'])
 
