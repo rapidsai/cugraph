@@ -139,7 +139,7 @@ function getReqs() {
 
 REQS=$(getReqs "${CUGRAPH_DEPS[@]}")
 
-BECHMARK_META=$(jq -n \
+BENCHMARK_META=$(jq -n \
   --arg NODE "${NODE_NAME}" \
   --arg MINOR_VER "${MINOR_VERSION}" \
   --argjson REQS "${REQS}" '
@@ -157,13 +157,14 @@ time pytest -v -m "small and managedmem_on and poolallocator_on" \
     --benchmark-gpu-device=0 \
     --benchmark-gpu-max-rounds=3 \
     --benchmark-asv-output-dir="${ASVRESULTS_DIR}" \
-    --benchmark-asv-metadata="${BECHMARK_META}"
+    --benchmark-asv-metadata="${BENCHMARK_META}"
 
 
 
 EXITCODE=$?
 
-# libcugraph reqs
+# The reqs below can be passed as requirements for
+# C++ benchmarks in the future.
 # REQS=$(getReqs "${LIBCUGRAPH_DEPS[@]}")
 
 set -e
