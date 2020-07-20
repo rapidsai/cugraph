@@ -36,13 +36,13 @@ MG_DEVICE_COUNT_OPTIONS = [1, 2, 3, 4]
 @pytest.mark.parametrize('result_dtype', RESULT_DTYPE_OPTIONS)
 @pytest.mark.parametrize('mg_device_count', MG_DEVICE_COUNT_OPTIONS)
 def test_mg_edge_betweenness_centrality(graph_file,
-                                         directed,
-                                         subset_size,
-                                         normalized,
-                                         weight,
-                                         subset_seed,
-                                         result_dtype,
-                                         mg_device_count):
+                                        directed,
+                                        subset_size,
+                                        normalized,
+                                        weight,
+                                        subset_seed,
+                                        result_dtype,
+                                        mg_device_count):
     prepare_test()
     visible_devices = get_visible_devices()
     number_of_visible_devices = len(visible_devices)
