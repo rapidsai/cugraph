@@ -15,17 +15,28 @@ import cugraph.dask as dcg
 import cugraph.comms as Comms
 from dask.distributed import Client
 import gc
+import pytest
 import cugraph
 import dask_cudf
 import cudf
 from dask_cuda import LocalCUDACluster
 
 
-def test_dask_pagerank():
-    gc.collect()
+@pytest.fixture
+def client_connection():
     cluster = LocalCUDACluster()
     client = Client(cluster)
     Comms.initialize()
+
+    yield client
+
+    Comms.destroy()
+    client.close()
+    cluster.close()
+
+
+def test_dask_pagerank(client_connection):
+    gc.collect()
 
     # Initialize and run pagerank on two distributed graphs
     # with same communicator
@@ -42,7 +53,7 @@ def test_dask_pagerank():
                               dtype=['int32', 'int32', 'float32'])
 
     dg1 = cugraph.DiGraph()
-    dg1.from_dask_cudf_edgelist(ddf1)
+    dg1.from_dask_cudf_edgelist(ddf1, renumber=False)
     result_pr1 = dcg.pagerank(dg1)
 
     ddf2 = dask_cudf.read_csv(input_data_path2, chunksize=chunksize2,
@@ -51,7 +62,7 @@ def test_dask_pagerank():
                               dtype=['int32', 'int32', 'float32'])
 
     dg2 = cugraph.DiGraph()
-    dg2.from_dask_cudf_edgelist(ddf2)
+    dg2.from_dask_cudf_edgelist(ddf2, renumber=False)
     result_pr2 = dcg.pagerank(dg2)
 
     # Calculate single GPU pagerank for verification of results
@@ -105,7 +116,3 @@ def test_dask_pagerank():
             err2 = err2 + 1
     print("Mismatches in ", input_data_path2, ": ", err2)
     assert err1 == err2 == 0
-
-    Comms.destroy()
-    client.close()
-    cluster.close()

@@ -248,7 +248,7 @@ class Graph:
         else:
             self.from_cudf_edgelist(input_df)
 
-    def from_dask_cudf_edgelist(self, input_ddf, renumber=False):
+    def from_dask_cudf_edgelist(self, input_ddf, renumber=True):
         """
         Initializes the distributed graph from the dask_cudf.DataFrame
         edgelist. Renumbering and undirected Graphs are not currently

@@ -64,7 +64,7 @@ class NumberMap:
             return (
                 tmp_df.merge(self.df, on=self.col_names, how="left")
                 .sort_values("index")
-                .drop(["index"])
+                .drop(columns=["index"])
                 .reset_index()["id"]
             )
 
@@ -90,11 +90,11 @@ class NumberMap:
                         right_on=self.col_names,
                         how="left",
                     )
-                    .drop(self.col_names)
+                    .drop(columns=self.col_names)
                 )
 
             if drop:
-                ret = ret.drop(col_names)
+                ret = ret.drop(columns=col_names)
 
             ret = ret.rename(
                 columns={"id": id_column_name}, copy=False
@@ -115,7 +115,7 @@ class NumberMap:
                 how="left",
             )
             if internal_column_name != "id":
-                tmp_df = tmp_df.drop(["id"])
+                tmp_df = tmp_df.drop(columns=["id"])
             if external_column_names is None:
                 return tmp_df
             else:
@@ -196,7 +196,7 @@ class NumberMap:
                 kwargs={"base_addresses": base_addresses},
             )
 
-            return df.drop(["local_id", "hash", "partition"])
+            return df.drop(columns=["local_id", "hash", "partition"])
 
         def assign_global_id(self, ddf, base_addresses, val_types):
             val_types["global_id"] = np.int32
@@ -287,11 +287,11 @@ class NumberMap:
                 ret = ddf.merge(
                     self.ddf, left_on=col_names, right_on=self.col_names
                 ).map_partitions(
-                    lambda df: df.drop(self.col_names)
+                    lambda df: df.drop(columns=self.col_names)
                 )
 
             if drop:
-                ret = ret.map_partitions(lambda df: df.drop(col_names))
+                ret = ret.map_partitions(lambda df: df.drop(columns=col_names))
 
             ret = ret.map_partitions(
                 lambda df: df.rename(
@@ -304,19 +304,24 @@ class NumberMap:
         def from_internal_vertex_id(
             self, df, internal_column_name, external_column_names
         ):
-            tmp_df = df.merge(
-                self.ddf,
-                left_on=internal_column_name,
-                right_on="global_id",
-                how="left",
-            ).map_partitions(lambda df: df.drop("global_id"))
+            tmp_df = self.ddf.merge(
+                df,
+                right_on=internal_column_name,
+                left_on="global_id",
+                how="right"
+            ).map_partitions(lambda df: df.drop(columns="global_id"))
 
             if external_column_names is None:
                 return tmp_df
             else:
-                return tmp_df.rename(
-                    columns=dict(zip(self.col_names, external_column_names)),
-                    copy=False,
+                return tmp_df.map_partitions(
+                    lambda df:
+                    df.rename(
+                        columns=dict(
+                            zip(self.col_names, external_column_names)
+                        ),
+                        copy=False
+                    )
                 )
 
     def __init__(self):
@@ -596,8 +601,9 @@ class NumberMap:
         output_df = self.implementation.from_internal_vertex_id(
             tmp_df, internal_column_name, external_column_names
         )
+
         if drop and can_drop:
-            return output_df.drop(internal_column_name)
+            return output_df.drop(columns=internal_column_name)
 
         return output_df
 
@@ -687,6 +693,7 @@ class NumberMap:
                 df, "src", source_columns, drop=True,
                 preserve_order=preserve_order
             )
+
             df = renumber_map.add_internal_vertex_id(
                 df, "dst", dest_columns, drop=True,
                 preserve_order=preserve_order
@@ -759,4 +766,9 @@ class NumberMap:
         if preserve_order:
             df = df.sort_values('InDeX').drop('InDeX').reset_index(drop=True)
 
-        return df.rename(columns=mapping, copy=False)
+        if type(df) is dask_cudf.DataFrame:
+            return df.map_partitions(
+                lambda df: df.rename(columns=mapping, copy=False)
+            )
+        else:
+            return df.rename(columns=mapping, copy=False)

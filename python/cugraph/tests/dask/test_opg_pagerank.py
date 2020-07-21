@@ -15,17 +15,28 @@ import cugraph.dask as dcg
 import cugraph.comms as Comms
 from dask.distributed import Client
 import gc
+import pytest
 import cugraph
 import dask_cudf
 import cudf
 from dask_cuda import LocalCUDACluster
 
 
-def test_dask_pagerank():
-    gc.collect()
+@pytest.fixture
+def client_connection():
     cluster = LocalCUDACluster()
     client = Client(cluster)
     Comms.initialize()
+
+    yield client
+
+    Comms.destroy()
+    client.close()
+    cluster.close()
+
+
+def test_dask_pagerank(client_connection):
+    gc.collect()
 
     input_data_path = r"../datasets/karate.csv"
     chunksize = dcg.get_chunksize(input_data_path)
@@ -44,7 +55,7 @@ def test_dask_pagerank():
     g.from_cudf_edgelist(df, 'src', 'dst')
 
     dg = cugraph.DiGraph()
-    dg.from_dask_cudf_edgelist(ddf)
+    dg.from_dask_cudf_edgelist(ddf, renumber=False)
 
     # Pre compute local data
     # dg.compute_local_data(by='dst')
@@ -68,7 +79,3 @@ def test_dask_pagerank():
             err = err + 1
     print("Mismatches:", err)
     assert err == 0
-
-    Comms.destroy()
-    client.close()
-    cluster.close()
