@@ -20,7 +20,6 @@
 #include <algorithms.hpp>
 #include <graph.hpp>
 
-#include <utilities/sm_utils.h>
 #include <utilities/error.hpp>
 
 #include <rmm/thrust_rmm_allocator.h>
@@ -28,7 +27,7 @@
 
 #include <thrust/iterator/counting_iterator.h>
 
-#include <raft/utils/sm_utils.hpp>
+#include <raft/cudart_utils.h>
 #include "cub/cub.cuh"
 
 #define TH_CENT_K_LOCLEN (34)
@@ -174,7 +173,7 @@ __device__ __forceinline__ T block_sum(T v)
   const int wid = threadIdx.x / 32 + ((BDIM_Y > 1) ? threadIdx.y * (BDIM_X / 32) : 0);
 
 #pragma unroll
-  for (int i = WSIZE / 2; i; i >>= 1) { v += raft::utils::shfl_down(v, i); }
+  for (int i = WSIZE / 2; i; i >>= 1) { v += __shfl_down_sync(raft::warp_full_mask(), v, i); }
   if (lid == 0) sh[wid] = v;
 
   __syncthreads();
@@ -182,7 +181,7 @@ __device__ __forceinline__ T block_sum(T v)
     v = (lid < (BDIM_X * BDIM_Y / WSIZE)) ? sh[lid] : 0;
 
 #pragma unroll
-    for (int i = (BDIM_X * BDIM_Y / WSIZE) / 2; i; i >>= 1) { v += raft::utils::shfl_down(v, i); }
+    for (int i = (BDIM_X * BDIM_Y / WSIZE) / 2; i; i >>= 1) { v += __shfl_down_sync(raft::warp_full_mask(), v, i); }
   }
   return v;
 }
@@ -299,7 +298,7 @@ __device__ __forceinline__ T block_sum_sh(T v, T *sh)
   const int wid = threadIdx.x / 32 + ((BDIM_Y > 1) ? threadIdx.y * (BDIM_X / 32) : 0);
 
 #pragma unroll
-  for (int i = WSIZE / 2; i; i >>= 1) { v += raft::utils::shfl_down(v, i); }
+  for (int i = WSIZE / 2; i; i >>= 1) { v += __shfl_down_sync(raft::warp_full_mask(), v, i); }
   if (lid == 0) sh[wid] = v;
 
   __syncthreads();
@@ -307,7 +306,7 @@ __device__ __forceinline__ T block_sum_sh(T v, T *sh)
     v = (lid < (BDIM_X * BDIM_Y / WSIZE)) ? sh[lid] : 0;
 
 #pragma unroll
-    for (int i = (BDIM_X * BDIM_Y / WSIZE) / 2; i; i >>= 1) { v += raft::utils::shfl_down(v, i); }
+    for (int i = (BDIM_X * BDIM_Y / WSIZE) / 2; i; i >>= 1) { v += __shfl_down_sync(raft::warp_full_mask(), v, i); }
   }
   return v;
 }
@@ -443,8 +442,8 @@ __global__ void tricnt_wrp_ps_k(const ROW_T ner,
       for (int i = 1; i < RLEN_THR1; i++) {
         if (i == nloc) break;
 
-        const OFF_T csoff = raft::utils::shfl(soff, i);
-        const OFF_T ceoff = raft::utils::shfl(eoff, i);
+        const OFF_T csoff = __shfl_sync(raft::warp_full_mask(), soff, i);
+        const OFF_T ceoff = __shfl_sync(raft::warp_full_mask(), eoff, i);
 
         if (ceoff - csoff < RLEN_THR2) {
           if (threadIdx.x == i) mysm = i;
@@ -488,11 +487,11 @@ __global__ void tricnt_wrp_ps_k(const ROW_T ner,
 
 #pragma unroll
         for (int j = 1; j < 32; j <<= 1) {
-          lensum += (threadIdx.x >= j) * (raft::utils::shfl_up(lensum, j));
+          lensum += (threadIdx.x >= j) * (__shfl_up_sync(raft::warp_full_mask(), lensum, j));
         }
         shs[threadIdx.y][threadIdx.x] = lensum - len;
 
-        lensum = raft::utils::shfl(lensum, 31);
+        lensum = __shfl_sync(raft::warp_full_mask(), lensum, 31);
 
         int k = WSIZE - 1;
         for (int j = lensum - 1; j >= 0; j -= WSIZE) {

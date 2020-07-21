@@ -15,7 +15,7 @@
  */
 #include <iostream>
 
-#include <utilities/sm_utils.h>
+#include <raft/cudart_utils.h>
 #include <cub/cub.cuh>
 
 #include "graph.hpp"
@@ -405,7 +405,7 @@ __global__ void main_bottomup_kernel(const IndexType *unvisited,
     // broadcasting local_visited_bmap_warp_head
     __syncthreads();
 
-    int head_ballot = cugraph::detail::utils::ballot(is_head);
+    int head_ballot = __ballot_sync(raft::warp_full_mask(), is_head);
 
     // As long as idx < unvisited_size, we know there's at least one head per
     // warp
@@ -452,7 +452,7 @@ __global__ void main_bottomup_kernel(const IndexType *unvisited,
       int laneid_max =
         min(static_cast<IndexType>(WARP_SIZE - 1), (unvisited_size - (block_off + 32 * warpid)));
       IndexType last_v =
-        cugraph::detail::utils::shfl(unvisited_vertex, laneid_max, WARP_SIZE, __activemask());
+        __shfl_sync(__activemask(), unvisited_vertex, laneid_max, WARP_SIZE);
 
       if (is_last_head_in_warp) {
         int ilast_v = last_v % INT_SIZE + 1;
@@ -583,7 +583,7 @@ __global__ void bottom_up_large_degree_kernel(IndexType *left_unvisited,
       }
 
       unsigned int warp_valid_p_ballot =
-        cugraph::detail::utils::ballot(valid_parent != invalid_idx);
+        __ballot_sync(raft::warp_full_mask(), valid_parent != invalid_idx);
 
       int logical_warp_id_in_warp = (threadIdx.x % WARP_SIZE) / BOTTOM_UP_LOGICAL_WARP_SIZE;
       unsigned int mask           = (1 << BOTTOM_UP_LOGICAL_WARP_SIZE) - 1;
