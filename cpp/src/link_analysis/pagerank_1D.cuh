@@ -52,6 +52,7 @@ class Pagerank {
   VT *ind;
   rmm::device_vector<WT> val;       // values of the substochastic matrix
   rmm::device_vector<WT> bookmark;  // constant vector with dangling node info
+  rmm::device_vector<WT> prev_pr;   // record the last pagerank for convergence check
 
   bool is_setup;
 
@@ -66,16 +67,17 @@ class Pagerank {
   // Artificially create the google matrix by setting val and bookmark
   void setup(WT _alpha, VT *degree);
 
-  // run the power iteration on the google matrix
-  void solve(int max_iter, WT *pagerank);
+  // run the power iteration on the google matrix, return the number of iterations
+  int solve(int max_iter, float tolerance, WT *pagerank);
 };
 
 template <typename VT, typename ET, typename WT>
-void pagerank(raft::handle_t const &handle,
-              const GraphCSCView<VT, ET, WT> &G,
-              WT *pagerank_result,
-              const float damping_factor = 0.85,
-              const int n_iter           = 40)
+int pagerank(raft::handle_t const &handle,
+             const GraphCSCView<VT, ET, WT> &G,
+             WT *pagerank_result,
+             const double damping_factor = 0.85,
+             const int64_t n_iter        = 100,
+             const double tolerance      = 1e-5)
 {
   // null pointers check
   CUGRAPH_EXPECTS(G.offsets != nullptr, "Invalid API parameter - offsets is null");
@@ -101,8 +103,8 @@ void pagerank(raft::handle_t const &handle,
   // Set all constants info
   pr_solver.setup(damping_factor, degree.data().get());
 
-  // Run n_iter pagerank MG SPMVs.
-  pr_solver.solve(n_iter, pagerank_result);
+  // Run pagerank
+  return pr_solver.solve(n_iter, tolerance, pagerank_result);
 }
 
 }  // namespace opg

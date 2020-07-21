@@ -37,6 +37,7 @@
 - PR #991 Update conda upload versions for new supported CUDA/Python
 - PR #988 Add clang and clang tools to the conda env
 - PR #997 Update setup.cfg to run pytests under cugraph tests directory only
+- PR #1007 Add tolerance support to MG Pagerank and fix
 - PR #1009 Update benchmarks script to include requirements used
 - PR #1014 Fix benchmarks script variable name
 
