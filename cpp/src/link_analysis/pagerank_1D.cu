@@ -95,15 +95,13 @@ void Pagerank<VT, ET, WT>::setup(WT _alpha,
     alpha   = _alpha;
     WT zero = 0.0;
     WT one  = 1.0;
-
+    // Update dangling node vector
+    cugraph::detail::fill(v_glob, bookmark.data().get(), zero);
     flag_leafs(degree);
     cugraph::detail::update_dangling_nodes(v_glob, bookmark.data().get(), alpha);
 
     // Transition matrix
     transition_vals(degree);
-
-    // Update dangling node vector
-    cugraph::detail::fill(v_glob, bookmark.data().get(), zero);
 
     // personalize
     if (personalization_subset_size != 0) {
