@@ -49,20 +49,15 @@ def test_dask_pagerank():
     # Pre compute local data
     # dg.compute_local_data(by='dst')
 
-    print("Start call")
-    expected_pr = cugraph.pagerank(g)
-    result_pr = dcg.pagerank(dg)
-    print("End call")
+    expected_dist = cugraph.bfs(g, 0)
+    result_dist = dcg.bfs(dg, 0, True)
 
     err = 0
-    tol = 1.0e-05
 
-    assert len(expected_pr) == len(result_pr)
-    for i in range(len(result_pr)):
-        if(abs(result_pr['pagerank'].iloc[i]-expected_pr['pagerank'].iloc[i])
-           > tol*1.1):
+    assert len(expected_dist) == len(result_dist)
+    for i in range(len(result_dist)):
+        if(result_dist['distance'].iloc[i] != expected_dist['distance'].iloc[i]):
             err = err + 1
-    print("Mismatches:", err)
     assert err == 0
 
     Comms.destroy()

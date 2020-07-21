@@ -35,7 +35,7 @@ def mg_bfs(input_df, local_data, rank, handle, start, return_distances=False):
     num_verts = local_data['verts'].sum()
     num_edges = local_data['edges'].sum()
     local_offset = local_data['offsets'][rank]
-    dst = dst - local_offset
+    src = src - local_offset
     num_local_verts = local_data['verts'][rank]
     num_local_edges = len(src)
 
@@ -67,8 +67,6 @@ def mg_bfs(input_df, local_data, rank, handle, start, return_distances=False):
     cdef uintptr_t c_local_verts = local_data['verts'].__array_interface__['data'][0]
     cdef uintptr_t c_local_edges = local_data['edges'].__array_interface__['data'][0]
     cdef uintptr_t c_local_offsets = local_data['offsets'].__array_interface__['data'][0]
-    if (return_distances):
-        df['distance'] = cudf.Series(np.zeros(num_verts, dtype=np.int32))
 
     # BFS
     cdef GraphCSRView[int,int,float] graph

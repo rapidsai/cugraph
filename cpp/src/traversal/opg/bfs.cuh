@@ -66,7 +66,7 @@ void bfs(raft::handle_t const &handle,
   }
 
   // BFS communications wrapper
-  BFSCommunicatorIterativeBCastReduce<VT, ET, WT> bfs_comm(handle, word_count);
+  BFSCommunicatorBCastReduce<VT, ET, WT> bfs_comm(handle, word_count);
 
   // 0. 'Insert' starting vertex in the input frontier
   input_frontier[start_vertex / BitsPWrd<unsigned>] = static_cast<unsigned>(1)

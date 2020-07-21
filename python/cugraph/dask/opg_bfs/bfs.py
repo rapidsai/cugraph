@@ -17,7 +17,6 @@ from dask.distributed import wait, default_client
 from cugraph.dask.common.input_utils import get_local_data
 from cugraph.opg.traversal import mg_bfs_wrapper as mg_bfs
 import cugraph.comms.comms as Comms
-import warnings
 
 
 def call_bfs(sID, data, local_data, start, return_distances):
