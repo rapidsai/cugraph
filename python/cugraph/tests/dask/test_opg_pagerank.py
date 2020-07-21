@@ -61,7 +61,7 @@ def test_dask_pagerank(client_connection):
     # dg.compute_local_data(by='dst')
 
     expected_pr = cugraph.pagerank(g)
-    result_pr = dcg.pagerank(dg)
+    result_pr = dcg.pagerank(dg, tol=1e-6)
 
     err = 0
     tol = 1.0e-05

@@ -29,7 +29,7 @@ namespace detail {
 
 // Volume of neighboors (*weight_s)
 template <bool weighted, typename vertex_t, typename edge_t, typename weight_t>
-__global__ void __launch_bounds__(CUDA_MAX_KERNEL_THREADS) jaccard_row_sum(
+__global__ void jaccard_row_sum(
   vertex_t n, edge_t const *csrPtr, vertex_t const *csrInd, weight_t const *v, weight_t *work)
 {
   vertex_t row;
@@ -53,13 +53,13 @@ __global__ void __launch_bounds__(CUDA_MAX_KERNEL_THREADS) jaccard_row_sum(
 
 // Volume of intersections (*weight_i) and cumulated volume of neighboors (*weight_s)
 template <bool weighted, typename vertex_t, typename edge_t, typename weight_t>
-__global__ void __launch_bounds__(CUDA_MAX_KERNEL_THREADS) jaccard_is(vertex_t n,
-                                                                      edge_t const *csrPtr,
-                                                                      vertex_t const *csrInd,
-                                                                      weight_t const *v,
-                                                                      weight_t *work,
-                                                                      weight_t *weight_i,
-                                                                      weight_t *weight_s)
+__global__ void jaccard_is(vertex_t n,
+                           edge_t const *csrPtr,
+                           vertex_t const *csrInd,
+                           weight_t const *v,
+                           weight_t *work,
+                           weight_t *weight_i,
+                           weight_t *weight_s)
 {
   edge_t i, j, Ni, Nj;
   vertex_t row, col;
@@ -117,16 +117,15 @@ __global__ void __launch_bounds__(CUDA_MAX_KERNEL_THREADS) jaccard_is(vertex_t n
 // Volume of intersections (*weight_i) and cumulated volume of neighboors (*weight_s)
 // Using list of node pairs
 template <bool weighted, typename vertex_t, typename edge_t, typename weight_t>
-__global__ void __launch_bounds__(CUDA_MAX_KERNEL_THREADS)
-  jaccard_is_pairs(edge_t num_pairs,
-                   edge_t const *csrPtr,
-                   vertex_t const *csrInd,
-                   vertex_t const *first_pair,
-                   vertex_t const *second_pair,
-                   weight_t const *v,
-                   weight_t *work,
-                   weight_t *weight_i,
-                   weight_t *weight_s)
+__global__ void jaccard_is_pairs(edge_t num_pairs,
+                                 edge_t const *csrPtr,
+                                 vertex_t const *csrInd,
+                                 vertex_t const *first_pair,
+                                 vertex_t const *second_pair,
+                                 weight_t const *v,
+                                 weight_t *work,
+                                 weight_t *weight_i,
+                                 weight_t *weight_s)
 {
   edge_t i, idx, Ni, Nj, match;
   vertex_t row, col, ref, cur, ref_col, cur_col;
@@ -182,8 +181,10 @@ __global__ void __launch_bounds__(CUDA_MAX_KERNEL_THREADS)
 
 // Jaccard  weights (*weight)
 template <bool weighted, typename vertex_t, typename edge_t, typename weight_t>
-__global__ void __launch_bounds__(CUDA_MAX_KERNEL_THREADS)
-  jaccard_jw(edge_t e, weight_t const *weight_i, weight_t const *weight_s, weight_t *weight_j)
+__global__ void jaccard_jw(edge_t e,
+                           weight_t const *weight_i,
+                           weight_t const *weight_s,
+                           weight_t *weight_j)
 {
   edge_t j;
   weight_t Wi, Ws, Wu;

@@ -141,14 +141,17 @@ REQS=$(getReqs "${CUGRAPH_DEPS[@]}")
 
 BENCHMARK_META=$(jq -n \
   --arg NODE "${NODE_NAME}" \
-  --arg MINOR_VER "${MINOR_VERSION}" \
+  --arg BRANCH "branch-${MINOR_VERSION}" \
   --argjson REQS "${REQS}" '
   {
     "machineName": $NODE,
-    "commitBranch": $MINOR_VER,
+    "commitBranch": $BRANCH,
     "requirements": $REQS
   }
 ')
+
+echo "Benchmark meta:"
+echo "${BENCHMARK_META}" | jq "."
 
 logger "Running Benchmarks..."
 cd $BENCHMARKS_DIR
