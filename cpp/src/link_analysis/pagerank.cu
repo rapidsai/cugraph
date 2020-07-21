@@ -363,7 +363,15 @@ void pagerank(raft::handle_t const &handle,
                     "Invalid API parameter: Multi-GPU Pagerank does not guess, please use the "
                     "single GPU version for this feature");
     CUGRAPH_EXPECTS(max_iter > 0, "The number of iteration must be positive");
-    cugraph::opg::pagerank<VT, ET, WT>(handle, graph, pagerank, alpha, max_iter, tolerance);
+    cugraph::opg::pagerank<VT, ET, WT>(handle,
+                                       graph,
+                                       pagerank,
+                                       personalization_subset_size,
+                                       personalization_subset,
+                                       personalization_values,
+                                       alpha,
+                                       max_iter,
+                                       tolerance);
   } else  // Single GPU
     return detail::pagerank_impl<VT, ET, WT>(graph,
                                              pagerank,

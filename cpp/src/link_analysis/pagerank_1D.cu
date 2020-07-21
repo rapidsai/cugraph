@@ -37,7 +37,8 @@ Pagerank<VT, ET, WT>::Pagerank(const raft::handle_t &handle_, GraphCSCView<VT, E
   : comm(handle_.get_comms()),
     bookmark(G.number_of_vertices),
     prev_pr(G.number_of_vertices),
-    val(G.local_edges[comm.get_rank()])
+    val(G.local_edges[comm.get_rank()]),
+    has_personalization(false)
 {
   v_glob         = G.number_of_vertices;
   v_loc          = G.local_vertices[comm.get_rank()];
@@ -84,20 +85,49 @@ void Pagerank<VT, ET, WT>::flag_leafs(const VT *degree)
 
 // Artificially create the google matrix by setting val and bookmark
 template <typename VT, typename ET, typename WT>
-void Pagerank<VT, ET, WT>::setup(WT _alpha, VT *degree)
+void Pagerank<VT, ET, WT>::setup(WT _alpha,
+                                 VT *degree,
+                                 VT personalization_subset_size,
+                                 VT *personalization_subset,
+                                 WT *personalization_values)
 {
   if (!is_setup) {
     alpha   = _alpha;
     WT zero = 0.0;
+    WT one  = 1.0;
 
-    // Update dangling node vector
-    cugraph::detail::fill(v_glob, bookmark.data().get(), zero);
     flag_leafs(degree);
     cugraph::detail::update_dangling_nodes(v_glob, bookmark.data().get(), alpha);
 
     // Transition matrix
     transition_vals(degree);
 
+    // Update dangling node vector
+    cugraph::detail::fill(v_glob, bookmark.data().get(), zero);
+
+    // personalize
+    if (personalization_subset_size != 0) {
+      CUGRAPH_EXPECTS(personalization_subset != nullptr,
+                      "Invalid API parameter: personalization_subset array should be of size "
+                      "personalization_subset_size");
+      CUGRAPH_EXPECTS(personalization_values != nullptr,
+                      "Invalid API parameter: personalization_values array should be of size "
+                      "personalization_subset_size");
+      CUGRAPH_EXPECTS(personalization_subset_size <= v_glob,
+                      "Personalization size should be smaller than V");
+
+      WT sum = cugraph::detail::nrm1(personalization_subset_size, personalization_values);
+      if (sum != zero) {
+        has_personalization = true;
+        personalization_vector.resize(v_glob);
+        cugraph::detail::fill(v_glob, personalization_vector.data().get(), zero);
+        cugraph::detail::scal(v_glob, one / sum, personalization_values);
+        cugraph::detail::scatter(personalization_subset_size,
+                                 personalization_values,
+                                 personalization_vector.data().get(),
+                                 personalization_subset);
+      }
+    }
     is_setup = true;
   } else
     CUGRAPH_FAIL("OPG PageRank : Setup can be called only once");
@@ -126,10 +156,17 @@ int Pagerank<VT, ET, WT>::solve(int max_iter, float tolerance, WT *pagerank)
     for (i = 0; i < max_iter; ++i) {
       spmv_solver.run(pagerank);
       cugraph::detail::scal(v_glob, alpha, pr);
-      cugraph::detail::addv(v_glob, dot_res * (one / v_glob), pr);
+
+      // personalization
+      if (has_personalization)
+        cugraph::detail::axpy(v_glob, dot_res, personalization_vector.data().get(), pr);
+      else
+        cugraph::detail::addv(v_glob, dot_res * (one / v_glob), pr);
+
       dot_res = cugraph::detail::dot(v_glob, bookmark.data().get(), pr);
       cugraph::detail::scal(v_glob, one / cugraph::detail::nrm2(v_glob, pr), pr);
 
+      // convergence check
       cugraph::detail::axpy(v_glob, (WT)-1.0, pr, prev_pr.data().get());
       residual = cugraph::detail::nrm2(v_glob, prev_pr.data().get());
       if (residual < tolerance)
