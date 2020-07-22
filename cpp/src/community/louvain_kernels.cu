@@ -450,7 +450,7 @@ void louvain(GraphCSRView<vertex_t, edge_t, weight_t> const &graph,
              weight_t *final_modularity,
              int *num_level,
              vertex_t *cluster_vec,
-             int max_iter,
+             int max_level,
              cudaStream_t stream)
 {
 #ifdef TIMING
@@ -503,7 +503,7 @@ void louvain(GraphCSRView<vertex_t, edge_t, weight_t> const &graph,
 
   current_graph.get_source_indices(src_indices_v.data().get());
 
-  while (true) {
+  while (*num_level < max_level) {
     //
     //  Sum the weights of all edges departing a vertex.  This is
     //  loop invariant, so we'll compute it here.
@@ -553,6 +553,8 @@ void louvain(GraphCSRView<vertex_t, edge_t, weight_t> const &graph,
 #ifdef TIMING
     hr_timer.stop();
 #endif
+
+    (*num_level)++;
   }
 
 #ifdef TIMING
