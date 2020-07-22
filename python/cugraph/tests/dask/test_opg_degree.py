@@ -41,12 +41,12 @@ def test_dask_opg_degree(client_connection):
                        dtype=['int32', 'int32', 'float32'])
 
     dg = cugraph.DiGraph()
-    dg.from_dask_cudf_edgelist(ddf, renumber=False)
+    dg.from_dask_cudf_edgelist(ddf)
 
     g = cugraph.DiGraph()
     g.from_cudf_edgelist(df, 'src', 'dst')
 
     merge_df = dg.in_degree().merge(
-        g.in_degree(), on="vertex", suffixes=['_dg', '_g'])
+        g.in_degree(), on="vertex", suffixes=['_dg', '_g']).compute()
 
     assert merge_df['degree_dg'].equals(merge_df['degree_g'])

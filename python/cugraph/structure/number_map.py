@@ -19,9 +19,10 @@ import bisect
 
 class NumberMap:
     class SingleGPU:
-        def __init__(self, df, src_col_names, dst_col_names):
+        def __init__(self, df, src_col_names, dst_col_names, id_type):
             self.col_names = NumberMap.compute_vals(src_col_names)
             self.df = cudf.DataFrame()
+            self.id_type = id_type
 
             tmp = (
                 df[src_col_names]
@@ -52,7 +53,7 @@ class NumberMap:
         def compute(self):
             if not self.numbered:
                 tmp = self.df.groupby(self.col_names).count().reset_index()
-                tmp["id"] = tmp.index.astype(np.int32)
+                tmp["id"] = tmp.index.astype(self.id_type)
                 self.df = tmp
                 self.numbered = True
 
@@ -162,9 +163,10 @@ class NumberMap:
 
             return reply
 
-        def __init__(self, ddf, src_col_names, dst_col_names):
+        def __init__(self, ddf, src_col_names, dst_col_names, id_type):
             self.col_names = NumberMap.compute_vals(src_col_names)
             self.val_types = NumberMap.compute_vals_types(ddf, src_col_names)
+            self.id_type = id_type
             self.ddf = ddf.map_partitions(
                 NumberMap.MultiGPU.extract_vertices,
                 src_col_names,
@@ -187,25 +189,25 @@ class NumberMap:
             for i in range(len(local_id)):
                 global_id[i] = local_id[i] + base_addresses[partition[i]]
 
-        def assign_internal_identifiers(df, base_addresses):
+        def assign_internal_identifiers(df, base_addresses, id_type):
             df = df.assign(local_id=df.index.astype(np.int64))
             df = df.apply_rows(
                 NumberMap.MultiGPU.assign_internal_identifiers_kernel,
                 incols=["local_id", "partition"],
-                outcols={"global_id": np.int64},
+                outcols={"global_id": id_type},
                 kwargs={"base_addresses": base_addresses},
             )
 
             return df.drop(columns=["local_id", "hash", "partition"])
 
         def assign_global_id(self, ddf, base_addresses, val_types):
-            val_types["global_id"] = np.int32
+            val_types["global_id"] = self.id_type
             del val_types["hash"]
             del val_types["partition"]
 
             ddf = ddf.map_partitions(
                 lambda df: NumberMap.MultiGPU.assign_internal_identifiers(
-                    df, base_addresses
+                    df, base_addresses, self.id_type
                 ),
                 meta=val_types,
             )
@@ -244,7 +246,7 @@ class NumberMap:
                     lambda df: df.groupby("partition").count()
                 ).compute()["hash"]
                 base_addresses = cudf.Series(
-                    np.zeros(len(counts) + 1, np.int64)
+                    np.zeros(len(counts) + 1, self.id_type)
                 )
                 for i in range(len(counts)):
                     base_addresses[i + 1] = base_addresses[i] + counts[i]
@@ -324,8 +326,9 @@ class NumberMap:
                     )
                 )
 
-    def __init__(self):
+    def __init__(self, id_type=np.int32):
         self.implementation = None
+        self.id_type = id_type
 
     def compute_vals_types(df, column_names):
         """
@@ -373,11 +376,11 @@ class NumberMap:
 
         if type(df) is cudf.DataFrame:
             self.implementation = NumberMap.SingleGPU(
-                df, src_col_names, dst_col_names
+                df, src_col_names, dst_col_names, self.id_type
             )
         elif type(df) is dask_cudf.DataFrame:
             self.implementation = NumberMap.MultiGPU(
-                df, src_col_names, dst_col_names
+                df, src_col_names, dst_col_names, self.id_type
             )
         else:
             raise Exception("df must be cudf.DataFrame or dask_cudf.DataFrame")
@@ -413,7 +416,7 @@ class NumberMap:
                 df["d"] = dst_series
                 dst_series_list = ["d"]
             self.implementation = NumberMap.SingleGPU(
-                df, ["s"], dst_series_list
+                df, ["s"], dst_series_list, self.id_type
             )
         elif type(src_series) is dask_cudf.Series:
             dst_series_list = None
@@ -423,7 +426,7 @@ class NumberMap:
                 df["d"] = dst_series
                 dst_series_list = ["d"]
             self.implementation = NumberMap.MultiGPU(
-                df, ["s"], dst_series_list
+                df, ["s"], dst_series_list, self.id_type
             )
         else:
             raise Exception(

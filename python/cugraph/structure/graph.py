@@ -257,6 +257,8 @@ class Graph:
         ----------
         input_ddf : dask_cudf.DataFrame
             The edgelist as a dask_cudf.DataFrame
+            Source vertices are in a column named 'src', Destination
+            vertices are in a column named 'dst'
         """
         if self.edgelist is not None or self.adjlist is not None:
             raise Exception('Graph already has values')
