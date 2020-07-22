@@ -28,6 +28,7 @@ from cugraph.structure import (
     Graph,
     DiGraph,
     from_cudf_edgelist,
+    hypergraph,
     symmetrize,
     symmetrize_df,
 )
