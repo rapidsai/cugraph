@@ -18,3 +18,4 @@ from cugraph.structure.renumber import renumber
 from cugraph.structure.symmetrize import symmetrize, symmetrize_df
 from cugraph.structure.renumber import renumber_from_cudf
 from cugraph.structure.convert_matrix import from_cudf_edgelist
+from cugraph.structure.hypergraph import hypergraph

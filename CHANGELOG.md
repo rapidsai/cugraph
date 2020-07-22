@@ -8,6 +8,7 @@
 - PR #964 OPG BFS (CUDA)
 - PR #990 MG Consolidation
 - PR #993 Add persistent Handle for Comms
+- PR #979 Add hypergraph implementation to convert DataFrames into Graphs
 
 ## Improvements
 - PR #898 Add Edge Betweenness Centrality, and endpoints to BC
@@ -37,6 +38,7 @@
 - PR #991 Update conda upload versions for new supported CUDA/Python
 - PR #988 Add clang and clang tools to the conda env
 - PR #997 Update setup.cfg to run pytests under cugraph tests directory only
+- PR #1007 Add tolerance support to MG Pagerank and fix
 - PR #1009 Update benchmarks script to include requirements used
 - PR #1014 Fix benchmarks script variable name
 
@@ -48,7 +50,8 @@
 - PR #989: Fix issue with incorrect docker image being used in local build script
 - PR #992 Fix unrenumber of predecessor
 - PR #1008 Fix for cudf updates disabling iteration of Series/Columns/Index
-    
+- PR #1012 Fix Local build script README
+ 
 # cuGraph 0.14.0 (03 Jun 2020)
 
 ## New Features

@@ -34,7 +34,7 @@ constexpr int BLOCK_SIZE_1D = 64;
 }
 
 template <typename vertex_t, typename edge_t, typename weight_t>
-__global__  // __launch_bounds__(CUDA_MAX_KERNEL_THREADS)
+__global__  //
   void
   compute_vertex_sums(vertex_t n_vertex,
                       edge_t const *offsets,
