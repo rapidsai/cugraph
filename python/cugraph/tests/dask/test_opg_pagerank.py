@@ -21,13 +21,15 @@ import dask_cudf
 import cudf
 from dask_cuda import LocalCUDACluster
 
-#The function selects personalization_perc% of accessible vertices in graph M
-#and randomly assigns them personalization values
+# The function selects personalization_perc% of accessible vertices in graph M
+# and randomly assigns them personalization values
+
+
 def personalize(v, personalization_perc):
     personalization = None
     if personalization_perc != 0:
         personalization = {}
-        nnz_vtx = np.arange(0,v)
+        nnz_vtx = np.arange(0, v)
         personalization_count = int((nnz_vtx.size *
                                      personalization_perc)/100.0)
         nnz_vtx = np.random.choice(nnz_vtx,
@@ -44,9 +46,11 @@ def personalize(v, personalization_perc):
 
     return cu_personalization
 
-PERSONALIZATION_PERC = [0, 10, 50]
-@pytest.mark.parametrize('personalization_perc', PERSONALIZATION_PERC)
 
+PERSONALIZATION_PERC = [0, 10, 50]
+
+
+@pytest.mark.parametrize('personalization_perc', PERSONALIZATION_PERC)
 def test_dask_pagerank(personalization_perc):
     gc.collect()
     cluster = LocalCUDACluster()
