@@ -18,6 +18,36 @@ import bisect
 
 
 class NumberMap:
+    """
+    Class used to translate external vertex ids to internal vertex ids
+    in the cuGraph framework.
+
+    Internal vertex ids are assigned by hashing the external vertex ids
+    into a structure to eliminate duplicates, and the resulting list
+    of unique vertices are assigned integers from [0, V) where V is
+    the number of unique vertices.
+
+    In Single GPU mode, internal vertex ids are constructed using
+    cudf functions, with a cudf.DataFrame containing the mapping
+    from external vertex identifiers and internal vertex identifiers
+    allowing for mapping vertex identifiers in either direction.  In
+    this mode, the order of the output from the mapping functions is
+    non-deterministic.  cudf makes no guarantees about order.  If
+    matching the input order is required set the preserve_order
+    to True.
+
+    In Multi GPU mode, internal vertex ids are constucted using
+    dask_cudf functions, with a dask_cudf.DataFrame containing
+    the mapping from external vertex identifiers and internal
+    vertex identifiers allowing for mapping vertex identifiers
+    in either direction.  In this mode, the partitioning of
+    the number_map and the output from any of the mapping functions
+    are non-deterministic.  dask_cudf makes no guarantees about the
+    partitioning or order of the output.  As of this release, 
+    there is no mechanism for controlling that, this will be
+    addressed at some point.
+    """
+
     class SingleGPU:
         def __init__(self, df, src_col_names, dst_col_names, id_type):
             self.col_names = NumberMap.compute_vals(src_col_names)

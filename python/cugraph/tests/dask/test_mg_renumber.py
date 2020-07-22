@@ -143,16 +143,6 @@ def test_dask_pagerank(client_connection):
     dg = cugraph.DiGraph()
     dg.from_dask_cudf_edgelist(ddf)
 
-    #
-    #  Currently the load balancing logic doesn't work
-    #  on the renumbered output for small data sets
-    #  because we end up with an empty partition
-    #
-    edgelist = dg.edgelist.edgelist_df.compute()
-    dg.edgelist.edgelist_df = dask.dataframe.from_pandas(
-        edgelist, npartitions=2
-    )
-
     # Pre compute local data
     # dg.compute_local_data(by='dst')
 

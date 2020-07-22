@@ -136,9 +136,13 @@ class Graph:
         wraps gdf_column objects that represent a graph using the edge list
         format. source argument is source column name and destination argument
         is destination column name.
-        Source and destination indices must be in the range [0, V) where V is
-        the number of vertices. If renumbering needs to be done, renumber
-        argument should be passed as True.
+
+        By default, renumbering is enabled to map the source and destination
+        vertices into an index in the range [0, V) where V is the number
+        of vertices.  If the input vertices are a single column of integers
+        in the range [0, V), renumbering can be disabled and the original
+        external vertex ids will be used.
+
         If weights are present, edge_attr argument is the weights column name.
 
         Parameters
@@ -251,8 +255,14 @@ class Graph:
     def from_dask_cudf_edgelist(self, input_ddf, renumber=True):
         """
         Initializes the distributed graph from the dask_cudf.DataFrame
-        edgelist. Renumbering and undirected Graphs are not currently
-        supported.
+        edgelist. Undirected Graphs are not currently supported.
+
+        By default, renumbering is enabled to map the source and destination
+        vertices into an index in the range [0, V) where V is the number
+        of vertices.  If the input vertices are a single column of integers
+        in the range [0, V), renumbering can be disabled and the original
+        external vertex ids will be used.
+
         Parameters
         ----------
         input_ddf : dask_cudf.DataFrame
