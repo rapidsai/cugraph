@@ -43,7 +43,7 @@ class NumberMap:
     in either direction.  In this mode, the partitioning of
     the number_map and the output from any of the mapping functions
     are non-deterministic.  dask_cudf makes no guarantees about the
-    partitioning or order of the output.  As of this release, 
+    partitioning or order of the output.  As of this release,
     there is no mechanism for controlling that, this will be
     addressed at some point.
     """
