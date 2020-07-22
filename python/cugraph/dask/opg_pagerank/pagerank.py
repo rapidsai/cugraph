@@ -67,13 +67,19 @@ def pagerank(input_graph,
             Subset of vertices of graph for personalization
         personalization['values'] : cudf.Series
             Personalization values for vertices
-            
+
     max_iter : int
         The maximum number of iterations before an answer is returned.
         If this value is lower or equal to 0 cuGraph will use the default
         value, which is 30.
     tolerance : float
-        Currently not supported. Set to default value 1.0e-5.
+        Set the tolerance the approximation, this parameter should be a small
+        magnitude value.
+        The lower the tolerance the better the approximation. If this value is
+        0.0f, cuGraph will use the default value which is 1.0E-5.
+        Setting too small a tolerance can lead to non-convergence due to
+        numerical roundoff. Usually values between 0.01 and 0.00001 are
+        acceptable.
 
 
     Returns
