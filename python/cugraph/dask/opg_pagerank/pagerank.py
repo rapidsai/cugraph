@@ -69,9 +69,6 @@ def pagerank(input_graph,
     personalization : cudf.Dataframe
         GPU Dataframe containing the personalizatoin information.
         Currently not supported.
-    nstart : cudf.Dataframe
-        GPU Dataframe containing the initial guess for pagerank.
-        Currently not supported.
 
     Returns
     -------
@@ -96,10 +93,6 @@ def pagerank(input_graph,
     >>> pr = dcg.pagerank(dg)
     """
 
-    if personalization is not None or nstart is not None:
-        warnings.warn("personalization and nstart currently not \
-supported. Setting them to None")
-    personalization = None
     nstart = None
 
     client = default_client()
