@@ -23,25 +23,25 @@ from dask_cuda import LocalCUDACluster
 
 #The function selects personalization_perc% of accessible vertices in graph M
 #and randomly assigns them personalization values
-def personalize(v, personalization_perc)
+def personalize(v, personalization_perc):
     personalization = None
     if personalization_perc != 0:
         personalization = {}
-        nnz_vtx = np.arrange(0,v)
-        print(nnz_vtx)
+        nnz_vtx = np.arange(0,v)
         personalization_count = int((nnz_vtx.size *
                                      personalization_perc)/100.0)
-        print(personalization_count)
         nnz_vtx = np.random.choice(nnz_vtx,
                                    min(nnz_vtx.size, personalization_count),
                                    replace=False)
-        print(nnz_vtx)
         nnz_val = np.random.random(nnz_vtx.size)
         nnz_val = nnz_val/sum(nnz_val)
-        print(nnz_val)
         for vtx, val in zip(nnz_vtx, nnz_val):
             personalization[vtx] = val
-        cu_personalization = cudify(personalization)
+
+        k = np.fromiter(personalization.keys(), dtype='int32')
+        v = np.fromiter(personalization.values(), dtype='float32')
+        cu_personalization = cudf.DataFrame({'vertex': k, 'values': v})
+
     return cu_personalization
 
 PERSONALIZATION_PERC = [0, 10, 50]
@@ -73,11 +73,15 @@ def test_dask_pagerank(personalization_perc):
     dg.from_dask_cudf_edgelist(ddf)
 
     # Pre compute local data and personalize
+    personalization = None
     if personalization_perc != 0:
         dg.compute_local_data(by='dst')
-        test_dask_pagerank(dg.number_of_vertices(), personalization_perc)
+        personalization = personalize(dg.number_of_vertices(),
+                                      personalization_perc)
 
-    expected_pr = cugraph.pagerank(g, personalization=personalization, tol=1e-6)
+    expected_pr = cugraph.pagerank(g,
+                                   personalization=personalization,
+                                   tol=1e-6)
     result_pr = dcg.pagerank(dg, personalization=personalization, tol=1e-6)
 
     err = 0

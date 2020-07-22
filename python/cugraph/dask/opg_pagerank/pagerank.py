@@ -60,15 +60,21 @@ def pagerank(input_graph,
         outgoing edge, standard value is 0.85.
         Thus, 1.0-alpha is the probability to “teleport” to a random vertex.
         Alpha should be greater than 0.0 and strictly lower than 1.0.
+    personalization : cudf.Dataframe
+        GPU Dataframe containing the personalization information.
+
+        personalization['vertex'] : cudf.Series
+            Subset of vertices of graph for personalization
+        personalization['values'] : cudf.Series
+            Personalization values for vertices
+            
     max_iter : int
         The maximum number of iterations before an answer is returned.
         If this value is lower or equal to 0 cuGraph will use the default
         value, which is 30.
     tolerance : float
         Currently not supported. Set to default value 1.0e-5.
-    personalization : cudf.Dataframe
-        GPU Dataframe containing the personalizatoin information.
-        Currently not supported.
+
 
     Returns
     -------
