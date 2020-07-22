@@ -273,9 +273,8 @@ void force_atlas2(GraphCOOView<VT, ET, WT> &graph,
  *
  * The current implementation does not support a weighted graph.
  *
- * @throws                           cugraph::logic_error if `result == nullptr` or
+ * @throws                                  cugraph::logic_error if `result == nullptr` or
  * `number_of_sources < 0` or `number_of_sources !=0 and sources == nullptr`.
- *
  * @tparam VT                               Type of vertex identifiers. Supported value : int
  * (signed, 32-bit)
  * @tparam ET                               Type of edge identifiers.  Supported value : int
@@ -320,11 +319,9 @@ void betweenness_centrality(const raft::handle_t &handle,
  * Betweenness centrality of an edge is the sum of the fraction of all-pairs shortest paths that
  * pass through this edge. The weight parameter is currenlty not supported
  *
- *  * @throws                           cugraph::logic_error if `result == nullptr` or
+ * @throws                                  cugraph::logic_error if `result == nullptr` or
  * `number_of_sources < 0` or `number_of_sources !=0 and sources == nullptr` or `endpoints ==
- true`.
-
- *
+ * true`.
  * @tparam VT                               Type of vertex identifiers. Supported value : int
  * (signed, 32-bit)
  * @tparam ET                               Type of edge identifiers.  Supported value : int
@@ -597,7 +594,6 @@ void sssp(GraphCSRView<VT, ET, WT> const &graph,
  *
  * @param[in] mg_batch               If set to true use SG BFS path when comms are initialized.
  *
- * @throws     cugraph::logic_error when an error occurs.
  */
 template <typename VT, typename ET, typename WT>
 void bfs(raft::handle_t const &handle,
