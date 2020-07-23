@@ -194,7 +194,8 @@ class Graph:
             if len(set_names) == 2:
                 bottom = self._nodes[set_names[1]]
             else:
-                bottom = cudf.Series(set(self.nodes()) - set(top))
+                bottom = cudf.Series(set(self.nodes().values_host)
+                                     - set(top.values_host))
             return top, bottom
         else:
             return {k: self._nodes[k] for k in set_names}
