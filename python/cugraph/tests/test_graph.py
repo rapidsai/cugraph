@@ -717,7 +717,8 @@ def test_bipartite_api(graph_file):
 
     # Create set of nodes for partition
     set1_exp = cudf.Series(nodes[0:int(len(nodes)/2)])
-    set2_exp = cudf.Series(set(nodes) - set(set1_exp))
+    set2_exp = cudf.Series(set(nodes.values_host)
+                           - set(set1_exp.values_host))
 
     G = cugraph.Graph()
     assert not G.is_bipartite()
