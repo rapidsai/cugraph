@@ -16,6 +16,7 @@ import cugraph.dask as dcg
 import cugraph.comms as Comms
 from dask.distributed import Client
 import gc
+import pytest
 import cugraph
 import dask_cudf
 import cudf
@@ -50,12 +51,22 @@ def personalize(v, personalization_perc):
 PERSONALIZATION_PERC = [0, 10, 50]
 
 
-@pytest.mark.parametrize('personalization_perc', PERSONALIZATION_PERC)
-def test_dask_pagerank(personalization_perc):
-    gc.collect()
+@pytest.fixture
+def client_connection():
     cluster = LocalCUDACluster()
     client = Client(cluster)
     Comms.initialize()
+
+    yield client
+
+    Comms.destroy()
+    client.close()
+    cluster.close()
+
+
+@pytest.mark.parametrize('personalization_perc', PERSONALIZATION_PERC)
+def test_dask_pagerank(client_connection, personalization_perc):
+    gc.collect()
 
     input_data_path = r"../datasets/karate.csv"
     chunksize = dcg.get_chunksize(input_data_path)
@@ -92,13 +103,15 @@ def test_dask_pagerank(personalization_perc):
     tol = 1.0e-05
 
     assert len(expected_pr) == len(result_pr)
-    for i in range(len(result_pr)):
-        if(abs(result_pr['pagerank'].iloc[i]-expected_pr['pagerank'].iloc[i])
-           > tol*1.1):
+
+    compare_pr = expected_pr.merge(
+        result_pr, on="vertex", suffixes=['_local', '_dask']
+    )
+
+    for i in range(len(compare_pr)):
+        diff = abs(compare_pr['pagerank_local'].iloc[i] -
+                   compare_pr['pagerank_dask'].iloc[i])
+        if diff > tol * 1.1:
             err = err + 1
     print("Mismatches:", err)
     assert err == 0
-
-    Comms.destroy()
-    client.close()
-    cluster.close()

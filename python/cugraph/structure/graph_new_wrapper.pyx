@@ -238,13 +238,12 @@ def _degree(input_graph, x=0):
     if input_graph.edgelist is not None:
         if isinstance(input_graph.edgelist.edgelist_df, dc.DataFrame):
             input_ddf = input_graph.edgelist.edgelist_df
-            cols = input_ddf.columns
-            num_verts = input_ddf[cols[0:2]].max().max().compute() + 1
+            num_verts = input_ddf[['src', 'dst']].max().max().compute() + 1
             data = DistributedDataHandler.create(data=input_ddf)
             comms = Comms.get_comms()
             client = default_client()
             data.calculate_parts_to_sizes(comms)
-            degree_ddf = [client.submit(_degree_coo, wf[1][0], cols[0], cols[1], x, num_verts, comms.sessionId, workers=[wf[0]]) for idx, wf in enumerate(data.worker_to_parts.items())]
+            degree_ddf = [client.submit(_degree_coo, wf[1][0], 'src', 'dst', x, num_verts, comms.sessionId, workers=[wf[0]]) for idx, wf in enumerate(data.worker_to_parts.items())]
             wait(degree_ddf)
             return degree_ddf[0].result()      
         return _degree_coo(input_graph.edgelist.edgelist_df,

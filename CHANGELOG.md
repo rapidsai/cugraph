@@ -5,9 +5,11 @@
 - PR #939 Updated Notebooks to include new features and benchmarks
 - PR #944 MG pagerank (dask)
 - PR #947 MG pagerank (CUDA)
+- PR #963 Renumbering refactor, add multi GPU support
 - PR #964 MG BFS (CUDA)
 - PR #990 MG Consolidation
 - PR #993 Add persistent Handle for Comms
+- PR #979 Add hypergraph implementation to convert DataFrames into Graphs
 - PR #1018 MG personalized pagerank
 
 ## Improvements
