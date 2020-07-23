@@ -41,7 +41,7 @@
 - PR #1007 Add tolerance support to MG Pagerank and fix
 - PR #1009 Update benchmarks script to include requirements used
 - PR #1014 Fix benchmarks script variable name
-- PR #     Changed ECG implementation based on issue #915 - updated Louvain to honor max_iter, ECG now calls Louvain for 1 level, then full run.
+- PR #1020 Updated Louvain to honor max_level, ECG now calls Louvain for 1 level, then full run.
 
 ## Bug Fixes
 - PR #936 Update Force Atlas 2 doc and wrapper
