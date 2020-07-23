@@ -91,11 +91,12 @@ class NumberMap:
             tmp_df = df[col_names].rename(
                 columns=dict(zip(col_names, self.col_names)), copy=False
             )
-            tmp_df["index"] = tmp_df.index
+            index_name = NumberMap.generate_unused_column_name(df.columns)
+            tmp_df[index_name] = tmp_df.index
             return (
                 tmp_df.merge(self.df, on=self.col_names, how="left")
-                .sort_values("index")
-                .drop(columns=["index"])
+                .sort_values(index_name)
+                .drop(columns=[index_name])
                 .reset_index()["id"]
             )
 
@@ -104,19 +105,27 @@ class NumberMap:
             ret = None
 
             if preserve_order:
+                index_name = NumberMap.generate_unused_column_name(df.columns)
                 tmp_df = df
-                tmp_df['InDeX'] = tmp_df.index
+                tmp_df[index_name] = tmp_df.index
             else:
                 tmp_df = df
 
+            if "id" in df.columns:
+                id_name = NumberMap.generate_unused_column_name(tmp_df.columns)
+                merge_df = self.df.rename(columns={"id": id_name}, copy=False)
+            else:
+                id_name = "id"
+                merge_df = self.df
+
             if col_names is None:
-                ret = tmp_df.merge(self.df, on=self.col_names, how="left")
+                ret = tmp_df.merge(merge_df, on=self.col_names, how="left")
             elif col_names == self.col_names:
-                ret = tmp_df.merge(self.df, on=self.col_names, how="left")
+                ret = tmp_df.merge(merge_df, on=self.col_names, how="left")
             else:
                 ret = (
                     tmp_df.merge(
-                        self.df,
+                        merge_df,
                         left_on=col_names,
                         right_on=self.col_names,
                         how="left",
@@ -128,11 +137,11 @@ class NumberMap:
                 ret = ret.drop(columns=col_names)
 
             ret = ret.rename(
-                columns={"id": id_column_name}, copy=False
+                columns={id_name: id_column_name}, copy=False
             )
 
             if preserve_order:
-                ret = ret.sort_values('InDeX').reset_index(drop=True)
+                ret = ret.sort_values(index_name).reset_index(drop=True)
 
             return ret
 
@@ -367,6 +376,16 @@ class NumberMap:
         return {
             str(i): df[column_names[i]].dtype for i in range(len(column_names))
         }
+
+    def generate_unused_column_name(column_names):
+        """
+        Helper function to generate an unused column name
+        """
+        name = 'x'
+        while name in column_names:
+            name = name + "x"
+
+        return name
 
     def compute_vals(column_names):
         """
@@ -792,12 +811,15 @@ class NumberMap:
                 mapping[nm] = nm + "_" + column_name
 
         if preserve_order:
-            df['InDeX'] = df.index
+            index_name = NumberMap.generate_unused_column_name(df)
+            df[index_name] = df.index
 
         df = self.from_internal_vertex_id(df, column_name, drop=True)
 
         if preserve_order:
-            df = df.sort_values('InDeX').drop('InDeX').reset_index(drop=True)
+            df = df.sort_values(
+                index_name
+            ).drop(index_name).reset_index(drop=True)
 
         if type(df) is dask_cudf.DataFrame:
             return df.map_partitions(

@@ -952,7 +952,7 @@ class Graph:
             # FIXME: This relies un current implementation
             #        of NumberMap, should not really expose
             #        this, perhaps add a method to NumberMap
-            return self.renumber_map.df["0"]
+            return self.renumber_map.implementation.df["0"]
         else:
             return cudf.concat([df["src"], df["dst"]]).unique()
 
