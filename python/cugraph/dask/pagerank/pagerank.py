@@ -42,4 +42,4 @@ def pagerank(edge_list, alpha=0.85, max_iter=30):
     """
 
     raise Exception("mg_pagerank currently disabled... "
-                    "new OPG version coming soon")
+                    "new MG version coming soon")

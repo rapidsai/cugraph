@@ -82,7 +82,7 @@ def test_dask_pagerank(client_connection, personalization_perc):
                        dtype=['int32', 'int32', 'float32'])
 
     g = cugraph.DiGraph()
-    g.from_cudf_edgelist(df, 'src', 'dst')
+    g.from_cudf_edgelist(df, 'src', 'dst', renumber=False)
 
     dg = cugraph.DiGraph()
     dg.from_dask_cudf_edgelist(ddf, renumber=False)

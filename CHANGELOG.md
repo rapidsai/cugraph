@@ -17,7 +17,7 @@
 - PR #913 Eliminate `rmm.device_array` usage
 - PR #903 Add short commit hash to conda package
 - PR #920 modify bfs test, update graph number_of_edges, update storage of transposedAdjList in Graph
-- PR #933 Update opg_degree to use raft, add python tests
+- PR #933 Update mg_degree to use raft, add python tests
 - PR #930 rename test_utils.h to utilities/test_utils.hpp and remove thrust dependency
 - PR #934 Update conda dev environment.yml dependencies to 0.15
 - PR #942 Removed references to deprecated RMM headers.
@@ -59,7 +59,7 @@
 ## New Features
 - PR #756 Add Force Atlas 2 layout
 - PR #822 Added new functions in python graph class, similar to networkx
-- PR #840 OPG degree
+- PR #840 MG degree
 - PR #875 UVM notebook
 - PR #881 Raft integration infrastructure
 
@@ -80,7 +80,7 @@
 - PR #807 Updating the Python docs
 - PR #817 Add native Betweenness Centrality with sources subset
 - PR #818 Initial version of new "benchmarks" folder
-- PR #820 OPG infra and all-gather smoke test
+- PR #820 MG infra and all-gather smoke test
 - PR #823 Remove gdf column from nvgraph
 - PR #829 Updated README and CONTRIBUTIOIN docs
 - PR #831 Updated Notebook - Added K-Truss, ECG, and Betweenness Centrality
@@ -123,7 +123,7 @@
 - PR #860 Fix all Notebooks
 - PR #870 Fix Louvain
 - PR #889 Added missing conftest.py file to benchmarks dir
-- PR #896 opg dask infrastructure fixes
+- PR #896 mg dask infrastructure fixes
 - PR #907 Fix bfs directed missing vertices
 - PR #911 Env and changelog update
 - PR #923 Updated pagerank with @afender 's temp fix for double-free crash

@@ -11,5 +11,5 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from .opg_pagerank.pagerank import pagerank
+from .mg_pagerank.pagerank import pagerank
 from .common.read_utils import get_chunksize

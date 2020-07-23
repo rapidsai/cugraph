@@ -26,7 +26,7 @@
 #include "utilities/spmv_1D.cuh"
 
 namespace cugraph {
-namespace opg {
+namespace mg {
 
 template <typename VT, typename ET, typename WT>
 class Pagerank {
@@ -37,7 +37,7 @@ class Pagerank {
   WT alpha{};   // damping factor
   bool has_personalization;
   // CUDA
-  const raft::comms::comms_t &comm;  // info about the opg comm setup
+  const raft::comms::comms_t &comm;  // info about the mg comm setup
   cudaStream_t stream;
   int blocks;
   int threads;
@@ -120,5 +120,5 @@ int pagerank(raft::handle_t const &handle,
   return pr_solver.solve(n_iter, tolerance, pagerank_result);
 }
 
-}  // namespace opg
+}  // namespace mg
 }  // namespace cugraph

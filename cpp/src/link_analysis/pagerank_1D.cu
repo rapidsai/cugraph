@@ -22,7 +22,7 @@
 #include "utilities/graph_utils.cuh"
 
 namespace cugraph {
-namespace opg {
+namespace mg {
 
 template <typename VT, typename WT>
 __global__ void transition_kernel(const size_t e, const VT *ind, const VT *degree, WT *val)
@@ -55,7 +55,7 @@ Pagerank<VT, ET, WT>::Pagerank(const raft::handle_t &handle_, GraphCSCView<VT, E
 
   // intialize cusparse. This can take some time.
   // TODO use cusparse handle from raft handle and pass it
-  // to OPGcsrmv and CusparseCsrMV
+  // to MGcsrmv and CusparseCsrMV
   cugraph::detail::Cusparse::get_handle();
 }
 
@@ -132,7 +132,7 @@ void Pagerank<VT, ET, WT>::setup(WT _alpha,
     }
     is_setup = true;
   } else
-    CUGRAPH_FAIL("OPG PageRank : Setup can be called only once");
+    CUGRAPH_FAIL("MG PageRank : Setup can be called only once");
 }
 
 // run the power iteration on the google matrix
@@ -150,7 +150,7 @@ int Pagerank<VT, ET, WT>::solve(int max_iter, float tolerance, WT *pagerank)
     // This is not needed on one GPU at this time
     cudaDeviceSynchronize();
     dot_res = cugraph::detail::dot(v_glob, bookmark.data().get(), pr);
-    OPGcsrmv<VT, ET, WT> spmv_solver(
+    MGcsrmv<VT, ET, WT> spmv_solver(
       comm, local_vertices, part_off, off, ind, val.data().get(), pagerank);
 
     WT residual;
@@ -179,12 +179,12 @@ int Pagerank<VT, ET, WT>::solve(int max_iter, float tolerance, WT *pagerank)
     cugraph::detail::scal(v_glob, one / cugraph::detail::nrm1(v_glob, pr), pr);
     return i;
   } else {
-    CUGRAPH_FAIL("OPG PageRank : Solve was called before setup");
+    CUGRAPH_FAIL("MG PageRank : Solve was called before setup");
   }
 }
 
 template class Pagerank<int, int, double>;
 template class Pagerank<int, int, float>;
 
-}  // namespace opg
+}  // namespace mg
 }  // namespace cugraph
