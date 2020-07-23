@@ -59,7 +59,7 @@ def mg_pagerank(input_df, local_data, rank, handle, alpha=0.85, max_iter=100, to
     
     cdef uintptr_t c_pers_vtx = <uintptr_t>NULL
     cdef uintptr_t c_pers_val = <uintptr_t>NULL
-    cdef sz = 0
+    cdef int sz = 0
     
     cdef uintptr_t c_offsets = offsets.__cuda_array_interface__['data'][0]
     cdef uintptr_t c_indices = indices.__cuda_array_interface__['data'][0]
