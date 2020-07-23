@@ -17,7 +17,6 @@ from dask.distributed import wait, default_client
 from cugraph.dask.common.input_utils import get_local_data
 from cugraph.mg.link_analysis import mg_pagerank_wrapper as mg_pagerank
 import cugraph.comms.comms as Comms
-import warnings
 
 
 def call_pagerank(sID, data, local_data, alpha, max_iter,

@@ -16,7 +16,6 @@ import cugraph.dask as dcg
 import cugraph.comms as Comms
 from dask.distributed import Client
 import gc
-import pytest
 import cugraph
 import dask_cudf
 import cudf
