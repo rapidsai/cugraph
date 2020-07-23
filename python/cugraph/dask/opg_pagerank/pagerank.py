@@ -125,4 +125,7 @@ supported. Setting them to None")
             for idx, wf in enumerate(data.worker_to_parts.items())])
     wait(result)
 
+    if input_graph.renumbered:
+        return input_graph.unrenumber(result[0].result(), 'vertex').compute()
+
     return result[0].result()
