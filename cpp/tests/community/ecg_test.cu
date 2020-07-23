@@ -66,8 +66,6 @@ TEST(ecg, success)
   ASSERT_GT(modularity, 0.399);
 }
 
-//  This test currently fails... leaving it in since once louvain is fixed
-//   it should pass
 TEST(ecg, dolphin)
 {
   std::vector<int> off_h = {0,   6,   14,  18,  21,  22,  26,  32,  37,  43,  50,  55,  56,

@@ -119,8 +119,7 @@ void ecg(GraphCSRView<vertex_t, edge_t, weight_t> const &graph,
   rmm::device_vector<weight_t> ecg_weights_v(graph.edge_data, graph.edge_data + graph.number_of_edges);
 
   vertex_t size{graph.number_of_vertices};
-  vertex_t seed{0};
-  // vertex_t seed{1};  // Note... this seed won't work for the unit tests... retest after fixing Louvain.
+  vertex_t seed{1};
 
   auto permuted_graph =
     std::make_unique<GraphCSR<vertex_t, edge_t, weight_t>>(size, graph.number_of_edges, graph.has_data());
