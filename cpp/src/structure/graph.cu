@@ -15,9 +15,10 @@
  */
 
 #include <graph.hpp>
-#include "utilities/cuda_utils.cuh"
 #include "utilities/error.hpp"
 #include "utilities/graph_utils.cuh"
+
+#include <raft/device_atomics.cuh>
 
 namespace {
 
@@ -47,7 +48,7 @@ void degree_from_vertex_ids(const raft::handle_t *handle,
     rmm::exec_policy(stream)->on(stream),
     thrust::make_counting_iterator<edge_t>(0),
     thrust::make_counting_iterator<edge_t>(number_of_edges),
-    [indices, degree] __device__(edge_t e) { cugraph::atomicAdd(degree + indices[e], 1); });
+    [indices, degree] __device__(edge_t e) { atomicAdd(degree + indices[e], 1); });
   if ((handle != nullptr) && (handle->comms_initialized())) {
     auto &comm = handle->get_comms();
     comm.allreduce(degree, degree, number_of_vertices, raft::comms::op_t::SUM, stream);

@@ -16,11 +16,10 @@
 
 #include <algorithms.hpp>
 #include <graph.hpp>
-
-#include <utilities/cuda_utils.cuh>
-
-#include <rmm/thrust_rmm_allocator.h>
 #include <utilities/error.hpp>
+
+#include <raft/device_atomics.cuh>
+#include <rmm/thrust_rmm_allocator.h>
 
 namespace {
 
@@ -48,7 +47,7 @@ std::unique_ptr<cugraph::GraphCOO<vertex_t, edge_t, weight_t>> extract_subgraph_
       if ((v >= 0) && (v < graph_num_verts)) {
         d_vertex_used[v] = idx;
       } else {
-        cugraph::atomicAdd(d_error_count, int64_t{1});
+        atomicAdd(d_error_count, int64_t{1});
       }
     });
 
@@ -98,7 +97,7 @@ std::unique_ptr<cugraph::GraphCOO<vertex_t, edge_t, weight_t>> extract_subgraph_
                          //     require 2*|E| temporary memory.  If this becomes important perhaps
                          //     we make 2 implementations and pick one based on the number of
                          //     vertices in the subgraph set.
-                         auto pos       = cugraph::atomicAdd(d_error_count, 1);
+                         auto pos       = atomicAdd(d_error_count, int64_t{1});
                          d_new_src[pos] = d_vertex_used[s];
                          d_new_dst[pos] = d_vertex_used[d];
                          if (has_weight) d_new_weight[pos] = graph_weight[e];
