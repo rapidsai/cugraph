@@ -113,7 +113,7 @@ std::unique_ptr<cugraph::GraphCOO<vertex_t, edge_t, weight_t>> extract_subgraph_
 }  // namespace
 
 namespace cugraph {
-namespace nvgraph {
+namespace subgraph {
 
 template <typename VT, typename ET, typename WT>
 std::unique_ptr<GraphCOO<VT, ET, WT>> extract_subgraph_vertex(GraphCOOView<VT, ET, WT> const &graph,
@@ -140,5 +140,5 @@ extract_subgraph_vertex<int32_t, int32_t, double>(GraphCOOView<int32_t, int32_t,
                                                   int32_t const *,
                                                   int32_t);
 
-}  // namespace nvgraph
+}  // namespace subgraph
 }  // namespace cugraph

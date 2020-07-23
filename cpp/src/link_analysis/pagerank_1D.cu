@@ -34,7 +34,10 @@ __global__ void transition_kernel(const size_t e, const VT *ind, const VT *degre
 
 template <typename VT, typename ET, typename WT>
 Pagerank<VT, ET, WT>::Pagerank(const raft::handle_t &handle_, GraphCSCView<VT, ET, WT> const &G)
-  : comm(handle_.get_comms()), bookmark(G.number_of_vertices), val(G.local_edges[comm.get_rank()])
+  : comm(handle_.get_comms()),
+    bookmark(G.number_of_vertices),
+    prev_pr(G.number_of_vertices),
+    val(G.local_edges[comm.get_rank()])
 {
   v_glob         = G.number_of_vertices;
   v_loc          = G.local_vertices[comm.get_rank()];
@@ -63,20 +66,24 @@ Pagerank<VT, ET, WT>::~Pagerank()
 template <typename VT, typename ET, typename WT>
 void Pagerank<VT, ET, WT>::transition_vals(const VT *degree)
 {
-  int threads = std::min(e_loc, this->threads);
-  int blocks  = std::min(32 * sm_count, this->blocks);
-  transition_kernel<VT, WT><<<blocks, threads>>>(e_loc, ind, degree, val.data().get());
-  CHECK_CUDA(nullptr);
+  if (e_loc > 0) {
+    int threads = std::min(e_loc, this->threads);
+    int blocks  = std::min(32 * sm_count, this->blocks);
+    transition_kernel<VT, WT><<<blocks, threads>>>(e_loc, ind, degree, val.data().get());
+    CHECK_CUDA(nullptr);
+  }
 }
 
 template <typename VT, typename ET, typename WT>
 void Pagerank<VT, ET, WT>::flag_leafs(const VT *degree)
 {
-  int threads = std::min(v_glob, this->threads);
-  int blocks  = std::min(32 * sm_count, this->blocks);
-  cugraph::detail::flag_leafs_kernel<VT, WT>
-    <<<blocks, threads>>>(v_glob, degree, bookmark.data().get());
-  CHECK_CUDA(nullptr);
+  if (v_glob > 0) {
+    int threads = std::min(v_glob, this->threads);
+    int blocks  = std::min(32 * sm_count, this->blocks);
+    cugraph::detail::flag_leafs_kernel<VT, WT>
+      <<<blocks, threads>>>(v_glob, degree, bookmark.data().get());
+    CHECK_CUDA(nullptr);
+  }
 }
 
 // Artificially create the google matrix by setting val and bookmark
@@ -102,13 +109,14 @@ void Pagerank<VT, ET, WT>::setup(WT _alpha, VT *degree)
 
 // run the power iteration on the google matrix
 template <typename VT, typename ET, typename WT>
-void Pagerank<VT, ET, WT>::solve(int max_iter, WT *pagerank)
+int Pagerank<VT, ET, WT>::solve(int max_iter, float tolerance, WT *pagerank)
 {
   if (is_setup) {
     WT dot_res;
     WT one = 1.0;
     WT *pr = pagerank;
     cugraph::detail::fill(v_glob, pagerank, one / v_glob);
+    cugraph::detail::fill(v_glob, prev_pr.data().get(), one / v_glob);
     // This cuda sync was added to fix #426
     // This should not be requiered in theory
     // This is not needed on one GPU at this time
@@ -116,14 +124,25 @@ void Pagerank<VT, ET, WT>::solve(int max_iter, WT *pagerank)
     dot_res = cugraph::detail::dot(v_glob, bookmark.data().get(), pr);
     OPGcsrmv<VT, ET, WT> spmv_solver(
       comm, local_vertices, part_off, off, ind, val.data().get(), pagerank);
-    for (auto i = 0; i < max_iter; ++i) {
+
+    WT residual;
+    int i;
+    for (i = 0; i < max_iter; ++i) {
       spmv_solver.run(pagerank);
       cugraph::detail::scal(v_glob, alpha, pr);
       cugraph::detail::addv(v_glob, dot_res * (one / v_glob), pr);
       dot_res = cugraph::detail::dot(v_glob, bookmark.data().get(), pr);
       cugraph::detail::scal(v_glob, one / cugraph::detail::nrm2(v_glob, pr), pr);
+
+      cugraph::detail::axpy(v_glob, (WT)-1.0, pr, prev_pr.data().get());
+      residual = cugraph::detail::nrm2(v_glob, prev_pr.data().get());
+      if (residual < tolerance)
+        break;
+      else
+        cugraph::detail::copy(v_glob, pr, prev_pr.data().get());
     }
     cugraph::detail::scal(v_glob, one / cugraph::detail::nrm1(v_glob, pr), pr);
+    return i;
   } else {
     CUGRAPH_FAIL("OPG PageRank : Solve was called before setup");
   }

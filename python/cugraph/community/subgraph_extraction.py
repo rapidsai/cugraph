@@ -52,11 +52,22 @@ def subgraph(G, vertices):
 
     null_check(vertices)
 
+    if G.renumbered:
+        vertices = G.lookup_internal_vertex_id(vertices)
+
     result_graph = type(G)()
 
-    subgraph_extraction_wrapper.subgraph(
-        G,
-        vertices,
-        result_graph)
+    df = subgraph_extraction_wrapper.subgraph(G, vertices)
+
+    if G.renumbered:
+        df = G.unrenumber(df, "src")
+        df = G.unrenumber(df, "dst")
+
+    if G.edgelist.weights:
+        result_graph.from_cudf_edgelist(
+            df, source="src", destination="dst", edge_attr="weight"
+        )
+    else:
+        result_graph.from_cudf_edgelist(df, source="src", destination="dst")
 
     return result_graph

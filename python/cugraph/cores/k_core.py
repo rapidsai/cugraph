@@ -12,15 +12,9 @@
 # limitations under the License.
 
 from cugraph.cores import k_core_wrapper, core_number_wrapper
-from cugraph.utilities.unrenumber import unrenumber
-
-import cudf
-import numpy as np
 
 
-def k_core(G,
-           k=None,
-           core_number=None):
+def k_core(G, k=None, core_number=None):
     """
     Compute the k-core of the graph G based on the out degree of its nodes. A
     k-core of a graph is a maximal subgraph that contains nodes of degree k or
@@ -67,34 +61,31 @@ def k_core(G,
 
     if core_number is not None:
         if G.renumbered is True:
-            renumber_df = cudf.DataFrame()
-            renumber_df['map'] = G.edgelist.renumber_map
-            renumber_df['id'] = G.edgelist.renumber_map.index.astype(np.int32)
-            core_number = core_number.merge(renumber_df,
-                                            left_on='vertex',
-                                            right_on='map',
-                                            how='left').drop('map')
+            core_number = G.add_internal_vertex_id(
+                core_number, "vertex", "vertex", drop=True
+            )
     else:
         core_number = core_number_wrapper.core_number(G)
-        core_number = core_number.rename(columns={"core_number": "values"})
+        core_number = core_number.rename(
+            columns={"core_number": "values"}, copy=False
+        )
 
     if k is None:
-        k = core_number['values'].max()
+        k = core_number["values"].max()
 
     k_core_df = k_core_wrapper.k_core(G, k, core_number)
 
     if G.renumbered:
-        k_core_df = unrenumber(G.edgelist.renumber_map, k_core_df, 'src')
-        k_core_df = unrenumber(G.edgelist.renumber_map, k_core_df, 'dst')
+        k_core_df = G.unrenumber(k_core_df, "src")
+        k_core_df = G.unrenumber(k_core_df, "dst")
 
     if G.edgelist.weights:
-        KCoreGraph.from_cudf_edgelist(k_core_df,
-                                      source='src',
-                                      destination='dst',
-                                      edge_attr='weight')
+        KCoreGraph.from_cudf_edgelist(
+            k_core_df, source="src", destination="dst", edge_attr="weight"
+        )
     else:
-        KCoreGraph.from_cudf_edgelist(k_core_df,
-                                      source='src',
-                                      destination='dst')
+        KCoreGraph.from_cudf_edgelist(
+            k_core_df, source="src", destination="dst"
+        )
 
     return KCoreGraph
