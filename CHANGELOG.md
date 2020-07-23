@@ -5,6 +5,7 @@
 - PR #939 Updated Notebooks to include new features and benchmarks
 - PR #944 OPG pagerank (dask)
 - PR #947 OPG pagerank (CUDA)
+- PR #963 Renumbering refactor, add multi GPU support
 - PR #964 OPG BFS (CUDA)
 - PR #990 MG Consolidation
 - PR #993 Add persistent Handle for Comms

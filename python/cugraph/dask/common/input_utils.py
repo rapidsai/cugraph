@@ -191,8 +191,12 @@ def _get_rows(objs, multiple):
 def _get_local_data(df, by):
     df = df[0]
     num_local_edges = len(df)
-    local_offset = df[by].min()
-    num_local_verts = df[by].max() - local_offset + 1
+    if num_local_edges == 0:
+        local_offset = 0
+        num_local_verts = 0
+    else:
+        local_offset = df[by].min()
+        num_local_verts = df[by].max() - local_offset + 1
     return num_local_edges, local_offset, num_local_verts
 
 
