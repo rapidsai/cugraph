@@ -42,7 +42,7 @@ def test_dask_pagerank():
                               dtype=['int32', 'int32', 'float32'])
 
     dg1 = cugraph.DiGraph()
-    dg1.from_dask_cudf_edgelist(ddf1)
+    dg1.from_dask_cudf_edgelist(ddf1, 'src', 'dst')
     result_pr1 = dcg.pagerank(dg1)
 
     ddf2 = dask_cudf.read_csv(input_data_path2, chunksize=chunksize2,
@@ -51,7 +51,7 @@ def test_dask_pagerank():
                               dtype=['int32', 'int32', 'float32'])
 
     dg2 = cugraph.DiGraph()
-    dg2.from_dask_cudf_edgelist(ddf2)
+    dg2.from_dask_cudf_edgelist(ddf2, 'src', 'dst')
     result_pr2 = dcg.pagerank(dg2)
 
     # Calculate single GPU pagerank for verification of results

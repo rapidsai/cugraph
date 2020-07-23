@@ -92,7 +92,8 @@ def pagerank(input_graph,
                                  names=['src', 'dst', 'value'],
                                  dtype=['int32', 'int32', 'float32'])
     >>> dg = cugraph.DiGraph()
-    >>> dg.from_dask_cudf_edgelist(ddf)
+    >>> dg.from_dask_cudf_edgelist(ddf, source='src', destination='dst',
+                                   edge_attr='value')
     >>> pr = dcg.pagerank(dg)
     """
 

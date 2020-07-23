@@ -44,7 +44,7 @@ def test_dask_pagerank():
     g.from_cudf_edgelist(df, 'src', 'dst')
 
     dg = cugraph.DiGraph()
-    dg.from_dask_cudf_edgelist(ddf)
+    dg.from_dask_cudf_edgelist(ddf, 'src', 'dst')
 
     # Pre compute local data
     # dg.compute_local_data(by='dst')
