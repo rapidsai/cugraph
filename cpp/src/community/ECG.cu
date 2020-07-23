@@ -109,20 +109,23 @@ namespace cugraph {
 
 template <typename vertex_t, typename edge_t, typename weight_t>
 void ecg(GraphCSRView<vertex_t, edge_t, weight_t> const &graph,
-         weight_t min_weight, vertex_t ensemble_size, vertex_t *ecg_parts)
+         weight_t min_weight,
+         vertex_t ensemble_size,
+         vertex_t *ecg_parts)
 {
   CUGRAPH_EXPECTS(graph.edge_data != nullptr, "API error, louvain expects a weighted graph");
   CUGRAPH_EXPECTS(ecg_parts != nullptr, "Invalid API parameter: ecg_parts is NULL");
 
   cudaStream_t stream{0};
 
-  rmm::device_vector<weight_t> ecg_weights_v(graph.edge_data, graph.edge_data + graph.number_of_edges);
+  rmm::device_vector<weight_t> ecg_weights_v(graph.edge_data,
+                                             graph.edge_data + graph.number_of_edges);
 
   vertex_t size{graph.number_of_vertices};
   vertex_t seed{1};
 
-  auto permuted_graph =
-    std::make_unique<GraphCSR<vertex_t, edge_t, weight_t>>(size, graph.number_of_edges, graph.has_data());
+  auto permuted_graph = std::make_unique<GraphCSR<vertex_t, edge_t, weight_t>>(
+    size, graph.number_of_edges, graph.has_data());
 
   // Iterate over each member of the ensemble
   for (vertex_t i = 0; i < ensemble_size; i++) {

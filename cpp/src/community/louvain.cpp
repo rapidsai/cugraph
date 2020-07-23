@@ -39,7 +39,8 @@ void louvain(GraphCSRView<vertex_t, edge_t, weight_t> const &graph,
   CUGRAPH_EXPECTS(num_level != nullptr, "API error, num_level is null");
   CUGRAPH_EXPECTS(louvain_parts != nullptr, "API error, louvain_parts is null");
 
-  detail::louvain<vertex_t, edge_t, weight_t>(graph, final_modularity, num_level, louvain_parts, max_level);
+  detail::louvain<vertex_t, edge_t, weight_t>(
+    graph, final_modularity, num_level, louvain_parts, max_level);
 }
 
 template void louvain(
