@@ -451,8 +451,7 @@ __global__ void main_bottomup_kernel(const IndexType *unvisited,
       // the destination thread of the __shfl is active
       int laneid_max =
         min(static_cast<IndexType>(WARP_SIZE - 1), (unvisited_size - (block_off + 32 * warpid)));
-      IndexType last_v =
-        __shfl_sync(__activemask(), unvisited_vertex, laneid_max, WARP_SIZE);
+      IndexType last_v = __shfl_sync(__activemask(), unvisited_vertex, laneid_max, WARP_SIZE);
 
       if (is_last_head_in_warp) {
         int ilast_v = last_v % INT_SIZE + 1;

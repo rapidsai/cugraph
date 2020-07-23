@@ -181,7 +181,9 @@ __device__ __forceinline__ T block_sum(T v)
     v = (lid < (BDIM_X * BDIM_Y / WSIZE)) ? sh[lid] : 0;
 
 #pragma unroll
-    for (int i = (BDIM_X * BDIM_Y / WSIZE) / 2; i; i >>= 1) { v += __shfl_down_sync(raft::warp_full_mask(), v, i); }
+    for (int i = (BDIM_X * BDIM_Y / WSIZE) / 2; i; i >>= 1) {
+      v += __shfl_down_sync(raft::warp_full_mask(), v, i);
+    }
   }
   return v;
 }
@@ -306,7 +308,9 @@ __device__ __forceinline__ T block_sum_sh(T v, T *sh)
     v = (lid < (BDIM_X * BDIM_Y / WSIZE)) ? sh[lid] : 0;
 
 #pragma unroll
-    for (int i = (BDIM_X * BDIM_Y / WSIZE) / 2; i; i >>= 1) { v += __shfl_down_sync(raft::warp_full_mask(), v, i); }
+    for (int i = (BDIM_X * BDIM_Y / WSIZE) / 2; i; i >>= 1) {
+      v += __shfl_down_sync(raft::warp_full_mask(), v, i);
+    }
   }
   return v;
 }

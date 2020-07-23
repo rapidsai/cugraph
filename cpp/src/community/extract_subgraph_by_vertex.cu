@@ -18,8 +18,8 @@
 #include <graph.hpp>
 #include <utilities/error.hpp>
 
-#include <raft/device_atomics.cuh>
 #include <rmm/thrust_rmm_allocator.h>
+#include <raft/device_atomics.cuh>
 
 namespace {
 

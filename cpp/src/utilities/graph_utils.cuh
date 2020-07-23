@@ -16,8 +16,8 @@
 #include <utilities/error.hpp>
 
 #include <raft/cudart_utils.h>
-#include <raft/device_atomics.cuh>
 #include <rmm/thrust_rmm_allocator.h>
+#include <raft/device_atomics.cuh>
 
 #include <cuda.h>
 #include <cuda_runtime.h>
