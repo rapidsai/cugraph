@@ -267,8 +267,8 @@ void pagerank_impl(GraphCSCView<VT, ET, WT> const &graph,
                    VT *personalization_subset     = nullptr,
                    WT *personalization_values     = nullptr,
                    double alpha                   = 0.85,
-                   double tolerance               = 1e-4,
-                   int64_t max_iter               = 200,
+                   double tolerance               = 1e-5,
+                   int64_t max_iter               = 100,
                    bool has_guess                 = false)
 {
   bool has_personalization = false;
@@ -332,7 +332,7 @@ void pagerank_impl(GraphCSCView<VT, ET, WT> const &graph,
   switch (status) {
     case 0: break;
     case -1: CUGRAPH_FAIL("Error : bad parameters in Pagerank");
-    case 1: CUGRAPH_FAIL("Warning : Pagerank did not reached the desired tolerance");
+    case 1: break;  // Warning : Pagerank did not reached the desired tolerance
     default: CUGRAPH_FAIL("Pagerank exec failed");
   }
 
@@ -363,7 +363,7 @@ void pagerank(raft::handle_t const &handle,
                     "Invalid API parameter: Multi-GPU Pagerank does not guess, please use the "
                     "single GPU version for this feature");
     CUGRAPH_EXPECTS(max_iter > 0, "The number of iteration must be positive");
-    return cugraph::opg::pagerank<VT, ET, WT>(handle, graph, pagerank, alpha, max_iter);
+    cugraph::opg::pagerank<VT, ET, WT>(handle, graph, pagerank, alpha, max_iter, tolerance);
   } else  // Single GPU
     return detail::pagerank_impl<VT, ET, WT>(graph,
                                              pagerank,

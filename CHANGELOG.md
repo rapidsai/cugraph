@@ -5,6 +5,10 @@
 - PR #939 Updated Notebooks to include new features and benchmarks
 - PR #944 OPG pagerank (dask)
 - PR #947 OPG pagerank (CUDA)
+- PR #964 OPG BFS (CUDA)
+- PR #990 MG Consolidation
+- PR #993 Add persistent Handle for Comms
+- PR #979 Add hypergraph implementation to convert DataFrames into Graphs
 
 ## Improvements
 - PR #898 Add Edge Betweenness Centrality, and endpoints to BC
@@ -27,11 +31,16 @@
 - PR #975 Upgrade GitHub template
 - PR #976 Fix error in Graph.edges(), update cuDF rename() calls
 - PR #977 Update force_atlas2 to call on_train_end after iterating
+- PR #980 Replace nvgraph Spectral Clustering (SC) functionality with RAFT SC
 - PR #987 Move graph out of experimental namespace
 - PR #984 Removing codecov until we figure out how to interpret failures that block CI
 - PR #985 Add raft handle to BFS, BC and edge BC
 - PR #991 Update conda upload versions for new supported CUDA/Python
 - PR #988 Add clang and clang tools to the conda env
+- PR #997 Update setup.cfg to run pytests under cugraph tests directory only
+- PR #1007 Add tolerance support to MG Pagerank and fix
+- PR #1009 Update benchmarks script to include requirements used
+- PR #1014 Fix benchmarks script variable name
 
 ## Bug Fixes
 - PR #936 Update Force Atlas 2 doc and wrapper
@@ -40,7 +49,9 @@
 - PR #983 Fix offset calculation in COO to CSR
 - PR #989: Fix issue with incorrect docker image being used in local build script
 - PR #992 Fix unrenumber of predecessor
-
+- PR #1008 Fix for cudf updates disabling iteration of Series/Columns/Index
+- PR #1012 Fix Local build script README
+ 
 # cuGraph 0.14.0 (03 Jun 2020)
 
 ## New Features

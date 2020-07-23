@@ -18,6 +18,7 @@
 
 #include <utilities/error.hpp>
 #include "bfs_kernels.cuh"
+#include "opg/bfs.cuh"
 #include "traversal_common.cuh"
 #include "utilities/graph_utils.cuh"
 
@@ -486,21 +487,25 @@ void bfs(raft::handle_t const &handle,
   static_assert(std::is_floating_point<WT>::value,
                 "Unsupported edge weight type. Use floating point types");  // actually, this is
                                                                             // unnecessary for BFS
-  if (handle.comms_initialized()) { CUGRAPH_FAIL("Multi-GPU version of BFS is not implemented"); }
+  if (handle.comms_initialized()) {
+    CUGRAPH_EXPECTS(sp_counters == nullptr,
+                    "BFS Traversal shortest path is not supported in OPG path");
+    opg::bfs<VT, ET, WT>(handle, graph, distances, predecessors, start_vertex);
+  } else {
+    VT number_of_vertices = graph.number_of_vertices;
+    ET number_of_edges    = graph.number_of_edges;
 
-  VT number_of_vertices = graph.number_of_vertices;
-  ET number_of_edges    = graph.number_of_edges;
+    const VT *indices_ptr = graph.indices;
+    const ET *offsets_ptr = graph.offsets;
 
-  const VT *indices_ptr = graph.indices;
-  const ET *offsets_ptr = graph.offsets;
-
-  int alpha = 15;
-  int beta  = 18;
-  // FIXME: Use VT and ET in the BFS detail
-  cugraph::detail::BFS<VT> bfs(
-    number_of_vertices, number_of_edges, offsets_ptr, indices_ptr, directed, alpha, beta);
-  bfs.configure(distances, predecessors, sp_counters, nullptr);
-  bfs.traverse(start_vertex);
+    int alpha = 15;
+    int beta  = 18;
+    // FIXME: Use VT and ET in the BFS detail
+    cugraph::detail::BFS<VT> bfs(
+      number_of_vertices, number_of_edges, offsets_ptr, indices_ptr, directed, alpha, beta);
+    bfs.configure(distances, predecessors, sp_counters, nullptr);
+    bfs.traverse(start_vertex);
+  }
 }
 
 // Explicit Instantiation

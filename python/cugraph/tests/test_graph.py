@@ -22,6 +22,11 @@ from cudf.tests.utils import assert_eq
 import cugraph
 from cugraph.tests import utils
 
+# MG
+import cugraph.dask as dcg
+from dask_cuda import LocalCUDACluster
+from dask.distributed import Client
+import dask_cudf
 
 # Temporarily suppress warnings till networkX fixes deprecation warnings
 # (Using or importing the ABCs from 'collections' instead of from
@@ -415,6 +420,38 @@ def test_networkx_compatibility(graph_file):
 
 
 # Test
+@pytest.mark.parametrize('graph_file', utils.DATASETS)
+def test_consolidation(graph_file):
+    gc.collect()
+
+    cluster = LocalCUDACluster()
+    client = Client(cluster)
+    chunksize = dcg.get_chunksize(graph_file)
+
+    M = utils.read_csv_for_nx(graph_file)
+
+    df = pd.DataFrame()
+    df['source'] = pd.Series(M['0'])
+    df['target'] = pd.Series(M['1'])
+
+    ddf = dask_cudf.read_csv(graph_file, chunksize=chunksize,
+                             delimiter=' ',
+                             names=['source', 'target', 'weight'],
+                             dtype=['int32', 'int32', 'float32'], header=None)
+
+    Gnx = nx.from_pandas_edgelist(df, source='source', target='target',
+                                  create_using=nx.DiGraph)
+    G = cugraph.from_cudf_edgelist(ddf, source='source', destination='target',
+                                   create_using=cugraph.DiGraph)
+
+    assert compare_graphs(Gnx, G)
+    Gnx.clear()
+    G.clear()
+    client.close()
+    cluster.close()
+
+
+# Test
 @pytest.mark.parametrize('graph_file', utils.DATASETS_2)
 def test_two_hop_neighbors(graph_file):
     gc.collect()
@@ -612,7 +649,7 @@ def test_has_node(graph_file):
     G = cugraph.Graph()
     G.from_cudf_edgelist(cu_M, source='0', destination='1')
 
-    for n in nodes:
+    for n in nodes.values_host:
         assert G.has_node(n)
 
 
@@ -631,8 +668,7 @@ def test_neighbors(graph_file):
 
     Gnx = nx.from_pandas_edgelist(M, source='0', target='1',
                                   create_using=nx.Graph())
-    for n in nodes:
-        print("NODE: ", n)
+    for n in nodes.values_host:
         cu_neighbors = G.neighbors(n).tolist()
         nx_neighbors = [i for i in Gnx.neighbors(n)]
         cu_neighbors.sort()

@@ -271,7 +271,7 @@ else(DEFINED ENV{RAFT_PATH})
 
   ExternalProject_Add(raft
     GIT_REPOSITORY    https://github.com/rapidsai/raft.git
-    GIT_TAG           3038c773636540941b8bf9e30c487f20bddc3cdc
+    GIT_TAG           6391b63cd32f04ac4912edecf62ff2865c529cd9
     PREFIX            ${RAFT_DIR}
     CONFIGURE_COMMAND ""
     BUILD_COMMAND     ""
@@ -323,15 +323,6 @@ add_library(cugraph SHARED
     src/components/connectivity.cu
     src/centrality/katz_centrality.cu
     src/centrality/betweenness_centrality.cu
-    src/nvgraph/kmeans.cu
-    src/nvgraph/lanczos.cu
-    src/nvgraph/spectral_matrix.cu
-    src/nvgraph/modularity_maximization.cu
-    src/nvgraph/nvgraph_cusparse.cpp
-    src/nvgraph/nvgraph_cublas.cpp
-    src/nvgraph/nvgraph_lapack.cu
-    src/nvgraph/nvgraph_vector_kernels.cu
-    src/nvgraph/partition.cu
     src/experimental/bfs.cu
     src/experimental/sssp.cu
     src/experimental/pagerank.cu

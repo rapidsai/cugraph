@@ -261,6 +261,14 @@ if (BUILD_MPI)
 endif(BUILD_MPI)
 
 ###################################################################################################
+#-OPG tests ---------------------------------------------------------------------
+set(LB_TEST_SRC
+    "${CMAKE_SOURCE_DIR}/../thirdparty/mmio/mmio.c"
+    "${CMAKE_CURRENT_SOURCE_DIR}/traversal/load_balance.cu")
+
+ConfigureTest(LB_TEST "${LB_TEST_SRC}" "")
+
+###################################################################################################
 # - Experimental BFS tests ------------------------------------------------------------------------
 
 set(EXPERIMENTAL_BFS_TEST_SRCS

@@ -1,7 +1,7 @@
 from dask.distributed import Client
 import gc
 import cudf
-
+import cugraph.comms as Comms
 import cugraph
 import dask_cudf
 
@@ -12,8 +12,9 @@ from dask_cuda import LocalCUDACluster
 def test_dask_opg_degree():
 
     gc.collect()
-    cluster = LocalCUDACluster(protocol="tcp", scheduler_port=0)
+    cluster = LocalCUDACluster()
     client = Client(cluster)
+    Comms.initialize()
 
     input_data_path = r"../datasets/karate.csv"
 
@@ -36,5 +37,7 @@ def test_dask_opg_degree():
     g.from_cudf_edgelist(df, 'src', 'dst')
 
     assert dg.in_degree().equals(g.in_degree())
+
+    Comms.destroy()
     client.close()
     cluster.close()

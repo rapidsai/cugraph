@@ -11,7 +11,6 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-#
 
 import numpy as np
 from tornado import gen
@@ -126,10 +125,15 @@ def flatten_grouped_results(client, gpu_futures,
 def _extract_partitions(dask_obj, client=None):
 
     client = default_client() if client is None else client
-
     # dask.dataframe or dask.array
     if isinstance(dask_obj, (daskDataFrame, daskArray, daskSeries)):
-        persisted = client.persist(dask_obj)
+        worker_addresses = list(OrderedDict.fromkeys(
+            client.scheduler_info()["workers"].keys()))
+        _keys = dask_obj.__dask_keys__()
+        worker_dict = {}
+        for i, key in enumerate(_keys):
+            worker_dict[str(key)] = tuple([worker_addresses[i]])
+        persisted = client.persist(dask_obj, workers=worker_dict)
         parts = futures_of(persisted)
 
     # iterable of dask collections (need to colocate them)
@@ -180,6 +184,7 @@ def repartition(ddf, cumsum):
     count = math.ceil(len(ddf)/npartitions)
     new_divisions = [0]
     move_count = 0
+    i = npartitions - 2
     for i in range(npartitions-1):
         search_val = count - move_count
         index = cumsum[i].searchsorted(search_val)
@@ -207,7 +212,14 @@ def load_balance_func(ddf_, by, client=None):
 
     client = default_client() if client is None else client
 
-    persisted = client.persist(ddf_)
+    worker_addresses = list(OrderedDict.fromkeys(
+        client.scheduler_info()["workers"].keys()))
+    _keys = ddf_.__dask_keys__()
+    worker_dict = {}
+    for i, key in enumerate(_keys):
+        worker_dict[str(key)] = tuple([worker_addresses[i]])
+
+    persisted = client.persist(ddf_, workers=worker_dict)
     parts = futures_of(persisted)
     wait(parts)
 
