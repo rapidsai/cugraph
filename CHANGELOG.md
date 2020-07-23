@@ -41,6 +41,7 @@
 - PR #1007 Add tolerance support to MG Pagerank and fix
 - PR #1009 Update benchmarks script to include requirements used
 - PR #1014 Fix benchmarks script variable name
+- PR #     Changed ECG implementation based on issue #915 - updated Louvain to honor max_iter, ECG now calls Louvain for 1 level, then full run.
 
 ## Bug Fixes
 - PR #936 Update Force Atlas 2 doc and wrapper
@@ -51,7 +52,7 @@
 - PR #992 Fix unrenumber of predecessor
 - PR #1008 Fix for cudf updates disabling iteration of Series/Columns/Index
 - PR #1012 Fix Local build script README
- 
+
 # cuGraph 0.14.0 (03 Jun 2020)
 
 ## New Features
