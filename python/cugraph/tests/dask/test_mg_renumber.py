@@ -119,54 +119,6 @@ def test_opg_renumber2(graph_file, client_connection):
     assert check_dst["1"].to_pandas().equals(gdf["dst_old"].to_pandas())
 
 
-def test_dask_pagerank(client_connection):
-    gc.collect()
-
-    pandas.set_option('display.max_rows', 10000)
-
-    input_data_path = r"../datasets/karate.csv"
-    chunksize = dcg.get_chunksize(input_data_path)
-
-    ddf = dask_cudf.read_csv(input_data_path, chunksize=chunksize,
-                             delimiter=' ',
-                             names=['src', 'dst', 'value'],
-                             dtype=['int32', 'int32', 'float32'])
-
-    df = cudf.read_csv(input_data_path,
-                       delimiter=' ',
-                       names=['src', 'dst', 'value'],
-                       dtype=['int32', 'int32', 'float32'])
-
-    g = cugraph.DiGraph()
-    g.from_cudf_edgelist(df, 'src', 'dst')
-
-    dg = cugraph.DiGraph()
-    dg.from_dask_cudf_edgelist(ddf)
-
-    # Pre compute local data
-    # dg.compute_local_data(by='dst')
-
-    expected_pr = cugraph.pagerank(g)
-    result_pr = dcg.pagerank(dg)
-
-    err = 0
-    tol = 1.0e-05
-
-    assert len(expected_pr) == len(result_pr)
-
-    compare_pr = expected_pr.merge(
-        result_pr, on="vertex", suffixes=['_local', '_dask']
-    )
-
-    for i in range(len(compare_pr)):
-        diff = abs(compare_pr['pagerank_local'].iloc[i] -
-                   compare_pr['pagerank_dask'].iloc[i])
-        if diff > tol * 1.1:
-            err = err + 1
-    print("Mismatches:", err)
-    assert err == 0
-
-
 # Test all combinations of default/managed and pooled/non-pooled allocation
 @pytest.mark.parametrize("graph_file", utils.DATASETS)
 def test_opg_renumber3(graph_file, client_connection):
