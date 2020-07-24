@@ -5,6 +5,7 @@
 - PR #939 Updated Notebooks to include new features and benchmarks
 - PR #944 MG pagerank (dask)
 - PR #947 MG pagerank (CUDA)
+- PR #826 Bipartite Graph python API
 - PR #963 Renumbering refactor, add multi GPU support
 - PR #964 MG BFS (CUDA)
 - PR #990 MG Consolidation
