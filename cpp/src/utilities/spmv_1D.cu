@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
+#include <raft/spectral/matrix_wrappers.hpp>
 #include "spmv_1D.cuh"
 
 namespace cugraph {
@@ -58,7 +58,20 @@ void OPGcsrmv<VT, ET, WT>::run(WT *x)
 {
   WT h_one  = 1.0;
   WT h_zero = 0.0;
-  spmv.run(v_loc, v_glob, e_loc, &h_one, val, off, ind, x, &h_zero, y_loc.data().get());
+
+  {
+    raft::handle_t handle;
+
+    raft::matrix::sparse_matrix_t<VT, WT> mat{handle,
+                                              /*ro=*/off,
+                                              /*ci=*/ind,
+                                              val,
+                                              /*nr=*/static_cast<VT>(v_loc),
+                                              /*nc=*/static_cast<VT>(v_glob),
+                                              /*nnz=*/static_cast<VT>(e_loc)};
+    mat.mv(/*alpha=*/h_one, x, /*beta=*/h_zero, y_loc.data().get());
+  }
+  /// spmv.run(v_loc, v_glob, e_loc, &h_one, val, off, ind, x, &h_zero, y_loc.data().get());
   // FIXME https://github.com/rapidsai/raft/issues/21
   size_t recvbuf[comm.get_size()];
   for (int i = 0; i < comm.get_size(); i++) recvbuf[i] = local_vertices[i];
