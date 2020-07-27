@@ -53,6 +53,7 @@
 - PR #992 Fix unrenumber of predecessor
 - PR #1008 Fix for cudf updates disabling iteration of Series/Columns/Index
 - PR #1012 Fix Local build script README
+- PR #1022 Fix support for using a cudf.DataFrame with a MG graph
  
 # cuGraph 0.14.0 (03 Jun 2020)
 

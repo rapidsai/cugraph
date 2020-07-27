@@ -94,7 +94,7 @@ class NumberMap:
             index_name = NumberMap.generate_unused_column_name(df.columns)
             tmp_df[index_name] = tmp_df.index
             return (
-                tmp_df.merge(self.df, on=self.col_names, how="left")
+                self.df.merge(tmp_df, on=self.col_names, how="right")
                 .sort_values(index_name)
                 .drop(columns=[index_name])
                 .reset_index()["id"]
@@ -119,16 +119,16 @@ class NumberMap:
                 merge_df = self.df
 
             if col_names is None:
-                ret = tmp_df.merge(merge_df, on=self.col_names, how="left")
+                ret = merge_df.merge(tmp_df, on=self.col_names, how="right")
             elif col_names == self.col_names:
-                ret = tmp_df.merge(merge_df, on=self.col_names, how="left")
+                ret = merge_df.merge(tmp_df, on=self.col_names, how="right")
             else:
                 ret = (
-                    tmp_df.merge(
-                        merge_df,
-                        left_on=col_names,
-                        right_on=self.col_names,
-                        how="left",
+                    merge_df.merge(
+                        tmp_df,
+                        right_on=col_names,
+                        left_on=self.col_names,
+                        how="right",
                     )
                     .drop(columns=self.col_names)
                 )
@@ -148,11 +148,11 @@ class NumberMap:
         def from_internal_vertex_id(
             self, df, internal_column_name, external_column_names
         ):
-            tmp_df = df.merge(
-                self.df,
-                left_on=internal_column_name,
-                right_on="id",
-                how="left",
+            tmp_df = self.df.merge(
+                df,
+                right_on=internal_column_name,
+                left_on="id",
+                how="right",
             )
             if internal_column_name != "id":
                 tmp_df = tmp_df.drop(columns=["id"])
@@ -301,11 +301,11 @@ class NumberMap:
                 self.numbered = True
 
         def to_internal_vertex_id(self, ddf, col_names):
-            return ddf.merge(
-                self.ddf,
-                left_on=col_names,
-                right_on=self.col_names,
-                how="left",
+            return self.ddf.merge(
+                ddf,
+                right_on=col_names,
+                left_on=self.col_names,
+                how="right",
             )["global_id"]
 
         def add_internal_vertex_id(self, ddf, id_column_name, col_names, drop,
@@ -317,16 +317,16 @@ class NumberMap:
 
             ret = None
             if col_names is None:
-                ret = ddf.merge(
-                    self.ddf, on=self.col_names, how="left"
+                ret = self.ddf.merge(
+                    ddf, on=self.col_names, how="right"
                 )
             elif col_names == self.col_names:
-                ret = ddf.merge(
-                    self.ddf, on=col_names, how="left"
+                ret = self.ddf.merge(
+                    ddf, on=col_names, how="right"
                 )
             else:
-                ret = ddf.merge(
-                    self.ddf, left_on=col_names, right_on=self.col_names
+                ret = self.ddf.merge(
+                    ddf, right_on=col_names, left_on=self.col_names
                 ).map_partitions(
                     lambda df: df.drop(columns=self.col_names)
                 )
