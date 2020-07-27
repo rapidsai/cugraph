@@ -705,6 +705,41 @@ def test_has_node(graph_file):
         assert G.has_node(n)
 
 
+# Test all combinations of default/managed and pooled/non-pooled allocation
+@pytest.mark.parametrize('graph_file', utils.DATASETS_2)
+def test_bipartite_api(graph_file):
+    # This test only tests the functionality of adding set of nodes and
+    # retrieving them. The datasets currently used are not truly bipartite.
+    gc.collect()
+
+    cu_M = utils.read_csv_file(graph_file)
+    nodes = cudf.concat([cu_M['0'], cu_M['1']]).unique()
+
+    # Create set of nodes for partition
+    set1_exp = cudf.Series(nodes[0:int(len(nodes)/2)])
+    set2_exp = cudf.Series(set(nodes.values_host)
+                           - set(set1_exp.values_host))
+
+    G = cugraph.Graph()
+    assert not G.is_bipartite()
+
+    # Add a set of nodes present in one partition
+    G.add_nodes_from(set1_exp, bipartite='set1')
+    G.from_cudf_edgelist(cu_M, source='0', destination='1')
+
+    # Check if Graph is bipartite. It should return True since we have
+    # added the partition in add_nodes_from()
+    assert G.is_bipartite()
+
+    # Call sets() to get the bipartite set of nodes.
+    set1, set2 = G.sets()
+
+    # assert if the input set1_exp is same as returned bipartite set1
+    assert set1.equals(set1_exp)
+    # assert if set2 is the remaining set of nodes not in set1_exp
+    assert set2.equals(set2_exp)
+
+
 # Test
 @pytest.mark.parametrize("graph_file", utils.DATASETS)
 def test_neighbors(graph_file):

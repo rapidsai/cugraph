@@ -87,7 +87,9 @@ class Graph:
         """
         self.symmetrized = symmetrized
         self.renumbered = False
-        self.bipartite = bipartite
+        self.bipartite = False
+        self.multipartite = False
+        self._nodes = {}
         self.multi = multi
         self.distributed = False
         self.dynamic = dynamic
@@ -121,6 +123,82 @@ class Graph:
         self.edgelist = None
         self.adjlist = None
         self.transposedadjlist = None
+
+    def add_nodes_from(self, nodes, bipartite=None, multipartite=None):
+        """
+        Add nodes information to the Graph.
+
+        Parameters
+        ----------
+        nodes : list or cudf.Series
+            The nodes of the graph to be stored. If bipartite and multipartite
+            arguments are not passed, the nodes are considered to be a list of
+            all the nodes present in the Graph.
+        bipartite : str
+            Sets the Graph as bipartite. The nodes are stored as a set of nodes
+            of the partition named as bipartite argument.
+        multipartite : str
+            Sets the Graph as multipartite. The nodes are stored as a set of
+            nodes of the partition named as multipartite argument.
+        """
+        if bipartite is None and multipartite is None:
+            self._nodes['all_nodes'] = cudf.Series(nodes)
+        else:
+            set_names = [i for i in self._nodes.keys() if i != 'all_nodes']
+            if multipartite is not None:
+                if self.bipartite:
+                    raise Exception("The Graph is already set as bipartite. "
+                                    "Use bipartite option instead.")
+                self.multipartite = True
+            elif bipartite is not None:
+                if self.multipartite:
+                    raise Exception("The Graph is set as multipartite. "
+                                    "Use multipartite option instead.")
+                self.bipartite = True
+                multipartite = bipartite
+                if multipartite not in set_names and len(set_names) == 2:
+                    raise Exception("The Graph is set as bipartite and "
+                                    "already has two partitions initialized.")
+            self._nodes[multipartite] = cudf.Series(nodes)
+
+    def is_bipartite(self):
+        """
+        Checks if Graph is bipartite. This solely relies on the user call of
+        add_nodes_from with the bipartite parameter. This does not parse the
+        graph to check if it is bipartite.
+        """
+        # TO DO: Call coloring algorithm
+        return self.bipartite
+
+    def is_multipartite(self):
+        """
+        Checks if Graph is multipartite. This solely relies on the user call
+        of add_nodes_from with the partition parameter. This does not parse
+        the graph to check if it is multipartite.
+        """
+        # TO DO: Call coloring algorithm
+        return self.multipartite or self.bipartite
+
+    def sets(self):
+        """
+        Returns the bipartite set of nodes. This solely relies on the user's
+        call of add_nodes_from with the bipartite parameter. This does not
+        parse the graph to compute bipartite sets. If bipartite argument was
+        not provided during add_nodes_from(), it raise an exception that the
+        graph is not bipartite.
+        """
+        # TO DO: Call coloring algorithm
+        set_names = [i for i in self._nodes.keys() if i != 'all_nodes']
+        if self.bipartite:
+            top = self._nodes[set_names[0]]
+            if len(set_names) == 2:
+                bottom = self._nodes[set_names[1]]
+            else:
+                bottom = cudf.Series(set(self.nodes().values_host)
+                                     - set(top.values_host))
+            return top, bottom
+        else:
+            return {k: self._nodes[k] for k in set_names}
 
     def from_cudf_edgelist(
         self,
@@ -943,18 +1021,25 @@ class Graph:
         """
         if self.distributed:
             raise Exception("Not supported for distributed graph")
-        if self.edgelist is None:
-            raise Exception("Graph has no Edgelist.")
-        df = self.edgelist.edgelist_df
-        if self.renumbered:
-            # FIXME: If vertices are multicolumn
-            #        this needs to return a dataframe
-            # FIXME: This relies un current implementation
-            #        of NumberMap, should not really expose
-            #        this, perhaps add a method to NumberMap
-            return self.renumber_map.implementation.df["0"]
+        if self.edgelist is not None:
+            df = self.edgelist.edgelist_df
+            if self.renumbered:
+                # FIXME: If vertices are multicolumn
+                #        this needs to return a dataframe
+                # FIXME: This relies un current implementation
+                #        of NumberMap, should not really expose
+                #        this, perhaps add a method to NumberMap
+                return self.renumber_map.implementation.df["0"]
+            else:
+                return cudf.concat([df["src"], df["dst"]]).unique()
+        if 'all_nodes' in self._nodes.keys():
+            return self._nodes['all_nodes']
         else:
-            return cudf.concat([df["src"], df["dst"]]).unique()
+            n = cudf.Series(dtype='int')
+            set_names = [i for i in self._nodes.keys() if i != 'all_nodes']
+            for k in set_names:
+                n = n.append(self._nodes[k])
+            return n
 
     def neighbors(self, n):
         if self.edgelist is None:
