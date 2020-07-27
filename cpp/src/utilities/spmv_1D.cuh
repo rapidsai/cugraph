@@ -28,7 +28,7 @@ class OPGcsrmv {
   size_t v_glob;
   size_t v_loc;
   size_t e_loc;
-  const raft::comms::comms_t& comm;
+  raft::comms::comms_t const& comm;
   VT* part_off;
   VT* local_vertices;
   int i;
@@ -40,10 +40,12 @@ class OPGcsrmv {
   std::vector<size_t> v_locs_h;
   std::vector<VT> displs_h;
 
-  cudaStream_t stream;
+  /// cudaStream_t stream;
+  raft::handle_t const& handle;  // raft handle propagation for SpMV, etc.
 
  public:
-  OPGcsrmv(const raft::comms::comms_t& comm,
+  OPGcsrmv(raft::handle_t const& handle_,
+           raft::comms::comms_t const& comm,
            VT* local_vertices,
            VT* part_off,
            ET* off_,

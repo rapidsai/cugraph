@@ -19,7 +19,8 @@
 namespace cugraph {
 namespace opg {
 template <typename VT, typename ET, typename WT>
-OPGcsrmv<VT, ET, WT>::OPGcsrmv(const raft::comms::comms_t &comm_,
+OPGcsrmv<VT, ET, WT>::OPGcsrmv(raft::handle_t const &handle_,
+                               const raft::comms::comms_t &comm_,
                                VT *local_vertices_,
                                VT *part_off_,
                                ET *off_,
@@ -31,9 +32,10 @@ OPGcsrmv<VT, ET, WT>::OPGcsrmv(const raft::comms::comms_t &comm_,
     part_off(part_off_),
     off(off_),
     ind(ind_),
-    val(val_)
+    val(val_),
+    handle(handle_)
 {
-  stream = nullptr;
+  /// stream = nullptr;
   i      = comm.get_rank();
   p      = comm.get_size();
   v_glob = part_off[p - 1] + local_vertices[p - 1];
@@ -57,23 +59,21 @@ void OPGcsrmv<VT, ET, WT>::run(WT *x)
   WT h_one  = 1.0;
   WT h_zero = 0.0;
 
-  {
-    raft::handle_t handle;
+  sparse_matrix_t<VT, WT> mat{handle,
+                              off,                      // CSR row_offsets
+                              ind,                      // CSR col_indices
+                              val,                      // CSR values
+                              static_cast<VT>(v_loc),   // n_rows
+                              static_cast<VT>(v_glob),  // n_cols
+                              static_cast<VT>(e_loc)};  // nnz
 
-    sparse_matrix_t<VT, WT> mat{handle,
-                                off,                      // CSR row_offsets
-                                ind,                      // CSR col_indices
-                                val,                      // CSR values
-                                static_cast<VT>(v_loc),   // n_rows
-                                static_cast<VT>(v_glob),  // n_cols
-                                static_cast<VT>(e_loc)};  // nnz
+  mat.mv(h_one,                             // alpha
+         x,                                 // x
+         h_zero,                            // beta
+         y_loc.data().get(),                // y
+         sparse_mv_alg_t::SPARSE_MV_ALG2);  // SpMV algorithm
 
-    mat.mv(h_one,                             // alpha
-           x,                                 // x
-           h_zero,                            // beta
-           y_loc.data().get(),                // y
-           sparse_mv_alg_t::SPARSE_MV_ALG2);  // SpMV algorithm
-  }
+  auto stream = handle.get_stream();
 
   std::vector<size_t> recvbuf(comm.get_size());
   std::copy(local_vertices, local_vertices + comm.get_size(), recvbuf.begin());

@@ -55,6 +55,7 @@ class Pagerank {
   rmm::device_vector<WT> prev_pr;   // record the last pagerank for convergence check
 
   bool is_setup;
+  raft::handle_t const &handle;  // raft handle propagation for SpMV, etc.
 
  public:
   Pagerank(const raft::handle_t &handle, const GraphCSCView<VT, ET, WT> &G);
