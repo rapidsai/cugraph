@@ -32,7 +32,7 @@ class Graph:
 
     class EdgeList:
         def __init__(self, *args):
-            if len(args) <= 2:
+            if len(args) == 1:
                 self.__from_dask_cudf(*args)
             else:
                 self.__from_cudf(*args)
@@ -52,8 +52,8 @@ class Graph:
                 else:
                     self.edgelist_df['weights'] = edge_attr
 
-        def __from_dask_cudf(self, ddf, renumber_map=None):
-            self.renumber_map = renumber_map
+        def __from_dask_cudf(self, ddf):
+            self.renumber_map = None
             self.edgelist_df = ddf
             self.weights = False
             # FIXME: Edge Attribute not handled
@@ -84,12 +84,16 @@ class Graph:
         >>> G = cuGraph.Graph()
 
         """
+        # DBG
+        self.mg_batch_enabled = False
+        self.mg_batch_edgelists = None
+        # DBG
+
         self.symmetrized = symmetrized
         self.renumbered = False
         self.bipartite = bipartite
         self.multi = multi
         self.distributed = False
-        self.replicatable = False
         self.dynamic = dynamic
         self.edgelist = None
         self.adjlist = None
@@ -110,6 +114,20 @@ class Graph:
  and DiGraph can be initialized using MultiDiGraph"
                 raise Exception(msg)
         # self.number_of_vertices = None
+
+    def enable_mg_batch(self):
+        import dask_cudf
+        import time
+        from cugraph.dask.common.mg_utils import mg_get_client
+        self.mg_batch_enabled = True
+        client = mg_get_client()
+        assert self.edgelist is not None, 'There should be at least an edgelist'
+        start = time.perf_counter()
+        _mg_batch_edgelist = dask_cudf.from_cudf(self.edgelist.edgelist_df,
+                                                 npartitions=1)
+        client.persist(_mg_batch_edgelist)
+        self.mg_batch_edgelists = _mg_batch_edgelist # DBG: Here for dask level replication
+        print("[DBG] Enabled Multi-GPU Batch")
 
     def clear(self):
         """
@@ -251,61 +269,11 @@ class Graph:
         if not isinstance(input_ddf, dask_cudf.DataFrame):
             raise Exception('input should be a dask_cudf dataFrame')
         self.distributed = True
-        self.replicatable = (input_ddf.npartitions == 1)
         self.local_data = None
 
-        if not self.replicatable:  # MG Distributed
-            if type(self) is Graph:
-                raise Exception('Undirected distributed graph not supported')
-            self.edgelist = self.EdgeList(input_ddf)
-        else:  # MG Batch
-            renumber = True  # FIXME: Handle option
-            edge_attr = None  # FIXME: Handle weights attributes
-            source = 'src'
-            destination = 'dst'
-            if self.multi:
-                if type(edge_attr) is not list:
-                    raise Exception('edge_attr should be a list of column'
-                                    'names')
-                value_col = {}
-                for col_name in edge_attr:
-                    value_col[col_name] = input_ddf[col_name]
-            elif edge_attr is not None:
-                value_col = input_ddf[edge_attr]
-            else:
-                value_col = None
-            renumber_map = None
-            if renumber:
-                if type(source) is list and type(destination) is list:
-                    source_col, dest_col, renumber_map = multi_rnb(input_ddf,
-                                                                   source,
-                                                                   destination)
-                else:
-                    source_col, dest_col, renumber_map = rnb(
-                        input_ddf[source].compute(),
-                        input_ddf[destination].compute())
-                self.renumbered = True
-            else:
-                if type(source) is list and type(destination) is list:
-                    raise Exception('set renumber to True for multi column'
-                                    'ids')
-                else:
-                    source_col = input_ddf[source]
-                    dest_col = input_ddf[destination]
-            if not self.symmetrized and not self.multi:
-                if value_col is not None:
-                    source_col, dest_col, value_col = symmetrize(source_col,
-                                                                 dest_col,
-                                                                 value_col)
-                else:
-                    source_col, dest_col = symmetrize(source_col, dest_col)
-
-            df = dask.delayed(cudf.DataFrame)({'src': source_col,
-                                               'dst': dest_col},
-                                              dtype=np.int32)
-            new_ddf = dask_cudf.from_cudf(df.compute(), npartitions=1)
-            new_ddf = new_ddf.persist()
-            self.edgelist = Graph.EdgeList(new_ddf, renumber_map)
+        if type(self) is Graph:
+            raise Exception('Undirected distributed graph not supported')
+        self.edgelist = self.EdgeList(input_ddf)
 
     def compute_local_data(self, by, load_balance=True):
         """

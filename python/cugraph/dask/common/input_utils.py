@@ -252,7 +252,8 @@ def get_local_data(input_graph, by, load_balance=True):
 
 
 def get_mg_batch_local_data(input_graph):
-    ddf = input_graph.edgelist.edgelist_df
+    #ddf = input_graph.edgelist.edgelist_df
+    ddf = input_graph.mg_batch_edgelists
 
     comms = Comms.get_comms()
     data = DistributedDataHandler.create(data=ddf)

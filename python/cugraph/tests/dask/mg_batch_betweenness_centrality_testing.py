@@ -25,7 +25,7 @@ from cugraph.tests.test_betweenness_centrality import (
 # =============================================================================
 # Parameters
 # =============================================================================
-MG_DEVICE_COUNT_OPTIONS = [1, 2, 3, 4]
+MG_DEVICE_COUNT_OPTIONS = [4] #[1, 2, 3, 4]
 
 
 # FIXME: The following creates and destroys Comms at every call making the

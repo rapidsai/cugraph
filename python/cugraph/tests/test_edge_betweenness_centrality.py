@@ -108,13 +108,10 @@ def calc_edge_betweenness_centrality(graph_file,
     """
     G = None
     Gnx = None
-
-    if multi_gpu_batch:
-        G, Gnx = utils.build_mg_batch_cu_and_nx_graphs(graph_file,
-                                                       directed=directed)
-    else:
-        G, Gnx = utils.build_cu_and_nx_graphs(graph_file, directed=directed)
+    G, Gnx = utils.build_cu_and_nx_graphs(graph_file, directed=directed)
     assert G is not None and Gnx is not None
+    if multi_gpu_batch:
+        G.enable_mg_batch()
 
     if k is not None and seed is not None:
         calc_func = _calc_bc_subset

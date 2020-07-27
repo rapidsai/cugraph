@@ -33,6 +33,8 @@ import dask_cudf
 import dask_cuda
 import cugraph.raft
 
+import time # DBG
+
 import cugraph.comms.comms as Comms
 from cugraph.dask.common.mg_utils import (mg_get_client, is_worker_organizer)
 from cugraph.raft.dask.common.comms import worker_state
@@ -60,6 +62,7 @@ def get_batch(sources, number_of_workers, current_worker):
 def run_work(input_data, normalized, endpoints,
              weights, sources,
              result_dtype, session_id):
+    # start = time.perf_counter() DBG
     result = None
     # 1. Get session information
     session_state = worker_state(session_id)
@@ -85,7 +88,7 @@ def run_work(input_data, normalized, endpoints,
         result = run_regular_work(handle, normalized, endpoints,
                                   weights, batch,
                                   total_number_of_sources, result_dtype)
-
+    # print("[DBG] Run work ", is_organizer, time.perf_counter() - start)
     return result
 
 
@@ -299,6 +302,7 @@ def mg_batch_betweenness_centrality(client, comms, input_graph, normalized, endp
     for placeholder, worker in enumerate(client.has_what().keys()):
         if worker not in  data.worker_to_parts:
             data.worker_to_parts[worker] = [[placeholder], None]
+    # start = time.perf_counter() # DBG
     work_futures =  [client.submit(run_work,
                                    (wf[1], data.local_data, type(input_graph)
                                     is DiGraph),
@@ -310,7 +314,9 @@ def mg_batch_betweenness_centrality(client, comms, input_graph, normalized, endp
                                    comms.sessionId,
                                    workers=[wf[0]]) for
                      idx, wf in enumerate(data.worker_to_parts.items())]
+    # print("Inner MG call submit: ", time.perf_counter() - start) # DBG
     dask.distributed.wait(work_futures)
+    # print("Inner MG call wait: ", time.perf_counter() - start) # DBG
     df = work_futures[0].result()
     return df
 
@@ -337,12 +343,14 @@ def betweenness_centrality(input_graph, normalized, endpoints, weights,
     client = mg_get_client()
     comms = Comms.get_comms()
     if comms:
-        assert input_graph.replicatable == True, "To run Batch Analytics on " \
+        assert input_graph.mg_batch_enabled == True, "To run Batch Analytics on " \
             "Multi GPU, the graph needs to be "     \
             "located on a single GPU"
+        start = time.perf_counter() # DBG
         df = mg_batch_betweenness_centrality(client, comms, input_graph, normalized,
                                              endpoints, weights, vertices,
                                              result_dtype)
+        print("MG call: ", time.perf_counter() - start) # DBG
     else:
         df = sg_betweenness_centrality(input_graph, normalized, endpoints,
                                        weights, vertices, result_dtype)
