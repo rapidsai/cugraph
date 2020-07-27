@@ -56,26 +56,32 @@ OPGcsrmv<VT, ET, WT>::~OPGcsrmv()
 template <typename VT, typename ET, typename WT>
 void OPGcsrmv<VT, ET, WT>::run(WT *x)
 {
+  using namespace raft::matrix;
+
   WT h_one  = 1.0;
   WT h_zero = 0.0;
 
   {
     raft::handle_t handle;
 
-    raft::matrix::sparse_matrix_t<VT, WT> mat{handle,
-                                              /*ro=*/off,
-                                              /*ci=*/ind,
-                                              val,
-                                              /*nr=*/static_cast<VT>(v_loc),
-                                              /*nc=*/static_cast<VT>(v_glob),
-                                              /*nnz=*/static_cast<VT>(e_loc)};
-    mat.mv(/*alpha=*/h_one, x, /*beta=*/h_zero, y_loc.data().get());
+    sparse_matrix_t<VT, WT> mat{handle,
+                                off,                      // CSR row_offsets
+                                ind,                      // CSR col_indices
+                                val,                      // CSR values
+                                static_cast<VT>(v_loc),   // n_rows
+                                static_cast<VT>(v_glob),  // n_cols
+                                static_cast<VT>(e_loc)};  // nnz
+
+    mat.mv(h_one,                             // alpha
+           x,                                 // x
+           h_zero,                            // beta
+           y_loc.data().get(),                // y
+           sparse_mv_alg_t::SPARSE_MV_ALG2);  // SpMV algorithm
   }
-  /// spmv.run(v_loc, v_glob, e_loc, &h_one, val, off, ind, x, &h_zero, y_loc.data().get());
-  // FIXME https://github.com/rapidsai/raft/issues/21
-  size_t recvbuf[comm.get_size()];
-  for (int i = 0; i < comm.get_size(); i++) recvbuf[i] = local_vertices[i];
-  comm.allgatherv(y_loc.data().get(), x, recvbuf, part_off, stream);
+
+  std::vector<size_t> recvbuf(comm.get_size());
+  std::copy(local_vertices, local_vertices + comm.get_size(), recvbuf.begin());
+  comm.allgatherv(y_loc.data().get(), x, recvbuf.data(), part_off, stream);
 }
 
 template class OPGcsrmv<int, int, double>;
