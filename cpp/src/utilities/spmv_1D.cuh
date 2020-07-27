@@ -17,7 +17,7 @@
 #pragma once
 #include <rmm/thrust_rmm_allocator.h>
 #include <raft/handle.hpp>
-#include "utilities/cusparse_helper.h"
+///#include "utilities/cusparse_helper.h"
 // FIXME : use RAFT cusparse wrapper
 // The wrapper is about to be upgraded in RAFT
 // better wait for it to be stable before building on top of it
@@ -47,7 +47,7 @@ class OPGcsrmv {
 
   cudaStream_t stream;
 
-  cugraph::detail::CusparseCsrMV<WT> spmv;
+  /// cugraph::detail::CusparseCsrMV<WT> spmv;
 
  public:
   OPGcsrmv(const raft::comms::comms_t& comm,

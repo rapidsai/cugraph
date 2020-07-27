@@ -42,10 +42,10 @@ OPGcsrmv<VT, ET, WT>::OPGcsrmv(const raft::comms::comms_t &comm_,
   CUDA_TRY(cudaMemcpy(&tmp, &off[v_loc], sizeof(VT), cudaMemcpyDeviceToHost));
   e_loc = tmp;
   y_loc.resize(v_loc);
-  WT h_one  = 1.0;
-  WT h_zero = 0.0;
+  /// WT h_one  = 1.0;
+  /// WT h_zero = 0.0;
 
-  spmv.setup(v_loc, v_glob, e_loc, &h_one, val, off, ind, x, &h_zero, y_loc.data().get());
+  /// spmv.setup(v_loc, v_glob, e_loc, &h_one, val, off, ind, x, &h_zero, y_loc.data().get());
 }
 
 template <typename VT, typename ET, typename WT>

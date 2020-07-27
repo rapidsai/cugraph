@@ -297,7 +297,7 @@ add_library(cugraph SHARED
     src/db/db_object.cu
     src/db/db_parser_integration_test.cu
     src/db/db_operators.cu
-    src/utilities/cusparse_helper.cu
+    # src/utilities/cusparse_helper.cu
     src/utilities/spmv_1D.cu
     src/structure/graph.cu
     src/link_analysis/pagerank.cu
@@ -319,7 +319,7 @@ add_library(cugraph SHARED
     src/community/extract_subgraph_by_vertex.cu
     src/cores/core_number.cu
     src/traversal/two_hop_neighbors.cu
-    src/utilities/cusparse_helper.cu
+    # src/utilities/cusparse_helper.cu
     src/components/connectivity.cu
     src/centrality/katz_centrality.cu
     src/centrality/betweenness_centrality.cu
