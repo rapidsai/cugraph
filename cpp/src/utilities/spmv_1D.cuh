@@ -22,40 +22,39 @@
 namespace cugraph {
 namespace opg {
 
-template <typename VT, typename ET, typename WT>
+template <typename vertex_t, typename edge_t, typename weight_t>
 class OPGcsrmv {
  private:
   size_t v_glob;
   size_t v_loc;
   size_t e_loc;
   raft::comms::comms_t const& comm;
-  VT* part_off;
-  VT* local_vertices;
+  vertex_t* part_off;
+  vertex_t* local_vertices;
   int i;
   int p;
-  ET* off;
-  VT* ind;
-  WT* val;
-  rmm::device_vector<WT> y_loc;
+  edge_t* off;
+  vertex_t* ind;
+  weight_t* val;
+  rmm::device_vector<weight_t> y_loc;
   std::vector<size_t> v_locs_h;
-  std::vector<VT> displs_h;
+  std::vector<vertex_t> displs_h;
 
-  /// cudaStream_t stream;
   raft::handle_t const& handle;  // raft handle propagation for SpMV, etc.
 
  public:
   OPGcsrmv(raft::handle_t const& handle_,
            raft::comms::comms_t const& comm,
-           VT* local_vertices,
-           VT* part_off,
-           ET* off_,
-           VT* ind_,
-           WT* val_,
-           WT* x);
+           vertex_t* local_vertices,
+           vertex_t* part_off,
+           edge_t* off_,
+           vertex_t* ind_,
+           weight_t* val_,
+           weight_t* x);
 
   ~OPGcsrmv();
 
-  void run(WT* x);
+  void run(weight_t* x);
 };
 
 }  // namespace opg

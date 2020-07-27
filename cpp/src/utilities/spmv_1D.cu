@@ -18,15 +18,15 @@
 
 namespace cugraph {
 namespace opg {
-template <typename VT, typename ET, typename WT>
-OPGcsrmv<VT, ET, WT>::OPGcsrmv(raft::handle_t const &handle_,
-                               const raft::comms::comms_t &comm_,
-                               VT *local_vertices_,
-                               VT *part_off_,
-                               ET *off_,
-                               VT *ind_,
-                               WT *val_,
-                               WT *x)
+template <typename vertex_t, typename edge_t, typename weight_t>
+OPGcsrmv<vertex_t, edge_t, weight_t>::OPGcsrmv(raft::handle_t const &handle_,
+                                               const raft::comms::comms_t &comm_,
+                                               vertex_t *local_vertices_,
+                                               vertex_t *part_off_,
+                                               edge_t *off_,
+                                               vertex_t *ind_,
+                                               weight_t *val_,
+                                               weight_t *x)
   : comm(comm_),
     local_vertices(local_vertices_),
     part_off(part_off_),
@@ -35,37 +35,36 @@ OPGcsrmv<VT, ET, WT>::OPGcsrmv(raft::handle_t const &handle_,
     val(val_),
     handle(handle_)
 {
-  /// stream = nullptr;
   i      = comm.get_rank();
   p      = comm.get_size();
   v_glob = part_off[p - 1] + local_vertices[p - 1];
   v_loc  = local_vertices[i];
-  VT tmp;
-  CUDA_TRY(cudaMemcpy(&tmp, &off[v_loc], sizeof(VT), cudaMemcpyDeviceToHost));
+  vertex_t tmp;
+  CUDA_TRY(cudaMemcpy(&tmp, &off[v_loc], sizeof(vertex_t), cudaMemcpyDeviceToHost));
   e_loc = tmp;
   y_loc.resize(v_loc);
 }
 
-template <typename VT, typename ET, typename WT>
-OPGcsrmv<VT, ET, WT>::~OPGcsrmv()
+template <typename vertex_t, typename edge_t, typename weight_t>
+OPGcsrmv<vertex_t, edge_t, weight_t>::~OPGcsrmv()
 {
 }
 
-template <typename VT, typename ET, typename WT>
-void OPGcsrmv<VT, ET, WT>::run(WT *x)
+template <typename vertex_t, typename edge_t, typename weight_t>
+void OPGcsrmv<vertex_t, edge_t, weight_t>::run(weight_t *x)
 {
   using namespace raft::matrix;
 
-  WT h_one  = 1.0;
-  WT h_zero = 0.0;
+  weight_t h_one  = 1.0;
+  weight_t h_zero = 0.0;
 
-  sparse_matrix_t<VT, WT> mat{handle,
-                              off,                      // CSR row_offsets
-                              ind,                      // CSR col_indices
-                              val,                      // CSR values
-                              static_cast<VT>(v_loc),   // n_rows
-                              static_cast<VT>(v_glob),  // n_cols
-                              static_cast<VT>(e_loc)};  // nnz
+  sparse_matrix_t<vertex_t, weight_t> mat{handle,
+                                          off,                            // CSR row_offsets
+                                          ind,                            // CSR col_indices
+                                          val,                            // CSR values
+                                          static_cast<vertex_t>(v_loc),   // n_rows
+                                          static_cast<vertex_t>(v_glob),  // n_cols
+                                          static_cast<vertex_t>(e_loc)};  // nnz
 
   mat.mv(h_one,                             // alpha
          x,                                 // x
