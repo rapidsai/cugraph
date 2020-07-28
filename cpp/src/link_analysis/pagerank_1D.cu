@@ -22,7 +22,7 @@
 #include "utilities/graph_utils.cuh"
 
 namespace cugraph {
-namespace opg {
+namespace mg {
 
 template <typename VT, typename WT>
 __global__ void transition_kernel(const size_t e, const VT *ind, const VT *degree, WT *val)
@@ -37,7 +37,8 @@ Pagerank<VT, ET, WT>::Pagerank(const raft::handle_t &handle_, GraphCSCView<VT, E
   : comm(handle_.get_comms()),
     bookmark(G.number_of_vertices),
     prev_pr(G.number_of_vertices),
-    val(G.local_edges[comm.get_rank()])
+    val(G.local_edges[comm.get_rank()]),
+    has_personalization(false)
 {
   v_glob         = G.number_of_vertices;
   v_loc          = G.local_vertices[comm.get_rank()];
@@ -54,7 +55,7 @@ Pagerank<VT, ET, WT>::Pagerank(const raft::handle_t &handle_, GraphCSCView<VT, E
 
   // intialize cusparse. This can take some time.
   // TODO use cusparse handle from raft handle and pass it
-  // to OPGcsrmv and CusparseCsrMV
+  // to MGcsrmv and CusparseCsrMV
   cugraph::detail::Cusparse::get_handle();
 }
 
@@ -66,30 +67,38 @@ Pagerank<VT, ET, WT>::~Pagerank()
 template <typename VT, typename ET, typename WT>
 void Pagerank<VT, ET, WT>::transition_vals(const VT *degree)
 {
-  int threads = std::min(e_loc, this->threads);
-  int blocks  = std::min(32 * sm_count, this->blocks);
-  transition_kernel<VT, WT><<<blocks, threads>>>(e_loc, ind, degree, val.data().get());
-  CHECK_CUDA(nullptr);
+  if (e_loc > 0) {
+    int threads = std::min(e_loc, this->threads);
+    int blocks  = std::min(32 * sm_count, this->blocks);
+    transition_kernel<VT, WT><<<blocks, threads>>>(e_loc, ind, degree, val.data().get());
+    CHECK_CUDA(nullptr);
+  }
 }
 
 template <typename VT, typename ET, typename WT>
 void Pagerank<VT, ET, WT>::flag_leafs(const VT *degree)
 {
-  int threads = std::min(v_glob, this->threads);
-  int blocks  = std::min(32 * sm_count, this->blocks);
-  cugraph::detail::flag_leafs_kernel<VT, WT>
-    <<<blocks, threads>>>(v_glob, degree, bookmark.data().get());
-  CHECK_CUDA(nullptr);
+  if (v_glob > 0) {
+    int threads = std::min(v_glob, this->threads);
+    int blocks  = std::min(32 * sm_count, this->blocks);
+    cugraph::detail::flag_leafs_kernel<VT, WT>
+      <<<blocks, threads>>>(v_glob, degree, bookmark.data().get());
+    CHECK_CUDA(nullptr);
+  }
 }
 
 // Artificially create the google matrix by setting val and bookmark
 template <typename VT, typename ET, typename WT>
-void Pagerank<VT, ET, WT>::setup(WT _alpha, VT *degree)
+void Pagerank<VT, ET, WT>::setup(WT _alpha,
+                                 VT *degree,
+                                 VT personalization_subset_size,
+                                 VT *personalization_subset,
+                                 WT *personalization_values)
 {
   if (!is_setup) {
     alpha   = _alpha;
     WT zero = 0.0;
-
+    WT one  = 1.0;
     // Update dangling node vector
     cugraph::detail::fill(v_glob, bookmark.data().get(), zero);
     flag_leafs(degree);
@@ -98,9 +107,32 @@ void Pagerank<VT, ET, WT>::setup(WT _alpha, VT *degree)
     // Transition matrix
     transition_vals(degree);
 
+    // personalize
+    if (personalization_subset_size != 0) {
+      CUGRAPH_EXPECTS(personalization_subset != nullptr,
+                      "Invalid API parameter: personalization_subset array should be of size "
+                      "personalization_subset_size");
+      CUGRAPH_EXPECTS(personalization_values != nullptr,
+                      "Invalid API parameter: personalization_values array should be of size "
+                      "personalization_subset_size");
+      CUGRAPH_EXPECTS(personalization_subset_size <= v_glob,
+                      "Personalization size should be smaller than V");
+
+      WT sum = cugraph::detail::nrm1(personalization_subset_size, personalization_values);
+      if (sum != zero) {
+        has_personalization = true;
+        personalization_vector.resize(v_glob);
+        cugraph::detail::fill(v_glob, personalization_vector.data().get(), zero);
+        cugraph::detail::scal(v_glob, one / sum, personalization_values);
+        cugraph::detail::scatter(personalization_subset_size,
+                                 personalization_values,
+                                 personalization_vector.data().get(),
+                                 personalization_subset);
+      }
+    }
     is_setup = true;
   } else
-    CUGRAPH_FAIL("OPG PageRank : Setup can be called only once");
+    CUGRAPH_FAIL("MG PageRank : Setup can be called only once");
 }
 
 // run the power iteration on the google matrix
@@ -118,7 +150,7 @@ int Pagerank<VT, ET, WT>::solve(int max_iter, float tolerance, WT *pagerank)
     // This is not needed on one GPU at this time
     cudaDeviceSynchronize();
     dot_res = cugraph::detail::dot(v_glob, bookmark.data().get(), pr);
-    OPGcsrmv<VT, ET, WT> spmv_solver(
+    MGcsrmv<VT, ET, WT> spmv_solver(
       comm, local_vertices, part_off, off, ind, val.data().get(), pagerank);
 
     WT residual;
@@ -126,10 +158,17 @@ int Pagerank<VT, ET, WT>::solve(int max_iter, float tolerance, WT *pagerank)
     for (i = 0; i < max_iter; ++i) {
       spmv_solver.run(pagerank);
       cugraph::detail::scal(v_glob, alpha, pr);
-      cugraph::detail::addv(v_glob, dot_res * (one / v_glob), pr);
+
+      // personalization
+      if (has_personalization)
+        cugraph::detail::axpy(v_glob, dot_res, personalization_vector.data().get(), pr);
+      else
+        cugraph::detail::addv(v_glob, dot_res * (one / v_glob), pr);
+
       dot_res = cugraph::detail::dot(v_glob, bookmark.data().get(), pr);
       cugraph::detail::scal(v_glob, one / cugraph::detail::nrm2(v_glob, pr), pr);
 
+      // convergence check
       cugraph::detail::axpy(v_glob, (WT)-1.0, pr, prev_pr.data().get());
       residual = cugraph::detail::nrm2(v_glob, prev_pr.data().get());
       if (residual < tolerance)
@@ -140,12 +179,12 @@ int Pagerank<VT, ET, WT>::solve(int max_iter, float tolerance, WT *pagerank)
     cugraph::detail::scal(v_glob, one / cugraph::detail::nrm1(v_glob, pr), pr);
     return i;
   } else {
-    CUGRAPH_FAIL("OPG PageRank : Solve was called before setup");
+    CUGRAPH_FAIL("MG PageRank : Solve was called before setup");
   }
 }
 
 template class Pagerank<int, int, double>;
 template class Pagerank<int, int, float>;
 
-}  // namespace opg
+}  // namespace mg
 }  // namespace cugraph

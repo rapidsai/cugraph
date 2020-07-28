@@ -48,6 +48,9 @@ def weakly_connected_components(G):
 
     df = connectivity_wrapper.weakly_connected_components(G)
 
+    if G.renumbered:
+        df = G.unrenumber(df, "vertices")
+
     return df
 
 
@@ -84,5 +87,8 @@ def strongly_connected_components(G):
     """
 
     df = connectivity_wrapper.strongly_connected_components(G)
+
+    if G.renumbered:
+        df = G.unrenumber(df, "vertices")
 
     return df

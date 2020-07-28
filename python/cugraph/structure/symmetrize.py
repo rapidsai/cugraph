@@ -56,38 +56,23 @@ def symmetrize_df(df, src_name, dst_name):
     gdf = cudf.DataFrame()
 
     #
-    #  NOTE: if there are values then we can't use drop_duplicates - in
-    #        case the values are different in different directions.  To
-    #        address this, we will use groupby if there are values.  If
-    #        there are no values then groupby won't eliminate the duplicate
-    #        keys.  Believe this is a bug, see
-    #        https://github.com/rapidsai/cudf/issues/2730.  Once this
-    #        is resolved we should be able to just use groupby.
-    #
-    #  We will use drop_duplicates if there are no non-key fields
-    #
-    use_groupby = False
-
-    #
     #  Now append the columns.  We add sources to the end of destinations,
     #  and destinations to the end of sources.  Otherwise we append a
     #  column onto itself.
     #
     for idx, name in enumerate(df.columns):
-        if (name == src_name):
-            gdf[src_name] = df[src_name].append(df[dst_name],
-                                                ignore_index=True)
-        elif (name == dst_name):
-            gdf[dst_name] = df[dst_name].append(df[src_name],
-                                                ignore_index=True)
+        if name == src_name:
+            gdf[src_name] = df[src_name].append(
+                df[dst_name], ignore_index=True
+            )
+        elif name == dst_name:
+            gdf[dst_name] = df[dst_name].append(
+                df[src_name], ignore_index=True
+            )
         else:
             gdf[name] = df[name].append(df[name], ignore_index=True)
-            use_groupby = True
 
-    if use_groupby:
-        return gdf.groupby(by=[src_name, dst_name], as_index=False).min()
-    else:
-        return gdf.drop_duplicates(subset=[src_name, dst_name], keep='first')
+    return gdf.groupby(by=[src_name, dst_name], as_index=False).min()
 
 
 def symmetrize(source_col, dest_col, value_col=None):
@@ -131,18 +116,19 @@ def symmetrize(source_col, dest_col, value_col=None):
     csg.null_check(source_col)
     csg.null_check(dest_col)
 
-    input_df = cudf.DataFrame({'source': source_col,
-                               'destination': dest_col})
+    input_df = cudf.DataFrame({"source": source_col, "destination": dest_col})
 
     if value_col is not None:
         csg.null_check(value_col)
-        input_df.insert(len(input_df.columns), 'value', value_col)
+        input_df.insert(len(input_df.columns), "value", value_col)
 
-    output_df = symmetrize_df(input_df, 'source', 'destination')
+    output_df = symmetrize_df(input_df, "source", "destination")
 
     if value_col is not None:
-        return (output_df['source'],
-                output_df['destination'],
-                output_df['value'])
+        return (
+            output_df["source"],
+            output_df["destination"],
+            output_df["value"],
+        )
 
-    return output_df['source'], output_df['destination']
+    return output_df["source"], output_df["destination"]

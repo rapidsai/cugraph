@@ -14,12 +14,9 @@
 from cugraph.centrality import katz_centrality_wrapper
 
 
-def katz_centrality(G,
-                    alpha=None,
-                    max_iter=100,
-                    tol=1.0e-6,
-                    nstart=None,
-                    normalized=True):
+def katz_centrality(
+    G, alpha=None, max_iter=100, tol=1.0e-6, nstart=None, normalized=True
+):
     """
     Compute the Katz centrality for the nodes of the graph G. cuGraph does not
     currently support the 'beta' and 'weight' parameters as seen in the
@@ -93,7 +90,15 @@ def katz_centrality(G,
     >>> kc = cugraph.katz_centrality(G)
     """
 
-    df = katz_centrality_wrapper.katz_centrality(G, alpha, max_iter,
-                                                 tol, nstart, normalized)
+    if nstart is not None:
+        if G.renumbered is True:
+            nstart = G.add_internal_vertex_id(nstart, 'vertex', 'vertex')
+
+    df = katz_centrality_wrapper.katz_centrality(
+        G, alpha, max_iter, tol, nstart, normalized
+    )
+
+    if G.renumbered:
+        df = G.unrenumber(df, "vertex")
 
     return df

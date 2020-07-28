@@ -21,7 +21,7 @@
 
 namespace cugraph {
 
-namespace opg {
+namespace mg {
 
 namespace detail {
 
@@ -220,6 +220,6 @@ void bin_vertices(rmm::device_vector<VT> &reorg_vertices,
 
 }  // namespace detail
 
-}  // namespace opg
+}  // namespace mg
 
 }  // namespace cugraph

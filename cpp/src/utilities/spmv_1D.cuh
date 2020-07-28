@@ -25,10 +25,10 @@
 #include "utilities/error.hpp"
 
 namespace cugraph {
-namespace opg {
+namespace mg {
 
 template <typename VT, typename ET, typename WT>
-class OPGcsrmv {
+class MGcsrmv {
  private:
   size_t v_glob;
   size_t v_loc;
@@ -50,18 +50,18 @@ class OPGcsrmv {
   cugraph::detail::CusparseCsrMV<WT> spmv;
 
  public:
-  OPGcsrmv(const raft::comms::comms_t& comm,
-           VT* local_vertices,
-           VT* part_off,
-           ET* off_,
-           VT* ind_,
-           WT* val_,
-           WT* x);
+  MGcsrmv(const raft::comms::comms_t& comm,
+          VT* local_vertices,
+          VT* part_off,
+          ET* off_,
+          VT* ind_,
+          WT* val_,
+          WT* x);
 
-  ~OPGcsrmv();
+  ~MGcsrmv();
 
   void run(WT* x);
 };
 
-}  // namespace opg
+}  // namespace mg
 }  // namespace cugraph

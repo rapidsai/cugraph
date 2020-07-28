@@ -199,7 +199,6 @@ def _get_local_data(df, by):
     local_max = df[by].iloc[-1]
     return num_local_edges, local_max
 
-
 def get_local_data(input_graph, by, load_balance=True):
     _ddf = input_graph.edgelist.edgelist_df
     ddf = _ddf.sort_values(by=by, ignore_index=True)
