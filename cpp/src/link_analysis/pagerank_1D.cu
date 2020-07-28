@@ -119,7 +119,7 @@ int Pagerank<VT, ET, WT>::solve(int max_iter, float tolerance, WT *pagerank)
     cudaDeviceSynchronize();
     dot_res = cugraph::detail::dot(v_glob, bookmark.data().get(), pr);
     MGcsrmv<VT, ET, WT> spmv_solver(
-      handle, comm, local_vertices, part_off, off, ind, val.data().get(), pagerank);
+      handle, local_vertices, part_off, off, ind, val.data().get(), pagerank);
 
     WT residual;
     int i;

@@ -19,30 +19,28 @@
 namespace cugraph {
 namespace opg {
 template <typename vertex_t, typename edge_t, typename weight_t>
-MGcsrmv<vertex_t, edge_t, weight_t>::MGcsrmv(raft::handle_t const &handle_,
-                                             const raft::comms::comms_t &comm_,
-                                             vertex_t *local_vertices_,
-                                             vertex_t *part_off_,
-                                             edge_t *off_,
-                                             vertex_t *ind_,
-                                             weight_t *val_,
+MGcsrmv<vertex_t, edge_t, weight_t>::MGcsrmv(raft::handle_t const &handle,
+                                             vertex_t *local_vertices,
+                                             vertex_t *part_off,
+                                             edge_t *off,
+                                             vertex_t *ind,
+                                             weight_t *val,
                                              weight_t *x)
-  : comm(comm_),
-    local_vertices(local_vertices_),
-    part_off(part_off_),
-    off(off_),
-    ind(ind_),
-    val(val_),
-    handle(handle_)
+  : handle_(handle),
+    local_vertices_(local_vertices),
+    part_off_(part_off),
+    off_(off),
+    ind_(ind),
+    val_(val)
 {
-  i      = comm.get_rank();
-  p      = comm.get_size();
-  v_glob = part_off[p - 1] + local_vertices[p - 1];
-  v_loc  = local_vertices[i];
+  i_      = handle_.get_comms().get_rank();
+  p_      = handle_.get_comms().get_size();
+  v_glob_ = part_off_[p_ - 1] + local_vertices_[p_ - 1];
+  v_loc_  = local_vertices_[i_];
   vertex_t tmp;
-  CUDA_TRY(cudaMemcpy(&tmp, &off[v_loc], sizeof(vertex_t), cudaMemcpyDeviceToHost));
-  e_loc = tmp;
-  y_loc.resize(v_loc);
+  CUDA_TRY(cudaMemcpy(&tmp, &off_[v_loc_], sizeof(vertex_t), cudaMemcpyDeviceToHost));
+  e_loc_ = tmp;
+  y_loc_.resize(v_loc_);
 }
 
 template <typename vertex_t, typename edge_t, typename weight_t>
@@ -58,25 +56,27 @@ void MGcsrmv<vertex_t, edge_t, weight_t>::run(weight_t *x)
   weight_t h_one  = 1.0;
   weight_t h_zero = 0.0;
 
-  sparse_matrix_t<vertex_t, weight_t> mat{handle,
-                                          off,                            // CSR row_offsets
-                                          ind,                            // CSR col_indices
-                                          val,                            // CSR values
-                                          static_cast<vertex_t>(v_loc),   // n_rows
-                                          static_cast<vertex_t>(v_glob),  // n_cols
-                                          static_cast<vertex_t>(e_loc)};  // nnz
+  sparse_matrix_t<vertex_t, weight_t> mat{handle_,                         // raft handle
+                                          off_,                            // CSR row_offsets
+                                          ind_,                            // CSR col_indices
+                                          val_,                            // CSR values
+                                          static_cast<vertex_t>(v_loc_),   // n_rows
+                                          static_cast<vertex_t>(v_glob_),  // n_cols
+                                          static_cast<vertex_t>(e_loc_)};  // nnz
 
   mat.mv(h_one,                             // alpha
          x,                                 // x
          h_zero,                            // beta
-         y_loc.data().get(),                // y
+         y_loc_.data().get(),               // y
          sparse_mv_alg_t::SPARSE_MV_ALG2);  // SpMV algorithm
 
-  auto stream = handle.get_stream();
+  auto stream = handle_.get_stream();
+
+  auto const &comm{handle_.get_comms()};
 
   std::vector<size_t> recvbuf(comm.get_size());
-  std::copy(local_vertices, local_vertices + comm.get_size(), recvbuf.begin());
-  comm.allgatherv(y_loc.data().get(), x, recvbuf.data(), part_off, stream);
+  std::copy(local_vertices_, local_vertices_ + comm.get_size(), recvbuf.begin());
+  comm.allgatherv(y_loc_.data().get(), x, recvbuf.data(), part_off_, stream);
 }
 
 template class MGcsrmv<int, int, double>;

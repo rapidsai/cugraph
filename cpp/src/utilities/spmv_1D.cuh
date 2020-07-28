@@ -25,31 +25,30 @@ namespace opg {
 template <typename vertex_t, typename edge_t, typename weight_t>
 class MGcsrmv {
  private:
-  size_t v_glob;
-  size_t v_loc;
-  size_t e_loc;
-  raft::comms::comms_t const& comm;
-  vertex_t* part_off;
-  vertex_t* local_vertices;
-  int i;
-  int p;
-  edge_t* off;
-  vertex_t* ind;
-  weight_t* val;
-  rmm::device_vector<weight_t> y_loc;
-  std::vector<size_t> v_locs_h;
-  std::vector<vertex_t> displs_h;
+  size_t v_glob_;
+  size_t v_loc_;
+  size_t e_loc_;
 
-  raft::handle_t const& handle;  // raft handle propagation for SpMV, etc.
+  raft::handle_t const& handle_;  // raft handle propagation for SpMV, etc.
+
+  vertex_t* part_off_;
+  vertex_t* local_vertices_;
+  int i_;
+  int p_;
+  edge_t* off_;
+  vertex_t* ind_;
+  weight_t* val_;
+  rmm::device_vector<weight_t> y_loc_;
+  std::vector<size_t> v_locs_h_;
+  std::vector<vertex_t> displs_h_;
 
  public:
-  MGcsrmv(raft::handle_t const& handle_,
-          raft::comms::comms_t const& comm,
+  MGcsrmv(raft::handle_t const& r_handle,
           vertex_t* local_vertices,
           vertex_t* part_off,
-          edge_t* off_,
-          vertex_t* ind_,
-          weight_t* val_,
+          edge_t* row_off,
+          vertex_t* col_ind,
+          weight_t* vals,
           weight_t* x);
 
   ~MGcsrmv();
