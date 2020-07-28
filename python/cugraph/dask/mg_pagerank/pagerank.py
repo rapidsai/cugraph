@@ -15,9 +15,8 @@
 
 from dask.distributed import wait, default_client
 from cugraph.dask.common.input_utils import get_local_data
-from cugraph.opg.link_analysis import mg_pagerank_wrapper as mg_pagerank
+from cugraph.mg.link_analysis import mg_pagerank_wrapper as mg_pagerank
 import cugraph.comms.comms as Comms
-import warnings
 
 
 def call_pagerank(sID, data, local_data, alpha, max_iter,
@@ -60,18 +59,27 @@ def pagerank(input_graph,
         outgoing edge, standard value is 0.85.
         Thus, 1.0-alpha is the probability to “teleport” to a random vertex.
         Alpha should be greater than 0.0 and strictly lower than 1.0.
+    personalization : cudf.Dataframe
+        GPU Dataframe containing the personalization information.
+
+        personalization['vertex'] : cudf.Series
+            Subset of vertices of graph for personalization
+        personalization['values'] : cudf.Series
+            Personalization values for vertices
+
     max_iter : int
         The maximum number of iterations before an answer is returned.
         If this value is lower or equal to 0 cuGraph will use the default
         value, which is 30.
     tolerance : float
-        Currently not supported. Set to default value 1.0e-5.
-    personalization : cudf.Dataframe
-        GPU Dataframe containing the personalizatoin information.
-        Currently not supported.
-    nstart : cudf.Dataframe
-        GPU Dataframe containing the initial guess for pagerank.
-        Currently not supported.
+        Set the tolerance the approximation, this parameter should be a small
+        magnitude value.
+        The lower the tolerance the better the approximation. If this value is
+        0.0f, cuGraph will use the default value which is 1.0E-5.
+        Setting too small a tolerance can lead to non-convergence due to
+        numerical roundoff. Usually values between 0.01 and 0.00001 are
+        acceptable.
+
 
     Returns
     -------
@@ -95,11 +103,8 @@ def pagerank(input_graph,
     >>> dg.from_dask_cudf_edgelist(ddf)
     >>> pr = dcg.pagerank(dg)
     """
+    from cugraph.structure.graph import null_check
 
-    if personalization is not None or nstart is not None:
-        warnings.warn("personalization and nstart currently not \
-supported. Setting them to None")
-    personalization = None
     nstart = None
 
     client = default_client()
@@ -109,6 +114,14 @@ supported. Setting them to None")
         data = input_graph.local_data['data']
     else:
         data = get_local_data(input_graph, by='dst')
+
+    if personalization is not None:
+        null_check(personalization["vertex"])
+        null_check(personalization["values"])
+        if input_graph.renumbered is True:
+            personalization = input_graph.add_internal_vertex_id(
+                personalization, "vertex", "vertex"
+            )
 
     result = dict([(data.worker_info[wf[0]]["rank"],
                     client.submit(

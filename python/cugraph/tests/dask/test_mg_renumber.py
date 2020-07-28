@@ -46,7 +46,7 @@ def client_connection():
 
 # Test all combinations of default/managed and pooled/non-pooled allocation
 @pytest.mark.parametrize("graph_file", utils.DATASETS)
-def test_opg_renumber(graph_file, client_connection):
+def test_mg_renumber(graph_file, client_connection):
     gc.collect()
 
     M = utils.read_csv_for_nx(graph_file)
@@ -86,7 +86,7 @@ def test_opg_renumber(graph_file, client_connection):
 
 # Test all combinations of default/managed and pooled/non-pooled allocation
 @pytest.mark.parametrize("graph_file", utils.DATASETS)
-def test_opg_renumber2(graph_file, client_connection):
+def test_mg_renumber2(graph_file, client_connection):
     gc.collect()
 
     M = utils.read_csv_for_nx(graph_file)

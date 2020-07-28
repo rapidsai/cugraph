@@ -17,7 +17,7 @@
 #include "spmv_1D.cuh"
 
 namespace cugraph {
-namespace opg {
+namespace mg {
 template <typename vertex_t, typename edge_t, typename weight_t>
 MGcsrmv<vertex_t, edge_t, weight_t>::MGcsrmv(raft::handle_t const &handle,
                                              vertex_t *local_vertices,
@@ -72,7 +72,7 @@ void MGcsrmv<vertex_t, edge_t, weight_t>::run(weight_t *x)
 
   auto stream = handle_.get_stream();
 
-  auto const &comm{handle_.get_comms()};
+  auto const &comm{handle_.get_comms()};  // local
 
   std::vector<size_t> recvbuf(comm.get_size());
   std::copy(local_vertices_, local_vertices_ + comm.get_size(), recvbuf.begin());
@@ -82,5 +82,5 @@ void MGcsrmv<vertex_t, edge_t, weight_t>::run(weight_t *x)
 template class MGcsrmv<int32_t, int32_t, double>;
 template class MGcsrmv<int32_t, int32_t, float>;
 
-}  // namespace opg
+}  // namespace mg
 }  // namespace cugraph

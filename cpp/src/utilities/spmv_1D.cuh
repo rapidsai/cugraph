@@ -20,7 +20,7 @@
 #include "utilities/error.hpp"
 
 namespace cugraph {
-namespace opg {
+namespace mg {
 
 template <typename vertex_t, typename edge_t, typename weight_t>
 class MGcsrmv {
@@ -56,5 +56,5 @@ class MGcsrmv {
   void run(weight_t* x);
 };
 
-}  // namespace opg
+}  // namespace mg
 }  // namespace cugraph

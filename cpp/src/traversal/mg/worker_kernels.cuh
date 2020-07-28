@@ -21,7 +21,7 @@
 
 namespace cugraph {
 
-namespace opg {
+namespace mg {
 
 namespace detail {
 
@@ -122,6 +122,6 @@ void small_vertex_worker(cugraph::GraphCSRView<VT, ET, WT> const &graph,
 
 }  // namespace detail
 
-}  // namespace opg
+}  // namespace mg
 
 }  // namespace cugraph
