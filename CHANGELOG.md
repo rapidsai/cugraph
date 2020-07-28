@@ -44,6 +44,7 @@
 - PR #1007 Add tolerance support to MG Pagerank and fix
 - PR #1009 Update benchmarks script to include requirements used
 - PR #1014 Fix benchmarks script variable name
+- PR #1019 Remove deprecated CUDA library calls
 
 ## Bug Fixes
 - PR #936 Update Force Atlas 2 doc and wrapper
@@ -55,7 +56,7 @@
 - PR #1008 Fix for cudf updates disabling iteration of Series/Columns/Index
 - PR #1012 Fix Local build script README
 - PR #1022 Fix support for using a cudf.DataFrame with a MG graph
- 
+
 # cuGraph 0.14.0 (03 Jun 2020)
 
 ## New Features

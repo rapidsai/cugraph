@@ -57,6 +57,7 @@ class Pagerank {
   rmm::device_vector<WT> personalization_vector;  // personalization vector after reconstruction
 
   bool is_setup;
+  raft::handle_t const &handle;  // raft handle propagation for SpMV, etc.
 
  public:
   Pagerank(const raft::handle_t &handle, const GraphCSCView<VT, ET, WT> &G);

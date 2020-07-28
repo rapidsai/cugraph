@@ -38,6 +38,7 @@ Pagerank<VT, ET, WT>::Pagerank(const raft::handle_t &handle_, GraphCSCView<VT, E
     bookmark(G.number_of_vertices),
     prev_pr(G.number_of_vertices),
     val(G.local_edges[comm.get_rank()]),
+    handle(handle_),
     has_personalization(false)
 {
   v_glob         = G.number_of_vertices;
@@ -52,11 +53,6 @@ Pagerank<VT, ET, WT>::Pagerank(const raft::handle_t &handle_, GraphCSCView<VT, E
   sm_count       = handle_.get_device_properties().multiProcessorCount;
 
   is_setup = false;
-
-  // intialize cusparse. This can take some time.
-  // TODO use cusparse handle from raft handle and pass it
-  // to MGcsrmv and CusparseCsrMV
-  cugraph::detail::Cusparse::get_handle();
 }
 
 template <typename VT, typename ET, typename WT>
@@ -151,7 +147,7 @@ int Pagerank<VT, ET, WT>::solve(int max_iter, float tolerance, WT *pagerank)
     cudaDeviceSynchronize();
     dot_res = cugraph::detail::dot(v_glob, bookmark.data().get(), pr);
     MGcsrmv<VT, ET, WT> spmv_solver(
-      comm, local_vertices, part_off, off, ind, val.data().get(), pagerank);
+      handle, local_vertices, part_off, off, ind, val.data().get(), pagerank);
 
     WT residual;
     int i;
