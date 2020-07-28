@@ -755,7 +755,7 @@ def test_neighbors(graph_file):
     Gnx = nx.from_pandas_edgelist(M, source='0', target='1',
                                   create_using=nx.Graph())
     for n in nodes.values_host:
-        cu_neighbors = G.neighbors(n).tolist()
+        cu_neighbors = G.neighbors(n).to_arrow().to_pylist()
         nx_neighbors = [i for i in Gnx.neighbors(n)]
         cu_neighbors.sort()
         nx_neighbors.sort()

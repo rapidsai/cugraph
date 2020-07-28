@@ -46,7 +46,7 @@ def client_connection():
 
 # Test all combinations of default/managed and pooled/non-pooled allocation
 @pytest.mark.parametrize("graph_file", utils.DATASETS)
-def test_opg_renumber(graph_file, client_connection):
+def test_mg_renumber(graph_file, client_connection):
     gc.collect()
 
     M = utils.read_csv_for_nx(graph_file)
@@ -86,7 +86,7 @@ def test_opg_renumber(graph_file, client_connection):
 
 # Test all combinations of default/managed and pooled/non-pooled allocation
 @pytest.mark.parametrize("graph_file", utils.DATASETS)
-def test_opg_renumber2(graph_file, client_connection):
+def test_mg_renumber2(graph_file, client_connection):
     gc.collect()
 
     M = utils.read_csv_for_nx(graph_file)
@@ -117,6 +117,40 @@ def test_opg_renumber2(graph_file, client_connection):
     assert check_src["1"].to_pandas().equals(gdf["src_old"].to_pandas())
     assert check_dst["0"].to_pandas().equals(gdf["dst"].to_pandas())
     assert check_dst["1"].to_pandas().equals(gdf["dst_old"].to_pandas())
+
+
+# Test all combinations of default/managed and pooled/non-pooled allocation
+@pytest.mark.parametrize("graph_file", utils.DATASETS)
+def test_opg_renumber3(graph_file, client_connection):
+    gc.collect()
+
+    M = utils.read_csv_for_nx(graph_file)
+    sources = cudf.Series(M["0"])
+    destinations = cudf.Series(M["1"])
+
+    translate = 1000
+
+    gdf = cudf.DataFrame()
+    gdf["src_old"] = sources
+    gdf["dst_old"] = destinations
+    gdf["src"] = sources + translate
+    gdf["dst"] = destinations + translate
+    gdf["weight"] = gdf.index.astype(np.float)
+
+    ddf = dask.dataframe.from_pandas(gdf, npartitions=2)
+
+    ren2, num2 = NumberMap.renumber(
+        ddf, ["src", "src_old"], ["dst", "dst_old"]
+    )
+
+    test_df = gdf[['src', 'src_old']].head()
+
+    #
+    #  This call raises an exception in branch-0.15
+    #  prior to this PR
+    #
+    test_df = num2.add_internal_vertex_id(test_df, 'src', ['src', 'src_old'])
+    assert(True)
 
 
 def test_dask_pagerank(client_connection):

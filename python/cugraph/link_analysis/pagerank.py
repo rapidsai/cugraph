@@ -38,7 +38,7 @@ def pagerank(
         Thus, 1.0-alpha is the probability to “teleport” to a random vertex.
         Alpha should be greater than 0.0 and strictly lower than 1.0.
     personalization : cudf.Dataframe
-        GPU Dataframe containing the personalizatoin information.
+        GPU Dataframe containing the personalization information.
 
         personalization['vertex'] : cudf.Series
             Subset of vertices of graph for personalization

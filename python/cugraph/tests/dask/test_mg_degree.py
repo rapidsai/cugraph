@@ -23,7 +23,7 @@ def client_connection():
     cluster.close()
 
 
-def test_dask_opg_degree(client_connection):
+def test_dask_mg_degree(client_connection):
     gc.collect()
 
     input_data_path = r"../datasets/karate.csv"
