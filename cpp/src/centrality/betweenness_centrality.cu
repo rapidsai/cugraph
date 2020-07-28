@@ -429,6 +429,8 @@ void BC<VT, ET, WT, result_t>::rescale_by_total_sources_used(VT total_number_of_
 }
 }  // namespace detail
 
+// DBG
+#include <chrono>
 template <typename VT, typename ET, typename WT, typename result_t>
 void betweenness_centrality(raft::handle_t const &handle,
                             GraphCSRView<VT, ET, WT> const *graph,
@@ -441,9 +443,13 @@ void betweenness_centrality(raft::handle_t const &handle,
                             VT total_number_of_sources_used)
 {
   if (handle.comms_initialized()) {
-    int rank = handle.get_comms().get_rank();
+    int rank   = handle.get_comms().get_rank();
+    auto start = std::chrono::high_resolution_clock::now();
     cugraph::mg::ReplicatableGraphCSR<VT, ET, WT> local_holder(handle, graph);
     local_holder.replicate();
+    auto end      = std::chrono::high_resolution_clock::now();
+    auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
+    std::cout << "[DBG] Time spend in C++ replication " << duration.count() << "ms" << std::endl;
 
     rmm::device_vector<result_t> betweenness(local_holder.graph.number_of_vertices, 0);
     detail::betweenness_centrality_impl(handle,

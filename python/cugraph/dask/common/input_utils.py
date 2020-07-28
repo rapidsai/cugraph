@@ -24,6 +24,7 @@ from cugraph.raft.dask.common.utils import get_client
 from cugraph.dask.common.part_utils import (_extract_partitions,
                                             load_balance_func)
 from dask.distributed import default_client
+from dask.distributed import wait
 from toolz import first
 from functools import reduce
 
@@ -253,7 +254,8 @@ def get_local_data(input_graph, by, load_balance=True):
 
 def get_mg_batch_local_data(input_graph):
     #ddf = input_graph.edgelist.edgelist_df
-    ddf = input_graph.mg_batch_edgelists
+    #ddf = input_graph.mg_batch_edgelists # DBG
+    ddf = input_graph
 
     comms = Comms.get_comms()
     data = DistributedDataHandler.create(data=ddf)

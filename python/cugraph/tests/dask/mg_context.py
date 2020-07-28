@@ -21,8 +21,9 @@ class MGContext:
         Number of devices to use, verification must be done prior to call
         to ensure that there are enough devices available.
     """
-    def __init__(self, number_of_devices):
+    def __init__(self, number_of_devices=None, rmm_managed_memory=False):
         self._number_of_devices = number_of_devices
+        self._rmm_managed_memory = rmm_managed_memory
         self._cluster = None
         self._client = None
 
@@ -43,10 +44,16 @@ class MGContext:
         self._prepare_client()
         self._prepare_comms()
 
-    def _prepare_cluster(self):
-        self._cluster = CUDACluster(
-            n_workers=self._number_of_devices,
-        )
+    def _prepare_cluster(self):  # TODO (Use default from Dask)
+        if self._number_of_devices is None:
+            self._cluster = CUDACluster(
+                n_workers=self._number_of_devices,
+                rmm_managed_memory=self._rmm_managed_memory
+            )
+        else:
+            self._cluster = CUDACluster(
+                rmm_managed_memory=self._rmm_managed_memory
+            )
 
     def _prepare_client(self):
         self._client = Client(self._cluster)

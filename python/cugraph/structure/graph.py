@@ -22,6 +22,7 @@ import dask
 import numpy as np
 import warnings
 
+from cugraph.structure import utils_wrapper
 
 def null_check(col):
     if col.null_count != 0:
@@ -115,18 +116,41 @@ class Graph:
                 raise Exception(msg)
         # self.number_of_vertices = None
 
+
     def enable_mg_batch(self):
         import dask_cudf
         import time
         from cugraph.dask.common.mg_utils import mg_get_client
+        from collections import OrderedDict
+        import cugraph.comms as Comms
+        import cugraph
         self.mg_batch_enabled = True
         client = mg_get_client()
         assert self.edgelist is not None, 'There should be at least an edgelist'
         start = time.perf_counter()
-        _mg_batch_edgelist = dask_cudf.from_cudf(self.edgelist.edgelist_df,
-                                                 npartitions=1)
-        client.persist(_mg_batch_edgelist)
-        self.mg_batch_edgelists = _mg_batch_edgelist # DBG: Here for dask level replication
+        _mg_batch_edgelists = dask_cudf.from_cudf(self.edgelist.edgelist_df,
+                                                  npartitions=1)
+        print(_mg_batch_edgelists)
+        comms = Comms.get_comms()
+        #mg_batch_edgelists = client.scatter(_mg_batch_edgelists, broadcast=True)
+        #mg_batch_edgelists = client.persist(_mg_batch_edgelists)
+        number_of_vertices = self.number_of_vertices()
+        number_of_edges = self.number_of_edges()
+        worker_addresses = list(OrderedDict.fromkeys(client.scheduler_info()["workers"].keys()))
+        data = cugraph.dask.common.input_utils.get_mg_batch_local_data(_mg_batch_edgelists)
+        for placeholder, worker in enumerate(client.has_what().keys()):
+            if worker not in  data.worker_to_parts:
+                data.worker_to_parts[worker] = [[placeholder], None]
+
+        work_futures =  [client.submit(utils_wrapper._internal_replication_edgelist,
+                                   (wf[1], data.local_data, number_of_vertices, number_of_edges),
+                                   comms.sessionId,
+                                   workers=[wf[0]]) for
+                     idx, wf in enumerate(data.worker_to_parts.items())]
+        # print("Inner MG call submit: ", time.perf_counter() - start) # DBG
+        dask.distributed.wait(work_futures)
+        self.mg_batch_edgelists = work_futures  # DBG: Here for dask level replication
+        print(self.mg_batch_edgelists)
         print("[DBG] Enabled Multi-GPU Batch")
 
     def clear(self):

@@ -77,4 +77,10 @@ std::unique_ptr<rmm::device_buffer> renumber_vertices(
   ET *map_size,
   rmm::mr::device_memory_resource *mr = rmm::mr::get_default_resource());
 
+// DBG
+template <typename value_t>
+void comms_bcast(const raft::handle_t &handle, value_t *value, size_t count)
+{
+  handle.get_comms().bcast(value, count, 0, handle.get_stream());
+}
 }  // namespace cugraph

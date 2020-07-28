@@ -81,3 +81,46 @@ def coo2csr(source_col, dest_col, weights=None):
         return create_csr_double(source_col, dest_col, weights)
     else:
         return create_csr_float(source_col, dest_col, weights)
+
+
+# DBG
+def _internal_replication_edgelist(input_data, session_id):
+    from cugraph.raft.dask.common.comms import worker_state
+    # start = time.perf_counter() DBG
+    result = None
+    # 1. Get session information
+    session_state = worker_state(session_id)
+    number_of_workers = session_state["nworkers"]
+    worker_idx = session_state["wid"]
+
+    # 2. Get handle
+    handle = session_state['handle']
+
+    # 3. Determine worker type
+    #is_organizer = is_worker_organizer(worker_idx)
+
+    #(placeholder, number_of_vertices, number_of_edges) = input_data
+    _data, local_data, number_of_vertices, number_of_edges = input_data
+    data = _data[0]
+    print(data)
+
+    src_identifiers = cudf.Series(np.zeros(number_of_edges), dtype=np.int32)
+    dst_identifiers = cudf.Series(np.zeros(number_of_edges), dtype=np.int32)
+    result = cudf.DataFrame(data={"src": src_identifiers,
+                                  "dst": dst_identifiers})
+    return result
+
+
+
+cdef comms_bcast(uintptr_t handle,
+                 uintptr_t value_ptr,
+                 size_t count,
+                 result_dtype):
+    if result_dtype ==  np.int32:
+        c_utils.comms_bcast((<handle_t*> handle)[0], <int*> value_ptr, count)
+    elif result_dtype == np.float32:
+        c_utils.comms_bcast((<handle_t*> handle)[0], <float*> value_ptr, count)
+    elif result_dtype == np.float64:
+        c_utils.comms_bcast((<handle_t*> handle)[0], <double*> value_ptr, count)
+    else:
+        raise TypeError("Unsupported broadcast type")
