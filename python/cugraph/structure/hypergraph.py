@@ -490,10 +490,7 @@ def _str_scalar_to_category(size, val):
 
 
 def _prepend_str(col, val):
-    col = cudf.core.column.as_column(col)
-    if not cudf.utils.dtypes.is_string_dtype(col.dtype):
-        col = col.astype("str")
-    return cudf.Series(col.str().insert(0, val))
+    return val + col.astype(str).fillna("null")
 
 
 # Make an empty categorical string dtype

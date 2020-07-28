@@ -5,6 +5,8 @@
 - PR #939 Updated Notebooks to include new features and benchmarks
 - PR #944 OPG pagerank (dask)
 - PR #947 OPG pagerank (CUDA)
+- PR #826 Bipartite Graph python API
+- PR #963 Renumbering refactor, add multi GPU support
 - PR #964 OPG BFS (CUDA)
 - PR #990 MG Consolidation
 - PR #993 Add persistent Handle for Comms
@@ -52,6 +54,7 @@
 - PR #992 Fix unrenumber of predecessor
 - PR #1008 Fix for cudf updates disabling iteration of Series/Columns/Index
 - PR #1012 Fix Local build script README
+- PR #1022 Fix support for using a cudf.DataFrame with a MG graph
 
 # cuGraph 0.14.0 (03 Jun 2020)
 
