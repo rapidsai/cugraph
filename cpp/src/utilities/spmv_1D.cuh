@@ -23,7 +23,7 @@ namespace cugraph {
 namespace opg {
 
 template <typename vertex_t, typename edge_t, typename weight_t>
-class OPGcsrmv {
+class MGcsrmv {
  private:
   size_t v_glob;
   size_t v_loc;
@@ -43,16 +43,16 @@ class OPGcsrmv {
   raft::handle_t const& handle;  // raft handle propagation for SpMV, etc.
 
  public:
-  OPGcsrmv(raft::handle_t const& handle_,
-           raft::comms::comms_t const& comm,
-           vertex_t* local_vertices,
-           vertex_t* part_off,
-           edge_t* off_,
-           vertex_t* ind_,
-           weight_t* val_,
-           weight_t* x);
+  MGcsrmv(raft::handle_t const& handle_,
+          raft::comms::comms_t const& comm,
+          vertex_t* local_vertices,
+          vertex_t* part_off,
+          edge_t* off_,
+          vertex_t* ind_,
+          weight_t* val_,
+          weight_t* x);
 
-  ~OPGcsrmv();
+  ~MGcsrmv();
 
   void run(weight_t* x);
 };

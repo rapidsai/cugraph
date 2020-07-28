@@ -19,14 +19,14 @@
 namespace cugraph {
 namespace opg {
 template <typename vertex_t, typename edge_t, typename weight_t>
-OPGcsrmv<vertex_t, edge_t, weight_t>::OPGcsrmv(raft::handle_t const &handle_,
-                                               const raft::comms::comms_t &comm_,
-                                               vertex_t *local_vertices_,
-                                               vertex_t *part_off_,
-                                               edge_t *off_,
-                                               vertex_t *ind_,
-                                               weight_t *val_,
-                                               weight_t *x)
+MGcsrmv<vertex_t, edge_t, weight_t>::MGcsrmv(raft::handle_t const &handle_,
+                                             const raft::comms::comms_t &comm_,
+                                             vertex_t *local_vertices_,
+                                             vertex_t *part_off_,
+                                             edge_t *off_,
+                                             vertex_t *ind_,
+                                             weight_t *val_,
+                                             weight_t *x)
   : comm(comm_),
     local_vertices(local_vertices_),
     part_off(part_off_),
@@ -46,12 +46,12 @@ OPGcsrmv<vertex_t, edge_t, weight_t>::OPGcsrmv(raft::handle_t const &handle_,
 }
 
 template <typename vertex_t, typename edge_t, typename weight_t>
-OPGcsrmv<vertex_t, edge_t, weight_t>::~OPGcsrmv()
+MGcsrmv<vertex_t, edge_t, weight_t>::~MGcsrmv()
 {
 }
 
 template <typename vertex_t, typename edge_t, typename weight_t>
-void OPGcsrmv<vertex_t, edge_t, weight_t>::run(weight_t *x)
+void MGcsrmv<vertex_t, edge_t, weight_t>::run(weight_t *x)
 {
   using namespace raft::matrix;
 
@@ -79,8 +79,8 @@ void OPGcsrmv<vertex_t, edge_t, weight_t>::run(weight_t *x)
   comm.allgatherv(y_loc.data().get(), x, recvbuf.data(), part_off, stream);
 }
 
-template class OPGcsrmv<int, int, double>;
-template class OPGcsrmv<int, int, float>;
+template class MGcsrmv<int, int, double>;
+template class MGcsrmv<int, int, float>;
 
 }  // namespace opg
 }  // namespace cugraph
