@@ -79,8 +79,8 @@ void MGcsrmv<vertex_t, edge_t, weight_t>::run(weight_t *x)
   comm.allgatherv(y_loc_.data().get(), x, recvbuf.data(), part_off_, stream);
 }
 
-template class MGcsrmv<int, int, double>;
-template class MGcsrmv<int, int, float>;
+template class MGcsrmv<int32_t, int32_t, double>;
+template class MGcsrmv<int32_t, int32_t, float>;
 
 }  // namespace opg
 }  // namespace cugraph
