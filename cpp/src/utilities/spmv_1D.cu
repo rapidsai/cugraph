@@ -17,15 +17,15 @@
 #include "spmv_1D.cuh"
 
 namespace cugraph {
-namespace opg {
+namespace mg {
 template <typename VT, typename ET, typename WT>
-OPGcsrmv<VT, ET, WT>::OPGcsrmv(const raft::comms::comms_t &comm_,
-                               VT *local_vertices_,
-                               VT *part_off_,
-                               ET *off_,
-                               VT *ind_,
-                               WT *val_,
-                               WT *x)
+MGcsrmv<VT, ET, WT>::MGcsrmv(const raft::comms::comms_t &comm_,
+                             VT *local_vertices_,
+                             VT *part_off_,
+                             ET *off_,
+                             VT *ind_,
+                             WT *val_,
+                             WT *x)
   : comm(comm_),
     local_vertices(local_vertices_),
     part_off(part_off_),
@@ -49,12 +49,12 @@ OPGcsrmv<VT, ET, WT>::OPGcsrmv(const raft::comms::comms_t &comm_,
 }
 
 template <typename VT, typename ET, typename WT>
-OPGcsrmv<VT, ET, WT>::~OPGcsrmv()
+MGcsrmv<VT, ET, WT>::~MGcsrmv()
 {
 }
 
 template <typename VT, typename ET, typename WT>
-void OPGcsrmv<VT, ET, WT>::run(WT *x)
+void MGcsrmv<VT, ET, WT>::run(WT *x)
 {
   WT h_one  = 1.0;
   WT h_zero = 0.0;
@@ -65,8 +65,8 @@ void OPGcsrmv<VT, ET, WT>::run(WT *x)
   comm.allgatherv(y_loc.data().get(), x, recvbuf, part_off, stream);
 }
 
-template class OPGcsrmv<int, int, double>;
-template class OPGcsrmv<int, int, float>;
+template class MGcsrmv<int, int, double>;
+template class MGcsrmv<int, int, float>;
 
-}  // namespace opg
+}  // namespace mg
 }  // namespace cugraph
