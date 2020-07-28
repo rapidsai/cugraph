@@ -85,8 +85,11 @@ def coo2csr(source_col, dest_col, weights=None):
 
 # DBG
 def _internal_replication_edgelist(input_data, session_id):
+    cdef uintptr_t c_handle = <uintptr_t> NULL
+    cdef uintptr_t c_src = <uintptr_t> NULL
+    cdef uintptr_t c_dst = <uintptr_t> NULL
+
     from cugraph.raft.dask.common.comms import worker_state
-    # start = time.perf_counter() DBG
     result = None
     # 1. Get session information
     session_state = worker_state(session_id)
@@ -95,19 +98,34 @@ def _internal_replication_edgelist(input_data, session_id):
 
     # 2. Get handle
     handle = session_state['handle']
+    c_handle = <uintptr_t>handle.getHandle()
 
     # 3. Determine worker type
-    #is_organizer = is_worker_organizer(worker_idx)
 
     #(placeholder, number_of_vertices, number_of_edges) = input_data
     _data, local_data, number_of_vertices, number_of_edges = input_data
     data = _data[0]
-    print(data)
+    has_data = type(data) is cudf.DataFrame
+    src_identifiers = None
+    dst_identifiers = None
+    if has_data:
+        src_identifiers = data['src']
+        dst_identifiers = data['dst']
+    else:
+        src_identifiers = cudf.Series(np.zeros(number_of_edges), dtype=np.int32)
+        dst_identifiers = cudf.Series(np.zeros(number_of_edges), dtype=np.int32)
 
-    src_identifiers = cudf.Series(np.zeros(number_of_edges), dtype=np.int32)
-    dst_identifiers = cudf.Series(np.zeros(number_of_edges), dtype=np.int32)
-    result = cudf.DataFrame(data={"src": src_identifiers,
-                                  "dst": dst_identifiers})
+    c_src =  src_identifiers.__cuda_array_interface__['data'][0]
+    c_dst =  dst_identifiers.__cuda_array_interface__['data'][0]
+
+    comms_bcast(c_handle, c_src, len(src_identifiers), src_identifiers.dtype)
+    comms_bcast(c_handle, c_dst, len(dst_identifiers), dst_identifiers.dtype)
+
+    if has_data:
+        result = data
+    else:
+        result = cudf.DataFrame(data={"src": src_identifiers,
+                                      "dst": dst_identifiers})
     return result
 
 
@@ -115,12 +133,12 @@ def _internal_replication_edgelist(input_data, session_id):
 cdef comms_bcast(uintptr_t handle,
                  uintptr_t value_ptr,
                  size_t count,
-                 result_dtype):
-    if result_dtype ==  np.int32:
+                 dtype):
+    if dtype ==  np.int32:
         c_utils.comms_bcast((<handle_t*> handle)[0], <int*> value_ptr, count)
-    elif result_dtype == np.float32:
+    elif dtype == np.float32:
         c_utils.comms_bcast((<handle_t*> handle)[0], <float*> value_ptr, count)
-    elif result_dtype == np.float64:
+    elif dtype == np.float64:
         c_utils.comms_bcast((<handle_t*> handle)[0], <double*> value_ptr, count)
     else:
         raise TypeError("Unsupported broadcast type")

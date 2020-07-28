@@ -295,26 +295,143 @@ cdef void run_c_betweenness_centrality(uintptr_t c_handle,
         raise ValueError("result_dtype can only be np.float64 or np.float32")
 
 
+def run_internal_work(handle, input_data, normalized, endpoints,
+                       weights,
+                       batch,
+                       total_number_of_sources, result_dtype):
+    cdef uintptr_t c_handle = <uintptr_t> NULL
+    cdef uintptr_t c_graph = <uintptr_t> NULL
+    cdef uintptr_t c_identifier = <uintptr_t> NULL
+    cdef uintptr_t c_weights = <uintptr_t> NULL
+    cdef uintptr_t c_betweenness = <uintptr_t> NULL
+    cdef uintptr_t c_batch = <uintptr_t> NULL
+
+    cdef uintptr_t c_offsets = <uintptr_t> NULL
+    cdef uintptr_t c_indices = <uintptr_t> NULL
+    cdef uintptr_t c_graph_weights = <uintptr_t> NULL
+
+    cdef GraphCSRViewDouble graph_double
+    cdef GraphCSRViewFloat graph_float
+
+    edgelist, is_directed = input_data
+    src = edgelist['src']
+    dst = edgelist['dst']
+    src, dst = graph_new_wrapper.datatype_cast([src, dst], [np.int32])
+
+    offsets, indices, graph_weights = coo2csr(src, dst, None)
+
+    if graph_weights:
+        c_graph_weights = graph_weights.__cuda_array_interface__['data'][0]
+    c_offsets = offsets.__cuda_array_interface__['data'][0]
+    c_indices = indices.__cuda_array_interface__['data'][0]
+
+    number_of_vertices = len(offsets) - 1
+    number_of_edges = len(indices)
+
+    result_size = number_of_vertices
+    result_df = get_output_df(result_size, result_dtype)
+    number_of_sources_in_batch = len(batch)
+    if result_dtype == np.float64:
+        graph_double = GraphCSRView[int, int, double](<int*> c_offsets,
+                                                      <int*> c_indices,
+                                                      <double*> c_graph_weights,
+                                                      number_of_vertices,
+                                                      number_of_edges)
+        graph_double.prop.directed = is_directed
+        c_graph = <uintptr_t>&graph_double
+    elif result_dtype == np.float32:
+        graph_float = GraphCSRView[int, int, float](<int*>c_offsets,
+                                                    <int*>c_indices,
+                                                    <float*>c_graph_weights,
+                                                    number_of_vertices,
+                                                    number_of_edges)
+        graph_float.prop.directed = is_directed
+        c_graph = <uintptr_t>&graph_float
+    else:
+        raise ValueError("result_dtype can only be np.float64 or np.float32")
+
+    c_identifier = result_df['vertex'].__cuda_array_interface__['data'][0]
+    c_betweenness = result_df['betweenness_centrality'].__cuda_array_interface__['data'][0]
+    if weights is not None:
+        c_weights = weights.__cuda_array_interface__['data'][0]
+
+    c_batch = batch.__array_interface__['data'][0]
+    c_handle = <uintptr_t>handle.getHandle()
+
+    run_c_betweenness_centrality(c_handle,
+                                 c_graph,
+                                 c_betweenness,
+                                 normalized,
+                                 endpoints,
+                                 c_weights,
+                                 number_of_sources_in_batch,
+                                 c_batch,
+                                 total_number_of_sources,
+                                 result_dtype)
+    if result_dtype == np.float64:
+        graph_double.get_vertex_identifiers(<int*> c_identifier)
+    elif result_dtype == np.float32:
+        graph_float.get_vertex_identifiers(<int*> c_identifier)
+    else:
+        raise ValueError("result_dtype can only be np.float64 or np.float32")
+
+    return result_df
+
+def run_mg_work(input_data, normalized, endpoints,
+                weights, sources,
+                result_dtype, session_id):
+    # start = time.perf_counter() DBG
+    result = None
+    # 1. Get session information
+    session_state = worker_state(session_id)
+    number_of_workers = session_state["nworkers"]
+    worker_idx = session_state["wid"]
+
+    # 2. Get handle
+    handle = session_state['handle']
+    edge_list, directed = input_data
+
+    # 3. Get Batch
+    batch = get_batch(sources, number_of_workers, worker_idx)
+
+    # 4. Determine worker type
+    is_organizer = is_worker_organizer(worker_idx)
+    total_number_of_sources = len(sources)
+
+    # 5. Dispatch to proper type
+    if is_organizer:
+        print("[DBG] Running organizer")
+    else:
+        print("[DBG] Running not organizer")
+    result = run_internal_work(handle, input_data, normalized,
+                               endpoints, weights, batch,
+                               total_number_of_sources, result_dtype)
+    return result
+
+
+
 def mg_batch_betweenness_centrality(client, comms, input_graph, normalized, endpoints,
                                     weights, vertices, result_dtype):
     df = None
-    data = cugraph.dask.common.input_utils.get_mg_batch_local_data(input_graph.mg_batch_edgelists)
+    #data = cugraph.dask.common.input_utils.get_mg_batch_local_data(input_graph.mg_batch_edgelists)
+    replicated_edgelists = input_graph.mg_batch_edgelists
+    worker_to_data = {list(client.who_has(data).values())[0][0]: data  for data in replicated_edgelists}
+    print(worker_to_data)
+    #worker_to_data = {client.who_has(data): data for idx, data in enumerate(replicated_edgelists)}
+    for idx, (worker, data)in  enumerate(worker_to_data.items()):
+        print("[DBG] idx", idx, "worker", worker, "data", data)
 
-    for placeholder, worker in enumerate(client.has_what().keys()):
-        if worker not in  data.worker_to_parts:
-            data.worker_to_parts[worker] = [[placeholder], None]
-    # start = time.perf_counter() # DBG
-    work_futures =  [client.submit(run_work,
-                                   (wf[1], data.local_data, type(input_graph)
-                                    is DiGraph),
+    work_futures =  [client.submit(run_mg_work,
+                                   (data, type(input_graph)
+                                   is DiGraph),
                                    normalized,
                                    endpoints,
                                    weights,
                                    vertices,
                                    result_dtype,
                                    comms.sessionId,
-                                   workers=[wf[0]]) for
-                     idx, wf in enumerate(data.worker_to_parts.items())]
+                                   workers=[worker]) for
+                    idx, (worker, data) in enumerate(worker_to_data.items())]
     # print("Inner MG call submit: ", time.perf_counter() - start) # DBG
     dask.distributed.wait(work_futures)
     # print("Inner MG call wait: ", time.perf_counter() - start) # DBG

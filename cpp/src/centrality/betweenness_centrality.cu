@@ -443,17 +443,9 @@ void betweenness_centrality(raft::handle_t const &handle,
                             VT total_number_of_sources_used)
 {
   if (handle.comms_initialized()) {
-    int rank   = handle.get_comms().get_rank();
-    auto start = std::chrono::high_resolution_clock::now();
-    cugraph::mg::ReplicatableGraphCSR<VT, ET, WT> local_holder(handle, graph);
-    local_holder.replicate();
-    auto end      = std::chrono::high_resolution_clock::now();
-    auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
-    std::cout << "[DBG] Time spend in C++ replication " << duration.count() << "ms" << std::endl;
-
-    rmm::device_vector<result_t> betweenness(local_holder.graph.number_of_vertices, 0);
+    rmm::device_vector<result_t> betweenness(graph->number_of_vertices, 0);
     detail::betweenness_centrality_impl(handle,
-                                        local_holder.graph,
+                                        *graph,
                                         betweenness.data().get(),
                                         normalize,
                                         endpoints,
