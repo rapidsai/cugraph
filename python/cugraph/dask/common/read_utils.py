@@ -18,6 +18,7 @@ def get_n_workers():
     client = default_client()
     return len(client.scheduler_info()['workers'])
 
+
 def get_chunksize(input_path):
     """
     Calculate the appropriate chunksize for dask_cudf.read_csv
