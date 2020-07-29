@@ -62,7 +62,7 @@ class GraphViewBase {
 
   vertex_t *local_vertices;
   edge_t *local_edges;
-  vertex_t *local_offsedge_ts;
+  vertex_t *local_offsets;
 
   /**
    * @brief      Fill the identifiers array with the vertex identifiers.
@@ -70,14 +70,14 @@ class GraphViewBase {
    * @param[out]    identifiers      Pointer to device memory to store the vertex
    * identifiers
    */
-  void gedge_t_vertex_identifiers(vertex_t *identifiers) const;
-  void sedge_t_local_data(vertex_t *local_vertices_, edge_t *local_edges_, vertex_t *local_offsedge_ts_)
+  void get_vertex_identifiers(vertex_t *identifiers) const;
+  void set_local_data(vertex_t *local_vertices_, edge_t *local_edges_, vertex_t *local_offsets_)
   {
     local_vertices = local_vertices_;
     local_edges    = local_edges_;
-    local_offsedge_ts  = local_offsedge_ts_;
+    local_offsets  = local_offsets_;
   }
-  void sedge_t_handle(raft::handle_t *handle_) { handle = handle_; }
+  void set_handle(raft::handle_t *handle_) { handle = handle_; }
   GraphViewBase(weight_t *edge_data_, vertex_t number_of_vertices_, edge_t number_of_edges_)
     : handle(nullptr),
       edge_data(edge_data_),
@@ -86,12 +86,11 @@ class GraphViewBase {
       number_of_edges(number_of_edges_),
       local_vertices(nullptr),
       local_edges(nullptr),
-      local_offsedge_ts(nullptr)
+      local_offsets(nullptr)
   {
   }
-  bool has_data(void) const { redge_turn edge_data != nullptr; }
+  bool has_data(void) const { return edge_data != nullptr; }
 };
-
 
 /**
  * @brief       A graph stored in COO (COOrdinate) format.
@@ -152,20 +151,19 @@ class GraphCOOView : public GraphViewBase<vertex_t, edge_t, weight_t> {
   }
 };
 
-
 /**
  * @brief       Base class for graph stored in CSR (Compressed Sparse Row)
  * format or CSC (Compressed
  * Sparse Column) format
  *
  * @tparam vertex_t   Type of vertex id
- * @tparam edge_t     Type of edge id
+ * @tparam edge_t   Type of edge id
  * @tparam weight_t   Type of weight
  */
 template <typename vertex_t, typename edge_t, typename weight_t>
 class GraphCompressedSparseBaseView : public GraphViewBase<vertex_t, edge_t, weight_t> {
  public:
-  edge_t *offsedge_ts{nullptr};  ///< CSR offsedge_ts
+  edge_t *offsets{nullptr};  ///< CSR offsets
   vertex_t *indices{nullptr};  ///< CSR indices
 
   /**
@@ -175,17 +173,17 @@ class GraphCompressedSparseBaseView : public GraphViewBase<vertex_t, edge_t, wei
    * @param[out]    src_indices      Pointer to device memory to store the
    * source vertex identifiers
    */
-  void gedge_t_source_indices(vertex_t *src_indices) const;
+  void get_source_indices(vertex_t *src_indices) const;
 
   /**
    * @brief     Computes degree(in, out, in+out) of all the nodes of a Graph
    *
    * @throws     cugraph::logic_error when an error occurs.
    *
-   * @param[out] degree       Device array of size V (V is number of
+   * @param[out] degree         Device array of size V (V is number of
    * vertices) initialized
    * to zeros. Will contain the computed degree of every vertex.
-   * @param[in]  direction    Integer value indicating type of degree
+   * @param[in]  direction      Integer value indicating type of degree
    * calculation
    *                                      0 : in+out degree
    *                                      1 : in-degree
@@ -199,9 +197,9 @@ class GraphCompressedSparseBaseView : public GraphViewBase<vertex_t, edge_t, wei
    * graph. This
    *             function does not allocate memory.
    *
-   * @param  offsedge_ts               This array of size V+1 (V is number of
+   * @param  offsets               This array of size V+1 (V is number of
    * vertices) contains the
-   * offsedge_t of adjacency lists of every vertex. Offsedge_ts must be in the range [0,
+   * offset of adjacency lists of every vertex. Offsets must be in the range [0,
    * E] (number of
    * edges).
    * @param  indices               This array of size E contains the index of
@@ -215,9 +213,9 @@ class GraphCompressedSparseBaseView : public GraphViewBase<vertex_t, edge_t, wei
    * @param  number_of_edges       The number of edges in the graph
    */
   GraphCompressedSparseBaseView(
-    edge_t *offsedge_ts_, vertex_t *indices_, weight_t *edge_data_, vertex_t number_of_vertices_, edge_t number_of_edges_)
+    edge_t *offsets_, vertex_t *indices_, weight_t *edge_data_, vertex_t number_of_vertices_, edge_t number_of_edges_)
     : GraphViewBase<vertex_t, edge_t, weight_t>(edge_data_, number_of_vertices_, number_of_edges_),
-      offsedge_ts{offsedge_ts_},
+      offsets{offsets_},
       indices{indices_}
   {
   }
@@ -227,7 +225,7 @@ class GraphCompressedSparseBaseView : public GraphViewBase<vertex_t, edge_t, wei
  * @brief       A graph stored in CSR (Compressed Sparse Row) format.
  *
  * @tparam vertex_t   Type of vertex id
- * @tparam edge_t     Type of edge id
+ * @tparam edge_t   Type of edge id
  * @tparam weight_t   Type of weight
  */
 template <typename vertex_t, typename edge_t, typename weight_t>
@@ -244,9 +242,9 @@ class GraphCSRView : public GraphCompressedSparseBaseView<vertex_t, edge_t, weig
    * graph. This
    *             function does not allocate memory.
    *
-   * @param  offsedge_ts               This array of size V+1 (V is number of
+   * @param  offsets               This array of size V+1 (V is number of
    * vertices) contains the
-   * offsedge_t of adjacency lists of every vertex. Offsedge_ts must be in the range [0,
+   * offset of adjacency lists of every vertex. Offsets must be in the range [0,
    * E] (number of
    * edges).
    * @param  indices               This array of size E contains the index of
@@ -260,9 +258,9 @@ class GraphCSRView : public GraphCompressedSparseBaseView<vertex_t, edge_t, weig
    * @param  number_of_edges       The number of edges in the graph
    */
   GraphCSRView(
-    edge_t *offsedge_ts_, vertex_t *indices_, weight_t *edge_data_, vertex_t number_of_vertices_, edge_t number_of_edges_)
+    edge_t *offsets_, vertex_t *indices_, weight_t *edge_data_, vertex_t number_of_vertices_, edge_t number_of_edges_)
     : GraphCompressedSparseBaseView<vertex_t, edge_t, weight_t>(
-        offsedge_ts_, indices_, edge_data_, number_of_vertices_, number_of_edges_)
+        offsets_, indices_, edge_data_, number_of_vertices_, number_of_edges_)
   {
   }
 };
@@ -271,7 +269,7 @@ class GraphCSRView : public GraphCompressedSparseBaseView<vertex_t, edge_t, weig
  * @brief       A graph stored in CSC (Compressed Sparse Column) format.
  *
  * @tparam vertex_t   Type of vertex id
- * @tparam edge_t     Type of edge id
+ * @tparam edge_t   Type of edge id
  * @tparam weight_t   Type of weight
  */
 template <typename vertex_t, typename edge_t, typename weight_t>
@@ -289,9 +287,9 @@ class GraphCSCView : public GraphCompressedSparseBaseView<vertex_t, edge_t, weig
    * graph. This
    *             function does not allocate memory.
    *
-   * @param  offsedge_ts               This array of size V+1 (V is number of
+   * @param  offsets               This array of size V+1 (V is number of
    * vertices) contains the
-   * offsedge_t of adjacency lists of every vertex. Offsedge_ts must be in the range [0,
+   * offset of adjacency lists of every vertex. Offsets must be in the range [0,
    * E] (number of
    * edges).
    * @param  indices               This array of size E contains the index of
@@ -305,9 +303,9 @@ class GraphCSCView : public GraphCompressedSparseBaseView<vertex_t, edge_t, weig
    * @param  number_of_edges       The number of edges in the graph
    */
   GraphCSCView(
-    edge_t *offsedge_ts_, vertex_t *indices_, weight_t *edge_data_, vertex_t number_of_vertices_, edge_t number_of_edges_)
+    edge_t *offsets_, vertex_t *indices_, weight_t *edge_data_, vertex_t number_of_vertices_, edge_t number_of_edges_)
     : GraphCompressedSparseBaseView<vertex_t, edge_t, weight_t>(
-        offsedge_ts_, indices_, edge_data_, number_of_vertices_, number_of_edges_)
+        offsets_, indices_, edge_data_, number_of_vertices_, number_of_edges_)
   {
   }
 };
@@ -316,12 +314,6 @@ class GraphCSCView : public GraphCompressedSparseBaseView<vertex_t, edge_t, weig
  * @brief      TODO : Change this Take ownership of the provided graph arrays in
  * COO format
  *
- * @tparam vertex_t   Type of vertex id
- * @tparam edge_t   Type of edge id
- * @tparam weight_t   Type of weight
- *
- * @param  number_of_vertices    The number of vertices in the graph
- * @param  number_of_edges       The number of edges in the graph
  * @param  source_indices        This array of size E (number of edges) contains
  * the index of the
  * source for each edge. Indices must be in the range [0, V-1].
@@ -332,7 +324,8 @@ class GraphCSCView : public GraphCompressedSparseBaseView<vertex_t, edge_t, weig
  * the weight for each
  * edge.  This array can be null in which case the graph is considered
  * unweighted.
-
+ * @param  number_of_vertices    The number of vertices in the graph
+ * @param  number_of_edges       The number of edges in the graph
  */
 template <typename vertex_t, typename edge_t, typename weight_t>
 struct GraphCOOContents {
@@ -366,17 +359,15 @@ class GraphCOO {
    *
    * @param  number_of_vertices    The number of vertices in the graph
    * @param  number_of_edges       The number of edges in the graph
-   * @param  has_data              Weither or not class has data.  Default is False
-   * @param  stream                Specify the stream. default is null
-   * @param  source_indices        This array of size E (number of edges)
-   * @param  mr                    The memory resource
-   *
+   * @param  has_data              Wiether or not the class has data, default = False
+   * @param  stream                Specify the cudaStream, default = null
+   * @param mr                     Specify the memory resource    
    */
   GraphCOO(vertex_t number_of_vertices,
            edge_t number_of_edges,
            bool has_data                       = false,
            cudaStream_t stream                 = nullptr,
-           rmm::mr::device_memory_resource *mr = rmm::mr::gedge_t_default_resource())
+           rmm::mr::device_memory_resource *mr = rmm::mr::get_default_resource())
     : number_of_vertices_(number_of_vertices),
       number_of_edges_(number_of_edges),
       src_indices_(sizeof(vertex_t) * number_of_edges, stream, mr),
@@ -387,7 +378,7 @@ class GraphCOO {
 
   GraphCOO(GraphCOOView<vertex_t, edge_t, weight_t> const &graph,
            cudaStream_t stream                 = nullptr,
-           rmm::mr::device_memory_resource *mr = rmm::mr::gedge_t_default_resource())
+           rmm::mr::device_memory_resource *mr = rmm::mr::get_default_resource())
     : number_of_vertices_(graph.number_of_vertices),
       number_of_edges_(graph.number_of_edges),
       src_indices_(graph.src_indices, graph.number_of_edges * sizeof(vertex_t), stream, mr),
@@ -399,11 +390,11 @@ class GraphCOO {
     }
   }
 
-  vertex_t number_of_vertices(void) { redge_turn number_of_vertices_; }
-  edge_t number_of_edges(void) { redge_turn number_of_edges_; }
-  vertex_t *src_indices(void) { redge_turn static_cast<vertex_t *>(src_indices_.data()); }
-  vertex_t *dst_indices(void) { redge_turn static_cast<vertex_t *>(dst_indices_.data()); }
-  weight_t *edge_data(void) { redge_turn static_cast<weight_t *>(edge_data_.data()); }
+  vertex_t number_of_vertices(void) { return number_of_vertices_; }
+  edge_t number_of_edges(void) { return number_of_edges_; }
+  vertex_t *src_indices(void) { return static_cast<vertex_t *>(src_indices_.data()); }
+  vertex_t *dst_indices(void) { return static_cast<vertex_t *>(dst_indices_.data()); }
+  weight_t *edge_data(void) { return static_cast<weight_t *>(edge_data_.data()); }
 
   GraphCOOContents<vertex_t, edge_t, weight_t> release() noexcept
   {
@@ -411,7 +402,7 @@ class GraphCOO {
     edge_t number_of_edges    = number_of_edges_;
     number_of_vertices_   = 0;
     number_of_edges_      = 0;
-    redge_turn GraphCOOContents<vertex_t, edge_t, weight_t>{
+    return GraphCOOContents<vertex_t, edge_t, weight_t>{
       number_of_vertices,
       number_of_edges,
       std::make_unique<rmm::device_buffer>(std::move(src_indices_)),
@@ -421,18 +412,18 @@ class GraphCOO {
 
   GraphCOOView<vertex_t, edge_t, weight_t> view(void) noexcept
   {
-    redge_turn GraphCOOView<vertex_t, edge_t, weight_t>(
+    return GraphCOOView<vertex_t, edge_t, weight_t>(
       src_indices(), dst_indices(), edge_data(), number_of_vertices_, number_of_edges_);
   }
 
-  bool has_data(void) { redge_turn nullptr != edge_data_.data(); }
+  bool has_data(void) { return nullptr != edge_data_.data(); }
 };
 
 template <typename vertex_t, typename edge_t, typename weight_t>
 struct GraphSparseContents {
   vertex_t number_of_vertices;
   edge_t number_of_edges;
-  std::unique_ptr<rmm::device_buffer> offsedge_ts;
+  std::unique_ptr<rmm::device_buffer> offsets;
   std::unique_ptr<rmm::device_buffer> indices;
   std::unique_ptr<rmm::device_buffer> edge_data;
 };
@@ -443,14 +434,14 @@ struct GraphSparseContents {
  * CSC (Compressed Sparse Column) format
  *
  * @tparam vertex_t   Type of vertex id
- * @tparam edge_t     Type of edge id
+ * @tparam edge_t   Type of edge id
  * @tparam weight_t   Type of weight
  */
 template <typename vertex_t, typename edge_t, typename weight_t>
 class GraphCompressedSparseBase {
   vertex_t number_of_vertices_{0};
   edge_t number_of_edges_{0};
-  rmm::device_buffer offsedge_ts_{};    ///< CSR offsedge_ts
+  rmm::device_buffer offsets_{};    ///< CSR offsets
   rmm::device_buffer indices_{};    ///< CSR indices
   rmm::device_buffer edge_data_{};  ///< CSR data
 
@@ -462,11 +453,9 @@ class GraphCompressedSparseBase {
    *
    * @param  number_of_vertices    The number of vertices in the graph
    * @param  number_of_edges       The number of edges in the graph
-   * @param  has_data              Weither or not class has data.  Default is False
-   * @param  stream                Specify the stream. default is null
-   * @param  source_indices        This array of size E (number of edges)
-   * @param  mr                    The memory resource
-   *
+   * @param  has_data              Wiether or not the class has data, default = False
+   * @param  stream                Specify the cudaStream, default = null
+   * @param mr                     Specify the memory resource    
    */
   GraphCompressedSparseBase(vertex_t number_of_vertices,
                             edge_t number_of_edges,
@@ -475,7 +464,7 @@ class GraphCompressedSparseBase {
                             rmm::mr::device_memory_resource *mr)
     : number_of_vertices_(number_of_vertices),
       number_of_edges_(number_of_edges),
-      offsedge_ts_(sizeof(edge_t) * (number_of_vertices + 1), stream, mr),
+      offsets_(sizeof(edge_t) * (number_of_vertices + 1), stream, mr),
       indices_(sizeof(vertex_t) * number_of_edges, stream, mr),
       edge_data_((has_data ? sizeof(weight_t) * number_of_edges : 0), stream, mr)
   {
@@ -484,17 +473,17 @@ class GraphCompressedSparseBase {
   GraphCompressedSparseBase(GraphSparseContents<vertex_t, edge_t, weight_t> &&contents)
     : number_of_vertices_(contents.number_of_vertices),
       number_of_edges_(contents.number_of_edges),
-      offsedge_ts_(std::move(*contents.offsedge_ts.release())),
+      offsets_(std::move(*contents.offsets.release())),
       indices_(std::move(*contents.indices.release())),
       edge_data_(std::move(*contents.edge_data.release()))
   {
   }
 
-  vertex_t number_of_vertices(void) { redge_turn number_of_vertices_; }
-  edge_t number_of_edges(void) { redge_turn number_of_edges_; }
-  edge_t *offsedge_ts(void) { redge_turn static_cast<edge_t *>(offsedge_ts_.data()); }
-  vertex_t *indices(void) { redge_turn static_cast<vertex_t *>(indices_.data()); }
-  weight_t *edge_data(void) { redge_turn static_cast<weight_t *>(edge_data_.data()); }
+  vertex_t number_of_vertices(void) { return number_of_vertices_; }
+  edge_t number_of_edges(void) { return number_of_edges_; }
+  edge_t *offsets(void) { return static_cast<edge_t *>(offsets_.data()); }
+  vertex_t *indices(void) { return static_cast<vertex_t *>(indices_.data()); }
+  weight_t *edge_data(void) { return static_cast<weight_t *>(edge_data_.data()); }
 
   GraphSparseContents<vertex_t, edge_t, weight_t> release() noexcept
   {
@@ -502,15 +491,15 @@ class GraphCompressedSparseBase {
     edge_t number_of_edges    = number_of_edges_;
     number_of_vertices_   = 0;
     number_of_edges_      = 0;
-    redge_turn GraphSparseContents<vertex_t, edge_t, weight_t>{
+    return GraphSparseContents<vertex_t, edge_t, weight_t>{
       number_of_vertices,
       number_of_edges,
-      std::make_unique<rmm::device_buffer>(std::move(offsedge_ts_)),
+      std::make_unique<rmm::device_buffer>(std::move(offsets_)),
       std::make_unique<rmm::device_buffer>(std::move(indices_)),
       std::make_unique<rmm::device_buffer>(std::move(edge_data_))};
   }
 
-  bool has_data(void) { redge_turn nullptr != edge_data_.data(); }
+  bool has_data(void) { return nullptr != edge_data_.data(); }
 };
 
 /**
@@ -518,7 +507,7 @@ class GraphCompressedSparseBase {
  * format.
  *
  * @tparam vertex_t   Type of vertex id
- * @tparam edge_t     Type of edge id
+ * @tparam edge_t   Type of edge id
  * @tparam weight_t   Type of weight
  */
 template <typename vertex_t, typename edge_t, typename weight_t>
@@ -534,16 +523,15 @@ class GraphCSR : public GraphCompressedSparseBase<vertex_t, edge_t, weight_t> {
    *
    * @param  number_of_vertices    The number of vertices in the graph
    * @param  number_of_edges       The number of edges in the graph
-   * @param  has_data              Weither or not class has data.  Default is False
-   * @param  stream                Specify the stream. default is null
-   * @param  source_indices        This array of size E (number of edges)
-   * @param  mr                    The memory resource   
+   * @param  has_data              Wiether or not the class has data, default = False
+   * @param  stream                Specify the cudaStream, default = null
+   * @param mr                     Specify the memory resource    
    */
   GraphCSR(vertex_t number_of_vertices_,
            edge_t number_of_edges_,
            bool has_data_                      = false,
            cudaStream_t stream                 = nullptr,
-           rmm::mr::device_memory_resource *mr = rmm::mr::gedge_t_default_resource())
+           rmm::mr::device_memory_resource *mr = rmm::mr::get_default_resource())
     : GraphCompressedSparseBase<vertex_t, edge_t, weight_t>(
         number_of_vertices_, number_of_edges_, has_data_, stream, mr)
   {
@@ -556,7 +544,7 @@ class GraphCSR : public GraphCompressedSparseBase<vertex_t, edge_t, weight_t> {
 
   GraphCSRView<vertex_t, edge_t, weight_t> view(void) noexcept
   {
-    redge_turn GraphCSRView<vertex_t, edge_t, weight_t>(GraphCompressedSparseBase<vertex_t, edge_t, weight_t>::offsedge_ts(),
+    return GraphCSRView<vertex_t, edge_t, weight_t>(GraphCompressedSparseBase<vertex_t, edge_t, weight_t>::offsets(),
                                     GraphCompressedSparseBase<vertex_t, edge_t, weight_t>::indices(),
                                     GraphCompressedSparseBase<vertex_t, edge_t, weight_t>::edge_data(),
                                     GraphCompressedSparseBase<vertex_t, edge_t, weight_t>::number_of_vertices(),
@@ -585,16 +573,15 @@ class GraphCSC : public GraphCompressedSparseBase<vertex_t, edge_t, weight_t> {
    *
    * @param  number_of_vertices    The number of vertices in the graph
    * @param  number_of_edges       The number of edges in the graph
-   * @param  has_data              Weither or not class has data.  Default is False
-   * @param  stream                Specify the stream. default is null
-   * @param  source_indices        This array of size E (number of edges)
-   * @param  mr                    The memory resource   
+   * @param  has_data              Wiether or not the class has data, default = False
+   * @param  stream                Specify the cudaStream, default = null
+   * @param mr                     Specify the memory resource    
    */
   GraphCSC(vertex_t number_of_vertices_,
            edge_t number_of_edges_,
            bool has_data_                      = false,
            cudaStream_t stream                 = nullptr,
-           rmm::mr::device_memory_resource *mr = rmm::mr::gedge_t_default_resource())
+           rmm::mr::device_memory_resource *mr = rmm::mr::get_default_resource())
     : GraphCompressedSparseBase<vertex_t, edge_t, weight_t>(
         number_of_vertices_, number_of_edges_, has_data_, stream, mr)
   {
@@ -607,7 +594,7 @@ class GraphCSC : public GraphCompressedSparseBase<vertex_t, edge_t, weight_t> {
 
   GraphCSCView<vertex_t, edge_t, weight_t> view(void) noexcept
   {
-    redge_turn GraphCSCView<vertex_t, edge_t, weight_t>(GraphCompressedSparseBase<vertex_t, edge_t, weight_t>::offsedge_ts(),
+    return GraphCSCView<vertex_t, edge_t, weight_t>(GraphCompressedSparseBase<vertex_t, edge_t, weight_t>::offsets(),
                                     GraphCompressedSparseBase<vertex_t, edge_t, weight_t>::indices(),
                                     GraphCompressedSparseBase<vertex_t, edge_t, weight_t>::edge_data(),
                                     GraphCompressedSparseBase<vertex_t, edge_t, weight_t>::number_of_vertices(),
