@@ -24,7 +24,6 @@ from cugraph.raft.dask.common.utils import get_client
 from cugraph.dask.common.part_utils import (_extract_partitions,
                                             load_balance_func)
 from dask.distributed import default_client
-from dask.distributed import wait
 from toolz import first
 from functools import reduce
 
@@ -164,38 +163,6 @@ class DistributedDataHandler:
                                             dtype=np.int32)
         self.local_data = local_data_dict
 
-    # FIXME: Merge above and below when  renumbering is supported for mg
-    # distributed
-    def calculate_mg_batch_local_data(self, comms):
-
-        if self.worker_info is None and comms is not None:
-            self.calculate_worker_and_rank_info(comms)
-
-        local_data = dict([(self.worker_info[wf[0]]["rank"],
-                            self.client.submit(
-                            _get_batch_mg_local_data,
-                            wf[1],
-                            workers=[wf[0]]))
-                          for idx, wf in enumerate(self.worker_to_parts.items()
-                                                   )])
-
-        _local_data_dict = self.client.compute(local_data, sync=True)
-        local_data_dict = {'edges': [], 'offsets': [], 'verts': []}
-        for rank in range(len(_local_data_dict)):
-            data = _local_data_dict[rank]
-            local_data_dict['edges'].append(data[0])
-            local_data_dict['offsets'].append(data[1])
-            local_data_dict['verts'].append(data[2])
-
-        import numpy as np
-        local_data_dict['edges'] = np.array(local_data_dict['edges'],
-                                            dtype=np.int32)
-        local_data_dict['offsets'] = np.array(local_data_dict['offsets'],
-                                              dtype=np.int32)
-        local_data_dict['verts'] = np.array(local_data_dict['verts'],
-                                            dtype=np.int32)
-        self.local_data = local_data_dict
-
 
 """ Internal methods, API subject to change """
 
@@ -229,16 +196,6 @@ def _get_local_data(df, by):
     return num_local_edges, local_offset, num_local_verts
 
 
-def _get_batch_mg_local_data(df):
-    import numpy as np
-    df = df[0]
-    num_local_edges = len(df)
-    local_offset = 0
-    vertices = df[["src", "dst"]].values.ravel()
-    num_local_verts = len(np.unique(vertices))
-    return num_local_edges, local_offset, num_local_verts
-
-
 def get_local_data(input_graph, by, load_balance=True):
     _ddf = input_graph.edgelist.edgelist_df
     ddf = _ddf.sort_values(by=by, ignore_index=True)
@@ -252,12 +209,6 @@ def get_local_data(input_graph, by, load_balance=True):
     return data
 
 
-def get_mg_batch_local_data(input_graph):
-    #ddf = input_graph.edgelist.edgelist_df
-    #ddf = input_graph.mg_batch_edgelists # DBG
-    ddf = input_graph
-
-    comms = Comms.get_comms()
-    data = DistributedDataHandler.create(data=ddf)
-    data.calculate_mg_batch_local_data(comms)
+def get_mg_batch_data(dask_cudf_data):
+    data = DistributedDataHandler.create(data=dask_cudf_data)
     return data

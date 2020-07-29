@@ -290,7 +290,7 @@ def mg_batch_edge_betweenness_centrality(client, comms, input_graph,
                                          normalized,
                                          weights, vertices, result_dtype):
     df = None
-    data  = cugraph.dask.common.input_utils.get_mg_batch_local_data(input_graph)
+    data  = cugraph.dask.common.input_utils.get_mg_batch_data(input_graph)
     for placeholder, worker in enumerate(client.has_what().keys()):
         if worker not in  data.worker_to_parts:
             data.worker_to_parts[worker] = [[placeholder], None]

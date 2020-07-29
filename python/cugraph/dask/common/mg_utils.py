@@ -43,5 +43,5 @@ def mg_prepare_worker_to_parts(data, client=None):
         client = mg_get_client
     for placeholder, worker in enumerate(client.has_what().keys()):
         if worker not in data.worker_to_parts:
-            data.worker_to_parts[worker] = [[placeholder], None]
+            data.worker_to_parts[worker] = [placeholder]
     return data

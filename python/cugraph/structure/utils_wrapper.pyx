@@ -102,7 +102,7 @@ def replicate_edgelist(input_data, session_id):
     c_handle = <uintptr_t>handle.getHandle()
 
     #(placeholder, number_of_vertices, number_of_edges) = input_data
-    _data, local_data, number_of_vertices, number_of_edges = input_data
+    _data, edgelist_size = input_data
     data = _data[0]
     has_data = type(data) is cudf.DataFrame
     src_identifiers = None
@@ -111,8 +111,8 @@ def replicate_edgelist(input_data, session_id):
         src_identifiers = data['src']
         dst_identifiers = data['dst']
     else:
-        src_identifiers = cudf.Series(np.zeros(number_of_edges), dtype=np.int32)
-        dst_identifiers = cudf.Series(np.zeros(number_of_edges), dtype=np.int32)
+        src_identifiers = cudf.Series(np.zeros(edgelist_size), dtype=np.int32)
+        dst_identifiers = cudf.Series(np.zeros(edgelist_size), dtype=np.int32)
 
     c_src =  src_identifiers.__cuda_array_interface__['data'][0]
     c_dst =  dst_identifiers.__cuda_array_interface__['data'][0]
@@ -128,7 +128,7 @@ def replicate_edgelist(input_data, session_id):
     return result
 
 
-def replicate_cudf_series(input_data, session_id, dtype):
+def replicate_cudf_series(input_data, session_id):
     cdef uintptr_t c_handle = <uintptr_t> NULL
     cdef uintptr_t c_result = <uintptr_t> NULL
 
@@ -138,7 +138,7 @@ def replicate_cudf_series(input_data, session_id, dtype):
     handle = session_state['handle']
     c_handle = <uintptr_t>handle.getHandle()
 
-    (_data, size) = input_data
+    (_data, size, dtype) = input_data
 
     data = _data[0]
     has_data = type(data) is cudf.Series

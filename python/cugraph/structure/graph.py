@@ -16,7 +16,7 @@ from cugraph.structure.symmetrize import symmetrize
 from cugraph.structure.renumber import renumber as rnb
 from cugraph.structure.renumber import renumber_from_cudf as multi_rnb
 from cugraph.dask.common.input_utils import (get_local_data,
-                                             get_mg_batch_local_data)
+                                             get_mg_batch_data)
 import cugraph.dask.common.mg_utils as mg_utils
 import cudf
 import dask_cudf
@@ -135,69 +135,75 @@ class Graph:
             self._replicate_transposed_adjlist()
 
     def _replicate_edgelist(self):
+        # TODO(xcadet) Add tests
         client = mg_utils.mg_get_client()
+        # FIXME: There  might be a better way to control it
+        if client is None:
+            return
         comms = Comms.get_comms()
 
         _mg_batch_edgelists = dask_cudf.from_cudf(self.edgelist.edgelist_df,
                                                   npartitions=1)
 
-        number_of_vertices = self.number_of_vertices()
-        number_of_edges = len(self.edgelist.edgelist_df)
+        edgelist_size = len(self.edgelist.edgelist_df)
 
-        data = get_mg_batch_local_data(_mg_batch_edgelists)
-        for placeholder, worker in enumerate(client.has_what().keys()):
-            if worker not in data.worker_to_parts:
-                data.worker_to_parts[worker] = [[placeholder], None]
+        _edgelist_data = get_mg_batch_data(_mg_batch_edgelists)
+        edgelist_data = mg_utils.mg_prepare_worker_to_parts(_edgelist_data,
+                                                            client)
 
-        work_futures = [client.submit(utils_wrapper.replicate_edgelist,
-                                       (wf[1], data.local_data,
-                                        number_of_vertices,
-                                        number_of_edges),
-                                       comms.sessionId,
-                                       workers=[wf[0]]) for
-                         idx, wf in enumerate(data.worker_to_parts.items())]
+        work_futures = {worker: client.submit(utils_wrapper.replicate_edgelist,
+                        (data, edgelist_size),
+                        comms.sessionId,
+                        workers=[worker]) for
+                        (worker, data) in
+                        edgelist_data.worker_to_parts.items()}
         dask.distributed.wait(work_futures)
         self.mg_batch_edgelists = work_futures
 
     def _replicate_adjlist(self):
         client = mg_utils.mg_get_client()
+        # FIXME: There  might be a better way to control it
+        if client is None:
+            return
         comms = Comms.get_comms()
 
         _mg_batch_indices = dask_cudf.from_cudf(self.adjlist.indices,
                                                 npartitions=1)
         _mg_batch_offsets = dask_cudf.from_cudf(self.adjlist.offsets,
                                                 npartitions=1)
-        print(_mg_batch_indices)
-        print(_mg_batch_offsets)
-        return
 
         indices_size = len(_mg_batch_indices)
         offsets_size = len(_mg_batch_offsets)
 
-        _indices_data = get_mg_batch_local_data(_mg_batch_indices)
-        _offsets_data = get_mg_batch_local_data(_mg_batch_offsets)
+        _indices_data = get_mg_batch_data(_mg_batch_indices)
+        _offsets_data = get_mg_batch_data(_mg_batch_offsets)
 
-        indices_data = mg_utils.mg_prepare_worker_to_parts(_indices_data, client)
-        offsets_data = mg_utils.mg_prepare_worker_to_parts(_offsets_data, client)
+        indices_data = mg_utils.mg_prepare_worker_to_parts(_indices_data,
+                                                           client)
+        offsets_data = mg_utils.mg_prepare_worker_to_parts(_offsets_data,
+                                                           client)
 
-        # FIXME: It might be feasible to handle both simultaneously
-        indices_futures = {worker: client.submit(utils_wrapper.replicate_edgelist,
-                                         (wf[1], indices_size),
+        indices_futures = {worker:
+                           client.submit(utils_wrapper.replicate_cudf_series,
+                                         (data, indices_size, np.int32),
                                          comms.sessionId,
-                                         workers=[wf[0]]) for
-                            idx, (data, worker) in enumerate(indices_data.worker_to_parts.items())}
+                                         workers=[worker]) for
+                           (worker, data) in
+                           indices_data.worker_to_parts.items()}
         dask.distributed.wait(indices_futures)
 
-        offsets_futures = {worker: client.submit(utils_wrapper.replicate_edgelist,
-                                         (wf[1], offsets_size),
+        offsets_futures = {worker:
+                           client.submit(utils_wrapper.replicate_cudf_series,
+                                         (data, offsets_size, np.int32),
                                          comms.sessionId,
-                                         workers=[wf[0]]) for
-                         idx, (data, worker) in enumerate(offsets_data.worker_to_parts.items())}
+                                         workers=[worker]) for
+                           (worker, data) in
+                           offsets_data.worker_to_parts.items()}
         dask.distributed.wait(offsets_futures)
-        print(offsets_futures)
-        print(indices_futures)
-
-        self.mg_batch_adjlists = True
+        merged_futures = {worker: [offsets_futures[worker],
+                                   indices_futures[worker], None]
+                          for worker in offsets_futures}
+        self.mg_batch_adjlists = merged_futures
 
     def replicate_transposed_adjlist(self):
         pass

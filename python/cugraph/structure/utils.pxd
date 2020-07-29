@@ -28,8 +28,6 @@ cdef extern from "functions.hpp" namespace "cugraph":
     cdef unique_ptr[GraphCSR[VT,ET,WT]] coo_to_csr[VT,ET,WT](
             const GraphCOOView[VT,ET,WT] &graph) except +
 
-
-# TODO(xcadet) For nccl replication
     cdef void comms_bcast[value_t](
             const handle_t &handle,
             value_t *dst,
