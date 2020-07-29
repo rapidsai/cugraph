@@ -20,7 +20,7 @@
 
 namespace cugraph {
 
-namespace opg {
+namespace mg {
 
 namespace detail {
 
@@ -118,6 +118,6 @@ struct is_not_equal {
 
 }  // namespace detail
 
-}  // namespace opg
+}  // namespace mg
 
 }  // namespace cugraph
