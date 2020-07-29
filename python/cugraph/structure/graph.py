@@ -330,7 +330,9 @@ class Graph:
         else:
             self.from_cudf_edgelist(input_df)
 
-    def from_dask_cudf_edgelist(self, input_ddf, renumber=True):
+    def from_dask_cudf_edgelist(self, input_ddf, source='source',
+                                destination='destination',
+                                edge_attr=None, renumber=True):
         """
         Initializes the distributed graph from the dask_cudf.DataFrame
         edgelist. Undirected Graphs are not currently supported.
@@ -345,9 +347,12 @@ class Graph:
         ----------
         input_ddf : dask_cudf.DataFrame
             The edgelist as a dask_cudf.DataFrame
-            Source vertices are in a column named 'src', Destination
-            vertices are in a column named 'dst'
-
+        source : str
+            source argument is source column name
+        destination : str
+            destination argument is destination column name.
+        edge_attr : str
+            edge_attr argument is the weights column name.
         renumber : bool
             If source and destination indices are not in range 0 to V where V
             is number of vertices, renumber argument should be True.
@@ -359,6 +364,10 @@ class Graph:
         if isinstance(input_ddf, dask_cudf.DataFrame):
             self.distributed = True
             self.local_data = None
+            rename_map = {source: 'src', destination: 'dst'}
+            if edge_attr is not None:
+                rename_map[edge_attr] = 'weights'
+            input_ddf = input_ddf.rename(columns=rename_map)
             if renumber:
                 renumbered_ddf, number_map = NumberMap.renumber(
                     input_ddf, "src", "dst"

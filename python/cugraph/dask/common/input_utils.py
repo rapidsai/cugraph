@@ -151,8 +151,13 @@ class DistributedDataHandler:
         for rank in range(len(_local_data_dict)):
             data = _local_data_dict[rank]
             local_data_dict['edges'].append(data[0])
-            local_data_dict['offsets'].append(data[1])
-            local_data_dict['verts'].append(data[2])
+            if rank == 0:
+                local_offset = 0
+            else:
+                prev_data = _local_data_dict[rank-1]
+                local_offset = prev_data[1] + 1
+            local_data_dict['offsets'].append(local_offset)
+            local_data_dict['verts'].append(data[1] - local_offset + 1)
 
         import numpy as np
         local_data_dict['edges'] = np.array(local_data_dict['edges'],
@@ -191,13 +196,8 @@ def _get_rows(objs, multiple):
 def _get_local_data(df, by):
     df = df[0]
     num_local_edges = len(df)
-    if num_local_edges == 0:
-        local_offset = 0
-        num_local_verts = 0
-    else:
-        local_offset = df[by].min()
-        num_local_verts = df[by].max() - local_offset + 1
-    return num_local_edges, local_offset, num_local_verts
+    local_max = df[by].iloc[-1]
+    return num_local_edges, local_max
 
 
 def get_local_data(input_graph, by, load_balance=True):
