@@ -22,24 +22,7 @@ import dask_cudf as dc
 from dask.array.core import Array as daskArray
 from dask_cudf.core import DataFrame as daskDataFrame
 from dask_cudf.core import Series as daskSeries
-
-
-'''
-def hosts_to_parts(futures):
-    """
-    Builds an ordered dict mapping each host to their list
-    of parts
-    :param futures: list of (worker, part) tuples
-    :return:
-    """
-    w_to_p_map = OrderedDict()
-    for w, p in futures:
-        host, port = parse_host_port(w)
-        host_key = (host, port)
-        if host_key not in w_to_p_map:
-            w_to_p_map[host_key] = []
-        w_to_p_map[host_key].append(p)
-    return w_to_p_map
+from functools import reduce
 
 
 def workers_to_parts(futures):
@@ -80,45 +63,6 @@ def parts_to_ranks(client, worker_info, part_futures):
     total = reduce(lambda a, b: a + b, sizes)
 
     return [(futures[idx][0], size) for idx, size in enumerate(sizes)], total
-
-
-def _default_part_getter(f, idx): return f[idx]
-
-
-def flatten_grouped_results(client, gpu_futures,
-                            worker_results_map,
-                            getter_func=_default_part_getter):
-    """
-    This function is useful when a series of partitions have been grouped by
-    the worker responsible for the data and the resulting partitions are
-    stored on each worker as a list. This happens when a communications
-    implementation is used which does not allow multiple ranks per device, so
-    the partitions need to be grouped on the ranks to be processed concurrently
-    using different streams.
-
-    :param client: Dask client
-    :param gpu_futures: [(future, part)] worker to part list of tuples
-    :param worker_results_map: { rank: future } where future is a list
-           of data partitions on a Dask worker
-    :param getter_func: a function that takes a future and partition index
-           as arguments and returns the data for a specific partitions
-    :return: the ordered list of futures holding each partition on the workers
-    """
-    futures = []
-    completed_part_map = {}
-    for rank, part in gpu_futures:
-        if rank not in completed_part_map:
-            completed_part_map[rank] = 0
-
-        f = worker_results_map[rank]
-
-        futures.append(client.submit(
-            getter_func, f, completed_part_map[rank]))
-
-        completed_part_map[rank] += 1
-
-    return futures
-'''
 
 
 @gen.coroutine

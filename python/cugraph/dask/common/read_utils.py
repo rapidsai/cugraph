@@ -13,13 +13,10 @@
 # limitations under the License.
 
 
-def get_n_gpus():
-    import os
-    try:
-        return len(os.environ["CUDA_VISIBLE_DEVICES"].split(","))
-    except KeyError:
-        return len(os.popen("nvidia-smi -L").read().strip().split("\n"))
-
+def get_n_workers():
+    from dask.distributed import default_client
+    client = default_client()
+    return len(client.scheduler_info()['workers'])
 
 def get_chunksize(input_path):
     """
@@ -38,7 +35,7 @@ def get_chunksize(input_path):
     input_files = sorted(glob(str(input_path)))
     if len(input_files) == 1:
         size = os.path.getsize(input_files[0])
-        chunksize = math.ceil(size/get_n_gpus())
+        chunksize = math.ceil(size/get_n_workers())
     else:
         size = [os.path.getsize(_file) for _file in input_files]
         chunksize = max(size)
