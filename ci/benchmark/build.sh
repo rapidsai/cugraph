@@ -140,7 +140,7 @@ function getReqs() {
 REQS=$(getReqs "${CUGRAPH_DEPS[@]}")
 
 BENCHMARK_META=$(jq -n \
-  --arg NODE "${NODE_NAME}" \
+  --arg NODE "${ASV_LABEL}" \
   --arg BRANCH "branch-${MINOR_VERSION}" \
   --argjson REQS "${REQS}" '
   {
