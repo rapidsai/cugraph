@@ -16,7 +16,7 @@ dependencies:
 - scipy
 - networkx
 - python-louvain
-- cudatoolkit=10.2
+- cudatoolkit=11.0
 - clang=8.0.1
 - clang-tools=8.0.1
 - cmake>=3.12

@@ -44,6 +44,8 @@
 - PR #1007 Add tolerance support to MG Pagerank and fix
 - PR #1009 Update benchmarks script to include requirements used
 - PR #1014 Fix benchmarks script variable name
+- PR #1019 Remove deprecated CUDA library calls
+- PR #1024 Updated condata environment YML files
 - PR #1026 update chunksize for mnmg, remove files and unused code
 
 ## Bug Fixes
@@ -57,7 +59,7 @@
 - PR #1012 Fix Local build script README
 - PR #1017 Fix more mg bugs
 - PR #1022 Fix support for using a cudf.DataFrame with a MG graph
- 
+
 # cuGraph 0.14.0 (03 Jun 2020)
 
 ## New Features
