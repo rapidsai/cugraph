@@ -26,6 +26,7 @@ import rmm
 import numpy as np
 from rmm._lib.device_buffer cimport DeviceBuffer
 from cudf.core.buffer import Buffer
+from cugraph.raft.dask.common.comms import worker_state
 
 
 def weight_type(weights):
@@ -83,13 +84,13 @@ def coo2csr(source_col, dest_col, weights=None):
         return create_csr_float(source_col, dest_col, weights)
 
 
-# DBG
-def _internal_replication_edgelist(input_data, session_id):
+# FIXME: Does not support graph weights
+# FIXME: Assumes that data is np.int32
+def replicate_edgelist(input_data, session_id):
     cdef uintptr_t c_handle = <uintptr_t> NULL
     cdef uintptr_t c_src = <uintptr_t> NULL
     cdef uintptr_t c_dst = <uintptr_t> NULL
 
-    from cugraph.raft.dask.common.comms import worker_state
     result = None
     # 1. Get session information
     session_state = worker_state(session_id)
@@ -99,8 +100,6 @@ def _internal_replication_edgelist(input_data, session_id):
     # 2. Get handle
     handle = session_state['handle']
     c_handle = <uintptr_t>handle.getHandle()
-
-    # 3. Determine worker type
 
     #(placeholder, number_of_vertices, number_of_edges) = input_data
     _data, local_data, number_of_vertices, number_of_edges = input_data
@@ -127,6 +126,33 @@ def _internal_replication_edgelist(input_data, session_id):
         result = cudf.DataFrame(data={"src": src_identifiers,
                                       "dst": dst_identifiers})
     return result
+
+
+def replicate_cudf_series(input_data, session_id, dtype):
+    cdef uintptr_t c_handle = <uintptr_t> NULL
+    cdef uintptr_t c_result = <uintptr_t> NULL
+
+    result = None
+
+    session_state = worker_state(session_id)
+    handle = session_state['handle']
+    c_handle = <uintptr_t>handle.getHandle()
+
+    (_data, size) = input_data
+
+    data = _data[0]
+    has_data = type(data) is cudf.Series
+    if has_data:
+        result = data
+    else:
+        result = cudf.Series(np.zeros(size), dtype=dtype)
+
+    c_result = result.__cuda_array_interface__['data'][0]
+
+    comms_bcast(c_handle, c_result, size, dtype)
+
+    return result
+
 
 
 

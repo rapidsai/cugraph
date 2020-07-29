@@ -33,7 +33,6 @@ import dask_cudf
 import dask_cuda
 import cugraph.raft
 
-import time # DBG
 
 import cugraph.comms.comms as Comms
 from cugraph.dask.common.mg_utils import (mg_get_client, is_worker_organizer)
@@ -62,7 +61,6 @@ def get_batch(sources, number_of_workers, current_worker):
 def run_work(input_data, normalized, endpoints,
              weights, sources,
              result_dtype, session_id):
-    # start = time.perf_counter() DBG
     result = None
     # 1. Get session information
     session_state = worker_state(session_id)
@@ -88,7 +86,6 @@ def run_work(input_data, normalized, endpoints,
         result = run_regular_work(handle, normalized, endpoints,
                                   weights, batch,
                                   total_number_of_sources, result_dtype)
-    # print("[DBG] Run work ", is_organizer, time.perf_counter() - start)
     return result
 
 
@@ -296,9 +293,9 @@ cdef void run_c_betweenness_centrality(uintptr_t c_handle,
 
 
 def run_internal_work(handle, input_data, normalized, endpoints,
-                       weights,
-                       batch,
-                       total_number_of_sources, result_dtype):
+                      weights,
+                      batch,
+                      total_number_of_sources, result_dtype):
     cdef uintptr_t c_handle = <uintptr_t> NULL
     cdef uintptr_t c_graph = <uintptr_t> NULL
     cdef uintptr_t c_identifier = <uintptr_t> NULL
@@ -316,6 +313,7 @@ def run_internal_work(handle, input_data, normalized, endpoints,
     edgelist, is_directed = input_data
     src = edgelist['src']
     dst = edgelist['dst']
+
     src, dst = graph_new_wrapper.datatype_cast([src, dst], [np.int32])
 
     offsets, indices, graph_weights = coo2csr(src, dst, None)
@@ -380,7 +378,6 @@ def run_internal_work(handle, input_data, normalized, endpoints,
 def run_mg_work(input_data, normalized, endpoints,
                 weights, sources,
                 result_dtype, session_id):
-    # start = time.perf_counter() DBG
     result = None
     # 1. Get session information
     session_state = worker_state(session_id)
@@ -398,11 +395,6 @@ def run_mg_work(input_data, normalized, endpoints,
     is_organizer = is_worker_organizer(worker_idx)
     total_number_of_sources = len(sources)
 
-    # 5. Dispatch to proper type
-    if is_organizer:
-        print("[DBG] Running organizer")
-    else:
-        print("[DBG] Running not organizer")
     result = run_internal_work(handle, input_data, normalized,
                                endpoints, weights, batch,
                                total_number_of_sources, result_dtype)
@@ -410,17 +402,13 @@ def run_mg_work(input_data, normalized, endpoints,
 
 
 
-def mg_batch_betweenness_centrality(client, comms, input_graph, normalized, endpoints,
+def mg_batch_betweenness_centrality(input_graph, normalized, endpoints,
                                     weights, vertices, result_dtype):
     df = None
-    #data = cugraph.dask.common.input_utils.get_mg_batch_local_data(input_graph.mg_batch_edgelists)
+    client = mg_get_client()
+    comms = Comms.get_comms()
     replicated_edgelists = input_graph.mg_batch_edgelists
     worker_to_data = {list(client.who_has(data).values())[0][0]: data  for data in replicated_edgelists}
-    print(worker_to_data)
-    #worker_to_data = {client.who_has(data): data for idx, data in enumerate(replicated_edgelists)}
-    for idx, (worker, data)in  enumerate(worker_to_data.items()):
-        print("[DBG] idx", idx, "worker", worker, "data", data)
-
     work_futures =  [client.submit(run_mg_work,
                                    (data, type(input_graph)
                                    is DiGraph),
@@ -432,9 +420,7 @@ def mg_batch_betweenness_centrality(client, comms, input_graph, normalized, endp
                                    comms.sessionId,
                                    workers=[worker]) for
                     idx, (worker, data) in enumerate(worker_to_data.items())]
-    # print("Inner MG call submit: ", time.perf_counter() - start) # DBG
     dask.distributed.wait(work_futures)
-    # print("Inner MG call wait: ", time.perf_counter() - start) # DBG
     df = work_futures[0].result()
     return df
 
@@ -458,28 +444,22 @@ def betweenness_centrality(input_graph, normalized, endpoints, weights,
     Call betweenness centrality
     """
     df = None
-    client = mg_get_client()
     comms = Comms.get_comms()
-    if comms:
-        assert input_graph.mg_batch_enabled == True, "To run Batch Analytics on " \
-            "Multi GPU, the graph needs to be "     \
-            "located on a single GPU"
-        start = time.perf_counter() # DBG
-        df = mg_batch_betweenness_centrality(client, comms, input_graph, normalized,
-                                             endpoints, weights, vertices,
+    if comms and input_graph.mg_batch_enabled == True:
+        df = mg_batch_betweenness_centrality(input_graph,
+                                             normalized,
+                                             endpoints,
+                                             weights,
+                                             vertices,
                                              result_dtype)
-        print("MG call: ", time.perf_counter() - start) # DBG
     else:
-        df = sg_betweenness_centrality(input_graph, normalized, endpoints,
-                                       weights, vertices, result_dtype)
-    # For large graph unrenumbering produces a dataframe organized
-    #       in buckets, i.e, if they are 3 buckets
-    # 0
-    # 8191
-    # 16382
-    # 1
-    # 8192 ...
-    # Instead of having  the sources in ascending order
+        df = sg_betweenness_centrality(input_graph,
+                                       normalized,
+                                       endpoints,
+                                       weights,
+                                       vertices,
+                                       result_dtype)
+
     if input_graph.renumbered:
         df = unrenumber(input_graph.edgelist.renumber_map, df, 'vertex')
 

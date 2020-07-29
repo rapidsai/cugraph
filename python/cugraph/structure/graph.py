@@ -1,4 +1,4 @@
-# Copyright (c) 2019, NVIDIA CORPORATION.
+# Copyright (c) 2019-2020, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -15,14 +15,18 @@ from cugraph.structure import graph_new_wrapper
 from cugraph.structure.symmetrize import symmetrize
 from cugraph.structure.renumber import renumber as rnb
 from cugraph.structure.renumber import renumber_from_cudf as multi_rnb
-from cugraph.dask.common.input_utils import get_local_data
+from cugraph.dask.common.input_utils import (get_local_data,
+                                             get_mg_batch_local_data)
+import cugraph.dask.common.mg_utils as mg_utils
 import cudf
 import dask_cudf
 import dask
 import numpy as np
 import warnings
+import cugraph.comms.comms as Comms
 
 from cugraph.structure import utils_wrapper
+
 
 def null_check(col):
     if col.null_count != 0:
@@ -85,11 +89,6 @@ class Graph:
         >>> G = cuGraph.Graph()
 
         """
-        # DBG
-        self.mg_batch_enabled = False
-        self.mg_batch_edgelists = None
-        # DBG
-
         self.symmetrized = symmetrized
         self.renumbered = False
         self.bipartite = bipartite
@@ -101,6 +100,13 @@ class Graph:
         self.transposedadjlist = None
         self.edge_count = None
         self.node_count = None
+
+        # MG - Batch
+        self.mg_batch_enabled = False
+        self.mg_batch_edgelists = None
+        self.mg_batch_adjlists = None
+        self.mg_batch_transposed_adjlist = None
+
         if m_graph is not None:
             if ((type(self) is Graph and type(m_graph) is MultiGraph)
                or (type(self) is DiGraph and type(m_graph) is MultiDiGraph)):
@@ -116,42 +122,85 @@ class Graph:
                 raise Exception(msg)
         # self.number_of_vertices = None
 
-
     def enable_mg_batch(self):
-        import dask_cudf
-        import time
-        from cugraph.dask.common.mg_utils import mg_get_client
-        from collections import OrderedDict
-        import cugraph.comms as Comms
-        import cugraph
         self.mg_batch_enabled = True
-        client = mg_get_client()
-        assert self.edgelist is not None, 'There should be at least an edgelist'
-        start = time.perf_counter()
+
+        if self.edgelist is not None:
+            self._replicate_edgelist()
+
+        if self.adjlist is not None:
+            self._replicate_adjlist()
+
+        if self.transposedadjlist is not None:
+            self._replicate_transposed_adjlist()
+
+    def _replicate_edgelist(self):
+        client = mg_utils.mg_get_client()
+        comms = Comms.get_comms()
+
         _mg_batch_edgelists = dask_cudf.from_cudf(self.edgelist.edgelist_df,
                                                   npartitions=1)
-        print(_mg_batch_edgelists)
-        comms = Comms.get_comms()
-        #mg_batch_edgelists = client.scatter(_mg_batch_edgelists, broadcast=True)
-        #mg_batch_edgelists = client.persist(_mg_batch_edgelists)
+
         number_of_vertices = self.number_of_vertices()
-        number_of_edges = self.number_of_edges()
-        worker_addresses = list(OrderedDict.fromkeys(client.scheduler_info()["workers"].keys()))
-        data = cugraph.dask.common.input_utils.get_mg_batch_local_data(_mg_batch_edgelists)
+        number_of_edges = len(self.edgelist.edgelist_df)
+
+        data = get_mg_batch_local_data(_mg_batch_edgelists)
         for placeholder, worker in enumerate(client.has_what().keys()):
-            if worker not in  data.worker_to_parts:
+            if worker not in data.worker_to_parts:
                 data.worker_to_parts[worker] = [[placeholder], None]
 
-        work_futures =  [client.submit(utils_wrapper._internal_replication_edgelist,
-                                   (wf[1], data.local_data, number_of_vertices, number_of_edges),
-                                   comms.sessionId,
-                                   workers=[wf[0]]) for
-                     idx, wf in enumerate(data.worker_to_parts.items())]
-        # print("Inner MG call submit: ", time.perf_counter() - start) # DBG
+        work_futures = [client.submit(utils_wrapper.replicate_edgelist,
+                                       (wf[1], data.local_data,
+                                        number_of_vertices,
+                                        number_of_edges),
+                                       comms.sessionId,
+                                       workers=[wf[0]]) for
+                         idx, wf in enumerate(data.worker_to_parts.items())]
         dask.distributed.wait(work_futures)
-        self.mg_batch_edgelists = work_futures  # DBG: Here for dask level replication
-        print(self.mg_batch_edgelists)
-        print("[DBG] Enabled Multi-GPU Batch")
+        self.mg_batch_edgelists = work_futures
+
+    def _replicate_adjlist(self):
+        client = mg_utils.mg_get_client()
+        comms = Comms.get_comms()
+
+        _mg_batch_indices = dask_cudf.from_cudf(self.adjlist.indices,
+                                                npartitions=1)
+        _mg_batch_offsets = dask_cudf.from_cudf(self.adjlist.offsets,
+                                                npartitions=1)
+        print(_mg_batch_indices)
+        print(_mg_batch_offsets)
+        return
+
+        indices_size = len(_mg_batch_indices)
+        offsets_size = len(_mg_batch_offsets)
+
+        _indices_data = get_mg_batch_local_data(_mg_batch_indices)
+        _offsets_data = get_mg_batch_local_data(_mg_batch_offsets)
+
+        indices_data = mg_utils.mg_prepare_worker_to_parts(_indices_data, client)
+        offsets_data = mg_utils.mg_prepare_worker_to_parts(_offsets_data, client)
+
+        # FIXME: It might be feasible to handle both simultaneously
+        indices_futures = {worker: client.submit(utils_wrapper.replicate_edgelist,
+                                         (wf[1], indices_size),
+                                         comms.sessionId,
+                                         workers=[wf[0]]) for
+                            idx, (data, worker) in enumerate(indices_data.worker_to_parts.items())}
+        dask.distributed.wait(indices_futures)
+
+        offsets_futures = {worker: client.submit(utils_wrapper.replicate_edgelist,
+                                         (wf[1], offsets_size),
+                                         comms.sessionId,
+                                         workers=[wf[0]]) for
+                         idx, (data, worker) in enumerate(offsets_data.worker_to_parts.items())}
+        dask.distributed.wait(offsets_futures)
+        print(offsets_futures)
+        print(indices_futures)
+
+        self.mg_batch_adjlists = True
+
+    def replicate_transposed_adjlist(self):
+        pass
 
     def clear(self):
         """
@@ -265,6 +314,8 @@ class Graph:
 
         self.edgelist = Graph.EdgeList(source_col, dest_col, value_col,
                                        renumber_map)
+        if self.mg_batch_enabled:
+            self._replicate_edgelist()
 
     def add_edge_list(self, source, destination, value=None):
         warnings.warn('add_edge_list will be deprecated in next release.\
@@ -459,6 +510,9 @@ class Graph:
             raise Exception('Graph already has values')
         self.adjlist = Graph.AdjList(offset_col, index_col, value_col)
 
+        if self.mg_batch_enabled:
+            self._replicate_adjlist()
+
     def add_adj_list(self, offset_col, index_col, value_col=None):
         warnings.warn('add_adj_list will be deprecated in next release.\
  Use from_cudf_adjlist instead')
@@ -498,6 +552,10 @@ class Graph:
             else:
                 off, ind, vals = graph_new_wrapper.view_adj_list(self)
             self.adjlist = self.AdjList(off, ind, vals)
+
+            if self.mg_batch_enabled:
+                self._replicate_adjlist()
+
         return self.adjlist.offsets, self.adjlist.indices, self.adjlist.weights
 
     def view_transposed_adj_list(self):
@@ -535,6 +593,10 @@ class Graph:
                 off, ind, vals = graph_new_wrapper.\
                     view_transposed_adj_list(self)
             self.transposedadjlist = self.transposedAdjList(off, ind, vals)
+
+            if self.mg_batch_enabled:
+                self._replicate_transposed_adjlist()
+
         return (self.transposedadjlist.offsets,
                 self.transposedadjlist.indices,
                 self.transposedadjlist.weights)
