@@ -95,7 +95,7 @@ The amount of memory required is dependent on the graph structure and the analyt
 
 |       Size        | Recommended GPU Memory |
 |-------------------|------------------------|
-| 500 million edges |  32GB                  |
+| 500 million edges |  32 GB                  |
 | 250 million edges |  16 GB                 |
 
 The use of managed memory for oversubscription can also be used to exceed the above memory limitations.  See the recent blog on _Tackling Large Graphs with RAPIDS cuGraph and CUDA Unified Memory on GPUs_:  https://medium.com/rapids-ai/tackling-large-graphs-with-rapids-cugraph-and-unified-virtual-memory-b5b69a065d4
