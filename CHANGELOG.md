@@ -45,6 +45,8 @@
 - PR #1009 Update benchmarks script to include requirements used
 - PR #1014 Fix benchmarks script variable name
 - PR #1019 Remove deprecated CUDA library calls
+- PR #1024 Updated condata environment YML files
+
 
 ## Bug Fixes
 - PR #936 Update Force Atlas 2 doc and wrapper
