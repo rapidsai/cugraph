@@ -41,13 +41,10 @@ def test_dask_pagerank():
                        dtype=['int32', 'int32', 'float32'])
 
     g = cugraph.DiGraph()
-    g.from_cudf_edgelist(df, 'src', 'dst')
+    g.from_cudf_edgelist(df, 'src', 'dst', renumber=False)
 
     dg = cugraph.DiGraph()
-    dg.from_dask_cudf_edgelist(ddf)
-
-    # Pre compute local data
-    # dg.compute_local_data(by='dst')
+    dg.from_dask_cudf_edgelist(ddf, renumber=False)
 
     expected_dist = cugraph.bfs(g, 0)
     result_dist = dcg.bfs(dg, 0, True)
@@ -56,7 +53,8 @@ def test_dask_pagerank():
 
     assert len(expected_dist) == len(result_dist)
     for i in range(len(result_dist)):
-        if(result_dist['distance'].iloc[i] != expected_dist['distance'].iloc[i]):
+        if(result_dist['distance'].iloc[i] !=
+                expected_dist['distance'].iloc[i]):
             err = err + 1
     assert err == 0
 

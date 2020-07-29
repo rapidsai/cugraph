@@ -53,8 +53,8 @@ enum class DegreeDirection {
 template <typename VT, typename ET, typename WT>
 class GraphViewBase {
  public:
-  WT *edge_data;  ///< edge weight
   raft::handle_t *handle;
+  WT *edge_data;  ///< edge weight
   GraphProperties prop;
 
   VT number_of_vertices;

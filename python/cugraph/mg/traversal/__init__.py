@@ -14,4 +14,4 @@
 # limitations under the License.
 #
 
-from cugraph.opg.traversal.mg_bfs_wrapper import mg_bfs
+from cugraph.mg.traversal.mg_bfs_wrapper import mg_bfs

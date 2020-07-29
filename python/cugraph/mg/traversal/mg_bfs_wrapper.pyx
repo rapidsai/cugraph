@@ -15,7 +15,7 @@
 #
 
 from cugraph.structure.utils_wrapper import *
-from cugraph.opg.traversal cimport mg_bfs as c_bfs
+from cugraph.mg.traversal cimport mg_bfs as c_bfs
 import cudf
 from cugraph.structure.graph_new cimport *
 import cugraph.structure.graph_new_wrapper as graph_new_wrapper
