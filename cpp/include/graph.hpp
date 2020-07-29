@@ -142,8 +142,11 @@ class GraphCOOView : public GraphViewBase<vertex_t, edge_t, weight_t> {
    * @param  number_of_vertices    The number of vertices in the graph
    * @param  number_of_edges       The number of edges in the graph
    */
-  GraphCOOView(
-    vertex_t *src_indices_, vertex_t *dst_indices_, weight_t *edge_data_, vertex_t number_of_vertices_, edge_t number_of_edges_)
+  GraphCOOView(vertex_t *src_indices_,
+               vertex_t *dst_indices_,
+               weight_t *edge_data_,
+               vertex_t number_of_vertices_,
+               edge_t number_of_edges_)
     : GraphViewBase<vertex_t, edge_t, weight_t>(edge_data_, number_of_vertices_, number_of_edges_),
       src_indices(src_indices_),
       dst_indices(dst_indices_)
@@ -163,7 +166,7 @@ class GraphCOOView : public GraphViewBase<vertex_t, edge_t, weight_t> {
 template <typename vertex_t, typename edge_t, typename weight_t>
 class GraphCompressedSparseBaseView : public GraphViewBase<vertex_t, edge_t, weight_t> {
  public:
-  edge_t *offsets{nullptr};  ///< CSR offsets
+  edge_t *offsets{nullptr};    ///< CSR offsets
   vertex_t *indices{nullptr};  ///< CSR indices
 
   /**
@@ -212,8 +215,11 @@ class GraphCompressedSparseBaseView : public GraphViewBase<vertex_t, edge_t, wei
    * @param  number_of_vertices    The number of vertices in the graph
    * @param  number_of_edges       The number of edges in the graph
    */
-  GraphCompressedSparseBaseView(
-    edge_t *offsets_, vertex_t *indices_, weight_t *edge_data_, vertex_t number_of_vertices_, edge_t number_of_edges_)
+  GraphCompressedSparseBaseView(edge_t *offsets_,
+                                vertex_t *indices_,
+                                weight_t *edge_data_,
+                                vertex_t number_of_vertices_,
+                                edge_t number_of_edges_)
     : GraphViewBase<vertex_t, edge_t, weight_t>(edge_data_, number_of_vertices_, number_of_edges_),
       offsets{offsets_},
       indices{indices_}
@@ -234,7 +240,10 @@ class GraphCSRView : public GraphCompressedSparseBaseView<vertex_t, edge_t, weig
   /**
    * @brief      Default constructor
    */
-  GraphCSRView() : GraphCompressedSparseBaseView<vertex_t, edge_t, weight_t>(nullptr, nullptr, nullptr, 0, 0) {}
+  GraphCSRView()
+    : GraphCompressedSparseBaseView<vertex_t, edge_t, weight_t>(nullptr, nullptr, nullptr, 0, 0)
+  {
+  }
 
   /**
    * @brief      Wrap existing arrays representing adjacency lists in a Graph.
@@ -257,8 +266,11 @@ class GraphCSRView : public GraphCompressedSparseBaseView<vertex_t, edge_t, weig
    * @param  number_of_vertices    The number of vertices in the graph
    * @param  number_of_edges       The number of edges in the graph
    */
-  GraphCSRView(
-    edge_t *offsets_, vertex_t *indices_, weight_t *edge_data_, vertex_t number_of_vertices_, edge_t number_of_edges_)
+  GraphCSRView(edge_t *offsets_,
+               vertex_t *indices_,
+               weight_t *edge_data_,
+               vertex_t number_of_vertices_,
+               edge_t number_of_edges_)
     : GraphCompressedSparseBaseView<vertex_t, edge_t, weight_t>(
         offsets_, indices_, edge_data_, number_of_vertices_, number_of_edges_)
   {
@@ -278,7 +290,10 @@ class GraphCSCView : public GraphCompressedSparseBaseView<vertex_t, edge_t, weig
   /**
    * @brief      Default constructor
    */
-  GraphCSCView() : GraphCompressedSparseBaseView<vertex_t, edge_t, weight_t>(nullptr, nullptr, nullptr, 0, 0) {}
+  GraphCSCView()
+    : GraphCompressedSparseBaseView<vertex_t, edge_t, weight_t>(nullptr, nullptr, nullptr, 0, 0)
+  {
+  }
 
   /**
    * @brief      Wrap existing arrays representing transposed adjacency lists in
@@ -302,8 +317,11 @@ class GraphCSCView : public GraphCompressedSparseBaseView<vertex_t, edge_t, weig
    * @param  number_of_vertices    The number of vertices in the graph
    * @param  number_of_edges       The number of edges in the graph
    */
-  GraphCSCView(
-    edge_t *offsets_, vertex_t *indices_, weight_t *edge_data_, vertex_t number_of_vertices_, edge_t number_of_edges_)
+  GraphCSCView(edge_t *offsets_,
+               vertex_t *indices_,
+               weight_t *edge_data_,
+               vertex_t number_of_vertices_,
+               edge_t number_of_edges_)
     : GraphCompressedSparseBaseView<vertex_t, edge_t, weight_t>(
         offsets_, indices_, edge_data_, number_of_vertices_, number_of_edges_)
   {
@@ -361,7 +379,7 @@ class GraphCOO {
    * @param  number_of_edges       The number of edges in the graph
    * @param  has_data              Wiether or not the class has data, default = False
    * @param  stream                Specify the cudaStream, default = null
-   * @param mr                     Specify the memory resource    
+   * @param mr                     Specify the memory resource
    */
   GraphCOO(vertex_t number_of_vertices,
            edge_t number_of_edges,
@@ -399,9 +417,9 @@ class GraphCOO {
   GraphCOOContents<vertex_t, edge_t, weight_t> release() noexcept
   {
     vertex_t number_of_vertices = number_of_vertices_;
-    edge_t number_of_edges    = number_of_edges_;
-    number_of_vertices_   = 0;
-    number_of_edges_      = 0;
+    edge_t number_of_edges      = number_of_edges_;
+    number_of_vertices_         = 0;
+    number_of_edges_            = 0;
     return GraphCOOContents<vertex_t, edge_t, weight_t>{
       number_of_vertices,
       number_of_edges,
@@ -455,7 +473,7 @@ class GraphCompressedSparseBase {
    * @param  number_of_edges       The number of edges in the graph
    * @param  has_data              Wiether or not the class has data, default = False
    * @param  stream                Specify the cudaStream, default = null
-   * @param mr                     Specify the memory resource    
+   * @param mr                     Specify the memory resource
    */
   GraphCompressedSparseBase(vertex_t number_of_vertices,
                             edge_t number_of_edges,
@@ -488,9 +506,9 @@ class GraphCompressedSparseBase {
   GraphSparseContents<vertex_t, edge_t, weight_t> release() noexcept
   {
     vertex_t number_of_vertices = number_of_vertices_;
-    edge_t number_of_edges    = number_of_edges_;
-    number_of_vertices_   = 0;
-    number_of_edges_      = 0;
+    edge_t number_of_edges      = number_of_edges_;
+    number_of_vertices_         = 0;
+    number_of_edges_            = 0;
     return GraphSparseContents<vertex_t, edge_t, weight_t>{
       number_of_vertices,
       number_of_edges,
@@ -525,7 +543,7 @@ class GraphCSR : public GraphCompressedSparseBase<vertex_t, edge_t, weight_t> {
    * @param  number_of_edges       The number of edges in the graph
    * @param  has_data              Wiether or not the class has data, default = False
    * @param  stream                Specify the cudaStream, default = null
-   * @param mr                     Specify the memory resource    
+   * @param mr                     Specify the memory resource
    */
   GraphCSR(vertex_t number_of_vertices_,
            edge_t number_of_edges_,
@@ -544,11 +562,12 @@ class GraphCSR : public GraphCompressedSparseBase<vertex_t, edge_t, weight_t> {
 
   GraphCSRView<vertex_t, edge_t, weight_t> view(void) noexcept
   {
-    return GraphCSRView<vertex_t, edge_t, weight_t>(GraphCompressedSparseBase<vertex_t, edge_t, weight_t>::offsets(),
-                                    GraphCompressedSparseBase<vertex_t, edge_t, weight_t>::indices(),
-                                    GraphCompressedSparseBase<vertex_t, edge_t, weight_t>::edge_data(),
-                                    GraphCompressedSparseBase<vertex_t, edge_t, weight_t>::number_of_vertices(),
-                                    GraphCompressedSparseBase<vertex_t, edge_t, weight_t>::number_of_edges());
+    return GraphCSRView<vertex_t, edge_t, weight_t>(
+      GraphCompressedSparseBase<vertex_t, edge_t, weight_t>::offsets(),
+      GraphCompressedSparseBase<vertex_t, edge_t, weight_t>::indices(),
+      GraphCompressedSparseBase<vertex_t, edge_t, weight_t>::edge_data(),
+      GraphCompressedSparseBase<vertex_t, edge_t, weight_t>::number_of_vertices(),
+      GraphCompressedSparseBase<vertex_t, edge_t, weight_t>::number_of_edges());
   }
 };
 
@@ -575,7 +594,7 @@ class GraphCSC : public GraphCompressedSparseBase<vertex_t, edge_t, weight_t> {
    * @param  number_of_edges       The number of edges in the graph
    * @param  has_data              Wiether or not the class has data, default = False
    * @param  stream                Specify the cudaStream, default = null
-   * @param mr                     Specify the memory resource    
+   * @param mr                     Specify the memory resource
    */
   GraphCSC(vertex_t number_of_vertices_,
            edge_t number_of_edges_,
@@ -594,11 +613,12 @@ class GraphCSC : public GraphCompressedSparseBase<vertex_t, edge_t, weight_t> {
 
   GraphCSCView<vertex_t, edge_t, weight_t> view(void) noexcept
   {
-    return GraphCSCView<vertex_t, edge_t, weight_t>(GraphCompressedSparseBase<vertex_t, edge_t, weight_t>::offsets(),
-                                    GraphCompressedSparseBase<vertex_t, edge_t, weight_t>::indices(),
-                                    GraphCompressedSparseBase<vertex_t, edge_t, weight_t>::edge_data(),
-                                    GraphCompressedSparseBase<vertex_t, edge_t, weight_t>::number_of_vertices(),
-                                    GraphCompressedSparseBase<vertex_t, edge_t, weight_t>::number_of_edges());
+    return GraphCSCView<vertex_t, edge_t, weight_t>(
+      GraphCompressedSparseBase<vertex_t, edge_t, weight_t>::offsets(),
+      GraphCompressedSparseBase<vertex_t, edge_t, weight_t>::indices(),
+      GraphCompressedSparseBase<vertex_t, edge_t, weight_t>::edge_data(),
+      GraphCompressedSparseBase<vertex_t, edge_t, weight_t>::number_of_vertices(),
+      GraphCompressedSparseBase<vertex_t, edge_t, weight_t>::number_of_edges());
   }
 };
 
