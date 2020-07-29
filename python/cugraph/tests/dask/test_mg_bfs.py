@@ -21,13 +21,13 @@ import cudf
 from dask_cuda import LocalCUDACluster
 
 
-def test_dask_pagerank():
+def test_dask_bfs():
     gc.collect()
     cluster = LocalCUDACluster()
     client = Client(cluster)
     Comms.initialize()
 
-    input_data_path = r"../datasets/karate.csv"
+    input_data_path = r"../datasets/netscience.csv"
     chunksize = dcg.get_chunksize(input_data_path)
 
     ddf = dask_cudf.read_csv(input_data_path, chunksize=chunksize,
