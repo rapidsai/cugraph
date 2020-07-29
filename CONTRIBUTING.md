@@ -76,7 +76,7 @@ and ask for clarifications!
 
 **The _FIXME_** comment<pr>
 
-Use the _FIXME_ comment to capture technical debt.  It should not be used to flag flag bugs since those need to be cleaned up before code is submitted.   
+Use the _FIXME_ comment to capture technical debt.  It should not be used to flag bugs since those need to be cleaned up before code is submitted.   
 We are implementing a script to count and track the number of FIXME in the code.  Usage of TODO or any other tag will not be accepted.
 
 
