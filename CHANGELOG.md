@@ -44,6 +44,7 @@
 - PR #1007 Add tolerance support to MG Pagerank and fix
 - PR #1009 Update benchmarks script to include requirements used
 - PR #1014 Fix benchmarks script variable name
+- PR #1026 update chunksize for mnmg, remove files and unused code
 
 ## Bug Fixes
 - PR #936 Update Force Atlas 2 doc and wrapper
