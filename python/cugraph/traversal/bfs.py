@@ -11,6 +11,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import cudf
+
 from cugraph.traversal import bfs_wrapper
 from cugraph.structure.graph import Graph
 
@@ -59,6 +61,14 @@ def bfs(G, start, return_sp_counter=False):
     else:
         directed = True
 
+    if G.renumbered is True:
+        start = G.lookup_internal_vertex_id(cudf.Series([start]))[0]
+
     df = bfs_wrapper.bfs(G, start, directed, return_sp_counter)
+
+    if G.renumbered:
+        df = G.unrenumber(df, "vertex")
+        df = G.unrenumber(df, "predecessor")
+        df["predecessor"].fillna(-1, inplace=True)
 
     return df

@@ -23,7 +23,7 @@
 
 namespace cugraph {
 
-namespace opg {
+namespace mg {
 
 namespace detail {
 
@@ -40,9 +40,9 @@ class LoadBalanceExecution {
   LoadBalanceExecution(raft::handle_t const &handle, cugraph::GraphCSRView<VT, ET, WT> const &graph)
     : handle_(handle), graph_(graph)
   {
-    bool is_opg = (handle.comms_initialized() && (graph.local_vertices != nullptr) &&
-                   (graph.local_offsets != nullptr));
-    if (is_opg) {
+    bool is_mg = (handle.comms_initialized() && (graph.local_vertices != nullptr) &&
+                  (graph.local_offsets != nullptr));
+    if (is_mg) {
       reorganized_vertices_.resize(graph.local_vertices[handle_.get_comms().get_rank()]);
       vertex_begin_ = graph.local_offsets[handle_.get_comms().get_rank()];
       vertex_end_   = graph.local_offsets[handle_.get_comms().get_rank()] +
@@ -82,6 +82,6 @@ class LoadBalanceExecution {
 
 }  // namespace detail
 
-}  // namespace opg
+}  // namespace mg
 
 }  // namespace cugraph

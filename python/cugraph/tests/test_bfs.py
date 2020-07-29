@@ -26,6 +26,7 @@ import random
 # python 3.7.  Also, this import networkx needs to be relocated in the
 # third-party group once this gets fixed.
 import warnings
+
 with warnings.catch_warnings():
     warnings.filterwarnings("ignore", category=DeprecationWarning)
     import networkx as nx
@@ -57,8 +58,7 @@ def compare_single_sp_counter(result, expected, epsilon=DEFAULT_EPSILON):
     return np.isclose(result, expected, rtol=epsilon)
 
 
-def compare_bfs(graph_file, directed=True, return_sp_counter=False,
-                seed=42):
+def compare_bfs(graph_file, directed=True, return_sp_counter=False, seed=42):
     """ Genereate both cugraph and reference bfs traversal
 
     Parameters
@@ -95,13 +95,15 @@ def compare_bfs(graph_file, directed=True, return_sp_counter=False,
         compare_func(G, Gnx, start_vertex)
     elif isinstance(seed, list):  # For other Verifications
         for start_vertex in seed:
-            compare_func = _compare_bfs_spc if return_sp_counter else \
-                _compare_bfs
+            compare_func = (
+                _compare_bfs_spc if return_sp_counter else _compare_bfs
+            )
             compare_func(G, Gnx, start_vertex)
     elif seed is None:  # Same here, it is only to run full checks
         for start_vertex in Gnx:
-            compare_func = _compare_bfs_spc if return_sp_counter else \
-                _compare_bfs
+            compare_func = (
+                _compare_bfs_spc if return_sp_counter else _compare_bfs
+            )
             compare_func(G, Gnx, start_vertex)
     else:  # Unknown type given to seed
         raise NotImplementedError("Invalid type for seed")
@@ -116,13 +118,21 @@ def _compare_bfs(G, Gnx, source):
     # sure that it was not the case
     # NOTE: 'predecessor' is always returned while the C++ function allows to
     # pass a nullptr
-    assert len(df.columns) == 3, "The result of the BFS has an invalid " \
-                                 "number of columns"
-    cu_distances = {vertex: dist for vertex, dist in
-                    zip(df['vertex'].to_array(), df['distance'].to_array())}
-    cu_predecessors = {vertex: dist for vertex, dist in
-                       zip(df['vertex'].to_array(),
-                           df['predecessor'].to_array())}
+    assert len(df.columns) == 3, (
+        "The result of the BFS has an invalid " "number of columns"
+    )
+    cu_distances = {
+        vertex: dist
+        for vertex, dist in zip(
+            df["vertex"].to_array(), df["distance"].to_array()
+        )
+    }
+    cu_predecessors = {
+        vertex: dist
+        for vertex, dist in zip(
+            df["vertex"].to_array(), df["predecessor"].to_array()
+        )
+    }
 
     nx_distances = nx.single_source_shortest_path_length(Gnx, source)
     # FIXME: The following only verifies vertices that were reached
@@ -138,11 +148,13 @@ def _compare_bfs(G, Gnx, source):
         if vertex in cu_distances:
             result = cu_distances[vertex]
             expected = nx_distances[vertex]
-            if (result != expected):
-                print("[ERR] Mismatch on distances: "
-                      "vid = {}, cugraph = {}, nx = {}".format(vertex,
-                                                               result,
-                                                               expected))
+            if result != expected:
+                print(
+                    "[ERR] Mismatch on distances: "
+                    "vid = {}, cugraph = {}, nx = {}".format(
+                        vertex, result, expected
+                    )
+                )
                 distance_mismatch_error += 1
             if vertex not in cu_predecessors:
                 missing_vertex_error += 1
@@ -152,10 +164,13 @@ def _compare_bfs(G, Gnx, source):
                     invalid_predecessor_error += 1
                 else:
                     # The graph is unweighted thus, predecessors are 1 away
-                    if (vertex != source and ((nx_distances[pred] + 1 !=
-                                              cu_distances[vertex]))):
-                        print("[ERR] Invalid on predecessors: "
-                              "vid = {}, cugraph = {}".format(vertex, pred))
+                    if vertex != source and (
+                        (nx_distances[pred] + 1 != cu_distances[vertex])
+                    ):
+                        print(
+                            "[ERR] Invalid on predecessors: "
+                            "vid = {}, cugraph = {}".format(vertex, pred)
+                        )
                         invalid_predecessor_error += 1
         else:
             missing_vertex_error += 1
@@ -168,10 +183,10 @@ def _compare_bfs_spc(G, Gnx, source):
     df = cugraph.bfs(G, source, return_sp_counter=True)
     # This call should only contain 3 columns:
     # 'vertex', 'distance', 'predecessor', 'sp_counter'
-    assert len(df.columns) == 4, "The result of the BFS has an invalid " \
-                                 "number of columns"
-    _, _, nx_sp_counter = nxacb._single_source_shortest_path_basic(Gnx,
-                                                                   source)
+    assert len(df.columns) == 4, (
+        "The result of the BFS has an invalid " "number of columns"
+    )
+    _, _, nx_sp_counter = nxacb._single_source_shortest_path_basic(Gnx, source)
     sorted_nx = [nx_sp_counter[key] for key in sorted(nx_sp_counter.keys())]
     # We are not checking for distances / predecessors here as we assume
     # that these have been checked  in the _compare_bfs tests
@@ -185,15 +200,17 @@ def _compare_bfs_spc(G, Gnx, source):
     # the vertices.
     # There is no guarantee when we get `df` that the vertices are sorted
     # thus we enforce the order so that we can leverage faster comparison after
-    sorted_df = df.sort_values('vertex') \
-        .rename(columns={"sp_counter": "cu_spc"}, copy=False)
+    sorted_df = df.sort_values("vertex").rename(
+        columns={"sp_counter": "cu_spc"}, copy=False
+    )
 
-    # This will allows to detect vertices identifier that could have been
+    # This allows to detect vertices identifier that could have been
     # wrongly present multiple times
-    cu_vertices = set(sorted_df['vertex'])
+    cu_vertices = set(sorted_df['vertex'].values_host)
     nx_vertices = nx_sp_counter.keys()
-    assert len(cu_vertices.intersection(nx_vertices)) == len(nx_vertices), \
-        "There are missing vertices"
+    assert len(cu_vertices.intersection(nx_vertices)) == len(
+        nx_vertices
+    ), "There are missing vertices"
 
     # We add the nx shortest path counter in the cudf.DataFrame, both the
     # the DataFrame and `sorted_nx` are sorted base on vertices identifiers
@@ -203,43 +220,48 @@ def _compare_bfs_spc(G, Gnx, source):
     # in the cudf.DataFrame where there are is a mismatch.
     # numpy / cupy allclose would get only a boolean and we might want the
     # extra information about the discrepancies
-    shortest_path_counter_errors = sorted_df[~cupy.isclose(sorted_df['cu_spc'],
-                                             sorted_df['nx_spc'],
-                                             rtol=DEFAULT_EPSILON)
-                                             ]
+    shortest_path_counter_errors = sorted_df[
+        ~cupy.isclose(
+            sorted_df["cu_spc"], sorted_df["nx_spc"], rtol=DEFAULT_EPSILON
+        )
+    ]
     if len(shortest_path_counter_errors) > 0:
         print(shortest_path_counter_errors)
-    assert len(shortest_path_counter_errors) == 0, "Shortest path counters " \
-                                                   "are too different"
+    assert len(shortest_path_counter_errors) == 0, (
+        "Shortest path counters " "are too different"
+    )
 
 
 # =============================================================================
 # Tests
 # =============================================================================
-@pytest.mark.parametrize('graph_file', utils.DATASETS_5)
-@pytest.mark.parametrize('directed', DIRECTED_GRAPH_OPTIONS)
-@pytest.mark.parametrize('seed', SUBSET_SEED_OPTIONS)
+@pytest.mark.parametrize("graph_file", utils.DATASETS_5)
+@pytest.mark.parametrize("directed", DIRECTED_GRAPH_OPTIONS)
+@pytest.mark.parametrize("seed", SUBSET_SEED_OPTIONS)
 def test_bfs(graph_file, directed, seed):
     """Test BFS traversal on random source with distance and predecessors"""
     prepare_test()
-    compare_bfs(graph_file, directed=directed, return_sp_counter=False,
-                seed=seed)
+    compare_bfs(
+        graph_file, directed=directed, return_sp_counter=False, seed=seed
+    )
 
 
-@pytest.mark.parametrize('graph_file', utils.DATASETS)
-@pytest.mark.parametrize('directed', DIRECTED_GRAPH_OPTIONS)
-@pytest.mark.parametrize('seed', SUBSET_SEED_OPTIONS)
+@pytest.mark.parametrize("graph_file", utils.DATASETS)
+@pytest.mark.parametrize("directed", DIRECTED_GRAPH_OPTIONS)
+@pytest.mark.parametrize("seed", SUBSET_SEED_OPTIONS)
 def test_bfs_spc(graph_file, directed, seed):
     """Test BFS traversal on random source with shortest path counting"""
     prepare_test()
-    compare_bfs(graph_file, directed=directed, return_sp_counter=True,
-                seed=seed)
+    compare_bfs(
+        graph_file, directed=directed, return_sp_counter=True, seed=seed
+    )
 
 
-@pytest.mark.parametrize('graph_file', utils.TINY_DATASETS)
-@pytest.mark.parametrize('directed', DIRECTED_GRAPH_OPTIONS)
+@pytest.mark.parametrize("graph_file", utils.TINY_DATASETS)
+@pytest.mark.parametrize("directed", DIRECTED_GRAPH_OPTIONS)
 def test_bfs_spc_full(graph_file, directed):
     """Test BFS traversal on every vertex with shortest path counting"""
     prepare_test()
-    compare_bfs(graph_file, directed=directed, return_sp_counter=True,
-                seed=None)
+    compare_bfs(
+        graph_file, directed=directed, return_sp_counter=True, seed=None
+    )

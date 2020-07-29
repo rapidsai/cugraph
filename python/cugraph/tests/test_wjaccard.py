@@ -27,52 +27,57 @@ from cugraph.tests import utils
 # python 3.7.  Also, this import networkx needs to be relocated in the
 # third-party group once this gets fixed.
 import warnings
+
 with warnings.catch_warnings():
     warnings.filterwarnings("ignore", category=DeprecationWarning)
     import networkx as nx
 
-print('Networkx version : {} '.format(nx.__version__))
+print("Networkx version : {} ".format(nx.__version__))
 
 
 def cugraph_call(cu_M):
     # Device data
-    weights_arr = cudf.Series(np.ones(max(cu_M['0'].max(),
-                              cu_M['1'].max())+1, dtype=np.float32))
+    weights_arr = cudf.Series(
+        np.ones(max(cu_M["0"].max(), cu_M["1"].max()) + 1, dtype=np.float32)
+    )
 
     G = cugraph.Graph()
-    G.from_cudf_edgelist(cu_M, source='0', destination='1')
+    G.from_cudf_edgelist(cu_M, source="0", destination="1")
 
     # cugraph Jaccard Call
     t1 = time.time()
     df = cugraph.jaccard_w(G, weights_arr)
     t2 = time.time() - t1
-    print('Time : '+str(t2))
-    print(df)
-    return df['jaccard_coeff']
+    print("Time : " + str(t2))
+
+    df = df.sort_values(["source", "destination"]).reset_index(drop=True)
+
+    return df["jaccard_coeff"]
 
 
 def networkx_call(M):
 
-    sources = M['0']
-    destinations = M['1']
+    sources = M["0"]
+    destinations = M["1"]
     edges = []
     for i in range(len(sources)):
         edges.append((sources[i], destinations[i]))
     edges = sorted(edges)
     # in NVGRAPH tests we read as CSR and feed as CSC, so here we doing this
     # explicitly
-    print('Format conversion ... ')
+    print("Format conversion ... ")
 
     # NetworkX graph
-    Gnx = nx.from_pandas_edgelist(M, source='0', target='1',
-                                  create_using=nx.Graph())
+    Gnx = nx.from_pandas_edgelist(
+        M, source="0", target="1", create_using=nx.Graph()
+    )
     # Networkx Jaccard Call
-    print('Solving... ')
+    print("Solving... ")
     t1 = time.time()
     preds = nx.jaccard_coefficient(Gnx, edges)
     t2 = time.time() - t1
 
-    print('Time : '+str(t2))
+    print("Time : " + str(t2))
     coeff = []
     for u, v, p in preds:
         coeff.append(p)
@@ -81,7 +86,8 @@ def networkx_call(M):
 
 # Test all combinations of default/managed and pooled/non-pooled allocation
 
-@pytest.mark.parametrize('graph_file', utils.DATASETS)
+
+@pytest.mark.parametrize("graph_file", utils.DATASETS)
 def test_wjaccard(graph_file):
     gc.collect()
 

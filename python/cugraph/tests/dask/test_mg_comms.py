@@ -15,17 +15,28 @@ import cugraph.dask as dcg
 import cugraph.comms as Comms
 from dask.distributed import Client
 import gc
+import pytest
 import cugraph
 import dask_cudf
 import cudf
 from dask_cuda import LocalCUDACluster
 
 
-def test_dask_pagerank():
-    gc.collect()
+@pytest.fixture
+def client_connection():
     cluster = LocalCUDACluster()
     client = Client(cluster)
     Comms.initialize()
+
+    yield client
+
+    Comms.destroy()
+    client.close()
+    cluster.close()
+
+
+def test_dask_pagerank(client_connection):
+    gc.collect()
 
     # Initialize and run pagerank on two distributed graphs
     # with same communicator
@@ -51,7 +62,7 @@ def test_dask_pagerank():
                               dtype=['int32', 'int32', 'float32'])
 
     dg2 = cugraph.DiGraph()
-    dg2.from_dask_cudf_edgelist(ddf2)
+    dg2.from_dask_cudf_edgelist(ddf2, renumber=False)
     result_pr2 = dcg.pagerank(dg2)
 
     # Calculate single GPU pagerank for verification of results
@@ -79,22 +90,29 @@ def test_dask_pagerank():
     err2 = 0
     tol = 1.0e-05
 
+    compare_pr1 = expected_pr1.merge(
+        result_pr1, on="vertex", suffixes=['_local', '_dask']
+    )
+
     assert len(expected_pr1) == len(result_pr1)
-    for i in range(len(result_pr1)):
-        if(abs(result_pr1['pagerank'].iloc[i]-expected_pr1['pagerank'].iloc[i])
-           > tol*1.1):
+
+    for i in range(len(compare_pr1)):
+        diff = abs(compare_pr1['pagerank_local'].iloc[i] -
+                   compare_pr1['pagerank_dask'].iloc[i])
+        if diff > tol * 1.1:
             err1 = err1 + 1
     print("Mismatches in ", input_data_path1, ": ", err1)
 
     assert len(expected_pr2) == len(result_pr2)
-    for i in range(len(result_pr2)):
-        if(abs(result_pr2['pagerank'].iloc[i]-expected_pr2['pagerank'].iloc[i])
-           > tol*1.1):
+
+    compare_pr2 = expected_pr2.merge(
+        result_pr2, on="vertex", suffixes=['_local', '_dask']
+    )
+
+    for i in range(len(compare_pr2)):
+        diff = abs(compare_pr2['pagerank_local'].iloc[i] -
+                   compare_pr2['pagerank_dask'].iloc[i])
+        if diff > tol * 1.1:
             err2 = err2 + 1
     print("Mismatches in ", input_data_path2, ": ", err2)
-
     assert err1 == err2 == 0
-
-    Comms.destroy()
-    client.close()
-    cluster.close()

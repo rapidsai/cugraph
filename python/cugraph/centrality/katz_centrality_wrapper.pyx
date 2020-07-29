@@ -19,7 +19,6 @@
 from cugraph.centrality.katz_centrality cimport katz_centrality as c_katz_centrality
 from cugraph.structure.graph_new cimport *
 from cugraph.structure import graph_new_wrapper
-from cugraph.utilities.unrenumber import unrenumber
 from libcpp cimport bool
 from libc.stdint cimport uintptr_t
 
@@ -32,26 +31,15 @@ def get_output_df(input_graph, nstart):
     num_verts = input_graph.number_of_vertices()
     df = cudf.DataFrame()
     df['vertex'] = cudf.Series(np.zeros(num_verts, dtype=np.int32))
+    df['katz_centrality'] = cudf.Series(np.zeros(num_verts, dtype=np.float64))
 
-    if nstart is None:
-        df['katz_centrality'] = cudf.Series(np.zeros(num_verts, dtype=np.float64))
-    else:
+    if nstart is not None:
         if len(nstart) != num_verts:
             raise ValueError('nstart must have initial guess for all vertices')
 
-        nstart = graph_new_wrapper.datatype_cast([nstart], [np.float64])
+        nstart['values'] = graph_new_wrapper.datatype_cast([nstart['values']], [np.float64])
+        df['katz_centrality'][nstart['vertex']] = nstart['values']
 
-        if input_graph.renumbered is True:
-            renumber_series = cudf.Series(input_graph.edgelist.renumber_map.index,
-                                          index=input_graph.edgelist.renumber_map)
-            nstart_vertex_renumbered = cudf.Series(renumber_series.loc[nstart['vertex']], dtype=np.int32)
-            df['katz_centrality'] = cudf.Series(cudf._lib.copying.scatter(nstart['values']._column,
-                                                nstart_vertex_renumbered._column,
-                                                df['katz_centrality']._column))
-        else:
-            df['katz_centrality'] = cudf.Series(cudf._lib.copying.scatter(nstart['values']._column,
-                                                nstart['vertex']._column,
-                                                df['katz_centrality']._column))
     return df
 
 
@@ -74,8 +62,5 @@ def katz_centrality(input_graph, alpha=None, max_iter=100, tol=1.0e-5, nstart=No
     c_katz_centrality[int,int,float,double](graph, <double*> c_katz, alpha, max_iter, tol, has_guess, normalized)
 
     graph.get_vertex_identifiers(<int*>c_identifier)
-
-    if input_graph.renumbered:
-        df = unrenumber(input_graph.edgelist.renumber_map, df, 'vertex')
 
     return df

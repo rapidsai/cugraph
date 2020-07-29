@@ -23,7 +23,7 @@
 
 namespace cugraph {
 
-namespace opg {
+namespace mg {
 
 template <typename VT, typename ET, typename WT>
 void bfs(raft::handle_t const &handle,
@@ -158,6 +158,6 @@ void bfs(raft::handle_t const &handle,
   }
 }
 
-}  // namespace opg
+}  // namespace mg
 
 }  // namespace cugraph

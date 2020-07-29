@@ -19,7 +19,6 @@
 cimport cugraph.traversal.bfs as c_bfs
 from cugraph.structure.graph_new cimport *
 from cugraph.structure import graph_new_wrapper
-from cugraph.utilities.unrenumber import unrenumber
 from libcpp cimport bool
 from libc.stdint cimport uintptr_t
 from libc.float cimport FLT_MAX_EXP
@@ -65,10 +64,7 @@ def bfs(input_graph, start, directed=True,
     num_verts = input_graph.number_of_vertices()
     num_edges = input_graph.number_of_edges(directed_edges=True)
 
-    # Step 5: Handle the case the graph has been renumbered
-    #         The source given as input has to be renumbered
-    if input_graph.renumbered is True:
-        start = input_graph.edgelist.renumber_map[input_graph.edgelist.renumber_map == start].index[0]
+    # Step 5: Check if source index is valid
     if not 0 <= start < num_verts:
         raise ValueError("Starting vertex should be between 0 to number of vertices")
 
@@ -104,20 +100,5 @@ def bfs(input_graph, start, directed=True,
                                <double*> c_sp_counter_ptr,
                                <int> start,
                                directed)
-    #FIXME: Update with multicolumn renumbering
-    # Step 9: Unrenumber before return
-    #         It is only required to renumber vertex and predecessors
-    if input_graph.renumbered:
-        if isinstance(input_graph.edgelist.renumber_map, cudf.DataFrame): # Multicolumn renumbering
-            n_cols = len(input_graph.edgelist.renumber_map.columns) - 1
-            unrenumbered_df_ = df.merge(input_graph.edgelist.renumber_map, left_on='vertex', right_on='id', how='left').drop(['id', 'vertex'])
-            unrenumbered_df = unrenumbered_df_.merge(input_graph.edgelist.renumber_map, left_on='predecessor', right_on='id', how='left').drop(['id', 'predecessor'])
-            unrenumbered_df.columns = ['distance'] + ['vertex_' + str(i) for i in range(n_cols)] + ['predecessor_' + str(i) for i in range(n_cols)]
-            cols = unrenumbered_df.columns.to_list()
-            df = unrenumbered_df[cols[1:n_cols + 1] + [cols[0]] + cols[n_cols:]]
-        else: # Simple renumbering
-            df = unrenumber(input_graph.edgelist.renumber_map, df, 'vertex')
-            df = unrenumber(input_graph.edgelist.renumber_map, df, 'predecessor')
-            df['predecessor'].fillna(-1, inplace=True)
 
     return df
