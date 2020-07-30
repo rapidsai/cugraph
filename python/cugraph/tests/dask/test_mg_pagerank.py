@@ -81,10 +81,10 @@ def test_dask_pagerank(client_connection, personalization_perc):
                        dtype=['int32', 'int32', 'float32'])
 
     g = cugraph.DiGraph()
-    g.from_cudf_edgelist(df, 'src', 'dst', renumber=False)
+    g.from_cudf_edgelist(df, 'src', 'dst')
 
     dg = cugraph.DiGraph()
-    dg.from_dask_cudf_edgelist(ddf, renumber=False)
+    dg.from_dask_cudf_edgelist(ddf)
 
     # Pre compute local data and personalize
     personalization = None
@@ -112,5 +112,4 @@ def test_dask_pagerank(client_connection, personalization_perc):
                    compare_pr['pagerank_dask'].iloc[i])
         if diff > tol * 1.1:
             err = err + 1
-    print("Mismatches:", err)
     assert err == 0

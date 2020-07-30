@@ -11,6 +11,7 @@
 - PR #990 MG Consolidation
 - PR #993 Add persistent Handle for Comms
 - PR #979 Add hypergraph implementation to convert DataFrames into Graphs
+- PR #1010 MG BFS (dask)
 - PR #1018 MG personalized pagerank
 
 ## Improvements
@@ -44,6 +45,10 @@
 - PR #1007 Add tolerance support to MG Pagerank and fix
 - PR #1009 Update benchmarks script to include requirements used
 - PR #1014 Fix benchmarks script variable name
+- PR #1019 Remove deprecated CUDA library calls
+- PR #1024 Updated condata environment YML files
+- PR #1026 update chunksize for mnmg, remove files and unused code
+- PR #1028 Update benchmarks script to use ASV_LABEL
 - PR #1020 Updated Louvain to honor max_level, ECG now calls Louvain for 1 level, then full run.
 
 ## Bug Fixes
@@ -55,7 +60,9 @@
 - PR #992 Fix unrenumber of predecessor
 - PR #1008 Fix for cudf updates disabling iteration of Series/Columns/Index
 - PR #1012 Fix Local build script README
+- PR #1017 Fix more mg bugs
 - PR #1022 Fix support for using a cudf.DataFrame with a MG graph
+- PR #1027 Fix documentation
 
 # cuGraph 0.14.0 (03 Jun 2020)
 

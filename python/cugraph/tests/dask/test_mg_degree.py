@@ -41,7 +41,7 @@ def test_dask_mg_degree(client_connection):
                        dtype=['int32', 'int32', 'float32'])
 
     dg = cugraph.DiGraph()
-    dg.from_dask_cudf_edgelist(ddf)
+    dg.from_dask_cudf_edgelist(ddf, 'src', 'dst')
 
     g = cugraph.DiGraph()
     g.from_cudf_edgelist(df, 'src', 'dst')

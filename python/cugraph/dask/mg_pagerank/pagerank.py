@@ -100,7 +100,8 @@ def pagerank(input_graph,
                                  names=['src', 'dst', 'value'],
                                  dtype=['int32', 'int32', 'float32'])
     >>> dg = cugraph.DiGraph()
-    >>> dg.from_dask_cudf_edgelist(ddf)
+    >>> dg.from_dask_cudf_edgelist(ddf, source='src', destination='dst',
+                                   edge_attr='value')
     >>> pr = dcg.pagerank(dg)
     """
     from cugraph.structure.graph import null_check
@@ -121,7 +122,7 @@ def pagerank(input_graph,
         if input_graph.renumbered is True:
             personalization = input_graph.add_internal_vertex_id(
                 personalization, "vertex", "vertex"
-            )
+            ).compute()
 
     result = dict([(data.worker_info[wf[0]]["rank"],
                     client.submit(
