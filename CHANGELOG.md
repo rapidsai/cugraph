@@ -49,6 +49,7 @@
 - PR #1024 Updated condata environment YML files
 - PR #1026 update chunksize for mnmg, remove files and unused code
 - PR #1028 Update benchmarks script to use ASV_LABEL
+- PR #1030 MG directory org and documentation
 
 ## Bug Fixes
 - PR #936 Update Force Atlas 2 doc and wrapper
