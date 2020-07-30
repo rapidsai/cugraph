@@ -53,16 +53,16 @@ enum class DegreeDirection {
 template <typename vertex_t, typename edge_t, typename weight_t>
 class GraphViewBase {
  public:
-  weight_t        *edge_data;  ///< edge weight
-  raft::handle_t  *handle;
+  weight_t *edge_data;  ///< edge weight
+  raft::handle_t *handle;
   GraphProperties prop;
 
-  vertex_t  number_of_vertices;
-  edge_t    number_of_edges;
+  vertex_t number_of_vertices;
+  edge_t number_of_edges;
 
-  vertex_t  *local_vertices;
-  edge_t    *local_edges;
-  vertex_t  *local_offsets;
+  vertex_t *local_vertices;
+  edge_t *local_edges;
+  vertex_t *local_offsets;
 
   /**
    * @brief      Fill the identifiers array with the vertex identifiers.
@@ -95,7 +95,6 @@ class GraphViewBase {
 
   bool has_data(void) const { return edge_data != nullptr; }
 };
-
 
 /**
  * @brief       A graph stored in COO (COOrdinate) format.
@@ -158,7 +157,6 @@ class GraphCOOView : public GraphViewBase<vertex_t, edge_t, weight_t> {
   {
   }
 };
-
 
 /**
  * @brief       Base class for graph stored in CSR (Compressed Sparse Row)
@@ -232,7 +230,6 @@ class GraphCompressedSparseBaseView : public GraphViewBase<vertex_t, edge_t, wei
   {
   }
 };
-
 
 /**
  * @brief       A graph stored in CSR (Compressed Sparse Row) format.
@@ -335,7 +332,6 @@ class GraphCSCView : public GraphCompressedSparseBaseView<vertex_t, edge_t, weig
   }
 };
 
-
 /**
  * @brief      TODO : Change this Take ownership of the provided graph arrays in
  * COO format
@@ -355,13 +351,12 @@ class GraphCSCView : public GraphCompressedSparseBaseView<vertex_t, edge_t, weig
  */
 template <typename vertex_t, typename edge_t, typename weight_t>
 struct GraphCOOContents {
-  vertex_t  number_of_vertices;
-  edge_t    number_of_edges;
+  vertex_t number_of_vertices;
+  edge_t number_of_edges;
   std::unique_ptr<rmm::device_buffer> src_indices;
   std::unique_ptr<rmm::device_buffer> dst_indices;
   std::unique_ptr<rmm::device_buffer> edge_data;
 };
-
 
 /**
  * @brief       A constructed graph stored in COO (COOrdinate) format.
@@ -374,9 +369,8 @@ struct GraphCOOContents {
  */
 template <typename vertex_t, typename edge_t, typename weight_t>
 class GraphCOO {
-
-  vertex_t  number_of_vertices_p;
-  edge_t    number_of_edges_p;
+  vertex_t number_of_vertices_p;
+  edge_t number_of_edges_p;
   rmm::device_buffer src_indices_p{};  ///< rowInd
   rmm::device_buffer dst_indices_p{};  ///< colInd
   rmm::device_buffer edge_data_p{};    ///< CSR data
@@ -428,8 +422,8 @@ class GraphCOO {
   {
     vertex_t number_of_vertices = number_of_vertices_p;
     edge_t number_of_edges      = number_of_edges_p;
-    number_of_vertices_p         = 0;
-    number_of_edges_p            = 0;
+    number_of_vertices_p        = 0;
+    number_of_edges_p           = 0;
     return GraphCOOContents<vertex_t, edge_t, weight_t>{
       number_of_vertices,
       number_of_edges,
@@ -437,7 +431,6 @@ class GraphCOO {
       std::make_unique<rmm::device_buffer>(std::move(dst_indices_p)),
       std::make_unique<rmm::device_buffer>(std::move(edge_data_p))};
   }
-
 
   GraphCOOView<vertex_t, edge_t, weight_t> view(void) noexcept
   {
@@ -518,8 +511,8 @@ class GraphCompressedSparseBase {
   {
     vertex_t number_of_vertices = number_of_vertices_p;
     edge_t number_of_edges      = number_of_edges_p;
-    number_of_vertices_p         = 0;
-    number_of_edges_p            = 0;
+    number_of_vertices_p        = 0;
+    number_of_edges_p           = 0;
     return GraphSparseContents<vertex_t, edge_t, weight_t>{
       number_of_vertices,
       number_of_edges,
@@ -609,7 +602,7 @@ class GraphCSC : public GraphCompressedSparseBase<vertex_t, edge_t, weight_t> {
    */
   GraphCSC(vertex_t number_of_vertices_in,
            edge_t number_of_edges_in,
-           bool has_data_in                      = false,
+           bool has_data_in                    = false,
            cudaStream_t stream                 = nullptr,
            rmm::mr::device_memory_resource *mr = rmm::mr::get_default_resource())
     : GraphCompressedSparseBase<vertex_t, edge_t, weight_t>(
