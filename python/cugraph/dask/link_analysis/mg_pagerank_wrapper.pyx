@@ -15,7 +15,7 @@
 #
 
 from cugraph.structure.utils_wrapper import *
-from cugraph.mg.link_analysis cimport mg_pagerank as c_pagerank
+from cugraph.dask.link_analysis cimport mg_pagerank as c_pagerank
 import cudf
 from cugraph.structure.graph_new cimport *
 import cugraph.structure.graph_new_wrapper as graph_new_wrapper

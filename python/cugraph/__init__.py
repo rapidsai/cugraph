@@ -62,7 +62,7 @@ from cugraph.layout import force_atlas2
 from cugraph.raft import raft_include_test
 from cugraph.comms import comms
 
-from cugraph.mg.link_analysis.mg_pagerank_wrapper import mg_pagerank
+from cugraph.dask.link_analysis.mg_pagerank_wrapper import mg_pagerank
 
 # Versioneer
 from ._version import get_versions

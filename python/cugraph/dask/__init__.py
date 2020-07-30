@@ -11,6 +11,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from .mg_pagerank.pagerank import pagerank
-from .mg_bfs.bfs import bfs
+from .link_analysis.pagerank import pagerank
+from .traversal.bfs import bfs
 from .common.read_utils import get_chunksize
