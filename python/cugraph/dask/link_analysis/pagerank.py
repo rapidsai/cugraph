@@ -45,7 +45,7 @@ def pagerank(input_graph,
     """
     Find the PageRank values for each vertex in a graph using multiple GPUs.
     cuGraph computes an approximation of the Pagerank using the power method.
-    The input graph must contain edge list as  dask-cudf dataframe with 
+    The input graph must contain edge list as  dask-cudf dataframe with
     one partition per GPU.
 
     Parameters
@@ -78,9 +78,9 @@ def pagerank(input_graph,
         Setting too small a tolerance can lead to non-convergence due to
         numerical roundoff. Usually values between 0.01 and 0.00001 are
         acceptable.
-    nstart : not supported 
+    nstart : not supported
         initial guess for pagerank
-        
+
     Returns
     -------
     PageRank : cudf.DataFrame
