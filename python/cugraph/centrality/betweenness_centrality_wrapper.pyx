@@ -21,7 +21,6 @@ from cugraph.centrality.betweenness_centrality cimport handle_t
 from cugraph.structure import graph_new_wrapper
 from cugraph.structure.graph import DiGraph
 from cugraph.structure.graph_new cimport *
-from cugraph.utilities.unrenumber import unrenumber
 from libc.stdint cimport uintptr_t
 from libcpp cimport bool
 import cudf
@@ -252,8 +251,4 @@ def betweenness_centrality(input_graph, normalized, endpoints, weights,
                                        weights,
                                        vertices,
                                        result_dtype)
-
-    if input_graph.renumbered:
-        df = unrenumber(input_graph.edgelist.renumber_map, df, 'vertex')
-
     return df

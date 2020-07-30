@@ -20,7 +20,6 @@ from cugraph.centrality.betweenness_centrality cimport edge_betweenness_centrali
 from cugraph.structure import graph_new_wrapper
 from cugraph.structure.graph import DiGraph, Graph
 from cugraph.structure.graph_new cimport *
-from cugraph.utilities.unrenumber import unrenumber
 from libc.stdint cimport uintptr_t
 from libcpp cimport bool
 import cudf
@@ -35,25 +34,6 @@ from cugraph.raft.dask.common.comms import worker_state
 import dask.distributed
 from cugraph.structure.utils_wrapper import coo2csr
 
-
-def get_sg_output_df(input_graph, result_dtype):
-    number_of_edges = input_graph.number_of_edges(directed_edges=True)
-    df = cudf.DataFrame()
-    df['src'] = cudf.Series(np.zeros(number_of_edges, dtype=np.int32))
-    df['dst'] = input_graph.adjlist.indices.copy()
-    df['betweenness_centrality'] = cudf.Series(np.zeros(number_of_edges,
-                                               dtype=result_dtype))
-    return df
-
-
-def get_mg_output_df(src, indices, result_dtype):
-    number_of_edges = len(src)
-    df = cudf.DataFrame()
-    df['src'] = src.copy()
-    df['dst'] = indices.copy()
-    df['betweenness_centrality'] = cudf.Series(np.zeros(number_of_edges,
-                                               dtype=result_dtype))
-    return df
 
 def get_output_df(indices, result_dtype):
     number_of_edges = len(indices)
@@ -261,14 +241,4 @@ def edge_betweenness_centrality(input_graph, normalized, weights,
         graph_float = get_graph_view[GraphCSRViewFloat](input_graph)
         graph_float.get_source_indices(<int*>(<uintptr_t>df['src'].__cuda_array_interface__['data'][0]))
 
-    if input_graph.renumbered:
-        df = unrenumber(input_graph.edgelist.renumber_map, df, 'src')
-        df = unrenumber(input_graph.edgelist.renumber_map, df, 'dst')
-
-    if type(input_graph) is Graph:
-        lower_triangle = df['src'] >= df['dst']
-        df[["src", "dst"]][lower_triangle] = df[["dst", "src"]][lower_triangle]
-        df = df.groupby(by=["src", "dst"]).sum().reset_index()
-
     return df
-

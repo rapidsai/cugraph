@@ -21,13 +21,13 @@ import cudf
 from dask_cuda import LocalCUDACluster
 
 
-def test_dask_pagerank():
+def test_dask_bfs():
     gc.collect()
     cluster = LocalCUDACluster()
     client = Client(cluster)
     Comms.initialize()
 
-    input_data_path = r"../datasets/karate.csv"
+    input_data_path = r"../datasets/netscience.csv"
     chunksize = dcg.get_chunksize(input_data_path)
 
     ddf = dask_cudf.read_csv(input_data_path, chunksize=chunksize,
@@ -41,26 +41,24 @@ def test_dask_pagerank():
                        dtype=['int32', 'int32', 'float32'])
 
     g = cugraph.DiGraph()
-    g.from_cudf_edgelist(df, 'src', 'dst')
+    g.from_cudf_edgelist(df, 'src', 'dst', renumber=True)
 
     dg = cugraph.DiGraph()
-    dg.from_dask_cudf_edgelist(ddf)
+    dg.from_dask_cudf_edgelist(ddf, renumber=True)
 
-    # Pre compute local data
-    # dg.compute_local_data(by='dst')
+    expected_dist = cugraph.bfs(g, 0)
+    result_dist = dcg.bfs(dg, 0, True)
 
-    expected_pr = cugraph.pagerank(g)
-    result_pr = dcg.pagerank(dg)
+    compare_dist = expected_dist.merge(
+        result_dist, on="vertex", suffixes=['_local', '_dask']
+    )
 
     err = 0
-    tol = 1.0e-05
 
-    assert len(expected_pr) == len(result_pr)
-    for i in range(len(result_pr)):
-        if(abs(result_pr['pagerank'].iloc[i]-expected_pr['pagerank'].iloc[i])
-           > tol*1.1):
+    for i in range(len(compare_dist)):
+        if (compare_dist['distance_local'].iloc[i] !=
+                compare_dist['distance_dask'].iloc[i]):
             err = err + 1
-    print("Mismatches:", err)
     assert err == 0
 
     Comms.destroy()

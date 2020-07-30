@@ -18,7 +18,7 @@
 
 #include <utilities/error.hpp>
 #include "bfs_kernels.cuh"
-#include "opg/bfs.cuh"
+#include "mg/bfs.cuh"
 #include "traversal_common.cuh"
 #include "utilities/graph_utils.cuh"
 
@@ -491,7 +491,7 @@ void bfs(raft::handle_t const &handle,
   if (handle.comms_initialized() && !mg_batch) {
     CUGRAPH_EXPECTS(sp_counters == nullptr,
                     "BFS Traversal shortest path is not supported in MG path");
-    opg::bfs<VT, ET, WT>(handle, graph, distances, predecessors, start_vertex);
+    mg::bfs<VT, ET, WT>(handle, graph, distances, predecessors, start_vertex);
   } else {
     VT number_of_vertices = graph.number_of_vertices;
     ET number_of_edges    = graph.number_of_edges;
