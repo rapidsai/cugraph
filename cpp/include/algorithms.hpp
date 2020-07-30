@@ -304,7 +304,7 @@ void force_atlas2(GraphCOOView<VT, ET, WT> &graph,
  */
 template <typename VT, typename ET, typename WT, typename result_t>
 void betweenness_centrality(const raft::handle_t &handle,
-                            GraphCSRView<VT, ET, WT> const *graph,
+                            GraphCSRView<VT, ET, WT> const &graph,
                             result_t *result,
                             bool normalized                = true,
                             bool endpoints                 = false,
@@ -349,7 +349,7 @@ void betweenness_centrality(const raft::handle_t &handle,
  */
 template <typename VT, typename ET, typename WT, typename result_t>
 void edge_betweenness_centrality(const raft::handle_t &handle,
-                                 GraphCSRView<VT, ET, WT> const *graph,
+                                 GraphCSRView<VT, ET, WT> const &graph,
                                  result_t *result,
                                  bool normalized                = true,
                                  WT const *weight               = nullptr,

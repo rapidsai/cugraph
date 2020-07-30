@@ -14,8 +14,6 @@
  * limitations under the License.
  */
 #pragma once
-#include <rmm/thrust_rmm_allocator.h>
-#include <thrust/host_vector.h>
 #include <unistd.h>
 #include <cstddef>
 #include <cstdint>
@@ -23,7 +21,6 @@
 #include <memory>
 #include <raft/handle.hpp>
 #include <rmm/device_buffer.hpp>
-#include <utilities/error.hpp>
 
 namespace cugraph {
 

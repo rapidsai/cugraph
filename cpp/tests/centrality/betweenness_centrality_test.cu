@@ -336,7 +336,7 @@ class Tests_BC : public ::testing::TestWithParam<BC_Usecase> {
     if (total_number_of_sources == 0) { total_number_of_sources = G.number_of_vertices; }
     thrust::device_vector<result_t> d_result(G.number_of_vertices);
     cugraph::betweenness_centrality(handle,
-                                    &G,
+                                    G,
                                     d_result.data().get(),
                                     normalize,
                                     endpoints,

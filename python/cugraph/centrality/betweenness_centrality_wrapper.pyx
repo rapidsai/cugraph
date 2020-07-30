@@ -69,7 +69,7 @@ cdef void run_c_betweenness_centrality(uintptr_t c_handle,
                                        result_dtype):
     if result_dtype == np.float64:
         c_betweenness_centrality[int, int, double, double]((<handle_t *> c_handle)[0],
-                                                           <GraphCSRView[int, int, double] *> c_graph,
+                                                           (<GraphCSRView[int, int, double] *> c_graph)[0],
                                                            <double *> c_betweenness,
                                                            normalized,
                                                            endpoints,
@@ -79,7 +79,7 @@ cdef void run_c_betweenness_centrality(uintptr_t c_handle,
                                                            total_number_of_sources)
     elif result_dtype == np.float32:
         c_betweenness_centrality[int, int, float, float]((<handle_t *> c_handle)[0],
-                                                         <GraphCSRView[int, int, float] *> c_graph,
+                                                         (<GraphCSRView[int, int, float] *> c_graph)[0],
                                                          <float *> c_betweenness,
                                                          normalized,
                                                          endpoints,
