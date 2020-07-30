@@ -34,7 +34,7 @@ import cugraph.raft
 
 
 import cugraph.comms.comms as Comms
-from cugraph.dask.common.mg_utils import (mg_get_client, is_worker_organizer)
+from cugraph.dask.common.mg_utils import get_client
 from cugraph.raft.dask.common.comms import worker_state
 import dask.distributed
 
@@ -193,7 +193,7 @@ def run_mg_work(input_data, normalized, endpoints,
 def mg_batch_betweenness_centrality(input_graph, normalized, endpoints,
                                     weights, vertices, result_dtype):
     df = None
-    client = mg_get_client()
+    client = get_client()
     comms = Comms.get_comms()
     replicated_adjlists = input_graph.mg_batch_adjlists
     work_futures =  [client.submit(run_mg_work,

@@ -17,7 +17,7 @@ import pandas as pd
 import networkx as nx
 import dask_cudf
 import os
-from cugraph.dask.common.mg_utils import (mg_get_client)
+from cugraph.dask.common.mg_utils import (get_client)
 
 #
 # Datasets are numbered based on the number of elements in the array
@@ -141,7 +141,7 @@ def generate_cugraph_graph_from_file(graph_file, directed=True):
 
 
 def generate_mg_batch_cugraph_graph_from_file(graph_file, directed=True):
-    client = mg_get_client()
+    client = get_client()
     _ddf = read_dask_cudf_csv_file(graph_file)
     ddf = client.persist(_ddf)
     G = cugraph.DiGraph() if directed else cugraph.Graph()

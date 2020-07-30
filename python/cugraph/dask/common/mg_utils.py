@@ -14,15 +14,11 @@ from cugraph.raft.dask.common.utils import default_client
 from collections import OrderedDict
 
 
-def is_worker_organizer(worker_idx):
-    return worker_idx == 0
-
-
 # FIXME: We currently look for the default client from dask, as such is the
 # if there is a dask client running without any GPU we will still try
 # to run MG using this client, it also implies that more  work will be
 # required  in order to run an MG Batch in Combination with mutli-GPU Graph
-def mg_get_client():
+def get_client():
     try:
         client = default_client()
     except ValueError:
@@ -30,17 +26,9 @@ def mg_get_client():
     return client
 
 
-def mg_get_worker_addresses(client=None):
+def prepare_worker_to_parts(data, client=None):
     if client is None:
-        client = mg_get_client
-    addresses = list(OrderedDict.fromkeys(
-                     client.scheduler_info()["workers"].keys()))
-    return addresses
-
-
-def mg_prepare_worker_to_parts(data, client=None):
-    if client is None:
-        client = mg_get_client
+        client = get_client()
     for placeholder, worker in enumerate(client.has_what().keys()):
         if worker not in data.worker_to_parts:
             data.worker_to_parts[worker] = [placeholder]

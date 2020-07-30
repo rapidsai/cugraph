@@ -1,7 +1,6 @@
 import pytest
 
-import os
-from cugraph.tests.dask.mg_context import MGContext
+from cugraph.tests.dask.mg_context import (MGContext, get_visible_devices)
 
 # Get parameters from standard betwenness_centrality_test
 from cugraph.tests.test_edge_betweenness_centrality import (
@@ -24,11 +23,6 @@ from cugraph.tests.test_edge_betweenness_centrality import (
 # Parameters
 # =============================================================================
 MG_DEVICE_COUNT_OPTIONS = [1, 2, 3, 4]
-
-
-def get_visible_devices():
-    visible_devices = os.environ["CUDA_VISIBLE_DEVICES"].strip().split(",")
-    return visible_devices
 
 
 @pytest.mark.parametrize('graph_file', DATASETS)

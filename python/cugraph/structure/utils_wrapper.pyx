@@ -27,6 +27,11 @@ import numpy as np
 from rmm._lib.device_buffer cimport DeviceBuffer
 from cudf.core.buffer import Buffer
 from cugraph.raft.dask.common.comms import worker_state
+import dask.distributed as dd
+from cugraph.dask.common.input_utils import get_mg_batch_data
+import dask_cudf
+import cugraph.comms.comms as Comms
+import cugraph.dask.common.mg_utils as mg_utils
 
 
 def weight_type(weights):
@@ -87,51 +92,85 @@ def coo2csr(source_col, dest_col, weights=None):
         return create_csr_float(source_col, dest_col, weights)
 
 
-# FIXME: Does not support graph weights
-# FIXME: Assumes that data is np.int32
-def replicate_edgelist(input_data, session_id):
+def  replicate_cudf_dataframe(cudf_dataframe, client=None, comms=None):
+    if type(cudf_dataframe) is not cudf.DataFrame:
+        raise TypeError("Expected a cudf.Series to replicate")
+    client = mg_utils.get_client() if client is None else client
+    comms = Comms.get_comms() if comms is None else comms
+    dask_cudf_df = dask_cudf.from_cudf(cudf_dataframe, npartitions=1)
+    df_length = len(dask_cudf_df)
+
+    _df_data =  get_mg_batch_data(dask_cudf_df)
+    df_data =  mg_utils.prepare_worker_to_parts(_df_data, client)
+
+    workers_to_futures = {worker: client.submit(_replicate_cudf_dataframe,
+                          (data, cudf_dataframe.columns, cudf_dataframe.dtypes, df_length),
+                          comms.sessionId,
+                          workers=[worker]) for
+                          (worker, data) in
+                          df_data.worker_to_parts.items()}
+    dd.wait(workers_to_futures)
+    return workers_to_futures
+
+
+def _replicate_cudf_dataframe(input_data, session_id):
     cdef uintptr_t c_handle = <uintptr_t> NULL
-    cdef uintptr_t c_src = <uintptr_t> NULL
-    cdef uintptr_t c_dst = <uintptr_t> NULL
+    cdef uintptr_t c_series = <uintptr_t> NULL
 
     result = None
     # 1. Get session information
     session_state = worker_state(session_id)
-    number_of_workers = session_state["nworkers"]
-    worker_idx = session_state["wid"]
 
     # 2. Get handle
     handle = session_state['handle']
     c_handle = <uintptr_t>handle.getHandle()
 
-    #(placeholder, number_of_vertices, number_of_edges) = input_data
-    _data, edgelist_size = input_data
+    _data, columns, dtypes, df_length = input_data
     data = _data[0]
     has_data = type(data) is cudf.DataFrame
-    src_identifiers = None
-    dst_identifiers = None
-    if has_data:
-        src_identifiers = data['src']
-        dst_identifiers = data['dst']
-    else:
-        src_identifiers = cudf.Series(np.zeros(edgelist_size), dtype=np.int32)
-        dst_identifiers = cudf.Series(np.zeros(edgelist_size), dtype=np.int32)
 
-    c_src =  src_identifiers.__cuda_array_interface__['data'][0]
-    c_dst =  dst_identifiers.__cuda_array_interface__['data'][0]
-
-    comms_bcast(c_handle, c_src, len(src_identifiers), src_identifiers.dtype)
-    comms_bcast(c_handle, c_dst, len(dst_identifiers), dst_identifiers.dtype)
+    series = None
+    df_data = {}
+    for idx, column in enumerate(columns):
+        if has_data:
+            series = data[column]
+        else:
+            dtype = dtypes[idx]
+            series = cudf.Series(np.zeros(df_length), dtype=dtype)
+            df_data[column]: series
+        c_series =  series.__cuda_array_interface__['data'][0]
+        comms_bcast(c_handle, c_series, df_length, series.dtype)
 
     if has_data:
         result = data
     else:
-        result = cudf.DataFrame(data={"src": src_identifiers,
-                                      "dst": dst_identifiers})
-    return result
+        result = cudf.DataFrame(data=df_data)
 
 
-def replicate_cudf_series(input_data, session_id):
+def  replicate_cudf_series(cudf_series, client=None, comms=None):
+    if type(cudf_series) is not cudf.Series:
+        raise TypeError("Expected a cudf.Series to replicate")
+    client = mg_utils.get_client() if client is None else client
+    comms = Comms.get_comms() if comms is None else comms
+    dask_cudf_series =  dask_cudf.from_cudf(cudf_series,
+                                            npartitions=1)
+    series_length = len(dask_cudf_series)
+    _series_data = get_mg_batch_data(dask_cudf_series)
+    series_data = mg_utils.prepare_worker_to_parts(_series_data)
+
+    dtype = cudf_series.dtype
+    workers_to_futures = {worker:
+                          client.submit(_replicate_cudf_series,
+                                        (data, series_length, dtype),
+                                        comms.sessionId,
+                                         workers=[worker]) for
+                           (worker, data) in
+                           series_data.worker_to_parts.items()}
+    dd.wait(workers_to_futures)
+    return workers_to_futures
+
+
+def _replicate_cudf_series(input_data, session_id):
     cdef uintptr_t c_handle = <uintptr_t> NULL
     cdef uintptr_t c_result = <uintptr_t> NULL
 

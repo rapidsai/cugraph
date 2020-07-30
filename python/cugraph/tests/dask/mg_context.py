@@ -1,4 +1,5 @@
 import time
+import os
 
 from dask.distributed import Client
 from dask_cuda import LocalCUDACluster as CUDACluster
@@ -9,6 +10,11 @@ DEFAULT_MAX_ATTEMPT = 100
 
 # Time betweenness each attempt in seconds
 DEFAULT_WAIT_TIME = 0.5
+
+
+def get_visible_devices():
+    visible_devices = os.environ["CUDA_VISIBLE_DEVICES"].strip().split(",")
+    return visible_devices
 
 
 class MGContext:

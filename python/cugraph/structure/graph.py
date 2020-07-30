@@ -14,15 +14,12 @@
 from cugraph.structure import graph_new_wrapper
 from cugraph.structure.symmetrize import symmetrize
 from cugraph.structure.number_map import NumberMap
-from cugraph.dask.common.input_utils import (get_local_data, get_mg_batch_data)
+from cugraph.dask.common.input_utils import get_local_data
 import cugraph.dask.common.mg_utils as mg_utils
 import cudf
 import dask_cudf
 import warnings
 import cugraph.comms.comms as Comms
-
-import dask # DBG
-import numpy as np # DBG
 
 from cugraph.structure import utils_wrapper
 
@@ -145,73 +142,43 @@ class Graph:
 
     def _replicate_edgelist(self):
         # TODO(xcadet) Add tests
-        client = mg_utils.mg_get_client()
+        client = mg_utils.get_client()
+        comms = Comms.get_comms()
+
         # FIXME: There  might be a better way to control it
         if client is None:
             return
-        comms = Comms.get_comms()
+        work_futures = utils_wrapper.replicate_cudf_dataframe(
+            self.edgelist.edgelist_df,
+            client=client,
+            comms=comms)
 
-        _mg_batch_edgelists = dask_cudf.from_cudf(self.edgelist.edgelist_df,
-                                                  npartitions=1)
-
-        edgelist_size = len(self.edgelist.edgelist_df)
-
-        _edgelist_data = get_mg_batch_data(_mg_batch_edgelists)
-        edgelist_data = mg_utils.mg_prepare_worker_to_parts(_edgelist_data,
-                                                            client)
-
-        work_futures = {worker: client.submit(utils_wrapper.replicate_edgelist,
-                        (data, edgelist_size),
-                        comms.sessionId,
-                        workers=[worker]) for
-                        (worker, data) in
-                        edgelist_data.worker_to_parts.items()}
-        dask.distributed.wait(work_futures)
         self.mg_batch_edgelists = work_futures
 
     # FIXME: Add weights
     def _replicate_adjlist(self):
-        client = mg_utils.mg_get_client()
+        client = mg_utils.get_client()
+        comms = Comms.get_comms()
+
         # FIXME: There  might be a better way to control it
         if client is None:
             return
-        comms = Comms.get_comms()
 
-        _mg_batch_indices = dask_cudf.from_cudf(self.adjlist.indices,
-                                                npartitions=1)
-        _mg_batch_offsets = dask_cudf.from_cudf(self.adjlist.offsets,
-                                                npartitions=1)
+        weights = None
+        offsets_futures = utils_wrapper.replicate_cudf_series(
+            self.adjlist.offsets,
+            client=client,
+            comms=comms)
+        indices_futures = utils_wrapper.replicate_cudf_series(
+            self.adjlist.indices,
+            client=client,
+            comms=comms)
 
-        indices_size = len(_mg_batch_indices)
-        offsets_size = len(_mg_batch_offsets)
+        if self.adjlist.weights is not None:
+            weights = utils_wrapper.replicate_cudf_series(self.adjlist.weights)
 
-        _indices_data = get_mg_batch_data(_mg_batch_indices)
-        _offsets_data = get_mg_batch_data(_mg_batch_offsets)
-
-        indices_data = mg_utils.mg_prepare_worker_to_parts(_indices_data,
-                                                           client)
-        offsets_data = mg_utils.mg_prepare_worker_to_parts(_offsets_data,
-                                                           client)
-
-        indices_futures = {worker:
-                           client.submit(utils_wrapper.replicate_cudf_series,
-                                         (data, indices_size, np.int32),
-                                         comms.sessionId,
-                                         workers=[worker]) for
-                           (worker, data) in
-                           indices_data.worker_to_parts.items()}
-        dask.distributed.wait(indices_futures)
-
-        offsets_futures = {worker:
-                           client.submit(utils_wrapper.replicate_cudf_series,
-                                         (data, offsets_size, np.int32),
-                                         comms.sessionId,
-                                         workers=[worker]) for
-                           (worker, data) in
-                           offsets_data.worker_to_parts.items()}
-        dask.distributed.wait(offsets_futures)
         merged_futures = {worker: [offsets_futures[worker],
-                                   indices_futures[worker], None]
+                                   indices_futures[worker], weights]
                           for worker in offsets_futures}
         self.mg_batch_adjlists = merged_futures
 

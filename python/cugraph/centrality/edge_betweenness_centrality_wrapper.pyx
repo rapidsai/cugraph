@@ -27,8 +27,7 @@ import numpy as np
 import numpy.ctypeslib as ctypeslib
 
 import cugraph.raft
-from cugraph.dask.common.mg_utils import (mg_get_client,
-                                          is_worker_organizer)
+from cugraph.dask.common.mg_utils import get_client
 import cugraph.comms.comms as Comms
 from cugraph.raft.dask.common.comms import worker_state
 import dask.distributed
@@ -178,7 +177,7 @@ cdef void run_c_edge_betweenness_centrality(uintptr_t c_handle,
 def mg_batch_edge_betweenness_centrality(input_graph,
                                          normalized,
                                          weights, vertices, result_dtype):
-    client = mg_get_client()
+    client = get_client()
     comms = Comms.get_comms()
     replicated_adjlists = input_graph.mg_batch_adjlists
     work_futures =  [client.submit(run_mg_work,
