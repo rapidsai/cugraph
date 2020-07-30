@@ -160,6 +160,7 @@ class Graph:
         dask.distributed.wait(work_futures)
         self.mg_batch_edgelists = work_futures
 
+    # FIXME: Add weights
     def _replicate_adjlist(self):
         client = mg_utils.mg_get_client()
         # FIXME: There  might be a better way to control it

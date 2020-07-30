@@ -183,16 +183,12 @@ def run_mg_work(input_data, normalized, endpoints,
 
     # 3. Get Batch
     batch = get_batch(sources, number_of_workers, worker_idx)
-
-    # 4. Determine worker type
-    is_organizer = is_worker_organizer(worker_idx)
     total_number_of_sources = len(sources)
 
     result = run_internal_work(handle, input_data, normalized,
                                endpoints, weights, batch,
                                total_number_of_sources, result_dtype)
     return result
-
 
 
 def mg_batch_betweenness_centrality(input_graph, normalized, endpoints,

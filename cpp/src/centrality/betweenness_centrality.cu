@@ -499,12 +499,9 @@ void edge_betweenness_centrality(raft::handle_t const &handle,
                                  VT total_number_of_sources_used)
 {
   if (handle.comms_initialized()) {
-    cugraph::mg::ReplicatableGraphCSR<VT, ET, WT> local_holder(handle, graph);
-    local_holder.replicate();
-
-    rmm::device_vector<result_t> betweenness(local_holder.graph.number_of_edges, 0);
+    rmm::device_vector<result_t> betweenness(graph->number_of_edges, 0);
     detail::edge_betweenness_centrality_impl(handle,
-                                             local_holder.graph,
+                                             *graph,
                                              betweenness.data().get(),
                                              normalize,
                                              weight,

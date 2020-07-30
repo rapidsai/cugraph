@@ -154,8 +154,6 @@ def replicate_cudf_series(input_data, session_id):
     return result
 
 
-
-
 cdef comms_bcast(uintptr_t handle,
                  uintptr_t value_ptr,
                  size_t count,

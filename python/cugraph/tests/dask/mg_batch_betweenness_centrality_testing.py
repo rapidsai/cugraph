@@ -54,7 +54,7 @@ def test_mg_betweenness_centrality(graph_file,
     if mg_device_count > number_of_visible_devices:
         pytest.skip("Not enough devices available to "
                     "test MG({})".format(mg_device_count))
-    with MGContext(mg_device_count):
+    with MGContext(mg_device_count) as context:
         sorted_df = calc_betweenness_centrality(graph_file,
                                                 directed=directed,
                                                 normalized=normalized,

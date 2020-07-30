@@ -44,16 +44,11 @@ class MGContext:
         self._prepare_client()
         self._prepare_comms()
 
-    def _prepare_cluster(self):  # TODO (Use default from Dask)
-        if self._number_of_devices is None:
-            self._cluster = CUDACluster(
-                n_workers=self._number_of_devices,
-                rmm_managed_memory=self._rmm_managed_memory
-            )
-        else:
-            self._cluster = CUDACluster(
-                rmm_managed_memory=self._rmm_managed_memory
-            )
+    def _prepare_cluster(self):
+        self._cluster = CUDACluster(
+            n_workers=self._number_of_devices,
+            rmm_managed_memory=self._rmm_managed_memory
+        )
 
     def _prepare_client(self):
         self._client = Client(self._cluster)
