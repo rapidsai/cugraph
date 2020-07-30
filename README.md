@@ -56,15 +56,15 @@ for i in range(len(df_page)):
 | Layout       |                                        |              |                     |
 |              | Force Atlas 2                          | Single-GPU   |                     |
 | Link Analysis|                                        |              |                     |
-|              | Pagerank                               | Multiple-GPU |                     |
-|              | Personal Pagerank                      | Single-GPU   |                     |
+|              | Pagerank                               | Multiple-GPU | limited to 2 billion vertices |
+|              | Personal Pagerank                      | Multiple-GPU | limited to 2 billion vertices |
 |              | HITS                      				| Single-GPU   | leverages Gunrock   |
 | Link Prediction |                                     |              |                     |
 |              | Jaccard Similarity                     | Single-GPU   |                     |
 |              | Weighted Jaccard Similarity            | Single-GPU   |                     |
 |              | Overlap Similarity                     | Single-GPU   |                     |
 | Traversal    |                                        |              |                     |
-|              | Breadth First Search (BFS)             | Single-GPU   |                     |
+|              | Breadth First Search (BFS)             | Multiple-GPU | limited to 2 billion vertices |
 |              | Single Source Shortest Path (SSSP)     | Single-GPU   |                     |
 | Structure    |                                        |              |                     |
 |              | Renumbering                            | Single-GPU   | Also for multiple columns  |
