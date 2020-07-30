@@ -112,5 +112,4 @@ def test_dask_pagerank(client_connection, personalization_perc):
                    compare_pr['pagerank_dask'].iloc[i])
         if diff > tol * 1.1:
             err = err + 1
-    print("Mismatches:", err)
     assert err == 0

@@ -11,6 +11,7 @@
 - PR #990 MG Consolidation
 - PR #993 Add persistent Handle for Comms
 - PR #979 Add hypergraph implementation to convert DataFrames into Graphs
+- PR #1010 MG BFS (dask)
 - PR #1018 MG personalized pagerank
 
 ## Improvements
@@ -46,7 +47,8 @@
 - PR #1014 Fix benchmarks script variable name
 - PR #1019 Remove deprecated CUDA library calls
 - PR #1024 Updated condata environment YML files
-
+- PR #1026 update chunksize for mnmg, remove files and unused code
+- PR #1028 Update benchmarks script to use ASV_LABEL
 
 ## Bug Fixes
 - PR #936 Update Force Atlas 2 doc and wrapper

@@ -55,6 +55,7 @@ class GraphViewBase {
  public:
   raft::handle_t *handle;
   weight_t *edge_data;  ///< edge weight
+
   GraphProperties prop;
 
   vertex_t number_of_vertices;
