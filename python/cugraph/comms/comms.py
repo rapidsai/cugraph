@@ -11,10 +11,10 @@ __default_handle = None
 # default Comms are initialized as per client information.
 def initialize(comms=None, p2p=False):
     """
-    Intitializes a communicator for multi-node multi-gpu communications.
+    Initialize a communicator for multi-node/multi-gpu communications.
     It is expected to be called right after client initialization for running
-    mnmg algorithms. It wraps raft comms that manages underlying NCCL and UCX
-    comms handles across the workers of a Dask cluster.
+    multi-GPU algorithms. It wraps raft comms that manages underlying NCCL and
+    UCX comms handles across the workers of a Dask cluster.
     It is recommended to also call `destroy()` when the comms are no longer
     needed so the underlying resources can be cleaned up.
 

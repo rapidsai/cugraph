@@ -22,7 +22,8 @@ def get_n_workers():
 def get_chunksize(input_path):
     """
     Calculate the appropriate chunksize for dask_cudf.read_csv
-    to get a number of partitions equal to the number of GPUs
+    to get a number of partitions equal to the number of GPUs.
+
     Examples
     --------
     >>> import dask_cugraph.pagerank as dcg

@@ -68,6 +68,7 @@ def bfs(graph,
     Examples
     --------
     >>> import cugraph.dask as dcg
+    >>> Comms.initialize()
     >>> chunksize = dcg.get_chunksize(input_data_path)
     >>> ddf = dask_cudf.read_csv(input_data_path, chunksize=chunksize,
                                  delimiter=' ',
@@ -76,6 +77,7 @@ def bfs(graph,
     >>> dg = cugraph.DiGraph()
     >>> dg.from_dask_cudf_edgelist(ddf)
     >>> df = dcg.bfs(dg, 0)
+    >>> Comms.destroy()
     """
 
     client = default_client()

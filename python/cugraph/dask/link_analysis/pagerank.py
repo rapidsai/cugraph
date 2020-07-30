@@ -45,7 +45,7 @@ def pagerank(input_graph,
     """
     Find the PageRank values for each vertex in a graph using multiple GPUs.
     cuGraph computes an approximation of the Pagerank using the power method.
-    The input graph must contain edge list as  dask-cudf dataframe with
+    The input graph must contain edge list as  dask-cudf dataframe with 
     one partition per GPU.
 
     Parameters
@@ -66,7 +66,6 @@ def pagerank(input_graph,
             Subset of vertices of graph for personalization
         personalization['values'] : cudf.Series
             Personalization values for vertices
-
     max_iter : int
         The maximum number of iterations before an answer is returned.
         If this value is lower or equal to 0 cuGraph will use the default
@@ -79,13 +78,15 @@ def pagerank(input_graph,
         Setting too small a tolerance can lead to non-convergence due to
         numerical roundoff. Usually values between 0.01 and 0.00001 are
         acceptable.
-
-
+    nstart : not supported 
+        initial guess for pagerank
+        
     Returns
     -------
     PageRank : cudf.DataFrame
         GPU data frame containing two cudf.Series of size V: the vertex
         identifiers and the corresponding PageRank values.
+
         df['vertex'] : cudf.Series
             Contains the vertex identifiers
         df['pagerank'] : cudf.Series
@@ -94,6 +95,7 @@ def pagerank(input_graph,
     Examples
     --------
     >>> import cugraph.dask as dcg
+    >>> Comms.initialize()
     >>> chunksize = dcg.get_chunksize(input_data_path)
     >>> ddf = dask_cudf.read_csv(input_data_path, chunksize=chunksize,
                                  delimiter=' ',
@@ -103,6 +105,7 @@ def pagerank(input_graph,
     >>> dg.from_dask_cudf_edgelist(ddf, source='src', destination='dst',
                                    edge_attr='value')
     >>> pr = dcg.pagerank(dg)
+    >>> Comms.destroy()
     """
     from cugraph.structure.graph import null_check
 

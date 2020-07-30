@@ -49,8 +49,6 @@ from cugraph.link_analysis import pagerank, hits
 from cugraph.link_prediction import jaccard, overlap, jaccard_w, overlap_w
 from cugraph.traversal import bfs, sssp, filter_unreachable
 
-# from cugraph.utilities import grmat_gen
-# from cugraph.utilities import device_of_gpu_pointer
 from cugraph.utilities import utils
 
 from cugraph.bsp.traversal import bfs_df_pregel
@@ -61,8 +59,6 @@ from cugraph.proto.structure import find_bicliques
 from cugraph.layout import force_atlas2
 from cugraph.raft import raft_include_test
 from cugraph.comms import comms
-
-from cugraph.dask.link_analysis.mg_pagerank_wrapper import mg_pagerank
 
 # Versioneer
 from ._version import get_versions
