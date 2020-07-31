@@ -3,14 +3,26 @@ from dask.distributed import Client
 import gc
 import cugraph
 import dask_cudf
+import cugraph.comms as Comms
 from dask_cuda import LocalCUDACluster
+import pytest
+
+@pytest.fixture
+def client_connection():
+    cluster = LocalCUDACluster()
+    client = Client(cluster)
+    Comms.initialize()
+
+    yield client
+
+    Comms.destroy()
+    client.close()
+    cluster.close()
 
 
-def test_compute_local_data():
+def test_compute_local_data(client_connection):
 
     gc.collect()
-    cluster = LocalCUDACluster()
-    client = Client(cluster)  # noqa : F841
 
     input_data_path = r"../datasets/karate.csv"
     chunksize = dcg.get_chunksize(input_data_path)
@@ -26,11 +38,10 @@ def test_compute_local_data():
     # Compute_local_data
     dg.compute_local_data(by='dst')
     data = dg.local_data['data']
-    comms = dg.local_data['comms']
     by = dg.local_data['by']
 
     assert by == 'dst'
-    assert comms.nccl_initialized
+    assert Comms.is_initialized()
 
     global_num_edges = data.local_data['edges'].sum()
     assert global_num_edges == dg.number_of_edges()
