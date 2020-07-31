@@ -80,6 +80,10 @@ def pagerank(input_graph,
         acceptable.
     nstart : not supported
         initial guess for pagerank
+    load_balance : bool
+        Set as True to perform load_balancing after global sorting of
+        dask-cudf DataFrame. This ensures that the data is uniformly
+        distributed among multiple GPUs to avoid over-loading.
 
     Returns
     -------
@@ -117,7 +121,7 @@ def pagerank(input_graph,
        input_graph.local_data['by'] == 'dst'):
         data = input_graph.local_data['data']
     else:
-        data = get_local_data(input_graph, by='dst')
+        data = get_local_data(input_graph, by='dst', load_balance=load_balance)
 
     if personalization is not None:
         null_check(personalization["vertex"])
