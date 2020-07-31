@@ -7,6 +7,7 @@ import cugraph.comms as Comms
 from dask_cuda import LocalCUDACluster
 import pytest
 
+
 @pytest.fixture
 def client_connection():
     cluster = LocalCUDACluster()
