@@ -50,6 +50,7 @@
 - PR #1026 update chunksize for mnmg, remove files and unused code
 - PR #1028 Update benchmarks script to use ASV_LABEL
 - PR #1020 Updated Louvain to honor max_level, ECG now calls Louvain for 1 level, then full run.
+- PR #1031 MG notebook
 
 ## Bug Fixes
 - PR #936 Update Force Atlas 2 doc and wrapper
