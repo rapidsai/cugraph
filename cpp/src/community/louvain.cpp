@@ -27,19 +27,20 @@
 
 namespace cugraph {
 
-template <typename VT, typename ET, typename WT>
-void louvain(GraphCSRView<VT, ET, WT> const &graph,
-             WT *final_modularity,
+template <typename vertex_t, typename edge_t, typename weight_t>
+void louvain(GraphCSRView<vertex_t, edge_t, weight_t> const &graph,
+             weight_t *final_modularity,
              int *num_level,
-             VT *louvain_parts,
-             int max_iter)
+             vertex_t *louvain_parts,
+             int max_level)
 {
   CUGRAPH_EXPECTS(graph.edge_data != nullptr, "API error, louvain expects a weighted graph");
   CUGRAPH_EXPECTS(final_modularity != nullptr, "API error, final_modularity is null");
   CUGRAPH_EXPECTS(num_level != nullptr, "API error, num_level is null");
   CUGRAPH_EXPECTS(louvain_parts != nullptr, "API error, louvain_parts is null");
 
-  detail::louvain<VT, ET, WT>(graph, final_modularity, num_level, louvain_parts, max_iter);
+  detail::louvain<vertex_t, edge_t, weight_t>(
+    graph, final_modularity, num_level, louvain_parts, max_level);
 }
 
 template void louvain(
