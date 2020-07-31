@@ -104,7 +104,7 @@ def  replicate_cudf_dataframe(cudf_dataframe, client=None, comms=None):
     df_data =  mg_utils.prepare_worker_to_parts(_df_data, client)
 
     workers_to_futures = {worker: client.submit(_replicate_cudf_dataframe,
-                          (data, cudf_dataframe.columns, cudf_dataframe.dtypes, df_length),
+                          (data, cudf_dataframe.columns.values, cudf_dataframe.dtypes, df_length),
                           comms.sessionId,
                           workers=[worker]) for
                           (worker, data) in
@@ -137,7 +137,7 @@ def _replicate_cudf_dataframe(input_data, session_id):
         else:
             dtype = dtypes[idx]
             series = cudf.Series(np.zeros(df_length), dtype=dtype)
-            df_data[column]: series
+            df_data[column] = series
         c_series =  series.__cuda_array_interface__['data'][0]
         comms_bcast(c_handle, c_series, df_length, series.dtype)
 
@@ -145,6 +145,7 @@ def _replicate_cudf_dataframe(input_data, session_id):
         result = data
     else:
         result = cudf.DataFrame(data=df_data)
+    return result
 
 
 def  replicate_cudf_series(cudf_series, client=None, comms=None):

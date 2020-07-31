@@ -108,7 +108,7 @@ class Graph:
         self.mg_batch_enabled = False
         self.mg_batch_edgelists = None
         self.mg_batch_adjlists = None
-        self.mg_batch_transposed_adjlist = None
+        self.mg_batch_transposed_adjlists = None
 
         if m_graph is not None:
             if (type(self) is Graph and type(m_graph) is MultiGraph) or (
@@ -129,6 +129,14 @@ class Graph:
         # self.number_of_vertices = None
 
     def enable_mg_batch(self):
+        client = mg_utils.get_client()
+        comms = Comms.get_comms()
+
+        if client is None or comms is None:
+            msg = "MG Batch needs a Dask Client and the " \
+                "Communicator needs to be initialized."
+            raise Exception(msg)
+
         self.mg_batch_enabled = True
 
         if self.edgelist is not None:
@@ -141,7 +149,6 @@ class Graph:
             self._replicate_transposed_adjlist()
 
     def _replicate_edgelist(self):
-        # TODO(xcadet) Add tests
         client = mg_utils.get_client()
         comms = Comms.get_comms()
 
@@ -155,7 +162,6 @@ class Graph:
 
         self.mg_batch_edgelists = work_futures
 
-    # FIXME: Add weights
     def _replicate_adjlist(self):
         client = mg_utils.get_client()
         comms = Comms.get_comms()
@@ -176,14 +182,17 @@ class Graph:
 
         if self.adjlist.weights is not None:
             weights = utils_wrapper.replicate_cudf_series(self.adjlist.weights)
+        else:
+            weights = {worker: None for worker in offsets_futures}
 
         merged_futures = {worker: [offsets_futures[worker],
-                                   indices_futures[worker], weights]
+                                   indices_futures[worker], weights[worker]]
                           for worker in offsets_futures}
         self.mg_batch_adjlists = merged_futures
 
-    def replicate_transposed_adjlist(self):
-        pass
+    # FIXME: Not implemented yet
+    def _replicate_transposed_adjlist(self):
+        self.mg_batch_transposed_adjlists = True
 
     def clear(self):
         """
@@ -192,6 +201,10 @@ class Graph:
         self.edgelist = None
         self.adjlist = None
         self.transposedadjlist = None
+
+        self.mg_batch_edgelists = None
+        self.mg_batch_adjlists = None
+        self.mg_batch_transposed_adjlists = None
 
     def add_nodes_from(self, nodes, bipartite=None, multipartite=None):
         """

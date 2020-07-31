@@ -4,6 +4,7 @@ import os
 from dask.distributed import Client
 from dask_cuda import LocalCUDACluster as CUDACluster
 import cugraph.comms as Comms
+import pytest
 
 # Maximal number of verifications of the number of workers
 DEFAULT_MAX_ATTEMPT = 100
@@ -16,6 +17,13 @@ def get_visible_devices():
     visible_devices = os.environ["CUDA_VISIBLE_DEVICES"].strip().split(",")
     return visible_devices
 
+
+def skip_if_not_enough_devices(required_devices):
+    visible_devices = get_visible_devices()
+    number_of_visible_devices = len(visible_devices)
+    if required_devices > number_of_visible_devices:
+        pytest.skip("Not enough devices available to "
+                    "test MG({})".format(required_devices))
 
 class MGContext:
     """Utility Context Manager to start a multi GPU context using dask_cuda

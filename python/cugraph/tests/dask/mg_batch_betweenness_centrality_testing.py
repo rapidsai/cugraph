@@ -1,6 +1,7 @@
 import pytest
 
-from cugraph.tests.dask.mg_context import (MGContext, get_visible_devices)
+from cugraph.tests.dask.mg_context import (MGContext,
+                                           skip_if_not_enough_devices)
 
 # Get parameters from standard betwenness_centrality_test
 from cugraph.tests.test_betweenness_centrality import (
@@ -47,12 +48,8 @@ def test_mg_betweenness_centrality(graph_file,
                                    result_dtype,
                                    mg_device_count):
     prepare_test()
-    visible_devices = get_visible_devices()
-    number_of_visible_devices = len(visible_devices)
-    if mg_device_count > number_of_visible_devices:
-        pytest.skip("Not enough devices available to "
-                    "test MG({})".format(mg_device_count))
-    with MGContext(mg_device_count) as context:
+    skip_if_not_enough_devices(mg_device_count)
+    with MGContext(mg_device_count):
         sorted_df = calc_betweenness_centrality(graph_file,
                                                 directed=directed,
                                                 normalized=normalized,
