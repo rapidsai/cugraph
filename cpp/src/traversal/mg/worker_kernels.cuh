@@ -119,6 +119,152 @@ void small_vertex_worker(cugraph::GraphCSRView<VT, ET, WT> const &graph,
       graph, bucket.vertexIds, bucket.numberOfVertices, op);
   }
 }
+////////////////////////////////////////////////////////////////////////////////
+// Queue enabled kernels
+////////////////////////////////////////////////////////////////////////////////
+
+template <int BLOCK_SIZE, typename VT, typename ET, typename WT, typename Operator>
+__global__ void block_per_vertex_worker_weightless(cugraph::GraphCSRView<VT, ET, WT> graph,
+                                                   VT *vertex_ids,
+                                                   VT number_of_vertices,
+                                                   VT *output_vertex_ids,
+                                                   ET *output_vertex_ids_offset,
+                                                   Operator op)
+{
+  //TODO : Increase REP
+  const int REP = 4;
+  VT local_frontier[REP];
+  ET local_frontier_count = 0;
+  ET local_frontier_offset = 0;
+  ET local_frontier_offset_total = 0;
+  VT current_vertex_index = blockIdx.x;
+  __shared__ ET block_write_index;
+  if (current_vertex_index >= number_of_vertices) { return; }
+
+  VT source = vertex_ids[current_vertex_index];
+  ET num_iter_this_vertex = (graph.offsets[source+1] - graph.offsets[source] + blockDim.x - 1)/blockDim.x;
+  ET edge_index = threadIdx.x + graph.offsets[source];
+
+  typedef cub::BlockScan<ET, BLOCK_SIZE> BlockScan;
+  __shared__ typename BlockScan::TempStorage temp_storage;
+
+  bool flush = false;
+  for (ET iter = 0; iter < num_iter_this_vertex; ++iter) {
+    if (edge_index < graph.offsets[source+1]) {
+      op(source, graph.indices[edge_index],
+          local_frontier, &local_frontier_count);
+    } else {
+      local_frontier_count = 0;
+    }
+    if (iter % REP == 0) {
+      local_frontier_offset_total = 0;
+      BlockScan(temp_storage).ExclusiveSum(
+          local_frontier_count,
+          local_frontier_offset,
+          local_frontier_offset_total);
+      if (local_frontier_offset_total != 0) {
+        if (threadIdx.x == 0) {
+          block_write_index = cugraph::detail::traversal::atomicAdd(
+              output_vertex_ids_offset, local_frontier_offset_total);
+        }
+        __syncthreads();
+        for (ET i = 0; i < local_frontier_count; ++i) {
+          output_vertex_ids[block_write_index + local_frontier_offset + i] = local_frontier[i];
+        }
+      }
+      local_frontier_count = 0;
+      local_frontier_offset = 0;
+      local_frontier_offset_total = 0;
+      flush = true;
+    }
+    edge_index += blockDim.x;
+  }
+  if (flush == false) {
+    BlockScan(temp_storage).ExclusiveSum(
+        local_frontier_count,
+        local_frontier_offset,
+        local_frontier_offset_total);
+    if (local_frontier_offset_total != 0) {
+      if (threadIdx.x == 0) {
+        block_write_index = cugraph::detail::traversal::atomicAdd(
+            output_vertex_ids_offset, local_frontier_offset_total);
+      }
+      __syncthreads();
+      for (ET i = 0; i < local_frontier_count; ++i) {
+        output_vertex_ids[block_write_index + local_frontier_offset + i] = local_frontier[i];
+      }
+    }
+    local_frontier_count = 0;
+    local_frontier_offset = 0;
+    local_frontier_offset_total = 0;
+  }
+}
+
+
+template <typename VT, typename ET, typename WT, typename Operator>
+void small_vertex_worker(cugraph::GraphCSRView<VT, ET, WT> const &graph,
+                         DegreeBucket<VT, ET> &bucket,
+                         Operator op,
+                         VT *output_vertex_ids,
+                         ET *output_vertex_ids_offset,
+                         cudaStream_t stream)
+{
+  int block_count = bucket.numberOfVertices;
+  if (block_count == 0) {
+    return;
+  }
+  // For vertices with degree <= 32 block size of 32 is chosen
+  // For all vertices with degree d such that 2^x <= d < 2^x+1
+  // the block size is chosen to be 2^x. This is done so that
+  // vertices with degrees 1.5*2^x are also handled in a load
+  // balanced way
+  int block_size = 512;
+  if (bucket.ceilLogDegreeEnd < 6) {
+    block_size = 32;
+    block_per_vertex_worker_weightless<32><<<block_count, block_size, 0, stream>>>(
+      graph, bucket.vertexIds, bucket.numberOfVertices,
+      output_vertex_ids, output_vertex_ids_offset, op);
+  } else if (bucket.ceilLogDegreeEnd < 8) {
+    block_size = 64;
+    block_per_vertex_worker_weightless<64><<<block_count, block_size, 0, stream>>>(
+      graph, bucket.vertexIds, bucket.numberOfVertices,
+      output_vertex_ids, output_vertex_ids_offset, op);
+  } else if (bucket.ceilLogDegreeEnd < 10) {
+    block_size = 128;
+    block_per_vertex_worker_weightless<128><<<block_count, block_size, 0, stream>>>(
+      graph, bucket.vertexIds, bucket.numberOfVertices,
+      output_vertex_ids, output_vertex_ids_offset, op);
+  } else if (bucket.ceilLogDegreeEnd < 12) {
+    block_size = 512;
+    block_per_vertex_worker_weightless<512><<<block_count, block_size, 0, stream>>>(
+      graph, bucket.vertexIds, bucket.numberOfVertices,
+      output_vertex_ids, output_vertex_ids_offset, op);
+  } else {
+    block_size = 512;
+    block_per_vertex_worker_weightless<512><<<block_count, block_size, 0, stream>>>(
+      graph, bucket.vertexIds, bucket.numberOfVertices,
+      output_vertex_ids, output_vertex_ids_offset, op);
+  }
+}
+
+template <typename VT, typename ET, typename WT, typename Operator>
+void medium_vertex_worker(cugraph::GraphCSRView<VT, ET, WT> const &graph,
+                          DegreeBucket<VT, ET> &bucket,
+                          Operator op,
+                          VT *output_vertex_ids,
+                          ET *output_vertex_ids_offset,
+                          cudaStream_t stream)
+{
+  // Vertices with degrees 2^12 <= d < 2^16 are handled by this kernel
+  // Block size of 1024 is chosen to reduce wasted threads for a vertex
+  const int block_size  = 1024;
+  int block_count = bucket.numberOfVertices;
+  if (block_count != 0) {
+    block_per_vertex_worker_weightless<block_size><<<block_count, block_size, 0, stream>>>(
+      graph, bucket.vertexIds, bucket.numberOfVertices,
+      output_vertex_ids, output_vertex_ids_offset, op);
+  }
+}
 
 }  // namespace detail
 

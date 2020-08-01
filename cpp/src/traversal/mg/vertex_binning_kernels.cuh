@@ -218,6 +218,127 @@ void bin_vertices(rmm::device_vector<VT> &reorg_vertices,
   }
 }
 
+////////////////////////////////////////////////////////////////////////////////
+// Queue enabled kernels
+////////////////////////////////////////////////////////////////////////////////
+
+// Given the CSR offsets of vertices and the related active bit map
+// count the number of vertices that belong to a particular bin where
+// vertex with degree d such that 2^x < d <= 2^x+1 belong to bin (x+1)
+// Vertices with degree 0 are counted in bin 0
+//In this function, any id in vertex_ids array is only acceptable as long
+//as its value is between vertex_begin and vertex_end
+template <typename VT, typename ET>
+__global__ void count_bin_sizes(
+  ET *bins,
+  ET const *offsets,
+  VT const *vertex_ids,
+  ET const vertex_id_count,
+  VT vertex_begin, VT vertex_end)
+{
+  using cugraph::detail::traversal::atomicAdd;
+  constexpr int BinCount = NumberBins<ET>;
+  __shared__ ET lBin[BinCount];
+  for (int i = threadIdx.x; i < BinCount; i += blockDim.x) { lBin[i] = 0; }
+  __syncthreads();
+
+  for (VT i = threadIdx.x + (blockIdx.x * blockDim.x); i < vertex_id_count;
+       i += gridDim.x * blockDim.x) {
+    auto source = vertex_ids[i];
+    if ((source >= vertex_begin) && (source < vertex_end)) {
+      //Take care of OPG partitioning
+      //source logical vertex resides from offsets[source - vertex_begin]
+      //to offsets[source - vertex_begin + 1]
+      source -= vertex_begin;
+      auto degree = offsets[source + 1] - offsets[source];
+      atomicAdd(lBin + ceilLog2_p1(degree), ET{1});
+    }
+  }
+  __syncthreads();
+
+  for (int i = threadIdx.x; i < BinCount; i += blockDim.x) { atomicAdd(bins + i, lBin[i]); }
+}
+
+// Bin vertices to the appropriate bins by taking into account
+// the starting offsets calculated by count_bin_sizes
+template <typename VT, typename ET>
+__global__ void create_vertex_bins(
+  VT *out_vertex_ids,
+  ET *bin_offsets,
+  ET const *offsets,
+  VT *in_vertex_ids,
+  ET const vertex_id_count,
+  VT vertex_begin, VT vertex_end)
+{
+  using cugraph::detail::traversal::atomicAdd;
+  constexpr int BinCount = NumberBins<ET>;
+  __shared__ ET lBin[BinCount];
+  __shared__ int lPos[BinCount];
+  if (threadIdx.x < BinCount) {
+    lBin[threadIdx.x] = 0;
+    lPos[threadIdx.x] = 0;
+  }
+  __syncthreads();
+
+  VT vertex_index      = (threadIdx.x + blockIdx.x * blockDim.x);
+  bool is_valid_vertex = (vertex_index < vertex_id_count);
+  VT source;
+
+  if (is_valid_vertex) {
+    source = in_vertex_ids[vertex_index];
+    is_valid_vertex = ((source >= vertex_begin) && (source < vertex_end));
+    source -= vertex_begin;
+  }
+
+  int threadBin;
+  ET threadPos;
+  if (is_valid_vertex) {
+    threadBin = ceilLog2_p1(offsets[source + 1] - offsets[source]);
+    threadPos = atomicAdd(lBin + threadBin, ET{1});
+  }
+  __syncthreads();
+
+  if (threadIdx.x < BinCount) {
+    lPos[threadIdx.x] = atomicAdd(bin_offsets + threadIdx.x, lBin[threadIdx.x]);
+  }
+  __syncthreads();
+
+  if (is_valid_vertex) { out_vertex_ids[lPos[threadBin] + threadPos] = source; }
+}
+
+template <typename VT, typename ET>
+void bin_vertices(rmm::device_vector<VT> &input_vertex_ids,
+                  rmm::device_vector<VT> &reorganized_vertex_ids,
+                  rmm::device_vector<ET> &bin_count_offsets,
+                  rmm::device_vector<ET> &bin_count,
+                  ET *offsets,
+                  VT vertex_begin,
+                  VT vertex_end,
+                  cudaStream_t stream)
+{
+  reorganized_vertex_ids.resize(input_vertex_ids.size());
+  const unsigned BLOCK_SIZE = 512;
+  unsigned blocks           = ((input_vertex_ids.size()) + BLOCK_SIZE - 1) / BLOCK_SIZE;
+  count_bin_sizes<ET><<<blocks, BLOCK_SIZE, 0, stream>>>(
+    bin_count.data().get(), offsets,
+    input_vertex_ids.data().get(),
+    static_cast<ET>(input_vertex_ids.size()),
+    vertex_begin, vertex_end);
+
+  exclusive_scan<<<1, 1, 0, stream>>>(bin_count.data().get(), bin_count_offsets.data().get());
+
+  VT vertex_count = bin_count[bin_count.size() - 1];
+  reorganized_vertex_ids.resize(vertex_count);
+
+  create_vertex_bins<VT, ET><<<blocks, BLOCK_SIZE, 0, stream>>>(
+    reorganized_vertex_ids.data().get(),
+    bin_count.data().get(),
+    offsets,
+    input_vertex_ids.data().get(),
+    static_cast<ET>(input_vertex_ids.size()),
+    vertex_begin, vertex_end);
+}
+
 }  // namespace detail
 
 }  // namespace mg
