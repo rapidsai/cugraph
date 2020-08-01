@@ -18,6 +18,7 @@
 
 #include <rmm/thrust_rmm_allocator.h>
 #include "../traversal_common.cuh"
+#include <utilities/high_res_timer.hpp>
 
 namespace cugraph {
 
@@ -308,6 +309,7 @@ __global__ void create_vertex_bins(
 
 template <typename VT, typename ET>
 void bin_vertices(rmm::device_vector<VT> &input_vertex_ids,
+                  VT input_vertex_ids_len,
                   rmm::device_vector<VT> &reorganized_vertex_ids,
                   rmm::device_vector<ET> &bin_count_offsets,
                   rmm::device_vector<ET> &bin_count,
@@ -316,27 +318,35 @@ void bin_vertices(rmm::device_vector<VT> &input_vertex_ids,
                   VT vertex_end,
                   cudaStream_t stream)
 {
-  reorganized_vertex_ids.resize(input_vertex_ids.size());
+  //HighResTimer timer;
+  //timer.start("bin_vertices : count_bin_sizes");
+  reorganized_vertex_ids.resize(input_vertex_ids_len);
   const unsigned BLOCK_SIZE = 512;
-  unsigned blocks           = ((input_vertex_ids.size()) + BLOCK_SIZE - 1) / BLOCK_SIZE;
+  unsigned blocks           = ((input_vertex_ids_len) + BLOCK_SIZE - 1) / BLOCK_SIZE;
   count_bin_sizes<ET><<<blocks, BLOCK_SIZE, 0, stream>>>(
     bin_count.data().get(), offsets,
     input_vertex_ids.data().get(),
-    static_cast<ET>(input_vertex_ids.size()),
+    static_cast<ET>(input_vertex_ids_len),
     vertex_begin, vertex_end);
+  //timer.stop();
 
+  //timer.start("bin_vertices : exclusive_scan");
   exclusive_scan<<<1, 1, 0, stream>>>(bin_count.data().get(), bin_count_offsets.data().get());
+  //timer.stop();
 
   VT vertex_count = bin_count[bin_count.size() - 1];
   reorganized_vertex_ids.resize(vertex_count);
 
+  //timer.start("bin_vertices : create_bin_sizes");
   create_vertex_bins<VT, ET><<<blocks, BLOCK_SIZE, 0, stream>>>(
     reorganized_vertex_ids.data().get(),
     bin_count.data().get(),
     offsets,
     input_vertex_ids.data().get(),
-    static_cast<ET>(input_vertex_ids.size()),
+    static_cast<ET>(input_vertex_ids_len),
     vertex_begin, vertex_end);
+  //timer.stop();
+  //timer.display(std::cout);
 }
 
 }  // namespace detail

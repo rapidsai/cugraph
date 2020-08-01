@@ -22,6 +22,8 @@
 #include "../traversal_common.cuh"
 #include <utilities/high_res_timer.hpp>
 
+#include <utilities/high_res_timer.hpp>
+
 namespace cugraph {
 
 namespace mg {
@@ -62,6 +64,8 @@ void bfs(raft::handle_t const &handle,
          vertex_t *predecessors,
          const vertex_t start_vertex)
 {
+  HighResTimer timer;
+  HighResTimer main_loop_timer;
   CUGRAPH_EXPECTS(handle.comms_initialized(),
                   "cugraph::mg::bfs() expected to work only in multi gpu case.");
 
@@ -80,6 +84,7 @@ void bfs(raft::handle_t const &handle,
 
   cudaStream_t stream = handle.get_stream();
 
+  timer.start("create_isolated_bitmap");
   //Reusing buffers to create isolated bitmap
   {
     rmm::device_vector<vertex_t>& local_isolated_ids = input_frontier;
@@ -89,69 +94,101 @@ void bfs(raft::handle_t const &handle,
         local_isolated_ids, global_isolated_ids,
         temp_buffer_len, isolated_bmap);
   }
+  timer.stop();
 
   //TODO : Check if starting vertex is isolated. Exit function if it is.
 
   //Initialize input frontier
-  input_frontier.resize(1);
   input_frontier[0] = start_vertex;
+  vertex_t input_frontier_len = 1;
 
+  timer.start("fill_max_dist");
   //Start at level 0
   vertex_t level = 0;
   if (distances != nullptr) {
     fill_max_dist(handle, graph, start_vertex, distances);
   }
+  timer.stop();
 
+  timer.start("fill invalid vertex id");
   // Fill predecessors with invalid vertex id
   thrust::fill(rmm::exec_policy(stream)->on(stream),
                predecessors,
                predecessors + graph.number_of_vertices,
                cugraph::invalid_idx<vertex_t>::value);
+  timer.stop();
 
   do {
+    main_loop_timer.start("main_loop");
+    timer.start("add_to_bitmap");
     //Mark all input frontier vertices as visited
-    detail::add_to_bitmap(handle, visited_bmap, input_frontier);
+    detail::add_to_bitmap(handle, visited_bmap, input_frontier, input_frontier_len);
+    timer.stop();
 
+    timer.start("clear output frontier bitmap");
     //Clear output frontier bitmap
     thrust::fill(rmm::exec_policy(stream)->on(stream),
                  output_frontier_bmap.begin(),
                  output_frontier_bmap.end(),
                  static_cast<unsigned>(0));
+    timer.stop();
 
     ++level;
 
+    //output_frontier.resize(graph.number_of_vertices);
+    vertex_t output_frontier_len = 0;
+    cudaStreamSynchronize(stream);
     //Generate output frontier bitmap from input frontier
     if (distances != nullptr) {
+      timer.start("create functor");
       // BFS Functor for frontier calculation
       detail::bfs_pred_dist<vertex_t, edge_t> bfs_op(
         output_frontier_bmap.data().get(),
         isolated_bmap.data().get(),
         visited_bmap.data().get(),
         predecessors, distances, level);
-      lb.run(bfs_op, input_frontier, output_frontier);
+      timer.stop();
+      timer.start("RUN functor");
+      output_frontier_len =
+        lb.run(bfs_op, input_frontier, input_frontier_len, output_frontier);
+      timer.stop();
     } else {
+      timer.start("create functor");
       // BFS Functor for frontier calculation
       detail::bfs_pred<vertex_t, edge_t> bfs_op(
         output_frontier_bmap.data().get(),
         isolated_bmap.data().get(),
         visited_bmap.data().get(),
         predecessors);
-      lb.run(bfs_op, input_frontier, output_frontier);
+      timer.stop();
+      timer.start("RUN functor");
+      output_frontier_len =
+        lb.run(bfs_op, input_frontier, input_frontier_len, output_frontier);
+      timer.stop();
     }
 
+    timer.start("collect_vectors");
     //Use input_frontier buffer to collect output_frontier
     //from all the GPUs
-    detail::collect_vectors(
-        handle,
-        temp_buffer_len,
-        output_frontier,
-        input_frontier);
+    input_frontier_len =
+      detail::collect_vectors(
+          handle,
+          temp_buffer_len,
+          output_frontier,
+          output_frontier_len,
+          input_frontier);
+    timer.stop();
 
+    timer.start("remove_duplicates");
     //Remove duplicates from input_frontier
-    detail::remove_duplicates(handle, input_frontier);
+    input_frontier_len =
+      detail::remove_duplicates(handle, input_frontier, input_frontier_len);
+    timer.stop();
 
-  } while (input_frontier.size() != 0);
+    main_loop_timer.stop();
+  } while (input_frontier_len != 0);
 
+  timer.start("collect predecessors");
   // In place reduce to collect predecessors
   if (handle.comms_initialized()) {
     handle.get_comms().allreduce(predecessors,
@@ -160,7 +197,9 @@ void bfs(raft::handle_t const &handle,
                                  raft::comms::op_t::MIN,
                                  handle.get_stream());
   }
+  timer.stop();
 
+  timer.start("collect predecessors");
   if (distances != nullptr) {
     // In place reduce to collect predecessors
     if (handle.comms_initialized()) {
@@ -171,7 +210,10 @@ void bfs(raft::handle_t const &handle,
                                    handle.get_stream());
     }
   }
+  timer.stop();
 
+  timer.display(std::cout);
+  main_loop_timer.display(std::cout);
 }
 
 }  // namespace mg

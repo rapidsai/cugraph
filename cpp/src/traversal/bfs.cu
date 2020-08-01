@@ -140,6 +140,7 @@ void BFS<IndexType>::configure(IndexType *_distances,
 template <typename IndexType>
 void BFS<IndexType>::traverse(IndexType source_vertex)
 {
+  HighResTimer timer;
   // Init visited_bmap
   // If the graph is undirected, we not that
   // we will never discover isolated vertices (in degree = out degree = 0)
@@ -241,6 +242,7 @@ void BFS<IndexType>::traverse(IndexType source_vertex)
   IndexType size_last_left_unvisited_queue = number_of_vertices;  // we just need value > 0
   IndexType size_last_unvisited_queue      = 0;                   // queue empty
 
+  timer.start("F_EXP : setup");
   // Typical pre-top down workflow. set_frontier_degree + exclusive-scan
   traversal::set_frontier_degree(
     frontier_vertex_degree, frontier, vertex_degree.data().get(), nf, stream);
@@ -252,6 +254,7 @@ void BFS<IndexType>::traverse(IndexType source_vertex)
                   sizeof(IndexType),
                   cudaMemcpyDeviceToHost,
                   stream);
+  timer.stop();
 
   // We need mf
   cudaStreamSynchronize(stream);
@@ -292,6 +295,7 @@ void BFS<IndexType>::traverse(IndexType source_vertex)
                                                stream);
 
             // Typical pre-top down workflow. set_frontier_degree + exclusive-scan
+            timer.start("F_EXP : setup");
             traversal::set_frontier_degree(
               frontier_vertex_degree, frontier, vertex_degree.data().get(), nf, stream);
             traversal::exclusive_sum(
@@ -302,6 +306,7 @@ void BFS<IndexType>::traverse(IndexType source_vertex)
                             sizeof(IndexType),
                             cudaMemcpyDeviceToHost,
                             stream);
+            timer.stop();
 
             cudaMemcpyAsync(&mu, d_mu, sizeof(IndexType), cudaMemcpyDeviceToHost, stream);
 
@@ -327,6 +332,7 @@ void BFS<IndexType>::traverse(IndexType source_vertex)
           // We need to copy the visited_bmap before doing the traversal
           cudaStreamSynchronize(stream);
         }
+        timer.start("F_EXP : run");
         traversal::compute_bucket_offsets(
           exclusive_sum_frontier_vertex_degree,
           exclusive_sum_frontier_vertex_buckets_offsets.data().get(),
@@ -353,6 +359,7 @@ void BFS<IndexType>::traverse(IndexType source_vertex)
                                      directed,
                                      stream,
                                      deterministic);
+        timer.stop();
 
         mu -= mf;
 
@@ -364,6 +371,7 @@ void BFS<IndexType>::traverse(IndexType source_vertex)
 
         if (nf) {
           // Typical pre-top down workflow. set_frontier_degree + exclusive-scan
+          timer.start("F_EXP : setup");
           traversal::set_frontier_degree(
             frontier_vertex_degree, new_frontier, vertex_degree.data().get(), nf, stream);
           traversal::exclusive_sum(
@@ -373,6 +381,7 @@ void BFS<IndexType>::traverse(IndexType source_vertex)
                           sizeof(IndexType),
                           cudaMemcpyDeviceToHost,
                           stream);
+          timer.stop();
 
           // We need mf
           cudaStreamSynchronize(stream);
@@ -448,6 +457,7 @@ void BFS<IndexType>::traverse(IndexType source_vertex)
 
     ++lvl;
   }
+  timer.display(std::cout);
 }
 
 template <typename IndexType>
