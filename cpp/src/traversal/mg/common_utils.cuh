@@ -18,6 +18,8 @@
 
 #include <raft/integer_utils.h>
 #include <rmm/thrust_rmm_allocator.h>
+#include <cub/cub.cuh>
+#include "../traversal_common.cuh"
 
 namespace cugraph {
 
@@ -256,6 +258,138 @@ T remove_duplicates(raft::handle_t const &handle,
       data.begin(), data.begin() + data_len) - data.begin();
   return static_cast<T>(unique_count);
 }
+
+//Use the fact that any value in id array can only be in
+//the range [id_begin, id_end) to create a unique set of
+//ids. bmap is expected to be of the length
+//id_end/BitsPWrd<unsigned> and is set to 0 initially
+template <unsigned BLOCK_SIZE, typename T>
+__global__
+void remove_duplicates_kernel(
+    unsigned * bmap,
+    T * in_id,
+    T id_begin,
+    T id_end,
+    T count,
+    T * out_id,
+    T * out_count) {
+  T tid = blockIdx.x*blockDim.x + threadIdx.x;
+  T id;
+  if (tid < count) {
+    id = in_id[tid];
+  } else {
+    //Invalid vertex id to avoid partial thread block execution
+    id = id_end;
+  }
+
+  int acceptable_vertex = 0;
+  //If id is not in the acceptable range then set it to
+  //an invalid vertex id
+  if (id >= id_begin && id < id_end) {
+    unsigned active_bit = static_cast<unsigned>(1) << (id % BitsPWrd<unsigned>);
+    unsigned prev_word  = atomicOr(bmap + (id / BitsPWrd<unsigned>), active_bit);
+    //If bit was set by this thread then the id is unique
+    if (!(prev_word & active_bit)) {
+      acceptable_vertex = 1;
+    }
+  }
+
+  __shared__ T block_offset;
+  typedef cub::BlockScan<int, BLOCK_SIZE> BlockScan;
+  __shared__ typename BlockScan::TempStorage temp_storage;
+  int thread_write_offset;
+  int block_acceptable_vertex_count;
+  BlockScan(temp_storage).ExclusiveSum(
+      acceptable_vertex,
+      thread_write_offset,
+      block_acceptable_vertex_count);
+
+  //If the block is not going to write unique ids then return
+  if (block_acceptable_vertex_count == 0) {
+    return;
+  }
+
+  if (threadIdx.x == 0) {
+    block_offset = cugraph::detail::traversal::atomicAdd(out_count,
+        static_cast<T>(block_acceptable_vertex_count));
+  }
+  __syncthreads();
+
+  if (acceptable_vertex) {
+    out_id[block_offset + thread_write_offset] = id;
+  }
+
+}
+
+template <typename T>
+T remove_duplicates(raft::handle_t const &handle,
+    rmm::device_vector<unsigned> &bmap,
+    rmm::device_vector<T> &data,
+    T data_len,
+    T data_begin, T data_end,
+    rmm::device_vector<T> &out_data)
+{
+  cudaStream_t stream = handle.get_stream();
+
+  rmm::device_vector<T> unique_count(1,0);
+
+  thrust::fill(rmm::exec_policy(stream)->on(stream),
+                bmap.begin(),
+                bmap.end(),
+                static_cast<unsigned>(0));
+  T threads = 256;
+  T blocks = raft::div_rounding_up_safe(data_len, threads);
+  remove_duplicates_kernel<256><<<blocks, threads, 0, stream>>>(
+      bmap.data().get(),
+      data.data().get(),
+      data_begin,
+      data_end,
+      data_len,
+      out_data.data().get(),
+      unique_count.data().get()
+      );
+  return static_cast<T>(unique_count[0]);
+}
+
+
+template <typename vertex_t, typename edge_t, typename weight_t>
+vertex_t
+collect_frontier(raft::handle_t const &handle,
+    cugraph::GraphCSRView<vertex_t, edge_t, weight_t> const &graph,
+    rmm::device_vector<size_t> &buffer_len,
+    rmm::device_vector<unsigned> &unique_bmap,
+    rmm::device_vector<vertex_t> &input_frontier,
+    vertex_t local_frontier_len,
+    rmm::device_vector<vertex_t> &output_frontier) {
+  //input_frontier from all ranks are gathered to output_frontier
+  vertex_t global_frontier_count =
+    collect_vectors(handle,
+        buffer_len,
+        input_frontier, local_frontier_len,
+        output_frontier);
+
+  //Acceptable vertex range in the local frontier of this rank
+  //vertex_t vertex_begin = graph.local_offsets[handle.get_comms().get_rank()];
+  //vertex_t vertex_end   = graph.local_offsets[handle.get_comms().get_rank()] +
+  //    graph.local_vertices[handle.get_comms().get_rank()];
+  vertex_t vertex_begin = 0;
+  vertex_t vertex_end   = graph.number_of_vertices;
+
+  //Ids from output_frontier are now stored in input_frontier
+  local_frontier_len =
+    remove_duplicates(handle,
+        unique_bmap,
+        output_frontier,
+        global_frontier_count,
+        vertex_begin, vertex_end,
+        input_frontier);
+
+  //Swap so that output_frontier now contains the combined unique frontier
+  //from all ranks
+  input_frontier.swap(output_frontier);
+  return local_frontier_len;
+}
+
 
 }  // namespace detail
 

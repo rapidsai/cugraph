@@ -74,6 +74,8 @@ void bfs(raft::handle_t const &handle,
   rmm::device_vector<unsigned> visited_bmap(word_count, 0);
   rmm::device_vector<unsigned> output_frontier_bmap(word_count, 0);
 
+  rmm::device_vector<unsigned> unique_bmap(word_count, 0);
+
   //Buffers required for BFS
   rmm::device_vector<vertex_t> input_frontier(graph.number_of_vertices);
   rmm::device_vector<vertex_t> output_frontier(graph.number_of_vertices);
@@ -167,22 +169,15 @@ void bfs(raft::handle_t const &handle,
       timer.stop();
     }
 
-    timer.start("collect_vectors");
-    //Use input_frontier buffer to collect output_frontier
-    //from all the GPUs
+    timer.start("collect_frontier");
     input_frontier_len =
-      detail::collect_vectors(
-          handle,
+      detail::collect_frontier(
+          handle, graph,
           temp_buffer_len,
+          unique_bmap,
           output_frontier,
           output_frontier_len,
           input_frontier);
-    timer.stop();
-
-    timer.start("remove_duplicates");
-    //Remove duplicates from input_frontier
-    input_frontier_len =
-      detail::remove_duplicates(handle, input_frontier, input_frontier_len);
     timer.stop();
 
     main_loop_timer.stop();

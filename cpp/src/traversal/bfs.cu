@@ -141,6 +141,7 @@ template <typename IndexType>
 void BFS<IndexType>::traverse(IndexType source_vertex)
 {
   HighResTimer timer;
+  HighResTimer main_loop_timer;
   // Init visited_bmap
   // If the graph is undirected, we not that
   // we will never discover isolated vertices (in degree = out degree = 0)
@@ -269,6 +270,7 @@ void BFS<IndexType>::traverse(IndexType source_vertex)
   bool can_use_bottom_up = (!sp_counters && !directed && distances);
 
   while (nf > 0) {
+    main_loop_timer.start("sg main_loop");
     // Each vertices can appear only once in the frontierer array - we know it will fit
     new_frontier     = frontier + nf;
     IndexType old_nf = nf;
@@ -456,8 +458,10 @@ void BFS<IndexType>::traverse(IndexType source_vertex)
     growing  = (nf > old_nf);
 
     ++lvl;
+    main_loop_timer.stop();
   }
   timer.display(std::cout);
+  main_loop_timer.display(std::cout);
 }
 
 template <typename IndexType>
