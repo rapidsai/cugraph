@@ -62,6 +62,7 @@
 - PR #1012 Fix Local build script README
 - PR #1017 Fix more mg bugs
 - PR #1022 Fix support for using a cudf.DataFrame with a MG graph
+- PR #1025: Explicitly skip raft test folder for pytest 6.0.0
 - PR #1027 Fix documentation
 
 # cuGraph 0.14.0 (03 Jun 2020)
