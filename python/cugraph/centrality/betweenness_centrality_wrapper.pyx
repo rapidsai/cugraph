@@ -26,7 +26,6 @@ from libcpp cimport bool
 import cudf
 import numpy as np
 import numpy.ctypeslib as ctypeslib
-from cugraph.structure.utils_wrapper import coo2csr
 
 import dask_cudf
 import dask_cuda

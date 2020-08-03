@@ -21,7 +21,7 @@ import dask_cudf
 import warnings
 import cugraph.comms.comms as Comms
 
-from cugraph.structure import utils_wrapper
+from cugraph.structure import replication
 
 
 def null_check(col):
@@ -158,7 +158,7 @@ class Graph:
         # FIXME: There  might be a better way to control it
         if client is None:
             return
-        work_futures = utils_wrapper.replicate_cudf_dataframe(
+        work_futures = replication.replicate_cudf_dataframe(
             self.edgelist.edgelist_df,
             client=client,
             comms=comms)
@@ -174,17 +174,17 @@ class Graph:
             return
 
         weights = None
-        offsets_futures = utils_wrapper.replicate_cudf_series(
+        offsets_futures = replication.replicate_cudf_series(
             self.adjlist.offsets,
             client=client,
             comms=comms)
-        indices_futures = utils_wrapper.replicate_cudf_series(
+        indices_futures = replication.replicate_cudf_series(
             self.adjlist.indices,
             client=client,
             comms=comms)
 
         if self.adjlist.weights is not None:
-            weights = utils_wrapper.replicate_cudf_series(self.adjlist.weights)
+            weights = replication.replicate_cudf_series(self.adjlist.weights)
         else:
             weights = {worker: None for worker in offsets_futures}
 

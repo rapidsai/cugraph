@@ -31,7 +31,6 @@ from cugraph.dask.common.mg_utils import get_client
 import cugraph.comms.comms as Comms
 from cugraph.raft.dask.common.comms import worker_state
 import dask.distributed
-from cugraph.structure.utils_wrapper import coo2csr
 
 
 def get_output_df(indices, result_dtype):
