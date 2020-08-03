@@ -12,4 +12,5 @@
 # limitations under the License.
 
 from .mg_pagerank.pagerank import pagerank
+from .mg_bfs.bfs import bfs
 from .common.read_utils import get_chunksize

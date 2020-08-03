@@ -1,4 +1,6 @@
-# Copyright (c) 2019-2020, NVIDIA CORPORATION.
+#
+# Copyright (c) 2020, NVIDIA CORPORATION.
+#
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -10,20 +12,6 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+#
 
-# cython: profile=False
-# distutils: language = c++
-# cython: embedsignature = True
-# cython: language_level = 3
-
-from cugraph.structure.graph_new cimport *
-
-
-cdef extern from "algorithms.hpp" namespace "cugraph":
-
-    cdef void louvain[vertex_t,edge_t,weight_t](
-        const GraphCSRView[vertex_t,edge_t,weight_t] &graph,
-        weight_t *final_modularity,
-        int *num_level,
-        vertex_t *louvain_parts,
-        int max_level) except +
+from cugraph.mg.traversal.mg_bfs_wrapper import mg_bfs

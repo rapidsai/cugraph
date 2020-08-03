@@ -13,8 +13,8 @@ __Style Formatting Tools:__
 * `flake8`        version 3.5.0+
 
 
-<a name="issue"></a>
-## 1) File an Issue for the RAPIDS cuGraph team to work
+
+## 1) File an Issue for the RAPIDS cuGraph team to work  <a name="issue"></a>
 To file an issue, go to the RAPIDS cuGraph [issue](https://github.com/rapidsai/cugraph/issues/new/choose) page an select the appropriate issue type.  Once an issue is filed the RAPIDS cuGraph team will evaluate and triage the issue.  If you believe the issue needs priority attention, please include that in the issue to notify the team.
 
 ***Bug Report***</pr>
@@ -36,8 +36,8 @@ There are several ways to ask questions, including [Stack Overflow]( https://sta
 -	describing your question
 
 
-<a name="implement"></a>
-## 2) Propose a New Feature and Implement It
+
+## 2) Propose a New Feature and Implement It <a name="implement"></a>
 
 We love when people want to get involved, and if you have a suggestion for a new feature or enhancement and want to be the one doing the development work, we fully encourage that.  
 
@@ -46,8 +46,8 @@ We love when people want to get involved, and if you have a suggestion for a new
 - Once we agree that the plan looks good, go ahead and implement it
 - Follow the [code contributions](#code-contributions) guide below.
 
-<a name="bugfix"></a>
-## 3) You want to implement a feature or bug-fix for an outstanding issue
+
+## 3) You want to implement a feature or bug-fix for an outstanding issue <a name="bugfix"></a>
 - Find an open Issue, and post that you would like to work that issues
 - Once we agree that the plan looks good, go ahead and implement it
 - Follow the [code contributions](#code-contributions) guide below.
@@ -55,8 +55,8 @@ We love when people want to get involved, and if you have a suggestion for a new
 If you need more context on a particular issue, please ask.
 
 ----
-<a name="code"></a>
-# So you want to contribute code
+
+# So you want to contribute code <a name="code"></a>
 
 **TL;DR General Development Process**
 1. Read the documentation on [building from source](SOURCEBUILD.md) to learn how to setup, and validate, the development environment
@@ -74,11 +74,14 @@ If you need more context on a particular issue, please ask.
 Remember, if you are unsure about anything, don't hesitate to comment on issues
 and ask for clarifications!
 
+**The _FIXME_** comment<pr>
+
+Use the _FIXME_ comment to capture technical debt.  It should not be used to flag bugs since those need to be cleaned up before code is submitted.   
+We are implementing a script to count and track the number of FIXME in the code.  Usage of TODO or any other tag will not be accepted.
 
 
-## Fork a private copy of cuGraph 
-<a name="fork"></a>
 
+## Fork a private copy of cuGraph <a name="fork"></a>
 The RAPIDS cuGraph repo cannot directly be modified.  Contributions must come in the form of a *Pull Request* from a forked version of cugraph.    GitHub as a nice write up ion the process:  https://help.github.com/en/github/getting-started-with-github/fork-a-repo
 
 1. Fork the cugraph repo to your GitHub account

@@ -46,64 +46,69 @@ enum class DegreeDirection {
 /**
  * @brief       Base class graphs, all but vertices and edges
  *
- * @tparam VT   Type of vertex id
- * @tparam ET   Type of edge id
- * @tparam WT   Type of weight
+ * @tparam vertex_t   Type of vertex id
+ * @tparam edge_t     Type of edge id
+ * @tparam weight_t   Type of weight
  */
-template <typename VT, typename ET, typename WT>
+template <typename vertex_t, typename edge_t, typename weight_t>
 class GraphViewBase {
  public:
-  WT *edge_data;  ///< edge weight
   raft::handle_t *handle;
+  weight_t *edge_data;  ///< edge weight
+
   GraphProperties prop;
 
-  VT number_of_vertices;
-  ET number_of_edges;
+  vertex_t number_of_vertices;
+  edge_t number_of_edges;
 
-  VT *local_vertices;
-  ET *local_edges;
-  VT *local_offsets;
+  vertex_t *local_vertices;
+  edge_t *local_edges;
+  vertex_t *local_offsets;
 
   /**
    * @brief      Fill the identifiers array with the vertex identifiers.
    *
-   * @param[out]    identifier      Pointer to device memory to store the vertex
+   * @param[out]    identifiers      Pointer to device memory to store the vertex
    * identifiers
    */
-  void get_vertex_identifiers(VT *identifiers) const;
-  void set_local_data(VT *local_vertices_, ET *local_edges_, VT *local_offsets_)
+  void get_vertex_identifiers(vertex_t *identifiers) const;
+
+  void set_local_data(vertex_t *vertices, edge_t *edges, vertex_t *offsets)
   {
-    local_vertices = local_vertices_;
-    local_edges    = local_edges_;
-    local_offsets  = local_offsets_;
+    local_vertices = vertices;
+    local_edges    = edges;
+    local_offsets  = offsets;
   }
-  void set_handle(raft::handle_t *handle_) { handle = handle_; }
-  GraphViewBase(WT *edge_data_, VT number_of_vertices_, ET number_of_edges_)
+
+  void set_handle(raft::handle_t *handle_in) { handle = handle_in; }
+
+  GraphViewBase(weight_t *edge_data, vertex_t number_of_vertices, edge_t number_of_edges)
     : handle(nullptr),
-      edge_data(edge_data_),
+      edge_data(edge_data),
       prop(),
-      number_of_vertices(number_of_vertices_),
-      number_of_edges(number_of_edges_),
+      number_of_vertices(number_of_vertices),
+      number_of_edges(number_of_edges),
       local_vertices(nullptr),
       local_edges(nullptr),
       local_offsets(nullptr)
   {
   }
+
   bool has_data(void) const { return edge_data != nullptr; }
 };
 
 /**
  * @brief       A graph stored in COO (COOrdinate) format.
  *
- * @tparam VT   Type of vertex id
- * @tparam ET   Type of edge id
- * @tparam WT   Type of weight
+ * @tparam vertex_t   Type of vertex id
+ * @tparam edge_t     Type of edge id
+ * @tparam weight_t   Type of weight
  */
-template <typename VT, typename ET, typename WT>
-class GraphCOOView : public GraphViewBase<VT, ET, WT> {
+template <typename vertex_t, typename edge_t, typename weight_t>
+class GraphCOOView : public GraphViewBase<vertex_t, edge_t, weight_t> {
  public:
-  VT *src_indices{nullptr};  ///< rowInd
-  VT *dst_indices{nullptr};  ///< colInd
+  vertex_t *src_indices{nullptr};  ///< rowInd
+  vertex_t *dst_indices{nullptr};  ///< colInd
 
   /**
    * @brief     Computes degree(in, out, in+out) of all the nodes of a Graph
@@ -115,12 +120,12 @@ class GraphCOOView : public GraphViewBase<VT, ET, WT> {
    * to zeros. Will contain the computed degree of every vertex.
    * @param[in]  direction             IN_PLUS_OUT, IN or OUT
    */
-  void degree(ET *degree, DegreeDirection direction) const;
+  void degree(edge_t *degree, DegreeDirection direction) const;
 
   /**
    * @brief      Default constructor
    */
-  GraphCOOView() : GraphViewBase<VT, ET, WT>(nullptr, 0, 0) {}
+  GraphCOOView() : GraphViewBase<vertex_t, edge_t, weight_t>(nullptr, 0, 0) {}
 
   /**
    * @brief      Wrap existing arrays representing an edge list in a Graph.
@@ -142,11 +147,14 @@ class GraphCOOView : public GraphViewBase<VT, ET, WT> {
    * @param  number_of_vertices    The number of vertices in the graph
    * @param  number_of_edges       The number of edges in the graph
    */
-  GraphCOOView(
-    VT *src_indices_, VT *dst_indices_, WT *edge_data_, VT number_of_vertices_, ET number_of_edges_)
-    : GraphViewBase<VT, ET, WT>(edge_data_, number_of_vertices_, number_of_edges_),
-      src_indices(src_indices_),
-      dst_indices(dst_indices_)
+  GraphCOOView(vertex_t *src_indices,
+               vertex_t *dst_indices,
+               weight_t *edge_data,
+               vertex_t number_of_vertices,
+               edge_t number_of_edges)
+    : GraphViewBase<vertex_t, edge_t, weight_t>(edge_data, number_of_vertices, number_of_edges),
+      src_indices(src_indices),
+      dst_indices(dst_indices)
   {
   }
 };
@@ -156,15 +164,15 @@ class GraphCOOView : public GraphViewBase<VT, ET, WT> {
  * format or CSC (Compressed
  * Sparse Column) format
  *
- * @tparam VT   Type of vertex id
- * @tparam ET   Type of edge id
- * @tparam WT   Type of weight
+ * @tparam vertex_t   Type of vertex id
+ * @tparam edge_t     Type of edge id
+ * @tparam weight_t   Type of weight
  */
-template <typename VT, typename ET, typename WT>
-class GraphCompressedSparseBaseView : public GraphViewBase<VT, ET, WT> {
+template <typename vertex_t, typename edge_t, typename weight_t>
+class GraphCompressedSparseBaseView : public GraphViewBase<vertex_t, edge_t, weight_t> {
  public:
-  ET *offsets{nullptr};  ///< CSR offsets
-  VT *indices{nullptr};  ///< CSR indices
+  edge_t *offsets{nullptr};    ///< CSR offsets
+  vertex_t *indices{nullptr};  ///< CSR indices
 
   /**
    * @brief      Fill the identifiers in the array with the source vertex
@@ -173,23 +181,23 @@ class GraphCompressedSparseBaseView : public GraphViewBase<VT, ET, WT> {
    * @param[out]    src_indices      Pointer to device memory to store the
    * source vertex identifiers
    */
-  void get_source_indices(VT *src_indices) const;
+  void get_source_indices(vertex_t *src_indices) const;
 
   /**
    * @brief     Computes degree(in, out, in+out) of all the nodes of a Graph
    *
    * @throws     cugraph::logic_error when an error occurs.
    *
-   * @param[out] degree                Device array of size V (V is number of
+   * @param[out] degree         Device array of size V (V is number of
    * vertices) initialized
    * to zeros. Will contain the computed degree of every vertex.
-   * @param[in]  x                     Integer value indicating type of degree
+   * @param[in]  direction      Integer value indicating type of degree
    * calculation
    *                                      0 : in+out degree
    *                                      1 : in-degree
    *                                      2 : out-degree
    */
-  void degree(ET *degree, DegreeDirection direction) const;
+  void degree(edge_t *degree, DegreeDirection direction) const;
 
   /**
    * @brief      Wrap existing arrays representing adjacency lists in a Graph.
@@ -212,11 +220,14 @@ class GraphCompressedSparseBaseView : public GraphViewBase<VT, ET, WT> {
    * @param  number_of_vertices    The number of vertices in the graph
    * @param  number_of_edges       The number of edges in the graph
    */
-  GraphCompressedSparseBaseView(
-    ET *offsets_, VT *indices_, WT *edge_data_, VT number_of_vertices_, ET number_of_edges_)
-    : GraphViewBase<VT, ET, WT>(edge_data_, number_of_vertices_, number_of_edges_),
-      offsets{offsets_},
-      indices{indices_}
+  GraphCompressedSparseBaseView(edge_t *offsets,
+                                vertex_t *indices,
+                                weight_t *edge_data,
+                                vertex_t number_of_vertices,
+                                edge_t number_of_edges)
+    : GraphViewBase<vertex_t, edge_t, weight_t>(edge_data, number_of_vertices, number_of_edges),
+      offsets{offsets},
+      indices{indices}
   {
   }
 };
@@ -224,17 +235,20 @@ class GraphCompressedSparseBaseView : public GraphViewBase<VT, ET, WT> {
 /**
  * @brief       A graph stored in CSR (Compressed Sparse Row) format.
  *
- * @tparam VT   Type of vertex id
- * @tparam ET   Type of edge id
- * @tparam WT   Type of weight
+ * @tparam vertex_t   Type of vertex id
+ * @tparam edge_t   Type of edge id
+ * @tparam weight_t   Type of weight
  */
-template <typename VT, typename ET, typename WT>
-class GraphCSRView : public GraphCompressedSparseBaseView<VT, ET, WT> {
+template <typename vertex_t, typename edge_t, typename weight_t>
+class GraphCSRView : public GraphCompressedSparseBaseView<vertex_t, edge_t, weight_t> {
  public:
   /**
    * @brief      Default constructor
    */
-  GraphCSRView() : GraphCompressedSparseBaseView<VT, ET, WT>(nullptr, nullptr, nullptr, 0, 0) {}
+  GraphCSRView()
+    : GraphCompressedSparseBaseView<vertex_t, edge_t, weight_t>(nullptr, nullptr, nullptr, 0, 0)
+  {
+  }
 
   /**
    * @brief      Wrap existing arrays representing adjacency lists in a Graph.
@@ -257,10 +271,13 @@ class GraphCSRView : public GraphCompressedSparseBaseView<VT, ET, WT> {
    * @param  number_of_vertices    The number of vertices in the graph
    * @param  number_of_edges       The number of edges in the graph
    */
-  GraphCSRView(
-    ET *offsets_, VT *indices_, WT *edge_data_, VT number_of_vertices_, ET number_of_edges_)
-    : GraphCompressedSparseBaseView<VT, ET, WT>(
-        offsets_, indices_, edge_data_, number_of_vertices_, number_of_edges_)
+  GraphCSRView(edge_t *offsets,
+               vertex_t *indices,
+               weight_t *edge_data,
+               vertex_t number_of_vertices,
+               edge_t number_of_edges)
+    : GraphCompressedSparseBaseView<vertex_t, edge_t, weight_t>(
+        offsets, indices, edge_data, number_of_vertices, number_of_edges)
   {
   }
 };
@@ -268,17 +285,20 @@ class GraphCSRView : public GraphCompressedSparseBaseView<VT, ET, WT> {
 /**
  * @brief       A graph stored in CSC (Compressed Sparse Column) format.
  *
- * @tparam VT   Type of vertex id
- * @tparam ET   Type of edge id
- * @tparam WT   Type of weight
+ * @tparam vertex_t   Type of vertex id
+ * @tparam edge_t     Type of edge id
+ * @tparam weight_t   Type of weight
  */
-template <typename VT, typename ET, typename WT>
-class GraphCSCView : public GraphCompressedSparseBaseView<VT, ET, WT> {
+template <typename vertex_t, typename edge_t, typename weight_t>
+class GraphCSCView : public GraphCompressedSparseBaseView<vertex_t, edge_t, weight_t> {
  public:
   /**
    * @brief      Default constructor
    */
-  GraphCSCView() : GraphCompressedSparseBaseView<VT, ET, WT>(nullptr, nullptr, nullptr, 0, 0) {}
+  GraphCSCView()
+    : GraphCompressedSparseBaseView<vertex_t, edge_t, weight_t>(nullptr, nullptr, nullptr, 0, 0)
+  {
+  }
 
   /**
    * @brief      Wrap existing arrays representing transposed adjacency lists in
@@ -302,10 +322,13 @@ class GraphCSCView : public GraphCompressedSparseBaseView<VT, ET, WT> {
    * @param  number_of_vertices    The number of vertices in the graph
    * @param  number_of_edges       The number of edges in the graph
    */
-  GraphCSCView(
-    ET *offsets_, VT *indices_, WT *edge_data_, VT number_of_vertices_, ET number_of_edges_)
-    : GraphCompressedSparseBaseView<VT, ET, WT>(
-        offsets_, indices_, edge_data_, number_of_vertices_, number_of_edges_)
+  GraphCSCView(edge_t *offsets,
+               vertex_t *indices,
+               weight_t *edge_data,
+               vertex_t number_of_vertices,
+               edge_t number_of_edges)
+    : GraphCompressedSparseBaseView<vertex_t, edge_t, weight_t>(
+        offsets, indices, edge_data, number_of_vertices, number_of_edges)
   {
   }
 };
@@ -327,10 +350,10 @@ class GraphCSCView : public GraphCompressedSparseBaseView<VT, ET, WT> {
  * @param  number_of_vertices    The number of vertices in the graph
  * @param  number_of_edges       The number of edges in the graph
  */
-template <typename VT, typename ET, typename WT>
+template <typename vertex_t, typename edge_t, typename weight_t>
 struct GraphCOOContents {
-  VT number_of_vertices;
-  ET number_of_edges;
+  vertex_t number_of_vertices;
+  edge_t number_of_edges;
   std::unique_ptr<rmm::device_buffer> src_indices;
   std::unique_ptr<rmm::device_buffer> dst_indices;
   std::unique_ptr<rmm::device_buffer> edge_data;
@@ -341,95 +364,88 @@ struct GraphCOOContents {
  *
  * This class will src_indices and dst_indicies (until moved)
  *
- * @tparam VT   Type of vertex id
- * @tparam ET   Type of edge id
- * @tparam WT   Type of weight
+ * @tparam vertex_t   Type of vertex id
+ * @tparam edge_t     Type of edge id
+ * @tparam weight_t   Type of weight
  */
-template <typename VT, typename ET, typename WT>
+template <typename vertex_t, typename edge_t, typename weight_t>
 class GraphCOO {
-  VT number_of_vertices_;
-  ET number_of_edges_;
-  rmm::device_buffer src_indices_{};  ///< rowInd
-  rmm::device_buffer dst_indices_{};  ///< colInd
-  rmm::device_buffer edge_data_{};    ///< CSR data
+  vertex_t number_of_vertices_p;
+  edge_t number_of_edges_p;
+  rmm::device_buffer src_indices_p{};  ///< rowInd
+  rmm::device_buffer dst_indices_p{};  ///< colInd
+  rmm::device_buffer edge_data_p{};    ///< CSR data
 
  public:
   /**
    * @brief      Take ownership of the provided graph arrays in COO format
    *
-   * @param  source_indices        This array of size E (number of edges)
-   * contains the index of the
-   * source for each edge. Indices must be in the range [0, V-1].
-   * @param  destination_indices   This array of size E (number of edges)
-   * contains the index of the
-   * destination for each edge. Indices must be in the range [0, V-1].
-   * @param  edge_data             This array size E (number of edges) contains
-   * the weight for each
-   * edge.  This array can be null in which case the graph is considered
-   * unweighted.
    * @param  number_of_vertices    The number of vertices in the graph
    * @param  number_of_edges       The number of edges in the graph
+   * @param  has_data              Wiether or not the class has data, default = False
+   * @param  stream                Specify the cudaStream, default = null
+   * @param mr                     Specify the memory resource
    */
-  GraphCOO(VT number_of_vertices,
-           ET number_of_edges,
+  GraphCOO(vertex_t number_of_vertices,
+           edge_t number_of_edges,
            bool has_data                       = false,
            cudaStream_t stream                 = nullptr,
            rmm::mr::device_memory_resource *mr = rmm::mr::get_default_resource())
-    : number_of_vertices_(number_of_vertices),
-      number_of_edges_(number_of_edges),
-      src_indices_(sizeof(VT) * number_of_edges, stream, mr),
-      dst_indices_(sizeof(VT) * number_of_edges, stream, mr),
-      edge_data_((has_data ? sizeof(WT) * number_of_edges : 0), stream, mr)
+    : number_of_vertices_p(number_of_vertices),
+      number_of_edges_p(number_of_edges),
+      src_indices_p(sizeof(vertex_t) * number_of_edges, stream, mr),
+      dst_indices_p(sizeof(vertex_t) * number_of_edges, stream, mr),
+      edge_data_p((has_data ? sizeof(weight_t) * number_of_edges : 0), stream, mr)
   {
   }
 
-  GraphCOO(GraphCOOView<VT, ET, WT> const &graph,
+  GraphCOO(GraphCOOView<vertex_t, edge_t, weight_t> const &graph,
            cudaStream_t stream                 = nullptr,
            rmm::mr::device_memory_resource *mr = rmm::mr::get_default_resource())
-    : number_of_vertices_(graph.number_of_vertices),
-      number_of_edges_(graph.number_of_edges),
-      src_indices_(graph.src_indices, graph.number_of_edges * sizeof(VT), stream, mr),
-      dst_indices_(graph.dst_indices, graph.number_of_edges * sizeof(VT), stream, mr)
+    : number_of_vertices_p(graph.number_of_vertices),
+      number_of_edges_p(graph.number_of_edges),
+      src_indices_p(graph.src_indices, graph.number_of_edges * sizeof(vertex_t), stream, mr),
+      dst_indices_p(graph.dst_indices, graph.number_of_edges * sizeof(vertex_t), stream, mr)
   {
     if (graph.has_data()) {
-      edge_data_ =
-        rmm::device_buffer{graph.edge_data, graph.number_of_edges * sizeof(WT), stream, mr};
+      edge_data_p =
+        rmm::device_buffer{graph.edge_data, graph.number_of_edges * sizeof(weight_t), stream, mr};
     }
   }
 
-  VT number_of_vertices(void) { return number_of_vertices_; }
-  ET number_of_edges(void) { return number_of_edges_; }
-  VT *src_indices(void) { return static_cast<VT *>(src_indices_.data()); }
-  VT *dst_indices(void) { return static_cast<VT *>(dst_indices_.data()); }
-  WT *edge_data(void) { return static_cast<WT *>(edge_data_.data()); }
+  vertex_t number_of_vertices(void) { return number_of_vertices_p; }
+  edge_t number_of_edges(void) { return number_of_edges_p; }
+  vertex_t *src_indices(void) { return static_cast<vertex_t *>(src_indices_p.data()); }
+  vertex_t *dst_indices(void) { return static_cast<vertex_t *>(dst_indices_p.data()); }
+  weight_t *edge_data(void) { return static_cast<weight_t *>(edge_data_p.data()); }
 
-  GraphCOOContents<VT, ET, WT> release() noexcept
+  GraphCOOContents<vertex_t, edge_t, weight_t> release() noexcept
   {
-    VT number_of_vertices = number_of_vertices_;
-    ET number_of_edges    = number_of_edges_;
-    number_of_vertices_   = 0;
-    number_of_edges_      = 0;
-    return GraphCOOContents<VT, ET, WT>{
+    vertex_t number_of_vertices = number_of_vertices_p;
+    edge_t number_of_edges      = number_of_edges_p;
+    number_of_vertices_p        = 0;
+    number_of_edges_p           = 0;
+    return GraphCOOContents<vertex_t, edge_t, weight_t>{
       number_of_vertices,
       number_of_edges,
-      std::make_unique<rmm::device_buffer>(std::move(src_indices_)),
-      std::make_unique<rmm::device_buffer>(std::move(dst_indices_)),
-      std::make_unique<rmm::device_buffer>(std::move(edge_data_))};
+      std::make_unique<rmm::device_buffer>(std::move(src_indices_p)),
+      std::make_unique<rmm::device_buffer>(std::move(dst_indices_p)),
+      std::make_unique<rmm::device_buffer>(std::move(edge_data_p))};
   }
 
-  GraphCOOView<VT, ET, WT> view(void) noexcept
+  GraphCOOView<vertex_t, edge_t, weight_t> view(void) noexcept
   {
-    return GraphCOOView<VT, ET, WT>(
-      src_indices(), dst_indices(), edge_data(), number_of_vertices_, number_of_edges_);
+    return GraphCOOView<vertex_t, edge_t, weight_t>(
+      src_indices(), dst_indices(), edge_data(), number_of_vertices_p, number_of_edges_p);
   }
 
-  bool has_data(void) { return nullptr != edge_data_.data(); }
+  bool has_data(void) { return nullptr != edge_data_p.data(); }
 };
 
-template <typename VT, typename ET, typename WT>
+template <typename vertex_t, typename edge_t, typename weight_t>
 struct GraphSparseContents {
-  VT number_of_vertices;
-  ET number_of_edges;
+  vertex_t number_of_vertices;
+  edge_t number_of_edges;
   std::unique_ptr<rmm::device_buffer> offsets;
   std::unique_ptr<rmm::device_buffer> indices;
   std::unique_ptr<rmm::device_buffer> edge_data;
@@ -440,140 +456,123 @@ struct GraphSparseContents {
  * Sparse Row) format or
  * CSC (Compressed Sparse Column) format
  *
- * @tparam VT   Type of vertex id
- * @tparam ET   Type of edge id
- * @tparam WT   Type of weight
+ * @tparam vertex_t   Type of vertex id
+ * @tparam edge_t     Type of edge id
+ * @tparam weight_t   Type of weight
  */
-template <typename VT, typename ET, typename WT>
+template <typename vertex_t, typename edge_t, typename weight_t>
 class GraphCompressedSparseBase {
-  VT number_of_vertices_{0};
-  ET number_of_edges_{0};
-  rmm::device_buffer offsets_{};    ///< CSR offsets
-  rmm::device_buffer indices_{};    ///< CSR indices
-  rmm::device_buffer edge_data_{};  ///< CSR data
+  vertex_t number_of_vertices_p{0};
+  edge_t number_of_edges_p{0};
+  rmm::device_buffer offsets_p{};    ///< CSR offsets
+  rmm::device_buffer indices_p{};    ///< CSR indices
+  rmm::device_buffer edge_data_p{};  ///< CSR data
 
-  bool has_data_{false};
+  bool has_data_p{false};
 
  public:
   /**
    * @brief      Take ownership of the provided graph arrays in CSR/CSC format
    *
-   * @param  offsets               This array of size V+1 (V is number of
-   * vertices) contains the
-   * offset of adjacency lists of every vertex. Offsets must be in the range [0,
-   * E] (number of
-   * edges).
-   * @param  indices               This array of size E contains the index of
-   * the destination for
-   * each edge. Indices must be in the range [0, V-1].
-   * @param  edge_data             This array of size E (number of edges)
-   * contains the weight for
-   * each edge.  This array can be null in which case the graph is considered
-   * unweighted.
    * @param  number_of_vertices    The number of vertices in the graph
    * @param  number_of_edges       The number of edges in the graph
+   * @param  has_data              Wiether or not the class has data, default = False
+   * @param  stream                Specify the cudaStream, default = null
+   * @param mr                     Specify the memory resource
    */
-  GraphCompressedSparseBase(VT number_of_vertices,
-                            ET number_of_edges,
+  GraphCompressedSparseBase(vertex_t number_of_vertices,
+                            edge_t number_of_edges,
                             bool has_data,
                             cudaStream_t stream,
                             rmm::mr::device_memory_resource *mr)
-    : number_of_vertices_(number_of_vertices),
-      number_of_edges_(number_of_edges),
-      offsets_(sizeof(ET) * (number_of_vertices + 1), stream, mr),
-      indices_(sizeof(VT) * number_of_edges, stream, mr),
-      edge_data_((has_data ? sizeof(WT) * number_of_edges : 0), stream, mr)
+    : number_of_vertices_p(number_of_vertices),
+      number_of_edges_p(number_of_edges),
+      offsets_p(sizeof(edge_t) * (number_of_vertices + 1), stream, mr),
+      indices_p(sizeof(vertex_t) * number_of_edges, stream, mr),
+      edge_data_p((has_data ? sizeof(weight_t) * number_of_edges : 0), stream, mr)
   {
   }
 
-  GraphCompressedSparseBase(GraphSparseContents<VT, ET, WT> &&contents)
-    : number_of_vertices_(contents.number_of_vertices),
-      number_of_edges_(contents.number_of_edges),
-      offsets_(std::move(*contents.offsets.release())),
-      indices_(std::move(*contents.indices.release())),
-      edge_data_(std::move(*contents.edge_data.release()))
+  GraphCompressedSparseBase(GraphSparseContents<vertex_t, edge_t, weight_t> &&contents)
+    : number_of_vertices_p(contents.number_of_vertices),
+      number_of_edges_p(contents.number_of_edges),
+      offsets_p(std::move(*contents.offsets.release())),
+      indices_p(std::move(*contents.indices.release())),
+      edge_data_p(std::move(*contents.edge_data.release()))
   {
   }
 
-  VT number_of_vertices(void) { return number_of_vertices_; }
-  ET number_of_edges(void) { return number_of_edges_; }
-  ET *offsets(void) { return static_cast<ET *>(offsets_.data()); }
-  VT *indices(void) { return static_cast<VT *>(indices_.data()); }
-  WT *edge_data(void) { return static_cast<WT *>(edge_data_.data()); }
+  vertex_t number_of_vertices(void) { return number_of_vertices_p; }
+  edge_t number_of_edges(void) { return number_of_edges_p; }
+  edge_t *offsets(void) { return static_cast<edge_t *>(offsets_p.data()); }
+  vertex_t *indices(void) { return static_cast<vertex_t *>(indices_p.data()); }
+  weight_t *edge_data(void) { return static_cast<weight_t *>(edge_data_p.data()); }
 
-  GraphSparseContents<VT, ET, WT> release() noexcept
+  GraphSparseContents<vertex_t, edge_t, weight_t> release() noexcept
   {
-    VT number_of_vertices = number_of_vertices_;
-    ET number_of_edges    = number_of_edges_;
-    number_of_vertices_   = 0;
-    number_of_edges_      = 0;
-    return GraphSparseContents<VT, ET, WT>{
+    vertex_t number_of_vertices = number_of_vertices_p;
+    edge_t number_of_edges      = number_of_edges_p;
+    number_of_vertices_p        = 0;
+    number_of_edges_p           = 0;
+    return GraphSparseContents<vertex_t, edge_t, weight_t>{
       number_of_vertices,
       number_of_edges,
-      std::make_unique<rmm::device_buffer>(std::move(offsets_)),
-      std::make_unique<rmm::device_buffer>(std::move(indices_)),
-      std::make_unique<rmm::device_buffer>(std::move(edge_data_))};
+      std::make_unique<rmm::device_buffer>(std::move(offsets_p)),
+      std::make_unique<rmm::device_buffer>(std::move(indices_p)),
+      std::make_unique<rmm::device_buffer>(std::move(edge_data_p))};
   }
 
-  bool has_data(void) { return nullptr != edge_data_.data(); }
+  bool has_data(void) { return nullptr != edge_data_p.data(); }
 };
 
 /**
  * @brief       A constructed graph stored in CSR (Compressed Sparse Row)
  * format.
  *
- * @tparam VT   Type of vertex id
- * @tparam ET   Type of edge id
- * @tparam WT   Type of weight
+ * @tparam vertex_t   Type of vertex id
+ * @tparam edge_t     Type of edge id
+ * @tparam weight_t   Type of weight
  */
-template <typename VT, typename ET, typename WT>
-class GraphCSR : public GraphCompressedSparseBase<VT, ET, WT> {
+template <typename vertex_t, typename edge_t, typename weight_t>
+class GraphCSR : public GraphCompressedSparseBase<vertex_t, edge_t, weight_t> {
  public:
   /**
    * @brief      Default constructor
    */
-  GraphCSR() : GraphCompressedSparseBase<VT, ET, WT>() {}
+  GraphCSR() : GraphCompressedSparseBase<vertex_t, edge_t, weight_t>() {}
 
   /**
    * @brief      Take ownership of the provided graph arrays in CSR format
    *
-   * @param  offsets               This array of size V+1 (V is number of
-   * vertices) contains the
-   * offset of adjacency lists of every vertex. Offsets must be in the range [0,
-   * E] (number of
-   * edges).
-   * @param  indices               This array of size E contains the index of
-   * the destination for
-   * each edge. Indices must be in the range [0, V-1].
-   * @param  edge_data             This array of size E (number of edges)
-   * contains the weight for
-   * each edge.  This array can be null in which case the graph is considered
-   * unweighted.
    * @param  number_of_vertices    The number of vertices in the graph
    * @param  number_of_edges       The number of edges in the graph
+   * @param  has_data              Wiether or not the class has data, default = False
+   * @param  stream                Specify the cudaStream, default = null
+   * @param mr                     Specify the memory resource
    */
-  GraphCSR(VT number_of_vertices_,
-           ET number_of_edges_,
+  GraphCSR(vertex_t number_of_vertices_,
+           edge_t number_of_edges_,
            bool has_data_                      = false,
            cudaStream_t stream                 = nullptr,
            rmm::mr::device_memory_resource *mr = rmm::mr::get_default_resource())
-    : GraphCompressedSparseBase<VT, ET, WT>(
+    : GraphCompressedSparseBase<vertex_t, edge_t, weight_t>(
         number_of_vertices_, number_of_edges_, has_data_, stream, mr)
   {
   }
 
-  GraphCSR(GraphSparseContents<VT, ET, WT> &&contents)
-    : GraphCompressedSparseBase<VT, ET, WT>(std::move(contents))
+  GraphCSR(GraphSparseContents<vertex_t, edge_t, weight_t> &&contents)
+    : GraphCompressedSparseBase<vertex_t, edge_t, weight_t>(std::move(contents))
   {
   }
 
-  GraphCSRView<VT, ET, WT> view(void) noexcept
+  GraphCSRView<vertex_t, edge_t, weight_t> view(void) noexcept
   {
-    return GraphCSRView<VT, ET, WT>(GraphCompressedSparseBase<VT, ET, WT>::offsets(),
-                                    GraphCompressedSparseBase<VT, ET, WT>::indices(),
-                                    GraphCompressedSparseBase<VT, ET, WT>::edge_data(),
-                                    GraphCompressedSparseBase<VT, ET, WT>::number_of_vertices(),
-                                    GraphCompressedSparseBase<VT, ET, WT>::number_of_edges());
+    return GraphCSRView<vertex_t, edge_t, weight_t>(
+      GraphCompressedSparseBase<vertex_t, edge_t, weight_t>::offsets(),
+      GraphCompressedSparseBase<vertex_t, edge_t, weight_t>::indices(),
+      GraphCompressedSparseBase<vertex_t, edge_t, weight_t>::edge_data(),
+      GraphCompressedSparseBase<vertex_t, edge_t, weight_t>::number_of_vertices(),
+      GraphCompressedSparseBase<vertex_t, edge_t, weight_t>::number_of_edges());
   }
 };
 
@@ -581,58 +580,50 @@ class GraphCSR : public GraphCompressedSparseBase<VT, ET, WT> {
  * @brief       A constructed graph stored in CSC (Compressed Sparse Column)
  * format.
  *
- * @tparam VT   Type of vertex id
- * @tparam ET   Type of edge id
- * @tparam WT   Type of weight
+ * @tparam vertex_t   Type of vertex id
+ * @tparam edge_t   Type of edge id
+ * @tparam weight_t   Type of weight
  */
-template <typename VT, typename ET, typename WT>
-class GraphCSC : public GraphCompressedSparseBase<VT, ET, WT> {
+template <typename vertex_t, typename edge_t, typename weight_t>
+class GraphCSC : public GraphCompressedSparseBase<vertex_t, edge_t, weight_t> {
  public:
   /**
    * @brief      Default constructor
    */
-  GraphCSC() : GraphCompressedSparseBase<VT, ET, WT>() {}
+  GraphCSC() : GraphCompressedSparseBase<vertex_t, edge_t, weight_t>() {}
 
   /**
    * @brief      Take ownership of the provided graph arrays in CSR format
    *
-   * @param  offsets               This array of size V+1 (V is number of
-   * vertices) contains the
-   * offset of adjacency lists of every vertex. Offsets must be in the range [0,
-   * E] (number of
-   * edges).
-   * @param  indices               This array of size E contains the index of
-   * the destination for
-   * each edge. Indices must be in the range [0, V-1].
-   * @param  edge_data             This array of size E (number of edges)
-   * contains the weight for
-   * each edge.  This array can be null in which case the graph is considered
-   * unweighted.
    * @param  number_of_vertices    The number of vertices in the graph
    * @param  number_of_edges       The number of edges in the graph
+   * @param  has_data              Wiether or not the class has data, default = False
+   * @param  stream                Specify the cudaStream, default = null
+   * @param mr                     Specify the memory resource
    */
-  GraphCSC(VT number_of_vertices_,
-           ET number_of_edges_,
-           bool has_data_                      = false,
+  GraphCSC(vertex_t number_of_vertices_in,
+           edge_t number_of_edges_in,
+           bool has_data_in                    = false,
            cudaStream_t stream                 = nullptr,
            rmm::mr::device_memory_resource *mr = rmm::mr::get_default_resource())
-    : GraphCompressedSparseBase<VT, ET, WT>(
-        number_of_vertices_, number_of_edges_, has_data_, stream, mr)
+    : GraphCompressedSparseBase<vertex_t, edge_t, weight_t>(
+        number_of_vertices_in, number_of_edges_in, has_data_in, stream, mr)
   {
   }
 
-  GraphCSC(GraphSparseContents<VT, ET, WT> &&contents)
-    : GraphCompressedSparseBase<VT, ET, WT>(contents)
+  GraphCSC(GraphSparseContents<vertex_t, edge_t, weight_t> &&contents)
+    : GraphCompressedSparseBase<vertex_t, edge_t, weight_t>(contents)
   {
   }
 
-  GraphCSCView<VT, ET, WT> view(void) noexcept
+  GraphCSCView<vertex_t, edge_t, weight_t> view(void) noexcept
   {
-    return GraphCSCView<VT, ET, WT>(GraphCompressedSparseBase<VT, ET, WT>::offsets(),
-                                    GraphCompressedSparseBase<VT, ET, WT>::indices(),
-                                    GraphCompressedSparseBase<VT, ET, WT>::edge_data(),
-                                    GraphCompressedSparseBase<VT, ET, WT>::number_of_vertices(),
-                                    GraphCompressedSparseBase<VT, ET, WT>::number_of_edges());
+    return GraphCSCView<vertex_t, edge_t, weight_t>(
+      GraphCompressedSparseBase<vertex_t, edge_t, weight_t>::offsets(),
+      GraphCompressedSparseBase<vertex_t, edge_t, weight_t>::indices(),
+      GraphCompressedSparseBase<vertex_t, edge_t, weight_t>::edge_data(),
+      GraphCompressedSparseBase<vertex_t, edge_t, weight_t>::number_of_vertices(),
+      GraphCompressedSparseBase<vertex_t, edge_t, weight_t>::number_of_edges());
   }
 };
 
@@ -653,12 +644,12 @@ struct invalid_idx<
   : std::integral_constant<T, std::numeric_limits<T>::max()> {
 };
 
-template <typename VT>
-struct invalid_vertex_id : invalid_idx<VT> {
+template <typename vertex_t>
+struct invalid_vertex_id : invalid_idx<vertex_t> {
 };
 
-template <typename ET>
-struct invalid_edge_id : invalid_idx<ET> {
+template <typename edge_t>
+struct invalid_edge_id : invalid_idx<edge_t> {
 };
 
 }  // namespace cugraph
