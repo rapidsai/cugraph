@@ -124,25 +124,30 @@ class LoadBalanceExecution {
       VT input_frontier_len,
       rmm::device_vector<VT> &output_frontier)
   {
+    if (input_frontier_len == 0) { return static_cast<VT>(0); }
     cudaStream_t stream = handle_.get_stream();
+    cudaStreamSynchronize(stream);
     run_timer.start("lb : full run");
     //timer.start("lb : step 1");
     //output_frontier.resize(graph_.number_of_vertices);
-    //cudaStreamSynchronize(stream);
+    cudaStreamSynchronize(stream);
     //timer.stop();
     timer.start("lb : step 1a");
     output_vertex_count_[0] = 0;
     cudaStreamSynchronize(stream);
     timer.stop();
+    cudaStreamSynchronize(stream);
     timer.start("lb : step 2");
     dist_.setup(graph_.offsets, nullptr, vertex_begin_, vertex_end_);
     cudaStreamSynchronize(stream);
     timer.stop();
+    cudaStreamSynchronize(stream);
     timer.start("lb : distributer run");
     auto distribution = dist_.run(
         input_frontier, input_frontier_len, reorganized_vertices_, stream);
     cudaStreamSynchronize(stream);
     timer.stop();
+    cudaStreamSynchronize(stream);
     timer.start("lb : step 3");
 
     DegreeBucket<VT, ET> large_bucket = distribution.degreeRange(16);
@@ -155,6 +160,7 @@ class LoadBalanceExecution {
 
     cudaStreamSynchronize(stream);
     timer.stop();
+    cudaStreamSynchronize(stream);
     timer.start("lb : functor run");
     DegreeBucket<VT, ET> medium_bucket = distribution.degreeRange(12, 16);
     medium_vertex_worker(graph_, medium_bucket, op,

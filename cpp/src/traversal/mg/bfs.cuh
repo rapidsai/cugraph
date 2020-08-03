@@ -22,8 +22,6 @@
 #include "../traversal_common.cuh"
 #include <utilities/high_res_timer.hpp>
 
-#include <utilities/high_res_timer.hpp>
-
 namespace cugraph {
 
 namespace mg {
@@ -103,6 +101,7 @@ void bfs(raft::handle_t const &handle,
   //Initialize input frontier
   input_frontier[0] = start_vertex;
   vertex_t input_frontier_len = 1;
+  detail::add_to_bitmap(handle, visited_bmap, input_frontier, input_frontier_len);
 
   timer.start("fill_max_dist");
   //Start at level 0
@@ -127,6 +126,21 @@ void bfs(raft::handle_t const &handle,
     detail::add_to_bitmap(handle, visited_bmap, input_frontier, input_frontier_len);
     timer.stop();
 
+    timer.start("preprocess_input_frontier");
+    //Remove duplicates and out of partition vertices from input_frontier
+    //and store it to output_frontier
+    input_frontier_len =
+      detail::preprocess_input_frontier(
+          handle,
+          graph,
+          unique_bmap,
+          input_frontier,
+          input_frontier_len,
+          output_frontier);
+    //Swap input and output frontier
+    input_frontier.swap(output_frontier);
+    timer.stop();
+
     timer.start("clear output frontier bitmap");
     //Clear output frontier bitmap
     thrust::fill(rmm::exec_policy(stream)->on(stream),
@@ -139,7 +153,6 @@ void bfs(raft::handle_t const &handle,
 
     //output_frontier.resize(graph.number_of_vertices);
     vertex_t output_frontier_len = 0;
-    cudaStreamSynchronize(stream);
     //Generate output frontier bitmap from input frontier
     if (distances != nullptr) {
       timer.start("create functor");
@@ -169,12 +182,20 @@ void bfs(raft::handle_t const &handle,
       timer.stop();
     }
 
-    timer.start("collect_frontier");
+    timer.start("collect_vectors");
+    //Collect output_frontier from all ranks to input_frontier
+    //If not empty then we proceed to next iteration.
+    //Note that its an error to remove duplicates and non local
+    //start vertices here since it is possible that doing so will
+    //result in input_frontier_len to be 0. That would cause some
+    //ranks to go ahead with the iteration and some to terminate.
+    //This would further cause a nccl communication error since
+    //not every rank participates in broadcast/allgather in
+    //subsequent calls
     input_frontier_len =
-      detail::collect_frontier(
-          handle, graph,
+      detail::collect_vectors(
+          handle,
           temp_buffer_len,
-          unique_bmap,
           output_frontier,
           output_frontier_len,
           input_frontier);
@@ -183,7 +204,7 @@ void bfs(raft::handle_t const &handle,
     main_loop_timer.stop();
   } while (input_frontier_len != 0);
 
-  timer.start("collect predecessors");
+  timer.start("collect distances");
   // In place reduce to collect predecessors
   if (handle.comms_initialized()) {
     handle.get_comms().allreduce(predecessors,

@@ -41,6 +41,14 @@ __device__ inline typename std::enable_if<(sizeof(degree_t) == 8), int>::type ce
 }
 
 template <typename T>
+__global__ void simple_fill(T * bin0, T * bin1, T count) {
+  for (T i = 0; i < count; i++) {
+    bin0[i] = 0;
+    bin1[i] = 0;
+  }
+}
+
+template <typename T>
 __global__ void exclusive_scan(T *data, T *out)
 {
   constexpr int BinCount = NumberBins<T>;
@@ -316,11 +324,20 @@ void bin_vertices(rmm::device_vector<VT> &input_vertex_ids,
                   ET *offsets,
                   VT vertex_begin,
                   VT vertex_end,
-                  cudaStream_t stream)
+                  cudaStream_t stream,
+                  HighResTimer& timer)
 {
   //HighResTimer timer;
-  //timer.start("bin_vertices : count_bin_sizes");
-  reorganized_vertex_ids.resize(input_vertex_ids_len);
+  cudaStreamSynchronize(stream);
+  timer.start("bin_vertices : fill zeros");
+  simple_fill<ET><<<1, 1, 0, stream>>>(
+      bin_count_offsets.data().get(),
+      bin_count.data().get(),
+      static_cast<ET>(bin_count.size()));
+  cudaStreamSynchronize(stream);
+  timer.stop();
+  timer.start("bin_vertices : count_bin_sizes");
+  //reorganized_vertex_ids.resize(input_vertex_ids_len);
   const unsigned BLOCK_SIZE = 512;
   unsigned blocks           = ((input_vertex_ids_len) + BLOCK_SIZE - 1) / BLOCK_SIZE;
   count_bin_sizes<ET><<<blocks, BLOCK_SIZE, 0, stream>>>(
@@ -328,16 +345,20 @@ void bin_vertices(rmm::device_vector<VT> &input_vertex_ids,
     input_vertex_ids.data().get(),
     static_cast<ET>(input_vertex_ids_len),
     vertex_begin, vertex_end);
-  //timer.stop();
+  cudaStreamSynchronize(stream);
+  timer.stop();
 
-  //timer.start("bin_vertices : exclusive_scan");
+  cudaStreamSynchronize(stream);
+  timer.start("bin_vertices : exclusive_scan");
   exclusive_scan<<<1, 1, 0, stream>>>(bin_count.data().get(), bin_count_offsets.data().get());
-  //timer.stop();
+  cudaStreamSynchronize(stream);
+  timer.stop();
 
-  VT vertex_count = bin_count[bin_count.size() - 1];
-  reorganized_vertex_ids.resize(vertex_count);
+  //VT vertex_count = bin_count[bin_count.size() - 1];
+  //reorganized_vertex_ids.resize(vertex_count);
 
-  //timer.start("bin_vertices : create_bin_sizes");
+  cudaStreamSynchronize(stream);
+  timer.start("bin_vertices : create_bin_sizes");
   create_vertex_bins<VT, ET><<<blocks, BLOCK_SIZE, 0, stream>>>(
     reorganized_vertex_ids.data().get(),
     bin_count.data().get(),
@@ -345,7 +366,8 @@ void bin_vertices(rmm::device_vector<VT> &input_vertex_ids,
     input_vertex_ids.data().get(),
     static_cast<ET>(input_vertex_ids_len),
     vertex_begin, vertex_end);
-  //timer.stop();
+  cudaStreamSynchronize(stream);
+  timer.stop();
   //timer.display(std::cout);
 }
 

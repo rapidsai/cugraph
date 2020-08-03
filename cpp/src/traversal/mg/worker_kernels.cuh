@@ -245,6 +245,7 @@ void small_vertex_worker(cugraph::GraphCSRView<VT, ET, WT> const &graph,
       graph, bucket.vertexIds, bucket.numberOfVertices,
       output_vertex_ids, output_vertex_ids_offset, op);
   }
+  CHECK_CUDA(stream);
 }
 
 template <typename VT, typename ET, typename WT, typename Operator>
@@ -263,6 +264,7 @@ void medium_vertex_worker(cugraph::GraphCSRView<VT, ET, WT> const &graph,
     block_per_vertex_worker_weightless<block_size><<<block_count, block_size, 0, stream>>>(
       graph, bucket.vertexIds, bucket.numberOfVertices,
       output_vertex_ids, output_vertex_ids_offset, op);
+    CHECK_CUDA(stream);
   }
 }
 

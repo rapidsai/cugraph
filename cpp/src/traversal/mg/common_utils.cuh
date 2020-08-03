@@ -39,6 +39,18 @@ constexpr inline T number_of_words(T number_of_bits)
   return raft::div_rounding_up_safe(number_of_bits, static_cast<T>(BitsPWrd<unsigned>));
 }
 
+template <typename T>
+void print(T * ptr, T count, std::string prefix = "", std::string delim = " ") {
+  thrust::device_ptr<T> p(ptr);
+  std::string out = prefix;
+  for(T i = 0; i < count; ++i) {
+    T val = p[i];
+    out += std::to_string(val) + delim;
+  }
+  out += "\n";
+  std::cout<<out;
+}
+
 template <typename edge_t>
 struct isDegreeZero {
 edge_t * offset_;
@@ -175,11 +187,14 @@ T collect_vectors(raft::handle_t const &handle,
     rmm::device_vector<T> &local,
     T local_count,
     rmm::device_vector<T> &global) {
+  CHECK_CUDA(handle.get_stream());
+  buffer_len.resize(handle.get_comms().get_size());
   auto my_rank = handle.get_comms().get_rank();
-  buffer_len[my_rank] = local_count;
+  buffer_len[my_rank] = static_cast<size_t>(local_count);
   handle.get_comms().allgather(
       buffer_len.data().get() + my_rank, buffer_len.data().get(),
       1, handle.get_stream());
+  CHECK_CUDA(handle.get_stream());
   //buffer_len now contains the lengths of all local buffers
   //for all ranks
 
@@ -189,7 +204,7 @@ T collect_vectors(raft::handle_t const &handle,
   //raft so that the displacement is templated
   thrust::host_vector<int> h_buffer_offsets(h_buffer_len.size());
   int global_buffer_len = 0;
-  for (size_t i = 0; i < h_buffer_offsets.size(); ++i) {
+  for (size_t i = 0; i < h_buffer_len.size(); ++i) {
     h_buffer_offsets[i] = global_buffer_len;
     global_buffer_len += h_buffer_len[i];
   }
@@ -201,6 +216,7 @@ T collect_vectors(raft::handle_t const &handle,
       h_buffer_len.data(),
       h_buffer_offsets.data(),
       handle.get_stream());
+  CHECK_CUDA(handle.get_stream());
   return static_cast<T>(global_buffer_len);
 }
 
@@ -213,6 +229,7 @@ void add_to_bitmap(raft::handle_t const &handle,
   thrust::for_each(rmm::exec_policy(stream)->on(stream),
       id.begin(), id.begin() + count,
       set_nth_bit(bmap.data().get()));
+  CHECK_CUDA(stream);
 }
 
 template <typename vertex_t, typename edge_t, typename weight_t>
@@ -285,7 +302,7 @@ void remove_duplicates_kernel(
   int acceptable_vertex = 0;
   //If id is not in the acceptable range then set it to
   //an invalid vertex id
-  if (id >= id_begin && id < id_end) {
+  if ((id >= id_begin) && (id < id_end)) {
     unsigned active_bit = static_cast<unsigned>(1) << (id % BitsPWrd<unsigned>);
     unsigned prev_word  = atomicOr(bmap + (id / BitsPWrd<unsigned>), active_bit);
     //If bit was set by this thread then the id is unique
@@ -348,7 +365,44 @@ T remove_duplicates(raft::handle_t const &handle,
       out_data.data().get(),
       unique_count.data().get()
       );
+  CHECK_CUDA(stream);
   return static_cast<T>(unique_count[0]);
+}
+
+
+template <typename vertex_t, typename edge_t, typename weight_t>
+vertex_t
+preprocess_input_frontier(raft::handle_t const &handle,
+    cugraph::GraphCSRView<vertex_t, edge_t, weight_t> const &graph,
+    rmm::device_vector<unsigned> &bmap,
+    rmm::device_vector<vertex_t> &input_frontier,
+    vertex_t input_frontier_len,
+    rmm::device_vector<vertex_t> &output_frontier)
+{
+  cudaStream_t stream = handle.get_stream();
+
+  vertex_t vertex_begin = graph.local_offsets[handle.get_comms().get_rank()];
+  vertex_t vertex_end   = graph.local_offsets[handle.get_comms().get_rank()] +
+      graph.local_vertices[handle.get_comms().get_rank()];
+  rmm::device_vector<vertex_t> unique_count(1,0);
+
+  thrust::fill(rmm::exec_policy(stream)->on(stream),
+                bmap.begin(),
+                bmap.end(),
+                static_cast<unsigned>(0));
+  vertex_t threads = 256;
+  vertex_t blocks = raft::div_rounding_up_safe(input_frontier_len, threads);
+  remove_duplicates_kernel<256><<<blocks, threads, 0, stream>>>(
+      bmap.data().get(),
+      input_frontier.data().get(),
+      vertex_begin,
+      vertex_end,
+      input_frontier_len,
+      output_frontier.data().get(),
+      unique_count.data().get()
+      );
+  CHECK_CUDA(stream);
+  return static_cast<vertex_t>(unique_count[0]);
 }
 
 
@@ -358,24 +412,39 @@ collect_frontier(raft::handle_t const &handle,
     cugraph::GraphCSRView<vertex_t, edge_t, weight_t> const &graph,
     rmm::device_vector<size_t> &buffer_len,
     rmm::device_vector<unsigned> &unique_bmap,
+    rmm::device_vector<unsigned> &visited_bmap,
     rmm::device_vector<vertex_t> &input_frontier,
     vertex_t local_frontier_len,
     rmm::device_vector<vertex_t> &output_frontier) {
+  CHECK_CUDA(handle.get_stream());
   //input_frontier from all ranks are gathered to output_frontier
+  std::cerr<<"call collect_vectors\n";
+  std::cerr<<"local_frontier_len : "<<local_frontier_len<<"\n";
   vertex_t global_frontier_count =
     collect_vectors(handle,
         buffer_len,
         input_frontier, local_frontier_len,
         output_frontier);
+  std::cerr<<"called collect_vectors\n";
+
+  add_to_bitmap(handle, visited_bmap, output_frontier, global_frontier_count);
 
   //Acceptable vertex range in the local frontier of this rank
-  //vertex_t vertex_begin = graph.local_offsets[handle.get_comms().get_rank()];
-  //vertex_t vertex_end   = graph.local_offsets[handle.get_comms().get_rank()] +
-  //    graph.local_vertices[handle.get_comms().get_rank()];
+#if 0
+  vertex_t vertex_begin = graph.local_offsets[handle.get_comms().get_rank()];
+  vertex_t vertex_end   = graph.local_offsets[handle.get_comms().get_rank()] +
+      graph.local_vertices[handle.get_comms().get_rank()];
+      //printf("CF : VB %d VE %d\n", (int)vertex_begin, (int)vertex_end);
+#else
   vertex_t vertex_begin = 0;
   vertex_t vertex_end   = graph.number_of_vertices;
+#endif
 
+  print(output_frontier.data().get(),
+      global_frontier_count,
+      "output_frontier : ");
   //Ids from output_frontier are now stored in input_frontier
+  std::cerr<<"call remove_duplicates\n";
   local_frontier_len =
     remove_duplicates(handle,
         unique_bmap,
@@ -383,6 +452,11 @@ collect_frontier(raft::handle_t const &handle,
         global_frontier_count,
         vertex_begin, vertex_end,
         input_frontier);
+  std::cerr<<"called remove_duplicates\n";
+
+  print(input_frontier.data().get(),
+      local_frontier_len,
+      "input_frontier : ");
 
   //Swap so that output_frontier now contains the combined unique frontier
   //from all ranks

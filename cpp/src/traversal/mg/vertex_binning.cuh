@@ -18,6 +18,7 @@
 
 #include "common_utils.cuh"
 #include "vertex_binning_kernels.cuh"
+#include <utilities/high_res_timer.hpp>
 
 namespace cugraph {
 
@@ -44,7 +45,7 @@ class LogDistribution {
   {
     // If bin_offsets_ is smaller than NumberBins<ET> then resize it
     // so that the last element is repeated
-    bin_offsets_.resize(NumberBins<ET>, bin_offsets_.back());
+    //bin_offsets_.resize(NumberBins<ET>, bin_offsets_.back());
   }
 
   DegreeBucket<VT, ET> degreeRange(ET ceilLogDegreeStart,
@@ -71,9 +72,12 @@ class VertexBinner {
 
   rmm::device_vector<ET> tempBins_;
   rmm::device_vector<ET> bin_offsets_;
+  HighResTimer timer;
 
  public:
   VertexBinner(void) : tempBins_(NumberBins<ET>), bin_offsets_(NumberBins<ET>) {}
+
+  ~VertexBinner(void) { timer.display(std::cout); }
 
   void setup(ET* offsets, unsigned* active_bitmap, VT vertex_begin, VT vertex_end)
   {
@@ -118,9 +122,6 @@ LogDistribution<VT, ET> VertexBinner<VT, ET>::run(
     rmm::device_vector<VT>& reorganized_vertices,
     cudaStream_t stream)
 {
-  thrust::fill(
-    rmm::exec_policy(stream)->on(stream), bin_offsets_.begin(), bin_offsets_.end(), ET{0});
-  thrust::fill(rmm::exec_policy(stream)->on(stream), tempBins_.begin(), tempBins_.end(), ET{0});
   bin_vertices(input_vertices,
                input_vertices_len,
                reorganized_vertices,
@@ -129,7 +130,8 @@ LogDistribution<VT, ET> VertexBinner<VT, ET>::run(
                offsets_,
                vertex_begin_,
                vertex_end_,
-               stream);
+               stream,
+               timer);
 
   return LogDistribution<VT, ET>(reorganized_vertices, bin_offsets_);
 }
