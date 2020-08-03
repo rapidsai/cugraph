@@ -11,7 +11,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 from cugraph.raft.dask.common.utils import default_client
-from collections import OrderedDict
 
 
 # FIXME: We currently look for the default client from dask, as such is the

@@ -25,6 +25,7 @@ def skip_if_not_enough_devices(required_devices):
         pytest.skip("Not enough devices available to "
                     "test MG({})".format(required_devices))
 
+
 class MGContext:
     """Utility Context Manager to start a multi GPU context using dask_cuda
 

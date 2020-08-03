@@ -140,13 +140,16 @@ class Graph:
         self.mg_batch_enabled = True
 
         if self.edgelist is not None:
-            self._replicate_edgelist()
+            if self.mg_batch_edgelists is None:
+                self._replicate_edgelist()
 
         if self.adjlist is not None:
-            self._replicate_adjlist()
+            if self.mg_batch_adjlists is None:
+                self._replicate_adjlist()
 
         if self.transposedadjlist is not None:
-            self._replicate_transposed_adjlist()
+            if self.mg_batch_transposed_adjlists is None:
+                self._replicate_transposed_adjlist()
 
     def _replicate_edgelist(self):
         client = mg_utils.get_client()
