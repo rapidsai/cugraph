@@ -54,6 +54,7 @@ __global__  //
 
 template <typename vertex_t, typename edge_t, typename weight_t>
 weight_t modularity(weight_t m2,
+                    weight_t resolution,
                     GraphCSRView<vertex_t, edge_t, weight_t> const &graph,
                     vertex_t const *d_cluster,
                     cudaStream_t stream)
@@ -249,6 +250,7 @@ vertex_t renumber_clusters(vertex_t graph_num_vertices,
 template <typename vertex_t, typename edge_t, typename weight_t>
 weight_t update_clustering_by_delta_modularity(
   weight_t m2,
+  weight_t resolution,
   GraphCSRView<vertex_t, edge_t, weight_t> const &graph,
   rmm::device_vector<vertex_t> const &src_indices,
   rmm::device_vector<weight_t> const &vertex_weights,
@@ -274,7 +276,7 @@ weight_t update_clustering_by_delta_modularity(
   weight_t *d_delta_Q              = delta_Q.data().get();
   weight_t *d_old_cluster_sum      = old_cluster_sum.data().get();
 
-  weight_t new_Q = modularity<vertex_t, edge_t, weight_t>(m2, graph, cluster.data().get(), stream);
+  weight_t new_Q = modularity<vertex_t, edge_t, weight_t>(m2, resolution, graph, cluster.data().get(), stream);
 
   weight_t cur_Q = new_Q - 1;
 
@@ -437,7 +439,7 @@ weight_t update_clustering_by_delta_modularity(
 
     up_down = !up_down;
 
-    new_Q = modularity<vertex_t, edge_t, weight_t>(m2, graph, next_cluster.data().get(), stream);
+    new_Q = modularity<vertex_t, edge_t, weight_t>(m2, resolution, graph, next_cluster.data().get(), stream);
 
     if (new_Q > cur_Q) { thrust::copy(next_cluster.begin(), next_cluster.end(), cluster.begin()); }
   }
@@ -451,6 +453,7 @@ void louvain(GraphCSRView<vertex_t, edge_t, weight_t> const &graph,
              int *num_level,
              vertex_t *cluster_vec,
              int max_level,
+             weight_t resolution,
              cudaStream_t stream)
 {
 #ifdef TIMING
@@ -525,7 +528,7 @@ void louvain(GraphCSRView<vertex_t, edge_t, weight_t> const &graph,
 #endif
 
     weight_t new_Q = update_clustering_by_delta_modularity(
-      m2, current_graph, src_indices_v, vertex_weights_v, cluster_weights_v, cluster_v, stream);
+      m2, resolution, current_graph, src_indices_v, vertex_weights_v, cluster_weights_v, cluster_v, stream);
 
 #ifdef TIMING
     hr_timer.stop();
@@ -565,9 +568,9 @@ void louvain(GraphCSRView<vertex_t, edge_t, weight_t> const &graph,
 }
 
 template void louvain(
-  GraphCSRView<int32_t, int32_t, float> const &, float *, int *, int32_t *, int, cudaStream_t);
+  GraphCSRView<int32_t, int32_t, float> const &, float *, int *, int32_t *, int, float, cudaStream_t);
 template void louvain(
-  GraphCSRView<int32_t, int32_t, double> const &, double *, int *, int32_t *, int, cudaStream_t);
+  GraphCSRView<int32_t, int32_t, double> const &, double *, int *, int32_t *, int, double, cudaStream_t);
 
 }  // namespace detail
 }  // namespace cugraph
