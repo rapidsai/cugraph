@@ -15,7 +15,7 @@
 
 from dask.distributed import wait, default_client
 from cugraph.dask.common.input_utils import get_local_data
-from cugraph.mg.traversal import mg_bfs_wrapper as mg_bfs
+from cugraph.dask.traversal import mg_bfs_wrapper as mg_bfs
 import cugraph.comms.comms as Comms
 import cudf
 
@@ -68,6 +68,7 @@ def bfs(graph,
     Examples
     --------
     >>> import cugraph.dask as dcg
+    >>> Comms.initialize()
     >>> chunksize = dcg.get_chunksize(input_data_path)
     >>> ddf = dask_cudf.read_csv(input_data_path, chunksize=chunksize,
                                  delimiter=' ',
@@ -76,6 +77,7 @@ def bfs(graph,
     >>> dg = cugraph.DiGraph()
     >>> dg.from_dask_cudf_edgelist(ddf)
     >>> df = dcg.bfs(dg, 0)
+    >>> Comms.destroy()
     """
 
     client = default_client()

@@ -15,7 +15,7 @@
 
 from dask.distributed import wait, default_client
 from cugraph.dask.common.input_utils import get_local_data
-from cugraph.mg.link_analysis import mg_pagerank_wrapper as mg_pagerank
+from cugraph.dask.link_analysis import mg_pagerank_wrapper as mg_pagerank
 import cugraph.comms.comms as Comms
 
 
@@ -66,7 +66,6 @@ def pagerank(input_graph,
             Subset of vertices of graph for personalization
         personalization['values'] : cudf.Series
             Personalization values for vertices
-
     max_iter : int
         The maximum number of iterations before an answer is returned.
         If this value is lower or equal to 0 cuGraph will use the default
@@ -79,13 +78,19 @@ def pagerank(input_graph,
         Setting too small a tolerance can lead to non-convergence due to
         numerical roundoff. Usually values between 0.01 and 0.00001 are
         acceptable.
-
+    nstart : not supported
+        initial guess for pagerank
+    load_balance : bool
+        Set as True to perform load_balancing after global sorting of
+        dask-cudf DataFrame. This ensures that the data is uniformly
+        distributed among multiple GPUs to avoid over-loading.
 
     Returns
     -------
     PageRank : cudf.DataFrame
         GPU data frame containing two cudf.Series of size V: the vertex
         identifiers and the corresponding PageRank values.
+
         df['vertex'] : cudf.Series
             Contains the vertex identifiers
         df['pagerank'] : cudf.Series
@@ -94,6 +99,7 @@ def pagerank(input_graph,
     Examples
     --------
     >>> import cugraph.dask as dcg
+    >>> Comms.initialize()
     >>> chunksize = dcg.get_chunksize(input_data_path)
     >>> ddf = dask_cudf.read_csv(input_data_path, chunksize=chunksize,
                                  delimiter=' ',
@@ -103,6 +109,7 @@ def pagerank(input_graph,
     >>> dg.from_dask_cudf_edgelist(ddf, source='src', destination='dst',
                                    edge_attr='value')
     >>> pr = dcg.pagerank(dg)
+    >>> Comms.destroy()
     """
     from cugraph.structure.graph import null_check
 
@@ -114,7 +121,7 @@ def pagerank(input_graph,
        input_graph.local_data['by'] == 'dst'):
         data = input_graph.local_data['data']
     else:
-        data = get_local_data(input_graph, by='dst')
+        data = get_local_data(input_graph, by='dst', load_balance=load_balance)
 
     if personalization is not None:
         null_check(personalization["vertex"])
