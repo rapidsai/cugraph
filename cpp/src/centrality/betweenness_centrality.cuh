@@ -111,7 +111,6 @@ class BC {
     nullptr;                  // array<VT>(|V|) stores the shortest path counter for the latest SSSP
   double *deltas_ = nullptr;  // array<result_t>(|V|) stores the dependencies for the latest SSSP
 
-  // FIXME: This should be replaced using RAFT handle
   int max_grid_dim_1D_  = 0;
   int max_block_dim_1D_ = 0;
   cudaStream_t stream_;

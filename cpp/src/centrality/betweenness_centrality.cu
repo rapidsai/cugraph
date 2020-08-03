@@ -429,8 +429,6 @@ void BC<VT, ET, WT, result_t>::rescale_by_total_sources_used(VT total_number_of_
 }
 }  // namespace detail
 
-// DBG
-#include <chrono>
 template <typename VT, typename ET, typename WT, typename result_t>
 void betweenness_centrality(raft::handle_t const &handle,
                             GraphCSRView<VT, ET, WT> const &graph,
