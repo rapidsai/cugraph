@@ -1,4 +1,6 @@
 import pytest
+import cugraph.tests.utils as utils
+import numpy as np
 
 from cugraph.tests.dask.mg_context import (MGContext,
                                            skip_if_not_enough_devices)
@@ -9,10 +11,8 @@ from cugraph.tests.test_betweenness_centrality import (
     ENDPOINTS_OPTIONS,
     NORMALIZED_OPTIONS,
     DEFAULT_EPSILON,
-    DATASETS,
     SUBSET_SIZE_OPTIONS,
     SUBSET_SEED_OPTIONS,
-    RESULT_DTYPE_OPTIONS
 )
 
 from cugraph.tests.test_betweenness_centrality import (
@@ -24,7 +24,9 @@ from cugraph.tests.test_betweenness_centrality import (
 # =============================================================================
 # Parameters
 # =============================================================================
+DATASETS = utils.DATASETS_1
 MG_DEVICE_COUNT_OPTIONS = [1, 2, 3, 4]
+RESULT_DTYPE_OPTIONS = [np.float64]
 
 
 # FIXME: The following creates and destroys Comms at every call making the
