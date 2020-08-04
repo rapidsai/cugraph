@@ -13,16 +13,15 @@
 # limitations under the License.
 
 import numpy as np
-from tornado import gen
-from collections import Sequence
 from dask.distributed import futures_of, default_client, wait
 from toolz import first
-from collections import OrderedDict
+import collections
 import dask_cudf as dc
 from dask.array.core import Array as daskArray
 from dask_cudf.core import DataFrame as daskDataFrame
 from dask_cudf.core import Series as daskSeries
 from functools import reduce
+import cugraph.comms.comms as Comms
 
 
 def workers_to_parts(futures):
@@ -32,7 +31,7 @@ def workers_to_parts(futures):
     :param futures: list of (worker, part) tuples
     :return:
     """
-    w_to_p_map = OrderedDict()
+    w_to_p_map = collections.OrderedDict()
     for w, p in futures:
         if w not in w_to_p_map:
             w_to_p_map[w] = []
@@ -65,23 +64,26 @@ def parts_to_ranks(client, worker_info, part_futures):
     return [(futures[idx][0], size) for idx, size in enumerate(sizes)], total
 
 
-@gen.coroutine
-def _extract_partitions(dask_obj, client=None):
+def persist_distributed_data(dask_df, client):
+    client = default_client() if client is None else client
+    worker_addresses = Comms.get_workers()
+    _keys = dask_df.__dask_keys__()
+    worker_dict = {}
+    for i, key in enumerate(_keys):
+        worker_dict[str(key)] = tuple([worker_addresses[i]])
+    persisted = client.persist(dask_df, workers=worker_dict)
+    parts = futures_of(persisted)
+    return parts
+
+
+async def _extract_partitions(dask_obj, client=None):
 
     client = default_client() if client is None else client
     # dask.dataframe or dask.array
     if isinstance(dask_obj, (daskDataFrame, daskArray, daskSeries)):
-        worker_addresses = list(OrderedDict.fromkeys(
-            client.scheduler_info()["workers"].keys()))
-        _keys = dask_obj.__dask_keys__()
-        worker_dict = {}
-        for i, key in enumerate(_keys):
-            worker_dict[str(key)] = tuple([worker_addresses[i]])
-        persisted = client.persist(dask_obj, workers=worker_dict)
-        parts = futures_of(persisted)
-
+        parts = persist_distributed_data(dask_obj, client)
     # iterable of dask collections (need to colocate them)
-    elif isinstance(dask_obj, Sequence):
+    elif isinstance(dask_obj, collections.Sequence):
         # NOTE: We colocate (X, y) here by zipping delayed
         # n partitions of them as (X1, y1), (X2, y2)...
         # and asking client to compute a single future for
@@ -94,15 +96,15 @@ def _extract_partitions(dask_obj, client=None):
         raveled = [d.flatten() for d in dela]
         parts = client.compute([p for p in zip(*raveled)])
 
-    yield wait(parts)
+    await wait(parts)
     key_to_part = [(str(part.key), part) for part in parts]
-    who_has = yield client.who_has(parts)
-    raise gen.Return([(first(who_has[key]), part)
-                      for key, part in key_to_part])
+    who_has = await client.who_has(parts)
+    return [(first(who_has[key]), part)
+            for key, part in key_to_part]
 
 
 def create_dict(futures):
-    w_to_p_map = OrderedDict()
+    w_to_p_map = collections.OrderedDict()
     for w, k, p in futures:
         if w not in w_to_p_map:
             w_to_p_map[w] = []
@@ -157,15 +159,7 @@ def load_balance_func(ddf_, by, client=None):
 
     client = default_client() if client is None else client
 
-    worker_addresses = list(OrderedDict.fromkeys(
-        client.scheduler_info()["workers"].keys()))
-    _keys = ddf_.__dask_keys__()
-    worker_dict = {}
-    for i, key in enumerate(_keys):
-        worker_dict[str(key)] = tuple([worker_addresses[i]])
-
-    persisted = client.persist(ddf_, workers=worker_dict)
-    parts = futures_of(persisted)
+    parts = persist_distributed_data(ddf_, client)
     wait(parts)
 
     who_has = client.who_has(parts)

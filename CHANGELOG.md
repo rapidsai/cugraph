@@ -63,7 +63,7 @@
 - PR #1017 Fix more mg bugs
 - PR #1022 Fix support for using a cudf.DataFrame with a MG graph
 - PR #1027 Fix documentation
-- PR #1033 Fix reparition error in big datasets due to incorrect index dtype
+- PR #1033 Fix reparition error in big datasets, updated coroutine, fixed warnings
 
 # cuGraph 0.14.0 (03 Jun 2020)
 
