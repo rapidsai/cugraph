@@ -29,7 +29,6 @@ MG_DEVICE_COUNT_OPTIONS = [1, 2, 3, 4]
 RESULT_DTYPE_OPTIONS = [np.float64]
 
 
-
 @pytest.mark.parametrize('graph_file', DATASETS)
 @pytest.mark.parametrize('directed', DIRECTED_GRAPH_OPTIONS)
 @pytest.mark.parametrize('subset_size', SUBSET_SIZE_OPTIONS)
