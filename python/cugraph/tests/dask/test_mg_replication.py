@@ -15,7 +15,7 @@ import cugraph
 from cugraph.tests.dask.mg_context import (MGContext,
                                            skip_if_not_enough_devices)
 import cudf
-import cugraph.structure.utils_wrapper as utils_wrapper
+import cugraph.structure.replication as replication
 import cugraph.tests.utils as utils
 import pytest
 
@@ -34,7 +34,7 @@ def test_replicate_cudf_dataframe_with_weights(input_data_path,
                        names=['src', 'dst', 'value'],
                        dtype=['int32', 'int32', 'float32'])
     with MGContext(mg_device_count):
-        worker_to_futures = utils_wrapper.replicate_cudf_dataframe(df)
+        worker_to_futures = replication.replicate_cudf_dataframe(df)
         for worker in worker_to_futures:
             replicated_df = worker_to_futures[worker].result()
             assert df.equals(replicated_df), "There is a mismatch in one " \
@@ -51,7 +51,7 @@ def test_replicate_cudf_dataframe_no_weights(input_data_path,
                        names=['src', 'dst'],
                        dtype=['int32', 'int32'])
     with MGContext(mg_device_count):
-        worker_to_futures = utils_wrapper.replicate_cudf_dataframe(df)
+        worker_to_futures = replication.replicate_cudf_dataframe(df)
         for worker in worker_to_futures:
             replicated_df = worker_to_futures[worker].result()
             assert df.equals(replicated_df), "There is a mismatch in one " \
@@ -70,7 +70,7 @@ def test_replicate_cudf_series(input_data_path,
     with MGContext(mg_device_count):
         for column in df.columns.values:
             series = df[column]
-            worker_to_futures = utils_wrapper.replicate_cudf_series(series)
+            worker_to_futures = replication.replicate_cudf_series(series)
             for worker in worker_to_futures:
                 replicated_series = worker_to_futures[worker].result()
                 assert series.equals(replicated_series), "There is a " \
