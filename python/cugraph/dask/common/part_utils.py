@@ -112,6 +112,7 @@ def create_dict(futures):
 
 def set_global_index(df, cumsum):
     df.index = df.index + cumsum
+    df.index = df.index.astype('int64')
     return df
 
 
@@ -172,7 +173,7 @@ def load_balance_func(ddf_, by, client=None):
     gpu_fututres = [(first(who_has[key]),
                      part.key[1], part) for key, part in key_to_part]
     worker_to_data = create_dict(gpu_fututres)
-
+    #print(worker_to_data)
     # Calculate cumulative sum in each dataframe partition
     cumsum_parts = [client.submit(get_cumsum,
                     wf[1][0][0],
