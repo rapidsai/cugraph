@@ -22,7 +22,6 @@ from cugraph.structure.graph_new cimport *
 from libc.stdint cimport uintptr_t
 
 import cudf
-from cugraph.raft.dask.common.comms import worker_state
 import dask.distributed as dd
 from cugraph.dask.common.input_utils import get_mg_batch_data
 import dask_cudf
@@ -57,11 +56,7 @@ def _replicate_cudf_dataframe(input_data, session_id):
     cdef uintptr_t c_series = <uintptr_t> NULL
 
     result = None
-    # 1. Get session information
-    session_state = worker_state(session_id)
-
-    # 2. Get handle
-    handle = session_state['handle']
+    handle = Comms.get_handle(session_id)
     c_handle = <uintptr_t>handle.getHandle()
 
     _data, columns, dtypes, df_length = input_data
@@ -116,8 +111,7 @@ def _replicate_cudf_series(input_data, session_id):
 
     result = None
 
-    session_state = worker_state(session_id)
-    handle = session_state['handle']
+    handle = Comms.get_handle(session_id)
     c_handle = <uintptr_t>handle.getHandle()
 
     (_data, size, dtype) = input_data

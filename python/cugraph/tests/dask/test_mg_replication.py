@@ -15,7 +15,7 @@ import cugraph
 from cugraph.tests.dask.mg_context import (MGContext,
                                            skip_if_not_enough_devices)
 import cudf
-import cugraph.structure.replication as replication
+import cugraph.dask.structure.replication as replication
 import cugraph.tests.utils as utils
 import pytest
 
@@ -84,89 +84,89 @@ def test_replicate_cudf_series(input_data_path,
 @pytest.mark.parametrize("graph_file", DATASETS_OPTIONS)
 @pytest.mark.parametrize("directed", DIRECTED_GRAPH_OPTIONS)
 @pytest.mark.parametrize("mg_device_count", MG_DEVICE_COUNT_OPTIONS)
-def test_enable_mg_batch_no_context(graph_file, directed, mg_device_count):
+def test_enable_batch_no_context(graph_file, directed, mg_device_count):
     skip_if_not_enough_devices(mg_device_count)
     G = utils.generate_cugraph_graph_from_file(graph_file, directed)
-    assert G.mg_batch_enabled is False, "Internal property should be False"
+    assert G.batch_enabled is False, "Internal property should be False"
     with pytest.raises(Exception):
-        G.enable_mg_batch()
+        G.enable_batch()
 
 
 @pytest.mark.parametrize("graph_file", DATASETS_OPTIONS)
 @pytest.mark.parametrize("directed", DIRECTED_GRAPH_OPTIONS)
 @pytest.mark.parametrize("mg_device_count", MG_DEVICE_COUNT_OPTIONS)
-def test_enable_mg_batch_no_context_view_adj(graph_file, directed,
-                                             mg_device_count):
+def test_enable_batch_no_context_view_adj(graph_file, directed,
+                                          mg_device_count):
     skip_if_not_enough_devices(mg_device_count)
     G = utils.generate_cugraph_graph_from_file(graph_file, directed)
-    assert G.mg_batch_enabled is False, "Internal property should be False"
+    assert G.batch_enabled is False, "Internal property should be False"
     G.view_adj_list()
 
 
 @pytest.mark.parametrize("graph_file", DATASETS_OPTIONS)
 @pytest.mark.parametrize("directed", DIRECTED_GRAPH_OPTIONS)
 @pytest.mark.parametrize("mg_device_count", MG_DEVICE_COUNT_OPTIONS)
-def test_enable_mg_batch_context_then_views(graph_file, directed,
-                                            mg_device_count):
+def test_enable_batch_context_then_views(graph_file, directed,
+                                         mg_device_count):
     skip_if_not_enough_devices(mg_device_count)
     G = utils.generate_cugraph_graph_from_file(graph_file, directed)
     with MGContext(mg_device_count):
-        assert G.mg_batch_enabled is False, "Internal property should be False"
-        G.enable_mg_batch()
-        assert G.mg_batch_enabled is True, "Internal property should be True"
-        assert G.mg_batch_edgelists is not None, "The graph should have " \
-                                                 "been created with an "  \
-                                                 "edgelist"
-        assert G.mg_batch_adjlists is None
+        assert G.batch_enabled is False, "Internal property should be False"
+        G.enable_batch()
+        assert G.batch_enabled is True, "Internal property should be True"
+        assert G.batch_edgelists is not None, "The graph should have " \
+                                              "been created with an "  \
+                                              "edgelist"
+        assert G.batch_adjlists is None
         G.view_adj_list()
-        assert G.mg_batch_adjlists is not None
+        assert G.batch_adjlists is not None
 
-        assert G.mg_batch_transposed_adjlists is None
+        assert G.batch_transposed_adjlists is None
         G.view_transposed_adj_list()
-        assert G.mg_batch_transposed_adjlists is not None
+        assert G.batch_transposed_adjlists is not None
 
 
 @pytest.mark.parametrize("graph_file", DATASETS_OPTIONS)
 @pytest.mark.parametrize("directed", DIRECTED_GRAPH_OPTIONS)
 @pytest.mark.parametrize("mg_device_count", MG_DEVICE_COUNT_OPTIONS)
-def test_enable_mg_batch_view_then_context(graph_file, directed,
-                                           mg_device_count):
+def test_enable_batch_view_then_context(graph_file, directed,
+                                        mg_device_count):
     skip_if_not_enough_devices(mg_device_count)
     G = utils.generate_cugraph_graph_from_file(graph_file, directed)
 
-    assert G.mg_batch_adjlists is None
+    assert G.batch_adjlists is None
     G.view_adj_list()
-    assert G.mg_batch_adjlists is None
+    assert G.batch_adjlists is None
 
-    assert G.mg_batch_transposed_adjlists is None
+    assert G.batch_transposed_adjlists is None
     G.view_transposed_adj_list()
-    assert G.mg_batch_transposed_adjlists is None
+    assert G.batch_transposed_adjlists is None
 
     with MGContext(mg_device_count):
-        assert G.mg_batch_enabled is False, "Internal property should be False"
-        G.enable_mg_batch()
-        assert G.mg_batch_enabled is True, "Internal property should be True"
-        assert G.mg_batch_edgelists is not None, "The graph should have " \
-                                                 "been created with an "  \
-                                                 "edgelist"
-        assert G.mg_batch_adjlists is not None
-        assert G.mg_batch_transposed_adjlists is not None
+        assert G.batch_enabled is False, "Internal property should be False"
+        G.enable_batch()
+        assert G.batch_enabled is True, "Internal property should be True"
+        assert G.batch_edgelists is not None, "The graph should have " \
+                                              "been created with an "  \
+                                              "edgelist"
+        assert G.batch_adjlists is not None
+        assert G.batch_transposed_adjlists is not None
 
 
 @pytest.mark.parametrize("graph_file", DATASETS_OPTIONS)
 @pytest.mark.parametrize("directed", DIRECTED_GRAPH_OPTIONS)
 @pytest.mark.parametrize("mg_device_count", MG_DEVICE_COUNT_OPTIONS)
-def test_enable_mg_batch_context_no_context_views(graph_file, directed,
-                                                  mg_device_count):
+def test_enable_batch_context_no_context_views(graph_file, directed,
+                                               mg_device_count):
     skip_if_not_enough_devices(mg_device_count)
     G = utils.generate_cugraph_graph_from_file(graph_file, directed)
     with MGContext(mg_device_count):
-        assert G.mg_batch_enabled is False, "Internal property should be False"
-        G.enable_mg_batch()
-        assert G.mg_batch_enabled is True, "Internal property should be True"
-        assert G.mg_batch_edgelists is not None, "The graph should have " \
-                                                 "been created with an "  \
-                                                 "edgelist"
+        assert G.batch_enabled is False, "Internal property should be False"
+        G.enable_batch()
+        assert G.batch_enabled is True, "Internal property should be True"
+        assert G.batch_edgelists is not None, "The graph should have " \
+                                              "been created with an "  \
+                                              "edgelist"
     G.view_edge_list()
     G.view_adj_list()
     G.view_transposed_adj_list()
@@ -175,23 +175,23 @@ def test_enable_mg_batch_context_no_context_views(graph_file, directed,
 @pytest.mark.parametrize("graph_file", DATASETS_OPTIONS)
 @pytest.mark.parametrize("directed", DIRECTED_GRAPH_OPTIONS)
 @pytest.mark.parametrize("mg_device_count", MG_DEVICE_COUNT_OPTIONS)
-def test_enable_mg_batch_edgelist_replication(graph_file, directed,
-                                              mg_device_count):
+def test_enable_batch_edgelist_replication(graph_file, directed,
+                                           mg_device_count):
     skip_if_not_enough_devices(mg_device_count)
     G = utils.generate_cugraph_graph_from_file(graph_file, directed)
     with MGContext(mg_device_count):
-        G.enable_mg_batch()
+        G.enable_batch()
         df = G.edgelist.edgelist_df
-        for worker in G.mg_batch_edgelists:
-            replicated_df = G.mg_batch_edgelists[worker].result()
+        for worker in G.batch_edgelists:
+            replicated_df = G.batch_edgelists[worker].result()
             assert df.equals(replicated_df), "Replication of edgelist failed"
 
 
 @pytest.mark.parametrize("graph_file", DATASETS_OPTIONS)
 @pytest.mark.parametrize("directed", DIRECTED_GRAPH_OPTIONS)
 @pytest.mark.parametrize("mg_device_count", MG_DEVICE_COUNT_OPTIONS)
-def test_enable_mg_batch_adjlist_replication_weights(graph_file, directed,
-                                                     mg_device_count):
+def test_enable_batch_adjlist_replication_weights(graph_file, directed,
+                                                  mg_device_count):
     skip_if_not_enough_devices(mg_device_count)
     df = cudf.read_csv(graph_file,
                        delimiter=' ',
@@ -201,16 +201,16 @@ def test_enable_mg_batch_adjlist_replication_weights(graph_file, directed,
     G.from_cudf_edgelist(df, source='src', destination='dst',
                          edge_attr='value')
     with MGContext(mg_device_count):
-        G.enable_mg_batch()
+        G.enable_batch()
         G.view_adj_list()
         adjlist = G.adjlist
         offsets = adjlist.offsets
         indices = adjlist.indices
         weights = adjlist.weights
-        for worker in G.mg_batch_adjlists:
+        for worker in G.batch_adjlists:
             (rep_offsets,
              rep_indices,
-             rep_weights) = G.mg_batch_adjlists[worker]
+             rep_weights) = G.batch_adjlists[worker]
             assert offsets.equals(rep_offsets.result()), "Replication of " \
                 "adjlist offsets failed"
             assert indices.equals(rep_indices.result()), "Replication of " \
@@ -222,8 +222,8 @@ def test_enable_mg_batch_adjlist_replication_weights(graph_file, directed,
 @pytest.mark.parametrize("graph_file", DATASETS_OPTIONS)
 @pytest.mark.parametrize("directed", DIRECTED_GRAPH_OPTIONS)
 @pytest.mark.parametrize("mg_device_count", MG_DEVICE_COUNT_OPTIONS)
-def test_enable_mg_batch_adjlist_replication_no_weights(graph_file, directed,
-                                                        mg_device_count):
+def test_enable_batch_adjlist_replication_no_weights(graph_file, directed,
+                                                     mg_device_count):
     skip_if_not_enough_devices(mg_device_count)
     df = cudf.read_csv(graph_file,
                        delimiter=' ',
@@ -232,16 +232,16 @@ def test_enable_mg_batch_adjlist_replication_no_weights(graph_file, directed,
     G = cugraph.DiGraph() if directed else cugraph.Graph()
     G.from_cudf_edgelist(df, source='src', destination='dst')
     with MGContext(mg_device_count):
-        G.enable_mg_batch()
+        G.enable_batch()
         G.view_adj_list()
         adjlist = G.adjlist
         offsets = adjlist.offsets
         indices = adjlist.indices
         weights = adjlist.weights
-        for worker in G.mg_batch_adjlists:
+        for worker in G.batch_adjlists:
             (rep_offsets,
              rep_indices,
-             rep_weights) = G.mg_batch_adjlists[worker]
+             rep_weights) = G.batch_adjlists[worker]
             assert offsets.equals(rep_offsets.result()), "Replication of " \
                 "adjlist offsets failed"
             assert indices.equals(rep_indices.result()), "Replication of " \

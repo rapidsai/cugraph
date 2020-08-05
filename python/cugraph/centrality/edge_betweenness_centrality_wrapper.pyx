@@ -26,10 +26,8 @@ import cudf
 import numpy as np
 import numpy.ctypeslib as ctypeslib
 
-import cugraph.raft
 from cugraph.dask.common.mg_utils import get_client
 import cugraph.comms.comms as Comms
-from cugraph.raft.dask.common.comms import worker_state
 import dask.distributed
 
 
@@ -56,15 +54,11 @@ def get_batch(sources, number_of_workers, current_worker):
 def run_mg_work(input_data, normalized, weights, sources,
              result_dtype, session_id):
     result = None
-    # 1. Get session information
-    session_state = worker_state(session_id)
-    number_of_workers = session_state["nworkers"]
-    worker_idx = session_state["wid"]
 
-    # 2. Get handle
-    handle = session_state['handle']
+    number_of_workers = Comms.get_n_workers(session_id)
+    worker_idx = Comms.get_worker_id(session_id)
+    handle = Comms.get_handle(session_id)
 
-    # 3. Get Batch
     batch = get_batch(sources, number_of_workers, worker_idx)
     total_number_of_sources = len(sources)
 
@@ -173,12 +167,12 @@ cdef void run_c_edge_betweenness_centrality(uintptr_t c_handle,
     else:
         raise ValueError("result_dtype can only be np.float64 or np.float32")
 
-def mg_batch_edge_betweenness_centrality(input_graph,
+def batch_edge_betweenness_centrality(input_graph,
                                          normalized,
                                          weights, vertices, result_dtype):
     client = get_client()
     comms = Comms.get_comms()
-    replicated_adjlists = input_graph.mg_batch_adjlists
+    replicated_adjlists = input_graph.batch_adjlists
     work_futures =  [client.submit(run_mg_work,
                                    (data, type(input_graph)
                                    is DiGraph),
@@ -200,10 +194,10 @@ def sg_edge_betweenness_centrality(input_graph, normalized, weights,
         input_graph.view_adj_list()
 
     total_number_of_sources = len(vertices)
-    handle = cugraph.raft.common.handle.Handle()
+    handle = Comms.get_default_handle()
     adjlist = input_graph.adjlist
     input_data = ((adjlist.offsets, adjlist.indices, adjlist.weights),
-                  type(input_graph) is cugraph.DiGraph)
+                  type(input_graph) is DiGraph)
     df = run_internal_work(handle, input_data, normalized, weights,
                            vertices, total_number_of_sources, result_dtype)
     return df
@@ -219,13 +213,12 @@ def edge_betweenness_centrality(input_graph, normalized, weights,
 
 
     df = None
-    comms = Comms.get_comms()
 
     if not input_graph.adjlist:
         input_graph.view_adj_list()
 
-    if comms and input_graph.mg_batch_enabled == True:
-        df = mg_batch_edge_betweenness_centrality(input_graph, normalized,
+    if Comms.is_initialized() and input_graph.batch_enabled == True:
+        df = batch_edge_betweenness_centrality(input_graph, normalized,
                                                   weights, vertices,
                                                   result_dtype)
     else:

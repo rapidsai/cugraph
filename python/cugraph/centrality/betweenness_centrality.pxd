@@ -19,10 +19,6 @@
 from cugraph.structure.graph_new cimport *
 from libcpp cimport bool
 
-cdef extern from "raft/handle.hpp" namespace "raft":
-    cdef cppclass handle_t:
-        handle_t() except +
-
 cdef extern from "algorithms.hpp" namespace "cugraph":
 
     cdef void betweenness_centrality[VT, ET, WT, result_t](

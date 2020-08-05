@@ -15,6 +15,7 @@
  */
 #pragma once
 
+#include <raft/handle.hpp>
 #include <rmm/device_buffer.hpp>
 
 #include <graph.hpp>

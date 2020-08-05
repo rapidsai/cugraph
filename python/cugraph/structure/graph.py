@@ -21,7 +21,7 @@ import dask_cudf
 import warnings
 import cugraph.comms.comms as Comms
 
-from cugraph.structure import replication
+from cugraph.dask.structure import replication
 
 
 def null_check(col):
@@ -105,10 +105,10 @@ class Graph:
         self.node_count = None
 
         # MG - Batch
-        self.mg_batch_enabled = False
-        self.mg_batch_edgelists = None
-        self.mg_batch_adjlists = None
-        self.mg_batch_transposed_adjlists = None
+        self.batch_enabled = False
+        self.batch_edgelists = None
+        self.batch_adjlists = None
+        self.batch_transposed_adjlists = None
 
         if m_graph is not None:
             if (type(self) is Graph and type(m_graph) is MultiGraph) or (
@@ -128,7 +128,7 @@ class Graph:
                 raise Exception(msg)
         # self.number_of_vertices = None
 
-    def enable_mg_batch(self):
+    def enable_batch(self):
         client = mg_utils.get_client()
         comms = Comms.get_comms()
 
@@ -137,18 +137,18 @@ class Graph:
                 "Communicator needs to be initialized."
             raise Exception(msg)
 
-        self.mg_batch_enabled = True
+        self.batch_enabled = True
 
         if self.edgelist is not None:
-            if self.mg_batch_edgelists is None:
+            if self.batch_edgelists is None:
                 self._replicate_edgelist()
 
         if self.adjlist is not None:
-            if self.mg_batch_adjlists is None:
+            if self.batch_adjlists is None:
                 self._replicate_adjlist()
 
         if self.transposedadjlist is not None:
-            if self.mg_batch_transposed_adjlists is None:
+            if self.batch_transposed_adjlists is None:
                 self._replicate_transposed_adjlist()
 
     def _replicate_edgelist(self):
@@ -163,7 +163,7 @@ class Graph:
             client=client,
             comms=comms)
 
-        self.mg_batch_edgelists = work_futures
+        self.batch_edgelists = work_futures
 
     def _replicate_adjlist(self):
         client = mg_utils.get_client()
@@ -191,11 +191,11 @@ class Graph:
         merged_futures = {worker: [offsets_futures[worker],
                                    indices_futures[worker], weights[worker]]
                           for worker in offsets_futures}
-        self.mg_batch_adjlists = merged_futures
+        self.batch_adjlists = merged_futures
 
     # FIXME: Not implemented yet
     def _replicate_transposed_adjlist(self):
-        self.mg_batch_transposed_adjlists = True
+        self.batch_transposed_adjlists = True
 
     def clear(self):
         """
@@ -205,9 +205,9 @@ class Graph:
         self.adjlist = None
         self.transposedadjlist = None
 
-        self.mg_batch_edgelists = None
-        self.mg_batch_adjlists = None
-        self.mg_batch_transposed_adjlists = None
+        self.batch_edgelists = None
+        self.batch_adjlists = None
+        self.batch_transposed_adjlists = None
 
     def add_nodes_from(self, nodes, bipartite=None, multipartite=None):
         """
@@ -400,7 +400,7 @@ class Graph:
             source_col, dest_col, value_col
         )
 
-        if self.mg_batch_enabled:
+        if self.batch_enabled:
             self._replicate_edgelist()
 
         self.renumber_map = renumber_map
@@ -616,7 +616,7 @@ class Graph:
             raise Exception("Graph already has values")
         self.adjlist = Graph.AdjList(offset_col, index_col, value_col)
 
-        if self.mg_batch_enabled:
+        if self.batch_enabled:
             self._replicate_adjlist()
 
     def add_adj_list(self, offset_col, index_col, value_col=None):
@@ -663,7 +663,7 @@ class Graph:
                 off, ind, vals = graph_new_wrapper.view_adj_list(self)
             self.adjlist = self.AdjList(off, ind, vals)
 
-            if self.mg_batch_enabled:
+            if self.batch_enabled:
                 self._replicate_adjlist()
 
         return self.adjlist.offsets, self.adjlist.indices, self.adjlist.weights
@@ -708,7 +708,7 @@ class Graph:
                 )
             self.transposedadjlist = self.transposedAdjList(off, ind, vals)
 
-            if self.mg_batch_enabled:
+            if self.batch_enabled:
                 self._replicate_transposed_adjlist()
 
         return (
