@@ -80,6 +80,18 @@ void edge_betweenness_centrality_impl(raft::handle_t const &handle,
   // of sources
   // bc.rescale_by_total_sources_used(total_number_of_sources);
 }
+template <typename VT>
+VT get_total_number_of_sources(raft::handle_t const &handle, VT local_number_of_sources)
+{
+  VT total_number_of_sources_used = local_number_of_sources;
+  if (handle.comms_initialized()) {
+    rmm::device_vector<VT> d_number_of_sources(1, local_number_of_sources);
+    VT *data = d_number_of_sources.data().get();
+    handle.get_comms().allreduce(data, data, d_number_of_sources.size(), raft::comms::op_t::SUM, 0);
+    CUDA_TRY(cudaMemcpy(&total_number_of_sources_used, data, sizeof(VT), cudaMemcpyDeviceToHost));
+  }
+  return total_number_of_sources_used;
+}
 }  // namespace
 
 template <typename VT, typename ET, typename WT, typename result_t>
@@ -437,9 +449,9 @@ void betweenness_centrality(raft::handle_t const &handle,
                             bool endpoints,
                             WT const *weight,
                             VT k,
-                            VT const *vertices,
-                            VT total_number_of_sources_used)
+                            VT const *vertices)
 {
+  VT total_number_of_sources_used = detail::get_total_number_of_sources<VT>(handle, k);
   if (handle.comms_initialized()) {
     rmm::device_vector<result_t> betweenness(graph.number_of_vertices, 0);
     detail::betweenness_centrality_impl(handle,
@@ -473,8 +485,7 @@ template void betweenness_centrality<int, int, float, float>(const raft::handle_
                                                              bool,
                                                              float const *,
                                                              int,
-                                                             int const *,
-                                                             int);
+                                                             int const *);
 template void betweenness_centrality<int, int, double, double>(
   const raft::handle_t &,
   GraphCSRView<int, int, double> const &,
@@ -483,8 +494,7 @@ template void betweenness_centrality<int, int, double, double>(
   bool,
   double const *,
   int,
-  int const *,
-  int);
+  int const *);
 
 template <typename VT, typename ET, typename WT, typename result_t>
 void edge_betweenness_centrality(raft::handle_t const &handle,
@@ -493,9 +503,9 @@ void edge_betweenness_centrality(raft::handle_t const &handle,
                                  bool normalize,
                                  WT const *weight,
                                  VT k,
-                                 VT const *vertices,
-                                 VT total_number_of_sources_used)
+                                 VT const *vertices)
 {
+  VT total_number_of_sources_used = detail::get_total_number_of_sources<VT>(handle, k);
   if (handle.comms_initialized()) {
     rmm::device_vector<result_t> betweenness(graph.number_of_edges, 0);
     detail::edge_betweenness_centrality_impl(handle,
@@ -521,8 +531,7 @@ template void edge_betweenness_centrality<int, int, float, float>(
   bool,
   float const *,
   int,
-  int const *,
-  int);
+  int const *);
 
 template void edge_betweenness_centrality<int, int, double, double>(
   raft::handle_t const &handle,
@@ -531,6 +540,5 @@ template void edge_betweenness_centrality<int, int, double, double>(
   bool,
   double const *,
   int,
-  int const *,
-  int);
+  int const *);
 }  // namespace cugraph

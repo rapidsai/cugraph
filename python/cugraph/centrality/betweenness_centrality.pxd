@@ -29,8 +29,7 @@ cdef extern from "algorithms.hpp" namespace "cugraph":
         bool endpoints,
         const WT *weight,
         VT k,
-        const VT *vertices,
-        VT total_number_of_sources_used) except +
+        const VT *vertices) except +
 
     cdef void edge_betweenness_centrality[VT, ET, WT, result_t](
         const handle_t &handle,
@@ -39,5 +38,4 @@ cdef extern from "algorithms.hpp" namespace "cugraph":
         bool normalized,
         const WT *weight,
         VT k,
-        const VT *vertices,
-        VT total_number_of_sources_used) except +
+        const VT *vertices) except +

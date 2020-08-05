@@ -60,16 +60,14 @@ def run_mg_work(input_data, normalized, weights, sources,
     handle = Comms.get_handle(session_id)
 
     batch = get_batch(sources, number_of_workers, worker_idx)
-    total_number_of_sources = len(sources)
 
     result = run_internal_work(handle, input_data, normalized, weights,
-                               batch, total_number_of_sources,
-                               result_dtype)
+                               batch, result_dtype)
     return result
 
 
 def run_internal_work(handle, input_data, normalized, weights, batch,
-                       total_number_of_sources, result_dtype):
+                      result_dtype):
     cdef uintptr_t c_handle = <uintptr_t> NULL
     cdef uintptr_t c_graph = <uintptr_t> NULL
     cdef uintptr_t c_src_identifier = <uintptr_t> NULL
@@ -132,7 +130,6 @@ def run_internal_work(handle, input_data, normalized, weights, batch,
                                       c_weights,
                                       number_of_sources_in_batch,
                                       c_batch,
-                                      total_number_of_sources,
                                       result_dtype)
     return result_df
 
@@ -144,7 +141,6 @@ cdef void run_c_edge_betweenness_centrality(uintptr_t c_handle,
                                             uintptr_t c_weights,
                                             int number_of_sources_in_batch,
                                             uintptr_t c_batch,
-                                            int total_number_of_sources,
                                             result_dtype):
     if result_dtype == np.float64:
         c_edge_betweenness_centrality[int, int, double, double]((<handle_t *> c_handle)[0],
@@ -153,8 +149,7 @@ cdef void run_c_edge_betweenness_centrality(uintptr_t c_handle,
                                                                 normalized,
                                                                 <double *> c_weights,
                                                                 number_of_sources_in_batch,
-                                                                <int *> c_batch,
-                                                                total_number_of_sources)
+                                                                <int *> c_batch)
     elif result_dtype == np.float32:
         c_edge_betweenness_centrality[int, int, float, float]((<handle_t *> c_handle)[0],
                                                               (<GraphCSRView[int, int, float] *> c_graph)[0],
@@ -162,8 +157,7 @@ cdef void run_c_edge_betweenness_centrality(uintptr_t c_handle,
                                                               normalized,
                                                               <float *> c_weights,
                                                               number_of_sources_in_batch,
-                                                              <int *> c_batch,
-                                                              total_number_of_sources)
+                                                              <int *> c_batch)
     else:
         raise ValueError("result_dtype can only be np.float64 or np.float32")
 
@@ -193,13 +187,12 @@ def sg_edge_betweenness_centrality(input_graph, normalized, weights,
     if not input_graph.adjlist:
         input_graph.view_adj_list()
 
-    total_number_of_sources = len(vertices)
     handle = Comms.get_default_handle()
     adjlist = input_graph.adjlist
     input_data = ((adjlist.offsets, adjlist.indices, adjlist.weights),
                   type(input_graph) is DiGraph)
     df = run_internal_work(handle, input_data, normalized, weights,
-                           vertices, total_number_of_sources, result_dtype)
+                           vertices, result_dtype)
     return df
 
 

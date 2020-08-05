@@ -332,8 +332,6 @@ class Tests_BC : public ::testing::TestWithParam<BC_Usecase> {
     sources_ptr = nullptr;
     if (configuration.number_of_sources_ > 0) { sources_ptr = sources.data(); }
 
-    VT total_number_of_sources = configuration.number_of_sources_;
-    if (total_number_of_sources == 0) { total_number_of_sources = G.number_of_vertices; }
     thrust::device_vector<result_t> d_result(G.number_of_vertices);
     cugraph::betweenness_centrality(handle,
                                     G,
@@ -342,8 +340,7 @@ class Tests_BC : public ::testing::TestWithParam<BC_Usecase> {
                                     endpoints,
                                     static_cast<WT *>(nullptr),
                                     configuration.number_of_sources_,
-                                    sources_ptr,
-                                    total_number_of_sources);
+                                    sources_ptr);
     cudaDeviceSynchronize();
     CUDA_TRY(cudaMemcpy(result.data(),
                         d_result.data().get(),

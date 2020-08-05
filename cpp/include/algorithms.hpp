@@ -306,12 +306,11 @@ template <typename VT, typename ET, typename WT, typename result_t>
 void betweenness_centrality(const raft::handle_t &handle,
                             GraphCSRView<VT, ET, WT> const &graph,
                             result_t *result,
-                            bool normalized                = true,
-                            bool endpoints                 = false,
-                            WT const *weight               = nullptr,
-                            VT k                           = 0,
-                            VT const *vertices             = nullptr,
-                            VT total_number_of_source_used = 0);
+                            bool normalized    = true,
+                            bool endpoints     = false,
+                            WT const *weight   = nullptr,
+                            VT k               = 0,
+                            VT const *vertices = nullptr);
 
 /**
  * @brief     Compute edge betweenness centrality for a graph
@@ -351,11 +350,10 @@ template <typename VT, typename ET, typename WT, typename result_t>
 void edge_betweenness_centrality(const raft::handle_t &handle,
                                  GraphCSRView<VT, ET, WT> const &graph,
                                  result_t *result,
-                                 bool normalized                = true,
-                                 WT const *weight               = nullptr,
-                                 VT k                           = 0,
-                                 VT const *vertices             = nullptr,
-                                 VT total_number_of_source_used = 0);
+                                 bool normalized    = true,
+                                 WT const *weight   = nullptr,
+                                 VT k               = 0,
+                                 VT const *vertices = nullptr);
 
 enum class cugraph_cc_t {
   CUGRAPH_WEAK = 0,  ///> Weakly Connected Components
