@@ -622,7 +622,7 @@ void louvain(GraphCSRView<vertex_t, edge_t, weight_t> const &graph,
              weight_t *final_modularity,
              int *num_level,
              vertex_t *louvain_parts,
-             int max_iter = 100,
+             int max_iter        = 100,
              weight_t resolution = weight_t{1});
 
 /**
