@@ -82,7 +82,11 @@ def spectralBalancedCutClustering(
     )
 
     if G.renumbered:
-        df = G.unrenumber(df, "vertex")
+        # FIXME:  This is a hack to get around an 
+        # API problem.  The spectral API assumes that
+        # the data frame remains in internal vertex
+        # id order.  It should not do that.
+        df = G.unrenumber(df, "vertex", preserve_order=True)
 
     return df
 
