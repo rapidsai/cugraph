@@ -605,11 +605,11 @@ void bfs(raft::handle_t const &handle,
  *
  * @throws     cugraph::logic_error when an error occurs.
  *
- * @tparam VT                        Type of vertex identifiers.
+ * @tparam vertex_t                  Type of vertex identifiers.
  *                                   Supported value : int (signed, 32-bit)
- * @tparam ET                        Type of edge identifiers.
+ * @tparam edge_t                    Type of edge identifiers.
  *                                   Supported value : int (signed, 32-bit)
- * @tparam WT                        Type of edge weights. Supported values : float or double.
+ * @tparam weight_t                  Type of edge weights. Supported values : float or double.
  *
  * @param[in]  graph                 input graph object (CSR)
  * @param[out] final_modularity      modularity of the returned clustering
@@ -617,12 +617,13 @@ void bfs(raft::handle_t const &handle,
  * @param[out] clustering            Pointer to device array where the clustering should be stored
  * @param[in]  max_iter              (optional) maximum number of iterations to run (default 100)
  */
-template <typename VT, typename ET, typename WT>
-void louvain(GraphCSRView<VT, ET, WT> const &graph,
-             WT *final_modularity,
+template <typename vertex_t, typename edge_t, typename weight_t>
+void louvain(GraphCSRView<vertex_t, edge_t, weight_t> const &graph,
+             weight_t *final_modularity,
              int *num_level,
-             VT *louvain_parts,
-             int max_iter = 100);
+             vertex_t *louvain_parts,
+             int max_iter        = 100,
+             weight_t resolution = weight_t{1});
 
 /**
  * @brief Computes the ecg clustering of the given graph.
