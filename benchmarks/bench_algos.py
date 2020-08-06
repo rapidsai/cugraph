@@ -175,9 +175,6 @@ def bench_create_digraph(gpubenchmark, edgelistCreated):
 
 @pytest.mark.ETL
 def bench_renumber(gpubenchmark, edgelistCreated):
-    #gpubenchmark(cugraph.renumber,
-    #             edgelistCreated["0"],  # src
-    #             edgelistCreated["1"])  # dst
     gpubenchmark(NumberMap.renumber, edgelistCreated, "0", "1")
 
 
