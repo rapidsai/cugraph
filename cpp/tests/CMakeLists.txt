@@ -262,7 +262,7 @@ endif(BUILD_MPI)
 #-MG tests ---------------------------------------------------------------------
 set(LB_TEST_SRC
     "${CMAKE_SOURCE_DIR}/../thirdparty/mmio/mmio.c"
-    "${CMAKE_CURRENT_SOURCE_DIR}/traversal/load_balance.cu")
+    "${CMAKE_CURRENT_SOURCE_DIR}/traversal/load_balance_test.cu")
 
 ConfigureTest(LB_TEST "${LB_TEST_SRC}" "")
 

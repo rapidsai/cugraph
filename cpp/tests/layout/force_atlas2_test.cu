@@ -12,20 +12,18 @@
 // Force_Atlas2 tests
 // Author: Hugo Linsenmaier hlinsenmaier@nvidia.com
 
-#include <layout/trust_worthiness.h>
 #include <utilities/high_res_clock.h>
+#include <utilities/base_fixture.hpp>
 #include <utilities/test_utilities.hpp>
 
+#include <layout/trust_worthiness.h>
 #include <algorithms.hpp>
 #include <graph.hpp>
 
 #include <rmm/thrust_rmm_allocator.h>
 #include <raft/error.hpp>
-#include <rmm/mr/device/cuda_memory_resource.hpp>
 
 #include <cuda_profiler_api.h>
-
-#include <gtest/gtest.h>
 
 #include <fstream>
 #include <iostream>
@@ -239,11 +237,4 @@ INSTANTIATE_TEST_CASE_P(simple_test,
                                           Force_Atlas2_Usecase("test/datasets/netscience.mtx",
                                                                0.80)));
 
-int main(int argc, char** argv)
-{
-  testing::InitGoogleTest(&argc, argv);
-  auto resource = std::make_unique<rmm::mr::cuda_memory_resource>();
-  rmm::mr::set_default_resource(resource.get());
-  int rc = RUN_ALL_TESTS();
-  return rc;
-}
+CUGRAPH_TEST_PROGRAM_MAIN()
