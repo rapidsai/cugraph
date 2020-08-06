@@ -17,6 +17,7 @@ except ImportError:
         pass
 
 import cugraph
+from cugraph.structure.number_map import NumberMap
 from cugraph.tests import utils
 import rmm
 
@@ -174,9 +175,10 @@ def bench_create_digraph(gpubenchmark, edgelistCreated):
 
 @pytest.mark.ETL
 def bench_renumber(gpubenchmark, edgelistCreated):
-    gpubenchmark(cugraph.renumber,
-                 edgelistCreated["0"],  # src
-                 edgelistCreated["1"])  # dst
+    #gpubenchmark(cugraph.renumber,
+    #             edgelistCreated["0"],  # src
+    #             edgelistCreated["1"])  # dst
+    gpubenchmark(NumberMap.renumber, edgelistCreated, "0", "1")
 
 
 def bench_pagerank(gpubenchmark, anyGraphWithTransposedAdjListComputed):

@@ -128,7 +128,10 @@ def force_atlas2(
         verbose=verbose,
         callback=callback,
     )
-
+    # If the caller passed in a pos_list, then those values are already mapped
+    # to original numbering in the call to force_atlas2_wrapper.force_atlas2(),
+    # but if the caller did not specify a pos_list and the graph was renumbered,
+    # the pos dataframe should be mapped back to the original numbering.
     if pos_list is None and input_graph.renumbered:
         pos = input_graph.unrenumber(pos, "vertex")
 
