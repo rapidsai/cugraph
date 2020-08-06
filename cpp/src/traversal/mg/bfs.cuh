@@ -131,18 +131,18 @@ void bfs(raft::handle_t const &handle,
 
     ++level;
 
-    //if (my_rank == 0)
-    //{
-    //  rmm::device_vector<vertex_t> dummy = input_frontier;
-    //  dummy.resize(input_frontier_len);
-    //  thrust::sort(rmm::exec_policy(stream)->on(stream),
-    //      dummy.begin(), dummy.end());
-    //  vertex_t count = thrust::unique(dummy.begin(), dummy.end()) - dummy.begin();
-    //  dummy.resize(count);
-    //  printf("\nmg level : %d nf : %d\n", (int)level, (int)count);
-    //  cugraph::mg::detail::print(dummy, count,
-    //      "mg "+std::to_string(level) + ". input_frontier : ");
-    //}
+    if (my_rank == 0)
+    {
+      rmm::device_vector<vertex_t> dummy = input_frontier;
+      dummy.resize(input_frontier_len);
+      thrust::sort(rmm::exec_policy(stream)->on(stream),
+          dummy.begin(), dummy.end());
+      vertex_t count = thrust::unique(dummy.begin(), dummy.end()) - dummy.begin();
+      dummy.resize(count);
+      printf("\nmg level : %d nf : %d\n", (int)level, (int)count);
+      cugraph::mg::detail::print(dummy, count,
+          "mg "+std::to_string(level) + ". input_frontier : ");
+    }
 
     timer.start("preprocess_input_frontier");
     //Remove duplicates,isolated and out of partition vertices
@@ -326,8 +326,6 @@ void new_bfs(raft::handle_t const &handle,
   do {
     main_loop_timer.start("main_loop");
 
-    ++level;
-
     //if (my_rank == 0)
     //printf("mg level : %d nf : %d\n", (int)level, input_frontier_len);
 
@@ -336,27 +334,33 @@ void new_bfs(raft::handle_t const &handle,
     //in other ranks are accounted for in this one
     detail::add_to_bitmap(handle, visited_bmap, input_frontier, input_frontier_len);
 
-    //if (my_rank == 0 && level == 166) {
-    //if (my_rank == 0) {
-    //  cugraph::mg::detail::print(input_frontier, input_frontier_len,
-    //      "mg "+std::to_string(level) + ". input_frontier : ");
-    //}
+    ++level;
 
-    //if (my_rank == 0 && level == 167) {
-    //  cugraph::mg::detail::print(input_frontier, input_frontier_len,
-    //      "mg "+std::to_string(level) + "input_frontier : ");
-    //}
+    if (my_rank == 0)
+    {
+      rmm::device_vector<vertex_t> dummy = input_frontier;
+      dummy.resize(input_frontier_len);
+      thrust::sort(rmm::exec_policy(stream)->on(stream),
+          dummy.begin(), dummy.end());
+      vertex_t count = thrust::unique(dummy.begin(), dummy.end()) - dummy.begin();
+      dummy.resize(count);
+      printf("\nmg level : %d nf : %d\n", (int)level, (int)count);
+      cugraph::mg::detail::print(dummy, count,
+          "mg "+std::to_string(level) + ". input_frontier : ");
+    }
 
-    //Remove duplicates and out of partition vertices from input_frontier
-    //and store it to output_frontier
+    //Remove duplicates,isolated and out of partition vertices
+    //from input_frontier and store it to output_frontier
     input_frontier_len =
       detail::preprocess_input_frontier(
           handle,
           graph,
           unique_bmap,
+          isolated_bmap,
           input_frontier,
           input_frontier_len,
           output_frontier);
+
     //Swap input and output frontier
     input_frontier.swap(output_frontier);
 
@@ -366,7 +370,6 @@ void new_bfs(raft::handle_t const &handle,
       // BFS Functor for frontier calculation
       detail::BfsPredDist<vertex_t> bfs_op(
         visited_bmap.data().get(),
-        isolated_bmap.data().get(),
         predecessors, distances, level);
       output_frontier_len =
         fexp.run(bfs_op, input_frontier, input_frontier_len, output_frontier);
@@ -375,7 +378,6 @@ void new_bfs(raft::handle_t const &handle,
       // BFS Functor for frontier calculation
       detail::BfsPred<vertex_t> bfs_op(
         visited_bmap.data().get(),
-        isolated_bmap.data().get(),
         predecessors);
       output_frontier_len =
         fexp.run(bfs_op, input_frontier, input_frontier_len, output_frontier);
@@ -398,6 +400,19 @@ void new_bfs(raft::handle_t const &handle,
           output_frontier,
           output_frontier_len,
           input_frontier);
+
+    if (my_rank == 0)
+    {
+      rmm::device_vector<vertex_t> dummy = input_frontier;
+      dummy.resize(input_frontier_len);
+      thrust::sort(rmm::exec_policy(stream)->on(stream),
+          dummy.begin(), dummy.end());
+      vertex_t count = thrust::unique(dummy.begin(), dummy.end()) - dummy.begin();
+      dummy.resize(count);
+      printf("\nmg level : %d nf : %d\n", (int)level, (int)count);
+      cugraph::mg::detail::print(dummy, count,
+          "mg "+std::to_string(level) + ". output_frontier : ");
+    }
 
 
     main_loop_timer.stop();

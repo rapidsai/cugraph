@@ -274,13 +274,13 @@ void BFS<IndexType>::traverse(IndexType source_vertex)
 
   while (nf > 0) {
     main_loop_timer.start("sg main_loop");
-    std::cout<<"\nsg level : "<<lvl<<" nf : "<<nf<<"\n";
     //if (lvl < 842)
     //std::cout<<"sg level : "<<lvl<<" nf : "<<nf<<"\n";
     // Each vertices can appear only once in the frontierer array - we know it will fit
     //if (lvl == 166) {
-    if (false)
+    if (true)
     {
+      std::cout<<"\nsg level : "<<lvl<<" nf : "<<nf<<"\n";
       rmm::device_vector<IndexType> dummy(nf);
       thrust::device_ptr<IndexType> frnt(frontier);
       thrust::copy(frnt, frnt + nf, dummy.begin());
@@ -397,6 +397,20 @@ void BFS<IndexType>::traverse(IndexType source_vertex)
         cudaMemcpyAsync(&nf, d_new_frontier_cnt, sizeof(IndexType), cudaMemcpyDeviceToHost, stream);
         CHECK_CUDA(stream);
 
+    if (true)
+    {
+      std::cout<<"\nsg level : "<<lvl<<" nf : "<<nf<<"\n";
+      rmm::device_vector<IndexType> dummy(nf);
+      thrust::device_ptr<IndexType> frnt(new_frontier);
+      thrust::copy(frnt, frnt + nf, dummy.begin());
+      thrust::sort(rmm::exec_policy(stream)->on(stream),
+          dummy.begin(), dummy.end());
+      IndexType count = thrust::unique(rmm::exec_policy(stream)->on(stream),
+          dummy.begin(), dummy.end()) - dummy.begin();
+      dummy.resize(count);
+      cugraph::mg::detail::print(dummy, count,
+          "sg "+std::to_string(lvl) + ". output_frontier : ");
+    }
         // We need nf
         cudaStreamSynchronize(stream);
 

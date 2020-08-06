@@ -243,19 +243,16 @@ public:
 template <typename vertex_t>
 struct BfsPredDist {
   unsigned* visited_bmap_;
-  unsigned* isolated_bmap_;
 
   vertex_t* predecessors_;
   vertex_t* distances_;
   vertex_t level_;
 
   BfsPredDist(unsigned * visited_bmap,
-      unsigned * isolated_bmap,
       vertex_t * predecessors,
       vertex_t * distances,
       vertex_t level) :
     visited_bmap_(visited_bmap),
-    isolated_bmap_(isolated_bmap),
     predecessors_(predecessors),
     distances_(distances),
     level_(level)
@@ -272,10 +269,8 @@ struct BfsPredDist {
     if (!(active_bit & prev_word)) {
       distances_[dst] = level_;
       predecessors_[dst] = src;
-      bool is_dst_isolated =
-        active_bit & isolated_bmap_[dst / BitsPWrd<unsigned>];
       //Indicate that dst should be pushed in queue.
-      return !is_dst_isolated;
+      return true;
     } else {
       return false;
     }
@@ -285,15 +280,12 @@ struct BfsPredDist {
 template <typename vertex_t>
 struct BfsPred {
   unsigned* visited_bmap_;
-  unsigned* isolated_bmap_;
 
   vertex_t* predecessors_;
 
   BfsPred(unsigned * visited_bmap,
-      unsigned * isolated_bmap,
       vertex_t * predecessors) :
     visited_bmap_(visited_bmap),
-    isolated_bmap_(isolated_bmap),
     predecessors_(predecessors)
   {
   }
@@ -307,10 +299,7 @@ struct BfsPred {
       atomicOr(visited_bmap_ + (dst / BitsPWrd<unsigned>), active_bit);
     if (!(active_bit & prev_word)) {
       predecessors_[dst] = src;
-      bool is_dst_isolated =
-        active_bit & isolated_bmap_[dst / BitsPWrd<unsigned>];
-      //Indicate that dst should be pushed in queue.
-      return !is_dst_isolated;
+      return true;
     } else {
       return false;
     }

@@ -61,7 +61,6 @@ void frontier_expand_kernel(
 
   vertex_t source[EdgesPerThread];
   vertex_t destination[EdgesPerThread];
-  //vertex_t local_output_frontier[EdgesPerThread];
 
   edge_t end_edge_index =
     min(total_frontier_edge_count,
