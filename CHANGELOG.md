@@ -52,6 +52,7 @@
 - PR #1030 MG directory org and documentation
 - PR #1020 Updated Louvain to honor max_level, ECG now calls Louvain for 1 level, then full run.
 - PR #1031 MG notebook
+- PR #1037 Centralize test main function and replace usage of deprecated `cnmem_memory_resource`
 
 ## Bug Fixes
 - PR #936 Update Force Atlas 2 doc and wrapper
