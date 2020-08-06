@@ -500,6 +500,35 @@ preprocess_input_frontier(raft::handle_t const &handle,
   return static_cast<vertex_t>(unique_count[0]);
 }
 
+template <typename vertex_t>
+__global__
+void fill_kernel(
+         vertex_t *distances,
+         vertex_t count,
+         vertex_t start_vertex) {
+  vertex_t tid = blockIdx.x*blockDim.x + threadIdx.x;
+  if (tid >= count) {
+    return;
+  }
+  if (tid == start_vertex) {
+    distances[tid] = vertex_t{0};
+  } else {
+    distances[tid] = cugraph::detail::traversal::vec_t<vertex_t>::max;
+  }
+}
+
+template <typename vertex_t, typename edge_t, typename weight_t>
+void fill_max_dist(raft::handle_t const &handle,
+         cugraph::GraphCSRView<vertex_t, edge_t, weight_t> const &graph,
+         vertex_t start_vertex,
+         vertex_t *distances) {
+  vertex_t array_size = graph.number_of_vertices;
+  vertex_t threads = 256;
+  vertex_t blocks = raft::div_rounding_up_safe(array_size, threads);
+  fill_kernel<<<blocks, threads, 0, handle.get_stream()>>>(
+      distances, array_size, start_vertex);
+}
+
 }  // namespace detail
 
 }  // namespace mg

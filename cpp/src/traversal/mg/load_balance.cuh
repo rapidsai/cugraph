@@ -20,7 +20,6 @@
 #include <graph.hpp>
 #include "vertex_binning.cuh"
 #include "worker_kernels.cuh"
-#include <utilities/high_res_timer.hpp>
 
 namespace cugraph {
 
@@ -37,9 +36,6 @@ class LoadBalanceExecution {
   ET vertex_begin_;
   ET vertex_end_;
   rmm::device_vector<ET> output_vertex_count_;
-
-  HighResTimer timer;
-  HighResTimer run_timer;
 
  public:
   LoadBalanceExecution(raft::handle_t const &handle, cugraph::GraphCSRView<VT, ET, WT> const &graph)
@@ -60,63 +56,6 @@ class LoadBalanceExecution {
     output_vertex_count_.resize(1);
   }
 
-  ~LoadBalanceExecution (void) {
-    //timer.display(std::cout);
-    //run_timer.display(std::cout);
-  }
-
-  template <typename Operator>
-  void run(Operator op, unsigned *active_bitmap = nullptr)
-  {
-    cudaStream_t stream = handle_.get_stream();
-    dist_.setup(graph_.offsets, active_bitmap, vertex_begin_, vertex_end_);
-    auto distribution = dist_.run(reorganized_vertices_, stream);
-
-    DegreeBucket<VT, ET> large_bucket = distribution.degreeRange(16);
-    // TODO : Use other streams from handle_
-    large_vertex_worker(graph_, large_bucket, op, stream);
-
-    DegreeBucket<VT, ET> medium_bucket = distribution.degreeRange(12, 16);
-    medium_vertex_worker(graph_, medium_bucket, op, stream);
-
-    DegreeBucket<VT, ET> small_bucket_0 = distribution.degreeRange(10, 12);
-    DegreeBucket<VT, ET> small_bucket_1 = distribution.degreeRange(8, 10);
-    DegreeBucket<VT, ET> small_bucket_2 = distribution.degreeRange(6, 8);
-    DegreeBucket<VT, ET> small_bucket_3 = distribution.degreeRange(0, 6);
-
-    small_vertex_worker(graph_, small_bucket_0, op, stream);
-    small_vertex_worker(graph_, small_bucket_1, op, stream);
-    small_vertex_worker(graph_, small_bucket_2, op, stream);
-    small_vertex_worker(graph_, small_bucket_3, op, stream);
-  }
-
-  template <typename Operator>
-  void run(Operator op,
-      rmm::device_vector<VT> &input_frontier)
-  {
-    cudaStream_t stream = handle_.get_stream();
-    dist_.setup(graph_.offsets, nullptr, vertex_begin_, vertex_end_);
-    auto distribution = dist_.run(
-        input_frontier, reorganized_vertices_, stream);
-
-    DegreeBucket<VT, ET> large_bucket = distribution.degreeRange(16);
-    // TODO : Use other streams from handle_
-    large_vertex_worker(graph_, large_bucket, op, stream);
-
-    DegreeBucket<VT, ET> medium_bucket = distribution.degreeRange(12, 16);
-    medium_vertex_worker(graph_, medium_bucket, op, stream);
-
-    DegreeBucket<VT, ET> small_bucket_0 = distribution.degreeRange(10, 12);
-    DegreeBucket<VT, ET> small_bucket_1 = distribution.degreeRange(8, 10);
-    DegreeBucket<VT, ET> small_bucket_2 = distribution.degreeRange(6, 8);
-    DegreeBucket<VT, ET> small_bucket_3 = distribution.degreeRange(0, 6);
-
-    small_vertex_worker(graph_, small_bucket_0, op, stream);
-    small_vertex_worker(graph_, small_bucket_1, op, stream);
-    small_vertex_worker(graph_, small_bucket_2, op, stream);
-    small_vertex_worker(graph_, small_bucket_3, op, stream);
-  }
-
   //Return the size of the output_frontier
   template <typename Operator>
   VT run(Operator op,
@@ -127,28 +66,9 @@ class LoadBalanceExecution {
     if (input_frontier_len == 0) { return static_cast<VT>(0); }
     cudaStream_t stream = handle_.get_stream();
     output_vertex_count_[0] = 0;
-    cudaStreamSynchronize(stream);
-    run_timer.start("lb : full run");
-    //timer.start("lb : step 1");
-    //output_frontier.resize(graph_.number_of_vertices);
-    cudaStreamSynchronize(stream);
-    //timer.stop();
-    timer.start("lb : step 1a");
-    cudaStreamSynchronize(stream);
-    timer.stop();
-    cudaStreamSynchronize(stream);
-    timer.start("lb : step 2");
     dist_.setup(graph_.offsets, nullptr, vertex_begin_, vertex_end_);
-    cudaStreamSynchronize(stream);
-    timer.stop();
-    cudaStreamSynchronize(stream);
-    timer.start("lb : distributer run");
     auto distribution = dist_.run(
         input_frontier, input_frontier_len, reorganized_vertices_, stream);
-    cudaStreamSynchronize(stream);
-    timer.stop();
-    cudaStreamSynchronize(stream);
-    timer.start("lb : step 3");
 
     DegreeBucket<VT, ET> large_bucket = distribution.degreeRange(16);
     if (large_bucket.numberOfVertices != 0) {
@@ -158,10 +78,6 @@ class LoadBalanceExecution {
     //TODO : Disabled for testing
     //large_vertex_worker(graph_, large_bucket, op, stream);
 
-    cudaStreamSynchronize(stream);
-    timer.stop();
-    cudaStreamSynchronize(stream);
-    timer.start("lb : functor run");
     DegreeBucket<VT, ET> medium_bucket = distribution.degreeRange(12, 16);
     medium_vertex_worker(graph_, medium_bucket, op,
         output_frontier.data().get(), output_vertex_count_.data().get(), stream);
@@ -179,10 +95,6 @@ class LoadBalanceExecution {
         output_frontier.data().get(), output_vertex_count_.data().get(), stream);
     small_vertex_worker(graph_, small_bucket_3, op,
         output_frontier.data().get(), output_vertex_count_.data().get(), stream);
-    //output_frontier.resize(output_vertex_count_[0]);
-    cudaStreamSynchronize(stream);
-    timer.stop();
-    run_timer.stop();
     return output_vertex_count_[0];
   }
 };

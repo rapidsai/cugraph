@@ -18,7 +18,6 @@
 
 #include <rmm/thrust_rmm_allocator.h>
 #include "../traversal_common.cuh"
-#include <utilities/high_res_timer.hpp>
 
 namespace cugraph {
 
@@ -57,173 +56,6 @@ __global__ void exclusive_scan(T *data, T *out)
   for (int i = 0; i < BinCount; ++i) {
     out[i]  = lData[i];
     data[i] = lData[i];
-  }
-}
-
-// Return true if the nth bit of an array is set to 1
-template <typename T>
-__device__ bool is_nth_bit_set(unsigned *bitmap, T index)
-{
-  return bitmap[index / BitsPWrd<unsigned>] & (unsigned{1} << (index % BitsPWrd<unsigned>));
-}
-
-// Given the CSR offsets of vertices and the related active bit map
-// count the number of vertices that belong to a particular bin where
-// vertex with degree d such that 2^x < d <= 2^x+1 belong to bin (x+1)
-// Vertices with degree 0 are counted in bin 0
-template <typename VT, typename ET>
-__global__ void count_bin_sizes(
-  ET *bins, unsigned *active_bitmap, ET const *offsets, VT vertex_begin, VT vertex_end)
-{
-  using cugraph::detail::traversal::atomicAdd;
-  constexpr int BinCount = NumberBins<ET>;
-  __shared__ ET lBin[BinCount];
-  for (int i = threadIdx.x; i < BinCount; i += blockDim.x) { lBin[i] = 0; }
-  __syncthreads();
-
-  for (VT i = threadIdx.x + (blockIdx.x * blockDim.x); i < (vertex_end - vertex_begin);
-       i += gridDim.x * blockDim.x) {
-    if (is_nth_bit_set(active_bitmap, vertex_begin + i)) {
-      atomicAdd(lBin + ceilLog2_p1(offsets[i + 1] - offsets[i]), ET{1});
-    }
-  }
-  __syncthreads();
-
-  for (int i = threadIdx.x; i < BinCount; i += blockDim.x) { atomicAdd(bins + i, lBin[i]); }
-}
-
-// Given the CSR offsets of vertices count the number of vertices that
-// belong to a particular bin where vertex with degree d such that
-// 2^x < d <= 2^x+1 belong to bin (x+1). Vertices with degree 0 are counted in
-// bin 0
-template <typename VT, typename ET>
-__global__ void count_bin_sizes(ET *bins, ET const *offsets, VT vertex_begin, VT vertex_end)
-{
-  using cugraph::detail::traversal::atomicAdd;
-  constexpr int BinCount = NumberBins<ET>;
-  __shared__ ET lBin[BinCount];
-  for (int i = threadIdx.x; i < BinCount; i += blockDim.x) { lBin[i] = 0; }
-  __syncthreads();
-
-  for (VT i = threadIdx.x + (blockIdx.x * blockDim.x); i < (vertex_end - vertex_begin);
-       i += gridDim.x * blockDim.x) {
-    atomicAdd(lBin + ceilLog2_p1(offsets[i + 1] - offsets[i]), ET{1});
-  }
-  __syncthreads();
-
-  for (int i = threadIdx.x; i < BinCount; i += blockDim.x) { atomicAdd(bins + i, lBin[i]); }
-}
-
-// Bin vertices to the appropriate bins by taking into account
-// the starting offsets calculated by count_bin_sizes
-template <typename VT, typename ET>
-__global__ void create_vertex_bins(VT *reorg_vertices,
-                                   ET *bin_offsets,
-                                   unsigned *active_bitmap,
-                                   ET const *offsets,
-                                   VT vertex_begin,
-                                   VT vertex_end)
-{
-  using cugraph::detail::traversal::atomicAdd;
-  constexpr int BinCount = NumberBins<ET>;
-  __shared__ ET lBin[BinCount];
-  __shared__ int lPos[BinCount];
-  if (threadIdx.x < BinCount) {
-    lBin[threadIdx.x] = 0;
-    lPos[threadIdx.x] = 0;
-  }
-  __syncthreads();
-
-  VT vertex_id         = (threadIdx.x + blockIdx.x * blockDim.x);
-  bool is_valid_vertex = (vertex_id < (vertex_end - vertex_begin)) &&
-                         (is_nth_bit_set(active_bitmap, vertex_begin + vertex_id));
-
-  int threadBin;
-  ET threadPos;
-  if (is_valid_vertex) {
-    threadBin = ceilLog2_p1(offsets[vertex_id + 1] - offsets[vertex_id]);
-    threadPos = atomicAdd(lBin + threadBin, ET{1});
-  }
-  __syncthreads();
-
-  if (threadIdx.x < BinCount) {
-    lPos[threadIdx.x] = atomicAdd(bin_offsets + threadIdx.x, lBin[threadIdx.x]);
-  }
-  __syncthreads();
-
-  if (is_valid_vertex) { reorg_vertices[lPos[threadBin] + threadPos] = vertex_id; }
-}
-
-// Bin vertices to the appropriate bins by taking into account
-// the starting offsets calculated by count_bin_sizes
-template <typename VT, typename ET>
-__global__ void create_vertex_bins(
-  VT *reorg_vertices, ET *bin_offsets, ET const *offsets, VT vertex_begin, VT vertex_end)
-{
-  using cugraph::detail::traversal::atomicAdd;
-  constexpr int BinCount = NumberBins<ET>;
-  __shared__ ET lBin[BinCount];
-  __shared__ int lPos[BinCount];
-  if (threadIdx.x < BinCount) {
-    lBin[threadIdx.x] = 0;
-    lPos[threadIdx.x] = 0;
-  }
-  __syncthreads();
-
-  VT vertex_id         = (threadIdx.x + blockIdx.x * blockDim.x);
-  bool is_valid_vertex = (vertex_id < (vertex_end - vertex_begin));
-
-  int threadBin;
-  ET threadPos;
-  if (is_valid_vertex) {
-    threadBin = ceilLog2_p1(offsets[vertex_id + 1] - offsets[vertex_id]);
-    threadPos = atomicAdd(lBin + threadBin, ET{1});
-  }
-  __syncthreads();
-
-  if (threadIdx.x < BinCount) {
-    lPos[threadIdx.x] = atomicAdd(bin_offsets + threadIdx.x, lBin[threadIdx.x]);
-  }
-  __syncthreads();
-
-  if (is_valid_vertex) { reorg_vertices[lPos[threadBin] + threadPos] = vertex_id; }
-}
-
-template <typename VT, typename ET>
-void bin_vertices(rmm::device_vector<VT> &reorg_vertices,
-                  rmm::device_vector<ET> &bin_count_offsets,
-                  rmm::device_vector<ET> &bin_count,
-                  unsigned *active_bitmap,
-                  ET *offsets,
-                  VT vertex_begin,
-                  VT vertex_end,
-                  cudaStream_t stream)
-{
-  const unsigned BLOCK_SIZE = 512;
-  unsigned blocks           = ((vertex_end - vertex_begin) + BLOCK_SIZE - 1) / BLOCK_SIZE;
-  if (active_bitmap != nullptr) {
-    count_bin_sizes<ET><<<blocks, BLOCK_SIZE, 0, stream>>>(
-      bin_count.data().get(), active_bitmap, offsets, vertex_begin, vertex_end);
-  } else {
-    count_bin_sizes<ET><<<blocks, BLOCK_SIZE, 0, stream>>>(
-      bin_count.data().get(), offsets, vertex_begin, vertex_end);
-  }
-
-  exclusive_scan<<<1, 1, 0, stream>>>(bin_count.data().get(), bin_count_offsets.data().get());
-
-  VT vertex_count = bin_count[bin_count.size() - 1];
-  reorg_vertices.resize(vertex_count);
-
-  if (active_bitmap != nullptr) {
-    create_vertex_bins<VT, ET><<<blocks, BLOCK_SIZE, 0, stream>>>(reorg_vertices.data().get(),
-                                                                  bin_count.data().get(),
-                                                                  active_bitmap,
-                                                                  offsets,
-                                                                  vertex_begin,
-                                                                  vertex_end);
-  } else {
-    create_vertex_bins<VT, ET><<<blocks, BLOCK_SIZE, 0, stream>>>(
-      reorg_vertices.data().get(), bin_count.data().get(), offsets, vertex_begin, vertex_end);
   }
 }
 
@@ -324,20 +156,13 @@ void bin_vertices(rmm::device_vector<VT> &input_vertex_ids,
                   ET *offsets,
                   VT vertex_begin,
                   VT vertex_end,
-                  cudaStream_t stream,
-                  HighResTimer& timer)
+                  cudaStream_t stream)
 {
-  //HighResTimer timer;
-  cudaStreamSynchronize(stream);
-  timer.start("bin_vertices : fill zeros");
   simple_fill<ET><<<1, 1, 0, stream>>>(
       bin_count_offsets.data().get(),
       bin_count.data().get(),
       static_cast<ET>(bin_count.size()));
-  cudaStreamSynchronize(stream);
-  timer.stop();
-  timer.start("bin_vertices : count_bin_sizes");
-  //reorganized_vertex_ids.resize(input_vertex_ids_len);
+
   const unsigned BLOCK_SIZE = 512;
   unsigned blocks           = ((input_vertex_ids_len) + BLOCK_SIZE - 1) / BLOCK_SIZE;
   count_bin_sizes<ET><<<blocks, BLOCK_SIZE, 0, stream>>>(
@@ -345,20 +170,9 @@ void bin_vertices(rmm::device_vector<VT> &input_vertex_ids,
     input_vertex_ids.data().get(),
     static_cast<ET>(input_vertex_ids_len),
     vertex_begin, vertex_end);
-  cudaStreamSynchronize(stream);
-  timer.stop();
 
-  cudaStreamSynchronize(stream);
-  timer.start("bin_vertices : exclusive_scan");
   exclusive_scan<<<1, 1, 0, stream>>>(bin_count.data().get(), bin_count_offsets.data().get());
-  cudaStreamSynchronize(stream);
-  timer.stop();
 
-  //VT vertex_count = bin_count[bin_count.size() - 1];
-  //reorganized_vertex_ids.resize(vertex_count);
-
-  cudaStreamSynchronize(stream);
-  timer.start("bin_vertices : create_bin_sizes");
   create_vertex_bins<VT, ET><<<blocks, BLOCK_SIZE, 0, stream>>>(
     reorganized_vertex_ids.data().get(),
     bin_count.data().get(),
@@ -366,9 +180,6 @@ void bin_vertices(rmm::device_vector<VT> &input_vertex_ids,
     input_vertex_ids.data().get(),
     static_cast<ET>(input_vertex_ids_len),
     vertex_begin, vertex_end);
-  cudaStreamSynchronize(stream);
-  timer.stop();
-  //timer.display(std::cout);
 }
 
 }  // namespace detail
