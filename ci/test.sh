@@ -54,9 +54,9 @@ for gt in gtests/*; do
     ERRORCODE=$((ERRORCODE | $?))
 done
 
-echo "Python py.test for cuGraph..."
+echo "Python pytest for cuGraph..."
 cd ${CUGRAPH_ROOT}/python
-py.test --cache-clear --junitxml=${CUGRAPH_ROOT}/junit-cugraph.xml -v --cov-config=.coveragerc --cov=cugraph --cov-report=xml:${WORKSPACE}/python/cugraph/cugraph-coverage.xml --cov-report term
+pytest --cache-clear --junitxml=${CUGRAPH_ROOT}/junit-cugraph.xml -v --cov-config=.coveragerc --cov=cugraph --cov-report=xml:${WORKSPACE}/python/cugraph/cugraph-coverage.xml --cov-report term --ignore=cugraph/raft
 ERRORCODE=$((ERRORCODE | $?))
 
 exit ${ERRORCODE}

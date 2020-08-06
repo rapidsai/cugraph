@@ -26,7 +26,7 @@ import rmm
 import numpy as np
 
 
-def louvain(input_graph, max_iter=100):
+def louvain(input_graph, max_iter, resolution):
     """
     Call louvain
     """
@@ -73,7 +73,8 @@ def louvain(input_graph, max_iter=100):
                   &final_modularity_float,
                   &num_level,
                   <int*> c_partition,
-                  max_iter)
+                  <int> max_iter,
+                  <float> resolution)
 
         final_modularity = final_modularity_float
     else:
@@ -85,7 +86,8 @@ def louvain(input_graph, max_iter=100):
                   &final_modularity_double,
                   &num_level,
                   <int*> c_partition,
-                  max_iter)
+                  <int> max_iter,
+                  <double> resolution)
         final_modularity = final_modularity_double
 
     return df, final_modularity
