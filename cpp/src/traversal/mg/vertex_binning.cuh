@@ -77,7 +77,7 @@ class VertexBinner {
  public:
   VertexBinner(void) : tempBins_(NumberBins<ET>), bin_offsets_(NumberBins<ET>) {}
 
-  ~VertexBinner(void) { timer.display(std::cout); }
+  ~VertexBinner(void) { /*timer.display(std::cout);*/ }
 
   void setup(ET* offsets, unsigned* active_bitmap, VT vertex_begin, VT vertex_end)
   {

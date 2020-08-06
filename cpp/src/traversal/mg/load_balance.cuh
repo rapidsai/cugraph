@@ -61,8 +61,8 @@ class LoadBalanceExecution {
   }
 
   ~LoadBalanceExecution (void) {
-    timer.display(std::cout);
-    run_timer.display(std::cout);
+    //timer.display(std::cout);
+    //run_timer.display(std::cout);
   }
 
   template <typename Operator>
@@ -126,6 +126,7 @@ class LoadBalanceExecution {
   {
     if (input_frontier_len == 0) { return static_cast<VT>(0); }
     cudaStream_t stream = handle_.get_stream();
+    output_vertex_count_[0] = 0;
     cudaStreamSynchronize(stream);
     run_timer.start("lb : full run");
     //timer.start("lb : step 1");
@@ -133,7 +134,6 @@ class LoadBalanceExecution {
     cudaStreamSynchronize(stream);
     //timer.stop();
     timer.start("lb : step 1a");
-    output_vertex_count_[0] = 0;
     cudaStreamSynchronize(stream);
     timer.stop();
     cudaStreamSynchronize(stream);
