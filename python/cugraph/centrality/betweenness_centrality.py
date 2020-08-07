@@ -186,7 +186,7 @@ def edge_betweenness_centrality(
     Returns
     -------
     df : cudf.DataFrame
-        GPU data frame containing three cudf.Series of size |E|: the vertex
+        GPU data frame containing three cudf.Series of size E: the vertex
         identifiers of the sources, the vertex identifies of the destinations
         and the corresponding betweenness centrality values.
         Please note that the resulting the 'src', 'dst' column might not be
