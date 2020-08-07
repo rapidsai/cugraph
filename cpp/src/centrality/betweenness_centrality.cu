@@ -222,13 +222,15 @@ void BC<vertex_t, edge_t, weight_t, result_t>::compute_single_source(vertex_t so
   // the traversal, this value is avalaible within the bfs implementation and
   // there could be a way to access it directly and avoid both replace and the
   // max
-  thrust::replace(rmm::exec_policy(stream_)->on(stream_),
+  thrust::replace(rmm::exec_policy(handle_.get_stream())->on(handle_.get_stream()),
                   distances_,
                   distances_ + number_of_vertices_,
                   std::numeric_limits<vertex_t>::max(),
                   static_cast<vertex_t>(-1));
-  auto current_max_depth = thrust::max_element(
-    rmm::exec_policy(stream_)->on(stream_), distances_, distances_ + number_of_vertices_);
+  auto current_max_depth =
+    thrust::max_element(rmm::exec_policy(handle_.get_stream())->on(handle_.get_stream()),
+                        distances_,
+                        distances_ + number_of_vertices_);
   vertex_t max_depth = 0;
   CUDA_TRY(cudaMemcpy(&max_depth, current_max_depth, sizeof(vertex_t), cudaMemcpyDeviceToHost));
   // Step 2) Dependency accumulation
@@ -258,7 +260,7 @@ void BC<vertex_t, edge_t, weight_t, result_t>::accumulate(vertex_t source_vertex
 template <typename vertex_t, typename edge_t, typename weight_t, typename result_t>
 void BC<vertex_t, edge_t, weight_t, result_t>::initialize_dependencies()
 {
-  thrust::fill(rmm::exec_policy(stream_)->on(stream_),
+  thrust::fill(rmm::exec_policy(handle_.get_stream())->on(handle_.get_stream()),
                deltas_,
                deltas_ + number_of_vertices_,
                static_cast<result_t>(0));
@@ -270,14 +272,14 @@ void BC<vertex_t, edge_t, weight_t, result_t>::accumulate_edges(vertex_t max_dep
 {
   for (vertex_t depth = max_depth; depth >= 0; --depth) {
     edges_accumulation_kernel<vertex_t, edge_t, weight_t, result_t>
-      <<<grid_configuration, block_configuration, 0, stream_>>>(betweenness_,
-                                                                number_of_vertices_,
-                                                                graph_.indices,
-                                                                graph_.offsets,
-                                                                distances_,
-                                                                sp_counters_,
-                                                                deltas_,
-                                                                depth);
+      <<<grid_configuration, block_configuration, 0, handle_.get_stream()>>>(betweenness_,
+                                                                             number_of_vertices_,
+                                                                             graph_.indices,
+                                                                             graph_.offsets,
+                                                                             distances_,
+                                                                             sp_counters_,
+                                                                             deltas_,
+                                                                             depth);
   }
 }
 
@@ -287,14 +289,14 @@ void BC<vertex_t, edge_t, weight_t, result_t>::accumulate_vertices_with_endpoint
 {
   for (vertex_t depth = max_depth; depth > 0; --depth) {
     endpoints_accumulation_kernel<vertex_t, edge_t, weight_t, result_t>
-      <<<grid_configuration, block_configuration, 0, stream_>>>(betweenness_,
-                                                                number_of_vertices_,
-                                                                graph_.indices,
-                                                                graph_.offsets,
-                                                                distances_,
-                                                                sp_counters_,
-                                                                deltas_,
-                                                                depth);
+      <<<grid_configuration, block_configuration, 0, handle_.get_stream()>>>(betweenness_,
+                                                                             number_of_vertices_,
+                                                                             graph_.indices,
+                                                                             graph_.offsets,
+                                                                             distances_,
+                                                                             sp_counters_,
+                                                                             deltas_,
+                                                                             depth);
   }
   add_reached_endpoints_to_source_betweenness(source_vertex);
   add_vertices_dependencies_to_betweenness();
@@ -308,13 +310,16 @@ template <typename vertex_t, typename edge_t, typename weight_t, typename result
 void BC<vertex_t, edge_t, weight_t, result_t>::add_reached_endpoints_to_source_betweenness(
   vertex_t source_vertex)
 {
-  vertex_t number_of_unvisited_vertices = thrust::count(
-    rmm::exec_policy(stream_)->on(stream_), distances_, distances_ + number_of_vertices_, -1);
+  vertex_t number_of_unvisited_vertices =
+    thrust::count(rmm::exec_policy(handle_.get_stream())->on(handle_.get_stream()),
+                  distances_,
+                  distances_ + number_of_vertices_,
+                  -1);
   vertex_t number_of_visited_vertices_except_source =
     number_of_vertices_ - number_of_unvisited_vertices - 1;
   rmm::device_vector<vertex_t> buffer(1);
   buffer[0] = number_of_visited_vertices_except_source;
-  thrust::transform(rmm::exec_policy(stream_)->on(stream_),
+  thrust::transform(rmm::exec_policy(handle_.get_stream())->on(handle_.get_stream()),
                     buffer.begin(),
                     buffer.end(),
                     betweenness_ + source_vertex,
@@ -330,8 +335,8 @@ void BC<vertex_t, edge_t, weight_t, result_t>::add_vertices_dependencies_to_betw
                            betweenness_,
                            number_of_vertices_ * sizeof(result_t),
                            cudaMemcpyDeviceToHost,
-                           stream_));
-  thrust::transform(rmm::exec_policy(stream_)->on(stream_),
+                           handle_.get_stream()));
+  thrust::transform(rmm::exec_policy(handle_.get_stream())->on(handle_.get_stream()),
                     deltas_,
                     deltas_ + number_of_vertices_,
                     betweenness_,
@@ -346,14 +351,14 @@ void BC<vertex_t, edge_t, weight_t, result_t>::accumulate_vertices(vertex_t max_
 {
   for (vertex_t depth = max_depth; depth > 0; --depth) {
     accumulation_kernel<vertex_t, edge_t, weight_t, result_t>
-      <<<grid_configuration, block_configuration, 0, stream_>>>(betweenness_,
-                                                                number_of_vertices_,
-                                                                graph_.indices,
-                                                                graph_.offsets,
-                                                                distances_,
-                                                                sp_counters_,
-                                                                deltas_,
-                                                                depth);
+      <<<grid_configuration, block_configuration, 0, handle_.get_stream()>>>(betweenness_,
+                                                                             number_of_vertices_,
+                                                                             graph_.indices,
+                                                                             graph_.offsets,
+                                                                             distances_,
+                                                                             sp_counters_,
+                                                                             deltas_,
+                                                                             depth);
   }
   add_vertices_dependencies_to_betweenness();
 }
@@ -416,7 +421,7 @@ void BC<vertex_t, edge_t, weight_t, result_t>::apply_rescale_factor_to_betweenne
 {
   size_t result_size = number_of_vertices_;
   if (is_edge_betweenness_) result_size = number_of_edges_;
-  thrust::transform(rmm::exec_policy(stream_)->on(stream_),
+  thrust::transform(rmm::exec_policy(handle_.get_stream())->on(handle_.get_stream()),
                     betweenness_,
                     betweenness_ + result_size,
                     thrust::make_constant_iterator(rescale_factor),
@@ -468,8 +473,12 @@ void betweenness_centrality(raft::handle_t const &handle,
                                         k,
                                         vertices,
                                         total_number_of_sources_used);
-    handle.get_comms().reduce(
-      betweenness.data().get(), result, betweenness.size(), raft::comms::op_t::SUM, 0, 0);
+    handle.get_comms().reduce(betweenness.data().get(),
+                              result,
+                              betweenness.size(),
+                              raft::comms::op_t::SUM,
+                              0,
+                              handle.get_stream());
   } else {
     detail::betweenness_centrality_impl(handle,
                                         graph,
@@ -521,8 +530,12 @@ void edge_betweenness_centrality(raft::handle_t const &handle,
                                              k,
                                              vertices,
                                              total_number_of_sources_used);
-    handle.get_comms().reduce(
-      betweenness.data().get(), result, betweenness.size(), raft::comms::op_t::SUM, 0, 0);
+    handle.get_comms().reduce(betweenness.data().get(),
+                              result,
+                              betweenness.size(),
+                              raft::comms::op_t::SUM,
+                              0,
+                              handle.get_stream());
   } else {
     detail::edge_betweenness_centrality_impl(
       handle, graph, result, normalize, weight, k, vertices, total_number_of_sources_used);

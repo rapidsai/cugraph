@@ -55,7 +55,7 @@ class BC {
   BC(raft::handle_t const &handle,
      GraphCSRView<vertex_t, edge_t, weight_t> const &graph,
      cudaStream_t stream = 0)
-    : handle_(handle), graph_(graph), stream_(stream)
+    : handle_(handle), graph_(graph)
   {
     setup();
   }
@@ -117,7 +117,6 @@ class BC {
 
   int max_grid_dim_1D_  = 0;
   int max_block_dim_1D_ = 0;
-  cudaStream_t stream_;
 
   void setup();
 
