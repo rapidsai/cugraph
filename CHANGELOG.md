@@ -67,6 +67,7 @@
 - PR #1025: Explicitly skip raft test folder for pytest 6.0.0
 - PR #1027 Fix documentation
 - PR #1033 Fix reparition error in big datasets, updated coroutine, fixed warnings
+- PR #1040 Fix spectral clustering renumbering issue
 
 # cuGraph 0.14.0 (03 Jun 2020)
 
