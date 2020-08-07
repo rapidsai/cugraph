@@ -669,10 +669,10 @@ class NumberMap:
         """
         return self.implementation.col_names
 
-    def renumber(df, source_columns, dest_columns, preserve_order=False):
+    def renumber(df, src_col_names, dst_col_names, preserve_order=False):
         """
-        Given a single GPU or distributed DataFrame, use source_columns and
-        dest_columns to identify the source vertex identifiers and destination
+        Given a single GPU or distributed DataFrame, use src_col_names and
+        dst_col_names to identify the source vertex identifiers and destination
         vertex identifiers, respectively.
 
         Internal vertex identifiers will be created, numbering vertices as
@@ -694,11 +694,11 @@ class NumberMap:
         df: cudf.DataFrame or dask_cudf.DataFrame
             Contains a list of external vertex identifiers that will be
             numbered by the NumberMap class.
-        src_col_names: list of strings
+        src_col_names: string or list of strings
             This list of 1 or more strings contain the names
             of the columns that uniquely identify an external
             vertex identifier for source vertices
-        dst_col_names: list of strings
+        dst_col_names: string or list of strings
             This list of 1 or more strings contain the names
             of the columns that uniquely identify an external
             vertex identifier for destination vertices
@@ -729,25 +729,25 @@ class NumberMap:
         """
         renumber_map = NumberMap()
 
-        if isinstance(source_columns, list):
-            renumber_map.from_dataframe(df, source_columns, dest_columns)
+        if isinstance(src_col_names, list):
+            renumber_map.from_dataframe(df, src_col_names, dst_col_names)
             df = renumber_map.add_internal_vertex_id(
-                df, "src", source_columns, drop=True,
+                df, "src", src_col_names, drop=True,
                 preserve_order=preserve_order
             )
             df = renumber_map.add_internal_vertex_id(
-                df, "dst", dest_columns, drop=True,
+                df, "dst", dst_col_names, drop=True,
                 preserve_order=preserve_order
             )
         else:
-            renumber_map.from_dataframe(df, [source_columns], [dest_columns])
+            renumber_map.from_dataframe(df, [src_col_names], [dst_col_names])
             df = renumber_map.add_internal_vertex_id(
-                df, "src", source_columns, drop=True,
+                df, "src", src_col_names, drop=True,
                 preserve_order=preserve_order
             )
 
             df = renumber_map.add_internal_vertex_id(
-                df, "dst", dest_columns, drop=True,
+                df, "dst", dst_col_names, drop=True,
                 preserve_order=preserve_order
             )
 

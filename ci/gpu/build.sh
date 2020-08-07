@@ -64,9 +64,10 @@ conda install -c nvidia -c rapidsai -c rapidsai-nightly -c conda-forge -c defaul
       "dask-cuda=${MINOR_VERSION}" \
       "ucx-py=${MINOR_VERSION}" \
       "rapids-build-env=$MINOR_VERSION.*" \
-      "rapids-notebook-env=$MINOR_VERSION.*"
+      "rapids-notebook-env=$MINOR_VERSION.*" \
+      rapids-pytest-benchmark
 
-# https://docs.rapids.ai/maintainers/depmgmt/ 
+# https://docs.rapids.ai/maintainers/depmgmt/
 # conda remove --force rapids-build-env rapids-notebook-env
 # conda install "your-pkg=1.0.0"
 
