@@ -52,6 +52,7 @@
 - PR #1030 MG directory org and documentation
 - PR #1020 Updated Louvain to honor max_level, ECG now calls Louvain for 1 level, then full run.
 - PR #1031 MG notebook
+- PR #1034 Expose resolution (gamma) parameter in Louvain
 
 ## Bug Fixes
 - PR #936 Update Force Atlas 2 doc and wrapper
@@ -67,6 +68,7 @@
 - PR #1025: Explicitly skip raft test folder for pytest 6.0.0
 - PR #1027 Fix documentation
 - PR #1033 Fix reparition error in big datasets, updated coroutine, fixed warnings
+- PR #1036 Fixed benchmarks for new renumbering API, updated comments, added quick test-only benchmark run to CI
 - PR #1040 Fix spectral clustering renumbering issue
 
 # cuGraph 0.14.0 (03 Jun 2020)
