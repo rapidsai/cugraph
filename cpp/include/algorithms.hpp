@@ -275,11 +275,11 @@ void force_atlas2(GraphCOOView<VT, ET, WT> &graph,
  *
  * @throws                                  cugraph::logic_error if `result == nullptr` or
  * `number_of_sources < 0` or `number_of_sources !=0 and sources == nullptr`.
- * @tparam VT                               Type of vertex identifiers. Supported value : int
+ * @tparam vertex_t                               Type of vertex identifiers. Supported value : int
  * (signed, 32-bit)
- * @tparam ET                               Type of edge identifiers.  Supported value : int
+ * @tparam edge_t                               Type of edge identifiers.  Supported value : int
  * (signed, 32-bit)
- * @tparam WT                               Type of edge weights. Supported values : float or
+ * @tparam weight_t                               Type of edge weights. Supported values : float or
  * double.
  * @tparam result_t                         Type of computed result.  Supported values :  float or
  * double
@@ -302,15 +302,15 @@ void force_atlas2(GraphCOOView<VT, ET, WT> &graph,
  * when using subsampling, it allows accumulation of results across multiple calls.
  *
  */
-template <typename VT, typename ET, typename WT, typename result_t>
+template <typename vertex_t, typename edge_t, typename weight_t, typename result_t>
 void betweenness_centrality(const raft::handle_t &handle,
-                            GraphCSRView<VT, ET, WT> const &graph,
+                            GraphCSRView<vertex_t, edge_t, weight_t> const &graph,
                             result_t *result,
-                            bool normalized    = true,
-                            bool endpoints     = false,
-                            WT const *weight   = nullptr,
-                            VT k               = 0,
-                            VT const *vertices = nullptr);
+                            bool normalized          = true,
+                            bool endpoints           = false,
+                            weight_t const *weight   = nullptr,
+                            vertex_t k               = 0,
+                            vertex_t const *vertices = nullptr);
 
 /**
  * @brief     Compute edge betweenness centrality for a graph
@@ -321,11 +321,11 @@ void betweenness_centrality(const raft::handle_t &handle,
  * @throws                                  cugraph::logic_error if `result == nullptr` or
  * `number_of_sources < 0` or `number_of_sources !=0 and sources == nullptr` or `endpoints ==
  * true`.
- * @tparam VT                               Type of vertex identifiers. Supported value : int
+ * @tparam vertex_t                               Type of vertex identifiers. Supported value : int
  * (signed, 32-bit)
- * @tparam ET                               Type of edge identifiers.  Supported value : int
+ * @tparam edge_t                               Type of edge identifiers.  Supported value : int
  * (signed, 32-bit)
- * @tparam WT                               Type of edge weights. Supported values : float or
+ * @tparam weight_t                               Type of edge weights. Supported values : float or
  * double.
  * @tparam result_t                         Type of computed result.  Supported values :  float or
  * double
@@ -346,14 +346,14 @@ void betweenness_centrality(const raft::handle_t &handle,
  * when using subsampling, it allows accumulation of results across multiple calls.
  *
  */
-template <typename VT, typename ET, typename WT, typename result_t>
+template <typename vertex_t, typename edge_t, typename weight_t, typename result_t>
 void edge_betweenness_centrality(const raft::handle_t &handle,
-                                 GraphCSRView<VT, ET, WT> const &graph,
+                                 GraphCSRView<vertex_t, edge_t, weight_t> const &graph,
                                  result_t *result,
-                                 bool normalized    = true,
-                                 WT const *weight   = nullptr,
-                                 VT k               = 0,
-                                 VT const *vertices = nullptr);
+                                 bool normalized          = true,
+                                 weight_t const *weight   = nullptr,
+                                 vertex_t k               = 0,
+                                 vertex_t const *vertices = nullptr);
 
 enum class cugraph_cc_t {
   CUGRAPH_WEAK = 0,  ///> Weakly Connected Components
