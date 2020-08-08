@@ -56,7 +56,7 @@ class graph_base_device_view_t {
     return number_of_vertices_;
   }
 
-  __host__ __device__ vertex_type get_number_of_edges() const noexcept { return number_of_edges_; }
+  __host__ __device__ edge_type get_number_of_edges() const noexcept { return number_of_edges_; }
 
   template <typename vertex_t = vertex_type>
   __host__ __device__ std::enable_if_t<std::is_signed<vertex_t>::value, bool> is_valid_vertex(
