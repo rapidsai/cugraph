@@ -61,6 +61,7 @@ def calc_katz(graph_file):
     k_df = k_df.rename(columns={"katz_centrality": "cu_katz"}, copy=False)
     return k_df
 
+
 # FIXME: the default set of datasets includes an asymmetric directed graph
 # (email-EU-core.csv), which currently produces different results between
 # cugraph and Nx and fails that test. Investigate, resolve, and use
@@ -68,7 +69,7 @@ def calc_katz(graph_file):
 #
 # https://github.com/rapidsai/cugraph/issues/1042
 #
-#@pytest.mark.parametrize("graph_file", utils.DATASETS)
+# @pytest.mark.parametrize("graph_file", utils.DATASETS)
 @pytest.mark.parametrize("graph_file", utils.DATASETS_UNDIRECTED)
 def test_katz_centrality(graph_file):
     gc.collect()

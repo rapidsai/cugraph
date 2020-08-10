@@ -65,7 +65,7 @@ def networkx_call(M):
 #
 # https://github.com/rapidsai/cugraph/issues/1043
 #
-#@pytest.mark.parametrize("graph_file", utils.DATASETS)
+# @pytest.mark.parametrize("graph_file", utils.DATASETS)
 @pytest.mark.parametrize("graph_file", utils.DATASETS_UNDIRECTED)
 def test_triangles(graph_file):
     gc.collect()

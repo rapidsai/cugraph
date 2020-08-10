@@ -72,7 +72,7 @@ def compare_edges(cg, nxg):
 #
 # https://github.com/rapidsai/cugraph/issues/1046
 #
-#@pytest.mark.parametrize("graph_file", utils.DATASETS)
+# @pytest.mark.parametrize("graph_file", utils.DATASETS)
 @pytest.mark.parametrize("graph_file", utils.DATASETS_UNDIRECTED)
 def test_core_number_DiGraph(graph_file):
     gc.collect()
