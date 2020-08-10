@@ -16,10 +16,9 @@
 
 #pragma once
 
-#include <raft/cudart_utils.h>
 #include <graph.hpp>
 #include "vertex_binning.cuh"
-#include "worker_kernels.cuh"
+#include "frontier_expand_kernels.cuh"
 
 namespace cugraph {
 
@@ -28,7 +27,7 @@ namespace mg {
 namespace detail {
 
 template <typename VT, typename ET, typename WT>
-class LoadBalanceExecution {
+class FrontierExpand {
   raft::handle_t const &handle_;
   cugraph::GraphCSRView<VT, ET, WT> const &graph_;
   VertexBinner<VT, ET> dist_;
@@ -38,7 +37,7 @@ class LoadBalanceExecution {
   rmm::device_vector<ET> output_vertex_count_;
 
  public:
-  LoadBalanceExecution(raft::handle_t const &handle, cugraph::GraphCSRView<VT, ET, WT> const &graph)
+  FrontierExpand(raft::handle_t const &handle, cugraph::GraphCSRView<VT, ET, WT> const &graph)
     : handle_(handle), graph_(graph)
   {
     bool is_mg = (handle.comms_initialized() && (graph.local_vertices != nullptr) &&
@@ -71,15 +70,12 @@ class LoadBalanceExecution {
         input_frontier, input_frontier_len, reorganized_vertices_, stream);
 
     DegreeBucket<VT, ET> large_bucket = distribution.degreeRange(16);
-    if (large_bucket.numberOfVertices != 0) {
-      std::cerr<<"large_vertex_worker\n";
-    }
     // TODO : Use other streams from handle_
-    //TODO : Disabled for testing
-    //large_vertex_worker(graph_, large_bucket, op, stream);
+    large_vertex_lb(graph_, large_bucket, op, vertex_begin_,
+        output_frontier.data().get(), output_vertex_count_.data().get(), stream);
 
     DegreeBucket<VT, ET> medium_bucket = distribution.degreeRange(12, 16);
-    medium_vertex_worker(graph_, medium_bucket, op,
+    medium_vertex_lb(graph_, medium_bucket, op, vertex_begin_,
         output_frontier.data().get(), output_vertex_count_.data().get(), stream);
 
     DegreeBucket<VT, ET> small_bucket_0 = distribution.degreeRange(10, 12);
@@ -87,13 +83,13 @@ class LoadBalanceExecution {
     DegreeBucket<VT, ET> small_bucket_2 = distribution.degreeRange(6, 8);
     DegreeBucket<VT, ET> small_bucket_3 = distribution.degreeRange(0, 6);
 
-    small_vertex_worker(graph_, small_bucket_0, op,
+    small_vertex_lb(graph_, small_bucket_0, op, vertex_begin_,
         output_frontier.data().get(), output_vertex_count_.data().get(), stream);
-    small_vertex_worker(graph_, small_bucket_1, op,
+    small_vertex_lb(graph_, small_bucket_1, op, vertex_begin_,
         output_frontier.data().get(), output_vertex_count_.data().get(), stream);
-    small_vertex_worker(graph_, small_bucket_2, op,
+    small_vertex_lb(graph_, small_bucket_2, op, vertex_begin_,
         output_frontier.data().get(), output_vertex_count_.data().get(), stream);
-    small_vertex_worker(graph_, small_bucket_3, op,
+    small_vertex_lb(graph_, small_bucket_3, op, vertex_begin_,
         output_frontier.data().get(), output_vertex_count_.data().get(), stream);
     return output_vertex_count_[0];
   }

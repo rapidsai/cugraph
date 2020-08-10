@@ -29,8 +29,8 @@ def test_dask_bfs():
 
     #input_data_path = r"/home/aatish/workspace/datasets/GAP-road.csv"
     #input_data_path = r"/home/aatish/workspace/cugraph/datasets/karate.csv"
-    input_data_path = r"/home/aatish/workspace/cugraph/datasets/email-Eu-core.csv"
-    #input_data_path = r"/home/aatish/workspace/cugraph/datasets/netscience.csv"
+    #input_data_path = r"/home/aatish/workspace/cugraph/datasets/email-Eu-core.csv"
+    input_data_path = r"/home/aatish/workspace/cugraph/datasets/netscience.csv"
     #input_data_path = r"/home/aatish/workspace/cugraph/datasets/hibench_small/1/part-00000.csv"
     chunksize = dcg.get_chunksize(input_data_path)
 
@@ -45,10 +45,10 @@ def test_dask_bfs():
                        dtype=['int32', 'int32', 'float32'])
 
     g = cugraph.DiGraph()
-    g.from_cudf_edgelist(df, 'src', 'dst', renumber=False)
+    g.from_cudf_edgelist(df, 'src', 'dst', renumber=True)
 
     dg = cugraph.DiGraph()
-    dg.from_dask_cudf_edgelist(ddf, renumber=False)
+    dg.from_dask_cudf_edgelist(ddf, renumber=True)
     #warmup
     #result_dist = dcg.bfs(dg, 0, True)
     print("Warmup done")
@@ -89,13 +89,13 @@ def test_dask_bfs():
 #        print(i, " ", compare_dist['vertex'].iloc[i],
 #                " ", compare_dist['distance_local'].iloc[i], " ",
 #                compare_dist['distance_dask'].iloc[i], err_str)
-#    for i in range(len(compare_dist)):
-#        if (compare_dist['distance_local'].iloc[i] !=
-#                compare_dist['distance_dask'].iloc[i]):
-#            print(i, " ", compare_dist['distance_local'].iloc[i], " ",
-#                    compare_dist['distance_dask'].iloc[i])
-#            err = err + 1
-#    assert err == 0
+    for i in range(len(compare_dist)):
+        if (compare_dist['distance_local'].iloc[i] !=
+                compare_dist['distance_dask'].iloc[i]):
+            print(i, " ", compare_dist['distance_local'].iloc[i], " ",
+                    compare_dist['distance_dask'].iloc[i])
+            err = err + 1
+    assert err == 0
 
     Comms.destroy()
     client.close()

@@ -18,7 +18,7 @@
 
 #include <raft/handle.hpp>
 #include "common_utils.cuh"
-#include "load_balance.cuh"
+#include "frontier_expand.cuh"
 #include "../traversal_common.cuh"
 
 namespace cugraph {
@@ -47,8 +47,8 @@ void bfs(raft::handle_t const &handle,
   rmm::device_vector<vertex_t> output_frontier(graph.number_of_vertices);
   rmm::device_vector<size_t> temp_buffer_len(handle.get_comms().get_size());
 
-  // Load balancer for calls to bfs functors
-  detail::LoadBalanceExecution<vertex_t, edge_t, weight_t> lb(handle, graph);
+  // Frontier Expand for calls to bfs functors
+  detail::FrontierExpand<vertex_t, edge_t, weight_t> fexp(handle, graph);
 
   cudaStream_t stream = handle.get_stream();
 
@@ -109,21 +109,21 @@ void bfs(raft::handle_t const &handle,
     //Generate output frontier bitmap from input frontier
     if (distances != nullptr) {
       // BFS Functor for frontier calculation
-      detail::bfs_pred_dist<vertex_t, edge_t> bfs_op(
+      detail::BFSPredDist<vertex_t, edge_t> bfs_op(
         output_frontier_bmap.data().get(),
         visited_bmap.data().get(),
         predecessors, distances, level);
       output_frontier_len =
-        lb.run(bfs_op, input_frontier, input_frontier_len, output_frontier);
+        fexp.run(bfs_op, input_frontier, input_frontier_len, output_frontier);
 
     } else {
       // BFS Functor for frontier calculation
-      detail::bfs_pred<vertex_t, edge_t> bfs_op(
+      detail::BFSPred<vertex_t, edge_t> bfs_op(
         output_frontier_bmap.data().get(),
         visited_bmap.data().get(),
         predecessors);
       output_frontier_len =
-        lb.run(bfs_op, input_frontier, input_frontier_len, output_frontier);
+        fexp.run(bfs_op, input_frontier, input_frontier_len, output_frontier);
 
     }
 

@@ -80,6 +80,73 @@ void operator()(const T& id) {
 }
 };
 
+template <typename VT, typename ET>
+struct BFSPred {
+  unsigned* output_frontier_;
+  unsigned* visited_;
+  VT* predecessors_;
+
+  BFSPred(
+    unsigned* output_frontier, unsigned* visited, VT* predecessors)
+    : output_frontier_(output_frontier),
+      visited_(visited),
+      predecessors_(predecessors)
+  {
+  }
+
+  __device__ bool operator()(VT src, VT dst)
+  {
+    unsigned active_bit = static_cast<unsigned>(1) << (dst % BitsPWrd<unsigned>);
+    unsigned prev_word  = atomicOr(output_frontier_ + (dst / BitsPWrd<unsigned>), active_bit);
+    bool dst_not_visited_earlier = !(active_bit & visited_[dst / BitsPWrd<unsigned>]);
+    bool dst_not_visited_current = !(prev_word & active_bit);
+    // If this thread activates the frontier bitmap for a destination
+    // then the source is the predecessor of that destination
+    if (dst_not_visited_earlier && dst_not_visited_current) {
+      predecessors_[dst] = src;
+      return true;
+    } else {
+      return false;
+    }
+  }
+};
+
+template <typename VT, typename ET>
+struct BFSPredDist {
+  unsigned* output_frontier_;
+  unsigned* visited_;
+  VT* predecessors_;
+  VT* distances_;
+  VT level_;
+
+  BFSPredDist(
+    unsigned* output_frontier, unsigned* visited, VT* predecessors, VT* distances, VT level)
+    : output_frontier_(output_frontier),
+      visited_(visited),
+      predecessors_(predecessors),
+      distances_(distances),
+      level_(level)
+  {
+  }
+
+  __device__ bool operator()(VT src, VT dst)
+  {
+    //printf("e : %d %d\n", (int)src, (int)dst);
+    unsigned active_bit = static_cast<unsigned>(1) << (dst % BitsPWrd<unsigned>);
+    unsigned prev_word  = atomicOr(output_frontier_ + (dst / BitsPWrd<unsigned>), active_bit);
+    bool dst_not_visited_earlier = !(active_bit & visited_[dst / BitsPWrd<unsigned>]);
+    bool dst_not_visited_current = !(prev_word & active_bit);
+    // If this thread activates the frontier bitmap for a destination
+    // then the source is the predecessor of that destination
+    if (dst_not_visited_earlier && dst_not_visited_current) {
+      distances_[dst]    = level_;
+      predecessors_[dst] = src;
+      return true;
+    } else {
+      return false;
+    }
+  }
+};
 
 template <typename VT, typename ET>
 struct bfs_pred {
@@ -148,6 +215,7 @@ struct bfs_pred_dist {
     }
   }
 };
+
 template <typename vertex_t, typename edge_t, typename weight_t>
 vertex_t populate_isolated_vertices(raft::handle_t const &handle,
     cugraph::GraphCSRView<vertex_t, edge_t, weight_t> const &graph,
