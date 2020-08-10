@@ -54,6 +54,7 @@
 - PR #1020 Updated Louvain to honor max_level, ECG now calls Louvain for 1 level, then full run.
 - PR #1031 MG notebook
 - PR #1034 Expose resolution (gamma) parameter in Louvain
+- PR #1041 Use S3 bucket directly for benchmark plugin
 
 ## Bug Fixes
 - PR #936 Update Force Atlas 2 doc and wrapper
