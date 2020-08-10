@@ -89,7 +89,7 @@ void GraphCOOView<VT, ET, WT>::degree(ET *degree, DegreeDirection direction) con
            ->comms_initialized()))  // FIXME retrieve global source
                                     // indexing for the allreduce work
     {
-      CUGRAPH_FAIL("OPG degree not implemented for OUT degree");
+      CUGRAPH_FAIL("MG degree not implemented for OUT degree");
     }
     degree_from_vertex_ids(GraphViewBase<VT, ET, WT>::handle,
                            GraphViewBase<VT, ET, WT>::number_of_vertices,
@@ -123,9 +123,9 @@ void GraphCompressedSparseBaseView<VT, ET, WT>::degree(ET *degree, DegreeDirecti
   if (direction != DegreeDirection::IN) {
     if ((GraphViewBase<VT, ET, WT>::handle != nullptr) &&
         (GraphViewBase<VT, ET, WT>::handle->comms_initialized())) {
-      CUGRAPH_FAIL("OPG degree not implemented for OUT degree");  // FIXME retrieve global
-                                                                  // source indexing for
-                                                                  // the allreduce to work
+      CUGRAPH_FAIL("MG degree not implemented for OUT degree");  // FIXME retrieve global
+                                                                 // source indexing for
+                                                                 // the allreduce to work
     }
     degree_from_offsets(GraphViewBase<VT, ET, WT>::number_of_vertices, offsets, degree, stream);
   }

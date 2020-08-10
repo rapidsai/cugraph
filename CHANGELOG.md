@@ -3,18 +3,23 @@
 ## New Features
 - PR #937 Add wrapper for gunrock HITS algorithm
 - PR #939 Updated Notebooks to include new features and benchmarks
-- PR #944 OPG pagerank (dask)
-- PR #947 OPG pagerank (CUDA)
-- PR #964 OPG BFS (CUDA)
+- PR #944 MG pagerank (dask)
+- PR #947 MG pagerank (CUDA)
+- PR #826 Bipartite Graph python API
+- PR #963 Renumbering refactor, add multi GPU support
+- PR #964 MG BFS (CUDA)
 - PR #990 MG Consolidation
 - PR #993 Add persistent Handle for Comms
+- PR #979 Add hypergraph implementation to convert DataFrames into Graphs
+- PR #1010 MG BFS (dask)
+- PR #1018 MG personalized pagerank
 
 ## Improvements
 - PR #898 Add Edge Betweenness Centrality, and endpoints to BC
 - PR #913 Eliminate `rmm.device_array` usage
 - PR #903 Add short commit hash to conda package
 - PR #920 modify bfs test, update graph number_of_edges, update storage of transposedAdjList in Graph
-- PR #933 Update opg_degree to use raft, add python tests
+- PR #933 Update mg_degree to use raft, add python tests
 - PR #930 rename test_utils.h to utilities/test_utils.hpp and remove thrust dependency
 - PR #934 Update conda dev environment.yml dependencies to 0.15
 - PR #942 Removed references to deprecated RMM headers.
@@ -37,8 +42,17 @@
 - PR #991 Update conda upload versions for new supported CUDA/Python
 - PR #988 Add clang and clang tools to the conda env
 - PR #997 Update setup.cfg to run pytests under cugraph tests directory only
+- PR #1007 Add tolerance support to MG Pagerank and fix
 - PR #1009 Update benchmarks script to include requirements used
 - PR #1014 Fix benchmarks script variable name
+- PR #1019 Remove deprecated CUDA library calls
+- PR #1024 Updated condata environment YML files
+- PR #1026 update chunksize for mnmg, remove files and unused code
+- PR #1028 Update benchmarks script to use ASV_LABEL
+- PR #1030 MG directory org and documentation
+- PR #1020 Updated Louvain to honor max_level, ECG now calls Louvain for 1 level, then full run.
+- PR #1031 MG notebook
+- PR #1034 Expose resolution (gamma) parameter in Louvain
 
 ## Bug Fixes
 - PR #936 Update Force Atlas 2 doc and wrapper
@@ -48,13 +62,21 @@
 - PR #989: Fix issue with incorrect docker image being used in local build script
 - PR #992 Fix unrenumber of predecessor
 - PR #1008 Fix for cudf updates disabling iteration of Series/Columns/Index
-    
+- PR #1012 Fix Local build script README
+- PR #1017 Fix more mg bugs
+- PR #1022 Fix support for using a cudf.DataFrame with a MG graph
+- PR #1025: Explicitly skip raft test folder for pytest 6.0.0
+- PR #1027 Fix documentation
+- PR #1033 Fix reparition error in big datasets, updated coroutine, fixed warnings
+- PR #1036 Fixed benchmarks for new renumbering API, updated comments, added quick test-only benchmark run to CI
+- PR #1040 Fix spectral clustering renumbering issue
+
 # cuGraph 0.14.0 (03 Jun 2020)
 
 ## New Features
 - PR #756 Add Force Atlas 2 layout
 - PR #822 Added new functions in python graph class, similar to networkx
-- PR #840 OPG degree
+- PR #840 MG degree
 - PR #875 UVM notebook
 - PR #881 Raft integration infrastructure
 
@@ -75,7 +97,7 @@
 - PR #807 Updating the Python docs
 - PR #817 Add native Betweenness Centrality with sources subset
 - PR #818 Initial version of new "benchmarks" folder
-- PR #820 OPG infra and all-gather smoke test
+- PR #820 MG infra and all-gather smoke test
 - PR #823 Remove gdf column from nvgraph
 - PR #829 Updated README and CONTRIBUTIOIN docs
 - PR #831 Updated Notebook - Added K-Truss, ECG, and Betweenness Centrality
@@ -118,7 +140,7 @@
 - PR #860 Fix all Notebooks
 - PR #870 Fix Louvain
 - PR #889 Added missing conftest.py file to benchmarks dir
-- PR #896 opg dask infrastructure fixes
+- PR #896 mg dask infrastructure fixes
 - PR #907 Fix bfs directed missing vertices
 - PR #911 Env and changelog update
 - PR #923 Updated pagerank with @afender 's temp fix for double-free crash

@@ -19,7 +19,6 @@
 from cugraph.community.louvain cimport louvain as c_louvain
 from cugraph.structure.graph_new cimport *
 from cugraph.structure import graph_new_wrapper
-from cugraph.utilities.unrenumber import unrenumber
 from libc.stdint cimport uintptr_t
 
 import cudf
@@ -27,7 +26,7 @@ import rmm
 import numpy as np
 
 
-def louvain(input_graph, max_iter=100):
+def louvain(input_graph, max_iter, resolution):
     """
     Call louvain
     """
@@ -74,7 +73,8 @@ def louvain(input_graph, max_iter=100):
                   &final_modularity_float,
                   &num_level,
                   <int*> c_partition,
-                  max_iter)
+                  <int> max_iter,
+                  <float> resolution)
 
         final_modularity = final_modularity_float
     else:
@@ -86,10 +86,8 @@ def louvain(input_graph, max_iter=100):
                   &final_modularity_double,
                   &num_level,
                   <int*> c_partition,
-                  max_iter)
+                  <int> max_iter,
+                  <double> resolution)
         final_modularity = final_modularity_double
-
-    if input_graph.renumbered:
-        df = unrenumber(input_graph.edgelist.renumber_map, df, 'vertex')
 
     return df, final_modularity

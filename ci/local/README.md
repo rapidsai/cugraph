@@ -25,7 +25,7 @@ where:
 Example Usage:
 `bash build.sh -r ~/rapids/cugraph -i gpuci/rapidsai-base:cuda10.1-ubuntu16.04-gcc5-py3.6`
 
-For a full list of available gpuCI docker images, visit our [DockerHub](https://hub.docker.com/r/gpuci/rapidsai-base/tags) page.
+For a full list of available gpuCI docker images, visit our [DockerHub](https://hub.docker.com/r/gpuci/rapidsai/tags) page.
 
 Style Check:
 ```bash
@@ -51,6 +51,7 @@ The docker image will generate build artifacts in a folder on your machine locat
 
 The script will build your repository and run all tests. If any tests fail, it dumps the user into the docker container itself to allow you to debug from within the container. If all the tests pass as expected the container exits and is automatically removed. Remember to exit the container if tests fail and you do not wish to debug within the container itself.
 
+If you would like to rerun the tests after changing some code in the container, run `bash ci/gpu/build.sh`.
 
 ### Container File Structure
 
