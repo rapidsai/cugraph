@@ -19,9 +19,9 @@
 #include <utilities/error.hpp>
 #include "bfs_kernels.cuh"
 #include "mg/bfs.cuh"
+#include "mg/common_utils.cuh"
 #include "traversal_common.cuh"
 #include "utilities/graph_utils.cuh"
-#include "mg/common_utils.cuh"
 
 namespace cugraph {
 namespace detail {

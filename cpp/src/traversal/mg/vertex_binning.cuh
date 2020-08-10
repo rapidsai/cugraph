@@ -82,11 +82,10 @@ class VertexBinner {
 
   LogDistribution<VT, ET> run(rmm::device_vector<VT>& reorganized_vertices, cudaStream_t stream);
 
-  LogDistribution<VT, ET> run(
-      rmm::device_vector<VT>& input_vertices,
-      VT input_vertices_len,
-      rmm::device_vector<VT>& reorganized_vertices,
-      cudaStream_t stream);
+  LogDistribution<VT, ET> run(rmm::device_vector<VT>& input_vertices,
+                              VT input_vertices_len,
+                              rmm::device_vector<VT>& reorganized_vertices,
+                              cudaStream_t stream);
 };
 
 template <typename VT, typename ET>
@@ -109,11 +108,10 @@ LogDistribution<VT, ET> VertexBinner<VT, ET>::run(rmm::device_vector<VT>& reorga
 }
 
 template <typename VT, typename ET>
-LogDistribution<VT, ET> VertexBinner<VT, ET>::run(
-    rmm::device_vector<VT>& input_vertices,
-    VT input_vertices_len,
-    rmm::device_vector<VT>& reorganized_vertices,
-    cudaStream_t stream)
+LogDistribution<VT, ET> VertexBinner<VT, ET>::run(rmm::device_vector<VT>& input_vertices,
+                                                  VT input_vertices_len,
+                                                  rmm::device_vector<VT>& reorganized_vertices,
+                                                  cudaStream_t stream)
 {
   bin_vertices(input_vertices,
                input_vertices_len,

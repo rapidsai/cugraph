@@ -40,7 +40,8 @@ __device__ inline typename std::enable_if<(sizeof(degree_t) == 8), int>::type ce
 }
 
 template <typename T>
-__global__ void simple_fill(T * bin0, T * bin1, T count) {
+__global__ void simple_fill(T *bin0, T *bin1, T count)
+{
   for (T i = 0; i < count; i++) {
     bin0[i] = 0;
     bin1[i] = 0;
@@ -67,15 +68,15 @@ __global__ void exclusive_scan(T *data, T *out)
 // count the number of vertices that belong to a particular bin where
 // vertex with degree d such that 2^x < d <= 2^x+1 belong to bin (x+1)
 // Vertices with degree 0 are counted in bin 0
-//In this function, any id in vertex_ids array is only acceptable as long
-//as its value is between vertex_begin and vertex_end
+// In this function, any id in vertex_ids array is only acceptable as long
+// as its value is between vertex_begin and vertex_end
 template <typename VT, typename ET>
-__global__ void count_bin_sizes(
-  ET *bins,
-  ET const *offsets,
-  VT const *vertex_ids,
-  ET const vertex_id_count,
-  VT vertex_begin, VT vertex_end)
+__global__ void count_bin_sizes(ET *bins,
+                                ET const *offsets,
+                                VT const *vertex_ids,
+                                ET const vertex_id_count,
+                                VT vertex_begin,
+                                VT vertex_end)
 {
   using cugraph::detail::traversal::atomicAdd;
   constexpr int BinCount = NumberBins<ET>;
@@ -87,9 +88,9 @@ __global__ void count_bin_sizes(
        i += gridDim.x * blockDim.x) {
     auto source = vertex_ids[i];
     if ((source >= vertex_begin) && (source < vertex_end)) {
-      //Take care of OPG partitioning
-      //source logical vertex resides from offsets[source - vertex_begin]
-      //to offsets[source - vertex_begin + 1]
+      // Take care of OPG partitioning
+      // source logical vertex resides from offsets[source - vertex_begin]
+      // to offsets[source - vertex_begin + 1]
       source -= vertex_begin;
       auto degree = offsets[source + 1] - offsets[source];
       atomicAdd(lBin + ceilLog2_p1(degree), ET{1});
@@ -103,13 +104,13 @@ __global__ void count_bin_sizes(
 // Bin vertices to the appropriate bins by taking into account
 // the starting offsets calculated by count_bin_sizes
 template <typename VT, typename ET>
-__global__ void create_vertex_bins(
-  VT *out_vertex_ids,
-  ET *bin_offsets,
-  ET const *offsets,
-  VT *in_vertex_ids,
-  ET const vertex_id_count,
-  VT vertex_begin, VT vertex_end)
+__global__ void create_vertex_bins(VT *out_vertex_ids,
+                                   ET *bin_offsets,
+                                   ET const *offsets,
+                                   VT *in_vertex_ids,
+                                   ET const vertex_id_count,
+                                   VT vertex_begin,
+                                   VT vertex_end)
 {
   using cugraph::detail::traversal::atomicAdd;
   constexpr int BinCount = NumberBins<ET>;
@@ -126,7 +127,7 @@ __global__ void create_vertex_bins(
   VT source;
 
   if (is_valid_vertex) {
-    source = in_vertex_ids[vertex_index];
+    source          = in_vertex_ids[vertex_index];
     is_valid_vertex = ((source >= vertex_begin) && (source < vertex_end));
     source -= vertex_begin;
   }
@@ -159,27 +160,27 @@ void bin_vertices(rmm::device_vector<VT> &input_vertex_ids,
                   cudaStream_t stream)
 {
   simple_fill<ET><<<1, 1, 0, stream>>>(
-      bin_count_offsets.data().get(),
-      bin_count.data().get(),
-      static_cast<ET>(bin_count.size()));
+    bin_count_offsets.data().get(), bin_count.data().get(), static_cast<ET>(bin_count.size()));
 
   const unsigned BLOCK_SIZE = 512;
   unsigned blocks           = ((input_vertex_ids_len) + BLOCK_SIZE - 1) / BLOCK_SIZE;
-  count_bin_sizes<ET><<<blocks, BLOCK_SIZE, 0, stream>>>(
-    bin_count.data().get(), offsets,
-    input_vertex_ids.data().get(),
-    static_cast<ET>(input_vertex_ids_len),
-    vertex_begin, vertex_end);
+  count_bin_sizes<ET><<<blocks, BLOCK_SIZE, 0, stream>>>(bin_count.data().get(),
+                                                         offsets,
+                                                         input_vertex_ids.data().get(),
+                                                         static_cast<ET>(input_vertex_ids_len),
+                                                         vertex_begin,
+                                                         vertex_end);
 
   exclusive_scan<<<1, 1, 0, stream>>>(bin_count.data().get(), bin_count_offsets.data().get());
 
-  create_vertex_bins<VT, ET><<<blocks, BLOCK_SIZE, 0, stream>>>(
-    reorganized_vertex_ids.data().get(),
-    bin_count.data().get(),
-    offsets,
-    input_vertex_ids.data().get(),
-    static_cast<ET>(input_vertex_ids_len),
-    vertex_begin, vertex_end);
+  create_vertex_bins<VT, ET>
+    <<<blocks, BLOCK_SIZE, 0, stream>>>(reorganized_vertex_ids.data().get(),
+                                        bin_count.data().get(),
+                                        offsets,
+                                        input_vertex_ids.data().get(),
+                                        static_cast<ET>(input_vertex_ids_len),
+                                        vertex_begin,
+                                        vertex_end);
 }
 
 }  // namespace detail

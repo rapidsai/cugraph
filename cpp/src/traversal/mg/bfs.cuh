@@ -17,9 +17,9 @@
 #pragma once
 
 #include <raft/handle.hpp>
+#include "../traversal_common.cuh"
 #include "common_utils.cuh"
 #include "frontier_expand.cuh"
-#include "../traversal_common.cuh"
 
 namespace cugraph {
 
@@ -42,7 +42,7 @@ void bfs(raft::handle_t const &handle,
 
   rmm::device_vector<unsigned> unique_bmap(word_count, 0);
 
-  //Buffers required for BFS
+  // Buffers required for BFS
   rmm::device_vector<vertex_t> input_frontier(graph.number_of_vertices);
   rmm::device_vector<vertex_t> output_frontier(graph.number_of_vertices);
   rmm::device_vector<size_t> temp_buffer_len(handle.get_comms().get_size());
@@ -52,97 +52,82 @@ void bfs(raft::handle_t const &handle,
 
   cudaStream_t stream = handle.get_stream();
 
-  //Reusing buffers to create isolated bitmap
+  // Reusing buffers to create isolated bitmap
   {
-    rmm::device_vector<vertex_t>& local_isolated_ids = input_frontier;
-    rmm::device_vector<vertex_t>& global_isolated_ids = output_frontier;
+    rmm::device_vector<vertex_t> &local_isolated_ids  = input_frontier;
+    rmm::device_vector<vertex_t> &global_isolated_ids = output_frontier;
     detail::create_isolated_bitmap(
-        handle, graph,
-        local_isolated_ids, global_isolated_ids,
-        temp_buffer_len, isolated_bmap);
+      handle, graph, local_isolated_ids, global_isolated_ids, temp_buffer_len, isolated_bmap);
   }
 
-  //Initialize input frontier
-  input_frontier[0] = start_vertex;
+  // Initialize input frontier
+  input_frontier[0]           = start_vertex;
   vertex_t input_frontier_len = 1;
 
   vertex_t level = 0;
-  if (distances != nullptr) {
-    detail::fill_max_dist(handle, graph, start_vertex, distances);
-  }
+  if (distances != nullptr) { detail::fill_max_dist(handle, graph, start_vertex, distances); }
   thrust::fill(rmm::exec_policy(stream)->on(stream),
                predecessors,
                predecessors + graph.number_of_vertices,
                cugraph::invalid_idx<vertex_t>::value);
 
-  //TODO : Check if starting vertex is isolated. Exit function if it is.
+  // TODO : Check if starting vertex is isolated. Exit function if it is.
 
   detail::add_to_bitmap(handle, visited_bmap, input_frontier, input_frontier_len);
 
   do {
-    //Mark all input frontier vertices as visited
+    // Mark all input frontier vertices as visited
     detail::add_to_bitmap(handle, visited_bmap, input_frontier, input_frontier_len);
 
     ++level;
 
-    //Remove duplicates,isolated and out of partition vertices
-    //from input_frontier and store it to output_frontier
-    input_frontier_len =
-      detail::preprocess_input_frontier(
-          handle,
-          graph,
-          unique_bmap,
-          isolated_bmap,
-          input_frontier,
-          input_frontier_len,
-          output_frontier);
-    //Swap input and output frontier
+    // Remove duplicates,isolated and out of partition vertices
+    // from input_frontier and store it to output_frontier
+    input_frontier_len = detail::preprocess_input_frontier(handle,
+                                                           graph,
+                                                           unique_bmap,
+                                                           isolated_bmap,
+                                                           input_frontier,
+                                                           input_frontier_len,
+                                                           output_frontier);
+    // Swap input and output frontier
     input_frontier.swap(output_frontier);
 
-    //Clear output frontier bitmap
+    // Clear output frontier bitmap
     thrust::fill(rmm::exec_policy(stream)->on(stream),
                  output_frontier_bmap.begin(),
                  output_frontier_bmap.end(),
                  static_cast<unsigned>(0));
 
     vertex_t output_frontier_len = 0;
-    //Generate output frontier bitmap from input frontier
+    // Generate output frontier bitmap from input frontier
     if (distances != nullptr) {
       // BFS Functor for frontier calculation
-      detail::BFSPredDist<vertex_t, edge_t> bfs_op(
-        output_frontier_bmap.data().get(),
-        visited_bmap.data().get(),
-        predecessors, distances, level);
-      output_frontier_len =
-        fexp.run(bfs_op, input_frontier, input_frontier_len, output_frontier);
+      detail::BFSPredDist<vertex_t, edge_t> bfs_op(output_frontier_bmap.data().get(),
+                                                   visited_bmap.data().get(),
+                                                   predecessors,
+                                                   distances,
+                                                   level);
+      output_frontier_len = fexp.run(bfs_op, input_frontier, input_frontier_len, output_frontier);
 
     } else {
       // BFS Functor for frontier calculation
       detail::BFSPred<vertex_t, edge_t> bfs_op(
-        output_frontier_bmap.data().get(),
-        visited_bmap.data().get(),
-        predecessors);
-      output_frontier_len =
-        fexp.run(bfs_op, input_frontier, input_frontier_len, output_frontier);
-
+        output_frontier_bmap.data().get(), visited_bmap.data().get(), predecessors);
+      output_frontier_len = fexp.run(bfs_op, input_frontier, input_frontier_len, output_frontier);
     }
 
-    //Collect output_frontier from all ranks to input_frontier
-    //If not empty then we proceed to next iteration.
-    //Note that its an error to remove duplicates and non local
-    //start vertices here since it is possible that doing so will
-    //result in input_frontier_len to be 0. That would cause some
-    //ranks to go ahead with the iteration and some to terminate.
-    //This would further cause a nccl communication error since
-    //not every rank participates in broadcast/allgather in
-    //subsequent calls
-    input_frontier_len =
-      detail::collect_vectors(
-          handle,
-          temp_buffer_len,
-          output_frontier,
-          output_frontier_len,
-          input_frontier);
+    // Collect output_frontier from all ranks to input_frontier
+    // If not empty then we proceed to next iteration.
+    // Note that its an error to remove duplicates and non local
+    // start vertices here since it is possible that doing so will
+    // result in input_frontier_len to be 0. That would cause some
+    // ranks to go ahead with the iteration and some to terminate.
+    // This would further cause a nccl communication error since
+    // not every rank participates in broadcast/allgather in
+    // subsequent calls
+    input_frontier_len = detail::collect_vectors(
+      handle, temp_buffer_len, output_frontier, output_frontier_len, input_frontier);
 
   } while (input_frontier_len != 0);
 

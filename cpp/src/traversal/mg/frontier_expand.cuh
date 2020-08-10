@@ -17,8 +17,8 @@
 #pragma once
 
 #include <graph.hpp>
-#include "vertex_binning.cuh"
 #include "frontier_expand_kernels.cuh"
+#include "vertex_binning.cuh"
 
 namespace cugraph {
 
@@ -41,7 +41,7 @@ class FrontierExpand {
     : handle_(handle), graph_(graph)
   {
     bool is_mg = (handle.comms_initialized() && (graph.local_vertices != nullptr) &&
-                   (graph.local_offsets != nullptr));
+                  (graph.local_offsets != nullptr));
     if (is_mg) {
       reorganized_vertices_.resize(graph.local_vertices[handle_.get_comms().get_rank()]);
       vertex_begin_ = graph.local_offsets[handle_.get_comms().get_rank()];
@@ -55,42 +55,72 @@ class FrontierExpand {
     output_vertex_count_.resize(1);
   }
 
-  //Return the size of the output_frontier
+  // Return the size of the output_frontier
   template <typename Operator>
   VT run(Operator op,
-      rmm::device_vector<VT> &input_frontier,
-      VT input_frontier_len,
-      rmm::device_vector<VT> &output_frontier)
+         rmm::device_vector<VT> &input_frontier,
+         VT input_frontier_len,
+         rmm::device_vector<VT> &output_frontier)
   {
     if (input_frontier_len == 0) { return static_cast<VT>(0); }
-    cudaStream_t stream = handle_.get_stream();
+    cudaStream_t stream     = handle_.get_stream();
     output_vertex_count_[0] = 0;
     dist_.setup(graph_.offsets, nullptr, vertex_begin_, vertex_end_);
-    auto distribution = dist_.run(
-        input_frontier, input_frontier_len, reorganized_vertices_, stream);
+    auto distribution =
+      dist_.run(input_frontier, input_frontier_len, reorganized_vertices_, stream);
 
     DegreeBucket<VT, ET> large_bucket = distribution.degreeRange(16);
     // TODO : Use other streams from handle_
-    large_vertex_lb(graph_, large_bucket, op, vertex_begin_,
-        output_frontier.data().get(), output_vertex_count_.data().get(), stream);
+    large_vertex_lb(graph_,
+                    large_bucket,
+                    op,
+                    vertex_begin_,
+                    output_frontier.data().get(),
+                    output_vertex_count_.data().get(),
+                    stream);
 
     DegreeBucket<VT, ET> medium_bucket = distribution.degreeRange(12, 16);
-    medium_vertex_lb(graph_, medium_bucket, op, vertex_begin_,
-        output_frontier.data().get(), output_vertex_count_.data().get(), stream);
+    medium_vertex_lb(graph_,
+                     medium_bucket,
+                     op,
+                     vertex_begin_,
+                     output_frontier.data().get(),
+                     output_vertex_count_.data().get(),
+                     stream);
 
     DegreeBucket<VT, ET> small_bucket_0 = distribution.degreeRange(10, 12);
     DegreeBucket<VT, ET> small_bucket_1 = distribution.degreeRange(8, 10);
     DegreeBucket<VT, ET> small_bucket_2 = distribution.degreeRange(6, 8);
     DegreeBucket<VT, ET> small_bucket_3 = distribution.degreeRange(0, 6);
 
-    small_vertex_lb(graph_, small_bucket_0, op, vertex_begin_,
-        output_frontier.data().get(), output_vertex_count_.data().get(), stream);
-    small_vertex_lb(graph_, small_bucket_1, op, vertex_begin_,
-        output_frontier.data().get(), output_vertex_count_.data().get(), stream);
-    small_vertex_lb(graph_, small_bucket_2, op, vertex_begin_,
-        output_frontier.data().get(), output_vertex_count_.data().get(), stream);
-    small_vertex_lb(graph_, small_bucket_3, op, vertex_begin_,
-        output_frontier.data().get(), output_vertex_count_.data().get(), stream);
+    small_vertex_lb(graph_,
+                    small_bucket_0,
+                    op,
+                    vertex_begin_,
+                    output_frontier.data().get(),
+                    output_vertex_count_.data().get(),
+                    stream);
+    small_vertex_lb(graph_,
+                    small_bucket_1,
+                    op,
+                    vertex_begin_,
+                    output_frontier.data().get(),
+                    output_vertex_count_.data().get(),
+                    stream);
+    small_vertex_lb(graph_,
+                    small_bucket_2,
+                    op,
+                    vertex_begin_,
+                    output_frontier.data().get(),
+                    output_vertex_count_.data().get(),
+                    stream);
+    small_vertex_lb(graph_,
+                    small_bucket_3,
+                    op,
+                    vertex_begin_,
+                    output_frontier.data().get(),
+                    output_vertex_count_.data().get(),
+                    stream);
     return output_vertex_count_[0];
   }
 };
