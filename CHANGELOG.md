@@ -80,6 +80,7 @@
 - PR #1033 Fix reparition error in big datasets, updated coroutine, fixed warnings
 - PR #1036 Fixed benchmarks for new renumbering API, updated comments, added quick test-only benchmark run to CI
 - PR #1040 Fix spectral clustering renumbering issue
+- PR #1057 Updated raft dependency to pull fixes on cusparse selection in CUDA 11
 
 # cuGraph 0.14.0 (03 Jun 2020)
 
