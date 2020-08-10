@@ -67,7 +67,7 @@ def client_connection():
 def test_dask_pagerank(client_connection, personalization_perc):
     gc.collect()
 
-    input_data_path = r"../datasets/email-Eu-core.csv"
+    input_data_path = r"../datasets/karate.csv"
     chunksize = dcg.get_chunksize(input_data_path)
 
     ddf = dask_cudf.read_csv(input_data_path, chunksize=chunksize,

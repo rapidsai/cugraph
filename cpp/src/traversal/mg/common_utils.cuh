@@ -39,25 +39,6 @@ constexpr inline T number_of_words(T number_of_bits)
   return raft::div_rounding_up_safe(number_of_bits, static_cast<T>(BitsPWrd<unsigned>));
 }
 
-template <typename T>
-void print(T *ptr, T count, std::string prefix = "", std::string delim = " ")
-{
-  thrust::device_ptr<T> p(ptr);
-  std::string out = prefix;
-  for (T i = 0; i < count; ++i) {
-    T val = p[i];
-    out += std::to_string(val) + delim;
-  }
-  out += "\n";
-  std::cout << out;
-}
-
-template <typename T>
-void print(rmm::device_vector<T> &data, T count, std::string prefix = "", std::string delim = " ")
-{
-  print(data.data().get(), count, prefix, delim);
-}
-
 template <typename edge_t>
 struct isDegreeZero {
   edge_t *offset_;
@@ -125,7 +106,6 @@ struct BFSPredDist {
 
   __device__ bool operator()(VT src, VT dst)
   {
-    // printf("e : %d %d\n", (int)src, (int)dst);
     unsigned active_bit = static_cast<unsigned>(1) << (dst % BitsPWrd<unsigned>);
     unsigned prev_word  = atomicOr(output_frontier_ + (dst / BitsPWrd<unsigned>), active_bit);
     bool dst_not_visited_earlier = !(active_bit & visited_[dst / BitsPWrd<unsigned>]);
@@ -190,7 +170,6 @@ struct bfs_pred_dist {
 
   __device__ void operator()(VT src, VT dst, VT *frontier, ET *frontier_count)
   {
-    // printf("e : %d %d\n", (int)src, (int)dst);
     unsigned active_bit = static_cast<unsigned>(1) << (dst % BitsPWrd<unsigned>);
     unsigned prev_word  = atomicOr(output_frontier_ + (dst / BitsPWrd<unsigned>), active_bit);
     bool dst_not_visited_earlier = !(active_bit & visited_[dst / BitsPWrd<unsigned>]);
@@ -218,12 +197,10 @@ vertex_t populate_isolated_vertices(raft::handle_t const &handle,
 
   edge_t vertex_begin_, vertex_end_;
   if (is_mg) {
-    // isolated_vertex_ids.resize(graph.local_vertices[handle.get_comms().get_rank()]);
     vertex_begin_ = graph.local_offsets[handle.get_comms().get_rank()];
     vertex_end_   = graph.local_offsets[handle.get_comms().get_rank()] +
                   graph.local_vertices[handle.get_comms().get_rank()];
   } else {
-    // isolated_vertex_ids.resize(graph.number_of_vertices);
     vertex_begin_ = 0;
     vertex_end_   = graph.number_of_vertices;
   }
@@ -264,7 +241,6 @@ T collect_vectors(raft::handle_t const &handle,
     h_buffer_offsets[i] = global_buffer_len;
     global_buffer_len += h_buffer_len[i];
   }
-  // global.resize(global_buffer_len);
 
   handle.get_comms().allgatherv(local.data().get(),
                                 global.data().get(),
