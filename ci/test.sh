@@ -59,4 +59,9 @@ cd ${CUGRAPH_ROOT}/python
 pytest --cache-clear --junitxml=${CUGRAPH_ROOT}/junit-cugraph.xml -v --cov-config=.coveragerc --cov=cugraph --cov-report=xml:${WORKSPACE}/python/cugraph/cugraph-coverage.xml --cov-report term --ignore=cugraph/raft
 ERRORCODE=$((ERRORCODE | $?))
 
+echo "Python benchmarks for cuGraph (running as tests)..."
+cd ${CUGRAPH_ROOT}/benchmarks
+pytest -v -m "managedmem_on and poolallocator_on and tiny" --benchmark-disable
+ERRORCODE=$((ERRORCODE | $?))
+
 exit ${ERRORCODE}
