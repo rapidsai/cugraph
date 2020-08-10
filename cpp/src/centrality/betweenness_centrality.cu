@@ -22,6 +22,7 @@
 
 #include <algorithms.hpp>
 #include <graph.hpp>
+#include <rmm/device_scalar.hpp>
 #include <utilities/error.hpp>
 
 #include <raft/handle.hpp>
@@ -85,11 +86,15 @@ vertex_t get_total_number_of_sources(raft::handle_t const &handle, vertex_t loca
 {
   vertex_t total_number_of_sources_used = local_number_of_sources;
   if (handle.comms_initialized()) {
-    rmm::device_vector<vertex_t> d_number_of_sources(1, local_number_of_sources);
-    vertex_t *data = d_number_of_sources.data().get();
-    handle.get_comms().allreduce(data, data, d_number_of_sources.size(), raft::comms::op_t::SUM, 0);
-    CUDA_TRY(
-      cudaMemcpy(&total_number_of_sources_used, data, sizeof(vertex_t), cudaMemcpyDeviceToHost));
+    rmm::device_scalar<vertex_t> d_number_of_sources(local_number_of_sources, handle.get_stream());
+    handle.get_comms().allreduce(d_number_of_sources.data(),
+                                 d_number_of_sources.data(),
+                                 1,
+                                 raft::comms::op_t::SUM,
+                                 handle.get_stream());
+    total_number_of_sources_used = d_number_of_sources.value(handle.get_stream());
+    // CUDA_TRY(
+    // cudaMemcpy(&total_number_of_sources_used, data, sizeof(vertex_t), cudaMemcpyDeviceToHost));
   }
   return total_number_of_sources_used;
 }
