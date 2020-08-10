@@ -69,7 +69,7 @@ def calc_katz(graph_file):
 # https://github.com/rapidsai/cugraph/issues/1042
 #
 #@pytest.mark.parametrize("graph_file", utils.DATASETS)
-@pytest.mark.parametrize("graph_file", utils.DATASETS_2)
+@pytest.mark.parametrize("graph_file", utils.DATASETS_UNDIRECTED)
 def test_katz_centrality(graph_file):
     gc.collect()
 
