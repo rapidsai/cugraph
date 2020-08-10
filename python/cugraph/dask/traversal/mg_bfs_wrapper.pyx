@@ -39,8 +39,6 @@ def mg_bfs(input_df, local_data, rank, handle, start, return_distances=False):
     num_local_verts = local_data['verts'][rank]
     num_local_edges = len(src)
 
-    print("num_verts ", num_verts)
-
     # Convert to local CSR
     [src, dst] = graph_new_wrapper.datatype_cast([src, dst], [np.int32])
     _offsets, indices, weights = coo2csr(src, dst, None)

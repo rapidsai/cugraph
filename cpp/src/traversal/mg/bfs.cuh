@@ -62,12 +62,9 @@ void bfs(raft::handle_t const &handle,
         temp_buffer_len, isolated_bmap);
   }
 
-  //TODO : Check if starting vertex is isolated. Exit function if it is.
-
   //Initialize input frontier
   input_frontier[0] = start_vertex;
   vertex_t input_frontier_len = 1;
-  detail::add_to_bitmap(handle, visited_bmap, input_frontier, input_frontier_len);
 
   vertex_t level = 0;
   if (distances != nullptr) {
@@ -78,7 +75,10 @@ void bfs(raft::handle_t const &handle,
                predecessors + graph.number_of_vertices,
                cugraph::invalid_idx<vertex_t>::value);
 
-  auto my_rank = handle.get_comms().get_rank();
+  //TODO : Check if starting vertex is isolated. Exit function if it is.
+
+  detail::add_to_bitmap(handle, visited_bmap, input_frontier, input_frontier_len);
+
   do {
     //Mark all input frontier vertices as visited
     detail::add_to_bitmap(handle, visited_bmap, input_frontier, input_frontier_len);
