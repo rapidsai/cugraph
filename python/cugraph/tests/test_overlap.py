@@ -82,7 +82,7 @@ def cpu_call(M, first, second):
 
 
 # Test
-@pytest.mark.parametrize("graph_file", utils.DATASETS)
+@pytest.mark.parametrize("graph_file", utils.DATASETS_UNDIRECTED)
 def test_overlap(graph_file):
     gc.collect()
 
@@ -116,7 +116,7 @@ def test_overlap(graph_file):
 
 
 # Test
-@pytest.mark.parametrize("graph_file", utils.DATASETS)
+@pytest.mark.parametrize("graph_file", utils.DATASETS_UNDIRECTED)
 def test_overlap_edge_vals(graph_file):
     gc.collect()
 
