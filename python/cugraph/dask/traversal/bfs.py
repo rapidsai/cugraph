@@ -89,7 +89,8 @@ def bfs(graph,
         data = get_local_data(graph, by='src')
 
     if graph.renumbered:
-        start = graph.lookup_internal_vertex_id(cudf.Series([start], dtype='int32')).compute()
+        start = graph.lookup_internal_vertex_id(cudf.Series([start],
+                                                dtype='int32')).compute()
         start = start.iloc[0]
 
     result = dict([(data.worker_info[wf[0]]["rank"],
