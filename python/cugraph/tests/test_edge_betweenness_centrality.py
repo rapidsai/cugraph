@@ -42,7 +42,8 @@ DIRECTED_GRAPH_OPTIONS = [False, True]
 NORMALIZED_OPTIONS = [False, True]
 DEFAULT_EPSILON = 0.0001
 
-DATASETS = ["../datasets/karate.csv", "../datasets/netscience.csv"]
+#DATASETS = ["../datasets/karate.csv", "../datasets/netscience.csv"]
+DATASETS = utils.DATASETS
 
 UNRENUMBERED_DATASETS = ["../datasets/karate.csv"]
 
