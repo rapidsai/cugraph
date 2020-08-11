@@ -89,7 +89,7 @@ void sssp(raft::handle_t &handle,
   auto constexpr invalid_vertex   = invalid_vertex_id<vertex_t>::value;
 
   auto val_first = thrust::make_zip_iterator(thrust::make_tuple(distances, predecessor_first));
-  thrust::transform(thrust::cuda::par.on(handle.get_stream()),
+  thrust::transform(rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
                     graph_device_view.local_vertex_begin(),
                     graph_device_view.local_vertex_end(),
                     val_first,

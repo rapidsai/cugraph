@@ -23,8 +23,8 @@
 #include <patterns/transform_reduce_v_with_adj_matrix_row.cuh>
 #include <utilities/error.hpp>
 
-#include <rmm/thrust_rmm_allocator.h>
 #include <raft/handle.hpp>
+#include <rmm/thrust_rmm_allocator.h>
 
 #include <thrust/fill.h>
 #include <thrust/iterator/constant_iterator.h>
@@ -85,7 +85,7 @@ void katz_centrality(raft::handle_t &handle,
   // 2. initialize katz centrality values
 
   if (!has_initial_guess) {
-    thrust::fill(thrust::cuda::par.on(handle.get_stream()),
+    thrust::fill(rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
                  katz_centralities,
                  katz_centralities + graph_device_view.get_number_of_local_vertices(),
                  result_t{0.0});
@@ -114,7 +114,7 @@ void katz_centrality(raft::handle_t &handle,
 
     if (betas != nullptr) {
       auto val_first = thrust::make_zip_iterator(thrust::make_tuple(katz_centralities, betas));
-      thrust::transform(thrust::cuda::par.on(handle.get_stream()),
+      thrust::transform(rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
                         val_first,
                         val_first + graph_device_view.get_number_of_local_vertices(),
                         katz_centralities,
@@ -152,7 +152,7 @@ void katz_centrality(raft::handle_t &handle,
     l2_norm = std::sqrt(l2_norm);
     CUGRAPH_EXPECTS(l2_norm > 0.0,
                     "L2 norm of the computed Katz Centrality values should be positive.");
-    thrust::transform(thrust::cuda::par.on(handle.get_stream()),
+    thrust::transform(rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
                       katz_centralities,
                       katz_centralities + graph_device_view.get_number_of_local_vertices(),
                       katz_centralities,

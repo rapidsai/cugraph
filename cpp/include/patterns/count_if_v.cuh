@@ -19,6 +19,7 @@
 #include <utilities/error.hpp>
 
 #include <raft/handle.hpp>
+#include <rmm/thrust_rmm_allocator.h>
 
 #include <thrust/count.h>
 #include <thrust/execution_policy.h>
@@ -58,7 +59,7 @@ typename GraphType::vertex_type count_if_v(HandleType& handle,
                                            VertexOp v_op)
 {
   auto count =
-    thrust::count_if(thrust::cuda::par.on(handle.get_stream()),
+    thrust::count_if(rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
                      vertex_value_input_first,
                      vertex_value_input_first + graph_device_view.get_number_of_local_vertices(),
                      v_op);
@@ -100,7 +101,7 @@ typename GraphType::vertex_type count_if_v(HandleType& handle,
                                            VertexOp v_op)
 {
   auto count =
-    thrust::count_if(thrust::cuda::par.on(handle.get_stream()), input_first, input_last, v_op);
+    thrust::count_if(rmm::exec_policy(handle.get_stream())->on(handle.get_stream()), input_first, input_last, v_op);
   if (GraphType::is_multi_gpu) {
     // need to reduce count
     CUGRAPH_FAIL("unimplemented.");

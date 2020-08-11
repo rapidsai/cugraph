@@ -82,7 +82,7 @@ T transform_reduce_v_with_adj_matrix_row(
     auto v_op_wrapper = [v_op] __device__(auto v_and_row_val) {
       return v_op(thrust::get<0>(v_and_row_val), thrust::get<1>(v_and_row_val));
     };
-    return thrust::transform_reduce(thrust::cuda::par.on(handle.get_stream()),
+    return thrust::transform_reduce(rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
                                     input_first,
                                     input_first + graph_device_view.get_number_of_local_vertices(),
                                     v_op_wrapper,

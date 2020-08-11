@@ -192,7 +192,7 @@ T transform_reduce_e(HandleType& handle,
   // previous kernel. Using atomics at the end of the previous kernel is another option
   // (sequentialization due to atomics may not be bad as different blocks may reach the
   // synchronization point in varying timings and the number of SMs is not very big)
-  auto result = thrust::reduce(thrust::cuda::par.on(handle.get_stream()),
+  auto result = thrust::reduce(rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
                                block_results.begin(),
                                block_results.end(),
                                T(),

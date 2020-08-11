@@ -19,6 +19,7 @@
 #include <utilities/error.hpp>
 
 #include <raft/handle.hpp>
+#include <rmm/thrust_rmm_allocator.h>
 
 #include <thrust/copy.h>
 #include <thrust/execution_policy.h>
@@ -65,7 +66,7 @@ void copy_to_adj_matrix_row(HandleType& handle,
   } else {
     assert(graph_device_view.get_number_of_local_vertices() ==
            graph_device_view.get_number_of_adj_matrix_local_rows());
-    thrust::copy(thrust::cuda::par.on(handle.get_stream()),
+    thrust::copy(rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
                  vertex_value_input_first,
                  vertex_value_input_first + graph_device_view.get_number_of_local_vertices(),
                  adj_matrix_row_value_output_first);
@@ -120,7 +121,7 @@ void copy_to_adj_matrix_row(HandleType& handle,
     assert(graph_device_view.get_number_of_local_vertices() ==
            graph_device_view.get_number_of_adj_matrix_local_rows());
     auto val_first = thrust::make_permutation_iterator(vertex_value_input_first, vertex_first);
-    thrust::scatter(thrust::cuda::par.on(handle.get_stream()),
+    thrust::scatter(rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
                     val_first,
                     val_first + thrust::distance(vertex_first, vertex_last),
                     vertex_first,

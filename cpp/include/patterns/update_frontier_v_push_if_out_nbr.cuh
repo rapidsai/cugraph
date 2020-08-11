@@ -117,7 +117,7 @@ size_t reduce_buffer_elements(HandleType& handle,
                               size_t num_buffer_elements,
                               ReduceOp reduce_op)
 {
-  thrust::sort_by_key(thrust::cuda::par.on(handle.get_stream()),
+  thrust::sort_by_key(rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
                       buffer_key_output_first,
                       buffer_key_output_first + num_buffer_elements,
                       buffer_payload_output_first);
@@ -125,7 +125,7 @@ size_t reduce_buffer_elements(HandleType& handle,
   if (std::is_same<ReduceOp, reduce_op::any<typename ReduceOp::type>>::value) {
     // FIXME: if ReducOp is any, we may have a cheaper alternative than sort & uique (i.e. discard
     // non-first elements)
-    auto it = thrust::unique_by_key(thrust::cuda::par.on(handle.get_stream()),
+    auto it = thrust::unique_by_key(rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
                                     buffer_key_output_first,
                                     buffer_key_output_first + num_buffer_elements,
                                     buffer_payload_output_first);
@@ -141,7 +141,7 @@ size_t reduce_buffer_elements(HandleType& handle,
     // system HBM size or a function of the maximum number of threads in the system))
     rmm::device_vector<key_t> keys(num_buffer_elements);
     rmm::device_vector<payload_t> values(num_buffer_elements);
-    auto it = thrust::reduce_by_key(thrust::cuda::par.on(handle.get_stream()),
+    auto it = thrust::reduce_by_key(rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
                                     buffer_key_output_first,
                                     buffer_key_output_first + num_buffer_elements,
                                     buffer_payload_output_first,
@@ -151,11 +151,11 @@ size_t reduce_buffer_elements(HandleType& handle,
                                     reduce_op);
     auto num_reduced_buffer_elements =
       static_cast<size_t>(thrust::distance(keys.begin(), thrust::get<0>(it)));
-    thrust::copy(thrust::cuda::par.on(handle.get_stream()),
+    thrust::copy(rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
                  keys.begin(),
                  keys.begin() + num_reduced_buffer_elements,
                  buffer_key_output_first);
-    thrust::copy(thrust::cuda::par.on(handle.get_stream()),
+    thrust::copy(rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
                  values.begin(),
                  values.begin() + num_reduced_buffer_elements,
                  buffer_payload_output_first);
@@ -340,7 +340,7 @@ void update_frontier_v_push_if_out_nbr(
 
   auto max_pushes = GraphType::is_multi_gpu
                       ? thrust::transform_reduce(
-                          thrust::cuda::par.on(handle.get_stream()),
+                          rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
                           frontier_rows.begin(),
                           frontier_rows.end(),
                           [graph_device_view] __device__(auto row) {
@@ -349,7 +349,7 @@ void update_frontier_v_push_if_out_nbr(
                           size_t{0},
                           thrust::plus<size_t>())
                       : thrust::transform_reduce(
-                          thrust::cuda::par.on(handle.get_stream()),
+                          rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
                           vertex_first,
                           vertex_last,
                           [graph_device_view] __device__(auto row) {

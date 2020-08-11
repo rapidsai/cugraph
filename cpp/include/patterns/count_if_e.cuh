@@ -167,7 +167,7 @@ typename GraphType::edge_type count_if_e(
   // previous kernel. Using atomics at the end of the previous kernel is another option
   // (sequentialization due to atomics may not be bad as different blocks may reach the
   // synchronization point in varying timings and the number of SMs is not very big)
-  auto count = thrust::reduce(thrust::cuda::par.on(handle.get_stream()),
+  auto count = thrust::reduce(rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
                               block_counts.begin(),
                               block_counts.end(),
                               edge_t{0},

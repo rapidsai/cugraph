@@ -61,7 +61,7 @@ T transform_reduce_v(HandleType& handle,
                      T init)
 {
   auto ret = thrust::transform_reduce(
-    thrust::cuda::par.on(handle.get_stream()),
+    rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
     vertex_value_input_first,
     vertex_value_input_first + graph_device_view.get_number_of_local_vertices(),
     v_op,
@@ -110,7 +110,7 @@ T transform_reduce_v(HandleType& handle,
                      VertexOp v_op,
                      T init)
 {
-  auto ret = thrust::transform_reduce(thrust::cuda::par.on(handle.get_stream()),
+  auto ret = thrust::transform_reduce(rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
                                       input_first,
                                       input_last,
                                       v_op,

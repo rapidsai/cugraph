@@ -25,8 +25,8 @@
 #include <patterns/transform_reduce_v_with_adj_matrix_row.cuh>
 #include <utilities/error.hpp>
 
-#include <rmm/thrust_rmm_allocator.h>
 #include <raft/handle.hpp>
+#include <rmm/thrust_rmm_allocator.h>
 
 #include <thrust/fill.h>
 #include <thrust/for_each.h>
@@ -164,13 +164,13 @@ void pagerank(raft::handle_t& handle,
     CUGRAPH_EXPECTS(
       sum > 0.0,
       "Invalid input argument: sum of the PageRank initial guess values should be positive.");
-    thrust::transform(thrust::cuda::par.on(handle.get_stream()),
+    thrust::transform(rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
                       pageranks,
                       pageranks + graph_device_view.get_number_of_local_vertices(),
                       pageranks,
                       [sum] __device__(auto val) { return val / sum; });
   } else {
-    thrust::fill(thrust::cuda::par.on(handle.get_stream()),
+    thrust::fill(rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
                  pageranks,
                  pageranks + graph_device_view.get_number_of_local_vertices(),
                  result_t{1.0} / static_cast<result_t>(num_vertices));
@@ -200,7 +200,7 @@ void pagerank(raft::handle_t& handle,
 
     auto row_val_first = thrust::make_zip_iterator(
       thrust::make_tuple(adj_matrix_row_pageranks.begin(), row_out_weight_sums));
-    thrust::transform(thrust::cuda::par.on(handle.get_stream()),
+    thrust::transform(rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
                       row_val_first,
                       row_val_first + graph_device_view.get_number_of_adj_matrix_local_rows(),
                       adj_matrix_row_pageranks.begin(),

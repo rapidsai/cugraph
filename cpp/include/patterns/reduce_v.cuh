@@ -53,7 +53,7 @@ T reduce_v(HandleType& handle,
            T init)
 {
   auto ret =
-    thrust::reduce(thrust::cuda::par.on(handle.get_stream()),
+    thrust::reduce(rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
                    vertex_value_input_first,
                    vertex_value_input_first + graph_device_view.get_number_of_local_vertices(),
                    init);
@@ -92,7 +92,7 @@ T reduce_v(HandleType& handle,
            T init)
 {
   auto ret =
-    thrust::reduce(thrust::cuda::par.on(handle.get_stream()), input_first, input_last, init);
+    thrust::reduce(rmm::exec_policy(handle.get_stream())->on(handle.get_stream()), input_first, input_last, init);
   if (GraphType::is_multi_gpu) {
     // need to reduce ret
     CUGRAPH_FAIL("unimplemented.");

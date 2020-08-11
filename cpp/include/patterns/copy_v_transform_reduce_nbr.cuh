@@ -184,7 +184,7 @@ void copy_v_transform_reduce_in_nbr(HandleType& handle,
     CUGRAPH_FAIL("unimplemented.");
   } else {
     if (!GraphType::is_adj_matrix_transposed) {
-      thrust::fill(thrust::cuda::par.on(handle.get_stream()),
+      thrust::fill(rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
                    vertex_value_output_first,
                    vertex_value_output_first + graph_device_view.get_number_of_local_vertices(),
                    init);
@@ -271,7 +271,7 @@ void copy_v_transform_reduce_out_nbr(
     CUGRAPH_FAIL("unimplemented.");
   } else {
     if (GraphType::is_adj_matrix_transposed) {
-      thrust::fill(thrust::cuda::par.on(handle.get_stream()),
+      thrust::fill(rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
                    vertex_value_output_first,
                    vertex_value_output_first + graph_device_view.get_number_of_local_vertices(),
                    init);

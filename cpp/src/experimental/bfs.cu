@@ -21,8 +21,8 @@
 #include <patterns/vertex_frontier.cuh>
 #include <utilities/error.hpp>
 
-#include <rmm/thrust_rmm_allocator.h>
 #include <raft/handle.hpp>
+#include <rmm/thrust_rmm_allocator.h>
 
 #include <thrust/fill.h>
 #include <thrust/iterator/constant_iterator.h>
@@ -78,7 +78,7 @@ void bfs(raft::handle_t &handle,
   auto constexpr invalid_vertex   = invalid_vertex_id<vertex_t>::value;
 
   auto val_first = thrust::make_zip_iterator(thrust::make_tuple(distances, predecessor_first));
-  thrust::transform(thrust::cuda::par.on(handle.get_stream()),
+  thrust::transform(rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
                     graph_device_view.local_vertex_begin(),
                     graph_device_view.local_vertex_end(),
                     val_first,

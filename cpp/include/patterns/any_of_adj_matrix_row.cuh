@@ -19,6 +19,7 @@
 #include <utilities/error.hpp>
 
 #include <raft/handle.hpp>
+#include <rmm/thrust_rmm_allocator.h>
 
 #include <thrust/count.h>
 #include <thrust/execution_policy.h>
@@ -62,7 +63,7 @@ bool any_of_adj_matrix_row(HandleType& handle,
 {
   // better use thrust::any_of once https://github.com/thrust/thrust/issues/1016 is resolved
   auto count = thrust::count_if(
-    thrust::cuda::par.on(handle.get_stream()),
+    rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
     adj_matrix_row_value_input_first,
     adj_matrix_row_value_input_first + graph_device_view.get_number_of_adj_matrix_local_rows(),
     row_op);
