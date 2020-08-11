@@ -114,7 +114,7 @@ struct is_thrust_tuple_of_arithmetic<TupleType,
                                      std::enable_if_t<is_thrust_tuple<TupleType>::value>> {
   static constexpr bool value =
     is_thrust_tuple_of_arithemetic_impl<TupleType,
-                                        size_t{0},
+                                        0,
                                         static_cast<size_t>(thrust::tuple_size<TupleType>::value)>()
       .evaluate();
 };

@@ -253,9 +253,9 @@ class GraphCompressedSparseBaseView : public GraphViewBase<vertex_t, edge_t, wei
 template <typename vertex_t, typename edge_t, typename weight_t>
 class GraphCSRView : public GraphCompressedSparseBaseView<vertex_t, edge_t, weight_t> {
  public:
-  using vertex_type                              = VT;
-  using edge_type                                = ET;
-  using weight_type                              = WT;
+  using vertex_type                              = vertex_t;
+  using edge_type                                = edge_t;
+  using weight_type                              = weight_t;
   static constexpr bool is_adj_matrix_transposed = false;
 
   /**
@@ -308,9 +308,9 @@ class GraphCSRView : public GraphCompressedSparseBaseView<vertex_t, edge_t, weig
 template <typename vertex_t, typename edge_t, typename weight_t>
 class GraphCSCView : public GraphCompressedSparseBaseView<vertex_t, edge_t, weight_t> {
  public:
-  using vertex_type                              = VT;
-  using edge_type                                = ET;
-  using weight_type                              = WT;
+  using vertex_type                              = vertex_t;
+  using edge_type                                = edge_t;
+  using weight_type                              = weight_t;
   static constexpr bool is_adj_matrix_transposed = true;
 
   /**
@@ -398,9 +398,9 @@ class GraphCOO {
   rmm::device_buffer edge_data_p{};    ///< CSR data
 
  public:
-  using vertex_type                  = VT;
-  using edge_type                    = ET;
-  using weight_type                  = WT;
+  using vertex_type                  = vertex_t;
+  using edge_type                    = edge_t;
+  using weight_type                  = weight_t;
   static bool constexpr is_multi_gpu = false;
 
   /**
@@ -564,9 +564,9 @@ class GraphCompressedSparseBase {
 template <typename vertex_t, typename edge_t, typename weight_t>
 class GraphCSR : public GraphCompressedSparseBase<vertex_t, edge_t, weight_t> {
  public:
-  using vertex_type                              = VT;
-  using edge_type                                = ET;
-  using weight_type                              = WT;
+  using vertex_type                              = vertex_t;
+  using edge_type                                = edge_t;
+  using weight_type                              = weight_t;
   static constexpr bool is_adj_matrix_transposed = false;
 
   /**
@@ -620,9 +620,9 @@ class GraphCSR : public GraphCompressedSparseBase<vertex_t, edge_t, weight_t> {
 template <typename vertex_t, typename edge_t, typename weight_t>
 class GraphCSC : public GraphCompressedSparseBase<vertex_t, edge_t, weight_t> {
  public:
-  using vertex_type                              = VT;
-  using edge_type                                = ET;
-  using weight_type                              = WT;
+  using vertex_type                              = vertex_t;
+  using edge_type                                = edge_t;
+  using weight_type                              = weight_t;
   static constexpr bool is_adj_matrix_transposed = true;
 
   /**
