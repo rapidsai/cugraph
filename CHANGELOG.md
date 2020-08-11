@@ -13,6 +13,7 @@
 - PR #979 Add hypergraph implementation to convert DataFrames into Graphs
 - PR #1010 MG BFS (dask)
 - PR #1018 MG personalized pagerank
+- PR #1063 Add experimental Leiden function
 
 ## Improvements
 - PR #898 Add Edge Betweenness Centrality, and endpoints to BC
