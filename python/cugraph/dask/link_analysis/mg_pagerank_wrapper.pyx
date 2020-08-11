@@ -41,7 +41,6 @@ def mg_pagerank(input_df, local_data, rank, handle, alpha=0.85, max_iter=100, to
     dst = dst - local_offset
     num_local_verts = local_data['verts'][rank]
     num_local_edges = len(src)
-    print("num_verts ", num_verts)
  
     cdef uintptr_t c_local_verts = local_data['verts'].__array_interface__['data'][0]
     cdef uintptr_t c_local_edges = local_data['edges'].__array_interface__['data'][0]

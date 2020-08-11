@@ -36,11 +36,11 @@ void bfs(raft::handle_t const &handle,
                   "cugraph::mg::bfs() expected to work only in multi gpu case.");
 
   size_t word_count = detail::number_of_words(graph.number_of_vertices);
-  rmm::device_vector<unsigned> isolated_bmap(word_count, 0);
-  rmm::device_vector<unsigned> visited_bmap(word_count, 0);
-  rmm::device_vector<unsigned> output_frontier_bmap(word_count, 0);
+  rmm::device_vector<uint32_t> isolated_bmap(word_count, 0);
+  rmm::device_vector<uint32_t> visited_bmap(word_count, 0);
+  rmm::device_vector<uint32_t> output_frontier_bmap(word_count, 0);
 
-  rmm::device_vector<unsigned> unique_bmap(word_count, 0);
+  rmm::device_vector<uint32_t> unique_bmap(word_count, 0);
 
   // Buffers required for BFS
   rmm::device_vector<vertex_t> input_frontier(graph.number_of_vertices);
@@ -97,7 +97,7 @@ void bfs(raft::handle_t const &handle,
     thrust::fill(rmm::exec_policy(stream)->on(stream),
                  output_frontier_bmap.begin(),
                  output_frontier_bmap.end(),
-                 static_cast<unsigned>(0));
+                 static_cast<uint32_t>(0));
 
     vertex_t output_frontier_len = 0;
     // Generate output frontier bitmap from input frontier

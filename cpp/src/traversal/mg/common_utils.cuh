@@ -33,47 +33,49 @@ constexpr int BitsPWrd = sizeof(degree_t) * 8;
 template <typename degree_t>
 constexpr int NumberBins = sizeof(degree_t) * 8 + 1;
 
-template <typename T>
-constexpr inline T number_of_words(T number_of_bits)
+template <typename return_t>
+constexpr inline return_t number_of_words(return_t number_of_bits)
 {
-  return raft::div_rounding_up_safe(number_of_bits, static_cast<T>(BitsPWrd<unsigned>));
+  return raft::div_rounding_up_safe(number_of_bits, static_cast<return_t>(BitsPWrd<uint32_t>));
 }
 
 template <typename edge_t>
 struct isDegreeZero {
-  edge_t *offset_;
-  isDegreeZero(edge_t *offset) : offset_(offset) {}
+  edge_t const *offset_;
+  isDegreeZero(edge_t const *offset) : offset_(offset) {}
 
-  __device__ bool operator()(const edge_t &id) { return (offset_[id + 1] == offset_[id]); }
-};
-
-struct set_nth_bit {
-  unsigned *bmap_;
-  set_nth_bit(unsigned *bmap) : bmap_(bmap) {}
-
-  template <typename T>
-  __device__ void operator()(const T &id)
-  {
-    atomicOr(bmap_ + (id / BitsPWrd<unsigned>), (unsigned{1} << (id % BitsPWrd<unsigned>)));
+  __device__ bool operator()(const edge_t &id) const {
+    return (offset_[id + 1] == offset_[id]);
   }
 };
 
-template <typename VT, typename ET>
-struct BFSPred {
-  unsigned *output_frontier_;
-  unsigned *visited_;
-  VT *predecessors_;
+struct set_nth_bit {
+  uint32_t *bmap_;
+  set_nth_bit(uint32_t *bmap) : bmap_(bmap) {}
 
-  BFSPred(unsigned *output_frontier, unsigned *visited, VT *predecessors)
+  template <typename return_t>
+  __device__ void operator()(const return_t &id)
+  {
+    atomicOr(bmap_ + (id / BitsPWrd<uint32_t>), (uint32_t{1} << (id % BitsPWrd<uint32_t>)));
+  }
+};
+
+template <typename vertex_t, typename edge_t>
+struct BFSPred {
+  uint32_t *output_frontier_;
+  uint32_t *visited_;
+  vertex_t *predecessors_;
+
+  BFSPred(uint32_t *output_frontier, uint32_t *visited, vertex_t *predecessors)
     : output_frontier_(output_frontier), visited_(visited), predecessors_(predecessors)
   {
   }
 
-  __device__ bool operator()(VT src, VT dst)
+  __device__ bool operator()(vertex_t src, vertex_t dst)
   {
-    unsigned active_bit = static_cast<unsigned>(1) << (dst % BitsPWrd<unsigned>);
-    unsigned prev_word  = atomicOr(output_frontier_ + (dst / BitsPWrd<unsigned>), active_bit);
-    bool dst_not_visited_earlier = !(active_bit & visited_[dst / BitsPWrd<unsigned>]);
+    uint32_t active_bit = static_cast<uint32_t>(1) << (dst % BitsPWrd<uint32_t>);
+    uint32_t prev_word  = atomicOr(output_frontier_ + (dst / BitsPWrd<uint32_t>), active_bit);
+    bool dst_not_visited_earlier = !(active_bit & visited_[dst / BitsPWrd<uint32_t>]);
     bool dst_not_visited_current = !(prev_word & active_bit);
     // If this thread activates the frontier bitmap for a destination
     // then the source is the predecessor of that destination
@@ -86,16 +88,16 @@ struct BFSPred {
   }
 };
 
-template <typename VT, typename ET>
+template <typename vertex_t, typename edge_t>
 struct BFSPredDist {
-  unsigned *output_frontier_;
-  unsigned *visited_;
-  VT *predecessors_;
-  VT *distances_;
-  VT level_;
+  uint32_t *output_frontier_;
+  uint32_t *visited_;
+  vertex_t *predecessors_;
+  vertex_t *distances_;
+  vertex_t level_;
 
   BFSPredDist(
-    unsigned *output_frontier, unsigned *visited, VT *predecessors, VT *distances, VT level)
+    uint32_t *output_frontier, uint32_t *visited, vertex_t *predecessors, vertex_t *distances, vertex_t level)
     : output_frontier_(output_frontier),
       visited_(visited),
       predecessors_(predecessors),
@@ -104,11 +106,11 @@ struct BFSPredDist {
   {
   }
 
-  __device__ bool operator()(VT src, VT dst)
+  __device__ bool operator()(vertex_t src, vertex_t dst)
   {
-    unsigned active_bit = static_cast<unsigned>(1) << (dst % BitsPWrd<unsigned>);
-    unsigned prev_word  = atomicOr(output_frontier_ + (dst / BitsPWrd<unsigned>), active_bit);
-    bool dst_not_visited_earlier = !(active_bit & visited_[dst / BitsPWrd<unsigned>]);
+    uint32_t active_bit = static_cast<uint32_t>(1) << (dst % BitsPWrd<uint32_t>);
+    uint32_t prev_word  = atomicOr(output_frontier_ + (dst / BitsPWrd<uint32_t>), active_bit);
+    bool dst_not_visited_earlier = !(active_bit & visited_[dst / BitsPWrd<uint32_t>]);
     bool dst_not_visited_current = !(prev_word & active_bit);
     // If this thread activates the frontier bitmap for a destination
     // then the source is the predecessor of that destination
@@ -122,22 +124,22 @@ struct BFSPredDist {
   }
 };
 
-template <typename VT, typename ET>
+template <typename vertex_t, typename edge_t>
 struct bfs_pred {
-  unsigned *output_frontier_;
-  unsigned *visited_;
-  VT *predecessors_;
+  uint32_t *output_frontier_;
+  uint32_t *visited_;
+  vertex_t *predecessors_;
 
-  bfs_pred(unsigned *output_frontier, unsigned *visited, VT *predecessors)
+  bfs_pred(uint32_t *output_frontier, uint32_t *visited, vertex_t *predecessors)
     : output_frontier_(output_frontier), visited_(visited), predecessors_(predecessors)
   {
   }
 
-  __device__ void operator()(VT src, VT dst, VT *frontier, ET *frontier_count)
+  __device__ void operator()(vertex_t src, vertex_t dst, vertex_t *frontier, edge_t *frontier_count)
   {
-    unsigned active_bit = static_cast<unsigned>(1) << (dst % BitsPWrd<unsigned>);
-    unsigned prev_word  = atomicOr(output_frontier_ + (dst / BitsPWrd<unsigned>), active_bit);
-    bool dst_not_visited_earlier = !(active_bit & visited_[dst / BitsPWrd<unsigned>]);
+    uint32_t active_bit = static_cast<uint32_t>(1) << (dst % BitsPWrd<uint32_t>);
+    uint32_t prev_word  = atomicOr(output_frontier_ + (dst / BitsPWrd<uint32_t>), active_bit);
+    bool dst_not_visited_earlier = !(active_bit & visited_[dst / BitsPWrd<uint32_t>]);
     bool dst_not_visited_current = !(prev_word & active_bit);
     // If this thread activates the frontier bitmap for a destination
     // then the source is the predecessor of that destination
@@ -150,16 +152,16 @@ struct bfs_pred {
   }
 };
 
-template <typename VT, typename ET>
+template <typename vertex_t, typename edge_t>
 struct bfs_pred_dist {
-  unsigned *output_frontier_;
-  unsigned *visited_;
-  VT *predecessors_;
-  VT *distances_;
-  VT level_;
+  uint32_t *output_frontier_;
+  uint32_t *visited_;
+  vertex_t *predecessors_;
+  vertex_t *distances_;
+  vertex_t level_;
 
   bfs_pred_dist(
-    unsigned *output_frontier, unsigned *visited, VT *predecessors, VT *distances, VT level)
+    uint32_t *output_frontier, uint32_t *visited, vertex_t *predecessors, vertex_t *distances, vertex_t level)
     : output_frontier_(output_frontier),
       visited_(visited),
       predecessors_(predecessors),
@@ -168,11 +170,11 @@ struct bfs_pred_dist {
   {
   }
 
-  __device__ void operator()(VT src, VT dst, VT *frontier, ET *frontier_count)
+  __device__ void operator()(vertex_t src, vertex_t dst, vertex_t *frontier, edge_t *frontier_count)
   {
-    unsigned active_bit = static_cast<unsigned>(1) << (dst % BitsPWrd<unsigned>);
-    unsigned prev_word  = atomicOr(output_frontier_ + (dst / BitsPWrd<unsigned>), active_bit);
-    bool dst_not_visited_earlier = !(active_bit & visited_[dst / BitsPWrd<unsigned>]);
+    uint32_t active_bit = static_cast<uint32_t>(1) << (dst % BitsPWrd<uint32_t>);
+    uint32_t prev_word  = atomicOr(output_frontier_ + (dst / BitsPWrd<uint32_t>), active_bit);
+    bool dst_not_visited_earlier = !(active_bit & visited_[dst / BitsPWrd<uint32_t>]);
     bool dst_not_visited_current = !(prev_word & active_bit);
     // If this thread activates the frontier bitmap for a destination
     // then the source is the predecessor of that destination
@@ -214,12 +216,12 @@ vertex_t populate_isolated_vertices(raft::handle_t const &handle,
   return static_cast<vertex_t>(count);
 }
 
-template <typename T>
-T collect_vectors(raft::handle_t const &handle,
+template <typename return_t>
+return_t collect_vectors(raft::handle_t const &handle,
                   rmm::device_vector<size_t> &buffer_len,
-                  rmm::device_vector<T> &local,
-                  T local_count,
-                  rmm::device_vector<T> &global)
+                  rmm::device_vector<return_t> &local,
+                  return_t local_count,
+                  rmm::device_vector<return_t> &global)
 {
   CHECK_CUDA(handle.get_stream());
   buffer_len.resize(handle.get_comms().get_size());
@@ -236,11 +238,11 @@ T collect_vectors(raft::handle_t const &handle,
   // int array for displacement vector. This should be changed in
   // raft so that the displacement is templated
   thrust::host_vector<int> h_buffer_offsets(h_buffer_len.size());
-  int global_buffer_len = 0;
-  for (size_t i = 0; i < h_buffer_len.size(); ++i) {
-    h_buffer_offsets[i] = global_buffer_len;
-    global_buffer_len += h_buffer_len[i];
-  }
+
+  thrust::exclusive_scan(thrust::host,
+      h_buffer_len.begin(), h_buffer_len.end(),
+      h_buffer_offsets.begin());
+  int global_buffer_len = h_buffer_len.back() + h_buffer_offsets.back();
 
   handle.get_comms().allgatherv(local.data().get(),
                                 global.data().get(),
@@ -248,14 +250,14 @@ T collect_vectors(raft::handle_t const &handle,
                                 h_buffer_offsets.data(),
                                 handle.get_stream());
   CHECK_CUDA(handle.get_stream());
-  return static_cast<T>(global_buffer_len);
+  return global_buffer_len;
 }
 
-template <typename T>
+template <typename return_t>
 void add_to_bitmap(raft::handle_t const &handle,
-                   rmm::device_vector<unsigned> &bmap,
-                   rmm::device_vector<T> &id,
-                   T count)
+                   rmm::device_vector<uint32_t> &bmap,
+                   rmm::device_vector<return_t> &id,
+                   return_t count)
 {
   cudaStream_t stream = handle.get_stream();
   thrust::for_each(rmm::exec_policy(stream)->on(stream),
@@ -271,7 +273,7 @@ void create_isolated_bitmap(raft::handle_t const &handle,
                             rmm::device_vector<vertex_t> &local_isolated_ids,
                             rmm::device_vector<vertex_t> &global_isolated_ids,
                             rmm::device_vector<size_t> &temp_buffer_len,
-                            rmm::device_vector<unsigned> &isolated_bmap)
+                            rmm::device_vector<uint32_t> &isolated_bmap)
 {
   size_t word_count = detail::number_of_words(graph.number_of_vertices);
   local_isolated_ids.resize(graph.number_of_vertices);
@@ -285,27 +287,27 @@ void create_isolated_bitmap(raft::handle_t const &handle,
   add_to_bitmap(handle, isolated_bmap, global_isolated_ids, global_isolated_count);
 }
 
-template <typename T>
-T remove_duplicates(raft::handle_t const &handle, rmm::device_vector<T> &data, T data_len)
+template <typename return_t>
+return_t remove_duplicates(raft::handle_t const &handle, rmm::device_vector<return_t> &data, return_t data_len)
 {
   cudaStream_t stream = handle.get_stream();
   thrust::sort(rmm::exec_policy(stream)->on(stream), data.begin(), data.begin() + data_len);
   auto unique_count =
     thrust::unique(rmm::exec_policy(stream)->on(stream), data.begin(), data.begin() + data_len) -
     data.begin();
-  return static_cast<T>(unique_count);
+  return static_cast<return_t>(unique_count);
 }
 
 // Use the fact that any value in id array can only be in
 // the range [id_begin, id_end) to create a unique set of
 // ids. bmap is expected to be of the length
-// id_end/BitsPWrd<unsigned> and is set to 0 initially
-template <unsigned BLOCK_SIZE, typename T>
+// id_end/BitsPWrd<uint32_t> and is set to 0 initially
+template <uint32_t BLOCK_SIZE, typename return_t>
 __global__ void remove_duplicates_kernel(
-  unsigned *bmap, T *in_id, T id_begin, T id_end, T count, T *out_id, T *out_count)
+  uint32_t *bmap, return_t *in_id, return_t id_begin, return_t id_end, return_t count, return_t *out_id, return_t *out_count)
 {
-  T tid = blockIdx.x * blockDim.x + threadIdx.x;
-  T id;
+  return_t tid = blockIdx.x * blockDim.x + threadIdx.x;
+  return_t id;
   if (tid < count) {
     id = in_id[tid];
   } else {
@@ -317,13 +319,13 @@ __global__ void remove_duplicates_kernel(
   // If id is not in the acceptable range then set it to
   // an invalid vertex id
   if ((id >= id_begin) && (id < id_end)) {
-    unsigned active_bit = static_cast<unsigned>(1) << (id % BitsPWrd<unsigned>);
-    unsigned prev_word  = atomicOr(bmap + (id / BitsPWrd<unsigned>), active_bit);
+    uint32_t active_bit = static_cast<uint32_t>(1) << (id % BitsPWrd<uint32_t>);
+    uint32_t prev_word  = atomicOr(bmap + (id / BitsPWrd<uint32_t>), active_bit);
     // If bit was set by this thread then the id is unique
     if (!(prev_word & active_bit)) { acceptable_vertex = 1; }
   }
 
-  __shared__ T block_offset;
+  __shared__ return_t block_offset;
   typedef cub::BlockScan<int, BLOCK_SIZE> BlockScan;
   __shared__ typename BlockScan::TempStorage temp_storage;
   int thread_write_offset;
@@ -336,25 +338,25 @@ __global__ void remove_duplicates_kernel(
 
   if (threadIdx.x == 0) {
     block_offset = cugraph::detail::traversal::atomicAdd(
-      out_count, static_cast<T>(block_acceptable_vertex_count));
+      out_count, static_cast<return_t>(block_acceptable_vertex_count));
   }
   __syncthreads();
 
   if (acceptable_vertex) { out_id[block_offset + thread_write_offset] = id; }
 }
 
-template <unsigned BLOCK_SIZE, typename T>
-__global__ void remove_duplicates_kernel(unsigned *bmap,
-                                         unsigned *isolated_bmap,
-                                         T *in_id,
-                                         T id_begin,
-                                         T id_end,
-                                         T count,
-                                         T *out_id,
-                                         T *out_count)
+template <uint32_t BLOCK_SIZE, typename return_t>
+__global__ void remove_duplicates_kernel(uint32_t *bmap,
+                                         uint32_t *isolated_bmap,
+                                         return_t *in_id,
+                                         return_t id_begin,
+                                         return_t id_end,
+                                         return_t count,
+                                         return_t *out_id,
+                                         return_t *out_count)
 {
-  T tid = blockIdx.x * blockDim.x + threadIdx.x;
-  T id;
+  return_t tid = blockIdx.x * blockDim.x + threadIdx.x;
+  return_t id;
   if (tid < count) {
     id = in_id[tid];
   } else {
@@ -366,17 +368,17 @@ __global__ void remove_duplicates_kernel(unsigned *bmap,
   // If id is not in the acceptable range then set it to
   // an invalid vertex id
   if ((id >= id_begin) && (id < id_end)) {
-    unsigned active_bit = static_cast<unsigned>(1) << (id % BitsPWrd<unsigned>);
-    unsigned prev_word  = atomicOr(bmap + (id / BitsPWrd<unsigned>), active_bit);
+    uint32_t active_bit = static_cast<uint32_t>(1) << (id % BitsPWrd<uint32_t>);
+    uint32_t prev_word  = atomicOr(bmap + (id / BitsPWrd<uint32_t>), active_bit);
     // If bit was set by this thread then the id is unique
     if (!(prev_word & active_bit)) {
       // If id is isolated (out-degree == 0) then mark it as unacceptable
-      bool is_dst_isolated = active_bit & isolated_bmap[id / BitsPWrd<unsigned>];
+      bool is_dst_isolated = active_bit & isolated_bmap[id / BitsPWrd<uint32_t>];
       acceptable_vertex    = !is_dst_isolated;
     }
   }
 
-  __shared__ T block_offset;
+  __shared__ return_t block_offset;
   typedef cub::BlockScan<int, BLOCK_SIZE> BlockScan;
   __shared__ typename BlockScan::TempStorage temp_storage;
   int thread_write_offset;
@@ -389,31 +391,31 @@ __global__ void remove_duplicates_kernel(unsigned *bmap,
 
   if (threadIdx.x == 0) {
     block_offset = cugraph::detail::traversal::atomicAdd(
-      out_count, static_cast<T>(block_acceptable_vertex_count));
+      out_count, static_cast<return_t>(block_acceptable_vertex_count));
   }
   __syncthreads();
 
   if (acceptable_vertex) { out_id[block_offset + thread_write_offset] = id; }
 }
 
-template <typename T>
-T remove_duplicates(raft::handle_t const &handle,
-                    rmm::device_vector<unsigned> &bmap,
-                    rmm::device_vector<T> &data,
-                    T data_len,
-                    T data_begin,
-                    T data_end,
-                    rmm::device_vector<T> &out_data)
+template <typename return_t>
+return_t remove_duplicates(raft::handle_t const &handle,
+                    rmm::device_vector<uint32_t> &bmap,
+                    rmm::device_vector<return_t> &data,
+                    return_t data_len,
+                    return_t data_begin,
+                    return_t data_end,
+                    rmm::device_vector<return_t> &out_data)
 {
   cudaStream_t stream = handle.get_stream();
 
-  rmm::device_vector<T> unique_count(1, 0);
+  rmm::device_vector<return_t> unique_count(1, 0);
 
   thrust::fill(
-    rmm::exec_policy(stream)->on(stream), bmap.begin(), bmap.end(), static_cast<unsigned>(0));
-  T threads = 256;
-  T blocks  = raft::div_rounding_up_safe(data_len, threads);
-  remove_duplicates_kernel<256><<<blocks, threads, 0, stream>>>(bmap.data().get(),
+    rmm::exec_policy(stream)->on(stream), bmap.begin(), bmap.end(), static_cast<uint32_t>(0));
+  constexpr return_t threads = 256;
+  return_t blocks  = raft::div_rounding_up_safe(data_len, threads);
+  remove_duplicates_kernel<threads><<<blocks, threads, 0, stream>>>(bmap.data().get(),
                                                                 data.data().get(),
                                                                 data_begin,
                                                                 data_end,
@@ -421,14 +423,14 @@ T remove_duplicates(raft::handle_t const &handle,
                                                                 out_data.data().get(),
                                                                 unique_count.data().get());
   CHECK_CUDA(stream);
-  return static_cast<T>(unique_count[0]);
+  return static_cast<return_t>(unique_count[0]);
 }
 
 template <typename vertex_t, typename edge_t, typename weight_t>
 vertex_t preprocess_input_frontier(raft::handle_t const &handle,
                                    cugraph::GraphCSRView<vertex_t, edge_t, weight_t> const &graph,
-                                   rmm::device_vector<unsigned> &bmap,
-                                   rmm::device_vector<unsigned> &isolated_bmap,
+                                   rmm::device_vector<uint32_t> &bmap,
+                                   rmm::device_vector<uint32_t> &isolated_bmap,
                                    rmm::device_vector<vertex_t> &input_frontier,
                                    vertex_t input_frontier_len,
                                    rmm::device_vector<vertex_t> &output_frontier)
@@ -441,10 +443,10 @@ vertex_t preprocess_input_frontier(raft::handle_t const &handle,
   rmm::device_vector<vertex_t> unique_count(1, 0);
 
   thrust::fill(
-    rmm::exec_policy(stream)->on(stream), bmap.begin(), bmap.end(), static_cast<unsigned>(0));
-  vertex_t threads = 256;
+    rmm::exec_policy(stream)->on(stream), bmap.begin(), bmap.end(), static_cast<uint32_t>(0));
+  constexpr vertex_t threads = 256;
   vertex_t blocks  = raft::div_rounding_up_safe(input_frontier_len, threads);
-  remove_duplicates_kernel<256><<<blocks, threads, 0, stream>>>(bmap.data().get(),
+  remove_duplicates_kernel<threads><<<blocks, threads, 0, stream>>>(bmap.data().get(),
                                                                 isolated_bmap.data().get(),
                                                                 input_frontier.data().get(),
                                                                 vertex_begin,
@@ -459,7 +461,7 @@ vertex_t preprocess_input_frontier(raft::handle_t const &handle,
 template <typename vertex_t, typename edge_t, typename weight_t>
 vertex_t preprocess_input_frontier(raft::handle_t const &handle,
                                    cugraph::GraphCSRView<vertex_t, edge_t, weight_t> const &graph,
-                                   rmm::device_vector<unsigned> &bmap,
+                                   rmm::device_vector<uint32_t> &bmap,
                                    rmm::device_vector<vertex_t> &input_frontier,
                                    vertex_t input_frontier_len,
                                    rmm::device_vector<vertex_t> &output_frontier)
@@ -472,10 +474,10 @@ vertex_t preprocess_input_frontier(raft::handle_t const &handle,
   rmm::device_vector<vertex_t> unique_count(1, 0);
 
   thrust::fill(
-    rmm::exec_policy(stream)->on(stream), bmap.begin(), bmap.end(), static_cast<unsigned>(0));
-  vertex_t threads = 256;
+    rmm::exec_policy(stream)->on(stream), bmap.begin(), bmap.end(), static_cast<uint32_t>(0));
+  constexpr vertex_t threads = 256;
   vertex_t blocks  = raft::div_rounding_up_safe(input_frontier_len, threads);
-  remove_duplicates_kernel<256><<<blocks, threads, 0, stream>>>(bmap.data().get(),
+  remove_duplicates_kernel<threads><<<blocks, threads, 0, stream>>>(bmap.data().get(),
                                                                 input_frontier.data().get(),
                                                                 vertex_begin,
                                                                 vertex_end,
@@ -505,7 +507,7 @@ void fill_max_dist(raft::handle_t const &handle,
                    vertex_t *distances)
 {
   vertex_t array_size = graph.number_of_vertices;
-  vertex_t threads    = 256;
+  constexpr vertex_t threads = 256;
   vertex_t blocks     = raft::div_rounding_up_safe(array_size, threads);
   fill_kernel<<<blocks, threads, 0, handle.get_stream()>>>(distances, array_size, start_vertex);
 }

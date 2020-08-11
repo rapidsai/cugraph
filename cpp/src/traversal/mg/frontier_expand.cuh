@@ -26,18 +26,18 @@ namespace mg {
 
 namespace detail {
 
-template <typename VT, typename ET, typename WT>
+template <typename vertex_t, typename edge_t, typename weight_t>
 class FrontierExpand {
   raft::handle_t const &handle_;
-  cugraph::GraphCSRView<VT, ET, WT> const &graph_;
-  VertexBinner<VT, ET> dist_;
-  rmm::device_vector<VT> reorganized_vertices_;
-  ET vertex_begin_;
-  ET vertex_end_;
-  rmm::device_vector<ET> output_vertex_count_;
+  cugraph::GraphCSRView<vertex_t, edge_t, weight_t> const &graph_;
+  VertexBinner<vertex_t, edge_t> dist_;
+  rmm::device_vector<vertex_t> reorganized_vertices_;
+  edge_t vertex_begin_;
+  edge_t vertex_end_;
+  rmm::device_vector<edge_t> output_vertex_count_;
 
  public:
-  FrontierExpand(raft::handle_t const &handle, cugraph::GraphCSRView<VT, ET, WT> const &graph)
+  FrontierExpand(raft::handle_t const &handle, cugraph::GraphCSRView<vertex_t, edge_t, weight_t> const &graph)
     : handle_(handle), graph_(graph)
   {
     bool is_mg = (handle.comms_initialized() && (graph.local_vertices != nullptr) &&
@@ -56,20 +56,20 @@ class FrontierExpand {
   }
 
   // Return the size of the output_frontier
-  template <typename Operator>
-  VT run(Operator op,
-         rmm::device_vector<VT> &input_frontier,
-         VT input_frontier_len,
-         rmm::device_vector<VT> &output_frontier)
+  template <typename operator_t>
+  vertex_t run(operator_t op,
+         rmm::device_vector<vertex_t> &input_frontier,
+         vertex_t input_frontier_len,
+         rmm::device_vector<vertex_t> &output_frontier)
   {
-    if (input_frontier_len == 0) { return static_cast<VT>(0); }
+    if (input_frontier_len == 0) { return static_cast<vertex_t>(0); }
     cudaStream_t stream     = handle_.get_stream();
     output_vertex_count_[0] = 0;
     dist_.setup(graph_.offsets, nullptr, vertex_begin_, vertex_end_);
     auto distribution =
       dist_.run(input_frontier, input_frontier_len, reorganized_vertices_, stream);
 
-    DegreeBucket<VT, ET> large_bucket = distribution.degreeRange(16);
+    DegreeBucket<vertex_t, edge_t> large_bucket = distribution.degreeRange(16);
     // TODO : Use other streams from handle_
     large_vertex_lb(graph_,
                     large_bucket,
@@ -79,7 +79,7 @@ class FrontierExpand {
                     output_vertex_count_.data().get(),
                     stream);
 
-    DegreeBucket<VT, ET> medium_bucket = distribution.degreeRange(12, 16);
+    DegreeBucket<vertex_t, edge_t> medium_bucket = distribution.degreeRange(12, 16);
     medium_vertex_lb(graph_,
                      medium_bucket,
                      op,
@@ -88,10 +88,10 @@ class FrontierExpand {
                      output_vertex_count_.data().get(),
                      stream);
 
-    DegreeBucket<VT, ET> small_bucket_0 = distribution.degreeRange(10, 12);
-    DegreeBucket<VT, ET> small_bucket_1 = distribution.degreeRange(8, 10);
-    DegreeBucket<VT, ET> small_bucket_2 = distribution.degreeRange(6, 8);
-    DegreeBucket<VT, ET> small_bucket_3 = distribution.degreeRange(0, 6);
+    DegreeBucket<vertex_t, edge_t> small_bucket_0 = distribution.degreeRange(10, 12);
+    DegreeBucket<vertex_t, edge_t> small_bucket_1 = distribution.degreeRange(8, 10);
+    DegreeBucket<vertex_t, edge_t> small_bucket_2 = distribution.degreeRange(6, 8);
+    DegreeBucket<vertex_t, edge_t> small_bucket_3 = distribution.degreeRange(0, 6);
 
     small_vertex_lb(graph_,
                     small_bucket_0,

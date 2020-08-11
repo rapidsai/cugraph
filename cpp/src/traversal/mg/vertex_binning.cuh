@@ -25,33 +25,33 @@ namespace mg {
 
 namespace detail {
 
-template <typename VT, typename ET>
+template <typename vertex_t, typename edge_t>
 struct DegreeBucket {
-  VT* vertexIds;
-  VT numberOfVertices;
-  ET ceilLogDegreeStart;
-  ET ceilLogDegreeEnd;
+  vertex_t* vertexIds;
+  vertex_t numberOfVertices;
+  edge_t ceilLogDegreeStart;
+  edge_t ceilLogDegreeEnd;
 };
 
-template <typename VT, typename ET>
+template <typename vertex_t, typename edge_t>
 class LogDistribution {
-  VT* vertex_id_begin_;
-  thrust::host_vector<ET> bin_offsets_;
+  vertex_t* vertex_id_begin_;
+  thrust::host_vector<edge_t> bin_offsets_;
 
  public:
-  LogDistribution(rmm::device_vector<ET>& vertex_id, rmm::device_vector<ET>& bin_offsets)
+  LogDistribution(rmm::device_vector<edge_t>& vertex_id, rmm::device_vector<edge_t>& bin_offsets)
     : vertex_id_begin_(vertex_id.data().get()), bin_offsets_(bin_offsets)
   {
   }
 
-  DegreeBucket<VT, ET> degreeRange(ET ceilLogDegreeStart,
-                                   ET ceilLogDegreeEnd = std::numeric_limits<ET>::max())
+  DegreeBucket<vertex_t, edge_t> degreeRange(edge_t ceilLogDegreeStart,
+                                   edge_t ceilLogDegreeEnd = std::numeric_limits<edge_t>::max())
   {
-    ceilLogDegreeStart = std::max(ceilLogDegreeStart, ET{0});
-    if (ceilLogDegreeEnd > static_cast<ET>(bin_offsets_.size()) - 2) {
+    ceilLogDegreeStart = std::max(ceilLogDegreeStart, edge_t{0});
+    if (ceilLogDegreeEnd > static_cast<edge_t>(bin_offsets_.size()) - 2) {
       ceilLogDegreeEnd = bin_offsets_.size() - 2;
     }
-    return DegreeBucket<VT, ET>{
+    return DegreeBucket<vertex_t, edge_t>{
       vertex_id_begin_ + bin_offsets_[ceilLogDegreeStart + 1],
       bin_offsets_[ceilLogDegreeEnd + 1] - bin_offsets_[ceilLogDegreeStart + 1],
       ceilLogDegreeStart,
@@ -59,20 +59,20 @@ class LogDistribution {
   }
 };
 
-template <typename VT, typename ET>
+template <typename vertex_t, typename edge_t>
 class VertexBinner {
-  ET* offsets_;
-  unsigned* active_bitmap_;
-  VT vertex_begin_;
-  VT vertex_end_;
+  edge_t* offsets_;
+  uint32_t* active_bitmap_;
+  vertex_t vertex_begin_;
+  vertex_t vertex_end_;
 
-  rmm::device_vector<ET> tempBins_;
-  rmm::device_vector<ET> bin_offsets_;
+  rmm::device_vector<edge_t> tempBins_;
+  rmm::device_vector<edge_t> bin_offsets_;
 
  public:
-  VertexBinner(void) : tempBins_(NumberBins<ET>), bin_offsets_(NumberBins<ET>) {}
+  VertexBinner(void) : tempBins_(NumberBins<edge_t>), bin_offsets_(NumberBins<edge_t>) {}
 
-  void setup(ET* offsets, unsigned* active_bitmap, VT vertex_begin, VT vertex_end)
+  void setup(edge_t* offsets, uint32_t* active_bitmap, vertex_t vertex_begin, vertex_t vertex_end)
   {
     offsets_       = offsets;
     active_bitmap_ = active_bitmap;
@@ -80,21 +80,21 @@ class VertexBinner {
     vertex_end_    = vertex_end;
   }
 
-  LogDistribution<VT, ET> run(rmm::device_vector<VT>& reorganized_vertices, cudaStream_t stream);
+  LogDistribution<vertex_t, edge_t> run(rmm::device_vector<vertex_t>& reorganized_vertices, cudaStream_t stream);
 
-  LogDistribution<VT, ET> run(rmm::device_vector<VT>& input_vertices,
-                              VT input_vertices_len,
-                              rmm::device_vector<VT>& reorganized_vertices,
+  LogDistribution<vertex_t, edge_t> run(rmm::device_vector<vertex_t>& input_vertices,
+                              vertex_t input_vertices_len,
+                              rmm::device_vector<vertex_t>& reorganized_vertices,
                               cudaStream_t stream);
 };
 
-template <typename VT, typename ET>
-LogDistribution<VT, ET> VertexBinner<VT, ET>::run(rmm::device_vector<VT>& reorganized_vertices,
+template <typename vertex_t, typename edge_t>
+LogDistribution<vertex_t, edge_t> VertexBinner<vertex_t, edge_t>::run(rmm::device_vector<vertex_t>& reorganized_vertices,
                                                   cudaStream_t stream)
 {
   thrust::fill(
-    rmm::exec_policy(stream)->on(stream), bin_offsets_.begin(), bin_offsets_.end(), ET{0});
-  thrust::fill(rmm::exec_policy(stream)->on(stream), tempBins_.begin(), tempBins_.end(), ET{0});
+    rmm::exec_policy(stream)->on(stream), bin_offsets_.begin(), bin_offsets_.end(), edge_t{0});
+  thrust::fill(rmm::exec_policy(stream)->on(stream), tempBins_.begin(), tempBins_.end(), edge_t{0});
   bin_vertices(reorganized_vertices,
                bin_offsets_,
                tempBins_,
@@ -104,13 +104,13 @@ LogDistribution<VT, ET> VertexBinner<VT, ET>::run(rmm::device_vector<VT>& reorga
                vertex_end_,
                stream);
 
-  return LogDistribution<VT, ET>(reorganized_vertices, bin_offsets_);
+  return LogDistribution<vertex_t, edge_t>(reorganized_vertices, bin_offsets_);
 }
 
-template <typename VT, typename ET>
-LogDistribution<VT, ET> VertexBinner<VT, ET>::run(rmm::device_vector<VT>& input_vertices,
-                                                  VT input_vertices_len,
-                                                  rmm::device_vector<VT>& reorganized_vertices,
+template <typename vertex_t, typename edge_t>
+LogDistribution<vertex_t, edge_t> VertexBinner<vertex_t, edge_t>::run(rmm::device_vector<vertex_t>& input_vertices,
+                                                  vertex_t input_vertices_len,
+                                                  rmm::device_vector<vertex_t>& reorganized_vertices,
                                                   cudaStream_t stream)
 {
   bin_vertices(input_vertices,
@@ -123,7 +123,7 @@ LogDistribution<VT, ET> VertexBinner<VT, ET>::run(rmm::device_vector<VT>& input_
                vertex_end_,
                stream);
 
-  return LogDistribution<VT, ET>(reorganized_vertices, bin_offsets_);
+  return LogDistribution<vertex_t, edge_t>(reorganized_vertices, bin_offsets_);
 }
 
 }  // namespace detail
