@@ -202,7 +202,7 @@ def _get_local_data(df, by):
     df = df[0]
     num_local_edges = len(df)
     local_by_max = df[by].iloc[-1]
-    local_max = df.max().max()
+    local_max = df[['src', 'dst']].max().max()
     return num_local_edges, local_by_max, local_max
 
 
