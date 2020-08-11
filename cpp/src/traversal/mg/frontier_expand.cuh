@@ -57,7 +57,7 @@ class FrontierExpand {
 
   // Return the size of the output_frontier
   template <typename operator_t>
-  vertex_t run(operator_t op,
+  vertex_t operator()(operator_t op,
          rmm::device_vector<vertex_t> &input_frontier,
          vertex_t input_frontier_len,
          rmm::device_vector<vertex_t> &output_frontier)

@@ -89,20 +89,20 @@ struct BFSPred {
 };
 
 template <typename vertex_t, typename edge_t>
-struct BFSPredDist {
+struct BFSStep {
   uint32_t *output_frontier_;
   uint32_t *visited_;
   vertex_t *predecessors_;
   vertex_t *distances_;
   vertex_t level_;
 
-  BFSPredDist(
-    uint32_t *output_frontier, uint32_t *visited, vertex_t *predecessors, vertex_t *distances, vertex_t level)
+  BFSStep(
+    uint32_t *output_frontier, uint32_t *visited, vertex_t *predecessors, vertex_t *distances)
     : output_frontier_(output_frontier),
       visited_(visited),
       predecessors_(predecessors),
       distances_(distances),
-      level_(level)
+      level_(0)
   {
   }
 
@@ -115,77 +115,17 @@ struct BFSPredDist {
     // If this thread activates the frontier bitmap for a destination
     // then the source is the predecessor of that destination
     if (dst_not_visited_earlier && dst_not_visited_current) {
-      distances_[dst]    = level_;
+      if (distances_ != nullptr)  {
+        distances_[dst]    = level_;
+      }
       predecessors_[dst] = src;
       return true;
     } else {
       return false;
     }
   }
-};
 
-template <typename vertex_t, typename edge_t>
-struct bfs_pred {
-  uint32_t *output_frontier_;
-  uint32_t *visited_;
-  vertex_t *predecessors_;
-
-  bfs_pred(uint32_t *output_frontier, uint32_t *visited, vertex_t *predecessors)
-    : output_frontier_(output_frontier), visited_(visited), predecessors_(predecessors)
-  {
-  }
-
-  __device__ void operator()(vertex_t src, vertex_t dst, vertex_t *frontier, edge_t *frontier_count)
-  {
-    uint32_t active_bit = static_cast<uint32_t>(1) << (dst % BitsPWrd<uint32_t>);
-    uint32_t prev_word  = atomicOr(output_frontier_ + (dst / BitsPWrd<uint32_t>), active_bit);
-    bool dst_not_visited_earlier = !(active_bit & visited_[dst / BitsPWrd<uint32_t>]);
-    bool dst_not_visited_current = !(prev_word & active_bit);
-    // If this thread activates the frontier bitmap for a destination
-    // then the source is the predecessor of that destination
-    if (dst_not_visited_earlier && dst_not_visited_current) {
-      predecessors_[dst] = src;
-      auto count         = *frontier_count;
-      frontier[count]    = dst;
-      *frontier_count    = count + 1;
-    }
-  }
-};
-
-template <typename vertex_t, typename edge_t>
-struct bfs_pred_dist {
-  uint32_t *output_frontier_;
-  uint32_t *visited_;
-  vertex_t *predecessors_;
-  vertex_t *distances_;
-  vertex_t level_;
-
-  bfs_pred_dist(
-    uint32_t *output_frontier, uint32_t *visited, vertex_t *predecessors, vertex_t *distances, vertex_t level)
-    : output_frontier_(output_frontier),
-      visited_(visited),
-      predecessors_(predecessors),
-      distances_(distances),
-      level_(level)
-  {
-  }
-
-  __device__ void operator()(vertex_t src, vertex_t dst, vertex_t *frontier, edge_t *frontier_count)
-  {
-    uint32_t active_bit = static_cast<uint32_t>(1) << (dst % BitsPWrd<uint32_t>);
-    uint32_t prev_word  = atomicOr(output_frontier_ + (dst / BitsPWrd<uint32_t>), active_bit);
-    bool dst_not_visited_earlier = !(active_bit & visited_[dst / BitsPWrd<uint32_t>]);
-    bool dst_not_visited_current = !(prev_word & active_bit);
-    // If this thread activates the frontier bitmap for a destination
-    // then the source is the predecessor of that destination
-    if (dst_not_visited_earlier && dst_not_visited_current) {
-      distances_[dst]    = level_;
-      predecessors_[dst] = src;
-      auto count         = *frontier_count;
-      frontier[count]    = dst;
-      *frontier_count    = count + 1;
-    }
-  }
+  void increment_level(void) { ++level_; }
 };
 
 template <typename vertex_t, typename edge_t, typename weight_t>
@@ -242,7 +182,7 @@ return_t collect_vectors(raft::handle_t const &handle,
   thrust::exclusive_scan(thrust::host,
       h_buffer_len.begin(), h_buffer_len.end(),
       h_buffer_offsets.begin());
-  int global_buffer_len = h_buffer_len.back() + h_buffer_offsets.back();
+  return_t global_buffer_len = h_buffer_len.back() + h_buffer_offsets.back();
 
   handle.get_comms().allgatherv(local.data().get(),
                                 global.data().get(),
@@ -506,6 +446,7 @@ void fill_max_dist(raft::handle_t const &handle,
                    vertex_t start_vertex,
                    vertex_t *distances)
 {
+  if (distances == nullptr) { return; }
   vertex_t array_size = graph.number_of_vertices;
   constexpr vertex_t threads = 256;
   vertex_t blocks     = raft::div_rounding_up_safe(array_size, threads);

@@ -50,6 +50,12 @@ void bfs(raft::handle_t const &handle,
   // Frontier Expand for calls to bfs functors
   detail::FrontierExpand<vertex_t, edge_t, weight_t> fexp(handle, graph);
 
+  // BFS Functor for frontier calculation
+  detail::BFSStep<vertex_t, edge_t> bfs_op(output_frontier_bmap.data().get(),
+                                                visited_bmap.data().get(),
+                                                predecessors,
+                                                distances);
+
   cudaStream_t stream = handle.get_stream();
 
   // Reusing buffers to create isolated bitmap
@@ -64,8 +70,7 @@ void bfs(raft::handle_t const &handle,
   input_frontier[0]           = start_vertex;
   vertex_t input_frontier_len = 1;
 
-  vertex_t level = 0;
-  if (distances != nullptr) { detail::fill_max_dist(handle, graph, start_vertex, distances); }
+  detail::fill_max_dist(handle, graph, start_vertex, distances);
   thrust::fill(rmm::exec_policy(stream)->on(stream),
                predecessors,
                predecessors + graph.number_of_vertices,
@@ -79,7 +84,7 @@ void bfs(raft::handle_t const &handle,
     // Mark all input frontier vertices as visited
     detail::add_to_bitmap(handle, visited_bmap, input_frontier, input_frontier_len);
 
-    ++level;
+    bfs_op.increment_level();
 
     // Remove duplicates,isolated and out of partition vertices
     // from input_frontier and store it to output_frontier
@@ -99,23 +104,9 @@ void bfs(raft::handle_t const &handle,
                  output_frontier_bmap.end(),
                  static_cast<uint32_t>(0));
 
-    vertex_t output_frontier_len = 0;
     // Generate output frontier bitmap from input frontier
-    if (distances != nullptr) {
-      // BFS Functor for frontier calculation
-      detail::BFSPredDist<vertex_t, edge_t> bfs_op(output_frontier_bmap.data().get(),
-                                                   visited_bmap.data().get(),
-                                                   predecessors,
-                                                   distances,
-                                                   level);
-      output_frontier_len = fexp.run(bfs_op, input_frontier, input_frontier_len, output_frontier);
-
-    } else {
-      // BFS Functor for frontier calculation
-      detail::BFSPred<vertex_t, edge_t> bfs_op(
-        output_frontier_bmap.data().get(), visited_bmap.data().get(), predecessors);
-      output_frontier_len = fexp.run(bfs_op, input_frontier, input_frontier_len, output_frontier);
-    }
+    vertex_t output_frontier_len =
+      fexp(bfs_op, input_frontier, input_frontier_len, output_frontier);
 
     // Collect output_frontier from all ranks to input_frontier
     // If not empty then we proceed to next iteration.
