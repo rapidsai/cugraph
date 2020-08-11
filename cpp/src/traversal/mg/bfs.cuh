@@ -51,10 +51,8 @@ void bfs(raft::handle_t const &handle,
   detail::FrontierExpand<vertex_t, edge_t, weight_t> fexp(handle, graph);
 
   // BFS Functor for frontier calculation
-  detail::BFSStep<vertex_t, edge_t> bfs_op(output_frontier_bmap.data().get(),
-                                                visited_bmap.data().get(),
-                                                predecessors,
-                                                distances);
+  detail::BFSStep<vertex_t, edge_t> bfs_op(
+    output_frontier_bmap.data().get(), visited_bmap.data().get(), predecessors, distances);
 
   cudaStream_t stream = handle.get_stream();
 

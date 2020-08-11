@@ -44,8 +44,8 @@ class LogDistribution {
   {
   }
 
-  DegreeBucket<vertex_t, edge_t> degreeRange(edge_t ceilLogDegreeStart,
-                                   edge_t ceilLogDegreeEnd = std::numeric_limits<edge_t>::max())
+  DegreeBucket<vertex_t, edge_t> degreeRange(
+    edge_t ceilLogDegreeStart, edge_t ceilLogDegreeEnd = std::numeric_limits<edge_t>::max())
   {
     ceilLogDegreeStart = std::max(ceilLogDegreeStart, edge_t{0});
     if (ceilLogDegreeEnd > static_cast<edge_t>(bin_offsets_.size()) - 2) {
@@ -80,17 +80,18 @@ class VertexBinner {
     vertex_end_    = vertex_end;
   }
 
-  LogDistribution<vertex_t, edge_t> run(rmm::device_vector<vertex_t>& reorganized_vertices, cudaStream_t stream);
+  LogDistribution<vertex_t, edge_t> run(rmm::device_vector<vertex_t>& reorganized_vertices,
+                                        cudaStream_t stream);
 
   LogDistribution<vertex_t, edge_t> run(rmm::device_vector<vertex_t>& input_vertices,
-                              vertex_t input_vertices_len,
-                              rmm::device_vector<vertex_t>& reorganized_vertices,
-                              cudaStream_t stream);
+                                        vertex_t input_vertices_len,
+                                        rmm::device_vector<vertex_t>& reorganized_vertices,
+                                        cudaStream_t stream);
 };
 
 template <typename vertex_t, typename edge_t>
-LogDistribution<vertex_t, edge_t> VertexBinner<vertex_t, edge_t>::run(rmm::device_vector<vertex_t>& reorganized_vertices,
-                                                  cudaStream_t stream)
+LogDistribution<vertex_t, edge_t> VertexBinner<vertex_t, edge_t>::run(
+  rmm::device_vector<vertex_t>& reorganized_vertices, cudaStream_t stream)
 {
   thrust::fill(
     rmm::exec_policy(stream)->on(stream), bin_offsets_.begin(), bin_offsets_.end(), edge_t{0});
@@ -108,10 +109,11 @@ LogDistribution<vertex_t, edge_t> VertexBinner<vertex_t, edge_t>::run(rmm::devic
 }
 
 template <typename vertex_t, typename edge_t>
-LogDistribution<vertex_t, edge_t> VertexBinner<vertex_t, edge_t>::run(rmm::device_vector<vertex_t>& input_vertices,
-                                                  vertex_t input_vertices_len,
-                                                  rmm::device_vector<vertex_t>& reorganized_vertices,
-                                                  cudaStream_t stream)
+LogDistribution<vertex_t, edge_t> VertexBinner<vertex_t, edge_t>::run(
+  rmm::device_vector<vertex_t>& input_vertices,
+  vertex_t input_vertices_len,
+  rmm::device_vector<vertex_t>& reorganized_vertices,
+  cudaStream_t stream)
 {
   bin_vertices(input_vertices,
                input_vertices_len,

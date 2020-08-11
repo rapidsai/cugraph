@@ -37,7 +37,8 @@ class FrontierExpand {
   rmm::device_vector<edge_t> output_vertex_count_;
 
  public:
-  FrontierExpand(raft::handle_t const &handle, cugraph::GraphCSRView<vertex_t, edge_t, weight_t> const &graph)
+  FrontierExpand(raft::handle_t const &handle,
+                 cugraph::GraphCSRView<vertex_t, edge_t, weight_t> const &graph)
     : handle_(handle), graph_(graph)
   {
     bool is_mg = (handle.comms_initialized() && (graph.local_vertices != nullptr) &&
@@ -58,9 +59,9 @@ class FrontierExpand {
   // Return the size of the output_frontier
   template <typename operator_t>
   vertex_t operator()(operator_t op,
-         rmm::device_vector<vertex_t> &input_frontier,
-         vertex_t input_frontier_len,
-         rmm::device_vector<vertex_t> &output_frontier)
+                      rmm::device_vector<vertex_t> &input_frontier,
+                      vertex_t input_frontier_len,
+                      rmm::device_vector<vertex_t> &output_frontier)
   {
     if (input_frontier_len == 0) { return static_cast<vertex_t>(0); }
     cudaStream_t stream     = handle_.get_stream();

@@ -61,7 +61,11 @@ __device__ void write_to_frontier(vertex_t const *thread_frontier,
   }
 }
 
-template <int BlockSize, int EdgesPerThread, typename vertex_t, typename edge_t, typename operator_t>
+template <int BlockSize,
+          int EdgesPerThread,
+          typename vertex_t,
+          typename edge_t,
+          typename operator_t>
 __global__ void block_per_vertex(edge_t const *offsets,
                                  vertex_t const *indices,
                                  vertex_t const *input_frontier,
@@ -112,7 +116,11 @@ __global__ void block_per_vertex(edge_t const *offsets,
   }
 }
 
-template <int BlockSize, int EdgesPerThread, typename vertex_t, typename edge_t, typename operator_t>
+template <int BlockSize,
+          int EdgesPerThread,
+          typename vertex_t,
+          typename edge_t,
+          typename operator_t>
 __global__ void kernel_per_vertex(edge_t const *offsets,
                                   vertex_t const *indices,
                                   vertex_t const *input_frontier,

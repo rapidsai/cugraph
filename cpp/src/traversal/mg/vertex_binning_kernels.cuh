@@ -122,8 +122,8 @@ __global__ void create_vertex_bins(vertex_t *out_vertex_ids,
   }
   __syncthreads();
 
-  vertex_t vertex_index      = (threadIdx.x + blockIdx.x * blockDim.x);
-  bool is_valid_vertex = (vertex_index < vertex_id_count);
+  vertex_t vertex_index = (threadIdx.x + blockIdx.x * blockDim.x);
+  bool is_valid_vertex  = (vertex_index < vertex_id_count);
   vertex_t source;
 
   if (is_valid_vertex) {
@@ -164,12 +164,13 @@ void bin_vertices(rmm::device_vector<vertex_t> &input_vertex_ids,
 
   const uint32_t BLOCK_SIZE = 512;
   uint32_t blocks           = ((input_vertex_ids_len) + BLOCK_SIZE - 1) / BLOCK_SIZE;
-  count_bin_sizes<edge_t><<<blocks, BLOCK_SIZE, 0, stream>>>(bin_count.data().get(),
-                                                         offsets,
-                                                         input_vertex_ids.data().get(),
-                                                         static_cast<edge_t>(input_vertex_ids_len),
-                                                         vertex_begin,
-                                                         vertex_end);
+  count_bin_sizes<edge_t>
+    <<<blocks, BLOCK_SIZE, 0, stream>>>(bin_count.data().get(),
+                                        offsets,
+                                        input_vertex_ids.data().get(),
+                                        static_cast<edge_t>(input_vertex_ids_len),
+                                        vertex_begin,
+                                        vertex_end);
 
   exclusive_scan<<<1, 1, 0, stream>>>(bin_count.data().get(), bin_count_offsets.data().get());
 
