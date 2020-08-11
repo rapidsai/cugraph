@@ -17,9 +17,9 @@
 
 #include <rmm/thrust_rmm_allocator.h>
 
+#include <community/louvain_kernels.hpp>
 #include <utilities/cuda_utils.cuh>
 #include <utilities/graph_utils.cuh>
-#include <community/louvain_kernels.hpp>
 
 //#define TIMING
 
@@ -41,7 +41,7 @@ weight_t update_clustering_by_delta_modularity_constrained(
   rmm::device_vector<weight_t> const &vertex_weights,
   rmm::device_vector<weight_t> &cluster_weights,
   rmm::device_vector<vertex_t> &cluster,
-  rmm::device_vector<vertex_t>& constraint,
+  rmm::device_vector<vertex_t> &constraint,
   cudaStream_t stream)
 {
   rmm::device_vector<vertex_t> next_cluster(cluster);
@@ -54,9 +54,9 @@ weight_t update_clustering_by_delta_modularity_constrained(
   weight_t const *d_vertex_weights = vertex_weights.data().get();
   weight_t *d_cluster_weights      = cluster_weights.data().get();
   weight_t *d_delta_Q              = delta_Q.data().get();
-  vertex_t* d_constraint           = constraint.data().get();
-  vertex_t const* d_src_indices          = src_indices.data().get();
-  vertex_t const* d_dst_indices    = graph.indices;
+  vertex_t *d_constraint           = constraint.data().get();
+  vertex_t const *d_src_indices    = src_indices.data().get();
+  vertex_t const *d_dst_indices    = graph.indices;
 
   weight_t new_Q = modularity<vertex_t, edge_t, weight_t>(
     total_edge_weight, resolution, graph, cluster.data().get(), stream);
@@ -84,15 +84,15 @@ weight_t update_clustering_by_delta_modularity_constrained(
                              stream);
 
     // Filter out positive delta_Q values for nodes not in the same constraint group
-    thrust::for_each(rmm::exec_policy(stream)->on(stream),
-                     thrust::make_counting_iterator(0),
-                     thrust::make_counting_iterator(graph.number_of_edges),
-                     [d_src_indices, d_dst_indices, d_constraint, d_delta_Q]
-                      __device__ (vertex_t i) {
-                        vertex_t start_cluster = d_constraint[d_src_indices[i]];
-                        vertex_t end_cluster = d_constraint[d_dst_indices[i]];
-                        if (start_cluster != end_cluster)
-                          d_delta_Q[i] = weight_t{0.0}; });
+    thrust::for_each(
+      rmm::exec_policy(stream)->on(stream),
+      thrust::make_counting_iterator(0),
+      thrust::make_counting_iterator(graph.number_of_edges),
+      [d_src_indices, d_dst_indices, d_constraint, d_delta_Q] __device__(vertex_t i) {
+        vertex_t start_cluster = d_constraint[d_src_indices[i]];
+        vertex_t end_cluster   = d_constraint[d_dst_indices[i]];
+        if (start_cluster != end_cluster) d_delta_Q[i] = weight_t{0.0};
+      });
 
     assign_nodes(graph,
                  delta_Q,
@@ -115,34 +115,36 @@ weight_t update_clustering_by_delta_modularity_constrained(
   return cur_Q;
 }
 
-template float update_clustering_by_delta_modularity_constrained(float,
-                                                     float,
-                                                     GraphCSRView<int32_t, int32_t, float> const &,
-                                                     rmm::device_vector<int32_t> const &,
-                                                     rmm::device_vector<float> const &,
-                                                     rmm::device_vector<float> &,
-                                                     rmm::device_vector<int32_t> &,
-                                                     rmm::device_vector<int32_t> &,
-                                                     cudaStream_t);
+template float update_clustering_by_delta_modularity_constrained(
+  float,
+  float,
+  GraphCSRView<int32_t, int32_t, float> const &,
+  rmm::device_vector<int32_t> const &,
+  rmm::device_vector<float> const &,
+  rmm::device_vector<float> &,
+  rmm::device_vector<int32_t> &,
+  rmm::device_vector<int32_t> &,
+  cudaStream_t);
 
-template double update_clustering_by_delta_modularity_constrained(double,
-                                                     double,
-                                                     GraphCSRView<int32_t, int32_t, double> const &,
-                                                     rmm::device_vector<int32_t> const &,
-                                                     rmm::device_vector<double> const &,
-                                                     rmm::device_vector<double> &,
-                                                     rmm::device_vector<int32_t> &,
-                                                     rmm::device_vector<int32_t> &,
-                                                     cudaStream_t);
+template double update_clustering_by_delta_modularity_constrained(
+  double,
+  double,
+  GraphCSRView<int32_t, int32_t, double> const &,
+  rmm::device_vector<int32_t> const &,
+  rmm::device_vector<double> const &,
+  rmm::device_vector<double> &,
+  rmm::device_vector<int32_t> &,
+  rmm::device_vector<int32_t> &,
+  cudaStream_t);
 
 template <typename vertex_t, typename edge_t, typename weight_t>
 void leiden(GraphCSRView<vertex_t, edge_t, weight_t> const &graph,
-             weight_t *final_modularity,
-             int *num_level,
-             vertex_t *cluster_vec,
-             int max_level,
-             weight_t resolution,
-             cudaStream_t stream)
+            weight_t *final_modularity,
+            int *num_level,
+            vertex_t *cluster_vec,
+            int max_level,
+            weight_t resolution,
+            cudaStream_t stream)
 {
 #ifdef TIMING
   HighResTimer hr_timer;
@@ -232,17 +234,17 @@ void leiden(GraphCSRView<vertex_t, edge_t, weight_t> const &graph,
     thrust::copy(cluster_v.begin(), cluster_v.end(), constraint.begin());
     thrust::sequence(rmm::exec_policy(stream)->on(stream), cluster_v.begin(), cluster_v.end());
     new_Q = update_clustering_by_delta_modularity_constrained(total_edge_weight,
-                                                               resolution,
-                                                               current_graph,
-                                                               src_indices_v,
-                                                               vertex_weights_v,
-                                                               cluster_weights_v,
-                                                               cluster_v,
-                                                               constraint,
-                                                               stream);
+                                                              resolution,
+                                                              current_graph,
+                                                              src_indices_v,
+                                                              vertex_weights_v,
+                                                              cluster_weights_v,
+                                                              cluster_v,
+                                                              constraint,
+                                                              stream);
 
-    std::cout << "Level " << *num_level << " constrained partitioning modularity: " << new_Q << "\n";
-
+    std::cout << "Level " << *num_level << " constrained partitioning modularity: " << new_Q
+              << "\n";
 
 #ifdef TIMING
     hr_timer.stop();
@@ -282,19 +284,19 @@ void leiden(GraphCSRView<vertex_t, edge_t, weight_t> const &graph,
 }
 
 template void leiden(GraphCSRView<int32_t, int32_t, float> const &,
-                      float *,
-                      int *,
-                      int32_t *,
-                      int,
-                      float,
-                      cudaStream_t);
+                     float *,
+                     int *,
+                     int32_t *,
+                     int,
+                     float,
+                     cudaStream_t);
 template void leiden(GraphCSRView<int32_t, int32_t, double> const &,
-                      double *,
-                      int *,
-                      int32_t *,
-                      int,
-                      double,
-                      cudaStream_t);
+                     double *,
+                     int *,
+                     int32_t *,
+                     int,
+                     double,
+                     cudaStream_t);
 
 }  // namespace detail
 }  // namespace cugraph

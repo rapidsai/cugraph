@@ -63,25 +63,26 @@ void compute_delta_modularity(weight_t total_edge_weight,
                               cudaStream_t stream = 0);
 
 template <typename vertex_t, typename edge_t, typename weight_t>
-void assign_nodes(GraphCSRView<vertex_t, edge_t, weight_t> const & graph,
-                  rmm::device_vector<weight_t>& delta_Q,
-                  rmm::device_vector<vertex_t>& cluster_hash,
-                  rmm::device_vector<vertex_t> const& src_indices,
-                  rmm::device_vector<vertex_t>& next_cluster,
-                  rmm::device_vector<weight_t> const& vertex_weights,
-                  rmm::device_vector<weight_t>& cluster_weights,
+void assign_nodes(GraphCSRView<vertex_t, edge_t, weight_t> const &graph,
+                  rmm::device_vector<weight_t> &delta_Q,
+                  rmm::device_vector<vertex_t> &cluster_hash,
+                  rmm::device_vector<vertex_t> const &src_indices,
+                  rmm::device_vector<vertex_t> &next_cluster,
+                  rmm::device_vector<weight_t> const &vertex_weights,
+                  rmm::device_vector<weight_t> &cluster_weights,
                   bool up_down,
                   cudaStream_t stream);
 
 template <typename vertex_t, typename edge_t, typename weight_t>
-weight_t update_clustering_by_delta_modularity(weight_t total_edge_weight,
-                                               weight_t resolution,
-                                               GraphCSRView<vertex_t, edge_t, weight_t> const &graph,
-                                               rmm::device_vector<vertex_t> const &src_indices,
-                                               rmm::device_vector<weight_t> const &vertex_weights,
-                                               rmm::device_vector<weight_t> &cluster_weights,
-                                               rmm::device_vector<vertex_t> &cluster,
-                                               cudaStream_t stream);
+weight_t update_clustering_by_delta_modularity(
+  weight_t total_edge_weight,
+  weight_t resolution,
+  GraphCSRView<vertex_t, edge_t, weight_t> const &graph,
+  rmm::device_vector<vertex_t> const &src_indices,
+  rmm::device_vector<weight_t> const &vertex_weights,
+  rmm::device_vector<weight_t> &cluster_weights,
+  rmm::device_vector<vertex_t> &cluster,
+  cudaStream_t stream);
 
 template <typename vertex_t, typename edge_t, typename weight_t>
 void louvain(GraphCSRView<vertex_t, edge_t, weight_t> const &graph,

@@ -24,12 +24,12 @@ namespace detail {
 
 template <typename vertex_t, typename edge_t, typename weight_t>
 void leiden(GraphCSRView<vertex_t, edge_t, weight_t> const &graph,
-             weight_t *final_modularity,
-             int *num_level,
-             vertex_t *cluster_vec,
-             int max_level,
-             weight_t resolution,
-             cudaStream_t stream = 0);
+            weight_t *final_modularity,
+            int *num_level,
+            vertex_t *cluster_vec,
+            int max_level,
+            weight_t resolution,
+            cudaStream_t stream = 0);
 
 }  // namespace detail
 }  // namespace cugraph

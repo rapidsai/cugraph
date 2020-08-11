@@ -29,11 +29,11 @@ namespace cugraph {
 
 template <typename vertex_t, typename edge_t, typename weight_t>
 void leiden(GraphCSRView<vertex_t, edge_t, weight_t> const &graph,
-             weight_t *final_modularity,
-             int *num_level,
-             vertex_t *leiden_parts,
-             int max_level,
-             weight_t resolution)
+            weight_t *final_modularity,
+            int *num_level,
+            vertex_t *leiden_parts,
+            int max_level,
+            weight_t resolution)
 {
   CUGRAPH_EXPECTS(graph.edge_data != nullptr, "API error, louvain expects a weighted graph");
   CUGRAPH_EXPECTS(final_modularity != nullptr, "API error, final_modularity is null");
