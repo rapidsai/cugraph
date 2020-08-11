@@ -224,6 +224,8 @@ void leiden(GraphCSRView<vertex_t, edge_t, weight_t> const &graph,
                                                            cluster_v,
                                                            stream);
 
+    std::cout << "Level " << *num_level << " initial partitioning modularity: " << new_Q << "\n";
+
     // After finding the initial unconstrained partition we use that partitioning as the constraint
     // for the second round.
     rmm::device_vector<vertex_t> constraint(graph.number_of_vertices);
@@ -238,6 +240,8 @@ void leiden(GraphCSRView<vertex_t, edge_t, weight_t> const &graph,
                                                                cluster_v,
                                                                constraint,
                                                                stream);
+
+    std::cout << "Level " << *num_level << " constrained partitioning modularity: " << new_Q << "\n";
 
 
 #ifdef TIMING
