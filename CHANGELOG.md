@@ -55,6 +55,7 @@
 - PR #1031 MG notebook
 - PR #1034 Expose resolution (gamma) parameter in Louvain
 - PR #1041 Use S3 bucket directly for benchmark plugin
+- PR #1062 Compute max_vertex_id in mnmg local data computation
 
 ## Bug Fixes
 - PR #936 Update Force Atlas 2 doc and wrapper
