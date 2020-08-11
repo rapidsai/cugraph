@@ -60,6 +60,8 @@ def genFixtureParamsProduct(*args):
 #        https://docs.rapids.ai/maintainers/datasets
 # FIXME: rlr: soc-twitter-2010.csv crashes with OOM error on my RTX-8000
 UNDIRECTED_DATASETS = [
+    pytest.param("../datasets/karate.csv",
+                 marks=[pytest.mark.tiny, pytest.mark.undirected]),
     pytest.param("../datasets/csv/undirected/hollywood.csv",
                  marks=[pytest.mark.small, pytest.mark.undirected]),
     pytest.param("../datasets/csv/undirected/europe_osm.csv",

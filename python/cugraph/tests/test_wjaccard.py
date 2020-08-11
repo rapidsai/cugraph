@@ -84,10 +84,7 @@ def networkx_call(M):
     return coeff
 
 
-# Test all combinations of default/managed and pooled/non-pooled allocation
-
-
-@pytest.mark.parametrize("graph_file", utils.DATASETS)
+@pytest.mark.parametrize("graph_file", utils.DATASETS_UNDIRECTED)
 def test_wjaccard(graph_file):
     gc.collect()
 
