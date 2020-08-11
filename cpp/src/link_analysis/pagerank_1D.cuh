@@ -26,7 +26,7 @@
 #include "utilities/spmv_1D.cuh"
 
 namespace cugraph {
-namespace opg {
+namespace mg {
 
 template <typename VT, typename ET, typename WT>
 class Pagerank {
@@ -35,9 +35,9 @@ class Pagerank {
   VT v_loc{};   // local number of vertices
   ET e_loc{};   // local number of edges
   WT alpha{};   // damping factor
-
+  bool has_personalization;
   // CUDA
-  const raft::comms::comms_t &comm;  // info about the opg comm setup
+  const raft::comms::comms_t &comm;  // info about the mg comm setup
   cudaStream_t stream;
   int blocks;
   int threads;
@@ -50,11 +50,14 @@ class Pagerank {
   // Google matrix
   ET *off;
   VT *ind;
-  rmm::device_vector<WT> val;       // values of the substochastic matrix
-  rmm::device_vector<WT> bookmark;  // constant vector with dangling node info
-  rmm::device_vector<WT> prev_pr;   // record the last pagerank for convergence check
+
+  rmm::device_vector<WT> val;                     // values of the substochastic matrix
+  rmm::device_vector<WT> bookmark;                // constant vector with dangling node info
+  rmm::device_vector<WT> prev_pr;                 // record the last pagerank for convergence check
+  rmm::device_vector<WT> personalization_vector;  // personalization vector after reconstruction
 
   bool is_setup;
+  raft::handle_t const &handle;  // raft handle propagation for SpMV, etc.
 
  public:
   Pagerank(const raft::handle_t &handle, const GraphCSCView<VT, ET, WT> &G);
@@ -65,7 +68,11 @@ class Pagerank {
   void flag_leafs(const VT *degree);
 
   // Artificially create the google matrix by setting val and bookmark
-  void setup(WT _alpha, VT *degree);
+  void setup(WT _alpha,
+             VT *degree,
+             VT personalization_subset_size,
+             VT *personalization_subset,
+             WT *personalization_values);
 
   // run the power iteration on the google matrix, return the number of iterations
   int solve(int max_iter, float tolerance, WT *pagerank);
@@ -75,6 +82,9 @@ template <typename VT, typename ET, typename WT>
 int pagerank(raft::handle_t const &handle,
              const GraphCSCView<VT, ET, WT> &G,
              WT *pagerank_result,
+             VT personalization_subset_size,
+             VT *personalization_subset,
+             WT *personalization_values,
              const double damping_factor = 0.85,
              const int64_t n_iter        = 100,
              const double tolerance      = 1e-5)
@@ -101,11 +111,15 @@ int pagerank(raft::handle_t const &handle,
   Pagerank<VT, ET, WT> pr_solver(handle, G);
 
   // Set all constants info
-  pr_solver.setup(damping_factor, degree.data().get());
+  pr_solver.setup(damping_factor,
+                  degree.data().get(),
+                  personalization_subset_size,
+                  personalization_subset,
+                  personalization_values);
 
   // Run pagerank
   return pr_solver.solve(n_iter, tolerance, pagerank_result);
 }
 
-}  // namespace opg
+}  // namespace mg
 }  // namespace cugraph

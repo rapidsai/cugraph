@@ -18,7 +18,6 @@
 
 from cugraph.link_analysis.hits cimport hits as c_hits
 from cugraph.structure.graph_new cimport *
-from cugraph.utilities.unrenumber import unrenumber
 from libcpp cimport bool
 from libc.stdint cimport uintptr_t
 from cugraph.structure import graph_new_wrapper
@@ -66,8 +65,5 @@ def hits(input_graph, max_iter=100, tol=1.0e-5, nstart=None, normalized=True):
     c_hits[int,int,float](graph_float, max_iter, tol, <float*> NULL,
                           normalized, <float*>c_hubs, <float*>c_authorities);
     graph_float.get_vertex_identifiers(<int*>c_identifier)
-
-    if input_graph.renumbered:
-        df = unrenumber(input_graph.edgelist.renumber_map, df, 'vertex')
 
     return df

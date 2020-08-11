@@ -21,7 +21,7 @@
 
 namespace cugraph {
 
-namespace opg {
+namespace mg {
 
 namespace detail {
 
@@ -107,6 +107,6 @@ LogDistribution<VT, ET> VertexBinner<VT, ET>::run(rmm::device_vector<VT>& reorga
 
 }  // namespace detail
 
-}  // namespace opg
+}  // namespace mg
 
 }  // namespace cugraph

@@ -77,6 +77,9 @@ def coo2csr(source_col, dest_col, weights=None):
     if source_col.dtype != np.int32:
         raise Exception("source_col and dest_col must be type np.int32")
 
+    if len(source_col) == 0:
+        return cudf.Series(np.zeros(1, dtype=np.int32)), cudf.Series(np.zeros(1, dtype=np.int32)), weights
+
     if weight_type(weights) == np.float64:
         return create_csr_double(source_col, dest_col, weights)
     else:

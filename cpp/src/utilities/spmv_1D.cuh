@@ -17,51 +17,44 @@
 #pragma once
 #include <rmm/thrust_rmm_allocator.h>
 #include <raft/handle.hpp>
-#include "utilities/cusparse_helper.h"
-// FIXME : use RAFT cusparse wrapper
-// The wrapper is about to be upgraded in RAFT
-// better wait for it to be stable before building on top of it
-// #include <raft/sparse/cusparse_wrappers.h>
 #include "utilities/error.hpp"
 
 namespace cugraph {
-namespace opg {
+namespace mg {
 
-template <typename VT, typename ET, typename WT>
-class OPGcsrmv {
+template <typename vertex_t, typename edge_t, typename weight_t>
+class MGcsrmv {
  private:
-  size_t v_glob;
-  size_t v_loc;
-  size_t e_loc;
-  const raft::comms::comms_t& comm;
-  VT* part_off;
-  VT* local_vertices;
-  int i;
-  int p;
-  ET* off;
-  VT* ind;
-  WT* val;
-  rmm::device_vector<WT> y_loc;
-  std::vector<size_t> v_locs_h;
-  std::vector<VT> displs_h;
+  size_t v_glob_;
+  size_t v_loc_;
+  size_t e_loc_;
 
-  cudaStream_t stream;
+  raft::handle_t const& handle_;  // raft handle propagation for SpMV, etc.
 
-  cugraph::detail::CusparseCsrMV<WT> spmv;
+  vertex_t* part_off_;
+  vertex_t* local_vertices_;
+  int i_;
+  int p_;
+  edge_t* off_;
+  vertex_t* ind_;
+  weight_t* val_;
+  rmm::device_vector<weight_t> y_loc_;
+  std::vector<size_t> v_locs_h_;
+  std::vector<vertex_t> displs_h_;
 
  public:
-  OPGcsrmv(const raft::comms::comms_t& comm,
-           VT* local_vertices,
-           VT* part_off,
-           ET* off_,
-           VT* ind_,
-           WT* val_,
-           WT* x);
+  MGcsrmv(raft::handle_t const& r_handle,
+          vertex_t* local_vertices,
+          vertex_t* part_off,
+          edge_t* row_off,
+          vertex_t* col_ind,
+          weight_t* vals,
+          weight_t* x);
 
-  ~OPGcsrmv();
+  ~MGcsrmv();
 
-  void run(WT* x);
+  void run(weight_t* x);
 };
 
-}  // namespace opg
+}  // namespace mg
 }  // namespace cugraph
