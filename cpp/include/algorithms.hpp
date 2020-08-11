@@ -626,6 +626,34 @@ void louvain(GraphCSRView<vertex_t, edge_t, weight_t> const &graph,
              weight_t resolution = weight_t{1});
 
 /**
+ * @brief      Leiden implementation
+ *
+ * Compute a clustering of the graph by maximizing modularity using the Leiden improvements
+ * to the Louvain method.
+ *
+ * @throws cugraph::logic_error when an error occurs.
+ *
+ * @tparam vertex_t                  Type of vertex identifiers.
+ *                                   Supported value : int (signed, 32-bit)
+ * @tparam edge_t                    Type of edge identifiers.
+ *                                   Supported value : int (signed, 32-bit)
+ * @tparam weight_t                  Type of edge weights. Supported values : float or double.
+ *
+ * @param[in]  graph                 input graph object (CSR)
+ * @param[out] final_modularity      modularity of the returned clustering
+ * @param[out] num_level             number of levels of the returned clustering
+ * @param[out] clustering            Pointer to device array where the clustering should be stored
+ * @param[in]  max_iter              (optional) maximum number of iterations to run (default 100)
+ */
+template <typename vertex_t, typename edge_t, typename weight_t>
+void leiden(GraphCSRView<vertex_t, edge_t, weight_t> const &graph,
+             weight_t *final_modularity,
+             int *num_level,
+             vertex_t *leiden_parts,
+             int max_iter        = 100,
+             weight_t resolution = weight_t{1});
+
+/**
  * @brief Computes the ecg clustering of the given graph.
  *
  * ECG runs truncated Louvain on an ensemble of permutations of the input graph,
