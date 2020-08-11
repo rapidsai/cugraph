@@ -92,6 +92,7 @@ std::unique_ptr<rmm::device_buffer> renumber_vertices(
  *
  */
 
+// FIXME: It would be better to expose it in RAFT
 template <typename value_t>
 void comms_bcast(const raft::handle_t &handle, value_t *value, size_t count)
 {
