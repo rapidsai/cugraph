@@ -21,7 +21,10 @@
 #include <array>
 #include <type_traits>
 
-namespace {
+namespace cugraph {
+namespace experimental {
+
+namespace detail {
 
 template <typename TupleType, size_t I, size_t N>
 struct is_thrust_tuple_of_arithemetic_impl {
@@ -91,11 +94,7 @@ struct block_reduce_thrust_tuple_impl<TupleType, BlockSize, I, I> {
   __device__ void compute(TupleType& tuple) const {}
 };
 
-}  // namespace
-
-namespace cugraph {
-namespace experimental {
-namespace detail {
+}  // namespace detail
 
 template <typename T>
 struct is_thrust_tuple : std::false_type {
@@ -113,9 +112,10 @@ template <typename TupleType>
 struct is_thrust_tuple_of_arithmetic<TupleType,
                                      std::enable_if_t<is_thrust_tuple<TupleType>::value>> {
   static constexpr bool value =
-    is_thrust_tuple_of_arithemetic_impl<TupleType,
-                                        0,
-                                        static_cast<size_t>(thrust::tuple_size<TupleType>::value)>()
+    detail::is_thrust_tuple_of_arithemetic_impl<TupleType,
+                                                0,
+                                                static_cast<size_t>(
+                                                  thrust::tuple_size<TupleType>::value)>()
       .evaluate();
 };
 
@@ -135,7 +135,8 @@ struct compute_thrust_tuple_element_sizes {
   {
     size_t constexpr tuple_size = thrust::tuple_size<TupleType>::value;
     std::array<size_t, tuple_size> ret;
-    compute_thrust_tuple_element_sizes_impl<TupleType, size_t{0}, tuple_size>().compute(ret);
+    detail::compute_thrust_tuple_element_sizes_impl<TupleType, size_t{0}, tuple_size>().compute(
+      ret);
     return ret;
   }
 };
@@ -145,8 +146,8 @@ struct remove_first_thrust_tuple_element {
   __device__ constexpr auto operator()(TupleType const& tuple) const
   {
     size_t constexpr tuple_size = thrust::tuple_size<TupleType>::value;
-    return remove_first_thrust_tuple_element_impl(tuple,
-                                                  std::make_index_sequence<tuple_size - 1>());
+    return detail::remove_first_thrust_tuple_element_impl(
+      tuple, std::make_index_sequence<tuple_size - 1>());
   }
 };
 
@@ -156,7 +157,7 @@ struct plus_thrust_tuple {
   {
     size_t constexpr tuple_size = thrust::tuple_size<TupleType>::value;
     auto ret                    = lhs;
-    plus_thrust_tuple_impl<TupleType, size_t{0}, tuple_size>().compute(ret, rhs);
+    detail::plus_thrust_tuple_impl<TupleType, size_t{0}, tuple_size>().compute(ret, rhs);
     return ret;
   }
 };
@@ -167,11 +168,11 @@ struct block_reduce_thrust_tuple {
   {
     size_t constexpr tuple_size = thrust::tuple_size<TupleType>::value;
     auto ret                    = tuple;
-    block_reduce_thrust_tuple_impl<TupleType, BlockSize, size_t{0}, tuple_size>().compute(ret);
+    detail::block_reduce_thrust_tuple_impl<TupleType, BlockSize, size_t{0}, tuple_size>().compute(
+      ret);
     return ret;
   }
 };
 
-}  // namespace detail
 }  // namespace experimental
 }  // namespace cugraph

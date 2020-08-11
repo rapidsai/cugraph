@@ -15,7 +15,7 @@
  */
 #pragma once
 
-#include <detail/graph_device_view.cuh>
+#include <graph_device_view.cuh>
 #include <utilities/error.hpp>
 
 #include <raft/handle.hpp>
@@ -25,7 +25,6 @@
 
 namespace cugraph {
 namespace experimental {
-namespace detail {
 
 /**
  * @brief Reduce the vertex properties.
@@ -101,6 +100,5 @@ T reduce_v(HandleType& handle,
   return ret;
 }
 
-}  // namespace detail
 }  // namespace experimental
 }  // namespace cugraph

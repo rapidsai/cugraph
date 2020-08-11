@@ -15,10 +15,10 @@
  */
 #pragma once
 
-#include <detail/utilities/cuda.cuh>
-#include <detail/utilities/thrust_tuple_utils.cuh>
 #include <graph.hpp>
+#include <utilities/cuda.cuh>
 #include <utilities/error.hpp>
+#include <utilities/thrust_tuple_utils.cuh>
 
 #include <rmm/thrust_rmm_allocator.h>
 #include <rmm/device_scalar.hpp>
@@ -33,7 +33,10 @@
 #include <type_traits>
 #include <vector>
 
-namespace {
+namespace cugraph {
+namespace experimental {
+
+namespace detail {
 
 // FIXME: block size requires tuning
 int32_t constexpr move_and_invalidate_if_block_size = 128;
@@ -137,11 +140,7 @@ __global__ void move_and_invalidate_if(RowIterator row_first,
   }
 }
 
-}  // namespace
-
-namespace cugraph {
-namespace experimental {
-namespace detail {
+}  // namespace detail
 
 template <typename HandleType, typename vertex_t, bool is_multi_gpu = false>
 class Bucket {
@@ -245,11 +244,11 @@ class VertexFrontier {
 
     auto& this_bucket = get_bucket(bucket_idx);
     grid_1d_thread_t move_and_invalidate_if_grid(
-      this_bucket.size(), move_and_invalidate_if_block_size, get_max_num_blocks_1D());
+      this_bucket.size(), detail::move_and_invalidate_if_block_size, get_max_num_blocks_1D());
 
-    move_and_invalidate_if<kNumBuckets>
+    detail::move_and_invalidate_if<kNumBuckets>
       <<<move_and_invalidate_if_grid.num_blocks,
-         move_and_invalidate_if_block_size,
+         move_and_invalidate_if_grid.block_size,
          0,
          handle_ptr_->get_stream()>>>(this_bucket.begin(),
                                       this_bucket.end(),
@@ -321,12 +320,13 @@ class VertexFrontier {
 
   auto buffer_begin()
   {
-    return make_buffer_zip_iterator<ReduceInputTupleType, vertex_t>(buffer_ptrs_, 0);
+    return detail::make_buffer_zip_iterator<ReduceInputTupleType, vertex_t>(buffer_ptrs_, 0);
   }
 
   auto buffer_end()
   {
-    return make_buffer_zip_iterator<ReduceInputTupleType, vertex_t>(buffer_ptrs_, buffer_size_);
+    return detail::make_buffer_zip_iterator<ReduceInputTupleType, vertex_t>(buffer_ptrs_,
+                                                                            buffer_size_);
   }
 
   auto get_buffer_idx_ptr() { return buffer_idx_.data(); }
@@ -357,9 +357,11 @@ class VertexFrontier {
 
   size_t compute_aggregate_buffer_size_in_bytes(size_t size)
   {
-    size_t aggregate_buffer_size_in_bytes = round_up(sizeof(vertex_t) * size, kBufferAlignment);
+    size_t aggregate_buffer_size_in_bytes =
+      detail::round_up(sizeof(vertex_t) * size, kBufferAlignment);
     for (size_t i = 0; i < kReduceInputTupleSize; ++i) {
-      aggregate_buffer_size_in_bytes += round_up(tuple_element_sizes_[i] * size, kBufferAlignment);
+      aggregate_buffer_size_in_bytes +=
+        detail::round_up(tuple_element_sizes_[i] * size, kBufferAlignment);
     }
     return aggregate_buffer_size_in_bytes;
   }
@@ -368,14 +370,13 @@ class VertexFrontier {
   {
     uintptr_t ptr   = reinterpret_cast<uintptr_t>(buffer_.data());
     buffer_ptrs_[0] = reinterpret_cast<void*>(ptr);
-    ptr += round_up(sizeof(vertex_t) * buffer_capacity_, kBufferAlignment);
+    ptr += detail::round_up(sizeof(vertex_t) * buffer_capacity_, kBufferAlignment);
     for (size_t i = 0; i < kReduceInputTupleSize; ++i) {
       buffer_ptrs_[1 + i] = reinterpret_cast<void*>(ptr);
-      ptr += round_up(tuple_element_sizes_[i] * buffer_capacity_, kBufferAlignment);
+      ptr += detail::round_up(tuple_element_sizes_[i] * buffer_capacity_, kBufferAlignment);
     }
   }
 };
 
-}  // namespace detail
 }  // namespace experimental
 }  // namespace cugraph

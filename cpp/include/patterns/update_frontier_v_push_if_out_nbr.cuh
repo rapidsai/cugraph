@@ -15,11 +15,11 @@
  */
 #pragma once
 
-#include <detail/patterns/edge_op_utils.cuh>
-#include <detail/patterns/reduce_op.cuh>
-#include <detail/utilities/cuda.cuh>
-#include <detail/utilities/thrust_tuple_utils.cuh>
+#include <patterns/edge_op_utils.cuh>
+#include <patterns/reduce_op.cuh>
+#include <utilities/cuda.cuh>
 #include <utilities/error.hpp>
+#include <utilities/thrust_tuple_utils.cuh>
 
 #include <rmm/thrust_rmm_allocator.h>
 
@@ -34,7 +34,10 @@
 #include <type_traits>
 #include <utility>
 
-namespace {
+namespace cugraph {
+namespace experimental {
+
+namespace detail {
 
 // FIXME: block size requires tuning
 int32_t constexpr update_frontier_v_push_if_out_nbr_for_all_low_out_degree_block_size = 128;
@@ -78,15 +81,14 @@ __global__ void for_all_frontier_row_for_all_nbr_low_out_degree(
       auto dst_vid    = indices[i];
       auto weight     = weights != nullptr ? weights[i] : 1.0;
       auto col_offset = graph_device_view.get_adj_matrix_local_col_offset_from_col_nocheck(dst_vid);
-      auto e_op_result =
-        cugraph::experimental::detail::evaluate_edge_op<GraphType,
-                                                        EdgeOp,
-                                                        AdjMatrixRowValueInputIterator,
-                                                        AdjMatrixColValueInputIterator>()
-          .compute(*(adj_matrix_row_value_input_first + row_offset),
-                   *(adj_matrix_col_value_input_first + col_offset),
-                   weight,
-                   e_op);
+      auto e_op_result = evaluate_edge_op<GraphType,
+                                          EdgeOp,
+                                          AdjMatrixRowValueInputIterator,
+                                          AdjMatrixColValueInputIterator>()
+                           .compute(*(adj_matrix_row_value_input_first + row_offset),
+                                    *(adj_matrix_col_value_input_first + col_offset),
+                                    weight,
+                                    e_op);
       if (thrust::get<0>(e_op_result) == true) {
         // FIXME: This atomicInc serializes execution. If we renumber vertices to insure that rows
         // within a partition are sorted by their out-degree in decreasing order, we can compute
@@ -97,8 +99,7 @@ __global__ void for_all_frontier_row_for_all_nbr_low_out_degree(
                                     static_cast<unsigned long long int>(1));
         *(buffer_key_output_first + buffer_idx) = col_offset;
         *(buffer_payload_output_first + buffer_idx) =
-          cugraph::experimental::detail::remove_first_thrust_tuple_element<decltype(e_op_result)>()(
-            e_op_result);
+          remove_first_thrust_tuple_element<decltype(e_op_result)>()(e_op_result);
       }
     }
 
@@ -121,8 +122,7 @@ size_t reduce_buffer_elements(HandleType& handle,
                       buffer_key_output_first + num_buffer_elements,
                       buffer_payload_output_first);
 
-  if (std::is_same<ReduceOp,
-                   cugraph::experimental::detail::reduce_op::any<typename ReduceOp::type>>::value) {
+  if (std::is_same<ReduceOp, reduce_op::any<typename ReduceOp::type>>::value) {
     // FIXME: if ReducOp is any, we may have a cheaper alternative than sort & uique (i.e. discard
     // non-first elements)
     auto it = thrust::unique_by_key(thrust::cuda::par.on(handle.get_stream()),
@@ -190,7 +190,8 @@ __global__ void update_frontier_and_vertex_output_values(
   // FIXME: it might be more performant to process more than one element per thread
   auto num_blocks = (num_buffer_elements + blockDim.x - 1) / blockDim.x;
 
-  using BlockScan = cub::BlockScan<size_t, update_frontier_v_push_if_out_nbr_update_block_size>;
+  using BlockScan =
+    cub::BlockScan<size_t, detail::update_frontier_v_push_if_out_nbr_update_block_size>;
   __shared__ typename BlockScan::TempStorage temp_storage;
 
   __shared__ size_t bucket_block_start_offsets[num_buckets];
@@ -212,8 +213,7 @@ __global__ void update_frontier_and_vertex_output_values(
       selected_bucket_idx = thrust::get<0>(v_op_result);
       if (selected_bucket_idx != invalid_bucket_idx) {
         *(vertex_value_output_first + key) =
-          cugraph::experimental::detail::remove_first_thrust_tuple_element<decltype(v_op_result)>()(
-            v_op_result);
+          remove_first_thrust_tuple_element<decltype(v_op_result)>()(v_op_result);
         bucket_block_local_offsets[selected_bucket_idx] = 1;
       }
     }
@@ -247,11 +247,7 @@ __global__ void update_frontier_and_vertex_output_values(
   }
 }
 
-}  // namespace
-
-namespace cugraph {
-namespace experimental {
-namespace detail {
+}  // namespace detail
 
 /**
  * @brief Update vertex frontier and vertex property values iterating over the outgoing edges.
@@ -378,7 +374,7 @@ void update_frontier_v_push_if_out_nbr(
                     : static_cast<size_t>(thrust::distance(vertex_first, vertex_last));
   grid_1d_thread_t for_all_low_out_degree_grid(
     num_rows,
-    update_frontier_v_push_if_out_nbr_for_all_low_out_degree_block_size,
+    detail::update_frontier_v_push_if_out_nbr_for_all_low_out_degree_block_size,
     get_max_num_blocks_1D());
 
   // FIXME: if we update the code to invoke multiple kernels for this part (based on vertex
@@ -387,43 +383,45 @@ void update_frontier_v_push_if_out_nbr(
     // FIXME: This is highly inefficeint for graphs with high-degree vertices. If we renumber
     // vertices to insure that rows within a partition are sorted by their out-degree in decreasing
     // order, we will apply this kernel only to low out-degree vertices.
-    for_all_frontier_row_for_all_nbr_low_out_degree<<<for_all_low_out_degree_grid.num_blocks,
-                                                      for_all_low_out_degree_grid.block_size,
-                                                      0,
-                                                      handle.get_stream()>>>(
-      graph_device_view,
-      frontier_rows.begin(),
-      frontier_rows.end(),
-      adj_matrix_row_value_input_first,
-      adj_matrix_col_value_input_first,
-      buffer_key_first,
-      buffer_payload_first,
-      vertex_frontier.get_buffer_idx_ptr(),
-      e_op);
+    detail::
+      for_all_frontier_row_for_all_nbr_low_out_degree<<<for_all_low_out_degree_grid.num_blocks,
+                                                        for_all_low_out_degree_grid.block_size,
+                                                        0,
+                                                        handle.get_stream()>>>(
+        graph_device_view,
+        frontier_rows.begin(),
+        frontier_rows.end(),
+        adj_matrix_row_value_input_first,
+        adj_matrix_col_value_input_first,
+        buffer_key_first,
+        buffer_payload_first,
+        vertex_frontier.get_buffer_idx_ptr(),
+        e_op);
   } else {
     // FIXME: This is highly inefficeint for graphs with high-degree vertices. If we renumber
     // vertices to insure that rows within a partition are sorted by their out-degree in decreasing
     // order, we will apply this kernel only to low out-degree vertices.
-    for_all_frontier_row_for_all_nbr_low_out_degree<<<for_all_low_out_degree_grid.num_blocks,
-                                                      for_all_low_out_degree_grid.block_size,
-                                                      0,
-                                                      handle.get_stream()>>>(
-      graph_device_view,
-      vertex_first,
-      vertex_last,
-      adj_matrix_row_value_input_first,
-      adj_matrix_col_value_input_first,
-      buffer_key_first,
-      buffer_payload_first,
-      vertex_frontier.get_buffer_idx_ptr(),
-      e_op);
+    detail::
+      for_all_frontier_row_for_all_nbr_low_out_degree<<<for_all_low_out_degree_grid.num_blocks,
+                                                        for_all_low_out_degree_grid.block_size,
+                                                        0,
+                                                        handle.get_stream()>>>(
+        graph_device_view,
+        vertex_first,
+        vertex_last,
+        adj_matrix_row_value_input_first,
+        adj_matrix_col_value_input_first,
+        buffer_key_first,
+        buffer_payload_first,
+        vertex_frontier.get_buffer_idx_ptr(),
+        e_op);
   }
 
-  auto num_buffer_elements = reduce_buffer_elements(handle,
-                                                    buffer_key_first,
-                                                    buffer_payload_first,
-                                                    vertex_frontier.get_buffer_idx_value(),
-                                                    reduce_op);
+  auto num_buffer_elements = detail::reduce_buffer_elements(handle,
+                                                            buffer_key_first,
+                                                            buffer_payload_first,
+                                                            vertex_frontier.get_buffer_idx_value(),
+                                                            reduce_op);
 
   if (GraphType::is_multi_gpu) {
     // need to exchange buffer elements (and may reduce again)
@@ -432,14 +430,14 @@ void update_frontier_v_push_if_out_nbr(
 
   if (num_buffer_elements > 0) {
     grid_1d_thread_t update_grid(num_buffer_elements,
-                                 update_frontier_v_push_if_out_nbr_update_block_size,
+                                 detail::update_frontier_v_push_if_out_nbr_update_block_size,
                                  get_max_num_blocks_1D());
 
     auto constexpr invalid_vertex = invalid_vertex_id<vertex_t>::value;
 
     auto bucket_and_bucket_size_device_ptrs =
       vertex_frontier.get_bucket_and_bucket_size_device_pointers();
-    update_frontier_and_vertex_output_values<VertexFrontierType::kNumBuckets>
+    detail::update_frontier_and_vertex_output_values<VertexFrontierType::kNumBuckets>
       <<<update_grid.num_blocks, update_grid.block_size, 0, handle.get_stream()>>>(
         buffer_key_first,
         buffer_payload_first,
@@ -479,6 +477,5 @@ wrappers for reduction functions. Can I pass nullptr for dummy
 instead of thrust::make_counting_iterator(0)?
 */
 
-}  // namespace detail
 }  // namespace experimental
 }  // namespace cugraph

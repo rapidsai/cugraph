@@ -15,7 +15,7 @@
  */
 #pragma once
 
-#include <detail/graph_device_view.cuh>
+#include <graph_device_view.cuh>
 #include <utilities/error.hpp>
 
 #include <raft/handle.hpp>
@@ -26,7 +26,6 @@
 
 namespace cugraph {
 namespace experimental {
-namespace detail {
 
 /**
  * @brief Apply an operator to the matching vertex and adjacency matrix row properties and reduce.
@@ -92,6 +91,5 @@ T transform_reduce_v_with_adj_matrix_row(
   }
 }
 
-}  // namespace detail
 }  // namespace experimental
 }  // namespace cugraph

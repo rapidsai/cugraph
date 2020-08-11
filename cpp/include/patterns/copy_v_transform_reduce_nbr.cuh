@@ -15,10 +15,10 @@
  */
 #pragma once
 
-#include <detail/patterns/edge_op_utils.cuh>
-#include <detail/patterns/reduce_op.cuh>
-#include <detail/utilities/cuda.cuh>
 #include <graph.hpp>
+#include <patterns/edge_op_utils.cuh>
+#include <patterns/reduce_op.cuh>
+#include <utilities/cuda.cuh>
 #include <utilities/error.hpp>
 
 #include <rmm/thrust_rmm_allocator.h>
@@ -33,7 +33,10 @@
 #include <type_traits>
 #include <utility>
 
-namespace {
+namespace cugraph {
+namespace experimental {
+
+namespace detail {
 
 // FIXME: block size requires tuning
 int32_t constexpr copy_v_transform_reduce_nbr_for_all_low_out_degree_block_size = 128;
@@ -41,13 +44,13 @@ int32_t constexpr copy_v_transform_reduce_nbr_for_all_low_out_degree_block_size 
 template <bool update_major, typename T>
 __device__ std::enable_if_t<update_major, void> accumulate_edge_op_result(T& lhs, T const& rhs)
 {
-  lhs = cugraph::experimental::detail::plus_edge_op_result(lhs, rhs);
+  lhs = plus_edge_op_result(lhs, rhs);
 }
 
 template <bool update_major, typename T>
 __device__ std::enable_if_t<!update_major, void> accumulate_edge_op_result(T& lhs, T const& rhs)
 {
-  cugraph::experimental::detail::atomic_add(&lhs, rhs);
+  atomic_add(&lhs, rhs);
 }
 
 template <bool update_major,
@@ -94,17 +97,16 @@ __global__ void for_all_major_for_all_nbr_low_out_degree(
         GraphType::is_adj_matrix_transposed
           ? graph_device_view.get_adj_matrix_local_row_offset_from_row_nocheck(minor_vid)
           : graph_device_view.get_adj_matrix_local_col_offset_from_col_nocheck(minor_vid);
-      auto row_offset = GraphType::is_adj_matrix_transposed ? minor_offset : major_offset;
-      auto col_offset = GraphType::is_adj_matrix_transposed ? major_offset : minor_offset;
-      auto e_op_result =
-        cugraph::experimental::detail::evaluate_edge_op<GraphType,
-                                                        EdgeOp,
-                                                        AdjMatrixRowValueInputIterator,
-                                                        AdjMatrixColValueInputIterator>()
-          .compute(*(adj_matrix_row_value_input_first + row_offset),
-                   *(adj_matrix_col_value_input_first + col_offset),
-                   weight,
-                   e_op);
+      auto row_offset  = GraphType::is_adj_matrix_transposed ? minor_offset : major_offset;
+      auto col_offset  = GraphType::is_adj_matrix_transposed ? major_offset : minor_offset;
+      auto e_op_result = evaluate_edge_op<GraphType,
+                                          EdgeOp,
+                                          AdjMatrixRowValueInputIterator,
+                                          AdjMatrixColValueInputIterator>()
+                           .compute(*(adj_matrix_row_value_input_first + row_offset),
+                                    *(adj_matrix_col_value_input_first + col_offset),
+                                    weight,
+                                    e_op);
       if (update_major) {
         accumulate_edge_op_result<update_major>(e_op_result_sum, e_op_result);
       } else {
@@ -117,11 +119,7 @@ __global__ void for_all_major_for_all_nbr_low_out_degree(
   }
 }
 
-}  // namespace
-
-namespace cugraph {
-namespace experimental {
-namespace detail {
+}  // namespace detail
 
 /**
  * @brief Iterate over the incoming edges to update vertex properties.
@@ -175,12 +173,12 @@ void copy_v_transform_reduce_in_nbr(HandleType& handle,
                                     VertexValueOutputIterator vertex_value_output_first)
 {
   static_assert(is_arithmetic_or_thrust_tuple_of_arithmetic<T>::value);
-  static_assert(GraphType::is_adj_matrix_transposed ||
-                cugraph::experimental::detail::is_atomically_addable<T>::value);
+  static_assert(GraphType::is_adj_matrix_transposed || is_atomically_addable<T>::value);
 
-  grid_1d_thread_t update_grid(graph_device_view.get_number_of_adj_matrix_local_cols(),
-                               copy_v_transform_reduce_nbr_for_all_low_out_degree_block_size,
-                               get_max_num_blocks_1D());
+  grid_1d_thread_t update_grid(
+    graph_device_view.get_number_of_adj_matrix_local_cols(),
+    detail::copy_v_transform_reduce_nbr_for_all_low_out_degree_block_size,
+    get_max_num_blocks_1D());
 
   if (GraphType::is_multi_gpu) {
     CUGRAPH_FAIL("unimplemented.");
@@ -196,7 +194,7 @@ void copy_v_transform_reduce_in_nbr(HandleType& handle,
            graph_device_view.get_number_of_adj_matrix_local_rows());
     assert(graph_device_view.get_number_of_local_vertices() ==
            graph_device_view.get_number_of_adj_matrix_local_cols());
-    for_all_major_for_all_nbr_low_out_degree<GraphType::is_adj_matrix_transposed>
+    detail::for_all_major_for_all_nbr_low_out_degree<GraphType::is_adj_matrix_transposed>
       <<<update_grid.num_blocks, update_grid.block_size, 0, handle.get_stream()>>>(
         graph_device_view,
         graph_device_view.adj_matrix_local_col_begin(),
@@ -262,12 +260,12 @@ void copy_v_transform_reduce_out_nbr(
   VertexValueOutputIterator vertex_value_output_first)
 {
   static_assert(is_arithmetic_or_thrust_tuple_of_arithmetic<T>::value);
-  static_assert(!GraphType::is_adj_matrix_transposed ||
-                cugraph::experimental::detail::is_atomically_addable<T>::value);
+  static_assert(!GraphType::is_adj_matrix_transposed || is_atomically_addable<T>::value);
 
-  grid_1d_thread_t update_grid(graph_device_view.get_number_of_adj_matrix_local_rows(),
-                               copy_v_transform_reduce_nbr_for_all_low_out_degree_block_size,
-                               get_max_num_blocks_1D());
+  grid_1d_thread_t update_grid(
+    graph_device_view.get_number_of_adj_matrix_local_rows(),
+    detail::copy_v_transform_reduce_nbr_for_all_low_out_degree_block_size,
+    get_max_num_blocks_1D());
 
   if (GraphType::is_multi_gpu) {
     CUGRAPH_FAIL("unimplemented.");
@@ -283,7 +281,7 @@ void copy_v_transform_reduce_out_nbr(
            graph_device_view.get_number_of_adj_matrix_local_rows());
     assert(graph_device_view.get_number_of_local_vertices() ==
            graph_device_view.get_number_of_adj_matrix_local_cols());
-    for_all_major_for_all_nbr_low_out_degree<!GraphType::is_adj_matrix_transposed>
+    detail::for_all_major_for_all_nbr_low_out_degree<!GraphType::is_adj_matrix_transposed>
       <<<update_grid.num_blocks, update_grid.block_size, 0, handle.get_stream()>>>(
         graph_device_view,
         graph_device_view.adj_matrix_local_row_begin(),
@@ -296,6 +294,5 @@ void copy_v_transform_reduce_out_nbr(
   }
 }
 
-}  // namespace detail
 }  // namespace experimental
 }  // namespace cugraph

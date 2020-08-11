@@ -14,11 +14,11 @@
  * limitations under the License.
  */
 #include <algorithms.hpp>
-#include <detail/graph_device_view.cuh>
-#include <detail/patterns/reduce_op.cuh>
-#include <detail/patterns/update_frontier_v_push_if_out_nbr.cuh>
-#include <detail/patterns/vertex_frontier.cuh>
 #include <graph.hpp>
+#include <graph_device_view.cuh>
+#include <patterns/reduce_op.cuh>
+#include <patterns/update_frontier_v_push_if_out_nbr.cuh>
+#include <patterns/vertex_frontier.cuh>
 #include <utilities/error.hpp>
 
 #include <rmm/thrust_rmm_allocator.h>

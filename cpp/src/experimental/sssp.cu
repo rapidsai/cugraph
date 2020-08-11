@@ -13,15 +13,16 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-#include <detail/graph_device_view.cuh>
-#include <detail/patterns/copy_to_adj_matrix_row.cuh>
-#include <detail/patterns/count_if_e.cuh>
-#include <detail/patterns/reduce_op.cuh>
-#include <detail/patterns/transform_reduce_e.cuh>
-#include <detail/patterns/update_frontier_v_push_if_out_nbr.cuh>
-#include <detail/patterns/vertex_frontier.cuh>
-#include <detail/utilities/cuda.cuh>
+
 #include <graph.hpp>
+#include <graph_device_view.cuh>
+#include <patterns/copy_to_adj_matrix_row.cuh>
+#include <patterns/count_if_e.cuh>
+#include <patterns/reduce_op.cuh>
+#include <patterns/transform_reduce_e.cuh>
+#include <patterns/update_frontier_v_push_if_out_nbr.cuh>
+#include <patterns/vertex_frontier.cuh>
+#include <utilities/cuda.cuh>
 #include <utilities/error.hpp>
 
 #include <raft/cudart_utils.h>

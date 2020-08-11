@@ -15,9 +15,9 @@
  */
 #pragma once
 
-#include <detail/graph_device_view.cuh>
-#include <detail/patterns/edge_op_utils.cuh>
-#include <detail/utilities/cuda.cuh>
+#include <graph_device_view.cuh>
+#include <patterns/edge_op_utils.cuh>
+#include <utilities/cuda.cuh>
 #include <utilities/error.hpp>
 
 #include <rmm/thrust_rmm_allocator.h>
@@ -29,7 +29,10 @@
 #include <cstdint>
 #include <type_traits>
 
-namespace {
+namespace cugraph {
+namespace experimental {
+
+namespace detail {
 
 // FIXME: block size requires tuning
 int32_t constexpr transform_reduce_e_for_all_low_out_degree_block_size = 128;
@@ -45,10 +48,9 @@ struct block_reduce_edge_op_result {
   }
 
   template <typename T = EdgeOpResultType>
-  __device__ std::enable_if_t<cugraph::experimental::detail::is_thrust_tuple<T>::value, T> compute(
-    T const& edge_op_result)
+  __device__ std::enable_if_t<is_thrust_tuple<T>::value, T> compute(T const& edge_op_result)
   {
-    return cugraph::experimental::detail::block_reduce_thrust_tuple<T, BlockSize>()(edge_op_result);
+    return block_reduce_thrust_tuple<T, BlockSize>()(edge_op_result);
   }
 };
 
@@ -93,19 +95,17 @@ __global__ void for_all_major_for_all_nbr_low_out_degree(
         GraphType::is_adj_matrix_transposed
           ? graph_device_view.get_adj_matrix_local_row_offset_from_row_nocheck(minor_vid)
           : graph_device_view.get_adj_matrix_local_col_offset_from_col_nocheck(minor_vid);
-      auto row_offset = GraphType::is_adj_matrix_transposed ? minor_offset : major_offset;
-      auto col_offset = GraphType::is_adj_matrix_transposed ? major_offset : minor_offset;
-      auto e_op_result =
-        cugraph::experimental::detail::evaluate_edge_op<GraphType,
-                                                        EdgeOp,
-                                                        AdjMatrixRowValueInputIterator,
-                                                        AdjMatrixColValueInputIterator>()
-          .compute(*(adj_matrix_row_value_input_first + row_offset),
-                   *(adj_matrix_col_value_input_first + col_offset),
-                   weight,
-                   e_op);
-      e_op_result_sum =
-        cugraph::experimental::detail::plus_edge_op_result(e_op_result_sum, e_op_result);
+      auto row_offset  = GraphType::is_adj_matrix_transposed ? minor_offset : major_offset;
+      auto col_offset  = GraphType::is_adj_matrix_transposed ? major_offset : minor_offset;
+      auto e_op_result = evaluate_edge_op<GraphType,
+                                          EdgeOp,
+                                          AdjMatrixRowValueInputIterator,
+                                          AdjMatrixColValueInputIterator>()
+                           .compute(*(adj_matrix_row_value_input_first + row_offset),
+                                    *(adj_matrix_col_value_input_first + col_offset),
+                                    weight,
+                                    e_op);
+      e_op_result_sum = plus_edge_op_result(e_op_result_sum, e_op_result);
     }
     idx += gridDim.x * blockDim.x;
   }
@@ -117,11 +117,7 @@ __global__ void for_all_major_for_all_nbr_low_out_degree(
   if (threadIdx.x == 0) { *(block_result_first + blockIdx.x) = e_op_result_sum; }
 }
 
-}  // namespace
-
-namespace cugraph {
-namespace experimental {
-namespace detail {
+}  // namespace detail
 
 /**
  * @brief Iterate over the entire set of edges and reduce @p edge_op outputs.
@@ -172,15 +168,15 @@ T transform_reduce_e(HandleType& handle,
   grid_1d_thread_t update_grid(GraphType::is_adj_matrix_transposed
                                  ? graph_device_view.get_number_of_adj_matrix_local_cols()
                                  : graph_device_view.get_number_of_adj_matrix_local_rows(),
-                               transform_reduce_e_for_all_low_out_degree_block_size,
+                               detail::transform_reduce_e_for_all_low_out_degree_block_size,
                                get_max_num_blocks_1D());
 
   rmm::device_vector<T> block_results(update_grid.num_blocks);
 
-  for_all_major_for_all_nbr_low_out_degree<<<update_grid.num_blocks,
-                                             update_grid.block_size,
-                                             0,
-                                             handle.get_stream()>>>(
+  detail::for_all_major_for_all_nbr_low_out_degree<<<update_grid.num_blocks,
+                                                     update_grid.block_size,
+                                                     0,
+                                                     handle.get_stream()>>>(
     graph_device_view,
     GraphType::is_adj_matrix_transposed ? graph_device_view.adj_matrix_local_col_begin()
                                         : graph_device_view.adj_matrix_local_row_begin(),
@@ -210,6 +206,5 @@ T transform_reduce_e(HandleType& handle,
   return plus_thrust_tuple<T>()(init, result);
 }
 
-}  // namespace detail
 }  // namespace experimental
 }  // namespace cugraph

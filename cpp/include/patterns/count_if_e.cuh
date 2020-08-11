@@ -15,9 +15,9 @@
  */
 #pragma once
 
-#include <detail/graph_device_view.cuh>
-#include <detail/patterns/edge_op_utils.cuh>
-#include <detail/utilities/cuda.cuh>
+#include <graph_device_view.cuh>
+#include <patterns/edge_op_utils.cuh>
+#include <utilities/cuda.cuh>
 #include <utilities/error.hpp>
 
 #include <rmm/thrust_rmm_allocator.h>
@@ -28,7 +28,10 @@
 #include <cstdint>
 #include <type_traits>
 
-namespace {
+namespace cugraph {
+namespace experimental {
+
+namespace detail {
 
 // FIXME: block size requires tuning
 int32_t constexpr count_if_e_for_all_low_out_degree_block_size = 128;
@@ -91,11 +94,7 @@ __global__ void for_all_major_for_all_nbr_low_out_degree(
   if (threadIdx.x == 0) { *(block_counts + blockIdx.x) = count; }
 }
 
-}  // namespace
-
-namespace cugraph {
-namespace experimental {
-namespace detail {
+}  // namespace detail
 
 /**
  * @brief Count the number of edges that satisfies the given predicate.
@@ -144,15 +143,15 @@ typename GraphType::edge_type count_if_e(
   grid_1d_thread_t update_grid(GraphType::is_adj_matrix_transposed
                                  ? graph_device_view.get_number_of_adj_matrix_local_cols()
                                  : graph_device_view.get_number_of_adj_matrix_local_rows(),
-                               count_if_e_for_all_low_out_degree_block_size,
+                               detail::count_if_e_for_all_low_out_degree_block_size,
                                get_max_num_blocks_1D());
 
   rmm::device_vector<edge_t> block_counts(update_grid.num_blocks);
 
-  for_all_major_for_all_nbr_low_out_degree<<<update_grid.num_blocks,
-                                             update_grid.block_size,
-                                             0,
-                                             handle.get_stream()>>>(
+  detail::for_all_major_for_all_nbr_low_out_degree<<<update_grid.num_blocks,
+                                                     update_grid.block_size,
+                                                     0,
+                                                     handle.get_stream()>>>(
     graph_device_view,
     GraphType::is_adj_matrix_transposed ? graph_device_view.adj_matrix_local_col_begin()
                                         : graph_device_view.adj_matrix_local_row_begin(),
@@ -182,6 +181,5 @@ typename GraphType::edge_type count_if_e(
   return count;
 }
 
-}  // namespace detail
 }  // namespace experimental
 }  // namespace cugraph

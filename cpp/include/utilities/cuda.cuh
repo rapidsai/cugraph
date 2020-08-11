@@ -23,7 +23,6 @@
 
 namespace cugraph {
 namespace experimental {
-namespace detail {
 
 // FIXME: Better move this to RAFT
 
@@ -155,6 +154,5 @@ class grid_1d_block_t {
 // FIXME: a temporary to test 1D pattern accelerator, should be added to RAFT::handle_t
 constexpr size_t get_max_num_blocks_1D() { return size_t{65535}; }
 
-}  // namespace detail
 }  // namespace experimental
 }  // namespace cugraph

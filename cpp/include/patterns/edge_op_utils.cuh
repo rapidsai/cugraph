@@ -15,7 +15,7 @@
  */
 #pragma once
 
-#include <detail/utilities/thrust_tuple_utils.cuh>
+#include <utilities/thrust_tuple_utils.cuh>
 
 #include <thrust/tuple.h>
 #include <cub/cub.cuh>
@@ -25,7 +25,6 @@
 
 namespace cugraph {
 namespace experimental {
-namespace detail {
 
 template <typename ResultOfEdgeOp, typename Enable = void>
 struct is_valid_edge_op {
@@ -79,12 +78,11 @@ __device__ std::enable_if_t<std::is_arithmetic<T>::value, T> plus_edge_op_result
 }
 
 template <typename T>
-__device__ std::enable_if_t<cugraph::experimental::detail::is_thrust_tuple<T>::value, T>
-plus_edge_op_result(T const& lhs, T const& rhs)
+__device__ std::enable_if_t<is_thrust_tuple<T>::value, T> plus_edge_op_result(T const& lhs,
+                                                                              T const& rhs)
 {
-  return cugraph::experimental::detail::plus_thrust_tuple<T>()(lhs, rhs);
+  return plus_thrust_tuple<T>()(lhs, rhs);
 }
 
-}  // namespace detail
 }  // namespace experimental
 }  // namespace cugraph

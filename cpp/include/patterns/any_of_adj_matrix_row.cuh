@@ -15,7 +15,7 @@
  */
 #pragma once
 
-#include <detail/graph_device_view.cuh>
+#include <graph_device_view.cuh>
 #include <utilities/error.hpp>
 
 #include <raft/handle.hpp>
@@ -25,7 +25,6 @@
 
 namespace cugraph {
 namespace experimental {
-namespace detail {
 
 /**
  * @brief Check any of graph adjacency matrix row properties satisfy the given predicate.
@@ -74,6 +73,5 @@ bool any_of_adj_matrix_row(HandleType& handle,
   return (count > 0);
 }
 
-}  // namespace detail
 }  // namespace experimental
 }  // namespace cugraph

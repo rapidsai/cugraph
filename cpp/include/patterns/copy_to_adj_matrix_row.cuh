@@ -15,7 +15,7 @@
  */
 #pragma once
 
-#include <detail/graph_device_view.cuh>
+#include <graph_device_view.cuh>
 #include <utilities/error.hpp>
 
 #include <raft/handle.hpp>
@@ -26,7 +26,6 @@
 
 namespace cugraph {
 namespace experimental {
-namespace detail {
 
 /**
  * @brief Copy vertex property values to the corresponding graph adjacency matrix row property
@@ -129,6 +128,5 @@ void copy_to_adj_matrix_row(HandleType& handle,
   }
 }
 
-}  // namespace detail
 }  // namespace experimental
 }  // namespace cugraph
