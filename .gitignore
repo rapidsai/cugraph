@@ -12,6 +12,7 @@ __pycache__
 *.pytest_cache
 DartConfiguration.tcl
 .DS_Store
+*.lock
 
 # Unit test / coverage reports
 htmlcov/
