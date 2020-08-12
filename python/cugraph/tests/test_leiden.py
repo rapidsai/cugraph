@@ -28,8 +28,6 @@ import warnings
 
 with warnings.catch_warnings():
     warnings.filterwarnings("ignore", category=DeprecationWarning)
-    import community
-    import networkx as nx
 
 
 print("Networkx version : {} ".format(nx.__version__))
@@ -50,6 +48,7 @@ def cugraph_leiden(cu_M, edgevals=False):
 
     return parts, mod
 
+
 def cugraph_louvain(cu_M, edgevals=False):
 
     G = cugraph.Graph()
@@ -64,6 +63,7 @@ def cugraph_louvain(cu_M, edgevals=False):
     print("Cugraph Time : " + str(t2))
 
     return parts, mod
+
 
 @pytest.mark.parametrize("graph_file", utils.UNRENUMBERED_DATASETS)
 def test_louvain(graph_file):
