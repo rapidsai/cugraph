@@ -54,8 +54,7 @@ weight_t update_clustering_by_delta_modularity_constrained(
   vertex_t const *d_src_indices = src_indices.data().get();
   vertex_t const *d_dst_indices = graph.indices;
 
-  weight_t new_Q = modularity<vertex_t, edge_t, weight_t>(
-    total_edge_weight, resolution, graph, cluster.data().get(), stream);
+  weight_t new_Q = modularity(total_edge_weight, resolution, graph, cluster.data().get(), stream);
 
   weight_t cur_Q = new_Q - 1;
 
@@ -102,8 +101,7 @@ weight_t update_clustering_by_delta_modularity_constrained(
 
     up_down = !up_down;
 
-    new_Q = modularity<vertex_t, edge_t, weight_t>(
-      total_edge_weight, resolution, graph, next_cluster.data().get(), stream);
+    new_Q = modularity(total_edge_weight, resolution, graph, next_cluster.data().get(), stream);
 
     if (new_Q > cur_Q) { thrust::copy(next_cluster.begin(), next_cluster.end(), cluster.begin()); }
   }
@@ -135,8 +133,8 @@ template double update_clustering_by_delta_modularity_constrained(
 
 template <typename vertex_t, typename edge_t, typename weight_t>
 void leiden(GraphCSRView<vertex_t, edge_t, weight_t> const &graph,
-            weight_t *final_modularity,
-            int *num_level,
+            weight_t &final_modularity,
+            int &num_level,
             vertex_t *cluster_vec,
             int max_level,
             weight_t resolution,
@@ -146,7 +144,7 @@ void leiden(GraphCSRView<vertex_t, edge_t, weight_t> const &graph,
   HighResTimer hr_timer;
 #endif
 
-  *num_level = 0;
+  num_level = 0;
 
   //
   //  Vectors to create a copy of the graph
@@ -192,7 +190,7 @@ void leiden(GraphCSRView<vertex_t, edge_t, weight_t> const &graph,
 
   current_graph.get_source_indices(src_indices_v.data().get());
 
-  while (*num_level < max_level) {
+  while (num_level < max_level) {
     //
     //  Sum the weights of all edges departing a vertex.  This is
     //  loop invariant, so we'll compute it here.
@@ -264,26 +262,26 @@ void leiden(GraphCSRView<vertex_t, edge_t, weight_t> const &graph,
     hr_timer.stop();
 #endif
 
-    (*num_level)++;
+    num_level++;
   }
 
 #ifdef TIMING
   hr_timer.display(std::cout);
 #endif
 
-  *final_modularity = best_modularity;
+  final_modularity = best_modularity;
 }
 
 template void leiden(GraphCSRView<int32_t, int32_t, float> const &,
-                     float *,
-                     int *,
+                     float &,
+                     int &,
                      int32_t *,
                      int,
                      float,
                      cudaStream_t);
 template void leiden(GraphCSRView<int32_t, int32_t, double> const &,
-                     double *,
-                     int *,
+                     double &,
+                     int &,
                      int32_t *,
                      int,
                      double,

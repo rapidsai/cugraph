@@ -23,8 +23,8 @@ cdef extern from "algorithms.hpp" namespace "cugraph":
 
     cdef void leiden[vertex_t,edge_t,weight_t](
         const GraphCSRView[vertex_t,edge_t,weight_t] &graph,
-        weight_t *final_modularity,
-        int *num_level,
+        weight_t &final_modularity,
+        int &num_level,
         vertex_t *leiden_parts,
         int max_level,
         weight_t resolution) except +

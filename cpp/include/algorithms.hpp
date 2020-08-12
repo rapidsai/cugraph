@@ -649,8 +649,8 @@ void louvain(GraphCSRView<vertex_t, edge_t, weight_t> const &graph,
  */
 template <typename vertex_t, typename edge_t, typename weight_t>
 void leiden(GraphCSRView<vertex_t, edge_t, weight_t> const &graph,
-            weight_t *final_modularity,
-            int *num_level,
+            weight_t &final_modularity,
+            int &num_level,
             vertex_t *leiden_parts,
             int max_iter        = 100,
             weight_t resolution = weight_t{1});

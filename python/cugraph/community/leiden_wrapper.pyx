@@ -70,8 +70,8 @@ def leiden(input_graph, max_iter, resolution):
 
         graph_float.get_vertex_identifiers(<int*>c_identifier)
         c_leiden(graph_float,
-                  &final_modularity_float,
-                  &num_level,
+                  final_modularity_float,
+                  num_level,
                   <int*> c_partition,
                   <int> max_iter,
                   <float> resolution)
@@ -83,8 +83,8 @@ def leiden(input_graph, max_iter, resolution):
 
         graph_double.get_vertex_identifiers(<int*>c_identifier)
         c_leiden(graph_double,
-                  &final_modularity_double,
-                  &num_level,
+                  final_modularity_double,
+                  num_level,
                   <int*> c_partition,
                   <int> max_iter,
                   <double> resolution)
