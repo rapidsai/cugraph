@@ -35,10 +35,10 @@ void leiden(GraphCSRView<vertex_t, edge_t, weight_t> const &graph,
             int max_level,
             weight_t resolution)
 {
-  CUGRAPH_EXPECTS(graph.edge_data != nullptr, "API error, louvain expects a weighted graph");
+  CUGRAPH_EXPECTS(graph.edge_data != nullptr, "API error, leiden expects a weighted graph");
   CUGRAPH_EXPECTS(final_modularity != nullptr, "API error, final_modularity is null");
   CUGRAPH_EXPECTS(num_level != nullptr, "API error, num_level is null");
-  CUGRAPH_EXPECTS(leiden_parts != nullptr, "API error, louvain_parts is null");
+  CUGRAPH_EXPECTS(leiden_parts != nullptr, "API error, leiden_parts is null");
 
   detail::leiden<vertex_t, edge_t, weight_t>(
     graph, final_modularity, num_level, leiden_parts, max_level, resolution);

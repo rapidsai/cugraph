@@ -616,6 +616,7 @@ void bfs(raft::handle_t const &handle,
  * @param[out] num_level             number of levels of the returned clustering
  * @param[out] clustering            Pointer to device array where the clustering should be stored
  * @param[in]  max_iter              (optional) maximum number of iterations to run (default 100)
+ * @param[in] resolution             The value of the resolution parameter to use
  */
 template <typename vertex_t, typename edge_t, typename weight_t>
 void louvain(GraphCSRView<vertex_t, edge_t, weight_t> const &graph,
@@ -644,6 +645,7 @@ void louvain(GraphCSRView<vertex_t, edge_t, weight_t> const &graph,
  * @param[out] num_level             number of levels of the returned clustering
  * @param[out] clustering            Pointer to device array where the clustering should be stored
  * @param[in]  max_iter              (optional) maximum number of iterations to run (default 100)
+ * @param[in] resolution             The value of the resolution parameter to use
  */
 template <typename vertex_t, typename edge_t, typename weight_t>
 void leiden(GraphCSRView<vertex_t, edge_t, weight_t> const &graph,

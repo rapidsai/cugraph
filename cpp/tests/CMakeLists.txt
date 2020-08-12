@@ -176,6 +176,15 @@ set(LOUVAIN_TEST_SRC
 ConfigureTest(LOUVAIN_TEST "${LOUVAIN_TEST_SRC}" "")
 
 ###################################################################################################
+# - LEIDEN tests ---------------------------------------------------------------------------------
+
+set(LEIDEN_TEST_SRC
+    "${CMAKE_SOURCE_DIR}/../thirdparty/mmio/mmio.c"
+    "${CMAKE_CURRENT_SOURCE_DIR}/community/leiden_test.cpp")
+
+ConfigureTest(LEIDEN_TEST "${LEIDEN_TEST_SRC}" "")
+
+###################################################################################################
 # - ECG tests ---------------------------------------------------------------------------------
 
 set(ECG_TEST_SRC

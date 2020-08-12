@@ -49,14 +49,10 @@ weight_t update_clustering_by_delta_modularity_constrained(
   rmm::device_vector<vertex_t> cluster_hash(graph.number_of_edges);
   rmm::device_vector<weight_t> old_cluster_sum(graph.number_of_vertices);
 
-  vertex_t *d_cluster_hash         = cluster_hash.data().get();
-  vertex_t *d_cluster              = cluster.data().get();
-  weight_t const *d_vertex_weights = vertex_weights.data().get();
-  weight_t *d_cluster_weights      = cluster_weights.data().get();
-  weight_t *d_delta_Q              = delta_Q.data().get();
-  vertex_t *d_constraint           = constraint.data().get();
-  vertex_t const *d_src_indices    = src_indices.data().get();
-  vertex_t const *d_dst_indices    = graph.indices;
+  weight_t *d_delta_Q           = delta_Q.data().get();
+  vertex_t *d_constraint        = constraint.data().get();
+  vertex_t const *d_src_indices = src_indices.data().get();
+  vertex_t const *d_dst_indices = graph.indices;
 
   weight_t new_Q = modularity<vertex_t, edge_t, weight_t>(
     total_edge_weight, resolution, graph, cluster.data().get(), stream);
@@ -226,8 +222,6 @@ void leiden(GraphCSRView<vertex_t, edge_t, weight_t> const &graph,
                                                            cluster_v,
                                                            stream);
 
-    std::cout << "Level " << *num_level << " initial partitioning modularity: " << new_Q << "\n";
-
     // After finding the initial unconstrained partition we use that partitioning as the constraint
     // for the second round.
     rmm::device_vector<vertex_t> constraint(graph.number_of_vertices);
@@ -242,9 +236,6 @@ void leiden(GraphCSRView<vertex_t, edge_t, weight_t> const &graph,
                                                               cluster_v,
                                                               constraint,
                                                               stream);
-
-    std::cout << "Level " << *num_level << " constrained partitioning modularity: " << new_Q
-              << "\n";
 
 #ifdef TIMING
     hr_timer.stop();
