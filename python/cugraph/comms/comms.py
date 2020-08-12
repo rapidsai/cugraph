@@ -55,6 +55,13 @@ def get_comms():
     return __instance
 
 
+# Get workers in the Comms
+def get_workers():
+    if is_initialized():
+        global __instance
+        return __instance.worker_addresses
+
+
 # Get sessionId for finding sessionstate of workers.
 def get_session_id():
     if is_initialized():

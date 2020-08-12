@@ -1037,6 +1037,7 @@ class Graph:
         if type(self) is Graph:
             DiG = DiGraph()
             DiG.renumbered = self.renumbered
+            DiG.renumber_map = self.renumber_map
             DiG.edgelist = self.edgelist
             DiG.adjlist = self.adjlist
             DiG.transposedadjlist = self.transposedadjlist
@@ -1069,6 +1070,7 @@ class Graph:
             G = Graph()
             df = self.edgelist.edgelist_df
             G.renumbered = self.renumbered
+            G.renumber_map = self.renumber_map
             if self.edgelist.weights:
                 source_col, dest_col, value_col = symmetrize(
                     df["src"], df["dst"], df["weights"]
@@ -1208,22 +1210,6 @@ class Graph:
             The original DataFrame columns exist unmodified.  The external
             vertex identifiers are added to the DataFrame, the internal
             vertex identifier column is removed from the dataframe.
-
-        Examples
-        --------
-        >>> M = cudf.read_csv('datasets/karate.csv', delimiter=' ',
-        >>>                   dtype=['int32', 'int32', 'float32'], header=None)
-        >>>
-        >>> df, number_map = NumberMap.renumber(df, '0', '1')
-        >>>
-        >>> G = cugraph.Graph()
-        >>> G.from_cudf_edgelist(df, 'src', 'dst')
-        >>>
-        >>> pr = cugraph.pagerank(G, alpha = 0.85, max_iter = 500,
-        >>>                       tol = 1.0e-05)
-        >>>
-        >>> pr = number_map.unrenumber(pr, 'vertex')
-        >>>
         """
         return self.renumber_map.unrenumber(df, column_name, preserve_order)
 
