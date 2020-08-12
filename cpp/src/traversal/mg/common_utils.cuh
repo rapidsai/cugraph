@@ -59,12 +59,12 @@ struct set_nth_bit {
 };
 
 template <typename vertex_t, typename edge_t>
-struct BFSPred {
+struct BFSStepNoDist {
   uint32_t *output_frontier_;
   uint32_t *visited_;
   vertex_t *predecessors_;
 
-  BFSPred(uint32_t *output_frontier, uint32_t *visited, vertex_t *predecessors)
+  BFSStepNoDist(uint32_t *output_frontier, uint32_t *visited, vertex_t *predecessors)
     : output_frontier_(output_frontier), visited_(visited), predecessors_(predecessors)
   {
   }
@@ -84,6 +84,9 @@ struct BFSPred {
       return false;
     }
   }
+
+  // No-op
+  void increment_level(void) {}
 };
 
 template <typename vertex_t, typename edge_t>
@@ -112,7 +115,7 @@ struct BFSStep {
     // If this thread activates the frontier bitmap for a destination
     // then the source is the predecessor of that destination
     if (dst_not_visited_earlier && dst_not_visited_current) {
-      if (distances_ != nullptr) { distances_[dst] = level_; }
+      distances_[dst]    = level_;
       predecessors_[dst] = src;
       return true;
     } else {

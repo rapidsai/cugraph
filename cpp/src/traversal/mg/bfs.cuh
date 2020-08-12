@@ -25,36 +25,25 @@ namespace cugraph {
 
 namespace mg {
 
-template <typename vertex_t, typename edge_t, typename weight_t>
-void bfs(raft::handle_t const &handle,
-         cugraph::GraphCSRView<vertex_t, edge_t, weight_t> const &graph,
-         vertex_t *distances,
-         vertex_t *predecessors,
-         const vertex_t start_vertex)
+namespace detail {
+
+template <typename vertex_t, typename edge_t, typename weight_t, typename operator_t>
+void bfs_traverse(raft::handle_t const &handle,
+                  cugraph::GraphCSRView<vertex_t, edge_t, weight_t> const &graph,
+                  const vertex_t start_vertex,
+                  rmm::device_vector<uint32_t> &visited_bmap,
+                  rmm::device_vector<uint32_t> &output_frontier_bmap,
+                  operator_t &bfs_op)
 {
-  CUGRAPH_EXPECTS(handle.comms_initialized(),
-                  "cugraph::mg::bfs() expected to work only in multi gpu case.");
-
-  size_t word_count = detail::number_of_words(graph.number_of_vertices);
-  rmm::device_vector<uint32_t> isolated_bmap(word_count, 0);
-  rmm::device_vector<uint32_t> visited_bmap(word_count, 0);
-  rmm::device_vector<uint32_t> output_frontier_bmap(word_count, 0);
-
-  rmm::device_vector<uint32_t> unique_bmap(word_count, 0);
-
-  // Buffers required for BFS
+  // Frontiers required for BFS
   rmm::device_vector<vertex_t> input_frontier(graph.number_of_vertices);
   rmm::device_vector<vertex_t> output_frontier(graph.number_of_vertices);
+
+  // Bitmaps required for BFS
+  size_t word_count = detail::number_of_words(graph.number_of_vertices);
+  rmm::device_vector<uint32_t> isolated_bmap(word_count, 0);
+  rmm::device_vector<uint32_t> unique_bmap(word_count, 0);
   rmm::device_vector<size_t> temp_buffer_len(handle.get_comms().get_size());
-
-  // Frontier Expand for calls to bfs functors
-  detail::FrontierExpand<vertex_t, edge_t, weight_t> fexp(handle, graph);
-
-  // BFS Functor for frontier calculation
-  detail::BFSStep<vertex_t, edge_t> bfs_op(
-    output_frontier_bmap.data().get(), visited_bmap.data().get(), predecessors, distances);
-
-  cudaStream_t stream = handle.get_stream();
 
   // Reusing buffers to create isolated bitmap
   {
@@ -64,19 +53,14 @@ void bfs(raft::handle_t const &handle,
       handle, graph, local_isolated_ids, global_isolated_ids, temp_buffer_len, isolated_bmap);
   }
 
+  // Frontier Expand for calls to bfs functors
+  detail::FrontierExpand<vertex_t, edge_t, weight_t> fexp(handle, graph);
+
+  cudaStream_t stream = handle.get_stream();
+
   // Initialize input frontier
   input_frontier[0]           = start_vertex;
   vertex_t input_frontier_len = 1;
-
-  detail::fill_max_dist(handle, graph, start_vertex, distances);
-  thrust::fill(rmm::exec_policy(stream)->on(stream),
-               predecessors,
-               predecessors + graph.number_of_vertices,
-               cugraph::invalid_idx<vertex_t>::value);
-
-  // TODO : Check if starting vertex is isolated. Exit function if it is.
-
-  detail::add_to_bitmap(handle, visited_bmap, input_frontier, input_frontier_len);
 
   do {
     // Mark all input frontier vertices as visited
@@ -119,24 +103,59 @@ void bfs(raft::handle_t const &handle,
       handle, temp_buffer_len, output_frontier, output_frontier_len, input_frontier);
 
   } while (input_frontier_len != 0);
+}
+
+}  // namespace detail
+
+template <typename vertex_t, typename edge_t, typename weight_t>
+void bfs(raft::handle_t const &handle,
+         cugraph::GraphCSRView<vertex_t, edge_t, weight_t> const &graph,
+         vertex_t *distances,
+         vertex_t *predecessors,
+         const vertex_t start_vertex)
+{
+  CUGRAPH_EXPECTS(handle.comms_initialized(),
+                  "cugraph::mg::bfs() expected to work only in multi gpu case.");
+
+  size_t word_count = detail::number_of_words(graph.number_of_vertices);
+  rmm::device_vector<uint32_t> visited_bmap(word_count, 0);
+  rmm::device_vector<uint32_t> output_frontier_bmap(word_count, 0);
+
+  cudaStream_t stream = handle.get_stream();
+
+  // Set all predecessors to be invalid vertex ids
+  thrust::fill(rmm::exec_policy(stream)->on(stream),
+               predecessors,
+               predecessors + graph.number_of_vertices,
+               cugraph::invalid_idx<vertex_t>::value);
+
+  if (distances == nullptr) {
+    detail::BFSStepNoDist<vertex_t, edge_t> bfs_op(
+      output_frontier_bmap.data().get(), visited_bmap.data().get(), predecessors);
+
+    detail::bfs_traverse(handle, graph, start_vertex, visited_bmap, output_frontier_bmap, bfs_op);
+
+  } else {
+    // Update distances to max distances everywhere except start_vertex
+    // where it is set to 0
+    detail::fill_max_dist(handle, graph, start_vertex, distances);
+
+    detail::BFSStep<vertex_t, edge_t> bfs_op(
+      output_frontier_bmap.data().get(), visited_bmap.data().get(), predecessors, distances);
+
+    detail::bfs_traverse(handle, graph, start_vertex, visited_bmap, output_frontier_bmap, bfs_op);
+
+    // In place reduce to collect distances
+    if (handle.comms_initialized()) {
+      handle.get_comms().allreduce(
+        distances, distances, graph.number_of_vertices, raft::comms::op_t::MIN, stream);
+    }
+  }
 
   // In place reduce to collect predecessors
   if (handle.comms_initialized()) {
-    handle.get_comms().allreduce(predecessors,
-                                 predecessors,
-                                 graph.number_of_vertices,
-                                 raft::comms::op_t::MIN,
-                                 handle.get_stream());
-  }
-  if (distances != nullptr) {
-    // In place reduce to collect predecessors
-    if (handle.comms_initialized()) {
-      handle.get_comms().allreduce(distances,
-                                   distances,
-                                   graph.number_of_vertices,
-                                   raft::comms::op_t::MIN,
-                                   handle.get_stream());
-    }
+    handle.get_comms().allreduce(
+      predecessors, predecessors, graph.number_of_vertices, raft::comms::op_t::MIN, stream);
   }
 }
 
