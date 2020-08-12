@@ -18,148 +18,177 @@
 
 #include <thrust/transform.h>
 
+#include <raft/cudart_utils.h>
+
 #include <algorithms.hpp>
 #include <graph.hpp>
-
-#include <utilities/error_utils.h>
+#include <utilities/error.hpp>
 
 #include "betweenness_centrality.cuh"
+#include "betweenness_centrality_kernels.cuh"
 
 namespace cugraph {
 namespace detail {
+namespace {
+template <typename VT, typename ET, typename WT, typename result_t>
+void betweenness_centrality_impl(raft::handle_t const &handle,
+                                 GraphCSRView<VT, ET, WT> const &graph,
+                                 result_t *result,
+                                 bool normalize,
+                                 bool endpoints,
+                                 WT const *weight,
+                                 VT const number_of_sources,
+                                 VT const *sources)
+{
+  // Current Implementation relies on BFS
+  // FIXME: For SSSP version
+  // Brandes Algorithm expects non negative weights for the accumulation
+  bool is_edge_betweenness = false;
+  verify_betweenness_centrality_input<VT, ET, WT, result_t>(
+    result, is_edge_betweenness, normalize, endpoints, weight, number_of_sources, sources);
+  cugraph::detail::BC<VT, ET, WT, result_t> bc(handle, graph);
+  bc.configure(
+    result, is_edge_betweenness, normalize, endpoints, weight, sources, number_of_sources);
+  bc.compute();
+}
+
+template <typename VT, typename ET, typename WT, typename result_t>
+void edge_betweenness_centrality_impl(raft::handle_t const &handle,
+                                      GraphCSRView<VT, ET, WT> const &graph,
+                                      result_t *result,
+                                      bool normalize,
+                                      WT const *weight,
+                                      VT const number_of_sources,
+                                      VT const *sources)
+{
+  // Current Implementation relies on BFS
+  // FIXME: For SSSP version
+  // Brandes Algorithm expects non negative weights for the accumulation
+  bool is_edge_betweenness = true;
+  bool endpoints           = false;
+  verify_betweenness_centrality_input<VT, ET, WT, result_t>(
+    result, is_edge_betweenness, normalize, endpoints, weight, number_of_sources, sources);
+  cugraph::detail::BC<VT, ET, WT, result_t> bc(handle, graph);
+  bc.configure(
+    result, is_edge_betweenness, normalize, endpoints, weight, sources, number_of_sources);
+  bc.compute();
+}
+}  // namespace
+
+template <typename VT, typename ET, typename WT, typename result_t>
+void verify_betweenness_centrality_input(result_t *result,
+                                         bool is_edge_betweenness,
+                                         bool normalize,
+                                         bool endpoints,
+                                         WT const *weights,
+                                         VT const number_of_sources,
+                                         VT const *sources)
+{
+  static_assert(std::is_same<VT, int>::value, "VT should be int");
+  static_assert(std::is_same<ET, int>::value, "ET should be int");
+  static_assert(std::is_same<WT, float>::value || std::is_same<WT, double>::value,
+                "WT should be float or double");
+  static_assert(std::is_same<result_t, float>::value || std::is_same<result_t, double>::value,
+                "result_t should be float or double");
+
+  CUGRAPH_EXPECTS(result != nullptr, "Invalid API parameter: betwenness pointer is NULL");
+  CUGRAPH_EXPECTS(number_of_sources >= 0, "Number of sources must be positive or equal to 0.");
+  if (number_of_sources != 0) {
+    CUGRAPH_EXPECTS(sources != nullptr,
+                    "Sources cannot be NULL if number_of_source is different from 0.");
+  }
+  if (is_edge_betweenness) {
+    CUGRAPH_EXPECTS(!endpoints, "Endpoints is not supported for edge betweenness centrality.");
+  }
+}
 
 template <typename VT, typename ET, typename WT, typename result_t>
 void BC<VT, ET, WT, result_t>::setup()
 {
-  // --- Set up parameters from graph adjList ---
-  number_of_vertices = graph.number_of_vertices;
-  number_of_edges    = graph.number_of_edges;
-  offsets_ptr        = graph.offsets;
-  indices_ptr        = graph.indices;
+  number_of_vertices_ = graph_.number_of_vertices;
+  number_of_edges_    = graph_.number_of_edges;
+  offsets_ptr_        = graph_.offsets;
+  indices_ptr_        = graph_.indices;
 }
 
 template <typename VT, typename ET, typename WT, typename result_t>
-void BC<VT, ET, WT, result_t>::configure(result_t *_betweenness,
-                                         bool _normalized,
-                                         bool _endpoints,
-                                         WT const *_weights,
-                                         VT const *_sources,
-                                         VT _number_of_sources)
+void BC<VT, ET, WT, result_t>::configure(result_t *betweenness,
+                                         bool is_edge_betweenness,
+                                         bool normalized,
+                                         bool endpoints,
+                                         WT const *weights,
+                                         VT const *sources,
+                                         VT number_of_sources)
 {
   // --- Bind betweenness output vector to internal ---
-  betweenness       = _betweenness;
-  normalized        = _normalized;
-  endpoints         = _endpoints;
-  sources           = _sources;
-  number_of_sources = _number_of_sources;
-  edge_weights_ptr  = _weights;
+  betweenness_         = betweenness;
+  normalized_          = normalized;
+  endpoints_           = endpoints;
+  sources_             = sources;
+  number_of_sources_   = number_of_sources;
+  edge_weights_ptr_    = weights;
+  is_edge_betweenness_ = is_edge_betweenness;
 
   // --- Working data allocation ---
-  distances_vec.resize(number_of_vertices);
-  predecessors_vec.resize(number_of_vertices);
-  sp_counters_vec.resize(number_of_vertices);
-  deltas_vec.resize(number_of_vertices);
-
-  distances    = distances_vec.data().get();
-  predecessors = predecessors_vec.data().get();
-  sp_counters  = sp_counters_vec.data().get();
-  deltas       = deltas_vec.data().get();
+  initialize_work_vectors();
+  initialize_pointers_to_vectors();
 
   // --- Get Device Information ---
-  CUDA_TRY(cudaGetDevice(&device_id));
-  CUDA_TRY(cudaDeviceGetAttribute(&max_grid_dim_1D, cudaDevAttrMaxGridDimX, device_id));
-  CUDA_TRY(cudaDeviceGetAttribute(&max_block_dim_1D, cudaDevAttrMaxBlockDimX, device_id));
+  initialize_device_information();
 
   // --- Confirm that configuration went through ---
-  configured = true;
+  configured_ = true;
 }
 
-// Dependecy Accumulation: McLaughlin and Bader, 2018
-// NOTE: Accumulation kernel might not scale well, as each thread is handling
-//        all the edges for each node, an approach similar to the traversal
-//        bucket (i.e. BFS / SSSP) system might enable speed up
-// NOTE: Shortest Path counter can increase extremely fast, thus double are used
-//       however, the user might want to get the result back in float
-//       we delay casting the result until dependecy accumulation
 template <typename VT, typename ET, typename WT, typename result_t>
-__global__ void accumulation_kernel(result_t *betweenness,
-                                    VT number_vertices,
-                                    VT const *indices,
-                                    ET const *offsets,
-                                    VT *distances,
-                                    double *sp_counters,
-                                    double *deltas,
-                                    VT source,
-                                    VT depth)
+void BC<VT, ET, WT, result_t>::initialize_work_vectors()
 {
-  for (int tid = blockIdx.x * blockDim.x + threadIdx.x; tid < number_vertices;
-       tid += gridDim.x * blockDim.x) {
-    VT w       = tid;
-    double dsw = 0;
-    double sw  = sp_counters[w];
-    if (distances[w] == depth) {  // Process nodes at this depth
-      ET edge_start = offsets[w];
-      ET edge_end   = offsets[w + 1];
-      ET edge_count = edge_end - edge_start;
-      for (ET edge_idx = 0; edge_idx < edge_count; ++edge_idx) {  // Visit neighbors
-        VT v = indices[edge_start + edge_idx];
-        if (distances[v] == distances[w] + 1) {
-          double factor = (static_cast<double>(1) + deltas[v]) / sp_counters[v];
-          dsw += sw * factor;
-        }
-      }
-      deltas[w] = dsw;
+  distances_vec_.resize(number_of_vertices_);
+  predecessors_vec_.resize(number_of_vertices_);
+  sp_counters_vec_.resize(number_of_vertices_);
+  deltas_vec_.resize(number_of_vertices_);
+}
+
+template <typename VT, typename ET, typename WT, typename result_t>
+void BC<VT, ET, WT, result_t>::initialize_pointers_to_vectors()
+{
+  distances_    = distances_vec_.data().get();
+  predecessors_ = predecessors_vec_.data().get();
+  sp_counters_  = sp_counters_vec_.data().get();
+  deltas_       = deltas_vec_.data().get();
+}
+
+template <typename VT, typename ET, typename WT, typename result_t>
+void BC<VT, ET, WT, result_t>::initialize_device_information()
+{
+  CUDA_TRY(cudaGetDevice(&device_id_));
+  CUDA_TRY(cudaDeviceGetAttribute(&max_grid_dim_1D_, cudaDevAttrMaxGridDimX, device_id_));
+  CUDA_TRY(cudaDeviceGetAttribute(&max_block_dim_1D_, cudaDevAttrMaxBlockDimX, device_id_));
+}
+
+template <typename VT, typename ET, typename WT, typename result_t>
+void BC<VT, ET, WT, result_t>::compute()
+{
+  CUGRAPH_EXPECTS(configured_, "BC must be configured before computation");
+  if (sources_) {
+    for (VT source_idx = 0; source_idx < number_of_sources_; ++source_idx) {
+      VT source_vertex = sources_[source_idx];
+      compute_single_source(source_vertex);
+    }
+  } else {
+    for (VT source_vertex = 0; source_vertex < number_of_vertices_; ++source_vertex) {
+      compute_single_source(source_vertex);
     }
   }
+  rescale();
 }
 
-template <typename VT, typename ET, typename WT, typename result_t>
-void BC<VT, ET, WT, result_t>::accumulate(result_t *betweenness,
-                                          VT *distances,
-                                          double *sp_counters,
-                                          double *deltas,
-                                          VT source,
-                                          VT max_depth)
-{
-  dim3 grid, block;
-  block.x = max_block_dim_1D;
-  grid.x  = min(max_grid_dim_1D, (number_of_edges / block.x + 1));
-  // Step 1) Dependencies (deltas) are initialized to 0 before starting
-  thrust::fill(rmm::exec_policy(stream)->on(stream),
-               deltas,
-               deltas + number_of_vertices,
-               static_cast<result_t>(0));
-  // Step 2) Process each node, -1 is used to notify unreached nodes in the sssp
-  for (VT depth = max_depth; depth > 0; --depth) {
-    accumulation_kernel<VT, ET, WT, result_t><<<grid, block, 0, stream>>>(betweenness,
-                                                                          number_of_vertices,
-                                                                          graph.indices,
-                                                                          graph.offsets,
-                                                                          distances,
-                                                                          sp_counters,
-                                                                          deltas,
-                                                                          source,
-                                                                          depth);
-  }
-
-  thrust::transform(rmm::exec_policy(stream)->on(stream),
-                    deltas,
-                    deltas + number_of_vertices,
-                    betweenness,
-                    betweenness,
-                    thrust::plus<result_t>());
-}
-
-// We do not verifiy the graph structure as the new graph structure
-// enforces CSR Format
-
-// FIXME: Having a system that relies on an class might make it harder to
-// dispatch later
 template <typename VT, typename ET, typename WT, typename result_t>
 void BC<VT, ET, WT, result_t>::compute_single_source(VT source_vertex)
 {
   // Step 1) Singe-source shortest-path problem
-  cugraph::bfs(graph, distances, predecessors, sp_counters, source_vertex, graph.prop.directed);
+  cugraph::bfs(
+    handle_, graph_, distances_, predecessors_, sp_counters_, source_vertex, graph_.prop.directed);
 
   // FIXME: Remove that with a BC specific class to gather
   //        information during traversal
@@ -168,141 +197,206 @@ void BC<VT, ET, WT, result_t>::compute_single_source(VT source_vertex)
   // the traversal, this value is avalaible within the bfs implementation and
   // there could be a way to access it directly and avoid both replace and the
   // max
-  thrust::replace(rmm::exec_policy(stream)->on(stream),
-                  distances,
-                  distances + number_of_vertices,
+  thrust::replace(rmm::exec_policy(stream_)->on(stream_),
+                  distances_,
+                  distances_ + number_of_vertices_,
                   std::numeric_limits<VT>::max(),
                   static_cast<VT>(-1));
   auto current_max_depth = thrust::max_element(
-    rmm::exec_policy(stream)->on(stream), distances, distances + number_of_vertices);
+    rmm::exec_policy(stream_)->on(stream_), distances_, distances_ + number_of_vertices_);
   VT max_depth = 0;
-  cudaMemcpy(&max_depth, current_max_depth, sizeof(VT), cudaMemcpyDeviceToHost);
+  CUDA_TRY(cudaMemcpy(&max_depth, current_max_depth, sizeof(VT), cudaMemcpyDeviceToHost));
   // Step 2) Dependency accumulation
-  accumulate(betweenness, distances, sp_counters, deltas, source_vertex, max_depth);
+  accumulate(source_vertex, max_depth);
 }
 
 template <typename VT, typename ET, typename WT, typename result_t>
-void BC<VT, ET, WT, result_t>::compute()
+void BC<VT, ET, WT, result_t>::accumulate(VT source_vertex, VT max_depth)
 {
-  CUGRAPH_EXPECTS(configured, "BC must be configured before computation");
-  // If sources is defined we only process vertices contained in it
-  thrust::fill(rmm::exec_policy(stream)->on(stream),
-               betweenness,
-               betweenness + number_of_vertices,
-               static_cast<result_t>(0));
-  cudaStreamSynchronize(stream);
-  if (sources) {
-    for (VT source_idx = 0; source_idx < number_of_sources; ++source_idx) {
-      VT source_vertex = sources[source_idx];
-      compute_single_source(source_vertex);
-    }
-  } else {  // Otherwise process every vertices
-    // NOTE: Maybe we could still use number of sources and set it to number_of_vertices?
-    //       It woudl imply having a host vector of size |V|
-    //       But no need for the if/ else statement
-    for (VT source_vertex = 0; source_vertex < number_of_vertices; ++source_vertex) {
-      compute_single_source(source_vertex);
-    }
+  dim3 grid_configuration, block_configuration;
+  block_configuration.x = max_block_dim_1D_;
+  grid_configuration.x  = min(max_grid_dim_1D_, (number_of_edges_ / block_configuration.x + 1));
+
+  initialize_dependencies();
+
+  if (is_edge_betweenness_) {
+    accumulate_edges(max_depth, grid_configuration, block_configuration);
+  } else if (endpoints_) {
+    accumulate_vertices_with_endpoints(
+      source_vertex, max_depth, grid_configuration, block_configuration);
+  } else {
+    accumulate_vertices(max_depth, grid_configuration, block_configuration);
   }
-  rescale();
+}
+
+template <typename VT, typename ET, typename WT, typename result_t>
+void BC<VT, ET, WT, result_t>::initialize_dependencies()
+{
+  thrust::fill(rmm::exec_policy(stream_)->on(stream_),
+               deltas_,
+               deltas_ + number_of_vertices_,
+               static_cast<result_t>(0));
+}
+template <typename VT, typename ET, typename WT, typename result_t>
+void BC<VT, ET, WT, result_t>::accumulate_edges(VT max_depth,
+                                                dim3 grid_configuration,
+                                                dim3 block_configuration)
+{
+  for (VT depth = max_depth; depth >= 0; --depth) {
+    edges_accumulation_kernel<VT, ET, WT, result_t>
+      <<<grid_configuration, block_configuration, 0, stream_>>>(betweenness_,
+                                                                number_of_vertices_,
+                                                                graph_.indices,
+                                                                graph_.offsets,
+                                                                distances_,
+                                                                sp_counters_,
+                                                                deltas_,
+                                                                depth);
+  }
+}
+
+template <typename VT, typename ET, typename WT, typename result_t>
+void BC<VT, ET, WT, result_t>::accumulate_vertices_with_endpoints(VT source_vertex,
+                                                                  VT max_depth,
+                                                                  dim3 grid_configuration,
+                                                                  dim3 block_configuration)
+{
+  for (VT depth = max_depth; depth > 0; --depth) {
+    endpoints_accumulation_kernel<VT, ET, WT, result_t>
+      <<<grid_configuration, block_configuration, 0, stream_>>>(betweenness_,
+                                                                number_of_vertices_,
+                                                                graph_.indices,
+                                                                graph_.offsets,
+                                                                distances_,
+                                                                sp_counters_,
+                                                                deltas_,
+                                                                depth);
+  }
+  add_reached_endpoints_to_source_betweenness(source_vertex);
+  add_vertices_dependencies_to_betweenness();
+}
+
+// Distances should contain -1 for unreached nodes,
+
+// FIXME: There might be a cleaner way to add a value to a single
+//        score in the betweenness vector
+template <typename VT, typename ET, typename WT, typename result_t>
+void BC<VT, ET, WT, result_t>::add_reached_endpoints_to_source_betweenness(VT source_vertex)
+{
+  VT number_of_unvisited_vertices = thrust::count(
+    rmm::exec_policy(stream_)->on(stream_), distances_, distances_ + number_of_vertices_, -1);
+  VT number_of_visited_vertices_except_source =
+    number_of_vertices_ - number_of_unvisited_vertices - 1;
+  rmm::device_vector<VT> buffer(1);
+  buffer[0] = number_of_visited_vertices_except_source;
+  thrust::transform(rmm::exec_policy(stream_)->on(stream_),
+                    buffer.begin(),
+                    buffer.end(),
+                    betweenness_ + source_vertex,
+                    betweenness_ + source_vertex,
+                    thrust::plus<result_t>());
+}
+
+template <typename VT, typename ET, typename WT, typename result_t>
+void BC<VT, ET, WT, result_t>::add_vertices_dependencies_to_betweenness()
+{
+  thrust::transform(rmm::exec_policy(stream_)->on(stream_),
+                    deltas_,
+                    deltas_ + number_of_vertices_,
+                    betweenness_,
+                    betweenness_,
+                    thrust::plus<result_t>());
+}
+
+template <typename VT, typename ET, typename WT, typename result_t>
+void BC<VT, ET, WT, result_t>::accumulate_vertices(VT max_depth,
+                                                   dim3 grid_configuration,
+                                                   dim3 block_configuration)
+{
+  for (VT depth = max_depth; depth > 0; --depth) {
+    accumulation_kernel<VT, ET, WT, result_t>
+      <<<grid_configuration, block_configuration, 0, stream_>>>(betweenness_,
+                                                                number_of_vertices_,
+                                                                graph_.indices,
+                                                                graph_.offsets,
+                                                                distances_,
+                                                                sp_counters_,
+                                                                deltas_,
+                                                                depth);
+  }
+  add_vertices_dependencies_to_betweenness();
 }
 
 template <typename VT, typename ET, typename WT, typename result_t>
 void BC<VT, ET, WT, result_t>::rescale()
 {
-  thrust::device_vector<result_t> normalizer(number_of_vertices);
   bool modified                      = false;
   result_t rescale_factor            = static_cast<result_t>(1);
-  result_t casted_number_of_vertices = static_cast<result_t>(number_of_vertices);
-  result_t casted_number_of_sources  = static_cast<result_t>(number_of_sources);
-  if (normalized) {
-    if (number_of_vertices > 2) {
-      rescale_factor /= ((casted_number_of_vertices - 1) * (casted_number_of_vertices - 2));
-      modified = true;
+  result_t casted_number_of_vertices = static_cast<result_t>(number_of_vertices_);
+  result_t casted_number_of_sources  = static_cast<result_t>(number_of_sources_);
+  if (normalized_) {
+    if (is_edge_betweenness_) {
+      rescale_edges_betweenness_centrality(rescale_factor, modified);
+    } else {
+      rescale_vertices_betweenness_centrality(rescale_factor, modified);
     }
   } else {
-    if (!graph.prop.directed) {
+    if (!graph_.prop.directed) {
       rescale_factor /= static_cast<result_t>(2);
       modified = true;
     }
   }
-  if (modified) {
-    if (number_of_sources > 0) {
+  if (modified && !is_edge_betweenness_) {
+    if (number_of_sources_ > 0) {
       rescale_factor *= (casted_number_of_vertices / casted_number_of_sources);
     }
   }
-  thrust::fill(normalizer.begin(), normalizer.end(), rescale_factor);
-  thrust::transform(rmm::exec_policy(stream)->on(stream),
-                    betweenness,
-                    betweenness + number_of_vertices,
-                    normalizer.begin(),
-                    betweenness,
-                    thrust::multiplies<result_t>());
+  apply_rescale_factor_to_betweenness(rescale_factor);
 }
 
 template <typename VT, typename ET, typename WT, typename result_t>
-void verify_input(result_t *result,
-                  bool normalize,
-                  bool endpoints,
-                  WT const *weights,
-                  VT const number_of_sources,
-                  VT const *sources)
+void BC<VT, ET, WT, result_t>::rescale_edges_betweenness_centrality(result_t &rescale_factor,
+                                                                    bool &modified)
 {
-  CUGRAPH_EXPECTS(result != nullptr, "Invalid API parameter: output betwenness is nullptr");
-  if (typeid(VT) != typeid(int)) {
-    CUGRAPH_FAIL("Unsupported vertex id data type, please use int");
+  result_t casted_number_of_vertices_ = static_cast<result_t>(number_of_vertices_);
+  if (number_of_vertices_ > 1) {
+    rescale_factor /= ((casted_number_of_vertices_) * (casted_number_of_vertices_ - 1));
+    modified = true;
   }
-  if (typeid(ET) != typeid(int)) { CUGRAPH_FAIL("Unsupported edge id data type, please use int"); }
-  if (typeid(WT) != typeid(float) && typeid(WT) != typeid(double)) {
-    CUGRAPH_FAIL("Unsupported weight data type, please use float or double");
-  }
-  if (typeid(result_t) != typeid(float) && typeid(result_t) != typeid(double)) {
-    CUGRAPH_FAIL("Unsupported result data type, please use float or double");
-  }
-  if (number_of_sources < 0) {
-    CUGRAPH_FAIL("Number of sources must be positive or equal to 0.");
-  } else if (number_of_sources != 0) {
-    CUGRAPH_EXPECTS(sources != nullptr,
-                    "sources cannot be null if number_of_source is different from 0.");
-  }
-  if (endpoints) { CUGRAPH_FAIL("Endpoints option is currently not supported."); }
 }
-/**
- * ---------------------------------------------------------------------------*
- * @brief Native betweenness centrality
- *
- * @file betweenness_centrality.cu
- * --------------------------------------------------------------------------*/
+
 template <typename VT, typename ET, typename WT, typename result_t>
-void betweenness_centrality(experimental::GraphCSRView<VT, ET, WT> const &graph,
-                            result_t *result,
-                            bool normalize,
-                            bool endpoints,
-                            WT const *weight,
-                            VT const number_of_sources,
-                            VT const *sources)
+void BC<VT, ET, WT, result_t>::rescale_vertices_betweenness_centrality(result_t &rescale_factor,
+                                                                       bool &modified)
 {
-  // Current Implementation relies on BFS
-  // FIXME: For SSSP version
-  // Brandes Algorithm expects non negative weights for the accumulation
-  verify_input<VT, ET, WT, result_t>(
-    result, normalize, endpoints, weight, number_of_sources, sources);
-  cugraph::detail::BC<VT, ET, WT, result_t> bc(graph);
-  bc.configure(result, normalize, endpoints, weight, sources, number_of_sources);
-  bc.compute();
+  result_t casted_number_of_vertices_ = static_cast<result_t>(number_of_vertices_);
+  if (number_of_vertices_ > 2) {
+    if (endpoints_) {
+      rescale_factor /= (casted_number_of_vertices_ * (casted_number_of_vertices_ - 1));
+    } else {
+      rescale_factor /= ((casted_number_of_vertices_ - 1) * (casted_number_of_vertices_ - 2));
+    }
+    modified = true;
+  }
+}
+
+template <typename VT, typename ET, typename WT, typename result_t>
+void BC<VT, ET, WT, result_t>::apply_rescale_factor_to_betweenness(result_t rescale_factor)
+{
+  size_t result_size = number_of_vertices_;
+  if (is_edge_betweenness_) result_size = number_of_edges_;
+  thrust::transform(rmm::exec_policy(stream_)->on(stream_),
+                    betweenness_,
+                    betweenness_ + result_size,
+                    thrust::make_constant_iterator(rescale_factor),
+                    betweenness_,
+                    thrust::multiplies<result_t>());
 }
 }  // namespace detail
 
-/**
- * @param[out]  result          array<result_t>(number_of_vertices)
- * @param[in]   normalize       bool True -> Apply normalization
- * @param[in]   endpoints (NIY) bool Include endpoints
- * @param[in]   weights   (NIY) array<WT>(number_of_edges) Weights to use
- * @param[in]   k               Number of sources
- * @param[in]   vertices        array<VT>(k) Sources for traversal
- */
 template <typename VT, typename ET, typename WT, typename result_t>
-void betweenness_centrality(experimental::GraphCSRView<VT, ET, WT> const &graph,
+void betweenness_centrality(raft::handle_t const &handle,
+                            GraphCSRView<VT, ET, WT> const &graph,
                             result_t *result,
                             bool normalize,
                             bool endpoints,
@@ -310,19 +404,21 @@ void betweenness_centrality(experimental::GraphCSRView<VT, ET, WT> const &graph,
                             VT k,
                             VT const *vertices)
 {
-  detail::betweenness_centrality(graph, result, normalize, endpoints, weight, k, vertices);
+  detail::betweenness_centrality_impl(
+    handle, graph, result, normalize, endpoints, weight, k, vertices);
 }
 
-template void betweenness_centrality<int, int, float, float>(
-  experimental::GraphCSRView<int, int, float> const &,
-  float *,
-  bool,
-  bool,
-  float const *,
-  int,
-  int const *);
+template void betweenness_centrality<int, int, float, float>(raft::handle_t const &handle,
+                                                             GraphCSRView<int, int, float> const &,
+                                                             float *,
+                                                             bool,
+                                                             bool,
+                                                             float const *,
+                                                             int,
+                                                             int const *);
 template void betweenness_centrality<int, int, double, double>(
-  experimental::GraphCSRView<int, int, double> const &,
+  raft::handle_t const &handle,
+  GraphCSRView<int, int, double> const &,
   double *,
   bool,
   bool,
@@ -330,4 +426,32 @@ template void betweenness_centrality<int, int, double, double>(
   int,
   int const *);
 
+template <typename VT, typename ET, typename WT, typename result_t>
+void edge_betweenness_centrality(raft::handle_t const &handle,
+                                 GraphCSRView<VT, ET, WT> const &graph,
+                                 result_t *result,
+                                 bool normalize,
+                                 WT const *weight,
+                                 VT k,
+                                 VT const *vertices)
+{
+  detail::edge_betweenness_centrality_impl(handle, graph, result, normalize, weight, k, vertices);
+}
+
+template void edge_betweenness_centrality<int, int, float, float>(
+  raft::handle_t const &handle,
+  GraphCSRView<int, int, float> const &,
+  float *,
+  bool,
+  float const *,
+  int,
+  int const *);
+template void edge_betweenness_centrality<int, int, double, double>(
+  raft::handle_t const &handle,
+  GraphCSRView<int, int, double> const &,
+  double *,
+  bool,
+  double const *,
+  int,
+  int const *);
 }  // namespace cugraph

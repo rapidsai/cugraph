@@ -16,12 +16,11 @@
 
 #include <algorithms.hpp>
 
-#include <rmm/rmm.h>
 #include <rmm/thrust_rmm_allocator.h>
 #include <thrust/random.h>
-#include <utilities/error_utils.h>
 #include <converters/permute_graph.cuh>
 #include <ctime>
+#include <utilities/error.hpp>
 #include "utilities/graph_utils.cuh"
 
 namespace {
@@ -108,43 +107,43 @@ void get_permutation_vector(T size, T seed, T *permutation, cudaStream_t stream)
 
 namespace cugraph {
 
-template <typename VT, typename ET, typename WT>
-void ecg(experimental::GraphCSRView<VT, ET, WT> const &graph,
-         WT min_weight,
-         VT ensemble_size,
-         VT *ecg_parts)
+template <typename vertex_t, typename edge_t, typename weight_t>
+void ecg(GraphCSRView<vertex_t, edge_t, weight_t> const &graph,
+         weight_t min_weight,
+         vertex_t ensemble_size,
+         vertex_t *ecg_parts)
 {
   CUGRAPH_EXPECTS(graph.edge_data != nullptr, "API error, louvain expects a weighted graph");
   CUGRAPH_EXPECTS(ecg_parts != nullptr, "Invalid API parameter: ecg_parts is NULL");
 
   cudaStream_t stream{0};
 
-  rmm::device_vector<WT> ecg_weights_v(graph.edge_data, graph.edge_data + graph.number_of_edges);
+  rmm::device_vector<weight_t> ecg_weights_v(graph.edge_data,
+                                             graph.edge_data + graph.number_of_edges);
 
-  VT size{graph.number_of_vertices};
-  VT seed{0};
-  // VT seed{1};  // Note... this seed won't work for the unit tests... retest after fixing Louvain.
+  vertex_t size{graph.number_of_vertices};
+  vertex_t seed{1};
 
-  auto permuted_graph = std::make_unique<experimental::GraphCSR<VT, ET, WT>>(
+  auto permuted_graph = std::make_unique<GraphCSR<vertex_t, edge_t, weight_t>>(
     size, graph.number_of_edges, graph.has_data());
 
   // Iterate over each member of the ensemble
-  for (VT i = 0; i < ensemble_size; i++) {
+  for (vertex_t i = 0; i < ensemble_size; i++) {
     // Take random permutation of the graph
-    rmm::device_vector<VT> permutation_v(size);
-    VT *d_permutation = permutation_v.data().get();
+    rmm::device_vector<vertex_t> permutation_v(size);
+    vertex_t *d_permutation = permutation_v.data().get();
 
     get_permutation_vector(size, seed, d_permutation, stream);
     seed += size;
 
-    detail::permute_graph<VT, ET, WT>(graph, d_permutation, permuted_graph->view());
+    detail::permute_graph<vertex_t, edge_t, weight_t>(graph, d_permutation, permuted_graph->view());
 
-    // Run Louvain clustering on the random permutation
-    rmm::device_vector<VT> parts_v(size);
-    VT *d_parts = parts_v.data().get();
+    // Run one level of Louvain clustering on the random permutation
+    rmm::device_vector<vertex_t> parts_v(size);
+    vertex_t *d_parts = parts_v.data().get();
 
-    WT final_modularity;
-    VT num_level;
+    weight_t final_modularity;
+    vertex_t num_level;
 
     cugraph::louvain(permuted_graph->view(), &final_modularity, &num_level, d_parts, 1);
 
@@ -152,7 +151,7 @@ void ecg(experimental::GraphCSRView<VT, ET, WT> const &graph,
     // Keep a sum for each edge of the total number of times its endpoints are in the same partition
     dim3 grid, block;
     block.x = 512;
-    grid.x  = min(VT{CUDA_MAX_BLOCKS}, (graph.number_of_edges / 512 + 1));
+    grid.x  = min(vertex_t{CUDA_MAX_BLOCKS}, (graph.number_of_edges / 512 + 1));
     match_check_kernel<<<grid, block, 0, stream>>>(graph.number_of_edges,
                                                    graph.number_of_vertices,
                                                    graph.offsets,
@@ -163,7 +162,7 @@ void ecg(experimental::GraphCSRView<VT, ET, WT> const &graph,
   }
 
   // Set weights = min_weight + (1 - min-weight)*sum/ensemble_size
-  update_functor<WT> uf(min_weight, ensemble_size);
+  update_functor<weight_t> uf(min_weight, ensemble_size);
   thrust::transform(rmm::exec_policy(stream)->on(stream),
                     ecg_weights_v.data().get(),
                     ecg_weights_v.data().get() + graph.number_of_edges,
@@ -171,27 +170,26 @@ void ecg(experimental::GraphCSRView<VT, ET, WT> const &graph,
                     uf);
 
   // Run Louvain on the original graph using the computed weights
-  experimental::GraphCSRView<VT, ET, WT> louvain_graph;
+  // (pass max_level = 100 for a "full run")
+  GraphCSRView<vertex_t, edge_t, weight_t> louvain_graph;
   louvain_graph.indices            = graph.indices;
   louvain_graph.offsets            = graph.offsets;
   louvain_graph.edge_data          = ecg_weights_v.data().get();
   louvain_graph.number_of_vertices = graph.number_of_vertices;
   louvain_graph.number_of_edges    = graph.number_of_edges;
 
-  WT final_modularity;
-  VT num_level;
+  weight_t final_modularity;
+  vertex_t num_level;
   cugraph::louvain(louvain_graph, &final_modularity, &num_level, ecg_parts, 100);
 }
 
 // Explicit template instantiations.
-template void ecg<int32_t, int32_t, float>(
-  experimental::GraphCSRView<int32_t, int32_t, float> const &graph,
-  float min_weight,
-  int32_t ensemble_size,
-  int32_t *ecg_parts);
-template void ecg<int32_t, int32_t, double>(
-  experimental::GraphCSRView<int32_t, int32_t, double> const &graph,
-  double min_weight,
-  int32_t ensemble_size,
-  int32_t *ecg_parts);
+template void ecg<int32_t, int32_t, float>(GraphCSRView<int32_t, int32_t, float> const &graph,
+                                           float min_weight,
+                                           int32_t ensemble_size,
+                                           int32_t *ecg_parts);
+template void ecg<int32_t, int32_t, double>(GraphCSRView<int32_t, int32_t, double> const &graph,
+                                            double min_weight,
+                                            int32_t ensemble_size,
+                                            int32_t *ecg_parts);
 }  // namespace cugraph

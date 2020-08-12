@@ -84,6 +84,7 @@ class CleanCommand(Command):
         os.system('rm -rf build')
         os.system('rm -rf dist')
         os.system('rm -rf dask-worker-space')
+        os.system('rm -f cugraph/raft')
         os.system('find . -name "__pycache__" -type d -exec rm -rf {} +')
         os.system('rm -rf *.egg-info')
         os.system('find . -name "*.cpp" -type f -delete')

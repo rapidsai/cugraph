@@ -57,21 +57,19 @@ source activate gdf
 
 logger "conda install required packages"
 conda install -c nvidia -c rapidsai -c rapidsai-nightly -c conda-forge -c defaults \
-      cudf=${MINOR_VERSION} \
-      rmm=${MINOR_VERSION} \
-      networkx>=2.3 \
-      python-louvain \
-      cudatoolkit=$CUDA_REL \
-      dask>=2.12.0 \
-      distributed>=2.12.0 \
-      dask-cudf=${MINOR_VERSION} \
-      dask-cuda=${MINOR_VERSION} \
-      scikit-learn>=0.21 \
-      nccl>=2.5 \
-      ucx-py=${MINOR_VERSION} \
-      libcypher-parser \
-      ipython=7.3* \
-      jupyterlab
+      "cudf=${MINOR_VERSION}" \
+      "rmm=${MINOR_VERSION}" \
+      "cudatoolkit=$CUDA_REL" \
+      "dask-cudf=${MINOR_VERSION}" \
+      "dask-cuda=${MINOR_VERSION}" \
+      "ucx-py=${MINOR_VERSION}" \
+      "rapids-build-env=$MINOR_VERSION.*" \
+      "rapids-notebook-env=$MINOR_VERSION.*" \
+      rapids-pytest-benchmark
+
+# https://docs.rapids.ai/maintainers/depmgmt/
+# conda remove --force rapids-build-env rapids-notebook-env
+# conda install "your-pkg=1.0.0"
 
 # Install the master version of dask and distributed
 logger "pip install git+https://github.com/dask/distributed.git --upgrade --no-deps"

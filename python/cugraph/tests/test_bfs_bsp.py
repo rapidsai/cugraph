@@ -22,21 +22,22 @@ import cugraph
 from cugraph.tests import utils
 
 # compute once
-_int_max = 2**31 - 1
+_int_max = 2 ** 31 - 1
 
 
 def cugraph_call(cu_M, start_vertex):
     # Device data
-    df = cu_M[['0', '1']]
+    df = cu_M[["0", "1"]]
 
     t1 = time.time()
     df = cugraph.bsp.traversal.bfs_df_pregel(
-        df, start_vertex, src_col='0', dst_col='1')
+        df, start_vertex, src_col="0", dst_col="1"
+    )
     t2 = time.time() - t1
-    print('Time : '+str(t2))
+    print("Time : " + str(t2))
 
     # Return distances as np.array()
-    return df['vertex'].to_array(), df['distance'].to_array()
+    return df["vertex"].to_array(), df["distance"].to_array()
 
 
 def base_call(M, start_vertex):
@@ -55,27 +56,20 @@ def base_call(M, start_vertex):
     q = queue.Queue()
     q.put(start_vertex)
     dist[start_vertex] = 0
-    while(not q.empty()):
+    while not q.empty():
         u = q.get()
         for i_col in range(offsets[u], offsets[u + 1]):
             v = indices[i_col]
-            if (dist[v] == _int_max):
+            if dist[v] == _int_max:
                 dist[v] = dist[u] + 1
                 q.put(v)
 
     return vertex, dist
 
 
-DATASETS = ['../datasets/dolphins.csv',
-            '../datasets/karate.csv',
-            '../datasets/polbooks.csv',
-            '../datasets/netscience.csv',
-            '../datasets/email-Eu-core.csv']
-
-
 # Test all combinations of default/managed and pooled/non-pooled allocation
 @pytest.mark.skip(reason="SG BFS is not yet formally supported")
-@pytest.mark.parametrize('graph_file', DATASETS)
+@pytest.mark.parametrize("graph_file", utils.DATASETS)
 def test_bfs(managed, pool, graph_file):
     gc.collect()
 

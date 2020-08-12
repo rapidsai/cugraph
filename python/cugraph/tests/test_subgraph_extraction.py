@@ -26,6 +26,7 @@ from cugraph.tests import utils
 # python 3.7.  Also, this import networkx needs to be relocated in the
 # third-party group once this gets fixed.
 import warnings
+
 with warnings.catch_warnings():
     warnings.filterwarnings("ignore", category=DeprecationWarning)
     import networkx as nx
@@ -36,8 +37,9 @@ def compare_edges(cg, nxg):
     assert cg.edgelist.weights is False
     assert len(edgelist_df) == nxg.size()
     for i in range(len(edgelist_df)):
-        assert nxg.has_edge(edgelist_df['src'].iloc[i],
-                            edgelist_df['dst'].iloc[i])
+        assert nxg.has_edge(
+            edgelist_df["src"].iloc[i], edgelist_df["dst"].iloc[i]
+        )
     return True
 
 
@@ -49,31 +51,27 @@ def cugraph_call(M, verts, directed=True):
     else:
         G = cugraph.Graph()
     cu_M = cudf.DataFrame()
-    cu_M['src'] = cudf.Series(M['0'])
-    cu_M['dst'] = cudf.Series(M['1'])
-    G.from_cudf_edgelist(cu_M, source='src', destination='dst')
+    cu_M["src"] = cudf.Series(M["0"])
+    cu_M["dst"] = cudf.Series(M["1"])
+    G.from_cudf_edgelist(cu_M, source="src", destination="dst")
     cu_verts = cudf.Series(verts)
     return cugraph.subgraph(G, cu_verts)
 
 
 def nx_call(M, verts, directed=True):
     if directed:
-        G = nx.from_pandas_edgelist(M, source='0', target='1',
-                                    create_using=nx.DiGraph())
+        G = nx.from_pandas_edgelist(
+            M, source="0", target="1", create_using=nx.DiGraph()
+        )
     else:
-        G = nx.from_pandas_edgelist(M, source='0', target='1',
-                                    create_using=nx.Graph())
+        G = nx.from_pandas_edgelist(
+            M, source="0", target="1", create_using=nx.Graph()
+        )
     return nx.subgraph(G, verts)
 
 
-DATASETS = ['../datasets/karate.csv',
-            '../datasets/dolphins.csv',
-            '../datasets/netscience.csv',
-            '../datasets/email-Eu-core.csv']
-
-
 # Test all combinations of default/managed and pooled/non-pooled allocation
-@pytest.mark.parametrize('graph_file', DATASETS)
+@pytest.mark.parametrize("graph_file", utils.DATASETS_4)
 def test_subgraph_extraction_DiGraph(graph_file):
     gc.collect()
 
@@ -89,7 +87,8 @@ def test_subgraph_extraction_DiGraph(graph_file):
 
 # Test all combinations of default/managed and pooled/non-pooled allocation
 
-@pytest.mark.parametrize('graph_file', DATASETS)
+
+@pytest.mark.parametrize("graph_file", utils.DATASETS_4)
 def test_subgraph_extraction_Graph(graph_file):
     gc.collect()
 

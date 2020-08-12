@@ -14,7 +14,7 @@
 from cugraph.community import ecg_wrapper
 
 
-def ecg(input_graph, min_weight=.05, ensemble_size=16):
+def ecg(input_graph, min_weight=0.05, ensemble_size=16):
     """
     Compute the Ensemble Clustering for Graphs (ECG) partition of the input
     graph. ECG runs truncated Louvain on an ensemble of permutations of the
@@ -64,5 +64,8 @@ def ecg(input_graph, min_weight=.05, ensemble_size=16):
     """
 
     parts = ecg_wrapper.ecg(input_graph, min_weight, ensemble_size)
+
+    if input_graph.renumbered:
+        parts = input_graph.unrenumber(parts, "vertex")
 
     return parts

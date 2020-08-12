@@ -61,15 +61,3 @@ done
 mv $PROJECT_WORKSPACE/cpp/doxygen/html/* $DOCS_WORKSPACE/api/libcugraph/$BRANCH_VERSION
 mv $PROJECT_WORKSPACE/docs/build/html/* $DOCS_WORKSPACE/api/cugraph/$BRANCH_VERSION
 
-# Customize HTML documentation
-./update_symlinks.sh $NIGHTLY_VERSION
-./customization/lib_map.sh
-
-
-for PROJECT in ${PROJECTS[@]}; do
-    echo ""
-    echo "Customizing: $PROJECT"
-    ./customization/customize_docs_in_folder.sh api/$PROJECT/ $NIGHTLY_VERSION
-    git add $DOCS_WORKSPACE/api/$PROJECT/*
-done
-

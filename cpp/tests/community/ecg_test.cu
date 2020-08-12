@@ -13,12 +13,12 @@
 #include <algorithms.hpp>
 #include <graph.hpp>
 
-#include <rmm/rmm.h>
 #include <rmm/thrust_rmm_allocator.h>
 #include <rmm/mr/device/cnmem_memory_resource.hpp>
 
 TEST(ecg, success)
 {
+  // FIXME: verify that this is the karate dataset
   std::vector<int> off_h = {0,  16,  25,  35,  41,  44,  48,  52,  56,  61,  63, 66,
                             67, 69,  74,  76,  78,  80,  82,  84,  87,  89,  91, 93,
                             98, 101, 104, 106, 110, 113, 117, 121, 127, 139, 156};
@@ -43,7 +43,7 @@ TEST(ecg, success)
   rmm::device_vector<float> weights_v(w_h);
   rmm::device_vector<int> result_v(cluster_id);
 
-  cugraph::experimental::GraphCSRView<int, int, float> graph_csr(
+  cugraph::GraphCSRView<int, int, float> graph_csr(
     offsets_v.data().get(), indices_v.data().get(), weights_v.data().get(), num_verts, num_edges);
 
   cugraph::ecg<int32_t, int32_t, float>(graph_csr, .05, 16, result_v.data().get());
@@ -61,14 +61,14 @@ TEST(ecg, success)
 
   float modularity{0.0};
 
-  cugraph::nvgraph::analyzeClustering_modularity(
+  cugraph::ext_raft::analyzeClustering_modularity(
     graph_csr, max + 1, result_v.data().get(), &modularity);
 
+  // 0.399 is 5% below the reference value returned in
+  // <cugraph>/python/utils/ECG_Golden.ipynb on the same dataset
   ASSERT_GT(modularity, 0.399);
 }
 
-//  This test currently fails... leaving it in since once louvain is fixed
-//   it should pass
 TEST(ecg, dolphin)
 {
   std::vector<int> off_h = {0,   6,   14,  18,  21,  22,  26,  32,  37,  43,  50,  55,  56,
@@ -104,7 +104,7 @@ TEST(ecg, dolphin)
   rmm::device_vector<float> weights_v(w_h);
   rmm::device_vector<int> result_v(cluster_id);
 
-  cugraph::experimental::GraphCSRView<int, int, float> graph_csr(
+  cugraph::GraphCSRView<int, int, float> graph_csr(
     offsets_v.data().get(), indices_v.data().get(), weights_v.data().get(), num_verts, num_edges);
 
   cugraph::ecg<int32_t, int32_t, float>(graph_csr, .05, 16, result_v.data().get());
@@ -122,7 +122,7 @@ TEST(ecg, dolphin)
 
   float modularity{0.0};
 
-  cugraph::nvgraph::analyzeClustering_modularity(
+  cugraph::ext_raft::analyzeClustering_modularity(
     graph_csr, max + 1, result_v.data().get(), &modularity);
 
   float random_modularity{0.95 * 0.4962422251701355};

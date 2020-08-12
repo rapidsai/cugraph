@@ -14,13 +14,15 @@
 from cugraph.community import spectral_clustering_wrapper
 
 
-def spectralBalancedCutClustering(G,
-                                  num_clusters,
-                                  num_eigen_vects=2,
-                                  evs_tolerance=.00001,
-                                  evs_max_iter=100,
-                                  kmean_tolerance=.00001,
-                                  kmean_max_iter=100):
+def spectralBalancedCutClustering(
+    G,
+    num_clusters,
+    num_eigen_vects=2,
+    evs_tolerance=0.00001,
+    evs_max_iter=100,
+    kmean_tolerance=0.00001,
+    kmean_max_iter=100,
+):
     """
     Compute a clustering/partitioning of the given graph using the spectral
     balanced cut method.
@@ -70,24 +72,34 @@ def spectralBalancedCutClustering(G,
     """
 
     df = spectral_clustering_wrapper.spectralBalancedCutClustering(
-             G,
-             num_clusters,
-             num_eigen_vects,
-             evs_tolerance,
-             evs_max_iter,
-             kmean_tolerance,
-             kmean_max_iter)
+        G,
+        num_clusters,
+        num_eigen_vects,
+        evs_tolerance,
+        evs_max_iter,
+        kmean_tolerance,
+        kmean_max_iter,
+    )
+
+    if G.renumbered:
+        # FIXME:  This is a hack to get around an
+        # API problem.  The spectral API assumes that
+        # the data frame remains in internal vertex
+        # id order.  It should not do that.
+        df = G.unrenumber(df, "vertex", preserve_order=True)
 
     return df
 
 
-def spectralModularityMaximizationClustering(G,
-                                             num_clusters,
-                                             num_eigen_vects=2,
-                                             evs_tolerance=.00001,
-                                             evs_max_iter=100,
-                                             kmean_tolerance=.00001,
-                                             kmean_max_iter=100):
+def spectralModularityMaximizationClustering(
+    G,
+    num_clusters,
+    num_eigen_vects=2,
+    evs_tolerance=0.00001,
+    evs_max_iter=100,
+    kmean_tolerance=0.00001,
+    kmean_max_iter=100,
+):
     """
     Compute a clustering/partitioning of the given graph using the spectral
     modularity maximization method.
@@ -134,13 +146,21 @@ def spectralModularityMaximizationClustering(G,
     """
 
     df = spectral_clustering_wrapper.spectralModularityMaximizationClustering(
-             G,
-             num_clusters,
-             num_eigen_vects,
-             evs_tolerance,
-             evs_max_iter,
-             kmean_tolerance,
-             kmean_max_iter)
+        G,
+        num_clusters,
+        num_eigen_vects,
+        evs_tolerance,
+        evs_max_iter,
+        kmean_tolerance,
+        kmean_max_iter,
+    )
+
+    if G.renumbered:
+        df = G.unrenumber(df, "vertex")
+        # FIXME:  Existing code relies on df being sorted...
+        #   Shouldn't because in MG we can't guarantee sorting
+        #   and partitioning of output
+        df = df.sort_values("vertex").reset_index(drop=True)
 
     return df
 
@@ -176,9 +196,8 @@ def analyzeClustering_modularity(G, n_clusters, clustering):
     """
 
     score = spectral_clustering_wrapper.analyzeClustering_modularity(
-                G,
-                n_clusters,
-                clustering)
+        G, n_clusters, clustering
+    )
 
     return score
 
@@ -214,9 +233,8 @@ def analyzeClustering_edge_cut(G, n_clusters, clustering):
     """
 
     score = spectral_clustering_wrapper.analyzeClustering_edge_cut(
-                G,
-                n_clusters,
-                clustering)
+        G, n_clusters, clustering
+    )
 
     return score
 
@@ -252,8 +270,7 @@ def analyzeClustering_ratio_cut(G, n_clusters, clustering):
     """
 
     score = spectral_clustering_wrapper.analyzeClustering_ratio_cut(
-                G,
-                n_clusters,
-                clustering)
+        G, n_clusters, clustering
+    )
 
     return score

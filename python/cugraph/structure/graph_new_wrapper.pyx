@@ -25,6 +25,11 @@ from libc.stdint cimport uintptr_t
 
 from rmm._lib.device_buffer cimport device_buffer, DeviceBuffer
 
+import dask_cudf as dc
+import cugraph.comms.comms as Comms
+from dask.distributed import wait, default_client
+from cugraph.dask.common.input_utils import DistributedDataHandler
+
 import cudf
 import rmm
 import numpy as np
@@ -132,11 +137,14 @@ def view_edge_list(input_graph):
     return src_indices, indices, weights
 
 
-def _degree_coo(src, dst, x=0):
+def _degree_coo(edgelist_df, src_name, dst_name, x=0, num_verts=None, sID=None):
     #
     #  Computing the degree of the input graph from COO
     #
     cdef DegreeDirection dir
+
+    src = edgelist_df[src_name]
+    dst = edgelist_df[dst_name]
 
     if x == 0:
         dir = DIRECTION_IN_PLUS_OUT
@@ -149,7 +157,8 @@ def _degree_coo(src, dst, x=0):
 
     [src, dst] = datatype_cast([src, dst], [np.int32])
 
-    num_verts = 1 + max(src.max(), dst.max())
+    if num_verts is None:
+        num_verts = 1 + max(src.max(), dst.max())
     num_edges = len(src)
 
     vertex_col = cudf.Series(np.zeros(num_verts, dtype=np.int32))
@@ -163,6 +172,12 @@ def _degree_coo(src, dst, x=0):
     cdef uintptr_t c_dst = dst.__cuda_array_interface__['data'][0]
 
     graph = GraphCOOView[int,int,float](<int*>c_src, <int*>c_dst, <float*>NULL, num_verts, num_edges)
+
+    cdef size_t handle_size_t
+    if sID is not None:
+        handle = Comms.get_handle(sID)
+        handle_size_t = <size_t>handle.getHandle()
+        graph.set_handle(<handle_t*>handle_size_t)
 
     graph.degree(<int*> c_degree, dir)
     graph.get_vertex_identifiers(<int*>c_vertex)
@@ -221,9 +236,18 @@ def _degree(input_graph, x=0):
                            transpose_x[x])
 
     if input_graph.edgelist is not None:
-        return _degree_coo(input_graph.edgelist.edgelist_df['src'],
-                           input_graph.edgelist.edgelist_df['dst'],
-                           x)
+        if isinstance(input_graph.edgelist.edgelist_df, dc.DataFrame):
+            input_ddf = input_graph.edgelist.edgelist_df
+            num_verts = input_ddf[['src', 'dst']].max().max().compute() + 1
+            data = DistributedDataHandler.create(data=input_ddf)
+            comms = Comms.get_comms()
+            client = default_client()
+            data.calculate_parts_to_sizes(comms)
+            degree_ddf = [client.submit(_degree_coo, wf[1][0], 'src', 'dst', x, num_verts, comms.sessionId, workers=[wf[0]]) for idx, wf in enumerate(data.worker_to_parts.items())]
+            wait(degree_ddf)
+            return degree_ddf[0].result()      
+        return _degree_coo(input_graph.edgelist.edgelist_df,
+                           'src', 'dst', x)
                            
     raise Exception("input_graph not COO, CSR or CSC")
 

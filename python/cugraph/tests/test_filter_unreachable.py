@@ -13,7 +13,6 @@
 
 import gc
 import time
-
 import pytest
 import numpy as np
 
@@ -26,45 +25,46 @@ from cugraph.tests import utils
 # python 3.7.  Also, this import networkx needs to be relocated in the
 # third-party group once this gets fixed.
 import warnings
+
 with warnings.catch_warnings():
     warnings.filterwarnings("ignore", category=DeprecationWarning)
     import networkx as nx
 
 
-print('Networkx version : {} '.format(nx.__version__))
+print("Networkx version : {} ".format(nx.__version__))
 
 SOURCES = [1]
 
 
-@pytest.mark.parametrize('graph_file', ['../datasets/netscience.csv'])
-@pytest.mark.parametrize('source', SOURCES)
+@pytest.mark.parametrize("graph_file", utils.DATASETS)
+@pytest.mark.parametrize("source", SOURCES)
 def test_filter_unreachable(graph_file, source):
     gc.collect()
 
     cu_M = utils.read_csv_file(graph_file)
 
-    print('sources size = ' + str(len(cu_M)))
-    print('destinations size = ' + str(len(cu_M)))
+    print("sources size = " + str(len(cu_M)))
+    print("destinations size = " + str(len(cu_M)))
 
     # cugraph Pagerank Call
     G = cugraph.DiGraph()
-    G.from_cudf_edgelist(cu_M, source='0', destination='1', edge_attr='2')
+    G.from_cudf_edgelist(cu_M, source="0", destination="1", edge_attr="2")
 
-    print('cugraph Solving... ')
+    print("cugraph Solving... ")
     t1 = time.time()
 
     df = cugraph.sssp(G, source)
 
     t2 = time.time() - t1
-    print('Time : '+str(t2))
+    print("Time : " + str(t2))
 
     reachable_df = cugraph.filter_unreachable(df)
 
-    if(np.issubdtype(df['distance'].dtype, np.integer)):
-        inf = np.iinfo(reachable_df['distance'].dtype).max  # noqa: F841
+    if np.issubdtype(df["distance"].dtype, np.integer):
+        inf = np.iinfo(reachable_df["distance"].dtype).max  # noqa: F841
         assert len(reachable_df.query("distance == @inf")) == 0
-    elif(np.issubdtype(df['distance'].dtype, np.inexact)):
-        inf = np.finfo(reachable_df['distance'].dtype).max  # noqa: F841
+    elif np.issubdtype(df["distance"].dtype, np.inexact):
+        inf = np.finfo(reachable_df["distance"].dtype).max  # noqa: F841
         assert len(reachable_df.query("distance == @inf")) == 0
 
     assert len(reachable_df) != 0

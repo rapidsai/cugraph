@@ -16,17 +16,19 @@
 
 #include <cuda_runtime.h>
 
+#include <raft/cudart_utils.h>
 #include <algorithms.hpp>
 #include <graph.hpp>
 
-#include <nvgraph/include/sm_utils.h>
-#include <nvgraph/include/nvgraph_error.hxx>
+#include <utilities/sm_utils.h>
+#include <utilities/error.hpp>
 
 #include <rmm/thrust_rmm_allocator.h>
 #include <rmm/device_buffer.hpp>
 
 #include <thrust/iterator/counting_iterator.h>
 
+#include <raft/utils/sm_utils.hpp>
 #include "cub/cub.cuh"
 
 #define TH_CENT_K_LOCLEN (34)
@@ -49,7 +51,10 @@
 #define DEG_THR1 (3.5)
 #define DEG_THR2 (38.0)
 
-namespace nvgraph {
+namespace cugraph {
+namespace triangle {
+
+namespace {  // anonym.
 
 template <typename T>
 struct type_utils;
@@ -95,13 +100,13 @@ static inline void cubSum(InputIteratorT d_in,
 
   cub::DeviceReduce::Sum(
     nullptr, temp_storage_bytes, d_in, d_out, num_items, stream, debug_synchronous);
-  cudaCheckError();
+  CHECK_CUDA(stream);
 
   rmm::device_buffer d_temp_storage(temp_storage_bytes, stream);
 
   cub::DeviceReduce::Sum(
     d_temp_storage.data(), temp_storage_bytes, d_in, d_out, num_items, stream, debug_synchronous);
-  cudaCheckError();
+  CHECK_CUDA(stream);
 
   return;
 }
@@ -129,7 +134,7 @@ static inline void cubIf(InputIteratorT d_in,
                         select_op,
                         stream,
                         debug_synchronous);
-  cudaCheckError();
+  CHECK_CUDA(stream);
 
   rmm::device_buffer d_temp_storage(temp_storage_bytes, stream);
 
@@ -142,7 +147,7 @@ static inline void cubIf(InputIteratorT d_in,
                         select_op,
                         stream,
                         debug_synchronous);
-  cudaCheckError();
+  CHECK_CUDA(stream);
 
   return;
 }
@@ -169,7 +174,7 @@ __device__ __forceinline__ T block_sum(T v)
   const int wid = threadIdx.x / 32 + ((BDIM_Y > 1) ? threadIdx.y * (BDIM_X / 32) : 0);
 
 #pragma unroll
-  for (int i = WSIZE / 2; i; i >>= 1) { v += utils::shfl_down(v, i); }
+  for (int i = WSIZE / 2; i; i >>= 1) { v += raft::utils::shfl_down(v, i); }
   if (lid == 0) sh[wid] = v;
 
   __syncthreads();
@@ -177,7 +182,7 @@ __device__ __forceinline__ T block_sum(T v)
     v = (lid < (BDIM_X * BDIM_Y / WSIZE)) ? sh[lid] : 0;
 
 #pragma unroll
-    for (int i = (BDIM_X * BDIM_Y / WSIZE) / 2; i; i >>= 1) { v += utils::shfl_down(v, i); }
+    for (int i = (BDIM_X * BDIM_Y / WSIZE) / 2; i; i >>= 1) { v += raft::utils::shfl_down(v, i); }
   }
   return v;
 }
@@ -282,7 +287,7 @@ void tricnt_b2b(T nblock,
   // still best overall (with no psum)
   tricnt_b2b_k<THREADS, 32, BLK_BWL0><<<nblock, THREADS, 0, stream>>>(
     m->nrows, m->rows_d, m->roff_d, m->cols_d, ocnt_d, bmapL0_d, bmldL0, bmapL1_d, bmldL1);
-  cudaCheckError();
+  CHECK_CUDA(stream);
   return;
 }
 
@@ -294,7 +299,7 @@ __device__ __forceinline__ T block_sum_sh(T v, T *sh)
   const int wid = threadIdx.x / 32 + ((BDIM_Y > 1) ? threadIdx.y * (BDIM_X / 32) : 0);
 
 #pragma unroll
-  for (int i = WSIZE / 2; i; i >>= 1) { v += utils::shfl_down(v, i); }
+  for (int i = WSIZE / 2; i; i >>= 1) { v += raft::utils::shfl_down(v, i); }
   if (lid == 0) sh[wid] = v;
 
   __syncthreads();
@@ -302,7 +307,7 @@ __device__ __forceinline__ T block_sum_sh(T v, T *sh)
     v = (lid < (BDIM_X * BDIM_Y / WSIZE)) ? sh[lid] : 0;
 
 #pragma unroll
-    for (int i = (BDIM_X * BDIM_Y / WSIZE) / 2; i; i >>= 1) { v += utils::shfl_down(v, i); }
+    for (int i = (BDIM_X * BDIM_Y / WSIZE) / 2; i; i >>= 1) { v += raft::utils::shfl_down(v, i); }
   }
   return v;
 }
@@ -386,7 +391,7 @@ void tricnt_bsh(T nblock, spmat_t<T> *m, uint64_t *ocnt_d, size_t bmld, cudaStre
 {
   tricnt_bsh_k<THREADS, 32><<<nblock, THREADS, sizeof(unsigned int) * bmld, stream>>>(
     m->nrows, m->rows_d, m->roff_d, m->cols_d, ocnt_d, bmld);
-  cudaCheckError();
+  CHECK_CUDA(stream);
   return;
 }
 
@@ -438,8 +443,8 @@ __global__ void tricnt_wrp_ps_k(const ROW_T ner,
       for (int i = 1; i < RLEN_THR1; i++) {
         if (i == nloc) break;
 
-        const OFF_T csoff = utils::shfl(soff, i);
-        const OFF_T ceoff = utils::shfl(eoff, i);
+        const OFF_T csoff = raft::utils::shfl(soff, i);
+        const OFF_T ceoff = raft::utils::shfl(eoff, i);
 
         if (ceoff - csoff < RLEN_THR2) {
           if (threadIdx.x == i) mysm = i;
@@ -483,11 +488,11 @@ __global__ void tricnt_wrp_ps_k(const ROW_T ner,
 
 #pragma unroll
         for (int j = 1; j < 32; j <<= 1) {
-          lensum += (threadIdx.x >= j) * (utils::shfl_up(lensum, j));
+          lensum += (threadIdx.x >= j) * (raft::utils::shfl_up(lensum, j));
         }
         shs[threadIdx.y][threadIdx.x] = lensum - len;
 
-        lensum = utils::shfl(lensum, 31);
+        lensum = raft::utils::shfl(lensum, 31);
 
         int k = WSIZE - 1;
         for (int j = lensum - 1; j >= 0; j -= WSIZE) {
@@ -534,7 +539,7 @@ void tricnt_wrp(
   dim3 block(32, THREADS / 32);
   tricnt_wrp_ps_k<32, THREADS / 32, WP_LEN_TH1, WP_LEN_TH2>
     <<<nblock, block, 0, stream>>>(m->nrows, m->rows_d, m->roff_d, m->cols_d, ocnt_d, bmap_d, bmld);
-  cudaCheckError();
+  CHECK_CUDA(stream);
   return;
 }
 
@@ -622,7 +627,7 @@ void tricnt_thr(T nblock, spmat_t<T> *m, uint64_t *ocnt_d, cudaStream_t stream)
 
   tricnt_thr_k<THREADS, TH_CENT_K_LOCLEN>
     <<<nblock, THREADS, 0, stream>>>(m->nrows, m->rows_d, m->roff_d, m->cols_d, ocnt_d);
-  cudaCheckError();
+  CHECK_CUDA(stream);
   return;
 }
 
@@ -648,7 +653,7 @@ void create_nondangling_vector(
 
   cubIf(it, p_nonempty, out_num.data().get(), n, temp_func, stream);
   cudaMemcpy(n_nonempty, out_num.data().get(), sizeof(*n_nonempty), cudaMemcpyDeviceToHost);
-  cudaCheckError();
+  CHECK_CUDA(stream);
 }
 
 template <typename T>
@@ -657,7 +662,7 @@ uint64_t reduce(uint64_t *v_d, T n, cudaStream_t stream)
   rmm::device_vector<uint64_t> tmp(1);
 
   cubSum(v_d, tmp.data().get(), n, stream);
-  cudaCheckError();
+  CHECK_CUDA(stream);
 
   return tmp[0];
 }
@@ -700,27 +705,20 @@ TrianglesCount<IndexType>::TrianglesCount(IndexType num_vertices,
                                           IndexType const *row_offsets,
                                           IndexType const *col_indices,
                                           cudaStream_t stream)
+  : m_mat{num_vertices, num_edges, num_vertices, row_offsets, nullptr, col_indices},
+    m_stream{stream},
+    m_done{true}
 {
-  m_stream = stream;
-  m_done   = true;
-
   int device_id;
   cudaGetDevice(&device_id);
 
   cudaDeviceGetAttribute(&m_shared_mem_per_block, cudaDevAttrMaxSharedMemoryPerBlock, device_id);
-  cudaCheckError();
+  CHECK_CUDA(m_stream);
   cudaDeviceGetAttribute(&m_multi_processor_count, cudaDevAttrMultiProcessorCount, device_id);
-  cudaCheckError();
+  CHECK_CUDA(m_stream);
   cudaDeviceGetAttribute(
     &m_max_threads_per_multi_processor, cudaDevAttrMaxThreadsPerMultiProcessor, device_id);
-  cudaCheckError();
-
-  // fill spmat struct;
-  m_mat.nnz    = num_edges;
-  m_mat.N      = num_vertices;
-  m_mat.nrows  = num_vertices;
-  m_mat.roff_d = row_offsets;
-  m_mat.cols_d = col_indices;
+  CHECK_CUDA(m_stream);
 
   m_seq.resize(m_mat.N, IndexType{0});
   create_nondangling_vector(m_mat.roff_d, m_seq.data().get(), &(m_mat.nrows), m_mat.N, m_stream);
@@ -730,9 +728,11 @@ TrianglesCount<IndexType>::TrianglesCount(IndexType num_vertices,
 template <typename IndexType>
 void TrianglesCount<IndexType>::tcount_bsh()
 {
-  if (m_shared_mem_per_block * 8 < (size_t)m_mat.nrows) {
-    FatalError("Number of vertices too high to use this kernel!", NVGRAPH_ERR_BAD_PARAMETERS);
-  }
+  CUGRAPH_EXPECTS(not(m_shared_mem_per_block * 8 < m_mat.nrows),
+                  "Number of vertices too high for TrainglesCount.");
+  /// if (m_shared_mem_per_block * 8 < (size_t)m_mat.nrows) {
+  ///  FatalError("Number of vertices too high to use this kernel!", NVGRAPH_ERR_BAD_PARAMETERS);
+  ///}
 
   size_t bmld = bitmap_roundup<uint32_t>(m_mat.N);
   int nblock  = m_mat.nrows;
@@ -754,7 +754,7 @@ void TrianglesCount<IndexType>::tcount_b2b()
 
   size_t free_bytes, total_bytes;
   cudaMemGetInfo(&free_bytes, &total_bytes);
-  cudaCheckError();
+  CHECK_CUDA(m_stream);
 
   int nblock = (free_bytes * 95 / 100) / (sizeof(uint32_t) * bmldL1);  //@TODO: what?
   nblock     = MIN(nblock, m_mat.nrows);
@@ -788,7 +788,7 @@ void TrianglesCount<IndexType>::tcount_wrp()
   // number of blocks limited by birmap size
   size_t free_bytes, total_bytes;
   cudaMemGetInfo(&free_bytes, &total_bytes);
-  cudaCheckError();
+  CHECK_CUDA(m_stream);
 
   int nblock = (free_bytes * 95 / 100) / (sizeof(uint32_t) * bmld * (THREADS / 32));
   nblock     = MIN(nblock, DIV_UP(m_mat.nrows, (THREADS / 32)));
@@ -831,15 +831,12 @@ void TrianglesCount<IndexType>::count()
   }
 }
 
-}  // namespace nvgraph
-
-namespace cugraph {
-namespace nvgraph {
+}  // namespace
 
 template <typename VT, typename ET, typename WT>
-uint64_t triangle_count(experimental::GraphCSRView<VT, ET, WT> const &graph)
+uint64_t triangle_count(GraphCSRView<VT, ET, WT> const &graph)
 {
-  ::nvgraph::TrianglesCount<VT> counter(
+  TrianglesCount<VT> counter(
     graph.number_of_vertices, graph.number_of_edges, graph.offsets, graph.indices);
 
   counter.count();
@@ -847,7 +844,7 @@ uint64_t triangle_count(experimental::GraphCSRView<VT, ET, WT> const &graph)
 }
 
 template uint64_t triangle_count<int32_t, int32_t, float>(
-  experimental::GraphCSRView<int32_t, int32_t, float> const &);
+  GraphCSRView<int32_t, int32_t, float> const &);
 
-}  // namespace nvgraph
+}  // namespace triangle
 }  // namespace cugraph

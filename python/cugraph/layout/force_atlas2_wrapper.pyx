@@ -20,7 +20,6 @@ from cugraph.layout.force_atlas2 cimport force_atlas2 as c_force_atlas2
 from cugraph.structure import graph_new_wrapper
 from cugraph.structure.graph_new cimport *
 from cugraph.structure import utils_wrapper
-from cugraph.utilities.unrenumber import unrenumber
 from libcpp cimport bool
 from libc.stdint cimport uintptr_t
 
@@ -81,10 +80,7 @@ def force_atlas2(input_graph,
         if len(pos_list) != num_verts:
             raise ValueError('pos_list must have initial positions for all vertices')
         if input_graph.renumbered is True:
-            renumber_df = cudf.DataFrame()
-            renumber_df['map'] = input_graph.edgelist.renumber_map
-            renumber_df['id'] = input_graph.edgelist.renumber_map.index.astype(np.int32)
-            start_pos = pos_list.merge(renumber_df, left_on='vertex', right_on='map', how='left').drop('map')
+            start_pos = input_graph.edgelist.renumber_map.add_vertex_id(pos_list, 'id', 'vertex')
             # Remap pos and vertices
             df['vertex'][start_pos['id']] = start_pos['vertex']
             start_pos['x'][start_pos['id']] = start_pos['x']
@@ -106,7 +102,7 @@ def force_atlas2(input_graph,
         pos = cuda.device_array(
                         (num_verts, 2),
                         order="F",
-                        dtype=np.float64)
+                        dtype=np.float32)
 
         pos_ptr = pos.device_ctypes_pointer.value
 
@@ -166,8 +162,5 @@ def force_atlas2(input_graph,
         pos_df = cudf.DataFrame.from_gpu_matrix(pos, columns=['x', 'y'])
         df['x'] = pos_df['x']
         df['y'] = pos_df['y']
-
-    if pos_list is None and input_graph.renumbered:
-        df = unrenumber(input_graph.edgelist.renumber_map, df, 'vertex')
 
     return df

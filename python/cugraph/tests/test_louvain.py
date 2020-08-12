@@ -25,53 +25,48 @@ from cugraph.tests import utils
 # python 3.7.  Also, these import community and import networkx need to be
 # relocated in the third-party group once this gets fixed.
 import warnings
+
 with warnings.catch_warnings():
     warnings.filterwarnings("ignore", category=DeprecationWarning)
     import community
     import networkx as nx
 
 
-print('Networkx version : {} '.format(nx.__version__))
+print("Networkx version : {} ".format(nx.__version__))
 
 
 def cugraph_call(cu_M, edgevals=False):
 
     G = cugraph.Graph()
     if edgevals:
-        G.from_cudf_edgelist(cu_M, source='0', destination='1',
-                             edge_attr='2')
+        G.from_cudf_edgelist(cu_M, source="0", destination="1", edge_attr="2")
     else:
-        G.from_cudf_edgelist(cu_M, source='0', destination='1')
+        G.from_cudf_edgelist(cu_M, source="0", destination="1")
     # cugraph Louvain Call
     t1 = time.time()
     parts, mod = cugraph.louvain(G)
     t2 = time.time() - t1
-    print('Cugraph Time : '+str(t2))
+    print("Cugraph Time : " + str(t2))
 
     return parts, mod
 
 
 def networkx_call(M):
     # z = {k: 1.0/M.shape[0] for k in range(M.shape[0])}
-    Gnx = nx.from_pandas_edgelist(M, source='0', target='1',
-                                  edge_attr='weight', create_using=nx.Graph())
+    Gnx = nx.from_pandas_edgelist(
+        M, source="0", target="1", edge_attr="weight", create_using=nx.Graph()
+    )
     # Networkx louvain Call
-    print('Solving... ')
+    print("Solving... ")
     t1 = time.time()
     parts = community.best_partition(Gnx)
     t2 = time.time() - t1
 
-    print('Networkx Time : '+str(t2))
+    print("Networkx Time : " + str(t2))
     return parts
 
 
-DATASETS = ['../datasets/karate.csv',
-            '../datasets/dolphins.csv',
-            '../datasets/netscience.csv']
-
-
-# Test all combinations of default/managed and pooled/non-pooled allocation
-@pytest.mark.parametrize('graph_file', DATASETS)
+@pytest.mark.parametrize("graph_file", utils.DATASETS_UNDIRECTED)
 def test_louvain_with_edgevals(graph_file):
     gc.collect()
 
@@ -80,25 +75,21 @@ def test_louvain_with_edgevals(graph_file):
     cu_parts, cu_mod = cugraph_call(cu_M, edgevals=True)
     nx_parts = networkx_call(M)
     # Calculating modularity scores for comparison
-    Gnx = nx.from_pandas_edgelist(M, source='0', target='1',
-                                  edge_attr='weight', create_using=nx.Graph())
+    Gnx = nx.from_pandas_edgelist(
+        M, source="0", target="1", edge_attr="weight", create_using=nx.Graph()
+    )
     cu_map = {0: 0}
     for i in range(len(cu_parts)):
-        cu_map[cu_parts['vertex'][i]] = cu_parts['partition'][i]
+        cu_map[cu_parts["vertex"][i]] = cu_parts["partition"][i]
     assert set(nx_parts.keys()) == set(cu_map.keys())
     cu_mod_nx = community.modularity(cu_map, Gnx)
     nx_mod = community.modularity(nx_parts, Gnx)
     assert len(cu_parts) == len(nx_parts)
-    assert cu_mod > (.82 * nx_mod)
-    assert abs(cu_mod - cu_mod_nx) < .0001
+    assert cu_mod > (0.82 * nx_mod)
+    assert abs(cu_mod - cu_mod_nx) < 0.0001
 
 
-DATASETS = ['../datasets/karate.csv',
-            '../datasets/dolphins.csv']
-
-
-# Test all combinations of default/managed and pooled/non-pooled allocation
-@pytest.mark.parametrize('graph_file', DATASETS)
+@pytest.mark.parametrize("graph_file", utils.DATASETS_UNDIRECTED)
 def test_louvain(graph_file):
     gc.collect()
 
@@ -108,15 +99,16 @@ def test_louvain(graph_file):
     nx_parts = networkx_call(M)
 
     # Calculating modularity scores for comparison
-    Gnx = nx.from_pandas_edgelist(M, source='0', target='1',
-                                  edge_attr='weight', create_using=nx.Graph())
+    Gnx = nx.from_pandas_edgelist(
+        M, source="0", target="1", edge_attr="weight", create_using=nx.Graph()
+    )
     cu_map = {0: 0}
     for i in range(len(cu_parts)):
-        cu_map[cu_parts['vertex'][i]] = cu_parts['partition'][i]
+        cu_map[cu_parts["vertex"][i]] = cu_parts["partition"][i]
     assert set(nx_parts.keys()) == set(cu_map.keys())
 
     cu_mod_nx = community.modularity(cu_map, Gnx)
     nx_mod = community.modularity(nx_parts, Gnx)
     assert len(cu_parts) == len(nx_parts)
-    assert cu_mod > (.82 * nx_mod)
-    assert abs(cu_mod - cu_mod_nx) < .0001
+    assert cu_mod > (0.82 * nx_mod)
+    assert abs(cu_mod - cu_mod_nx) < 0.0001

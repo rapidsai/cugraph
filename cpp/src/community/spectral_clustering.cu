@@ -15,35 +15,31 @@
  */
 
 /** ---------------------------------------------------------------------------*
- * @brief Wrapper functions for Nvgraph
+ * @brief Wrapper functions for Spectral Clustering
  *
- * @file nvgraph_wrapper.cpp
+ * @file spectral_clustering.cu
  * ---------------------------------------------------------------------------**/
 
 #include <algorithms.hpp>
-#include <graph.hpp>
 
-#include <nvgraph/include/sm_utils.h>
 #include <rmm/thrust_rmm_allocator.h>
 #include <thrust/transform.h>
-#include <utilities/error_utils.h>
 #include <ctime>
-#include <nvgraph/include/nvgraph_error.hxx>
 
-#include <nvgraph/include/modularity_maximization.hxx>
-#include <nvgraph/include/nvgraph_cublas.hxx>
-#include <nvgraph/include/nvgraph_cusparse.hxx>
-#include <nvgraph/include/partition.hxx>
+#include <graph.hpp>
+#include <utilities/error.hpp>
 
-#include <nvgraph/include/spectral_matrix.hxx>
+#include <raft/spectral/modularity_maximization.hpp>
+#include <raft/spectral/partition.hpp>
 
 namespace cugraph {
-namespace nvgraph {
+
+namespace ext_raft {
 
 namespace detail {
 
 template <typename vertex_t, typename edge_t, typename weight_t>
-void balancedCutClustering_impl(experimental::GraphCSRView<vertex_t, edge_t, weight_t> const &graph,
+void balancedCutClustering_impl(GraphCSRView<vertex_t, edge_t, weight_t> const &graph,
                                 vertex_t n_clusters,
                                 vertex_t n_eig_vects,
                                 weight_t evs_tolerance,
@@ -54,23 +50,28 @@ void balancedCutClustering_impl(experimental::GraphCSRView<vertex_t, edge_t, wei
                                 weight_t *eig_vals,
                                 weight_t *eig_vects)
 {
-  CUGRAPH_EXPECTS(graph.edge_data != nullptr, "API error, graph must have weights");
-  CUGRAPH_EXPECTS(evs_tolerance >= weight_t{0.0},
-                  "API error, evs_tolerance must be between 0.0 and 1.0");
-  CUGRAPH_EXPECTS(evs_tolerance < weight_t{1.0},
-                  "API error, evs_tolerance must be between 0.0 and 1.0");
-  CUGRAPH_EXPECTS(kmean_tolerance >= weight_t{0.0},
-                  "API error, kmean_tolerance must be between 0.0 and 1.0");
-  CUGRAPH_EXPECTS(kmean_tolerance < weight_t{1.0},
-                  "API error, kmean_tolerance must be between 0.0 and 1.0");
-  CUGRAPH_EXPECTS(n_clusters > 1, "API error, must specify more than 1 cluster");
-  CUGRAPH_EXPECTS(n_clusters < graph.number_of_vertices,
-                  "API error, number of clusters must be smaller than number of vertices");
-  CUGRAPH_EXPECTS(n_eig_vects <= n_clusters,
-                  "API error, cannot specify more eigenvectors than clusters");
-  CUGRAPH_EXPECTS(clustering != nullptr, "API error, must specify valid clustering");
-  CUGRAPH_EXPECTS(eig_vals != nullptr, "API error, must specify valid eigenvalues");
-  CUGRAPH_EXPECTS(eig_vects != nullptr, "API error, must specify valid eigenvectors");
+  RAFT_EXPECTS(graph.edge_data != nullptr, "API error, graph must have weights");
+  RAFT_EXPECTS(evs_tolerance >= weight_t{0.0},
+               "API error, evs_tolerance must be between 0.0 and 1.0");
+  RAFT_EXPECTS(evs_tolerance < weight_t{1.0},
+               "API error, evs_tolerance must be between 0.0 and 1.0");
+  RAFT_EXPECTS(kmean_tolerance >= weight_t{0.0},
+               "API error, kmean_tolerance must be between 0.0 and 1.0");
+  RAFT_EXPECTS(kmean_tolerance < weight_t{1.0},
+               "API error, kmean_tolerance must be between 0.0 and 1.0");
+  RAFT_EXPECTS(n_clusters > 1, "API error, must specify more than 1 cluster");
+  RAFT_EXPECTS(n_clusters < graph.number_of_vertices,
+               "API error, number of clusters must be smaller than number of vertices");
+  RAFT_EXPECTS(n_eig_vects <= n_clusters,
+               "API error, cannot specify more eigenvectors than clusters");
+  RAFT_EXPECTS(clustering != nullptr, "API error, must specify valid clustering");
+  RAFT_EXPECTS(eig_vals != nullptr, "API error, must specify valid eigenvalues");
+  RAFT_EXPECTS(eig_vects != nullptr, "API error, must specify valid eigenvectors");
+
+  raft::handle_t handle;
+  auto stream  = handle.get_stream();
+  auto exec    = rmm::exec_policy(stream);
+  auto t_exe_p = exec->on(stream);
 
   int evs_max_it{4000};
   int kmean_max_it{200};
@@ -87,56 +88,65 @@ void balancedCutClustering_impl(experimental::GraphCSRView<vertex_t, edge_t, wei
 
   int restartIter_lanczos = 15 + n_eig_vects;
 
-  ::nvgraph::partition<vertex_t, edge_t, weight_t>(graph,
-                                                   n_clusters,
-                                                   n_eig_vects,
-                                                   evs_max_it,
-                                                   restartIter_lanczos,
-                                                   evs_tol,
-                                                   kmean_max_it,
-                                                   kmean_tol,
-                                                   clustering,
-                                                   eig_vals,
-                                                   eig_vects);
+  unsigned long long seed{1234567};
+  bool reorthog{false};
+
+  using index_type = vertex_t;
+  using value_type = weight_t;
+
+  raft::matrix::sparse_matrix_t<index_type, value_type> const r_csr_m{handle, graph};
+
+  raft::eigen_solver_config_t<index_type, value_type> eig_cfg{
+    n_eig_vects, evs_max_it, restartIter_lanczos, evs_tol, reorthog, seed};
+  raft::lanczos_solver_t<index_type, value_type> eig_solver{eig_cfg};
+
+  raft::cluster_solver_config_t<index_type, value_type> clust_cfg{
+    n_clusters, kmean_max_it, kmean_tol, seed};
+  raft::kmeans_solver_t<index_type, value_type> cluster_solver{clust_cfg};
+
+  raft::spectral::partition(
+    handle, t_exe_p, r_csr_m, eig_solver, cluster_solver, clustering, eig_vals, eig_vects);
 }
 
 template <typename vertex_t, typename edge_t, typename weight_t>
-void spectralModularityMaximization_impl(
-  experimental::GraphCSRView<vertex_t, edge_t, weight_t> const &graph,
-  vertex_t n_clusters,
-  vertex_t n_eig_vects,
-  weight_t evs_tolerance,
-  int evs_max_iter,
-  weight_t kmean_tolerance,
-  int kmean_max_iter,
-  vertex_t *clustering,
-  weight_t *eig_vals,
-  weight_t *eig_vects)
+void spectralModularityMaximization_impl(GraphCSRView<vertex_t, edge_t, weight_t> const &graph,
+                                         vertex_t n_clusters,
+                                         vertex_t n_eig_vects,
+                                         weight_t evs_tolerance,
+                                         int evs_max_iter,
+                                         weight_t kmean_tolerance,
+                                         int kmean_max_iter,
+                                         vertex_t *clustering,
+                                         weight_t *eig_vals,
+                                         weight_t *eig_vects)
 {
-  CUGRAPH_EXPECTS(graph.edge_data != nullptr, "API error, graph must have weights");
-  CUGRAPH_EXPECTS(evs_tolerance >= weight_t{0.0},
-                  "API error, evs_tolerance must be between 0.0 and 1.0");
-  CUGRAPH_EXPECTS(evs_tolerance < weight_t{1.0},
-                  "API error, evs_tolerance must be between 0.0 and 1.0");
-  CUGRAPH_EXPECTS(kmean_tolerance >= weight_t{0.0},
-                  "API error, kmean_tolerance must be between 0.0 and 1.0");
-  CUGRAPH_EXPECTS(kmean_tolerance < weight_t{1.0},
-                  "API error, kmean_tolerance must be between 0.0 and 1.0");
-  CUGRAPH_EXPECTS(n_clusters > 1, "API error, must specify more than 1 cluster");
-  CUGRAPH_EXPECTS(n_clusters < graph.number_of_vertices,
-                  "API error, number of clusters must be smaller than number of vertices");
-  CUGRAPH_EXPECTS(n_eig_vects <= n_clusters,
-                  "API error, cannot specify more eigenvectors than clusters");
-  CUGRAPH_EXPECTS(clustering != nullptr, "API error, must specify valid clustering");
-  CUGRAPH_EXPECTS(eig_vals != nullptr, "API error, must specify valid eigenvalues");
-  CUGRAPH_EXPECTS(eig_vects != nullptr, "API error, must specify valid eigenvectors");
+  RAFT_EXPECTS(graph.edge_data != nullptr, "API error, graph must have weights");
+  RAFT_EXPECTS(evs_tolerance >= weight_t{0.0},
+               "API error, evs_tolerance must be between 0.0 and 1.0");
+  RAFT_EXPECTS(evs_tolerance < weight_t{1.0},
+               "API error, evs_tolerance must be between 0.0 and 1.0");
+  RAFT_EXPECTS(kmean_tolerance >= weight_t{0.0},
+               "API error, kmean_tolerance must be between 0.0 and 1.0");
+  RAFT_EXPECTS(kmean_tolerance < weight_t{1.0},
+               "API error, kmean_tolerance must be between 0.0 and 1.0");
+  RAFT_EXPECTS(n_clusters > 1, "API error, must specify more than 1 cluster");
+  RAFT_EXPECTS(n_clusters < graph.number_of_vertices,
+               "API error, number of clusters must be smaller than number of vertices");
+  RAFT_EXPECTS(n_eig_vects <= n_clusters,
+               "API error, cannot specify more eigenvectors than clusters");
+  RAFT_EXPECTS(clustering != nullptr, "API error, must specify valid clustering");
+  RAFT_EXPECTS(eig_vals != nullptr, "API error, must specify valid eigenvalues");
+  RAFT_EXPECTS(eig_vects != nullptr, "API error, must specify valid eigenvectors");
+
+  raft::handle_t handle;
+  auto stream  = handle.get_stream();
+  auto exec    = rmm::exec_policy(stream);
+  auto t_exe_p = exec->on(stream);
 
   int evs_max_it{4000};
   int kmean_max_it{200};
   weight_t evs_tol{1.0E-3};
   weight_t kmean_tol{1.0E-2};
-
-  int iters_lanczos, iters_kmeans;
 
   if (evs_max_iter > 0) evs_max_it = evs_max_iter;
 
@@ -147,56 +157,90 @@ void spectralModularityMaximization_impl(
   if (kmean_tolerance > weight_t{0.0}) kmean_tol = kmean_tolerance;
 
   int restartIter_lanczos = 15 + n_eig_vects;
-  ::nvgraph::modularity_maximization<vertex_t, edge_t, weight_t>(graph,
-                                                                 n_clusters,
-                                                                 n_eig_vects,
-                                                                 evs_max_it,
-                                                                 restartIter_lanczos,
-                                                                 evs_tol,
-                                                                 kmean_max_it,
-                                                                 kmean_tol,
-                                                                 clustering,
-                                                                 eig_vals,
-                                                                 eig_vects,
-                                                                 iters_lanczos,
-                                                                 iters_kmeans);
+
+  unsigned long long seed{123456};
+  bool reorthog{false};
+
+  using index_type = vertex_t;
+  using value_type = weight_t;
+
+  raft::matrix::sparse_matrix_t<index_type, value_type> const r_csr_m{handle, graph};
+
+  raft::eigen_solver_config_t<index_type, value_type> eig_cfg{
+    n_eig_vects, evs_max_it, restartIter_lanczos, evs_tol, reorthog, seed};
+  raft::lanczos_solver_t<index_type, value_type> eig_solver{eig_cfg};
+
+  raft::cluster_solver_config_t<index_type, value_type> clust_cfg{
+    n_clusters, kmean_max_it, kmean_tol, seed};
+  raft::kmeans_solver_t<index_type, value_type> cluster_solver{clust_cfg};
+
+  // not returned...
+  // auto result =
+  raft::spectral::modularity_maximization(
+    handle, t_exe_p, r_csr_m, eig_solver, cluster_solver, clustering, eig_vals, eig_vects);
+
+  // not returned...
+  // int iters_lanczos, iters_kmeans;
+  // iters_lanczos = std::get<0>(result);
+  // iters_kmeans  = std::get<2>(result);
 }
 
 template <typename vertex_t, typename edge_t, typename weight_t>
-void analyzeModularityClustering_impl(
-  experimental::GraphCSRView<vertex_t, edge_t, weight_t> const &graph,
-  int n_clusters,
-  vertex_t const *clustering,
-  weight_t *modularity)
+void analyzeModularityClustering_impl(GraphCSRView<vertex_t, edge_t, weight_t> const &graph,
+                                      int n_clusters,
+                                      vertex_t const *clustering,
+                                      weight_t *modularity)
 {
+  raft::handle_t handle;
+  auto stream  = handle.get_stream();
+  auto exec    = rmm::exec_policy(stream);
+  auto t_exe_p = exec->on(stream);
+
+  using index_type = vertex_t;
+  using value_type = weight_t;
+
+  raft::matrix::sparse_matrix_t<index_type, value_type> const r_csr_m{handle, graph};
+
   weight_t mod;
-  ::nvgraph::analyzeModularity(graph, n_clusters, clustering, mod);
+  raft::spectral::analyzeModularity(handle, t_exe_p, r_csr_m, n_clusters, clustering, mod);
   *modularity = mod;
 }
 
 template <typename vertex_t, typename edge_t, typename weight_t>
-void analyzeBalancedCut_impl(experimental::GraphCSRView<vertex_t, edge_t, weight_t> const &graph,
+void analyzeBalancedCut_impl(GraphCSRView<vertex_t, edge_t, weight_t> const &graph,
                              vertex_t n_clusters,
                              vertex_t const *clustering,
                              weight_t *edgeCut,
                              weight_t *ratioCut)
 {
-  CUGRAPH_EXPECTS(n_clusters <= graph.number_of_vertices,
-                  "API error: number of clusters must be <= number of vertices");
-  CUGRAPH_EXPECTS(n_clusters > 0, "API error: number of clusters must be > 0)");
+  raft::handle_t handle;
+  auto stream  = handle.get_stream();
+  auto exec    = rmm::exec_policy(stream);
+  auto t_exe_p = exec->on(stream);
 
-  weight_t edge_cut, ratio_cut;
+  RAFT_EXPECTS(n_clusters <= graph.number_of_vertices,
+               "API error: number of clusters must be <= number of vertices");
+  RAFT_EXPECTS(n_clusters > 0, "API error: number of clusters must be > 0)");
 
-  ::nvgraph::analyzePartition(graph, n_clusters, clustering, edge_cut, ratio_cut);
+  weight_t edge_cut;
+  weight_t cost{0};
+
+  using index_type = vertex_t;
+  using value_type = weight_t;
+
+  raft::matrix::sparse_matrix_t<index_type, value_type> const r_csr_m{handle, graph};
+
+  raft::spectral::analyzePartition(
+    handle, t_exe_p, r_csr_m, n_clusters, clustering, edge_cut, cost);
 
   *edgeCut  = edge_cut;
-  *ratioCut = ratio_cut;
+  *ratioCut = cost;
 }
 
 }  // namespace detail
 
 template <typename VT, typename ET, typename WT>
-void balancedCutClustering(experimental::GraphCSRView<VT, ET, WT> const &graph,
+void balancedCutClustering(GraphCSRView<VT, ET, WT> const &graph,
                            VT num_clusters,
                            VT num_eigen_vects,
                            WT evs_tolerance,
@@ -221,7 +265,7 @@ void balancedCutClustering(experimental::GraphCSRView<VT, ET, WT> const &graph,
 }
 
 template <typename VT, typename ET, typename WT>
-void spectralModularityMaximization(experimental::GraphCSRView<VT, ET, WT> const &graph,
+void spectralModularityMaximization(GraphCSRView<VT, ET, WT> const &graph,
                                     VT n_clusters,
                                     VT n_eigen_vects,
                                     WT evs_tolerance,
@@ -246,7 +290,7 @@ void spectralModularityMaximization(experimental::GraphCSRView<VT, ET, WT> const
 }
 
 template <typename VT, typename ET, typename WT>
-void analyzeClustering_modularity(experimental::GraphCSRView<VT, ET, WT> const &graph,
+void analyzeClustering_modularity(GraphCSRView<VT, ET, WT> const &graph,
                                   int n_clusters,
                                   VT const *clustering,
                                   WT *score)
@@ -255,7 +299,7 @@ void analyzeClustering_modularity(experimental::GraphCSRView<VT, ET, WT> const &
 }
 
 template <typename VT, typename ET, typename WT>
-void analyzeClustering_edge_cut(experimental::GraphCSRView<VT, ET, WT> const &graph,
+void analyzeClustering_edge_cut(GraphCSRView<VT, ET, WT> const &graph,
                                 int n_clusters,
                                 VT const *clustering,
                                 WT *score)
@@ -265,7 +309,7 @@ void analyzeClustering_edge_cut(experimental::GraphCSRView<VT, ET, WT> const &gr
 }
 
 template <typename VT, typename ET, typename WT>
-void analyzeClustering_ratio_cut(experimental::GraphCSRView<VT, ET, WT> const &graph,
+void analyzeClustering_ratio_cut(GraphCSRView<VT, ET, WT> const &graph,
                                  int n_clusters,
                                  VT const *clustering,
                                  WT *score)
@@ -275,25 +319,37 @@ void analyzeClustering_ratio_cut(experimental::GraphCSRView<VT, ET, WT> const &g
 }
 
 template void balancedCutClustering<int, int, float>(
-  experimental::GraphCSRView<int, int, float> const &, int, int, float, int, float, int, int *);
+  GraphCSRView<int, int, float> const &, int, int, float, int, float, int, int *);
 template void balancedCutClustering<int, int, double>(
-  experimental::GraphCSRView<int, int, double> const &, int, int, double, int, double, int, int *);
+  GraphCSRView<int, int, double> const &, int, int, double, int, double, int, int *);
 template void spectralModularityMaximization<int, int, float>(
-  experimental::GraphCSRView<int, int, float> const &, int, int, float, int, float, int, int *);
+  GraphCSRView<int, int, float> const &, int, int, float, int, float, int, int *);
 template void spectralModularityMaximization<int, int, double>(
-  experimental::GraphCSRView<int, int, double> const &, int, int, double, int, double, int, int *);
-template void analyzeClustering_modularity<int, int, float>(
-  experimental::GraphCSRView<int, int, float> const &, int, int const *, float *);
-template void analyzeClustering_modularity<int, int, double>(
-  experimental::GraphCSRView<int, int, double> const &, int, int const *, double *);
-template void analyzeClustering_edge_cut<int, int, float>(
-  experimental::GraphCSRView<int, int, float> const &, int, int const *, float *);
-template void analyzeClustering_edge_cut<int, int, double>(
-  experimental::GraphCSRView<int, int, double> const &, int, int const *, double *);
-template void analyzeClustering_ratio_cut<int, int, float>(
-  experimental::GraphCSRView<int, int, float> const &, int, int const *, float *);
-template void analyzeClustering_ratio_cut<int, int, double>(
-  experimental::GraphCSRView<int, int, double> const &, int, int const *, double *);
+  GraphCSRView<int, int, double> const &, int, int, double, int, double, int, int *);
+template void analyzeClustering_modularity<int, int, float>(GraphCSRView<int, int, float> const &,
+                                                            int,
+                                                            int const *,
+                                                            float *);
+template void analyzeClustering_modularity<int, int, double>(GraphCSRView<int, int, double> const &,
+                                                             int,
+                                                             int const *,
+                                                             double *);
+template void analyzeClustering_edge_cut<int, int, float>(GraphCSRView<int, int, float> const &,
+                                                          int,
+                                                          int const *,
+                                                          float *);
+template void analyzeClustering_edge_cut<int, int, double>(GraphCSRView<int, int, double> const &,
+                                                           int,
+                                                           int const *,
+                                                           double *);
+template void analyzeClustering_ratio_cut<int, int, float>(GraphCSRView<int, int, float> const &,
+                                                           int,
+                                                           int const *,
+                                                           float *);
+template void analyzeClustering_ratio_cut<int, int, double>(GraphCSRView<int, int, double> const &,
+                                                            int,
+                                                            int const *,
+                                                            double *);
 
-}  // namespace nvgraph
+}  // namespace ext_raft
 }  // namespace cugraph
