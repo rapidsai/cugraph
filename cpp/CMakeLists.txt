@@ -187,23 +187,51 @@ if (RMM_INCLUDE AND RMM_LIBRARY)
 endif (RMM_INCLUDE AND RMM_LIBRARY)
 
 ###################################################################################################
+# - Fetch Content -----------------------------------------------------------------------------
+include(FetchContent)
+
+# - CUB
+message("Fetching CUB")
+
+FetchContent_Declare(
+    cub
+    GIT_REPOSITORY https://github.com/thrust/cub.git
+    GIT_TAG        1.9.10
+    GIT_SHALLOW    true
+)
+
+FetchContent_GetProperties(cub)
+if(NOT cub_POPULATED)
+  FetchContent_Populate(cub)
+  # We are not using the cub CMake targets, so no need to call `add_subdirectory()`.
+endif()
+set(CUB_INCLUDE_DIR "${cub_SOURCE_DIR}")
+
+# - THRUST
+message("Fetching Thrust")
+
+FetchContent_Declare(
+    thrust
+    GIT_REPOSITORY https://github.com/thrust/thrust.git
+    GIT_TAG        1.9.10
+    GIT_SHALLOW    true
+)
+
+FetchContent_GetProperties(thrust)
+if(NOT thrust_POPULATED)
+  FetchContent_Populate(thrust)
+  # We are not using the thrust CMake targets, so no need to call `add_subdirectory()`.
+endif()
+set(THRUST_INCLUDE_DIR "${thrust_SOURCE_DIR}")
+
+
+
+
+###################################################################################################
 # - External Projects -----------------------------------------------------------------------------
 
 # https://cmake.org/cmake/help/v3.0/module/ExternalProject.html
 include(ExternalProject)
-
-# - CUB
-set(CUB_DIR ${CMAKE_CURRENT_BINARY_DIR}/cub CACHE STRING "Path to cub repo")
-set(CUB_INCLUDE_DIR ${CUB_DIR}/src/cub CACHE STRING "Path to cub includes")
-
-ExternalProject_Add(cub
-  GIT_REPOSITORY    https://github.com/NVlabs/cub.git
-  GIT_TAG           v1.8.0
-  PREFIX            ${CUB_DIR}
-  CONFIGURE_COMMAND ""
-  BUILD_COMMAND     ""
-  INSTALL_COMMAND   ""
-)
 
 # - CUHORNET
 set(CUHORNET_DIR ${CMAKE_CURRENT_BINARY_DIR}/cuhornet CACHE STRING "Path to cuhornet repo")
@@ -334,12 +362,13 @@ add_dependencies(cugraph raft)
 # - include paths ---------------------------------------------------------------------------------
 target_include_directories(cugraph
     PRIVATE
+    "${CUB_INCLUDE_DIR}"
+    "${THRUST_INCLUDE_DIR}"
     "${CMAKE_CUDA_TOOLKIT_INCLUDE_DIRECTORIES}"
     "${LIBCYPHERPARSER_INCLUDE}"
     "${Boost_INCLUDE_DIRS}"
     "${RMM_INCLUDE}"
     "${CMAKE_CURRENT_SOURCE_DIR}/../thirdparty"
-    "${CUB_INCLUDE_DIR}"
     "${CUHORNET_INCLUDE_DIR}/hornet/include"
     "${CUHORNET_INCLUDE_DIR}/hornetsnest/include"
     "${CUHORNET_INCLUDE_DIR}/xlib/include"
