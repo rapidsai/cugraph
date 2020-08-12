@@ -24,9 +24,9 @@
 #include <rmm/thrust_rmm_allocator.h>
 #include <rmm/mr/device/binning_memory_resource.hpp>
 #include <rmm/mr/device/cuda_memory_resource.hpp>
-#include <rmm/mr/device/default_memory_resource.hpp>
 #include <rmm/mr/device/managed_memory_resource.hpp>
 #include <rmm/mr/device/owning_wrapper.hpp>
+#include <rmm/mr/device/per_device_resource.hpp>
 #include <rmm/mr/device/pool_memory_resource.hpp>
 
 namespace cugraph {
@@ -41,7 +41,7 @@ namespace test {
  * ```
  **/
 class BaseFixture : public ::testing::Test {
-  rmm::mr::device_memory_resource *_mr{rmm::mr::get_default_resource()};
+  rmm::mr::device_memory_resource *_mr{rmm::mr::get_current_device_resource()};
 
  public:
   /**
@@ -137,6 +137,6 @@ inline auto parse_test_options(int argc, char **argv)
     auto const cmd_opts = parse_test_options(argc, argv);                  \
     auto const rmm_mode = cmd_opts["rmm_mode"].as<std::string>();          \
     auto resource       = cugraph::test::create_memory_resource(rmm_mode); \
-    rmm::mr::set_default_resource(resource.get());                         \
+    rmm::mr::set_current_device_resource(resource.get());                  \
     return RUN_ALL_TESTS();                                                \
   }
