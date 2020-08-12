@@ -59,7 +59,13 @@ bool pagerankIteration(raft::handle_t const &handle,
                        ValueType *residual)
 {
   ValueType dot_res;
-#ifdef USE_CUB_SPMV
+#ifdef CUDA_VER_10_1_UP
+  {
+    raft::matrix::sparse_matrix_t<IndexType, ValueType> const r_csr_m{
+      handle, cscPtr, cscInd, cscVal, n, e};
+    r_csr_m.mv(1.0, tmp, 0.0, pr);
+  }
+#else
   CUDA_TRY(cub::DeviceSpmv::CsrMV(cub_d_temp_storage,
                                   cub_temp_storage_bytes,
                                   cscVal,
@@ -70,13 +76,6 @@ bool pagerankIteration(raft::handle_t const &handle,
                                   n,
                                   n,
                                   e));
-#else
-  {
-    // raft::handle_t handle;
-    raft::matrix::sparse_matrix_t<IndexType, ValueType> const r_csr_m{
-      handle, cscPtr, cscInd, cscVal, n, e};
-    r_csr_m.mv(1.0, tmp, 0.0, pr);
-  }
 #endif
   scal(n, alpha, pr);
   dot_res = dot(n, a, tmp);
@@ -179,7 +178,13 @@ int pagerankSolver(raft::handle_t const &handle,
   }
   update_dangling_nodes(n, a, alpha);
 
-#ifdef USE_CUB_SPMV
+#ifdef CUDA_VER_10_1_UP
+  {
+    raft::matrix::sparse_matrix_t<IndexType, ValueType> const r_csr_m{
+      handle, cscPtr, cscInd, cscVal, n, e};
+    r_csr_m.mv(1.0, tmp_d, 0.0, pagerank_vector);
+  }
+#else
   CUDA_TRY(cub::DeviceSpmv::CsrMV(cub_d_temp_storage,
                                   cub_temp_storage_bytes,
                                   cscVal,
@@ -190,13 +195,6 @@ int pagerankSolver(raft::handle_t const &handle,
                                   n,
                                   n,
                                   e));
-#else
-  {
-    /// raft::handle_t handle;
-    raft::matrix::sparse_matrix_t<IndexType, ValueType> const r_csr_m{
-      handle, cscPtr, cscInd, cscVal, n, e};
-    r_csr_m.mv(1.0, tmp_d, 0.0, pagerank_vector);
-  }
 #endif
   // Allocate temporary storage
   rmm::device_buffer cub_temp_storage(cub_temp_storage_bytes);
