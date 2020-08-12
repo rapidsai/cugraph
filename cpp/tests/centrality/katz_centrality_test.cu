@@ -150,11 +150,4 @@ INSTANTIATE_TEST_CASE_P(
 
 TEST_P(Tests_Katz, Check) { run_current_test(GetParam()); }
 
-int main(int argc, char** argv)
-{
-  testing::InitGoogleTest(&argc, argv);
-  auto resource = std::make_unique<rmm::mr::cuda_memory_resource>();
-  rmm::mr::set_default_resource(resource.get());
-  int rc = RUN_ALL_TESTS();
-  return rc;
-}
+CUGRAPH_TEST_PROGRAM_MAIN()
