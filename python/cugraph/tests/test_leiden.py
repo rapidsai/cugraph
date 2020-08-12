@@ -30,9 +30,6 @@ with warnings.catch_warnings():
     warnings.filterwarnings("ignore", category=DeprecationWarning)
 
 
-print("Networkx version : {} ".format(nx.__version__))
-
-
 def cugraph_leiden(cu_M, edgevals=False):
 
     G = cugraph.Graph()
