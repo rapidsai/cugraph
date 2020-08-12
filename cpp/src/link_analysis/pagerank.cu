@@ -59,7 +59,7 @@ bool pagerankIteration(raft::handle_t const &handle,
                        ValueType *residual)
 {
   ValueType dot_res;
-#ifdef CUDA_VER_10_1_UP
+#if defined(CUDART_VERSION) and CUDART_VERSION >= 11000
   {
     raft::matrix::sparse_matrix_t<IndexType, ValueType> const r_csr_m{
       handle, cscPtr, cscInd, cscVal, n, e};
@@ -178,7 +178,7 @@ int pagerankSolver(raft::handle_t const &handle,
   }
   update_dangling_nodes(n, a, alpha);
 
-#ifdef CUDA_VER_10_1_UP
+#if defined(CUDART_VERSION) and CUDART_VERSION >= 11000
   {
     raft::matrix::sparse_matrix_t<IndexType, ValueType> const r_csr_m{
       handle, cscPtr, cscInd, cscVal, n, e};
