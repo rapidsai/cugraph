@@ -253,12 +253,18 @@ set(CUGUNROCK_DIR ${CMAKE_CURRENT_BINARY_DIR}/cugunrock CACHE STRING
 
 ExternalProject_Add(cugunrock
   GIT_REPOSITORY    https://github.com/rapidsai/cugunrock.git
-  GIT_TAG           a6742bc0951124824ffc7ea90afaff0c8ff5f699
+  GIT_TAG           main
   PREFIX            ${CUGUNROCK_DIR}
   CMAKE_ARGS        -DCMAKE_INSTALL_PREFIX=<INSTALL_DIR>
                     -DGPU_ARCHS=""
                     -DGUNROCK_BUILD_SHARED_LIBS=OFF
                     -DGUNROCK_BUILD_TESTS=OFF
+                    -DCUDA_AUTODETECT_GENCODE=FALSE
+                    -DGUNROCK_GENCODE_SM60=TRUE
+                    -DGUNROCK_GENCODE_SM61=TRUE
+                    -DGUNROCK_GENCODE_SM70=TRUE
+                    -DGUNROCK_GENCODE_SM72=TRUE
+                    -DGUNROCK_GENCODE_SM75=TRUE
   BUILD_BYPRODUCTS  ${CUGUNROCK_DIR}/lib/libgunrock.a
 )
 
