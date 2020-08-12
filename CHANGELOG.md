@@ -13,6 +13,7 @@
 - PR #979 Add hypergraph implementation to convert DataFrames into Graphs
 - PR #1010 MG BFS (dask)
 - PR #1018 MG personalized pagerank
+- PR #1047 Updated select tests to use new dataset list that includes asymmetric directed graph
 
 ## Improvements
 - PR #898 Add Edge Betweenness Centrality, and endpoints to BC
@@ -52,7 +53,9 @@
 - PR #1030 MG directory org and documentation
 - PR #1020 Updated Louvain to honor max_level, ECG now calls Louvain for 1 level, then full run.
 - PR #1031 MG notebook
+- PR #1034 Expose resolution (gamma) parameter in Louvain
 - PR #1037 Centralize test main function and replace usage of deprecated `cnmem_memory_resource`
+- PR #1041 Use S3 bucket directly for benchmark plugin
 
 ## Bug Fixes
 - PR #936 Update Force Atlas 2 doc and wrapper
@@ -68,6 +71,9 @@
 - PR #1025: Explicitly skip raft test folder for pytest 6.0.0
 - PR #1027 Fix documentation
 - PR #1033 Fix reparition error in big datasets, updated coroutine, fixed warnings
+- PR #1036 Fixed benchmarks for new renumbering API, updated comments, added quick test-only benchmark run to CI
+- PR #1040 Fix spectral clustering renumbering issue
+- PR #1057 Updated raft dependency to pull fixes on cusparse selection in CUDA 11
 
 # cuGraph 0.14.0 (03 Jun 2020)
 
