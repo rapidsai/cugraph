@@ -21,9 +21,10 @@ from cugraph.structure.graph_new cimport *
 
 cdef extern from "algorithms.hpp" namespace "cugraph":
 
-    cdef void louvain[VT,ET,WT](
-        const GraphCSRView[VT,ET,WT] &graph,
-        WT *final_modularity,
+    cdef void louvain[vertex_t,edge_t,weight_t](
+        const GraphCSRView[vertex_t,edge_t,weight_t] &graph,
+        weight_t *final_modularity,
         int *num_level,
-        VT *louvain_parts,
-        int max_iter) except +
+        vertex_t *louvain_parts,
+        int max_level,
+        weight_t resolution) except +

@@ -41,12 +41,7 @@ export MINOR_VERSION=`echo $GIT_DESCRIBE_TAG | grep -o -E '([0-9]+\.[0-9]+)'`
 
 # Set Benchmark Vars
 export DATASETS_DIR=${WORKSPACE}/datasets
-export ASVRESULTS_DIR=${WORKSPACE}/ci/artifacts/asv/results
 export BENCHMARKS_DIR=${WORKSPACE}/benchmarks
-
-# Ensure ASV results directory exists
-
-mkdir -p ${ASVRESULTS_DIR}
 
 ##########################################
 # Environment Setup                      #
@@ -140,7 +135,7 @@ function getReqs() {
 REQS=$(getReqs "${CUGRAPH_DEPS[@]}")
 
 BENCHMARK_META=$(jq -n \
-  --arg NODE "${NODE_NAME}" \
+  --arg NODE "${ASV_LABEL}" \
   --arg BRANCH "branch-${MINOR_VERSION}" \
   --argjson REQS "${REQS}" '
   {
@@ -159,7 +154,7 @@ set +e
 time pytest -v -m "small and managedmem_on and poolallocator_on" \
     --benchmark-gpu-device=0 \
     --benchmark-gpu-max-rounds=3 \
-    --benchmark-asv-output-dir="${ASVRESULTS_DIR}" \
+    --benchmark-asv-output-dir="${S3_ASV_DIR}" \
     --benchmark-asv-metadata="${BENCHMARK_META}"
 
 

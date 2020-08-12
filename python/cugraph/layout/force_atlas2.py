@@ -15,21 +15,23 @@ from cugraph.layout import force_atlas2_wrapper
 from cugraph.structure.graph import null_check
 
 
-def force_atlas2(input_graph,
-                 max_iter=500,
-                 pos_list=None,
-                 outbound_attraction_distribution=True,
-                 lin_log_mode=False,
-                 prevent_overlapping=False,
-                 edge_weight_influence=1.0,
-                 jitter_tolerance=1.0,
-                 barnes_hut_optimize=True,
-                 barnes_hut_theta=0.5,
-                 scaling_ratio=2.0,
-                 strong_gravity_mode=False,
-                 gravity=1.0,
-                 verbose=False,
-                 callback=None):
+def force_atlas2(
+    input_graph,
+    max_iter=500,
+    pos_list=None,
+    outbound_attraction_distribution=True,
+    lin_log_mode=False,
+    prevent_overlapping=False,
+    edge_weight_influence=1.0,
+    jitter_tolerance=1.0,
+    barnes_hut_optimize=True,
+    barnes_hut_theta=0.5,
+    scaling_ratio=2.0,
+    strong_gravity_mode=False,
+    gravity=1.0,
+    verbose=False,
+    callback=None,
+):
 
     """
         ForceAtlas2 is a continuous graph layout algorithm for handy network
@@ -99,9 +101,9 @@ def force_atlas2(input_graph,
     """
 
     if pos_list is not None:
-        null_check(pos_list['vertex'])
-        null_check(pos_list['x'])
-        null_check(pos_list['y'])
+        null_check(pos_list["vertex"])
+        null_check(pos_list["x"])
+        null_check(pos_list["y"])
 
     if prevent_overlapping:
         raise Exception("Feature not supported")
@@ -110,19 +112,28 @@ def force_atlas2(input_graph,
         input_graph = input_graph.to_undirected()
 
     pos = force_atlas2_wrapper.force_atlas2(
-            input_graph,
-            max_iter=max_iter,
-            pos_list=pos_list,
-            outbound_attraction_distribution=outbound_attraction_distribution,
-            lin_log_mode=lin_log_mode,
-            prevent_overlapping=prevent_overlapping,
-            edge_weight_influence=edge_weight_influence,
-            jitter_tolerance=jitter_tolerance,
-            barnes_hut_optimize=barnes_hut_optimize,
-            barnes_hut_theta=barnes_hut_theta,
-            scaling_ratio=scaling_ratio,
-            strong_gravity_mode=strong_gravity_mode,
-            gravity=gravity,
-            verbose=verbose,
-            callback=callback)
+        input_graph,
+        max_iter=max_iter,
+        pos_list=pos_list,
+        outbound_attraction_distribution=outbound_attraction_distribution,
+        lin_log_mode=lin_log_mode,
+        prevent_overlapping=prevent_overlapping,
+        edge_weight_influence=edge_weight_influence,
+        jitter_tolerance=jitter_tolerance,
+        barnes_hut_optimize=barnes_hut_optimize,
+        barnes_hut_theta=barnes_hut_theta,
+        scaling_ratio=scaling_ratio,
+        strong_gravity_mode=strong_gravity_mode,
+        gravity=gravity,
+        verbose=verbose,
+        callback=callback,
+    )
+    # If the caller passed in a pos_list, those values are already mapped to
+    # original numbering in the call to force_atlas2_wrapper.force_atlas2(),
+    # but if the caller did not specify a pos_list and the graph was
+    # renumbered, the pos dataframe should be mapped back to the original
+    # numbering.
+    if pos_list is None and input_graph.renumbered:
+        pos = input_graph.unrenumber(pos, "vertex")
+
     return pos

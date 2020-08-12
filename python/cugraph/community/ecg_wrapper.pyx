@@ -19,7 +19,6 @@
 from cugraph.community.ecg cimport ecg as c_ecg
 from cugraph.structure.graph_new cimport *
 from cugraph.structure import graph_new_wrapper
-from cugraph.utilities.unrenumber import unrenumber
 from libc.stdint cimport uintptr_t
 
 import cudf
@@ -71,8 +70,5 @@ def ecg(input_graph, min_weight=.05, ensemble_size=16):
         graph_double.get_vertex_identifiers(<int*>c_identifier)
 
         c_ecg[int,int,double](graph_double, min_weight, ensemble_size, <int*> c_partition)
-
-    if input_graph.renumbered:
-        df = unrenumber(input_graph.edgelist.renumber_map, df, 'vertex')
 
     return df

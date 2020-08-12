@@ -26,8 +26,10 @@ DATASETS_2 = ['../datasets/karate.csv',
 
 DATASETS_3 = ['../datasets/karate.csv',
               '../datasets/dolphins.csv',
-              '../datasets/netscience.csv']
+              '../datasets/email-Eu-core.csv']
 
+# FIXME: netscience.csv causes NetworkX pagerank to throw an exception.
+# (networkx/algorithms/link_analysis/pagerank_alg.py:152: KeyError: 1532)
 DATASETS_4 = ['../datasets/karate.csv',
               '../datasets/dolphins.csv',
               '../datasets/netscience.csv',
@@ -60,6 +62,7 @@ UNRENUMBERED_DATASETS = ['../datasets/karate.csv']
 
 # define the base for tests to use
 DATASETS = DATASETS_3
+DATASETS_UNDIRECTED = DATASETS_2
 
 
 def read_csv_for_nx(csv_file, read_weights_in_sp=True):
