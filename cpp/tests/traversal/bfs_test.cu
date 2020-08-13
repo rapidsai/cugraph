@@ -14,21 +14,20 @@
  * limitations under the License.
  */
 
-#include <queue>
-#include <stack>
-#include <vector>
+#include "bfs_ref.h"
+
+#include <utilities/base_fixture.hpp>
+#include <utilities/test_utilities.hpp>
 
 #include <algorithms.hpp>
 
 #include <rmm/thrust_rmm_allocator.h>
 
 #include <raft/handle.hpp>
-#include "gtest/gtest.h"
 
-#include "utilities/test_utilities.hpp"
-
-#include <rmm/mr/device/cuda_memory_resource.hpp>
-#include "bfs_ref.h"
+#include <queue>
+#include <stack>
+#include <vector>
 
 // NOTE: This could be common to other files but we might not want the same precision
 // depending on the algorithm
@@ -234,11 +233,4 @@ INSTANTIATE_TEST_CASE_P(simple_test,
                                           BFS_Usecase("test/datasets/wiki2003.mtx", 1000),
                                           BFS_Usecase("test/datasets/wiki-Talk.mtx", 1000)));
 
-int main(int argc, char **argv)
-{
-  testing::InitGoogleTest(&argc, argv);
-  auto resource = std::make_unique<rmm::mr::cuda_memory_resource>();
-  rmm::mr::set_default_resource(resource.get());
-  int rc = RUN_ALL_TESTS();
-  return rc;
-}
+CUGRAPH_TEST_PROGRAM_MAIN()
