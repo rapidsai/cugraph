@@ -59,13 +59,12 @@ struct set_nth_bit {
 };
 
 template <typename vertex_t>
-bool is_vertex_isolated(
-    rmm::device_vector<uint32_t> &bmap,
-    vertex_t id) {
-  uint32_t word = bmap[id / BitsPWrd<uint32_t>];
+bool is_vertex_isolated(rmm::device_vector<uint32_t> &bmap, vertex_t id)
+{
+  uint32_t word       = bmap[id / BitsPWrd<uint32_t>];
   uint32_t active_bit = static_cast<uint32_t>(1) << (id % BitsPWrd<uint32_t>);
   // If idth bit of bmap is set to 1 then return true
-  return (( active_bit & word ) != 0);
+  return ((active_bit & word) != 0);
 }
 
 template <typename vertex_t, typename edge_t>

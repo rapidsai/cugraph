@@ -53,9 +53,7 @@ void bfs_traverse(raft::handle_t const &handle,
       handle, graph, local_isolated_ids, global_isolated_ids, temp_buffer_len, isolated_bmap);
   }
 
-  if (is_vertex_isolated(isolated_bmap, start_vertex)) {
-    return;
-  }
+  if (is_vertex_isolated(isolated_bmap, start_vertex)) { return; }
 
   // Frontier Expand for calls to bfs functors
   detail::FrontierExpand<vertex_t, edge_t, weight_t> fexp(handle, graph);
