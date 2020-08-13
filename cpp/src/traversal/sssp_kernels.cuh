@@ -18,7 +18,6 @@
 
 #include <iostream>
 
-#include <utilities/sm_utils.h>
 #include <cub/cub.cuh>
 #include "traversal_common.cuh"
 #include "utilities/error.hpp"
