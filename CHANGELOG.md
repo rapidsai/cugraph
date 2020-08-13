@@ -46,6 +46,7 @@
 - PR #1007 Add tolerance support to MG Pagerank and fix
 - PR #1009 Update benchmarks script to include requirements used
 - PR #1014 Fix benchmarks script variable name
+- PR #1021 Update cuGraph to use RAFT CUDA utilities
 - PR #1019 Remove deprecated CUDA library calls
 - PR #1024 Updated condata environment YML files
 - PR #1026 update chunksize for mnmg, remove files and unused code
@@ -54,8 +55,10 @@
 - PR #1020 Updated Louvain to honor max_level, ECG now calls Louvain for 1 level, then full run.
 - PR #1031 MG notebook
 - PR #1034 Expose resolution (gamma) parameter in Louvain
+- PR #1037 Centralize test main function and replace usage of deprecated `cnmem_memory_resource`
 - PR #1041 Use S3 bucket directly for benchmark plugin
 - PR #1062 Compute max_vertex_id in mnmg local data computation
+- PR #1068 Remove unused thirdparty code
 
 ## Bug Fixes
 - PR #936 Update Force Atlas 2 doc and wrapper
@@ -74,6 +77,8 @@
 - PR #1036 Fixed benchmarks for new renumbering API, updated comments, added quick test-only benchmark run to CI
 - PR #1040 Fix spectral clustering renumbering issue
 - PR #1057 Updated raft dependency to pull fixes on cusparse selection in CUDA 11
+- PR #1066 Update cugunrock to not build for unsupported CUDA architectures
+- PR #1069 Fixed CUDA 11 Pagerank crash, by replacing CUB's SpMV with raft's.
 
 # cuGraph 0.14.0 (03 Jun 2020)
 
