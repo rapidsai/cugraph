@@ -1,5 +1,5 @@
 #!/bin/bash
-# Copyright (c) 2018, NVIDIA CORPORATION.
+# Copyright (c) 2018-2020, NVIDIA CORPORATION.
 #########################################
 # cuGraph CPU conda build script for CI #
 #########################################
