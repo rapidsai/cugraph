@@ -54,6 +54,7 @@
 - PR #1007 Add tolerance support to MG Pagerank and fix
 - PR #1009 Update benchmarks script to include requirements used
 - PR #1014 Fix benchmarks script variable name
+- PR #1021 Update cuGraph to use RAFT CUDA utilities
 - PR #1019 Remove deprecated CUDA library calls
 - PR #1024 Updated condata environment YML files
 - PR #1026 update chunksize for mnmg, remove files and unused code
