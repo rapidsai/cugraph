@@ -44,8 +44,8 @@ else
 fi
 
 # Check for copyright headers in the files modified currently
+#COPYRIGHT=`env PYTHONPATH=${CUGRAPH_ROOT}/ci/utils python ${THISDIR}/copyright.py cpp python benchmarks ci 2>&1`
 COPYRIGHT=`env PYTHONPATH=${CUGRAPH_ROOT}/ci/utils python ${THISDIR}/copyright.py --git-modified-only 2>&1`
-#COPYRIGHT=`env PYTHONPATH=${CUGRAPH_ROOT}/ci/utils python ${THISDIR}/copyright.py 2>&1`
 CR_RETVAL=$?
 ERRORCODE=$((ERRORCODE | ${CR_RETVAL}))
 
