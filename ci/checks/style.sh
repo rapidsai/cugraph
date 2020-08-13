@@ -8,6 +8,8 @@
 # continue on errors, but use ERRORCODE to still allow any failing command to be
 # captured for returning a final status code. This allows all style check to
 # take place to provide a more comprehensive list of style violations.
+set +e
+set -x
 set -o pipefail
 ERRORCODE=0
 PATH=/conda/bin:$PATH
