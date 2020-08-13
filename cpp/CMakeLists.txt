@@ -186,23 +186,51 @@ if (RMM_INCLUDE AND RMM_LIBRARY)
 endif (RMM_INCLUDE AND RMM_LIBRARY)
 
 ###################################################################################################
+# - Fetch Content -----------------------------------------------------------------------------
+include(FetchContent)
+
+# - CUB
+message("Fetching CUB")
+
+FetchContent_Declare(
+    cub
+    GIT_REPOSITORY https://github.com/thrust/cub.git
+    GIT_TAG        1.9.10
+    GIT_SHALLOW    true
+)
+
+FetchContent_GetProperties(cub)
+if(NOT cub_POPULATED)
+  FetchContent_Populate(cub)
+  # We are not using the cub CMake targets, so no need to call `add_subdirectory()`.
+endif()
+set(CUB_INCLUDE_DIR "${cub_SOURCE_DIR}")
+
+# - THRUST
+message("Fetching Thrust")
+
+FetchContent_Declare(
+    thrust
+    GIT_REPOSITORY https://github.com/thrust/thrust.git
+    GIT_TAG        1.9.10
+    GIT_SHALLOW    true
+)
+
+FetchContent_GetProperties(thrust)
+if(NOT thrust_POPULATED)
+  FetchContent_Populate(thrust)
+  # We are not using the thrust CMake targets, so no need to call `add_subdirectory()`.
+endif()
+set(THRUST_INCLUDE_DIR "${thrust_SOURCE_DIR}")
+
+
+
+
+###################################################################################################
 # - External Projects -----------------------------------------------------------------------------
 
 # https://cmake.org/cmake/help/v3.0/module/ExternalProject.html
 include(ExternalProject)
-
-# - CUB
-set(CUB_DIR ${CMAKE_CURRENT_BINARY_DIR}/cub CACHE STRING "Path to cub repo")
-set(CUB_INCLUDE_DIR ${CUB_DIR}/src/cub CACHE STRING "Path to cub includes")
-
-ExternalProject_Add(cub
-  GIT_REPOSITORY    https://github.com/NVlabs/cub.git
-  GIT_TAG           v1.8.0
-  PREFIX            ${CUB_DIR}
-  CONFIGURE_COMMAND ""
-  BUILD_COMMAND     ""
-  INSTALL_COMMAND   ""
-)
 
 # - CUHORNET
 set(CUHORNET_DIR ${CMAKE_CURRENT_BINARY_DIR}/cuhornet CACHE STRING "Path to cuhornet repo")
@@ -224,12 +252,18 @@ set(CUGUNROCK_DIR ${CMAKE_CURRENT_BINARY_DIR}/cugunrock CACHE STRING
 
 ExternalProject_Add(cugunrock
   GIT_REPOSITORY    https://github.com/rapidsai/cugunrock.git
-  GIT_TAG           fea_full_bc      # provide a branch, a tag, or even a commit hash
+  GIT_TAG           main
   PREFIX            ${CUGUNROCK_DIR}
   CMAKE_ARGS        -DCMAKE_INSTALL_PREFIX=<INSTALL_DIR>
                     -DGPU_ARCHS=""
                     -DGUNROCK_BUILD_SHARED_LIBS=OFF
                     -DGUNROCK_BUILD_TESTS=OFF
+                    -DCUDA_AUTODETECT_GENCODE=FALSE
+                    -DGUNROCK_GENCODE_SM60=TRUE
+                    -DGUNROCK_GENCODE_SM61=TRUE
+                    -DGUNROCK_GENCODE_SM70=TRUE
+                    -DGUNROCK_GENCODE_SM72=TRUE
+                    -DGUNROCK_GENCODE_SM75=TRUE
   BUILD_BYPRODUCTS  ${CUGUNROCK_DIR}/lib/libgunrock.a
 )
 
@@ -270,7 +304,7 @@ else(DEFINED ENV{RAFT_PATH})
 
   ExternalProject_Add(raft
     GIT_REPOSITORY    https://github.com/rapidsai/raft.git
-    GIT_TAG           051b8b8d61e14c8e60db0d38bf2ea2152400ad53
+    GIT_TAG           099e2b874b05555a78bed1666fa2d22f784e56a7
     PREFIX            ${RAFT_DIR}
     CONFIGURE_COMMAND ""
     BUILD_COMMAND     ""
@@ -333,12 +367,13 @@ add_dependencies(cugraph raft)
 # - include paths ---------------------------------------------------------------------------------
 target_include_directories(cugraph
     PRIVATE
+    "${CUB_INCLUDE_DIR}"
+    "${THRUST_INCLUDE_DIR}"
     "${CMAKE_CUDA_TOOLKIT_INCLUDE_DIRECTORIES}"
     "${LIBCYPHERPARSER_INCLUDE}"
     "${Boost_INCLUDE_DIRS}"
     "${RMM_INCLUDE}"
     "${CMAKE_CURRENT_SOURCE_DIR}/../thirdparty"
-    "${CUB_INCLUDE_DIR}"
     "${CUHORNET_INCLUDE_DIR}/hornet/include"
     "${CUHORNET_INCLUDE_DIR}/hornetsnest/include"
     "${CUHORNET_INCLUDE_DIR}/xlib/include"

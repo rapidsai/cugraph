@@ -14,19 +14,21 @@
  * limitations under the License.
  */
 
-#include <thrust/device_ptr.h>
-#include <algorithms.hpp>
-#include <converters/COOtoCSR.cuh>
-#include <fstream>
-#include <graph.hpp>
-#include <rmm/mr/device/cuda_memory_resource.hpp>
-#include "cuda_profiler_api.h"
-#include "gmock/gmock-generated-matchers.h"
-#include "gmock/gmock.h"
-#include "gtest/gtest.h"
-#include "utilities/high_res_clock.h"
+#include <utilities/high_res_clock.h>
+#include <utilities/base_fixture.hpp>
+#include <utilities/test_utilities.hpp>
 
-#include "utilities/test_utilities.hpp"
+#include <converters/COOtoCSR.cuh>
+
+#include <algorithms.hpp>
+#include <graph.hpp>
+
+#include <gmock/gmock-generated-matchers.h>
+#include <gmock/gmock.h>
+
+#include <thrust/device_ptr.h>
+
+#include <fstream>
 
 std::vector<int> getGoldenTopKIds(std::ifstream& fs_result, int k = 10)
 {
@@ -154,7 +156,6 @@ class Tests_Katz : public ::testing::TestWithParam<Katz_Usecase> {
   }
 };
 
-// --gtest_filter=*simple_test*
 INSTANTIATE_TEST_CASE_P(
   simple_test,
   Tests_Katz,
@@ -165,11 +166,4 @@ INSTANTIATE_TEST_CASE_P(
 
 TEST_P(Tests_Katz, Check) { run_current_test(GetParam()); }
 
-int main(int argc, char** argv)
-{
-  testing::InitGoogleTest(&argc, argv);
-  auto resource = std::make_unique<rmm::mr::cuda_memory_resource>();
-  rmm::mr::set_default_resource(resource.get());
-  int rc = RUN_ALL_TESTS();
-  return rc;
-}
+CUGRAPH_TEST_PROGRAM_MAIN()

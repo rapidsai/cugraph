@@ -156,11 +156,10 @@ def spectralModularityMaximizationClustering(
     )
 
     if G.renumbered:
-        df = G.unrenumber(df, "vertex")
         # FIXME:  Existing code relies on df being sorted...
         #   Shouldn't because in MG we can't guarantee sorting
         #   and partitioning of output
-        df = df.sort_values("vertex").reset_index(drop=True)
+        df = G.unrenumber(df, "vertex", preserve_order=True)
 
     return df
 

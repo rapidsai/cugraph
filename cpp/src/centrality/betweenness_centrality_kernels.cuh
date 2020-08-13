@@ -24,26 +24,26 @@ namespace detail {
 //        bucket (i.e. BFS / SSSP) system might enable speed up.
 //        Should look into forAllEdge type primitive for different
 //        load balancing
-template <typename VT, typename ET, typename WT, typename result_t>
+template <typename vertex_t, typename edge_t, typename weight_t, typename result_t>
 __global__ void edges_accumulation_kernel(result_t *betweenness,
-                                          VT number_vertices,
-                                          VT const *indices,
-                                          ET const *offsets,
-                                          VT *distances,
+                                          vertex_t number_vertices,
+                                          vertex_t const *indices,
+                                          edge_t const *offsets,
+                                          vertex_t *distances,
                                           double *sp_counters,
                                           double *deltas,
-                                          VT depth)
+                                          vertex_t depth)
 {
   for (int thread_idx = blockIdx.x * blockDim.x + threadIdx.x; thread_idx < number_vertices;
        thread_idx += gridDim.x * blockDim.x) {
-    VT vertex           = thread_idx;
+    vertex_t vertex     = thread_idx;
     double vertex_delta = 0;
     double vertex_sigma = sp_counters[vertex];
     if (distances[vertex] == depth) {
-      ET first_edge_idx = offsets[vertex];
-      ET last_edge_idx  = offsets[vertex + 1];
-      for (ET edge_idx = first_edge_idx; edge_idx < last_edge_idx; ++edge_idx) {
-        VT successor = indices[edge_idx];
+      edge_t first_edge_idx = offsets[vertex];
+      edge_t last_edge_idx  = offsets[vertex + 1];
+      for (edge_t edge_idx = first_edge_idx; edge_idx < last_edge_idx; ++edge_idx) {
+        vertex_t successor = indices[edge_idx];
         if (distances[successor] == distances[vertex] + 1) {
           double factor = (static_cast<double>(1) + deltas[successor]) / sp_counters[successor];
           double coefficient = vertex_sigma * factor;
@@ -57,26 +57,26 @@ __global__ void edges_accumulation_kernel(result_t *betweenness,
   }
 }
 
-template <typename VT, typename ET, typename WT, typename result_t>
+template <typename vertex_t, typename edge_t, typename weight_t, typename result_t>
 __global__ void endpoints_accumulation_kernel(result_t *betweenness,
-                                              VT number_vertices,
-                                              VT const *indices,
-                                              ET const *offsets,
-                                              VT *distances,
+                                              vertex_t number_vertices,
+                                              vertex_t const *indices,
+                                              edge_t const *offsets,
+                                              vertex_t *distances,
                                               double *sp_counters,
                                               double *deltas,
-                                              VT depth)
+                                              vertex_t depth)
 {
   for (int thread_idx = blockIdx.x * blockDim.x + threadIdx.x; thread_idx < number_vertices;
        thread_idx += gridDim.x * blockDim.x) {
-    VT vertex           = thread_idx;
+    vertex_t vertex     = thread_idx;
     double vertex_delta = 0;
     double vertex_sigma = sp_counters[vertex];
     if (distances[vertex] == depth) {
-      ET first_edge_idx = offsets[vertex];
-      ET last_edge_idx  = offsets[vertex + 1];
-      for (ET edge_idx = first_edge_idx; edge_idx < last_edge_idx; ++edge_idx) {
-        VT successor = indices[edge_idx];
+      edge_t first_edge_idx = offsets[vertex];
+      edge_t last_edge_idx  = offsets[vertex + 1];
+      for (edge_t edge_idx = first_edge_idx; edge_idx < last_edge_idx; ++edge_idx) {
+        vertex_t successor = indices[edge_idx];
         if (distances[successor] == distances[vertex] + 1) {
           double factor = (static_cast<double>(1) + deltas[successor]) / sp_counters[successor];
           vertex_delta += vertex_sigma * factor;
@@ -87,26 +87,26 @@ __global__ void endpoints_accumulation_kernel(result_t *betweenness,
     }
   }
 }
-template <typename VT, typename ET, typename WT, typename result_t>
+template <typename vertex_t, typename edge_t, typename weight_t, typename result_t>
 __global__ void accumulation_kernel(result_t *betweenness,
-                                    VT number_vertices,
-                                    VT const *indices,
-                                    ET const *offsets,
-                                    VT *distances,
+                                    vertex_t number_vertices,
+                                    vertex_t const *indices,
+                                    edge_t const *offsets,
+                                    vertex_t *distances,
                                     double *sp_counters,
                                     double *deltas,
-                                    VT depth)
+                                    vertex_t depth)
 {
   for (int thread_idx = blockIdx.x * blockDim.x + threadIdx.x; thread_idx < number_vertices;
        thread_idx += gridDim.x * blockDim.x) {
-    VT vertex           = thread_idx;
+    vertex_t vertex     = thread_idx;
     double vertex_delta = 0;
     double vertex_sigma = sp_counters[vertex];
     if (distances[vertex] == depth) {
-      ET first_edge_idx = offsets[vertex];
-      ET last_edge_idx  = offsets[vertex + 1];
-      for (ET edge_idx = first_edge_idx; edge_idx < last_edge_idx; ++edge_idx) {
-        VT successor = indices[edge_idx];
+      edge_t first_edge_idx = offsets[vertex];
+      edge_t last_edge_idx  = offsets[vertex + 1];
+      for (edge_t edge_idx = first_edge_idx; edge_idx < last_edge_idx; ++edge_idx) {
+        vertex_t successor = indices[edge_idx];
         if (distances[successor] == distances[vertex] + 1) {
           double factor = (static_cast<double>(1) + deltas[successor]) / sp_counters[successor];
           vertex_delta += vertex_sigma * factor;
