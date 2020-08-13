@@ -1,6 +1,7 @@
 # cuGraph 0.15.0 (Date TBD)
 
 ## New Features
+- PR #940 Add MG Batch BC
 - PR #937 Add wrapper for gunrock HITS algorithm
 - PR #939 Updated Notebooks to include new features and benchmarks
 - PR #944 MG pagerank (dask)
@@ -58,6 +59,7 @@
 - PR #1037 Centralize test main function and replace usage of deprecated `cnmem_memory_resource`
 - PR #1041 Use S3 bucket directly for benchmark plugin
 - PR #1056 Fix MG BFS performance
+- PR #1062 Compute max_vertex_id in mnmg local data computation
 - PR #1068 Remove unused thirdparty code
 
 ## Bug Fixes
