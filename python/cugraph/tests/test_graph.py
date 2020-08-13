@@ -63,10 +63,10 @@ def compare_series(series_1, series_2):
 
 
 def compare_offsets(offset0, offset1):
-    if isinstance(offset_0, cudf.Series):
-        offset_0 = offset_0.values_host
-    if isinstance(offset_1, cudf.Series):
-        offset_1 = offset_1.values_host
+    if isinstance(offset0, cudf.Series):
+        offset0 = offset0.values_host
+    if isinstance(offset1, cudf.Series):
+        offset1 = offset1.values_host
     if not (len(offset0) <= len(offset1)):
         print(
             "Mismatched length: "
