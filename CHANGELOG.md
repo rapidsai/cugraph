@@ -57,6 +57,7 @@
 - PR #1034 Expose resolution (gamma) parameter in Louvain
 - PR #1037 Centralize test main function and replace usage of deprecated `cnmem_memory_resource`
 - PR #1041 Use S3 bucket directly for benchmark plugin
+- PR #1068 Remove unused thirdparty code
 
 ## Bug Fixes
 - PR #936 Update Force Atlas 2 doc and wrapper
