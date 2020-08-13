@@ -17,7 +17,6 @@
 
 #include <rmm/thrust_rmm_allocator.h>
 
-#include <utilities/cuda_utils.cuh>
 #include <utilities/graph_utils.cuh>
 
 //#define TIMING
