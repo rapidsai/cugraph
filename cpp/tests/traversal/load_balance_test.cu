@@ -14,14 +14,13 @@
  * limitations under the License.
  */
 
-#include "gtest/gtest.h"
-#include "utilities/test_utilities.hpp"
+#include <utilities/base_fixture.hpp>
+#include <utilities/error.hpp>
+#include <utilities/test_utilities.hpp>
+
+#include <traversal/mg/load_balance.cuh>
 
 #include <raft/handle.hpp>
-#include <rmm/mr/device/cuda_memory_resource.hpp>
-#include <utilities/error.hpp>
-
-#include "traversal/mg/load_balance.cuh"
 
 // ============================================================================
 // Test Suite
@@ -122,11 +121,4 @@ INSTANTIATE_TEST_CASE_P(simple_test,
                                           LB_Usecase("test/datasets/wiki2003.mtx"),
                                           LB_Usecase("test/datasets/wiki-Talk.mtx")));
 
-int main(int argc, char **argv)
-{
-  testing::InitGoogleTest(&argc, argv);
-  auto resource = std::make_unique<rmm::mr::cuda_memory_resource>();
-  rmm::mr::set_default_resource(resource.get());
-  int rc = RUN_ALL_TESTS();
-  return rc;
-}
+CUGRAPH_TEST_PROGRAM_MAIN()

@@ -15,16 +15,15 @@
  */
 
 #include <traversal/bfs_ref.h>
+#include <utilities/base_fixture.hpp>
 #include <utilities/test_utilities.hpp>
 
 #include <raft/error.hpp>
 #include <raft/handle.hpp>
-#include <rmm/mr/device/cuda_memory_resource.hpp>
 
 #include <thrust/device_vector.h>
 
 #include <gmock/gmock.h>
-#include <gtest/gtest.h>
 
 #include <algorithms.hpp>
 #include <graph.hpp>
@@ -263,7 +262,7 @@ class Tests_EdgeBC : public ::testing::TestWithParam<EdgeBC_Usecase> {
     sources_ptr = nullptr;
     if (configuration.number_of_sources_ > 0) { sources_ptr = sources.data(); }
 
-    thrust::device_vector<result_t> d_result(G.number_of_edges);
+    rmm::device_vector<result_t> d_result(G.number_of_edges);
     cugraph::edge_betweenness_centrality(handle_,
                                          G,
                                          d_result.data().get(),
@@ -316,11 +315,4 @@ INSTANTIATE_TEST_CASE_P(simple_test,
                                           EdgeBC_Usecase("test/datasets/wiki2003.mtx", 4),
                                           EdgeBC_Usecase("test/datasets/wiki-Talk.mtx", 4)));
 
-int main(int argc, char **argv)
-{
-  testing::InitGoogleTest(&argc, argv);
-  auto resource = std::make_unique<rmm::mr::cuda_memory_resource>();
-  rmm::mr::set_default_resource(resource.get());
-  int rc = RUN_ALL_TESTS();
-  return rc;
-}
+CUGRAPH_TEST_PROGRAM_MAIN()
