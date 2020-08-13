@@ -99,3 +99,8 @@ def get_handle(sID):
 def get_worker_id(sID):
     sessionstate = worker_state(sID)
     return sessionstate['wid']
+
+
+def get_n_workers(sID):
+    sessionstate = worker_state(sID)
+    return sessionstate['nworkers']

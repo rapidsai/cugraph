@@ -478,7 +478,8 @@ void bfs(raft::handle_t const &handle,
          VT *predecessors,
          double *sp_counters,
          const VT start_vertex,
-         bool directed)
+         bool directed,
+         bool mg_batch)
 {
   static_assert(std::is_integral<VT>::value && sizeof(VT) >= sizeof(int32_t),
                 "Unsupported vertex id data type. Use integral types of size >= sizeof(int32_t)");
@@ -487,7 +488,7 @@ void bfs(raft::handle_t const &handle,
   static_assert(std::is_floating_point<WT>::value,
                 "Unsupported edge weight type. Use floating point types");  // actually, this is
                                                                             // unnecessary for BFS
-  if (handle.comms_initialized()) {
+  if (handle.comms_initialized() && !mg_batch) {
     CUGRAPH_EXPECTS(sp_counters == nullptr,
                     "BFS Traversal shortest path is not supported in MG path");
     mg::bfs<VT, ET, WT>(handle, graph, distances, predecessors, start_vertex);
@@ -515,7 +516,8 @@ template void bfs<uint32_t, uint32_t, float>(raft::handle_t const &handle,
                                              uint32_t *predecessors,
                                              double *sp_counters,
                                              const uint32_t source_vertex,
-                                             bool directed);
+                                             bool directed,
+                                             bool mg_batch);
 
 // Explicit Instantiation
 template void bfs<uint32_t, uint32_t, double>(raft::handle_t const &handle,
@@ -524,7 +526,8 @@ template void bfs<uint32_t, uint32_t, double>(raft::handle_t const &handle,
                                               uint32_t *predecessors,
                                               double *sp_counters,
                                               const uint32_t source_vertex,
-                                              bool directed);
+                                              bool directed,
+                                              bool mg_batch);
 
 // Explicit Instantiation
 template void bfs<int32_t, int32_t, float>(raft::handle_t const &handle,
@@ -533,7 +536,8 @@ template void bfs<int32_t, int32_t, float>(raft::handle_t const &handle,
                                            int32_t *predecessors,
                                            double *sp_counters,
                                            const int32_t source_vertex,
-                                           bool directed);
+                                           bool directed,
+                                           bool mg_batch);
 
 // Explicit Instantiation
 template void bfs<int32_t, int32_t, double>(raft::handle_t const &handle,
@@ -542,7 +546,8 @@ template void bfs<int32_t, int32_t, double>(raft::handle_t const &handle,
                                             int32_t *predecessors,
                                             double *sp_counters,
                                             const int32_t source_vertex,
-                                            bool directed);
+                                            bool directed,
+                                            bool mg_batch);
 
 // Explicit Instantiation
 template void bfs<int64_t, int64_t, float>(raft::handle_t const &handle,
@@ -551,7 +556,8 @@ template void bfs<int64_t, int64_t, float>(raft::handle_t const &handle,
                                            int64_t *predecessors,
                                            double *sp_counters,
                                            const int64_t source_vertex,
-                                           bool directed);
+                                           bool directed,
+                                           bool mg_batch);
 
 // Explicit Instantiation
 template void bfs<int64_t, int64_t, double>(raft::handle_t const &handle,
@@ -560,6 +566,7 @@ template void bfs<int64_t, int64_t, double>(raft::handle_t const &handle,
                                             int64_t *predecessors,
                                             double *sp_counters,
                                             const int64_t source_vertex,
-                                            bool directed);
+                                            bool directed,
+                                            bool mg_batch);
 
 }  // namespace cugraph
