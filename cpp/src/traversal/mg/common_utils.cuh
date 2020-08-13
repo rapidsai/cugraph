@@ -58,6 +58,16 @@ struct set_nth_bit {
   }
 };
 
+template <typename vertex_t>
+bool is_vertex_isolated(
+    rmm::device_vector<uint32_t> &bmap,
+    vertex_t id) {
+  uint32_t word = bmap[id / BitsPWrd<uint32_t>];
+  uint32_t active_bit = static_cast<uint32_t>(1) << (id % BitsPWrd<uint32_t>);
+  // If idth bit of bmap is set to 1 then return true
+  return (( active_bit & word ) != 0);
+}
+
 template <typename vertex_t, typename edge_t>
 struct BFSStepNoDist {
   uint32_t *output_frontier_;
@@ -204,6 +214,8 @@ void add_to_bitmap(raft::handle_t const &handle,
   CHECK_CUDA(stream);
 }
 
+// For all vertex ids i which are isolated (out degree is 0), set
+// ith bit of isolated_bmap to 1
 template <typename vertex_t, typename edge_t, typename weight_t>
 void create_isolated_bitmap(raft::handle_t const &handle,
                             cugraph::GraphCSRView<vertex_t, edge_t, weight_t> const &graph,

@@ -12,24 +12,23 @@
 // strongly connected components tests
 // Author: Andrei Schaffer aschaffer@nvidia.com
 
-#include "cuda_profiler_api.h"
-#include "gtest/gtest.h"
-#include "utilities/high_res_clock.h"
+#include <utilities/high_res_clock.h>
+#include <utilities/base_fixture.hpp>
+#include <utilities/test_utilities.hpp>
+
+#include <algorithms.hpp>
+#include <components/scc_matrix.cuh>
+#include <converters/COOtoCSR.cuh>
+#include <graph.hpp>
+#include <topology/topology.cuh>
+
+#include <cuda_profiler_api.h>
 
 #include <thrust/sequence.h>
 #include <thrust/unique.h>
 
 #include <algorithm>
 #include <iterator>
-#include "utilities/test_utilities.hpp"
-
-#include <algorithms.hpp>
-#include <converters/COOtoCSR.cuh>
-#include <graph.hpp>
-
-#include <rmm/mr/device/cuda_memory_resource.hpp>
-#include "components/scc_matrix.cuh"
-#include "topology/topology.cuh"
 
 // do the perf measurements
 // enabled by command line parameter s'--perf'
@@ -37,7 +36,7 @@
 static int PERF = 0;
 
 template <typename T>
-using DVector = thrust::device_vector<T>;
+using DVector = rmm::device_vector<T>;
 
 namespace {  // un-nammed
 struct Usecase {
@@ -209,11 +208,4 @@ INSTANTIATE_TEST_CASE_P(
     Usecase("test/datasets/cage6.mtx")  // DG "small" enough to meet SCC GPU memory requirements
     ));
 
-int main(int argc, char** argv)
-{
-  testing::InitGoogleTest(&argc, argv);
-  auto resource = std::make_unique<rmm::mr::cuda_memory_resource>();
-  rmm::mr::set_default_resource(resource.get());
-  int rc = RUN_ALL_TESTS();
-  return rc;
-}
+CUGRAPH_TEST_PROGRAM_MAIN()
