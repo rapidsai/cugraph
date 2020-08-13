@@ -1,6 +1,7 @@
 # cuGraph 0.15.0 (Date TBD)
 
 ## New Features
+- PR #940 Add MG Batch BC
 - PR #937 Add wrapper for gunrock HITS algorithm
 - PR #939 Updated Notebooks to include new features and benchmarks
 - PR #944 MG pagerank (dask)

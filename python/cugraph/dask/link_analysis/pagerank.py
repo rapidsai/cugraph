@@ -133,17 +133,17 @@ def pagerank(input_graph,
 
     result = dict([(data.worker_info[wf[0]]["rank"],
                     client.submit(
-            call_pagerank,
-            Comms.get_session_id(),
-            wf[1],
-            data.local_data,
-            alpha,
-            max_iter,
-            tol,
-            personalization,
-            nstart,
-            workers=[wf[0]]))
-            for idx, wf in enumerate(data.worker_to_parts.items())])
+                    call_pagerank,
+                    Comms.get_session_id(),
+                    wf[1],
+                    data.local_data,
+                    alpha,
+                    max_iter,
+                    tol,
+                    personalization,
+                    nstart,
+                    workers=[wf[0]]))
+                   for idx, wf in enumerate(data.worker_to_parts.items())])
     wait(result)
 
     if input_graph.renumbered:

@@ -66,6 +66,7 @@ def calc_edge_betweenness_centrality(
     seed=None,
     result_dtype=np.float64,
     use_k_full=False,
+    multi_gpu_batch=False
 ):
     """ Generate both cugraph and networkx edge betweenness centrality
 
@@ -97,6 +98,9 @@ def calc_edge_betweenness_centrality(
         When True, if k is None replaces k by the number of sources of the
         Graph
 
+    multi_gpu_batch: bool
+        When True, enable mg batch after constructing the graph
+
     Returns
     -------
 
@@ -106,15 +110,19 @@ def calc_edge_betweenness_centrality(
         The dataframe is expected to be sorted based on 'src' then 'dst',
         so that we can use cupy.isclose to compare the scores.
     """
+    G = None
+    Gnx = None
     G, Gnx = utils.build_cu_and_nx_graphs(graph_file, directed=directed)
-    calc_func = None
+    assert G is not None and Gnx is not None
+    if multi_gpu_batch:
+        G.enable_batch()
+
     if k is not None and seed is not None:
         calc_func = _calc_bc_subset
     elif k is not None:
         calc_func = _calc_bc_subset_fixed
     else:  # We processed to a comparison using every sources
         if use_k_full:
-            print("Computing k_full")
             k = Gnx.number_of_nodes()
         calc_func = _calc_bc_full
     sorted_df = calc_func(

@@ -210,5 +210,9 @@ def get_local_data(input_graph, by, load_balance=True):
     comms = Comms.get_comms()
     data = DistributedDataHandler.create(data=ddf)
     data.calculate_local_data(comms, by)
+    return data
 
+
+def get_mg_batch_data(dask_cudf_data):
+    data = DistributedDataHandler.create(data=dask_cudf_data)
     return data

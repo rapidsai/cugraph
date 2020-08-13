@@ -15,6 +15,9 @@ import cudf
 import cugraph
 import pandas as pd
 import networkx as nx
+import dask_cudf
+import os
+from cugraph.dask.common.mg_utils import (get_client)
 
 #
 # Datasets are numbered based on the number of elements in the array
@@ -94,6 +97,37 @@ def read_csv_file(csv_file, read_weights_in_sp=True):
                              dtype=['int32', 'int32', 'float64'], header=None)
 
 
+def read_dask_cudf_csv_file(csv_file, read_weights_in_sp=True,
+                            single_partition=True):
+    print('Reading ' + str(csv_file) + '...')
+    if read_weights_in_sp is True:
+        if single_partition:
+            chunksize = os.path.getsize(csv_file)
+            return dask_cudf.read_csv(csv_file, chunksize=chunksize,
+                                      delimiter=' ',
+                                      names=['src', 'dst', 'weight'],
+                                      dtype=['int32', 'int32', 'float32'],
+                                      header=None)
+        else:
+            return dask_cudf.read_csv(csv_file, delimiter=' ',
+                                      names=['src', 'dst', 'weight'],
+                                      dtype=['int32', 'int32', 'float32'],
+                                      header=None)
+    else:
+        if single_partition:
+            chunksize = os.path.getsize(csv_file)
+            return dask_cudf.read_csv(csv_file, chunksize=chunksize,
+                                      delimiter=' ',
+                                      names=['src', 'dst', 'weight'],
+                                      dtype=['int32', 'int32', 'float32'],
+                                      header=None)
+        else:
+            return dask_cudf.read_csv(csv_file, delimiter=' ',
+                                      names=['src', 'dst', 'weight'],
+                                      dtype=['int32', 'int32', 'float64'],
+                                      header=None)
+
+
 def generate_nx_graph_from_file(graph_file, directed=True):
     M = read_csv_for_nx(graph_file)
     Gnx = nx.from_pandas_edgelist(M, create_using=(nx.DiGraph() if directed
@@ -106,11 +140,26 @@ def generate_cugraph_graph_from_file(graph_file, directed=True):
     cu_M = read_csv_file(graph_file)
     G = cugraph.DiGraph() if directed else cugraph.Graph()
     G.from_cudf_edgelist(cu_M, source='0', destination='1')
-    G.view_adj_list()  # Enforce CSR generation before computation
+    return G
+
+
+def generate_mg_batch_cugraph_graph_from_file(graph_file, directed=True):
+    client = get_client()
+    _ddf = read_dask_cudf_csv_file(graph_file)
+    ddf = client.persist(_ddf)
+    G = cugraph.DiGraph() if directed else cugraph.Graph()
+    G.from_dask_cudf_edgelist(ddf)
     return G
 
 
 def build_cu_and_nx_graphs(graph_file, directed=True):
     G = generate_cugraph_graph_from_file(graph_file, directed=directed)
+    Gnx = generate_nx_graph_from_file(graph_file, directed=directed)
+    return G, Gnx
+
+
+def build_mg_batch_cu_and_nx_graphs(graph_file, directed=True):
+    G = generate_mg_batch_cugraph_graph_from_file(graph_file,
+                                                  directed=directed)
     Gnx = generate_nx_graph_from_file(graph_file, directed=directed)
     return G, Gnx
