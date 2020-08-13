@@ -57,7 +57,11 @@ else
     fi
 fi
 
-cd ${CUGRAPH_ROOT}/cpp/build
+if [[ -z "$PROJECT_FLASH" || "$PROJECT_FLASH" == "0" ]]; then
+    cd ${CUGRAPH_ROOT}/cpp/build
+else
+    cd $WORKSPACE/ci/artifacts/cugraph/cpu/conda_work/cpp/build
+fi
 
 for gt in gtests/*; do
     test_name=$(basename $gt)
@@ -65,6 +69,14 @@ for gt in gtests/*; do
     ${gt} ${GTEST_FILTER} ${GTEST_ARGS}
     ERRORCODE=$((ERRORCODE | $?))
 done
+
+if [[ "$PROJECT_FLASH" == "1" ]]; then
+    logger "Installing libcugraph..."
+    conda install -c $WORKSPACE/ci/artifacts/cugraph/cpu/conda-bld/ libcugraph
+    export LIBCUGRAPH_BUILD_DIR="$WORKSPACE/ci/artifacts/cugraph/cpu/conda_work/build"
+    logger "Build cugraph..."
+    $WORKSPACE/build.sh cugraph
+fi
 
 echo "Python pytest for cuGraph..."
 cd ${CUGRAPH_ROOT}/python

@@ -17,6 +17,9 @@ set -e
 if [ "$BUILD_CUGRAPH" == "1" ]; then
   echo "Building cugraph"
   CUDA_REL=${CUDA_VERSION%.*}
-
-  conda build conda/recipes/cugraph --python=$PYTHON
+  if [[ -z "$PROJECT_FLASH" || "$PROJECT_FLASH" == "0" ]]; then
+    conda build conda/recipes/cugraph --python=$PYTHON
+  else
+    conda build conda/recipes/cugraph -c ci/artifacts/cugraph/cpu/conda-bld/ --dirty --no-remove-work-dir --python=$PYTHON
+  fi
 fi
