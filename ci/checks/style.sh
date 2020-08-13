@@ -4,6 +4,8 @@
 # cuGraph Style Tester #
 ########################
 
+# Assume this script is run from the root of the cugraph repo
+
 # Make failing commands visible when used in a pipeline and allow the script to
 # continue on errors, but use ERRORCODE to still allow any failing command to be
 # captured for returning a final status code. This allows all style check to
@@ -13,18 +15,16 @@ set -x
 set -o pipefail
 ERRORCODE=0
 PATH=/conda/bin:$PATH
-THISDIR=$(cd $(dirname $0);pwd)
-CUGRAPH_ROOT=$(cd ${THISDIR}/../..;pwd)
 
 # Activate common conda env
 source activate gdf
 
 # Run flake8 and get results/return code
-FLAKE=`flake8 --config=python/.flake8 ${CUGRAPH_ROOT}/python`
+FLAKE=`flake8 --config=python/.flake8 python`
 ERRORCODE=$((ERRORCODE | $?))
 
 # Run clang-format and check for a consistent code format
-CLANG_FORMAT=`python ${CUGRAPH_ROOT}/cpp/scripts/run-clang-format.py 2>&1`
+CLANG_FORMAT=`python cpp/scripts/run-clang-format.py 2>&1`
 CLANG_FORMAT_RETVAL=$?
 ERRORCODE=$((ERRORCODE | ${CLANG_FORMAT_RETVAL}))
 
@@ -46,8 +46,8 @@ else
 fi
 
 # Check for copyright headers in the files modified currently
-#COPYRIGHT=`env PYTHONPATH=${CUGRAPH_ROOT}/ci/utils python ${THISDIR}/copyright.py cpp python benchmarks ci 2>&1`
-COPYRIGHT=`env PYTHONPATH=${CUGRAPH_ROOT}/ci/utils python ${THISDIR}/copyright.py --git-modified-only 2>&1`
+#COPYRIGHT=`env PYTHONPATH=ci/utils python ci/checks/copyright.py cpp python benchmarks ci 2>&1`
+COPYRIGHT=`env PYTHONPATH=ci/utils python ci/checks/copyright.py --git-modified-only 2>&1`
 CR_RETVAL=$?
 ERRORCODE=$((ERRORCODE | ${CR_RETVAL}))
 
