@@ -14,7 +14,7 @@
 
 set -e
 
-if [ "$UPLOAD_CUGRAPH" == "1" ]; then
+if [[ "$BUILD_CUGRAPH" == "1" && "$UPLOAD_CUGRAPH" == "1" ]]; then
   export UPLOADFILE=`conda build conda/recipes/cugraph -c rapidsai -c nvidia -c numba -c conda-forge -c defaults --python=$PYTHON --output`
 
   SOURCE_BRANCH=master
