@@ -21,7 +21,7 @@ from cugraph.structure.graph_new cimport *
 import cugraph.structure.graph_new_wrapper as graph_new_wrapper
 from libc.stdint cimport uintptr_t
 
-def mg_bfs(input_df, local_data, rank, handle, start, return_distances=False):
+def mg_bfs(input_df, local_data, rank, handle, start, result_len, return_distances=False):
     """
     Call pagerank
     """
@@ -51,13 +51,12 @@ def mg_bfs(input_df, local_data, rank, handle, start, return_distances=False):
 
     # Generate the cudf.DataFrame result
     df = cudf.DataFrame()
-    df['vertex'] = cudf.Series(np.zeros(num_verts, dtype=np.int32))
-    df['predecessor'] = cudf.Series(np.zeros(num_verts, dtype=np.int32))
+    df['vertex'] = cudf.Series(range(0, result_len), dtype=np.int32)
+    df['predecessor'] = cudf.Series(np.zeros(result_len, dtype=np.int32))
     if (return_distances):
-        df['distance'] = cudf.Series(np.zeros(num_verts, dtype=np.int32))
+        df['distance'] = cudf.Series(np.zeros(result_len, dtype=np.int32))
 
     # Associate <uintptr_t> to cudf Series
-    cdef uintptr_t c_identifier_ptr  = df['vertex'].__cuda_array_interface__['data'][0];
     cdef uintptr_t c_distance_ptr    = <uintptr_t> NULL # Pointer to the DataFrame 'distance' Series
     cdef uintptr_t c_predecessor_ptr = df['predecessor'].__cuda_array_interface__['data'][0];
     if (return_distances):
@@ -77,7 +76,6 @@ def mg_bfs(input_df, local_data, rank, handle, start, return_distances=False):
                                          num_local_edges)
     graph.set_local_data(<int*>c_local_verts, <int*>c_local_edges, <int*>c_local_offsets)
     graph.set_handle(handle_)
-    graph.get_vertex_identifiers(<int*>c_identifier_ptr)
 
     cdef bool direction = <bool> 1
     # MG BFS path assumes directed is true
