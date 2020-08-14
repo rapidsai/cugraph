@@ -37,7 +37,7 @@ def random_call(G, partitions):
     num_verts = G.number_of_vertices()
 
     score = 0.0
-    for repeat in range(10):
+    for repeat in range(20):
         assignment = []
         for i in range(num_verts):
             assignment.append(random.randint(0, partitions - 1))
@@ -90,14 +90,6 @@ def test_edge_cut_clustering_with_edgevals(graph_file, partitions):
 
     G_edge = cugraph.Graph()
     G_edge.from_cudf_edgelist(cu_M, source="0", destination="1", edge_attr="2")
-
-    # Get the edge_cut score for partitioning versus random assignment
-    """cu_vid, cu_score = cugraph_call(G_adj, partitions)
-    rand_vid, rand_score = random_call(G_adj, partitions)
-    """
-    # Assert that the partitioning has better edge_cut than the random
-    # assignment
-    """assert cu_score < rand_score"""
 
     # Get the edge_cut score for partitioning versus random assignment
     cu_vid, cu_score = cugraph_call(G_edge, partitions)
