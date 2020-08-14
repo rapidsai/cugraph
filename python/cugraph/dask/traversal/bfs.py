@@ -20,7 +20,7 @@ import cugraph.comms.comms as Comms
 import cudf
 
 
-def call_bfs(sID, data, local_data, start, return_distances):
+def call_bfs(sID, data, local_data, start, num_verts, return_distances):
     wid = Comms.get_worker_id(sID)
     handle = Comms.get_handle(sID)
     return mg_bfs.mg_bfs(data[0],
@@ -28,12 +28,14 @@ def call_bfs(sID, data, local_data, start, return_distances):
                          wid,
                          handle,
                          start,
+                         num_verts,
                          return_distances)
 
 
 def bfs(graph,
         start,
-        return_distances=False):
+        return_distances=False,
+        load_balance=True):
 
     """
     Find the distances and predecessors for a breadth first traversal of a
@@ -50,9 +52,12 @@ def bfs(graph,
     start : Integer
         Specify starting vertex for breadth-first search; this function
         iterates over edges in the component reachable from this node.
-
     return_distances : bool, optional, default=False
         Indicates if distances should be returned
+    load_balance : bool, optional, default=True
+        Set as True to perform load_balancing after global sorting of
+        dask-cudf DataFrame. This ensures that the data is uniformly
+        distributed among multiple GPUs to avoid over-loading.
 
     Returns
     -------
@@ -86,7 +91,7 @@ def bfs(graph,
        graph.local_data['by'] == 'src'):
         data = graph.local_data['data']
     else:
-        data = get_local_data(graph, by='src')
+        data = get_local_data(graph, by='src', load_balance=load_balance)
 
     if graph.renumbered:
         start = graph.lookup_internal_vertex_id(cudf.Series([start],
@@ -100,6 +105,7 @@ def bfs(graph,
             wf[1],
             data.local_data,
             start,
+            data.max_vertex_id+1,
             return_distances,
             workers=[wf[0]]))
             for idx, wf in enumerate(data.worker_to_parts.items())])

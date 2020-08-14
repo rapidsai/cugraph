@@ -119,7 +119,10 @@ void bfs(raft::handle_t const &handle,
   CUGRAPH_EXPECTS(handle.comms_initialized(),
                   "cugraph::mg::bfs() expected to work only in multi gpu case.");
 
-  size_t word_count = detail::number_of_words(graph.number_of_vertices);
+  // Distances and predecessors are of the size global_number_of_vertices
+  vertex_t global_number_of_vertices = detail::get_global_vertex_count(handle, graph);
+
+  size_t word_count = detail::number_of_words(global_number_of_vertices);
   rmm::device_vector<uint32_t> visited_bmap(word_count, 0);
   rmm::device_vector<uint32_t> output_frontier_bmap(word_count, 0);
 
@@ -128,7 +131,7 @@ void bfs(raft::handle_t const &handle,
   // Set all predecessors to be invalid vertex ids
   thrust::fill(rmm::exec_policy(stream)->on(stream),
                predecessors,
-               predecessors + graph.number_of_vertices,
+               predecessors + global_number_of_vertices,
                cugraph::invalid_idx<vertex_t>::value);
 
   if (distances == nullptr) {
@@ -140,7 +143,7 @@ void bfs(raft::handle_t const &handle,
   } else {
     // Update distances to max distances everywhere except start_vertex
     // where it is set to 0
-    detail::fill_max_dist(handle, graph, start_vertex, distances);
+    detail::fill_max_dist(handle, graph, start_vertex, global_number_of_vertices, distances);
 
     detail::BFSStep<vertex_t, edge_t> bfs_op(
       output_frontier_bmap.data().get(), visited_bmap.data().get(), predecessors, distances);
@@ -150,14 +153,15 @@ void bfs(raft::handle_t const &handle,
     // In place reduce to collect distances
     if (handle.comms_initialized()) {
       handle.get_comms().allreduce(
-        distances, distances, graph.number_of_vertices, raft::comms::op_t::MIN, stream);
+        distances, distances, global_number_of_vertices, raft::comms::op_t::MIN, stream);
     }
   }
 
   // In place reduce to collect predecessors
   if (handle.comms_initialized()) {
-    handle.get_comms().allreduce(
-      predecessors, predecessors, graph.number_of_vertices, raft::comms::op_t::MIN, stream);
+    auto op = raft::comms::op_t::MIN;
+    if (std::is_signed<vertex_t>::value) { op = raft::comms::op_t::MAX; }
+    handle.get_comms().allreduce(predecessors, predecessors, global_number_of_vertices, op, stream);
   }
 }
 

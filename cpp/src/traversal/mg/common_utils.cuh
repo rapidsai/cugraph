@@ -459,13 +459,33 @@ template <typename vertex_t, typename edge_t, typename weight_t>
 void fill_max_dist(raft::handle_t const &handle,
                    cugraph::GraphCSRView<vertex_t, edge_t, weight_t> const &graph,
                    vertex_t start_vertex,
+                   vertex_t global_number_of_vertices,
                    vertex_t *distances)
 {
   if (distances == nullptr) { return; }
-  vertex_t array_size        = graph.number_of_vertices;
+  vertex_t array_size        = global_number_of_vertices;
   constexpr vertex_t threads = 256;
   vertex_t blocks            = raft::div_rounding_up_safe(array_size, threads);
   fill_kernel<<<blocks, threads, 0, handle.get_stream()>>>(distances, array_size, start_vertex);
+}
+
+template <typename vertex_t, typename edge_t, typename weight_t>
+vertex_t get_global_vertex_count(raft::handle_t const &handle,
+                                 cugraph::GraphCSRView<vertex_t, edge_t, weight_t> const &graph)
+{
+  rmm::device_vector<vertex_t> id(1);
+  id[0] = *thrust::max_element(rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
+                               graph.indices,
+                               graph.indices + graph.number_of_edges);
+  handle.get_comms().allreduce(
+    id.data().get(), id.data().get(), 1, raft::comms::op_t::MAX, handle.get_stream());
+  vertex_t max_vertex_id = id[0];
+
+  if ((graph.number_of_vertices - 1) > max_vertex_id) {
+    max_vertex_id = graph.number_of_vertices - 1;
+  }
+
+  return max_vertex_id + 1;
 }
 
 }  // namespace detail
