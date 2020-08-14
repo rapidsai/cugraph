@@ -44,6 +44,7 @@ with warnings.catch_warnings():
 
 def compare_series(series_1, series_2):
     assert len(series_1) == len(series_2)
+    df = cudf.DataFrame({"series_1": series_1, "series_2": series_2})
     diffs = df.query('series_1 != series_2')
 
     if len(diffs) > 0:

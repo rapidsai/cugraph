@@ -54,6 +54,7 @@ def test_dask_pagerank(client_connection):
 
     dg1 = cugraph.DiGraph()
     dg1.from_dask_cudf_edgelist(ddf1, 'src', 'dst', store_row_major=False)
+    result_pr1 = dcg.pagerank(dg1)
 
     ddf2 = dask_cudf.read_csv(input_data_path2, chunksize=chunksize2,
                               delimiter=' ',
