@@ -77,7 +77,7 @@ T transform_reduce_v(HandleType& handle,
 /**
  * @brief Apply an operator to the vertex properties and reduce.
  *
- * This version (conceptually) iterates over only a subst of the graph vertices. This function
+ * This version (conceptually) iterates over only a subset of the graph vertices. This function
  * actually works as thrust::transform_reduce() on [@p input_first, @p input_last) (followed by
  * inter-process reduction in multi-GPU).
  *

@@ -73,7 +73,7 @@ typename GraphType::vertex_type count_if_v(HandleType& handle,
 /**
  * @brief Count the number of vertices that satisfies the given predicate.
  *
- * This version (conceptually) iterates over only a subst of the graph vertices. This function
+ * This version (conceptually) iterates over only a subset of the graph vertices. This function
  * actually works as thrust::count_if() on [@p input_first, @p input_last) (followed by
  * inter-process reduction in multi-GPU). @p input_last - @p input_first (or the sum of @p
  * input_last - @p input_first values in multi-GPU) should not overflow GraphType::vertex_type.
