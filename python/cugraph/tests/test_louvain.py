@@ -38,15 +38,26 @@ print("Networkx version : {} ".format(nx.__version__))
 def cugraph_call(cu_M, edgevals=False):
 
     G = cugraph.Graph()
-    if edgevals:
-        G.from_cudf_edgelist(cu_M, source="0", destination="1", edge_attr="2")
-    else:
-        G.from_cudf_edgelist(cu_M, source="0", destination="1")
+    #if edgevals:
+    G.from_cudf_edgelist(cu_M, source="0", destination="1", edge_attr="2")
+    #else:
+    #    G.from_cudf_edgelist(cu_M, source="0", destination="1")
     # cugraph Louvain Call
     t1 = time.time()
     parts, mod = cugraph.louvain(G)
     t2 = time.time() - t1
     print("Cugraph Time : " + str(t2))
+
+    n_clusters = len(parts.groupby(['partition']).count())
+
+    print('louvain mod = ', mod)
+    spectral_mod = cugraph.analyzeClustering_modularity(G,
+                                                        n_clusters,
+                                                        parts,
+                                                        'vertex',
+                                                        'partition')
+
+    print('spectral_mod = ', spectral_mod)
 
     return parts, mod
 
@@ -109,6 +120,7 @@ def test_louvain(graph_file):
 
     cu_mod_nx = community.modularity(cu_map, Gnx)
     nx_mod = community.modularity(nx_parts, Gnx)
+
     assert len(cu_parts) == len(nx_parts)
     assert cu_mod > (0.82 * nx_mod)
     assert abs(cu_mod - cu_mod_nx) < 0.0001

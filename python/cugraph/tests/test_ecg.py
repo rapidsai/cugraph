@@ -23,7 +23,13 @@ def cugraph_call(G, min_weight, ensemble_size):
     df = cugraph.ecg(G, min_weight, ensemble_size)
     df = df.sort_values("vertex")
     num_parts = df["partition"].max() + 1
-    score = cugraph.analyzeClustering_modularity(G, num_parts, df["partition"])
+    num_parts2 = len(df.groupby(['partition']).count())
+    print('num_parts = ', num_parts)
+    print('num_parts2 = ', num_parts2)
+    score = cugraph.analyzeClustering_modularity(G, num_parts, df,
+                                                 'vertex', 'partition')
+
+    print('score = ', score)
     return score, num_parts
 
 

@@ -26,7 +26,7 @@ def cugraph_call(G, partitions):
         G, partitions, num_eigen_vects=partitions
     )
 
-    score = cugraph.analyzeClustering_edge_cut(G, partitions, df["cluster"])
+    score = cugraph.analyzeClustering_edge_cut(G, partitions, df, 'vertex', 'cluster')
     return set(df["vertex"].to_array()), score
 
 
@@ -36,7 +36,11 @@ def random_call(G, partitions):
     assignment = []
     for i in range(num_verts):
         assignment.append(random.randint(0, partitions - 1))
-    assignment_cu = cudf.Series(assignment)
+
+    assignment_cu = cudf.DataFrame(assignment, columns=['cluster'])
+    assignment_cu['vertex'] = assignment_cu.index
+
+    print('random call')
     score = cugraph.analyzeClustering_edge_cut(G, partitions, assignment_cu)
     return set(range(num_verts)), score
 
@@ -56,15 +60,14 @@ def test_edge_cut_clustering(graph_file, partitions):
     cu_M = utils.read_csv_file(graph_file, read_weights_in_sp=False)
 
     G_edge = cugraph.Graph()
+    #G_edge.from_cudf_edgelist(cu_M, source="0", destination="1", renumber=False)
     G_edge.from_cudf_edgelist(cu_M, source="0", destination="1")
 
-    # Get the edge_cut score for partitioning versus random assignment
-    """cu_vid, cu_score = cugraph_call(G_adj, partitions)
-    rand_vid, rand_score = random_call(G_adj, partitions)
-    """
-    # Assert that the partitioning has better edge_cut than the random
-    # assignment
-    """assert cu_score < rand_score"""
+    print('cu_M = \n', cu_M)
+    el = G_edge.add_internal_vertex_id(cu_M, "src", "0")
+    el = G_edge.add_internal_vertex_id(el, "dst", "1")
+    el[["src", "dst", "2"]].to_csv(graph_file + "_" + str(partitions), sep=' ', header=False, index=False)
+    print('el = \n', el)
 
     # Get the edge_cut score for partitioning versus random assignment
     cu_vid, cu_score = cugraph_call(G_edge, partitions)
@@ -72,6 +75,7 @@ def test_edge_cut_clustering(graph_file, partitions):
 
     # Assert that the partitioning has better edge_cut than the random
     # assignment
+    print('graph_file = ', graph_file, ', partitions = ', partitions)
     print(cu_score, rand_score)
     assert cu_score < rand_score
 

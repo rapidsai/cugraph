@@ -262,6 +262,7 @@ def analyzeClustering_edge_cut(input_graph, n_clusters, clustering):
         graph_float = GraphCSRView[int,int,float](<int*>c_offsets, <int*>c_indices,
                                               <float*>c_weights, num_verts, num_edges)
 
+#### THIS Breaks with renumbering.....
         c_analyze_clustering_edge_cut(graph_float,
                                       n_clusters,
                                       <int*> c_cluster,

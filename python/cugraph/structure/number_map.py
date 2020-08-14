@@ -49,15 +49,28 @@ class NumberMap:
     """
 
     class SingleGPU:
-        def __init__(self, df, src_col_names, dst_col_names, id_type):
+        def __init__(self, df, src_col_names, dst_col_names, id_type,
+                     store_row_major):
             self.col_names = NumberMap.compute_vals(src_col_names)
             self.df = cudf.DataFrame()
             self.id_type = id_type
 
+            # TODO: Not sure I need to store here
+            self.store_row_major = store_row_major
+
+            source_count = 0
+            dest_count = 0
+
+            if store_row_major:
+                source_count = 1
+            else:
+                dest_count = 1
+
             tmp = (
                 df[src_col_names]
+                .assign(count=source_count)
                 .groupby(src_col_names)
-                .count()
+                .sum()
                 .reset_index()
                 .rename(
                     columns=dict(zip(src_col_names, self.col_names)),
@@ -68,21 +81,27 @@ class NumberMap:
             if dst_col_names is not None:
                 tmp_dst = (
                     df[dst_col_names]
+                    .assign(count=dest_count)
                     .groupby(dst_col_names)
-                    .count()
+                    .sum()
                     .reset_index()
                 )
                 for newname, oldname in zip(self.col_names, dst_col_names):
                     self.df[newname] = tmp[newname].append(tmp_dst[oldname])
+                self.df['count'] = tmp['count'].append(tmp_dst['count'])
             else:
                 for newname, oldname in zip(self.col_names, dst_col_names):
                     self.df[newname] = tmp[newname]
+                self.df['count'] = tmp['count']
 
             self.numbered = False
 
         def compute(self):
             if not self.numbered:
-                tmp = self.df.groupby(self.col_names).count().reset_index()
+                tmp = self.df.groupby(self.col_names).sum().sort_values(
+                    'count', ascending=False
+                ).reset_index().drop(columns='count')
+
                 tmp["id"] = tmp.index.astype(self.id_type)
                 self.df = tmp
                 self.numbered = True
@@ -166,12 +185,21 @@ class NumberMap:
 
     class MultiGPU:
         def extract_vertices(
-            df, src_col_names, dst_col_names, internal_col_names
+          df, src_col_names, dst_col_names, internal_col_names, store_row_major
         ):
+            source_count = 0
+            dest_count = 0
+
+            if store_row_major:
+                source_count = 1
+            else:
+                dest_count = 1
+
             s = (
                 df[src_col_names]
+                .assign(count=source_count)
                 .groupby(src_col_names)
-                .count()
+                .sum()
                 .reset_index()
                 .rename(
                     columns=dict(zip(src_col_names, internal_col_names)),
@@ -183,8 +211,9 @@ class NumberMap:
             if dst_col_names is not None:
                 d = (
                     df[dst_col_names]
+                    .assign(count=dest_count)
                     .groupby(dst_col_names)
-                    .count()
+                    .sum()
                     .reset_index()
                     .rename(
                         columns=dict(zip(dst_col_names, internal_col_names)),
@@ -200,17 +229,22 @@ class NumberMap:
                 else:
                     reply[i] = s[i].append(d[i])
 
+            reply['count'] = s['count'].append(d['count'])
+
             return reply
 
-        def __init__(self, ddf, src_col_names, dst_col_names, id_type):
+        def __init__(self, ddf, src_col_names, dst_col_names, id_type, store_row_major):
             self.col_names = NumberMap.compute_vals(src_col_names)
             self.val_types = NumberMap.compute_vals_types(ddf, src_col_names)
+            self.val_types["count"] = np.int32
             self.id_type = id_type
+            self.store_row_major = store_row_major
             self.ddf = ddf.map_partitions(
                 NumberMap.MultiGPU.extract_vertices,
                 src_col_names,
                 dst_col_names,
                 self.col_names,
+                store_row_major,
                 meta=self.val_types,
             )
             self.numbered = False
@@ -229,7 +263,8 @@ class NumberMap:
                 global_id[i] = local_id[i] + base_addresses[partition[i]]
 
         def assign_internal_identifiers(df, base_addresses, id_type):
-            df = df.assign(local_id=df.index.astype(np.int64))
+            ##  Would like local_id to be an int64...
+            df = df.assign(local_id=df.index.astype(np.int32))
             df = df.apply_rows(
                 NumberMap.MultiGPU.assign_internal_identifiers_kernel,
                 incols=["local_id", "partition"],
@@ -268,14 +303,22 @@ class NumberMap:
                 # Compute the local partition id (obsolete once
                 #   https://github.com/dask/dask/issues/3707 is completed)
                 val_types["partition"] = np.int32
+
                 rehashed_with_partition_id = rehashed.map_partitions(
                     NumberMap.MultiGPU.compute_partition,
                     rehashed.divisions,
                     meta=val_types,
                 )
 
+                val_types.pop('count')
+
                 numbering_map = rehashed_with_partition_id.map_partitions(
-                    lambda df: df.groupby(self.col_names).min().reset_index()
+                    lambda df: df.groupby(self.col_names + ["hash", "partition"])
+                    .sum()
+                    .sort_values('count', ascending=False)
+                    .reset_index()
+                    .drop(columns='count'),
+                    meta=val_types
                 )
 
                 #
@@ -283,10 +326,9 @@ class NumberMap:
                 #
                 counts = numbering_map.map_partitions(
                     lambda df: df.groupby("partition").count()
-                ).compute()["hash"]
-                base_addresses = cudf.Series(
-                    np.zeros(len(counts) + 1, self.id_type)
-                )
+                ).compute()["hash"].to_pandas()
+                base_addresses = np.zeros(len(counts) + 1, self.id_type)
+
                 for i in range(len(counts)):
                     base_addresses[i + 1] = base_addresses[i] + counts[i]
 
@@ -294,7 +336,7 @@ class NumberMap:
                 #  Update each partition with the base address
                 #
                 numbering_map = self.assign_global_id(
-                    numbering_map, base_addresses, val_types
+                    numbering_map, cudf.Series(base_addresses), val_types
                 )
 
                 self.ddf = numbering_map
@@ -369,6 +411,12 @@ class NumberMap:
         self.implementation = None
         self.id_type = id_type
 
+    def aggregate_count_and_partition(df):
+        d = {}
+        d['count'] = df['count'].sum()
+        d['partition'] = df['partition'].min()
+        return cudf.Series(d, index=['count', 'partition'])
+
     def compute_vals_types(df, column_names):
         """
         Helper function to compute internal column names and types
@@ -394,7 +442,7 @@ class NumberMap:
         """
         return [str(i) for i in range(len(column_names))]
 
-    def from_dataframe(self, df, src_col_names, dst_col_names=None):
+    def from_dataframe(self, df, src_col_names, dst_col_names=None, store_row_major=True):
         """
         Populate the numbering map with vertices from the specified
         columns of the provided DataFrame.
@@ -412,6 +460,14 @@ class NumberMap:
             This list of 1 or more strings contain the names
             of the columns that uniquely identify an external
             vertex identifier for destination vertices
+        store_row_major : bool
+            Identify how the graph adjacency will be used.  Graphs stored in
+            row major order will be optimized for organization by source
+            vertex.  Graphs stored in column major order will be optimized
+            for ogranization by destination vertex.
+            If True, store in row major order, if False, store in column
+            major order.
+
         """
         if self.implementation is not None:
             raise Exception("NumberMap is already populated")
@@ -425,18 +481,18 @@ class NumberMap:
 
         if type(df) is cudf.DataFrame:
             self.implementation = NumberMap.SingleGPU(
-                df, src_col_names, dst_col_names, self.id_type
+                df, src_col_names, dst_col_names, self.id_type, store_row_major
             )
         elif type(df) is dask_cudf.DataFrame:
             self.implementation = NumberMap.MultiGPU(
-                df, src_col_names, dst_col_names, self.id_type
+                df, src_col_names, dst_col_names, self.id_type, store_row_major
             )
         else:
             raise Exception("df must be cudf.DataFrame or dask_cudf.DataFrame")
 
         self.implementation.compute()
 
-    def from_series(self, src_series, dst_series=None):
+    def from_series(self, src_series, dst_series=None, store_row_major=True):
         """
         Populate the numbering map with vertices from the specified
         pair of series objects, one for the source and one for
@@ -450,6 +506,13 @@ class NumberMap:
         dst_series: cudf.Series or dask_cudf.Series
             Contains a list of external vertex identifiers that will be
             numbered by the NumberMap class.
+        store_row_major : bool
+            Identify how the graph adjacency will be used.  Graphs stored in
+            row major order will be optimized for organization by source
+            vertex.  Graphs stored in column major order will be optimized
+            for ogranization by destination vertex.
+            If True, store in row major order, if False, store in column
+            major order.
         """
         if self.implementation is not None:
             raise Exception("NumberMap is already populated")
@@ -465,7 +528,7 @@ class NumberMap:
                 df["d"] = dst_series
                 dst_series_list = ["d"]
             self.implementation = NumberMap.SingleGPU(
-                df, ["s"], dst_series_list, self.id_type
+                df, ["s"], dst_series_list, self.id_type, store_row_major
             )
         elif type(src_series) is dask_cudf.Series:
             dst_series_list = None
@@ -475,7 +538,7 @@ class NumberMap:
                 df["d"] = dst_series
                 dst_series_list = ["d"]
             self.implementation = NumberMap.MultiGPU(
-                df, ["s"], dst_series_list, self.id_type
+                df, ["s"], dst_series_list, self.id_type, store_row_major
             )
         else:
             raise Exception(
@@ -669,7 +732,8 @@ class NumberMap:
         """
         return self.implementation.col_names
 
-    def renumber(df, src_col_names, dst_col_names, preserve_order=False):
+    def renumber(df, src_col_names, dst_col_names, preserve_order=False,
+                 store_row_major=True):
         """
         Given a single GPU or distributed DataFrame, use src_col_names and
         dst_col_names to identify the source vertex identifiers and destination
@@ -702,6 +766,13 @@ class NumberMap:
             This list of 1 or more strings contain the names
             of the columns that uniquely identify an external
             vertex identifier for destination vertices
+        store_row_major : bool
+            Identify how the graph adjacency will be used.  Graphs stored in
+            row major order will be optimized for organization by source
+            vertex.  Graphs stored in column major order will be optimized
+            for ogranization by destination vertex.
+            If True, store in row major order, if False, store in column
+            major order.
 
         Returns
         ---------
@@ -814,6 +885,7 @@ class NumberMap:
             index_name = NumberMap.generate_unused_column_name(df)
             df[index_name] = df.index
 
+        print('in unrenumber, calling from_internal_vertex_id\n')
         df = self.from_internal_vertex_id(df, column_name, drop=True)
 
         if preserve_order:

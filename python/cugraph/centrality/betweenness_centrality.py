@@ -229,8 +229,8 @@ def edge_betweenness_centrality(
     )
 
     if G.renumbered:
-        df = G.unrenumber(df, "src")
-        df = G.unrenumber(df, "dst")
+        df = G.unrenumber(df, "src", preserve_order=True)
+        df = G.unrenumber(df, "dst", preserve_order=True)
 
     return df
 
@@ -272,4 +272,5 @@ def _initialize_vertices_from_identifiers_list(G, identifiers):
         ).to_array()
 
     k = len(vertices)
+
     return vertices, k

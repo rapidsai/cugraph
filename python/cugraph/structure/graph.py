@@ -16,6 +16,7 @@ from cugraph.structure.symmetrize import symmetrize
 from cugraph.structure.number_map import NumberMap
 from cugraph.dask.common.input_utils import get_local_data
 import cudf
+import numpy as np
 import dask_cudf
 import warnings
 
@@ -87,6 +88,7 @@ class Graph:
         """
         self.symmetrized = symmetrized
         self.renumbered = False
+        self.renumber_map = None
         self.bipartite = False
         self.multipartite = False
         self._nodes = {}
@@ -207,6 +209,7 @@ class Graph:
         destination="destination",
         edge_attr=None,
         renumber=True,
+        store_row_major=True,
     ):
         """
         Initialize a graph from the edge list. It is an error to call this
@@ -249,6 +252,13 @@ class Graph:
         renumber : bool
             If source and destination indices are not in range 0 to V where V
             is number of vertices, renumber argument should be True.
+        store_row_major : bool
+            Identify how the graph adjacency will be used.  Graphs stored in
+            row major order will be optimized for organization by source
+            vertex.  Graphs stored in column major order will be optimized
+            for ogranization by destination vertex.
+            If True, store in row major order, if False, store in column
+            major order.
 
         Examples
         --------
@@ -277,14 +287,18 @@ class Graph:
             raise Exception('input should be a cudf.DataFrame or \
                               a dask_cudf dataFrame')
 
+        self.store_row_major=store_row_major
+        
         renumber_map = None
         if renumber:
             elist, renumber_map = NumberMap.renumber(
-                elist, source, destination
+                elist, source, destination,
+                store_row_major=store_row_major
             )
             source = 'src'
             destination = 'dst'
             self.renumbered = True
+            self.renumber_map = renumber_map
         else:
             if type(source) is list and type(destination) is list:
                 raise Exception('set renumber to True for multi column ids')
@@ -314,7 +328,6 @@ class Graph:
         self.edgelist = Graph.EdgeList(
             source_col, dest_col, value_col
         )
-        self.renumber_map = renumber_map
 
     def add_edge_list(self, source, destination, value=None):
         warnings.warn(
@@ -332,7 +345,8 @@ class Graph:
 
     def from_dask_cudf_edgelist(self, input_ddf, source='source',
                                 destination='destination',
-                                edge_attr=None, renumber=True):
+                                edge_attr=None, renumber=True,
+                                store_row_major=True):
         """
         Initializes the distributed graph from the dask_cudf.DataFrame
         edgelist. Undirected Graphs are not currently supported.
@@ -356,6 +370,13 @@ class Graph:
         renumber : bool
             If source and destination indices are not in range 0 to V where V
             is number of vertices, renumber argument should be True.
+        store_row_major : bool
+            Identify how the graph adjacency will be used.  Graphs stored in
+            row major order will be optimized for organization by source
+            vertex.  Graphs stored in column major order will be optimized
+            for ogranization by destination vertex.
+            If True, store in row major order, if False, store in column
+            major order.
         """
         if self.edgelist is not None or self.adjlist is not None:
             raise Exception('Graph already has values')
@@ -364,13 +385,15 @@ class Graph:
         if isinstance(input_ddf, dask_cudf.DataFrame):
             self.distributed = True
             self.local_data = None
+            self.store_row_major = store_row_major
             rename_map = {source: 'src', destination: 'dst'}
             if edge_attr is not None:
                 rename_map[edge_attr] = 'weights'
             input_ddf = input_ddf.rename(columns=rename_map)
             if renumber:
                 renumbered_ddf, number_map = NumberMap.renumber(
-                    input_ddf, "src", "dst"
+                    input_ddf, "src", "dst",
+                    store_row_major=store_row_major
                 )
                 self.edgelist = self.EdgeList(renumbered_ddf)
                 self.renumber_map = number_map
@@ -1008,10 +1031,12 @@ class Graph:
         if self.edgelist is None:
             raise Exception("Graph has no Edgelist.")
         if self.renumbered:
-            tmp = self.renumber_map.to_internal_vertex_id(cudf.Series([u, v]))
+            tmp = cudf.DataFrame({'src': [ u, v ]})
+            tmp = tmp.astype({'src': 'int'})
+            tmp = self.add_internal_vertex_id(tmp, 'id', 'src', preserve_order=True)
 
-            u = tmp[0]
-            v = tmp[1]
+            u = tmp['id'][0]
+            v = tmp['id'][1]
 
         df = self.edgelist.edgelist_df
         if self.distributed:
@@ -1147,6 +1172,9 @@ class Graph:
         df: cudf.DataFrame or dask_cudf.DataFrame
             A DataFrame containing external vertex identifiers that will be
             converted into internal vertex identifiers.
+
+        FIXME:  this seem to be backwards... look through this.
+
 
         external_column_name: string or list of strings
             Name of the column(s) containing the external vertex ids

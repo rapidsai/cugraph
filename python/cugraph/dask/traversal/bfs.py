@@ -92,6 +92,8 @@ def bfs(graph,
         start = graph.lookup_internal_vertex_id(cudf.Series([start])).compute()
         start = start.iloc[0]
 
+    print('start = ', start)
+
     result = dict([(data.worker_info[wf[0]]["rank"],
                     client.submit(
             call_bfs,
@@ -105,6 +107,8 @@ def bfs(graph,
     wait(result)
 
     df = result[0].result()
+
+    print('df = \n', df)
 
     if graph.renumbered:
         df = graph.unrenumber(df, 'vertex').compute()
