@@ -80,8 +80,6 @@ def compare_graphs(nx_graph, cu_graph):
     ds0 = pd.Series(list(nx_graph.nodes)).sort_values(ignore_index=True)
     ds1 = pd.Series(list(cu_to_nx_graph.nodes)).sort_values(ignore_index=True)
 
-    #print('compare series from compare_graphs')
-    #compare_series(ds0, ds1)
     if not ds0.equals(ds1):
         print('ds0 != ds1')
         return False
@@ -643,7 +641,7 @@ def test_to_undirected(graph_file):
 
     for index, row in cu_M.to_pandas().iterrows():
         assert DiG.has_edge(row['0'], row['1'])
-        assert DiG.has_edge(row['1'], row['0']) == False
+        assert not DiG.has_edge(row['1'], row['0'])
 
     G = DiG.to_undirected()
     Gnx = DiGnx.to_undirected()

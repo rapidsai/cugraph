@@ -158,8 +158,8 @@ def spectralModularityMaximizationClustering(
 
 
 def analyzeClustering_modularity(G, n_clusters, clustering,
-                                 vertex_col_name = 'vertex',
-                                 cluster_col_name = 'cluster'):
+                                 vertex_col_name='vertex',
+                                 cluster_col_name='cluster'):
     """
     Compute the modularity score for a partitioning/clustering
 
@@ -212,8 +212,8 @@ def analyzeClustering_modularity(G, n_clusters, clustering,
 
 
 def analyzeClustering_edge_cut(G, n_clusters, clustering,
-                                 vertex_col_name = 'vertex',
-                                 cluster_col_name = 'cluster'):
+                               vertex_col_name='vertex',
+                               cluster_col_name='cluster'):
     """
     Compute the edge cut score for a partitioning/clustering
 
@@ -266,8 +266,8 @@ def analyzeClustering_edge_cut(G, n_clusters, clustering,
 
 
 def analyzeClustering_ratio_cut(G, n_clusters, clustering,
-                                vertex_col_name = 'vertex',
-                                cluster_col_name = 'cluster'):
+                                vertex_col_name='vertex',
+                                cluster_col_name='cluster'):
     """
     Compute the ratio cut score for a partitioning/clustering
 

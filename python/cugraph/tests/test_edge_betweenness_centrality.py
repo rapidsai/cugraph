@@ -216,7 +216,6 @@ def _calc_bc_subset_fixed(G, Gnx, normalized, weight, k, seed, result_dtype):
         columns={"betweenness_centrality": "ref_bc"}, copy=False
     ).reset_index(drop=True)
 
-
     merged_df = df.merge(df2, on=['src', 'dst']).reset_index(drop=True)
 
     return merged_df

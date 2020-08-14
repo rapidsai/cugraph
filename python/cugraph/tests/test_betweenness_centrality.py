@@ -200,7 +200,6 @@ def _calc_bc_subset_fixed(
     if G.renumbered:
         sources_df = cudf.DataFrame({'src': sources})
         sources = G.unrenumber(sources_df, 'src')['src'].to_pandas().tolist()
-    
 
     # The first call is going to proceed to the random sampling in the same
     # fashion as the lines above

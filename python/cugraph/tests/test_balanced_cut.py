@@ -26,7 +26,9 @@ def cugraph_call(G, partitions):
         G, partitions, num_eigen_vects=partitions
     )
 
-    score = cugraph.analyzeClustering_edge_cut(G, partitions, df, 'vertex', 'cluster')
+    score = cugraph.analyzeClustering_edge_cut(
+        G, partitions, df, 'vertex', 'cluster'
+    )
     return set(df["vertex"].to_array()), score
 
 
@@ -43,7 +45,9 @@ def random_call(G, partitions):
         assignment_cu = cudf.DataFrame(assignment, columns=['cluster'])
         assignment_cu['vertex'] = assignment_cu.index
 
-        score += cugraph.analyzeClustering_edge_cut(G, partitions, assignment_cu)
+        score += cugraph.analyzeClustering_edge_cut(
+            G, partitions, assignment_cu
+        )
 
     return set(range(num_verts)), (score / 10.0)
 

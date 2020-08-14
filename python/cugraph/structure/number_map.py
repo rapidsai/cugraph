@@ -185,7 +185,8 @@ class NumberMap:
 
     class MultiGPU:
         def extract_vertices(
-          df, src_col_names, dst_col_names, internal_col_names, store_transposed
+            df, src_col_names, dst_col_names,
+            internal_col_names, store_transposed
         ):
             source_count = 0
             dest_count = 0
@@ -233,7 +234,9 @@ class NumberMap:
 
             return reply
 
-        def __init__(self, ddf, src_col_names, dst_col_names, id_type, store_transposed):
+        def __init__(
+            self, ddf, src_col_names, dst_col_names, id_type, store_transposed
+        ):
             self.col_names = NumberMap.compute_vals(src_col_names)
             self.val_types = NumberMap.compute_vals_types(ddf, src_col_names)
             self.val_types["count"] = np.int32
@@ -263,8 +266,7 @@ class NumberMap:
                 global_id[i] = local_id[i] + base_addresses[partition[i]]
 
         def assign_internal_identifiers(df, base_addresses, id_type):
-            ##  Would like local_id to be an int64...
-            df = df.assign(local_id=df.index.astype(np.int32))
+            df = df.assign(local_id=df.index.astype(np.int64))
             df = df.apply_rows(
                 NumberMap.MultiGPU.assign_internal_identifiers_kernel,
                 incols=["local_id", "partition"],
@@ -313,8 +315,9 @@ class NumberMap:
                 val_types.pop('count')
 
                 numbering_map = rehashed_with_partition_id.map_partitions(
-                    lambda df: df.groupby(self.col_names + ["hash", "partition"])
-                    .sum()
+                    lambda df: df.groupby(
+                        self.col_names + ["hash", "partition"]
+                    ).sum()
                     .sort_values('count', ascending=False)
                     .reset_index()
                     .drop(columns='count'),
@@ -442,7 +445,9 @@ class NumberMap:
         """
         return [str(i) for i in range(len(column_names))]
 
-    def from_dataframe(self, df, src_col_names, dst_col_names=None, store_transposed=False):
+    def from_dataframe(
+            self, df, src_col_names, dst_col_names=None, store_transposed=False
+    ):
         """
         Populate the numbering map with vertices from the specified
         columns of the provided DataFrame.
@@ -478,11 +483,13 @@ class NumberMap:
 
         if type(df) is cudf.DataFrame:
             self.implementation = NumberMap.SingleGPU(
-                df, src_col_names, dst_col_names, self.id_type, store_transposed
+                df, src_col_names, dst_col_names, self.id_type,
+                store_transposed
             )
         elif type(df) is dask_cudf.DataFrame:
             self.implementation = NumberMap.MultiGPU(
-                df, src_col_names, dst_col_names, self.id_type, store_transposed
+                df, src_col_names, dst_col_names, self.id_type,
+                store_transposed
             )
         else:
             raise Exception("df must be cudf.DataFrame or dask_cudf.DataFrame")

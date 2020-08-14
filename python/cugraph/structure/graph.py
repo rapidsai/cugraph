@@ -17,7 +17,6 @@ from cugraph.structure.number_map import NumberMap
 from cugraph.dask.common.input_utils import get_local_data
 import cugraph.dask.common.mg_utils as mg_utils
 import cudf
-import numpy as np
 import dask_cudf
 import warnings
 import cugraph.comms.comms as Comms
@@ -369,8 +368,8 @@ class Graph:
             raise Exception('input should be a cudf.DataFrame or \
                               a dask_cudf dataFrame')
 
-        self.store_transposed=store_transposed
-        
+        self.store_transposed = store_transposed
+
         renumber_map = None
         if renumber:
             elist, renumber_map = NumberMap.renumber(
@@ -1131,9 +1130,11 @@ class Graph:
         if self.edgelist is None:
             raise Exception("Graph has no Edgelist.")
         if self.renumbered:
-            tmp = cudf.DataFrame({'src': [ u, v ]})
+            tmp = cudf.DataFrame({'src': [u, v]})
             tmp = tmp.astype({'src': 'int'})
-            tmp = self.add_internal_vertex_id(tmp, 'id', 'src', preserve_order=True)
+            tmp = self.add_internal_vertex_id(
+                tmp, 'id', 'src', preserve_order=True
+            )
 
             u = tmp['id'][0]
             v = tmp['id'][1]
