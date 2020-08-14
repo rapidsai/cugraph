@@ -15,6 +15,7 @@
  */
 #pragma once
 
+#include <raft/handle.hpp>
 #include <rmm/device_buffer.hpp>
 
 #include <graph.hpp>
@@ -77,4 +78,24 @@ std::unique_ptr<rmm::device_buffer> renumber_vertices(
   ET *map_size,
   rmm::mr::device_memory_resource *mr = rmm::mr::get_default_resource());
 
+/**
+ * @brief    Broadcast using handle communicator
+ *
+ * Use handle's communicator to operate broadcasting.
+ *
+ * @throws                    cugraph::logic_error when an error occurs.
+ *
+ * @tparam value_t            Type of the data to broadcast
+ *
+ * @param[out] value          Point to the data
+ * @param[in]  count          Number of elements to broadcast
+ *
+ */
+
+// FIXME: It would be better to expose it in RAFT
+template <typename value_t>
+void comms_bcast(const raft::handle_t &handle, value_t *value, size_t count)
+{
+  handle.get_comms().bcast(value, count, 0, handle.get_stream());
+}
 }  // namespace cugraph
