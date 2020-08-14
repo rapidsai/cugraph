@@ -66,6 +66,7 @@
 - PR #1034 Expose resolution (gamma) parameter in Louvain
 - PR #1037 Centralize test main function and replace usage of deprecated `cnmem_memory_resource`
 - PR #1041 Use S3 bucket directly for benchmark plugin
+- PR #1056 Fix MG BFS performance
 - PR #1062 Compute max_vertex_id in mnmg local data computation
 - PR #1068 Remove unused thirdparty code
 
