@@ -885,7 +885,6 @@ class NumberMap:
             index_name = NumberMap.generate_unused_column_name(df)
             df[index_name] = df.index
 
-        print('in unrenumber, calling from_internal_vertex_id\n')
         df = self.from_internal_vertex_id(df, column_name, drop=True)
 
         if preserve_order:

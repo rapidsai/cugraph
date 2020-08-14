@@ -81,8 +81,6 @@ def spectralBalancedCutClustering(
         kmean_max_iter,
     )
 
-    print('unrenumbered result =\n', df)
-
     if G.renumbered:
         df = G.unrenumber(df, "vertex")
 
@@ -259,8 +257,6 @@ def analyzeClustering_edge_cut(G, n_clusters, clustering,
                                               drop=True)
 
     clustering = clustering.sort_values(vertex_col_name).reset_index(drop=True)
-
-    print('before analyze edge cut, clustering =\n', clustering)
 
     score = spectral_clustering_wrapper.analyzeClustering_edge_cut(
         G, n_clusters, clustering[cluster_col_name]
