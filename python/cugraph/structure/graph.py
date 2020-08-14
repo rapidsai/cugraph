@@ -209,7 +209,7 @@ class Graph:
         destination="destination",
         edge_attr=None,
         renumber=True,
-        store_row_major=True,
+        store_transposed=False,
     ):
         """
         Initialize a graph from the edge list. It is an error to call this
@@ -252,13 +252,10 @@ class Graph:
         renumber : bool
             If source and destination indices are not in range 0 to V where V
             is number of vertices, renumber argument should be True.
-        store_row_major : bool
-            Identify how the graph adjacency will be used.  Graphs stored in
-            row major order will be optimized for organization by source
-            vertex.  Graphs stored in column major order will be optimized
-            for ogranization by destination vertex.
-            If True, store in row major order, if False, store in column
-            major order.
+        store_transposed : bool
+            Identify how the graph adjacency will be used.
+            If True, the graph will be organized by destination.
+            If False, the graph will be organized by source
 
         Examples
         --------
@@ -287,13 +284,13 @@ class Graph:
             raise Exception('input should be a cudf.DataFrame or \
                               a dask_cudf dataFrame')
 
-        self.store_row_major=store_row_major
+        self.store_transposed=store_transposed
         
         renumber_map = None
         if renumber:
             elist, renumber_map = NumberMap.renumber(
                 elist, source, destination,
-                store_row_major=store_row_major
+                store_transposed=store_transposed
             )
             source = 'src'
             destination = 'dst'
@@ -346,7 +343,7 @@ class Graph:
     def from_dask_cudf_edgelist(self, input_ddf, source='source',
                                 destination='destination',
                                 edge_attr=None, renumber=True,
-                                store_row_major=True):
+                                store_transposed=False):
         """
         Initializes the distributed graph from the dask_cudf.DataFrame
         edgelist. Undirected Graphs are not currently supported.
@@ -370,13 +367,10 @@ class Graph:
         renumber : bool
             If source and destination indices are not in range 0 to V where V
             is number of vertices, renumber argument should be True.
-        store_row_major : bool
-            Identify how the graph adjacency will be used.  Graphs stored in
-            row major order will be optimized for organization by source
-            vertex.  Graphs stored in column major order will be optimized
-            for ogranization by destination vertex.
-            If True, store in row major order, if False, store in column
-            major order.
+        store_transposed : bool
+            Identify how the graph adjacency will be used.
+            If True, the graph will be organized by destination.
+            If False, the graph will be organized by source
         """
         if self.edgelist is not None or self.adjlist is not None:
             raise Exception('Graph already has values')
@@ -385,7 +379,7 @@ class Graph:
         if isinstance(input_ddf, dask_cudf.DataFrame):
             self.distributed = True
             self.local_data = None
-            self.store_row_major = store_row_major
+            self.store_transposed = store_transposed
             rename_map = {source: 'src', destination: 'dst'}
             if edge_attr is not None:
                 rename_map[edge_attr] = 'weights'
@@ -393,7 +387,7 @@ class Graph:
             if renumber:
                 renumbered_ddf, number_map = NumberMap.renumber(
                     input_ddf, "src", "dst",
-                    store_row_major=store_row_major
+                    store_transposed=store_transposed
                 )
                 self.edgelist = self.EdgeList(renumbered_ddf)
                 self.renumber_map = number_map

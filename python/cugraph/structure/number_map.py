@@ -50,21 +50,21 @@ class NumberMap:
 
     class SingleGPU:
         def __init__(self, df, src_col_names, dst_col_names, id_type,
-                     store_row_major):
+                     store_transposed):
             self.col_names = NumberMap.compute_vals(src_col_names)
             self.df = cudf.DataFrame()
             self.id_type = id_type
 
             # TODO: Not sure I need to store here
-            self.store_row_major = store_row_major
+            self.store_transposed = store_transposed
 
             source_count = 0
             dest_count = 0
 
-            if store_row_major:
-                source_count = 1
-            else:
+            if store_transposed:
                 dest_count = 1
+            else:
+                source_count = 1
 
             tmp = (
                 df[src_col_names]
@@ -185,15 +185,15 @@ class NumberMap:
 
     class MultiGPU:
         def extract_vertices(
-          df, src_col_names, dst_col_names, internal_col_names, store_row_major
+          df, src_col_names, dst_col_names, internal_col_names, store_transposed
         ):
             source_count = 0
             dest_count = 0
 
-            if store_row_major:
-                source_count = 1
-            else:
+            if store_transposed:
                 dest_count = 1
+            else:
+                source_count = 1
 
             s = (
                 df[src_col_names]
@@ -233,18 +233,18 @@ class NumberMap:
 
             return reply
 
-        def __init__(self, ddf, src_col_names, dst_col_names, id_type, store_row_major):
+        def __init__(self, ddf, src_col_names, dst_col_names, id_type, store_transposed):
             self.col_names = NumberMap.compute_vals(src_col_names)
             self.val_types = NumberMap.compute_vals_types(ddf, src_col_names)
             self.val_types["count"] = np.int32
             self.id_type = id_type
-            self.store_row_major = store_row_major
+            self.store_transposed = store_transposed
             self.ddf = ddf.map_partitions(
                 NumberMap.MultiGPU.extract_vertices,
                 src_col_names,
                 dst_col_names,
                 self.col_names,
-                store_row_major,
+                store_transposed,
                 meta=self.val_types,
             )
             self.numbered = False
@@ -442,7 +442,7 @@ class NumberMap:
         """
         return [str(i) for i in range(len(column_names))]
 
-    def from_dataframe(self, df, src_col_names, dst_col_names=None, store_row_major=True):
+    def from_dataframe(self, df, src_col_names, dst_col_names=None, store_transposed=False):
         """
         Populate the numbering map with vertices from the specified
         columns of the provided DataFrame.
@@ -460,13 +460,10 @@ class NumberMap:
             This list of 1 or more strings contain the names
             of the columns that uniquely identify an external
             vertex identifier for destination vertices
-        store_row_major : bool
-            Identify how the graph adjacency will be used.  Graphs stored in
-            row major order will be optimized for organization by source
-            vertex.  Graphs stored in column major order will be optimized
-            for ogranization by destination vertex.
-            If True, store in row major order, if False, store in column
-            major order.
+        store_transposed : bool
+            Identify how the graph adjacency will be used.
+            If True, the graph will be organized by destination.
+            If False, the graph will be organized by source
 
         """
         if self.implementation is not None:
@@ -481,18 +478,18 @@ class NumberMap:
 
         if type(df) is cudf.DataFrame:
             self.implementation = NumberMap.SingleGPU(
-                df, src_col_names, dst_col_names, self.id_type, store_row_major
+                df, src_col_names, dst_col_names, self.id_type, store_transposed
             )
         elif type(df) is dask_cudf.DataFrame:
             self.implementation = NumberMap.MultiGPU(
-                df, src_col_names, dst_col_names, self.id_type, store_row_major
+                df, src_col_names, dst_col_names, self.id_type, store_transposed
             )
         else:
             raise Exception("df must be cudf.DataFrame or dask_cudf.DataFrame")
 
         self.implementation.compute()
 
-    def from_series(self, src_series, dst_series=None, store_row_major=True):
+    def from_series(self, src_series, dst_series=None, store_transposed=False):
         """
         Populate the numbering map with vertices from the specified
         pair of series objects, one for the source and one for
@@ -506,13 +503,10 @@ class NumberMap:
         dst_series: cudf.Series or dask_cudf.Series
             Contains a list of external vertex identifiers that will be
             numbered by the NumberMap class.
-        store_row_major : bool
-            Identify how the graph adjacency will be used.  Graphs stored in
-            row major order will be optimized for organization by source
-            vertex.  Graphs stored in column major order will be optimized
-            for ogranization by destination vertex.
-            If True, store in row major order, if False, store in column
-            major order.
+        store_transposed : bool
+            Identify how the graph adjacency will be used.
+            If True, the graph will be organized by destination.
+            If False, the graph will be organized by source
         """
         if self.implementation is not None:
             raise Exception("NumberMap is already populated")
@@ -528,7 +522,7 @@ class NumberMap:
                 df["d"] = dst_series
                 dst_series_list = ["d"]
             self.implementation = NumberMap.SingleGPU(
-                df, ["s"], dst_series_list, self.id_type, store_row_major
+                df, ["s"], dst_series_list, self.id_type, store_transposed
             )
         elif type(src_series) is dask_cudf.Series:
             dst_series_list = None
@@ -538,7 +532,7 @@ class NumberMap:
                 df["d"] = dst_series
                 dst_series_list = ["d"]
             self.implementation = NumberMap.MultiGPU(
-                df, ["s"], dst_series_list, self.id_type, store_row_major
+                df, ["s"], dst_series_list, self.id_type, store_transposed
             )
         else:
             raise Exception(
@@ -733,7 +727,7 @@ class NumberMap:
         return self.implementation.col_names
 
     def renumber(df, src_col_names, dst_col_names, preserve_order=False,
-                 store_row_major=True):
+                 store_transposed=False):
         """
         Given a single GPU or distributed DataFrame, use src_col_names and
         dst_col_names to identify the source vertex identifiers and destination
@@ -766,13 +760,10 @@ class NumberMap:
             This list of 1 or more strings contain the names
             of the columns that uniquely identify an external
             vertex identifier for destination vertices
-        store_row_major : bool
-            Identify how the graph adjacency will be used.  Graphs stored in
-            row major order will be optimized for organization by source
-            vertex.  Graphs stored in column major order will be optimized
-            for ogranization by destination vertex.
-            If True, store in row major order, if False, store in column
-            major order.
+        store_transposed : bool
+            Identify how the graph adjacency will be used.
+            If True, the graph will be organized by destination.
+            If False, the graph will be organized by source
 
         Returns
         ---------
