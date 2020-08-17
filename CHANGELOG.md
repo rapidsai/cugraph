@@ -90,6 +90,7 @@
 - PR #1057 Updated raft dependency to pull fixes on cusparse selection in CUDA 11
 - PR #1066 Update cugunrock to not build for unsupported CUDA architectures
 - PR #1069 Fixed CUDA 11 Pagerank crash, by replacing CUB's SpMV with raft's.
+- PR #1083 Fix NBs to run in nightly test run, update renumbering text, cleanup
 
 # cuGraph 0.14.0 (03 Jun 2020)
 
