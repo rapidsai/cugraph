@@ -1,6 +1,6 @@
 # cuGraph Benchmarking
 
-This folder contains a collection of graph algorithm benchmarking notebooks.  Each notebook will compare one cuGraph algorithm against NetworkX and potentially other frameworks. 
+This folder contains a collection of graph algorithm benchmarking notebooks.  Each notebook will compare one cuGraph algorithm against NetworkX and potentially other frameworks.
 
 _NOTE:  Before any benchmarking can be done, it is important to first download the test data sets_
 
@@ -32,7 +32,7 @@ The benchmark does not include data reading time, but does include:
 
 
 
-#### The data prep script  
+#### The data prep script
 By default, each files would be created in its own directory.  The goal here is to have all the MTX files in a single directory.
 
 
@@ -64,7 +64,7 @@ tar xvzf as-Skitter.tar.gz
 
 cd ..
 
-find ./tmp -name *.mtx -exec mv {} . \;
+find ./tmp -name "*.mtx" -exec mv {} . \;
 
 rm -rf tmp
 ```
@@ -91,9 +91,9 @@ rm -rf tmp
 The dataset are downloaded from the Texas A&M SuiteSparse Matrix Collection
 
 ```
-The SuiteSparse Matrix Collection (formerly known as the University of Florida Sparse Matrix Collection), is a large and actively growing set of sparse matrices that arise in real applications. 
+The SuiteSparse Matrix Collection (formerly known as the University of Florida Sparse Matrix Collection), is a large and actively growing set of sparse matrices that arise in real applications.
 ...
-The Collection is hosted here, and also mirrored at the University of Florida at www.cise.ufl.edu/research/sparse/matrices. The Collection is maintained by Tim Davis, Texas A&M University (email: davis@tamu.edu), Yifan Hu, Yahoo! Labs, and Scott Kolodziej, Texas A&M University. 
+The Collection is hosted here, and also mirrored at the University of Florida at www.cise.ufl.edu/research/sparse/matrices. The Collection is maintained by Tim Davis, Texas A&M University (email: davis@tamu.edu), Yifan Hu, Yahoo! Labs, and Scott Kolodziej, Texas A&M University.
 ```
 
 | File Name              |  Author        |
