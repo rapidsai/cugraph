@@ -54,8 +54,6 @@ class NumberMap:
             self.col_names = NumberMap.compute_vals(src_col_names)
             self.df = cudf.DataFrame()
             self.id_type = id_type
-
-            # TODO: Not sure I need to store here
             self.store_transposed = store_transposed
 
             source_count = 0
