@@ -230,8 +230,8 @@ def edge_betweenness_centrality(
     )
 
     if G.renumbered:
-        df = G.unrenumber(df, "src", preserve_order=True)
-        df = G.unrenumber(df, "dst", preserve_order=True)
+        df = G.unrenumber(df, "src")
+        df = G.unrenumber(df, "dst")
 
     if type(G) is cugraph.Graph:
         lower_triangle = df['src'] >= df['dst']
