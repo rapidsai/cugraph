@@ -66,6 +66,6 @@ def ecg(input_graph, min_weight=0.05, ensemble_size=16):
     parts = ecg_wrapper.ecg(input_graph, min_weight, ensemble_size)
 
     if input_graph.renumbered:
-        parts = input_graph.unrenumber(parts, "vertex", preserve_order=True)
+        parts = input_graph.unrenumber(parts, "vertex")
 
     return parts
