@@ -1259,8 +1259,8 @@ class Graph:
         """
         return self.renumber_map.to_internal_vertex_id(df, column_name)
 
-    def add_internal_vertex_id(self, df, external_column_name,
-                               internal_column_name,
+    def add_internal_vertex_id(self, df, internal_column_name,
+                               external_column_name,
                                drop=True, preserve_order=False):
         """
         Given a DataFrame containing external vertex ids in the identified
@@ -1274,14 +1274,11 @@ class Graph:
             A DataFrame containing external vertex identifiers that will be
             converted into internal vertex identifiers.
 
-        FIXME:  this seem to be backwards... look through this.
-
+        internal_column_name: string
+            Name of column to contain the internal vertex id
 
         external_column_name: string or list of strings
             Name of the column(s) containing the external vertex ids
-
-        internal_column_name: string
-            Name of column to contain the internal vertex id
 
         drop: (optional) bool, defaults to True
             Drop the external columns from the returned DataFrame
@@ -1296,7 +1293,7 @@ class Graph:
             id
         """
         return self.renumber_map.add_internal_vertex_id(
-            df, external_column_name, internal_column_name,
+            df, internal_column_name, external_column_name,
             drop, preserve_order)
 
 
