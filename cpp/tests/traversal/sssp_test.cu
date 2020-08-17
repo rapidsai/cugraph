@@ -9,22 +9,20 @@
  *
  */
 
-#include <gtest/gtest.h>
-#include <thrust/device_vector.h>
+#include <utilities/high_res_clock.h>
+#include <utilities/base_fixture.hpp>
+#include <utilities/test_utilities.hpp>
+
+#include <algorithms.hpp>
+#include <converters/COOtoCSR.cuh>
+#include <graph.hpp>
+
 #include <thrust/fill.h>
+
 #include <algorithm>
 #include <queue>
 #include <unordered_map>
 #include <utility>
-#include "utilities/high_res_clock.h"
-
-#include "utilities/test_utilities.hpp"
-
-#include <converters/COOtoCSR.cuh>
-
-#include <rmm/mr/device/cuda_memory_resource.hpp>
-#include "algorithms.hpp"
-#include "graph.hpp"
 
 typedef enum graph_type { RMAT, MTX } GraphType;
 
@@ -433,11 +431,4 @@ INSTANTIATE_TEST_CASE_P(simple_test,
                                           SSSP_Usecase(MTX, "test/datasets/wiki2003.mtx", 100000),
                                           SSSP_Usecase(MTX, "test/datasets/karate.mtx", 1)));
 
-int main(int argc, char** argv)
-{
-  testing::InitGoogleTest(&argc, argv);
-  auto resource = std::make_unique<rmm::mr::cuda_memory_resource>();
-  rmm::mr::set_default_resource(resource.get());
-  int rc = RUN_ALL_TESTS();
-  return rc;
-}
+CUGRAPH_TEST_PROGRAM_MAIN()

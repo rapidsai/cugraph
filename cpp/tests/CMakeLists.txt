@@ -1,6 +1,6 @@
 ﻿#=============================================================================
 #
-# Copyright (c) 2019, NVIDIA CORPORATION.
+# Copyright (c) 2019-2020, NVIDIA CORPORATION.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -29,13 +29,14 @@ function(ConfigureTest CMAKE_TEST_NAME CMAKE_TEST_SRC CMAKE_EXTRA_LIBS)
 
     target_include_directories(${CMAKE_TEST_NAME}
         PRIVATE
+        "${CUB_INCLUDE_DIR}"
+        "${THRUST_INCLUDE_DIR}"
         "${CMAKE_CUDA_TOOLKIT_INCLUDE_DIRECTORIES}"
         "${GTEST_INCLUDE_DIR}"
         "${RMM_INCLUDE}"
         "${CUDF_INCLUDE}"
         "${CUDF_INCLUDE}/libcudf/libcudacxx"
         "${NCCL_INCLUDE_DIRS}"
-        "${CUB_INCLUDE_DIR}"
         "${CMAKE_SOURCE_DIR}/../thirdparty/mmio"
         "${CMAKE_SOURCE_DIR}/include"
         "${CMAKE_SOURCE_DIR}/src"
@@ -266,15 +267,6 @@ if (BUILD_MPI)
 
     ConfigureTest(NCCL_DEGREE_TEST "${NCCL_DEGREE_TEST_SRC}" "")
 endif(BUILD_MPI)
-
-###################################################################################################
-#-MG tests ---------------------------------------------------------------------
-set(LB_TEST_SRC
-    "${CMAKE_SOURCE_DIR}/../thirdparty/mmio/mmio.c"
-    "${CMAKE_CURRENT_SOURCE_DIR}/traversal/load_balance.cu")
-
-ConfigureTest(LB_TEST "${LB_TEST_SRC}" "")
-
 
 ###################################################################################################
 ### enable testing ################################################################################

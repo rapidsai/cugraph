@@ -47,3 +47,24 @@ Consolidation
 cuGraph can transparently interpret the Dask cuDF Dataframe as a regular Dataframe when loading the edge list. This is particularly helpful for workflows extracting a single GPU sized edge list from a distributed dataset. From there any existing single GPU feature will just work on this input.
 
 For instance, consolidation allows leveraging Dask cuDF CSV reader to load file(s) on multiple GPUs and consolidate this input to a single GPU graph. Reading is often the time and memory bottleneck, with this feature users can call the Multi-GPU version of the reader without changing anything else. 
+
+Batch Processing
+================
+
+cuGraph can leverage multi GPUs to increase processing speed for graphs that fit on a single GPU, providing faster analytics on such graphs.
+You will be able to use the Graph the same way as you used to in a Single GPU environment, but analytics that support batch processing will automatically use the GPUs available to the dask client.
+For example, Betweenness Centrality scores can be slow to obtain depending on the number of vertices used in the approximation. Thank to Multi GPUs Batch Processing,
+you can create Single GPU graph as you would regularly do it using cuDF CSV reader, enable Batch analytics on it, and obtain scores much faster as each GPU will handle a sub-set of the sources.
+In order to use Batch Analytics you need to set up a Dask Cluster and Client in addition to the cuGraph communicator, then you can simply call `enable_batch()` on you graph, and algorithms supporting batch processing will use multiple GPUs.
+
+Algorithms supporting Batch Processing
+--------------------------------------
+.. automodule:: cugraph.centrality
+    :members: betweenness_centrality
+    :undoc-members:
+    :noindex:
+
+.. automodule:: cugraph.centrality
+    :members: edge_betweenness_centrality
+    :undoc-members:
+    :noindex:

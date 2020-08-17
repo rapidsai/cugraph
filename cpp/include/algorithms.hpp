@@ -17,6 +17,7 @@
 
 #include <graph.hpp>
 #include <internals.hpp>
+#include <raft/handle.hpp>
 
 namespace cugraph {
 
@@ -272,42 +273,44 @@ void force_atlas2(GraphCOOView<VT, ET, WT> &graph,
  *
  * The current implementation does not support a weighted graph.
  *
- * @throws                           cugraph::logic_error if `result == nullptr` or
+ * @throws                                  cugraph::logic_error if `result == nullptr` or
  * `number_of_sources < 0` or `number_of_sources !=0 and sources == nullptr`.
- *
- * @tparam VT                        Type of vertex identifiers. Supported value : int (signed,
- * 32-bit)
- * @tparam ET                        Type of edge identifiers.  Supported value : int (signed,
- * 32-bit)
- * @tparam WT                        Type of edge weights. Supported values : float or double.
- * @tparam result_t                  Type of computed result.  Supported values :  float or double
- * (double only supported in default implementation)
- *
- * @param[in] handle                 Library handle (RAFT). If a communicator is set in the handle,
- the multi GPU version will be selected.
- * @param[in] graph                  cuGraph graph descriptor, should contain the connectivity
- * information as a CSR
- * @param[out] result                Device array of centrality scores
- * @param[in] normalized             If true, return normalized scores, if false return unnormalized
- * scores.
- * @param[in] endpoints              If true, include endpoints of paths in score, if false do not
- * @param[in] weight                 If specified, device array of weights for each edge
- * @param[in] k                      If specified, number of vertex samples defined in the vertices
- * array.
- * @param[in] vertices               If specified, host array of vertex ids to estimate betweenness
- * centrality, these vertices will serve as sources for the traversal algorihtm to obtain
- * shortest path counters.
+ * @tparam vertex_t                               Type of vertex identifiers. Supported value : int
+ * (signed, 32-bit)
+ * @tparam edge_t                               Type of edge identifiers.  Supported value : int
+ * (signed, 32-bit)
+ * @tparam weight_t                               Type of edge weights. Supported values : float or
+ * double.
+ * @tparam result_t                         Type of computed result.  Supported values :  float or
+ * double
+ * @param[in] handle                        Library handle (RAFT). If a communicator is set in the
+ * handle, the multi GPU version will be selected.
+ * @param[in] graph                         cuGRAPH graph descriptor, should contain the
+ * connectivity information as a CSR
+ * @param[out] result                       Device array of centrality scores
+ * @param[in] normalized                    If true, return normalized scores, if false return
+ * unnormalized scores.
+ * @param[in] endpoints                     If true, include endpoints of paths in score, if false
+ * do not
+ * @param[in] weight                        If specified, device array of weights for each edge
+ * @param[in] k                             If specified, number of vertex samples defined in the
+ * vertices array.
+ * @param[in] vertices                      If specified, host array of vertex ids to estimate
+ * betweenness these vertices will serve as sources for the traversal
+ * algorihtm to obtain shortest path counters.
+ * @param[in] total_number_of_source_used   If specified use this number to normalize results
+ * when using subsampling, it allows accumulation of results across multiple calls.
  *
  */
-template <typename VT, typename ET, typename WT, typename result_t>
-void betweenness_centrality(raft::handle_t const &handle,
-                            GraphCSRView<VT, ET, WT> const &graph,
+template <typename vertex_t, typename edge_t, typename weight_t, typename result_t>
+void betweenness_centrality(const raft::handle_t &handle,
+                            GraphCSRView<vertex_t, edge_t, weight_t> const &graph,
                             result_t *result,
-                            bool normalized    = true,
-                            bool endpoints     = false,
-                            WT const *weight   = nullptr,
-                            VT k               = 0,
-                            VT const *vertices = nullptr);
+                            bool normalized          = true,
+                            bool endpoints           = false,
+                            weight_t const *weight   = nullptr,
+                            vertex_t k               = 0,
+                            vertex_t const *vertices = nullptr);
 
 /**
  * @brief     Compute edge betweenness centrality for a graph
@@ -315,42 +318,42 @@ void betweenness_centrality(raft::handle_t const &handle,
  * Betweenness centrality of an edge is the sum of the fraction of all-pairs shortest paths that
  * pass through this edge. The weight parameter is currenlty not supported
  *
- *  * @throws                           cugraph::logic_error if `result == nullptr` or
+ * @throws                                  cugraph::logic_error if `result == nullptr` or
  * `number_of_sources < 0` or `number_of_sources !=0 and sources == nullptr` or `endpoints ==
- true`.
-
- *
- * @tparam VT                        Type of vertex identifiers. Supported value : int (signed,
- * 32-bit)
- * @tparam ET                        Type of edge identifiers.  Supported value : int (signed,
- * 32-bit)
- * @tparam WT                        Type of edge weights. Supported values : float or double.
- * @tparam result_t                  Type of computed result.  Supported values :  float or double
- * (double only supported in default implementation)
- *
- * @param[in] handle                 Library handle (RAFT). If a communicator is set in the handle,
- the multi GPU version will be selected.
- * @param[in] graph                  cuGraph graph descriptor, should contain the connectivity
- * information as a CSR
- * @param[out] result                Device array of centrality scores
- * @param[in] normalized             If true, return normalized scores, if false return unnormalized
- * scores.
- * @param[in] weight                 If specified, device array of weights for each edge
- * @param[in] k                      If specified, number of vertex samples defined in the vertices
- * array.
- * @param[in] vertices               If specified, host array of vertex ids to estimate betweenness
- * centrality, these vertices will serve as sources for the traversal algorihtm to obtain
- * shortest path counters.
+ * true`.
+ * @tparam vertex_t                               Type of vertex identifiers. Supported value : int
+ * (signed, 32-bit)
+ * @tparam edge_t                               Type of edge identifiers.  Supported value : int
+ * (signed, 32-bit)
+ * @tparam weight_t                               Type of edge weights. Supported values : float or
+ * double.
+ * @tparam result_t                         Type of computed result.  Supported values :  float or
+ * double
+ * @param[in] handle                        Library handle (RAFT). If a communicator is set in the
+ * handle, the multi GPU version will be selected.
+ * @param[in] graph                         cuGraph graph descriptor, should contain the
+ * connectivity information as a CSR
+ * @param[out] result                       Device array of centrality scores
+ * @param[in] normalized                    If true, return normalized scores, if false return
+ * unnormalized scores.
+ * @param[in] weight                        If specified, device array of weights for each edge
+ * @param[in] k                             If specified, number of vertex samples defined in the
+ * vertices array.
+ * @param[in] vertices                      If specified, host array of vertex ids to estimate
+ * betweenness these vertices will serve as sources for the traversal
+ * algorihtm to obtain shortest path counters.
+ * @param[in] total_number_of_source_used   If specified use this number to normalize results
+ * when using subsampling, it allows accumulation of results across multiple calls.
  *
  */
-template <typename VT, typename ET, typename WT, typename result_t>
-void edge_betweenness_centrality(raft::handle_t const &handle,
-                                 GraphCSRView<VT, ET, WT> const &graph,
+template <typename vertex_t, typename edge_t, typename weight_t, typename result_t>
+void edge_betweenness_centrality(const raft::handle_t &handle,
+                                 GraphCSRView<vertex_t, edge_t, weight_t> const &graph,
                                  result_t *result,
-                                 bool normalized    = true,
-                                 WT const *weight   = nullptr,
-                                 VT k               = 0,
-                                 VT const *vertices = nullptr);
+                                 bool normalized          = true,
+                                 weight_t const *weight   = nullptr,
+                                 vertex_t k               = 0,
+                                 vertex_t const *vertices = nullptr);
 
 enum class cugraph_cc_t {
   CUGRAPH_WEAK = 0,  ///> Weakly Connected Components
@@ -587,7 +590,8 @@ void sssp(GraphCSRView<VT, ET, WT> const &graph,
  *
  * @param[in] directed               Treat the input graph as directed
  *
- * @throws     cugraph::logic_error when an error occurs.
+ * @param[in] mg_batch               If set to true use SG BFS path when comms are initialized.
+ *
  */
 template <typename VT, typename ET, typename WT>
 void bfs(raft::handle_t const &handle,
@@ -596,7 +600,8 @@ void bfs(raft::handle_t const &handle,
          VT *predecessors,
          double *sp_counters,
          const VT start_vertex,
-         bool directed = true);
+         bool directed = true,
+         bool mg_batch = false);
 
 /**
  * @brief      Louvain implementation
@@ -747,8 +752,8 @@ std::unique_ptr<GraphCOO<VT, ET, WT>> extract_subgraph_vertex(GraphCOOView<VT, E
  * @param[in]  evs_max_iter          The maximum number of iterations of the eigenvalue solver
  * @param[in]  kmean_tolerance       The tolerance to use for the kmeans solver
  * @param[in]  kmean_max_iter        The maximum number of iteration of the k-means solver
- * @param[out] clustering            Pointer to device memory where the resulting clustering will be
- * stored
+ * @param[out] clustering            Pointer to device memory where the resulting clustering will
+ * be stored
  */
 }  // namespace subgraph
 
@@ -781,8 +786,8 @@ void balancedCutClustering(GraphCSRView<VT, ET, WT> const &graph,
  * @param[in]  evs_max_iter          The maximum number of iterations of the eigenvalue solver
  * @param[in]  kmean_tolerance       The tolerance to use for the kmeans solver
  * @param[in]  kmean_max_iter        The maximum number of iteration of the k-means solver
- * @param[out] clustering            Pointer to device memory where the resulting clustering will be
- * stored
+ * @param[out] clustering            Pointer to device memory where the resulting clustering will
+ * be stored
  */
 template <typename VT, typename ET, typename WT>
 void spectralModularityMaximization(GraphCSRView<VT, ET, WT> const &graph,
@@ -863,7 +868,6 @@ void analyzeClustering_ratio_cut(GraphCSRView<VT, ET, WT> const &graph,
 }  // namespace ext_raft
 
 namespace gunrock {
-
 /**
  * @brief     Compute the HITS vertex values for a graph
  *

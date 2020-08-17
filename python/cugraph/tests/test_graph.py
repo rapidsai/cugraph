@@ -1,4 +1,4 @@
-# Copyright (c) 2019, NVIDIA CORPORATION.
+# Copyright (c) 2019-2020, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -41,6 +41,10 @@ with warnings.catch_warnings():
 
 
 def compare_series(series_1, series_2):
+    if isinstance(series_1, cudf.Series):
+        series_1 = series_1.values_host
+    if isinstance(series_2, cudf.Series):
+        series_2 = series_2.values_host
     if len(series_1) != len(series_2):
         print("Series do not match in length")
         return 0
@@ -59,6 +63,10 @@ def compare_series(series_1, series_2):
 
 
 def compare_offsets(offset0, offset1):
+    if isinstance(offset0, cudf.Series):
+        offset0 = offset0.values_host
+    if isinstance(offset1, cudf.Series):
+        offset1 = offset1.values_host
     if not (len(offset0) <= len(offset1)):
         print(
             "Mismatched length: "

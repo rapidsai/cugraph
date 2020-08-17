@@ -651,5 +651,4 @@ struct invalid_vertex_id : invalid_idx<vertex_t> {
 template <typename edge_t>
 struct invalid_edge_id : invalid_idx<edge_t> {
 };
-
 }  // namespace cugraph
