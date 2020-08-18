@@ -1,4 +1,4 @@
-# Copyright (c) 2019, NVIDIA CORPORATION.
+# Copyright (c) 2019-2020, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -50,7 +50,15 @@ def calc_core_number(graph_file):
     return cn
 
 
-@pytest.mark.parametrize("graph_file", utils.DATASETS)
+# FIXME: the default set of datasets includes an asymmetric directed graph
+# (email-EU-core.csv), which currently causes an error with NetworkX:
+# "networkx.exception.NetworkXError: Input graph has self loops which is not
+#  permitted; Consider using G.remove_edges_from(nx.selfloop_edges(G))"
+#
+# https://github.com/rapidsai/cugraph/issues/1045
+#
+# @pytest.mark.parametrize("graph_file", utils.DATASETS)
+@pytest.mark.parametrize("graph_file", utils.DATASETS_UNDIRECTED)
 def test_core_number(graph_file):
     gc.collect()
 

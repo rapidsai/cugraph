@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018, NVIDIA CORPORATION.  All rights reserved.
+ * Copyright (c) 2018-2020, NVIDIA CORPORATION.  All rights reserved.
  *
  * NVIDIA CORPORATION and its licensors retain all intellectual property
  * and proprietary rights in and to this software, related documentation
@@ -13,22 +13,20 @@
 // Author: Alex Fender afender@nvidia.com
 
 #include <utilities/high_res_clock.h>
+#include <utilities/base_fixture.hpp>
 #include <utilities/test_utilities.hpp>
 
 #include <algorithms.hpp>
 #include <graph.hpp>
 
 #include <raft/error.hpp>
+#include <raft/handle.hpp>
+
 #include <rmm/device_uvector.hpp>
-#include <rmm/mr/device/cuda_memory_resource.hpp>
 
-#include "cuda_profiler_api.h"
-
-#include "gtest/gtest.h"
+#include <cuda_profiler_api.h>
 
 #include <cmath>
-#include <raft/handle.hpp>
-#include "utilities/test_utilities.hpp"
 
 // do the perf measurements
 // enabled by command line parameter s'--perf'
@@ -205,11 +203,4 @@ INSTANTIATE_TEST_CASE_P(
                     Pagerank_Usecase("test/datasets/webbase-1M.mtx",
                                      "test/ref/pagerank/webbase-1M.pagerank_val_0.85.bin")));
 
-int main(int argc, char** argv)
-{
-  testing::InitGoogleTest(&argc, argv);
-  auto resource = std::make_unique<rmm::mr::cuda_memory_resource>();
-  rmm::mr::set_default_resource(resource.get());
-  int rc = RUN_ALL_TESTS();
-  return rc;
-}
+CUGRAPH_TEST_PROGRAM_MAIN()

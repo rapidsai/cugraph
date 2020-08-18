@@ -1,4 +1,4 @@
-# Copyright (c) 2019, NVIDIA CORPORATION.
+# Copyright (c) 2019-2020, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -66,8 +66,7 @@ def networkx_call(M):
     return parts
 
 
-# Test all combinations of default/managed and pooled/non-pooled allocation
-@pytest.mark.parametrize("graph_file", utils.DATASETS)
+@pytest.mark.parametrize("graph_file", utils.DATASETS_UNDIRECTED)
 def test_louvain_with_edgevals(graph_file):
     gc.collect()
 
@@ -90,8 +89,7 @@ def test_louvain_with_edgevals(graph_file):
     assert abs(cu_mod - cu_mod_nx) < 0.0001
 
 
-# Test all combinations of default/managed and pooled/non-pooled allocation
-@pytest.mark.parametrize("graph_file", utils.DATASETS_2)
+@pytest.mark.parametrize("graph_file", utils.DATASETS_UNDIRECTED)
 def test_louvain(graph_file):
     gc.collect()
 

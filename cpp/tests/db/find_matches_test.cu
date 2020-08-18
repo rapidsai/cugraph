@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019, NVIDIA CORPORATION.
+ * Copyright (c) 2019-2020, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,13 +14,14 @@
  * limitations under the License.
  */
 
-#include <rmm/mr/device/cuda_memory_resource.hpp>
-#include "db/db_operators.cuh"
-#include "gtest/gtest.h"
-#include "rmm/device_buffer.hpp"
-#include "utilities/graph_utils.cuh"
-#include "utilities/high_res_clock.h"
-#include "utilities/test_utilities.hpp"
+#include <utilities/high_res_clock.h>
+#include <utilities/base_fixture.hpp>
+#include <utilities/graph_utils.cuh>
+#include <utilities/test_utilities.hpp>
+
+#include <db/db_operators.cuh>
+
+#include <rmm/device_buffer.hpp>
 
 class Test_FindMatches : public ::testing::Test {
  public:
@@ -228,11 +229,4 @@ TEST_F(Test_FindMatches, fifthTest)
   ASSERT_EQ(resultB[1], 3);
 }
 
-int main(int argc, char** argv)
-{
-  testing::InitGoogleTest(&argc, argv);
-  auto resource = std::make_unique<rmm::mr::cuda_memory_resource>();
-  rmm::mr::set_default_resource(resource.get());
-  int rc = RUN_ALL_TESTS();
-  return rc;
-}
+CUGRAPH_TEST_PROGRAM_MAIN()

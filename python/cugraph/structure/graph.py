@@ -1,4 +1,4 @@
-# Copyright (c) 2019, NVIDIA CORPORATION.
+# Copyright (c) 2019-2020, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -15,9 +15,13 @@ from cugraph.structure import graph_new_wrapper
 from cugraph.structure.symmetrize import symmetrize
 from cugraph.structure.number_map import NumberMap
 from cugraph.dask.common.input_utils import get_local_data
+import cugraph.dask.common.mg_utils as mg_utils
 import cudf
 import dask_cudf
 import warnings
+import cugraph.comms.comms as Comms
+
+from cugraph.dask.structure import replication
 
 
 def null_check(col):
@@ -49,12 +53,13 @@ class Graph:
         def __from_dask_cudf(self, ddf):
             self.edgelist_df = ddf
             self.weights = False
+            # FIXME: Edge Attribute not handled
 
     class AdjList:
         def __init__(self, offsets, indices, value=None):
             self.offsets = offsets
             self.indices = indices
-            self.weights = value  # Should de a daftaframe for multiple weights
+            self.weights = value  # Should be a dataframe for multiple weights
 
     class transposedAdjList:
         def __init__(self, offsets, indices, value=None):
@@ -98,6 +103,13 @@ class Graph:
         self.transposedadjlist = None
         self.edge_count = None
         self.node_count = None
+
+        # MG - Batch
+        self.batch_enabled = False
+        self.batch_edgelists = None
+        self.batch_adjlists = None
+        self.batch_transposed_adjlists = None
+
         if m_graph is not None:
             if (type(self) is Graph and type(m_graph) is MultiGraph) or (
                 type(self) is DiGraph and type(m_graph) is MultiDiGraph
@@ -116,6 +128,75 @@ class Graph:
                 raise Exception(msg)
         # self.number_of_vertices = None
 
+    def enable_batch(self):
+        client = mg_utils.get_client()
+        comms = Comms.get_comms()
+
+        if client is None or comms is None:
+            msg = "MG Batch needs a Dask Client and the " \
+                "Communicator needs to be initialized."
+            raise Exception(msg)
+
+        self.batch_enabled = True
+
+        if self.edgelist is not None:
+            if self.batch_edgelists is None:
+                self._replicate_edgelist()
+
+        if self.adjlist is not None:
+            if self.batch_adjlists is None:
+                self._replicate_adjlist()
+
+        if self.transposedadjlist is not None:
+            if self.batch_transposed_adjlists is None:
+                self._replicate_transposed_adjlist()
+
+    def _replicate_edgelist(self):
+        client = mg_utils.get_client()
+        comms = Comms.get_comms()
+
+        # FIXME: There  might be a better way to control it
+        if client is None:
+            return
+        work_futures = replication.replicate_cudf_dataframe(
+            self.edgelist.edgelist_df,
+            client=client,
+            comms=comms)
+
+        self.batch_edgelists = work_futures
+
+    def _replicate_adjlist(self):
+        client = mg_utils.get_client()
+        comms = Comms.get_comms()
+
+        # FIXME: There  might be a better way to control it
+        if client is None:
+            return
+
+        weights = None
+        offsets_futures = replication.replicate_cudf_series(
+            self.adjlist.offsets,
+            client=client,
+            comms=comms)
+        indices_futures = replication.replicate_cudf_series(
+            self.adjlist.indices,
+            client=client,
+            comms=comms)
+
+        if self.adjlist.weights is not None:
+            weights = replication.replicate_cudf_series(self.adjlist.weights)
+        else:
+            weights = {worker: None for worker in offsets_futures}
+
+        merged_futures = {worker: [offsets_futures[worker],
+                                   indices_futures[worker], weights[worker]]
+                          for worker in offsets_futures}
+        self.batch_adjlists = merged_futures
+
+    # FIXME: Not implemented yet
+    def _replicate_transposed_adjlist(self):
+        self.batch_transposed_adjlists = True
+
     def clear(self):
         """
         Empty this graph. This function is added for NetworkX compatibility.
@@ -123,6 +204,10 @@ class Graph:
         self.edgelist = None
         self.adjlist = None
         self.transposedadjlist = None
+
+        self.batch_edgelists = None
+        self.batch_adjlists = None
+        self.batch_transposed_adjlists = None
 
     def add_nodes_from(self, nodes, bipartite=None, multipartite=None):
         """
@@ -314,6 +399,10 @@ class Graph:
         self.edgelist = Graph.EdgeList(
             source_col, dest_col, value_col
         )
+
+        if self.batch_enabled:
+            self._replicate_edgelist()
+
         self.renumber_map = renumber_map
 
     def add_edge_list(self, source, destination, value=None):
@@ -359,6 +448,11 @@ class Graph:
         """
         if self.edgelist is not None or self.adjlist is not None:
             raise Exception('Graph already has values')
+        if not isinstance(input_ddf, dask_cudf.DataFrame):
+            raise Exception('input should be a dask_cudf dataFrame')
+        self.distributed = True
+        self.local_data = None
+
         if type(self) is Graph:
             raise Exception('Undirected distributed graph not supported')
         if isinstance(input_ddf, dask_cudf.DataFrame):
@@ -522,6 +616,9 @@ class Graph:
             raise Exception("Graph already has values")
         self.adjlist = Graph.AdjList(offset_col, index_col, value_col)
 
+        if self.batch_enabled:
+            self._replicate_adjlist()
+
     def add_adj_list(self, offset_col, index_col, value_col=None):
         warnings.warn(
             "add_adj_list will be deprecated in next release.\
@@ -565,6 +662,10 @@ class Graph:
             else:
                 off, ind, vals = graph_new_wrapper.view_adj_list(self)
             self.adjlist = self.AdjList(off, ind, vals)
+
+            if self.batch_enabled:
+                self._replicate_adjlist()
+
         return self.adjlist.offsets, self.adjlist.indices, self.adjlist.weights
 
     def view_transposed_adj_list(self):
@@ -606,6 +707,10 @@ class Graph:
                     self
                 )
             self.transposedadjlist = self.transposedAdjList(off, ind, vals)
+
+            if self.batch_enabled:
+                self._replicate_transposed_adjlist()
+
         return (
             self.transposedadjlist.offsets,
             self.transposedadjlist.indices,
@@ -932,6 +1037,7 @@ class Graph:
         if type(self) is Graph:
             DiG = DiGraph()
             DiG.renumbered = self.renumbered
+            DiG.renumber_map = self.renumber_map
             DiG.edgelist = self.edgelist
             DiG.adjlist = self.adjlist
             DiG.transposedadjlist = self.transposedadjlist
@@ -964,6 +1070,7 @@ class Graph:
             G = Graph()
             df = self.edgelist.edgelist_df
             G.renumbered = self.renumbered
+            G.renumber_map = self.renumber_map
             if self.edgelist.weights:
                 source_col, dest_col, value_col = symmetrize(
                     df["src"], df["dst"], df["weights"]
@@ -1103,22 +1210,6 @@ class Graph:
             The original DataFrame columns exist unmodified.  The external
             vertex identifiers are added to the DataFrame, the internal
             vertex identifier column is removed from the dataframe.
-
-        Examples
-        --------
-        >>> M = cudf.read_csv('datasets/karate.csv', delimiter=' ',
-        >>>                   dtype=['int32', 'int32', 'float32'], header=None)
-        >>>
-        >>> df, number_map = NumberMap.renumber(df, '0', '1')
-        >>>
-        >>> G = cugraph.Graph()
-        >>> G.from_cudf_edgelist(df, 'src', 'dst')
-        >>>
-        >>> pr = cugraph.pagerank(G, alpha = 0.85, max_iter = 500,
-        >>>                       tol = 1.0e-05)
-        >>>
-        >>> pr = number_map.unrenumber(pr, 'vertex')
-        >>>
         """
         return self.renumber_map.unrenumber(df, column_name, preserve_order)
 

@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Copyright (c) 2018, NVIDIA CORPORATION.
+# Copyright (c) 2018-2020, NVIDIA CORPORATION.
 ##########################################
 # cuGraph Benchmark test script for CI   #
 ##########################################
@@ -41,12 +41,7 @@ export MINOR_VERSION=`echo $GIT_DESCRIBE_TAG | grep -o -E '([0-9]+\.[0-9]+)'`
 
 # Set Benchmark Vars
 export DATASETS_DIR=${WORKSPACE}/datasets
-export ASVRESULTS_DIR=${WORKSPACE}/ci/artifacts/asv/results
 export BENCHMARKS_DIR=${WORKSPACE}/benchmarks
-
-# Ensure ASV results directory exists
-
-mkdir -p ${ASVRESULTS_DIR}
 
 ##########################################
 # Environment Setup                      #
@@ -159,7 +154,7 @@ set +e
 time pytest -v -m "small and managedmem_on and poolallocator_on" \
     --benchmark-gpu-device=0 \
     --benchmark-gpu-max-rounds=3 \
-    --benchmark-asv-output-dir="${ASVRESULTS_DIR}" \
+    --benchmark-asv-output-dir="${S3_ASV_DIR}" \
     --benchmark-asv-metadata="${BENCHMARK_META}"
 
 

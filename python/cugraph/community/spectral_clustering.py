@@ -1,4 +1,4 @@
-# Copyright (c) 2019 - 2020, NVIDIA CORPORATION.
+# Copyright (c) 2019-2020, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -82,7 +82,11 @@ def spectralBalancedCutClustering(
     )
 
     if G.renumbered:
-        df = G.unrenumber(df, "vertex")
+        # FIXME:  This is a hack to get around an
+        # API problem.  The spectral API assumes that
+        # the data frame remains in internal vertex
+        # id order.  It should not do that.
+        df = G.unrenumber(df, "vertex", preserve_order=True)
 
     return df
 
@@ -152,11 +156,10 @@ def spectralModularityMaximizationClustering(
     )
 
     if G.renumbered:
-        df = G.unrenumber(df, "vertex")
         # FIXME:  Existing code relies on df being sorted...
         #   Shouldn't because in MG we can't guarantee sorting
         #   and partitioning of output
-        df = df.sort_values("vertex").reset_index(drop=True)
+        df = G.unrenumber(df, "vertex", preserve_order=True)
 
     return df
 

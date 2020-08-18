@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018, NVIDIA CORPORATION.  All rights reserved.
+ * Copyright (c) 2018-2020, NVIDIA CORPORATION.  All rights reserved.
  *
  * NVIDIA CORPORATION and its licensors retain all intellectual property
  * and proprietary rights in and to this software, related documentation
@@ -17,6 +17,7 @@
 
 #include <raft/cudart_utils.h>
 #include <rmm/thrust_rmm_allocator.h>
+#include <raft/device_atomics.cuh>
 
 #include <cuda.h>
 #include <cuda_runtime.h>
@@ -29,41 +30,10 @@
 namespace cugraph {
 namespace detail {
 
-#define USE_CG 1
 //#define DEBUG 1
 #define CUDA_MAX_BLOCKS 65535
 #define CUDA_MAX_KERNEL_THREADS 256  // kernel will launch at most 256 threads per block
-#define DEFAULT_MASK 0xffffffff
 #define US
-
-template <typename T>
-static __device__ __forceinline__ T
-shfl_up(T r, int offset, int bound = 32, int mask = DEFAULT_MASK)
-{
-#if __CUDA_ARCH__ >= 300
-#if USE_CG
-  return __shfl_up_sync(mask, r, offset, bound);
-#else
-  return __shfl_up(r, offset, bound);
-#endif
-#else
-  return 0.0f;
-#endif
-}
-
-template <typename T>
-static __device__ __forceinline__ T shfl(T r, int lane, int bound = 32, int mask = DEFAULT_MASK)
-{
-#if __CUDA_ARCH__ >= 300
-#if USE_CG
-  return __shfl_sync(mask, r, lane, bound);
-#else
-  return __shfl(r, lane, bound);
-#endif
-#else
-  return 0.0f;
-#endif
-}
 
 template <typename count_t, typename index_t, typename value_t>
 __inline__ __device__ value_t parallel_prefix_sum(count_t n, index_t const *ind, value_t const *w)
@@ -90,14 +60,14 @@ __inline__ __device__ value_t parallel_prefix_sum(count_t n, index_t const *ind,
     // iterations it is the value at the last thread of the previous iterations.
 
     // get the value of the last thread
-    last = shfl(sum, blockDim.x - 1, blockDim.x);
+    last = __shfl_sync(raft::warp_full_mask(), sum, blockDim.x - 1, blockDim.x);
 
     // if you are valid read the value from memory, otherwise set your value to 0
     sum = (valid) ? w[ind[i]] : 0.0;
 
     // do prefix sum (of size warpSize=blockDim.x =< 32)
     for (j = 1; j < blockDim.x; j *= 2) {
-      v = shfl_up(sum, j, blockDim.x);
+      v = __shfl_up_sync(raft::warp_full_mask(), sum, j, blockDim.x);
       if (threadIdx.x >= j) sum += v;
     }
     // shift by last
@@ -105,7 +75,7 @@ __inline__ __device__ value_t parallel_prefix_sum(count_t n, index_t const *ind,
     // notice that no __threadfence or __syncthreads are needed in this implementation
   }
   // get the value of the last thread (to all threads)
-  last = shfl(sum, blockDim.x - 1, blockDim.x);
+  last = __shfl_sync(raft::warp_full_mask(), sum, blockDim.x - 1, blockDim.x);
 
   return last;
 }

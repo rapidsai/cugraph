@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019, NVIDIA CORPORATION.
+ * Copyright (c) 2019-2020, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -26,9 +26,9 @@
 #include <type_traits>
 
 #include <raft/cudart_utils.h>
+#include <raft/device_atomics.cuh>
 
 #include <rmm/thrust_rmm_allocator.h>
-#include "utilities/cuda_utils.cuh"
 #include "utils.h"
 
 namespace MLCommon {
@@ -96,7 +96,7 @@ __global__ void weak_cc_label_device(vertex_t *labels,
         vertex_t j_ind = indices[j];
         cj             = labels[j_ind];
         if (ci < cj) {
-          cugraph::atomicMin(labels + j_ind, ci);
+          atomicMin(labels + j_ind, ci);
           xa[j_ind] = true;
           m[0]      = true;
         } else if (ci > cj) {
@@ -106,7 +106,7 @@ __global__ void weak_cc_label_device(vertex_t *labels,
       }
 
       if (ci_mod) {
-        cugraph::atomicMin(labels + startVertexId + tid, ci);
+        atomicMin(labels + startVertexId + tid, ci);
         xa[startVertexId + tid] = true;
         m[0]                    = true;
       }

@@ -17,8 +17,9 @@
 
 #include <rmm/thrust_rmm_allocator.h>
 
-#include <utilities/cuda_utils.cuh>
 #include <utilities/graph_utils.cuh>
+
+//#define TIMING
 
 #ifdef TIMING
 #include <utilities/high_res_timer.hpp>
@@ -53,7 +54,8 @@ __global__  //
 }
 
 template <typename vertex_t, typename edge_t, typename weight_t>
-weight_t modularity(weight_t m2,
+weight_t modularity(weight_t total_edge_weight,
+                    weight_t resolution,
                     GraphCSRView<vertex_t, edge_t, weight_t> const &graph,
                     vertex_t const *d_cluster,
                     cudaStream_t stream)
@@ -69,6 +71,10 @@ weight_t modularity(weight_t m2,
   weight_t *d_inc           = inc.data().get();
   weight_t *d_deg           = deg.data().get();
 
+  // FIXME:  Already have weighted degree computed in main loop,
+  //         could pass that in rather than computing d_deg... which
+  //         would save an atomicAdd (synchronization)
+  //
   thrust::for_each(
     rmm::exec_policy(stream)->on(stream),
     thrust::make_counting_iterator(0),
@@ -81,11 +87,10 @@ weight_t modularity(weight_t m2,
       for (edge_t loc = d_offsets[v]; loc < d_offsets[v + 1]; ++loc) {
         vertex_t neighbor = d_indices[loc];
         degree += d_weights[loc];
-        if (d_cluster[neighbor] == community) { increase += d_weights[loc] / 2; }
+        if (d_cluster[neighbor] == community) { increase += d_weights[loc]; }
       }
 
       if (degree > weight_t{0.0}) atomicAdd(d_deg + community, degree);
-
       if (increase > weight_t{0.0}) atomicAdd(d_inc + community, increase);
     });
 
@@ -93,16 +98,19 @@ weight_t modularity(weight_t m2,
     rmm::exec_policy(stream)->on(stream),
     thrust::make_counting_iterator(0),
     thrust::make_counting_iterator(graph.number_of_vertices),
-    [d_deg, d_inc, m2] __device__(vertex_t community) {
+    [d_deg, d_inc, total_edge_weight, resolution] __device__(vertex_t community) {
 #ifdef DEBUG
       printf("  d_inc[%d] = %g, d_deg = %g, return = %g\n",
              community,
              d_inc[community],
              d_deg[community],
-             ((2 * d_inc[community] / m2) - pow(d_deg[community] / m2, 2)));
+             ((d_inc[community] / total_edge_weight) -
+              resolution * pow(d_deg[community] / total_edge_weight, 2)));
 #endif
 
-      return (2 * d_inc[community] / m2) - pow(d_deg[community] / m2, 2);
+      return ((d_inc[community] / total_edge_weight) - resolution *
+                                                         (d_deg[community] * d_deg[community]) /
+                                                         (total_edge_weight * total_edge_weight));
     },
     weight_t{0.0},
     thrust::plus<weight_t>());
@@ -247,8 +255,132 @@ vertex_t renumber_clusters(vertex_t graph_num_vertices,
 }
 
 template <typename vertex_t, typename edge_t, typename weight_t>
+void compute_delta_modularity(weight_t total_edge_weight,
+                              weight_t resolution,
+                              GraphCSRView<vertex_t, edge_t, weight_t> const &graph,
+                              rmm::device_vector<vertex_t> const &src_indices_v,
+                              rmm::device_vector<weight_t> const &vertex_weights_v,
+                              rmm::device_vector<weight_t> const &cluster_weights_v,
+                              rmm::device_vector<vertex_t> const &cluster_v,
+                              rmm::device_vector<vertex_t> &cluster_hash_v,
+                              rmm::device_vector<weight_t> &delta_Q_v,
+                              rmm::device_vector<weight_t> &tmp_size_V_v,
+                              cudaStream_t stream)
+{
+  vertex_t const *d_src_indices     = src_indices_v.data().get();
+  vertex_t const *d_dst_indices     = graph.indices;
+  edge_t const *d_offsets           = graph.offsets;
+  weight_t const *d_weights         = graph.edge_data;
+  vertex_t const *d_cluster         = cluster_v.data().get();
+  weight_t const *d_vertex_weights  = vertex_weights_v.data().get();
+  weight_t const *d_cluster_weights = cluster_weights_v.data().get();
+
+  vertex_t *d_cluster_hash    = cluster_hash_v.data().get();
+  weight_t *d_delta_Q         = delta_Q_v.data().get();
+  weight_t *d_old_cluster_sum = tmp_size_V_v.data().get();
+  weight_t *d_new_cluster_sum = d_delta_Q;
+
+  thrust::fill(cluster_hash_v.begin(), cluster_hash_v.end(), vertex_t{-1});
+  thrust::fill(delta_Q_v.begin(), delta_Q_v.end(), weight_t{0.0});
+  thrust::fill(tmp_size_V_v.begin(), tmp_size_V_v.end(), weight_t{0.0});
+
+  //
+  // For each source vertex, we're going to build a hash
+  // table to the destination cluster ids.  We can use
+  // the offsets ranges to define the bounds of the hash
+  // table.
+  //
+  thrust::for_each(rmm::exec_policy(stream)->on(stream),
+                   thrust::make_counting_iterator<edge_t>(0),
+                   thrust::make_counting_iterator<edge_t>(graph.number_of_edges),
+                   [d_src_indices,
+                    d_dst_indices,
+                    d_cluster,
+                    d_offsets,
+                    d_cluster_hash,
+                    d_new_cluster_sum,
+                    d_weights,
+                    d_old_cluster_sum] __device__(edge_t loc) {
+                     vertex_t src = d_src_indices[loc];
+                     vertex_t dst = d_dst_indices[loc];
+
+                     if (src != dst) {
+                       vertex_t old_cluster = d_cluster[src];
+                       vertex_t new_cluster = d_cluster[dst];
+                       edge_t hash_base     = d_offsets[src];
+                       edge_t n_edges       = d_offsets[src + 1] - hash_base;
+
+                       int h         = (new_cluster % n_edges);
+                       edge_t offset = hash_base + h;
+                       while (d_cluster_hash[offset] != new_cluster) {
+                         if (d_cluster_hash[offset] == -1) {
+                           atomicCAS(d_cluster_hash + offset, -1, new_cluster);
+                         } else {
+                           h      = (h + 1) % n_edges;
+                           offset = hash_base + h;
+                         }
+                       }
+
+                       atomicAdd(d_new_cluster_sum + offset, d_weights[loc]);
+
+                       if (old_cluster == new_cluster)
+                         atomicAdd(d_old_cluster_sum + src, d_weights[loc]);
+                     }
+                   });
+
+  thrust::for_each(rmm::exec_policy(stream)->on(stream),
+                   thrust::make_counting_iterator<edge_t>(0),
+                   thrust::make_counting_iterator<edge_t>(graph.number_of_edges),
+                   [total_edge_weight,
+                    resolution,
+                    d_cluster_hash,
+                    d_src_indices,
+                    d_cluster,
+                    d_vertex_weights,
+                    d_delta_Q,
+                    d_new_cluster_sum,
+                    d_old_cluster_sum,
+                    d_cluster_weights] __device__(edge_t loc) {
+                     vertex_t new_cluster = d_cluster_hash[loc];
+                     if (new_cluster >= 0) {
+                       vertex_t src         = d_src_indices[loc];
+                       vertex_t old_cluster = d_cluster[src];
+                       weight_t k_k         = d_vertex_weights[src];
+                       weight_t a_old       = d_cluster_weights[old_cluster];
+                       weight_t a_new       = d_cluster_weights[new_cluster];
+
+                       // NOTE: d_delta_Q and d_new_cluster_sum are aliases
+                       //       for same device array to save memory
+                       d_delta_Q[loc] =
+                         2 *
+                         (((d_new_cluster_sum[loc] - d_old_cluster_sum[src]) / total_edge_weight) -
+                          resolution * (a_new * k_k - a_old * k_k + k_k * k_k) /
+                            (total_edge_weight * total_edge_weight));
+
+#ifdef DEBUG
+                       printf(
+                         "src = %d, new cluster = %d, d_delta_Q[%d] = %g, new_cluster_sum = %g, "
+                         "old_cluster_sum = %g, a_new = %g, a_old = %g, k_k = %g\n",
+                         src,
+                         new_cluster,
+                         loc,
+                         d_delta_Q[loc],
+                         d_new_cluster_sum[loc],
+                         d_old_cluster_sum[src],
+                         a_new,
+                         a_old,
+                         k_k);
+#endif
+                     } else {
+                       d_delta_Q[loc] = weight_t{0.0};
+                     }
+                   });
+}
+
+template <typename vertex_t, typename edge_t, typename weight_t>
 weight_t update_clustering_by_delta_modularity(
-  weight_t m2,
+  weight_t total_edge_weight,
+  weight_t resolution,
   GraphCSRView<vertex_t, edge_t, weight_t> const &graph,
   rmm::device_vector<vertex_t> const &src_indices,
   rmm::device_vector<weight_t> const &vertex_weights,
@@ -257,24 +389,18 @@ weight_t update_clustering_by_delta_modularity(
   cudaStream_t stream)
 {
   rmm::device_vector<vertex_t> next_cluster(cluster);
-  rmm::device_vector<weight_t> old_cluster_sum(graph.number_of_vertices);
   rmm::device_vector<weight_t> delta_Q(graph.number_of_edges);
   rmm::device_vector<vertex_t> cluster_hash(graph.number_of_edges);
-  rmm::device_vector<weight_t> cluster_hash_sum(graph.number_of_edges, weight_t{0.0});
+  rmm::device_vector<weight_t> old_cluster_sum(graph.number_of_vertices);
 
   vertex_t *d_cluster_hash         = cluster_hash.data().get();
-  weight_t *d_cluster_hash_sum     = cluster_hash_sum.data().get();
   vertex_t *d_cluster              = cluster.data().get();
-  vertex_t const *d_src_indices    = src_indices.data().get();
-  vertex_t *d_dst_indices          = graph.indices;
-  edge_t *d_offsets                = graph.offsets;
-  weight_t *d_weights              = graph.edge_data;
   weight_t const *d_vertex_weights = vertex_weights.data().get();
   weight_t *d_cluster_weights      = cluster_weights.data().get();
   weight_t *d_delta_Q              = delta_Q.data().get();
-  weight_t *d_old_cluster_sum      = old_cluster_sum.data().get();
 
-  weight_t new_Q = modularity<vertex_t, edge_t, weight_t>(m2, graph, cluster.data().get(), stream);
+  weight_t new_Q = modularity<vertex_t, edge_t, weight_t>(
+    total_edge_weight, resolution, graph, cluster.data().get(), stream);
 
   weight_t cur_Q = new_Q - 1;
 
@@ -286,103 +412,32 @@ weight_t update_clustering_by_delta_modularity(
   while (new_Q > (cur_Q + 0.0001)) {
     cur_Q = new_Q;
 
-    thrust::fill(cluster_hash.begin(), cluster_hash.end(), vertex_t{-1});
-    thrust::fill(cluster_hash_sum.begin(), cluster_hash_sum.end(), weight_t{0.0});
-    thrust::fill(old_cluster_sum.begin(), old_cluster_sum.end(), weight_t{0.0});
-
-    //
-    // For each source vertex, we're going to build a hash
-    // table to the destination cluster ids.  We can use
-    // the offsets ranges to define the bounds of the hash
-    // table.
-    //
-    thrust::for_each(rmm::exec_policy(stream)->on(stream),
-                     thrust::make_counting_iterator<edge_t>(0),
-                     thrust::make_counting_iterator<edge_t>(graph.number_of_edges),
-                     [d_src_indices,
-                      d_dst_indices,
-                      d_cluster,
-                      d_offsets,
-                      d_cluster_hash,
-                      d_cluster_hash_sum,
-                      d_weights,
-                      d_old_cluster_sum] __device__(edge_t loc) {
-                       vertex_t src = d_src_indices[loc];
-                       vertex_t dst = d_dst_indices[loc];
-
-                       if (src != dst) {
-                         vertex_t old_cluster = d_cluster[src];
-                         vertex_t new_cluster = d_cluster[dst];
-                         edge_t hash_base     = d_offsets[src];
-                         edge_t n_edges       = d_offsets[src + 1] - hash_base;
-
-                         int h         = (new_cluster % n_edges);
-                         edge_t offset = hash_base + h;
-                         while (d_cluster_hash[offset] != new_cluster) {
-                           if (d_cluster_hash[offset] == -1) {
-                             atomicCAS(d_cluster_hash + offset, -1, new_cluster);
-                           } else {
-                             h      = (h + 1) % n_edges;
-                             offset = hash_base + h;
-                           }
-                         }
-
-                         atomicAdd(d_cluster_hash_sum + offset, d_weights[loc]);
-
-                         if (old_cluster == new_cluster)
-                           atomicAdd(d_old_cluster_sum + src, d_weights[loc]);
-                       }
-                     });
-
-    thrust::for_each(rmm::exec_policy(stream)->on(stream),
-                     thrust::make_counting_iterator<edge_t>(0),
-                     thrust::make_counting_iterator<edge_t>(graph.number_of_edges),
-                     [m2,
-                      d_cluster_hash,
-                      d_src_indices,
-                      d_cluster,
-                      d_vertex_weights,
-                      d_delta_Q,
-                      d_cluster_hash_sum,
-                      d_old_cluster_sum,
-                      d_cluster_weights] __device__(edge_t loc) {
-                       vertex_t new_cluster = d_cluster_hash[loc];
-                       if (new_cluster >= 0) {
-                         vertex_t src         = d_src_indices[loc];
-                         vertex_t old_cluster = d_cluster[src];
-                         weight_t degc_totw   = d_vertex_weights[src] / m2;
-
-                         d_delta_Q[loc] =
-                           d_cluster_hash_sum[loc] - degc_totw * d_cluster_weights[new_cluster] -
-                           (d_old_cluster_sum[src] -
-                            (degc_totw * (d_cluster_weights[old_cluster] - d_vertex_weights[src])));
-
-#ifdef DEBUG
-                         printf("src = %d, new cluster = %d, d_delta_Q[%d] = %g\n",
-                                src,
-                                new_cluster,
-                                loc,
-                                d_delta_Q[loc]);
-#endif
-                       } else {
-                         d_delta_Q[loc] = weight_t{0.0};
-                       }
-                     });
-
-    auto cluster_reduce_iterator =
-      thrust::make_zip_iterator(thrust::make_tuple(d_cluster_hash, d_delta_Q));
+    compute_delta_modularity(total_edge_weight,
+                             resolution,
+                             graph,
+                             src_indices,
+                             vertex_weights,
+                             cluster_weights,
+                             cluster,
+                             cluster_hash,
+                             delta_Q,
+                             old_cluster_sum,
+                             stream);
 
     rmm::device_vector<vertex_t> temp_vertices(graph.number_of_vertices);
     rmm::device_vector<vertex_t> temp_cluster(graph.number_of_vertices, vertex_t{-1});
     rmm::device_vector<weight_t> temp_delta_Q(graph.number_of_vertices, weight_t{0.0});
+
+    auto cluster_reduce_iterator =
+      thrust::make_zip_iterator(thrust::make_tuple(d_cluster_hash, d_delta_Q));
 
     auto output_edge_iterator2 = thrust::make_zip_iterator(
       thrust::make_tuple(temp_cluster.data().get(), temp_delta_Q.data().get()));
 
     auto cluster_reduce_end =
       thrust::reduce_by_key(rmm::exec_policy(stream)->on(stream),
-                            d_src_indices,
-                            d_src_indices + graph.number_of_edges,
+                            src_indices.begin(),
+                            src_indices.end(),
                             cluster_reduce_iterator,
                             temp_vertices.data().get(),
                             output_edge_iterator2,
@@ -437,7 +492,8 @@ weight_t update_clustering_by_delta_modularity(
 
     up_down = !up_down;
 
-    new_Q = modularity<vertex_t, edge_t, weight_t>(m2, graph, next_cluster.data().get(), stream);
+    new_Q = modularity<vertex_t, edge_t, weight_t>(
+      total_edge_weight, resolution, graph, next_cluster.data().get(), stream);
 
     if (new_Q > cur_Q) { thrust::copy(next_cluster.begin(), next_cluster.end(), cluster.begin()); }
   }
@@ -451,6 +507,7 @@ void louvain(GraphCSRView<vertex_t, edge_t, weight_t> const &graph,
              int *num_level,
              vertex_t *cluster_vec,
              int max_level,
+             weight_t resolution,
              cudaStream_t stream)
 {
 #ifdef TIMING
@@ -481,7 +538,7 @@ void louvain(GraphCSRView<vertex_t, edge_t, weight_t> const &graph,
   rmm::device_vector<vertex_t> tmp_arr_v(graph.number_of_vertices);
   rmm::device_vector<vertex_t> cluster_inverse_v(graph.number_of_vertices);
 
-  weight_t m2 =
+  weight_t total_edge_weight =
     thrust::reduce(rmm::exec_policy(stream)->on(stream), weights_v.begin(), weights_v.end());
   weight_t best_modularity = -1;
 
@@ -524,8 +581,14 @@ void louvain(GraphCSRView<vertex_t, edge_t, weight_t> const &graph,
     hr_timer.start("update_clustering");
 #endif
 
-    weight_t new_Q = update_clustering_by_delta_modularity(
-      m2, current_graph, src_indices_v, vertex_weights_v, cluster_weights_v, cluster_v, stream);
+    weight_t new_Q = update_clustering_by_delta_modularity(total_edge_weight,
+                                                           resolution,
+                                                           current_graph,
+                                                           src_indices_v,
+                                                           vertex_weights_v,
+                                                           cluster_weights_v,
+                                                           cluster_v,
+                                                           stream);
 
 #ifdef TIMING
     hr_timer.stop();
@@ -564,10 +627,20 @@ void louvain(GraphCSRView<vertex_t, edge_t, weight_t> const &graph,
   *final_modularity = best_modularity;
 }
 
-template void louvain(
-  GraphCSRView<int32_t, int32_t, float> const &, float *, int *, int32_t *, int, cudaStream_t);
-template void louvain(
-  GraphCSRView<int32_t, int32_t, double> const &, double *, int *, int32_t *, int, cudaStream_t);
+template void louvain(GraphCSRView<int32_t, int32_t, float> const &,
+                      float *,
+                      int *,
+                      int32_t *,
+                      int,
+                      float,
+                      cudaStream_t);
+template void louvain(GraphCSRView<int32_t, int32_t, double> const &,
+                      double *,
+                      int *,
+                      int32_t *,
+                      int,
+                      double,
+                      cudaStream_t);
 
 }  // namespace detail
 }  // namespace cugraph

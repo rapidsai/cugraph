@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019, NVIDIA CORPORATION.  All rights reserved.
+ * Copyright (c) 2019-2020, NVIDIA CORPORATION.  All rights reserved.
  *
  * NVIDIA CORPORATION and its licensors retain all intellectual property
  * and proprietary rights in and to this software, related documentation
@@ -13,17 +13,17 @@
 // Author: Andrei Schaffer aschaffer@nvidia.com
 
 #include <utilities/high_res_clock.h>
-#include "cuda_profiler_api.h"
-#include "gtest/gtest.h"
+#include <utilities/base_fixture.hpp>
+#include <utilities/test_utilities.hpp>
 
-#include <algorithm>
+#include <cuda_profiler_api.h>
+
 #include <algorithms.hpp>
 #include <converters/COOtoCSR.cuh>
 #include <graph.hpp>
-#include <iterator>
-#include <rmm/mr/device/cuda_memory_resource.hpp>
 
-#include "utilities/test_utilities.hpp"
+#include <algorithm>
+#include <iterator>
 
 // do the perf measurements
 // enabled by command line parameter s'--perf'
@@ -148,11 +148,4 @@ INSTANTIATE_TEST_CASE_P(simple_test,
                                           Usecase("test/datasets/coPapersCiteseer.mtx"),
                                           Usecase("test/datasets/hollywood.mtx")));
 
-int main(int argc, char** argv)
-{
-  testing::InitGoogleTest(&argc, argv);
-  auto resource = std::make_unique<rmm::mr::cuda_memory_resource>();
-  rmm::mr::set_default_resource(resource.get());
-  int rc = RUN_ALL_TESTS();
-  return rc;
-}
+CUGRAPH_TEST_PROGRAM_MAIN()

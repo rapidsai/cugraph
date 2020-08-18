@@ -1,4 +1,4 @@
-# Copyright (c) 2019, NVIDIA CORPORATION.
+# Copyright (c) 2019-2020, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -88,8 +88,7 @@ def networkx_call(M):
     return src, dst, coeff
 
 
-# Test all combinations of default/managed and pooled/non-pooled allocation
-@pytest.mark.parametrize("graph_file", utils.DATASETS)
+@pytest.mark.parametrize("graph_file", utils.DATASETS_UNDIRECTED)
 def test_jaccard(graph_file):
     gc.collect()
 
@@ -112,7 +111,6 @@ def test_jaccard(graph_file):
     assert err == 0
 
 
-# Test all combinations of default/managed and pooled/non-pooled allocation
 @pytest.mark.parametrize("graph_file", ["../datasets/netscience.csv"])
 def test_jaccard_edgevals(graph_file):
     gc.collect()
@@ -135,8 +133,7 @@ def test_jaccard_edgevals(graph_file):
     assert err == 0
 
 
-# Test all combinations of default/managed and pooled/non-pooled allocation
-@pytest.mark.parametrize("graph_file", utils.DATASETS)
+@pytest.mark.parametrize("graph_file", utils.DATASETS_UNDIRECTED)
 def test_jaccard_two_hop(graph_file):
     gc.collect()
 
@@ -168,8 +165,7 @@ def test_jaccard_two_hop(graph_file):
         assert diff < 1.0e-6
 
 
-# Test all combinations of default/managed and pooled/non-pooled allocation
-@pytest.mark.parametrize("graph_file", utils.DATASETS)
+@pytest.mark.parametrize("graph_file", utils.DATASETS_UNDIRECTED)
 def test_jaccard_two_hop_edge_vals(graph_file):
     gc.collect()
 
