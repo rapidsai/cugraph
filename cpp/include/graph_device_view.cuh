@@ -283,5 +283,59 @@ class graph_device_view_t<GraphType, std::enable_if_t<!GraphType::is_multi_gpu>>
   }
 };
 
+#if 0
+template <typename vertex_t,
+          typename edge_t,
+          typename weight_t,
+          bool store_transposed,
+          bool multi_gpu>
+rmm::device_uvector<edge_t>
+graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu, std::enable_if_t<multi_gpu>>::
+  in_degree()
+{
+  if (!store_transposed) {
+    rmm::device_uvector<edge_t> degrees(get_number_of_local_vertices(), handle_ptr_.get_stream());
+    copy_v_transform_reduce_in_nbr(
+      *handle_ptr_,
+      graph_device_view,
+      thrust::make_constant_iterator(0) /* dummy */,
+      thrust::make_constant_iterator(0) /* dummy */,
+      [] __device__(auto src_val, auto dst_val) { return 1; },
+      edge_t{0},
+      degrees.data());
+    return degrees;
+  } else {
+    return compute_row_degree(
+      *handle_ptr_, adj_matrix_partition_offsets_, partition_.hypergraph_partitioned);
+  }
+}
+
+template <typename vertex_t,
+          typename edge_t,
+          typename weight_t,
+          bool store_transposed,
+          bool multi_gpu>
+rmm::device_uvector<edge_t>
+graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu, std::enable_if_t<multi_gpu>>::
+  out_degree()
+{
+  if (store_transposed) {
+    rmm::device_uvector<edge_t> degrees(get_number_of_local_vertices(), handle_ptr_.get_stream());
+    copy_v_transform_reduce_out_nbr(
+      *handle_ptr_,
+      graph_device_view,
+      thrust::make_constant_iterator(0) /* dummy */,
+      thrust::make_constant_iterator(0) /* dummy */,
+      [] __device__(auto src_val, auto dst_val) { return 1; },
+      edge_t{0},
+      degrees.data());
+    return degrees;
+  } else {
+    return compute_row_degree(
+      *handle_ptr_, adj_matrix_partition_offsets_, partition_.hypergraph_partitioned);
+  }
+}
+#endif
+
 }  // namespace experimental
 }  // namespace cugraph
