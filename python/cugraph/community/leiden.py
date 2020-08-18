@@ -1,4 +1,4 @@
-# Copyright (c) 2019-2020, NVIDIA CORPORATION.
+# Copyright (c) 2019 - 2020, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -11,20 +11,20 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from cugraph.community import louvain_wrapper
+from cugraph.community import leiden_wrapper
 from cugraph.structure.graph import Graph
 
 
-def louvain(input_graph, max_iter=100, resolution=1.):
+def leiden(input_graph, max_iter=100, resolution=1.):
     """
     Compute the modularity optimizing partition of the input graph using the
-    Louvain method
+    Leiden algorithm
 
     It uses the Louvain method described in:
 
-    VD Blondel, J-L Guillaume, R Lambiotte and E Lefebvre: Fast unfolding of
-    community hierarchies in large networks, J Stat Mech P10008 (2008),
-    http://arxiv.org/abs/0803.0476
+    Traag, V. A., Waltman, L., & van Eck, N. J. (2019). From Louvain to Leiden:
+    guaranteeing well-connected communities. Scientific reports, 9(1), 5233.
+    doi: 10.1038/s41598-019-41695-z
 
     Parameters
     ----------
@@ -34,7 +34,7 @@ def louvain(input_graph, max_iter=100, resolution=1.):
         The adjacency list will be computed if not already present.
 
     max_iter : integer
-        This controls the maximum number of levels/iterations of the Louvain
+        This controls the maximum number of levels/iterations of the Leiden
         algorithm. When specified the algorithm will terminate after no more
         than the specified number of iterations. No error occurs when the
         algorithm terminates early in this manner.
@@ -68,13 +68,13 @@ def louvain(input_graph, max_iter=100, resolution=1.):
                           header=None)
     >>> G = cugraph.Graph()
     >>> G.from_cudf_edgelist(M, source='0', destination='1')
-    >>> parts, modularity_score = cugraph.louvain(G)
+    >>> parts, modularity_score = cugraph.leiden(G)
     """
 
     if type(input_graph) is not Graph:
         raise Exception("input graph must be undirected")
 
-    parts, modularity_score = louvain_wrapper.louvain(
+    parts, modularity_score = leiden_wrapper.leiden(
         input_graph, max_iter, resolution
     )
 

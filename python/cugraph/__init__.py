@@ -15,6 +15,7 @@ from cugraph.community import (
     ecg,
     ktruss_subgraph,
     louvain,
+    leiden,
     spectralBalancedCutClustering,
     spectralModularityMaximizationClustering,
     analyzeClustering_modularity,
