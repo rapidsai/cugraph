@@ -606,7 +606,13 @@ void bfs(raft::handle_t const &handle,
 /**
  * @brief      Louvain implementation
  *
- * Compute a clustering of the graph by minimizing modularity
+ * Compute a clustering of the graph by maximizing modularity
+ *
+ * Computed using the Louvain method described in:
+ *
+ *    VD Blondel, J-L Guillaume, R Lambiotte and E Lefebvre: Fast unfolding of
+ *    community hierarchies in large networks, J Stat Mech P10008 (2008),
+ *    http://arxiv.org/abs/0803.0476
  *
  * @throws     cugraph::logic_error when an error occurs.
  *
@@ -621,7 +627,12 @@ void bfs(raft::handle_t const &handle,
  * @param[out] num_level             number of levels of the returned clustering
  * @param[out] clustering            Pointer to device array where the clustering should be stored
  * @param[in]  max_iter              (optional) maximum number of iterations to run (default 100)
- * @param[in] resolution             The value of the resolution parameter to use
+ * @param[in]  resolution            (optional) The value of the resolution parameter to use.
+ *                                   Called gamma in the modularity formula, this changes the size
+ *                                   of the communities.  Higher resolutions lead to more smaller
+ *                                   communities, lower resolutions lead to fewer larger communities.
+ *                                   (default 1)
+ *
  */
 template <typename vertex_t, typename edge_t, typename weight_t>
 void louvain(GraphCSRView<vertex_t, edge_t, weight_t> const &graph,
@@ -637,6 +648,12 @@ void louvain(GraphCSRView<vertex_t, edge_t, weight_t> const &graph,
  * Compute a clustering of the graph by maximizing modularity using the Leiden improvements
  * to the Louvain method.
  *
+ * Computed using the Leiden method described in:
+ *
+ *    Traag, V. A., Waltman, L., & van Eck, N. J. (2019). From Louvain to Leiden:
+ *    guaranteeing well-connected communities. Scientific reports, 9(1), 5233.
+ *    doi: 10.1038/s41598-019-41695-z
+ *
  * @throws cugraph::logic_error when an error occurs.
  *
  * @tparam vertex_t                  Type of vertex identifiers.
@@ -650,7 +667,11 @@ void louvain(GraphCSRView<vertex_t, edge_t, weight_t> const &graph,
  * @param[out] num_level             number of levels of the returned clustering
  * @param[out] clustering            Pointer to device array where the clustering should be stored
  * @param[in]  max_iter              (optional) maximum number of iterations to run (default 100)
- * @param[in] resolution             The value of the resolution parameter to use
+ * @param[in]  resolution            (optional) The value of the resolution parameter to use.
+ *                                   Called gamma in the modularity formula, this changes the size
+ *                                   of the communities.  Higher resolutions lead to more smaller
+ *                                   communities, lower resolutions lead to fewer larger communities.
+ *                                   (default 1)
  */
 template <typename vertex_t, typename edge_t, typename weight_t>
 void leiden(GraphCSRView<vertex_t, edge_t, weight_t> const &graph,

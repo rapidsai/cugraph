@@ -99,14 +99,6 @@ weight_t modularity(weight_t total_edge_weight,
     thrust::make_counting_iterator(0),
     thrust::make_counting_iterator(graph.number_of_vertices),
     [d_deg, d_inc, total_edge_weight, resolution] __device__(vertex_t community) {
-#ifdef DEBUG
-      printf("  d_inc[%d] = %g, d_deg = %g, return = %g\n",
-             community,
-             d_inc[community],
-             d_deg[community],
-             ((d_inc[community] / total_edge_weight) -
-              resolution * pow(d_deg[community] / total_edge_weight, 2)));
-#endif
 
       return ((d_inc[community] / total_edge_weight) - resolution *
                                                          (d_deg[community] * d_deg[community]) /
@@ -240,9 +232,9 @@ vertex_t renumber_clusters(vertex_t graph_num_vertices,
   //  Now we're going to renumber the clusters from 0 to (k-1), where k is the number of
   //  clusters in this level of the dendogram.
   //
-  thrust::copy(cluster.begin(), cluster.end(), temp_array.begin());
-  thrust::sort(temp_array.begin(), temp_array.end());
-  auto tmp_end = thrust::unique(temp_array.begin(), temp_array.end());
+  thrust::copy(rmm::exec_policy(stream)->on(stream), cluster.begin(), cluster.end(), temp_array.begin());
+  thrust::sort(rmm::exec_policy(stream)->on(stream), temp_array.begin(), temp_array.end());
+  auto tmp_end = thrust::unique(rmm::exec_policy(stream)->on(stream), temp_array.begin(), temp_array.end());
 
   vertex_t old_num_clusters = cluster.size();
   vertex_t new_num_clusters = thrust::distance(temp_array.begin(), tmp_end);
@@ -389,21 +381,6 @@ void compute_delta_modularity(weight_t total_edge_weight,
                          (((d_new_cluster_sum[loc] - d_old_cluster_sum[src]) / total_edge_weight) -
                           resolution * (a_new * k_k - a_old * k_k + k_k * k_k) /
                             (total_edge_weight * total_edge_weight));
-
-#ifdef DEBUG
-                       printf(
-                         "src = %d, new cluster = %d, d_delta_Q[%d] = %g, new_cluster_sum = %g, "
-                         "old_cluster_sum = %g, a_new = %g, a_old = %g, k_k = %g\n",
-                         src,
-                         new_cluster,
-                         loc,
-                         d_delta_Q[loc],
-                         d_new_cluster_sum[loc],
-                         d_old_cluster_sum[src],
-                         a_new,
-                         a_old,
-                         k_k);
-#endif
                      } else {
                        d_delta_Q[loc] = weight_t{0.0};
                      }
@@ -497,15 +474,6 @@ void assign_nodes(GraphCSRView<vertex_t, edge_t, weight_t> const &graph,
                        vertex_t old_cluster = d_next_cluster[d_temp_vertices[id]];
 
                        if ((new_cluster > old_cluster) == up_down) {
-#ifdef DEBUG
-                         printf("%s moving vertex %d from cluster %d to cluster %d - deltaQ = %g\n",
-                                (up_down ? "up" : "down"),
-                                d_temp_vertices[id],
-                                d_next_cluster[d_temp_vertices[id]],
-                                d_temp_clusters[id],
-                                d_temp_delta_Q[id]);
-#endif
-
                          weight_t src_weight = d_vertex_weights[d_temp_vertices[id]];
                          d_next_cluster[d_temp_vertices[id]] = d_temp_clusters[id];
 
@@ -598,7 +566,7 @@ weight_t update_clustering_by_delta_modularity(
     new_Q = modularity<vertex_t, edge_t, weight_t>(
       total_edge_weight, resolution, graph, next_cluster.data().get(), stream);
 
-    if (new_Q > cur_Q) { thrust::copy(next_cluster.begin(), next_cluster.end(), cluster.begin()); }
+    if (new_Q > cur_Q) { thrust::copy(rmm::exec_policy(stream)->on(stream), next_cluster.begin(), next_cluster.end(), cluster.begin()); }
   }
 
   return cur_Q;
@@ -668,7 +636,7 @@ void louvain(GraphCSRView<vertex_t, edge_t, weight_t> const &graph,
   //  Initialize every cluster to reference each vertex to itself
   //
   thrust::sequence(rmm::exec_policy(stream)->on(stream), cluster_v.begin(), cluster_v.end());
-  thrust::copy(cluster_v.begin(), cluster_v.end(), cluster_vec);
+  thrust::copy(rmm::exec_policy(stream)->on(stream), cluster_v.begin(), cluster_v.end(), cluster_vec);
 
   //
   //  Our copy of the graph.  Each iteration of the outer loop will
@@ -695,7 +663,7 @@ void louvain(GraphCSRView<vertex_t, edge_t, weight_t> const &graph,
 #endif
 
     cugraph::detail::compute_vertex_sums(current_graph, vertex_weights_v, stream);
-    thrust::copy(vertex_weights_v.begin(), vertex_weights_v.end(), cluster_weights_v.begin());
+    thrust::copy(rmm::exec_policy(stream)->on(stream), vertex_weights_v.begin(), vertex_weights_v.end(), cluster_weights_v.begin());
 
 #ifdef TIMING
     hr_timer.stop();

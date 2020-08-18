@@ -102,7 +102,7 @@ weight_t update_clustering_by_delta_modularity_constrained(
 
     new_Q = modularity(total_edge_weight, resolution, graph, next_cluster.data().get(), stream);
 
-    if (new_Q > cur_Q) { thrust::copy(next_cluster.begin(), next_cluster.end(), cluster.begin()); }
+    if (new_Q > cur_Q) { thrust::copy(rmm::exec_policy(stream)->on(stream), next_cluster.begin(), next_cluster.end(), cluster.begin()); }
   }
 
   return cur_Q;
@@ -175,7 +175,7 @@ void leiden(GraphCSRView<vertex_t, edge_t, weight_t> const &graph,
   //  Initialize every cluster to reference each vertex to itself
   //
   thrust::sequence(rmm::exec_policy(stream)->on(stream), cluster_v.begin(), cluster_v.end());
-  thrust::copy(cluster_v.begin(), cluster_v.end(), cluster_vec);
+  thrust::copy(rmm::exec_policy(stream)->on(stream), cluster_v.begin(), cluster_v.end(), cluster_vec);
 
   //
   //  Our copy of the graph.  Each iteration of the outer loop will
@@ -202,7 +202,7 @@ void leiden(GraphCSRView<vertex_t, edge_t, weight_t> const &graph,
 #endif
 
     cugraph::detail::compute_vertex_sums(current_graph, vertex_weights_v, stream);
-    thrust::copy(vertex_weights_v.begin(), vertex_weights_v.end(), cluster_weights_v.begin());
+    thrust::copy(rmm::exec_policy(stream)->on(stream), vertex_weights_v.begin(), vertex_weights_v.end(), cluster_weights_v.begin());
 
 #ifdef TIMING
     hr_timer.stop();
@@ -222,7 +222,7 @@ void leiden(GraphCSRView<vertex_t, edge_t, weight_t> const &graph,
     // After finding the initial unconstrained partition we use that partitioning as the constraint
     // for the second round.
     rmm::device_vector<vertex_t> constraint(graph.number_of_vertices);
-    thrust::copy(cluster_v.begin(), cluster_v.end(), constraint.begin());
+    thrust::copy(rmm::exec_policy(stream)->on(stream), cluster_v.begin(), cluster_v.end(), constraint.begin());
     new_Q = update_clustering_by_delta_modularity_constrained(total_edge_weight,
                                                               resolution,
                                                               current_graph,
