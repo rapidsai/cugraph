@@ -36,3 +36,4 @@ dependencies:
 - recommonmark
 - pip
 - libcypher-parser
+- rapids-pytest-benchmark
