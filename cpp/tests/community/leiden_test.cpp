@@ -19,7 +19,7 @@
 
 #include <rmm/mr/device/cnmem_memory_resource.hpp>
 
-TEST(louvain, success)
+TEST(leiden_karate, success)
 {
   std::vector<int> off_h = {0,  16,  25,  35,  41,  44,  48,  52,  56,  61,  63, 66,
                             67, 69,  74,  76,  78,  80,  82,  84,  87,  89,  91, 93,

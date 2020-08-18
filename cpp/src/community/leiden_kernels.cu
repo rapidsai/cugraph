@@ -18,7 +18,6 @@
 #include <rmm/thrust_rmm_allocator.h>
 
 #include <community/louvain_kernels.hpp>
-#include <utilities/cuda_utils.cuh>
 #include <utilities/graph_utils.cuh>
 
 //#define TIMING
@@ -224,7 +223,6 @@ void leiden(GraphCSRView<vertex_t, edge_t, weight_t> const &graph,
     // for the second round.
     rmm::device_vector<vertex_t> constraint(graph.number_of_vertices);
     thrust::copy(cluster_v.begin(), cluster_v.end(), constraint.begin());
-    thrust::sequence(rmm::exec_policy(stream)->on(stream), cluster_v.begin(), cluster_v.end());
     new_Q = update_clustering_by_delta_modularity_constrained(total_edge_weight,
                                                               resolution,
                                                               current_graph,
