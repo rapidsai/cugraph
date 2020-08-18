@@ -63,7 +63,7 @@ def cugraph_louvain(cu_M, edgevals=False):
 
 
 @pytest.mark.parametrize("graph_file", utils.DATASETS_3)
-def test_louvain(graph_file):
+def test_leiden(graph_file):
     gc.collect()
 
     cu_M = utils.read_csv_file(graph_file)
@@ -71,4 +71,4 @@ def test_louvain(graph_file):
     louvain_parts, louvain_mod = cugraph_louvain(cu_M, edgevals=True)
 
     # Calculating modularity scores for comparison
-    assert leiden_mod >= louvain_mod
+    assert leiden_mod >= (0.99 * louvain_mod)
