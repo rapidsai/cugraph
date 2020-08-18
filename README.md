@@ -40,6 +40,7 @@ for i in range(len(df_page)):
 |              | Betweenness Centrality                 | Single-GPU   |                     |
 |              | Edge Betweenness Centrality            | Single-GPU   |                     |
 | Community    |                                        |              |                     |
+|              | Leiden                                 | Single-GPU   |                     |
 |              | Louvain                                | Single-GPU   |                     |
 |              | Ensemble Clustering for Graphs         | Single-GPU   |                     |
 |              | Spectral-Clustering - Balanced Cut     | Single-GPU   |                     |

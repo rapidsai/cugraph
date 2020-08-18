@@ -11,16 +11,20 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from cugraph.community.louvain import louvain
-from cugraph.community.leiden import leiden
-from cugraph.community.ecg import ecg
-from cugraph.community.spectral_clustering import (
-    spectralBalancedCutClustering,
-    spectralModularityMaximizationClustering,
-    analyzeClustering_modularity,
-    analyzeClustering_edge_cut,
-    analyzeClustering_ratio_cut,
-)
-from cugraph.community.subgraph_extraction import subgraph
-from cugraph.community.triangle_count import triangles
-from cugraph.community.ktruss_subgraph import ktruss_subgraph
+# cython: profile=False
+# distutils: language = c++
+# cython: embedsignature = True
+# cython: language_level = 3
+
+from cugraph.structure.graph_new cimport *
+
+
+cdef extern from "algorithms.hpp" namespace "cugraph":
+
+    cdef void leiden[vertex_t,edge_t,weight_t](
+        const GraphCSRView[vertex_t,edge_t,weight_t] &graph,
+        weight_t &final_modularity,
+        int &num_level,
+        vertex_t *leiden_parts,
+        int max_level,
+        weight_t resolution) except +
