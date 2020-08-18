@@ -630,8 +630,8 @@ void bfs(raft::handle_t const &handle,
  * @param[in]  resolution            (optional) The value of the resolution parameter to use.
  *                                   Called gamma in the modularity formula, this changes the size
  *                                   of the communities.  Higher resolutions lead to more smaller
- *                                   communities, lower resolutions lead to fewer larger communities.
- *                                   (default 1)
+ *                                   communities, lower resolutions lead to fewer larger
+ * communities. (default 1)
  *
  */
 template <typename vertex_t, typename edge_t, typename weight_t>
@@ -670,8 +670,8 @@ void louvain(GraphCSRView<vertex_t, edge_t, weight_t> const &graph,
  * @param[in]  resolution            (optional) The value of the resolution parameter to use.
  *                                   Called gamma in the modularity formula, this changes the size
  *                                   of the communities.  Higher resolutions lead to more smaller
- *                                   communities, lower resolutions lead to fewer larger communities.
- *                                   (default 1)
+ *                                   communities, lower resolutions lead to fewer larger
+ * communities. (default 1)
  */
 template <typename vertex_t, typename edge_t, typename weight_t>
 void leiden(GraphCSRView<vertex_t, edge_t, weight_t> const &graph,

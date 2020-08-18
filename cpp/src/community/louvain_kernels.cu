@@ -99,7 +99,6 @@ weight_t modularity(weight_t total_edge_weight,
     thrust::make_counting_iterator(0),
     thrust::make_counting_iterator(graph.number_of_vertices),
     [d_deg, d_inc, total_edge_weight, resolution] __device__(vertex_t community) {
-
       return ((d_inc[community] / total_edge_weight) - resolution *
                                                          (d_deg[community] * d_deg[community]) /
                                                          (total_edge_weight * total_edge_weight));
@@ -232,9 +231,11 @@ vertex_t renumber_clusters(vertex_t graph_num_vertices,
   //  Now we're going to renumber the clusters from 0 to (k-1), where k is the number of
   //  clusters in this level of the dendogram.
   //
-  thrust::copy(rmm::exec_policy(stream)->on(stream), cluster.begin(), cluster.end(), temp_array.begin());
+  thrust::copy(
+    rmm::exec_policy(stream)->on(stream), cluster.begin(), cluster.end(), temp_array.begin());
   thrust::sort(rmm::exec_policy(stream)->on(stream), temp_array.begin(), temp_array.end());
-  auto tmp_end = thrust::unique(rmm::exec_policy(stream)->on(stream), temp_array.begin(), temp_array.end());
+  auto tmp_end =
+    thrust::unique(rmm::exec_policy(stream)->on(stream), temp_array.begin(), temp_array.end());
 
   vertex_t old_num_clusters = cluster.size();
   vertex_t new_num_clusters = thrust::distance(temp_array.begin(), tmp_end);
@@ -566,7 +567,12 @@ weight_t update_clustering_by_delta_modularity(
     new_Q = modularity<vertex_t, edge_t, weight_t>(
       total_edge_weight, resolution, graph, next_cluster.data().get(), stream);
 
-    if (new_Q > cur_Q) { thrust::copy(rmm::exec_policy(stream)->on(stream), next_cluster.begin(), next_cluster.end(), cluster.begin()); }
+    if (new_Q > cur_Q) {
+      thrust::copy(rmm::exec_policy(stream)->on(stream),
+                   next_cluster.begin(),
+                   next_cluster.end(),
+                   cluster.begin());
+    }
   }
 
   return cur_Q;
@@ -636,7 +642,8 @@ void louvain(GraphCSRView<vertex_t, edge_t, weight_t> const &graph,
   //  Initialize every cluster to reference each vertex to itself
   //
   thrust::sequence(rmm::exec_policy(stream)->on(stream), cluster_v.begin(), cluster_v.end());
-  thrust::copy(rmm::exec_policy(stream)->on(stream), cluster_v.begin(), cluster_v.end(), cluster_vec);
+  thrust::copy(
+    rmm::exec_policy(stream)->on(stream), cluster_v.begin(), cluster_v.end(), cluster_vec);
 
   //
   //  Our copy of the graph.  Each iteration of the outer loop will
@@ -663,7 +670,10 @@ void louvain(GraphCSRView<vertex_t, edge_t, weight_t> const &graph,
 #endif
 
     cugraph::detail::compute_vertex_sums(current_graph, vertex_weights_v, stream);
-    thrust::copy(rmm::exec_policy(stream)->on(stream), vertex_weights_v.begin(), vertex_weights_v.end(), cluster_weights_v.begin());
+    thrust::copy(rmm::exec_policy(stream)->on(stream),
+                 vertex_weights_v.begin(),
+                 vertex_weights_v.end(),
+                 cluster_weights_v.begin());
 
 #ifdef TIMING
     hr_timer.stop();
