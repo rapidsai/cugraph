@@ -60,6 +60,7 @@ fi
 if [[ -z "$PROJECT_FLASH" || "$PROJECT_FLASH" == "0" ]]; then
     cd ${CUGRAPH_ROOT}/cpp/build
 else
+    export LD_LIBRARY_PATH="$WORKSPACE/ci/artifacts/cugraph/cpu/conda_work/build:$LD_LIBRARY_PATH"
     cd $WORKSPACE/ci/artifacts/cugraph/cpu/conda_work/cpp/build
 fi
 
