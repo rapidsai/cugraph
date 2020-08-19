@@ -35,23 +35,9 @@ size_t constexpr low_degree_threshold{raft::warp_size()};
 size_t constexpr mid_degree_threshold{1024};
 size_t constexpr num_segments_per_vertex_partition{3};
 
-struct graph_properties_t {
-  bool is_symmetric{false};
-  bool is_multigraph{false};
-  bool is_weighted{false};
-};
-
 // FIXME: these should better be defined somewhere else.
-std::string constexpr comm_p_row_key = "comm_p_row";
-std::string constexpr comm_p_col_key = "comm_p_key";
-
-template <typename vertex_t, typename edge_t>
-struct edgelist_t {
-  vertex_t const *p_src_vertices{nullptr};
-  vertex_t const *p_dst_vertices{nullptr};
-  vertex_t const *p_edge_weights{nullptr};
-  edge_t number_of_edges{0};
-};
+std::string const comm_p_row_key = "comm_p_row";
+std::string const comm_p_col_key = "comm_p_key";
 
 /**
  * @brief store vertex partitioning map
@@ -99,6 +85,20 @@ struct partition_t {
   bool hypergraph_partitioned{false};
 };
 
+struct graph_properties_t {
+  bool is_symmetric{false};
+  bool is_multigraph{false};
+  bool is_weighted{false};
+};
+
+template <typename vertex_t, typename edge_t, typename weight_t>
+struct edgelist_t {
+  vertex_t const *p_src_vertices{nullptr};
+  vertex_t const *p_dst_vertices{nullptr};
+  weight_t const *p_edge_weights{nullptr};
+  edge_t number_of_edges{0};
+};
+
 template <typename vertex_t,
           typename edge_t,
           typename weight_t,
@@ -120,8 +120,8 @@ class graph_t<vertex_t,
               multi_gpu,
               std::enable_if_t<multi_gpu>> {
  public:
-  graph_t(raft::handle_t &handle,
-          std::vector<edgelist_t<vertex_t, edge_t>> const &edge_lists,
+  graph_t(raft::handle_t const &handle,
+          std::vector<edgelist_t<vertex_t, edge_t, weight_t>> const &edge_lists,
           partition_t<vertex_t> const &partition,
           vertex_t number_of_vertices,
           edge_t number_of_edges,
@@ -136,13 +136,13 @@ class graph_t<vertex_t,
 
   bool is_symmetric() const { return properties_.is_symmetric; }
   bool is_multigraph() const { return properties_.is_multigraph; }
-  bool is_weighted() const { return properties.is_weighted; }
+  bool is_weighted() const { return properties_.is_weighted; }
 
-  vertex_t get_number_of_local_vertices() const noexcept
+  vertex_t get_number_of_local_vertices() const
   {
     auto comm_p_rank = handle_ptr_->get_comms().get_rank();
-    return vertex_partition_.partition_offsets[comm_p_rank + 1] -
-           vertex_partition_.partition_offsets[comm_p_rank];
+    return partition_.vertex_partition_offsets[comm_p_rank + 1] -
+           partition_.vertex_partition_offsets[comm_p_rank];
   }
 
   // FIXME: for compatibility with cuGraph analytics expecting either CSR or CSC format, this
@@ -158,7 +158,7 @@ class graph_t<vertex_t,
   // function will be eventually removed.
   vertex_t const *indices() const
   {
-    CUGRAPH_EXPECTS(adj_matrix_partition_indicess_.size() == 1,
+    CUGRAPH_EXPECTS(adj_matrix_partition_indices_.size() == 1,
                     "indices() is valid only when there is one rectangular partition per GPU.");
     return adj_matrix_partition_indices_[0].data();
   }
@@ -189,6 +189,65 @@ class graph_t<vertex_t,
     vertex_partition_segment_offsets_{};  // segment offsets within the vertex partition based on
                                           // vertex degree, relevant only if
                                           // sorted_by_global_degree_within_vertex_partition is true
+};
+
+// single-GPU version
+template <typename vertex_t,
+          typename edge_t,
+          typename weight_t,
+          bool store_transposed,
+          bool multi_gpu>
+class graph_t<vertex_t,
+              edge_t,
+              weight_t,
+              store_transposed,
+              multi_gpu,
+              std::enable_if_t<!multi_gpu>> {
+ public:
+  graph_t(raft::handle_t const &handle,
+          edgelist_t<vertex_t, edge_t, weight_t> const &edge_list,
+          vertex_t number_of_vertices,
+          edge_t number_of_edges,
+          bool is_symmetric,
+          bool is_multigraph,
+          bool is_weighted,
+          bool sorted_by_global_degree,
+          bool do_expensive_check = false);
+
+  vertex_t get_number_of_vertices() const { return number_of_vertices_; }
+  edge_t get_number_of_edges() const { return number_of_edges_; }
+
+  bool is_symmetric() const { return properties_.is_symmetric; }
+  bool is_multigraph() const { return properties_.is_multigraph; }
+  bool is_weighted() const { return properties_.is_weighted; }
+
+  vertex_t get_number_of_local_vertices() const { return number_of_vertices_; }
+
+  // FIXME: for compatibility with cuGraph analytics expecting either CSR or CSC format, this
+  // function will be eventually removed.
+  edge_t const *offsets() const { return offsets_.data(); }
+
+  // FIXME: for compatibility with cuGraph analytics expecting either CSR or CSC format, this
+  // function will be eventually removed.
+  vertex_t const *indices() const { return indices_.data(); }
+
+  // FIXME: for compatibility with cuGraph analytics expecting either CSR or CSC format, this
+  // function will be eventually removed.
+  weight_t const *weights() const { return weights_.data(); }
+
+ private:
+  vertex_t number_of_vertices_{0};
+  edge_t number_of_edges_{0};
+
+  graph_properties_t properties_{};
+
+  raft::handle_t const *handle_ptr_{nullptr};
+
+  rmm::device_uvector<edge_t> offsets_;
+  rmm::device_uvector<vertex_t> indices_;
+  rmm::device_uvector<weight_t> weights_;
+  std::vector<vertex_t> segment_offsets_{};  // segment offsets based on vertex degree, relevant
+                                             // only if sorted_by_global_degree is true
 };
 
 template <typename T, typename Enable = void>

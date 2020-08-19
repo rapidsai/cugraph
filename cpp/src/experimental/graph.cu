@@ -18,42 +18,52 @@
 
 #include <utilities/error.hpp>
 
+#include <rmm/thrust_rmm_allocator.h>
 #include <raft/device_atomics.cuh>
 #include <raft/handle.hpp>
 #include <rmm/device_uvector.hpp>
 
+#include <thrust/adjacent_difference.h>
+#include <thrust/binary_search.h>
 #include <thrust/fill.h>
 #include <thrust/for_each.h>
 #include <thrust/iterator/counting_iterator.h>
 #include <thrust/iterator/transform_iterator.h>
 #include <thrust/iterator/zip_iterator.h>
+#include <thrust/transform.h>
 #include <thrust/tuple.h>
+
+#include <tuple>
 
 namespace cugraph {
 namespace experimental {
 
 namespace {
 
-template <typename vertex_t, typename edge_t, typename weight_t, bool store_transposed>
-auto edge_list_to_compressed_sparse(raft::handel_t &handle,
-                                    edgelist_t const &edgelist,
-                                    vertex_t row_first,
-                                    vertex_t row_last,
-                                    vertex_t col_first,
-                                    vertex_t col_last)
+template <bool store_transposed, typename vertex_t, typename edge_t, typename weight_t>
+std::
+  tuple<rmm::device_uvector<edge_t>, rmm::device_uvector<vertex_t>, rmm::device_uvector<weight_t>>
+  edge_list_to_compressed_sparse(raft::handle_t const &handle,
+                                 edgelist_t<vertex_t, edge_t, weight_t> const &edgelist,
+                                 vertex_t row_first,
+                                 vertex_t row_last,
+                                 vertex_t col_first,
+                                 vertex_t col_last)
 {
   rmm::device_uvector<edge_t> offsets(
     store_transposed ? (row_last - row_first) + 1 : (col_last - col_first) + 1,
-    edge_t{0},
     handle.get_stream());
-  rmm::device_uvector<vertex_t> indices(
-    edge_list.number_of_edges, vertex_t{0}, handle.get_stream());
+  rmm::device_uvector<vertex_t> indices(edgelist.number_of_edges, handle.get_stream());
   rmm::device_uvector<weight_t> weights(
-    edge_list.p_edge_weights != nullptr ? edge_list.number_of_edges : 0, handle.get_stream());
+    edgelist.p_edge_weights != nullptr ? edgelist.number_of_edges : 0, handle.get_stream());
   thrust::fill(rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
                offsets.begin(),
                offsets.end(),
                edge_t{0});
+  thrust::fill(rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
+               indices.begin(),
+               indices.end(),
+               vertex_t{0});
 
   // FIXME: need to performance test this code with R-mat graphs having highly-skewed degree
   // distribution. If there is a small number of vertices with very large degrees, atomicAdd can
@@ -69,22 +79,23 @@ auto edge_list_to_compressed_sparse(raft::handel_t &handle,
   auto p_offsets = offsets.data();
   auto p_indices = indices.data();
   auto p_weights =
-    edge_list.p_edge_weights != nullptr ? weights.data() : reinterpret_cast<weight_t *>(nullptr);
+    edgelist.p_edge_weights != nullptr ? weights.data() : static_cast<weight_t *>(nullptr);
 
   auto major_first = store_transposed ? row_first : col_first;
-  thrust::for_each(
-    rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
-    store_transposed ? edgelist.p_src_vertices : edgelist.p_dst_vertices,
-    store_transposed ? edgelist.p_src_vertices + edgelist.number_of_edges
-                     : edgelist.p_dst_vertices + edgelist.number_of_edges,
-    [p_offsets, major_first] __device__(auto v) { atomicAdd(p_offsets + (v - major_first), 1); });
+  thrust::for_each(rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
+                   store_transposed ? edgelist.p_src_vertices : edgelist.p_dst_vertices,
+                   store_transposed ? edgelist.p_src_vertices + edgelist.number_of_edges
+                                    : edgelist.p_dst_vertices + edgelist.number_of_edges,
+                   [p_offsets, major_first] __device__(auto v) {
+                     atomicAdd(p_offsets + (v - major_first), edge_t{1});
+                   });
 
   thrust::exclusive_scan(rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
                          offsets.begin(),
                          offsets.end(),
                          offsets.begin());
 
-  if (edgelist.edge_weights != nullptr) {
+  if (edgelist.p_edge_weights != nullptr) {
     auto edge_first = thrust::make_zip_iterator(thrust::make_tuple(
       edgelist.p_src_vertices, edgelist.p_dst_vertices, edgelist.p_edge_weights));
     thrust::for_each(rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
@@ -98,8 +109,8 @@ auto edge_list_to_compressed_sparse(raft::handel_t &handle,
                        auto minor  = store_transposed ? d : s;
                        auto start  = p_offsets[major - major_first];
                        auto degree = p_offsets[(major - major_first) + 1] - start;
-                       auto idx    = atmoicAdd(p_indices + (degree - 1),
-                                            1);  // use the last element as a counter
+                       auto idx    = atomicAdd(p_indices + (degree - 1),
+                                            vertex_t{1});  // use the last element as a counter
                        // FIXME: we can actually store minor - minor_first instead of minor to save
                        // memory if minor can be larger than 32 bit but minor - minor_first fits
                        // within 32 bit
@@ -120,8 +131,8 @@ auto edge_list_to_compressed_sparse(raft::handel_t &handle,
                        auto minor  = store_transposed ? d : s;
                        auto start  = p_offsets[major - major_first];
                        auto degree = p_offsets[(major - major_first) + 1] - start;
-                       auto idx    = atmoicAdd(p_indices + (degree - 1),
-                                            1);  // use the last element as a counter
+                       auto idx    = atomicAdd(p_indices + (degree - 1),
+                                            vertex_t{1});  // use the last element as a counter
                        // FIXME: we can actually store minor - minor_first instead of minor to save
                        // memory if minor can be larger than 32 bit but minor - minor_first fits
                        // within 32 bit
@@ -130,14 +141,17 @@ auto edge_list_to_compressed_sparse(raft::handel_t &handle,
                      });
   }
 
-  return std::make_tuple(offsets, indices, weights);
+  return std::make_tuple(std::move(offsets), std::move(indices), std::move(weights));
 }
 
+// FIXME: better move this elsewhere, this can be reused in graph_device_view.cuh to compute degree
+// as well.
 // compute the numbers of nonzeros in rows of the (transposed) graph adjacency matrix
+template <typename vertex_t, typename edge_t>
 rmm::device_uvector<edge_t> compute_row_degree(
-  raft::handle_t &handle,
-  std::vector<rmm::device_uvector<edge_t>> const &adj_matrix_partition_offsets{};
-  bool hypergraph_partitioned)
+  raft::handle_t const &handle,
+  std::vector<rmm::device_uvector<edge_t>> const &adj_matrix_partition_offsets,
+  partition_t<vertex_t> const &partition)
 {
   auto &comm_p_row     = handle.get_subcomm(comm_p_row_key);
   auto comm_p_row_rank = comm_p_row.get_rank();
@@ -146,46 +160,49 @@ rmm::device_uvector<edge_t> compute_row_degree(
   auto comm_p_col_rank = comm_p_col.get_rank();
   auto comm_p_col_size = comm_p_col.get_size();
 
-  rmm::device_uvector<edge_t> local_degrees{};
-  rmm::device_uvector<edge_t> degrees{};
+  rmm::device_uvector<edge_t> local_degrees(0, handle.get_stream());
+  rmm::device_uvector<edge_t> degrees(0, handle.get_stream());
 
   vertex_t max_num_local_degrees{0};
   for (int i = 0; i < comm_p_col_size; ++i) {
-    auto vertex_partition_id = hypergraph_partitioned ? comm_p_row_size * i + row_rank
-                                                      : comm_p_col_size * comm_p_row_rank + i;
-    auto row_first        = vertex_partition_offsets[vertex_partition_id];
-    auto row_last         = vertex_partition_offsets[vertex_partition_id + 1];
+    auto vertex_partition_id = partition.hypergraph_partitioned
+                                 ? comm_p_row_size * i + comm_p_row_rank
+                                 : comm_p_col_size * comm_p_row_rank + i;
+    auto row_first        = partition.vertex_partition_offsets[vertex_partition_id];
+    auto row_last         = partition.vertex_partition_offsets[vertex_partition_id + 1];
     max_num_local_degrees = std::max(max_num_local_degrees, row_last - row_first);
     if (i == comm_p_col_rank) { degrees.resize(row_last - row_first, handle.get_stream()); }
   }
-  local_degrees.reisze(local_degree_size, handle.get_stream());
+  local_degrees.resize(max_num_local_degrees, handle.get_stream());
   for (int i = 0; i < comm_p_col_size; ++i) {
-    auto vertex_partition_id = hypergraph_partitioned ? comm_p_row_size * i + row_rank
-                                                      : comm_p_col_size * comm_p_row_rank + i;
-    auto row_first = vertex_partition_offsets[vertex_partition_id];
-    auto row_last  = vertex_partition_offsets[vertex_partition_id + 1];
+    auto vertex_partition_id = partition.hypergraph_partitioned
+                                 ? comm_p_row_size * i + comm_p_row_rank
+                                 : comm_p_col_size * comm_p_row_rank + i;
+    auto row_first = partition.vertex_partition_offsets[vertex_partition_id];
+    auto row_last  = partition.vertex_partition_offsets[vertex_partition_id + 1];
     auto p_offsets =
-      hypergraph_partitioned
-        ? adj_matrix_partition_offsets_[i].data()
-        : adj_matrix_partition_offsets_[0].data() +
-            (row_first - vertex_partition_offsets[comm_p_col_size * comm_p_row_rank]);
+      partition.hypergraph_partitioned
+        ? adj_matrix_partition_offsets[i].data()
+        : adj_matrix_partition_offsets[0].data() +
+            (row_first - partition.vertex_partition_offsets[comm_p_col_size * comm_p_row_rank]);
     thrust::transform(rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
                       thrust::make_counting_iterator(vertex_t{0}),
                       thrust::make_counting_iterator(row_last - row_first),
                       local_degrees.data(),
                       [p_offsets] __device__(auto i) { return p_offsets[i + 1] - p_offsets[i]; });
     comm_p_row.reduce(local_degrees.data(),
-                      i == comm_p_col_rank ? degrees.data() : nullptr,
+                      i == comm_p_col_rank ? degrees.data() : static_cast<edge_t *>(nullptr),
                       degrees.size(),
-                      raft::comms::get_type<edge_t>(),
-                      hanlde.get_stream());
+                      raft::comms::op_t::SUM,
+                      comm_p_col_rank,
+                      handle.get_stream());
   }
 
   return degrees;
 }
 
 template <typename vertex_t, typename DegreeIterator, typename ThresholdIterator>
-std::vector<vertex_t> segment_degree_sorted_vertex_partition(raft::handle_t &handle,
+std::vector<vertex_t> segment_degree_sorted_vertex_partition(raft::handle_t const &handle,
                                                              DegreeIterator degree_first,
                                                              DegreeIterator degree_last,
                                                              ThresholdIterator threshold_first,
@@ -205,7 +222,7 @@ std::vector<vertex_t> segment_degree_sorted_vertex_partition(raft::handle_t &han
                       degree_last,
                       threshold_first,
                       threshold_last,
-                      d_segments_offsets.begin());
+                      d_segment_offsets.begin());
 
   raft::update_host(h_segment_offsets.begin() + 1,
                     d_segment_offsets.begin(),
@@ -217,95 +234,174 @@ std::vector<vertex_t> segment_degree_sorted_vertex_partition(raft::handle_t &han
 
 }  // namespace
 
-}  // namespace experimental
-
 template <typename vertex_t,
           typename edge_t,
           typename weight_t,
           bool store_transposed,
           bool multi_gpu>
 graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu, std::enable_if_t<multi_gpu>>::
-  graph_t(raft::handel_t &handle,
-          std::vector<edgelist_t<vertex_t, edge_t>> const &edge_lists,
-          vertex_partition_t<vertex_t> const &vertex_partition,
-          std::vector<adj_matrix_partition_t<vertex_t>> const &adj_matrix_partitions,
+  graph_t(raft::handle_t const &handle,
+          std::vector<edgelist_t<vertex_t, edge_t, weight_t>> const &edgelists,
+          partition_t<vertex_t> const &partition,
           vertex_t number_of_vertices,
           edge_t number_of_edges,
           bool is_symmetric,
           bool is_multigraph,
           bool is_weighted,
+          bool sorted_by_global_degree_within_vertex_partition,
           bool do_expensive_check)
   : number_of_vertices_(number_of_vertices),
     number_of_edges_(number_of_edges),
     properties_({is_symmetric, is_multigraph, is_weighted}),
     handle_ptr_(&handle),
-    vertex_partition_(vertex_partition),
-    adj_matrix_partitions_(adj_matrix_partitions)
+    partition_(partition)
 {
-  CUGRAPH_EXPECTS(edge_lists.size() == adj_matrix_partitions.size(),
-                  "Invalid API parameter, edge_lists.size() != adj_matrix_partitions.size()");
+  auto &comm_p_row     = handle_ptr_->get_subcomm(comm_p_row_key);
+  auto comm_p_row_rank = comm_p_row.get_rank();
+  auto comm_p_row_size = comm_p_row.get_size();
+  auto &comm_p_col     = handle_ptr_->get_subcomm(comm_p_col_key);
+  auto comm_p_col_rank = comm_p_col.get_rank();
+  auto comm_p_col_size = comm_p_col.get_size();
 
   // convert edge list (COO) to compressed sparse format (CSR or CSC)
 
-  adj_matrix_partition_offsets_.resize(edge_lists.size());
-  adj_matrix_partition_indices_.resize(edge_lists.size());
-  adj_matrix_partition_weights_.resize(edge_lists.size());
-  for (size_t i = 0; i < edge_lists.size(); ++i) {
-    CUGRAPH_EXPECTS((is_weighted == false) || (edge_lists[i].p_edge_weights != nullptr),
-                    "Invalid API parameter, edge_lists[i].p_edge_weights shoud not be nullptr if "
+  adj_matrix_partition_offsets_.reserve(edgelists.size());
+  adj_matrix_partition_indices_.reserve(edgelists.size());
+  adj_matrix_partition_weights_.reserve(edgelists.size());
+  for (size_t i = 0; i < edgelists.size(); ++i) {
+    CUGRAPH_EXPECTS((is_weighted == false) || (edgelists[i].p_edge_weights != nullptr),
+                    "Invalid API parameter, edgelists[i].p_edge_weights shoud not be nullptr if "
                     "is_weighted == true");
 
-    rmm::device_uvector<edge_t> offets{};
-    rmm::device_uvector<vertex_t> indices{};
-    rmm::device_uvector<weight_t> weights{};
+    auto row_first = partition_.hypergraph_partitioned
+                       ? partition_.vertex_partition_offsets[comm_p_row_size * i + comm_p_row_rank]
+                       : partition_.vertex_partition_offsets[comm_p_col_size * comm_p_row_rank];
+    auto row_last =
+      partition_.hypergraph_partitioned
+        ? partition_.vertex_partition_offsets[comm_p_row_size * i + comm_p_row_rank + 1]
+        : partition_.vertex_partition_offsets[comm_p_col_size * (comm_p_row_rank + 1)];
+    auto col_first = partition_.vertex_partition_offsets[comm_p_row_size * comm_p_col_rank];
+    auto col_last  = partition_.vertex_partition_offsets[comm_p_row_size * (comm_p_col_rank + 1)];
 
-    std::tie(offsets, indices, weights) = detail::edge_list_to_compressed_sparse(
-      handle,
-      edge_lists[i],
-      vertex_partition_.partition_offsets[adj_matrix_partitions[i].row_vertex_partition_first],
-      vertex_partition_.partition_offsets[adj_matrix_partitions[i].row_vertex_partition_last],
-      vertex_partition_.partition_offsets[adj_matrix_partitions[i].col_vertex_partition_first],
-      vertex_partition_.partition_offsets[adj_matrix_partitions[i].col_vertex_partition_last]);
-    adj_matrix_partitions_offsets_[i] = std::move(offsets);
-    adj_matrix_partitions_indices_[i] = std::move(indices);
-    if (is_weighted) { adj_matrix_partitions_weights_[i] = std::move(weights); }
+    rmm::device_uvector<edge_t> offsets(0, handle_ptr_->get_stream());
+    rmm::device_uvector<vertex_t> indices(0, handle_ptr_->get_stream());
+    rmm::device_uvector<weight_t> weights(0, handle_ptr_->get_stream());
+    std::tie(offsets, indices, weights) = edge_list_to_compressed_sparse<store_transposed>(
+      *handle_ptr_, edgelists[i], row_first, row_last, col_first, col_last);
+    adj_matrix_partition_offsets_.push_back(std::move(offsets));
+    adj_matrix_partition_indices_.push_back(std::move(indices));
+    adj_matrix_partition_weights_.push_back(std::move(weights));
   }
 
   // update degree-based segment offsets (to be used for graph analytics kernel optimization)
 
-  auto &comm_p_row     = handle_ptr_->get_subcomm(comm_p_row_key);
-  auto comm_p_row_rank = comm_p_row.get_rank();
-  auto comm_p_row_size = comm_p_row.get_size();
+  auto degrees = compute_row_degree(*handle_ptr_, adj_matrix_partition_offsets_, partition_);
 
-  auto degrees = compute_row_degree<store_row_major, multi_gpu>();
+  static_assert(num_segments_per_vertex_partition == 3);
+  static_assert((low_degree_threshold <= mid_degree_threshold) &&
+                (mid_degree_threshold <= std::numeric_limits<edge_t>::max()));
+  rmm::device_uvector<edge_t> d_thresholds(num_segments_per_vertex_partition - 1,
+                                           handle_ptr_->get_stream());
+  std::vector<edge_t> h_thresholds = {static_cast<edge_t>(low_degree_threshold),
+                                      static_cast<edge_t>(mid_degree_threshold)};
+  raft::update_device(
+    d_thresholds.data(), h_thresholds.data(), h_thresholds.size(), handle_ptr_->get_stream());
 
-  static_assert(detail::num_segments_per_subpartition == 3);
-  static_assert((detail::low_degree_threshold <= detail::high_degree_threshold) &&
-                (detail::high_degree_threshold <= std::numeric_limits<vertex_t>::max()));
-  auto segment_degree_threshold_first =
-    thrust::make_transform_iterator(thrust::make_counting_iterator(0), [] __device__(auto i) {
-      if (i == 0) {
-        return static_cast<vertex_t>(detail::low_degree_threshold);
-      } else if (i == 1) {
-        return static_cast<vertex_t>(detail::high_degree_threshold);
-      } else {
-        assert(0);  // should not be reached
-        return vertex_t{0};
-      }
-    });
+  rmm::device_uvector<vertex_t> segment_offsets(num_segments_per_vertex_partition + 1,
+                                                handle_ptr_->get_stream());
+  segment_offsets.set_element_async(0, 0, handle_ptr_->get_stream());
+  segment_offsets.set_element_async(
+    num_segments_per_vertex_partition, degrees.size(), handle_ptr_->get_stream());
 
-  auto segment_offsets = segment_degree_sorted_vertex_partition(
-    *handle_ptr_,
-    degrees.begin(),
-    degrees.end(),
-    segment_degree_threshold_first,
-    segment_degree_threshold_first + num_segments_per_subpartition - 1);
+  thrust::upper_bound(rmm::exec_policy(handle_ptr_->get_stream())->on(handle_ptr_->get_stream()),
+                      degrees.begin(),
+                      degrees.end(),
+                      d_thresholds.begin(),
+                      d_thresholds.end(),
+                      segment_offsets.begin() + 1);
 
-  comm_p_row.allgather(segment_offsets.begin(),
-                       aggregate_segment_offsets_.begin(),
-                       (num_segments_per_partition + 1),
-                       raft::comms::get_type<vertex_t>(),
-                       hanlde_ptr_->get_stream());
+  rmm::device_uvector<vertex_t> aggregate_segment_offsets(comm_p_row_size * segment_offsets.size(),
+                                                          handle_ptr_->get_stream());
+  comm_p_row.allgather(segment_offsets.data(),
+                       aggregate_segment_offsets.data(),
+                       segment_offsets.size(),
+                       handle_ptr_->get_stream());
+
+  vertex_partition_segment_offsets_.resize(comm_p_row_size * (segment_offsets.size()));
+  raft::update_host(vertex_partition_segment_offsets_.data(),
+                    aggregate_segment_offsets.data(),
+                    aggregate_segment_offsets.size(),
+                    handle_ptr_->get_stream());
+}
+
+template <typename vertex_t,
+          typename edge_t,
+          typename weight_t,
+          bool store_transposed,
+          bool multi_gpu>
+graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu, std::enable_if_t<!multi_gpu>>::
+  graph_t(raft::handle_t const &handle,
+          edgelist_t<vertex_t, edge_t, weight_t> const &edgelist,
+          vertex_t number_of_vertices,
+          edge_t number_of_edges,
+          bool is_symmetric,
+          bool is_multigraph,
+          bool is_weighted,
+          bool sorted_by_global_degree,
+          bool do_expensive_check)
+  : number_of_vertices_(number_of_vertices),
+    number_of_edges_(number_of_edges),
+    properties_({is_symmetric, is_multigraph, is_weighted}),
+    handle_ptr_(&handle),
+    offsets_(rmm::device_uvector<edge_t>(0, handle.get_stream())),
+    indices_(rmm::device_uvector<vertex_t>(0, handle.get_stream())),
+    weights_(rmm::device_uvector<weight_t>(0, handle.get_stream()))
+{
+  // convert edge list (COO) to compressed sparse format (CSR or CSC)
+
+  CUGRAPH_EXPECTS(
+    (is_weighted == false) || (edgelist.p_edge_weights != nullptr),
+    "Invalid API parameter, edgelist.p_edge_weights shoud not be nullptr if is_weighted == true");
+
+  std::tie(offsets_, indices_, weights_) = edge_list_to_compressed_sparse<store_transposed>(
+    *handle_ptr_, edgelist, vertex_t{0}, number_of_vertices_, vertex_t{0}, number_of_vertices_);
+
+  // update degree-based segment offsets (to be used for graph analytics kernel optimization)
+
+  rmm::device_uvector<edge_t> degrees(number_of_vertices_, handle_ptr_->get_stream());
+  thrust::adjacent_difference(
+    rmm::exec_policy(handle_ptr_->get_stream())->on(handle_ptr_->get_stream()),
+    offsets_.begin() + 1,
+    offsets_.end(),
+    degrees.begin());
+
+  static_assert(num_segments_per_vertex_partition == 3);
+  static_assert((low_degree_threshold <= mid_degree_threshold) &&
+                (mid_degree_threshold <= std::numeric_limits<edge_t>::max()));
+  rmm::device_uvector<edge_t> d_thresholds(num_segments_per_vertex_partition - 1,
+                                           handle_ptr_->get_stream());
+  std::vector<edge_t> h_thresholds = {static_cast<edge_t>(low_degree_threshold),
+                                      static_cast<edge_t>(mid_degree_threshold)};
+  raft::update_device(
+    d_thresholds.data(), h_thresholds.data(), h_thresholds.size(), handle_ptr_->get_stream());
+
+  rmm::device_uvector<vertex_t> segment_offsets(num_segments_per_vertex_partition + 1,
+                                                handle_ptr_->get_stream());
+  segment_offsets.set_element_async(0, 0, handle_ptr_->get_stream());
+  segment_offsets.set_element_async(
+    num_segments_per_vertex_partition, degrees.size(), handle_ptr_->get_stream());
+
+  thrust::upper_bound(rmm::exec_policy(handle_ptr_->get_stream())->on(handle_ptr_->get_stream()),
+                      degrees.begin(),
+                      degrees.end(),
+                      d_thresholds.begin(),
+                      d_thresholds.end(),
+                      segment_offsets.begin() + 1);
+
+  raft::update_host(segment_offsets_.data(),
+                    segment_offsets.data(),
+                    segment_offsets.size(),
+                    handle_ptr_->get_stream());
 }
 
 // explicit instantiation
@@ -316,5 +412,5 @@ template class graph_t<int32_t, int32_t, float, false, true>;
 template class graph_t<int32_t, int32_t, float, true, false>;
 template class graph_t<int32_t, int32_t, float, false, false>;
 
-}  // namespace cugraph
+}  // namespace experimental
 }  // namespace cugraph
