@@ -14,8 +14,7 @@
  * limitations under the License.
  */
 
-#include <exp_graph.hpp>
-
+#include <experimental/graph.hpp>
 #include <utilities/error.hpp>
 
 #include <rmm/thrust_rmm_allocator.h>
