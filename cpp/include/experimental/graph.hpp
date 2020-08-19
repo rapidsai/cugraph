@@ -99,6 +99,40 @@ struct edgelist_t {
   edge_t number_of_edges{0};
 };
 
+// Common for both single-GPU and multi-GPU versions
+template <typename vertex_t, typename edge_t, typename weight_t>
+class graph_base_t {
+ public:
+  graph_base_t(raft::handle_t const &handle,
+               vertex_t number_of_vertices,
+               edge_t number_of_edges,
+               bool is_symmetric,
+               bool is_multigraph,
+               bool is_weighted)
+    : handle_ptr_(&handle),
+      number_of_vertices_(number_of_vertices),
+      number_of_edges_(number_of_edges),
+      properties_({is_symmetric, is_multigraph, is_weighted}){};
+
+  vertex_t get_number_of_vertices() const { return number_of_vertices_; }
+  edge_t get_number_of_edges() const { return number_of_edges_; }
+
+  bool is_symmetric() const { return properties_.is_symmetric; }
+  bool is_multigraph() const { return properties_.is_multigraph; }
+  bool is_weighted() const { return properties_.is_weighted; }
+
+ protected:
+  raft::handle_t const *get_handle_ptr() const { return handle_ptr_; };
+
+ private:
+  raft::handle_t const *handle_ptr_{nullptr};
+
+  vertex_t number_of_vertices_{0};
+  edge_t number_of_edges_{0};
+
+  graph_properties_t properties_{};
+};
+
 template <typename vertex_t,
           typename edge_t,
           typename weight_t,
@@ -113,13 +147,15 @@ template <typename vertex_t,
           typename weight_t,
           bool store_transposed,
           bool multi_gpu>
-class graph_t<vertex_t,
-              edge_t,
-              weight_t,
-              store_transposed,
-              multi_gpu,
-              std::enable_if_t<multi_gpu>> {
+class graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu, std::enable_if_t<multi_gpu>>
+  : public graph_base_t<vertex_t, edge_t, weight_t> {
  public:
+  using vertex_type                              = vertex_t;
+  using edge_type                                = edge_t;
+  using weight_type                              = weight_t;
+  static constexpr bool is_adj_matrix_transposed = store_transposed;
+  static constexpr bool is_multi_gpu             = multi_gpu;
+
   graph_t(raft::handle_t const &handle,
           std::vector<edgelist_t<vertex_t, edge_t, weight_t>> const &edge_lists,
           partition_t<vertex_t> const &partition,
@@ -131,16 +167,9 @@ class graph_t<vertex_t,
           bool sorted_by_global_degree_within_vertex_partition,
           bool do_expensive_check = false);
 
-  vertex_t get_number_of_vertices() const { return number_of_vertices_; }
-  edge_t get_number_of_edges() const { return number_of_edges_; }
-
-  bool is_symmetric() const { return properties_.is_symmetric; }
-  bool is_multigraph() const { return properties_.is_multigraph; }
-  bool is_weighted() const { return properties_.is_weighted; }
-
   vertex_t get_number_of_local_vertices() const
   {
-    auto comm_p_rank = handle_ptr_->get_comms().get_rank();
+    auto comm_p_rank = this->get_handle_ptr()->get_comms().get_rank();
     return partition_.vertex_partition_offsets[comm_p_rank + 1] -
            partition_.vertex_partition_offsets[comm_p_rank];
   }
@@ -173,13 +202,6 @@ class graph_t<vertex_t,
   }
 
  private:
-  vertex_t number_of_vertices_{0};
-  edge_t number_of_edges_{0};
-
-  graph_properties_t properties_{};
-
-  raft::handle_t const *handle_ptr_{nullptr};
-
   partition_t<vertex_t> partition_{};
 
   std::vector<rmm::device_uvector<edge_t>> adj_matrix_partition_offsets_{};
@@ -197,13 +219,15 @@ template <typename vertex_t,
           typename weight_t,
           bool store_transposed,
           bool multi_gpu>
-class graph_t<vertex_t,
-              edge_t,
-              weight_t,
-              store_transposed,
-              multi_gpu,
-              std::enable_if_t<!multi_gpu>> {
+class graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu, std::enable_if_t<!multi_gpu>>
+  : public graph_base_t<vertex_t, edge_t, weight_t> {
  public:
+  using vertex_type                              = vertex_t;
+  using edge_type                                = edge_t;
+  using weight_type                              = weight_t;
+  static constexpr bool is_adj_matrix_transposed = store_transposed;
+  static constexpr bool is_multi_gpu             = multi_gpu;
+
   graph_t(raft::handle_t const &handle,
           edgelist_t<vertex_t, edge_t, weight_t> const &edge_list,
           vertex_t number_of_vertices,
@@ -214,14 +238,7 @@ class graph_t<vertex_t,
           bool sorted_by_global_degree,
           bool do_expensive_check = false);
 
-  vertex_t get_number_of_vertices() const { return number_of_vertices_; }
-  edge_t get_number_of_edges() const { return number_of_edges_; }
-
-  bool is_symmetric() const { return properties_.is_symmetric; }
-  bool is_multigraph() const { return properties_.is_multigraph; }
-  bool is_weighted() const { return properties_.is_weighted; }
-
-  vertex_t get_number_of_local_vertices() const { return number_of_vertices_; }
+  vertex_t get_number_of_local_vertices() const { return this->get_number_of_vertices(); }
 
   // FIXME: for compatibility with cuGraph analytics expecting either CSR or CSC format, this
   // function will be eventually removed.
@@ -236,13 +253,6 @@ class graph_t<vertex_t,
   weight_t const *weights() const { return weights_.data(); }
 
  private:
-  vertex_t number_of_vertices_{0};
-  edge_t number_of_edges_{0};
-
-  graph_properties_t properties_{};
-
-  raft::handle_t const *handle_ptr_{nullptr};
-
   rmm::device_uvector<edge_t> offsets_;
   rmm::device_uvector<vertex_t> indices_;
   rmm::device_uvector<weight_t> weights_;
