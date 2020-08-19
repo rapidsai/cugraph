@@ -16,7 +16,7 @@
 
 cmake_minimum_required(VERSION 3.12 FATAL_ERROR)
 
-project(CUGRAPH VERSION 0.15.0 LANGUAGES C CXX CUDA)
+project(CUGRAPH VERSION 0.16.0 LANGUAGES C CXX CUDA)
 
 ###################################################################################################
 # - build type ------------------------------------------------------------------------------------
