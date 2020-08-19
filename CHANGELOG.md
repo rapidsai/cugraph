@@ -15,6 +15,7 @@
 - PR #1010 MG BFS (dask)
 - PR #1018 MG personalized pagerank
 - PR #1047 Updated select tests to use new dataset list that includes asymmetric directed graph
+- PR #1090 Add experimental Leiden function
 - PR #1077 Updated/added copyright notices, added copyright CI check from cuml
 
 ## Improvements
@@ -83,6 +84,7 @@
 - PR #1066 Update cugunrock to not build for unsupported CUDA architectures
 - PR #1069 Fixed CUDA 11 Pagerank crash, by replacing CUB's SpMV with raft's.
 - PR #1083 Fix NBs to run in nightly test run, update renumbering text, cleanup
+- PR #1087 Updated benchmarks README to better describe how to get plugin, added rapids-pytest-benchmark plugin to conda dev environments
 
 # cuGraph 0.14.0 (03 Jun 2020)
 
