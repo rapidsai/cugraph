@@ -18,7 +18,6 @@ from cugraph.dask.common.input_utils import get_local_data
 import cugraph.dask.common.mg_utils as mg_utils
 import cudf
 import dask_cudf
-import warnings
 import cugraph.comms.comms as Comms
 
 from cugraph.dask.structure import replication
@@ -422,8 +421,8 @@ class Graph:
         in the range [0, V), renumbering can be disabled and the original
         external vertex ids will be used.
 
-        Note that the graph object will store a reference to the 
-        dask_cudf.DataFrame provided. 
+        Note that the graph object will store a reference to the
+        dask_cudf.DataFrame provided.
 
         Parameters
         ----------
