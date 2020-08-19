@@ -55,7 +55,7 @@ def test_dask_bfs(client_connection):
     g.from_cudf_edgelist(df, 'src', 'dst', renumber=True)
 
     dg = cugraph.DiGraph()
-    dg.from_dask_cudf_edgelist(ddf, renumber=True)
+    dg.from_dask_cudf_edgelist(ddf, 'src', 'dst')
 
     expected_dist = cugraph.bfs(g, 0)
     result_dist = dcg.bfs(dg, 0, True)

@@ -293,7 +293,6 @@ class Graph:
         destination="destination",
         edge_attr=None,
         renumber=True,
-        store_transposed=False,
     ):
         """
         Initialize a graph from the edge list. It is an error to call this
@@ -336,10 +335,6 @@ class Graph:
         renumber : bool
             If source and destination indices are not in range 0 to V where V
             is number of vertices, renumber argument should be True.
-        store_transposed : bool
-            Identify how the graph adjacency will be used.
-            If True, the graph will be organized by destination.
-            If False, the graph will be organized by source
 
         Examples
         --------
@@ -368,13 +363,12 @@ class Graph:
             raise Exception('input should be a cudf.DataFrame or \
                               a dask_cudf dataFrame')
 
-        self.store_transposed = store_transposed
-
         renumber_map = None
         if renumber:
+            # FIXME: Should SG do lazy evaluation like MG?
             elist, renumber_map = NumberMap.renumber(
                 elist, source, destination,
-                store_transposed=store_transposed
+                store_transposed=False
             )
             source = 'src'
             destination = 'dst'
@@ -415,24 +409,9 @@ class Graph:
 
         self.renumber_map = renumber_map
 
-    def add_edge_list(self, source, destination, value=None):
-        warnings.warn(
-            "add_edge_list will be deprecated in next release.\
- Use from_cudf_edgelist instead"
-        )
-        input_df = cudf.DataFrame()
-        input_df["source"] = source
-        input_df["destination"] = destination
-        if value is not None:
-            input_df["weights"] = value
-            self.from_cudf_edgelist(input_df, edge_attr="weights")
-        else:
-            self.from_cudf_edgelist(input_df)
-
     def from_dask_cudf_edgelist(self, input_ddf, source='source',
                                 destination='destination',
-                                edge_attr=None, renumber=True,
-                                store_transposed=False):
+                                edge_attr=None, renumber=True):
         """
         Initializes the distributed graph from the dask_cudf.DataFrame
         edgelist. Undirected Graphs are not currently supported.
@@ -442,6 +421,9 @@ class Graph:
         of vertices.  If the input vertices are a single column of integers
         in the range [0, V), renumbering can be disabled and the original
         external vertex ids will be used.
+
+        Note that the graph object will store a reference to the 
+        dask_cudf.DataFrame provided. 
 
         Parameters
         ----------
@@ -456,42 +438,29 @@ class Graph:
         renumber : bool
             If source and destination indices are not in range 0 to V where V
             is number of vertices, renumber argument should be True.
-        store_transposed : bool
-            Identify how the graph adjacency will be used.
-            If True, the graph will be organized by destination.
-            If False, the graph will be organized by source
         """
         if self.edgelist is not None or self.adjlist is not None:
             raise Exception('Graph already has values')
         if not isinstance(input_ddf, dask_cudf.DataFrame):
             raise Exception('input should be a dask_cudf dataFrame')
-        self.distributed = True
-        self.local_data = None
-
         if type(self) is Graph:
             raise Exception('Undirected distributed graph not supported')
-        if isinstance(input_ddf, dask_cudf.DataFrame):
-            self.distributed = True
-            self.local_data = None
-            self.store_transposed = store_transposed
-            rename_map = {source: 'src', destination: 'dst'}
-            if edge_attr is not None:
-                rename_map[edge_attr] = 'weights'
-            input_ddf = input_ddf.rename(columns=rename_map)
-            if renumber:
-                renumbered_ddf, number_map = NumberMap.renumber(
-                    input_ddf, "src", "dst",
-                    store_transposed=store_transposed
-                )
-                self.edgelist = self.EdgeList(renumbered_ddf)
-                self.renumber_map = number_map
-                self.renumbered = True
-            else:
-                self.edgelist = self.EdgeList(input_ddf)
-                self.renumber_map = None
-                self.renumbered = False
-        else:
-            raise Exception('input should be a dask_cudf dataFrame')
+
+        #
+        # Keep all of the original parameters so we can lazily
+        # evaluate this function
+        #
+
+        # FIXME: Edge Attribute not handled
+        self.distributed = True
+        self.local_data = None
+        self.edgelist = None
+        self.adjlist = None
+        self.renumbered = renumber
+        self.input_df = input_ddf
+        self.source_columns = source
+        self.destination_columns = destination
+        self.store_tranposed = None
 
     def compute_local_data(self, by, load_balance=True):
         """
@@ -636,12 +605,62 @@ class Graph:
         if self.batch_enabled:
             self._replicate_adjlist()
 
-    def add_adj_list(self, offset_col, index_col, value_col=None):
-        warnings.warn(
-            "add_adj_list will be deprecated in next release.\
- Use from_cudf_adjlist instead"
-        )
-        self.from_cudf_adjlist(offset_col, index_col, value_col)
+    def compute_renumber_edge_list(self, transposed=False):
+        """
+        Compute a renumbered edge list
+
+        This function works in the MNMG pipeline and will transform
+        the input dask_cudf.DataFrame into a renumbered edge list
+        in the prescribed direction.
+
+        This function will be called by the algorithms to ensure
+        that the graph is renumbered properly.  The graph object will
+        cache the most recent renumbering attempt.  For benchmarking
+        purposes, this function can be called prior to calling a
+        graph algorithm so we can measure the cost of computing
+        the renumbering separately from the cost of executing the
+        algorithm.
+
+        When creating a CSR-like structure, set transposed to False.
+        When creating a CSC-like structure, set transposed to True.
+
+        Parameters
+        ----------
+        transposed : (optional) bool
+            If True, renumber with the intent to make a CSC-like
+            structure.  If False, renumber with the intent to make
+            a CSR-like structure.  Defaults to False.
+        """
+        # FIXME:  What to do about edge_attr???
+        #         currently ignored for MNMG
+
+        if not self.distributed:
+            raise Exception(
+                "compute_renumber_edge_list should only be used "
+                "for distributed graphs"
+            )
+
+        if not self.renumbered:
+            self.edgelist = self.EdgeList(self.input_df)
+            self.renumber_map = None
+        else:
+            if self.edgelist is not None:
+                if type(self) is Graph:
+                    return
+
+                if self.store_transposed == transposed:
+                    return
+
+                del self.edgelist
+
+            renumbered_ddf, number_map = NumberMap.renumber(
+                self.input_df, self.source_columns,
+                self.destination_columns,
+                store_transposed=transposed
+            )
+            self.edgelist = self.EdgeList(renumbered_ddf)
+            self.renumber_map = number_map
+            self.store_transposed = transposed
 
     def view_adj_list(self):
         """
@@ -669,6 +688,7 @@ class Graph:
         """
         if self.distributed:
             raise Exception("Not supported for distributed graph")
+
         if self.adjlist is None:
             if self.transposedadjlist is not None and type(self) is Graph:
                 off, ind, vals = (
@@ -865,10 +885,8 @@ class Graph:
         --------
         >>> M = cudf.read_csv('datasets/karate.csv', delimiter=' ',
         >>>                   dtype=['int32', 'int32', 'float32'], header=None)
-        >>> sources = cudf.Series(M['0'])
-        >>> destinations = cudf.Series(M['1'])
         >>> G = cugraph.Graph()
-        >>> G.add_edge_list(sources, destinations, None)
+        >>> G.from_cudf_edgelist(M, '0', '1')
         >>> df = G.in_degree([0,9,12])
 
         """
@@ -905,10 +923,8 @@ class Graph:
         --------
         >>> M = cudf.read_csv('datasets/karate.csv', delimiter=' ',
         >>>                   dtype=['int32', 'int32', 'float32'], header=None)
-        >>> sources = cudf.Series(M['0'])
-        >>> destinations = cudf.Series(M['1'])
         >>> G = cugraph.Graph()
-        >>> G.add_edge_list(sources, destinations, None)
+        >>> G.from_cudf_edgelist(M, '0', '1')
         >>> df = G.out_degree([0,9,12])
 
         """
@@ -946,10 +962,8 @@ class Graph:
         --------
         >>> M = cudf.read_csv('datasets/karate.csv', delimiter=' ',
         >>>                   dtype=['int32', 'int32', 'float32'], header=None)
-        >>> sources = cudf.Series(M['0'])
-        >>> destinations = cudf.Series(M['1'])
         >>> G = cugraph.Graph()
-        >>> G.add_edge_list(sources, destinations, None)
+        >>> G.from_cudf_edgelist(M, '0', '1')
         >>> df = G.degree([0,9,12])
 
         """
@@ -986,10 +1000,8 @@ class Graph:
         --------
         >>> M = cudf.read_csv('datasets/karate.csv', delimiter=' ',
         >>>                   dtype=['int32', 'int32', 'float32'], header=None)
-        >>> sources = cudf.Series(M['0'])
-        >>> destinations = cudf.Series(M['1'])
         >>> G = cugraph.Graph()
-        >>> G.add_edge_list(sources, destinations, None)
+        >>> G.from_cudf_edgelist(M, '0', '1')
         >>> df = G.degrees([0,9,12])
 
         """
@@ -1163,7 +1175,7 @@ class Graph:
             if self.renumbered:
                 # FIXME: If vertices are multicolumn
                 #        this needs to return a dataframe
-                # FIXME: This relies un current implementation
+                # FIXME: This relies on current implementation
                 #        of NumberMap, should not really expose
                 #        this, perhaps add a method to NumberMap
                 return self.renumber_map.implementation.df["0"]
