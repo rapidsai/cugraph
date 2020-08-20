@@ -204,7 +204,7 @@ typedef struct EdgeBC_Usecase_t {
   EdgeBC_Usecase_t(const std::string &config, int number_of_sources)
     : config_(config), number_of_sources_(number_of_sources)
   {
-    // assume relative paths are relative to RAPIDS_DATASedge_t_ROOT_DIR
+    // assume relative paths are relative to RAPIDS_DATASET_ROOT_DIR
     // FIXME: Use platform independent stuff from c++14/17 on compiler update
     const std::string &rapidsDatasetRootDir = cugraph::test::get_rapids_dataset_root_dir();
     if ((config_ != "") && (config_[0] != '/')) {
