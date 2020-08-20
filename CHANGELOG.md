@@ -18,6 +18,7 @@
 - PR #1090 Add experimental Leiden function
 - PR #1077 Updated/added copyright notices, added copyright CI check from cuml
 - PR #1100 Add support for new build process (Project Flash)
+- PR #1093 New benchmarking notebook
 
 ## Improvements
 - PR #898 Add Edge Betweenness Centrality, and endpoints to BC
