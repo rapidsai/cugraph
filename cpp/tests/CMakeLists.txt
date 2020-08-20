@@ -1,6 +1,6 @@
 ﻿#=============================================================================
 #
-# Copyright (c) 2019, NVIDIA CORPORATION.
+# Copyright (c) 2019-2020, NVIDIA CORPORATION.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -177,6 +177,15 @@ set(LOUVAIN_TEST_SRC
 ConfigureTest(LOUVAIN_TEST "${LOUVAIN_TEST_SRC}" "")
 
 ###################################################################################################
+# - LEIDEN tests ---------------------------------------------------------------------------------
+
+set(LEIDEN_TEST_SRC
+    "${CMAKE_SOURCE_DIR}/../thirdparty/mmio/mmio.c"
+    "${CMAKE_CURRENT_SOURCE_DIR}/community/leiden_test.cpp")
+
+ConfigureTest(LEIDEN_TEST "${LEIDEN_TEST_SRC}" "")
+
+###################################################################################################
 # - ECG tests ---------------------------------------------------------------------------------
 
 set(ECG_TEST_SRC
@@ -258,15 +267,6 @@ if (BUILD_MPI)
 
     ConfigureTest(NCCL_DEGREE_TEST "${NCCL_DEGREE_TEST_SRC}" "")
 endif(BUILD_MPI)
-
-###################################################################################################
-#-MG tests ---------------------------------------------------------------------
-set(LB_TEST_SRC
-    "${CMAKE_SOURCE_DIR}/../thirdparty/mmio/mmio.c"
-    "${CMAKE_CURRENT_SOURCE_DIR}/traversal/load_balance_test.cu")
-
-ConfigureTest(LB_TEST "${LB_TEST_SRC}" "")
-
 
 ###################################################################################################
 ### enable testing ################################################################################

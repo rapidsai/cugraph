@@ -15,8 +15,11 @@
 - PR #1010 MG BFS (dask)
 - PR #1018 MG personalized pagerank
 - PR #1047 Updated select tests to use new dataset list that includes asymmetric directed graph
+- PR #1090 Add experimental Leiden function
+- PR #1077 Updated/added copyright notices, added copyright CI check from cuml
+- PR #1100 Add support for new build process (Project Flash)
 - PR #1093 New benchmarking notebook
-  
+
 ## Improvements
 - PR #898 Add Edge Betweenness Centrality, and endpoints to BC
 - PR #913 Eliminate `rmm.device_array` usage
@@ -59,6 +62,7 @@
 - PR #1034 Expose resolution (gamma) parameter in Louvain
 - PR #1037 Centralize test main function and replace usage of deprecated `cnmem_memory_resource`
 - PR #1041 Use S3 bucket directly for benchmark plugin
+- PR #1056 Fix MG BFS performance
 - PR #1062 Compute max_vertex_id in mnmg local data computation
 - PR #1068 Remove unused thirdparty code
 
@@ -81,6 +85,9 @@
 - PR #1057 Updated raft dependency to pull fixes on cusparse selection in CUDA 11
 - PR #1066 Update cugunrock to not build for unsupported CUDA architectures
 - PR #1069 Fixed CUDA 11 Pagerank crash, by replacing CUB's SpMV with raft's.
+- PR #1083 Fix NBs to run in nightly test run, update renumbering text, cleanup
+- PR #1087 Updated benchmarks README to better describe how to get plugin, added rapids-pytest-benchmark plugin to conda dev environments
+- PR #1101 Removed unnecessary device-to-host copy which caused a performance regression
 
 # cuGraph 0.14.0 (03 Jun 2020)
 

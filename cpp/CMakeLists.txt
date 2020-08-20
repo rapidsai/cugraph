@@ -1,6 +1,5 @@
 #=============================================================================
-# Copyright 2018 BlazingDB, Inc.
-#     Copyright 2018 Percy Camilo Triveño Aucahuasi <percy@blazingdb.com>
+# Copyright (c) 2018-2020, NVIDIA CORPORATION.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -346,6 +345,8 @@ add_library(cugraph SHARED
     src/community/spectral_clustering.cu
     src/community/louvain.cpp
     src/community/louvain_kernels.cu
+    src/community/leiden.cpp
+    src/community/leiden_kernels.cu
     src/community/ktruss.cu
     src/community/ECG.cu
     src/community/triangles_counting.cu

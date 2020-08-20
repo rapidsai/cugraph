@@ -57,6 +57,13 @@ Katz Centrality
 Community
 =========
 
+Leiden
+-------
+
+.. automodule:: cugraph.community.leiden
+    :members:
+    :undoc-members:
+
 Louvain
 -------
 

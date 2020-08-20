@@ -19,6 +19,7 @@
 #include <utilities/error.hpp>
 #include "bfs_kernels.cuh"
 #include "mg/bfs.cuh"
+#include "mg/common_utils.cuh"
 #include "traversal_common.cuh"
 #include "utilities/graph_utils.cuh"
 
@@ -266,7 +267,6 @@ void BFS<IndexType>::traverse(IndexType source_vertex)
   bool can_use_bottom_up = (!sp_counters && !directed && distances);
 
   while (nf > 0) {
-    // Each vertices can appear only once in the frontierer array - we know it will fit
     new_frontier     = frontier + nf;
     IndexType old_nf = nf;
     resetDevicePointers();

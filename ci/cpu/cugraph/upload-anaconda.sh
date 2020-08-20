@@ -1,10 +1,20 @@
 #!/bin/bash
+# Copyright (c) 2018-2020, NVIDIA CORPORATION.
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
 #
-# Adopted from https://github.com/tmcdonell/travis-scripts/blob/dfaac280ac2082cd6bcaba3217428347899f2975/update-accelerate-buildbot.sh
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
 
 set -e
 
-if [ "$UPLOAD_CUGRAPH" == "1" ]; then
+if [[ "$BUILD_CUGRAPH" == "1" && "$UPLOAD_CUGRAPH" == "1" ]]; then
   export UPLOADFILE=`conda build conda/recipes/cugraph -c rapidsai -c nvidia -c numba -c conda-forge -c defaults --python=$PYTHON --output`
 
   SOURCE_BRANCH=master
