@@ -12,8 +12,11 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-export BUILD_CUGRAPH=1
-export BUILD_LIBCUGRAPH=1
+if [[ -z "$PROJECT_FLASH" || "$PROJECT_FLASH" == "0" ]]; then
+    #If project flash is not activate, always build both
+    export BUILD_CUGRAPH=1
+    export BUILD_LIBCUGRAPH=1
+fi
 
 if [[ "$CUDA" == "10.1" ]]; then
     export UPLOAD_CUGRAPH=1

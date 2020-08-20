@@ -17,6 +17,9 @@ set -e
 if [ "$BUILD_LIBCUGRAPH" == '1' ]; then
   echo "Building libcugraph"
   CUDA_REL=${CUDA_VERSION%.*}
-
-  conda build conda/recipes/libcugraph
+  if [[ -z "$PROJECT_FLASH" || "$PROJECT_FLASH" == "0" ]]; then
+    conda build conda/recipes/libcugraph
+  else
+    conda build --dirty --no-remove-work-dir conda/recipes/libcugraph
+  fi
 fi

@@ -89,8 +89,10 @@ conda list
 # BUILD - Build libcugraph and cuGraph from source
 ################################################################################
 
-logger "Build libcugraph..."
-$WORKSPACE/build.sh clean libcugraph cugraph
+if [[ -z "$PROJECT_FLASH" || "$PROJECT_FLASH" == "0" ]]; then
+  logger "Build libcugraph..."
+  $WORKSPACE/build.sh clean libcugraph cugraph
+fi
 
 ################################################################################
 # TEST - Run GoogleTest and py.tests for libcugraph and cuGraph
