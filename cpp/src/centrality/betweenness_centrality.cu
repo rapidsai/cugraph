@@ -335,12 +335,6 @@ void BC<vertex_t, edge_t, weight_t, result_t>::add_reached_endpoints_to_source_b
 template <typename vertex_t, typename edge_t, typename weight_t, typename result_t>
 void BC<vertex_t, edge_t, weight_t, result_t>::add_vertices_dependencies_to_betweenness()
 {
-  thrust::host_vector<result_t> h_betweenness(number_of_vertices_, 0);
-  CUDA_TRY(cudaMemcpyAsync(h_betweenness.data(),
-                           betweenness_,
-                           number_of_vertices_ * sizeof(result_t),
-                           cudaMemcpyDeviceToHost,
-                           handle_.get_stream()));
   thrust::transform(rmm::exec_policy(handle_.get_stream())->on(handle_.get_stream()),
                     deltas_,
                     deltas_ + number_of_vertices_,

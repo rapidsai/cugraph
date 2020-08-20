@@ -49,6 +49,8 @@ def betweenness_centrality(
         values give better approximation
         If k is a list, use the content of the list for estimation: the list
         should contain vertices identifiers.
+        If k is None (the default), all the vertices are used to estimate
+        betweenness.
         Vertices obtained through sampling or defined as a list will be used as
         sources for traversals inside the algorithm.
 

@@ -25,6 +25,7 @@
 - PR #1047 Updated select tests to use new dataset list that includes asymmetric directed graph
 - PR #1090 Add experimental Leiden function
 - PR #1077 Updated/added copyright notices, added copyright CI check from cuml
+- PR #1100 Add support for new build process (Project Flash)
 
 ## Improvements
 - PR #898 Add Edge Betweenness Centrality, and endpoints to BC
@@ -93,6 +94,7 @@
 - PR #1069 Fixed CUDA 11 Pagerank crash, by replacing CUB's SpMV with raft's.
 - PR #1083 Fix NBs to run in nightly test run, update renumbering text, cleanup
 - PR #1087 Updated benchmarks README to better describe how to get plugin, added rapids-pytest-benchmark plugin to conda dev environments
+- PR #1101 Removed unnecessary device-to-host copy which caused a performance regression
 
 # cuGraph 0.14.0 (03 Jun 2020)
 
