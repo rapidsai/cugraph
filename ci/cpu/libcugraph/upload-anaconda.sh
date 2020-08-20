@@ -14,7 +14,7 @@
 
 set -e
 
-if [ "$UPLOAD_LIBCUGRAPH" == "1" ]; then
+if [[ "$BUILD_LIBCUGRAPH" == "1" && "$UPLOAD_LIBCUGRAPH" == "1" ]]; then
   CUDA_REL=${CUDA_VERSION%.*}
 
   export UPLOADFILE=`conda build conda/recipes/libcugraph --output`
