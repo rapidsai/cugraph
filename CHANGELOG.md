@@ -15,7 +15,8 @@
 - PR #1010 MG BFS (dask)
 - PR #1018 MG personalized pagerank
 - PR #1047 Updated select tests to use new dataset list that includes asymmetric directed graph
-
+- PR #1093 New benchmarking notebook
+  
 ## Improvements
 - PR #898 Add Edge Betweenness Centrality, and endpoints to BC
 - PR #913 Eliminate `rmm.device_array` usage
