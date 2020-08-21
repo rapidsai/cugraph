@@ -152,6 +152,8 @@ std::
                      });
   }
 
+  // FIXME: need to add an option to sort neighbor lists
+
   return std::make_tuple(std::move(offsets), std::move(indices), std::move(weights));
 }
 
