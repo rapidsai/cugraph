@@ -14,6 +14,7 @@
  * limitations under the License.
  */
 
+#include <experimental/detail/graph_utils.cuh>
 #include <experimental/graph.hpp>
 #include <utilities/error.hpp>
 
@@ -27,9 +28,7 @@
 #include <thrust/fill.h>
 #include <thrust/for_each.h>
 #include <thrust/iterator/counting_iterator.h>
-#include <thrust/iterator/transform_iterator.h>
 #include <thrust/iterator/zip_iterator.h>
-#include <thrust/transform.h>
 #include <thrust/tuple.h>
 
 #include <tuple>
@@ -38,6 +37,19 @@ namespace cugraph {
 namespace experimental {
 
 namespace {
+
+// FIXME: threshold values require tuning
+size_t constexpr low_degree_threshold{raft::warp_size()};
+size_t constexpr mid_degree_threshold{1024};
+size_t constexpr num_segments_per_vertex_partition{3};
+
+template <typename vertex_t, typename edge_t, typename weight_t>
+edge_t sum_number_of_edges(std::vector<edgelist_t<vertex_t, edge_t, weight_t>> const &edgelists)
+{
+  edge_t number_of_edges{0};
+  for (size_t i = 0; i < edgelists.size(); ++i) { number_of_edges += edgelists[i].number_of_edges; }
+  return number_of_edges;
+}
 
 template <bool store_transposed, typename vertex_t, typename edge_t, typename weight_t>
 std::
@@ -108,7 +120,7 @@ std::
                        auto minor  = store_transposed ? d : s;
                        auto start  = p_offsets[major - major_first];
                        auto degree = p_offsets[(major - major_first) + 1] - start;
-                       auto idx    = atomicAdd(p_indices + (degree - 1),
+                       auto idx    = atomicAdd(p_indices + (start + degree - 1),
                                             vertex_t{1});  // use the last element as a counter
                        // FIXME: we can actually store minor - minor_first instead of minor to save
                        // memory if minor can be larger than 32 bit but minor - minor_first fits
@@ -130,7 +142,7 @@ std::
                        auto minor  = store_transposed ? d : s;
                        auto start  = p_offsets[major - major_first];
                        auto degree = p_offsets[(major - major_first) + 1] - start;
-                       auto idx    = atomicAdd(p_indices + (degree - 1),
+                       auto idx    = atomicAdd(p_indices + (start + degree - 1),
                                             vertex_t{1});  // use the last element as a counter
                        // FIXME: we can actually store minor - minor_first instead of minor to save
                        // memory if minor can be larger than 32 bit but minor - minor_first fits
@@ -141,63 +153,6 @@ std::
   }
 
   return std::make_tuple(std::move(offsets), std::move(indices), std::move(weights));
-}
-
-// FIXME: better move this elsewhere, this can be reused in graph_device_view.cuh to compute degree
-// as well.
-// compute the numbers of nonzeros in rows of the (transposed) graph adjacency matrix
-template <typename vertex_t, typename edge_t>
-rmm::device_uvector<edge_t> compute_row_degree(
-  raft::handle_t const &handle,
-  std::vector<rmm::device_uvector<edge_t>> const &adj_matrix_partition_offsets,
-  partition_t<vertex_t> const &partition)
-{
-  auto &comm_p_row     = handle.get_subcomm(comm_p_row_key);
-  auto comm_p_row_rank = comm_p_row.get_rank();
-  auto comm_p_row_size = comm_p_row.get_size();
-  auto &comm_p_col     = handle.get_subcomm(comm_p_col_key);
-  auto comm_p_col_rank = comm_p_col.get_rank();
-  auto comm_p_col_size = comm_p_col.get_size();
-
-  rmm::device_uvector<edge_t> local_degrees(0, handle.get_stream());
-  rmm::device_uvector<edge_t> degrees(0, handle.get_stream());
-
-  vertex_t max_num_local_degrees{0};
-  for (int i = 0; i < comm_p_col_size; ++i) {
-    auto vertex_partition_id = partition.hypergraph_partitioned
-                                 ? comm_p_row_size * i + comm_p_row_rank
-                                 : comm_p_col_size * comm_p_row_rank + i;
-    auto row_first        = partition.vertex_partition_offsets[vertex_partition_id];
-    auto row_last         = partition.vertex_partition_offsets[vertex_partition_id + 1];
-    max_num_local_degrees = std::max(max_num_local_degrees, row_last - row_first);
-    if (i == comm_p_col_rank) { degrees.resize(row_last - row_first, handle.get_stream()); }
-  }
-  local_degrees.resize(max_num_local_degrees, handle.get_stream());
-  for (int i = 0; i < comm_p_col_size; ++i) {
-    auto vertex_partition_id = partition.hypergraph_partitioned
-                                 ? comm_p_row_size * i + comm_p_row_rank
-                                 : comm_p_col_size * comm_p_row_rank + i;
-    auto row_first = partition.vertex_partition_offsets[vertex_partition_id];
-    auto row_last  = partition.vertex_partition_offsets[vertex_partition_id + 1];
-    auto p_offsets =
-      partition.hypergraph_partitioned
-        ? adj_matrix_partition_offsets[i].data()
-        : adj_matrix_partition_offsets[0].data() +
-            (row_first - partition.vertex_partition_offsets[comm_p_col_size * comm_p_row_rank]);
-    thrust::transform(rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
-                      thrust::make_counting_iterator(vertex_t{0}),
-                      thrust::make_counting_iterator(row_last - row_first),
-                      local_degrees.data(),
-                      [p_offsets] __device__(auto i) { return p_offsets[i + 1] - p_offsets[i]; });
-    comm_p_row.reduce(local_degrees.data(),
-                      i == comm_p_col_rank ? degrees.data() : static_cast<edge_t *>(nullptr),
-                      degrees.size(),
-                      raft::comms::op_t::SUM,
-                      comm_p_col_rank,
-                      handle.get_stream());
-  }
-
-  return degrees;
 }
 
 template <typename vertex_t, typename DegreeIterator, typename ThresholdIterator>
@@ -243,14 +198,17 @@ graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu, std::enable_if_
           std::vector<edgelist_t<vertex_t, edge_t, weight_t>> const &edgelists,
           partition_t<vertex_t> const &partition,
           vertex_t number_of_vertices,
-          edge_t number_of_edges,
           bool is_symmetric,
           bool is_multigraph,
           bool is_weighted,
           bool sorted_by_global_degree_within_vertex_partition,
           bool do_expensive_check)
-  : graph_base_t<vertex_t, edge_t, weight_t>(
-      handle, number_of_vertices, number_of_edges, is_symmetric, is_multigraph, is_weighted),
+  : detail::graph_base_t<vertex_t, edge_t, weight_t>(handle,
+                                                     number_of_vertices,
+                                                     sum_number_of_edges(edgelists),
+                                                     is_symmetric,
+                                                     is_multigraph,
+                                                     is_weighted),
     partition_(partition)
 {
   auto &comm_p_row     = this->get_handle_ptr()->get_subcomm(comm_p_row_key);
@@ -261,11 +219,13 @@ graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu, std::enable_if_
   auto comm_p_col_size = comm_p_col.get_size();
   auto default_stream  = this->get_handle_ptr()->get_stream();
 
+  // FIXME: error checks
+
   // convert edge list (COO) to compressed sparse format (CSR or CSC)
 
   adj_matrix_partition_offsets_.reserve(edgelists.size());
   adj_matrix_partition_indices_.reserve(edgelists.size());
-  adj_matrix_partition_weights_.reserve(edgelists.size());
+  adj_matrix_partition_weights_.reserve(this->is_weighted() ? edgelists.size() : 0);
   for (size_t i = 0; i < edgelists.size(); ++i) {
     CUGRAPH_EXPECTS((is_weighted == false) || (edgelists[i].p_edge_weights != nullptr),
                     "Invalid API parameter, edgelists[i].p_edge_weights shoud not be nullptr if "
@@ -288,13 +248,13 @@ graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu, std::enable_if_
       *(this->get_handle_ptr()), edgelists[i], row_first, row_last, col_first, col_last);
     adj_matrix_partition_offsets_.push_back(std::move(offsets));
     adj_matrix_partition_indices_.push_back(std::move(indices));
-    adj_matrix_partition_weights_.push_back(std::move(weights));
+    if (this->is_weighted()) { adj_matrix_partition_weights_.push_back(std::move(weights)); }
   }
 
   // update degree-based segment offsets (to be used for graph analytics kernel optimization)
 
-  auto degrees =
-    compute_row_degree(*(this->get_handle_ptr()), adj_matrix_partition_offsets_, partition_);
+  auto degrees = detail::compute_row_degree(
+    *(this->get_handle_ptr()), adj_matrix_partition_offsets_, partition_);
 
   static_assert(num_segments_per_vertex_partition == 3);
   static_assert((low_degree_threshold <= mid_degree_threshold) &&
@@ -341,19 +301,24 @@ graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu, std::enable_if_
   graph_t(raft::handle_t const &handle,
           edgelist_t<vertex_t, edge_t, weight_t> const &edgelist,
           vertex_t number_of_vertices,
-          edge_t number_of_edges,
           bool is_symmetric,
           bool is_multigraph,
           bool is_weighted,
           bool sorted_by_global_degree,
           bool do_expensive_check)
-  : graph_base_t<vertex_t, edge_t, weight_t>(
-      handle, number_of_vertices, number_of_edges, is_symmetric, is_multigraph, is_weighted),
+  : detail::graph_base_t<vertex_t, edge_t, weight_t>(handle,
+                                                     number_of_vertices,
+                                                     edgelist.number_of_edges,
+                                                     is_symmetric,
+                                                     is_multigraph,
+                                                     is_weighted),
     offsets_(rmm::device_uvector<edge_t>(0, handle.get_stream())),
     indices_(rmm::device_uvector<vertex_t>(0, handle.get_stream())),
     weights_(rmm::device_uvector<weight_t>(0, handle.get_stream()))
 {
   auto default_stream = this->get_handle_ptr()->get_stream();
+
+  // FIXME: error checks
 
   // convert edge list (COO) to compressed sparse format (CSR or CSC)
 
