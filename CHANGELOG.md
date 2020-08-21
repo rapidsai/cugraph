@@ -88,6 +88,7 @@
 - PR #1083 Fix NBs to run in nightly test run, update renumbering text, cleanup
 - PR #1087 Updated benchmarks README to better describe how to get plugin, added rapids-pytest-benchmark plugin to conda dev environments
 - PR #1101 Removed unnecessary device-to-host copy which caused a performance regression
+- PR #1106 Added new release.ipynb to notebook test skip list
 
 # cuGraph 0.14.0 (03 Jun 2020)
 
