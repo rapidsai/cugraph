@@ -29,9 +29,9 @@ namespace cugraph {
 namespace experimental {
 namespace detail {
 
-// compute the numbers of nonzeros in rows of the (transposed) graph adjacency matrix
+// compute the numbers of nonzeros in rows (of the graph adjacency matrix, if store_transposed = false) or columns (of the graph adjacency matrix, if store_transposed = true)
 template <typename vertex_t, typename edge_t>
-rmm::device_uvector<edge_t> compute_row_degree(
+rmm::device_uvector<edge_t> compute_major_degree(
   raft::handle_t const &handle,
   std::vector<rmm::device_uvector<edge_t>> const &adj_matrix_partition_offsets,
   partition_t<vertex_t> const &partition)
@@ -51,26 +51,26 @@ rmm::device_uvector<edge_t> compute_row_degree(
     auto vertex_partition_id = partition.hypergraph_partitioned
                                  ? comm_p_row_size * i + comm_p_row_rank
                                  : comm_p_col_size * comm_p_row_rank + i;
-    auto row_first        = partition.vertex_partition_offsets[vertex_partition_id];
-    auto row_last         = partition.vertex_partition_offsets[vertex_partition_id + 1];
-    max_num_local_degrees = std::max(max_num_local_degrees, row_last - row_first);
-    if (i == comm_p_col_rank) { degrees.resize(row_last - row_first, handle.get_stream()); }
+    auto major_first        = partition.vertex_partition_offsets[vertex_partition_id];
+    auto major_last         = partition.vertex_partition_offsets[vertex_partition_id + 1];
+    max_num_local_degrees = std::max(max_num_local_degrees, major_last - major_first);
+    if (i == comm_p_col_rank) { degrees.resize(major_last - major_first, handle.get_stream()); }
   }
   local_degrees.resize(max_num_local_degrees, handle.get_stream());
   for (int i = 0; i < comm_p_col_size; ++i) {
     auto vertex_partition_id = partition.hypergraph_partitioned
                                  ? comm_p_row_size * i + comm_p_row_rank
                                  : comm_p_col_size * comm_p_row_rank + i;
-    auto row_first = partition.vertex_partition_offsets[vertex_partition_id];
-    auto row_last  = partition.vertex_partition_offsets[vertex_partition_id + 1];
+    auto major_first = partition.vertex_partition_offsets[vertex_partition_id];
+    auto major_last  = partition.vertex_partition_offsets[vertex_partition_id + 1];
     auto p_offsets =
       partition.hypergraph_partitioned
         ? adj_matrix_partition_offsets[i].data()
         : adj_matrix_partition_offsets[0].data() +
-            (row_first - partition.vertex_partition_offsets[comm_p_col_size * comm_p_row_rank]);
+            (major_first - partition.vertex_partition_offsets[comm_p_col_size * comm_p_row_rank]);
     thrust::transform(rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
                       thrust::make_counting_iterator(vertex_t{0}),
-                      thrust::make_counting_iterator(row_last - row_first),
+                      thrust::make_counting_iterator(major_last - major_first),
                       local_degrees.data(),
                       [p_offsets] __device__(auto i) { return p_offsets[i + 1] - p_offsets[i]; });
     comm_p_row.reduce(local_degrees.data(),

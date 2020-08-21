@@ -253,7 +253,7 @@ graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu, std::enable_if_
 
   // update degree-based segment offsets (to be used for graph analytics kernel optimization)
 
-  auto degrees = detail::compute_row_degree(
+  auto degrees = detail::compute_major_degree(
     *(this->get_handle_ptr()), adj_matrix_partition_offsets_, partition_);
 
   static_assert(num_segments_per_vertex_partition == 3);

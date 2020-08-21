@@ -29,10 +29,6 @@
 namespace cugraph {
 namespace experimental {
 
-// FIXME: these should better be defined somewhere else.
-std::string const comm_p_row_key = "comm_p_row";
-std::string const comm_p_col_key = "comm_p_key";
-
 template <typename vertex_t, typename edge_t, typename weight_t>
 struct edgelist_t {
   vertex_t const *p_src_vertices{nullptr};

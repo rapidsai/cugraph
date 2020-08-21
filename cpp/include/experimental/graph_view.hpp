@@ -28,6 +28,10 @@
 namespace cugraph {
 namespace experimental {
 
+// FIXME: these should better be defined somewhere else.
+std::string const comm_p_row_key = "comm_p_row";
+std::string const comm_p_col_key = "comm_p_key";
+
 /**
  * @brief store vertex partitioning map
  *
