@@ -340,7 +340,7 @@ class NumberMap:
                     numbering_map, cudf.Series(base_addresses), val_types
                 )
 
-                self.ddf = numbering_map
+                self.ddf = numbering_map.persist()
                 self.numbered = True
 
         def to_internal_vertex_id(self, ddf, col_names):
@@ -817,6 +817,9 @@ class NumberMap:
                 df, "dst", dst_col_names, drop=True,
                 preserve_order=preserve_order
             )
+
+        if type(df) is dask_cudf.DataFrame:
+            df = df.persist()
 
         return df, renumber_map
 
