@@ -235,6 +235,9 @@ def _degree(input_graph, x=0):
                            input_graph.transposedadjlist.indices,
                            transpose_x[x])
 
+    if input_graph.edgelist is None and input_graph.distributed:
+        input_graph.compute_renumber_edge_list(transposed=False)
+
     if input_graph.edgelist is not None:
         if isinstance(input_graph.edgelist.edgelist_df, dc.DataFrame):
             input_ddf = input_graph.edgelist.edgelist_df
