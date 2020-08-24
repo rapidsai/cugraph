@@ -94,9 +94,9 @@ std::
 
   auto major_first = store_transposed ? row_first : col_first;
   thrust::for_each(rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
-                   store_transposed ? edgelist.p_src_vertices : edgelist.p_dst_vertices,
-                   store_transposed ? edgelist.p_src_vertices + edgelist.number_of_edges
-                                    : edgelist.p_dst_vertices + edgelist.number_of_edges,
+                   store_transposed ? edgelist.p_dst_vertices : edgelist.p_src_vertices,
+                   store_transposed ? edgelist.p_dst_vertices + edgelist.number_of_edges
+                                    : edgelist.p_src_vertices + edgelist.number_of_edges,
                    [p_offsets, major_first] __device__(auto v) {
                      atomicAdd(p_offsets + (v - major_first), edge_t{1});
                    });
@@ -116,8 +116,8 @@ std::
                        auto s      = thrust::get<0>(e);
                        auto d      = thrust::get<1>(e);
                        auto w      = thrust::get<2>(e);
-                       auto major  = store_transposed ? s : d;
-                       auto minor  = store_transposed ? d : s;
+                       auto major  = store_transposed ? d : s;
+                       auto minor  = store_transposed ? s : d;
                        auto start  = p_offsets[major - major_first];
                        auto degree = p_offsets[(major - major_first) + 1] - start;
                        auto idx    = atomicAdd(p_indices + (start + degree - 1),
@@ -138,8 +138,8 @@ std::
                      [p_offsets, p_indices, p_weights, major_first] __device__(auto e) {
                        auto s      = thrust::get<0>(e);
                        auto d      = thrust::get<1>(e);
-                       auto major  = store_transposed ? s : d;
-                       auto minor  = store_transposed ? d : s;
+                       auto major  = store_transposed ? d : s;
+                       auto minor  = store_transposed ? s : d;
                        auto start  = p_offsets[major - major_first];
                        auto degree = p_offsets[(major - major_first) + 1] - start;
                        auto idx    = atomicAdd(p_indices + (start + degree - 1),
@@ -366,6 +366,7 @@ graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu, std::enable_if_
                       d_thresholds.end(),
                       segment_offsets.begin() + 1);
 
+  segment_offsets_.resize(segment_offsets.size());
   raft::update_host(
     segment_offsets_.data(), segment_offsets.data(), segment_offsets.size(), default_stream);
 }

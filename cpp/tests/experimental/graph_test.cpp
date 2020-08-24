@@ -46,41 +46,36 @@ std::tuple<std::vector<edge_t>, std::vector<vertex_t>, std::vector<weight_t>> gr
   std::vector<weight_t> weights(p_edge_weights != nullptr ? number_of_edges : 0, weight_t{0.0});
 
   for (size_t i = 0; i < number_of_edges; ++i) {
-    if (store_transposed) {
-      auto d = p_dst_vertices[i];
-      offsets[1 + d]++;
-    } else {
-      auto s = p_src_vertices[i];
-      offsets[1 + s]++;
-    }
+    auto major   = store_transposed ? p_dst_vertices[i] : p_src_vertices[i];
+    offsets[1 + major]++;
   }
   std::partial_sum(offsets.begin() + 1, offsets.end(), offsets.begin() + 1);
 
   for (size_t i = 0; i < number_of_edges; ++i) {
-    auto major   = store_transposed ? p_src_vertices[i] : p_dst_vertices[i];
-    auto minor   = store_transposed ? p_dst_vertices[i] : p_src_vertices[i];
+    auto major   = store_transposed ? p_dst_vertices[i] : p_src_vertices[i];
+    auto minor   = store_transposed ? p_src_vertices[i] : p_dst_vertices[i];
     auto start   = offsets[major];
     auto degree  = offsets[major + 1] - start;
     auto idx     = indices[start + degree - 1]++;
-    indices[idx] = minor;
-    if (p_edge_weights != nullptr) { weights[idx] = p_edge_weights[i]; }
+    indices[start + idx] = minor;
+    if (p_edge_weights != nullptr) { weights[start + idx] = p_edge_weights[i]; }
   }
 
   return std::make_tuple(std::move(offsets), std::move(indices), std::move(weights));
 }
 
 typedef struct Graph_Usecase_t {
-  std::string graph_file_path_;
-  std::string graph_file_full_path_;
-  bool test_weighted_;
+  std::string graph_file_path;
+  std::string graph_file_full_path;
+  bool test_weighted;
 
   Graph_Usecase_t(std::string const& graph_file_path, bool test_weighted)
-    : graph_file_path_(graph_file_path), test_weighted_(test_weighted)
+    : graph_file_path(graph_file_path), test_weighted(test_weighted)
   {
-    if ((graph_file_path_.length() > 0) && (graph_file_path[0] != '/')) {
-      graph_file_full_path_ = cugraph::test::get_rapids_dataset_root_dir() + "/" + graph_file_path_;
+    if ((graph_file_path.length() > 0) && (graph_file_path[0] != '/')) {
+      graph_file_full_path = cugraph::test::get_rapids_dataset_root_dir() + "/" + graph_file_path;
     } else {
-      graph_file_full_path_ = graph_file_path_;
+      graph_file_full_path = graph_file_path;
     }
   };
 } Graph_Usecase;
@@ -102,8 +97,8 @@ class Tests_Graph : public ::testing::TestWithParam<Graph_Usecase> {
     vertex_t k{};
     edge_t nnz{};
 
-    FILE* file = fopen(configuration.graph_file_full_path_.c_str(), "r");
-    ASSERT_NE(file, nullptr) << "fopen (" << configuration.graph_file_full_path_ << ") failure.";
+    FILE* file = fopen(configuration.graph_file_full_path.c_str(), "r");
+    ASSERT_NE(file, nullptr) << "fopen (" << configuration.graph_file_full_path << ") failure.";
 
     ASSERT_EQ(cugraph::test::mm_properties<int>(file, 1, &mc, &m, &k, &nnz), 0)
       << "could not read Matrix Market file properties\n";
@@ -129,7 +124,7 @@ class Tests_Graph : public ::testing::TestWithParam<Graph_Usecase> {
     std::tie(h_reference_offsets, h_reference_indices, h_reference_weights) =
       graph_reference<store_transposed>(h_rows.data(),
                                         h_cols.data(),
-                                        configuration.test_weighted_ ? h_weights.data() : nullptr,
+                                        configuration.test_weighted ? h_weights.data() : nullptr,
                                         m,
                                         nnz);
 
@@ -137,12 +132,12 @@ class Tests_Graph : public ::testing::TestWithParam<Graph_Usecase> {
 
     rmm::device_uvector<vertex_t> d_rows(nnz, handle.get_stream());
     rmm::device_uvector<vertex_t> d_cols(nnz, handle.get_stream());
-    rmm::device_uvector<weight_t> d_weights(configuration.test_weighted_ ? nnz : 0,
+    rmm::device_uvector<weight_t> d_weights(configuration.test_weighted ? nnz : 0,
                                             handle.get_stream());
 
     raft::update_device(d_rows.data(), h_rows.data(), h_rows.size(), handle.get_stream());
     raft::update_device(d_cols.data(), h_cols.data(), h_cols.size(), handle.get_stream());
-    if (configuration.test_weighted_) {
+    if (configuration.test_weighted) {
       raft::update_device(
         d_weights.data(), h_weights.data(), h_weights.size(), handle.get_stream());
     }
@@ -150,21 +145,25 @@ class Tests_Graph : public ::testing::TestWithParam<Graph_Usecase> {
     CUDA_TRY(cudaStreamSynchronize(handle.get_stream()));
 
     cugraph::experimental::edgelist_t<vertex_t, edge_t, weight_t> edgelist{
-      d_rows.data(), d_cols.data(), configuration.test_weighted_ ? d_weights.data() : nullptr, nnz};
+      d_rows.data(), d_cols.data(), configuration.test_weighted ? d_weights.data() : nullptr, nnz};
 
     CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
 
     auto graph =
       cugraph::experimental::graph_t<vertex_t, edge_t, weight_t, store_transposed, false>(
-        handle, edgelist, m, mm_is_symmetric(mc), false, configuration.test_weighted_, false, true);
+        handle, edgelist, m, mm_is_symmetric(mc), false, configuration.test_weighted, false, true);
 
     auto graph_view = graph.view();
 
+    ASSERT_EQ(graph_view.get_number_of_vertices(), m);
+    ASSERT_EQ(graph_view.get_number_of_edges(), nnz);
+
     CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
 
-    std::vector<edge_t> h_cugraph_offsets{};
-    std::vector<vertex_t> h_cugraph_indices{};
-    std::vector<weight_t> h_cugraph_weights{};
+    std::vector<edge_t> h_cugraph_offsets(graph_view.get_number_of_vertices() + 1);
+    std::vector<vertex_t> h_cugraph_indices(graph_view.get_number_of_edges());
+    std::vector<weight_t> h_cugraph_weights(
+      configuration.test_weighted ? graph_view.get_number_of_edges() : 0);
 
     raft::update_host(h_cugraph_offsets.data(),
                       graph_view.offsets(),
@@ -174,10 +173,12 @@ class Tests_Graph : public ::testing::TestWithParam<Graph_Usecase> {
                       graph_view.indices(),
                       graph_view.get_number_of_edges(),
                       handle.get_stream());
-    raft::update_host(h_cugraph_weights.data(),
-                      graph_view.weights(),
-                      graph_view.get_number_of_edges(),
-                      handle.get_stream());
+    if (configuration.test_weighted) {
+      raft::update_host(h_cugraph_weights.data(),
+                        graph_view.weights(),
+                        graph_view.get_number_of_edges(),
+                        handle.get_stream());
+    }
 
     CUDA_TRY(cudaStreamSynchronize(handle.get_stream()));
 
@@ -188,7 +189,7 @@ class Tests_Graph : public ::testing::TestWithParam<Graph_Usecase> {
     for (vertex_t i = 0; i < m; ++i) {
       auto start  = h_reference_offsets[i];
       auto degree = h_reference_offsets[i + 1] - start;
-      if (configuration.test_weighted_) {
+      if (configuration.test_weighted) {
         std::vector<std::tuple<vertex_t, weight_t>> reference_pairs(degree);
         std::vector<std::tuple<vertex_t, weight_t>> cugraph_pairs(degree);
         for (edge_t j = 0; j < degree; ++j) {
