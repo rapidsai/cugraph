@@ -423,7 +423,7 @@ template <typename VT, typename ET, typename WT>
 std::unique_ptr<GraphCOO<VT, ET, WT>> k_truss_subgraph(
   GraphCOOView<VT, ET, WT> const &graph,
   int k,
-  rmm::mr::device_memory_resource *mr = rmm::mr::get_default_resource());
+  rmm::mr::device_memory_resource *mr = rmm::mr::get_current_device_resource());
 
 /**
  * @brief        Compute the Katz centrality for the nodes of the graph G
@@ -506,7 +506,7 @@ std::unique_ptr<GraphCOO<VT, ET, WT>> k_core(
   VT const *vertex_id,
   VT const *core_number,
   VT num_vertex_ids,
-  rmm::mr::device_memory_resource *mr = rmm::mr::get_default_resource());
+  rmm::mr::device_memory_resource *mr = rmm::mr::get_current_device_resource());
 
 /**
  * @brief      Find all 2-hop neighbors in the graph
