@@ -17,7 +17,6 @@ set -e
 if [[ "$BUILD_CUGRAPH" == "1" && "$UPLOAD_CUGRAPH" == "1" ]]; then
   export UPLOADFILE=`conda build conda/recipes/cugraph -c rapidsai -c nvidia -c numba -c conda-forge -c defaults --python=$PYTHON --output`
 
-  SOURCE_BRANCH=master
 
   # Have to label all CUDA versions due to the compatibility to work with any CUDA
   if [ "$LABEL_MAIN" == "1" ]; then
@@ -32,8 +31,7 @@ if [[ "$BUILD_CUGRAPH" == "1" && "$UPLOAD_CUGRAPH" == "1" ]]; then
 
   test -e ${UPLOADFILE}
 
-  # Restrict uploads to master branch
-  if [ ${GIT_BRANCH} != ${SOURCE_BRANCH} ]; then
+  if [ ${BUILD_MODE} != "branch" ]; then
     echo "Skipping upload"
     return 0
   fi
