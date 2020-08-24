@@ -373,11 +373,31 @@ graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu, std::enable_if_
 
 // explicit instantiation
 
-template class graph_t<int32_t, int32_t, float, true, true>;
-template class graph_t<int32_t, int32_t, float, false, true>;
+template class graph_t<uint32_t, uint32_t, float, true, true>;
+template class graph_t<uint32_t, uint32_t, float, false, true>;
+template class graph_t<uint32_t, uint32_t, double, true, true>;
+template class graph_t<uint32_t, uint32_t, double, false, true>;
+template class graph_t<uint32_t, uint64_t, float, true, true>;
+template class graph_t<uint32_t, uint64_t, float, false, true>;
+template class graph_t<uint32_t, uint64_t, double, true, true>;
+template class graph_t<uint32_t, uint64_t, double, false, true>;
+template class graph_t<uint64_t, uint64_t, float, true, true>;
+template class graph_t<uint64_t, uint64_t, float, false, true>;
+template class graph_t<uint64_t, uint64_t, double, true, true>;
+template class graph_t<uint64_t, uint64_t, double, false, true>;
 
-template class graph_t<int32_t, int32_t, float, true, false>;
-template class graph_t<int32_t, int32_t, float, false, false>;
+template class graph_t<uint32_t, uint32_t, float, true, false>;
+template class graph_t<uint32_t, uint32_t, float, false, false>;
+template class graph_t<uint32_t, uint32_t, double, true, false>;
+template class graph_t<uint32_t, uint32_t, double, false, false>;
+template class graph_t<uint32_t, uint64_t, float, true, false>;
+template class graph_t<uint32_t, uint64_t, float, false, false>;
+template class graph_t<uint32_t, uint64_t, double, true, false>;
+template class graph_t<uint32_t, uint64_t, double, false, false>;
+template class graph_t<uint64_t, uint64_t, float, true, false>;
+template class graph_t<uint64_t, uint64_t, float, false, false>;
+template class graph_t<uint64_t, uint64_t, double, true, false>;
+template class graph_t<uint64_t, uint64_t, double, false, false>;
 
 }  // namespace experimental
 }  // namespace cugraph

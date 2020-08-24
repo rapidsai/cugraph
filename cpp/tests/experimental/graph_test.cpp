@@ -100,8 +100,12 @@ class Tests_Graph : public ::testing::TestWithParam<Graph_Usecase> {
     FILE* file = fopen(configuration.graph_file_full_path.c_str(), "r");
     ASSERT_NE(file, nullptr) << "fopen (" << configuration.graph_file_full_path << ") failure.";
 
-    ASSERT_EQ(cugraph::test::mm_properties<int>(file, 1, &mc, &m, &k, &nnz), 0)
+    edge_t tmp_m{};
+    edge_t tmp_k{};
+    ASSERT_EQ(cugraph::test::mm_properties<edge_t>(file, 1, &mc, &tmp_m, &tmp_k, &nnz), 0)
       << "could not read Matrix Market file properties\n";
+    m = static_cast<vertex_t>(tmp_m);
+    k = static_cast<vertex_t>(tmp_k);
     ASSERT_TRUE(mm_is_matrix(mc));
     ASSERT_TRUE(mm_is_coordinate(mc));
     ASSERT_FALSE(mm_is_complex(mc));
@@ -221,15 +225,25 @@ class Tests_Graph : public ::testing::TestWithParam<Graph_Usecase> {
 };
 
 // FIXME: add tests for type combinations
-TEST_P(Tests_Graph, CheckInt32Int32FloatFalse)
+TEST_P(Tests_Graph, CheckStoreTransposedFalse)
 {
-  run_current_test<int32_t, int32_t, float, false>(GetParam());
+  run_current_test<uint32_t, uint32_t, float, false>(GetParam());
+  run_current_test<uint32_t, uint64_t, float, false>(GetParam());
+  run_current_test<uint64_t, uint64_t, float, false>(GetParam());
+  run_current_test<uint32_t, uint32_t, double, false>(GetParam());
+  run_current_test<uint32_t, uint64_t, double, false>(GetParam());
+  run_current_test<uint64_t, uint64_t, double, false>(GetParam());
 }
 
 // FIXME: add tests for type combinations
-TEST_P(Tests_Graph, CheckInt32Int32FloatTrue)
+TEST_P(Tests_Graph, CheckStoreTransposedTrue)
 {
-  run_current_test<int32_t, int32_t, float, true>(GetParam());
+  run_current_test<uint32_t, uint32_t, float, true>(GetParam());
+  run_current_test<uint32_t, uint64_t, float, true>(GetParam());
+  run_current_test<uint64_t, uint64_t, float, true>(GetParam());
+  run_current_test<uint32_t, uint32_t, double, true>(GetParam());
+  run_current_test<uint32_t, uint64_t, double, true>(GetParam());
+  run_current_test<uint64_t, uint64_t, double, true>(GetParam());
 }
 
 INSTANTIATE_TEST_CASE_P(simple_test,
