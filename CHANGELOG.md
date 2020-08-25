@@ -3,6 +3,7 @@
 ## New Features
 
 ## Improvements
+- PR 1081 MNMG Renumbering - sort partitions by degree
 
 ## Bug Fixes
 

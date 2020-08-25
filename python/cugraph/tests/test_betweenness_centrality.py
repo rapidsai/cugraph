@@ -196,6 +196,11 @@ def _calc_bc_subset_fixed(
         seed = 123  # random.seed(None) uses time, but we want same sources
     random.seed(seed)  # It will be called again in cugraph's call
     sources = random.sample(range(G.number_of_vertices()), k)
+
+    if G.renumbered:
+        sources_df = cudf.DataFrame({'src': sources})
+        sources = G.unrenumber(sources_df, 'src')['src'].to_pandas().tolist()
+
     # The first call is going to proceed to the random sampling in the same
     # fashion as the lines above
     df = cugraph.betweenness_centrality(

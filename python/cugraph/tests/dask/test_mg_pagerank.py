@@ -84,7 +84,7 @@ def test_dask_pagerank(client_connection, personalization_perc):
     g.from_cudf_edgelist(df, 'src', 'dst')
 
     dg = cugraph.DiGraph()
-    dg.from_dask_cudf_edgelist(ddf)
+    dg.from_dask_cudf_edgelist(ddf, 'src', 'dst')
 
     # Pre compute local data and personalize
     personalization = None
