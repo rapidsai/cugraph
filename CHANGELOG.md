@@ -74,6 +74,7 @@
 - PR #1056 Fix MG BFS performance
 - PR #1062 Compute max_vertex_id in mnmg local data computation
 - PR #1068 Remove unused thirdparty code
+- PR #1105 Update `master` references to `main`
 
 ## Bug Fixes
 - PR #936 Update Force Atlas 2 doc and wrapper
