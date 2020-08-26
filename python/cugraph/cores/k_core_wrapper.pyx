@@ -1,4 +1,4 @@
-# Copyright (c) 2019, NVIDIA CORPORATION.
+# Copyright (c) 2019-2020, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -54,7 +54,6 @@ def k_core(input_graph, k, core_number):
     """
     Call k_core
     """
-
     if graph_new_wrapper.weight_type(input_graph) == np.float64:
         return k_core_double(input_graph, k, core_number)
     else:

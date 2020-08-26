@@ -1,4 +1,4 @@
-# Copyright (c) 2019 - 2020, NVIDIA CORPORATION.
+# Copyright (c) 2019-2020, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -48,6 +48,9 @@ def weakly_connected_components(G):
 
     df = connectivity_wrapper.weakly_connected_components(G)
 
+    if G.renumbered:
+        df = G.unrenumber(df, "vertices")
+
     return df
 
 
@@ -84,5 +87,8 @@ def strongly_connected_components(G):
     """
 
     df = connectivity_wrapper.strongly_connected_components(G)
+
+    if G.renumbered:
+        df = G.unrenumber(df, "vertices")
 
     return df

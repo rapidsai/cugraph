@@ -8,7 +8,7 @@ conda build -c nvidia -c rapidsai -c rapidsai-nightly/label/cuda${CUDA_REL} -c c
 
 if [ "$UPLOAD_PACKAGE" == '1' ]; then
     export UPLOADFILE=`conda build -c nvidia -c rapidsai -c conda-forge -c defaults --python=${PYTHON} conda/recipes/cugraph --output`
-    SOURCE_BRANCH=master
+    SOURCE_BRANCH=main
 
     test -e ${UPLOADFILE}
 

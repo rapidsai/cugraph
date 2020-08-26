@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019, NVIDIA CORPORATION.
+ * Copyright (c) 2019-2020, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,12 +14,16 @@
  * limitations under the License.
  */
 
-#include <rmm/rmm.h>
-#include <rmm/thrust_rmm_allocator.h>
-#include <thrust/binary_search.h>
-#include <utilities/error_utils.h>
-#include <cub/device/device_run_length_encode.cuh>
 #include <db/db_object.cuh>
+
+#include <utilities/error.hpp>
+
+#include <raft/cudart_utils.h>
+#include <rmm/thrust_rmm_allocator.h>
+
+#include <thrust/binary_search.h>
+#include <cub/device/device_run_length_encode.cuh>
+
 #include <sstream>
 
 namespace cugraph {

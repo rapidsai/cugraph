@@ -1,15 +1,30 @@
 #!/usr/bin/env bash
+# Copyright (c) 2018-2020, NVIDIA CORPORATION.
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
 
-export BUILD_CUGRAPH=1
-export BUILD_LIBCUGRAPH=1
+if [[ -z "$PROJECT_FLASH" || "$PROJECT_FLASH" == "0" ]]; then
+    #If project flash is not activate, always build both
+    export BUILD_CUGRAPH=1
+    export BUILD_LIBCUGRAPH=1
+fi
 
-if [[ "$CUDA" == "10.0" ]]; then
+if [[ "$CUDA" == "10.1" ]]; then
     export UPLOAD_CUGRAPH=1
 else
     export UPLOAD_CUGRAPH=0
 fi
 
-if [[ "$PYTHON" == "3.6" ]]; then
+if [[ "$PYTHON" == "3.7" ]]; then
     export UPLOAD_LIBCUGRAPH=1
 else
     export UPLOAD_LIBCUGRAPH=0

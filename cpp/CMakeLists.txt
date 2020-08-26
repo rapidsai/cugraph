@@ -1,6 +1,5 @@
 #=============================================================================
-# Copyright 2018 BlazingDB, Inc.
-#     Copyright 2018 Percy Camilo Triveño Aucahuasi <percy@blazingdb.com>
+# Copyright (c) 2018-2020, NVIDIA CORPORATION.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -17,7 +16,7 @@
 
 cmake_minimum_required(VERSION 3.12 FATAL_ERROR)
 
-project(CUGRAPH VERSION 0.14.0 LANGUAGES C CXX CUDA)
+project(CUGRAPH VERSION 0.15.0 LANGUAGES C CXX CUDA)
 
 ###################################################################################################
 # - build type ------------------------------------------------------------------------------------
@@ -104,13 +103,6 @@ set(CMAKE_EXE_LINKER_FLAGS "-Wl,--disable-new-dtags")
 option(BUILD_TESTS "Configure CMake to build tests"
        ON)
 
-option(BUILD_MPI "Build with MPI" OFF)
-if (BUILD_MPI)
-    find_package(MPI REQUIRED)
-    set (CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${MPI_C_COMPILE_FLAGS}")
-    set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${MPI_CXX_COMPILE_FLAGS}")
-    set (CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} ${MPI_CXX_LINK_FLAGS}")
-endif(BUILD_MPI)
 ###################################################################################################
 # - cmake modules ---------------------------------------------------------------------------------
 
@@ -194,23 +186,51 @@ if (RMM_INCLUDE AND RMM_LIBRARY)
 endif (RMM_INCLUDE AND RMM_LIBRARY)
 
 ###################################################################################################
+# - Fetch Content -----------------------------------------------------------------------------
+include(FetchContent)
+
+# - CUB
+message("Fetching CUB")
+
+FetchContent_Declare(
+    cub
+    GIT_REPOSITORY https://github.com/thrust/cub.git
+    GIT_TAG        1.9.10
+    GIT_SHALLOW    true
+)
+
+FetchContent_GetProperties(cub)
+if(NOT cub_POPULATED)
+  FetchContent_Populate(cub)
+  # We are not using the cub CMake targets, so no need to call `add_subdirectory()`.
+endif()
+set(CUB_INCLUDE_DIR "${cub_SOURCE_DIR}")
+
+# - THRUST
+message("Fetching Thrust")
+
+FetchContent_Declare(
+    thrust
+    GIT_REPOSITORY https://github.com/thrust/thrust.git
+    GIT_TAG        1.9.10
+    GIT_SHALLOW    true
+)
+
+FetchContent_GetProperties(thrust)
+if(NOT thrust_POPULATED)
+  FetchContent_Populate(thrust)
+  # We are not using the thrust CMake targets, so no need to call `add_subdirectory()`.
+endif()
+set(THRUST_INCLUDE_DIR "${thrust_SOURCE_DIR}")
+
+
+
+
+###################################################################################################
 # - External Projects -----------------------------------------------------------------------------
 
 # https://cmake.org/cmake/help/v3.0/module/ExternalProject.html
 include(ExternalProject)
-
-# - CUB
-set(CUB_DIR ${CMAKE_CURRENT_BINARY_DIR}/cub CACHE STRING "Path to cub repo")
-set(CUB_INCLUDE_DIR ${CUB_DIR}/src/cub CACHE STRING "Path to cub includes")
-
-ExternalProject_Add(cub
-  GIT_REPOSITORY    https://github.com/NVlabs/cub.git
-  GIT_TAG           v1.8.0
-  PREFIX            ${CUB_DIR}
-  CONFIGURE_COMMAND ""
-  BUILD_COMMAND     ""
-  INSTALL_COMMAND   ""
-)
 
 # - CUHORNET
 set(CUHORNET_DIR ${CMAKE_CURRENT_BINARY_DIR}/cuhornet CACHE STRING "Path to cuhornet repo")
@@ -219,7 +239,7 @@ set(CUHORNET_INCLUDE_DIR ${CUHORNET_DIR}/src/cuhornet CACHE STRING "Path to cuho
 
 ExternalProject_Add(cuhornet
   GIT_REPOSITORY    https://github.com/rapidsai/cuhornet.git
-  GIT_TAG           master
+  GIT_TAG           main
   PREFIX            ${CUHORNET_DIR}
   CONFIGURE_COMMAND ""
   BUILD_COMMAND     ""
@@ -232,12 +252,18 @@ set(CUGUNROCK_DIR ${CMAKE_CURRENT_BINARY_DIR}/cugunrock CACHE STRING
 
 ExternalProject_Add(cugunrock
   GIT_REPOSITORY    https://github.com/rapidsai/cugunrock.git
-  GIT_TAG           fea_full_bc      # provide a branch, a tag, or even a commit hash
+  GIT_TAG           main
   PREFIX            ${CUGUNROCK_DIR}
   CMAKE_ARGS        -DCMAKE_INSTALL_PREFIX=<INSTALL_DIR>
                     -DGPU_ARCHS=""
                     -DGUNROCK_BUILD_SHARED_LIBS=OFF
                     -DGUNROCK_BUILD_TESTS=OFF
+                    -DCUDA_AUTODETECT_GENCODE=FALSE
+                    -DGUNROCK_GENCODE_SM60=TRUE
+                    -DGUNROCK_GENCODE_SM61=TRUE
+                    -DGUNROCK_GENCODE_SM70=TRUE
+                    -DGUNROCK_GENCODE_SM72=TRUE
+                    -DGUNROCK_GENCODE_SM75=TRUE
   BUILD_BYPRODUCTS  ${CUGUNROCK_DIR}/lib/libgunrock.a
 )
 
@@ -263,7 +289,7 @@ endif(NOT NCCL_PATH)
 if(DEFINED ENV{RAFT_PATH})
   message(STATUS "RAFT_PATH environment variable detected.")
   message(STATUS "RAFT_DIR set to $ENV{RAFT_PATH}")
-  set(RAFT_DIR ENV{RAFT_PATH})
+  set(RAFT_DIR "$ENV{RAFT_PATH}")
 
   ExternalProject_Add(raft
     DOWNLOAD_COMMAND  ""
@@ -278,14 +304,14 @@ else(DEFINED ENV{RAFT_PATH})
 
   ExternalProject_Add(raft
     GIT_REPOSITORY    https://github.com/rapidsai/raft.git
-    GIT_TAG           e003de27fc4e4a096337f184dddbd7942a68bb5c
+    GIT_TAG           099e2b874b05555a78bed1666fa2d22f784e56a7
     PREFIX            ${RAFT_DIR}
     CONFIGURE_COMMAND ""
     BUILD_COMMAND     ""
     INSTALL_COMMAND   "")
 
   # Redefining RAFT_DIR so it coincides with the one inferred by env variable.
-  set(RAFT_DIR ${RAFT_DIR}/src/raft/ CACHE STRING "Path to RAFT repo")
+  set(RAFT_DIR "${RAFT_DIR}/src/raft/")
 endif(DEFINED ENV{RAFT_PATH})
 
 
@@ -301,13 +327,14 @@ link_directories(
     "${CMAKE_CUDA_IMPLICIT_LINK_DIRECTORIES}")
 
 add_library(cugraph SHARED
-    src/comms/mpi/comms_mpi.cpp
     src/db/db_object.cu
     src/db/db_parser_integration_test.cu
     src/db/db_operators.cu
-    src/utilities/cusparse_helper.cu
+    src/utilities/spmv_1D.cu
     src/structure/graph.cu
     src/link_analysis/pagerank.cu
+    src/link_analysis/pagerank_1D.cu
+    src/link_analysis/gunrock_hits.cpp
     src/traversal/bfs.cu
     src/traversal/sssp.cu
     src/link_prediction/jaccard.cu
@@ -318,25 +345,17 @@ add_library(cugraph SHARED
     src/community/spectral_clustering.cu
     src/community/louvain.cpp
     src/community/louvain_kernels.cu
+    src/community/leiden.cpp
+    src/community/leiden_kernels.cu
     src/community/ktruss.cu
     src/community/ECG.cu
     src/community/triangles_counting.cu
     src/community/extract_subgraph_by_vertex.cu
     src/cores/core_number.cu
     src/traversal/two_hop_neighbors.cu
-    src/utilities/cusparse_helper.cu
     src/components/connectivity.cu
     src/centrality/katz_centrality.cu
     src/centrality/betweenness_centrality.cu
-    src/nvgraph/kmeans.cu
-    src/nvgraph/lanczos.cu
-    src/nvgraph/spectral_matrix.cu
-    src/nvgraph/modularity_maximization.cu
-    src/nvgraph/nvgraph_cusparse.cpp
-    src/nvgraph/nvgraph_cublas.cpp
-    src/nvgraph/nvgraph_lapack.cu
-    src/nvgraph/nvgraph_vector_kernels.cu
-    src/nvgraph/partition.cu
 )
 
 #
@@ -346,20 +365,17 @@ add_library(cugraph SHARED
 add_dependencies(cugraph cugunrock)
 add_dependencies(cugraph raft)
 
-if (BUILD_MPI)
-    add_compile_definitions(ENABLE_OPG=1)
-endif (BUILD_MPI)
-
 ###################################################################################################
 # - include paths ---------------------------------------------------------------------------------
 target_include_directories(cugraph
     PRIVATE
+    "${CUB_INCLUDE_DIR}"
+    "${THRUST_INCLUDE_DIR}"
     "${CMAKE_CUDA_TOOLKIT_INCLUDE_DIRECTORIES}"
     "${LIBCYPHERPARSER_INCLUDE}"
     "${Boost_INCLUDE_DIRS}"
     "${RMM_INCLUDE}"
     "${CMAKE_CURRENT_SOURCE_DIR}/../thirdparty"
-    "${CUB_INCLUDE_DIR}"
     "${CUHORNET_INCLUDE_DIR}/hornet/include"
     "${CUHORNET_INCLUDE_DIR}/hornetsnest/include"
     "${CUHORNET_INCLUDE_DIR}/xlib/include"
@@ -367,7 +383,6 @@ target_include_directories(cugraph
     "${CMAKE_CURRENT_SOURCE_DIR}/src"
     "${CUGUNROCK_DIR}/include"
     "${NCCL_INCLUDE_DIRS}"
-    "${MPI_CXX_INCLUDE_PATH}"
     "${RAFT_DIR}/cpp/include"
     PUBLIC
     "${CMAKE_CURRENT_SOURCE_DIR}/include"
@@ -377,7 +392,7 @@ target_include_directories(cugraph
 # - link libraries --------------------------------------------------------------------------------
 
 target_link_libraries(cugraph PRIVATE
-    ${RMM_LIBRARY} gunrock ${NVSTRINGS_LIBRARY} cublas cusparse curand cusolver cudart cuda ${LIBCYPHERPARSER_LIBRARY} ${MPI_CXX_LIBRARIES} ${NCCL_LIBRARIES})
+    ${RMM_LIBRARY} gunrock cublas cusparse curand cusolver cudart cuda ${LIBCYPHERPARSER_LIBRARY} ${MPI_CXX_LIBRARIES} ${NCCL_LIBRARIES})
 
 if(OpenMP_CXX_FOUND)
 target_link_libraries(cugraph PRIVATE

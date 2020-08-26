@@ -9,21 +9,20 @@
  *
  */
 
-#include <gtest/gtest.h>
-#include <thrust/device_vector.h>
+#include <utilities/high_res_clock.h>
+#include <utilities/base_fixture.hpp>
+#include <utilities/test_utilities.hpp>
+
+#include <algorithms.hpp>
+#include <converters/COOtoCSR.cuh>
+#include <graph.hpp>
+
 #include <thrust/fill.h>
+
 #include <algorithm>
 #include <queue>
 #include <unordered_map>
 #include <utility>
-#include "high_res_clock.h"
-#include "test_utils.h"
-
-#include <converters/COOtoCSR.cuh>
-
-#include <rmm/mr/device/cuda_memory_resource.hpp>
-#include "algorithms.hpp"
-#include "graph.hpp"
 
 typedef enum graph_type { RMAT, MTX } GraphType;
 
@@ -128,7 +127,7 @@ typedef struct SSSP_Usecase_t {
     // assume relative paths are relative to RAPIDS_DATASET_ROOT_DIR
     // FIXME: Use platform independent stuff from c++14/17 on compiler update
     if (type_ == MTX) {
-      const std::string& rapidsDatasetRootDir = get_rapids_dataset_root_dir();
+      const std::string& rapidsDatasetRootDir = cugraph::test::get_rapids_dataset_root_dir();
       if ((config_ != "") && (config_[0] != '/')) {
         file_path_ = rapidsDatasetRootDir + "/" + config_;
       } else {
@@ -203,7 +202,7 @@ class Tests_SSSP : public ::testing::TestWithParam<SSSP_Usecase> {
       ASSERT_NE(fpin, static_cast<FILE*>(nullptr)) << "fopen (" << param.file_path_ << ") failure.";
 
       // mm_properties has only one template param which should be fixed there
-      ASSERT_EQ(mm_properties<MaxVType>(fpin, 1, &mc, &m, &k, &nnz), 0)
+      ASSERT_EQ(cugraph::test::mm_properties<MaxVType>(fpin, 1, &mc, &m, &k, &nnz), 0)
         << "could not read Matrix Market file properties"
         << "\n";
       ASSERT_TRUE(mm_is_matrix(mc));
@@ -218,24 +217,24 @@ class Tests_SSSP : public ::testing::TestWithParam<SSSP_Usecase> {
       // Read weights if given
       if (!mm_is_pattern(mc)) {
         cooVal.resize(nnz);
-        ASSERT_EQ((mm_to_coo(fpin,
-                             1,
-                             nnz,
-                             &cooRowInd[0],
-                             &cooColInd[0],
-                             &cooVal[0],
-                             static_cast<DistType*>(nullptr))),
+        ASSERT_EQ((cugraph::test::mm_to_coo(fpin,
+                                            1,
+                                            nnz,
+                                            &cooRowInd[0],
+                                            &cooColInd[0],
+                                            &cooVal[0],
+                                            static_cast<DistType*>(nullptr))),
                   0)
           << "could not read matrix data"
           << "\n";
       } else {
-        ASSERT_EQ((mm_to_coo(fpin,
-                             1,
-                             nnz,
-                             &cooRowInd[0],
-                             &cooColInd[0],
-                             static_cast<DistType*>(nullptr),
-                             static_cast<DistType*>(nullptr))),
+        ASSERT_EQ((cugraph::test::mm_to_coo(fpin,
+                                            1,
+                                            nnz,
+                                            &cooRowInd[0],
+                                            &cooColInd[0],
+                                            static_cast<DistType*>(nullptr),
+                                            static_cast<DistType*>(nullptr))),
                   0)
           << "could not read matrix data"
           << "\n";
@@ -256,14 +255,14 @@ class Tests_SSSP : public ::testing::TestWithParam<SSSP_Usecase> {
       ASSERT_TRUE(0);
     }
 
-    cugraph::experimental::GraphCOOView<MaxVType, MaxEType, DistType> G_coo(
+    cugraph::GraphCOOView<MaxVType, MaxEType, DistType> G_coo(
       &cooRowInd[0],
       &cooColInd[0],
       (DoRandomWeights ? &cooVal[0] : nullptr),
       num_vertices,
       num_edges);
-    auto G_unique = cugraph::coo_to_csr(G_coo);
-    cugraph::experimental::GraphCSRView<MaxVType, MaxEType, DistType> G = G_unique->view();
+    auto G_unique                                         = cugraph::coo_to_csr(G_coo);
+    cugraph::GraphCSRView<MaxVType, MaxEType, DistType> G = G_unique->view();
     cudaDeviceSynchronize();
 
     std::vector<DistType> dist_vec;
@@ -432,11 +431,4 @@ INSTANTIATE_TEST_CASE_P(simple_test,
                                           SSSP_Usecase(MTX, "test/datasets/wiki2003.mtx", 100000),
                                           SSSP_Usecase(MTX, "test/datasets/karate.mtx", 1)));
 
-int main(int argc, char** argv)
-{
-  testing::InitGoogleTest(&argc, argv);
-  auto resource = std::make_unique<rmm::mr::cuda_memory_resource>();
-  rmm::mr::set_default_resource(resource.get());
-  int rc = RUN_ALL_TESTS();
-  return rc;
-}
+CUGRAPH_TEST_PROGRAM_MAIN()

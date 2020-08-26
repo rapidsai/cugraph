@@ -23,20 +23,19 @@ namespace cugraph {
 namespace detail {
 
 template <typename vertex_t, typename edge_t, typename weight_t>
-__global__ void __launch_bounds__(CUDA_MAX_KERNEL_THREADS)
-  attraction_kernel(const vertex_t *restrict row,
-                    const vertex_t *restrict col,
-                    const weight_t *restrict v,
-                    const edge_t e,
-                    const float *restrict x_pos,
-                    const float *restrict y_pos,
-                    float *restrict attract_x,
-                    float *restrict attract_y,
-                    const int *restrict mass,
-                    bool outbound_attraction_distribution,
-                    bool lin_log_mode,
-                    const float edge_weight_influence,
-                    const float coef)
+__global__ void attraction_kernel(const vertex_t *restrict row,
+                                  const vertex_t *restrict col,
+                                  const weight_t *restrict v,
+                                  const edge_t e,
+                                  const float *restrict x_pos,
+                                  const float *restrict y_pos,
+                                  float *restrict attract_x,
+                                  float *restrict attract_y,
+                                  const int *restrict mass,
+                                  bool outbound_attraction_distribution,
+                                  bool lin_log_mode,
+                                  const float edge_weight_influence,
+                                  const float coef)
 {
   vertex_t i, src, dst;
   weight_t weight = 1;
@@ -112,18 +111,17 @@ void apply_attraction(const vertex_t *restrict row,
                             edge_weight_influence,
                             coef);
 
-  CUDA_CHECK_LAST();
+  CHECK_CUDA(nullptr);
 }
 
 template <typename vertex_t>
-__global__ void __launch_bounds__(CUDA_MAX_KERNEL_THREADS)
-  linear_gravity_kernel(const float *restrict x_pos,
-                        const float *restrict y_pos,
-                        float *restrict attract_x,
-                        float *restrict attract_y,
-                        const int *restrict mass,
-                        const float gravity,
-                        const vertex_t n)
+__global__ void linear_gravity_kernel(const float *restrict x_pos,
+                                      const float *restrict y_pos,
+                                      float *restrict attract_x,
+                                      float *restrict attract_y,
+                                      const int *restrict mass,
+                                      const float gravity,
+                                      const vertex_t n)
 {
   // For every node.
   for (int i = threadIdx.x + blockIdx.x * blockDim.x; i < n; i += gridDim.x * blockDim.x) {
@@ -137,15 +135,14 @@ __global__ void __launch_bounds__(CUDA_MAX_KERNEL_THREADS)
 }
 
 template <typename vertex_t>
-__global__ void __launch_bounds__(CUDA_MAX_KERNEL_THREADS)
-  strong_gravity_kernel(const float *restrict x_pos,
-                        const float *restrict y_pos,
-                        float *restrict attract_x,
-                        float *restrict attract_y,
-                        const int *restrict mass,
-                        const float gravity,
-                        const float scaling_ratio,
-                        const vertex_t n)
+__global__ void strong_gravity_kernel(const float *restrict x_pos,
+                                      const float *restrict y_pos,
+                                      float *restrict attract_x,
+                                      float *restrict attract_y,
+                                      const int *restrict mass,
+                                      const float gravity,
+                                      const float scaling_ratio,
+                                      const vertex_t n)
 {
   // For every node.
   for (int i = threadIdx.x + blockIdx.x * blockDim.x; i < n; i += gridDim.x * blockDim.x) {
@@ -183,21 +180,20 @@ void apply_gravity(const float *restrict x_pos,
   else
     linear_gravity_kernel<vertex_t>
       <<<nblocks, nthreads>>>(x_pos, y_pos, attract_x, attract_y, mass, gravity, n);
-  CUDA_CHECK_LAST();
+  CHECK_CUDA(nullptr);
 }
 
 template <typename vertex_t>
-__global__ void __launch_bounds__(CUDA_MAX_KERNEL_THREADS)
-  local_speed_kernel(const float *restrict repel_x,
-                     const float *restrict repel_y,
-                     const float *restrict attract_x,
-                     const float *restrict attract_y,
-                     const float *restrict old_dx,
-                     const float *restrict old_dy,
-                     const int *restrict mass,
-                     float *restrict swinging,
-                     float *restrict traction,
-                     const vertex_t n)
+__global__ void local_speed_kernel(const float *restrict repel_x,
+                                   const float *restrict repel_y,
+                                   const float *restrict attract_x,
+                                   const float *restrict attract_y,
+                                   const float *restrict old_dx,
+                                   const float *restrict old_dy,
+                                   const int *restrict mass,
+                                   float *restrict swinging,
+                                   float *restrict traction,
+                                   const vertex_t n)
 {
   // For every node.
   for (int i = threadIdx.x + blockIdx.x * blockDim.x; i < n; i += gridDim.x * blockDim.x) {
@@ -232,7 +228,7 @@ void compute_local_speed(const float *restrict repel_x,
 
   local_speed_kernel<<<nblocks, nthreads>>>(
     repel_x, repel_y, attract_x, attract_y, old_dx, old_dy, mass, swinging, traction, n);
-  CUDA_CHECK_LAST();
+  CHECK_CUDA(nullptr);
 }
 
 template <typename vertex_t>
@@ -272,18 +268,17 @@ void adapt_speed(const float jitter_tolerance,
 }
 
 template <typename vertex_t>
-__global__ void __launch_bounds__(CUDA_MAX_KERNEL_THREADS)
-  update_positions_kernel(float *restrict x_pos,
-                          float *restrict y_pos,
-                          const float *restrict repel_x,
-                          const float *restrict repel_y,
-                          const float *restrict attract_x,
-                          const float *restrict attract_y,
-                          float *restrict old_dx,
-                          float *restrict old_dy,
-                          const float *restrict swinging,
-                          const float speed,
-                          const vertex_t n)
+__global__ void update_positions_kernel(float *restrict x_pos,
+                                        float *restrict y_pos,
+                                        const float *restrict repel_x,
+                                        const float *restrict repel_y,
+                                        const float *restrict attract_x,
+                                        const float *restrict attract_y,
+                                        float *restrict old_dx,
+                                        float *restrict old_dy,
+                                        const float *restrict swinging,
+                                        const float speed,
+                                        const vertex_t n)
 {
   // For every node.
   for (int i = threadIdx.x + blockIdx.x * blockDim.x; i < n; i += gridDim.x * blockDim.x) {
@@ -321,7 +316,7 @@ void apply_forces(float *restrict x_pos,
 
   update_positions_kernel<vertex_t><<<nblocks, nthreads>>>(
     x_pos, y_pos, repel_x, repel_y, attract_x, attract_y, old_dx, old_dy, swinging, speed, n);
-  CUDA_CHECK_LAST();
+  CHECK_CUDA(nullptr);
 }
 
 }  // namespace detail

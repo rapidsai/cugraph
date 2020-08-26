@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019, NVIDIA CORPORATION.  All rights reserved.
+ * Copyright (c) 2019-2020, NVIDIA CORPORATION.  All rights reserved.
  *
  * NVIDIA CORPORATION and its licensors retain all intellectual property
  * and proprietary rights in and to this software, related documentation
@@ -12,17 +12,18 @@
 // connected components tests
 // Author: Andrei Schaffer aschaffer@nvidia.com
 
-#include "cuda_profiler_api.h"
-#include "gtest/gtest.h"
-#include "high_res_clock.h"
+#include <utilities/high_res_clock.h>
+#include <utilities/base_fixture.hpp>
+#include <utilities/test_utilities.hpp>
 
-#include <algorithm>
+#include <cuda_profiler_api.h>
+
 #include <algorithms.hpp>
 #include <converters/COOtoCSR.cuh>
 #include <graph.hpp>
+
+#include <algorithm>
 #include <iterator>
-#include <rmm/mr/device/cuda_memory_resource.hpp>
-#include "test_utils.h"
 
 // do the perf measurements
 // enabled by command line parameter s'--perf'
@@ -34,7 +35,7 @@ struct Usecase {
   explicit Usecase(const std::string& a)
   {
     // assume relative paths are relative to RAPIDS_DATASET_ROOT_DIR
-    const std::string& rapidsDatasetRootDir = get_rapids_dataset_root_dir();
+    const std::string& rapidsDatasetRootDir = cugraph::test::get_rapids_dataset_root_dir();
     if ((a != "") && (a[0] != '/')) {
       matrix_file = rapidsDatasetRootDir + "/" + a;
     } else {
@@ -71,9 +72,10 @@ struct Tests_Weakly_CC : ::testing::TestWithParam<Usecase> {
     const ::testing::TestInfo* const test_info =
       ::testing::UnitTest::GetInstance()->current_test_info();
     std::stringstream ss;
-    std::string test_id =
-      std::string(test_info->test_case_name()) + std::string(".") + std::string(test_info->name()) +
-      std::string("_") + getFileName(param.get_matrix_file()) + std::string("_") + ss.str().c_str();
+    std::string test_id = std::string(test_info->test_case_name()) + std::string(".") +
+                          std::string(test_info->name()) + std::string("_") +
+                          cugraph::test::getFileName(param.get_matrix_file()) + std::string("_") +
+                          ss.str().c_str();
 
     int m, k, nnz;  //
     MM_typecode mc;
@@ -84,7 +86,7 @@ struct Tests_Weakly_CC : ::testing::TestWithParam<Usecase> {
     FILE* fpin = fopen(param.get_matrix_file().c_str(), "r");
     ASSERT_NE(fpin, nullptr) << "fopen (" << param.get_matrix_file() << ") failure.";
 
-    ASSERT_EQ(mm_properties<int>(fpin, 1, &mc, &m, &k, &nnz), 0)
+    ASSERT_EQ(cugraph::test::mm_properties<int>(fpin, 1, &mc, &m, &k, &nnz), 0)
       << "could not read Matrix Market file properties"
       << "\n";
     ASSERT_TRUE(mm_is_matrix(mc));
@@ -104,16 +106,16 @@ struct Tests_Weakly_CC : ::testing::TestWithParam<Usecase> {
 
     // Read: COO Format
     //
-    ASSERT_EQ((mm_to_coo<int, int>(fpin, 1, nnz, &cooRowInd[0], &cooColInd[0], nullptr, nullptr)),
+    ASSERT_EQ((cugraph::test::mm_to_coo<int, int>(
+                fpin, 1, nnz, &cooRowInd[0], &cooColInd[0], nullptr, nullptr)),
               0)
       << "could not read matrix data"
       << "\n";
     ASSERT_EQ(fclose(fpin), 0);
 
-    cugraph::experimental::GraphCOOView<int, int, float> G_coo(
-      &cooRowInd[0], &cooColInd[0], nullptr, m, nnz);
-    auto G_unique                                          = cugraph::coo_to_csr(G_coo);
-    cugraph::experimental::GraphCSRView<int, int, float> G = G_unique->view();
+    cugraph::GraphCOOView<int, int, float> G_coo(&cooRowInd[0], &cooColInd[0], nullptr, m, nnz);
+    auto G_unique                            = cugraph::coo_to_csr(G_coo);
+    cugraph::GraphCSRView<int, int, float> G = G_unique->view();
 
     rmm::device_vector<int> d_labels(m);
 
@@ -146,11 +148,4 @@ INSTANTIATE_TEST_CASE_P(simple_test,
                                           Usecase("test/datasets/coPapersCiteseer.mtx"),
                                           Usecase("test/datasets/hollywood.mtx")));
 
-int main(int argc, char** argv)
-{
-  testing::InitGoogleTest(&argc, argv);
-  auto resource = std::make_unique<rmm::mr::cuda_memory_resource>();
-  rmm::mr::set_default_resource(resource.get());
-  int rc = RUN_ALL_TESTS();
-  return rc;
-}
+CUGRAPH_TEST_PROGRAM_MAIN()

@@ -1,6 +1,6 @@
 ---
 name: Bug report
-about: Create a report to help us improve
+about: Create a report to help us improve cuGraph
 title: "[BUG]"
 labels: "? - Needs Triage, bug"
 assignees: ''
@@ -10,29 +10,19 @@ assignees: ''
 **Describe the bug**
 A clear and concise description of what the bug is.
 
-**To Reproduce**
-Steps to reproduce the behavior:
-1. Go to '...'
-2. Click on '....'
-3. Scroll down to '....'
-4. See error
+**Steps/Code to reproduce bug**
+Follow this guide http://matthewrocklin.com/blog/work/2018/02/28/minimal-bug-reports to craft a minimal bug report. This helps us reproduce the issue you're having and resolve the issue more quickly.
 
 **Expected behavior**
 A clear and concise description of what you expected to happen.
 
-**Screenshots**
-If applicable, add screenshots to help explain your problem.
+**Environment overview (please complete the following information)**
+ - Environment location: [Bare-metal, Docker, Cloud(specify cloud provider)]
+ - Method of cuGraph install: [conda, Docker, or from source]
+   - If method of install is [Docker], provide `docker pull` & `docker run` commands used
 
-**Desktop (please complete the following information):**
- - OS: [e.g. iOS]
- - Browser [e.g. chrome, safari]
- - Version [e.g. 22]
-
-**Smartphone (please complete the following information):**
- - Device: [e.g. iPhone6]
- - OS: [e.g. iOS8.1]
- - Browser [e.g. stock browser, safari]
- - Version [e.g. 22]
+**Environment details**
+Please run and paste the output of the `cugraph/print_env.sh` script here, to gather any other relevant environment details
 
 **Additional context**
 Add any other context about the problem here.

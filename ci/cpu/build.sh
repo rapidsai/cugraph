@@ -1,5 +1,5 @@
 #!/bin/bash
-# Copyright (c) 2018, NVIDIA CORPORATION.
+# Copyright (c) 2018-2020, NVIDIA CORPORATION.
 #########################################
 # cuGraph CPU conda build script for CI #
 #########################################
@@ -19,10 +19,6 @@ export HOME=$WORKSPACE
 
 # Switch to project root; also root of repo checkout
 cd $WORKSPACE
-
-# Get latest tag and number of commits since tag
-export GIT_DESCRIBE_TAG=`git describe --abbrev=0 --tags`
-export GIT_DESCRIBE_NUMBER=`git rev-list ${GIT_DESCRIBE_TAG}..HEAD --count`
 
 # If nightly build, append current YYMMDD to version
 if [[ "$BUILD_MODE" = "branch" && "$SOURCE_BRANCH" = branch-* ]] ; then

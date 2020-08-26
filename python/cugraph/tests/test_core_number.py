@@ -1,4 +1,4 @@
-# Copyright (c) 2019, NVIDIA CORPORATION.
+# Copyright (c) 2019-2020, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -12,9 +12,7 @@
 # limitations under the License.
 
 import gc
-
 import pytest
-
 import cugraph
 from cugraph.tests import utils
 
@@ -24,39 +22,46 @@ from cugraph.tests import utils
 # python 3.7.  Also, this import networkx needs to be relocated in the
 # third-party group once this gets fixed.
 import warnings
+
 with warnings.catch_warnings():
     warnings.filterwarnings("ignore", category=DeprecationWarning)
     import networkx as nx
 
 
-print('Networkx version : {} '.format(nx.__version__))
+print("Networkx version : {} ".format(nx.__version__))
 
 
 def calc_core_number(graph_file):
     M = utils.read_csv_file(graph_file)
     G = cugraph.DiGraph()
-    G.from_cudf_edgelist(M, source='0', destination='1')
+    G.from_cudf_edgelist(M, source="0", destination="1")
 
     cn = cugraph.core_number(G)
+    cn = cn.sort_values("vertex").reset_index(drop=True)
 
     NM = utils.read_csv_for_nx(graph_file)
-    Gnx = nx.from_pandas_edgelist(NM, source='0', target='1',
-                                  create_using=nx.Graph())
+    Gnx = nx.from_pandas_edgelist(
+        NM, source="0", target="1", create_using=nx.Graph()
+    )
     nc = nx.core_number(Gnx)
     pdf = [nc[k] for k in sorted(nc.keys())]
-    cn['nx_core_number'] = pdf
-    cn = cn.rename({'core_number': 'cu_core_number'})
+    cn["nx_core_number"] = pdf
+    cn = cn.rename(columns={"core_number": "cu_core_number"}, copy=False)
     return cn
 
 
-DATASETS = ['../datasets/dolphins.csv',
-            '../datasets/netscience.csv']
-
-
-@pytest.mark.parametrize('graph_file', DATASETS)
+# FIXME: the default set of datasets includes an asymmetric directed graph
+# (email-EU-core.csv), which currently causes an error with NetworkX:
+# "networkx.exception.NetworkXError: Input graph has self loops which is not
+#  permitted; Consider using G.remove_edges_from(nx.selfloop_edges(G))"
+#
+# https://github.com/rapidsai/cugraph/issues/1045
+#
+# @pytest.mark.parametrize("graph_file", utils.DATASETS)
+@pytest.mark.parametrize("graph_file", utils.DATASETS_UNDIRECTED)
 def test_core_number(graph_file):
     gc.collect()
 
     cn = calc_core_number(graph_file)
 
-    assert cn['cu_core_number'].equals(cn['nx_core_number'])
+    assert cn["cu_core_number"].equals(cn["nx_core_number"])

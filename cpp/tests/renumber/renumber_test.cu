@@ -1,7 +1,7 @@
 // -*-c++-*-
 
 /*
- * Copyright (c) 2019, NVIDIA CORPORATION.
+ * Copyright (c) 2019-2020, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,19 +16,18 @@
  * limitations under the License.
  */
 
-#include "gmock/gmock.h"
-#include "gtest/gtest.h"
+//#include "gmock/gmock.h"
 
-#include "cuda_profiler_api.h"
+#include <utilities/base_fixture.hpp>
 
-#include <rmm/rmm.h>
+#include <converters/renumber.cuh>
+
 #include <rmm/thrust_rmm_allocator.h>
-#include <rmm/mr/device/cuda_memory_resource.hpp>
-#include "converters/renumber.cuh"
+
+#include <cuda_profiler_api.h>
+#include <curand_kernel.h>
 
 #include <chrono>
-
-#include <curand_kernel.h>
 
 struct RenumberingTest : public ::testing::Test {
 };
@@ -577,11 +576,4 @@ TEST_F(RenumberingTest, Random500MVertexSet)
   std::cout << "  hash size = " << hash_size << std::endl;
 }
 
-int main(int argc, char **argv)
-{
-  testing::InitGoogleTest(&argc, argv);
-  auto resource = std::make_unique<rmm::mr::cuda_memory_resource>();
-  rmm::mr::set_default_resource(resource.get());
-  int rc = RUN_ALL_TESTS();
-  return rc;
-}
+CUGRAPH_TEST_PROGRAM_MAIN()

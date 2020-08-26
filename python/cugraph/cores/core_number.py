@@ -1,4 +1,4 @@
-# Copyright (c) 2019 - 2020, NVIDIA CORPORATION.
+# Copyright (c) 2019-2020, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -12,7 +12,6 @@
 # limitations under the License.
 
 from cugraph.cores import core_number_wrapper
-from cugraph.utilities.unrenumber import unrenumber
 
 
 def core_number(G):
@@ -54,6 +53,6 @@ def core_number(G):
     df = core_number_wrapper.core_number(G)
 
     if G.renumbered:
-        df = unrenumber(G.edgelist.renumber_map, df, 'vertex')
+        df = G.unrenumber(df, "vertex")
 
     return df

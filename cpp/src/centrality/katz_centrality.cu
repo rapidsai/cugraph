@@ -24,12 +24,12 @@
 #include <Hornet.hpp>
 #include <Static/KatzCentrality/Katz.cuh>
 #include <graph.hpp>
-#include "utilities/error_utils.h"
+#include "utilities/error.hpp"
 
 namespace cugraph {
 
 template <typename VT, typename ET, typename WT, typename result_t>
-void katz_centrality(experimental::GraphCSRView<VT, ET, WT> const &graph,
+void katz_centrality(GraphCSRView<VT, ET, WT> const &graph,
                      result_t *result,
                      double alpha,
                      int max_iter,
@@ -52,6 +52,6 @@ void katz_centrality(experimental::GraphCSRView<VT, ET, WT> const &graph,
 }
 
 template void katz_centrality<int, int, float, double>(
-  experimental::GraphCSRView<int, int, float> const &, double *, double, int, double, bool, bool);
+  GraphCSRView<int, int, float> const &, double *, double, int, double, bool, bool);
 
 }  // namespace cugraph

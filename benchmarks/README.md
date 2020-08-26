@@ -15,13 +15,15 @@ directory under the root of the `cuGraph` source tree.
 * cugraph built and installed (or `cugraph` sources and built C++ extensions
   available on `PYTHONPATH`)
 
-* rapids-pytest-benchmark pytest plugin (`conda install -c rlratzel
+* rapids-pytest-benchmark pytest plugin (`conda install -c rapidsai
   rapids-pytest-benchmark`)
-  * NOTE: the `rlratzel` channel is temporary! This plugin will eventually be
-    moved to a more standard channel
 
-* specific datasets installed in <cugraph>/datasets (see benchmark sources in
-  this dir for details)
+* The benchmark datasets downloaded and installed in <cugraph>/datasets. Run the
+script below from the <cugraph>/datasets directory:
+```
+cd <cugraph>/datasets
+./get_test_data.sh --benchmark
+```
 
 ## Usage (Python)
 ### Python
@@ -33,6 +35,7 @@ directory under the root of the `cuGraph` source tree.
 
 ## Examples
 ### Python
+_**NOTE: these commands must be run from the `<cugraph_root>/benchmarks` directory.**_
 * Run all the benchmarks and print their names on a separate line (`-v`), and generate a report to stdout
 ```
 (rapids) user@machine:/cugraph/benchmarks> pytest -v

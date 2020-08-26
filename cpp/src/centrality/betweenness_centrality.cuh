@@ -15,79 +15,134 @@
  */
 
 // Author: Xavier Cadet xcadet@nvidia.com
+
 #pragma once
 #include <rmm/thrust_rmm_allocator.h>
 
 namespace cugraph {
 namespace detail {
-template <typename VT, typename ET, typename WT, typename result_t>
+template <typename vertex_t, typename edge_t, typename weight_t, typename result_t>
+void betweenness_centrality(raft::handle_t const &handle,
+                            GraphCSRView<vertex_t, edge_t, weight_t> const &graph,
+                            result_t *result,
+                            bool normalize,
+                            bool endpoints,
+                            weight_t const *weight,
+                            vertex_t const number_of_sources,
+                            vertex_t const *sources);
+
+template <typename vertex_t, typename edge_t, typename weight_t, typename result_t>
+void edge_betweenness_centrality(GraphCSRView<vertex_t, edge_t, weight_t> const &graph,
+                                 result_t *result,
+                                 bool normalize,
+                                 weight_t const *weight,
+                                 vertex_t const number_of_sources,
+                                 vertex_t const *sources);
+
+template <typename vertex_t, typename edge_t, typename weight_t, typename result_t>
+void verify_betweenness_centrality_input(result_t *result,
+                                         bool is_edge_betweenness,
+                                         bool normalize,
+                                         bool endpoints,
+                                         weight_t const *weights,
+                                         vertex_t const number_of_sources,
+                                         vertex_t const *sources);
+
+template <typename vertex_t, typename edge_t, typename weight_t, typename result_t>
 class BC {
- private:
-  // --- Information concerning the graph ---
-  const experimental::GraphCSRView<VT, ET, WT> &graph;
-  // --- These information are extracted on setup ---
-  VT number_of_vertices;  // Number of vertices in the graph
-  VT number_of_edges;     // Number of edges in the graph
-  ET const *offsets_ptr;  // Pointer to the offsets
-  VT const *indices_ptr;  // Pointers to the indices
-
-  // --- Information from configuration ---
-  bool configured = false;  // Flag to ensure configuration was called
-  bool normalized = false;  // If True normalize the betweenness
-  // FIXME: For weighted version
-  WT const *edge_weights_ptr = nullptr;  // Pointer to the weights
-  bool endpoints             = false;    // If True normalize the betweenness
-  VT const *sources          = nullptr;  // Subset of vertices to gather information from
-  VT number_of_sources;                  // Number of vertices in sources
-
-  // --- Output ----
-  // betweenness is set/read by users - using Vectors
-  result_t *betweenness = nullptr;
-
-  // --- Data required to perform computation ----
-  rmm::device_vector<VT> distances_vec;
-  rmm::device_vector<VT> predecessors_vec;
-  rmm::device_vector<double> sp_counters_vec;
-  rmm::device_vector<double> deltas_vec;
-
-  VT *distances    = nullptr;  // array<VT>(|V|) stores the distances gathered by the latest SSSP
-  VT *predecessors = nullptr;  // array<WT>(|V|) stores the predecessors of the latest SSSP
-  double *sp_counters =
-    nullptr;                 // array<VT>(|V|) stores the shortest path counter for the latest SSSP
-  double *deltas = nullptr;  // array<result_t>(|V|) stores the dependencies for the latest SSSP
-
-  // FIXME: This should be replaced using RAFT handle
-  int device_id        = 0;
-  int max_grid_dim_1D  = 0;
-  int max_block_dim_1D = 0;
-  cudaStream_t stream;
-
-  // -----------------------------------------------------------------------
-  void setup();  // Saves information related to the graph itself
-
-  void accumulate(result_t *betweenness,
-                  VT *distances,
-                  double *sp_counters,
-                  double *deltas,
-                  VT source,
-                  VT max_depth);
-  void compute_single_source(VT source_vertex);
-  void rescale();
-
  public:
   virtual ~BC(void) {}
-  BC(experimental::GraphCSRView<VT, ET, WT> const &_graph, cudaStream_t _stream = 0)
-    : graph(_graph), stream(_stream)
+  BC(raft::handle_t const &handle,
+     GraphCSRView<vertex_t, edge_t, weight_t> const &graph,
+     cudaStream_t stream = 0)
+    : handle_(handle), graph_(graph)
   {
     setup();
   }
   void configure(result_t *betweenness,
+                 bool is_edge_betweenness,
                  bool normalize,
                  bool endpoints,
-                 WT const *weigth,
-                 VT const *sources,
-                 VT const number_of_sources);
+                 weight_t const *weight,
+                 vertex_t const *sources,
+                 vertex_t const number_of_sources);
+
+  void configure_edge(result_t *betweenness,
+                      bool normalize,
+                      weight_t const *weight,
+                      vertex_t const *sources,
+                      vertex_t const number_of_sources);
   void compute();
+  void rescale_by_total_sources_used(vertex_t total_number_of_sources_used);
+
+ private:
+  // --- RAFT handle ---
+  raft::handle_t const &handle_;
+  // --- Information concerning the graph ---
+  const GraphCSRView<vertex_t, edge_t, weight_t> &graph_;
+  // --- These information are extracted on setup ---
+  vertex_t number_of_vertices_;  // Number of vertices in the graph
+  vertex_t number_of_edges_;     // Number of edges in the graph
+  edge_t const *offsets_ptr_;    // Pointer to the offsets
+  vertex_t const *indices_ptr_;  // Pointers to the indices
+
+  // --- Information from configuration ---
+  bool configured_          = false;  // Flag to ensure configuration was called
+  bool normalized_          = false;  // If True normalize the betweenness
+  bool is_edge_betweenness_ = false;  // If True compute edge_betweeness
+
+  // FIXME: For weighted version
+  weight_t const *edge_weights_ptr_ = nullptr;  // Pointer to the weights
+  bool endpoints_                   = false;    // If True normalize the betweenness
+  vertex_t const *sources_          = nullptr;  // Subset of vertices to gather information from
+  vertex_t number_of_sources_;                  // Number of vertices in sources
+
+  // --- Output ----
+  // betweenness is set/read by users - using Vectors
+  result_t *betweenness_ = nullptr;
+
+  // --- Data required to perform computation ----
+  rmm::device_vector<vertex_t> distances_vec_;
+  rmm::device_vector<vertex_t> predecessors_vec_;
+  rmm::device_vector<double> sp_counters_vec_;
+  rmm::device_vector<double> deltas_vec_;
+
+  vertex_t *distances_ =
+    nullptr;  // array<vertex_t>(|V|) stores the distances gathered by the latest SSSP
+  vertex_t *predecessors_ =
+    nullptr;  // array<weight_t>(|V|) stores the predecessors of the latest SSSP
+  double *sp_counters_ =
+    nullptr;  // array<vertex_t>(|V|) stores the shortest path counter for the latest SSSP
+  double *deltas_ = nullptr;  // array<result_t>(|V|) stores the dependencies for the latest SSSP
+
+  int max_grid_dim_1D_  = 0;
+  int max_block_dim_1D_ = 0;
+
+  void setup();
+
+  void initialize_work_vectors();
+  void initialize_pointers_to_vectors();
+  void initialize_device_information();
+
+  void compute_single_source(vertex_t source_vertex);
+
+  void accumulate(vertex_t source_vertex, vertex_t max_depth);
+  void initialize_dependencies();
+  void accumulate_edges(vertex_t max_depth, dim3 grid_configuration, dim3 block_configuration);
+  void accumulate_vertices_with_endpoints(vertex_t source_vertex,
+                                          vertex_t max_depth,
+                                          dim3 grid_configuration,
+                                          dim3 block_configuration);
+  void accumulate_vertices(vertex_t max_depth, dim3 grid_configuration, dim3 block_configuration);
+  void add_reached_endpoints_to_source_betweenness(vertex_t source_vertex);
+  void add_vertices_dependencies_to_betweenness();
+
+  void rescale();
+  std::tuple<result_t, bool> rescale_vertices_betweenness_centrality(result_t rescale_factor,
+                                                                     bool modified);
+  std::tuple<result_t, bool> rescale_edges_betweenness_centrality(result_t rescale_factor,
+                                                                  bool modified);
+  void apply_rescale_factor_to_betweenness(result_t scaling_factor);
 };
 }  // namespace detail
 }  // namespace cugraph

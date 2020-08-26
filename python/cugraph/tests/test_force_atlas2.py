@@ -1,4 +1,4 @@
-# Copyright (c) 2019, NVIDIA CORPORATION.
+# Copyright (c) 2019-2020, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -16,6 +16,7 @@ import time
 import pytest
 
 import cugraph
+from cugraph.internals import GraphBasedDimRedCallback
 from cugraph.tests import utils
 from sklearn.manifold import trustworthiness
 import scipy.io
@@ -30,11 +31,12 @@ import scipy.io
 def cugraph_call(cu_M, max_iter, pos_list, outbound_attraction_distribution,
                  lin_log_mode, prevent_overlapping, edge_weight_influence,
                  jitter_tolerance, barnes_hut_theta, barnes_hut_optimize,
-                 scaling_ratio, strong_gravity_mode, gravity):
+                 scaling_ratio, strong_gravity_mode, gravity, callback=None):
 
     G = cugraph.Graph()
-    G.from_cudf_edgelist(cu_M, source='0', destination='1', edge_attr='2',
-                         renumber=False)
+    G.from_cudf_edgelist(
+        cu_M, source="0", destination="1", edge_attr="2", renumber=False
+    )
 
     # cugraph Force Atlas 2 Call
     t1 = time.time()
@@ -51,18 +53,38 @@ def cugraph_call(cu_M, max_iter, pos_list, outbound_attraction_distribution,
             barnes_hut_theta=barnes_hut_theta,
             scaling_ratio=scaling_ratio,
             strong_gravity_mode=strong_gravity_mode,
-            gravity=gravity)
+            gravity=gravity,
+            callback=callback)
     t2 = time.time() - t1
-    print('Cugraph Time : ' + str(t2))
+    print("Cugraph Time : " + str(t2))
     return pos
 
 
-DATASETS = [('../datasets/karate.csv', 0.70),
-            ('../datasets/polbooks.csv', 0.75),
-            ('../datasets/dolphins.csv', 0.66),
-            ('../datasets/netscience.csv', 0.66)]
+DATASETS = [
+    ("../datasets/karate.csv", 0.70),
+    ("../datasets/polbooks.csv", 0.75),
+    ("../datasets/dolphins.csv", 0.66),
+    ("../datasets/netscience.csv", 0.66),
+]
 MAX_ITERATIONS = [500]
 BARNES_HUT_OPTIMIZE = [False, True]
+
+
+class TestCallback(GraphBasedDimRedCallback):
+    def __init__(self):
+        super(TestCallback, self).__init__()
+        self.on_preprocess_end_called_count = 0
+        self.on_epoch_end_called_count = 0
+        self.on_train_end_called_count = 0
+
+    def on_preprocess_end(self, positions):
+        self.on_preprocess_end_called_count += 1
+
+    def on_epoch_end(self, positions):
+        self.on_epoch_end_called_count += 1
+
+    def on_train_end(self, positions):
+        self.on_train_end_called_count += 1
 
 
 @pytest.mark.parametrize('graph_file, score', DATASETS)
@@ -71,6 +93,7 @@ BARNES_HUT_OPTIMIZE = [False, True]
 def test_force_atlas2(graph_file, score, max_iter,
                       barnes_hut_optimize):
     cu_M = utils.read_csv_file(graph_file)
+    test_callback = TestCallback()
     cu_pos = cugraph_call(cu_M,
                           max_iter=max_iter,
                           pos_list=None,
@@ -83,8 +106,9 @@ def test_force_atlas2(graph_file, score, max_iter,
                           barnes_hut_theta=0.5,
                           scaling_ratio=2.0,
                           strong_gravity_mode=False,
-                          gravity=1.0)
-    '''
+                          gravity=1.0,
+                          callback=test_callback)
+    """
         Trustworthiness score can be used for Force Atlas 2 as the algorithm
         optimizes modularity. The final layout will result in
         different communities being drawn out. We consider here the n x n
@@ -94,11 +118,17 @@ def test_force_atlas2(graph_file, score, max_iter,
         or neighbors are close to each other in the final embedding.
         Thresholds are based on the best score that is achived after 500
         iterations on a given graph.
-    '''
+    """
 
-    matrix_file = graph_file[:-4] + '.mtx'
+    matrix_file = graph_file[:-4] + ".mtx"
     M = scipy.io.mmread(matrix_file)
     M = M.todense()
-    cu_trust = trustworthiness(M, cu_pos[['x', 'y']].to_pandas())
+    cu_trust = trustworthiness(M, cu_pos[["x", "y"]].to_pandas())
     print(cu_trust, score)
     assert cu_trust > score
+    # verify `on_preprocess_end` was only called once
+    assert test_callback.on_preprocess_end_called_count == 1
+    # verify `on_epoch_end` was called on each iteration
+    assert test_callback.on_epoch_end_called_count == max_iter
+    # verify `on_train_end` was only called once
+    assert test_callback.on_train_end_called_count == 1

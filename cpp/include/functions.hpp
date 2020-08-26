@@ -15,69 +15,12 @@
  */
 #pragma once
 
+#include <raft/handle.hpp>
 #include <rmm/device_buffer.hpp>
 
 #include <graph.hpp>
 
 namespace cugraph {
-
-/**
- * @brief    Convert COO to CSR, unweighted
- *
- * Takes a list of edges in COOrdinate format and generates a CSR format.
- * Note, if you want CSC format simply pass the src and dst arrays
- * in the opposite order.
- *
- * @throws                    cugraph::logic_error when an error occurs.
- *
- * @tparam vertex_t           type of vertex index
- * @tparam edge_t             type of edge index
- *
- * @param[in]  num_edges      Number of edges
- * @param[in]  src            Device array containing original source vertices
- * @param[in]  dst            Device array containing original dest vertices
- * @param[out] offsets        Device array containing the CSR offsets
- * @param[out] indices        Device array containing the CSR indices
- *
- * @return                    Number of unique vertices in the src and dst arrays
- *
- */
-template <typename vertex_t, typename edge_t>
-vertex_t coo2csr(
-  edge_t num_edges, vertex_t const *src, vertex_t const *dst, edge_t **offsets, vertex_t **indices);
-
-/**
- * @brief    Convert COO to CSR, weighted
- *
- * Takes a list of edges in COOrdinate format and generates a CSR format.
- * Note, if you want CSC format simply pass the src and dst arrays
- * in the opposite order.
- *
- * @throws                    cugraph::logic_error when an error occurs.
- *
- * @tparam vertex_t           type of vertex index
- * @tparam edge_t             type of edge index
- * @tparam weight_t           type of the edge weight
- *
- * @param[in]  num_edges      Number of edges
- * @param[in]  src            Device array containing original source vertices
- * @param[in]  dst            Device array containing original dest vertices
- * @param[in]  weights        Device array containing original edge weights
- * @param[out] offsets        Device array containing the CSR offsets
- * @param[out] indices        Device array containing the CSR indices
- * @param[out] csr_weights    Device array containing the CSR edge weights
- *
- * @return                    Number of unique vertices in the src and dst arrays
- *
- */
-template <typename vertex_t, typename edge_t, typename weight_t>
-vertex_t coo2csr_weighted(edge_t num_edges,
-                          vertex_t const *src,
-                          vertex_t const *dst,
-                          weight_t const *weights,
-                          edge_t **offsets,
-                          vertex_t **indices,
-                          weight_t **csr_weights);
 
 /**
  * @brief    Convert COO to CSR
@@ -90,15 +33,15 @@ vertex_t coo2csr_weighted(edge_t num_edges,
  * @tparam ET                 type of edge index
  * @tparam WT                 type of the edge weight
  *
- * @param[in]  graph          cuGRAPH graph in coordinate format
+ * @param[in]  graph          cuGraph graph in coordinate format
  * @param[in]  mr             Memory resource used to allocate the returned graph
  *
  * @return                    Unique pointer to generate Compressed Sparse Row graph
  *
  */
 template <typename VT, typename ET, typename WT>
-std::unique_ptr<experimental::GraphCSR<VT, ET, WT>> coo_to_csr(
-  experimental::GraphCOOView<VT, ET, WT> const &graph,
+std::unique_ptr<GraphCSR<VT, ET, WT>> coo_to_csr(
+  GraphCOOView<VT, ET, WT> const &graph,
   rmm::mr::device_memory_resource *mr = rmm::mr::get_default_resource());
 
 /**
@@ -135,4 +78,24 @@ std::unique_ptr<rmm::device_buffer> renumber_vertices(
   ET *map_size,
   rmm::mr::device_memory_resource *mr = rmm::mr::get_default_resource());
 
+/**
+ * @brief    Broadcast using handle communicator
+ *
+ * Use handle's communicator to operate broadcasting.
+ *
+ * @throws                    cugraph::logic_error when an error occurs.
+ *
+ * @tparam value_t            Type of the data to broadcast
+ *
+ * @param[out] value          Point to the data
+ * @param[in]  count          Number of elements to broadcast
+ *
+ */
+
+// FIXME: It would be better to expose it in RAFT
+template <typename value_t>
+void comms_bcast(const raft::handle_t &handle, value_t *value, size_t count)
+{
+  handle.get_comms().bcast(value, count, 0, handle.get_stream());
+}
 }  // namespace cugraph

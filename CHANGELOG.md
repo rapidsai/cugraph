@@ -1,9 +1,102 @@
+# cuGraph 0.15.0 (26 Aug 2020)
+
+## New Features
+- PR #940 Add MG Batch BC
+- PR #937 Add wrapper for gunrock HITS algorithm
+- PR #939 Updated Notebooks to include new features and benchmarks
+- PR #944 MG pagerank (dask)
+- PR #947 MG pagerank (CUDA)
+- PR #826 Bipartite Graph python API
+- PR #963 Renumbering refactor, add multi GPU support
+- PR #964 MG BFS (CUDA)
+- PR #990 MG Consolidation
+- PR #993 Add persistent Handle for Comms
+- PR #979 Add hypergraph implementation to convert DataFrames into Graphs
+- PR #1010 MG BFS (dask)
+- PR #1018 MG personalized pagerank
+- PR #1047 Updated select tests to use new dataset list that includes asymmetric directed graph
+- PR #1090 Add experimental Leiden function
+- PR #1077 Updated/added copyright notices, added copyright CI check from cuml
+- PR #1100 Add support for new build process (Project Flash)
+- PR #1093 New benchmarking notebook
+
+## Improvements
+- PR #898 Add Edge Betweenness Centrality, and endpoints to BC
+- PR #913 Eliminate `rmm.device_array` usage
+- PR #903 Add short commit hash to conda package
+- PR #920 modify bfs test, update graph number_of_edges, update storage of transposedAdjList in Graph
+- PR #933 Update mg_degree to use raft, add python tests
+- PR #930 rename test_utils.h to utilities/test_utils.hpp and remove thrust dependency
+- PR #934 Update conda dev environment.yml dependencies to 0.15
+- PR #942 Removed references to deprecated RMM headers.
+- PR #941 Regression python/cudf fix
+- PR #945 Simplified benchmark --no-rmm-reinit option, updated default options
+- PR #946 Install meta packages for dependencies
+- PR #952 Updated get_test_data.sh to also (optionally) download and install datasets for benchmark runs
+- PR #953 fix setting RAFT_DIR from the RAFT_PATH env var
+- PR #954 Update cuGraph error handling to use RAFT
+- PR #968 Add build script for CI benchmark integration
+- PR #959 Add support for uint32_t and int64_t types for BFS (cpp side)
+- PR #962 Update dask pagerank
+- PR #975 Upgrade GitHub template
+- PR #976 Fix error in Graph.edges(), update cuDF rename() calls
+- PR #977 Update force_atlas2 to call on_train_end after iterating
+- PR #980 Replace nvgraph Spectral Clustering (SC) functionality with RAFT SC
+- PR #987 Move graph out of experimental namespace
+- PR #984 Removing codecov until we figure out how to interpret failures that block CI
+- PR #985 Add raft handle to BFS, BC and edge BC
+- PR #991 Update conda upload versions for new supported CUDA/Python
+- PR #988 Add clang and clang tools to the conda env
+- PR #997 Update setup.cfg to run pytests under cugraph tests directory only
+- PR #1007 Add tolerance support to MG Pagerank and fix
+- PR #1009 Update benchmarks script to include requirements used
+- PR #1014 Fix benchmarks script variable name
+- PR #1021 Update cuGraph to use RAFT CUDA utilities
+- PR #1019 Remove deprecated CUDA library calls
+- PR #1024 Updated condata environment YML files
+- PR #1026 update chunksize for mnmg, remove files and unused code
+- PR #1028 Update benchmarks script to use ASV_LABEL
+- PR #1030 MG directory org and documentation
+- PR #1020 Updated Louvain to honor max_level, ECG now calls Louvain for 1 level, then full run.
+- PR #1031 MG notebook
+- PR #1034 Expose resolution (gamma) parameter in Louvain
+- PR #1037 Centralize test main function and replace usage of deprecated `cnmem_memory_resource`
+- PR #1041 Use S3 bucket directly for benchmark plugin
+- PR #1056 Fix MG BFS performance
+- PR #1062 Compute max_vertex_id in mnmg local data computation
+- PR #1068 Remove unused thirdparty code
+- PR #1105 Update `master` references to `main`
+
+## Bug Fixes
+- PR #936 Update Force Atlas 2 doc and wrapper
+- PR #938 Quote conda installs to avoid bash interpretation
+- PR #966 Fix build error (debug mode)
+- PR #983 Fix offset calculation in COO to CSR
+- PR #989: Fix issue with incorrect docker image being used in local build script
+- PR #992 Fix unrenumber of predecessor
+- PR #1008 Fix for cudf updates disabling iteration of Series/Columns/Index
+- PR #1012 Fix Local build script README
+- PR #1017 Fix more mg bugs
+- PR #1022 Fix support for using a cudf.DataFrame with a MG graph
+- PR #1025: Explicitly skip raft test folder for pytest 6.0.0
+- PR #1027 Fix documentation
+- PR #1033 Fix reparition error in big datasets, updated coroutine, fixed warnings
+- PR #1036 Fixed benchmarks for new renumbering API, updated comments, added quick test-only benchmark run to CI
+- PR #1040 Fix spectral clustering renumbering issue
+- PR #1057 Updated raft dependency to pull fixes on cusparse selection in CUDA 11
+- PR #1066 Update cugunrock to not build for unsupported CUDA architectures
+- PR #1069 Fixed CUDA 11 Pagerank crash, by replacing CUB's SpMV with raft's.
+- PR #1083 Fix NBs to run in nightly test run, update renumbering text, cleanup
+- PR #1087 Updated benchmarks README to better describe how to get plugin, added rapids-pytest-benchmark plugin to conda dev environments
+- PR #1101 Removed unnecessary device-to-host copy which caused a performance regression
+- PR #1106 Added new release.ipynb to notebook test skip list
+
 # cuGraph 0.14.0 (03 Jun 2020)
 
 ## New Features
 - PR #756 Add Force Atlas 2 layout
 - PR #822 Added new functions in python graph class, similar to networkx
-- PR #840 OPG degree
+- PR #840 MG degree
 - PR #875 UVM notebook
 - PR #881 Raft integration infrastructure
 
@@ -24,7 +117,7 @@
 - PR #807 Updating the Python docs
 - PR #817 Add native Betweenness Centrality with sources subset
 - PR #818 Initial version of new "benchmarks" folder
-- PR #820 OPG infra and all-gather smoke test
+- PR #820 MG infra and all-gather smoke test
 - PR #823 Remove gdf column from nvgraph
 - PR #829 Updated README and CONTRIBUTIOIN docs
 - PR #831 Updated Notebook - Added K-Truss, ECG, and Betweenness Centrality
@@ -41,6 +134,7 @@
 - PR #874 Update setup.py to use custom clean command
 - PR #876 Add BFS C++ tests
 - PR #878 Updated build script
+- PR #887 Updates test to common datasets
 - PR #879 Add docs build script to repository
 - PR #880 Remove remaining gdf_column references
 - PR #882 Add Force Atlas 2 to benchmarks
@@ -49,6 +143,7 @@
 - PR #897 Remove RMM ALLOC calls
 - PR #899 Update include paths to remove deleted cudf headers
 - PR #906 Update Louvain notebook
+- PR #948 Move doc customization scripts to Jenkins
 
 ## Bug Fixes
 - PR #927 Update scikit learn dependency
@@ -65,11 +160,13 @@
 - PR #860 Fix all Notebooks
 - PR #870 Fix Louvain
 - PR #889 Added missing conftest.py file to benchmarks dir
-- PR #896 opg dask infrastructure fixes
+- PR #896 mg dask infrastructure fixes
 - PR #907 Fix bfs directed missing vertices
 - PR #911 Env and changelog update
 - PR #923 Updated pagerank with @afender 's temp fix for double-free crash
 - PR #928 Fix scikit learn test install to work with libgcc-ng 7.3
+- PR 935 Merge
+- PR #956 Use new gpuCI image in local build script
 
 
 # cuGraph 0.13.0 (31 Mar 2020)

@@ -1,15 +1,34 @@
-#include <thrust/device_ptr.h>
-#include <algorithms.hpp>
+/*
+ * Copyright (c) 2019-2020, NVIDIA CORPORATION.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+#include <utilities/high_res_clock.h>
+#include <utilities/base_fixture.hpp>
+#include <utilities/test_utilities.hpp>
+
 #include <converters/COOtoCSR.cuh>
-#include <fstream>
+
+#include <algorithms.hpp>
 #include <graph.hpp>
-#include <rmm/mr/device/cuda_memory_resource.hpp>
-#include "cuda_profiler_api.h"
-#include "gmock/gmock-generated-matchers.h"
-#include "gmock/gmock.h"
-#include "gtest/gtest.h"
-#include "high_res_clock.h"
-#include "test_utils.h"
+
+#include <gmock/gmock-generated-matchers.h>
+#include <gmock/gmock.h>
+
+#include <thrust/device_ptr.h>
+
+#include <fstream>
 
 std::vector<int> getGoldenTopKIds(std::ifstream& fs_result, int k = 10)
 {
@@ -37,13 +56,13 @@ std::vector<int> getTopKIds(double* p_katz, int count, int k = 10)
 }
 
 template <typename VT, typename ET, typename WT>
-int getMaxDegree(cugraph::experimental::GraphCSRView<VT, ET, WT> const& g)
+int getMaxDegree(cugraph::GraphCSRView<VT, ET, WT> const& g)
 {
   cudaStream_t stream{nullptr};
 
   rmm::device_vector<ET> degree_vector(g.number_of_vertices);
   ET* p_degree = degree_vector.data().get();
-  g.degree(p_degree, cugraph::experimental::DegreeDirection::OUT);
+  g.degree(p_degree, cugraph::DegreeDirection::OUT);
   ET max_out_degree = thrust::reduce(rmm::exec_policy(stream)->on(stream),
                                      p_degree,
                                      p_degree + g.number_of_vertices,
@@ -58,7 +77,7 @@ typedef struct Katz_Usecase_t {
   Katz_Usecase_t(const std::string& a, const std::string& b)
   {
     // assume relative paths are relative to RAPIDS_DATASET_ROOT_DIR
-    const std::string& rapidsDatasetRootDir = get_rapids_dataset_root_dir();
+    const std::string& rapidsDatasetRootDir = cugraph::test::get_rapids_dataset_root_dir();
     if ((a != "") && (a[0] != '/')) {
       matrix_file = rapidsDatasetRootDir + "/" + a;
     } else {
@@ -97,7 +116,7 @@ class Tests_Katz : public ::testing::TestWithParam<Katz_Usecase> {
     int m, k;
     int nnz;
     MM_typecode mc;
-    ASSERT_EQ(mm_properties<int>(fpin, 1, &mc, &m, &k, &nnz), 0)
+    ASSERT_EQ(cugraph::test::mm_properties<int>(fpin, 1, &mc, &m, &k, &nnz), 0)
       << "could not read Matrix Market file properties"
       << "\n";
     ASSERT_TRUE(mm_is_matrix(mc));
@@ -111,16 +130,16 @@ class Tests_Katz : public ::testing::TestWithParam<Katz_Usecase> {
     std::vector<double> katz_centrality(m);
 
     // Read
-    ASSERT_EQ((mm_to_coo<int, int>(fpin, 1, nnz, &cooRowInd[0], &cooColInd[0], &cooVal[0], NULL)),
+    ASSERT_EQ((cugraph::test::mm_to_coo<int, int>(
+                fpin, 1, nnz, &cooRowInd[0], &cooColInd[0], &cooVal[0], NULL)),
               0)
       << "could not read matrix data"
       << "\n";
     ASSERT_EQ(fclose(fpin), 0);
 
-    cugraph::experimental::GraphCOOView<int, int, float> cooview(
-      &cooColInd[0], &cooRowInd[0], nullptr, m, nnz);
-    auto csr                                               = cugraph::coo_to_csr(cooview);
-    cugraph::experimental::GraphCSRView<int, int, float> G = csr->view();
+    cugraph::GraphCOOView<int, int, float> cooview(&cooColInd[0], &cooRowInd[0], nullptr, m, nnz);
+    auto csr                                 = cugraph::coo_to_csr(cooview);
+    cugraph::GraphCSRView<int, int, float> G = csr->view();
 
     rmm::device_vector<double> katz_vector(m);
     double* d_katz = thrust::raw_pointer_cast(katz_vector.data());
@@ -137,7 +156,6 @@ class Tests_Katz : public ::testing::TestWithParam<Katz_Usecase> {
   }
 };
 
-// --gtest_filter=*simple_test*
 INSTANTIATE_TEST_CASE_P(
   simple_test,
   Tests_Katz,
@@ -148,11 +166,4 @@ INSTANTIATE_TEST_CASE_P(
 
 TEST_P(Tests_Katz, Check) { run_current_test(GetParam()); }
 
-int main(int argc, char** argv)
-{
-  testing::InitGoogleTest(&argc, argv);
-  auto resource = std::make_unique<rmm::mr::cuda_memory_resource>();
-  rmm::mr::set_default_resource(resource.get());
-  int rc = RUN_ALL_TESTS();
-  return rc;
-}
+CUGRAPH_TEST_PROGRAM_MAIN()

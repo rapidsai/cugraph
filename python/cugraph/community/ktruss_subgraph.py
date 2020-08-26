@@ -1,4 +1,4 @@
-# Copyright (c) 2019 - 2020, NVIDIA CORPORATION.
+# Copyright (c) 2019-2020, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -12,7 +12,6 @@
 # limitations under the License.
 
 from cugraph.community import ktruss_subgraph_wrapper
-from cugraph.utilities.unrenumber import unrenumber
 from cugraph.structure.graph import Graph
 
 
@@ -83,17 +82,16 @@ def ktruss_subgraph(G, k, use_weights=True):
 
     subgraph_df = ktruss_subgraph_wrapper.ktruss_subgraph(G, k, use_weights)
     if G.renumbered:
-        subgraph_df = unrenumber(G.edgelist.renumber_map, subgraph_df, 'src')
-        subgraph_df = unrenumber(G.edgelist.renumber_map, subgraph_df, 'dst')
+        subgraph_df = G.unrenumber(subgraph_df, "src")
+        subgraph_df = G.unrenumber(subgraph_df, "dst")
 
     if G.edgelist.weights:
-        KTrussSubgraph.from_cudf_edgelist(subgraph_df,
-                                          source='src',
-                                          destination='dst',
-                                          edge_attr='weight')
+        KTrussSubgraph.from_cudf_edgelist(
+            subgraph_df, source="src", destination="dst", edge_attr="weight"
+        )
     else:
-        KTrussSubgraph.from_cudf_edgelist(subgraph_df,
-                                          source='src',
-                                          destination='dst')
+        KTrussSubgraph.from_cudf_edgelist(
+            subgraph_df, source="src", destination="dst"
+        )
 
     return KTrussSubgraph

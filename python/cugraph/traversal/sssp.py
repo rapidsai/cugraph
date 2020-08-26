@@ -1,4 +1,4 @@
-# Copyright (c) 2019 - 2020, NVIDIA CORPORATION.
+# Copyright (c) 2019-2020, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -13,6 +13,7 @@
 
 from cugraph.traversal import sssp_wrapper
 import numpy as np
+import cudf
 
 
 def sssp(G, source):
@@ -52,7 +53,15 @@ def sssp(G, source):
     >>> distances = cugraph.sssp(G, 0)
     """
 
+    if G.renumbered is True:
+        source = G.lookup_internal_vertex_id(cudf.Series([source]))[0]
+
     df = sssp_wrapper.sssp(G, source)
+
+    if G.renumbered:
+        df = G.unrenumber(df, "vertex")
+        df = G.unrenumber(df, "predecessor")
+        df["predecessor"].fillna(-1, inplace=True)
 
     return df
 
@@ -75,13 +84,13 @@ def filter_unreachable(df):
         df['predecessor'][i] gives the vertex that was reached before the i'th
         vertex in the traversal.
     """
-    if('distance' not in df):
+    if "distance" not in df:
         raise KeyError("No distance column found in input data frame")
-    if(np.issubdtype(df['distance'].dtype, np.integer)):
-        max_val = np.iinfo(df['distance'].dtype).max
+    if np.issubdtype(df["distance"].dtype, np.integer):
+        max_val = np.iinfo(df["distance"].dtype).max
         return df[df.distance != max_val]
-    elif(np.issubdtype(df['distance'].dtype, np.inexact)):
-        max_val = np.finfo(df['distance'].dtype).max
+    elif np.issubdtype(df["distance"].dtype, np.inexact):
+        max_val = np.finfo(df["distance"].dtype).max
         return df[df.distance != max_val]
     else:
-        raise TypeError("distace type unsupported")
+        raise TypeError("distance type unsupported")

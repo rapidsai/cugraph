@@ -1,4 +1,4 @@
-# Copyright (c) 2019, NVIDIA CORPORATION.
+# Copyright (c) 2019-2020, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -26,11 +26,12 @@ import numpy as np
 # python 3.7.  Also, this import networkx needs to be relocated in the
 # third-party group once this gets fixed.
 import warnings
+
 with warnings.catch_warnings():
     warnings.filterwarnings("ignore", category=DeprecationWarning)
     import networkx as nx
 
-print('Networkx version : {} '.format(nx.__version__))
+print("Networkx version : {} ".format(nx.__version__))
 
 
 # These ground truth files have been created by running the networkx ktruss
@@ -40,7 +41,7 @@ print('Networkx version : {} '.format(nx.__version__))
 # currently in networkx master and will hopefully will make it to a release
 # soon.
 def ktruss_ground_truth(graph_file):
-    G = nx.read_edgelist(graph_file, nodetype=int, data=(('weights', float),))
+    G = nx.read_edgelist(graph_file, nodetype=int, data=(("weights", float),))
     df = nx.to_pandas_edgelist(G)
     return df
 
@@ -48,7 +49,7 @@ def ktruss_ground_truth(graph_file):
 def cugraph_k_truss_subgraph(graph_file, k):
     cu_M = utils.read_csv_file(graph_file)
     G = cugraph.Graph()
-    G.from_cudf_edgelist(cu_M, source='0', destination='1', edge_attr='2')
+    G.from_cudf_edgelist(cu_M, source="0", destination="1", edge_attr="2")
     k_subgraph = cugraph.ktruss_subgraph(G, k)
     return k_subgraph
 
@@ -58,28 +59,26 @@ def compare_k_truss(graph_file, k, ground_truth_file):
     k_truss_nx = ktruss_ground_truth(ground_truth_file)
 
     edgelist_df = k_truss_cugraph.view_edge_list()
-    src = edgelist_df['src']
-    dst = edgelist_df['dst']
-    wgt = edgelist_df['weights']
+    src = edgelist_df["src"]
+    dst = edgelist_df["dst"]
+    wgt = edgelist_df["weights"]
     assert len(edgelist_df) == len(k_truss_nx)
     for i in range(len(src)):
-        has_edge = ((k_truss_nx['source'] == src[i]) &
-                    (k_truss_nx['target'] == dst[i]) &
-                    np.isclose(k_truss_nx['weights'], wgt[i])).any()
-        has_opp_edge = ((k_truss_nx['source'] == dst[i]) &
-                        (k_truss_nx['target'] == src[i]) &
-                        np.isclose(k_truss_nx['weights'], wgt[i])).any()
-        assert(has_edge or has_opp_edge)
+        has_edge = (
+            (k_truss_nx["source"] == src[i])
+            & (k_truss_nx["target"] == dst[i])
+            & np.isclose(k_truss_nx["weights"], wgt[i])
+        ).any()
+        has_opp_edge = (
+            (k_truss_nx["source"] == dst[i])
+            & (k_truss_nx["target"] == src[i])
+            & np.isclose(k_truss_nx["weights"], wgt[i])
+        ).any()
+        assert has_edge or has_opp_edge
     return True
 
 
-DATASETS = [('../datasets/polbooks.csv',
-             '../datasets/ref/ktruss/polbooks.csv'),
-            ('../datasets/netscience.csv',
-             '../datasets/ref/ktruss/netscience.csv')]
-
-
-@pytest.mark.parametrize('graph_file, nx_ground_truth', DATASETS)
+@pytest.mark.parametrize("graph_file, nx_ground_truth", utils.DATASETS_KTRUSS)
 def test_ktruss_subgraph_Graph(graph_file, nx_ground_truth):
     gc.collect()
 

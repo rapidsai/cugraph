@@ -1,4 +1,4 @@
-# Copyright (c) 2019 - 2020, NVIDIA CORPORATION.
+# Copyright (c) 2019-2020, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -15,25 +15,35 @@ from cugraph.community import louvain_wrapper
 from cugraph.structure.graph import Graph
 
 
-def louvain(input_graph, max_iter=100):
+def louvain(input_graph, max_iter=100, resolution=1.):
     """
     Compute the modularity optimizing partition of the input graph using the
-    Louvain heuristic
+    Louvain method
+
+    It uses the Louvain method described in:
+
+    VD Blondel, J-L Guillaume, R Lambiotte and E Lefebvre: Fast unfolding of
+    community hierarchies in large networks, J Stat Mech P10008 (2008),
+    http://arxiv.org/abs/0803.0476
 
     Parameters
     ----------
     input_graph : cugraph.Graph
         cuGraph graph descriptor of type Graph
 
-        The adjacency list will be computed if not already present. The graph
-        should be undirected where an undirected edge is represented by a
-        directed edge in both direction.
+        The adjacency list will be computed if not already present.
 
     max_iter : integer
         This controls the maximum number of levels/iterations of the Louvain
         algorithm. When specified the algorithm will terminate after no more
         than the specified number of iterations. No error occurs when the
         algorithm terminates early in this manner.
+
+    resolution: float/double, optional
+        Called gamma in the modularity formula, this changes the size
+        of the communities.  Higher resolutions lead to more smaller
+        communities, lower resolutions lead to fewer larger communities.
+        Defaults to 1.
 
     Returns
     -------
@@ -64,7 +74,11 @@ def louvain(input_graph, max_iter=100):
     if type(input_graph) is not Graph:
         raise Exception("input graph must be undirected")
 
-    parts, modularity_score = louvain_wrapper.louvain(input_graph,
-                                                      max_iter=max_iter)
+    parts, modularity_score = louvain_wrapper.louvain(
+        input_graph, max_iter, resolution
+    )
+
+    if input_graph.renumbered:
+        parts = input_graph.unrenumber(parts, "vertex")
 
     return parts, modularity_score

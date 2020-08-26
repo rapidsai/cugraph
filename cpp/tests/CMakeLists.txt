@@ -1,6 +1,6 @@
 ﻿#=============================================================================
 #
-# Copyright (c) 2019, NVIDIA CORPORATION.
+# Copyright (c) 2019-2020, NVIDIA CORPORATION.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -29,26 +29,24 @@ function(ConfigureTest CMAKE_TEST_NAME CMAKE_TEST_SRC CMAKE_EXTRA_LIBS)
 
     target_include_directories(${CMAKE_TEST_NAME}
         PRIVATE
+        "${CUB_INCLUDE_DIR}"
+        "${THRUST_INCLUDE_DIR}"
         "${CMAKE_CUDA_TOOLKIT_INCLUDE_DIRECTORIES}"
         "${GTEST_INCLUDE_DIR}"
         "${RMM_INCLUDE}"
         "${CUDF_INCLUDE}"
         "${CUDF_INCLUDE}/libcudf/libcudacxx"
-        "${CUB_INCLUDE_DIR}"
+        "${NCCL_INCLUDE_DIRS}"
         "${CMAKE_SOURCE_DIR}/../thirdparty/mmio"
         "${CMAKE_SOURCE_DIR}/include"
         "${CMAKE_SOURCE_DIR}/src"
         "${CMAKE_CURRENT_SOURCE_DIR}"
+        "${RAFT_DIR}/cpp/include"
     )
 
     target_link_libraries(${CMAKE_TEST_NAME}
         PRIVATE
-        gtest gmock_main gmock cugraph ${CUDF_LIBRARY} ${RMM_LIBRARY} ${CMAKE_EXTRA_LIBS} cudart cuda)
-    if (BUILD_MPI)
-        include_directories(include ${MPI_CXX_INCLUDE_PATH} ${NCCL_INCLUDE_DIRS})
-        target_link_libraries(${CMAKE_TEST_NAME} PRIVATE ${MPI_C_LIBRARIES} ${NCCL_LIBRARIES} )
-        target_compile_options(${CMAKE_TEST_NAME} PUBLIC ${MPI_C_COMPILE_FLAGS})
-    endif(BUILD_MPI)
+        gtest gmock_main gmock cugraph ${CUDF_LIBRARY} ${RMM_LIBRARY} ${CMAKE_EXTRA_LIBS}  ${NCCL_LIBRARIES} cudart cuda cublas cusparse cusolver curand)
 
     if(OpenMP_CXX_FOUND)
         target_link_libraries(${CMAKE_TEST_NAME} PRIVATE
@@ -138,12 +136,18 @@ set(BETWEENNESS_TEST_SRC
 
   ConfigureTest(BETWEENNESS_TEST "${BETWEENNESS_TEST_SRC}" "")
 
+set(EDGE_BETWEENNESS_TEST_SRC
+    "${CMAKE_SOURCE_DIR}/../thirdparty/mmio/mmio.c"
+    "${CMAKE_CURRENT_SOURCE_DIR}/centrality/edge_betweenness_centrality_test.cu")
+
+  ConfigureTest(EDGE_BETWEENNESS_TEST "${EDGE_BETWEENNESS_TEST_SRC}" "")
+
 ###################################################################################################
 # - pagerank tests --------------------------------------------------------------------------------
 
 set(PAGERANK_TEST_SRC
     "${CMAKE_SOURCE_DIR}/../thirdparty/mmio/mmio.c"
-    "${CMAKE_CURRENT_SOURCE_DIR}/pagerank/pagerank_test.cu")
+    "${CMAKE_CURRENT_SOURCE_DIR}/pagerank/pagerank_test.cpp")
 
 ConfigureTest(PAGERANK_TEST "${PAGERANK_TEST_SRC}" "")
 
@@ -171,6 +175,15 @@ set(LOUVAIN_TEST_SRC
     "${CMAKE_CURRENT_SOURCE_DIR}/community/louvain_test.cpp")
 
 ConfigureTest(LOUVAIN_TEST "${LOUVAIN_TEST_SRC}" "")
+
+###################################################################################################
+# - LEIDEN tests ---------------------------------------------------------------------------------
+
+set(LEIDEN_TEST_SRC
+    "${CMAKE_SOURCE_DIR}/../thirdparty/mmio/mmio.c"
+    "${CMAKE_CURRENT_SOURCE_DIR}/community/leiden_test.cpp")
+
+ConfigureTest(LEIDEN_TEST "${LEIDEN_TEST_SRC}" "")
 
 ###################################################################################################
 # - ECG tests ---------------------------------------------------------------------------------
@@ -203,7 +216,7 @@ set(RENUMBERING_TEST_SRC
     "${CMAKE_SOURCE_DIR}/../thirdparty/mmio/mmio.c"
     "${CMAKE_CURRENT_SOURCE_DIR}/renumber/renumber_test.cu")
 
-ConfigureTest(RENUMBERING_TEST "${RENUMBERING_TEST_SRC}" "${NVSTRINGS_LIBRARY}")
+ConfigureTest(RENUMBERING_TEST "${RENUMBERING_TEST_SRC}" "")
 
 ###################################################################################################
 #-FORCE ATLAS 2  tests ------------------------------------------------------------------------------
@@ -221,7 +234,7 @@ set(CONNECT_TEST_SRC
     "${CMAKE_SOURCE_DIR}/../thirdparty/mmio/mmio.c"
     "${CMAKE_CURRENT_SOURCE_DIR}/components/con_comp_test.cu")
 
-  ConfigureTest(CONNECT_TEST "${CONNECT_TEST_SRC}" "")
+ConfigureTest(CONNECT_TEST "${CONNECT_TEST_SRC}" "")
 
 ###################################################################################################
 #-STRONGLY CONNECTED COMPONENTS  tests ---------------------------------------------------------------------

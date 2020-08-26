@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019, NVIDIA CORPORATION.
+ * Copyright (c) 2019-2020, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,8 +16,8 @@
 
 // Author: Prasun Gera pgera@nvidia.com
 
-#include <utilities/error_utils.h>
 #include <algorithm>
+#include <utilities/error.hpp>
 
 #include "graph.hpp"
 
@@ -211,10 +211,8 @@ void SSSP<IndexType, DistType>::traverse(IndexType source_vertex)
     cudaMemcpyAsync(
       distances, next_distances, n * sizeof(DistType), cudaMemcpyDeviceToDevice, stream);
 
-    CUDA_CHECK_LAST();
-
     // We need nf for the loop
-    cudaStreamSynchronize(stream);
+    CUDA_TRY(cudaStreamSynchronize(stream));
 
     // Swap frontiers
     // IndexType *tmp = frontier;
@@ -244,7 +242,7 @@ void SSSP<IndexType, DistType>::clean()
  * @file sssp.cu
  * --------------------------------------------------------------------------*/
 template <typename VT, typename ET, typename WT>
-void sssp(experimental::GraphCSRView<VT, ET, WT> const &graph,
+void sssp(GraphCSRView<VT, ET, WT> const &graph,
           WT *distances,
           VT *predecessors,
           const VT source_vertex)
@@ -283,7 +281,7 @@ void sssp(experimental::GraphCSRView<VT, ET, WT> const &graph,
   } else {
     // SSSP is not defined for graphs with negative weight cycles
     // Warn user about any negative edges
-    if (graph.prop.has_negative_edges == experimental::PropType::PROP_TRUE)
+    if (graph.prop.has_negative_edges == PropType::PROP_TRUE)
       std::cerr << "WARN: The graph has negative weight edges. SSSP will not "
                    "converge if the graph has negative weight cycles\n";
     edge_weights_ptr = graph.edge_data;
@@ -295,11 +293,11 @@ void sssp(experimental::GraphCSRView<VT, ET, WT> const &graph,
 }
 
 // explicit instantiation
-template void sssp<int, int, float>(experimental::GraphCSRView<int, int, float> const &graph,
+template void sssp<int, int, float>(GraphCSRView<int, int, float> const &graph,
                                     float *distances,
                                     int *predecessors,
                                     const int source_vertex);
-template void sssp<int, int, double>(experimental::GraphCSRView<int, int, double> const &graph,
+template void sssp<int, int, double>(GraphCSRView<int, int, double> const &graph,
                                      double *distances,
                                      int *predecessors,
                                      const int source_vertex);
