@@ -7,7 +7,7 @@
 
 ## Bug Fixes
 
-# cuGraph 0.15.0 (Date TBD)
+# cuGraph 0.15.0 (26 Aug 2020)
 
 ## New Features
 - PR #940 Add MG Batch BC
@@ -74,6 +74,7 @@
 - PR #1056 Fix MG BFS performance
 - PR #1062 Compute max_vertex_id in mnmg local data computation
 - PR #1068 Remove unused thirdparty code
+- PR #1105 Update `master` references to `main`
 
 ## Bug Fixes
 - PR #936 Update Force Atlas 2 doc and wrapper
@@ -175,6 +176,7 @@
 - PR #928 Fix scikit learn test install to work with libgcc-ng 7.3
 - PR 935 Merge
 - PR #956 Use new gpuCI image in local build script
+
 
 # cuGraph 0.13.0 (31 Mar 2020)
 
