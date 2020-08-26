@@ -1,4 +1,4 @@
-# cuGraph 0.15.0 (Date TBD)
+# cuGraph 0.15.0 (26 Aug 2020)
 
 ## New Features
 - PR #940 Add MG Batch BC
