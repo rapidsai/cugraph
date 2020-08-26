@@ -102,7 +102,7 @@ std::unique_ptr<GraphCOO<VT, ET, WT>> extract_subgraph(
   int const *core_num,
   int k,
   int len,
-  rmm::mr::device_memory_resource *mr = rmm::mr::get_default_resource())
+  rmm::mr::device_memory_resource *mr = rmm::mr::get_current_device_resource())
 
 {
   cudaStream_t stream{nullptr};

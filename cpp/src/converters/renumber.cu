@@ -26,7 +26,7 @@ std::unique_ptr<rmm::device_buffer> renumber_vertices(
   VT_OUT *src_renumbered,
   VT_OUT *dst_renumbered,
   ET *map_size,
-  rmm::mr::device_memory_resource *mr = rmm::mr::get_default_resource())
+  rmm::mr::device_memory_resource *mr = rmm::mr::get_current_device_resource())
 
 {
   //
