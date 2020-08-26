@@ -177,6 +177,7 @@
 - PR 935 Merge
 - PR #956 Use new gpuCI image in local build script
 
+
 # cuGraph 0.13.0 (31 Mar 2020)
 
 ## New Features
