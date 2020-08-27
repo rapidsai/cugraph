@@ -29,11 +29,12 @@ namespace cugraph {
 namespace experimental {
 namespace detail {
 
-// compute the numbers of nonzeros in rows (of the graph adjacency matrix, if store_transposed = false) or columns (of the graph adjacency matrix, if store_transposed = true)
+// compute the numbers of nonzeros in rows (of the graph adjacency matrix, if store_transposed =
+// false) or columns (of the graph adjacency matrix, if store_transposed = true)
 template <typename vertex_t, typename edge_t>
 rmm::device_uvector<edge_t> compute_major_degree(
   raft::handle_t const &handle,
-  std::vector<rmm::device_uvector<edge_t>> const &adj_matrix_partition_offsets,
+  std::vector<edge_t const *> const &adj_matrix_partition_offsets,
   partition_t<vertex_t> const &partition)
 {
   auto &comm_p_row     = handle.get_subcomm(comm_p_row_key);
@@ -51,9 +52,9 @@ rmm::device_uvector<edge_t> compute_major_degree(
     auto vertex_partition_id = partition.hypergraph_partitioned
                                  ? comm_p_row_size * i + comm_p_row_rank
                                  : comm_p_col_size * comm_p_row_rank + i;
-    auto major_first        = partition.vertex_partition_offsets[vertex_partition_id];
-    auto major_last         = partition.vertex_partition_offsets[vertex_partition_id + 1];
-    max_num_local_degrees = std::max(max_num_local_degrees, major_last - major_first);
+    auto major_first         = partition.vertex_partition_offsets[vertex_partition_id];
+    auto major_last          = partition.vertex_partition_offsets[vertex_partition_id + 1];
+    max_num_local_degrees    = std::max(max_num_local_degrees, major_last - major_first);
     if (i == comm_p_col_rank) { degrees.resize(major_last - major_first, handle.get_stream()); }
   }
   local_degrees.resize(max_num_local_degrees, handle.get_stream());
@@ -61,12 +62,12 @@ rmm::device_uvector<edge_t> compute_major_degree(
     auto vertex_partition_id = partition.hypergraph_partitioned
                                  ? comm_p_row_size * i + comm_p_row_rank
                                  : comm_p_col_size * comm_p_row_rank + i;
-    auto major_first = partition.vertex_partition_offsets[vertex_partition_id];
-    auto major_last  = partition.vertex_partition_offsets[vertex_partition_id + 1];
+    auto major_first         = partition.vertex_partition_offsets[vertex_partition_id];
+    auto major_last          = partition.vertex_partition_offsets[vertex_partition_id + 1];
     auto p_offsets =
       partition.hypergraph_partitioned
-        ? adj_matrix_partition_offsets[i].data()
-        : adj_matrix_partition_offsets[0].data() +
+        ? adj_matrix_partition_offsets[i]
+        : adj_matrix_partition_offsets[0] +
             (major_first - partition.vertex_partition_offsets[comm_p_col_size * comm_p_row_rank]);
     thrust::transform(rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
                       thrust::make_counting_iterator(vertex_t{0}),
@@ -82,6 +83,22 @@ rmm::device_uvector<edge_t> compute_major_degree(
   }
 
   return degrees;
+}
+
+// compute the numbers of nonzeros in rows (of the graph adjacency matrix, if store_transposed =
+// false) or columns (of the graph adjacency matrix, if store_transposed = true)
+template <typename vertex_t, typename edge_t>
+rmm::device_uvector<edge_t> compute_major_degree(
+  raft::handle_t const &handle,
+  std::vector<rmm::device_uvector<edge_t>> const &adj_matrix_partition_offsets,
+  partition_t<vertex_t> const &partition)
+{
+  // we can avoid creating this temporary with "if constexpr" supported from C++17
+  std::vector<edge_t const *> tmp_offsets(adj_matrix_partition_offsets.size(), nullptr);
+  for (size_t i = 0; i < adj_matrix_partition_offsets.size(); ++i) {
+    tmp_offsets[i] = adj_matrix_partition_offsets[i].data();
+  }
+  return compute_major_degree(handle, tmp_offsets, partition);
 }
 
 }  // namespace detail
