@@ -100,6 +100,8 @@
 - PR #1087 Updated benchmarks README to better describe how to get plugin, added rapids-pytest-benchmark plugin to conda dev environments
 - PR #1101 Removed unnecessary device-to-host copy which caused a performance regression
 - PR #1106 Added new release.ipynb to notebook test skip list
+- PR #1125 Patch Thrust to workaround `CUDA_CUB_RET_IF_FAIL` macro clearing CUDA errors
+
 
 # cuGraph 0.14.0 (03 Jun 2020)
 
