@@ -1,5 +1,8 @@
-# References
+References
 ===============
+
+Algorithms
+**************
 
 Betweenness Centrality
 -------------------------
@@ -21,7 +24,8 @@ Katz
 
 
 Data Sets
-===============
+**************
+
 karate
   - W. W. Zachary, *Aninformation flow model for conflict and fission in small groups*, Journal of Anthropological Research 33, 452-473 (1977).
 dolphins

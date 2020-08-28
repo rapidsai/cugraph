@@ -7,7 +7,7 @@ Welcome to cugraph's documentation!
 
    api.rst
    dask-cugraph.rst
-   cugraph_intro.md
+   cugraph_intro.rst
    cugraph_blogs.rst
    cugraph_ref.rst
 
