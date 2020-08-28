@@ -142,7 +142,17 @@ def test_weak_cc(graph_file):
 
     # Compare vertices of largest component
     nx_vertices = sorted(lst_nx_components[0])
-    cg_vertices = sorted(lst_cg_components[0])
+    first_vert = nx_vertices[0]
+
+    idx = -1
+    for i in range(len(lst_cg_components)):
+        if first_vert in lst_cg_components[i]:
+            idx = i
+
+    assert idx != -1
+
+    cg_vertices = sorted(lst_cg_components[idx])
+
     assert nx_vertices == cg_vertices
 
 
@@ -167,7 +177,7 @@ def test_strong_cc(graph_file):
     nx_n_components = len(netx_labels)
     cg_n_components = len(cugraph_labels)
 
-    # Comapre number of components
+    # Comapre number of components found
     assert nx_n_components == cg_n_components
 
     lst_nx_components = sorted(netx_labels, key=len, reverse=True)
@@ -180,7 +190,15 @@ def test_strong_cc(graph_file):
     # Compare lengths of each component
     assert lst_nx_components_lens == lst_cg_components_lens
 
-    # Compare vertices of largest component
+    # Compare vertices of largest component - note that there might be more than one largest component
     nx_vertices = sorted(lst_nx_components[0])
-    cg_vertices = sorted(lst_cg_components[0])
+    first_vert = nx_vertices[0]
+
+    idx = -1
+    for i in range(len(lst_cg_components)):
+        if first_vert in lst_cg_components[i]:
+            idx = i
+
+    assert idx != -1
+    cg_vertices = sorted(lst_cg_components[idx])
     assert nx_vertices == cg_vertices

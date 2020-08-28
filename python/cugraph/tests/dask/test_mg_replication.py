@@ -19,7 +19,7 @@ import cugraph.dask.structure.replication as replication
 import cugraph.tests.utils as utils
 import pytest
 
-DATASETS_OPTIONS = utils.DATASETS_1
+DATASETS_OPTIONS = utils.DATASETS
 DIRECTED_GRAPH_OPTIONS = [False, True]
 MG_DEVICE_COUNT_OPTIONS = [1, 2, 3, 4]
 

@@ -24,7 +24,7 @@ from cugraph.tests.test_edge_betweenness_centrality import (
 # =============================================================================
 # Parameters
 # =============================================================================
-DATASETS = utils.DATASETS_1
+DATASETS = utils.DATASETS
 MG_DEVICE_COUNT_OPTIONS = [1, 2, 3, 4]
 RESULT_DTYPE_OPTIONS = [np.float64]
 

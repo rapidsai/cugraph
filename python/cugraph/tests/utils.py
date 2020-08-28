@@ -22,21 +22,23 @@ from cugraph.dask.common.mg_utils import (get_client)
 #
 # Datasets are numbered based on the number of elements in the array
 #
-DATASETS_1 = ['../datasets/netscience.csv']
+# DATASETS_1 = ['../datasets/netscience.csv']
 
-DATASETS_2 = ['../datasets/karate.csv',
-              '../datasets/dolphins.csv']
+DATASETS_UNDIRECTED = ['../datasets/karate.csv',  '../datasets/dolphins.csv']
 
-DATASETS_3 = ['../datasets/karate.csv',
+DATASETS = ['../datasets/karate.csv',
+              '../datasets/karate-disjoint.csv',
               '../datasets/dolphins.csv',
+              '../datasets/netscience.csv',
               '../datasets/email-Eu-core.csv']
 
 # FIXME: netscience.csv causes NetworkX pagerank to throw an exception.
 # (networkx/algorithms/link_analysis/pagerank_alg.py:152: KeyError: 1532)
-DATASETS_4 = ['../datasets/karate.csv',
-              '../datasets/dolphins.csv',
-              '../datasets/netscience.csv',
-              '../datasets/email-Eu-core.csv']
+# DATASETS_4 = ['../datasets/karate.csv',
+#              '../datasets/karate-disjoint.csv',
+#              '../datasets/dolphins.csv',
+#              '../datasets/netscience.csv',
+#              '../datasets/email-Eu-core.csv']
 
 DATASETS_5 = ['../datasets/karate.csv',
               '../datasets/dolphins.csv',
@@ -57,15 +59,11 @@ TINY_DATASETS = ['../datasets/karate.csv',
                  '../datasets/dolphins.csv',
                  '../datasets/polbooks.csv']
 
-SMALL_DATASETS = ['../datasets/netscience.csv',
-                  '../datasets/email-Eu-core.csv']
+# SMALL_DATASETS = ['../datasets/netscience.csv', '../datasets/email-Eu-core.csv']
 
-UNRENUMBERED_DATASETS = ['../datasets/karate.csv']
+UNRENUMBERED_DATASETS = ['../datasets/karate-disjoint.csv']
 
 
-# define the base for tests to use
-DATASETS = DATASETS_3
-DATASETS_UNDIRECTED = DATASETS_2
 
 
 def read_csv_for_nx(csv_file, read_weights_in_sp=True):
