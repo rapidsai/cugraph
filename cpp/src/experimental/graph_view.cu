@@ -23,6 +23,8 @@
 #include <raft/handle.hpp>
 
 #include <thrust/count.h>
+#include <thrust/iterator/counting_iterator.h>
+#include <thrust/iterator/transform_iterator.h>
 #include <thrust/sort.h>
 
 #include <algorithm>
@@ -123,6 +125,7 @@ graph_view_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu, std::enabl
     auto comm_p_row_rank = this->get_handle_ptr()->get_subcomm(comm_p_row_key).get_rank();
     auto comm_p_col_rank = this->get_handle_ptr()->get_subcomm(comm_p_col_key).get_rank();
 
+    edge_t number_of_local_edges_sum{};
     for (size_t i = 0; i < adj_matrix_partition_offsets.size(); ++i) {
       auto major_first =
         partition.hypergraph_partitioned
@@ -144,6 +147,7 @@ graph_view_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu, std::enabl
                         adj_matrix_partition_offsets[i] + (major_last - major_first),
                         1,
                         default_stream);
+      number_of_local_edges_sum += number_of_local_edges;
 
       // better use thrust::any_of once https://github.com/thrust/thrust/issues/1016 is resolved
       CUGRAPH_EXPECTS(
@@ -152,17 +156,15 @@ graph_view_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu, std::enabl
                          adj_matrix_partition_indices[i] + number_of_local_edges,
                          out_of_range_t<vertex_t>{minor_first, minor_last}) == 0,
         "Invalid API parameter: adj_matrix_partition_indices[] have out-of-range vertex IDs.");
-
-      edge_t number_of_local_edges_sum{};
-      this->get_handle_ptr()->get_comms().allreduce(&number_of_local_edges,
-                                                    &number_of_local_edges_sum,
-                                                    1,
-                                                    raft::comms::op_t::SUM,
-                                                    default_stream);
-      CUGRAPH_EXPECTS(number_of_local_edges_sum == number_of_edges,
-                      "Invalid API parameter: the sum of local edges doe counts not match with "
-                      "number_of_local_edges.");
     }
+    this->get_handle_ptr()->get_comms().allreduce(&number_of_local_edges_sum,
+                                                  &number_of_local_edges_sum,
+                                                  1,
+                                                  raft::comms::op_t::SUM,
+                                                  default_stream);
+    CUGRAPH_EXPECTS(number_of_local_edges_sum == this->get_number_of_edges(),
+                    "Invalid API parameter: the sum of local edges doe counts not match with "
+                    "number_of_local_edges.");
 
     if (sorted_by_global_degree_within_vertex_partition) {
       auto degrees = detail::compute_major_degree(handle, adj_matrix_partition_offsets, partition);
@@ -194,15 +196,7 @@ graph_view_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu, std::enabl
       }
     }
 
-    CUGRAPH_EXPECTS(
-      std::is_sorted(partition.vertex_partition_offsets.begin(),
-                     partition.vertex_partition_offsets.end()),
-      "Invalid API parameter: partition.vertex_partition_offsets values should be non-descending.");
-    CUGRAPH_EXPECTS(partition.vertex_partition_offsets[0] == edge_t{0},
-                    "Invalid API parameter: partition.vertex_partition_offsets[0] should be 0.");
-    CUGRAPH_EXPECTS(partition.vertex_partition_offsets.back() == number_of_vertices,
-                    "Invalid API parameter: partition.vertex_partition_offsets.back() should be "
-                    "number_of_vertices.");
+    detail::check_vertex_partition_offsets(partition.vertex_partition_offsets, this->get_number_of_vertices());
 
     if (is_symmetric) {}
     if (!is_multigraph) {}
@@ -270,9 +264,9 @@ graph_view_t<vertex_t,
       "Invalid API parameter: adj_matrix_partition_indices[] have out-of-range vertex IDs.");
 
     if (sorted_by_degree) {
-      auto degree_first = thrust::make_transform_iterator(
-        thrust::make_counting_iterator(vertex_t{0}),
-        degree_from_offsets_t<vertex_t, edge_t>{offsets});
+      auto degree_first =
+        thrust::make_transform_iterator(thrust::make_counting_iterator(vertex_t{0}),
+                                        degree_from_offsets_t<vertex_t, edge_t>{offsets});
       CUGRAPH_EXPECTS(thrust::is_sorted(rmm::exec_policy(default_stream)->on(default_stream),
                                         degree_first,
                                         degree_first + this->get_number_of_vertices(),

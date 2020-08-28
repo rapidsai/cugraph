@@ -21,9 +21,11 @@
 #include <raft/handle.hpp>
 #include <rmm/device_uvector.hpp>
 
+#include <thrust/sort.h>
 #include <thrust/transform.h>
 
 #include <vector>
+#include <algorithm>
 
 namespace cugraph {
 namespace experimental {
@@ -99,6 +101,20 @@ rmm::device_uvector<edge_t> compute_major_degree(
     tmp_offsets[i] = adj_matrix_partition_offsets[i].data();
   }
   return compute_major_degree(handle, tmp_offsets, partition);
+}
+
+template <typename vertex_t>
+void check_vertex_partition_offsets(std::vector<vertex_t> const& vertex_partition_offsets, vertex_t number_of_vertices)
+{
+  CUGRAPH_EXPECTS(
+    std::is_sorted(vertex_partition_offsets.begin(),
+                   vertex_partition_offsets.end()),
+    "Invalid API parameter: partition.vertex_partition_offsets values should be non-descending.");
+  CUGRAPH_EXPECTS(vertex_partition_offsets[0] == vertex_t{0},
+                  "Invalid API parameter: partition.vertex_partition_offsets[0] should be 0.");
+  CUGRAPH_EXPECTS(vertex_partition_offsets.back() == number_of_vertices,
+                  "Invalid API parameter: partition.vertex_partition_offsets.back() should be "
+                  "number_of_vertices.");
 }
 
 }  // namespace detail

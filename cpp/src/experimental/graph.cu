@@ -31,12 +31,31 @@
 #include <thrust/iterator/zip_iterator.h>
 #include <thrust/tuple.h>
 
+#include <algorithm>
 #include <tuple>
 
 namespace cugraph {
 namespace experimental {
 
 namespace {
+
+// can't use lambda due to nvcc limitations (The enclosing parent function ("graph_view_t") for an
+// extended __device__ lambda must allow its address to be taken)
+template <typename vertex_t>
+struct out_of_range_t {
+  vertex_t major_first{};
+  vertex_t major_last{};
+  vertex_t minor_first{};
+  vertex_t minor_last{};
+
+  __device__ bool operator()(thrust::tuple<vertex_t, vertex_t> t)
+  {
+    auto major = thrust::get<0>(t);
+    auto minor = thrust::get<1>(t);
+    return (major < major_first) || (major >= major_last) || (minor < minor_first) ||
+           (minor >= minor_last);
+  }
+};
 
 template <bool store_transposed, typename vertex_t, typename edge_t, typename weight_t>
 std::
@@ -197,6 +216,10 @@ graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu, std::enable_if_
       handle, number_of_vertices, number_of_edges, is_symmetric, is_multigraph, is_weighted),
     partition_(partition)
 {
+  // cheap error checks
+
+  auto &comm_p         = this->get_handle_ptr()->get_comms();
+  auto comm_p_size     = comm_p.get_size();
   auto &comm_p_row     = this->get_handle_ptr()->get_subcomm(comm_p_row_key);
   auto comm_p_row_rank = comm_p_row.get_rank();
   auto comm_p_row_size = comm_p_row.get_size();
@@ -204,6 +227,70 @@ graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu, std::enable_if_
   auto comm_p_col_rank = comm_p_col.get_rank();
   auto comm_p_col_size = comm_p_col.get_size();
   auto default_stream  = this->get_handle_ptr()->get_stream();
+
+  for (size_t i = 0; i < edgelists.size(); ++i) {
+    CUGRAPH_EXPECTS(
+      (edgelists[i].p_src_vertices != nullptr) && (edgelists[i].p_dst_vertices != nullptr),
+      "Invalid API parameter: edgelists[].p_src_vertices and edgelists[].p_dst_vertices should "
+      "not be nullptr.");
+    CUGRAPH_EXPECTS((is_weighted && (edgelists[i].p_edge_weights != nullptr)) ||
+                      (!is_weighted && (edgelists[i].p_edge_weights == nullptr)),
+                    "Invalid API parameter: edgelists[].p_edge_weights should not be nullptr (if "
+                    "is_weighted is true) or should be nullptr (if is_weighted is false).");
+  }
+
+  CUGRAPH_EXPECTS((partition.hypergraph_partitioned &&
+                   (edgelists.size() == static_cast<size_t>(comm_p_row_size))) ||
+                    (!(partition.hypergraph_partitioned) && (edgelists.size() == 1)),
+                  "Invalid API parameter: errneous edgelists.size().");
+
+  CUGRAPH_EXPECTS(partition.vertex_partition_offsets.size() == static_cast<size_t>(comm_p_size),
+                  "Invalid API parameter: erroneous partition.vertex_partition_offsets.size().");
+
+  // optinoal expensive checks (part 1/2)
+
+  if (do_expensive_check) {
+    edge_t number_of_local_edges_sum{};
+    for (size_t i = 0; i < edgelists.size(); ++i) {
+      auto major_first =
+        partition.hypergraph_partitioned
+          ? partition.vertex_partition_offsets[comm_p_row_size * i + comm_p_row_rank]
+          : partition.vertex_partition_offsets[comm_p_row_rank * comm_p_col_size];
+      auto major_last =
+        partition.hypergraph_partitioned
+          ? partition.vertex_partition_offsets[comm_p_row_size * i + comm_p_row_rank + 1]
+          : partition.vertex_partition_offsets[(comm_p_row_rank + 1) * comm_p_col_size];
+      auto minor_first = partition.vertex_partition_offsets[comm_p_col_rank * comm_p_row_size];
+      auto minor_last = partition.vertex_partition_offsets[(comm_p_col_rank + 1) * comm_p_row_size];
+
+      number_of_local_edges_sum += edgelists[i].number_of_edges;
+
+      auto edge_first = thrust::make_zip_iterator(thrust::make_tuple(
+        store_transposed ? edgelists[i].p_dst_vertices : edgelists[i].p_src_vertices,
+        store_transposed ? edgelists[i].p_src_vertices : edgelists[i].p_dst_vertices));
+      // better use thrust::any_of once https://github.com/thrust/thrust/issues/1016 is resolved
+      CUGRAPH_EXPECTS(thrust::count_if(rmm::exec_policy(default_stream)->on(default_stream),
+                                       edge_first,
+                                       edge_first + edgelists[i].number_of_edges,
+                                       out_of_range_t<vertex_t>{
+                                         major_first, major_last, minor_first, minor_last}) == 0,
+                      "Invalid API parameter: edgelists[] have out-of-range values.");
+    }
+    this->get_handle_ptr()->get_comms().allreduce(&number_of_local_edges_sum,
+                                                  &number_of_local_edges_sum,
+                                                  1,
+                                                  raft::comms::op_t::SUM,
+                                                  default_stream);
+    CUGRAPH_EXPECTS(number_of_local_edges_sum == this->get_number_of_edges(),
+                    "Invalid API parameter: the sum of local edges doe counts not match with "
+                    "number_of_local_edges.");
+
+    detail::check_vertex_partition_offsets(partition.vertex_partition_offsets,
+                                           this->get_number_of_vertices());
+
+    if (is_symmetric) {}
+    if (!is_multigraph) {}
+  }
 
   // convert edge list (COO) to compressed sparse format (CSR or CSC)
 
@@ -239,6 +326,19 @@ graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu, std::enable_if_
 
   auto degrees = detail::compute_major_degree(
     *(this->get_handle_ptr()), adj_matrix_partition_offsets_, partition_);
+
+  // optinoal expensive checks (part 2/2)
+
+  if (do_expensive_check) {
+    if (sorted_by_global_degree_within_vertex_partition) {
+      CUGRAPH_EXPECTS(thrust::is_sorted(rmm::exec_policy(default_stream)->on(default_stream),
+                                        degrees.begin(),
+                                        degrees.end(),
+                                        thrust::greater<edge_t>{}),
+                      "Invalid API parameter: sorted_by_global_degree_within_vertex_partition is "
+                      "set to true, but degrees are not non-ascending.");
+    }
+  }
 
   static_assert(detail::num_segments_per_vertex_partition == 3);
   static_assert((detail::low_degree_threshold <= detail::mid_degree_threshold) &&
@@ -289,7 +389,7 @@ graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu, std::enable_if_
           bool is_symmetric,
           bool is_multigraph,
           bool is_weighted,
-          bool sorted_by_global_degree,
+          bool sorted_by_degree,
           bool do_expensive_check)
   : detail::graph_base_t<vertex_t, edge_t, weight_t>(handle,
                                                      number_of_vertices,
@@ -301,9 +401,37 @@ graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu, std::enable_if_
     indices_(rmm::device_uvector<vertex_t>(0, handle.get_stream())),
     weights_(rmm::device_uvector<weight_t>(0, handle.get_stream()))
 {
+  // cheap error checks
+
   auto default_stream = this->get_handle_ptr()->get_stream();
 
-  // FIXME: error checks
+  CUGRAPH_EXPECTS(
+    (edgelist.p_src_vertices != nullptr) && (edgelist.p_dst_vertices != nullptr),
+    "Invalid API parameter: edgelist.p_src_vertices and edgelist.p_dst_vertices should "
+    "not be nullptr.");
+  CUGRAPH_EXPECTS((is_weighted && (edgelist.p_edge_weights != nullptr)) ||
+                    (!is_weighted && (edgelist.p_edge_weights == nullptr)),
+                  "Invalid API parameter: edgelist.p_edge_weights should not be nullptr (if "
+                  "is_weighted is true) or should be nullptr (if is_weighted is false).");
+
+  // optinoal expensive checks (part 1/2)
+
+  if (do_expensive_check) {
+    auto edge_first = thrust::make_zip_iterator(
+      thrust::make_tuple(store_transposed ? edgelist.p_dst_vertices : edgelist.p_src_vertices,
+                         store_transposed ? edgelist.p_src_vertices : edgelist.p_dst_vertices));
+    // better use thrust::any_of once https://github.com/thrust/thrust/issues/1016 is resolved
+    CUGRAPH_EXPECTS(thrust::count_if(
+                      rmm::exec_policy(default_stream)->on(default_stream),
+                      edge_first,
+                      edge_first + edgelist.number_of_edges,
+                      out_of_range_t<vertex_t>{
+                        0, this->get_number_of_vertices(), 0, this->get_number_of_vertices()}) == 0,
+                    "Invalid API parameter: edgelist have out-of-range values.");
+
+    if (is_symmetric) {}
+    if (!is_multigraph) {}
+  }
 
   // convert edge list (COO) to compressed sparse format (CSR or CSC)
 
@@ -326,6 +454,19 @@ graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu, std::enable_if_
                               offsets_.begin() + 1,
                               offsets_.end(),
                               degrees.begin());
+
+  // optinoal expensive checks (part 2/2)
+
+  if (do_expensive_check) {
+    if (sorted_by_degree) {
+      CUGRAPH_EXPECTS(thrust::is_sorted(rmm::exec_policy(default_stream)->on(default_stream),
+                                        degrees.begin(),
+                                        degrees.end(),
+                                        thrust::greater<edge_t>{}),
+                      "Invalid API parameter: sorted_by_degree is set to true, but degrees are not "
+                      "non-ascending.");
+    }
+  }
 
   static_assert(detail::num_segments_per_vertex_partition == 3);
   static_assert((detail::low_degree_threshold <= detail::mid_degree_threshold) &&

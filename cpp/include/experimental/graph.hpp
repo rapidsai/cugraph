@@ -139,7 +139,7 @@ class graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu, std::enab
           bool is_symmetric,
           bool is_multigraph,
           bool is_weighted,
-          bool sorted_by_global_degree,
+          bool sorted_by_degree,
           bool do_expensive_check = false);
 
   vertex_t get_number_of_local_vertices() const { return this->get_number_of_vertices(); }
