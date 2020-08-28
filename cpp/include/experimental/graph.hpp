@@ -64,6 +64,7 @@ class graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu, std::enab
           std::vector<edgelist_t<vertex_t, edge_t, weight_t>> const &edge_lists,
           partition_t<vertex_t> const &partition,
           vertex_t number_of_vertices,
+          edge_t number_of_edges,
           bool is_symmetric,
           bool is_multigraph,
           bool is_weighted,

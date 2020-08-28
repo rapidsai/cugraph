@@ -38,19 +38,6 @@ namespace experimental {
 
 namespace {
 
-// FIXME: threshold values require tuning
-size_t constexpr low_degree_threshold{raft::warp_size()};
-size_t constexpr mid_degree_threshold{1024};
-size_t constexpr num_segments_per_vertex_partition{3};
-
-template <typename vertex_t, typename edge_t, typename weight_t>
-edge_t sum_number_of_edges(std::vector<edgelist_t<vertex_t, edge_t, weight_t>> const &edgelists)
-{
-  edge_t number_of_edges{0};
-  for (size_t i = 0; i < edgelists.size(); ++i) { number_of_edges += edgelists[i].number_of_edges; }
-  return number_of_edges;
-}
-
 template <bool store_transposed, typename vertex_t, typename edge_t, typename weight_t>
 std::
   tuple<rmm::device_uvector<edge_t>, rmm::device_uvector<vertex_t>, rmm::device_uvector<weight_t>>
@@ -200,17 +187,14 @@ graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu, std::enable_if_
           std::vector<edgelist_t<vertex_t, edge_t, weight_t>> const &edgelists,
           partition_t<vertex_t> const &partition,
           vertex_t number_of_vertices,
+          edge_t number_of_edges,
           bool is_symmetric,
           bool is_multigraph,
           bool is_weighted,
           bool sorted_by_global_degree_within_vertex_partition,
           bool do_expensive_check)
-  : detail::graph_base_t<vertex_t, edge_t, weight_t>(handle,
-                                                     number_of_vertices,
-                                                     sum_number_of_edges(edgelists),
-                                                     is_symmetric,
-                                                     is_multigraph,
-                                                     is_weighted),
+  : detail::graph_base_t<vertex_t, edge_t, weight_t>(
+      handle, number_of_vertices, number_of_edges, is_symmetric, is_multigraph, is_weighted),
     partition_(partition)
 {
   auto &comm_p_row     = this->get_handle_ptr()->get_subcomm(comm_p_row_key);
@@ -220,8 +204,6 @@ graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu, std::enable_if_
   auto comm_p_col_rank = comm_p_col.get_rank();
   auto comm_p_col_size = comm_p_col.get_size();
   auto default_stream  = this->get_handle_ptr()->get_stream();
-
-  // FIXME: error checks
 
   // convert edge list (COO) to compressed sparse format (CSR or CSC)
 
@@ -258,20 +240,21 @@ graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu, std::enable_if_
   auto degrees = detail::compute_major_degree(
     *(this->get_handle_ptr()), adj_matrix_partition_offsets_, partition_);
 
-  static_assert(num_segments_per_vertex_partition == 3);
-  static_assert((low_degree_threshold <= mid_degree_threshold) &&
-                (mid_degree_threshold <= std::numeric_limits<edge_t>::max()));
-  rmm::device_uvector<edge_t> d_thresholds(num_segments_per_vertex_partition - 1, default_stream);
-  std::vector<edge_t> h_thresholds = {static_cast<edge_t>(low_degree_threshold),
-                                      static_cast<edge_t>(mid_degree_threshold)};
+  static_assert(detail::num_segments_per_vertex_partition == 3);
+  static_assert((detail::low_degree_threshold <= detail::mid_degree_threshold) &&
+                (detail::mid_degree_threshold <= std::numeric_limits<edge_t>::max()));
+  rmm::device_uvector<edge_t> d_thresholds(detail::num_segments_per_vertex_partition - 1,
+                                           default_stream);
+  std::vector<edge_t> h_thresholds = {static_cast<edge_t>(detail::low_degree_threshold),
+                                      static_cast<edge_t>(detail::mid_degree_threshold)};
   raft::update_device(
     d_thresholds.data(), h_thresholds.data(), h_thresholds.size(), default_stream);
 
-  rmm::device_uvector<vertex_t> segment_offsets(num_segments_per_vertex_partition + 1,
+  rmm::device_uvector<vertex_t> segment_offsets(detail::num_segments_per_vertex_partition + 1,
                                                 default_stream);
   segment_offsets.set_element_async(0, 0, default_stream);
   segment_offsets.set_element_async(
-    num_segments_per_vertex_partition, degrees.size(), default_stream);
+    detail::num_segments_per_vertex_partition, degrees.size(), default_stream);
 
   thrust::upper_bound(rmm::exec_policy(default_stream)->on(default_stream),
                       degrees.begin(),
@@ -344,20 +327,21 @@ graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu, std::enable_if_
                               offsets_.end(),
                               degrees.begin());
 
-  static_assert(num_segments_per_vertex_partition == 3);
-  static_assert((low_degree_threshold <= mid_degree_threshold) &&
-                (mid_degree_threshold <= std::numeric_limits<edge_t>::max()));
-  rmm::device_uvector<edge_t> d_thresholds(num_segments_per_vertex_partition - 1, default_stream);
-  std::vector<edge_t> h_thresholds = {static_cast<edge_t>(low_degree_threshold),
-                                      static_cast<edge_t>(mid_degree_threshold)};
+  static_assert(detail::num_segments_per_vertex_partition == 3);
+  static_assert((detail::low_degree_threshold <= detail::mid_degree_threshold) &&
+                (detail::mid_degree_threshold <= std::numeric_limits<edge_t>::max()));
+  rmm::device_uvector<edge_t> d_thresholds(detail::num_segments_per_vertex_partition - 1,
+                                           default_stream);
+  std::vector<edge_t> h_thresholds = {static_cast<edge_t>(detail::low_degree_threshold),
+                                      static_cast<edge_t>(detail::mid_degree_threshold)};
   raft::update_device(
     d_thresholds.data(), h_thresholds.data(), h_thresholds.size(), default_stream);
 
-  rmm::device_uvector<vertex_t> segment_offsets(num_segments_per_vertex_partition + 1,
+  rmm::device_uvector<vertex_t> segment_offsets(detail::num_segments_per_vertex_partition + 1,
                                                 default_stream);
   segment_offsets.set_element_async(0, 0, default_stream);
   segment_offsets.set_element_async(
-    num_segments_per_vertex_partition, degrees.size(), default_stream);
+    detail::num_segments_per_vertex_partition, degrees.size(), default_stream);
 
   thrust::upper_bound(rmm::exec_policy(default_stream)->on(default_stream),
                       degrees.begin(),
