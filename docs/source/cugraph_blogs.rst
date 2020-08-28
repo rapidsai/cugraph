@@ -10,8 +10,8 @@ BLOGS
 ------------------------------------------------
 
 2019
-* `RAPIDS cuGraph <https://medium.com/rapids-ai/rapids-cugraph-1ab2d9a39ec6>`_ March
-* `RAPIDS cuGraph — The vision and journey to version 1.0 and beyond <https://towardsdatascience.com/rapids-cugraph-the-vision-and-journey-to-version-1-0-and-beyond-88eff2ce3e76>`_  August
+* March `RAPIDS cuGraph <https://medium.com/rapids-ai/rapids-cugraph-1ab2d9a39ec6>`_
+* August `RAPIDS cuGraph — The vision and journey to version 1.0 and beyond <https://towardsdatascience.com/rapids-cugraph-the-vision-and-journey-to-version-1-0-and-beyond-88eff2ce3e76>`_ 
 
 2020
 
