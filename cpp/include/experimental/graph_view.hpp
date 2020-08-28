@@ -80,6 +80,11 @@ struct partition_t {
 
 namespace detail {
 
+// FIXME: threshold values require tuning
+size_t constexpr low_degree_threshold{raft::warp_size()};
+size_t constexpr mid_degree_threshold{1024};
+size_t constexpr num_segments_per_vertex_partition{3};
+
 struct graph_properties_t {
   bool is_symmetric{false};
   bool is_multigraph{false};
@@ -162,17 +167,7 @@ class graph_view_t<vertex_t,
                bool is_multigraph,
                bool is_weighted,
                bool sorted_by_global_degree_within_vertex_partition,
-               bool do_expensive_check = false)
-    : detail::graph_base_t<vertex_t, edge_t, weight_t>(
-        handle, number_of_vertices, number_of_edges, is_symmetric, is_multigraph, is_weighted),
-      adj_matrix_partition_offsets_(adj_matrix_partition_offsets),
-      adj_matrix_partition_indices_(adj_matrix_partition_indices),
-      adj_matrix_partition_weights_(adj_matrix_partition_weights),
-      partition_(partition),
-      vertex_partition_segment_offsets_(vertex_partition_segment_offsets)
-  {
-    // FIXME: error check
-  }
+               bool do_expensive_check = false);
 
   vertex_t get_number_of_local_vertices() const
   {
@@ -188,7 +183,7 @@ class graph_view_t<vertex_t,
   // This function may disappear in the future if we swtich to CSR + DCSR (or CSC + DCSC)
   edge_t const* offsets(size_t adj_matrix_partition_idx) const
   {
-    return adj_matrix_partition_offsets_[adj_matrix_partition_idx].data();
+    return adj_matrix_partition_offsets_[adj_matrix_partition_idx];
   }
 
   // Better avoid direct invocation in application code.
@@ -196,7 +191,7 @@ class graph_view_t<vertex_t,
   // This function may disappear in the future if we swtich to CSR + DCSR (or CSC + DCSC)
   vertex_t const* indices(size_t adj_matrix_partition_idx) const
   {
-    return adj_matrix_partition_indices_[adj_matrix_partition_idx].data();
+    return adj_matrix_partition_indices_[adj_matrix_partition_idx];
   }
 
   // Better avoid direct invocation in application code.
@@ -204,7 +199,7 @@ class graph_view_t<vertex_t,
   // This function may disappear in the future if we swtich to CSR + DCSR (or CSC + DCSC)
   weight_t const* weights(size_t adj_matrix_partition_idx) const
   {
-    return adj_matrix_partition_weights_[adj_matrix_partition_idx].data();
+    return adj_matrix_partition_weights_[adj_matrix_partition_idx];
   }
 
  private:
@@ -250,17 +245,8 @@ class graph_view_t<vertex_t,
                bool is_symmetric,
                bool is_multigraph,
                bool is_weighted,
-               bool sorted_by_global_degree,
-               bool do_expensive_check = false)
-    : detail::graph_base_t<vertex_t, edge_t, weight_t>(
-        handle, number_of_vertices, number_of_edges, is_symmetric, is_multigraph, is_weighted),
-      offsets_(offsets),
-      indices_(indices),
-      weights_(weights),
-      segment_offsets_(segment_offsets)
-  {
-    // FIXME: error check
-  }
+               bool sorted_by_degree,
+               bool do_expensive_check = false);
 
   vertex_t get_number_of_local_vertices() const { return this->get_number_of_vertices(); }
 

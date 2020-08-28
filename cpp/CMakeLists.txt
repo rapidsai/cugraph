@@ -357,6 +357,7 @@ add_library(cugraph SHARED
     src/centrality/katz_centrality.cu
     src/centrality/betweenness_centrality.cu
     src/experimental/graph.cu
+    src/experimental/graph_view.cu
 )
 
 #
