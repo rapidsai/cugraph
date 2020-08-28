@@ -27,7 +27,7 @@ BLOGS
 Media
 ===============
   * `Nvidia Rapids cuGraph: Making graph analysis ubiquitous <https://www.zdnet.com/article/nvidia-rapids-cugraph-making-graph-analysis-ubiquitous/>`_
-
+  * `RAPIDS cuGraph – Accelerating all your Graph needs <https://www.youtube.com/watch?v=kAw7-IGH9N4>`_
 
 Academic Papers
 ===============
