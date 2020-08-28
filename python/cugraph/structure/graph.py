@@ -931,6 +931,7 @@ class Graph:
             raise Exception("Not supported for distributed graph")
         return self._degree(vertex_subset, x=2)
 
+
     def degree(self, vertex_subset=None):
         """
         Compute vertex degree. By default, this method computes vertex
