@@ -4,6 +4,7 @@
 
 ## Improvements
 - PR 1081 MNMG Renumbering - sort partitions by degree
+- PR 1129 Updating test and documentation
 
 ## Bug Fixes
 
