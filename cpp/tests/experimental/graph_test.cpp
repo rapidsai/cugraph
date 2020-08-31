@@ -46,17 +46,17 @@ std::tuple<std::vector<edge_t>, std::vector<vertex_t>, std::vector<weight_t>> gr
   std::vector<weight_t> weights(p_edge_weights != nullptr ? number_of_edges : 0, weight_t{0.0});
 
   for (size_t i = 0; i < number_of_edges; ++i) {
-    auto major   = store_transposed ? p_dst_vertices[i] : p_src_vertices[i];
+    auto major = store_transposed ? p_dst_vertices[i] : p_src_vertices[i];
     offsets[1 + major]++;
   }
   std::partial_sum(offsets.begin() + 1, offsets.end(), offsets.begin() + 1);
 
   for (size_t i = 0; i < number_of_edges; ++i) {
-    auto major   = store_transposed ? p_dst_vertices[i] : p_src_vertices[i];
-    auto minor   = store_transposed ? p_src_vertices[i] : p_dst_vertices[i];
-    auto start   = offsets[major];
-    auto degree  = offsets[major + 1] - start;
-    auto idx     = indices[start + degree - 1]++;
+    auto major           = store_transposed ? p_dst_vertices[i] : p_src_vertices[i];
+    auto minor           = store_transposed ? p_src_vertices[i] : p_dst_vertices[i];
+    auto start           = offsets[major];
+    auto degree          = offsets[major + 1] - start;
+    auto idx             = indices[start + degree - 1]++;
     indices[start + idx] = minor;
     if (p_edge_weights != nullptr) { weights[start + idx] = p_edge_weights[i]; }
   }

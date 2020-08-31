@@ -187,7 +187,8 @@ graph_view_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu, std::enabl
       }
     }
 
-    detail::check_vertex_partition_offsets(partition.vertex_partition_offsets, this->get_number_of_vertices());
+    detail::check_vertex_partition_offsets(partition.vertex_partition_offsets,
+                                           this->get_number_of_vertices());
 
     // FIXME: check for symmetricity may better be implemetned with transpose().
     if (is_symmetric) {}

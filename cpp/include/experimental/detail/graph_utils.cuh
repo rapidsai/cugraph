@@ -119,7 +119,7 @@ void check_vertex_partition_offsets(std::vector<vertex_t> const &vertex_partitio
 
 template <typename vertex_t, typename edge_t>
 struct degree_from_offsets_t {
-  edge_t const* offsets{nullptr};
+  edge_t const *offsets{nullptr};
 
   __device__ edge_t operator()(vertex_t v) { return offsets[v + 1] - offsets[v]; }
 };
