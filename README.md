@@ -6,7 +6,7 @@ The [RAPIDS](https://rapids.ai) cuGraph library is a collection of GPU accelerat
 
  For more project details, see [rapids.ai](https://rapids.ai/).
 
-**NOTE:** For the latest stable [README.md](https://github.com/rapidsai/cudf/blob/master/README.md) ensure you are on the latest branch.
+**NOTE:** For the latest stable [README.md](https://github.com/rapidsai/cudf/blob/main/README.md) ensure you are on the latest branch.
 
 
 
@@ -40,6 +40,7 @@ for i in range(len(df_page)):
 |              | Betweenness Centrality                 | Single-GPU   |                     |
 |              | Edge Betweenness Centrality            | Single-GPU   |                     |
 | Community    |                                        |              |                     |
+|              | Leiden                                 | Single-GPU   |                     |
 |              | Louvain                                | Single-GPU   |                     |
 |              | Ensemble Clustering for Graphs         | Single-GPU   |                     |
 |              | Spectral-Clustering - Balanced Cut     | Single-GPU   |                     |

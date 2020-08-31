@@ -16,6 +16,7 @@ import numpy as np
 import cudf
 from cugraph.centrality import betweenness_centrality_wrapper
 from cugraph.centrality import edge_betweenness_centrality_wrapper
+import cugraph
 
 
 # NOTE: result_type=float could be an intuitive way to indicate the result type
@@ -48,6 +49,8 @@ def betweenness_centrality(
         values give better approximation
         If k is a list, use the content of the list for estimation: the list
         should contain vertices identifiers.
+        If k is None (the default), all the vertices are used to estimate
+        betweenness.
         Vertices obtained through sampling or defined as a list will be used as
         sources for traversals inside the algorithm.
 
@@ -108,7 +111,7 @@ def betweenness_centrality(
     # NOTE: cuDF doesn't currently support sampling, but there is a python
     # workaround.
 
-    vertices, k = _initialize_vertices(G, k, seed)
+    vertices = _initialize_vertices(G, k, seed)
 
     if weight is not None:
         raise NotImplementedError(
@@ -120,7 +123,7 @@ def betweenness_centrality(
         raise TypeError("result type can only be np.float32 or np.float64")
 
     df = betweenness_centrality_wrapper.betweenness_centrality(
-        G, normalized, endpoints, weight, k, vertices, result_dtype
+        G, normalized, endpoints, weight, vertices, result_dtype
     )
 
     if G.renumbered:
@@ -185,7 +188,7 @@ def edge_betweenness_centrality(
     Returns
     -------
     df : cudf.DataFrame
-        GPU data frame containing three cudf.Series of size |E|: the vertex
+        GPU data frame containing three cudf.Series of size E: the vertex
         identifiers of the sources, the vertex identifies of the destinations
         and the corresponding betweenness centrality values.
         Please note that the resulting the 'src', 'dst' column might not be
@@ -215,7 +218,7 @@ def edge_betweenness_centrality(
     >>> ebc = cugraph.edge_betweenness_centrality(G)
     """
 
-    vertices, k = _initialize_vertices(G, k, seed)
+    vertices = _initialize_vertices(G, k, seed)
     if weight is not None:
         raise NotImplementedError(
             "weighted implementation of betweenness "
@@ -225,12 +228,17 @@ def edge_betweenness_centrality(
         raise TypeError("result type can only be np.float32 or np.float64")
 
     df = edge_betweenness_centrality_wrapper.edge_betweenness_centrality(
-        G, normalized, weight, k, vertices, result_dtype
+        G, normalized, weight, vertices, result_dtype
     )
 
     if G.renumbered:
         df = G.unrenumber(df, "src")
         df = G.unrenumber(df, "dst")
+
+    if type(G) is cugraph.Graph:
+        lower_triangle = df['src'] >= df['dst']
+        df[["src", "dst"]][lower_triangle] = df[["dst", "src"]][lower_triangle]
+        df = df.groupby(by=["src", "dst"]).sum().reset_index()
 
     return df
 
@@ -242,12 +250,16 @@ def edge_betweenness_centrality(
 # None: All the vertices are considered
 def _initialize_vertices(G, k, seed):
     vertices = None
+    numpy_vertices = None
     if k is not None:
         if isinstance(k, int):
             vertices = _initialize_vertices_from_indices_sampling(G, k, seed)
         elif isinstance(k, list):
-            vertices, k = _initialize_vertices_from_identifiers_list(G, k)
-    return vertices, k
+            vertices = _initialize_vertices_from_identifiers_list(G, k)
+        numpy_vertices = np.array(vertices, dtype=np.int32)
+    else:
+        numpy_vertices = np.arange(G.number_of_vertices(), dtype=np.int32)
+    return numpy_vertices
 
 
 # NOTE: We do not renumber in case k is an int, the sampling is
@@ -271,5 +283,4 @@ def _initialize_vertices_from_identifiers_list(G, identifiers):
             cudf.Series(vertices)
         ).to_array()
 
-    k = len(vertices)
-    return vertices, k
+    return vertices

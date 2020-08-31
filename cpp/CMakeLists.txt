@@ -1,6 +1,5 @@
 #=============================================================================
-# Copyright 2018 BlazingDB, Inc.
-#     Copyright 2018 Percy Camilo Triveño Aucahuasi <percy@blazingdb.com>
+# Copyright (c) 2018-2020, NVIDIA CORPORATION.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -17,7 +16,7 @@
 
 cmake_minimum_required(VERSION 3.12 FATAL_ERROR)
 
-project(CUGRAPH VERSION 0.15.0 LANGUAGES C CXX CUDA)
+project(CUGRAPH VERSION 0.16.0 LANGUAGES C CXX CUDA)
 
 ###################################################################################################
 # - build type ------------------------------------------------------------------------------------
@@ -215,6 +214,7 @@ FetchContent_Declare(
     GIT_REPOSITORY https://github.com/thrust/thrust.git
     GIT_TAG        1.9.10
     GIT_SHALLOW    true
+    PATCH_COMMAND COMMAND patch -p1 < "${CMAKE_CURRENT_SOURCE_DIR}/cmake/thrust-ret-if-fail.patch"
 )
 
 FetchContent_GetProperties(thrust)
@@ -240,7 +240,7 @@ set(CUHORNET_INCLUDE_DIR ${CUHORNET_DIR}/src/cuhornet CACHE STRING "Path to cuho
 
 ExternalProject_Add(cuhornet
   GIT_REPOSITORY    https://github.com/rapidsai/cuhornet.git
-  GIT_TAG           master
+  GIT_TAG           main
   PREFIX            ${CUHORNET_DIR}
   CONFIGURE_COMMAND ""
   BUILD_COMMAND     ""
@@ -346,6 +346,8 @@ add_library(cugraph SHARED
     src/community/spectral_clustering.cu
     src/community/louvain.cpp
     src/community/louvain_kernels.cu
+    src/community/leiden.cpp
+    src/community/leiden_kernels.cu
     src/community/ktruss.cu
     src/community/ECG.cu
     src/community/triangles_counting.cu

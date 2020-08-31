@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019, NVIDIA CORPORATION.
+ * Copyright (c) 2019-2020, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -102,7 +102,7 @@ std::unique_ptr<GraphCOO<VT, ET, WT>> extract_subgraph(
   int const *core_num,
   int k,
   int len,
-  rmm::mr::device_memory_resource *mr = rmm::mr::get_default_resource())
+  rmm::mr::device_memory_resource *mr = rmm::mr::get_current_device_resource())
 
 {
   cudaStream_t stream{nullptr};

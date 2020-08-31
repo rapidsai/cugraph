@@ -1,4 +1,4 @@
-# Copyright (c) 2019, NVIDIA CORPORATION.
+# Copyright (c) 2019-2020, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -19,9 +19,16 @@
 from cugraph.structure.graph_new cimport *
 from libcpp.memory cimport unique_ptr
 
+cdef extern from "raft/handle.hpp" namespace "raft":
+    cdef cppclass handle_t:
+        handle_t() except +
 
 cdef extern from "functions.hpp" namespace "cugraph":
 
     cdef unique_ptr[GraphCSR[VT,ET,WT]] coo_to_csr[VT,ET,WT](
             const GraphCOOView[VT,ET,WT] &graph) except +
 
+    cdef void comms_bcast[value_t](
+            const handle_t &handle,
+            value_t *dst,
+            size_t size) except +

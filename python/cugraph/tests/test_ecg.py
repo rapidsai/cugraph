@@ -1,4 +1,4 @@
-# Copyright (c) 2019, NVIDIA CORPORATION.
+# Copyright (c) 2019-2020, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -21,9 +21,10 @@ from cugraph.tests import utils
 
 def cugraph_call(G, min_weight, ensemble_size):
     df = cugraph.ecg(G, min_weight, ensemble_size)
-    df = df.sort_values("vertex")
     num_parts = df["partition"].max() + 1
-    score = cugraph.analyzeClustering_modularity(G, num_parts, df["partition"])
+    score = cugraph.analyzeClustering_modularity(G, num_parts, df,
+                                                 'vertex', 'partition')
+
     return score, num_parts
 
 

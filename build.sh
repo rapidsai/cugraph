@@ -34,7 +34,7 @@ HELP="$0 [<target> ...] [<flag> ...]
 
  default action (no args) is to build and install 'libcugraph' then 'cugraph' targets
 "
-LIBCUGRAPH_BUILD_DIR=${REPODIR}/cpp/build
+LIBCUGRAPH_BUILD_DIR=${LIBCUGRAPH_BUILD_DIR:=${REPODIR}/cpp/build}
 CUGRAPH_BUILD_DIR=${REPODIR}/python/build
 BUILD_DIRS="${LIBCUGRAPH_BUILD_DIR} ${CUGRAPH_BUILD_DIR}"
 
@@ -116,7 +116,7 @@ if (( ${NUMARGS} == 0 )) || hasArg cugraph; then
 
     cd ${REPODIR}/python
     if [[ ${INSTALL_TARGET} != "" ]]; then
-	python setup.py build_ext --inplace
+	python setup.py build_ext --inplace --library-dir=${LIBCUGRAPH_BUILD_DIR}
 	python setup.py install
     else
 	python setup.py build_ext --inplace --library-dir=${LIBCUGRAPH_BUILD_DIR}

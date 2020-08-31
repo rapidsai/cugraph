@@ -1,4 +1,4 @@
-# Copyright (c) 2019 - 2020, NVIDIA CORPORATION.
+# Copyright (c) 2019-2020, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -82,11 +82,7 @@ def spectralBalancedCutClustering(
     )
 
     if G.renumbered:
-        # FIXME:  This is a hack to get around an
-        # API problem.  The spectral API assumes that
-        # the data frame remains in internal vertex
-        # id order.  It should not do that.
-        df = G.unrenumber(df, "vertex", preserve_order=True)
+        df = G.unrenumber(df, "vertex")
 
     return df
 
@@ -156,15 +152,14 @@ def spectralModularityMaximizationClustering(
     )
 
     if G.renumbered:
-        # FIXME:  Existing code relies on df being sorted...
-        #   Shouldn't because in MG we can't guarantee sorting
-        #   and partitioning of output
-        df = G.unrenumber(df, "vertex", preserve_order=True)
+        df = G.unrenumber(df, "vertex")
 
     return df
 
 
-def analyzeClustering_modularity(G, n_clusters, clustering):
+def analyzeClustering_modularity(G, n_clusters, clustering,
+                                 vertex_col_name='vertex',
+                                 cluster_col_name='cluster'):
     """
     Compute the modularity score for a partitioning/clustering
 
@@ -174,8 +169,14 @@ def analyzeClustering_modularity(G, n_clusters, clustering):
         cuGraph graph descriptor. This graph should have edge weights.
     n_clusters : integer
         Specifies the number of clusters in the given clustering
-    clustering : cudf.Series
+    clustering : cudf.DataFrame
         The cluster assignment to analyze.
+    vertex_col_name : str
+        The name of the column in the clustering dataframe identifying
+        the external vertex id
+    cluster_col_name : str
+        The name of the column in the clustering dataframe identifying
+        the cluster id
 
     Returns
     -------
@@ -191,17 +192,28 @@ def analyzeClustering_modularity(G, n_clusters, clustering):
     >>> G = cugraph.Graph()
     >>> G.from_cudf_edgelist(M, source='0', destination='1', edge_attr='2')
     >>> df = cugraph.spectralBalancedCutClustering(G, 5)
-    >>> score = cugraph.analyzeClustering_modularity(G, 5, df['cluster'])
+    >>> score = cugraph.analyzeClustering_modularity(G, 5, df,
+    >>>   'vertex', 'cluster')
     """
 
+    if G.renumbered:
+        clustering = G.add_internal_vertex_id(clustering,
+                                              vertex_col_name,
+                                              vertex_col_name,
+                                              drop=True)
+
+    clustering = clustering.sort_values(vertex_col_name)
+
     score = spectral_clustering_wrapper.analyzeClustering_modularity(
-        G, n_clusters, clustering
+        G, n_clusters, clustering[cluster_col_name]
     )
 
     return score
 
 
-def analyzeClustering_edge_cut(G, n_clusters, clustering):
+def analyzeClustering_edge_cut(G, n_clusters, clustering,
+                               vertex_col_name='vertex',
+                               cluster_col_name='cluster'):
     """
     Compute the edge cut score for a partitioning/clustering
 
@@ -211,8 +223,14 @@ def analyzeClustering_edge_cut(G, n_clusters, clustering):
         cuGraph graph descriptor
     n_clusters : integer
         Specifies the number of clusters in the given clustering
-    clustering : cudf.Series
+    clustering : cudf.DataFrame
         The cluster assignment to analyze.
+    vertex_col_name : str
+        The name of the column in the clustering dataframe identifying
+        the external vertex id
+    cluster_col_name : str
+        The name of the column in the clustering dataframe identifying
+        the cluster id
 
     Returns
     -------
@@ -228,17 +246,28 @@ def analyzeClustering_edge_cut(G, n_clusters, clustering):
     >>> G = cugraph.Graph()
     >>> G.from_cudf_edgelist(M, source='0', destination='1', edge_attr=None)
     >>> df = cugraph.spectralBalancedCutClustering(G, 5)
-    >>> score = cugraph.analyzeClustering_edge_cut(G, 5, df['cluster'])
+    >>> score = cugraph.analyzeClustering_edge_cut(G, 5, df,
+    >>>   'vertex', 'cluster')
     """
 
+    if G.renumbered:
+        clustering = G.add_internal_vertex_id(clustering,
+                                              vertex_col_name,
+                                              vertex_col_name,
+                                              drop=True)
+
+    clustering = clustering.sort_values(vertex_col_name).reset_index(drop=True)
+
     score = spectral_clustering_wrapper.analyzeClustering_edge_cut(
-        G, n_clusters, clustering
+        G, n_clusters, clustering[cluster_col_name]
     )
 
     return score
 
 
-def analyzeClustering_ratio_cut(G, n_clusters, clustering):
+def analyzeClustering_ratio_cut(G, n_clusters, clustering,
+                                vertex_col_name='vertex',
+                                cluster_col_name='cluster'):
     """
     Compute the ratio cut score for a partitioning/clustering
 
@@ -248,8 +277,14 @@ def analyzeClustering_ratio_cut(G, n_clusters, clustering):
         cuGraph graph descriptor. This graph should have edge weights.
     n_clusters : integer
         Specifies the number of clusters in the given clustering
-    clustering : cudf.Series
+    clustering : cudf.DataFrame
         The cluster assignment to analyze.
+    vertex_col_name : str
+        The name of the column in the clustering dataframe identifying
+        the external vertex id
+    cluster_col_name : str
+        The name of the column in the clustering dataframe identifying
+        the cluster id
 
     Returns
     -------
@@ -265,11 +300,20 @@ def analyzeClustering_ratio_cut(G, n_clusters, clustering):
     >>> G = cugraph.Graph()
     >>> G.from_cudf_edgelist(M, source='0', destination='1', edge_attr='2')
     >>> df = cugraph.spectralBalancedCutClustering(G, 5)
-    >>> score = cugraph.analyzeClustering_ratio_cut(G, 5, df['cluster'])
+    >>> score = cugraph.analyzeClustering_ratio_cut(G, 5, df,
+    >>>   'vertex', 'cluster')
     """
 
+    if G.renumbered:
+        clustering = G.add_internal_vertex_id(clustering,
+                                              vertex_col_name,
+                                              vertex_col_name,
+                                              drop=True)
+
+    clustering = clustering.sort_values(vertex_col_name)
+
     score = spectral_clustering_wrapper.analyzeClustering_ratio_cut(
-        G, n_clusters, clustering
+        G, n_clusters, clustering[cluster_col_name]
     )
 
     return score

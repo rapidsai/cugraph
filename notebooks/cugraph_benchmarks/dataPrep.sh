@@ -34,7 +34,7 @@ then
 
         cd ..
 
-        find ./tmp -name *.mtx -exec mv {} . \;
+        find ./tmp -name "*.mtx" -exec mv {} . \;
 
         rm -rf tmp
     fi

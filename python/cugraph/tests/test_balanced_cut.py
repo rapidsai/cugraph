@@ -1,4 +1,4 @@
-# Copyright (c) 2019, NVIDIA CORPORATION.
+# Copyright (c) 2019-2020, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -26,19 +26,30 @@ def cugraph_call(G, partitions):
         G, partitions, num_eigen_vects=partitions
     )
 
-    score = cugraph.analyzeClustering_edge_cut(G, partitions, df["cluster"])
+    score = cugraph.analyzeClustering_edge_cut(
+        G, partitions, df, 'vertex', 'cluster'
+    )
     return set(df["vertex"].to_array()), score
 
 
 def random_call(G, partitions):
     random.seed(0)
     num_verts = G.number_of_vertices()
-    assignment = []
-    for i in range(num_verts):
-        assignment.append(random.randint(0, partitions - 1))
-    assignment_cu = cudf.Series(assignment)
-    score = cugraph.analyzeClustering_edge_cut(G, partitions, assignment_cu)
-    return set(range(num_verts)), score
+
+    score = 0.0
+    for repeat in range(20):
+        assignment = []
+        for i in range(num_verts):
+            assignment.append(random.randint(0, partitions - 1))
+
+        assignment_cu = cudf.DataFrame(assignment, columns=['cluster'])
+        assignment_cu['vertex'] = assignment_cu.index
+
+        score += cugraph.analyzeClustering_edge_cut(
+            G, partitions, assignment_cu
+        )
+
+    return set(range(num_verts)), (score / 10.0)
 
 
 PARTITIONS = [2, 4, 8]
@@ -59,19 +70,12 @@ def test_edge_cut_clustering(graph_file, partitions):
     G_edge.from_cudf_edgelist(cu_M, source="0", destination="1")
 
     # Get the edge_cut score for partitioning versus random assignment
-    """cu_vid, cu_score = cugraph_call(G_adj, partitions)
-    rand_vid, rand_score = random_call(G_adj, partitions)
-    """
-    # Assert that the partitioning has better edge_cut than the random
-    # assignment
-    """assert cu_score < rand_score"""
-
-    # Get the edge_cut score for partitioning versus random assignment
     cu_vid, cu_score = cugraph_call(G_edge, partitions)
     rand_vid, rand_score = random_call(G_edge, partitions)
 
     # Assert that the partitioning has better edge_cut than the random
     # assignment
+    print('graph_file = ', graph_file, ', partitions = ', partitions)
     print(cu_score, rand_score)
     assert cu_score < rand_score
 
@@ -86,14 +90,6 @@ def test_edge_cut_clustering_with_edgevals(graph_file, partitions):
 
     G_edge = cugraph.Graph()
     G_edge.from_cudf_edgelist(cu_M, source="0", destination="1", edge_attr="2")
-
-    # Get the edge_cut score for partitioning versus random assignment
-    """cu_vid, cu_score = cugraph_call(G_adj, partitions)
-    rand_vid, rand_score = random_call(G_adj, partitions)
-    """
-    # Assert that the partitioning has better edge_cut than the random
-    # assignment
-    """assert cu_score < rand_score"""
 
     # Get the edge_cut score for partitioning versus random assignment
     cu_vid, cu_score = cugraph_call(G_edge, partitions)

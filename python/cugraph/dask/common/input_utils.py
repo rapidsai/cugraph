@@ -55,6 +55,7 @@ class DistributedDataHandler:
         self.multiple = multiple
         self.worker_info = None
         self.total_rows = None
+        self.max_vertex_id = None
         self.ranks = None
         self.parts_to_sizes = None
         self.local_data = None
@@ -148,6 +149,7 @@ class DistributedDataHandler:
 
         _local_data_dict = self.client.compute(local_data, sync=True)
         local_data_dict = {'edges': [], 'offsets': [], 'verts': []}
+        max_vid = 0
         for rank in range(len(_local_data_dict)):
             data = _local_data_dict[rank]
             local_data_dict['edges'].append(data[0])
@@ -158,6 +160,8 @@ class DistributedDataHandler:
                 local_offset = prev_data[1] + 1
             local_data_dict['offsets'].append(local_offset)
             local_data_dict['verts'].append(data[1] - local_offset + 1)
+            if data[2] > max_vid:
+                max_vid = data[2]
 
         import numpy as np
         local_data_dict['edges'] = np.array(local_data_dict['edges'],
@@ -167,6 +171,7 @@ class DistributedDataHandler:
         local_data_dict['verts'] = np.array(local_data_dict['verts'],
                                             dtype=np.int32)
         self.local_data = local_data_dict
+        self.max_vertex_id = max_vid
 
 
 """ Internal methods, API subject to change """
@@ -196,11 +201,13 @@ def _get_rows(objs, multiple):
 def _get_local_data(df, by):
     df = df[0]
     num_local_edges = len(df)
-    local_max = df[by].iloc[-1]
-    return num_local_edges, local_max
+    local_by_max = df[by].iloc[-1]
+    local_max = df[['src', 'dst']].max().max()
+    return num_local_edges, local_by_max, local_max
 
 
 def get_local_data(input_graph, by, load_balance=True):
+    input_graph.compute_renumber_edge_list(transposed=(by == 'dst'))
     _ddf = input_graph.edgelist.edgelist_df
     ddf = _ddf.sort_values(by=by, ignore_index=True)
 
@@ -210,5 +217,9 @@ def get_local_data(input_graph, by, load_balance=True):
     comms = Comms.get_comms()
     data = DistributedDataHandler.create(data=ddf)
     data.calculate_local_data(comms, by)
+    return data
 
+
+def get_mg_batch_data(dask_cudf_data):
+    data = DistributedDataHandler.create(data=dask_cudf_data)
     return data

@@ -1,4 +1,4 @@
-# Copyright (c) 2019, NVIDIA CORPORATION.
+# Copyright (c) 2019-2020, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -12,6 +12,8 @@
 # limitations under the License.
 
 import gc
+
+import time
 
 import pandas as pd
 import pytest
@@ -41,52 +43,14 @@ with warnings.catch_warnings():
 
 
 def compare_series(series_1, series_2):
-    if isinstance(series_1, cudf.Series):
-        series_1 = series_1.values_host
-    if isinstance(series_2, cudf.Series):
-        series_2 = series_2.values_host
-    if len(series_1) != len(series_2):
-        print("Series do not match in length")
-        return 0
-    for i in range(len(series_1)):
-        if series_1[i] != series_2[i]:
-            print(
-                "Series["
-                + str(i)
-                + "] does not match, "
-                + str(series_1[i])
-                + ", "
-                + str(series_2[i])
-            )
-            return 0
-    return True
+    assert len(series_1) == len(series_2)
+    df = cudf.DataFrame({"series_1": series_1, "series_2": series_2})
+    diffs = df.query('series_1 != series_2')
 
+    if len(diffs) > 0:
+        print("diffs:\n", diffs)
 
-def compare_offsets(offset0, offset1):
-    if isinstance(offset0, cudf.Series):
-        offset0 = offset0.values_host
-    if isinstance(offset1, cudf.Series):
-        offset1 = offset1.values_host
-    if not (len(offset0) <= len(offset1)):
-        print(
-            "Mismatched length: "
-            + str(len(offset0))
-            + " != "
-            + str(len(offset1))
-        )
-        return False
-    for i in range(len(offset0)):
-        if offset0[i] != offset1[i]:
-            print(
-                "Series["
-                + str(i)
-                + "]: "
-                + str(offset0[i])
-                + " != "
-                + str(offset1[i])
-            )
-            return False
-    return True
+    assert len(diffs) == 0
 
 
 # This function returns True if two graphs are identical (bijection between the
@@ -207,8 +171,8 @@ def test_add_edge_list_to_adj_list(graph_file):
     G = cugraph.DiGraph()
     G.from_cudf_edgelist(cu_M, source="0", destination="1", renumber=False)
     offsets_cu, indices_cu, values_cu = G.view_adj_list()
-    assert compare_offsets(offsets_cu, offsets_exp)
-    assert compare_series(indices_cu, indices_exp)
+    compare_series(offsets_cu, offsets_exp)
+    compare_series(indices_cu, indices_exp)
     assert values_cu is None
 
 
@@ -236,8 +200,8 @@ def test_add_adj_list_to_edge_list(graph_file):
     edgelist = G.view_edge_list()
     sources_cu = edgelist["src"]
     destinations_cu = edgelist["dst"]
-    assert compare_series(sources_cu, sources_exp)
-    assert compare_series(destinations_cu, destinations_exp)
+    compare_series(sources_cu, sources_exp)
+    compare_series(destinations_cu, destinations_exp)
 
 
 # Test
@@ -259,8 +223,8 @@ def test_view_edge_list_from_adj_list(graph_file):
     Mcoo = Mcsr.tocoo()
     src1 = Mcoo.row
     dst1 = Mcoo.col
-    assert compare_series(src1, edgelist_df["src"])
-    assert compare_series(dst1, edgelist_df["dst"])
+    compare_series(src1, edgelist_df["src"])
+    compare_series(dst1, edgelist_df["dst"])
 
 
 # Test
@@ -451,7 +415,11 @@ def test_networkx_compatibility(graph_file):
 
     print('g from gdf = \n', gdf)
     print('nx from df = \n', df)
+
+    t1 = time.time()
     assert compare_graphs(Gnx, G)
+    t2 = time.time() - t1
+    print('compare_graphs time: ', t2)
 
     Gnx.clear()
     G.clear()
@@ -465,7 +433,10 @@ def test_networkx_compatibility(graph_file):
         create_using=cugraph.DiGraph,
     )
 
+    t1 = time.time()
     assert compare_graphs(Gnx, G)
+    t2 = time.time() - t1
+    print('compare_graphs time: ', t2)
 
     Gnx.clear()
     G.clear()
@@ -496,7 +467,11 @@ def test_consolidation(graph_file):
     G = cugraph.from_cudf_edgelist(ddf, source='source', destination='target',
                                    create_using=cugraph.DiGraph)
 
+    t1 = time.time()
     assert compare_graphs(Gnx, G)
+    t2 = time.time() - t1
+    print('compare_graphs time: ', t2)
+
     Gnx.clear()
     G.clear()
     client.close()
@@ -641,11 +616,9 @@ def test_to_directed(graph_file):
     assert DiG.number_of_nodes() == DiGnx.number_of_nodes()
     assert DiG.number_of_edges() == DiGnx.number_of_edges()
 
-    edgelist_df = G.edgelist.edgelist_df
-    for i in range(len(edgelist_df)):
-        assert DiGnx.has_edge(
-            edgelist_df.iloc[i]["src"], edgelist_df.iloc[i]["dst"]
-        )
+    for index, row in cu_M.to_pandas().iterrows():
+        assert G.has_edge(row['0'], row['1'])
+        assert G.has_edge(row['1'], row['0'])
 
 
 # Test
@@ -666,18 +639,19 @@ def test_to_undirected(graph_file):
         M, source="0", target="1", create_using=nx.DiGraph()
     )
 
+    for index, row in cu_M.to_pandas().iterrows():
+        assert DiG.has_edge(row['0'], row['1'])
+        assert not DiG.has_edge(row['1'], row['0'])
+
     G = DiG.to_undirected()
     Gnx = DiGnx.to_undirected()
 
     assert G.number_of_nodes() == Gnx.number_of_nodes()
     assert G.number_of_edges() == Gnx.number_of_edges()
 
-    edgelist_df = G.edgelist.edgelist_df
-
-    for i in range(len(edgelist_df)):
-        assert Gnx.has_edge(
-            edgelist_df.iloc[i]["src"], edgelist_df.iloc[i]["dst"]
-        )
+    for index, row in cu_M.to_pandas().iterrows():
+        assert G.has_edge(row['0'], row['1'])
+        assert G.has_edge(row['1'], row['0'])
 
 
 # Test
@@ -692,9 +666,9 @@ def test_has_edge(graph_file):
     G = cugraph.Graph()
     G.from_cudf_edgelist(cu_M, source="0", destination="1")
 
-    for i in range(len(cu_M)):
-        assert G.has_edge(cu_M.loc[i][0], cu_M.loc[i][1])
-        assert G.has_edge(cu_M.loc[i][1], cu_M.loc[i][0])
+    for index, row in cu_M.to_pandas().iterrows():
+        assert G.has_edge(row['0'], row['1'])
+        assert G.has_edge(row['1'], row['0'])
 
 
 # Test

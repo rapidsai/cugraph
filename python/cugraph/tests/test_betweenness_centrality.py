@@ -19,8 +19,8 @@ import cugraph
 from cugraph.tests import utils
 import random
 import numpy as np
-import cupy
 import cudf
+import cupy
 
 # Temporarily suppress warnings till networkX fixes deprecation warnings
 # (Using or importing the ABCs from 'collections' instead of from
@@ -33,8 +33,6 @@ with warnings.catch_warnings():
     warnings.filterwarnings("ignore", category=DeprecationWarning)
     import networkx as nx
 
-# NOTE: Endpoint parameter is not currently being tested, there could be a test
-#       to verify that python raise an error if it is used
 # =============================================================================
 # Parameters
 # =============================================================================
@@ -69,6 +67,7 @@ def calc_betweenness_centrality(
     seed=None,
     result_dtype=np.float64,
     use_k_full=False,
+    multi_gpu_batch=False,
 ):
     """ Generate both cugraph and networkx betweenness centrality
 
@@ -104,6 +103,9 @@ def calc_betweenness_centrality(
         When True, if k is None replaces k by the number of sources of the
         Graph
 
+    multi_gpu_batch : bool
+        When True, enable mg batch after constructing the graph
+
     Returns
     -------
 
@@ -113,7 +115,14 @@ def calc_betweenness_centrality(
         The dataframe is expected to be sorted based on 'vertex', so that we
         can use cupy.isclose to compare the scores.
     """
+    G = None
+    Gnx = None
+
     G, Gnx = utils.build_cu_and_nx_graphs(graph_file, directed=directed)
+    assert G is not None and Gnx is not None
+    if multi_gpu_batch:
+        G.enable_batch()
+
     calc_func = None
     if k is not None and seed is not None:
         calc_func = _calc_bc_subset
@@ -187,6 +196,11 @@ def _calc_bc_subset_fixed(
         seed = 123  # random.seed(None) uses time, but we want same sources
     random.seed(seed)  # It will be called again in cugraph's call
     sources = random.sample(range(G.number_of_vertices()), k)
+
+    if G.renumbered:
+        sources_df = cudf.DataFrame({'src': sources})
+        sources = G.unrenumber(sources_df, 'src')['src'].to_pandas().tolist()
+
     # The first call is going to proceed to the random sampling in the same
     # fashion as the lines above
     df = cugraph.betweenness_centrality(

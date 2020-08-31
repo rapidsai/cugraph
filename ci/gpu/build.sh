@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Copyright (c) 2018, NVIDIA CORPORATION.
+# Copyright (c) 2018-2020, NVIDIA CORPORATION.
 ##########################################
 # cuGraph GPU build & testscript for CI  #
 ##########################################
@@ -89,8 +89,10 @@ conda list
 # BUILD - Build libcugraph and cuGraph from source
 ################################################################################
 
-logger "Build libcugraph..."
-$WORKSPACE/build.sh clean libcugraph cugraph
+if [[ -z "$PROJECT_FLASH" || "$PROJECT_FLASH" == "0" ]]; then
+  logger "Build libcugraph..."
+  $WORKSPACE/build.sh clean libcugraph cugraph
+fi
 
 ################################################################################
 # TEST - Run GoogleTest and py.tests for libcugraph and cuGraph

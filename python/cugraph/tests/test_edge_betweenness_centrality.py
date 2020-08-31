@@ -42,7 +42,8 @@ DIRECTED_GRAPH_OPTIONS = [False, True]
 NORMALIZED_OPTIONS = [False, True]
 DEFAULT_EPSILON = 0.0001
 
-DATASETS = utils.DATASETS
+DATASETS = ["../datasets/karate.csv", "../datasets/netscience.csv"]
+
 UNRENUMBERED_DATASETS = ["../datasets/karate.csv"]
 
 SUBSET_SIZE_OPTIONS = [4, None]
@@ -66,6 +67,7 @@ def calc_edge_betweenness_centrality(
     seed=None,
     result_dtype=np.float64,
     use_k_full=False,
+    multi_gpu_batch=False
 ):
     """ Generate both cugraph and networkx edge betweenness centrality
 
@@ -97,6 +99,9 @@ def calc_edge_betweenness_centrality(
         When True, if k is None replaces k by the number of sources of the
         Graph
 
+    multi_gpu_batch: bool
+        When True, enable mg batch after constructing the graph
+
     Returns
     -------
 
@@ -106,15 +111,19 @@ def calc_edge_betweenness_centrality(
         The dataframe is expected to be sorted based on 'src' then 'dst',
         so that we can use cupy.isclose to compare the scores.
     """
+    G = None
+    Gnx = None
     G, Gnx = utils.build_cu_and_nx_graphs(graph_file, directed=directed)
-    calc_func = None
+    assert G is not None and Gnx is not None
+    if multi_gpu_batch:
+        G.enable_batch()
+
     if k is not None and seed is not None:
         calc_func = _calc_bc_subset
     elif k is not None:
         calc_func = _calc_bc_subset_fixed
     else:  # We processed to a comparison using every sources
         if use_k_full:
-            print("Computing k_full")
             k = Gnx.number_of_nodes()
         calc_func = _calc_bc_full
     sorted_df = calc_func(
@@ -136,6 +145,11 @@ def _calc_bc_subset(G, Gnx, normalized, weight, k, seed, result_dtype):
     # We first mimic acquisition of the nodes to compare with same sources
     random.seed(seed)  # It will be called again in nx's call
     sources = random.sample(Gnx.nodes(), k)
+
+    # NOTE: Since we sampled the Networkx graph, the sources are already
+    # external ids, so we don't need to translate to external ids for
+    # cugraph
+
     df = cugraph.edge_betweenness_centrality(
         G,
         k=sources,
@@ -152,13 +166,11 @@ def _calc_bc_subset(G, Gnx, normalized, weight, k, seed, result_dtype):
         columns={"betweenness_centrality": "ref_bc"}, copy=False
     )
 
-    sorted_df = df.sort_values(["src", "dst"]).rename(
+    merged_df = df.merge(nx_df, on=['src', 'dst']).rename(
         columns={"betweenness_centrality": "cu_bc"}, copy=False
     ).reset_index(drop=True)
 
-    sorted_df = cudf.concat([sorted_df, nx_df["ref_bc"]], axis=1, sort=False)
-
-    return sorted_df
+    return merged_df
 
 
 def _calc_bc_subset_fixed(G, Gnx, normalized, weight, k, seed, result_dtype):
@@ -172,6 +184,11 @@ def _calc_bc_subset_fixed(G, Gnx, normalized, weight, k, seed, result_dtype):
         seed = 123  # random.seed(None) uses time, but we want same sources
     random.seed(seed)  # It will be called again in cugraph's call
     sources = random.sample(range(G.number_of_vertices()), k)
+
+    if G.renumbered:
+        sources_df = cudf.DataFrame({'src': sources})
+        sources = G.unrenumber(sources_df, 'src')['src'].to_pandas().tolist()
+
     # The first call is going to proceed to the random sampling in the same
     # fashion as the lines above
     df = cugraph.edge_betweenness_centrality(
@@ -181,6 +198,8 @@ def _calc_bc_subset_fixed(G, Gnx, normalized, weight, k, seed, result_dtype):
         weight=weight,
         seed=seed,
         result_dtype=result_dtype,
+    ).rename(
+        columns={"betweenness_centrality": "cu_bc"}, copy=False
     )
 
     # The second call is going to process source that were already sampled
@@ -193,20 +212,13 @@ def _calc_bc_subset_fixed(G, Gnx, normalized, weight, k, seed, result_dtype):
         weight=weight,
         seed=None,
         result_dtype=result_dtype,
-    )
-
-    sorted_df = df.sort_values(["src", "dst"]).rename(
-        columns={"betweenness_centrality": "cu_bc"}, copy=False
-    ).reset_index(drop=True)
-    sorted_df2 = df2.sort_values(["src", "dst"]).rename(
+    ).rename(
         columns={"betweenness_centrality": "ref_bc"}, copy=False
     ).reset_index(drop=True)
 
-    sorted_df = cudf.concat(
-        [sorted_df, sorted_df2["ref_bc"]], axis=1, sort=False
-    )
+    merged_df = df.merge(df2, on=['src', 'dst']).reset_index(drop=True)
 
-    return sorted_df
+    return merged_df
 
 
 def _calc_bc_full(G, Gnx, normalized, weight, k, seed, result_dtype):
@@ -218,9 +230,11 @@ def _calc_bc_full(G, Gnx, normalized, weight, k, seed, result_dtype):
         seed=seed,
         result_dtype=result_dtype,
     )
+
     assert (
         df["betweenness_centrality"].dtype == result_dtype
     ), "'betweenness_centrality' column has not the expected type"
+
     nx_bc_dict = nx.edge_betweenness_centrality(
         Gnx, k=k, normalized=normalized, seed=seed, weight=weight
     )
@@ -229,12 +243,11 @@ def _calc_bc_full(G, Gnx, normalized, weight, k, seed, result_dtype):
         columns={"betweenness_centrality": "ref_bc"}, copy=False
     )
 
-    sorted_df = df.sort_values(["src", "dst"]).rename(
+    merged_df = df.merge(nx_df, on=['src', 'dst']).rename(
         columns={"betweenness_centrality": "cu_bc"}, copy=False
     ).reset_index(drop=True)
 
-    sorted_df = cudf.concat([sorted_df, nx_df["ref_bc"]], axis=1, sort=False)
-    return sorted_df
+    return merged_df
 
 
 # =============================================================================

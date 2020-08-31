@@ -1,4 +1,4 @@
-# Copyright (c) 2019, NVIDIA CORPORATION.
+# Copyright (c) 2019-2020, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -42,6 +42,7 @@ def cugraph_call(cu_M, edgevals=False):
         G.from_cudf_edgelist(cu_M, source="0", destination="1", edge_attr="2")
     else:
         G.from_cudf_edgelist(cu_M, source="0", destination="1")
+
     # cugraph Louvain Call
     t1 = time.time()
     parts, mod = cugraph.louvain(G)
@@ -109,6 +110,7 @@ def test_louvain(graph_file):
 
     cu_mod_nx = community.modularity(cu_map, Gnx)
     nx_mod = community.modularity(nx_parts, Gnx)
+
     assert len(cu_parts) == len(nx_parts)
     assert cu_mod > (0.82 * nx_mod)
     assert abs(cu_mod - cu_mod_nx) < 0.0001
