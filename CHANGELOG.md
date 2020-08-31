@@ -3,8 +3,8 @@
 ## New Features
 
 ## Improvements
-- PR #1081 MNMG Renumbering - sort partitions by degree
-- PR #1115 Replace deprecated rmm::mr::get_default_resource with rmm::mr::get_current_device_resource
+- PR 1081 MNMG Renumbering - sort partitions by degree
+- PR 1115 Replace deprecated rmm::mr::get_default_resource with rmm::mr::get_current_device_resource
 - PR #1129 Refactored test to use common datasets and added additional documentation pages
 
 ## Bug Fixes
