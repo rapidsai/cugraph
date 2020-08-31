@@ -27,7 +27,7 @@ Data Sets
 **************
 
 karate
-  - W. W. Zachary, *Aninformation flow model for conflict and fission in small groups*, Journal of Anthropological Research 33, 452-473 (1977).
+  - W. W. Zachary, *An information flow model for conflict and fission in small groups*, Journal of Anthropological Research 33, 452-473 (1977).
 dolphins
   - D. Lusseau, K. Schneider, O. J. Boisseau, P. Haase, E. Slooten, and S. M. Dawson,
     *The bottlenose dolphin community of Doubtful Sound features a large proportion of long-lasting associations*, 

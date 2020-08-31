@@ -107,6 +107,14 @@ def cugraph_strong_call(cu_M):
         label_vertex_dict[df["labels"][i]].append(df["vertices"][i])
     return label_vertex_dict
 
+def which_cluster_idx(_cluster, _find_vertex):
+    idx = -1
+    for i in range(len(_cluster)):
+        if _find_vertex in _cluster[i]:
+            idx = i
+            break
+    return idx
+
 
 # Test all combinations of default/managed and pooled/non-pooled allocation
 @pytest.mark.parametrize("graph_file", utils.DATASETS)
@@ -144,12 +152,8 @@ def test_weak_cc(graph_file):
     nx_vertices = sorted(lst_nx_components[0])
     first_vert = nx_vertices[0]
 
-    idx = -1
-    for i in range(len(lst_cg_components)):
-        if first_vert in lst_cg_components[i]:
-            idx = i
-
-    assert idx != -1
+    idx = which_cluster_idx(lst_cg_components, first_vert)
+    assert idx != -1, "Check for Nx vertex in cuGraph results failed"
 
     cg_vertices = sorted(lst_cg_components[idx])
 
@@ -194,11 +198,8 @@ def test_strong_cc(graph_file):
     nx_vertices = sorted(lst_nx_components[0])
     first_vert = nx_vertices[0]
 
-    idx = -1
-    for i in range(len(lst_cg_components)):
-        if first_vert in lst_cg_components[i]:
-            idx = i
+    idx = which_cluster_idx(lst_cg_components, first_vert)
+    assert idx != -1, "Check for Nx vertex in cuGraph results failed"
 
-    assert idx != -1
     cg_vertices = sorted(lst_cg_components[idx])
     assert nx_vertices == cg_vertices
