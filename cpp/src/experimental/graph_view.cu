@@ -47,15 +47,6 @@ struct out_of_range_t {
   __device__ bool operator()(vertex_t v) { return (v < min) || (v >= max); }
 };
 
-// can't use lambda due to nvcc limitations (The enclosing parent function ("graph_view_t") for an
-// extended __device__ lambda must allow its address to be taken)
-template <typename vertex_t, typename edge_t>
-struct degree_from_offsets_t {
-  edge_t const* offsets{nullptr};
-
-  __device__ edge_t operator()(vertex_t v) { return offsets[v + 1] - offsets[v]; }
-};
-
 }  // namespace
 
 template <typename vertex_t,
@@ -198,7 +189,10 @@ graph_view_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu, std::enabl
 
     detail::check_vertex_partition_offsets(partition.vertex_partition_offsets, this->get_number_of_vertices());
 
+    // FIXME: check for symmetricity may better be implemetned with transpose().
     if (is_symmetric) {}
+    // FIXME: check for duplicate edges may better be implemented after deciding whether to sort
+    // neighbor list or not.
     if (!is_multigraph) {}
   }
 }
@@ -266,7 +260,7 @@ graph_view_t<vertex_t,
     if (sorted_by_degree) {
       auto degree_first =
         thrust::make_transform_iterator(thrust::make_counting_iterator(vertex_t{0}),
-                                        degree_from_offsets_t<vertex_t, edge_t>{offsets});
+                                        detail::degree_from_offsets_t<vertex_t, edge_t>{offsets});
       CUGRAPH_EXPECTS(thrust::is_sorted(rmm::exec_policy(default_stream)->on(default_stream),
                                         degree_first,
                                         degree_first + this->get_number_of_vertices(),
@@ -281,7 +275,10 @@ graph_view_t<vertex_t,
                       "Invalid API parameter: segment_offsets.");
     }
 
+    // FIXME: check for symmetricity may better be implemetned with transpose().
     if (is_symmetric) {}
+    // FIXME: check for duplicate edges may better be implemented after deciding whether to sort
+    // neighbor list or not.
     if (!is_multigraph) {}
   }
 }

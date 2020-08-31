@@ -247,7 +247,7 @@ graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu, std::enable_if_
   CUGRAPH_EXPECTS(partition.vertex_partition_offsets.size() == static_cast<size_t>(comm_p_size),
                   "Invalid API parameter: erroneous partition.vertex_partition_offsets.size().");
 
-  // optinoal expensive checks (part 1/2)
+  // optinoal expensive checks (part 1/3)
 
   if (do_expensive_check) {
     edge_t number_of_local_edges_sum{};
@@ -287,9 +287,6 @@ graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu, std::enable_if_
 
     detail::check_vertex_partition_offsets(partition.vertex_partition_offsets,
                                            this->get_number_of_vertices());
-
-    if (is_symmetric) {}
-    if (!is_multigraph) {}
   }
 
   // convert edge list (COO) to compressed sparse format (CSR or CSC)
@@ -324,13 +321,13 @@ graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu, std::enable_if_
 
   // update degree-based segment offsets (to be used for graph analytics kernel optimization)
 
-  auto degrees = detail::compute_major_degree(
-    *(this->get_handle_ptr()), adj_matrix_partition_offsets_, partition_);
+  if (sorted_by_global_degree_within_vertex_partition) {
+    auto degrees = detail::compute_major_degree(
+      *(this->get_handle_ptr()), adj_matrix_partition_offsets_, partition_);
 
-  // optinoal expensive checks (part 2/2)
+    // optinoal expensive checks (part 2/3)
 
-  if (do_expensive_check) {
-    if (sorted_by_global_degree_within_vertex_partition) {
+    if (do_expensive_check) {
       CUGRAPH_EXPECTS(thrust::is_sorted(rmm::exec_policy(default_stream)->on(default_stream),
                                         degrees.begin(),
                                         degrees.end(),
@@ -338,43 +335,53 @@ graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu, std::enable_if_
                       "Invalid API parameter: sorted_by_global_degree_within_vertex_partition is "
                       "set to true, but degrees are not non-ascending.");
     }
+
+    static_assert(detail::num_segments_per_vertex_partition == 3);
+    static_assert((detail::low_degree_threshold <= detail::mid_degree_threshold) &&
+                  (detail::mid_degree_threshold <= std::numeric_limits<edge_t>::max()));
+    rmm::device_uvector<edge_t> d_thresholds(detail::num_segments_per_vertex_partition - 1,
+                                             default_stream);
+    std::vector<edge_t> h_thresholds = {static_cast<edge_t>(detail::low_degree_threshold),
+                                        static_cast<edge_t>(detail::mid_degree_threshold)};
+    raft::update_device(
+      d_thresholds.data(), h_thresholds.data(), h_thresholds.size(), default_stream);
+
+    rmm::device_uvector<vertex_t> segment_offsets(detail::num_segments_per_vertex_partition + 1,
+                                                  default_stream);
+    segment_offsets.set_element_async(0, 0, default_stream);
+    segment_offsets.set_element_async(
+      detail::num_segments_per_vertex_partition, degrees.size(), default_stream);
+
+    thrust::upper_bound(rmm::exec_policy(default_stream)->on(default_stream),
+                        degrees.begin(),
+                        degrees.end(),
+                        d_thresholds.begin(),
+                        d_thresholds.end(),
+                        segment_offsets.begin() + 1);
+
+    rmm::device_uvector<vertex_t> aggregate_segment_offsets(
+      comm_p_row_size * segment_offsets.size(), default_stream);
+    comm_p_row.allgather(segment_offsets.data(),
+                         aggregate_segment_offsets.data(),
+                         segment_offsets.size(),
+                         default_stream);
+
+    vertex_partition_segment_offsets_.resize(comm_p_row_size * (segment_offsets.size()));
+    raft::update_host(vertex_partition_segment_offsets_.data(),
+                      aggregate_segment_offsets.data(),
+                      aggregate_segment_offsets.size(),
+                      default_stream);
   }
 
-  static_assert(detail::num_segments_per_vertex_partition == 3);
-  static_assert((detail::low_degree_threshold <= detail::mid_degree_threshold) &&
-                (detail::mid_degree_threshold <= std::numeric_limits<edge_t>::max()));
-  rmm::device_uvector<edge_t> d_thresholds(detail::num_segments_per_vertex_partition - 1,
-                                           default_stream);
-  std::vector<edge_t> h_thresholds = {static_cast<edge_t>(detail::low_degree_threshold),
-                                      static_cast<edge_t>(detail::mid_degree_threshold)};
-  raft::update_device(
-    d_thresholds.data(), h_thresholds.data(), h_thresholds.size(), default_stream);
+  // optinoal expensive checks (part 3/3)
 
-  rmm::device_uvector<vertex_t> segment_offsets(detail::num_segments_per_vertex_partition + 1,
-                                                default_stream);
-  segment_offsets.set_element_async(0, 0, default_stream);
-  segment_offsets.set_element_async(
-    detail::num_segments_per_vertex_partition, degrees.size(), default_stream);
-
-  thrust::upper_bound(rmm::exec_policy(default_stream)->on(default_stream),
-                      degrees.begin(),
-                      degrees.end(),
-                      d_thresholds.begin(),
-                      d_thresholds.end(),
-                      segment_offsets.begin() + 1);
-
-  rmm::device_uvector<vertex_t> aggregate_segment_offsets(comm_p_row_size * segment_offsets.size(),
-                                                          default_stream);
-  comm_p_row.allgather(segment_offsets.data(),
-                       aggregate_segment_offsets.data(),
-                       segment_offsets.size(),
-                       default_stream);
-
-  vertex_partition_segment_offsets_.resize(comm_p_row_size * (segment_offsets.size()));
-  raft::update_host(vertex_partition_segment_offsets_.data(),
-                    aggregate_segment_offsets.data(),
-                    aggregate_segment_offsets.size(),
-                    default_stream);
+  if (do_expensive_check) {
+    // FIXME: check for symmetricity may better be implemetned with transpose().
+    if (is_symmetric) {}
+    // FIXME: check for duplicate edges may better be implemented after deciding whether to sort
+    // neighbor list or not.
+    if (!is_multigraph) {}
+  }
 }
 
 template <typename vertex_t,
@@ -449,51 +456,59 @@ graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu, std::enable_if_
 
   // update degree-based segment offsets (to be used for graph analytics kernel optimization)
 
-  rmm::device_uvector<edge_t> degrees(this->get_number_of_vertices(), default_stream);
-  thrust::adjacent_difference(rmm::exec_policy(default_stream)->on(default_stream),
-                              offsets_.begin() + 1,
-                              offsets_.end(),
-                              degrees.begin());
+  if (sorted_by_degree) {
+    auto degree_first = thrust::make_transform_iterator(
+      thrust::make_counting_iterator(vertex_t{0}),
+      detail::degree_from_offsets_t<vertex_t, edge_t>{offsets_.data()});
 
-  // optinoal expensive checks (part 2/2)
+    // optinoal expensive checks (part 2/2)
 
-  if (do_expensive_check) {
-    if (sorted_by_degree) {
+    if (do_expensive_check) {
       CUGRAPH_EXPECTS(thrust::is_sorted(rmm::exec_policy(default_stream)->on(default_stream),
-                                        degrees.begin(),
-                                        degrees.end(),
+                                        degree_first,
+                                        degree_first + this->get_number_of_vertices(),
                                         thrust::greater<edge_t>{}),
                       "Invalid API parameter: sorted_by_degree is set to true, but degrees are not "
                       "non-ascending.");
     }
+
+    static_assert(detail::num_segments_per_vertex_partition == 3);
+    static_assert((detail::low_degree_threshold <= detail::mid_degree_threshold) &&
+                  (detail::mid_degree_threshold <= std::numeric_limits<edge_t>::max()));
+    rmm::device_uvector<edge_t> d_thresholds(detail::num_segments_per_vertex_partition - 1,
+                                             default_stream);
+    std::vector<edge_t> h_thresholds = {static_cast<edge_t>(detail::low_degree_threshold),
+                                        static_cast<edge_t>(detail::mid_degree_threshold)};
+    raft::update_device(
+      d_thresholds.data(), h_thresholds.data(), h_thresholds.size(), default_stream);
+
+    rmm::device_uvector<vertex_t> segment_offsets(detail::num_segments_per_vertex_partition + 1,
+                                                  default_stream);
+    segment_offsets.set_element_async(0, 0, default_stream);
+    segment_offsets.set_element_async(
+      detail::num_segments_per_vertex_partition, this->get_number_of_vertices(), default_stream);
+
+    thrust::upper_bound(rmm::exec_policy(default_stream)->on(default_stream),
+                        degree_first,
+                        degree_first + this->get_number_of_vertices(),
+                        d_thresholds.begin(),
+                        d_thresholds.end(),
+                        segment_offsets.begin() + 1);
+
+    segment_offsets_.resize(segment_offsets.size());
+    raft::update_host(
+      segment_offsets_.data(), segment_offsets.data(), segment_offsets.size(), default_stream);
   }
 
-  static_assert(detail::num_segments_per_vertex_partition == 3);
-  static_assert((detail::low_degree_threshold <= detail::mid_degree_threshold) &&
-                (detail::mid_degree_threshold <= std::numeric_limits<edge_t>::max()));
-  rmm::device_uvector<edge_t> d_thresholds(detail::num_segments_per_vertex_partition - 1,
-                                           default_stream);
-  std::vector<edge_t> h_thresholds = {static_cast<edge_t>(detail::low_degree_threshold),
-                                      static_cast<edge_t>(detail::mid_degree_threshold)};
-  raft::update_device(
-    d_thresholds.data(), h_thresholds.data(), h_thresholds.size(), default_stream);
+  // optinoal expensive checks (part 3/3)
 
-  rmm::device_uvector<vertex_t> segment_offsets(detail::num_segments_per_vertex_partition + 1,
-                                                default_stream);
-  segment_offsets.set_element_async(0, 0, default_stream);
-  segment_offsets.set_element_async(
-    detail::num_segments_per_vertex_partition, degrees.size(), default_stream);
-
-  thrust::upper_bound(rmm::exec_policy(default_stream)->on(default_stream),
-                      degrees.begin(),
-                      degrees.end(),
-                      d_thresholds.begin(),
-                      d_thresholds.end(),
-                      segment_offsets.begin() + 1);
-
-  segment_offsets_.resize(segment_offsets.size());
-  raft::update_host(
-    segment_offsets_.data(), segment_offsets.data(), segment_offsets.size(), default_stream);
+  if (do_expensive_check) {
+    // FIXME: check for symmetricity may better be implemetned with transpose().
+    if (is_symmetric) {}
+    // FIXME: check for duplicate edges may better be implemented after deciding whether to sort
+    // neighbor list or not.
+    if (!is_multigraph) {}
+  }
 }
 
 // explicit instantiation

@@ -24,8 +24,8 @@
 #include <thrust/sort.h>
 #include <thrust/transform.h>
 
-#include <vector>
 #include <algorithm>
+#include <vector>
 
 namespace cugraph {
 namespace experimental {
@@ -104,11 +104,11 @@ rmm::device_uvector<edge_t> compute_major_degree(
 }
 
 template <typename vertex_t>
-void check_vertex_partition_offsets(std::vector<vertex_t> const& vertex_partition_offsets, vertex_t number_of_vertices)
+void check_vertex_partition_offsets(std::vector<vertex_t> const &vertex_partition_offsets,
+                                    vertex_t number_of_vertices)
 {
   CUGRAPH_EXPECTS(
-    std::is_sorted(vertex_partition_offsets.begin(),
-                   vertex_partition_offsets.end()),
+    std::is_sorted(vertex_partition_offsets.begin(), vertex_partition_offsets.end()),
     "Invalid API parameter: partition.vertex_partition_offsets values should be non-descending.");
   CUGRAPH_EXPECTS(vertex_partition_offsets[0] == vertex_t{0},
                   "Invalid API parameter: partition.vertex_partition_offsets[0] should be 0.");
@@ -116,6 +116,13 @@ void check_vertex_partition_offsets(std::vector<vertex_t> const& vertex_partitio
                   "Invalid API parameter: partition.vertex_partition_offsets.back() should be "
                   "number_of_vertices.");
 }
+
+template <typename vertex_t, typename edge_t>
+struct degree_from_offsets_t {
+  edge_t const* offsets{nullptr};
+
+  __device__ edge_t operator()(vertex_t v) { return offsets[v + 1] - offsets[v]; }
+};
 
 }  // namespace detail
 }  // namespace experimental
