@@ -479,7 +479,7 @@ def test_consolidation(graph_file):
 
 
 # Test
-@pytest.mark.parametrize('graph_file', utils.TINY_DATASETS)
+@pytest.mark.parametrize('graph_file', utils.DATASETS_SMALL)
 def test_two_hop_neighbors(graph_file):
     gc.collect()
 
@@ -622,7 +622,7 @@ def test_to_directed(graph_file):
 
 
 # Test
-@pytest.mark.parametrize("graph_file", utils.TINY_DATASETS)
+@pytest.mark.parametrize("graph_file", utils.DATASETS_SMALL)
 def test_to_undirected(graph_file):
     gc.collect()
 

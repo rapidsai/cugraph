@@ -86,8 +86,6 @@ def networkx_call(M, max_iter, tol):
     return pr
 
 
-DATASETS = ["../datasets/dolphins.csv", "../datasets/karate.csv"]
-
 MAX_ITERATIONS = [50]
 TOLERANCE = [1.0e-06]
 
@@ -95,7 +93,7 @@ TOLERANCE = [1.0e-06]
 # Test all combinations of default/managed and pooled/non-pooled allocation
 
 
-@pytest.mark.parametrize("graph_file", DATASETS)
+@pytest.mark.parametrize("graph_file", utils.DATASETS_SMALL)
 @pytest.mark.parametrize("max_iter", MAX_ITERATIONS)
 @pytest.mark.parametrize("tol", TOLERANCE)
 def test_hits(graph_file, max_iter, tol):

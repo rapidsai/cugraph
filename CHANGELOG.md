@@ -4,11 +4,11 @@
 
 ## Improvements
 - PR 1081 MNMG Renumbering - sort partitions by degree
-- PR #1129 Updating test and documentation
+- PR 1115 Replace deprecated rmm::mr::get_default_resource with rmm::mr::get_current_device_resource
 
 ## Bug Fixes
 
-# cuGraph 0.15.0 (Date TBD)
+# cuGraph 0.15.0 (26 Aug 2020)
 
 ## New Features
 - PR #940 Add MG Batch BC
@@ -100,6 +100,8 @@
 - PR #1087 Updated benchmarks README to better describe how to get plugin, added rapids-pytest-benchmark plugin to conda dev environments
 - PR #1101 Removed unnecessary device-to-host copy which caused a performance regression
 - PR #1106 Added new release.ipynb to notebook test skip list
+- PR #1125 Patch Thrust to workaround `CUDA_CUB_RET_IF_FAIL` macro clearing CUDA errors
+
 
 # cuGraph 0.14.0 (03 Jun 2020)
 
@@ -177,6 +179,7 @@
 - PR #928 Fix scikit learn test install to work with libgcc-ng 7.3
 - PR 935 Merge
 - PR #956 Use new gpuCI image in local build script
+
 
 # cuGraph 0.13.0 (31 Mar 2020)
 

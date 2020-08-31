@@ -20,27 +20,13 @@ import os
 from cugraph.dask.common.mg_utils import (get_client)
 
 #
-# Datasets are numbered based on the number of elements in the array
+# Datasets
 #
-# DATASETS_1 = ['../datasets/netscience.csv']
-
 DATASETS_UNDIRECTED = ['../datasets/karate.csv',  '../datasets/dolphins.csv']
+DATASETS_UNRENUMBERED = ['../datasets/karate-disjoint.csv']
 
 DATASETS = ['../datasets/karate.csv',
               '../datasets/karate-disjoint.csv',
-              '../datasets/dolphins.csv',
-              '../datasets/netscience.csv',
-              '../datasets/email-Eu-core.csv']
-
-# FIXME: netscience.csv causes NetworkX pagerank to throw an exception.
-# (networkx/algorithms/link_analysis/pagerank_alg.py:152: KeyError: 1532)
-# DATASETS_4 = ['../datasets/karate.csv',
-#              '../datasets/karate-disjoint.csv',
-#              '../datasets/dolphins.csv',
-#              '../datasets/netscience.csv',
-#              '../datasets/email-Eu-core.csv']
-
-DATASETS_5 = ['../datasets/karate.csv',
               '../datasets/dolphins.csv',
               '../datasets/polbooks.csv',
               '../datasets/netscience.csv',
@@ -55,15 +41,9 @@ DATASETS_KTRUSS = [('../datasets/polbooks.csv',
                    ('../datasets/netscience.csv',
                     '../datasets/ref/ktruss/netscience.csv')]
 
-TINY_DATASETS = ['../datasets/karate.csv',
+DATASETS_SMALL = ['../datasets/karate.csv',
                  '../datasets/dolphins.csv',
                  '../datasets/polbooks.csv']
-
-# SMALL_DATASETS = ['../datasets/netscience.csv', '../datasets/email-Eu-core.csv']
-
-UNRENUMBERED_DATASETS = ['../datasets/karate-disjoint.csv']
-
-
 
 
 def read_csv_for_nx(csv_file, read_weights_in_sp=True):
