@@ -108,7 +108,7 @@ graph_view_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu, std::enabl
   CUGRAPH_EXPECTS(partition.vertex_partition_offsets.size() == static_cast<size_t>(comm_p_size),
                   "Invalid API parameter: erroneous partition.vertex_partition_offsets.size().");
 
-  // optinoal expensive checks
+  // optional expensive checks
 
   if (do_expensive_check) {
     auto default_stream = this->get_handle_ptr()->get_stream();
@@ -240,7 +240,7 @@ graph_view_t<vertex_t,
       (!sorted_by_degree && (segment_offsets.size() == 0)),
     "Invalid API parameter: segment_offsets.size() does not match with sorted_by_degree.");
 
-  // optinoal expensive checks
+  // optional expensive checks
 
   if (do_expensive_check) {
     auto default_stream = this->get_handle_ptr()->get_stream();

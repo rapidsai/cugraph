@@ -247,7 +247,7 @@ graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu, std::enable_if_
   CUGRAPH_EXPECTS(partition.vertex_partition_offsets.size() == static_cast<size_t>(comm_p_size),
                   "Invalid API parameter: erroneous partition.vertex_partition_offsets.size().");
 
-  // optinoal expensive checks (part 1/3)
+  // optional expensive checks (part 1/3)
 
   if (do_expensive_check) {
     edge_t number_of_local_edges_sum{};
@@ -325,7 +325,7 @@ graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu, std::enable_if_
     auto degrees = detail::compute_major_degree(
       *(this->get_handle_ptr()), adj_matrix_partition_offsets_, partition_);
 
-    // optinoal expensive checks (part 2/3)
+    // optional expensive checks (part 2/3)
 
     if (do_expensive_check) {
       CUGRAPH_EXPECTS(thrust::is_sorted(rmm::exec_policy(default_stream)->on(default_stream),
@@ -373,7 +373,7 @@ graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu, std::enable_if_
                       default_stream);
   }
 
-  // optinoal expensive checks (part 3/3)
+  // optional expensive checks (part 3/3)
 
   if (do_expensive_check) {
     // FIXME: check for symmetricity may better be implemetned with transpose().
@@ -421,7 +421,7 @@ graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu, std::enable_if_
                   "Invalid API parameter: edgelist.p_edge_weights should not be nullptr (if "
                   "is_weighted is true) or should be nullptr (if is_weighted is false).");
 
-  // optinoal expensive checks (part 1/2)
+  // optional expensive checks (part 1/2)
 
   if (do_expensive_check) {
     auto edge_first = thrust::make_zip_iterator(
@@ -461,7 +461,7 @@ graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu, std::enable_if_
       thrust::make_counting_iterator(vertex_t{0}),
       detail::degree_from_offsets_t<vertex_t, edge_t>{offsets_.data()});
 
-    // optinoal expensive checks (part 2/2)
+    // optional expensive checks (part 2/2)
 
     if (do_expensive_check) {
       CUGRAPH_EXPECTS(thrust::is_sorted(rmm::exec_policy(default_stream)->on(default_stream),
@@ -500,7 +500,7 @@ graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu, std::enable_if_
       segment_offsets_.data(), segment_offsets.data(), segment_offsets.size(), default_stream);
   }
 
-  // optinoal expensive checks (part 3/3)
+  // optional expensive checks (part 3/3)
 
   if (do_expensive_check) {
     // FIXME: check for symmetricity may better be implemetned with transpose().
