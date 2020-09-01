@@ -7,6 +7,7 @@
 - PR 1115 Replace deprecated rmm::mr::get_default_resource with rmm::mr::get_current_device_resource
 
 ## Bug Fixes
+- PR #1131 Show style checker errors with set +e
 
 # cuGraph 0.15.0 (26 Aug 2020)
 
