@@ -15,10 +15,10 @@
  */
 
 #include <utilities/base_fixture.hpp>
+#include <utilities/test_utilities.hpp>
 
 #include <experimental/graph.hpp>
 #include <experimental/graph_view.hpp>
-#include <utilities/test_utilities.hpp>
 
 #include <raft/cudart_utils.h>
 #include <raft/handle.hpp>
@@ -65,12 +65,11 @@ std::tuple<std::vector<edge_t>, std::vector<vertex_t>, std::vector<weight_t>> gr
 }
 
 typedef struct Graph_Usecase_t {
-  std::string graph_file_path;
-  std::string graph_file_full_path;
-  bool test_weighted;
+  std::string graph_file_full_path{};
+  bool test_weighted{false};
 
   Graph_Usecase_t(std::string const& graph_file_path, bool test_weighted)
-    : graph_file_path(graph_file_path), test_weighted(test_weighted)
+    : test_weighted(test_weighted)
   {
     if ((graph_file_path.length() > 0) && (graph_file_path[0] != '/')) {
       graph_file_full_path = cugraph::test::get_rapids_dataset_root_dir() + "/" + graph_file_path;
