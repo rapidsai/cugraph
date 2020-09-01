@@ -14,10 +14,12 @@
  * limitations under the License.
  */
 
+#include <utilities/base_fixture.hpp>
 #include <utilities/test_utilities.hpp>
 
 #include <algorithms.hpp>
-#include <graph.hpp>
+#include <experimental/graph.hpp>
+#include <experimental/graph_view.hpp>
 
 #include <raft/cudart_utils.h>
 #include <raft/handle.hpp>
@@ -71,17 +73,15 @@ void bfs_reference(edge_t* offsets,
 }
 
 typedef struct BFS_Usecase_t {
-  std::string graph_file_path_;
-  std::string graph_file_full_path_;
-  size_t source_;
+  std::string graph_file_full_path{};
+  size_t source{false};
 
-  BFS_Usecase_t(std::string const& graph_file_path, size_t source)
-    : graph_file_path_(graph_file_path), source_(source)
+  BFS_Usecase_t(std::string const& graph_file_path, size_t source) : source(source)
   {
-    if ((graph_file_path_.length() > 0) && (graph_file_path[0] != '/')) {
-      graph_file_full_path_ = cugraph::test::get_rapids_dataset_root_dir() + "/" + graph_file_path_;
+    if ((graph_file_path.length() > 0) && (graph_file_path[0] != '/')) {
+      graph_file_full_path = cugraph::test::get_rapids_dataset_root_dir() + "/" + graph_file_path;
     } else {
-      graph_file_full_path_ = graph_file_path_;
+      graph_file_full_path = graph_file_path;
     }
   };
 } BFS_Usecase;
@@ -102,13 +102,13 @@ class Tests_BFS : public ::testing::TestWithParam<BFS_Usecase> {
     bool directed{false};
     auto p_csr_graph =
       cugraph::test::generate_graph_csr_from_mm<vertex_t, edge_t, float /* weight_t, dummy */>(
-        directed, configuration.graph_file_full_path_);
+        directed, configuration.graph_file_full_path);
     auto csr_graph_view = p_csr_graph->view();
     // FIXME: this shouldn't be necessary
     csr_graph_view.prop.directed = directed;
 
-    ASSERT_TRUE(configuration.source_ >= 0 &&
-                configuration.source_ <= csr_graph_view.number_of_vertices)
+    ASSERT_TRUE(configuration.source >= 0 &&
+                configuration.source <= csr_graph_view.number_of_vertices)
       << "Starting sources should be >= 0 and"
       << " less than the number of vertices in the graph.";
 
@@ -131,7 +131,7 @@ class Tests_BFS : public ::testing::TestWithParam<BFS_Usecase> {
                   h_reference_distances.data(),
                   h_reference_predecessors.data(),
                   csr_graph_view.number_of_vertices,
-                  static_cast<vertex_t>(configuration.source_),
+                  static_cast<vertex_t>(configuration.source),
                   std::numeric_limits<vertex_t>::max());
 
     raft::handle_t handle{};
@@ -147,7 +147,7 @@ class Tests_BFS : public ::testing::TestWithParam<BFS_Usecase> {
                                csr_graph_view,
                                d_distances.begin(),
                                d_predecessors.begin(),
-                               static_cast<vertex_t>(configuration.source_),
+                               static_cast<vertex_t>(configuration.source),
                                false,
                                std::numeric_limits<vertex_t>::max(),
                                false);
@@ -203,11 +203,4 @@ INSTANTIATE_TEST_CASE_P(simple_test,
                                           BFS_Usecase("test/datasets/wiki2003.mtx", 1000),
                                           BFS_Usecase("test/datasets/wiki-Talk.mtx", 1000)));
 
-int main(int argc, char** argv)
-{
-  testing::InitGoogleTest(&argc, argv);
-  auto resource = std::make_unique<rmm::mr::cuda_memory_resource>();
-  rmm::mr::set_default_resource(resource.get());
-  int rc = RUN_ALL_TESTS();
-  return rc;
-}
+CUGRAPH_TEST_PROGRAM_MAIN()
