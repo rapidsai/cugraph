@@ -177,25 +177,28 @@ class graph_view_t<vertex_t,
 
   size_t get_number_of_adj_matrix_partitions() { return adj_matrix_partition_offsets_.size(); }
 
-  // Better avoid direct invocation in application code.
-  // This is mainly for pattern accelerator implementation.
-  // This function may disappear in the future if we switch to CSR + DCSR (or CSC + DCSC)
+  // FIXME: this function is not part of the public stable API.This function is mainly for pattern
+  // accelerator implementation. This function is currently public to support the legacy
+  // implementations directly accessing CSR/CSC data, but this function will eventually become
+  // private or even disappear if we switch to CSR + DCSR (or CSC + DCSC).
   edge_t const* offsets(size_t adj_matrix_partition_idx) const
   {
     return adj_matrix_partition_offsets_[adj_matrix_partition_idx];
   }
 
-  // Better avoid direct invocation in application code.
-  // This is mainly for pattern accelerator implementation.
-  // This function may disappear in the future if we switch to CSR + DCSR (or CSC + DCSC)
+  // FIXME: this function is not part of the public stable API.This function is mainly for pattern
+  // accelerator implementation. This function is currently public to support the legacy
+  // implementations directly accessing CSR/CSC data, but this function will eventually become
+  // private or even disappear if we switch to CSR + DCSR (or CSC + DCSC).
   vertex_t const* indices(size_t adj_matrix_partition_idx) const
   {
     return adj_matrix_partition_indices_[adj_matrix_partition_idx];
   }
 
-  // Better avoid direct invocation in application code.
-  // This is mainly for pattern accelerator implementation.
-  // This function may disappear in the future if we switch to CSR + DCSR (or CSC + DCSC)
+  // FIXME: this function is not part of the public stable API.This function is mainly for pattern
+  // accelerator implementation. This function is currently public to support the legacy
+  // implementations directly accessing CSR/CSC data, but this function will eventually become
+  // private or even disappear if we switch to CSR + DCSR (or CSC + DCSC).
   weight_t const* weights(size_t adj_matrix_partition_idx) const
   {
     return adj_matrix_partition_weights_[adj_matrix_partition_idx];
@@ -249,16 +252,22 @@ class graph_view_t<vertex_t,
 
   vertex_t get_number_of_local_vertices() const { return this->get_number_of_vertices(); }
 
-  // Better avoid direct invocation in application code.
-  // This is mainly for pattern accelerator implementation.
+  // FIXME: this function is not part of the public stable API.This function is mainly for pattern
+  // accelerator implementation. This function is currently public to support the legacy
+  // implementations directly accessing CSR/CSC data, but this function will eventually become
+  // private.
   edge_t const* offsets() const { return offsets_; }
 
-  // Better avoid direct invocation in application code.
-  // This is mainly for pattern accelerator implementation.
+  // FIXME: this function is not part of the public stable API.This function is mainly for pattern
+  // accelerator implementation. This function is currently public to support the legacy
+  // implementations directly accessing CSR/CSC data, but this function will eventually become
+  // private.
   vertex_t const* indices() const { return indices_; }
 
-  // Better avoid direct invocation in application code.
-  // This is mainly for pattern accelerator implementation.
+  // FIXME: this function is not part of the public stable API.This function is mainly for pattern
+  // accelerator implementation. This function is currently public to support the legacy
+  // implementations directly accessing CSR/CSC data, but this function will eventually become
+  // private.
   weight_t const* weights() const { return weights_; }
 
  private:
