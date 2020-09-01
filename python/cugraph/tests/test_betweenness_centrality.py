@@ -367,7 +367,7 @@ def test_betweenness_centrality_k_full(
 #       the function operating the comparison inside is first proceeding
 #       to a random sampling over the number of vertices (thus direct offsets)
 #       in the graph structure instead of actual vertices identifiers
-@pytest.mark.parametrize("graph_file", utils.DATASETS_UNRENUMBERED )
+@pytest.mark.parametrize("graph_file", utils.DATASETS_UNRENUMBERED)
 @pytest.mark.parametrize("directed", DIRECTED_GRAPH_OPTIONS)
 @pytest.mark.parametrize("subset_size", SUBSET_SIZE_OPTIONS)
 @pytest.mark.parametrize("normalized", NORMALIZED_OPTIONS)

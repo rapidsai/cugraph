@@ -107,6 +107,7 @@ def cugraph_strong_call(cu_M):
         label_vertex_dict[df["labels"][i]].append(df["vertices"][i])
     return label_vertex_dict
 
+
 def which_cluster_idx(_cluster, _find_vertex):
     idx = -1
     for i in range(len(_cluster)):
@@ -194,7 +195,8 @@ def test_strong_cc(graph_file):
     # Compare lengths of each component
     assert lst_nx_components_lens == lst_cg_components_lens
 
-    # Compare vertices of largest component - note that there might be more than one largest component
+    # Compare vertices of largest component
+    # note that there might be more than one largest component
     nx_vertices = sorted(lst_nx_components[0])
     first_vert = nx_vertices[0]
 

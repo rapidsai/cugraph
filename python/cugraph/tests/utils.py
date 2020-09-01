@@ -26,11 +26,11 @@ DATASETS_UNDIRECTED = ['../datasets/karate.csv',  '../datasets/dolphins.csv']
 DATASETS_UNRENUMBERED = ['../datasets/karate-disjoint.csv']
 
 DATASETS = ['../datasets/karate.csv',
-              '../datasets/karate-disjoint.csv',
-              '../datasets/dolphins.csv',
-              '../datasets/polbooks.csv',
-              '../datasets/netscience.csv',
-              '../datasets/email-Eu-core.csv']
+            '../datasets/karate-disjoint.csv',
+            '../datasets/dolphins.csv',
+            '../datasets/polbooks.csv',
+            '../datasets/netscience.csv',
+            '../datasets/email-Eu-core.csv']
 
 STRONGDATASETS = ['../datasets/dolphins.csv',
                   '../datasets/netscience.csv',
@@ -42,8 +42,8 @@ DATASETS_KTRUSS = [('../datasets/polbooks.csv',
                     '../datasets/ref/ktruss/netscience.csv')]
 
 DATASETS_SMALL = ['../datasets/karate.csv',
-                 '../datasets/dolphins.csv',
-                 '../datasets/polbooks.csv']
+                  '../datasets/dolphins.csv',
+                  '../datasets/polbooks.csv']
 
 
 def read_csv_for_nx(csv_file, read_weights_in_sp=True):
