@@ -37,6 +37,7 @@ struct edgelist_t {
   edge_t number_of_edges{0};
 };
 
+// graph_t is an owning graph class (note that graph_view_t is a non-owning graph class)
 template <typename vertex_t,
           typename edge_t,
           typename weight_t,

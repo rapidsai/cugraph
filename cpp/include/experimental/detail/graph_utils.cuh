@@ -39,12 +39,12 @@ rmm::device_uvector<edge_t> compute_major_degree(
   std::vector<edge_t const *> const &adj_matrix_partition_offsets,
   partition_t<vertex_t> const &partition)
 {
-  auto &comm_p_row     = handle.get_subcomm(comm_p_row_key);
-  auto comm_p_row_rank = comm_p_row.get_rank();
-  auto comm_p_row_size = comm_p_row.get_size();
-  auto &comm_p_col     = handle.get_subcomm(comm_p_col_key);
-  auto comm_p_col_rank = comm_p_col.get_rank();
-  auto comm_p_col_size = comm_p_col.get_size();
+  auto &comm_p_row           = handle.get_subcomm(comm_p_row_key);
+  auto const comm_p_row_rank = comm_p_row.get_rank();
+  auto const comm_p_row_size = comm_p_row.get_size();
+  auto &comm_p_col           = handle.get_subcomm(comm_p_col_key);
+  auto const comm_p_col_rank = comm_p_col.get_rank();
+  auto const comm_p_col_size = comm_p_col.get_size();
 
   rmm::device_uvector<edge_t> local_degrees(0, handle.get_stream());
   rmm::device_uvector<edge_t> degrees(0, handle.get_stream());
@@ -97,9 +97,10 @@ rmm::device_uvector<edge_t> compute_major_degree(
 {
   // we can avoid creating this temporary with "if constexpr" supported from C++17
   std::vector<edge_t const *> tmp_offsets(adj_matrix_partition_offsets.size(), nullptr);
-  for (size_t i = 0; i < adj_matrix_partition_offsets.size(); ++i) {
-    tmp_offsets[i] = adj_matrix_partition_offsets[i].data();
-  }
+  std::transform(adj_matrix_partition_offsets.begin(),
+                 adj_matrix_partition_offsets.end(),
+                 tmp_offsets.begin(),
+                 [](auto const &offsets) { return offsets.data(); });
   return compute_major_degree(handle, tmp_offsets, partition);
 }
 

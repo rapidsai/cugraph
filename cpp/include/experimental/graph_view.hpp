@@ -35,40 +35,38 @@ std::string const comm_p_col_key = "comm_p_key";
 /**
  * @brief store vertex partitioning map
  *
- * We need to partition 1D vertex arrays (storing per vertex values) and the 2D graph adjacency
- * matrix (or transposed 2D graph adjacency matrix) of G. An 1D vertex array of size V is divided to
- * P linear partitions; each partition has the size close to V / P. The 2D matrix is partitioned to
- * 1) P or 2) P * P_col rectangular partitions.
+ * Say P = P_row * P_col GPUs. We need to partition 1D vertex arrays (storing per vertex values) and
+ * the 2D graph adjacency matrix (or transposed 2D graph adjacency matrix) of G. An 1D vertex array
+ * of size V is divided to P linear partitions; each partition has the size close to V / P. We
+ * consider two different strategies to partition the 2D matrix: the default strategy and the
+ * hypergraph partitioning based strategy (the latter is for future extension).
  *
- * 1) is the default. One GPU will be responsible for 1 rectangular partition. The matrix will be
- * horizontally partitioned first to P_row slabs (by combining P_col vertex partitions). Each slab
- * will be further vertically partitioned to P_col rectangles (by combining P_row vertex
- * partitions). Each rectangular partition will have the size close to V / P_row by V / P_col.
+ * In the default case, one GPU will be responsible for 1 rectangular partition. The matrix will be
+ * horizontally partitioned first to P_row slabs. Each slab will be further vertically partitioned
+ * to P_col rectangles. Each rectangular partition will have the size close to V / P_row by V /
+ * P_col.
  *
- * 2) is to support hyper-graph partitioning. We may apply hyper-graph partitioning to divide V
- * vertices to P groups minimizing edge cuts across groups while balancing the number of vertices in
- * each group. We will also renumber vertices so the vertices in each group are mapped to
- * consecutive integers. Then, there will be more non-zeros in the diagonal partitions of the 2D
- * graph adjacency matrix (or the transposed 2D graph adjacency matrix) than the off-diagonal
- * partitions. The strategy 1) does not balance the number of nonzeros if hyper-graph partitioning
- * is applied. To solve this problem, the matrix is first horizontally partitioned to P (instead of
- * P_row) slabs, then each slab will be further vertically partitioned to P_col rectangles. One GPU
- * will be responsible P_col rectangular partitions in this case. See E. G. Boman et. al., “Scalable
- * matrix computations on large scale-free graphs using 2D graph partitioning”, 2013 for additional
- * detail.
+ * To be more specific, a GPU with (row_rank, col_rank) will be responsible for one rectangular
+ * partition [a,b) by [c,d) where a = vertex_partition_offsets[P_col * row_rank], b =
+ * vertex_partition_offsets[p_col * (row_rank + 1)], c = vertex_partition_offsets[P_row * col_rank],
+ * and d = vertex_partition_offsets[p_row * (col_rank + 1)]
  *
- * In case of 1), a GPU with (row_rank, col_rank) will be responsible for one rectangular partition
- * [a,b) by [c,d) where
- * a = vertex_partition_offsets[P_col * row_rank],
- * b = vertex_partition_offsets[p_col * (row_rank + 1)],
- * c = vertex_partition_offsets[P_row * col_rank], and
- * d = vertex_partition_offsets[p_row * (col_rank + 1)]
+ * In the future, we may apply hyper-graph partitioning to divide V vertices to P groups minimizing
+ * edge cuts across groups while balancing the number of vertices in each group. We will also
+ * renumber vertices so the vertices in each group are mapped to consecutive integers. Then, there
+ * will be more non-zeros in the diagonal partitions of the 2D graph adjacency matrix (or the
+ * transposed 2D graph adjacency matrix) than the off-diagonal partitions. The default strategy does
+ * not balance the number of nonzeros if hyper-graph partitioning is applied. To solve this problem,
+ * the matrix is first horizontally partitioned to P (instead of P_row) slabs, then each slab will
+ * be further vertically partitioned to P_col rectangles. One GPU will be responsible P_col
+ * rectangular partitions in this case.
  *
- * In case of 2), a GPU with (row_rank, col_rank) will be responsible for P_col rectangular
- * partitions [a_i,b_i) by [c,d) where
- * a_i = vertex_partition_offsets[P_row * i + row_rank] and
- * b_i = vertex_partition_offsets[P_row * i + row_rank + 1].
- * c and d are same to 1) and i = [0, P_col).
+ * To be more specific, a GPU with (row_rank, col_rank) will be responsible for P_col rectangular
+ * partitions [a_i,b_i) by [c,d) where a_i = vertex_partition_offsets[P_row * i + row_rank] and b_i
+ * = vertex_partition_offsets[P_row * i + row_rank + 1]. c and d are same to 1) and i = [0, P_col).
+ *
+ * See E. G. Boman et. al., “Scalable matrix computations on large scale-free graphs using 2D graph
+ * partitioning”, 2013 for additional detail.
  *
  * @tparam vertex_t Type of vertex ID
  */
@@ -127,6 +125,7 @@ class graph_base_t {
 
 }  // namespace detail
 
+// graph_view_t is a non-owning graph class (note that graph_t is an owning graph class)
 template <typename vertex_t,
           typename edge_t,
           typename weight_t,
@@ -180,7 +179,7 @@ class graph_view_t<vertex_t,
 
   // Better avoid direct invocation in application code.
   // This is mainly for pattern accelerator implementation.
-  // This function may disappear in the future if we swtich to CSR + DCSR (or CSC + DCSC)
+  // This function may disappear in the future if we switch to CSR + DCSR (or CSC + DCSC)
   edge_t const* offsets(size_t adj_matrix_partition_idx) const
   {
     return adj_matrix_partition_offsets_[adj_matrix_partition_idx];
@@ -188,7 +187,7 @@ class graph_view_t<vertex_t,
 
   // Better avoid direct invocation in application code.
   // This is mainly for pattern accelerator implementation.
-  // This function may disappear in the future if we swtich to CSR + DCSR (or CSC + DCSC)
+  // This function may disappear in the future if we switch to CSR + DCSR (or CSC + DCSC)
   vertex_t const* indices(size_t adj_matrix_partition_idx) const
   {
     return adj_matrix_partition_indices_[adj_matrix_partition_idx];
@@ -196,7 +195,7 @@ class graph_view_t<vertex_t,
 
   // Better avoid direct invocation in application code.
   // This is mainly for pattern accelerator implementation.
-  // This function may disappear in the future if we swtich to CSR + DCSR (or CSC + DCSC)
+  // This function may disappear in the future if we switch to CSR + DCSR (or CSC + DCSC)
   weight_t const* weights(size_t adj_matrix_partition_idx) const
   {
     return adj_matrix_partition_weights_[adj_matrix_partition_idx];
