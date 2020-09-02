@@ -51,26 +51,34 @@ rmm::device_uvector<edge_t> compute_major_degree(
 
   vertex_t max_num_local_degrees{0};
   for (int i = 0; i < comm_p_col_size; ++i) {
-    auto vertex_partition_id = partition.hypergraph_partitioned
-                                 ? comm_p_row_size * i + comm_p_row_rank
-                                 : comm_p_col_size * comm_p_row_rank + i;
-    auto major_first      = partition.vertex_partition_offsets[vertex_partition_id];
-    auto major_last       = partition.vertex_partition_offsets[vertex_partition_id + 1];
-    max_num_local_degrees = std::max(max_num_local_degrees, major_last - major_first);
+    auto vertex_partition_idx =
+      partition.is_hypergraph_partitioned()
+        ? static_cast<size_t>(comm_p_row_size) * static_cast<size_t>(i) +
+            static_cast<size_t>(comm_p_row_rank)
+        : static_cast<size_t>(comm_p_col_size) * static_cast<size_t>(comm_p_row_rank) +
+            static_cast<size_t>(i);
+    vertex_t major_first{};
+    vertex_t major_last{};
+    std::tie(major_first, major_last) = partition.get_vertex_partition_range(vertex_partition_idx);
+    max_num_local_degrees             = std::max(max_num_local_degrees, major_last - major_first);
     if (i == comm_p_col_rank) { degrees.resize(major_last - major_first, handle.get_stream()); }
   }
   local_degrees.resize(max_num_local_degrees, handle.get_stream());
   for (int i = 0; i < comm_p_col_size; ++i) {
-    auto vertex_partition_id = partition.hypergraph_partitioned
-                                 ? comm_p_row_size * i + comm_p_row_rank
-                                 : comm_p_col_size * comm_p_row_rank + i;
-    auto major_first = partition.vertex_partition_offsets[vertex_partition_id];
-    auto major_last  = partition.vertex_partition_offsets[vertex_partition_id + 1];
-    auto p_offsets =
-      partition.hypergraph_partitioned
-        ? adj_matrix_partition_offsets[i]
-        : adj_matrix_partition_offsets[0] +
-            (major_first - partition.vertex_partition_offsets[comm_p_col_size * comm_p_row_rank]);
+    auto vertex_partition_idx =
+      partition.is_hypergraph_partitioned()
+        ? static_cast<size_t>(comm_p_row_size) * static_cast<size_t>(i) +
+            static_cast<size_t>(comm_p_row_rank)
+        : static_cast<size_t>(comm_p_col_size) * static_cast<size_t>(comm_p_row_rank) +
+            static_cast<size_t>(i);
+    vertex_t major_first{};
+    vertex_t major_last{};
+    std::tie(major_first, major_last) = partition.get_vertex_partition_range(vertex_partition_idx);
+    auto p_offsets                    = partition.is_hypergraph_partitioned()
+                       ? adj_matrix_partition_offsets[i]
+                       : adj_matrix_partition_offsets[0] +
+                           (major_first - partition.get_vertex_partition_range_first(
+                                            comm_p_col_size * comm_p_row_rank));
     thrust::transform(rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
                       thrust::make_counting_iterator(vertex_t{0}),
                       thrust::make_counting_iterator(major_last - major_first),
@@ -102,20 +110,6 @@ rmm::device_uvector<edge_t> compute_major_degree(
                  tmp_offsets.begin(),
                  [](auto const &offsets) { return offsets.data(); });
   return compute_major_degree(handle, tmp_offsets, partition);
-}
-
-template <typename vertex_t>
-void check_vertex_partition_offsets(std::vector<vertex_t> const &vertex_partition_offsets,
-                                    vertex_t number_of_vertices)
-{
-  CUGRAPH_EXPECTS(
-    std::is_sorted(vertex_partition_offsets.begin(), vertex_partition_offsets.end()),
-    "Invalid API parameter: partition.vertex_partition_offsets values should be non-descending.");
-  CUGRAPH_EXPECTS(vertex_partition_offsets[0] == vertex_t{0},
-                  "Invalid API parameter: partition.vertex_partition_offsets[0] should be 0.");
-  CUGRAPH_EXPECTS(vertex_partition_offsets.back() == number_of_vertices,
-                  "Invalid API parameter: partition.vertex_partition_offsets.back() should be "
-                  "number_of_vertices.");
 }
 
 template <typename vertex_t, typename edge_t>

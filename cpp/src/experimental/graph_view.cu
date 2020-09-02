@@ -78,9 +78,9 @@ graph_view_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu, std::enabl
 {
   // cheap error checks
 
-  auto comm_p_size     = this->get_handle_ptr()->get_comms().get_size();
-  auto comm_p_row_size = this->get_handle_ptr()->get_subcomm(comm_p_row_key).get_size();
-  auto comm_p_col_size = this->get_handle_ptr()->get_subcomm(comm_p_col_key).get_size();
+  auto const comm_p_size     = this->get_handle_ptr()->get_comms().get_size();
+  auto const comm_p_row_size = this->get_handle_ptr()->get_subcomm(comm_p_row_key).get_size();
+  auto const comm_p_col_size = this->get_handle_ptr()->get_subcomm(comm_p_col_key).get_size();
 
   CUGRAPH_EXPECTS(adj_matrix_partition_offsets.size() == adj_matrix_partition_indices.size(),
                   "Invalid API parameter: adj_matrix_partition_offsets.size() and "
@@ -92,9 +92,9 @@ graph_view_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu, std::enabl
     "adj_matrix_partition_offsets.size() (if is_weighted is true) or 0 (if is_weighted is false).");
 
   CUGRAPH_EXPECTS(
-    (partition.hypergraph_partitioned &&
+    (partition.is_hypergraph_partitioned() &&
      (adj_matrix_partition_offsets.size() == static_cast<size_t>(comm_p_row_size))) ||
-      (!(partition.hypergraph_partitioned) && (adj_matrix_partition_offsets.size() == 1)),
+      (!(partition.is_hypergraph_partitioned()) && (adj_matrix_partition_offsets.size() == 1)),
     "Invalid API parameter: errneous adj_matrix_partition_offsets.size().");
 
   CUGRAPH_EXPECTS((sorted_by_global_degree_within_vertex_partition &&
@@ -105,29 +105,22 @@ graph_view_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu, std::enabl
                   "Invalid API parameter: vertex_partition_segment_offsets.size() does not match "
                   "with sorted_by_global_degree_within_vertex_partition.");
 
-  CUGRAPH_EXPECTS(partition.vertex_partition_offsets.size() == static_cast<size_t>(comm_p_size),
-                  "Invalid API parameter: erroneous partition.vertex_partition_offsets.size().");
-
   // optional expensive checks
 
   if (do_expensive_check) {
     auto default_stream = this->get_handle_ptr()->get_stream();
 
-    auto comm_p_row_rank = this->get_handle_ptr()->get_subcomm(comm_p_row_key).get_rank();
-    auto comm_p_col_rank = this->get_handle_ptr()->get_subcomm(comm_p_col_key).get_rank();
+    auto const comm_p_row_rank = this->get_handle_ptr()->get_subcomm(comm_p_row_key).get_rank();
+    auto const comm_p_col_rank = this->get_handle_ptr()->get_subcomm(comm_p_col_key).get_rank();
 
     edge_t number_of_local_edges_sum{};
     for (size_t i = 0; i < adj_matrix_partition_offsets.size(); ++i) {
-      auto major_first =
-        partition.hypergraph_partitioned
-          ? partition.vertex_partition_offsets[comm_p_row_size * i + comm_p_row_rank]
-          : partition.vertex_partition_offsets[comm_p_row_rank * comm_p_col_size];
-      auto major_last =
-        partition.hypergraph_partitioned
-          ? partition.vertex_partition_offsets[comm_p_row_size * i + comm_p_row_rank + 1]
-          : partition.vertex_partition_offsets[(comm_p_row_rank + 1) * comm_p_col_size];
-      auto minor_first = partition.vertex_partition_offsets[comm_p_col_rank * comm_p_row_size];
-      auto minor_last = partition.vertex_partition_offsets[(comm_p_col_rank + 1) * comm_p_row_size];
+      vertex_t major_first{};
+      vertex_t major_last{};
+      vertex_t minor_first{};
+      vertex_t minor_last{};
+      std::tie(major_first, major_last) = partition.get_matrix_partition_major_range(i);
+      std::tie(minor_first, minor_last) = partition.get_matrix_partition_minor_range();
       CUGRAPH_EXPECTS(
         thrust::is_sorted(rmm::exec_policy(default_stream)->on(default_stream),
                           adj_matrix_partition_offsets[i],
@@ -176,19 +169,20 @@ graph_view_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu, std::enabl
           vertex_partition_segment_offsets[(detail::num_segments_per_vertex_partition + 1) * i] ==
             0,
           "Invalid API parameter: erroneous vertex_partition_segment_offsets.");
-        auto vertex_partition_idx = partition.hypergraph_partitioned
+        auto vertex_partition_idx = partition.is_hypergraph_partitioned()
                                       ? comm_p_row_size * i + comm_p_row_rank
                                       : comm_p_col_size * comm_p_row_rank + i;
         CUGRAPH_EXPECTS(
           vertex_partition_segment_offsets[(detail::num_segments_per_vertex_partition + 1) * i +
                                            detail::num_segments_per_vertex_partition] ==
-            partition.vertex_partition_offsets[vertex_partition_idx],
+            partition.get_vertex_partition_range_first(vertex_partition_idx),
           "Invalid API parameter: erroneous vertex_partition_segment_offsets.");
       }
     }
 
-    detail::check_vertex_partition_offsets(partition.vertex_partition_offsets,
-                                           this->get_number_of_vertices());
+    CUGRAPH_EXPECTS(
+      partition.get_vertex_partition_range_last(comm_p_size - 1) == number_of_vertices,
+      "Invalid API parameter: vertex partition should cover [0, number_of_vertices).");
 
     // FIXME: check for symmetricity may better be implemetned with transpose().
     if (is_symmetric) {}

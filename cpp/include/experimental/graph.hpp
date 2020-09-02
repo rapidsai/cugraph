@@ -74,9 +74,10 @@ class graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu, std::enab
 
   vertex_t get_number_of_local_vertices() const
   {
-    auto comm_p_rank = this->get_handle_ptr()->get_comms().get_rank();
-    return partition_.vertex_partition_offsets[comm_p_rank + 1] -
-           partition_.vertex_partition_offsets[comm_p_rank];
+    vertex_t first{};
+    vertex_t last{};
+    std::tie(first, last) = partition_.get_vertex_partition_range();
+    return last - first;
   }
 
   graph_view_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu> view()

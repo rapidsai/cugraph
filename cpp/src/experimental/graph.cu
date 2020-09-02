@@ -62,14 +62,12 @@ std::
   tuple<rmm::device_uvector<edge_t>, rmm::device_uvector<vertex_t>, rmm::device_uvector<weight_t>>
   edge_list_to_compressed_sparse(raft::handle_t const &handle,
                                  edgelist_t<vertex_t, edge_t, weight_t> const &edgelist,
-                                 vertex_t row_first,
-                                 vertex_t row_last,
-                                 vertex_t col_first,
-                                 vertex_t col_last)
+                                 vertex_t major_first,
+                                 vertex_t major_last,
+                                 vertex_t minor_first,
+                                 vertex_t minor_last)
 {
-  rmm::device_uvector<edge_t> offsets(
-    store_transposed ? (row_last - row_first) + 1 : (col_last - col_first) + 1,
-    handle.get_stream());
+  rmm::device_uvector<edge_t> offsets((major_last - major_first) + 1, handle.get_stream());
   rmm::device_uvector<vertex_t> indices(edgelist.number_of_edges, handle.get_stream());
   rmm::device_uvector<weight_t> weights(
     edgelist.p_edge_weights != nullptr ? edgelist.number_of_edges : 0, handle.get_stream());
@@ -98,7 +96,6 @@ std::
   auto p_weights =
     edgelist.p_edge_weights != nullptr ? weights.data() : static_cast<weight_t *>(nullptr);
 
-  auto major_first = store_transposed ? row_first : col_first;
   thrust::for_each(rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
                    store_transposed ? edgelist.p_dst_vertices : edgelist.p_src_vertices,
                    store_transposed ? edgelist.p_dst_vertices + edgelist.number_of_edges
@@ -218,15 +215,15 @@ graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu, std::enable_if_
 {
   // cheap error checks
 
-  auto &comm_p         = this->get_handle_ptr()->get_comms();
-  auto comm_p_size     = comm_p.get_size();
-  auto &comm_p_row     = this->get_handle_ptr()->get_subcomm(comm_p_row_key);
-  auto comm_p_row_rank = comm_p_row.get_rank();
-  auto comm_p_row_size = comm_p_row.get_size();
-  auto &comm_p_col     = this->get_handle_ptr()->get_subcomm(comm_p_col_key);
-  auto comm_p_col_rank = comm_p_col.get_rank();
-  auto comm_p_col_size = comm_p_col.get_size();
-  auto default_stream  = this->get_handle_ptr()->get_stream();
+  auto &comm_p               = this->get_handle_ptr()->get_comms();
+  auto const comm_p_size     = comm_p.get_size();
+  auto &comm_p_row           = this->get_handle_ptr()->get_subcomm(comm_p_row_key);
+  auto const comm_p_row_rank = comm_p_row.get_rank();
+  auto const comm_p_row_size = comm_p_row.get_size();
+  auto &comm_p_col           = this->get_handle_ptr()->get_subcomm(comm_p_col_key);
+  auto const comm_p_col_rank = comm_p_col.get_rank();
+  auto const comm_p_col_size = comm_p_col.get_size();
+  auto default_stream        = this->get_handle_ptr()->get_stream();
 
   for (size_t i = 0; i < edgelists.size(); ++i) {
     CUGRAPH_EXPECTS(
@@ -239,29 +236,22 @@ graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu, std::enable_if_
                     "is_weighted is true) or should be nullptr (if is_weighted is false).");
   }
 
-  CUGRAPH_EXPECTS((partition.hypergraph_partitioned &&
+  CUGRAPH_EXPECTS((partition.is_hypergraph_partitioned() &&
                    (edgelists.size() == static_cast<size_t>(comm_p_row_size))) ||
-                    (!(partition.hypergraph_partitioned) && (edgelists.size() == 1)),
+                    (!(partition.is_hypergraph_partitioned()) && (edgelists.size() == 1)),
                   "Invalid API parameter: errneous edgelists.size().");
-
-  CUGRAPH_EXPECTS(partition.vertex_partition_offsets.size() == static_cast<size_t>(comm_p_size),
-                  "Invalid API parameter: erroneous partition.vertex_partition_offsets.size().");
 
   // optional expensive checks (part 1/3)
 
   if (do_expensive_check) {
     edge_t number_of_local_edges_sum{};
     for (size_t i = 0; i < edgelists.size(); ++i) {
-      auto major_first =
-        partition.hypergraph_partitioned
-          ? partition.vertex_partition_offsets[comm_p_row_size * i + comm_p_row_rank]
-          : partition.vertex_partition_offsets[comm_p_row_rank * comm_p_col_size];
-      auto major_last =
-        partition.hypergraph_partitioned
-          ? partition.vertex_partition_offsets[comm_p_row_size * i + comm_p_row_rank + 1]
-          : partition.vertex_partition_offsets[(comm_p_row_rank + 1) * comm_p_col_size];
-      auto minor_first = partition.vertex_partition_offsets[comm_p_col_rank * comm_p_row_size];
-      auto minor_last = partition.vertex_partition_offsets[(comm_p_col_rank + 1) * comm_p_row_size];
+      vertex_t major_first{};
+      vertex_t major_last{};
+      vertex_t minor_first{};
+      vertex_t minor_last{};
+      std::tie(major_first, major_last) = partition.get_matrix_partition_major_range(i);
+      std::tie(minor_first, minor_last) = partition.get_matrix_partition_minor_range();
 
       number_of_local_edges_sum += edgelists[i].number_of_edges;
 
@@ -285,8 +275,9 @@ graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu, std::enable_if_
                     "Invalid API parameter: the sum of local edges doe counts not match with "
                     "number_of_local_edges.");
 
-    detail::check_vertex_partition_offsets(partition.vertex_partition_offsets,
-                                           this->get_number_of_vertices());
+    CUGRAPH_EXPECTS(
+      partition.get_vertex_partition_range_last(comm_p_size - 1) == number_of_vertices,
+      "Invalid API parameter: vertex partition should cover [0, number_of_vertices).");
   }
 
   // convert edge list (COO) to compressed sparse format (CSR or CSC)
@@ -299,21 +290,18 @@ graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu, std::enable_if_
                     "Invalid API parameter, edgelists[i].p_edge_weights shoud not be nullptr if "
                     "is_weighted == true");
 
-    auto row_first = partition_.hypergraph_partitioned
-                       ? partition_.vertex_partition_offsets[comm_p_row_size * i + comm_p_row_rank]
-                       : partition_.vertex_partition_offsets[comm_p_col_size * comm_p_row_rank];
-    auto row_last =
-      partition_.hypergraph_partitioned
-        ? partition_.vertex_partition_offsets[comm_p_row_size * i + comm_p_row_rank + 1]
-        : partition_.vertex_partition_offsets[comm_p_col_size * (comm_p_row_rank + 1)];
-    auto col_first = partition_.vertex_partition_offsets[comm_p_row_size * comm_p_col_rank];
-    auto col_last  = partition_.vertex_partition_offsets[comm_p_row_size * (comm_p_col_rank + 1)];
+    vertex_t major_first{};
+    vertex_t major_last{};
+    vertex_t minor_first{};
+    vertex_t minor_last{};
+    std::tie(major_first, major_last) = partition.get_matrix_partition_major_range(i);
+    std::tie(minor_first, minor_last) = partition.get_matrix_partition_minor_range();
 
     rmm::device_uvector<edge_t> offsets(0, this->get_handle_ptr()->get_stream());
     rmm::device_uvector<vertex_t> indices(0, this->get_handle_ptr()->get_stream());
     rmm::device_uvector<weight_t> weights(0, this->get_handle_ptr()->get_stream());
     std::tie(offsets, indices, weights) = edge_list_to_compressed_sparse<store_transposed>(
-      *(this->get_handle_ptr()), edgelists[i], row_first, row_last, col_first, col_last);
+      *(this->get_handle_ptr()), edgelists[i], major_first, major_last, minor_first, minor_last);
     adj_matrix_partition_offsets_.push_back(std::move(offsets));
     adj_matrix_partition_indices_.push_back(std::move(indices));
     if (this->is_weighted()) { adj_matrix_partition_weights_.push_back(std::move(weights)); }

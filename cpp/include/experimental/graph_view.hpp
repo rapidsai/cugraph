@@ -20,8 +20,10 @@
 #include <raft/handle.hpp>
 #include <rmm/device_uvector.hpp>
 
+#include <algorithm>
 #include <cstddef>
 #include <string>
+#include <tuple>
 #include <type_traits>
 #include <vector>
 
@@ -71,10 +73,99 @@ std::string const comm_p_col_key = "comm_p_key";
  * @tparam vertex_t Type of vertex ID
  */
 template <typename vertex_t>
-struct partition_t {
-  std::vector<vertex_t> vertex_partition_offsets{};  // size = P + 1
-  bool hypergraph_partitioned{false};
-};
+class partition_t {
+ public:
+  partition_t(std::vector<vertex_t> const& vertex_partition_offsets,
+              bool hypergraph_partitioned,
+              int comm_p_row_size,
+              int comm_p_col_size,
+              int comm_p_row_rank,
+              int comm_p_col_rank)
+    : vertex_partition_offsets_(vertex_partition_offsets),
+      hypergraph_partitioned_(hypergraph_partitioned),
+      comm_p_rank_(comm_p_col_size * comm_p_row_rank + comm_p_col_rank),
+      comm_p_row_size_(comm_p_row_size),
+      comm_p_col_size_(comm_p_col_size),
+      comm_p_row_rank_(comm_p_row_rank),
+      comm_p_col_rank_(comm_p_col_rank)
+  {
+    CUGRAPH_EXPECTS(
+      vertex_partition_offsets.size() == static_cast<size_t>(comm_p_row_size * comm_p_col_size),
+      "Invalid API parameter: erroneous vertex_partition_offsets.size().");
+
+    CUGRAPH_EXPECTS(
+      std::is_sorted(vertex_partition_offsets_.begin(), vertex_partition_offsets_.end()),
+      "Invalid API parameter: partition.vertex_partition_offsets values should be non-descending.");
+    CUGRAPH_EXPECTS(vertex_partition_offsets_[0] == vertex_t{0},
+                    "Invalid API parameter: partition.vertex_partition_offsets[0] should be 0.");
+  }
+
+  std::tuple<vertex_t, vertex_t> get_vertex_partition_range() const
+  {
+    return std::make_tuple(vertex_partition_offsets_[comm_p_rank_],
+                           vertex_partition_offsets_[comm_p_rank_ + 1]);
+  }
+
+  vertex_t get_vertex_partition_range_first() const
+  {
+    return vertex_partition_offsets_[comm_p_rank_];
+  }
+
+  vertex_t get_vertex_partition_range_last() const
+  {
+    return vertex_partition_offsets_[comm_p_rank_ + 1];
+  }
+
+  std::tuple<vertex_t, vertex_t> get_vertex_partition_range(size_t vertex_partition_idx) const
+  {
+    return std::make_tuple(vertex_partition_offsets_[vertex_partition_idx],
+                           vertex_partition_offsets_[vertex_partition_idx + 1]);
+  }
+
+  vertex_t get_vertex_partition_range_first(size_t vertex_partition_idx) const
+  {
+    return vertex_partition_offsets_[vertex_partition_idx];
+  }
+
+  vertex_t get_vertex_partition_range_last(size_t vertex_partition_idx) const
+  {
+    return vertex_partition_offsets_[vertex_partition_idx + 1];
+  }
+
+  std::tuple<vertex_t, vertex_t> get_matrix_partition_major_range(int partition_idx) const
+  {
+    auto major_first =
+      hypergraph_partitioned_
+        ? vertex_partition_offsets_[comm_p_row_size_ * partition_idx + comm_p_row_rank_]
+        : vertex_partition_offsets_[comm_p_row_rank_ * comm_p_col_size_];
+    auto major_last =
+      hypergraph_partitioned_
+        ? vertex_partition_offsets_[comm_p_row_size_ * partition_idx + comm_p_row_rank_ + 1]
+        : vertex_partition_offsets_[(comm_p_row_rank_ + 1) * comm_p_col_size_];
+
+    return std::make_tuple(major_first, major_last);
+  }
+
+  std::tuple<vertex_t, vertex_t> get_matrix_partition_minor_range() const
+  {
+    auto minor_first = vertex_partition_offsets_[comm_p_col_rank_ * comm_p_row_size_];
+    auto minor_last  = vertex_partition_offsets_[(comm_p_col_rank_ + 1) * comm_p_row_size_];
+
+    return std::make_tuple(minor_first, minor_last);
+  }
+
+  bool is_hypergraph_partitioned() const { return hypergraph_partitioned_; }
+
+ private:
+  std::vector<vertex_t> vertex_partition_offsets_{};  // size = P + 1
+  bool hypergraph_partitioned_{false};
+
+  int comm_p_rank_{0};
+  int comm_p_row_size_{0};
+  int comm_p_col_size_{0};
+  int comm_p_row_rank_{0};
+  int comm_p_col_rank_{0};
+};  // namespace experimental
 
 namespace detail {
 
@@ -171,8 +262,8 @@ class graph_view_t<vertex_t,
   vertex_t get_number_of_local_vertices() const
   {
     auto comm_p_rank = this->get_handle_ptr()->get_comms().get_rank();
-    return partition_.vertex_partition_offsets[comm_p_rank + 1] -
-           partition_.vertex_partition_offsets[comm_p_rank];
+    return partition_.get_vertex_partition_range_last() -
+           partition_.get_vertex_partition_range_first();
   }
 
   size_t get_number_of_adj_matrix_partitions() { return adj_matrix_partition_offsets_.size(); }
