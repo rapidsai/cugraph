@@ -115,55 +115,26 @@ class Tests_KatzCentrality : public ::testing::TestWithParam<KatzCentrality_Usec
   template <typename vertex_t, typename edge_t, typename weight_t, typename result_t>
   void run_current_test(KatzCentrality_Usecase const& configuration)
   {
-    MM_typecode mc{};
-    vertex_t m{};
-    vertex_t k{};
-    edge_t nnz{};
-
-    FILE* file = fopen(configuration.graph_file_full_path.c_str(), "r");
-    ASSERT_NE(file, nullptr) << "fopen (" << configuration.graph_file_full_path << ") failure.";
-
-    edge_t tmp_m{};
-    edge_t tmp_k{};
-    ASSERT_EQ(cugraph::test::mm_properties<edge_t>(file, 1, &mc, &tmp_m, &tmp_k, &nnz), 0)
-      << "could not read Matrix Market file properties\n";
-    m = static_cast<vertex_t>(tmp_m);
-    k = static_cast<vertex_t>(tmp_k);
-    ASSERT_TRUE(mm_is_matrix(mc));
-    ASSERT_TRUE(mm_is_coordinate(mc));
-    ASSERT_FALSE(mm_is_complex(mc));
-    ASSERT_FALSE(mm_is_skew(mc));
-
-    std::vector<vertex_t> h_edgelist_rows(nnz, vertex_t{0});
-    std::vector<vertex_t> h_edgelist_cols(nnz, vertex_t{0});
-    std::vector<weight_t> h_edgelist_weights(nnz, weight_t{0.0});
-
-    ASSERT_EQ((cugraph::test::mm_to_coo<vertex_t, weight_t>(file,
-                                                            1,
-                                                            nnz,
-                                                            h_edgelist_rows.data(),
-                                                            h_edgelist_cols.data(),
-                                                            h_edgelist_weights.data(),
-                                                            nullptr)),
-              0)
-      << "could not read matrix data\n";
-    ASSERT_EQ(fclose(file), 0);
+    auto mm_graph =
+      cugraph::test::read_edgelist_from_matrix_market_file<vertex_t, edge_t, weight_t>(
+        configuration.graph_file_full_path);
+    edge_t number_of_edges = static_cast<edge_t>(mm_graph.h_rows.size());
 
     raft::handle_t handle{};
 
-    rmm::device_uvector<vertex_t> d_edgelist_rows(nnz, handle.get_stream());
-    rmm::device_uvector<vertex_t> d_edgelist_cols(nnz, handle.get_stream());
-    rmm::device_uvector<weight_t> d_edgelist_weights(configuration.test_weighted ? nnz : 0,
+    rmm::device_uvector<vertex_t> d_edgelist_rows(number_of_edges, handle.get_stream());
+    rmm::device_uvector<vertex_t> d_edgelist_cols(number_of_edges, handle.get_stream());
+    rmm::device_uvector<weight_t> d_edgelist_weights(configuration.test_weighted ? number_of_edges : 0,
                                                      handle.get_stream());
 
     raft::update_device(
-      d_edgelist_rows.data(), h_edgelist_rows.data(), h_edgelist_rows.size(), handle.get_stream());
+      d_edgelist_rows.data(), mm_graph.h_rows.data(), number_of_edges, handle.get_stream());
     raft::update_device(
-      d_edgelist_cols.data(), h_edgelist_cols.data(), h_edgelist_cols.size(), handle.get_stream());
+      d_edgelist_cols.data(), mm_graph.h_cols.data(), number_of_edges, handle.get_stream());
     if (configuration.test_weighted) {
       raft::update_device(d_edgelist_weights.data(),
-                          h_edgelist_weights.data(),
-                          h_edgelist_weights.size(),
+                          mm_graph.h_weights.data(),
+                          number_of_edges,
                           handle.get_stream());
     }
 
@@ -171,10 +142,10 @@ class Tests_KatzCentrality : public ::testing::TestWithParam<KatzCentrality_Usec
       d_edgelist_rows.data(),
       d_edgelist_cols.data(),
       configuration.test_weighted ? d_edgelist_weights.data() : nullptr,
-      nnz};
+      number_of_edges};
 
     auto graph = cugraph::experimental::graph_t<vertex_t, edge_t, weight_t, true, false>(
-      handle, edgelist, m, mm_is_symmetric(mc), false, configuration.test_weighted, false, true);
+      handle, edgelist, mm_graph.number_of_vertices, mm_is_symmetric(mc), false, configuration.test_weighted, false, true);
 
     auto graph_view = graph.view();
 
@@ -183,20 +154,11 @@ class Tests_KatzCentrality : public ::testing::TestWithParam<KatzCentrality_Usec
     std::vector<weight_t> h_weights{};
     std::vector<result_t> h_reference_katz_centralities(graph_view.get_number_of_vertices());
 
-    CUDA_TRY(cudaMemcpy(h_offsets.data(),
-                        graph_view.offsets(),
-                        sizeof(edge_t) * h_offsets.size(),
-                        cudaMemcpyDeviceToHost));
-    CUDA_TRY(cudaMemcpy(h_indices.data(),
-                        graph_view.indices(),
-                        sizeof(vertex_t) * h_indices.size(),
-                        cudaMemcpyDeviceToHost));
+    raft::update_host(h_offsets.data(), graph_view.offsets(), graph_view.get_number_of_verties() + 1, handle.get_stream());
+    raft::update_host(h_indices.data(), graph_view.indices(), graph_view.get_number_of_edges(), handle.get_stream());
     if (graph_view.is_weighted()) {
       h_weights.assign(graph_view.get_number_of_edges(), weight_t{0.0});
-      CUDA_TRY(cudaMemcpy(h_weights.data(),
-                          graph_view.weights(),
-                          sizeof(weight_t) * h_weights.size(),
-                          cudaMemcpyDeviceToHost));
+      raft::update_host(h_weights.data(), graph_view.wights(), graph_view.get_number_of_edges(), handle.get_stream());
     }
 
     std::vector<edge_t> tmps(h_offsets.size());
