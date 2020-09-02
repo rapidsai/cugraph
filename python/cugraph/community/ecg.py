@@ -46,21 +46,21 @@ def ecg(input_graph, min_weight=0.05, ensemble_size=16):
     parts : cudf.DataFrame
         GPU data frame of size V containing two columns, the vertex id and
         the partition id it is assigned to.
-
-         df['vertex'] : cudf.Series
+        
+        df[vertex] : cudf.Series
             Contains the vertex identifiers
-        df['partition'] : cudf.Series
+        df[partition] : cudf.Series
             Contains the partition assigned to the vertices
 
     Examples
     --------
-    >>> M = cudf.read_csv('datasets/karate.csv',
-                          delimiter = ' ',
+    >>> M = cudf.read_csv('datasets/karate.csv', delimiter = ' ',
                           dtype=['int32', 'int32', 'float32'],
                           header=None)
     >>> G = cugraph.Graph()
     >>> G.from_cudf_edgelist(M, source='0', destination='1', edge_attr='2')
     >>> parts = cugraph.ecg(G)
+
     """
 
     parts = ecg_wrapper.ecg(input_graph, min_weight, ensemble_size)
