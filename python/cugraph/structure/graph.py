@@ -925,7 +925,6 @@ class Graph:
             raise Exception("Not supported for distributed graph")
         return self._degree(vertex_subset, x=2)
 
-
     def degree(self, vertex_subset=None):
         """
         Compute vertex degree, which is the total number of edges incident
@@ -947,7 +946,7 @@ class Graph:
             vertices (vertex_subset) containing the degree. The ordering is
             relative to the adjacency list, or that given by the specified
             vertex_subset.
-            
+
             df['vertex'] : cudf.Series
                 The vertex IDs (will be identical to vertex_subset if
                 specified).

@@ -46,7 +46,7 @@ def ecg(input_graph, min_weight=0.05, ensemble_size=16):
     parts : cudf.DataFrame
         GPU data frame of size V containing two columns, the vertex id and
         the partition id it is assigned to.
-        
+
         df[vertex] : cudf.Series
             Contains the vertex identifiers
         df[partition] : cudf.Series
