@@ -225,16 +225,18 @@ graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu, std::enable_if_
   auto const comm_p_col_size = comm_p_col.get_size();
   auto default_stream        = this->get_handle_ptr()->get_stream();
 
-  for (size_t i = 0; i < edgelists.size(); ++i) {
-    CUGRAPH_EXPECTS(
-      (edgelists[i].p_src_vertices != nullptr) && (edgelists[i].p_dst_vertices != nullptr),
-      "Invalid API parameter: edgelists[].p_src_vertices and edgelists[].p_dst_vertices should "
-      "not be nullptr.");
-    CUGRAPH_EXPECTS((is_weighted && (edgelists[i].p_edge_weights != nullptr)) ||
-                      (!is_weighted && (edgelists[i].p_edge_weights == nullptr)),
-                    "Invalid API parameter: edgelists[].p_edge_weights should not be nullptr (if "
-                    "is_weighted is true) or should be nullptr (if is_weighted is false).");
-  }
+  CUGRAPH_EXPECTS(
+    std::any_of(edgelists.begin(),
+                edgelists.end(),
+                [is_weighted](auto edgelist) {
+                  return (edgelist.p_src_vertices == nullptr) ||
+                         (edgelist.p_dst_vertices == nullptr) ||
+                         (is_weighted && (edgelist.p_edge_weights == nullptr)) ||
+                         (!is_weighted && (edgelist.p_edge_weights != nullptr));
+                }) == false,
+    "Invalid API parameter: edgelists[].p_src_vertices and edgelists[].p_dst_vertices should not "
+    "be nullptr and edgelists[].p_edge_weights should not be nullptr (if is_weighted is true) or "
+    "should be nullptr (if is_weighted is false).");
 
   CUGRAPH_EXPECTS((partition.is_hypergraph_partitioned() &&
                    (edgelists.size() == static_cast<size_t>(comm_p_row_size))) ||
