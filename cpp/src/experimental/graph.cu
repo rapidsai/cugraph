@@ -426,7 +426,10 @@ graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu, std::enable_if_
                         0, this->get_number_of_vertices(), 0, this->get_number_of_vertices()}) == 0,
                     "Invalid API parameter: edgelist have out-of-range values.");
 
+    // FIXME: check for symmetricity may better be implemetned with transpose().
     if (is_symmetric) {}
+    // FIXME: check for duplicate edges may better be implemented after deciding whether to sort
+    // neighbor list or not.
     if (!is_multigraph) {}
   }
 

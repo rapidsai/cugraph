@@ -132,7 +132,7 @@ class partition_t {
     return vertex_partition_offsets_[vertex_partition_idx + 1];
   }
 
-  std::tuple<vertex_t, vertex_t> get_matrix_partition_major_range(int partition_idx) const
+  std::tuple<vertex_t, vertex_t> get_matrix_partition_major_range(size_t partition_idx) const
   {
     auto major_first =
       hypergraph_partitioned_
@@ -261,7 +261,6 @@ class graph_view_t<vertex_t,
 
   vertex_t get_number_of_local_vertices() const
   {
-    auto comm_p_rank = this->get_handle_ptr()->get_comms().get_rank();
     return partition_.get_vertex_partition_range_last() -
            partition_.get_vertex_partition_range_first();
   }
