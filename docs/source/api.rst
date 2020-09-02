@@ -14,12 +14,6 @@ Graph
     :members:
     :undoc-members:
 
-Renumbering
------------
-
-.. automodule:: cugraph.structure.renumber
-    :members:
-    :undoc-members:
 
 Symmetrize
 ----------
@@ -212,10 +206,5 @@ Single-source-shortest-path
 Utilities
 =========
 
-R-mat Graph Generation
-----------------------
 
-.. automodule:: cugraph.utilities.grmat
-    :members:
-    :undoc-members:
 
