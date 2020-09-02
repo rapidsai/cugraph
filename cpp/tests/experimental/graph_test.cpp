@@ -124,8 +124,6 @@ class Tests_Graph : public ::testing::TestWithParam<Graph_Usecase> {
         d_weights.data(), mm_graph.h_weights.data(), number_of_edges, handle.get_stream());
     }
 
-    CUDA_TRY(cudaStreamSynchronize(handle.get_stream()));
-
     cugraph::experimental::edgelist_t<vertex_t, edge_t, weight_t> edgelist{
       d_rows.data(),
       d_cols.data(),
@@ -147,10 +145,10 @@ class Tests_Graph : public ::testing::TestWithParam<Graph_Usecase> {
 
     auto graph_view = graph.view();
 
+    CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
+
     ASSERT_EQ(graph_view.get_number_of_vertices(), mm_graph.number_of_vertices);
     ASSERT_EQ(graph_view.get_number_of_edges(), number_of_edges);
-
-    CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
 
     std::vector<edge_t> h_cugraph_offsets(graph_view.get_number_of_vertices() + 1);
     std::vector<vertex_t> h_cugraph_indices(graph_view.get_number_of_edges());

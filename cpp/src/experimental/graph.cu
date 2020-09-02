@@ -188,6 +188,11 @@ std::vector<vertex_t> segment_degree_sorted_vertex_partition(raft::handle_t cons
                     d_segment_offsets.size(),
                     handle.get_stream());
 
+  CUDA_TRY(cudaStreamSynchronize(
+    handle.get_stream()));  // this is necessary as d_segment_offsets will become out-of-scope once
+                            // this functions and returning a host variable which can be used right
+                            // after return.
+
   return h_segment_offsets;
 }
 
@@ -299,9 +304,9 @@ graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu, std::enable_if_
     std::tie(major_first, major_last) = partition.get_matrix_partition_major_range(i);
     std::tie(minor_first, minor_last) = partition.get_matrix_partition_minor_range();
 
-    rmm::device_uvector<edge_t> offsets(0, this->get_handle_ptr()->get_stream());
-    rmm::device_uvector<vertex_t> indices(0, this->get_handle_ptr()->get_stream());
-    rmm::device_uvector<weight_t> weights(0, this->get_handle_ptr()->get_stream());
+    rmm::device_uvector<edge_t> offsets(0, default_stream);
+    rmm::device_uvector<vertex_t> indices(0, default_stream);
+    rmm::device_uvector<weight_t> weights(0, default_stream);
     std::tie(offsets, indices, weights) = edge_list_to_compressed_sparse<store_transposed>(
       *(this->get_handle_ptr()), edgelists[i], major_first, major_last, minor_first, minor_last);
     adj_matrix_partition_offsets_.push_back(std::move(offsets));
@@ -361,6 +366,11 @@ graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu, std::enable_if_
                       aggregate_segment_offsets.data(),
                       aggregate_segment_offsets.size(),
                       default_stream);
+
+    handle.sync_stream(
+      default_stream);  // this is necessary as degrees, d_thresholds, and segment_offsets will
+                        // become out-of-scope once control flow exits this block and
+                        // vertex_partition_segment_offsets_ can be used right after return.
   }
 
   // optional expensive checks (part 3/3)
@@ -491,6 +501,11 @@ graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu, std::enable_if_
     segment_offsets_.resize(segment_offsets.size());
     raft::update_host(
       segment_offsets_.data(), segment_offsets.data(), segment_offsets.size(), default_stream);
+
+    CUDA_TRY(cudaStreamSynchronize(
+      default_stream));  // this is necessary as d_thresholds and segment_offsets will become
+                         // out-of-scpe once control flow exits this block and segment_offsets_ can
+                         // be used right after return.
   }
 
   // optional expensive checks (part 3/3)

@@ -92,6 +92,9 @@ rmm::device_uvector<edge_t> compute_major_degree(
                       handle.get_stream());
   }
 
+  handle.sync_stream(handle.get_stream());  // this is neessary as local_degrees will become
+                                            // out-of-scope once this function returns.
+
   return degrees;
 }
 
