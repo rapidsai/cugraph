@@ -25,8 +25,7 @@ from cugraph.dask.common.mg_utils import (get_client)
 DATASETS_UNDIRECTED = ['../datasets/karate.csv',  '../datasets/dolphins.csv']
 DATASETS_UNRENUMBERED = ['../datasets/karate-disjoint.csv']
 
-DATASETS = ['../datasets/karate.csv',
-            '../datasets/karate-disjoint.csv',
+DATASETS = ['../datasets/karate-disjoint.csv',
             '../datasets/dolphins.csv',
             '../datasets/polbooks.csv',
             '../datasets/netscience.csv',
