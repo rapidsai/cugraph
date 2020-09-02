@@ -767,20 +767,12 @@ class Graph:
         Returns
         -------
         df : cudf.DataFrame
-            df['first'] : cudf.Series
+            df[first] : cudf.Series
                 the first vertex id of a pair, if an external vertex id
                 is defined by only one column
-            df['second'] : cudf.Series
+            df[second] : cudf.Series
                 the second vertex id of a pair, if an external vertex id
                 is defined by only one column
-            df['*_first'] : cudf.Series
-                the first vertex id of a pair, column 0 of the external
-                vertex id will be represented as '0_first', column 1 as
-                '1_first', etc.
-            df['*_second'] : cudf.Series
-                the second vertex id of a pair, column 0 of the external
-                vertex id will be represented as '0_first', column 1 as
-                '1_first', etc.
         """
         if self.distributed:
             raise Exception("Not supported for distributed graph")
@@ -874,10 +866,11 @@ class Graph:
             vertices (vertex_subset) containing the in_degree. The ordering is
             relative to the adjacency list, or that given by the specified
             vertex_subset.
-            df['vertex'] : cudf.Series
+
+            df[vertex] : cudf.Series
                 The vertex IDs (will be identical to vertex_subset if
                 specified).
-            df['degree'] : cudf.Series
+            df[degree] : cudf.Series
                 The computed in-degree of the corresponding vertex.
 
         Examples
@@ -912,10 +905,11 @@ class Graph:
             vertices (vertex_subset) containing the out_degree. The ordering is
             relative to the adjacency list, or that given by the specified
             vertex_subset.
-            df['vertex'] : cudf.Series
+
+            df[vertex] : cudf.Series
                 The vertex IDs (will be identical to vertex_subset if
                 specified).
-            df['degree'] : cudf.Series
+            df[degree] : cudf.Series
                 The computed out-degree of the corresponding vertex.
 
         Examples
@@ -931,17 +925,19 @@ class Graph:
             raise Exception("Not supported for distributed graph")
         return self._degree(vertex_subset, x=2)
 
+
     def degree(self, vertex_subset=None):
         """
-        Compute vertex degree. By default, this method computes vertex
+        Compute vertex degree, which is the total number of edges incident
+        to a vertex (both in and out edges). By default, this method computes
         degrees for the entire set of vertices. If vertex_subset is provided,
-        this method optionally filters out all but those listed in
+        then this method optionally filters out all but those listed in
         vertex_subset.
 
         Parameters
         ----------
         vertex_subset : cudf.Series or iterable container, optional
-            A container of vertices for displaying corresponding degree. If not
+            a container of vertices for displaying corresponding degree. If not
             set, degrees are computed for the entire set of vertices.
 
         Returns
@@ -951,6 +947,7 @@ class Graph:
             vertices (vertex_subset) containing the degree. The ordering is
             relative to the adjacency list, or that given by the specified
             vertex_subset.
+            
             df['vertex'] : cudf.Series
                 The vertex IDs (will be identical to vertex_subset if
                 specified).
@@ -963,7 +960,8 @@ class Graph:
         >>>                   dtype=['int32', 'int32', 'float32'], header=None)
         >>> G = cugraph.Graph()
         >>> G.from_cudf_edgelist(M, '0', '1')
-        >>> df = G.degree([0,9,12])
+        >>> all_df = G.degree()
+        >>> subset_df = G.degree([0,9,12])
 
         """
         if self.distributed:
