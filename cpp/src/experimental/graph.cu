@@ -367,10 +367,11 @@ graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu, std::enable_if_
                       aggregate_segment_offsets.size(),
                       default_stream);
 
-    handle.sync_stream(
+    auto status = handle.get_comms().sync_stream(
       default_stream);  // this is necessary as degrees, d_thresholds, and segment_offsets will
                         // become out-of-scope once control flow exits this block and
                         // vertex_partition_segment_offsets_ can be used right after return.
+    CUGRAPH_EXPECTS(status == raft::comms::status_t::SUCCESS, "sync_stream() failure.");
   }
 
   // optional expensive checks (part 3/3)

@@ -147,7 +147,8 @@ graph_view_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu, std::enabl
                                                   1,
                                                   raft::comms::op_t::SUM,
                                                   default_stream);
-    handle.sync_stream(default_stream);
+    auto status = handle.get_comms().sync_stream(default_stream);
+    CUGRAPH_EXPECTS(status == raft::comms::status_t::SUCCESS, "sync_stream() failure.");
     CUGRAPH_EXPECTS(number_of_local_edges_sum == this->get_number_of_edges(),
                     "Invalid API parameter: the sum of local edges doe counts not match with "
                     "number_of_local_edges.");

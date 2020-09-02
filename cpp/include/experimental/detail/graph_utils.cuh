@@ -92,8 +92,10 @@ rmm::device_uvector<edge_t> compute_major_degree(
                       handle.get_stream());
   }
 
-  handle.sync_stream(handle.get_stream());  // this is neessary as local_degrees will become
-                                            // out-of-scope once this function returns.
+  auto status = handle.get_comms().sync_stream(
+    handle.get_stream());  // this is neessary as local_degrees will become out-of-scope once this
+                           // function returns.
+  CUGRAPH_EXPECTS(status == raft::comms::status_t::SUCCESS, "sync_stream() failure.");
 
   return degrees;
 }
