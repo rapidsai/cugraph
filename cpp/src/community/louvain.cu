@@ -34,34 +34,25 @@ std::pair<int, weight_t> louvain(GraphCSRView<vertex_t, edge_t, weight_t> const 
   return runner.compute(louvain_parts, max_level, resolution);
 }
 
-} // namespace detail
+}  // namespace detail
 
- 
 template <typename vertex_t, typename edge_t, typename weight_t>
 void louvain(GraphCSRView<vertex_t, edge_t, weight_t> const &graph,
              weight_t *final_modularity,
              int *num_level,
              vertex_t *louvain_parts,
              int max_level,
-             weight_t resolution) {
-
+             weight_t resolution)
+{
   cudaStream_t stream{0};
 
-  std::tie(*num_level, *final_modularity) = detail::louvain(graph, louvain_parts, max_level, resolution, stream);
-
+  std::tie(*num_level, *final_modularity) =
+    detail::louvain(graph, louvain_parts, max_level, resolution, stream);
 }
 
-template void louvain(GraphCSRView<int32_t, int32_t, float> const &,
-                      float *,
-                      int *,
-                      int32_t *,
-                      int,
-                      float);
-template void louvain(GraphCSRView<int32_t, int32_t, double> const &,
-                      double *,
-                      int *,
-                      int32_t *,
-                      int,
-                      double);
+template void louvain(
+  GraphCSRView<int32_t, int32_t, float> const &, float *, int *, int32_t *, int, float);
+template void louvain(
+  GraphCSRView<int32_t, int32_t, double> const &, double *, int *, int32_t *, int, double);
 
-} //namespace cugraph
+}  // namespace cugraph

@@ -19,8 +19,8 @@
 
 #include <rmm/thrust_rmm_allocator.h>
 
-#include <utilities/graph_utils.cuh>
 #include <converters/COOtoCSR.cuh>
+#include <utilities/graph_utils.cuh>
 
 //#define TIMING
 
@@ -28,47 +28,46 @@
 #include <utilities/high_res_timer.hpp>
 #endif
 
-
 namespace cugraph {
 
 template <typename graph_type>
 class Louvain {
-public:
-  using graph_t = graph_type;
+ public:
+  using graph_t  = graph_type;
   using vertex_t = typename graph_type::vertex_type;
   using edge_t   = typename graph_type::edge_type;
   using weight_t = typename graph_type::weight_type;
 
-  Louvain(graph_type const &graph, cudaStream_t stream):
+  Louvain(graph_type const &graph, cudaStream_t stream)
+    :
 #ifdef TIMING
-    hr_timer_(),
+      hr_timer_(),
 #endif
 
-    // FIXME:  Don't really need to copy here but would need
-    //         to change the logic to populate this properly
-    //         in generate_superverticies_graph.
-    //
-    offsets_v_(graph.offsets, graph.offsets + graph.number_of_vertices + 1),
-    indices_v_(graph.indices, graph.indices + graph.number_of_edges),
-    weights_v_(graph.edge_data, graph.edge_data + graph.number_of_edges),
-    src_indices_v_(graph.number_of_edges),
-    vertex_weights_v_(graph.number_of_vertices),
-    cluster_weights_v_(graph.number_of_vertices),
-    cluster_v_(graph.number_of_vertices),
-    tmp_arr_v_(graph.number_of_vertices),
-    cluster_inverse_v_(graph.number_of_vertices),
-    number_of_vertices_(graph.number_of_vertices),
-    number_of_edges_(graph.number_of_edges),
-    stream_(stream)
+      // FIXME:  Don't really need to copy here but would need
+      //         to change the logic to populate this properly
+      //         in generate_superverticies_graph.
+      //
+      offsets_v_(graph.offsets, graph.offsets + graph.number_of_vertices + 1),
+      indices_v_(graph.indices, graph.indices + graph.number_of_edges),
+      weights_v_(graph.edge_data, graph.edge_data + graph.number_of_edges),
+      src_indices_v_(graph.number_of_edges),
+      vertex_weights_v_(graph.number_of_vertices),
+      cluster_weights_v_(graph.number_of_vertices),
+      cluster_v_(graph.number_of_vertices),
+      tmp_arr_v_(graph.number_of_vertices),
+      cluster_inverse_v_(graph.number_of_vertices),
+      number_of_vertices_(graph.number_of_vertices),
+      number_of_edges_(graph.number_of_edges),
+      stream_(stream)
   {
   }
-
 
   weight_t modularity(weight_t total_edge_weight,
                       weight_t resolution,
                       graph_t const &graph,
-                      vertex_t const *d_cluster) {
-
+                      vertex_t const *d_cluster)
+  {
     vertex_t n_verts = graph.number_of_vertices;
 
     rmm::device_vector<weight_t> inc(n_verts, weight_t{0.0});
@@ -109,8 +108,8 @@ public:
       thrust::make_counting_iterator(graph.number_of_vertices),
       [d_deg, d_inc, total_edge_weight, resolution] __device__(vertex_t community) {
         return ((d_inc[community] / total_edge_weight) - resolution *
-                (d_deg[community] * d_deg[community]) /
-                (total_edge_weight * total_edge_weight));
+                                                           (d_deg[community] * d_deg[community]) /
+                                                           (total_edge_weight * total_edge_weight));
       },
       weight_t{0.0},
       thrust::plus<weight_t>());
@@ -120,8 +119,8 @@ public:
 
   virtual std::pair<int, weight_t> compute(vertex_t *d_cluster_vec,
                                            int max_level,
-                                           weight_t resolution) {
-    
+                                           weight_t resolution)
+  {
     int num_level{0};
 
     weight_t total_edge_weight =
@@ -167,60 +166,64 @@ public:
     return std::make_pair(num_level, best_modularity);
   }
 
-protected:
-  void timer_start(std::string const &region) {
+ protected:
+  void timer_start(std::string const &region)
+  {
 #ifdef TIMING
     hr_timer_.start(region);
 #endif
   }
 
-  void timer_stop(cudaStream_t stream) {
+  void timer_stop(cudaStream_t stream)
+  {
 #ifdef TIMING
     CUDA_TRY(cudaStreamSynchronize(stream));
     hr_timer_.stop();
 #endif
   }
 
-  void timer_display(std::ostream &os) {
+  void timer_display(std::ostream &os)
+  {
 #ifdef TIMING
     hr_timer_.display(os);
 #endif
   }
 
-public:
-  void compute_vertex_and_cluster_weights(graph_type const &graph) {
+ public:
+  void compute_vertex_and_cluster_weights(graph_type const &graph)
+  {
     timer_start("compute_vertex_and_cluster_weights");
 
-    edge_t const *d_offsets = graph.offsets;
-    vertex_t const *d_indices = graph.indices;
-    weight_t const *d_weights = graph.edge_data;
-    weight_t *d_vertex_weights = vertex_weights_v_.data().get();
+    edge_t const *d_offsets     = graph.offsets;
+    vertex_t const *d_indices   = graph.indices;
+    weight_t const *d_weights   = graph.edge_data;
+    weight_t *d_vertex_weights  = vertex_weights_v_.data().get();
     weight_t *d_cluster_weights = cluster_weights_v_.data().get();
 
     //
-    // MNMG:  copy_v_transform_reduce_out_nbr, then copy 
+    // MNMG:  copy_v_transform_reduce_out_nbr, then copy
     //
-    thrust::for_each(rmm::exec_policy(stream_)->on(stream_),
-                     thrust::make_counting_iterator<edge_t>(0),
-                     thrust::make_counting_iterator<edge_t>(graph.number_of_vertices),
-                     [d_offsets, d_indices, d_weights,
-                      d_vertex_weights, d_cluster_weights] __device__ (vertex_t src) {
-                       weight_t sum{0.0};
+    thrust::for_each(
+      rmm::exec_policy(stream_)->on(stream_),
+      thrust::make_counting_iterator<edge_t>(0),
+      thrust::make_counting_iterator<edge_t>(graph.number_of_vertices),
+      [d_offsets, d_indices, d_weights, d_vertex_weights, d_cluster_weights] __device__(
+        vertex_t src) {
+        weight_t sum{0.0};
 
-                       for (edge_t i = d_offsets[src] ; i < d_offsets[src + 1] ; ++i) {
-                         sum += d_weights[i];
-                       }
+        for (edge_t i = d_offsets[src]; i < d_offsets[src + 1]; ++i) { sum += d_weights[i]; }
 
-                       d_vertex_weights[src] = sum;
-                       d_cluster_weights[src] = sum;
-                     });
+        d_vertex_weights[src]  = sum;
+        d_cluster_weights[src] = sum;
+      });
 
     timer_stop(stream_);
   }
 
-  virtual weight_t update_clustering(weight_t total_edge_weight, weight_t resolution,
-                                     graph_type const &graph) {
-
+  virtual weight_t update_clustering(weight_t total_edge_weight,
+                                     weight_t resolution,
+                                     graph_type const &graph)
+  {
     timer_start("update_clustering");
 
     //
@@ -249,16 +252,10 @@ public:
     while (new_Q > (cur_Q + 0.0001)) {
       cur_Q = new_Q;
 
-      compute_delta_modularity(total_edge_weight, resolution, graph,
-                               cluster_hash_v,
-                               old_cluster_sum_v,
-                               delta_Q_v);
+      compute_delta_modularity(
+        total_edge_weight, resolution, graph, cluster_hash_v, old_cluster_sum_v, delta_Q_v);
 
-      assign_nodes(graph,
-                   cluster_hash_v,
-                   next_cluster_v,
-                   delta_Q_v,
-                   up_down);
+      assign_nodes(graph, cluster_hash_v, next_cluster_v, delta_Q_v, up_down);
 
       up_down = !up_down;
 
@@ -281,9 +278,8 @@ public:
                                 graph_type const &graph,
                                 rmm::device_vector<vertex_t> &cluster_hash_v,
                                 rmm::device_vector<weight_t> &old_cluster_sum_v,
-                                rmm::device_vector<weight_t> &delta_Q_v
-                                ) {
-
+                                rmm::device_vector<weight_t> &delta_Q_v)
+  {
     vertex_t const *d_src_indices     = src_indices_v_.data().get();
     vertex_t const *d_dst_indices     = graph.indices;
     edge_t const *d_offsets           = graph.offsets;
@@ -352,45 +348,46 @@ public:
                        }
                      });
 
-    thrust::for_each(rmm::exec_policy(stream_)->on(stream_),
-                     thrust::make_counting_iterator<edge_t>(0),
-                     thrust::make_counting_iterator<edge_t>(graph.number_of_edges),
-                     [total_edge_weight,
-                      resolution,
-                      d_cluster_hash,
-                      d_src_indices,
-                      d_cluster,
-                      d_vertex_weights,
-                      d_delta_Q,
-                      d_new_cluster_sum,
-                      d_old_cluster_sum,
-                      d_cluster_weights] __device__(edge_t loc) {
-                       vertex_t new_cluster = d_cluster_hash[loc];
-                       if (new_cluster >= 0) {
-                         vertex_t src         = d_src_indices[loc];
-                         vertex_t old_cluster = d_cluster[src];
-                         weight_t k_k         = d_vertex_weights[src];
-                         weight_t a_old       = d_cluster_weights[old_cluster];
-                         weight_t a_new       = d_cluster_weights[new_cluster];
+    thrust::for_each(
+      rmm::exec_policy(stream_)->on(stream_),
+      thrust::make_counting_iterator<edge_t>(0),
+      thrust::make_counting_iterator<edge_t>(graph.number_of_edges),
+      [total_edge_weight,
+       resolution,
+       d_cluster_hash,
+       d_src_indices,
+       d_cluster,
+       d_vertex_weights,
+       d_delta_Q,
+       d_new_cluster_sum,
+       d_old_cluster_sum,
+       d_cluster_weights] __device__(edge_t loc) {
+        vertex_t new_cluster = d_cluster_hash[loc];
+        if (new_cluster >= 0) {
+          vertex_t src         = d_src_indices[loc];
+          vertex_t old_cluster = d_cluster[src];
+          weight_t k_k         = d_vertex_weights[src];
+          weight_t a_old       = d_cluster_weights[old_cluster];
+          weight_t a_new       = d_cluster_weights[new_cluster];
 
-                         // NOTE: d_delta_Q and d_new_cluster_sum are aliases
-                         //       for same device array to save memory
-                         d_delta_Q[loc] =
-                           2 *
-                           (((d_new_cluster_sum[loc] - d_old_cluster_sum[src]) / total_edge_weight) -
-                            resolution * (a_new * k_k - a_old * k_k + k_k * k_k) /
-                            (total_edge_weight * total_edge_weight));
-                       } else {
-                         d_delta_Q[loc] = weight_t{0.0};
-                       }
-                     });
+          // NOTE: d_delta_Q and d_new_cluster_sum are aliases
+          //       for same device array to save memory
+          d_delta_Q[loc] =
+            2 * (((d_new_cluster_sum[loc] - d_old_cluster_sum[src]) / total_edge_weight) -
+                 resolution * (a_new * k_k - a_old * k_k + k_k * k_k) /
+                   (total_edge_weight * total_edge_weight));
+        } else {
+          d_delta_Q[loc] = weight_t{0.0};
+        }
+      });
   }
 
   void assign_nodes(graph_type const &graph,
                     rmm::device_vector<vertex_t> &cluster_hash_v,
                     rmm::device_vector<vertex_t> &next_cluster_v,
                     rmm::device_vector<weight_t> &delta_Q_v,
-                    bool up_down) {
+                    bool up_down)
+  {
     rmm::device_vector<vertex_t> temp_vertices_v(graph.number_of_vertices);
     rmm::device_vector<vertex_t> temp_cluster_v(graph.number_of_vertices, vertex_t{-1});
     rmm::device_vector<weight_t> temp_delta_Q_v(graph.number_of_vertices, weight_t{0.0});
@@ -453,7 +450,8 @@ public:
                      });
   }
 
-  void shrink_graph(graph_t &graph, vertex_t *d_cluster_vec) {
+  void shrink_graph(graph_t &graph, vertex_t *d_cluster_vec)
+  {
     timer_start("shrinking graph");
 
     // renumber the clusters to the range 0..(num_clusters-1)
@@ -464,18 +462,18 @@ public:
     generate_superverticies_graph(graph, num_clusters);
 
     // assign each new vertex to its own cluster
-    thrust::sequence(rmm::exec_policy(stream_)->on(stream_),
-                     cluster_v_.begin(), cluster_v_.end());
+    thrust::sequence(rmm::exec_policy(stream_)->on(stream_), cluster_v_.begin(), cluster_v_.end());
 
     timer_stop(stream_);
   }
 
-  vertex_t renumber_clusters(vertex_t *d_cluster_vec) {
+  vertex_t renumber_clusters(vertex_t *d_cluster_vec)
+  {
     vertex_t *d_tmp_array       = tmp_arr_v_.data().get();
     vertex_t *d_cluster_inverse = cluster_inverse_v_.data().get();
     vertex_t *d_cluster         = cluster_v_.data().get();
 
-    vertex_t old_num_clusters   = cluster_v_.size();
+    vertex_t old_num_clusters = cluster_v_.size();
 
     //
     //  New technique.  Initialize cluster_inverse_v_ to 0
@@ -486,20 +484,23 @@ public:
     // Iterate over every element c in cluster_v_ and set cluster_inverse_v to 1
     //
     auto first_1 = thrust::make_constant_iterator<vertex_t>(1);
-    auto last_1 = first_1 + old_num_clusters;
+    auto last_1  = first_1 + old_num_clusters;
 
-    thrust::scatter(rmm::exec_policy(stream_)->on(stream_), first_1, last_1, cluster_v_.begin(), cluster_inverse_v_.begin());
+    thrust::scatter(rmm::exec_policy(stream_)->on(stream_),
+                    first_1,
+                    last_1,
+                    cluster_v_.begin(),
+                    cluster_inverse_v_.begin());
 
     //
     // Now we'll copy all of the clusters that have a value of 1 into a temporary array
     //
-    auto copy_end = thrust::copy_if(rmm::exec_policy(stream_)->on(stream_),
-                                    thrust::make_counting_iterator<vertex_t>(0),
-                                    thrust::make_counting_iterator<vertex_t>(old_num_clusters),
-                                    tmp_arr_v_.begin(),
-                                    [d_cluster_inverse] __device__ (const vertex_t idx) {
-                                      return d_cluster_inverse[idx] == 1;
-                                    });
+    auto copy_end = thrust::copy_if(
+      rmm::exec_policy(stream_)->on(stream_),
+      thrust::make_counting_iterator<vertex_t>(0),
+      thrust::make_counting_iterator<vertex_t>(old_num_clusters),
+      tmp_arr_v_.begin(),
+      [d_cluster_inverse] __device__(const vertex_t idx) { return d_cluster_inverse[idx] == 1; });
 
     vertex_t new_num_clusters = thrust::distance(tmp_arr_v_.begin(), copy_end);
     tmp_arr_v_.resize(new_num_clusters);
@@ -510,10 +511,9 @@ public:
     thrust::for_each(rmm::exec_policy(stream_)->on(stream_),
                      thrust::make_counting_iterator<vertex_t>(0),
                      thrust::make_counting_iterator<vertex_t>(new_num_clusters),
-                     [d_cluster_inverse, d_tmp_array] __device__ (const vertex_t idx) {
+                     [d_cluster_inverse, d_tmp_array] __device__(const vertex_t idx) {
                        d_cluster_inverse[d_tmp_array[idx]] = idx;
                      });
-
 
     thrust::for_each(rmm::exec_policy(stream_)->on(stream_),
                      thrust::make_counting_iterator<vertex_t>(0),
@@ -535,7 +535,8 @@ public:
     return new_num_clusters;
   }
 
-  void generate_superverticies_graph(graph_t &graph, vertex_t num_clusters) {
+  void generate_superverticies_graph(graph_t &graph, vertex_t num_clusters)
+  {
     rmm::device_vector<vertex_t> new_src_v(graph.number_of_edges);
     rmm::device_vector<vertex_t> new_dst_v(graph.number_of_edges);
     rmm::device_vector<weight_t> new_weight_v(graph.number_of_edges);
@@ -551,16 +552,20 @@ public:
     //
     //  Renumber the COO
     //
-    thrust::for_each(
-      rmm::exec_policy(stream_)->on(stream_),
-      thrust::make_counting_iterator<edge_t>(0),
-      thrust::make_counting_iterator<edge_t>(graph.number_of_edges),
-      [d_old_src, d_old_dst, d_old_weight, d_new_src, d_new_dst, d_new_weight, d_clusters]
-      __device__( edge_t e) {
-        d_new_src[e]    = d_clusters[d_old_src[e]];
-        d_new_dst[e]    = d_clusters[d_old_dst[e]];
-        d_new_weight[e] = d_old_weight[e];
-      });
+    thrust::for_each(rmm::exec_policy(stream_)->on(stream_),
+                     thrust::make_counting_iterator<edge_t>(0),
+                     thrust::make_counting_iterator<edge_t>(graph.number_of_edges),
+                     [d_old_src,
+                      d_old_dst,
+                      d_old_weight,
+                      d_new_src,
+                      d_new_dst,
+                      d_new_weight,
+                      d_clusters] __device__(edge_t e) {
+                       d_new_src[e]    = d_clusters[d_old_src[e]];
+                       d_new_dst[e]    = d_clusters[d_old_dst[e]];
+                       d_new_weight[e] = d_old_weight[e];
+                     });
 
     thrust::stable_sort_by_key(
       rmm::exec_policy(stream_)->on(stream_),
@@ -580,28 +585,24 @@ public:
     auto start     = thrust::make_zip_iterator(thrust::make_tuple(d_new_src, d_new_dst));
     auto new_start = thrust::make_zip_iterator(thrust::make_tuple(d_old_src, d_old_dst));
     auto new_end   = thrust::reduce_by_key(rmm::exec_policy(stream_)->on(stream_),
-                                           start,
-                                           start + graph.number_of_edges,
-                                           d_new_weight,
-                                           new_start,
-                                           d_old_weight,
-                                           thrust::equal_to<thrust::tuple<vertex_t, vertex_t>>(),
-                                           thrust::plus<weight_t>());
+                                         start,
+                                         start + graph.number_of_edges,
+                                         d_new_weight,
+                                         new_start,
+                                         d_old_weight,
+                                         thrust::equal_to<thrust::tuple<vertex_t, vertex_t>>(),
+                                         thrust::plus<weight_t>());
 
     graph.number_of_edges    = thrust::distance(new_start, new_end.first);
     graph.number_of_vertices = num_clusters;
 
-    detail::fill_offset(d_old_src,
-                        graph.offsets,
-                        num_clusters,
-                        graph.number_of_edges,
-                        stream_);
+    detail::fill_offset(d_old_src, graph.offsets, num_clusters, graph.number_of_edges, stream_);
     CHECK_CUDA(stream_);
 
     src_indices_v_.resize(graph.number_of_edges);
   }
 
-protected:
+ protected:
   vertex_t number_of_vertices_;
   edge_t number_of_edges_;
   cudaStream_t stream_;
@@ -633,5 +634,4 @@ protected:
 #endif
 };
 
-
-} // namespace cugraph
+}  // namespace cugraph
