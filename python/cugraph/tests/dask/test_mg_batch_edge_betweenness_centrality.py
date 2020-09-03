@@ -24,8 +24,8 @@ from cugraph.tests.test_edge_betweenness_centrality import (
 # =============================================================================
 # Parameters
 # =============================================================================
-DATASETS = utils.DATASETS
-MG_DEVICE_COUNT_OPTIONS = [1, 2, 3, 4]
+DATASETS = ['../datasets/karate.csv']
+MG_DEVICE_COUNT_OPTIONS = [1, 2, 4]
 RESULT_DTYPE_OPTIONS = [np.float64]
 
 
