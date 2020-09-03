@@ -13,8 +13,9 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 #include <algorithms.hpp>
-#include <graph.hpp>
+#include <experimental/graph.hpp>
 #include <graph_device_view.cuh>
 #include <patterns/any_of_adj_matrix_row.cuh>
 #include <patterns/copy_to_adj_matrix_row.cuh>
@@ -25,8 +26,8 @@
 #include <patterns/transform_reduce_v_with_adj_matrix_row.cuh>
 #include <utilities/error.hpp>
 
-#include <raft/handle.hpp>
 #include <rmm/thrust_rmm_allocator.h>
+#include <raft/handle.hpp>
 
 #include <thrust/fill.h>
 #include <thrust/for_each.h>
@@ -40,13 +41,13 @@ namespace experimental {
 namespace detail {
 
 // FIXME: personalization_vector_size is confusing in OPG (local or aggregate?)
-template <typename GraphType, typename result_t>
+template <typename GraphViewType, typename result_t>
 void pagerank(raft::handle_t& handle,
-              GraphType const& pull_graph,
-              typename GraphType::weight_type* adj_matrix_row_out_weight_sums,
-              typename GraphType::vertex_type* personalization_vertices,
+              GraphViewType const& pull_graph_view,
+              typename GraphViewType::weight_type* adj_matrix_row_out_weight_sums,
+              typename GraphViewType::vertex_type* personalization_vertices,
               result_t* personalization_values,
-              typename GraphType::vertex_type personalization_vector_size,
+              typename GraphViewType::vertex_type personalization_vector_size,
               result_t* pageranks,
               result_t alpha,
               result_t epsilon,
@@ -54,16 +55,16 @@ void pagerank(raft::handle_t& handle,
               bool has_initial_guess,
               bool do_expensive_check)
 {
-  using vertex_t = typename GraphType::vertex_type;
-  using weight_t = typename GraphType::weight_type;
+  using vertex_t = typename GraphViewType::vertex_type;
+  using weight_t = typename GraphViewType::weight_type;
 
-  static_assert(std::is_integral<vertex_t>::value, "GraphType::vertex_type should be integral.");
+  static_assert(std::is_integral<vertex_t>::value, "GraphViewType::vertex_type should be integral.");
   static_assert(std::is_floating_point<result_t>::value,
                 "result_t should be a floating-point type.");
-  static_assert(GraphType::is_adj_matrix_transposed, "GraphType should support the pull model.");
+  static_assert(GraphViewType::is_adj_matrix_transposed, "GraphViewType should support the pull model.");
 
-  auto p_graph_device_view     = graph_device_view_t<GraphType>::create(pull_graph);
-  auto const graph_device_view = *p_graph_device_view;
+  auto p_graph_device_view     = graph_device_view_t<GraphViewType>::create(pull_graph_view);
+  auto const& graph_device_view = *p_graph_device_view;
 
   auto const num_vertices = graph_device_view.get_number_of_vertices();
   if (num_vertices == 0) { return; }
@@ -280,22 +281,22 @@ void pagerank(raft::handle_t& handle,
 
 }  // namespace detail
 
-template <typename vertex_t, typename edge_t, typename weight_t, typename result_t>
-void pagerank(raft::handle_t& handle,
-              GraphCSCView<vertex_t, edge_t, weight_t> const& graph,
-              weight_t* adj_matrix_row_out_weight_sums,
-              vertex_t* personalization_vertices,
-              result_t* personalization_values,
-              vertex_t personalization_vector_size,
-              result_t* pageranks,
-              result_t alpha,
-              result_t epsilon,
-              size_t max_iterations,
-              bool has_initial_guess,
-              bool do_expensive_check)
+template <typename vertex_t, typename edge_t, typename weight_t, typename result_t, bool multi_gpu>
+  > void pagerank(raft::handle_t& handle,
+                  graph_view_t<vertex_t, edge_t, weight_t, true, multi_gpu> const& graph_view,
+                  weight_t* adj_matrix_row_out_weight_sums,
+                  vertex_t* personalization_vertices,
+                  result_t* personalization_values,
+                  vertex_t personalization_vector_size,
+                  result_t* pageranks,
+                  result_t alpha,
+                  result_t epsilon,
+                  size_t max_iterations,
+                  bool has_initial_guess,
+                  bool do_expensive_check)
 {
   detail::pagerank(handle,
-                   graph,
+                   graph_view,
                    adj_matrix_row_out_weight_sums,
                    personalization_vertices,
                    personalization_values,
@@ -311,11 +312,24 @@ void pagerank(raft::handle_t& handle,
 // explicit instantiation
 
 template void pagerank(raft::handle_t& handle,
-                       GraphCSCView<int32_t, int32_t, float> const& graph,
+                       graph_view_t<uint32_t, uint32_t, float, true, false> const& graph_view,
                        float* adj_matrix_row_out_weight_sums,
-                       int32_t* personalization_vertices,
+                       uint32_t* personalization_vertices,
                        float* personalization_values,
-                       int32_t personalization_vector_size,
+                       uint32_t personalization_vector_size,
+                       float* pageranks,
+                       float alpha,
+                       float epsilon,
+                       size_t max_iterations,
+                       bool has_initial_guess,
+                       bool do_expensive_check);
+
+template void pagerank(raft::handle_t& handle,
+                       graph_view_t<uint32_t, uint32_t, float, true, true> const& graph_view,
+                       float* adj_matrix_row_out_weight_sums,
+                       uint32_t* personalization_vertices,
+                       float* personalization_values,
+                       uint32_t personalization_vector_size,
                        float* pageranks,
                        float alpha,
                        float epsilon,

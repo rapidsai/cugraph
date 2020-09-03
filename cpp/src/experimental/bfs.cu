@@ -13,16 +13,17 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 #include <algorithms.hpp>
-#include <graph.hpp>
+#include <experimental/graph.hpp>
 #include <graph_device_view.cuh>
 #include <patterns/reduce_op.cuh>
 #include <patterns/update_frontier_v_push_if_out_nbr.cuh>
 #include <patterns/vertex_frontier.cuh>
 #include <utilities/error.hpp>
 
-#include <raft/handle.hpp>
 #include <rmm/thrust_rmm_allocator.h>
+#include <raft/handle.hpp>
 
 #include <thrust/fill.h>
 #include <thrust/iterator/constant_iterator.h>
@@ -39,23 +40,23 @@ namespace cugraph {
 namespace experimental {
 namespace detail {
 
-template <typename GraphType, typename PredecessorIterator>
+template <typename GraphViewType, typename PredecessorIterator>
 void bfs(raft::handle_t &handle,
-         GraphType const &push_graph,
-         typename GraphType::vertex_type *distances,
+         GraphViewType const &push_graph_view,
+         typename GraphViewType::vertex_type *distances,
          PredecessorIterator predecessor_first,
-         typename GraphType::vertex_type source_vertex,
+         typename GraphViewType::vertex_type source_vertex,
          bool direction_optimizing,
-         typename GraphType::vertex_type depth_limit,
+         typename GraphViewType::vertex_type depth_limit,
          bool do_expensive_check)
 {
-  using vertex_t = typename GraphType::vertex_type;
+  using vertex_t = typename GraphViewType::vertex_type;
 
-  static_assert(std::is_integral<vertex_t>::value, "GraphType::vertex_type should be integral.");
-  static_assert(!GraphType::is_adj_matrix_transposed, "GraphType should support the push model.");
+  static_assert(std::is_integral<vertex_t>::value, "GraphViewType::vertex_type should be integral.");
+  static_assert(!GraphViewType::is_adj_matrix_transposed, "GraphViewType should support the push model.");
 
-  auto p_graph_device_view     = graph_device_view_t<GraphType>::create(push_graph);
-  auto const graph_device_view = *p_graph_device_view;
+  auto p_graph_device_view     = graph_device_view_t<GraphViewType>::create(push_graph_view);
+  auto const& graph_device_view = *p_graph_device_view;
 
   auto const num_vertices = graph_device_view.get_number_of_vertices();
   if (num_vertices == 0) { return; }
@@ -165,9 +166,9 @@ void bfs(raft::handle_t &handle,
 
 }  // namespace detail
 
-template <typename vertex_t, typename edge_t, typename weight_t>
+template <typename vertex_t, typename edge_t, typename weight_t, bool multi_gpu>
 void bfs(raft::handle_t &handle,
-         GraphCSRView<vertex_t, edge_t, weight_t> const &graph,
+         graph_view_t<vertex_t, edge_t, weight_t, false, multi_gpu> const &graph_view,
          vertex_t *distances,
          vertex_t *predecessors,
          vertex_t source_vertex,
@@ -177,7 +178,7 @@ void bfs(raft::handle_t &handle,
 {
   if (predecessors != nullptr) {
     detail::bfs(handle,
-                graph,
+                graph_view,
                 distances,
                 predecessors,
                 source_vertex,
@@ -186,7 +187,7 @@ void bfs(raft::handle_t &handle,
                 do_expensive_check);
   } else {
     detail::bfs(handle,
-                graph,
+                graph_view,
                 distances,
                 thrust::make_discard_iterator(),
                 source_vertex,
@@ -199,12 +200,21 @@ void bfs(raft::handle_t &handle,
 // explicit instantiation
 
 template void bfs(raft::handle_t &handle,
-                  GraphCSRView<int32_t, int32_t, float> const &graph,
-                  int32_t *distances,
-                  int32_t *predecessors,
-                  int32_t source_vertex,
+                  graph_view_t<uint32_t, uint32_t, float, false, false> const &graph_view,
+                  uint32_t *distances,
+                  uint32_t *predecessors,
+                  uint32_t source_vertex,
                   bool direction_optimizing,
-                  int32_t depth_limit,
+                  uint32_t depth_limit,
+                  bool do_expensive_check);
+
+template void bfs(raft::handle_t &handle,
+                  graph_view_t<uint32_t, uint32_t, float, false, true> const &graph_view,
+                  uint32_t *distances,
+                  uint32_t *predecessors,
+                  uint32_t source_vertex,
+                  bool direction_optimizing,
+                  uint32_t depth_limit,
                   bool do_expensive_check);
 
 }  // namespace experimental

@@ -14,7 +14,8 @@
  * limitations under the License.
  */
 
-#include <graph.hpp>
+#include <algorithms.hpp>
+#include <experimental/graph.hpp>
 #include <graph_device_view.cuh>
 #include <patterns/copy_to_adj_matrix_row.cuh>
 #include <patterns/count_if_e.cuh>
@@ -41,23 +42,23 @@ namespace cugraph {
 namespace experimental {
 namespace detail {
 
-template <typename GraphType, typename PredecessorIterator>
+template <typename GraphViewType, typename PredecessorIterator>
 void sssp(raft::handle_t &handle,
-          GraphType const &push_graph,
-          typename GraphType::weight_type *distances,
+          GraphViewType const &push_graph_view,
+          typename GraphViewType::weight_type *distances,
           PredecessorIterator predecessor_first,
-          typename GraphType::vertex_type source_vertex,
-          typename GraphType::weight_type cutoff,
+          typename GraphViewType::vertex_type source_vertex,
+          typename GraphViewType::weight_type cutoff,
           bool do_expensive_check)
 {
-  using vertex_t = typename GraphType::vertex_type;
-  using weight_t = typename GraphType::weight_type;
+  using vertex_t = typename GraphViewType::vertex_type;
+  using weight_t = typename GraphViewType::weight_type;
 
-  static_assert(std::is_integral<vertex_t>::value, "GraphType::vertex_type should be integral.");
-  static_assert(!GraphType::is_adj_matrix_transposed, "GraphType should support the push model.");
+  static_assert(std::is_integral<vertex_t>::value, "GraphViewType::vertex_type should be integral.");
+  static_assert(!GraphViewType::is_adj_matrix_transposed, "GraphViewType should support the push model.");
 
-  auto p_graph_device_view     = graph_device_view_t<GraphType>::create(push_graph);
-  auto const graph_device_view = *p_graph_device_view;
+  auto p_graph_device_view     = graph_device_view_t<GraphViewType>::create(push_graph_view);
+  auto const& graph_device_view = *p_graph_device_view;
 
   auto const num_vertices = graph_device_view.get_number_of_vertices();
   auto const num_edges    = graph_device_view.get_number_of_edges();
@@ -264,20 +265,21 @@ void sssp(raft::handle_t &handle,
 
 }  // namespace detail
 
-template <typename vertex_t, typename edge_t, typename weight_t>
-void sssp(raft::handle_t &handle,
-          GraphCSRView<vertex_t, edge_t, weight_t> const &graph,
-          weight_t *distances,
-          vertex_t *predecessors,
-          vertex_t source_vertex,
-          weight_t cutoff,
-          bool do_expensive_check)
+template <typename vertex_t, typename edge_t, typename weight_t, bool multi_gpu>
+  > void sssp(raft::handle_t &handle,
+              graph_view_t<vertex_t, edge_t, weight_t, false, multi_gpu> const &graph_view,
+              weight_t *distances,
+              vertex_t *predecessors,
+              vertex_t source_vertex,
+              weight_t cutoff,
+              bool do_expensive_check)
 {
   if (predecessors != nullptr) {
-    detail::sssp(handle, graph, distances, predecessors, source_vertex, cutoff, do_expensive_check);
+    detail::sssp(
+      handle, graph_view, distances, predecessors, source_vertex, cutoff, do_expensive_check);
   } else {
     detail::sssp(handle,
-                 graph,
+                 graph_view,
                  distances,
                  thrust::make_discard_iterator(),
                  source_vertex,
@@ -289,10 +291,18 @@ void sssp(raft::handle_t &handle,
 // explicit instantiation
 
 template void sssp(raft::handle_t &handle,
-                   GraphCSRView<int32_t, int32_t, float> const &graph,
+                   graph_view_t<uint32_t, uint32_t, float, false, false> const &graph_view,
                    float *distances,
-                   int32_t *predecessors,
-                   int32_t source_vertex,
+                   uint32_t *predecessors,
+                   uint32_t source_vertex,
+                   float cutoff,
+                   bool do_expensive_check);
+
+template void sssp(raft::handle_t &handle,
+                   graph_view_t<uint32_t, uint32_t, float, false, true> const &graph_view,
+                   float *distances,
+                   uint32_t *predecessors,
+                   uint32_t source_vertex,
                    float cutoff,
                    bool do_expensive_check);
 

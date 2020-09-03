@@ -15,6 +15,7 @@
  */
 #pragma once
 
+#include <experimental/graph_view.hpp>
 #include <graph.hpp>
 #include <internals.hpp>
 #include <raft/handle.hpp>
@@ -944,7 +945,7 @@ namespace experimental {
  * @tparam weight_t Type of edge weights. Needs to be a floating point type.
  * @param handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator, and
  * handles to various CUDA libraries) to run graph algorithms.
- * @param graph Graph object.
+ * @param graph_view Graph view object.
  * @param distances Pointer to the output distance array.
  * @param predecessors Pointer to the output predecessor array or `nullptr`.
  * @param source_vertex Source vertex to start breadth-first search (root vertex of the breath-first
@@ -957,9 +958,9 @@ namespace experimental {
  * farther than @p depth_limit hops from @p source_vertex will be marked as unreachable.
  * @param do_expensive_check A flag to run expensive checks for input arguments (if set to `true`).
  */
-template <typename vertex_t, typename edge_t, typename weight_t>
+template <typename vertex_t, typename edge_t, typename weight_t, bool multi_gpu>
 void bfs(raft::handle_t &handle,
-         GraphCSRView<vertex_t, edge_t, weight_t> const &graph,
+         graph_view_t<vertex_t, edge_t, weight_t, false, multi_gpu> const &graph_view,
          vertex_t *distances,
          vertex_t *predecessors,
          vertex_t source_vertex,
@@ -982,7 +983,7 @@ void bfs(raft::handle_t &handle,
  * @tparam weight_t Type of edge weights. Needs to be a floating point type.
  * @param handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator, and
  * handles to various CUDA libraries) to run graph algorithms.
- * @param graph Graph object.
+ * @param graph_view Graph view object.
  * @param distances Pointer to the output distance array.
  * @param predecessors Pointer to the output predecessor array or `nullptr`.
  * @param source_vertex Source vertex to start single-source shortest-path.
@@ -990,9 +991,9 @@ void bfs(raft::handle_t &handle,
  * distance of @p cutoff. Any vertex farther than @p cutoff will be marked as unreachable.
  * @param do_expensive_check A flag to run expensive checks for input arguments (if set to `true`).
  */
-template <typename vertex_t, typename edge_t, typename weight_t>
+template <typename vertex_t, typename edge_t, typename weight_t, bool multi_gpu>
 void sssp(raft::handle_t &handle,
-          GraphCSRView<vertex_t, edge_t, weight_t> const &graph,
+          graph_view_t<vertex_t, edge_t, weight_t, false, multi_gpu> const &graph_view,
           weight_t *distances,
           vertex_t *predecessors,
           vertex_t source_vertex,
@@ -1014,7 +1015,7 @@ void sssp(raft::handle_t &handle,
  * @tparam result_t Type of PageRank scores.
  * @param handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator, and
  * handles to various CUDA libraries) to run graph algorithms.
- * @param graph Graph object.
+ * @param graph_view Graph view object.
  * @param adj_matrix_row_out_weight_sums Pointer to an array storing sums of out-going edge weights
  * for the vertices in the rows of the graph adjacency matrix (for re-use) or `nullptr`. If
  * `nullptr`, these values are freshly computed. Computing these values outsid this function reduces
@@ -1038,9 +1039,9 @@ void sssp(raft::handle_t &handle,
  * divided by the number of vertices in the graph.
  * @param do_expensive_check A flag to run expensive checks for input arguments (if set to `true`).
  */
-template <typename vertex_t, typename edge_t, typename weight_t, typename result_t>
+template <typename vertex_t, typename edge_t, typename weight_t, typename result_t, bool multi_gpu>
 void pagerank(raft::handle_t &handle,
-              GraphCSCView<vertex_t, edge_t, weight_t> const &graph,
+              graph_view_t<vertex_t, edge_t, weight_t, true, multi_gpu> const &graph_view,
               weight_t *adj_matrix_row_out_weight_sums,  // should be set to the vertex out-degrees
                                                          // for an unweighted graph
               vertex_t *personalization_vertices,
@@ -1067,7 +1068,7 @@ void pagerank(raft::handle_t &handle,
  * @tparam result_t Type of Katz Centrality scores.
  * @param handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator, and
  * handles to various CUDA libraries) to run graph algorithms.
- * @param graph Graph object.
+ * @param graph_view Graph view object.
  * @param betas Pointer to an array holding the values to be added to each vertex's new Katz
  * Centrality score in every iteration or `nullptr`. If set to `nullptr`, constant @p beta is used
  * instead.
@@ -1087,9 +1088,9 @@ void pagerank(raft::handle_t &handle,
  * the returned Katz Centrality score array is 1.0) before returning.
  * @param do_expensive_check A flag to run expensive checks for input arguments (if set to `true`).
  */
-template <typename vertex_t, typename edge_t, typename weight_t, typename result_t>
+template <typename vertex_t, typename edge_t, typename weight_t, typename result_t, bool multi_gpu>
 void katz_centrality(raft::handle_t &handle,
-                     GraphCSCView<vertex_t, edge_t, weight_t> const &graph,
+                     graph_view_t<vertex_t, edge_t, weight_t, true, multi_gpu> const &graph_view,
                      result_t *betas,
                      result_t *katz_centralities,
                      result_t alpha,

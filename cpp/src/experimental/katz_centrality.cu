@@ -13,8 +13,9 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 #include <algorithms.hpp>
-#include <graph.hpp>
+#include <experimental/graph.hpp>
 #include <graph_device_view.cuh>
 #include <patterns/copy_to_adj_matrix_row.cuh>
 #include <patterns/copy_v_transform_reduce_nbr.cuh>
@@ -23,8 +24,8 @@
 #include <patterns/transform_reduce_v_with_adj_matrix_row.cuh>
 #include <utilities/error.hpp>
 
-#include <raft/handle.hpp>
 #include <rmm/thrust_rmm_allocator.h>
+#include <raft/handle.hpp>
 
 #include <thrust/fill.h>
 #include <thrust/iterator/constant_iterator.h>
@@ -36,9 +37,9 @@ namespace cugraph {
 namespace experimental {
 namespace detail {
 
-template <typename GraphType, typename result_t>
+template <typename GraphViewType, typename result_t>
 void katz_centrality(raft::handle_t &handle,
-                     GraphType const &pull_graph,
+                     GraphViewType const &pull_graph_view,
                      result_t *betas,
                      result_t *katz_centralities,
                      result_t alpha,
@@ -49,16 +50,16 @@ void katz_centrality(raft::handle_t &handle,
                      bool normalize,
                      bool do_expensive_check)
 {
-  using vertex_t = typename GraphType::vertex_type;
-  using weight_t = typename GraphType::weight_type;
+  using vertex_t = typename GraphViewType::vertex_type;
+  using weight_t = typename GraphViewType::weight_type;
 
-  static_assert(std::is_integral<vertex_t>::value, "GraphType::vertex_type should be integral.");
+  static_assert(std::is_integral<vertex_t>::value, "GraphViewType::vertex_type should be integral.");
   static_assert(std::is_floating_point<result_t>::value,
                 "result_t should be a floating-point type.");
-  static_assert(GraphType::is_adj_matrix_transposed, "GraphType should support the pull model.");
+  static_assert(GraphViewType::is_adj_matrix_transposed, "GraphViewType should support the pull model.");
 
-  auto p_graph_device_view     = graph_device_view_t<GraphType>::create(pull_graph);
-  auto const graph_device_view = *p_graph_device_view;
+  auto p_graph_device_view     = graph_device_view_t<GraphViewType>::create(pull_graph_view);
+  auto const& graph_device_view = *p_graph_device_view;
 
   auto const num_vertices = graph_device_view.get_number_of_vertices();
   if (num_vertices == 0) { return; }
@@ -164,21 +165,22 @@ void katz_centrality(raft::handle_t &handle,
 
 }  // namespace detail
 
-template <typename vertex_t, typename edge_t, typename weight_t, typename result_t>
-void katz_centrality(raft::handle_t &handle,
-                     GraphCSCView<vertex_t, edge_t, weight_t> const &graph,
-                     result_t *betas,
-                     result_t *katz_centralities,
-                     result_t alpha,
-                     result_t beta,  // relevant only if beta == nullptr
-                     result_t epsilon,
-                     size_t max_iterations,
-                     bool has_initial_guess,
-                     bool normalize,
-                     bool do_expensive_check)
+template <typename vertex_t, typename edge_t, typename weight_t, typename result_t, bool multi_gpu>
+  >
+  void katz_centrality(raft::handle_t &handle,
+                       graph_view_t<vertex_t, edge_t, weight_t, true, multi_gpu> const &graph_view,
+                       result_t *betas,
+                       result_t *katz_centralities,
+                       result_t alpha,
+                       result_t beta,  // relevant only if beta == nullptr
+                       result_t epsilon,
+                       size_t max_iterations,
+                       bool has_initial_guess,
+                       bool normalize,
+                       bool do_expensive_check)
 {
   detail::katz_centrality(handle,
-                          graph,
+                          graph_view,
                           betas,
                           katz_centralities,
                           alpha,
@@ -192,8 +194,21 @@ void katz_centrality(raft::handle_t &handle,
 
 // explicit instantiation
 
+template void katz_centrality(
+  raft::handle_t &handle,
+  graph_view_t<uint32_t, uint32_t, float, true, false> const &graph_view,
+  float *betas,
+  float *katz_centralities,
+  float alpha,
+  float beta,
+  float epsilon,
+  size_t max_iterations,
+  bool has_initial_guess,
+  bool normalize,
+  bool do_expensive_check);
+
 template void katz_centrality(raft::handle_t &handle,
-                              GraphCSCView<int32_t, int32_t, float> const &graph,
+                              graph_view_t<uint32_t, uint32_t, float, true, true> const &graph_view,
                               float *betas,
                               float *katz_centralities,
                               float alpha,
