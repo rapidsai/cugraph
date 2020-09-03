@@ -31,7 +31,6 @@ def test_replicate_cudf_dataframe_with_weights(input_data_path,
                                                mg_device_count):
     gc.collect()
     skip_if_not_enough_devices(mg_device_count)
-    
     df = cudf.read_csv(input_data_path,
                        delimiter=' ',
                        names=['src', 'dst', 'value'],
