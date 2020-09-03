@@ -1,5 +1,5 @@
 import pytest
-import cugraph.tests.utils as utils
+# import cugraph.tests.utils as utils
 import numpy as np
 
 from cugraph.tests.dask.mg_context import (MGContext,
