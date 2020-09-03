@@ -142,10 +142,7 @@ void ecg(GraphCSRView<vertex_t, edge_t, weight_t> const &graph,
     rmm::device_vector<vertex_t> parts_v(size);
     vertex_t *d_parts = parts_v.data().get();
 
-    weight_t final_modularity;
-    vertex_t num_level;
-
-    cugraph::louvain(permuted_graph->view(), &final_modularity, &num_level, d_parts, 1);
+    cugraph::louvain(permuted_graph->view(), d_parts, 1);
 
     // For each edge in the graph determine whether the endpoints are in the same partition
     // Keep a sum for each edge of the total number of times its endpoints are in the same partition
@@ -178,9 +175,7 @@ void ecg(GraphCSRView<vertex_t, edge_t, weight_t> const &graph,
   louvain_graph.number_of_vertices = graph.number_of_vertices;
   louvain_graph.number_of_edges    = graph.number_of_edges;
 
-  weight_t final_modularity;
-  vertex_t num_level;
-  cugraph::louvain(louvain_graph, &final_modularity, &num_level, ecg_parts, 100);
+  cugraph::louvain(louvain_graph, ecg_parts, 100);
 }
 
 // Explicit template instantiations.

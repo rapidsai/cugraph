@@ -59,7 +59,7 @@ TEST(leiden_karate, success)
   float modularity{0.0};
   int num_level = 40;
 
-  cugraph::leiden(G, modularity, num_level, result_v.data().get());
+  std::tie(num_level, modularity) = cugraph::leiden(G, result_v.data().get());
 
   cudaMemcpy((void*)&(cluster_id[0]),
              result_v.data().get(),

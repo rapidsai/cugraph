@@ -69,12 +69,10 @@ def louvain(input_graph, max_iter, resolution):
                                                   <float*>c_weights, num_verts, num_edges)
 
         graph_float.get_vertex_identifiers(<int*>c_identifier)
-        c_louvain(graph_float,
-                  &final_modularity_float,
-                  &num_level,
-                  <int*> c_partition,
-                  <int> max_iter,
-                  <float> resolution)
+        num_level, final_modularity_float = c_louvain(graph_float,
+                                                      <int*> c_partition,
+                                                      <int> max_iter,
+                                                      <float> resolution)
 
         final_modularity = final_modularity_float
     else:
@@ -82,12 +80,10 @@ def louvain(input_graph, max_iter, resolution):
                                                     <double*>c_weights, num_verts, num_edges)
 
         graph_double.get_vertex_identifiers(<int*>c_identifier)
-        c_louvain(graph_double,
-                  &final_modularity_double,
-                  &num_level,
-                  <int*> c_partition,
-                  <int> max_iter,
-                  <double> resolution)
+        num_level, final_modularity_double = c_louvain(graph_double,
+                                                       <int*> c_partition,
+                                                       <int> max_iter,
+                                                       <double> resolution)
         final_modularity = final_modularity_double
 
     return df, final_modularity
