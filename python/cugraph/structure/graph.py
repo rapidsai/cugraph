@@ -347,6 +347,11 @@ class Graph:
         if self.edgelist is not None or self.adjlist is not None:
             raise Exception("Graph already has values")
 
+        if not (set(source).issubset(set(input_ddf.columns)) and
+                set(destination).issubset(set(input_ddf.columns))):
+            raise Exception('source column names and/or destination column \
+names not found in input. Recheck the source and destination parameters')
+
         # Consolidation
         if isinstance(input_df, cudf.DataFrame):
             if len(input_df[source]) > 2147483100:
@@ -445,6 +450,10 @@ class Graph:
         if type(self) is Graph:
             raise Exception('Undirected distributed graph not supported')
 
+        if not (set(source).issubset(set(input_ddf.columns)) and
+                set(destination).issubset(set(input_ddf.columns))):
+            raise Exception('source column names and/or destination column \
+names not found in input. Recheck the source and destination parameters')
         #
         # Keep all of the original parameters so we can lazily
         # evaluate this function
