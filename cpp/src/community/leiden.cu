@@ -20,7 +20,8 @@ namespace cugraph {
 namespace detail {
 
 template <typename vertex_t, typename edge_t, typename weight_t>
-std::pair<int, weight_t> leiden(GraphCSRView<vertex_t, edge_t, weight_t> const &graph,
+std::pair<int, weight_t> leiden(raft::handle_t const &handle,
+                                GraphCSRView<vertex_t, edge_t, weight_t> const &graph,
                                 vertex_t *leiden_parts,
                                 int max_level,
                                 weight_t resolution,
@@ -29,7 +30,7 @@ std::pair<int, weight_t> leiden(GraphCSRView<vertex_t, edge_t, weight_t> const &
   CUGRAPH_EXPECTS(graph.edge_data != nullptr, "API error, leiden expects a weighted graph");
   CUGRAPH_EXPECTS(leiden_parts != nullptr, "API error, leiden_parts is null");
 
-  Leiden<GraphCSRView<vertex_t, edge_t, weight_t>> runner(graph, stream);
+  Leiden<GraphCSRView<vertex_t, edge_t, weight_t>> runner(handle, graph, stream);
 
   return runner.compute(leiden_parts, max_level, resolution);
 }
@@ -37,20 +38,21 @@ std::pair<int, weight_t> leiden(GraphCSRView<vertex_t, edge_t, weight_t> const &
 }  // namespace detail
 
 template <typename vertex_t, typename edge_t, typename weight_t>
-std::pair<int, weight_t> leiden(GraphCSRView<vertex_t, edge_t, weight_t> const &graph,
+std::pair<int, weight_t> leiden(raft::handle_t const &handle,
+                                GraphCSRView<vertex_t, edge_t, weight_t> const &graph,
                                 vertex_t *leiden_parts,
                                 int max_level,
                                 weight_t resolution)
 {
   cudaStream_t stream{0};
 
-  return detail::leiden(graph, leiden_parts, max_level, resolution, stream);
+  return detail::leiden(handle, graph, leiden_parts, max_level, resolution, stream);
 }
 
 template std::pair<int, float> leiden(
-  GraphCSRView<int32_t, int32_t, float> const &, int32_t *, int, float);
+  raft::handle_t const &, GraphCSRView<int32_t, int32_t, float> const &, int32_t *, int, float);
 
 template std::pair<int, double> leiden(
-  GraphCSRView<int32_t, int32_t, double> const &, int32_t *, int, double);
+  raft::handle_t const &, GraphCSRView<int32_t, int32_t, double> const &, int32_t *, int, double);
 
-}  // namespace cugraph
+} // namespace cugraph

@@ -33,6 +33,9 @@ def louvain(input_graph, max_iter, resolution):
     if not input_graph.adjlist:
         input_graph.view_adj_list()
 
+    cdef unique_ptr[handle_t] handle_ptr
+    handle_ptr.reset(new handle_t())
+
     weights = None
     final_modularity = None
 
@@ -69,7 +72,8 @@ def louvain(input_graph, max_iter, resolution):
                                                   <float*>c_weights, num_verts, num_edges)
 
         graph_float.get_vertex_identifiers(<int*>c_identifier)
-        num_level, final_modularity_float = c_louvain(graph_float,
+        num_level, final_modularity_float = c_louvain(handle_ptr.get()[0],
+                                                      graph_float,
                                                       <int*> c_partition,
                                                       <int> max_iter,
                                                       <float> resolution)
@@ -80,7 +84,8 @@ def louvain(input_graph, max_iter, resolution):
                                                     <double*>c_weights, num_verts, num_edges)
 
         graph_double.get_vertex_identifiers(<int*>c_identifier)
-        num_level, final_modularity_double = c_louvain(graph_double,
+        num_level, final_modularity_double = c_louvain(handle_ptr.get()[0],
+                                                       graph_double,
                                                        <int*> c_partition,
                                                        <int> max_iter,
                                                        <double> resolution)

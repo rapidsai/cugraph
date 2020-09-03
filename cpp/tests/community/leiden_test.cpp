@@ -59,7 +59,8 @@ TEST(leiden_karate, success)
   float modularity{0.0};
   int num_level = 40;
 
-  std::tie(num_level, modularity) = cugraph::leiden(G, result_v.data().get());
+  raft::handle_t handle;
+  std::tie(num_level, modularity) = cugraph::leiden(handle, G, result_v.data().get());
 
   cudaMemcpy((void*)&(cluster_id[0]),
              result_v.data().get(),

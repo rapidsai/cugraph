@@ -38,11 +38,13 @@ class Louvain {
   using edge_t   = typename graph_type::edge_type;
   using weight_t = typename graph_type::weight_type;
 
-  Louvain(graph_type const &graph, cudaStream_t stream)
+ Louvain(raft::handle_t const &handle,
+         graph_type const &graph, cudaStream_t stream)
     :
 #ifdef TIMING
       hr_timer_(),
 #endif
+      handle_(handle),
 
       // FIXME:  Don't really need to copy here but would need
       //         to change the logic to populate this properly
@@ -603,6 +605,7 @@ class Louvain {
   }
 
  protected:
+  raft::handle_t const &handle_;
   vertex_t number_of_vertices_;
   edge_t number_of_edges_;
   cudaStream_t stream_;

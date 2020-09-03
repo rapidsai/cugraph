@@ -57,7 +57,9 @@ TEST(louvain, success)
   float modularity{0.0};
   int num_level = 40;
 
-  std::tie(num_level, modularity) = cugraph::louvain(G, result_v.data().get());
+  raft::handle_t handle;
+
+  std::tie(num_level, modularity) = cugraph::louvain(handle, G, result_v.data().get());
 
   cudaMemcpy((void*)&(cluster_id[0]),
              result_v.data().get(),

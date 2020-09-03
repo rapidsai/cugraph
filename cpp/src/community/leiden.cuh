@@ -27,8 +27,8 @@ class Leiden : public Louvain<graph_type> {
   using edge_t   = typename graph_type::edge_type;
   using weight_t = typename graph_type::weight_type;
 
-  Leiden(graph_type const &graph, cudaStream_t stream)
-    : Louvain<graph_type>(graph, stream), constraint_v_(graph.number_of_vertices)
+  Leiden(raft::handle_t const &handle, graph_type const &graph, cudaStream_t stream)
+    : Louvain<graph_type>(handle, graph, stream), constraint_v_(graph.number_of_vertices)
   {
   }
 

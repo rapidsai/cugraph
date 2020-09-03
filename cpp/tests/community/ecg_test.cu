@@ -45,7 +45,8 @@ TEST(ecg, success)
   cugraph::GraphCSRView<int, int, float> graph_csr(
     offsets_v.data().get(), indices_v.data().get(), weights_v.data().get(), num_verts, num_edges);
 
-  cugraph::ecg<int32_t, int32_t, float>(graph_csr, .05, 16, result_v.data().get());
+  raft::handle_t handle;
+  cugraph::ecg<int32_t, int32_t, float>(handle, graph_csr, .05, 16, result_v.data().get());
 
   cluster_id = result_v;
   int max    = *max_element(cluster_id.begin(), cluster_id.end());
@@ -106,7 +107,8 @@ TEST(ecg, dolphin)
   cugraph::GraphCSRView<int, int, float> graph_csr(
     offsets_v.data().get(), indices_v.data().get(), weights_v.data().get(), num_verts, num_edges);
 
-  cugraph::ecg<int32_t, int32_t, float>(graph_csr, .05, 16, result_v.data().get());
+  raft::handle_t handle;
+  cugraph::ecg<int32_t, int32_t, float>(handle, graph_csr, .05, 16, result_v.data().get());
 
   cluster_id = result_v;
   int max    = *max_element(cluster_id.begin(), cluster_id.end());

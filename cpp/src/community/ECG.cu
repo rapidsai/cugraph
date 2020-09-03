@@ -108,7 +108,8 @@ void get_permutation_vector(T size, T seed, T *permutation, cudaStream_t stream)
 namespace cugraph {
 
 template <typename vertex_t, typename edge_t, typename weight_t>
-void ecg(GraphCSRView<vertex_t, edge_t, weight_t> const &graph,
+void ecg(raft::handle_t const &handle,
+         GraphCSRView<vertex_t, edge_t, weight_t> const &graph,
          weight_t min_weight,
          vertex_t ensemble_size,
          vertex_t *ecg_parts)
@@ -142,7 +143,7 @@ void ecg(GraphCSRView<vertex_t, edge_t, weight_t> const &graph,
     rmm::device_vector<vertex_t> parts_v(size);
     vertex_t *d_parts = parts_v.data().get();
 
-    cugraph::louvain(permuted_graph->view(), d_parts, 1);
+    cugraph::louvain(handle, permuted_graph->view(), d_parts, 1);
 
     // For each edge in the graph determine whether the endpoints are in the same partition
     // Keep a sum for each edge of the total number of times its endpoints are in the same partition
@@ -175,15 +176,17 @@ void ecg(GraphCSRView<vertex_t, edge_t, weight_t> const &graph,
   louvain_graph.number_of_vertices = graph.number_of_vertices;
   louvain_graph.number_of_edges    = graph.number_of_edges;
 
-  cugraph::louvain(louvain_graph, ecg_parts, 100);
+  cugraph::louvain(handle, louvain_graph, ecg_parts, 100);
 }
 
 // Explicit template instantiations.
-template void ecg<int32_t, int32_t, float>(GraphCSRView<int32_t, int32_t, float> const &graph,
+template void ecg<int32_t, int32_t, float>(raft::handle_t const &,
+                                           GraphCSRView<int32_t, int32_t, float> const &graph,
                                            float min_weight,
                                            int32_t ensemble_size,
                                            int32_t *ecg_parts);
-template void ecg<int32_t, int32_t, double>(GraphCSRView<int32_t, int32_t, double> const &graph,
+template void ecg<int32_t, int32_t, double>(raft::handle_t const &,
+                                            GraphCSRView<int32_t, int32_t, double> const &graph,
                                             double min_weight,
                                             int32_t ensemble_size,
                                             int32_t *ecg_parts);
