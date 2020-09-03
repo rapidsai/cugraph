@@ -55,4 +55,4 @@ template std::pair<int, float> leiden(
 template std::pair<int, double> leiden(
   raft::handle_t const &, GraphCSRView<int32_t, int32_t, double> const &, int32_t *, int, double);
 
-} // namespace cugraph
+}  // namespace cugraph
