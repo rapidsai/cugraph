@@ -27,8 +27,8 @@ DATASETS_UNRENUMBERED = ['../datasets/karate-disjoint.csv']
 
 DATASETS = ['../datasets/karate-disjoint.csv',
             '../datasets/dolphins.csv',
-            '../datasets/netscience.csv',
-            '../datasets/email-Eu-core.csv']
+            '../datasets/netscience.csv']
+#            '../datasets/email-Eu-core.csv']
 
 STRONGDATASETS = ['../datasets/dolphins.csv',
                   '../datasets/netscience.csv',
