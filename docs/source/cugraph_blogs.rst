@@ -31,7 +31,18 @@ Media
 
 Academic Papers
 ===============
-  * HPEC
+* S. Kang, A. Fender, J. Eaton, B. Rees: Computing PageRank Scores of Web Crawl Data Using DGX A100 Clusters. In IEEE HPEC, Sep. 2020
+
+
+Other BLOGS 
+========================
+* `4 graph algorithms on steroids for data scientists with cugraph
+  <https://towardsdatascience.com/4-graph-algorithms-on-steroids-for-data-scientists-with-cugraph-43d784de8d0e>`_
+* `Where should I walk <https://towardsdatascience.com/where-should-i-walk-e66b26735de5>`_
+* `Where really are the parking spots? <https://towardsdatascience.com/where-really-are-the-parking-spots-ed6a1129035e>`_
+* `Accelerating Single Cell Genomic Analysis using RAPIDS <https://developer.nvidia.com/blog/accelerating-single-cell-genomic-analysis-using-rapids/>`_
+
+
 
 
 Copyright (c) 2020, NVIDIA CORPORATION.
