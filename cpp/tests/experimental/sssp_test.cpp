@@ -104,57 +104,55 @@ class Tests_SSSP : public ::testing::TestWithParam<SSSP_Usecase> {
   template <typename vertex_t, typename edge_t, typename weight_t>
   void run_current_test(SSSP_Usecase const& configuration)
   {
-    // FIXME: directed is a misnomer.
-    bool directed{false};
-    auto p_csr_graph = cugraph::test::generate_graph_csr_from_mm<vertex_t, edge_t, weight_t>(
-      directed, configuration.graph_file_full_path_);
-    auto csr_graph_view = p_csr_graph->view();
-    // FIXME: this shouldn't be necessary
-    csr_graph_view.prop.directed = directed;
+    raft::handle_t handle{};
+
+    auto graph =
+      cugraph::test::read_graph_from_matrix_market_file<vertex_t, edge_t, weight_t, false>(
+        handle, configuration.graph_file_full_path, true);
+    auto graph_view = graph.view();
+
+    std::vector<edge_t> h_offsets(graph_view.get_number_of_vertices() + 1);
+    std::vector<vertex_t> h_indices(graph_view.get_number_of_edges());
+    std::vector<weight_t> h_weights(graph_view.get_number_of_edges());
+    raft::update_host(h_offsets.data(),
+                      graph_view.offsets(),
+                      graph_view.get_number_of_vertices() + 1,
+                      handle.get_stream());
+    raft::update_host(h_indices.data(),
+                      graph_view.indices(),
+                      graph_view.get_number_of_edges(),
+                      handle.get_stream());
+    raft::update_host(h_weights.data(),
+                      graph_view.weights(),
+                      graph_view.get_number_of_edges(),
+                      handle.get_stream());
+    CUDA_TRY(cudaStreamSynchronize(handle.get_stream()));
 
     ASSERT_TRUE(configuration.source >= 0 &&
-                configuration.source <= csr_graph_view.number_of_vertices)
+                configuration.source <= graph_view.get_number_of_vertices())
       << "Starting sources should be >= 0 and"
       << " less than the number of vertices in the graph.";
 
-    std::vector<edge_t> h_offsets(csr_graph_view.number_of_vertices + 1);
-    std::vector<vertex_t> h_indices(csr_graph_view.number_of_edges);
-    std::vector<weight_t> h_weights(csr_graph_view.number_of_edges);
-    std::vector<weight_t> h_reference_distances(csr_graph_view.number_of_vertices);
-    std::vector<vertex_t> h_reference_predecessors(csr_graph_view.number_of_vertices);
-
-    CUDA_TRY(cudaMemcpy(h_offsets.data(),
-                        csr_graph_view.offsets,
-                        sizeof(edge_t) * h_offsets.size(),
-                        cudaMemcpyDeviceToHost));
-    CUDA_TRY(cudaMemcpy(h_indices.data(),
-                        csr_graph_view.indices,
-                        sizeof(vertex_t) * h_indices.size(),
-                        cudaMemcpyDeviceToHost));
-    CUDA_TRY(cudaMemcpy(h_weights.data(),
-                        csr_graph_view.edge_data,
-                        sizeof(weight_t) * h_weights.size(),
-                        cudaMemcpyDeviceToHost));
+    std::vector<weight_t> h_reference_distances(graph_view.get_number_of_vertices());
+    std::vector<vertex_t> h_reference_predecessors(graph_view.get_number_of_vertices());
 
     sssp_reference(h_offsets.data(),
                    h_indices.data(),
                    h_weights.data(),
                    h_reference_distances.data(),
                    h_reference_predecessors.data(),
-                   csr_graph_view.number_of_vertices,
+                   graph_view.get_number_of_vertices(),
                    static_cast<vertex_t>(configuration.source));
 
-    raft::handle_t handle{};
-
-    rmm::device_uvector<weight_t> d_distances(csr_graph_view.number_of_vertices,
+    rmm::device_uvector<weight_t> d_distances(graph_view.get_number_of_vertices(),
                                               handle.get_stream());
-    rmm::device_uvector<vertex_t> d_predecessors(csr_graph_view.number_of_vertices,
+    rmm::device_uvector<vertex_t> d_predecessors(graph_view.get_number_of_vertices(),
                                                  handle.get_stream());
 
     CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
 
     cugraph::experimental::sssp(handle,
-                                csr_graph_view,
+                                graph_view,
                                 d_distances.begin(),
                                 d_predecessors.begin(),
                                 static_cast<vertex_t>(configuration.source),
@@ -163,17 +161,16 @@ class Tests_SSSP : public ::testing::TestWithParam<SSSP_Usecase> {
 
     CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
 
-    std::vector<weight_t> h_cugraph_distances(csr_graph_view.number_of_vertices);
-    std::vector<vertex_t> h_cugraph_predecessors(csr_graph_view.number_of_vertices);
+    std::vector<weight_t> h_cugraph_distances(graph_view.get_number_of_vertices());
+    std::vector<vertex_t> h_cugraph_predecessors(graph_view.get_number_of_vertices());
 
-    CUDA_TRY(cudaMemcpy(h_cugraph_distances.data(),
-                        d_distances.data(),
-                        sizeof(weight_t) * d_distances.size(),
-                        cudaMemcpyDeviceToHost));
-    CUDA_TRY(cudaMemcpy(h_cugraph_predecessors.data(),
-                        d_predecessors.data(),
-                        sizeof(vertex_t) * d_predecessors.size(),
-                        cudaMemcpyDeviceToHost));
+    raft::update_host(
+      h_cugraph_distances.data(), d_distances.data(), d_distances.size(), handle.get_stream());
+    raft::update_host(h_cugraph_predecessors.data(),
+                      d_predecessors.data(),
+                      d_predecessors.size(),
+                      handle.get_stream());
+    CUDA_TRY(cudaStreamSynchronize(handle.get_stream()));
 
     auto max_weight_element = std::max_element(h_weights.begin(), h_weights.end());
     auto epsilon            = *max_weight_element * weight_t{1e-6};

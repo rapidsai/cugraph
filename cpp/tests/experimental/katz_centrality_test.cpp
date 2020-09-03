@@ -115,51 +115,34 @@ class Tests_KatzCentrality : public ::testing::TestWithParam<KatzCentrality_Usec
   template <typename vertex_t, typename edge_t, typename weight_t, typename result_t>
   void run_current_test(KatzCentrality_Usecase const& configuration)
   {
-    auto mm_graph =
-      cugraph::test::read_edgelist_from_matrix_market_file<vertex_t, edge_t, weight_t>(
-        configuration.graph_file_full_path);
-    edge_t number_of_edges = static_cast<edge_t>(mm_graph.h_rows.size());
-
     raft::handle_t handle{};
 
-    rmm::device_uvector<vertex_t> d_edgelist_rows(number_of_edges, handle.get_stream());
-    rmm::device_uvector<vertex_t> d_edgelist_cols(number_of_edges, handle.get_stream());
-    rmm::device_uvector<weight_t> d_edgelist_weights(configuration.test_weighted ? number_of_edges : 0,
-                                                     handle.get_stream());
-
-    raft::update_device(
-      d_edgelist_rows.data(), mm_graph.h_rows.data(), number_of_edges, handle.get_stream());
-    raft::update_device(
-      d_edgelist_cols.data(), mm_graph.h_cols.data(), number_of_edges, handle.get_stream());
-    if (configuration.test_weighted) {
-      raft::update_device(d_edgelist_weights.data(),
-                          mm_graph.h_weights.data(),
-                          number_of_edges,
-                          handle.get_stream());
-    }
-
-    cugraph::experimental::edgelist_t<vertex_t, edge_t, weight_t> edgelist{
-      d_edgelist_rows.data(),
-      d_edgelist_cols.data(),
-      configuration.test_weighted ? d_edgelist_weights.data() : nullptr,
-      number_of_edges};
-
-    auto graph = cugraph::experimental::graph_t<vertex_t, edge_t, weight_t, true, false>(
-      handle, edgelist, mm_graph.number_of_vertices, mm_is_symmetric(mc), false, configuration.test_weighted, false, true);
-
+    auto graph =
+      cugraph::test::read_graph_from_matrix_market_file<vertex_t, edge_t, weight_t, true>(
+        handle, configuration.graph_file_full_path, configuration.test_weighted);
     auto graph_view = graph.view();
 
     std::vector<edge_t> h_offsets(graph_view.get_number_of_vertices() + 1);
     std::vector<vertex_t> h_indices(graph_view.get_number_of_edges());
     std::vector<weight_t> h_weights{};
-    std::vector<result_t> h_reference_katz_centralities(graph_view.get_number_of_vertices());
-
-    raft::update_host(h_offsets.data(), graph_view.offsets(), graph_view.get_number_of_verties() + 1, handle.get_stream());
-    raft::update_host(h_indices.data(), graph_view.indices(), graph_view.get_number_of_edges(), handle.get_stream());
+    raft::update_host(h_offsets.data(),
+                      graph_view.offsets(),
+                      graph_view.get_number_of_vertices() + 1,
+                      handle.get_stream());
+    raft::update_host(h_indices.data(),
+                      graph_view.indices(),
+                      graph_view.get_number_of_edges(),
+                      handle.get_stream());
     if (graph_view.is_weighted()) {
       h_weights.assign(graph_view.get_number_of_edges(), weight_t{0.0});
-      raft::update_host(h_weights.data(), graph_view.wights(), graph_view.get_number_of_edges(), handle.get_stream());
+      raft::update_host(h_weights.data(),
+                        graph_view.weights(),
+                        graph_view.get_number_of_edges(),
+                        handle.get_stream());
     }
+    CUDA_TRY(cudaStreamSynchronize(handle.get_stream()));
+
+    std::vector<result_t> h_reference_katz_centralities(graph_view.get_number_of_vertices());
 
     std::vector<edge_t> tmps(h_offsets.size());
     std::adjacent_difference(h_offsets.begin(), h_offsets.end(), tmps.begin());
@@ -204,10 +187,11 @@ class Tests_KatzCentrality : public ::testing::TestWithParam<KatzCentrality_Usec
 
     std::vector<result_t> h_cugraph_katz_centralities(graph_view.get_number_of_vertices());
 
-    CUDA_TRY(cudaMemcpy(h_cugraph_katz_centralities.data(),
-                        d_katz_centralities.data(),
-                        sizeof(result_t) * d_katz_centralities.size(),
-                        cudaMemcpyDeviceToHost));
+    raft::update_host(h_cugraph_katz_centralities.data(),
+                      d_katz_centralities.data(),
+                      d_katz_centralities.size(),
+                      handle.get_stream());
+    CUDA_TRY(cudaStreamSynchronize(handle.get_stream()));
 
     auto nearly_equal = [epsilon](auto lhs, auto rhs) { return std::fabs(lhs - rhs) < epsilon; };
 
