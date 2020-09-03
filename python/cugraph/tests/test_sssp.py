@@ -94,7 +94,7 @@ SOURCES = [1]
 
 
 # Test
-@pytest.mark.parametrize("graph_file", utils.DATASETS_4)
+@pytest.mark.parametrize("graph_file", utils.DATASETS)
 @pytest.mark.parametrize("source", SOURCES)
 def test_sssp(graph_file, source):
     print("DOING test_sssp : " + graph_file + "\n\n\n")
@@ -127,7 +127,7 @@ def test_sssp(graph_file, source):
 
 
 # Test
-@pytest.mark.parametrize("graph_file", utils.DATASETS_1)
+@pytest.mark.parametrize("graph_file", utils.DATASETS)
 @pytest.mark.parametrize("source", SOURCES)
 def test_sssp_edgevals(graph_file, source):
     gc.collect()
@@ -159,7 +159,7 @@ def test_sssp_edgevals(graph_file, source):
     assert err == 0
 
 
-@pytest.mark.parametrize("graph_file", utils.DATASETS_1)
+@pytest.mark.parametrize("graph_file", utils.DATASETS)
 @pytest.mark.parametrize("source", SOURCES)
 def test_sssp_data_type_conversion(graph_file, source):
     gc.collect()
