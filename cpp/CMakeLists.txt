@@ -186,32 +186,16 @@ if (RMM_INCLUDE AND RMM_LIBRARY)
 endif (RMM_INCLUDE AND RMM_LIBRARY)
 
 ###################################################################################################
-# - Fetch Content -----------------------------------------------------------------------------
+# - Fetch Content ---------------------------------------------------------------------------------
 include(FetchContent)
 
-# - CUB
-message("Fetching CUB")
-
-FetchContent_Declare(
-    cub
-    GIT_REPOSITORY https://github.com/thrust/cub.git
-    # August 28, 2020
-    GIT_TAG        2442f44532ffcc53298c7e3a298feb5134563860
-)
-
-FetchContent_GetProperties(cub)
-if(NOT cub_POPULATED)
-  FetchContent_Populate(cub)
-  # We are not using the cub CMake targets, so no need to call `add_subdirectory()`.
-endif()
-set(CUB_INCLUDE_DIR "${cub_SOURCE_DIR}")
-
-# - THRUST
+# - THRUST/CUB
 message("Fetching Thrust")
 
 FetchContent_Declare(
     thrust
     GIT_REPOSITORY https://github.com/thrust/thrust.git
+    # August 28, 2020
     GIT_TAG        52a8bda46c5c2128414d1d47f546b486ff0be2f0
 )
 
@@ -221,9 +205,7 @@ if(NOT thrust_POPULATED)
   # We are not using the thrust CMake targets, so no need to call `add_subdirectory()`.
 endif()
 set(THRUST_INCLUDE_DIR "${thrust_SOURCE_DIR}")
-
-
-
+set(CUB_INCLUDE_DIR "${thrust_SOURCE_DIR}/dependencies/cub" PARENT_SCOPE)
 
 ###################################################################################################
 # - External Projects -----------------------------------------------------------------------------
