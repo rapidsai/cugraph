@@ -254,21 +254,6 @@ set(FIND_MATCHES_TEST_SRC
 ConfigureTest(FIND_MATCHES_TEST "${FIND_MATCHES_TEST_SRC}" "")
 
 ###################################################################################################
-#-NCCL tests ---------------------------------------------------------------------
-
-if (BUILD_MPI)
-    set(NCCL_TEST_SRC
-        "${CMAKE_CURRENT_SOURCE_DIR}/nccl/nccl_test.cu")
-
-    ConfigureTest(NCCL_TEST "${NCCL_TEST_SRC}" "")
-
-    set(NCCL_DEGREE_TEST_SRC
-    "${CMAKE_CURRENT_SOURCE_DIR}/nccl/degree_test.cu")
-
-    ConfigureTest(NCCL_DEGREE_TEST "${NCCL_DEGREE_TEST_SRC}" "")
-endif(BUILD_MPI)
-
-###################################################################################################
 # - Experimental Graph tests ----------------------------------------------------------------------
 
 set(EXPERIMENTAL_GRAPH_TEST_SRCS
