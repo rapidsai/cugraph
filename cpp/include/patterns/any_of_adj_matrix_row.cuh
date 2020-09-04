@@ -68,8 +68,7 @@ bool any_of_adj_matrix_row(HandleType& handle,
     adj_matrix_row_value_input_first + graph_device_view.get_number_of_adj_matrix_local_rows(),
     row_op);
   if (GraphType::is_multi_gpu) {
-    // need to reduce count
-    CUGRAPH_FAIL("unimplemented.");
+    handle.get_comms().allreduce(&count, &count, 1, raft::comms::op_t::SUM, handle.get_stream());
   }
   return (count > 0);
 }
