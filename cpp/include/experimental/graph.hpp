@@ -66,9 +66,7 @@ class graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu, std::enab
           partition_t<vertex_t> const &partition,
           vertex_t number_of_vertices,
           edge_t number_of_edges,
-          bool is_symmetric,
-          bool is_multigraph,
-          bool is_weighted,
+          graph_properties_t properties,
           bool sorted_by_global_degree_within_vertex_partition,
           bool do_expensive_check = false);
 
@@ -98,9 +96,7 @@ class graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu, std::enab
       partition_,
       this->get_number_of_vertices(),
       this->get_number_of_edges(),
-      this->is_symmetric(),
-      this->is_multigraph(),
-      this->is_weighted(),
+      this->get_graph_properties(),
       vertex_partition_segment_offsets_.size() > 0,
       false);
   }
@@ -136,9 +132,7 @@ class graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu, std::enab
   graph_t(raft::handle_t const &handle,
           edgelist_t<vertex_t, edge_t, weight_t> const &edge_list,
           vertex_t number_of_vertices,
-          bool is_symmetric,
-          bool is_multigraph,
-          bool is_weighted,
+          graph_properties_t properties,
           bool sorted_by_degree,
           bool do_expensive_check = false);
 
@@ -154,9 +148,7 @@ class graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu, std::enab
       segment_offsets_,
       this->get_number_of_vertices(),
       this->get_number_of_edges(),
-      this->is_symmetric(),
-      this->is_multigraph(),
-      this->is_weighted(),
+      this->get_graph_properties(),
       segment_offsets_.size() > 0,
       false);
   }

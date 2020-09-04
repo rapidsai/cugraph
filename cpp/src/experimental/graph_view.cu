@@ -63,13 +63,11 @@ graph_view_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu, std::enabl
                partition_t<vertex_t> const& partition,
                vertex_t number_of_vertices,
                edge_t number_of_edges,
-               bool is_symmetric,
-               bool is_multigraph,
-               bool is_weighted,
+               graph_properties_t properties,
                bool sorted_by_global_degree_within_vertex_partition,
                bool do_expensive_check)
   : detail::graph_base_t<vertex_t, edge_t, weight_t>(
-      handle, number_of_vertices, number_of_edges, is_symmetric, is_multigraph, is_weighted),
+      handle, number_of_vertices, number_of_edges, properties),
     adj_matrix_partition_offsets_(adj_matrix_partition_offsets),
     adj_matrix_partition_indices_(adj_matrix_partition_indices),
     adj_matrix_partition_weights_(adj_matrix_partition_weights),
@@ -86,8 +84,8 @@ graph_view_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu, std::enabl
                   "Invalid API parameter: adj_matrix_partition_offsets.size() and "
                   "adj_matrix_partition_indices.size() should coincide.");
   CUGRAPH_EXPECTS(
-    (is_weighted && (adj_matrix_partition_weights.size() == adj_matrix_partition_offsets.size())) ||
-      (!is_weighted && (adj_matrix_partition_weights.size() == 0)),
+    (this->is_weighted() && (adj_matrix_partition_weights.size() == adj_matrix_partition_offsets.size())) ||
+      (!this->is_weighted() && (adj_matrix_partition_weights.size() == 0)),
     "Invalid API parameter: adj_matrix_partition_weights.size() should coincide with "
     "adj_matrix_partition_offsets.size() (if is_weighted is true) or 0 (if is_weighted is false).");
 
@@ -188,10 +186,10 @@ graph_view_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu, std::enabl
       "Invalid API parameter: vertex partition should cover [0, number_of_vertices).");
 
     // FIXME: check for symmetricity may better be implemetned with transpose().
-    if (is_symmetric) {}
+    if (this->is_symmetric()) {}
     // FIXME: check for duplicate edges may better be implemented after deciding whether to sort
     // neighbor list or not.
-    if (!is_multigraph) {}
+    if (!this->is_multigraph()) {}
   }
 }
 
@@ -213,13 +211,11 @@ graph_view_t<vertex_t,
                                                            segment_offsets,
                                                          vertex_t number_of_vertices,
                                                          edge_t number_of_edges,
-                                                         bool is_symmetric,
-                                                         bool is_multigraph,
-                                                         bool is_weighted,
+                                                         graph_properties_t properties,
                                                          bool sorted_by_degree,
                                                          bool do_expensive_check)
   : detail::graph_base_t<vertex_t, edge_t, weight_t>(
-      handle, number_of_vertices, number_of_edges, is_symmetric, is_multigraph, is_weighted),
+      handle, number_of_vertices, number_of_edges, properties),
     offsets_(offsets),
     indices_(indices),
     weights_(weights),
@@ -227,7 +223,7 @@ graph_view_t<vertex_t,
 {
   // cheap error checks
 
-  CUGRAPH_EXPECTS((is_weighted && (weights != nullptr)) || (!is_weighted && (weights == nullptr)),
+  CUGRAPH_EXPECTS((this->is_weighted() && (weights != nullptr)) || (!this->is_weighted() && (weights == nullptr)),
                   "Invalid API parameter: weights shouldn't be nullptr if is_weighted is true and "
                   "should be nullptr if is_weighted is false.");
 
@@ -274,10 +270,10 @@ graph_view_t<vertex_t,
     }
 
     // FIXME: check for symmetricity may better be implemetned with transpose().
-    if (is_symmetric) {}
+    if (this->is_symmetric()) {}
     // FIXME: check for duplicate edges may better be implemented after deciding whether to sort
     // neighbor list or not.
-    if (!is_multigraph) {}
+    if (!this->is_multigraph()) {}
   }
 }
 

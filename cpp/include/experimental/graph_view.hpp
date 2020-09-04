@@ -165,7 +165,13 @@ class partition_t {
   int comm_p_col_size_{0};
   int comm_p_row_rank_{0};
   int comm_p_col_rank_{0};
-};  // namespace experimental
+};
+
+struct graph_properties_t {
+  bool is_symmetric{false};
+  bool is_multigraph{false};
+  bool is_weighted{false};
+};
 
 namespace detail {
 
@@ -174,12 +180,6 @@ size_t constexpr low_degree_threshold{raft::warp_size()};
 size_t constexpr mid_degree_threshold{1024};
 size_t constexpr num_segments_per_vertex_partition{3};
 
-struct graph_properties_t {
-  bool is_symmetric{false};
-  bool is_multigraph{false};
-  bool is_weighted{false};
-};
-
 // Common for both graph_view_t & graph_t and both single-GPU & multi-GPU versions
 template <typename vertex_t, typename edge_t, typename weight_t>
 class graph_base_t {
@@ -187,13 +187,11 @@ class graph_base_t {
   graph_base_t(raft::handle_t const& handle,
                vertex_t number_of_vertices,
                edge_t number_of_edges,
-               bool is_symmetric,
-               bool is_multigraph,
-               bool is_weighted)
+               graph_properties_t properties)
     : handle_ptr_(&handle),
       number_of_vertices_(number_of_vertices),
       number_of_edges_(number_of_edges),
-      properties_({is_symmetric, is_multigraph, is_weighted}){};
+      properties_(properties){};
 
   vertex_t get_number_of_vertices() const { return number_of_vertices_; }
   edge_t get_number_of_edges() const { return number_of_edges_; }
@@ -204,6 +202,7 @@ class graph_base_t {
 
  protected:
   raft::handle_t const* get_handle_ptr() const { return handle_ptr_; };
+  graph_properties_t get_graph_properties() const { return properties_; }
 
  private:
   raft::handle_t const* handle_ptr_{nullptr};
@@ -253,9 +252,7 @@ class graph_view_t<vertex_t,
                partition_t<vertex_t> const& partition,
                vertex_t number_of_vertices,
                edge_t number_of_edges,
-               bool is_symmetric,
-               bool is_multigraph,
-               bool is_weighted,
+               graph_properties_t properties,
                bool sorted_by_global_degree_within_vertex_partition,
                bool do_expensive_check = false);
 
@@ -334,9 +331,7 @@ class graph_view_t<vertex_t,
                std::vector<vertex_t> const& segment_offsets,
                vertex_t number_of_vertices,
                edge_t number_of_edges,
-               bool is_symmetric,
-               bool is_multigraph,
-               bool is_weighted,
+               graph_properties_t properties,
                bool sorted_by_degree,
                bool do_expensive_check = false);
 

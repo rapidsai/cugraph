@@ -137,9 +137,7 @@ class Tests_Graph : public ::testing::TestWithParam<Graph_Usecase> {
         handle,
         edgelist,
         mm_graph.number_of_vertices,
-        mm_graph.is_symmetric,
-        false,
-        configuration.test_weighted,
+        cugraph::experimental::graph_properties_t{mm_graph.is_symmetric, false, configuration.test_weighted},
         false,
         true);
 

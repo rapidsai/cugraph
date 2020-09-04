@@ -209,13 +209,11 @@ graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu, std::enable_if_
           partition_t<vertex_t> const &partition,
           vertex_t number_of_vertices,
           edge_t number_of_edges,
-          bool is_symmetric,
-          bool is_multigraph,
-          bool is_weighted,
+          graph_properties_t properties,
           bool sorted_by_global_degree_within_vertex_partition,
           bool do_expensive_check)
   : detail::graph_base_t<vertex_t, edge_t, weight_t>(
-      handle, number_of_vertices, number_of_edges, is_symmetric, is_multigraph, is_weighted),
+      handle, number_of_vertices, number_of_edges, properties),
     partition_(partition)
 {
   // cheap error checks
@@ -230,6 +228,7 @@ graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu, std::enable_if_
   auto const comm_p_col_size = comm_p_col.get_size();
   auto default_stream        = this->get_handle_ptr()->get_stream();
 
+  bool is_weighted = this->is_weighted();
   CUGRAPH_EXPECTS(
     std::any_of(edgelists.begin(),
                 edgelists.end(),
@@ -378,10 +377,10 @@ graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu, std::enable_if_
 
   if (do_expensive_check) {
     // FIXME: check for symmetricity may better be implemetned with transpose().
-    if (is_symmetric) {}
+    if (this->is_symmetric()) {}
     // FIXME: check for duplicate edges may better be implemented after deciding whether to sort
     // neighbor list or not.
-    if (!is_multigraph) {}
+    if (!this->is_multigraph()) {}
   }
 }
 
@@ -394,17 +393,13 @@ graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu, std::enable_if_
   graph_t(raft::handle_t const &handle,
           edgelist_t<vertex_t, edge_t, weight_t> const &edgelist,
           vertex_t number_of_vertices,
-          bool is_symmetric,
-          bool is_multigraph,
-          bool is_weighted,
+          graph_properties_t properties,
           bool sorted_by_degree,
           bool do_expensive_check)
   : detail::graph_base_t<vertex_t, edge_t, weight_t>(handle,
                                                      number_of_vertices,
                                                      edgelist.number_of_edges,
-                                                     is_symmetric,
-                                                     is_multigraph,
-                                                     is_weighted),
+                                                     properties),
     offsets_(rmm::device_uvector<edge_t>(0, handle.get_stream())),
     indices_(rmm::device_uvector<vertex_t>(0, handle.get_stream())),
     weights_(rmm::device_uvector<weight_t>(0, handle.get_stream()))
@@ -417,8 +412,8 @@ graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu, std::enable_if_
     (edgelist.p_src_vertices != nullptr) && (edgelist.p_dst_vertices != nullptr),
     "Invalid API parameter: edgelist.p_src_vertices and edgelist.p_dst_vertices should "
     "not be nullptr.");
-  CUGRAPH_EXPECTS((is_weighted && (edgelist.p_edge_weights != nullptr)) ||
-                    (!is_weighted && (edgelist.p_edge_weights == nullptr)),
+  CUGRAPH_EXPECTS((this->is_weighted() && (edgelist.p_edge_weights != nullptr)) ||
+                    (!this->is_weighted() && (edgelist.p_edge_weights == nullptr)),
                   "Invalid API parameter: edgelist.p_edge_weights should not be nullptr (if "
                   "is_weighted is true) or should be nullptr (if is_weighted is false).");
 
@@ -438,16 +433,16 @@ graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu, std::enable_if_
                     "Invalid API parameter: edgelist have out-of-range values.");
 
     // FIXME: check for symmetricity may better be implemetned with transpose().
-    if (is_symmetric) {}
+    if (this->is_symmetric()) {}
     // FIXME: check for duplicate edges may better be implemented after deciding whether to sort
     // neighbor list or not.
-    if (!is_multigraph) {}
+    if (!this->is_multigraph()) {}
   }
 
   // convert edge list (COO) to compressed sparse format (CSR or CSC)
 
   CUGRAPH_EXPECTS(
-    (is_weighted == false) || (edgelist.p_edge_weights != nullptr),
+    (this->is_weighted() == false) || (edgelist.p_edge_weights != nullptr),
     "Invalid API parameter, edgelist.p_edge_weights shoud not be nullptr if is_weighted == true");
 
   std::tie(offsets_, indices_, weights_) =
@@ -513,10 +508,10 @@ graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu, std::enable_if_
 
   if (do_expensive_check) {
     // FIXME: check for symmetricity may better be implemetned with transpose().
-    if (is_symmetric) {}
+    if (this->is_symmetric()) {}
     // FIXME: check for duplicate edges may better be implemented after deciding whether to sort
     // neighbor list or not.
-    if (!is_multigraph) {}
+    if (!this->is_multigraph()) {}
   }
 }
 
