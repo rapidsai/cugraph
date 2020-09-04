@@ -83,11 +83,10 @@ graph_view_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu, std::enabl
   CUGRAPH_EXPECTS(adj_matrix_partition_offsets.size() == adj_matrix_partition_indices.size(),
                   "Invalid API parameter: adj_matrix_partition_offsets.size() and "
                   "adj_matrix_partition_indices.size() should coincide.");
-  CUGRAPH_EXPECTS(
-    (adj_matrix_partition_weights.size() == adj_matrix_partition_offsets.size()) ||
-      (adj_matrix_partition_weights.size() == 0),
-    "Invalid API parameter: adj_matrix_partition_weights.size() should coincide with "
-    "adj_matrix_partition_offsets.size() (if weighted) or 0 (if unweighted).");
+  CUGRAPH_EXPECTS((adj_matrix_partition_weights.size() == adj_matrix_partition_offsets.size()) ||
+                    (adj_matrix_partition_weights.size() == 0),
+                  "Invalid API parameter: adj_matrix_partition_weights.size() should coincide with "
+                  "adj_matrix_partition_offsets.size() (if weighted) or 0 (if unweighted).");
 
   CUGRAPH_EXPECTS(
     (partition.is_hypergraph_partitioned() &&

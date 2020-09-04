@@ -228,7 +228,8 @@ graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu, std::enable_if_
   auto const comm_p_col_size = comm_p_col.get_size();
   auto default_stream        = this->get_handle_ptr()->get_stream();
 
-  CUGRAPH_EXPECTS(edgelists.size() > 0, "Invalid API parameter: edgelists.size() should be non-zero.");
+  CUGRAPH_EXPECTS(edgelists.size() > 0,
+                  "Invalid API parameter: edgelists.size() should be non-zero.");
 
   bool is_weighted = edgelists[0].p_edge_weights != nullptr;
 
@@ -242,7 +243,8 @@ graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu, std::enable_if_
                          (!is_weighted && (edgelist.p_edge_weights != nullptr));
                 }) == false,
     "Invalid API parameter: edgelists[].p_src_vertices and edgelists[].p_dst_vertices should not "
-    "be nullptr and edgelists[].p_edge_weights should be nullptr (if edgelists[0].p_edge_weights is nullptr) or should not be nullptr (otherwise).");   
+    "be nullptr and edgelists[].p_edge_weights should be nullptr (if edgelists[0].p_edge_weights "
+    "is nullptr) or should not be nullptr (otherwise).");
 
   CUGRAPH_EXPECTS((partition.is_hypergraph_partitioned() &&
                    (edgelists.size() == static_cast<size_t>(comm_p_row_size))) ||
@@ -308,7 +310,9 @@ graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu, std::enable_if_
       *(this->get_handle_ptr()), edgelists[i], major_first, major_last, minor_first, minor_last);
     adj_matrix_partition_offsets_.push_back(std::move(offsets));
     adj_matrix_partition_indices_.push_back(std::move(indices));
-    if (adj_matrix_partition_weights_.size() > 0) { adj_matrix_partition_weights_.push_back(std::move(weights)); }
+    if (adj_matrix_partition_weights_.size() > 0) {
+      adj_matrix_partition_weights_.push_back(std::move(weights));
+    }
   }
 
   // update degree-based segment offsets (to be used for graph analytics kernel optimization)
@@ -394,10 +398,8 @@ graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu, std::enable_if_
           graph_properties_t properties,
           bool sorted_by_degree,
           bool do_expensive_check)
-  : detail::graph_base_t<vertex_t, edge_t, weight_t>(handle,
-                                                     number_of_vertices,
-                                                     edgelist.number_of_edges,
-                                                     properties),
+  : detail::graph_base_t<vertex_t, edge_t, weight_t>(
+      handle, number_of_vertices, edgelist.number_of_edges, properties),
     offsets_(rmm::device_uvector<edge_t>(0, handle.get_stream())),
     indices_(rmm::device_uvector<vertex_t>(0, handle.get_stream())),
     weights_(rmm::device_uvector<weight_t>(0, handle.get_stream()))

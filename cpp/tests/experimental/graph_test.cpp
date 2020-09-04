@@ -208,7 +208,6 @@ class Tests_Graph : public ::testing::TestWithParam<Graph_Usecase> {
   }
 };
 
-// FIXME: add tests for type combinations
 TEST_P(Tests_Graph, CheckStoreTransposedFalse)
 {
   run_current_test<int32_t, int32_t, float, false>(GetParam());
@@ -219,7 +218,6 @@ TEST_P(Tests_Graph, CheckStoreTransposedFalse)
   run_current_test<int64_t, int64_t, double, false>(GetParam());
 }
 
-// FIXME: add tests for type combinations
 TEST_P(Tests_Graph, CheckStoreTransposedTrue)
 {
   run_current_test<int32_t, int32_t, float, true>(GetParam());

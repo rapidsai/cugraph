@@ -286,7 +286,9 @@ class graph_view_t<vertex_t,
   // private or even disappear if we switch to CSR + DCSR (or CSC + DCSC).
   weight_t const* weights(size_t adj_matrix_partition_idx) const
   {
-    return adj_matrix_partition_weights_.size() > 0 ? adj_matrix_partition_weights_[adj_matrix_partition_idx] : static_cast<weight_t const*>(nullptr);
+    return adj_matrix_partition_weights_.size() > 0
+             ? adj_matrix_partition_weights_[adj_matrix_partition_idx]
+             : static_cast<weight_t const*>(nullptr);
   }
 
  private:
