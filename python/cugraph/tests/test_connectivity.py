@@ -108,6 +108,15 @@ def cugraph_strong_call(cu_M):
     return label_vertex_dict
 
 
+def which_cluster_idx(_cluster, _find_vertex):
+    idx = -1
+    for i in range(len(_cluster)):
+        if _find_vertex in _cluster[i]:
+            idx = i
+            break
+    return idx
+
+
 # Test all combinations of default/managed and pooled/non-pooled allocation
 @pytest.mark.parametrize("graph_file", utils.DATASETS)
 def test_weak_cc(graph_file):
@@ -142,7 +151,13 @@ def test_weak_cc(graph_file):
 
     # Compare vertices of largest component
     nx_vertices = sorted(lst_nx_components[0])
-    cg_vertices = sorted(lst_cg_components[0])
+    first_vert = nx_vertices[0]
+
+    idx = which_cluster_idx(lst_cg_components, first_vert)
+    assert idx != -1, "Check for Nx vertex in cuGraph results failed"
+
+    cg_vertices = sorted(lst_cg_components[idx])
+
     assert nx_vertices == cg_vertices
 
 
@@ -167,7 +182,7 @@ def test_strong_cc(graph_file):
     nx_n_components = len(netx_labels)
     cg_n_components = len(cugraph_labels)
 
-    # Comapre number of components
+    # Comapre number of components found
     assert nx_n_components == cg_n_components
 
     lst_nx_components = sorted(netx_labels, key=len, reverse=True)
@@ -181,6 +196,12 @@ def test_strong_cc(graph_file):
     assert lst_nx_components_lens == lst_cg_components_lens
 
     # Compare vertices of largest component
+    # note that there might be more than one largest component
     nx_vertices = sorted(lst_nx_components[0])
-    cg_vertices = sorted(lst_cg_components[0])
+    first_vert = nx_vertices[0]
+
+    idx = which_cluster_idx(lst_cg_components, first_vert)
+    assert idx != -1, "Check for Nx vertex in cuGraph results failed"
+
+    cg_vertices = sorted(lst_cg_components[idx])
     assert nx_vertices == cg_vertices

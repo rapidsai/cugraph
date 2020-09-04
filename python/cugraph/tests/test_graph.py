@@ -479,7 +479,7 @@ def test_consolidation(graph_file):
 
 
 # Test
-@pytest.mark.parametrize('graph_file', utils.DATASETS_2)
+@pytest.mark.parametrize('graph_file', utils.DATASETS_SMALL)
 def test_two_hop_neighbors(graph_file):
     gc.collect()
 
@@ -593,7 +593,7 @@ def test_number_of_vertices(graph_file):
 
 
 # Test
-@pytest.mark.parametrize("graph_file", utils.DATASETS_2)
+@pytest.mark.parametrize("graph_file", utils.DATASETS_SMALL)
 def test_to_directed(graph_file):
     gc.collect()
 
@@ -622,12 +622,14 @@ def test_to_directed(graph_file):
 
 
 # Test
-@pytest.mark.parametrize("graph_file", utils.DATASETS_2)
+@pytest.mark.parametrize("graph_file", utils.DATASETS_SMALL)
 def test_to_undirected(graph_file):
     gc.collect()
 
+    # Read data and then convert to directed by dropped some edges
     cu_M = utils.read_csv_file(graph_file)
     cu_M = cu_M[cu_M["0"] <= cu_M["1"]].reset_index(drop=True)
+
     M = utils.read_csv_for_nx(graph_file)
     M = M[M["0"] <= M["1"]]
     assert len(cu_M) == len(M)
@@ -635,6 +637,7 @@ def test_to_undirected(graph_file):
     # cugraph add_edge_list
     DiG = cugraph.DiGraph()
     DiG.from_cudf_edgelist(cu_M, source="0", destination="1")
+
     DiGnx = nx.from_pandas_edgelist(
         M, source="0", target="1", create_using=nx.DiGraph()
     )
@@ -655,7 +658,7 @@ def test_to_undirected(graph_file):
 
 
 # Test
-@pytest.mark.parametrize("graph_file", utils.DATASETS_2)
+@pytest.mark.parametrize("graph_file", utils.DATASETS)
 def test_has_edge(graph_file):
     gc.collect()
 
@@ -672,7 +675,7 @@ def test_has_edge(graph_file):
 
 
 # Test
-@pytest.mark.parametrize("graph_file", utils.DATASETS_2)
+@pytest.mark.parametrize("graph_file", utils.DATASETS)
 def test_has_node(graph_file):
     gc.collect()
 
@@ -688,7 +691,7 @@ def test_has_node(graph_file):
 
 
 # Test all combinations of default/managed and pooled/non-pooled allocation
-@pytest.mark.parametrize('graph_file', utils.DATASETS_2)
+@pytest.mark.parametrize('graph_file', utils.DATASETS)
 def test_bipartite_api(graph_file):
     # This test only tests the functionality of adding set of nodes and
     # retrieving them. The datasets currently used are not truly bipartite.
