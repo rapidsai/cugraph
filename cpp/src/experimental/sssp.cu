@@ -94,7 +94,7 @@ void sssp(raft::handle_t &handle,
                     graph_device_view.local_vertex_begin(),
                     graph_device_view.local_vertex_end(),
                     val_first,
-                    [graph_device_view, source_vertex] __device__(auto val) {
+                    [source_vertex] __device__(auto val) {
                       auto distance = invalid_distance;
                       if (val == source_vertex) { distance = weight_t{0.0}; }
                       return thrust::make_tuple(distance, invalid_vertex);

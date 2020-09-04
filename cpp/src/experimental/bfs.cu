@@ -80,10 +80,10 @@ void bfs(raft::handle_t &handle,
 
   auto val_first = thrust::make_zip_iterator(thrust::make_tuple(distances, predecessor_first));
   thrust::transform(rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
-                    graph_device_view.local_vertex_begin(),
-                    graph_device_view.local_vertex_end(),
+                    graph_view.local_vertex_begin(),
+                    graph_view.local_vertex_end(),
                     val_first,
-                    [graph_device_view, source_vertex] __device__(auto val) {
+                    [source_vertex] __device__(auto val) {
                       auto distance = invalid_distance;
                       if (val == source_vertex) { distance = vertex_t{0}; }
                       return thrust::make_tuple(distance, invalid_vertex);
