@@ -137,7 +137,7 @@ class Tests_Graph : public ::testing::TestWithParam<Graph_Usecase> {
         handle,
         edgelist,
         mm_graph.number_of_vertices,
-        cugraph::experimental::graph_properties_t{mm_graph.is_symmetric, false, configuration.test_weighted},
+        cugraph::experimental::graph_properties_t{mm_graph.is_symmetric, false},
         false,
         true);
 
@@ -211,23 +211,23 @@ class Tests_Graph : public ::testing::TestWithParam<Graph_Usecase> {
 // FIXME: add tests for type combinations
 TEST_P(Tests_Graph, CheckStoreTransposedFalse)
 {
-  run_current_test<uint32_t, uint32_t, float, false>(GetParam());
-  run_current_test<uint32_t, uint64_t, float, false>(GetParam());
-  run_current_test<uint64_t, uint64_t, float, false>(GetParam());
-  run_current_test<uint32_t, uint32_t, double, false>(GetParam());
-  run_current_test<uint32_t, uint64_t, double, false>(GetParam());
-  run_current_test<uint64_t, uint64_t, double, false>(GetParam());
+  run_current_test<int32_t, int32_t, float, false>(GetParam());
+  run_current_test<int32_t, int64_t, float, false>(GetParam());
+  run_current_test<int64_t, int64_t, float, false>(GetParam());
+  run_current_test<int32_t, int32_t, double, false>(GetParam());
+  run_current_test<int32_t, int64_t, double, false>(GetParam());
+  run_current_test<int64_t, int64_t, double, false>(GetParam());
 }
 
 // FIXME: add tests for type combinations
 TEST_P(Tests_Graph, CheckStoreTransposedTrue)
 {
-  run_current_test<uint32_t, uint32_t, float, true>(GetParam());
-  run_current_test<uint32_t, uint64_t, float, true>(GetParam());
-  run_current_test<uint64_t, uint64_t, float, true>(GetParam());
-  run_current_test<uint32_t, uint32_t, double, true>(GetParam());
-  run_current_test<uint32_t, uint64_t, double, true>(GetParam());
-  run_current_test<uint64_t, uint64_t, double, true>(GetParam());
+  run_current_test<int32_t, int32_t, float, true>(GetParam());
+  run_current_test<int32_t, int64_t, float, true>(GetParam());
+  run_current_test<int64_t, int64_t, float, true>(GetParam());
+  run_current_test<int32_t, int32_t, double, true>(GetParam());
+  run_current_test<int32_t, int64_t, double, true>(GetParam());
+  run_current_test<int64_t, int64_t, double, true>(GetParam());
 }
 
 INSTANTIATE_TEST_CASE_P(simple_test,

@@ -84,10 +84,10 @@ graph_view_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu, std::enabl
                   "Invalid API parameter: adj_matrix_partition_offsets.size() and "
                   "adj_matrix_partition_indices.size() should coincide.");
   CUGRAPH_EXPECTS(
-    (this->is_weighted() && (adj_matrix_partition_weights.size() == adj_matrix_partition_offsets.size())) ||
-      (!this->is_weighted() && (adj_matrix_partition_weights.size() == 0)),
+    (adj_matrix_partition_weights.size() == adj_matrix_partition_offsets.size()) ||
+      (adj_matrix_partition_weights.size() == 0),
     "Invalid API parameter: adj_matrix_partition_weights.size() should coincide with "
-    "adj_matrix_partition_offsets.size() (if is_weighted is true) or 0 (if is_weighted is false).");
+    "adj_matrix_partition_offsets.size() (if weighted) or 0 (if unweighted).");
 
   CUGRAPH_EXPECTS(
     (partition.is_hypergraph_partitioned() &&
@@ -223,10 +223,6 @@ graph_view_t<vertex_t,
 {
   // cheap error checks
 
-  CUGRAPH_EXPECTS((this->is_weighted() && (weights != nullptr)) || (!this->is_weighted() && (weights == nullptr)),
-                  "Invalid API parameter: weights shouldn't be nullptr if is_weighted is true and "
-                  "should be nullptr if is_weighted is false.");
-
   CUGRAPH_EXPECTS(
     (sorted_by_degree &&
      (segment_offsets.size() == (detail::num_segments_per_vertex_partition + 1))) ||
@@ -279,31 +275,31 @@ graph_view_t<vertex_t,
 
 // explicit instantiation
 
-template class graph_view_t<uint32_t, uint32_t, float, true, true>;
-template class graph_view_t<uint32_t, uint32_t, float, false, true>;
-template class graph_view_t<uint32_t, uint32_t, double, true, true>;
-template class graph_view_t<uint32_t, uint32_t, double, false, true>;
-template class graph_view_t<uint32_t, uint64_t, float, true, true>;
-template class graph_view_t<uint32_t, uint64_t, float, false, true>;
-template class graph_view_t<uint32_t, uint64_t, double, true, true>;
-template class graph_view_t<uint32_t, uint64_t, double, false, true>;
-template class graph_view_t<uint64_t, uint64_t, float, true, true>;
-template class graph_view_t<uint64_t, uint64_t, float, false, true>;
-template class graph_view_t<uint64_t, uint64_t, double, true, true>;
-template class graph_view_t<uint64_t, uint64_t, double, false, true>;
+template class graph_view_t<int32_t, int32_t, float, true, true>;
+template class graph_view_t<int32_t, int32_t, float, false, true>;
+template class graph_view_t<int32_t, int32_t, double, true, true>;
+template class graph_view_t<int32_t, int32_t, double, false, true>;
+template class graph_view_t<int32_t, int64_t, float, true, true>;
+template class graph_view_t<int32_t, int64_t, float, false, true>;
+template class graph_view_t<int32_t, int64_t, double, true, true>;
+template class graph_view_t<int32_t, int64_t, double, false, true>;
+template class graph_view_t<int64_t, int64_t, float, true, true>;
+template class graph_view_t<int64_t, int64_t, float, false, true>;
+template class graph_view_t<int64_t, int64_t, double, true, true>;
+template class graph_view_t<int64_t, int64_t, double, false, true>;
 
-template class graph_view_t<uint32_t, uint32_t, float, true, false>;
-template class graph_view_t<uint32_t, uint32_t, float, false, false>;
-template class graph_view_t<uint32_t, uint32_t, double, true, false>;
-template class graph_view_t<uint32_t, uint32_t, double, false, false>;
-template class graph_view_t<uint32_t, uint64_t, float, true, false>;
-template class graph_view_t<uint32_t, uint64_t, float, false, false>;
-template class graph_view_t<uint32_t, uint64_t, double, true, false>;
-template class graph_view_t<uint32_t, uint64_t, double, false, false>;
-template class graph_view_t<uint64_t, uint64_t, float, true, false>;
-template class graph_view_t<uint64_t, uint64_t, float, false, false>;
-template class graph_view_t<uint64_t, uint64_t, double, true, false>;
-template class graph_view_t<uint64_t, uint64_t, double, false, false>;
+template class graph_view_t<int32_t, int32_t, float, true, false>;
+template class graph_view_t<int32_t, int32_t, float, false, false>;
+template class graph_view_t<int32_t, int32_t, double, true, false>;
+template class graph_view_t<int32_t, int32_t, double, false, false>;
+template class graph_view_t<int32_t, int64_t, float, true, false>;
+template class graph_view_t<int32_t, int64_t, float, false, false>;
+template class graph_view_t<int32_t, int64_t, double, true, false>;
+template class graph_view_t<int32_t, int64_t, double, false, false>;
+template class graph_view_t<int64_t, int64_t, float, true, false>;
+template class graph_view_t<int64_t, int64_t, float, false, false>;
+template class graph_view_t<int64_t, int64_t, double, true, false>;
+template class graph_view_t<int64_t, int64_t, double, false, false>;
 
 }  // namespace experimental
 }  // namespace cugraph

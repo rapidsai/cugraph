@@ -84,7 +84,7 @@ class graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu, std::enab
     for (size_t i = 0; i < offsets.size(); ++i) {
       offsets[i] = adj_matrix_partition_offsets_[i].data();
       indices[i] = adj_matrix_partition_indices_[i].data();
-      if (this->is_weighted()) { weights[i] = adj_matrix_partition_weights_[i].data(); }
+      if (weights.size() > 0) { weights[i] = adj_matrix_partition_weights_[i].data(); }
     }
 
     return graph_view_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu>(

@@ -170,7 +170,6 @@ class partition_t {
 struct graph_properties_t {
   bool is_symmetric{false};
   bool is_multigraph{false};
-  bool is_weighted{false};
 };
 
 namespace detail {
@@ -198,7 +197,6 @@ class graph_base_t {
 
   bool is_symmetric() const { return properties_.is_symmetric; }
   bool is_multigraph() const { return properties_.is_multigraph; }
-  bool is_weighted() const { return properties_.is_weighted; }
 
  protected:
   raft::handle_t const* get_handle_ptr() const { return handle_ptr_; };
@@ -288,7 +286,7 @@ class graph_view_t<vertex_t,
   // private or even disappear if we switch to CSR + DCSR (or CSC + DCSC).
   weight_t const* weights(size_t adj_matrix_partition_idx) const
   {
-    return adj_matrix_partition_weights_[adj_matrix_partition_idx];
+    return adj_matrix_partition_weights_.size() > 0 ? adj_matrix_partition_weights_[adj_matrix_partition_idx] : static_cast<weight_t const*>(nullptr);
   }
 
  private:

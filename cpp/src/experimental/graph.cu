@@ -228,9 +228,12 @@ graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu, std::enable_if_
   auto const comm_p_col_size = comm_p_col.get_size();
   auto default_stream        = this->get_handle_ptr()->get_stream();
 
-  bool is_weighted = this->is_weighted();
+  CUGRAPH_EXPECTS(edgelists.size() > 0, "Invalid API parameter: edgelists.size() should be non-zero.");
+
+  bool is_weighted = edgelists[0].p_edge_weights != nullptr;
+
   CUGRAPH_EXPECTS(
-    std::any_of(edgelists.begin(),
+    std::any_of(edgelists.begin() + 1,
                 edgelists.end(),
                 [is_weighted](auto edgelist) {
                   return (edgelist.p_src_vertices == nullptr) ||
@@ -239,8 +242,7 @@ graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu, std::enable_if_
                          (!is_weighted && (edgelist.p_edge_weights != nullptr));
                 }) == false,
     "Invalid API parameter: edgelists[].p_src_vertices and edgelists[].p_dst_vertices should not "
-    "be nullptr and edgelists[].p_edge_weights should not be nullptr (if is_weighted is true) or "
-    "should be nullptr (if is_weighted is false).");
+    "be nullptr and edgelists[].p_edge_weights should be nullptr (if edgelists[0].p_edge_weights is nullptr) or should not be nullptr (otherwise).");   
 
   CUGRAPH_EXPECTS((partition.is_hypergraph_partitioned() &&
                    (edgelists.size() == static_cast<size_t>(comm_p_row_size))) ||
@@ -290,12 +292,8 @@ graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu, std::enable_if_
 
   adj_matrix_partition_offsets_.reserve(edgelists.size());
   adj_matrix_partition_indices_.reserve(edgelists.size());
-  adj_matrix_partition_weights_.reserve(this->is_weighted() ? edgelists.size() : 0);
+  adj_matrix_partition_weights_.reserve(is_weighted ? edgelists.size() : 0);
   for (size_t i = 0; i < edgelists.size(); ++i) {
-    CUGRAPH_EXPECTS((is_weighted == false) || (edgelists[i].p_edge_weights != nullptr),
-                    "Invalid API parameter, edgelists[i].p_edge_weights shoud not be nullptr if "
-                    "is_weighted == true");
-
     vertex_t major_first{};
     vertex_t major_last{};
     vertex_t minor_first{};
@@ -310,7 +308,7 @@ graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu, std::enable_if_
       *(this->get_handle_ptr()), edgelists[i], major_first, major_last, minor_first, minor_last);
     adj_matrix_partition_offsets_.push_back(std::move(offsets));
     adj_matrix_partition_indices_.push_back(std::move(indices));
-    if (this->is_weighted()) { adj_matrix_partition_weights_.push_back(std::move(weights)); }
+    if (adj_matrix_partition_weights_.size() > 0) { adj_matrix_partition_weights_.push_back(std::move(weights)); }
   }
 
   // update degree-based segment offsets (to be used for graph analytics kernel optimization)
@@ -412,10 +410,6 @@ graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu, std::enable_if_
     (edgelist.p_src_vertices != nullptr) && (edgelist.p_dst_vertices != nullptr),
     "Invalid API parameter: edgelist.p_src_vertices and edgelist.p_dst_vertices should "
     "not be nullptr.");
-  CUGRAPH_EXPECTS((this->is_weighted() && (edgelist.p_edge_weights != nullptr)) ||
-                    (!this->is_weighted() && (edgelist.p_edge_weights == nullptr)),
-                  "Invalid API parameter: edgelist.p_edge_weights should not be nullptr (if "
-                  "is_weighted is true) or should be nullptr (if is_weighted is false).");
 
   // optional expensive checks (part 1/2)
 
@@ -440,10 +434,6 @@ graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu, std::enable_if_
   }
 
   // convert edge list (COO) to compressed sparse format (CSR or CSC)
-
-  CUGRAPH_EXPECTS(
-    (this->is_weighted() == false) || (edgelist.p_edge_weights != nullptr),
-    "Invalid API parameter, edgelist.p_edge_weights shoud not be nullptr if is_weighted == true");
 
   std::tie(offsets_, indices_, weights_) =
     edge_list_to_compressed_sparse<store_transposed>(*(this->get_handle_ptr()),
@@ -517,31 +507,31 @@ graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu, std::enable_if_
 
 // explicit instantiation
 
-template class graph_t<uint32_t, uint32_t, float, true, true>;
-template class graph_t<uint32_t, uint32_t, float, false, true>;
-template class graph_t<uint32_t, uint32_t, double, true, true>;
-template class graph_t<uint32_t, uint32_t, double, false, true>;
-template class graph_t<uint32_t, uint64_t, float, true, true>;
-template class graph_t<uint32_t, uint64_t, float, false, true>;
-template class graph_t<uint32_t, uint64_t, double, true, true>;
-template class graph_t<uint32_t, uint64_t, double, false, true>;
-template class graph_t<uint64_t, uint64_t, float, true, true>;
-template class graph_t<uint64_t, uint64_t, float, false, true>;
-template class graph_t<uint64_t, uint64_t, double, true, true>;
-template class graph_t<uint64_t, uint64_t, double, false, true>;
+template class graph_t<int32_t, int32_t, float, true, true>;
+template class graph_t<int32_t, int32_t, float, false, true>;
+template class graph_t<int32_t, int32_t, double, true, true>;
+template class graph_t<int32_t, int32_t, double, false, true>;
+template class graph_t<int32_t, int64_t, float, true, true>;
+template class graph_t<int32_t, int64_t, float, false, true>;
+template class graph_t<int32_t, int64_t, double, true, true>;
+template class graph_t<int32_t, int64_t, double, false, true>;
+template class graph_t<int64_t, int64_t, float, true, true>;
+template class graph_t<int64_t, int64_t, float, false, true>;
+template class graph_t<int64_t, int64_t, double, true, true>;
+template class graph_t<int64_t, int64_t, double, false, true>;
 
-template class graph_t<uint32_t, uint32_t, float, true, false>;
-template class graph_t<uint32_t, uint32_t, float, false, false>;
-template class graph_t<uint32_t, uint32_t, double, true, false>;
-template class graph_t<uint32_t, uint32_t, double, false, false>;
-template class graph_t<uint32_t, uint64_t, float, true, false>;
-template class graph_t<uint32_t, uint64_t, float, false, false>;
-template class graph_t<uint32_t, uint64_t, double, true, false>;
-template class graph_t<uint32_t, uint64_t, double, false, false>;
-template class graph_t<uint64_t, uint64_t, float, true, false>;
-template class graph_t<uint64_t, uint64_t, float, false, false>;
-template class graph_t<uint64_t, uint64_t, double, true, false>;
-template class graph_t<uint64_t, uint64_t, double, false, false>;
+template class graph_t<int32_t, int32_t, float, true, false>;
+template class graph_t<int32_t, int32_t, float, false, false>;
+template class graph_t<int32_t, int32_t, double, true, false>;
+template class graph_t<int32_t, int32_t, double, false, false>;
+template class graph_t<int32_t, int64_t, float, true, false>;
+template class graph_t<int32_t, int64_t, float, false, false>;
+template class graph_t<int32_t, int64_t, double, true, false>;
+template class graph_t<int32_t, int64_t, double, false, false>;
+template class graph_t<int64_t, int64_t, float, true, false>;
+template class graph_t<int64_t, int64_t, float, false, false>;
+template class graph_t<int64_t, int64_t, double, true, false>;
+template class graph_t<int64_t, int64_t, double, false, false>;
 
 }  // namespace experimental
 }  // namespace cugraph
