@@ -188,3 +188,11 @@ numpydoc_class_members_toctree = False
 
 def setup(app):
     app.add_stylesheet('params.css')
+
+from recommonmark.parser import CommonMarkParser
+
+source_parsers = {
+    '.md': CommonMarkParser,
+}
+
+source_suffix = ['.rst', '.md']

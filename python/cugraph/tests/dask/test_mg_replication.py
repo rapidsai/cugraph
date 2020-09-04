@@ -18,8 +18,9 @@ import cudf
 import cugraph.dask.structure.replication as replication
 import cugraph.tests.utils as utils
 import pytest
+import gc
 
-DATASETS_OPTIONS = utils.DATASETS_1
+DATASETS_OPTIONS = utils.DATASETS_SMALL
 DIRECTED_GRAPH_OPTIONS = [False, True]
 MG_DEVICE_COUNT_OPTIONS = [1, 2, 3, 4]
 
@@ -28,6 +29,7 @@ MG_DEVICE_COUNT_OPTIONS = [1, 2, 3, 4]
 @pytest.mark.parametrize("mg_device_count", MG_DEVICE_COUNT_OPTIONS)
 def test_replicate_cudf_dataframe_with_weights(input_data_path,
                                                mg_device_count):
+    gc.collect()
     skip_if_not_enough_devices(mg_device_count)
     df = cudf.read_csv(input_data_path,
                        delimiter=' ',
@@ -45,6 +47,7 @@ def test_replicate_cudf_dataframe_with_weights(input_data_path,
 @pytest.mark.parametrize("mg_device_count", MG_DEVICE_COUNT_OPTIONS)
 def test_replicate_cudf_dataframe_no_weights(input_data_path,
                                              mg_device_count):
+    gc.collect()
     skip_if_not_enough_devices(mg_device_count)
     df = cudf.read_csv(input_data_path,
                        delimiter=' ',
@@ -62,6 +65,7 @@ def test_replicate_cudf_dataframe_no_weights(input_data_path,
 @pytest.mark.parametrize("mg_device_count", MG_DEVICE_COUNT_OPTIONS)
 def test_replicate_cudf_series(input_data_path,
                                mg_device_count):
+    gc.collect()
     skip_if_not_enough_devices(mg_device_count)
     df = cudf.read_csv(input_data_path,
                        delimiter=' ',
@@ -85,6 +89,7 @@ def test_replicate_cudf_series(input_data_path,
 @pytest.mark.parametrize("directed", DIRECTED_GRAPH_OPTIONS)
 @pytest.mark.parametrize("mg_device_count", MG_DEVICE_COUNT_OPTIONS)
 def test_enable_batch_no_context(graph_file, directed, mg_device_count):
+    gc.collect()
     skip_if_not_enough_devices(mg_device_count)
     G = utils.generate_cugraph_graph_from_file(graph_file, directed)
     assert G.batch_enabled is False, "Internal property should be False"
@@ -97,6 +102,7 @@ def test_enable_batch_no_context(graph_file, directed, mg_device_count):
 @pytest.mark.parametrize("mg_device_count", MG_DEVICE_COUNT_OPTIONS)
 def test_enable_batch_no_context_view_adj(graph_file, directed,
                                           mg_device_count):
+    gc.collect()
     skip_if_not_enough_devices(mg_device_count)
     G = utils.generate_cugraph_graph_from_file(graph_file, directed)
     assert G.batch_enabled is False, "Internal property should be False"
@@ -108,6 +114,7 @@ def test_enable_batch_no_context_view_adj(graph_file, directed,
 @pytest.mark.parametrize("mg_device_count", MG_DEVICE_COUNT_OPTIONS)
 def test_enable_batch_context_then_views(graph_file, directed,
                                          mg_device_count):
+    gc.collect()
     skip_if_not_enough_devices(mg_device_count)
     G = utils.generate_cugraph_graph_from_file(graph_file, directed)
     with MGContext(mg_device_count):
@@ -131,6 +138,7 @@ def test_enable_batch_context_then_views(graph_file, directed,
 @pytest.mark.parametrize("mg_device_count", MG_DEVICE_COUNT_OPTIONS)
 def test_enable_batch_view_then_context(graph_file, directed,
                                         mg_device_count):
+    gc.collect()
     skip_if_not_enough_devices(mg_device_count)
     G = utils.generate_cugraph_graph_from_file(graph_file, directed)
 
@@ -158,6 +166,7 @@ def test_enable_batch_view_then_context(graph_file, directed,
 @pytest.mark.parametrize("mg_device_count", MG_DEVICE_COUNT_OPTIONS)
 def test_enable_batch_context_no_context_views(graph_file, directed,
                                                mg_device_count):
+    gc.collect()
     skip_if_not_enough_devices(mg_device_count)
     G = utils.generate_cugraph_graph_from_file(graph_file, directed)
     with MGContext(mg_device_count):
@@ -177,6 +186,7 @@ def test_enable_batch_context_no_context_views(graph_file, directed,
 @pytest.mark.parametrize("mg_device_count", MG_DEVICE_COUNT_OPTIONS)
 def test_enable_batch_edgelist_replication(graph_file, directed,
                                            mg_device_count):
+    gc.collect()
     skip_if_not_enough_devices(mg_device_count)
     G = utils.generate_cugraph_graph_from_file(graph_file, directed)
     with MGContext(mg_device_count):
@@ -192,6 +202,7 @@ def test_enable_batch_edgelist_replication(graph_file, directed,
 @pytest.mark.parametrize("mg_device_count", MG_DEVICE_COUNT_OPTIONS)
 def test_enable_batch_adjlist_replication_weights(graph_file, directed,
                                                   mg_device_count):
+    gc.collect()
     skip_if_not_enough_devices(mg_device_count)
     df = cudf.read_csv(graph_file,
                        delimiter=' ',
@@ -224,6 +235,7 @@ def test_enable_batch_adjlist_replication_weights(graph_file, directed,
 @pytest.mark.parametrize("mg_device_count", MG_DEVICE_COUNT_OPTIONS)
 def test_enable_batch_adjlist_replication_no_weights(graph_file, directed,
                                                      mg_device_count):
+    gc.collect()
     skip_if_not_enough_devices(mg_device_count)
     df = cudf.read_csv(graph_file,
                        delimiter=' ',
