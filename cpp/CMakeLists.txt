@@ -205,7 +205,6 @@ if(NOT thrust_POPULATED)
   # We are not using the thrust CMake targets, so no need to call `add_subdirectory()`.
 endif()
 set(THRUST_INCLUDE_DIR "${thrust_SOURCE_DIR}")
-set(CUB_INCLUDE_DIR "${thrust_SOURCE_DIR}/dependencies/cub" PARENT_SCOPE)
 
 ###################################################################################################
 # - External Projects -----------------------------------------------------------------------------
@@ -350,7 +349,6 @@ add_dependencies(cugraph raft)
 # - include paths ---------------------------------------------------------------------------------
 target_include_directories(cugraph
     PRIVATE
-    "${CUB_INCLUDE_DIR}"
     "${THRUST_INCLUDE_DIR}"
     "${CMAKE_CUDA_TOOLKIT_INCLUDE_DIRECTORIES}"
     "${LIBCYPHERPARSER_INCLUDE}"
