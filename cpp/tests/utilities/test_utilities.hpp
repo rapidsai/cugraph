@@ -23,6 +23,9 @@ extern "C" {
 #include "mmio.h"
 }
 
+#include <gtest/gtest.h>
+
+#include <cfloat>
 #include <cstdio>
 #include <string>
 

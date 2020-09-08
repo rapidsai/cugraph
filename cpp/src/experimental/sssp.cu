@@ -1,0 +1,300 @@
+/*
+ * Copyright (c) 2020, NVIDIA CORPORATION.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+#include <graph.hpp>
+#include <graph_device_view.cuh>
+#include <patterns/copy_to_adj_matrix_row.cuh>
+#include <patterns/count_if_e.cuh>
+#include <patterns/reduce_op.cuh>
+#include <patterns/transform_reduce_e.cuh>
+#include <patterns/update_frontier_v_push_if_out_nbr.cuh>
+#include <patterns/vertex_frontier.cuh>
+#include <utilities/cuda.cuh>
+#include <utilities/error.hpp>
+
+#include <raft/cudart_utils.h>
+#include <rmm/thrust_rmm_allocator.h>
+
+#include <thrust/fill.h>
+#include <thrust/iterator/counting_iterator.h>
+#include <thrust/iterator/discard_iterator.h>
+#include <thrust/iterator/zip_iterator.h>
+#include <thrust/transform.h>
+#include <thrust/tuple.h>
+
+#include <limits>
+
+namespace cugraph {
+namespace experimental {
+namespace detail {
+
+template <typename GraphType, typename PredecessorIterator>
+void sssp(raft::handle_t &handle,
+          GraphType const &push_graph,
+          typename GraphType::weight_type *distances,
+          PredecessorIterator predecessor_first,
+          typename GraphType::vertex_type source_vertex,
+          typename GraphType::weight_type cutoff,
+          bool do_expensive_check)
+{
+  using vertex_t = typename GraphType::vertex_type;
+  using weight_t = typename GraphType::weight_type;
+
+  static_assert(std::is_integral<vertex_t>::value, "GraphType::vertex_type should be integral.");
+  static_assert(!GraphType::is_adj_matrix_transposed, "GraphType should support the push model.");
+
+  auto p_graph_device_view     = graph_device_view_t<GraphType>::create(push_graph);
+  auto const graph_device_view = *p_graph_device_view;
+
+  auto const num_vertices = graph_device_view.get_number_of_vertices();
+  auto const num_edges    = graph_device_view.get_number_of_edges();
+  if (num_vertices == 0) { return; }
+
+  // implements the Near-Far Pile method in
+  // A. Davidson, S. Baxter, M. Garland, and J. D. Owens, "Work-efficient parallel GPU methods for
+  // single-source shortest paths," 2014.
+
+  // 1. check input arguments
+
+  CUGRAPH_EXPECTS(graph_device_view.is_valid_vertex(source_vertex),
+                  "Invalid input argument: source vertex out-of-range.");
+
+  if (do_expensive_check) {
+    auto num_negative_edge_weights =
+      count_if_e(handle,
+                 graph_device_view,
+                 thrust::make_constant_iterator(0) /* dummy */,
+                 thrust::make_constant_iterator(0) /* dummy */,
+                 [] __device__(auto src_val, auto dst_val, weight_t w) { return w < 0.0; });
+    CUGRAPH_EXPECTS(num_negative_edge_weights == 0,
+                    "Invalid input argument: input graph should have non-negative edge weights.");
+  }
+
+  // 2. initialize distances and predecessors
+
+  auto constexpr invalid_distance = std::numeric_limits<weight_t>::max();
+  auto constexpr invalid_vertex   = invalid_vertex_id<vertex_t>::value;
+
+  auto val_first = thrust::make_zip_iterator(thrust::make_tuple(distances, predecessor_first));
+  thrust::transform(rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
+                    graph_device_view.local_vertex_begin(),
+                    graph_device_view.local_vertex_end(),
+                    val_first,
+                    [graph_device_view, source_vertex] __device__(auto val) {
+                      auto distance = invalid_distance;
+                      if (val == source_vertex) { distance = weight_t{0.0}; }
+                      return thrust::make_tuple(distance, invalid_vertex);
+                    });
+
+  if (num_edges == 0) { return; }
+
+  // 3. update delta
+
+  weight_t average_vertex_degree{0.0};
+  weight_t average_edge_weight{0.0};
+  thrust::tie(average_vertex_degree, average_edge_weight) = transform_reduce_e(
+    handle,
+    graph_device_view,
+    thrust::make_constant_iterator(0) /* dummy */,
+    thrust::make_constant_iterator(0) /* dummy */,
+    [] __device__(auto row_val, auto col_val, weight_t w) {
+      return thrust::make_tuple(weight_t{1.0}, w);
+    },
+    thrust::make_tuple(weight_t{0.0}, weight_t{0.0}));
+  average_vertex_degree /= static_cast<weight_t>(num_vertices);
+  average_edge_weight /= static_cast<weight_t>(num_edges);
+  auto delta =
+    (static_cast<weight_t>(raft::warp_size()) * average_edge_weight) / average_vertex_degree;
+
+  // 4. initialize SSSP frontier
+
+  enum class Bucket { cur_near, new_near, far, num_buckets };
+  // FIXME: need to double check the bucket sizes are sufficient
+  std::vector<size_t> bucket_sizes(static_cast<size_t>(Bucket::num_buckets),
+                                   graph_device_view.get_number_of_local_vertices());
+  VertexFrontier<raft::handle_t,
+                 thrust::tuple<weight_t, vertex_t>,
+                 vertex_t,
+                 false,
+                 static_cast<size_t>(Bucket::num_buckets)>
+    vertex_frontier(handle, bucket_sizes);
+
+  // 5. SSSP iteration
+
+  bool vertex_and_adj_matrix_row_ranges_coincide =
+    (graph_device_view.local_vertex_begin() == graph_device_view.adj_matrix_local_row_begin()) &&
+        (graph_device_view.local_vertex_end() == graph_device_view.adj_matrix_local_row_end())
+      ? true
+      : false;
+  rmm::device_vector<weight_t> adj_matrix_row_distances{};
+  if (!vertex_and_adj_matrix_row_ranges_coincide) {
+    adj_matrix_row_distances.assign(graph_device_view.get_number_of_adj_matrix_local_rows(),
+                                    std::numeric_limits<weight_t>::max());
+  }
+  auto row_distances =
+    !vertex_and_adj_matrix_row_ranges_coincide ? adj_matrix_row_distances.data().get() : distances;
+
+  if (graph_device_view.is_local_vertex_nocheck(source_vertex)) {
+    vertex_frontier.get_bucket(static_cast<size_t>(Bucket::cur_near)).insert(source_vertex);
+  }
+
+  auto near_far_threshold = delta;
+  while (true) {
+    if (!vertex_and_adj_matrix_row_ranges_coincide) {
+      copy_to_adj_matrix_row(
+        handle,
+        graph_device_view,
+        vertex_frontier.get_bucket(static_cast<size_t>(Bucket::cur_near)).begin(),
+        vertex_frontier.get_bucket(static_cast<size_t>(Bucket::cur_near)).end(),
+        distances,
+        row_distances);
+    }
+
+    auto v_op = [near_far_threshold] __device__(auto v_val, auto pushed_val) {
+      auto new_dist = thrust::get<0>(pushed_val);
+      auto idx =
+        new_dist < v_val
+          ? (new_dist < near_far_threshold ? static_cast<size_t>(Bucket::new_near)
+                                           : static_cast<size_t>(Bucket::far))
+          : VertexFrontier<raft::handle_t, thrust::tuple<vertex_t>, vertex_t>::kInvalidBucketIdx;
+      return thrust::make_tuple(idx, thrust::get<0>(pushed_val), thrust::get<1>(pushed_val));
+    };
+
+    auto e_op = [graph_device_view, distances, cutoff] __device__(
+                  auto src_val, auto dst_val, weight_t w) {
+      auto push         = true;
+      auto new_distance = thrust::get<0>(src_val) + w;
+      auto threshold    = cutoff;
+      if (graph_device_view.is_local_vertex_nocheck(dst_val)) {
+        auto local_vertex_offset =
+          graph_device_view.get_local_vertex_offset_from_vertex_nocheck(dst_val);
+        auto old_distance = *(distances + local_vertex_offset);
+        threshold         = old_distance < threshold ? old_distance : threshold;
+      }
+      if (new_distance >= threshold) { push = false; }
+      return thrust::make_tuple(push, new_distance, thrust::get<1>(src_val));
+    };
+
+    // FIXME: the only difference in these two cases is adj_matrix_row_value_output_first, better
+    // avoid code replication.
+    if (!vertex_and_adj_matrix_row_ranges_coincide) {
+      update_frontier_v_push_if_out_nbr(
+        handle,
+        graph_device_view,
+        vertex_frontier.get_bucket(static_cast<size_t>(Bucket::cur_near)).begin(),
+        vertex_frontier.get_bucket(static_cast<size_t>(Bucket::cur_near)).end(),
+        thrust::make_zip_iterator(
+          thrust::make_tuple(row_distances, graph_device_view.adj_matrix_local_row_begin())),
+        graph_device_view.adj_matrix_local_col_begin(),
+        e_op,
+        reduce_op::min<thrust::tuple<weight_t, vertex_t>>(),
+        distances,
+        thrust::make_zip_iterator(thrust::make_tuple(distances, predecessor_first)),
+        vertex_frontier,
+        v_op);
+    } else {
+      update_frontier_v_push_if_out_nbr(
+        handle,
+        graph_device_view,
+        vertex_frontier.get_bucket(static_cast<size_t>(Bucket::cur_near)).begin(),
+        vertex_frontier.get_bucket(static_cast<size_t>(Bucket::cur_near)).end(),
+        thrust::make_zip_iterator(
+          thrust::make_tuple(row_distances, graph_device_view.adj_matrix_local_row_begin())),
+        graph_device_view.adj_matrix_local_col_begin(),
+        e_op,
+        reduce_op::min<thrust::tuple<weight_t, vertex_t>>(),
+        distances,
+        thrust::make_zip_iterator(thrust::make_tuple(distances, predecessor_first)),
+        vertex_frontier,
+        v_op);
+    }
+
+    vertex_frontier.get_bucket(static_cast<size_t>(Bucket::cur_near)).clear();
+    if (vertex_frontier.get_bucket(static_cast<size_t>(Bucket::new_near)).aggregate_size() > 0) {
+      vertex_frontier.swap_buckets(static_cast<size_t>(Bucket::cur_near),
+                                   static_cast<size_t>(Bucket::new_near));
+    } else if (vertex_frontier.get_bucket(static_cast<size_t>(Bucket::far)).aggregate_size() >
+               0) {  // near queue is empty, split the far queue
+      auto old_near_far_threshold = near_far_threshold;
+      near_far_threshold += delta;
+
+      while (true) {
+        vertex_frontier.split_bucket(
+          static_cast<size_t>(Bucket::far),
+          [graph_device_view, distances, old_near_far_threshold, near_far_threshold] __device__(
+            auto v) {
+            auto dist =
+              *(distances + graph_device_view.get_local_vertex_offset_from_vertex_nocheck(v));
+            if (dist < old_near_far_threshold) {
+              return VertexFrontier<raft::handle_t, thrust::tuple<vertex_t>, vertex_t>::
+                kInvalidBucketIdx;
+            } else if (dist < near_far_threshold) {
+              return static_cast<size_t>(Bucket::cur_near);
+            } else {
+              return static_cast<size_t>(Bucket::far);
+            }
+          });
+        if (vertex_frontier.get_bucket(static_cast<size_t>(Bucket::cur_near)).aggregate_size() >
+            0) {
+          break;
+        } else {
+          near_far_threshold += delta;
+        }
+      }
+    } else {
+      break;
+    }
+  }
+
+  return;
+}
+
+}  // namespace detail
+
+template <typename vertex_t, typename edge_t, typename weight_t>
+void sssp(raft::handle_t &handle,
+          GraphCSRView<vertex_t, edge_t, weight_t> const &graph,
+          weight_t *distances,
+          vertex_t *predecessors,
+          vertex_t source_vertex,
+          weight_t cutoff,
+          bool do_expensive_check)
+{
+  if (predecessors != nullptr) {
+    detail::sssp(handle, graph, distances, predecessors, source_vertex, cutoff, do_expensive_check);
+  } else {
+    detail::sssp(handle,
+                 graph,
+                 distances,
+                 thrust::make_discard_iterator(),
+                 source_vertex,
+                 cutoff,
+                 do_expensive_check);
+  }
+}
+
+// explicit instantiation
+
+template void sssp(raft::handle_t &handle,
+                   GraphCSRView<int32_t, int32_t, float> const &graph,
+                   float *distances,
+                   int32_t *predecessors,
+                   int32_t source_vertex,
+                   float cutoff,
+                   bool do_expensive_check);
+
+}  // namespace experimental
+}  // namespace cugraph

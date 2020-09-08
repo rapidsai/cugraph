@@ -14,19 +14,24 @@
  * limitations under the License.
  */
 #pragma once
+
+#include <raft/handle.hpp>
+#include <rmm/device_buffer.hpp>
+
 #include <unistd.h>
 #include <cstddef>
 #include <cstdint>
 #include <iostream>
+#include <limits>
 #include <memory>
-#include <raft/handle.hpp>
-#include <rmm/device_buffer.hpp>
 
 namespace cugraph {
 
 enum class PropType { PROP_UNDEF, PROP_FALSE, PROP_TRUE };
 
 struct GraphProperties {
+  // FIXME: isn't this a misnomer? In CSR, CSC, & COO, all graphs are represented as directed, but
+  // some graphs are symmetric.
   bool directed{false};
   bool weighted{false};
   bool multigraph{false};
@@ -53,9 +58,7 @@ enum class DegreeDirection {
 template <typename vertex_t, typename edge_t, typename weight_t>
 class GraphViewBase {
  public:
-  using vertex_type = vertex_t;
-  using edge_type   = edge_t;
-  using weight_type = weight_t;
+  static bool constexpr is_multi_gpu = false;
 
   raft::handle_t *handle;
   weight_t *edge_data;  ///< edge weight
@@ -111,6 +114,10 @@ class GraphViewBase {
 template <typename vertex_t, typename edge_t, typename weight_t>
 class GraphCOOView : public GraphViewBase<vertex_t, edge_t, weight_t> {
  public:
+  using vertex_type = vertex_t;
+  using edge_type   = edge_t;
+  using weight_type = weight_t;
+
   vertex_t *src_indices{nullptr};  ///< rowInd
   vertex_t *dst_indices{nullptr};  ///< colInd
 
@@ -246,6 +253,11 @@ class GraphCompressedSparseBaseView : public GraphViewBase<vertex_t, edge_t, wei
 template <typename vertex_t, typename edge_t, typename weight_t>
 class GraphCSRView : public GraphCompressedSparseBaseView<vertex_t, edge_t, weight_t> {
  public:
+  using vertex_type                              = vertex_t;
+  using edge_type                                = edge_t;
+  using weight_type                              = weight_t;
+  static constexpr bool is_adj_matrix_transposed = false;
+
   /**
    * @brief      Default constructor
    */
@@ -296,6 +308,11 @@ class GraphCSRView : public GraphCompressedSparseBaseView<vertex_t, edge_t, weig
 template <typename vertex_t, typename edge_t, typename weight_t>
 class GraphCSCView : public GraphCompressedSparseBaseView<vertex_t, edge_t, weight_t> {
  public:
+  using vertex_type                              = vertex_t;
+  using edge_type                                = edge_t;
+  using weight_type                              = weight_t;
+  static constexpr bool is_adj_matrix_transposed = true;
+
   /**
    * @brief      Default constructor
    */
@@ -381,6 +398,11 @@ class GraphCOO {
   rmm::device_buffer edge_data_p{};    ///< CSR data
 
  public:
+  using vertex_type                  = vertex_t;
+  using edge_type                    = edge_t;
+  using weight_type                  = weight_t;
+  static bool constexpr is_multi_gpu = false;
+
   /**
    * @brief      Take ownership of the provided graph arrays in COO format
    *
@@ -475,6 +497,8 @@ class GraphCompressedSparseBase {
   bool has_data_p{false};
 
  public:
+  static bool constexpr is_multi_gpu = false;
+
   /**
    * @brief      Take ownership of the provided graph arrays in CSR/CSC format
    *
@@ -540,6 +564,11 @@ class GraphCompressedSparseBase {
 template <typename vertex_t, typename edge_t, typename weight_t>
 class GraphCSR : public GraphCompressedSparseBase<vertex_t, edge_t, weight_t> {
  public:
+  using vertex_type                              = vertex_t;
+  using edge_type                                = edge_t;
+  using weight_type                              = weight_t;
+  static constexpr bool is_adj_matrix_transposed = false;
+
   /**
    * @brief      Default constructor
    */
@@ -591,6 +620,11 @@ class GraphCSR : public GraphCompressedSparseBase<vertex_t, edge_t, weight_t> {
 template <typename vertex_t, typename edge_t, typename weight_t>
 class GraphCSC : public GraphCompressedSparseBase<vertex_t, edge_t, weight_t> {
  public:
+  using vertex_type                              = vertex_t;
+  using edge_type                                = edge_t;
+  using weight_type                              = weight_t;
+  static constexpr bool is_adj_matrix_transposed = true;
+
   /**
    * @brief      Default constructor
    */
