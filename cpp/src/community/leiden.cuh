@@ -97,7 +97,7 @@ class Leiden : public Louvain<graph_type> {
     return cur_Q;
   }
 
-  std::pair<int, weight_t> compute(vertex_t *d_cluster_vec, int max_level, weight_t resolution)
+  std::pair<int, weight_t> operator()(vertex_t *d_cluster_vec, int max_level, weight_t resolution)
   {
     int num_level{0};
 

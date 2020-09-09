@@ -118,9 +118,9 @@ class Louvain {
     return Q;
   }
 
-  virtual std::pair<int, weight_t> compute(vertex_t *d_cluster_vec,
-                                           int max_level,
-                                           weight_t resolution)
+  virtual std::pair<int, weight_t> operator()(vertex_t *d_cluster_vec,
+                                              int max_level,
+                                              weight_t resolution)
   {
     int num_level{0};
 
@@ -210,9 +210,8 @@ class Louvain {
       thrust::make_counting_iterator<edge_t>(graph.number_of_vertices),
       [d_offsets, d_indices, d_weights, d_vertex_weights, d_cluster_weights] __device__(
         vertex_t src) {
-        weight_t sum{0.0};
-
-        for (edge_t i = d_offsets[src]; i < d_offsets[src + 1]; ++i) { sum += d_weights[i]; }
+        weight_t sum =
+          thrust::reduce(thrust::seq, d_weights + d_offsets[src], d_weights + d_offsets[src + 1]);
 
         d_vertex_weights[src]  = sum;
         d_cluster_weights[src] = sum;

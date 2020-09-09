@@ -32,7 +32,7 @@ std::pair<int, weight_t> louvain(raft::handle_t const &handle,
 
   Louvain<GraphCSRView<vertex_t, edge_t, weight_t>> runner(handle, graph, stream);
 
-  return runner.compute(louvain_parts, max_level, resolution);
+  return runner(louvain_parts, max_level, resolution);
 }
 
 }  // namespace detail

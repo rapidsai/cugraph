@@ -32,7 +32,7 @@ std::pair<int, weight_t> leiden(raft::handle_t const &handle,
 
   Leiden<GraphCSRView<vertex_t, edge_t, weight_t>> runner(handle, graph, stream);
 
-  return runner.compute(leiden_parts, max_level, resolution);
+  return runner(leiden_parts, max_level, resolution);
 }
 
 }  // namespace detail
