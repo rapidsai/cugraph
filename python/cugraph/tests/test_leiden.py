@@ -62,7 +62,7 @@ def cugraph_louvain(cu_M, edgevals=False):
     return parts, mod
 
 
-@pytest.mark.parametrize("graph_file", utils.DATASETS_3)
+@pytest.mark.parametrize("graph_file", utils.DATASETS)
 def test_leiden(graph_file):
     gc.collect()
 
