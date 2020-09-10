@@ -11,7 +11,22 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from .link_analysis.pagerank import pagerank
-from .traversal.bfs import bfs
-from .common.read_utils import get_chunksize
-from .community.louvain import louvain
+# cython: profile=False
+# distutils: language = c++
+# cython: embedsignature = True
+# cython: language_level = 3
+
+
+from cugraph.structure.graph cimport *
+
+
+# FIXME: need header for MG louvain
+cdef extern from "algorithms.hpp" namespace "cugraph":
+
+    cdef void louvain[vertex_t,edge_t,weight_t](
+        const GraphCSRView[vertex_t,edge_t,weight_t] &graph,
+        weight_t *final_modularity,
+        int *num_level,
+        vertex_t *louvain_parts,
+        int max_level,
+        weight_t resolution) except +
