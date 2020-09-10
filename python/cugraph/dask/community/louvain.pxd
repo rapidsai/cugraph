@@ -23,9 +23,10 @@ from cugraph.structure.graph_primtypes cimport *
 
 cdef extern from "algorithms.hpp" namespace "cugraph":
 
-    cdef pair[int,weight_t] louvain[vertex_t,edge_t,weight_t](
-        const handle_t &handle,
-        const GraphCSRView[vertex_t,edge_t,weight_t] &graph,
-        vertex_t *louvain_parts,
-        int max_level,
-        weight_t resolution) except +
+    cdef pair[int, weight_t] \
+        louvain[vertex_t, edge_t, weight_t](
+            const handle_t &handle,
+            const GraphCSRView[vertex_t,edge_t,weight_t] &graph,
+            vertex_t *louvain_parts,
+            int max_level,
+            weight_t resolution) except +

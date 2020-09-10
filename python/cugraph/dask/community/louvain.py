@@ -20,10 +20,11 @@ from cugraph.dask.common.input_utils import get_local_data
 from cugraph.dask.community import louvain_wrapper as c_mg_louvain
 
 
-def call_louvain(sID, graph, max_iter, resolution):
+def call_louvain(sID, data, local_data, max_iter, resolution):
     wid = Comms.get_worker_id(sID)
     handle = Comms.get_handle(sID)
-    return c_mg_louvain.louvain(graph,
+    return c_mg_louvain.louvain(data[0],
+                                local_data,
                                 wid,
                                 handle,
                                 start,
@@ -31,7 +32,7 @@ def call_louvain(sID, graph, max_iter, resolution):
                                 return_distances)
 
 
-def louvain(graph, max_iter=100, resolution=1.):
+def louvain(input_graph, max_iter=100, resolution=1.0, load_balance=True):
     """
     Compute the modularity optimizing partition of the input graph using the
     Louvain method on multiple GPUs
@@ -50,6 +51,8 @@ def louvain(graph, max_iter=100, resolution=1.):
                                    edge_attr='value')
     >>> parts, modularity_score = dcg.louvain(dg)
     """
+    # FIXME: finish docstring: describe parameters, etc.
+
     # FIXME: import here to prevent circular import: cugraph->louvain
     # wrapper->cugraph/structure->cugraph/dask->dask/louvain->cugraph/structure
     # from cugraph.structure.graph import Graph
@@ -62,35 +65,34 @@ def louvain(graph, max_iter=100, resolution=1.):
 
     client = default_client()
 
-    if(graph.local_data is not None and
-       graph.local_data['by'] == 'src'):
-        data = graph.local_data['data']
+    if(input_graph.local_data is not None and
+       input_graph.local_data['by'] == 'src'):
+        data = input_graph.local_data['data']
     else:
-        data = get_local_data(graph, by='src', load_balance=load_balance)
+        data = get_local_data(input_graph, by='src', load_balance=load_balance)
 
-    if graph.renumbered:
-        start = graph.lookup_internal_vertex_id(cudf.Series([start],
+    if input_graph.renumbered:
+        start = input_graph.lookup_internal_vertex_id(cudf.Series([start],
                                                 dtype='int32')).compute()
         start = start.iloc[0]
 
-
     result = dict([(data.worker_info[wf[0]]["rank"],
                     client.submit(
-            call_louvain,
-            Comms.get_session_id(),
-            wf[1],
-            data.local_data,
-            max_iter,
-            resolution,
-            workers=[wf[0]]))
-            for idx, wf in enumerate(data.worker_to_parts.items())])
+                        call_louvain,
+                        Comms.get_session_id(),
+                        wf[1],
+                        data.local_data,
+                        max_iter,
+                        resolution,
+                        workers=[wf[0]]))
+                   for idx, wf in enumerate(data.worker_to_parts.items())])
     wait(result)
 
     (parts, modularity_score) = result[0].result()
 
-    if graph.renumbered:
+    if input_graph.renumbered:
         # MG renumbering is lazy, but it's safe to assume it's been called at
         # this point if renumbered=True
-        parts = graph.unrenumber(parts, "vertex")
+        parts = input_graph.unrenumber(parts, "vertex")
 
     return parts, modularity_score
