@@ -38,7 +38,7 @@ class Louvain {
   using edge_t   = typename graph_type::edge_type;
   using weight_t = typename graph_type::weight_type;
 
-  Louvain(raft::handle_t const &handle, graph_type const &graph, cudaStream_t stream)
+  Louvain(raft::handle_t const &handle, graph_type const &graph)
     :
 #ifdef TIMING
       hr_timer_(),
@@ -60,7 +60,7 @@ class Louvain {
       cluster_inverse_v_(graph.number_of_vertices),
       number_of_vertices_(graph.number_of_vertices),
       number_of_edges_(graph.number_of_edges),
-      stream_(stream)
+      stream_(handle.get_stream())
   {
   }
 
@@ -118,11 +118,11 @@ class Louvain {
     return Q;
   }
 
-  virtual std::pair<int, weight_t> operator()(vertex_t *d_cluster_vec,
-                                              int max_level,
-                                              weight_t resolution)
+  virtual std::pair<size_t, weight_t> operator()(vertex_t *d_cluster_vec,
+                                                 size_t max_level,
+                                                 weight_t resolution)
   {
-    int num_level{0};
+    size_t num_level{0};
 
     weight_t total_edge_weight =
       thrust::reduce(rmm::exec_policy(stream_)->on(stream_), weights_v_.begin(), weights_v_.end());

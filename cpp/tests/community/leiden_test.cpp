@@ -57,7 +57,7 @@ TEST(leiden_karate, success)
     offsets_v.data().get(), indices_v.data().get(), weights_v.data().get(), num_verts, num_edges);
 
   float modularity{0.0};
-  int num_level = 40;
+  size_t num_level = 40;
 
   raft::handle_t handle;
   std::tie(num_level, modularity) = cugraph::leiden(handle, G, result_v.data().get());

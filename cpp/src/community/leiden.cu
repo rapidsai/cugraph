@@ -17,42 +17,30 @@
 #include <community/leiden.cuh>
 
 namespace cugraph {
-namespace detail {
 
 template <typename vertex_t, typename edge_t, typename weight_t>
-std::pair<int, weight_t> leiden(raft::handle_t const &handle,
-                                GraphCSRView<vertex_t, edge_t, weight_t> const &graph,
-                                vertex_t *leiden_parts,
-                                int max_level,
-                                weight_t resolution,
-                                cudaStream_t stream)
+std::pair<size_t, weight_t> leiden(raft::handle_t const &handle,
+                                   GraphCSRView<vertex_t, edge_t, weight_t> const &graph,
+                                   vertex_t *clustering,
+                                   size_t max_level,
+                                   weight_t resolution)
 {
   CUGRAPH_EXPECTS(graph.edge_data != nullptr, "API error, leiden expects a weighted graph");
-  CUGRAPH_EXPECTS(leiden_parts != nullptr, "API error, leiden_parts is null");
+  CUGRAPH_EXPECTS(clustering != nullptr, "API error, clustering is null");
 
-  Leiden<GraphCSRView<vertex_t, edge_t, weight_t>> runner(handle, graph, stream);
+  Leiden<GraphCSRView<vertex_t, edge_t, weight_t>> runner(handle, graph);
 
-  return runner(leiden_parts, max_level, resolution);
+  return runner(clustering, max_level, resolution);
 }
 
-}  // namespace detail
+// Explicit template instantations
+template std::pair<size_t, float> leiden(
+  raft::handle_t const &, GraphCSRView<int32_t, int32_t, float> const &, int32_t *, size_t, float);
 
-template <typename vertex_t, typename edge_t, typename weight_t>
-std::pair<int, weight_t> leiden(raft::handle_t const &handle,
-                                GraphCSRView<vertex_t, edge_t, weight_t> const &graph,
-                                vertex_t *leiden_parts,
-                                int max_level,
-                                weight_t resolution)
-{
-  cudaStream_t stream{0};
-
-  return detail::leiden(handle, graph, leiden_parts, max_level, resolution, stream);
-}
-
-template std::pair<int, float> leiden(
-  raft::handle_t const &, GraphCSRView<int32_t, int32_t, float> const &, int32_t *, int, float);
-
-template std::pair<int, double> leiden(
-  raft::handle_t const &, GraphCSRView<int32_t, int32_t, double> const &, int32_t *, int, double);
+template std::pair<size_t, double> leiden(raft::handle_t const &,
+                                          GraphCSRView<int32_t, int32_t, double> const &,
+                                          int32_t *,
+                                          size_t,
+                                          double);
 
 }  // namespace cugraph

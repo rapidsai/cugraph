@@ -638,11 +638,11 @@ void bfs(raft::handle_t const &handle,
  *
  */
 template <typename vertex_t, typename edge_t, typename weight_t>
-std::pair<int, weight_t> louvain(raft::handle_t const &handle,
-                                 GraphCSRView<vertex_t, edge_t, weight_t> const &graph,
-                                 vertex_t *louvain_parts,
-                                 int max_iter        = 100,
-                                 weight_t resolution = weight_t{1});
+std::pair<size_t, weight_t> louvain(raft::handle_t const &handle,
+                                    GraphCSRView<vertex_t, edge_t, weight_t> const &graph,
+                                    vertex_t *clustering,
+                                    size_t max_iter     = 100,
+                                    weight_t resolution = weight_t{1});
 
 /**
  * @brief      Leiden implementation
@@ -679,11 +679,11 @@ std::pair<int, weight_t> louvain(raft::handle_t const &handle,
  *                                     2) modularity of the returned clustering
  */
 template <typename vertex_t, typename edge_t, typename weight_t>
-std::pair<int, weight_t> leiden(raft::handle_t const &handle,
-                                GraphCSRView<vertex_t, edge_t, weight_t> const &graph,
-                                vertex_t *leiden_parts,
-                                int max_iter        = 100,
-                                weight_t resolution = weight_t{1});
+std::pair<size_t, weight_t> leiden(raft::handle_t const &handle,
+                                   GraphCSRView<vertex_t, edge_t, weight_t> const &graph,
+                                   vertex_t *clustering,
+                                   size_t max_iter     = 100,
+                                   weight_t resolution = weight_t{1});
 
 /**
  * @brief Computes the ecg clustering of the given graph.
@@ -707,15 +707,15 @@ std::pair<int, weight_t> leiden(raft::handle_t const &handle,
  * @param[in]  graph_csr             input graph object (CSR)
  * @param[in]  min_weight            The minimum weight parameter
  * @param[in]  ensemble_size         The ensemble size parameter
- * @param[out] ecg_parts             A device pointer to array where the partitioning should be
+ * @param[out] clustering            A device pointer to array where the partitioning should be
  * written
  */
 template <typename vertex_t, typename edge_t, typename weight_t>
 void ecg(raft::handle_t const &handle,
-         GraphCSRView<vertex_t, edge_t, weight_t> const &graph_csr,
+         GraphCSRView<vertex_t, edge_t, weight_t> const &graph,
          weight_t min_weight,
          vertex_t ensemble_size,
-         vertex_t *ecg_parts);
+         vertex_t *clustering);
 
 namespace triangle {
 
