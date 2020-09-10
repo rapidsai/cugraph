@@ -17,6 +17,7 @@
 
 #include <experimental/graph.hpp>
 #include <functions.hpp>
+#include <utilities/error.hpp>
 
 #include <gtest/gtest.h>
 
@@ -30,15 +31,6 @@ extern "C" {
 #include <cstdio>
 #include <string>
 #include <vector>
-
-#define MPICHECK(cmd)                                                  \
-  {                                                                    \
-    int e = cmd;                                                       \
-    if (e != MPI_SUCCESS) {                                            \
-      printf("Failed: MPI error %s:%d '%d'\n", __FILE__, __LINE__, e); \
-      FAIL();                                                          \
-    }                                                                  \
-  }
 
 namespace cugraph {
 namespace test {
