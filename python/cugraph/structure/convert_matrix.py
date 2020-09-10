@@ -33,7 +33,7 @@ def from_cudf_edgelist(df, source='source', destination='destination',
         (optional) weights.
     source : string or integer
         This is used to index the source column.
-    target : string or integer
+    destination : string or integer
         This is used to index the destination (or target following NetworkX's
         terminology) column.
     weight : string or integer, optional
