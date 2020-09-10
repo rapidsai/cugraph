@@ -15,7 +15,7 @@
  */
 #pragma once
 
-#include <graph_device_view.cuh>
+#include <experimental/graph_view.hpp>
 #include <utilities/error.hpp>
 
 #include <rmm/thrust_rmm_allocator.h>

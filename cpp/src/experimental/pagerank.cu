@@ -16,7 +16,6 @@
 
 #include <algorithms.hpp>
 #include <experimental/graph_view.hpp>
-#include <graph_device_view.cuh>
 #include <patterns/any_of_adj_matrix_row.cuh>
 #include <patterns/copy_to_adj_matrix_row.cuh>
 #include <patterns/copy_v_transform_reduce_nbr.cuh>
@@ -25,6 +24,7 @@
 #include <patterns/reduce_v.cuh>
 #include <patterns/transform_reduce_v_with_adj_matrix_row.cuh>
 #include <utilities/error.hpp>
+#include <vertex_partition_device.cuh>
 
 #include <rmm/thrust_rmm_allocator.h>
 #include <raft/handle.hpp>

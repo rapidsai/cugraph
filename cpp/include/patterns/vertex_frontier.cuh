@@ -15,7 +15,6 @@
  */
 #pragma once
 
-#include <graph.hpp>
 #include <utilities/cuda.cuh>
 #include <utilities/error.hpp>
 #include <utilities/thrust_tuple_utils.cuh>

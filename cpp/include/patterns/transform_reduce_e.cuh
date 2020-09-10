@@ -15,7 +15,8 @@
  */
 #pragma once
 
-#include <graph_device_view.cuh>
+#include <experimental/graph_view.hpp>
+#include <matrix_partition_device.cuh>
 #include <patterns/edge_op_utils.cuh>
 #include <utilities/cuda.cuh>
 #include <utilities/error.hpp>

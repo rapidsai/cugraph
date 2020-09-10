@@ -16,7 +16,6 @@
 
 #include <algorithms.hpp>
 #include <experimental/graph_view.hpp>
-#include <graph_device_view.cuh>
 #include <patterns/copy_to_adj_matrix_row.cuh>
 #include <patterns/count_if_e.cuh>
 #include <patterns/reduce_op.cuh>
@@ -25,6 +24,7 @@
 #include <patterns/vertex_frontier.cuh>
 #include <utilities/cuda.cuh>
 #include <utilities/error.hpp>
+#include <vertex_partition_device.cuh>
 
 #include <raft/cudart_utils.h>
 #include <rmm/thrust_rmm_allocator.h>
