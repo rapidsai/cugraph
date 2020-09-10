@@ -23,7 +23,8 @@ def from_cudf_edgelist(df, source='source', destination='destination',
     """
     Return a new graph created from the edge list representaion. This function
     is added for NetworkX compatibility (this function is a RAPIDS version of
-    NetworkX's from_pandas_edge_list()).
+    NetworkX's from_pandas_edge_list()).  This function does not support multiple
+    source or destination columns.  But does support renumbering
 
     Parameters
     ----------
@@ -36,9 +37,14 @@ def from_cudf_edgelist(df, source='source', destination='destination',
     destination : string or integer
         This is used to index the destination (or target following NetworkX's
         terminology) column.
-    weight : string or integer, optional
+    edge_attr : string or integer, optional
         This pointer can be ``None``. If not, this is used to index the weight
         column.
+    create_using : cuGraph.Graph
+        Specify the type of Graph to create.  Default is cugraph.Graph
+    renumber : bool
+        If source and destination indices are not in range 0 to V where V
+        is number of vertices, renumber argument should be True.
 
     Examples
     --------
