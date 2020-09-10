@@ -419,9 +419,7 @@ cugraph::experimental::graph_t<vertex_t, edge_t, weight_t, store_transposed, fal
     handle,
     edgelist,
     mm_graph.number_of_vertices,
-    mm_graph.is_symmetric,
-    false,
-    test_weighted,
+    cugraph::experimental::graph_properties_t{mm_graph.is_symmetric, false},
     false,
     true);
 }

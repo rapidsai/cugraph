@@ -15,7 +15,7 @@
  */
 #pragma once
 
-#include <graph_device_view.cuh>
+#include <experimental/graph_view.hpp>
 #include <utilities/error.hpp>
 
 #include <raft/handle.hpp>
@@ -40,24 +40,24 @@ namespace experimental {
  * @tparam RowOp Type of the unary predicate operator.
  * @param handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator, and
  * handles to various CUDA libraries) to run graph algorithms.
- * @param graph_device_view Graph object. This graph object should support pass-by-value to device
+ * @param graph_view Graph object. This graph object should support pass-by-value to device
  * kernels.
  * @param adj_matrix_row_value_input_first Iterator pointing to the adjacency matrix row properties
  * for the first (inclusive) row (assigned to this process in multi-GPU).
  * `adj_matrix_row_value_input_last` (exclusive) is deduced as @p adj_matrix_row_value_input_first +
- * @p graph_device_view.get_number_of_adj_matrix_local_rows().
+ * @p graph_view.get_number_of_adj_matrix_local_rows().
  * @param row_op Unary predicate operator that takes *(@p adj_matrix_row_value_input_first + i)
- * (where i = [0, @p graph_device_view.get_number_of_adj_matrix_local_rows()) and returns either
+ * (where i = [0, @p graph_view.get_number_of_adj_matrix_local_rows()) and returns either
  * true or false.
  * @return true If the predicate returns true at least once (in any process in multi-GPU).
  * @return false If the predicate never returns true (in any process in multi-GPU).
  */
 template <typename HandleType,
-          typename GraphType,
+          typename GraphViewType,
           typename AdjMatrixRowValueInputIterator,
           typename RowOp>
 bool any_of_adj_matrix_row(HandleType& handle,
-                           GraphType const& graph_device_view,
+                           GraphViewType const& graph_view,
                            AdjMatrixRowValueInputIterator adj_matrix_row_value_input_first,
                            RowOp row_op)
 {
@@ -65,9 +65,9 @@ bool any_of_adj_matrix_row(HandleType& handle,
   auto count = thrust::count_if(
     rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
     adj_matrix_row_value_input_first,
-    adj_matrix_row_value_input_first + graph_device_view.get_number_of_adj_matrix_local_rows(),
+    adj_matrix_row_value_input_first + graph_view.get_number_of_local_adj_matrix_partition_rows(),
     row_op);
-  if (GraphType::is_multi_gpu) {
+  if (GraphViewType::is_multi_gpu) {
     handle.get_comms().allreduce(&count, &count, 1, raft::comms::op_t::SUM, handle.get_stream());
   }
   return (count > 0);

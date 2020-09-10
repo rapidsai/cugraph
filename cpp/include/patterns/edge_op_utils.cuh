@@ -38,35 +38,38 @@ struct is_valid_edge_op<
   static constexpr bool valid = true;
 };
 
-template <typename GraphType,
-          typename EdgeOp,
+template <typename GraphViewType,
           typename AdjMatrixRowValueInputIterator,
-          typename AdjMatrixColValueInputIterator>
+          typename AdjMatrixColValueInputIterator,
+          typename EdgeOp>
 struct evaluate_edge_op {
+  using vertex_type = typename GraphViewType::vertex_type;
+  using weight_type    = typename GraphViewType::weight_type;
   using row_value_type = typename std::iterator_traits<AdjMatrixRowValueInputIterator>::value_type;
   using col_value_type = typename std::iterator_traits<AdjMatrixColValueInputIterator>::value_type;
-  using weight_type    = typename GraphType::weight_type;
 
-  template <typename E = EdgeOp,
+  template <typename V = vertex_type,
+            typename W = weight_type,
             typename R = row_value_type,
             typename C = col_value_type,
-            typename W = weight_type>
-  __device__ std::enable_if_t<is_valid_edge_op<typename std::result_of<E(R, C, W)>>::valid,
-                              typename std::result_of<E(R, C, W)>::type>
-  compute(R r, C c, W w, E e)
+            typename E = EdgeOp>
+  __device__ std::enable_if_t<is_valid_edge_op<typename std::result_of<E(V, V, W, R, C)>>::valid,
+                              typename std::result_of<E(V, V, W, R, C)>::type>
+  compute(V r, V c, W w, R rv, C cv, E e)
   {
-    return e(r, c, w);
+    return e(r, c, w, rv, cv);
   }
 
-  template <typename E = EdgeOp,
+  template <typename V = vertex_type,
+            typename W = weight_type,
             typename R = row_value_type,
             typename C = col_value_type,
-            typename W = weight_type>
-  __device__ std::enable_if_t<is_valid_edge_op<typename std::result_of<E(R, C)>>::valid,
-                              typename std::result_of<E(R, C)>::type>
-  compute(R r, C c, W w, E e)
+            typename E = EdgeOp>
+  __device__ std::enable_if_t<is_valid_edge_op<typename std::result_of<E(V, V, R, C)>>::valid,
+                              typename std::result_of<E(V, V, R, C)>::type>
+  compute(V r, V c, W w, R rv, C cv, E e)
   {
-    return e(r, c);
+    return e(r, c, rv, cv);
   }
 };
 

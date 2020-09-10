@@ -15,7 +15,8 @@
  */
 #pragma once
 
-#include <graph.hpp>
+#include <experimental/graph_view.hpp>
+#include <graph_device_view.cuh>
 #include <patterns/edge_op_utils.cuh>
 #include <patterns/reduce_op.cuh>
 #include <utilities/cuda.cuh>
@@ -54,16 +55,13 @@ __device__ std::enable_if_t<!update_major, void> accumulate_edge_op_result(T& lh
 }
 
 template <bool update_major,
-          typename GraphType,
-          typename MajorIterator,
+          typename GraphViewType,
           typename AdjMatrixRowValueInputIterator,
           typename AdjMatrixColValueInputIterator,
           typename ResultValueOutputIterator,
           typename EdgeOp>
 __global__ void for_all_major_for_all_nbr_low_out_degree(
-  GraphType graph_device_view,
-  MajorIterator major_first,
-  MajorIterator major_last,
+  matrix_partition_device_t<GraphViewType> matrix_partition,
   AdjMatrixRowValueInputIterator adj_matrix_row_value_input_first,
   AdjMatrixColValueInputIterator adj_matrix_col_value_input_first,
   ResultValueOutputIterator result_value_output_first,
@@ -71,41 +69,44 @@ __global__ void for_all_major_for_all_nbr_low_out_degree(
   typename std::iterator_traits<ResultValueOutputIterator>::value_type
     init /* relevent only if update_major == true */)
 {
-  using vertex_t      = typename GraphType::vertex_type;
-  using weight_t      = typename GraphType::weight_type;
+  using vertex_t      = typename GraphViewType::vertex_type;
+  using edge_t        = typename GraphViewType::edge_type;
+  using weight_t      = typename GraphViewType::weight_type;
   using e_op_result_t = typename std::iterator_traits<ResultValueOutputIterator>::value_type;
 
-  auto num_majors = static_cast<size_t>(thrust::distance(major_first, major_last));
-  auto const tid  = threadIdx.x + blockIdx.x * blockDim.x;
-  size_t idx      = tid;
+  auto const tid = threadIdx.x + blockIdx.x * blockDim.x;
+  auto idx       = static_cast<size_t>(tid);
 
-  while (idx < num_majors) {
-    auto major = *(major_first + idx);
-    auto major_offset =
-      GraphType::is_adj_matrix_transposed
-        ? graph_device_view.get_adj_matrix_local_col_offset_from_col_nocheck(major)
-        : graph_device_view.get_adj_matrix_local_row_offset_from_row_nocheck(major);
+  while (idx < static_cast<size_t>(matrix_partition.get_major_size())) {
     vertex_t const* indices{nullptr};
     weight_t const* weights{nullptr};
-    vertex_t local_degree{};
-    thrust::tie(indices, weights, local_degree) = graph_device_view.get_local_edges(major_offset);
+    edge_t local_degree{};
+    thrust::tie(indices, weights, local_degree) = matrix_partition.get_local_edges(idx);
+    // FIXME: this looks like a bug in multi-GPU case (init gets added p_column times).
     e_op_result_t e_op_result_sum{init};  // relevent only if update_major == true
-    for (vertex_t i = 0; i < local_degree; ++i) {
-      auto minor_vid = indices[i];
-      auto weight    = weights != nullptr ? weights[i] : weight_t{1.0};
-      auto minor_offset =
-        GraphType::is_adj_matrix_transposed
-          ? graph_device_view.get_adj_matrix_local_row_offset_from_row_nocheck(minor_vid)
-          : graph_device_view.get_adj_matrix_local_col_offset_from_col_nocheck(minor_vid);
-      auto row_offset  = GraphType::is_adj_matrix_transposed ? minor_offset : major_offset;
-      auto col_offset  = GraphType::is_adj_matrix_transposed ? major_offset : minor_offset;
-      auto e_op_result = evaluate_edge_op<GraphType,
-                                          EdgeOp,
+    for (edge_t i = 0; i < local_degree; ++i) {
+      auto minor        = indices[i];
+      auto weight       = weights != nullptr ? weights[i] : weight_t{1.0};
+      auto minor_offset = matrix_partition.get_minor_offset_from_minor_nocheck(minor);
+      auto row          = GraphViewType::is_adj_matrix_transposed
+                   ? minor
+                   : matrix_partition.get_major_from_major_offset_nocheck(idx);
+      auto col = GraphViewType::is_adj_matrix_transposed
+                   ? matrix_partition.get_major_from_major_offset_nocheck(idx)
+                   : minor;
+      auto row_offset =
+        GraphViewType::is_adj_matrix_transposed ? minor_offset : static_cast<vertex_t>(idx);
+      auto col_offset =
+        GraphViewType::is_adj_matrix_transposed ? static_cast<vertex_t>(idx) : minor_offset;
+      auto e_op_result = evaluate_edge_op<GraphViewType,
                                           AdjMatrixRowValueInputIterator,
-                                          AdjMatrixColValueInputIterator>()
-                           .compute(*(adj_matrix_row_value_input_first + row_offset),
-                                    *(adj_matrix_col_value_input_first + col_offset),
+                                          AdjMatrixColValueInputIterator,
+                                          EdgeOp>()
+                           .compute(row,
+                                    col,
                                     weight,
+                                    *(adj_matrix_row_value_input_first + row_offset),
+                                    *(adj_matrix_col_value_input_first + col_offset),
                                     e_op);
       if (update_major) {
         accumulate_edge_op_result<update_major>(e_op_result_sum, e_op_result);
@@ -128,7 +129,7 @@ __global__ void for_all_major_for_all_nbr_low_out_degree(
  * and thrust::copy() (update vertex properties part, take transform_reduce output as copy input).
  *
  * @tparam HandleType Type of the RAFT handle (e.g. for single-GPU or multi-GPU).
- * @tparam GraphType Type of the passed graph object.
+ * @tparam GraphViewType Type of the passed graph object.
  * @tparam AdjMatrixRowValueInputIterator Type of the iterator for graph adjacency matrix row
  * input properties.
  * @tparam AdjMatrixColValueInputIterator Type of the iterator for graph adjacency matrix column
@@ -138,16 +139,16 @@ __global__ void for_all_major_for_all_nbr_low_out_degree(
  * @tparam VertexValueOutputIterator Type of the iterator for vertex output property variables.
  * @param handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator, and
  * handles to various CUDA libraries) to run graph algorithms.
- * @param graph_device_view Graph object. This graph object should support pass-by-value to device
+ * @param graph_view Graph object. This graph object should support pass-by-value to device
  * kernels.
  * @param adj_matrix_row_value_input_first Iterator pointing to the adjacency matrix row input
  * properties for the first (inclusive) row (assigned to this process in multi-GPU).
  * `adj_matrix_row_value_input_last` (exclusive) is deduced as @p adj_matrix_row_value_input_first +
- * @p graph_device_view.get_number_of_adj_matrix_local_rows().
+ * @p graph_view.get_number_of_adj_matrix_local_rows().
  * @param adj_matrix_col_value_input_first Iterator pointing to the adjacency matrix column input
  * properties for the first (inclusive) column (assigned to this process in multi-GPU).
  * `adj_matrix_col_value_output_last` (exclusive) is deduced as @p adj_matrix_col_value_output_first
- * + @p graph_device_view.get_number_of_adj_matrix_local_cols().
+ * + @p graph_view.get_number_of_adj_matrix_local_cols().
  * @param e_op Binary (or ternary) operator takes *(@p adj_matrix_row_value_input_first + i), *(@p
  * adj_matrix_col_value_input_first + j), (and optionally edge weight) (where i and j are row and
  * column indices, respectively) and returns a value to be reduced.
@@ -155,17 +156,17 @@ __global__ void for_all_major_for_all_nbr_low_out_degree(
  * @param vertex_value_output_first Iterator pointing to the vertex property variables for the first
  * (inclusive) vertex (assigned to tihs process in multi-GPU). `vertex_value_output_last`
  * (exclusive) is deduced as @p vertex_value_output_first + @p
- * graph_device_view.get_number_of_local_vertices().
+ * graph_view.get_number_of_local_vertices().
  */
 template <typename HandleType,
-          typename GraphType,
+          typename GraphViewType,
           typename AdjMatrixRowValueInputIterator,
           typename AdjMatrixColValueInputIterator,
           typename EdgeOp,
           typename T,
           typename VertexValueOutputIterator>
 void copy_v_transform_reduce_in_nbr(HandleType& handle,
-                                    GraphType const& graph_device_view,
+                                    GraphViewType const& graph_view,
                                     AdjMatrixRowValueInputIterator adj_matrix_row_value_input_first,
                                     AdjMatrixColValueInputIterator adj_matrix_col_value_input_first,
                                     EdgeOp e_op,
@@ -173,32 +174,32 @@ void copy_v_transform_reduce_in_nbr(HandleType& handle,
                                     VertexValueOutputIterator vertex_value_output_first)
 {
   static_assert(is_arithmetic_or_thrust_tuple_of_arithmetic<T>::value);
-  static_assert(GraphType::is_adj_matrix_transposed || is_atomically_addable<T>::value);
+  static_assert(GraphViewType::is_adj_matrix_transposed || is_atomically_addable<T>::value);
 
-  grid_1d_thread_t update_grid(
-    graph_device_view.get_number_of_adj_matrix_local_cols(),
-    detail::copy_v_transform_reduce_nbr_for_all_low_out_degree_block_size,
-    get_max_num_blocks_1D());
-
-  if (GraphType::is_multi_gpu) {
+  if (GraphViewType::is_multi_gpu) {
     CUGRAPH_FAIL("unimplemented.");
   } else {
-    if (!GraphType::is_adj_matrix_transposed) {
+    matrix_partition_device_t<GraphViewType> matrix_partition(graph_view, 0);
+
+    grid_1d_thread_t update_grid(
+      matrix_partition.get_major_last() - matrix_partition.get_major_first(),
+      detail::copy_v_transform_reduce_nbr_for_all_low_out_degree_block_size,
+      get_max_num_blocks_1D());
+
+    if (!GraphViewType::is_adj_matrix_transposed) {
       thrust::fill(rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
                    vertex_value_output_first,
-                   vertex_value_output_first + graph_device_view.get_number_of_local_vertices(),
+                   vertex_value_output_first + graph_view.get_number_of_local_vertices(),
                    init);
     }
 
-    assert(graph_device_view.get_number_of_local_vertices() ==
-           graph_device_view.get_number_of_adj_matrix_local_rows());
-    assert(graph_device_view.get_number_of_local_vertices() ==
-           graph_device_view.get_number_of_adj_matrix_local_cols());
-    detail::for_all_major_for_all_nbr_low_out_degree<GraphType::is_adj_matrix_transposed>
+    assert(graph_view.get_number_of_local_vertices() ==
+           graph_view.get_number_of_adj_matrix_local_rows());
+    assert(graph_view.get_number_of_local_vertices() ==
+           graph_view.get_number_of_adj_matrix_local_cols());
+    detail::for_all_major_for_all_nbr_low_out_degree<GraphViewType::is_adj_matrix_transposed>
       <<<update_grid.num_blocks, update_grid.block_size, 0, handle.get_stream()>>>(
-        graph_device_view,
-        graph_device_view.adj_matrix_local_col_begin(),
-        graph_device_view.adj_matrix_local_col_end(),
+        matrix_partition,
         adj_matrix_row_value_input_first,
         adj_matrix_col_value_input_first,
         vertex_value_output_first,
@@ -214,7 +215,7 @@ void copy_v_transform_reduce_in_nbr(HandleType& handle,
  * and thrust::copy() (update vertex properties part, take transform_reduce output as copy input).
  *
  * @tparam HandleType Type of the RAFT handle (e.g. for single-GPU or multi-GPU).
- * @tparam GraphType Type of the passed graph object.
+ * @tparam GraphViewType Type of the passed graph object.
  * @tparam AdjMatrixRowValueInputIterator Type of the iterator for graph adjacency matrix row
  * input properties.
  * @tparam AdjMatrixColValueInputIterator Type of the iterator for graph adjacency matrix column
@@ -224,16 +225,16 @@ void copy_v_transform_reduce_in_nbr(HandleType& handle,
  * @tparam VertexValueOutputIterator Type of the iterator for vertex output property variables.
  * @param handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator, and
  * handles to various CUDA libraries) to run graph algorithms.
- * @param graph_device_view Graph object. This graph object should support pass-by-value to device
+ * @param graph_view Graph object. This graph object should support pass-by-value to device
  * kernels.
  * @param adj_matrix_row_value_input_first Iterator pointing to the adjacency matrix row input
  * properties for the first (inclusive) row (assigned to this process in multi-GPU).
  * `adj_matrix_row_value_input_last` (exclusive) is deduced as @p adj_matrix_row_value_input_first +
- * @p graph_device_view.get_number_of_adj_matrix_local_rows().
+ * @p graph_view.get_number_of_adj_matrix_local_rows().
  * @param adj_matrix_col_value_input_first Iterator pointing to the adjacency matrix column input
  * properties for the first (inclusive) column (assigned to this process in multi-GPU).
  * `adj_matrix_col_value_output_last` (exclusive) is deduced as @p adj_matrix_col_value_output_first
- * + @p graph_device_view.get_number_of_adj_matrix_local_cols().
+ * + @p graph_view.get_number_of_adj_matrix_local_cols().
  * @param e_op Binary (or ternary) operator takes *(@p adj_matrix_row_value_input_first + i), *(@p
  * adj_matrix_col_value_input_first + j), (and optionally edge weight) (where i and j are row and
  * column indices, respectively) and returns a value to be reduced.
@@ -241,10 +242,10 @@ void copy_v_transform_reduce_in_nbr(HandleType& handle,
  * @param vertex_value_output_first Iterator pointing to the vertex property variables for the first
  * (inclusive) vertex (assigned to tihs process in multi-GPU). `vertex_value_output_last`
  * (exclusive) is deduced as @p vertex_value_output_first + @p
- * graph_device_view.get_number_of_local_vertices().
+ * graph_view.get_number_of_local_vertices().
  */
 template <typename HandleType,
-          typename GraphType,
+          typename GraphViewType,
           typename AdjMatrixRowValueInputIterator,
           typename AdjMatrixColValueInputIterator,
           typename EdgeOp,
@@ -252,7 +253,7 @@ template <typename HandleType,
           typename VertexValueOutputIterator>
 void copy_v_transform_reduce_out_nbr(
   HandleType& handle,
-  GraphType const& graph_device_view,
+  GraphViewType const& graph_view,
   AdjMatrixRowValueInputIterator adj_matrix_row_value_input_first,
   AdjMatrixColValueInputIterator adj_matrix_col_value_input_first,
   EdgeOp e_op,
@@ -260,32 +261,32 @@ void copy_v_transform_reduce_out_nbr(
   VertexValueOutputIterator vertex_value_output_first)
 {
   static_assert(is_arithmetic_or_thrust_tuple_of_arithmetic<T>::value);
-  static_assert(!GraphType::is_adj_matrix_transposed || is_atomically_addable<T>::value);
+  static_assert(!GraphViewType::is_adj_matrix_transposed || is_atomically_addable<T>::value);
 
-  grid_1d_thread_t update_grid(
-    graph_device_view.get_number_of_adj_matrix_local_rows(),
-    detail::copy_v_transform_reduce_nbr_for_all_low_out_degree_block_size,
-    get_max_num_blocks_1D());
-
-  if (GraphType::is_multi_gpu) {
+  if (GraphViewType::is_multi_gpu) {
     CUGRAPH_FAIL("unimplemented.");
   } else {
-    if (GraphType::is_adj_matrix_transposed) {
+    matrix_partition_device_t<GraphViewType> matrix_partition(graph_view, 0);
+
+    grid_1d_thread_t update_grid(
+      matrix_partition.get_major_last() - matrix_partition.get_major_first(),
+      detail::copy_v_transform_reduce_nbr_for_all_low_out_degree_block_size,
+      get_max_num_blocks_1D());
+
+    if (GraphViewType::is_adj_matrix_transposed) {
       thrust::fill(rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
                    vertex_value_output_first,
-                   vertex_value_output_first + graph_device_view.get_number_of_local_vertices(),
+                   vertex_value_output_first + graph_view.get_number_of_local_vertices(),
                    init);
     }
 
-    assert(graph_device_view.get_number_of_local_vertices() ==
-           graph_device_view.get_number_of_adj_matrix_local_rows());
-    assert(graph_device_view.get_number_of_local_vertices() ==
-           graph_device_view.get_number_of_adj_matrix_local_cols());
-    detail::for_all_major_for_all_nbr_low_out_degree<!GraphType::is_adj_matrix_transposed>
+    assert(graph_view.get_number_of_local_vertices() ==
+           graph_view.get_number_of_local_adj_matrix_partition_rows());
+    assert(graph_view.get_number_of_local_vertices() ==
+           graph_view.get_number_of_local_adj_matrix_partition_cols());
+    detail::for_all_major_for_all_nbr_low_out_degree<!GraphViewType::is_adj_matrix_transposed>
       <<<update_grid.num_blocks, update_grid.block_size, 0, handle.get_stream()>>>(
-        graph_device_view,
-        graph_device_view.adj_matrix_local_row_begin(),
-        graph_device_view.adj_matrix_local_row_end(),
+        matrix_partition,
         adj_matrix_row_value_input_first,
         adj_matrix_col_value_input_first,
         vertex_value_output_first,

@@ -15,24 +15,295 @@
  */
 #pragma once
 
-#include <experimental/graph.hpp>
+#include <experimental/graph_view.hpp>
 #include <utilities/error.hpp>
 
-#include <rmm/device_buffer.hpp>
-
-#include <thrust/iterator/counting_iterator.h>
 #include <thrust/tuple.h>
 
-#include <functional>
-#include <memory>
+#include <tuple>
 #include <type_traits>
 
 namespace cugraph {
 namespace experimental {
 
+template <typename vertex_t>
+class vertex_partition_device_base_t {
+ public:
+  vertex_partition_device_base_t(vertex_t number_of_vertices)
+    : number_of_vertices_(number_of_vertices)
+  {
+  }
+
+  template <typename vertex_type = vertex_t>
+  __host__ __device__ std::enable_if_t<std::is_signed<vertex_type>::value, bool> is_valid_vertex(
+    vertex_type v) const noexcept
+  {
+    return ((v >= 0) && (v < number_of_vertices_));
+  }
+
+  template <typename vertex_type = vertex_t>
+  __host__ __device__ std::enable_if_t<std::is_unsigned<vertex_type>::value, bool> is_valid_vertex(
+    vertex_type v) const noexcept
+  {
+    return (v < number_of_vertices_);
+  }
+
+ private:
+  // should be trivially copyable to device
+  vertex_t number_of_vertices_{0};
+};
+
+template <typename GraphViewType, typename Enable = void>
+class vertex_partition_device_t;
+
+// multi-GPU version
+template <typename GraphViewType>
+class vertex_partition_device_t<GraphViewType, std::enable_if_t<GraphViewType::is_multi_gpu>>
+  : public vertex_partition_device_base_t<typename GraphViewType::vertex_type> {
+ public:
+  vertex_partition_device_t(GraphViewType const& graph_view)
+    : vertex_partition_device_base_t<typename GraphViewType::vertex_type>(
+        graph_view.get_number_of_vertices()),
+      first_(graph_view.get_local_vertex_first()),
+      last_(graph_view.get_local_vertex_last())
+  {
+  }
+
+  __host__ __device__ bool is_local_vertex_nocheck(typename GraphViewType::vertex_type v) const
+    noexcept
+  {
+    return (v >= first_) && (v < last_);
+  }
+
+  __host__ __device__ typename GraphViewType::vertex_type
+  get_local_vertex_offset_from_vertex_nocheck(typename GraphViewType::vertex_type v) const noexcept
+  {
+    return v - first_;
+  }
+
+ private:
+  // should be trivially copyable to device
+  typename GraphViewType::vertex_type first_{0};
+  typename GraphViewType::vertex_type last_{0};
+};
+
+// single-GPU version
+template <typename GraphViewType>
+class vertex_partition_device_t<GraphViewType, std::enable_if_t<!GraphViewType::is_multi_gpu>>
+  : public vertex_partition_device_base_t<typename GraphViewType::vertex_type> {
+ public:
+  vertex_partition_device_t(GraphViewType const& graph_view)
+    : vertex_partition_device_base_t<typename GraphViewType::vertex_type>(
+        graph_view.get_number_of_vertices())
+  {
+  }
+
+  __host__ __device__ constexpr bool is_local_vertex_nocheck(
+    typename GraphViewType::vertex_type v) const noexcept
+  {
+    return true;
+  }
+
+  __host__ __device__ constexpr typename GraphViewType::vertex_type
+  get_local_vertex_offset_from_vertex_nocheck(typename GraphViewType::vertex_type v) const noexcept
+  {
+    return v;
+  }
+};
+
+template <typename vertex_t, typename edge_t, typename weight_t>
+class matrix_partition_device_base_t {
+ public:
+  matrix_partition_device_base_t(edge_t const* offsets,
+                                 vertex_t const* indices,
+                                 weight_t const* weights)
+    : offsets_(offsets), indices_(indices), weights_(weights)
+  {
+  }
+
+  __device__ thrust::tuple<vertex_t const*, weight_t const*, edge_t> get_local_edges(
+    vertex_t major_offset) const noexcept
+  {
+    auto edge_offset  = *(offsets_ + major_offset);
+    auto local_degree = *(offsets_ + (major_offset + 1)) - edge_offset;
+    auto indices      = indices_ + edge_offset;
+    auto weights      = weights_ != nullptr ? weights_ + edge_offset : nullptr;
+    return thrust::make_tuple(indices, weights, local_degree);
+  }
+
+  __device__ edge_t get_local_degree(vertex_t major_offset) const noexcept
+  {
+    return *(offsets_ + (major_offset + 1)) - *(offsets_ + major_offset);
+  }
+
+ private:
+  // should be trivially copyable to device
+  edge_t const* offsets_{nullptr};
+  vertex_t const* indices_{nullptr};
+  weight_t const* weights_{nullptr};
+};
+
+template <typename GraphViewType, typename Enable = void>
+class matrix_partition_device_t;
+
+// multi-GPU version
+template <typename GraphViewType>
+class matrix_partition_device_t<GraphViewType, std::enable_if_t<GraphViewType::is_multi_gpu>>
+  : public matrix_partition_device_base_t<typename GraphViewType::vertex_type,
+                                          typename GraphViewType::edge_type,
+                                          typename GraphViewType::weight_type> {
+ public:
+  matrix_partition_device_t(GraphViewType const& graph_view, size_t partition_idx)
+    : matrix_partition_device_base_t<typename GraphViewType::vertex_type,
+                                     typename GraphViewType::edge_type,
+                                     typename GraphViewType::weight_type>(
+        graph_view.offsets(partition_idx),
+        graph_view.indices(partition_idx),
+        graph_view.weights(partition_idx))
+  {
+  }
+
+  __host__ __device__ typename GraphViewType::vertex_type get_major_first() const noexcept
+  {
+    return major_first;
+  }
+
+  __host__ __device__ typename GraphViewType::vertex_type get_major_last() const noexcept
+  {
+    return major_last;
+  }
+
+  __host__ __device__ typename GraphViewType::vertex_type get_major_size() const noexcept
+  {
+    return major_last - major_first;
+  }
+
+  __host__ __device__ typename GraphViewType::vertex_type get_minor_first() const noexcept
+  {
+    return minor_first;
+  }
+
+  __host__ __device__ typename GraphViewType::vertex_type get_minor_last() const noexcept
+  {
+    return minor_last;
+  }
+
+  __host__ __device__ typename GraphViewType::vertex_type get_minor_size() const noexcept
+  {
+    return minor_last - minor_first;
+  }
+
+  __host__ __device__ typename GraphViewType::vertex_type get_major_offset_from_major_nocheck(
+    typename GraphViewType::vertex_type major) const noexcept
+  {
+    return major - major_first;
+  }
+
+  __host__ __device__ typename GraphViewType::vertex_type get_minor_offset_from_minor_nocheck(
+    typename GraphViewType::vertex_type minor) const noexcept
+  {
+    return minor - minor_first;
+  }
+
+  __host__ __device__ typename GraphViewType::vertex_type get_major_from_major_offset_nocheck(
+    typename GraphViewType::vertex_type major_offset) const noexcept
+  {
+    return major_first + major_offset;
+  }
+
+  __host__ __device__ typename GraphViewType::vertex_type get_minor_from_minor_offset_nocheck(
+    typename GraphViewType::vertex_type minor_offset) const noexcept
+  {
+    return minor_first + minor_offset;
+  }
+
+ private:
+  // should be trivially copyable to device
+  typename GraphViewType::vertex_type major_first{0};
+  typename GraphViewType::vertex_type major_last{0};
+  typename GraphViewType::vertex_type minor_first{0};
+  typename GraphViewType::vertex_type minor_last{0};
+};
+
+// single-GPU version
+template <typename GraphViewType>
+class matrix_partition_device_t<GraphViewType, std::enable_if_t<!GraphViewType::is_multi_gpu>>
+  : public matrix_partition_device_base_t<typename GraphViewType::vertex_type,
+                                          typename GraphViewType::edge_type,
+                                          typename GraphViewType::weight_type> {
+ public:
+  matrix_partition_device_t(GraphViewType const& graph_view, size_t partition_idx)
+    : matrix_partition_device_base_t<typename GraphViewType::vertex_type,
+                                     typename GraphViewType::edge_type,
+                                     typename GraphViewType::weight_type>(
+        graph_view.offsets(), graph_view.indices(), graph_view.weights()),
+      number_of_vertices_(graph_view.get_number_of_vertices())
+  {
+    assert(partition_idx == 0);
+  }
+
+  __host__ __device__ constexpr typename GraphViewType::vertex_type get_major_first() const noexcept
+  {
+    return typename GraphViewType::vertex_type{0};
+  }
+
+  __host__ __device__ typename GraphViewType::vertex_type get_major_last() const noexcept
+  {
+    return number_of_vertices_;
+  }
+
+  __host__ __device__ typename GraphViewType::vertex_type get_major_size() const noexcept
+  {
+    return number_of_vertices_;
+  }
+
+  __host__ __device__ constexpr typename GraphViewType::vertex_type get_minor_first() const noexcept
+  {
+    return typename GraphViewType::vertex_type{0};
+  }
+
+  __host__ __device__ typename GraphViewType::vertex_type get_minor_last() const noexcept
+  {
+    return number_of_vertices_;
+  }
+
+  __host__ __device__ typename GraphViewType::vertex_type get_minor_size() const noexcept
+  {
+    return number_of_vertices_;
+  }
+
+  __host__ __device__ typename GraphViewType::vertex_type get_major_offset_from_major_nocheck(
+    typename GraphViewType::vertex_type major) const noexcept
+  {
+    return major;
+  }
+
+  __host__ __device__ typename GraphViewType::vertex_type get_minor_offset_from_minor_nocheck(
+    typename GraphViewType::vertex_type minor) const noexcept
+  {
+    return minor;
+  }
+
+  __host__ __device__ typename GraphViewType::vertex_type get_major_from_major_offset_nocheck(
+    typename GraphViewType::vertex_type major_offset) const noexcept
+  {
+    return major_offset;
+  }
+
+  __host__ __device__ typename GraphViewType::vertex_type get_minor_from_minor_offset_nocheck(
+    typename GraphViewType::vertex_type minor_offset) const noexcept
+  {
+    return minor_offset;
+  }
+
+ private:
+  typename GraphViewType::vertex_type number_of_vertices_;
+};
+
+#if 0
 // Common for both single-GPU and multi-GPU versions
 template <typename GraphiViewType>
-class graph_base_device_view_t {
+class graph_device_view_base_t {
  public:
   using vertex_type                              = typename GraphiViewType::vertex_type;
   using edge_type                                = typename GraphiViewType::edge_type;
@@ -40,12 +311,12 @@ class graph_base_device_view_t {
   static constexpr bool is_adj_matrix_transposed = GraphiViewType::is_adj_matrix_transposed;
   static constexpr bool is_multi_gpu             = GraphiViewType::is_multi_gpu;
 
-  graph_base_device_view_t()                                = delete;
-  ~graph_base_device_view_t()                               = default;
-  graph_base_device_view_t(graph_base_device_view_t const&) = default;
-  graph_base_device_view_t(graph_base_device_view_t&&)      = default;
-  graph_base_device_view_t& operator=(graph_base_device_view_t const&) = default;
-  graph_base_device_view_t& operator=(graph_base_device_view_t&&) = default;
+  graph_device_view_base_t()                                = delete;
+  ~graph_device_view_base_t()                               = default;
+  graph_device_view_base_t(graph_device_view_base_t const&) = default;
+  graph_device_view_base_t(graph_device_view_base_t&&)      = default;
+  graph_device_view_base_t& operator=(graph_device_view_base_t const&) = default;
+  graph_device_view_base_t& operator=(graph_device_view_base_t&&) = default;
 
   __host__ __device__ vertex_type get_number_of_vertices() const noexcept { return number_of_vertices_; }
 
@@ -73,17 +344,10 @@ class graph_base_device_view_t {
   vertex_type number_of_vertices_{0};
   edge_type number_of_edges_{0};
 
-  detail::graph_properties_t properties_;
+  graph_properties_t properties_;
 
-  graph_base_device_view_t(GraphiViewType const& graph_view)
-  {
-    number_of_vertices_ = graph_view.get_number_of_vertices();
-    number_of_edges_    = graph_view.get_number_of_edges();
-
-    properties_.is_symmetric  = graph_view.is_symmetric();
-    properties_.is_multigraph = graph_view.is_multigraph();
-    properties_.is_weighted   = graph_view.is_weighted();
-  }
+  graph_device_view_base_t(GraphiViewType const& graph_view) : number_of_vertices_(graph_view.get_number_of_vertices()), number_of_edges_(graph_view.get_number_of_edges()), properties_(graph_view.get_propterties())
+  {}
 };
 
 template <typename GraphiViewType, typename Enable = void>
@@ -92,7 +356,7 @@ class graph_device_view_t;
 // multi-GPU version
 template <typename GraphiViewType>
 class graph_device_view_t<GraphiViewType, std::enable_if_t<GraphiViewType::is_multi_gpu>>
-  : public graph_base_device_view_t<GraphiViewType> {
+  : public graph_device_view_base_t<GraphiViewType> {
  public:
   using vertex_type                              = typename GraphiViewType::vertex_type;
   using edge_type                                = typename GraphiViewType::edge_type;
@@ -108,38 +372,38 @@ class graph_device_view_t<GraphiViewType, std::enable_if_t<GraphiViewType::is_mu
   graph_device_view_t& operator=(graph_device_view_t&&) = default;
 
   graph_device_view_t(GraphiViewType const& graph_view, void* d_ptr)
-    : graph_base_device_view_t<GraphiViewType>(graph_view)
+    : graph_device_view_base_t<GraphiViewType>(graph_view)
   {
     num_adj_matrix_partitions_ = graph_view.get_number_of_adj_matrix_partitions();
     auto ptr                   = static_cast<uint8_t*>(d_ptr);
 
-    adj_matrix_partition_offsets_ = reinterpret_cast<edge_type const**>(ptr);
+    adj_matrix_partition_device_offsets_ = reinterpret_cast<edge_type const**>(ptr);
     ptr += sizeof(edge_type const*) * num_adj_matrix_partitions_;
-    adj_matrix_partition_indices_ = reinterpret_cast<vertex_type const**>(ptr);
+    adj_matrix_partition_device_indices_ = reinterpret_cast<vertex_type const**>(ptr);
     ptr += sizeof(vertex_type const*) * num_adj_matrix_partitions_;
-    adj_matrix_partition_weights_ = reinterpret_cast<weight_type const**>(ptr);
+    adj_matrix_partition_device_weights_ = reinterpret_cast<weight_type const**>(ptr);
     ptr += sizeof(weight_type const*) * num_adj_matrix_partitions_;
 
-    adj_matrix_partition_major_range_firsts_ = reinterpret_cast<vertex_type*>(ptr);
+    adj_matrix_partition_device_major_range_firsts_ = reinterpret_cast<vertex_type*>(ptr);
     ptr += sizeof(vertex_type) * num_adj_matrix_partitions_;
-    adj_matrix_partition_major_range_lasts_ = reinterpret_cast<vertex_type*>(ptr);
+    adj_matrix_partition_device_major_range_lasts_ = reinterpret_cast<vertex_type*>(ptr);
     ptr += sizeof(vertex_type) * num_adj_matrix_partitions_;
-    adj_matrix_partition_minor_range_firsts_ = reinterpret_cast<vertex_type*>(ptr);
+    adj_matrix_partition_device_minor_range_firsts_ = reinterpret_cast<vertex_type*>(ptr);
     ptr += sizeof(vertex_type) * num_adj_matrix_partitions_;
-    adj_matrix_partition_minor_range_lasts_ = reinterpret_cast<vertex_type*>(ptr);
+    adj_matrix_partition_device_minor_range_lasts_ = reinterpret_cast<vertex_type*>(ptr);
 
     for (size_t i = 0; i < num_adj_matrix_partitions_; ++i) {
-      adj_matrix_partition_offsets_[i] = graph_view.offsets(i);
-      adj_matrix_partition_indices_[i] = graph_view.indices(i);
-      adj_matrix_partition_weights_[i] = graph_view.weights(i);
+      adj_matrix_partition_device_offsets_[i] = graph_view.offsets(i);
+      adj_matrix_partition_device_indices_[i] = graph_view.indices(i);
+      adj_matrix_partition_device_weights_[i] = graph_view.weights(i);
 
-      std::tie(adj_matrix_partition_major_range_firsts_[i], adj_matrix_partition_major_range_lasts_[i]) =
+      std::tie(adj_matrix_partition_device_major_range_firsts_[i], adj_matrix_partition_device_major_range_lasts_[i]) =
         graph_view.get_xxx_range(i);
-      std::tie(adj_matrix_partition_minor_range_firsts_[i], adj_matrix_partition_minor_range_lasts_[i]) =
+      std::tie(adj_matrix_partition_device_minor_range_firsts_[i], adj_matrix_partition_device_minor_range_lasts_[i]) =
         graph_view.get_xxx_range(i);
     }
 
-    std::tie(vertex_partition_range_first_, vertex_partition_range_last_) = graph_view.get_vertex_partition_range();
+    std::tie(vertex_partition_device_range_first_, vertex_partition_device_range_last_) = graph_view.get_vertex_partition_device_range();
   }
 
   // only for the create() function
@@ -165,29 +429,29 @@ class graph_device_view_t<GraphiViewType, std::enable_if_t<GraphiViewType::is_mu
 
   auto local_vertex_end() const
   {
-    return thrust::make_counting_iterator(vertex_partition_range_last_);
+    return thrust::make_counting_iterator(vertex_partition_device_range_last_);
   }
 
  private:
   size_t num_adj_matrix_partitions_{0};
 
-  edge_type const** adj_matrix_partition_offsets_{nullptr};
-  vertex_type const** adj_matrix_partition_indices_{nullptr};
-  weight_type const** adj_matrix_partition_weights_{nullptr};
+  edge_type const** adj_matrix_partition_device_offsets_{nullptr};
+  vertex_type const** adj_matrix_partition_device_indices_{nullptr};
+  weight_type const** adj_matrix_partition_device_weights_{nullptr};
 
-  vertex_type* adj_matrix_partition_major_range_firsts_{nullptr};
-  vertex_type* adj_matrix_partition_major_range_lasts_{nullptr};
-  vertex_type* adj_matrix_partition_minor_range_firsts_{nullptr};
-  vertex_type* adj_matrix_partition_minor_range_lasts_{nullptr};
+  vertex_type* adj_matrix_partition_device_major_range_firsts_{nullptr};
+  vertex_type* adj_matrix_partition_device_major_range_lasts_{nullptr};
+  vertex_type* adj_matrix_partition_device_minor_range_firsts_{nullptr};
+  vertex_type* adj_matrix_partition_device_minor_range_lasts_{nullptr};
 
-  vertex_type vertex_partition_range_first_{0};
-  vertex_type vertex_partition_range_last_{0};
+  vertex_type vertex_partition_device_range_first_{0};
+  vertex_type vertex_partition_device_range_last_{0};
 };
 
 // single GPU version
 template <typename GraphiViewType>
 class graph_device_view_t<GraphiViewType, std::enable_if_t<!GraphiViewType::is_multi_gpu>>
-  : public graph_base_device_view_t<GraphiViewType> {
+  : public graph_device_view_base_t<GraphiViewType> {
  public:
   using vertex_type                              = typename GraphiViewType::vertex_type;
   using edge_type                                = typename GraphiViewType::edge_type;
@@ -202,7 +466,7 @@ class graph_device_view_t<GraphiViewType, std::enable_if_t<!GraphiViewType::is_m
   graph_device_view_t& operator=(graph_device_view_t const&) = default;
   graph_device_view_t& operator=(graph_device_view_t&&) = default;
 
-  graph_device_view_t(GraphiViewType const& graph_view) : graph_base_device_view_t<GraphiViewType>(graph_view)
+  graph_device_view_t(GraphiViewType const& graph_view) : graph_device_view_base_t<GraphiViewType>(graph_view)
   {
     offsets_ = graph_view.offsets();
     indices_ = graph_view.indices();
@@ -230,10 +494,7 @@ class graph_device_view_t<GraphiViewType, std::enable_if_t<!GraphiViewType::is_m
     return this->number_of_vertices_;
   }
 
-  __host__ __device__ constexpr bool is_local_vertex_nocheck(vertex_type v) const noexcept
-  {
-    return true;
-  }
+
 
   __host__ __device__ constexpr bool is_adj_matrix_local_row_nocheck(vertex_type row) const noexcept
   {
@@ -324,6 +585,7 @@ private:
   vertex_type const* indices_{nullptr};
   weight_type const* weights_{nullptr};
 };
+#endif
 
 #if 0
 template <typename vertex_t,
@@ -348,7 +610,7 @@ graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu, std::enable_if_
     return degrees;
   } else {
     return compute_row_degree(
-      *handle_ptr_, adj_matrix_partition_offsets_, partition_.hypergraph_partitioned);
+      *handle_ptr_, adj_matrix_partition_device_offsets_, partition_.hypergraph_partitioned);
   }
 }
 
@@ -374,7 +636,7 @@ graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu, std::enable_if_
     return degrees;
   } else {
     return compute_row_degree(
-      *handle_ptr_, adj_matrix_partition_offsets_, partition_.hypergraph_partitioned);
+      *handle_ptr_, adj_matrix_partition_device_offsets_, partition_.hypergraph_partitioned);
   }
 }
 #endif

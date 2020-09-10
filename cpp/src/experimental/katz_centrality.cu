@@ -15,7 +15,7 @@
  */
 
 #include <algorithms.hpp>
-#include <experimental/graph.hpp>
+#include <experimental/graph_view.hpp>
 #include <graph_device_view.cuh>
 #include <patterns/copy_to_adj_matrix_row.cuh>
 #include <patterns/copy_v_transform_reduce_nbr.cuh>
@@ -53,15 +53,14 @@ void katz_centrality(raft::handle_t &handle,
   using vertex_t = typename GraphViewType::vertex_type;
   using weight_t = typename GraphViewType::weight_type;
 
-  static_assert(std::is_integral<vertex_t>::value, "GraphViewType::vertex_type should be integral.");
+  static_assert(std::is_integral<vertex_t>::value,
+                "GraphViewType::vertex_type should be integral.");
   static_assert(std::is_floating_point<result_t>::value,
                 "result_t should be a floating-point type.");
-  static_assert(GraphViewType::is_adj_matrix_transposed, "GraphViewType should support the pull model.");
+  static_assert(GraphViewType::is_adj_matrix_transposed,
+                "GraphViewType should support the pull model.");
 
-  auto p_graph_device_view     = graph_device_view_t<GraphViewType>::create(pull_graph_view);
-  auto const& graph_device_view = *p_graph_device_view;
-
-  auto const num_vertices = graph_device_view.get_number_of_vertices();
+  auto const num_vertices = pull_graph_view.get_number_of_vertices();
   if (num_vertices == 0) { return; }
 
   // 1. check input arguments
@@ -74,10 +73,8 @@ void katz_centrality(raft::handle_t &handle,
     // FIXME: should I check for betas?
 
     if (has_initial_guess) {
-      auto num_negative_values =
-        count_if_v(handle, graph_device_view, katz_centralities, [] __device__(auto val) {
-          return val < 0.0;
-        });
+      auto num_negative_values = count_if_v(
+        handle, pull_graph_view, katz_centralities, [] __device__(auto val) { return val < 0.0; });
       CUGRAPH_EXPECTS(num_negative_values == 0,
                       "Invalid input argument: initial guess values should be non-negative.");
     }
@@ -88,7 +85,7 @@ void katz_centrality(raft::handle_t &handle,
   if (!has_initial_guess) {
     thrust::fill(rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
                  katz_centralities,
-                 katz_centralities + graph_device_view.get_number_of_local_vertices(),
+                 katz_centralities + pull_graph_view.get_number_of_local_vertices(),
                  result_t{0.0});
   }
 
@@ -96,18 +93,18 @@ void katz_centrality(raft::handle_t &handle,
 
   // old katz centrality values
   rmm::device_vector<result_t> adj_matrix_row_katz_centralities(
-    graph_device_view.get_number_of_adj_matrix_local_rows(), result_t{0.0});
+    pull_graph_view.get_number_of_local_adj_matrix_partition_rows(), result_t{0.0});
   size_t iter{0};
   while (true) {
     copy_to_adj_matrix_row(
-      handle, graph_device_view, katz_centralities, adj_matrix_row_katz_centralities.begin());
+      handle, pull_graph_view, katz_centralities, adj_matrix_row_katz_centralities.begin());
 
     copy_v_transform_reduce_in_nbr(
       handle,
-      graph_device_view,
+      pull_graph_view,
       adj_matrix_row_katz_centralities.begin(),
       thrust::make_constant_iterator(0) /* dummy */,
-      [alpha] __device__(auto src_val, auto dst_val, weight_t w) {
+      [alpha] __device__(vertex_t src, vertex_t dst, weight_t w, auto src_val, auto dst_val) {
         return static_cast<result_t>(alpha * src_val * w);
       },
       betas != nullptr ? result_t{0.0} : beta,
@@ -117,7 +114,7 @@ void katz_centrality(raft::handle_t &handle,
       auto val_first = thrust::make_zip_iterator(thrust::make_tuple(katz_centralities, betas));
       thrust::transform(rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
                         val_first,
-                        val_first + graph_device_view.get_number_of_local_vertices(),
+                        val_first + pull_graph_view.get_number_of_local_vertices(),
                         katz_centralities,
                         [] __device__(auto val) {
                           auto const katz_centrality = thrust::get<0>(val);
@@ -128,7 +125,7 @@ void katz_centrality(raft::handle_t &handle,
 
     auto diff_sum = transform_reduce_v_with_adj_matrix_row(
       handle,
-      graph_device_view,
+      pull_graph_view,
       katz_centralities,
       adj_matrix_row_katz_centralities.begin(),
       [] __device__(auto v_val, auto row_val) { return std::abs(v_val - row_val); },
@@ -146,7 +143,7 @@ void katz_centrality(raft::handle_t &handle,
   if (normalize) {
     auto l2_norm = transform_reduce_v(
       handle,
-      graph_device_view,
+      pull_graph_view,
       katz_centralities,
       [] __device__(auto val) { return val * val; },
       result_t{0.0});
@@ -155,7 +152,7 @@ void katz_centrality(raft::handle_t &handle,
                     "L2 norm of the computed Katz Centrality values should be positive.");
     thrust::transform(rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
                       katz_centralities,
-                      katz_centralities + graph_device_view.get_number_of_local_vertices(),
+                      katz_centralities + pull_graph_view.get_number_of_local_vertices(),
                       katz_centralities,
                       [l2_norm] __device__(auto val) { return val / l2_norm; });
   }
@@ -166,18 +163,17 @@ void katz_centrality(raft::handle_t &handle,
 }  // namespace detail
 
 template <typename vertex_t, typename edge_t, typename weight_t, typename result_t, bool multi_gpu>
-  >
-  void katz_centrality(raft::handle_t &handle,
-                       graph_view_t<vertex_t, edge_t, weight_t, true, multi_gpu> const &graph_view,
-                       result_t *betas,
-                       result_t *katz_centralities,
-                       result_t alpha,
-                       result_t beta,  // relevant only if beta == nullptr
-                       result_t epsilon,
-                       size_t max_iterations,
-                       bool has_initial_guess,
-                       bool normalize,
-                       bool do_expensive_check)
+void katz_centrality(raft::handle_t &handle,
+                     graph_view_t<vertex_t, edge_t, weight_t, true, multi_gpu> const &graph_view,
+                     result_t *betas,
+                     result_t *katz_centralities,
+                     result_t alpha,
+                     result_t beta,  // relevant only if beta == nullptr
+                     result_t epsilon,
+                     size_t max_iterations,
+                     bool has_initial_guess,
+                     bool normalize,
+                     bool do_expensive_check)
 {
   detail::katz_centrality(handle,
                           graph_view,
@@ -196,7 +192,7 @@ template <typename vertex_t, typename edge_t, typename weight_t, typename result
 
 template void katz_centrality(
   raft::handle_t &handle,
-  graph_view_t<uint32_t, uint32_t, float, true, false> const &graph_view,
+  graph_view_t<int32_t, int32_t, float, true, false> const &graph_view,
   float *betas,
   float *katz_centralities,
   float alpha,
@@ -208,7 +204,7 @@ template void katz_centrality(
   bool do_expensive_check);
 
 template void katz_centrality(raft::handle_t &handle,
-                              graph_view_t<uint32_t, uint32_t, float, true, true> const &graph_view,
+                              graph_view_t<int32_t, int32_t, float, true, true> const &graph_view,
                               float *betas,
                               float *katz_centralities,
                               float alpha,

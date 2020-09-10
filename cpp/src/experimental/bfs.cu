@@ -15,7 +15,7 @@
  */
 
 #include <algorithms.hpp>
-#include <experimental/graph.hpp>
+#include <experimental/graph_view.hpp>
 #include <graph_device_view.cuh>
 #include <patterns/reduce_op.cuh>
 #include <patterns/update_frontier_v_push_if_out_nbr.cuh>
@@ -55,18 +55,15 @@ void bfs(raft::handle_t &handle,
   static_assert(std::is_integral<vertex_t>::value, "GraphViewType::vertex_type should be integral.");
   static_assert(!GraphViewType::is_adj_matrix_transposed, "GraphViewType should support the push model.");
 
-  auto p_graph_device_view     = graph_device_view_t<GraphViewType>::create(push_graph_view);
-  auto const& graph_device_view = *p_graph_device_view;
-
-  auto const num_vertices = graph_device_view.get_number_of_vertices();
+  auto const num_vertices = push_graph_view.get_number_of_vertices();
   if (num_vertices == 0) { return; }
 
   // 1. check input arguments
 
   CUGRAPH_EXPECTS(
-    graph_device_view.is_symmetric() || !direction_optimizing,
+    push_graph_view.is_symmetric() || !direction_optimizing,
     "Invalid input argument: input graph should be symmetric for direction optimizing BFS.");
-  CUGRAPH_EXPECTS(graph_device_view.is_valid_vertex(source_vertex),
+  CUGRAPH_EXPECTS(push_graph_view.is_valid_vertex(source_vertex),
                   "Invalid input argument: source vertex out-of-range.");
 
   if (do_expensive_check) {
@@ -80,8 +77,8 @@ void bfs(raft::handle_t &handle,
 
   auto val_first = thrust::make_zip_iterator(thrust::make_tuple(distances, predecessor_first));
   thrust::transform(rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
-                    graph_view.local_vertex_begin(),
-                    graph_view.local_vertex_end(),
+                    thrust::make_counting_iterator(push_graph_view.get_local_vertex_first()),
+                    thrust::make_counting_iterator(push_graph_view.get_local_vertex_last()),
                     val_first,
                     [source_vertex] __device__(auto val) {
                       auto distance = invalid_distance;
@@ -93,7 +90,7 @@ void bfs(raft::handle_t &handle,
 
   enum class Bucket { cur, num_buckets };
   std::vector<size_t> bucket_sizes(static_cast<size_t>(Bucket::num_buckets),
-                                   graph_device_view.get_number_of_local_vertices());
+                                   push_graph_view.get_number_of_local_vertices());
   VertexFrontier<raft::handle_t,
                  thrust::tuple<vertex_t>,
                  vertex_t,
@@ -101,7 +98,7 @@ void bfs(raft::handle_t &handle,
                  static_cast<size_t>(Bucket::num_buckets)>
     vertex_frontier(handle, bucket_sizes);
 
-  if (graph_device_view.is_local_vertex_nocheck(source_vertex)) {
+  if (push_graph_view.is_local_vertex_nocheck(source_vertex)) {
     vertex_frontier.get_bucket(static_cast<size_t>(Bucket::cur)).insert(source_vertex);
   }
 
@@ -116,25 +113,27 @@ void bfs(raft::handle_t &handle,
     if (direction_optimizing) {
       CUGRAPH_FAIL("unimplemented.");
     } else {
+      vertex_partition_device_t<GraphViewType> vertex_partition(push_graph_view);
+
       auto cur_local_vertex_frontier_last =
         vertex_frontier.get_bucket(static_cast<size_t>(Bucket::cur)).end();
       update_frontier_v_push_if_out_nbr(
         handle,
-        graph_device_view,
+        push_graph_view,
         cur_local_vertex_frontier_first,
         cur_local_vertex_frontier_last,
-        graph_device_view.adj_matrix_local_row_begin(),
-        graph_device_view.adj_matrix_local_col_begin(),
-        [graph_device_view, distances] __device__(auto src_val, auto dst_val) {
-          uint32_t push = true;
-          if (graph_device_view.is_local_vertex_nocheck(dst_val)) {
+        thrust::make_constant_iterator(0) /* dummy */,
+        thrust::make_constant_iterator(0) /* dummy */,
+        [vertex_partition, distances] __device__(vertex_t src, vertex_t dst, auto src_val, auto dst_val) {
+          auto push = true;
+          if (vertex_partition.is_local_vertex_nocheck(dst)) {
             auto distance =
-              *(distances + graph_device_view.get_local_vertex_offset_from_vertex_nocheck(dst_val));
+              *(distances + vertex_partition.get_local_vertex_offset_from_vertex_nocheck(dst));
             if (distance != invalid_distance) { push = false; }
           }
           // FIXME: need to test this works properly if payload size is 0 (returns a tuple of size
           // 1)
-          return thrust::make_tuple(push, src_val);
+          return thrust::make_tuple(push, src);
         },
         reduce_op::any<thrust::tuple<vertex_t>>(),
         distances,
@@ -200,21 +199,21 @@ void bfs(raft::handle_t &handle,
 // explicit instantiation
 
 template void bfs(raft::handle_t &handle,
-                  graph_view_t<uint32_t, uint32_t, float, false, false> const &graph_view,
-                  uint32_t *distances,
-                  uint32_t *predecessors,
-                  uint32_t source_vertex,
+                  graph_view_t<int32_t, int32_t, float, false, false> const &graph_view,
+                  int32_t *distances,
+                  int32_t *predecessors,
+                  int32_t source_vertex,
                   bool direction_optimizing,
-                  uint32_t depth_limit,
+                  int32_t depth_limit,
                   bool do_expensive_check);
 
 template void bfs(raft::handle_t &handle,
-                  graph_view_t<uint32_t, uint32_t, float, false, true> const &graph_view,
-                  uint32_t *distances,
-                  uint32_t *predecessors,
-                  uint32_t source_vertex,
+                  graph_view_t<int32_t, int32_t, float, false, true> const &graph_view,
+                  int32_t *distances,
+                  int32_t *predecessors,
+                  int32_t source_vertex,
                   bool direction_optimizing,
-                  uint32_t depth_limit,
+                  int32_t depth_limit,
                   bool do_expensive_check);
 
 }  // namespace experimental
