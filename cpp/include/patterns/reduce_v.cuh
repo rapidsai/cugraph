@@ -91,8 +91,8 @@ T reduce_v(HandleType& handle,
            InputIterator input_last,
            T init)
 {
-  auto ret =
-    thrust::reduce(rmm::exec_policy(handle.get_stream())->on(handle.get_stream()), input_first, input_last, init);
+  auto ret = thrust::reduce(
+    rmm::exec_policy(handle.get_stream())->on(handle.get_stream()), input_first, input_last, init);
   if (GraphType::is_multi_gpu) {
     // need to reduce ret
     CUGRAPH_FAIL("unimplemented.");

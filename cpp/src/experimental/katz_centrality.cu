@@ -190,18 +190,17 @@ void katz_centrality(raft::handle_t &handle,
 
 // explicit instantiation
 
-template void katz_centrality(
-  raft::handle_t &handle,
-  graph_view_t<int32_t, int32_t, float, true, false> const &graph_view,
-  float *betas,
-  float *katz_centralities,
-  float alpha,
-  float beta,
-  float epsilon,
-  size_t max_iterations,
-  bool has_initial_guess,
-  bool normalize,
-  bool do_expensive_check);
+template void katz_centrality(raft::handle_t &handle,
+                              graph_view_t<int32_t, int32_t, float, true, false> const &graph_view,
+                              float *betas,
+                              float *katz_centralities,
+                              float alpha,
+                              float beta,
+                              float epsilon,
+                              size_t max_iterations,
+                              bool has_initial_guess,
+                              bool normalize,
+                              bool do_expensive_check);
 
 template void katz_centrality(raft::handle_t &handle,
                               graph_view_t<int32_t, int32_t, float, true, true> const &graph_view,

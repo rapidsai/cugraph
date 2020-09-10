@@ -262,10 +262,11 @@ class VertexFrontier {
     // FIXME: if we adopt CUDA cooperative group https://devblogs.nvidia.com/cooperative-groups
     // and global sync(), we can merge this step with the above kernel (and rename the above kernel
     // to move_if)
-    auto it = thrust::remove_if(rmm::exec_policy(handle_ptr_->get_stream())->on(handle_ptr_->get_stream()),
-                                get_bucket(bucket_idx).begin(),
-                                get_bucket(bucket_idx).end(),
-                                [] __device__(auto value) { return value == invalid_vertex; });
+    auto it =
+      thrust::remove_if(rmm::exec_policy(handle_ptr_->get_stream())->on(handle_ptr_->get_stream()),
+                        get_bucket(bucket_idx).begin(),
+                        get_bucket(bucket_idx).end(),
+                        [] __device__(auto value) { return value == invalid_vertex; });
 
     auto bucket_sizes_device_ptr = std::get<1>(bucket_and_bucket_size_device_ptrs);
     thrust::host_vector<size_t> bucket_sizes(bucket_sizes_device_ptr,

@@ -18,8 +18,8 @@
 #include <graph_device_view.cuh>
 #include <utilities/error.hpp>
 
-#include <raft/handle.hpp>
 #include <rmm/thrust_rmm_allocator.h>
+#include <raft/handle.hpp>
 
 #include <thrust/copy.h>
 #include <thrust/execution_policy.h>

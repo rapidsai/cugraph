@@ -90,12 +90,14 @@ void pagerank(raft::handle_t& handle,
     }
 
     if (pull_graph_view.is_weighted()) {
-      auto num_nonpositive_edge_weights =
-        count_if_e(handle,
-                   pull_graph_view,
-                   thrust::make_constant_iterator(0) /* dummy */,
-                   thrust::make_constant_iterator(0) /* dummy */,
-                   [] __device__(vertex_t src, vertex_t dst, weight_t w, auto src_val, auto dst_val) { return w <= 0.0; });
+      auto num_nonpositive_edge_weights = count_if_e(
+        handle,
+        pull_graph_view,
+        thrust::make_constant_iterator(0) /* dummy */,
+        thrust::make_constant_iterator(0) /* dummy */,
+        [] __device__(vertex_t src, vertex_t dst, weight_t w, auto src_val, auto dst_val) {
+          return w <= 0.0;
+        });
       CUGRAPH_EXPECTS(num_nonpositive_edge_weights == 0,
                       "Invalid input argument: input graph should have postive edge weights.");
     }
@@ -134,15 +136,17 @@ void pagerank(raft::handle_t& handle,
 
   rmm::device_vector<weight_t> tmp_adj_matrix_row_out_weight_sums{};
   if (adj_matrix_row_out_weight_sums == nullptr) {
-    rmm::device_vector<weight_t> tmp_out_weight_sums(
-      pull_graph_view.get_number_of_local_vertices(), weight_t{0.0});
+    rmm::device_vector<weight_t> tmp_out_weight_sums(pull_graph_view.get_number_of_local_vertices(),
+                                                     weight_t{0.0});
     // FIXME: better refactor this out (computing out-degree).
     copy_v_transform_reduce_out_nbr(
       handle,
       pull_graph_view,
       thrust::make_constant_iterator(0) /* dummy */,
       thrust::make_constant_iterator(0) /* dummy */,
-      [alpha] __device__(vertex_t src, vertex_t dst, weight_t w, auto src_val, auto dst_val) { return w; },
+      [alpha] __device__(vertex_t src, vertex_t dst, weight_t w, auto src_val, auto dst_val) {
+        return w;
+      },
       weight_t{0.0},
       tmp_out_weight_sums.data().get());
 
@@ -201,17 +205,18 @@ void pagerank(raft::handle_t& handle,
 
     auto row_val_first = thrust::make_zip_iterator(
       thrust::make_tuple(adj_matrix_row_pageranks.begin(), row_out_weight_sums));
-    thrust::transform(rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
-                      row_val_first,
-                      row_val_first + pull_graph_view.get_number_of_local_adj_matrix_partition_rows(),
-                      adj_matrix_row_pageranks.begin(),
-                      [] __device__(auto val) {
-                        auto const row_pagerank       = thrust::get<0>(val);
-                        auto const row_out_weight_sum = thrust::get<1>(val);
-                        auto const divisor =
-                          row_out_weight_sum == result_t{0.0} ? result_t{1.0} : row_out_weight_sum;
-                        return row_pagerank / divisor;
-                      });
+    thrust::transform(
+      rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
+      row_val_first,
+      row_val_first + pull_graph_view.get_number_of_local_adj_matrix_partition_rows(),
+      adj_matrix_row_pageranks.begin(),
+      [] __device__(auto val) {
+        auto const row_pagerank       = thrust::get<0>(val);
+        auto const row_out_weight_sum = thrust::get<1>(val);
+        auto const divisor =
+          row_out_weight_sum == result_t{0.0} ? result_t{1.0} : row_out_weight_sum;
+        return row_pagerank / divisor;
+      });
 
     auto dangling_sum = transform_reduce_v_with_adj_matrix_row(
       handle,
@@ -235,7 +240,9 @@ void pagerank(raft::handle_t& handle,
       pull_graph_view,
       adj_matrix_row_pageranks.begin(),
       thrust::make_constant_iterator(0) /* dummy */,
-      [alpha] __device__(vertex_t src, vertex_t dst, weight_t w, auto src_val, auto dst_val) { return src_val * w * alpha; },
+      [alpha] __device__(vertex_t src, vertex_t dst, weight_t w, auto src_val, auto dst_val) {
+        return src_val * w * alpha;
+      },
       unvarying_part,
       pageranks);
 

@@ -52,8 +52,10 @@ void bfs(raft::handle_t &handle,
 {
   using vertex_t = typename GraphViewType::vertex_type;
 
-  static_assert(std::is_integral<vertex_t>::value, "GraphViewType::vertex_type should be integral.");
-  static_assert(!GraphViewType::is_adj_matrix_transposed, "GraphViewType should support the push model.");
+  static_assert(std::is_integral<vertex_t>::value,
+                "GraphViewType::vertex_type should be integral.");
+  static_assert(!GraphViewType::is_adj_matrix_transposed,
+                "GraphViewType should support the push model.");
 
   auto const num_vertices = push_graph_view.get_number_of_vertices();
   if (num_vertices == 0) { return; }
@@ -124,7 +126,8 @@ void bfs(raft::handle_t &handle,
         cur_local_vertex_frontier_last,
         thrust::make_constant_iterator(0) /* dummy */,
         thrust::make_constant_iterator(0) /* dummy */,
-        [vertex_partition, distances] __device__(vertex_t src, vertex_t dst, auto src_val, auto dst_val) {
+        [vertex_partition, distances] __device__(
+          vertex_t src, vertex_t dst, auto src_val, auto dst_val) {
           auto push = true;
           if (vertex_partition.is_local_vertex_nocheck(dst)) {
             auto distance =

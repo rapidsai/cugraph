@@ -78,7 +78,9 @@ void sssp(raft::handle_t &handle,
                  push_graph_view,
                  thrust::make_constant_iterator(0) /* dummy */,
                  thrust::make_constant_iterator(0) /* dummy */,
-                 [] __device__(vertex_t src, vertex_t dst, weight_t w, auto src_val, auto dst_val) { return w < 0.0; });
+                 [] __device__(vertex_t src, vertex_t dst, weight_t w, auto src_val, auto dst_val) {
+                   return w < 0.0;
+                 });
     CUGRAPH_EXPECTS(num_negative_edge_weights == 0,
                     "Invalid input argument: input graph should have non-negative edge weights.");
   }

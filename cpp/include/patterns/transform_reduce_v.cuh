@@ -110,12 +110,13 @@ T transform_reduce_v(HandleType& handle,
                      VertexOp v_op,
                      T init)
 {
-  auto ret = thrust::transform_reduce(rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
-                                      input_first,
-                                      input_last,
-                                      v_op,
-                                      init,
-                                      thrust::plus<T>());
+  auto ret =
+    thrust::transform_reduce(rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
+                             input_first,
+                             input_last,
+                             v_op,
+                             init,
+                             thrust::plus<T>());
   if (GraphType::is_multi_gpu) {
     // need to reduce ret
     CUGRAPH_FAIL("unimplemented.");

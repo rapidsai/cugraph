@@ -43,7 +43,7 @@ template <typename GraphViewType,
           typename AdjMatrixColValueInputIterator,
           typename EdgeOp>
 struct evaluate_edge_op {
-  using vertex_type = typename GraphViewType::vertex_type;
+  using vertex_type    = typename GraphViewType::vertex_type;
   using weight_type    = typename GraphViewType::weight_type;
   using row_value_type = typename std::iterator_traits<AdjMatrixRowValueInputIterator>::value_type;
   using col_value_type = typename std::iterator_traits<AdjMatrixColValueInputIterator>::value_type;
