@@ -11,10 +11,27 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from cugraph.dask.community import louvain_wrapper
+from dask.distributed import wait, default_client
+import cudf
+
+import cugraph.comms.comms as Comms
+from cugraph.dask.common.input_utils import get_local_data
+
+from cugraph.dask.community import louvain_wrapper as c_mg_louvain
 
 
-def louvain(input_graph, max_iter=100, resolution=1.):
+def call_louvain(sID, graph, max_iter, resolution):
+    wid = Comms.get_worker_id(sID)
+    handle = Comms.get_handle(sID)
+    return c_mg_louvain.louvain(graph,
+                                wid,
+                                handle,
+                                start,
+                                num_verts,
+                                return_distances)
+
+
+def louvain(graph, max_iter=100, resolution=1.):
     """
     Compute the modularity optimizing partition of the input graph using the
     Louvain method on multiple GPUs
@@ -40,16 +57,40 @@ def louvain(input_graph, max_iter=100, resolution=1.):
     # FIXME: dask methods to populate graphs from edgelists are only present on
     # DiGraph classes. Disable the Graph check for now and assume inputs are
     # symmetric DiGraphs.
-    # if type(input_graph) is not Graph:
+    # if type(graph) is not Graph:
     #     raise Exception("input graph must be undirected")
 
-    parts, modularity_score = louvain_wrapper.louvain(
-        input_graph, max_iter, resolution
-    )
+    client = default_client()
 
-    if input_graph.renumbered:
+    if(graph.local_data is not None and
+       graph.local_data['by'] == 'src'):
+        data = graph.local_data['data']
+    else:
+        data = get_local_data(graph, by='src', load_balance=load_balance)
+
+    if graph.renumbered:
+        start = graph.lookup_internal_vertex_id(cudf.Series([start],
+                                                dtype='int32')).compute()
+        start = start.iloc[0]
+
+
+    result = dict([(data.worker_info[wf[0]]["rank"],
+                    client.submit(
+            call_louvain,
+            Comms.get_session_id(),
+            wf[1],
+            data.local_data,
+            max_iter,
+            resolution,
+            workers=[wf[0]]))
+            for idx, wf in enumerate(data.worker_to_parts.items())])
+    wait(result)
+
+    (parts, modularity_score) = result[0].result()
+
+    if graph.renumbered:
         # MG renumbering is lazy, but it's safe to assume it's been called at
         # this point if renumbered=True
-        parts = input_graph.unrenumber(parts, "vertex")
+        parts = graph.unrenumber(parts, "vertex")
 
     return parts, modularity_score

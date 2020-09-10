@@ -16,17 +16,16 @@
 # cython: embedsignature = True
 # cython: language_level = 3
 
+from libcpp.pair cimport pair
 
-from cugraph.structure.graph cimport *
+from cugraph.structure.graph_primtypes cimport *
 
 
-# FIXME: need header for MG louvain
 cdef extern from "algorithms.hpp" namespace "cugraph":
 
-    cdef void louvain[vertex_t,edge_t,weight_t](
+    cdef pair[int,weight_t] louvain[vertex_t,edge_t,weight_t](
+        const handle_t &handle,
         const GraphCSRView[vertex_t,edge_t,weight_t] &graph,
-        weight_t *final_modularity,
-        int *num_level,
         vertex_t *louvain_parts,
         int max_level,
         weight_t resolution) except +
