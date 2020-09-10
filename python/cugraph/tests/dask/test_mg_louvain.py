@@ -73,7 +73,7 @@ def daskGraphFromDataset(request, client_connection):
                              delimiter=' ',
                              names=['src', 'dst', 'value'],
                              dtype=['int32', 'int32', 'float32'])
-    #dg = cugraph.proto.Graph()
+
     dg = cugraph.DiGraph()
     dg.from_dask_cudf_edgelist(ddf, 'src', 'dst')
     return dg
@@ -86,3 +86,6 @@ def test_mg_louvain_with_edgevals(daskGraphFromDataset):
     # accepting. In the future, an MNMG symmeterize will need to be called to
     # create a Graph for Louvain.
     parts, mod = dcg.louvain(daskGraphFromDataset)
+
+    # FIXME: either call Nx with the same dataset and compare results, or
+    # hadcode golden results to compare to.
