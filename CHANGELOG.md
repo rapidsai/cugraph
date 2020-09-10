@@ -8,6 +8,8 @@
 - PR 1115 Replace deprecated rmm::mr::get_default_resource with rmm::mr::get_current_device_resource
 - PR 1129 Refactored test to use common dataset and added additional doc pages
 - PR 1135 SG Updates to Louvain et. al.
+- PR 1132 Upgrade Thrust to latest commit
+- PR #1129 Refactored test to use common dataset and added additional doc pages
 
 ## Bug Fixes
 - PR #1131 Show style checker errors with set +e
