@@ -14,7 +14,6 @@
  * limitations under the License.
  */
 #pragma once
-
 #include <unistd.h>
 #include <cstddef>
 #include <cstdint>
@@ -378,11 +377,6 @@ class GraphCOO {
   rmm::device_buffer edge_data_p{};    ///< CSR data
 
  public:
-  using vertex_type                  = vertex_t;
-  using edge_type                    = edge_t;
-  using weight_type                  = weight_t;
-  static bool constexpr is_multi_gpu = false;
-
   /**
    * @brief      Take ownership of the provided graph arrays in COO format
    *
