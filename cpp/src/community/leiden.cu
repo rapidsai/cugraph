@@ -25,8 +25,8 @@ std::pair<size_t, weight_t> leiden(raft::handle_t const &handle,
                                    size_t max_level,
                                    weight_t resolution)
 {
-  CUGRAPH_EXPECTS(graph.edge_data != nullptr, "API error, leiden expects a weighted graph");
-  CUGRAPH_EXPECTS(clustering != nullptr, "API error, clustering is null");
+  CUGRAPH_EXPECTS(graph.edge_data != nullptr, "Invalid input argument: leiden expects a weighted graph");
+  CUGRAPH_EXPECTS(clustering != nullptr, "Invalid input argument: clustering is null");
 
   Leiden<GraphCSRView<vertex_t, edge_t, weight_t>> runner(handle, graph);
 
