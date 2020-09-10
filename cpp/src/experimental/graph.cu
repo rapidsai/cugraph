@@ -286,7 +286,7 @@ graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu, std::enable_if_
                     "number_of_local_edges.");
 
     CUGRAPH_EXPECTS(
-      partition.get_vertex_partition_range_last(comm_p_size - 1) == number_of_vertices,
+      partition.get_vertex_partition_last(comm_p_size - 1) == number_of_vertices,
       "Invalid API parameter: vertex partition should cover [0, number_of_vertices).");
   }
 

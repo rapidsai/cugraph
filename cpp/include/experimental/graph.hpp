@@ -72,8 +72,7 @@ class graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu, std::enab
 
   vertex_t get_number_of_local_vertices() const
   {
-    return partition_.get_vertex_partition_range_last() -
-           partition_.get_vertex_partition_range_first();
+    return partition_.get_vertex_partition_last() - partition_.get_vertex_partition_first();
   }
 
   graph_view_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu> view()
