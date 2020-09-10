@@ -25,7 +25,8 @@ std::pair<size_t, weight_t> louvain(raft::handle_t const &handle,
                                     size_t max_level,
                                     weight_t resolution)
 {
-  CUGRAPH_EXPECTS(graph.edge_data != nullptr, "Invalid input argument: louvain expects a weighted graph");
+  CUGRAPH_EXPECTS(graph.edge_data != nullptr,
+                  "Invalid input argument: louvain expects a weighted graph");
   CUGRAPH_EXPECTS(clustering != nullptr, "Invalid input argument: clustering is null");
 
   Louvain<GraphCSRView<vertex_t, edge_t, weight_t>> runner(handle, graph);
