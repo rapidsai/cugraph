@@ -323,10 +323,8 @@ add_library(cugraph SHARED
     src/converters/renumber.cu
     src/converters/COOtoCSR.cu
     src/community/spectral_clustering.cu
-    src/community/louvain.cpp
-    src/community/louvain_kernels.cu
-    src/community/leiden.cpp
-    src/community/leiden_kernels.cu
+    src/community/louvain.cu
+    src/community/leiden.cu
     src/community/ktruss.cu
     src/community/ECG.cu
     src/community/triangles_counting.cu

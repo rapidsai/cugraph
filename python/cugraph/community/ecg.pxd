@@ -22,6 +22,7 @@ from cugraph.structure.graph_new cimport *
 cdef extern from "algorithms.hpp" namespace "cugraph":
 
     cdef void ecg[VT,ET,WT](
+        const handle_t &handle,
         const GraphCSRView[VT,ET,WT] &graph,
         WT min_weight,
         VT ensemble_size,
