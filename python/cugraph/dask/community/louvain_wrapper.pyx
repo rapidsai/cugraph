@@ -18,7 +18,6 @@
 
 from cugraph.dask.community.louvain cimport louvain as c_louvain
 from cugraph.structure.graph_primtypes cimport *
-from cugraph.structure import graph_primtypes_wrapper
 
 import cudf
 import numpy as np
@@ -35,6 +34,9 @@ def louvain(input_graph, max_iter, resolution):
 
     weights = None
     final_modularity = None
+
+    # FIXME: This must be imported here to prevent a circular import
+    from cugraph.structure import graph_primtypes_wrapper
 
     [offsets, indices] = graph_primtypes_wrapper.datatype_cast([input_graph.adjlist.offsets, input_graph.adjlist.indices], [np.int32])
 
