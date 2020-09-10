@@ -33,15 +33,13 @@ namespace experimental {
  * Returns true if @p row_op returns true for at least once (in any process in multi-GPU), returns
  * false otherwise. This function is inspired by thrust::any_of().
  *
- * @tparam HandleType Type of the RAFT handle (e.g. for single-GPU or multi-GPU).
- * @tparam GraphType Type of the passed graph object.
+ * @tparam GraphViewType Type of the passed non-owning graph object.
  * @tparam AdjMatrixRowValueInputIterator Type of the iterator for graph adjacency matrix row
  * input properties.
  * @tparam RowOp Type of the unary predicate operator.
  * @param handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator, and
  * handles to various CUDA libraries) to run graph algorithms.
- * @param graph_view Graph object. This graph object should support pass-by-value to device
- * kernels.
+ * @param graph_view Non-owning graph object.
  * @param adj_matrix_row_value_input_first Iterator pointing to the adjacency matrix row properties
  * for the first (inclusive) row (assigned to this process in multi-GPU).
  * `adj_matrix_row_value_input_last` (exclusive) is deduced as @p adj_matrix_row_value_input_first +
@@ -52,11 +50,8 @@ namespace experimental {
  * @return true If the predicate returns true at least once (in any process in multi-GPU).
  * @return false If the predicate never returns true (in any process in multi-GPU).
  */
-template <typename HandleType,
-          typename GraphViewType,
-          typename AdjMatrixRowValueInputIterator,
-          typename RowOp>
-bool any_of_adj_matrix_row(HandleType& handle,
+template <typename GraphViewType, typename AdjMatrixRowValueInputIterator, typename RowOp>
+bool any_of_adj_matrix_row(raft::handle_t const& handle,
                            GraphViewType const& graph_view,
                            AdjMatrixRowValueInputIterator adj_matrix_row_value_input_first,
                            RowOp row_op)

@@ -113,11 +113,8 @@ __global__ void for_all_frontier_row_for_all_nbr_low_out_degree(
   }
 }
 
-template <typename HandleType,
-          typename BufferKeyOutputIterator,
-          typename BufferPayloadOutputIterator,
-          typename ReduceOp>
-size_t reduce_buffer_elements(HandleType& handle,
+template <typename BufferKeyOutputIterator, typename BufferPayloadOutputIterator, typename ReduceOp>
+size_t reduce_buffer_elements(raft::handle_t const& handle,
                               BufferKeyOutputIterator buffer_key_output_first,
                               BufferPayloadOutputIterator buffer_payload_output_first,
                               size_t num_buffer_elements,
@@ -258,8 +255,7 @@ __global__ void update_frontier_and_vertex_output_values(
 /**
  * @brief Update vertex frontier and vertex property values iterating over the outgoing edges.
  *
- * @tparam HandleType HandleType Type of the RAFT handle (e.g. for single-GPU or multi-GPU).
- * @tparam GraphViewType Type of the passed graph object.
+ * @tparam GraphViewType Type of the passed non-owning graph object.
  * @tparam VertexIterator Type of the iterator for vertex identifiers.
  * @tparam AdjMatrixRowValueInputIterator Type of the iterator for graph adjacency matrix row
  * input properties.
@@ -274,8 +270,7 @@ __global__ void update_frontier_and_vertex_output_values(
  * @tparam VertexOp Type of the binary vertex operator.
  * @param handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator, and
  * handles to various CUDA libraries) to run graph algorithms.
- * @param graph_device_view Graph object. This graph object should support pass-by-value to device
- * kernels.
+ * @param graph_view Non-owning graph object.
  * @param vertex_first Iterator pointing to the first (inclusive) vertex in the current frontier. v
  * in [vertex_first, vertex_last) should be distinct (and should belong to this process in
  * multi-GPU), otherwise undefined behavior
@@ -283,31 +278,30 @@ __global__ void update_frontier_and_vertex_output_values(
  * @param adj_matrix_row_value_input_first Iterator pointing to the adjacency matrix row input
  * properties for the first (inclusive) row (assigned to this process in multi-GPU).
  * `adj_matrix_row_value_input_last` (exclusive) is deduced as @p adj_matrix_row_value_input_first +
- * @p graph_device_view.get_number_of_adj_matrix_local_rows().
+ * @p graph_view.get_number_of_adj_matrix_local_rows().
  * @param adj_matrix_col_value_input_first Iterator pointing to the adjacency matrix column input
  * properties for the first (inclusive) column (assigned to this process in multi-GPU).
  * `adj_matrix_col_value_output_last` (exclusive) is deduced as @p adj_matrix_col_value_output_first
- * + @p graph_device_view.get_number_of_adj_matrix_local_cols().
+ * + @p graph_view.get_number_of_adj_matrix_local_cols().
  * @param e_op Binary (or ternary) operator takes *(@p adj_matrix_row_value_input_first + i), *(@p
  * adj_matrix_col_value_input_first + j), (and optionally edge weight) (where i and j are row and
  * column indices, respectively) and returns a value to reduced by the @p reduce_op.
  * @param reduce_op Binary operator takes two input arguments and reduce the two variables to one.
  * @param vertex_value_input_first Iterator pointing to the vertex properties for the first
  * (inclusive) vertex (assigned to this process in multi-GPU). `vertex_value_input_last` (exclusive)
- * is deduced as @p vertex_value_input_first + @p graph_device_view.get_number_of_local_vertices().
+ * is deduced as @p vertex_value_input_first + @p graph_view.get_number_of_local_vertices().
  * @param vertex_value_output_first Iterator pointing to the vertex property variables for the first
  * (inclusive) vertex (assigned to tihs process in multi-GPU). `vertex_value_output_last`
  * (exclusive) is deduced as @p vertex_value_output_first + @p
- * graph_device_view.get_number_of_local_vertices().
+ * graph_view.get_number_of_local_vertices().
  * @param vertex_frontier vertex frontier class object for vertex frontier managements. This object
  * includes multiple bucket objects.
  * @param v_op Binary operator takes *(@p vertex_value_input_first + i) (where i is [0, @p
- * graph_device_view.get_number_of_local_vertices())) and reduced value of the @p e_op outputs for
+ * graph_view.get_number_of_local_vertices())) and reduced value of the @p e_op outputs for
  * this vertex and returns the target bucket index (for frontier update) and new verrtex property
  * values (to update *(@p vertex_value_output_first + i)).
  */
-template <typename HandleType,
-          typename GraphViewType,
+template <typename GraphViewType,
           typename VertexIterator,
           typename AdjMatrixRowValueInputIterator,
           typename AdjMatrixColValueInputIterator,
@@ -318,7 +312,7 @@ template <typename HandleType,
           typename VertexFrontierType,
           typename VertexOp>
 void update_frontier_v_push_if_out_nbr(
-  HandleType& handle,
+  raft::handle_t const& handle,
   GraphViewType const& graph_view,
   VertexIterator vertex_first,
   VertexIterator vertex_last,

@@ -127,8 +127,7 @@ void sssp(raft::handle_t &handle,
   // FIXME: need to double check the bucket sizes are sufficient
   std::vector<size_t> bucket_sizes(static_cast<size_t>(Bucket::num_buckets),
                                    push_graph_view.get_number_of_local_vertices());
-  VertexFrontier<raft::handle_t,
-                 thrust::tuple<weight_t, vertex_t>,
+  VertexFrontier<thrust::tuple<weight_t, vertex_t>,
                  vertex_t,
                  false,
                  static_cast<size_t>(Bucket::num_buckets)>
@@ -194,11 +193,10 @@ void sssp(raft::handle_t &handle,
       vertex_frontier,
       [near_far_threshold] __device__(auto v_val, auto pushed_val) {
         auto new_dist = thrust::get<0>(pushed_val);
-        auto idx =
-          new_dist < v_val
-            ? (new_dist < near_far_threshold ? static_cast<size_t>(Bucket::new_near)
-                                             : static_cast<size_t>(Bucket::far))
-            : VertexFrontier<raft::handle_t, thrust::tuple<vertex_t>, vertex_t>::kInvalidBucketIdx;
+        auto idx      = new_dist < v_val
+                          ? (new_dist < near_far_threshold ? static_cast<size_t>(Bucket::new_near)
+                                                           : static_cast<size_t>(Bucket::far))
+                          : VertexFrontier<thrust::tuple<vertex_t>, vertex_t>::kInvalidBucketIdx;
         return thrust::make_tuple(idx, thrust::get<0>(pushed_val), thrust::get<1>(pushed_val));
       });
 
@@ -219,8 +217,7 @@ void sssp(raft::handle_t &handle,
             auto dist =
               *(distances + vertex_partition.get_local_vertex_offset_from_vertex_nocheck(v));
             if (dist < old_near_far_threshold) {
-              return VertexFrontier<raft::handle_t, thrust::tuple<vertex_t>, vertex_t>::
-                kInvalidBucketIdx;
+              return VertexFrontier<thrust::tuple<vertex_t>, vertex_t>::kInvalidBucketIdx;
             } else if (dist < near_far_threshold) {
               return static_cast<size_t>(Bucket::cur_near);
             } else {

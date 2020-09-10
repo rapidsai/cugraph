@@ -67,11 +67,11 @@ __global__ void for_all_major_for_all_nbr_low_out_degree(
       auto weight       = weights != nullptr ? weights[i] : 1.0;
       auto minor_offset = matrix_partition.get_minor_offset_from_minor_nocheck(minor);
       auto row          = GraphViewType::is_adj_matrix_transposed
-                   ? minor
-                   : matrix_partition.get_major_from_major_offset_nocheck(idx);
-      auto col = GraphViewType::is_adj_matrix_transposed
-                   ? matrix_partition.get_major_from_major_offset_nocheck(idx)
-                   : minor;
+                            ? minor
+                            : matrix_partition.get_major_from_major_offset_nocheck(idx);
+      auto col          = GraphViewType::is_adj_matrix_transposed
+                            ? matrix_partition.get_major_from_major_offset_nocheck(idx)
+                            : minor;
       auto row_offset =
         GraphViewType::is_adj_matrix_transposed ? minor_offset : static_cast<vertex_t>(idx);
       auto col_offset =
@@ -104,8 +104,7 @@ __global__ void for_all_major_for_all_nbr_low_out_degree(
  *
  * This function is inspired by thrust::count_if().
  *
- * @tparam HandleType Type of the RAFT handle (e.g. for single-GPU or multi-GPU).
- * @tparam GraphViewType Type of the passed graph object.
+ * @tparam GraphViewType Type of the passed non-owning graph object.
  * @tparam AdjMatrixRowValueInputIterator Type of the iterator for graph adjacency matrix row
  * input properties.
  * @tparam AdjMatrixColValueInputIterator Type of the iterator for graph adjacency matrix column
@@ -113,8 +112,7 @@ __global__ void for_all_major_for_all_nbr_low_out_degree(
  * @tparam EdgeOp Type of the binary (or ternary) edge operator.
  * @param handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator, and
  * handles to various CUDA libraries) to run graph algorithms.
- * @param graph_view Graph object. This graph object should support pass-by-value to device
- * kernels.
+ * @param graph_view Non-owning graph object.
  * @param adj_matrix_row_value_input_first Iterator pointing to the adjacency matrix row input
  * properties for the first (inclusive) row (assigned to this process in multi-GPU).
  * `adj_matrix_row_value_input_last` (exclusive) is deduced as @p adj_matrix_row_value_input_first +
@@ -129,13 +127,12 @@ __global__ void for_all_major_for_all_nbr_low_out_degree(
  * count.
  * @return GraphViewType::edge_type Number of times @p e_op returned true.
  */
-template <typename HandleType,
-          typename GraphViewType,
+template <typename GraphViewType,
           typename AdjMatrixRowValueInputIterator,
           typename AdjMatrixColValueInputIterator,
           typename EdgeOp>
 typename GraphViewType::edge_type count_if_e(
-  HandleType& handle,
+  raft::handle_t const& handle,
   GraphViewType const& graph_view,
   AdjMatrixRowValueInputIterator adj_matrix_row_value_input_first,
   AdjMatrixColValueInputIterator adj_matrix_col_value_input_first,

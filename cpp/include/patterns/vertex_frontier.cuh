@@ -20,6 +20,7 @@
 #include <utilities/thrust_tuple_utils.cuh>
 
 #include <rmm/thrust_rmm_allocator.h>
+#include <raft/handle.hpp>
 #include <rmm/device_scalar.hpp>
 
 #include <thrust/host_vector.h>
@@ -141,10 +142,10 @@ __global__ void move_and_invalidate_if(RowIterator row_first,
 
 }  // namespace detail
 
-template <typename HandleType, typename vertex_t, bool is_multi_gpu = false>
+template <typename vertex_t, bool is_multi_gpu = false>
 class Bucket {
  public:
-  Bucket(HandleType const& handle, size_t capacity)
+  Bucket(raft::handle_t const& handle, size_t capacity)
     : handle_ptr_(&handle), elements_(capacity, invalid_vertex_id<vertex_t>::value)
   {
   }
@@ -189,13 +190,12 @@ class Bucket {
   auto end() { return elements_.begin() + size_; }
 
  private:
-  HandleType const* handle_ptr_{nullptr};
+  raft::handle_t const* handle_ptr_{nullptr};
   rmm::device_vector<vertex_t> elements_{};
   size_t size_{0};
 };
 
-template <typename HandleType,
-          typename ReduceInputTupleType,
+template <typename ReduceInputTupleType,
           typename vertex_t,
           bool is_multi_gpu  = false,
           size_t num_buckets = 1>
@@ -204,7 +204,7 @@ class VertexFrontier {
   static size_t constexpr kNumBuckets = num_buckets;
   static size_t constexpr kInvalidBucketIdx{std::numeric_limits<size_t>::max()};
 
-  VertexFrontier(HandleType const& handle, std::vector<size_t> bucket_capacities)
+  VertexFrontier(raft::handle_t const& handle, std::vector<size_t> bucket_capacities)
     : handle_ptr_(&handle),
       tmp_bucket_ptrs_(num_buckets, nullptr),
       tmp_bucket_sizes_(num_buckets, 0),
@@ -219,12 +219,9 @@ class VertexFrontier {
     buffer_.set_stream(handle_ptr_->get_stream());
   }
 
-  Bucket<HandleType, vertex_t, is_multi_gpu>& get_bucket(size_t bucket_idx)
-  {
-    return buckets_[bucket_idx];
-  }
+  Bucket<vertex_t, is_multi_gpu>& get_bucket(size_t bucket_idx) { return buckets_[bucket_idx]; }
 
-  Bucket<HandleType, vertex_t, is_multi_gpu> const& get_bucket(size_t bucket_idx) const
+  Bucket<vertex_t, is_multi_gpu> const& get_bucket(size_t bucket_idx) const
   {
     return buckets_[bucket_idx];
   }
@@ -342,8 +339,8 @@ class VertexFrontier {
   static size_t constexpr kReduceInputTupleSize = thrust::tuple_size<ReduceInputTupleType>::value;
   static size_t constexpr kBufferAlignment      = 128;
 
-  HandleType const* handle_ptr_{nullptr};
-  std::vector<Bucket<HandleType, vertex_t, is_multi_gpu>> buckets_{};
+  raft::handle_t const* handle_ptr_{nullptr};
+  std::vector<Bucket<vertex_t, is_multi_gpu>> buckets_{};
   rmm::device_vector<vertex_t*> tmp_bucket_ptrs_{};
   rmm::device_vector<size_t> tmp_bucket_sizes_{};
 
