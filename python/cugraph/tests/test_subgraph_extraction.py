@@ -71,7 +71,7 @@ def nx_call(M, verts, directed=True):
 
 
 # Test all combinations of default/managed and pooled/non-pooled allocation
-@pytest.mark.parametrize("graph_file", utils.DATASETS_4)
+@pytest.mark.parametrize("graph_file", utils.DATASETS)
 def test_subgraph_extraction_DiGraph(graph_file):
     gc.collect()
 
@@ -88,7 +88,7 @@ def test_subgraph_extraction_DiGraph(graph_file):
 # Test all combinations of default/managed and pooled/non-pooled allocation
 
 
-@pytest.mark.parametrize("graph_file", utils.DATASETS_4)
+@pytest.mark.parametrize("graph_file", utils.DATASETS)
 def test_subgraph_extraction_Graph(graph_file):
     gc.collect()
 

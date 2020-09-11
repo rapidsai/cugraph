@@ -826,8 +826,8 @@ void TrianglesCount<IndexType>::count()
   else if (mean_deg < DEG_THR2)
     tcount_wrp();
   else {
-    const int shMinBlkXSM{6};
-    if (int64_t{m_shared_mem_per_block * 8} < int64_t{m_mat.N * shMinBlkXSM})
+    const int shMinBlkXSM = 6;
+    if (size_t{m_shared_mem_per_block * 8 / shMinBlkXSM} < (size_t)m_mat.N)
       tcount_b2b();
     else
       tcount_bsh();

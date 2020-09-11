@@ -112,10 +112,10 @@ void ecg(raft::handle_t const &handle,
          GraphCSRView<vertex_t, edge_t, weight_t> const &graph,
          weight_t min_weight,
          vertex_t ensemble_size,
-         vertex_t *ecg_parts)
+         vertex_t *clustering)
 {
   CUGRAPH_EXPECTS(graph.edge_data != nullptr, "API error, louvain expects a weighted graph");
-  CUGRAPH_EXPECTS(ecg_parts != nullptr, "Invalid API parameter: ecg_parts is NULL");
+  CUGRAPH_EXPECTS(clustering != nullptr, "Invalid input argument: clustering is NULL");
 
   cudaStream_t stream{0};
 
@@ -143,7 +143,7 @@ void ecg(raft::handle_t const &handle,
     rmm::device_vector<vertex_t> parts_v(size);
     vertex_t *d_parts = parts_v.data().get();
 
-    cugraph::louvain(handle, permuted_graph->view(), d_parts, 1);
+    cugraph::louvain(handle, permuted_graph->view(), d_parts, size_t{1});
 
     // For each edge in the graph determine whether the endpoints are in the same partition
     // Keep a sum for each edge of the total number of times its endpoints are in the same partition
@@ -176,7 +176,7 @@ void ecg(raft::handle_t const &handle,
   louvain_graph.number_of_vertices = graph.number_of_vertices;
   louvain_graph.number_of_edges    = graph.number_of_edges;
 
-  cugraph::louvain(handle, louvain_graph, ecg_parts, 100);
+  cugraph::louvain(handle, louvain_graph, clustering, size_t{100});
 }
 
 // Explicit template instantiations.
@@ -184,10 +184,10 @@ template void ecg<int32_t, int32_t, float>(raft::handle_t const &,
                                            GraphCSRView<int32_t, int32_t, float> const &graph,
                                            float min_weight,
                                            int32_t ensemble_size,
-                                           int32_t *ecg_parts);
+                                           int32_t *clustering);
 template void ecg<int32_t, int32_t, double>(raft::handle_t const &,
                                             GraphCSRView<int32_t, int32_t, double> const &graph,
                                             double min_weight,
                                             int32_t ensemble_size,
-                                            int32_t *ecg_parts);
+                                            int32_t *clustering);
 }  // namespace cugraph

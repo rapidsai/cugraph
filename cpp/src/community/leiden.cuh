@@ -27,8 +27,8 @@ class Leiden : public Louvain<graph_type> {
   using edge_t   = typename graph_type::edge_type;
   using weight_t = typename graph_type::weight_type;
 
-  Leiden(raft::handle_t const &handle, graph_type const &graph, cudaStream_t stream)
-    : Louvain<graph_type>(handle, graph, stream), constraint_v_(graph.number_of_vertices)
+  Leiden(raft::handle_t const &handle, graph_type const &graph)
+    : Louvain<graph_type>(handle, graph), constraint_v_(graph.number_of_vertices)
   {
   }
 
@@ -97,9 +97,11 @@ class Leiden : public Louvain<graph_type> {
     return cur_Q;
   }
 
-  std::pair<int, weight_t> compute(vertex_t *d_cluster_vec, int max_level, weight_t resolution)
+  std::pair<size_t, weight_t> operator()(vertex_t *d_cluster_vec,
+                                         size_t max_level,
+                                         weight_t resolution)
   {
-    int num_level{0};
+    size_t num_level{0};
 
     weight_t total_edge_weight = thrust::reduce(rmm::exec_policy(this->stream_)->on(this->stream_),
                                                 this->weights_v_.begin(),

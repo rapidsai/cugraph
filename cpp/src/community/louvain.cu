@@ -17,41 +17,30 @@
 #include <community/louvain.cuh>
 
 namespace cugraph {
-namespace detail {
 
 template <typename vertex_t, typename edge_t, typename weight_t>
-std::pair<int, weight_t> louvain(raft::handle_t const &handle,
-                                 GraphCSRView<vertex_t, edge_t, weight_t> const &graph,
-                                 vertex_t *louvain_parts,
-                                 int max_level,
-                                 weight_t resolution,
-                                 cudaStream_t stream)
+std::pair<size_t, weight_t> louvain(raft::handle_t const &handle,
+                                    GraphCSRView<vertex_t, edge_t, weight_t> const &graph,
+                                    vertex_t *clustering,
+                                    size_t max_level,
+                                    weight_t resolution)
 {
-  CUGRAPH_EXPECTS(graph.edge_data != nullptr, "API error, louvain expects a weighted graph");
-  CUGRAPH_EXPECTS(louvain_parts != nullptr, "API error, louvain_parts is null");
+  CUGRAPH_EXPECTS(graph.edge_data != nullptr,
+                  "Invalid input argument: louvain expects a weighted graph");
+  CUGRAPH_EXPECTS(clustering != nullptr, "Invalid input argument: clustering is null");
 
-  Louvain<GraphCSRView<vertex_t, edge_t, weight_t>> runner(handle, graph, stream);
+  Louvain<GraphCSRView<vertex_t, edge_t, weight_t>> runner(handle, graph);
 
-  return runner.compute(louvain_parts, max_level, resolution);
+  return runner(clustering, max_level, resolution);
 }
 
-}  // namespace detail
-
-template <typename vertex_t, typename edge_t, typename weight_t>
-std::pair<int, weight_t> louvain(raft::handle_t const &handle,
-                                 GraphCSRView<vertex_t, edge_t, weight_t> const &graph,
-                                 vertex_t *louvain_parts,
-                                 int max_level,
-                                 weight_t resolution)
-{
-  cudaStream_t stream{0};
-
-  return detail::louvain(handle, graph, louvain_parts, max_level, resolution, stream);
-}
-
-template std::pair<int, float> louvain(
-  raft::handle_t const &, GraphCSRView<int32_t, int32_t, float> const &, int32_t *, int, float);
-template std::pair<int, double> louvain(
-  raft::handle_t const &, GraphCSRView<int32_t, int32_t, double> const &, int32_t *, int, double);
+// Explicit template instantations
+template std::pair<size_t, float> louvain(
+  raft::handle_t const &, GraphCSRView<int32_t, int32_t, float> const &, int32_t *, size_t, float);
+template std::pair<size_t, double> louvain(raft::handle_t const &,
+                                           GraphCSRView<int32_t, int32_t, double> const &,
+                                           int32_t *,
+                                           size_t,
+                                           double);
 
 }  // namespace cugraph
