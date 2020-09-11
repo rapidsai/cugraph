@@ -58,7 +58,7 @@ def client_connection():
 
 
 @pytest.fixture(scope="module",
-                params=utils.DATASETS)
+                params=utils.DATASETS_UNDIRECTED)
 def daskGraphFromDataset(request, client_connection):
     """
     Returns a new dask dataframe created from the dataset file param.
@@ -89,3 +89,7 @@ def test_mg_louvain_with_edgevals(daskGraphFromDataset):
 
     # FIXME: either call Nx with the same dataset and compare results, or
     # hadcode golden results to compare to.
+    print()
+    print(parts.compute())
+    print(mod)
+    print()

@@ -20,16 +20,15 @@ from cugraph.dask.common.input_utils import get_local_data
 from cugraph.dask.community import louvain_wrapper as c_mg_louvain
 
 
-def call_louvain(sID, data, local_data, max_iter, resolution):
+def call_louvain(sID, data, local_data, max_level, resolution):
     wid = Comms.get_worker_id(sID)
     handle = Comms.get_handle(sID)
     return c_mg_louvain.louvain(data[0],
                                 local_data,
                                 wid,
                                 handle,
-                                start,
-                                num_verts,
-                                return_distances)
+                                max_level,
+                                resolution)
 
 
 def louvain(input_graph, max_iter=100, resolution=1.0, load_balance=True):
@@ -70,11 +69,6 @@ def louvain(input_graph, max_iter=100, resolution=1.0, load_balance=True):
         data = input_graph.local_data['data']
     else:
         data = get_local_data(input_graph, by='src', load_balance=load_balance)
-
-    if input_graph.renumbered:
-        start = input_graph.lookup_internal_vertex_id(cudf.Series([start],
-                                                dtype='int32')).compute()
-        start = start.iloc[0]
 
     result = dict([(data.worker_info[wf[0]]["rank"],
                     client.submit(
