@@ -12,7 +12,6 @@
 # limitations under the License.
 
 from dask.distributed import wait, default_client
-import cudf
 
 import cugraph.comms.comms as Comms
 from cugraph.dask.common.input_utils import get_local_data

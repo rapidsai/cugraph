@@ -34,7 +34,7 @@ def louvain(input_df, local_data, rank, handle, max_level, resolution):
     from cugraph.structure import graph_primtypes_wrapper
 
     cdef size_t handle_size_t = <size_t>handle.getHandle()
-    handle_ = <c_louvain.handle_t*>handle_size_t
+    handle_ = <handle_t*>handle_size_t
 
     final_modularity = None
 
@@ -59,17 +59,12 @@ def louvain(input_df, local_data, rank, handle, max_level, resolution):
 
     [src, dst] = graph_primtypes_wrapper.datatype_cast([src, dst], [np.int32])
     if weights is not None:
-        if weights.dtype == np.float32:
-            [weights] = graph_primtypes_wrapper.datatype_cast([weights], [np.float32])
-        elif weights.dtype == np.double:
-            [weights] = graph_primtypes_wrapper.datatype_cast([weights], [np.double])
+        if weights.dtype in [np.float32, np.double]:
+            [weights] = graph_primtypes_wrapper.datatype_cast([weights], [weights.dtype])
         else:
             raise TypeError(f"unsupported type {weights.dtype} for weights")
 
-        _offsets, indices, weights = graph_primtypes_wrapper.coo2csr(dst, src, weights)
-    else:
-        _offsets, indices, weights = graph_primtypes_wrapper.coo2csr(dst, src, None)
-
+    _offsets, indices, weights = graph_primtypes_wrapper.coo2csr(dst, src, weights)
     offsets = _offsets[:num_local_verts + 1]
     del _offsets
 
@@ -86,33 +81,31 @@ def louvain(input_df, local_data, rank, handle, max_level, resolution):
     cdef uintptr_t c_identifier = df['vertex'].__cuda_array_interface__['data'][0]
     cdef uintptr_t c_partition = df['partition'].__cuda_array_interface__['data'][0]
 
-    cdef GraphCSRView[int,int,float] graph_float
-    cdef GraphCSRView[int,int,double] graph_double
-
     cdef float final_modularity_float = 1.0
     cdef double final_modularity_double = 1.0
     cdef int num_level = 0
 
-    if weights.dtype == np.float32:
-        graph_float = GraphCSRView[int,int,float](<int*>c_offsets, <int*>c_indices,
-                                                  <float*>c_weights, num_verts, num_local_edges)
-        graph_float.set_local_data(<int*>c_local_verts, <int*>c_local_edges, <int*>c_local_offsets)
-        graph_float.set_handle(handle_)
-        num_level, final_modularity_float = \
-            c_louvain.louvain[int,int,float](handle_[0], graph_float, <int*> c_partition, max_level, resolution)
-        graph_float.get_vertex_identifiers(<int*>c_identifier)
+    cdef graph_container_t graph_container
 
+    # FIXME: This dict should not be needed, instead update create_graph_t() to
+    #        take weights.dtype directly
+    # FIXME: offsets and indices should also be void*, and have corresponding
+    #        dtypes passed to create_graph_t()
+    weightTypeMap = {np.dtype("float32"):0, np.dtype("double"):1}
+    graph_container = create_graph_t(handle_[0], <int*>c_offsets, <int*>c_indices,
+            <void*>c_weights, weightTypeMap[weights.dtype],
+            num_verts, num_local_edges,
+            <int*>c_local_verts, <int*>c_local_edges, <int*>c_local_offsets,
+            False, True)  # store_transposed, multi_gpu
+
+    if weights.dtype == np.float32:
+        final_modularity_float = c_louvain.call_louvain[float](
+            handle_[0], graph_container, <int*>c_partition, max_level, resolution)
         final_modularity = final_modularity_float
 
     else:
-        graph_double = GraphCSRView[int,int,double](<int*>c_offsets, <int*>c_indices,
-                                                    <double*>c_weights, num_verts, num_edges)
-        graph_double.set_local_data(<int*>c_local_verts, <int*>c_local_edges, <int*>c_local_offsets)
-        graph_double.set_handle(handle_)
-        num_level, final_modularity_double = \
-            c_louvain.louvain[int,int,double](handle_[0], graph_double, <int*> c_partition, max_level, resolution)
-        graph_double.get_vertex_identifiers(<int*>c_identifier)
-
+        final_modularity_double = c_louvain.call_louvain[double](
+            handle_[0], graph_container, <int*> c_partition, max_level, resolution)
         final_modularity = final_modularity_double
 
     return df, final_modularity

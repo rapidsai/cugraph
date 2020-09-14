@@ -16,17 +16,13 @@
 # cython: embedsignature = True
 # cython: language_level = 3
 
-from libcpp.pair cimport pair
-
 from cugraph.structure.graph_primtypes cimport *
 
+cdef extern from "utilities/cython.hpp" namespace "cugraph::cython":
 
-cdef extern from "algorithms.hpp" namespace "cugraph":
-
-    cdef pair[int, weight_t] \
-        louvain[vertex_t, edge_t, weight_t](
-            const handle_t &handle,
-            const GraphCSRView[vertex_t,edge_t,weight_t] &graph,
-            vertex_t *louvain_parts,
-            int max_level,
-            weight_t resolution) except +
+    cdef weight_t call_louvain[weight_t](
+        const handle_t &handle,
+        graph_container_t g,
+        int *parts,
+        size_t max_level,
+        weight_t resolution) except +

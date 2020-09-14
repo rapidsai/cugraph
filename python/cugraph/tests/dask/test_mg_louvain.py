@@ -13,19 +13,13 @@
 
 import pytest
 
-import pandas
-import numpy as np
-
 import cugraph.dask as dcg
 import cugraph.comms as Comms
 from dask.distributed import Client
 import cugraph
 import dask_cudf
-import dask
-import cudf
 from dask_cuda import LocalCUDACluster
 from cugraph.tests import utils
-from cugraph.structure.number_map import NumberMap
 
 try:
     from rapids_pytest_benchmark import setFixtureParamNames
@@ -35,10 +29,12 @@ except ImportError:
 
     # if rapids_pytest_benchmark is not available, just perfrom time-only
     # benchmarking and replace the util functions with nops
+    import pytest_benchmark
     gpubenchmark = pytest_benchmark.plugin.benchmark
 
     def setFixtureParamNames(*args, **kwargs):
         pass
+
 
 ###############################################################################
 # Fixtures
