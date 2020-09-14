@@ -127,3 +127,49 @@ def jaccard(input_graph, vertex_pair=None):
         df = input_graph.unrenumber(df, "destination")
 
     return df
+
+def jaccard_coefficient(G, ebunch=None):
+    """
+    For NetworkX Compatability.  See `jaccard`
+
+    Parameters
+    ----------
+    graph : cugraph.Graph
+        cuGraph graph descriptor, should contain the connectivity information
+        as an edge list (edge weights are not used for this algorithm). The
+        graph should be undirected where an undirected edge is represented by a
+        directed edge in both direction. The adjacency list will be computed if
+        not already present.
+    ebunch : cudf.DataFrame
+        A GPU dataframe consisting of two columns representing pairs of
+        vertices. If provided, the jaccard coefficient is computed for the
+        given vertex pairs.  If the vertex_pair is not provided then the
+        current implementation computes the jaccard coefficient for all
+        adjacent vertices in the graph.
+
+    Returns
+    -------
+    df  : cudf.DataFrame
+        GPU data frame of size E (the default) or the size of the given pairs
+        (first, second) containing the Jaccard weights. The ordering is
+        relative to the adjacency list, or that given by the specified vertex
+        pairs.
+
+        df['source'] : cudf.Series
+            The source vertex ID (will be identical to first if specified)
+        df['destination'] : cudf.Series
+            The destination vertex ID (will be identical to second if
+            specified)
+        df['jaccard_coeff'] : cudf.Series
+            The computed Jaccard coefficient between the source and destination
+            vertices
+
+    Examples
+    --------
+    >>> gdf = cudf.read_csv('datasets/karate.csv', delimiter=' ',
+    >>>                   dtype=['int32', 'int32', 'float32'], header=None)
+    >>> G = cugraph.Graph()
+    >>> G.from_cudf_edgelist(gdf, source='0', destination='1')
+    >>> df = cugraph.jaccard_coefficient(G)
+    """
+    return jaccard(G,ebunch)
