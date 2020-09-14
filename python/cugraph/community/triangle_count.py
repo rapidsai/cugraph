@@ -17,7 +17,7 @@ from cugraph.structure.graph import Graph
 
 def triangles(G):
     """
-    Compute the triangle (number of cycles of length three) count of the
+    Compute the number of triangle (cycles of length three) in the
     input graph.
 
     Parameters
@@ -34,12 +34,12 @@ def triangles(G):
 
     Examples
     --------
-    >>> M = cudf.read_csv('datasets/karate.csv',
+    >>> gdf = cudf.read_csv('datasets/karate.csv',
                           delimiter = ' ',
                           dtype=['int32', 'int32', 'float32'],
                           header=None)
     >>> G = cugraph.Graph()
-    >>> G.from_cudf_edgelist(M, source='0', destination='1')
+    >>> G.from_cudf_edgelist(gdf, source='0', destination='1')
     >>> count = cugraph.triangles(G)
     """
 

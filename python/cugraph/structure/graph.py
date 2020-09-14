@@ -337,10 +337,10 @@ class Graph:
 
         Examples
         --------
-        >>> M = cudf.read_csv('datasets/karate.csv', delimiter=' ',
+        >>> df = cudf.read_csv('datasets/karate.csv', delimiter=' ',
         >>>                   dtype=['int32', 'int32', 'float32'], header=None)
         >>> G = cugraph.Graph()
-        >>> G.from_cudf_edgelist(M, source='0', destination='1', edge_attr='2',
+        >>> G.from_cudf_edgelist(df, source='0', destination='1', edge_attr='2',
                                  renumber=False)
 
         """
@@ -586,9 +586,9 @@ class Graph:
 
         Examples
         --------
-        >>> M = cudf.read_csv('datasets/karate.csv', delimiter=' ',
+        >>> gdf = cudf.read_csv('datasets/karate.csv', delimiter=' ',
         >>>                   dtype=['int32', 'int32', 'float32'], header=None)
-        >>> M = M.to_pandas()
+        >>> M = gdf.to_pandas()
         >>> M = scipy.sparse.coo_matrix((M['2'],(M['0'],M['1'])))
         >>> M = M.tocsr()
         >>> offsets = cudf.Series(M.indptr)
@@ -984,6 +984,11 @@ class Graph:
         Returns
         -------
         df : cudf.DataFrame
+            GPU DataFrame of size N (the default) or the size of the given
+            vertices (vertex_subset) containing the degrees. The ordering is
+            relative to the adjacency list, or that given by the specified
+            vertex_subset.
+
             df['vertex'] : cudf.Series
                 The vertex IDs (will be identical to vertex_subset if
                 specified).
