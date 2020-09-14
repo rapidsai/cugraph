@@ -3,7 +3,7 @@
 ##########################################
 # cuGraph Benchmark test script for CI   #
 ##########################################
-
+# TEST
 set -e
 set -o pipefail
 NUMARGS=$#
