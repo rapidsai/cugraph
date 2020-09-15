@@ -141,7 +141,7 @@ def edge_betweenness_centrality(
     G, k=None, normalized=True, weight=None, seed=None, result_dtype=np.float64
 ):
     """
-    Compute the betweenness centrality for all edges of the graph G.
+    Compute the edge betweenness centrality for all edges of the graph G.
     Betweenness centrality is a measure of the number of shortest paths
     that pass over an edge.  An edge with a high betweenness centrality
     score has more paths passing over it and is therefore believed to be
