@@ -141,8 +141,9 @@ def build_mg_batch_cu_and_nx_graphs(graph_file, directed=True):
     Gnx = generate_nx_graph_from_file(graph_file, directed=directed)
     return G, Gnx
 
+
 def random_edgelist(e=1024, ef=16,
-                    dtypes={"src": int, "dst": int, "val": float}, 
+                    dtypes={"src": int, "dst": int, "val": float},
                     drop_duplicates=True, seed=None):
     """ Create a random edge list
 
@@ -154,36 +155,42 @@ def random_edgelist(e=1024, ef=16,
         Edge factor (average number of edges per vertex)
     dtypes : dict
         Mapping of column names to types.
-        Supported type is {"src": int, "dst": int, "val": float}s
-    drop_duplicates 
-        Drop duplicates 
+        Supported type is {"src": int, "dst": int, "val": float}
+    drop_duplicates
+        Drop duplicates
     seed : int (optional)
         Randomstate seed
 
     Examples
     --------
     >>> from cugraph.tests import utils
-    >>> # genrates 20 df with 100M edges each
+    >>> # genrates 20 df with 100M edges each and write to disk
     >>> for x in range(20):
-    >>>    df = utils.random_edgelist(e=100000000, ef=64, dtypes={'src':int, 'dst':int}, seed=x)
-    >>>    df.to_csv('df'+str(x), index=False)
+    >>>    df = utils.random_edgelist(e=100000000, ef=64,
+    >>>                               dtypes={'src':int, 'dst':int},
+    >>>                               seed=x)
+    >>>    df.to_csv('df'+str(x), header=False, index=False)
+    >>>    #df.to_parquet('files_parquet/df'+str(x), index=False)
     """
     state = np.random.RandomState(seed)
-    columns = dict((k, make[dt](e // ef, e, state)) for k, dt in dtypes.items())
+    columns = dict((k, make[dt](e // ef, e, state))
+                   for k, dt in dtypes.items())
     df = pd.DataFrame(columns)
     if drop_duplicates:
-        df=df.drop_duplicates()
-        print("Generated "+str(df.shape[0])+" edges" )
+        df = df.drop_duplicates()
+        print("Generated "+str(df.shape[0])+" edges")
     return cudf.from_pandas(df)
 
 
 def make_int(v, e, rstate):
     return rstate.randint(low=0, high=v, size=e)
+
+
 def make_float(v, e, rstate):
     return rstate.rand(e) * 2 - 1
+
+
 make = {
     float: make_float,
     int: make_int
 }
-
-
