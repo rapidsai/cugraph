@@ -186,35 +186,17 @@ if (RMM_INCLUDE AND RMM_LIBRARY)
 endif (RMM_INCLUDE AND RMM_LIBRARY)
 
 ###################################################################################################
-# - Fetch Content -----------------------------------------------------------------------------
+# - Fetch Content ---------------------------------------------------------------------------------
 include(FetchContent)
 
-# - CUB
-message("Fetching CUB")
-
-FetchContent_Declare(
-    cub
-    GIT_REPOSITORY https://github.com/thrust/cub.git
-    GIT_TAG        1.9.10
-    GIT_SHALLOW    true
-)
-
-FetchContent_GetProperties(cub)
-if(NOT cub_POPULATED)
-  FetchContent_Populate(cub)
-  # We are not using the cub CMake targets, so no need to call `add_subdirectory()`.
-endif()
-set(CUB_INCLUDE_DIR "${cub_SOURCE_DIR}")
-
-# - THRUST
+# - THRUST/CUB
 message("Fetching Thrust")
 
 FetchContent_Declare(
     thrust
     GIT_REPOSITORY https://github.com/thrust/thrust.git
-    GIT_TAG        1.9.10
-    GIT_SHALLOW    true
-    PATCH_COMMAND COMMAND patch -p1 < "${CMAKE_CURRENT_SOURCE_DIR}/cmake/thrust-ret-if-fail.patch"
+    # August 28, 2020
+    GIT_TAG        52a8bda46c5c2128414d1d47f546b486ff0be2f0
 )
 
 FetchContent_GetProperties(thrust)
@@ -223,9 +205,6 @@ if(NOT thrust_POPULATED)
   # We are not using the thrust CMake targets, so no need to call `add_subdirectory()`.
 endif()
 set(THRUST_INCLUDE_DIR "${thrust_SOURCE_DIR}")
-
-
-
 
 ###################################################################################################
 # - External Projects -----------------------------------------------------------------------------
@@ -344,10 +323,8 @@ add_library(cugraph SHARED
     src/converters/renumber.cu
     src/converters/COOtoCSR.cu
     src/community/spectral_clustering.cu
-    src/community/louvain.cpp
-    src/community/louvain_kernels.cu
-    src/community/leiden.cpp
-    src/community/leiden_kernels.cu
+    src/community/louvain.cu
+    src/community/leiden.cu
     src/community/ktruss.cu
     src/community/ECG.cu
     src/community/triangles_counting.cu
@@ -372,7 +349,6 @@ add_dependencies(cugraph raft)
 # - include paths ---------------------------------------------------------------------------------
 target_include_directories(cugraph
     PRIVATE
-    "${CUB_INCLUDE_DIR}"
     "${THRUST_INCLUDE_DIR}"
     "${CMAKE_CUDA_TOOLKIT_INCLUDE_DIRECTORIES}"
     "${LIBCYPHERPARSER_INCLUDE}"

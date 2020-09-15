@@ -79,12 +79,15 @@ def test_louvain_with_edgevals(graph_file):
     Gnx = nx.from_pandas_edgelist(
         M, source="0", target="1", edge_attr="weight", create_using=nx.Graph()
     )
-    cu_map = {0: 0}
-    for i in range(len(cu_parts)):
-        cu_map[cu_parts["vertex"][i]] = cu_parts["partition"][i]
+
+    cu_parts = cu_parts.to_pandas()
+    cu_map = dict(zip(cu_parts['vertex'], cu_parts['partition']))
+
     assert set(nx_parts.keys()) == set(cu_map.keys())
+
     cu_mod_nx = community.modularity(cu_map, Gnx)
     nx_mod = community.modularity(nx_parts, Gnx)
+
     assert len(cu_parts) == len(nx_parts)
     assert cu_mod > (0.82 * nx_mod)
     assert abs(cu_mod - cu_mod_nx) < 0.0001
@@ -103,9 +106,10 @@ def test_louvain(graph_file):
     Gnx = nx.from_pandas_edgelist(
         M, source="0", target="1", edge_attr="weight", create_using=nx.Graph()
     )
-    cu_map = {0: 0}
-    for i in range(len(cu_parts)):
-        cu_map[cu_parts["vertex"][i]] = cu_parts["partition"][i]
+
+    cu_parts = cu_parts.to_pandas()
+    cu_map = dict(zip(cu_parts['vertex'], cu_parts['partition']))
+
     assert set(nx_parts.keys()) == set(cu_map.keys())
 
     cu_mod_nx = community.modularity(cu_map, Gnx)
