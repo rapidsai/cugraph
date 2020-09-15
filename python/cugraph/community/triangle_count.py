@@ -17,7 +17,7 @@ from cugraph.structure.graph import Graph
 
 def triangles(G):
     """
-    Compute the number of triangle (cycles of length three) in the
+    Compute the number of triangles (cycles of length three) in the
     input graph.
 
     Parameters
