@@ -192,8 +192,12 @@ cdef csr_to_series(GraphCSRPtrType graph)
 cdef GraphViewType get_graph_view(input_graph, bool weightless=*, GraphViewType* dummy=*)
 
 
-# C++ graph factory function and container type
+# C++ utilities specifically for Cython
 cdef extern from "utilities/cython.hpp" namespace "cugraph::cython":
+
+    ctypedef enum weightTypeEnum:
+        floatType "cugraph::cython::weightTypeEnum::floatType"
+        doubleType "cugraph::cython::weightTypeEnum::doubleType"
 
     cdef struct graph_container_t:
         pass
@@ -203,7 +207,7 @@ cdef extern from "utilities/cython.hpp" namespace "cugraph::cython":
         int *offsets,
         int *indices,
         void *weights,
-        int weightType,
+        weightTypeEnum weightType,
         int num_vertices,
         int num_edges,
         int *local_vertices,

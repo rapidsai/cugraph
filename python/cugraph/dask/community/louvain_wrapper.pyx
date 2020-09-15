@@ -38,6 +38,10 @@ def louvain(input_df, local_data, rank, handle, max_level, resolution):
 
     final_modularity = None
 
+    # FIXME: much of this code is common to other algo wrappers, consider adding
+    #        this to a shared utility as well (extracting pointers from
+    #        dataframes, handling local_data, etc.)
+
     src = input_df['src']
     dst = input_df['dst']
     if "value" in input_df.columns:
@@ -89,11 +93,16 @@ def louvain(input_df, local_data, rank, handle, max_level, resolution):
 
     # FIXME: This dict should not be needed, instead update create_graph_t() to
     #        take weights.dtype directly
-    # FIXME: offsets and indices should also be void*, and have corresponding
+    # FIXME: Offsets and indices should also be void*, and have corresponding
     #        dtypes passed to create_graph_t()
-    weightTypeMap = {np.dtype("float32"):0, np.dtype("double"):1}
+    # FIXME: The excessive casting for the enum arg is needed to make cython
+    #        understand how to pass the enum value (this is the same pattern
+    #        used by cudf). This will not be needed with Cython 3.0
+    weightTypeMap = {np.dtype("float32") : <int>weightTypeEnum.floatType,
+                     np.dtype("double") : <int>weightTypeEnum.doubleType}
+
     graph_container = create_graph_t(handle_[0], <int*>c_offsets, <int*>c_indices,
-            <void*>c_weights, weightTypeMap[weights.dtype],
+            <void*>c_weights, <weightTypeEnum>(<int>(weightTypeMap[weights.dtype])),
             num_verts, num_local_edges,
             <int*>c_local_verts, <int*>c_local_edges, <int*>c_local_offsets,
             False, True)  # store_transposed, multi_gpu

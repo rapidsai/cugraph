@@ -16,13 +16,13 @@
 #pragma once
 
 #include <graph.hpp>
-// #include <experimental/graph_view.hpp>
 #include <raft/handle.hpp>
 
 namespace cugraph {
 namespace cython {
 
-// FIXME: use std::variant instead of a union if possible
+// FIXME: use std::variant (or a better alternative, ie. type erasure?) instead
+//        of a union if possible
 // FIXME: add both CSRView and graph_type_t objects for easier testing during
 //        the transition
 union graphUnion {
@@ -31,15 +31,17 @@ union graphUnion {
   GraphCSRView<int, int, double> GraphCSRViewDouble;
 };
 
-enum weightTypeEnum { floatType = 0, doubleType = 1 };
+enum class weightTypeEnum : int { floatType, doubleType };
 
-// FIXME: Add comments describing this struct, where it's used, etc.
+// "container" for a graph type instance which insulates the owner from the
+// specifics of the actual graph type. This is intended to be used in Cython
+// code that only needs to pass a graph object to another wrapped C++ API. This
+// simplifies the Cython code greatly since it only needs to define the
+// container and not the various individual graph types in Cython.
 struct graph_container_t {
   graph_container_t() {}
   graphUnion graph;
-  // FIXME: cython issues using an enum so just using an int for now.
-  // weightTypeEnum wType;
-  int wType;
+  weightTypeEnum wType;
 };
 
 // Factory function for creating graph containers from basic types
@@ -49,7 +51,7 @@ graph_container_t create_graph_t(raft::handle_t const& handle,
                                  int* offsets,
                                  int* indices,
                                  void* weights,
-                                 int weightType,
+                                 weightTypeEnum weightType,
                                  int num_vertices,
                                  int num_edges,
                                  int* local_vertices,

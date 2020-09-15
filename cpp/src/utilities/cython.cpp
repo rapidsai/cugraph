@@ -29,7 +29,7 @@ graph_container_t create_graph_t(raft::handle_t const& handle,
                                  int* offsets,
                                  int* indices,
                                  void* weights,
-                                 int weightType,
+                                 weightTypeEnum weightType,
                                  int num_vertices,
                                  int num_edges,
                                  int* local_vertices,
@@ -41,7 +41,10 @@ graph_container_t create_graph_t(raft::handle_t const& handle,
   graph_container_t graph_container{};
   graph_container.wType = weightType;
 
-  if (weightType == floatType) {
+  // FIXME: instantiate graph_type_t instead when ready, add conditionals for
+  // properly instantiating MG or not based on multi_gpu, etc.
+
+  if (weightType == weightTypeEnum::floatType) {
     graph_container.graph.GraphCSRViewFloat = GraphCSRView<int, int, float>(
       offsets, indices, reinterpret_cast<float*>(weights), num_vertices, num_edges);
     graph_container.graph.GraphCSRViewFloat.set_local_data(
@@ -56,24 +59,7 @@ graph_container_t create_graph_t(raft::handle_t const& handle,
     graph_container.graph.GraphCSRViewDouble.set_handle(const_cast<raft::handle_t*>(&handle));
   }
 
-  return std::move(graph_container);
-
-  // FIXME: instantiate graph_type_t instead when ready, add conditionals for
-  // properly instantiating MG or not based on multi_gpu, etc.
-  /*
-  auto graph = graph_view_t<int, int, weight_t, false, true>(
-     handle,
-     offsets_vect,
-     indices_vect,
-     weights_vect,
-     vertex_partition_segment_offsets_vect,
-     partition,
-     num_vertices,
-     num_edges,
-     properties,
-     sorted_by_global_degree_within_vertex_partition,
-     do_expensive_check);
-  */
+  return graph_container;
 }
 
 // Wrapper for calling Louvain using a graph container
@@ -86,7 +72,7 @@ weight_t call_louvain(raft::handle_t const& handle,
 {
   weight_t final_modularity;
 
-  if (graph_container.wType == floatType) {
+  if (graph_container.wType == weightTypeEnum::floatType) {
     std::pair<size_t, float> results = louvain(handle,
                                                graph_container.graph.GraphCSRViewFloat,
                                                parts,
