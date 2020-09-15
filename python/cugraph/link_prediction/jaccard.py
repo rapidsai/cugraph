@@ -128,6 +128,7 @@ def jaccard(input_graph, vertex_pair=None):
 
     return df
 
+
 def jaccard_coefficient(G, ebunch=None):
     """
     For NetworkX Compatability.  See `jaccard`
@@ -172,4 +173,4 @@ def jaccard_coefficient(G, ebunch=None):
     >>> G.from_cudf_edgelist(gdf, source='0', destination='1')
     >>> df = cugraph.jaccard_coefficient(G)
     """
-    return jaccard(G,ebunch)
+    return jaccard(G, ebunch)

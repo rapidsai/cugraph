@@ -23,8 +23,8 @@ def from_cudf_edgelist(df, source='source', destination='destination',
     """
     Return a new graph created from the edge list representaion. This function
     is added for NetworkX compatibility (this function is a RAPIDS version of
-    NetworkX's from_pandas_edge_list()).  This function does not support multiple
-    source or destination columns.  But does support renumbering
+    NetworkX's from_pandas_edge_list()).  This function does not support
+    multiple source or destination columns.  But does support renumbering
 
     Parameters
     ----------

@@ -35,7 +35,7 @@ def betweenness_centrality(
     pass through a vertex.  A vertex with a high betweenness centrality score
     has more paths passing through it and is therefore believed to be more
     important. Rather than doing an all-pair shortest path, a sample of k
-    starting vertices can be used. 
+    starting vertices can be used.
 
     CuGraph does not currently support the 'endpoints' and 'weight' parameters
     as seen in the corresponding networkX call.
@@ -146,8 +146,8 @@ def edge_betweenness_centrality(
     that pass over an edge.  An edge with a high betweenness centrality
     score has more paths passing over it and is therefore believed to be
     more important. Rather than doing an all-pair shortest path, a sample
-    of k starting vertices can be used.  
-    
+    of k starting vertices can be used.
+
     CuGraph does not currently support the 'weight' parameter
     as seen in the corresponding networkX call.
 

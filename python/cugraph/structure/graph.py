@@ -340,8 +340,8 @@ class Graph:
         >>> df = cudf.read_csv('datasets/karate.csv', delimiter=' ',
         >>>                   dtype=['int32', 'int32', 'float32'], header=None)
         >>> G = cugraph.Graph()
-        >>> G.from_cudf_edgelist(df, source='0', destination='1', edge_attr='2',
-                                 renumber=False)
+        >>> G.from_cudf_edgelist(df, source='0', destination='1',
+                                 edge_attr='2', renumber=False)
 
         """
         if self.edgelist is not None or self.adjlist is not None:
