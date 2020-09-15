@@ -206,6 +206,23 @@ if(NOT thrust_POPULATED)
 endif()
 set(THRUST_INCLUDE_DIR "${thrust_SOURCE_DIR}")
 
+# - cuco
+message("Fetching cuco")
+
+FetchContent_Declare(
+    cuco
+    GIT_REPOSITORY https://github.com/NVIDIA/cuCollections.git
+    GIT_TAG        0316a4cf7c163935691d83843f053e169239ffd2
+    GIT_SHALLOW    true
+)
+
+FetchContent_GetProperties(cuco)
+if(NOT cuco_POPULATED)
+  FetchContent_Populate(cuco)
+endif()
+set(CUCO_INCLUDE_DIR "${cuco_SOURCE_DIR}")
+
+
 ###################################################################################################
 # - External Projects -----------------------------------------------------------------------------
 
@@ -354,6 +371,7 @@ add_dependencies(cugraph raft)
 target_include_directories(cugraph
     PRIVATE
     "${THRUST_INCLUDE_DIR}"
+    "${CUCO_INCLUDE_DIR}"
     "${CMAKE_CUDA_TOOLKIT_INCLUDE_DIRECTORIES}"
     "${LIBCYPHERPARSER_INCLUDE}"
     "${Boost_INCLUDE_DIRS}"
