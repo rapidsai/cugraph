@@ -36,64 +36,6 @@ std::string to_string(from_t const& value)
   return ss.str();
 }
 
-// class responsible for creating 2D partition of workers:
-// responsible with finding appropriate P_ROW x P_COL
-// 2D partition and initializing the raft::handle_t communicator
-//
-// (this might be removed; or, it might exist already)
-//
-template <typename size_type = int>
-class partition_manager_t {
- public:
-  partition_manager_t(raft::handle_t& handle, size_type p_row_size, size_type p_col_size)
-    : handle_(handle), p_row_size_(p_row_size), p_col_size_(p_col_size)
-  {
-    init_communicator();
-  }
-
-  partition_manager_t(raft::handle_t const& handle, size_type p_size) : handle_(handle)
-  {
-    partition2d(p_size);
-    init_communicator();
-  }
-
-  virtual ~partition_manager_t(void) {}
-
- protected:
-  virtual void partition2d(size_type p_size)
-  {
-    auto sqr = static_cast<size_type>(std::sqrt(p_size));
-
-    // find divisor of p_size
-    // nearest to sqr;
-    //
-    p_row_size_ = nearest_divisor(sqr, p_size);
-    p_col_size_ = p_size / p_row_size_;
-
-    assert(p_row_size_ > 1 && p_col_size_ > 1);
-  }
-
-  virtual void init_communicator(void)
-  {
-    // TODO: init's handle's communicator (singleton?)
-  }
-
- private:
-  raft::handle_t& handle_;
-  size_type p_row_size_;
-  size_type p_col_size_;
-
-  static decltype(auto) nearest_divisor(size_type sqr, size_type p_size)
-  {
-    assert(sqr > 0);
-
-    for (size_type div = sqr; div > 0; --div) {
-      auto p_div = p_size % div;
-      if (p_div == 0) return div;
-    }
-  }
-};
-
 // default key-naming mechanism:
 //
 struct key_naming_t {
