@@ -14,10 +14,12 @@
  * limitations under the License.
  */
 
+#include <utilities/base_fixture.hpp>
 #include <utilities/test_utilities.hpp>
 
 #include <algorithms.hpp>
-#include <graph.hpp>
+#include <experimental/graph.hpp>
+#include <experimental/graph_view.hpp>
 
 #include <raft/cudart_utils.h>
 #include <raft/handle.hpp>
@@ -71,17 +73,15 @@ void bfs_reference(edge_t* offsets,
 }
 
 typedef struct BFS_Usecase_t {
-  std::string graph_file_path_;
-  std::string graph_file_full_path_;
-  size_t source_;
+  std::string graph_file_full_path{};
+  size_t source{false};
 
-  BFS_Usecase_t(std::string const& graph_file_path, size_t source)
-    : graph_file_path_(graph_file_path), source_(source)
+  BFS_Usecase_t(std::string const& graph_file_path, size_t source) : source(source)
   {
-    if ((graph_file_path_.length() > 0) && (graph_file_path[0] != '/')) {
-      graph_file_full_path_ = cugraph::test::get_rapids_dataset_root_dir() + "/" + graph_file_path_;
+    if ((graph_file_path.length() > 0) && (graph_file_path[0] != '/')) {
+      graph_file_full_path = cugraph::test::get_rapids_dataset_root_dir() + "/" + graph_file_path;
     } else {
-      graph_file_full_path_ = graph_file_path_;
+      graph_file_full_path = graph_file_path;
     }
   };
 } BFS_Usecase;
@@ -98,73 +98,71 @@ class Tests_BFS : public ::testing::TestWithParam<BFS_Usecase> {
   template <typename vertex_t, typename edge_t>
   void run_current_test(BFS_Usecase const& configuration)
   {
-    // FIXME: directed is a misnomer.
-    bool directed{false};
-    auto p_csr_graph =
-      cugraph::test::generate_graph_csr_from_mm<vertex_t, edge_t, float /* weight_t, dummy */>(
-        directed, configuration.graph_file_full_path_);
-    auto csr_graph_view = p_csr_graph->view();
-    // FIXME: this shouldn't be necessary
-    csr_graph_view.prop.directed = directed;
+    using weight_t = float;
+    
+    raft::handle_t handle{};
 
-    ASSERT_TRUE(configuration.source_ >= 0 &&
-                configuration.source_ <= csr_graph_view.number_of_vertices)
+    auto graph =
+      cugraph::test::read_graph_from_matrix_market_file<vertex_t, edge_t, weight_t, false>(
+        handle, configuration.graph_file_full_path, false);
+    auto graph_view = graph.view();
+
+    std::vector<edge_t> h_offsets(graph_view.get_number_of_vertices() + 1);
+    std::vector<vertex_t> h_indices(graph_view.get_number_of_edges());
+    raft::update_host(h_offsets.data(),
+                      graph_view.offsets(),
+                      graph_view.get_number_of_vertices() + 1,
+                      handle.get_stream());
+    raft::update_host(h_indices.data(),
+                      graph_view.indices(),
+                      graph_view.get_number_of_edges(),
+                      handle.get_stream());
+    CUDA_TRY(cudaStreamSynchronize(handle.get_stream()));
+
+    ASSERT_TRUE(configuration.source >= 0 &&
+                configuration.source <= graph_view.get_number_of_vertices())
       << "Starting sources should be >= 0 and"
       << " less than the number of vertices in the graph.";
 
-    std::vector<edge_t> h_offsets(csr_graph_view.number_of_vertices + 1);
-    std::vector<vertex_t> h_indices(csr_graph_view.number_of_edges);
-    std::vector<vertex_t> h_reference_distances(csr_graph_view.number_of_vertices);
-    std::vector<vertex_t> h_reference_predecessors(csr_graph_view.number_of_vertices);
-
-    CUDA_TRY(cudaMemcpy(h_offsets.data(),
-                        csr_graph_view.offsets,
-                        sizeof(edge_t) * h_offsets.size(),
-                        cudaMemcpyDeviceToHost));
-    CUDA_TRY(cudaMemcpy(h_indices.data(),
-                        csr_graph_view.indices,
-                        sizeof(vertex_t) * h_indices.size(),
-                        cudaMemcpyDeviceToHost));
+    std::vector<vertex_t> h_reference_distances(graph_view.get_number_of_vertices());
+    std::vector<vertex_t> h_reference_predecessors(graph_view.get_number_of_vertices());
 
     bfs_reference(h_offsets.data(),
                   h_indices.data(),
                   h_reference_distances.data(),
                   h_reference_predecessors.data(),
-                  csr_graph_view.number_of_vertices,
-                  static_cast<vertex_t>(configuration.source_),
+                  graph_view.get_number_of_vertices(),
+                  static_cast<vertex_t>(configuration.source),
                   std::numeric_limits<vertex_t>::max());
 
-    raft::handle_t handle{};
-
-    rmm::device_uvector<vertex_t> d_distances(csr_graph_view.number_of_vertices,
+    rmm::device_uvector<vertex_t> d_distances(graph_view.get_number_of_vertices(),
                                               handle.get_stream());
-    rmm::device_uvector<vertex_t> d_predecessors(csr_graph_view.number_of_vertices,
+    rmm::device_uvector<vertex_t> d_predecessors(graph_view.get_number_of_vertices(),
                                                  handle.get_stream());
 
     CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
 
     cugraph::experimental::bfs(handle,
-                               csr_graph_view,
+                               graph_view,
                                d_distances.begin(),
                                d_predecessors.begin(),
-                               static_cast<vertex_t>(configuration.source_),
+                               static_cast<vertex_t>(configuration.source),
                                false,
                                std::numeric_limits<vertex_t>::max(),
                                false);
 
     CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
 
-    std::vector<vertex_t> h_cugraph_distances(csr_graph_view.number_of_vertices);
-    std::vector<vertex_t> h_cugraph_predecessors(csr_graph_view.number_of_vertices);
+    std::vector<vertex_t> h_cugraph_distances(graph_view.get_number_of_vertices());
+    std::vector<vertex_t> h_cugraph_predecessors(graph_view.get_number_of_vertices());
 
-    CUDA_TRY(cudaMemcpy(h_cugraph_distances.data(),
-                        d_distances.data(),
-                        sizeof(vertex_t) * d_distances.size(),
-                        cudaMemcpyDeviceToHost));
-    CUDA_TRY(cudaMemcpy(h_cugraph_predecessors.data(),
-                        d_predecessors.data(),
-                        sizeof(vertex_t) * d_predecessors.size(),
-                        cudaMemcpyDeviceToHost));
+    raft::update_host(
+      h_cugraph_distances.data(), d_distances.data(), d_distances.size(), handle.get_stream());
+    raft::update_host(h_cugraph_predecessors.data(),
+                      d_predecessors.data(),
+                      d_predecessors.size(),
+                      handle.get_stream());
+    CUDA_TRY(cudaStreamSynchronize(handle.get_stream()));
 
     ASSERT_TRUE(std::equal(
       h_reference_distances.begin(), h_reference_distances.end(), h_cugraph_distances.begin()))
@@ -203,11 +201,4 @@ INSTANTIATE_TEST_CASE_P(simple_test,
                                           BFS_Usecase("test/datasets/wiki2003.mtx", 1000),
                                           BFS_Usecase("test/datasets/wiki-Talk.mtx", 1000)));
 
-int main(int argc, char** argv)
-{
-  testing::InitGoogleTest(&argc, argv);
-  auto resource = std::make_unique<rmm::mr::cuda_memory_resource>();
-  rmm::mr::set_default_resource(resource.get());
-  int rc = RUN_ALL_TESTS();
-  return rc;
-}
+CUGRAPH_TEST_PROGRAM_MAIN()

@@ -15,6 +15,8 @@
  */
 #pragma once
 
+#include <experimental/graph_view.hpp>
+#include <matrix_partition_device.cuh>
 #include <patterns/edge_op_utils.cuh>
 #include <patterns/reduce_op.cuh>
 #include <utilities/cuda.cuh>
@@ -43,7 +45,7 @@ namespace detail {
 int32_t constexpr update_frontier_v_push_if_out_nbr_for_all_low_out_degree_block_size = 128;
 int32_t constexpr update_frontier_v_push_if_out_nbr_update_block_size                 = 128;
 
-template <typename GraphType,
+template <typename GraphViewType,
           typename RowIterator,
           typename AdjMatrixRowValueInputIterator,
           typename AdjMatrixColValueInputIterator,
@@ -51,7 +53,7 @@ template <typename GraphType,
           typename BufferPayloadOutputIterator,
           typename EdgeOp>
 __global__ void for_all_frontier_row_for_all_nbr_low_out_degree(
-  GraphType graph_device_view,
+  matrix_partition_device_t<GraphViewType> matrix_partition,
   RowIterator row_first,
   RowIterator row_last,
   AdjMatrixRowValueInputIterator adj_matrix_row_value_input_first,
@@ -61,33 +63,37 @@ __global__ void for_all_frontier_row_for_all_nbr_low_out_degree(
   size_t* buffer_idx_ptr,
   EdgeOp e_op)
 {
-  using vertex_t = typename GraphType::vertex_type;
-  using weight_t = typename GraphType::weight_type;
+  using vertex_t = typename GraphViewType::vertex_type;
+  using edge_t   = typename GraphViewType::edge_type;
+  using weight_t = typename GraphViewType::weight_type;
 
-  static_assert(!GraphType::is_adj_matrix_transposed, "GraphType should support the push model.");
+  static_assert(!GraphViewType::is_adj_matrix_transposed,
+                "GraphViewType should support the push model.");
 
   auto num_rows  = static_cast<size_t>(thrust::distance(row_first, row_last));
   auto const tid = threadIdx.x + blockIdx.x * blockDim.x;
   size_t idx     = tid;
 
   while (idx < num_rows) {
-    auto row        = *(row_first + idx);
-    auto row_offset = graph_device_view.get_adj_matrix_local_row_offset_from_row_nocheck(row);
+    vertex_t row    = *(row_first + idx);
+    auto row_offset = matrix_partition.get_major_offset_from_major_nocheck(row);
     vertex_t const* indices{nullptr};
     weight_t const* weights{nullptr};
-    vertex_t local_out_degree{};
-    thrust::tie(indices, weights, local_out_degree) = graph_device_view.get_local_edges(row);
+    edge_t local_out_degree{};
+    thrust::tie(indices, weights, local_out_degree) = matrix_partition.get_local_edges(row_offset);
     for (vertex_t i = 0; i < local_out_degree; ++i) {
-      auto dst_vid    = indices[i];
-      auto weight     = weights != nullptr ? weights[i] : 1.0;
-      auto col_offset = graph_device_view.get_adj_matrix_local_col_offset_from_col_nocheck(dst_vid);
-      auto e_op_result = evaluate_edge_op<GraphType,
-                                          EdgeOp,
+      auto col         = indices[i];
+      auto weight      = weights != nullptr ? weights[i] : 1.0;
+      auto col_offset  = matrix_partition.get_minor_offset_from_minor_nocheck(col);
+      auto e_op_result = evaluate_edge_op<GraphViewType,
                                           AdjMatrixRowValueInputIterator,
-                                          AdjMatrixColValueInputIterator>()
-                           .compute(*(adj_matrix_row_value_input_first + row_offset),
-                                    *(adj_matrix_col_value_input_first + col_offset),
+                                          AdjMatrixColValueInputIterator,
+                                          EdgeOp>()
+                           .compute(row,
+                                    col,
                                     weight,
+                                    *(adj_matrix_row_value_input_first + row_offset),
+                                    *(adj_matrix_col_value_input_first + col_offset),
                                     e_op);
       if (thrust::get<0>(e_op_result) == true) {
         // FIXME: This atomicInc serializes execution. If we renumber vertices to insure that rows
@@ -107,11 +113,8 @@ __global__ void for_all_frontier_row_for_all_nbr_low_out_degree(
   }
 }
 
-template <typename HandleType,
-          typename BufferKeyOutputIterator,
-          typename BufferPayloadOutputIterator,
-          typename ReduceOp>
-size_t reduce_buffer_elements(HandleType& handle,
+template <typename BufferKeyOutputIterator, typename BufferPayloadOutputIterator, typename ReduceOp>
+size_t reduce_buffer_elements(raft::handle_t const& handle,
                               BufferKeyOutputIterator buffer_key_output_first,
                               BufferPayloadOutputIterator buffer_payload_output_first,
                               size_t num_buffer_elements,
@@ -252,8 +255,7 @@ __global__ void update_frontier_and_vertex_output_values(
 /**
  * @brief Update vertex frontier and vertex property values iterating over the outgoing edges.
  *
- * @tparam HandleType HandleType Type of the RAFT handle (e.g. for single-GPU or multi-GPU).
- * @tparam GraphType Type of the passed graph object.
+ * @tparam GraphViewType Type of the passed non-owning graph object.
  * @tparam VertexIterator Type of the iterator for vertex identifiers.
  * @tparam AdjMatrixRowValueInputIterator Type of the iterator for graph adjacency matrix row
  * input properties.
@@ -268,8 +270,7 @@ __global__ void update_frontier_and_vertex_output_values(
  * @tparam VertexOp Type of the binary vertex operator.
  * @param handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator, and
  * handles to various CUDA libraries) to run graph algorithms.
- * @param graph_device_view Graph object. This graph object should support pass-by-value to device
- * kernels.
+ * @param graph_view Non-owning graph object.
  * @param vertex_first Iterator pointing to the first (inclusive) vertex in the current frontier. v
  * in [vertex_first, vertex_last) should be distinct (and should belong to this process in
  * multi-GPU), otherwise undefined behavior
@@ -277,31 +278,30 @@ __global__ void update_frontier_and_vertex_output_values(
  * @param adj_matrix_row_value_input_first Iterator pointing to the adjacency matrix row input
  * properties for the first (inclusive) row (assigned to this process in multi-GPU).
  * `adj_matrix_row_value_input_last` (exclusive) is deduced as @p adj_matrix_row_value_input_first +
- * @p graph_device_view.get_number_of_adj_matrix_local_rows().
+ * @p graph_view.get_number_of_adj_matrix_local_rows().
  * @param adj_matrix_col_value_input_first Iterator pointing to the adjacency matrix column input
  * properties for the first (inclusive) column (assigned to this process in multi-GPU).
  * `adj_matrix_col_value_output_last` (exclusive) is deduced as @p adj_matrix_col_value_output_first
- * + @p graph_device_view.get_number_of_adj_matrix_local_cols().
+ * + @p graph_view.get_number_of_adj_matrix_local_cols().
  * @param e_op Binary (or ternary) operator takes *(@p adj_matrix_row_value_input_first + i), *(@p
  * adj_matrix_col_value_input_first + j), (and optionally edge weight) (where i and j are row and
  * column indices, respectively) and returns a value to reduced by the @p reduce_op.
  * @param reduce_op Binary operator takes two input arguments and reduce the two variables to one.
  * @param vertex_value_input_first Iterator pointing to the vertex properties for the first
  * (inclusive) vertex (assigned to this process in multi-GPU). `vertex_value_input_last` (exclusive)
- * is deduced as @p vertex_value_input_first + @p graph_device_view.get_number_of_local_vertices().
+ * is deduced as @p vertex_value_input_first + @p graph_view.get_number_of_local_vertices().
  * @param vertex_value_output_first Iterator pointing to the vertex property variables for the first
  * (inclusive) vertex (assigned to tihs process in multi-GPU). `vertex_value_output_last`
  * (exclusive) is deduced as @p vertex_value_output_first + @p
- * graph_device_view.get_number_of_local_vertices().
+ * graph_view.get_number_of_local_vertices().
  * @param vertex_frontier vertex frontier class object for vertex frontier managements. This object
  * includes multiple bucket objects.
  * @param v_op Binary operator takes *(@p vertex_value_input_first + i) (where i is [0, @p
- * graph_device_view.get_number_of_local_vertices())) and reduced value of the @p e_op outputs for
+ * graph_view.get_number_of_local_vertices())) and reduced value of the @p e_op outputs for
  * this vertex and returns the target bucket index (for frontier update) and new verrtex property
  * values (to update *(@p vertex_value_output_first + i)).
  */
-template <typename HandleType,
-          typename GraphType,
+template <typename GraphViewType,
           typename VertexIterator,
           typename AdjMatrixRowValueInputIterator,
           typename AdjMatrixColValueInputIterator,
@@ -312,8 +312,8 @@ template <typename HandleType,
           typename VertexFrontierType,
           typename VertexOp>
 void update_frontier_v_push_if_out_nbr(
-  HandleType& handle,
-  GraphType const& graph_device_view,
+  raft::handle_t const& handle,
+  GraphViewType const& graph_view,
   VertexIterator vertex_first,
   VertexIterator vertex_last,
   AdjMatrixRowValueInputIterator adj_matrix_row_value_input_first,
@@ -325,38 +325,42 @@ void update_frontier_v_push_if_out_nbr(
   VertexFrontierType& vertex_frontier,
   VertexOp v_op)
 {
-  static_assert(!GraphType::is_adj_matrix_transposed, "GraphType should support the push model.");
+  static_assert(!GraphViewType::is_adj_matrix_transposed,
+                "GraphViewType should support the push model.");
 
-  using vertex_t          = typename GraphType::vertex_type;
+  using vertex_t          = typename GraphViewType::vertex_type;
+  using edge_t            = typename GraphViewType::edge_type;
   using reduce_op_input_t = typename ReduceOp::type;
 
   // FIXME: Better make this a memeber variable of VertexFrontier to reduce # of memory allocations
   thrust::device_vector<vertex_t>
-    frontier_rows{};  // relevant only if GraphType::is_multi_gpu is true
-  if (GraphType::is_multi_gpu) {
-    // need to merge row_frontier
+    frontier_rows{};  // relevant only if GraphViewType::is_multi_gpu is true
+  std::vector<vertex_t> frontier_adj_matrix_partition_offsets(
+    graph_view.get_number_of_local_adj_matrix_partitions() + 1, 0);
+
+  if (GraphViewType::is_multi_gpu) {
+    // need to merge row_frontier and update frontier_offsets;
     CUGRAPH_FAIL("unimplemented.");
+  } else {
+    frontier_adj_matrix_partition_offsets[1] = thrust::distance(vertex_first, vertex_last);
   }
 
-  auto max_pushes = GraphType::is_multi_gpu
-                      ? thrust::transform_reduce(
-                          rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
-                          frontier_rows.begin(),
-                          frontier_rows.end(),
-                          [graph_device_view] __device__(auto row) {
-                            return graph_device_view.get_local_out_degree_nocheck(row);
-                          },
-                          size_t{0},
-                          thrust::plus<size_t>())
-                      : thrust::transform_reduce(
-                          rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
-                          vertex_first,
-                          vertex_last,
-                          [graph_device_view] __device__(auto row) {
-                            return graph_device_view.get_local_out_degree_nocheck(row);
-                          },
-                          size_t{0},
-                          thrust::plus<size_t>());
+  edge_t max_pushes{0};
+  for (size_t i = 0; i < graph_view.get_number_of_local_adj_matrix_partitions(); ++i) {
+    matrix_partition_device_t<GraphViewType> matrix_partition(graph_view, i);
+
+    max_pushes += thrust::transform_reduce(
+      rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
+      frontier_rows.begin() + frontier_adj_matrix_partition_offsets[i],
+      frontier_rows.begin() + frontier_adj_matrix_partition_offsets[i + 1],
+      [matrix_partition] __device__(auto row) {
+        auto row_offset = matrix_partition.get_major_offset_from_major_nocheck(row);
+        return matrix_partition.get_local_degree(row_offset);
+      },
+      size_t{0},
+      thrust::plus<size_t>());
+  }
+
   // FIXME: This is highly pessimistic for single GPU (and multi-GPU as well if we maintain
   // additional per column data for filtering in e_op). If we can pause & resume execution if
   // buffer needs to be increased (and if we reserve address space to avoid expensive
@@ -369,52 +373,34 @@ void update_frontier_v_push_if_out_nbr(
   auto buffer_key_first     = std::get<0>(buffer_first);
   auto buffer_payload_first = std::get<1>(buffer_first);
 
-  auto num_rows = GraphType::is_multi_gpu
-                    ? static_cast<size_t>(frontier_rows.size())
-                    : static_cast<size_t>(thrust::distance(vertex_first, vertex_last));
-  grid_1d_thread_t for_all_low_out_degree_grid(
-    num_rows,
-    detail::update_frontier_v_push_if_out_nbr_for_all_low_out_degree_block_size,
-    get_max_num_blocks_1D());
+  vertex_t row_value_input_offset{0};
+  for (size_t i = 0; i < graph_view.get_number_of_local_adj_matrix_partitions(); ++i) {
+    matrix_partition_device_t<GraphViewType> matrix_partition(graph_view, i);
 
-  // FIXME: if we update the code to invoke multiple kernels for this part (based on vertex
-  // degrees), we may better create another template function to avoid this if-else.
-  if (GraphType::is_multi_gpu) {
+    grid_1d_thread_t for_all_low_out_degree_grid(
+      frontier_adj_matrix_partition_offsets[i + 1] - frontier_adj_matrix_partition_offsets[i],
+      detail::update_frontier_v_push_if_out_nbr_for_all_low_out_degree_block_size,
+      get_max_num_blocks_1D());
+
     // FIXME: This is highly inefficeint for graphs with high-degree vertices. If we renumber
-    // vertices to insure that rows within a partition are sorted by their out-degree in decreasing
-    // order, we will apply this kernel only to low out-degree vertices.
+    // vertices to insure that rows within a partition are sorted by their out-degree in
+    // decreasing order, we will apply this kernel only to low out-degree vertices.
     detail::
       for_all_frontier_row_for_all_nbr_low_out_degree<<<for_all_low_out_degree_grid.num_blocks,
                                                         for_all_low_out_degree_grid.block_size,
                                                         0,
                                                         handle.get_stream()>>>(
-        graph_device_view,
-        frontier_rows.begin(),
-        frontier_rows.end(),
-        adj_matrix_row_value_input_first,
+        matrix_partition,
+        frontier_rows.begin() + frontier_adj_matrix_partition_offsets[i],
+        frontier_rows.begin() + frontier_adj_matrix_partition_offsets[i + 1],
+        adj_matrix_row_value_input_first + row_value_input_offset,
         adj_matrix_col_value_input_first,
         buffer_key_first,
         buffer_payload_first,
         vertex_frontier.get_buffer_idx_ptr(),
         e_op);
-  } else {
-    // FIXME: This is highly inefficeint for graphs with high-degree vertices. If we renumber
-    // vertices to insure that rows within a partition are sorted by their out-degree in decreasing
-    // order, we will apply this kernel only to low out-degree vertices.
-    detail::
-      for_all_frontier_row_for_all_nbr_low_out_degree<<<for_all_low_out_degree_grid.num_blocks,
-                                                        for_all_low_out_degree_grid.block_size,
-                                                        0,
-                                                        handle.get_stream()>>>(
-        graph_device_view,
-        vertex_first,
-        vertex_last,
-        adj_matrix_row_value_input_first,
-        adj_matrix_col_value_input_first,
-        buffer_key_first,
-        buffer_payload_first,
-        vertex_frontier.get_buffer_idx_ptr(),
-        e_op);
+
+    row_value_input_offset += matrix_partition.get_major_size();
   }
 
   auto num_buffer_elements = detail::reduce_buffer_elements(handle,
@@ -423,7 +409,7 @@ void update_frontier_v_push_if_out_nbr(
                                                             vertex_frontier.get_buffer_idx_value(),
                                                             reduce_op);
 
-  if (GraphType::is_multi_gpu) {
+  if (GraphViewType::is_multi_gpu) {
     // need to exchange buffer elements (and may reduce again)
     CUGRAPH_FAIL("unimplemented.");
   }

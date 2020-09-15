@@ -13,9 +13,9 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 #include <algorithms.hpp>
-#include <graph.hpp>
-#include <graph_device_view.cuh>
+#include <experimental/graph_view.hpp>
 #include <patterns/any_of_adj_matrix_row.cuh>
 #include <patterns/copy_to_adj_matrix_row.cuh>
 #include <patterns/copy_v_transform_reduce_nbr.cuh>
@@ -24,9 +24,10 @@
 #include <patterns/reduce_v.cuh>
 #include <patterns/transform_reduce_v_with_adj_matrix_row.cuh>
 #include <utilities/error.hpp>
+#include <vertex_partition_device.cuh>
 
-#include <raft/handle.hpp>
 #include <rmm/thrust_rmm_allocator.h>
+#include <raft/handle.hpp>
 
 #include <thrust/fill.h>
 #include <thrust/for_each.h>
@@ -40,13 +41,13 @@ namespace experimental {
 namespace detail {
 
 // FIXME: personalization_vector_size is confusing in OPG (local or aggregate?)
-template <typename GraphType, typename result_t>
+template <typename GraphViewType, typename result_t>
 void pagerank(raft::handle_t& handle,
-              GraphType const& pull_graph,
-              typename GraphType::weight_type* adj_matrix_row_out_weight_sums,
-              typename GraphType::vertex_type* personalization_vertices,
+              GraphViewType const& pull_graph_view,
+              typename GraphViewType::weight_type* adj_matrix_row_out_weight_sums,
+              typename GraphViewType::vertex_type* personalization_vertices,
               result_t* personalization_values,
-              typename GraphType::vertex_type personalization_vector_size,
+              typename GraphViewType::vertex_type personalization_vector_size,
               result_t* pageranks,
               result_t alpha,
               result_t epsilon,
@@ -54,18 +55,17 @@ void pagerank(raft::handle_t& handle,
               bool has_initial_guess,
               bool do_expensive_check)
 {
-  using vertex_t = typename GraphType::vertex_type;
-  using weight_t = typename GraphType::weight_type;
+  using vertex_t = typename GraphViewType::vertex_type;
+  using weight_t = typename GraphViewType::weight_type;
 
-  static_assert(std::is_integral<vertex_t>::value, "GraphType::vertex_type should be integral.");
+  static_assert(std::is_integral<vertex_t>::value,
+                "GraphViewType::vertex_type should be integral.");
   static_assert(std::is_floating_point<result_t>::value,
                 "result_t should be a floating-point type.");
-  static_assert(GraphType::is_adj_matrix_transposed, "GraphType should support the pull model.");
+  static_assert(GraphViewType::is_adj_matrix_transposed,
+                "GraphViewType should support the pull model.");
 
-  auto p_graph_device_view     = graph_device_view_t<GraphType>::create(pull_graph);
-  auto const graph_device_view = *p_graph_device_view;
-
-  auto const num_vertices = graph_device_view.get_number_of_vertices();
+  auto const num_vertices = pull_graph_view.get_number_of_vertices();
   if (num_vertices == 0) { return; }
 
   // 1. check input arguments
@@ -81,7 +81,7 @@ void pagerank(raft::handle_t& handle,
   if (do_expensive_check) {
     if (adj_matrix_row_out_weight_sums != nullptr) {
       auto has_negative_weight_sums = any_of_adj_matrix_row(
-        handle, graph_device_view, adj_matrix_row_out_weight_sums, [] __device__(auto val) {
+        handle, pull_graph_view, adj_matrix_row_out_weight_sums, [] __device__(auto val) {
           return val < result_t{0.0};
         });
       CUGRAPH_EXPECTS(
@@ -89,38 +89,41 @@ void pagerank(raft::handle_t& handle,
         "Invalid input argument: outgoing edge weight sum values should be non-negative.");
     }
 
-    if (graph_device_view.is_weighted()) {
-      auto num_nonpositive_edge_weights =
-        count_if_e(handle,
-                   graph_device_view,
-                   thrust::make_constant_iterator(0) /* dummy */,
-                   thrust::make_constant_iterator(0) /* dummy */,
-                   [] __device__(auto src_val, auto dst_val, weight_t w) { return w <= 0.0; });
+    if (pull_graph_view.is_weighted()) {
+      auto num_nonpositive_edge_weights = count_if_e(
+        handle,
+        pull_graph_view,
+        thrust::make_constant_iterator(0) /* dummy */,
+        thrust::make_constant_iterator(0) /* dummy */,
+        [] __device__(vertex_t src, vertex_t dst, weight_t w, auto src_val, auto dst_val) {
+          return w <= 0.0;
+        });
       CUGRAPH_EXPECTS(num_nonpositive_edge_weights == 0,
                       "Invalid input argument: input graph should have postive edge weights.");
     }
 
     if (has_initial_guess) {
       auto num_negative_values = count_if_v(
-        handle, graph_device_view, pageranks, [] __device__(auto val) { return val < 0.0; });
+        handle, pull_graph_view, pageranks, [] __device__(auto val) { return val < 0.0; });
       CUGRAPH_EXPECTS(num_negative_values == 0,
                       "Invalid input argument: initial guess values should be non-negative.");
     }
 
     if (personalization_vertices != nullptr) {
+      vertex_partition_device_t<GraphViewType> vertex_partition(pull_graph_view);
       auto num_invalid_vertices =
         count_if_v(handle,
-                   graph_device_view,
+                   pull_graph_view,
                    personalization_vertices,
                    personalization_vertices + personalization_vector_size,
-                   [graph_device_view] __device__(auto val) {
-                     return !(graph_device_view.is_valid_vertex(val) &&
-                              graph_device_view.is_local_vertex_nocheck(val));
+                   [vertex_partition] __device__(auto val) {
+                     return !(vertex_partition.is_valid_vertex(val) &&
+                              vertex_partition.is_local_vertex_nocheck(val));
                    });
       CUGRAPH_EXPECTS(num_invalid_vertices == 0,
                       "Invalid input argument: peresonalization vertices have invalid vertex IDs.");
       auto num_negative_values = count_if_v(handle,
-                                            graph_device_view,
+                                            pull_graph_view,
                                             personalization_values,
                                             personalization_values + personalization_vector_size,
                                             [] __device__(auto val) { return val < 0.0; });
@@ -133,22 +136,24 @@ void pagerank(raft::handle_t& handle,
 
   rmm::device_vector<weight_t> tmp_adj_matrix_row_out_weight_sums{};
   if (adj_matrix_row_out_weight_sums == nullptr) {
-    rmm::device_vector<weight_t> tmp_out_weight_sums(
-      graph_device_view.get_number_of_local_vertices(), weight_t{0.0});
+    rmm::device_vector<weight_t> tmp_out_weight_sums(pull_graph_view.get_number_of_local_vertices(),
+                                                     weight_t{0.0});
     // FIXME: better refactor this out (computing out-degree).
     copy_v_transform_reduce_out_nbr(
       handle,
-      graph_device_view,
+      pull_graph_view,
       thrust::make_constant_iterator(0) /* dummy */,
       thrust::make_constant_iterator(0) /* dummy */,
-      [alpha] __device__(auto src_val, auto dst_val, weight_t w) { return w; },
+      [alpha] __device__(vertex_t src, vertex_t dst, weight_t w, auto src_val, auto dst_val) {
+        return w;
+      },
       weight_t{0.0},
       tmp_out_weight_sums.data().get());
 
     tmp_adj_matrix_row_out_weight_sums.assign(
-      graph_device_view.get_number_of_adj_matrix_local_rows(), weight_t{0.0});
+      pull_graph_view.get_number_of_local_adj_matrix_partition_rows(), weight_t{0.0});
     copy_to_adj_matrix_row(handle,
-                           graph_device_view,
+                           pull_graph_view,
                            tmp_out_weight_sums.data().get(),
                            tmp_adj_matrix_row_out_weight_sums.begin());
   }
@@ -160,19 +165,19 @@ void pagerank(raft::handle_t& handle,
   // 3. initialize pagerank values
 
   if (has_initial_guess) {
-    auto sum = reduce_v(handle, graph_device_view, pageranks, result_t{0.0});
+    auto sum = reduce_v(handle, pull_graph_view, pageranks, result_t{0.0});
     CUGRAPH_EXPECTS(
       sum > 0.0,
       "Invalid input argument: sum of the PageRank initial guess values should be positive.");
     thrust::transform(rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
                       pageranks,
-                      pageranks + graph_device_view.get_number_of_local_vertices(),
+                      pageranks + pull_graph_view.get_number_of_local_vertices(),
                       pageranks,
                       [sum] __device__(auto val) { return val / sum; });
   } else {
     thrust::fill(rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
                  pageranks,
-                 pageranks + graph_device_view.get_number_of_local_vertices(),
+                 pageranks + pull_graph_view.get_number_of_local_vertices(),
                  result_t{1.0} / static_cast<result_t>(num_vertices));
   }
 
@@ -181,7 +186,7 @@ void pagerank(raft::handle_t& handle,
   result_t personalization_sum{0.0};
   if (personalization_vertices != nullptr) {
     personalization_sum = reduce_v(handle,
-                                   graph_device_view,
+                                   pull_graph_view,
                                    personalization_values,
                                    personalization_values + personalization_vector_size,
                                    result_t{0.0});
@@ -193,28 +198,29 @@ void pagerank(raft::handle_t& handle,
 
   // old PageRank values
   rmm::device_vector<result_t> adj_matrix_row_pageranks(
-    graph_device_view.get_number_of_adj_matrix_local_rows(), result_t{0.0});
+    pull_graph_view.get_number_of_local_adj_matrix_partition_rows(), result_t{0.0});
   size_t iter{0};
   while (true) {
-    copy_to_adj_matrix_row(handle, graph_device_view, pageranks, adj_matrix_row_pageranks.begin());
+    copy_to_adj_matrix_row(handle, pull_graph_view, pageranks, adj_matrix_row_pageranks.begin());
 
     auto row_val_first = thrust::make_zip_iterator(
       thrust::make_tuple(adj_matrix_row_pageranks.begin(), row_out_weight_sums));
-    thrust::transform(rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
-                      row_val_first,
-                      row_val_first + graph_device_view.get_number_of_adj_matrix_local_rows(),
-                      adj_matrix_row_pageranks.begin(),
-                      [] __device__(auto val) {
-                        auto const row_pagerank       = thrust::get<0>(val);
-                        auto const row_out_weight_sum = thrust::get<1>(val);
-                        auto const divisor =
-                          row_out_weight_sum == result_t{0.0} ? result_t{1.0} : row_out_weight_sum;
-                        return row_pagerank / divisor;
-                      });
+    thrust::transform(
+      rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
+      row_val_first,
+      row_val_first + pull_graph_view.get_number_of_local_adj_matrix_partition_rows(),
+      adj_matrix_row_pageranks.begin(),
+      [] __device__(auto val) {
+        auto const row_pagerank       = thrust::get<0>(val);
+        auto const row_out_weight_sum = thrust::get<1>(val);
+        auto const divisor =
+          row_out_weight_sum == result_t{0.0} ? result_t{1.0} : row_out_weight_sum;
+        return row_pagerank / divisor;
+      });
 
     auto dangling_sum = transform_reduce_v_with_adj_matrix_row(
       handle,
-      graph_device_view,
+      pull_graph_view,
       thrust::make_constant_iterator(0) /* dummy */,
       row_val_first,
       [] __device__(auto v_val, auto row_val) {
@@ -231,31 +237,34 @@ void pagerank(raft::handle_t& handle,
 
     copy_v_transform_reduce_in_nbr(
       handle,
-      graph_device_view,
+      pull_graph_view,
       adj_matrix_row_pageranks.begin(),
       thrust::make_constant_iterator(0) /* dummy */,
-      [alpha] __device__(auto src_val, auto dst_val, weight_t w) { return src_val * w * alpha; },
+      [alpha] __device__(vertex_t src, vertex_t dst, weight_t w, auto src_val, auto dst_val) {
+        return src_val * w * alpha;
+      },
       unvarying_part,
       pageranks);
 
     if (personalization_vertices != nullptr) {
+      vertex_partition_device_t<GraphViewType> vertex_partition(pull_graph_view);
       auto val_first = thrust::make_zip_iterator(
         thrust::make_tuple(personalization_vertices, personalization_values));
       thrust::for_each(
         val_first,
         val_first + personalization_vector_size,
-        [graph_device_view, pageranks, dangling_sum, personalization_sum, alpha] __device__(
+        [vertex_partition, pageranks, dangling_sum, personalization_sum, alpha] __device__(
           auto val) {
           auto v     = thrust::get<0>(val);
           auto value = thrust::get<1>(val);
-          *(pageranks + graph_device_view.get_local_vertex_offset_from_vertex_nocheck(v)) +=
+          *(pageranks + vertex_partition.get_local_vertex_offset_from_vertex_nocheck(v)) +=
             (dangling_sum + static_cast<result_t>(1.0 - alpha)) * (value / personalization_sum);
         });
     }
 
     auto diff_sum = transform_reduce_v_with_adj_matrix_row(
       handle,
-      graph_device_view,
+      pull_graph_view,
       pageranks,
       thrust::make_zip_iterator(
         thrust::make_tuple(adj_matrix_row_pageranks.begin(), row_out_weight_sums)),
@@ -280,9 +289,9 @@ void pagerank(raft::handle_t& handle,
 
 }  // namespace detail
 
-template <typename vertex_t, typename edge_t, typename weight_t, typename result_t>
+template <typename vertex_t, typename edge_t, typename weight_t, typename result_t, bool multi_gpu>
 void pagerank(raft::handle_t& handle,
-              GraphCSCView<vertex_t, edge_t, weight_t> const& graph,
+              graph_view_t<vertex_t, edge_t, weight_t, true, multi_gpu> const& graph_view,
               weight_t* adj_matrix_row_out_weight_sums,
               vertex_t* personalization_vertices,
               result_t* personalization_values,
@@ -295,7 +304,7 @@ void pagerank(raft::handle_t& handle,
               bool do_expensive_check)
 {
   detail::pagerank(handle,
-                   graph,
+                   graph_view,
                    adj_matrix_row_out_weight_sums,
                    personalization_vertices,
                    personalization_values,
@@ -311,7 +320,20 @@ void pagerank(raft::handle_t& handle,
 // explicit instantiation
 
 template void pagerank(raft::handle_t& handle,
-                       GraphCSCView<int32_t, int32_t, float> const& graph,
+                       graph_view_t<int32_t, int32_t, float, true, false> const& graph_view,
+                       float* adj_matrix_row_out_weight_sums,
+                       int32_t* personalization_vertices,
+                       float* personalization_values,
+                       int32_t personalization_vector_size,
+                       float* pageranks,
+                       float alpha,
+                       float epsilon,
+                       size_t max_iterations,
+                       bool has_initial_guess,
+                       bool do_expensive_check);
+
+template void pagerank(raft::handle_t& handle,
+                       graph_view_t<int32_t, int32_t, float, true, true> const& graph_view,
                        float* adj_matrix_row_out_weight_sums,
                        int32_t* personalization_vertices,
                        float* personalization_values,

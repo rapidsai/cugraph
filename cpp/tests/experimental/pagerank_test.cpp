@@ -14,10 +14,12 @@
  * limitations under the License.
  */
 
+#include <utilities/base_fixture.hpp>
 #include <utilities/test_utilities.hpp>
 
 #include <algorithms.hpp>
-#include <graph.hpp>
+#include <experimental/graph.hpp>
+#include <experimental/graph_view.hpp>
 
 #include <raft/cudart_utils.h>
 #include <raft/handle.hpp>
@@ -114,15 +116,16 @@ void pagerank_reference(edge_t* offsets,
 }
 
 typedef struct PageRank_Usecase_t {
-  std::string graph_file_path_;
-  std::string graph_file_full_path_;
+  std::string graph_file_full_path{};
+  bool test_weighted{false};
 
-  PageRank_Usecase_t(std::string const& graph_file_path) : graph_file_path_(graph_file_path)
+  PageRank_Usecase_t(std::string const& graph_file_path, bool test_weighted)
+    : test_weighted(test_weighted)
   {
-    if ((graph_file_path_.length() > 0) && (graph_file_path[0] != '/')) {
-      graph_file_full_path_ = cugraph::test::get_rapids_dataset_root_dir() + "/" + graph_file_path_;
+    if ((graph_file_path.length() > 0) && (graph_file_path[0] != '/')) {
+      graph_file_full_path = cugraph::test::get_rapids_dataset_root_dir() + "/" + graph_file_path;
     } else {
-      graph_file_full_path_ = graph_file_path_;
+      graph_file_full_path = graph_file_path;
     }
   };
 } PageRank_Usecase;
@@ -139,63 +142,34 @@ class Tests_PageRank : public ::testing::TestWithParam<PageRank_Usecase> {
   template <typename vertex_t, typename edge_t, typename weight_t, typename result_t>
   void run_current_test(PageRank_Usecase const& configuration)
   {
-    // FIXME: better read using a uiltity function (for CSR, we have generate_graph_csr_from_mm)
-    MM_typecode mc{};
-    vertex_t m{};
-    vertex_t k{};
-    edge_t nnz{};
+    raft::handle_t handle{};
 
-    FILE* file = fopen(configuration.graph_file_full_path_.c_str(), "r");
-    ASSERT_NE(file, nullptr) << "fopen (" << configuration.graph_file_full_path_ << ") failure.";
+    auto graph =
+      cugraph::test::read_graph_from_matrix_market_file<vertex_t, edge_t, weight_t, true>(
+        handle, configuration.graph_file_full_path, configuration.test_weighted);
+    auto graph_view = graph.view();
 
-    ASSERT_EQ(cugraph::test::mm_properties<int>(file, 1, &mc, &m, &k, &nnz), 0)
-      << "could not read Matrix Market file properties\n";
-    ASSERT_TRUE(mm_is_matrix(mc));
-    ASSERT_TRUE(mm_is_coordinate(mc));
-    ASSERT_FALSE(mm_is_complex(mc));
-    ASSERT_FALSE(mm_is_skew(mc));
-
-    std::vector<vertex_t> rows(nnz, vertex_t{0});
-    std::vector<vertex_t> cols(nnz, vertex_t{0});
-    std::vector<weight_t> weights(nnz, weight_t{0.0});
-
-    ASSERT_EQ((cugraph::test::mm_to_coo<vertex_t, weight_t>(
-                file, 1, nnz, rows.data(), cols.data(), weights.data(), nullptr)),
-              0)
-      << "could not read matrix data\n";
-    ASSERT_EQ(fclose(file), 0);
-
-    // FIXME: this is more of a hack than a proper implementation.
-    cugraph::GraphCOOView<vertex_t, edge_t, weight_t> coo_graph(
-      cols.data(), rows.data(), weights.data(), m, nnz);
-    auto p_csc_graph = cugraph::coo_to_csr(coo_graph);
-    cugraph::GraphCSCView<vertex_t, edge_t, weight_t> csc_graph_view(
-      p_csc_graph->offsets(),
-      p_csc_graph->indices(),
-      p_csc_graph->edge_data(),
-      p_csc_graph->number_of_vertices(),
-      p_csc_graph->number_of_edges());
-
-    std::vector<edge_t> h_offsets(csc_graph_view.number_of_vertices + 1);
-    std::vector<vertex_t> h_indices(csc_graph_view.number_of_edges);
+    std::vector<edge_t> h_offsets(graph_view.get_number_of_vertices() + 1);
+    std::vector<vertex_t> h_indices(graph_view.get_number_of_edges());
     std::vector<weight_t> h_weights{};
-    std::vector<result_t> h_reference_pageranks(csc_graph_view.number_of_vertices);
-
-    CUDA_TRY(cudaMemcpy(h_offsets.data(),
-                        csc_graph_view.offsets,
-                        sizeof(edge_t) * h_offsets.size(),
-                        cudaMemcpyDeviceToHost));
-    CUDA_TRY(cudaMemcpy(h_indices.data(),
-                        csc_graph_view.indices,
-                        sizeof(vertex_t) * h_indices.size(),
-                        cudaMemcpyDeviceToHost));
-    if (csc_graph_view.edge_data != nullptr) {
-      h_weights.assign(csc_graph_view.number_of_edges, weight_t{0.0});
-      CUDA_TRY(cudaMemcpy(h_weights.data(),
-                          csc_graph_view.edge_data,
-                          sizeof(weight_t) * h_weights.size(),
-                          cudaMemcpyDeviceToHost));
+    raft::update_host(h_offsets.data(),
+                      graph_view.offsets(),
+                      graph_view.get_number_of_vertices() + 1,
+                      handle.get_stream());
+    raft::update_host(h_indices.data(),
+                      graph_view.indices(),
+                      graph_view.get_number_of_edges(),
+                      handle.get_stream());
+    if (graph_view.is_weighted()) {
+      h_weights.assign(graph_view.get_number_of_edges(), weight_t{0.0});
+      raft::update_host(h_weights.data(),
+                        graph_view.weights(),
+                        graph_view.get_number_of_edges(),
+                        handle.get_stream());
     }
+    CUDA_TRY(cudaStreamSynchronize(handle.get_stream()));
+
+    std::vector<result_t> h_reference_pageranks(graph_view.get_number_of_vertices());
 
     result_t constexpr alpha{0.85};
     result_t constexpr epsilon{1e-6};
@@ -206,22 +180,20 @@ class Tests_PageRank : public ::testing::TestWithParam<PageRank_Usecase> {
                        static_cast<vertex_t*>(nullptr),
                        static_cast<result_t*>(nullptr),
                        h_reference_pageranks.data(),
-                       csc_graph_view.number_of_vertices,
+                       graph_view.get_number_of_vertices(),
                        vertex_t{0},
                        alpha,
                        epsilon,
                        std::numeric_limits<size_t>::max(),
                        false);
 
-    raft::handle_t handle{};
-
-    rmm::device_uvector<result_t> d_pageranks(csc_graph_view.number_of_vertices,
+    rmm::device_uvector<result_t> d_pageranks(graph_view.get_number_of_vertices(),
                                               handle.get_stream());
 
     CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
 
     cugraph::experimental::pagerank(handle,
-                                    csc_graph_view,
+                                    graph_view,
                                     static_cast<weight_t*>(nullptr),
                                     static_cast<vertex_t*>(nullptr),
                                     static_cast<result_t*>(nullptr),
@@ -235,12 +207,11 @@ class Tests_PageRank : public ::testing::TestWithParam<PageRank_Usecase> {
 
     CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
 
-    std::vector<result_t> h_cugraph_pageranks(csc_graph_view.number_of_vertices);
+    std::vector<result_t> h_cugraph_pageranks(graph_view.get_number_of_vertices());
 
-    CUDA_TRY(cudaMemcpy(h_cugraph_pageranks.data(),
-                        d_pageranks.data(),
-                        sizeof(result_t) * d_pageranks.size(),
-                        cudaMemcpyDeviceToHost));
+    raft::update_host(
+      h_cugraph_pageranks.data(), d_pageranks.data(), d_pageranks.size(), handle.get_stream());
+    CUDA_TRY(cudaStreamSynchronize(handle.get_stream()));
 
     auto nearly_equal = [epsilon](auto lhs, auto rhs) { return std::fabs(lhs - rhs) < epsilon; };
 
@@ -260,16 +231,14 @@ TEST_P(Tests_PageRank, CheckInt32Int32FloatFloat)
 
 INSTANTIATE_TEST_CASE_P(simple_test,
                         Tests_PageRank,
-                        ::testing::Values(PageRank_Usecase("test/datasets/karate.mtx"),
-                                          PageRank_Usecase("test/datasets/web-Google.mtx"),
-                                          PageRank_Usecase("test/datasets/ljournal-2008.mtx"),
-                                          PageRank_Usecase("test/datasets/webbase-1M.mtx")));
+                        ::testing::Values(PageRank_Usecase("test/datasets/karate.mtx", false),
+                                          PageRank_Usecase("test/datasets/karate.mtx", true),
+                                          PageRank_Usecase("test/datasets/web-Google.mtx", false),
+                                          PageRank_Usecase("test/datasets/web-Google.mtx", true),
+                                          PageRank_Usecase("test/datasets/ljournal-2008.mtx",
+                                                           false),
+                                          PageRank_Usecase("test/datasets/ljournal-2008.mtx", true),
+                                          PageRank_Usecase("test/datasets/webbase-1M.mtx", false),
+                                          PageRank_Usecase("test/datasets/webbase-1M.mtx", true)));
 
-int main(int argc, char** argv)
-{
-  testing::InitGoogleTest(&argc, argv);
-  auto resource = std::make_unique<rmm::mr::cuda_memory_resource>();
-  rmm::mr::set_default_resource(resource.get());
-  int rc = RUN_ALL_TESTS();
-  return rc;
-}
+CUGRAPH_TEST_PROGRAM_MAIN()

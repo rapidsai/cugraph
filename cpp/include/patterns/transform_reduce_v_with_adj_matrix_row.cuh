@@ -15,7 +15,7 @@
  */
 #pragma once
 
-#include <graph_device_view.cuh>
+#include <experimental/graph_view.hpp>
 #include <utilities/error.hpp>
 
 #include <raft/handle.hpp>
@@ -34,8 +34,7 @@ namespace experimental {
  * properties and adjacency matrix row properties for the matching row, and @p v_op outputs are
  * reduced. This function is inspired by thrust::transform_reduce().
  *
- * @tparam HandleType Type of the RAFT handle (e.g. for single-GPU or multi-GPU).
- * @tparam GraphType Type of the passed graph object.
+ * @tparam GraphViewType Type of the passed non-owning graph object.
  * @tparam VertexValueInputIterator Type of the iterator for vertex properties.
  * @tparam AdjMatrixRowValueInputIterator Type of the iterator for graph adjacency matrix column
  * input properties.
@@ -43,40 +42,38 @@ namespace experimental {
  * @tparam T Type of the initial value.
  * @param handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator, and
  * handles to various CUDA libraries) to run graph algorithms.
- * @param graph_device_view Graph object. This graph object should support pass-by-value to device
- * kernels.
+ * @param graph_view Non-owning graph object.
  * @param vertex_value_input_first Iterator pointing to the vertex properties for the first
  * (inclusive) vertex (assigned to this process in multi-GPU). `vertex_value_input_last` (exclusive)
- * is deduced as @p vertex_value_input_first + @p graph_device_view.get_number_of_local_vertices().
+ * is deduced as @p vertex_value_input_first + @p graph_view.get_number_of_local_vertices().
  * @param adj_matrix_row_value_input_first Iterator pointing to the adjacency matrix row input
  * properties for the first (inclusive) row (assigned to this process in multi-GPU).
  * `adj_matrix_row_value_input_last` (exclusive) is deduced as @p adj_matrix_row_value_input_first +
- * @p graph_device_view.get_number_of_adj_matrix_local_rows().
+ * @p graph_view.get_number_of_adj_matrix_local_rows().
  * @param v_op Binary operator takes *(@p vertex_value_input_first + i) and *(@p
  * adj_matrix_row_value_input_first + j) (where i and j are set for a vertex and the matching row)
  * and returns a transformed value to be reduced.
  * @param init Initial value to be added to the transform-reduced input vertex properties.
  * @return T Reduction of the @p v_op outputs.
  */
-template <typename HandleType,
-          typename GraphType,
+template <typename GraphViewType,
           typename VertexValueInputIterator,
           typename AdjMatrixRowValueInputIterator,
           typename VertexOp,
           typename T>
 T transform_reduce_v_with_adj_matrix_row(
-  HandleType& handle,
-  GraphType const& graph_device_view,
+  raft::handle_t const& handle,
+  GraphViewType const& graph_view,
   VertexValueInputIterator vertex_value_input_first,
   AdjMatrixRowValueInputIterator adj_matrix_row_value_input_first,
   VertexOp v_op,
   T init)
 {
-  if (GraphType::is_multi_gpu) {
+  if (GraphViewType::is_multi_gpu) {
     CUGRAPH_FAIL("unimplemented.");
   } else {
-    assert(graph_device_view.get_number_of_local_vertices() ==
-           graph_device_view.get_number_of_adj_matrix_local_rows());
+    assert(graph_view.get_number_of_local_vertices() ==
+           graph_view.get_number_of_adj_matrix_local_rows());
     auto input_first = thrust::make_zip_iterator(
       thrust::make_tuple(vertex_value_input_first, adj_matrix_row_value_input_first));
     auto v_op_wrapper = [v_op] __device__(auto v_and_row_val) {
@@ -84,7 +81,7 @@ T transform_reduce_v_with_adj_matrix_row(
     };
     return thrust::transform_reduce(rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
                                     input_first,
-                                    input_first + graph_device_view.get_number_of_local_vertices(),
+                                    input_first + graph_view.get_number_of_local_vertices(),
                                     v_op_wrapper,
                                     init,
                                     thrust::plus<T>());

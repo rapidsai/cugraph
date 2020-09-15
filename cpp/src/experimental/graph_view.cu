@@ -175,13 +175,13 @@ graph_view_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu, std::enabl
         CUGRAPH_EXPECTS(
           vertex_partition_segment_offsets[(detail::num_segments_per_vertex_partition + 1) * i +
                                            detail::num_segments_per_vertex_partition] ==
-            partition.get_vertex_partition_range_first(vertex_partition_idx),
+            partition.get_vertex_partition_first(vertex_partition_idx),
           "Invalid API parameter: erroneous vertex_partition_segment_offsets.");
       }
     }
 
     CUGRAPH_EXPECTS(
-      partition.get_vertex_partition_range_last(comm_p_size - 1) == number_of_vertices,
+      partition.get_vertex_partition_last(comm_p_size - 1) == number_of_vertices,
       "Invalid API parameter: vertex partition should cover [0, number_of_vertices).");
 
     // FIXME: check for symmetricity may better be implemetned with transpose().
