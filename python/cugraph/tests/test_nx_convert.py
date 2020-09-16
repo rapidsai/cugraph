@@ -14,7 +14,6 @@
 import gc
 import pytest
 
-import cudf
 import cugraph
 from cugraph.tests import utils
 
@@ -43,4 +42,25 @@ def test_nx_convert(graph_file):
 
     assert nxG.number_of_nodes() == cuG.number_of_nodes()
     assert nxG.number_of_edges() == cuG.number_of_edges()
-    
+
+
+@pytest.mark.parametrize("graph_file", utils.DATASETS)
+def test_nx_convert_multicol(graph_file):
+    gc.collect()
+
+    # read data and create a Nx Graph
+    nx_df = utils.read_csv_for_nx(graph_file)
+
+    G = nx.DiGraph()
+
+    for row in nx_df.iterrows():
+        G.add_edge(
+            row[1]["0"], row[1]["1"], count=[row[1]["0"], row[1]["1"]]
+        )
+
+    nxG = nx.from_pandas_edgelist(nx_df, "0", "1")
+
+    cuG = cugraph.utilities.convert_from_nx(nxG)
+
+    assert nxG.number_of_nodes() == cuG.number_of_nodes()
+    assert nxG.number_of_edges() == cuG.number_of_edges()

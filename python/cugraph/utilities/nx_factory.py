@@ -10,9 +10,10 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-import networkx as nx 
+import networkx as nx
 import cugraph
 import cudf
+
 
 def convert_from_nx(nxG):
     if type(nxG) == nx.classes.graph.Graph:
@@ -33,7 +34,10 @@ def convert_from_nx(nxG):
         G.from_cudf_edgelist(gdf, "0", "1")
     else:
         gdf.columns = ["0", "1", "2"]
-        G.from_cudf_edgelist(gdf, "0", "1", "2")
+        if type(gdf["2"]) != float:
+            G.from_cudf_edgelist(gdf, "0", "1")
+        else:
+            G.from_cudf_edgelist(gdf, "0", "1", "2")
 
     del gdf
     del pdf

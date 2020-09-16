@@ -79,7 +79,7 @@ def networkx_call(Gnx, max_iter, tol, alpha, personalization_perc, nnz_vtx):
     personalization = None
     if personalization_perc != 0:
         personalization = {}
-        print(nnz_vtx)
+        # print(nnz_vtx)
         personalization_count = int(
             (nnz_vtx.size * personalization_perc) / 100.0
         )
@@ -87,17 +87,16 @@ def networkx_call(Gnx, max_iter, tol, alpha, personalization_perc, nnz_vtx):
         nnz_vtx = np.random.choice(
             nnz_vtx, min(nnz_vtx.size, personalization_count), replace=False
         )
-        print(nnz_vtx)
+        # print(nnz_vtx)
         nnz_val = np.random.random(nnz_vtx.size)
         nnz_val = nnz_val / sum(nnz_val)
-        print(nnz_val)
+        # print(nnz_val)
         for vtx, val in zip(nnz_vtx, nnz_val):
             personalization[vtx] = val
 
     z = {k: 1.0 / Gnx.number_of_nodes() for k in range(Gnx.number_of_nodes())}
 
     # Networkx Pagerank Call
-    print("Solving... ")
     t1 = time.time()
 
     pr = nx.pagerank(
@@ -149,7 +148,7 @@ def test_pagerank(
     )
 
     networkx_pr, networkx_prsn = networkx_call(
-        Gnx, max_iter, tol, alpha, personalization_perc,nnz_vtx
+        Gnx, max_iter, tol, alpha, personalization_perc, nnz_vtx
     )
 
     cu_nstart = None
@@ -178,6 +177,7 @@ def test_pagerank(
     print("Mismatches:", err)
     assert err < (0.01 * len(cugraph_pr))
 
+
 @pytest.mark.parametrize("graph_file", utils.DATASETS_UNDIRECTED)
 @pytest.mark.parametrize("max_iter", MAX_ITERATIONS)
 @pytest.mark.parametrize("tol", TOLERANCE)
@@ -197,7 +197,7 @@ def test_pagerank_nx(
     )
 
     networkx_pr, networkx_prsn = networkx_call(
-        Gnx, max_iter, tol, alpha, personalization_perc,nnz_vtx
+        Gnx, max_iter, tol, alpha, personalization_perc, nnz_vtx
     )
 
     cu_nstart = None

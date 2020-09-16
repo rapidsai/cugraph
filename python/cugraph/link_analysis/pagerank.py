@@ -13,8 +13,9 @@
 
 from cugraph.link_analysis import pagerank_wrapper
 from cugraph.structure.graph import null_check
-import networkx as nx 
+import networkx as nx
 import cugraph
+
 
 def pagerank(
     G, alpha=0.85, personalization=None, max_iter=100, tol=1.0e-5, nstart=None,
@@ -72,10 +73,10 @@ def pagerank(
     weight : str
         Edge data column to use.  Default is None
         This version of PageRank current does not use edge weight.
-        This parameter is here for NetworkX compatibility 
+        This parameter is here for NetworkX compatibility
     dangling : dict
         This parameter is here for NetworkX compatibility
-        
+  
     Returns
     -------
     PageRank : cudf.DataFrame
