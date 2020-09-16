@@ -1,7 +1,8 @@
 # cuGraph 0.16.0 (Date TBD)
 
 ## New Features
-- PR 1098 Add new graph classes to support 2D partitioning
+- PR #1098 Add new graph classes to support 2D partitioning
+- PR #1124 Sub-communicator initialization for 2D partitioning support
 
 ## Improvements
 - PR 1081 MNMG Renumbering - sort partitions by degree
