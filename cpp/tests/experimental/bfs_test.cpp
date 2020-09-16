@@ -99,7 +99,7 @@ class Tests_BFS : public ::testing::TestWithParam<BFS_Usecase> {
   void run_current_test(BFS_Usecase const& configuration)
   {
     using weight_t = float;
-    
+
     raft::handle_t handle{};
 
     auto graph =

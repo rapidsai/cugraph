@@ -74,15 +74,15 @@ struct evaluate_edge_op {
 };
 
 template <typename T>
-__host__ __device__ std::enable_if_t<std::is_arithmetic<T>::value, T> plus_edge_op_result(T const& lhs,
-                                                                                 T const& rhs)
+__host__ __device__ std::enable_if_t<std::is_arithmetic<T>::value, T> plus_edge_op_result(
+  T const& lhs, T const& rhs)
 {
   return lhs + rhs;
 }
 
 template <typename T>
 __host__ __device__ std::enable_if_t<is_thrust_tuple<T>::value, T> plus_edge_op_result(T const& lhs,
-                                                                              T const& rhs)
+                                                                                       T const& rhs)
 {
   return plus_thrust_tuple<T>()(lhs, rhs);
 }

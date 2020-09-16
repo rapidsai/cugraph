@@ -194,9 +194,9 @@ void sssp(raft::handle_t &handle,
       [near_far_threshold] __device__(auto v_val, auto pushed_val) {
         auto new_dist = thrust::get<0>(pushed_val);
         auto idx      = new_dist < v_val
-                          ? (new_dist < near_far_threshold ? static_cast<size_t>(Bucket::new_near)
-                                                           : static_cast<size_t>(Bucket::far))
-                          : VertexFrontier<thrust::tuple<vertex_t>, vertex_t>::kInvalidBucketIdx;
+                     ? (new_dist < near_far_threshold ? static_cast<size_t>(Bucket::new_near)
+                                                      : static_cast<size_t>(Bucket::far))
+                     : VertexFrontier<thrust::tuple<vertex_t>, vertex_t>::kInvalidBucketIdx;
         return thrust::make_tuple(idx, thrust::get<0>(pushed_val), thrust::get<1>(pushed_val));
       });
 
