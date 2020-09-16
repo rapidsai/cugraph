@@ -15,31 +15,29 @@
  */
 #pragma once
 
-#include <graph.hpp>
 #include <experimental/graph_view.hpp>
+#include <graph.hpp>
 #include <raft/handle.hpp>
 
 namespace cugraph {
 namespace cython {
 
-enum class numberTypeEnum : int { intType,
-                                  floatType,
-                                  doubleType
-};
+enum class numberTypeEnum : int { intType, floatType, doubleType };
 
 // FIXME: The GraphCSRView* types are not in use! Those are left in place in
 // case a legacy GraphCSRView class is needed, but these should be removed ASAP.
-enum class graphTypeEnum : int { null,
-                                 GraphCSRViewFloat,
-                                 GraphCSRViewDouble,
-                                 graph_view_t_float,
-                                 graph_view_t_double,
-                                 graph_view_t_float_mg,
-                                 graph_view_t_double_mg,
-                                 graph_view_t_float_transposed,
-                                 graph_view_t_double_transposed,
-                                 graph_view_t_float_mg_transposed,
-                                 graph_view_t_double_mg_transposed
+enum class graphTypeEnum : int {
+  null,
+  GraphCSRViewFloat,
+  GraphCSRViewDouble,
+  graph_view_t_float,
+  graph_view_t_double,
+  graph_view_t_float_mg,
+  graph_view_t_double_mg,
+  graph_view_t_float_transposed,
+  graph_view_t_double_transposed,
+  graph_view_t_float_mg_transposed,
+  graph_view_t_double_mg_transposed
 };
 
 // "container" for a graph type instance which insulates the owner from the
@@ -48,7 +46,6 @@ enum class graphTypeEnum : int { null,
 // greatly simplifies the Cython code since the Cython definition only needs to
 // define the container and not the various individual graph types in Cython.
 struct graph_container_t {
-
   // FIXME: use std::variant (or a better alternative, ie. type erasure?) instead
   //        of a union if possible
   union graphPtrUnion {
@@ -65,44 +62,36 @@ struct graph_container_t {
     experimental::graph_view_t<int, int, double, true, true>* graph_view_t_double_mg_transposed_ptr;
   };
 
-  inline graph_container_t() :
-     graph_ptr_union{nullptr},
-     graph_ptr_type{graphTypeEnum::null} {}
+  inline graph_container_t() : graph_ptr_union{nullptr}, graph_ptr_type{graphTypeEnum::null} {}
 
-  inline ~graph_container_t() {
-    switch(graph_ptr_type) {
-      case graphTypeEnum::GraphCSRViewFloat :
-        delete graph_ptr_union.GraphCSRViewFloatPtr;
-        break;
-      case graphTypeEnum::GraphCSRViewDouble :
-        delete graph_ptr_union.GraphCSRViewDoublePtr;
-        break;
-      case graphTypeEnum::graph_view_t_float :
-        delete graph_ptr_union.graph_view_t_float_ptr;
-        break;
-      case graphTypeEnum::graph_view_t_double :
+  inline ~graph_container_t()
+  {
+    switch (graph_ptr_type) {
+      case graphTypeEnum::GraphCSRViewFloat: delete graph_ptr_union.GraphCSRViewFloatPtr; break;
+      case graphTypeEnum::GraphCSRViewDouble: delete graph_ptr_union.GraphCSRViewDoublePtr; break;
+      case graphTypeEnum::graph_view_t_float: delete graph_ptr_union.graph_view_t_float_ptr; break;
+      case graphTypeEnum::graph_view_t_double:
         delete graph_ptr_union.graph_view_t_double_ptr;
         break;
-      case graphTypeEnum::graph_view_t_float_mg :
+      case graphTypeEnum::graph_view_t_float_mg:
         delete graph_ptr_union.graph_view_t_float_mg_ptr;
         break;
-      case graphTypeEnum::graph_view_t_double_mg :
+      case graphTypeEnum::graph_view_t_double_mg:
         delete graph_ptr_union.graph_view_t_double_mg_ptr;
         break;
-      case graphTypeEnum::graph_view_t_float_transposed :
+      case graphTypeEnum::graph_view_t_float_transposed:
         delete graph_ptr_union.graph_view_t_float_transposed_ptr;
         break;
-      case graphTypeEnum::graph_view_t_double_transposed :
+      case graphTypeEnum::graph_view_t_double_transposed:
         delete graph_ptr_union.graph_view_t_double_transposed_ptr;
         break;
-      case graphTypeEnum::graph_view_t_float_mg_transposed :
+      case graphTypeEnum::graph_view_t_float_mg_transposed:
         delete graph_ptr_union.graph_view_t_float_mg_transposed_ptr;
         break;
-      case graphTypeEnum::graph_view_t_double_mg_transposed :
+      case graphTypeEnum::graph_view_t_double_mg_transposed:
         delete graph_ptr_union.graph_view_t_double_mg_transposed_ptr;
         break;
-      default :
-        break;
+      default: break;
     }
     graph_ptr_type = graphTypeEnum::null;
   }

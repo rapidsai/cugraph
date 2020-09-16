@@ -15,10 +15,10 @@
  */
 
 #include <algorithms.hpp>
-#include <utilities/cython.hpp>
-#include <graph.hpp>
 #include <experimental/graph_view.hpp>
+#include <graph.hpp>
 #include <raft/handle.hpp>
+#include <utilities/cython.hpp>
 
 namespace cugraph {
 namespace cython {
@@ -44,32 +44,29 @@ void create_graph_t(graph_container_t& graph_container,
                     bool transposed,
                     bool multi_gpu)
 {
-
   // FIXME: This is soon-to-be legacy code left in place until the new graph_t
   // class is supported everywhere else. Remove everything down to the comment
   // line after the return stmnt.
   // Keep new code below return stmnt enabled to ensure it builds.
   if (weightType == numberTypeEnum::floatType) {
-    auto g = new GraphCSRView<int, int, float>(
-      reinterpret_cast<int*>(offsets),
-      reinterpret_cast<int*>(indices),
-      reinterpret_cast<float*>(weights),
-      num_vertices,
-      num_edges);
+    auto g = new GraphCSRView<int, int, float>(reinterpret_cast<int*>(offsets),
+                                               reinterpret_cast<int*>(indices),
+                                               reinterpret_cast<float*>(weights),
+                                               num_vertices,
+                                               num_edges);
     graph_container.graph_ptr_union.GraphCSRViewFloatPtr = g;
-    graph_container.graph_ptr_type = graphTypeEnum::GraphCSRViewFloat;
+    graph_container.graph_ptr_type                       = graphTypeEnum::GraphCSRViewFloat;
     g->set_local_data(local_vertices, local_edges, local_offsets);
     g->set_handle(const_cast<raft::handle_t*>(&handle));
 
   } else {
-    auto g = new GraphCSRView<int, int, double>(
-      reinterpret_cast<int*>(offsets),
-      reinterpret_cast<int*>(indices),
-      reinterpret_cast<double*>(weights),
-      num_vertices,
-      num_edges);
+    auto g = new GraphCSRView<int, int, double>(reinterpret_cast<int*>(offsets),
+                                                reinterpret_cast<int*>(indices),
+                                                reinterpret_cast<double*>(weights),
+                                                num_vertices,
+                                                num_edges);
     graph_container.graph_ptr_union.GraphCSRViewDoublePtr = g;
-    graph_container.graph_ptr_type = graphTypeEnum::GraphCSRViewDouble;
+    graph_container.graph_ptr_type                        = graphTypeEnum::GraphCSRViewDouble;
     g->set_local_data(local_vertices, local_edges, local_offsets);
     g->set_handle(const_cast<raft::handle_t*>(&handle));
   }
@@ -79,7 +76,7 @@ void create_graph_t(graph_container_t& graph_container,
 
   bool do_expensive_check{false};
   bool sorted_by_global_degree_within_vertex_partition{false};
-  experimental::graph_properties_t graph_props{.is_symmetric=false, .is_multigraph=false};
+  experimental::graph_properties_t graph_props{.is_symmetric = false, .is_multigraph = false};
 
   if (multi_gpu) {
     std::vector<int const*> adjmatrix_partition_offsets_vect;
@@ -90,36 +87,37 @@ void create_graph_t(graph_container_t& graph_container,
 
     if (weightType == numberTypeEnum::floatType) {
       std::vector<float const*> adjmatrix_partition_weights_vect;
-      auto g = new experimental::graph_view_t<int, int, float, false, true>(handle,
-                                                                            adjmatrix_partition_offsets_vect,
-                                                                            adjmatrix_partition_indices_vect,
-                                                                            adjmatrix_partition_weights_vect,
-                                                                            vertex_partition_segment_offsets_vect,
-                                                                            partition,
-                                                                            num_vertices,
-                                                                            num_edges,
-                                                                            graph_props,
-                                                                            sorted_by_global_degree_within_vertex_partition,
-                                                                            do_expensive_check);
+      auto g = new experimental::graph_view_t<int, int, float, false, true>(
+        handle,
+        adjmatrix_partition_offsets_vect,
+        adjmatrix_partition_indices_vect,
+        adjmatrix_partition_weights_vect,
+        vertex_partition_segment_offsets_vect,
+        partition,
+        num_vertices,
+        num_edges,
+        graph_props,
+        sorted_by_global_degree_within_vertex_partition,
+        do_expensive_check);
       graph_container.graph_ptr_union.graph_view_t_float_mg_ptr = g;
       graph_container.graph_ptr_type = graphTypeEnum::graph_view_t_float_mg;
 
     } else {
       std::vector<double const*> adjmatrix_partition_weights_vect;
-      auto g = new experimental::graph_view_t<int, int, double, false, true>(handle,
-                                                                             adjmatrix_partition_offsets_vect,
-                                                                             adjmatrix_partition_indices_vect,
-                                                                             adjmatrix_partition_weights_vect,
-                                                                             vertex_partition_segment_offsets_vect,
-                                                                             partition,
-                                                                             num_vertices,
-                                                                             num_edges,
-                                                                             graph_props,
-                                                                             sorted_by_global_degree_within_vertex_partition,
-                                                                             do_expensive_check);
+      auto g = new experimental::graph_view_t<int, int, double, false, true>(
+        handle,
+        adjmatrix_partition_offsets_vect,
+        adjmatrix_partition_indices_vect,
+        adjmatrix_partition_weights_vect,
+        vertex_partition_segment_offsets_vect,
+        partition,
+        num_vertices,
+        num_edges,
+        graph_props,
+        sorted_by_global_degree_within_vertex_partition,
+        do_expensive_check);
       graph_container.graph_ptr_union.graph_view_t_double_mg_ptr = g;
       graph_container.graph_ptr_type = graphTypeEnum::graph_view_t_double_mg;
-
     }
 
   } else {
@@ -128,34 +126,36 @@ void create_graph_t(graph_container_t& graph_container,
     std::vector<int> segment_offsets;
 
     if (weightType == numberTypeEnum::floatType) {
-       auto weights_array = reinterpret_cast<float const*>(weights);
-       auto g = new experimental::graph_view_t<int, int, float, false, false>(handle,
-                                                                              offsets_array,
-                                                                              indices_array,
-                                                                              weights_array,
-                                                                              segment_offsets,
-                                                                              num_vertices,
-                                                                              num_edges,
-                                                                              graph_props,
-                                                                              sorted_by_global_degree_within_vertex_partition,
-                                                                              do_expensive_check);
+      auto weights_array = reinterpret_cast<float const*>(weights);
+      auto g             = new experimental::graph_view_t<int, int, float, false, false>(
+        handle,
+        offsets_array,
+        indices_array,
+        weights_array,
+        segment_offsets,
+        num_vertices,
+        num_edges,
+        graph_props,
+        sorted_by_global_degree_within_vertex_partition,
+        do_expensive_check);
       graph_container.graph_ptr_union.graph_view_t_float_ptr = g;
-      graph_container.graph_ptr_type = graphTypeEnum::graph_view_t_float;
+      graph_container.graph_ptr_type                         = graphTypeEnum::graph_view_t_float;
 
     } else {
       auto weights_array = reinterpret_cast<double const*>(weights);
-      auto g = new experimental::graph_view_t<int, int, double, false, false>(handle,
-                                                                              offsets_array,
-                                                                              indices_array,
-                                                                              weights_array,
-                                                                              segment_offsets,
-                                                                              num_vertices,
-                                                                              num_edges,
-                                                                              graph_props,
-                                                                              sorted_by_global_degree_within_vertex_partition,
-                                                                              do_expensive_check);
+      auto g             = new experimental::graph_view_t<int, int, double, false, false>(
+        handle,
+        offsets_array,
+        indices_array,
+        weights_array,
+        segment_offsets,
+        num_vertices,
+        num_edges,
+        graph_props,
+        sorted_by_global_degree_within_vertex_partition,
+        do_expensive_check);
       graph_container.graph_ptr_union.graph_view_t_double_ptr = g;
-      graph_container.graph_ptr_type = graphTypeEnum::graph_view_t_double;
+      graph_container.graph_ptr_type                          = graphTypeEnum::graph_view_t_double;
     }
   }
 }
@@ -171,19 +171,21 @@ weight_t call_louvain(raft::handle_t const& handle,
   weight_t final_modularity;
 
   if (graph_container.graph_ptr_type == graphTypeEnum::GraphCSRViewFloat) {
-    std::pair<size_t, float> results = louvain(handle,
-                                               *(graph_container.graph_ptr_union.GraphCSRViewFloatPtr),
-                                               parts,
-                                               max_level,
-                                               static_cast<float>(resolution));
-    final_modularity                 = results.second;
+    std::pair<size_t, float> results =
+      louvain(handle,
+              *(graph_container.graph_ptr_union.GraphCSRViewFloatPtr),
+              parts,
+              max_level,
+              static_cast<float>(resolution));
+    final_modularity = results.second;
   } else {
-    std::pair<size_t, double> results = louvain(handle,
-                                                *(graph_container.graph_ptr_union.GraphCSRViewDoublePtr),
-                                                parts,
-                                                max_level,
-                                                static_cast<double>(resolution));
-    final_modularity                  = results.second;
+    std::pair<size_t, double> results =
+      louvain(handle,
+              *(graph_container.graph_ptr_union.GraphCSRViewDoublePtr),
+              parts,
+              max_level,
+              static_cast<double>(resolution));
+    final_modularity = results.second;
   }
 
   return final_modularity;
