@@ -44,8 +44,7 @@ struct key_naming_t {
   key_naming_t(void)
     : row_suffix_(std::string("_p_row")),
       col_suffix_(std::string("_p_col")),
-      prefix_(std::string("comm")),
-      name_(prefix_)
+      name_(std::string("comm"))
   {
   }
 
@@ -56,7 +55,6 @@ struct key_naming_t {
  private:
   std::string const row_suffix_;
   std::string const col_suffix_;
-  std::string const prefix_;
   std::string name_;
 };
 
