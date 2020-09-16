@@ -8,7 +8,7 @@
  * license agreement from NVIDIA CORPORATION is strictly prohibited.
  *
  */
-#include <gtest/gtest.h>
+#include <utilities/base_fixture.hpp>
 
 #include <algorithms.hpp>
 #include <graph.hpp>
@@ -17,9 +17,7 @@
 
 #include <rmm/thrust_rmm_allocator.h>
 
-#include <rmm/mr/device/cnmem_memory_resource.hpp>
-
-TEST(leiden_karate, success)
+TEST(louvain, success)
 {
   std::vector<int> off_h = {0,  16,  25,  35,  41,  44,  48,  52,  56,  61,  63, 66,
                             67, 69,  74,  76,  78,  80,  82,  84,  87,  89,  91, 93,
@@ -60,7 +58,8 @@ TEST(leiden_karate, success)
   size_t num_level = 40;
 
   raft::handle_t handle;
-  std::tie(num_level, modularity) = cugraph::leiden(handle, G, result_v.data().get());
+
+  std::tie(num_level, modularity) = cugraph::louvain(handle, G, result_v.data().get());
 
   cudaMemcpy((void*)&(cluster_id[0]),
              result_v.data().get(),
@@ -70,5 +69,7 @@ TEST(leiden_karate, success)
   int min = *min_element(cluster_id.begin(), cluster_id.end());
 
   ASSERT_GE(min, 0);
-  ASSERT_GE(modularity, 0.41116042 * 0.99);
+  ASSERT_GE(modularity, 0.402777 * 0.95);
 }
+
+CUGRAPH_TEST_PROGRAM_MAIN()

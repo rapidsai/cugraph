@@ -6,7 +6,7 @@ The [RAPIDS](https://rapids.ai) cuGraph library is a collection of GPU accelerat
 
  For more project details, see [rapids.ai](https://rapids.ai/).
 
-**NOTE:** For the latest stable [README.md](https://github.com/rapidsai/cudf/blob/main/README.md) ensure you are on the latest branch.
+**NOTE:** For the latest stable [README.md](https://github.com/rapidsai/cugraph/blob/main/README.md) ensure you are on the latest branch.
 
 
 
