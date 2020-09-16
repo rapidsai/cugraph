@@ -89,35 +89,33 @@ def louvain(input_df, local_data, rank, handle, max_level, resolution):
     cdef double final_modularity_double = 1.0
     cdef int num_level = 0
 
-    cdef graph_container_t graph_container
-
-    # FIXME: This dict should not be needed, instead update create_graph_t() to
-    #        take weights.dtype directly
-    # FIXME: Offsets and indices should also be void*, and have corresponding
-    #        dtypes passed to create_graph_t()
-    # FIXME: The excessive casting for the enum arg is needed to make cython
-    #        understand how to pass the enum value (this is the same pattern
-    #        used by cudf). This will not be needed with Cython 3.0
+    # FIXME: Offsets and indices are currently hardcoded to int, but this may
+    #        not be acceptable in the future.
     weightTypeMap = {np.dtype("float32") : <int>numberTypeEnum.floatType,
                      np.dtype("double") : <int>numberTypeEnum.doubleType}
 
-    create_graph_t(graph_container, handle_[0],
-                   <void*>c_offsets, <void*>c_indices, <void*>c_weights,
-                   <numberTypeEnum>(<int>(numberTypeEnum.intType)),
-                   <numberTypeEnum>(<int>(numberTypeEnum.intType)),
-                   <numberTypeEnum>(<int>(weightTypeMap[weights.dtype])),
-                   num_verts, num_local_edges,
-                   <int*>c_local_verts, <int*>c_local_edges, <int*>c_local_offsets,
-                   False, True)  # store_transposed, multi_gpu
+    cdef graph_container_t graph_container
+
+    # FIXME: The excessive casting for the enum arg is needed to make cython
+    #        understand how to pass the enum value (this is the same pattern
+    #        used by cudf). This will not be needed with Cython 3.0
+    populate_graph_container(graph_container, handle_[0],
+                             <void*>c_offsets, <void*>c_indices, <void*>c_weights,
+                             <numberTypeEnum>(<int>(numberTypeEnum.intType)),
+                             <numberTypeEnum>(<int>(numberTypeEnum.intType)),
+                             <numberTypeEnum>(<int>(weightTypeMap[weights.dtype])),
+                             num_verts, num_local_edges,
+                             <int*>c_local_verts, <int*>c_local_edges, <int*>c_local_offsets,
+                             False, True)  # store_transposed, multi_gpu
 
     if weights.dtype == np.float32:
         final_modularity_float = c_louvain.call_louvain[float](
-            handle_[0], graph_container, <int*>c_partition, max_level, resolution)
+            handle_[0], graph_container, <void*>c_partition, max_level, resolution)
         final_modularity = final_modularity_float
 
     else:
         final_modularity_double = c_louvain.call_louvain[double](
-            handle_[0], graph_container, <int*> c_partition, max_level, resolution)
+            handle_[0], graph_container, <void*> c_partition, max_level, resolution)
         final_modularity = final_modularity_double
 
     return df, final_modularity

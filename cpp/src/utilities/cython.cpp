@@ -19,6 +19,7 @@
 #include <graph.hpp>
 #include <raft/handle.hpp>
 #include <utilities/cython.hpp>
+#include <utilities/error.hpp>
 
 namespace cugraph {
 namespace cython {
@@ -28,26 +29,34 @@ namespace cython {
 // assumed it will delete it on destruction.
 //
 // FIXME: Should local_* values be void* as well?
-void create_graph_t(graph_container_t& graph_container,
-                    raft::handle_t const& handle,
-                    void* offsets,
-                    void* indices,
-                    void* weights,
-                    numberTypeEnum offsetType,
-                    numberTypeEnum indexType,
-                    numberTypeEnum weightType,
-                    int num_vertices,
-                    int num_edges,
-                    int* local_vertices,
-                    int* local_edges,
-                    int* local_offsets,
-                    bool transposed,
-                    bool multi_gpu)
+void populate_graph_container(graph_container_t& graph_container,
+                              raft::handle_t const& handle,
+                              void* offsets,
+                              void* indices,
+                              void* weights,
+                              numberTypeEnum offsetType,
+                              numberTypeEnum indexType,
+                              numberTypeEnum weightType,
+                              int num_vertices,
+                              int num_edges,
+                              int* local_vertices,
+                              int* local_edges,
+                              int* local_offsets,
+                              bool transposed,
+                              bool multi_gpu)
 {
+
+  CUGRAPH_EXPECTS(graph_container.graph_ptr_type == graphTypeEnum::null,
+                  "populate_graph_container() can only be called on an empty container.");
+
   // FIXME: This is soon-to-be legacy code left in place until the new graph_t
   // class is supported everywhere else. Remove everything down to the comment
   // line after the return stmnt.
   // Keep new code below return stmnt enabled to ensure it builds.
+  //
+  // FIXME: This is hardcoded to crete CSR types. Consider passing an additional
+  // arg (enum?) to this function to allow the caller to specify CSC or COO
+  // types as well when needed.
   if (weightType == numberTypeEnum::floatType) {
     auto g = new GraphCSRView<int, int, float>(reinterpret_cast<int*>(offsets),
                                                reinterpret_cast<int*>(indices),
@@ -163,18 +172,22 @@ void create_graph_t(graph_container_t& graph_container,
 // Wrapper for calling Louvain using a graph container
 template <typename weight_t>
 weight_t call_louvain(raft::handle_t const& handle,
-                      graph_container_t& graph_container,
-                      int* parts,
+                      graph_container_t const& graph_container,
+                      void* parts,
                       size_t max_level,
                       weight_t resolution)
 {
   weight_t final_modularity;
 
+  // FIXME: the only graph types currently in the container have ints for
+  // vertex_t and edge_t types. In the future, additional types for vertices and
+  // edges will be available, and when that happens, additional castings will be
+  // needed for the 'parts' arg in particular. For now, it is hardcoded to int.
   if (graph_container.graph_ptr_type == graphTypeEnum::GraphCSRViewFloat) {
     std::pair<size_t, float> results =
       louvain(handle,
               *(graph_container.graph_ptr_union.GraphCSRViewFloatPtr),
-              parts,
+              reinterpret_cast<int*>(parts),
               max_level,
               static_cast<float>(resolution));
     final_modularity = results.second;
@@ -182,7 +195,7 @@ weight_t call_louvain(raft::handle_t const& handle,
     std::pair<size_t, double> results =
       louvain(handle,
               *(graph_container.graph_ptr_union.GraphCSRViewDoublePtr),
-              parts,
+              reinterpret_cast<int*>(parts),
               max_level,
               static_cast<double>(resolution));
     final_modularity = results.second;
@@ -193,14 +206,14 @@ weight_t call_louvain(raft::handle_t const& handle,
 
 // Explicit instantiations
 template float call_louvain(raft::handle_t const& handle,
-                            graph_container_t& graph_container,
-                            int* parts,
+                            graph_container_t const& graph_container,
+                            void* parts,
                             size_t max_level,
                             float resolution);
 
 template double call_louvain(raft::handle_t const& handle,
-                             graph_container_t& graph_container,
-                             int* parts,
+                             graph_container_t const& graph_container,
+                             void* parts,
                              size_t max_level,
                              double resolution);
 

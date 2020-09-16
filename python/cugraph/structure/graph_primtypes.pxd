@@ -203,7 +203,7 @@ cdef extern from "utilities/cython.hpp" namespace "cugraph::cython":
     cdef struct graph_container_t:
         pass
 
-    cdef void create_graph_t(
+    cdef void populate_graph_container(
         graph_container_t &graph_container,
         const handle_t &handle,
         void *offsets,

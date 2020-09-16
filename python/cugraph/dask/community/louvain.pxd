@@ -22,7 +22,7 @@ cdef extern from "utilities/cython.hpp" namespace "cugraph::cython":
 
     cdef weight_t call_louvain[weight_t](
         const handle_t &handle,
-        graph_container_t &g,
-        int *parts,
+        const graph_container_t &g,
+        void *parts,
         size_t max_level,
         weight_t resolution) except +
