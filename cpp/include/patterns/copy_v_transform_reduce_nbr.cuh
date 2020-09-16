@@ -97,11 +97,11 @@ __global__ void for_all_major_for_all_nbr_low_out_degree(
       auto weight       = weights != nullptr ? weights[i] : weight_t{1.0};
       auto minor_offset = matrix_partition.get_minor_offset_from_minor_nocheck(minor);
       auto row          = GraphViewType::is_adj_matrix_transposed
-                            ? minor
-                            : matrix_partition.get_major_from_major_offset_nocheck(idx);
-      auto col          = GraphViewType::is_adj_matrix_transposed
-                            ? matrix_partition.get_major_from_major_offset_nocheck(idx)
-                            : minor;
+                   ? minor
+                   : matrix_partition.get_major_from_major_offset_nocheck(idx);
+      auto col = GraphViewType::is_adj_matrix_transposed
+                   ? matrix_partition.get_major_from_major_offset_nocheck(idx)
+                   : minor;
       auto row_offset =
         GraphViewType::is_adj_matrix_transposed ? minor_offset : static_cast<vertex_t>(idx);
       auto col_offset =
@@ -119,15 +119,13 @@ __global__ void for_all_major_for_all_nbr_low_out_degree(
     };
 
     if (update_major) {
-      *(result_value_output_first + idx) =
-        thrust::transform_reduce(thrust::seq,
-                                 thrust::make_counting_iterator(edge_t{0}),
-                                 thrust::make_counting_iterator(local_degree),
-                                 transform_op,
-                                 e_op_result_t{init},
-                                 [] __device__(auto lhs, auto rhs) {
-                                   return plus_edge_op_result(lhs, rhs);
-                                 });
+      *(result_value_output_first + idx) = thrust::transform_reduce(
+        thrust::seq,
+        thrust::make_counting_iterator(edge_t{0}),
+        thrust::make_counting_iterator(local_degree),
+        transform_op,
+        e_op_result_t{init},
+        [] __device__(auto lhs, auto rhs) { return plus_edge_op_result(lhs, rhs); });
     } else {
       thrust::for_each(
         thrust::seq,
@@ -148,11 +146,11 @@ __global__ void for_all_major_for_all_nbr_low_out_degree(
       auto weight       = weights != nullptr ? weights[i] : weight_t{1.0};
       auto minor_offset = matrix_partition.get_minor_offset_from_minor_nocheck(minor);
       auto row          = GraphViewType::is_adj_matrix_transposed
-                            ? minor
-                            : matrix_partition.get_major_from_major_offset_nocheck(idx);
-      auto col          = GraphViewType::is_adj_matrix_transposed
-                            ? matrix_partition.get_major_from_major_offset_nocheck(idx)
-                            : minor;
+                   ? minor
+                   : matrix_partition.get_major_from_major_offset_nocheck(idx);
+      auto col = GraphViewType::is_adj_matrix_transposed
+                   ? matrix_partition.get_major_from_major_offset_nocheck(idx)
+                   : minor;
       auto row_offset =
         GraphViewType::is_adj_matrix_transposed ? minor_offset : static_cast<vertex_t>(idx);
       auto col_offset =
@@ -193,7 +191,7 @@ __global__ void for_all_major_for_all_nbr_low_out_degree(
  * input properties.
  * @tparam AdjMatrixColValueInputIterator Type of the iterator for graph adjacency matrix column
  * input properties.
- * @tparam EdgeOp Type of the binary (or ternary) edge operator.
+ * @tparam EdgeOp Type of the quaternary (or quinary) edge operator.
  * @tparam T Type of the initial value for reduction over the incoming edges.
  * @tparam VertexValueOutputIterator Type of the iterator for vertex output property variables.
  * @param handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator, and
@@ -207,9 +205,10 @@ __global__ void for_all_major_for_all_nbr_low_out_degree(
  * properties for the first (inclusive) column (assigned to this process in multi-GPU).
  * `adj_matrix_col_value_output_last` (exclusive) is deduced as @p adj_matrix_col_value_output_first
  * + @p graph_view.get_number_of_adj_matrix_local_cols().
- * @param e_op Binary (or ternary) operator takes *(@p adj_matrix_row_value_input_first + i), *(@p
- * adj_matrix_col_value_input_first + j), (and optionally edge weight) (where i and j are row and
- * column indices, respectively) and returns a value to be reduced.
+ * @param e_op Quaternary (or quinary) operator takes edge source, edge destination, (optional edge
+ * weight), *(@p adj_matrix_row_value_input_first + i), and *(@p adj_matrix_col_value_input_first +
+ * j) (where i is in [0, graph_view.get_number_of_local_adj_matrix_partition_rows()) and j is in [0,
+ * get_number_of_local_adj_matrix_partition_cols())) and returns a value to be reduced.
  * @param init Initial value to be added to the reduced @e_op return values for each vertex.
  * @param vertex_value_output_first Iterator pointing to the vertex property variables for the first
  * (inclusive) vertex (assigned to tihs process in multi-GPU). `vertex_value_output_last`
@@ -276,7 +275,7 @@ void copy_v_transform_reduce_in_nbr(raft::handle_t const& handle,
  * input properties.
  * @tparam AdjMatrixColValueInputIterator Type of the iterator for graph adjacency matrix column
  * input properties.
- * @tparam EdgeOp Type of the binary (or ternary) edge operator.
+ * @tparam EdgeOp Type of the quaternary (or quinary) edge operator.
  * @tparam T Type of the initial value for reduction over the outgoing edges.
  * @tparam VertexValueOutputIterator Type of the iterator for vertex output property variables.
  * @param handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator, and
@@ -290,9 +289,10 @@ void copy_v_transform_reduce_in_nbr(raft::handle_t const& handle,
  * properties for the first (inclusive) column (assigned to this process in multi-GPU).
  * `adj_matrix_col_value_output_last` (exclusive) is deduced as @p adj_matrix_col_value_output_first
  * + @p graph_view.get_number_of_adj_matrix_local_cols().
- * @param e_op Binary (or ternary) operator takes *(@p adj_matrix_row_value_input_first + i), *(@p
- * adj_matrix_col_value_input_first + j), (and optionally edge weight) (where i and j are row and
- * column indices, respectively) and returns a value to be reduced.
+ * @param e_op Quaternary (or quinary) operator takes edge source, edge destination, (optional edge
+ * weight), *(@p adj_matrix_row_value_input_first + i), and *(@p adj_matrix_col_value_input_first +
+ * j) (where i is in [0, graph_view.get_number_of_local_adj_matrix_partition_rows()) and j is in [0,
+ * get_number_of_local_adj_matrix_partition_cols())) and returns a value to be reduced.
  * @param init Initial value to be added to the reduced @e_op return values for each vertex.
  * @param vertex_value_output_first Iterator pointing to the vertex property variables for the first
  * (inclusive) vertex (assigned to tihs process in multi-GPU). `vertex_value_output_last`

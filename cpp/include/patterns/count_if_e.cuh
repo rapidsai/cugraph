@@ -150,7 +150,7 @@ __global__ void for_all_major_for_all_nbr_low_out_degree(
  * input properties.
  * @tparam AdjMatrixColValueInputIterator Type of the iterator for graph adjacency matrix column
  * input properties.
- * @tparam EdgeOp Type of the binary (or ternary) edge operator.
+ * @tparam EdgeOp Type of the quaternary (or quinary) edge operator.
  * @param handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator, and
  * handles to various CUDA libraries) to run graph algorithms.
  * @param graph_view Non-owning graph object.
@@ -162,10 +162,11 @@ __global__ void for_all_major_for_all_nbr_low_out_degree(
  * properties for the first (inclusive) column (assigned to this process in multi-GPU).
  * `adj_matrix_col_value_output_last` (exclusive) is deduced as @p adj_matrix_col_value_output_first
  * + @p graph_view.get_number_of_adj_matrix_local_cols().
- * @param e_op Binary (or ternary) operator takes *(@p adj_matrix_row_value_input_first + i), *(@p
- * adj_matrix_col_value_input_first + j), (and optionally edge weight) (where i and j are row and
- * column indices, respectively) and returns true if this edge should be included in the returned
- * count.
+ * @param e_op Quaternary (or quinary) operator takes edge source, edge destination, (optional edge
+ * weight), *(@p adj_matrix_row_value_input_first + i), and *(@p adj_matrix_col_value_input_first +
+ * j) (where i is in [0, graph_view.get_number_of_local_adj_matrix_partition_rows()) and j is in [0,
+ * get_number_of_local_adj_matrix_partition_cols())) and returns true if this edge should be
+ * included in the returned count.
  * @return GraphViewType::edge_type Number of times @p e_op returned true.
  */
 template <typename GraphViewType,
