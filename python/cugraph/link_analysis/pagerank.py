@@ -98,8 +98,7 @@ def pagerank(
     >>> pr = cugraph.pagerank(G, alpha = 0.85, max_iter = 500, tol = 1.0e-05)
     """
 
-    if isinstance(G, nx.classes.graph.Graph):
-        G = cugraph.utilities.convert_from_nx(G)
+    G, isNx = cugraph.utilities.check_nx_graph(G)
 
     if personalization is not None:
         null_check(personalization["vertex"])
@@ -122,4 +121,7 @@ def pagerank(
     if G.renumbered:
         df = G.unrenumber(df, "vertex")
 
-    return df
+    if isNx == True:
+        return cugraph.utilities.df_score_to_dictionary(df, 'pagerank')
+    else:
+        return df

@@ -37,7 +37,7 @@ def betweenness_centrality(
 
     Parameters
     ----------
-    G : cuGraph.Graph
+    G : cuGraph.Graph or networkx.Graph
         cuGraph graph descriptor with connectivity information. The graph can
         be either directed (DiGraph) or undirected (Graph).
         Weights in the graph are ignored, the current implementation uses
@@ -86,7 +86,7 @@ def betweenness_centrality(
 
     Returns
     -------
-    df : cudf.DataFrame
+    df : cudf.DataFrame or Dictionary if using NetworkX
         GPU data frame containing two cudf.Series of size V: the vertex
         identifiers and the corresponding betweenness centrality values.
         Please note that the resulting the 'vertex' column might not be
@@ -111,8 +111,6 @@ def betweenness_centrality(
     # NOTE: cuDF doesn't currently support sampling, but there is a python
     # workaround.
 
-    vertices = _initialize_vertices(G, k, seed)
-
     if weight is not None:
         raise NotImplementedError(
             "weighted implementation of betweenness "
@@ -122,6 +120,10 @@ def betweenness_centrality(
     if result_dtype not in [np.float32, np.float64]:
         raise TypeError("result type can only be np.float32 or np.float64")
 
+    G, isNx = cugraph.utilities.check_nx_graph(G)
+    
+    vertices = _initialize_vertices(G, k, seed)
+
     df = betweenness_centrality_wrapper.betweenness_centrality(
         G, normalized, endpoints, weight, vertices, result_dtype
     )
@@ -129,7 +131,10 @@ def betweenness_centrality(
     if G.renumbered:
         return G.unrenumber(df, "vertex")
 
-    return df
+    if isNx == True:
+        return cugraph.utilities.df_score_to_dictionary(df, 'betweenness_centrality')
+    else:
+        return df
 
 
 def edge_betweenness_centrality(
@@ -143,7 +148,7 @@ def edge_betweenness_centrality(
 
     Parameters
     ----------
-    G : cuGraph.Graph
+    G : cuGraph.Graph or networkx.Graph
         cuGraph graph descriptor with connectivity information. The graph can
         be either directed (DiGraph) or undirected (Graph).
         Weights in the graph are ignored, the current implementation uses
@@ -218,7 +223,6 @@ def edge_betweenness_centrality(
     >>> ebc = cugraph.edge_betweenness_centrality(G)
     """
 
-    vertices = _initialize_vertices(G, k, seed)
     if weight is not None:
         raise NotImplementedError(
             "weighted implementation of betweenness "
@@ -226,6 +230,9 @@ def edge_betweenness_centrality(
         )
     if result_dtype not in [np.float32, np.float64]:
         raise TypeError("result type can only be np.float32 or np.float64")
+
+    G, isNx = cugraph.utilities.check_nx_graph(G)
+    vertices = _initialize_vertices(G, k, seed)
 
     df = edge_betweenness_centrality_wrapper.edge_betweenness_centrality(
         G, normalized, weight, vertices, result_dtype
@@ -240,8 +247,10 @@ def edge_betweenness_centrality(
         df[["src", "dst"]][lower_triangle] = df[["dst", "src"]][lower_triangle]
         df = df.groupby(by=["src", "dst"]).sum().reset_index()
 
-    return df
-
+    if isNx == True:
+        return cugraph.utilities.df_score_to_dictionary(df, 'betweenness_centrality')
+    else:
+        return df
 
 # In order to compare with pre-set sources,
 # k can either be a list or an integer or None

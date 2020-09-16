@@ -72,6 +72,24 @@ def cugraph_call(G, max_iter, tol, alpha, personalization, nstart):
     return sorted_pr
 
 
+# need a different function since the Nx version returns a dictionary
+def cugraph_nx_call(G, max_iter, tol, alpha, personalization, nstart):
+    # cugraph Pagerank Call
+    t1 = time.time()
+    pr = cugraph.pagerank(
+        G,
+        alpha=alpha,
+        max_iter=max_iter,
+        tol=tol,
+        personalization=personalization,
+        nstart=nstart,
+    )
+    t2 = time.time() - t1
+    print("Cugraph Time : " + str(t2))
+
+    return pr
+
+
 # The function selects personalization_perc% of accessible vertices in graph M
 # and randomly assigns them personalization values
 def networkx_call(Gnx, max_iter, tol, alpha, personalization_perc, nnz_vtx):
@@ -207,10 +225,11 @@ def test_pagerank_nx(
     cu_prsn = cudify(networkx_prsn)
 
     # cuGraph PageRank with Nx Graph
-    cugraph_pr = cugraph_call(Gnx, max_iter, tol, alpha, cu_prsn, cu_nstart)
+    cugraph_pr = cugraph_nx_call(Gnx, max_iter, tol, alpha, cu_prsn, cu_nstart)
 
     # Calculating mismatch
     networkx_pr = sorted(networkx_pr.items(), key=lambda x: x[0])
+    cugraph_pr = sorted(cugraph_pr.items(), key=lambda x: x[0])
     err = 0
     assert len(cugraph_pr) == len(networkx_pr)
     for i in range(len(cugraph_pr)):
@@ -219,5 +238,6 @@ def test_pagerank_nx(
             and cugraph_pr[i][0] == networkx_pr[i][0]
         ):
             err = err + 1
+            print(f"{cugraph_pr[i][1]} and {cugraph_pr[i][1]}")
     print("Mismatches:", err)
     assert err < (0.01 * len(cugraph_pr))

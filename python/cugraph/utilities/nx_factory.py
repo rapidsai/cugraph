@@ -43,3 +43,42 @@ def convert_from_nx(nxG):
     del pdf
 
     return G
+
+def check_nx_graph(G):
+    """
+    This is a convenience function that will ensure the proper graph type
+    """
+
+    if isinstance(G, nx.classes.graph.Graph):
+        return convert_from_nx(G), True
+    else:
+        return G, False
+
+def df_score_to_dictionary(df, k):
+    """
+    Convert a dataframe to a dictionary
+
+    Parameters
+    ----------
+     df : cudf.DataFrame 
+        GPU data frame containing two cudf.Series of size V: the vertex
+        identifiers and the corresponding score values.
+        Please note that the resulting the 'vertex' column might not be
+        in ascending order.
+
+        df['vertex'] : cudf.Series
+            Contains the vertex identifiers
+        df[X] : cudf.Series
+            Contains the scores of the vertices   
+    
+    k : str
+        score column name 
+
+
+    Returns
+    -------
+    dict : Dictionary of vertices and score
+
+    """
+    df = df.sort_values(by="vertex")
+    return df.to_pandas().set_index("vertex").to_dict()[k]
