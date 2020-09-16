@@ -150,15 +150,17 @@ struct graph_container_t {
 //   the above arrays.
 //
 // int* local_vertices, local_edges
-//   Arrays containing the subset of vertices and edges respectively, used when
-//   the resulting graph object is applied to a distributed/MG algorithm.
+//   Arrays containing the number of vertices and number of edges,
+//   respectively. For example, if there are a total of 7 vertices, 16 edges,
+//   and the algorithm is distributed over 3 GPUs, the local_vertices may contain
+//   [2,2,3] and local_edges may contain [5,5,6].
 //   NOTE: these parameters are only needed for legacy GraphC??View* classes and
 //   may not be present in future versions.
 //
 // int* local_offsets
 //   Array containing the offsets between the local_* arrays and those for the
-//   full graph, allowing the array to start at position zero yet still be
-//   mapped to a position in the full array.
+//   global graph, allowing the array to start at position zero yet still be
+//   mapped to a position in the global array.
 //   NOTE: this parameter is only needed for legacy GraphC??View* classes and
 //   may not be present in future versions.
 //
