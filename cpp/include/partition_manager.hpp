@@ -41,24 +41,11 @@ std::string to_string(from_t const& value)
 struct key_naming_t {
   // simplified key (one per all row subcomms / one per all column sub-comms):
   //
-  key_naming_t(std::string const& row_suffix = std::string("_p_row"),
-               std::string const& col_suffix = std::string("_p_col"),
-               std::string const& prefix     = std::string("comm"))
-    : row_suffix_(row_suffix), col_suffix_(col_suffix), prefix_(prefix), name_(prefix_)
-  {
-  }
-
-  // more involved key naming, using row/col indices:
-  //
-  key_naming_t(int row_indx,
-               int col_indx,
-               std::string const& row_suffix = std::string("_p_row"),
-               std::string const& col_suffix = std::string("_p_col"),
-               std::string const& prefix     = std::string("comm"))
-    : row_suffix_(row_suffix),
-      col_suffix_(col_suffix),
-      prefix_(prefix),
-      name_(prefix_ + "_" + to_string(row_indx) + "_" + to_string(col_indx))
+  key_naming_t(void)
+    : row_suffix_(std::string("_p_row")),
+      col_suffix_(std::string("_p_col")),
+      prefix_(std::string("comm")),
+      name_(prefix_)
   {
   }
 
