@@ -22,44 +22,52 @@
 namespace cugraph {
 namespace cython {
 
-// Factory function for creating graph containers from basic types
-// FIXME: This should accept void* for offsets and indices as well and take a
-//        dtype directly for each instead of the enum/int.
-graph_container_t create_graph_t(raft::handle_t const& handle,
-                                 int* offsets,
-                                 int* indices,
-                                 void* weights,
-                                 weightTypeEnum weightType,
-                                 int num_vertices,
-                                 int num_edges,
-                                 int* local_vertices,
-                                 int* local_edges,
-                                 int* local_offsets,
-                                 bool transposed,
-                                 bool multi_gpu)
+// Populates a graph_container_t with a pointer to a new graph object and sets
+// the meta-data accordingly.  The graph container owns the pointer and it is
+// assumed it will delete it on destruction.
+//
+// FIXME: Should local_* values be void* as well?
+void create_graph_t(graph_container_t& graph_container,
+                    raft::handle_t const& handle,
+                    void* offsets,
+                    void* indices,
+                    void* weights,
+                    numberTypeEnum offsetType,
+                    numberTypeEnum indexType,
+                    numberTypeEnum weightType,
+                    int num_vertices,
+                    int num_edges,
+                    int* local_vertices,
+                    int* local_edges,
+                    int* local_offsets,
+                    bool transposed,
+                    bool multi_gpu)
 {
-  graph_container_t graph_container{};
-  graph_container.wType = weightType;
 
-  // FIXME: instantiate graph_type_t instead when ready, add conditionals for
-  // properly instantiating MG or not based on multi_gpu, etc.
-
-  if (weightType == weightTypeEnum::floatType) {
-    graph_container.graph.GraphCSRViewFloat = GraphCSRView<int, int, float>(
-      offsets, indices, reinterpret_cast<float*>(weights), num_vertices, num_edges);
-    graph_container.graph.GraphCSRViewFloat.set_local_data(
+  if (weightType == numberTypeEnum::floatType) {
+    graph_container.graph_ptr.GraphCSRViewFloatPtr = new GraphCSRView<int, int, float>(
+      reinterpret_cast<int*>(offsets),
+      reinterpret_cast<int*>(indices),
+      reinterpret_cast<float*>(weights),
+      num_vertices,
+      num_edges);
+    graph_container.graph_ptr.GraphCSRViewFloatPtr->set_local_data(
       local_vertices, local_edges, local_offsets);
-    graph_container.graph.GraphCSRViewFloat.set_handle(const_cast<raft::handle_t*>(&handle));
+    graph_container.graph_ptr.GraphCSRViewFloatPtr->set_handle(const_cast<raft::handle_t*>(&handle));
+    graph_container.graph_ptr_type = graphTypeEnum::GraphCSRViewFloat;
 
   } else {
-    graph_container.graph.GraphCSRViewDouble = GraphCSRView<int, int, double>(
-      offsets, indices, reinterpret_cast<double*>(weights), num_vertices, num_edges);
-    graph_container.graph.GraphCSRViewDouble.set_local_data(
+    graph_container.graph_ptr.GraphCSRViewDoublePtr = new GraphCSRView<int, int, double>(
+      reinterpret_cast<int*>(offsets),
+      reinterpret_cast<int*>(indices),
+      reinterpret_cast<double*>(weights),
+      num_vertices,
+      num_edges);
+    graph_container.graph_ptr.GraphCSRViewDoublePtr->set_local_data(
       local_vertices, local_edges, local_offsets);
-    graph_container.graph.GraphCSRViewDouble.set_handle(const_cast<raft::handle_t*>(&handle));
+    graph_container.graph_ptr.GraphCSRViewDoublePtr->set_handle(const_cast<raft::handle_t*>(&handle));
+    graph_container.graph_ptr_type = graphTypeEnum::GraphCSRViewDouble;
   }
-
-  return graph_container;
 }
 
 // Wrapper for calling Louvain using a graph container
@@ -72,16 +80,16 @@ weight_t call_louvain(raft::handle_t const& handle,
 {
   weight_t final_modularity;
 
-  if (graph_container.wType == weightTypeEnum::floatType) {
+  if (graph_container.graph_ptr_type == graphTypeEnum::GraphCSRViewFloat) {
     std::pair<size_t, float> results = louvain(handle,
-                                               graph_container.graph.GraphCSRViewFloat,
+                                               *(graph_container.graph_ptr.GraphCSRViewFloatPtr),
                                                parts,
                                                max_level,
                                                static_cast<float>(resolution));
     final_modularity                 = results.second;
   } else {
     std::pair<size_t, double> results = louvain(handle,
-                                                graph_container.graph.GraphCSRViewDouble,
+                                                *(graph_container.graph_ptr.GraphCSRViewDoublePtr),
                                                 parts,
                                                 max_level,
                                                 static_cast<double>(resolution));

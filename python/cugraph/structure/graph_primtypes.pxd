@@ -195,19 +195,36 @@ cdef GraphViewType get_graph_view(input_graph, bool weightless=*, GraphViewType*
 # C++ utilities specifically for Cython
 cdef extern from "utilities/cython.hpp" namespace "cugraph::cython":
 
-    ctypedef enum weightTypeEnum:
-        floatType "cugraph::cython::weightTypeEnum::floatType"
-        doubleType "cugraph::cython::weightTypeEnum::doubleType"
+    ctypedef enum numberTypeEnum:
+        intType "cugraph::cython::numberTypeEnum::intType"
+        floatType "cugraph::cython::numberTypeEnum::floatType"
+        doubleType "cugraph::cython::numberTypeEnum::doubleType"
+
+    # ctypedef enum graphTypeEnum:
+    #     null "cugraph::cython::graphTypeEnum::null"
+    #     GraphCSRViewFloat "cugraph::cython::graphTypeEnum::GraphCSRViewFloat"
+    #     GraphCSRViewDouble "cugraph::cython::graphTypeEnum::GraphCSRViewDouble"
+    #     graph_view_t_float "cugraph::cython::graphTypeEnum::graph_view_t_float"
+    #     graph_view_t_double "cugraph::cython::graphTypeEnum::graph_view_t_double"
+    #     graph_view_t_float_mg "cugraph::cython::graphTypeEnum::graph_view_t_float_mg"
+    #     graph_view_t_double_mg "cugraph::cython::graphTypeEnum::graph_view_t_double_mg"
+    #     graph_view_t_float_transposed "cugraph::cython::graphTypeEnum::graph_view_t_float_transposed"
+    #     graph_view_t_double_transposed "cugraph::cython::graphTypeEnum::graph_view_t_double_transposed"
+    #     graph_view_t_float_mg_transposed "cugraph::cython::graphTypeEnum::graph_view_t_float_mg_transposed"
+    #     graph_view_t_double_mg_transposed "cugraph::cython::graphTypeEnum::graph_view_t_double_mg_transposed"
 
     cdef struct graph_container_t:
         pass
 
-    cdef graph_container_t create_graph_t(
+    cdef void create_graph_t(
+        graph_container_t &graph_container,
         const handle_t &handle,
-        int *offsets,
-        int *indices,
+        void *offsets,
+        void *indices,
         void *weights,
-        weightTypeEnum weightType,
+        numberTypeEnum offsetType,
+        numberTypeEnum indexType,
+        numberTypeEnum weightType,
         int num_vertices,
         int num_edges,
         int *local_vertices,

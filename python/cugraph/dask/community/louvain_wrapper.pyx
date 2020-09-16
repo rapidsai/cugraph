@@ -98,14 +98,17 @@ def louvain(input_df, local_data, rank, handle, max_level, resolution):
     # FIXME: The excessive casting for the enum arg is needed to make cython
     #        understand how to pass the enum value (this is the same pattern
     #        used by cudf). This will not be needed with Cython 3.0
-    weightTypeMap = {np.dtype("float32") : <int>weightTypeEnum.floatType,
-                     np.dtype("double") : <int>weightTypeEnum.doubleType}
+    weightTypeMap = {np.dtype("float32") : <int>numberTypeEnum.floatType,
+                     np.dtype("double") : <int>numberTypeEnum.doubleType}
 
-    graph_container = create_graph_t(handle_[0], <int*>c_offsets, <int*>c_indices,
-            <void*>c_weights, <weightTypeEnum>(<int>(weightTypeMap[weights.dtype])),
-            num_verts, num_local_edges,
-            <int*>c_local_verts, <int*>c_local_edges, <int*>c_local_offsets,
-            False, True)  # store_transposed, multi_gpu
+    create_graph_t(graph_container, handle_[0],
+                   <void*>c_offsets, <void*>c_indices, <void*>c_weights,
+                   <numberTypeEnum>(<int>(numberTypeEnum.intType)),
+                   <numberTypeEnum>(<int>(numberTypeEnum.intType)),
+                   <numberTypeEnum>(<int>(weightTypeMap[weights.dtype])),
+                   num_verts, num_local_edges,
+                   <int*>c_local_verts, <int*>c_local_edges, <int*>c_local_offsets,
+                   False, True)  # store_transposed, multi_gpu
 
     if weights.dtype == np.float32:
         final_modularity_float = c_louvain.call_louvain[float](

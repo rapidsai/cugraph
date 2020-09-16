@@ -16,6 +16,7 @@
 #pragma once
 
 #include <graph.hpp>
+#include <experimental/graph_view.hpp>
 #include <raft/handle.hpp>
 
 namespace cugraph {
@@ -23,15 +24,36 @@ namespace cython {
 
 // FIXME: use std::variant (or a better alternative, ie. type erasure?) instead
 //        of a union if possible
-// FIXME: add both CSRView and graph_type_t objects for easier testing during
-//        the transition
-union graphUnion {
-  graphUnion() {}
-  GraphCSRView<int, int, float> GraphCSRViewFloat;
-  GraphCSRView<int, int, double> GraphCSRViewDouble;
+union graphPtrUnion {
+  void* null;
+  GraphCSRView<int, int, float>* GraphCSRViewFloatPtr;
+  GraphCSRView<int, int, double>* GraphCSRViewDoublePtr;
+  experimental::graph_view_t<int, int, float, false, false>* graph_view_t_float_ptr;
+  experimental::graph_view_t<int, int, double, false, false>* graph_view_t_double_ptr;
+  experimental::graph_view_t<int, int, float, false, true>* graph_view_t_float_mg_ptr;
+  experimental::graph_view_t<int, int, double, false, true>* graph_view_t_double_mg_ptr;
+  experimental::graph_view_t<int, int, float, true, false>* graph_view_t_float_transposed_ptr;
+  experimental::graph_view_t<int, int, double, true, false>* graph_view_t_double_transposed_ptr;
+  experimental::graph_view_t<int, int, float, true, true>* graph_view_t_float_mg_transposed_ptr;
+  experimental::graph_view_t<int, int, double, true, true>* graph_view_t_double_mg_transposed_ptr;
 };
 
-enum class weightTypeEnum : int { floatType, doubleType };
+enum class numberTypeEnum : int { intType,
+                                  floatType,
+                                  doubleType
+};
+enum class graphTypeEnum : int { null,
+                                 GraphCSRViewFloat,
+                                 GraphCSRViewDouble,
+                                 graph_view_t_float,
+                                 graph_view_t_double,
+                                 graph_view_t_float_mg,
+                                 graph_view_t_double_mg,
+                                 graph_view_t_float_transposed,
+                                 graph_view_t_double_transposed,
+                                 graph_view_t_float_mg_transposed,
+                                 graph_view_t_double_mg_transposed
+};
 
 // "container" for a graph type instance which insulates the owner from the
 // specifics of the actual graph type. This is intended to be used in Cython
@@ -39,26 +61,70 @@ enum class weightTypeEnum : int { floatType, doubleType };
 // simplifies the Cython code greatly since it only needs to define the
 // container and not the various individual graph types in Cython.
 struct graph_container_t {
-  graph_container_t() {}
-  graphUnion graph;
-  weightTypeEnum wType;
+  inline graph_container_t() :
+     graph_ptr{nullptr},
+     graph_ptr_type{graphTypeEnum::null} {}
+   /*
+  inline ~graph_container_t() {
+    switch(graph_ptr_type) {
+      case graphTypeEnum::GraphCSRViewFloat :
+        delete graph_ptr.GraphCSRViewFloatPtr;
+        std::cout << "DELETED GraphCSRViewFloatPtr" << std::endl;
+        break;
+      case graphTypeEnum::GraphCSRViewDouble :
+        delete graph_ptr.GraphCSRViewDoublePtr;
+        break;
+      case graphTypeEnum::graph_view_t_float :
+        delete graph_ptr.graph_view_t_float_ptr;
+        break;
+      case graphTypeEnum::graph_view_t_double :
+        delete graph_ptr.graph_view_t_double_ptr;
+        break;
+      case graphTypeEnum::graph_view_t_float_mg :
+        delete graph_ptr.graph_view_t_float_mg_ptr;
+        break;
+      case graphTypeEnum::graph_view_t_double_mg :
+        delete graph_ptr.graph_view_t_double_mg_ptr;
+        break;
+      case graphTypeEnum::graph_view_t_float_transposed :
+        delete graph_ptr.graph_view_t_float_transposed_ptr;
+        break;
+      case graphTypeEnum::graph_view_t_double_transposed :
+        delete graph_ptr.graph_view_t_double_transposed_ptr;
+        break;
+      case graphTypeEnum::graph_view_t_float_mg_transposed :
+        delete graph_ptr.graph_view_t_float_mg_transposed_ptr;
+        break;
+      case graphTypeEnum::graph_view_t_double_mg_transposed :
+        delete graph_ptr.graph_view_t_double_mg_transposed_ptr;
+        break;
+      default :
+        break;
+    }
+    graph_ptr_type = graphTypeEnum::null;
+  }
+   */
+  graphPtrUnion graph_ptr;
+  graphTypeEnum graph_ptr_type;
 };
 
 // Factory function for creating graph containers from basic types
-// FIXME: This should accept void* for offsets and indices as well and take a
-//        dtype directly for each instead of the enum/int.
-graph_container_t create_graph_t(raft::handle_t const& handle,
-                                 int* offsets,
-                                 int* indices,
-                                 void* weights,
-                                 weightTypeEnum weightType,
-                                 int num_vertices,
-                                 int num_edges,
-                                 int* local_vertices,
-                                 int* local_edges,
-                                 int* local_offsets,
-                                 bool transposed,
-                                 bool multi_gpu);
+// FIXME: Should local_* values be void* as well?
+void create_graph_t(graph_container_t& graph_container,
+                    raft::handle_t const& handle,
+                    void* offsets,
+                    void* indices,
+                    void* weights,
+                    numberTypeEnum offsetType,
+                    numberTypeEnum indexType,
+                    numberTypeEnum weightType,
+                    int num_vertices,
+                    int num_edges,
+                    int* local_vertices,
+                    int* local_edges,
+                    int* local_offsets,
+                    bool transposed,
+                    bool multi_gpu);
 
 // Wrapper for calling Louvain using a graph container
 template <typename weight_t>

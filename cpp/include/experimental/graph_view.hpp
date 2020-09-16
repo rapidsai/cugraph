@@ -75,6 +75,8 @@ std::string const comm_p_col_key = "comm_p_key";
 template <typename vertex_t>
 class partition_t {
  public:
+  partition_t() {}
+
   partition_t(std::vector<vertex_t> const& vertex_partition_offsets,
               bool hypergraph_partitioned,
               int comm_p_row_size,
@@ -183,6 +185,8 @@ size_t constexpr num_segments_per_vertex_partition{3};
 template <typename vertex_t, typename edge_t, typename weight_t>
 class graph_base_t {
  public:
+  graph_base_t() {}
+
   graph_base_t(raft::handle_t const& handle,
                vertex_t number_of_vertices,
                edge_t number_of_edges,
@@ -241,6 +245,8 @@ class graph_view_t<vertex_t,
   using weight_type                              = weight_t;
   static constexpr bool is_adj_matrix_transposed = store_transposed;
   static constexpr bool is_multi_gpu             = multi_gpu;
+
+  graph_view_t() {}
 
   graph_view_t(raft::handle_t const& handle,
                std::vector<edge_t const*> const& adj_matrix_partition_offsets,
@@ -323,6 +329,8 @@ class graph_view_t<vertex_t,
   using weight_type                              = weight_t;
   static constexpr bool is_adj_matrix_transposed = store_transposed;
   static constexpr bool is_multi_gpu             = multi_gpu;
+
+  graph_view_t() {}
 
   graph_view_t(raft::handle_t const& handle,
                edge_t const* offsets,
