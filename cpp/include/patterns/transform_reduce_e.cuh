@@ -243,7 +243,7 @@ T transform_reduce_e(raft::handle_t const& handle,
                      T(),
                      plus_thrust_tuple<T>());
 
-    plus_thrust_tuple<T>()(result, partial_result);
+    result = plus_thrust_tuple<T>()(result, partial_result);
   }
 
   if (GraphViewType::is_multi_gpu) {

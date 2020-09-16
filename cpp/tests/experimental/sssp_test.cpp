@@ -208,10 +208,16 @@ class Tests_SSSP : public ::testing::TestWithParam<SSSP_Usecase> {
 // FIXME: add tests for type combinations
 TEST_P(Tests_SSSP, CheckInt32Int32Float) { run_current_test<int32_t, int32_t, float>(GetParam()); }
 
+#if 0
+INSTANTIATE_TEST_CASE_P(simple_test,
+                        Tests_SSSP,
+                        ::testing::Values(SSSP_Usecase("test/datasets/karate.mtx", 0)));
+#else
 INSTANTIATE_TEST_CASE_P(simple_test,
                         Tests_SSSP,
                         ::testing::Values(SSSP_Usecase("test/datasets/karate.mtx", 0),
                                           SSSP_Usecase("test/datasets/dblp.mtx", 0),
                                           SSSP_Usecase("test/datasets/wiki2003.mtx", 1000)));
+#endif
 
 CUGRAPH_TEST_PROGRAM_MAIN()

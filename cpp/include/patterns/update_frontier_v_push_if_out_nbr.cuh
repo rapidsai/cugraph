@@ -332,33 +332,47 @@ void update_frontier_v_push_if_out_nbr(
   using edge_t            = typename GraphViewType::edge_type;
   using reduce_op_input_t = typename ReduceOp::type;
 
-  // FIXME: Better make this a memeber variable of VertexFrontier to reduce # of memory allocations
+  std::vector<vertex_t> frontier_adj_matrix_partition_offsets(
+    graph_view.get_number_of_local_adj_matrix_partitions() + 1,
+    0);  // relevant only if GraphViewType::is_multi_gpu is true
   thrust::device_vector<vertex_t>
     frontier_rows{};  // relevant only if GraphViewType::is_multi_gpu is true
-  std::vector<vertex_t> frontier_adj_matrix_partition_offsets(
-    graph_view.get_number_of_local_adj_matrix_partitions() + 1, 0);
+  edge_t max_pushes{0};
 
   if (GraphViewType::is_multi_gpu) {
     // need to merge row_frontier and update frontier_offsets;
     CUGRAPH_FAIL("unimplemented.");
+
+#if 0  // comment out to suppress "loop is not reachable warning till the merge part is
+       // implemented."
+    for (size_t i = 0; i < graph_view.get_number_of_local_adj_matrix_partitions(); ++i) {
+      matrix_partition_device_t<GraphViewType> matrix_partition(graph_view, i);
+
+      max_pushes += thrust::transform_reduce(
+        rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
+        frontier_rows.begin() + frontier_adj_matrix_partition_offsets[i],
+        frontier_rows.begin() + frontier_adj_matrix_partition_offsets[i + 1],
+        [matrix_partition] __device__(auto row) {
+          auto row_offset = matrix_partition.get_major_offset_from_major_nocheck(row);
+          return matrix_partition.get_local_degree(row_offset);
+        },
+        edge_t{0},
+        thrust::plus<edge_t>());
+    }
+#endif
   } else {
-    frontier_adj_matrix_partition_offsets[1] = thrust::distance(vertex_first, vertex_last);
-  }
+    matrix_partition_device_t<GraphViewType> matrix_partition(graph_view, 0);
 
-  edge_t max_pushes{0};
-  for (size_t i = 0; i < graph_view.get_number_of_local_adj_matrix_partitions(); ++i) {
-    matrix_partition_device_t<GraphViewType> matrix_partition(graph_view, i);
-
-    max_pushes += thrust::transform_reduce(
+    max_pushes = thrust::transform_reduce(
       rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
-      frontier_rows.begin() + frontier_adj_matrix_partition_offsets[i],
-      frontier_rows.begin() + frontier_adj_matrix_partition_offsets[i + 1],
+      vertex_first,
+      vertex_last,
       [matrix_partition] __device__(auto row) {
         auto row_offset = matrix_partition.get_major_offset_from_major_nocheck(row);
         return matrix_partition.get_local_degree(row_offset);
       },
-      size_t{0},
-      thrust::plus<size_t>());
+      edge_t{0},
+      thrust::plus<edge_t>());
   }
 
   // FIXME: This is highly pessimistic for single GPU (and multi-GPU as well if we maintain
@@ -373,13 +387,41 @@ void update_frontier_v_push_if_out_nbr(
   auto buffer_key_first     = std::get<0>(buffer_first);
   auto buffer_payload_first = std::get<1>(buffer_first);
 
-  for (size_t i = 0; i < graph_view.get_number_of_local_adj_matrix_partitions(); ++i) {
-    matrix_partition_device_t<GraphViewType> matrix_partition(graph_view, i);
-    auto row_value_input_offset =
-      GraphViewType::is_adj_matrix_transposed ? 0 : matrix_partition.get_major_value_start_offset();
+  if (GraphViewType::is_multi_gpu) {
+    for (size_t i = 0; i < graph_view.get_number_of_local_adj_matrix_partitions(); ++i) {
+      matrix_partition_device_t<GraphViewType> matrix_partition(graph_view, i);
+      auto row_value_input_offset = GraphViewType::is_adj_matrix_transposed
+                                      ? 0
+                                      : matrix_partition.get_major_value_start_offset();
+
+      grid_1d_thread_t for_all_low_out_degree_grid(
+        frontier_adj_matrix_partition_offsets[i + 1] - frontier_adj_matrix_partition_offsets[i],
+        detail::update_frontier_v_push_if_out_nbr_for_all_low_out_degree_block_size,
+        get_max_num_blocks_1D());
+
+      // FIXME: This is highly inefficeint for graphs with high-degree vertices. If we renumber
+      // vertices to insure that rows within a partition are sorted by their out-degree in
+      // decreasing order, we will apply this kernel only to low out-degree vertices.
+      detail::
+        for_all_frontier_row_for_all_nbr_low_out_degree<<<for_all_low_out_degree_grid.num_blocks,
+                                                          for_all_low_out_degree_grid.block_size,
+                                                          0,
+                                                          handle.get_stream()>>>(
+          matrix_partition,
+          frontier_rows.begin() + frontier_adj_matrix_partition_offsets[i],
+          frontier_rows.begin() + frontier_adj_matrix_partition_offsets[i + 1],
+          adj_matrix_row_value_input_first + row_value_input_offset,
+          adj_matrix_col_value_input_first,
+          buffer_key_first,
+          buffer_payload_first,
+          vertex_frontier.get_buffer_idx_ptr(),
+          e_op);
+    }
+  } else {
+    matrix_partition_device_t<GraphViewType> matrix_partition(graph_view, 0);
 
     grid_1d_thread_t for_all_low_out_degree_grid(
-      frontier_adj_matrix_partition_offsets[i + 1] - frontier_adj_matrix_partition_offsets[i],
+      thrust::distance(vertex_first, vertex_last),
       detail::update_frontier_v_push_if_out_nbr_for_all_low_out_degree_block_size,
       get_max_num_blocks_1D());
 
@@ -392,9 +434,9 @@ void update_frontier_v_push_if_out_nbr(
                                                         0,
                                                         handle.get_stream()>>>(
         matrix_partition,
-        frontier_rows.begin() + frontier_adj_matrix_partition_offsets[i],
-        frontier_rows.begin() + frontier_adj_matrix_partition_offsets[i + 1],
-        adj_matrix_row_value_input_first + row_value_input_offset,
+        vertex_first,
+        vertex_last,
+        adj_matrix_row_value_input_first,
         adj_matrix_col_value_input_first,
         buffer_key_first,
         buffer_payload_first,
