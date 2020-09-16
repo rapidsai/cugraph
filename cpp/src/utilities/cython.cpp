@@ -45,7 +45,6 @@ void populate_graph_container(graph_container_t& graph_container,
                               bool transposed,
                               bool multi_gpu)
 {
-
   CUGRAPH_EXPECTS(graph_container.graph_ptr_type == graphTypeEnum::null,
                   "populate_graph_container() can only be called on an empty container.");
 
