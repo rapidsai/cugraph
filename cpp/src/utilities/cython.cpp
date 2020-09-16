@@ -45,35 +45,35 @@ void create_graph_t(graph_container_t& graph_container,
 {
 
   if (weightType == numberTypeEnum::floatType) {
-    graph_container.graph_ptr.GraphCSRViewFloatPtr = new GraphCSRView<int, int, float>(
+    graph_container.graph_ptr_union.GraphCSRViewFloatPtr = new GraphCSRView<int, int, float>(
       reinterpret_cast<int*>(offsets),
       reinterpret_cast<int*>(indices),
       reinterpret_cast<float*>(weights),
       num_vertices,
       num_edges);
-    graph_container.graph_ptr.GraphCSRViewFloatPtr->set_local_data(
-      local_vertices, local_edges, local_offsets);
-    graph_container.graph_ptr.GraphCSRViewFloatPtr->set_handle(const_cast<raft::handle_t*>(&handle));
     graph_container.graph_ptr_type = graphTypeEnum::GraphCSRViewFloat;
+    graph_container.graph_ptr_union.GraphCSRViewFloatPtr->set_local_data(
+      local_vertices, local_edges, local_offsets);
+    graph_container.graph_ptr_union.GraphCSRViewFloatPtr->set_handle(const_cast<raft::handle_t*>(&handle));
 
   } else {
-    graph_container.graph_ptr.GraphCSRViewDoublePtr = new GraphCSRView<int, int, double>(
+    graph_container.graph_ptr_union.GraphCSRViewDoublePtr = new GraphCSRView<int, int, double>(
       reinterpret_cast<int*>(offsets),
       reinterpret_cast<int*>(indices),
       reinterpret_cast<double*>(weights),
       num_vertices,
       num_edges);
-    graph_container.graph_ptr.GraphCSRViewDoublePtr->set_local_data(
-      local_vertices, local_edges, local_offsets);
-    graph_container.graph_ptr.GraphCSRViewDoublePtr->set_handle(const_cast<raft::handle_t*>(&handle));
     graph_container.graph_ptr_type = graphTypeEnum::GraphCSRViewDouble;
+    graph_container.graph_ptr_union.GraphCSRViewDoublePtr->set_local_data(
+      local_vertices, local_edges, local_offsets);
+    graph_container.graph_ptr_union.GraphCSRViewDoublePtr->set_handle(const_cast<raft::handle_t*>(&handle));
   }
 }
 
 // Wrapper for calling Louvain using a graph container
 template <typename weight_t>
 weight_t call_louvain(raft::handle_t const& handle,
-                      graph_container_t graph_container,
+                      graph_container_t& graph_container,
                       int* parts,
                       size_t max_level,
                       weight_t resolution)
@@ -82,14 +82,14 @@ weight_t call_louvain(raft::handle_t const& handle,
 
   if (graph_container.graph_ptr_type == graphTypeEnum::GraphCSRViewFloat) {
     std::pair<size_t, float> results = louvain(handle,
-                                               *(graph_container.graph_ptr.GraphCSRViewFloatPtr),
+                                               *(graph_container.graph_ptr_union.GraphCSRViewFloatPtr),
                                                parts,
                                                max_level,
                                                static_cast<float>(resolution));
     final_modularity                 = results.second;
   } else {
     std::pair<size_t, double> results = louvain(handle,
-                                                *(graph_container.graph_ptr.GraphCSRViewDoublePtr),
+                                                *(graph_container.graph_ptr_union.GraphCSRViewDoublePtr),
                                                 parts,
                                                 max_level,
                                                 static_cast<double>(resolution));
@@ -101,13 +101,13 @@ weight_t call_louvain(raft::handle_t const& handle,
 
 // Explicit instantiations
 template float call_louvain(raft::handle_t const& handle,
-                            graph_container_t graph_container,
+                            graph_container_t& graph_container,
                             int* parts,
                             size_t max_level,
                             float resolution);
 
 template double call_louvain(raft::handle_t const& handle,
-                             graph_container_t graph_container,
+                             graph_container_t& graph_container,
                              int* parts,
                              size_t max_level,
                              double resolution);

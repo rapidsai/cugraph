@@ -22,22 +22,6 @@
 namespace cugraph {
 namespace cython {
 
-// FIXME: use std::variant (or a better alternative, ie. type erasure?) instead
-//        of a union if possible
-union graphPtrUnion {
-  void* null;
-  GraphCSRView<int, int, float>* GraphCSRViewFloatPtr;
-  GraphCSRView<int, int, double>* GraphCSRViewDoublePtr;
-  experimental::graph_view_t<int, int, float, false, false>* graph_view_t_float_ptr;
-  experimental::graph_view_t<int, int, double, false, false>* graph_view_t_double_ptr;
-  experimental::graph_view_t<int, int, float, false, true>* graph_view_t_float_mg_ptr;
-  experimental::graph_view_t<int, int, double, false, true>* graph_view_t_double_mg_ptr;
-  experimental::graph_view_t<int, int, float, true, false>* graph_view_t_float_transposed_ptr;
-  experimental::graph_view_t<int, int, double, true, false>* graph_view_t_double_transposed_ptr;
-  experimental::graph_view_t<int, int, float, true, true>* graph_view_t_float_mg_transposed_ptr;
-  experimental::graph_view_t<int, int, double, true, true>* graph_view_t_double_mg_transposed_ptr;
-};
-
 enum class numberTypeEnum : int { intType,
                                   floatType,
                                   doubleType
@@ -61,50 +45,66 @@ enum class graphTypeEnum : int { null,
 // simplifies the Cython code greatly since it only needs to define the
 // container and not the various individual graph types in Cython.
 struct graph_container_t {
+
+  // FIXME: use std::variant (or a better alternative, ie. type erasure?) instead
+  //        of a union if possible
+  union graphPtrUnion {
+    void* null;
+    GraphCSRView<int, int, float>* GraphCSRViewFloatPtr;
+    GraphCSRView<int, int, double>* GraphCSRViewDoublePtr;
+    experimental::graph_view_t<int, int, float, false, false>* graph_view_t_float_ptr;
+    experimental::graph_view_t<int, int, double, false, false>* graph_view_t_double_ptr;
+    experimental::graph_view_t<int, int, float, false, true>* graph_view_t_float_mg_ptr;
+    experimental::graph_view_t<int, int, double, false, true>* graph_view_t_double_mg_ptr;
+    experimental::graph_view_t<int, int, float, true, false>* graph_view_t_float_transposed_ptr;
+    experimental::graph_view_t<int, int, double, true, false>* graph_view_t_double_transposed_ptr;
+    experimental::graph_view_t<int, int, float, true, true>* graph_view_t_float_mg_transposed_ptr;
+    experimental::graph_view_t<int, int, double, true, true>* graph_view_t_double_mg_transposed_ptr;
+  };
+
   inline graph_container_t() :
-     graph_ptr{nullptr},
+     graph_ptr_union{nullptr},
      graph_ptr_type{graphTypeEnum::null} {}
-   /*
+
   inline ~graph_container_t() {
     switch(graph_ptr_type) {
       case graphTypeEnum::GraphCSRViewFloat :
-        delete graph_ptr.GraphCSRViewFloatPtr;
-        std::cout << "DELETED GraphCSRViewFloatPtr" << std::endl;
+        delete graph_ptr_union.GraphCSRViewFloatPtr;
         break;
       case graphTypeEnum::GraphCSRViewDouble :
-        delete graph_ptr.GraphCSRViewDoublePtr;
+        delete graph_ptr_union.GraphCSRViewDoublePtr;
         break;
       case graphTypeEnum::graph_view_t_float :
-        delete graph_ptr.graph_view_t_float_ptr;
+        delete graph_ptr_union.graph_view_t_float_ptr;
         break;
       case graphTypeEnum::graph_view_t_double :
-        delete graph_ptr.graph_view_t_double_ptr;
+        delete graph_ptr_union.graph_view_t_double_ptr;
         break;
       case graphTypeEnum::graph_view_t_float_mg :
-        delete graph_ptr.graph_view_t_float_mg_ptr;
+        delete graph_ptr_union.graph_view_t_float_mg_ptr;
         break;
       case graphTypeEnum::graph_view_t_double_mg :
-        delete graph_ptr.graph_view_t_double_mg_ptr;
+        delete graph_ptr_union.graph_view_t_double_mg_ptr;
         break;
       case graphTypeEnum::graph_view_t_float_transposed :
-        delete graph_ptr.graph_view_t_float_transposed_ptr;
+        delete graph_ptr_union.graph_view_t_float_transposed_ptr;
         break;
       case graphTypeEnum::graph_view_t_double_transposed :
-        delete graph_ptr.graph_view_t_double_transposed_ptr;
+        delete graph_ptr_union.graph_view_t_double_transposed_ptr;
         break;
       case graphTypeEnum::graph_view_t_float_mg_transposed :
-        delete graph_ptr.graph_view_t_float_mg_transposed_ptr;
+        delete graph_ptr_union.graph_view_t_float_mg_transposed_ptr;
         break;
       case graphTypeEnum::graph_view_t_double_mg_transposed :
-        delete graph_ptr.graph_view_t_double_mg_transposed_ptr;
+        delete graph_ptr_union.graph_view_t_double_mg_transposed_ptr;
         break;
       default :
         break;
     }
     graph_ptr_type = graphTypeEnum::null;
   }
-   */
-  graphPtrUnion graph_ptr;
+
+  graphPtrUnion graph_ptr_union;
   graphTypeEnum graph_ptr_type;
 };
 
@@ -129,7 +129,7 @@ void create_graph_t(graph_container_t& graph_container,
 // Wrapper for calling Louvain using a graph container
 template <typename weight_t>
 weight_t call_louvain(raft::handle_t const& handle,
-                      graph_container_t graph_container,
+                      graph_container_t& graph_container,
                       int* parts,
                       size_t max_level,
                       weight_t resolution);
