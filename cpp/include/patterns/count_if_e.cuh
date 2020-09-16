@@ -182,20 +182,13 @@ typename GraphViewType::edge_type count_if_e(
   using vertex_t = typename GraphViewType::vertex_type;
   using edge_t   = typename GraphViewType::edge_type;
 
-std::vector<vertex_t> major_value_offsets(graph_view.get_number_of_local_adj_matrix_partitions(), 0);
-vertex_t major_value_offset{0};
-for (size_t i = 0; i < graph_view.get_number_of_local_adj_matrix_partitions(); ++i) {
-  major_values_offsets[i] = major_value_offset;
-  major_value_offset += GraphViewType::is_adj_matrix_transposed ? graph_view.get_ : graph_view.get_;
-}
-
-
-
   edge_t count{0};
-  vertex_t row_value_input_offset{0};
-  vertex_t col_value_input_offset{0};
   for (size_t i = 0; i < graph_view.get_number_of_local_adj_matrix_partitions(); ++i) {
     matrix_partition_device_t<GraphViewType> matrix_partition(graph_view, i);
+    auto row_value_input_offset =
+      GraphViewType::is_adj_matrix_transposed ? 0 : matrix_partition.get_major_value_start_offset();
+    auto col_value_input_offset =
+      GraphViewType::is_adj_matrix_transposed ? matrix_partition.get_major_value_start_offset() : 0;
 
     grid_1d_thread_t update_grid(matrix_partition.get_major_size(),
                                  detail::count_if_e_for_all_low_out_degree_block_size,

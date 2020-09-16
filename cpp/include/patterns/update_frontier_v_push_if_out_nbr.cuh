@@ -373,9 +373,10 @@ void update_frontier_v_push_if_out_nbr(
   auto buffer_key_first     = std::get<0>(buffer_first);
   auto buffer_payload_first = std::get<1>(buffer_first);
 
-  vertex_t row_value_input_offset{0};
   for (size_t i = 0; i < graph_view.get_number_of_local_adj_matrix_partitions(); ++i) {
     matrix_partition_device_t<GraphViewType> matrix_partition(graph_view, i);
+    auto row_value_input_offset =
+      GraphViewType::is_adj_matrix_transposed ? 0 : matrix_partition.get_major_value_start_offset();
 
     grid_1d_thread_t for_all_low_out_degree_grid(
       frontier_adj_matrix_partition_offsets[i + 1] - frontier_adj_matrix_partition_offsets[i],
@@ -399,8 +400,6 @@ void update_frontier_v_push_if_out_nbr(
         buffer_payload_first,
         vertex_frontier.get_buffer_idx_ptr(),
         e_op);
-
-    row_value_input_offset += matrix_partition.get_major_size();
   }
 
   auto num_buffer_elements = detail::reduce_buffer_elements(handle,

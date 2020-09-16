@@ -208,10 +208,12 @@ T transform_reduce_e(raft::handle_t const& handle,
   using vertex_t = typename GraphViewType::vertex_type;
 
   T result{};
-  vertex_t row_value_input_offset{0};
-  vertex_t col_value_input_offset{0};
   for (size_t i = 0; i < graph_view.get_number_of_local_adj_matrix_partitions(); ++i) {
     matrix_partition_device_t<GraphViewType> matrix_partition(graph_view, i);
+    auto row_value_input_offset =
+      GraphViewType::is_adj_matrix_transposed ? 0 : matrix_partition.get_major_value_start_offset();
+    auto col_value_input_offset =
+      GraphViewType::is_adj_matrix_transposed ? matrix_partition.get_major_value_start_offset() : 0;
 
     grid_1d_thread_t update_grid(matrix_partition.get_major_size(),
                                  detail::transform_reduce_e_for_all_low_out_degree_block_size,
@@ -242,12 +244,6 @@ T transform_reduce_e(raft::handle_t const& handle,
                      plus_thrust_tuple<T>());
 
     plus_thrust_tuple<T>()(result, partial_result);
-
-    if (GraphViewType::is_adj_matrix_transposed) {
-      col_value_input_offset += matrix_partition.get_major_size();
-    } else {
-      row_value_input_offset += matrix_partition.get_major_size();
-    }
   }
 
   if (GraphViewType::is_multi_gpu) {

@@ -73,70 +73,93 @@ class matrix_partition_device_t<GraphViewType, std::enable_if_t<GraphViewType::i
                                      typename GraphViewType::weight_type>(
         graph_view.offsets(partition_idx),
         graph_view.indices(partition_idx),
-        graph_view.weights(partition_idx))
+        graph_view.weights(partition_idx)),
+      major_first_(GraphViewType::is_adj_matrix_transposed
+                     ? graph_view.get_local_adj_matrix_partition_col_first(partition_idx)
+                     : graph_view.get_local_adj_matrix_partition_row_first(partition_idx)),
+      major_last_(GraphViewType::is_adj_matrix_transposed
+                    ? graph_view.get_local_adj_matrix_partition_col_last(partition_idx)
+                    : graph_view.get_local_adj_matrix_partition_row_last(partition_idx)),
+      minor_first_(GraphViewType::is_adj_matrix_transposed
+                     ? graph_view.get_local_adj_matrix_partition_row_first(partition_idx)
+                     : graph_view.get_local_adj_matrix_partition_col_first(partition_idx)),
+      minor_last_(GraphViewType::is_adj_matrix_transposed
+                    ? graph_view.get_local_adj_matrix_partition_row_last(partition_idx)
+                    : graph_view.get_local_adj_matrix_partition_col_last(partition_idx)),
+      major_value_start_offset_(
+        GraphViewType::is_adj_matrix_transposed
+          ? graph_view.get_local_adj_matrix_partition_col_value_start_offset(partition_idx)
+          : graph_view.get_local_adj_matrix_partition_row_value_start_offset(partition_idx))
   {
+  }
+
+  typename GraphViewType::vertex_type get_major_value_start_offset() const
+  {
+    return major_value_start_offset_;
   }
 
   __host__ __device__ typename GraphViewType::vertex_type get_major_first() const noexcept
   {
-    return major_first;
+    return major_first_;
   }
 
   __host__ __device__ typename GraphViewType::vertex_type get_major_last() const noexcept
   {
-    return major_last;
+    return major_last_;
   }
 
   __host__ __device__ typename GraphViewType::vertex_type get_major_size() const noexcept
   {
-    return major_last - major_first;
+    return major_last_ - major_first_;
   }
 
   __host__ __device__ typename GraphViewType::vertex_type get_minor_first() const noexcept
   {
-    return minor_first;
+    return minor_first_;
   }
 
   __host__ __device__ typename GraphViewType::vertex_type get_minor_last() const noexcept
   {
-    return minor_last;
+    return minor_last_;
   }
 
   __host__ __device__ typename GraphViewType::vertex_type get_minor_size() const noexcept
   {
-    return minor_last - minor_first;
+    return minor_last_ - minor_first_;
   }
 
   __host__ __device__ typename GraphViewType::vertex_type get_major_offset_from_major_nocheck(
     typename GraphViewType::vertex_type major) const noexcept
   {
-    return major - major_first;
+    return major - major_first_;
   }
 
   __host__ __device__ typename GraphViewType::vertex_type get_minor_offset_from_minor_nocheck(
     typename GraphViewType::vertex_type minor) const noexcept
   {
-    return minor - minor_first;
+    return minor - minor_first_;
   }
 
   __host__ __device__ typename GraphViewType::vertex_type get_major_from_major_offset_nocheck(
     typename GraphViewType::vertex_type major_offset) const noexcept
   {
-    return major_first + major_offset;
+    return major_first_ + major_offset;
   }
 
   __host__ __device__ typename GraphViewType::vertex_type get_minor_from_minor_offset_nocheck(
     typename GraphViewType::vertex_type minor_offset) const noexcept
   {
-    return minor_first + minor_offset;
+    return minor_first_ + minor_offset;
   }
 
  private:
   // should be trivially copyable to device
-  typename GraphViewType::vertex_type major_first{0};
-  typename GraphViewType::vertex_type major_last{0};
-  typename GraphViewType::vertex_type minor_first{0};
-  typename GraphViewType::vertex_type minor_last{0};
+  typename GraphViewType::vertex_type major_first_{0};
+  typename GraphViewType::vertex_type major_last_{0};
+  typename GraphViewType::vertex_type minor_first_{0};
+  typename GraphViewType::vertex_type minor_last_{0};
+
+  typename GraphViewType::vertex_type major_value_start_offset_{0};
 };
 
 // single-GPU version
@@ -154,6 +177,11 @@ class matrix_partition_device_t<GraphViewType, std::enable_if_t<!GraphViewType::
       number_of_vertices_(graph_view.get_number_of_vertices())
   {
     assert(partition_idx == 0);
+  }
+
+  typename GraphViewType::vertex_type get_major_value_start_offset() const
+  {
+    return typename GraphViewType::vertex_type{0};
   }
 
   __host__ __device__ constexpr typename GraphViewType::vertex_type get_major_first() const noexcept
