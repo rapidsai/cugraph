@@ -26,6 +26,9 @@ enum class numberTypeEnum : int { intType,
                                   floatType,
                                   doubleType
 };
+
+// FIXME: The GraphCSRView* types are not in use! Those are left in place in
+// case a legacy GraphCSRView class is needed, but these should be removed ASAP.
 enum class graphTypeEnum : int { null,
                                  GraphCSRViewFloat,
                                  GraphCSRViewDouble,
@@ -42,8 +45,8 @@ enum class graphTypeEnum : int { null,
 // "container" for a graph type instance which insulates the owner from the
 // specifics of the actual graph type. This is intended to be used in Cython
 // code that only needs to pass a graph object to another wrapped C++ API. This
-// simplifies the Cython code greatly since it only needs to define the
-// container and not the various individual graph types in Cython.
+// greatly simplifies the Cython code since the Cython definition only needs to
+// define the container and not the various individual graph types in Cython.
 struct graph_container_t {
 
   // FIXME: use std::variant (or a better alternative, ie. type erasure?) instead

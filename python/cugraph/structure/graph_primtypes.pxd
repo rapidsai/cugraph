@@ -200,19 +200,6 @@ cdef extern from "utilities/cython.hpp" namespace "cugraph::cython":
         floatType "cugraph::cython::numberTypeEnum::floatType"
         doubleType "cugraph::cython::numberTypeEnum::doubleType"
 
-    # ctypedef enum graphTypeEnum:
-    #     null "cugraph::cython::graphTypeEnum::null"
-    #     GraphCSRViewFloat "cugraph::cython::graphTypeEnum::GraphCSRViewFloat"
-    #     GraphCSRViewDouble "cugraph::cython::graphTypeEnum::GraphCSRViewDouble"
-    #     graph_view_t_float "cugraph::cython::graphTypeEnum::graph_view_t_float"
-    #     graph_view_t_double "cugraph::cython::graphTypeEnum::graph_view_t_double"
-    #     graph_view_t_float_mg "cugraph::cython::graphTypeEnum::graph_view_t_float_mg"
-    #     graph_view_t_double_mg "cugraph::cython::graphTypeEnum::graph_view_t_double_mg"
-    #     graph_view_t_float_transposed "cugraph::cython::graphTypeEnum::graph_view_t_float_transposed"
-    #     graph_view_t_double_transposed "cugraph::cython::graphTypeEnum::graph_view_t_double_transposed"
-    #     graph_view_t_float_mg_transposed "cugraph::cython::graphTypeEnum::graph_view_t_float_mg_transposed"
-    #     graph_view_t_double_mg_transposed "cugraph::cython::graphTypeEnum::graph_view_t_double_mg_transposed"
-
     cdef struct graph_container_t:
         pass
 
