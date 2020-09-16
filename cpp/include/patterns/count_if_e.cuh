@@ -62,16 +62,56 @@ __global__ void for_all_major_for_all_nbr_low_out_degree(
     weight_t const* weights{nullptr};
     edge_t local_degree{};
     thrust::tie(indices, weights, local_degree) = matrix_partition.get_local_edges(idx);
+#if 1
+    count += thrust::count_if(
+      thrust::seq,
+      thrust::make_counting_iterator(edge_t{0}),
+      thrust::make_counting_iterator(local_degree),
+      [&matrix_partition,
+       &adj_matrix_row_value_input_first,
+       &adj_matrix_col_value_input_first,
+       &e_op,
+       idx,
+       indices,
+       weights] __device__(auto i) {
+        auto minor        = indices[i];
+        auto weight       = weights != nullptr ? weights[i] : 1.0;
+        auto minor_offset = matrix_partition.get_minor_offset_from_minor_nocheck(minor);
+        auto row          = GraphViewType::is_adj_matrix_transposed
+                     ? minor
+                     : matrix_partition.get_major_from_major_offset_nocheck(idx);
+        auto col = GraphViewType::is_adj_matrix_transposed
+                     ? matrix_partition.get_major_from_major_offset_nocheck(idx)
+                     : minor;
+        auto row_offset =
+          GraphViewType::is_adj_matrix_transposed ? minor_offset : static_cast<vertex_t>(idx);
+        auto col_offset =
+          GraphViewType::is_adj_matrix_transposed ? static_cast<vertex_t>(idx) : minor_offset;
+        auto e_op_result = evaluate_edge_op<GraphViewType,
+                                            AdjMatrixRowValueInputIterator,
+                                            AdjMatrixColValueInputIterator,
+                                            EdgeOp>()
+                             .compute(row,
+                                      col,
+                                      weight,
+                                      *(adj_matrix_row_value_input_first + row_offset),
+                                      *(adj_matrix_col_value_input_first + col_offset),
+                                      e_op);
+
+        return e_op_result;
+      });
+#else
+    // FIXME: delete this once we verify that the code above is not slower than this.
     for (vertex_t i = 0; i < local_degree; ++i) {
       auto minor        = indices[i];
       auto weight       = weights != nullptr ? weights[i] : 1.0;
       auto minor_offset = matrix_partition.get_minor_offset_from_minor_nocheck(minor);
       auto row          = GraphViewType::is_adj_matrix_transposed
-                            ? minor
-                            : matrix_partition.get_major_from_major_offset_nocheck(idx);
-      auto col          = GraphViewType::is_adj_matrix_transposed
-                            ? matrix_partition.get_major_from_major_offset_nocheck(idx)
-                            : minor;
+                   ? minor
+                   : matrix_partition.get_major_from_major_offset_nocheck(idx);
+      auto col = GraphViewType::is_adj_matrix_transposed
+                   ? matrix_partition.get_major_from_major_offset_nocheck(idx)
+                   : minor;
       auto row_offset =
         GraphViewType::is_adj_matrix_transposed ? minor_offset : static_cast<vertex_t>(idx);
       auto col_offset =
@@ -88,6 +128,7 @@ __global__ void for_all_major_for_all_nbr_low_out_degree(
                                     e_op);
       if (e_op_result) { count++; }
     }
+#endif
     idx += gridDim.x * blockDim.x;
   }
 
@@ -140,6 +181,15 @@ typename GraphViewType::edge_type count_if_e(
 {
   using vertex_t = typename GraphViewType::vertex_type;
   using edge_t   = typename GraphViewType::edge_type;
+
+std::vector<vertex_t> major_value_offsets(graph_view.get_number_of_local_adj_matrix_partitions(), 0);
+vertex_t major_value_offset{0};
+for (size_t i = 0; i < graph_view.get_number_of_local_adj_matrix_partitions(); ++i) {
+  major_values_offsets[i] = major_value_offset;
+  major_value_offset += GraphViewType::is_adj_matrix_transposed ? graph_view.get_ : graph_view.get_;
+}
+
+
 
   edge_t count{0};
   vertex_t row_value_input_offset{0};

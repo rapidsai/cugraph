@@ -96,7 +96,7 @@ __global__ void for_all_frontier_row_for_all_nbr_low_out_degree(
                                     *(adj_matrix_col_value_input_first + col_offset),
                                     e_op);
       if (thrust::get<0>(e_op_result) == true) {
-        // FIXME: This atomicInc serializes execution. If we renumber vertices to insure that rows
+        // FIXME: This atomicAdd serializes execution. If we renumber vertices to insure that rows
         // within a partition are sorted by their out-degree in decreasing order, we can compute
         // a tight uppper bound for the maximum number of pushes per warp/block and use shared
         // memory buffer to reduce the number of atomicAdd operations.
