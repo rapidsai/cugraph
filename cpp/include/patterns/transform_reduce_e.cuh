@@ -241,9 +241,11 @@ T transform_reduce_e(raft::handle_t const& handle,
                      block_results.begin(),
                      block_results.end(),
                      T(),
-                     plus_thrust_tuple<T>());
+                     [] __device__ (auto lhs, auto rhs) {
+                       return plus_edge_op_result(lhs, rhs);
+                     });
 
-    result = plus_thrust_tuple<T>()(result, partial_result);
+    result = plus_edge_op_result(result, partial_result);
   }
 
   if (GraphViewType::is_multi_gpu) {
@@ -251,7 +253,7 @@ T transform_reduce_e(raft::handle_t const& handle,
     CUGRAPH_FAIL("unimplemented.");
   }
 
-  return plus_thrust_tuple<T>()(init, result);
+  return plus_edge_op_result(init, result);
 }
 
 }  // namespace experimental

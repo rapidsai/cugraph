@@ -66,7 +66,7 @@ __device__ constexpr auto remove_first_thrust_tuple_element_impl(TupleType const
 
 template <typename TupleType, size_t I, size_t N>
 struct plus_thrust_tuple_impl {
-  __device__ constexpr void compute(TupleType& lhs, TupleType const& rhs) const
+  __host__ __device__ constexpr void compute(TupleType& lhs, TupleType const& rhs) const
   {
     thrust::get<I>(lhs) += thrust::get<I>(rhs);
     plus_thrust_tuple_impl<TupleType, I + 1, N>().compute(lhs, rhs);
@@ -75,7 +75,7 @@ struct plus_thrust_tuple_impl {
 
 template <typename TupleType, size_t I>
 struct plus_thrust_tuple_impl<TupleType, I, I> {
-  __device__ constexpr void compute(TupleType& lhs, TupleType const& rhs) const {}
+  __host__ __device__ constexpr void compute(TupleType& lhs, TupleType const& rhs) const {}
 };
 
 template <typename TupleType, size_t BlockSize, size_t I, size_t N>
@@ -153,7 +153,7 @@ struct remove_first_thrust_tuple_element {
 
 template <typename TupleType>
 struct plus_thrust_tuple {
-  __device__ constexpr TupleType operator()(TupleType const& lhs, TupleType const& rhs) const
+  __host__ __device__ constexpr TupleType operator()(TupleType const& lhs, TupleType const& rhs) const
   {
     size_t constexpr tuple_size = thrust::tuple_size<TupleType>::value;
     auto ret                    = lhs;
