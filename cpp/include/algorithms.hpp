@@ -623,9 +623,8 @@ void bfs(raft::handle_t const &handle,
  *                                   Supported value : int (signed, 32-bit)
  * @tparam weight_t                  Type of edge weights. Supported values : float or double.
  *
+ * @param[in]  handle                Library handle (RAFT). If a communicator is set in the handle,
  * @param[in]  graph                 input graph object (CSR)
- * @param[out] final_modularity      modularity of the returned clustering
- * @param[out] num_level             number of levels of the returned clustering
  * @param[out] clustering            Pointer to device array where the clustering should be stored
  * @param[in]  max_iter              (optional) maximum number of iterations to run (default 100)
  * @param[in]  resolution            (optional) The value of the resolution parameter to use.
@@ -634,14 +633,17 @@ void bfs(raft::handle_t const &handle,
  *                                   communities, lower resolutions lead to fewer larger
  * communities. (default 1)
  *
+ * @return                           a pair containing:
+ *                                     1) number of levels of the returned clustering
+ *                                     2) modularity of the returned clustering
+ *
  */
 template <typename vertex_t, typename edge_t, typename weight_t>
-void louvain(GraphCSRView<vertex_t, edge_t, weight_t> const &graph,
-             weight_t *final_modularity,
-             int *num_level,
-             vertex_t *louvain_parts,
-             int max_iter        = 100,
-             weight_t resolution = weight_t{1});
+std::pair<size_t, weight_t> louvain(raft::handle_t const &handle,
+                                    GraphCSRView<vertex_t, edge_t, weight_t> const &graph,
+                                    vertex_t *clustering,
+                                    size_t max_iter     = 100,
+                                    weight_t resolution = weight_t{1});
 
 /**
  * @brief      Leiden implementation
@@ -663,9 +665,8 @@ void louvain(GraphCSRView<vertex_t, edge_t, weight_t> const &graph,
  *                                   Supported value : int (signed, 32-bit)
  * @tparam weight_t                  Type of edge weights. Supported values : float or double.
  *
+ * @param[in]  handle                Library handle (RAFT). If a communicator is set in the handle,
  * @param[in]  graph                 input graph object (CSR)
- * @param[out] final_modularity      modularity of the returned clustering
- * @param[out] num_level             number of levels of the returned clustering
  * @param[out] clustering            Pointer to device array where the clustering should be stored
  * @param[in]  max_iter              (optional) maximum number of iterations to run (default 100)
  * @param[in]  resolution            (optional) The value of the resolution parameter to use.
@@ -673,14 +674,17 @@ void louvain(GraphCSRView<vertex_t, edge_t, weight_t> const &graph,
  *                                   of the communities.  Higher resolutions lead to more smaller
  *                                   communities, lower resolutions lead to fewer larger
  * communities. (default 1)
+ *
+ * @return                           a pair containing:
+ *                                     1) number of levels of the returned clustering
+ *                                     2) modularity of the returned clustering
  */
 template <typename vertex_t, typename edge_t, typename weight_t>
-void leiden(GraphCSRView<vertex_t, edge_t, weight_t> const &graph,
-            weight_t &final_modularity,
-            int &num_level,
-            vertex_t *leiden_parts,
-            int max_iter        = 100,
-            weight_t resolution = weight_t{1});
+std::pair<size_t, weight_t> leiden(raft::handle_t const &handle,
+                                   GraphCSRView<vertex_t, edge_t, weight_t> const &graph,
+                                   vertex_t *clustering,
+                                   size_t max_iter     = 100,
+                                   weight_t resolution = weight_t{1});
 
 /**
  * @brief Computes the ecg clustering of the given graph.
@@ -693,21 +697,26 @@ void leiden(GraphCSRView<vertex_t, edge_t, weight_t> const &graph,
  *
  * @throws     cugraph::logic_error when an error occurs.
  *
- * @tparam VT                        Type of vertex identifiers. Supported value : int (signed,
+ * @tparam vertex_t                  Type of vertex identifiers. Supported value : int (signed,
  * 32-bit)
- * @tparam ET                        Type of edge identifiers.  Supported value : int (signed,
+ * @tparam edge_t                    Type of edge identifiers.  Supported value : int (signed,
  * 32-bit)
- * @tparam WT                        Type of edge weights. Supported values : float or double.
+ * @tparam weight_t                  Type of edge weights. Supported values : float or double.
  *
+ * @param[in]  handle                Library handle (RAFT). If a communicator is set in the handle,
  * @param[in]  graph_coo             input graph object (COO)
  * @param[in]  graph_csr             input graph object (CSR)
  * @param[in]  min_weight            The minimum weight parameter
  * @param[in]  ensemble_size         The ensemble size parameter
- * @param[out] ecg_parts             A device pointer to array where the partitioning should be
+ * @param[out] clustering            A device pointer to array where the partitioning should be
  * written
  */
-template <typename VT, typename ET, typename WT>
-void ecg(GraphCSRView<VT, ET, WT> const &graph_csr, WT min_weight, VT ensemble_size, VT *ecg_parts);
+template <typename vertex_t, typename edge_t, typename weight_t>
+void ecg(raft::handle_t const &handle,
+         GraphCSRView<vertex_t, edge_t, weight_t> const &graph,
+         weight_t min_weight,
+         vertex_t ensemble_size,
+         vertex_t *clustering);
 
 namespace triangle {
 

@@ -174,7 +174,7 @@ ConfigureTest(BFS_TEST "${BFS_TEST_SRCS}" "")
 
 set(LOUVAIN_TEST_SRC
     "${CMAKE_SOURCE_DIR}/../thirdparty/mmio/mmio.c"
-    "${CMAKE_CURRENT_SOURCE_DIR}/community/louvain_test.cpp")
+    "${CMAKE_CURRENT_SOURCE_DIR}/community/louvain_test.cu")
 
 ConfigureTest(LOUVAIN_TEST "${LOUVAIN_TEST_SRC}" "")
 
