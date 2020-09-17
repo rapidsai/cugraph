@@ -15,7 +15,8 @@ import gc
 import random
 
 import pytest
-
+import networkx as nx
+import pandas as pd
 import cudf
 import cugraph
 from cugraph.tests import utils
@@ -120,3 +121,39 @@ def test_digraph_rejected():
 
     with pytest.raises(Exception):
         cugraph_call(G, 2)
+
+
+@pytest.mark.parametrize("graph_file", utils.DATASETS)
+@pytest.mark.parametrize("partitions", PARTITIONS)
+def test_edge_cut_clustering_with_edgevals_nx(graph_file, partitions):
+    gc.collect()
+
+    # Read in the graph and get a cugraph object
+    NM = utils.read_csv_for_nx(graph_file, read_weights_in_sp=True)
+    G = nx.from_pandas_edgelist(
+                NM, create_using=nx.Graph(), source="0", target="1",
+                edge_attr="weight"
+    )
+
+    # Get the edge_cut score for partitioning versus random assignment
+    df = cugraph.spectralBalancedCutClustering(
+        G, partitions, num_eigen_vects=partitions
+    )
+
+    pdf = pd.DataFrame.from_dict(df, orient='index').reset_index()
+    pdf.columns = ["vertex", "cluster"]
+    gdf = cudf.from_pandas(pdf)
+
+    cu_score = cugraph.analyzeClustering_edge_cut(
+        G, partitions, gdf, 'vertex', 'cluster'
+    )
+
+    df = set(gdf["vertex"].to_array())
+
+    Gcu = cugraph.utilities.convert_from_nx(G)
+    rand_vid, rand_score = random_call(Gcu, partitions)
+
+    # Assert that the partitioning has better edge_cut than the random
+    # assignment
+    print(cu_score, rand_score)
+    assert cu_score < rand_score
