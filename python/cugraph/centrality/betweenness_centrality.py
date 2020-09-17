@@ -129,10 +129,11 @@ def betweenness_centrality(
     )
 
     if G.renumbered:
-        return G.unrenumber(df, "vertex")
+        df = G.unrenumber(df, "vertex")
 
     if isNx == True:
-        return cugraph.utilities.df_score_to_dictionary(df, 'betweenness_centrality')
+        dict = cugraph.utilities.df_score_to_dictionary(df, 'betweenness_centrality')
+        return dict
     else:
         return df
 
@@ -192,7 +193,7 @@ def edge_betweenness_centrality(
 
     Returns
     -------
-    df : cudf.DataFrame
+    df : cudf.DataFrame or dictionary 
         GPU data frame containing three cudf.Series of size E: the vertex
         identifiers of the sources, the vertex identifies of the destinations
         and the corresponding betweenness centrality values.
@@ -248,7 +249,7 @@ def edge_betweenness_centrality(
         df = df.groupby(by=["src", "dst"]).sum().reset_index()
 
     if isNx == True:
-        return cugraph.utilities.df_score_to_dictionary(df, 'betweenness_centrality')
+        return cugraph.utilities.df_edge_score_to_dictionary(df, 'betweenness_centrality')
     else:
         return df
 
