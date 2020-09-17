@@ -18,8 +18,8 @@
 
 from cugraph.link_prediction.overlap cimport overlap as c_overlap
 from cugraph.link_prediction.overlap cimport overlap_list as c_overlap_list
-from cugraph.structure.graph_new cimport *
-from cugraph.structure import graph_new_wrapper
+from cugraph.structure.graph_primtypes cimport *
+from cugraph.structure import graph_primtypes_wrapper
 from libc.stdint cimport uintptr_t
 from cython cimport floating
 
@@ -35,14 +35,14 @@ def overlap(input_graph, weights_arr=None, vertex_pair=None):
     if not input_graph.adjlist:
         input_graph.view_adj_list()
 
-    [offsets, indices] = graph_new_wrapper.datatype_cast([input_graph.adjlist.offsets, input_graph.adjlist.indices], [np.int32])
+    [offsets, indices] = graph_primtypes_wrapper.datatype_cast([input_graph.adjlist.offsets, input_graph.adjlist.indices], [np.int32])
 
     num_verts = input_graph.number_of_vertices()
     num_edges = input_graph.number_of_edges(directed_edges=True)
 
     first = None
     second = None
-    
+
     cdef uintptr_t c_result_col = <uintptr_t> NULL
     cdef uintptr_t c_first_col = <uintptr_t> NULL
     cdef uintptr_t c_second_col = <uintptr_t> NULL
@@ -58,7 +58,7 @@ def overlap(input_graph, weights_arr=None, vertex_pair=None):
     weight_type = np.float32
 
     if weights_arr is not None:
-        [weights] = graph_new_wrapper.datatype_cast([weights_arr], [np.float32, np.float64])
+        [weights] = graph_primtypes_wrapper.datatype_cast([weights_arr], [np.float32, np.float64])
         c_weights = weights.__cuda_array_interface__['data'][0]
         weight_type = weights.dtype
 
@@ -69,7 +69,7 @@ def overlap(input_graph, weights_arr=None, vertex_pair=None):
 
         df = cudf.DataFrame()
         df['overlap_coeff'] = result
-        
+
         first = vertex_pair['first']
         second = vertex_pair['second']
 
@@ -97,7 +97,7 @@ def overlap(input_graph, weights_arr=None, vertex_pair=None):
                                            <int*>c_first_col,
                                            <int*>c_second_col,
                                            <double*>c_result_col)
-        
+
         return df
     else:
         # error check performed in overlap.py
@@ -139,5 +139,5 @@ def overlap(input_graph, weights_arr=None, vertex_pair=None):
                                       <double*>c_result_col)
 
             graph_double.get_source_indices(<int*>c_src_index_col)
-            
+
         return df
