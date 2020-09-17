@@ -143,7 +143,7 @@ def build_mg_batch_cu_and_nx_graphs(graph_file, directed=True):
 
 
 def random_edgelist(e=1024, ef=16,
-                    dtypes={"src": int, "dst": int, "val": float},
+                    dtypes={"src": np.int32, "dst": np.int32, "val": float},
                     drop_duplicates=True, seed=None):
     """ Create a random edge list
 
@@ -167,7 +167,7 @@ def random_edgelist(e=1024, ef=16,
     >>> # genrates 20 df with 100M edges each and write to disk
     >>> for x in range(20):
     >>>    df = utils.random_edgelist(e=100000000, ef=64,
-    >>>                               dtypes={'src':int, 'dst':int},
+    >>>                               dtypes={'src':np.int32, 'dst':np.int32},
     >>>                               seed=x)
     >>>    df.to_csv('df'+str(x), header=False, index=False)
     >>>    #df.to_parquet('files_parquet/df'+str(x), index=False)
@@ -175,6 +175,7 @@ def random_edgelist(e=1024, ef=16,
     state = np.random.RandomState(seed)
     columns = dict((k, make[dt](e // ef, e, state))
                    for k, dt in dtypes.items())
+    
     df = pd.DataFrame(columns)
     if drop_duplicates:
         df = df.drop_duplicates()
@@ -182,9 +183,11 @@ def random_edgelist(e=1024, ef=16,
     return cudf.from_pandas(df)
 
 
-def make_int(v, e, rstate):
-    return rstate.randint(low=0, high=v, size=e)
+def make_int32(v, e, rstate):
+    return rstate.randint(low=0, high=v, size=e, dtype=np.int32)
 
+def make_int64(v, e, rstate):
+    return rstate.randint(low=0, high=v, size=e, dtype=np.int64)
 
 def make_float(v, e, rstate):
     return rstate.rand(e) * 2 - 1
@@ -192,5 +195,6 @@ def make_float(v, e, rstate):
 
 make = {
     float: make_float,
-    int: make_int
+    np.int32: make_int32,
+    np.int64: make_int64
 }
