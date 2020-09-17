@@ -25,8 +25,8 @@ def convert_from_nx(nxG):
 
     pdf = nx.to_pandas_edgelist(nxG)
     gdf = cudf.from_pandas(pdf)
-
     num_col = len(gdf.columns)
+
     if num_col < 2:
         raise ValueError("NetworkX graph did not contain edges")
     elif num_col == 2:
@@ -34,10 +34,7 @@ def convert_from_nx(nxG):
         G.from_cudf_edgelist(gdf, "0", "1")
     else:
         gdf.columns = ["0", "1", "2"]
-        if type(gdf["2"]) != float:
-            G.from_cudf_edgelist(gdf, "0", "1")
-        else:
-            G.from_cudf_edgelist(gdf, "0", "1", "2")
+        G.from_cudf_edgelist(gdf, "0", "1", "2")
 
     del gdf
     del pdf
