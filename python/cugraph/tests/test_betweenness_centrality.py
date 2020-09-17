@@ -483,33 +483,8 @@ def test_betweenness_centrality_nx(graph_file):
 
     Gnx = utils.generate_nx_graph_from_file(graph_file)
 
-    nx_bc = nx.betweenness_centrality(Gnx)   
-    cu_bc = cugraph.betweenness_centrality(Gnx)   
-
-    # Calculating mismatch
-    networkx_bc = sorted(nx_bc.items(), key=lambda x: x[0])
-    cugraph_bc = sorted(cu_bc.items(), key=lambda x: x[0])
-    err = 0
-    assert len(cugraph_bc) == len(networkx_bc)
-    for i in range(len(cugraph_bc)):
-        if (
-            abs(cugraph_bc[i][1] - networkx_bc[i][1]) > 0.01
-            and cugraph_bc[i][0] == networkx_bc[i][0]
-        ):
-            err = err + 1
-            print(f"{cugraph_bc[i][1]} and {cugraph_bc[i][1]}")
-    print("Mismatches:", err)
-    assert err < (0.01 * len(cugraph_bc))
-
-
-@pytest.mark.parametrize("graph_file", utils.DATASETS_SMALL)
-def test_edge_betweenness_centrality_nx(graph_file):
-    prepare_test()
-
-    Gnx = utils.generate_nx_graph_from_file(graph_file)
-
-    nx_bc = nx.edge_betweenness_centrality(Gnx)   
-    cu_bc = cugraph.edge_betweenness_centrality(Gnx)   
+    nx_bc = nx.betweenness_centrality(Gnx)
+    cu_bc = cugraph.betweenness_centrality(Gnx)
 
     # Calculating mismatch
     networkx_bc = sorted(nx_bc.items(), key=lambda x: x[0])

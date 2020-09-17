@@ -13,7 +13,6 @@
 
 from cugraph.link_analysis import pagerank_wrapper
 from cugraph.structure.graph import null_check
-import networkx as nx
 import cugraph
 
 
@@ -76,7 +75,7 @@ def pagerank(
         This parameter is here for NetworkX compatibility
     dangling : dict
         This parameter is here for NetworkX compatibility
-  
+
     Returns
     -------
     PageRank : cudf.DataFrame
@@ -121,7 +120,7 @@ def pagerank(
     if G.renumbered:
         df = G.unrenumber(df, "vertex")
 
-    if isNx == True:
+    if isNx is True:
         return cugraph.utilities.df_score_to_dictionary(df, 'pagerank')
     else:
         return df

@@ -16,6 +16,8 @@ import numpy as np
 import cudf
 from cugraph.centrality import betweenness_centrality_wrapper
 from cugraph.centrality import edge_betweenness_centrality_wrapper
+from cugraph.utilities import df_edge_score_to_dictionary
+from cugraph.utilities import df_score_to_dictionary
 import cugraph
 
 
@@ -121,7 +123,7 @@ def betweenness_centrality(
         raise TypeError("result type can only be np.float32 or np.float64")
 
     G, isNx = cugraph.utilities.check_nx_graph(G)
-    
+
     vertices = _initialize_vertices(G, k, seed)
 
     df = betweenness_centrality_wrapper.betweenness_centrality(
@@ -131,8 +133,8 @@ def betweenness_centrality(
     if G.renumbered:
         df = G.unrenumber(df, "vertex")
 
-    if isNx == True:
-        dict = cugraph.utilities.df_score_to_dictionary(df, 'betweenness_centrality')
+    if isNx is True:
+        dict = df_score_to_dictionary(df, 'betweenness_centrality')
         return dict
     else:
         return df
@@ -193,7 +195,7 @@ def edge_betweenness_centrality(
 
     Returns
     -------
-    df : cudf.DataFrame or dictionary 
+    df : cudf.DataFrame or dictionary
         GPU data frame containing three cudf.Series of size E: the vertex
         identifiers of the sources, the vertex identifies of the destinations
         and the corresponding betweenness centrality values.
@@ -248,10 +250,11 @@ def edge_betweenness_centrality(
         df[["src", "dst"]][lower_triangle] = df[["dst", "src"]][lower_triangle]
         df = df.groupby(by=["src", "dst"]).sum().reset_index()
 
-    if isNx == True:
-        return cugraph.utilities.df_edge_score_to_dictionary(df, 'betweenness_centrality')
+    if isNx is True:
+        return df_edge_score_to_dictionary(df, 'betweenness_centrality')
     else:
         return df
+
 
 # In order to compare with pre-set sources,
 # k can either be a list or an integer or None

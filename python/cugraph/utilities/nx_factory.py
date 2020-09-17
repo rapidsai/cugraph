@@ -44,6 +44,7 @@ def convert_from_nx(nxG):
 
     return G
 
+
 def check_nx_graph(G):
     """
     This is a convenience function that will ensure the proper graph type
@@ -54,13 +55,14 @@ def check_nx_graph(G):
     else:
         return G, False
 
+
 def df_score_to_dictionary(df, k):
     """
     Convert a dataframe to a dictionary
 
     Parameters
     ----------
-     df : cudf.DataFrame 
+     df : cudf.DataFrame
         GPU data frame containing two cudf.Series of size V: the vertex
         identifiers and the corresponding score values.
         Please note that the resulting the 'vertex' column might not be
@@ -69,10 +71,10 @@ def df_score_to_dictionary(df, k):
         df['vertex'] : cudf.Series
             Contains the vertex identifiers
         df[X] : cudf.Series
-            Contains the scores of the vertices   
-    
+            Contains the scores of the vertices
+
     k : str
-        score column name 
+        score column name
 
 
     Returns
@@ -90,7 +92,7 @@ def df_edge_score_to_dictionary(df, k):
 
     Parameters
     ----------
-     df : cudf.DataFrame 
+     df : cudf.DataFrame
         GPU data frame containing two cudf.Series of size V: the vertex
         identifiers and the corresponding score values.
         Please note that the resulting the 'vertex' column might not be
@@ -99,10 +101,10 @@ def df_edge_score_to_dictionary(df, k):
         df['vertex'] : cudf.Series
             Contains the vertex identifiers
         df[X] : cudf.Series
-            Contains the scores of the vertices   
-    
+            Contains the scores of the vertices
+
     k : str
-        score column name 
+        score column name
 
 
     Returns
