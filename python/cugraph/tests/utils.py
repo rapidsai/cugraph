@@ -175,7 +175,7 @@ def random_edgelist(e=1024, ef=16,
     state = np.random.RandomState(seed)
     columns = dict((k, make[dt](e // ef, e, state))
                    for k, dt in dtypes.items())
-    
+
     df = pd.DataFrame(columns)
     if drop_duplicates:
         df = df.drop_duplicates()
@@ -186,8 +186,10 @@ def random_edgelist(e=1024, ef=16,
 def make_int32(v, e, rstate):
     return rstate.randint(low=0, high=v, size=e, dtype=np.int32)
 
+
 def make_int64(v, e, rstate):
     return rstate.randint(low=0, high=v, size=e, dtype=np.int64)
+
 
 def make_float(v, e, rstate):
     return rstate.rand(e) * 2 - 1
