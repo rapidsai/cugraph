@@ -4,7 +4,10 @@
 
 ## Improvements
 
+- PR #1148 Replace calls to deprecated RMM `get_default_resource`
+
 ## Bug Fixes
+
 
 # cuGraph 0.15.0 (Date TBD)
 
