@@ -16,9 +16,9 @@
 # cython: embedsignature = True
 # cython: language_level = 3
 
-from cugraph.structure.graph_new cimport *
-from cugraph.structure.graph_new cimport get_two_hop_neighbors as c_get_two_hop_neighbors
-from cugraph.structure.graph_new cimport renumber_vertices as c_renumber_vertices
+from cugraph.structure.graph_primtypes cimport *
+from cugraph.structure.graph_primtypes cimport get_two_hop_neighbors as c_get_two_hop_neighbors
+from cugraph.structure.graph_primtypes cimport renumber_vertices as c_renumber_vertices
 from cugraph.structure.utils_wrapper import *
 from libcpp cimport bool
 from libc.stdint cimport uintptr_t
@@ -47,7 +47,7 @@ def datatype_cast(cols, dtypes):
 
 def renumber(source_col, dest_col):
     num_edges = len(source_col)
-    
+
     src_renumbered = cudf.Series(np.zeros(num_edges), dtype=np.int32)
     dst_renumbered = cudf.Series(np.zeros(num_edges), dtype=np.int32)
 
@@ -74,15 +74,15 @@ def renumber(source_col, dest_col):
                                                                <int*>c_src_renumbered,
                                                                <int*>c_dst_renumbered,
                                                                &map_size))
-        
-        
+
+
     map = DeviceBuffer.c_from_unique_ptr(move(numbering_map))
     map = Buffer(map)
-    
+
     output_map = cudf.Series(data=map, dtype=source_col.dtype)
 
     return src_renumbered, dst_renumbered, output_map
-                                        
+
 
 def view_adj_list(input_graph):
 
@@ -213,7 +213,7 @@ def _degree_csr(offsets, indices, x=0):
     cdef uintptr_t c_indices = indices.__cuda_array_interface__['data'][0]
 
     graph = GraphCSRView[int,int,float](<int*>c_offsets, <int*>c_indices, <float*>NULL, num_verts, num_edges)
-        
+
     graph.degree(<int*> c_degree, dir)
     graph.get_vertex_identifiers(<int*>c_vertex)
 
@@ -224,7 +224,7 @@ def _degree(input_graph, x=0):
     transpose_x = { 0: 0,
                     2: 1,
                     1: 2 }
-    
+
     if input_graph.adjlist is not None:
         return _degree_csr(input_graph.adjlist.offsets,
                            input_graph.adjlist.indices,
@@ -248,17 +248,17 @@ def _degree(input_graph, x=0):
             data.calculate_parts_to_sizes(comms)
             degree_ddf = [client.submit(_degree_coo, wf[1][0], 'src', 'dst', x, num_verts, comms.sessionId, workers=[wf[0]]) for idx, wf in enumerate(data.worker_to_parts.items())]
             wait(degree_ddf)
-            return degree_ddf[0].result()      
+            return degree_ddf[0].result()
         return _degree_coo(input_graph.edgelist.edgelist_df,
                            'src', 'dst', x)
-                           
+
     raise Exception("input_graph not COO, CSR or CSC")
 
-    
+
 def _degrees(input_graph):
     verts, indegrees = _degree(input_graph,1)
     verts, outdegrees = _degree(input_graph, 2)
-    
+
     return verts, indegrees, outdegrees
 
 

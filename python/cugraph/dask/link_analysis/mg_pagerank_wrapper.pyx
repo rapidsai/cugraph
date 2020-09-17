@@ -17,8 +17,8 @@
 from cugraph.structure.utils_wrapper import *
 from cugraph.dask.link_analysis cimport mg_pagerank as c_pagerank
 import cudf
-from cugraph.structure.graph_new cimport *
-import cugraph.structure.graph_new_wrapper as graph_new_wrapper
+from cugraph.structure.graph_primtypes cimport *
+import cugraph.structure.graph_primtypes_wrapper as graph_primtypes_wrapper
 from libc.stdint cimport uintptr_t
 from cython.operator cimport dereference as deref
 
@@ -41,12 +41,12 @@ def mg_pagerank(input_df, local_data, rank, handle, alpha=0.85, max_iter=100, to
     dst = dst - local_offset
     num_local_verts = local_data['verts'][rank]
     num_local_edges = len(src)
- 
+
     cdef uintptr_t c_local_verts = local_data['verts'].__array_interface__['data'][0]
     cdef uintptr_t c_local_edges = local_data['edges'].__array_interface__['data'][0]
     cdef uintptr_t c_local_offsets = local_data['offsets'].__array_interface__['data'][0]
 
-    [src, dst] = graph_new_wrapper.datatype_cast([src, dst], [np.int32])
+    [src, dst] = graph_primtypes_wrapper.datatype_cast([src, dst], [np.int32])
     _offsets, indices, weights = coo2csr(dst, src, None)
     offsets = _offsets[:num_local_verts + 1]
     del _offsets
@@ -56,11 +56,11 @@ def mg_pagerank(input_df, local_data, rank, handle, alpha=0.85, max_iter=100, to
 
     cdef uintptr_t c_identifier = df['vertex'].__cuda_array_interface__['data'][0];
     cdef uintptr_t c_pagerank_val = df['pagerank'].__cuda_array_interface__['data'][0];
-    
+
     cdef uintptr_t c_pers_vtx = <uintptr_t>NULL
     cdef uintptr_t c_pers_val = <uintptr_t>NULL
     cdef int sz = 0
-    
+
     cdef uintptr_t c_offsets = offsets.__cuda_array_interface__['data'][0]
     cdef uintptr_t c_indices = indices.__cuda_array_interface__['data'][0]
     cdef uintptr_t c_weights = <uintptr_t>NULL

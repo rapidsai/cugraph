@@ -17,8 +17,8 @@
 # cython: language_level = 3
 
 from cugraph.community.ecg cimport ecg as c_ecg
-from cugraph.structure.graph_new cimport *
-from cugraph.structure import graph_new_wrapper
+from cugraph.structure.graph_primtypes cimport *
+from cugraph.structure import graph_primtypes_wrapper
 from libc.stdint cimport uintptr_t
 
 import cudf
@@ -39,9 +39,9 @@ def ecg(input_graph, min_weight=.05, ensemble_size=16):
     cdef unique_ptr[handle_t] handle_ptr
     handle_ptr.reset(new handle_t())
 
-    [offsets, indices] = graph_new_wrapper.datatype_cast([input_graph.adjlist.offsets,
-                                                      input_graph.adjlist.indices], [np.int32, np.int64])
-    [weights] = graph_new_wrapper.datatype_cast([input_graph.adjlist.weights], [np.float32, np.float64])
+    [offsets, indices] = graph_primtypes_wrapper.datatype_cast([input_graph.adjlist.offsets,
+                                                                input_graph.adjlist.indices], [np.int32, np.int64])
+    [weights] = graph_primtypes_wrapper.datatype_cast([input_graph.adjlist.weights], [np.float32, np.float64])
 
     num_verts = input_graph.number_of_vertices()
     num_edges = input_graph.number_of_edges(directed_edges=True)
