@@ -13,6 +13,12 @@
 
 from cugraph.community import ktruss_subgraph_wrapper
 from cugraph.structure.graph import Graph
+from cugraph.utilities import check_nx_graph
+from cugraph.utilities import cugraph_to_nx
+
+
+def k_truss(G, k):
+    return ktruss_subgraph(G, k)
 
 
 def ktruss_subgraph(G, k, use_weights=True):
@@ -51,7 +57,7 @@ def ktruss_subgraph(G, k, use_weights=True):
 
     Parameters
     ----------
-    G : cuGraph.Graph
+    G : cuGraph.Graph or networkx.Graph
         cuGraph graph descriptor with connectivity information. k-Trusses are
         defined for only undirected graphs as they are defined for
         undirected triangle in a graph.
@@ -76,6 +82,8 @@ def ktruss_subgraph(G, k, use_weights=True):
     >>> k_subgraph = cugraph.ktruss_subgraph(G, 3)
     """
 
+    G, isNx = check_nx_graph(G)
+
     KTrussSubgraph = Graph()
     if type(G) is not Graph:
         raise Exception("input graph must be undirected")
@@ -94,4 +102,7 @@ def ktruss_subgraph(G, k, use_weights=True):
             subgraph_df, source="src", destination="dst"
         )
 
-    return KTrussSubgraph
+    if isNx is True:
+        return cugraph_to_nx(KTrussSubgraph)
+    else:
+        return KTrussSubgraph
