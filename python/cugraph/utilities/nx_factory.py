@@ -82,3 +82,37 @@ def df_score_to_dictionary(df, k):
     """
     df = df.sort_values(by="vertex")
     return df.to_pandas().set_index("vertex").to_dict()[k]
+
+
+def df_edge_score_to_dictionary(df, k):
+    """
+    Convert a dataframe to a dictionary
+
+    Parameters
+    ----------
+     df : cudf.DataFrame 
+        GPU data frame containing two cudf.Series of size V: the vertex
+        identifiers and the corresponding score values.
+        Please note that the resulting the 'vertex' column might not be
+        in ascending order.
+
+        df['vertex'] : cudf.Series
+            Contains the vertex identifiers
+        df[X] : cudf.Series
+            Contains the scores of the vertices   
+    
+    k : str
+        score column name 
+
+
+    Returns
+    -------
+    dict : Dictionary of vertices and score
+
+    """
+    pdf = df.sort_values(by=["src", "dst"]).to_pandas()
+    d = {}
+    for i in range(len(pdf)):
+        d[(pdf["src"][i], pdf["dst"][i])] = pdf[k][i]
+
+    return d

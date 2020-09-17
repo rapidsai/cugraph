@@ -16,3 +16,4 @@
 from cugraph.utilities.nx_factory import convert_from_nx
 from cugraph.utilities.nx_factory import check_nx_graph
 from cugraph.utilities.nx_factory import df_score_to_dictionary
+from cugraph.utilities.nx_factory import df_edge_score_to_dictionary
