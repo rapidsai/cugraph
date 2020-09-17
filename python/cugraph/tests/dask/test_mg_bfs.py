@@ -15,17 +15,28 @@ import cugraph.dask as dcg
 import cugraph.comms as Comms
 from dask.distributed import Client
 import gc
+import pytest
 import cugraph
 import dask_cudf
 import cudf
 from dask_cuda import LocalCUDACluster
 
 
-def test_dask_bfs():
-    gc.collect()
+@pytest.fixture
+def client_connection():
     cluster = LocalCUDACluster()
     client = Client(cluster)
     Comms.initialize()
+
+    yield client
+
+    Comms.destroy()
+    client.close()
+    cluster.close()
+
+
+def test_dask_bfs(client_connection):
+    gc.collect()
 
     input_data_path = r"../datasets/netscience.csv"
     chunksize = dcg.get_chunksize(input_data_path)
@@ -44,7 +55,7 @@ def test_dask_bfs():
     g.from_cudf_edgelist(df, 'src', 'dst', renumber=True)
 
     dg = cugraph.DiGraph()
-    dg.from_dask_cudf_edgelist(ddf, renumber=True)
+    dg.from_dask_cudf_edgelist(ddf, 'src', 'dst')
 
     expected_dist = cugraph.bfs(g, 0)
     result_dist = dcg.bfs(dg, 0, True)
@@ -60,7 +71,3 @@ def test_dask_bfs():
                 compare_dist['distance_dask'].iloc[i]):
             err = err + 1
     assert err == 0
-
-    Comms.destroy()
-    client.close()
-    cluster.close()

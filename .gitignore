@@ -63,6 +63,7 @@ datasets/*
 !datasets/cyber.csv
 !datasets/karate-data.csv
 !datasets/karate_undirected.csv
+!datasets/karate-disjoint.csv
 !datasets/netscience.csv
 
 

@@ -16,7 +16,7 @@
 # cython: embedsignature = True
 # cython: language_level = 3
 
-from cugraph.structure.graph_new cimport *
+from cugraph.structure.graph_primtypes cimport *
 from libcpp.memory cimport unique_ptr
 
 cdef extern from "raft/handle.hpp" namespace "raft":

@@ -17,8 +17,8 @@
 # cython: language_level = 3
 
 from cugraph.centrality.katz_centrality cimport katz_centrality as c_katz_centrality
-from cugraph.structure.graph_new cimport *
-from cugraph.structure import graph_new_wrapper
+from cugraph.structure.graph_primtypes cimport *
+from cugraph.structure import graph_primtypes_wrapper
 from libcpp cimport bool
 from libc.stdint cimport uintptr_t
 
@@ -37,7 +37,7 @@ def get_output_df(input_graph, nstart):
         if len(nstart) != num_verts:
             raise ValueError('nstart must have initial guess for all vertices')
 
-        nstart['values'] = graph_new_wrapper.datatype_cast([nstart['values']], [np.float64])
+        nstart['values'] = graph_primtypes_wrapper.datatype_cast([nstart['values']], [np.float64])
         df['katz_centrality'][nstart['vertex']] = nstart['values']
 
     return df

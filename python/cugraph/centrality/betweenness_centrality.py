@@ -30,8 +30,13 @@ def betweenness_centrality(
     result_dtype=np.float64,
 ):
     """
-    Compute the betweenness centrality for all nodes of the graph G from a
-    sample of 'k' sources.
+    Compute the betweenness centrality for all vertices of the graph G.
+    Betweenness centrality is a measure of the number of shortest paths that
+    pass through a vertex.  A vertex with a high betweenness centrality score
+    has more paths passing through it and is therefore believed to be more
+    important. Rather than doing an all-pair shortest path, a sample of k
+    starting vertices can be used.
+
     CuGraph does not currently support the 'endpoints' and 'weight' parameters
     as seen in the corresponding networkX call.
 
@@ -99,10 +104,10 @@ def betweenness_centrality(
 
     Examples
     --------
-    >>> M = cudf.read_csv('datasets/karate.csv', delimiter=' ',
+    >>> gdf = cudf.read_csv('datasets/karate.csv', delimiter=' ',
     >>>                   dtype=['int32', 'int32', 'float32'], header=None)
     >>> G = cugraph.Graph()
-    >>> G.from_cudf_edgelist(M, source='0', destination='1')
+    >>> G.from_cudf_edgelist(gdf, source='0', destination='1')
     >>> bc = cugraph.betweenness_centrality(G)
     """
     # vertices is intended to be a cuDF series that contains a sampling of
@@ -136,8 +141,13 @@ def edge_betweenness_centrality(
     G, k=None, normalized=True, weight=None, seed=None, result_dtype=np.float64
 ):
     """
-    Compute the edge betweenness centrality for all edges of the graph G from a
-    sample of 'k' sources.
+    Compute the edge betweenness centrality for all edges of the graph G.
+    Betweenness centrality is a measure of the number of shortest paths
+    that pass over an edge.  An edge with a high betweenness centrality
+    score has more paths passing over it and is therefore believed to be
+    more important. Rather than doing an all-pair shortest path, a sample
+    of k starting vertices can be used.
+
     CuGraph does not currently support the 'weight' parameter
     as seen in the corresponding networkX call.
 
@@ -211,10 +221,10 @@ def edge_betweenness_centrality(
 
     Examples
     --------
-    >>> M = cudf.read_csv('datasets/karate.csv', delimiter=' ',
+    >>> gdf = cudf.read_csv('datasets/karate.csv', delimiter=' ',
     >>>                   dtype=['int32', 'int32', 'float32'], header=None)
     >>> G = cugraph.Graph()
-    >>> G.from_cudf_edgelist(M, source='0', destination='1')
+    >>> G.from_cudf_edgelist(gdf, source='0', destination='1')
     >>> ebc = cugraph.edge_betweenness_centrality(G)
     """
 

@@ -45,7 +45,7 @@ def client_connection():
 
 
 # Test all combinations of default/managed and pooled/non-pooled allocation
-@pytest.mark.parametrize("graph_file", utils.DATASETS)
+@pytest.mark.parametrize("graph_file", utils.DATASETS_UNRENUMBERED)
 def test_mg_renumber(graph_file, client_connection):
     gc.collect()
 
@@ -85,7 +85,7 @@ def test_mg_renumber(graph_file, client_connection):
 
 
 # Test all combinations of default/managed and pooled/non-pooled allocation
-@pytest.mark.parametrize("graph_file", utils.DATASETS)
+@pytest.mark.parametrize("graph_file", utils.DATASETS_UNRENUMBERED)
 def test_mg_renumber2(graph_file, client_connection):
     gc.collect()
 
@@ -120,7 +120,7 @@ def test_mg_renumber2(graph_file, client_connection):
 
 
 # Test all combinations of default/managed and pooled/non-pooled allocation
-@pytest.mark.parametrize("graph_file", utils.DATASETS)
+@pytest.mark.parametrize("graph_file", utils.DATASETS_UNRENUMBERED)
 def test_mg_renumber3(graph_file, client_connection):
     gc.collect()
 
@@ -175,7 +175,7 @@ def test_dask_pagerank(client_connection):
     g.from_cudf_edgelist(df, 'src', 'dst')
 
     dg = cugraph.DiGraph()
-    dg.from_dask_cudf_edgelist(ddf)
+    dg.from_dask_cudf_edgelist(ddf, 'src', 'dst')
 
     # Pre compute local data
     # dg.compute_local_data(by='dst')

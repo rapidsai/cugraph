@@ -207,6 +207,7 @@ def _get_local_data(df, by):
 
 
 def get_local_data(input_graph, by, load_balance=True):
+    input_graph.compute_renumber_edge_list(transposed=(by == 'dst'))
     _ddf = input_graph.edgelist.edgelist_df
     ddf = _ddf.sort_values(by=by, ignore_index=True)
 
