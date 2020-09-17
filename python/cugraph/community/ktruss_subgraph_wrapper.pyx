@@ -17,8 +17,8 @@
 # cython: language_level = 3
 
 from cugraph.community.ktruss_subgraph cimport *
-from cugraph.structure.graph_new cimport *
-from cugraph.structure import graph_new_wrapper
+from cugraph.structure.graph_primtypes cimport *
+from cugraph.structure import graph_primtypes_wrapper
 from libcpp cimport bool
 from libc.stdint cimport uintptr_t
 from libc.float cimport FLT_MAX_EXP
@@ -39,7 +39,7 @@ def ktruss_subgraph_double(input_graph, k, use_weights):
 
 
 def ktruss_subgraph(input_graph, k, use_weights):
-    if graph_new_wrapper.weight_type(input_graph) == np.float64 and use_weights:
+    if graph_primtypes_wrapper.weight_type(input_graph) == np.float64 and use_weights:
         return ktruss_subgraph_double(input_graph, k, use_weights)
     else:
         return ktruss_subgraph_float(input_graph, k, use_weights)
