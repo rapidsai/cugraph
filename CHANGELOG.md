@@ -14,6 +14,7 @@
 - PR #1145 Simple edge list generator
 - PR #1144 updated documentation and APIs
 - PR #1139 MNMG Louvain Python updates, Cython cleanup
+- PR #1149 Parquet read and concat within workers
 
 ## Bug Fixes
 - PR #1131 Show style checker errors with set +e
