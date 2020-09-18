@@ -137,7 +137,9 @@ struct graph_container_t {
 // void* offsets, indices, weights
 //   Pointer to an array of values representing offsets, indices, and weights
 //   respectively. The value types of the array are specified using
-//   numberTypeEnum values separately (see below)
+//   numberTypeEnum values separately (see below). offsets should be size
+//   num_vertices+1, indices should be size num_edges, weights should also be
+//   size num_edges
 //
 // numberTypeEnum offsetType, indexType, weightType
 //   numberTypeEnum enum value describing the data type for the offsets,
