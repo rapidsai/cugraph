@@ -97,7 +97,7 @@ def pagerank(
     >>> pr = cugraph.pagerank(G, alpha = 0.85, max_iter = 500, tol = 1.0e-05)
     """
 
-    G, isNx = cugraph.utilities.check_nx_graph(G)
+    G, isNx = cugraph.utilities.check_nx_graph(G, weight)
 
     if personalization is not None:
         null_check(personalization["vertex"])

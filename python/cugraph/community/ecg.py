@@ -16,7 +16,7 @@ from cugraph.utilities import check_nx_graph
 from cugraph.utilities import df_score_to_dictionary
 
 
-def ecg(input_graph, min_weight=0.05, ensemble_size=16):
+def ecg(input_graph, min_weight=0.05, ensemble_size=16, weight=None):
     """
     Compute the Ensemble Clustering for Graphs (ECG) partition of the input
     graph. ECG runs truncated Louvain on an ensemble of permutations of the
@@ -43,6 +43,10 @@ def ecg(input_graph, min_weight=0.05, ensemble_size=16):
         The default value is 16, larger values may produce higher quality
         partitions for some graphs.
 
+    weight : str
+        Edge data column to use.  Default is None
+        This parameter is here for NetworkX compatibility
+
     Returns
     -------
     parts : cudf.DataFrame
@@ -65,7 +69,7 @@ def ecg(input_graph, min_weight=0.05, ensemble_size=16):
 
     """
 
-    input_graph, isNx = check_nx_graph(input_graph)
+    input_graph, isNx = check_nx_graph(input_graph, weight)
 
     parts = ecg_wrapper.ecg(input_graph, min_weight, ensemble_size)
 

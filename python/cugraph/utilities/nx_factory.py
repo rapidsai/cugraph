@@ -15,7 +15,7 @@ import cugraph
 import cudf
 
 
-def convert_from_nx(nxG):
+def convert_from_nx(nxG, weight=None):
     if type(nxG) == nx.classes.graph.Graph:
         G = cugraph.Graph()
     elif type(nxG) == nx.classes.digraph.DiGraph:
@@ -24,17 +24,25 @@ def convert_from_nx(nxG):
         raise ValueError("nxG does not appear to be a NetworkX graph type")
 
     pdf = nx.to_pandas_edgelist(nxG)
-    gdf = cudf.from_pandas(pdf)
-    num_col = len(gdf.columns)
+    num_col = len(pdf.columns)
 
     if num_col < 2:
         raise ValueError("NetworkX graph did not contain edges")
-    elif num_col == 2:
-        gdf.columns = ["0", "1"]
-        G.from_cudf_edgelist(gdf, "0", "1")
+    
+    if weight == None:
+        num_col == 2
+        pdf = pdf[["source", "target"]]
+
+    if num_col >= 3 and weight != None:
+        pdf = pdf[["source", "target", weight]]
+        num_col = 3
+
+    gdf = cudf.from_pandas(pdf)
+
+    if num_col == 2:
+        G.from_cudf_edgelist(gdf, "source", "target")
     else:
-        gdf.columns = ["0", "1", "2"]
-        G.from_cudf_edgelist(gdf, "0", "1", "2")
+        G.from_cudf_edgelist(gdf, "source", "target", weight)
 
     del gdf
     del pdf
@@ -42,13 +50,28 @@ def convert_from_nx(nxG):
     return G
 
 
-def check_nx_graph(G):
+def check_nx_graph(G, weight=None):
     """
     This is a convenience function that will ensure the proper graph type
+
+    Parameters
+    ----------
+    G : cudf.Graph or networkx.Graph
+    weight : str or None
+        which column to use for weight. Default is None
+
+    Returns
+    -------
+    G : cudf.Graph
+        returns a cugraph.Graph that is either the orginal input or
+        a conversion from NetworkX
+
+    is_nx : Boolean
+        indicates rather or not the Graph was converted
     """
 
     if isinstance(G, nx.classes.graph.Graph):
-        return convert_from_nx(G), True
+        return convert_from_nx(G, weight), True
     else:
         return G, False
 
@@ -119,7 +142,7 @@ def df_edge_score_to_dictionary(df, k):
 
 def cugraph_to_nx(G):
     pdf = G.view_edge_list().to_pandas()
-    num_col = len(pdf)
+    num_col = len(pdf.columns)
 
     if num_col == 2:
         Gnx = nx.from_pandas_edgelist(pdf, source="src", target="dst")
