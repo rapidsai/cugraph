@@ -89,11 +89,13 @@ def test_ktruss_subgraph_Graph_nx(graph_file, nx_ground_truth):
     k = 5
     M = utils.read_csv_for_nx(graph_file, read_weights_in_sp=True)
     G = nx.from_pandas_edgelist(
-        M, source="0", target="1",
+        M, source="0", target="1", edge_attr="weight",
         create_using=nx.Graph()
     )
     k_subgraph = cugraph.k_truss(G, k)
+    df = nx.to_pandas_edgelist(k_subgraph)
 
-    #cu_graph = cugraph.utilities.convert_from_nx(k_subgraph)
+    k_truss_nx = nx.k_truss(G, k)
+    nx_df = nx.to_pandas_edgelist(k_truss_nx)
 
-    #compare_k_truss(cu_graph, k, nx_ground_truth)
+    assert len(df) == len(nx_df)

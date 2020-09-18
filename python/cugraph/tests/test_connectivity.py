@@ -35,22 +35,12 @@ print("Networkx version : {} ".format(nx.__version__))
 
 
 def networkx_weak_call(M):
-    """M = M.tocsr()
-    if M is None:
-        raise TypeError('Could not read the input graph')
-    if M.shape[0] != M.shape[1]:
-        raise TypeError('Shape is not square')
-
-    Gnx = nx.DiGraph(M)"""
     Gnx = nx.from_pandas_edgelist(
         M, source="0", target="1", create_using=nx.DiGraph()
     )
 
     # Weakly Connected components call:
-    print("Solving... ")
     t1 = time.time()
-
-    # same parameters as in NVGRAPH
     result = nx.weakly_connected_components(Gnx)
     t2 = time.time() - t1
     print("Time : " + str(t2))
@@ -60,7 +50,6 @@ def networkx_weak_call(M):
 
 
 def cugraph_weak_call(cu_M):
-    # cugraph Pagerank Call
     G = cugraph.DiGraph()
     G.from_cudf_edgelist(cu_M, source="0", destination="1")
     t1 = time.time()
@@ -79,14 +68,9 @@ def networkx_strong_call(M):
         M, source="0", target="1", create_using=nx.DiGraph()
     )
 
-    # Weakly Connected components call:
-    print("Solving... ")
     t1 = time.time()
-
-    # same parameters as in NVGRAPH
     result = nx.strongly_connected_components(Gnx)
-    t2 = time.time() - t1
-
+    t2 = time.time() - t1 
     print("Time : " + str(t2))
 
     labels = sorted(result)
@@ -205,3 +189,34 @@ def test_strong_cc(graph_file):
 
     cg_vertices = sorted(lst_cg_components[idx])
     assert nx_vertices == cg_vertices
+
+
+# Test all combinations of default/managed and pooled/non-pooled allocation
+@pytest.mark.parametrize("graph_file", utils.DATASETS)
+def test_weak_cc_nx(graph_file):
+    gc.collect()
+
+    M = utils.read_csv_for_nx(graph_file)
+    Gnx = nx.from_pandas_edgelist(
+        M, source="0", target="1", create_using=nx.DiGraph()
+    )
+
+    nx_result = nx.weakly_connected_components(Gnx)
+    cu_results = cugraph.weakly_connected_components(Gnx)
+
+    assert len(nx_result) == len(cu_result)
+
+
+@pytest.mark.parametrize("graph_file", utils.STRONGDATASETS)
+def test_strong_cc_nx(graph_file):
+    gc.collect()
+
+    M = utils.read_csv_for_nx(graph_file)
+    Gnx = nx.from_pandas_edgelist(
+        M, source="0", target="1", create_using=nx.DiGraph()
+    )
+
+    nx_result = nx.strongly_connected_components(Gnx)
+    cu_results = cugraph.strongly_connected_components(Gnx)
+
+    assert len(nx_result) == len(cu_result)

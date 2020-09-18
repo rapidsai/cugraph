@@ -28,12 +28,12 @@ def convert_from_nx(nxG, weight=None):
 
     if num_col < 2:
         raise ValueError("NetworkX graph did not contain edges")
-    
-    if weight == None:
+
+    if weight is None:
         num_col == 2
         pdf = pdf[["source", "target"]]
 
-    if num_col >= 3 and weight != None:
+    if num_col >= 3 and weight is not None:
         pdf = pdf[["source", "target", weight]]
         num_col = 3
 
@@ -48,6 +48,10 @@ def convert_from_nx(nxG, weight=None):
     del pdf
 
     return G
+
+
+def is_networkx_graph(G):
+    return isinstance(G, nx.classes.graph.Graph)
 
 
 def check_nx_graph(G, weight=None):

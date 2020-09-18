@@ -12,6 +12,8 @@
 # limitations under the License.
 
 from cugraph.components import connectivity_wrapper
+from cugraph.utilities import check_nx_graph
+from cugraph.utilities import df_score_to_dictionary
 
 
 def weakly_connected_components(G):
@@ -21,7 +23,7 @@ def weakly_connected_components(G):
 
     Parameters
     ----------
-    G : cugraph.Graph
+    G : cugraph.Graph or networkx.Graph
         cuGraph graph descriptor, should contain the connectivity information
         as an edge list (edge weights are not used for this algorithm).
         Currently, the graph should be undirected where an undirected edge is
@@ -46,10 +48,15 @@ def weakly_connected_components(G):
     >>> df = cugraph.weakly_connected_components(G)
     """
 
+    G, isNx = check_nx_graph(G)
+
     df = connectivity_wrapper.weakly_connected_components(G)
 
     if G.renumbered:
         df = G.unrenumber(df, "vertices")
+
+    if isNx is True:
+        df = df_score_to_dictionary(df, "labels")
 
     return df
 
@@ -61,7 +68,7 @@ def strongly_connected_components(G):
 
     Parameters
     ----------
-    G : cugraph.Graph
+    G : cugraph.Graph or networkx.Graph
       cuGraph graph descriptor, should contain the connectivity information as
       an edge list (edge weights are not used for this algorithm). The graph
       can be either directed or undirected where an undirected edge is
@@ -86,9 +93,14 @@ def strongly_connected_components(G):
     >>> df = cugraph.strongly_connected_components(G)
     """
 
+    G, isNx = check_nx_graph(G)
+
     df = connectivity_wrapper.strongly_connected_components(G)
 
     if G.renumbered:
         df = G.unrenumber(df, "vertices")
+
+    if isNx is True:
+        df = df_score_to_dictionary(df, "labels")
 
     return df
