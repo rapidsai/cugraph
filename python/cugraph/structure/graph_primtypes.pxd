@@ -190,3 +190,32 @@ ctypedef fused GraphViewType:
 cdef coo_to_df(GraphCOOPtrType graph)
 cdef csr_to_series(GraphCSRPtrType graph)
 cdef GraphViewType get_graph_view(input_graph, bool weightless=*, GraphViewType* dummy=*)
+
+
+# C++ utilities specifically for Cython
+cdef extern from "utilities/cython.hpp" namespace "cugraph::cython":
+
+    ctypedef enum numberTypeEnum:
+        intType "cugraph::cython::numberTypeEnum::intType"
+        floatType "cugraph::cython::numberTypeEnum::floatType"
+        doubleType "cugraph::cython::numberTypeEnum::doubleType"
+
+    cdef struct graph_container_t:
+        pass
+
+    cdef void populate_graph_container(
+        graph_container_t &graph_container,
+        const handle_t &handle,
+        void *offsets,
+        void *indices,
+        void *weights,
+        numberTypeEnum offsetType,
+        numberTypeEnum indexType,
+        numberTypeEnum weightType,
+        int num_vertices,
+        int num_edges,
+        int *local_vertices,
+        int *local_edges,
+        int *local_offsets,
+        bool transposed,
+        bool multi_gpu) except +

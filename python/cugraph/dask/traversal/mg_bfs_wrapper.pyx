@@ -17,8 +17,8 @@
 from cugraph.structure.utils_wrapper import *
 from cugraph.dask.traversal cimport mg_bfs as c_bfs
 import cudf
-from cugraph.structure.graph_new cimport *
-import cugraph.structure.graph_new_wrapper as graph_new_wrapper
+from cugraph.structure.graph_primtypes cimport *
+import cugraph.structure.graph_primtypes_wrapper as graph_primtypes_wrapper
 from libc.stdint cimport uintptr_t
 
 def mg_bfs(input_df, local_data, rank, handle, start, result_len, return_distances=False):
@@ -40,7 +40,7 @@ def mg_bfs(input_df, local_data, rank, handle, start, result_len, return_distanc
     num_local_edges = len(src)
 
     # Convert to local CSR
-    [src, dst] = graph_new_wrapper.datatype_cast([src, dst], [np.int32])
+    [src, dst] = graph_primtypes_wrapper.datatype_cast([src, dst], [np.int32])
     _offsets, indices, weights = coo2csr(src, dst, None)
     offsets = _offsets[:num_local_verts + 1]
     del _offsets
