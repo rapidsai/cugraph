@@ -83,14 +83,14 @@ struct plus_thrust_tuple_impl<TupleType, I, I> {
 
 template <typename T>
 __device__ std::enable_if_t<std::is_arithmetic<T>::value, void> atomic_accumulate_impl(T& lhs,
-                                                                                T const& rhs)
+                                                                                       T const& rhs)
 {
   atomicAdd(&lhs, rhs);
 }
 
 template <typename T>
 __device__ std::enable_if_t<std::is_arithmetic<T>::value, void> atomic_accumulate_impl(
-  thrust::detail::any_assign&/* dereferencing thrust::discard_iterator results in this type */ lhs,
+  thrust::detail::any_assign& /* dereferencing thrust::discard_iterator results in this type */ lhs,
   T const& rhs)
 {
   // no-op
@@ -100,7 +100,8 @@ template <typename Iterator, typename TupleType, size_t I, size_t N>
 struct atomic_accumulate_thrust_tuple_impl {
   __device__ constexpr void compute(Iterator iter, TupleType const& value) const
   {
-    atomic_accumulate_impl(thrust::raw_reference_cast(thrust::get<I>(*iter)), thrust::get<I>(value));
+    atomic_accumulate_impl(thrust::raw_reference_cast(thrust::get<I>(*iter)),
+                           thrust::get<I>(value));
     atomic_accumulate_thrust_tuple_impl<Iterator, TupleType, I + 1, N>().compute(iter, value);
   }
 };
@@ -203,8 +204,8 @@ struct atomic_accumulate_thrust_tuple {
       thrust::tuple_size<typename thrust::iterator_traits<Iterator>::value_type>::value ==
       thrust::tuple_size<TupleType>::value);
     size_t constexpr tuple_size = thrust::tuple_size<TupleType>::value;
-    detail::atomic_accumulate_thrust_tuple_impl<Iterator, TupleType, size_t{0}, tuple_size>().compute(
-      iter, value);
+    detail::atomic_accumulate_thrust_tuple_impl<Iterator, TupleType, size_t{0}, tuple_size>()
+      .compute(iter, value);
   }
 };
 

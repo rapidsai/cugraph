@@ -91,13 +91,12 @@ __host__ __device__ std::enable_if_t<is_thrust_tuple<T>::value, T> plus_edge_op_
   return plus_thrust_tuple<T>()(lhs, rhs);
 }
 
-
 template <typename Iterator, typename T>
-__device__ std::enable_if_t<
-  std::is_same<typename thrust::iterator_traits<Iterator>::value_type, T>::value &&
-    std::is_arithmetic<T>::value,
-  void>
-atomic_accumulate_edge_op_result(Iterator iter, T const& value)
+__device__
+  std::enable_if_t<std::is_same<typename thrust::iterator_traits<Iterator>::value_type, T>::value &&
+                     std::is_arithmetic<T>::value,
+                   void>
+  atomic_accumulate_edge_op_result(Iterator iter, T const& value)
 {
   atomicAdd(&(thrust::raw_reference_cast(*iter)), value);
 }
@@ -116,7 +115,7 @@ __device__
   std::enable_if_t<is_thrust_tuple<typename thrust::iterator_traits<Iterator>::value_type>::value &&
                      is_thrust_tuple<T>::value,
                    void>
-                   atomic_accumulate_edge_op_result(Iterator iter, T const& value)
+  atomic_accumulate_edge_op_result(Iterator iter, T const& value)
 {
   static_assert(thrust::tuple_size<typename thrust::iterator_traits<Iterator>::value_type>::value ==
                 thrust::tuple_size<T>::value);
