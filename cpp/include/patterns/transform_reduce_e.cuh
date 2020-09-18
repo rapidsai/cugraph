@@ -97,11 +97,11 @@ __global__ void for_all_major_for_all_nbr_low_out_degree(
         auto weight       = weights != nullptr ? weights[i] : weight_t{1.0};
         auto minor_offset = matrix_partition.get_minor_offset_from_minor_nocheck(minor);
         auto row          = GraphViewType::is_adj_matrix_transposed
-                              ? minor
-                              : matrix_partition.get_major_from_major_offset_nocheck(idx);
-        auto col          = GraphViewType::is_adj_matrix_transposed
-                              ? matrix_partition.get_major_from_major_offset_nocheck(idx)
-                              : minor;
+                     ? minor
+                     : matrix_partition.get_major_from_major_offset_nocheck(idx);
+        auto col = GraphViewType::is_adj_matrix_transposed
+                     ? matrix_partition.get_major_from_major_offset_nocheck(idx)
+                     : minor;
         auto row_offset =
           GraphViewType::is_adj_matrix_transposed ? minor_offset : static_cast<vertex_t>(idx);
         auto col_offset =
@@ -128,11 +128,11 @@ __global__ void for_all_major_for_all_nbr_low_out_degree(
       auto weight       = weights != nullptr ? weights[i] : weight_t{1.0};
       auto minor_offset = matrix_partition.get_minor_offset_from_minor_nocheck(minor);
       auto row          = GraphViewType::is_adj_matrix_transposed
-                            ? minor
-                            : matrix_partition.get_major_from_major_offset_nocheck(idx);
-      auto col          = GraphViewType::is_adj_matrix_transposed
-                            ? matrix_partition.get_major_from_major_offset_nocheck(idx)
-                            : minor;
+                   ? minor
+                   : matrix_partition.get_major_from_major_offset_nocheck(idx);
+      auto col = GraphViewType::is_adj_matrix_transposed
+                   ? matrix_partition.get_major_from_major_offset_nocheck(idx)
+                   : minor;
       auto row_offset =
         GraphViewType::is_adj_matrix_transposed ? minor_offset : static_cast<vertex_t>(idx);
       auto col_offset =
