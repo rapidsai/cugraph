@@ -15,6 +15,7 @@ import gc
 import time
 from collections import defaultdict
 import pytest
+import pandas as pd
 
 import cugraph
 from cugraph.tests import utils
@@ -70,7 +71,7 @@ def networkx_strong_call(M):
 
     t1 = time.time()
     result = nx.strongly_connected_components(Gnx)
-    t2 = time.time() - t1 
+    t2 = time.time() - t1
     print("Time : " + str(t2))
 
     labels = sorted(result)
@@ -201,10 +202,15 @@ def test_weak_cc_nx(graph_file):
         M, source="0", target="1", create_using=nx.DiGraph()
     )
 
-    nx_result = nx.weakly_connected_components(Gnx)
-    cu_results = cugraph.weakly_connected_components(Gnx)
+    nx_wcc = nx.weakly_connected_components(Gnx)
+    nx_result = sorted(nx_wcc)
 
-    assert len(nx_result) == len(cu_result)
+    cu_wcc = cugraph.weakly_connected_components(Gnx)
+    pdf = pd.DataFrame.from_dict(cu_wcc, orient='index').reset_index()
+    pdf.columns = ["vertex", "labels"]
+    cu_result = pdf["labels"].nunique()
+
+    assert len(nx_result) == cu_result
 
 
 @pytest.mark.parametrize("graph_file", utils.STRONGDATASETS)
@@ -216,7 +222,13 @@ def test_strong_cc_nx(graph_file):
         M, source="0", target="1", create_using=nx.DiGraph()
     )
 
-    nx_result = nx.strongly_connected_components(Gnx)
-    cu_results = cugraph.strongly_connected_components(Gnx)
+    nx_scc = nx.strongly_connected_components(Gnx)
+    nx_result = sorted(nx_scc)
 
-    assert len(nx_result) == len(cu_result)
+    cu_scc = cugraph.strongly_connected_components(Gnx)
+
+    pdf = pd.DataFrame.from_dict(cu_scc, orient='index').reset_index()
+    pdf.columns = ["vertex", "labels"]
+    cu_result = pdf["labels"].nunique()
+
+    assert len(nx_result) == cu_result

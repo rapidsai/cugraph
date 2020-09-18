@@ -16,17 +16,13 @@ from cugraph.structure.graph import Graph
 from cugraph.utilities import is_networkx_graph
 from cugraph.utilities import convert_from_nx
 from cugraph.utilities import cugraph_to_nx
-import warnings
 
-with warnings.catch_warnings():
-    warnings.filterwarnings("ignore", category=DeprecationWarning)
-    import networkx as nx
 
 def k_truss(G, k):
     """
     Returns the K-Truss subgraph of a graph for a specific k.
 
-    This API is for NwtworkX compatability. 
+    This API is for NwtworkX compatability.
 
     Parameters
     ----------
@@ -44,7 +40,7 @@ def k_truss(G, k):
         A cugraph graph descriptor with the k-truss subgraph for the given k.
         The networkx graph will NOT have all attributes copied over
     """
-    
+
     is_nx = is_networkx_graph(G)
 
     if is_nx is True:

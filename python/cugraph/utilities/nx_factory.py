@@ -80,7 +80,7 @@ def check_nx_graph(G, weight=None):
         return G, False
 
 
-def df_score_to_dictionary(df, k):
+def df_score_to_dictionary(df, k, v="vertex"):
     """
     Convert a dataframe to a dictionary
 
@@ -94,11 +94,13 @@ def df_score_to_dictionary(df, k):
 
         df['vertex'] : cudf.Series
             Contains the vertex identifiers
-        df[X] : cudf.Series
+        df[..] : cudf.Series
             Contains the scores of the vertices
 
     k : str
         score column name
+    v : str
+        the vertex column name. Default is "vertex"
 
 
     Returns
@@ -106,8 +108,8 @@ def df_score_to_dictionary(df, k):
     dict : Dictionary of vertices and score
 
     """
-    df = df.sort_values(by="vertex")
-    return df.to_pandas().set_index("vertex").to_dict()[k]
+    df = df.sort_values(by=v)
+    return df.to_pandas().set_index(v).to_dict()[k]
 
 
 def df_edge_score_to_dictionary(df, k):

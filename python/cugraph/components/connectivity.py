@@ -56,7 +56,7 @@ def weakly_connected_components(G):
         df = G.unrenumber(df, "vertices")
 
     if isNx is True:
-        df = df_score_to_dictionary(df, "labels")
+        df = df_score_to_dictionary(df, "labels", "vertices")
 
     return df
 
@@ -101,6 +101,6 @@ def strongly_connected_components(G):
         df = G.unrenumber(df, "vertices")
 
     if isNx is True:
-        df = df_score_to_dictionary(df, "labels")
+        df = df_score_to_dictionary(df, "labels", "vertices")
 
     return df
