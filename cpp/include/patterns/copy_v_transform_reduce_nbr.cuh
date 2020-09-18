@@ -62,20 +62,20 @@ template <bool update_major,
           typename AdjMatrixRowValueInputIterator,
           typename AdjMatrixColValueInputIterator,
           typename ResultValueOutputIterator,
-          typename EdgeOp>
+          typename EdgeOp,
+          typename T>
 __global__ void for_all_major_for_all_nbr_low_out_degree(
   matrix_partition_device_t<GraphViewType> matrix_partition,
   AdjMatrixRowValueInputIterator adj_matrix_row_value_input_first,
   AdjMatrixColValueInputIterator adj_matrix_col_value_input_first,
   ResultValueOutputIterator result_value_output_first,
   EdgeOp e_op,
-  typename std::iterator_traits<ResultValueOutputIterator>::value_type
-    init /* relevent only if update_major == true */)
+  T init /* relevent only if update_major == true */)
 {
   using vertex_t      = typename GraphViewType::vertex_type;
   using edge_t        = typename GraphViewType::edge_type;
   using weight_t      = typename GraphViewType::weight_type;
-  using e_op_result_t = typename std::iterator_traits<ResultValueOutputIterator>::value_type;
+  using e_op_result_t = T;
 
   auto const tid = threadIdx.x + blockIdx.x * blockDim.x;
   auto idx       = static_cast<size_t>(tid);
@@ -124,7 +124,7 @@ __global__ void for_all_major_for_all_nbr_low_out_degree(
         thrust::make_counting_iterator(edge_t{0}),
         thrust::make_counting_iterator(local_degree),
         transform_op,
-        e_op_result_t{init},
+        init,
         [] __device__(auto lhs, auto rhs) { return plus_edge_op_result(lhs, rhs); });
     } else {
       thrust::for_each(
@@ -135,7 +135,7 @@ __global__ void for_all_major_for_all_nbr_low_out_degree(
           auto e_op_result  = transform_op(i);
           auto minor        = indices[i];
           auto minor_offset = matrix_partition.get_minor_offset_from_minor_nocheck(minor);
-          atomic_add(&(*(result_value_output_first + minor_offset)), e_op_result);
+          atomic_accumulate_edge_op_result(result_value_output_first + minor_offset, e_op_result);
         });
     }
 #else

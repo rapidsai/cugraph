@@ -17,6 +17,10 @@
 
 #include <utilities/thrust_tuple_utils.cuh>
 
+#include <raft/device_atomics.cuh>
+
+#include <thrust/detail/type_traits/iterator/is_discard_iterator.h>
+#include <thrust/iterator/discard_iterator.h>
 #include <thrust/tuple.h>
 #include <cub/cub.cuh>
 
@@ -85,6 +89,39 @@ __host__ __device__ std::enable_if_t<is_thrust_tuple<T>::value, T> plus_edge_op_
                                                                                        T const& rhs)
 {
   return plus_thrust_tuple<T>()(lhs, rhs);
+}
+
+
+template <typename Iterator, typename T>
+__device__ std::enable_if_t<
+  std::is_same<typename thrust::iterator_traits<Iterator>::value_type, T>::value &&
+    std::is_arithmetic<T>::value,
+  void>
+atomic_accumulate_edge_op_result(Iterator iter, T const& value)
+{
+  atomicAdd(&(thrust::raw_reference_cast(*iter)), value);
+}
+
+template <typename Iterator, typename T>
+__device__ std::enable_if_t<thrust::detail::is_discard_iterator<Iterator>::value &&
+                              std::is_arithmetic<T>::value,
+                            void>
+atomic_accumulate_edge_op_result(Iterator iter, T const& value)
+{
+  // no-op
+}
+
+template <typename Iterator, typename T>
+__device__
+  std::enable_if_t<is_thrust_tuple<typename thrust::iterator_traits<Iterator>::value_type>::value &&
+                     is_thrust_tuple<T>::value,
+                   void>
+                   atomic_accumulate_edge_op_result(Iterator iter, T const& value)
+{
+  static_assert(thrust::tuple_size<typename thrust::iterator_traits<Iterator>::value_type>::value ==
+                thrust::tuple_size<T>::value);
+  atomic_accumulate_thrust_tuple<Iterator, T>()(iter, value);
+  return;
 }
 
 }  // namespace experimental
