@@ -243,7 +243,7 @@ weight_t call_louvain(raft::handle_t const& handle,
   if (graph_container.graph_ptr_type == graphTypeEnum::GraphCSRViewFloat) {
     std::pair<size_t, float> results =
       louvain(handle,
-              *(graph_container.graph_ptr_union.GraphCSRViewFloatPtr.get()),
+              *(graph_container.graph_ptr_union.GraphCSRViewFloatPtr),
               reinterpret_cast<int*>(parts),
               max_level,
               static_cast<float>(resolution));
@@ -251,7 +251,7 @@ weight_t call_louvain(raft::handle_t const& handle,
   } else {
     std::pair<size_t, double> results =
       louvain(handle,
-              *(graph_container.graph_ptr_union.GraphCSRViewDoublePtr.get()),
+              *(graph_container.graph_ptr_union.GraphCSRViewDoublePtr),
               reinterpret_cast<int*>(parts),
               max_level,
               static_cast<double>(resolution));
