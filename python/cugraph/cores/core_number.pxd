@@ -16,11 +16,10 @@
 # cython: embedsignature = True
 # cython: language_level = 3
 
-from cugraph.structure.graph_new cimport *
+from cugraph.structure.graph_primtypes cimport *
 
 cdef extern from "algorithms.hpp" namespace "cugraph":
 
     cdef void core_number[VT,ET,WT](
         const GraphCSRView[VT,ET,WT] &graph,
         VT *core_number) except +
-

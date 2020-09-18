@@ -17,8 +17,8 @@
 # cython: language_level = 3
 
 from cugraph.community.subgraph_extraction cimport extract_subgraph_vertex as c_extract_subgraph_vertex
-from cugraph.structure.graph_new cimport *
-from cugraph.structure import graph_new_wrapper
+from cugraph.structure.graph_primtypes cimport *
+from cugraph.structure import graph_primtypes_wrapper
 from libc.stdint cimport uintptr_t
 
 import cudf
@@ -38,13 +38,13 @@ def subgraph(input_graph, vertices):
     if not input_graph.edgelist:
         input_graph.view_edge_list()
 
-    [src, dst] = graph_new_wrapper.datatype_cast([input_graph.edgelist.edgelist_df['src'], input_graph.edgelist.edgelist_df['dst']], [np.int32])
+    [src, dst] = graph_primtypes_wrapper.datatype_cast([input_graph.edgelist.edgelist_df['src'], input_graph.edgelist.edgelist_df['dst']], [np.int32])
 
     if input_graph.edgelist.weights:
-        [weights] = graph_new_wrapper.datatype_cast([input_graph.edgelist.edgelist_df['weights']], [np.float32, np.float64])
+        [weights] = graph_primtypes_wrapper.datatype_cast([input_graph.edgelist.edgelist_df['weights']], [np.float32, np.float64])
         if weights.dtype == np.float64:
             use_float = False
-        
+
     cdef GraphCOOView[int,int,float]  in_graph_float
     cdef GraphCOOView[int,int,double] in_graph_double
     cdef unique_ptr[GraphCOO[int,int,float]]  out_graph_float
@@ -56,7 +56,7 @@ def subgraph(input_graph, vertices):
 
     if weights is not None:
         c_weights = weights.__cuda_array_interface__['data'][0]
-    
+
     cdef uintptr_t c_vertices = vertices.__cuda_array_interface__['data'][0]
 
     num_verts = input_graph.number_of_vertices()
@@ -77,5 +77,5 @@ def subgraph(input_graph, vertices):
 
     df = df.merge(vertices_df, left_on='src', right_on='index', how='left').drop(['src', 'index']).rename(columns={'v': 'src'}, copy=False)
     df = df.merge(vertices_df, left_on='dst', right_on='index', how='left').drop(['dst', 'index']).rename(columns={'v': 'dst'}, copy=False)
-    
+
     return df

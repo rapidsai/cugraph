@@ -1,7 +1,8 @@
 # cuGraph 0.16.0 (Date TBD)
 
 ## New Features
-- PR 1098 Add new graph classes to support 2D partitioning
+- PR #1098 Add new graph classes to support 2D partitioning
+- PR #1124 Sub-communicator initialization for 2D partitioning support
 
 ## Improvements
 - PR 1081 MNMG Renumbering - sort partitions by degree
@@ -11,6 +12,7 @@
 - PR 1132 Upgrade Thrust to latest commit
 - PR #1129 Refactored test to use common dataset and added additional doc pages
 - PR #1144 updated documentation and APIs
+- PR #1139 MNMG Louvain Python updates, Cython cleanup
 
 ## Bug Fixes
 - PR #1131 Show style checker errors with set +e
