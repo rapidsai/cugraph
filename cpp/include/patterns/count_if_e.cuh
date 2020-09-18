@@ -226,8 +226,7 @@ typename GraphViewType::edge_type count_if_e(
   }
 
   if (GraphViewType::is_multi_gpu) {
-    // need to reduce count
-    CUGRAPH_FAIL("unimplemented.");
+    handle.get_comms().allreduce(&count, &count, 1, raft::comms::op_t::SUM, handle.get_stream());
   }
 
   return count;

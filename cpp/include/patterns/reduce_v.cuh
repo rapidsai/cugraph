@@ -55,8 +55,7 @@ T reduce_v(raft::handle_t const& handle,
                             vertex_value_input_first + graph_view.get_number_of_local_vertices(),
                             init);
   if (GraphViewType::is_multi_gpu) {
-    // need to reduce ret
-    CUGRAPH_FAIL("unimplemented.");
+    handle.get_comms().allreduce(&ret, &ret, 1, raft::comms::op_t::SUM, handle.get_stream());
   }
   return ret;
 }
