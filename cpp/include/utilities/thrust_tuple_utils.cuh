@@ -15,6 +15,9 @@
  */
 #pragma once
 
+#include <raft/device_atomics.cuh>
+
+#include <thrust/iterator/discard_iterator.h>
 #include <thrust/tuple.h>
 #include <cub/cub.cuh>
 
@@ -66,7 +69,7 @@ __device__ constexpr auto remove_first_thrust_tuple_element_impl(TupleType const
 
 template <typename TupleType, size_t I, size_t N>
 struct plus_thrust_tuple_impl {
-  __device__ constexpr void compute(TupleType& lhs, TupleType const& rhs) const
+  __host__ __device__ constexpr void compute(TupleType& lhs, TupleType const& rhs) const
   {
     thrust::get<I>(lhs) += thrust::get<I>(rhs);
     plus_thrust_tuple_impl<TupleType, I + 1, N>().compute(lhs, rhs);
@@ -75,7 +78,37 @@ struct plus_thrust_tuple_impl {
 
 template <typename TupleType, size_t I>
 struct plus_thrust_tuple_impl<TupleType, I, I> {
-  __device__ constexpr void compute(TupleType& lhs, TupleType const& rhs) const {}
+  __host__ __device__ constexpr void compute(TupleType& lhs, TupleType const& rhs) const {}
+};
+
+template <typename T>
+__device__ std::enable_if_t<std::is_arithmetic<T>::value, void> atomic_accumulate_impl(T& lhs,
+                                                                                       T const& rhs)
+{
+  atomicAdd(&lhs, rhs);
+}
+
+template <typename T>
+__device__ std::enable_if_t<std::is_arithmetic<T>::value, void> atomic_accumulate_impl(
+  thrust::detail::any_assign& /* dereferencing thrust::discard_iterator results in this type */ lhs,
+  T const& rhs)
+{
+  // no-op
+}
+
+template <typename Iterator, typename TupleType, size_t I, size_t N>
+struct atomic_accumulate_thrust_tuple_impl {
+  __device__ constexpr void compute(Iterator iter, TupleType const& value) const
+  {
+    atomic_accumulate_impl(thrust::raw_reference_cast(thrust::get<I>(*iter)),
+                           thrust::get<I>(value));
+    atomic_accumulate_thrust_tuple_impl<Iterator, TupleType, I + 1, N>().compute(iter, value);
+  }
+};
+
+template <typename Iterator, typename TupleType, size_t I>
+struct atomic_accumulate_thrust_tuple_impl<Iterator, TupleType, I, I> {
+  __device__ constexpr void compute(Iterator iter, TupleType const& value) const {}
 };
 
 template <typename TupleType, size_t BlockSize, size_t I, size_t N>
@@ -153,12 +186,26 @@ struct remove_first_thrust_tuple_element {
 
 template <typename TupleType>
 struct plus_thrust_tuple {
-  __device__ constexpr TupleType operator()(TupleType const& lhs, TupleType const& rhs) const
+  __host__ __device__ constexpr TupleType operator()(TupleType const& lhs,
+                                                     TupleType const& rhs) const
   {
     size_t constexpr tuple_size = thrust::tuple_size<TupleType>::value;
     auto ret                    = lhs;
     detail::plus_thrust_tuple_impl<TupleType, size_t{0}, tuple_size>().compute(ret, rhs);
     return ret;
+  }
+};
+
+template <typename Iterator, typename TupleType>
+struct atomic_accumulate_thrust_tuple {
+  __device__ constexpr void operator()(Iterator iter, TupleType const& value) const
+  {
+    static_assert(
+      thrust::tuple_size<typename thrust::iterator_traits<Iterator>::value_type>::value ==
+      thrust::tuple_size<TupleType>::value);
+    size_t constexpr tuple_size = thrust::tuple_size<TupleType>::value;
+    detail::atomic_accumulate_thrust_tuple_impl<Iterator, TupleType, size_t{0}, tuple_size>()
+      .compute(iter, value);
   }
 };
 

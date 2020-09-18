@@ -380,8 +380,10 @@ edgelist_from_market_matrix_file_t<vertex_t, weight_t> read_edgelist_from_matrix
 }
 
 template <typename vertex_t, typename edge_t, typename weight_t, bool store_transposed>
-cugraph::experimental::graph_t<vertex_t, edge_t, weight_t, store_transposed, false> read_graph_from_matrix_market_file(
-  raft::handle_t const& handle, std::string const& graph_file_full_path, bool test_weighted)
+cugraph::experimental::graph_t<vertex_t, edge_t, weight_t, store_transposed, false>
+read_graph_from_matrix_market_file(raft::handle_t const& handle,
+                                   std::string const& graph_file_full_path,
+                                   bool test_weighted)
 {
   auto mm_graph =
     read_edgelist_from_matrix_market_file<vertex_t, edge_t, weight_t>(graph_file_full_path);
@@ -389,8 +391,8 @@ cugraph::experimental::graph_t<vertex_t, edge_t, weight_t, store_transposed, fal
 
   rmm::device_uvector<vertex_t> d_edgelist_rows(number_of_edges, handle.get_stream());
   rmm::device_uvector<vertex_t> d_edgelist_cols(number_of_edges, handle.get_stream());
-  rmm::device_uvector<weight_t> d_edgelist_weights(
-    test_weighted ? number_of_edges : 0, handle.get_stream());
+  rmm::device_uvector<weight_t> d_edgelist_weights(test_weighted ? number_of_edges : 0,
+                                                   handle.get_stream());
 
   raft::update_device(
     d_edgelist_rows.data(), mm_graph.h_rows.data(), number_of_edges, handle.get_stream());

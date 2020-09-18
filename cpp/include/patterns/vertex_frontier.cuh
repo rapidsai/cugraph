@@ -15,10 +15,10 @@
  */
 #pragma once
 
-#include <utilities/cuda.cuh>
 #include <utilities/error.hpp>
 #include <utilities/thrust_tuple_utils.cuh>
 
+#include <raft/cudart_utils.h>
 #include <rmm/thrust_rmm_allocator.h>
 #include <raft/handle.hpp>
 #include <rmm/device_scalar.hpp>
@@ -239,8 +239,10 @@ class VertexFrontier {
     auto bucket_and_bucket_size_device_ptrs = get_bucket_and_bucket_size_device_pointers();
 
     auto& this_bucket = get_bucket(bucket_idx);
-    grid_1d_thread_t move_and_invalidate_if_grid(
-      this_bucket.size(), detail::move_and_invalidate_if_block_size, get_max_num_blocks_1D());
+    raft::grid_1d_thread_t move_and_invalidate_if_grid(
+      this_bucket.size(),
+      detail::move_and_invalidate_if_block_size,
+      handle_ptr_->get_device_properties().maxGridSize[0]);
 
     detail::move_and_invalidate_if<kNumBuckets>
       <<<move_and_invalidate_if_grid.num_blocks,

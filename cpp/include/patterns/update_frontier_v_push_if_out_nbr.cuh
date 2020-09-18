@@ -19,10 +19,10 @@
 #include <matrix_partition_device.cuh>
 #include <patterns/edge_op_utils.cuh>
 #include <patterns/reduce_op.cuh>
-#include <utilities/cuda.cuh>
 #include <utilities/error.hpp>
 #include <utilities/thrust_tuple_utils.cuh>
 
+#include <raft/cudart_utils.h>
 #include <rmm/thrust_rmm_allocator.h>
 
 #include <thrust/distance.h>
@@ -96,7 +96,7 @@ __global__ void for_all_frontier_row_for_all_nbr_low_out_degree(
                                     *(adj_matrix_col_value_input_first + col_offset),
                                     e_op);
       if (thrust::get<0>(e_op_result) == true) {
-        // FIXME: This atomicInc serializes execution. If we renumber vertices to insure that rows
+        // FIXME: This atomicAdd serializes execution. If we renumber vertices to insure that rows
         // within a partition are sorted by their out-degree in decreasing order, we can compute
         // a tight uppper bound for the maximum number of pushes per warp/block and use shared
         // memory buffer to reduce the number of atomicAdd operations.
@@ -261,7 +261,7 @@ __global__ void update_frontier_and_vertex_output_values(
  * input properties.
  * @tparam AdjMatrixColValueInputIterator Type of the iterator for graph adjacency matrix column
  * input properties.
- * @tparam EdgeOp Type of the binary (or ternary) edge operator.
+ * @tparam EdgeOp Type of the quaternary (or quinary) edge operator.
  * @tparam ReduceOp Type of the binary reduction operator.
  * @tparam VertexValueInputIterator Type of the iterator for vertex properties.
  * @tparam VertexValueOutputIterator Type of the iterator for vertex property variables.
@@ -283,9 +283,11 @@ __global__ void update_frontier_and_vertex_output_values(
  * properties for the first (inclusive) column (assigned to this process in multi-GPU).
  * `adj_matrix_col_value_output_last` (exclusive) is deduced as @p adj_matrix_col_value_output_first
  * + @p graph_view.get_number_of_adj_matrix_local_cols().
- * @param e_op Binary (or ternary) operator takes *(@p adj_matrix_row_value_input_first + i), *(@p
- * adj_matrix_col_value_input_first + j), (and optionally edge weight) (where i and j are row and
- * column indices, respectively) and returns a value to reduced by the @p reduce_op.
+ * @param e_op Quaternary (or quinary) operator takes edge source, edge destination, (optional edge
+ * weight), *(@p adj_matrix_row_value_input_first + i), and *(@p adj_matrix_col_value_input_first +
+ * j) (where i is in [0, graph_view.get_number_of_local_adj_matrix_partition_rows()) and j is in [0,
+ * get_number_of_local_adj_matrix_partition_cols())) and returns a value to reduced by the @p
+ * reduce_op.
  * @param reduce_op Binary operator takes two input arguments and reduce the two variables to one.
  * @param vertex_value_input_first Iterator pointing to the vertex properties for the first
  * (inclusive) vertex (assigned to this process in multi-GPU). `vertex_value_input_last` (exclusive)
@@ -332,33 +334,47 @@ void update_frontier_v_push_if_out_nbr(
   using edge_t            = typename GraphViewType::edge_type;
   using reduce_op_input_t = typename ReduceOp::type;
 
-  // FIXME: Better make this a memeber variable of VertexFrontier to reduce # of memory allocations
+  std::vector<vertex_t> frontier_adj_matrix_partition_offsets(
+    graph_view.get_number_of_local_adj_matrix_partitions() + 1,
+    0);  // relevant only if GraphViewType::is_multi_gpu is true
   thrust::device_vector<vertex_t>
     frontier_rows{};  // relevant only if GraphViewType::is_multi_gpu is true
-  std::vector<vertex_t> frontier_adj_matrix_partition_offsets(
-    graph_view.get_number_of_local_adj_matrix_partitions() + 1, 0);
+  edge_t max_pushes{0};
 
   if (GraphViewType::is_multi_gpu) {
     // need to merge row_frontier and update frontier_offsets;
     CUGRAPH_FAIL("unimplemented.");
+
+#if 0  // comment out to suppress "loop is not reachable warning till the merge part is
+       // implemented."
+    for (size_t i = 0; i < graph_view.get_number_of_local_adj_matrix_partitions(); ++i) {
+      matrix_partition_device_t<GraphViewType> matrix_partition(graph_view, i);
+
+      max_pushes += thrust::transform_reduce(
+        rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
+        frontier_rows.begin() + frontier_adj_matrix_partition_offsets[i],
+        frontier_rows.begin() + frontier_adj_matrix_partition_offsets[i + 1],
+        [matrix_partition] __device__(auto row) {
+          auto row_offset = matrix_partition.get_major_offset_from_major_nocheck(row);
+          return matrix_partition.get_local_degree(row_offset);
+        },
+        edge_t{0},
+        thrust::plus<edge_t>());
+    }
+#endif
   } else {
-    frontier_adj_matrix_partition_offsets[1] = thrust::distance(vertex_first, vertex_last);
-  }
+    matrix_partition_device_t<GraphViewType> matrix_partition(graph_view, 0);
 
-  edge_t max_pushes{0};
-  for (size_t i = 0; i < graph_view.get_number_of_local_adj_matrix_partitions(); ++i) {
-    matrix_partition_device_t<GraphViewType> matrix_partition(graph_view, i);
-
-    max_pushes += thrust::transform_reduce(
+    max_pushes = thrust::transform_reduce(
       rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
-      frontier_rows.begin() + frontier_adj_matrix_partition_offsets[i],
-      frontier_rows.begin() + frontier_adj_matrix_partition_offsets[i + 1],
+      vertex_first,
+      vertex_last,
       [matrix_partition] __device__(auto row) {
         auto row_offset = matrix_partition.get_major_offset_from_major_nocheck(row);
         return matrix_partition.get_local_degree(row_offset);
       },
-      size_t{0},
-      thrust::plus<size_t>());
+      edge_t{0},
+      thrust::plus<edge_t>());
   }
 
   // FIXME: This is highly pessimistic for single GPU (and multi-GPU as well if we maintain
@@ -373,14 +389,43 @@ void update_frontier_v_push_if_out_nbr(
   auto buffer_key_first     = std::get<0>(buffer_first);
   auto buffer_payload_first = std::get<1>(buffer_first);
 
-  vertex_t row_value_input_offset{0};
-  for (size_t i = 0; i < graph_view.get_number_of_local_adj_matrix_partitions(); ++i) {
-    matrix_partition_device_t<GraphViewType> matrix_partition(graph_view, i);
+  if (GraphViewType::is_multi_gpu) {
+    for (size_t i = 0; i < graph_view.get_number_of_local_adj_matrix_partitions(); ++i) {
+      matrix_partition_device_t<GraphViewType> matrix_partition(graph_view, i);
+      auto row_value_input_offset = GraphViewType::is_adj_matrix_transposed
+                                      ? 0
+                                      : matrix_partition.get_major_value_start_offset();
 
-    grid_1d_thread_t for_all_low_out_degree_grid(
-      frontier_adj_matrix_partition_offsets[i + 1] - frontier_adj_matrix_partition_offsets[i],
+      raft::grid_1d_thread_t for_all_low_out_degree_grid(
+        frontier_adj_matrix_partition_offsets[i + 1] - frontier_adj_matrix_partition_offsets[i],
+        detail::update_frontier_v_push_if_out_nbr_for_all_low_out_degree_block_size,
+        handle.get_device_properties().maxGridSize[0]);
+
+      // FIXME: This is highly inefficeint for graphs with high-degree vertices. If we renumber
+      // vertices to insure that rows within a partition are sorted by their out-degree in
+      // decreasing order, we will apply this kernel only to low out-degree vertices.
+      detail::
+        for_all_frontier_row_for_all_nbr_low_out_degree<<<for_all_low_out_degree_grid.num_blocks,
+                                                          for_all_low_out_degree_grid.block_size,
+                                                          0,
+                                                          handle.get_stream()>>>(
+          matrix_partition,
+          frontier_rows.begin() + frontier_adj_matrix_partition_offsets[i],
+          frontier_rows.begin() + frontier_adj_matrix_partition_offsets[i + 1],
+          adj_matrix_row_value_input_first + row_value_input_offset,
+          adj_matrix_col_value_input_first,
+          buffer_key_first,
+          buffer_payload_first,
+          vertex_frontier.get_buffer_idx_ptr(),
+          e_op);
+    }
+  } else {
+    matrix_partition_device_t<GraphViewType> matrix_partition(graph_view, 0);
+
+    raft::grid_1d_thread_t for_all_low_out_degree_grid(
+      thrust::distance(vertex_first, vertex_last),
       detail::update_frontier_v_push_if_out_nbr_for_all_low_out_degree_block_size,
-      get_max_num_blocks_1D());
+      handle.get_device_properties().maxGridSize[0]);
 
     // FIXME: This is highly inefficeint for graphs with high-degree vertices. If we renumber
     // vertices to insure that rows within a partition are sorted by their out-degree in
@@ -391,16 +436,14 @@ void update_frontier_v_push_if_out_nbr(
                                                         0,
                                                         handle.get_stream()>>>(
         matrix_partition,
-        frontier_rows.begin() + frontier_adj_matrix_partition_offsets[i],
-        frontier_rows.begin() + frontier_adj_matrix_partition_offsets[i + 1],
-        adj_matrix_row_value_input_first + row_value_input_offset,
+        vertex_first,
+        vertex_last,
+        adj_matrix_row_value_input_first,
         adj_matrix_col_value_input_first,
         buffer_key_first,
         buffer_payload_first,
         vertex_frontier.get_buffer_idx_ptr(),
         e_op);
-
-    row_value_input_offset += matrix_partition.get_major_size();
   }
 
   auto num_buffer_elements = detail::reduce_buffer_elements(handle,
@@ -415,9 +458,9 @@ void update_frontier_v_push_if_out_nbr(
   }
 
   if (num_buffer_elements > 0) {
-    grid_1d_thread_t update_grid(num_buffer_elements,
-                                 detail::update_frontier_v_push_if_out_nbr_update_block_size,
-                                 get_max_num_blocks_1D());
+    raft::grid_1d_thread_t update_grid(num_buffer_elements,
+                                       detail::update_frontier_v_push_if_out_nbr_update_block_size,
+                                       handle.get_device_properties().maxGridSize[0]);
 
     auto constexpr invalid_vertex = invalid_vertex_id<vertex_t>::value;
 

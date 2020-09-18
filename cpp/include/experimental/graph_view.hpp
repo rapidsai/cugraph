@@ -98,6 +98,13 @@ class partition_t {
       "Invalid API parameter: partition.vertex_partition_offsets values should be non-descending.");
     CUGRAPH_EXPECTS(vertex_partition_offsets_[0] == vertex_t{0},
                     "Invalid API parameter: partition.vertex_partition_offsets[0] should be 0.");
+
+    vertex_t start_offset{0};
+    matrix_partition_major_value_start_offsets_.assign(get_number_of_matrix_partitions(), 0);
+    for (size_t i = 0; i < matrix_partition_major_value_start_offsets_.size(); ++i) {
+      matrix_partition_major_value_start_offsets_[i] = start_offset;
+      start_offset += get_matrix_partition_major_last(i) - get_matrix_partition_major_first(i);
+    }
   }
 
   std::tuple<vertex_t, vertex_t> get_vertex_partition_range() const
@@ -159,6 +166,11 @@ class partition_t {
              : vertex_partition_offsets_[(comm_p_row_rank_ + 1) * comm_p_col_size_];
   }
 
+  vertex_t get_matrix_partition_major_value_start_offset(size_t partition_idx) const
+  {
+    return matrix_partition_major_value_start_offsets_[partition_idx];
+  }
+
   std::tuple<vertex_t, vertex_t> get_matrix_partition_minor_range() const
   {
     auto minor_first = vertex_partition_offsets_[comm_p_col_rank_ * comm_p_row_size_];
@@ -188,6 +200,9 @@ class partition_t {
   int comm_p_col_size_{0};
   int comm_p_row_rank_{0};
   int comm_p_col_rank_{0};
+
+  std::vector<vertex_t>
+    matrix_partition_major_value_start_offsets_{};  // size = get_number_of_matrix_partitions()
 };
 
 struct graph_properties_t {
@@ -338,6 +353,46 @@ class graph_view_t<vertex_t,
       return partition_.get_matrix_partition_minor_last() -
              partition_.get_matrix_partition_minor_first();
     }
+  }
+
+  vertex_t get_local_adj_matrix_partition_row_first(size_t adj_matrix_partition_idx) const
+  {
+    return store_transposed ? partition_.get_matrix_partition_minor_first()
+                            : partition_.get_matrix_partition_major_first(adj_matrix_partition_idx);
+  }
+
+  vertex_t get_local_adj_matrix_partition_row_last(size_t adj_matrix_partition_idx) const
+  {
+    return store_transposed ? partition_.get_matrix_partition_minor_last()
+                            : partition_.get_matrix_partition_major_last(adj_matrix_partition_idx);
+  }
+
+  vertex_t get_local_adj_matrix_partition_row_value_start_offset(
+    size_t adj_matrix_partition_idx) const
+  {
+    return store_transposed
+             ? 0
+             : partition_.get_matrix_partition_major_value_start_offset(adj_matrix_partition_idx);
+  }
+
+  vertex_t get_local_adj_matrix_partition_col_first(size_t adj_matrix_partition_idx) const
+  {
+    return store_transposed ? partition_.get_matrix_partition_major_first(adj_matrix_partition_idx)
+                            : partition_.get_matrix_partition_minor_first();
+  }
+
+  vertex_t get_local_adj_matrix_partition_col_last(size_t adj_matrix_partition_idx) const
+  {
+    return store_transposed ? partition_.get_matrix_partition_major_last(adj_matrix_partition_idx)
+                            : partition_.get_matrix_partition_minor_last();
+  }
+
+  vertex_t get_local_adj_matrix_partition_col_value_start_offset(
+    size_t adj_matrix_partition_idx) const
+  {
+    return store_transposed
+             ? partition_.get_matrix_partition_major_value_start_offset(adj_matrix_partition_idx)
+             : 0;
   }
 
   // FIXME: this function is not part of the public stable API.This function is mainly for pattern

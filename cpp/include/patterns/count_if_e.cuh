@@ -18,9 +18,9 @@
 #include <experimental/graph_view.hpp>
 #include <matrix_partition_device.cuh>
 #include <patterns/edge_op_utils.cuh>
-#include <utilities/cuda.cuh>
 #include <utilities/error.hpp>
 
+#include <raft/cudart_utils.h>
 #include <rmm/thrust_rmm_allocator.h>
 
 #include <thrust/tuple.h>
@@ -62,16 +62,56 @@ __global__ void for_all_major_for_all_nbr_low_out_degree(
     weight_t const* weights{nullptr};
     edge_t local_degree{};
     thrust::tie(indices, weights, local_degree) = matrix_partition.get_local_edges(idx);
+#if 1
+    count += thrust::count_if(
+      thrust::seq,
+      thrust::make_counting_iterator(edge_t{0}),
+      thrust::make_counting_iterator(local_degree),
+      [&matrix_partition,
+       &adj_matrix_row_value_input_first,
+       &adj_matrix_col_value_input_first,
+       &e_op,
+       idx,
+       indices,
+       weights] __device__(auto i) {
+        auto minor        = indices[i];
+        auto weight       = weights != nullptr ? weights[i] : 1.0;
+        auto minor_offset = matrix_partition.get_minor_offset_from_minor_nocheck(minor);
+        auto row          = GraphViewType::is_adj_matrix_transposed
+                     ? minor
+                     : matrix_partition.get_major_from_major_offset_nocheck(idx);
+        auto col = GraphViewType::is_adj_matrix_transposed
+                     ? matrix_partition.get_major_from_major_offset_nocheck(idx)
+                     : minor;
+        auto row_offset =
+          GraphViewType::is_adj_matrix_transposed ? minor_offset : static_cast<vertex_t>(idx);
+        auto col_offset =
+          GraphViewType::is_adj_matrix_transposed ? static_cast<vertex_t>(idx) : minor_offset;
+        auto e_op_result = evaluate_edge_op<GraphViewType,
+                                            AdjMatrixRowValueInputIterator,
+                                            AdjMatrixColValueInputIterator,
+                                            EdgeOp>()
+                             .compute(row,
+                                      col,
+                                      weight,
+                                      *(adj_matrix_row_value_input_first + row_offset),
+                                      *(adj_matrix_col_value_input_first + col_offset),
+                                      e_op);
+
+        return e_op_result;
+      });
+#else
+    // FIXME: delete this once we verify that the code above is not slower than this.
     for (vertex_t i = 0; i < local_degree; ++i) {
       auto minor        = indices[i];
       auto weight       = weights != nullptr ? weights[i] : 1.0;
       auto minor_offset = matrix_partition.get_minor_offset_from_minor_nocheck(minor);
       auto row          = GraphViewType::is_adj_matrix_transposed
-                            ? minor
-                            : matrix_partition.get_major_from_major_offset_nocheck(idx);
-      auto col          = GraphViewType::is_adj_matrix_transposed
-                            ? matrix_partition.get_major_from_major_offset_nocheck(idx)
-                            : minor;
+                   ? minor
+                   : matrix_partition.get_major_from_major_offset_nocheck(idx);
+      auto col = GraphViewType::is_adj_matrix_transposed
+                   ? matrix_partition.get_major_from_major_offset_nocheck(idx)
+                   : minor;
       auto row_offset =
         GraphViewType::is_adj_matrix_transposed ? minor_offset : static_cast<vertex_t>(idx);
       auto col_offset =
@@ -88,6 +128,7 @@ __global__ void for_all_major_for_all_nbr_low_out_degree(
                                     e_op);
       if (e_op_result) { count++; }
     }
+#endif
     idx += gridDim.x * blockDim.x;
   }
 
@@ -109,7 +150,7 @@ __global__ void for_all_major_for_all_nbr_low_out_degree(
  * input properties.
  * @tparam AdjMatrixColValueInputIterator Type of the iterator for graph adjacency matrix column
  * input properties.
- * @tparam EdgeOp Type of the binary (or ternary) edge operator.
+ * @tparam EdgeOp Type of the quaternary (or quinary) edge operator.
  * @param handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator, and
  * handles to various CUDA libraries) to run graph algorithms.
  * @param graph_view Non-owning graph object.
@@ -121,10 +162,11 @@ __global__ void for_all_major_for_all_nbr_low_out_degree(
  * properties for the first (inclusive) column (assigned to this process in multi-GPU).
  * `adj_matrix_col_value_output_last` (exclusive) is deduced as @p adj_matrix_col_value_output_first
  * + @p graph_view.get_number_of_adj_matrix_local_cols().
- * @param e_op Binary (or ternary) operator takes *(@p adj_matrix_row_value_input_first + i), *(@p
- * adj_matrix_col_value_input_first + j), (and optionally edge weight) (where i and j are row and
- * column indices, respectively) and returns true if this edge should be included in the returned
- * count.
+ * @param e_op Quaternary (or quinary) operator takes edge source, edge destination, (optional edge
+ * weight), *(@p adj_matrix_row_value_input_first + i), and *(@p adj_matrix_col_value_input_first +
+ * j) (where i is in [0, graph_view.get_number_of_local_adj_matrix_partition_rows()) and j is in [0,
+ * get_number_of_local_adj_matrix_partition_cols())) and returns true if this edge should be
+ * included in the returned count.
  * @return GraphViewType::edge_type Number of times @p e_op returned true.
  */
 template <typename GraphViewType,
@@ -142,14 +184,16 @@ typename GraphViewType::edge_type count_if_e(
   using edge_t   = typename GraphViewType::edge_type;
 
   edge_t count{0};
-  vertex_t row_value_input_offset{0};
-  vertex_t col_value_input_offset{0};
   for (size_t i = 0; i < graph_view.get_number_of_local_adj_matrix_partitions(); ++i) {
     matrix_partition_device_t<GraphViewType> matrix_partition(graph_view, i);
+    auto row_value_input_offset =
+      GraphViewType::is_adj_matrix_transposed ? 0 : matrix_partition.get_major_value_start_offset();
+    auto col_value_input_offset =
+      GraphViewType::is_adj_matrix_transposed ? matrix_partition.get_major_value_start_offset() : 0;
 
-    grid_1d_thread_t update_grid(matrix_partition.get_major_size(),
-                                 detail::count_if_e_for_all_low_out_degree_block_size,
-                                 get_max_num_blocks_1D());
+    raft::grid_1d_thread_t update_grid(matrix_partition.get_major_size(),
+                                       detail::count_if_e_for_all_low_out_degree_block_size,
+                                       handle.get_device_properties().maxGridSize[0]);
 
     rmm::device_vector<edge_t> block_counts(update_grid.num_blocks);
 
