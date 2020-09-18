@@ -18,9 +18,9 @@
 #include <experimental/graph_view.hpp>
 #include <matrix_partition_device.cuh>
 #include <patterns/edge_op_utils.cuh>
-#include <utilities/cuda.cuh>
 #include <utilities/error.hpp>
 
+#include <raft/cudart_utils.h>
 #include <rmm/thrust_rmm_allocator.h>
 
 #include <thrust/tuple.h>
@@ -78,11 +78,11 @@ __global__ void for_all_major_for_all_nbr_low_out_degree(
         auto weight       = weights != nullptr ? weights[i] : 1.0;
         auto minor_offset = matrix_partition.get_minor_offset_from_minor_nocheck(minor);
         auto row          = GraphViewType::is_adj_matrix_transposed
-                     ? minor
-                     : matrix_partition.get_major_from_major_offset_nocheck(idx);
-        auto col = GraphViewType::is_adj_matrix_transposed
-                     ? matrix_partition.get_major_from_major_offset_nocheck(idx)
-                     : minor;
+                              ? minor
+                              : matrix_partition.get_major_from_major_offset_nocheck(idx);
+        auto col          = GraphViewType::is_adj_matrix_transposed
+                              ? matrix_partition.get_major_from_major_offset_nocheck(idx)
+                              : minor;
         auto row_offset =
           GraphViewType::is_adj_matrix_transposed ? minor_offset : static_cast<vertex_t>(idx);
         auto col_offset =
@@ -107,11 +107,11 @@ __global__ void for_all_major_for_all_nbr_low_out_degree(
       auto weight       = weights != nullptr ? weights[i] : 1.0;
       auto minor_offset = matrix_partition.get_minor_offset_from_minor_nocheck(minor);
       auto row          = GraphViewType::is_adj_matrix_transposed
-                   ? minor
-                   : matrix_partition.get_major_from_major_offset_nocheck(idx);
-      auto col = GraphViewType::is_adj_matrix_transposed
-                   ? matrix_partition.get_major_from_major_offset_nocheck(idx)
-                   : minor;
+                            ? minor
+                            : matrix_partition.get_major_from_major_offset_nocheck(idx);
+      auto col          = GraphViewType::is_adj_matrix_transposed
+                            ? matrix_partition.get_major_from_major_offset_nocheck(idx)
+                            : minor;
       auto row_offset =
         GraphViewType::is_adj_matrix_transposed ? minor_offset : static_cast<vertex_t>(idx);
       auto col_offset =
@@ -191,9 +191,9 @@ typename GraphViewType::edge_type count_if_e(
     auto col_value_input_offset =
       GraphViewType::is_adj_matrix_transposed ? matrix_partition.get_major_value_start_offset() : 0;
 
-    grid_1d_thread_t update_grid(matrix_partition.get_major_size(),
-                                 detail::count_if_e_for_all_low_out_degree_block_size,
-                                 get_max_num_blocks_1D());
+    raft::grid_1d_thread_t update_grid(matrix_partition.get_major_size(),
+                                       detail::count_if_e_for_all_low_out_degree_block_size,
+                                       handle.get_device_properties().maxGridSize[0]);
 
     rmm::device_vector<edge_t> block_counts(update_grid.num_blocks);
 

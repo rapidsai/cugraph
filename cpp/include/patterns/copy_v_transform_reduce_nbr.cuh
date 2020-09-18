@@ -19,9 +19,9 @@
 #include <matrix_partition_device.cuh>
 #include <patterns/edge_op_utils.cuh>
 #include <patterns/reduce_op.cuh>
-#include <utilities/cuda.cuh>
 #include <utilities/error.hpp>
 
+#include <raft/cudart_utils.h>
 #include <rmm/thrust_rmm_allocator.h>
 
 #include <thrust/distance.h>
@@ -97,11 +97,11 @@ __global__ void for_all_major_for_all_nbr_low_out_degree(
       auto weight       = weights != nullptr ? weights[i] : weight_t{1.0};
       auto minor_offset = matrix_partition.get_minor_offset_from_minor_nocheck(minor);
       auto row          = GraphViewType::is_adj_matrix_transposed
-                   ? minor
-                   : matrix_partition.get_major_from_major_offset_nocheck(idx);
-      auto col = GraphViewType::is_adj_matrix_transposed
-                   ? matrix_partition.get_major_from_major_offset_nocheck(idx)
-                   : minor;
+                            ? minor
+                            : matrix_partition.get_major_from_major_offset_nocheck(idx);
+      auto col          = GraphViewType::is_adj_matrix_transposed
+                            ? matrix_partition.get_major_from_major_offset_nocheck(idx)
+                            : minor;
       auto row_offset =
         GraphViewType::is_adj_matrix_transposed ? minor_offset : static_cast<vertex_t>(idx);
       auto col_offset =
@@ -146,11 +146,11 @@ __global__ void for_all_major_for_all_nbr_low_out_degree(
       auto weight       = weights != nullptr ? weights[i] : weight_t{1.0};
       auto minor_offset = matrix_partition.get_minor_offset_from_minor_nocheck(minor);
       auto row          = GraphViewType::is_adj_matrix_transposed
-                   ? minor
-                   : matrix_partition.get_major_from_major_offset_nocheck(idx);
-      auto col = GraphViewType::is_adj_matrix_transposed
-                   ? matrix_partition.get_major_from_major_offset_nocheck(idx)
-                   : minor;
+                            ? minor
+                            : matrix_partition.get_major_from_major_offset_nocheck(idx);
+      auto col          = GraphViewType::is_adj_matrix_transposed
+                            ? matrix_partition.get_major_from_major_offset_nocheck(idx)
+                            : minor;
       auto row_offset =
         GraphViewType::is_adj_matrix_transposed ? minor_offset : static_cast<vertex_t>(idx);
       auto col_offset =
@@ -230,17 +230,16 @@ void copy_v_transform_reduce_in_nbr(raft::handle_t const& handle,
                                     VertexValueOutputIterator vertex_value_output_first)
 {
   static_assert(is_arithmetic_or_thrust_tuple_of_arithmetic<T>::value);
-  static_assert(GraphViewType::is_adj_matrix_transposed || is_atomically_addable<T>::value);
 
   if (GraphViewType::is_multi_gpu) {
     CUGRAPH_FAIL("unimplemented.");
   } else {
     matrix_partition_device_t<GraphViewType> matrix_partition(graph_view, 0);
 
-    grid_1d_thread_t update_grid(
+    raft::grid_1d_thread_t update_grid(
       matrix_partition.get_major_size(),
       detail::copy_v_transform_reduce_nbr_for_all_low_out_degree_block_size,
-      get_max_num_blocks_1D());
+      handle.get_device_properties().maxGridSize[0]);
 
     if (!GraphViewType::is_adj_matrix_transposed) {
       thrust::fill(rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
@@ -315,17 +314,16 @@ void copy_v_transform_reduce_out_nbr(
   VertexValueOutputIterator vertex_value_output_first)
 {
   static_assert(is_arithmetic_or_thrust_tuple_of_arithmetic<T>::value);
-  static_assert(!GraphViewType::is_adj_matrix_transposed || is_atomically_addable<T>::value);
 
   if (GraphViewType::is_multi_gpu) {
     CUGRAPH_FAIL("unimplemented.");
   } else {
     matrix_partition_device_t<GraphViewType> matrix_partition(graph_view, 0);
 
-    grid_1d_thread_t update_grid(
+    raft::grid_1d_thread_t update_grid(
       matrix_partition.get_major_size(),
       detail::copy_v_transform_reduce_nbr_for_all_low_out_degree_block_size,
-      get_max_num_blocks_1D());
+      handle.get_device_properties().maxGridSize[0]);
 
     if (GraphViewType::is_adj_matrix_transposed) {
       thrust::fill(rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),

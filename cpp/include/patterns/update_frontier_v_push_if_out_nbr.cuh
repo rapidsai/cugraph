@@ -19,10 +19,10 @@
 #include <matrix_partition_device.cuh>
 #include <patterns/edge_op_utils.cuh>
 #include <patterns/reduce_op.cuh>
-#include <utilities/cuda.cuh>
 #include <utilities/error.hpp>
 #include <utilities/thrust_tuple_utils.cuh>
 
+#include <raft/cudart_utils.h>
 #include <rmm/thrust_rmm_allocator.h>
 
 #include <thrust/distance.h>
@@ -396,10 +396,10 @@ void update_frontier_v_push_if_out_nbr(
                                       ? 0
                                       : matrix_partition.get_major_value_start_offset();
 
-      grid_1d_thread_t for_all_low_out_degree_grid(
+      raft::grid_1d_thread_t for_all_low_out_degree_grid(
         frontier_adj_matrix_partition_offsets[i + 1] - frontier_adj_matrix_partition_offsets[i],
         detail::update_frontier_v_push_if_out_nbr_for_all_low_out_degree_block_size,
-        get_max_num_blocks_1D());
+        handle.get_device_properties().maxGridSize[0]);
 
       // FIXME: This is highly inefficeint for graphs with high-degree vertices. If we renumber
       // vertices to insure that rows within a partition are sorted by their out-degree in
@@ -422,10 +422,10 @@ void update_frontier_v_push_if_out_nbr(
   } else {
     matrix_partition_device_t<GraphViewType> matrix_partition(graph_view, 0);
 
-    grid_1d_thread_t for_all_low_out_degree_grid(
+    raft::grid_1d_thread_t for_all_low_out_degree_grid(
       thrust::distance(vertex_first, vertex_last),
       detail::update_frontier_v_push_if_out_nbr_for_all_low_out_degree_block_size,
-      get_max_num_blocks_1D());
+      handle.get_device_properties().maxGridSize[0]);
 
     // FIXME: This is highly inefficeint for graphs with high-degree vertices. If we renumber
     // vertices to insure that rows within a partition are sorted by their out-degree in
@@ -458,9 +458,9 @@ void update_frontier_v_push_if_out_nbr(
   }
 
   if (num_buffer_elements > 0) {
-    grid_1d_thread_t update_grid(num_buffer_elements,
-                                 detail::update_frontier_v_push_if_out_nbr_update_block_size,
-                                 get_max_num_blocks_1D());
+    raft::grid_1d_thread_t update_grid(num_buffer_elements,
+                                       detail::update_frontier_v_push_if_out_nbr_update_block_size,
+                                       handle.get_device_properties().maxGridSize[0]);
 
     auto constexpr invalid_vertex = invalid_vertex_id<vertex_t>::value;
 
