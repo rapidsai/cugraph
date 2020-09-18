@@ -16,6 +16,7 @@
 
 ## Bug Fixes
 - PR #1131 Show style checker errors with set +e
+- PR #1150 Update RAFT git tag
 
 # cuGraph 0.15.0 (26 Aug 2020)
 
