@@ -13,6 +13,7 @@
 - PR #1129 Refactored test to use common dataset and added additional doc pages
 - PR #1144 updated documentation and APIs
 - PR #1139 MNMG Louvain Python updates, Cython cleanup
+- PR #1152 graph container cleanup, added arg for instantiating legacy types and switch statements to factory function
 
 ## Bug Fixes
 - PR #1131 Show style checker errors with set +e
