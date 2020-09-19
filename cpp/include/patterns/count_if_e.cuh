@@ -217,12 +217,6 @@ typename GraphViewType::edge_type count_if_e(
                             block_counts.end(),
                             edge_t{0},
                             thrust::plus<edge_t>());
-
-    if (GraphViewType::is_adj_matrix_transposed) {
-      col_value_input_offset += matrix_partition.get_major_size();
-    } else {
-      row_value_input_offset += matrix_partition.get_major_size();
-    }
   }
 
   if (GraphViewType::is_multi_gpu) {
