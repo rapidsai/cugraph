@@ -56,80 +56,86 @@ void populate_graph_container(graph_container_t& graph_container,
   if (weightType == numberTypeEnum::floatType) {
     switch (legacyType) {
       case legacyGraphTypeEnum::CSR: {
-        auto g = new GraphCSRView<int, int, float>(reinterpret_cast<int*>(offsets),
-                                                   reinterpret_cast<int*>(indices),
-                                                   reinterpret_cast<float*>(weights),
-                                                   num_vertices,
-                                                   num_edges);
         graph_container.graph_ptr_union.GraphCSRViewFloatPtr =
-          std::unique_ptr<GraphCSRView<int, int, float>>(g);
+          std::make_unique<GraphCSRView<int, int, float>>(reinterpret_cast<int*>(offsets),
+                                                          reinterpret_cast<int*>(indices),
+                                                          reinterpret_cast<float*>(weights),
+                                                          num_vertices,
+                                                          num_edges);
         graph_container.graph_ptr_type = graphTypeEnum::GraphCSRViewFloat;
-        g->set_local_data(local_vertices, local_edges, local_offsets);
-        g->set_handle(const_cast<raft::handle_t*>(&handle));
+        (graph_container.graph_ptr_union.GraphCSRViewFloatPtr)
+          ->set_local_data(local_vertices, local_edges, local_offsets);
+        (graph_container.graph_ptr_union.GraphCSRViewFloatPtr)
+          ->set_handle(const_cast<raft::handle_t*>(&handle));
       } break;
       case legacyGraphTypeEnum::CSC: {
-        auto g = new GraphCSCView<int, int, float>(reinterpret_cast<int*>(offsets),
-                                                   reinterpret_cast<int*>(indices),
-                                                   reinterpret_cast<float*>(weights),
-                                                   num_vertices,
-                                                   num_edges);
         graph_container.graph_ptr_union.GraphCSCViewFloatPtr =
-          std::unique_ptr<GraphCSCView<int, int, float>>(g);
+          std::make_unique<GraphCSCView<int, int, float>>(reinterpret_cast<int*>(offsets),
+                                                          reinterpret_cast<int*>(indices),
+                                                          reinterpret_cast<float*>(weights),
+                                                          num_vertices,
+                                                          num_edges);
         graph_container.graph_ptr_type = graphTypeEnum::GraphCSCViewFloat;
-        g->set_local_data(local_vertices, local_edges, local_offsets);
-        g->set_handle(const_cast<raft::handle_t*>(&handle));
+        (graph_container.graph_ptr_union.GraphCSCViewFloatPtr)
+          ->set_local_data(local_vertices, local_edges, local_offsets);
+        (graph_container.graph_ptr_union.GraphCSCViewFloatPtr)
+          ->set_handle(const_cast<raft::handle_t*>(&handle));
       } break;
       case legacyGraphTypeEnum::COO: {
-        auto g = new GraphCOOView<int, int, float>(reinterpret_cast<int*>(offsets),
-                                                   reinterpret_cast<int*>(indices),
-                                                   reinterpret_cast<float*>(weights),
-                                                   num_vertices,
-                                                   num_edges);
         graph_container.graph_ptr_union.GraphCOOViewFloatPtr =
-          std::unique_ptr<GraphCOOView<int, int, float>>(g);
+          std::make_unique<GraphCOOView<int, int, float>>(reinterpret_cast<int*>(offsets),
+                                                          reinterpret_cast<int*>(indices),
+                                                          reinterpret_cast<float*>(weights),
+                                                          num_vertices,
+                                                          num_edges);
         graph_container.graph_ptr_type = graphTypeEnum::GraphCOOViewFloat;
-        g->set_local_data(local_vertices, local_edges, local_offsets);
-        g->set_handle(const_cast<raft::handle_t*>(&handle));
+        (graph_container.graph_ptr_union.GraphCOOViewFloatPtr)
+          ->set_local_data(local_vertices, local_edges, local_offsets);
+        (graph_container.graph_ptr_union.GraphCOOViewFloatPtr)
+          ->set_handle(const_cast<raft::handle_t*>(&handle));
       } break;
     }
 
   } else {
     switch (legacyType) {
       case legacyGraphTypeEnum::CSR: {
-        auto g = new GraphCSRView<int, int, double>(reinterpret_cast<int*>(offsets),
-                                                    reinterpret_cast<int*>(indices),
-                                                    reinterpret_cast<double*>(weights),
-                                                    num_vertices,
-                                                    num_edges);
         graph_container.graph_ptr_union.GraphCSRViewDoublePtr =
-          std::unique_ptr<GraphCSRView<int, int, double>>(g);
+          std::make_unique<GraphCSRView<int, int, double>>(reinterpret_cast<int*>(offsets),
+                                                           reinterpret_cast<int*>(indices),
+                                                           reinterpret_cast<double*>(weights),
+                                                           num_vertices,
+                                                           num_edges);
         graph_container.graph_ptr_type = graphTypeEnum::GraphCSRViewDouble;
-        g->set_local_data(local_vertices, local_edges, local_offsets);
-        g->set_handle(const_cast<raft::handle_t*>(&handle));
+        (graph_container.graph_ptr_union.GraphCSRViewDoublePtr)
+          ->set_local_data(local_vertices, local_edges, local_offsets);
+        (graph_container.graph_ptr_union.GraphCSRViewDoublePtr)
+          ->set_handle(const_cast<raft::handle_t*>(&handle));
       } break;
       case legacyGraphTypeEnum::CSC: {
-        auto g = new GraphCSCView<int, int, double>(reinterpret_cast<int*>(offsets),
-                                                    reinterpret_cast<int*>(indices),
-                                                    reinterpret_cast<double*>(weights),
-                                                    num_vertices,
-                                                    num_edges);
         graph_container.graph_ptr_union.GraphCSCViewDoublePtr =
-          std::unique_ptr<GraphCSCView<int, int, double>>(g);
+          std::make_unique<GraphCSCView<int, int, double>>(reinterpret_cast<int*>(offsets),
+                                                           reinterpret_cast<int*>(indices),
+                                                           reinterpret_cast<double*>(weights),
+                                                           num_vertices,
+                                                           num_edges);
         graph_container.graph_ptr_type = graphTypeEnum::GraphCSCViewDouble;
-        g->set_local_data(local_vertices, local_edges, local_offsets);
-        g->set_handle(const_cast<raft::handle_t*>(&handle));
+        (graph_container.graph_ptr_union.GraphCSCViewDoublePtr)
+          ->set_local_data(local_vertices, local_edges, local_offsets);
+        (graph_container.graph_ptr_union.GraphCSCViewDoublePtr)
+          ->set_handle(const_cast<raft::handle_t*>(&handle));
       } break;
       case legacyGraphTypeEnum::COO: {
-        auto g = new GraphCOOView<int, int, double>(reinterpret_cast<int*>(offsets),
-                                                    reinterpret_cast<int*>(indices),
-                                                    reinterpret_cast<double*>(weights),
-                                                    num_vertices,
-                                                    num_edges);
         graph_container.graph_ptr_union.GraphCOOViewDoublePtr =
-          std::unique_ptr<GraphCOOView<int, int, double>>(g);
+          std::make_unique<GraphCOOView<int, int, double>>(reinterpret_cast<int*>(offsets),
+                                                           reinterpret_cast<int*>(indices),
+                                                           reinterpret_cast<double*>(weights),
+                                                           num_vertices,
+                                                           num_edges);
         graph_container.graph_ptr_type = graphTypeEnum::GraphCOOViewDouble;
-        g->set_local_data(local_vertices, local_edges, local_offsets);
-        g->set_handle(const_cast<raft::handle_t*>(&handle));
+        (graph_container.graph_ptr_union.GraphCOOViewDoublePtr)
+          ->set_local_data(local_vertices, local_edges, local_offsets);
+        (graph_container.graph_ptr_union.GraphCOOViewDoublePtr)
+          ->set_handle(const_cast<raft::handle_t*>(&handle));
       } break;
     }
   }
