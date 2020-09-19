@@ -16,6 +16,7 @@
 
 #include <experimental/detail/graph_utils.cuh>
 #include <experimental/graph_view.hpp>
+#include <partition_manager.hpp>
 #include <utilities/error.hpp>
 
 #include <raft/cudart_utils.h>
@@ -77,8 +78,12 @@ graph_view_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu, std::enabl
   // cheap error checks
 
   auto const comm_p_size     = this->get_handle_ptr()->get_comms().get_size();
-  auto const comm_p_row_size = this->get_handle_ptr()->get_subcomm(comm_p_row_key).get_size();
-  auto const comm_p_col_size = this->get_handle_ptr()->get_subcomm(comm_p_col_key).get_size();
+  auto const comm_p_row_size = this->get_handle_ptr()
+                                 ->get_subcomm(cugraph::partition_2d::key_naming_t().row_name())
+                                 .get_size();
+  auto const comm_p_col_size = this->get_handle_ptr()
+                                 ->get_subcomm(cugraph::partition_2d::key_naming_t().col_name())
+                                 .get_size();
 
   CUGRAPH_EXPECTS(adj_matrix_partition_offsets.size() == adj_matrix_partition_indices.size(),
                   "Invalid API parameter: adj_matrix_partition_offsets.size() and "
@@ -107,8 +112,12 @@ graph_view_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu, std::enabl
   if (do_expensive_check) {
     auto default_stream = this->get_handle_ptr()->get_stream();
 
-    auto const comm_p_row_rank = this->get_handle_ptr()->get_subcomm(comm_p_row_key).get_rank();
-    auto const comm_p_col_rank = this->get_handle_ptr()->get_subcomm(comm_p_col_key).get_rank();
+    auto const comm_p_row_rank = this->get_handle_ptr()
+                                   ->get_subcomm(cugraph::partition_2d::key_naming_t().row_name())
+                                   .get_rank();
+    auto const comm_p_col_rank = this->get_handle_ptr()
+                                   ->get_subcomm(cugraph::partition_2d::key_naming_t().col_name())
+                                   .get_rank();
 
     edge_t number_of_local_edges_sum{};
     for (size_t i = 0; i < adj_matrix_partition_offsets.size(); ++i) {

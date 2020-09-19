@@ -16,6 +16,7 @@
 #pragma once
 
 #include <experimental/graph_view.hpp>
+#include <partition_manager.hpp>
 
 #include <rmm/thrust_rmm_allocator.h>
 #include <raft/handle.hpp>
@@ -39,10 +40,10 @@ rmm::device_uvector<edge_t> compute_major_degree(
   std::vector<edge_t const *> const &adj_matrix_partition_offsets,
   partition_t<vertex_t> const &partition)
 {
-  auto &comm_p_row           = handle.get_subcomm(comm_p_row_key);
+  auto &comm_p_row           = handle.get_subcomm(cugraph::partition_2d::key_naming_t().row_name());
   auto const comm_p_row_rank = comm_p_row.get_rank();
   auto const comm_p_row_size = comm_p_row.get_size();
-  auto &comm_p_col           = handle.get_subcomm(comm_p_col_key);
+  auto &comm_p_col           = handle.get_subcomm(cugraph::partition_2d::key_naming_t().col_name());
   auto const comm_p_col_rank = comm_p_col.get_rank();
   auto const comm_p_col_size = comm_p_col.get_size();
 
