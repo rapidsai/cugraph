@@ -226,6 +226,7 @@ typename GraphViewType::edge_type count_if_e(
   }
 
   if (GraphViewType::is_multi_gpu) {
+    // FIXME: acutally, allreduce expects device memory :-(, and this does not work if T is tuple
     handle.get_comms().allreduce(&count, &count, 1, raft::comms::op_t::SUM, handle.get_stream());
   }
 
