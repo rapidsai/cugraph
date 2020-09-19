@@ -65,3 +65,17 @@ def test_core_number(graph_file):
     cn = calc_core_number(graph_file)
 
     assert cn["cu_core_number"].equals(cn["nx_core_number"])
+
+
+@pytest.mark.parametrize("graph_file", utils.DATASETS_UNDIRECTED)
+def test_core_number_nx(graph_file):
+    gc.collect()
+
+    NM = utils.read_csv_for_nx(graph_file)
+    Gnx = nx.from_pandas_edgelist(
+        NM, source="0", target="1", create_using=nx.Graph()
+    )
+    nc = nx.core_number(Gnx)
+    cc = cugraph.core_number(Gnx)
+
+    assert nc == cc

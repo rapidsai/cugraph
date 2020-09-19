@@ -12,6 +12,8 @@
 # limitations under the License.
 
 from cugraph.cores import core_number_wrapper
+from cugraph.utilities import check_nx_graph
+from cugraph.utilities import df_score_to_dictionary
 
 
 def core_number(G):
@@ -24,7 +26,7 @@ def core_number(G):
 
     Parameters
     ----------
-    graph : cuGraph.Graph
+    graph : cuGraph.Graph or networkx.Graph
         cuGraph graph descriptor with connectivity information. The graph
         should contain undirected edges where undirected edges are represented
         as directed edges in both directions. While this graph can contain edge
@@ -50,9 +52,14 @@ def core_number(G):
     >>> cn = cugraph.core_number(G)
     """
 
+    G, isNx = check_nx_graph(G)
+
     df = core_number_wrapper.core_number(G)
 
     if G.renumbered:
         df = G.unrenumber(df, "vertex")
+
+    if isNx is True:
+        df = df_score_to_dictionary(df, 'core_number')
 
     return df
