@@ -22,6 +22,7 @@
 #include <utilities/error.hpp>
 
 #include <raft/cudart_utils.h>
+#include <raft/handle.hpp>
 #include <rmm/thrust_rmm_allocator.h>
 
 #include <thrust/distance.h>
