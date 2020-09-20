@@ -48,7 +48,7 @@ namespace experimental {
  * To be more specific, a GPU with (row_rank, col_rank) will be responsible for one rectangular
  * partition [a,b) by [c,d) where a = vertex_partition_offsets[P_col * row_rank], b =
  * vertex_partition_offsets[p_col * (row_rank + 1)], c = vertex_partition_offsets[P_row * col_rank],
- * and d = vertex_partition_offsets[p_row * (col_rank + 1)]
+ * and d = vertex_partition_offsets[p_row * (col_rank + 1)].
  *
  * In the future, we may apply hyper-graph partitioning to divide V vertices to P groups minimizing
  * edge cuts across groups while balancing the number of vertices in each group. We will also
@@ -56,13 +56,14 @@ namespace experimental {
  * will be more non-zeros in the diagonal partitions of the 2D graph adjacency matrix (or the
  * transposed 2D graph adjacency matrix) than the off-diagonal partitions. The default strategy does
  * not balance the number of nonzeros if hyper-graph partitioning is applied. To solve this problem,
- * the matrix is first horizontally partitioned to P (instead of P_row) slabs, then each slab will
- * be further vertically partitioned to P_col rectangles. One GPU will be responsible P_col
- * rectangular partitions in this case.
+ * the matrix is first horizontally partitioned to P slabs, then each slab will be further
+ * vertically partitioned to P_row (instead of P_col in the default case) rectangles. One GPU will
+ * be responsible P_row rectangular partitions in this case.
  *
- * To be more specific, a GPU with (row_rank, col_rank) will be responsible for P_col rectangular
- * partitions [a_i,b_i) by [c,d) where a_i = vertex_partition_offsets[P_row * i + row_rank] and b_i
- * = vertex_partition_offsets[P_row * i + row_rank + 1]. c and d are same to 1) and i = [0, P_col).
+ * To be more specific, a GPU with (row_rank, col_rank) will be responsible for P_row rectangular
+ * partitions [a_i,b_i) by [c,d) where a_i = vertex_partition_offsets[P_col * i + col_rank] and b_i
+ * = vertex_partition_offsets[P_col * i + col_rank + 1]. c is vertex_partition_offsets[P_col *
+ * row_rank] and d = vertex_partition_offsests[p_col * (row_rank + 1)].
  *
  * See E. G. Boman et. al., “Scalable matrix computations on large scale-free graphs using 2D graph
  * partitioning”, 2013 for additional detail.
@@ -139,11 +140,11 @@ class partition_t {
   {
     auto major_first =
       hypergraph_partitioned_
-        ? vertex_partition_offsets_[comm_p_row_size_ * partition_idx + comm_p_row_rank_]
+        ? vertex_partition_offsets_[comm_p_col_size_ * partition_idx + comm_p_col_rank_]
         : vertex_partition_offsets_[comm_p_row_rank_ * comm_p_col_size_];
     auto major_last =
       hypergraph_partitioned_
-        ? vertex_partition_offsets_[comm_p_row_size_ * partition_idx + comm_p_row_rank_ + 1]
+        ? vertex_partition_offsets_[comm_p_col_size_ * partition_idx + comm_p_col_rank_ + 1]
         : vertex_partition_offsets_[(comm_p_row_rank_ + 1) * comm_p_col_size_];
 
     return std::make_tuple(major_first, major_last);
@@ -152,14 +153,14 @@ class partition_t {
   vertex_t get_matrix_partition_major_first(size_t partition_idx) const
   {
     return hypergraph_partitioned_
-             ? vertex_partition_offsets_[comm_p_row_size_ * partition_idx + comm_p_row_rank_]
+             ? vertex_partition_offsets_[comm_p_col_size_ * partition_idx + comm_p_col_rank_]
              : vertex_partition_offsets_[comm_p_row_rank_ * comm_p_col_size_];
   }
 
   vertex_t get_matrix_partition_major_last(size_t partition_idx) const
   {
     return hypergraph_partitioned_
-             ? vertex_partition_offsets_[comm_p_row_size_ * partition_idx + comm_p_row_rank_ + 1]
+             ? vertex_partition_offsets_[comm_p_col_size_ * partition_idx + comm_p_col_rank_ + 1]
              : vertex_partition_offsets_[(comm_p_row_rank_ + 1) * comm_p_col_size_];
   }
 
@@ -170,20 +171,27 @@ class partition_t {
 
   std::tuple<vertex_t, vertex_t> get_matrix_partition_minor_range() const
   {
-    auto minor_first = vertex_partition_offsets_[comm_p_col_rank_ * comm_p_row_size_];
-    auto minor_last  = vertex_partition_offsets_[(comm_p_col_rank_ + 1) * comm_p_row_size_];
+    auto minor_first = hypergraph_partitioned_
+                         ? vertex_partition_offsets_[comm_p_row_rank_ * comm_p_col_size_]
+                         : vertex_partition_offsets_[comm_p_col_rank_ * comm_p_row_size_];
+    auto minor_last = hypergraph_partitioned_
+                        ? vertex_partition_offsets_[(comm_p_row_rank_ + 1) * comm_p_col_size_]
+                        : vertex_partition_offsets_[(comm_p_col_rank_ + 1) * comm_p_row_size_];
 
     return std::make_tuple(minor_first, minor_last);
   }
 
   vertex_t get_matrix_partition_minor_first() const
   {
-    return vertex_partition_offsets_[comm_p_col_rank_ * comm_p_row_size_];
+    return hypergraph_partitioned_ ? vertex_partition_offsets_[comm_p_row_rank_ * comm_p_col_size_]
+                                   : vertex_partition_offsets_[comm_p_col_rank_ * comm_p_row_size_];
   }
 
   vertex_t get_matrix_partition_minor_last() const
   {
-    return vertex_partition_offsets_[(comm_p_col_rank_ + 1) * comm_p_row_size_];
+    return hypergraph_partitioned_
+             ? vertex_partition_offsets_[(comm_p_row_rank_ + 1) * comm_p_col_size_]
+             : vertex_partition_offsets_[(comm_p_col_rank_ + 1) * comm_p_row_size_];
   }
 
   bool is_hypergraph_partitioned() const { return hypergraph_partitioned_; }
