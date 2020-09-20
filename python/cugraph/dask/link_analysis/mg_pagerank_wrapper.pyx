@@ -65,8 +65,32 @@ def mg_pagerank(input_df, local_data, rank, handle, alpha=0.85, max_iter=100, to
     cdef uintptr_t c_indices = indices.__cuda_array_interface__['data'][0]
     cdef uintptr_t c_weights = <uintptr_t>NULL
 
-    cdef GraphCSCView[int,int,float] graph_float
-    cdef GraphCSCView[int,int,double] graph_double
+    #replace graph view construction w/ `cdef graph_container_t graph_container`
+    #(see louvain_wrapper.pyx lines 97, 102)
+    #
+    weightTypeMap = {np.dtype("float32") : <int>numberTypeEnum.floatType,
+                     np.dtype("double") : <int>numberTypeEnum.doubleType}
+
+    cdef graph_container_t graph_container
+
+    # FIXME: The excessive casting for the enum arg is needed to make cython
+    #        understand how to pass the enum value (this is the same pattern
+    #        used by cudf). This will not be needed with Cython 3.0
+    populate_graph_container(graph_container,
+                             <legacyGraphTypeEnum>(<int>(legacyGraphTypeEnum.CSR)),
+                             handle_[0],
+                             <void*>c_offsets, <void*>c_indices, <void*>c_weights,
+                             <numberTypeEnum>(<int>(numberTypeEnum.intType)),
+                             <numberTypeEnum>(<int>(numberTypeEnum.intType)),
+                             <numberTypeEnum>(<int>(weightTypeMap[weights.dtype])),
+                             num_verts, num_local_edges,
+                             <int*>c_local_verts, <int*>c_local_edges, <int*>c_local_offsets,
+                             False, True)  # store_transposed, multi_gpu
+
+    # Old code:
+    #
+    # cdef GraphCSCView[int,int,float] graph_float
+    # cdef GraphCSCView[int,int,double] graph_double
 
     if personalization is not None:
         sz = personalization['vertex'].shape[0]
@@ -75,19 +99,37 @@ def mg_pagerank(input_df, local_data, rank, handle, alpha=0.85, max_iter=100, to
         c_pers_vtx = personalization['vertex'].__cuda_array_interface__['data'][0]
         c_pers_val = personalization['values'].__cuda_array_interface__['data'][0]
 
-    if (df['pagerank'].dtype == np.float32):
-        graph_float = GraphCSCView[int,int,float](<int*>c_offsets, <int*>c_indices, <float*>c_weights, num_verts, num_local_edges)
-        graph_float.set_local_data(<int*>c_local_verts, <int*>c_local_edges, <int*>c_local_offsets)
-        graph_float.set_handle(handle_)
-        c_pagerank.pagerank[int,int,float](handle_[0], graph_float, <float*> c_pagerank_val, sz, <int*> c_pers_vtx, <float*> c_pers_val,
+    # after populate_graph_container()
+    # pass the `graph_container` to c_pagerank.call_pagerank() instead
+    # maybe drop 2 template parameter and only keep `WT` (see Louvain)
+    #
+    if weights.dtype == np.float32:
+        c_pagerank.call_pagerank[int, float](handle_[0], graph_container, <float*> c_pagerank_val, sz, <int*> c_pers_vtx, <float*> c_pers_val,
                                <float> alpha, <float> tol, <int> max_iter, <bool> 0)
-        graph_float.get_vertex_identifiers(<int*>c_identifier)
+        # graph_float.get_vertex_identifiers(<int*>c_identifier) # <- TODO (how?)
+
     else:
-        graph_double = GraphCSCView[int,int,double](<int*>c_offsets, <int*>c_indices, <double*>c_weights, num_verts, num_local_edges)
-        graph_double.set_local_data(<int*>c_local_verts, <int*>c_local_edges, <int*>c_local_offsets)
-        graph_double.set_handle(handle_)
-        c_pagerank.pagerank[int,int,double](handle_[0], graph_double, <double*> c_pagerank_val, sz, <int*> c_pers_vtx, <double*> c_pers_val,
+        c_pagerank.call_pagerank[int, double](handle_[0], graph_container, <double*> c_pagerank_val, sz, <int*> c_pers_vtx, <double*> c_pers_val,
                             <float> alpha, <float> tol, <int> max_iter, <bool> 0)
-        graph_double.get_vertex_identifiers(<int*>c_identifier)
+        # graph_double.get_vertex_identifiers(<int*>c_identifier) # <- TODO (how?)
+
+
+    # Old code:
+    #
+    # if (df['pagerank'].dtype == np.float32): # might not need that with `graph_container`
+        
+    #     graph_float = GraphCSCView[int,int,float](<int*>c_offsets, <int*>c_indices, <float*>c_weights, num_verts, num_local_edges)
+    #     graph_float.set_local_data(<int*>c_local_verts, <int*>c_local_edges, <int*>c_local_offsets)
+    #     graph_float.set_handle(handle_)
+    #     c_pagerank.pagerank[int,int,float](handle_[0], graph_float, <float*> c_pagerank_val, sz, <int*> c_pers_vtx, <float*> c_pers_val,
+    #                            <float> alpha, <float> tol, <int> max_iter, <bool> 0)
+    #     graph_float.get_vertex_identifiers(<int*>c_identifier)
+    # else:
+    #     graph_double = GraphCSCView[int,int,double](<int*>c_offsets, <int*>c_indices, <double*>c_weights, num_verts, num_local_edges)
+    #     graph_double.set_local_data(<int*>c_local_verts, <int*>c_local_edges, <int*>c_local_offsets)
+    #     graph_double.set_handle(handle_)
+    #     c_pagerank.pagerank[int,int,double](handle_[0], graph_double, <double*> c_pagerank_val, sz, <int*> c_pers_vtx, <double*> c_pers_val,
+    #                         <float> alpha, <float> tol, <int> max_iter, <bool> 0)
+    #     graph_double.get_vertex_identifiers(<int*>c_identifier)
 
     return df

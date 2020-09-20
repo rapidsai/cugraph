@@ -12,6 +12,7 @@
 - PR 1132 Upgrade Thrust to latest commit
 - PR #1129 Refactored test to use common dataset and added additional doc pages
 - PR #1144 updated documentation and APIs
+- PR #1138 MNMG Cython / Python support for Pagerank, BFS, SSSP
 - PR #1139 MNMG Louvain Python updates, Cython cleanup
 
 ## Bug Fixes

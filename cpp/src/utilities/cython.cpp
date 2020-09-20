@@ -296,8 +296,12 @@ template double call_louvain(raft::handle_t const& handle,
 // (1.) force cast the pointer `p_pagerank` type to match the `weight_t`
 //      type parameter of GraphCSCView<> template;
 //      this can only be done via reinterpret_cast<>
-//      which can become dangerous (harmless for now)
-//      (static_cast<> won't compile);
+//      (static_cast<> won't compile),
+//      which can become dangerous (harmless for now,
+//      but if in the future a pagerank overload would be
+//      provided for arg types not in sync, then that overload
+//      would never be called; while using solution (2.) below
+//      would make that problem manifest at compile-time);
 // (2.) provide "throw-away" _overloads_ of pagerank()
 //      for the non-matching arguments
 //      (template specializations cannot exist in this case,
@@ -307,7 +311,9 @@ template double call_louvain(raft::handle_t const& handle,
 //      their own (un-named) namespace; (b) the code explicitly squashes the possibility of
 //      non-matching type args, by exposing the "non-matching" overloads as throwing an exception;
 
-namespace {
+namespace {  // must be un-named to be visible inside `call_<prim>()` instantiations
+// discarded overloads:
+//
 // throwing pagerank() overloads to fix the problem
 // of compiler trying to instantiate pagerank with
 // types of args that are not in sync

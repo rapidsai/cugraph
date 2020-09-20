@@ -21,6 +21,23 @@ import dask_cudf
 import cudf
 from dask_cuda import LocalCUDACluster
 
+from cugraph.tests import utils
+
+try:
+    from rapids_pytest_benchmark import setFixtureParamNames
+except ImportError:
+    print("\n\nWARNING: rapids_pytest_benchmark is not installed, "
+          "falling back to pytest_benchmark fixtures.\n")
+
+    # if rapids_pytest_benchmark is not available, just perfrom time-only
+    # benchmarking and replace the util functions with nops
+    import pytest_benchmark
+    gpubenchmark = pytest_benchmark.plugin.benchmark
+
+    def setFixtureParamNames(*args, **kwargs):
+        pass
+
+
 # The function selects personalization_perc% of accessible vertices in graph M
 # and randomly assigns them personalization values
 
@@ -50,7 +67,9 @@ def personalize(v, personalization_perc):
 PERSONALIZATION_PERC = [0, 10, 50]
 
 
-@pytest.fixture
+#@pytest.fixture
+#or:
+@pytest.fixture(scope="module")
 def client_connection():
     cluster = LocalCUDACluster()
     client = Client(cluster)
@@ -63,6 +82,8 @@ def client_connection():
     cluster.close()
 
 
+#this should work "as-is":
+#
 @pytest.mark.parametrize('personalization_perc', PERSONALIZATION_PERC)
 def test_dask_pagerank(client_connection, personalization_perc):
     gc.collect()

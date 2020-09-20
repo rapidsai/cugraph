@@ -17,12 +17,11 @@
 from cugraph.structure.graph_primtypes cimport *
 from libcpp cimport bool
 
+cdef extern from "utilities/cython.hpp" namespace "cugraph::cython":
 
-cdef extern from "algorithms.hpp" namespace "cugraph":
-
-    cdef void pagerank[VT,ET,WT](
+    cdef void call_pagerank[VT,WT](
         const handle_t &handle,
-        const GraphCSCView[VT,ET,WT] &graph,
+        const graph_container_t &g, # replaced const GraphCSCView[VT,ET,WT] &graph; see call_pagerank() in cython.*pp;
         WT *pagerank,
         VT size,
         VT *personalization_subset,
