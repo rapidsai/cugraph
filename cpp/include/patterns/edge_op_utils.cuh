@@ -123,5 +123,22 @@ __device__
   return;
 }
 
+template <typename EdgeOpResultType, size_t BlockSize>
+struct block_reduce_edge_op_result {
+  template <typename T = EdgeOpResultType>
+  __device__ std::enable_if_t<std::is_arithmetic<T>::value, T> compute(T const& edge_op_result)
+  {
+    using BlockReduce = cub::BlockReduce<T, BlockSize>;
+    __shared__ typename BlockReduce::TempStorage temp_storage;
+    return BlockReduce(temp_storage).Sum(edge_op_result);
+  }
+
+  template <typename T = EdgeOpResultType>
+  __device__ std::enable_if_t<is_thrust_tuple<T>::value, T> compute(T const& edge_op_result)
+  {
+    return block_reduce_thrust_tuple<T, BlockSize>()(edge_op_result);
+  }
+};
+
 }  // namespace experimental
 }  // namespace cugraph
