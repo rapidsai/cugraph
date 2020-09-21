@@ -34,8 +34,13 @@ def weakly_connected_components(G):
     Returns
     -------
     df : cudf.DataFrame
-      df['labels'][i] gives the label id of the i'th vertex
-      df['vertices'][i] gives the vertex id of the i'th vertex
+        GPU data frame containing two cudf.Series of size V: the vertex
+        identifiers and the corresponding component identifier.
+
+        df['vertices']
+            Contains the vertex identifier
+        df['labels']
+            The component identifier
 
     Examples
     --------
@@ -79,8 +84,13 @@ def strongly_connected_components(G):
     Returns
     -------
     df : cudf.DataFrame
-      df['labels'][i] gives the label id of the i'th vertex
-      df['vertices'][i] gives the vertex id of the i'th vertex
+        GPU data frame containing two cudf.Series of size V: the vertex
+        identifiers and the corresponding component identifier.
+
+        df['vertices']
+            Contains the vertex identifier
+        df['labels']
+            The component identifier
 
     Examples
     --------
