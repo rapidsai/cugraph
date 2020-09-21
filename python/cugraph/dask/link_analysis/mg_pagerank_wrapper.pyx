@@ -21,6 +21,7 @@ from cugraph.structure.graph_primtypes cimport *
 import cugraph.structure.graph_primtypes_wrapper as graph_primtypes_wrapper
 from libc.stdint cimport uintptr_t
 from cython.operator cimport dereference as deref
+import numpy as np
 
 def mg_pagerank(input_df, local_data, rank, handle, alpha=0.85, max_iter=100, tol=1.0e-5, personalization=None, nstart=None):
     """
@@ -33,6 +34,11 @@ def mg_pagerank(input_df, local_data, rank, handle, alpha=0.85, max_iter=100, to
 
     src = input_df['src']
     dst = input_df['dst']
+
+    if "value" in input_df.columns:
+        weights = input_df['value']
+    else:
+        weights = None
 
     num_verts = local_data['verts'].sum()
     num_edges = local_data['edges'].sum()
@@ -47,7 +53,17 @@ def mg_pagerank(input_df, local_data, rank, handle, alpha=0.85, max_iter=100, to
     cdef uintptr_t c_local_offsets = local_data['offsets'].__array_interface__['data'][0]
 
     [src, dst] = graph_primtypes_wrapper.datatype_cast([src, dst], [np.int32])
-    _offsets, indices, weights = coo2csr(dst, src, None)
+    # _offsets, indices, weights = coo2csr(dst, src, None)
+    if weights is not None:
+        if weights.dtype in [np.float32, np.double]:
+            [weights] = graph_primtypes_wrapper.datatype_cast([weights], [weights.dtype])
+        else:
+            raise TypeError(f"unsupported type {weights.dtype} for weights")
+
+    # pre-condition: only works with weighted graphs: TODO: check!
+    #
+    _offsets, indices, weights = graph_primtypes_wrapper.coo2csr(dst, src, weights)
+
     offsets = _offsets[:num_local_verts + 1]
     del _offsets
     df = cudf.DataFrame()

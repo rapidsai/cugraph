@@ -311,6 +311,7 @@ template double call_louvain(raft::handle_t const& handle,
 //      their own (un-named) namespace; (b) the code explicitly squashes the possibility of
 //      non-matching type args, by exposing the "non-matching" overloads as throwing an exception;
 
+/*
 namespace {  // must be un-named to be visible inside `call_<prim>()` instantiations
 // discarded overloads:
 //
@@ -348,6 +349,7 @@ void pagerank(raft::handle_t const& handle,
 }
 
 }  // namespace
+*/
 
 // Wrapper for calling Pagerank through a graph container
 template <typename vertex_t, typename weight_t>
@@ -365,22 +367,24 @@ void call_pagerank(raft::handle_t const& handle,
   if (graph_container.graph_ptr_type == graphTypeEnum::GraphCSCViewFloat) {
     pagerank(handle,
              *(graph_container.graph_ptr_union.GraphCSCViewFloatPtr),
-             p_pagerank,  // reinterpret_cast<float*>(p_pagerank),
+             reinterpret_cast<float*>(p_pagerank),//p_pagerank
              personalization_subset_size,
              personalization_subset,
-             personalization_values,  // reinterpret_cast<float*>(personalization_values),
+             reinterpret_cast<float*>(personalization_values),//personalization_values
              alpha,
              tolerance,
              max_iter,
              has_guess);
 
+    // graph_container.graph_ptr_union.GraphCSCViewFloatPtr->get_vertex_identifiers();
+
   } else {
     pagerank(handle,
              *(graph_container.graph_ptr_union.GraphCSCViewDoublePtr),
-             p_pagerank,  // reinterpret_cast<double*>(p_pagerank),
+             reinterpret_cast<double*>(p_pagerank),
              personalization_subset_size,
              personalization_subset,
-             personalization_values,  // reinterpret_cast<double*>(personalization_values),
+             reinterpret_cast<double*>(personalization_values),
              alpha,
              tolerance,
              max_iter,
