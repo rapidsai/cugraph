@@ -23,8 +23,8 @@
 #include <utilities/thrust_tuple_utils.cuh>
 
 #include <raft/cudart_utils.h>
-#include <raft/handle.hpp>
 #include <rmm/thrust_rmm_allocator.h>
+#include <raft/handle.hpp>
 
 #include <thrust/distance.h>
 #include <thrust/functional.h>
@@ -43,8 +43,8 @@ namespace experimental {
 namespace detail {
 
 // FIXME: block size requires tuning
-int32_t constexpr update_frontier_v_push_if_out_nbr_for_all_low_out_degree_block_size = 128;
-int32_t constexpr update_frontier_v_push_if_out_nbr_update_block_size                 = 128;
+int32_t constexpr update_frontier_v_push_if_out_nbr_for_all_block_size = 128;
+int32_t constexpr update_frontier_v_push_if_out_nbr_update_block_size  = 128;
 
 template <typename GraphViewType,
           typename RowIterator,
@@ -53,7 +53,7 @@ template <typename GraphViewType,
           typename BufferKeyOutputIterator,
           typename BufferPayloadOutputIterator,
           typename EdgeOp>
-__global__ void for_all_frontier_row_for_all_nbr_low_out_degree(
+__global__ void for_all_frontier_row_for_all_nbr_low_degree(
   matrix_partition_device_t<GraphViewType> matrix_partition,
   RowIterator row_first,
   RowIterator row_last,
@@ -397,54 +397,52 @@ void update_frontier_v_push_if_out_nbr(
                                       ? 0
                                       : matrix_partition.get_major_value_start_offset();
 
-      raft::grid_1d_thread_t for_all_low_out_degree_grid(
+      raft::grid_1d_thread_t for_all_low_degree_grid(
         frontier_adj_matrix_partition_offsets[i + 1] - frontier_adj_matrix_partition_offsets[i],
-        detail::update_frontier_v_push_if_out_nbr_for_all_low_out_degree_block_size,
+        detail::update_frontier_v_push_if_out_nbr_for_all_block_size,
         handle.get_device_properties().maxGridSize[0]);
 
       // FIXME: This is highly inefficeint for graphs with high-degree vertices. If we renumber
       // vertices to insure that rows within a partition are sorted by their out-degree in
       // decreasing order, we will apply this kernel only to low out-degree vertices.
-      detail::
-        for_all_frontier_row_for_all_nbr_low_out_degree<<<for_all_low_out_degree_grid.num_blocks,
-                                                          for_all_low_out_degree_grid.block_size,
-                                                          0,
-                                                          handle.get_stream()>>>(
-          matrix_partition,
-          frontier_rows.begin() + frontier_adj_matrix_partition_offsets[i],
-          frontier_rows.begin() + frontier_adj_matrix_partition_offsets[i + 1],
-          adj_matrix_row_value_input_first + row_value_input_offset,
-          adj_matrix_col_value_input_first,
-          buffer_key_first,
-          buffer_payload_first,
-          vertex_frontier.get_buffer_idx_ptr(),
-          e_op);
-    }
-  } else {
-    matrix_partition_device_t<GraphViewType> matrix_partition(graph_view, 0);
-
-    raft::grid_1d_thread_t for_all_low_out_degree_grid(
-      thrust::distance(vertex_first, vertex_last),
-      detail::update_frontier_v_push_if_out_nbr_for_all_low_out_degree_block_size,
-      handle.get_device_properties().maxGridSize[0]);
-
-    // FIXME: This is highly inefficeint for graphs with high-degree vertices. If we renumber
-    // vertices to insure that rows within a partition are sorted by their out-degree in
-    // decreasing order, we will apply this kernel only to low out-degree vertices.
-    detail::
-      for_all_frontier_row_for_all_nbr_low_out_degree<<<for_all_low_out_degree_grid.num_blocks,
-                                                        for_all_low_out_degree_grid.block_size,
-                                                        0,
-                                                        handle.get_stream()>>>(
+      detail::for_all_frontier_row_for_all_nbr_low_degree<<<for_all_low_degree_grid.num_blocks,
+                                                            for_all_low_degree_grid.block_size,
+                                                            0,
+                                                            handle.get_stream()>>>(
         matrix_partition,
-        vertex_first,
-        vertex_last,
-        adj_matrix_row_value_input_first,
+        frontier_rows.begin() + frontier_adj_matrix_partition_offsets[i],
+        frontier_rows.begin() + frontier_adj_matrix_partition_offsets[i + 1],
+        adj_matrix_row_value_input_first + row_value_input_offset,
         adj_matrix_col_value_input_first,
         buffer_key_first,
         buffer_payload_first,
         vertex_frontier.get_buffer_idx_ptr(),
         e_op);
+    }
+  } else {
+    matrix_partition_device_t<GraphViewType> matrix_partition(graph_view, 0);
+
+    raft::grid_1d_thread_t for_all_low_degree_grid(
+      thrust::distance(vertex_first, vertex_last),
+      detail::update_frontier_v_push_if_out_nbr_for_all_block_size,
+      handle.get_device_properties().maxGridSize[0]);
+
+    // FIXME: This is highly inefficeint for graphs with high-degree vertices. If we renumber
+    // vertices to insure that rows within a partition are sorted by their out-degree in
+    // decreasing order, we will apply this kernel only to low out-degree vertices.
+    detail::for_all_frontier_row_for_all_nbr_low_degree<<<for_all_low_degree_grid.num_blocks,
+                                                          for_all_low_degree_grid.block_size,
+                                                          0,
+                                                          handle.get_stream()>>>(
+      matrix_partition,
+      vertex_first,
+      vertex_last,
+      adj_matrix_row_value_input_first,
+      adj_matrix_col_value_input_first,
+      buffer_key_first,
+      buffer_payload_first,
+      vertex_frontier.get_buffer_idx_ptr(),
+      e_op);
   }
 
   auto num_buffer_elements = detail::reduce_buffer_elements(handle,

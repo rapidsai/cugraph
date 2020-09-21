@@ -21,8 +21,8 @@
 #include <utilities/error.hpp>
 
 #include <raft/cudart_utils.h>
-#include <raft/handle.hpp>
 #include <rmm/thrust_rmm_allocator.h>
+#include <raft/handle.hpp>
 
 #include <thrust/tuple.h>
 #include <cub/cub.cuh>
@@ -36,14 +36,14 @@ namespace experimental {
 namespace detail {
 
 // FIXME: block size requires tuning
-int32_t constexpr count_if_e_for_all_low_out_degree_block_size = 128;
+int32_t constexpr count_if_e_for_all_block_size = 128;
 
 // FIXME: function names conflict if included with transform_reduce_e.cuh
 template <typename GraphViewType,
           typename AdjMatrixRowValueInputIterator,
           typename AdjMatrixColValueInputIterator,
           typename EdgeOp>
-__global__ void for_all_major_for_all_nbr_low_out_degree(
+__global__ void for_all_major_for_all_nbr_low_degree(
   matrix_partition_device_t<GraphViewType> matrix_partition,
   AdjMatrixRowValueInputIterator adj_matrix_row_value_input_first,
   AdjMatrixColValueInputIterator adj_matrix_col_value_input_first,
@@ -133,7 +133,7 @@ __global__ void for_all_major_for_all_nbr_low_out_degree(
     idx += gridDim.x * blockDim.x;
   }
 
-  using BlockReduce = cub::BlockReduce<edge_t, count_if_e_for_all_low_out_degree_block_size>;
+  using BlockReduce = cub::BlockReduce<edge_t, count_if_e_for_all_block_size>;
   __shared__ typename BlockReduce::TempStorage temp_storage;
   count = BlockReduce(temp_storage).Sum(count);
   if (threadIdx.x == 0) { *(block_counts + blockIdx.x) = count; }
@@ -193,15 +193,15 @@ typename GraphViewType::edge_type count_if_e(
       GraphViewType::is_adj_matrix_transposed ? matrix_partition.get_major_value_start_offset() : 0;
 
     raft::grid_1d_thread_t update_grid(matrix_partition.get_major_size(),
-                                       detail::count_if_e_for_all_low_out_degree_block_size,
+                                       detail::count_if_e_for_all_block_size,
                                        handle.get_device_properties().maxGridSize[0]);
 
     rmm::device_vector<edge_t> block_counts(update_grid.num_blocks);
 
-    detail::for_all_major_for_all_nbr_low_out_degree<<<update_grid.num_blocks,
-                                                       update_grid.block_size,
-                                                       0,
-                                                       handle.get_stream()>>>(
+    detail::for_all_major_for_all_nbr_low_degree<<<update_grid.num_blocks,
+                                                   update_grid.block_size,
+                                                   0,
+                                                   handle.get_stream()>>>(
       matrix_partition,
       adj_matrix_row_value_input_first + row_value_input_offset,
       adj_matrix_col_value_input_first + col_value_input_offset,
