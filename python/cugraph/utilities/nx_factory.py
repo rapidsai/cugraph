@@ -112,7 +112,7 @@ def df_score_to_dictionary(df, k, v="vertex"):
     return df.to_pandas().set_index(v).to_dict()[k]
 
 
-def df_edge_score_to_dictionary(df, k):
+def df_edge_score_to_dictionary(df, k, src="src", dst="dst"):
     """
     Convert a dataframe to a dictionary
 
@@ -132,16 +132,21 @@ def df_edge_score_to_dictionary(df, k):
     k : str
         score column name
 
+    src : str
+        source column name
+    dst : str
+        destination column name
+
 
     Returns
     -------
     dict : Dictionary of vertices and score
 
     """
-    pdf = df.sort_values(by=["src", "dst"]).to_pandas()
+    pdf = df.sort_values(by=[src, dst]).to_pandas()
     d = {}
     for i in range(len(pdf)):
-        d[(pdf["src"][i], pdf["dst"][i])] = pdf[k][i]
+        d[(pdf[src][i], pdf[dst][i])] = pdf[k][i]
 
     return d
 

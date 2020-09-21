@@ -48,7 +48,14 @@ from cugraph.components import (
 )
 from cugraph.link_analysis import pagerank, hits
 
-from cugraph.link_prediction import jaccard, overlap, jaccard_w, overlap_w
+from cugraph.link_prediction import (
+    jaccard,
+    overlap,
+    jaccard_w,
+    overlap_w,
+    jaccard_coefficient
+)
+
 from cugraph.traversal import bfs, sssp, filter_unreachable
 
 from cugraph.utilities import utils

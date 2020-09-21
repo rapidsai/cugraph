@@ -11,10 +11,31 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import cudf
 from cugraph.structure.graph import Graph
 from cugraph.link_prediction import jaccard_wrapper
 from cugraph.structure.graph import null_check
-import cudf
+from cugraph.utilities import check_nx_graph
+from cugraph.utilities import df_edge_score_to_dictionary
+
+def jaccard_coefficient(G, ebunch=None):
+    """
+    NetworkX similar API.  See 'jaccard' for a description
+
+    """
+    vertex_pair=None
+
+    G, isNx = check_nx_graph(G)
+
+    if isNx is True and ebunch is not None:
+        vertex_pair = cudf.from_pandas(pd.DataFrame(ebunch))
+
+    df = jaccard(G, vertex_pair)
+
+    if isNx is True:
+        df = df_edge_score_to_dictionary(df, k="jaccard_coeff", src="source", dst="destination")
+
+    return df
 
 
 def jaccard(input_graph, vertex_pair=None):
