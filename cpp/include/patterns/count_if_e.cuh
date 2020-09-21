@@ -18,6 +18,7 @@
 #include <experimental/graph_view.hpp>
 #include <matrix_partition_device.cuh>
 #include <patterns/edge_op_utils.cuh>
+#include <utilities/collective_utils.cuh>
 #include <utilities/error.hpp>
 
 #include <raft/cudart_utils.h>
@@ -221,8 +222,7 @@ typename GraphViewType::edge_type count_if_e(
   }
 
   if (GraphViewType::is_multi_gpu) {
-    // FIXME: acutally, allreduce expects device memory :-(, and this does not work if T is tuple
-    handle.get_comms().allreduce(&count, &count, 1, raft::comms::op_t::SUM, handle.get_stream());
+    count = host_scalar_allreduce(handle.get_comms(), count, handle.get_stream());
   }
 
   return count;

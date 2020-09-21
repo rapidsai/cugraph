@@ -16,6 +16,7 @@
 #pragma once
 
 #include <experimental/graph_view.hpp>
+#include <utilities/collective_utils.cuh>
 #include <utilities/error.hpp>
 
 #include <raft/handle.hpp>
@@ -103,8 +104,7 @@ T transform_reduce_v_with_adj_matrix_row(
   }
 
   if (GraphViewType::is_multi_gpu) {
-    // FIXME: acutally, allreduce expects device memory :-(, and this does not work if T is tuple
-    handle.get_comms().allreduce(&ret, &ret, 1, raft::comms::op_t::SUM, handle.get_stream());
+    ret = host_scalar_allreduce(handle.get_comms(), ret, handle.get_stream());
   }
 
   return init + ret;
