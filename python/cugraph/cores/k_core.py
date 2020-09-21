@@ -59,7 +59,7 @@ def k_core(G, k=None, core_number=None):
     """
 
     G, isNx = check_nx_graph(G)
-   
+
     mytype = type(G)
     KCoreGraph = mytype()
 

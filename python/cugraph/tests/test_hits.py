@@ -148,9 +148,9 @@ def test_hits_nx(graph_file, max_iter, tol):
     M = utils.read_csv_for_nx(graph_file)
     Gnx = nx.from_pandas_edgelist(
         M, source="0", target="1", create_using=nx.DiGraph()
-    )    
+    )
     nx_hubs, nx_authorities = nx.hits(Gnx, max_iter, tol, normalized=True)
     cg_hubs, cg_authorities = cugraph.hits(Gnx, max_iter, tol, normalized=True)
 
-    #assert nx_hubs == cg_hubs
-    #assert nx_authorities == cg_authorities
+    # assert nx_hubs == cg_hubs
+    # assert nx_authorities == cg_authorities

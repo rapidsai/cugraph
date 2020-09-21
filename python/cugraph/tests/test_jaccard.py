@@ -213,5 +213,8 @@ def test_jaccard_nx(graph_file):
 
     cg_j = cugraph.jaccard_coefficient(Gnx)
 
-    # FIXME:  Nx does a full all-pair Jaccard.  cuGraph does a limited 1-hop Jaccard
-    #assert nx_j == cg_j
+    assert len(nv_js) > len(cg_j)
+
+    # FIXME:  Nx does a full all-pair Jaccard.
+    # cuGraph does a limited 1-hop Jaccard
+    # assert nx_j == cg_j

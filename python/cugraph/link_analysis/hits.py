@@ -82,8 +82,9 @@ def hits(G, max_iter=100, tol=1.0e-5, nstart=None, normalized=True):
         df = G.unrenumber(df, "vertex")
 
     if isNx is True:
-        d1 = df_score_to_dictionary(df[["vertex","hubs"]], "hubs")
-        d2 = df_score_to_dictionary(df[["vertex","authorities"]], "authorities")
+        d1 = df_score_to_dictionary(df[["vertex", "hubs"]], "hubs")
+        d2 = df_score_to_dictionary(df[["vertex", "authorities"]],
+                                    "authorities")
         df = (d1, d2)
 
     return df
