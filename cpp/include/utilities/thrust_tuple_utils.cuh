@@ -111,6 +111,22 @@ struct atomic_accumulate_thrust_tuple_impl<Iterator, TupleType, I, I> {
   __device__ constexpr void compute(Iterator iter, TupleType const& value) const {}
 };
 
+template <typename TupleType, size_t I, size_t N>
+struct warp_reduce_thrust_tuple_impl {
+  __device__ void compute(TupleType& tuple) const
+  {
+    auto& val = thrust::get<I>(tuple);
+    for (auto offset = raft::warp_size() / 2; offset > 0; offset /= 2) {
+      val += __shfl_down_sync(raft::warp_full_mask(), val, offset);
+    }
+  }
+};
+
+template <typename TupleType, size_t I>
+struct warp_reduce_thrust_tuple_impl<TupleType, I, I> {
+  __device__ void compute(TupleType& tuple) const {}
+};
+
 template <typename TupleType, size_t BlockSize, size_t I, size_t N>
 struct block_reduce_thrust_tuple_impl {
   __device__ void compute(TupleType& tuple) const
@@ -206,6 +222,17 @@ struct atomic_accumulate_thrust_tuple {
     size_t constexpr tuple_size = thrust::tuple_size<TupleType>::value;
     detail::atomic_accumulate_thrust_tuple_impl<Iterator, TupleType, size_t{0}, tuple_size>()
       .compute(iter, value);
+  }
+};
+
+template <typename TupleType>
+struct warp_reduce_thrust_tuple {  // only warp lane 0 has a valid result
+  __device__ TupleType operator()(TupleType const& tuple) const
+  {
+    size_t constexpr tuple_size = thrust::tuple_size<TupleType>::value;
+    auto ret                    = tuple;
+    detail::warp_reduce_thrust_tuple_impl<TupleType, size_t{0}, tuple_size>().compute(ret);
+    return ret;
   }
 };
 
