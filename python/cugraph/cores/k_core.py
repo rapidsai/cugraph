@@ -12,6 +12,8 @@
 # limitations under the License.
 
 from cugraph.cores import k_core_wrapper, core_number_wrapper
+from cugraph.utilities import cugraph_to_nx
+from cugraph.utilities import check_nx_graph
 
 
 def k_core(G, k=None, core_number=None):
@@ -23,7 +25,7 @@ def k_core(G, k=None, core_number=None):
 
     Parameters
     ----------
-    G : cuGraph.Graph
+    G : cuGraph.Graph or networkx.Graph
         cuGraph graph descriptor with connectivity information. The graph
         should contain undirected edges where undirected edges are represented
         as directed edges in both directions. While this graph can contain edge
@@ -56,6 +58,8 @@ def k_core(G, k=None, core_number=None):
     >>> KCoreGraph = cugraph.k_core(G)
     """
 
+    G, isNx = check_nx_graph(G)
+   
     mytype = type(G)
     KCoreGraph = mytype()
 
@@ -87,5 +91,8 @@ def k_core(G, k=None, core_number=None):
         KCoreGraph.from_cudf_edgelist(
             k_core_df, source="src", destination="dst"
         )
+
+    if isNx is True:
+        KCoreGraph = cugraph_to_nx(KCoreGraph)
 
     return KCoreGraph

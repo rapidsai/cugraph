@@ -89,3 +89,17 @@ def test_core_number_Graph(graph_file):
     cu_kcore, nx_kcore = calc_k_cores(graph_file, False)
 
     assert compare_edges(cu_kcore, nx_kcore)
+
+
+@pytest.mark.parametrize("graph_file", utils.DATASETS_UNDIRECTED)
+def test_core_number_Graph_nx(graph_file):
+    gc.collect()
+
+    NM = utils.read_csv_for_nx(graph_file)
+    Gnx = nx.from_pandas_edgelist(
+        NM, source="0", target="1", create_using=nx.Graph()
+    )
+    nc = nx.k_core(Gnx)
+    cc = cugraph.k_core(Gnx)
+
+    assert nx.is_isomorphic(nc, cc)
