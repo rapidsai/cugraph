@@ -18,7 +18,7 @@ from cugraph.utilities import check_nx_graph
 
 def triangles(G):
     """
-    Compute the triangle (number of cycles of length three) count of the
+    Compute the number of triangles (cycles of length three) in the
     input graph.
 
     Unlike NetworkX, this algorithm simply returns the total number of
@@ -38,12 +38,12 @@ def triangles(G):
 
     Examples
     --------
-    >>> M = cudf.read_csv('datasets/karate.csv',
+    >>> gdf = cudf.read_csv('datasets/karate.csv',
                           delimiter = ' ',
                           dtype=['int32', 'int32', 'float32'],
                           header=None)
     >>> G = cugraph.Graph()
-    >>> G.from_cudf_edgelist(M, source='0', destination='1')
+    >>> G.from_cudf_edgelist(gdf, source='0', destination='1')
     >>> count = cugraph.triangles(G)
     """
 

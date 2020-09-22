@@ -21,14 +21,6 @@ set(ARROW_CMAKE_ARGS " -DARROW_WITH_LZ4=OFF"
                      " -DARROW_USE_GLOG=OFF"
                      " -DCMAKE_VERBOSE_MAKEFILE=ON")
 
-if(NOT CMAKE_CXX11_ABI)
-    message(STATUS "ARROW: Disabling the GLIBCXX11 ABI")
-    list(APPEND ARROW_CMAKE_ARGS " -DARROW_TENSORFLOW=ON")
-elseif(CMAKE_CXX11_ABI)
-    message(STATUS "ARROW: Enabling the GLIBCXX11 ABI")
-    list(APPEND ARROW_CMAKE_ARGS " -DARROW_TENSORFLOW=OFF")
-endif(NOT CMAKE_CXX11_ABI)
-
 configure_file("${CMAKE_SOURCE_DIR}/cmake/Templates/Arrow.CMakeLists.txt.cmake"
                "${ARROW_ROOT}/CMakeLists.txt")
 
