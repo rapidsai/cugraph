@@ -99,7 +99,9 @@ def louvain(input_df, local_data, rank, handle, max_level, resolution):
     # FIXME: The excessive casting for the enum arg is needed to make cython
     #        understand how to pass the enum value (this is the same pattern
     #        used by cudf). This will not be needed with Cython 3.0
-    populate_graph_container(graph_container, handle_[0],
+    populate_graph_container(graph_container,
+                             <legacyGraphTypeEnum>(<int>(legacyGraphTypeEnum.CSR)),
+                             handle_[0],
                              <void*>c_offsets, <void*>c_indices, <void*>c_weights,
                              <numberTypeEnum>(<int>(numberTypeEnum.intType)),
                              <numberTypeEnum>(<int>(numberTypeEnum.intType)),

@@ -14,9 +14,13 @@
 - PR #1144 updated documentation and APIs
 - PR #1138 MNMG Cython / Python support for Pagerank, BFS, SSSP
 - PR #1139 MNMG Louvain Python updates, Cython cleanup
+- PR #1152 graph container cleanup, added arg for instantiating legacy types and switch statements to factory function
 
 ## Bug Fixes
 - PR #1131 Show style checker errors with set +e
+- PR #1150 Update RAFT git tag
+- PR #1155 Remove RMM library dependency and CXX11 ABI handling
+
 
 # cuGraph 0.15.0 (26 Aug 2020)
 
