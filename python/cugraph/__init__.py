@@ -14,7 +14,7 @@
 from cugraph.community import (
     ecg,
     ktruss_subgraph,
-    k_truss
+    k_truss,
     louvain,
     leiden,
     spectralBalancedCutClustering,
