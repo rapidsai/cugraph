@@ -125,6 +125,10 @@ struct graph_container_t {
 //   num_vertices+1, indices should be size num_edges, weights should also be
 //   size num_edges
 //
+// void* identifiers
+//   Pointer to an array of values typically set to the vertex IDs of the graph
+//   (with a type matching indexType)
+//
 // numberTypeEnum offsetType, indexType, weightType
 //   numberTypeEnum enum value describing the data type for the offsets,
 //   indices, and weights arrays respectively. These enum values are used to
