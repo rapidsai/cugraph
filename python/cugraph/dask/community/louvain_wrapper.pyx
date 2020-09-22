@@ -102,7 +102,7 @@ def louvain(input_df, local_data, rank, handle, max_level, resolution):
     populate_graph_container(graph_container,
                              <legacyGraphTypeEnum>(<int>(legacyGraphTypeEnum.CSR)),
                              handle_[0],
-                             <void*>c_offsets, <void*>c_indices, <void*>c_weights,
+                             <void*>c_offsets, <void*>c_indices, <void*>c_weights, <void*>c_identifier,
                              <numberTypeEnum>(<int>(numberTypeEnum.intType)),
                              <numberTypeEnum>(<int>(numberTypeEnum.intType)),
                              <numberTypeEnum>(<int>(weightTypeMap[weights.dtype])),

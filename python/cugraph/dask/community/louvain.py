@@ -22,6 +22,7 @@ from cugraph.dask.community import louvain_wrapper as c_mg_louvain
 def call_louvain(sID, data, local_data, max_level, resolution):
     wid = Comms.get_worker_id(sID)
     handle = Comms.get_handle(sID)
+
     return c_mg_louvain.louvain(data[0],
                                 local_data,
                                 wid,

@@ -215,6 +215,7 @@ cdef extern from "utilities/cython.hpp" namespace "cugraph::cython":
         void *offsets,
         void *indices,
         void *weights,
+        void *identifiers,
         numberTypeEnum offsetType,
         numberTypeEnum indexType,
         numberTypeEnum weightType,

@@ -95,7 +95,7 @@ def mg_pagerank(input_df, local_data, rank, handle, alpha=0.85, max_iter=100, to
     populate_graph_container(graph_container,
                              <legacyGraphTypeEnum>(<int>(legacyGraphTypeEnum.CSR)),
                              handle_[0],
-                             <void*>c_offsets, <void*>c_indices, <void*>c_weights,
+                             <void*>c_offsets, <void*>c_indices, <void*>c_weights, <void*>c_identifier,
                              <numberTypeEnum>(<int>(numberTypeEnum.intType)),
                              <numberTypeEnum>(<int>(numberTypeEnum.intType)),
                              <numberTypeEnum>(<int>(weightTypeMap[weights.dtype])),
