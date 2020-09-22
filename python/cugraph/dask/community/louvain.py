@@ -23,21 +23,6 @@ def call_louvain(sID, data, local_data, max_level, resolution):
     wid = Comms.get_worker_id(sID)
     handle = Comms.get_handle(sID)
 
-    """
-    def get_n_workers():
-        from dask.distributed import default_client
-        client = default_client()
-        return len(client.scheduler_info()['workers'])
-
-
-    def get_2D_div(ngpus):
-        pcols = int(math.sqrt(ngpus))
-        while ngpus % pcols != 0:
-
-    ngpus = get_n_workers()
-    prows, pcols = get_2D_div(ngpus)
-    """
-
     return c_mg_louvain.louvain(data[0],
                                 local_data,
                                 wid,

@@ -69,7 +69,7 @@ void populate_graph_container(graph_container_t& graph_container,
         (graph_container.graph_ptr_union.GraphCSRViewFloatPtr)
           ->set_handle(const_cast<raft::handle_t*>(&handle));
         (graph_container.graph_ptr_union.GraphCSRViewFloatPtr)
-          ->get_vertex_identifiers(reinterpret_cast<int*>(identifiers)); // cast to vertex_t
+          ->get_vertex_identifiers(reinterpret_cast<int*>(identifiers));  // cast to vertex_t
       } break;
       case legacyGraphTypeEnum::CSC: {
         graph_container.graph_ptr_union.GraphCSCViewFloatPtr =
@@ -84,7 +84,7 @@ void populate_graph_container(graph_container_t& graph_container,
         (graph_container.graph_ptr_union.GraphCSCViewFloatPtr)
           ->set_handle(const_cast<raft::handle_t*>(&handle));
         (graph_container.graph_ptr_union.GraphCSCViewFloatPtr)
-          ->get_vertex_identifiers(reinterpret_cast<int*>(identifiers)); // cast to vertex_t
+          ->get_vertex_identifiers(reinterpret_cast<int*>(identifiers));  // cast to vertex_t
       } break;
       case legacyGraphTypeEnum::COO: {
         graph_container.graph_ptr_union.GraphCOOViewFloatPtr =
@@ -99,7 +99,7 @@ void populate_graph_container(graph_container_t& graph_container,
         (graph_container.graph_ptr_union.GraphCOOViewFloatPtr)
           ->set_handle(const_cast<raft::handle_t*>(&handle));
         (graph_container.graph_ptr_union.GraphCOOViewFloatPtr)
-          ->get_vertex_identifiers(reinterpret_cast<int*>(identifiers)); // cast to vertex_t
+          ->get_vertex_identifiers(reinterpret_cast<int*>(identifiers));  // cast to vertex_t
       } break;
     }
 
@@ -118,7 +118,7 @@ void populate_graph_container(graph_container_t& graph_container,
         (graph_container.graph_ptr_union.GraphCSRViewDoublePtr)
           ->set_handle(const_cast<raft::handle_t*>(&handle));
         (graph_container.graph_ptr_union.GraphCSRViewDoublePtr)
-          ->get_vertex_identifiers(reinterpret_cast<int*>(identifiers)); // cast to vertex_t
+          ->get_vertex_identifiers(reinterpret_cast<int*>(identifiers));  // cast to vertex_t
       } break;
       case legacyGraphTypeEnum::CSC: {
         graph_container.graph_ptr_union.GraphCSCViewDoublePtr =
@@ -133,7 +133,7 @@ void populate_graph_container(graph_container_t& graph_container,
         (graph_container.graph_ptr_union.GraphCSCViewDoublePtr)
           ->set_handle(const_cast<raft::handle_t*>(&handle));
         (graph_container.graph_ptr_union.GraphCSCViewDoublePtr)
-          ->get_vertex_identifiers(reinterpret_cast<int*>(identifiers)); // cast to vertex_t
+          ->get_vertex_identifiers(reinterpret_cast<int*>(identifiers));  // cast to vertex_t
       } break;
       case legacyGraphTypeEnum::COO: {
         graph_container.graph_ptr_union.GraphCOOViewDoublePtr =
@@ -148,7 +148,7 @@ void populate_graph_container(graph_container_t& graph_container,
         (graph_container.graph_ptr_union.GraphCOOViewDoublePtr)
           ->set_handle(const_cast<raft::handle_t*>(&handle));
         (graph_container.graph_ptr_union.GraphCOOViewDoublePtr)
-          ->get_vertex_identifiers(reinterpret_cast<int*>(identifiers)); // cast to vertex_t
+          ->get_vertex_identifiers(reinterpret_cast<int*>(identifiers));  // cast to vertex_t
       } break;
     }
   }
