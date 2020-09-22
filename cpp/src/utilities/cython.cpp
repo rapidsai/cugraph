@@ -280,77 +280,6 @@ template double call_louvain(raft::handle_t const& handle,
                              size_t max_level,
                              double resolution);
 
-// Note:
-//
-// In the function template call_pagerank() branching on `graph_ptr_type` happens at runtime,
-// while pagerank<>() is a function template; hence, the compiler attempts
-// to instantiate pagerank<>() for all paths in the branching, even
-// for those where type parameters of arguments are not in sync;
-// e.g., graph argument is matched as GraphCSCView<..., weight_t=double>
-// but `p_pagerank` arg is matched as `float`
-// as it happens on the `else` branch, with
-// call_pagerank() (explicitly) instantiated with
-//`float* p_pagerank`, etc.
-//
-// Possible fixes:
-// (1.) force cast the pointer `p_pagerank` type to match the `weight_t`
-//      type parameter of GraphCSCView<> template;
-//      this can only be done via reinterpret_cast<>
-//      (static_cast<> won't compile),
-//      which can become dangerous (harmless for now,
-//      but if in the future a pagerank overload would be
-//      provided for arg types not in sync, then that overload
-//      would never be called; while using solution (2.) below
-//      would make that problem manifest at compile-time);
-// (2.) provide "throw-away" _overloads_ of pagerank()
-//      for the non-matching arguments
-//      (template specializations cannot exist in this case,
-//      exactly because of the non-matching argument types that must be dealt with);
-//      there are 2 advantages of this approach:
-//      (a) the throw-away overloads (_literally_ throwing an exception if called) can be hidden in
-//      their own (un-named) namespace; (b) the code explicitly squashes the possibility of
-//      non-matching type args, by exposing the "non-matching" overloads as throwing an exception;
-
-/*
-namespace {  // must be un-named to be visible inside `call_<prim>()` instantiations
-// discarded overloads:
-//
-// throwing pagerank() overloads to fix the problem
-// of compiler trying to instantiate pagerank with
-// types of args that are not in sync
-// (see Note above, solution (2.)):
-//
-void pagerank(raft::handle_t const& handle,
-              GraphCSCView<int32_t, int32_t, float> const& graph,
-              double* pagerank,
-              int32_t personalization_subset_size,
-              int32_t* personalization_subset,
-              double* personalization_values,
-              double alpha,
-              double tolerance,
-              int64_t max_iter,
-              bool has_guess)
-{
-  CUGRAPH_FAIL("Error: Mismatch between graph view weight type and floating point pointer types.");
-}
-
-void pagerank(raft::handle_t const& handle,
-              GraphCSCView<int32_t, int32_t, double> const& graph,
-              float* pagerank,
-              int32_t personalization_subset_size,
-              int32_t* personalization_subset,
-              float* personalization_values,
-              double alpha,
-              double tolerance,
-              int64_t max_iter,
-              bool has_guess)
-{
-  CUGRAPH_FAIL("Error: Mismatch between graph view weight type and floating point pointer types.");
-}
-
-}  // namespace
-*/
-
 // Wrapper for calling Pagerank through a graph container
 template <typename vertex_t, typename weight_t>
 void call_pagerank(raft::handle_t const& handle,
@@ -367,16 +296,17 @@ void call_pagerank(raft::handle_t const& handle,
   if (graph_container.graph_ptr_type == graphTypeEnum::GraphCSCViewFloat) {
     pagerank(handle,
              *(graph_container.graph_ptr_union.GraphCSCViewFloatPtr),
-             reinterpret_cast<float*>(p_pagerank),//p_pagerank
+             reinterpret_cast<float*>(p_pagerank),
              personalization_subset_size,
              personalization_subset,
-             reinterpret_cast<float*>(personalization_values),//personalization_values
+             reinterpret_cast<float*>(personalization_values),
              alpha,
              tolerance,
              max_iter,
              has_guess);
 
-    // graph_container.graph_ptr_union.GraphCSCViewFloatPtr->get_vertex_identifiers();
+    // graph_container.graph_ptr_union.GraphCSCViewFloatPtr->get_vertex_identifiers(); // <- TODO:
+    // where should this call go?
 
   } else {
     pagerank(handle,
@@ -415,5 +345,91 @@ template void call_pagerank(raft::handle_t const& handle,
                             int64_t max_iter,
                             bool has_guess);
 
+// Wrapper for calling BFS through a graph container
+template <typename vertex_t, typename weight_t>
+void call_bfs(raft::handle_t const& handle,
+              graph_container_t const& graph_container,
+              vertex_t* distances,
+              vertex_t* predecessors,
+              double* sp_counters,
+              const vertex_t start_vertex,
+              bool directed,
+              bool mg_batch)
+{
+  if (graph_container.graph_ptr_type == graphTypeEnum::GraphCSRViewFloat) {
+    bfs(handle,
+        *(graph_container.graph_ptr_union.GraphCSRViewFloatPtr),
+        distances,
+        predecessors,
+        sp_counters,
+        start_vertex,
+        directed,
+        mg_batch);
+  } else {
+    bfs(handle,
+        *(graph_container.graph_ptr_union.GraphCSRViewDoublePtr),
+        distances,
+        predecessors,
+        sp_counters,
+        start_vertex,
+        directed,
+        mg_batch);
+  }
+}
+
+// Explicit instantiations
+template void call_bfs<int32_t, float>(raft::handle_t const& handle,
+                                       graph_container_t const& graph_container,
+                                       int32_t* distances,
+                                       int32_t* predecessors,
+                                       double* sp_counters,
+                                       const int32_t start_vertex,
+                                       bool directed,
+                                       bool mg_batch);
+
+template void call_bfs<int32_t, double>(raft::handle_t const& handle,
+                                        graph_container_t const& graph_container,
+                                        int32_t* distances,
+                                        int32_t* predecessors,
+                                        double* sp_counters,
+                                        const int32_t start_vertex,
+                                        bool directed,
+                                        bool mg_batch);
+
+// Wrapper for calling SSSP through a graph container
+template <typename vertex_t, typename weight_t>
+void call_sssp(raft::handle_t const& handle,
+               graph_container_t const& graph_container,
+               weight_t* distances,
+               vertex_t* predecessors,
+               const vertex_t source_vertex)
+{
+  if (graph_container.graph_ptr_type == graphTypeEnum::GraphCSRViewFloat) {
+    sssp(  // handle, TODO: clarify: no raft_handle_t? why?
+      *(graph_container.graph_ptr_union.GraphCSRViewFloatPtr),
+      reinterpret_cast<float*>(distances),
+      predecessors,
+      source_vertex);
+  } else {
+    sssp(  // handle, TODO: clarify: no raft_handle_t? why?
+      *(graph_container.graph_ptr_union.GraphCSRViewDoublePtr),
+      reinterpret_cast<double*>(distances),
+      predecessors,
+      source_vertex);
+  }
+}
+
+// Explicit instantiations
+template void call_sssp(raft::handle_t const& handle,
+                        graph_container_t const& graph_container,
+                        float* distances,
+                        int32_t* predecessors,
+                        const int32_t source_vertex);
+
+template void call_sssp(raft::handle_t const& handle,
+                        graph_container_t const& graph_container,
+                        double* distances,
+                        int32_t* predecessors,
+                        const int32_t source_vertex);
 }  // namespace cython
 }  // namespace cugraph
