@@ -320,6 +320,16 @@ class graph_view_t<vertex_t,
 
   vertex_t get_local_vertex_last() const { return partition_.get_vertex_partition_last(); }
 
+  vertex_t get_vertex_partition_first(size_t vertex_partition_idx) const
+  {
+    return partition_.get_vertex_partition_first(vertex_partition_idx);
+  }
+
+  vertex_t get_vertex_partition_last(size_t vertex_partition_idx) const
+  {
+    return partition_.get_vertex_partition_last(vertex_partition_idx);
+  }
+
   bool is_local_vertex_nocheck(vertex_t v) const
   {
     return (v >= get_local_vertex_first()) && (v < get_local_vertex_last());
@@ -399,6 +409,8 @@ class graph_view_t<vertex_t,
              ? partition_.get_matrix_partition_major_value_start_offset(adj_matrix_partition_idx)
              : 0;
   }
+
+  bool is_hypergraph_partitioned() const { return partition_.is_hypergraph_partitioned(); }
 
   // FIXME: this function is not part of the public stable API.This function is mainly for pattern
   // accelerator implementation. This function is currently public to support the legacy
@@ -481,6 +493,13 @@ class graph_view_t<vertex_t,
 
   vertex_t get_local_vertex_last() const { return this->get_number_of_vertices(); }
 
+  vertex_t get_vertex_partition_first(size_t vertex_partition_idx) const { return vertex_t{0}; }
+
+  vertex_t get_vertex_partition_last(size_t vertex_partition_idx) const
+  {
+    return this->get_number_of_vertices();
+  }
+
   constexpr bool is_local_vertex_nocheck(vertex_t v) const { return true; }
 
   constexpr size_t get_number_of_local_adj_matrix_partitions() const { return size_t(1); }
@@ -532,6 +551,8 @@ class graph_view_t<vertex_t,
     assert(adj_matrix_partition_idx == 0);
     return vertex_t{0};
   }
+
+  bool is_hypergraph_partitioned() const { return false; }
 
   // FIXME: this function is not part of the public stable API.This function is mainly for pattern
   // accelerator implementation. This function is currently public to support the legacy
