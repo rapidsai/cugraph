@@ -51,7 +51,8 @@ std::pair<size_t, weight_t> louvain(
 {
   CUGRAPH_EXPECTS(clustering != nullptr, "Invalid input argument: clustering is null");
 
-  experimental::Louvain<experimental::graph_view_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu>>
+  experimental::Louvain<
+    experimental::graph_view_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu>>
     runner(handle, graph_view);
   return runner(clustering, max_level, resolution);
 }
