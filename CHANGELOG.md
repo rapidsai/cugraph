@@ -11,6 +11,7 @@
 - PR 1135 SG Updates to Louvain et. al.
 - PR 1132 Upgrade Thrust to latest commit
 - PR #1129 Refactored test to use common dataset and added additional doc pages
+- PR #1145 Simple edge list generator
 - PR #1144 updated documentation and APIs
 - PR #1139 MNMG Louvain Python updates, Cython cleanup
 - PR #1152 graph container cleanup, added arg for instantiating legacy types and switch statements to factory function
