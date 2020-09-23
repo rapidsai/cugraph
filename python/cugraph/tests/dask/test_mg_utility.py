@@ -68,6 +68,7 @@ def test_compute_local_data(client_connection):
     global_num_verts = data.local_data['verts'].sum()
     assert global_num_verts == dg.number_of_nodes()
 
+
 @pytest.mark.skip(reason="MG not supported on CI")
 def test_parquet_concat_within_workers(client_connection):
     if not os.path.exists('test_files_parquet'):
