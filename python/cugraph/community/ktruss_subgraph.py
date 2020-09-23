@@ -14,7 +14,7 @@
 from cugraph.community import ktruss_subgraph_wrapper
 from cugraph.structure.graph import Graph
 from cugraph.utilities import is_networkx_graph
-from cugraph.utilities import convert_from_nx
+from cugraph.utilities import check_nx_graph
 from cugraph.utilities import cugraph_to_nx
 
 
@@ -41,11 +41,10 @@ def k_truss(G, k):
         The networkx graph will NOT have all attributes copied over
     """
 
-    is_nx = is_networkx_graph(G)
+    G, isNx = check_nx_graph(G)
 
-    if is_nx is True:
-        Gcu = convert_from_nx(G)
-        k_sub = ktruss_subgraph(Gcu, k)
+    if isNx is True:
+        k_sub = ktruss_subgraph(G, k)
         S = cugraph_to_nx(k_sub)
         return S
     else:

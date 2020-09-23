@@ -205,7 +205,7 @@ def edge_betweenness_centrality(
 
     Returns
     -------
-    df : cudf.DataFrame or dictionary
+    df : cudf.DataFrame or Dictionary if using NetworkX
         GPU data frame containing three cudf.Series of size E: the vertex
         identifiers of the sources, the vertex identifies of the destinations
         and the corresponding betweenness centrality values.
