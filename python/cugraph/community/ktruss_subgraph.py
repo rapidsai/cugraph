@@ -13,7 +13,6 @@
 
 from cugraph.community import ktruss_subgraph_wrapper
 from cugraph.structure.graph import Graph
-from cugraph.utilities import is_networkx_graph
 from cugraph.utilities import check_nx_graph
 from cugraph.utilities import cugraph_to_nx
 
