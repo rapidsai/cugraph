@@ -178,7 +178,7 @@ message("Fetching cuco")
 FetchContent_Declare(
     cuco
     GIT_REPOSITORY https://github.com/NVIDIA/cuCollections.git
-    GIT_TAG        cdd5f8f5732d9b8a01253f8373447c0f8b901d43
+    GIT_TAG        dev
     GIT_SHALLOW    true
 )
 
