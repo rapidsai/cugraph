@@ -31,6 +31,7 @@ function(ConfigureTest CMAKE_TEST_NAME CMAKE_TEST_SRC CMAKE_EXTRA_LIBS)
         PRIVATE
         "${CUB_INCLUDE_DIR}"
         "${THRUST_INCLUDE_DIR}"
+	"${CUCO_INCLUDE_DIR}"
         "${CMAKE_CUDA_TOOLKIT_INCLUDE_DIRECTORIES}"
         "${GTEST_INCLUDE_DIR}"
         "${RMM_INCLUDE}"
@@ -290,6 +291,15 @@ set(EXPERIMENTAL_PAGERANK_TEST_SRCS
     "${CMAKE_CURRENT_SOURCE_DIR}/experimental/pagerank_test.cpp")
 
 ConfigureTest(EXPERIMENTAL_PAGERANK_TEST "${EXPERIMENTAL_PAGERANK_TEST_SRCS}" "")
+
+###################################################################################################
+# - Experimental LOUVAIN tests -------------------------------------------------------------------
+
+set(EXPERIMENTAL_LOUVAIN_TEST_SRCS
+    "${CMAKE_SOURCE_DIR}/../thirdparty/mmio/mmio.c"
+    "${CMAKE_CURRENT_SOURCE_DIR}/experimental/louvain_test.cu")
+
+ConfigureTest(EXPERIMENTAL_LOUVAIN_TEST "${EXPERIMENTAL_LOUVAIN_TEST_SRCS}" "")
 
 ###################################################################################################
 # - Experimental KATZ_CENTRALITY tests ------------------------------------------------------------

@@ -320,6 +320,11 @@ class graph_view_t<vertex_t,
     return (v >= get_local_vertex_first()) && (v < get_local_vertex_last());
   }
 
+  partition_t<vertex_t> get_partition() const
+  {
+    return partition_;
+  }
+
   size_t get_number_of_local_adj_matrix_partitions() const
   {
     return adj_matrix_partition_offsets_.size();

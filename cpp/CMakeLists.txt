@@ -212,7 +212,7 @@ message("Fetching cuco")
 FetchContent_Declare(
     cuco
     GIT_REPOSITORY https://github.com/NVIDIA/cuCollections.git
-    GIT_TAG        0316a4cf7c163935691d83843f053e169239ffd2
+    GIT_TAG        cdd5f8f5732d9b8a01253f8373447c0f8b901d43
     GIT_SHALLOW    true
 )
 
@@ -220,7 +220,7 @@ FetchContent_GetProperties(cuco)
 if(NOT cuco_POPULATED)
   FetchContent_Populate(cuco)
 endif()
-set(CUCO_INCLUDE_DIR "${cuco_SOURCE_DIR}")
+set(CUCO_INCLUDE_DIR "${cuco_SOURCE_DIR}/include")
 
 
 ###################################################################################################
