@@ -616,33 +616,30 @@ void bfs(raft::handle_t const &handle,
  *
  * @throws     cugraph::logic_error when an error occurs.
  *
- * @tparam vertex_t                  Type of vertex identifiers.
- *                                   Supported value : int (signed, 32-bit)
- * @tparam edge_t                    Type of edge identifiers.
- *                                   Supported value : int (signed, 32-bit)
- * @tparam weight_t                  Type of edge weights. Supported values : float or double.
+ * @tparam     graph_t               Type of graph
  *
  * @param[in]  handle                Library handle (RAFT). If a communicator is set in the handle,
  * @param[in]  graph                 input graph object (CSR)
  * @param[out] clustering            Pointer to device array where the clustering should be stored
- * @param[in]  max_iter              (optional) maximum number of iterations to run (default 100)
+ * @param[in]  max_level             (optional) maximum number of levels to run (default 100)
  * @param[in]  resolution            (optional) The value of the resolution parameter to use.
  *                                   Called gamma in the modularity formula, this changes the size
  *                                   of the communities.  Higher resolutions lead to more smaller
  *                                   communities, lower resolutions lead to fewer larger
- * communities. (default 1)
+ *                                   communities. (default 1)
  *
  * @return                           a pair containing:
  *                                     1) number of levels of the returned clustering
  *                                     2) modularity of the returned clustering
  *
  */
-template <typename vertex_t, typename edge_t, typename weight_t>
-std::pair<size_t, weight_t> louvain(raft::handle_t const &handle,
-                                    GraphCSRView<vertex_t, edge_t, weight_t> const &graph,
-                                    vertex_t *clustering,
-                                    size_t max_iter     = 100,
-                                    weight_t resolution = weight_t{1});
+template <typename graph_t>
+std::pair<size_t, typename graph_t::weight_type> louvain(
+  raft::handle_t const &handle,
+  graph_t const &graph,
+  typename graph_t::vertex_type *clustering,
+  size_t max_level                         = 100,
+  typename graph_t::weight_type resolution = typename graph_t::weight_type{1});
 
 /**
  * @brief      Leiden implementation
