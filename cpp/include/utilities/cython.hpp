@@ -45,6 +45,9 @@ enum class graphTypeEnum : int {
   graph_view_t_double_mg_transposed
 };
 
+// Enum for the high-level type of GraphC??View* class to instantiate.
+enum class legacyGraphTypeEnum : int { CSR, CSC, COO };
+
 // "container" for a graph type instance which insulates the owner from the
 // specifics of the actual graph type. This is intended to be used in Cython
 // code that only needs to pass a graph object to another wrapped C++ API. This
@@ -54,24 +57,35 @@ struct graph_container_t {
   // FIXME: use std::variant (or a better alternative, ie. type erasure?) instead
   //        of a union if possible
   union graphPtrUnion {
+    ~graphPtrUnion() {}
+
     void* null;
-    GraphCSRView<int, int, float>* GraphCSRViewFloatPtr;
-    GraphCSRView<int, int, double>* GraphCSRViewDoublePtr;
-    GraphCSCView<int, int, float>* GraphCSCViewFloatPtr;
-    GraphCSCView<int, int, double>* GraphCSCViewDoublePtr;
-    GraphCOOView<int, int, float>* GraphCOOViewFloatPtr;
-    GraphCOOView<int, int, double>* GraphCOOViewDoublePtr;
-    experimental::graph_view_t<int, int, float, false, false>* graph_view_t_float_ptr;
-    experimental::graph_view_t<int, int, double, false, false>* graph_view_t_double_ptr;
-    experimental::graph_view_t<int, int, float, false, true>* graph_view_t_float_mg_ptr;
-    experimental::graph_view_t<int, int, double, false, true>* graph_view_t_double_mg_ptr;
-    experimental::graph_view_t<int, int, float, true, false>* graph_view_t_float_transposed_ptr;
-    experimental::graph_view_t<int, int, double, true, false>* graph_view_t_double_transposed_ptr;
-    experimental::graph_view_t<int, int, float, true, true>* graph_view_t_float_mg_transposed_ptr;
-    experimental::graph_view_t<int, int, double, true, true>* graph_view_t_double_mg_transposed_ptr;
+    std::unique_ptr<GraphCSRView<int, int, float>> GraphCSRViewFloatPtr;
+    std::unique_ptr<GraphCSRView<int, int, double>> GraphCSRViewDoublePtr;
+    std::unique_ptr<GraphCSCView<int, int, float>> GraphCSCViewFloatPtr;
+    std::unique_ptr<GraphCSCView<int, int, double>> GraphCSCViewDoublePtr;
+    std::unique_ptr<GraphCOOView<int, int, float>> GraphCOOViewFloatPtr;
+    std::unique_ptr<GraphCOOView<int, int, double>> GraphCOOViewDoublePtr;
+    std::unique_ptr<experimental::graph_view_t<int, int, float, false, false>>
+      graph_view_t_float_ptr;
+    std::unique_ptr<experimental::graph_view_t<int, int, double, false, false>>
+      graph_view_t_double_ptr;
+    std::unique_ptr<experimental::graph_view_t<int, int, float, false, true>>
+      graph_view_t_float_mg_ptr;
+    std::unique_ptr<experimental::graph_view_t<int, int, double, false, true>>
+      graph_view_t_double_mg_ptr;
+    std::unique_ptr<experimental::graph_view_t<int, int, float, true, false>>
+      graph_view_t_float_transposed_ptr;
+    std::unique_ptr<experimental::graph_view_t<int, int, double, true, false>>
+      graph_view_t_double_transposed_ptr;
+    std::unique_ptr<experimental::graph_view_t<int, int, float, true, true>>
+      graph_view_t_float_mg_transposed_ptr;
+    std::unique_ptr<experimental::graph_view_t<int, int, double, true, true>>
+      graph_view_t_double_mg_transposed_ptr;
   };
 
-  inline graph_container_t() : graph_ptr_union{nullptr}, graph_ptr_type{graphTypeEnum::null} {}
+  graph_container_t() : graph_ptr_union{nullptr}, graph_ptr_type{graphTypeEnum::null} {}
+  ~graph_container_t() {}
 
   // The expected usage of a graph_container_t is for it to be created as part
   // of a cython wrapper simply for passing a templated instantiation of a
@@ -81,42 +95,6 @@ struct graph_container_t {
   // to an instance are not supported and these methods are deleted.
   graph_container_t(const graph_container_t&) = delete;
   graph_container_t& operator=(const graph_container_t&) = delete;
-
-  inline ~graph_container_t()
-  {
-    switch (graph_ptr_type) {
-      case graphTypeEnum::GraphCSRViewFloat: delete graph_ptr_union.GraphCSRViewFloatPtr; break;
-      case graphTypeEnum::GraphCSRViewDouble: delete graph_ptr_union.GraphCSRViewDoublePtr; break;
-      case graphTypeEnum::GraphCSCViewFloat: delete graph_ptr_union.GraphCSCViewFloatPtr; break;
-      case graphTypeEnum::GraphCSCViewDouble: delete graph_ptr_union.GraphCSCViewDoublePtr; break;
-      case graphTypeEnum::GraphCOOViewFloat: delete graph_ptr_union.GraphCOOViewFloatPtr; break;
-      case graphTypeEnum::GraphCOOViewDouble: delete graph_ptr_union.GraphCOOViewDoublePtr; break;
-      case graphTypeEnum::graph_view_t_float: delete graph_ptr_union.graph_view_t_float_ptr; break;
-      case graphTypeEnum::graph_view_t_double:
-        delete graph_ptr_union.graph_view_t_double_ptr;
-        break;
-      case graphTypeEnum::graph_view_t_float_mg:
-        delete graph_ptr_union.graph_view_t_float_mg_ptr;
-        break;
-      case graphTypeEnum::graph_view_t_double_mg:
-        delete graph_ptr_union.graph_view_t_double_mg_ptr;
-        break;
-      case graphTypeEnum::graph_view_t_float_transposed:
-        delete graph_ptr_union.graph_view_t_float_transposed_ptr;
-        break;
-      case graphTypeEnum::graph_view_t_double_transposed:
-        delete graph_ptr_union.graph_view_t_double_transposed_ptr;
-        break;
-      case graphTypeEnum::graph_view_t_float_mg_transposed:
-        delete graph_ptr_union.graph_view_t_float_mg_transposed_ptr;
-        break;
-      case graphTypeEnum::graph_view_t_double_mg_transposed:
-        delete graph_ptr_union.graph_view_t_double_mg_transposed_ptr;
-        break;
-      default: break;
-    }
-    graph_ptr_type = graphTypeEnum::null;
-  }
 
   graphPtrUnion graph_ptr_union;
   graphTypeEnum graph_ptr_type;
@@ -131,13 +109,21 @@ struct graph_container_t {
 //   container (ie. a container that has not been previously populated by
 //   populate_graph_container())
 //
+// legacyGraphTypeEnum legacyType
+//   Specifies the type of graph when instantiating a legacy graph type
+//   (GraphCSRViewFloat, etc.).
+//   NOTE: this parameter will be removed when the transition to exclusinve use
+//   of the new 2D graph classes is complete.
+//
 // raft::handle_t const& handle
 //   Raft handle to be set on the new graph instance in the container
 //
 // void* offsets, indices, weights
 //   Pointer to an array of values representing offsets, indices, and weights
 //   respectively. The value types of the array are specified using
-//   numberTypeEnum values separately (see below)
+//   numberTypeEnum values separately (see below). offsets should be size
+//   num_vertices+1, indices should be size num_edges, weights should also be
+//   size num_edges
 //
 // numberTypeEnum offsetType, indexType, weightType
 //   numberTypeEnum enum value describing the data type for the offsets,
@@ -174,6 +160,7 @@ struct graph_container_t {
 //
 // FIXME: Should local_* values be void* as well?
 void populate_graph_container(graph_container_t& graph_container,
+                              legacyGraphTypeEnum legacyType,
                               raft::handle_t const& handle,
                               void* offsets,
                               void* indices,
