@@ -16,6 +16,7 @@
 
 #include <experimental/detail/graph_utils.cuh>
 #include <experimental/graph.hpp>
+#include <partition_manager.hpp>
 #include <utilities/error.hpp>
 
 #include <rmm/thrust_rmm_allocator.h>
@@ -218,12 +219,14 @@ graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu, std::enable_if_
 {
   // cheap error checks
 
-  auto &comm_p               = this->get_handle_ptr()->get_comms();
-  auto const comm_p_size     = comm_p.get_size();
-  auto &comm_p_row           = this->get_handle_ptr()->get_subcomm(comm_p_row_key);
+  auto &comm_p           = this->get_handle_ptr()->get_comms();
+  auto const comm_p_size = comm_p.get_size();
+  auto &comm_p_row =
+    this->get_handle_ptr()->get_subcomm(cugraph::partition_2d::key_naming_t().row_name());
   auto const comm_p_row_rank = comm_p_row.get_rank();
   auto const comm_p_row_size = comm_p_row.get_size();
-  auto &comm_p_col           = this->get_handle_ptr()->get_subcomm(comm_p_col_key);
+  auto &comm_p_col =
+    this->get_handle_ptr()->get_subcomm(cugraph::partition_2d::key_naming_t().col_name());
   auto const comm_p_col_rank = comm_p_col.get_rank();
   auto const comm_p_col_size = comm_p_col.get_size();
   auto default_stream        = this->get_handle_ptr()->get_stream();

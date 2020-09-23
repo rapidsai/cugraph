@@ -21,6 +21,7 @@
 #include <rmm/device_uvector.hpp>
 
 #include <algorithm>
+#include <cassert>
 #include <cstddef>
 #include <string>
 #include <tuple>
@@ -29,10 +30,6 @@
 
 namespace cugraph {
 namespace experimental {
-
-// FIXME: these should better be defined somewhere else.
-std::string const comm_p_row_key = "comm_p_row";
-std::string const comm_p_col_key = "comm_p_key";
 
 /**
  * @brief store vertex partitioning map
@@ -493,6 +490,44 @@ class graph_view_t<vertex_t,
   vertex_t get_number_of_local_adj_matrix_partition_cols() const
   {
     return this->get_number_of_vertices();
+  }
+
+  vertex_t get_local_adj_matrix_partition_row_first(size_t adj_matrix_partition_idx) const
+  {
+    assert(adj_matrix_partition_idx == 0);
+    return vertex_t{0};
+  }
+
+  vertex_t get_local_adj_matrix_partition_row_last(size_t adj_matrix_partition_idx) const
+  {
+    assert(adj_matrix_partition_idx == 0);
+    return this->get_number_of_vertices();
+  }
+
+  vertex_t get_local_adj_matrix_partition_row_value_start_offset(
+    size_t adj_matrix_partition_idx) const
+  {
+    assert(adj_matrix_partition_idx == 0);
+    return vertex_t{0};
+  }
+
+  vertex_t get_local_adj_matrix_partition_col_first(size_t adj_matrix_partition_idx) const
+  {
+    assert(adj_matrix_partition_idx == 0);
+    return vertex_t{0};
+  }
+
+  vertex_t get_local_adj_matrix_partition_col_last(size_t adj_matrix_partition_idx) const
+  {
+    assert(adj_matrix_partition_idx == 0);
+    return this->get_number_of_vertices();
+  }
+
+  vertex_t get_local_adj_matrix_partition_col_value_start_offset(
+    size_t adj_matrix_partition_idx) const
+  {
+    assert(adj_matrix_partition_idx == 0);
+    return vertex_t{0};
   }
 
   // FIXME: this function is not part of the public stable API.This function is mainly for pattern
