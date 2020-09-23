@@ -14,6 +14,7 @@
 - PR #1145 Simple edge list generator
 - PR #1144 updated documentation and APIs
 - PR #1139 MNMG Louvain Python updates, Cython cleanup
+- PR #1149 Parquet read and concat within workers
 - PR #1152 graph container cleanup, added arg for instantiating legacy types and switch statements to factory function
 
 ## Bug Fixes
