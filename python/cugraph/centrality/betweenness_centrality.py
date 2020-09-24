@@ -45,8 +45,7 @@ def betweenness_centrality(
     Parameters
     ----------
     G : cuGraph.Graph or networkx.Graph
-        cuGraph graph descriptor with connectivity information. The graph can
-        be either directed (DiGraph) or undirected (Graph).
+        The graph can be either directed (DiGraph) or undirected (Graph).
         Weights in the graph are ignored, the current implementation uses
         BFS traversals. Use weight parameter if weights need to be considered
         (currently not supported)
@@ -97,7 +96,7 @@ def betweenness_centrality(
         GPU data frame containing two cudf.Series of size V: the vertex
         identifiers and the corresponding betweenness centrality values.
         Please note that the resulting the 'vertex' column might not be
-        in ascending order.
+        in ascending order.  The Dictionary conatains the same two columns
 
         df['vertex'] : cudf.Series
             Contains the vertex identifiers
@@ -162,8 +161,7 @@ def edge_betweenness_centrality(
     Parameters
     ----------
     G : cuGraph.Graph or networkx.Graph
-        cuGraph graph descriptor with connectivity information. The graph can
-        be either directed (DiGraph) or undirected (Graph).
+        The graph can be either directed (DiGraph) or undirected (Graph).
         Weights in the graph are ignored, the current implementation uses
         BFS traversals. Use weight parameter if weights need to be considered
         (currently not supported)
