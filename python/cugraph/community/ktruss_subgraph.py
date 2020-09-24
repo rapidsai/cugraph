@@ -21,7 +21,11 @@ def k_truss(G, k):
     """
     Returns the K-Truss subgraph of a graph for a specific k.
 
-    This API is for NwtworkX compatability.
+    The k-truss of a graph is a subgraph where each edge is part of at least
+    (k−2) triangles. K-trusses are used for finding tighlty knit groups of
+    vertices in a graph. A k-truss is a relaxation of a k-clique in the graph
+    and was define in [1]. Finding cliques is computationally demanding and
+    finding the maximal k-clique is known to be NP-Hard.
 
     Parameters
     ----------
@@ -49,7 +53,8 @@ def k_truss(G, k):
     else:
         return ktruss_subgraph(G, k)
 
-
+# FIXME: merge this function with k_truss 
+#
 def ktruss_subgraph(G, k, use_weights=True):
     """
     Returns the K-Truss subgraph of a graph for a specific k.

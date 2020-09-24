@@ -74,7 +74,7 @@ def pagerank(
         This version of PageRank current does not use edge weight.
         This parameter is here for NetworkX compatibility
     dangling : dict
-        This parameter is here for NetworkX compatibility
+        This parameter is here for NetworkX compatibility and ignored
 
     Returns
     -------

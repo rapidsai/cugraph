@@ -128,7 +128,8 @@ def test_digraph_rejected():
 def test_edge_cut_clustering_with_edgevals_nx(graph_file, partitions):
     gc.collect()
 
-    # Read in the graph and get a cugraph object
+    # Read in the graph and create a NetworkX Graph
+    # FIXME: replace with utils.generate_nx_graph_from_file()
     NM = utils.read_csv_for_nx(graph_file, read_weights_in_sp=True)
     G = nx.from_pandas_edgelist(
                 NM, create_using=nx.Graph(), source="0", target="1",

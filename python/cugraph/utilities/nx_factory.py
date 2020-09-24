@@ -12,7 +12,7 @@
 # limitations under the License.
 import networkx as nx
 import cugraph
-import cudf
+from cudf import from_pandas
 
 
 def convert_from_nx(nxG, weight=None):
@@ -37,7 +37,7 @@ def convert_from_nx(nxG, weight=None):
         pdf = pdf[["source", "target", weight]]
         num_col = 3
 
-    gdf = cudf.from_pandas(pdf)
+    gdf = from_pandas(pdf)
 
     if num_col == 2:
         G.from_cudf_edgelist(gdf, "source", "target")

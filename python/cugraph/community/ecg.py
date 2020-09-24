@@ -29,7 +29,7 @@ def ecg(input_graph, min_weight=0.05, ensemble_size=16, weight=None):
     Parameters
     ----------
     input_graph : cugraph.Graph or NetworkX Graph
-        cuGraph graph descriptor, should contain the connectivity information
+        The graph descriptor should contain the connectivity information
         and weights. The adjacency list will be computed if not already
         present.
 
@@ -44,12 +44,13 @@ def ecg(input_graph, min_weight=0.05, ensemble_size=16, weight=None):
         partitions for some graphs.
 
     weight : str
-        Edge data column to use.  Default is None
-        This parameter is here for NetworkX compatibility
+        This parameter is here for NetworkX compatibility and
+        represents which NetworkX data column represents Edge weights.
+        Default is None
 
     Returns
     -------
-    parts : cudf.DataFrame
+    parts : cudf.DataFrame or python dictionary
         GPU data frame of size V containing two columns, the vertex id and
         the partition id it is assigned to.
 

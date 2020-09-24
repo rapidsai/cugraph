@@ -192,7 +192,6 @@ def test_strong_cc(graph_file):
     assert nx_vertices == cg_vertices
 
 
-# Test all combinations of default/managed and pooled/non-pooled allocation
 @pytest.mark.parametrize("graph_file", utils.DATASETS)
 def test_weak_cc_nx(graph_file):
     gc.collect()

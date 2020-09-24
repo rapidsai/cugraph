@@ -389,7 +389,6 @@ def test_networkx_compatibility(graph_file):
     gc.collect()
 
     # test from_cudf_edgelist()
-
     M = utils.read_csv_for_nx(graph_file)
 
     df = pd.DataFrame()

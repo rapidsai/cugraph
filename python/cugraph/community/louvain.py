@@ -17,7 +17,7 @@ from cugraph.utilities import check_nx_graph
 from cugraph.utilities import df_score_to_dictionary
 
 
-def louvain(input_graph, max_iter=100, resolution=1.):
+def louvain(G, max_iter=100, resolution=1.):
     """
     Compute the modularity optimizing partition of the input graph using the
     Louvain method
@@ -30,10 +30,10 @@ def louvain(input_graph, max_iter=100, resolution=1.):
 
     Parameters
     ----------
-    input_graph : cugraph.Graph
-        cuGraph graph descriptor of type Graph
-
-        The adjacency list will be computed if not already present.
+    G : cugraph.Graph or NetworkX Graph
+        The graph descriptor should contain the connectivity information
+        and weights. The adjacency list will be computed if not already
+        present.
 
     max_iter : integer
         This controls the maximum number of levels/iterations of the Louvain
@@ -73,17 +73,17 @@ def louvain(input_graph, max_iter=100, resolution=1.):
     >>> parts, modularity_score = cugraph.louvain(G)
     """
 
-    input_graph, isNx = check_nx_graph(input_graph)
+    G, isNx = check_nx_graph(G)
 
-    if type(input_graph) is not Graph:
+    if type(G) is not Graph:
         raise Exception("input graph must be undirected")
 
     parts, modularity_score = louvain_wrapper.louvain(
-        input_graph, max_iter, resolution
+        G, max_iter, resolution
     )
 
-    if input_graph.renumbered:
-        parts = input_graph.unrenumber(parts, "vertex")
+    if G.renumbered:
+        parts = G.unrenumber(parts, "vertex")
 
     if isNx is True:
         parts = df_score_to_dictionary(parts, "partition")
