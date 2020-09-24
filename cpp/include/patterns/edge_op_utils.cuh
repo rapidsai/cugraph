@@ -92,7 +92,7 @@ __host__ __device__ std::enable_if_t<is_thrust_tuple<T>::value, T> plus_edge_op_
 }
 
 template <typename Iterator, typename T>
-__device__ std::enable_if_t<thrust::detail::is_discard_iterator<Iterator>::value
+__device__ std::enable_if_t<thrust::detail::is_discard_iterator<Iterator>::value,
                             void>
 atomic_accumulate_edge_op_result(Iterator iter, T const& value)
 {
