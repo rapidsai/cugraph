@@ -75,11 +75,11 @@ def test_ecg_clustering(graph_file, min_weight, ensemble_size):
 def test_ecg_clustering_nx(graph_file, min_weight, ensemble_size):
     gc.collect()
 
-    # Read in the graph and get a cugraph object
+    # Read in the graph and get a NetworkX graph
     M = utils.read_csv_for_nx(graph_file, read_weights_in_sp=True)
     G = nx.from_pandas_edgelist(
         M, source="0", target="1", edge_attr="weight",
-        create_using=nx.DiGraph()
+        create_using=nx.Graph()
     )
 
     # Get the modularity score for partitioning versus random assignment
