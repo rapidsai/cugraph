@@ -82,18 +82,18 @@ struct plus_thrust_tuple_impl<TupleType, I, I> {
 };
 
 template <typename T>
-__device__ std::enable_if_t<std::is_arithmetic<T>::value, void> atomic_accumulate_impl(T& lhs,
-                                                                                       T const& rhs)
-{
-  atomicAdd(&lhs, rhs);
-}
-
-template <typename T>
 __device__ std::enable_if_t<std::is_arithmetic<T>::value, void> atomic_accumulate_impl(
   thrust::detail::any_assign& /* dereferencing thrust::discard_iterator results in this type */ lhs,
   T const& rhs)
 {
   // no-op
+}
+
+template <typename T>
+__device__ std::enable_if_t<std::is_arithmetic<T>::value, void> atomic_accumulate_impl(T& lhs,
+                                                                                       T const& rhs)
+{
+  atomicAdd(&lhs, rhs);
 }
 
 template <typename Iterator, typename TupleType, size_t I, size_t N>
