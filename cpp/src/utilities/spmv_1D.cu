@@ -75,8 +75,10 @@ void MGcsrmv<vertex_t, edge_t, weight_t>::run(weight_t *x)
   auto const &comm{handle_.get_comms()};  // local
 
   std::vector<size_t> recvbuf(comm.get_size());
+  std::vector<size_t> displs(comm.get_size());
   std::copy(local_vertices_, local_vertices_ + comm.get_size(), recvbuf.begin());
-  comm.allgatherv(y_loc_.data().get(), x, recvbuf.data(), part_off_, stream);
+  std::copy(part_off_, part_off_ + comm.get_size(), displs.begin());
+  comm.allgatherv(y_loc_.data().get(), x, recvbuf.data(), displs.data(), stream);
 }
 
 template class MGcsrmv<int32_t, int32_t, double>;
