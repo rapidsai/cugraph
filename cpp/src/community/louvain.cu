@@ -39,11 +39,10 @@ std::pair<size_t, weight_t> louvain(raft::handle_t const &handle,
 template <typename vertex_t,
           typename edge_t,
           typename weight_t,
-          bool store_transposed,
           bool multi_gpu>
 std::pair<size_t, weight_t> louvain(
   raft::handle_t const &handle,
-  experimental::graph_view_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu> const
+  experimental::graph_view_t<vertex_t, edge_t, weight_t, false, multi_gpu> const
     &graph_view,
   vertex_t *clustering,
   size_t max_level,
@@ -52,7 +51,7 @@ std::pair<size_t, weight_t> louvain(
   CUGRAPH_EXPECTS(clustering != nullptr, "Invalid input argument: clustering is null");
 
   experimental::Louvain<
-    experimental::graph_view_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu>>
+    experimental::graph_view_t<vertex_t, edge_t, weight_t, false, multi_gpu>>
     runner(handle, graph_view);
   return runner(clustering, max_level, resolution);
 }
@@ -89,6 +88,30 @@ template std::pair<size_t, double> louvain(
   raft::handle_t const &,
   experimental::graph_view_t<int32_t, int32_t, double, false, false> const &,
   int32_t *,
+  size_t,
+  double);
+template std::pair<size_t, float> louvain(
+  raft::handle_t const &,
+  experimental::graph_view_t<int32_t, int64_t, float, false, false> const &,
+  int32_t *,
+  size_t,
+  float);
+template std::pair<size_t, double> louvain(
+  raft::handle_t const &,
+  experimental::graph_view_t<int32_t, int64_t, double, false, false> const &,
+  int32_t *,
+  size_t,
+  double);
+template std::pair<size_t, float> louvain(
+  raft::handle_t const &,
+  experimental::graph_view_t<int64_t, int64_t, float, false, false> const &,
+  int64_t *,
+  size_t,
+  float);
+template std::pair<size_t, double> louvain(
+  raft::handle_t const &,
+  experimental::graph_view_t<int64_t, int64_t, double, false, false> const &,
+  int64_t *,
   size_t,
   double);
 
