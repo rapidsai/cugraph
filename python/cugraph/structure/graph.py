@@ -347,8 +347,14 @@ class Graph:
         if self.edgelist is not None or self.adjlist is not None:
             raise Exception("Graph already has values")
 
-        if not (set(source).issubset(set(input_ddf.columns)) and
-                set(destination).issubset(set(input_ddf.columns))):
+        s_col = source
+        d_col = destination
+        if not isinstance(s_col, list):
+            s_col = [s_col]
+        if not isinstance(d_col, list):
+            d_col = [d_col]
+        if not (set(s_col).issubset(set(input_ddf.columns)) and
+                set(d_col).issubset(set(input_ddf.columns))):
             raise Exception('source column names and/or destination column \
 names not found in input. Recheck the source and destination parameters')
 
@@ -450,8 +456,14 @@ names not found in input. Recheck the source and destination parameters')
         if type(self) is Graph:
             raise Exception('Undirected distributed graph not supported')
 
-        if not (set(source).issubset(set(input_ddf.columns)) and
-                set(destination).issubset(set(input_ddf.columns))):
+        s_col = source
+        d_col = destination
+        if not isinstance(s_col, list):
+            s_col = [s_col]
+        if not isinstance(d_col, list):
+            d_col = [d_col]
+        if not (set(s_col).issubset(set(input_ddf.columns)) and
+                set(d_col).issubset(set(input_ddf.columns))):
             raise Exception('source column names and/or destination column \
 names not found in input. Recheck the source and destination parameters')
         #

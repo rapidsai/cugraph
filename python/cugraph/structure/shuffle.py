@@ -1,5 +1,6 @@
 import math
 from dask.dataframe.shuffle import rearrange_by_column
+import cudf
 
 
 def get_n_workers():
@@ -15,10 +16,10 @@ def get_2D_div(ngpus):
     return int(ngpus/pcols), pcols
 
 
-def _set_partitions_pre(df, num_verts, prows, pcols):
-    rows_per_div = math.ceil(num_verts/prows)
-    cols_per_div = math.ceil(num_verts/pcols)
-    partitions = df['src'].floordiv(rows_per_div) * pcols + df['dst'].floordiv(cols_per_div)
+def _set_partitions_pre(df, vertex_row_partitions, vertex_col_partitions, prows, pcols):
+    src_div = vertex_row_partitions.searchsorted(df['src'], side='right')-1
+    dst_div = vertex_col_partitions.searchsorted(df['dst'], side='right')-1
+    partitions = src_div%prows + dst_div*prows
     return partitions
 
 
@@ -26,11 +27,23 @@ def shuffle(dg):
     ddf = dg.edgelist.edgelist_df
     ngpus = get_n_workers()
     prows, pcols = get_2D_div(ngpus)
-    num_verts = dg.number_of_nodes()
+
+    renumber_vertex_count = dg.renumber_map.implementation.ddf.map_partitions(len).compute()
+    renumber_vertex_cumsum = renumber_vertex_count.cumsum()
+    src_dtype = ddf['src'].dtype
+    dst_dtype = ddf['dst'].dtype
+
+    vertex_row_partitions = cudf.Series([0], dtype=src_dtype)
+    vertex_row_partitions = vertex_row_partitions.append(cudf.Series(renumber_vertex_cumsum, dtype = src_dtype))
+    num_verts = vertex_row_partitions.iloc[-1]
+    vertex_col_partitions = []
+    for i in range(pcols + 1):
+        vertex_col_partitions.append(vertex_row_partitions.iloc[i*prows])
+    vertex_col_partitions = cudf.Series(vertex_col_partitions, dtype = dst_dtype)
 
     meta = ddf._meta._constructor_sliced([0])
     partitions = ddf.map_partitions(
-    _set_partitions_pre, num_verts, prows, pcols, meta=meta
+    _set_partitions_pre, vertex_row_partitions=vertex_row_partitions, vertex_col_partitions=vertex_col_partitions,prows= prows, pcols=pcols, meta=meta
     )
     ddf2 = ddf.assign(_partitions = partitions)
     ddf3 = rearrange_by_column(
@@ -43,4 +56,3 @@ def shuffle(dg):
     ).drop(columns=["_partitions"])
 
     return ddf3
-
