@@ -53,8 +53,9 @@ def k_truss(G, k):
     else:
         return ktruss_subgraph(G, k)
 
-# FIXME: merge this function with k_truss 
-#
+# FIXME: merge this function with k_truss
+
+
 def ktruss_subgraph(G, k, use_weights=True):
     """
     Returns the K-Truss subgraph of a graph for a specific k.
