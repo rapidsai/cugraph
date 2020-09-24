@@ -36,22 +36,17 @@ std::pair<size_t, weight_t> louvain(raft::handle_t const &handle,
   return runner(clustering, max_level, resolution);
 }
 
-template <typename vertex_t,
-          typename edge_t,
-          typename weight_t,
-          bool multi_gpu>
+template <typename vertex_t, typename edge_t, typename weight_t, bool multi_gpu>
 std::pair<size_t, weight_t> louvain(
   raft::handle_t const &handle,
-  experimental::graph_view_t<vertex_t, edge_t, weight_t, false, multi_gpu> const
-    &graph_view,
+  experimental::graph_view_t<vertex_t, edge_t, weight_t, false, multi_gpu> const &graph_view,
   vertex_t *clustering,
   size_t max_level,
   weight_t resolution)
 {
   CUGRAPH_EXPECTS(clustering != nullptr, "Invalid input argument: clustering is null");
 
-  experimental::Louvain<
-    experimental::graph_view_t<vertex_t, edge_t, weight_t, false, multi_gpu>>
+  experimental::Louvain<experimental::graph_view_t<vertex_t, edge_t, weight_t, false, multi_gpu>>
     runner(handle, graph_view);
   return runner(clustering, max_level, resolution);
 }
