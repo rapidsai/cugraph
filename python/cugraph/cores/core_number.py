@@ -27,14 +27,14 @@ def core_number(G):
     Parameters
     ----------
     graph : cuGraph.Graph or networkx.Graph
-        cuGraph graph descriptor with connectivity information. The graph
-        should contain undirected edges where undirected edges are represented
-        as directed edges in both directions. While this graph can contain edge
-        weights, they don't participate in the calculation of the core numbers.
+        The graph should contain undirected edges where undirected edges are
+        represented as directed edges in both directions. While this graph
+        can contain edge weights, they don't participate in the calculation
+        of the core numbers.
 
     Returns
     -------
-    df : cudf.DataFrame
+    df : cudf.DataFrame or python dictionary (in NetworkX input)
         GPU data frame containing two cudf.Series of size V: the vertex
         identifiers and the corresponding core number values.
 
