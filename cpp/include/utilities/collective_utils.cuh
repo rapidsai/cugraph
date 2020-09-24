@@ -20,6 +20,10 @@
 #include <raft/handle.hpp>
 #include <rmm/device_uvector.hpp>
 
+#include <thrust/detail/type_traits/iterator/is_discard_iterator.h>
+#include <thrust/device_ptr.h>
+#include <thrust/iterator/detail/normal_iterator.h>
+
 #include <type_traits>
 
 namespace cugraph {
@@ -28,61 +32,204 @@ namespace experimental {
 namespace detail {
 
 template <typename TupleType, size_t I, size_t N>
-struct update_tuple_elements_vector_from_tuple_impl {
-  void update(std::vector<int64_t>& tuple_elements, TupleType const& tuple) const
+struct update_vector_of_tuple_scalar_elements_from_tuple_impl {
+  void update(std::vector<int64_t>& tuple_scalar_elements, TupleType const& tuple) const
   {
     using element_t = typename thrust::tuple_element<I, TupleType>::type;
     static_assert(sizeof(element_t) <= sizeof(int64_t));
-    auto ptr = reinterpret_cast<element_t*>(tuple_elements.data() + I);
+    auto ptr = reinterpret_cast<element_t*>(tuple_scalar_elements.data() + I);
     *ptr     = thrust::get<I>(tuple);
-    update_tuple_elements_vector_from_tuple_impl<TupleType, I + 1, N>().update(tuple_elements,
-                                                                               tuple);
+    update_vector_of_tuple_scalar_elements_from_tuple_impl<TupleType, I + 1, N>().update(
+      tuple_scalar_elements, tuple);
   }
 };
 
 template <typename TupleType, size_t I>
-struct update_tuple_elements_vector_from_tuple_impl<TupleType, I, I> {
-  void update(std::vector<int64_t>& tuple_elements, TupleType const& tuple) const { return; }
+struct update_vector_of_tuple_scalar_elements_from_tuple_impl<TupleType, I, I> {
+  void update(std::vector<int64_t>& tuple_scalar_elements, TupleType const& tuple) const { return; }
 };
 
 template <typename TupleType, size_t I, size_t N>
-struct update_tuple_from_tuple_elements_vector_impl {
-  void update(TupleType& tuple, std::vector<int64_t> const& tuple_elements) const
+struct update_tuple_from_vector_of_tuple_scalar_elements_impl {
+  void update(TupleType& tuple, std::vector<int64_t> const& tuple_scalar_elements) const
   {
     using element_t = typename thrust::tuple_element<I, TupleType>::type;
     static_assert(sizeof(element_t) <= sizeof(int64_t));
-    auto ptr              = reinterpret_cast<element_t const*>(tuple_elements.data() + I);
+    auto ptr              = reinterpret_cast<element_t const*>(tuple_scalar_elements.data() + I);
     thrust::get<I>(tuple) = *ptr;
-    update_tuple_from_tuple_elements_vector_impl<TupleType, I + 1, N>().update(tuple,
-                                                                               tuple_elements);
+    update_tuple_from_vector_of_tuple_scalar_elements_impl<TupleType, I + 1, N>().update(
+      tuple, tuple_scalar_elements);
   }
 };
 
 template <typename TupleType, size_t I>
-struct update_tuple_from_tuple_elements_vector_impl<TupleType, I, I> {
-  void update(TupleType& tuple, std::vector<int64_t> const& tuple_elements) const { return; }
+struct update_tuple_from_vector_of_tuple_scalar_elements_impl<TupleType, I, I> {
+  void update(TupleType& tuple, std::vector<int64_t> const& tuple_scalar_elements) const { return; }
 };
 
 template <typename TupleType, size_t I, size_t N>
-struct allreduce_tuple_element_impl {
+struct host_allreduce_tuple_scalar_element_impl {
   void run(raft::comms::comms_t const& comm,
-           rmm::device_uvector<int64_t>& tuple_elements,
+           rmm::device_uvector<int64_t>& tuple_scalar_elements,
            cudaStream_t stream) const
   {
     using element_t = typename thrust::tuple_element<I, TupleType>::type;
     static_assert(sizeof(element_t) <= sizeof(int64_t));
-    auto ptr = reinterpret_cast<element_t*>(tuple_elements.data() + I);
+    auto ptr = reinterpret_cast<element_t*>(tuple_scalar_elements.data() + I);
     comm.allreduce(ptr, ptr, 1, raft::comms::op_t::SUM, stream);
+    host_allreduce_tuple_scalar_element_impl<TupleType, I + 1, N>().run(
+      comm, tuple_scalar_elements, stream);
   }
 };
 
 template <typename TupleType, size_t I>
-struct allreduce_tuple_element_impl<TupleType, I, I> {
+struct host_allreduce_tuple_scalar_element_impl<TupleType, I, I> {
   void run(raft::comms::comms_t const& comm,
-           rmm::device_uvector<int64_t>& tuple_elements,
+           rmm::device_uvector<int64_t>& tuple_scalar_elements,
            cudaStream_t stream) const
   {
-    return;
+  }
+};
+
+template <typename T>
+T* iter_to_raw_ptr(T* ptr)
+{
+  return ptr;
+}
+
+template <typename T>
+T* iter_to_raw_ptr(thrust::device_ptr<T> ptr)
+{
+  return thrust::raw_pointer_cast(ptr);
+}
+
+template <typename T>
+auto iter_to_raw_ptr(thrust::detail::normal_iterator<thrust::device_ptr<T>> iter)
+{
+  return thrust::raw_pointer_cast(iter.base());
+}
+
+template <typename InputIterator, typename OutputIterator>
+std::enable_if_t<thrust::detail::is_discard_iterator<OutputIterator>::value, void>
+device_bcast_impl(raft::comms::comms_t const& comm,
+                  InputIterator input_first,
+                  OutputIterator output_first,
+                  size_t count,
+                  int root,
+                  cudaStream_t stream)
+{
+  // no-op
+}
+
+template <typename InputIterator, typename OutputIterator>
+std::enable_if_t<
+  std::is_arithmetic<typename std::iterator_traits<OutputIterator>::value_type>::value,
+  void>
+device_bcast_impl(raft::comms::comms_t const& comm,
+                  InputIterator input_first,
+                  OutputIterator output_first,
+                  size_t count,
+                  int root,
+                  cudaStream_t stream)
+{
+  static_assert(std::is_same<typename std::iterator_traits<InputIterator>::value_type,
+                             typename std::iterator_traits<OutputIterator>::value_type>::value);
+  comm.bcast(iter_to_raw_ptr(input_first), iter_to_raw_ptr(output_first), count, root, stream);
+}
+
+template <typename InputIterator, typename OutputIterator, size_t I, size_t N>
+struct device_bcast_tuple_iterator_element_impl {
+  void run(raft::comms::comms_t const& comm,
+           InputIterator input_first,
+           OutputIterator output_first,
+           size_t count,
+           int root,
+           cudaStream_t stream) const
+  {
+    device_bcast_impl(comm,
+                      thrust::get<I>(input_first.get_iterator_tuple()),
+                      thrust::get<I>(output_first.get_iterator_tuple()),
+                      count,
+                      root,
+                      stream);
+    device_bcast_tuple_iterator_element_impl<InputIterator, OutputIterator, I + 1, N>(
+      comm, input_first, output_first, count, root, stream);
+  }
+};
+
+template <typename InputIterator, typename OutputIterator, size_t I>
+struct device_bcast_tuple_iterator_element_impl<InputIterator, OutputIterator, I, I> {
+  void run(raft::comms::comms_t const& comm,
+           InputIterator input_first,
+           OutputIterator output_first,
+           size_t count,
+           int root,
+           cudaStream_t stream) const
+  {
+  }
+};
+
+template <typename InputIterator, typename OutputIterator>
+std::enable_if_t<thrust::detail::is_discard_iterator<OutputIterator>::value, void>
+device_allgatherv_impl(raft::comms::comms_t const& comm,
+                       InputIterator input_first,
+                       OutputIterator output_first,
+                       std::vector<size_t> const& recvcounts,
+                       std::vector<size_t> const& displacements,
+                       cudaStream_t stream)
+{
+  // no-op
+}
+
+template <typename InputIterator, typename OutputIterator>
+std::enable_if_t<
+  std::is_arithmetic<typename std::iterator_traits<OutputIterator>::value_type>::value,
+  void>
+device_allgatherv_impl(raft::comms::comms_t const& comm,
+                       InputIterator input_first,
+                       OutputIterator output_first,
+                       std::vector<size_t> const& recvcounts,
+                       std::vector<size_t> const& displacements,
+                       cudaStream_t stream)
+{
+  static_assert(std::is_same<typename std::iterator_traits<InputIterator>::value_type,
+                             typename std::iterator_traits<OutputIterator>::value_type>::value);
+  comm.allgatherv(iter_to_raw_ptr(input_first),
+                  iter_to_raw_ptr(output_first),
+                  recvcounts.data(),
+                  displacements.data(),
+                  stream);
+}
+
+template <typename InputIterator, typename OutputIterator, size_t I, size_t N>
+struct device_allgatherv_tuple_iterator_element_impl {
+  void run(raft::comms::comms_t const& comm,
+           InputIterator input_first,
+           OutputIterator output_first,
+           std::vector<size_t> const& recvcounts,
+           std::vector<size_t> const& displacements,
+           cudaStream_t stream) const
+  {
+    device_allgatherv_impl(comm,
+                           thrust::get<I>(input_first.get_iterator_tuple()),
+                           thrust::get<I>(output_first.get_iterator_tuple()),
+                           recvcounts,
+                           displacements,
+                           stream);
+    device_allgatherv_tuple_iterator_element_impl<InputIterator, OutputIterator, I + 1, N>(
+      comm, input_first, output_first, recvcounts, displacements, stream);
+  }
+};
+
+template <typename InputIterator, typename OutputIterator, size_t I>
+struct device_allgatherv_tuple_iterator_element_impl<InputIterator, OutputIterator, I, I> {
+  void run(raft::comms::comms_t const& comm,
+           InputIterator input_first,
+           OutputIterator output_first,
+           std::vector<size_t> const& recvcounts,
+           std::vector<size_t> const& displacements,
+           cudaStream_t stream) const
+  {
   }
 };
 
@@ -107,22 +254,106 @@ std::enable_if_t<cugraph::experimental::is_thrust_tuple_of_arithmetic<T>::value,
 host_scalar_allreduce(raft::comms::comms_t const& comm, T input, cudaStream_t stream)
 {
   size_t constexpr tuple_size = thrust::tuple_size<T>::value;
-  std::vector<int64_t> h_tuple_elements(tuple_size);
-  rmm::device_uvector<int64_t> d_tuple_elements(tuple_size, stream);
+  std::vector<int64_t> h_tuple_scalar_elements(tuple_size);
+  rmm::device_uvector<int64_t> d_tuple_scalar_elements(tuple_size, stream);
   T ret{};
 
-  detail::update_tuple_elements_vector_from_tuple_impl<T, size_t{0}, tuple_size>().update(
-    h_tuple_elements, input);
-  raft::update_device(d_tuple_elements.data(), h_tuple_elements.data(), tuple_size, stream);
-  // FIXME: these broadcasts can be placed between ncclGroupStart() and ncclGroupEnd()
-  detail::allreduce_tuple_element_impl<T, size_t{0}, tuple_size>(comm, d_tuple_elements, stream);
-  raft::update_host(h_tuple_elements.data(), d_tuple_elements.data(), tuple_size, stream);
+  detail::update_vector_of_tuple_scalar_elements_from_tuple_impl<T, size_t{0}, tuple_size>().update(
+    h_tuple_scalar_elements, input);
+  raft::update_device(
+    d_tuple_scalar_elements.data(), h_tuple_scalar_elements.data(), tuple_size, stream);
+  // FIXME: these allreduce operations can be placed between ncclGroupStart() and ncclGroupEnd()
+  detail::host_allreduce_tuple_scalar_element_impl<T, size_t{0}, tuple_size>(
+    comm, d_tuple_scalar_elements, stream);
+  raft::update_host(
+    h_tuple_scalar_elements.data(), d_tuple_scalar_elements.data(), tuple_size, stream);
   auto status = comm.sync_stream(stream);
   CUGRAPH_EXPECTS(status == raft::comms::status_t::SUCCESS, "sync_stream() failure.");
-  detail::update_tuple_from_tuple_elements_vector_impl<T, size_t{0}, tuple_size>().update(
-    ret, h_tuple_elements);
+  detail::update_tuple_from_vector_of_tuple_scalar_elements_impl<T, size_t{0}, tuple_size>().update(
+    ret, h_tuple_scalar_elements);
 
   return ret;
+}
+
+template <typename InputIterator, typename OutputIterator>
+std::enable_if_t<
+  std::is_arithmetic<typename std::iterator_traits<InputIterator>::value_type>::value,
+  void>
+device_bcast(raft::comms::comms_t const& comm,
+             InputIterator input_first,
+             OutputIterator output_first,
+             size_t count,
+             int root,
+             cudaStream_t stream)
+{
+  detail::device_bcast_impl(comm, input_first, output_first, count, root, stream);
+}
+
+template <typename InputIterator, typename OutputIterator>
+std::enable_if_t<
+  is_thrust_tuple_of_arithmetic<typename std::iterator_traits<InputIterator>::value_type>::value &&
+    is_thrust_tuple<typename std::iterator_traits<OutputIterator>::value_type>::value,
+  void>
+device_bcast(raft::comms::comms_t const& comm,
+             InputIterator input_first,
+             OutputIterator output_first,
+             size_t count,
+             int root,
+             cudaStream_t stream)
+{
+  static_assert(
+    thrust::tuple_size<typename thrust::iterator_traits<InputIterator>::value_type>::value ==
+    thrust::tuple_size<typename thrust::iterator_traits<OutputIterator>::value_type>::value);
+
+  size_t constexpr tuple_size =
+    thrust::tuple_size<typename thrust::iterator_traits<InputIterator>::value_type>::value;
+
+  // FIXME: these bcast operations can be placed between ncclGroupStart() and ncclGroupEnd()
+  detail::
+    device_bcast_tuple_iterator_element_impl<InputIterator, OutputIterator, size_t{0}, tuple_size>(
+      comm, input_first, output_first, count, root, stream);
+}
+
+template <typename InputIterator, typename OutputIterator>
+std::enable_if_t<
+  std::is_arithmetic<typename std::iterator_traits<InputIterator>::value_type>::value,
+  void>
+device_allgatherv(raft::comms::comms_t const& comm,
+                  InputIterator input_first,
+                  OutputIterator output_first,
+                  std::vector<size_t> const& recvcounts,
+                  std::vector<size_t> const& displacements,
+                  cudaStream_t stream)
+{
+  detail::device_allgatherv_impl(
+    comm, input_first, output_first, recvcounts, displacements, stream);
+}
+
+template <typename InputIterator, typename OutputIterator>
+std::enable_if_t<
+  is_thrust_tuple_of_arithmetic<typename std::iterator_traits<InputIterator>::value_type>::value &&
+    is_thrust_tuple<typename std::iterator_traits<OutputIterator>::value_type>::value,
+  void>
+device_allgatherv(raft::comms::comms_t const& comm,
+                  InputIterator input_first,
+                  OutputIterator output_first,
+                  std::vector<size_t> const& recvcounts,
+                  std::vector<size_t> const& displacements,
+                  cudaStream_t stream)
+{
+  static_assert(
+    thrust::tuple_size<typename thrust::iterator_traits<InputIterator>::value_type>::value ==
+    thrust::tuple_size<typename thrust::iterator_traits<OutputIterator>::value_type>::value);
+
+  size_t constexpr tuple_size =
+    thrust::tuple_size<typename thrust::iterator_traits<InputIterator>::value_type>::value;
+
+  // FIXME: these allgatherv operations can be placed between ncclGroupStart() and ncclGroupEnd()
+  detail::device_allgatherv_tuple_iterator_element_impl<InputIterator,
+                                                        OutputIterator,
+                                                        size_t{0},
+                                                        tuple_size>(
+    comm, input_first, output_first, recvcounts, displacements, stream);
 }
 
 }  // namespace experimental
