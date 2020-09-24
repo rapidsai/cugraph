@@ -75,7 +75,7 @@ def subgraph(input_graph, vertices):
     vertices_df['v'] = vertices
     vertices_df = vertices_df.reset_index(drop=True).reset_index()
 
-    df = df.merge(vertices_df, left_on='src', right_on='index', how='left').drop(['src', 'index']).rename(columns={'v': 'src'}, copy=False)
-    df = df.merge(vertices_df, left_on='dst', right_on='index', how='left').drop(['dst', 'index']).rename(columns={'v': 'dst'}, copy=False)
+    df = df.merge(vertices_df, left_on='src', right_on='index', how='left').drop(columns=['src', 'index']).rename(columns={'v': 'src'}, copy=False)
+    df = df.merge(vertices_df, left_on='dst', right_on='index', how='left').drop(columns=['dst', 'index']).rename(columns={'v': 'dst'}, copy=False)
 
     return df
