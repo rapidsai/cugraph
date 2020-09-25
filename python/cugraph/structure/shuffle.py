@@ -17,14 +17,28 @@ def get_2D_div(ngpus):
 
 
 def _set_partitions_pre(df, vertex_row_partitions, vertex_col_partitions,
-                        prows, pcols):
-    src_div = vertex_row_partitions.searchsorted(df['src'], side='right')-1
-    dst_div = vertex_col_partitions.searchsorted(df['dst'], side='right')-1
-    partitions = src_div % prows + dst_div * prows
+                        prows, pcols, transposed):
+    if transposed:
+        r = df['dst']
+        c = df['src']
+    else:
+        r = df['src']
+        c = df['dst']
+    r_div = vertex_row_partitions.searchsorted(r, side='right')-1
+    c_div = vertex_col_partitions.searchsorted(c, side='right')-1
+    partitions = r_div % prows + c_div * prows
     return partitions
 
 
-def shuffle(dg, prows=None, pcols=None):
+def shuffle(dg, transposed=False, prows=None, pcols=None):
+    """
+    Shuffles the renumbered input distributed graph edgelist into ngpu
+    partitions. The number of processes/gpus P = prows*pcols. The 2D
+    partitioning divides the matrix into P*pcols rectangular partitions
+    as per vertex partitioning performed in renumbering, and then shuffles
+    these partitions into P gpus.
+    """
+
     ddf = dg.edgelist.edgelist_df
     ngpus = get_n_workers()
     if prows is None and pcols is None:
@@ -65,7 +79,7 @@ def shuffle(dg, prows=None, pcols=None):
         _set_partitions_pre,
         vertex_row_partitions=vertex_row_partitions,
         vertex_col_partitions=vertex_col_partitions, prows=prows,
-        pcols=pcols, meta=meta)
+        pcols=pcols, transposed=transposed, meta=meta)
     ddf2 = ddf.assign(_partitions=partitions)
     ddf3 = rearrange_by_column(
         ddf2,
