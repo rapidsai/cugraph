@@ -98,12 +98,12 @@ def compare_graphs(nx_graph, cu_graph):
 
     if len(edgelist_df.columns) > 2:
         df0 = cudf.from_pandas(nx.to_pandas_edgelist(nx_graph))
-        df0 = df0.sort_values(by=["source", "target"]).reset_index(drop=True)
-        df1 = df.sort_values(by=["source", "target"]).reset_index(drop=True)
-        if not df0["weight"].equals(df1["weight"]):
+        merge = df.merge(df0, on=["source", "target"], suffixes=("_cugraph", "_nx"))
+        print("merge = \n", merge)
+        print(merge[merge.weight_cugraph != merge.weight_nx])
+        if not merge["weight_cugraph"].equals(merge["weight_nx"]):
             print('weights different')
-            print('df0 = \n', df0)
-            print('df1 = \n', df1)
+            print(merge[merge.weight_cugraph != merge.weight_nx])
             return False
 
     return True
