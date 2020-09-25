@@ -13,9 +13,10 @@
 
 import gc
 import pytest
-
+import cudf
 import cugraph
 from cugraph.tests import utils
+
 
 # Temporarily suppress warnings till networkX fixes deprecation warnings
 # (Using or importing the ABCs from 'collections' instead of from
@@ -27,6 +28,48 @@ import warnings
 with warnings.catch_warnings():
     warnings.filterwarnings("ignore", category=DeprecationWarning)
     import networkx as nx
+
+
+@pytest.mark.parametrize("graph_file", utils.DATASETS)
+def test_networkx_compatibility(graph_file):
+    # test to make sure cuGraph and Nx build similar Graphs
+
+    gc.collect()
+
+    # Read in the graph
+    M = utils.read_csv_for_nx(graph_file, read_weights_in_sp=True)
+
+    # create a NetworkX DiGraph
+    nxG = nx.from_pandas_edgelist(
+        M, source="0", target="1", edge_attr="weight",
+        create_using=nx.DiGraph()
+    )
+
+    # create a cuGraph DiGraph
+    pdf = cudf.from_pandas(M)
+    cuG = cugraph.from_cudf_edgelist(
+        pdf,
+        source="0",
+        destination="1",
+        edge_attr="weight",
+        create_using=cugraph.DiGraph,
+    )
+
+    assert nxG.number_of_nodes() == cuG.number_of_nodes()
+    assert nxG.number_of_edges() == cuG.number_of_edges()
+
+    # now get edge list
+    cu_df = cuG.view_edge_list().to_pandas()
+    cu_df = cu_df.drop(columns=["weights"])
+    cu_df = cu_df.sort_values(by=["src", "dst"]).reset_index(drop=True)
+
+    nx_df = nx.to_pandas_edgelist(nxG)
+    nx_df = nx_df.drop(columns=["weight"])
+    nx_df = nx_df.rename(columns={"source": "src", "target": "dst"})
+    nx_df = nx_df.astype('int32')
+    nx_df = nx_df.sort_values(by=["src", "dst"]).reset_index(drop=True)
+
+    assert cu_df.to_dict() == nx_df.to_dict()
 
 
 # Test
