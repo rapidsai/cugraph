@@ -29,6 +29,26 @@ with warnings.catch_warnings():
     warnings.filterwarnings("ignore", category=DeprecationWarning)
     import networkx as nx
 
+def _compare_graphs(nxG, cuG,has_wt=True):
+    assert nxG.number_of_nodes() == cuG.number_of_nodes()
+    assert nxG.number_of_edges() == cuG.number_of_edges()
+
+    cu_df = cuG.view_edge_list().to_pandas()
+    if has_wt is True:
+        cu_df = cu_df.drop(columns=["weights"])
+    cu_df = cu_df.sort_values(by=["src", "dst"]).reset_index(drop=True)
+
+
+
+    nx_df = nx.to_pandas_edgelist(nxG)
+    if has_wt is True:
+        nx_df = nx_df.drop(columns=["weight"])
+    nx_df = nx_df.rename(columns={"source": "src", "target": "dst"})
+    nx_df = nx_df.astype('int32')
+    nx_df = nx_df.sort_values(by=["src", "dst"]).reset_index(drop=True)
+
+    assert cu_df.to_dict() == nx_df.to_dict()    
+
 
 @pytest.mark.parametrize("graph_file", utils.DATASETS)
 def test_networkx_compatibility(graph_file):
@@ -46,30 +66,17 @@ def test_networkx_compatibility(graph_file):
     )
 
     # create a cuGraph DiGraph
-    pdf = cudf.from_pandas(M)
+    gdf = cudf.from_pandas(M)
+    gdf = gdf.rename(columns={"weight": "weights"})
     cuG = cugraph.from_cudf_edgelist(
-        pdf,
+        gdf,
         source="0",
         destination="1",
-        edge_attr="weight",
+        edge_attr="weights",
         create_using=cugraph.DiGraph,
     )
 
-    assert nxG.number_of_nodes() == cuG.number_of_nodes()
-    assert nxG.number_of_edges() == cuG.number_of_edges()
-
-    # now get edge list
-    cu_df = cuG.view_edge_list().to_pandas()
-    cu_df = cu_df.drop(columns=["weights"])
-    cu_df = cu_df.sort_values(by=["src", "dst"]).reset_index(drop=True)
-
-    nx_df = nx.to_pandas_edgelist(nxG)
-    nx_df = nx_df.drop(columns=["weight"])
-    nx_df = nx_df.rename(columns={"source": "src", "target": "dst"})
-    nx_df = nx_df.astype('int32')
-    nx_df = nx_df.sort_values(by=["src", "dst"]).reset_index(drop=True)
-
-    assert cu_df.to_dict() == nx_df.to_dict()
+    _compare_graphs(nxG, cuG)
 
 
 # Test
@@ -79,12 +86,13 @@ def test_nx_convert(graph_file):
 
     # read data and create a Nx Graph
     nx_df = utils.read_csv_for_nx(graph_file)
-    nxG = nx.from_pandas_edgelist(nx_df, "0", "1")
+    nxG = nx.from_pandas_edgelist(nx_df, "0", "1", create_using=nx.DiGraph)
 
+    # convert to cuGraph
     cuG = cugraph.utilities.convert_from_nx(nxG)
 
-    assert nxG.number_of_nodes() == cuG.number_of_nodes()
-    assert nxG.number_of_edges() == cuG.number_of_edges()
+    _compare_graphs(nxG, cuG, has_wt=False)
+
 
 
 @pytest.mark.parametrize("graph_file", utils.DATASETS)
