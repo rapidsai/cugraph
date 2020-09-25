@@ -59,7 +59,12 @@ void populate_graph_container(graph_container_t& graph_container,
   // int comm_p_col_size{2};  // from shuffle
   // int comm_p_row_rank{0};  // from shuffle
   // int comm_p_col_rank{0};  // from shuffle
-  experimental::partition_t<int> partition(reinterpret_cast<int*>(vertex_partition_offsets),  // vertex_t
+  int* vertex_partition_offsets_array = reinterpret_cast<int*>(vertex_partition_offsets);
+  std::vector<int> vertex_partition_offsets_vect;  // vertex_t
+  for (int i=0; i<(partition_row_size * partition_col_size); ++i) {
+     vertex_partition_offsets_vect.push_back(vertex_partition_offsets_array[i]);
+  }
+  experimental::partition_t<int> partition(vertex_partition_offsets_vect,
                                            hypergraph_partitioned,
                                            partition_row_size,
                                            partition_col_size,

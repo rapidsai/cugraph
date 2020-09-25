@@ -134,10 +134,12 @@ def louvain(input_df, vertex_partition_offsets, handle, max_level, resolution):
     """
     Call MG Louvain
     """
+    # FIXME: remove this
     partition_row_size=2
     partition_col_size=2
     partition_row_rank=0
     partition_col_rank=0
+    vertex_partition_offsets = cudf.Series([1,2,3,4])
 
     # FIXME: This must be imported here to prevent a circular import
     from cugraph.structure import graph_primtypes_wrapper

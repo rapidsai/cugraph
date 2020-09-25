@@ -15,7 +15,7 @@ from dask.distributed import wait, default_client
 
 import cugraph.comms.comms as Comms
 from cugraph.dask.common.input_utils import get_local_data
-from cugraph.structure.shuffle import shuffle
+#from cugraph.structure.shuffle import shuffle
 from cugraph.dask.community import louvain_wrapper as c_mg_louvain
 
 
@@ -29,8 +29,7 @@ def call_louvain(sID, data, local_data, max_level, resolution):
     #                             max_level,
     #                             resolution)
     return c_mg_louvain.louvain(data[0],
-                                local_data,
-                                wid,
+                                [],
                                 handle,
                                 max_level,
                                 resolution)
