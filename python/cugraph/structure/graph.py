@@ -353,8 +353,8 @@ class Graph:
             s_col = [s_col]
         if not isinstance(d_col, list):
             d_col = [d_col]
-        if not (set(s_col).issubset(set(input_ddf.columns)) and
-                set(d_col).issubset(set(input_ddf.columns))):
+        if not (set(s_col).issubset(set(input_df.columns)) and
+                set(d_col).issubset(set(input_df.columns))):
             raise Exception('source column names and/or destination column \
 names not found in input. Recheck the source and destination parameters')
 

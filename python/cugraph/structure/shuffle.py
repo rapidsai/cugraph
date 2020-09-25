@@ -16,36 +16,57 @@ def get_2D_div(ngpus):
     return int(ngpus/pcols), pcols
 
 
-def _set_partitions_pre(df, vertex_row_partitions, vertex_col_partitions, prows, pcols):
+def _set_partitions_pre(df, vertex_row_partitions, vertex_col_partitions,
+                        prows, pcols):
     src_div = vertex_row_partitions.searchsorted(df['src'], side='right')-1
     dst_div = vertex_col_partitions.searchsorted(df['dst'], side='right')-1
-    partitions = src_div%prows + dst_div*prows
+    partitions = src_div % prows + dst_div * prows
     return partitions
 
 
-def shuffle(dg):
+def shuffle(dg, prows=None, pcols=None):
     ddf = dg.edgelist.edgelist_df
     ngpus = get_n_workers()
-    prows, pcols = get_2D_div(ngpus)
+    if prows is None and pcols is None:
+        prows, pcols = get_2D_div(ngpus)
+    else:
+        if prows is not None and pcols is not None:
+            if ngpus != prows*pcols:
+                raise Exception('prows*pcols should be equal to the\
+ number of processes')
+        elif prows is not None:
+            if ngpus % prows != 0:
+                raise Exception('prows must be a factor of the number\
+ of processes')
+            pcols = int(ngpus/prows)
+        elif pcols is not None:
+            if ngpus % pcols != 0:
+                raise Exception('pcols must be a factor of the number\
+ of processes')
+            prows = int(ngpus/pcols)
 
-    renumber_vertex_count = dg.renumber_map.implementation.ddf.map_partitions(len).compute()
+    renumber_vertex_count = dg.renumber_map.implementation.\
+        ddf.map_partitions(len).compute()
     renumber_vertex_cumsum = renumber_vertex_count.cumsum()
     src_dtype = ddf['src'].dtype
     dst_dtype = ddf['dst'].dtype
 
     vertex_row_partitions = cudf.Series([0], dtype=src_dtype)
-    vertex_row_partitions = vertex_row_partitions.append(cudf.Series(renumber_vertex_cumsum, dtype = src_dtype))
+    vertex_row_partitions = vertex_row_partitions.append(cudf.Series(
+        renumber_vertex_cumsum, dtype=src_dtype))
     num_verts = vertex_row_partitions.iloc[-1]
     vertex_col_partitions = []
     for i in range(pcols + 1):
         vertex_col_partitions.append(vertex_row_partitions.iloc[i*prows])
-    vertex_col_partitions = cudf.Series(vertex_col_partitions, dtype = dst_dtype)
+    vertex_col_partitions = cudf.Series(vertex_col_partitions, dtype=dst_dtype)
 
     meta = ddf._meta._constructor_sliced([0])
     partitions = ddf.map_partitions(
-    _set_partitions_pre, vertex_row_partitions=vertex_row_partitions, vertex_col_partitions=vertex_col_partitions,prows= prows, pcols=pcols, meta=meta
-    )
-    ddf2 = ddf.assign(_partitions = partitions)
+        _set_partitions_pre,
+        vertex_row_partitions=vertex_row_partitions,
+        vertex_col_partitions=vertex_col_partitions, prows=prows,
+        pcols=pcols, meta=meta)
+    ddf2 = ddf.assign(_partitions=partitions)
     ddf3 = rearrange_by_column(
         ddf2,
         "_partitions",
@@ -55,4 +76,4 @@ def shuffle(dg):
         ignore_index=True,
     ).drop(columns=["_partitions"])
 
-    return ddf3
+    return ddf3, num_verts, vertex_row_partitions
