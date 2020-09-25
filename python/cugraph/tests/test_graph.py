@@ -384,12 +384,12 @@ def test_view_edge_list_for_Graph(graph_file):
 
 
 # Test
+@pytest.mark.skip(reason="skipping while new Nx framework is being worked")
 @pytest.mark.parametrize("graph_file", utils.DATASETS)
 def test_networkx_compatibility(graph_file):
     gc.collect()
 
     # test from_cudf_edgelist()
-
     M = utils.read_csv_for_nx(graph_file)
 
     df = pd.DataFrame()
