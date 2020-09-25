@@ -617,7 +617,7 @@ void bfs(raft::handle_t const &handle,
  *
  * @throws     cugraph::logic_error when an error occurs.
  *
- * @tparam graph_t      Type of graph
+ * @tparam     graph_t               Type of graph
  *
  * @param[in]  handle                Library handle (RAFT). If a communicator is set in the handle,
  * @param[in]  graph                 input graph object (CSR)
@@ -639,7 +639,7 @@ std::pair<size_t, typename graph_t::weight_type> louvain(
   raft::handle_t const &handle,
   graph_t const &graph,
   typename graph_t::vertex_type *clustering,
-  size_t max_level                          = 100,
+  size_t max_level                         = 100,
   typename graph_t::weight_type resolution = typename graph_t::weight_type{1});
 
 /**

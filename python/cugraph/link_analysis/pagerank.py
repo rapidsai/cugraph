@@ -13,10 +13,12 @@
 
 from cugraph.link_analysis import pagerank_wrapper
 from cugraph.structure.graph import null_check
+import cugraph
 
 
 def pagerank(
-    G, alpha=0.85, personalization=None, max_iter=100, tol=1.0e-5, nstart=None
+    G, alpha=0.85, personalization=None, max_iter=100, tol=1.0e-5, nstart=None,
+    weight=None, dangling=None
 ):
     """
     Find the PageRank score for every vertex in a graph. cuGraph computes an
@@ -28,7 +30,7 @@ def pagerank(
 
     Parameters
     ----------
-    graph : cugraph.Graph
+    graph : cugraph.Graph or networkx.Graph
         cuGraph graph descriptor, should contain the connectivity information
         as an edge list (edge weights are not used for this algorithm).
         The transposed adjacency list will be computed if not already present.
@@ -67,6 +69,13 @@ def pagerank(
         nstart['values'] : cudf.Series
             Pagerank values for vertices
 
+    weight : str
+        Edge data column to use.  Default is None
+        This version of PageRank current does not use edge weight.
+        This parameter is here for NetworkX compatibility
+    dangling : dict
+        This parameter is here for NetworkX compatibility and ignored
+
     Returns
     -------
     PageRank : cudf.DataFrame
@@ -87,6 +96,8 @@ def pagerank(
     >>> G.from_cudf_edgelist(gdf, source='0', destination='1')
     >>> pr = cugraph.pagerank(G, alpha = 0.85, max_iter = 500, tol = 1.0e-05)
     """
+
+    G, isNx = cugraph.utilities.check_nx_graph(G, weight)
 
     if personalization is not None:
         null_check(personalization["vertex"])
@@ -109,4 +120,7 @@ def pagerank(
     if G.renumbered:
         df = G.unrenumber(df, "vertex")
 
-    return df
+    if isNx is True:
+        return cugraph.utilities.df_score_to_dictionary(df, 'pagerank')
+    else:
+        return df

@@ -96,6 +96,8 @@ struct graph_container_t {
   graph_container_t(const graph_container_t&) = delete;
   graph_container_t& operator=(const graph_container_t&) = delete;
 
+  void get_vertex_identifiers(void* c_identifier);
+
   graphPtrUnion graph_ptr_union;
   graphTypeEnum graph_ptr_type;
 };
@@ -178,11 +180,11 @@ void populate_graph_container(graph_container_t& graph_container,
 
 // Wrapper for calling Louvain using a graph container
 template <typename weight_t>
-weight_t call_louvain(raft::handle_t const& handle,
-                      graph_container_t const& graph_container,
-                      void* parts,
-                      size_t max_level,
-                      weight_t resolution);
+std::pair<size_t, weight_t> call_louvain(raft::handle_t const& handle,
+                                         graph_container_t const& graph_container,
+                                         void* parts,
+                                         size_t max_level,
+                                         weight_t resolution);
 
 }  // namespace cython
 }  // namespace cugraph

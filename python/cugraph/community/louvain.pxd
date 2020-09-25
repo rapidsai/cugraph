@@ -21,11 +21,11 @@ from libcpp.utility cimport pair
 from cugraph.structure.graph_primtypes cimport *
 
 
-cdef extern from "algorithms.hpp" namespace "cugraph":
+cdef extern from "utilities/cython.hpp" namespace "cugraph::cython":
 
-    cdef pair[size_t, weight_t] louvain[vertex_t,edge_t,weight_t](
+    cdef pair[size_t, weight_t] call_louvain[weight_t](
         const handle_t &handle,
-        const GraphCSRView[vertex_t,edge_t,weight_t] &graph,
-        vertex_t *louvain_parts,
+        const graph_container_t &g,
+        void *louvain_parts,
         size_t max_level,
         weight_t resolution) except +

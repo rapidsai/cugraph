@@ -16,6 +16,7 @@
 #pragma once
 
 #include <thrust/gather.h>
+#include <experimental/graph.hpp>
 
 #include <rmm/thrust_rmm_allocator.h>
 #include <cuco/static_map.cuh>
@@ -59,6 +60,19 @@ void print_v(const char *label, const int32_t *ptr, int32_t size)
 }
 
 void print_v(const char *label, const float *ptr, int32_t size)
+{
+  printf("%s(%d): ", label, size);
+  thrust::for_each(rmm::exec_policy(0)->on(0),
+                   thrust::make_counting_iterator(0),
+                   thrust::make_counting_iterator(1),
+                   [ptr, size] __device__(auto) {
+                     for (int32_t i = 0; i < size; ++i) printf("%g ", ptr[i]);
+                   });
+
+  printf("\n");
+}
+
+void print_v(const char *label, const double *ptr, int32_t size)
 {
   printf("%s(%d): ", label, size);
   thrust::for_each(rmm::exec_policy(0)->on(0),
@@ -279,10 +293,10 @@ class skip_edge_t {
   data_t const *d_dst_;
 };
 
-template <typename graph_type>
+template <typename graph_view_type>
 class Louvain {
  public:
-  using graph_view_t = graph_type;
+  using graph_view_t = graph_view_type;
   using vertex_t     = typename graph_view_t::vertex_type;
   using edge_t       = typename graph_view_t::edge_type;
   using weight_t     = typename graph_view_t::weight_type;

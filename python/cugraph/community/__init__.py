@@ -24,3 +24,4 @@ from cugraph.community.spectral_clustering import (
 from cugraph.community.subgraph_extraction import subgraph
 from cugraph.community.triangle_count import triangles
 from cugraph.community.ktruss_subgraph import ktruss_subgraph
+from cugraph.community.ktruss_subgraph import k_truss
