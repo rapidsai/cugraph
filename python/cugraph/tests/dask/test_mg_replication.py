@@ -22,7 +22,8 @@ import gc
 
 DATASETS_OPTIONS = utils.DATASETS_SMALL
 DIRECTED_GRAPH_OPTIONS = [False, True]
-MG_DEVICE_COUNT_OPTIONS = [1, 2, 3, 4]
+# MG_DEVICE_COUNT_OPTIONS = [1, 2, 3, 4]
+MG_DEVICE_COUNT_OPTIONS = [1]
 
 
 @pytest.mark.parametrize("input_data_path", DATASETS_OPTIONS)

@@ -13,6 +13,7 @@
 
 from cugraph.community import triangle_count_wrapper
 from cugraph.structure.graph import Graph
+from cugraph.utilities import check_nx_graph
 
 
 def triangles(G):
@@ -20,9 +21,12 @@ def triangles(G):
     Compute the number of triangles (cycles of length three) in the
     input graph.
 
+    Unlike NetworkX, this algorithm simply returns the total number of
+    triangle and not the number per vertex.
+
     Parameters
     ----------
-    G : cugraph.graph
+    G : cugraph.graph or networkx.Graph
         cuGraph graph descriptor, should contain the connectivity information,
         (edge weights are not used in this algorithm)
 
@@ -42,6 +46,8 @@ def triangles(G):
     >>> G.from_cudf_edgelist(gdf, source='0', destination='1')
     >>> count = cugraph.triangles(G)
     """
+
+    G, _ = check_nx_graph(G)
 
     if type(G) is not Graph:
         raise Exception("input graph must be undirected")
