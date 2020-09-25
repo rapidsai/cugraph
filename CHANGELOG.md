@@ -3,6 +3,7 @@
 ## New Features
 - PR #1098 Add new graph classes to support 2D partitioning
 - PR #1124 Sub-communicator initialization for 2D partitioning support
+- PR #838 Add pattern accelerator API functions and pattern accelerator API based implementations of PageRank, Katz Centrality, BFS, and SSSP
 - PR #1147 Added support for NetworkX graphs as input type
 - PR #1157 Louvain API update to use graph_container_t
 

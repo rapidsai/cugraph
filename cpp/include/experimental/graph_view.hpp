@@ -21,6 +21,7 @@
 #include <rmm/device_uvector.hpp>
 
 #include <algorithm>
+#include <cassert>
 #include <cstddef>
 #include <string>
 #include <tuple>
@@ -29,10 +30,6 @@
 
 namespace cugraph {
 namespace experimental {
-
-// FIXME: these should better be defined somewhere else.
-std::string const comm_p_row_key = "comm_p_row";
-std::string const comm_p_col_key = "comm_p_key";
 
 /**
  * @brief store vertex partitioning map
@@ -77,20 +74,20 @@ class partition_t {
  public:
   partition_t(std::vector<vertex_t> const& vertex_partition_offsets,
               bool hypergraph_partitioned,
-              int comm_p_row_size,
-              int comm_p_col_size,
-              int comm_p_row_rank,
-              int comm_p_col_rank)
+              int row_comm_size,
+              int col_comm_size,
+              int row_comm_rank,
+              int col_comm_rank)
     : vertex_partition_offsets_(vertex_partition_offsets),
       hypergraph_partitioned_(hypergraph_partitioned),
-      comm_p_rank_(comm_p_col_size * comm_p_row_rank + comm_p_col_rank),
-      comm_p_row_size_(comm_p_row_size),
-      comm_p_col_size_(comm_p_col_size),
-      comm_p_row_rank_(comm_p_row_rank),
-      comm_p_col_rank_(comm_p_col_rank)
+      comm_rank_(col_comm_size * row_comm_rank + col_comm_rank),
+      row_comm_size_(row_comm_size),
+      col_comm_size_(col_comm_size),
+      row_comm_rank_(row_comm_rank),
+      col_comm_rank_(col_comm_rank)
   {
     CUGRAPH_EXPECTS(
-      vertex_partition_offsets.size() == static_cast<size_t>(comm_p_row_size * comm_p_col_size),
+      vertex_partition_offsets.size() == static_cast<size_t>(row_comm_size * col_comm_size),
       "Invalid API parameter: erroneous vertex_partition_offsets.size().");
 
     CUGRAPH_EXPECTS(
@@ -98,23 +95,24 @@ class partition_t {
       "Invalid API parameter: partition.vertex_partition_offsets values should be non-descending.");
     CUGRAPH_EXPECTS(vertex_partition_offsets_[0] == vertex_t{0},
                     "Invalid API parameter: partition.vertex_partition_offsets[0] should be 0.");
+
+    vertex_t start_offset{0};
+    matrix_partition_major_value_start_offsets_.assign(get_number_of_matrix_partitions(), 0);
+    for (size_t i = 0; i < matrix_partition_major_value_start_offsets_.size(); ++i) {
+      matrix_partition_major_value_start_offsets_[i] = start_offset;
+      start_offset += get_matrix_partition_major_last(i) - get_matrix_partition_major_first(i);
+    }
   }
 
   std::tuple<vertex_t, vertex_t> get_vertex_partition_range() const
   {
-    return std::make_tuple(vertex_partition_offsets_[comm_p_rank_],
-                           vertex_partition_offsets_[comm_p_rank_ + 1]);
+    return std::make_tuple(vertex_partition_offsets_[comm_rank_],
+                           vertex_partition_offsets_[comm_rank_ + 1]);
   }
 
-  vertex_t get_vertex_partition_range_first() const
-  {
-    return vertex_partition_offsets_[comm_p_rank_];
-  }
+  vertex_t get_vertex_partition_first() const { return vertex_partition_offsets_[comm_rank_]; }
 
-  vertex_t get_vertex_partition_range_last() const
-  {
-    return vertex_partition_offsets_[comm_p_rank_ + 1];
-  }
+  vertex_t get_vertex_partition_last() const { return vertex_partition_offsets_[comm_rank_ + 1]; }
 
   std::tuple<vertex_t, vertex_t> get_vertex_partition_range(size_t vertex_partition_idx) const
   {
@@ -122,36 +120,70 @@ class partition_t {
                            vertex_partition_offsets_[vertex_partition_idx + 1]);
   }
 
-  vertex_t get_vertex_partition_range_first(size_t vertex_partition_idx) const
+  vertex_t get_vertex_partition_first(size_t vertex_partition_idx) const
   {
     return vertex_partition_offsets_[vertex_partition_idx];
   }
 
-  vertex_t get_vertex_partition_range_last(size_t vertex_partition_idx) const
+  vertex_t get_vertex_partition_last(size_t vertex_partition_idx) const
   {
     return vertex_partition_offsets_[vertex_partition_idx + 1];
+  }
+
+  size_t get_number_of_matrix_partitions() const
+  {
+    return hypergraph_partitioned_ ? col_comm_size_ : 1;
   }
 
   std::tuple<vertex_t, vertex_t> get_matrix_partition_major_range(size_t partition_idx) const
   {
     auto major_first =
       hypergraph_partitioned_
-        ? vertex_partition_offsets_[comm_p_row_size_ * partition_idx + comm_p_row_rank_]
-        : vertex_partition_offsets_[comm_p_row_rank_ * comm_p_col_size_];
+        ? vertex_partition_offsets_[row_comm_size_ * partition_idx + row_comm_rank_]
+        : vertex_partition_offsets_[row_comm_rank_ * col_comm_size_];
     auto major_last =
       hypergraph_partitioned_
-        ? vertex_partition_offsets_[comm_p_row_size_ * partition_idx + comm_p_row_rank_ + 1]
-        : vertex_partition_offsets_[(comm_p_row_rank_ + 1) * comm_p_col_size_];
+        ? vertex_partition_offsets_[row_comm_size_ * partition_idx + row_comm_rank_ + 1]
+        : vertex_partition_offsets_[(row_comm_rank_ + 1) * col_comm_size_];
 
     return std::make_tuple(major_first, major_last);
   }
 
+  vertex_t get_matrix_partition_major_first(size_t partition_idx) const
+  {
+    return hypergraph_partitioned_
+             ? vertex_partition_offsets_[row_comm_size_ * partition_idx + row_comm_rank_]
+             : vertex_partition_offsets_[row_comm_rank_ * col_comm_size_];
+  }
+
+  vertex_t get_matrix_partition_major_last(size_t partition_idx) const
+  {
+    return hypergraph_partitioned_
+             ? vertex_partition_offsets_[row_comm_size_ * partition_idx + row_comm_rank_ + 1]
+             : vertex_partition_offsets_[(row_comm_rank_ + 1) * col_comm_size_];
+  }
+
+  vertex_t get_matrix_partition_major_value_start_offset(size_t partition_idx) const
+  {
+    return matrix_partition_major_value_start_offsets_[partition_idx];
+  }
+
   std::tuple<vertex_t, vertex_t> get_matrix_partition_minor_range() const
   {
-    auto minor_first = vertex_partition_offsets_[comm_p_col_rank_ * comm_p_row_size_];
-    auto minor_last  = vertex_partition_offsets_[(comm_p_col_rank_ + 1) * comm_p_row_size_];
+    auto minor_first = vertex_partition_offsets_[col_comm_rank_ * row_comm_size_];
+    auto minor_last  = vertex_partition_offsets_[(col_comm_rank_ + 1) * row_comm_size_];
 
     return std::make_tuple(minor_first, minor_last);
+  }
+
+  vertex_t get_matrix_partition_minor_first() const
+  {
+    return vertex_partition_offsets_[col_comm_rank_ * row_comm_size_];
+  }
+
+  vertex_t get_matrix_partition_minor_last() const
+  {
+    return vertex_partition_offsets_[(col_comm_rank_ + 1) * row_comm_size_];
   }
 
   bool is_hypergraph_partitioned() const { return hypergraph_partitioned_; }
@@ -160,11 +192,14 @@ class partition_t {
   std::vector<vertex_t> vertex_partition_offsets_{};  // size = P + 1
   bool hypergraph_partitioned_{false};
 
-  int comm_p_rank_{0};
-  int comm_p_row_size_{0};
-  int comm_p_col_size_{0};
-  int comm_p_row_rank_{0};
-  int comm_p_col_rank_{0};
+  int comm_rank_{0};
+  int row_comm_size_{0};
+  int col_comm_size_{0};
+  int row_comm_rank_{0};
+  int col_comm_rank_{0};
+
+  std::vector<vertex_t>
+    matrix_partition_major_value_start_offsets_{};  // size = get_number_of_matrix_partitions()
 };
 
 struct graph_properties_t {
@@ -194,6 +229,18 @@ class graph_base_t {
 
   vertex_t get_number_of_vertices() const { return number_of_vertices_; }
   edge_t get_number_of_edges() const { return number_of_edges_; }
+
+  template <typename vertex_type = vertex_t>
+  std::enable_if_t<std::is_signed<vertex_type>::value, bool> is_valid_vertex(vertex_type v) const
+  {
+    return ((v >= 0) && (v < number_of_vertices_));
+  }
+
+  template <typename vertex_type = vertex_t>
+  std::enable_if_t<std::is_unsigned<vertex_type>::value, bool> is_valid_vertex(vertex_type v) const
+  {
+    return (v < number_of_vertices_);
+  }
 
   bool is_symmetric() const { return properties_.is_symmetric; }
   bool is_multigraph() const { return properties_.is_multigraph; }
@@ -254,13 +301,96 @@ class graph_view_t<vertex_t,
                bool sorted_by_global_degree_within_vertex_partition,
                bool do_expensive_check = false);
 
+  bool is_weighted() const { return adj_matrix_partition_weights_.size() > 0; }
+
   vertex_t get_number_of_local_vertices() const
   {
-    return partition_.get_vertex_partition_range_last() -
-           partition_.get_vertex_partition_range_first();
+    return partition_.get_vertex_partition_last() - partition_.get_vertex_partition_first();
   }
 
-  size_t get_number_of_adj_matrix_partitions() { return adj_matrix_partition_offsets_.size(); }
+  vertex_t get_local_vertex_first() const { return partition_.get_vertex_partition_first(); }
+
+  vertex_t get_local_vertex_last() const { return partition_.get_vertex_partition_last(); }
+
+  bool is_local_vertex_nocheck(vertex_t v) const
+  {
+    return (v >= get_local_vertex_first()) && (v < get_local_vertex_last());
+  }
+
+  size_t get_number_of_local_adj_matrix_partitions() const
+  {
+    return adj_matrix_partition_offsets_.size();
+  }
+
+  vertex_t get_number_of_local_adj_matrix_partition_rows() const
+  {
+    if (!store_transposed) {
+      vertex_t ret{0};
+      for (size_t i = 0; i < partition_.get_number_of_matrix_partitions(); ++i) {
+        ret += partition_.get_matrix_partition_major_last(i) -
+               partition_.get_matrix_partition_major_first(i);
+      }
+      return ret;
+    } else {
+      return partition_.get_matrix_partition_minor_last() -
+             partition_.get_matrix_partition_minor_first();
+    }
+  }
+
+  vertex_t get_number_of_local_adj_matrix_partition_cols() const
+  {
+    if (store_transposed) {
+      vertex_t ret{0};
+      for (size_t i = 0; i < partition_.get_number_of_matrix_partitions(); ++i) {
+        ret += partition_.get_matrix_partition_major_last(i) -
+               partition_.get_matrix_partition_major_first(i);
+      }
+      return ret;
+    } else {
+      return partition_.get_matrix_partition_minor_last() -
+             partition_.get_matrix_partition_minor_first();
+    }
+  }
+
+  vertex_t get_local_adj_matrix_partition_row_first(size_t adj_matrix_partition_idx) const
+  {
+    return store_transposed ? partition_.get_matrix_partition_minor_first()
+                            : partition_.get_matrix_partition_major_first(adj_matrix_partition_idx);
+  }
+
+  vertex_t get_local_adj_matrix_partition_row_last(size_t adj_matrix_partition_idx) const
+  {
+    return store_transposed ? partition_.get_matrix_partition_minor_last()
+                            : partition_.get_matrix_partition_major_last(adj_matrix_partition_idx);
+  }
+
+  vertex_t get_local_adj_matrix_partition_row_value_start_offset(
+    size_t adj_matrix_partition_idx) const
+  {
+    return store_transposed
+             ? 0
+             : partition_.get_matrix_partition_major_value_start_offset(adj_matrix_partition_idx);
+  }
+
+  vertex_t get_local_adj_matrix_partition_col_first(size_t adj_matrix_partition_idx) const
+  {
+    return store_transposed ? partition_.get_matrix_partition_major_first(adj_matrix_partition_idx)
+                            : partition_.get_matrix_partition_minor_first();
+  }
+
+  vertex_t get_local_adj_matrix_partition_col_last(size_t adj_matrix_partition_idx) const
+  {
+    return store_transposed ? partition_.get_matrix_partition_major_last(adj_matrix_partition_idx)
+                            : partition_.get_matrix_partition_minor_last();
+  }
+
+  vertex_t get_local_adj_matrix_partition_col_value_start_offset(
+    size_t adj_matrix_partition_idx) const
+  {
+    return store_transposed
+             ? partition_.get_matrix_partition_major_value_start_offset(adj_matrix_partition_idx)
+             : 0;
+  }
 
   // FIXME: this function is not part of the public stable API.This function is mainly for pattern
   // accelerator implementation. This function is currently public to support the legacy
@@ -335,7 +465,65 @@ class graph_view_t<vertex_t,
                bool sorted_by_degree,
                bool do_expensive_check = false);
 
+  bool is_weighted() const { return weights_ != nullptr; }
+
   vertex_t get_number_of_local_vertices() const { return this->get_number_of_vertices(); }
+
+  constexpr vertex_t get_local_vertex_first() const { return vertex_t{0}; }
+
+  vertex_t get_local_vertex_last() const { return this->get_number_of_vertices(); }
+
+  constexpr bool is_local_vertex_nocheck(vertex_t v) const { return true; }
+
+  constexpr size_t get_number_of_local_adj_matrix_partitions() const { return size_t(1); }
+
+  vertex_t get_number_of_local_adj_matrix_partition_rows() const
+  {
+    return this->get_number_of_vertices();
+  }
+
+  vertex_t get_number_of_local_adj_matrix_partition_cols() const
+  {
+    return this->get_number_of_vertices();
+  }
+
+  vertex_t get_local_adj_matrix_partition_row_first(size_t adj_matrix_partition_idx) const
+  {
+    assert(adj_matrix_partition_idx == 0);
+    return vertex_t{0};
+  }
+
+  vertex_t get_local_adj_matrix_partition_row_last(size_t adj_matrix_partition_idx) const
+  {
+    assert(adj_matrix_partition_idx == 0);
+    return this->get_number_of_vertices();
+  }
+
+  vertex_t get_local_adj_matrix_partition_row_value_start_offset(
+    size_t adj_matrix_partition_idx) const
+  {
+    assert(adj_matrix_partition_idx == 0);
+    return vertex_t{0};
+  }
+
+  vertex_t get_local_adj_matrix_partition_col_first(size_t adj_matrix_partition_idx) const
+  {
+    assert(adj_matrix_partition_idx == 0);
+    return vertex_t{0};
+  }
+
+  vertex_t get_local_adj_matrix_partition_col_last(size_t adj_matrix_partition_idx) const
+  {
+    assert(adj_matrix_partition_idx == 0);
+    return this->get_number_of_vertices();
+  }
+
+  vertex_t get_local_adj_matrix_partition_col_value_start_offset(
+    size_t adj_matrix_partition_idx) const
+  {
+    assert(adj_matrix_partition_idx == 0);
+    return vertex_t{0};
+  }
 
   // FIXME: this function is not part of the public stable API.This function is mainly for pattern
   // accelerator implementation. This function is currently public to support the legacy

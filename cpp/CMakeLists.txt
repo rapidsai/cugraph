@@ -303,6 +303,10 @@ add_library(cugraph SHARED
     src/centrality/betweenness_centrality.cu
     src/experimental/graph.cu
     src/experimental/graph_view.cu
+    src/experimental/bfs.cu
+    src/experimental/sssp.cu
+    src/experimental/pagerank.cu
+    src/experimental/katz_centrality.cu
 )
 
 #
