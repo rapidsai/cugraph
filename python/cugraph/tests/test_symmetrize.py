@@ -19,6 +19,10 @@ import pandas as pd
 import cudf
 import cugraph
 from cugraph.tests import utils
+import dask_cudf
+import cugraph.comms as Comms
+from dask.distributed import Client
+from dask_cuda import LocalCUDACluster
 
 
 def test_version():
@@ -197,6 +201,27 @@ def test_symmetrize_weighted(graph_file):
 
     compare(cu_M["0"], cu_M["1"], cu_M["2"], sym_src, sym_dst, sym_w)
 
+
+@pytest.mark.parametrize("graph_file", utils.DATASETS_UNDIRECTED)
+def test_mg_symmetrize(graph_file):
+    gc.collect()
+
+    cluster = LocalCUDACluster()
+    client = Client(cluster)
+    Comms.initialize()
+
+    ddf = utils.read_dask_cudf_csv_file(graph_file)
+    sym_ddf = cugraph.symmetrize(ddf["src"], ddf["dst"])
+    
+    # convert to regular cudf to facilitate comparison
+    df = ddf.compute()
+    sym_df = sym_ddf.compute()
+    compare(
+        df["0"], df["1"], df["2"], sym_df["0"], sym_df["1"], sym_df["2"])
+
+    Comms.destroy()
+    client.close()
+    cluster.close()
 
 # Test
 # NOTE: see https://github.com/rapidsai/cudf/issues/2636

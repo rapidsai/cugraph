@@ -391,7 +391,7 @@ class Graph:
         else:
             value_col = None
 
-        if not self.symmetrized and not self.multi:
+        if not self.symmetrized:
             if value_col is not None:
                 source_col, dest_col, value_col = symmetrize(
                     source_col, dest_col, value_col
@@ -1090,8 +1090,7 @@ class Graph:
         >>> G = DiG.to_undirected()
 
         """
-        if self.distributed:
-            raise Exception("Not supported for distributed graph")
+
         if type(self) is Graph:
             return self
         if type(self) is DiGraph:
@@ -1099,6 +1098,7 @@ class Graph:
             df = self.edgelist.edgelist_df
             G.renumbered = self.renumbered
             G.renumber_map = self.renumber_map
+            G.multi = self.multi
             if self.edgelist.weights:
                 source_col, dest_col, value_col = symmetrize(
                     df["src"], df["dst"], df["weights"]
