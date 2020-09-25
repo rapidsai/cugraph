@@ -98,7 +98,8 @@ def compare_graphs(nx_graph, cu_graph):
 
     if len(edgelist_df.columns) > 2:
         df0 = cudf.from_pandas(nx.to_pandas_edgelist(nx_graph))
-        merge = df.merge(df0, on=["source", "target"], suffixes=("_cugraph", "_nx"))
+        merge = df.merge(df0, on=["source", "target"],
+                         suffixes=("_cugraph", "_nx"))
         print("merge = \n", merge)
         print(merge[merge.weight_cugraph != merge.weight_nx])
         if not merge["weight_cugraph"].equals(merge["weight_nx"]):
