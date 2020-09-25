@@ -13,7 +13,7 @@
 
 import gc
 import pytest
-
+import cudf
 import cugraph
 from cugraph.tests import utils
 
@@ -29,7 +29,7 @@ with warnings.catch_warnings():
     import networkx as nx
 
 
-def _compare_graphs(nxG, cuG,has_wt=True):
+def _compare_graphs(nxG, cuG, has_wt=True):
     assert nxG.number_of_nodes() == cuG.number_of_nodes()
     assert nxG.number_of_edges() == cuG.number_of_edges()
 
