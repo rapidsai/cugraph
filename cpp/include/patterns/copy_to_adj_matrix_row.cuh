@@ -164,8 +164,8 @@ void copy_to_adj_matrix_row(raft::handle_t const& handle,
         }
 #endif
       } else {
-        std::vector<size_t> rx_counts(row_comm_size, 0);
-        std::vector<size_t> displacements(row_comm_size, 0);
+        std::vector<size_t> rx_counts(row_comm_size, size_t{0});
+        std::vector<size_t> displacements(row_comm_size, size_t{0});
         for (int i = 0; i < row_comm_size; ++i) {
           rx_counts[i] = graph_view.get_vertex_partition_last(col_comm_rank * row_comm_size + i) -
                          graph_view.get_vertex_partition_first(col_comm_rank * row_comm_size + i);
@@ -287,21 +287,10 @@ void copy_to_adj_matrix_row(raft::handle_t const& handle,
         }
 #endif
       } else {
-        std::vector<size_t> rx_counts(row_comm_size, 0);
-        std::vector<size_t> displacements(row_comm_size, 0);
-
-        std::fill(rx_counts.begin(), rx_counts.end(), size_t{1});
-        std::iota(displacements.begin(), displacements.end(), size_t{0});
-        std::vector<size_t> rx_vertices(row_comm_size, 0);
-        rx_vertices[row_comm_rank] = thrust::distance(vertex_first, vertex_last);
-        host_scalar_allgatherv(row_comm,
-                          rx_vertices.begin() + row_comm_rank,
-                          rx_vertices.begin(),
-                          rx_counts,
-                          displacements,
+        auto rx_counts = host_scalar_allgatherv(row_comm,
+                          static_cast<size_t>(thrust::distance(vertex_first, vertex_last)),
                           handle.get_stream());
-
-        rx_counts = rx_vertices;
+        std::vector<size_t> displacements(row_comm_size, size_t{0});
         std::partial_sum(rx_counts.begin(), rx_counts.end() - 1, displacements.begin() + 1);
 
         rmm::device_uvector<vertex_t> vertices(
@@ -309,46 +298,13 @@ void copy_to_adj_matrix_row(raft::handle_t const& handle,
         auto tmp_buffer = detail::allocate_tmp_buffer<typename std::iterator_traits<VertexValueInputIterator>::value_type>(vertices.size(), handle.get_stream());
         auto value_first = detail::get_buffer_begin<typename std::iterator_traits<VertexValueInputIterator>::value_type>(tmp_buffer);
 
-
-
-#if 0
-auto tmp_buffer = allocate_tmp_buffer(vertices.size(), handle.get_stream());
-
-template <typename TupleType, size_t... Is>
-auto func_name(TupleType const& tuple, std::index_sequence<Is...>) {
-  rmm::device_uvector<element_t>(size, stream);
-  return thrust::make_tuple(.begin())
-}
-
-
-
-template <typename T>
-auto get_iterator() {
-  return tmp_buffer.begin();
-}
-
-template <typename T>
-auto get_iterator() {
-  return thrust::make_zip_iterator(thrust::make_tuple());
-}
-auto value_iteraotr = get_iterator(tmp_buffer);
-
-
-
-
-
-
-
-        std::vector<rmm::device_uvector<>> values(vertices.size());
-        allocate_temporary_buffer<T>();
-        get_value_iterator();
         device_allgatherv(row_comm,
-                          thrust::make_zip_iterator(thrust::make_tuple(vertex_value_input_first, )),
-                          thrust::make_zip_iterator(thrust::make_tuple()),
+                          thrust::make_zip_iterator(thrust::make_tuple(vertex_first, vertex_value_input_first)),
+                          thrust::make_zip_iterator(thrust::make_tuple(vertices.begin(), value_first)),
                           rx_counts,
                           displacements,
                           handle.get_stream());
-
+#if 0
         auto val_first = thrust::make_permutation_iterator(vertex_value_input_first, vertex_first);
         thrust::scatter(rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
                         val_first,

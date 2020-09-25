@@ -24,6 +24,7 @@
 #include <thrust/device_ptr.h>
 #include <thrust/iterator/detail/normal_iterator.h>
 
+#include <numeric>
 #include <type_traits>
 
 namespace cugraph {
@@ -216,7 +217,7 @@ struct device_allgatherv_tuple_iterator_element_impl {
                            recvcounts,
                            displacements,
                            stream);
-    device_allgatherv_tuple_iterator_element_impl<InputIterator, OutputIterator, I + 1, N>(
+    device_allgatherv_tuple_iterator_element_impl<InputIterator, OutputIterator, I + 1, N>().run(
       comm, input_first, output_first, recvcounts, displacements, stream);
   }
 };
@@ -240,9 +241,9 @@ std::enable_if_t<std::is_arithmetic<T>::value, T> host_scalar_allreduce(
   raft::comms::comms_t const& comm, T input, cudaStream_t stream)
 {
   rmm::device_uvector<T> d_input(1, stream);
-  T h_input{};
   raft::update_device(d_input.data(), &input, 1, stream);
   comm.allreduce(d_input.data(), d_input.data(), 1, raft::comms::op_t::SUM, stream);
+  T h_input{};
   raft::update_host(&h_input, d_input.data(), 1, stream);
   auto status = comm.sync_stream(stream);
   CUGRAPH_EXPECTS(status == raft::comms::status_t::SUCCESS, "sync_stream() failure.");
@@ -271,6 +272,70 @@ host_scalar_allreduce(raft::comms::comms_t const& comm, T input, cudaStream_t st
   CUGRAPH_EXPECTS(status == raft::comms::status_t::SUCCESS, "sync_stream() failure.");
   detail::update_tuple_from_vector_of_tuple_scalar_elements_impl<T, size_t{0}, tuple_size>().update(
     ret, h_tuple_scalar_elements);
+
+  return ret;
+}
+
+template <typename T>
+std::enable_if_t<std::is_arithmetic<T>::value, std::vector<T>> host_scalar_allgatherv(
+  raft::comms::comms_t const& comm, T input, cudaStream_t stream)
+{
+  std::vector<size_t> rx_counts(comm.get_size(), size_t{1});
+  std::vector<size_t> displacements(rx_counts.size(), size_t{0});
+  std::iota(displacements.begin(), displacements.end(), size_t{0});
+  rmm::device_uvector<T> d_outputs(rx_counts.size(), stream);
+  raft::update_device(d_outputs.data() + comm.get_rank(), &input, 1, stream);
+  comm.allgatherv(d_outputs.data() + comm.get_rank(),
+                  d_outputs.data(),
+                  rx_counts.data(),
+                  displacements.data(),
+                  stream);
+  std::vector<T> h_outputs(rx_counts.size(), size_t{0});
+  raft::update_host(h_outputs.data(), d_outputs.data(), rx_counts.size(), stream);
+  auto status = comm.sync_stream(stream);
+  CUGRAPH_EXPECTS(status == raft::comms::status_t::SUCCESS, "sync_stream() failure.");
+  return h_outputs;
+}
+
+template <typename T>
+std::enable_if_t<cugraph::experimental::is_thrust_tuple_of_arithmetic<T>::value, std::vector<T>>
+host_scalar_allgatherv(raft::comms::comms_t const& comm, T input, cudaStream_t stream)
+{
+  size_t constexpr tuple_size = thrust::tuple_size<T>::value;
+  std::vector<size_t> rx_counts(comm.get_size(), tuple_size);
+  std::vector<size_t> displacements(rx_counts.size(), size_t{0});
+  for (size_t i = 0; i < displacements.size(); ++i) { displacements[i] = i * tuple_size; }
+  std::vector<int64_t> h_tuple_scalar_elements(tuple_size);
+  rmm::device_uvector<int64_t> d_allgathered_tuple_scalar_elements(comm.get_size() * tuple_size,
+                                                                   stream);
+
+  detail::update_vector_of_tuple_scalar_elements_from_tuple_impl<T, size_t{0}, tuple_size>().update(
+    h_tuple_scalar_elements, input);
+  raft::update_device(d_allgathered_tuple_scalar_elements.data() + comm.get_rank() * tuple_size,
+                      h_tuple_scalar_elements.data(),
+                      tuple_size,
+                      stream);
+  comm.allgatherv(d_allgathered_tuple_scalar_elements.data() + comm.get_rank() * tuple_size,
+                  d_allgathered_tuple_scalar_elements.data(),
+                  rx_counts.data(),
+                  displacements.data(),
+                  stream);
+  std::vector<int64_t> h_allgathered_tuple_scalar_elements(comm.get_size() * tuple_size);
+  raft::update_host(h_allgathered_tuple_scalar_elements.data(),
+                    d_allgathered_tuple_scalar_elements.data(),
+                    comm.get_size() * tuple_size,
+                    stream);
+  auto status = comm.sync_stream(stream);
+  CUGRAPH_EXPECTS(status == raft::comms::status_t::SUCCESS, "sync_stream() failure.");
+
+  std::vector<T> ret(comm.get_size());
+  for (size_t i = 0; i < ret.size(); ++i) {
+    std::vector<int64_t> h_tuple_scalar_elements(
+      h_allgathered_tuple_scalar_elements.data() + i * tuple_size,
+      h_allgathered_tuple_scalar_elements.data() + (i + 1) * tuple_size);
+    detail::update_tuple_from_vector_of_tuple_scalar_elements_impl<T, size_t{0}, tuple_size>()
+      .update(ret[i], h_tuple_scalar_elements);
+  }
 
   return ret;
 }
@@ -352,8 +417,8 @@ device_allgatherv(raft::comms::comms_t const& comm,
   detail::device_allgatherv_tuple_iterator_element_impl<InputIterator,
                                                         OutputIterator,
                                                         size_t{0},
-                                                        tuple_size>(
-    comm, input_first, output_first, recvcounts, displacements, stream);
+                                                        tuple_size>()
+    .run(comm, input_first, output_first, recvcounts, displacements, stream);
 }
 
 }  // namespace experimental
