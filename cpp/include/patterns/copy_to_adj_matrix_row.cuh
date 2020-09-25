@@ -16,11 +16,8 @@
 #pragma once
 
 #include <experimental/graph_view.hpp>
-<<<<<<< HEAD
 #include <partition_manager.hpp>
 #include <utilities/collective_utils.cuh>
-=======
->>>>>>> b0455a6928a99a6daee0a8e430309dffc3b9326d
 #include <utilities/error.hpp>
 
 #include <rmm/thrust_rmm_allocator.h>
@@ -30,7 +27,6 @@
 #include <thrust/execution_policy.h>
 #include <thrust/iterator/permutation_iterator.h>
 
-<<<<<<< HEAD
 #include <numeric>
 #include <utility>
 
@@ -85,11 +81,6 @@ auto get_buffer_begin(BufferType& buffer) {
 
 }
 
-=======
-namespace cugraph {
-namespace experimental {
-
->>>>>>> b0455a6928a99a6daee0a8e430309dffc3b9326d
 /**
  * @brief Copy vertex property values to the corresponding graph adjacency matrix row property
  * variables.
@@ -121,7 +112,6 @@ void copy_to_adj_matrix_row(raft::handle_t const& handle,
                             AdjMatrixRowValueOutputIterator adj_matrix_row_value_output_first)
 {
   if (GraphViewType::is_multi_gpu) {
-<<<<<<< HEAD
     if (graph_view.is_hypergraph_partitioned()) {
       CUGRAPH_FAIL("unimplemented.");
     } else {
@@ -193,9 +183,6 @@ void copy_to_adj_matrix_row(raft::handle_t const& handle,
                           handle.get_stream());
       }
     }
-=======
-    CUGRAPH_FAIL("unimplemented.");
->>>>>>> b0455a6928a99a6daee0a8e430309dffc3b9326d
   } else {
     assert(graph_view.get_number_of_local_vertices() ==
            graph_view.get_number_of_adj_matrix_local_rows());
@@ -245,7 +232,6 @@ void copy_to_adj_matrix_row(raft::handle_t const& handle,
                             VertexValueInputIterator vertex_value_input_first,
                             AdjMatrixRowValueOutputIterator adj_matrix_row_value_output_first)
 {
-<<<<<<< HEAD
   using vertex_t = typename GraphViewType::vertex_type;
 
   if (GraphViewType::is_multi_gpu) {
@@ -328,10 +314,6 @@ void copy_to_adj_matrix_row(raft::handle_t const& handle,
 #endif
       }
     }
-=======
-  if (GraphViewType::is_multi_gpu) {
-    CUGRAPH_FAIL("unimplemented.");
->>>>>>> b0455a6928a99a6daee0a8e430309dffc3b9326d
   } else {
     assert(graph_view.get_number_of_local_vertices() ==
            graph_view.get_number_of_adj_matrix_local_rows());
