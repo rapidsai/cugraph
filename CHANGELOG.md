@@ -3,6 +3,7 @@
 ## New Features
 - PR #1098 Add new graph classes to support 2D partitioning
 - PR #1124 Sub-communicator initialization for 2D partitioning support
+- PR #1147 Added support for NetworkX graphs as input type
 
 ## Improvements
 - PR 1081 MNMG Renumbering - sort partitions by degree

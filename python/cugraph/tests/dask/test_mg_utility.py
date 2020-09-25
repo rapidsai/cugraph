@@ -40,6 +40,7 @@ def client_connection():
     cluster.close()
 
 
+@pytest.mark.skip(reason="skipping MG testing on a SG system")
 def test_compute_local_data(client_connection):
 
     gc.collect()
