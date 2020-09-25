@@ -385,65 +385,6 @@ def test_view_edge_list_for_Graph(graph_file):
 
 
 # Test
-@pytest.mark.skip(reason="skipping while new Nx framework is being worked")
-@pytest.mark.parametrize("graph_file", utils.DATASETS)
-def test_networkx_compatibility(graph_file):
-    gc.collect()
-
-    # test from_cudf_edgelist()
-    M = utils.read_csv_for_nx(graph_file)
-
-    df = pd.DataFrame()
-    df["source"] = pd.Series(M["0"])
-    df["target"] = pd.Series(M["1"])
-    df["weight"] = pd.Series(M.weight)
-    gdf = cudf.from_pandas(df)
-
-    Gnx = nx.from_pandas_edgelist(
-        df,
-        source="source",
-        target="target",
-        edge_attr="weight",
-        create_using=nx.DiGraph,
-    )
-    G = cugraph.from_cudf_edgelist(
-        gdf,
-        source="source",
-        destination="target",
-        edge_attr="weight",
-        create_using=cugraph.DiGraph,
-    )
-
-    print('g from gdf = \n', gdf)
-    print('nx from df = \n', df)
-
-    t1 = time.time()
-    assert compare_graphs(Gnx, G)
-    t2 = time.time() - t1
-    print('compare_graphs time: ', t2)
-
-    Gnx.clear()
-    G.clear()
-    Gnx = nx.from_pandas_edgelist(
-        df, source="source", target="target", create_using=nx.DiGraph
-    )
-    G = cugraph.from_cudf_edgelist(
-        gdf,
-        source="source",
-        destination="target",
-        create_using=cugraph.DiGraph,
-    )
-
-    t1 = time.time()
-    assert compare_graphs(Gnx, G)
-    t2 = time.time() - t1
-    print('compare_graphs time: ', t2)
-
-    Gnx.clear()
-    G.clear()
-
-
-# Test
 @pytest.mark.parametrize('graph_file', utils.DATASETS)
 def test_consolidation(graph_file):
     gc.collect()
