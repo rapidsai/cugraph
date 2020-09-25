@@ -232,53 +232,85 @@ void populate_graph_container(graph_container_t& graph_container,
   }
 }
 
+void graph_container_t::get_vertex_identifiers(void* c_identifier)
+{
+  CUGRAPH_EXPECTS(graph_ptr_type != graphTypeEnum::null,
+                  "get_vertex_identifiers() cannot be called on an uninitialized container");
+
+  switch (graph_ptr_type) {
+    case graphTypeEnum::GraphCSRViewFloat: {
+      graph_ptr_union.GraphCSRViewFloatPtr->get_vertex_identifiers(
+        static_cast<int32_t*>(c_identifier));
+    } break;
+    case graphTypeEnum::GraphCSCViewFloat: {
+      graph_ptr_union.GraphCSCViewFloatPtr->get_vertex_identifiers(
+        static_cast<int32_t*>(c_identifier));
+    } break;
+    case graphTypeEnum::GraphCOOViewFloat: {
+      graph_ptr_union.GraphCOOViewFloatPtr->get_vertex_identifiers(
+        static_cast<int32_t*>(c_identifier));
+    } break;
+    case graphTypeEnum::GraphCSRViewDouble: {
+      graph_ptr_union.GraphCSRViewDoublePtr->get_vertex_identifiers(
+        static_cast<int32_t*>(c_identifier));
+    } break;
+    case graphTypeEnum::GraphCSCViewDouble: {
+      graph_ptr_union.GraphCSCViewDoublePtr->get_vertex_identifiers(
+        static_cast<int32_t*>(c_identifier));
+    } break;
+    case graphTypeEnum::GraphCOOViewDouble: {
+      graph_ptr_union.GraphCOOViewDoublePtr->get_vertex_identifiers(
+        static_cast<int32_t*>(c_identifier));
+    } break;
+    default: {
+      CUGRAPH_FAIL("unexpected weight type");
+    }
+  }
+}
+
 // Wrapper for calling Louvain using a graph container
 template <typename weight_t>
-weight_t call_louvain(raft::handle_t const& handle,
-                      graph_container_t const& graph_container,
-                      void* parts,
-                      size_t max_level,
-                      weight_t resolution)
+std::pair<size_t, weight_t> call_louvain(raft::handle_t const& handle,
+                                         graph_container_t const& graph_container,
+                                         void* parts,
+                                         size_t max_level,
+                                         weight_t resolution)
 {
-  weight_t final_modularity;
+  std::pair<size_t, float> results;
 
   // FIXME: the only graph types currently in the container have ints for
   // vertex_t and edge_t types. In the future, additional types for vertices and
   // edges will be available, and when that happens, additional castings will be
   // needed for the 'parts' arg in particular. For now, it is hardcoded to int.
   if (graph_container.graph_ptr_type == graphTypeEnum::GraphCSRViewFloat) {
-    std::pair<size_t, float> results =
-      louvain(handle,
-              *(graph_container.graph_ptr_union.GraphCSRViewFloatPtr),
-              reinterpret_cast<int*>(parts),
-              max_level,
-              static_cast<float>(resolution));
-    final_modularity = results.second;
+    results = louvain(handle,
+                      *(graph_container.graph_ptr_union.GraphCSRViewFloatPtr),
+                      reinterpret_cast<int*>(parts),
+                      max_level,
+                      static_cast<float>(resolution));
   } else {
-    std::pair<size_t, double> results =
-      louvain(handle,
-              *(graph_container.graph_ptr_union.GraphCSRViewDoublePtr),
-              reinterpret_cast<int*>(parts),
-              max_level,
-              static_cast<double>(resolution));
-    final_modularity = results.second;
+    results = louvain(handle,
+                      *(graph_container.graph_ptr_union.GraphCSRViewDoublePtr),
+                      reinterpret_cast<int*>(parts),
+                      max_level,
+                      static_cast<double>(resolution));
   }
 
-  return final_modularity;
+  return results;
 }
 
 // Explicit instantiations
-template float call_louvain(raft::handle_t const& handle,
-                            graph_container_t const& graph_container,
-                            void* parts,
-                            size_t max_level,
-                            float resolution);
+template std::pair<size_t, float> call_louvain(raft::handle_t const& handle,
+                                               graph_container_t const& graph_container,
+                                               void* parts,
+                                               size_t max_level,
+                                               float resolution);
 
-template double call_louvain(raft::handle_t const& handle,
-                             graph_container_t const& graph_container,
-                             void* parts,
-                             size_t max_level,
-                             double resolution);
+template std::pair<size_t, double> call_louvain(raft::handle_t const& handle,
+                                                graph_container_t const& graph_container,
+                                                void* parts,
+                                                size_t max_level,
+                                                double resolution);
 
 }  // namespace cython
 }  // namespace cugraph

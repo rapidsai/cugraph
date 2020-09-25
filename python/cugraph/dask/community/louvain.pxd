@@ -16,11 +16,12 @@
 # cython: embedsignature = True
 # cython: language_level = 3
 
+from libcpp.utility cimport pair
 from cugraph.structure.graph_primtypes cimport *
 
 cdef extern from "utilities/cython.hpp" namespace "cugraph::cython":
 
-    cdef weight_t call_louvain[weight_t](
+    cdef pair[size_t, weight_t] call_louvain[weight_t](
         const handle_t &handle,
         const graph_container_t &g,
         void *parts,
