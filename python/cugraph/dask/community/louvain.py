@@ -15,14 +15,19 @@ from dask.distributed import wait, default_client
 
 import cugraph.comms.comms as Comms
 from cugraph.dask.common.input_utils import get_local_data
-
+from cugraph.structure.shuffle import shuffle
 from cugraph.dask.community import louvain_wrapper as c_mg_louvain
 
 
+#def call_louvain(sID, ddf, max_level, resolution):
 def call_louvain(sID, data, local_data, max_level, resolution):
-    wid = Comms.get_worker_id(sID)
-    handle = Comms.get_handle(sID)
 
+    # return c_mg_louvain.louvain(data[0],
+    #                             local_data,
+    #                             wid,
+    #                             handle,
+    #                             max_level,
+    #                             resolution)
     return c_mg_louvain.louvain(data[0],
                                 local_data,
                                 wid,
@@ -70,12 +75,27 @@ def louvain(input_graph, max_iter=100, resolution=1.0, load_balance=True):
     else:
         data = get_local_data(input_graph, by='src', load_balance=load_balance)
 
+    """
+    # Call renumber and shuffle here in order to caluculate the
+    # vertex_partition_segment_offsets needed for constructing a 2D
+    # graph/graph_view later.
+    input_graph.compute_renumber_edge_list(transposed=False)
+    ddf = shuffle(input_graph)
+
+    comms = Comms.get_comms()
+
+    # FIXME: need to ensure data contains everything needed to construct a partition_t object
+    #data = DistributedDataHandler.create(data=ddf)
+    #data.calculate_local_data(comms, 'src')
+    """
+
     result = dict([(data.worker_info[wf[0]]["rank"],
                     client.submit(
                         call_louvain,
                         Comms.get_session_id(),
                         wf[1],
                         data.local_data,
+                        data,
                         max_iter,
                         resolution,
                         workers=[wf[0]]))

@@ -24,5 +24,6 @@ cdef extern from "utilities/cython.hpp" namespace "cugraph::cython":
         const handle_t &handle,
         const graph_container_t &g,
         void *parts,
+        void *identifiers,
         size_t max_level,
         weight_t resolution) except +
