@@ -15,7 +15,8 @@
  */
 #pragma once
 
-#include <thrust/gather.h>
+#include <thrust/binary_search.h>
+
 #include <experimental/graph.hpp>
 
 #include <rmm/thrust_rmm_allocator.h>
@@ -38,6 +39,9 @@
 namespace cugraph {
 namespace experimental {
 
+//
+// TODO: Delete these print_v functions after debugging is finished
+//
 template <typename T>
 void print_v(const char *label, rmm::device_vector<T> const &vector_v)
 {
@@ -54,6 +58,19 @@ void print_v(const char *label, const int32_t *ptr, int32_t size)
                    thrust::make_counting_iterator(1),
                    [ptr, size] __device__(auto) {
                      for (int32_t i = 0; i < size; ++i) printf("%d ", ptr[i]);
+                   });
+
+  printf("\n");
+}
+
+void print_v(const char *label, const int64_t *ptr, int32_t size)
+{
+  printf("%s(%d): ", label, size);
+  thrust::for_each(rmm::exec_policy(0)->on(0),
+                   thrust::make_counting_iterator(0),
+                   thrust::make_counting_iterator(1),
+                   [ptr, size] __device__(auto) {
+                     for (int32_t i = 0; i < size; ++i) printf("%ld ", ptr[i]);
                    });
 
   printf("\n");
@@ -85,57 +102,15 @@ void print_v(const char *label, const double *ptr, int32_t size)
   printf("\n");
 }
 
-//
-//  TODO: This function object should be stored somewhere else
-//
-template <typename vertex_t>
-class compute_partition_1d {
- public:
-  compute_partition_1d(vertex_t number_of_vertices, int num_gpus) : num_gpus_(num_gpus)
-  {
-    num_vertices_per_gpu_ = (number_of_vertices + num_gpus - 1) / num_gpus;
-  }
-
-  // TODO:  This is wrong.  We should use cugraph::experimental::partition_t
-  //    and add a function to compute the vertex partition and edge
-  //    partition.
-  int __device__ operator()(vertex_t src) const { return (src / num_vertices_per_gpu_); }
-
- private:
-  int num_gpus_;
-  vertex_t num_vertices_per_gpu_;
-};
-
-template <typename vertex_t>
-class compute_partition_2d {
- public:
-  compute_partition_2d(vertex_t number_of_vertices, int num_gpu_rows, int num_gpu_cols)
-    : num_gpu_cols_(num_gpu_cols)
-  {
-    num_vertices_per_gpu_row_ = (number_of_vertices + num_gpu_rows - 1) / num_gpu_rows;
-    num_vertices_per_gpu_col_ = (number_of_vertices + num_gpu_cols - 1) / num_gpu_cols;
-  }
-
-  // TODO:  This is wrong.  We should use cugraph::experimental::partition_t
-  //    and add a function to compute the vertex partition and edge
-  //    partition.
-  int __device__ operator()(vertex_t src, vertex_t dst) const
-  {
-    int row = src / num_vertices_per_gpu_row_;
-    int col = dst / num_vertices_per_gpu_col_;
-    return row * num_gpu_cols_ + col;
-  }
-
- private:
-  int num_gpu_cols_;
-  vertex_t num_vertices_per_gpu_row_;
-  vertex_t num_vertices_per_gpu_col_;
-};
+namespace detail {
 
 //
-// These two classes should allow cuco::static_map
-// to generate a hash table where the key is (src_id, neighboring_cluster_id)
-// and the value will be the accumulated weight
+// These classes should allow cuco::static_map to generate hash tables of
+// different configurations.
+//
+
+//
+//  Compare edges based on src[e] and dst[e] matching
 //
 template <typename data_t>
 class src_dst_equality_comparator_t {
@@ -162,6 +137,9 @@ class src_dst_equality_comparator_t {
   data_t const *d_dst_;
 };
 
+//
+//  Hash edges based src[e] and dst[e]
+//
 template <typename data_t>
 class src_dst_hasher_t {
  public:
@@ -196,6 +174,9 @@ class src_dst_hasher_t {
   data_t const *d_dst_;
 };
 
+//
+//  Compare edges based on src[e] and cluster[dst[e]] matching
+//
 template <typename data_t>
 class src_cluster_equality_comparator_t {
  public:
@@ -228,6 +209,9 @@ class src_cluster_equality_comparator_t {
   data_t const *d_dst_cluster_;
 };
 
+//
+//  Hash edges based src[e] and cluster[dst[e]]
+//
 template <typename data_t>
 class src_cluster_hasher_t {
  public:
@@ -270,6 +254,9 @@ class src_cluster_hasher_t {
   data_t const *d_dst_cluster_;
 };
 
+//
+// Skip edges where src[e] == dst[e]
+//
 template <typename data_t>
 class skip_edge_t {
  public:
@@ -294,6 +281,161 @@ class skip_edge_t {
 };
 
 template <typename graph_view_type>
+class partition_wrapper_t {
+ public:
+  using graph_view_t = graph_view_type;
+  using vertex_t     = typename graph_view_type::vertex_type;
+
+  partition_wrapper_t(graph_view_t const &graph_view)
+  {
+    init<graph_view_t::is_multi_gpu>(graph_view);
+  }
+
+  template <bool is_multi_gpu, typename std::enable_if_t<!is_multi_gpu> * = nullptr>
+  void init(graph_view_t const &graph_view)
+  {
+  }
+
+  template <bool is_multi_gpu, typename std::enable_if_t<is_multi_gpu> * = nullptr>
+  void init(graph_view_t const &graph_view)
+  {
+    auto partition   = graph_view.get_partition();
+    comm_p_row_size_ = partition.get_row_size();
+    comm_p_col_size_ = partition.get_col_size();
+    comm_p_size_     = comm_p_row_size_ * comm_p_col_size_;
+
+    vertex_partition_offsets_v_.resize(comm_p_size_);
+
+    // TODO:  Copy from host to device memory...
+  }
+
+  class vertex_partition_device_view_t {
+   public:
+    vertex_partition_device_view_t(vertex_t const *d_vertex_partition_offsets,
+                                   int comm_p_row_size,
+                                   int comm_p_size)
+      : d_vertex_partition_offsets_(d_vertex_partition_offsets),
+        comm_p_row_size_(comm_p_row_size),
+        comm_p_size_(comm_p_size)
+    {
+    }
+
+    __device__ int operator()(vertex_t v)
+    {
+      if (graph_view_t::is_multi_gpu)
+        return thrust::distance(d_vertex_partition_offsets_,
+                                thrust::upper_bound(thrust::device,
+                                                    d_vertex_partition_offsets_,
+                                                    d_vertex_partition_offsets_ + comm_p_size_ + 1,
+                                                    v));
+      else
+        return 0;
+    }
+
+   private:
+    vertex_t const *d_vertex_partition_offsets_;
+    int comm_p_row_size_;
+    int comm_p_size_;
+  };
+
+  class edge_partition_device_view_t {
+   public:
+    edge_partition_device_view_t(vertex_t const *d_vertex_partition_offsets,
+                                 vertex_t const *d_src_indices,
+                                 vertex_t const *d_dst_indices,
+                                 vertex_t const *d_dst_cluster,
+                                 int comm_p_row_size,
+                                 int comm_p_col_size,
+                                 int comm_p_size)
+      : d_vertex_partition_offsets_(d_vertex_partition_offsets),
+        d_src_indices_(d_src_indices),
+        d_dst_indices_(d_dst_indices),
+        d_dst_cluster_(d_dst_cluster),
+        comm_p_row_size_(comm_p_row_size),
+        comm_p_col_size_(comm_p_col_size),
+        comm_p_size_(comm_p_size)
+    {
+    }
+
+    __device__ int operator()(vertex_t src, vertex_t dst)
+    {
+      if (graph_view_t::is_multi_gpu) {
+        std::size_t src_partition =
+          thrust::distance(d_vertex_partition_offsets_,
+                           thrust::upper_bound(thrust::device,
+                                               d_vertex_partition_offsets_,
+                                               d_vertex_partition_offsets_ + comm_p_size_ + 1,
+                                               src));
+        std::size_t dst_partition =
+          thrust::distance(d_vertex_partition_offsets_,
+                           thrust::upper_bound(thrust::device,
+                                               d_vertex_partition_offsets_,
+                                               d_vertex_partition_offsets_ + comm_p_size_ + 1,
+                                               dst));
+
+        std::size_t row = src_partition / comm_p_row_size_;
+        std::size_t col = dst_partition / comm_p_col_size_;
+
+        return row * comm_p_row_size_ + col;
+      } else {
+        return 0;
+      }
+    }
+
+    //
+    // TODO:  Refactor this, should be a separate functor, think about if there's a hierarchy or
+    // something
+    //        we can do to reuse stuff...
+    //
+    __device__ int operator()(thrust::tuple<vertex_t, vertex_t> tuple)
+    {
+      return (*this)(thrust::get<0>(tuple), thrust::get<1>(tuple));
+    }
+
+    __device__ int operator()(std::size_t edge_id)
+    {
+      return (*this)(d_src_indices_[edge_id], d_dst_cluster_[d_dst_indices_[edge_id]]);
+    }
+
+   private:
+    vertex_t const *d_vertex_partition_offsets_;
+    vertex_t const *d_src_indices_;
+    vertex_t const *d_dst_indices_;
+    vertex_t const *d_dst_cluster_;
+    int comm_p_row_size_;
+    int comm_p_col_size_;
+    int comm_p_size_;
+  };
+
+  vertex_partition_device_view_t vertex_partition_device_view() const
+  {
+    return vertex_partition_device_view_t(
+      vertex_partition_offsets_v_.data().get(), comm_p_row_size_, comm_p_size_);
+  }
+
+  edge_partition_device_view_t edge_partition_device_view(vertex_t const *d_src_indices,
+                                                          vertex_t const *d_dst_indices,
+                                                          vertex_t const *d_dst_cluster) const
+  {
+    return edge_partition_device_view_t(vertex_partition_offsets_v_.data().get(),
+                                        d_src_indices,
+                                        d_dst_indices,
+                                        d_dst_cluster,
+                                        comm_p_row_size_,
+                                        comm_p_col_size_,
+                                        comm_p_size_);
+  }
+
+ private:
+  rmm::device_vector<vertex_t> vertex_partition_offsets_v_{};
+  int comm_p_row_size_{1};
+  int comm_p_col_size_{1};
+  int comm_p_size_{1};
+};
+
+}  // namespace detail
+
+template <typename graph_view_type>
 class Louvain {
  public:
   using graph_view_t = graph_view_type;
@@ -308,33 +450,38 @@ class Louvain {
 
   const vertex_t VERTEX_MAX = std::numeric_limits<vertex_t>::max();
 
-  Louvain(raft::handle_t const &handle, graph_view_t const &graph)
+  Louvain(raft::handle_t const &handle, graph_view_t const &graph_view)
     :
 #ifdef TIMING
       hr_timer_(),
 #endif
       handle_(handle),
-      graph_(graph),
       current_graph_(),
-      current_graph_view_(graph),
-      local_num_vertices_(graph_.get_number_of_local_vertices()),
-      local_num_rows_(graph_.get_number_of_local_adj_matrix_partition_rows()),
-      local_num_cols_(graph_.get_number_of_local_adj_matrix_partition_cols()),
-      local_num_edges_(graph_.get_number_of_edges()),
-      vertex_weights_v_(graph_.get_number_of_local_vertices()),
-      cluster_weights_v_(graph_.get_number_of_local_vertices()),
-      cluster_v_(graph_.get_number_of_local_vertices()),
-      number_of_vertices_(graph_.get_number_of_local_vertices()),
-      src_indices_v_(graph_.get_number_of_edges()),
-      base_vertex_id_(graph.get_local_vertex_first()),
+      current_graph_view_(graph_view),
+      partition_wrapper_(graph_view),
+      local_num_vertices_(graph_view.get_number_of_local_vertices()),
+      local_num_rows_(graph_view.get_number_of_local_adj_matrix_partition_rows()),
+      local_num_cols_(graph_view.get_number_of_local_adj_matrix_partition_cols()),
+      local_num_edges_(graph_view.get_number_of_edges()),
+      vertex_weights_v_(graph_view.get_number_of_local_vertices()),
+      cluster_weights_v_(graph_view.get_number_of_local_vertices()),
+      cluster_v_(graph_view.get_number_of_local_vertices()),
+      number_of_vertices_(graph_view.get_number_of_local_vertices()),
+      src_indices_v_(graph_view.get_number_of_edges()),
+      base_vertex_id_(graph_view.get_local_vertex_first()),
+      base_src_vertex_id_{0},
+      base_dst_vertex_id_{0},
+      rank_{0},
       stream_(handle.get_stream())
   {
-    cugraph::detail::offsets_to_indices<vertex_t>(
+    cugraph::detail::offsets_to_indices(
       current_graph_view_.offsets(), local_num_vertices_, src_indices_v_.data().get());
 
-    std::cout << "number_of_vertices_ = " << number_of_vertices_ << std::endl;
-    std::cout << "local_num_vertices_ = " << local_num_vertices_ << std::endl;
-    std::cout << "graph says = " << graph_.get_number_of_local_vertices() << std::endl;
+    if (graph_view_t::is_multi_gpu) {
+      rank_               = handle.get_comms().get_rank();
+      base_src_vertex_id_ = graph_view.get_local_adj_matrix_partition_row_first(rank_);
+      base_dst_vertex_id_ = graph_view.get_local_adj_matrix_partition_col_first(rank_);
+    }
   }
 
   virtual std::pair<size_t, weight_t> operator()(vertex_t *d_cluster_vec,
@@ -364,8 +511,6 @@ class Louvain {
     thrust::copy(
       rmm::exec_policy(stream_)->on(stream_), cluster_v_.begin(), cluster_v_.end(), d_cluster_vec);
 
-    cache_vertex_properties(cluster_v_, src_cluster_cache_v_, dst_cluster_cache_v_);
-
     while (num_level < max_level) {
       compute_vertex_and_cluster_weights();
 
@@ -393,14 +538,14 @@ class Louvain {
   void timer_start(std::string const &region)
   {
 #ifdef TIMING
-    if (handle_.get_rank() == 0) hr_timer_.start(region);
+    if (rank_ == 0) hr_timer_.start(region);
 #endif
   }
 
   void timer_stop(cudaStream_t stream)
   {
 #ifdef TIMING
-    if (handle_.get_rank() == 0) {
+    if (rank_ == 0) {
       CUDA_TRY(cudaStreamSynchronize(stream));
       hr_timer_.stop();
     }
@@ -410,15 +555,13 @@ class Louvain {
   void timer_display(std::ostream &os)
   {
 #ifdef TIMING
-    if (handle_.get_rank() == 0) hr_timer_.display(os);
+    if (rank_ == 0) hr_timer_.display(os);
 #endif
   }
 
  public:
   weight_t modularity(weight_t total_edge_weight, weight_t resolution)
   {
-    rmm::device_vector<weight_t> increase_v(local_num_rows_, weight_t{0.0});
-
     weight_t Q = -resolution / (total_edge_weight * total_edge_weight) *
                  experimental::transform_reduce_v(
                    handle_,
@@ -435,30 +578,21 @@ class Louvain {
     print_v("dst_cluster_cache", dst_cluster_cache_v_);
 #endif
 
+    rmm::device_vector<weight_t> increase_v(local_num_vertices_, weight_t{0.0});
+
     experimental::copy_v_transform_reduce_out_nbr(
       handle_,
       current_graph_view_,
       src_cluster_cache_v_.begin(),
       dst_cluster_cache_v_.begin(),
-#if 0
-      src_cluster_cache_v_.data().get(),
-      dst_cluster_cache_v_.data().get(),
-#endif
       [] __device__(auto src, auto, auto weight, auto src_cluster, auto nbr_cluster) {
         if (src_cluster == nbr_cluster) {
-#if 0
-          printf("src = %d, src_cluster = %d, nbr_cluster = %d, weight = %g\n",
-                 src,
-                 src_cluster,
-                 nbr_cluster,
-                 weight);
-#endif
           return weight;
         } else
           return weight_t{0};
       },
       weight_t{0},
-      increase_v.data().get());
+      increase_v.begin());
 
 #if 0
     CHECK_CUDA(stream_);
@@ -491,7 +625,7 @@ class Louvain {
       thrust::make_constant_iterator(0),
       [] __device__(auto, auto, auto wt, auto, auto) { return wt; },
       weight_t{0},
-      vertex_weights_v_.data().get());
+      vertex_weights_v_.begin());
 
     thrust::copy(rmm::exec_policy(stream_)->on(stream_),
                  vertex_weights_v_.begin(),
@@ -499,12 +633,10 @@ class Louvain {
                  cluster_weights_v_.begin());
 
     cache_vertex_properties(
-      vertex_weights_v_, src_vertex_weights_cache_v_, dst_vertex_weights_cache_v);
+      vertex_weights_v_, src_vertex_weights_cache_v_, dst_vertex_weights_cache_v_);
 
-    //
-    //  TODO: Is this place to replicate vertex and cluster
-    //        weights???
-    //
+    cache_vertex_properties(
+      cluster_weights_v_, src_cluster_weights_cache_v_, dst_cluster_weights_cache_v_);
 
     timer_stop(stream_);
   }
@@ -515,6 +647,10 @@ class Louvain {
                                rmm::device_vector<T> &dst_cache_v)
   {
     if (graph_view_t::is_multi_gpu) {
+      // TODO:  Look at  copy_to_adj_matrix_row.cuh
+      //        Look at  copy_to_adj_matrix_col.cuh (doesn't currently exist)
+      // TODO:  Alternatively, could implement this directly using
+      //        something like variable_shuffle
       CUGRAPH_FAIL("unimplemented");
     } else {
       src_cache_v.resize(local_input_v.size());
@@ -598,7 +734,7 @@ class Louvain {
           return weight_t{0};
       },
       weight_t{0},
-      old_cluster_sum_v.data().get());
+      old_cluster_sum_v.begin());
 
     rmm::device_vector<weight_t> src_old_cluster_sum_v(local_num_rows_);
     rmm::device_vector<weight_t> dst_old_cluster_sum_v(local_num_cols_);
@@ -607,15 +743,16 @@ class Louvain {
 
     std::cout << "after cache_vertex_properties" << std::endl;
 
-    vertex_t const *d_src_indices = src_indices_v_.data().get();
-    vertex_t const *d_dst_indices = current_graph_view_.indices();
-    weight_t const *d_weights     = current_graph_view_.weights();
+    vertex_t const *d_src_indices       = src_indices_v_.data().get();
+    vertex_t const *d_dst_indices       = current_graph_view_.indices();
+    weight_t const *d_weights           = current_graph_view_.weights();
+    vertex_t const *d_dst_cluster_cache = dst_cluster_cache_v_.data().get();
 
-    src_cluster_equality_comparator_t<edge_t> compare(
-      d_src_indices, d_dst_indices, dst_cluster_cache_v_.data().get());
-    src_cluster_hasher_t<edge_t> hasher(
-      d_src_indices, d_dst_indices, dst_cluster_cache_v_.data().get());
-    skip_edge_t<edge_t> skip_edge(d_src_indices, d_dst_indices);
+    detail::src_cluster_equality_comparator_t<vertex_t> compare(
+      d_src_indices, d_dst_indices, d_dst_cluster_cache);
+    detail::src_cluster_hasher_t<vertex_t> hasher(
+      d_src_indices, d_dst_indices, d_dst_cluster_cache);
+    detail::skip_edge_t<vertex_t> skip_edge(d_src_indices, d_dst_indices);
 
     //
     //  Group edges that lead from same source to same neighboring cluster together
@@ -623,7 +760,7 @@ class Louvain {
     rmm::device_vector<edge_t> local_cluster_edge_ids_v;
     rmm::device_vector<weight_t> nbr_weights_v;
 
-    print_v("src_indices", d_src_indices, local_num_edges_);
+    print_v("src_indices", src_indices_v_);
     print_v("dst_indices", d_dst_indices, local_num_edges_);
     print_v("nbr_weights", nbr_weights_v);
 
@@ -635,19 +772,7 @@ class Louvain {
     //  accumulated weights together and shuffle them to the desired GPU
     //
 
-    // TODO:  How do I know the GPU configuration?
-    int num_gpu_rows{1};
-    int num_gpu_cols{1};
-
-    compute_partition_2d<vertex_t> compute_partition(
-      number_of_vertices_, num_gpu_rows, num_gpu_cols);
-
-    auto d_dst_cluster = dst_cluster_cache_v_.data();
-
-    auto partition_lambda =
-      [compute_partition, d_src_indices, d_dst_indices, d_dst_cluster] __device__(auto idx) {
-        return compute_partition(d_src_indices[idx], d_dst_cluster[d_dst_indices[idx]]);
-      };
+    auto d_dst_cluster = dst_cluster_cache_v_.data().get();
 
     //
     //  src values can simply be gathered as they are stored in src_indices_v
@@ -662,27 +787,30 @@ class Louvain {
       handle_,
       new_edge_size,
       thrust::make_permutation_iterator(src_indices_v_.begin(), local_cluster_edge_ids_v.begin()),
-      thrust::make_transform_iterator(local_cluster_edge_ids_v.begin(), partition_lambda));
+      thrust::make_transform_iterator(local_cluster_edge_ids_v.begin(),
+                                      partition_wrapper_.edge_partition_device_view(
+                                        d_src_indices, d_dst_indices, d_dst_cluster)));
 
     print_v("src", src_v);
 
     //
     //  neighboring cluster id must be transformed
     //
-    rmm::device_vector<vertex_t> nbr_cluster_v(new_edge_size);
+    rmm::device_vector<vertex_t> nbr_cluster_v;
 
-    thrust::gather(
-      rmm::exec_policy(stream_)->on(stream_),
-      thrust::make_permutation_iterator(d_dst_indices, local_cluster_edge_ids_v.begin()),
-      thrust::make_permutation_iterator(d_dst_indices, local_cluster_edge_ids_v.end()),
-      d_dst_cluster,
-      nbr_cluster_v.begin());
+    vertex_t base_dst_vertex_id = base_dst_vertex_id_;
 
     nbr_cluster_v = variable_shuffle<graph_view_t::is_multi_gpu, vertex_t>(
       handle_,
-      nbr_cluster_v.size(),
-      nbr_cluster_v.begin(),
-      thrust::make_transform_iterator(local_cluster_edge_ids_v.begin(), partition_lambda));
+      new_edge_size,
+      thrust::make_transform_iterator(
+        local_cluster_edge_ids_v.begin(),
+        [d_dst_cluster, d_dst_indices, base_dst_vertex_id] __device__(auto edge_id) {
+          return d_dst_cluster[d_dst_indices[edge_id] - base_dst_vertex_id];
+        }),
+      thrust::make_transform_iterator(local_cluster_edge_ids_v.begin(),
+                                      partition_wrapper_.edge_partition_device_view(
+                                        d_src_indices, d_dst_indices, d_dst_cluster)));
 
     //
     //   neighboring weights were already organized in the call
@@ -691,7 +819,9 @@ class Louvain {
       handle_,
       nbr_weights_v.size(),
       nbr_weights_v.begin(),
-      thrust::make_transform_iterator(local_cluster_edge_ids_v.begin(), partition_lambda));
+      thrust::make_transform_iterator(local_cluster_edge_ids_v.begin(),
+                                      partition_wrapper_.edge_partition_device_view(
+                                        d_src_indices, d_dst_indices, d_dst_cluster)));
 
     //
     //  At this point, src_v, nbr_cluster_v and nbr_weights_v have been
@@ -701,8 +831,8 @@ class Louvain {
     //  Again, we'll combine edges that connect the same source to the same
     //  neighboring cluster and sum their weights.
     //
-    src_dst_equality_comparator_t<edge_t> compare2(src_v, nbr_cluster_v);
-    src_dst_hasher_t<edge_t> hasher2(src_v, nbr_cluster_v);
+    detail::src_dst_equality_comparator_t<vertex_t> compare2(src_v, nbr_cluster_v);
+    detail::src_dst_hasher_t<vertex_t> hasher2(src_v, nbr_cluster_v);
 
     auto skip_edge2 = [] __device__(auto) { return false; };
 
@@ -927,6 +1057,9 @@ class Louvain {
     d_best_delta_Q_value  = best_delta_Q_value_v.data();
     d_best_nbr_cluster_id = best_nbr_cluster_id_v.data();
     vertex_t num_vertices = local_num_vertices_;
+
+    // TODO:  How to discover this...
+    int num_gpu_rows = 1;
 
     thrust::for_each(
       rmm::exec_policy(stream_)->on(stream_),
@@ -1196,35 +1329,24 @@ class Louvain {
     std::cout << "populated used_cluster_ids" << std::endl;
     print_v("used_cluster_ids", used_cluster_ids_v);
 
-#if 0
-    // TODO: define
-    int num_gpus{1};
-
-    compute_partition_1d<vertex_t> compute_partition(graph_.get_number_of_vertices(), num_gpus);
-    auto partition_lambda = [compute_partition] __device__(vertex_t v) {
-      return compute_partition(v);
-    };
-#endif
-
     rmm::device_vector<vertex_t> my_cluster_ids_v =
-      variable_shuffle<graph_view_t::is_multi_gpu, vertex_t>(handle_,
-                                                             used_cluster_ids_v.size(),
-                                                             used_cluster_ids_v.begin(),
-                                                             // TODO:  Need a real partitioner here
-                                                             thrust::make_constant_iterator(0));
-    // thrust::make_transform_iterator(used_cluster_ids_v.begin(),
-    // partition_lambda)
+      variable_shuffle<graph_view_t::is_multi_gpu, vertex_t>(
+        handle_,
+        used_cluster_ids_v.size(),
+        used_cluster_ids_v.begin(),
+        thrust::make_transform_iterator(used_cluster_ids_v.begin(),
+                                        partition_wrapper_.vertex_partition_device_view()));
 
     if (graph_view_t::is_multi_gpu) {
       rmm::device_vector<std::size_t> original_gpus_v =
         variable_shuffle<graph_view_t::is_multi_gpu, std::size_t>(
           handle_,
           used_cluster_ids_v.size(),
-          thrust::make_constant_iterator<std::size_t>(handle_.get_comms().get_rank()),
+          thrust::make_constant_iterator<std::size_t>(rank_),
           // TODO:  Need a real partitioner here
           thrust::make_constant_iterator(0));
       // thrust::make_transform_iterator(used_cluster_ids_v.begin(),
-      // partition_lambda)
+      // partition_vertices)
     }
 
     std::cout << "my_cluster_ids shuffle done" << std::endl;
@@ -1271,7 +1393,7 @@ class Louvain {
 
       base_address = thrust::reduce(rmm::exec_policy(stream_)->on(stream_),
                                     sizes_v.begin(),
-                                    sizes_v.begin() + handle_.get_comms().get_rank(),
+                                    sizes_v.begin() + rank_,
                                     vertex_t{0});
     }
 
@@ -1354,7 +1476,7 @@ class Louvain {
     //        vertex properties, go to the proper node and retrieve
     //        the vertex properties and return them to this gpu.
     //
-    auto d_hash_map = hash_map.get_device_view();
+    auto d_hash_map    = hash_map.get_device_view();
     auto d_dst_cluster = dst_cluster_cache_v_.data();
 
     thrust::transform(rmm::exec_policy(stream_)->on(stream_),
@@ -1363,7 +1485,7 @@ class Louvain {
                       d_cluster_vec,
                       [d_hash_map, d_dst_cluster] __device__(vertex_t v) mutable {
                         vertex_t c = d_dst_cluster[v];
-                        auto pos = d_hash_map.find(c);
+                        auto pos   = d_hash_map.find(c);
                         printf("cluster = %d, pos->first = %d, pos->second = %d\n",
                                (int)c,
                                (int)pos->first,
@@ -1435,11 +1557,6 @@ class Louvain {
       // but because we've renumbered to lower numbers, fewer
       // partitions will actually have data.
       //
-      int num_gpu_rows{1};
-      int num_gpu_cols{1};
-      compute_partition_2d<vertex_t> compute_partition(
-        number_of_vertices_, num_gpu_rows, num_gpu_cols);
-
       rmm::device_vector<int> partition_v(new_src_v.size());
 
       thrust::transform(
@@ -1447,9 +1564,7 @@ class Louvain {
         thrust::make_zip_iterator(thrust::make_tuple(new_src_v.begin(), new_dst_v.begin())),
         thrust::make_zip_iterator(thrust::make_tuple(new_src_v.end(), new_dst_v.end())),
         partition_v.begin(),
-        [compute_partition] __device__(auto p) {
-          return compute_partition(thrust::get<0>(p), thrust::get<1>(p));
-        });
+        partition_wrapper_.edge_partition_device_view(nullptr, nullptr, nullptr));
 
       new_src_v = variable_shuffle<graph_view_t::is_multi_gpu, vertex_t>(
         handle_, partition_v.size(), new_src_v.begin(), partition_v.begin());
@@ -1474,7 +1589,7 @@ class Louvain {
     //
 #if 0
     if (graph_view_t::is_multi_gpu) {
-      experimental::partition_t<vertex_t> graph_partition = graph_.get_partition();
+      experimental::partition_t<vertex_t> graph_partition = current_graph_view_.get_partition();
 
       current_graph_ = std::make_unique<graph_t>(
         handle_,
@@ -1517,7 +1632,7 @@ class Louvain {
 
     src_indices_v_.resize(new_src_v.size());
 
-    cugraph::detail::offsets_to_indices<vertex_t>(
+    cugraph::detail::offsets_to_indices(
       current_graph_view_.offsets(), num_clusters, src_indices_v_.data().get());
 
     print_v("offsets", current_graph_view_.offsets(), local_num_vertices_);
@@ -1591,10 +1706,12 @@ class Louvain {
 
  protected:
   raft::handle_t const &handle_;
-  graph_view_t graph_;
   vertex_t number_of_vertices_;
   vertex_t base_vertex_id_;
+  vertex_t base_src_vertex_id_;
+  vertex_t base_dst_vertex_id_;
   cudaStream_t stream_;
+  int rank_;
 
   vertex_t local_num_vertices_;
   vertex_t local_num_rows_;
@@ -1607,6 +1724,11 @@ class Louvain {
   std::unique_ptr<graph_t> current_graph_;
   graph_view_t current_graph_view_;
 
+  //
+  //  For partitioning
+  //
+  detail::partition_wrapper_t<graph_view_t> partition_wrapper_;
+
   // TODO:  Do I need this?
   rmm::device_vector<vertex_t> src_indices_v_;
 
@@ -1615,11 +1737,11 @@ class Louvain {
   //
   rmm::device_vector<weight_t> vertex_weights_v_;
   rmm::device_vector<weight_t> src_vertex_weights_cache_v_;
-  rmm::device_vector<weight_t> dst_vertex_weights_cache_v;
+  rmm::device_vector<weight_t> dst_vertex_weights_cache_v_;
 
   rmm::device_vector<weight_t> cluster_weights_v_;
-  rmm::device_vector<weight_t> src_cluster_weight_cache_v_;
-  rmm::device_vector<weight_t> dst_cluster_weight_cache_v_;
+  rmm::device_vector<weight_t> src_cluster_weights_cache_v_;
+  rmm::device_vector<weight_t> dst_cluster_weights_cache_v_;
 
   rmm::device_vector<vertex_t> cluster_v_;
   rmm::device_vector<vertex_t> src_cluster_cache_v_;

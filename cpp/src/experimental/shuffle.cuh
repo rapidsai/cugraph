@@ -21,131 +21,9 @@
 namespace cugraph {
 namespace experimental {
 
-/**
- * @brief shuffle data to the desired partition
- *
- * MNMG algorithms require shuffling data between partitions
- * to get the data to the right location for computation.
- *
- * This function will be executed on each GPU.  Each gpu
- * has a portion of the data (specified by begin_data and
- * end_data iterators) and an iterator that identifies
- * (for each corresponding element) which GPU the data
- * should be shuffled to.
- *
- * The return value will be a unique pointer to a newly
- * allocated device pointer containing the data sent to
- * this GPU.
- *
- * @tparam data_t           Type of the data being shuffled
- * @tparam iterator_t       Iterator referencing data to be shuffled
- *
- * @param  handle                    Library handle (RAFT)
- * @param  n_elements                The number of elements in the input data on this gpu
- * @param  n_elements_per_partition  The number of elements to be transfered
- *                                   to each partition.
- * @param  data                      Device vector containing the data.  Note the
- *                                   contents of this vector will be reordered
- */
-#if 0
-template <typename data_t, typename iterator_t>
-rmm::device_vector<data_t> fixed_shuffle(raft::handle_t const &handle,
-                                         std::size_t n_elements,
-                                         std::size_t n_elements_per_partition,
-                                         iterator_t const &data_iter)
-{
-  //
-  // We need to compute the size of data movement
-  //
-  raft::comms::comms_t const &comms = handle.get_comms();
+namespace detail {
 
-  cudaStream_t stream = handle.get_stream();
-  int num_gpus        = comms.get_size();
-  int my_gpu          = comms.get_rank();
-
-  //
-  //  TODO:  Could reduce memory footprint by only
-  //         realizing device vector for the subset going
-  //         to each GPU... depending on how comms implements
-  //         isend and irecv.
-  //
-  rmm::device_vector<data_t> input_v(data_iter, data_iter + n_elements);
-  rmm::device_vector<data_t> temp_data_v(receive_size);
-
-  std::vector<raft::comms::request_t> requests(2 * num_gpus);
-
-  std::for_each(thrust::make_counting_iterator<int>(0),
-                thrust::make_counting_iterator<int>(num_gpus),
-                [my_gpu, comms, requests, stream](int gpu) {
-                  if (gpu != my_gpu) {
-                    comms.irecv(temp_data_v.data().get() + n_elements_per_partition * gpu,
-                                n_elements_per_partition,
-                                gpu,
-                                0,
-                                requests[2 * gpu]);
-                    comms.isend(input_v.data().get() + n_elements_per_partition * gpu,
-                                n_elements_per_partition,
-                                gpu,
-                                0,
-                                requests[2 * gpu + 1]);
-                  } else {
-                    CUDA_CHECK(cudaMemcpyAsync(temp_data_v.data() + n_elements_per_partition * gpu,
-                                               input_v.data() + n_elements_per_partition * gpu,
-                                               sizeof(data_t),
-                                               cudaMemcpyDeviceToDevice,
-                                               stream));
-
-                    requests[2 * gpu]     = std::numeric_limits<raft::comms::request_t>::max();
-                    requests[2 * gpu + 1] = std::numeric_limits<raft::comms::request_t>::max();
-                  }
-                });
-
-  std::vector<raft::comms::request_t> requests_wait(2 * (num_gpus - 1));
-
-  std::copy_if(
-    requests.begin(), requests.end(), requests_wait.begin(), [](raft::comms::request_t r) {
-      return r != std::numeric_limits<raft::comms::request_t>::max();
-    });
-
-  communicator.waitall(requests_wait.size(), requests_wait.data());
-  communicator.barrier();
-
-  return temp_data;
-}
-#endif
-
-/**
- * @brief shuffle data to the desired partition
- *
- * MNMG algorithms require shuffling data between partitions
- * to get the data to the right location for computation.
- *
- * This function will be executed on each GPU.  Each gpu
- * has a portion of the data (specified by begin_data and
- * end_data iterators) and an iterator that identifies
- * (for each corresponding element) which GPU the data
- * should be shuffled to.
- *
- * This function operates dynamically, there is no
- * a priori knowledge about where the data will need
- * to be transferred.
- *
- * The return value will be a unique pointer to a newly
- * allocated device pointer containing the data sent to
- * this GPU.
- *
- * @tparam data_t           Type of the data being shuffled
- * @tparam iterator_t       Iterator referencing data to be shuffled
- * @tparam partition_iter_t Iterator identifying the destination partition
- *
- * @param  handle         Library handle (RAFT)
- * @param  data           Device vector containing the data.  Note the
- *                        contents of this vector will be reordered
- * @param  partition_iter Random access iterator for the partition
- */
-#if 0
-template <bool is_multi_gpu, typename data_t, typename iterator_t, typename partition_iter_t,
-          typename std::enable_if_t<is_multi_gpu>* = nullptr>
+template <typename data_t, typename iterator_t, typename partition_iter_t>
 rmm::device_vector<data_t> variable_shuffle(raft::handle_t const &handle,
                                             std::size_t n_elements,
                                             iterator_t data_iter,
@@ -160,20 +38,21 @@ rmm::device_vector<data_t> variable_shuffle(raft::handle_t const &handle,
   int num_gpus        = comms.get_size();
   int my_gpu          = comms.get_rank();
 
-  rmm::device_vector<int64_t> local_sizes_v(num_gpus);
-  rmm::device_vector<int64_t> global_sizes_v(num_gpus);
+  rmm::device_vector<uint64_t> local_sizes_v(num_gpus);
+  rmm::device_vector<uint64_t> global_sizes_v(num_gpus);
 
   // TODO:
   rmm::device_vector<data_t> input_v(data_iter, data_iter + n_elements);
-  rmm::device_vector<int> partitions_v(partition_iter, partition_iter + n_elements);
+  rmm::device_vector<int32_t> partitions_v(partition_iter, partition_iter + n_elements);
 
-  int64_t *d_local_sizes  = local_sizes_v.data().get();
-  int64_t *d_global_sizes = global_sizes_v.data().get();
+  auto d_local_sizes  = local_sizes_v.data().get();
+  auto d_global_sizes = global_sizes_v.data().get();
 
-  thrust::for_each(rmm::exec_policy(stream)->on(stream),
-                   partitions_v.begin(),
-                   partitions_v.end(),
-                   [d_local_sizes] __device__(int p) { atomicAdd(d_local_sizes + p, int64_t{1}); });
+  thrust::for_each(
+    rmm::exec_policy(stream)->on(stream),
+    partitions_v.begin(),
+    partitions_v.end(),
+    [d_local_sizes] __device__(auto p) { atomicAdd(d_local_sizes + p, uint64_t{1}); });
 
   std::vector<raft::comms::request_t> requests(2 * num_gpus);
 
@@ -182,7 +61,8 @@ rmm::device_vector<data_t> variable_shuffle(raft::handle_t const &handle,
                 [my_gpu, &global_sizes_v, local_sizes_v, &comms, &requests, stream](int gpu) {
                   if (gpu != my_gpu) {
                     comms.irecv(global_sizes_v.data().get() + gpu, 1, gpu, 0, &requests[2 * gpu]);
-                    comms.isend(local_sizes_v.data().get() + gpu, 1, gpu, 0, &requests[2 * gpu + 1]);
+                    comms.isend(
+                      local_sizes_v.data().get() + gpu, 1, gpu, 0, &requests[2 * gpu + 1]);
                   } else {
                     CUDA_CHECK(cudaMemcpyAsync(global_sizes_v.data().get() + gpu,
                                                local_sizes_v.data().get() + gpu,
@@ -237,36 +117,41 @@ rmm::device_vector<data_t> variable_shuffle(raft::handle_t const &handle,
   thrust::host_vector<int64_t> h_global_sizes_v(temp_v);
   h_global_sizes_v[num_gpus] = h_global_sizes_v[num_gpus - 1] + h_global_sizes_v[num_gpus - 1];
 
-  thrust::exclusive_scan(
-    rmm::exec_policy(stream)->on(stream), local_sizes_v.begin(), local_sizes_v.end(), temp_v.begin());
+  thrust::exclusive_scan(rmm::exec_policy(stream)->on(stream),
+                         local_sizes_v.begin(),
+                         local_sizes_v.end(),
+                         temp_v.begin());
 
   thrust::host_vector<int64_t> h_local_sizes_v(temp_v);
   h_local_sizes_v[num_gpus] = h_local_sizes_v[num_gpus - 1] + local_sizes_v[num_gpus - 1];
 
-  std::for_each(thrust::make_counting_iterator<int>(0),
-                thrust::make_counting_iterator<int>(num_gpus),
-                [my_gpu, input_v, &temp_data, h_global_sizes_v, h_local_sizes_v, &comms, &requests2, stream](int gpu) {
-                  if (gpu != my_gpu) {
-                    comms.irecv(temp_data.data().get() + h_global_sizes_v[gpu],
-                                h_global_sizes_v[gpu + 1] - h_global_sizes_v[gpu],
-                                gpu,
-                                0,
-                                &requests2[2 * gpu]);
-                    comms.isend(input_v.data().get() + h_local_sizes_v[gpu],
-                                h_local_sizes_v[gpu + 1] - h_local_sizes_v[gpu],
-                                gpu,
-                                0,
-                                &requests2[2 * gpu - 1]);
-                  } else {
-                    CUDA_CHECK(cudaMemcpyAsync(temp_data.data().get() + h_local_sizes_v[gpu],
-                                               input_v.data().get() + h_global_sizes_v[gpu],
-                                               sizeof(data_t) * (h_local_sizes_v[gpu+1] - h_local_sizes_v[gpu]),
-                                               cudaMemcpyDeviceToDevice,
-                                               stream));
-                    requests2[2 * gpu]     = std::numeric_limits<raft::comms::request_t>::max();
-                    requests2[2 * gpu + 1] = std::numeric_limits<raft::comms::request_t>::max();
-                  }
-                });
+  std::for_each(
+    thrust::make_counting_iterator<int>(0),
+    thrust::make_counting_iterator<int>(num_gpus),
+    [my_gpu, input_v, &temp_data, h_global_sizes_v, h_local_sizes_v, &comms, &requests2, stream](
+      int gpu) {
+      if (gpu != my_gpu) {
+        comms.irecv(temp_data.data().get() + h_global_sizes_v[gpu],
+                    h_global_sizes_v[gpu + 1] - h_global_sizes_v[gpu],
+                    gpu,
+                    0,
+                    &requests2[2 * gpu]);
+        comms.isend(input_v.data().get() + h_local_sizes_v[gpu],
+                    h_local_sizes_v[gpu + 1] - h_local_sizes_v[gpu],
+                    gpu,
+                    0,
+                    &requests2[2 * gpu - 1]);
+      } else {
+        CUDA_CHECK(
+          cudaMemcpyAsync(temp_data.data().get() + h_local_sizes_v[gpu],
+                          input_v.data().get() + h_global_sizes_v[gpu],
+                          sizeof(data_t) * (h_local_sizes_v[gpu + 1] - h_local_sizes_v[gpu]),
+                          cudaMemcpyDeviceToDevice,
+                          stream));
+        requests2[2 * gpu]     = std::numeric_limits<raft::comms::request_t>::max();
+        requests2[2 * gpu + 1] = std::numeric_limits<raft::comms::request_t>::max();
+      }
+    });
 
   std::vector<raft::comms::request_t> requests_wait2(2 * (num_gpus - 1));
 
@@ -280,33 +165,61 @@ rmm::device_vector<data_t> variable_shuffle(raft::handle_t const &handle,
 
   return temp_data;
 }
-#endif
+}  // namespace detail
+
+/**
+ * @brief shuffle data to the desired partition
+ *
+ * MNMG algorithms require shuffling data between partitions
+ * to get the data to the right location for computation.
+ *
+ * This function will be executed on each GPU.  Each gpu
+ * has a portion of the data (specified by begin_data and
+ * end_data iterators) and an iterator that identifies
+ * (for each corresponding element) which GPU the data
+ * should be shuffled to.
+ *
+ * This function operates dynamically, there is no
+ * a priori knowledge about where the data will need
+ * to be transferred.
+ *
+ * The return value will be a unique pointer to a newly
+ * allocated device pointer containing the data sent to
+ * this GPU.
+ *
+ * @tparam data_t           Type of the data being shuffled
+ * @tparam iterator_t       Iterator referencing data to be shuffled
+ * @tparam partition_iter_t Iterator identifying the destination partition
+ *
+ * @param  handle         Library handle (RAFT)
+ * @param  data           Device vector containing the data.  Note the
+ *                        contents of this vector will be reordered
+ * @param  partition_iter Random access iterator for the partition
+ */
+template <bool is_multi_gpu,
+          typename data_t,
+          typename iterator_t,
+          typename partition_iter_t,
+          typename std::enable_if_t<is_multi_gpu> * = nullptr>
+rmm::device_vector<data_t> variable_shuffle(raft::handle_t const &handle,
+                                            std::size_t n_elements,
+                                            iterator_t data_iter,
+                                            partition_iter_t partition_iter)
+{
+  return detail::variable_shuffle(handle, n_elements, data_iter, partition_iter);
+}
 
 template <bool is_multi_gpu,
           typename data_t,
           typename iterator_t,
           typename partition_iter_t,
-          typename std::enable_if_t<!is_multi_gpu>* = nullptr>
-rmm::device_vector<data_t> variable_shuffle(raft::handle_t const& handle,
+          typename std::enable_if_t<!is_multi_gpu> * = nullptr>
+rmm::device_vector<data_t> variable_shuffle(raft::handle_t const &handle,
                                             std::size_t n_elements,
                                             iterator_t data_iter,
                                             partition_iter_t partition_iter)
 {
-#if 0
-  cudaStream_t stream = handle.get_stream();
-
-  // Single GPU, just copy the data, ignore the partitioning
-  rmm::device_vector<data_t> result(n_elements);
-  thrust::copy(
-        rmm::exec_policy(stream)->on(stream),
-        data_iter,
-        data_iter + n_elements,
-        result.begin());
-
-  return result;
-#else
   return rmm::device_vector<data_t>(data_iter, data_iter + n_elements);
-#endif
 }
 
 }  // namespace experimental

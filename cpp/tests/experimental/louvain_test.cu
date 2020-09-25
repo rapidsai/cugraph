@@ -19,9 +19,10 @@
 
 #include <experimental/louvain.cuh>
 
-//#include <algorithms.hpp>
-#include <experimental/graph.hpp>
-#include <experimental/graph_view.hpp>
+#include <algorithms.hpp>
+
+//#include <experimental/graph.hpp>
+//#include <experimental/graph_view.hpp>
 
 #include <raft/cudart_utils.h>
 #include <raft/handle.hpp>
@@ -65,20 +66,11 @@ class Tests_Louvain : public ::testing::TestWithParam<Louvain_Usecase> {
     raft::handle_t handle{};
 
     auto graph =
-      cugraph::test::read_graph_from_matrix_market_file<vertex_t, edge_t, weight_t, true>(
+      cugraph::test::read_graph_from_matrix_market_file<vertex_t, edge_t, weight_t, false>(
         handle, configuration.graph_file_full_path, configuration.test_weighted);
 
     auto graph_view = graph.view();
 
-    // size_t level;
-    // weight_t modularity;
-
-    // rmm::device_vector<vertex_t> clustering_v(graph_view.get_number_of_local_vertices());
-    // rmm::device_vector<vertex_t> clustering_v(graph_view.get_number_of_local_vertices());
-
-    // std::tie(level, modularity) = cugraph::experimental::louvain(handle, graph_view,
-    // clustering_v.data().get()); std::tie(level, modularity) = this->louvain(handle, graph_view,
-    // clustering_v.data().get());
     louvain(graph_view);
   }
 
@@ -90,13 +82,12 @@ class Tests_Louvain : public ::testing::TestWithParam<Louvain_Usecase> {
 
     raft::handle_t handle{};
 
-    cugraph::experimental::Louvain<graph_t> runner(handle, graph_view);
-
     rmm::device_vector<vertex_t> clustering_v(graph_view.get_number_of_local_vertices());
     size_t level;
     weight_t modularity;
 
-    std::tie(level, modularity) = runner(clustering_v.data().get(), size_t{100}, weight_t{1});
+    std::tie(level, modularity) =
+      cugraph::louvain(handle, graph_view, clustering_v.data().get(), size_t{100}, weight_t{1});
 
     CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
 
@@ -115,9 +106,9 @@ INSTANTIATE_TEST_CASE_P(simple_test,
                         Tests_Louvain,
                         ::testing::Values(Louvain_Usecase("test/datasets/karate.mtx", true)
 #if 1
-                                          ));
+                                            ));
 #else
-                                          ,
+                                            ,
                                           Louvain_Usecase("test/datasets/web-Google.mtx", true),
                                           Louvain_Usecase("test/datasets/ljournal-2008.mtx", true),
                                           Louvain_Usecase("test/datasets/webbase-1M.mtx", true)));
