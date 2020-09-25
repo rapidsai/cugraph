@@ -16,7 +16,7 @@
 # cython: embedsignature = True
 # cython: language_level = 3
 
-from cugraph.community.louvain cimport louvain as c_louvain
+from cugraph.community cimport louvain as c_louvain
 from cugraph.structure.graph_primtypes cimport *
 from cugraph.structure import graph_primtypes_wrapper
 from libc.stdint cimport uintptr_t
@@ -26,7 +26,7 @@ import rmm
 import numpy as np
 
 
-def louvain(input_graph, max_iter, resolution):
+def louvain(input_graph, max_level, resolution):
     """
     Call louvain
     """
@@ -35,6 +35,7 @@ def louvain(input_graph, max_iter, resolution):
 
     cdef unique_ptr[handle_t] handle_ptr
     handle_ptr.reset(new handle_t())
+    handle_ = handle_ptr.get();
 
     weights = None
     final_modularity = None
@@ -59,36 +60,49 @@ def louvain(input_graph, max_iter, resolution):
     cdef uintptr_t c_identifier = df['vertex'].__cuda_array_interface__['data'][0]
     cdef uintptr_t c_partition = df['partition'].__cuda_array_interface__['data'][0]
     cdef uintptr_t c_weights = weights.__cuda_array_interface__['data'][0]
+    cdef uintptr_t c_local_verts = <uintptr_t> NULL;
+    cdef uintptr_t c_local_edges = <uintptr_t> NULL;
+    cdef uintptr_t c_local_offsets = <uintptr_t> NULL;
 
-    cdef GraphCSRView[int,int,float] graph_float
-    cdef GraphCSRView[int,int,double] graph_double
 
     cdef float final_modularity_float = 1.0
     cdef double final_modularity_double = 1.0
     cdef int num_level = 0
 
-    if weights.dtype == np.float32:
-        graph_float = GraphCSRView[int,int,float](<int*>c_offsets, <int*>c_indices,
-                                                  <float*>c_weights, num_verts, num_edges)
+    # FIXME: Offsets and indices are currently hardcoded to int, but this may
+    #        not be acceptable in the future.
+    weightTypeMap = {np.dtype("float32") : <int>numberTypeEnum.floatType,
+                     np.dtype("double") : <int>numberTypeEnum.doubleType}
 
-        graph_float.get_vertex_identifiers(<int*>c_identifier)
-        num_level, final_modularity_float = c_louvain(handle_ptr.get()[0],
-                                                      graph_float,
-                                                      <int*> c_partition,
-                                                      <int> max_iter,
-                                                      <float> resolution)
+    cdef graph_container_t graph_container
+
+    # FIXME: The excessive casting for the enum arg is needed to make cython
+    #        understand how to pass the enum value (this is the same pattern
+    #        used by cudf). This will not be needed with Cython 3.0
+    populate_graph_container_legacy(graph_container,
+                                    <legacyGraphTypeEnum>(<int>(legacyGraphTypeEnum.CSR)),
+                                    handle_[0],
+                                    <void*>c_offsets, <void*>c_indices, <void*>c_weights,
+                                    <numberTypeEnum>(<int>(numberTypeEnum.intType)),
+                                    <numberTypeEnum>(<int>(numberTypeEnum.intType)),
+                                    <numberTypeEnum>(<int>(weightTypeMap[weights.dtype])),
+                                    num_verts, num_edges,
+                                    <int*>c_local_verts, <int*>c_local_edges, <int*>c_local_offsets)
+
+    if weights.dtype == np.float32:
+        num_level, final_modularity_float = c_louvain.call_louvain[float](handle_[0], graph_container,
+                                                      <void*> c_identifier,
+                                                      <void*> c_partition,
+                                                      max_level,
+                                                      resolution)
 
         final_modularity = final_modularity_float
     else:
-        graph_double = GraphCSRView[int,int,double](<int*>c_offsets, <int*>c_indices,
-                                                    <double*>c_weights, num_verts, num_edges)
-
-        graph_double.get_vertex_identifiers(<int*>c_identifier)
-        num_level, final_modularity_double = c_louvain(handle_ptr.get()[0],
-                                                       graph_double,
-                                                       <int*> c_partition,
-                                                       <int> max_iter,
-                                                       <double> resolution)
+        num_level, final_modularity_double = c_louvain.call_louvain[double](handle_[0], graph_container,
+                                                                            <void*> c_identifier,
+                                                                            <void*> c_partition,
+                                                                            max_level,
+                                                                            resolution)
         final_modularity = final_modularity_double
 
     return df, final_modularity

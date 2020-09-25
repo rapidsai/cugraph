@@ -168,14 +168,30 @@ void populate_graph_container(graph_container_t& graph_container,
                               bool transposed,
                               bool multi_gpu);
 
+// FIXME: comment this function
+void populate_graph_container_legacy(graph_container_t& graph_container,
+                                     legacyGraphTypeEnum legacyType,
+                                     raft::handle_t const& handle,
+                                     void* offsets,
+                                     void* indices,
+                                     void* weights,
+                                     numberTypeEnum offsetType,
+                                     numberTypeEnum indexType,
+                                     numberTypeEnum weightType,
+                                     int num_vertices,
+                                     int num_edges,
+                                     int* local_vertices,
+                                     int* local_edges,
+                                     int* local_offsets);
+
 // Wrapper for calling Louvain using a graph container
 template <typename weight_t>
-weight_t call_louvain(raft::handle_t const& handle,
-                      graph_container_t const& graph_container,
-                      void* parts,
-                      void* identifiers,
-                      size_t max_level,
-                      weight_t resolution);
+std::pair<size_t, weight_t> call_louvain(raft::handle_t const& handle,
+                                         graph_container_t const& graph_container,
+                                         void* identifiers,
+                                         void* parts,
+                                         size_t max_level,
+                                         weight_t resolution);
 
 }  // namespace cython
 }  // namespace cugraph

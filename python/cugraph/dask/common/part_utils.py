@@ -16,12 +16,14 @@ import numpy as np
 from dask.distributed import futures_of, default_client, wait
 from toolz import first
 import collections
-import dask_cudf as dc
+import dask_cudf
 from dask.array.core import Array as daskArray
 from dask_cudf.core import DataFrame as daskDataFrame
 from dask_cudf.core import Series as daskSeries
 from functools import reduce
 import cugraph.comms.comms as Comms
+from dask.delayed import delayed
+import cudf
 
 
 def workers_to_parts(futures):
@@ -193,10 +195,47 @@ def load_balance_func(ddf_, by, client=None):
                for idx, wf in enumerate(worker_to_data.items())]
     wait(futures)
 
-    ddf = dc.from_delayed(futures)
+    ddf = dask_cudf.from_delayed(futures)
     ddf.divisions = divisions
 
     # Repartition the data
     ddf = repartition(ddf, cumsum_parts)
 
     return ddf
+
+
+def concat_dfs(df_list):
+    """
+    Concat a list of cudf dataframes
+    """
+    return cudf.concat(df_list)
+
+
+def get_delayed_dict(ddf):
+    """
+    Returns a dicitionary with the dataframe tasks as keys and
+    the dataframe delayed objects as values
+    """
+    df_delayed = {}
+    for delayed_obj in ddf.to_delayed():
+        df_delayed[str(delayed_obj.key)] = delayed_obj
+    return df_delayed
+
+
+def concat_within_workers(client, ddf):
+    """
+    Concats all partitions within workers without transfers
+    """
+    df_delayed = get_delayed_dict(ddf)
+
+    result = []
+    for worker, tasks in client.has_what().items():
+        worker_task_list = []
+
+        for task in list(tasks):
+            if task in df_delayed:
+                worker_task_list.append(df_delayed[task])
+        concat_tasks = delayed(concat_dfs)(worker_task_list)
+        result.append(client.persist(collections=concat_tasks, workers=worker))
+
+    return dask_cudf.from_delayed(result)

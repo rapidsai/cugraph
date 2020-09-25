@@ -17,7 +17,6 @@
 # cython: language_level = 3
 
 from libc.stdint cimport uintptr_t
-from libcpp.pair cimport pair
 
 from cugraph.dask.community cimport louvain as c_louvain
 from cugraph.structure.graph_primtypes cimport *
@@ -198,17 +197,17 @@ def louvain(input_df, vertex_partition_offsets, handle, max_level, resolution):
     df['vertex'] = cudf.Series(np.zeros(num_verts, dtype=np.int32))
     df['partition'] = cudf.Series(np.zeros(num_verts, dtype=np.int32))
 
-    cdef uintptr_t c_identifier = df['vertex'].__cuda_array_interface__['data'][0]
+    cdef uintptr_t c_identifiers = df['vertex'].__cuda_array_interface__['data'][0]
     cdef uintptr_t c_partition = df['partition'].__cuda_array_interface__['data'][0]
 
     if weights.dtype == np.float32:
-        final_modularity_float = c_louvain.call_louvain[float](
-            handle_[0], graph_container, <void*>c_partition, <void*>c_identifier, max_level, resolution)
+        num_level, final_modularity_float = c_louvain.call_louvain[float](
+            handle_[0], graph_container, <void*>c_identifiers, <void*>c_partition, max_level, resolution)
         final_modularity = final_modularity_float
 
     else:
-        final_modularity_double = c_louvain.call_louvain[double](
-            handle_[0], graph_container, <void*>c_partition, <void*>c_identifier, max_level, resolution)
+        num_level, final_modularity_double = c_louvain.call_louvain[double](
+            handle_[0], graph_container, <void*>c_identifiers, <void*>c_partition, max_level, resolution)
         final_modularity = final_modularity_double
 
     return df, final_modularity

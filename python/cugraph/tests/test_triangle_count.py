@@ -84,3 +84,21 @@ def test_triangles_edge_vals(graph_file):
     cu_count = cugraph_call(M, edgevals=True)
     nx_count = networkx_call(M)
     assert cu_count == nx_count
+
+
+@pytest.mark.parametrize("graph_file", utils.DATASETS_UNDIRECTED)
+def test_triangles_nx(graph_file):
+    gc.collect()
+
+    M = utils.read_csv_for_nx(graph_file)
+    G = nx.from_pandas_edgelist(
+        M, source="0", target="1", create_using=nx.Graph()
+    )
+
+    cu_count = cugraph.triangles(G)
+    dic = nx.triangles(G)
+    nx_count = 0
+    for i in dic.keys():
+        nx_count += dic[i]
+
+    assert cu_count == nx_count

@@ -13,6 +13,47 @@
 
 from cugraph.community import ktruss_subgraph_wrapper
 from cugraph.structure.graph import Graph
+from cugraph.utilities import check_nx_graph
+from cugraph.utilities import cugraph_to_nx
+
+
+def k_truss(G, k):
+    """
+    Returns the K-Truss subgraph of a graph for a specific k.
+
+    The k-truss of a graph is a subgraph where each edge is part of at least
+    (k−2) triangles. K-trusses are used for finding tighlty knit groups of
+    vertices in a graph. A k-truss is a relaxation of a k-clique in the graph
+    and was define in [1]. Finding cliques is computationally demanding and
+    finding the maximal k-clique is known to be NP-Hard.
+
+    Parameters
+    ----------
+    G : cuGraph.Graph or networkx.Graph
+        cuGraph graph descriptor with connectivity information. k-Trusses are
+        defined for only undirected graphs as they are defined for
+        undirected triangle in a graph.
+
+    k : int
+        The desired k to be used for extracting the k-truss subgraph.
+
+    Returns
+    -------
+    G_truss : cuGraph.Graph or networkx.Graph
+        A cugraph graph descriptor with the k-truss subgraph for the given k.
+        The networkx graph will NOT have all attributes copied over
+    """
+
+    G, isNx = check_nx_graph(G)
+
+    if isNx is True:
+        k_sub = ktruss_subgraph(G, k)
+        S = cugraph_to_nx(k_sub)
+        return S
+    else:
+        return ktruss_subgraph(G, k)
+
+# FIXME: merge this function with k_truss
 
 
 def ktruss_subgraph(G, k, use_weights=True):

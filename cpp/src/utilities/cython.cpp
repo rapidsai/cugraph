@@ -104,7 +104,6 @@ void populate_graph_container(graph_container_t& graph_container,
 
        edge_lists.push_back(experimental::edgelist_t<int, int, double>{src_vertices_array, dst_vertices_array,
                 reinterpret_cast<double*>(weights), num_edges});
-
        auto g = new experimental::graph_t<int, int, double, false, true>(
          handle,
          edge_lists,
@@ -126,7 +125,6 @@ void populate_graph_container(graph_container_t& graph_container,
      if (weightType == numberTypeEnum::floatType) {
        experimental::edgelist_t<int, int, float> edge_list{src_vertices_array, dst_vertices_array,
              reinterpret_cast<float*>(weights), num_edges};
-
        auto g = new experimental::graph_t<int, int, float, false, false>(
          handle,
          edge_list,
@@ -142,7 +140,6 @@ void populate_graph_container(graph_container_t& graph_container,
     } else {
        experimental::edgelist_t<int, int, double> edge_list{src_vertices_array, dst_vertices_array,
              reinterpret_cast<double*>(weights), num_edges};
-
        auto g = new experimental::graph_t<int, int, double, false, false>(
          handle,
          edge_list,
@@ -159,91 +156,20 @@ void populate_graph_container(graph_container_t& graph_container,
 }
 
 
-// Wrapper for calling Louvain using a graph container
-template <typename weight_t>
-weight_t call_louvain(raft::handle_t const& handle,
-                      graph_container_t const& graph_container,
-                      void* parts,
-                      void* identifiers,
-                      size_t max_level,
-                      weight_t resolution)
-{
-  weight_t final_modularity;
-
-  // FIXME: the only graph types currently in the container have ints for
-  // vertex_t and edge_t types. In the future, additional types for vertices and
-  // edges will be available, and when that happens, additional castings will be
-  // needed for the 'parts' arg in particular. For now, it is hardcoded to int.
-  if (graph_container.graph_ptr_type == graphTypeEnum::graph_t_float_mg) {
-    std::pair<size_t, float> results =
-      louvain(handle,
-              graph_container.graph_ptr_union.graph_t_float_mg_ptr->view(),
-              reinterpret_cast<int*>(parts),
-              max_level,
-              static_cast<float>(resolution));
-    final_modularity = results.second;
-
-  } else if (graph_container.graph_ptr_type == graphTypeEnum::graph_t_double_mg) {
-    std::pair<size_t, double> results =
-      louvain(handle,
-              graph_container.graph_ptr_union.graph_t_double_mg_ptr->view(),
-              reinterpret_cast<int*>(parts),
-              max_level,
-              static_cast<double>(resolution));
-    final_modularity = results.second;
-
-  } else {
-     CUGRAPH_EXPECTS(false, "unsupported");
-  }
-
-  return final_modularity;
-}
-
-
-// Explicit instantiations
-template float call_louvain(raft::handle_t const& handle,
-                            graph_container_t const& graph_container,
-                            void* parts,
-                            void* identifiers,
-                            size_t max_level,
-                            float resolution);
-
-template double call_louvain(raft::handle_t const& handle,
-                             graph_container_t const& graph_container,
-                             void* parts,
-                             void* identifiers,
-                             size_t max_level,
-                             double resolution);
-
-}  // namespace cython
-}  // namespace cugraph
-
-
-
-
-
-
-
-//
-// FIXME: Should local_* values be void* as well?
-/*
-void populate_graph_container(graph_container_t& graph_container,
-                              legacyGraphTypeEnum legacyType,
-                              raft::handle_t const& handle,
-                              void* offsets,
-                              void* indices,
-                              void* weights,
-                              void* identifiers,
-                              numberTypeEnum offsetType,
-                              numberTypeEnum indexType,
-                              numberTypeEnum weightType,
-                              int num_vertices,
-                              int num_edges,
-                              int* local_vertices,
-                              int* local_edges,
-                              int* local_offsets,
-                              bool transposed,
-                              bool multi_gpu)
+void populate_graph_container_legacy(graph_container_t& graph_container,
+                                     legacyGraphTypeEnum legacyType,
+                                     raft::handle_t const& handle,
+                                     void* offsets,
+                                     void* indices,
+                                     void* weights,
+                                     numberTypeEnum offsetType,
+                                     numberTypeEnum indexType,
+                                     numberTypeEnum weightType,
+                                     int num_vertices,
+                                     int num_edges,
+                                     int* local_vertices,
+                                     int* local_edges,
+                                     int* local_offsets)
 {
   CUGRAPH_EXPECTS(graph_container.graph_ptr_type == graphTypeEnum::null,
                   "populate_graph_container() can only be called on an empty container.");
@@ -266,8 +192,6 @@ void populate_graph_container(graph_container_t& graph_container,
           ->set_local_data(local_vertices, local_edges, local_offsets);
         (graph_container.graph_ptr_union.GraphCSRViewFloatPtr)
           ->set_handle(const_cast<raft::handle_t*>(&handle));
-        (graph_container.graph_ptr_union.GraphCSRViewFloatPtr)
-          ->get_vertex_identifiers(reinterpret_cast<int*>(identifiers));  // cast to vertex_t
       } break;
       case legacyGraphTypeEnum::CSC: {
         graph_container.graph_ptr_union.GraphCSCViewFloatPtr =
@@ -281,8 +205,6 @@ void populate_graph_container(graph_container_t& graph_container,
           ->set_local_data(local_vertices, local_edges, local_offsets);
         (graph_container.graph_ptr_union.GraphCSCViewFloatPtr)
           ->set_handle(const_cast<raft::handle_t*>(&handle));
-        (graph_container.graph_ptr_union.GraphCSCViewFloatPtr)
-          ->get_vertex_identifiers(reinterpret_cast<int*>(identifiers));  // cast to vertex_t
       } break;
       case legacyGraphTypeEnum::COO: {
         graph_container.graph_ptr_union.GraphCOOViewFloatPtr =
@@ -296,8 +218,6 @@ void populate_graph_container(graph_container_t& graph_container,
           ->set_local_data(local_vertices, local_edges, local_offsets);
         (graph_container.graph_ptr_union.GraphCOOViewFloatPtr)
           ->set_handle(const_cast<raft::handle_t*>(&handle));
-        (graph_container.graph_ptr_union.GraphCOOViewFloatPtr)
-          ->get_vertex_identifiers(reinterpret_cast<int*>(identifiers));  // cast to vertex_t
       } break;
     }
 
@@ -315,8 +235,6 @@ void populate_graph_container(graph_container_t& graph_container,
           ->set_local_data(local_vertices, local_edges, local_offsets);
         (graph_container.graph_ptr_union.GraphCSRViewDoublePtr)
           ->set_handle(const_cast<raft::handle_t*>(&handle));
-        (graph_container.graph_ptr_union.GraphCSRViewDoublePtr)
-          ->get_vertex_identifiers(reinterpret_cast<int*>(identifiers));  // cast to vertex_t
       } break;
       case legacyGraphTypeEnum::CSC: {
         graph_container.graph_ptr_union.GraphCSCViewDoublePtr =
@@ -330,8 +248,6 @@ void populate_graph_container(graph_container_t& graph_container,
           ->set_local_data(local_vertices, local_edges, local_offsets);
         (graph_container.graph_ptr_union.GraphCSCViewDoublePtr)
           ->set_handle(const_cast<raft::handle_t*>(&handle));
-        (graph_container.graph_ptr_union.GraphCSCViewDoublePtr)
-          ->get_vertex_identifiers(reinterpret_cast<int*>(identifiers));  // cast to vertex_t
       } break;
       case legacyGraphTypeEnum::COO: {
         graph_container.graph_ptr_union.GraphCOOViewDoublePtr =
@@ -345,11 +261,81 @@ void populate_graph_container(graph_container_t& graph_container,
           ->set_local_data(local_vertices, local_edges, local_offsets);
         (graph_container.graph_ptr_union.GraphCOOViewDoublePtr)
           ->set_handle(const_cast<raft::handle_t*>(&handle));
-        (graph_container.graph_ptr_union.GraphCOOViewDoublePtr)
-          ->get_vertex_identifiers(reinterpret_cast<int*>(identifiers));  // cast to vertex_t
       } break;
     }
   }
   return;
-  ////////////////////////////////////////////////////////////////////////////////////
-*/
+}
+
+
+////////////////////////////////////////////////////////////////////////////////
+
+// Wrapper for calling Louvain using a graph container
+template <typename weight_t>
+std::pair<size_t, weight_t> call_louvain(raft::handle_t const& handle,
+                                         graph_container_t const& graph_container,
+                                         void* identifiers,
+                                         void* parts,
+                                         size_t max_level,
+                                         weight_t resolution)
+{
+  std::pair<size_t, weight_t> results;
+
+  // FIXME: the only graph types currently in the container have ints for
+  // vertex_t and edge_t types. In the future, additional types for vertices and
+  // edges will be available, and when that happens, additional castings will be
+  // needed for the 'parts' arg in particular. For now, it is hardcoded to int.
+  if (graph_container.graph_ptr_type == graphTypeEnum::graph_t_float_mg) {
+    results = louvain(handle,
+                      graph_container.graph_ptr_union.graph_t_float_mg_ptr->view(),
+                      reinterpret_cast<int*>(parts),
+                      max_level,
+                      static_cast<float>(resolution));
+
+  } else if (graph_container.graph_ptr_type == graphTypeEnum::graph_t_double_mg) {
+    results = louvain(handle,
+                      graph_container.graph_ptr_union.graph_t_double_mg_ptr->view(),
+                      reinterpret_cast<int*>(parts),
+                      max_level,
+                      static_cast<double>(resolution));
+  } else if (graph_container.graph_ptr_type == graphTypeEnum::GraphCSRViewFloat) {
+     //     if (graph_container.graph_ptr_type == graphTypeEnum::GraphCSRViewFloat) {
+    graph_container.graph_ptr_union.GraphCSCViewFloatPtr->get_vertex_identifiers(
+      static_cast<int32_t*>(identifiers));
+    results = louvain(handle,
+                      *(graph_container.graph_ptr_union.GraphCSRViewFloatPtr),
+                      reinterpret_cast<int*>(parts),
+                      max_level,
+                      static_cast<float>(resolution));
+  } else if (graph_container.graph_ptr_type == graphTypeEnum::GraphCSRViewDouble) {
+    graph_container.graph_ptr_union.GraphCSCViewDoublePtr->get_vertex_identifiers(
+      static_cast<int32_t*>(identifiers));
+    results = louvain(handle,
+                      *(graph_container.graph_ptr_union.GraphCSRViewDoublePtr),
+                      reinterpret_cast<int*>(parts),
+                      max_level,
+                      static_cast<double>(resolution));
+  }
+
+  return results;
+}
+
+
+// Explicit instantiations
+template std::pair<size_t, float> call_louvain(raft::handle_t const& handle,
+                                               graph_container_t const& graph_container,
+                                               void* identifiers,
+                                               void* parts,
+                                               size_t max_level,
+                                               float resolution);
+
+template std::pair<size_t, double> call_louvain(raft::handle_t const& handle,
+                                                graph_container_t const& graph_container,
+                                                void* identifiers,
+                                                void* parts,
+                                                size_t max_level,
+                                                double resolution);
+
+
+}  // namespace cython
+}  // namespace cugraph

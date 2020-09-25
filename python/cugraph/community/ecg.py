@@ -12,9 +12,11 @@
 # limitations under the License.
 
 from cugraph.community import ecg_wrapper
+from cugraph.utilities import check_nx_graph
+from cugraph.utilities import df_score_to_dictionary
 
 
-def ecg(input_graph, min_weight=0.05, ensemble_size=16):
+def ecg(input_graph, min_weight=0.05, ensemble_size=16, weight=None):
     """
     Compute the Ensemble Clustering for Graphs (ECG) partition of the input
     graph. ECG runs truncated Louvain on an ensemble of permutations of the
@@ -26,8 +28,8 @@ def ecg(input_graph, min_weight=0.05, ensemble_size=16):
 
     Parameters
     ----------
-    input_graph : cugraph.Graph
-        cuGraph graph descriptor, should contain the connectivity information
+    input_graph : cugraph.Graph or NetworkX Graph
+        The graph descriptor should contain the connectivity information
         and weights. The adjacency list will be computed if not already
         present.
 
@@ -41,9 +43,14 @@ def ecg(input_graph, min_weight=0.05, ensemble_size=16):
         The default value is 16, larger values may produce higher quality
         partitions for some graphs.
 
+    weight : str
+        This parameter is here for NetworkX compatibility and
+        represents which NetworkX data column represents Edge weights.
+        Default is None
+
     Returns
     -------
-    parts : cudf.DataFrame
+    parts : cudf.DataFrame or python dictionary
         GPU data frame of size V containing two columns, the vertex id and
         the partition id it is assigned to.
 
@@ -63,9 +70,14 @@ def ecg(input_graph, min_weight=0.05, ensemble_size=16):
 
     """
 
+    input_graph, isNx = check_nx_graph(input_graph, weight)
+
     parts = ecg_wrapper.ecg(input_graph, min_weight, ensemble_size)
 
     if input_graph.renumbered:
         parts = input_graph.unrenumber(parts, "vertex")
 
-    return parts
+    if isNx is True:
+        return df_score_to_dictionary(parts, 'partition')
+    else:
+        return parts

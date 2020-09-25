@@ -200,8 +200,8 @@ cdef extern from "utilities/cython.hpp" namespace "cugraph::cython":
         floatType "cugraph::cython::numberTypeEnum::floatType"
         doubleType "cugraph::cython::numberTypeEnum::doubleType"
 
-    cdef struct graph_container_t:
-        pass
+    cdef cppclass graph_container_t:
+       pass
 
     cdef void populate_graph_container(
         graph_container_t &graph_container,
@@ -221,3 +221,24 @@ cdef extern from "utilities/cython.hpp" namespace "cugraph::cython":
         int num_edges,
         bool transposed,
         bool multi_gpu) except +
+
+    ctypedef enum legacyGraphTypeEnum:
+        CSR "cugraph::cython::legacyGraphTypeEnum::CSR"
+        CSC "cugraph::cython::legacyGraphTypeEnum::CSC"
+        COO "cugraph::cython::legacyGraphTypeEnum::COO"
+
+    cdef void populate_graph_container_legacy(
+        graph_container_t &graph_container,
+        legacyGraphTypeEnum legacyType,
+        const handle_t &handle,
+        void *offsets,
+        void *indices,
+        void *weights,
+        numberTypeEnum offsetType,
+        numberTypeEnum indexType,
+        numberTypeEnum weightType,
+        int num_vertices,
+        int num_edges,
+        int *local_vertices,
+        int *local_edges,
+        int *local_offsets) except +
