@@ -17,7 +17,6 @@
 # cython: language_level = 3
 
 from libc.stdint cimport uintptr_t
-from libcpp.pair cimport pair
 
 from cugraph.dask.community cimport louvain as c_louvain
 from cugraph.structure.graph_primtypes cimport *
@@ -111,12 +110,12 @@ def louvain(input_df, local_data, rank, handle, max_level, resolution):
                              False, True)  # store_transposed, multi_gpu
 
     if weights.dtype == np.float32:
-        final_modularity_float = c_louvain.call_louvain[float](
+        num_level, final_modularity_float = c_louvain.call_louvain[float](
             handle_[0], graph_container, <void*>c_partition, max_level, resolution)
         final_modularity = final_modularity_float
 
     else:
-        final_modularity_double = c_louvain.call_louvain[double](
+        num_level, final_modularity_double = c_louvain.call_louvain[double](
             handle_[0], graph_container, <void*> c_partition, max_level, resolution)
         final_modularity = final_modularity_double
 

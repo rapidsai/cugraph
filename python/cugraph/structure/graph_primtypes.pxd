@@ -205,8 +205,8 @@ cdef extern from "utilities/cython.hpp" namespace "cugraph::cython":
         CSC "cugraph::cython::legacyGraphTypeEnum::CSC"
         COO "cugraph::cython::legacyGraphTypeEnum::COO"
 
-    cdef struct graph_container_t:
-        pass
+    cdef cppclass graph_container_t:
+        void get_vertex_identifiers(void *)
 
     cdef void populate_graph_container(
         graph_container_t &graph_container,
