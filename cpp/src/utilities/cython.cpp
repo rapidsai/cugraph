@@ -174,26 +174,31 @@ weight_t call_louvain(raft::handle_t const& handle,
   // vertex_t and edge_t types. In the future, additional types for vertices and
   // edges will be available, and when that happens, additional castings will be
   // needed for the 'parts' arg in particular. For now, it is hardcoded to int.
-  if (graph_container.graph_ptr_type == graphTypeEnum::GraphCSRViewFloat) {
+  if (graph_container.graph_ptr_type == graphTypeEnum::graph_t_float_mg) {
     std::pair<size_t, float> results =
       louvain(handle,
-              *(graph_container.graph_ptr_union.GraphCSRViewFloatPtr),
+              graph_container.graph_ptr_union.graph_t_float_mg_ptr->view(),
               reinterpret_cast<int*>(parts),
               max_level,
               static_cast<float>(resolution));
     final_modularity = results.second;
-  } else {
+
+  } else if (graph_container.graph_ptr_type == graphTypeEnum::graph_t_double_mg) {
     std::pair<size_t, double> results =
       louvain(handle,
-              *(graph_container.graph_ptr_union.GraphCSRViewDoublePtr),
+              graph_container.graph_ptr_union.graph_t_double_mg_ptr->view(),
               reinterpret_cast<int*>(parts),
               max_level,
               static_cast<double>(resolution));
     final_modularity = results.second;
+
+  } else {
+     CUGRAPH_EXPECTS(false, "unsupported");
   }
 
   return final_modularity;
 }
+
 
 // Explicit instantiations
 template float call_louvain(raft::handle_t const& handle,
