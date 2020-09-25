@@ -15,34 +15,21 @@ import cudf
 import cugraph
 import pandas as pd
 import networkx as nx
+import numpy as np
 import dask_cudf
 import os
 from cugraph.dask.common.mg_utils import (get_client)
 
 #
-# Datasets are numbered based on the number of elements in the array
+# Datasets
 #
-DATASETS_1 = ['../datasets/netscience.csv']
+DATASETS_UNDIRECTED = ['../datasets/karate.csv',  '../datasets/dolphins.csv']
+DATASETS_UNRENUMBERED = ['../datasets/karate-disjoint.csv']
 
-DATASETS_2 = ['../datasets/karate.csv',
-              '../datasets/dolphins.csv']
-
-DATASETS_3 = ['../datasets/karate.csv',
-              '../datasets/dolphins.csv',
-              '../datasets/email-Eu-core.csv']
-
-# FIXME: netscience.csv causes NetworkX pagerank to throw an exception.
-# (networkx/algorithms/link_analysis/pagerank_alg.py:152: KeyError: 1532)
-DATASETS_4 = ['../datasets/karate.csv',
-              '../datasets/dolphins.csv',
-              '../datasets/netscience.csv',
-              '../datasets/email-Eu-core.csv']
-
-DATASETS_5 = ['../datasets/karate.csv',
-              '../datasets/dolphins.csv',
-              '../datasets/polbooks.csv',
-              '../datasets/netscience.csv',
-              '../datasets/email-Eu-core.csv']
+DATASETS = ['../datasets/karate-disjoint.csv',
+            '../datasets/dolphins.csv',
+            '../datasets/netscience.csv']
+#            '../datasets/email-Eu-core.csv']
 
 STRONGDATASETS = ['../datasets/dolphins.csv',
                   '../datasets/netscience.csv',
@@ -53,19 +40,9 @@ DATASETS_KTRUSS = [('../datasets/polbooks.csv',
                    ('../datasets/netscience.csv',
                     '../datasets/ref/ktruss/netscience.csv')]
 
-TINY_DATASETS = ['../datasets/karate.csv',
-                 '../datasets/dolphins.csv',
-                 '../datasets/polbooks.csv']
-
-SMALL_DATASETS = ['../datasets/netscience.csv',
-                  '../datasets/email-Eu-core.csv']
-
-UNRENUMBERED_DATASETS = ['../datasets/karate.csv']
-
-
-# define the base for tests to use
-DATASETS = DATASETS_3
-DATASETS_UNDIRECTED = DATASETS_2
+DATASETS_SMALL = ['../datasets/karate.csv',
+                  '../datasets/dolphins.csv',
+                  '../datasets/polbooks.csv']
 
 
 def read_csv_for_nx(csv_file, read_weights_in_sp=True):
@@ -163,3 +140,63 @@ def build_mg_batch_cu_and_nx_graphs(graph_file, directed=True):
                                                   directed=directed)
     Gnx = generate_nx_graph_from_file(graph_file, directed=directed)
     return G, Gnx
+
+
+def random_edgelist(e=1024, ef=16,
+                    dtypes={"src": np.int32, "dst": np.int32, "val": float},
+                    drop_duplicates=True, seed=None):
+    """ Create a random edge list
+
+    Parameters
+    ----------
+    e : int
+        Number of edges
+    ef : int
+        Edge factor (average number of edges per vertex)
+    dtypes : dict
+        Mapping of column names to types.
+        Supported type is {"src": int, "dst": int, "val": float}
+    drop_duplicates
+        Drop duplicates
+    seed : int (optional)
+        Randomstate seed
+
+    Examples
+    --------
+    >>> from cugraph.tests import utils
+    >>> # genrates 20 df with 100M edges each and write to disk
+    >>> for x in range(20):
+    >>>    df = utils.random_edgelist(e=100000000, ef=64,
+    >>>                               dtypes={'src':np.int32, 'dst':np.int32},
+    >>>                               seed=x)
+    >>>    df.to_csv('df'+str(x), header=False, index=False)
+    >>>    #df.to_parquet('files_parquet/df'+str(x), index=False)
+    """
+    state = np.random.RandomState(seed)
+    columns = dict((k, make[dt](e // ef, e, state))
+                   for k, dt in dtypes.items())
+
+    df = pd.DataFrame(columns)
+    if drop_duplicates:
+        df = df.drop_duplicates()
+        print("Generated "+str(df.shape[0])+" edges")
+    return cudf.from_pandas(df)
+
+
+def make_int32(v, e, rstate):
+    return rstate.randint(low=0, high=v, size=e, dtype=np.int32)
+
+
+def make_int64(v, e, rstate):
+    return rstate.randint(low=0, high=v, size=e, dtype=np.int64)
+
+
+def make_float(v, e, rstate):
+    return rstate.rand(e) * 2 - 1
+
+
+make = {
+    float: make_float,
+    np.int32: make_int32,
+    np.int64: make_int64
+}

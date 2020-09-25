@@ -11,7 +11,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from cugraph.structure import graph_new_wrapper
+from cugraph.structure import graph_primtypes_wrapper
 from cugraph.structure.symmetrize import symmetrize
 from cugraph.structure.number_map import NumberMap
 from cugraph.dask.common.input_utils import get_local_data
@@ -337,11 +337,11 @@ class Graph:
 
         Examples
         --------
-        >>> M = cudf.read_csv('datasets/karate.csv', delimiter=' ',
+        >>> df = cudf.read_csv('datasets/karate.csv', delimiter=' ',
         >>>                   dtype=['int32', 'int32', 'float32'], header=None)
         >>> G = cugraph.Graph()
-        >>> G.from_cudf_edgelist(M, source='0', destination='1', edge_attr='2',
-                                 renumber=False)
+        >>> G.from_cudf_edgelist(df, source='0', destination='1',
+                                 edge_attr='2', renumber=False)
 
         """
         if self.edgelist is not None or self.adjlist is not None:
@@ -547,7 +547,7 @@ names not found in input. Recheck the source and destination parameters')
                 raise Exception("Graph has no Edgelist.")
             return self.edgelist.edgelist_df
         if self.edgelist is None:
-            src, dst, weights = graph_new_wrapper.view_edge_list(self)
+            src, dst, weights = graph_primtypes_wrapper.view_edge_list(self)
             self.edgelist = self.EdgeList(src, dst, weights)
 
         edgelist_df = self.edgelist.edgelist_df
@@ -607,9 +607,9 @@ names not found in input. Recheck the source and destination parameters')
 
         Examples
         --------
-        >>> M = cudf.read_csv('datasets/karate.csv', delimiter=' ',
+        >>> gdf = cudf.read_csv('datasets/karate.csv', delimiter=' ',
         >>>                   dtype=['int32', 'int32', 'float32'], header=None)
-        >>> M = M.to_pandas()
+        >>> M = gdf.to_pandas()
         >>> M = scipy.sparse.coo_matrix((M['2'],(M['0'],M['1'])))
         >>> M = M.tocsr()
         >>> offsets = cudf.Series(M.indptr)
@@ -717,7 +717,7 @@ names not found in input. Recheck the source and destination parameters')
                     self.transposedadjlist.weights,
                 )
             else:
-                off, ind, vals = graph_new_wrapper.view_adj_list(self)
+                off, ind, vals = graph_primtypes_wrapper.view_adj_list(self)
             self.adjlist = self.AdjList(off, ind, vals)
 
             if self.batch_enabled:
@@ -760,9 +760,8 @@ names not found in input. Recheck the source and destination parameters')
                     self.adjlist.weights,
                 )
             else:
-                off, ind, vals = graph_new_wrapper.view_transposed_adj_list(
-                    self
-                )
+                off, ind, vals = \
+                    graph_primtypes_wrapper.view_transposed_adj_list(self)
             self.transposedadjlist = self.transposedAdjList(off, ind, vals)
 
             if self.batch_enabled:
@@ -788,24 +787,16 @@ names not found in input. Recheck the source and destination parameters')
         Returns
         -------
         df : cudf.DataFrame
-            df['first'] : cudf.Series
+            df[first] : cudf.Series
                 the first vertex id of a pair, if an external vertex id
                 is defined by only one column
-            df['second'] : cudf.Series
+            df[second] : cudf.Series
                 the second vertex id of a pair, if an external vertex id
                 is defined by only one column
-            df['*_first'] : cudf.Series
-                the first vertex id of a pair, column 0 of the external
-                vertex id will be represented as '0_first', column 1 as
-                '1_first', etc.
-            df['*_second'] : cudf.Series
-                the second vertex id of a pair, column 0 of the external
-                vertex id will be represented as '0_first', column 1 as
-                '1_first', etc.
         """
         if self.distributed:
             raise Exception("Not supported for distributed graph")
-        df = graph_new_wrapper.get_two_hop_neighbors(self)
+        df = graph_primtypes_wrapper.get_two_hop_neighbors(self)
         if self.renumbered is True:
             df = self.unrenumber(df, "first")
             df = self.unrenumber(df, "second")
@@ -895,10 +886,11 @@ names not found in input. Recheck the source and destination parameters')
             vertices (vertex_subset) containing the in_degree. The ordering is
             relative to the adjacency list, or that given by the specified
             vertex_subset.
-            df['vertex'] : cudf.Series
+
+            df[vertex] : cudf.Series
                 The vertex IDs (will be identical to vertex_subset if
                 specified).
-            df['degree'] : cudf.Series
+            df[degree] : cudf.Series
                 The computed in-degree of the corresponding vertex.
 
         Examples
@@ -933,10 +925,11 @@ names not found in input. Recheck the source and destination parameters')
             vertices (vertex_subset) containing the out_degree. The ordering is
             relative to the adjacency list, or that given by the specified
             vertex_subset.
-            df['vertex'] : cudf.Series
+
+            df[vertex] : cudf.Series
                 The vertex IDs (will be identical to vertex_subset if
                 specified).
-            df['degree'] : cudf.Series
+            df[degree] : cudf.Series
                 The computed out-degree of the corresponding vertex.
 
         Examples
@@ -954,15 +947,16 @@ names not found in input. Recheck the source and destination parameters')
 
     def degree(self, vertex_subset=None):
         """
-        Compute vertex degree. By default, this method computes vertex
+        Compute vertex degree, which is the total number of edges incident
+        to a vertex (both in and out edges). By default, this method computes
         degrees for the entire set of vertices. If vertex_subset is provided,
-        this method optionally filters out all but those listed in
+        then this method optionally filters out all but those listed in
         vertex_subset.
 
         Parameters
         ----------
         vertex_subset : cudf.Series or iterable container, optional
-            A container of vertices for displaying corresponding degree. If not
+            a container of vertices for displaying corresponding degree. If not
             set, degrees are computed for the entire set of vertices.
 
         Returns
@@ -972,6 +966,7 @@ names not found in input. Recheck the source and destination parameters')
             vertices (vertex_subset) containing the degree. The ordering is
             relative to the adjacency list, or that given by the specified
             vertex_subset.
+
             df['vertex'] : cudf.Series
                 The vertex IDs (will be identical to vertex_subset if
                 specified).
@@ -984,7 +979,8 @@ names not found in input. Recheck the source and destination parameters')
         >>>                   dtype=['int32', 'int32', 'float32'], header=None)
         >>> G = cugraph.Graph()
         >>> G.from_cudf_edgelist(M, '0', '1')
-        >>> df = G.degree([0,9,12])
+        >>> all_df = G.degree()
+        >>> subset_df = G.degree([0,9,12])
 
         """
         if self.distributed:
@@ -1008,6 +1004,11 @@ names not found in input. Recheck the source and destination parameters')
         Returns
         -------
         df : cudf.DataFrame
+            GPU DataFrame of size N (the default) or the size of the given
+            vertices (vertex_subset) containing the degrees. The ordering is
+            relative to the adjacency list, or that given by the specified
+            vertex_subset.
+
             df['vertex'] : cudf.Series
                 The vertex IDs (will be identical to vertex_subset if
                 specified).
@@ -1027,9 +1028,8 @@ names not found in input. Recheck the source and destination parameters')
         """
         if self.distributed:
             raise Exception("Not supported for distributed graph")
-        vertex_col, in_degree_col, out_degree_col = graph_new_wrapper._degrees(
-            self
-        )
+        vertex_col, in_degree_col, out_degree_col = \
+            graph_primtypes_wrapper._degrees(self)
 
         df = cudf.DataFrame()
         df["vertex"] = vertex_col
@@ -1045,7 +1045,7 @@ names not found in input. Recheck the source and destination parameters')
         return df
 
     def _degree(self, vertex_subset, x=0):
-        vertex_col, degree_col = graph_new_wrapper._degree(self, x)
+        vertex_col, degree_col = graph_primtypes_wrapper._degree(self, x)
         df = cudf.DataFrame()
         df["vertex"] = vertex_col
         df["degree"] = degree_col

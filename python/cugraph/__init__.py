@@ -14,6 +14,7 @@
 from cugraph.community import (
     ecg,
     ktruss_subgraph,
+    k_truss,
     louvain,
     leiden,
     spectralBalancedCutClustering,
@@ -41,13 +42,23 @@ from cugraph.centrality import (
 )
 
 from cugraph.cores import core_number, k_core
+
 from cugraph.components import (
     weakly_connected_components,
     strongly_connected_components,
 )
+
 from cugraph.link_analysis import pagerank, hits
 
-from cugraph.link_prediction import jaccard, overlap, jaccard_w, overlap_w
+from cugraph.link_prediction import (
+    jaccard,
+    jaccard_coefficient,
+    overlap,
+    overlap_coefficient,
+    jaccard_w,
+    overlap_w,
+)
+
 from cugraph.traversal import bfs, sssp, filter_unreachable
 
 from cugraph.utilities import utils

@@ -235,7 +235,7 @@ def _compare_bfs_spc(G, Gnx, source):
 # =============================================================================
 # Tests
 # =============================================================================
-@pytest.mark.parametrize("graph_file", utils.DATASETS_5)
+@pytest.mark.parametrize("graph_file", utils.DATASETS)
 @pytest.mark.parametrize("directed", DIRECTED_GRAPH_OPTIONS)
 @pytest.mark.parametrize("seed", SUBSET_SEED_OPTIONS)
 def test_bfs(graph_file, directed, seed):
@@ -257,7 +257,7 @@ def test_bfs_spc(graph_file, directed, seed):
     )
 
 
-@pytest.mark.parametrize("graph_file", utils.TINY_DATASETS)
+@pytest.mark.parametrize("graph_file", utils.DATASETS_SMALL)
 @pytest.mark.parametrize("directed", DIRECTED_GRAPH_OPTIONS)
 def test_bfs_spc_full(graph_file, directed):
     """Test BFS traversal on every vertex with shortest path counting"""

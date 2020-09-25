@@ -46,7 +46,7 @@ function(ConfigureTest CMAKE_TEST_NAME CMAKE_TEST_SRC CMAKE_EXTRA_LIBS)
 
     target_link_libraries(${CMAKE_TEST_NAME}
         PRIVATE
-        gtest gmock_main gmock cugraph ${CUDF_LIBRARY} ${RMM_LIBRARY} ${CMAKE_EXTRA_LIBS}  ${NCCL_LIBRARIES} cudart cuda cublas cusparse cusolver curand)
+        gtest gmock_main gmock cugraph ${CUDF_LIBRARY} ${CMAKE_EXTRA_LIBS}  ${NCCL_LIBRARIES} cudart cuda cublas cusparse cusolver curand)
 
     if(OpenMP_CXX_FOUND)
         target_link_libraries(${CMAKE_TEST_NAME} PRIVATE
@@ -59,7 +59,7 @@ function(ConfigureTest CMAKE_TEST_NAME CMAKE_TEST_SRC CMAKE_EXTRA_LIBS)
 ###   ...
 ###
 ###   libgomp.so is included in the conda base environment and copied to every new conda
-###   environment. If a full file path is provided (e.g ${CUDF_LIBRARY} and ${RMM_LIBRARY}), cmake
+###   environment. If a full file path is provided (e.g ${CUDF_LIBRARY}), cmake
 ###   extracts the directory path and adds the directory path to BUILD_RPATH (if BUILD_RPATH is not
 ###   disabled).
 ###
@@ -72,7 +72,7 @@ function(ConfigureTest CMAKE_TEST_NAME CMAKE_TEST_SRC CMAKE_EXTRA_LIBS)
 ###   If a full path to libgomp.so is provided (which is the case with OpenMP::OpenMP_CXX), cmake
 ###   checks whether there is any other libgomp.so with the different full path (after resolving
 ###   soft links) in the search paths (implicit directoires + BUILD_RAPTH). There is one in the
-###   path included in BUILD_RPATH when ${CUDF_LIBRARY} and ${RMM_LIBRARY} are added; this one can
+###   path included in BUILD_RPATH when ${CUDF_LIBRARY} is added; this one can
 ###   potentially hide the one in the provided full path and cmake generates a warning (and RPATH
 ###   is searched before the directories in /etc/ld.so/conf; ld.so.conf does not coincide but
 ###   overlaps with implicit directories).
@@ -172,7 +172,7 @@ ConfigureTest(BFS_TEST "${BFS_TEST_SRCS}" "")
 
 set(LOUVAIN_TEST_SRC
     "${CMAKE_SOURCE_DIR}/../thirdparty/mmio/mmio.c"
-    "${CMAKE_CURRENT_SOURCE_DIR}/community/louvain_test.cpp")
+    "${CMAKE_CURRENT_SOURCE_DIR}/community/louvain_test.cu")
 
 ConfigureTest(LOUVAIN_TEST "${LOUVAIN_TEST_SRC}" "")
 
@@ -254,19 +254,13 @@ set(FIND_MATCHES_TEST_SRC
 ConfigureTest(FIND_MATCHES_TEST "${FIND_MATCHES_TEST_SRC}" "")
 
 ###################################################################################################
-#-NCCL tests ---------------------------------------------------------------------
+# - Experimental Graph tests ----------------------------------------------------------------------
 
-if (BUILD_MPI)
-    set(NCCL_TEST_SRC
-        "${CMAKE_CURRENT_SOURCE_DIR}/nccl/nccl_test.cu")
+set(EXPERIMENTAL_GRAPH_TEST_SRCS
+    "${CMAKE_SOURCE_DIR}/../thirdparty/mmio/mmio.c"
+    "${CMAKE_CURRENT_SOURCE_DIR}/experimental/graph_test.cpp")
 
-    ConfigureTest(NCCL_TEST "${NCCL_TEST_SRC}" "")
-
-    set(NCCL_DEGREE_TEST_SRC
-    "${CMAKE_CURRENT_SOURCE_DIR}/nccl/degree_test.cu")
-
-    ConfigureTest(NCCL_DEGREE_TEST "${NCCL_DEGREE_TEST_SRC}" "")
-endif(BUILD_MPI)
+ConfigureTest(EXPERIMENTAL_GRAPH_TEST "${EXPERIMENTAL_GRAPH_TEST_SRCS}" "")
 
 ###################################################################################################
 ### enable testing ################################################################################

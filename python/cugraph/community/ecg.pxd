@@ -16,12 +16,13 @@
 # cython: embedsignature = True
 # cython: language_level = 3
 
-from cugraph.structure.graph_new cimport *
+from cugraph.structure.graph_primtypes cimport *
 
 
 cdef extern from "algorithms.hpp" namespace "cugraph":
 
     cdef void ecg[VT,ET,WT](
+        const handle_t &handle,
         const GraphCSRView[VT,ET,WT] &graph,
         WT min_weight,
         VT ensemble_size,
