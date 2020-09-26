@@ -39,67 +39,6 @@ namespace experimental {
 
 namespace detail {
 
-template <typename TupleType, size_t I>
-auto allocate_buffer_tuple_element_impl(size_t buffer_size, cudaStream_t stream)
-{
-  using element_t = typename thrust::tuple_element<I, TupleType>::type;
-  return rmm::device_uvector<element_t>(buffer_size, stream);
-}
-
-template <typename TupleType, size_t... Is>
-auto allocate_buffer_tuple_impl(std::index_sequence<Is...>,
-                                    size_t buffer_size,
-                                    cudaStream_t stream)
-{
-  return thrust::make_tuple(
-    allocate_buffer_tuple_element_impl<TupleType, Is>(buffer_size, stream)...);
-}
-
-template <typename T, typename std::enable_if_t<std::is_arithmetic<T>::value>* = nullptr>
-auto allocate_buffer(size_t buffer_size, cudaStream_t stream)
-{
-  return rmm::device_uvector<T>(buffer_size, stream);
-}
-
-template <typename T, typename std::enable_if_t<is_thrust_tuple_of_arithmetic<T>::value>* = nullptr>
-auto allocate_buffer(size_t buffer_size, cudaStream_t stream)
-{
-  size_t constexpr tuple_size = thrust::tuple_size<T>::value;
-  return allocate_buffer_tuple_impl<T>(
-    std::make_index_sequence<tuple_size>(), buffer_size, stream);
-}
-
-template <typename TupleType, size_t I, typename BufferType>
-auto get_buffer_begin_tuple_element_impl(BufferType& buffer)
-{
-  using element_t = typename thrust::tuple_element<I, TupleType>::type;
-  return thrust::get<I>(buffer).begin();
-}
-
-template <typename TupleType, size_t... Is, typename BufferType>
-auto get_buffer_begin_tuple_impl(std::index_sequence<Is...>, BufferType& buffer)
-{
-  return thrust::make_tuple(get_buffer_begin_tuple_element_impl<TupleType, Is>(buffer)...);
-}
-
-template <typename T,
-          typename BufferType,
-          typename std::enable_if_t<std::is_arithmetic<T>::value>* = nullptr>
-auto get_buffer_begin(BufferType& buffer)
-{
-  return buffer.begin();
-}
-
-template <typename T,
-          typename BufferType,
-          typename std::enable_if_t<is_thrust_tuple_of_arithmetic<T>::value>* = nullptr>
-auto get_buffer_begin(BufferType& buffer)
-{
-  size_t constexpr tuple_size = thrust::tuple_size<T>::value;
-  return thrust::make_zip_iterator(
-    get_buffer_begin_tuple_impl<T>(std::make_index_sequence<tuple_size>(), buffer));
-}
-
 template <typename GraphViewType,
           typename VertexValueInputIterator,
           typename MatrixMajorValueOutputIterator>
@@ -185,11 +124,12 @@ void copy_to_matrix_major(raft::handle_t const& handle,
 
       rmm::device_uvector<vertex_t> vertices(
         std::accumulate(rx_counts.begin(), rx_counts.end(), vertex_t{0}), handle.get_stream());
-      auto tmp_buffer = detail::allocate_buffer<
-        typename std::iterator_traits<VertexValueInputIterator>::value_type>(vertices.size(),
-                                                                             handle.get_stream());
-      auto value_first = detail::get_buffer_begin<
-        typename std::iterator_traits<VertexValueInputIterator>::value_type>(tmp_buffer);
+      auto tmp_buffer =
+        allocate_comm_buffer<typename std::iterator_traits<VertexValueInputIterator>::value_type>(
+          vertices.size(), handle.get_stream());
+      auto value_first =
+        get_comm_buffer_begin<typename std::iterator_traits<VertexValueInputIterator>::value_type>(
+          tmp_buffer);
 
       // FIXME: this gather is unnecessary if NCCL directly takes a permutation iterator (and
       // directly gathers to the internal buffer)
