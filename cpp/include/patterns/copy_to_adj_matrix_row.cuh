@@ -16,18 +16,22 @@
 #pragma once
 
 #include <experimental/graph_view.hpp>
+#include <matrix_partition_device.cuh>
 #include <partition_manager.hpp>
 #include <utilities/collective_utils.cuh>
 #include <utilities/error.hpp>
+#include <utilities/thrust_tuple_utils.cuh>
 
 #include <rmm/thrust_rmm_allocator.h>
 #include <raft/handle.hpp>
 
 #include <thrust/copy.h>
 #include <thrust/execution_policy.h>
+#include <thrust/gather.h>
 #include <thrust/iterator/permutation_iterator.h>
 
 #include <numeric>
+#include <type_traits>
 #include <utility>
 
 namespace cugraph {
@@ -36,50 +40,67 @@ namespace experimental {
 namespace detail {
 
 template <typename TupleType, size_t I>
-auto allocate_tmp_buffer_tuple_element_impl(size_t buffer_size, cudaStream_t stream) {
+auto allocate_tmp_buffer_tuple_element_impl(size_t buffer_size, cudaStream_t stream)
+{
   using element_t = typename thrust::tuple_element<I, TupleType>::type;
   return rmm::device_uvector<element_t>(buffer_size, stream);
 }
 
 template <typename TupleType, size_t... Is>
-auto allocate_tmp_buffer_tuple_impl(std::index_sequence<Is...>, size_t buffer_size, cudaStream_t stream) {
-  return thrust::make_tuple(allocate_tmp_buffer_tuple_element_impl<TupleType, Is>(buffer_size, stream)...);
+auto allocate_tmp_buffer_tuple_impl(std::index_sequence<Is...>,
+                                    size_t buffer_size,
+                                    cudaStream_t stream)
+{
+  return thrust::make_tuple(
+    allocate_tmp_buffer_tuple_element_impl<TupleType, Is>(buffer_size, stream)...);
 }
 
 template <typename T, typename std::enable_if_t<std::is_arithmetic<T>::value>* = nullptr>
-auto allocate_tmp_buffer(size_t buffer_size, cudaStream_t stream) {
+auto allocate_tmp_buffer(size_t buffer_size, cudaStream_t stream)
+{
   return rmm::device_uvector<T>(buffer_size, stream);
 }
 
 template <typename T, typename std::enable_if_t<is_thrust_tuple_of_arithmetic<T>::value>* = nullptr>
-auto allocate_tmp_buffer(size_t buffer_size, cudaStream_t stream) {
+auto allocate_tmp_buffer(size_t buffer_size, cudaStream_t stream)
+{
   size_t constexpr tuple_size = thrust::tuple_size<T>::value;
-  return allocate_tmp_buffer_tuple_impl<T>(std::make_index_sequence<tuple_size>(), buffer_size, stream);
+  return allocate_tmp_buffer_tuple_impl<T>(
+    std::make_index_sequence<tuple_size>(), buffer_size, stream);
 }
 
 template <typename TupleType, size_t I, typename BufferType>
-auto get_buffer_begin_tuple_element_impl(BufferType& buffer) {
+auto get_buffer_begin_tuple_element_impl(BufferType& buffer)
+{
   using element_t = typename thrust::tuple_element<I, TupleType>::type;
   return thrust::get<I>(buffer).begin();
 }
 
 template <typename TupleType, size_t... Is, typename BufferType>
-auto get_buffer_begin_tuple_impl(std::index_sequence<Is...>, BufferType& buffer) {
+auto get_buffer_begin_tuple_impl(std::index_sequence<Is...>, BufferType& buffer)
+{
   return thrust::make_tuple(get_buffer_begin_tuple_element_impl<TupleType, Is>(buffer)...);
 }
 
-template <typename T, typename BufferType, typename std::enable_if_t<std::is_arithmetic<T>::value>* = nullptr>
-auto get_buffer_begin(BufferType& buffer) {
+template <typename T,
+          typename BufferType,
+          typename std::enable_if_t<std::is_arithmetic<T>::value>* = nullptr>
+auto get_buffer_begin(BufferType& buffer)
+{
   return buffer.begin();
 }
 
-template <typename T, typename BufferType, typename std::enable_if_t<is_thrust_tuple_of_arithmetic<T>::value>* = nullptr>
-auto get_buffer_begin(BufferType& buffer) {
+template <typename T,
+          typename BufferType,
+          typename std::enable_if_t<is_thrust_tuple_of_arithmetic<T>::value>* = nullptr>
+auto get_buffer_begin(BufferType& buffer)
+{
   size_t constexpr tuple_size = thrust::tuple_size<T>::value;
-  return thrust::make_zip_iterator(get_buffer_begin_tuple_impl<T>(std::make_index_sequence<tuple_size>(), buffer));
+  return thrust::make_zip_iterator(
+    get_buffer_begin_tuple_impl<T>(std::make_index_sequence<tuple_size>(), buffer));
 }
 
-}
+}  // namespace detail
 
 /**
  * @brief Copy vertex property values to the corresponding graph adjacency matrix row property
@@ -125,29 +146,32 @@ void copy_to_adj_matrix_row(raft::handle_t const& handle,
       auto const col_comm_size = col_comm.get_size();
 
       if (GraphViewType::is_adj_matrix_transposed) {
-  #if 0
         // FIXME: this P2P is unnecessary if apply the same partitioning scheme regardless of
         // hypergraph partitioning is applied or not
         auto comm_src_rank = row_comm_rank * col_comm_size + col_comm_rank;
         auto comm_dst_rank =
           (comm_rank % col_comm_size) * row_comm_size + comm_rank / col_comm_size;
-        std::vector<raft::comms : request_t> requests(2);
-        device_isend(
+        auto constexpr tuple_size = thrust_tuple_size_or_one<
+          typename std::iterator_traits<VertexValueInputIterator>::value_type>::value;
+        std::vector<raft::comms::request_t> requests(2 * tuple_size);
+        device_isend<VertexValueInputIterator, AdjMatrixRowValueOutputIterator>(
           comm,
           vertex_value_input_first,
-          graph_view.get_vertex_partition_last() - graph_view.get_vertex_partition_first(),
+          static_cast<size_t>(graph_view.get_local_vertex_last() -
+                              graph_view.get_local_vertex_first()),
           comm_dst_rank,
-          tag,
-          &requests[0]);
-        device_irecv(
+          int{0} /* base_tag */,
+          requests.data());
+        device_irecv<VertexValueInputIterator, AdjMatrixRowValueOutputIterator>(
           comm,
           adj_matrix_row_value_output_first +
-            graph_view.get_vertex_partition_first(row_comm_rank * col_comm_size + col_comm_rank) -
-            graph_view.get_vertex_partition_first(row_comm_rank * col_comm_size),
-          count,
+            (graph_view.get_vertex_partition_first(row_comm_rank * col_comm_size + col_comm_rank) -
+             graph_view.get_vertex_partition_first(row_comm_rank * col_comm_size)),
+          static_cast<size_t>(graph_view.get_vertex_partition_last(comm_src_rank) -
+                              graph_view.get_vertex_partition_first(comm_src_rank)),
           comm_src_rank,
-          tag,
-          &requests[1]);
+          int{0} /* base_tag */,
+          requests.data() + tuple_size);
         comm.waitall(requests.size(), requests.data());
 
         for (int i = 0; i < col_comm_size; ++i) {
@@ -158,11 +182,10 @@ void copy_to_adj_matrix_row(raft::handle_t const& handle,
           device_bcast(col_comm,
                        adj_matrix_row_value_output_first + offset,
                        adj_matrix_row_value_output_first + offset,
-                       size,
+                       count,
                        i,
                        handle.get_stream());
         }
-#endif
       } else {
         std::vector<size_t> rx_counts(row_comm_size, size_t{0});
         std::vector<size_t> displacements(row_comm_size, size_t{0});
@@ -248,31 +271,36 @@ void copy_to_adj_matrix_row(raft::handle_t const& handle,
       auto const col_comm_size = col_comm.get_size();
 
       if (GraphViewType::is_adj_matrix_transposed) {
-  #if 0
         // FIXME: this P2P is unnecessary if apply the same partitioning scheme regardless of
         // hypergraph partitioning is applied or not
         auto comm_src_rank = row_comm_rank * col_comm_size + col_comm_rank;
         auto comm_dst_rank =
           (comm_rank % col_comm_size) * row_comm_size + comm_rank / col_comm_size;
-        std::vector<raft::comms : request_t> requests(2);
-        device_isend(
+        auto constexpr tuple_size = thrust_tuple_size_or_one<
+          typename std::iterator_traits<VertexValueInputIterator>::value_type>::value;
+        std::vector<raft::comms::request_t> requests(2 * tuple_size);
+        device_isend<VertexValueInputIterator, AdjMatrixRowValueOutputIterator>(
           comm,
           vertex_value_input_first,
-          graph_view.get_vertex_partition_last() - graph_view.get_vertex_partition_first(),
+          static_cast<size_t>(graph_view.get_local_vertex_last() -
+                              graph_view.get_local_vertex_first()),
           comm_dst_rank,
-          tag,
-          &requests[0]);
-        device_irecv(
+          int{0} /* base_tag */,
+          requests.data());
+        device_irecv<VertexValueInputIterator, AdjMatrixRowValueOutputIterator>(
           comm,
           adj_matrix_row_value_output_first +
-            graph_view.get_vertex_partition_first(row_comm_rank * col_comm_size + col_comm_rank) -
-            graph_view.get_vertex_partition_first(row_comm_rank * col_comm_size),
-          count,
+            (graph_view.get_vertex_partition_first(comm_src_rank) -
+             graph_view.get_vertex_partition_first(row_comm_rank * col_comm_size)),
+          static_cast<size_t>(graph_view.get_vertex_partition_last(comm_src_rank) -
+                              graph_view.get_vertex_partition_first(comm_src_rank)),
           comm_src_rank,
-          tag,
-          &requests[1]);
+          int{0} /* base_tag */,
+          requests.data() + tuple_size);
         comm.waitall(requests.size(), requests.data());
 
+        // FIXME: these broadcast operations can be placed between ncclGroupStart() and
+        // ncclGroupEnd()
         for (int i = 0; i < col_comm_size; ++i) {
           auto offset = graph_view.get_vertex_partition_first(row_comm_rank * col_comm_size + i) -
                         graph_view.get_vertex_partition_first(row_comm_rank * col_comm_size);
@@ -281,37 +309,56 @@ void copy_to_adj_matrix_row(raft::handle_t const& handle,
           device_bcast(col_comm,
                        adj_matrix_row_value_output_first + offset,
                        adj_matrix_row_value_output_first + offset,
-                       size,
+                       count,
                        i,
                        handle.get_stream());
         }
-#endif
       } else {
-        auto rx_counts = host_scalar_allgatherv(row_comm,
-                          static_cast<size_t>(thrust::distance(vertex_first, vertex_last)),
-                          handle.get_stream());
+        auto rx_counts =
+          host_scalar_allgatherv(row_comm,
+                                 static_cast<size_t>(thrust::distance(vertex_first, vertex_last)),
+                                 handle.get_stream());
         std::vector<size_t> displacements(row_comm_size, size_t{0});
         std::partial_sum(rx_counts.begin(), rx_counts.end() - 1, displacements.begin() + 1);
 
         rmm::device_uvector<vertex_t> vertices(
           std::accumulate(rx_counts.begin(), rx_counts.end(), vertex_t{0}), handle.get_stream());
-        auto tmp_buffer = detail::allocate_tmp_buffer<typename std::iterator_traits<VertexValueInputIterator>::value_type>(vertices.size(), handle.get_stream());
-        auto value_first = detail::get_buffer_begin<typename std::iterator_traits<VertexValueInputIterator>::value_type>(tmp_buffer);
+        auto tmp_buffer = detail::allocate_tmp_buffer<
+          typename std::iterator_traits<VertexValueInputIterator>::value_type>(vertices.size(),
+                                                                               handle.get_stream());
+        auto value_first = detail::get_buffer_begin<
+          typename std::iterator_traits<VertexValueInputIterator>::value_type>(tmp_buffer);
 
-        device_allgatherv(row_comm,
-                          thrust::make_zip_iterator(thrust::make_tuple(vertex_first, vertex_value_input_first)),
-                          thrust::make_zip_iterator(thrust::make_tuple(vertices.begin(), value_first)),
-                          rx_counts,
-                          displacements,
-                          handle.get_stream());
-#if 0
-        auto val_first = thrust::make_permutation_iterator(vertex_value_input_first, vertex_first);
-        thrust::scatter(rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
-                        val_first,
-                        val_first + thrust::distance(vertex_first, vertex_last),
-                        vertex_first,
-                        adj_matrix_row_value_output_first);
-#endif
+        // FIXME: this gather is unnecessary if NCCL directly takes a permutation iterator (and
+        // directly gathers to the internal buffer)
+        thrust::gather(rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
+                       vertex_first,
+                       vertex_last,
+                       vertex_value_input_first,
+                       value_first + displacements[row_comm_rank]);
+
+        device_allgatherv(
+          row_comm,
+          thrust::make_zip_iterator(thrust::make_tuple(vertex_first, vertex_value_input_first)),
+          thrust::make_zip_iterator(thrust::make_tuple(vertices.begin(), value_first)),
+          rx_counts,
+          displacements,
+          handle.get_stream());
+
+        matrix_partition_device_t<GraphViewType> matrix_partition(graph_view, 0);
+        for (int i = 0; i < row_comm_size; ++i) {
+          auto map_first = thrust::make_transform_iterator(
+            vertices.begin() + displacements[i], [matrix_partition] __device__(auto v) {
+              return matrix_partition.get_major_offset_from_major_nocheck(v);
+            });
+          // FIXME: this scatter is unnecessary if NCCL directly takes a permutation iterator (and
+          // directly scatters from the internal buffer)
+          thrust::scatter(rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
+                          value_first + displacements[i],
+                          value_first + displacements[i] + rx_counts[i],
+                          map_first,
+                          adj_matrix_row_value_output_first);
+        }
       }
     }
   } else {

@@ -178,6 +178,15 @@ struct is_arithmetic_or_thrust_tuple_of_arithmetic<thrust::tuple<Ts...>>
   : std::integral_constant<bool, is_thrust_tuple_of_arithmetic<thrust::tuple<Ts...>>::value> {
 };
 
+template <typename T>
+struct thrust_tuple_size_or_one : std::integral_constant<size_t, 1> {
+};
+
+template <typename... Ts>
+struct thrust_tuple_size_or_one<thrust::tuple<Ts...>>
+  : std::integral_constant<size_t, thrust::tuple_size<thrust::tuple<Ts...>>::value> {
+};
+
 template <typename TupleType>
 struct compute_thrust_tuple_element_sizes {
   auto operator()() const

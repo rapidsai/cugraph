@@ -112,6 +112,126 @@ auto iter_to_raw_ptr(thrust::detail::normal_iterator<thrust::device_ptr<T>> iter
 
 template <typename InputIterator, typename OutputIterator>
 std::enable_if_t<thrust::detail::is_discard_iterator<OutputIterator>::value, void>
+device_isend_impl(raft::comms::comms_t const& comm,
+                  InputIterator input_first,
+                  size_t count,
+                  int dst,
+                  int tag,
+                  raft::comms::request_t* request)
+{
+  // no-op
+}
+
+template <typename InputIterator, typename OutputIterator>
+std::enable_if_t<
+  std::is_arithmetic<typename std::iterator_traits<OutputIterator>::value_type>::value,
+  void>
+device_isend_impl(raft::comms::comms_t const& comm,
+                  InputIterator input_first,
+                  size_t count,
+                  int dst,
+                  int tag,
+                  raft::comms::request_t* request)
+{
+  static_assert(std::is_same<typename std::iterator_traits<InputIterator>::value_type,
+                             typename std::iterator_traits<OutputIterator>::value_type>::value);
+  comm.isend(iter_to_raw_ptr(input_first), count, dst, tag, request);
+}
+
+template <typename InputIterator, typename OutputIterator, size_t I, size_t N>
+struct device_isend_tuple_iterator_element_impl {
+  void run(raft::comms::comms_t const& comm,
+           InputIterator input_first,
+           size_t count,
+           int dst,
+           int base_tag,
+           raft::comms::request_t** request_ptrs) const
+  {
+    device_isend_impl(comm,
+                      thrust::get<I>(input_first.get_iterator_tuple()),
+                      count,
+                      dst,
+                      base_tag + I,
+                      request_ptrs[I]);
+    device_isend_tuple_iterator_element_impl<InputIterator, OutputIterator, I + 1, N>(
+      comm, input_first, count, dst, base_tag, request_ptrs);
+  }
+};
+
+template <typename InputIterator, typename OutputIterator, size_t I>
+struct device_isend_tuple_iterator_element_impl<InputIterator, OutputIterator, I, I> {
+  void run(raft::comms::comms_t const& comm,
+           InputIterator input_first,
+           size_t count,
+           int dst,
+           int base_tag,
+           raft::comms::request_t** request_ptrs) const
+  {
+  }
+};
+
+template <typename InputIterator, typename OutputIterator>
+std::enable_if_t<thrust::detail::is_discard_iterator<OutputIterator>::value, void>
+device_irecv_impl(raft::comms::comms_t const& comm,
+                  OutputIterator output_first,
+                  size_t count,
+                  int src,
+                  int tag,
+                  raft::comms::request_t* request)
+{
+  // no-op
+}
+
+template <typename InputIterator, typename OutputIterator>
+std::enable_if_t<
+  std::is_arithmetic<typename std::iterator_traits<OutputIterator>::value_type>::value,
+  void>
+device_irecv_impl(raft::comms::comms_t const& comm,
+                  OutputIterator output_first,
+                  size_t count,
+                  int src,
+                  int tag,
+                  raft::comms::request_t* request)
+{
+  static_assert(std::is_same<typename std::iterator_traits<InputIterator>::value_type,
+                             typename std::iterator_traits<OutputIterator>::value_type>::value);
+  comm.irecv(iter_to_raw_ptr(output_first), count, src, tag, request);
+}
+
+template <typename InputIterator, typename OutputIterator, size_t I, size_t N>
+struct device_irecv_tuple_iterator_element_impl {
+  void run(raft::comms::comms_t const& comm,
+           OutputIterator output_first,
+           size_t count,
+           int src,
+           int base_tag,
+           raft::comms::request_t* requests) const
+  {
+    device_irecv_impl(comm,
+                      thrust::get<I>(output_first.get_iterator_tuple()),
+                      count,
+                      src,
+                      base_tag + I,
+                      requests + I);
+    device_irecv_tuple_iterator_element_impl<InputIterator, OutputIterator, I + 1, N>(
+      comm, output_first, count, src, base_tag, requests);
+  }
+};
+
+template <typename InputIterator, typename OutputIterator, size_t I>
+struct device_irecv_tuple_iterator_element_impl<InputIterator, OutputIterator, I, I> {
+  void run(raft::comms::comms_t const& comm,
+           OutputIterator output_first,
+           size_t count,
+           int src,
+           int base_tag,
+           raft::comms::request_t* requests) const
+  {
+  }
+};
+
+template <typename InputIterator, typename OutputIterator>
+std::enable_if_t<thrust::detail::is_discard_iterator<OutputIterator>::value, void>
 device_bcast_impl(raft::comms::comms_t const& comm,
                   InputIterator input_first,
                   OutputIterator output_first,
@@ -135,7 +255,11 @@ device_bcast_impl(raft::comms::comms_t const& comm,
 {
   static_assert(std::is_same<typename std::iterator_traits<InputIterator>::value_type,
                              typename std::iterator_traits<OutputIterator>::value_type>::value);
-  comm.bcast(iter_to_raw_ptr(input_first), iter_to_raw_ptr(output_first), count, root, stream);
+  if (comm.get_rank() == root) {
+    comm.bcast(iter_to_raw_ptr(input_first), count, root, stream);
+  } else {
+    comm.bcast(iter_to_raw_ptr(output_first), count, root, stream);
+  }
 }
 
 template <typename InputIterator, typename OutputIterator, size_t I, size_t N>
@@ -344,6 +468,84 @@ template <typename InputIterator, typename OutputIterator>
 std::enable_if_t<
   std::is_arithmetic<typename std::iterator_traits<InputIterator>::value_type>::value,
   void>
+device_isend(raft::comms::comms_t const& comm,
+             InputIterator input_first,
+             size_t count,
+             int dst,
+             int base_tag /* actual tag = base tag */,
+             raft::comms::request_t* requests)
+{
+  detail::device_isend_impl<InputIterator, OutputIterator>(
+    comm, input_first, count, dst, base_tag, requests);
+}
+
+template <typename InputIterator, typename OutputIterator>
+std::enable_if_t<
+  is_thrust_tuple_of_arithmetic<typename std::iterator_traits<InputIterator>::value_type>::value &&
+    is_thrust_tuple<typename std::iterator_traits<OutputIterator>::value_type>::value,
+  void>
+device_isend(raft::comms::comms_t const& comm,
+             InputIterator input_first,
+             size_t count,
+             int dst,
+             int base_tag /* actual tag = base_tag + tuple index */,
+             raft::comms::request_t* requests)
+{
+  static_assert(
+    thrust::tuple_size<typename thrust::iterator_traits<InputIterator>::value_type>::value ==
+    thrust::tuple_size<typename thrust::iterator_traits<OutputIterator>::value_type>::value);
+
+  size_t constexpr tuple_size =
+    thrust::tuple_size<typename thrust::iterator_traits<InputIterator>::value_type>::value;
+
+  detail::
+    device_isend_tuple_iterator_element_impl<InputIterator, OutputIterator, size_t{0}, tuple_size>(
+      comm, input_first, count, dst, base_tag, requests);
+}
+
+template <typename InputIterator, typename OutputIterator>
+std::enable_if_t<
+  std::is_arithmetic<typename std::iterator_traits<InputIterator>::value_type>::value,
+  void>
+device_irecv(raft::comms::comms_t const& comm,
+             OutputIterator output_first,
+             size_t count,
+             int src,
+             int base_tag /* actual tag = base tag */,
+             raft::comms::request_t* requests)
+{
+  detail::device_irecv_impl<InputIterator, OutputIterator>(
+    comm, output_first, count, src, base_tag, requests);
+}
+
+template <typename InputIterator, typename OutputIterator>
+std::enable_if_t<
+  is_thrust_tuple_of_arithmetic<typename std::iterator_traits<InputIterator>::value_type>::value &&
+    is_thrust_tuple<typename std::iterator_traits<OutputIterator>::value_type>::value,
+  void>
+device_irecv(raft::comms::comms_t const& comm,
+             OutputIterator output_first,
+             size_t count,
+             int src,
+             int base_tag /* actual tag = base_tag + tuple index */,
+             raft::comms::request_t* requests)
+{
+  static_assert(
+    thrust::tuple_size<typename thrust::iterator_traits<InputIterator>::value_type>::value ==
+    thrust::tuple_size<typename thrust::iterator_traits<OutputIterator>::value_type>::value);
+
+  size_t constexpr tuple_size =
+    thrust::tuple_size<typename thrust::iterator_traits<InputIterator>::value_type>::value;
+
+  detail::
+    device_irecv_tuple_iterator_element_impl<InputIterator, OutputIterator, size_t{0}, tuple_size>(
+      comm, output_first, count, src, base_tag, requests);
+}
+
+template <typename InputIterator, typename OutputIterator>
+std::enable_if_t<
+  std::is_arithmetic<typename std::iterator_traits<InputIterator>::value_type>::value,
+  void>
 device_bcast(raft::comms::comms_t const& comm,
              InputIterator input_first,
              OutputIterator output_first,
@@ -373,7 +575,7 @@ device_bcast(raft::comms::comms_t const& comm,
   size_t constexpr tuple_size =
     thrust::tuple_size<typename thrust::iterator_traits<InputIterator>::value_type>::value;
 
-  // FIXME: these bcast operations can be placed between ncclGroupStart() and ncclGroupEnd()
+  // FIXME: these broadcast operations can be placed between ncclGroupStart() and ncclGroupEnd()
   detail::
     device_bcast_tuple_iterator_element_impl<InputIterator, OutputIterator, size_t{0}, tuple_size>(
       comm, input_first, output_first, count, root, stream);
