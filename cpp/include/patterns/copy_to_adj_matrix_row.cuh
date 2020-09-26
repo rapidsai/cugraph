@@ -18,7 +18,7 @@
 #include <experimental/graph_view.hpp>
 #include <matrix_partition_device.cuh>
 #include <partition_manager.hpp>
-#include <utilities/collective_utils.cuh>
+#include <utilities/comm_utils.cuh>
 #include <utilities/error.hpp>
 #include <utilities/thrust_tuple_utils.cuh>
 

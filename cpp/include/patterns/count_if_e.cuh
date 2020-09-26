@@ -18,7 +18,7 @@
 #include <experimental/graph_view.hpp>
 #include <matrix_partition_device.cuh>
 #include <patterns/edge_op_utils.cuh>
-#include <utilities/collective_utils.cuh>
+#include <utilities/comm_utils.cuh>
 #include <utilities/error.hpp>
 
 #include <raft/cudart_utils.h>
