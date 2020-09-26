@@ -15,6 +15,7 @@
  */
 #pragma once
 
+#include <utilities/comm_utils.cuh>
 #include <utilities/error.hpp>
 #include <utilities/thrust_tuple_utils.cuh>
 
@@ -163,8 +164,7 @@ class Bucket {
   template <bool do_aggregate = is_multi_gpu>
   std::enable_if_t<do_aggregate, size_t> aggregate_size() const
   {
-    CUGRAPH_FAIL("unimplemented.");
-    return size_;
+    return host_scalar_allreduce(handle_ptr_->get_comms(), size_, handle_ptr_->get_stream());
   }
 
   template <bool do_aggregate = is_multi_gpu>
