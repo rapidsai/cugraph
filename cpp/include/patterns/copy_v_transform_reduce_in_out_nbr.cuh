@@ -418,8 +418,7 @@ void copy_v_transform_reduce_in_nbr(raft::handle_t const& handle,
           device_reduce(col_comm,
                         buffer_first,
                         vertex_value_output_first,
-                        graph_view.get_vertex_partition_last(i * row_comm_size + i) -
-                          graph_view.get_vertex_partition_first(i * row_comm_size + i),
+                        static_cast<size_t>(graph_view.get_vertex_partition_size(i * row_comm_size + i)),
                         raft::comms::op_t::SUM,
                         i,
                         handle.get_stream());
@@ -431,8 +430,7 @@ void copy_v_transform_reduce_in_nbr(raft::handle_t const& handle,
               buffer_first + (graph_view.get_vertex_partition_first(comm_root_rank) -
                               graph_view.get_vertex_partition_first(col_comm_rank * row_comm_size)),
               vertex_value_output_first,
-              static_cast<size_t>(graph_view.get_vertex_partition_last(comm_root_rank) -
-                                  graph_view.get_vertex_partition_first(comm_root_rank)),
+              static_cast<size_t>(graph_view.get_vertex_partition_size(comm_root_rank)),
               raft::comms::op_t::SUM,
               j,
               handle.get_stream());
@@ -447,7 +445,7 @@ void copy_v_transform_reduce_in_nbr(raft::handle_t const& handle,
     thrust::transform(rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
                       vertex_value_output_first,
                       vertex_value_output_first +
-                        (graph_view.get_local_vertex_last() - graph_view.get_local_vertex_first()),
+                        (graph_view.get_number_of_local_vertices()),
                       vertex_value_output_first,
                       [init] __device__(auto val) { return plus_edge_op_result(val, init); });
   } else {
@@ -582,8 +580,7 @@ void copy_v_transform_reduce_out_nbr(
           device_reduce(col_comm,
                         buffer_first,
                         vertex_value_output_first,
-                        graph_view.get_vertex_partition_last(i * row_comm_size + i) -
-                          graph_view.get_vertex_partition_first(i * row_comm_size + i),
+                        static_cast<size_t>(graph_view.get_vertex_partition_size(i * row_comm_size + i)),
                         raft::comms::op_t::SUM,
                         i,
                         handle.get_stream());
@@ -595,8 +592,7 @@ void copy_v_transform_reduce_out_nbr(
               buffer_first + (graph_view.get_vertex_partition_first(comm_root_rank) -
                               graph_view.get_vertex_partition_first(col_comm_rank * row_comm_size)),
               vertex_value_output_first,
-              static_cast<size_t>(graph_view.get_vertex_partition_last(comm_root_rank) -
-                                  graph_view.get_vertex_partition_first(comm_root_rank)),
+              static_cast<size_t>(graph_view.get_vertex_partition_size(comm_root_rank)),
               raft::comms::op_t::SUM,
               j,
               handle.get_stream());
@@ -609,7 +605,7 @@ void copy_v_transform_reduce_out_nbr(
     thrust::transform(rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
                       vertex_value_output_first,
                       vertex_value_output_first +
-                        (graph_view.get_local_vertex_last() - graph_view.get_local_vertex_first()),
+                        (graph_view.get_number_of_local_vertices()),
                       vertex_value_output_first,
                       [init] __device__(auto val) { return plus_edge_op_result(val, init); });
   } else {

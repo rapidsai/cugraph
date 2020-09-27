@@ -63,8 +63,7 @@ void copy_to_matrix_major(raft::handle_t const& handle,
       std::vector<size_t> rx_counts(row_comm_size, size_t{0});
       std::vector<size_t> displacements(row_comm_size, size_t{0});
       for (int i = 0; i < row_comm_size; ++i) {
-        rx_counts[i] = graph_view.get_vertex_partition_last(col_comm_rank * row_comm_size + i) -
-                       graph_view.get_vertex_partition_first(col_comm_rank * row_comm_size + i);
+        rx_counts[i] = graph_view.get_vertex_partition_size(col_comm_rank * row_comm_size + i);
         if (i == 0) {
           displacements[i] = 0;
         } else {
@@ -206,8 +205,7 @@ void copy_to_matrix_minor(raft::handle_t const& handle,
       device_isend<VertexValueInputIterator, MatrixMinorValueOutputIterator>(
         comm,
         vertex_value_input_first,
-        static_cast<size_t>(graph_view.get_local_vertex_last() -
-                            graph_view.get_local_vertex_first()),
+        static_cast<size_t>(graph_view.get_number_of_local_vertices()),
         comm_dst_rank,
         int{0} /* base_tag */,
         requests.data());
@@ -216,8 +214,7 @@ void copy_to_matrix_minor(raft::handle_t const& handle,
         matrix_minor_value_output_first +
           (graph_view.get_vertex_partition_first(row_comm_rank * col_comm_size + col_comm_rank) -
            graph_view.get_vertex_partition_first(row_comm_rank * col_comm_size)),
-        static_cast<size_t>(graph_view.get_vertex_partition_last(comm_src_rank) -
-                            graph_view.get_vertex_partition_first(comm_src_rank)),
+        static_cast<size_t>(graph_view.get_vertex_partition_size(comm_src_rank)),
         comm_src_rank,
         int{0} /* base_tag */,
         requests.data() + tuple_size);
@@ -226,8 +223,7 @@ void copy_to_matrix_minor(raft::handle_t const& handle,
       for (int i = 0; i < col_comm_size; ++i) {
         auto offset = graph_view.get_vertex_partition_first(row_comm_rank * col_comm_size + i) -
                       graph_view.get_vertex_partition_first(row_comm_rank * col_comm_size);
-        auto count = graph_view.get_vertex_partition_last(row_comm_rank * col_comm_size + i) -
-                     graph_view.get_vertex_partition_first(row_comm_rank * col_comm_size + i);
+        auto count = graph_view.get_vertex_partition_size(row_comm_rank * col_comm_size + i);
         device_bcast(col_comm,
                      matrix_minor_value_output_first + offset,
                      matrix_minor_value_output_first + offset,
@@ -283,8 +279,7 @@ void copy_to_matrix_minor(raft::handle_t const& handle,
       device_isend<VertexValueInputIterator, MatrixMinorValueOutputIterator>(
         comm,
         vertex_value_input_first,
-        static_cast<size_t>(graph_view.get_local_vertex_last() -
-                            graph_view.get_local_vertex_first()),
+        static_cast<size_t>(graph_view.get_number_of_local_vertices()),
         comm_dst_rank,
         int{0} /* base_tag */,
         requests.data());
@@ -293,8 +288,7 @@ void copy_to_matrix_minor(raft::handle_t const& handle,
         matrix_minor_value_output_first +
           (graph_view.get_vertex_partition_first(comm_src_rank) -
            graph_view.get_vertex_partition_first(row_comm_rank * col_comm_size)),
-        static_cast<size_t>(graph_view.get_vertex_partition_last(comm_src_rank) -
-                            graph_view.get_vertex_partition_first(comm_src_rank)),
+        static_cast<size_t>(graph_view.get_vertex_partition_size(comm_src_rank)),
         comm_src_rank,
         int{0} /* base_tag */,
         requests.data() + tuple_size);
@@ -305,8 +299,7 @@ void copy_to_matrix_minor(raft::handle_t const& handle,
       for (int i = 0; i < col_comm_size; ++i) {
         auto offset = graph_view.get_vertex_partition_first(row_comm_rank * col_comm_size + i) -
                       graph_view.get_vertex_partition_first(row_comm_rank * col_comm_size);
-        auto count = graph_view.get_vertex_partition_last(row_comm_rank * col_comm_size + i) -
-                     graph_view.get_vertex_partition_first(row_comm_rank * col_comm_size + i);
+        auto count = graph_view.get_vertex_partition_size(row_comm_rank * col_comm_size + i);
         device_bcast(col_comm,
                      matrix_minor_value_output_first + offset,
                      matrix_minor_value_output_first + offset,

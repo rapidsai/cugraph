@@ -113,15 +113,15 @@ class partition_t {
     }
   }
 
-  std::tuple<vertex_t, vertex_t> get_vertex_partition_range() const
+  std::tuple<vertex_t, vertex_t> get_local_vertex_range() const
   {
     return std::make_tuple(vertex_partition_offsets_[comm_rank_],
                            vertex_partition_offsets_[comm_rank_ + 1]);
   }
 
-  vertex_t get_vertex_partition_first() const { return vertex_partition_offsets_[comm_rank_]; }
+  vertex_t get_local_vertex_first() const { return vertex_partition_offsets_[comm_rank_]; }
 
-  vertex_t get_vertex_partition_last() const { return vertex_partition_offsets_[comm_rank_ + 1]; }
+  vertex_t get_local_vertex_last() const { return vertex_partition_offsets_[comm_rank_ + 1]; }
 
   std::tuple<vertex_t, vertex_t> get_vertex_partition_range(size_t vertex_partition_idx) const
   {
@@ -137,6 +137,10 @@ class partition_t {
   vertex_t get_vertex_partition_last(size_t vertex_partition_idx) const
   {
     return vertex_partition_offsets_[vertex_partition_idx + 1];
+  }
+
+  vertex_t get_vertex_partition_size(size_t vertex_partition_idx) const {
+    return get_vertex_partition_last(vertex_partition_idx) - get_vertex_partition_first(vertex_partition_idx);
   }
 
   size_t get_number_of_matrix_partitions() const
@@ -310,12 +314,12 @@ class graph_view_t<vertex_t,
 
   vertex_t get_number_of_local_vertices() const
   {
-    return partition_.get_vertex_partition_last() - partition_.get_vertex_partition_first();
+    return partition_.get_local_vertex_last() - partition_.get_local_vertex_first();
   }
 
-  vertex_t get_local_vertex_first() const { return partition_.get_vertex_partition_first(); }
+  vertex_t get_local_vertex_first() const { return partition_.get_local_vertex_first(); }
 
-  vertex_t get_local_vertex_last() const { return partition_.get_vertex_partition_last(); }
+  vertex_t get_local_vertex_last() const { return partition_.get_local_vertex_last(); }
 
   vertex_t get_vertex_partition_first(size_t vertex_partition_idx) const
   {
@@ -325,6 +329,10 @@ class graph_view_t<vertex_t,
   vertex_t get_vertex_partition_last(size_t vertex_partition_idx) const
   {
     return partition_.get_vertex_partition_last(vertex_partition_idx);
+  }
+
+  vertex_t get_vertex_partition_size(size_t vertex_partition_idx) const {
+    return get_vertex_partition_last(vertex_partition_idx) - get_vertex_partition_first(vertex_partition_idx);
   }
 
   bool is_local_vertex_nocheck(vertex_t v) const
@@ -495,6 +503,10 @@ class graph_view_t<vertex_t,
   vertex_t get_vertex_partition_last(size_t vertex_partition_idx) const
   {
     return this->get_number_of_vertices();
+  }
+
+  vertex_t get_vertex_partition_size(size_t vertex_partition_idx) const {
+    return get_vertex_partition_last(vertex_partition_idx) - get_vertex_partition_first(vertex_partition_idx);
   }
 
   constexpr bool is_local_vertex_nocheck(vertex_t v) const { return true; }
