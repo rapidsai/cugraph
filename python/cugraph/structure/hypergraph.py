@@ -311,11 +311,11 @@ def _create_hyper_nodes(
 ):
     nodes = events.copy(deep=False)
     if NODEID in nodes:
-        nodes.drop([NODEID], inplace=True)
+        nodes.drop(columns=[NODEID], inplace=True)
     if NODETYPE in nodes:
-        nodes.drop([NODETYPE], inplace=True)
+        nodes.drop(columns=[NODETYPE], inplace=True)
     if CATEGORY in nodes:
-        nodes.drop([CATEGORY], inplace=True)
+        nodes.drop(columns=[CATEGORY], inplace=True)
     nodes[NODETYPE] = EVENTID if not categorical_metadata \
         else _str_scalar_to_category(len(nodes), EVENTID)
     nodes[CATEGORY] = "event" if not categorical_metadata \

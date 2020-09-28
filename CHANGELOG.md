@@ -3,22 +3,32 @@
 ## New Features
 - PR #1098 Add new graph classes to support 2D partitioning
 - PR #1124 Sub-communicator initialization for 2D partitioning support
+- PR #838 Add pattern accelerator API functions and pattern accelerator API based implementations of PageRank, Katz Centrality, BFS, and SSSP
+- PR #1147 Added support for NetworkX graphs as input type
+- PR #1157 Louvain API update to use graph_container_t
 
 ## Improvements
 - PR 1081 MNMG Renumbering - sort partitions by degree
 - PR 1115 Replace deprecated rmm::mr::get_default_resource with rmm::mr::get_current_device_resource
+- PR #1133 added python 2D shuffling
 - PR 1129 Refactored test to use common dataset and added additional doc pages
 - PR 1135 SG Updates to Louvain et. al.
 - PR 1132 Upgrade Thrust to latest commit
 - PR #1129 Refactored test to use common dataset and added additional doc pages
+- PR #1145 Simple edge list generator
 - PR #1144 updated documentation and APIs
 - PR #1139 MNMG Louvain Python updates, Cython cleanup
 - PR #1156 Add aarch64 gencode support
+- PR #1149 Parquet read and concat within workers
+- PR #1152 graph container cleanup, added arg for instantiating legacy types and switch statements to factory function
+- PR #1162 enhanced networkx testing
+
 
 ## Bug Fixes
 - PR #1131 Show style checker errors with set +e
 - PR #1150 Update RAFT git tag
 - PR #1155 Remove RMM library dependency and CXX11 ABI handling
+- PR #1158 Pass size_t* & size_t* instead of size_t[] & int[] for raft allgatherv's input parameters recvcounts & displs
 
 
 # cuGraph 0.15.0 (26 Aug 2020)

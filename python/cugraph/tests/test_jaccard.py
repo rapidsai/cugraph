@@ -197,3 +197,24 @@ def test_jaccard_two_hop_edge_vals(graph_file):
     for i in range(len(df)):
         diff = abs(nx_coeff[i] - df["jaccard_coeff"].iloc[i])
         assert diff < 1.0e-6
+
+
+@pytest.mark.parametrize("graph_file", utils.DATASETS_UNDIRECTED)
+def test_jaccard_nx(graph_file):
+    gc.collect()
+
+    M = utils.read_csv_for_nx(graph_file)
+    Gnx = nx.from_pandas_edgelist(
+        M, source="0", target="1", create_using=nx.Graph()
+    )
+
+    nx_j = nx.jaccard_coefficient(Gnx)
+    nv_js = sorted(nx_j, key=len, reverse=True)
+
+    cg_j = cugraph.jaccard_coefficient(Gnx)
+
+    assert len(nv_js) > len(cg_j)
+
+    # FIXME:  Nx does a full all-pair Jaccard.
+    # cuGraph does a limited 1-hop Jaccard
+    # assert nx_j == cg_j

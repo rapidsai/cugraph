@@ -15,9 +15,9 @@
  */
 #pragma once
 
-#include <utilities/error.hpp>
-
+#include <experimental/graph.hpp>
 #include <functions.hpp>
+#include <utilities/error.hpp>
 
 #include <gtest/gtest.h>
 
@@ -25,6 +25,9 @@ extern "C" {
 #include "mmio.h"
 }
 
+#include <gtest/gtest.h>
+
+#include <cfloat>
 #include <cstdio>
 #include <string>
 #include <vector>
@@ -374,6 +377,45 @@ edgelist_from_market_matrix_file_t<vertex_t, weight_t> read_edgelist_from_matrix
   CUGRAPH_EXPECTS(file_ret == 0, "fclose failure.");
 
   return std::move(ret);
+}
+
+template <typename vertex_t, typename edge_t, typename weight_t, bool store_transposed>
+cugraph::experimental::graph_t<vertex_t, edge_t, weight_t, store_transposed, false>
+read_graph_from_matrix_market_file(raft::handle_t const& handle,
+                                   std::string const& graph_file_full_path,
+                                   bool test_weighted)
+{
+  auto mm_graph =
+    read_edgelist_from_matrix_market_file<vertex_t, edge_t, weight_t>(graph_file_full_path);
+  edge_t number_of_edges = static_cast<edge_t>(mm_graph.h_rows.size());
+
+  rmm::device_uvector<vertex_t> d_edgelist_rows(number_of_edges, handle.get_stream());
+  rmm::device_uvector<vertex_t> d_edgelist_cols(number_of_edges, handle.get_stream());
+  rmm::device_uvector<weight_t> d_edgelist_weights(test_weighted ? number_of_edges : 0,
+                                                   handle.get_stream());
+
+  raft::update_device(
+    d_edgelist_rows.data(), mm_graph.h_rows.data(), number_of_edges, handle.get_stream());
+  raft::update_device(
+    d_edgelist_cols.data(), mm_graph.h_cols.data(), number_of_edges, handle.get_stream());
+  if (test_weighted) {
+    raft::update_device(
+      d_edgelist_weights.data(), mm_graph.h_weights.data(), number_of_edges, handle.get_stream());
+  }
+
+  cugraph::experimental::edgelist_t<vertex_t, edge_t, weight_t> edgelist{
+    d_edgelist_rows.data(),
+    d_edgelist_cols.data(),
+    test_weighted ? d_edgelist_weights.data() : nullptr,
+    number_of_edges};
+
+  return cugraph::experimental::graph_t<vertex_t, edge_t, weight_t, store_transposed, false>(
+    handle,
+    edgelist,
+    mm_graph.number_of_vertices,
+    cugraph::experimental::graph_properties_t{mm_graph.is_symmetric, false},
+    false,
+    true);
 }
 
 }  // namespace test

@@ -184,7 +184,7 @@ return_t collect_vectors(raft::handle_t const &handle,
   // h_buffer_offsets has to be int because raft allgatherv expects
   // int array for displacement vector. This should be changed in
   // raft so that the displacement is templated
-  thrust::host_vector<int> h_buffer_offsets(h_buffer_len.size());
+  thrust::host_vector<size_t> h_buffer_offsets(h_buffer_len.size());
 
   thrust::exclusive_scan(
     thrust::host, h_buffer_len.begin(), h_buffer_len.end(), h_buffer_offsets.begin());
