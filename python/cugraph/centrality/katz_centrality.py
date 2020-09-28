@@ -16,7 +16,8 @@ import cugraph
 
 
 def katz_centrality(
-    G, alpha=None, beta=None, max_iter=100, tol=1.0e-6, nstart=None, normalized=True
+    G, alpha=None, beta=None, max_iter=100, tol=1.0e-6,
+    nstart=None, normalized=True
 ):
     """
     Compute the Katz centrality for the nodes of the graph G. cuGraph does not
