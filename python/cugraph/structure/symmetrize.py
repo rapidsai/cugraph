@@ -112,27 +112,36 @@ def symmetrize_ddf(df, src_name, dst_name):
     >>> G.add_edge_list(sym_df['0]', sym_df['1'], sym_df['2'])
     """
     # FIXME convoluted way of doing ddf = dask_cudf.DataFrame()
-    dummy_df = cudf.DataFrame()
-    ddf = dask.dataframe.from_pandas(dummy_df, npartitions=df.npartitions)
-    
+    ddf = None
+
     # FIXME ignore_index not supported in dask, using .reset_index(drop=True)
     for idx, name in enumerate(df.columns):
         if name == src_name:
-            ddf[src_name] = df[src_name].append(
-                df[dst_name]).reset_index(drop=True)
+            # DDF from DSeries for the fist one
+            tmp = df[src_name].append(df[dst_name]).reset_index(drop=True)
+            ddf = tmp.to_frame()
+            print(ddf.head())
         elif name == dst_name:
-            ddf[dst_name] = df[dst_name].append(
-                df[src_name]).reset_index(drop=True)
+            # Adding
+            ddf[dst_name] = (
+                df[dst_name].append(df[src_name]).reset_index(drop=True)
+            )
+            print(ddf.head())
         else:
             ddf[name] = df[name].append(df[name]).reset_index(drop=True)
+            print(ddf.head())
+    ddf = ddf.persist()
+    print(ddf.head())
+    result = ddf.groupby(by=[src_name, dst_name], as_index=False).min()
+    print(result.head())
 
-    return ddf.groupby(by=[src_name, dst_name], as_index=False).min()
+    return result
 
 
 def symmetrize(source_col, dest_col, value_col=None):
     """
     Take a COO set of source destination pairs along with associated values
-    stored in a single GPU or distributed 
+    stored in a single GPU or distributed
     create a new COO set of source destination pairs along with values where
     all edges exist in both directions.
 
@@ -152,7 +161,7 @@ def symmetrize(source_col, dest_col, value_col=None):
         This cudf.Series wraps a gdf_column of size E (E: number of edges).
         The gdf column contains the destination index for each edge.
         Destination indices must be an integer type.
-    value_col : cudf.Series or dask_cudf.Series (optional) 
+    value_col : cudf.Series or dask_cudf.Series (optional)
         This cudf.Series wraps a gdf_column of size E (E: number of edges).
         The gdf column contains values associated with this edge.
         For this function the values can be any type, they are not
@@ -177,25 +186,25 @@ def symmetrize(source_col, dest_col, value_col=None):
         input_df = input_df.rename(columns={source_col.name: "source"})
         input_df["destination"] = dest_col
     else:
-        input_df = cudf.DataFrame({"source": source_col,
-                                   "destination": dest_col})
+        input_df = cudf.DataFrame(
+            {"source": source_col, "destination": dest_col}
+        )
         csg.null_check(source_col)
         csg.null_check(dest_col)
-
     if value_col is not None:
         input_df.insert(len(input_df.columns), "value", value_col)
-
+    print(input_df)
+    print(source_col)
     output_df = None
     if type(source_col) is dask_cudf.Series:
         output_df = symmetrize_ddf(input_df, "source", "destination")
     else:
         output_df = symmetrize_df(input_df, "source", "destination")
-    
+
     if value_col is not None:
         return (
             output_df["source"],
             output_df["destination"],
             output_df["value"],
         )
-
     return output_df["source"], output_df["destination"]
