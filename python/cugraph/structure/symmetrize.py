@@ -184,8 +184,6 @@ def symmetrize(source_col, dest_col, value_col=None):
     if value_col is not None:
         weight_name = "value"
         input_df.insert(len(input_df.columns), "value", value_col)
-    print(input_df)
-    print(source_col)
     output_df = None
     if type(source_col) is dask_cudf.Series:
         output_df = symmetrize_ddf(
