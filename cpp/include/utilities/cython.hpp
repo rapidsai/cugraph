@@ -151,7 +151,7 @@ struct graph_container_t {
 //
 // FIXME: Should local_* values be void* as well?
 void populate_graph_container(graph_container_t& graph_container,
-                              raft::handle_t const& handle,
+                              raft::handle_t& handle,
                               void* src_vertices,
                               void* dst_vertices,
                               void* weights,

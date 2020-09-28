@@ -205,7 +205,7 @@ cdef extern from "utilities/cython.hpp" namespace "cugraph::cython":
 
     cdef void populate_graph_container(
         graph_container_t &graph_container,
-        const handle_t &handle,
+        handle_t &handle,
         void *src_vertices,
         void *dst_vertices,
         void *weights,

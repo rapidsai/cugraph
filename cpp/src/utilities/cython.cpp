@@ -17,6 +17,7 @@
 #include <algorithms.hpp>
 #include <experimental/graph_view.hpp>
 #include <graph.hpp>
+#include <partition_manager.hpp>
 #include <raft/handle.hpp>
 #include <utilities/cython.hpp>
 #include <utilities/error.hpp>
@@ -28,7 +29,7 @@ namespace cython {
 // the meta-data accordingly.  The graph container owns the pointer and it is
 // assumed it will delete it on destruction.
 void populate_graph_container(graph_container_t& graph_container,
-                              raft::handle_t const& handle,
+                              raft::handle_t& handle,
                               void* src_vertices,
                               void* dst_vertices,
                               void* weights,
@@ -54,6 +55,12 @@ void populate_graph_container(graph_container_t& graph_container,
   int partition_row_rank = rank / partition_row_size;
   int partition_col_rank  = rank % partition_row_size;
 
+  // Setup the subcommunicators needed for this partition on the handle
+  partition_2d::subcomm_factory_t<partition_2d::key_naming_t, int>
+    subcomm_factory(handle, partition_row_size);
+
+  // Copy the contents of the vertex_partition_offsets (host array) to a vector
+  // as needed by the partition_t ctor.
   int* vertex_partition_offsets_array = reinterpret_cast<int*>(vertex_partition_offsets);
   std::vector<int> vertex_partition_offsets_vect;  // vertex_t
 
