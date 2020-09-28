@@ -41,7 +41,7 @@ Betweenness Centrality
     :undoc-members:
 
 Edge Betweenness Centrality
-----------------------
+---------------------------
 
 .. automodule:: cugraph.centrality.edge_betweenness_centrality
     :members:

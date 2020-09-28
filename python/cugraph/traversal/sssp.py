@@ -39,11 +39,14 @@ def sssp(G, source):
     Returns
     -------
     df : cudf.DataFrame
-        df['vertex'][i] gives the vertex id of the i'th vertex.
-        df['distance'][i] gives the path distance for the i'th vertex from the
-        starting vertex.
-        df['predecessor'][i] gives the vertex id of the vertex that was reached
-        before the i'th vertex in the traversal.
+        df['vertex']
+            vertex id
+
+        df['distance']
+            gives the path distance from the starting vertex
+
+        df['predecessor']
+            the vertex it was reached from
 
     Examples
     --------
@@ -119,11 +122,14 @@ def shortest_path(G, source):
     Returns
     -------
     df : cudf.DataFrame or pandas.DataFrame
-        df['vertex'][i] gives the vertex id of the i'th vertex.
-        df['distance'][i] gives the path distance for the i'th vertex from the
-        starting vertex.
-        df['predecessor'][i] gives the vertex id of the vertex that was reached
-        before the i'th vertex in the traversal.
+        df['vertex']
+            vertex id
+
+        df['distance']
+            gives the path distance from the starting vertex
+
+        df['predecessor']
+            the vertex it was reached from
 
     Examples
     --------
