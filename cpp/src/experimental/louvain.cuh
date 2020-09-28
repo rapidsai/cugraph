@@ -1707,9 +1707,6 @@ class Louvain {
     local_num_cols_     = current_graph_view_.get_number_of_local_adj_matrix_partition_cols();
     local_num_edges_    = new_src_v.size();
 
-    // TODO:  Do I still need fill_offset?  I think not...
-    // detail::fill_offset(d_old_src, graph.offsets, num_clusters,
-    // graph.number_of_edges, stream_);
     CHECK_CUDA(stream_);
   }
 
