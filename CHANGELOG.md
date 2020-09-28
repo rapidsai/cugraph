@@ -16,6 +16,7 @@
 - PR #1139 MNMG Louvain Python updates, Cython cleanup
 - PR #1149 Parquet read and concat within workers
 - PR #1152 graph container cleanup, added arg for instantiating legacy types and switch statements to factory function
+- PR #1164 MG symmetrize and conda env updates
 
 ## Bug Fixes
 - PR #1131 Show style checker errors with set +e

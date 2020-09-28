@@ -203,7 +203,7 @@ def test_symmetrize_weighted(graph_file):
 
 
 @pytest.mark.parametrize("graph_file", utils.DATASETS_UNDIRECTED)
-def test_mg_symmetrize(graph_file):
+def test_mg_symmetrize_df(graph_file):
     gc.collect()
 
     cluster = LocalCUDACluster()
@@ -211,7 +211,7 @@ def test_mg_symmetrize(graph_file):
     Comms.initialize()
 
     ddf = utils.read_dask_cudf_csv_file(graph_file)
-    sym_ddf = cugraph.symmetrize(ddf["src"], ddf["dst"])
+    sym_ddf = cugraph.symmetrize_ddf(ddf, "src", "dst")
     
     # convert to regular cudf to facilitate comparison
     df = ddf.compute()
