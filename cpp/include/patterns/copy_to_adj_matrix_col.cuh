@@ -48,7 +48,7 @@ namespace experimental {
  * @param adj_matrix_col_value_output_first Iterator pointing to the adjacency matrix column output
  * property variables for the first (inclusive) column (assigned to this process in multi-GPU).
  * `adj_matrix_col_value_output_last` (exclusive) is deduced as @p adj_matrix_col_value_output_first
- * + @p graph_view.get_number_of_adj_matrix_local_cols().
+ * + @p graph_view.get_number_of_local_adj_matrix_partition_cols().
  */
 template <typename GraphViewType,
           typename VertexValueInputIterator,
@@ -62,7 +62,7 @@ void copy_to_adj_matrix_col(raft::handle_t const& handle,
     CUGRAPH_FAIL("unimplemented.");
   } else {
     assert(graph_view.get_number_of_local_vertices() ==
-           graph_view.get_number_of_adj_matrix_local_cols());
+           graph_view.get_number_of_local_adj_matrix_partition_cols());
     thrust::copy(rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
                  vertex_value_input_first,
                  vertex_value_input_first + graph_view.get_number_of_local_vertices(),
@@ -96,7 +96,7 @@ void copy_to_adj_matrix_col(raft::handle_t const& handle,
  * @param adj_matrix_col_value_output_first Iterator pointing to the adjacency matrix column output
  * property variables for the first (inclusive) column (assigned to this process in multi-GPU).
  * `adj_matrix_col_value_output_last` (exclusive) is deduced as @p adj_matrix_col_value_output_first
- * + @p graph_view.get_number_of_adj_matrix_local_cols().
+ * + @p graph_view.get_number_of_local_adj_matrix_partition_cols().
  */
 template <typename GraphViewType,
           typename VertexIterator,
@@ -113,7 +113,7 @@ void copy_to_adj_matrix_col(raft::handle_t const& handle,
     CUGRAPH_FAIL("unimplemented.");
   } else {
     assert(graph_view.get_number_of_local_vertices() ==
-           graph_view.get_number_of_adj_matrix_local_cols());
+           graph_view.get_number_of_local_adj_matrix_partition_cols());
     auto val_first = thrust::make_permutation_iterator(vertex_value_input_first, vertex_first);
     thrust::scatter(rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
                     val_first,
