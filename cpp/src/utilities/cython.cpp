@@ -36,8 +36,10 @@ void populate_graph_container(graph_container_t& graph_container,
                               numberTypeEnum vertexType,
                               numberTypeEnum edgeType,
                               numberTypeEnum weightType,
-                              int num_vertices,  // from ishika
-                              int num_edges,  // from ishika
+                              int num_vertices,
+                              int num_edges,
+                              int partition_row_size,  // pcols
+                              int partition_col_size,  // prows
                               bool transposed,
                               bool multi_gpu)
 {
@@ -47,15 +49,15 @@ void populate_graph_container(graph_container_t& graph_container,
   bool do_expensive_check{false};
   bool hypergraph_partitioned{false};
 
-  // FIXME: call subcommunicator to get the following partition_t info:
-  int partition_row_size{2};
-  int partition_col_size{1};
-  int partition_row_rank{0};
-  int partition_col_rank{0};
+  raft::comms::comms_t const& communicator = handle.get_comms();
+  int const rank = communicator.get_rank();
+  int partition_row_rank = rank / partition_row_size;
+  int partition_col_rank  = rank % partition_row_size;
 
   int* vertex_partition_offsets_array = reinterpret_cast<int*>(vertex_partition_offsets);
   std::vector<int> vertex_partition_offsets_vect;  // vertex_t
-  for (int i=0; i<(partition_row_size * partition_col_size); ++i) {
+
+  for (int32_t i=0; i<(partition_row_size * partition_col_size); ++i) {
      vertex_partition_offsets_vect.push_back(vertex_partition_offsets_array[i]);
   }
   experimental::partition_t<int> partition(vertex_partition_offsets_vect,
@@ -76,7 +78,7 @@ void populate_graph_container(graph_container_t& graph_container,
 
      if (weightType == numberTypeEnum::floatType) {
        // vector of 1 representing the indivdual partition for this worker
-        std::vector<experimental::edgelist_t<int, int, float>> edge_lists;
+       std::vector<experimental::edgelist_t<int, int, float>> edge_lists;
        edge_lists.push_back(experimental::edgelist_t<int, int, float>{src_vertices_array, dst_vertices_array,
                 reinterpret_cast<float*>(weights), num_edges});
        auto g = new experimental::graph_t<int, int, float, false, true>(
@@ -94,8 +96,7 @@ void populate_graph_container(graph_container_t& graph_container,
       graph_container.graph_ptr_type = graphTypeEnum::graph_t_float_mg;
 
     } else {
-        std::vector<experimental::edgelist_t<int, int, double>> edge_lists;
-
+       std::vector<experimental::edgelist_t<int, int, double>> edge_lists;
        edge_lists.push_back(experimental::edgelist_t<int, int, double>{src_vertices_array, dst_vertices_array,
                 reinterpret_cast<double*>(weights), num_edges});
        auto g = new experimental::graph_t<int, int, double, false, true>(

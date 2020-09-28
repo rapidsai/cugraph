@@ -161,6 +161,8 @@ void populate_graph_container(graph_container_t& graph_container,
                               numberTypeEnum weightType,
                               int num_vertices,
                               int num_edges,
+                              int partition_row_size,  // pcols
+                              int partition_col_size,  // prows
                               bool transposed,
                               bool multi_gpu);
 

@@ -25,7 +25,16 @@ import cudf
 import numpy as np
 
 
-def louvain(input_df, num_verts, num_edges, vertex_partition_offsets, rank, handle, max_level, resolution):
+def louvain(input_df,
+            num_verts,
+            num_edges,
+            partition_row_size,
+            partition_col_size,
+            vertex_partition_offsets,
+            rank,
+            handle,
+            max_level,
+            resolution):
     """
     Call MG Louvain
     """
@@ -54,7 +63,9 @@ def louvain(input_df, num_verts, num_edges, vertex_partition_offsets, rank, hand
     if weights is not None:
         c_edge_weights = weights.__cuda_array_interface__['data'][0]
 
-    cdef uintptr_t c_vertex_partition_offsets = vertex_partition_offsets.__cuda_array_interface__['data'][0]
+    # FIXME: data is on device, move to host (to_pandas()), convert to np array and access pointer to pass to C
+    #cdef uintptr_t c_vertex_partition_offsets = vertex_partition_offsets.__cuda_array_interface__['data'][0]
+    cdef uintptr_t c_vertex_partition_offsets = vertex_partition_offsets.values_host.__array_interface__['data'][0]
 
     # FIXME: Offsets and indices are currently hardcoded to int, but this may
     #        not be acceptable in the future.
@@ -74,6 +85,7 @@ def louvain(input_df, num_verts, num_edges, vertex_partition_offsets, rank, hand
                              <numberTypeEnum>(<int>(numberTypeEnum.intType)),
                              <numberTypeEnum>(<int>(weightTypeMap[weights.dtype])),
                              num_verts, num_edges,
+                             partition_row_size, partition_col_size,
                              False, True)  # store_transposed, multi_gpu
 
     # Create the output dataframe
