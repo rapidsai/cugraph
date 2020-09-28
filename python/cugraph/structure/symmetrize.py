@@ -73,7 +73,7 @@ def symmetrize_df(df, src_name, dst_name):
     return gdf.groupby(by=[src_name, dst_name], as_index=False).min()
 
 
-def symmetrize_ddf(df, src_name, dst_name):
+def symmetrize_ddf(df, src_name, dst_name, weight_name=None):
     """
     Take a COO stored in a distributed DataFrame, and the column names of
     the source and destination columns and create a new data frame
@@ -111,30 +111,19 @@ def symmetrize_ddf(df, src_name, dst_name):
     >>> G = cugraph.Graph()
     >>> G.add_edge_list(sym_df['0]', sym_df['1'], sym_df['2'])
     """
-    # FIXME convoluted way of doing ddf = dask_cudf.DataFrame()
-    ddf = None
+    if weight_name:
+        ddf2 = df[[dst_name, src_name, weight_name]]
+        ddf2.columns = [src_name, dst_name, weight_name]
+    else:
+        ddf2 = df[[dst_name, src_name]]
+        ddf2.columns = [src_name, dst_name]
 
-    # FIXME ignore_index not supported in dask, using .reset_index(drop=True)
-    for idx, name in enumerate(df.columns):
-        if name == src_name:
-            # DDF from DSeries for the fist one
-            tmp = df[src_name].append(df[dst_name]).reset_index(drop=True)
-            ddf = tmp.to_frame()
-            print(ddf.head())
-        elif name == dst_name:
-            # Adding
-            ddf[dst_name] = (
-                df[dst_name].append(df[src_name]).reset_index(drop=True)
-            )
-            print(ddf.head())
-        else:
-            ddf[name] = df[name].append(df[name]).reset_index(drop=True)
-            print(ddf.head())
-    ddf = ddf.persist()
-    print(ddf.head())
-    result = ddf.groupby(by=[src_name, dst_name], as_index=False).min()
-    print(result.head())
-
+    ddf = df.append(ddf2).reset_index(drop=True)
+    result = (
+        ddf.groupby(by=[src_name, dst_name], as_index=False)
+        .min()
+        .reset_index()
+    )
     return result
 
 
@@ -180,6 +169,7 @@ def symmetrize(source_col, dest_col, value_col=None):
     """
 
     input_df = None
+    weight_name = None
     if type(source_col) is dask_cudf.Series:
         # FIXME convoluted way of just wrapping dask cudf Series in a ddf
         input_df = source_col.to_frame()
@@ -192,12 +182,15 @@ def symmetrize(source_col, dest_col, value_col=None):
         csg.null_check(source_col)
         csg.null_check(dest_col)
     if value_col is not None:
+        weight_name = "value"
         input_df.insert(len(input_df.columns), "value", value_col)
     print(input_df)
     print(source_col)
     output_df = None
     if type(source_col) is dask_cudf.Series:
-        output_df = symmetrize_ddf(input_df, "source", "destination")
+        output_df = symmetrize_ddf(
+            input_df, "source", "destination", weight_name
+        )
     else:
         output_df = symmetrize_df(input_df, "source", "destination")
 

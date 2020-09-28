@@ -202,26 +202,56 @@ def test_symmetrize_weighted(graph_file):
     compare(cu_M["0"], cu_M["1"], cu_M["2"], sym_src, sym_dst, sym_w)
 
 
-@pytest.mark.parametrize("graph_file", utils.DATASETS_UNDIRECTED)
-def test_mg_symmetrize_df(graph_file):
-    gc.collect()
-
+@pytest.fixture
+def client_connection():
     cluster = LocalCUDACluster()
     client = Client(cluster)
     Comms.initialize()
 
-    ddf = utils.read_dask_cudf_csv_file(graph_file)
-    sym_ddf = cugraph.symmetrize_ddf(ddf, "src", "dst")
-    
-    # convert to regular cudf to facilitate comparison
-    df = ddf.compute()
-    sym_df = sym_ddf.compute()
-    compare(
-        df["0"], df["1"], df["2"], sym_df["0"], sym_df["1"], sym_df["2"])
+    yield client
 
     Comms.destroy()
     client.close()
     cluster.close()
+
+
+@pytest.mark.skip(reason="MG not supported on CI")
+@pytest.mark.parametrize("graph_file", utils.DATASETS_UNDIRECTED)
+def test_mg_symmetrize(graph_file, client_connection):
+    gc.collect()
+
+    ddf = utils.read_dask_cudf_csv_file(graph_file)
+    sym_src, sym_dst = cugraph.symmetrize(ddf["src"], ddf["dst"])
+
+    # convert to regular cudf to facilitate comparison
+    df = ddf.compute()
+
+    compare(
+        df["src"], df["dst"], None, sym_src.compute(), sym_dst.compute(), None
+    )
+
+
+@pytest.mark.skip(reason="MG not supported on CI")
+@pytest.mark.parametrize("graph_file", utils.DATASETS_UNDIRECTED)
+def test_mg_symmetrize_df(graph_file, client_connection):
+    gc.collect()
+
+    ddf = utils.read_dask_cudf_csv_file(graph_file)
+    sym_ddf = cugraph.symmetrize_ddf(ddf, "src", "dst", "weight")
+
+    # convert to regular cudf to facilitate comparison
+    df = ddf.compute()
+    sym_df = sym_ddf.compute()
+
+    compare(
+        df["src"],
+        df["dst"],
+        df["weight"],
+        sym_df["src"],
+        sym_df["dst"],
+        sym_df["weight"],
+    )
+
 
 # Test
 # NOTE: see https://github.com/rapidsai/cudf/issues/2636
@@ -229,7 +259,7 @@ def test_mg_symmetrize_df(graph_file):
 #                        list(product([False, True], [False, True])))
 
 
-@pytest.mark.parametrize("graph_file", utils.DATASETS)
+@pytest.mark.parametrize("graph_file", utils.DATASETS_UNDIRECTED)
 def test_symmetrize_df(graph_file):
     gc.collect()
 
