@@ -14,19 +14,19 @@
 from dask.distributed import wait, default_client
 
 import cugraph.comms.comms as Comms
-from cugraph.dask.common.input_utils import DistributedDataHandler
+from cugraph.dask.common.input_utils import get_distributed_data
 from cugraph.structure.shuffle import shuffle
 from cugraph.dask.community import louvain_wrapper as c_mg_louvain
 
-def call_louvain(sID, ddf, num_verts, num_edges, vertex_row_partitions, max_level, resolution):
+def call_louvain(sID, data, num_verts, num_edges, vertex_partition_offsets, max_level, resolution):
 
     wid = Comms.get_worker_id(sID)
     handle = Comms.get_handle(sID)
 
-    return c_mg_louvain.louvain(ddf.partitions[wid],
+    return c_mg_louvain.louvain(data[0],
                                 num_verts,
                                 num_edges,
-                                vertex_row_partitions,
+                                vertex_partition_offsets,
                                 wid,
                                 handle,
                                 max_level,
@@ -66,25 +66,18 @@ def louvain(input_graph, max_iter=100, resolution=1.0, load_balance=True):
 
     client = default_client()
     input_graph.compute_renumber_edge_list(transposed=False)
-    ddf, num_verts, vertex_row_partitions = shuffle(input_graph,
-                                                    transposed=False,
-                                                    prows=None, pcols=None)
-    # FIXME: should num_edges be computed here as the total number of edges in
-    # the graph, or in call_louvain as the number of edges in a partition?
-    num_edges = input_graph.number_of_edges()
-
-    data = DistributedDataHandler.create(data=ddf)
-    comms = Comms.get_comms()
-    data.calculate_worker_and_rank_info(comms)
+    ddf, num_verts, vertex_partition_offsets = shuffle(input_graph, transposed=False)
+    num_edges = len(ddf)
+    data = get_distributed_data(ddf)
 
     result = dict([(data.worker_info[wf[0]]["rank"],
                     client.submit(
                         call_louvain,
                         Comms.get_session_id(),
-                        ddf,
+                        wf[1],
                         num_verts,
                         num_edges,
-                        vertex_row_partitions,
+                        vertex_partition_offsets,
                         max_iter,
                         resolution,
                         workers=[wf[0]]))

@@ -29,12 +29,6 @@ def louvain(input_df, num_verts, num_edges, vertex_partition_offsets, rank, hand
     """
     Call MG Louvain
     """
-    # FIXME: remove this
-    partition_row_size=2
-    partition_col_size=2
-    partition_row_rank=0
-    partition_col_rank=0
-
     # FIXME: This must be imported here to prevent a circular import
     from cugraph.structure import graph_primtypes_wrapper
 
@@ -76,7 +70,6 @@ def louvain(input_df, num_verts, num_edges, vertex_partition_offsets, rank, hand
                              handle_[0],
                              <void*>c_src_vertices, <void*>c_dst_vertices, <void*>c_edge_weights,
                              <void*>c_vertex_partition_offsets,
-                             partition_row_size, partition_col_size, partition_row_rank, partition_col_rank,
                              <numberTypeEnum>(<int>(numberTypeEnum.intType)),
                              <numberTypeEnum>(<int>(numberTypeEnum.intType)),
                              <numberTypeEnum>(<int>(weightTypeMap[weights.dtype])),

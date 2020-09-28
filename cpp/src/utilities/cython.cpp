@@ -33,10 +33,6 @@ void populate_graph_container(graph_container_t& graph_container,
                               void* dst_vertices,
                               void* weights,
                               void* vertex_partition_offsets,
-                              int partition_row_size,
-                              int partition_col_size,
-                              int partition_row_rank,
-                              int partition_col_rank,
                               numberTypeEnum vertexType,
                               numberTypeEnum edgeType,
                               numberTypeEnum weightType,
@@ -49,16 +45,14 @@ void populate_graph_container(graph_container_t& graph_container,
                   "populate_graph_container() can only be called on an empty container.");
 
   bool do_expensive_check{false};
-
-  // FIXME: call subcommunicator (andrei's PR)
-  // get remainder of data there
-
-  // std::vector<int> vertex_partition_offsets{1,2,3,4};  // vertex_t type, subcomm creation or shuffle?
   bool hypergraph_partitioned{false};
-  // int comm_p_row_size{2};  // from shuffle
-  // int comm_p_col_size{2};  // from shuffle
-  // int comm_p_row_rank{0};  // from shuffle
-  // int comm_p_col_rank{0};  // from shuffle
+
+  // FIXME: call subcommunicator to get the following partition_t info:
+  int partition_row_size{2};
+  int partition_col_size{1};
+  int partition_row_rank{0};
+  int partition_col_rank{0};
+
   int* vertex_partition_offsets_array = reinterpret_cast<int*>(vertex_partition_offsets);
   std::vector<int> vertex_partition_offsets_vect;  // vertex_t
   for (int i=0; i<(partition_row_size * partition_col_size); ++i) {
