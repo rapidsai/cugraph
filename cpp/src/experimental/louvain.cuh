@@ -27,9 +27,8 @@
 
 #include <raft/device_atomics.cuh>
 
-#include <patterns/copy_to_adj_matrix_col.cuh>
-#include <patterns/copy_to_adj_matrix_row.cuh>
-#include <patterns/copy_v_transform_reduce_nbr.cuh>
+#include <patterns/copy_to_adj_matrix_row_col.cuh>
+#include <patterns/copy_v_transform_reduce_in_out_nbr.cuh>
 #include <patterns/transform_reduce_e.cuh>
 #include <patterns/transform_reduce_v.cuh>
 

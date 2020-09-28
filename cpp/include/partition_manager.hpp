@@ -28,13 +28,6 @@
 
 namespace cugraph {
 namespace partition_2d {
-template <typename from_t>
-std::string to_string(from_t const& value)
-{
-  std::stringstream ss;
-  ss << value;
-  return ss.str();
-}
 
 // default key-naming mechanism:
 //

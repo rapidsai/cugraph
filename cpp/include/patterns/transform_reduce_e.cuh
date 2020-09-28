@@ -25,7 +25,6 @@
 #include <raft/handle.hpp>
 
 #include <thrust/tuple.h>
-#include <cub/cub.cuh>
 
 #include <cstdint>
 #include <type_traits>
@@ -36,31 +35,14 @@ namespace experimental {
 namespace detail {
 
 // FIXME: block size requires tuning
-int32_t constexpr transform_reduce_e_for_all_low_out_degree_block_size = 128;
-
-template <typename EdgeOpResultType, size_t BlockSize>
-struct block_reduce_edge_op_result {
-  template <typename T = EdgeOpResultType>
-  __device__ std::enable_if_t<std::is_arithmetic<T>::value, T> compute(T const& edge_op_result)
-  {
-    using BlockReduce = cub::BlockReduce<T, BlockSize>;
-    __shared__ typename BlockReduce::TempStorage temp_storage;
-    return BlockReduce(temp_storage).Sum(edge_op_result);
-  }
-
-  template <typename T = EdgeOpResultType>
-  __device__ std::enable_if_t<is_thrust_tuple<T>::value, T> compute(T const& edge_op_result)
-  {
-    return block_reduce_thrust_tuple<T, BlockSize>()(edge_op_result);
-  }
-};
+int32_t constexpr transform_reduce_e_for_all_block_size = 128;
 
 template <typename GraphViewType,
           typename AdjMatrixRowValueInputIterator,
           typename AdjMatrixColValueInputIterator,
           typename BlockResultIterator,
           typename EdgeOp>
-__global__ void for_all_major_for_all_nbr_low_out_degree(
+__global__ void for_all_major_for_all_nbr_low_degree(
   matrix_partition_device_t<GraphViewType> matrix_partition,
   AdjMatrixRowValueInputIterator adj_matrix_row_value_input_first,
   AdjMatrixColValueInputIterator adj_matrix_col_value_input_first,
@@ -154,9 +136,8 @@ __global__ void for_all_major_for_all_nbr_low_out_degree(
   }
 
   e_op_result_sum =
-    block_reduce_edge_op_result<e_op_result_t,
-                                transform_reduce_e_for_all_low_out_degree_block_size>()
-      .compute(e_op_result_sum);
+    block_reduce_edge_op_result<e_op_result_t, transform_reduce_e_for_all_block_size>().compute(
+      e_op_result_sum);
   if (threadIdx.x == 0) { *(block_result_first + blockIdx.x) = e_op_result_sum; }
 }
 
@@ -217,15 +198,15 @@ T transform_reduce_e(raft::handle_t const& handle,
       GraphViewType::is_adj_matrix_transposed ? matrix_partition.get_major_value_start_offset() : 0;
 
     raft::grid_1d_thread_t update_grid(matrix_partition.get_major_size(),
-                                       detail::transform_reduce_e_for_all_low_out_degree_block_size,
+                                       detail::transform_reduce_e_for_all_block_size,
                                        handle.get_device_properties().maxGridSize[0]);
 
     rmm::device_vector<T> block_results(update_grid.num_blocks);
 
-    detail::for_all_major_for_all_nbr_low_out_degree<<<update_grid.num_blocks,
-                                                       update_grid.block_size,
-                                                       0,
-                                                       handle.get_stream()>>>(
+    detail::for_all_major_for_all_nbr_low_degree<<<update_grid.num_blocks,
+                                                   update_grid.block_size,
+                                                   0,
+                                                   handle.get_stream()>>>(
       matrix_partition,
       adj_matrix_row_value_input_first + row_value_input_offset,
       adj_matrix_col_value_input_first + col_value_input_offset,

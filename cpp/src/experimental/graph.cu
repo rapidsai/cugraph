@@ -191,8 +191,8 @@ std::vector<vertex_t> segment_degree_sorted_vertex_partition(raft::handle_t cons
 
   CUDA_TRY(cudaStreamSynchronize(
     handle.get_stream()));  // this is necessary as d_segment_offsets will become out-of-scope once
-                            // this functions and returning a host variable which can be used right
-                            // after return.
+                            // this function returns and this function returns a host variable which
+                            // can be used right after return.
 
   return h_segment_offsets;
 }
