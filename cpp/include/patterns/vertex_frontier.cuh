@@ -354,6 +354,7 @@ class VertexFrontier {
   size_t buffer_capacity_{0};
   rmm::device_scalar<size_t> buffer_idx_{};
 
+  // FIXME: better pick between this apporach or the approach used in allocate_comm_buffer
   size_t compute_aggregate_buffer_size_in_bytes(size_t size)
   {
     size_t aggregate_buffer_size_in_bytes =
