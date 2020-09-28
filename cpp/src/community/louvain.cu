@@ -110,7 +110,7 @@ template std::pair<size_t, double> louvain(
   size_t,
   double);
 
-// multi_gpu = true
+// instantations with multi_gpu = true
 template std::pair<size_t, float> louvain(
   raft::handle_t const &,
   experimental::graph_view_t<int32_t, int32_t, float, false, true> const &,
