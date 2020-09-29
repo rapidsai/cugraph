@@ -118,8 +118,21 @@ def bfs_edges(G, source, reverse=False, depth_limit=None, sort_neighbors=None,
     >>>                   dtype=['int32', 'int32', 'float32'], header=None)
     >>> G = cugraph.Graph()
     >>> G.from_cudf_edgelist(M, source='0', destination='1')
-    >>> df = cugraph.bfs(G, 0)
+    >>> df = cugraph.bfs_edges(G, 0)
     """
+
+    if reverse ~= None:
+        raise NotImplementedError(
+            "reverse processing of graph is "
+            "currently not supported"
+        )
+
+    if depth_limit is not None:
+        raise NotImplementedError(
+            "depth limit implementation of BFS "
+            "is not currently supported"
+        )
+
 
     G, isNx = check_nx_graph(G)
 
