@@ -44,11 +44,15 @@ def symmetrize_df(df, src_name, dst_name):
         Name of the column in the data frame containing the destination ids
     Examples
     --------
-    >>> M = cudf.read_csv('datasets/karate.csv', delimiter=' ',
-    >>>                   dtype=['int32', 'int32', 'float32'], header=None)
-    >>> sym_df = cugraph.symmetrize(M, '0', '1')
-    >>> G = cugraph.Graph()
-    >>> G.add_edge_list(sym_df['0]', sym_df['1'], sym_df['2'])
+    >>> import cugraph.dask as dcg
+    >>> Comms.initialize()
+    >>> chunksize = dcg.get_chunksize(input_data_path)
+    >>> ddf = dask_cudf.read_csv(input_data_path, chunksize=chunksize,
+                                 delimiter=' ',
+                                 names=['src', 'dst', 'weight'],
+                                 dtype=['int32', 'int32', 'float32'])
+    >>> sym_ddf = cugraph.symmetrize_ddf(ddf, "src", "dst", "weight")
+    >>> Comms.destroy()
     """
     gdf = cudf.DataFrame()
 
