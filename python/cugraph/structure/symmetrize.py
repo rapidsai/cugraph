@@ -14,7 +14,6 @@
 from cugraph.structure import graph as csg
 import cudf
 import dask_cudf
-import dask.dataframe
 
 
 def symmetrize_df(df, src_name, dst_name):

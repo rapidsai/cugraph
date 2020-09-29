@@ -19,7 +19,6 @@ import pandas as pd
 import cudf
 import cugraph
 from cugraph.tests import utils
-import dask_cudf
 import cugraph.comms as Comms
 from dask.distributed import Client
 from dask_cuda import LocalCUDACluster
