@@ -111,8 +111,6 @@ def symmetrize_ddf(df, src_name, dst_name, weight_name=None):
     >>> M = cudf.read_csv('datasets/karate.csv', delimiter=' ',
     >>>                   dtype=['int32', 'int32', 'float32'], header=None)
     >>> sym_df = cugraph.symmetrize(M, '0', '1')
-    >>> G = cugraph.Graph()
-    >>> G.add_edge_list(sym_df['0]', sym_df['1'], sym_df['2'])
     """
     if weight_name:
         ddf2 = df[[dst_name, src_name, weight_name]]
@@ -167,8 +165,6 @@ def symmetrize(source_col, dest_col, value_col=None):
     >>> destinations = cudf.Series(M['1'])
     >>> values = cudf.Series(M['2'])
     >>> src, dst, val = cugraph.symmetrize(sources, destinations, values)
-    >>> G = cugraph.Graph()
-    >>> G.add_edge_list(src, dst, val)
     """
 
     input_df = None
