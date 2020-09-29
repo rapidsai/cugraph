@@ -277,6 +277,11 @@ std::cout<<"DOING EC 1/3"<<std::endl;
       auto edge_first = thrust::make_zip_iterator(thrust::make_tuple(
         store_transposed ? edgelists[i].p_dst_vertices : edgelists[i].p_src_vertices,
         store_transposed ? edgelists[i].p_src_vertices : edgelists[i].p_dst_vertices));
+
+      //for(int ii=0;ii<edgelists[i].number_of_edges;++ii){
+      //   printf("%d %d\n" % edgelists[i].p_src_vertices[ii],edgelists[i].p_dst_vertices[ii]);
+      //}
+
       // better use thrust::any_of once https://github.com/thrust/thrust/issues/1016 is resolved
       CUGRAPH_EXPECTS(thrust::count_if(rmm::exec_policy(default_stream)->on(default_stream),
                                        edge_first,

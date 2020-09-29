@@ -37,8 +37,9 @@ void populate_graph_container(graph_container_t& graph_container,
                               numberTypeEnum vertexType,
                               numberTypeEnum edgeType,
                               numberTypeEnum weightType,
-                              int num_vertices,
-                              int num_edges,
+                              int num_partition_edges,
+                              int num_global_vertices,
+                              int num_global_edges,
                               int partition_row_size,  // pcols
                               int partition_col_size,  // prows
                               bool transposed,
@@ -68,6 +69,7 @@ void populate_graph_container(graph_container_t& graph_container,
      vertex_partition_offsets_vect.push_back(vertex_partition_offsets_array[i]);
      std::cout<<"VPO"<<i<<": "<<vertex_partition_offsets_vect[i]<<std::endl;
   }
+  std::cout<<"num_partition_edges: "<<num_partition_edges<<std::endl;
   std::cout<<partition_row_size<<","<<partition_col_size<<","<<partition_row_rank<<","<<partition_col_rank<<std::endl;
 
   experimental::partition_t<int> partition(vertex_partition_offsets_vect,
@@ -90,13 +92,13 @@ void populate_graph_container(graph_container_t& graph_container,
        // vector of 1 representing the indivdual partition for this worker
        std::vector<experimental::edgelist_t<int, int, float>> edge_lists;
        edge_lists.push_back(experimental::edgelist_t<int, int, float>{src_vertices_array, dst_vertices_array,
-                reinterpret_cast<float*>(weights), num_edges});
+                reinterpret_cast<float*>(weights), num_partition_edges});
        auto g = new experimental::graph_t<int, int, float, false, true>(
          handle,
          edge_lists,
          partition,
-         num_vertices,
-         num_edges,
+         num_global_vertices,
+         num_global_edges,
          graph_props,
          sorted_by_global_degree_within_vertex_partition,
          do_expensive_check);
@@ -108,13 +110,13 @@ void populate_graph_container(graph_container_t& graph_container,
     } else {
        std::vector<experimental::edgelist_t<int, int, double>> edge_lists;
        edge_lists.push_back(experimental::edgelist_t<int, int, double>{src_vertices_array, dst_vertices_array,
-                reinterpret_cast<double*>(weights), num_edges});
+                reinterpret_cast<double*>(weights), num_partition_edges});
        auto g = new experimental::graph_t<int, int, double, false, true>(
          handle,
          edge_lists,
          partition,
-         num_vertices,
-         num_edges,
+         num_global_vertices,
+         num_global_edges,
          graph_props,
          sorted_by_global_degree_within_vertex_partition,
          do_expensive_check);
@@ -129,11 +131,11 @@ void populate_graph_container(graph_container_t& graph_container,
 
      if (weightType == numberTypeEnum::floatType) {
        experimental::edgelist_t<int, int, float> edge_list{src_vertices_array, dst_vertices_array,
-             reinterpret_cast<float*>(weights), num_edges};
+             reinterpret_cast<float*>(weights), num_partition_edges};
        auto g = new experimental::graph_t<int, int, float, false, false>(
          handle,
          edge_list,
-         num_vertices,
+         num_global_vertices,
          graph_props,
          sorted_by_degree,
          do_expensive_check);
@@ -144,11 +146,11 @@ void populate_graph_container(graph_container_t& graph_container,
 
     } else {
        experimental::edgelist_t<int, int, double> edge_list{src_vertices_array, dst_vertices_array,
-             reinterpret_cast<double*>(weights), num_edges};
+             reinterpret_cast<double*>(weights), num_partition_edges};
        auto g = new experimental::graph_t<int, int, double, false, false>(
          handle,
          edge_list,
-         num_vertices,
+         num_global_vertices,
          graph_props,
          sorted_by_degree,
          do_expensive_check);
@@ -170,8 +172,8 @@ void populate_graph_container_legacy(graph_container_t& graph_container,
                                      numberTypeEnum offsetType,
                                      numberTypeEnum indexType,
                                      numberTypeEnum weightType,
-                                     int num_vertices,
-                                     int num_edges,
+                                     int num_global_vertices,
+                                     int num_global_edges,
                                      int* local_vertices,
                                      int* local_edges,
                                      int* local_offsets)
@@ -190,8 +192,8 @@ void populate_graph_container_legacy(graph_container_t& graph_container,
           std::make_unique<GraphCSRView<int, int, float>>(reinterpret_cast<int*>(offsets),
                                                           reinterpret_cast<int*>(indices),
                                                           reinterpret_cast<float*>(weights),
-                                                          num_vertices,
-                                                          num_edges);
+                                                          num_global_vertices,
+                                                          num_global_edges);
         graph_container.graph_ptr_type = graphTypeEnum::GraphCSRViewFloat;
         (graph_container.graph_ptr_union.GraphCSRViewFloatPtr)
           ->set_local_data(local_vertices, local_edges, local_offsets);
@@ -203,8 +205,8 @@ void populate_graph_container_legacy(graph_container_t& graph_container,
           std::make_unique<GraphCSCView<int, int, float>>(reinterpret_cast<int*>(offsets),
                                                           reinterpret_cast<int*>(indices),
                                                           reinterpret_cast<float*>(weights),
-                                                          num_vertices,
-                                                          num_edges);
+                                                          num_global_vertices,
+                                                          num_global_edges);
         graph_container.graph_ptr_type = graphTypeEnum::GraphCSCViewFloat;
         (graph_container.graph_ptr_union.GraphCSCViewFloatPtr)
           ->set_local_data(local_vertices, local_edges, local_offsets);
@@ -216,8 +218,8 @@ void populate_graph_container_legacy(graph_container_t& graph_container,
           std::make_unique<GraphCOOView<int, int, float>>(reinterpret_cast<int*>(offsets),
                                                           reinterpret_cast<int*>(indices),
                                                           reinterpret_cast<float*>(weights),
-                                                          num_vertices,
-                                                          num_edges);
+                                                          num_global_vertices,
+                                                          num_global_edges);
         graph_container.graph_ptr_type = graphTypeEnum::GraphCOOViewFloat;
         (graph_container.graph_ptr_union.GraphCOOViewFloatPtr)
           ->set_local_data(local_vertices, local_edges, local_offsets);
@@ -233,8 +235,8 @@ void populate_graph_container_legacy(graph_container_t& graph_container,
           std::make_unique<GraphCSRView<int, int, double>>(reinterpret_cast<int*>(offsets),
                                                            reinterpret_cast<int*>(indices),
                                                            reinterpret_cast<double*>(weights),
-                                                           num_vertices,
-                                                           num_edges);
+                                                           num_global_vertices,
+                                                           num_global_edges);
         graph_container.graph_ptr_type = graphTypeEnum::GraphCSRViewDouble;
         (graph_container.graph_ptr_union.GraphCSRViewDoublePtr)
           ->set_local_data(local_vertices, local_edges, local_offsets);
@@ -246,8 +248,8 @@ void populate_graph_container_legacy(graph_container_t& graph_container,
           std::make_unique<GraphCSCView<int, int, double>>(reinterpret_cast<int*>(offsets),
                                                            reinterpret_cast<int*>(indices),
                                                            reinterpret_cast<double*>(weights),
-                                                           num_vertices,
-                                                           num_edges);
+                                                           num_global_vertices,
+                                                           num_global_edges);
         graph_container.graph_ptr_type = graphTypeEnum::GraphCSCViewDouble;
         (graph_container.graph_ptr_union.GraphCSCViewDoublePtr)
           ->set_local_data(local_vertices, local_edges, local_offsets);
@@ -259,8 +261,8 @@ void populate_graph_container_legacy(graph_container_t& graph_container,
           std::make_unique<GraphCOOView<int, int, double>>(reinterpret_cast<int*>(offsets),
                                                            reinterpret_cast<int*>(indices),
                                                            reinterpret_cast<double*>(weights),
-                                                           num_vertices,
-                                                           num_edges);
+                                                           num_global_vertices,
+                                                           num_global_edges);
         graph_container.graph_ptr_type = graphTypeEnum::GraphCOOViewDouble;
         (graph_container.graph_ptr_union.GraphCOOViewDoublePtr)
           ->set_local_data(local_vertices, local_edges, local_offsets);
