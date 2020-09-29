@@ -372,8 +372,9 @@ void update_frontier_v_push_if_out_nbr(
       auto const col_comm_rank = col_comm.get_rank();
 
       auto sub_comm_rank = graph_view.is_hypergraph_partitioned() ? col_comm_rank : row_comm_rank;
-      auto frontier_size =
-        (static_cast<size_t>(sub_comm_rank) == i) ? thrust::distance(vertex_first, vertex_last) : size_t{0};
+      auto frontier_size = (static_cast<size_t>(sub_comm_rank) == i)
+                             ? thrust::distance(vertex_first, vertex_last)
+                             : size_t{0};
       if (graph_view.is_hypergraph_partitioned()) {
         col_comm.bcast(&frontier_size, 1, i, handle.get_stream());
       } else {
