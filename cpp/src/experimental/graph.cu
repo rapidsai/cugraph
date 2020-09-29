@@ -16,6 +16,7 @@
 
 #include <experimental/detail/graph_utils.cuh>
 #include <experimental/graph.hpp>
+#include <partition_manager.hpp>
 #include <utilities/error.hpp>
 
 #include <rmm/thrust_rmm_allocator.h>
@@ -218,15 +219,17 @@ graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu, std::enable_if_
 {
   // cheap error checks
 
-  auto &comm_p               = this->get_handle_ptr()->get_comms();
-  auto const comm_p_size     = comm_p.get_size();
-  auto &comm_p_row           = this->get_handle_ptr()->get_subcomm(comm_p_row_key);
-  auto const comm_p_row_rank = comm_p_row.get_rank();
-  auto const comm_p_row_size = comm_p_row.get_size();
-  auto &comm_p_col           = this->get_handle_ptr()->get_subcomm(comm_p_col_key);
-  auto const comm_p_col_rank = comm_p_col.get_rank();
-  auto const comm_p_col_size = comm_p_col.get_size();
-  auto default_stream        = this->get_handle_ptr()->get_stream();
+  auto &comm           = this->get_handle_ptr()->get_comms();
+  auto const comm_size = comm.get_size();
+  auto &row_comm =
+    this->get_handle_ptr()->get_subcomm(cugraph::partition_2d::key_naming_t().row_name());
+  auto const row_comm_rank = row_comm.get_rank();
+  auto const row_comm_size = row_comm.get_size();
+  auto &col_comm =
+    this->get_handle_ptr()->get_subcomm(cugraph::partition_2d::key_naming_t().col_name());
+  auto const col_comm_rank = col_comm.get_rank();
+  auto const col_comm_size = col_comm.get_size();
+  auto default_stream      = this->get_handle_ptr()->get_stream();
 
   CUGRAPH_EXPECTS(edgelists.size() > 0,
                   "Invalid API parameter: edgelists.size() should be non-zero.");
@@ -247,7 +250,7 @@ graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu, std::enable_if_
     "is nullptr) or should not be nullptr (otherwise).");
 
   CUGRAPH_EXPECTS((partition.is_hypergraph_partitioned() &&
-                   (edgelists.size() == static_cast<size_t>(comm_p_row_size))) ||
+                   (edgelists.size() == static_cast<size_t>(row_comm_size))) ||
                     (!(partition.is_hypergraph_partitioned()) && (edgelists.size() == 1)),
                   "Invalid API parameter: errneous edgelists.size().");
 
@@ -286,7 +289,7 @@ graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu, std::enable_if_
                     "number_of_local_edges.");
 
     CUGRAPH_EXPECTS(
-      partition.get_vertex_partition_range_last(comm_p_size - 1) == number_of_vertices,
+      partition.get_vertex_partition_last(comm_size - 1) == number_of_vertices,
       "Invalid API parameter: vertex partition should cover [0, number_of_vertices).");
   }
 
@@ -355,14 +358,14 @@ graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu, std::enable_if_
                         d_thresholds.end(),
                         segment_offsets.begin() + 1);
 
-    rmm::device_uvector<vertex_t> aggregate_segment_offsets(
-      comm_p_row_size * segment_offsets.size(), default_stream);
-    comm_p_row.allgather(segment_offsets.data(),
-                         aggregate_segment_offsets.data(),
-                         segment_offsets.size(),
-                         default_stream);
+    rmm::device_uvector<vertex_t> aggregate_segment_offsets(row_comm_size * segment_offsets.size(),
+                                                            default_stream);
+    row_comm.allgather(segment_offsets.data(),
+                       aggregate_segment_offsets.data(),
+                       segment_offsets.size(),
+                       default_stream);
 
-    vertex_partition_segment_offsets_.resize(comm_p_row_size * (segment_offsets.size()));
+    vertex_partition_segment_offsets_.resize(row_comm_size * (segment_offsets.size()));
     raft::update_host(vertex_partition_segment_offsets_.data(),
                       aggregate_segment_offsets.data(),
                       aggregate_segment_offsets.size(),
