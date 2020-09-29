@@ -1791,23 +1791,22 @@ class Louvain {
   //
   detail::compute_partition_t<graph_view_t> compute_partition_;
 
-  // TODO:  Do I need this?
   rmm::device_vector<vertex_t> src_indices_v_;
 
   //
   //  Weights and clustering across iterations of algorithm
   //
   rmm::device_vector<weight_t> vertex_weights_v_;
-  rmm::device_vector<weight_t> src_vertex_weights_cache_v_;
-  rmm::device_vector<weight_t> dst_vertex_weights_cache_v_;
+  rmm::device_vector<weight_t> src_vertex_weights_cache_v_{};
+  rmm::device_vector<weight_t> dst_vertex_weights_cache_v_{};
 
   rmm::device_vector<weight_t> cluster_weights_v_;
-  rmm::device_vector<weight_t> src_cluster_weights_cache_v_;
-  rmm::device_vector<weight_t> dst_cluster_weights_cache_v_;
+  rmm::device_vector<weight_t> src_cluster_weights_cache_v_{};
+  rmm::device_vector<weight_t> dst_cluster_weights_cache_v_{};
 
   rmm::device_vector<vertex_t> cluster_v_;
-  rmm::device_vector<vertex_t> src_cluster_cache_v_;
-  rmm::device_vector<vertex_t> dst_cluster_cache_v_;
+  rmm::device_vector<vertex_t> src_cluster_cache_v_{};
+  rmm::device_vector<vertex_t> dst_cluster_cache_v_{};
 
 #ifdef TIMING
   HighResTimer hr_timer_;
