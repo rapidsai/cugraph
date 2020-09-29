@@ -478,7 +478,6 @@ host_scalar_allreduce(raft::comms::comms_t const& comm, T input, cudaStream_t st
     h_tuple_scalar_elements, input);
   raft::update_device(
     d_tuple_scalar_elements.data(), h_tuple_scalar_elements.data(), tuple_size, stream);
-  // FIXME: these allreduce operations can be placed between ncclGroupStart() and ncclGroupEnd()
   detail::host_allreduce_tuple_scalar_element_impl<T, size_t{0}, tuple_size>(
     comm, d_tuple_scalar_elements, stream);
   raft::update_host(
@@ -492,7 +491,7 @@ host_scalar_allreduce(raft::comms::comms_t const& comm, T input, cudaStream_t st
 }
 
 template <typename T>
-std::enable_if_t<std::is_arithmetic<T>::value, std::vector<T>> host_scalar_allgatherv(
+std::enable_if_t<std::is_arithmetic<T>::value, std::vector<T>> host_scalar_allgather(
   raft::comms::comms_t const& comm, T input, cudaStream_t stream)
 {
   std::vector<size_t> rx_counts(comm.get_size(), size_t{1});
@@ -514,7 +513,7 @@ std::enable_if_t<std::is_arithmetic<T>::value, std::vector<T>> host_scalar_allga
 
 template <typename T>
 std::enable_if_t<cugraph::experimental::is_thrust_tuple_of_arithmetic<T>::value, std::vector<T>>
-host_scalar_allgatherv(raft::comms::comms_t const& comm, T input, cudaStream_t stream)
+host_scalar_allgather(raft::comms::comms_t const& comm, T input, cudaStream_t stream)
 {
   size_t constexpr tuple_size = thrust::tuple_size<T>::value;
   std::vector<size_t> rx_counts(comm.get_size(), tuple_size);
@@ -667,7 +666,6 @@ device_bcast(raft::comms::comms_t const& comm,
   size_t constexpr tuple_size =
     thrust::tuple_size<typename thrust::iterator_traits<InputIterator>::value_type>::value;
 
-  // FIXME: these broadcast operations can be placed between ncclGroupStart() and ncclGroupEnd()
   detail::
     device_bcast_tuple_iterator_element_impl<InputIterator, OutputIterator, size_t{0}, tuple_size>(
       comm, input_first, output_first, count, root, stream);
@@ -708,7 +706,6 @@ device_reduce(raft::comms::comms_t const& comm,
   size_t constexpr tuple_size =
     thrust::tuple_size<typename thrust::iterator_traits<InputIterator>::value_type>::value;
 
-  // FIXME: these broadcast operations can be placed between ncclGroupStart() and ncclGroupEnd()
   detail::
     device_reduce_tuple_iterator_element_impl<InputIterator, OutputIterator, size_t{0}, tuple_size>(
       comm, input_first, output_first, count, op, root, stream);
@@ -748,7 +745,6 @@ device_allgatherv(raft::comms::comms_t const& comm,
   size_t constexpr tuple_size =
     thrust::tuple_size<typename thrust::iterator_traits<InputIterator>::value_type>::value;
 
-  // FIXME: these allgatherv operations can be placed between ncclGroupStart() and ncclGroupEnd()
   detail::device_allgatherv_tuple_iterator_element_impl<InputIterator,
                                                         OutputIterator,
                                                         size_t{0},

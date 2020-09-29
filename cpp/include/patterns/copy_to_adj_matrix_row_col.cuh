@@ -63,12 +63,8 @@ void copy_to_matrix_major(raft::handle_t const& handle,
       std::vector<size_t> rx_counts(row_comm_size, size_t{0});
       std::vector<size_t> displacements(row_comm_size, size_t{0});
       for (int i = 0; i < row_comm_size; ++i) {
-        rx_counts[i] = graph_view.get_vertex_partition_size(col_comm_rank * row_comm_size + i);
-        if (i == 0) {
-          displacements[i] = 0;
-        } else {
-          displacements[i] = displacements[i - 1] + rx_counts[i - 1];
-        }
+        rx_counts[i]     = graph_view.get_vertex_partition_size(col_comm_rank * row_comm_size + i);
+        displacements[i] = (i == 0) ? 0 : displacements[i - 1] + rx_counts[i - 1];
       }
       device_allgatherv(row_comm,
                         vertex_value_input_first,
@@ -115,48 +111,47 @@ void copy_to_matrix_major(raft::handle_t const& handle,
       auto const col_comm_size = col_comm.get_size();
 
       auto rx_counts =
-        host_scalar_allgatherv(row_comm,
-                               static_cast<size_t>(thrust::distance(vertex_first, vertex_last)),
-                               handle.get_stream());
+        host_scalar_allgather(row_comm,
+                              static_cast<size_t>(thrust::distance(vertex_first, vertex_last)),
+                              handle.get_stream());
       std::vector<size_t> displacements(row_comm_size, size_t{0});
       std::partial_sum(rx_counts.begin(), rx_counts.end() - 1, displacements.begin() + 1);
 
-      rmm::device_uvector<vertex_t> vertices(
-        std::accumulate(rx_counts.begin(), rx_counts.end(), vertex_t{0}), handle.get_stream());
-      auto tmp_buffer =
-        allocate_comm_buffer<typename std::iterator_traits<VertexValueInputIterator>::value_type>(
-          vertices.size(), handle.get_stream());
-      auto value_first =
-        get_comm_buffer_begin<typename std::iterator_traits<VertexValueInputIterator>::value_type>(
-          tmp_buffer);
-
-      // FIXME: this gather is unnecessary if NCCL directly takes a permutation iterator (and
-      // directly gathers to the internal buffer)
-      thrust::gather(rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
-                     vertex_first,
-                     vertex_last,
-                     vertex_value_input_first,
-                     value_first + displacements[row_comm_rank]);
-
-      device_allgatherv(
-        row_comm,
-        thrust::make_zip_iterator(thrust::make_tuple(vertex_first, vertex_value_input_first)),
-        thrust::make_zip_iterator(thrust::make_tuple(vertices.begin(), value_first)),
-        rx_counts,
-        displacements,
-        handle.get_stream());
-
       matrix_partition_device_t<GraphViewType> matrix_partition(graph_view, 0);
       for (int i = 0; i < row_comm_size; ++i) {
+        rmm::device_uvector<vertex_t> rx_vertices(rx_counts[i], handle.get_stream());
+        auto rx_tmp_buffer =
+          allocate_comm_buffer<typename std::iterator_traits<VertexValueInputIterator>::value_type>(
+            rx_counts[i], handle.get_stream());
+        auto rx_value_first = get_comm_buffer_begin<
+          typename std::iterator_traits<VertexValueInputIterator>::value_type>(rx_tmp_buffer);
+
+        if (i == row_comm_rank) {
+          // FIXME: this gather (and temporary buffer) is unnecessary if NCCL directly takes a
+          // permutation iterator (and directly gathers to the internal buffer)
+          thrust::gather(rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
+                         vertex_first,
+                         vertex_last,
+                         vertex_value_input_first,
+                         rx_value_first);
+        }
+
+        // FIXME: these broadcast operations can be placed between ncclGroupStart() and
+        // ncclGroupEnd()
+        device_bcast(
+          row_comm, vertex_first, rx_vertices.begin(), rx_counts[i], i, handle.get_stream());
+        device_bcast(
+          row_comm, rx_value_first, rx_value_first, rx_counts[i], i, handle.get_stream());
+
         auto map_first = thrust::make_transform_iterator(
-          vertices.begin() + displacements[i], [matrix_partition] __device__(auto v) {
+          rx_vertices.begin(), [matrix_partition] __device__(auto v) {
             return matrix_partition.get_major_offset_from_major_nocheck(v);
           });
         // FIXME: this scatter is unnecessary if NCCL directly takes a permutation iterator (and
         // directly scatters from the internal buffer)
         thrust::scatter(rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
-                        value_first + displacements[i],
-                        value_first + displacements[i] + rx_counts[i],
+                        rx_value_first,
+                        rx_value_first + rx_counts[i],
                         map_first,
                         matrix_major_value_output_first);
       }
@@ -195,7 +190,7 @@ void copy_to_matrix_minor(raft::handle_t const& handle,
       auto const col_comm_rank = col_comm.get_rank();
       auto const col_comm_size = col_comm.get_size();
 
-      // FIXME: this P2P is unnecessary if apply the partitioning scheme with hypergraph
+      // FIXME: this P2P is unnecessary if we apply the partitioning scheme used with hypergraph
       // partitioning
       auto comm_src_rank = row_comm_rank * col_comm_size + col_comm_rank;
       auto comm_dst_rank = (comm_rank % col_comm_size) * row_comm_size + comm_rank / col_comm_size;
@@ -218,8 +213,12 @@ void copy_to_matrix_minor(raft::handle_t const& handle,
         comm_src_rank,
         int{0} /* base_tag */,
         requests.data() + tuple_size);
+      // FIXME: this waitall can fail if MatrixMinorValueOutputIterator is a discard iterator or a
+      // zip iterator having one or more discard iterator
       comm.waitall(requests.size(), requests.data());
 
+      // FIXME: these broadcast operations can be placed between ncclGroupStart() and
+      // ncclGroupEnd()
       for (int i = 0; i < col_comm_size; ++i) {
         auto offset = graph_view.get_vertex_partition_first(row_comm_rank * col_comm_size + i) -
                       graph_view.get_vertex_partition_first(row_comm_rank * col_comm_size);
@@ -275,37 +274,98 @@ void copy_to_matrix_minor(raft::handle_t const& handle,
       auto comm_dst_rank = (comm_rank % col_comm_size) * row_comm_size + comm_rank / col_comm_size;
       auto constexpr tuple_size = thrust_tuple_size_or_one<
         typename std::iterator_traits<VertexValueInputIterator>::value_type>::value;
-      std::vector<raft::comms::request_t> requests(2 * tuple_size);
-      device_isend<VertexValueInputIterator, MatrixMinorValueOutputIterator>(
+
+      std::vector<raft::comms::request_t> count_requests(2);
+      auto tx_count = thrust::distance(vertex_first, vertex_last);
+      auto rx_count = tx_count;
+      comm.isend(&tx_count, 1, comm_dst_rank, 0 /* tag */, count_requests.data());
+      comm.irecv(&rx_count, 1, comm_src_rank, 0 /* tag */, count_requests.data() + 1);
+      comm.waitall(count_requests.size(), count_requests.data());
+
+      auto src_tmp_buffer =
+        allocate_comm_buffer<typename std::iterator_traits<VertexValueInputIterator>::value_type>(
+          tx_count, handle.get_stream());
+      auto src_value_first =
+        get_comm_buffer_begin<typename std::iterator_traits<VertexValueInputIterator>::value_type>(
+          src_tmp_buffer);
+
+      rmm::device_uvector<vertex_t> dst_vertices(rx_count, handle.get_stream());
+      auto dst_tmp_buffer =
+        allocate_comm_buffer<typename std::iterator_traits<VertexValueInputIterator>::value_type>(
+          rx_count, handle.get_stream());
+      auto dst_value_first =
+        get_comm_buffer_begin<typename std::iterator_traits<VertexValueInputIterator>::value_type>(
+          dst_tmp_buffer);
+
+      thrust::gather(rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
+                     vertex_first,
+                     vertex_last,
+                     vertex_value_input_first,
+                     src_value_first);
+
+      std::vector<raft::comms::request_t> value_requests(2 * (1 + tuple_size));
+      device_isend<decltype(vertex_first), decltype(dst_vertices.begin())>(
+        comm, vertex_first, tx_count, comm_dst_rank, int{0} /* base_tag */, value_requests.data());
+      device_isend<decltype(src_value_first), decltype(dst_value_first)>(comm,
+                                                                         src_value_first,
+                                                                         tx_count,
+                                                                         comm_dst_rank,
+                                                                         int{1} /* base_tag */,
+                                                                         value_requests.data() + 1);
+      device_irecv<decltype(vertex_first), decltype(dst_vertices.begin())>(
         comm,
-        vertex_value_input_first,
-        static_cast<size_t>(graph_view.get_number_of_local_vertices()),
-        comm_dst_rank,
-        int{0} /* base_tag */,
-        requests.data());
-      device_irecv<VertexValueInputIterator, MatrixMinorValueOutputIterator>(
-        comm,
-        matrix_minor_value_output_first +
-          (graph_view.get_vertex_partition_first(comm_src_rank) -
-           graph_view.get_vertex_partition_first(row_comm_rank * col_comm_size)),
-        static_cast<size_t>(graph_view.get_vertex_partition_size(comm_src_rank)),
+        dst_vertices.begin(),
+        rx_count,
         comm_src_rank,
         int{0} /* base_tag */,
-        requests.data() + tuple_size);
-      comm.waitall(requests.size(), requests.data());
+        value_requests.data() + (1 + tuple_size));
+      device_irecv<decltype(src_value_first), decltype(dst_value_first)>(
+        comm,
+        dst_value_first,
+        rx_count,
+        comm_src_rank,
+        int{0} /* base_tag */,
+        value_requests.data() + ((1 + tuple_size) + 1));
+      // FIXME: this waitall can fail if MatrixMinorValueOutputIterator is a discard iterator or a
+      // zip iterator having one or more discard iterator
+      comm.waitall(value_requests.size(), value_requests.data());
 
-      // FIXME: these broadcast operations can be placed between ncclGroupStart() and
-      // ncclGroupEnd()
+      // FIXME: now we can clear tx_tmp_buffer
+
+      auto rx_counts = host_scalar_allgather(col_comm, rx_count, handle.get_stream());
+      std::vector<size_t> displacements(col_comm_size, size_t{0});
+      std::partial_sum(rx_counts.begin(), rx_counts.end() - 1, displacements.begin() + 1);
+
+      matrix_partition_device_t<GraphViewType> matrix_partition(graph_view, 0);
       for (int i = 0; i < col_comm_size; ++i) {
-        auto offset = graph_view.get_vertex_partition_first(row_comm_rank * col_comm_size + i) -
-                      graph_view.get_vertex_partition_first(row_comm_rank * col_comm_size);
-        auto count = graph_view.get_vertex_partition_size(row_comm_rank * col_comm_size + i);
+        rmm::device_uvector<vertex_t> rx_vertices(rx_counts[i], handle.get_stream());
+        auto rx_tmp_buffer =
+          allocate_comm_buffer<typename std::iterator_traits<VertexValueInputIterator>::value_type>(
+            rx_counts[i], handle.get_stream());
+        auto rx_value_first = get_comm_buffer_begin<
+          typename std::iterator_traits<VertexValueInputIterator>::value_type>(rx_tmp_buffer);
+
+        // FIXME: these broadcast operations can be placed between ncclGroupStart() and
+        // ncclGroupEnd()
         device_bcast(col_comm,
-                     matrix_minor_value_output_first + offset,
-                     matrix_minor_value_output_first + offset,
-                     count,
+                     dst_vertices.begin(),
+                     rx_vertices.begin(),
+                     rx_counts[i],
                      i,
                      handle.get_stream());
+        device_bcast(
+          col_comm, dst_value_first, rx_value_first, rx_counts[i], i, handle.get_stream());
+
+        auto map_first = thrust::make_transform_iterator(
+          rx_vertices.begin(), [matrix_partition] __device__(auto v) {
+            return matrix_partition.get_minor_offset_from_minor_nocheck(v);
+          });
+
+        thrust::scatter(rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
+                        rx_value_first,
+                        rx_value_first + rx_counts[i],
+                        map_first,
+                        matrix_minor_value_output_first);
       }
     }
   } else {

@@ -42,8 +42,9 @@ namespace experimental {
  * matrix (or transposed 2D graph adjacency matrix) of G. An 1D vertex array of size V is divided to
  * P linear partitions; each partition has the size close to V / P. We consider two different
  * strategies to partition the 2D matrix: the default strategy and the hypergraph partitioning based
- * strategy (the latter is for future extension and in the future we may use the latter for both as
- * this leads to better communication patterns).
+ * strategy (the latter is for future extension).
+ * FIXME: in the future we may use the latter for both as this leads to simpler communication
+ * patterns and better control over parallelism vs memory footprint trade-off.
  *
  * In the default case, one GPU will be responsible for 1 rectangular partition. The matrix will be
  * horizontally partitioned first to P_row slabs. Each slab will be further vertically partitioned
@@ -139,8 +140,10 @@ class partition_t {
     return vertex_partition_offsets_[vertex_partition_idx + 1];
   }
 
-  vertex_t get_vertex_partition_size(size_t vertex_partition_idx) const {
-    return get_vertex_partition_last(vertex_partition_idx) - get_vertex_partition_first(vertex_partition_idx);
+  vertex_t get_vertex_partition_size(size_t vertex_partition_idx) const
+  {
+    return get_vertex_partition_last(vertex_partition_idx) -
+           get_vertex_partition_first(vertex_partition_idx);
   }
 
   size_t get_number_of_matrix_partitions() const
@@ -151,7 +154,7 @@ class partition_t {
   std::tuple<vertex_t, vertex_t> get_matrix_partition_major_range(size_t partition_idx) const
   {
     auto major_first = get_matrix_partition_major_first(partition_idx);
-    auto major_last = get_matrix_partition_major_last(partition_idx);
+    auto major_last  = get_matrix_partition_major_last(partition_idx);
     return std::make_tuple(major_first, major_last);
   }
 
@@ -177,7 +180,7 @@ class partition_t {
   std::tuple<vertex_t, vertex_t> get_matrix_partition_minor_range() const
   {
     auto minor_first = get_matrix_partition_minor_first();
-    auto minor_last = get_matrix_partition_minor_last();
+    auto minor_last  = get_matrix_partition_minor_last();
 
     return std::make_tuple(minor_first, minor_last);
   }
@@ -195,6 +198,8 @@ class partition_t {
              : vertex_partition_offsets_[(row_comm_rank_ + 1) * col_comm_size_];
   }
 
+  // FIXME: this function may be removed if we use the same partitioning strategy whether hypergraph
+  // partitioning is applied or not
   bool is_hypergraph_partitioned() const { return hypergraph_partitioned_; }
 
  private:
@@ -331,8 +336,10 @@ class graph_view_t<vertex_t,
     return partition_.get_vertex_partition_last(vertex_partition_idx);
   }
 
-  vertex_t get_vertex_partition_size(size_t vertex_partition_idx) const {
-    return get_vertex_partition_last(vertex_partition_idx) - get_vertex_partition_first(vertex_partition_idx);
+  vertex_t get_vertex_partition_size(size_t vertex_partition_idx) const
+  {
+    return get_vertex_partition_last(vertex_partition_idx) -
+           get_vertex_partition_first(vertex_partition_idx);
   }
 
   bool is_local_vertex_nocheck(vertex_t v) const
@@ -505,8 +512,10 @@ class graph_view_t<vertex_t,
     return this->get_number_of_vertices();
   }
 
-  vertex_t get_vertex_partition_size(size_t vertex_partition_idx) const {
-    return get_vertex_partition_last(vertex_partition_idx) - get_vertex_partition_first(vertex_partition_idx);
+  vertex_t get_vertex_partition_size(size_t vertex_partition_idx) const
+  {
+    return get_vertex_partition_last(vertex_partition_idx) -
+           get_vertex_partition_first(vertex_partition_idx);
   }
 
   constexpr bool is_local_vertex_nocheck(vertex_t v) const { return true; }
