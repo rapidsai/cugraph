@@ -23,6 +23,7 @@ import dask_cudf
 import cugraph.comms as Comms
 from dask.distributed import Client
 from dask_cuda import LocalCUDACluster
+from cugraph.dask.common.mg_utils import is_single_gpu
 
 
 def test_version():
@@ -215,7 +216,9 @@ def client_connection():
     cluster.close()
 
 
-@pytest.mark.skip(reason="MG not supported on CI")
+@pytest.mark.skipif(
+    is_single_gpu(), reason="skipping MG testing on Single GPU system"
+)
 @pytest.mark.parametrize("graph_file", utils.DATASETS_UNDIRECTED)
 def test_mg_symmetrize(graph_file, client_connection):
     gc.collect()
@@ -231,7 +234,9 @@ def test_mg_symmetrize(graph_file, client_connection):
     )
 
 
-@pytest.mark.skip(reason="MG not supported on CI")
+@pytest.mark.skipif(
+    is_single_gpu(), reason="skipping MG testing on Single GPU system"
+)
 @pytest.mark.parametrize("graph_file", utils.DATASETS_UNDIRECTED)
 def test_mg_symmetrize_df(graph_file, client_connection):
     gc.collect()
