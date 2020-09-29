@@ -97,7 +97,7 @@ class partition_t {
       col_comm_rank_(col_comm_rank)
   {
     CUGRAPH_EXPECTS(
-      vertex_partition_offsets.size() == static_cast<size_t>(row_comm_size * col_comm_size),
+      vertex_partition_offsets.size() == static_cast<size_t>(row_comm_size * col_comm_size + 1),
       "Invalid API parameter: erroneous vertex_partition_offsets.size().");
 
     CUGRAPH_EXPECTS(
@@ -169,7 +169,7 @@ class partition_t {
   {
     return hypergraph_partitioned_
              ? vertex_partition_offsets_[row_comm_size_ * partition_idx + row_comm_rank_ + 1]
-             : vertex_partition_offsets_[(row_comm_rank_ + 1) * col_comm_size_];
+             : vertex_partition_offsets_[row_comm_rank_ * col_comm_size_ + 1];
   }
 
   vertex_t get_matrix_partition_major_value_start_offset(size_t partition_idx) const
