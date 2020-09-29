@@ -29,6 +29,7 @@ import cudf
 from dask_cuda import LocalCUDACluster
 from cugraph.tests import utils
 from cugraph.structure.number_map import NumberMap
+from cugraph.dask.common.mg_utils import is_single_gpu
 
 
 @pytest.fixture
@@ -45,6 +46,9 @@ def client_connection():
 
 
 # Test all combinations of default/managed and pooled/non-pooled allocation
+@pytest.mark.skipif(
+    is_single_gpu(), reason="skipping MG testing on Single GPU system"
+)
 @pytest.mark.parametrize("graph_file", utils.DATASETS_UNRENUMBERED)
 def test_mg_renumber(graph_file, client_connection):
     gc.collect()
@@ -85,6 +89,9 @@ def test_mg_renumber(graph_file, client_connection):
 
 
 # Test all combinations of default/managed and pooled/non-pooled allocation
+@pytest.mark.skipif(
+    is_single_gpu(), reason="skipping MG testing on Single GPU system"
+)
 @pytest.mark.parametrize("graph_file", utils.DATASETS_UNRENUMBERED)
 def test_mg_renumber2(graph_file, client_connection):
     gc.collect()
@@ -109,9 +116,9 @@ def test_mg_renumber2(graph_file, client_connection):
     )
 
     check_src = num2.from_internal_vertex_id(ren2, "src").compute()
-    check_src = check_src.sort_values('weight').reset_index(drop=True)
+    check_src = check_src.sort_values("weight").reset_index(drop=True)
     check_dst = num2.from_internal_vertex_id(ren2, "dst").compute()
-    check_dst = check_dst.sort_values('weight').reset_index(drop=True)
+    check_dst = check_dst.sort_values("weight").reset_index(drop=True)
 
     assert check_src["0"].to_pandas().equals(gdf["src"].to_pandas())
     assert check_src["1"].to_pandas().equals(gdf["src_old"].to_pandas())
@@ -120,6 +127,9 @@ def test_mg_renumber2(graph_file, client_connection):
 
 
 # Test all combinations of default/managed and pooled/non-pooled allocation
+@pytest.mark.skipif(
+    is_single_gpu(), reason="skipping MG testing on Single GPU system"
+)
 @pytest.mark.parametrize("graph_file", utils.DATASETS_UNRENUMBERED)
 def test_mg_renumber3(graph_file, client_connection):
     gc.collect()
@@ -143,39 +153,47 @@ def test_mg_renumber3(graph_file, client_connection):
         ddf, ["src", "src_old"], ["dst", "dst_old"]
     )
 
-    test_df = gdf[['src', 'src_old']].head()
+    test_df = gdf[["src", "src_old"]].head()
 
     #
     #  This call raises an exception in branch-0.15
     #  prior to this PR
     #
-    test_df = num2.add_internal_vertex_id(test_df, 'src', ['src', 'src_old'])
-    assert(True)
+    test_df = num2.add_internal_vertex_id(test_df, "src", ["src", "src_old"])
+    assert True
 
 
+@pytest.mark.skipif(
+    is_single_gpu(), reason="skipping MG testing on Single GPU system"
+)
 def test_dask_pagerank(client_connection):
     gc.collect()
 
-    pandas.set_option('display.max_rows', 10000)
+    pandas.set_option("display.max_rows", 10000)
 
     input_data_path = r"../datasets/karate.csv"
     chunksize = dcg.get_chunksize(input_data_path)
 
-    ddf = dask_cudf.read_csv(input_data_path, chunksize=chunksize,
-                             delimiter=' ',
-                             names=['src', 'dst', 'value'],
-                             dtype=['int32', 'int32', 'float32'])
+    ddf = dask_cudf.read_csv(
+        input_data_path,
+        chunksize=chunksize,
+        delimiter=" ",
+        names=["src", "dst", "value"],
+        dtype=["int32", "int32", "float32"],
+    )
 
-    df = cudf.read_csv(input_data_path,
-                       delimiter=' ',
-                       names=['src', 'dst', 'value'],
-                       dtype=['int32', 'int32', 'float32'])
+    df = cudf.read_csv(
+        input_data_path,
+        delimiter=" ",
+        names=["src", "dst", "value"],
+        dtype=["int32", "int32", "float32"],
+    )
 
     g = cugraph.DiGraph()
-    g.from_cudf_edgelist(df, 'src', 'dst')
+    g.from_cudf_edgelist(df, "src", "dst")
 
     dg = cugraph.DiGraph()
-    dg.from_dask_cudf_edgelist(ddf, 'src', 'dst')
+    dg.from_dask_cudf_edgelist(ddf, "src", "dst")
 
     # Pre compute local data
     # dg.compute_local_data(by='dst')
@@ -189,12 +207,14 @@ def test_dask_pagerank(client_connection):
     assert len(expected_pr) == len(result_pr)
 
     compare_pr = expected_pr.merge(
-        result_pr, on="vertex", suffixes=['_local', '_dask']
+        result_pr, on="vertex", suffixes=["_local", "_dask"]
     )
 
     for i in range(len(compare_pr)):
-        diff = abs(compare_pr['pagerank_local'].iloc[i] -
-                   compare_pr['pagerank_dask'].iloc[i])
+        diff = abs(
+            compare_pr["pagerank_local"].iloc[i]
+            - compare_pr["pagerank_dask"].iloc[i]
+        )
         if diff > tol * 1.1:
             err = err + 1
     print("Mismatches:", err)

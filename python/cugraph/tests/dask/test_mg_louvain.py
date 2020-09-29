@@ -20,16 +20,20 @@ import cugraph
 import dask_cudf
 from dask_cuda import LocalCUDACluster
 from cugraph.tests import utils
+from cugraph.dask.common.mg_utils import is_single_gpu
 
 try:
     from rapids_pytest_benchmark import setFixtureParamNames
 except ImportError:
-    print("\n\nWARNING: rapids_pytest_benchmark is not installed, "
-          "falling back to pytest_benchmark fixtures.\n")
+    print(
+        "\n\nWARNING: rapids_pytest_benchmark is not installed, "
+        "falling back to pytest_benchmark fixtures.\n"
+    )
 
     # if rapids_pytest_benchmark is not available, just perfrom time-only
     # benchmarking and replace the util functions with nops
     import pytest_benchmark
+
     gpubenchmark = pytest_benchmark.plugin.benchmark
 
     def setFixtureParamNames(*args, **kwargs):
@@ -53,8 +57,10 @@ def client_connection():
     cluster.close()
 
 
-@pytest.fixture(scope="module",
-                params=utils.DATASETS_UNDIRECTED)
+@pytest.mark.skipif(
+    is_single_gpu(), reason="skipping MG testing on Single GPU system"
+)
+@pytest.fixture(scope="module", params=utils.DATASETS_UNDIRECTED)
 def daskGraphFromDataset(request, client_connection):
     """
     Returns a new dask dataframe created from the dataset file param.
@@ -65,18 +71,24 @@ def daskGraphFromDataset(request, client_connection):
     dataset = request.param
 
     chunksize = dcg.get_chunksize(dataset)
-    ddf = dask_cudf.read_csv(dataset, chunksize=chunksize,
-                             delimiter=' ',
-                             names=['src', 'dst', 'value'],
-                             dtype=['int32', 'int32', 'float32'])
+    ddf = dask_cudf.read_csv(
+        dataset,
+        chunksize=chunksize,
+        delimiter=" ",
+        names=["src", "dst", "value"],
+        dtype=["int32", "int32", "float32"],
+    )
 
     dg = cugraph.DiGraph()
-    dg.from_dask_cudf_edgelist(ddf, 'src', 'dst')
+    dg.from_dask_cudf_edgelist(ddf, "src", "dst")
     return dg
 
 
 ###############################################################################
 # Tests
+@pytest.mark.skipif(
+    is_single_gpu(), reason="skipping MG testing on Single GPU system"
+)
 def test_mg_louvain_with_edgevals(daskGraphFromDataset):
     # FIXME: daskGraphFromDataset returns a DiGraph, which Louvain is currently
     # accepting. In the future, an MNMG symmeterize will need to be called to
