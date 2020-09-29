@@ -33,6 +33,7 @@ from cugraph.structure import (
     hypergraph,
     symmetrize,
     symmetrize_df,
+    symmetrize_ddf,
 )
 
 from cugraph.centrality import (

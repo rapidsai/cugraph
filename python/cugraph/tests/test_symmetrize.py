@@ -19,6 +19,10 @@ import pandas as pd
 import cudf
 import cugraph
 from cugraph.tests import utils
+import cugraph.comms as Comms
+from dask.distributed import Client
+from dask_cuda import LocalCUDACluster
+from cugraph.dask.common.mg_utils import is_single_gpu
 
 
 def test_version():
@@ -198,13 +202,68 @@ def test_symmetrize_weighted(graph_file):
     compare(cu_M["0"], cu_M["1"], cu_M["2"], sym_src, sym_dst, sym_w)
 
 
+@pytest.fixture
+def client_connection():
+    cluster = LocalCUDACluster()
+    client = Client(cluster)
+    Comms.initialize()
+
+    yield client
+
+    Comms.destroy()
+    client.close()
+    cluster.close()
+
+
+@pytest.mark.skipif(
+    is_single_gpu(), reason="skipping MG testing on Single GPU system"
+)
+@pytest.mark.parametrize("graph_file", utils.DATASETS_UNDIRECTED)
+def test_mg_symmetrize(graph_file, client_connection):
+    gc.collect()
+
+    ddf = utils.read_dask_cudf_csv_file(graph_file)
+    sym_src, sym_dst = cugraph.symmetrize(ddf["src"], ddf["dst"])
+
+    # convert to regular cudf to facilitate comparison
+    df = ddf.compute()
+
+    compare(
+        df["src"], df["dst"], None, sym_src.compute(), sym_dst.compute(), None
+    )
+
+
+@pytest.mark.skipif(
+    is_single_gpu(), reason="skipping MG testing on Single GPU system"
+)
+@pytest.mark.parametrize("graph_file", utils.DATASETS_UNDIRECTED)
+def test_mg_symmetrize_df(graph_file, client_connection):
+    gc.collect()
+
+    ddf = utils.read_dask_cudf_csv_file(graph_file)
+    sym_ddf = cugraph.symmetrize_ddf(ddf, "src", "dst", "weight")
+
+    # convert to regular cudf to facilitate comparison
+    df = ddf.compute()
+    sym_df = sym_ddf.compute()
+
+    compare(
+        df["src"],
+        df["dst"],
+        df["weight"],
+        sym_df["src"],
+        sym_df["dst"],
+        sym_df["weight"],
+    )
+
+
 # Test
 # NOTE: see https://github.com/rapidsai/cudf/issues/2636
 #       drop_duplicates doesn't work well with the pool allocator
 #                        list(product([False, True], [False, True])))
 
 
-@pytest.mark.parametrize("graph_file", utils.DATASETS)
+@pytest.mark.parametrize("graph_file", utils.DATASETS_UNDIRECTED)
 def test_symmetrize_df(graph_file):
     gc.collect()
 
