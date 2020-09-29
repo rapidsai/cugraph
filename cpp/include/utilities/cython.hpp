@@ -27,6 +27,8 @@ enum class numberTypeEnum : int { int32Type, int64Type, floatType, doubleType };
 // FIXME: The GraphC??View* types will not be used in the near future. Those are
 // left in place as cython wrappers transition from the GraphC* classes to
 // graph_* classes. Remove GraphC* classes once the transition is complete.
+//
+// FIXME: Is this OBE with Chuck's new approach?
 enum class graphTypeEnum : int {
   null,
   GraphCSRViewFloat,
@@ -35,40 +37,14 @@ enum class graphTypeEnum : int {
   GraphCSCViewDouble,
   GraphCOOViewFloat,
   GraphCOOViewDouble,
-  // FIXME:  Change spelling to:
-  //           graph_t_int32_int32_float
-  //           graph_t_int32_int32_double
-  //           graph_t_int32_int32_float_mg
-  //           graph_t_int32_int32_double_mg
   graph_t_float,
   graph_t_double,
   graph_t_float_mg,
   graph_t_double_mg,
-  graph_t_int32_int64_float,
-  graph_t_int32_int64_double,
-  graph_t_int32_int64_float_mg,
-  graph_t_int32_int64_double_mg,
-  graph_t_int64_int64_float,
-  graph_t_int64_int64_double,
-  graph_t_int64_int64_float_mg,
-  graph_t_int64_int64_double_mg,
-  // FIXME:  Change spelling to:
-  //           graph_t_int32_int32_float_transposed
-  //           graph_t_int32_int32_double_transposed
-  //           graph_t_int32_int32_float_transposed_mg
-  //           graph_t_int32_int32_double_transposed_mg
   graph_t_float_transposed,
   graph_t_double_transposed,
   graph_t_float_mg_transposed,
   graph_t_double_mg_transposed,
-  graph_t_int32_int64_float_transposed,
-  graph_t_int32_int64_double_transposed,
-  graph_t_int32_int64_float_mg_transposed,
-  graph_t_int32_int64_double_mg_transposed,
-  graph_t_int64_int64_float_transposed,
-  graph_t_int64_int64_double_transposed,
-  graph_t_int64_int64_float_mg_transposed,
-  graph_t_int64_int64_double_mg_transposed,
 };
 
 // Enum for the high-level type of GraphC??View* class to instantiate.
@@ -82,6 +58,7 @@ enum class legacyGraphTypeEnum : int { CSR, CSC, COO };
 struct graph_container_t {
   // FIXME: use std::variant (or a better alternative, ie. type erasure?) instead
   //        of a union if possible
+  // FIXME: is this all OBE with Chuck's new approach?
   union graphPtrUnion {
     ~graphPtrUnion() {}
 
@@ -167,6 +144,27 @@ struct graph_container_t {
 
   graphPtrUnion graph_ptr_union;
   graphTypeEnum graph_ptr_type;
+
+  void *src_vertices;
+  void *dst_vertices;
+  void *weights;
+  void *vertex_partition_offsets;
+
+  size_t num_vertices;
+  size_t num_edges;
+  numberTypeEnum vertexType;
+  numberTypeEnum edgeType;
+  numberTypeEnum weightType;
+  bool transposed;
+  bool is_multi_gpu;
+  bool sorted_by_degree;
+  bool do_expensive_check;
+  bool hypergraph_partitioned;
+  int partition_row_size;
+  int partition_col_size;
+  int partition_row_rank;
+  int partition_col_rank;
+  experimental::graph_properties_t graph_props;
 };
 
 // FIXME: finish description for vertex_partition_offsets
