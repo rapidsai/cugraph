@@ -11,6 +11,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 from cugraph.raft.dask.common.utils import default_client
+import numba.cuda
 
 
 # FIXME: We currently look for the default client from dask, as such is the
@@ -32,3 +33,11 @@ def prepare_worker_to_parts(data, client=None):
         if worker not in data.worker_to_parts:
             data.worker_to_parts[worker] = [placeholder]
     return data
+
+
+def is_single_gpu():
+    ngpus = len(numba.cuda.gpus)
+    if ngpus > 1:
+        return False
+    else:
+        return True

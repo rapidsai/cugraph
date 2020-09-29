@@ -21,9 +21,11 @@ from dask_cuda import LocalCUDACluster
 import pytest
 from cugraph.dask.common.part_utils import concat_within_workers
 from cugraph.dask.common.read_utils import get_n_workers
+from cugraph.dask.common.mg_utils import is_single_gpu
 import os
 import time
 import numpy as np
+from cugraph.tests import utils
 from cugraph.tests import utils
 
 
@@ -40,60 +42,68 @@ def client_connection():
     cluster.close()
 
 
-@pytest.mark.skip(reason="skipping MG testing on a SG system")
+@pytest.mark.skipif(
+    is_single_gpu(), reason="skipping MG testing on Single GPU system"
+)
 def test_compute_local_data(client_connection):
 
     gc.collect()
 
     input_data_path = r"../datasets/karate.csv"
     chunksize = dcg.get_chunksize(input_data_path)
-    ddf = dask_cudf.read_csv(input_data_path, chunksize=chunksize,
-                             delimiter=' ',
-                             names=['src', 'dst', 'value'],
-                             dtype=['int32', 'int32', 'float32'])
+    ddf = dask_cudf.read_csv(
+        input_data_path,
+        chunksize=chunksize,
+        delimiter=" ",
+        names=["src", "dst", "value"],
+        dtype=["int32", "int32", "float32"],
+    )
 
     dg = cugraph.DiGraph()
-    dg.from_dask_cudf_edgelist(ddf, source='src', destination='dst',
-                               edge_attr='value')
+    dg.from_dask_cudf_edgelist(
+        ddf, source="src", destination="dst", edge_attr="value"
+    )
 
     # Compute_local_data
-    dg.compute_local_data(by='dst')
-    data = dg.local_data['data']
-    by = dg.local_data['by']
+    dg.compute_local_data(by="dst")
+    data = dg.local_data["data"]
+    by = dg.local_data["by"]
 
-    assert by == 'dst'
+    assert by == "dst"
     assert Comms.is_initialized()
 
-    global_num_edges = data.local_data['edges'].sum()
+    global_num_edges = data.local_data["edges"].sum()
     assert global_num_edges == dg.number_of_edges()
-    global_num_verts = data.local_data['verts'].sum()
+    global_num_verts = data.local_data["verts"].sum()
     assert global_num_verts == dg.number_of_nodes()
 
 
+@pytest.mark.skipif(
+    is_single_gpu(), reason="skipping MG testing on Single GPU system"
+)
 @pytest.mark.skip(reason="MG not supported on CI")
 def test_parquet_concat_within_workers(client_connection):
-    if not os.path.exists('test_files_parquet'):
+    if not os.path.exists("test_files_parquet"):
         print("Generate data... ")
-        os.mkdir('test_files_parquet')
+        os.mkdir("test_files_parquet")
     for x in range(10):
-        if not os.path.exists('test_files_parquet/df'+str(x)):
-            df = utils.random_edgelist(e=100,
-                                       ef=16,
-                                       dtypes={'src': np.int32,
-                                               'dst': np.int32},
-                                       seed=x)
-            df.to_parquet('test_files_parquet/df'+str(x), index=False)
+        if not os.path.exists("test_files_parquet/df" + str(x)):
+            df = utils.random_edgelist(
+                e=100, ef=16, dtypes={"src": np.int32, "dst": np.int32}, seed=x
+            )
+            df.to_parquet("test_files_parquet/df" + str(x), index=False)
 
     n_gpu = get_n_workers()
 
     print("Read_parquet... ")
     t1 = time.time()
-    ddf = dask_cudf.read_parquet('test_files_parquet/*',
-                                 dtype=['int32', 'int32'])
+    ddf = dask_cudf.read_parquet(
+        "test_files_parquet/*", dtype=["int32", "int32"]
+    )
     ddf = ddf.persist()
     futures_of(ddf)
     wait(ddf)
-    t1 = time.time()-t1
+    t1 = time.time() - t1
     print("*** Read Time: ", t1, "s")
     print(ddf)
 
@@ -105,7 +115,7 @@ def test_parquet_concat_within_workers(client_connection):
     ddf = ddf.persist()
     futures_of(ddf)
     wait(ddf)
-    t2 = time.time()-t2
+    t2 = time.time() - t2
     print("*** Drop duplicate time: ", t2, "s")
     assert t2 < t1
 
@@ -120,7 +130,7 @@ def test_parquet_concat_within_workers(client_connection):
     ddf = ddf.persist()
     futures_of(ddf)
     wait(ddf)
-    t3 = time.time()-t3
+    t3 = time.time() - t3
     print("*** repartition Time: ", t3, "s")
     print(ddf)
 
