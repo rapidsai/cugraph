@@ -64,9 +64,12 @@ void populate_graph_container(graph_container_t& graph_container,
   int* vertex_partition_offsets_array = reinterpret_cast<int*>(vertex_partition_offsets);
   std::vector<int> vertex_partition_offsets_vect;  // vertex_t
 
-  for (int32_t i=0; i<(partition_row_size * partition_col_size); ++i) {
+  for (int32_t i=0; i<((partition_row_size * partition_col_size)+1); ++i) {
      vertex_partition_offsets_vect.push_back(vertex_partition_offsets_array[i]);
+     std::cout<<"VPO"<<i<<": "<<vertex_partition_offsets_vect[i]<<std::endl;
   }
+  std::cout<<partition_row_size<<","<<partition_col_size<<","<<partition_row_rank<<","<<partition_col_rank<<std::endl;
+
   experimental::partition_t<int> partition(vertex_partition_offsets_vect,
                                            hypergraph_partitioned,
                                            partition_row_size,

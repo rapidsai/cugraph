@@ -57,12 +57,22 @@ def louvain(input_df,
         weights = None
 
     # COO
+
+    print("SRC[0:3]", src[0], src[1], src[2])
+    print("DST[0:3]", dst[0], dst[1], dst[2])
+    print("NUMSRCS: ", len(src))
     cdef uintptr_t c_src_vertices = src.__cuda_array_interface__['data'][0]
     cdef uintptr_t c_dst_vertices = dst.__cuda_array_interface__['data'][0]
     cdef uintptr_t c_edge_weights = <uintptr_t>NULL
     if weights is not None:
         c_edge_weights = weights.__cuda_array_interface__['data'][0]
-
+    """
+    cdef uintptr_t c_src_vertices = src.values_host.__array_interface__['data'][0]
+    cdef uintptr_t c_dst_vertices = dst.values_host.__array_interface__['data'][0]
+    cdef uintptr_t c_edge_weights = <uintptr_t>NULL
+    if weights is not None:
+        c_edge_weights = weights.values_host.__array_interface__['data'][0]
+    """
     # FIXME: data is on device, move to host (to_pandas()), convert to np array and access pointer to pass to C
     #cdef uintptr_t c_vertex_partition_offsets = vertex_partition_offsets.__cuda_array_interface__['data'][0]
     cdef uintptr_t c_vertex_partition_offsets = vertex_partition_offsets.values_host.__array_interface__['data'][0]
@@ -77,6 +87,7 @@ def louvain(input_df,
     # FIXME: The excessive casting for the enum arg is needed to make cython
     #        understand how to pass the enum value (this is the same pattern
     #        used by cudf). This will not be needed with Cython 3.0
+    print("CALLING PGC")
     populate_graph_container(graph_container,
                              handle_[0],
                              <void*>c_src_vertices, <void*>c_dst_vertices, <void*>c_edge_weights,
@@ -88,6 +99,7 @@ def louvain(input_df,
                              partition_row_size, partition_col_size,
                              False, True)  # store_transposed, multi_gpu
 
+    print("DONE CALLING PGC")
     # Create the output dataframe
     df = cudf.DataFrame()
     df['vertex'] = cudf.Series(np.zeros(num_verts, dtype=np.int32))
@@ -96,6 +108,7 @@ def louvain(input_df,
     cdef uintptr_t c_identifiers = df['vertex'].__cuda_array_interface__['data'][0]
     cdef uintptr_t c_partition = df['partition'].__cuda_array_interface__['data'][0]
 
+    print("CALLING CL")
     if weights.dtype == np.float32:
         num_level, final_modularity_float = c_louvain.call_louvain[float](
             handle_[0], graph_container, <void*>c_identifiers, <void*>c_partition, max_level, resolution)
@@ -106,4 +119,5 @@ def louvain(input_df,
             handle_[0], graph_container, <void*>c_identifiers, <void*>c_partition, max_level, resolution)
         final_modularity = final_modularity_double
 
+    print("DONE CALLING CL")
     return df, final_modularity

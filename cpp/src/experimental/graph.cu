@@ -255,10 +255,15 @@ graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu, std::enable_if_
                   "Invalid API parameter: errneous edgelists.size().");
 
   // optional expensive checks (part 1/3)
+ std::cout<<"EL SIZE: "<<edgelists.size()<<std::endl;
 
   if (do_expensive_check) {
+std::cout<<"DOING EC 1/3"<<std::endl;
     edge_t number_of_local_edges_sum{};
+    std::cout<<"CHECKING OOR"<<std::endl;
     for (size_t i = 0; i < edgelists.size(); ++i) {
+       std::cout<<"EL "<<i<<std::endl;
+
       vertex_t major_first{};
       vertex_t major_last{};
       vertex_t minor_first{};
@@ -268,6 +273,7 @@ graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu, std::enable_if_
 
       number_of_local_edges_sum += edgelists[i].number_of_edges;
 
+      //std::cout<<"SRC[0-3]: "<<edgelists[i].p_src_vertices[0]<<" "<<edgelists[i].p_src_vertices[1]<<" "<<edgelists[i].p_src_vertices[2]<<std::endl;
       auto edge_first = thrust::make_zip_iterator(thrust::make_tuple(
         store_transposed ? edgelists[i].p_dst_vertices : edgelists[i].p_src_vertices,
         store_transposed ? edgelists[i].p_src_vertices : edgelists[i].p_dst_vertices));
@@ -279,11 +285,15 @@ graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu, std::enable_if_
                                          major_first, major_last, minor_first, minor_last}) == 0,
                       "Invalid API parameter: edgelists[] have out-of-range values.");
     }
+    std::cout<<"DONE CHECKING OOR"<<std::endl;
+
     this->get_handle_ptr()->get_comms().allreduce(&number_of_local_edges_sum,
                                                   &number_of_local_edges_sum,
                                                   1,
                                                   raft::comms::op_t::SUM,
                                                   default_stream);
+    std::cout<<"DONE CHECKING AR"<<std::endl;
+
     CUGRAPH_EXPECTS(number_of_local_edges_sum == this->get_number_of_edges(),
                     "Invalid API parameter: the sum of local edges doe counts not match with "
                     "number_of_local_edges.");
@@ -291,32 +301,41 @@ graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu, std::enable_if_
     CUGRAPH_EXPECTS(
       partition.get_vertex_partition_last(comm_size - 1) == number_of_vertices,
       "Invalid API parameter: vertex partition should cover [0, number_of_vertices).");
+std::cout<<"DONE DOING EC 1/3"<<std::endl;
   }
 
   // convert edge list (COO) to compressed sparse format (CSR or CSC)
+std::cout<<"CONVERTING COO"<<std::endl;
 
   adj_matrix_partition_offsets_.reserve(edgelists.size());
   adj_matrix_partition_indices_.reserve(edgelists.size());
   adj_matrix_partition_weights_.reserve(is_weighted ? edgelists.size() : 0);
-  for (size_t i = 0; i < edgelists.size(); ++i) {
+std::cout<<"RESERVE OK"<<std::endl;
+ for (size_t i = 0; i < edgelists.size(); ++i) {
     vertex_t major_first{};
     vertex_t major_last{};
     vertex_t minor_first{};
     vertex_t minor_last{};
     std::tie(major_first, major_last) = partition.get_matrix_partition_major_range(i);
     std::tie(minor_first, minor_last) = partition.get_matrix_partition_minor_range();
+    std::cout<<"MJF:"<<major_first<<" MJL:"<<major_last<<std::endl;
+     std::cout<<"MNF:"<<minor_first<<" MNL:"<<minor_last<<std::endl;
 
     rmm::device_uvector<edge_t> offsets(0, default_stream);
     rmm::device_uvector<vertex_t> indices(0, default_stream);
     rmm::device_uvector<weight_t> weights(0, default_stream);
-    std::tie(offsets, indices, weights) = edge_list_to_compressed_sparse<store_transposed>(
+     std::cout<<"ELTCS"<<std::endl;
+     std::tie(offsets, indices, weights) = edge_list_to_compressed_sparse<store_transposed>(
       *(this->get_handle_ptr()), edgelists[i], major_first, major_last, minor_first, minor_last);
-    adj_matrix_partition_offsets_.push_back(std::move(offsets));
+     std::cout<<"DONE ELTCS"<<std::endl;
+     adj_matrix_partition_offsets_.push_back(std::move(offsets));
     adj_matrix_partition_indices_.push_back(std::move(indices));
     if (adj_matrix_partition_weights_.size() > 0) {
       adj_matrix_partition_weights_.push_back(std::move(weights));
     }
-  }
+     std::cout<<"DONE LOOP"<<std::endl;
+ }
+std::cout<<"DONE CONVERTING COO"<<std::endl;
 
   // update degree-based segment offsets (to be used for graph analytics kernel optimization)
 
