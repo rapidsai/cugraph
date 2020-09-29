@@ -19,7 +19,6 @@ from cugraph.dask.common.mg_utils import is_single_gpu
 import cugraph.tests.utils as utils
 import pytest
 import gc
-from cugraph.dask.common.mg_utils import is_single_gpu
 
 DATASETS_OPTIONS = utils.DATASETS_SMALL
 DIRECTED_GRAPH_OPTIONS = [False, True]

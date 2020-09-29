@@ -26,7 +26,6 @@ import os
 import time
 import numpy as np
 from cugraph.tests import utils
-from cugraph.tests import utils
 
 
 @pytest.fixture
