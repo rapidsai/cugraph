@@ -278,11 +278,11 @@ __global__ void update_frontier_and_vertex_output_values(
  * @param adj_matrix_row_value_input_first Iterator pointing to the adjacency matrix row input
  * properties for the first (inclusive) row (assigned to this process in multi-GPU).
  * `adj_matrix_row_value_input_last` (exclusive) is deduced as @p adj_matrix_row_value_input_first +
- * @p graph_view.get_number_of_adj_matrix_local_rows().
+ * @p graph_view.get_number_of_local_adj_matrix_partition_rows().
  * @param adj_matrix_col_value_input_first Iterator pointing to the adjacency matrix column input
  * properties for the first (inclusive) column (assigned to this process in multi-GPU).
  * `adj_matrix_col_value_output_last` (exclusive) is deduced as @p adj_matrix_col_value_output_first
- * + @p graph_view.get_number_of_adj_matrix_local_cols().
+ * + @p graph_view.get_number_of_local_adj_matrix_partition_cols().
  * @param e_op Quaternary (or quinary) operator takes edge source, edge destination, (optional edge
  * weight), *(@p adj_matrix_row_value_input_first + i), and *(@p adj_matrix_col_value_input_first +
  * j) (where i is in [0, graph_view.get_number_of_local_adj_matrix_partition_rows()) and j is in [0,
