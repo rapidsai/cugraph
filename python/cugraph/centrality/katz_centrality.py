@@ -94,8 +94,11 @@ def katz_centrality(
     >>> kc = cugraph.katz_centrality(G)
     """
 
-    if beta != None:
-        raise NotImplementedError("The beta argument is currently not supported")
+    if beta is not None:
+        raise NotImplementedError(
+                "The beta argument is "
+                "currently not supported"
+        )
 
     G, isNx = cugraph.utilities.check_nx_graph(G)
 

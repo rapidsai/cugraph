@@ -121,7 +121,7 @@ def bfs_edges(G, source, reverse=False, depth_limit=None, sort_neighbors=None,
     >>> df = cugraph.bfs_edges(G, 0)
     """
 
-    if reverse ~= None:
+    if reverse is not None:
         raise NotImplementedError(
             "reverse processing of graph is "
             "currently not supported"
@@ -132,7 +132,6 @@ def bfs_edges(G, source, reverse=False, depth_limit=None, sort_neighbors=None,
             "depth limit implementation of BFS "
             "is not currently supported"
         )
-
 
     G, isNx = check_nx_graph(G)
 
