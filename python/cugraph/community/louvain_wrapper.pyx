@@ -83,8 +83,8 @@ def louvain(input_graph, max_level, resolution):
                                     <legacyGraphTypeEnum>(<int>(legacyGraphTypeEnum.CSR)),
                                     handle_[0],
                                     <void*>c_offsets, <void*>c_indices, <void*>c_weights,
-                                    <numberTypeEnum>(<int>(numberTypeEnum.intType)),
-                                    <numberTypeEnum>(<int>(numberTypeEnum.intType)),
+                                    <numberTypeEnum>(<int>(numberTypeEnum.int32Type)),
+                                    <numberTypeEnum>(<int>(numberTypeEnum.int32Type)),
                                     <numberTypeEnum>(<int>(weightTypeMap[weights.dtype])),
                                     num_verts, num_edges,
                                     <int*>c_local_verts, <int*>c_local_edges, <int*>c_local_offsets)

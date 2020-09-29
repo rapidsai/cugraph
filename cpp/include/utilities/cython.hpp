@@ -22,7 +22,7 @@
 namespace cugraph {
 namespace cython {
 
-enum class numberTypeEnum : int { intType, floatType, doubleType };
+enum class numberTypeEnum : int { int32Type, int64Type, floatType, doubleType };
 
 // FIXME: The GraphC??View* types will not be used in the near future. Those are
 // left in place as cython wrappers transition from the GraphC* classes to
@@ -35,14 +35,40 @@ enum class graphTypeEnum : int {
   GraphCSCViewDouble,
   GraphCOOViewFloat,
   GraphCOOViewDouble,
+  // FIXME:  Change spelling to:
+  //           graph_t_int32_int32_float
+  //           graph_t_int32_int32_double
+  //           graph_t_int32_int32_float_mg
+  //           graph_t_int32_int32_double_mg
   graph_t_float,
   graph_t_double,
   graph_t_float_mg,
   graph_t_double_mg,
+  graph_t_int32_int64_float,
+  graph_t_int32_int64_double,
+  graph_t_int32_int64_float_mg,
+  graph_t_int32_int64_double_mg,
+  graph_t_int64_int64_float,
+  graph_t_int64_int64_double,
+  graph_t_int64_int64_float_mg,
+  graph_t_int64_int64_double_mg,
+  // FIXME:  Change spelling to:
+  //           graph_t_int32_int32_float_transposed
+  //           graph_t_int32_int32_double_transposed
+  //           graph_t_int32_int32_float_transposed_mg
+  //           graph_t_int32_int32_double_transposed_mg
   graph_t_float_transposed,
   graph_t_double_transposed,
   graph_t_float_mg_transposed,
-  graph_t_double_mg_transposed
+  graph_t_double_mg_transposed,
+  graph_t_int32_int64_float_transposed,
+  graph_t_int32_int64_double_transposed,
+  graph_t_int32_int64_float_mg_transposed,
+  graph_t_int32_int64_double_mg_transposed,
+  graph_t_int64_int64_float_transposed,
+  graph_t_int64_int64_double_transposed,
+  graph_t_int64_int64_float_mg_transposed,
+  graph_t_int64_int64_double_mg_transposed,
 };
 
 // Enum for the high-level type of GraphC??View* class to instantiate.
@@ -60,28 +86,71 @@ struct graph_container_t {
     ~graphPtrUnion() {}
 
     void* null;
-    std::unique_ptr<GraphCSRView<int, int, float>> GraphCSRViewFloatPtr;
-    std::unique_ptr<GraphCSRView<int, int, double>> GraphCSRViewDoublePtr;
-    std::unique_ptr<GraphCSCView<int, int, float>> GraphCSCViewFloatPtr;
-    std::unique_ptr<GraphCSCView<int, int, double>> GraphCSCViewDoublePtr;
-    std::unique_ptr<GraphCOOView<int, int, float>> GraphCOOViewFloatPtr;
-    std::unique_ptr<GraphCOOView<int, int, double>> GraphCOOViewDoublePtr;
-    std::unique_ptr<experimental::graph_t<int, int, float, false, false>>
+    std::unique_ptr<GraphCSRView<int32_t, int32_t, float>> GraphCSRViewFloatPtr;
+    std::unique_ptr<GraphCSRView<int32_t, int32_t, double>> GraphCSRViewDoublePtr;
+    std::unique_ptr<GraphCSCView<int32_t, int32_t, float>> GraphCSCViewFloatPtr;
+    std::unique_ptr<GraphCSCView<int32_t, int32_t, double>> GraphCSCViewDoublePtr;
+    std::unique_ptr<GraphCOOView<int32_t, int32_t, float>> GraphCOOViewFloatPtr;
+    std::unique_ptr<GraphCOOView<int32_t, int32_t, double>> GraphCOOViewDoublePtr;
+    // FIXME:  Change spelling to:
+    //            graph_t_int32_int32_float_ptr
+    //            graph_t_int32_int32_double_ptr
+    //            graph_t_int32_int32_float_mg_ptr
+    //            graph_t_int32_int32_double_mg_ptr
+    std::unique_ptr<experimental::graph_t<int32_t, int32_t, float, false, false>>
       graph_t_float_ptr;
-    std::unique_ptr<experimental::graph_t<int, int, double, false, false>>
+    std::unique_ptr<experimental::graph_t<int32_t, int32_t, double, false, false>>
       graph_t_double_ptr;
-    std::unique_ptr<experimental::graph_t<int, int, float, false, true>>
+    std::unique_ptr<experimental::graph_t<int32_t, int32_t, float, false, true>>
       graph_t_float_mg_ptr;
-    std::unique_ptr<experimental::graph_t<int, int, double, false, true>>
+    std::unique_ptr<experimental::graph_t<int32_t, int32_t, double, false, true>>
       graph_t_double_mg_ptr;
-    std::unique_ptr<experimental::graph_t<int, int, float, true, false>>
+    std::unique_ptr<experimental::graph_t<int32_t, int64_t, float, false, true>>
+      graph_t_int32_int64_float_ptr;
+    std::unique_ptr<experimental::graph_t<int32_t, int64_t, double, false, true>>
+      graph_t_int32_int64_double_ptr;
+    std::unique_ptr<experimental::graph_t<int32_t, int64_t, float, false, true>>
+      graph_t_int32_int64_float_mg_ptr;
+    std::unique_ptr<experimental::graph_t<int32_t, int64_t, double, false, true>>
+      graph_t_int32_int64_double_mg_ptr;
+    std::unique_ptr<experimental::graph_t<int64_t, int64_t, float, false, true>>
+      graph_t_int64_int64_float_ptr;
+    std::unique_ptr<experimental::graph_t<int64_t, int64_t, double, false, true>>
+      graph_t_int64_int64_double_ptr;
+    std::unique_ptr<experimental::graph_t<int64_t, int64_t, float, false, true>>
+      graph_t_int64_int64_float_mg_ptr;
+    std::unique_ptr<experimental::graph_t<int64_t, int64_t, double, false, true>>
+      graph_t_int64_int64_double_mg_ptr;
+
+    // FIXME:  Change spelling to:
+    //            graph_t_int32_int32_float_transposed_ptr
+    //            graph_t_int32_int32_double_transposed_ptr
+    //            graph_t_int32_int32_float_mg_transposed_ptr
+    //            graph_t_int32_int32_double_mg_transposed_ptr
+    std::unique_ptr<experimental::graph_t<int32_t, int32_t, float, true, false>>
       graph_t_float_transposed_ptr;
-    std::unique_ptr<experimental::graph_t<int, int, double, true, false>>
+    std::unique_ptr<experimental::graph_t<int32_t, int32_t, double, true, false>>
       graph_t_double_transposed_ptr;
-    std::unique_ptr<experimental::graph_t<int, int, float, true, true>>
+    std::unique_ptr<experimental::graph_t<int32_t, int32_t, float, true, true>>
       graph_t_float_mg_transposed_ptr;
-    std::unique_ptr<experimental::graph_t<int, int, double, true, true>>
+    std::unique_ptr<experimental::graph_t<int32_t, int32_t, double, true, true>>
       graph_t_double_mg_transposed_ptr;
+    std::unique_ptr<experimental::graph_t<int32_t, int64_t, float, true, true>>
+      graph_t_int32_int64_float_transposed_ptr;
+    std::unique_ptr<experimental::graph_t<int32_t, int64_t, double, true, true>>
+      graph_t_int32_int64_double_transposed_ptr;
+    std::unique_ptr<experimental::graph_t<int32_t, int64_t, float, true, true>>
+      graph_t_int32_int64_float_mg_transposed_ptr;
+    std::unique_ptr<experimental::graph_t<int32_t, int64_t, double, true, true>>
+      graph_t_int32_int64_double_mg_transposed_ptr;
+    std::unique_ptr<experimental::graph_t<int64_t, int64_t, float, true, true>>
+      graph_t_int64_int64_float_transposed_ptr;
+    std::unique_ptr<experimental::graph_t<int64_t, int64_t, double, true, true>>
+      graph_t_int64_int64_double_transposed_ptr;
+    std::unique_ptr<experimental::graph_t<int64_t, int64_t, float, true, true>>
+      graph_t_int64_int64_float_mg_transposed_ptr;
+    std::unique_ptr<experimental::graph_t<int64_t, int64_t, double, true, true>>
+      graph_t_int64_int64_double_mg_transposed_ptr;
   };
 
   graph_container_t() : graph_ptr_union{nullptr}, graph_ptr_type{graphTypeEnum::null} {}
@@ -159,8 +228,8 @@ void populate_graph_container(graph_container_t& graph_container,
                               numberTypeEnum vertexType,
                               numberTypeEnum edgeType,
                               numberTypeEnum weightType,
-                              int num_vertices,
-                              int num_edges,
+                              size_t num_vertices,
+                              size_t num_edges,
                               int partition_row_size,  // pcols
                               int partition_col_size,  // prows
                               bool transposed,

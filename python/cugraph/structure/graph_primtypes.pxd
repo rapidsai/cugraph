@@ -196,7 +196,8 @@ cdef GraphViewType get_graph_view(input_graph, bool weightless=*, GraphViewType*
 cdef extern from "utilities/cython.hpp" namespace "cugraph::cython":
 
     ctypedef enum numberTypeEnum:
-        intType "cugraph::cython::numberTypeEnum::intType"
+        int32Type "cugraph::cython::numberTypeEnum::int32Type"
+        int64Type "cugraph::cython::numberTypeEnum::int64Type"
         floatType "cugraph::cython::numberTypeEnum::floatType"
         doubleType "cugraph::cython::numberTypeEnum::doubleType"
 
