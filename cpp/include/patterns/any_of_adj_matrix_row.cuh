@@ -44,9 +44,9 @@ namespace experimental {
  * @param adj_matrix_row_value_input_first Iterator pointing to the adjacency matrix row properties
  * for the first (inclusive) row (assigned to this process in multi-GPU).
  * `adj_matrix_row_value_input_last` (exclusive) is deduced as @p adj_matrix_row_value_input_first +
- * @p graph_view.get_number_of_adj_matrix_local_rows().
+ * @p graph_view.get_number_of_local_adj_matrix_partition_rows().
  * @param row_op Unary predicate operator that takes *(@p adj_matrix_row_value_input_first + i)
- * (where i = [0, @p graph_view.get_number_of_adj_matrix_local_rows()) and returns either
+ * (where i = [0, @p graph_view.get_number_of_local_adj_matrix_partition_rows()) and returns either
  * true or false.
  * @return true If the predicate returns true at least once (in any process in multi-GPU).
  * @return false If the predicate never returns true (in any process in multi-GPU).
