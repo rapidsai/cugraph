@@ -49,7 +49,7 @@ namespace experimental {
  * @param adj_matrix_row_value_input_first Iterator pointing to the adjacency matrix row input
  * properties for the first (inclusive) row (assigned to this process in multi-GPU).
  * `adj_matrix_row_value_input_last` (exclusive) is deduced as @p adj_matrix_row_value_input_first +
- * @p graph_view.get_number_of_adj_matrix_local_rows().
+ * @p graph_view.get_number_of_local_adj_matrix_partition_rows().
  * @param v_op Binary operator takes *(@p vertex_value_input_first + i) and *(@p
  * adj_matrix_row_value_input_first + j) (where i and j are set for a vertex and the matching row)
  * and returns a transformed value to be reduced.
@@ -73,7 +73,7 @@ T transform_reduce_v_with_adj_matrix_row(
     CUGRAPH_FAIL("unimplemented.");
   } else {
     assert(graph_view.get_number_of_local_vertices() ==
-           graph_view.get_number_of_adj_matrix_local_rows());
+           graph_view.get_number_of_local_adj_matrix_partition_rows());
     auto input_first = thrust::make_zip_iterator(
       thrust::make_tuple(vertex_value_input_first, adj_matrix_row_value_input_first));
     auto v_op_wrapper = [v_op] __device__(auto v_and_row_val) {
