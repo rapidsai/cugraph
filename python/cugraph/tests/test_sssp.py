@@ -16,7 +16,7 @@ import time
 
 import numpy as np
 import pytest
-
+import cudf
 import cugraph
 from cugraph.tests import utils
 
@@ -213,3 +213,46 @@ def test_sssp_data_type_conversion(graph_file, source):
                 err = err + 1
 
     assert err == 0
+
+
+@pytest.mark.parametrize("graph_file", utils.DATASETS)
+@pytest.mark.parametrize("source", SOURCES)
+def test_sssp_nx(graph_file, source):
+    print("DOING test_sssp : " + graph_file + "\n\n\n")
+    gc.collect()
+
+    M = utils.read_csv_for_nx(graph_file)
+    nx_paths, Gnx = networkx_call(M, source)
+
+    df = cugraph.shortest_path(Gnx, source)
+    df = cudf.from_pandas(df)
+
+    if np.issubdtype(df["distance"].dtype, np.integer):
+        max_val = np.iinfo(df["distance"].dtype).max
+    else:
+        max_val = np.finfo(df["distance"].dtype).max
+
+    verts_np = df["vertex"].to_array()
+    dist_np = df["distance"].to_array()
+    pred_np = df["predecessor"].to_array()
+    cu_paths = dict(zip(verts_np, zip(dist_np, pred_np)))
+
+    # Calculating mismatch
+    err = 0
+    for vid in cu_paths:
+        # Validate vertices that are reachable
+        # NOTE : If distance type is float64 then cu_paths[vid][0]
+        # should be compared against np.finfo(np.float64).max)
+        if cu_paths[vid][0] != max_val:
+            if cu_paths[vid][0] != nx_paths[vid]:
+                err = err + 1
+            # check pred dist + 1 = current dist (since unweighted)
+            pred = cu_paths[vid][1]
+            if vid != source and cu_paths[pred][0] + 1 != cu_paths[vid][0]:
+                err = err + 1
+        else:
+            if vid in nx_paths.keys():
+                err = err + 1
+
+    assert err == 0
+    print("DONE test_sssp : " + graph_file + "\n\n\n")

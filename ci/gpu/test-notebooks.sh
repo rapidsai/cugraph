@@ -23,7 +23,7 @@ TOPLEVEL_NB_FOLDERS=$(find . -name *.ipynb |cut -d'/' -f2|sort -u)
 # Add notebooks that should be skipped here
 # (space-separated list of filenames without paths)
 
-SKIPNBS="uvm.ipynb bfs_benchmark.ipynb louvain_benchmark.ipynb pagerank_benchmark.ipynb sssp_benchmark.ipynb release.ipynb"
+SKIPNBS="uvm.ipynb bfs_benchmark.ipynb louvain_benchmark.ipynb pagerank_benchmark.ipynb sssp_benchmark.ipynb release.ipynb nx_cugraph_bc_benchmarking.ipynb"
 
 ## Check env
 env

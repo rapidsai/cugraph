@@ -59,7 +59,13 @@ from cugraph.link_prediction import (
     overlap_w,
 )
 
-from cugraph.traversal import bfs, sssp, filter_unreachable
+from cugraph.traversal import (
+    bfs,
+    bfs_edges, 
+    sssp,
+    shortest_path,
+    filter_unreachable,
+)
 
 from cugraph.utilities import utils
 
