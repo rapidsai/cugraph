@@ -21,34 +21,30 @@ import cugraph.comms.comms as Comms
 import cudf
 
 
-def call_bfs(sID,
+def call_sssp(sID,
              data,
              num_verts,
              num_edges,
              partition_row_size,
              partition_col_size,
              vertex_partition_offsets,
-             start,
-             return_distances):
+             start):
     wid = Comms.get_worker_id(sID)
     handle = Comms.get_handle(sID)
-    return mg_bfs.mg_bfs(data[0],
-                         local_data,
-                         num_verts,
-                         num_edges,
-                         partition_row_size,
-                         partition_col_size,
-                         vertex_partition_offsets,
-                         wid,
-                         handle,
-                         start,
-                         return_distances)
+    return mg_sssp.mg_sssp(data[0],
+                           local_data,
+                           num_verts,
+                           num_edges,
+                           partition_row_size,
+                           partition_col_size,
+                           vertex_partition_offsets,
+                           wid,
+                           handle,
+                           start)
 
 
-def bfs(graph,
-        start,
-        return_distances=False,
-        load_balance=True):
+def sssp(graph,
+         start):
 
     """
     Find the distances and predecessors for a breadth first traversal of a
@@ -65,13 +61,6 @@ def bfs(graph,
     start : Integer
         Specify starting vertex for breadth-first search; this function
         iterates over edges in the component reachable from this node.
-    return_distances : bool, optional, default=False
-        Indicates if distances should be returned
-    load_balance : bool, optional, default=True
-        Set as True to perform load_balancing after global sorting of
-        dask-cudf DataFrame. This ensures that the data is uniformly
-        distributed among multiple GPUs to avoid over-loading.
-
     Returns
     -------
     df : cudf.DataFrame
@@ -94,7 +83,7 @@ def bfs(graph,
                                  dtype=['int32', 'int32', 'float32'])
     >>> dg = cugraph.DiGraph()
     >>> dg.from_dask_cudf_edgelist(ddf)
-    >>> df = dcg.bfs(dg, 0)
+    >>> df = dcg.sssp(dg, 0)
     >>> Comms.destroy()
     """
 
@@ -125,7 +114,6 @@ def bfs(graph,
             partition_col_size,
             vertex_partition_offsets,
             start,
-            return_distances,
             workers=[wf[0]]))
             for idx, wf in enumerate(data.worker_to_parts.items())])
     wait(result)
