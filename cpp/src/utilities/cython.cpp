@@ -51,14 +51,13 @@ void populate_graph_container(graph_container_t& graph_container,
   bool do_expensive_check{false};
   bool hypergraph_partitioned{false};
 
-  raft::comms::comms_t const& communicator = handle.get_comms();
-  int const rank = communicator.get_rank();
-  int partition_row_rank = rank / partition_row_size;
-  int partition_col_rank  = rank % partition_row_size;
-
   // Setup the subcommunicators needed for this partition on the handle
   partition_2d::subcomm_factory_t<partition_2d::key_naming_t, int>
     subcomm_factory(handle, partition_row_size);
+
+  partition_2d::pair_comms_t comms_pair = subcomm_factory.row_col_comms();
+  int partition_row_rank = comms_pair.first->get_rank();
+  int partition_col_rank = comms_pair.second->get_rank();
 
   // Copy the contents of the vertex_partition_offsets (host array) to a vector
   // as needed by the partition_t ctor.
