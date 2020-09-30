@@ -48,7 +48,7 @@ void populate_graph_container(graph_container_t& graph_container,
   CUGRAPH_EXPECTS(graph_container.graph_ptr_type == graphTypeEnum::null,
                   "populate_graph_container() can only be called on an empty container.");
 
-  bool do_expensive_check{false};
+  bool do_expensive_check{true};
   bool hypergraph_partitioned{false};
 
   // Setup the subcommunicators needed for this partition on the handle
