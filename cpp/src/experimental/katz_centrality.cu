@@ -16,8 +16,8 @@
 
 #include <algorithms.hpp>
 #include <experimental/graph_view.hpp>
-#include <patterns/copy_to_adj_matrix_row.cuh>
-#include <patterns/copy_v_transform_reduce_nbr.cuh>
+#include <patterns/copy_to_adj_matrix_row_col.cuh>
+#include <patterns/copy_v_transform_reduce_in_out_nbr.cuh>
 #include <patterns/count_if_v.cuh>
 #include <patterns/transform_reduce_v.cuh>
 #include <patterns/transform_reduce_v_with_adj_matrix_row.cuh>
@@ -191,6 +191,78 @@ void katz_centrality(raft::handle_t &handle,
 // explicit instantiation
 
 template void katz_centrality(raft::handle_t &handle,
+                              graph_view_t<int32_t, int32_t, float, true, true> const &graph_view,
+                              float *betas,
+                              float *katz_centralities,
+                              float alpha,
+                              float beta,
+                              float epsilon,
+                              size_t max_iterations,
+                              bool has_initial_guess,
+                              bool normalize,
+                              bool do_expensive_check);
+
+template void katz_centrality(raft::handle_t &handle,
+                              graph_view_t<int32_t, int32_t, double, true, true> const &graph_view,
+                              double *betas,
+                              double *katz_centralities,
+                              double alpha,
+                              double beta,
+                              double epsilon,
+                              size_t max_iterations,
+                              bool has_initial_guess,
+                              bool normalize,
+                              bool do_expensive_check);
+
+template void katz_centrality(raft::handle_t &handle,
+                              graph_view_t<int32_t, int64_t, float, true, true> const &graph_view,
+                              float *betas,
+                              float *katz_centralities,
+                              float alpha,
+                              float beta,
+                              float epsilon,
+                              size_t max_iterations,
+                              bool has_initial_guess,
+                              bool normalize,
+                              bool do_expensive_check);
+
+template void katz_centrality(raft::handle_t &handle,
+                              graph_view_t<int32_t, int64_t, double, true, true> const &graph_view,
+                              double *betas,
+                              double *katz_centralities,
+                              double alpha,
+                              double beta,
+                              double epsilon,
+                              size_t max_iterations,
+                              bool has_initial_guess,
+                              bool normalize,
+                              bool do_expensive_check);
+
+template void katz_centrality(raft::handle_t &handle,
+                              graph_view_t<int64_t, int64_t, float, true, true> const &graph_view,
+                              float *betas,
+                              float *katz_centralities,
+                              float alpha,
+                              float beta,
+                              float epsilon,
+                              size_t max_iterations,
+                              bool has_initial_guess,
+                              bool normalize,
+                              bool do_expensive_check);
+
+template void katz_centrality(raft::handle_t &handle,
+                              graph_view_t<int64_t, int64_t, double, true, true> const &graph_view,
+                              double *betas,
+                              double *katz_centralities,
+                              double alpha,
+                              double beta,
+                              double epsilon,
+                              size_t max_iterations,
+                              bool has_initial_guess,
+                              bool normalize,
+                              bool do_expensive_check);
+
+template void katz_centrality(raft::handle_t &handle,
                               graph_view_t<int32_t, int32_t, float, true, false> const &graph_view,
                               float *betas,
                               float *katz_centralities,
@@ -203,12 +275,60 @@ template void katz_centrality(raft::handle_t &handle,
                               bool do_expensive_check);
 
 template void katz_centrality(raft::handle_t &handle,
-                              graph_view_t<int32_t, int32_t, float, true, true> const &graph_view,
+                              graph_view_t<int32_t, int32_t, double, true, false> const &graph_view,
+                              double *betas,
+                              double *katz_centralities,
+                              double alpha,
+                              double beta,
+                              double epsilon,
+                              size_t max_iterations,
+                              bool has_initial_guess,
+                              bool normalize,
+                              bool do_expensive_check);
+
+template void katz_centrality(raft::handle_t &handle,
+                              graph_view_t<int32_t, int64_t, float, true, false> const &graph_view,
                               float *betas,
                               float *katz_centralities,
                               float alpha,
                               float beta,
                               float epsilon,
+                              size_t max_iterations,
+                              bool has_initial_guess,
+                              bool normalize,
+                              bool do_expensive_check);
+
+template void katz_centrality(raft::handle_t &handle,
+                              graph_view_t<int32_t, int64_t, double, true, false> const &graph_view,
+                              double *betas,
+                              double *katz_centralities,
+                              double alpha,
+                              double beta,
+                              double epsilon,
+                              size_t max_iterations,
+                              bool has_initial_guess,
+                              bool normalize,
+                              bool do_expensive_check);
+
+template void katz_centrality(raft::handle_t &handle,
+                              graph_view_t<int64_t, int64_t, float, true, false> const &graph_view,
+                              float *betas,
+                              float *katz_centralities,
+                              float alpha,
+                              float beta,
+                              float epsilon,
+                              size_t max_iterations,
+                              bool has_initial_guess,
+                              bool normalize,
+                              bool do_expensive_check);
+
+template void katz_centrality(raft::handle_t &handle,
+                              graph_view_t<int64_t, int64_t, double, true, false> const &graph_view,
+                              double *betas,
+                              double *katz_centralities,
+                              double alpha,
+                              double beta,
+                              double epsilon,
                               size_t max_iterations,
                               bool has_initial_guess,
                               bool normalize,
