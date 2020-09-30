@@ -113,6 +113,18 @@ class partition_t {
     }
   }
 
+  int get_row_size() const {
+    return row_comm_size_;
+  }
+
+  int get_col_size() const {
+    return col_comm_size_;
+  }
+
+  int get_comm_rank() const {
+    return comm_rank_;
+  }
+
   std::tuple<vertex_t, vertex_t> get_local_vertex_range() const
   {
     return std::make_tuple(vertex_partition_offsets_[comm_rank_],
@@ -330,6 +342,10 @@ class graph_view_t<vertex_t,
 
   vertex_t get_local_vertex_last() const { return partition_.get_local_vertex_last(); }
 
+  partition_t<vertex_t> get_partition() const {
+    return partition_;
+  }
+
   vertex_t get_vertex_partition_first(size_t vertex_partition_idx) const
   {
     return partition_.get_vertex_partition_first(vertex_partition_idx);
@@ -426,6 +442,34 @@ class graph_view_t<vertex_t,
 
   bool is_hypergraph_partitioned() const { return partition_.is_hypergraph_partitioned(); }
 
+  // FIXME: this function is not part of the public stable API.This function is mainly for pattern
+  // accelerator implementation. This function is currently public to support the legacy
+  // implementations directly accessing CSR/CSC data, but this function will eventually become
+  // private or even disappear if we switch to CSR + DCSR (or CSC + DCSC).
+  edge_t const* offsets() const
+  {
+    return adj_matrix_partition_offsets_[partition_.get_comm_rank()];
+  }
+
+  // FIXME: this function is not part of the public stable API.This function is mainly for pattern
+  // accelerator implementation. This function is currently public to support the legacy
+  // implementations directly accessing CSR/CSC data, but this function will eventually become
+  // private or even disappear if we switch to CSR + DCSR (or CSC + DCSC).
+  vertex_t const* indices() const
+  {
+    return adj_matrix_partition_indices_[partition_.get_comm_rank()];
+  }
+
+  // FIXME: this function is not part of the public stable API.This function is mainly for pattern
+  // accelerator implementation. This function is currently public to support the legacy
+  // implementations directly accessing CSR/CSC data, but this function will eventually become
+  // private or even disappear if we switch to CSR + DCSR (or CSC + DCSC).
+  weight_t const* weights() const
+  {
+    return adj_matrix_partition_weights_.size() > 0
+      ? adj_matrix_partition_weights_[partition_.get_comm_rank()]
+             : static_cast<weight_t const*>(nullptr);
+  }
   // FIXME: this function is not part of the public stable API.This function is mainly for pattern
   // accelerator implementation. This function is currently public to support the legacy
   // implementations directly accessing CSR/CSC data, but this function will eventually become

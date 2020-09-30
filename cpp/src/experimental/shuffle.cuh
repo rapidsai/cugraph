@@ -206,7 +206,7 @@ rmm::device_vector<data_t> variable_shuffle(raft::handle_t const &handle,
                                             iterator_t data_iter,
                                             partition_iter_t partition_iter)
 {
-  return detail::variable_shuffle(handle, n_elements, data_iter, partition_iter);
+  return detail::variable_shuffle<data_t>(handle, n_elements, data_iter, partition_iter);
 }
 
 template <bool is_multi_gpu,

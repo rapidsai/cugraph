@@ -289,6 +289,69 @@ class skip_edge_t {
 
 }  // namespace detail
 
+namespace detail {
+
+template <typename vertex_t,
+          typename edge_t,
+          typename weight_t,
+          bool transposed,
+          bool multi_gpu,
+          typename view_t,
+          std::enable_if_t<multi_gpu> * = nullptr>
+std::unique_ptr<experimental::graph_t<vertex_t, edge_t, weight_t, transposed, multi_gpu>>
+create_graph(raft::handle_t const &handle,
+             rmm::device_vector<vertex_t> const &src_v,
+             rmm::device_vector<vertex_t> const &dst_v,
+             rmm::device_vector<weight_t> const &weight_v,
+             std::size_t num_local_verts,
+             experimental::graph_properties_t graph_props,
+             view_t const &view)
+{
+  std::vector<experimental::edgelist_t<vertex_t, edge_t, weight_t>> edgelist(
+    {{src_v.data().get(),
+      dst_v.data().get(),
+      weight_v.data().get(),
+      static_cast<vertex_t>(num_local_verts)}});
+
+  return std::make_unique<experimental::graph_t<vertex_t, edge_t, weight_t, transposed, multi_gpu>>(
+    handle,
+    edgelist,
+    view.get_partition(),
+    num_local_verts,
+    src_v.size(),
+    graph_props,
+    false,
+    false);
+}
+
+template <typename vertex_t,
+          typename edge_t,
+          typename weight_t,
+          bool transposed,
+          bool multi_gpu,
+          typename view_t,
+          std::enable_if_t<!multi_gpu> * = nullptr>
+std::unique_ptr<experimental::graph_t<vertex_t, edge_t, weight_t, transposed, multi_gpu>>
+create_graph(raft::handle_t const &handle,
+             rmm::device_vector<vertex_t> const &src_v,
+             rmm::device_vector<vertex_t> const &dst_v,
+             rmm::device_vector<weight_t> const &weight_v,
+             std::size_t num_local_verts,
+             experimental::graph_properties_t graph_props,
+             view_t const &view)
+{
+  experimental::edgelist_t<vertex_t, edge_t, weight_t> edgelist{
+    src_v.data().get(),
+    dst_v.data().get(),
+    weight_v.data().get(),
+    static_cast<vertex_t>(num_local_verts)};
+
+  return std::make_unique<experimental::graph_t<vertex_t, edge_t, weight_t, transposed, multi_gpu>>(
+    handle, edgelist, num_local_verts, graph_props, false, false);
+}
+
+}  // namespace detail
+
 template <typename graph_view_type>
 class Louvain {
  public:
@@ -803,8 +866,8 @@ class Louvain {
                           "  (%d, %d, %g) ncs = %g, ocs = %g, a_new = %g, k_k = %g, a_old = "
                           "%g, "
                           "total_edge_weight = %g\n",
-                          src,
-                          nbr_cluster,
+                          (int) src,
+                          (int) nbr_cluster,
                           res,
                           new_cluster_sum,
                           old_cluster_sum,
@@ -812,7 +875,7 @@ class Louvain {
                           k_k,
                           a_old,
                           total_edge_weight);
-                        //}
+      //}
 #endif
 
                         return 2 * (((new_cluster_sum - old_cluster_sum) / total_edge_weight) -
@@ -1005,38 +1068,39 @@ class Louvain {
     //   Then we can, on each gpu, do a local assignment for all of the
     //   vertices assigned to that gpu using the up_down logic
     //
-    thrust::for_each_n(
-      rmm::exec_policy(stream_)->on(stream_),
-      thrust::make_counting_iterator<vertex_t>(0),
-      local_num_vertices_,
-      [d_best_nbr_cluster_id,
-       d_best_delta_Q_value,
-       VMAX,
-       up_down,
-       d_next_cluster,
-       d_vertex_weights,
-       d_cluster_weights] __device__(vertex_t idx) {
+    thrust::for_each_n(rmm::exec_policy(stream_)->on(stream_),
+                       thrust::make_counting_iterator<vertex_t>(0),
+                       local_num_vertices_,
+                       [d_best_nbr_cluster_id,
+                        d_best_delta_Q_value,
+                        VMAX,
+                        up_down,
+                        d_next_cluster,
+                        d_vertex_weights,
+                        d_cluster_weights] __device__(vertex_t idx) {
 #ifdef DEBUG
-        printf("best = %d, max = %d\n", d_best_nbr_cluster_id.get()[idx], VMAX);
+                         printf("best = %d, max = %d\n", d_best_nbr_cluster_id.get()[idx], VMAX);
 #endif
-        if (d_best_nbr_cluster_id[idx] != VMAX) {
-          vertex_t new_cluster = d_best_nbr_cluster_id[idx];
-          vertex_t old_cluster = d_next_cluster[idx];
+                         if (d_best_nbr_cluster_id[idx] != VMAX) {
+                           vertex_t new_cluster = d_best_nbr_cluster_id[idx];
+                           vertex_t old_cluster = d_next_cluster[idx];
 
-          if ((new_cluster > old_cluster) == up_down) {
+                           if ((new_cluster > old_cluster) == up_down) {
 #ifdef DEBUG
-            printf(
-              "moving vertex %d from cluster %d to cluster %d\n", idx, old_cluster, new_cluster);
+                             printf("moving vertex %d from cluster %d to cluster %d\n",
+                                    (int)idx,
+                                    (int)old_cluster,
+                                    (int)new_cluster);
 #endif
-            weight_t src_weight = d_vertex_weights[idx];
-            d_next_cluster[idx] = new_cluster;
+                             weight_t src_weight = d_vertex_weights[idx];
+                             d_next_cluster[idx] = new_cluster;
 
-            // TODO:  These might be remote...
-            atomicAdd(d_cluster_weights.get() + new_cluster, src_weight);
-            atomicAdd(d_cluster_weights.get() + old_cluster, -src_weight);
-          }
-        }
-      });
+                             // TODO:  These might be remote...
+                             atomicAdd(d_cluster_weights.get() + new_cluster, src_weight);
+                             atomicAdd(d_cluster_weights.get() + old_cluster, -src_weight);
+                           }
+                         }
+                       });
 
 #ifdef DEBUG
     print_v("next_cluster", next_cluster_v);
@@ -1144,7 +1208,7 @@ class Louvain {
 #ifdef DEBUG
     std::cout << "creating hash map, VERTEX_MAX = " << VERTEX_MAX << std::endl;
 #endif
-    
+
     cuco::static_map<vertex_t, vertex_t> hash_map(capacity, VERTEX_MAX, VERTEX_MAX);
 
 #ifdef DEBUG
@@ -1669,20 +1733,18 @@ class Louvain {
     print_v("new_weight", new_weight_v);
 #endif
 
-    std::vector<vertex_t> segment_offsets;
-
-    experimental::edgelist_t<vertex_t, edge_t, weight_t> edgelist{
-      new_src_v.data().get(),
-      new_dst_v.data().get(),
-      new_weight_v.data().get(),
-      static_cast<vertex_t>(new_src_v.size())};
-
-    current_graph_ = std::make_unique<graph_t>(handle_,
-                                               edgelist,
-                                               cluster_v_.size(),
-                                               experimental::graph_properties_t{true, true},
-                                               false,
-                                               false);
+    current_graph_ =
+      detail::create_graph<vertex_t,
+                           edge_t,
+                           weight_t,
+                           graph_t::is_adj_matrix_transposed,
+                           graph_t::is_multi_gpu>(handle_,
+                                                  new_src_v,
+                                                  new_dst_v,
+                                                  new_weight_v,
+                                                  cluster_v_.size(),
+                                                  experimental::graph_properties_t{true, true},
+                                                  current_graph_view_);
 
     current_graph_view_ = current_graph_->view();
 
