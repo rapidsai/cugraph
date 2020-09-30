@@ -13,7 +13,7 @@
 
 from cugraph.structure.graph import Graph, DiGraph
 from cugraph.structure.number_map import NumberMap
-from cugraph.structure.symmetrize import symmetrize, symmetrize_df
+from cugraph.structure.symmetrize import symmetrize, symmetrize_df , symmetrize_ddf
 from cugraph.structure.convert_matrix import from_cudf_edgelist
 from cugraph.structure.hypergraph import hypergraph
 from cugraph.structure.shuffle import shuffle
