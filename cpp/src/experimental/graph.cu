@@ -255,6 +255,7 @@ graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu, std::enable_if_
                   "Invalid API parameter: errneous edgelists.size().");
 
   // optional expensive checks (part 1/3)
+
   if (do_expensive_check) {
     edge_t number_of_local_edges_sum{};
     for (size_t i = 0; i < edgelists.size(); ++i) {
@@ -293,6 +294,7 @@ graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu, std::enable_if_
   }
 
   // convert edge list (COO) to compressed sparse format (CSR or CSC)
+
   adj_matrix_partition_offsets_.reserve(edgelists.size());
   adj_matrix_partition_indices_.reserve(edgelists.size());
   adj_matrix_partition_weights_.reserve(is_weighted ? edgelists.size() : 0);
