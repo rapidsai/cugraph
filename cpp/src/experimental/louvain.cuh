@@ -344,7 +344,7 @@ create_graph(raft::handle_t const &handle,
     src_v.data().get(),
     dst_v.data().get(),
     weight_v.data().get(),
-    static_cast<vertex_t>(num_local_verts)};
+    static_cast<vertex_t>(src_v.size())};
 
   return std::make_unique<experimental::graph_t<vertex_t, edge_t, weight_t, transposed, multi_gpu>>(
     handle, edgelist, num_local_verts, graph_props, false, false);
@@ -403,6 +403,8 @@ class Louvain {
   {
     size_t num_level{0};
 
+    std::cout << "computing total_edge_weight" << std::endl;
+
     weight_t total_edge_weight;
     total_edge_weight = experimental::transform_reduce_e(
       handle_,
@@ -413,6 +415,8 @@ class Louvain {
       weight_t{0});
 
     weight_t best_modularity = weight_t{-1};
+
+    std::cout << "total_edge_weight = " << total_edge_weight << std::endl;
 
     //
     //  Initialize every cluster to reference each vertex to itself
@@ -554,7 +558,10 @@ class Louvain {
       current_graph_view_,
       thrust::make_constant_iterator(0),
       thrust::make_constant_iterator(0),
-      [] __device__(auto, auto, auto wt, auto, auto) { return wt; },
+      [] __device__(auto src, auto, auto wt, auto, auto) {
+        printf("src = %d, wt = %g\n", (int)src, wt);
+        return wt;
+      },
       weight_t{0},
       vertex_weights_v_.begin());
 
@@ -568,6 +575,9 @@ class Louvain {
 
     cache_vertex_properties(
       cluster_weights_v_, src_cluster_weights_cache_v_, dst_cluster_weights_cache_v_);
+
+    print_v("vertex_weights_v_", vertex_weights_v_);
+    print_v("cluster_weights_v_", cluster_weights_v_);
 
     timer_stop(stream_);
   }
@@ -866,8 +876,8 @@ class Louvain {
                           "  (%d, %d, %g) ncs = %g, ocs = %g, a_new = %g, k_k = %g, a_old = "
                           "%g, "
                           "total_edge_weight = %g\n",
-                          (int) src,
-                          (int) nbr_cluster,
+                          (int)src,
+                          (int)nbr_cluster,
                           res,
                           new_cluster_sum,
                           old_cluster_sum,
@@ -899,7 +909,7 @@ class Louvain {
       [d_src, d_nbr_cluster, d_nbr_weights, num_nbr_weights] __device__(auto idx) {
         for (std::size_t i = 0; i < num_nbr_weights; ++i)
           if (d_nbr_weights[i] > 0)
-            printf(" %ld: (%d, %d, %g)\n", i, d_src.get()[i], d_nbr_cluster[i], d_nbr_weights[i]);
+            printf(" %ld: (%d, %d, %g)\n", i, (int) d_src.get()[i], (int) d_nbr_cluster[i], d_nbr_weights[i]);
       });
 #endif
 #endif
@@ -1079,7 +1089,7 @@ class Louvain {
                         d_vertex_weights,
                         d_cluster_weights] __device__(vertex_t idx) {
 #ifdef DEBUG
-                         printf("best = %d, max = %d\n", d_best_nbr_cluster_id.get()[idx], VMAX);
+                         printf("best = %d, max = %d\n", (int) d_best_nbr_cluster_id.get()[idx], (int) VMAX);
 #endif
                          if (d_best_nbr_cluster_id[idx] != VMAX) {
                            vertex_t new_cluster = d_best_nbr_cluster_id[idx];
@@ -1450,6 +1460,7 @@ class Louvain {
     vertex_t num_clusters = my_cluster_ids_deduped_v.size();
     cluster_v_.resize(num_clusters);
     cluster_weights_v_.resize(num_clusters);
+    vertex_weights_v_.resize(num_clusters);
   }
 
   //
@@ -1754,11 +1765,6 @@ class Louvain {
                                         static_cast<vertex_t>(cluster_v_.size()),
                                         src_indices_v_.data().get());
 
-#ifdef DEBUG
-    print_v("offsets", current_graph_view_.offsets(), local_num_vertices_);
-    print_v("new graph... src_indices", src_indices_v_);
-#endif
-
 #if 0
     }
 #endif
@@ -1767,6 +1773,11 @@ class Louvain {
     local_num_rows_     = current_graph_view_.get_number_of_local_adj_matrix_partition_rows();
     local_num_cols_     = current_graph_view_.get_number_of_local_adj_matrix_partition_cols();
     local_num_edges_    = new_src_v.size();
+
+#ifdef DEBUG
+    print_v("offsets", current_graph_view_.offsets(), local_num_vertices_);
+    print_v("new graph... src_indices", src_indices_v_);
+#endif
 
     CHECK_CUDA(stream_);
   }
