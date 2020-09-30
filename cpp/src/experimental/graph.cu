@@ -273,11 +273,14 @@ std::cout<<"DOING EC 1/3"<<std::endl;
 
       number_of_local_edges_sum += edgelists[i].number_of_edges;
 
-      //std::cout<<"SRC[0-3]: "<<edgelists[i].p_src_vertices[0]<<" "<<edgelists[i].p_src_vertices[1]<<" "<<edgelists[i].p_src_vertices[2]<<std::endl;
       auto edge_first = thrust::make_zip_iterator(thrust::make_tuple(
         store_transposed ? edgelists[i].p_dst_vertices : edgelists[i].p_src_vertices,
         store_transposed ? edgelists[i].p_src_vertices : edgelists[i].p_dst_vertices));
 
+      raft::print_device_vector<vertex_t,std::ostream>("p_src_vertices", edgelists[i].p_src_vertices, edgelists[i].number_of_edges, std::cout);
+      raft::print_device_vector<vertex_t,std::ostream>("p_dst_vertices", edgelists[i].p_dst_vertices, edgelists[i].number_of_edges, std::cout);
+
+      std::cout<<"---> major_first:"<<major_first<<" major_last:"<< major_last<<" minor_first:"<< minor_first<<" minor_last:"<< minor_last <<std::endl;
       //for(int ii=0;ii<edgelists[i].number_of_edges;++ii){
       //   printf("%d %d\n" % edgelists[i].p_src_vertices[ii],edgelists[i].p_dst_vertices[ii]);
       //}
