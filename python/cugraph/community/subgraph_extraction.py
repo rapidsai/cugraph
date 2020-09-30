@@ -13,6 +13,8 @@
 
 from cugraph.community import subgraph_extraction_wrapper
 from cugraph.structure.graph import null_check
+from cugraph.utilities import check_nx_graph
+from cugraph.utilities import cugraph_to_nx
 
 
 def subgraph(G, vertices):
@@ -52,6 +54,8 @@ def subgraph(G, vertices):
 
     null_check(vertices)
 
+    G, isNx = check_nx_graph(G)
+
     if G.renumbered:
         vertices = G.lookup_internal_vertex_id(vertices)
 
@@ -69,5 +73,8 @@ def subgraph(G, vertices):
         )
     else:
         result_graph.from_cudf_edgelist(df, source="src", destination="dst")
+
+    if isNx is True:
+        result_graph = cugraph_to_nx(result_graph)
 
     return result_graph
