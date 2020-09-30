@@ -18,6 +18,7 @@ from cugraph.dask.common.input_utils import get_distributed_data
 from cugraph.structure.shuffle import shuffle
 from cugraph.dask.community import louvain_wrapper as c_mg_louvain
 
+
 def call_louvain(sID,
                  data,
                  num_verts,

@@ -87,7 +87,7 @@ class partition_t {
       col_comm_rank_(col_comm_rank)
   {
     CUGRAPH_EXPECTS(
-      vertex_partition_offsets.size() == static_cast<size_t>((row_comm_size * col_comm_size)+1),
+      vertex_partition_offsets.size() == static_cast<size_t>((row_comm_size * col_comm_size) + 1),
       "Invalid API parameter: erroneous vertex_partition_offsets.size().");
 
     CUGRAPH_EXPECTS(
@@ -138,7 +138,7 @@ class partition_t {
   std::tuple<vertex_t, vertex_t> get_matrix_partition_major_range(size_t partition_idx) const
   {
     auto major_first = get_matrix_partition_major_first(partition_idx);
-    auto major_last = get_matrix_partition_major_last(partition_idx);
+    auto major_last  = get_matrix_partition_major_last(partition_idx);
 
     return std::make_tuple(major_first, major_last);
   }

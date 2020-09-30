@@ -214,10 +214,10 @@ cdef extern from "utilities/cython.hpp" namespace "cugraph::cython":
         numberTypeEnum edgeType,
         numberTypeEnum weightType,
         int num_partition_edges,
-        int num_vertices,
-        int num_edges,
-        int partition_row_size,
-        int partition_col_size,
+        size_t num_global_vertices,
+        size_t num_global_edges,
+        size_t row_comm_size,
+        size_t col_comm_size,
         bool transposed,
         bool multi_gpu) except +
 
@@ -236,8 +236,8 @@ cdef extern from "utilities/cython.hpp" namespace "cugraph::cython":
         numberTypeEnum offsetType,
         numberTypeEnum indexType,
         numberTypeEnum weightType,
-        int num_vertices,
-        int num_edges,
+        size_t num_global_vertices,
+        size_t num_global_edges,
         int *local_vertices,
         int *local_edges,
         int *local_offsets) except +
