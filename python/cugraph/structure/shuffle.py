@@ -112,4 +112,6 @@ def shuffle(dg, transposed=False, prows=None, pcols=None, partition_type=1):
         ignore_index=True,
     ).drop(columns=["_partitions"])
 
-    return ddf3, num_verts, vertex_partition_offsets
+    partition_row_size = pcols
+    partition_col_size = prows
+    return ddf3, num_verts, partition_row_size, partition_col_size, vertex_partition_offsets
