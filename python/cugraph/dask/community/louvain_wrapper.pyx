@@ -81,7 +81,6 @@ def louvain(input_df,
     # FIXME: The excessive casting for the enum arg is needed to make cython
     #        understand how to pass the enum value (this is the same pattern
     #        used by cudf). This will not be needed with Cython 3.0
-    print("CALLING PGC")
     populate_graph_container(graph_container,
                              handle_[0],
                              <void*>c_src_vertices, <void*>c_dst_vertices, <void*>c_edge_weights,
@@ -94,7 +93,6 @@ def louvain(input_df,
                              partition_row_size, partition_col_size,
                              False, True)  # store_transposed, multi_gpu
 
-    print("DONE CALLING PGC")
     # Create the output dataframe
     df = cudf.DataFrame()
     df['vertex'] = cudf.Series(np.zeros(num_global_verts, dtype=np.int32))
@@ -103,18 +101,14 @@ def louvain(input_df,
     cdef uintptr_t c_identifiers = df['vertex'].__cuda_array_interface__['data'][0]
     cdef uintptr_t c_partition = df['partition'].__cuda_array_interface__['data'][0]
 
-    print("CALLING CL")
     if weightType == <int>numberTypeEnum.floatType:
-        print("IN CYTHON: FLOATTYPE")
         num_level, final_modularity_float = c_louvain.call_louvain[float](
             handle_[0], graph_container, <void*>c_identifiers, <void*>c_partition, max_level, resolution)
         final_modularity = final_modularity_float
 
     else:
-        print("IN CYTHON: DOUBLETYPE")
         num_level, final_modularity_double = c_louvain.call_louvain[double](
             handle_[0], graph_container, <void*>c_identifiers, <void*>c_partition, max_level, resolution)
         final_modularity = final_modularity_double
 
-    print("DONE CALLING CL")
     return df, final_modularity

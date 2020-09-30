@@ -76,10 +76,6 @@ void populate_graph_container(graph_container_t& graph_container,
     vertex_partition_offsets_array,
     vertex_partition_offsets_array + (col_comm_size * row_comm_size) + 1);
 
-  std::cout << "num_partition_edges: " << num_partition_edges << std::endl;
-  std::cout << row_comm_size << "," << col_comm_size << "," << row_comm_rank << "," << col_comm_rank
-            << std::endl;
-
   experimental::partition_t<int> partition(vertex_partition_offsets_vect,
                                            hypergraph_partitioned,
                                            row_comm_size,
