@@ -20,8 +20,10 @@
 - PR #1139 MNMG Louvain Python updates, Cython cleanup
 - PR #1149 Parquet read and concat within workers
 - PR #1152 graph container cleanup, added arg for instantiating legacy types and switch statements to factory function
+- PR #1164 MG symmetrize and conda env updates
 - PR #1162 enhanced networkx testing
 - PR #1169 Added RAPIDS cpp packages to cugraph dev env
+- PR #1165 updated remaining algorithms to be NetworkX compatible
 
 ## Bug Fixes
 - PR #1131 Show style checker errors with set +e

@@ -40,6 +40,13 @@ Betweenness Centrality
     :members:
     :undoc-members:
 
+Edge Betweenness Centrality
+---------------------------
+
+.. automodule:: cugraph.centrality.edge_betweenness_centrality
+    :members:
+    :undoc-members:
+
 Katz Centrality
 ---------------
 

@@ -16,7 +16,8 @@ import cugraph
 
 
 def katz_centrality(
-    G, alpha=None, max_iter=100, tol=1.0e-6, nstart=None, normalized=True
+    G, alpha=None, beta=None, max_iter=100, tol=1.0e-6,
+    nstart=None, normalized=True
 ):
     """
     Compute the Katz centrality for the nodes of the graph G. cuGraph does not
@@ -46,6 +47,8 @@ def katz_centrality(
         (1/degree_max). Therefore, setting alpha to (1/degree_max) will
         guarantee that it will never exceed alpha_max thus in turn fulfilling
         the requirement for convergence.
+    beta : None
+        A weight scalar - currently Not Supported
     max_iter : int
         The maximum number of iterations before an answer is returned. This can
         be used to limit the execution time and do an early exit before the
@@ -90,6 +93,12 @@ def katz_centrality(
     >>> G.from_cudf_edgelist(gdf, source='0', destination='1')
     >>> kc = cugraph.katz_centrality(G)
     """
+
+    if beta is not None:
+        raise NotImplementedError(
+                "The beta argument is "
+                "currently not supported"
+        )
 
     G, isNx = cugraph.utilities.check_nx_graph(G)
 
