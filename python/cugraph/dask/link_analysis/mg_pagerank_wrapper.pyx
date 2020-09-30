@@ -22,7 +22,14 @@ import cugraph.structure.graph_primtypes_wrapper as graph_primtypes_wrapper
 from libc.stdint cimport uintptr_t
 from cython.operator cimport dereference as deref
 
-def mg_pagerank(input_df, local_data, rank, handle, alpha=0.85, max_iter=100, tol=1.0e-5, personalization=None, nstart=None):
+def mg_pagerank(input_df,
+                num_global_verts,
+                num_global_edges,
+                partition_row_size,
+                partition_col_size,
+                vertex_partition_offsets,
+                rank, handle, alpha=0.85, max_iter=100, tol=1.0e-5,
+                personalization=None, nstart=None):
     """
     Call pagerank
     """
@@ -33,23 +40,35 @@ def mg_pagerank(input_df, local_data, rank, handle, alpha=0.85, max_iter=100, to
 
     src = input_df['src']
     dst = input_df['dst']
+    if "value" in input_df.columns:
+        weights = input_df['value']
+    else:
+        weights = None
 
-    num_verts = local_data['verts'].sum()
-    num_edges = local_data['edges'].sum()
+    # FIXME: needs to be edge_t type not int
+    cdef int num_partition_edges = len(src)
 
-    local_offset = local_data['offsets'][rank]
-    dst = dst - local_offset
-    num_local_verts = local_data['verts'][rank]
-    num_local_edges = len(src)
+    cdef uintptr_t c_src_vertices = src.__cuda_array_interface__['data'][0]
+    cdef uintptr_t c_dst_vertices = dst.__cuda_array_interface__['data'][0]
+    cdef uintptr_t c_edge_weights = <uintptr_t>NULL
 
-    cdef uintptr_t c_local_verts = local_data['verts'].__array_interface__['data'][0]
-    cdef uintptr_t c_local_edges = local_data['edges'].__array_interface__['data'][0]
-    cdef uintptr_t c_local_offsets = local_data['offsets'].__array_interface__['data'][0]
+    # FIXME: data is on device, move to host (to_pandas()), convert to np array and access pointer to pass to C
+    cdef uintptr_t c_vertex_partition_offsets = vertex_partition_offsets.values_host.__array_interface__['data'][0]
 
-    [src, dst] = graph_primtypes_wrapper.datatype_cast([src, dst], [np.int32])
-    _offsets, indices, weights = coo2csr(dst, src, None)
-    offsets = _offsets[:num_local_verts + 1]
-    del _offsets
+    cdef graph_container_t graph_container
+
+    populate_graph_container(graph_container,
+                             handle_[0],
+                             <void*>c_src_vertices, <void*>c_dst_vertices, <void*>c_edge_weights,
+                             <void*>c_vertex_partition_offsets,
+                             <numberTypeEnum>(<int>(numberTypeEnum.intType)),
+                             <numberTypeEnum>(<int>(numberTypeEnum.intType)),
+                             <numberTypeEnum>(<int>(weightTypeMap[weights.dtype])),
+                             num_partition_edges,
+                             num_global_verts, num_global_edges,
+                             partition_row_size, partition_col_size,
+                             False, True) 
+
     df = cudf.DataFrame()
     df['vertex'] = cudf.Series(np.zeros(num_verts, dtype=np.int32))
     df['pagerank'] = cudf.Series(np.zeros(num_verts, dtype=np.float32))
@@ -60,10 +79,6 @@ def mg_pagerank(input_df, local_data, rank, handle, alpha=0.85, max_iter=100, to
     cdef uintptr_t c_pers_vtx = <uintptr_t>NULL
     cdef uintptr_t c_pers_val = <uintptr_t>NULL
     cdef int sz = 0
-
-    cdef uintptr_t c_offsets = offsets.__cuda_array_interface__['data'][0]
-    cdef uintptr_t c_indices = indices.__cuda_array_interface__['data'][0]
-    cdef uintptr_t c_weights = <uintptr_t>NULL
 
     cdef GraphCSCView[int,int,float] graph_float
     cdef GraphCSCView[int,int,double] graph_double
@@ -76,18 +91,10 @@ def mg_pagerank(input_df, local_data, rank, handle, alpha=0.85, max_iter=100, to
         c_pers_val = personalization['values'].__cuda_array_interface__['data'][0]
 
     if (df['pagerank'].dtype == np.float32):
-        graph_float = GraphCSCView[int,int,float](<int*>c_offsets, <int*>c_indices, <float*>c_weights, num_verts, num_local_edges)
-        graph_float.set_local_data(<int*>c_local_verts, <int*>c_local_edges, <int*>c_local_offsets)
-        graph_float.set_handle(handle_)
-        c_pagerank.pagerank[int,int,float](handle_[0], graph_float, <float*> c_pagerank_val, sz, <int*> c_pers_vtx, <float*> c_pers_val,
-                               <float> alpha, <float> tol, <int> max_iter, <bool> 0)
-        graph_float.get_vertex_identifiers(<int*>c_identifier)
+        c_pagerank.call_pagerank[int, float](handle_[0], graph_container, <float*> c_pagerank_val, sz, <int*> c_pers_vtx, <float*> c_pers_val,
+                                 <float> alpha, <float> tol, <int> max_iter, <bool> 0)
     else:
-        graph_double = GraphCSCView[int,int,double](<int*>c_offsets, <int*>c_indices, <double*>c_weights, num_verts, num_local_edges)
-        graph_double.set_local_data(<int*>c_local_verts, <int*>c_local_edges, <int*>c_local_offsets)
-        graph_double.set_handle(handle_)
-        c_pagerank.pagerank[int,int,double](handle_[0], graph_double, <double*> c_pagerank_val, sz, <int*> c_pers_vtx, <double*> c_pers_val,
+        c_pagerank.call_pagerank[int, double](handle_[0], graph_container, <double*> c_pagerank_val, sz, <int*> c_pers_vtx, <double*> c_pers_val,
                             <float> alpha, <float> tol, <int> max_iter, <bool> 0)
-        graph_double.get_vertex_identifiers(<int*>c_identifier)
 
     return df

@@ -14,17 +14,32 @@
 #
 
 from dask.distributed import wait, default_client
-from cugraph.dask.common.input_utils import get_local_data
+from cugraph.dask.common.input_utils import get_distributed_data
+from cugraph.structure.shuffle import shuffle
 from cugraph.dask.link_analysis import mg_pagerank_wrapper as mg_pagerank
 import cugraph.comms.comms as Comms
 
 
-def call_pagerank(sID, data, local_data, alpha, max_iter,
-                  tol, personalization, nstart):
+def call_pagerank(sID,
+                  data,
+                  num_verts,
+                  num_edges,
+                  partition_row_size,
+                  partition_col_size,
+                  vertex_partition_offsets,
+                  alpha,
+                  max_iter,
+                  tol,
+                  personalization,
+                  nstart):
     wid = Comms.get_worker_id(sID)
     handle = Comms.get_handle(sID)
     return mg_pagerank.mg_pagerank(data[0],
-                                   local_data,
+                                   num_verts,
+                                   num_edges,
+                                   partition_row_size,
+                                   partition_col_size,
+                                   vertex_partition_offsets,
                                    wid,
                                    handle,
                                    alpha,
@@ -117,11 +132,14 @@ def pagerank(input_graph,
 
     client = default_client()
 
-    if(input_graph.local_data is not None and
-       input_graph.local_data['by'] == 'dst'):
-        data = input_graph.local_data['data']
-    else:
-        data = get_local_data(input_graph, by='dst', load_balance=load_balance)
+    input_graph.compute_renumber_edge_list(transposed=False)
+    (ddf,
+     num_verts,
+     partition_row_size,
+     partition_col_size,
+     vertex_partition_offsets) = shuffle(input_graph, transposed=False)
+    num_edges = len(ddf)
+    data = get_distributed_data(ddf)
 
     if personalization is not None:
         null_check(personalization["vertex"])
@@ -136,7 +154,11 @@ def pagerank(input_graph,
                     call_pagerank,
                     Comms.get_session_id(),
                     wf[1],
-                    data.local_data,
+                    num_verts,
+                    num_edges,
+                    partition_row_size,
+                    partition_col_size,
+                    vertex_partition_offsets,
                     alpha,
                     max_iter,
                     tol,
