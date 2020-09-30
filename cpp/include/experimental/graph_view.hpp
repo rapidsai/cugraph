@@ -137,17 +137,9 @@ class partition_t {
 
   std::tuple<vertex_t, vertex_t> get_matrix_partition_major_range(size_t partition_idx) const
   {
-    auto major_first =
-      hypergraph_partitioned_
-        ? vertex_partition_offsets_[row_comm_size_ * partition_idx + row_comm_rank_]
-        : vertex_partition_offsets_[col_comm_rank_ * row_comm_size_];
-    auto major_last =
-      hypergraph_partitioned_
-        ? vertex_partition_offsets_[row_comm_size_ * partition_idx + row_comm_rank_ + 1]
-        : vertex_partition_offsets_[(col_comm_rank_ * row_comm_size_)+1];
+    auto major_first = get_matrix_partition_major_first(partition_idx);
+    auto major_last = get_matrix_partition_major_last(partition_idx);
 
-    std::cout<<"CCR: "<<col_comm_rank_<<" RCS: "<<row_comm_size_<<std::endl;
-    std::cout<<"INDEX: "<<((row_comm_rank_ * col_comm_size_)+1)<<std::endl;
     return std::make_tuple(major_first, major_last);
   }
 
@@ -162,7 +154,7 @@ class partition_t {
   {
     return hypergraph_partitioned_
              ? vertex_partition_offsets_[row_comm_size_ * partition_idx + row_comm_rank_ + 1]
-             : vertex_partition_offsets_[(col_comm_rank_ * row_comm_size_)+1];
+             : vertex_partition_offsets_[(col_comm_rank_ + 1) * row_comm_size_];
   }
 
   vertex_t get_matrix_partition_major_value_start_offset(size_t partition_idx) const
@@ -172,20 +164,23 @@ class partition_t {
 
   std::tuple<vertex_t, vertex_t> get_matrix_partition_minor_range() const
   {
-    auto minor_first = vertex_partition_offsets_[col_comm_rank_ * row_comm_size_];
-    auto minor_last  = vertex_partition_offsets_[(col_comm_rank_ + 1) * row_comm_size_];
+    auto minor_first = get_matrix_partition_minor_first();
+    auto minor_last  = get_matrix_partition_minor_last();
 
     return std::make_tuple(minor_first, minor_last);
   }
 
   vertex_t get_matrix_partition_minor_first() const
   {
-    return vertex_partition_offsets_[col_comm_rank_ * row_comm_size_];
+    return hypergraph_partitioned_ ? vertex_partition_offsets_[col_comm_rank_ * row_comm_size_]
+                                   : vertex_partition_offsets_[row_comm_rank_ * col_comm_size_];
   }
 
   vertex_t get_matrix_partition_minor_last() const
   {
-    return vertex_partition_offsets_[(col_comm_rank_ + 1) * row_comm_size_];
+    return hypergraph_partitioned_
+             ? vertex_partition_offsets_[(col_comm_rank_ + 1) * row_comm_size_]
+             : vertex_partition_offsets_[(row_comm_rank_ + 1) * col_comm_size_];
   }
 
   bool is_hypergraph_partitioned() const { return hypergraph_partitioned_; }
