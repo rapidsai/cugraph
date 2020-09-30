@@ -385,7 +385,7 @@ void copy_v_transform_reduce_nbr(raft::handle_t const& handle,
     auto tmp_buffer   = allocate_comm_buffer<T>(tmp_buffer_size, handle.get_stream());
     auto buffer_first = get_comm_buffer_begin<T>(tmp_buffer);
 
-    T local_init{};
+    auto local_init = init;
     if (GraphViewType::is_multi_gpu) {
       auto& row_comm = handle.get_subcomm(cugraph::partition_2d::key_naming_t().row_name());
       auto const row_comm_rank = row_comm.get_rank();
@@ -450,7 +450,7 @@ void copy_v_transform_reduce_nbr(raft::handle_t const& handle,
                   graph_view.get_vertex_partition_first(col_comm_rank * row_comm_size)
           : 0;
 
-      detail::for_all_major_for_all_nbr_low_degree<GraphViewType::is_adj_matrix_transposed>
+      detail::for_all_major_for_all_nbr_low_degree<in == GraphViewType::is_adj_matrix_transposed>
         <<<update_grid.num_blocks, update_grid.block_size, 0, handle.get_stream()>>>(
           matrix_partition,
           graph_view.get_vertex_partition_first(comm_root_rank),
@@ -461,7 +461,7 @@ void copy_v_transform_reduce_nbr(raft::handle_t const& handle,
           e_op,
           local_init);
     } else {
-      detail::for_all_major_for_all_nbr_low_degree<GraphViewType::is_adj_matrix_transposed>
+      detail::for_all_major_for_all_nbr_low_degree<in == GraphViewType::is_adj_matrix_transposed>
         <<<update_grid.num_blocks, update_grid.block_size, 0, handle.get_stream()>>>(
           matrix_partition,
           graph_view.get_vertex_partition_first(comm_root_rank),
