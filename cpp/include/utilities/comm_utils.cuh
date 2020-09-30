@@ -478,7 +478,7 @@ host_scalar_allreduce(raft::comms::comms_t const& comm, T input, cudaStream_t st
     h_tuple_scalar_elements, input);
   raft::update_device(
     d_tuple_scalar_elements.data(), h_tuple_scalar_elements.data(), tuple_size, stream);
-  detail::host_allreduce_tuple_scalar_element_impl<T, size_t{0}, tuple_size>(
+  detail::host_allreduce_tuple_scalar_element_impl<T, size_t{0}, tuple_size>().run(
     comm, d_tuple_scalar_elements, stream);
   raft::update_host(
     h_tuple_scalar_elements.data(), d_tuple_scalar_elements.data(), tuple_size, stream);
