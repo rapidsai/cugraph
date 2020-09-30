@@ -223,3 +223,11 @@ def get_local_data(input_graph, by, load_balance=True):
 def get_mg_batch_data(dask_cudf_data):
     data = DistributedDataHandler.create(data=dask_cudf_data)
     return data
+
+def get_distributed_data(input_ddf):
+    ddf = input_ddf
+    comms = Comms.get_comms()
+    data = DistributedDataHandler.create(data=ddf)
+    if data.worker_info is None and comms is not None:
+        data.calculate_worker_and_rank_info(comms)
+    return data

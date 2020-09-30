@@ -15,7 +15,7 @@
  */
 #pragma once
 
-#include <experimental/graph_view.hpp>
+#include <experimental/graph.hpp>
 #include <graph.hpp>
 #include <raft/handle.hpp>
 
@@ -35,14 +35,14 @@ enum class graphTypeEnum : int {
   GraphCSCViewDouble,
   GraphCOOViewFloat,
   GraphCOOViewDouble,
-  graph_view_t_float,
-  graph_view_t_double,
-  graph_view_t_float_mg,
-  graph_view_t_double_mg,
-  graph_view_t_float_transposed,
-  graph_view_t_double_transposed,
-  graph_view_t_float_mg_transposed,
-  graph_view_t_double_mg_transposed
+  graph_t_float,
+  graph_t_double,
+  graph_t_float_mg,
+  graph_t_double_mg,
+  graph_t_float_transposed,
+  graph_t_double_transposed,
+  graph_t_float_mg_transposed,
+  graph_t_double_mg_transposed
 };
 
 // Enum for the high-level type of GraphC??View* class to instantiate.
@@ -66,22 +66,22 @@ struct graph_container_t {
     std::unique_ptr<GraphCSCView<int, int, double>> GraphCSCViewDoublePtr;
     std::unique_ptr<GraphCOOView<int, int, float>> GraphCOOViewFloatPtr;
     std::unique_ptr<GraphCOOView<int, int, double>> GraphCOOViewDoublePtr;
-    std::unique_ptr<experimental::graph_view_t<int, int, float, false, false>>
-      graph_view_t_float_ptr;
-    std::unique_ptr<experimental::graph_view_t<int, int, double, false, false>>
-      graph_view_t_double_ptr;
-    std::unique_ptr<experimental::graph_view_t<int, int, float, false, true>>
-      graph_view_t_float_mg_ptr;
-    std::unique_ptr<experimental::graph_view_t<int, int, double, false, true>>
-      graph_view_t_double_mg_ptr;
-    std::unique_ptr<experimental::graph_view_t<int, int, float, true, false>>
-      graph_view_t_float_transposed_ptr;
-    std::unique_ptr<experimental::graph_view_t<int, int, double, true, false>>
-      graph_view_t_double_transposed_ptr;
-    std::unique_ptr<experimental::graph_view_t<int, int, float, true, true>>
-      graph_view_t_float_mg_transposed_ptr;
-    std::unique_ptr<experimental::graph_view_t<int, int, double, true, true>>
-      graph_view_t_double_mg_transposed_ptr;
+    std::unique_ptr<experimental::graph_t<int, int, float, false, false>>
+      graph_t_float_ptr;
+    std::unique_ptr<experimental::graph_t<int, int, double, false, false>>
+      graph_t_double_ptr;
+    std::unique_ptr<experimental::graph_t<int, int, float, false, true>>
+      graph_t_float_mg_ptr;
+    std::unique_ptr<experimental::graph_t<int, int, double, false, true>>
+      graph_t_double_mg_ptr;
+    std::unique_ptr<experimental::graph_t<int, int, float, true, false>>
+      graph_t_float_transposed_ptr;
+    std::unique_ptr<experimental::graph_t<int, int, double, true, false>>
+      graph_t_double_transposed_ptr;
+    std::unique_ptr<experimental::graph_t<int, int, float, true, true>>
+      graph_t_float_mg_transposed_ptr;
+    std::unique_ptr<experimental::graph_t<int, int, double, true, true>>
+      graph_t_double_mg_transposed_ptr;
   };
 
   graph_container_t() : graph_ptr_union{nullptr}, graph_ptr_type{graphTypeEnum::null} {}
@@ -96,12 +96,12 @@ struct graph_container_t {
   graph_container_t(const graph_container_t&) = delete;
   graph_container_t& operator=(const graph_container_t&) = delete;
 
-  void get_vertex_identifiers(void* c_identifier);
-
   graphPtrUnion graph_ptr_union;
   graphTypeEnum graph_ptr_type;
 };
 
+// FIXME: finish description for vertex_partition_offsets
+//
 // Factory function for populating an empty graph container with a new graph
 // object from basic types, and sets the corresponding meta-data. Args are:
 //
@@ -120,37 +120,26 @@ struct graph_container_t {
 // raft::handle_t const& handle
 //   Raft handle to be set on the new graph instance in the container
 //
-// void* offsets, indices, weights
-//   Pointer to an array of values representing offsets, indices, and weights
-//   respectively. The value types of the array are specified using
-//   numberTypeEnum values separately (see below). offsets should be size
+// void* src_vertices, dst_vertices, weights
+//   Pointer to an array of values representing source and destination vertices,
+//   and edge weights respectively. The value types of the array are specified
+//   using numberTypeEnum values separately (see below). offsets should be size
 //   num_vertices+1, indices should be size num_edges, weights should also be
 //   size num_edges
 //
-// numberTypeEnum offsetType, indexType, weightType
-//   numberTypeEnum enum value describing the data type for the offsets,
-//   indices, and weights arrays respectively. These enum values are used to
+// void* vertex_partition_offsets
+//   Pointer to an array of vertexType values representing offsets into the
+//   individual partitions for a multi-GPU paritioned graph. The offsets are used for ...
+//
+// numberTypeEnum vertexType, edgeType, weightType
+//   numberTypeEnum enum value describing the data type for the vertices,
+//   offsets, and weights arrays respectively. These enum values are used to
 //   instantiate the proper templated graph type and for casting the arrays
 //   accordingly.
 //
 // int num_vertices, num_edges
 //   The number of vertices and edges respectively in the graph represented by
 //   the above arrays.
-//
-// int* local_vertices, local_edges
-//   Arrays containing the number of vertices and number of edges,
-//   respectively. For example, if there are a total of 7 vertices, 16 edges,
-//   and the algorithm is distributed over 3 GPUs, the local_vertices may contain
-//   [2,2,3] and local_edges may contain [5,5,6].
-//   NOTE: these parameters are only needed for legacy GraphC??View* classes and
-//   may not be present in future versions.
-//
-// int* local_offsets
-//   Array containing the offsets between the local_* arrays and those for the
-//   global graph, allowing the array to start at position zero yet still be
-//   mapped to a position in the global array.
-//   NOTE: this parameter is only needed for legacy GraphC??View* classes and
-//   may not be present in future versions.
 //
 // bool transposed
 //   true if the resulting graph object should store a transposed adjacency
@@ -162,26 +151,43 @@ struct graph_container_t {
 //
 // FIXME: Should local_* values be void* as well?
 void populate_graph_container(graph_container_t& graph_container,
-                              legacyGraphTypeEnum legacyType,
-                              raft::handle_t const& handle,
-                              void* offsets,
-                              void* indices,
+                              raft::handle_t& handle,
+                              void* src_vertices,
+                              void* dst_vertices,
                               void* weights,
-                              numberTypeEnum offsetType,
-                              numberTypeEnum indexType,
+                              void* vertex_partition_offsets,
+                              numberTypeEnum vertexType,
+                              numberTypeEnum edgeType,
                               numberTypeEnum weightType,
+                              int num_partition_edges,
                               int num_vertices,
                               int num_edges,
-                              int* local_vertices,
-                              int* local_edges,
-                              int* local_offsets,
+                              int partition_row_size,  // pcols
+                              int partition_col_size,  // prows
                               bool transposed,
                               bool multi_gpu);
+
+// FIXME: comment this function
+void populate_graph_container_legacy(graph_container_t& graph_container,
+                                     legacyGraphTypeEnum legacyType,
+                                     raft::handle_t const& handle,
+                                     void* offsets,
+                                     void* indices,
+                                     void* weights,
+                                     numberTypeEnum offsetType,
+                                     numberTypeEnum indexType,
+                                     numberTypeEnum weightType,
+                                     int num_vertices,
+                                     int num_edges,
+                                     int* local_vertices,
+                                     int* local_edges,
+                                     int* local_offsets);
 
 // Wrapper for calling Louvain using a graph container
 template <typename weight_t>
 std::pair<size_t, weight_t> call_louvain(raft::handle_t const& handle,
                                          graph_container_t const& graph_container,
+                                         void* identifiers,
                                          void* parts,
                                          size_t max_level,
                                          weight_t resolution);

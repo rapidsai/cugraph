@@ -200,15 +200,33 @@ cdef extern from "utilities/cython.hpp" namespace "cugraph::cython":
         floatType "cugraph::cython::numberTypeEnum::floatType"
         doubleType "cugraph::cython::numberTypeEnum::doubleType"
 
+    cdef cppclass graph_container_t:
+       pass
+
+    cdef void populate_graph_container(
+        graph_container_t &graph_container,
+        handle_t &handle,
+        void *src_vertices,
+        void *dst_vertices,
+        void *weights,
+        void *vertex_partition_offsets,
+        numberTypeEnum vertexType,
+        numberTypeEnum edgeType,
+        numberTypeEnum weightType,
+        int num_partition_edges,
+        int num_vertices,
+        int num_edges,
+        int partition_row_size,
+        int partition_col_size,
+        bool transposed,
+        bool multi_gpu) except +
+
     ctypedef enum legacyGraphTypeEnum:
         CSR "cugraph::cython::legacyGraphTypeEnum::CSR"
         CSC "cugraph::cython::legacyGraphTypeEnum::CSC"
         COO "cugraph::cython::legacyGraphTypeEnum::COO"
 
-    cdef cppclass graph_container_t:
-        void get_vertex_identifiers(void *)
-
-    cdef void populate_graph_container(
+    cdef void populate_graph_container_legacy(
         graph_container_t &graph_container,
         legacyGraphTypeEnum legacyType,
         const handle_t &handle,
@@ -222,6 +240,4 @@ cdef extern from "utilities/cython.hpp" namespace "cugraph::cython":
         int num_edges,
         int *local_vertices,
         int *local_edges,
-        int *local_offsets,
-        bool transposed,
-        bool multi_gpu) except +
+        int *local_offsets) except +
