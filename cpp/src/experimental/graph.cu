@@ -270,7 +270,6 @@ graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu, std::enable_if_
       auto edge_first = thrust::make_zip_iterator(thrust::make_tuple(
         store_transposed ? edgelists[i].p_dst_vertices : edgelists[i].p_src_vertices,
         store_transposed ? edgelists[i].p_src_vertices : edgelists[i].p_dst_vertices));
-
       // better use thrust::any_of once https://github.com/thrust/thrust/issues/1016 is resolved
       CUGRAPH_EXPECTS(thrust::count_if(rmm::exec_policy(default_stream)->on(default_stream),
                                        edge_first,
@@ -279,13 +278,11 @@ graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu, std::enable_if_
                                          major_first, major_last, minor_first, minor_last}) == 0,
                       "Invalid API parameter: edgelists[] have out-of-range values.");
     }
-
     this->get_handle_ptr()->get_comms().allreduce(&number_of_local_edges_sum,
                                                   &number_of_local_edges_sum,
                                                   1,
                                                   raft::comms::op_t::SUM,
                                                   default_stream);
-
     CUGRAPH_EXPECTS(number_of_local_edges_sum == this->get_number_of_edges(),
                     "Invalid API parameter: the sum of local edges doe counts not match with "
                     "number_of_local_edges.");
@@ -299,7 +296,6 @@ graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu, std::enable_if_
   adj_matrix_partition_offsets_.reserve(edgelists.size());
   adj_matrix_partition_indices_.reserve(edgelists.size());
   adj_matrix_partition_weights_.reserve(is_weighted ? edgelists.size() : 0);
-
   for (size_t i = 0; i < edgelists.size(); ++i) {
     vertex_t major_first{};
     vertex_t major_last{};
@@ -311,10 +307,8 @@ graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu, std::enable_if_
     rmm::device_uvector<edge_t> offsets(0, default_stream);
     rmm::device_uvector<vertex_t> indices(0, default_stream);
     rmm::device_uvector<weight_t> weights(0, default_stream);
-
     std::tie(offsets, indices, weights) = edge_list_to_compressed_sparse<store_transposed>(
       *(this->get_handle_ptr()), edgelists[i], major_first, major_last, minor_first, minor_last);
-
     adj_matrix_partition_offsets_.push_back(std::move(offsets));
     adj_matrix_partition_indices_.push_back(std::move(indices));
     if (adj_matrix_partition_weights_.size() > 0) {
