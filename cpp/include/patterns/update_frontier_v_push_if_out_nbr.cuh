@@ -344,6 +344,8 @@ void update_frontier_v_push_if_out_nbr(
   using vertex_t = typename GraphViewType::vertex_type;
   using edge_t   = typename GraphViewType::edge_type;
 
+  // 1. fill the buffer
+
   vertex_frontier.set_buffer_idx_value(0);
 
   auto loop_count = size_t{1};
@@ -368,15 +370,18 @@ void update_frontier_v_push_if_out_nbr(
       auto const row_comm_size = row_comm.get_size();
       auto& col_comm = handle.get_subcomm(cugraph::partition_2d::key_naming_t().col_name());
       auto const col_comm_rank = col_comm.get_rank();
-      auto const col_comm_size = col_comm.get_size();
 
-      auto rank = graph_view.is_hypergraph_partitioned() ? col_comm_rank : row_comm_rank;
-      if (static_cast<size_t>(rank) != i) {
-        frontier_rows.resize(
-          graph_view.is_hypergraph_partitioned()
-            ? matrix_partition.get_major_size()
-            : graph_view.get_vertex_partition_size(col_comm_rank * row_comm_size + i),
-          handle.get_stream());
+      auto sub_comm_rank = graph_view.is_hypergraph_partitioned() ? col_comm_rank : row_comm_rank;
+      auto frontier_size = (static_cast<size_t>(sub_comm_rank) == i)
+                             ? thrust::distance(vertex_first, vertex_last)
+                             : size_t{0};
+      if (graph_view.is_hypergraph_partitioned()) {
+        col_comm.bcast(&frontier_size, 1, i, handle.get_stream());
+      } else {
+        row_comm.bcast(&frontier_size, 1, i, handle.get_stream());
+      }
+      if (static_cast<size_t>(sub_comm_rank) != i) {
+        frontier_rows.resize(frontier_size, handle.get_stream());
       }
       device_bcast(graph_view.is_hypergraph_partitioned() ? col_comm : row_comm,
                    vertex_first,
@@ -479,6 +484,8 @@ void update_frontier_v_push_if_out_nbr(
         e_op);
     }
   }
+
+  // 2. reduce the buffer
 
   auto num_buffer_offset = edge_t{0};
 
@@ -613,6 +620,8 @@ void update_frontier_v_push_if_out_nbr(
                                                          rx_offsets.back(),
                                                          reduce_op);
   }
+
+  // 3. update vertex properties
 
   if (num_buffer_elements > 0) {
     auto buffer_first         = vertex_frontier.buffer_begin();

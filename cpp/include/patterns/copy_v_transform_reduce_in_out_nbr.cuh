@@ -68,6 +68,8 @@ template <bool update_major,
           typename T>
 __global__ void for_all_major_for_all_nbr_low_degree(
   matrix_partition_device_t<GraphViewType> matrix_partition,
+  typename GraphViewType::vertex_type row_first,
+  typename GraphViewType::vertex_type row_last,
   AdjMatrixRowValueInputIterator adj_matrix_row_value_input_first,
   AdjMatrixColValueInputIterator adj_matrix_col_value_input_first,
   ResultValueOutputIterator result_value_output_first,
@@ -80,13 +82,15 @@ __global__ void for_all_major_for_all_nbr_low_degree(
   using e_op_result_t = T;
 
   auto const tid = threadIdx.x + blockIdx.x * blockDim.x;
-  auto idx       = static_cast<size_t>(tid);
+  auto idx =
+    static_cast<size_t>(row_first - matrix_partition.get_major_first()) + static_cast<size_t>(tid);
 
-  while (idx < static_cast<size_t>(matrix_partition.get_major_size())) {
+  while (idx < static_cast<size_t>(row_last - matrix_partition.get_major_first())) {
     vertex_t const* indices{nullptr};
     weight_t const* weights{nullptr};
     edge_t local_degree{};
-    thrust::tie(indices, weights, local_degree) = matrix_partition.get_local_edges(idx);
+    thrust::tie(indices, weights, local_degree) =
+      matrix_partition.get_local_edges(static_cast<vertex_t>(idx));
 #if 1
     auto transform_op = [&matrix_partition,
                          &adj_matrix_row_value_input_first,
@@ -189,6 +193,8 @@ template <bool update_major,
           typename T>
 __global__ void for_all_major_for_all_nbr_mid_degree(
   matrix_partition_device_t<GraphViewType> matrix_partition,
+  typename GraphViewType::vertex_type row_first,
+  typename GraphViewType::vertex_type row_last,
   AdjMatrixRowValueInputIterator adj_matrix_row_value_input_first,
   AdjMatrixColValueInputIterator adj_matrix_col_value_input_first,
   ResultValueOutputIterator result_value_output_first,
@@ -203,9 +209,10 @@ __global__ void for_all_major_for_all_nbr_mid_degree(
   auto const tid = threadIdx.x + blockIdx.x * blockDim.x;
   static_assert(copy_v_transform_reduce_nbr_for_all_block_size % raft::warp_size() == 0);
   auto const lane_id = tid % raft::warp_size();
-  auto idx           = static_cast<size_t>(tid / raft::warp_size());
+  auto idx           = static_cast<size_t>(row_first - matrix_partition.get_major_first()) +
+             static_cast<size_t>(tid / raft::warp_size());
 
-  while (idx < static_cast<size_t>(matrix_partition.get_major_size())) {
+  while (idx < static_cast<size_t>(row_last - matrix_partition.get_major_first())) {
     vertex_t const* indices{nullptr};
     weight_t const* weights{nullptr};
     edge_t local_degree{};
@@ -253,6 +260,8 @@ __global__ void for_all_major_for_all_nbr_mid_degree(
 
 template <bool update_major,
           typename GraphViewType,
+          typename GraphViewType::vertex_type row_first,
+          typename GraphViewType::vertex_type row_last,
           typename AdjMatrixRowValueInputIterator,
           typename AdjMatrixColValueInputIterator,
           typename ResultValueOutputIterator,
@@ -271,9 +280,10 @@ __global__ void for_all_major_for_all_nbr_high_degree(
   using weight_t      = typename GraphViewType::weight_type;
   using e_op_result_t = T;
 
-  auto idx = static_cast<size_t>(blockIdx.x);
+  auto idx = static_cast<size_t>(row_first - matrix_partition.get_major_first()) +
+             static_cast<size_t>(blockIdx.x);
 
-  while (idx < static_cast<size_t>(matrix_partition.get_major_size())) {
+  while (idx < static_cast<size_t>(row_last - matrix_partition.get_major_first())) {
     vertex_t const* indices{nullptr};
     weight_t const* weights{nullptr};
     edge_t local_degree{};
@@ -321,6 +331,187 @@ __global__ void for_all_major_for_all_nbr_high_degree(
   }
 }
 
+template <bool in,  // iterate over incoming edges (in == true) or outgoing edges (in == false)
+          typename GraphViewType,
+          typename AdjMatrixRowValueInputIterator,
+          typename AdjMatrixColValueInputIterator,
+          typename EdgeOp,
+          typename T,
+          typename VertexValueOutputIterator>
+void copy_v_transform_reduce_nbr(raft::handle_t const& handle,
+                                 GraphViewType const& graph_view,
+                                 AdjMatrixRowValueInputIterator adj_matrix_row_value_input_first,
+                                 AdjMatrixColValueInputIterator adj_matrix_col_value_input_first,
+                                 EdgeOp e_op,
+                                 T init,
+                                 VertexValueOutputIterator vertex_value_output_first)
+{
+  using vertex_t = typename GraphViewType::vertex_type;
+
+  static_assert(is_arithmetic_or_thrust_tuple_of_arithmetic<T>::value);
+
+  auto loop_count = size_t{1};
+  if (GraphViewType::is_multi_gpu) {
+    auto& row_comm           = handle.get_subcomm(cugraph::partition_2d::key_naming_t().row_name());
+    auto const row_comm_size = row_comm.get_size();
+    loop_count               = graph_view.is_hypergraph_partitioned()
+                   ? graph_view.get_number_of_local_adj_matrix_partitions()
+                   : static_cast<size_t>(row_comm_size);
+  }
+
+  for (size_t i = 0; i < loop_count; ++i) {
+    matrix_partition_device_t<GraphViewType> matrix_partition(
+      graph_view, (GraphViewType::is_multi_gpu && !graph_view.is_hypergraph_partitioned()) ? 0 : i);
+
+    auto tmp_buffer_size = vertex_t{0};
+    if (GraphViewType::is_multi_gpu) {
+      auto& row_comm = handle.get_subcomm(cugraph::partition_2d::key_naming_t().row_name());
+      auto const row_comm_size = row_comm.get_size();
+      auto& col_comm = handle.get_subcomm(cugraph::partition_2d::key_naming_t().col_name());
+      auto const col_comm_rank = col_comm.get_rank();
+
+      tmp_buffer_size =
+        in ? GraphViewType::is_adj_matrix_transposed
+               ? graph_view.is_hypergraph_partitioned()
+                   ? matrix_partition.get_major_size()
+                   : graph_view.get_vertex_partition_size(col_comm_rank * row_comm_size + i)
+               : matrix_partition.get_minor_size()
+           : GraphViewType::is_adj_matrix_transposed
+               ? matrix_partition.get_minor_size()
+               : graph_view.is_hypergraph_partitioned()
+                   ? matrix_partition.get_major_size()
+                   : graph_view.get_vertex_partition_size(col_comm_rank * row_comm_size + i);
+    }
+    auto tmp_buffer   = allocate_comm_buffer<T>(tmp_buffer_size, handle.get_stream());
+    auto buffer_first = get_comm_buffer_begin<T>(tmp_buffer);
+
+    auto local_init = init;
+    if (GraphViewType::is_multi_gpu) {
+      auto& row_comm = handle.get_subcomm(cugraph::partition_2d::key_naming_t().row_name());
+      auto const row_comm_rank = row_comm.get_rank();
+      auto& col_comm = handle.get_subcomm(cugraph::partition_2d::key_naming_t().col_name());
+      auto const col_comm_rank = col_comm.get_rank();
+      if (in == GraphViewType::is_adj_matrix_transposed) {
+        local_init = graph_view.is_hypergraph_partitioned() ? (col_comm_rank == 0) ? init : T{}
+                                                            : (row_comm_rank == 0) ? init : T{};
+      } else {
+        local_init = graph_view.is_hypergraph_partitioned() ? (row_comm_rank == 0) ? init : T{}
+                                                            : (col_comm_rank == 0) ? init : T{};
+      }
+    }
+
+    if (in != GraphViewType::is_adj_matrix_transposed) {
+      if (GraphViewType::is_multi_gpu) {
+        thrust::fill(rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
+                     buffer_first,
+                     buffer_first + tmp_buffer_size,
+                     local_init);
+      } else {
+        thrust::fill(rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
+                     vertex_value_output_first,
+                     vertex_value_output_first + graph_view.get_number_of_local_vertices(),
+                     local_init);
+      }
+    }
+
+    int comm_root_rank = 0;
+    if (GraphViewType::is_multi_gpu) {
+      auto& row_comm = handle.get_subcomm(cugraph::partition_2d::key_naming_t().row_name());
+      auto const row_comm_rank = row_comm.get_rank();
+      auto const row_comm_size = row_comm.get_size();
+      auto& col_comm = handle.get_subcomm(cugraph::partition_2d::key_naming_t().col_name());
+      auto const col_comm_rank = col_comm.get_rank();
+      comm_root_rank = graph_view.is_hypergraph_partitioned() ? i * row_comm_size + row_comm_rank
+                                                              : col_comm_rank * row_comm_size + i;
+    }
+
+    raft::grid_1d_thread_t update_grid(graph_view.get_vertex_partition_size(comm_root_rank),
+                                       detail::copy_v_transform_reduce_nbr_for_all_block_size,
+                                       handle.get_device_properties().maxGridSize[0]);
+
+    if (GraphViewType::is_multi_gpu) {
+      auto& row_comm = handle.get_subcomm(cugraph::partition_2d::key_naming_t().row_name());
+      auto const row_comm_size = row_comm.get_size();
+      auto& col_comm = handle.get_subcomm(cugraph::partition_2d::key_naming_t().col_name());
+      auto const col_comm_rank = col_comm.get_rank();
+
+      vertex_t row_value_input_offset =
+        GraphViewType::is_adj_matrix_transposed
+          ? 0
+          : graph_view.is_hypergraph_partitioned()
+              ? matrix_partition.get_major_value_start_offset()
+              : graph_view.get_vertex_partition_first(col_comm_rank * row_comm_size + i) -
+                  graph_view.get_vertex_partition_first(col_comm_rank * row_comm_size);
+      vertex_t col_value_input_offset =
+        GraphViewType::is_adj_matrix_transposed
+          ? graph_view.is_hypergraph_partitioned()
+              ? matrix_partition.get_major_value_start_offset()
+              : graph_view.get_vertex_partition_first(col_comm_rank * row_comm_size + i) -
+                  graph_view.get_vertex_partition_first(col_comm_rank * row_comm_size)
+          : 0;
+
+      detail::for_all_major_for_all_nbr_low_degree<in == GraphViewType::is_adj_matrix_transposed>
+        <<<update_grid.num_blocks, update_grid.block_size, 0, handle.get_stream()>>>(
+          matrix_partition,
+          graph_view.get_vertex_partition_first(comm_root_rank),
+          graph_view.get_vertex_partition_last(comm_root_rank),
+          adj_matrix_row_value_input_first + row_value_input_offset,
+          adj_matrix_col_value_input_first + col_value_input_offset,
+          buffer_first,
+          e_op,
+          local_init);
+    } else {
+      detail::for_all_major_for_all_nbr_low_degree<in == GraphViewType::is_adj_matrix_transposed>
+        <<<update_grid.num_blocks, update_grid.block_size, 0, handle.get_stream()>>>(
+          matrix_partition,
+          graph_view.get_vertex_partition_first(comm_root_rank),
+          graph_view.get_vertex_partition_last(comm_root_rank),
+          adj_matrix_row_value_input_first,
+          adj_matrix_col_value_input_first,
+          vertex_value_output_first,
+          e_op,
+          local_init);
+    }
+
+    if (GraphViewType::is_multi_gpu) {
+      if (in == GraphViewType::is_adj_matrix_transposed) {
+        auto& row_comm = handle.get_subcomm(cugraph::partition_2d::key_naming_t().row_name());
+        auto const row_comm_rank = row_comm.get_rank();
+        auto const row_comm_size = row_comm.get_size();
+        auto& col_comm = handle.get_subcomm(cugraph::partition_2d::key_naming_t().col_name());
+        auto const col_comm_rank = col_comm.get_rank();
+        auto const col_comm_size = col_comm.get_size();
+
+        if (graph_view.is_hypergraph_partitioned()) {
+          device_reduce(
+            col_comm,
+            buffer_first,
+            vertex_value_output_first,
+            static_cast<size_t>(graph_view.get_vertex_partition_size(i * row_comm_size + i)),
+            raft::comms::op_t::SUM,
+            i,
+            handle.get_stream());
+        } else {
+          for (int j = 0; j < row_comm_size; ++j) {
+            auto comm_root_rank = col_comm_rank * row_comm_size + j;
+            device_reduce(
+              row_comm,
+              buffer_first + (graph_view.get_vertex_partition_first(comm_root_rank) -
+                              graph_view.get_vertex_partition_first(col_comm_rank * row_comm_size)),
+              vertex_value_output_first,
+              static_cast<size_t>(graph_view.get_vertex_partition_size(comm_root_rank)),
+              raft::comms::op_t::SUM,
+              j,
+              handle.get_stream());
+          }
+        }
+      } else {
+        CUGRAPH_FAIL("unimplemented.");
+      }
+    }
+  }
+}
+
 }  // namespace detail
 
 /**
@@ -334,7 +525,11 @@ __global__ void for_all_major_for_all_nbr_high_degree(
  * input properties.
  * @tparam AdjMatrixColValueInputIterator Type of the iterator for graph adjacency matrix column
  * input properties.
- * @tparam EdgeOp Type of the quaternary (or quinary) edge operator.
+ * @tparam EdgeOp Type of the quaternraft::grid_1d_thread_t
+ update_grid(matrix_partition.get_major_size(),
+                                       detail::copy_v_transform_reduce_nbr_for_all_block_size,
+                                       handle.get_device_properties().maxGridSize[0]);ary (or
+ quinary) edge operator.
  * @tparam T Type of the initial value for reduction over the incoming edges.
  * @tparam VertexValueOutputIterator Type of the iterator for vertex output property variables.
  * @param handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator, and
@@ -372,109 +567,13 @@ void copy_v_transform_reduce_in_nbr(raft::handle_t const& handle,
                                     T init,
                                     VertexValueOutputIterator vertex_value_output_first)
 {
-  static_assert(is_arithmetic_or_thrust_tuple_of_arithmetic<T>::value);
-
-  if (GraphViewType::is_multi_gpu) {
-    for (size_t i = 0; i < graph_view.get_number_of_local_adj_matrix_partitions(); ++i) {
-      matrix_partition_device_t<GraphViewType> matrix_partition(graph_view, i);
-
-      raft::grid_1d_thread_t update_grid(matrix_partition.get_major_size(),
-                                         detail::copy_v_transform_reduce_nbr_for_all_block_size,
-                                         handle.get_device_properties().maxGridSize[0]);
-
-      auto tmp_buffer   = allocate_comm_buffer<T>(GraphViewType::is_adj_matrix_transposed
-                                                  ? matrix_partition.get_major_size()
-                                                  : matrix_partition.get_minor_size(),
-                                                handle.get_stream());
-      auto buffer_first = get_comm_buffer_begin<T>(tmp_buffer);
-
-      if (!GraphViewType::is_adj_matrix_transposed) {
-        thrust::fill(rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
-                     buffer_first,
-                     buffer_first + (GraphViewType::is_adj_matrix_transposed
-                                       ? matrix_partition.get_major_size()
-                                       : matrix_partition.get_minor_size()),
-                     T{});
-      }
-
-      detail::for_all_major_for_all_nbr_low_degree<GraphViewType::is_adj_matrix_transposed>
-        <<<update_grid.num_blocks, update_grid.block_size, 0, handle.get_stream()>>>(
-          matrix_partition,
-          adj_matrix_row_value_input_first,
-          adj_matrix_col_value_input_first,
-          buffer_first,
-          e_op,
-          T{});
-
-      if (GraphViewType::is_adj_matrix_transposed) {
-        auto& row_comm = handle.get_subcomm(cugraph::partition_2d::key_naming_t().row_name());
-        auto const row_comm_rank = row_comm.get_rank();
-        auto const row_comm_size = row_comm.get_size();
-        auto& col_comm = handle.get_subcomm(cugraph::partition_2d::key_naming_t().col_name());
-        auto const col_comm_rank = col_comm.get_rank();
-        auto const col_comm_size = col_comm.get_size();
-
-        if (graph_view.is_hypergraph_partitioned()) {
-          device_reduce(col_comm,
-                        buffer_first,
-                        vertex_value_output_first,
-                        static_cast<size_t>(graph_view.get_vertex_partition_size(i * row_comm_size + i)),
-                        raft::comms::op_t::SUM,
-                        i,
-                        handle.get_stream());
-        } else {
-          for (int j = 0; j < row_comm_size; ++j) {
-            auto comm_root_rank = col_comm_rank * row_comm_size + j;
-            device_reduce(
-              row_comm,
-              buffer_first + (graph_view.get_vertex_partition_first(comm_root_rank) -
-                              graph_view.get_vertex_partition_first(col_comm_rank * row_comm_size)),
-              vertex_value_output_first,
-              static_cast<size_t>(graph_view.get_vertex_partition_size(comm_root_rank)),
-              raft::comms::op_t::SUM,
-              j,
-              handle.get_stream());
-          }
-        }
-      } else {
-        CUGRAPH_FAIL("unimplemented.");
-      }
-    }
-
-    // FIXME: actually, we can avoid this.
-    thrust::transform(rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
-                      vertex_value_output_first,
-                      vertex_value_output_first +
-                        (graph_view.get_number_of_local_vertices()),
-                      vertex_value_output_first,
-                      [init] __device__(auto val) { return plus_edge_op_result(val, init); });
-  } else {
-    matrix_partition_device_t<GraphViewType> matrix_partition(graph_view, 0);
-
-    raft::grid_1d_thread_t update_grid(matrix_partition.get_major_size(),
-                                       detail::copy_v_transform_reduce_nbr_for_all_block_size,
-                                       handle.get_device_properties().maxGridSize[0]);
-
-    if (!GraphViewType::is_adj_matrix_transposed) {
-      thrust::fill(rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
-                   vertex_value_output_first,
-                   vertex_value_output_first + graph_view.get_number_of_local_vertices(),
-                   init);
-    }
-
-    assert(graph_view.get_number_of_local_vertices() ==
-           graph_view.get_number_of_adj_matrix_local_rows());
-    assert(graph_view.get_number_of_local_vertices() ==
-           graph_view.get_number_of_adj_matrix_local_cols());
-    detail::for_all_major_for_all_nbr_low_degree<GraphViewType::is_adj_matrix_transposed>
-      <<<update_grid.num_blocks, update_grid.block_size, 0, handle.get_stream()>>>(
-        matrix_partition,
-        adj_matrix_row_value_input_first,
-        adj_matrix_col_value_input_first,
-        vertex_value_output_first,
-        e_op,
-        init);
-  }
+  detail::copy_v_transform_reduce_nbr<true>(handle,
+                                            graph_view,
+                                            adj_matrix_row_value_input_first,
+                                            adj_matrix_col_value_input_first,
+                                            e_op,
+                                            init,
+                                            vertex_value_output_first);
 }
 
 /**
@@ -531,110 +630,13 @@ void copy_v_transform_reduce_out_nbr(
   T init,
   VertexValueOutputIterator vertex_value_output_first)
 {
-  static_assert(is_arithmetic_or_thrust_tuple_of_arithmetic<T>::value);
-
-  // FIXME: this code is highly repetitive of copy_v_transform_reduce_in_nbr, better factor out.
-  if (GraphViewType::is_multi_gpu) {
-    for (size_t i = 0; i < graph_view.get_number_of_local_adj_matrix_partitions(); ++i) {
-      matrix_partition_device_t<GraphViewType> matrix_partition(graph_view, i);
-
-      raft::grid_1d_thread_t update_grid(matrix_partition.get_major_size(),
-                                         detail::copy_v_transform_reduce_nbr_for_all_block_size,
-                                         handle.get_device_properties().maxGridSize[0]);
-
-      auto tmp_buffer   = allocate_comm_buffer<T>(GraphViewType::is_adj_matrix_transposed
-                                                  ? matrix_partition.get_minor_size()
-                                                  : matrix_partition.get_major_size(),
-                                                handle.get_stream());
-      auto buffer_first = get_comm_buffer_begin<T>(tmp_buffer);
-
-      if (!GraphViewType::is_adj_matrix_transposed) {
-        thrust::fill(rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
-                     buffer_first,
-                     buffer_first + (GraphViewType::is_adj_matrix_transposed
-                                       ? matrix_partition.get_minor_size()
-                                       : matrix_partition.get_major_size()),
-                     T{});
-      }
-
-      detail::for_all_major_for_all_nbr_low_degree<GraphViewType::is_adj_matrix_transposed>
-        <<<update_grid.num_blocks, update_grid.block_size, 0, handle.get_stream()>>>(
-          matrix_partition,
-          adj_matrix_row_value_input_first,
-          adj_matrix_col_value_input_first,
-          buffer_first,
-          e_op,
-          T{});
-
-      if (GraphViewType::is_adj_matrix_transposed) {
-        CUGRAPH_FAIL("unimplemented.");
-      } else {
-        auto& row_comm = handle.get_subcomm(cugraph::partition_2d::key_naming_t().row_name());
-        auto const row_comm_rank = row_comm.get_rank();
-        auto const row_comm_size = row_comm.get_size();
-        auto& col_comm = handle.get_subcomm(cugraph::partition_2d::key_naming_t().col_name());
-        auto const col_comm_rank = col_comm.get_rank();
-        auto const col_comm_size = col_comm.get_size();
-
-        if (graph_view.is_hypergraph_partitioned()) {
-          device_reduce(col_comm,
-                        buffer_first,
-                        vertex_value_output_first,
-                        static_cast<size_t>(graph_view.get_vertex_partition_size(i * row_comm_size + i)),
-                        raft::comms::op_t::SUM,
-                        i,
-                        handle.get_stream());
-        } else {
-          for (int j = 0; j < row_comm_size; ++j) {
-            auto comm_root_rank = col_comm_rank * row_comm_size + j;
-            device_reduce(
-              row_comm,
-              buffer_first + (graph_view.get_vertex_partition_first(comm_root_rank) -
-                              graph_view.get_vertex_partition_first(col_comm_rank * row_comm_size)),
-              vertex_value_output_first,
-              static_cast<size_t>(graph_view.get_vertex_partition_size(comm_root_rank)),
-              raft::comms::op_t::SUM,
-              j,
-              handle.get_stream());
-          }
-        }
-      }
-    }
-
-    // FIXME: actually, we can avoid this.
-    thrust::transform(rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
-                      vertex_value_output_first,
-                      vertex_value_output_first +
-                        (graph_view.get_number_of_local_vertices()),
-                      vertex_value_output_first,
-                      [init] __device__(auto val) { return plus_edge_op_result(val, init); });
-  } else {
-    matrix_partition_device_t<GraphViewType> matrix_partition(graph_view, 0);
-
-    raft::grid_1d_thread_t update_grid(matrix_partition.get_major_size(),
-                                       detail::copy_v_transform_reduce_nbr_for_all_block_size,
-                                       handle.get_device_properties().maxGridSize[0]);
-
-    if (GraphViewType::is_adj_matrix_transposed) {
-      thrust::fill(rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
-                   vertex_value_output_first,
-                   vertex_value_output_first + graph_view.get_number_of_local_vertices(),
-                   init);
-    }
-
-    assert(graph_view.get_number_of_local_vertices() ==
-           graph_view.get_number_of_local_adj_matrix_partition_rows());
-    assert(graph_view.get_number_of_local_vertices() ==
-           graph_view.get_number_of_local_adj_matrix_partition_cols());
-    detail::for_all_major_for_all_nbr_low_degree<!GraphViewType::is_adj_matrix_transposed>
-      <<<update_grid.num_blocks, update_grid.block_size, 0, handle.get_stream()>>>(
-        matrix_partition,
-        adj_matrix_row_value_input_first,
-        adj_matrix_col_value_input_first,
-        vertex_value_output_first,
-        e_op,
-        init);
-  }
+  detail::copy_v_transform_reduce_nbr<false>(handle,
+                                             graph_view,
+                                             adj_matrix_row_value_input_first,
+                                             adj_matrix_col_value_input_first,
+                                             e_op,
+                                             init,
+                                             vertex_value_output_first);
 }
 
 }  // namespace experimental

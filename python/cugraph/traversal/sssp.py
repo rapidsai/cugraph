@@ -14,6 +14,7 @@
 from cugraph.traversal import sssp_wrapper
 import numpy as np
 import cudf
+from cugraph.utilities import check_nx_graph
 
 
 def sssp(G, source):
@@ -38,11 +39,14 @@ def sssp(G, source):
     Returns
     -------
     df : cudf.DataFrame
-        df['vertex'][i] gives the vertex id of the i'th vertex.
-        df['distance'][i] gives the path distance for the i'th vertex from the
-        starting vertex.
-        df['predecessor'][i] gives the vertex id of the vertex that was reached
-        before the i'th vertex in the traversal.
+        df['vertex']
+            vertex id
+
+        df['distance']
+            gives the path distance from the starting vertex
+
+        df['predecessor']
+            the vertex it was reached from
 
     Examples
     --------
@@ -94,3 +98,52 @@ def filter_unreachable(df):
         return df[df.distance != max_val]
     else:
         raise TypeError("distance type unsupported")
+
+
+def shortest_path(G, source):
+    """
+    Compute the distance and predecessors for shortest paths from the specified
+    source to all the vertices in the graph. The distances column will store
+    the distance from the source to each vertex. The predecessors column will
+    store each vertex's predecessor in the shortest path. Vertices that are
+    unreachable will have a distance of infinity denoted by the maximum value
+    of the data type and the predecessor set as -1. The source vertex's
+    predecessor is also set to -1. Graphs with negative weight cycles are not
+    supported.
+
+    Parameters
+    ----------
+    graph : cuGraph.Graph or NetworkX.Graph
+        cuGraph graph descriptor with connectivity information. Edge weights,
+        if present, should be single or double precision floating point values.
+    source : int
+        Index of the source vertex.
+
+    Returns
+    -------
+    df : cudf.DataFrame or pandas.DataFrame
+        df['vertex']
+            vertex id
+
+        df['distance']
+            gives the path distance from the starting vertex
+
+        df['predecessor']
+            the vertex it was reached from
+
+    Examples
+    --------
+    >>> M = cudf.read_csv('datasets/karate.csv', delimiter=' ',
+    >>>                   dtype=['int32', 'int32', 'float32'], header=None)
+    >>> G = cugraph.Graph()
+    >>> G.from_cudf_edgelist(M, source='0', destination='1')
+    >>> distances = cugraph.shortest_path(G, 0)
+    """
+    G, isNx = check_nx_graph(G)
+
+    df = sssp(G, source)
+
+    if isNx is True:
+        df = df.to_pandas()
+
+    return df

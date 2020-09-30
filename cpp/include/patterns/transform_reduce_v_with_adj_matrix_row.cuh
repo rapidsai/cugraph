@@ -105,20 +105,6 @@ T transform_reduce_v_with_adj_matrix_row(
 
   if (GraphViewType::is_multi_gpu) {
     ret = host_scalar_allreduce(handle.get_comms(), ret, handle.get_stream());
-  } else {
-    assert(graph_view.get_number_of_local_vertices() ==
-           graph_view.get_number_of_local_adj_matrix_partition_rows());
-    auto input_first = thrust::make_zip_iterator(
-      thrust::make_tuple(vertex_value_input_first, adj_matrix_row_value_input_first));
-    auto v_op_wrapper = [v_op] __device__(auto v_and_row_val) {
-      return v_op(thrust::get<0>(v_and_row_val), thrust::get<1>(v_and_row_val));
-    };
-    return thrust::transform_reduce(rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
-                                    input_first,
-                                    input_first + graph_view.get_number_of_local_vertices(),
-                                    v_op_wrapper,
-                                    init,
-                                    thrust::plus<T>());
   }
 
   return init + ret;

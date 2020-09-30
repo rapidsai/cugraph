@@ -229,8 +229,7 @@ T transform_reduce_e(raft::handle_t const& handle,
   }
 
   if (GraphViewType::is_multi_gpu) {
-    // need reduction
-    CUGRAPH_FAIL("unimplemented.");
+    result = host_scalar_allreduce(handle.get_comms(), result, handle.get_stream());
   }
 
   return plus_edge_op_result(init, result);
