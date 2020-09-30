@@ -151,6 +151,8 @@ class partition_t {
     return hypergraph_partitioned_ ? col_comm_size_ : 1;
   }
 
+  // major: row of the graph adjacency matrix (if the graph adjacency matrix is stored as is) or
+  // column of the graph adjacency matrix (if the transposed graph adjacency matrix is stored).
   std::tuple<vertex_t, vertex_t> get_matrix_partition_major_range(size_t partition_idx) const
   {
     auto major_first = get_matrix_partition_major_first(partition_idx);
@@ -177,6 +179,8 @@ class partition_t {
     return matrix_partition_major_value_start_offsets_[partition_idx];
   }
 
+  // minor: column of the graph adjacency matrix (if the graph adjacency matrix is stored as is) or
+  // row of the graph adjacency matrix (if the transposed graph adjacency matrix is stored).
   std::tuple<vertex_t, vertex_t> get_matrix_partition_minor_range() const
   {
     auto minor_first = get_matrix_partition_minor_first();
