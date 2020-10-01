@@ -22,8 +22,79 @@
 #include <utilities/cython.hpp>
 #include <utilities/error.hpp>
 
+#include <rmm/thrust_rmm_allocator.h>
+#include <thrust/copy.h>
+#include <thrust/iterator/counting_iterator.h>
+
 namespace cugraph {
 namespace cython {
+
+namespace detail {
+
+// FIXME: Add description of this function
+template <typename vertex_t,
+          typename edge_t,
+          typename weight_t,
+          bool transposed,
+          bool multi_gpu,
+          std::enable_if_t<multi_gpu>* = nullptr>
+std::unique_ptr<experimental::graph_t<vertex_t, edge_t, weight_t, transposed, multi_gpu>>
+create_graph(raft::handle_t const& handle, graph_container_t const& graph_container)
+{
+  std::vector<experimental::edgelist_t<vertex_t, edge_t, weight_t>> edgelist(
+    {{reinterpret_cast<vertex_t*>(graph_container.src_vertices),
+      reinterpret_cast<vertex_t*>(graph_container.dst_vertices),
+      reinterpret_cast<weight_t*>(graph_container.weights),
+      static_cast<edge_t>(graph_container.num_partition_edges)}});
+
+  std::vector<vertex_t> partition_offsets_vector(
+    reinterpret_cast<vertex_t*>(graph_container.vertex_partition_offsets),
+    reinterpret_cast<vertex_t*>(graph_container.vertex_partition_offsets) +
+      graph_container.row_comm_size * graph_container.col_comm_size);
+
+  experimental::partition_t<int> partition(partition_offsets_vector,
+                                           graph_container.hypergraph_partitioned,
+                                           graph_container.row_comm_size,
+                                           graph_container.col_comm_size,
+                                           graph_container.row_comm_rank,
+                                           graph_container.col_comm_rank);
+
+  return std::make_unique<experimental::graph_t<vertex_t, edge_t, weight_t, transposed, multi_gpu>>(
+    handle,
+    edgelist,
+    partition,
+    static_cast<vertex_t>(graph_container.num_global_vertices),
+    static_cast<edge_t>(graph_container.num_global_edges),
+    graph_container.graph_props,
+    graph_container.sorted_by_degree,
+    graph_container.do_expensive_check);
+}
+
+template <typename vertex_t,
+          typename edge_t,
+          typename weight_t,
+          bool transposed,
+          bool multi_gpu,
+          std::enable_if_t<!multi_gpu>* = nullptr>
+std::unique_ptr<experimental::graph_t<vertex_t, edge_t, weight_t, transposed, multi_gpu>>
+create_graph(raft::handle_t const& handle, graph_container_t const& graph_container)
+{
+  experimental::edgelist_t<vertex_t, edge_t, weight_t> edgelist{
+    reinterpret_cast<vertex_t*>(graph_container.src_vertices),
+    reinterpret_cast<vertex_t*>(graph_container.dst_vertices),
+    reinterpret_cast<weight_t*>(graph_container.weights),
+    static_cast<edge_t>(graph_container.num_partition_edges)};
+
+  return std::make_unique<experimental::graph_t<vertex_t, edge_t, weight_t, transposed, multi_gpu>>(
+    handle,
+    edgelist,
+    static_cast<vertex_t>(graph_container.num_global_vertices),
+    graph_container.graph_props,
+    graph_container.sorted_by_degree,
+    graph_container.do_expensive_check);
+}
+
+}  // namespace detail
 
 // Populates a graph_container_t with a pointer to a new graph object and sets
 // the meta-data accordingly.  The graph container owns the pointer and it is
@@ -48,6 +119,7 @@ void populate_graph_container(graph_container_t& graph_container,
   CUGRAPH_EXPECTS(graph_container.graph_ptr_type == graphTypeEnum::null,
                   "populate_graph_container() can only be called on an empty container.");
 
+  bool sorted_by_degree{false};
   bool do_expensive_check{false};
   bool hypergraph_partitioned{false};
 
@@ -67,102 +139,28 @@ void populate_graph_container(graph_container_t& graph_container,
   auto const col_comm_rank = col_comm.get_rank();
   // auto const col_comm_size = col_comm.get_size(); // prows
 
-  // Copy the contents of the vertex_partition_offsets (host array) to a vector
-  // as needed by the partition_t ctor.
-  int* vertex_partition_offsets_array = reinterpret_cast<int*>(vertex_partition_offsets);
-
-  // FIXME: this needs to be vertex_t, not int?
-  std::vector<int> vertex_partition_offsets_vect(
-    vertex_partition_offsets_array,
-    vertex_partition_offsets_array + (col_comm_size * row_comm_size) + 1);
-
-  experimental::partition_t<int> partition(vertex_partition_offsets_vect,
-                                           hypergraph_partitioned,
-                                           row_comm_size,
-                                           col_comm_size,
-                                           row_comm_rank,
-                                           col_comm_rank);
+  graph_container.vertex_partition_offsets = vertex_partition_offsets;
+  graph_container.src_vertices             = src_vertices;
+  graph_container.dst_vertices             = dst_vertices;
+  graph_container.weights                  = weights;
+  graph_container.num_partition_edges      = num_partition_edges;
+  graph_container.num_global_vertices      = num_global_vertices;
+  graph_container.num_global_edges         = num_global_edges;
+  graph_container.vertexType               = vertexType;
+  graph_container.edgeType                 = edgeType;
+  graph_container.weightType               = weightType;
+  graph_container.transposed               = transposed;
+  graph_container.is_multi_gpu             = multi_gpu;
+  graph_container.hypergraph_partitioned   = hypergraph_partitioned;
+  graph_container.row_comm_size            = row_comm_size;
+  graph_container.col_comm_size            = col_comm_size;
+  graph_container.row_comm_rank            = row_comm_rank;
+  graph_container.col_comm_rank            = col_comm_rank;
+  graph_container.sorted_by_degree         = sorted_by_degree;
+  graph_container.do_expensive_check       = do_expensive_check;
 
   experimental::graph_properties_t graph_props{.is_symmetric = false, .is_multigraph = false};
-
-  auto src_vertices_array = reinterpret_cast<int*>(src_vertices);
-  auto dst_vertices_array = reinterpret_cast<int*>(dst_vertices);
-
-  if (multi_gpu) {
-    bool sorted_by_global_degree_within_vertex_partition{false};
-
-    if (weightType == numberTypeEnum::floatType) {
-      // vector of 1 representing the indivdual partition for this worker
-      std::vector<experimental::edgelist_t<int, int, float>> edge_lists;
-      edge_lists.push_back(
-        experimental::edgelist_t<int, int, float>{src_vertices_array,
-                                                  dst_vertices_array,
-                                                  reinterpret_cast<float*>(weights),
-                                                  num_partition_edges});
-      auto g = new experimental::graph_t<int, int, float, false, true>(
-        handle,
-        edge_lists,
-        partition,
-        num_global_vertices,
-        num_global_edges,
-        graph_props,
-        sorted_by_global_degree_within_vertex_partition,
-        do_expensive_check);
-
-      graph_container.graph_ptr_union.graph_t_float_mg_ptr =
-        std::unique_ptr<experimental::graph_t<int, int, float, false, true>>(g);
-      graph_container.graph_ptr_type = graphTypeEnum::graph_t_float_mg;
-
-    } else {
-      std::vector<experimental::edgelist_t<int, int, double>> edge_lists;
-      edge_lists.push_back(
-        experimental::edgelist_t<int, int, double>{src_vertices_array,
-                                                   dst_vertices_array,
-                                                   reinterpret_cast<double*>(weights),
-                                                   num_partition_edges});
-      auto g = new experimental::graph_t<int, int, double, false, true>(
-        handle,
-        edge_lists,
-        partition,
-        num_global_vertices,
-        num_global_edges,
-        graph_props,
-        sorted_by_global_degree_within_vertex_partition,
-        do_expensive_check);
-
-      graph_container.graph_ptr_union.graph_t_double_mg_ptr =
-        std::unique_ptr<experimental::graph_t<int, int, double, false, true>>(g);
-      graph_container.graph_ptr_type = graphTypeEnum::graph_t_double_mg;
-    }
-
-  } else {
-    bool sorted_by_degree{false};
-
-    if (weightType == numberTypeEnum::floatType) {
-      experimental::edgelist_t<int, int, float> edge_list{src_vertices_array,
-                                                          dst_vertices_array,
-                                                          reinterpret_cast<float*>(weights),
-                                                          num_partition_edges};
-      auto g = new experimental::graph_t<int, int, float, false, false>(
-        handle, edge_list, num_global_vertices, graph_props, sorted_by_degree, do_expensive_check);
-
-      graph_container.graph_ptr_union.graph_t_float_ptr =
-        std::unique_ptr<experimental::graph_t<int, int, float, false, false>>(g);
-      graph_container.graph_ptr_type = graphTypeEnum::graph_t_float;
-
-    } else {
-      experimental::edgelist_t<int, int, double> edge_list{src_vertices_array,
-                                                           dst_vertices_array,
-                                                           reinterpret_cast<double*>(weights),
-                                                           num_partition_edges};
-      auto g = new experimental::graph_t<int, int, double, false, false>(
-        handle, edge_list, num_global_vertices, graph_props, sorted_by_degree, do_expensive_check);
-
-      graph_container.graph_ptr_union.graph_t_double_ptr =
-        std::unique_ptr<experimental::graph_t<int, int, double, false, false>>(g);
-      graph_container.graph_ptr_type = graphTypeEnum::graph_t_double;
-    }
-  }
+  graph_container.graph_props = graph_props;
 }
 
 void populate_graph_container_legacy(graph_container_t& graph_container,
@@ -278,6 +276,175 @@ void populate_graph_container_legacy(graph_container_t& graph_container,
 
 ////////////////////////////////////////////////////////////////////////////////
 
+namespace detail {
+template <typename graph_view_t, typename weight_t>
+std::pair<size_t, weight_t> call_louvain(raft::handle_t const& handle,
+                                         graph_view_t const& graph_view,
+                                         void* identifiers,
+                                         void* parts,
+                                         size_t max_level,
+                                         weight_t resolution)
+{
+  thrust::copy(  // rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
+    thrust::device,
+    thrust::make_counting_iterator(graph_view.get_local_vertex_first()),
+    thrust::make_counting_iterator(graph_view.get_local_vertex_last()),
+    reinterpret_cast<typename graph_view_t::vertex_type*>(identifiers));
+
+  return louvain(handle,
+                 graph_view,
+                 reinterpret_cast<typename graph_view_t::vertex_type*>(parts),
+                 max_level,
+                 static_cast<weight_t>(resolution));
+}
+
+}  // namespace detail
+
+namespace detail {
+
+template <bool transposed,
+          typename return_t,
+          typename function_t,
+          typename vertex_t,
+          typename edge_t,
+          typename weight_t,
+          bool is_multi_gpu>
+return_t call_function(raft::handle_t const& handle,
+                       graph_container_t const& graph_container,
+                       function_t function)
+{
+  auto graph =
+    create_graph<vertex_t, edge_t, weight_t, transposed, is_multi_gpu>(handle, graph_container);
+
+  return function(handle, graph->view());
+}
+
+template <bool transposed,
+          typename return_t,
+          typename function_t,
+          typename edge_t,
+          typename weight_t,
+          bool is_multi_gpu>
+return_t call_function(raft::handle_t const& handle,
+                       graph_container_t const& graph_container,
+                       function_t function)
+{
+  if (graph_container.vertexType == numberTypeEnum::int32Type) {
+    return call_function<transposed,
+                         return_t,
+                         function_t,
+                         int32_t,
+                         edge_t,
+                         weight_t,
+                         is_multi_gpu>(handle, graph_container, function);
+  } else if (graph_container.vertexType == numberTypeEnum::int64Type) {
+    return call_function<transposed,
+                         return_t,
+                         function_t,
+                         int32_t,
+                         edge_t,
+                         weight_t,
+                         is_multi_gpu>(handle, graph_container, function);
+  } else {
+    CUGRAPH_FAIL("vertexType unsupported");
+  }
+}
+
+template <bool transposed,
+          typename return_t,
+          typename function_t,
+          typename weight_t,
+          bool is_multi_gpu>
+return_t call_function(raft::handle_t const& handle,
+                       graph_container_t const& graph_container,
+                       function_t function)
+{
+  if (graph_container.edgeType == numberTypeEnum::int32Type) {
+    return call_function<transposed, return_t, function_t, int32_t, weight_t, is_multi_gpu>(
+      handle, graph_container, function);
+  } else if (graph_container.edgeType == numberTypeEnum::int64Type) {
+    return call_function<transposed, return_t, function_t, int32_t, weight_t, is_multi_gpu>(
+      handle, graph_container, function);
+  } else {
+    CUGRAPH_FAIL("edgeType unsupported");
+  }
+}
+
+template <bool transposed,
+          typename return_t,
+          typename function_t,
+          bool is_multi_gpu>
+return_t call_function(raft::handle_t const& handle,
+                       graph_container_t const& graph_container,
+                       function_t function)
+{
+  if (graph_container.weightType == numberTypeEnum::floatType) {
+    return call_function<transposed, return_t, function_t, float, transposed>(
+      handle, graph_container, function);
+  } else if (graph_container.weightType == numberTypeEnum::doubleType) {
+    return call_function<transposed, return_t, function_t, double, transposed>(
+      handle, graph_container, function);
+  } else {
+    CUGRAPH_FAIL("weightType unsupported");
+  }
+}
+
+template <bool transposed, typename return_t, typename function_t>
+return_t call_function(raft::handle_t const& handle,
+                       graph_container_t const& graph_container,
+                       function_t function)
+{
+  if (graph_container.is_multi_gpu) {
+    return call_function<transposed, return_t, function_t, true>(
+      handle, graph_container, function);
+  } else {
+    return call_function<transposed, return_t, function_t, false>(
+      handle, graph_container, function);
+  }
+}
+
+template <typename return_t, typename function_t>
+return_t call_function(raft::handle_t const& handle,
+                       graph_container_t const& graph_container,
+                       function_t function)
+{
+  if (graph_container.transposed) {
+    return call_function<true, return_t, function_t>(
+      handle, graph_container, function);
+  } else {
+    return call_function<false, return_t, function_t>(
+      handle, graph_container, function);
+  }
+}
+
+template <typename weight_t>
+class louvain_functor {
+ public:
+  louvain_functor(void* identifiers, void* parts, size_t max_level, weight_t resolution)
+    : identifiers_(identifiers), parts_(parts), max_level_(max_level), resolution_(resolution)
+  {
+  }
+
+  template <typename graph_view_t>
+  std::pair<size_t, weight_t> operator()(raft::handle_t const& handle,
+                                         graph_view_t const& graph_view)
+  {
+    return cugraph::louvain(handle,
+                            graph_view,
+                            reinterpret_cast<typename graph_view_t::vertex_type*>(parts_),
+                            max_level_,
+                            resolution_);
+  }
+
+ private:
+  void* identifiers_;
+  void* parts_;
+  size_t max_level_;
+  weight_t resolution_;
+};
+
+}  // namespace detail
+
 // Wrapper for calling Louvain using a graph container
 template <typename weight_t>
 std::pair<size_t, weight_t> call_louvain(raft::handle_t const& handle,
@@ -287,45 +454,10 @@ std::pair<size_t, weight_t> call_louvain(raft::handle_t const& handle,
                                          size_t max_level,
                                          weight_t resolution)
 {
-  std::pair<size_t, weight_t> results;
+  detail::louvain_functor<weight_t> functor{identifiers, parts, max_level, resolution};
 
-  // FIXME: the only graph types currently in the container have ints for
-  // vertex_t and edge_t types. In the future, additional types for vertices and
-  // edges will be available, and when that happens, additional castings will be
-  // needed for the 'parts' arg in particular. For now, it is hardcoded to int.
-  if (graph_container.graph_ptr_type == graphTypeEnum::graph_t_float_mg) {
-    results = louvain(handle,
-                      graph_container.graph_ptr_union.graph_t_float_mg_ptr->view(),
-                      reinterpret_cast<int*>(parts),
-                      max_level,
-                      static_cast<float>(resolution));
-
-  } else if (graph_container.graph_ptr_type == graphTypeEnum::graph_t_double_mg) {
-    results = louvain(handle,
-                      graph_container.graph_ptr_union.graph_t_double_mg_ptr->view(),
-                      reinterpret_cast<int*>(parts),
-                      max_level,
-                      static_cast<double>(resolution));
-  } else if (graph_container.graph_ptr_type == graphTypeEnum::GraphCSRViewFloat) {
-    //     if (graph_container.graph_ptr_type == graphTypeEnum::GraphCSRViewFloat) {
-    graph_container.graph_ptr_union.GraphCSCViewFloatPtr->get_vertex_identifiers(
-      static_cast<int32_t*>(identifiers));
-    results = louvain(handle,
-                      *(graph_container.graph_ptr_union.GraphCSRViewFloatPtr),
-                      reinterpret_cast<int*>(parts),
-                      max_level,
-                      static_cast<float>(resolution));
-  } else if (graph_container.graph_ptr_type == graphTypeEnum::GraphCSRViewDouble) {
-    graph_container.graph_ptr_union.GraphCSCViewDoublePtr->get_vertex_identifiers(
-      static_cast<int32_t*>(identifiers));
-    results = louvain(handle,
-                      *(graph_container.graph_ptr_union.GraphCSRViewDoublePtr),
-                      reinterpret_cast<int*>(parts),
-                      max_level,
-                      static_cast<double>(resolution));
-  }
-
-  return results;
+  return detail::call_function<false, std::pair<size_t, weight_t>>(
+    handle, graph_container, functor);
 }
 
 // Explicit instantiations

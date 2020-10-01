@@ -64,7 +64,6 @@ def louvain(input_graph, max_level, resolution):
     cdef uintptr_t c_local_edges = <uintptr_t> NULL;
     cdef uintptr_t c_local_offsets = <uintptr_t> NULL;
 
-
     cdef float final_modularity_float = 1.0
     cdef double final_modularity_double = 1.0
     cdef int num_level = 0
@@ -83,8 +82,8 @@ def louvain(input_graph, max_level, resolution):
                                     <legacyGraphTypeEnum>(<int>(legacyGraphTypeEnum.CSR)),
                                     handle_[0],
                                     <void*>c_offsets, <void*>c_indices, <void*>c_weights,
-                                    <numberTypeEnum>(<int>(numberTypeEnum.intType)),
-                                    <numberTypeEnum>(<int>(numberTypeEnum.intType)),
+                                    <numberTypeEnum>(<int>(numberTypeEnum.int32Type)),
+                                    <numberTypeEnum>(<int>(numberTypeEnum.int32Type)),
                                     <numberTypeEnum>(<int>(weightTypeMap[weights.dtype])),
                                     num_verts, num_edges,
                                     <int*>c_local_verts, <int*>c_local_edges, <int*>c_local_offsets)
