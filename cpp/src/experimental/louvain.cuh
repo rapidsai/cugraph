@@ -662,7 +662,7 @@ class Louvain {
 
     std::cout << "dst_cache_v size = " << dst_cache_v.size() << std::endl;
 
-#if 0
+#if 1
     copy_to_adj_matrix_col(
       handle_, current_graph_view_, local_input_v.begin(), dst_cache_v.begin());
 #else
