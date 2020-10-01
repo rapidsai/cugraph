@@ -7,6 +7,7 @@
 - PR #1147 Added support for NetworkX graphs as input type
 - PR #1157 Louvain API update to use graph_container_t
 - PR #1151 MNMG extension for pattern accelerator based PageRank, Katz Centrality, BFS, and SSSP implementations (C++ part)
+- PR #1163 Integrated 2D shuffling and Louvain updates
 
 ## Improvements
 - PR 1081 MNMG Renumbering - sort partitions by degree

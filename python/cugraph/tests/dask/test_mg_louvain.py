@@ -47,7 +47,7 @@ def client_connection():
     # setup
     cluster = LocalCUDACluster()
     client = Client(cluster)
-    Comms.initialize()
+    Comms.initialize(p2p=True)
 
     yield client
 
