@@ -224,6 +224,7 @@ def get_mg_batch_data(dask_cudf_data):
     data = DistributedDataHandler.create(data=dask_cudf_data)
     return data
 
+
 def get_distributed_data(input_ddf):
     ddf = input_ddf
     comms = Comms.get_comms()

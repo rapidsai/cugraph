@@ -66,14 +66,10 @@ struct graph_container_t {
     std::unique_ptr<GraphCSCView<int, int, double>> GraphCSCViewDoublePtr;
     std::unique_ptr<GraphCOOView<int, int, float>> GraphCOOViewFloatPtr;
     std::unique_ptr<GraphCOOView<int, int, double>> GraphCOOViewDoublePtr;
-    std::unique_ptr<experimental::graph_t<int, int, float, false, false>>
-      graph_t_float_ptr;
-    std::unique_ptr<experimental::graph_t<int, int, double, false, false>>
-      graph_t_double_ptr;
-    std::unique_ptr<experimental::graph_t<int, int, float, false, true>>
-      graph_t_float_mg_ptr;
-    std::unique_ptr<experimental::graph_t<int, int, double, false, true>>
-      graph_t_double_mg_ptr;
+    std::unique_ptr<experimental::graph_t<int, int, float, false, false>> graph_t_float_ptr;
+    std::unique_ptr<experimental::graph_t<int, int, double, false, false>> graph_t_double_ptr;
+    std::unique_ptr<experimental::graph_t<int, int, float, false, true>> graph_t_float_mg_ptr;
+    std::unique_ptr<experimental::graph_t<int, int, double, false, true>> graph_t_double_mg_ptr;
     std::unique_ptr<experimental::graph_t<int, int, float, true, false>>
       graph_t_float_transposed_ptr;
     std::unique_ptr<experimental::graph_t<int, int, double, true, false>>
@@ -160,10 +156,10 @@ void populate_graph_container(graph_container_t& graph_container,
                               numberTypeEnum edgeType,
                               numberTypeEnum weightType,
                               int num_partition_edges,
-                              int num_vertices,
-                              int num_edges,
-                              int partition_row_size,  // pcols
-                              int partition_col_size,  // prows
+                              size_t num_global_vertices,
+                              size_t num_global_edges,
+                              size_t row_comm_size,  // pcols
+                              size_t col_comm_size,  // prows
                               bool transposed,
                               bool multi_gpu);
 
@@ -177,8 +173,8 @@ void populate_graph_container_legacy(graph_container_t& graph_container,
                                      numberTypeEnum offsetType,
                                      numberTypeEnum indexType,
                                      numberTypeEnum weightType,
-                                     int num_vertices,
-                                     int num_edges,
+                                     size_t num_global_vertices,
+                                     size_t num_global_edges,
                                      int* local_vertices,
                                      int* local_edges,
                                      int* local_offsets);

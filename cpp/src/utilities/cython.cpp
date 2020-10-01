@@ -38,45 +38,50 @@ void populate_graph_container(graph_container_t& graph_container,
                               numberTypeEnum edgeType,
                               numberTypeEnum weightType,
                               int num_partition_edges,
-                              int num_global_vertices,
-                              int num_global_edges,
-                              int partition_row_size,  // pcols
-                              int partition_col_size,  // prows
+                              size_t num_global_vertices,
+                              size_t num_global_edges,
+                              size_t row_comm_size,  // pcols
+                              size_t col_comm_size,  // prows
                               bool transposed,
                               bool multi_gpu)
 {
   CUGRAPH_EXPECTS(graph_container.graph_ptr_type == graphTypeEnum::null,
                   "populate_graph_container() can only be called on an empty container.");
 
-  bool do_expensive_check{true};
+  bool do_expensive_check{false};
   bool hypergraph_partitioned{false};
 
-  // Setup the subcommunicators needed for this partition on the handle
-  partition_2d::subcomm_factory_t<partition_2d::key_naming_t, int>
-    subcomm_factory(handle, partition_row_size);
+  // FIXME: Consider setting up the subcomms right after initializing comms, no
+  // need to delay to this point.
+  // Setup the subcommunicators needed for this partition on the handle.
+  partition_2d::subcomm_factory_t<partition_2d::key_naming_t, int> subcomm_factory(handle,
+                                                                                   row_comm_size);
 
-  partition_2d::pair_comms_t comms_pair = subcomm_factory.row_col_comms();
-  int partition_row_rank = comms_pair.first->get_rank();
-  int partition_col_rank = comms_pair.second->get_rank();
+  // FIXME: once the subcomms are set up earlier (outside this function), remove
+  // the row/col_comm_size params and retrieve them from the handle (commented
+  // out lines below)
+  auto& row_comm           = handle.get_subcomm(cugraph::partition_2d::key_naming_t().row_name());
+  auto const row_comm_rank = row_comm.get_rank();
+  // auto const row_comm_size = row_comm.get_size(); // pcols
+  auto& col_comm           = handle.get_subcomm(cugraph::partition_2d::key_naming_t().col_name());
+  auto const col_comm_rank = col_comm.get_rank();
+  // auto const col_comm_size = col_comm.get_size(); // prows
 
   // Copy the contents of the vertex_partition_offsets (host array) to a vector
   // as needed by the partition_t ctor.
   int* vertex_partition_offsets_array = reinterpret_cast<int*>(vertex_partition_offsets);
-  std::vector<int> vertex_partition_offsets_vect;  // vertex_t
 
-  for (int32_t i=0; i<((partition_row_size * partition_col_size)+1); ++i) {
-     vertex_partition_offsets_vect.push_back(vertex_partition_offsets_array[i]);
-     std::cout<<"VPO"<<i<<": "<<vertex_partition_offsets_vect[i]<<std::endl;
-  }
-  std::cout<<"num_partition_edges: "<<num_partition_edges<<std::endl;
-  std::cout<<partition_row_size<<","<<partition_col_size<<","<<partition_row_rank<<","<<partition_col_rank<<std::endl;
+  // FIXME: this needs to be vertex_t, not int?
+  std::vector<int> vertex_partition_offsets_vect(
+    vertex_partition_offsets_array,
+    vertex_partition_offsets_array + (col_comm_size * row_comm_size) + 1);
 
   experimental::partition_t<int> partition(vertex_partition_offsets_vect,
                                            hypergraph_partitioned,
-                                           partition_row_size,
-                                           partition_col_size,
-                                           partition_row_rank,
-                                           partition_col_rank);
+                                           row_comm_size,
+                                           col_comm_size,
+                                           row_comm_rank,
+                                           col_comm_rank);
 
   experimental::graph_properties_t graph_props{.is_symmetric = false, .is_multigraph = false};
 
@@ -84,41 +89,46 @@ void populate_graph_container(graph_container_t& graph_container,
   auto dst_vertices_array = reinterpret_cast<int*>(dst_vertices);
 
   if (multi_gpu) {
+    bool sorted_by_global_degree_within_vertex_partition{false};
 
-     bool sorted_by_global_degree_within_vertex_partition{false};
-
-     if (weightType == numberTypeEnum::floatType) {
-       // vector of 1 representing the indivdual partition for this worker
-       std::vector<experimental::edgelist_t<int, int, float>> edge_lists;
-       edge_lists.push_back(experimental::edgelist_t<int, int, float>{src_vertices_array, dst_vertices_array,
-                reinterpret_cast<float*>(weights), num_partition_edges});
-       auto g = new experimental::graph_t<int, int, float, false, true>(
-         handle,
-         edge_lists,
-         partition,
-         num_global_vertices,
-         num_global_edges,
-         graph_props,
-         sorted_by_global_degree_within_vertex_partition,
-         do_expensive_check);
+    if (weightType == numberTypeEnum::floatType) {
+      // vector of 1 representing the indivdual partition for this worker
+      std::vector<experimental::edgelist_t<int, int, float>> edge_lists;
+      edge_lists.push_back(
+        experimental::edgelist_t<int, int, float>{src_vertices_array,
+                                                  dst_vertices_array,
+                                                  reinterpret_cast<float*>(weights),
+                                                  num_partition_edges});
+      auto g = new experimental::graph_t<int, int, float, false, true>(
+        handle,
+        edge_lists,
+        partition,
+        num_global_vertices,
+        num_global_edges,
+        graph_props,
+        sorted_by_global_degree_within_vertex_partition,
+        do_expensive_check);
 
       graph_container.graph_ptr_union.graph_t_float_mg_ptr =
         std::unique_ptr<experimental::graph_t<int, int, float, false, true>>(g);
       graph_container.graph_ptr_type = graphTypeEnum::graph_t_float_mg;
 
     } else {
-       std::vector<experimental::edgelist_t<int, int, double>> edge_lists;
-       edge_lists.push_back(experimental::edgelist_t<int, int, double>{src_vertices_array, dst_vertices_array,
-                reinterpret_cast<double*>(weights), num_partition_edges});
-       auto g = new experimental::graph_t<int, int, double, false, true>(
-         handle,
-         edge_lists,
-         partition,
-         num_global_vertices,
-         num_global_edges,
-         graph_props,
-         sorted_by_global_degree_within_vertex_partition,
-         do_expensive_check);
+      std::vector<experimental::edgelist_t<int, int, double>> edge_lists;
+      edge_lists.push_back(
+        experimental::edgelist_t<int, int, double>{src_vertices_array,
+                                                   dst_vertices_array,
+                                                   reinterpret_cast<double*>(weights),
+                                                   num_partition_edges});
+      auto g = new experimental::graph_t<int, int, double, false, true>(
+        handle,
+        edge_lists,
+        partition,
+        num_global_vertices,
+        num_global_edges,
+        graph_props,
+        sorted_by_global_degree_within_vertex_partition,
+        do_expensive_check);
 
       graph_container.graph_ptr_union.graph_t_double_mg_ptr =
         std::unique_ptr<experimental::graph_t<int, int, double, false, true>>(g);
@@ -126,33 +136,27 @@ void populate_graph_container(graph_container_t& graph_container,
     }
 
   } else {
-     bool sorted_by_degree{false};
+    bool sorted_by_degree{false};
 
-     if (weightType == numberTypeEnum::floatType) {
-       experimental::edgelist_t<int, int, float> edge_list{src_vertices_array, dst_vertices_array,
-             reinterpret_cast<float*>(weights), num_partition_edges};
-       auto g = new experimental::graph_t<int, int, float, false, false>(
-         handle,
-         edge_list,
-         num_global_vertices,
-         graph_props,
-         sorted_by_degree,
-         do_expensive_check);
+    if (weightType == numberTypeEnum::floatType) {
+      experimental::edgelist_t<int, int, float> edge_list{src_vertices_array,
+                                                          dst_vertices_array,
+                                                          reinterpret_cast<float*>(weights),
+                                                          num_partition_edges};
+      auto g = new experimental::graph_t<int, int, float, false, false>(
+        handle, edge_list, num_global_vertices, graph_props, sorted_by_degree, do_expensive_check);
 
       graph_container.graph_ptr_union.graph_t_float_ptr =
         std::unique_ptr<experimental::graph_t<int, int, float, false, false>>(g);
       graph_container.graph_ptr_type = graphTypeEnum::graph_t_float;
 
     } else {
-       experimental::edgelist_t<int, int, double> edge_list{src_vertices_array, dst_vertices_array,
-             reinterpret_cast<double*>(weights), num_partition_edges};
-       auto g = new experimental::graph_t<int, int, double, false, false>(
-         handle,
-         edge_list,
-         num_global_vertices,
-         graph_props,
-         sorted_by_degree,
-         do_expensive_check);
+      experimental::edgelist_t<int, int, double> edge_list{src_vertices_array,
+                                                           dst_vertices_array,
+                                                           reinterpret_cast<double*>(weights),
+                                                           num_partition_edges};
+      auto g = new experimental::graph_t<int, int, double, false, false>(
+        handle, edge_list, num_global_vertices, graph_props, sorted_by_degree, do_expensive_check);
 
       graph_container.graph_ptr_union.graph_t_double_ptr =
         std::unique_ptr<experimental::graph_t<int, int, double, false, false>>(g);
@@ -160,7 +164,6 @@ void populate_graph_container(graph_container_t& graph_container,
     }
   }
 }
-
 
 void populate_graph_container_legacy(graph_container_t& graph_container,
                                      legacyGraphTypeEnum legacyType,
@@ -171,8 +174,8 @@ void populate_graph_container_legacy(graph_container_t& graph_container,
                                      numberTypeEnum offsetType,
                                      numberTypeEnum indexType,
                                      numberTypeEnum weightType,
-                                     int num_global_vertices,
-                                     int num_global_edges,
+                                     size_t num_global_vertices,
+                                     size_t num_global_edges,
                                      int* local_vertices,
                                      int* local_edges,
                                      int* local_offsets)
@@ -273,7 +276,6 @@ void populate_graph_container_legacy(graph_container_t& graph_container,
   return;
 }
 
-
 ////////////////////////////////////////////////////////////////////////////////
 
 // Wrapper for calling Louvain using a graph container
@@ -299,6 +301,23 @@ std::pair<size_t, weight_t> call_louvain(raft::handle_t const& handle,
                       static_cast<float>(resolution));
 
   } else if (graph_container.graph_ptr_type == graphTypeEnum::graph_t_double_mg) {
+    results = louvain(handle,
+                      graph_container.graph_ptr_union.graph_t_double_mg_ptr->view(),
+                      reinterpret_cast<int*>(parts),
+                      max_level,
+                      static_cast<double>(resolution));
+  } else if (graph_container.graph_ptr_type == graphTypeEnum::GraphCSRViewFloat) {
+    //     if (graph_container.graph_ptr_type == graphTypeEnum::GraphCSRViewFloat) {
+    graph_container.graph_ptr_union.GraphCSCViewFloatPtr->get_vertex_identifiers(
+      static_cast<int32_t*>(identifiers));
+    results = louvain(handle,
+                      graph_container.graph_ptr_union.graph_t_float_mg_ptr->view(),
+                      reinterpret_cast<int*>(parts),
+                      max_level,
+                      static_cast<float>(resolution));
+  } else if (graph_container.graph_ptr_type == graphTypeEnum::GraphCSRViewDouble) {
+    graph_container.graph_ptr_union.GraphCSCViewDoublePtr->get_vertex_identifiers(
+      static_cast<int32_t*>(identifiers));
     results = louvain(handle,
                       graph_container.graph_ptr_union.graph_t_double_mg_ptr->view(),
                       reinterpret_cast<int*>(parts),

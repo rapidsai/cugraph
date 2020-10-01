@@ -60,25 +60,21 @@ def louvain(input_df,
     cdef int num_partition_edges = len(src)
 
     # COO
-
-    #print("NUMSRCS: ", len(src))
-    #for i in range(len(src)):
-    #    print(f"{i}: src:{src[i]} dst:{dst[i]}")
-
     cdef uintptr_t c_src_vertices = src.__cuda_array_interface__['data'][0]
     cdef uintptr_t c_dst_vertices = dst.__cuda_array_interface__['data'][0]
     cdef uintptr_t c_edge_weights = <uintptr_t>NULL
     if weights is not None:
         c_edge_weights = weights.__cuda_array_interface__['data'][0]
 
-    # FIXME: data is on device, move to host (to_pandas()), convert to np array and access pointer to pass to C
-    #cdef uintptr_t c_vertex_partition_offsets = vertex_partition_offsets.__cuda_array_interface__['data'][0]
+    # data is on device, move to host (.values_host) since graph_t in
+    # graph_container needs a host array
     cdef uintptr_t c_vertex_partition_offsets = vertex_partition_offsets.values_host.__array_interface__['data'][0]
 
     # FIXME: Offsets and indices are currently hardcoded to int, but this may
     #        not be acceptable in the future.
     weightTypeMap = {np.dtype("float32") : <int>numberTypeEnum.floatType,
                      np.dtype("double") : <int>numberTypeEnum.doubleType}
+    weightType = weightTypeMap[weights.dtype] if weights is not None else <int>numberTypeEnum.floatType
 
     cdef graph_container_t graph_container
 
@@ -92,13 +88,12 @@ def louvain(input_df,
                              <void*>c_vertex_partition_offsets,
                              <numberTypeEnum>(<int>(numberTypeEnum.intType)),
                              <numberTypeEnum>(<int>(numberTypeEnum.intType)),
-                             <numberTypeEnum>(<int>(weightTypeMap[weights.dtype])),
+                             <numberTypeEnum>(<int>(weightType)),
                              num_partition_edges,
                              num_global_verts, num_global_edges,
                              partition_row_size, partition_col_size,
                              False, True)  # store_transposed, multi_gpu
 
-    print("DONE CALLING PGC")
     # Create the output dataframe
     df = cudf.DataFrame()
     df['vertex'] = cudf.Series(np.zeros(num_global_verts, dtype=np.int32))
@@ -107,8 +102,7 @@ def louvain(input_df,
     cdef uintptr_t c_identifiers = df['vertex'].__cuda_array_interface__['data'][0]
     cdef uintptr_t c_partition = df['partition'].__cuda_array_interface__['data'][0]
 
-    print("CALLING CL")
-    if weights.dtype == np.float32:
+    if weightType == <int>numberTypeEnum.floatType:
         num_level, final_modularity_float = c_louvain.call_louvain[float](
             handle_[0], graph_container, <void*>c_identifiers, <void*>c_partition, max_level, resolution)
         final_modularity = final_modularity_float
