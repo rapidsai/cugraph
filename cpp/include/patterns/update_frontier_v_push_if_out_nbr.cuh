@@ -15,6 +15,7 @@
  */
 #pragma once
 
+#include <cstdlib>
 #include <experimental/graph_view.hpp>
 #include <matrix_partition_device.cuh>
 #include <partition_manager.hpp>
@@ -37,6 +38,8 @@
 #include <thrust/type_traits/integer_sequence.h>
 #include <cub/cub.cuh>
 
+#include <algorithm>
+#include <limits>
 #include <numeric>
 #include <type_traits>
 #include <utility>
@@ -501,6 +504,7 @@ void update_frontier_v_push_if_out_nbr(
 
   if (GraphViewType::is_multi_gpu) {
     auto& comm               = handle.get_comms();
+    auto const comm_rank     = comm.get_rank();
     auto& row_comm           = handle.get_subcomm(cugraph::partition_2d::key_naming_t().row_name());
     auto const row_comm_rank = row_comm.get_rank();
     auto const row_comm_size = row_comm.get_size();
@@ -537,22 +541,41 @@ void update_frontier_v_push_if_out_nbr(
     std::vector<edge_t> rx_counts(graph_view.is_hypergraph_partitioned() ? row_comm_size
                                                                          : col_comm_size);
     std::vector<raft::comms::request_t> count_requests(tx_counts.size() + rx_counts.size());
+    size_t tx_self_i = std::numeric_limits<size_t>::max();
     for (size_t i = 0; i < tx_counts.size(); ++i) {
-      comm.isend(&tx_counts[i],
-                 1,
-                 graph_view.is_hypergraph_partitioned() ? col_comm_rank * row_comm_size + i
-                                                        : row_comm_rank * col_comm_size + i,
-                 0 /* tag */,
-                 count_requests.data() + i);
+      auto comm_dst_rank = graph_view.is_hypergraph_partitioned()
+                             ? col_comm_rank * row_comm_size + static_cast<int>(i)
+                             : row_comm_rank * col_comm_size + static_cast<int>(i);
+      if (comm_dst_rank == comm_rank) {
+        tx_self_i = i;
+        // FIXME: better define request_null (similar to MPI_REQUEST_NULL) under raft::comms
+        count_requests[i] = std::numeric_limits<raft::comms::request_t>::max();
+      } else {
+        comm.isend(&tx_counts[i], 1, comm_dst_rank, 0 /* tag */, count_requests.data() + i);
+      }
     }
     for (size_t i = 0; i < rx_counts.size(); ++i) {
-      comm.irecv(&rx_counts[i],
-                 1,
-                 graph_view.is_hypergraph_partitioned() ? col_comm_rank * row_comm_size + i
-                                                        : row_comm_rank + i * row_comm_size,
-                 0 /* tag */,
-                 count_requests.data() + tx_counts.size() + i);
+      auto comm_src_rank = graph_view.is_hypergraph_partitioned()
+                             ? col_comm_rank * row_comm_size + static_cast<int>(i)
+                             : row_comm_rank + static_cast<int>(i) * row_comm_size;
+      if (comm_src_rank == comm_rank) {
+        assert(self_tx_i != std::numeric_limits<size_t>::max());
+        rx_counts[i] = tx_counts[tx_self_i];
+        // FIXME: better define request_null (similar to MPI_REQUEST_NULL) under raft::comms
+        count_requests[tx_counts.size() + i] = std::numeric_limits<raft::comms::request_t>::max();
+      } else {
+        comm.irecv(&rx_counts[i],
+                   1,
+                   comm_src_rank,
+                   0 /* tag */,
+                   count_requests.data() + tx_counts.size() + i);
+      }
     }
+    // FIXME: better define request_null (similar to MPI_REQUEST_NULL) under raft::comms, if
+    // raft::comms::wait immediately returns on seeing request_null, this remove is unnecessary
+    std::remove(count_requests.begin(),
+                count_requests.end(),
+                std::numeric_limits<raft::comms::request_t>::max());
     comm.waitall(count_requests.size(), count_requests.data());
 
     std::vector<edge_t> tx_offsets(tx_counts.size() + 1, edge_t{0});
@@ -577,36 +600,63 @@ void update_frontier_v_push_if_out_nbr(
       auto comm_dst_rank = graph_view.is_hypergraph_partitioned()
                              ? col_comm_rank * row_comm_size + i
                              : row_comm_rank * col_comm_size + i;
-      comm.isend(detail::iter_to_raw_ptr(buffer_key_first + tx_offsets[i]),
-                 static_cast<size_t>(tx_counts[i]),
-                 comm_dst_rank,
-                 int{0} /* tag */,
-                 buffer_requests.data() + i * (1 + tuple_size));
-      device_isend<decltype(buffer_payload_first), decltype(buffer_payload_first)>(
-        comm,
-        buffer_payload_first + tx_offsets[i],
-        static_cast<size_t>(tx_counts[i]),
-        comm_dst_rank,
-        int{1} /* base tag */,
-        buffer_requests.data() + (i * (1 + tuple_size) + 1));
+      if (comm_dst_rank == comm_rank) {
+        assert(i == tx_self_i);
+        // FIXME: better define request_null (similar to MPI_REQUEST_NULL) under raft::comms
+        std::fill(buffer_requests.data() + i * (1 + tuple_size),
+                  buffer_requests.data() + (i + 1) * (1 + tuple_size),
+                  std::numeric_limits<raft::comms::request_t>::max());
+      } else {
+        comm.isend(detail::iter_to_raw_ptr(buffer_key_first + tx_offsets[i]),
+                   static_cast<size_t>(tx_counts[i]),
+                   comm_dst_rank,
+                   int{0} /* tag */,
+                   buffer_requests.data() + i * (1 + tuple_size));
+        device_isend<decltype(buffer_payload_first), decltype(buffer_payload_first)>(
+          comm,
+          buffer_payload_first + tx_offsets[i],
+          static_cast<size_t>(tx_counts[i]),
+          comm_dst_rank,
+          int{1} /* base tag */,
+          buffer_requests.data() + (i * (1 + tuple_size) + 1));
+      }
     }
     for (size_t i = 0; i < rx_counts.size(); ++i) {
       auto comm_src_rank = graph_view.is_hypergraph_partitioned()
                              ? col_comm_rank * row_comm_size + i
                              : row_comm_rank + i * row_comm_size;
-      comm.irecv(detail::iter_to_raw_ptr(buffer_key_first + num_buffer_elements + rx_offsets[i]),
-                 static_cast<size_t>(rx_counts[i]),
-                 comm_src_rank,
-                 int{0} /* tag */,
-                 buffer_requests.data() + ((tx_counts.size() + i) * (1 + tuple_size)));
-      device_irecv<decltype(buffer_payload_first), decltype(buffer_payload_first)>(
-        comm,
-        buffer_payload_first + num_buffer_elements + rx_offsets[i],
-        static_cast<size_t>(rx_counts[i]),
-        comm_src_rank,
-        int{1} /* base tag */,
-        buffer_requests.data() + ((tx_counts.size() + i) * (1 + tuple_size) + 1));
+      if (comm_src_rank == comm_rank) {
+        assert(self_tx_i != std::numeric_limits<size_t>::max());
+        assert(rx_counts[i] == tx_counts[tx_self_i]);
+        thrust::copy(
+          rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
+          detail::iter_to_raw_ptr(buffer_key_first + tx_offsets[tx_self_i]),
+          detail::iter_to_raw_ptr(buffer_key_first + tx_offsets[tx_self_i] + tx_counts[tx_self_i]),
+          detail::iter_to_raw_ptr(buffer_key_first + num_buffer_elements + rx_offsets[i]));
+        // FIXME: better define request_null (similar to MPI_REQUEST_NULL) under raft::comms
+        std::fill(buffer_requests.data() + (tx_counts.size() + i) * (1 + tuple_size),
+                  buffer_requests.data() + (tx_counts.size() + i + 1) * (1 + tuple_size),
+                  std::numeric_limits<raft::comms::request_t>::max());
+      } else {
+        comm.irecv(detail::iter_to_raw_ptr(buffer_key_first + num_buffer_elements + rx_offsets[i]),
+                   static_cast<size_t>(rx_counts[i]),
+                   comm_src_rank,
+                   int{0} /* tag */,
+                   buffer_requests.data() + ((tx_counts.size() + i) * (1 + tuple_size)));
+        device_irecv<decltype(buffer_payload_first), decltype(buffer_payload_first)>(
+          comm,
+          buffer_payload_first + num_buffer_elements + rx_offsets[i],
+          static_cast<size_t>(rx_counts[i]),
+          comm_src_rank,
+          int{1} /* base tag */,
+          buffer_requests.data() + ((tx_counts.size() + i) * (1 + tuple_size) + 1));
+      }
     }
+    // FIXME: better define request_null (similar to MPI_REQUEST_NULL) under raft::comms, if
+    // raft::comms::wait immediately returns on seeing request_null, this remove is unnecessary
+    std::remove(buffer_requests.begin(),
+                buffer_requests.end(),
+                std::numeric_limits<raft::comms::request_t>::max());
     comm.waitall(buffer_requests.size(), buffer_requests.data());
 
     // FIXME: this does not exploit the fact that each segment is sorted. Lost performance
