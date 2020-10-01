@@ -24,6 +24,7 @@
 - PR #1164 MG symmetrize and conda env updates
 - PR #1162 enhanced networkx testing
 - PR #1165 updated remaining algorithms to be NetworkX compatible
+- PR #1176 Update ci/local/README.md
 
 ## Bug Fixes
 - PR #1131 Show style checker errors with set +e
