@@ -32,7 +32,6 @@
 - PR #1158 Pass size_t* & size_t* instead of size_t[] & int[] for raft allgatherv's input parameters recvcounts & displs
 - PR #1168 Disabled MG tests on single GPU
 - PR #1166 Fix misspelling of function calls in asserts causing debug build to fail
-- Just to create a PR
 
 # cuGraph 0.15.0 (26 Aug 2020)
 
