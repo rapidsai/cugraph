@@ -163,6 +163,8 @@ class partition_t {
     return hypergraph_partitioned_ ? col_comm_size_ : 1;
   }
 
+  // major: row of the graph adjacency matrix (if the graph adjacency matrix is stored as is) or
+  // column of the graph adjacency matrix (if the transposed graph adjacency matrix is stored).
   std::tuple<vertex_t, vertex_t> get_matrix_partition_major_range(size_t partition_idx) const
   {
     auto major_first = get_matrix_partition_major_first(partition_idx);
@@ -189,10 +191,13 @@ class partition_t {
     return matrix_partition_major_value_start_offsets_[partition_idx];
   }
 
+  // minor: column of the graph adjacency matrix (if the graph adjacency matrix is stored as is) or
+  // row of the graph adjacency matrix (if the transposed graph adjacency matrix is stored).
   std::tuple<vertex_t, vertex_t> get_matrix_partition_minor_range() const
   {
     auto minor_first = get_matrix_partition_minor_first();
     auto minor_last  = get_matrix_partition_minor_last();
+
     return std::make_tuple(minor_first, minor_last);
   }
 
@@ -328,6 +333,10 @@ class graph_view_t<vertex_t,
 
   bool is_weighted() const { return adj_matrix_partition_weights_.size() > 0; }
 
+  partition_t<vertex_t> get_partition() const {
+    return partition_;
+  }
+
   vertex_t get_number_of_local_vertices() const
   {
     return partition_.get_local_vertex_last() - partition_.get_local_vertex_first();
@@ -336,10 +345,6 @@ class graph_view_t<vertex_t,
   vertex_t get_local_vertex_first() const { return partition_.get_local_vertex_first(); }
 
   vertex_t get_local_vertex_last() const { return partition_.get_local_vertex_last(); }
-
-  partition_t<vertex_t> get_partition() const {
-    return partition_;
-  }
 
   vertex_t get_vertex_partition_first(size_t vertex_partition_idx) const
   {
@@ -465,6 +470,7 @@ class graph_view_t<vertex_t,
   {
     return weights(0);
   }
+
   // FIXME: this function is not part of the public stable API.This function is mainly for pattern
   // accelerator implementation. This function is currently public to support the legacy
   // implementations directly accessing CSR/CSC data, but this function will eventually become

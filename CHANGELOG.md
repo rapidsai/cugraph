@@ -6,6 +6,7 @@
 - PR #838 Add pattern accelerator API functions and pattern accelerator API based implementations of PageRank, Katz Centrality, BFS, and SSSP
 - PR #1147 Added support for NetworkX graphs as input type
 - PR #1157 Louvain API update to use graph_container_t
+- PR #1151 MNMG extension for pattern accelerator based PageRank, Katz Centrality, BFS, and SSSP implementations (C++ part)
 
 ## Improvements
 - PR 1081 MNMG Renumbering - sort partitions by degree

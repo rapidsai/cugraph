@@ -17,6 +17,7 @@
 #include <experimental/detail/graph_utils.cuh>
 #include <experimental/graph.hpp>
 #include <partition_manager.hpp>
+#include <utilities/comm_utils.cuh>
 #include <utilities/error.hpp>
 
 #include <rmm/thrust_rmm_allocator.h>
@@ -293,15 +294,8 @@ std::cout<<"DOING EC 1/3"<<std::endl;
                                          major_first, major_last, minor_first, minor_last}) == 0,
                       "Invalid API parameter: edgelists[] have out-of-range values.");
     }
-    std::cout<<"DONE CHECKING OOR"<<std::endl;
-
-    this->get_handle_ptr()->get_comms().allreduce(&number_of_local_edges_sum,
-                                                  &number_of_local_edges_sum,
-                                                  1,
-                                                  raft::comms::op_t::SUM,
-                                                  default_stream);
-    std::cout<<"DONE CHECKING AR"<<std::endl;
-
+    number_of_local_edges_sum =
+      host_scalar_allreduce(comm, number_of_local_edges_sum, default_stream);
     CUGRAPH_EXPECTS(number_of_local_edges_sum == this->get_number_of_edges(),
                     "Invalid API parameter: the sum of local edges doe counts not match with "
                     "number_of_local_edges.");
@@ -309,11 +303,9 @@ std::cout<<"DOING EC 1/3"<<std::endl;
     CUGRAPH_EXPECTS(
       partition.get_vertex_partition_last(comm_size - 1) == number_of_vertices,
       "Invalid API parameter: vertex partition should cover [0, number_of_vertices).");
-std::cout<<"DONE DOING EC 1/3"<<std::endl;
   }
 
   // convert edge list (COO) to compressed sparse format (CSR or CSC)
-std::cout<<"CONVERTING COO"<<std::endl;
 
   adj_matrix_partition_offsets_.reserve(edgelists.size());
   adj_matrix_partition_indices_.reserve(edgelists.size());
