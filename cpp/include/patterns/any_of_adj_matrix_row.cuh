@@ -16,6 +16,7 @@
 #pragma once
 
 #include <experimental/graph_view.hpp>
+#include <utilities/comm_utils.cuh>
 #include <utilities/error.hpp>
 
 #include <rmm/thrust_rmm_allocator.h>
@@ -63,7 +64,7 @@ bool any_of_adj_matrix_row(raft::handle_t const& handle,
     adj_matrix_row_value_input_first + graph_view.get_number_of_local_adj_matrix_partition_rows(),
     row_op);
   if (GraphViewType::is_multi_gpu) {
-    handle.get_comms().allreduce(&count, &count, 1, raft::comms::op_t::SUM, handle.get_stream());
+    count = host_scalar_allreduce(handle.get_comms(), count, handle.get_stream());
   }
   return (count > 0);
 }

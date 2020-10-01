@@ -15,6 +15,7 @@
  */
 #pragma once
 
+#include <utilities/comm_utils.cuh>
 #include <utilities/error.hpp>
 #include <utilities/thrust_tuple_utils.cuh>
 
@@ -163,8 +164,7 @@ class Bucket {
   template <bool do_aggregate = is_multi_gpu>
   std::enable_if_t<do_aggregate, size_t> aggregate_size() const
   {
-    CUGRAPH_FAIL("unimplemented.");
-    return size_;
+    return host_scalar_allreduce(handle_ptr_->get_comms(), size_, handle_ptr_->get_stream());
   }
 
   template <bool do_aggregate = is_multi_gpu>
@@ -354,6 +354,7 @@ class VertexFrontier {
   size_t buffer_capacity_{0};
   rmm::device_scalar<size_t> buffer_idx_{};
 
+  // FIXME: better pick between this apporach or the approach used in allocate_comm_buffer
   size_t compute_aggregate_buffer_size_in_bytes(size_t size)
   {
     size_t aggregate_buffer_size_in_bytes =

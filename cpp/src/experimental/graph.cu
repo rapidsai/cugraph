@@ -17,6 +17,7 @@
 #include <experimental/detail/graph_utils.cuh>
 #include <experimental/graph.hpp>
 #include <partition_manager.hpp>
+#include <utilities/comm_utils.cuh>
 #include <utilities/error.hpp>
 
 #include <rmm/thrust_rmm_allocator.h>
@@ -191,8 +192,8 @@ std::vector<vertex_t> segment_degree_sorted_vertex_partition(raft::handle_t cons
 
   CUDA_TRY(cudaStreamSynchronize(
     handle.get_stream()));  // this is necessary as d_segment_offsets will become out-of-scope once
-                            // this functions and returning a host variable which can be used right
-                            // after return.
+                            // this function returns and this function returns a host variable which
+                            // can be used right after return.
 
   return h_segment_offsets;
 }
@@ -279,11 +280,8 @@ graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu, std::enable_if_
                                          major_first, major_last, minor_first, minor_last}) == 0,
                       "Invalid API parameter: edgelists[] have out-of-range values.");
     }
-    this->get_handle_ptr()->get_comms().allreduce(&number_of_local_edges_sum,
-                                                  &number_of_local_edges_sum,
-                                                  1,
-                                                  raft::comms::op_t::SUM,
-                                                  default_stream);
+    number_of_local_edges_sum =
+      host_scalar_allreduce(comm, number_of_local_edges_sum, default_stream);
     CUGRAPH_EXPECTS(number_of_local_edges_sum == this->get_number_of_edges(),
                     "Invalid API parameter: the sum of local edges doe counts not match with "
                     "number_of_local_edges.");

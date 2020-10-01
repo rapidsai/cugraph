@@ -16,6 +16,7 @@
 #pragma once
 
 #include <experimental/graph_view.hpp>
+#include <utilities/comm_utils.cuh>
 #include <utilities/error.hpp>
 
 #include <raft/handle.hpp>
@@ -69,23 +70,44 @@ T transform_reduce_v_with_adj_matrix_row(
   VertexOp v_op,
   T init)
 {
-  if (GraphViewType::is_multi_gpu) {
-    CUGRAPH_FAIL("unimplemented.");
-  } else {
-    assert(graph_view.get_number_of_local_vertices() ==
-           graph_view.get_number_of_local_adj_matrix_partition_rows());
-    auto input_first = thrust::make_zip_iterator(
-      thrust::make_tuple(vertex_value_input_first, adj_matrix_row_value_input_first));
-    auto v_op_wrapper = [v_op] __device__(auto v_and_row_val) {
-      return v_op(thrust::get<0>(v_and_row_val), thrust::get<1>(v_and_row_val));
-    };
-    return thrust::transform_reduce(rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
-                                    input_first,
-                                    input_first + graph_view.get_number_of_local_vertices(),
-                                    v_op_wrapper,
-                                    init,
-                                    thrust::plus<T>());
+  T ret{};
+
+  auto vertex_first = graph_view.get_local_vertex_first();
+  auto vertex_last  = graph_view.get_local_vertex_last();
+  for (size_t i = 0; i < graph_view.get_number_of_local_adj_matrix_partitions(); ++i) {
+    auto row_first = graph_view.get_local_adj_matrix_partition_row_first(i);
+    auto row_last  = graph_view.get_local_adj_matrix_partition_row_last(i);
+
+    auto range_first = std::max(vertex_first, row_first);
+    auto range_last  = std::min(vertex_last, row_last);
+
+    if (range_last > range_first) {
+      matrix_partition_device_t<GraphViewType> matrix_partition(graph_view, i);
+      auto row_value_input_offset = GraphViewType::is_adj_matrix_transposed
+                                      ? 0
+                                      : matrix_partition.get_major_value_start_offset();
+
+      auto input_first  = thrust::make_zip_iterator(thrust::make_tuple(
+        vertex_value_input_first + (range_first - vertex_first),
+        adj_matrix_row_value_input_first + row_value_input_offset + (range_first - row_first)));
+      auto v_op_wrapper = [v_op] __device__(auto v_and_row_val) {
+        return v_op(thrust::get<0>(v_and_row_val), thrust::get<1>(v_and_row_val));
+      };
+      ret +=
+        thrust::transform_reduce(rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
+                                 input_first,
+                                 input_first + (range_last - range_first),
+                                 v_op_wrapper,
+                                 T{},
+                                 thrust::plus<T>());
+    }
   }
+
+  if (GraphViewType::is_multi_gpu) {
+    ret = host_scalar_allreduce(handle.get_comms(), ret, handle.get_stream());
+  }
+
+  return init + ret;
 }
 
 }  // namespace experimental
