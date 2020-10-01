@@ -299,6 +299,73 @@ std::pair<size_t, weight_t> call_louvain(raft::handle_t const& handle,
   return results;
 }
 
+// Wrapper for calling Pagerank through a graph container
+template <typename vertex_t, typename weight_t>
+void call_pagerank(raft::handle_t const& handle,
+                   graph_container_t const& graph_container,
+                   vertex_t* identifiers,
+                   weight_t* p_pagerank,
+                   vertex_t personalization_subset_size,
+                   vertex_t* personalization_subset,
+                   weight_t* personalization_values,
+                   double alpha,
+                   double tolerance,
+                   int64_t max_iter,
+                   bool has_guess)
+{
+  if (graph_container.graph_ptr_type == graphTypeEnum::graph_t_float_mg) {
+    pagerank(handle,
+             graph_container.graph_ptr_union.graph_t_float_mg_ptr->view(),
+             reinterpret_cast<float*>(p_pagerank),
+             personalization_subset_size,
+             personalization_subset,
+             reinterpret_cast<float*>(personalization_values),
+             alpha,
+             tolerance,
+             max_iter,
+             has_guess);
+  } else if (graph_container.graph_ptr_type == graphTypeEnum::graph_t_double_mg) {
+    pagerank(handle,
+             graph_container.graph_ptr_union.graph_t_double_mg_ptr->view(),
+             reinterpret_cast<float*>(p_pagerank),
+             personalization_subset_size,
+             personalization_subset,
+             reinterpret_cast<float*>(personalization_values),
+             alpha,
+             tolerance,
+             max_iter,
+             has_guess);
+  } else if (graph_container.graph_ptr_type == graphTypeEnum::GraphCSCViewFloat) {
+    pagerank(handle,
+             *(graph_container.graph_ptr_union.GraphCSCViewFloatPtr),
+             reinterpret_cast<float*>(p_pagerank),
+             personalization_subset_size,
+             personalization_subset,
+             reinterpret_cast<float*>(personalization_values),
+             alpha,
+             tolerance,
+             max_iter,
+             has_guess);
+
+    graph_container.graph_ptr_union.GraphCSCViewFloatPtr->get_vertex_identifiers(
+      static_cast<int32_t*>(identifiers));
+  } else {
+    pagerank(handle,
+             *(graph_container.graph_ptr_union.GraphCSCViewDoublePtr),
+             reinterpret_cast<double*>(p_pagerank),
+             personalization_subset_size,
+             personalization_subset,
+             reinterpret_cast<double*>(personalization_values),
+             alpha,
+             tolerance,
+             max_iter,
+             has_guess);
+    graph_container.graph_ptr_union.GraphCSCViewDoublePtr->get_vertex_identifiers(
+      static_cast<int32_t*>(identifiers));
+  }
+}
+
+
 // Explicit instantiations
 template std::pair<size_t, float> call_louvain(raft::handle_t const& handle,
                                                graph_container_t const& graph_container,
@@ -311,6 +378,30 @@ template std::pair<size_t, double> call_louvain(raft::handle_t const& handle,
                                                 void* parts,
                                                 size_t max_level,
                                                 double resolution);
+
+template void call_pagerank(raft::handle_t const& handle,
+                            graph_container_t const& graph_container,
+                            int* identifiers,
+                            float* p_pagerank,
+                            int32_t personalization_subset_size,
+                            int32_t* personalization_subset,
+                            float* personalization_values,
+                            double alpha,
+                            double tolerance,
+                            int64_t max_iter,
+                            bool has_guess);
+
+template void call_pagerank(raft::handle_t const& handle,
+                            graph_container_t const& graph_container,
+                            int* identifiers,
+                            double* p_pagerank,
+                            int32_t personalization_subset_size,
+                            int32_t* personalization_subset,
+                            double* personalization_values,
+                            double alpha,
+                            double tolerance,
+                            int64_t max_iter,
+                            bool has_guess);
 
 }  // namespace cython
 }  // namespace cugraph
