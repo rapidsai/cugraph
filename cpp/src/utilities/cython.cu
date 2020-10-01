@@ -454,11 +454,33 @@ std::pair<size_t, weight_t> call_louvain(raft::handle_t const& handle,
                                          size_t max_level,
                                          weight_t resolution)
 {
+  // LEGACY PATH - remove when migration to graph_t types complete
+  if (graph_container.graph_ptr_type == graphTypeEnum::GraphCSRViewFloat) {
+    //     if (graph_container.graph_ptr_type == graphTypeEnum::GraphCSRViewFloat) {
+    graph_container.graph_ptr_union.GraphCSCViewFloatPtr->get_vertex_identifiers(
+      static_cast<int32_t*>(identifiers));
+    return louvain(handle,
+                   *(graph_container.graph_ptr_union.GraphCSRViewFloatPtr),
+                   reinterpret_cast<int*>(parts),
+                   max_level,
+                   static_cast<float>(resolution));
+  } else if (graph_container.graph_ptr_type == graphTypeEnum::GraphCSRViewDouble) {
+    graph_container.graph_ptr_union.GraphCSCViewDoublePtr->get_vertex_identifiers(
+      static_cast<int32_t*>(identifiers));
+    return louvain(handle,
+                   *(graph_container.graph_ptr_union.GraphCSRViewDoublePtr),
+                   reinterpret_cast<int*>(parts),
+                   max_level,
+                   static_cast<double>(resolution));
+  }
+
+  // NON-LEGACY PATH
   detail::louvain_functor<weight_t> functor{identifiers, parts, max_level, resolution};
 
   return detail::call_function<false, std::pair<size_t, weight_t>>(
     handle, graph_container, functor);
 }
+
 
 // Explicit instantiations
 template std::pair<size_t, float> call_louvain(raft::handle_t const& handle,
