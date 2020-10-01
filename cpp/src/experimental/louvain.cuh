@@ -188,31 +188,39 @@ class src_cluster_equality_comparator_t {
  public:
   src_cluster_equality_comparator_t(rmm::device_vector<data_t> const &src,
                                     rmm::device_vector<data_t> const &dst,
-                                    rmm::device_vector<data_t> const &dst_cluster_cache)
+                                    rmm::device_vector<data_t> const &dst_cluster_cache,
+                                    data_t base_dst_id)
     : d_src_{src.data().get()},
       d_dst_{dst.data().get()},
-      d_dst_cluster_{dst_cluster_cache.data().get()}
+      d_dst_cluster_{dst_cluster_cache.data().get()},
+      base_dst_id_(base_dst_id)
   {
   }
 
   src_cluster_equality_comparator_t(data_t const *d_src,
                                     data_t const *d_dst,
-                                    data_t const *d_dst_cluster_cache)
-    : d_src_{d_src}, d_dst_{d_dst}, d_dst_cluster_{d_dst_cluster_cache}
+                                    data_t const *d_dst_cluster_cache,
+                                    data_t base_dst_id)
+    : d_src_{d_src}, d_dst_{d_dst}, d_dst_cluster_{d_dst_cluster_cache}, base_dst_id_(base_dst_id)
   {
   }
 
   template <typename idx_type>
   __device__ bool operator()(idx_type lhs_index, idx_type rhs_index) const noexcept
   {
+    printf("src_cluster_equality_comparator, lhs = %d, rhs = %d, left_src = %d, right_src = %d, left_dst = %d, right_dst = %d, base = %d\n",
+           (int) lhs_index, (int) rhs_index, (int) d_src_[lhs_index], (int) d_src_[rhs_index], (int) d_dst_[lhs_index], (int) d_dst_[rhs_index], (int) base_dst_id_);
+
     return (d_src_[lhs_index] == d_src_[rhs_index]) &&
-           (d_dst_cluster_[d_dst_[lhs_index]] == d_dst_cluster_[d_dst_[rhs_index]]);
+           (d_dst_cluster_[d_dst_[lhs_index] - base_dst_id_] ==
+            d_dst_cluster_[d_dst_[rhs_index] - base_dst_id_]);
   }
 
  private:
   data_t const *d_src_;
   data_t const *d_dst_;
   data_t const *d_dst_cluster_;
+  data_t base_dst_id_;
 };
 
 //
@@ -223,15 +231,20 @@ class src_cluster_hasher_t {
  public:
   src_cluster_hasher_t(rmm::device_vector<data_t> const &src,
                        rmm::device_vector<data_t> const &dst,
-                       rmm::device_vector<data_t> const &dst_cluster_cache)
+                       rmm::device_vector<data_t> const &dst_cluster_cache,
+                       data_t base_dst_id)
     : d_src_{src.data().get()},
       d_dst_{dst.data().get()},
-      d_dst_cluster_{dst_cluster_cache.data().get()}
+      d_dst_cluster_{dst_cluster_cache.data().get()},
+      base_dst_id_(base_dst_id)
   {
   }
 
-  src_cluster_hasher_t(data_t const *d_src, data_t const *d_dst, data_t const *d_dst_cluster_cache)
-    : d_src_{d_src}, d_dst_{d_dst}, d_dst_cluster_{d_dst_cluster_cache}
+  src_cluster_hasher_t(data_t const *d_src,
+                       data_t const *d_dst,
+                       data_t const *d_dst_cluster_cache,
+                       data_t base_dst_id)
+    : d_src_{d_src}, d_dst_{d_dst}, d_dst_cluster_{d_dst_cluster_cache}, base_dst_id_(base_dst_id)
   {
   }
 
@@ -240,8 +253,13 @@ class src_cluster_hasher_t {
   {
     MurmurHash3_32<data_t> hasher;
 
+    printf("src_cluster_hasher, index = %d\n", (int) index);
+    printf("src_cluster_hasher, index = %d, src = %d, dst = %d, base = %d, offset = %d\n",
+           (int) index, (int) d_src_[index], (int) d_dst_[index], (int) base_dst_id_, (int) (d_dst_[index] - base_dst_id_));
+    printf("  dst cluster = %d\n", (int) d_dst_cluster_[d_dst_[index] - base_dst_id_]);
+
     auto h_src     = hasher(d_src_[index]);
-    auto h_cluster = hasher(d_dst_cluster_[d_dst_[index]]);
+    auto h_cluster = hasher(d_dst_cluster_[d_dst_[index] - base_dst_id_]);
 
     /*
      * Combine the source hash and the cluster hash into a single hash value
@@ -258,6 +276,7 @@ class src_cluster_hasher_t {
   data_t const *d_src_;
   data_t const *d_dst_;
   data_t const *d_dst_cluster_;
+  data_t base_dst_id_;
 };
 
 //
@@ -398,15 +417,13 @@ class Louvain {
 
       CUDA_TRY(cudaStreamSynchronize(stream_));
 
-      std::cout << "rank: " << rank_
-                << ", base_vertex_id = " << base_vertex_id_
+      std::cout << "rank: " << rank_ << ", base_vertex_id = " << base_vertex_id_
                 << ", base_src_vertex_id = " << base_src_vertex_id_
                 << ", base_dst_vertex_id = " << base_dst_vertex_id_
                 << ", local_num_edges = " << local_num_edges_
                 << ", local_num_vertices = " << local_num_vertices_
                 << ", local_num_rows = " << local_num_rows_
-                << ", local_num_cols = " << local_num_cols_
-                << std::endl;
+                << ", local_num_cols = " << local_num_cols_ << std::endl;
     }
 
     src_indices_v_.resize(local_num_edges_);
@@ -642,11 +659,18 @@ class Louvain {
       handle_, current_graph_view_, local_input_v.begin(), src_cache_v.begin());
 
     print_v("src_cache_v", src_cache_v);
-    
+
     std::cout << "dst_cache_v size = " << dst_cache_v.size() << std::endl;
 
+#if 0
     copy_to_adj_matrix_col(
       handle_, current_graph_view_, local_input_v.begin(), dst_cache_v.begin());
+#else
+    thrust::copy(rmm::exec_policy(stream_)->on(stream_),
+                 local_input_v.begin(),
+                 local_input_v.end(),
+                 dst_cache_v.begin());
+#endif
   }
 
   //
@@ -747,10 +771,12 @@ class Louvain {
     weight_t const *d_weights           = current_graph_view_.weights();
     vertex_t const *d_dst_cluster_cache = dst_cluster_cache_v_.data().get();
 
+    print_v("dst_cluster_cache", dst_cluster_cache_v_);
+
     detail::src_cluster_equality_comparator_t<vertex_t> compare(
-      d_src_indices, d_dst_indices, d_dst_cluster_cache);
+      d_src_indices, d_dst_indices, d_dst_cluster_cache, base_dst_vertex_id_);
     detail::src_cluster_hasher_t<vertex_t> hasher(
-      d_src_indices, d_dst_indices, d_dst_cluster_cache);
+      d_src_indices, d_dst_indices, d_dst_cluster_cache, base_dst_vertex_id_);
     detail::skip_edge_t<vertex_t> skip_edge(d_src_indices, d_dst_indices);
 
     //
@@ -767,6 +793,9 @@ class Louvain {
 
     std::tie(local_cluster_edge_ids_v, nbr_weights_v) =
       local_src_dest_weights(hasher, compare, skip_edge, d_weights, local_num_edges_);
+
+    print_v("local_cluster_edge_ids", local_cluster_edge_ids_v);
+    print_v("nbr_weights", nbr_weights_v);
 
     //
     //  Now we will gather the relevant source ids, neighboring clusters and
@@ -787,6 +816,8 @@ class Louvain {
 #endif
 
     auto d_edge_device_view = compute_partition_.edge_device_view();
+
+    std::cout << "call variable_shuffle" << std::endl;
 
     src_v = variable_shuffle<graph_view_t::is_multi_gpu, vertex_t>(
       handle_,
@@ -944,15 +975,18 @@ class Louvain {
 #ifdef DEBUG
 #if 1
     printf("after loop...\n");
-    thrust::for_each_n(
-      rmm::exec_policy(stream_)->on(stream_),
-      thrust::make_counting_iterator<std::size_t>(0),
-      1,
-      [d_src, d_nbr_cluster, d_nbr_weights, num_nbr_weights] __device__(auto idx) {
-        for (std::size_t i = 0; i < num_nbr_weights; ++i)
-          if (d_nbr_weights[i] > 0)
-            printf(" %ld: (%d, %d, %g)\n", i, (int) d_src.get()[i], (int) d_nbr_cluster[i], d_nbr_weights[i]);
-      });
+    thrust::for_each_n(rmm::exec_policy(stream_)->on(stream_),
+                       thrust::make_counting_iterator<std::size_t>(0),
+                       1,
+                       [d_src, d_nbr_cluster, d_nbr_weights, num_nbr_weights] __device__(auto idx) {
+                         for (std::size_t i = 0; i < num_nbr_weights; ++i)
+                           if (d_nbr_weights[i] > 0)
+                             printf(" %ld: (%d, %d, %g)\n",
+                                    i,
+                                    (int)d_src.get()[i],
+                                    (int)d_nbr_cluster[i],
+                                    d_nbr_weights[i]);
+                       });
 #endif
 #endif
 
@@ -1120,39 +1154,40 @@ class Louvain {
     //   Then we can, on each gpu, do a local assignment for all of the
     //   vertices assigned to that gpu using the up_down logic
     //
-    thrust::for_each_n(rmm::exec_policy(stream_)->on(stream_),
-                       thrust::make_counting_iterator<vertex_t>(0),
-                       local_num_vertices_,
-                       [d_best_nbr_cluster_id,
-                        d_best_delta_Q_value,
-                        VMAX,
-                        up_down,
-                        d_next_cluster,
-                        d_vertex_weights,
-                        d_cluster_weights] __device__(vertex_t idx) {
+    thrust::for_each_n(
+      rmm::exec_policy(stream_)->on(stream_),
+      thrust::make_counting_iterator<vertex_t>(0),
+      local_num_vertices_,
+      [d_best_nbr_cluster_id,
+       d_best_delta_Q_value,
+       VMAX,
+       up_down,
+       d_next_cluster,
+       d_vertex_weights,
+       d_cluster_weights] __device__(vertex_t idx) {
 #ifdef DEBUG
-                         printf("best = %d, max = %d\n", (int) d_best_nbr_cluster_id.get()[idx], (int) VMAX);
+        printf("best = %d, max = %d\n", (int)d_best_nbr_cluster_id.get()[idx], (int)VMAX);
 #endif
-                         if (d_best_nbr_cluster_id[idx] != VMAX) {
-                           vertex_t new_cluster = d_best_nbr_cluster_id[idx];
-                           vertex_t old_cluster = d_next_cluster[idx];
+        if (d_best_nbr_cluster_id[idx] != VMAX) {
+          vertex_t new_cluster = d_best_nbr_cluster_id[idx];
+          vertex_t old_cluster = d_next_cluster[idx];
 
-                           if ((new_cluster > old_cluster) == up_down) {
+          if ((new_cluster > old_cluster) == up_down) {
 #ifdef DEBUG
-                             printf("moving vertex %d from cluster %d to cluster %d\n",
-                                    (int)idx,
-                                    (int)old_cluster,
-                                    (int)new_cluster);
+            printf("moving vertex %d from cluster %d to cluster %d\n",
+                   (int)idx,
+                   (int)old_cluster,
+                   (int)new_cluster);
 #endif
-                             weight_t src_weight = d_vertex_weights[idx];
-                             d_next_cluster[idx] = new_cluster;
+            weight_t src_weight = d_vertex_weights[idx];
+            d_next_cluster[idx] = new_cluster;
 
-                             // TODO:  These might be remote...
-                             atomicAdd(d_cluster_weights.get() + new_cluster, src_weight);
-                             atomicAdd(d_cluster_weights.get() + old_cluster, -src_weight);
-                           }
-                         }
-                       });
+            // TODO:  These might be remote...
+            atomicAdd(d_cluster_weights.get() + new_cluster, src_weight);
+            atomicAdd(d_cluster_weights.get() + old_cluster, -src_weight);
+          }
+        }
+      });
 
 #ifdef DEBUG
     print_v("next_cluster", next_cluster_v);
@@ -1172,11 +1207,18 @@ class Louvain {
     weight_t const *d_weights,
     count_t num_weights)
   {
+    std::cout << "in local_src_dest_weights, num_weights = " << num_weights << std::endl;
+    CUDA_TRY(cudaStreamSynchronize(stream_));
+
     std::size_t capacity{static_cast<std::size_t>(num_weights / 0.7)};
+    std::cout << "capacity = " << capacity << std::endl;
 
     cuco::static_map<count_t, count_t> hash_map(capacity, VERTEX_MAX, count_t{0});
 
     detail::create_cuco_pair_t<count_t> create_cuco_pair;
+
+    CUDA_TRY(cudaStreamSynchronize(stream_));
+    std::cout << "hash_map insert beginning, size = " << hash_map.get_capacity() << std::endl;
 
     hash_map.insert(
       thrust::make_transform_iterator(thrust::make_counting_iterator<count_t>(0), create_cuco_pair),
@@ -1184,6 +1226,10 @@ class Louvain {
                                       create_cuco_pair),
       hasher,
       compare);
+
+    std::cout << "hash_map insert complete" << std::endl;
+    CUDA_TRY(cudaStreamSynchronize(stream_));
+    std::cout << "hash_map insert complete, size = " << hash_map.get_size() << std::endl;
 
     auto d_hash_map = hash_map.get_device_view();
 
