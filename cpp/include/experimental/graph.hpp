@@ -70,11 +70,6 @@ class graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu, std::enab
           bool sorted_by_global_degree_within_vertex_partition,
           bool do_expensive_check = false);
 
-  vertex_t get_number_of_local_vertices() const
-  {
-    return partition_.get_vertex_partition_last() - partition_.get_vertex_partition_first();
-  }
-
   graph_view_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu> view()
   {
     std::vector<edge_t const *> offsets(adj_matrix_partition_offsets_.size(), nullptr);

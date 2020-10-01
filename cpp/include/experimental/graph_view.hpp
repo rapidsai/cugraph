@@ -34,21 +34,28 @@ namespace experimental {
 /**
  * @brief store vertex partitioning map
  *
- * Say P = P_row * P_col GPUs. We need to partition 1D vertex arrays (storing per vertex values) and
- * the 2D graph adjacency matrix (or transposed 2D graph adjacency matrix) of G. An 1D vertex array
- * of size V is divided to P linear partitions; each partition has the size close to V / P. We
- * consider two different strategies to partition the 2D matrix: the default strategy and the
- * hypergraph partitioning based strategy (the latter is for future extension).
+ * Say P = P_row * P_col GPUs. For communication, we need P_row row communicators of size P_col and
+ * P_col column communicators of size P_row. row_comm_size = P_col and col_comm_size = P_row.
+ * row_comm_rank & col_comm_rank are ranks within the row & column communicators, respectively.
+ *
+ * We need to partition 1D vertex arrays (storing per vertex values) and the 2D graph adjacency
+ * matrix (or transposed 2D graph adjacency matrix) of G. An 1D vertex array of size V is divided to
+ * P linear partitions; each partition has the size close to V / P. We consider two different
+ * strategies to partition the 2D matrix: the default strategy and the hypergraph partitioning based
+ * strategy (the latter is for future extension).
+ * FIXME: in the future we may use the latter for both as this leads to simpler communication
+ * patterns and better control over parallelism vs memory footprint trade-off.
  *
  * In the default case, one GPU will be responsible for 1 rectangular partition. The matrix will be
  * horizontally partitioned first to P_row slabs. Each slab will be further vertically partitioned
  * to P_col rectangles. Each rectangular partition will have the size close to V / P_row by V /
  * P_col.
  *
- * To be more specific, a GPU with (row_rank, col_rank) will be responsible for one rectangular
- * partition [a,b) by [c,d) where a = vertex_partition_offsets[P_col * row_rank], b =
- * vertex_partition_offsets[p_col * (row_rank + 1)], c = vertex_partition_offsets[P_row * col_rank],
- * and d = vertex_partition_offsets[p_row * (col_rank + 1)]
+ * To be more specific, a GPU with (col_comm_rank, row_comm_rank) will be responsible for one
+ * rectangular partition [a,b) by [c,d) where a = vertex_partition_offsets[row_comm_size *
+ * col_comm_rank], b = vertex_partition_offsets[row_comm_size * (col_comm_rank + 1)], c =
+ * vertex_partition_offsets[col_comm_size * row_comm_rank], and d =
+ * vertex_partition_offsets[col_comm_size * (row_comm_rank + 1)].
  *
  * In the future, we may apply hyper-graph partitioning to divide V vertices to P groups minimizing
  * edge cuts across groups while balancing the number of vertices in each group. We will also
@@ -56,13 +63,16 @@ namespace experimental {
  * will be more non-zeros in the diagonal partitions of the 2D graph adjacency matrix (or the
  * transposed 2D graph adjacency matrix) than the off-diagonal partitions. The default strategy does
  * not balance the number of nonzeros if hyper-graph partitioning is applied. To solve this problem,
- * the matrix is first horizontally partitioned to P (instead of P_row) slabs, then each slab will
- * be further vertically partitioned to P_col rectangles. One GPU will be responsible P_col
- * rectangular partitions in this case.
+ * the matrix is first horizontally partitioned to P slabs, then each slab will be further
+ * vertically partitioned to P_row (instead of P_col in the default case) rectangles. One GPU will
+ * be responsible col_comm_size rectangular partitions in this case.
  *
- * To be more specific, a GPU with (row_rank, col_rank) will be responsible for P_col rectangular
- * partitions [a_i,b_i) by [c,d) where a_i = vertex_partition_offsets[P_row * i + row_rank] and b_i
- * = vertex_partition_offsets[P_row * i + row_rank + 1]. c and d are same to 1) and i = [0, P_col).
+ * To be more specific, a GPU with (col_comm_rank, row_comm_rank) will be responsible for
+ * col_comm_size rectangular partitions [a_i,b_i) by [c,d) where a_i =
+ * vertex_partition_offsets[row_comm_size * i + row_comm_rank] and b_i =
+ * vertex_partition_offsets[row_comm_size * i + row_comm_rank + 1]. c is
+ * vertex_partition_offsets[row_comm_size * col_comm_rank] and d =
+ * vertex_partition_offsests[row_comm_size * (col_comm_rank + 1)].
  *
  * See E. G. Boman et. al., “Scalable matrix computations on large scale-free graphs using 2D graph
  * partitioning”, 2013 for additional detail.
@@ -87,7 +97,7 @@ class partition_t {
       col_comm_rank_(col_comm_rank)
   {
     CUGRAPH_EXPECTS(
-      vertex_partition_offsets.size() == static_cast<size_t>((row_comm_size * col_comm_size) + 1),
+      vertex_partition_offsets.size() == static_cast<size_t>(row_comm_size * col_comm_size + 1),
       "Invalid API parameter: erroneous vertex_partition_offsets.size().");
 
     CUGRAPH_EXPECTS(
@@ -104,15 +114,15 @@ class partition_t {
     }
   }
 
-  std::tuple<vertex_t, vertex_t> get_vertex_partition_range() const
+  std::tuple<vertex_t, vertex_t> get_local_vertex_range() const
   {
     return std::make_tuple(vertex_partition_offsets_[comm_rank_],
                            vertex_partition_offsets_[comm_rank_ + 1]);
   }
 
-  vertex_t get_vertex_partition_first() const { return vertex_partition_offsets_[comm_rank_]; }
+  vertex_t get_local_vertex_first() const { return vertex_partition_offsets_[comm_rank_]; }
 
-  vertex_t get_vertex_partition_last() const { return vertex_partition_offsets_[comm_rank_ + 1]; }
+  vertex_t get_local_vertex_last() const { return vertex_partition_offsets_[comm_rank_ + 1]; }
 
   std::tuple<vertex_t, vertex_t> get_vertex_partition_range(size_t vertex_partition_idx) const
   {
@@ -130,16 +140,23 @@ class partition_t {
     return vertex_partition_offsets_[vertex_partition_idx + 1];
   }
 
+  vertex_t get_vertex_partition_size(size_t vertex_partition_idx) const
+  {
+    return get_vertex_partition_last(vertex_partition_idx) -
+           get_vertex_partition_first(vertex_partition_idx);
+  }
+
   size_t get_number_of_matrix_partitions() const
   {
     return hypergraph_partitioned_ ? col_comm_size_ : 1;
   }
 
+  // major: row of the graph adjacency matrix (if the graph adjacency matrix is stored as is) or
+  // column of the graph adjacency matrix (if the transposed graph adjacency matrix is stored).
   std::tuple<vertex_t, vertex_t> get_matrix_partition_major_range(size_t partition_idx) const
   {
     auto major_first = get_matrix_partition_major_first(partition_idx);
     auto major_last  = get_matrix_partition_major_last(partition_idx);
-
     return std::make_tuple(major_first, major_last);
   }
 
@@ -162,6 +179,8 @@ class partition_t {
     return matrix_partition_major_value_start_offsets_[partition_idx];
   }
 
+  // minor: column of the graph adjacency matrix (if the graph adjacency matrix is stored as is) or
+  // row of the graph adjacency matrix (if the transposed graph adjacency matrix is stored).
   std::tuple<vertex_t, vertex_t> get_matrix_partition_minor_range() const
   {
     auto minor_first = get_matrix_partition_minor_first();
@@ -183,6 +202,8 @@ class partition_t {
              : vertex_partition_offsets_[(row_comm_rank_ + 1) * col_comm_size_];
   }
 
+  // FIXME: this function may be removed if we use the same partitioning strategy whether hypergraph
+  // partitioning is applied or not
   bool is_hypergraph_partitioned() const { return hypergraph_partitioned_; }
 
  private:
@@ -302,12 +323,28 @@ class graph_view_t<vertex_t,
 
   vertex_t get_number_of_local_vertices() const
   {
-    return partition_.get_vertex_partition_last() - partition_.get_vertex_partition_first();
+    return partition_.get_local_vertex_last() - partition_.get_local_vertex_first();
   }
 
-  vertex_t get_local_vertex_first() const { return partition_.get_vertex_partition_first(); }
+  vertex_t get_local_vertex_first() const { return partition_.get_local_vertex_first(); }
 
-  vertex_t get_local_vertex_last() const { return partition_.get_vertex_partition_last(); }
+  vertex_t get_local_vertex_last() const { return partition_.get_local_vertex_last(); }
+
+  vertex_t get_vertex_partition_first(size_t vertex_partition_idx) const
+  {
+    return partition_.get_vertex_partition_first(vertex_partition_idx);
+  }
+
+  vertex_t get_vertex_partition_last(size_t vertex_partition_idx) const
+  {
+    return partition_.get_vertex_partition_last(vertex_partition_idx);
+  }
+
+  vertex_t get_vertex_partition_size(size_t vertex_partition_idx) const
+  {
+    return get_vertex_partition_last(vertex_partition_idx) -
+           get_vertex_partition_first(vertex_partition_idx);
+  }
 
   bool is_local_vertex_nocheck(vertex_t v) const
   {
@@ -388,6 +425,8 @@ class graph_view_t<vertex_t,
              ? partition_.get_matrix_partition_major_value_start_offset(adj_matrix_partition_idx)
              : 0;
   }
+
+  bool is_hypergraph_partitioned() const { return partition_.is_hypergraph_partitioned(); }
 
   // FIXME: this function is not part of the public stable API.This function is mainly for pattern
   // accelerator implementation. This function is currently public to support the legacy
@@ -470,6 +509,19 @@ class graph_view_t<vertex_t,
 
   vertex_t get_local_vertex_last() const { return this->get_number_of_vertices(); }
 
+  vertex_t get_vertex_partition_first(size_t vertex_partition_idx) const { return vertex_t{0}; }
+
+  vertex_t get_vertex_partition_last(size_t vertex_partition_idx) const
+  {
+    return this->get_number_of_vertices();
+  }
+
+  vertex_t get_vertex_partition_size(size_t vertex_partition_idx) const
+  {
+    return get_vertex_partition_last(vertex_partition_idx) -
+           get_vertex_partition_first(vertex_partition_idx);
+  }
+
   constexpr bool is_local_vertex_nocheck(vertex_t v) const { return true; }
 
   constexpr size_t get_number_of_local_adj_matrix_partitions() const { return size_t(1); }
@@ -521,6 +573,8 @@ class graph_view_t<vertex_t,
     assert(adj_matrix_partition_idx == 0);
     return vertex_t{0};
   }
+
+  bool is_hypergraph_partitioned() const { return false; }
 
   // FIXME: this function is not part of the public stable API.This function is mainly for pattern
   // accelerator implementation. This function is currently public to support the legacy
