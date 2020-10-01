@@ -445,7 +445,7 @@ class graph_view_t<vertex_t,
   // private or even disappear if we switch to CSR + DCSR (or CSC + DCSC).
   edge_t const* offsets() const
   {
-    return adj_matrix_partition_offsets_[partition_.get_comm_rank()];
+    return offsets(0);
   }
 
   // FIXME: this function is not part of the public stable API.This function is mainly for pattern
@@ -454,7 +454,7 @@ class graph_view_t<vertex_t,
   // private or even disappear if we switch to CSR + DCSR (or CSC + DCSC).
   vertex_t const* indices() const
   {
-    return adj_matrix_partition_indices_[partition_.get_comm_rank()];
+    return indices(0);
   }
 
   // FIXME: this function is not part of the public stable API.This function is mainly for pattern
@@ -463,9 +463,7 @@ class graph_view_t<vertex_t,
   // private or even disappear if we switch to CSR + DCSR (or CSC + DCSC).
   weight_t const* weights() const
   {
-    return adj_matrix_partition_weights_.size() > 0
-      ? adj_matrix_partition_weights_[partition_.get_comm_rank()]
-             : static_cast<weight_t const*>(nullptr);
+    return weights(0);
   }
   // FIXME: this function is not part of the public stable API.This function is mainly for pattern
   // accelerator implementation. This function is currently public to support the legacy

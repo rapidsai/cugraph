@@ -383,18 +383,48 @@ class Louvain {
       cluster_weights_v_(graph_view.get_number_of_local_vertices()),
       cluster_v_(graph_view.get_number_of_local_vertices()),
       number_of_vertices_(graph_view.get_number_of_local_vertices()),
-      src_indices_v_(graph_view.get_number_of_edges()),
       stream_(handle.get_stream())
   {
-    cugraph::detail::offsets_to_indices(
-      current_graph_view_.offsets(), local_num_vertices_, src_indices_v_.data().get());
-
     if (graph_view_t::is_multi_gpu) {
       rank_               = handle.get_comms().get_rank();
       base_vertex_id_     = graph_view.get_local_vertex_first();
-      base_src_vertex_id_ = graph_view.get_local_adj_matrix_partition_row_first(rank_);
-      base_dst_vertex_id_ = graph_view.get_local_adj_matrix_partition_col_first(rank_);
+      base_src_vertex_id_ = graph_view.get_local_adj_matrix_partition_row_first(0);
+      base_dst_vertex_id_ = graph_view.get_local_adj_matrix_partition_col_first(0);
+
+      raft::copy(&local_num_edges_,
+                 graph_view.offsets() + graph_view.get_local_adj_matrix_partition_row_last(0),
+                 1,
+                 stream_);
+
+      CUDA_TRY(cudaStreamSynchronize(stream_));
+
+      std::cout << "rank: " << rank_
+                << ", base_vertex_id = " << base_vertex_id_
+                << ", base_src_vertex_id = " << base_src_vertex_id_
+                << ", base_dst_vertex_id = " << base_dst_vertex_id_
+                << ", local_num_edges = " << local_num_edges_
+                << ", local_num_vertices = " << local_num_vertices_
+                << ", local_num_rows = " << local_num_rows_
+                << ", local_num_cols = " << local_num_cols_
+                << std::endl;
     }
+
+    src_indices_v_.resize(local_num_edges_);
+
+    std::cout << "rank: " << rank_ << " call offsets_to_indices, size = " << src_indices_v_.size()
+              << ", local_num_vertices = " << local_num_vertices_
+              << ", local_num_edges = " << local_num_edges_ << std::endl;
+
+    printf("offsets = %p\n", current_graph_view_.offsets());
+    print_v("offsets = ", current_graph_view_.offsets(), local_num_vertices_ + 1);
+
+    cugraph::detail::offsets_to_indices(
+      current_graph_view_.offsets(), local_num_rows_, src_indices_v_.data().get());
+
+    CUDA_TRY(cudaStreamSynchronize(stream_));
+    std::cout << "rank: " << rank_ << " after offsets_to_indices" << std::endl;
+
+    print_v("src_indices_v", src_indices_v_);
   }
 
   virtual std::pair<size_t, weight_t> operator()(vertex_t *d_cluster_vec,
@@ -403,8 +433,11 @@ class Louvain {
   {
     size_t num_level{0};
 
-    std::cout << "computing total_edge_weight" << std::endl;
+    std::cout << "rank: " << rank_ << " entering louvain" << std::endl;
 
+    CUDA_TRY(cudaStreamSynchronize(stream_));
+
+    std::cout << "rank: " << rank_ << " computing total_edge_weight" << std::endl;
     weight_t total_edge_weight;
     total_edge_weight = experimental::transform_reduce_e(
       handle_,
@@ -416,7 +449,7 @@ class Louvain {
 
     weight_t best_modularity = weight_t{-1};
 
-    std::cout << "total_edge_weight = " << total_edge_weight << std::endl;
+    std::cout << "rank: " << rank_ << " total_edge_weight = " << total_edge_weight << std::endl;
 
     //
     //  Initialize every cluster to reference each vertex to itself
@@ -498,7 +531,7 @@ class Louvain {
                    [] __device__(auto p) { return p * p; },
                    weight_t{0});
 
-#if 0
+#if 1
     std::cout << "** Q (subtraction) = " << Q << std::endl;
 
     print_v("weights", vertex_weights_v_);
@@ -522,7 +555,7 @@ class Louvain {
       weight_t{0},
       increase_v.begin());
 
-#if 0
+#if 1
     CHECK_CUDA(stream_);
     print_v("increase", increase_v);
 #endif
@@ -535,7 +568,7 @@ class Louvain {
             weight_t{0}) /
           total_edge_weight);
 
-#if 0
+#if 1
     std::cout << "** Q (final) = " << Q << std::endl;
 #endif
 
@@ -601,8 +634,17 @@ class Louvain {
     src_cache_v.resize(current_graph_view_.get_number_of_local_adj_matrix_partition_rows());
     dst_cache_v.resize(current_graph_view_.get_number_of_local_adj_matrix_partition_cols());
 
+    print_v("local_input", local_input_v);
+
+    std::cout << "src_cache_v size = " << src_cache_v.size() << std::endl;
+
     copy_to_adj_matrix_row(
       handle_, current_graph_view_, local_input_v.begin(), src_cache_v.begin());
+
+    print_v("src_cache_v", src_cache_v);
+    
+    std::cout << "dst_cache_v size = " << dst_cache_v.size() << std::endl;
+
     copy_to_adj_matrix_col(
       handle_, current_graph_view_, local_input_v.begin(), dst_cache_v.begin());
   }

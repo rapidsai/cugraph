@@ -23,12 +23,22 @@ namespace experimental {
 
 namespace detail {
 
+template <typename T>
+void print_v(const char *label, rmm::device_vector<T> const &vector_v)
+{
+  std::cout << label << "(" << vector_v.size() << "): ";
+  thrust::copy(vector_v.begin(), vector_v.end(), std::ostream_iterator<T>(std::cout, " "));
+  std::cout << std::endl;
+}
+
 template <typename data_t, typename iterator_t, typename partition_iter_t>
 rmm::device_vector<data_t> variable_shuffle(raft::handle_t const &handle,
                                             std::size_t n_elements,
                                             iterator_t data_iter,
                                             partition_iter_t partition_iter)
 {
+  std::cout << "in variable_shuffle, n_elements = " << n_elements << std::endl;
+  
   //
   // We need to compute the size of data movement
   //
@@ -41,9 +51,11 @@ rmm::device_vector<data_t> variable_shuffle(raft::handle_t const &handle,
   rmm::device_vector<uint64_t> local_sizes_v(num_gpus);
   rmm::device_vector<uint64_t> global_sizes_v(num_gpus);
 
-  // TODO:
   rmm::device_vector<data_t> input_v(data_iter, data_iter + n_elements);
   rmm::device_vector<int32_t> partitions_v(partition_iter, partition_iter + n_elements);
+
+  print_v("input_v", input_v);
+  print_v("partitions_v", partitions_v);
 
   auto d_local_sizes  = local_sizes_v.data().get();
   auto d_global_sizes = global_sizes_v.data().get();
@@ -53,6 +65,8 @@ rmm::device_vector<data_t> variable_shuffle(raft::handle_t const &handle,
     partitions_v.begin(),
     partitions_v.end(),
     [d_local_sizes] __device__(auto p) { atomicAdd(d_local_sizes + p, uint64_t{1}); });
+
+  print_v("local_sizes_v", local_sizes_v);
 
   std::vector<raft::comms::request_t> requests(2 * num_gpus);
 
@@ -84,6 +98,9 @@ rmm::device_vector<data_t> variable_shuffle(raft::handle_t const &handle,
 
   comms.waitall(requests_wait.size(), requests_wait.data());
   comms.barrier();
+
+  std::cout << "after waitall" << std::endl;
+  print_v("global_sizes_v", global_sizes_v);
 
   //
   //  Now global_sizes contains all of the counts, we need to
