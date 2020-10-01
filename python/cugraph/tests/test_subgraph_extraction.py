@@ -71,7 +71,7 @@ def nx_call(M, verts, directed=True):
 
 
 # Test all combinations of default/managed and pooled/non-pooled allocation
-@pytest.mark.parametrize("graph_file", utils.DATASETS_4)
+@pytest.mark.parametrize("graph_file", utils.DATASETS)
 def test_subgraph_extraction_DiGraph(graph_file):
     gc.collect()
 
@@ -88,7 +88,7 @@ def test_subgraph_extraction_DiGraph(graph_file):
 # Test all combinations of default/managed and pooled/non-pooled allocation
 
 
-@pytest.mark.parametrize("graph_file", utils.DATASETS_4)
+@pytest.mark.parametrize("graph_file", utils.DATASETS)
 def test_subgraph_extraction_Graph(graph_file):
     gc.collect()
 
@@ -100,3 +100,33 @@ def test_subgraph_extraction_Graph(graph_file):
     cu_sg = cugraph_call(M, verts, False)
     nx_sg = nx_call(M, verts, False)
     assert compare_edges(cu_sg, nx_sg)
+
+
+@pytest.mark.parametrize("graph_file", utils.DATASETS)
+def test_subgraph_extraction_Graph_nx(graph_file):
+    gc.collect()
+    directed = False
+    verts = np.zeros(3, dtype=np.int32)
+    verts[0] = 0
+    verts[1] = 1
+    verts[2] = 17
+
+    M = utils.read_csv_for_nx(graph_file)
+
+    if directed:
+        G = nx.from_pandas_edgelist(
+            M, source="0", target="1", create_using=nx.DiGraph()
+        )
+    else:
+        G = nx.from_pandas_edgelist(
+            M, source="0", target="1", create_using=nx.Graph()
+        )
+
+    nx_sub = nx.subgraph(G, verts)
+    nx_df = nx.to_pandas_edgelist(nx_sub).to_dict()
+
+    cu_verts = cudf.Series(verts)
+    cu_sub = cugraph.subgraph(G, cu_verts)
+    cu_df = nx.to_pandas_edgelist(cu_sub).to_dict()
+
+    assert nx_df == cu_df

@@ -15,6 +15,7 @@ import gc
 import pytest
 import cugraph
 from cugraph.tests import utils
+from cugraph.utilities import df_score_to_dictionary
 
 # Temporarily suppress warnings till networkX fixes deprecation warnings
 # (Using or importing the ABCs from 'collections' instead of from
@@ -31,19 +32,38 @@ with warnings.catch_warnings():
 print("Networkx version : {} ".format(nx.__version__))
 
 
-def calc_core_number(graph_file):
-    M = utils.read_csv_file(graph_file)
-    G = cugraph.DiGraph()
-    G.from_cudf_edgelist(M, source="0", destination="1")
-
-    cn = cugraph.core_number(G)
-    cn = cn.sort_values("vertex").reset_index(drop=True)
-
+def calc_nx_core_number(graph_file):
     NM = utils.read_csv_for_nx(graph_file)
     Gnx = nx.from_pandas_edgelist(
         NM, source="0", target="1", create_using=nx.Graph()
     )
     nc = nx.core_number(Gnx)
+    return nc
+
+
+def calc_cg_core_number(graph_file):
+    M = utils.read_csv_file(graph_file)
+    G = cugraph.Graph()
+    G.from_cudf_edgelist(M, source="0", destination="1")
+
+    cn = cugraph.core_number(G)
+    return cn
+
+
+def calc_core_number(graph_file):
+    NM = utils.read_csv_for_nx(graph_file)
+    Gnx = nx.from_pandas_edgelist(
+        NM, source="0", target="1", create_using=nx.Graph()
+    )
+    nc = nx.core_number(Gnx)
+
+    M = utils.read_csv_file(graph_file)
+    G = cugraph.Graph()
+    G.from_cudf_edgelist(M, source="0", destination="1")
+
+    cn = cugraph.core_number(G)
+    cn = cn.sort_values("vertex").reset_index(drop=True)
+
     pdf = [nc[k] for k in sorted(nc.keys())]
     cn["nx_core_number"] = pdf
     cn = cn.rename(columns={"core_number": "cu_core_number"}, copy=False)
@@ -62,6 +82,24 @@ def calc_core_number(graph_file):
 def test_core_number(graph_file):
     gc.collect()
 
-    cn = calc_core_number(graph_file)
+    nx_num = calc_nx_core_number(graph_file)
+    cg_num = calc_cg_core_number(graph_file)
 
-    assert cn["cu_core_number"].equals(cn["nx_core_number"])
+    # convert cugraph dataframe to a dictionary
+    cg_num_dic = df_score_to_dictionary(cg_num, k="core_number")
+
+    assert cg_num_dic == nx_num
+
+
+@pytest.mark.parametrize("graph_file", utils.DATASETS_UNDIRECTED)
+def test_core_number_nx(graph_file):
+    gc.collect()
+
+    NM = utils.read_csv_for_nx(graph_file)
+    Gnx = nx.from_pandas_edgelist(
+        NM, source="0", target="1", create_using=nx.Graph()
+    )
+    nc = nx.core_number(Gnx)
+    cc = cugraph.core_number(Gnx)
+
+    assert nc == cc

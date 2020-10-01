@@ -16,7 +16,7 @@
 # cython: embedsignature = True
 # cython: language_level = 3
 
-from cugraph.structure.graph_new cimport *
+from cugraph.structure.graph_primtypes cimport *
 
 
 cdef extern from "algorithms.hpp" namespace "cugraph":
@@ -25,7 +25,7 @@ cdef extern from "algorithms.hpp" namespace "cugraph":
         const GraphCSRView[VT,ET,WT] &graph,
         const WT *weights,
         WT *result) except +
-    
+
     cdef void overlap_list[VT,ET,WT](
         const GraphCSRView[VT,ET,WT] &graph,
         const WT *weights,

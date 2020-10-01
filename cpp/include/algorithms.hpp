@@ -15,6 +15,7 @@
  */
 #pragma once
 
+#include <experimental/graph_view.hpp>
 #include <graph.hpp>
 #include <internals.hpp>
 #include <raft/handle.hpp>
@@ -616,31 +617,30 @@ void bfs(raft::handle_t const &handle,
  *
  * @throws     cugraph::logic_error when an error occurs.
  *
- * @tparam vertex_t                  Type of vertex identifiers.
- *                                   Supported value : int (signed, 32-bit)
- * @tparam edge_t                    Type of edge identifiers.
- *                                   Supported value : int (signed, 32-bit)
- * @tparam weight_t                  Type of edge weights. Supported values : float or double.
+ * @tparam     graph_t               Type of graph
  *
+ * @param[in]  handle                Library handle (RAFT). If a communicator is set in the handle,
  * @param[in]  graph                 input graph object (CSR)
- * @param[out] final_modularity      modularity of the returned clustering
- * @param[out] num_level             number of levels of the returned clustering
  * @param[out] clustering            Pointer to device array where the clustering should be stored
- * @param[in]  max_iter              (optional) maximum number of iterations to run (default 100)
+ * @param[in]  max_level             (optional) maximum number of levels to run (default 100)
  * @param[in]  resolution            (optional) The value of the resolution parameter to use.
  *                                   Called gamma in the modularity formula, this changes the size
  *                                   of the communities.  Higher resolutions lead to more smaller
  *                                   communities, lower resolutions lead to fewer larger
- * communities. (default 1)
+ *                                   communities. (default 1)
+ *
+ * @return                           a pair containing:
+ *                                     1) number of levels of the returned clustering
+ *                                     2) modularity of the returned clustering
  *
  */
-template <typename vertex_t, typename edge_t, typename weight_t>
-void louvain(GraphCSRView<vertex_t, edge_t, weight_t> const &graph,
-             weight_t *final_modularity,
-             int *num_level,
-             vertex_t *louvain_parts,
-             int max_iter        = 100,
-             weight_t resolution = weight_t{1});
+template <typename graph_t>
+std::pair<size_t, typename graph_t::weight_type> louvain(
+  raft::handle_t const &handle,
+  graph_t const &graph,
+  typename graph_t::vertex_type *clustering,
+  size_t max_level                         = 100,
+  typename graph_t::weight_type resolution = typename graph_t::weight_type{1});
 
 /**
  * @brief      Leiden implementation
@@ -662,9 +662,8 @@ void louvain(GraphCSRView<vertex_t, edge_t, weight_t> const &graph,
  *                                   Supported value : int (signed, 32-bit)
  * @tparam weight_t                  Type of edge weights. Supported values : float or double.
  *
+ * @param[in]  handle                Library handle (RAFT). If a communicator is set in the handle,
  * @param[in]  graph                 input graph object (CSR)
- * @param[out] final_modularity      modularity of the returned clustering
- * @param[out] num_level             number of levels of the returned clustering
  * @param[out] clustering            Pointer to device array where the clustering should be stored
  * @param[in]  max_iter              (optional) maximum number of iterations to run (default 100)
  * @param[in]  resolution            (optional) The value of the resolution parameter to use.
@@ -672,14 +671,17 @@ void louvain(GraphCSRView<vertex_t, edge_t, weight_t> const &graph,
  *                                   of the communities.  Higher resolutions lead to more smaller
  *                                   communities, lower resolutions lead to fewer larger
  * communities. (default 1)
+ *
+ * @return                           a pair containing:
+ *                                     1) number of levels of the returned clustering
+ *                                     2) modularity of the returned clustering
  */
 template <typename vertex_t, typename edge_t, typename weight_t>
-void leiden(GraphCSRView<vertex_t, edge_t, weight_t> const &graph,
-            weight_t &final_modularity,
-            int &num_level,
-            vertex_t *leiden_parts,
-            int max_iter        = 100,
-            weight_t resolution = weight_t{1});
+std::pair<size_t, weight_t> leiden(raft::handle_t const &handle,
+                                   GraphCSRView<vertex_t, edge_t, weight_t> const &graph,
+                                   vertex_t *clustering,
+                                   size_t max_iter     = 100,
+                                   weight_t resolution = weight_t{1});
 
 /**
  * @brief Computes the ecg clustering of the given graph.
@@ -692,21 +694,26 @@ void leiden(GraphCSRView<vertex_t, edge_t, weight_t> const &graph,
  *
  * @throws     cugraph::logic_error when an error occurs.
  *
- * @tparam VT                        Type of vertex identifiers. Supported value : int (signed,
+ * @tparam vertex_t                  Type of vertex identifiers. Supported value : int (signed,
  * 32-bit)
- * @tparam ET                        Type of edge identifiers.  Supported value : int (signed,
+ * @tparam edge_t                    Type of edge identifiers.  Supported value : int (signed,
  * 32-bit)
- * @tparam WT                        Type of edge weights. Supported values : float or double.
+ * @tparam weight_t                  Type of edge weights. Supported values : float or double.
  *
+ * @param[in]  handle                Library handle (RAFT). If a communicator is set in the handle,
  * @param[in]  graph_coo             input graph object (COO)
  * @param[in]  graph_csr             input graph object (CSR)
  * @param[in]  min_weight            The minimum weight parameter
  * @param[in]  ensemble_size         The ensemble size parameter
- * @param[out] ecg_parts             A device pointer to array where the partitioning should be
+ * @param[out] clustering            A device pointer to array where the partitioning should be
  * written
  */
-template <typename VT, typename ET, typename WT>
-void ecg(GraphCSRView<VT, ET, WT> const &graph_csr, WT min_weight, VT ensemble_size, VT *ecg_parts);
+template <typename vertex_t, typename edge_t, typename weight_t>
+void ecg(raft::handle_t const &handle,
+         GraphCSRView<vertex_t, edge_t, weight_t> const &graph,
+         weight_t min_weight,
+         vertex_t ensemble_size,
+         vertex_t *clustering);
 
 namespace triangle {
 
@@ -926,5 +933,179 @@ void hits(GraphCSRView<VT, ET, WT> const &graph,
           WT *authorities);
 
 }  // namespace gunrock
+
+namespace experimental {
+
+/**
+ * @brief Run breadth-first search to find the distances (and predecessors) from the source
+ * vertex.
+ *
+ * This function computes the distances (minimum number of hops to reach the vertex) from the source
+ * vertex. If @p predecessors is not `nullptr`, this function calculates the predecessor of each
+ * vertex (parent vertex in the breadth-first search tree) as well.
+ *
+ * @throws cugraph::logic_error on erroneous input arguments.
+ *
+ * @tparam vertex_t Type of vertex identifiers. Needs to be an integral type.
+ * @tparam edge_t Type of edge identifiers. Needs to be an integral type.
+ * @tparam weight_t Type of edge weights. Needs to be a floating point type.
+ * @param handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator, and
+ * handles to various CUDA libraries) to run graph algorithms.
+ * @param graph_view Graph view object.
+ * @param distances Pointer to the output distance array.
+ * @param predecessors Pointer to the output predecessor array or `nullptr`.
+ * @param source_vertex Source vertex to start breadth-first search (root vertex of the breath-first
+ * search tree).
+ * @param direction_optimizing If set to true, this algorithm switches between the push based
+ * breadth-first search and pull based breadth-first search depending on the size of the
+ * breadth-first search frontier (currently unsupported). This option is valid only for symmetric
+ * input graphs.
+ * @param depth_limit Sets the maximum number of breadth-first search iterations. Any vertices
+ * farther than @p depth_limit hops from @p source_vertex will be marked as unreachable.
+ * @param do_expensive_check A flag to run expensive checks for input arguments (if set to `true`).
+ */
+template <typename vertex_t, typename edge_t, typename weight_t, bool multi_gpu>
+void bfs(raft::handle_t &handle,
+         graph_view_t<vertex_t, edge_t, weight_t, false, multi_gpu> const &graph_view,
+         vertex_t *distances,
+         vertex_t *predecessors,
+         vertex_t source_vertex,
+         bool direction_optimizing = false,
+         vertex_t depth_limit      = std::numeric_limits<vertex_t>::max(),
+         bool do_expensive_check   = false);
+
+/**
+ * @brief Run single-source shortest-path to compute the minimum distances (and predecessors) from
+ * the source vertex.
+ *
+ * This function computes the distances (minimum edge weight sums) from the source vertex. If @p
+ * predecessors is not `nullptr`, this function calculates the predecessor of each vertex in the
+ * shortest-path as well. Graph edge weights should be non-negative.
+ *
+ * @throws cugraph::logic_error on erroneous input arguments.
+ *
+ * @tparam vertex_t Type of vertex identifiers. Needs to be an integral type.
+ * @tparam edge_t Type of edge identifiers. Needs to be an integral type.
+ * @tparam weight_t Type of edge weights. Needs to be a floating point type.
+ * @param handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator, and
+ * handles to various CUDA libraries) to run graph algorithms.
+ * @param graph_view Graph view object.
+ * @param distances Pointer to the output distance array.
+ * @param predecessors Pointer to the output predecessor array or `nullptr`.
+ * @param source_vertex Source vertex to start single-source shortest-path.
+ * @param cutoff Single-source shortest-path terminates if no more vertices are reachable within the
+ * distance of @p cutoff. Any vertex farther than @p cutoff will be marked as unreachable.
+ * @param do_expensive_check A flag to run expensive checks for input arguments (if set to `true`).
+ */
+template <typename vertex_t, typename edge_t, typename weight_t, bool multi_gpu>
+void sssp(raft::handle_t &handle,
+          graph_view_t<vertex_t, edge_t, weight_t, false, multi_gpu> const &graph_view,
+          weight_t *distances,
+          vertex_t *predecessors,
+          vertex_t source_vertex,
+          weight_t cutoff         = std::numeric_limits<weight_t>::max(),
+          bool do_expensive_check = false);
+
+/**
+ * @brief Compute PageRank scores.
+ *
+ * This function computes general (if @p personalization_vertices is `nullptr`) or personalized (if
+ * @p personalization_vertices is not `nullptr`.) PageRank scores.
+ *
+ * @throws cugraph::logic_error on erroneous input arguments or if fails to converge before @p
+ * max_iterations.
+ *
+ * @tparam vertex_t Type of vertex identifiers. Needs to be an integral type.
+ * @tparam edge_t Type of edge identifiers. Needs to be an integral type.
+ * @tparam weight_t Type of edge weights. Needs to be a floating point type.
+ * @tparam result_t Type of PageRank scores.
+ * @param handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator, and
+ * handles to various CUDA libraries) to run graph algorithms.
+ * @param graph_view Graph view object.
+ * @param adj_matrix_row_out_weight_sums Pointer to an array storing sums of out-going edge weights
+ * for the vertices in the rows of the graph adjacency matrix (for re-use) or `nullptr`. If
+ * `nullptr`, these values are freshly computed. Computing these values outsid this function reduces
+ * the number of memoray allocations/deallocations and computing if a user repeatedly computes
+ * PageRank scores using the same graph with different personalization vectors.
+ * @param personalization_vertices Pointer to an array storing personalization vertex identifiers
+ * (compute personalized PageRank) or `nullptr` (compute general PageRank).
+ * @param personalization_values Pointer to an array storing personalization values for the vertices
+ * in the personalization set. Relevant only if @p personalization_vertices is not `nullptr`.
+ * @param personalization_vector_size Size of the personalization set. If @personalization_vertices
+ * is not `nullptr`, the sizes of the arrays pointed by @p personalization_vertices and @p
+ * personalization_values should be @p personalization_vector_size.
+ * @param pageranks Pointer to the output PageRank score array.
+ * @param alpha PageRank damping factor.
+ * @param epsilon Error tolerance to check convergence. Convergence is assumed if the sum of the
+ * differences in PageRank values between two consecutive iterations is less than the number of
+ * vertices in the graph multiplied by @p epsilon.
+ * @param max_iterations Maximum number of PageRank iterations.
+ * @param has_initial_guess If set to `true`, values in the PageRank output array (pointed by @p
+ * pageranks) is used as initial PageRank values. If false, initial PageRank values are set to 1.0
+ * divided by the number of vertices in the graph.
+ * @param do_expensive_check A flag to run expensive checks for input arguments (if set to `true`).
+ */
+template <typename vertex_t, typename edge_t, typename weight_t, typename result_t, bool multi_gpu>
+void pagerank(raft::handle_t &handle,
+              graph_view_t<vertex_t, edge_t, weight_t, true, multi_gpu> const &graph_view,
+              weight_t *adj_matrix_row_out_weight_sums,
+              vertex_t *personalization_vertices,
+              result_t *personalization_values,
+              vertex_t personalization_vector_size,
+              result_t *pageranks,
+              result_t alpha,
+              result_t epsilon,
+              size_t max_iterations   = 500,
+              bool has_initial_guess  = false,
+              bool do_expensive_check = false);
+
+/**
+ * @brief Compute Katz Centrality scores.
+ *
+ * This function computes Katz Centrality scores.
+ *
+ * @throws cugraph::logic_error on erroneous input arguments or if fails to converge before @p
+ * max_iterations.
+ *
+ * @tparam vertex_t Type of vertex identifiers. Needs to be an integral type.
+ * @tparam edge_t Type of edge identifiers. Needs to be an integral type.
+ * @tparam weight_t Type of edge weights. Needs to be a floating point type.
+ * @tparam result_t Type of Katz Centrality scores.
+ * @param handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator, and
+ * handles to various CUDA libraries) to run graph algorithms.
+ * @param graph_view Graph view object.
+ * @param betas Pointer to an array holding the values to be added to each vertex's new Katz
+ * Centrality score in every iteration or `nullptr`. If set to `nullptr`, constant @p beta is used
+ * instead.
+ * @param katz_centralities Pointer to the output Katz Centrality score array.
+ * @param alpha Katz Centrality attenuation factor. This should be smaller than the inverse of the
+ * maximum eigenvalue of the adjacency matrix of @p graph.
+ * @param beta Constant value to be added to each vertex's new Katz Centrality score in every
+ * iteration. Relevant only when @p betas is `nullptr`.
+ * @param epsilon Error tolerance to check convergence. Convergence is assuemd if the sum of the
+ * differences in Katz Centrality values between two consecutive iterations is less than the number
+ * of vertices in the graph multiplied by @p epsilon.
+ * @param max_iterations Maximum number of Katz Centrality iterations.
+ * @param has_initial_guess If set to `true`, values in the Katz Centrality output array (pointed by
+ * @p katz_centralities) is used as initial Katz Centrality values. If false, zeros are used as
+ * initial Katz Centrality values.
+ * @param normalize If set to `true`, final Katz Centrality scores are normalized (the L2-norm of
+ * the returned Katz Centrality score array is 1.0) before returning.
+ * @param do_expensive_check A flag to run expensive checks for input arguments (if set to `true`).
+ */
+template <typename vertex_t, typename edge_t, typename weight_t, typename result_t, bool multi_gpu>
+void katz_centrality(raft::handle_t &handle,
+                     graph_view_t<vertex_t, edge_t, weight_t, true, multi_gpu> const &graph_view,
+                     result_t *betas,
+                     result_t *katz_centralities,
+                     result_t alpha,
+                     result_t beta,
+                     result_t epsilon,
+                     size_t max_iterations   = 500,
+                     bool has_initial_guess  = false,
+                     bool normalize          = false,
+                     bool do_expensive_check = false);
+
+}  // namespace experimental
 
 }  // namespace cugraph

@@ -80,3 +80,35 @@ def test_katz_centrality(graph_file):
     topKCU = topKVertices(katz_scores, "cu_katz", 10)
 
     assert topKNX.equals(topKCU)
+
+
+@pytest.mark.parametrize("graph_file", utils.DATASETS_UNDIRECTED)
+def test_katz_centrality_nx(graph_file):
+    gc.collect()
+
+    NM = utils.read_csv_for_nx(graph_file)
+    Gnx = nx.from_pandas_edgelist(
+        NM, create_using=nx.DiGraph(), source="0", target="1"
+    )
+
+    G = cugraph.utilities.convert_from_nx(Gnx)
+    largest_out_degree = G.degrees().nlargest(n=1, columns="out_degree")
+    largest_out_degree = largest_out_degree["out_degree"].iloc[0]
+    katz_alpha = 1 / (largest_out_degree + 1)
+
+    nk = nx.katz_centrality(Gnx, alpha=katz_alpha)
+    ck = cugraph.katz_centrality(Gnx, alpha=None, max_iter=1000)
+
+    # Calculating mismatch
+    nk = sorted(nk.items(), key=lambda x: x[0])
+    ck = sorted(ck.items(), key=lambda x: x[0])
+    err = 0
+    assert len(ck) == len(nk)
+    for i in range(len(ck)):
+        if (
+            abs(ck[i][1] - nk[i][1]) > 0.1
+            and ck[i][0] == nk[i][0]
+        ):
+            err = err + 1
+    print("Mismatches:", err)
+    assert err < (0.1 * len(ck))

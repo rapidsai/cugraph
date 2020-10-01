@@ -17,8 +17,6 @@
 
 #include <rmm/thrust_rmm_allocator.h>
 
-#include <rmm/mr/device/cnmem_memory_resource.hpp>
-
 TEST(leiden_karate, success)
 {
   std::vector<int> off_h = {0,  16,  25,  35,  41,  44,  48,  52,  56,  61,  63, 66,
@@ -57,9 +55,10 @@ TEST(leiden_karate, success)
     offsets_v.data().get(), indices_v.data().get(), weights_v.data().get(), num_verts, num_edges);
 
   float modularity{0.0};
-  int num_level = 40;
+  size_t num_level = 40;
 
-  cugraph::leiden(G, modularity, num_level, result_v.data().get());
+  raft::handle_t handle;
+  std::tie(num_level, modularity) = cugraph::leiden(handle, G, result_v.data().get());
 
   cudaMemcpy((void*)&(cluster_id[0]),
              result_v.data().get(),

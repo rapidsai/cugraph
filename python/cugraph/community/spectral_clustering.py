@@ -12,6 +12,8 @@
 # limitations under the License.
 
 from cugraph.community import spectral_clustering_wrapper
+from cugraph.utilities import check_nx_graph
+from cugraph.utilities import df_score_to_dictionary
 
 
 def spectralBalancedCutClustering(
@@ -29,7 +31,7 @@ def spectralBalancedCutClustering(
 
     Parameters
     ----------
-    G : cugraph.Graph
+    G : cugraph.Graph or networkx.Graph
         cuGraph graph descriptor
     num_clusters : integer
          Specifies the number of clusters to find
@@ -71,6 +73,8 @@ def spectralBalancedCutClustering(
     >>> df = cugraph.spectralBalancedCutClustering(G, 5)
     """
 
+    G, isNx = check_nx_graph(G)
+
     df = spectral_clustering_wrapper.spectralBalancedCutClustering(
         G,
         num_clusters,
@@ -83,6 +87,9 @@ def spectralBalancedCutClustering(
 
     if G.renumbered:
         df = G.unrenumber(df, "vertex")
+
+    if isNx is True:
+        df = df_score_to_dictionary(df, "cluster")
 
     return df
 
@@ -141,6 +148,8 @@ def spectralModularityMaximizationClustering(
     >>> df = cugraph.spectralModularityMaximizationClustering(G, 5)
     """
 
+    G, isNx = check_nx_graph(G)
+
     df = spectral_clustering_wrapper.spectralModularityMaximizationClustering(
         G,
         num_clusters,
@@ -153,6 +162,9 @@ def spectralModularityMaximizationClustering(
 
     if G.renumbered:
         df = G.unrenumber(df, "vertex")
+
+    if isNx is True:
+        df = df_score_to_dictionary(df, "cluster")
 
     return df
 
@@ -249,6 +261,8 @@ def analyzeClustering_edge_cut(G, n_clusters, clustering,
     >>> score = cugraph.analyzeClustering_edge_cut(G, 5, df,
     >>>   'vertex', 'cluster')
     """
+
+    G, isNx = check_nx_graph(G)
 
     if G.renumbered:
         clustering = G.add_internal_vertex_id(clustering,

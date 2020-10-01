@@ -21,8 +21,8 @@ from cugraph.community.spectral_clustering cimport spectralModularityMaximizatio
 from cugraph.community.spectral_clustering cimport analyzeClustering_modularity as c_analyze_clustering_modularity
 from cugraph.community.spectral_clustering cimport analyzeClustering_edge_cut as c_analyze_clustering_edge_cut
 from cugraph.community.spectral_clustering cimport analyzeClustering_ratio_cut as c_analyze_clustering_ratio_cut
-from cugraph.structure.graph_new cimport *
-from cugraph.structure import graph_new_wrapper
+from cugraph.structure.graph_primtypes cimport *
+from cugraph.structure import graph_primtypes_wrapper
 from libcpp cimport bool
 from libc.stdint cimport uintptr_t
 
@@ -50,13 +50,13 @@ def spectralBalancedCutClustering(input_graph,
 
     weights = None
 
-    [offsets, indices] = graph_new_wrapper.datatype_cast([input_graph.adjlist.offsets, input_graph.adjlist.indices], [np.int32])
+    [offsets, indices] = graph_primtypes_wrapper.datatype_cast([input_graph.adjlist.offsets, input_graph.adjlist.indices], [np.int32])
 
     num_verts = input_graph.number_of_vertices()
     num_edges = input_graph.number_of_edges(directed_edges=True)
 
     if input_graph.adjlist.weights is not None:
-        [weights] = graph_new_wrapper.datatype_cast([input_graph.adjlist.weights], [np.float32, np.float64])
+        [weights] = graph_primtypes_wrapper.datatype_cast([input_graph.adjlist.weights], [np.float32, np.float64])
     else:
         weights = cudf.Series(np.full(num_edges, 1.0, dtype=np.float32))
 
@@ -122,8 +122,8 @@ def spectralModularityMaximizationClustering(input_graph,
     if input_graph.adjlist.weights is None:
         raise Exception("spectral modularity maximization must be called on a graph with weights")
 
-    [offsets, indices] = graph_new_wrapper.datatype_cast([input_graph.adjlist.offsets, input_graph.adjlist.indices], [np.int32])
-    [weights] = graph_new_wrapper.datatype_cast([input_graph.adjlist.weights], [np.float32, np.float64])
+    [offsets, indices] = graph_primtypes_wrapper.datatype_cast([input_graph.adjlist.offsets, input_graph.adjlist.indices], [np.int32])
+    [weights] = graph_primtypes_wrapper.datatype_cast([input_graph.adjlist.weights], [np.float32, np.float64])
 
     num_verts = input_graph.number_of_vertices()
     num_edges = input_graph.number_of_edges(directed_edges=True)
@@ -181,8 +181,8 @@ def analyzeClustering_modularity(input_graph, n_clusters, clustering):
     if not input_graph.adjlist:
         input_graph.view_adj_list()
 
-    [offsets, indices] = graph_new_wrapper.datatype_cast([input_graph.adjlist.offsets, input_graph.adjlist.indices], [np.int32])
-    [weights] = graph_new_wrapper.datatype_cast([input_graph.adjlist.weights], [np.float32, np.float64])
+    [offsets, indices] = graph_primtypes_wrapper.datatype_cast([input_graph.adjlist.offsets, input_graph.adjlist.indices], [np.int32])
+    [weights] = graph_primtypes_wrapper.datatype_cast([input_graph.adjlist.weights], [np.float32, np.float64])
 
     score = None
     num_verts = input_graph.number_of_vertices()
@@ -191,7 +191,7 @@ def analyzeClustering_modularity(input_graph, n_clusters, clustering):
     if input_graph.adjlist.weights is None:
         raise Exception("analyze clustering modularity must be called on a graph with weights")
     if input_graph.adjlist.weights is not None:
-        [weights] = graph_new_wrapper.datatype_cast([input_graph.adjlist.weights], [np.float32, np.float64])
+        [weights] = graph_primtypes_wrapper.datatype_cast([input_graph.adjlist.weights], [np.float32, np.float64])
     else:
         weights = cudf.Series(np.full(num_edges, 1.0, dtype=np.float32))
 
@@ -237,14 +237,14 @@ def analyzeClustering_edge_cut(input_graph, n_clusters, clustering):
     if not input_graph.adjlist:
         input_graph.view_adj_list()
 
-    [offsets, indices] = graph_new_wrapper.datatype_cast([input_graph.adjlist.offsets, input_graph.adjlist.indices], [np.int32])
+    [offsets, indices] = graph_primtypes_wrapper.datatype_cast([input_graph.adjlist.offsets, input_graph.adjlist.indices], [np.int32])
 
     score = None
     num_verts = input_graph.number_of_vertices()
     num_edges = input_graph.number_of_edges(directed_edges=True)
 
     if input_graph.adjlist.weights is not None:
-        [weights] = graph_new_wrapper.datatype_cast([input_graph.adjlist.weights], [np.float32, np.float64])
+        [weights] = graph_primtypes_wrapper.datatype_cast([input_graph.adjlist.weights], [np.float32, np.float64])
     else:
         weights = cudf.Series(np.full(num_edges, 1.0, dtype=np.float32))
 
@@ -290,14 +290,14 @@ def analyzeClustering_ratio_cut(input_graph, n_clusters, clustering):
     if not input_graph.adjlist:
         input_graph.view_adj_list()
 
-    [offsets, indices] = graph_new_wrapper.datatype_cast([input_graph.adjlist.offsets, input_graph.adjlist.indices], [np.int32])
+    [offsets, indices] = graph_primtypes_wrapper.datatype_cast([input_graph.adjlist.offsets, input_graph.adjlist.indices], [np.int32])
 
     score = None
     num_verts = input_graph.number_of_vertices()
     num_edges = input_graph.number_of_edges(directed_edges=True)
 
     if input_graph.adjlist.weights is not None:
-        [weights] = graph_new_wrapper.datatype_cast([input_graph.adjlist.weights], [np.float32, np.float64])
+        [weights] = graph_primtypes_wrapper.datatype_cast([input_graph.adjlist.weights], [np.float32, np.float64])
     else:
         weights = cudf.Series(np.full(num_edges, 1.0, dtype=np.float32))
 

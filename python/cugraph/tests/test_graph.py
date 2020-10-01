@@ -98,12 +98,13 @@ def compare_graphs(nx_graph, cu_graph):
 
     if len(edgelist_df.columns) > 2:
         df0 = cudf.from_pandas(nx.to_pandas_edgelist(nx_graph))
-        df0 = df0.sort_values(by=["source", "target"]).reset_index(drop=True)
-        df1 = df.sort_values(by=["source", "target"]).reset_index(drop=True)
-        if not df0["weight"].equals(df1["weight"]):
+        merge = df.merge(df0, on=["source", "target"],
+                         suffixes=("_cugraph", "_nx"))
+        print("merge = \n", merge)
+        print(merge[merge.weight_cugraph != merge.weight_nx])
+        if not merge["weight_cugraph"].equals(merge["weight_nx"]):
             print('weights different')
-            print('df0 = \n', df0)
-            print('df1 = \n', df1)
+            print(merge[merge.weight_cugraph != merge.weight_nx])
             return False
 
     return True
@@ -384,65 +385,6 @@ def test_view_edge_list_for_Graph(graph_file):
 
 
 # Test
-@pytest.mark.parametrize("graph_file", utils.DATASETS)
-def test_networkx_compatibility(graph_file):
-    gc.collect()
-
-    # test from_cudf_edgelist()
-
-    M = utils.read_csv_for_nx(graph_file)
-
-    df = pd.DataFrame()
-    df["source"] = pd.Series(M["0"])
-    df["target"] = pd.Series(M["1"])
-    df["weight"] = pd.Series(M.weight)
-    gdf = cudf.from_pandas(df)
-
-    Gnx = nx.from_pandas_edgelist(
-        df,
-        source="source",
-        target="target",
-        edge_attr="weight",
-        create_using=nx.DiGraph,
-    )
-    G = cugraph.from_cudf_edgelist(
-        gdf,
-        source="source",
-        destination="target",
-        edge_attr="weight",
-        create_using=cugraph.DiGraph,
-    )
-
-    print('g from gdf = \n', gdf)
-    print('nx from df = \n', df)
-
-    t1 = time.time()
-    assert compare_graphs(Gnx, G)
-    t2 = time.time() - t1
-    print('compare_graphs time: ', t2)
-
-    Gnx.clear()
-    G.clear()
-    Gnx = nx.from_pandas_edgelist(
-        df, source="source", target="target", create_using=nx.DiGraph
-    )
-    G = cugraph.from_cudf_edgelist(
-        gdf,
-        source="source",
-        destination="target",
-        create_using=cugraph.DiGraph,
-    )
-
-    t1 = time.time()
-    assert compare_graphs(Gnx, G)
-    t2 = time.time() - t1
-    print('compare_graphs time: ', t2)
-
-    Gnx.clear()
-    G.clear()
-
-
-# Test
 @pytest.mark.parametrize('graph_file', utils.DATASETS)
 def test_consolidation(graph_file):
     gc.collect()
@@ -479,7 +421,7 @@ def test_consolidation(graph_file):
 
 
 # Test
-@pytest.mark.parametrize('graph_file', utils.DATASETS_2)
+@pytest.mark.parametrize('graph_file', utils.DATASETS_SMALL)
 def test_two_hop_neighbors(graph_file):
     gc.collect()
 
@@ -593,7 +535,7 @@ def test_number_of_vertices(graph_file):
 
 
 # Test
-@pytest.mark.parametrize("graph_file", utils.DATASETS_2)
+@pytest.mark.parametrize("graph_file", utils.DATASETS_SMALL)
 def test_to_directed(graph_file):
     gc.collect()
 
@@ -622,12 +564,14 @@ def test_to_directed(graph_file):
 
 
 # Test
-@pytest.mark.parametrize("graph_file", utils.DATASETS_2)
+@pytest.mark.parametrize("graph_file", utils.DATASETS_SMALL)
 def test_to_undirected(graph_file):
     gc.collect()
 
+    # Read data and then convert to directed by dropped some edges
     cu_M = utils.read_csv_file(graph_file)
     cu_M = cu_M[cu_M["0"] <= cu_M["1"]].reset_index(drop=True)
+
     M = utils.read_csv_for_nx(graph_file)
     M = M[M["0"] <= M["1"]]
     assert len(cu_M) == len(M)
@@ -635,6 +579,7 @@ def test_to_undirected(graph_file):
     # cugraph add_edge_list
     DiG = cugraph.DiGraph()
     DiG.from_cudf_edgelist(cu_M, source="0", destination="1")
+
     DiGnx = nx.from_pandas_edgelist(
         M, source="0", target="1", create_using=nx.DiGraph()
     )
@@ -655,7 +600,7 @@ def test_to_undirected(graph_file):
 
 
 # Test
-@pytest.mark.parametrize("graph_file", utils.DATASETS_2)
+@pytest.mark.parametrize("graph_file", utils.DATASETS)
 def test_has_edge(graph_file):
     gc.collect()
 
@@ -672,7 +617,7 @@ def test_has_edge(graph_file):
 
 
 # Test
-@pytest.mark.parametrize("graph_file", utils.DATASETS_2)
+@pytest.mark.parametrize("graph_file", utils.DATASETS)
 def test_has_node(graph_file):
     gc.collect()
 
@@ -688,7 +633,7 @@ def test_has_node(graph_file):
 
 
 # Test all combinations of default/managed and pooled/non-pooled allocation
-@pytest.mark.parametrize('graph_file', utils.DATASETS_2)
+@pytest.mark.parametrize('graph_file', utils.DATASETS)
 def test_bipartite_api(graph_file):
     # This test only tests the functionality of adding set of nodes and
     # retrieving them. The datasets currently used are not truly bipartite.

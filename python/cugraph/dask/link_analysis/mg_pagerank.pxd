@@ -14,7 +14,7 @@
 # limitations under the License.
 #
 
-from cugraph.structure.graph_new cimport *
+from cugraph.structure.graph_primtypes cimport *
 from libcpp cimport bool
 
 

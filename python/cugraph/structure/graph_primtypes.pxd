@@ -190,3 +190,54 @@ ctypedef fused GraphViewType:
 cdef coo_to_df(GraphCOOPtrType graph)
 cdef csr_to_series(GraphCSRPtrType graph)
 cdef GraphViewType get_graph_view(input_graph, bool weightless=*, GraphViewType* dummy=*)
+
+
+# C++ utilities specifically for Cython
+cdef extern from "utilities/cython.hpp" namespace "cugraph::cython":
+
+    ctypedef enum numberTypeEnum:
+        intType "cugraph::cython::numberTypeEnum::intType"
+        floatType "cugraph::cython::numberTypeEnum::floatType"
+        doubleType "cugraph::cython::numberTypeEnum::doubleType"
+
+    cdef cppclass graph_container_t:
+       pass
+
+    cdef void populate_graph_container(
+        graph_container_t &graph_container,
+        handle_t &handle,
+        void *src_vertices,
+        void *dst_vertices,
+        void *weights,
+        void *vertex_partition_offsets,
+        numberTypeEnum vertexType,
+        numberTypeEnum edgeType,
+        numberTypeEnum weightType,
+        int num_partition_edges,
+        size_t num_global_vertices,
+        size_t num_global_edges,
+        size_t row_comm_size,
+        size_t col_comm_size,
+        bool transposed,
+        bool multi_gpu) except +
+
+    ctypedef enum legacyGraphTypeEnum:
+        CSR "cugraph::cython::legacyGraphTypeEnum::CSR"
+        CSC "cugraph::cython::legacyGraphTypeEnum::CSC"
+        COO "cugraph::cython::legacyGraphTypeEnum::COO"
+
+    cdef void populate_graph_container_legacy(
+        graph_container_t &graph_container,
+        legacyGraphTypeEnum legacyType,
+        const handle_t &handle,
+        void *offsets,
+        void *indices,
+        void *weights,
+        numberTypeEnum offsetType,
+        numberTypeEnum indexType,
+        numberTypeEnum weightType,
+        size_t num_global_vertices,
+        size_t num_global_edges,
+        int *local_vertices,
+        int *local_edges,
+        int *local_offsets) except +

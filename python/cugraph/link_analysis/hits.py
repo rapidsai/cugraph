@@ -12,6 +12,8 @@
 # limitations under the License.
 
 from cugraph.link_analysis import hits_wrapper
+from cugraph.utilities import check_nx_graph
+from cugraph.utilities import df_score_to_dictionary
 
 
 def hits(G, max_iter=100, tol=1.0e-5, nstart=None, normalized=True):
@@ -72,9 +74,17 @@ def hits(G, max_iter=100, tol=1.0e-5, nstart=None, normalized=True):
     >>> hits = cugraph.hits(G, max_iter = 50)
     """
 
+    G, isNx = check_nx_graph(G)
+
     df = hits_wrapper.hits(G, max_iter, tol)
 
     if G.renumbered:
         df = G.unrenumber(df, "vertex")
+
+    if isNx is True:
+        d1 = df_score_to_dictionary(df[["vertex", "hubs"]], "hubs")
+        d2 = df_score_to_dictionary(df[["vertex", "authorities"]],
+                                    "authorities")
+        df = (d1, d2)
 
     return df

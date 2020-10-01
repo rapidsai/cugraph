@@ -46,29 +46,6 @@ set(CMAKE_CUDA_STANDARD_REQUIRED ON)
 
 if(CMAKE_COMPILER_IS_GNUCXX)
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Werror -Wno-error=deprecated-declarations")
-
-###################################################################################################
-###   C++ ABI changes.
-###
-###   By default, cugraph builds with the new C++ ABI.  In order to insure that thirdparty
-###   applications build with the properly setting (specifically RMM) we need to set
-###   the CMAKE_CXX11_ABI flag appropriately.
-###
-###   If a user wants to build with the OLD ABI, then they need to define CMAKE_CXX11_ABI
-###   to be OFF (typically on the cmake command line).
-###
-###   This block of code will configure the old ABI if the flag is set to OFF and
-###   do nothing (the default behavior of the C++14 compiler).
-###
-    option(CMAKE_CXX11_ABI "Enable the GLIBCXX11 ABI" ON)
-    if(CMAKE_CXX11_ABI)
-        message(STATUS "CUGRAPH: Enabling the GLIBCXX11 ABI")
-    else()
-        message(STATUS "CUGRAPH: Disabling the GLIBCXX11 ABI")
-        set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -D_GLIBCXX_USE_CXX11_ABI=0")
-        set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -D_GLIBCXX_USE_CXX11_ABI=0")
-        set(CMAKE_CUDA_FLAGS "${CMAKE_CUDA_FLAGS} -Xcompiler -D_GLIBCXX_USE_CXX11_ABI=0")
-    endif(CMAKE_CXX11_ABI)
 endif(CMAKE_COMPILER_IS_GNUCXX)
 
 set(CMAKE_CUDA_FLAGS "${CMAKE_CUDA_FLAGS} -gencode=arch=compute_60,code=sm_60")
@@ -172,49 +149,20 @@ find_path(RMM_INCLUDE "rmm"
     "$ENV{CONDA_PREFIX}/include/rmm"
     "$ENV{CONDA_PREFIX}/include")
 
-find_library(RMM_LIBRARY "rmm"
-    HINTS
-    "$ENV{RMM_ROOT}/lib"
-    "$ENV{CONDA_PREFIX}/lib")
-
-message(STATUS "RMM: RMM_LIBRARY set to ${RMM_LIBRARY}")
 message(STATUS "RMM: RMM_INCLUDE set to ${RMM_INCLUDE}")
 
-add_library(rmm SHARED IMPORTED ${RMM_LIBRARY})
-if (RMM_INCLUDE AND RMM_LIBRARY)
-    set_target_properties(rmm PROPERTIES IMPORTED_LOCATION ${RMM_LIBRARY})
-endif (RMM_INCLUDE AND RMM_LIBRARY)
-
 ###################################################################################################
-# - Fetch Content -----------------------------------------------------------------------------
+# - Fetch Content ---------------------------------------------------------------------------------
 include(FetchContent)
 
-# - CUB
-message("Fetching CUB")
-
-FetchContent_Declare(
-    cub
-    GIT_REPOSITORY https://github.com/thrust/cub.git
-    GIT_TAG        1.9.10
-    GIT_SHALLOW    true
-)
-
-FetchContent_GetProperties(cub)
-if(NOT cub_POPULATED)
-  FetchContent_Populate(cub)
-  # We are not using the cub CMake targets, so no need to call `add_subdirectory()`.
-endif()
-set(CUB_INCLUDE_DIR "${cub_SOURCE_DIR}")
-
-# - THRUST
+# - THRUST/CUB
 message("Fetching Thrust")
 
 FetchContent_Declare(
     thrust
     GIT_REPOSITORY https://github.com/thrust/thrust.git
-    GIT_TAG        1.9.10
-    GIT_SHALLOW    true
-    PATCH_COMMAND COMMAND patch -p1 < "${CMAKE_CURRENT_SOURCE_DIR}/cmake/thrust-ret-if-fail.patch"
+    # August 28, 2020
+    GIT_TAG        52a8bda46c5c2128414d1d47f546b486ff0be2f0
 )
 
 FetchContent_GetProperties(thrust)
@@ -223,9 +171,6 @@ if(NOT thrust_POPULATED)
   # We are not using the thrust CMake targets, so no need to call `add_subdirectory()`.
 endif()
 set(THRUST_INCLUDE_DIR "${thrust_SOURCE_DIR}")
-
-
-
 
 ###################################################################################################
 # - External Projects -----------------------------------------------------------------------------
@@ -305,7 +250,7 @@ else(DEFINED ENV{RAFT_PATH})
 
   ExternalProject_Add(raft
     GIT_REPOSITORY    https://github.com/rapidsai/raft.git
-    GIT_TAG           099e2b874b05555a78bed1666fa2d22f784e56a7
+    GIT_TAG           53c1e2dde4045f386f9cc4bb7d3dc99d5690b886
     PREFIX            ${RAFT_DIR}
     CONFIGURE_COMMAND ""
     BUILD_COMMAND     ""
@@ -332,6 +277,7 @@ add_library(cugraph SHARED
     src/db/db_parser_integration_test.cu
     src/db/db_operators.cu
     src/utilities/spmv_1D.cu
+    src/utilities/cython.cpp
     src/structure/graph.cu
     src/link_analysis/pagerank.cu
     src/link_analysis/pagerank_1D.cu
@@ -344,10 +290,8 @@ add_library(cugraph SHARED
     src/converters/renumber.cu
     src/converters/COOtoCSR.cu
     src/community/spectral_clustering.cu
-    src/community/louvain.cpp
-    src/community/louvain_kernels.cu
-    src/community/leiden.cpp
-    src/community/leiden_kernels.cu
+    src/community/louvain.cu
+    src/community/leiden.cu
     src/community/ktruss.cu
     src/community/ECG.cu
     src/community/triangles_counting.cu
@@ -357,6 +301,12 @@ add_library(cugraph SHARED
     src/components/connectivity.cu
     src/centrality/katz_centrality.cu
     src/centrality/betweenness_centrality.cu
+    src/experimental/graph.cu
+    src/experimental/graph_view.cu
+    src/experimental/bfs.cu
+    src/experimental/sssp.cu
+    src/experimental/pagerank.cu
+    src/experimental/katz_centrality.cu
 )
 
 #
@@ -370,7 +320,6 @@ add_dependencies(cugraph raft)
 # - include paths ---------------------------------------------------------------------------------
 target_include_directories(cugraph
     PRIVATE
-    "${CUB_INCLUDE_DIR}"
     "${THRUST_INCLUDE_DIR}"
     "${CMAKE_CUDA_TOOLKIT_INCLUDE_DIRECTORIES}"
     "${LIBCYPHERPARSER_INCLUDE}"
@@ -393,7 +342,7 @@ target_include_directories(cugraph
 # - link libraries --------------------------------------------------------------------------------
 
 target_link_libraries(cugraph PRIVATE
-    ${RMM_LIBRARY} gunrock cublas cusparse curand cusolver cudart cuda ${LIBCYPHERPARSER_LIBRARY} ${MPI_CXX_LIBRARIES} ${NCCL_LIBRARIES})
+    gunrock cublas cusparse curand cusolver cudart cuda ${LIBCYPHERPARSER_LIBRARY} ${MPI_CXX_LIBRARIES} ${NCCL_LIBRARIES})
 
 if(OpenMP_CXX_FOUND)
 target_link_libraries(cugraph PRIVATE
@@ -406,7 +355,7 @@ target_link_libraries(cugraph PRIVATE
 ###   ...
 ###
 ###   libgomp.so is included in the conda base environment and copied to every new conda
-###   environment. If a full file path is provided (e.g ${RMM_LIBRARY}), cmake
+###   environment. If a full file path is provided (e.g ${NCCL_LIBRARIES}), cmake
 ###   extracts the directory path and adds the directory path to BUILD_RPATH (if BUILD_RPATH is not
 ###   disabled).
 ###
@@ -419,7 +368,7 @@ target_link_libraries(cugraph PRIVATE
 ###   If a full path to libgomp.so is provided (which is the case with OpenMP::OpenMP_CXX), cmake
 ###   checks whether there is any other libgomp.so with the different full path (after resolving
 ###   soft links) in the search paths (implicit directoires + BUILD_RAPTH). There is one in the
-###   path included in BUILD_RPATH when ${RMM_LIBRARY} are added; this one can
+###   path included in BUILD_RPATH when ${NCCL_LIBRARIES} are added; this one can
 ###   potentially hide the one in the provided full path and cmake generates a warning (and RPATH
 ###   is searched before the directories in /etc/ld.so/conf; ld.so.conf does not coincide but
 ###   overlaps with implicit directories).

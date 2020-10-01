@@ -18,6 +18,7 @@ import cudf
 import cugraph.comms as Comms
 import cugraph
 import dask_cudf
+from cugraph.dask.common.mg_utils import is_single_gpu
 
 # Move to conftest
 from dask_cuda import LocalCUDACluster
@@ -36,6 +37,9 @@ def client_connection():
     cluster.close()
 
 
+@pytest.mark.skipif(
+    is_single_gpu(), reason="skipping MG testing on Single GPU system"
+)
 def test_dask_mg_degree(client_connection):
     gc.collect()
 
@@ -43,23 +47,31 @@ def test_dask_mg_degree(client_connection):
 
     chunksize = cugraph.dask.get_chunksize(input_data_path)
 
-    ddf = dask_cudf.read_csv(input_data_path, chunksize=chunksize,
-                             delimiter=' ',
-                             names=['src', 'dst', 'value'],
-                             dtype=['int32', 'int32', 'float32'])
+    ddf = dask_cudf.read_csv(
+        input_data_path,
+        chunksize=chunksize,
+        delimiter=" ",
+        names=["src", "dst", "value"],
+        dtype=["int32", "int32", "float32"],
+    )
 
-    df = cudf.read_csv(input_data_path,
-                       delimiter=' ',
-                       names=['src', 'dst', 'value'],
-                       dtype=['int32', 'int32', 'float32'])
+    df = cudf.read_csv(
+        input_data_path,
+        delimiter=" ",
+        names=["src", "dst", "value"],
+        dtype=["int32", "int32", "float32"],
+    )
 
     dg = cugraph.DiGraph()
-    dg.from_dask_cudf_edgelist(ddf, 'src', 'dst')
+    dg.from_dask_cudf_edgelist(ddf, "src", "dst")
 
     g = cugraph.DiGraph()
-    g.from_cudf_edgelist(df, 'src', 'dst')
+    g.from_cudf_edgelist(df, "src", "dst")
 
-    merge_df = dg.in_degree().merge(
-        g.in_degree(), on="vertex", suffixes=['_dg', '_g']).compute()
+    merge_df = (
+        dg.in_degree()
+        .merge(g.in_degree(), on="vertex", suffixes=["_dg", "_g"])
+        .compute()
+    )
 
-    assert merge_df['degree_dg'].equals(merge_df['degree_g'])
+    assert merge_df["degree_dg"].equals(merge_df["degree_g"])
