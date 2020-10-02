@@ -269,7 +269,6 @@ class src_cluster_hasher_t {
            (int)d_dst_[index],
            (int)base_dst_id_,
            (int)(d_dst_[index] - base_dst_id_));
-#endif
     printf(
       "src_cluster_hasher, index = %d, src = %d, dst = %d, base = %d, offset = %d, dst_cluster = "
       "%d\n",
@@ -279,6 +278,7 @@ class src_cluster_hasher_t {
       (int)base_dst_id_,
       (int)(d_dst_[index] - base_dst_id_),
       (int)d_dst_cluster_[d_dst_[index] - base_dst_id_]);
+#endif
 
     auto h_src     = hasher(d_src_[index]);
     auto h_cluster = hasher(d_dst_cluster_[d_dst_[index] - base_dst_id_]);
@@ -828,6 +828,7 @@ class Louvain {
 #endif
 
     auto d_edge_device_view = compute_partition_.edge_device_view();
+    vertex_t base_dst_vertex_id = base_dst_vertex_id_;
 
     std::cout << "call variable_shuffle" << std::endl;
 
@@ -837,9 +838,16 @@ class Louvain {
       thrust::make_permutation_iterator(src_indices_v_.begin(), local_cluster_edge_ids_v.begin()),
       thrust::make_transform_iterator(
         local_cluster_edge_ids_v.begin(),
-        [d_edge_device_view, d_src_indices, d_dst_indices, d_dst_cluster] __device__(
+        [d_edge_device_view, d_src_indices, d_dst_indices, d_dst_cluster, base_dst_vertex_id] __device__(
           edge_t edge_id) {
-          return d_edge_device_view(d_src_indices[edge_id], d_dst_cluster[d_dst_indices[edge_id]]);
+#if 0
+          printf("considering pair (%d, %d)\n", (int) d_src_indices[edge_id], (int) d_dst_cluster[d_dst_indices[edge_id] - base_dst_vertex_id]);
+          printf("result for pair (%d, %d) = %d\n",
+                 (int) d_src_indices[edge_id], (int) d_dst_cluster[d_dst_indices[edge_id] - base_dst_vertex_id],
+                 (int) d_edge_device_view(d_src_indices[edge_id], d_dst_cluster[d_dst_indices[edge_id] - base_dst_vertex_id]));
+#endif
+
+          return d_edge_device_view(d_src_indices[edge_id], d_dst_cluster[d_dst_indices[edge_id] - base_dst_vertex_id]);
         }));
 
 #ifdef DEBUG
@@ -850,8 +858,6 @@ class Louvain {
     //  neighboring cluster id must be transformed
     //
     rmm::device_vector<vertex_t> nbr_cluster_v;
-
-    vertex_t base_dst_vertex_id = base_dst_vertex_id_;
 
     nbr_cluster_v = variable_shuffle<graph_view_t::is_multi_gpu, vertex_t>(
       handle_,
@@ -1290,7 +1296,6 @@ class Louvain {
       [d_hash_map, hasher, compare, skip_edge, d_relevant_edge_weights, d_weights, MAX] __device__(
         count_t idx) {
         if (!skip_edge(idx)) {
-          printf("idx = %d, about to find\n", (int)idx);
           auto pos = d_hash_map.find(idx, hasher, compare);
           if (pos != d_hash_map.end()) {
             atomicAdd(

@@ -25,6 +25,14 @@ namespace cugraph {
 namespace experimental {
 namespace detail {
 
+/**
+ * @brief  Class to help compute what partition a vertex id or edge id belongs to
+ *
+ *
+ *   FIXME:  This should probably be part of the experimental::partition_t class
+ *           rather than having to copy things out of it
+ *
+ */
 template <typename graph_view_type>
 class compute_partition_t {
  public:
@@ -49,11 +57,21 @@ class compute_partition_t {
     col_size_      = partition.get_col_size();
     size_          = row_size_ * col_size_;
 
-    vertex_partition_offsets_v_.resize(size_);
-
-    // TODO:  Copy from host to device memory...
+    vertex_partition_offsets_v_.resize(size_ + 1);
+    vertex_partition_offsets_v_ = partition.get_vertex_partition_offsets();
   }
 
+  /**
+   * @brief     Compute the partition id for a vertex
+   *
+   * This is a device view of the partition data that allows for a device
+   * function to determine the partition number that is associated with
+   * a given vertex id.
+   *
+   * `vertex_device_view_t` is trivially-copyable and is intended to be passed by
+   * value.
+   *
+   */
   class vertex_device_view_t {
    public:
     vertex_device_view_t(vertex_t const *d_vertex_partition_offsets, int row_size, int size)
@@ -61,6 +79,12 @@ class compute_partition_t {
     {
     }
 
+  /**
+   * @brief     Compute the partition id for a vertex
+   *
+   * Given a vertex v, return the partition number to which that vertex is assigned
+   *
+   */
     __device__ int operator()(vertex_t v) const
     {
       if (graph_view_t::is_multi_gpu)
@@ -68,7 +92,8 @@ class compute_partition_t {
                                 thrust::upper_bound(thrust::device,
                                                     d_vertex_partition_offsets_,
                                                     d_vertex_partition_offsets_ + size_ + 1,
-                                                    v));
+                                                    v)) -
+               1;
       else
         return 0;
     }
@@ -97,19 +122,37 @@ class compute_partition_t {
       if (graph_view_t::is_multi_gpu) {
         std::size_t src_partition =
           thrust::distance(d_vertex_partition_offsets_,
-                           thrust::upper_bound(thrust::device,
+                           thrust::upper_bound(thrust::seq,
                                                d_vertex_partition_offsets_,
                                                d_vertex_partition_offsets_ + size_ + 1,
-                                               src));
+                                               src)) -
+          1;
         std::size_t dst_partition =
           thrust::distance(d_vertex_partition_offsets_,
-                           thrust::upper_bound(thrust::device,
+                           thrust::upper_bound(thrust::seq,
                                                d_vertex_partition_offsets_,
                                                d_vertex_partition_offsets_ + size_ + 1,
-                                               dst));
+                                               dst)) -
+          1;
 
         std::size_t row = src_partition / row_size_;
         std::size_t col = dst_partition / col_size_;
+
+#if 0
+        printf(
+          "edge_device_view_t: src = %d, dst = %d, d_vertex_partition_offsets = (%d, %d, %d), "
+          "src_partition = %d, row = %d, dst_partition = %d, col = %d, return = %d\n",
+          (int)src,
+          (int)dst,
+          d_vertex_partition_offsets_[0],
+          d_vertex_partition_offsets_[1],
+          d_vertex_partition_offsets_[2],
+          (int)src_partition,
+          (int)row,
+          (int)dst_partition,
+          (int)col,
+          (int)(row * row_size_ + col));
+#endif
 
         return row * row_size_ + col;
       } else {

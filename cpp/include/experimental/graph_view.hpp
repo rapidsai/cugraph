@@ -126,6 +126,10 @@ class partition_t {
     return comm_rank_;
   }
 
+  std::vector<vertex_t> const &get_vertex_partition_offsets() const {
+    return vertex_partition_offsets_;
+  }
+
   std::tuple<vertex_t, vertex_t> get_local_vertex_range() const
   {
     return std::make_tuple(vertex_partition_offsets_[comm_rank_],
