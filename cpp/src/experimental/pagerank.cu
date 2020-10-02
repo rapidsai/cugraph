@@ -42,7 +42,7 @@ namespace detail {
 
 // FIXME: personalization_vector_size is confusing in OPG (local or aggregate?)
 template <typename GraphViewType, typename result_t>
-void pagerank(raft::handle_t& handle,
+void pagerank(raft::handle_t const& handle,
               GraphViewType const& pull_graph_view,
               typename GraphViewType::weight_type* adj_matrix_row_out_weight_sums,
               typename GraphViewType::vertex_type* personalization_vertices,
@@ -319,7 +319,7 @@ void pagerank(raft::handle_t& handle,
 
 // explicit instantiation
 
-template void pagerank(raft::handle_t& handle,
+template void pagerank(raft::handle_t const& handle,
                        graph_view_t<int32_t, int32_t, float, true, false> const& graph_view,
                        float* adj_matrix_row_out_weight_sums,
                        int32_t* personalization_vertices,
@@ -332,7 +332,7 @@ template void pagerank(raft::handle_t& handle,
                        bool has_initial_guess,
                        bool do_expensive_check);
 
-template void pagerank(raft::handle_t& handle,
+template void pagerank(raft::handle_t const& handle,
                        graph_view_t<int32_t, int32_t, float, true, true> const& graph_view,
                        float* adj_matrix_row_out_weight_sums,
                        int32_t* personalization_vertices,

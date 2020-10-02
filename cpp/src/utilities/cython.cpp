@@ -315,26 +315,30 @@ void call_pagerank(raft::handle_t const& handle,
 {
   if (graph_container.graph_ptr_type == graphTypeEnum::graph_t_float_mg) {
     pagerank(handle,
-             graph_container.graph_ptr_union.graph_t_float_mg_ptr->view(),
-             reinterpret_cast<float*>(p_pagerank),
-             personalization_subset_size,
+             graph_container.graph_ptr_union.graph_t_float_mg_transposed_ptr->view(),
+             (float*)nullptr,
              personalization_subset,
              reinterpret_cast<float*>(personalization_values),
-             alpha,
-             tolerance,
+             personalization_subset_size,
+             reinterpret_cast<float*>(p_pagerank),
+             (float)alpha,
+             (float)tolerance,
              max_iter,
-             has_guess);
+             has_guess,
+             false);
   } else if (graph_container.graph_ptr_type == graphTypeEnum::graph_t_double_mg) {
     pagerank(handle,
-             graph_container.graph_ptr_union.graph_t_double_mg_ptr->view(),
-             reinterpret_cast<float*>(p_pagerank),
-             personalization_subset_size,
+             graph_container.graph_ptr_union.graph_t_double_mg_transposed_ptr->view(),
+             (double*)nullptr,
              personalization_subset,
-             reinterpret_cast<float*>(personalization_values),
+             reinterpret_cast<double*>(personalization_values),
+             personalization_subset_size,
+             reinterpret_cast<double*>(p_pagerank),
              alpha,
              tolerance,
              max_iter,
-             has_guess);
+             has_guess,
+             false);
   } else if (graph_container.graph_ptr_type == graphTypeEnum::GraphCSCViewFloat) {
     pagerank(handle,
              *(graph_container.graph_ptr_union.GraphCSCViewFloatPtr),

@@ -21,6 +21,8 @@ from cugraph.structure.graph_primtypes cimport *
 import cugraph.structure.graph_primtypes_wrapper as graph_primtypes_wrapper
 from libc.stdint cimport uintptr_t
 from cython.operator cimport dereference as deref
+import numpy as np
+
 
 def mg_pagerank(input_df,
                 num_global_verts,
@@ -42,8 +44,14 @@ def mg_pagerank(input_df,
     dst = input_df['dst']
     if "value" in input_df.columns:
         weights = input_df['value']
+        weight_dtype = weights.dtype
     else:
-        weights = None
+        weight_dtype = np.dtype("float32")
+
+    # FIXME: Offsets and indices are currently hardcoded to int, but this may
+    #        not be acceptable in the future.
+    weightTypeMap = {np.dtype("float32") : <int>numberTypeEnum.floatType,
+                     np.dtype("double") : <int>numberTypeEnum.doubleType}
 
     # FIXME: needs to be edge_t type not int
     cdef int num_partition_edges = len(src)
@@ -63,11 +71,11 @@ def mg_pagerank(input_df,
                              <void*>c_vertex_partition_offsets,
                              <numberTypeEnum>(<int>(numberTypeEnum.intType)),
                              <numberTypeEnum>(<int>(numberTypeEnum.intType)),
-                             <numberTypeEnum>(<int>(weightTypeMap[weights.dtype])),
+                             <numberTypeEnum>(<int>(weightTypeMap[weight_dtype])),
                              num_partition_edges,
                              num_global_verts, num_global_edges,
                              partition_row_size, partition_col_size,
-                             False, True) 
+                             True, True) 
 
     df = cudf.DataFrame()
     df['vertex'] = cudf.Series(np.zeros(num_verts, dtype=np.int32))
@@ -80,9 +88,6 @@ def mg_pagerank(input_df,
     cdef uintptr_t c_pers_val = <uintptr_t>NULL
     cdef int sz = 0
 
-    cdef GraphCSCView[int,int,float] graph_float
-    cdef GraphCSCView[int,int,double] graph_double
-
     if personalization is not None:
         sz = personalization['vertex'].shape[0]
         personalization['vertex'] = personalization['vertex'].astype(np.int32)
@@ -91,10 +96,10 @@ def mg_pagerank(input_df,
         c_pers_val = personalization['values'].__cuda_array_interface__['data'][0]
 
     if (df['pagerank'].dtype == np.float32):
-        c_pagerank.call_pagerank[int, float](handle_[0], graph_container, <float*> c_pagerank_val, sz, <int*> c_pers_vtx, <float*> c_pers_val,
+        c_pagerank.call_pagerank[int, float](handle_[0], graph_container, <int*>c_identifier, <float*> c_pagerank_val, sz, <int*> c_pers_vtx, <float*> c_pers_val,
                                  <float> alpha, <float> tol, <int> max_iter, <bool> 0)
     else:
-        c_pagerank.call_pagerank[int, double](handle_[0], graph_container, <double*> c_pagerank_val, sz, <int*> c_pers_vtx, <double*> c_pers_val,
+        c_pagerank.call_pagerank[int, double](handle_[0], graph_container, <int*>c_identifier, <double*> c_pagerank_val, sz, <int*> c_pers_vtx, <double*> c_pers_val,
                             <float> alpha, <float> tol, <int> max_iter, <bool> 0)
 
     return df
