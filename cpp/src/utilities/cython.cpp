@@ -314,7 +314,7 @@ void call_pagerank(raft::handle_t const& handle,
                    bool has_guess)
 {
   if (graph_container.graph_ptr_type == graphTypeEnum::graph_t_float_mg) {
-    pagerank(handle,
+    cugraph::experimental::pagerank(handle,
              graph_container.graph_ptr_union.graph_t_float_mg_transposed_ptr->view(),
              (float*)nullptr,
              personalization_subset,
@@ -327,7 +327,7 @@ void call_pagerank(raft::handle_t const& handle,
              has_guess,
              false);
   } else if (graph_container.graph_ptr_type == graphTypeEnum::graph_t_double_mg) {
-    pagerank(handle,
+    cugraph::experimental::pagerank(handle,
              graph_container.graph_ptr_union.graph_t_double_mg_transposed_ptr->view(),
              (double*)nullptr,
              personalization_subset,
