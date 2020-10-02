@@ -290,7 +290,7 @@ void pagerank(raft::handle_t const& handle,
 }  // namespace detail
 
 template <typename vertex_t, typename edge_t, typename weight_t, typename result_t, bool multi_gpu>
-void pagerank(raft::handle_t& handle,
+void pagerank(raft::handle_t const& handle,
               graph_view_t<vertex_t, edge_t, weight_t, true, multi_gpu> const& graph_view,
               weight_t* adj_matrix_row_out_weight_sums,
               vertex_t* personalization_vertices,
@@ -449,7 +449,7 @@ template void pagerank(raft::handle_t const& handle,
                        bool has_initial_guess,
                        bool do_expensive_check);
 
-template void pagerank(raft::handle_t& handle,
+template void pagerank(raft::handle_t const& handle,
                        graph_view_t<int64_t, int64_t, float, true, false> const& graph_view,
                        float* adj_matrix_row_out_weight_sums,
                        int64_t* personalization_vertices,
@@ -462,7 +462,7 @@ template void pagerank(raft::handle_t& handle,
                        bool has_initial_guess,
                        bool do_expensive_check);
 
-template void pagerank(raft::handle_t& handle,
+template void pagerank(raft::handle_t const& handle,
                        graph_view_t<int64_t, int64_t, double, true, false> const& graph_view,
                        double* adj_matrix_row_out_weight_sums,
                        int64_t* personalization_vertices,
