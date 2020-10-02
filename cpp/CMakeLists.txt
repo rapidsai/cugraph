@@ -185,7 +185,7 @@ set(CUHORNET_INCLUDE_DIR ${CUHORNET_DIR}/src/cuhornet CACHE STRING "Path to cuho
 
 ExternalProject_Add(cuhornet
   GIT_REPOSITORY    https://github.com/rapidsai/cuhornet.git
-  GIT_TAG           main
+  GIT_TAG           7e8be7e439c2765384c40b004806aabae2d74666
   PREFIX            ${CUHORNET_DIR}
   CONFIGURE_COMMAND ""
   BUILD_COMMAND     ""
@@ -277,7 +277,7 @@ add_library(cugraph SHARED
     src/db/db_parser_integration_test.cu
     src/db/db_operators.cu
     src/utilities/spmv_1D.cu
-    src/utilities/cython.cpp
+    src/utilities/cython.cu
     src/structure/graph.cu
     src/link_analysis/pagerank.cu
     src/link_analysis/pagerank_1D.cu

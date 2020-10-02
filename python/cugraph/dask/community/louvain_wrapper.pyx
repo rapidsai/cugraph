@@ -25,7 +25,24 @@ import cudf
 import numpy as np
 
 
-def louvain(input_df, local_data, rank, handle, max_level, resolution):
+# FIXME: move this to a more reusable location
+numberTypeMap = {np.dtype("int32") : <int>numberTypeEnum.int32Type,
+                 np.dtype("int64") : <int>numberTypeEnum.int64Type,
+                 np.dtype("float32") : <int>numberTypeEnum.floatType,
+                 np.dtype("double") : <int>numberTypeEnum.doubleType}
+
+
+def louvain(input_df,
+            num_global_verts,
+            num_global_edges,
+            partition_row_size,
+            partition_col_size,
+            vertex_partition_offsets,
+            rank,
+            handle,
+            sorted_by_degree,
+            max_level,
+            resolution):
     """
     Call MG Louvain
     """
@@ -38,60 +55,32 @@ def louvain(input_df, local_data, rank, handle, max_level, resolution):
     final_modularity = None
 
     # FIXME: much of this code is common to other algo wrappers, consider adding
-    #        this to a shared utility as well (extracting pointers from
-    #        dataframes, handling local_data, etc.)
+    #        this to a shared utility as well
 
     src = input_df['src']
     dst = input_df['dst']
+    num_partition_edges = len(src)
+
     if "value" in input_df.columns:
         weights = input_df['value']
     else:
-        weights = None
+        weights = cudf.Series(np.full(num_partition_edges, 1.0, dtype=np.float32))
 
-    num_verts = local_data['verts'].sum()
-    num_edges = local_data['edges'].sum()
+    vertex_t = src.dtype
+    if num_global_edges > (2**31 - 1):
+        edge_t = np.dtype("int64")
+    else:
+        edge_t = np.dtype("int32")
+    weight_t = weights.dtype
 
-    local_offset = local_data['offsets'][rank]
-    dst = dst - local_offset
-    num_local_verts = local_data['verts'][rank]
-    num_local_edges = len(src)
+    # COO
+    cdef uintptr_t c_src_vertices = src.__cuda_array_interface__['data'][0]
+    cdef uintptr_t c_dst_vertices = dst.__cuda_array_interface__['data'][0]
+    cdef uintptr_t c_edge_weights = weights.__cuda_array_interface__['data'][0]
 
-    cdef uintptr_t c_local_verts = local_data['verts'].__array_interface__['data'][0]
-    cdef uintptr_t c_local_edges = local_data['edges'].__array_interface__['data'][0]
-    cdef uintptr_t c_local_offsets = local_data['offsets'].__array_interface__['data'][0]
-
-    [src, dst] = graph_primtypes_wrapper.datatype_cast([src, dst], [np.int32])
-    if weights is not None:
-        if weights.dtype in [np.float32, np.double]:
-            [weights] = graph_primtypes_wrapper.datatype_cast([weights], [weights.dtype])
-        else:
-            raise TypeError(f"unsupported type {weights.dtype} for weights")
-
-    _offsets, indices, weights = graph_primtypes_wrapper.coo2csr(dst, src, weights)
-    offsets = _offsets[:num_local_verts + 1]
-    del _offsets
-
-    # Create the output dataframe
-    df = cudf.DataFrame()
-    df['vertex'] = cudf.Series(np.zeros(num_verts, dtype=np.int32))
-    df['partition'] = cudf.Series(np.zeros(num_verts, dtype=np.int32))
-
-    cdef uintptr_t c_offsets = offsets.__cuda_array_interface__['data'][0]
-    cdef uintptr_t c_indices = indices.__cuda_array_interface__['data'][0]
-    cdef uintptr_t c_weights = <uintptr_t>NULL
-    if weights is not None:
-        c_weights = weights.__cuda_array_interface__['data'][0]
-    cdef uintptr_t c_identifier = df['vertex'].__cuda_array_interface__['data'][0]
-    cdef uintptr_t c_partition = df['partition'].__cuda_array_interface__['data'][0]
-
-    cdef float final_modularity_float = 1.0
-    cdef double final_modularity_double = 1.0
-    cdef int num_level = 0
-
-    # FIXME: Offsets and indices are currently hardcoded to int, but this may
-    #        not be acceptable in the future.
-    weightTypeMap = {np.dtype("float32") : <int>numberTypeEnum.floatType,
-                     np.dtype("double") : <int>numberTypeEnum.doubleType}
+    # data is on device, move to host (.values_host) since graph_t in
+    # graph_container needs a host array
+    cdef uintptr_t c_vertex_partition_offsets = vertex_partition_offsets.values_host.__array_interface__['data'][0]
 
     cdef graph_container_t graph_container
 
@@ -99,24 +88,38 @@ def louvain(input_df, local_data, rank, handle, max_level, resolution):
     #        understand how to pass the enum value (this is the same pattern
     #        used by cudf). This will not be needed with Cython 3.0
     populate_graph_container(graph_container,
-                             <legacyGraphTypeEnum>(<int>(legacyGraphTypeEnum.CSR)),
                              handle_[0],
-                             <void*>c_offsets, <void*>c_indices, <void*>c_weights,
-                             <numberTypeEnum>(<int>(numberTypeEnum.intType)),
-                             <numberTypeEnum>(<int>(numberTypeEnum.intType)),
-                             <numberTypeEnum>(<int>(weightTypeMap[weights.dtype])),
-                             num_verts, num_local_edges,
-                             <int*>c_local_verts, <int*>c_local_edges, <int*>c_local_offsets,
+                             <void*>c_src_vertices, <void*>c_dst_vertices, <void*>c_edge_weights,
+                             <void*>c_vertex_partition_offsets,
+                             <numberTypeEnum>(<int>(numberTypeMap[vertex_t])),
+                             <numberTypeEnum>(<int>(numberTypeMap[edge_t])),
+                             <numberTypeEnum>(<int>(numberTypeMap[weight_t])),
+                             num_partition_edges,
+                             num_global_verts, num_global_edges,
+                             partition_row_size, partition_col_size,
+                             sorted_by_degree,
                              False, True)  # store_transposed, multi_gpu
 
-    if weights.dtype == np.float32:
+    # Create the output dataframe
+    df = cudf.DataFrame()
+    df['vertex'] = cudf.Series(np.zeros(num_global_verts, dtype=vertex_t))
+    df['partition'] = cudf.Series(np.zeros(num_global_verts, dtype=vertex_t))
+
+    cdef uintptr_t c_identifiers = df['vertex'].__cuda_array_interface__['data'][0]
+    cdef uintptr_t c_partition = df['partition'].__cuda_array_interface__['data'][0]
+
+    if weight_t == np.float32:
         num_level, final_modularity_float = c_louvain.call_louvain[float](
-            handle_[0], graph_container, <void*>c_partition, max_level, resolution)
+            handle_[0], graph_container,
+            <void*>c_identifiers, <void*>c_partition,
+            max_level, resolution)
         final_modularity = final_modularity_float
 
     else:
         num_level, final_modularity_double = c_louvain.call_louvain[double](
-            handle_[0], graph_container, <void*> c_partition, max_level, resolution)
+            handle_[0], graph_container,
+            <void*>c_identifiers, <void*>c_partition,
+            max_level, resolution)
         final_modularity = final_modularity_double
 
     return df, final_modularity

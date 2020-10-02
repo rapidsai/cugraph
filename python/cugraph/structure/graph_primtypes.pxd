@@ -196,21 +196,41 @@ cdef GraphViewType get_graph_view(input_graph, bool weightless=*, GraphViewType*
 cdef extern from "utilities/cython.hpp" namespace "cugraph::cython":
 
     ctypedef enum numberTypeEnum:
-        intType "cugraph::cython::numberTypeEnum::intType"
+        int32Type "cugraph::cython::numberTypeEnum::int32Type"
+        int64Type "cugraph::cython::numberTypeEnum::int64Type"
         floatType "cugraph::cython::numberTypeEnum::floatType"
         doubleType "cugraph::cython::numberTypeEnum::doubleType"
 
-    ctypedef enum legacyGraphTypeEnum:
-        CSR "cugraph::cython::legacyGraphTypeEnum::CSR"
-        CSC "cugraph::cython::legacyGraphTypeEnum::CSC"
-        COO "cugraph::cython::legacyGraphTypeEnum::COO"
-
     cdef cppclass graph_container_t:
-        void get_vertex_identifiers(void *)
+       pass
 
     cdef void populate_graph_container(
         graph_container_t &graph_container,
-        legacyGraphTypeEnum legacyType,
+        handle_t &handle,
+        void *src_vertices,
+        void *dst_vertices,
+        void *weights,
+        void *vertex_partition_offsets,
+        numberTypeEnum vertexType,
+        numberTypeEnum edgeType,
+        numberTypeEnum weightType,
+        size_t num_partition_edges,
+        size_t num_global_vertices,
+        size_t num_global_edges,
+        size_t row_comm_size,
+        size_t col_comm_size,
+        bool sorted_by_degree,
+        bool transposed,
+        bool multi_gpu) except +
+
+    ctypedef enum graphTypeEnum:
+        LegacyCSR "cugraph::cython::graphTypeEnum::LegacyCSR"
+        LegacyCSC "cugraph::cython::graphTypeEnum::LegacyCSC"
+        LegacyCOO "cugraph::cython::graphTypeEnum::LegacyCOO"
+
+    cdef void populate_graph_container_legacy(
+        graph_container_t &graph_container,
+        graphTypeEnum legacyType,
         const handle_t &handle,
         void *offsets,
         void *indices,
@@ -218,10 +238,8 @@ cdef extern from "utilities/cython.hpp" namespace "cugraph::cython":
         numberTypeEnum offsetType,
         numberTypeEnum indexType,
         numberTypeEnum weightType,
-        int num_vertices,
-        int num_edges,
+        size_t num_global_vertices,
+        size_t num_global_edges,
         int *local_vertices,
         int *local_edges,
-        int *local_offsets,
-        bool transposed,
-        bool multi_gpu) except +
+        int *local_offsets) except +

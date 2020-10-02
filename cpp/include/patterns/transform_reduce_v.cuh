@@ -16,6 +16,7 @@
 #pragma once
 
 #include <experimental/graph_view.hpp>
+#include <utilities/comm_utils.cuh>
 #include <utilities/error.hpp>
 
 #include <raft/handle.hpp>
@@ -62,8 +63,7 @@ T transform_reduce_v(raft::handle_t const& handle,
                              init,
                              thrust::plus<T>());
   if (GraphViewType::is_multi_gpu) {
-    // need to reduce ret
-    CUGRAPH_FAIL("unimplemented.");
+    ret = host_scalar_allreduce(handle.get_comms(), ret, handle.get_stream());
   }
   return ret;
 }
@@ -106,8 +106,7 @@ T transform_reduce_v(raft::handle_t const& handle,
                              init,
                              thrust::plus<T>());
   if (GraphViewType::is_multi_gpu) {
-    // need to reduce ret
-    CUGRAPH_FAIL("unimplemented.");
+    ret = host_scalar_allreduce(handle.get_comms(), ret, handle.get_stream());
   }
   return ret;
 }

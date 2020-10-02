@@ -14,18 +14,34 @@
 from dask.distributed import wait, default_client
 
 import cugraph.comms.comms as Comms
-from cugraph.dask.common.input_utils import get_local_data
-
+from cugraph.dask.common.input_utils import get_distributed_data
+from cugraph.structure.shuffle import shuffle
 from cugraph.dask.community import louvain_wrapper as c_mg_louvain
 
 
-def call_louvain(sID, data, local_data, max_level, resolution):
+def call_louvain(sID,
+                 data,
+                 num_verts,
+                 num_edges,
+                 partition_row_size,
+                 partition_col_size,
+                 vertex_partition_offsets,
+                 sorted_by_degree,
+                 max_level,
+                 resolution):
+
     wid = Comms.get_worker_id(sID)
     handle = Comms.get_handle(sID)
+
     return c_mg_louvain.louvain(data[0],
-                                local_data,
+                                num_verts,
+                                num_edges,
+                                partition_row_size,
+                                partition_col_size,
+                                vertex_partition_offsets,
                                 wid,
                                 handle,
+                                sorted_by_degree,
                                 max_level,
                                 resolution)
 
@@ -62,23 +78,33 @@ def louvain(input_graph, max_iter=100, resolution=1.0, load_balance=True):
     #     raise Exception("input graph must be undirected")
 
     client = default_client()
-
-    if(input_graph.local_data is not None and
-       input_graph.local_data['by'] == 'src'):
-        data = input_graph.local_data['data']
-    else:
-        data = get_local_data(input_graph, by='src', load_balance=load_balance)
+    # Calling renumbering results in data that is sorted by degree
+    input_graph.compute_renumber_edge_list(transposed=False)
+    sorted_by_degree = True
+    (ddf,
+     num_verts,
+     partition_row_size,
+     partition_col_size,
+     vertex_partition_offsets) = shuffle(input_graph, transposed=False)
+    num_edges = len(ddf)
+    data = get_distributed_data(ddf)
 
     result = dict([(data.worker_info[wf[0]]["rank"],
                     client.submit(
                         call_louvain,
                         Comms.get_session_id(),
                         wf[1],
-                        data.local_data,
+                        num_verts,
+                        num_edges,
+                        partition_row_size,
+                        partition_col_size,
+                        vertex_partition_offsets,
+                        sorted_by_degree,
                         max_iter,
                         resolution,
                         workers=[wf[0]]))
                    for idx, wf in enumerate(data.worker_to_parts.items())])
+
     wait(result)
 
     (parts, modularity_score) = result[0].result()
