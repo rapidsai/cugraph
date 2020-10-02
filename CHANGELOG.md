@@ -1,3 +1,11 @@
+# cuGraph 0.17.0 (Date TBD)
+
+## New Features
+
+## Improvements
+
+## Bug Fixes
+
 # cuGraph 0.16.0 (Date TBD)
 
 ## New Features
