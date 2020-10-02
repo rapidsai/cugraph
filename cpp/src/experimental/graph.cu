@@ -330,7 +330,7 @@ std::cout<<"RESERVE OK"<<std::endl;
      std::cout<<"DONE ELTCS"<<std::endl;
      adj_matrix_partition_offsets_.push_back(std::move(offsets));
     adj_matrix_partition_indices_.push_back(std::move(indices));
-    if (adj_matrix_partition_weights_.size() > 0) {
+    if (is_weighted) {
       adj_matrix_partition_weights_.push_back(std::move(weights));
     }
      std::cout<<"DONE LOOP"<<std::endl;

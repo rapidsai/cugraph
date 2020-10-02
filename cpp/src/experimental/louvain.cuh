@@ -118,29 +118,32 @@ struct create_cuco_pair_t {
 //
 //  Compare edges based on src[e] and dst[e] matching
 //
-template <typename data_t>
+template <typename data_t, typename sentinel_t>
 class src_dst_equality_comparator_t {
  public:
   src_dst_equality_comparator_t(rmm::device_vector<data_t> const &src,
-                                rmm::device_vector<data_t> const &dst)
-    : d_src_{src.data().get()}, d_dst_{dst.data().get()}
+                                rmm::device_vector<data_t> const &dst,
+                                sentinel_t sentinel_value)
+    : d_src_{src.data().get()}, d_dst_{dst.data().get()}, sentinel_value_(sentinel_value)
   {
   }
 
-  src_dst_equality_comparator_t(data_t const *d_src, data_t const *d_dst)
-    : d_src_{d_src}, d_dst_{d_dst}
+  src_dst_equality_comparator_t(data_t const *d_src, data_t const *d_dst, sentinel_t sentinel_value)
+    : d_src_{d_src}, d_dst_{d_dst}, sentinel_value_(sentinel_value)
   {
   }
 
   template <typename idx_type>
   __device__ bool operator()(idx_type lhs_index, idx_type rhs_index) const noexcept
   {
-    return (d_src_[lhs_index] == d_src_[rhs_index]) && (d_dst_[lhs_index] == d_dst_[rhs_index]);
+    return (lhs_index != sentinel_value_) && (rhs_index != sentinel_value_) &&
+           (d_src_[lhs_index] == d_src_[rhs_index]) && (d_dst_[lhs_index] == d_dst_[rhs_index]);
   }
 
  private:
   data_t const *d_src_;
   data_t const *d_dst_;
+  sentinel_t sentinel_value_;
 };
 
 //
@@ -183,35 +186,39 @@ class src_dst_hasher_t {
 //
 //  Compare edges based on src[e] and cluster[dst[e]] matching
 //
-template <typename data_t>
+template <typename data_t, typename sentinel_t>
 class src_cluster_equality_comparator_t {
  public:
   src_cluster_equality_comparator_t(rmm::device_vector<data_t> const &src,
                                     rmm::device_vector<data_t> const &dst,
                                     rmm::device_vector<data_t> const &dst_cluster_cache,
-                                    data_t base_dst_id)
+                                    data_t base_dst_id,
+                                    sentinel_t sentinel_value)
     : d_src_{src.data().get()},
       d_dst_{dst.data().get()},
       d_dst_cluster_{dst_cluster_cache.data().get()},
-      base_dst_id_(base_dst_id)
+      base_dst_id_(base_dst_id),
+      sentinel_value_(sentinel_value)
   {
   }
 
   src_cluster_equality_comparator_t(data_t const *d_src,
                                     data_t const *d_dst,
                                     data_t const *d_dst_cluster_cache,
-                                    data_t base_dst_id)
-    : d_src_{d_src}, d_dst_{d_dst}, d_dst_cluster_{d_dst_cluster_cache}, base_dst_id_(base_dst_id)
+                                    data_t base_dst_id,
+                                    sentinel_t sentinel_value)
+    : d_src_{d_src},
+      d_dst_{d_dst},
+      d_dst_cluster_{d_dst_cluster_cache},
+      base_dst_id_(base_dst_id),
+      sentinel_value_(sentinel_value)
   {
   }
 
-  template <typename idx_type>
-  __device__ bool operator()(idx_type lhs_index, idx_type rhs_index) const noexcept
+  __device__ bool operator()(sentinel_t lhs_index, sentinel_t rhs_index) const noexcept
   {
-    printf("src_cluster_equality_comparator, lhs = %d, rhs = %d, left_src = %d, right_src = %d, left_dst = %d, right_dst = %d, base = %d\n",
-           (int) lhs_index, (int) rhs_index, (int) d_src_[lhs_index], (int) d_src_[rhs_index], (int) d_dst_[lhs_index], (int) d_dst_[rhs_index], (int) base_dst_id_);
-
-    return (d_src_[lhs_index] == d_src_[rhs_index]) &&
+    return (lhs_index != sentinel_value_) && (rhs_index != sentinel_value_) &&
+           (d_src_[lhs_index] == d_src_[rhs_index]) &&
            (d_dst_cluster_[d_dst_[lhs_index] - base_dst_id_] ==
             d_dst_cluster_[d_dst_[rhs_index] - base_dst_id_]);
   }
@@ -221,6 +228,7 @@ class src_cluster_equality_comparator_t {
   data_t const *d_dst_;
   data_t const *d_dst_cluster_;
   data_t base_dst_id_;
+  sentinel_t sentinel_value_;
 };
 
 //
@@ -253,10 +261,24 @@ class src_cluster_hasher_t {
   {
     MurmurHash3_32<data_t> hasher;
 
-    printf("src_cluster_hasher, index = %d\n", (int) index);
+#if 0
+    printf("src_cluster_hasher, index = %d\n", (int)index);
     printf("src_cluster_hasher, index = %d, src = %d, dst = %d, base = %d, offset = %d\n",
-           (int) index, (int) d_src_[index], (int) d_dst_[index], (int) base_dst_id_, (int) (d_dst_[index] - base_dst_id_));
-    printf("  dst cluster = %d\n", (int) d_dst_cluster_[d_dst_[index] - base_dst_id_]);
+           (int)index,
+           (int)d_src_[index],
+           (int)d_dst_[index],
+           (int)base_dst_id_,
+           (int)(d_dst_[index] - base_dst_id_));
+#endif
+    printf(
+      "src_cluster_hasher, index = %d, src = %d, dst = %d, base = %d, offset = %d, dst_cluster = "
+      "%d\n",
+      (int)index,
+      (int)d_src_[index],
+      (int)d_dst_[index],
+      (int)base_dst_id_,
+      (int)(d_dst_[index] - base_dst_id_),
+      (int)d_dst_cluster_[d_dst_[index] - base_dst_id_]);
 
     auto h_src     = hasher(d_src_[index]);
     auto h_cluster = hasher(d_dst_cluster_[d_dst_[index] - base_dst_id_]);
@@ -651,26 +673,10 @@ class Louvain {
     src_cache_v.resize(current_graph_view_.get_number_of_local_adj_matrix_partition_rows());
     dst_cache_v.resize(current_graph_view_.get_number_of_local_adj_matrix_partition_cols());
 
-    print_v("local_input", local_input_v);
-
-    std::cout << "src_cache_v size = " << src_cache_v.size() << std::endl;
-
     copy_to_adj_matrix_row(
       handle_, current_graph_view_, local_input_v.begin(), src_cache_v.begin());
-
-    print_v("src_cache_v", src_cache_v);
-
-    std::cout << "dst_cache_v size = " << dst_cache_v.size() << std::endl;
-
-#if 1
     copy_to_adj_matrix_col(
       handle_, current_graph_view_, local_input_v.begin(), dst_cache_v.begin());
-#else
-    thrust::copy(rmm::exec_policy(stream_)->on(stream_),
-                 local_input_v.begin(),
-                 local_input_v.end(),
-                 dst_cache_v.begin());
-#endif
   }
 
   //
@@ -772,9 +778,15 @@ class Louvain {
     vertex_t const *d_dst_cluster_cache = dst_cluster_cache_v_.data().get();
 
     print_v("dst_cluster_cache", dst_cluster_cache_v_);
+    printf("d_weights = %p\n", d_weights);
+    print_v("d_weights", d_weights, local_num_edges_);
 
-    detail::src_cluster_equality_comparator_t<vertex_t> compare(
-      d_src_indices, d_dst_indices, d_dst_cluster_cache, base_dst_vertex_id_);
+    detail::src_cluster_equality_comparator_t<vertex_t, edge_t> compare(
+      d_src_indices,
+      d_dst_indices,
+      d_dst_cluster_cache,
+      base_dst_vertex_id_,
+      std::numeric_limits<edge_t>::max());
     detail::src_cluster_hasher_t<vertex_t> hasher(
       d_src_indices, d_dst_indices, d_dst_cluster_cache, base_dst_vertex_id_);
     detail::skip_edge_t<vertex_t> skip_edge(d_src_indices, d_dst_indices);
@@ -878,7 +890,7 @@ class Louvain {
     //  Again, we'll combine edges that connect the same source to the same
     //  neighboring cluster and sum their weights.
     //
-    detail::src_dst_equality_comparator_t<vertex_t> compare2(src_v, nbr_cluster_v);
+    detail::src_dst_equality_comparator_t<vertex_t, vertex_t> compare2(src_v, nbr_cluster_v, VERTEX_MAX);
     detail::src_dst_hasher_t<vertex_t> hasher2(src_v, nbr_cluster_v);
 
     auto skip_edge2 = [] __device__(auto) { return false; };
@@ -1207,18 +1219,16 @@ class Louvain {
     weight_t const *d_weights,
     count_t num_weights)
   {
-    std::cout << "in local_src_dest_weights, num_weights = " << num_weights << std::endl;
-    CUDA_TRY(cudaStreamSynchronize(stream_));
-
     std::size_t capacity{static_cast<std::size_t>(num_weights / 0.7)};
-    std::cout << "capacity = " << capacity << std::endl;
 
-    cuco::static_map<count_t, count_t> hash_map(capacity, VERTEX_MAX, count_t{0});
-
+    cuco::static_map<count_t, count_t> hash_map(
+      capacity, std::numeric_limits<count_t>::max(), count_t{0});
+    // cuco::static_map<count_t, count_t> hash_map(capacity, -1, count_t{0});
     detail::create_cuco_pair_t<count_t> create_cuco_pair;
 
+    auto d_hash_map = hash_map.get_device_view();
+
     CUDA_TRY(cudaStreamSynchronize(stream_));
-    std::cout << "hash_map insert beginning, size = " << hash_map.get_capacity() << std::endl;
 
     hash_map.insert(
       thrust::make_transform_iterator(thrust::make_counting_iterator<count_t>(0), create_cuco_pair),
@@ -1227,11 +1237,10 @@ class Louvain {
       hasher,
       compare);
 
-    std::cout << "hash_map insert complete" << std::endl;
     CUDA_TRY(cudaStreamSynchronize(stream_));
-    std::cout << "hash_map insert complete, size = " << hash_map.get_size() << std::endl;
 
-    auto d_hash_map = hash_map.get_device_view();
+    std::cout << "hash_map insert complete, size = " << hash_map.get_size()
+              << " dsize = " << hash_map.get_size() << std::endl;
 
     rmm::device_vector<count_t> relevant_edges_v(num_weights);
 
@@ -1256,11 +1265,18 @@ class Louvain {
       [d_hash_map, hasher, compare, d_relevant_edges] __device__(count_t idx) mutable {
         count_t edge_id = d_relevant_edges[idx];
         auto pos        = d_hash_map.find(edge_id, hasher, compare);
+#if 0
 #ifdef DEBUG
         printf("setting value for key %d to %d\n", (int)edge_id, (int)idx);
 #endif
+#endif
         pos->second.store(idx);
       });
+
+    print_v("relevant edges", relevant_edges_v);
+
+    CUDA_TRY(cudaStreamSynchronize(stream_));
+    std::cout << "about to extract relevant edges, new_edge_size = " << new_edge_size << std::endl;
 
     rmm::device_vector<weight_t> relevant_edge_weights_v(new_edge_size, weight_t{0});
     auto d_relevant_edge_weights = relevant_edge_weights_v.data();
@@ -1274,19 +1290,17 @@ class Louvain {
       [d_hash_map, hasher, compare, skip_edge, d_relevant_edge_weights, d_weights, MAX] __device__(
         count_t idx) {
         if (!skip_edge(idx)) {
+          printf("idx = %d, about to find\n", (int)idx);
           auto pos = d_hash_map.find(idx, hasher, compare);
-          if (pos->first != MAX) {
-#ifdef DEBUG
-            printf("idx = %d, key = %d, offsets = %d, weight = %g\n",
-                   (int)idx,
-                   (int)pos->first,
-                   (int)pos->second.load(),
-                   d_weights[idx]);
-#endif
-            atomicAdd(d_relevant_edge_weights.get() + pos->second.load(), d_weights[idx]);
+          if (pos != d_hash_map.end()) {
+            atomicAdd(
+              d_relevant_edge_weights.get() + pos->second.load(cuda::std::memory_order_relaxed),
+              d_weights[idx]);
           }
         }
       });
+
+    print_v("relevant edge weights", relevant_edge_weights_v);
 
     return std::make_pair(relevant_edges_v, relevant_edge_weights_v);
   }

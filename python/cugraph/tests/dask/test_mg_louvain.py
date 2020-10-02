@@ -80,7 +80,7 @@ def daskGraphFromDataset(request, client_connection):
     )
 
     dg = cugraph.DiGraph()
-    dg.from_dask_cudf_edgelist(ddf, "src", "dst")
+    dg.from_dask_cudf_edgelist(ddf, "src", "dst", "value")
     return dg
 
 
