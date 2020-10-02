@@ -116,7 +116,7 @@ void populate_graph_container(graph_container_t& graph_container,
                               bool transposed,
                               bool multi_gpu)
 {
-  CUGRAPH_EXPECTS(graph_container.graph_ptr_type == graphTypeEnum::null,
+  CUGRAPH_EXPECTS(graph_container.graph_type == graphTypeEnum::null,
                   "populate_graph_container() can only be called on an empty container.");
 
   bool sorted_by_degree{false};
@@ -161,10 +161,12 @@ void populate_graph_container(graph_container_t& graph_container,
 
   experimental::graph_properties_t graph_props{.is_symmetric = false, .is_multigraph = false};
   graph_container.graph_props = graph_props;
+
+  graph_container.graph_type = graphTypeEnum::graph_t;
 }
 
 void populate_graph_container_legacy(graph_container_t& graph_container,
-                                     legacyGraphTypeEnum legacyType,
+                                     graphTypeEnum legacyType,
                                      raft::handle_t const& handle,
                                      void* offsets,
                                      void* indices,
@@ -178,7 +180,7 @@ void populate_graph_container_legacy(graph_container_t& graph_container,
                                      int* local_edges,
                                      int* local_offsets)
 {
-  CUGRAPH_EXPECTS(graph_container.graph_ptr_type == graphTypeEnum::null,
+  CUGRAPH_EXPECTS(graph_container.graph_type == graphTypeEnum::null,
                   "populate_graph_container() can only be called on an empty container.");
 
   // FIXME: This is soon-to-be legacy code left in place until the new graph_t
@@ -187,88 +189,94 @@ void populate_graph_container_legacy(graph_container_t& graph_container,
   // Keep new code below return stmnt enabled to ensure it builds.
   if (weightType == numberTypeEnum::floatType) {
     switch (legacyType) {
-      case legacyGraphTypeEnum::CSR: {
+      case graphTypeEnum::LegacyCSR: {
         graph_container.graph_ptr_union.GraphCSRViewFloatPtr =
           std::make_unique<GraphCSRView<int, int, float>>(reinterpret_cast<int*>(offsets),
                                                           reinterpret_cast<int*>(indices),
                                                           reinterpret_cast<float*>(weights),
                                                           num_global_vertices,
                                                           num_global_edges);
-        graph_container.graph_ptr_type = graphTypeEnum::GraphCSRViewFloat;
+        graph_container.graph_type = graphTypeEnum::GraphCSRViewFloat;
         (graph_container.graph_ptr_union.GraphCSRViewFloatPtr)
           ->set_local_data(local_vertices, local_edges, local_offsets);
         (graph_container.graph_ptr_union.GraphCSRViewFloatPtr)
           ->set_handle(const_cast<raft::handle_t*>(&handle));
       } break;
-      case legacyGraphTypeEnum::CSC: {
+      case graphTypeEnum::LegacyCSC: {
         graph_container.graph_ptr_union.GraphCSCViewFloatPtr =
           std::make_unique<GraphCSCView<int, int, float>>(reinterpret_cast<int*>(offsets),
                                                           reinterpret_cast<int*>(indices),
                                                           reinterpret_cast<float*>(weights),
                                                           num_global_vertices,
                                                           num_global_edges);
-        graph_container.graph_ptr_type = graphTypeEnum::GraphCSCViewFloat;
+        graph_container.graph_type = graphTypeEnum::GraphCSCViewFloat;
         (graph_container.graph_ptr_union.GraphCSCViewFloatPtr)
           ->set_local_data(local_vertices, local_edges, local_offsets);
         (graph_container.graph_ptr_union.GraphCSCViewFloatPtr)
           ->set_handle(const_cast<raft::handle_t*>(&handle));
       } break;
-      case legacyGraphTypeEnum::COO: {
+      case graphTypeEnum::LegacyCOO: {
         graph_container.graph_ptr_union.GraphCOOViewFloatPtr =
           std::make_unique<GraphCOOView<int, int, float>>(reinterpret_cast<int*>(offsets),
                                                           reinterpret_cast<int*>(indices),
                                                           reinterpret_cast<float*>(weights),
                                                           num_global_vertices,
                                                           num_global_edges);
-        graph_container.graph_ptr_type = graphTypeEnum::GraphCOOViewFloat;
+        graph_container.graph_type = graphTypeEnum::GraphCOOViewFloat;
         (graph_container.graph_ptr_union.GraphCOOViewFloatPtr)
           ->set_local_data(local_vertices, local_edges, local_offsets);
         (graph_container.graph_ptr_union.GraphCOOViewFloatPtr)
           ->set_handle(const_cast<raft::handle_t*>(&handle));
       } break;
+      default:
+        CUGRAPH_FAIL("unsupported graphTypeEnum value");
+        break;
     }
 
   } else {
     switch (legacyType) {
-      case legacyGraphTypeEnum::CSR: {
+      case graphTypeEnum::LegacyCSR: {
         graph_container.graph_ptr_union.GraphCSRViewDoublePtr =
           std::make_unique<GraphCSRView<int, int, double>>(reinterpret_cast<int*>(offsets),
                                                            reinterpret_cast<int*>(indices),
                                                            reinterpret_cast<double*>(weights),
                                                            num_global_vertices,
                                                            num_global_edges);
-        graph_container.graph_ptr_type = graphTypeEnum::GraphCSRViewDouble;
+        graph_container.graph_type = graphTypeEnum::GraphCSRViewDouble;
         (graph_container.graph_ptr_union.GraphCSRViewDoublePtr)
           ->set_local_data(local_vertices, local_edges, local_offsets);
         (graph_container.graph_ptr_union.GraphCSRViewDoublePtr)
           ->set_handle(const_cast<raft::handle_t*>(&handle));
       } break;
-      case legacyGraphTypeEnum::CSC: {
+      case graphTypeEnum::LegacyCSC: {
         graph_container.graph_ptr_union.GraphCSCViewDoublePtr =
           std::make_unique<GraphCSCView<int, int, double>>(reinterpret_cast<int*>(offsets),
                                                            reinterpret_cast<int*>(indices),
                                                            reinterpret_cast<double*>(weights),
                                                            num_global_vertices,
                                                            num_global_edges);
-        graph_container.graph_ptr_type = graphTypeEnum::GraphCSCViewDouble;
+        graph_container.graph_type = graphTypeEnum::GraphCSCViewDouble;
         (graph_container.graph_ptr_union.GraphCSCViewDoublePtr)
           ->set_local_data(local_vertices, local_edges, local_offsets);
         (graph_container.graph_ptr_union.GraphCSCViewDoublePtr)
           ->set_handle(const_cast<raft::handle_t*>(&handle));
       } break;
-      case legacyGraphTypeEnum::COO: {
+      case graphTypeEnum::LegacyCOO: {
         graph_container.graph_ptr_union.GraphCOOViewDoublePtr =
           std::make_unique<GraphCOOView<int, int, double>>(reinterpret_cast<int*>(offsets),
                                                            reinterpret_cast<int*>(indices),
                                                            reinterpret_cast<double*>(weights),
                                                            num_global_vertices,
                                                            num_global_edges);
-        graph_container.graph_ptr_type = graphTypeEnum::GraphCOOViewDouble;
+        graph_container.graph_type = graphTypeEnum::GraphCOOViewDouble;
         (graph_container.graph_ptr_union.GraphCOOViewDoublePtr)
           ->set_local_data(local_vertices, local_edges, local_offsets);
         (graph_container.graph_ptr_union.GraphCOOViewDoublePtr)
           ->set_handle(const_cast<raft::handle_t*>(&handle));
       } break;
+      default:
+        CUGRAPH_FAIL("unsupported graphTypeEnum value");
+        break;
     }
   }
   return;
@@ -302,6 +310,7 @@ std::pair<size_t, weight_t> call_louvain(raft::handle_t const& handle,
 
 namespace detail {
 
+// Final, fully-templatized call.
 template <bool transposed,
           typename return_t,
           typename function_t,
@@ -319,6 +328,7 @@ return_t call_function(raft::handle_t const& handle,
   return function(handle, graph->view());
 }
 
+// Makes another call based on vertex_t
 template <bool transposed,
           typename return_t,
           typename function_t,
@@ -329,6 +339,8 @@ return_t call_function(raft::handle_t const& handle,
                        graph_container_t const& graph_container,
                        function_t function)
 {
+  // FIXME: add support for unsigned ints once the code that relies on vertex_t
+  // and edge_t being signed is retired.
   if (graph_container.vertexType == numberTypeEnum::int32Type) {
     return call_function<transposed,
                          return_t,
@@ -341,7 +353,7 @@ return_t call_function(raft::handle_t const& handle,
     return call_function<transposed,
                          return_t,
                          function_t,
-                         int32_t,
+                         int64_t,
                          edge_t,
                          weight_t,
                          is_multi_gpu>(handle, graph_container, function);
@@ -350,6 +362,7 @@ return_t call_function(raft::handle_t const& handle,
   }
 }
 
+// Makes another call based on edge_t
 template <bool transposed,
           typename return_t,
           typename function_t,
@@ -363,13 +376,14 @@ return_t call_function(raft::handle_t const& handle,
     return call_function<transposed, return_t, function_t, int32_t, weight_t, is_multi_gpu>(
       handle, graph_container, function);
   } else if (graph_container.edgeType == numberTypeEnum::int64Type) {
-    return call_function<transposed, return_t, function_t, int32_t, weight_t, is_multi_gpu>(
+    return call_function<transposed, return_t, function_t, int64_t, weight_t, is_multi_gpu>(
       handle, graph_container, function);
   } else {
     CUGRAPH_FAIL("edgeType unsupported");
   }
 }
 
+// Makes another call based on weight_t
 template <bool transposed,
           typename return_t,
           typename function_t,
@@ -389,6 +403,7 @@ return_t call_function(raft::handle_t const& handle,
   }
 }
 
+// Makes another call based on multi_gpu
 template <bool transposed, typename return_t, typename function_t>
 return_t call_function(raft::handle_t const& handle,
                        graph_container_t const& graph_container,
@@ -403,6 +418,8 @@ return_t call_function(raft::handle_t const& handle,
   }
 }
 
+// Initial call_function() call starts here.
+// This makes another call based on transposed
 template <typename return_t, typename function_t>
 return_t call_function(raft::handle_t const& handle,
                        graph_container_t const& graph_container,
@@ -437,7 +454,7 @@ class louvain_functor {
   }
 
  private:
-  void* identifiers_;
+  void* identifiers_;  // FIXME: this will be used in a future PR
   void* parts_;
   size_t max_level_;
   weight_t resolution_;
@@ -455,21 +472,20 @@ std::pair<size_t, weight_t> call_louvain(raft::handle_t const& handle,
                                          weight_t resolution)
 {
   // LEGACY PATH - remove when migration to graph_t types complete
-  if (graph_container.graph_ptr_type == graphTypeEnum::GraphCSRViewFloat) {
-    //     if (graph_container.graph_ptr_type == graphTypeEnum::GraphCSRViewFloat) {
-    graph_container.graph_ptr_union.GraphCSCViewFloatPtr->get_vertex_identifiers(
+  if (graph_container.graph_type == graphTypeEnum::GraphCSRViewFloat) {
+    graph_container.graph_ptr_union.GraphCSRViewFloatPtr->get_vertex_identifiers(
       static_cast<int32_t*>(identifiers));
     return louvain(handle,
                    *(graph_container.graph_ptr_union.GraphCSRViewFloatPtr),
-                   reinterpret_cast<int*>(parts),
+                   reinterpret_cast<int32_t*>(parts),
                    max_level,
                    static_cast<float>(resolution));
-  } else if (graph_container.graph_ptr_type == graphTypeEnum::GraphCSRViewDouble) {
-    graph_container.graph_ptr_union.GraphCSCViewDoublePtr->get_vertex_identifiers(
+  } else if (graph_container.graph_type == graphTypeEnum::GraphCSRViewDouble) {
+    graph_container.graph_ptr_union.GraphCSRViewDoublePtr->get_vertex_identifiers(
       static_cast<int32_t*>(identifiers));
     return louvain(handle,
                    *(graph_container.graph_ptr_union.GraphCSRViewDoublePtr),
-                   reinterpret_cast<int*>(parts),
+                   reinterpret_cast<int32_t*>(parts),
                    max_level,
                    static_cast<double>(resolution));
   }

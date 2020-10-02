@@ -24,31 +24,29 @@ namespace cython {
 
 enum class numberTypeEnum : int { int32Type, int64Type, floatType, doubleType };
 
-// FIXME: The GraphC??View* types will not be used in the near future. Those are
-// left in place as cython wrappers transition from the GraphC* classes to
-// graph_* classes. Remove GraphC* classes once the transition is complete.
-//
-// FIXME: Is this OBE with Chuck's new approach?
 enum class graphTypeEnum : int {
+  // represents unintiialized or NULL ptr
   null,
+  // represents some legacy Cxx type. This and other LegacyCxx values are not
+  // used for the unique_ptr in a graph_container_t, but instead for when this
+  // enum is used for determining high-level code paths to take to prevent
+  // needing to expose each legacy enum value to cython.
+  LegacyCSR,
+  LegacyCSC,
+  LegacyCOO,
+  // represents that a GraphCxxView* unique_ptr type is present in a
+  // graph_container_t.
   GraphCSRViewFloat,
   GraphCSRViewDouble,
   GraphCSCViewFloat,
   GraphCSCViewDouble,
   GraphCOOViewFloat,
   GraphCOOViewDouble,
-  graph_t_float,
-  graph_t_double,
-  graph_t_float_mg,
-  graph_t_double_mg,
-  graph_t_float_transposed,
-  graph_t_double_transposed,
-  graph_t_float_mg_transposed,
-  graph_t_double_mg_transposed,
+  // represents values present in the graph_container_t to construct a graph_t,
+  // but unlike legacy classes does not mean a graph_t unique_ptr is present in
+  // the container.
+  graph_t,
 };
-
-// Enum for the high-level type of GraphC??View* class to instantiate.
-enum class legacyGraphTypeEnum : int { CSR, CSC, COO };
 
 // "container" for a graph type instance which insulates the owner from the
 // specifics of the actual graph type. This is intended to be used in Cython
@@ -56,9 +54,10 @@ enum class legacyGraphTypeEnum : int { CSR, CSC, COO };
 // greatly simplifies the Cython code since the Cython definition only needs to
 // define the container and not the various individual graph types in Cython.
 struct graph_container_t {
-  // FIXME: use std::variant (or a better alternative, ie. type erasure?) instead
-  //        of a union if possible
-  // FIXME: is this all OBE with Chuck's new approach?
+   // FIXME: This union is in place only to support legacy calls, remove when
+   // migration to graph_t types is complete, or when legacy graph objects are
+   // constructed in the call_<<algo> wrappers instead of the
+   // populate_graph_container_legacy() function.
   union graphPtrUnion {
     ~graphPtrUnion() {}
 
@@ -69,68 +68,9 @@ struct graph_container_t {
     std::unique_ptr<GraphCSCView<int32_t, int32_t, double>> GraphCSCViewDoublePtr;
     std::unique_ptr<GraphCOOView<int32_t, int32_t, float>> GraphCOOViewFloatPtr;
     std::unique_ptr<GraphCOOView<int32_t, int32_t, double>> GraphCOOViewDoublePtr;
-    // FIXME:  Change spelling to:
-    //            graph_t_int32_int32_float_ptr
-    //            graph_t_int32_int32_double_ptr
-    //            graph_t_int32_int32_float_mg_ptr
-    //            graph_t_int32_int32_double_mg_ptr
-    std::unique_ptr<experimental::graph_t<int32_t, int32_t, float, false, false>>
-      graph_t_float_ptr;
-    std::unique_ptr<experimental::graph_t<int32_t, int32_t, double, false, false>>
-      graph_t_double_ptr;
-    std::unique_ptr<experimental::graph_t<int32_t, int32_t, float, false, true>>
-      graph_t_float_mg_ptr;
-    std::unique_ptr<experimental::graph_t<int32_t, int32_t, double, false, true>>
-      graph_t_double_mg_ptr;
-    std::unique_ptr<experimental::graph_t<int32_t, int64_t, float, false, true>>
-      graph_t_int32_int64_float_ptr;
-    std::unique_ptr<experimental::graph_t<int32_t, int64_t, double, false, true>>
-      graph_t_int32_int64_double_ptr;
-    std::unique_ptr<experimental::graph_t<int32_t, int64_t, float, false, true>>
-      graph_t_int32_int64_float_mg_ptr;
-    std::unique_ptr<experimental::graph_t<int32_t, int64_t, double, false, true>>
-      graph_t_int32_int64_double_mg_ptr;
-    std::unique_ptr<experimental::graph_t<int64_t, int64_t, float, false, true>>
-      graph_t_int64_int64_float_ptr;
-    std::unique_ptr<experimental::graph_t<int64_t, int64_t, double, false, true>>
-      graph_t_int64_int64_double_ptr;
-    std::unique_ptr<experimental::graph_t<int64_t, int64_t, float, false, true>>
-      graph_t_int64_int64_float_mg_ptr;
-    std::unique_ptr<experimental::graph_t<int64_t, int64_t, double, false, true>>
-      graph_t_int64_int64_double_mg_ptr;
-
-    // FIXME:  Change spelling to:
-    //            graph_t_int32_int32_float_transposed_ptr
-    //            graph_t_int32_int32_double_transposed_ptr
-    //            graph_t_int32_int32_float_mg_transposed_ptr
-    //            graph_t_int32_int32_double_mg_transposed_ptr
-    std::unique_ptr<experimental::graph_t<int32_t, int32_t, float, true, false>>
-      graph_t_float_transposed_ptr;
-    std::unique_ptr<experimental::graph_t<int32_t, int32_t, double, true, false>>
-      graph_t_double_transposed_ptr;
-    std::unique_ptr<experimental::graph_t<int32_t, int32_t, float, true, true>>
-      graph_t_float_mg_transposed_ptr;
-    std::unique_ptr<experimental::graph_t<int32_t, int32_t, double, true, true>>
-      graph_t_double_mg_transposed_ptr;
-    std::unique_ptr<experimental::graph_t<int32_t, int64_t, float, true, true>>
-      graph_t_int32_int64_float_transposed_ptr;
-    std::unique_ptr<experimental::graph_t<int32_t, int64_t, double, true, true>>
-      graph_t_int32_int64_double_transposed_ptr;
-    std::unique_ptr<experimental::graph_t<int32_t, int64_t, float, true, true>>
-      graph_t_int32_int64_float_mg_transposed_ptr;
-    std::unique_ptr<experimental::graph_t<int32_t, int64_t, double, true, true>>
-      graph_t_int32_int64_double_mg_transposed_ptr;
-    std::unique_ptr<experimental::graph_t<int64_t, int64_t, float, true, true>>
-      graph_t_int64_int64_float_transposed_ptr;
-    std::unique_ptr<experimental::graph_t<int64_t, int64_t, double, true, true>>
-      graph_t_int64_int64_double_transposed_ptr;
-    std::unique_ptr<experimental::graph_t<int64_t, int64_t, float, true, true>>
-      graph_t_int64_int64_float_mg_transposed_ptr;
-    std::unique_ptr<experimental::graph_t<int64_t, int64_t, double, true, true>>
-      graph_t_int64_int64_double_mg_transposed_ptr;
   };
 
-  graph_container_t() : graph_ptr_union{nullptr}, graph_ptr_type{graphTypeEnum::null} {}
+  graph_container_t() : graph_ptr_union{nullptr}, graph_type{graphTypeEnum::null} {}
   ~graph_container_t() {}
 
   // The expected usage of a graph_container_t is for it to be created as part
@@ -143,8 +83,9 @@ struct graph_container_t {
   graph_container_t& operator=(const graph_container_t&) = delete;
 
   graphPtrUnion graph_ptr_union;
-  graphTypeEnum graph_ptr_type;
+  graphTypeEnum graph_type;
 
+  // primitive data used for constructing graph_t instances.
   void *src_vertices;
   void *dst_vertices;
   void *weights;
@@ -179,7 +120,7 @@ struct graph_container_t {
 //   container (ie. a container that has not been previously populated by
 //   populate_graph_container())
 //
-// legacyGraphTypeEnum legacyType
+// graphTypeEnum legacyType
 //   Specifies the type of graph when instantiating a legacy graph type
 //   (GraphCSRViewFloat, etc.).
 //   NOTE: this parameter will be removed when the transition to exclusinve use
@@ -216,8 +157,6 @@ struct graph_container_t {
 // bool multi_gpu
 //   true if the resulting graph object is to be used for a multi-gpu
 //   application
-//
-// FIXME: Should local_* values be void* as well?
 void populate_graph_container(graph_container_t& graph_container,
                               raft::handle_t& handle,
                               void* src_vertices,
@@ -236,8 +175,9 @@ void populate_graph_container(graph_container_t& graph_container,
                               bool multi_gpu);
 
 // FIXME: comment this function
+// FIXME: Should local_* values be void* as well?
 void populate_graph_container_legacy(graph_container_t& graph_container,
-                                     legacyGraphTypeEnum legacyType,
+                                     graphTypeEnum legacyType,
                                      raft::handle_t const& handle,
                                      void* offsets,
                                      void* indices,

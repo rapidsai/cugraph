@@ -222,14 +222,14 @@ cdef extern from "utilities/cython.hpp" namespace "cugraph::cython":
         bool transposed,
         bool multi_gpu) except +
 
-    ctypedef enum legacyGraphTypeEnum:
-        CSR "cugraph::cython::legacyGraphTypeEnum::CSR"
-        CSC "cugraph::cython::legacyGraphTypeEnum::CSC"
-        COO "cugraph::cython::legacyGraphTypeEnum::COO"
+    ctypedef enum graphTypeEnum:
+        LegacyCSR "cugraph::cython::graphTypeEnum::LegacyCSR"
+        LegacyCSC "cugraph::cython::graphTypeEnum::LegacyCSC"
+        LegacyCOO "cugraph::cython::graphTypeEnum::LegacyCOO"
 
     cdef void populate_graph_container_legacy(
         graph_container_t &graph_container,
-        legacyGraphTypeEnum legacyType,
+        graphTypeEnum legacyType,
         const handle_t &handle,
         void *offsets,
         void *indices,
