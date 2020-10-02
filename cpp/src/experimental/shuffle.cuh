@@ -39,7 +39,7 @@ rmm::device_vector<data_t> variable_shuffle(raft::handle_t const &handle,
                                             partition_iter_t partition_iter)
 {
   std::cout << "in variable_shuffle, n_elements = " << n_elements << std::endl;
-  
+
   //
   // We need to compute the size of data movement
   //
@@ -74,9 +74,10 @@ rmm::device_vector<data_t> variable_shuffle(raft::handle_t const &handle,
 
   std::vector<raft::comms::request_t> requests(2 * num_gpus);
 
+#if 0
   std::for_each(thrust::make_counting_iterator<int>(0),
                 thrust::make_counting_iterator<int>(num_gpus),
-                [my_gpu, &global_sizes_v, local_sizes_v, &comms, &requests, stream](int gpu) {
+                [my_gpu, &global_sizes_v, &local_sizes_v, &comms, &requests, stream](int gpu) {
                   if (gpu != my_gpu) {
                     comms.irecv(global_sizes_v.data().get() + gpu, 1, gpu, 0, &requests[2 * gpu]);
                     comms.isend(
@@ -92,6 +93,23 @@ rmm::device_vector<data_t> variable_shuffle(raft::handle_t const &handle,
                     requests[2 * gpu + 1] = std::numeric_limits<raft::comms::request_t>::max();
                   }
                 });
+#else
+  for (int gpu = 0; gpu < num_gpus; ++gpu) {
+    if (gpu != my_gpu) {
+      comms.irecv(global_sizes_v.data().get() + gpu, 1, gpu, 0, &requests[2 * gpu]);
+      comms.isend(local_sizes_v.data().get() + gpu, 1, gpu, 0, &requests[2 * gpu + 1]);
+    } else {
+      CUDA_CHECK(cudaMemcpyAsync(global_sizes_v.data().get() + gpu,
+                                 local_sizes_v.data().get() + gpu,
+                                 sizeof(int),
+                                 cudaMemcpyDeviceToDevice,
+                                 stream));
+
+      requests[2 * gpu]     = std::numeric_limits<raft::comms::request_t>::max();
+      requests[2 * gpu + 1] = std::numeric_limits<raft::comms::request_t>::max();
+    }
+  }
+#endif
 
   std::vector<raft::comms::request_t> requests_wait(2 * (num_gpus - 1));
 
@@ -194,7 +212,7 @@ rmm::device_vector<data_t> variable_shuffle(raft::handle_t const &handle,
                                             partition_iter_t partition_iter)
 {
   std::cout << "in variable_shuffle, n_elements = " << n_elements << std::endl;
-  
+
   //
   // We need to compute the size of data movement
   //
@@ -228,7 +246,7 @@ rmm::device_vector<data_t> variable_shuffle(raft::handle_t const &handle,
 
   std::for_each(thrust::make_counting_iterator<int>(0),
                 thrust::make_counting_iterator<int>(num_gpus),
-                [my_gpu, &global_sizes_v, local_sizes_v, &comms, &requests, stream](int gpu) {
+                [my_gpu, &global_sizes_v, &local_sizes_v, &comms, &requests, stream](int gpu) {
                   if (gpu != my_gpu) {
                     comms.irecv(global_sizes_v.data().get() + gpu, 1, gpu, 0, &requests[2 * gpu]);
                     comms.isend(
