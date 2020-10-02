@@ -6,6 +6,8 @@
 - PR #838 Add pattern accelerator API functions and pattern accelerator API based implementations of PageRank, Katz Centrality, BFS, and SSSP
 - PR #1147 Added support for NetworkX graphs as input type
 - PR #1157 Louvain API update to use graph_container_t
+- PR #1151 MNMG extension for pattern accelerator based PageRank, Katz Centrality, BFS, and SSSP implementations (C++ part)
+- PR #1163 Integrated 2D shuffling and Louvain updates
 
 ## Improvements
 - PR 1081 MNMG Renumbering - sort partitions by degree
@@ -22,7 +24,9 @@
 - PR #1152 graph container cleanup, added arg for instantiating legacy types and switch statements to factory function
 - PR #1164 MG symmetrize and conda env updates
 - PR #1162 enhanced networkx testing
+- PR #1169 Added RAPIDS cpp packages to cugraph dev env
 - PR #1165 updated remaining algorithms to be NetworkX compatible
+- PR #1176 Update ci/local/README.md
 
 ## Bug Fixes
 - PR #1131 Show style checker errors with set +e
@@ -31,6 +35,7 @@
 - PR #1158 Pass size_t* & size_t* instead of size_t[] & int[] for raft allgatherv's input parameters recvcounts & displs
 - PR #1168 Disabled MG tests on single GPU
 - PR #1166 Fix misspelling of function calls in asserts causing debug build to fail
+- PR #1180 BLD Adopt RAFT model for cuhornet dependency
 
 # cuGraph 0.15.0 (26 Aug 2020)
 

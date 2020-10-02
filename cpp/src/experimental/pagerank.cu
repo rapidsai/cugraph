@@ -17,8 +17,8 @@
 #include <algorithms.hpp>
 #include <experimental/graph_view.hpp>
 #include <patterns/any_of_adj_matrix_row.cuh>
-#include <patterns/copy_to_adj_matrix_row.cuh>
-#include <patterns/copy_v_transform_reduce_nbr.cuh>
+#include <patterns/copy_to_adj_matrix_row_col.cuh>
+#include <patterns/copy_v_transform_reduce_in_out_nbr.cuh>
 #include <patterns/count_if_e.cuh>
 #include <patterns/count_if_v.cuh>
 #include <patterns/reduce_v.cuh>
@@ -320,6 +320,84 @@ void pagerank(raft::handle_t& handle,
 // explicit instantiation
 
 template void pagerank(raft::handle_t const& handle,
+                       graph_view_t<int32_t, int32_t, float, true, true> const& graph_view,
+                       float* adj_matrix_row_out_weight_sums,
+                       int32_t* personalization_vertices,
+                       float* personalization_values,
+                       int32_t personalization_vector_size,
+                       float* pageranks,
+                       float alpha,
+                       float epsilon,
+                       size_t max_iterations,
+                       bool has_initial_guess,
+                       bool do_expensive_check);
+
+template void pagerank(raft::handle_t const& handle,
+                       graph_view_t<int32_t, int32_t, double, true, true> const& graph_view,
+                       double* adj_matrix_row_out_weight_sums,
+                       int32_t* personalization_vertices,
+                       double* personalization_values,
+                       int32_t personalization_vector_size,
+                       double* pageranks,
+                       double alpha,
+                       double epsilon,
+                       size_t max_iterations,
+                       bool has_initial_guess,
+                       bool do_expensive_check);
+
+template void pagerank(raft::handle_t const& handle,
+                       graph_view_t<int32_t, int64_t, float, true, true> const& graph_view,
+                       float* adj_matrix_row_out_weight_sums,
+                       int32_t* personalization_vertices,
+                       float* personalization_values,
+                       int32_t personalization_vector_size,
+                       float* pageranks,
+                       float alpha,
+                       float epsilon,
+                       size_t max_iterations,
+                       bool has_initial_guess,
+                       bool do_expensive_check);
+
+template void pagerank(raft::handle_t const& handle,
+                       graph_view_t<int32_t, int64_t, double, true, true> const& graph_view,
+                       double* adj_matrix_row_out_weight_sums,
+                       int32_t* personalization_vertices,
+                       double* personalization_values,
+                       int32_t personalization_vector_size,
+                       double* pageranks,
+                       double alpha,
+                       double epsilon,
+                       size_t max_iterations,
+                       bool has_initial_guess,
+                       bool do_expensive_check);
+
+template void pagerank(raft::handle_t const& handle,
+                       graph_view_t<int64_t, int64_t, float, true, true> const& graph_view,
+                       float* adj_matrix_row_out_weight_sums,
+                       int64_t* personalization_vertices,
+                       float* personalization_values,
+                       int64_t personalization_vector_size,
+                       float* pageranks,
+                       float alpha,
+                       float epsilon,
+                       size_t max_iterations,
+                       bool has_initial_guess,
+                       bool do_expensive_check);
+
+template void pagerank(raft::handle_t const& handle,
+                       graph_view_t<int64_t, int64_t, double, true, true> const& graph_view,
+                       double* adj_matrix_row_out_weight_sums,
+                       int64_t* personalization_vertices,
+                       double* personalization_values,
+                       int64_t personalization_vector_size,
+                       double* pageranks,
+                       double alpha,
+                       double epsilon,
+                       size_t max_iterations,
+                       bool has_initial_guess,
+                       bool do_expensive_check);
+
+template void pagerank(raft::handle_t const& handle,
                        graph_view_t<int32_t, int32_t, float, true, false> const& graph_view,
                        float* adj_matrix_row_out_weight_sums,
                        int32_t* personalization_vertices,
@@ -333,7 +411,20 @@ template void pagerank(raft::handle_t const& handle,
                        bool do_expensive_check);
 
 template void pagerank(raft::handle_t const& handle,
-                       graph_view_t<int32_t, int32_t, float, true, true> const& graph_view,
+                       graph_view_t<int32_t, int32_t, double, true, false> const& graph_view,
+                       double* adj_matrix_row_out_weight_sums,
+                       int32_t* personalization_vertices,
+                       double* personalization_values,
+                       int32_t personalization_vector_size,
+                       double* pageranks,
+                       double alpha,
+                       double epsilon,
+                       size_t max_iterations,
+                       bool has_initial_guess,
+                       bool do_expensive_check);
+
+template void pagerank(raft::handle_t const& handle,
+                       graph_view_t<int32_t, int64_t, float, true, false> const& graph_view,
                        float* adj_matrix_row_out_weight_sums,
                        int32_t* personalization_vertices,
                        float* personalization_values,
@@ -341,6 +432,45 @@ template void pagerank(raft::handle_t const& handle,
                        float* pageranks,
                        float alpha,
                        float epsilon,
+                       size_t max_iterations,
+                       bool has_initial_guess,
+                       bool do_expensive_check);
+
+template void pagerank(raft::handle_t const& handle,
+                       graph_view_t<int32_t, int64_t, double, true, false> const& graph_view,
+                       double* adj_matrix_row_out_weight_sums,
+                       int32_t* personalization_vertices,
+                       double* personalization_values,
+                       int32_t personalization_vector_size,
+                       double* pageranks,
+                       double alpha,
+                       double epsilon,
+                       size_t max_iterations,
+                       bool has_initial_guess,
+                       bool do_expensive_check);
+
+template void pagerank(raft::handle_t& handle,
+                       graph_view_t<int64_t, int64_t, float, true, false> const& graph_view,
+                       float* adj_matrix_row_out_weight_sums,
+                       int64_t* personalization_vertices,
+                       float* personalization_values,
+                       int64_t personalization_vector_size,
+                       float* pageranks,
+                       float alpha,
+                       float epsilon,
+                       size_t max_iterations,
+                       bool has_initial_guess,
+                       bool do_expensive_check);
+
+template void pagerank(raft::handle_t& handle,
+                       graph_view_t<int64_t, int64_t, double, true, false> const& graph_view,
+                       double* adj_matrix_row_out_weight_sums,
+                       int64_t* personalization_vertices,
+                       double* personalization_values,
+                       int64_t personalization_vector_size,
+                       double* pageranks,
+                       double alpha,
+                       double epsilon,
                        size_t max_iterations,
                        bool has_initial_guess,
                        bool do_expensive_check);

@@ -17,14 +17,18 @@
 
 #include <experimental/graph_view.hpp>
 #include <matrix_partition_device.cuh>
+#include <partition_manager.hpp>
 #include <patterns/edge_op_utils.cuh>
 #include <patterns/reduce_op.cuh>
+#include <utilities/comm_utils.cuh>
 #include <utilities/error.hpp>
 #include <utilities/thrust_tuple_utils.cuh>
 
 #include <raft/cudart_utils.h>
 #include <rmm/thrust_rmm_allocator.h>
+#include <raft/handle.hpp>
 
+#include <thrust/binary_search.h>
 #include <thrust/distance.h>
 #include <thrust/functional.h>
 #include <thrust/iterator/discard_iterator.h>
@@ -33,6 +37,7 @@
 #include <thrust/type_traits/integer_sequence.h>
 #include <cub/cub.cuh>
 
+#include <numeric>
 #include <type_traits>
 #include <utility>
 
@@ -42,8 +47,8 @@ namespace experimental {
 namespace detail {
 
 // FIXME: block size requires tuning
-int32_t constexpr update_frontier_v_push_if_out_nbr_for_all_low_out_degree_block_size = 128;
-int32_t constexpr update_frontier_v_push_if_out_nbr_update_block_size                 = 128;
+int32_t constexpr update_frontier_v_push_if_out_nbr_for_all_block_size = 128;
+int32_t constexpr update_frontier_v_push_if_out_nbr_update_block_size  = 128;
 
 template <typename GraphViewType,
           typename RowIterator,
@@ -52,7 +57,7 @@ template <typename GraphViewType,
           typename BufferKeyOutputIterator,
           typename BufferPayloadOutputIterator,
           typename EdgeOp>
-__global__ void for_all_frontier_row_for_all_nbr_low_out_degree(
+__global__ void for_all_frontier_row_for_all_nbr_low_degree(
   matrix_partition_device_t<GraphViewType> matrix_partition,
   RowIterator row_first,
   RowIterator row_last,
@@ -142,6 +147,9 @@ size_t reduce_buffer_elements(raft::handle_t const& handle,
     // split one thrust::reduce_by_key call to multiple thrust::reduce_by_key calls if the
     // temporary buffer size exceeds the maximum buffer size (may be definied as percentage of the
     // system HBM size or a function of the maximum number of threads in the system))
+    // FIXME: actually, we can find how many unique keys are here by now.
+    // FIXME: if GraphViewType::is_multi_gpu is true, this should be executed on the GPU holding the
+    // vertex unless reduce_op is a pure function.
     rmm::device_vector<key_t> keys(num_buffer_elements);
     rmm::device_vector<payload_t> values(num_buffer_elements);
     auto it = thrust::reduce_by_key(rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
@@ -162,6 +170,9 @@ size_t reduce_buffer_elements(raft::handle_t const& handle,
                  values.begin(),
                  values.begin() + num_reduced_buffer_elements,
                  buffer_payload_output_first);
+    CUDA_TRY(cudaStreamSynchronize(
+      handle.get_stream()));  // this is necessary as kyes & values will become out-of-scope once
+                              // this function returns
     return num_reduced_buffer_elements;
   }
 }
@@ -330,121 +341,157 @@ void update_frontier_v_push_if_out_nbr(
   static_assert(!GraphViewType::is_adj_matrix_transposed,
                 "GraphViewType should support the push model.");
 
-  using vertex_t          = typename GraphViewType::vertex_type;
-  using edge_t            = typename GraphViewType::edge_type;
-  using reduce_op_input_t = typename ReduceOp::type;
+  using vertex_t = typename GraphViewType::vertex_type;
+  using edge_t   = typename GraphViewType::edge_type;
 
-  std::vector<vertex_t> frontier_adj_matrix_partition_offsets(
-    graph_view.get_number_of_local_adj_matrix_partitions() + 1,
-    0);  // relevant only if GraphViewType::is_multi_gpu is true
-  thrust::device_vector<vertex_t>
-    frontier_rows{};  // relevant only if GraphViewType::is_multi_gpu is true
-  edge_t max_pushes{0};
+  // 1. fill the buffer
 
+  vertex_frontier.set_buffer_idx_value(0);
+
+  auto loop_count = size_t{1};
   if (GraphViewType::is_multi_gpu) {
-    // need to merge row_frontier and update frontier_offsets;
-    CUGRAPH_FAIL("unimplemented.");
-
-#if 0  // comment out to suppress "loop is not reachable warning till the merge part is
-       // implemented."
-    for (size_t i = 0; i < graph_view.get_number_of_local_adj_matrix_partitions(); ++i) {
-      matrix_partition_device_t<GraphViewType> matrix_partition(graph_view, i);
-
-      max_pushes += thrust::transform_reduce(
-        rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
-        frontier_rows.begin() + frontier_adj_matrix_partition_offsets[i],
-        frontier_rows.begin() + frontier_adj_matrix_partition_offsets[i + 1],
-        [matrix_partition] __device__(auto row) {
-          auto row_offset = matrix_partition.get_major_offset_from_major_nocheck(row);
-          return matrix_partition.get_local_degree(row_offset);
-        },
-        edge_t{0},
-        thrust::plus<edge_t>());
-    }
-#endif
-  } else {
-    matrix_partition_device_t<GraphViewType> matrix_partition(graph_view, 0);
-
-    max_pushes = thrust::transform_reduce(
-      rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
-      vertex_first,
-      vertex_last,
-      [matrix_partition] __device__(auto row) {
-        auto row_offset = matrix_partition.get_major_offset_from_major_nocheck(row);
-        return matrix_partition.get_local_degree(row_offset);
-      },
-      edge_t{0},
-      thrust::plus<edge_t>());
+    auto& row_comm           = handle.get_subcomm(cugraph::partition_2d::key_naming_t().row_name());
+    auto const row_comm_size = row_comm.get_size();
+    loop_count               = graph_view.is_hypergraph_partitioned()
+                   ? graph_view.get_number_of_local_adj_matrix_partitions()
+                   : static_cast<size_t>(row_comm_size);
   }
 
-  // FIXME: This is highly pessimistic for single GPU (and multi-GPU as well if we maintain
-  // additional per column data for filtering in e_op). If we can pause & resume execution if
-  // buffer needs to be increased (and if we reserve address space to avoid expensive
-  // reallocation;
-  // https://devblogs.nvidia.com/introducing-low-level-gpu-virtual-memory-management/), we can
-  // start with a smaller buffer size (especially when the frontier size is large).
-  vertex_frontier.resize_buffer(max_pushes);
-  vertex_frontier.set_buffer_idx_value(0);
-  auto buffer_first         = vertex_frontier.buffer_begin();
-  auto buffer_key_first     = std::get<0>(buffer_first);
-  auto buffer_payload_first = std::get<1>(buffer_first);
+  for (size_t i = 0; i < loop_count; ++i) {
+    matrix_partition_device_t<GraphViewType> matrix_partition(
+      graph_view, (GraphViewType::is_multi_gpu && !graph_view.is_hypergraph_partitioned()) ? 0 : i);
 
-  if (GraphViewType::is_multi_gpu) {
-    for (size_t i = 0; i < graph_view.get_number_of_local_adj_matrix_partitions(); ++i) {
-      matrix_partition_device_t<GraphViewType> matrix_partition(graph_view, i);
-      auto row_value_input_offset = GraphViewType::is_adj_matrix_transposed
-                                      ? 0
-                                      : matrix_partition.get_major_value_start_offset();
+    rmm::device_uvector<vertex_t> frontier_rows(
+      0, handle.get_stream());  // relevant only if GraphViewType::is_multi_gpu is true
 
-      raft::grid_1d_thread_t for_all_low_out_degree_grid(
-        frontier_adj_matrix_partition_offsets[i + 1] - frontier_adj_matrix_partition_offsets[i],
-        detail::update_frontier_v_push_if_out_nbr_for_all_low_out_degree_block_size,
-        handle.get_device_properties().maxGridSize[0]);
+    if (GraphViewType::is_multi_gpu) {
+      auto& row_comm = handle.get_subcomm(cugraph::partition_2d::key_naming_t().row_name());
+      auto const row_comm_rank = row_comm.get_rank();
+      auto const row_comm_size = row_comm.get_size();
+      auto& col_comm = handle.get_subcomm(cugraph::partition_2d::key_naming_t().col_name());
+      auto const col_comm_rank = col_comm.get_rank();
 
-      // FIXME: This is highly inefficeint for graphs with high-degree vertices. If we renumber
-      // vertices to insure that rows within a partition are sorted by their out-degree in
-      // decreasing order, we will apply this kernel only to low out-degree vertices.
-      detail::
-        for_all_frontier_row_for_all_nbr_low_out_degree<<<for_all_low_out_degree_grid.num_blocks,
-                                                          for_all_low_out_degree_grid.block_size,
-                                                          0,
-                                                          handle.get_stream()>>>(
-          matrix_partition,
-          frontier_rows.begin() + frontier_adj_matrix_partition_offsets[i],
-          frontier_rows.begin() + frontier_adj_matrix_partition_offsets[i + 1],
-          adj_matrix_row_value_input_first + row_value_input_offset,
-          adj_matrix_col_value_input_first,
-          buffer_key_first,
-          buffer_payload_first,
-          vertex_frontier.get_buffer_idx_ptr(),
-          e_op);
+      auto sub_comm_rank = graph_view.is_hypergraph_partitioned() ? col_comm_rank : row_comm_rank;
+      auto frontier_size = (static_cast<size_t>(sub_comm_rank) == i)
+                             ? thrust::distance(vertex_first, vertex_last)
+                             : size_t{0};
+      if (graph_view.is_hypergraph_partitioned()) {
+        col_comm.bcast(&frontier_size, 1, i, handle.get_stream());
+      } else {
+        row_comm.bcast(&frontier_size, 1, i, handle.get_stream());
+      }
+      if (static_cast<size_t>(sub_comm_rank) != i) {
+        frontier_rows.resize(frontier_size, handle.get_stream());
+      }
+      device_bcast(graph_view.is_hypergraph_partitioned() ? col_comm : row_comm,
+                   vertex_first,
+                   frontier_rows.begin(),
+                   frontier_rows.size(),
+                   i,
+                   handle.get_stream());
     }
-  } else {
-    matrix_partition_device_t<GraphViewType> matrix_partition(graph_view, 0);
 
-    raft::grid_1d_thread_t for_all_low_out_degree_grid(
-      thrust::distance(vertex_first, vertex_last),
-      detail::update_frontier_v_push_if_out_nbr_for_all_low_out_degree_block_size,
+    edge_t max_pushes =
+      frontier_rows.size() > 0
+        ? thrust::transform_reduce(
+            rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
+            frontier_rows.begin(),
+            frontier_rows.end(),
+            [matrix_partition] __device__(auto row) {
+              auto row_offset = matrix_partition.get_major_offset_from_major_nocheck(row);
+              return matrix_partition.get_local_degree(row_offset);
+            },
+            edge_t{0},
+            thrust::plus<edge_t>())
+        : thrust::transform_reduce(
+            rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
+            vertex_first,
+            vertex_last,
+            [matrix_partition] __device__(auto row) {
+              auto row_offset = matrix_partition.get_major_offset_from_major_nocheck(row);
+              return matrix_partition.get_local_degree(row_offset);
+            },
+            edge_t{0},
+            thrust::plus<edge_t>());
+
+    // FIXME: This is highly pessimistic for single GPU (and multi-GPU as well if we maintain
+    // additional per column data for filtering in e_op). If we can pause & resume execution if
+    // buffer needs to be increased (and if we reserve address space to avoid expensive
+    // reallocation;
+    // https://devblogs.nvidia.com/introducing-low-level-gpu-virtual-memory-management/), we can
+    // start with a smaller buffer size (especially when the frontier size is large).
+    // for special cases when we can assure that there is no more than one push per destination
+    // (e.g. if cugraph::experimental::reduce_op::any is used), we can limit the buffer size to
+    // std::min(max_pushes, matrix_partition.get_minor_size()).
+    // For Volta+, we can limit the buffer size to std::min(max_pushes,
+    // matrix_partition.get_minor_size()) if the reduction operation is a pure function if we use
+    // locking.
+    // FIXME: if i != 0, this will require costly reallocation if we don't use the new CUDA feature
+    // to reserve address space.
+    vertex_frontier.resize_buffer(vertex_frontier.get_buffer_idx_value() + max_pushes);
+    auto buffer_first         = vertex_frontier.buffer_begin();
+    auto buffer_key_first     = std::get<0>(buffer_first);
+    auto buffer_payload_first = std::get<1>(buffer_first);
+
+    vertex_t row_value_input_offset = 0;
+    if (GraphViewType::is_multi_gpu) {
+      auto& row_comm = handle.get_subcomm(cugraph::partition_2d::key_naming_t().row_name());
+      auto const row_comm_size = row_comm.get_size();
+      auto& col_comm = handle.get_subcomm(cugraph::partition_2d::key_naming_t().col_name());
+      auto const col_comm_rank = col_comm.get_rank();
+      row_value_input_offset =
+        graph_view.is_hypergraph_partitioned()
+          ? matrix_partition.get_major_value_start_offset()
+          : graph_view.get_vertex_partition_first(col_comm_rank * row_comm_size + i) -
+              graph_view.get_vertex_partition_first(col_comm_rank * row_comm_size);
+    }
+
+    raft::grid_1d_thread_t for_all_low_degree_grid(
+      frontier_rows.size() > 0 ? frontier_rows.size() : thrust::distance(vertex_first, vertex_last),
+      detail::update_frontier_v_push_if_out_nbr_for_all_block_size,
       handle.get_device_properties().maxGridSize[0]);
 
     // FIXME: This is highly inefficeint for graphs with high-degree vertices. If we renumber
-    // vertices to insure that rows within a partition are sorted by their out-degree in
-    // decreasing order, we will apply this kernel only to low out-degree vertices.
-    detail::
-      for_all_frontier_row_for_all_nbr_low_out_degree<<<for_all_low_out_degree_grid.num_blocks,
-                                                        for_all_low_out_degree_grid.block_size,
-                                                        0,
-                                                        handle.get_stream()>>>(
+    // vertices to insure that rows within a partition are sorted by their out-degree in decreasing
+    // order, we will apply this kernel only to low out-degree vertices.
+    if (frontier_rows.size() > 0) {
+      detail::for_all_frontier_row_for_all_nbr_low_degree<<<for_all_low_degree_grid.num_blocks,
+                                                            for_all_low_degree_grid.block_size,
+                                                            0,
+                                                            handle.get_stream()>>>(
         matrix_partition,
-        vertex_first,
-        vertex_last,
-        adj_matrix_row_value_input_first,
+        frontier_rows.begin(),
+        frontier_rows.begin(),
+        adj_matrix_row_value_input_first + row_value_input_offset,
         adj_matrix_col_value_input_first,
         buffer_key_first,
         buffer_payload_first,
         vertex_frontier.get_buffer_idx_ptr(),
         e_op);
+    } else {
+      detail::for_all_frontier_row_for_all_nbr_low_degree<<<for_all_low_degree_grid.num_blocks,
+                                                            for_all_low_degree_grid.block_size,
+                                                            0,
+                                                            handle.get_stream()>>>(
+        matrix_partition,
+        vertex_first,
+        vertex_last,
+        adj_matrix_row_value_input_first + row_value_input_offset,
+        adj_matrix_col_value_input_first,
+        buffer_key_first,
+        buffer_payload_first,
+        vertex_frontier.get_buffer_idx_ptr(),
+        e_op);
+    }
   }
+
+  // 2. reduce the buffer
+
+  auto num_buffer_offset = edge_t{0};
+
+  auto buffer_first         = vertex_frontier.buffer_begin();
+  auto buffer_key_first     = std::get<0>(buffer_first) + num_buffer_offset;
+  auto buffer_payload_first = std::get<1>(buffer_first) + num_buffer_offset;
 
   auto num_buffer_elements = detail::reduce_buffer_elements(handle,
                                                             buffer_key_first,
@@ -453,11 +500,134 @@ void update_frontier_v_push_if_out_nbr(
                                                             reduce_op);
 
   if (GraphViewType::is_multi_gpu) {
-    // need to exchange buffer elements (and may reduce again)
-    CUGRAPH_FAIL("unimplemented.");
+    auto& comm               = handle.get_comms();
+    auto& row_comm           = handle.get_subcomm(cugraph::partition_2d::key_naming_t().row_name());
+    auto const row_comm_rank = row_comm.get_rank();
+    auto const row_comm_size = row_comm.get_size();
+    auto& col_comm           = handle.get_subcomm(cugraph::partition_2d::key_naming_t().col_name());
+    auto const col_comm_rank = col_comm.get_rank();
+    auto const col_comm_size = col_comm.get_size();
+
+    std::vector<vertex_t> h_vertex_lasts(graph_view.is_hypergraph_partitioned() ? row_comm_size
+                                                                                : col_comm_size);
+    for (size_t i = 0; i < h_vertex_lasts.size(); ++i) {
+      h_vertex_lasts[i] = graph_view.get_vertex_partition_last(
+        graph_view.is_hypergraph_partitioned() ? col_comm_rank * row_comm_size + i
+                                               : row_comm_rank * col_comm_size + i);
+    }
+    rmm::device_uvector<vertex_t> d_vertex_lasts(h_vertex_lasts.size(), handle.get_stream());
+    raft::update_device(
+      d_vertex_lasts.data(), h_vertex_lasts.data(), h_vertex_lasts.size(), handle.get_stream());
+    rmm::device_uvector<edge_t> d_tx_buffer_last_boundaries(d_vertex_lasts.size(),
+                                                            handle.get_stream());
+    thrust::upper_bound(d_vertex_lasts.begin(),
+                        d_vertex_lasts.end(),
+                        buffer_key_first,
+                        buffer_key_first + num_buffer_elements,
+                        d_tx_buffer_last_boundaries.begin());
+    std::vector<edge_t> h_tx_buffer_last_boundaries(d_tx_buffer_last_boundaries.size());
+    raft::update_host(h_tx_buffer_last_boundaries.data(),
+                      d_tx_buffer_last_boundaries.data(),
+                      d_tx_buffer_last_boundaries.size(),
+                      handle.get_stream());
+    std::vector<edge_t> tx_counts(h_tx_buffer_last_boundaries.size());
+    std::adjacent_difference(
+      h_tx_buffer_last_boundaries.begin(), h_tx_buffer_last_boundaries.end(), tx_counts.begin());
+
+    std::vector<edge_t> rx_counts(graph_view.is_hypergraph_partitioned() ? row_comm_size
+                                                                         : col_comm_size);
+    std::vector<raft::comms::request_t> count_requests(tx_counts.size() + rx_counts.size());
+    for (size_t i = 0; i < tx_counts.size(); ++i) {
+      comm.isend(&tx_counts[i],
+                 1,
+                 graph_view.is_hypergraph_partitioned() ? col_comm_rank * row_comm_size + i
+                                                        : row_comm_rank * col_comm_size + i,
+                 0 /* tag */,
+                 count_requests.data() + i);
+    }
+    for (size_t i = 0; i < rx_counts.size(); ++i) {
+      comm.irecv(&rx_counts[i],
+                 1,
+                 graph_view.is_hypergraph_partitioned() ? col_comm_rank * row_comm_size + i
+                                                        : row_comm_rank + i * row_comm_size,
+                 0 /* tag */,
+                 count_requests.data() + tx_counts.size() + i);
+    }
+    comm.waitall(count_requests.size(), count_requests.data());
+
+    std::vector<edge_t> tx_offsets(tx_counts.size() + 1, edge_t{0});
+    std::partial_sum(tx_counts.begin(), tx_counts.end(), tx_offsets.begin() + 1);
+    std::vector<edge_t> rx_offsets(rx_counts.size() + 1, edge_t{0});
+    std::partial_sum(rx_counts.begin(), rx_counts.end(), rx_offsets.begin() + 1);
+
+    // FIXME: this will require costly reallocation if we don't use the new CUDA feature to reserve
+    // address space.
+    vertex_frontier.resize_buffer(num_buffer_elements + rx_offsets.back());
+
+    auto buffer_first         = vertex_frontier.buffer_begin();
+    auto buffer_key_first     = std::get<0>(buffer_first) + num_buffer_offset;
+    auto buffer_payload_first = std::get<1>(buffer_first) + num_buffer_offset;
+
+    auto constexpr tuple_size = thrust_tuple_size_or_one<
+      typename std::iterator_traits<decltype(buffer_payload_first)>::value_type>::value;
+
+    std::vector<raft::comms::request_t> buffer_requests((tx_counts.size() + rx_counts.size()) *
+                                                        (1 + tuple_size));
+    for (size_t i = 0; i < tx_counts.size(); ++i) {
+      auto comm_dst_rank = graph_view.is_hypergraph_partitioned()
+                             ? col_comm_rank * row_comm_size + i
+                             : row_comm_rank * col_comm_size + i;
+      comm.isend(detail::iter_to_raw_ptr(buffer_key_first + tx_offsets[i]),
+                 static_cast<size_t>(tx_counts[i]),
+                 comm_dst_rank,
+                 int{0} /* tag */,
+                 buffer_requests.data() + i * (1 + tuple_size));
+      device_isend<decltype(buffer_payload_first), decltype(buffer_payload_first)>(
+        comm,
+        buffer_payload_first + tx_offsets[i],
+        static_cast<size_t>(tx_counts[i]),
+        comm_dst_rank,
+        int{1} /* base tag */,
+        buffer_requests.data() + (i * (1 + tuple_size) + 1));
+    }
+    for (size_t i = 0; i < rx_counts.size(); ++i) {
+      auto comm_src_rank = graph_view.is_hypergraph_partitioned()
+                             ? col_comm_rank * row_comm_size + i
+                             : row_comm_rank + i * row_comm_size;
+      comm.irecv(detail::iter_to_raw_ptr(buffer_key_first + num_buffer_elements + rx_offsets[i]),
+                 static_cast<size_t>(rx_counts[i]),
+                 comm_src_rank,
+                 int{0} /* tag */,
+                 buffer_requests.data() + ((tx_counts.size() + i) * (1 + tuple_size)));
+      device_irecv<decltype(buffer_payload_first), decltype(buffer_payload_first)>(
+        comm,
+        buffer_payload_first + num_buffer_elements + rx_offsets[i],
+        static_cast<size_t>(rx_counts[i]),
+        comm_src_rank,
+        int{1} /* base tag */,
+        buffer_requests.data() + ((tx_counts.size() + i) * (1 + tuple_size) + 1));
+    }
+    comm.waitall(buffer_requests.size(), buffer_requests.data());
+
+    // FIXME: this does not exploit the fact that each segment is sorted. Lost performance
+    // optimization opportunities.
+    // FIXME: we can use [vertex_frontier.buffer_begin(), vertex_frontier.buffer_begin() +
+    // num_buffer_elements) as temporary buffer inside reduce_buffer_elements().
+    num_buffer_offset   = num_buffer_elements;
+    num_buffer_elements = detail::reduce_buffer_elements(handle,
+                                                         buffer_key_first + num_buffer_elements,
+                                                         buffer_payload_first + num_buffer_elements,
+                                                         rx_offsets.back(),
+                                                         reduce_op);
   }
 
+  // 3. update vertex properties
+
   if (num_buffer_elements > 0) {
+    auto buffer_first         = vertex_frontier.buffer_begin();
+    auto buffer_key_first     = std::get<0>(buffer_first) + num_buffer_offset;
+    auto buffer_payload_first = std::get<1>(buffer_first) + num_buffer_offset;
+
     raft::grid_1d_thread_t update_grid(num_buffer_elements,
                                        detail::update_frontier_v_push_if_out_nbr_update_block_size,
                                        handle.get_device_properties().maxGridSize[0]);
@@ -491,14 +661,12 @@ void update_frontier_v_push_if_out_nbr(
 /*
 
 FIXME:
-is_fully_functional type trait (???) for reduce_op
 
 iterating over lower triangular (or upper triangular) : triangle counting
 LRB might be necessary if the cost of processing an edge (i, j) is a function of degree(i) and
 degree(j) : triangle counting
 push-pull switching support (e.g. DOBFS), in this case, we need both
 CSR & CSC (trade-off execution time vs memory requirement, unless graph is symmetric)
-should I take multi-GPU support as a template argument?
 if graph is symmetric, there will be additional optimization opportunities (e.g. in-degree ==
 out-degree) For BFS, sending a bit vector (for the entire set of dest vertices per partitoin may
 work better we can use thrust::set_intersection for triangle counting think about adding thrust
