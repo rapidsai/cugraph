@@ -242,6 +242,7 @@ ExternalProject_Add(cugunrock
                     -DGUNROCK_GENCODE_SM70=TRUE
                     -DGUNROCK_GENCODE_SM72=TRUE
                     -DGUNROCK_GENCODE_SM75=TRUE
+                    -DGUNROCK_GENCODE_SM80=TRUE
   BUILD_BYPRODUCTS  ${CUGUNROCK_DIR}/lib/libgunrock.a
 )
 
