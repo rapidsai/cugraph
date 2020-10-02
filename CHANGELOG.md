@@ -36,6 +36,8 @@
 - PR #1168 Disabled MG tests on single GPU
 - PR #1166 Fix misspelling of function calls in asserts causing debug build to fail
 - PR #1180 BLD Adopt RAFT model for cuhornet dependency
+- PR #1181 Fix notebook error handling in CI
+
 
 # cuGraph 0.15.0 (26 Aug 2020)
 
