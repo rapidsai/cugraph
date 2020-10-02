@@ -113,13 +113,13 @@ void populate_graph_container(graph_container_t& graph_container,
                               size_t num_global_edges,
                               size_t row_comm_size,  // pcols
                               size_t col_comm_size,  // prows
+                              bool sorted_by_degree,
                               bool transposed,
                               bool multi_gpu)
 {
   CUGRAPH_EXPECTS(graph_container.graph_type == graphTypeEnum::null,
                   "populate_graph_container() can only be called on an empty container.");
 
-  bool sorted_by_degree{false};
   bool do_expensive_check{false};
   bool hypergraph_partitioned{false};
 
@@ -128,7 +128,6 @@ void populate_graph_container(graph_container_t& graph_container,
   // Setup the subcommunicators needed for this partition on the handle.
   partition_2d::subcomm_factory_t<partition_2d::key_naming_t, int> subcomm_factory(handle,
                                                                                    row_comm_size);
-
   // FIXME: once the subcomms are set up earlier (outside this function), remove
   // the row/col_comm_size params and retrieve them from the handle (commented
   // out lines below)

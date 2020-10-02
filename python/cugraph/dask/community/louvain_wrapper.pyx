@@ -40,6 +40,7 @@ def louvain(input_df,
             vertex_partition_offsets,
             rank,
             handle,
+            sorted_by_degree,
             max_level,
             resolution):
     """
@@ -93,6 +94,7 @@ def louvain(input_df,
                              num_partition_edges,
                              num_global_verts, num_global_edges,
                              partition_row_size, partition_col_size,
+                             sorted_by_degree,
                              False, True)  # store_transposed, multi_gpu
 
     # Create the output dataframe
