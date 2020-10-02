@@ -166,7 +166,7 @@ void populate_graph_container(graph_container_t& graph_container,
                               numberTypeEnum vertexType,
                               numberTypeEnum edgeType,
                               numberTypeEnum weightType,
-                              int num_partition_edges,
+                              size_t num_partition_edges,
                               size_t num_global_vertices,
                               size_t num_global_edges,
                               size_t row_comm_size,  // pcols

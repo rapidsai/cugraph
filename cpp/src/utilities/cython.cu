@@ -50,7 +50,7 @@ create_graph(raft::handle_t const& handle, graph_container_t const& graph_contai
   std::vector<vertex_t> partition_offsets_vector(
     reinterpret_cast<vertex_t*>(graph_container.vertex_partition_offsets),
     reinterpret_cast<vertex_t*>(graph_container.vertex_partition_offsets) +
-      graph_container.row_comm_size * graph_container.col_comm_size);
+      (graph_container.row_comm_size * graph_container.col_comm_size) + 1);
 
   experimental::partition_t<int> partition(partition_offsets_vector,
                                            graph_container.hypergraph_partitioned,
@@ -108,7 +108,7 @@ void populate_graph_container(graph_container_t& graph_container,
                               numberTypeEnum vertexType,
                               numberTypeEnum edgeType,
                               numberTypeEnum weightType,
-                              int num_partition_edges,
+                              size_t num_partition_edges,
                               size_t num_global_vertices,
                               size_t num_global_edges,
                               size_t row_comm_size,  // pcols
@@ -323,31 +323,7 @@ return_t call_function(raft::handle_t const& handle,
   return function(handle, graph->view());
 }
 
-// Makes another call based on vertex_t
-template <bool transposed,
-          typename return_t,
-          typename function_t,
-          typename edge_t,
-          typename weight_t,
-          bool is_multi_gpu>
-return_t call_function(raft::handle_t const& handle,
-                       graph_container_t const& graph_container,
-                       function_t function)
-{
-  // FIXME: add support for unsigned ints once the code that relies on vertex_t
-  // and edge_t being signed is retired.
-  if (graph_container.vertexType == numberTypeEnum::int32Type) {
-    return call_function<transposed, return_t, function_t, int32_t, edge_t, weight_t, is_multi_gpu>(
-      handle, graph_container, function);
-  } else if (graph_container.vertexType == numberTypeEnum::int64Type) {
-    return call_function<transposed, return_t, function_t, int64_t, edge_t, weight_t, is_multi_gpu>(
-      handle, graph_container, function);
-  } else {
-    CUGRAPH_FAIL("vertexType unsupported");
-  }
-}
-
-// Makes another call based on edge_t
+// Makes another call based on vertex_t and edge_t
 template <bool transposed,
           typename return_t,
           typename function_t,
@@ -357,14 +333,38 @@ return_t call_function(raft::handle_t const& handle,
                        graph_container_t const& graph_container,
                        function_t function)
 {
-  if (graph_container.edgeType == numberTypeEnum::int32Type) {
-    return call_function<transposed, return_t, function_t, int32_t, weight_t, is_multi_gpu>(
-      handle, graph_container, function);
-  } else if (graph_container.edgeType == numberTypeEnum::int64Type) {
-    return call_function<transposed, return_t, function_t, int64_t, weight_t, is_multi_gpu>(
-      handle, graph_container, function);
+  // Since only vertex/edge types (int32,int32), (int32,int64), and
+  // (int64,int64) are being supported, explicitely check for those types and
+  // ensure (int64,int32) is rejected as unsupported.
+  if ((graph_container.vertexType == numberTypeEnum::int32Type) &&
+      (graph_container.edgeType == numberTypeEnum::int32Type)) {
+    return call_function<transposed,
+                         return_t,
+                         function_t,
+                         int32_t,
+                         int32_t,
+                         weight_t,
+                         is_multi_gpu>(handle, graph_container, function);
+  } else if ((graph_container.vertexType == numberTypeEnum::int32Type) &&
+             (graph_container.edgeType == numberTypeEnum::int64Type)) {
+    return call_function<transposed,
+                         return_t,
+                         function_t,
+                         int32_t,
+                         int64_t,
+                         weight_t,
+                         is_multi_gpu>(handle, graph_container, function);
+  } else if ((graph_container.vertexType == numberTypeEnum::int64Type) &&
+             (graph_container.edgeType == numberTypeEnum::int64Type)) {
+    return call_function<transposed,
+                         return_t,
+                         function_t,
+                         int64_t,
+                         int64_t,
+                         weight_t,
+                         is_multi_gpu>(handle, graph_container, function);
   } else {
-    CUGRAPH_FAIL("edgeType unsupported");
+    CUGRAPH_FAIL("vertexType/edgeType combination unsupported");
   }
 }
 

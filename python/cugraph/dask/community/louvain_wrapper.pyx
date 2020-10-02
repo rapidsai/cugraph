@@ -59,8 +59,7 @@ def louvain(input_df,
 
     src = input_df['src']
     dst = input_df['dst']
-    # FIXME: needs to be edge_t type not int
-    cdef int num_partition_edges = len(src)
+    num_partition_edges = len(src)
 
     if "value" in input_df.columns:
         weights = input_df['value']
@@ -68,6 +67,10 @@ def louvain(input_df,
         weights = cudf.Series(np.full(num_partition_edges, 1.0, dtype=np.float32))
 
     vertex_t = src.dtype
+    if num_global_edges > (2**31 - 1):
+        edge_t = np.dtype("int64")
+    else:
+        edge_t = np.dtype("int32")
     weight_t = weights.dtype
 
     # COO
@@ -89,7 +92,7 @@ def louvain(input_df,
                              <void*>c_src_vertices, <void*>c_dst_vertices, <void*>c_edge_weights,
                              <void*>c_vertex_partition_offsets,
                              <numberTypeEnum>(<int>(numberTypeMap[vertex_t])),
-                             <numberTypeEnum>(<int>(numberTypeEnum.int32Type)),
+                             <numberTypeEnum>(<int>(numberTypeMap[edge_t])),
                              <numberTypeEnum>(<int>(numberTypeMap[weight_t])),
                              num_partition_edges,
                              num_global_verts, num_global_edges,
