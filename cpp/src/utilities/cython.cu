@@ -227,9 +227,7 @@ void populate_graph_container_legacy(graph_container_t& graph_container,
         (graph_container.graph_ptr_union.GraphCOOViewFloatPtr)
           ->set_handle(const_cast<raft::handle_t*>(&handle));
       } break;
-      default:
-        CUGRAPH_FAIL("unsupported graphTypeEnum value");
-        break;
+      default: CUGRAPH_FAIL("unsupported graphTypeEnum value"); break;
     }
 
   } else {
@@ -273,9 +271,7 @@ void populate_graph_container_legacy(graph_container_t& graph_container,
         (graph_container.graph_ptr_union.GraphCOOViewDoublePtr)
           ->set_handle(const_cast<raft::handle_t*>(&handle));
       } break;
-      default:
-        CUGRAPH_FAIL("unsupported graphTypeEnum value");
-        break;
+      default: CUGRAPH_FAIL("unsupported graphTypeEnum value"); break;
     }
   }
   return;
@@ -341,21 +337,11 @@ return_t call_function(raft::handle_t const& handle,
   // FIXME: add support for unsigned ints once the code that relies on vertex_t
   // and edge_t being signed is retired.
   if (graph_container.vertexType == numberTypeEnum::int32Type) {
-    return call_function<transposed,
-                         return_t,
-                         function_t,
-                         int32_t,
-                         edge_t,
-                         weight_t,
-                         is_multi_gpu>(handle, graph_container, function);
+    return call_function<transposed, return_t, function_t, int32_t, edge_t, weight_t, is_multi_gpu>(
+      handle, graph_container, function);
   } else if (graph_container.vertexType == numberTypeEnum::int64Type) {
-    return call_function<transposed,
-                         return_t,
-                         function_t,
-                         int64_t,
-                         edge_t,
-                         weight_t,
-                         is_multi_gpu>(handle, graph_container, function);
+    return call_function<transposed, return_t, function_t, int64_t, edge_t, weight_t, is_multi_gpu>(
+      handle, graph_container, function);
   } else {
     CUGRAPH_FAIL("vertexType unsupported");
   }
@@ -383,10 +369,7 @@ return_t call_function(raft::handle_t const& handle,
 }
 
 // Makes another call based on weight_t
-template <bool transposed,
-          typename return_t,
-          typename function_t,
-          bool is_multi_gpu>
+template <bool transposed, typename return_t, typename function_t, bool is_multi_gpu>
 return_t call_function(raft::handle_t const& handle,
                        graph_container_t const& graph_container,
                        function_t function)
@@ -409,8 +392,7 @@ return_t call_function(raft::handle_t const& handle,
                        function_t function)
 {
   if (graph_container.is_multi_gpu) {
-    return call_function<transposed, return_t, function_t, true>(
-      handle, graph_container, function);
+    return call_function<transposed, return_t, function_t, true>(handle, graph_container, function);
   } else {
     return call_function<transposed, return_t, function_t, false>(
       handle, graph_container, function);
@@ -425,11 +407,9 @@ return_t call_function(raft::handle_t const& handle,
                        function_t function)
 {
   if (graph_container.transposed) {
-    return call_function<true, return_t, function_t>(
-      handle, graph_container, function);
+    return call_function<true, return_t, function_t>(handle, graph_container, function);
   } else {
-    return call_function<false, return_t, function_t>(
-      handle, graph_container, function);
+    return call_function<false, return_t, function_t>(handle, graph_container, function);
   }
 }
 
@@ -495,7 +475,6 @@ std::pair<size_t, weight_t> call_louvain(raft::handle_t const& handle,
   return detail::call_function<false, std::pair<size_t, weight_t>>(
     handle, graph_container, functor);
 }
-
 
 // Explicit instantiations
 template std::pair<size_t, float> call_louvain(raft::handle_t const& handle,

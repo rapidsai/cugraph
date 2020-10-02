@@ -54,10 +54,10 @@ enum class graphTypeEnum : int {
 // greatly simplifies the Cython code since the Cython definition only needs to
 // define the container and not the various individual graph types in Cython.
 struct graph_container_t {
-   // FIXME: This union is in place only to support legacy calls, remove when
-   // migration to graph_t types is complete, or when legacy graph objects are
-   // constructed in the call_<<algo> wrappers instead of the
-   // populate_graph_container_legacy() function.
+  // FIXME: This union is in place only to support legacy calls, remove when
+  // migration to graph_t types is complete, or when legacy graph objects are
+  // constructed in the call_<<algo> wrappers instead of the
+  // populate_graph_container_legacy() function.
   union graphPtrUnion {
     ~graphPtrUnion() {}
 
@@ -86,10 +86,10 @@ struct graph_container_t {
   graphTypeEnum graph_type;
 
   // primitive data used for constructing graph_t instances.
-  void *src_vertices;
-  void *dst_vertices;
-  void *weights;
-  void *vertex_partition_offsets;
+  void* src_vertices;
+  void* dst_vertices;
+  void* weights;
+  void* vertex_partition_offsets;
 
   size_t num_partition_edges;
   size_t num_global_vertices;
