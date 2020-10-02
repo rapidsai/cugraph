@@ -16,6 +16,7 @@
 - PR #1157 Louvain API update to use graph_container_t
 - PR #1151 MNMG extension for pattern accelerator based PageRank, Katz Centrality, BFS, and SSSP implementations (C++ part)
 - PR #1163 Integrated 2D shuffling and Louvain updates
+- PR #1178 Refactored cython graph factory code to scale to additional data types
 
 ## Improvements
 - PR 1081 MNMG Renumbering - sort partitions by degree

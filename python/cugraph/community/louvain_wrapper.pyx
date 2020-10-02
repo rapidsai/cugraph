@@ -26,6 +26,13 @@ import rmm
 import numpy as np
 
 
+# FIXME: move this to a more reusable location
+numberTypeMap = {np.dtype("int32") : <int>numberTypeEnum.int32Type,
+                 np.dtype("int64") : <int>numberTypeEnum.int64Type,
+                 np.dtype("float32") : <int>numberTypeEnum.floatType,
+                 np.dtype("double") : <int>numberTypeEnum.doubleType}
+
+
 def louvain(input_graph, max_level, resolution):
     """
     Call louvain
@@ -50,6 +57,8 @@ def louvain(input_graph, max_level, resolution):
     else:
         weights = cudf.Series(np.full(num_edges, 1.0, dtype=np.float32))
 
+    weight_t = weights.dtype
+
     # Create the output dataframe
     df = cudf.DataFrame()
     df['vertex'] = cudf.Series(np.zeros(num_verts, dtype=np.int32))
@@ -64,15 +73,9 @@ def louvain(input_graph, max_level, resolution):
     cdef uintptr_t c_local_edges = <uintptr_t> NULL;
     cdef uintptr_t c_local_offsets = <uintptr_t> NULL;
 
-
     cdef float final_modularity_float = 1.0
     cdef double final_modularity_double = 1.0
     cdef int num_level = 0
-
-    # FIXME: Offsets and indices are currently hardcoded to int, but this may
-    #        not be acceptable in the future.
-    weightTypeMap = {np.dtype("float32") : <int>numberTypeEnum.floatType,
-                     np.dtype("double") : <int>numberTypeEnum.doubleType}
 
     cdef graph_container_t graph_container
 
@@ -80,16 +83,16 @@ def louvain(input_graph, max_level, resolution):
     #        understand how to pass the enum value (this is the same pattern
     #        used by cudf). This will not be needed with Cython 3.0
     populate_graph_container_legacy(graph_container,
-                                    <legacyGraphTypeEnum>(<int>(legacyGraphTypeEnum.CSR)),
+                                    <graphTypeEnum>(<int>(graphTypeEnum.LegacyCSR)),
                                     handle_[0],
                                     <void*>c_offsets, <void*>c_indices, <void*>c_weights,
-                                    <numberTypeEnum>(<int>(numberTypeEnum.intType)),
-                                    <numberTypeEnum>(<int>(numberTypeEnum.intType)),
-                                    <numberTypeEnum>(<int>(weightTypeMap[weights.dtype])),
+                                    <numberTypeEnum>(<int>(numberTypeEnum.int32Type)),
+                                    <numberTypeEnum>(<int>(numberTypeEnum.int32Type)),
+                                    <numberTypeEnum>(<int>(numberTypeMap[weight_t])),
                                     num_verts, num_edges,
                                     <int*>c_local_verts, <int*>c_local_edges, <int*>c_local_offsets)
 
-    if weights.dtype == np.float32:
+    if weight_t == np.float32:
         num_level, final_modularity_float = c_louvain.call_louvain[float](handle_[0], graph_container,
                                                       <void*> c_identifier,
                                                       <void*> c_partition,
