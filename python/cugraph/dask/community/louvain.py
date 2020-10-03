@@ -25,6 +25,7 @@ def call_louvain(sID,
                  partition_row_size,
                  partition_col_size,
                  vertex_partition_offsets,
+                 sorted_by_degree,
                  max_level,
                  resolution):
 
@@ -39,6 +40,7 @@ def call_louvain(sID,
                                 vertex_partition_offsets,
                                 wid,
                                 handle,
+                                sorted_by_degree,
                                 max_level,
                                 resolution)
 
@@ -74,7 +76,9 @@ def louvain(input_graph, max_iter=100, resolution=1.0, load_balance=True):
     # if type(graph) is not Graph:
     #     raise Exception("input graph must be undirected")
     client = default_client()
+    # Calling renumbering results in data that is sorted by degree
     input_graph.compute_renumber_edge_list(transposed=False)
+    sorted_by_degree = True
     (ddf,
      num_verts,
      partition_row_size,
@@ -95,6 +99,7 @@ def louvain(input_graph, max_iter=100, resolution=1.0, load_balance=True):
                         partition_row_size,
                         partition_col_size,
                         vertex_partition_offsets,
+                        sorted_by_degree,
                         max_iter,
                         resolution,
                         workers=[wf[0]]))
