@@ -73,7 +73,6 @@ def louvain(input_graph, max_iter=100, resolution=1.0, load_balance=True):
     # symmetric DiGraphs.
     # if type(graph) is not Graph:
     #     raise Exception("input graph must be undirected")
-
     client = default_client()
     input_graph.compute_renumber_edge_list(transposed=False)
     (ddf,
@@ -83,6 +82,8 @@ def louvain(input_graph, max_iter=100, resolution=1.0, load_balance=True):
      vertex_partition_offsets) = shuffle(input_graph, transposed=False)
     num_edges = len(ddf)
     data = get_distributed_data(ddf)
+
+    print('number_map = ', input_graph.renumber_map.implementation.ddf.compute())
 
     result = dict([(data.worker_info[wf[0]]["rank"],
                     client.submit(

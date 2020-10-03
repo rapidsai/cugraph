@@ -74,8 +74,8 @@ class compute_partition_t {
    */
   class vertex_device_view_t {
    public:
-    vertex_device_view_t(vertex_t const *d_vertex_partition_offsets, int row_size, int size)
-      : d_vertex_partition_offsets_(d_vertex_partition_offsets), row_size_(row_size), size_(size)
+    vertex_device_view_t(vertex_t const *d_vertex_partition_offsets, int size)
+      : d_vertex_partition_offsets_(d_vertex_partition_offsets), size_(size)
     {
     }
 
@@ -100,7 +100,6 @@ class compute_partition_t {
 
    private:
     vertex_t const *d_vertex_partition_offsets_;
-    int row_size_;
     int size_;
   };
 
@@ -169,7 +168,7 @@ class compute_partition_t {
 
   vertex_device_view_t vertex_device_view() const
   {
-    return vertex_device_view_t(vertex_partition_offsets_v_.data().get(), row_size_, size_);
+    return vertex_device_view_t(vertex_partition_offsets_v_.data().get(), size_);
   }
 
   edge_device_view_t edge_device_view() const
