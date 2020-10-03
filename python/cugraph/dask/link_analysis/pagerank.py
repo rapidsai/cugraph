@@ -34,6 +34,7 @@ def call_pagerank(sID,
                   nstart):
     wid = Comms.get_worker_id(sID)
     handle = Comms.get_handle(sID)
+    print("calling cython...")
     return mg_pagerank.mg_pagerank(data[0],
                                    num_verts,
                                    num_edges,
@@ -132,12 +133,14 @@ def pagerank(input_graph,
 
     client = default_client()
 
-    input_graph.compute_renumber_edge_list(transposed=False)
+    input_graph.compute_renumber_edge_list(transposed=True)
     (ddf,
      num_verts,
      partition_row_size,
      partition_col_size,
-     vertex_partition_offsets) = shuffle(input_graph, transposed=False)
+     vertex_partition_offsets) = shuffle(input_graph, transposed=True)
+    print(partition_row_size)
+    print(partition_col_size)
     num_edges = len(ddf)
     data = get_distributed_data(ddf)
 

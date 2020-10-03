@@ -75,13 +75,15 @@ def pagerank(input_graph, alpha=0.85, personalization=None, max_iter=100, tol=1.
 
     if weights is not None:
         c_weights = weights.__cuda_array_interface__['data'][0]
-        weight_dtype = weights.dtype
+        weight_t = weights.dtype
     else:
-        weight_dtype = np.dtype("float32")
+        weight_t = np.dtype("float32")
 
     # FIXME: Offsets and indices are currently hardcoded to int, but this may
     #        not be acceptable in the future.
-    weightTypeMap = {np.dtype("float32") : <int>numberTypeEnum.floatType,
+    numberTypeMap = {np.dtype("int32") : <int>numberTypeEnum.int32Type,
+                     np.dtype("int64") : <int>numberTypeEnum.int64Type,
+                     np.dtype("float32") : <int>numberTypeEnum.floatType,
                      np.dtype("double") : <int>numberTypeEnum.doubleType}
 
     if personalization is not None:
@@ -93,12 +95,12 @@ def pagerank(input_graph, alpha=0.85, personalization=None, max_iter=100, tol=1.
 
     cdef graph_container_t graph_container
     populate_graph_container_legacy(graph_container,
-                                    <legacyGraphTypeEnum>(<int>(legacyGraphTypeEnum.CSC)),
+                                    <graphTypeEnum>(<int>(graphTypeEnum.LegacyCSC)),
                                     handle_[0],
                                     <void*>c_offsets, <void*>c_indices, <void*>c_weights,
-                                    <numberTypeEnum>(<int>(numberTypeEnum.intType)),
-                                    <numberTypeEnum>(<int>(numberTypeEnum.intType)),
-                                    <numberTypeEnum>(<int>(weightTypeMap[weight_dtype])),
+                                    <numberTypeEnum>(<int>(numberTypeEnum.int32Type)),
+                                    <numberTypeEnum>(<int>(numberTypeEnum.int32Type)),
+                                    <numberTypeEnum>(<int>(numberTypeMap[weight_t])),
                                     num_verts, num_edges,
                                     <int*>c_local_verts, <int*>c_local_edges, <int*>c_local_offsets)
 
