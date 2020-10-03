@@ -522,7 +522,7 @@ template class graph_t<int64_t, int64_t, float, true, true>;
 template class graph_t<int64_t, int64_t, float, false, true>;
 template class graph_t<int64_t, int64_t, double, true, true>;
 template class graph_t<int64_t, int64_t, double, false, true>;
-
+//
 template class graph_t<int32_t, int32_t, float, true, false>;
 template class graph_t<int32_t, int32_t, float, false, false>;
 template class graph_t<int32_t, int32_t, double, true, false>;
