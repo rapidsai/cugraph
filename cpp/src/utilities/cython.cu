@@ -298,7 +298,7 @@ std::pair<size_t, weight_t> call_louvain(raft::handle_t const& handle,
                  graph_view,
                  reinterpret_cast<typename graph_view_t::vertex_type*>(parts),
                  max_level,
-                 static_cast<weight_t>(resolution));
+                 resolution);
 }
 
 }  // namespace detail

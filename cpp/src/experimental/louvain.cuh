@@ -372,7 +372,7 @@ create_graph(raft::handle_t const &handle,
     {{src_v.data().get(),
       dst_v.data().get(),
       weight_v.data().get(),
-      static_cast<vertex_t>(num_local_verts)}});
+      static_cast<edge_t>(src_v.size())}});
 
   return std::make_unique<experimental::graph_t<vertex_t, edge_t, weight_t, transposed, multi_gpu>>(
     handle,
@@ -771,8 +771,8 @@ class Louvain {
   {
     rmm::device_vector<weight_t> old_cluster_sum_v(local_num_vertices_);
 
-    print_v("src_cluster_cache", src_cluster_cache_v);
-    print_v("dst_cluster_cache", dst_cluster_cache_v);
+    print_v("src_cluster_cache", src_cluster_cache_v_);
+    print_v("dst_cluster_cache", dst_cluster_cache_v_);
 
     experimental::copy_v_transform_reduce_out_nbr(
       handle_,
@@ -782,7 +782,11 @@ class Louvain {
       [] __device__(auto src, auto dst, auto wt, auto src_cluster, auto nbr_cluster) {
         if ((src != dst) && (src_cluster == nbr_cluster)) {
           printf("compute ocs, (%d, %d), cluster = (%d, %d), wt = %g\n",
-                 (int) src, (int) dst, (int) src_cluster, (int) nbr_cluster, wt);
+                 (int)src,
+                 (int)dst,
+                 (int)src_cluster,
+                 (int)nbr_cluster,
+                 wt);
           return wt;
         } else
           return weight_t{0};
@@ -907,7 +911,7 @@ class Louvain {
 
     // FIXME:  This should really be a variable_shuffle of a tuple, for time
     //         reasons I'm just doing 5 independent shuffles.
-    //         
+    //
     rmm::device_vector<vertex_t> src_v = variable_shuffle<graph_view_t::is_multi_gpu, vertex_t>(
       handle_,
       new_edge_size,
@@ -980,15 +984,15 @@ class Louvain {
     //
     //  Now we can compute (locally) each delta_Q value
     //
-    vertex_t *d_src                    = src_v.data().get();
-    vertex_t *d_nbr_cluster            = nbr_cluster_v.data().get();
-    weight_t *d_nbr_weights            = nbr_weights_v.data().get();
-    vertex_t *d_local_cluster_edge_ids = local_cluster_edge_ids_v.data().get();
-    weight_t *d_src_old_cluster_sum    = src_old_cluster_sum_v.data().get();
-    weight_t *d_src_cluster_weights    = src_cluster_weights_cache_v_.data().get();
-    weight_t *d_dst_cluster_weights    = dst_cluster_weights_cache_v_.data().get();
+    vertex_t *d_src                  = src_v.data().get();
+    vertex_t *d_nbr_cluster          = nbr_cluster_v.data().get();
+    weight_t *d_nbr_weights          = nbr_weights_v.data().get();
+    edge_t *d_local_cluster_edge_ids = local_cluster_edge_ids_v.data().get();
+    weight_t *d_src_old_cluster_sum  = src_old_cluster_sum_v.data().get();
+    weight_t *d_src_cluster_weights  = src_cluster_weights_cache_v_.data().get();
+    weight_t *d_dst_cluster_weights  = dst_cluster_weights_cache_v_.data().get();
 
-    d_src_cluster = src_cluster_v.data().get();
+    d_src_cluster        = src_cluster_v.data().get();
     d_src_vertex_weights = src_vertex_weight_v.data().get();
 
 #ifdef DEBUG
@@ -1047,7 +1051,7 @@ class Louvain {
                           k_k,
                           a_old,
                           total_edge_weight,
-                          (int) old_cluster);
+                          (int)old_cluster);
       //}
 #endif
 

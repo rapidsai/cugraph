@@ -86,7 +86,6 @@ template std::pair<size_t, double> louvain(
   int32_t *,
   size_t,
   double);
-#if 0
 template std::pair<size_t, float> louvain(
   raft::handle_t const &,
   experimental::graph_view_t<int32_t, int64_t, float, false, false> const &,
@@ -101,18 +100,6 @@ template std::pair<size_t, double> louvain(
   double);
 template std::pair<size_t, float> louvain(
   raft::handle_t const &,
-  experimental::graph_view_t<int64_t, int32_t, float, false, false> const &,
-  int64_t *,
-  size_t,
-  float);
-template std::pair<size_t, double> louvain(
-  raft::handle_t const &,
-  experimental::graph_view_t<int64_t, int32_t, double, false, false> const &,
-  int64_t *,
-  size_t,
-  double);
-template std::pair<size_t, float> louvain(
-  raft::handle_t const &,
   experimental::graph_view_t<int64_t, int64_t, float, false, false> const &,
   int64_t *,
   size_t,
@@ -123,7 +110,6 @@ template std::pair<size_t, double> louvain(
   int64_t *,
   size_t,
   double);
-#endif
 
 // instantations with multi_gpu = true
 template std::pair<size_t, float> louvain(
@@ -139,7 +125,6 @@ template std::pair<size_t, double> louvain(
   size_t,
   double);
 
-#if 0
 template std::pair<size_t, float> louvain(
   raft::handle_t const &,
   experimental::graph_view_t<int32_t, int64_t, float, false, true> const &,
@@ -154,18 +139,6 @@ template std::pair<size_t, double> louvain(
   double);
 template std::pair<size_t, float> louvain(
   raft::handle_t const &,
-  experimental::graph_view_t<int64_t, int32_t, float, false, true> const &,
-  int64_t *,
-  size_t,
-  float);
-template std::pair<size_t, double> louvain(
-  raft::handle_t const &,
-  experimental::graph_view_t<int64_t, int32_t, double, false, true> const &,
-  int64_t *,
-  size_t,
-  double);
-template std::pair<size_t, float> louvain(
-  raft::handle_t const &,
   experimental::graph_view_t<int64_t, int64_t, float, false, true> const &,
   int64_t *,
   size_t,
@@ -176,6 +149,5 @@ template std::pair<size_t, double> louvain(
   int64_t *,
   size_t,
   double);
-#endif
 
 }  // namespace cugraph
