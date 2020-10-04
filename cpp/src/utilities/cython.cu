@@ -52,12 +52,12 @@ create_graph(raft::handle_t const& handle, graph_container_t const& graph_contai
     reinterpret_cast<vertex_t*>(graph_container.vertex_partition_offsets) +
       (graph_container.row_comm_size * graph_container.col_comm_size) + 1);
 
-  experimental::partition_t<int> partition(partition_offsets_vector,
-                                           graph_container.hypergraph_partitioned,
-                                           graph_container.row_comm_size,
-                                           graph_container.col_comm_size,
-                                           graph_container.row_comm_rank,
-                                           graph_container.col_comm_rank);
+  experimental::partition_t<vertex_t> partition(partition_offsets_vector,
+                                                graph_container.hypergraph_partitioned,
+                                                graph_container.row_comm_size,
+                                                graph_container.col_comm_size,
+                                                graph_container.row_comm_rank,
+                                                graph_container.col_comm_rank);
 
   return std::make_unique<experimental::graph_t<vertex_t, edge_t, weight_t, transposed, multi_gpu>>(
     handle,
@@ -66,7 +66,9 @@ create_graph(raft::handle_t const& handle, graph_container_t const& graph_contai
     static_cast<vertex_t>(graph_container.num_global_vertices),
     static_cast<edge_t>(graph_container.num_global_edges),
     graph_container.graph_props,
-    graph_container.sorted_by_degree,
+    // FIXME:  This currently fails if sorted_by_degree is true...
+    //graph_container.sorted_by_degree,
+    false,
     graph_container.do_expensive_check);
 }
 
@@ -375,10 +377,10 @@ return_t call_function(raft::handle_t const& handle,
                        function_t function)
 {
   if (graph_container.weightType == numberTypeEnum::floatType) {
-    return call_function<transposed, return_t, function_t, float, transposed>(
+    return call_function<transposed, return_t, function_t, float, is_multi_gpu>(
       handle, graph_container, function);
   } else if (graph_container.weightType == numberTypeEnum::doubleType) {
-    return call_function<transposed, return_t, function_t, double, transposed>(
+    return call_function<transposed, return_t, function_t, double, is_multi_gpu>(
       handle, graph_container, function);
   } else {
     CUGRAPH_FAIL("weightType unsupported");
