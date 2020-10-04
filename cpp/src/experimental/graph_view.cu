@@ -101,7 +101,7 @@ graph_view_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu, std::enabl
 
   CUGRAPH_EXPECTS((sorted_by_global_degree_within_vertex_partition &&
                    (vertex_partition_segment_offsets.size() ==
-                    col_comm_size * (detail::num_segments_per_vertex_partition + 1))) ||
+                    comm_size * (detail::num_segments_per_vertex_partition + 1))) ||
                     (!sorted_by_global_degree_within_vertex_partition &&
                      (vertex_partition_segment_offsets.size() == 0)),
                   "Invalid API parameter: vertex_partition_segment_offsets.size() does not match "

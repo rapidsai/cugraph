@@ -21,38 +21,78 @@ from cugraph.structure.graph_primtypes cimport *
 import cugraph.structure.graph_primtypes_wrapper as graph_primtypes_wrapper
 from libc.stdint cimport uintptr_t
 from cython.operator cimport dereference as deref
+import numpy as np
 
-def mg_pagerank(input_df, local_data, rank, handle, alpha=0.85, max_iter=100, tol=1.0e-5, personalization=None, nstart=None):
+
+def mg_pagerank(input_df,
+                num_global_verts,
+                num_global_edges,
+                partition_row_size,
+                partition_col_size,
+                vertex_partition_offsets,
+                rank,
+                handle,
+                alpha=0.85,
+                max_iter=100,
+                tol=1.0e-5,
+                personalization=None,
+                nstart=None):
     """
     Call pagerank
     """
-
+    print("HERE!!!")
     cdef size_t handle_size_t = <size_t>handle.getHandle()
     handle_ = <c_pagerank.handle_t*>handle_size_t
 
 
     src = input_df['src']
     dst = input_df['dst']
+    vertex_t = src.dtype
+    if num_global_edges > (2**31 - 1):
+        edge_t = np.dtype("int64")
+    else:
+        edge_t = np.dtype("int32")
+    if "value" in input_df.columns:
+        weights = input_df['value']
+        weight_t = weights.dtype
+    else:
+        weight_t = np.dtype("float32")
 
-    num_verts = local_data['verts'].sum()
-    num_edges = local_data['edges'].sum()
+    # FIXME: Offsets and indices are currently hardcoded to int, but this may
+    #        not be acceptable in the future.
+    numberTypeMap = {np.dtype("int32") : <int>numberTypeEnum.int32Type,
+                     np.dtype("int64") : <int>numberTypeEnum.int64Type,
+                     np.dtype("float32") : <int>numberTypeEnum.floatType,
+                     np.dtype("double") : <int>numberTypeEnum.doubleType}
 
-    local_offset = local_data['offsets'][rank]
-    dst = dst - local_offset
-    num_local_verts = local_data['verts'][rank]
-    num_local_edges = len(src)
+    # FIXME: needs to be edge_t type not int
+    cdef int num_partition_edges = len(src)
 
-    cdef uintptr_t c_local_verts = local_data['verts'].__array_interface__['data'][0]
-    cdef uintptr_t c_local_edges = local_data['edges'].__array_interface__['data'][0]
-    cdef uintptr_t c_local_offsets = local_data['offsets'].__array_interface__['data'][0]
+    cdef uintptr_t c_src_vertices = src.__cuda_array_interface__['data'][0]
+    cdef uintptr_t c_dst_vertices = dst.__cuda_array_interface__['data'][0]
+    cdef uintptr_t c_edge_weights = <uintptr_t>NULL
 
-    [src, dst] = graph_primtypes_wrapper.datatype_cast([src, dst], [np.int32])
-    _offsets, indices, weights = coo2csr(dst, src, None)
-    offsets = _offsets[:num_local_verts + 1]
-    del _offsets
+    # FIXME: data is on device, move to host (to_pandas()), convert to np array and access pointer to pass to C
+    cdef uintptr_t c_vertex_partition_offsets = vertex_partition_offsets.values_host.__array_interface__['data'][0]
+
+    cdef graph_container_t graph_container
+
+    populate_graph_container(graph_container,
+                             handle_[0],
+                             <void*>c_src_vertices, <void*>c_dst_vertices, <void*>c_edge_weights,
+                             <void*>c_vertex_partition_offsets,
+                             <numberTypeEnum>(<int>(numberTypeMap[vertex_t])),
+                             <numberTypeEnum>(<int>(numberTypeMap[edge_t])),
+                             <numberTypeEnum>(<int>(numberTypeMap[weight_t])),
+                             num_partition_edges,
+                             num_global_verts, num_global_edges,
+                             partition_row_size, partition_col_size,
+                             True,
+                             True, True) 
+
     df = cudf.DataFrame()
-    df['vertex'] = cudf.Series(np.zeros(num_verts, dtype=np.int32))
-    df['pagerank'] = cudf.Series(np.zeros(num_verts, dtype=np.float32))
+    df['vertex'] = cudf.Series(np.zeros(num_global_verts, dtype=np.int32))
+    df['pagerank'] = cudf.Series(np.zeros(num_global_verts, dtype=np.float32))
 
     cdef uintptr_t c_identifier = df['vertex'].__cuda_array_interface__['data'][0];
     cdef uintptr_t c_pagerank_val = df['pagerank'].__cuda_array_interface__['data'][0];
@@ -60,13 +100,6 @@ def mg_pagerank(input_df, local_data, rank, handle, alpha=0.85, max_iter=100, to
     cdef uintptr_t c_pers_vtx = <uintptr_t>NULL
     cdef uintptr_t c_pers_val = <uintptr_t>NULL
     cdef int sz = 0
-
-    cdef uintptr_t c_offsets = offsets.__cuda_array_interface__['data'][0]
-    cdef uintptr_t c_indices = indices.__cuda_array_interface__['data'][0]
-    cdef uintptr_t c_weights = <uintptr_t>NULL
-
-    cdef GraphCSCView[int,int,float] graph_float
-    cdef GraphCSCView[int,int,double] graph_double
 
     if personalization is not None:
         sz = personalization['vertex'].shape[0]
@@ -76,18 +109,12 @@ def mg_pagerank(input_df, local_data, rank, handle, alpha=0.85, max_iter=100, to
         c_pers_val = personalization['values'].__cuda_array_interface__['data'][0]
 
     if (df['pagerank'].dtype == np.float32):
-        graph_float = GraphCSCView[int,int,float](<int*>c_offsets, <int*>c_indices, <float*>c_weights, num_verts, num_local_edges)
-        graph_float.set_local_data(<int*>c_local_verts, <int*>c_local_edges, <int*>c_local_offsets)
-        graph_float.set_handle(handle_)
-        c_pagerank.pagerank[int,int,float](handle_[0], graph_float, <float*> c_pagerank_val, sz, <int*> c_pers_vtx, <float*> c_pers_val,
-                               <float> alpha, <float> tol, <int> max_iter, <bool> 0)
-        graph_float.get_vertex_identifiers(<int*>c_identifier)
+        print("32")
+        c_pagerank.call_pagerank[int, float](handle_[0], graph_container, <int*>c_identifier, <float*> c_pagerank_val, sz, <int*> c_pers_vtx, <float*> c_pers_val,
+                                 <float> alpha, <float> tol, <int> max_iter, <bool> 0)
     else:
-        graph_double = GraphCSCView[int,int,double](<int*>c_offsets, <int*>c_indices, <double*>c_weights, num_verts, num_local_edges)
-        graph_double.set_local_data(<int*>c_local_verts, <int*>c_local_edges, <int*>c_local_offsets)
-        graph_double.set_handle(handle_)
-        c_pagerank.pagerank[int,int,double](handle_[0], graph_double, <double*> c_pagerank_val, sz, <int*> c_pers_vtx, <double*> c_pers_val,
+        print("64")
+        c_pagerank.call_pagerank[int, double](handle_[0], graph_container, <int*>c_identifier, <double*> c_pagerank_val, sz, <int*> c_pers_vtx, <double*> c_pers_val,
                             <float> alpha, <float> tol, <int> max_iter, <bool> 0)
-        graph_double.get_vertex_identifiers(<int*>c_identifier)
-
+    
     return df

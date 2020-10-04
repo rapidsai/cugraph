@@ -201,5 +201,19 @@ std::pair<size_t, weight_t> call_louvain(raft::handle_t const& handle,
                                          size_t max_level,
                                          weight_t resolution);
 
+// Wrapper for calling Pagerank using a graph container
+template <typename vertex_t, typename weight_t>
+void call_pagerank(raft::handle_t const& handle,
+                   graph_container_t const& graph_container,
+                   vertex_t* identifiers,
+                   weight_t* pagerank,
+                   vertex_t personalization_subset_size,
+                   vertex_t* personalization_subset,
+                   weight_t* personalization_values,
+                   double alpha,
+                   double tolerance,
+                   int64_t max_iter,
+                   bool has_guess);
+
 }  // namespace cython
 }  // namespace cugraph

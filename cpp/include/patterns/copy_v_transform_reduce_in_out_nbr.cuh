@@ -68,8 +68,8 @@ template <bool update_major,
           typename T>
 __global__ void for_all_major_for_all_nbr_low_degree(
   matrix_partition_device_t<GraphViewType> matrix_partition,
-  typename GraphViewType::vertex_type row_first,
-  typename GraphViewType::vertex_type row_last,
+  typename GraphViewType::vertex_type major_first,
+  typename GraphViewType::vertex_type major_last,
   AdjMatrixRowValueInputIterator adj_matrix_row_value_input_first,
   AdjMatrixColValueInputIterator adj_matrix_col_value_input_first,
   ResultValueOutputIterator result_value_output_first,
@@ -81,22 +81,23 @@ __global__ void for_all_major_for_all_nbr_low_degree(
   using weight_t      = typename GraphViewType::weight_type;
   using e_op_result_t = T;
 
-  auto const tid = threadIdx.x + blockIdx.x * blockDim.x;
-  auto idx =
-    static_cast<size_t>(row_first - matrix_partition.get_major_first()) + static_cast<size_t>(tid);
+  auto const tid          = threadIdx.x + blockIdx.x * blockDim.x;
+  auto major_start_offset = static_cast<size_t>(major_first - matrix_partition.get_major_first());
+  auto idx                = static_cast<size_t>(tid);
 
-  while (idx < static_cast<size_t>(row_last - matrix_partition.get_major_first())) {
+  while (idx < static_cast<size_t>(major_last - major_first)) {
     vertex_t const* indices{nullptr};
     weight_t const* weights{nullptr};
     edge_t local_degree{};
+    auto major_offset = major_start_offset + idx;
     thrust::tie(indices, weights, local_degree) =
-      matrix_partition.get_local_edges(static_cast<vertex_t>(idx));
+      matrix_partition.get_local_edges(static_cast<vertex_t>(major_offset));
 #if 1
     auto transform_op = [&matrix_partition,
                          &adj_matrix_row_value_input_first,
                          &adj_matrix_col_value_input_first,
                          &e_op,
-                         idx,
+                         major_offset,
                          indices,
                          weights] __device__(auto i) {
       auto minor        = indices[i];
@@ -104,14 +105,16 @@ __global__ void for_all_major_for_all_nbr_low_degree(
       auto minor_offset = matrix_partition.get_minor_offset_from_minor_nocheck(minor);
       auto row          = GraphViewType::is_adj_matrix_transposed
                    ? minor
-                   : matrix_partition.get_major_from_major_offset_nocheck(idx);
+                   : matrix_partition.get_major_from_major_offset_nocheck(major_offset);
       auto col = GraphViewType::is_adj_matrix_transposed
-                   ? matrix_partition.get_major_from_major_offset_nocheck(idx)
+                   ? matrix_partition.get_major_from_major_offset_nocheck(major_offset)
                    : minor;
-      auto row_offset =
-        GraphViewType::is_adj_matrix_transposed ? minor_offset : static_cast<vertex_t>(idx);
-      auto col_offset =
-        GraphViewType::is_adj_matrix_transposed ? static_cast<vertex_t>(idx) : minor_offset;
+      auto row_offset = GraphViewType::is_adj_matrix_transposed
+                          ? minor_offset
+                          : static_cast<vertex_t>(major_offset);
+      auto col_offset = GraphViewType::is_adj_matrix_transposed
+                          ? static_cast<vertex_t>(major_offset)
+                          : minor_offset;
       return evaluate_edge_op<GraphViewType,
                               AdjMatrixRowValueInputIterator,
                               AdjMatrixColValueInputIterator,
@@ -153,14 +156,16 @@ __global__ void for_all_major_for_all_nbr_low_degree(
       auto minor_offset = matrix_partition.get_minor_offset_from_minor_nocheck(minor);
       auto row          = GraphViewType::is_adj_matrix_transposed
                    ? minor
-                   : matrix_partition.get_major_from_major_offset_nocheck(idx);
+                   : matrix_partition.get_major_from_major_offset_nocheck(major_offset);
       auto col = GraphViewType::is_adj_matrix_transposed
-                   ? matrix_partition.get_major_from_major_offset_nocheck(idx)
+                   ? matrix_partition.get_major_from_major_offset_nocheck(major_offset)
                    : minor;
-      auto row_offset =
-        GraphViewType::is_adj_matrix_transposed ? minor_offset : static_cast<vertex_t>(idx);
-      auto col_offset =
-        GraphViewType::is_adj_matrix_transposed ? static_cast<vertex_t>(idx) : minor_offset;
+      auto row_offset = GraphViewType::is_adj_matrix_transposed
+                          ? minor_offset
+                          : static_cast<vertex_t>(major_offset);
+      auto col_offset = GraphViewType::is_adj_matrix_transposed
+                          ? static_cast<vertex_t>(major_offset)
+                          : minor_offset;
       auto e_op_result = evaluate_edge_op<GraphViewType,
                                           AdjMatrixRowValueInputIterator,
                                           AdjMatrixColValueInputIterator,
@@ -193,8 +198,8 @@ template <bool update_major,
           typename T>
 __global__ void for_all_major_for_all_nbr_mid_degree(
   matrix_partition_device_t<GraphViewType> matrix_partition,
-  typename GraphViewType::vertex_type row_first,
-  typename GraphViewType::vertex_type row_last,
+  typename GraphViewType::vertex_type major_first,
+  typename GraphViewType::vertex_type major_last,
   AdjMatrixRowValueInputIterator adj_matrix_row_value_input_first,
   AdjMatrixColValueInputIterator adj_matrix_col_value_input_first,
   ResultValueOutputIterator result_value_output_first,
@@ -208,15 +213,16 @@ __global__ void for_all_major_for_all_nbr_mid_degree(
 
   auto const tid = threadIdx.x + blockIdx.x * blockDim.x;
   static_assert(copy_v_transform_reduce_nbr_for_all_block_size % raft::warp_size() == 0);
-  auto const lane_id = tid % raft::warp_size();
-  auto idx           = static_cast<size_t>(row_first - matrix_partition.get_major_first()) +
-             static_cast<size_t>(tid / raft::warp_size());
+  auto const lane_id      = tid % raft::warp_size();
+  auto major_start_offset = static_cast<size_t>(major_first - matrix_partition.get_major_first());
+  auto idx                = static_cast<size_t>(tid / raft::warp_size());
 
-  while (idx < static_cast<size_t>(row_last - matrix_partition.get_major_first())) {
+  while (idx < static_cast<size_t>(major_last - major_first)) {
     vertex_t const* indices{nullptr};
     weight_t const* weights{nullptr};
     edge_t local_degree{};
-    thrust::tie(indices, weights, local_degree) = matrix_partition.get_local_edges(idx);
+    auto major_offset                           = major_start_offset + idx;
+    thrust::tie(indices, weights, local_degree) = matrix_partition.get_local_edges(major_offset);
     auto e_op_result_sum =
       lane_id == 0 ? init : e_op_result_t{};  // relevent only if update_major == true
     for (edge_t i = lane_id; i < local_degree; i += raft::warp_size) {
@@ -225,14 +231,16 @@ __global__ void for_all_major_for_all_nbr_mid_degree(
       auto minor_offset = matrix_partition.get_minor_offset_from_minor_nocheck(minor);
       auto row          = GraphViewType::is_adj_matrix_transposed
                    ? minor
-                   : matrix_partition.get_major_from_major_offset_nocheck(idx);
+                   : matrix_partition.get_major_from_major_offset_nocheck(major_offset);
       auto col = GraphViewType::is_adj_matrix_transposed
-                   ? matrix_partition.get_major_from_major_offset_nocheck(idx)
+                   ? matrix_partition.get_major_from_major_offset_nocheck(major_offset)
                    : minor;
-      auto row_offset =
-        GraphViewType::is_adj_matrix_transposed ? minor_offset : static_cast<vertex_t>(idx);
-      auto col_offset =
-        GraphViewType::is_adj_matrix_transposed ? static_cast<vertex_t>(idx) : minor_offset;
+      auto row_offset = GraphViewType::is_adj_matrix_transposed
+                          ? minor_offset
+                          : static_cast<vertex_t>(major_offset);
+      auto col_offset = GraphViewType::is_adj_matrix_transposed
+                          ? static_cast<vertex_t>(major_offset)
+                          : minor_offset;
       auto e_op_result = evaluate_edge_op<GraphViewType,
                                           AdjMatrixRowValueInputIterator,
                                           AdjMatrixColValueInputIterator,
@@ -260,8 +268,6 @@ __global__ void for_all_major_for_all_nbr_mid_degree(
 
 template <bool update_major,
           typename GraphViewType,
-          typename GraphViewType::vertex_type row_first,
-          typename GraphViewType::vertex_type row_last,
           typename AdjMatrixRowValueInputIterator,
           typename AdjMatrixColValueInputIterator,
           typename ResultValueOutputIterator,
@@ -269,6 +275,8 @@ template <bool update_major,
           typename T>
 __global__ void for_all_major_for_all_nbr_high_degree(
   matrix_partition_device_t<GraphViewType> matrix_partition,
+  typename GraphViewType::vertex_type major_first,
+  typename GraphViewType::vertex_type major_last,
   AdjMatrixRowValueInputIterator adj_matrix_row_value_input_first,
   AdjMatrixColValueInputIterator adj_matrix_col_value_input_first,
   ResultValueOutputIterator result_value_output_first,
@@ -280,14 +288,15 @@ __global__ void for_all_major_for_all_nbr_high_degree(
   using weight_t      = typename GraphViewType::weight_type;
   using e_op_result_t = T;
 
-  auto idx = static_cast<size_t>(row_first - matrix_partition.get_major_first()) +
-             static_cast<size_t>(blockIdx.x);
+  auto major_start_offset = static_cast<size_t>(major_first - matrix_partition.get_major_first());
+  auto idx                = static_cast<size_t>(blockIdx.x);
 
-  while (idx < static_cast<size_t>(row_last - matrix_partition.get_major_first())) {
+  while (idx < static_cast<size_t>(major_last - major_first)) {
     vertex_t const* indices{nullptr};
     weight_t const* weights{nullptr};
     edge_t local_degree{};
-    thrust::tie(indices, weights, local_degree) = matrix_partition.get_local_edges(idx);
+    auto major_offset                           = major_start_offset + idx;
+    thrust::tie(indices, weights, local_degree) = matrix_partition.get_local_edges(major_offset);
     auto e_op_result_sum =
       threadIdx.x == 0 ? init : e_op_result_t{};  // relevent only if update_major == true
     for (edge_t i = threadIdx.x; i < local_degree; i += blockDim.x) {
@@ -296,14 +305,16 @@ __global__ void for_all_major_for_all_nbr_high_degree(
       auto minor_offset = matrix_partition.get_minor_offset_from_minor_nocheck(minor);
       auto row          = GraphViewType::is_adj_matrix_transposed
                    ? minor
-                   : matrix_partition.get_major_from_major_offset_nocheck(idx);
+                   : matrix_partition.get_major_from_major_offset_nocheck(major_offset);
       auto col = GraphViewType::is_adj_matrix_transposed
-                   ? matrix_partition.get_major_from_major_offset_nocheck(idx)
+                   ? matrix_partition.get_major_from_major_offset_nocheck(major_offset)
                    : minor;
-      auto row_offset =
-        GraphViewType::is_adj_matrix_transposed ? minor_offset : static_cast<vertex_t>(idx);
-      auto col_offset =
-        GraphViewType::is_adj_matrix_transposed ? static_cast<vertex_t>(idx) : minor_offset;
+      auto row_offset = GraphViewType::is_adj_matrix_transposed
+                          ? minor_offset
+                          : static_cast<vertex_t>(major_offset);
+      auto col_offset = GraphViewType::is_adj_matrix_transposed
+                          ? static_cast<vertex_t>(major_offset)
+                          : minor_offset;
       auto e_op_result = evaluate_edge_op<GraphViewType,
                                           AdjMatrixRowValueInputIterator,
                                           AdjMatrixColValueInputIterator,
@@ -358,6 +369,7 @@ void copy_v_transform_reduce_nbr(raft::handle_t const& handle,
                    ? graph_view.get_number_of_local_adj_matrix_partitions()
                    : static_cast<size_t>(row_comm_size);
   }
+  auto comm_rank = handle.comms_initialized() ? handle.get_comms().get_rank() : int{0};
 
   auto minor_tmp_buffer_size =
     (GraphViewType::is_multi_gpu && (in != GraphViewType::is_adj_matrix_transposed))
@@ -450,20 +462,16 @@ void copy_v_transform_reduce_nbr(raft::handle_t const& handle,
       auto& col_comm = handle.get_subcomm(cugraph::partition_2d::key_naming_t().col_name());
       auto const col_comm_rank = col_comm.get_rank();
 
-      vertex_t row_value_input_offset =
-        GraphViewType::is_adj_matrix_transposed
-          ? 0
-          : graph_view.is_hypergraph_partitioned()
-              ? matrix_partition.get_major_value_start_offset()
-              : graph_view.get_vertex_partition_first(col_comm_rank * row_comm_size + i) -
-                  graph_view.get_vertex_partition_first(col_comm_rank * row_comm_size);
-      vertex_t col_value_input_offset =
-        GraphViewType::is_adj_matrix_transposed
-          ? graph_view.is_hypergraph_partitioned()
-              ? matrix_partition.get_major_value_start_offset()
-              : graph_view.get_vertex_partition_first(col_comm_rank * row_comm_size + i) -
-                  graph_view.get_vertex_partition_first(col_comm_rank * row_comm_size)
-          : 0;
+      vertex_t row_value_input_offset = GraphViewType::is_adj_matrix_transposed
+                                          ? 0
+                                          : graph_view.is_hypergraph_partitioned()
+                                              ? matrix_partition.get_major_value_start_offset()
+                                              : 0;
+      vertex_t col_value_input_offset = GraphViewType::is_adj_matrix_transposed
+                                          ? graph_view.is_hypergraph_partitioned()
+                                              ? matrix_partition.get_major_value_start_offset()
+                                              : 0
+                                          : 0;
 
       detail::for_all_major_for_all_nbr_low_degree<in == GraphViewType::is_adj_matrix_transposed>
         <<<update_grid.num_blocks, update_grid.block_size, 0, handle.get_stream()>>>(

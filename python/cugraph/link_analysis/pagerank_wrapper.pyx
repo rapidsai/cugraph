@@ -17,7 +17,7 @@
 # cython: language_level = 3
 
 #cimport cugraph.link_analysis.pagerank as c_pagerank
-from cugraph.link_analysis.pagerank cimport pagerank as c_pagerank
+from cugraph.link_analysis.pagerank cimport call_pagerank
 from cugraph.structure.graph_primtypes cimport *
 from libcpp cimport bool
 from libc.stdint cimport uintptr_t
@@ -38,6 +38,7 @@ def pagerank(input_graph, alpha=0.85, personalization=None, max_iter=100, tol=1.
 
     cdef unique_ptr[handle_t] handle_ptr
     handle_ptr.reset(new handle_t())
+    handle_ = handle_ptr.get();
 
     [offsets, indices] = graph_primtypes_wrapper.datatype_cast([input_graph.transposedadjlist.offsets, input_graph.transposedadjlist.indices], [np.int32])
     [weights] = graph_primtypes_wrapper.datatype_cast([input_graph.transposedadjlist.weights], [np.float32, np.float64])
@@ -66,14 +67,24 @@ def pagerank(input_graph, alpha=0.85, personalization=None, max_iter=100, tol=1.
     cdef uintptr_t c_offsets = offsets.__cuda_array_interface__['data'][0]
     cdef uintptr_t c_indices = indices.__cuda_array_interface__['data'][0]
     cdef uintptr_t c_weights = <uintptr_t>NULL
+    cdef uintptr_t c_local_verts = <uintptr_t> NULL;
+    cdef uintptr_t c_local_edges = <uintptr_t> NULL;
+    cdef uintptr_t c_local_offsets = <uintptr_t> NULL;
 
     personalization_id_series = None
 
     if weights is not None:
         c_weights = weights.__cuda_array_interface__['data'][0]
+        weight_t = weights.dtype
+    else:
+        weight_t = np.dtype("float32")
 
-    cdef GraphCSCView[int,int,float] graph_float
-    cdef GraphCSCView[int,int,double] graph_double
+    # FIXME: Offsets and indices are currently hardcoded to int, but this may
+    #        not be acceptable in the future.
+    numberTypeMap = {np.dtype("int32") : <int>numberTypeEnum.int32Type,
+                     np.dtype("int64") : <int>numberTypeEnum.int64Type,
+                     np.dtype("float32") : <int>numberTypeEnum.floatType,
+                     np.dtype("double") : <int>numberTypeEnum.doubleType}
 
     if personalization is not None:
         sz = personalization['vertex'].shape[0]
@@ -82,16 +93,30 @@ def pagerank(input_graph, alpha=0.85, personalization=None, max_iter=100, tol=1.
         c_pers_vtx = personalization['vertex'].__cuda_array_interface__['data'][0]
         c_pers_val = personalization['values'].__cuda_array_interface__['data'][0]
 
+    cdef graph_container_t graph_container
+    populate_graph_container_legacy(graph_container,
+                                    <graphTypeEnum>(<int>(graphTypeEnum.LegacyCSC)),
+                                    handle_[0],
+                                    <void*>c_offsets, <void*>c_indices, <void*>c_weights,
+                                    <numberTypeEnum>(<int>(numberTypeEnum.int32Type)),
+                                    <numberTypeEnum>(<int>(numberTypeEnum.int32Type)),
+                                    <numberTypeEnum>(<int>(numberTypeMap[weight_t])),
+                                    num_verts, num_edges,
+                                    <int*>c_local_verts, <int*>c_local_edges, <int*>c_local_offsets)
+
     if (df['pagerank'].dtype == np.float32):
-        graph_float = GraphCSCView[int,int,float](<int*>c_offsets, <int*>c_indices, <float*>c_weights, num_verts, num_edges)
+        call_pagerank[int, float](handle_[0], graph_container,
+                                  <int*>c_identifier,
+                                  <float*> c_pagerank_val, sz,
+                                  <int*> c_pers_vtx, <float*> c_pers_val,
+                                  <float> alpha, <float> tol,
+                                  <int> max_iter, has_guess)
 
-        c_pagerank[int,int,float](handle_ptr.get()[0], graph_float, <float*> c_pagerank_val, sz, <int*> c_pers_vtx, <float*> c_pers_val,
-                               <float> alpha, <float> tol, <int> max_iter, has_guess)
-        graph_float.get_vertex_identifiers(<int*>c_identifier)
     else:
-        graph_double = GraphCSCView[int,int,double](<int*>c_offsets, <int*>c_indices, <double*>c_weights, num_verts, num_edges)
-        c_pagerank[int,int,double](handle_ptr.get()[0], graph_double, <double*> c_pagerank_val, sz, <int*> c_pers_vtx, <double*> c_pers_val,
-                            <float> alpha, <float> tol, <int> max_iter, has_guess)
-        graph_double.get_vertex_identifiers(<int*>c_identifier)
-
+        call_pagerank[int, double](handle_[0], graph_container,
+                                   <int*>c_identifier,
+                                   <double*> c_pagerank_val, sz,
+                                   <int*> c_pers_vtx, <double*> c_pers_val,
+                                   <float> alpha, <float> tol,
+                                   <int> max_iter, has_guess)
     return df
