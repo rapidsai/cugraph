@@ -498,7 +498,6 @@ class Louvain {
 
     CUDA_TRY(cudaStreamSynchronize(stream_));
 
-    std::cout << "rank: " << rank_ << " computing total_edge_weight" << std::endl;
     weight_t total_edge_weight;
     total_edge_weight = experimental::transform_reduce_e(
       handle_,
@@ -670,6 +669,8 @@ class Louvain {
     cache_vertex_properties(
       cluster_weights_v_, src_cluster_weights_cache_v_, dst_cluster_weights_cache_v_);
 
+    sleep(rank_);
+    std::cout << "rank = " << rank_ << std::endl;
     print_v("vertex_weights_v_", vertex_weights_v_);
     print_v("cluster_weights_v_", cluster_weights_v_);
 
