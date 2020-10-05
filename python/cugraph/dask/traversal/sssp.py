@@ -23,13 +23,13 @@ import dask_cudf
 
 
 def call_sssp(sID,
-             data,
-             num_verts,
-             num_edges,
-             partition_row_size,
-             partition_col_size,
-             vertex_partition_offsets,
-             start):
+              data,
+              num_verts,
+              num_edges,
+              partition_row_size,
+              partition_col_size,
+              vertex_partition_offsets,
+              start):
     wid = Comms.get_worker_id(sID)
     handle = Comms.get_handle(sID)
     return mg_sssp.mg_sssp(data[0],

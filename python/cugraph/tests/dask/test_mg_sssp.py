@@ -83,4 +83,3 @@ def test_dask_bfs(client_connection):
         ):
             err = err + 1
     assert err == 0
-
