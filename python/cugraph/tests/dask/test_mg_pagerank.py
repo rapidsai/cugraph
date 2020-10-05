@@ -108,6 +108,7 @@ def test_dask_pagerank(client_connection, personalization_perc):
         g, personalization=personalization, tol=1e-6
     )
     result_pr = dcg.pagerank(dg, personalization=personalization, tol=1e-6)
+    result_pr = result_pr.compute()
 
     err = 0
     tol = 1.0e-05
