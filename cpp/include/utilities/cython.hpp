@@ -215,5 +215,25 @@ void call_pagerank(raft::handle_t const& handle,
                    int64_t max_iter,
                    bool has_guess);
 
+// Wrapper for calling BFS through a graph container
+template <typename vertex_t, typename weight_t>
+void call_bfs(raft::handle_t const& handle,
+              graph_container_t const& graph_container,
+              vertex_t* identifiers,
+              vertex_t* distances,
+              vertex_t* predecessors,
+              double* sp_counters,
+              const vertex_t start_vertex,
+              bool directed);
+
+// Wrapper for calling SSSP through a graph container
+template <typename vertex_t, typename weight_t>
+void call_sssp(raft::handle_t const& handle,
+               graph_container_t const& graph_container,
+               vertex_t* identifiers,
+               weight_t* distances,
+               vertex_t* predecessors,
+               const vertex_t source_vertex);
+
 }  // namespace cython
 }  // namespace cugraph

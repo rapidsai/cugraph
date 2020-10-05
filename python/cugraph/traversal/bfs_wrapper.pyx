@@ -33,12 +33,22 @@ def bfs(input_graph, start, directed=True,
     Call bfs
     """
     # Step 1: Declare the different varibales
-    cdef GraphCSRView[int, int, float]  graph_float     # For weighted float graph (SSSP) and Unweighted (BFS)
-    cdef GraphCSRView[int, int, double] graph_double    # For weighted double graph (SSSP)
+    cdef graph_container_t graph_container
+    # FIXME: Offsets and indices are currently hardcoded to int, but this may
+    #        not be acceptable in the future.
+    numberTypeMap = {np.dtype("int32") : <int>numberTypeEnum.int32Type,
+                     np.dtype("int64") : <int>numberTypeEnum.int64Type,
+                     np.dtype("float32") : <int>numberTypeEnum.floatType,
+                     np.dtype("double") : <int>numberTypeEnum.doubleType}
 
     # Pointers required for CSR Graph
     cdef uintptr_t c_offsets_ptr        = <uintptr_t> NULL # Pointer to the CSR offsets
     cdef uintptr_t c_indices_ptr        = <uintptr_t> NULL # Pointer to the CSR indices
+    cdef uintptr_t c_weights = <uintptr_t>NULL
+    cdef uintptr_t c_local_verts = <uintptr_t> NULL;
+    cdef uintptr_t c_local_edges = <uintptr_t> NULL;
+    cdef uintptr_t c_local_offsets = <uintptr_t> NULL;
+    weight_t = np.dtype("float32")
 
     # Pointers for SSSP / BFS
     cdef uintptr_t c_identifier_ptr     = <uintptr_t> NULL # Pointer to the DataFrame 'vertex' Series
@@ -52,6 +62,7 @@ def bfs(input_graph, start, directed=True,
 
     cdef unique_ptr[handle_t] handle_ptr
     handle_ptr.reset(new handle_t())
+    handle_ = handle_ptr.get();
 
     # Step 3: Extract CSR offsets, indices, weights are not expected
     #         - offsets: int (signed, 32-bit)
@@ -86,15 +97,20 @@ def bfs(input_graph, start, directed=True,
 
     # Step 8: Proceed to BFS
     # FIXME: [int, int, float] or may add an explicit [int, int, int] in graph.cu?
-    graph_float = GraphCSRView[int, int, float](<int*> c_offsets_ptr,
-                                            <int*> c_indices_ptr,
-                                            <float*> NULL,
-                                            num_verts,
-                                            num_edges)
-    graph_float.get_vertex_identifiers(<int*> c_identifier_ptr)
+    populate_graph_container_legacy(graph_container,
+                                    <graphTypeEnum>(<int>(graphTypeEnum.LegacyCSR)),
+                                    handle_[0],
+                                    <void*>c_offsets_ptr, <void*>c_indices_ptr, <void*>c_weights,
+                                    <numberTypeEnum>(<int>(numberTypeEnum.int32Type)),
+                                    <numberTypeEnum>(<int>(numberTypeEnum.int32Type)),
+                                    <numberTypeEnum>(<int>(numberTypeMap[weight_t])),
+                                    num_verts, num_edges,
+                                    <int*>c_local_verts, <int*>c_local_edges, <int*>c_local_offsets)
+
     # Different pathing wether shortest_path_counting is required or not
-    c_bfs.bfs[int, int, float](handle_ptr.get()[0],
-                               graph_float,
+    c_bfs.call_bfs[int, float](handle_ptr.get()[0],
+                               graph_container,
+                               <int*> c_identifier_ptr,
                                <int*> c_distance_ptr,
                                <int*> c_predecessor_ptr,
                                <double*> c_sp_counter_ptr,

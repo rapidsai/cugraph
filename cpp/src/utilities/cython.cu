@@ -553,6 +553,80 @@ void call_pagerank(raft::handle_t const& handle,
   }
 }
 
+// Wrapper for calling BFS through a graph container
+template <typename vertex_t, typename weight_t>
+void call_bfs(raft::handle_t const& handle,
+              graph_container_t const& graph_container,
+              vertex_t* identifiers,
+              vertex_t* distances,
+              vertex_t* predecessors,
+              double* sp_counters,
+              const vertex_t start_vertex,
+              bool directed)
+{
+  if (graph_container.graph_type == graphTypeEnum::GraphCSRViewFloat) {
+    graph_container.graph_ptr_union.GraphCSRViewFloatPtr->get_vertex_identifiers(
+      static_cast<int32_t*>(identifiers));
+    bfs(handle,
+        *(graph_container.graph_ptr_union.GraphCSRViewFloatPtr),
+        distances,
+        predecessors,
+        sp_counters,
+        start_vertex,
+        directed);
+  } else if (graph_container.graph_type == graphTypeEnum::GraphCSRViewDouble) {
+    graph_container.graph_ptr_union.GraphCSRViewDoublePtr->get_vertex_identifiers(
+      static_cast<int32_t*>(identifiers));
+    bfs(handle,
+        *(graph_container.graph_ptr_union.GraphCSRViewDoublePtr),
+        distances,
+        predecessors,
+        sp_counters,
+        start_vertex,
+        directed);
+  } else if (graph_container.graph_type == graphTypeEnum::graph_t) {
+    if (graph_container.edgeType == numberTypeEnum::int32Type) {
+      auto graph =
+        detail::create_graph<int32_t, int32_t, weight_t, false, true>(handle, graph_container);
+      cugraph::experimental::bfs(handle, graph->view(), distances, predecessors, start_vertex);
+    } else if (graph_container.edgeType == numberTypeEnum::int64Type) {
+      auto graph =
+        detail::create_graph<vertex_t, int64_t, weight_t, false, true>(handle, graph_container);
+      cugraph::experimental::bfs(handle, graph->view(), distances, predecessors, start_vertex);
+    } else {
+      CUGRAPH_FAIL("vertexType/edgeType combination unsupported");
+    }
+  }
+}
+
+// Wrapper for calling SSSP through a graph container
+template <typename vertex_t, typename weight_t>
+void call_sssp(raft::handle_t const& handle,
+               graph_container_t const& graph_container,
+               vertex_t* identifiers,
+               weight_t* distances,
+               vertex_t* predecessors,
+               const vertex_t source_vertex)
+{
+  if (graph_container.graph_type == graphTypeEnum::GraphCSRViewFloat) {
+    graph_container.graph_ptr_union.GraphCSRViewFloatPtr->get_vertex_identifiers(
+      static_cast<int32_t*>(identifiers));
+    sssp(  // handle, TODO: clarify: no raft_handle_t? why?
+      *(graph_container.graph_ptr_union.GraphCSRViewFloatPtr),
+      reinterpret_cast<float*>(distances),
+      predecessors,
+      source_vertex);
+  } else if (graph_container.graph_type == graphTypeEnum::GraphCSRViewDouble) {
+    graph_container.graph_ptr_union.GraphCSRViewDoublePtr->get_vertex_identifiers(
+      static_cast<int32_t*>(identifiers));
+    sssp(  // handle, TODO: clarify: no raft_handle_t? why?
+      *(graph_container.graph_ptr_union.GraphCSRViewDoublePtr),
+      reinterpret_cast<double*>(distances),
+      predecessors,
+      source_vertex);
+  }
+}
+
 // Explicit instantiations
 template std::pair<size_t, float> call_louvain(raft::handle_t const& handle,
                                                graph_container_t const& graph_container,
@@ -615,5 +689,38 @@ template void call_pagerank(raft::handle_t const& handle,
                             double tolerance,
                             int64_t max_iter,
                             bool has_guess);
+                            
+template void call_bfs<int32_t, float>(raft::handle_t const& handle,
+                                       graph_container_t const& graph_container,
+                                       int32_t* identifiers,
+                                       int32_t* distances,
+                                       int32_t* predecessors,
+                                       double* sp_counters,
+                                       const int32_t start_vertex,
+                                       bool directed);
+
+template void call_bfs<int32_t, double>(raft::handle_t const& handle,
+                                        graph_container_t const& graph_container,
+                                        int32_t* identifiers,
+                                        int32_t* distances,
+                                        int32_t* predecessors,
+                                        double* sp_counters,
+                                        const int32_t start_vertex,
+                                        bool directed);
+
+template void call_sssp(raft::handle_t const& handle,
+                        graph_container_t const& graph_container,
+                        int32_t* identifiers,
+                        float* distances,
+                        int32_t* predecessors,
+                        const int32_t source_vertex);
+
+template void call_sssp(raft::handle_t const& handle,
+                        graph_container_t const& graph_container,
+                        int32_t* identifiers,
+                        double* distances,
+                        int32_t* predecessors,
+                        const int32_t source_vertex);
+
 }  // namespace cython
 }  // namespace cugraph

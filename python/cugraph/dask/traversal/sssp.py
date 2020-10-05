@@ -19,35 +19,33 @@ from cugraph.structure.shuffle import shuffle
 from cugraph.dask.traversal import mg_bfs_wrapper as mg_bfs
 import cugraph.comms.comms as Comms
 import cudf
-import dask_cudf
 
 
-def call_bfs(sID,
+def call_sssp(sID,
              data,
              num_verts,
              num_edges,
              partition_row_size,
              partition_col_size,
              vertex_partition_offsets,
-             start,
-             return_distances):
+             start):
     wid = Comms.get_worker_id(sID)
     handle = Comms.get_handle(sID)
-    return mg_bfs.mg_bfs(data[0],
-                         num_verts,
-                         num_edges,
-                         partition_row_size,
-                         partition_col_size,
-                         vertex_partition_offsets,
-                         wid,
-                         handle,
-                         start,
-                         return_distances)
+    return mg_sssp.mg_sssp(data[0],
+                           local_data,
+                           num_verts,
+                           num_edges,
+                           partition_row_size,
+                           partition_col_size,
+                           vertex_partition_offsets,
+                           wid,
+                           handle,
+                           start)
 
 
-def bfs(graph,
-        start,
-        return_distances=False):
+def sssp(graph,
+         start):
+
     """
     Find the distances and predecessors for a breadth first traversal of a
     graph.
@@ -63,9 +61,6 @@ def bfs(graph,
     start : Integer
         Specify starting vertex for breadth-first search; this function
         iterates over edges in the component reachable from this node.
-    return_distances : bool, optional, default=False
-        Indicates if distances should be returned
-
     Returns
     -------
     df : cudf.DataFrame
@@ -88,18 +83,18 @@ def bfs(graph,
                                  dtype=['int32', 'int32', 'float32'])
     >>> dg = cugraph.DiGraph()
     >>> dg.from_dask_cudf_edgelist(ddf)
-    >>> df = dcg.bfs(dg, 0)
+    >>> df = dcg.sssp(dg, 0)
     >>> Comms.destroy()
     """
 
     client = default_client()
 
-    graph.compute_renumber_edge_list(transposed=False)
+    input_graph.compute_renumber_edge_list(transposed=False)
     (ddf,
      num_verts,
      partition_row_size,
      partition_col_size,
-     vertex_partition_offsets) = shuffle(graph, transposed=False)
+     vertex_partition_offsets) = shuffle(input_graph, transposed=False)
     num_edges = len(ddf)
     data = get_distributed_data(ddf)
 
@@ -108,25 +103,26 @@ def bfs(graph,
                                                 dtype='int32')).compute()
         start = start.iloc[0]
 
-    result = [client.submit(
-              call_bfs,
-              Comms.get_session_id(),
-              wf[1],
-              num_verts,
-              num_edges,
-              partition_row_size,
-              partition_col_size,
-              vertex_partition_offsets,
-              start,
-              return_distances,
-              workers=[wf[0]])
-              for idx, wf in enumerate(data.worker_to_parts.items())]
+    result = dict([(data.worker_info[wf[0]]["rank"],
+                    client.submit(
+            call_bfs,
+            Comms.get_session_id(),
+            wf[1],
+            num_verts,
+            num_edges,
+            partition_row_size,
+            partition_col_size,
+            vertex_partition_offsets,
+            start,
+            workers=[wf[0]]))
+            for idx, wf in enumerate(data.worker_to_parts.items())])
     wait(result)
-    ddf = dask_cudf.from_delayed(result)
+
+    df = result[0].result()
 
     if graph.renumbered:
-        ddf = graph.unrenumber(ddf, 'vertex')
-        ddf = graph.unrenumber(ddf, 'predecessor')
-        ddf["predecessor"].fillna(-1)
+        df = graph.unrenumber(df, 'vertex').compute()
+        df = graph.unrenumber(df, 'predecessor').compute()
+        df["predecessor"].fillna(-1, inplace=True)
 
-    return ddf
+    return df
