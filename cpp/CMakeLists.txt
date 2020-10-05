@@ -417,6 +417,8 @@ install(TARGETS cugraph LIBRARY
 install(DIRECTORY include/
     DESTINATION include/cugraph)
 
+install(DIRECTORY ${RAFT_DIR}/cpp/include/raft/
+    DESTINATION include/cugraph/raft)
 ###################################################################################################
 # - make documentation ----------------------------------------------------------------------------
 # requires doxygen and graphviz to be installed
