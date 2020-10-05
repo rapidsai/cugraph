@@ -44,7 +44,7 @@ def call_sssp(sID,
 
 
 def sssp(graph,
-         start):
+         source):
 
     """
     Find the distances and predecessors for a breadth first traversal of a
@@ -58,9 +58,9 @@ def sssp(graph,
         cuGraph graph descriptor, should contain the connectivity information
         as dask cudf edge list dataframe(edge weights are not used for this
         algorithm). Undirected Graph not currently supported.
-    start : Integer
-        Specify starting vertex for breadth-first search; this function
-        iterates over edges in the component reachable from this node.
+    source : Integer
+        Specify source vertex
+
     Returns
     -------
     df : cudf.DataFrame
@@ -99,9 +99,9 @@ def sssp(graph,
     data = get_distributed_data(ddf)
 
     if graph.renumbered:
-        start = graph.lookup_internal_vertex_id(cudf.Series([start],
-                                                dtype='int32')).compute()
-        start = start.iloc[0]
+        source = graph.lookup_internal_vertex_id(cudf.Series([source],
+                                                 dtype='int32')).compute()
+        source = source.iloc[0]
 
     result = [client.submit(
               call_sssp,
@@ -112,7 +112,7 @@ def sssp(graph,
               partition_row_size,
               partition_col_size,
               vertex_partition_offsets,
-              start,
+              source,
               workers=[wf[0]])
               for idx, wf in enumerate(data.worker_to_parts.items())]
     wait(result)
