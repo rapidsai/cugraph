@@ -556,6 +556,26 @@ void call_sssp(raft::handle_t const& handle,
       reinterpret_cast<double*>(distances),
       predecessors,
       source_vertex);
+  } else if (graph_container.graph_type == graphTypeEnum::graph_t) {
+    if (graph_container.edgeType == numberTypeEnum::int32Type) {
+      auto graph =
+        detail::create_graph<int32_t, int32_t, weight_t, false, true>(handle, graph_container);
+      cugraph::experimental::sssp(handle,
+                                  graph->view(),
+                                  distances,
+                                  predecessors,
+                                  source_vertex);
+  } else if (graph_container.edgeType == numberTypeEnum::int64Type) {
+      auto graph =
+        detail::create_graph<vertex_t, int64_t, weight_t, false, true>(handle, graph_container);
+      cugraph::experimental::sssp(handle,
+                                  graph->view(),
+                                  distances,
+                                  predecessors,
+                                  source_vertex);
+    } else {
+      CUGRAPH_FAIL("vertexType/edgeType combination unsupported");
+    }
   }
 }
 
