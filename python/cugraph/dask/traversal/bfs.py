@@ -19,6 +19,7 @@ from cugraph.structure.shuffle import shuffle
 from cugraph.dask.traversal import mg_bfs_wrapper as mg_bfs
 import cugraph.comms.comms as Comms
 import cudf
+import dask_cudf
 
 
 def call_bfs(sID,
@@ -33,7 +34,6 @@ def call_bfs(sID,
     wid = Comms.get_worker_id(sID)
     handle = Comms.get_handle(sID)
     return mg_bfs.mg_bfs(data[0],
-                         local_data,
                          num_verts,
                          num_edges,
                          partition_row_size,
@@ -47,9 +47,7 @@ def call_bfs(sID,
 
 def bfs(graph,
         start,
-        return_distances=False,
-        load_balance=True):
-
+        return_distances=False):
     """
     Find the distances and predecessors for a breadth first traversal of a
     graph.
@@ -67,10 +65,6 @@ def bfs(graph,
         iterates over edges in the component reachable from this node.
     return_distances : bool, optional, default=False
         Indicates if distances should be returned
-    load_balance : bool, optional, default=True
-        Set as True to perform load_balancing after global sorting of
-        dask-cudf DataFrame. This ensures that the data is uniformly
-        distributed among multiple GPUs to avoid over-loading.
 
     Returns
     -------
@@ -100,12 +94,12 @@ def bfs(graph,
 
     client = default_client()
 
-    input_graph.compute_renumber_edge_list(transposed=False)
+    graph.compute_renumber_edge_list(transposed=False)
     (ddf,
      num_verts,
      partition_row_size,
      partition_col_size,
-     vertex_partition_offsets) = shuffle(input_graph, transposed=False)
+     vertex_partition_offsets) = shuffle(graph, transposed=False)
     num_edges = len(ddf)
     data = get_distributed_data(ddf)
 
@@ -114,27 +108,25 @@ def bfs(graph,
                                                 dtype='int32')).compute()
         start = start.iloc[0]
 
-    result = dict([(data.worker_info[wf[0]]["rank"],
-                    client.submit(
-            call_bfs,
-            Comms.get_session_id(),
-            wf[1],
-            num_verts,
-            num_edges,
-            partition_row_size,
-            partition_col_size,
-            vertex_partition_offsets,
-            start,
-            return_distances,
-            workers=[wf[0]]))
-            for idx, wf in enumerate(data.worker_to_parts.items())])
+    result = [client.submit(
+              call_bfs,
+              Comms.get_session_id(),
+              wf[1],
+              num_verts,
+              num_edges,
+              partition_row_size,
+              partition_col_size,
+              vertex_partition_offsets,
+              start,
+              return_distances,
+              workers=[wf[0]])
+              for idx, wf in enumerate(data.worker_to_parts.items())]
     wait(result)
-
-    df = result[0].result()
+    ddf = dask_cudf.from_delayed(result)
 
     if graph.renumbered:
-        df = graph.unrenumber(df, 'vertex').compute()
-        df = graph.unrenumber(df, 'predecessor').compute()
-        df["predecessor"].fillna(-1, inplace=True)
+        ddf = graph.unrenumber(ddf, 'vertex')
+        ddf = graph.unrenumber(ddf, 'predecessor')
+        ddf["predecessor"].fillna(-1)
 
-    return df
+    return ddf

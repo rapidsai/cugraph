@@ -119,7 +119,7 @@ def sssp(input_graph, source):
                                           <int> source)
         else: # This case should not happen
             raise NotImplementedError
-    else:
+    '''else:
         # FIXME: Something might be done here considering WT = float
         graph_float = GraphCSRView[int, int, float](<int*> c_offsets_ptr,
                                                 <int*> c_indices_ptr,
@@ -127,11 +127,12 @@ def sssp(input_graph, source):
                                                 num_verts,
                                                 num_edges)
         graph_float.get_vertex_identifiers(<int*> c_identifier_ptr)
-        c_bfs.bfs[int, int, float](handle_ptr.get()[0],
+        c_bfs.call_bfs[int, float](handle_ptr.get()[0],
                                    graph_float,
                                    <int*> c_distance_ptr,
                                    <int*> c_predecessor_ptr,
                                    <double*> NULL,
-                                   <int> source)
-
+                                   <int> source,
+                                   true)
+        '''
     return df
