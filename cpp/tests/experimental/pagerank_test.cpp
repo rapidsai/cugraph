@@ -94,13 +94,13 @@ void pagerank_reference(edge_t* offsets,
         pageranks[i] += alpha * old_pageranks[nbr] * (w / out_weight_sums[nbr]);
       }
       if (personalization_vertices == nullptr) {
-        pageranks[i] += (dangling_sum + (1.0 - alpha)) / static_cast<result_t>(num_vertices);
+        pageranks[i] += (dangling_sum * alpha + (1.0 - alpha)) / static_cast<result_t>(num_vertices);
       }
     }
     if (personalization_vertices != nullptr) {
       for (vertex_t i = 0; i < personalization_vector_size; ++i) {
         auto v = personalization_vertices[i];
-        pageranks[v] += (dangling_sum + (1.0 - alpha)) * personalization_values[i];
+        pageranks[v] += (dangling_sum * alpha + (1.0 - alpha)) * personalization_values[i];
       }
     }
     result_t diff_sum{0.0};
