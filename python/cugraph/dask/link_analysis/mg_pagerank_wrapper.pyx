@@ -90,7 +90,7 @@ def mg_pagerank(input_df,
 
     df = cudf.DataFrame()
     df['vertex'] = cudf.Series(np.arange(vertex_partition_offsets.iloc[rank], vertex_partition_offsets.iloc[rank+1]), dtype=vertex_t)
-    df['pagerank'] = cudf.Series(np.zeros(num_local_verts, dtype=weight_t))
+    df['pagerank'] = cudf.Series(np.zeros(len(df['vertex']), dtype=weight_t))
 
     cdef uintptr_t c_identifier = df['vertex'].__cuda_array_interface__['data'][0];
     cdef uintptr_t c_pagerank_val = df['pagerank'].__cuda_array_interface__['data'][0];
