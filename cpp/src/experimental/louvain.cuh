@@ -348,6 +348,21 @@ struct lookup_by_vertex_id {
   vertex_t base_vertex_id_;
 };
 
+template <typename vector_t, typename function_t>
+vector_t remove_elements_from_vector(vector_t const &input_v,
+                                     function_t function,
+                                     cudaStream_t stream)
+{
+  vector_t temp_v(input_v.size());
+
+  auto last = thrust::copy_if(
+    rmm::exec_policy(stream)->on(stream), input_v.begin(), input_v.end(), temp_v.begin(), function);
+
+  temp_v.resize(thrust::distance(temp_v.begin(), last));
+
+  return temp_v;
+}
+
 }  // namespace detail
 
 namespace detail {
@@ -1065,30 +1080,113 @@ class Louvain {
     std::cout << "computed delta_Q" << std::endl;
 #endif
 
-    auto num_nbr_weights = src_v.size();
+    //
+    // TODO:
+    //    delta_Q values need to be shuffled back to the vertex node
+    //    We have...
+    //       local_cluster_edge_ids_v identifies edge ids that are in use
+    //        src_v contains source values
+    //        nbr_cluster_v contains neighboring cluster
+    //        nbr_weights_v contains the neighbor weight
+    //
+    //    We should pick the largest src/nbr_cluster/nbr_weights
+    //    on this local node.  Then we shuffle them back to
+    //    where they need to go.
+    //
+    rmm::device_vector<vertex_t> final_src_v(src_v.size());
+    rmm::device_vector<vertex_t> final_nbr_cluster_v(nbr_cluster_v.size());
+    rmm::device_vector<weight_t> final_nbr_weights_v(nbr_weights_v.size());
 
-#ifdef DEBUG
-#if 1
-    printf("after loop...\n");
-    thrust::for_each_n(
+    auto final_input_iter = thrust::make_zip_iterator(thrust::make_tuple(
+      thrust::make_permutation_iterator(src_v.begin(), local_cluster_edge_ids_v.begin()),
+      thrust::make_permutation_iterator(nbr_cluster_v.begin(), local_cluster_edge_ids_v.begin()),
+      thrust::make_permutation_iterator(nbr_weights_v.begin(), local_cluster_edge_ids_v.begin())));
+
+    auto final_output_iter = thrust::make_zip_iterator(thrust::make_tuple(
+      final_src_v.begin(), final_nbr_cluster_v.begin(), final_nbr_weights_v.begin()));
+
+    thrust::copy(rmm::exec_policy(stream_)->on(stream_),
+                 final_input_iter,
+                 final_input_iter + local_cluster_edge_ids_v.size(),
+                 final_output_iter);
+
+    //
+    // Sort the results, pick the largest version
+    //
+    thrust::sort_by_key(
       rmm::exec_policy(stream_)->on(stream_),
-      thrust::make_counting_iterator<std::size_t>(0),
-      1,
-      [d_src, d_nbr_cluster, d_nbr_weights, num_nbr_weights] __device__(auto idx) {
-        for (std::size_t i = 0; i < num_nbr_weights; ++i)
-          if (d_nbr_weights[i] > 0)
-            printf(
-              " %ld: (%d, %d, %g)\n", i, (int)d_src[i], (int)d_nbr_cluster[i], d_nbr_weights[i]);
-      });
-#endif
-#endif
+      thrust::make_zip_iterator(thrust::make_tuple(src_v.begin(), nbr_weights_v.begin())),
+      thrust::make_zip_iterator(thrust::make_tuple(src_v.begin(), nbr_weights_v.begin())) +
+        src_v.size(),
+      nbr_cluster_v.begin());
+
+    //
+    //  Now that we're sorted (ascending), the last entry for each src value is the largest.
+    //
+    local_cluster_edge_ids_v.resize(src_v.size());
+
+    thrust::transform(rmm::exec_policy(stream_)->on(stream_),
+                      thrust::make_counting_iterator<edge_t>(0),
+                      thrust::make_counting_iterator<edge_t>(src_v.size()),
+                      local_cluster_edge_ids_v.begin(),
+                      [sentinel  = std::numeric_limits<edge_t>::max(),
+                       num_edges = src_v.size(),
+                       d_src     = src_v.data().get()] __device__(edge_t edge_id) {
+                        if ((edge_id + 1) == num_edges) return edge_id;
+
+                        if (d_src[edge_id + 1] != d_src[edge_id]) return edge_id;
+
+                        return sentinel;
+                      });
+
+    local_cluster_edge_ids_v = detail::remove_elements_from_vector(
+      local_cluster_edge_ids_v,
+      [sentinel = std::numeric_limits<edge_t>::max()] __device__(auto edge_id) {
+        return (edge_id != sentinel);
+      },
+      stream_);
+
+    CUDA_TRY(cudaStreamSynchronize(stream_));
+    std::cout << "about to shuffle final_*" << std::endl;
+    print_v("final_src_v", final_src_v);
+    print_v("final_nbr_cluster_v", final_nbr_cluster_v);
+    print_v("final_nbr_weights_v", final_nbr_weights_v);
+    print_v("local_cluster_edge_ids_v", local_cluster_edge_ids_v);
+
+    final_nbr_cluster_v = variable_shuffle<graph_view_t::is_multi_gpu, vertex_t>(
+      handle_,
+      local_cluster_edge_ids_v.size(),
+      thrust::make_permutation_iterator(final_nbr_cluster_v.begin(), local_cluster_edge_ids_v.begin()),
+      thrust::make_transform_iterator(
+        thrust::make_permutation_iterator(final_src_v.begin(), local_cluster_edge_ids_v.begin()),
+        [d_vertex_device_view = compute_partition_.vertex_device_view()] __device__(vertex_t v) { return d_vertex_device_view(v); }));
+
+    final_nbr_weights_v = variable_shuffle<graph_view_t::is_multi_gpu, vertex_t>(
+      handle_,
+      local_cluster_edge_ids_v.size(),
+      thrust::make_permutation_iterator(final_nbr_weights_v.begin(), local_cluster_edge_ids_v.begin()),
+      thrust::make_transform_iterator(
+        thrust::make_permutation_iterator(final_src_v.begin(), local_cluster_edge_ids_v.begin()),
+        [d_vertex_device_view = compute_partition_.vertex_device_view()] __device__(vertex_t v) { return d_vertex_device_view(v); }));
+
+    final_src_v = variable_shuffle<graph_view_t::is_multi_gpu, vertex_t>(
+      handle_,
+      local_cluster_edge_ids_v.size(),
+      thrust::make_permutation_iterator(final_src_v.begin(), local_cluster_edge_ids_v.begin()),
+      thrust::make_transform_iterator(
+        thrust::make_permutation_iterator(final_src_v.begin(), local_cluster_edge_ids_v.begin()),
+        [d_vertex_device_view = compute_partition_.vertex_device_view()] __device__(vertex_t v) {
+          return d_vertex_device_view(v); }));
+
+    print_v("final_src_v", final_src_v);
+    print_v("final_nbr_cluster_v", final_nbr_cluster_v);
+    print_v("final_nbr_weights_v", final_nbr_weights_v);
 
     //
     //  At this point...
-    //     src_v contains the source indices
-    //     nbr_cluster_v contains the neighboring clusters
-    //     nbr_weights_v contains delta_Q for moving src to the neighboring
-    //     cluster local_cluster_edge_ids_v contains the edge ids
+    //     final_src_v contains the source indices
+    //     final_nbr_cluster_v contains the neighboring clusters
+    //     final_nbr_weights_v contains delta_Q for moving src to the neighboring
     //
     //  TODO:  Think about how this should work.
     //         I think Leiden is broken.  I don't think that the code we have

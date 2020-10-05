@@ -213,6 +213,7 @@ rmm::device_vector<data_t> variable_shuffle(raft::handle_t const &handle,
                                             iterator_t data_iter,
                                             partition_iter_t partition_iter)
 {
+  CUDA_TRY(cudaStreamSynchronize(handle.get_stream()));
   std::cout << "in variable_shuffle, n_elements = " << n_elements << std::endl;
 
   //
@@ -224,6 +225,7 @@ rmm::device_vector<data_t> variable_shuffle(raft::handle_t const &handle,
   int num_gpus        = comms.get_size();
   int my_gpu          = comms.get_rank();
 
+  std::cout << "  num_gpus = " << num_gpus << std::endl;
   rmm::device_vector<size_t> local_sizes_v(num_gpus);
 
   auto d_local_sizes = local_sizes_v.data().get();
@@ -231,7 +233,10 @@ rmm::device_vector<data_t> variable_shuffle(raft::handle_t const &handle,
   thrust::for_each(rmm::exec_policy(stream)->on(stream),
                    partition_iter,
                    partition_iter + n_elements,
-                   [d_local_sizes] __device__(auto p) { atomicAdd(d_local_sizes + p, size_t{1}); });
+                   [d_local_sizes] __device__(auto p) {
+                     printf("p = %d\n", (int)p);
+                     atomicAdd(d_local_sizes + p, size_t{1});
+                   });
 
   print_v("local_sizes_v", local_sizes_v);
 
@@ -277,9 +282,7 @@ rmm::device_vector<data_t> variable_shuffle(raft::handle_t const &handle,
 
   requests_wait.resize(std::distance(requests_wait.begin(), r_end));
 
-  if (requests_wait.size() > 0) {
-    comms.waitall(requests_wait.size(), requests_wait.data());
-  }
+  if (requests_wait.size() > 0) { comms.waitall(requests_wait.size(), requests_wait.data()); }
 
   comms.barrier();
 
@@ -357,55 +360,49 @@ rmm::device_vector<data_t> variable_shuffle(raft::handle_t const &handle,
   temp_v[num_gpus] = temp_v[num_gpus - 1] + h_local_sizes_v[num_gpus - 1];
   h_local_sizes_v  = temp_v;
 
-  std::for_each(
-    thrust::make_counting_iterator<int>(0),
-    thrust::make_counting_iterator<int>(num_gpus),
-    [my_gpu, h_input_v, &temp_data, h_global_sizes_v, h_local_sizes_v, &comms, &requests2, stream](
-      int gpu) {
-      if (gpu != my_gpu) {
-        size_t to_receive = h_global_sizes_v[gpu + 1] - h_global_sizes_v[gpu];
-        size_t to_send = h_local_sizes_v[gpu + 1] - h_local_sizes_v[gpu];
+  for (int gpu = 0; gpu < num_gpus; ++gpu) {
+    if (gpu != my_gpu) {
+      size_t to_receive = h_global_sizes_v[gpu + 1] - h_global_sizes_v[gpu];
+      size_t to_send    = h_local_sizes_v[gpu + 1] - h_local_sizes_v[gpu];
 
-        if (to_receive > 0) {
-          printf("my_gpu = %d, receiving %d elements from gpu %d, address %p\n",
-                 my_gpu,
-                 (int)(h_global_sizes_v[gpu + 1] - h_global_sizes_v[gpu]),
-                 gpu,
-                 temp_data.data() + h_global_sizes_v[gpu]
-                 );
-          comms.irecv(temp_data.data() + h_global_sizes_v[gpu],
-                      h_global_sizes_v[gpu + 1] - h_global_sizes_v[gpu],
-                      gpu,
-                      0,
-                      &requests2[2 * gpu]);
-        } else {
-          printf("my_gpu = %d, nothing to receive from gpu %d\n",
-                 my_gpu, gpu);
-        }
-
-        if (to_send > 0) {
-          printf("my_gpu = %d, sending %d elements to gpu %d, address %p\n",
-                 my_gpu,
-                 (int)(h_local_sizes_v[gpu + 1] - h_local_sizes_v[gpu]),
-                 gpu,
-                 h_input_v.data() + h_local_sizes_v[gpu]
-                 );
-          comms.isend(h_input_v.data() + h_local_sizes_v[gpu],
-                      h_local_sizes_v[gpu + 1] - h_local_sizes_v[gpu],
-                      gpu,
-                      0,
-                      &requests2[2 * gpu - 1]);
-        } else {
-          printf("my_gpu = %d, nothing to send to gpu %d\n", my_gpu, gpu);
-        }
+      if (to_receive > 0) {
+        printf("my_gpu = %d, receiving %d elements from gpu %d, address %p\n",
+               my_gpu,
+               (int)(h_global_sizes_v[gpu + 1] - h_global_sizes_v[gpu]),
+               gpu,
+               temp_data.data() + h_global_sizes_v[gpu]);
+        comms.irecv(temp_data.data() + h_global_sizes_v[gpu],
+                    h_global_sizes_v[gpu + 1] - h_global_sizes_v[gpu],
+                    gpu,
+                    0,
+                    &requests2[2 * gpu]);
       } else {
-        printf("my_gpu = %d, copying %d elements locally\n",
-               my_gpu, (int)(h_global_sizes_v[gpu + 1] - h_global_sizes_v[gpu]));
-        std::copy(h_input_v.begin() + h_global_sizes_v[gpu],
-                  h_input_v.begin() + h_global_sizes_v[gpu + 1],
-                  temp_data.begin() + h_local_sizes_v[gpu]);
+        printf("my_gpu = %d, nothing to receive from gpu %d\n", my_gpu, gpu);
       }
-    });
+
+      if (to_send > 0) {
+        printf("my_gpu = %d, sending %d elements to gpu %d, address %p\n",
+               my_gpu,
+               (int)(h_local_sizes_v[gpu + 1] - h_local_sizes_v[gpu]),
+               gpu,
+               h_input_v.data() + h_local_sizes_v[gpu]);
+        comms.isend(h_input_v.data() + h_local_sizes_v[gpu],
+                    h_local_sizes_v[gpu + 1] - h_local_sizes_v[gpu],
+                    gpu,
+                    0,
+                    &requests2[2 * gpu - 1]);
+      } else {
+        printf("my_gpu = %d, nothing to send to gpu %d\n", my_gpu, gpu);
+      }
+    } else {
+      printf("my_gpu = %d, copying %d elements locally\n",
+             my_gpu,
+             (int)(h_global_sizes_v[gpu + 1] - h_global_sizes_v[gpu]));
+      std::copy(h_input_v.begin() + h_global_sizes_v[gpu],
+                h_input_v.begin() + h_global_sizes_v[gpu + 1],
+                temp_data.begin() + h_local_sizes_v[gpu]);
+    }
+  }
 
   std::vector<raft::comms::request_t> requests_wait2(2 * (num_gpus - 1));
 
@@ -416,9 +413,7 @@ rmm::device_vector<data_t> variable_shuffle(raft::handle_t const &handle,
 
   requests_wait2.resize(std::distance(requests_wait2.begin(), r2_end));
 
-  if (requests_wait2.size() > 0) {
-    comms.waitall(requests_wait2.size(), requests_wait2.data());
-  }
+  if (requests_wait2.size() > 0) { comms.waitall(requests_wait2.size(), requests_wait2.data()); }
 
   comms.barrier();
 

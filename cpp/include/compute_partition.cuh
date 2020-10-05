@@ -79,22 +79,22 @@ class compute_partition_t {
     {
     }
 
-  /**
-   * @brief     Compute the partition id for a vertex
-   *
-   * Given a vertex v, return the partition number to which that vertex is assigned
-   *
-   */
+    /**
+     * @brief     Compute the partition id for a vertex
+     *
+     * Given a vertex v, return the partition number to which that vertex is assigned
+     *
+     */
     __device__ int operator()(vertex_t v) const
     {
-      if (graph_view_t::is_multi_gpu)
+      if (graph_view_t::is_multi_gpu) {
         return thrust::distance(d_vertex_partition_offsets_,
-                                thrust::upper_bound(thrust::device,
+                                thrust::upper_bound(thrust::seq,
                                                     d_vertex_partition_offsets_,
                                                     d_vertex_partition_offsets_ + size_ + 1,
                                                     v)) -
                1;
-      else
+      } else
         return 0;
     }
 

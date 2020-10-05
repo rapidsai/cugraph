@@ -26,6 +26,8 @@
 #include <thrust/copy.h>
 #include <thrust/iterator/counting_iterator.h>
 
+#include <experimental/shuffle2.cuh>
+
 namespace cugraph {
 namespace cython {
 
@@ -67,7 +69,7 @@ create_graph(raft::handle_t const& handle, graph_container_t const& graph_contai
     static_cast<edge_t>(graph_container.num_global_edges),
     graph_container.graph_props,
     // FIXME:  This currently fails if sorted_by_degree is true...
-    //graph_container.sorted_by_degree,
+    // graph_container.sorted_by_degree,
     false,
     graph_container.do_expensive_check);
 }
@@ -427,11 +429,138 @@ class louvain_functor {
   std::pair<size_t, weight_t> operator()(raft::handle_t const& handle,
                                          graph_view_t const& graph_view)
   {
+#if 0
     return cugraph::louvain(handle,
                             graph_view,
                             reinterpret_cast<typename graph_view_t::vertex_type*>(parts_),
                             max_level_,
                             resolution_);
+#else
+    std::pair<size_t, weight_t> ret;
+
+    auto& communicator = handle.get_comms();
+    int const rank     = communicator.get_rank();
+
+    std::vector<int> received_data((communicator.get_size() - 1), -1);
+    std::vector<raft::comms::request_t> requests;
+    requests.resize(2 * (communicator.get_size() - 1));
+    int request_idx = 0;
+    // post receives
+    for (int r = 0; r < communicator.get_size(); ++r) {
+      if (r != rank) {
+        communicator.irecv(
+          received_data.data() + request_idx, 1, r, 0, requests.data() + request_idx);
+        ++request_idx;
+      }
+    }
+
+    for (int r = 0; r < communicator.get_size(); ++r) {
+      if (r != rank) {
+        communicator.isend(&rank, 1, r, 0, requests.data() + request_idx);
+        ++request_idx;
+      }
+    }
+
+    communicator.waitall(requests.size(), requests.data());
+    communicator.barrier();
+
+    if (communicator.get_rank() == 0) { std::cout << "=========================" << std::endl; }
+
+    for (int printrank = 0; printrank < communicator.get_size(); ++printrank) {
+      if (communicator.get_rank() == printrank) {
+        std::cout << "Rank " << communicator.get_rank() << " received: [";
+        for (size_t i = 0; i < received_data.size(); i++) {
+          auto rec = received_data[i];
+          std::cout << rec;
+          // if (rec == -1) ret = false;
+          communicator.barrier();
+          if (i < received_data.size() - 1) std::cout << ", ";
+        }
+        std::cout << "]" << std::endl;
+      }
+
+      communicator.barrier();
+    }
+
+    if (communicator.get_rank() == 0) std::cout << "=========================" << std::endl;
+
+    std::vector<int> h_test_v{{1, 2, 3}};
+
+    std::transform(
+      h_test_v.begin(), h_test_v.end(), h_test_v.begin(), [rank](auto p) { return p + 10 * rank; });
+
+    rmm::device_vector<int> test_v(h_test_v);
+
+#if 0
+    rmm::device_vector<int> result_v;
+    std::vector<int> h_result_v;
+
+    if (rank == 0) {
+      raft::comms::request_t my_request;
+
+      result_v.resize(6);
+      h_result_v.resize(6);
+
+      printf("rank = %d, recv_pos = 3, recv_count = 3\n", rank);
+
+      h_result_v[0] = h_test_v[0];
+      h_result_v[1] = h_test_v[1];
+      h_result_v[2] = h_test_v[2];
+
+      communicator.irecv(h_result_v.data() + 3,
+                         3,
+                         1,
+                         0,
+                         &my_request);
+
+      communicator.waitall(1, &my_request);
+      communicator.barrier();
+
+      printf("rank %d, after comms, test_v = (%d, %d, %d, %d, %d, %d)\n",
+             rank, (int) h_result_v[0], (int) h_result_v[1], (int) h_result_v[2],
+             (int) h_result_v[3], (int) h_result_v[4], (int) h_result_v[5]);
+    } else {
+      raft::comms::request_t my_request;
+
+      printf("rank = %d, send_pos = 3, send_count = 3\n", rank);
+
+      communicator.isend(h_test_v.data(), 3, 0, 0, &my_request);
+
+      communicator.waitall(1, &my_request);
+      communicator.barrier();
+    }
+
+    thrust::copy(h_result_v.begin(), h_result_v.end(), result_v.begin());
+    test_v = result_v;
+#else
+    printf("rank %d, before comms, test_v = (%d, %d, %d)\n",
+           rank,
+           (int)test_v[0],
+           (int)test_v[1],
+           (int)test_v[2]);
+
+    test_v = experimental::variable_shuffle<true, int>(
+      handle,
+      3,
+      test_v.begin(),
+      thrust::make_transform_iterator(thrust::make_counting_iterator(0),
+                                      [] __device__(auto i) { return i % 2; }));
+#endif
+
+    if (test_v.size() == 0)
+      printf("rank %d, test_v size = 0\n", rank);
+    else
+      printf("rank %d, after comms, test_v = (%d, %d, %d, %d, %d, %d)\n",
+             rank,
+             (int)test_v[0],
+             (int)test_v[1],
+             (int)test_v[2],
+             (int)test_v[3],
+             (int)test_v[4],
+             (int)test_v[5]);
+
+    return ret;
+#endif
   }
 
  private:
@@ -519,57 +648,57 @@ void call_pagerank(raft::handle_t const& handle,
     graph_container.graph_ptr_union.GraphCSCViewDoublePtr->get_vertex_identifiers(
       static_cast<int32_t*>(identifiers));
   } else if (graph_container.graph_type == graphTypeEnum::graph_t) {
-  if ((graph_container.vertexType == numberTypeEnum::int32Type) &&
-      (graph_container.edgeType == numberTypeEnum::int32Type)) {
-        auto graph = detail::create_graph<int32_t, int32_t, weight_t, true, true>(handle, graph_container);
-        cugraph::experimental::pagerank(handle,
-             graph->view(),
-             static_cast<weight_t*>(nullptr),
-             personalization_subset,
-             reinterpret_cast<weight_t*>(personalization_values),
-             personalization_subset_size,
-             reinterpret_cast<weight_t*>(p_pagerank),
-             static_cast<weight_t>(alpha),
-             static_cast<weight_t>(tolerance),
-             max_iter,
-             has_guess,
-             false);
-  } else if ((graph_container.vertexType == numberTypeEnum::int32Type) &&
-             (graph_container.edgeType == numberTypeEnum::int64Type)) {
-        auto graph = detail::create_graph<int32_t, int64_t, weight_t, true, true>(handle, graph_container);
-        cugraph::experimental::pagerank(handle,
-             graph->view(),
-             static_cast<weight_t*>(nullptr),
-             personalization_subset,
-             reinterpret_cast<weight_t*>(personalization_values),
-             personalization_subset_size,
-             reinterpret_cast<weight_t*>(p_pagerank),
-             static_cast<weight_t>(alpha),
-             static_cast<weight_t>(tolerance),
-             max_iter,
-             has_guess,
-             false);  
-  /*} else if ((graph_container.vertexType == numberTypeEnum::int64Type) &&
-             (graph_container.edgeType == numberTypeEnum::int64Type)) {
-        auto graph = detail::create_graph<int64_t, int64_t, weight_t, true, true>(handle, graph_container);
-        cugraph::experimental::pagerank(handle,
-             graph->view(),
-             static_cast<weight_t*>(nullptr),
-             personalization_subset,
-             reinterpret_cast<weight_t*>(personalization_values),
-             personalization_subset_size,
-             reinterpret_cast<weight_t*>(p_pagerank),
-             static_cast<weight_t>(alpha),
-             static_cast<weight_t>(tolerance),
-             max_iter,
-             has_guess,
-             false);*/  
-  } else {
-    CUGRAPH_FAIL("vertexType/edgeType combination unsupported");
-  }
+    if ((graph_container.vertexType == numberTypeEnum::int32Type) &&
+        (graph_container.edgeType == numberTypeEnum::int32Type)) {
+      auto graph =
+        detail::create_graph<int32_t, int32_t, weight_t, true, true>(handle, graph_container);
+      cugraph::experimental::pagerank(handle,
+                                      graph->view(),
+                                      static_cast<weight_t*>(nullptr),
+                                      personalization_subset,
+                                      reinterpret_cast<weight_t*>(personalization_values),
+                                      personalization_subset_size,
+                                      reinterpret_cast<weight_t*>(p_pagerank),
+                                      static_cast<weight_t>(alpha),
+                                      static_cast<weight_t>(tolerance),
+                                      max_iter,
+                                      has_guess,
+                                      false);
+    } else if ((graph_container.vertexType == numberTypeEnum::int32Type) &&
+               (graph_container.edgeType == numberTypeEnum::int64Type)) {
+      auto graph =
+        detail::create_graph<int32_t, int64_t, weight_t, true, true>(handle, graph_container);
+      cugraph::experimental::pagerank(handle,
+                                      graph->view(),
+                                      static_cast<weight_t*>(nullptr),
+                                      personalization_subset,
+                                      reinterpret_cast<weight_t*>(personalization_values),
+                                      personalization_subset_size,
+                                      reinterpret_cast<weight_t*>(p_pagerank),
+                                      static_cast<weight_t>(alpha),
+                                      static_cast<weight_t>(tolerance),
+                                      max_iter,
+                                      has_guess,
+                                      false);
+      /*} else if ((graph_container.vertexType == numberTypeEnum::int64Type) &&
+                 (graph_container.edgeType == numberTypeEnum::int64Type)) {
+            auto graph = detail::create_graph<int64_t, int64_t, weight_t, true, true>(handle,
+         graph_container); cugraph::experimental::pagerank(handle, graph->view(),
+                 static_cast<weight_t*>(nullptr),
+                 personalization_subset,
+                 reinterpret_cast<weight_t*>(personalization_values),
+                 personalization_subset_size,
+                 reinterpret_cast<weight_t*>(p_pagerank),
+                 static_cast<weight_t>(alpha),
+                 static_cast<weight_t>(tolerance),
+                 max_iter,
+                 has_guess,
+                 false);*/
+    } else {
+      CUGRAPH_FAIL("vertexType/edgeType combination unsupported");
+    }
   }
 }
-
 
 // Explicit instantiations
 template std::pair<size_t, float> call_louvain(raft::handle_t const& handle,
