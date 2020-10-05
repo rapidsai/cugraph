@@ -18,6 +18,7 @@ from cugraph.dask.common.input_utils import get_distributed_data
 from cugraph.structure.shuffle import shuffle
 from cugraph.dask.link_analysis import mg_pagerank_wrapper as mg_pagerank
 import cugraph.comms.comms as Comms
+import dask_cudf
 
 
 def call_pagerank(sID,
@@ -34,7 +35,6 @@ def call_pagerank(sID,
                   nstart):
     wid = Comms.get_worker_id(sID)
     handle = Comms.get_handle(sID)
-    print("calling cython...")
     return mg_pagerank.mg_pagerank(data[0],
                                    num_verts,
                                    num_edges,
@@ -139,8 +139,6 @@ def pagerank(input_graph,
      partition_row_size,
      partition_col_size,
      vertex_partition_offsets) = shuffle(input_graph, transposed=True)
-    print(partition_row_size)
-    print(partition_col_size)
     num_edges = len(ddf)
     data = get_distributed_data(ddf)
 
@@ -152,26 +150,24 @@ def pagerank(input_graph,
                 personalization, "vertex", "vertex"
             ).compute()
 
-    result = dict([(data.worker_info[wf[0]]["rank"],
-                    client.submit(
-                    call_pagerank,
-                    Comms.get_session_id(),
-                    wf[1],
-                    num_verts,
-                    num_edges,
-                    partition_row_size,
-                    partition_col_size,
-                    vertex_partition_offsets,
-                    alpha,
-                    max_iter,
-                    tol,
-                    personalization,
-                    nstart,
-                    workers=[wf[0]]))
-                   for idx, wf in enumerate(data.worker_to_parts.items())])
+    result = [client.submit(call_pagerank,
+                            Comms.get_session_id(),
+                            wf[1],
+                            num_verts,
+                            num_edges,
+                            partition_row_size,
+                            partition_col_size,
+                            vertex_partition_offsets,
+                            alpha,
+                            max_iter,
+                            tol,
+                            personalization,
+                            nstart,
+                            workers=[wf[0]])
+              for idx, wf in enumerate(data.worker_to_parts.items())]
     wait(result)
-
+    ddf = dask_cudf.from_delayed(result)
     if input_graph.renumbered:
-        return input_graph.unrenumber(result[0].result(), 'vertex').compute()
+        return input_graph.unrenumber(ddf, 'vertex')
 
-    return result[0].result()
+    return ddf
