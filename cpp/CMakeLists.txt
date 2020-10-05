@@ -230,7 +230,7 @@ set(CUGUNROCK_DIR ${CMAKE_CURRENT_BINARY_DIR}/cugunrock CACHE STRING
 
 ExternalProject_Add(cugunrock
   GIT_REPOSITORY    https://github.com/rapidsai/cugunrock.git
-  GIT_TAG           main
+  GIT_TAG           0b92fae6ee9026188a811b4d08915779e7c97178
   PREFIX            ${CUGUNROCK_DIR}
   CMAKE_ARGS        -DCMAKE_INSTALL_PREFIX=<INSTALL_DIR>
                     -DGPU_ARCHS=""
