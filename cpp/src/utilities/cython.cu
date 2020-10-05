@@ -476,7 +476,6 @@ std::pair<size_t, weight_t> call_louvain(raft::handle_t const& handle,
     handle, graph_container, functor);
 }
 
-
 // Wrapper for calling BFS through a graph container
 template <typename vertex_t, typename weight_t>
 void call_bfs(raft::handle_t const& handle,
@@ -512,19 +511,11 @@ void call_bfs(raft::handle_t const& handle,
     if (graph_container.edgeType == numberTypeEnum::int32Type) {
       auto graph =
         detail::create_graph<int32_t, int32_t, weight_t, false, true>(handle, graph_container);
-      cugraph::experimental::bfs(handle,
-                                 graph->view(),
-                                 distances,
-                                 predecessors,
-                                 start_vertex);
-  } else if (graph_container.edgeType == numberTypeEnum::int64Type) {
+      cugraph::experimental::bfs(handle, graph->view(), distances, predecessors, start_vertex);
+    } else if (graph_container.edgeType == numberTypeEnum::int64Type) {
       auto graph =
         detail::create_graph<vertex_t, int64_t, weight_t, false, true>(handle, graph_container);
-      cugraph::experimental::bfs(handle,
-                                 graph->view(),
-                                 distances,
-                                 predecessors,
-                                 start_vertex);
+      cugraph::experimental::bfs(handle, graph->view(), distances, predecessors, start_vertex);
     } else {
       CUGRAPH_FAIL("vertexType/edgeType combination unsupported");
     }
@@ -560,25 +551,16 @@ void call_sssp(raft::handle_t const& handle,
     if (graph_container.edgeType == numberTypeEnum::int32Type) {
       auto graph =
         detail::create_graph<int32_t, int32_t, weight_t, false, true>(handle, graph_container);
-      cugraph::experimental::sssp(handle,
-                                  graph->view(),
-                                  distances,
-                                  predecessors,
-                                  source_vertex);
-  } else if (graph_container.edgeType == numberTypeEnum::int64Type) {
+      cugraph::experimental::sssp(handle, graph->view(), distances, predecessors, source_vertex);
+    } else if (graph_container.edgeType == numberTypeEnum::int64Type) {
       auto graph =
         detail::create_graph<vertex_t, int64_t, weight_t, false, true>(handle, graph_container);
-      cugraph::experimental::sssp(handle,
-                                  graph->view(),
-                                  distances,
-                                  predecessors,
-                                  source_vertex);
+      cugraph::experimental::sssp(handle, graph->view(), distances, predecessors, source_vertex);
     } else {
       CUGRAPH_FAIL("vertexType/edgeType combination unsupported");
     }
   }
 }
-
 
 // Explicit instantiations
 template std::pair<size_t, float> call_louvain(raft::handle_t const& handle,
