@@ -40,10 +40,8 @@ def mg_pagerank(input_df,
     """
     Call pagerank
     """
-    print("HERE!!!")
     cdef size_t handle_size_t = <size_t>handle.getHandle()
     handle_ = <c_pagerank.handle_t*>handle_size_t
-
 
     src = input_df['src']
     dst = input_df['dst']
@@ -91,8 +89,8 @@ def mg_pagerank(input_df,
                              True, True) 
 
     df = cudf.DataFrame()
-    df['vertex'] = cudf.Series(np.zeros(num_global_verts, dtype=np.int32))
-    df['pagerank'] = cudf.Series(np.zeros(num_global_verts, dtype=np.float32))
+    df['vertex'] = cudf.Series(np.arange(vertex_partition_offsets.iloc[rank], vertex_partition_offsets.iloc[rank+1]), dtype=vertex_t)
+    df['pagerank'] = cudf.Series(np.zeros(num_local_verts, dtype=weight_t))
 
     cdef uintptr_t c_identifier = df['vertex'].__cuda_array_interface__['data'][0];
     cdef uintptr_t c_pagerank_val = df['pagerank'].__cuda_array_interface__['data'][0];
@@ -109,11 +107,9 @@ def mg_pagerank(input_df,
         c_pers_val = personalization['values'].__cuda_array_interface__['data'][0]
 
     if (df['pagerank'].dtype == np.float32):
-        print("32")
         c_pagerank.call_pagerank[int, float](handle_[0], graph_container, <int*>c_identifier, <float*> c_pagerank_val, sz, <int*> c_pers_vtx, <float*> c_pers_val,
                                  <float> alpha, <float> tol, <int> max_iter, <bool> 0)
     else:
-        print("64")
         c_pagerank.call_pagerank[int, double](handle_[0], graph_container, <int*>c_identifier, <double*> c_pagerank_val, sz, <int*> c_pers_vtx, <double*> c_pers_val,
                             <float> alpha, <float> tol, <int> max_iter, <bool> 0)
     
