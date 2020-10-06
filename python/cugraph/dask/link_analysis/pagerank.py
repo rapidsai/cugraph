@@ -129,6 +129,9 @@ def pagerank(input_graph,
     """
     from cugraph.structure.graph import null_check
 
+    if personalization is not None:
+        raise Exception("Personalization not supported")
+
     nstart = None
 
     client = default_client()
