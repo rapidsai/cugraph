@@ -16,6 +16,7 @@
 
 #include <experimental/detail/graph_utils.cuh>
 #include <experimental/graph_view.hpp>
+#include <partition_manager.hpp>
 #include <utilities/error.hpp>
 
 #include <raft/cudart_utils.h>
@@ -76,9 +77,13 @@ graph_view_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu, std::enabl
 {
   // cheap error checks
 
-  auto const comm_p_size     = this->get_handle_ptr()->get_comms().get_size();
-  auto const comm_p_row_size = this->get_handle_ptr()->get_subcomm(comm_p_row_key).get_size();
-  auto const comm_p_col_size = this->get_handle_ptr()->get_subcomm(comm_p_col_key).get_size();
+  auto const comm_size     = this->get_handle_ptr()->get_comms().get_size();
+  auto const row_comm_size = this->get_handle_ptr()
+                               ->get_subcomm(cugraph::partition_2d::key_naming_t().row_name())
+                               .get_size();
+  auto const col_comm_size = this->get_handle_ptr()
+                               ->get_subcomm(cugraph::partition_2d::key_naming_t().col_name())
+                               .get_size();
 
   CUGRAPH_EXPECTS(adj_matrix_partition_offsets.size() == adj_matrix_partition_indices.size(),
                   "Invalid API parameter: adj_matrix_partition_offsets.size() and "
@@ -90,13 +95,13 @@ graph_view_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu, std::enabl
 
   CUGRAPH_EXPECTS(
     (partition.is_hypergraph_partitioned() &&
-     (adj_matrix_partition_offsets.size() == static_cast<size_t>(comm_p_row_size))) ||
+     (adj_matrix_partition_offsets.size() == static_cast<size_t>(row_comm_size))) ||
       (!(partition.is_hypergraph_partitioned()) && (adj_matrix_partition_offsets.size() == 1)),
     "Invalid API parameter: errneous adj_matrix_partition_offsets.size().");
 
   CUGRAPH_EXPECTS((sorted_by_global_degree_within_vertex_partition &&
                    (vertex_partition_segment_offsets.size() ==
-                    comm_p_col_size * (detail::num_segments_per_vertex_partition + 1))) ||
+                    col_comm_size * (detail::num_segments_per_vertex_partition + 1))) ||
                     (!sorted_by_global_degree_within_vertex_partition &&
                      (vertex_partition_segment_offsets.size() == 0)),
                   "Invalid API parameter: vertex_partition_segment_offsets.size() does not match "
@@ -107,8 +112,12 @@ graph_view_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu, std::enabl
   if (do_expensive_check) {
     auto default_stream = this->get_handle_ptr()->get_stream();
 
-    auto const comm_p_row_rank = this->get_handle_ptr()->get_subcomm(comm_p_row_key).get_rank();
-    auto const comm_p_col_rank = this->get_handle_ptr()->get_subcomm(comm_p_col_key).get_rank();
+    auto const row_comm_rank = this->get_handle_ptr()
+                                 ->get_subcomm(cugraph::partition_2d::key_naming_t().row_name())
+                                 .get_rank();
+    auto const col_comm_rank = this->get_handle_ptr()
+                                 ->get_subcomm(cugraph::partition_2d::key_naming_t().col_name())
+                                 .get_rank();
 
     edge_t number_of_local_edges_sum{};
     for (size_t i = 0; i < adj_matrix_partition_offsets.size(); ++i) {
@@ -159,7 +168,7 @@ graph_view_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu, std::enabl
                       "Invalid API parameter: sorted_by_global_degree_within_vertex_partition is "
                       "set to true, but degrees are not non-ascending.");
 
-      for (int i = 0; i < comm_p_col_size; ++i) {
+      for (int i = 0; i < col_comm_size; ++i) {
         CUGRAPH_EXPECTS(std::is_sorted(vertex_partition_segment_offsets.begin() +
                                          (detail::num_segments_per_vertex_partition + 1) * i,
                                        vertex_partition_segment_offsets.begin() +
@@ -170,18 +179,18 @@ graph_view_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu, std::enabl
             0,
           "Invalid API parameter: erroneous vertex_partition_segment_offsets.");
         auto vertex_partition_idx = partition.is_hypergraph_partitioned()
-                                      ? comm_p_row_size * i + comm_p_row_rank
-                                      : comm_p_col_size * comm_p_row_rank + i;
+                                      ? row_comm_size * i + row_comm_rank
+                                      : col_comm_size * row_comm_rank + i;
         CUGRAPH_EXPECTS(
           vertex_partition_segment_offsets[(detail::num_segments_per_vertex_partition + 1) * i +
                                            detail::num_segments_per_vertex_partition] ==
-            partition.get_vertex_partition_range_first(vertex_partition_idx),
+            partition.get_vertex_partition_first(vertex_partition_idx),
           "Invalid API parameter: erroneous vertex_partition_segment_offsets.");
       }
     }
 
     CUGRAPH_EXPECTS(
-      partition.get_vertex_partition_range_last(comm_p_size - 1) == number_of_vertices,
+      partition.get_vertex_partition_last(comm_size - 1) == number_of_vertices,
       "Invalid API parameter: vertex partition should cover [0, number_of_vertices).");
 
     // FIXME: check for symmetricity may better be implemetned with transpose().
@@ -286,6 +295,10 @@ template class graph_view_t<int64_t, int64_t, float, true, true>;
 template class graph_view_t<int64_t, int64_t, float, false, true>;
 template class graph_view_t<int64_t, int64_t, double, true, true>;
 template class graph_view_t<int64_t, int64_t, double, false, true>;
+template class graph_view_t<int64_t, int32_t, float, true, true>;
+template class graph_view_t<int64_t, int32_t, float, false, true>;
+template class graph_view_t<int64_t, int32_t, double, true, true>;
+template class graph_view_t<int64_t, int32_t, double, false, true>;
 
 template class graph_view_t<int32_t, int32_t, float, true, false>;
 template class graph_view_t<int32_t, int32_t, float, false, false>;
@@ -299,6 +312,10 @@ template class graph_view_t<int64_t, int64_t, float, true, false>;
 template class graph_view_t<int64_t, int64_t, float, false, false>;
 template class graph_view_t<int64_t, int64_t, double, true, false>;
 template class graph_view_t<int64_t, int64_t, double, false, false>;
+template class graph_view_t<int64_t, int32_t, float, true, false>;
+template class graph_view_t<int64_t, int32_t, float, false, false>;
+template class graph_view_t<int64_t, int32_t, double, true, false>;
+template class graph_view_t<int64_t, int32_t, double, false, false>;
 
 }  // namespace experimental
 }  // namespace cugraph

@@ -17,8 +17,8 @@
 # cython: language_level = 3
 
 from cugraph.cores.k_core cimport k_core as c_k_core
-from cugraph.structure.graph_new cimport *
-from cugraph.structure import graph_new_wrapper
+from cugraph.structure.graph_primtypes cimport *
+from cugraph.structure import graph_primtypes_wrapper
 from libcpp cimport bool
 from libc.stdint cimport uintptr_t
 from libc.float cimport FLT_MAX_EXP
@@ -32,7 +32,7 @@ import numpy as np
 ####         Ripple down through implementation (algorithms.hpp, core_number.cu)
 
 cdef (uintptr_t, uintptr_t) core_number_params(core_number):
-    [core_number['vertex'], core_number['values']] = graph_new_wrapper.datatype_cast([core_number['vertex'], core_number['values']], [np.int32])
+    [core_number['vertex'], core_number['values']] = graph_primtypes_wrapper.datatype_cast([core_number['vertex'], core_number['values']], [np.int32])
     cdef uintptr_t c_vertex = core_number['vertex'].__cuda_array_interface__['data'][0]
     cdef uintptr_t c_values = core_number['values'].__cuda_array_interface__['data'][0]
     return (c_vertex, c_values)
@@ -54,7 +54,7 @@ def k_core(input_graph, k, core_number):
     """
     Call k_core
     """
-    if graph_new_wrapper.weight_type(input_graph) == np.float64:
+    if graph_primtypes_wrapper.weight_type(input_graph) == np.float64:
         return k_core_double(input_graph, k, core_number)
     else:
         return k_core_float(input_graph, k, core_number)

@@ -46,16 +46,7 @@ def ktruss_ground_truth(graph_file):
     return df
 
 
-def cugraph_k_truss_subgraph(graph_file, k):
-    cu_M = utils.read_csv_file(graph_file)
-    G = cugraph.Graph()
-    G.from_cudf_edgelist(cu_M, source="0", destination="1", edge_attr="2")
-    k_subgraph = cugraph.ktruss_subgraph(G, k)
-    return k_subgraph
-
-
-def compare_k_truss(graph_file, k, ground_truth_file):
-    k_truss_cugraph = cugraph_k_truss_subgraph(graph_file, k)
+def compare_k_truss(k_truss_cugraph, k, ground_truth_file):
     k_truss_nx = ktruss_ground_truth(ground_truth_file)
 
     edgelist_df = k_truss_cugraph.view_edge_list()
@@ -82,4 +73,29 @@ def compare_k_truss(graph_file, k, ground_truth_file):
 def test_ktruss_subgraph_Graph(graph_file, nx_ground_truth):
     gc.collect()
 
-    compare_k_truss(graph_file, 5, nx_ground_truth)
+    k = 5
+    cu_M = utils.read_csv_file(graph_file)
+    G = cugraph.Graph()
+    G.from_cudf_edgelist(cu_M, source="0", destination="1", edge_attr="2")
+    k_subgraph = cugraph.ktruss_subgraph(G, k)
+
+    compare_k_truss(k_subgraph, k, nx_ground_truth)
+
+
+@pytest.mark.parametrize("graph_file, nx_ground_truth", utils.DATASETS_KTRUSS)
+def test_ktruss_subgraph_Graph_nx(graph_file, nx_ground_truth):
+    gc.collect()
+
+    k = 5
+    M = utils.read_csv_for_nx(graph_file, read_weights_in_sp=True)
+    G = nx.from_pandas_edgelist(
+        M, source="0", target="1", edge_attr="weight",
+        create_using=nx.Graph()
+    )
+    k_subgraph = cugraph.k_truss(G, k)
+    df = nx.to_pandas_edgelist(k_subgraph)
+
+    k_truss_nx = nx.k_truss(G, k)
+    nx_df = nx.to_pandas_edgelist(k_truss_nx)
+
+    assert len(df) == len(nx_df)

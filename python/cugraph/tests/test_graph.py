@@ -98,12 +98,13 @@ def compare_graphs(nx_graph, cu_graph):
 
     if len(edgelist_df.columns) > 2:
         df0 = cudf.from_pandas(nx.to_pandas_edgelist(nx_graph))
-        df0 = df0.sort_values(by=["source", "target"]).reset_index(drop=True)
-        df1 = df.sort_values(by=["source", "target"]).reset_index(drop=True)
-        if not df0["weight"].equals(df1["weight"]):
+        merge = df.merge(df0, on=["source", "target"],
+                         suffixes=("_cugraph", "_nx"))
+        print("merge = \n", merge)
+        print(merge[merge.weight_cugraph != merge.weight_nx])
+        if not merge["weight_cugraph"].equals(merge["weight_nx"]):
             print('weights different')
-            print('df0 = \n', df0)
-            print('df1 = \n', df1)
+            print(merge[merge.weight_cugraph != merge.weight_nx])
             return False
 
     return True
@@ -381,65 +382,6 @@ def test_view_edge_list_for_Graph(graph_file):
     assert (
         cu_edge_list["dst"].to_array() == nx_edge_list["dst"].to_array()
     ).all()
-
-
-# Test
-@pytest.mark.parametrize("graph_file", utils.DATASETS)
-def test_networkx_compatibility(graph_file):
-    gc.collect()
-
-    # test from_cudf_edgelist()
-
-    M = utils.read_csv_for_nx(graph_file)
-
-    df = pd.DataFrame()
-    df["source"] = pd.Series(M["0"])
-    df["target"] = pd.Series(M["1"])
-    df["weight"] = pd.Series(M.weight)
-    gdf = cudf.from_pandas(df)
-
-    Gnx = nx.from_pandas_edgelist(
-        df,
-        source="source",
-        target="target",
-        edge_attr="weight",
-        create_using=nx.DiGraph,
-    )
-    G = cugraph.from_cudf_edgelist(
-        gdf,
-        source="source",
-        destination="target",
-        edge_attr="weight",
-        create_using=cugraph.DiGraph,
-    )
-
-    print('g from gdf = \n', gdf)
-    print('nx from df = \n', df)
-
-    t1 = time.time()
-    assert compare_graphs(Gnx, G)
-    t2 = time.time() - t1
-    print('compare_graphs time: ', t2)
-
-    Gnx.clear()
-    G.clear()
-    Gnx = nx.from_pandas_edgelist(
-        df, source="source", target="target", create_using=nx.DiGraph
-    )
-    G = cugraph.from_cudf_edgelist(
-        gdf,
-        source="source",
-        destination="target",
-        create_using=cugraph.DiGraph,
-    )
-
-    t1 = time.time()
-    assert compare_graphs(Gnx, G)
-    t2 = time.time() - t1
-    print('compare_graphs time: ', t2)
-
-    Gnx.clear()
-    G.clear()
 
 
 # Test

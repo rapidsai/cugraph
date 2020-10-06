@@ -17,8 +17,8 @@
 # cython: language_level = 3
 
 from cugraph.community.leiden cimport leiden as c_leiden
-from cugraph.structure.graph_new cimport *
-from cugraph.structure import graph_new_wrapper
+from cugraph.structure.graph_primtypes cimport *
+from cugraph.structure import graph_primtypes_wrapper
 from libc.stdint cimport uintptr_t
 
 import cudf
@@ -33,16 +33,19 @@ def leiden(input_graph, max_iter, resolution):
     if not input_graph.adjlist:
         input_graph.view_adj_list()
 
+    cdef unique_ptr[handle_t] handle_ptr
+    handle_ptr.reset(new handle_t())
+
     weights = None
     final_modularity = None
 
-    [offsets, indices] = graph_new_wrapper.datatype_cast([input_graph.adjlist.offsets, input_graph.adjlist.indices], [np.int32])
+    [offsets, indices] = graph_primtypes_wrapper.datatype_cast([input_graph.adjlist.offsets, input_graph.adjlist.indices], [np.int32])
 
     num_verts = input_graph.number_of_vertices()
     num_edges = input_graph.number_of_edges(directed_edges=True)
 
     if input_graph.adjlist.weights is not None:
-        [weights] = graph_new_wrapper.datatype_cast([input_graph.adjlist.weights], [np.float32, np.float64])
+        [weights] = graph_primtypes_wrapper.datatype_cast([input_graph.adjlist.weights], [np.float32, np.float64])
     else:
         weights = cudf.Series(np.full(num_edges, 1.0, dtype=np.float32))
 
@@ -69,12 +72,11 @@ def leiden(input_graph, max_iter, resolution):
                                                   <float*>c_weights, num_verts, num_edges)
 
         graph_float.get_vertex_identifiers(<int*>c_identifier)
-        c_leiden(graph_float,
-                  final_modularity_float,
-                  num_level,
-                  <int*> c_partition,
-                  <int> max_iter,
-                  <float> resolution)
+        num_level, final_modularity_float = c_leiden(handle_ptr.get()[0],
+                                                     graph_float,
+                                                     <int*> c_partition,
+                                                     <int> max_iter,
+                                                     <float> resolution)
 
         final_modularity = final_modularity_float
     else:
@@ -82,12 +84,11 @@ def leiden(input_graph, max_iter, resolution):
                                                     <double*>c_weights, num_verts, num_edges)
 
         graph_double.get_vertex_identifiers(<int*>c_identifier)
-        c_leiden(graph_double,
-                  final_modularity_double,
-                  num_level,
-                  <int*> c_partition,
-                  <int> max_iter,
-                  <double> resolution)
+        num_level, final_modularity_double = c_leiden(handle_ptr.get()[0],
+                                                      graph_double,
+                                                      <int*> c_partition,
+                                                      <int> max_iter,
+                                                      <double> resolution)
         final_modularity = final_modularity_double
 
     return df, final_modularity
