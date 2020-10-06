@@ -561,7 +561,7 @@ class Graph:
             df[dst] : cudf.Series
                 contains the destination index for each edge
             df[weight] : cusd.Series
-                Column is only present for weighted Graph, 
+                Column is only present for weighted Graph,
                 then containing the weight value for each edge
         """
         if self.distributed:
