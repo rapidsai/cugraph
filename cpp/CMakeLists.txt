@@ -54,28 +54,34 @@ find_package(CUDA)
 if(CMAKE_SYSTEM_PROCESSOR MATCHES "aarch64")
   message(STATUS "CMAKE Detected aarch64 CPU architecture, selecting appropriate gencodes")
   # This is being build for Linux4Tegra or SBSA ARM64 CUDA
-  set(GPU_ARCHS "62") # Default minimum CUDA GenCode for cuML embedded
+  set(GPU_ARCHS "62") # Default minimum CUDA GenCode - not supported by gunrock
   if(CUDA_VERSION_MAJOR GREATER_EQUAL 9)
     set(GPU_ARCHS "${GPU_ARCHS};72")
+    set(GUNROCK_GENCODE "-DGUNROCK_GENCODE_SM72=TRUE")
   endif()
   if(CUDA_VERSION_MAJOR GREATER_EQUAL 11)
     # This is probably for SBSA CUDA, or a next gen Jetson
     set(GPU_ARCHS "${GPU_ARCHS};75;80")
+    set(GUNROCK_GENCODE "${GUNROCK_GENCODE} -DGUNROCK_GENCODE_SM75=TRUE -DGUNROCK_GENCODE_SM80=TRUE ")
   endif()
 
 else()
   message(STATUS "CMAKE selecting appropriate gencodes for x86 or ppc64 CPU architectures")
   # System architecture was not aarch64,
   # this is datacenter or workstation class hardware
-  set(GPU_ARCHS "60") # Default minimum supported CUDA gencode for cuML
+  set(GPU_ARCHS "60") # Default minimum supported CUDA gencode
+  set(GUNROCK_GENCODE "-DGUNROCK_GENCODE_SM60=TRUE")
   if(CUDA_VERSION_MAJOR GREATER_EQUAL 9)
     set(GPU_ARCHS "${GPU_ARCHS};70")
+    set(GUNROCK_GENCODE "${GUNROCK_GENCODE} -DGUNROCK_GENCODE_SM70=TRUE")
   endif()
   if(CUDA_VERSION_MAJOR GREATER_EQUAL 10)
     set(GPU_ARCHS "${GPU_ARCHS};75")
+    set(GUNROCK_GENCODE "${GUNROCK_GENCODE} -DGUNROCK_GENCODE_SM75=TRUE")
   endif()
   if(CUDA_VERSION_MAJOR GREATER_EQUAL 11)
     set(GPU_ARCHS "${GPU_ARCHS};80")
+    set(GUNROCK_GENCODE "${GUNROCK_GENCODE} -DGUNROCK_GENCODE_SM80=TRUE")
   endif()
 
 endif()
@@ -235,7 +241,8 @@ ExternalProject_Add(cugunrock
   CMAKE_ARGS        -DCMAKE_INSTALL_PREFIX=<INSTALL_DIR>
                     -DGUNROCK_BUILD_SHARED_LIBS=OFF
                     -DGUNROCK_BUILD_TESTS=OFF
-                    -DCUDA_AUTODETECT_GENCODE=TRUE
+                    -DCUDA_AUTODETECT_GENCODE=FALSE
+                    ${GUNROCK_GENCODE}
   BUILD_BYPRODUCTS  ${CUGUNROCK_DIR}/lib/libgunrock.a
 )
 
