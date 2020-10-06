@@ -185,7 +185,7 @@ set(CUHORNET_INCLUDE_DIR ${CUHORNET_DIR}/src/cuhornet CACHE STRING "Path to cuho
 
 ExternalProject_Add(cuhornet
   GIT_REPOSITORY    https://github.com/rapidsai/cuhornet.git
-  GIT_TAG           7e8be7e439c2765384c40b004806aabae2d74666
+  GIT_TAG           9cb8e8803852bd895a9c95c0fe778ad6eeefa7ad
   PREFIX            ${CUHORNET_DIR}
   CONFIGURE_COMMAND ""
   BUILD_COMMAND     ""
@@ -417,6 +417,8 @@ install(TARGETS cugraph LIBRARY
 install(DIRECTORY include/
     DESTINATION include/cugraph)
 
+install(DIRECTORY ${RAFT_DIR}/cpp/include/raft/
+    DESTINATION include/cugraph/raft)
 ###################################################################################################
 # - make documentation ----------------------------------------------------------------------------
 # requires doxygen and graphviz to be installed
