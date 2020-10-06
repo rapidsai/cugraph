@@ -21,7 +21,6 @@
 #include <patterns/count_if_v.cuh>
 #include <patterns/transform_reduce_v.cuh>
 #include <utilities/error.hpp>
-#include <vertex_partition_device.cuh>
 
 #include <rmm/thrust_rmm_allocator.h>
 #include <raft/handle.hpp>
