@@ -233,16 +233,9 @@ ExternalProject_Add(cugunrock
   GIT_TAG           0b92fae6ee9026188a811b4d08915779e7c97178
   PREFIX            ${CUGUNROCK_DIR}
   CMAKE_ARGS        -DCMAKE_INSTALL_PREFIX=<INSTALL_DIR>
-                    -DGPU_ARCHS=""
                     -DGUNROCK_BUILD_SHARED_LIBS=OFF
                     -DGUNROCK_BUILD_TESTS=OFF
-                    -DCUDA_AUTODETECT_GENCODE=FALSE
-                    -DGUNROCK_GENCODE_SM60=TRUE
-                    -DGUNROCK_GENCODE_SM61=TRUE
-                    -DGUNROCK_GENCODE_SM70=TRUE
-                    -DGUNROCK_GENCODE_SM72=TRUE
-                    -DGUNROCK_GENCODE_SM75=TRUE
-                    -DGUNROCK_GENCODE_SM80=TRUE
+                    -DCUDA_AUTODETECT_GENCODE=TRUE
   BUILD_BYPRODUCTS  ${CUGUNROCK_DIR}/lib/libgunrock.a
 )
 
