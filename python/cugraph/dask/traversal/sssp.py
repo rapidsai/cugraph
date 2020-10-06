@@ -16,23 +16,23 @@
 from dask.distributed import wait, default_client
 from cugraph.dask.common.input_utils import get_distributed_data
 from cugraph.structure.shuffle import shuffle
-from cugraph.dask.traversal import mg_bfs_wrapper as mg_bfs
+from cugraph.dask.traversal import mg_sssp_wrapper as mg_sssp
 import cugraph.comms.comms as Comms
 import cudf
+import dask_cudf
 
 
 def call_sssp(sID,
-             data,
-             num_verts,
-             num_edges,
-             partition_row_size,
-             partition_col_size,
-             vertex_partition_offsets,
-             start):
+              data,
+              num_verts,
+              num_edges,
+              partition_row_size,
+              partition_col_size,
+              vertex_partition_offsets,
+              start):
     wid = Comms.get_worker_id(sID)
     handle = Comms.get_handle(sID)
     return mg_sssp.mg_sssp(data[0],
-                           local_data,
                            num_verts,
                            num_edges,
                            partition_row_size,
@@ -44,7 +44,7 @@ def call_sssp(sID,
 
 
 def sssp(graph,
-         start):
+         source):
 
     """
     Find the distances and predecessors for a breadth first traversal of a
@@ -58,9 +58,9 @@ def sssp(graph,
         cuGraph graph descriptor, should contain the connectivity information
         as dask cudf edge list dataframe(edge weights are not used for this
         algorithm). Undirected Graph not currently supported.
-    start : Integer
-        Specify starting vertex for breadth-first search; this function
-        iterates over edges in the component reachable from this node.
+    source : Integer
+        Specify source vertex
+
     Returns
     -------
     df : cudf.DataFrame
@@ -89,40 +89,38 @@ def sssp(graph,
 
     client = default_client()
 
-    input_graph.compute_renumber_edge_list(transposed=False)
+    graph.compute_renumber_edge_list(transposed=False)
     (ddf,
      num_verts,
      partition_row_size,
      partition_col_size,
-     vertex_partition_offsets) = shuffle(input_graph, transposed=False)
+     vertex_partition_offsets) = shuffle(graph, transposed=False)
     num_edges = len(ddf)
     data = get_distributed_data(ddf)
 
     if graph.renumbered:
-        start = graph.lookup_internal_vertex_id(cudf.Series([start],
-                                                dtype='int32')).compute()
-        start = start.iloc[0]
+        source = graph.lookup_internal_vertex_id(cudf.Series([source],
+                                                 dtype='int32')).compute()
+        source = source.iloc[0]
 
-    result = dict([(data.worker_info[wf[0]]["rank"],
-                    client.submit(
-            call_bfs,
-            Comms.get_session_id(),
-            wf[1],
-            num_verts,
-            num_edges,
-            partition_row_size,
-            partition_col_size,
-            vertex_partition_offsets,
-            start,
-            workers=[wf[0]]))
-            for idx, wf in enumerate(data.worker_to_parts.items())])
+    result = [client.submit(
+              call_sssp,
+              Comms.get_session_id(),
+              wf[1],
+              num_verts,
+              num_edges,
+              partition_row_size,
+              partition_col_size,
+              vertex_partition_offsets,
+              source,
+              workers=[wf[0]])
+              for idx, wf in enumerate(data.worker_to_parts.items())]
     wait(result)
-
-    df = result[0].result()
+    ddf = dask_cudf.from_delayed(result)
 
     if graph.renumbered:
-        df = graph.unrenumber(df, 'vertex').compute()
-        df = graph.unrenumber(df, 'predecessor').compute()
-        df["predecessor"].fillna(-1, inplace=True)
+        ddf = graph.unrenumber(ddf, 'vertex')
+        ddf = graph.unrenumber(ddf, 'predecessor')
+        ddf["predecessor"].fillna(-1)
 
-    return df
+    return ddf
