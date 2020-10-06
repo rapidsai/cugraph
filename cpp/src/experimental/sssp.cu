@@ -128,7 +128,7 @@ void sssp(raft::handle_t const &handle,
                                    push_graph_view.get_number_of_local_vertices());
   VertexFrontier<thrust::tuple<weight_t, vertex_t>,
                  vertex_t,
-                 false,
+                 GraphViewType::is_multi_gpu,
                  static_cast<size_t>(Bucket::num_buckets)>
     vertex_frontier(handle, bucket_sizes);
 
