@@ -20,14 +20,14 @@ from libcpp cimport bool
 
 cdef extern from "utilities/cython.hpp" namespace "cugraph::cython":
 
-    cdef void call_pagerank[VT,WT](
+    cdef void call_pagerank[vertex_t, weight_t](
         const handle_t &handle,
         const graph_container_t &g,
-        VT *identifiers,
-        WT *pagerank,
-        VT size,
-        VT *personalization_subset,
-        WT *personalization_values,
+        vertex_t *identifiers,
+        weight_t *pagerank,
+        vertex_t size,
+        vertex_t *personalization_subset,
+        weight_t *personalization_values,
         double alpha,
         double tolerance,
         long long max_iter,
