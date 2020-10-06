@@ -572,6 +572,9 @@ void copy_v_transform_reduce_nbr(raft::handle_t const& handle,
                      minor_buffer_first + offset + size,
                      vertex_value_output_first);
       } else {
+        CUDA_TRY(cudaStreamSynchronize(
+          handle.get_stream()));  // to ensure data to be sent are ready (FIXME: this can be removed
+                                  // if we use ncclSend in raft::comms)
         auto constexpr tuple_size = thrust_tuple_size_or_one<
           typename std::iterator_traits<VertexValueOutputIterator>::value_type>::value;
         std::vector<raft::comms::request_t> requests(2 * tuple_size);

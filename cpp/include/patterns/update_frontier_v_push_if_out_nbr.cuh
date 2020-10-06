@@ -620,11 +620,16 @@ void update_frontier_v_push_if_out_nbr(
                   buffer_requests.data() + (i + 1) * (1 + tuple_size),
                   std::numeric_limits<raft::comms::request_t>::max());
       } else {
-        comm.isend(detail::iter_to_raw_ptr(buffer_key_first + tx_offsets[i]),
-                   static_cast<size_t>(tx_counts[i]),
-                   comm_dst_rank,
-                   int{0} /* tag */,
-                   buffer_requests.data() + i * (1 + tuple_size));
+        CUDA_TRY(cudaStreamSynchronize(
+          handle.get_stream()));  // to ensure data to be sent are ready (FIXME: this can be removed
+                                  // if we use ncclSend in raft::comms)
+
+        device_isend(comm,
+                     detail::iter_to_raw_ptr(buffer_key_first + tx_offsets[i]),
+                     static_cast<size_t>(tx_counts[i]),
+                     comm_dst_rank,
+                     int{0} /* tag */,
+                     buffer_requests.data() + i * (1 + tuple_size));
         device_isend<decltype(buffer_payload_first), decltype(buffer_payload_first)>(
           comm,
           buffer_payload_first + tx_offsets[i],
@@ -654,11 +659,13 @@ void update_frontier_v_push_if_out_nbr(
                   buffer_requests.data() + (tx_counts.size() + i + 1) * (1 + tuple_size),
                   std::numeric_limits<raft::comms::request_t>::max());
       } else {
-        comm.irecv(detail::iter_to_raw_ptr(buffer_key_first + num_buffer_elements + rx_offsets[i]),
-                   static_cast<size_t>(rx_counts[i]),
-                   comm_src_rank,
-                   int{0} /* tag */,
-                   buffer_requests.data() + ((tx_counts.size() + i) * (1 + tuple_size)));
+        device_irecv(
+          comm,
+          detail::iter_to_raw_ptr(buffer_key_first + num_buffer_elements + rx_offsets[i]),
+          static_cast<size_t>(rx_counts[i]),
+          comm_src_rank,
+          int{0} /* tag */,
+          buffer_requests.data() + ((tx_counts.size() + i) * (1 + tuple_size)));
         device_irecv<decltype(buffer_payload_first), decltype(buffer_payload_first)>(
           comm,
           buffer_payload_first + num_buffer_elements + rx_offsets[i],

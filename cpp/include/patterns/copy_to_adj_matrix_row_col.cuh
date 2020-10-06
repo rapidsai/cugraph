@@ -206,6 +206,9 @@ void copy_to_matrix_minor(raft::handle_t const& handle,
                        (graph_view.get_vertex_partition_first(comm_src_rank) -
                         graph_view.get_vertex_partition_first(row_comm_rank * col_comm_size)));
       } else {
+        CUDA_TRY(cudaStreamSynchronize(
+          handle.get_stream()));  // to ensure data to be sent are ready (FIXME: this can be removed
+                                  // if we use ncclSend in raft::comms)
         auto constexpr tuple_size = thrust_tuple_size_or_one<
           typename std::iterator_traits<VertexValueInputIterator>::value_type>::value;
         std::vector<raft::comms::request_t> requests(2 * tuple_size);
@@ -331,6 +334,10 @@ void copy_to_matrix_minor(raft::handle_t const& handle,
                        vertex_last,
                        vertex_value_input_first,
                        src_value_first);
+
+        CUDA_TRY(cudaStreamSynchronize(
+          handle.get_stream()));  // to ensure data to be sent are ready (FIXME: this can be removed
+                                  // if we use ncclSend in raft::comms)
 
         std::vector<raft::comms::request_t> value_requests(2 * (1 + tuple_size));
         device_isend<decltype(vertex_first), decltype(dst_vertices.begin())>(comm,
