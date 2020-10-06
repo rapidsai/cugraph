@@ -571,7 +571,7 @@ void update_frontier_v_push_if_out_nbr(
                              ? col_comm_rank * row_comm_size + static_cast<int>(i)
                              : row_comm_rank + static_cast<int>(i) * row_comm_size;
       if (comm_src_rank == comm_rank) {
-        assert(self_tx_i != std::numeric_limits<size_t>::max());
+        assert(tx_self_i != std::numeric_limits<size_t>::max());
         rx_counts[i] = tx_counts[tx_self_i];
         // FIXME: better define request_null (similar to MPI_REQUEST_NULL) under raft::comms
         count_requests[tx_counts.size() + i] = std::numeric_limits<raft::comms::request_t>::max();
@@ -639,7 +639,7 @@ void update_frontier_v_push_if_out_nbr(
                              ? col_comm_rank * row_comm_size + static_cast<int>(i)
                              : row_comm_rank + static_cast<int>(i) * row_comm_size;
       if (comm_src_rank == comm_rank) {
-        assert(self_tx_i != std::numeric_limits<size_t>::max());
+        assert(tx_self_i != std::numeric_limits<size_t>::max());
         assert(rx_counts[i] == tx_counts[tx_self_i]);
         thrust::copy(rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
                      buffer_key_first + tx_offsets[tx_self_i],
