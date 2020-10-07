@@ -189,7 +189,7 @@ typename GraphViewType::edge_type count_if_e(
   for (size_t i = 0; i < graph_view.get_number_of_local_adj_matrix_partitions(); ++i) {
     matrix_partition_device_t<GraphViewType> matrix_partition(graph_view, i);
 
-    if (matrix_partition.gt_major_size() > 0) {
+    if (matrix_partition.get_major_size() > 0) {
       auto row_value_input_offset = GraphViewType::is_adj_matrix_transposed
                                       ? 0
                                       : matrix_partition.get_major_value_start_offset();
