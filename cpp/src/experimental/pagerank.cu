@@ -218,7 +218,7 @@ void pagerank(raft::handle_t const& handle,
     thrust::transform(
       rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
       vertex_val_first,
-      vertex_val_first + pull_graph_view.get_number_of_local_adj_matrix_partition_rows(),
+      vertex_val_first + pull_graph_view.get_number_of_local_vertices(),
       pageranks,
       [] __device__(auto val) {
         auto const pagerank       = thrust::get<0>(val);
@@ -265,7 +265,7 @@ void pagerank(raft::handle_t const& handle,
     // FIXME: just for debugging, remove!!!
     auto pagerank_sum = reduce_v(handle, pull_graph_view, pageranks, result_t{0.0});
     std::cout << "rank=" << (handle.comms_initialized() ? handle.get_comms().get_rank() : int{0})
-              << " iter=" << iter << "PageRank sum=" << pagerank_sum << "\n";
+              << " iter=" << iter << " PageRank sum=" << pagerank_sum << "\n";
 
     auto diff_sum = transform_reduce_v(
       handle,
