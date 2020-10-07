@@ -154,6 +154,12 @@ void copy_to_matrix_major(raft::handle_t const& handle,
                         rx_value_first + rx_counts[i],
                         map_first,
                         matrix_major_value_output_first);
+
+        CUDA_TRY(cudaStreamSynchronize(
+          handle.get_stream()));  // this is as necessary rx_tmp_buffer will become out-of-scope
+                                  // once control flow exits this block (FIXME: we can reduce stream
+                                  // synchronization if we compute the maximum rx_counts and
+                                  // allocate rx_tmp_buffer outside the loop)
       }
     }
   } else {
@@ -370,6 +376,10 @@ void copy_to_matrix_minor(raft::handle_t const& handle,
         // FIXME: this waitall can fail if MatrixMinorValueOutputIterator is a discard iterator or a
         // zip iterator having one or more discard iterator
         comm.waitall(value_requests.size(), value_requests.data());
+
+        CUDA_TRY(cudaStreamSynchronize(
+          handle.get_stream()));  // this is as necessary rx_tmp_buffer will become out-of-scope
+                                  // once control flow exits this block
       }
 
       // FIXME: now we can clear tx_tmp_buffer
@@ -408,7 +418,17 @@ void copy_to_matrix_minor(raft::handle_t const& handle,
                         rx_value_first + rx_counts[i],
                         map_first,
                         matrix_minor_value_output_first);
+
+        CUDA_TRY(cudaStreamSynchronize(
+          handle.get_stream()));  // this is as necessary rx_tmp_buffer will become out-of-scope
+                                  // once control flow exits this block (FIXME: we can reduce stream
+                                  // synchronization if we compute the maximum rx_counts and
+                                  // allocate rx_tmp_buffer outside the loop)
       }
+
+      CUDA_TRY(cudaStreamSynchronize(
+        handle.get_stream()));  // this is as necessary dst_tmp_buffer will become out-of-scope once
+                                // control flow exits this block
     }
   } else {
     assert(graph_view.get_number_of_local_vertices() ==

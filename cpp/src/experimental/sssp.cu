@@ -239,6 +239,11 @@ void sssp(raft::handle_t const &handle,
     }
   }
 
+  CUDA_TRY(cudaStreamSynchronize(
+    handle.get_stream()));  // this is as necessary vertex_frontier will become out-of-scope once
+                            // this function returns (FIXME: should I stream sync in VertexFrontier
+                            // destructor?)
+
   return;
 }
 
