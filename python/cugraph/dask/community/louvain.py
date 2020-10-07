@@ -17,7 +17,6 @@ import cugraph.comms.comms as Comms
 from cugraph.dask.common.input_utils import get_distributed_data
 from cugraph.structure.shuffle import shuffle
 from cugraph.dask.community import louvain_wrapper as c_mg_louvain
-from cugraph.comms.comms_wrapper import init_subcomms as c_init_subcomms
 
 
 def call_louvain(sID,
@@ -89,11 +88,6 @@ def louvain(input_graph, max_iter=100, resolution=1.0, load_balance=True):
      vertex_partition_offsets) = shuffle(input_graph, transposed=False)
     num_edges = len(ddf)
     data = get_distributed_data(ddf)
-
-    # FIXME: subcomms should not be initialized here. Instead, move subcomms
-    # init to user-accessible comms init method.
-    handle = Comms.get_default_handle()
-    c_init_subcomms(handle, partition_row_size)
 
     result = dict([(data.worker_info[wf[0]]["rank"],
                     client.submit(
