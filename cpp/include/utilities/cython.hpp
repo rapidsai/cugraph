@@ -201,5 +201,9 @@ std::pair<size_t, weight_t> call_louvain(raft::handle_t const& handle,
                                          size_t max_level,
                                          weight_t resolution);
 
+// Helper for setting up subcommunicators
+void init_subcomms(raft::handle_t& handle,
+                   size_t row_comm_size);
+
 }  // namespace cython
 }  // namespace cugraph

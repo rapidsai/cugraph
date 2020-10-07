@@ -16,13 +16,10 @@
 # cython: embedsignature = True
 # cython: language_level = 3
 
-from cugraph.structure.graph_primtypes cimport *
+from cugraph.structure.graph_primtypes cimport handle_t
 
 
-cdef extern from "partition_manager.hpp" namespace "partition_2d":
+cdef extern from "utilities/cython.hpp" namespace "cugraph::cython":
 
-   cdef cppclass key_naming_t:
-      pass
-
-   cdef cppclass subcomm_factory_t[name_policy_t, size_type]:
-      subcomm_factory_t(handle_t &handle, size_type row_size)
+   cdef void init_subcomms(handle_t &handle,
+                           size_t row_comm_size)

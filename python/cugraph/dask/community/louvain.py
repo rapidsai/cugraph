@@ -90,10 +90,12 @@ def louvain(input_graph, max_iter=100, resolution=1.0, load_balance=True):
     num_edges = len(ddf)
     data = get_distributed_data(ddf)
 
+    print("Is Comms initialized?", Comms.is_initialized())
     # Initialize subcomms here
-    #handle = Comms.get_handle(Comms.get_session_id())
     handle = Comms.get_default_handle()
+    import pdb;pdb.set_trace()
     c_init_subcomms(handle, partition_row_size)
+    print("In Louvain, subcomms initialized.")
 
     result = dict([(data.worker_info[wf[0]]["rank"],
                     client.submit(

@@ -126,8 +126,8 @@ void populate_graph_container(graph_container_t& graph_container,
   // FIXME: Consider setting up the subcomms right after initializing comms, no
   // need to delay to this point.
   // Setup the subcommunicators needed for this partition on the handle.
-  partition_2d::subcomm_factory_t<partition_2d::key_naming_t, int> subcomm_factory(handle,
-                                                                                   row_comm_size);
+  //partition_2d::subcomm_factory_t<partition_2d::key_naming_t, int> subcomm_factory(handle,
+  //                                                                                 row_comm_size);
   // FIXME: once the subcomms are set up earlier (outside this function), remove
   // the row/col_comm_size params and retrieve them from the handle (commented
   // out lines below)
@@ -490,6 +490,14 @@ template std::pair<size_t, double> call_louvain(raft::handle_t const& handle,
                                                 void* parts,
                                                 size_t max_level,
                                                 double resolution);
+
+// Helper for setting up subcommunicators
+void init_subcomms(raft::handle_t& handle,
+                   size_t row_comm_size)
+{
+   partition_2d::subcomm_factory_t<partition_2d::key_naming_t, int> subcomm_factory(handle,
+                                                                                    row_comm_size);
+}
 
 }  // namespace cython
 }  // namespace cugraph
