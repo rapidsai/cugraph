@@ -72,10 +72,11 @@ def initialize(comms=None,
                prows=None,
                pcols=None,
                partition_type=1):
-    """Initialize a communicator for multi-node/multi-gpu communications.  It is
+    """
+    Initialize a communicator for multi-node/multi-gpu communications.  It is
     expected to be called right after client initialization for running
-    multi-GPU algorithms (this wraps raft comms that manages underlying NCCL and
-    UCX comms handles across the workers of a Dask cluster).
+    multi-GPU algorithms (this wraps raft comms that manages underlying NCCL
+    and UCX comms handles across the workers of a Dask cluster).
 
     It is recommended to also call `destroy()` when the comms are no longer
     needed so the underlying resources can be cleaned up.
@@ -94,16 +95,15 @@ def initialize(comms=None,
         parallel processes. When specified with pcols, prows*pcols should be
         equal to the total number of parallel processes.
     pcols : int
-        Specifies the number of columns when performing a 2D partitioning of the
-        input graph. If specified, this must be a factor of the total number of
-        parallel processes. When specified with prows, prows*pcols should be
-        equal to the total number of parallel processes.
+        Specifies the number of columns when performing a 2D partitioning of
+        the input graph. If specified, this must be a factor of the total
+        number of parallel processes. When specified with prows, prows*pcols
+        should be equal to the total number of parallel processes.
     partition_type : int
         Valid values are currently 1 or any int other than 1. A value of 1 (the
         default) represents a partitioning resulting in prows*pcols
-        partitions. A non-1 value currently results in a partitioning of p*pcols
-        partitions, where p is the number of GPUs.
-
+        partitions. A non-1 value currently results in a partitioning of
+        p*pcols partitions, where p is the number of GPUs.
     """
 
     global __instance
@@ -208,8 +208,8 @@ def get_worker_id(sID):
 #   * get_n_workers() (from cugraph.dask.common.read_utils)
 #   * len(get_visible_devices())
 #   * len(numba.cuda.gpus)
-# Consider consolidating these or emphasizing why different functions/techniques
-# are needed.
+# Consider consolidating these or emphasizing why different
+# functions/techniques are needed.
 def get_n_workers(sID=None):
     if sID is None:
         return read_utils.get_n_workers()
