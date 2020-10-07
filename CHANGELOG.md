@@ -38,7 +38,7 @@
 - PR #1166 Fix misspelling of function calls in asserts causing debug build to fail
 - PR #1180 BLD Adopt RAFT model for cuhornet dependency
 - PR #1181 Fix notebook error handling in CI
-
+- PR #1199 BUG segfault in python test suite
 
 # cuGraph 0.15.0 (26 Aug 2020)
 
