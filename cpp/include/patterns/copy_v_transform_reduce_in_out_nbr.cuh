@@ -452,48 +452,51 @@ void copy_v_transform_reduce_nbr(raft::handle_t const& handle,
                                                               : col_comm_rank * row_comm_size + i;
     }
 
-    raft::grid_1d_thread_t update_grid(graph_view.get_vertex_partition_size(comm_root_rank),
-                                       detail::copy_v_transform_reduce_nbr_for_all_block_size,
-                                       handle.get_device_properties().maxGridSize[0]);
+    if (graph_view.get_vertex_partition_size(comm_root_rank) > 0) {
+      raft::grid_1d_thread_t update_grid(graph_view.get_vertex_partition_size(comm_root_rank),
+                                         detail::copy_v_transform_reduce_nbr_for_all_block_size,
+                                         handle.get_device_properties().maxGridSize[0]);
 
-    if (GraphViewType::is_multi_gpu) {
-      auto& row_comm = handle.get_subcomm(cugraph::partition_2d::key_naming_t().row_name());
-      auto const row_comm_size = row_comm.get_size();
-      auto& col_comm = handle.get_subcomm(cugraph::partition_2d::key_naming_t().col_name());
-      auto const col_comm_rank = col_comm.get_rank();
+      if (GraphViewType::is_multi_gpu) {
+        auto& row_comm = handle.get_subcomm(cugraph::partition_2d::key_naming_t().row_name());
+        auto const row_comm_size = row_comm.get_size();
+        auto& col_comm = handle.get_subcomm(cugraph::partition_2d::key_naming_t().col_name());
+        auto const col_comm_rank = col_comm.get_rank();
 
-      vertex_t row_value_input_offset = GraphViewType::is_adj_matrix_transposed
-                                          ? 0
-                                          : graph_view.is_hypergraph_partitioned()
-                                              ? matrix_partition.get_major_value_start_offset()
-                                              : 0;
-      vertex_t col_value_input_offset = GraphViewType::is_adj_matrix_transposed
-                                          ? graph_view.is_hypergraph_partitioned()
-                                              ? matrix_partition.get_major_value_start_offset()
-                                              : 0
-                                          : 0;
+        vertex_t row_value_input_offset = GraphViewType::is_adj_matrix_transposed
+                                            ? 0
+                                            : graph_view.is_hypergraph_partitioned()
+                                                ? matrix_partition.get_major_value_start_offset()
+                                                : 0;
+        vertex_t col_value_input_offset = GraphViewType::is_adj_matrix_transposed
+                                            ? graph_view.is_hypergraph_partitioned()
+                                                ? matrix_partition.get_major_value_start_offset()
+                                                : 0
+                                            : 0;
 
-      detail::for_all_major_for_all_nbr_low_degree<in == GraphViewType::is_adj_matrix_transposed>
-        <<<update_grid.num_blocks, update_grid.block_size, 0, handle.get_stream()>>>(
-          matrix_partition,
-          graph_view.get_vertex_partition_first(comm_root_rank),
-          graph_view.get_vertex_partition_last(comm_root_rank),
-          adj_matrix_row_value_input_first + row_value_input_offset,
-          adj_matrix_col_value_input_first + col_value_input_offset,
-          (in == GraphViewType::is_adj_matrix_transposed) ? major_buffer_first : minor_buffer_first,
-          e_op,
-          major_init);
-    } else {
-      detail::for_all_major_for_all_nbr_low_degree<in == GraphViewType::is_adj_matrix_transposed>
-        <<<update_grid.num_blocks, update_grid.block_size, 0, handle.get_stream()>>>(
-          matrix_partition,
-          graph_view.get_vertex_partition_first(comm_root_rank),
-          graph_view.get_vertex_partition_last(comm_root_rank),
-          adj_matrix_row_value_input_first,
-          adj_matrix_col_value_input_first,
-          vertex_value_output_first,
-          e_op,
-          major_init);
+        detail::for_all_major_for_all_nbr_low_degree<in == GraphViewType::is_adj_matrix_transposed>
+          <<<update_grid.num_blocks, update_grid.block_size, 0, handle.get_stream()>>>(
+            matrix_partition,
+            graph_view.get_vertex_partition_first(comm_root_rank),
+            graph_view.get_vertex_partition_last(comm_root_rank),
+            adj_matrix_row_value_input_first + row_value_input_offset,
+            adj_matrix_col_value_input_first + col_value_input_offset,
+            (in == GraphViewType::is_adj_matrix_transposed) ? major_buffer_first
+                                                            : minor_buffer_first,
+            e_op,
+            major_init);
+      } else {
+        detail::for_all_major_for_all_nbr_low_degree<in == GraphViewType::is_adj_matrix_transposed>
+          <<<update_grid.num_blocks, update_grid.block_size, 0, handle.get_stream()>>>(
+            matrix_partition,
+            graph_view.get_vertex_partition_first(comm_root_rank),
+            graph_view.get_vertex_partition_last(comm_root_rank),
+            adj_matrix_row_value_input_first,
+            adj_matrix_col_value_input_first,
+            vertex_value_output_first,
+            e_op,
+            major_init);
+      }
     }
 
     if (GraphViewType::is_multi_gpu && (in == GraphViewType::is_adj_matrix_transposed)) {
@@ -626,11 +629,7 @@ void copy_v_transform_reduce_nbr(raft::handle_t const& handle,
  * input properties.
  * @tparam AdjMatrixColValueInputIterator Type of the iterator for graph adjacency matrix column
  * input properties.
- * @tparam EdgeOp Type of the quaternraft::grid_1d_thread_t
- update_grid(matrix_partition.get_major_size(),
-                                       detail::copy_v_transform_reduce_nbr_for_all_block_size,
-                                       handle.get_device_properties().maxGridSize[0]);ary (or
- quinary) edge operator.
+ * @tparam EdgeOp Type of the quaternary (or quinary) edge operator.
  * @tparam T Type of the initial value for reduction over the incoming edges.
  * @tparam VertexValueOutputIterator Type of the iterator for vertex output property variables.
  * @param handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator, and
