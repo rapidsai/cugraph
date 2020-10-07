@@ -14,15 +14,65 @@
 from cugraph.raft.dask.common.comms import Comms as raftComms
 from cugraph.raft.dask.common.comms import worker_state
 from cugraph.raft.common.handle import Handle
+from cugraph.comms.comms_wrapper import init_subcomms as c_init_subcomms
+from dask.distributed import default_client
+import math
 
 
 __instance = None
 __default_handle = None
+__subcomm = None
+
+
+def __get_2D_div(ngpus):
+    pcols = int(math.sqrt(ngpus))
+    while ngpus % pcols != 0:
+        pcols = pcols - 1
+    return int(ngpus/pcols), pcols
+
+
+def subcomm_init(prows, pcols, partition_type):
+    sID = get_session_id()
+    ngpus = get_n_workers()
+    if prows is None and pcols is None:
+        if partition_type == 1:
+            pcols, prows = __get_2D_div(ngpus)
+        else:
+            prows, pcols = __get_2D_div(ngpus)
+    else:
+        if prows is not None and pcols is not None:
+            if ngpus != prows*pcols:
+                raise Exception('prows*pcols should be equal to the\
+ number of processes')
+        elif prows is not None:
+            if ngpus % prows != 0:
+                raise Exception('prows must be a factor of the number\
+ of processes')
+            pcols = int(ngpus/prows)
+        elif pcols is not None:
+            if ngpus % pcols != 0:
+                raise Exception('pcols must be a factor of the number\
+ of processes')
+            prows = int(ngpus/pcols)
+
+    client = default_client()
+    client.run(_subcomm_init, sID, pcols)
+    global __subcomm
+    __subcomm = (prows, pcols, partition_type)
+
+
+def _subcomm_init(sID, partition_row_size):
+    handle = get_handle(sID)
+    c_init_subcomms(handle, partition_row_size)
 
 
 # Intialize Comms. If explicit Comms not provided as arg,
 # default Comms are initialized as per client information.
-def initialize(comms=None, p2p=False):
+def initialize(comms=None,
+               p2p=False,
+               prows=None,
+               pcols=None,
+               partition_type=1):
     """
     Initialize a communicator for multi-node/multi-gpu communications.
     It is expected to be called right after client initialization for running
@@ -45,8 +95,11 @@ def initialize(comms=None, p2p=False):
         global __default_handle
         __default_handle = None
         if comms is None:
+            # Initialize communicator
             __instance = raftComms(comms_p2p=p2p)
             __instance.init()
+            # Initialize subcommunicator
+            subcomm_init(prows, pcols, partition_type)
         else:
             __instance = comms
     else:
@@ -82,6 +135,13 @@ def get_session_id():
         return __instance.sessionId
 
 
+# Get sessionId for finding sessionstate of workers.
+def get_2D_partition():
+    global __subcomm
+    if __subcomm is not None:
+        return __subcomm
+
+
 # Destroy Comms
 def destroy():
     """
@@ -114,6 +174,10 @@ def get_worker_id(sID):
     return sessionstate['wid']
 
 
-def get_n_workers(sID):
-    sessionstate = worker_state(sID)
-    return sessionstate['nworkers']
+def get_n_workers(sID=None):
+    if sID is None:
+        client = default_client()
+        return len(client.scheduler_info()['workers'])
+    else:
+        sessionstate = worker_state(sID)
+        return sessionstate['nworkers']
