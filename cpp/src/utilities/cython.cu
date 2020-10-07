@@ -123,9 +123,8 @@ void populate_graph_container(graph_container_t& graph_container,
   bool do_expensive_check{false};
   bool hypergraph_partitioned{false};
 
-  // FIXME: Consider setting up the subcomms right after initializing comms, no
-  // need to delay to this point.
-  // Setup the subcommunicators needed for this partition on the handle.
+  // FIXME: Check if handle has subcomm and add if not
+
   //partition_2d::subcomm_factory_t<partition_2d::key_naming_t, int> subcomm_factory(handle,
   //                                                                                 row_comm_size);
   // FIXME: once the subcomms are set up earlier (outside this function), remove
