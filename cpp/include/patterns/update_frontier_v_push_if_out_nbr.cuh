@@ -529,12 +529,13 @@ void update_frontier_v_push_if_out_nbr(
         graph_view.is_hypergraph_partitioned() ? col_comm_rank * row_comm_size + i
                                                : row_comm_rank * col_comm_size + i);
     }
+
     rmm::device_uvector<vertex_t> d_vertex_lasts(h_vertex_lasts.size(), handle.get_stream());
     raft::update_device(
       d_vertex_lasts.data(), h_vertex_lasts.data(), h_vertex_lasts.size(), handle.get_stream());
     rmm::device_uvector<edge_t> d_tx_buffer_last_boundaries(d_vertex_lasts.size(),
                                                             handle.get_stream());
-    thrust::upper_bound(rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
+    thrust::lower_bound(rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
                         buffer_key_first,
                         buffer_key_first + num_buffer_elements,
                         d_vertex_lasts.begin(),
