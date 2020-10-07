@@ -28,6 +28,7 @@
 - PR #1169 Added RAPIDS cpp packages to cugraph dev env
 - PR #1165 updated remaining algorithms to be NetworkX compatible
 - PR #1176 Update ci/local/README.md
+- PR #1184 BLD getting latest tags
 
 ## Bug Fixes
 - PR #1131 Show style checker errors with set +e
@@ -39,6 +40,8 @@
 - PR #1180 BLD Adopt RAFT model for cuhornet dependency
 - PR #1181 Fix notebook error handling in CI
 - PR #1199 BUG segfault in python test suite
+- PR #1186 BLD Installing raft headers under cugraph 
+- PR #1192 Fix benchmark notes and documentation issues in graph.py
 
 # cuGraph 0.15.0 (26 Aug 2020)
 
