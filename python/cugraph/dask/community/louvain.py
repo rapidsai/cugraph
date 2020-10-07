@@ -67,10 +67,6 @@ def louvain(input_graph, max_iter=100, resolution=1.0, load_balance=True):
     """
     # FIXME: finish docstring: describe parameters, etc.
 
-    # FIXME: import here to prevent circular import: cugraph->louvain
-    # wrapper->cugraph/structure->cugraph/dask->dask/louvain->cugraph/structure
-    # from cugraph.structure.graph import Graph
-
     # FIXME: dask methods to populate graphs from edgelists are only present on
     # DiGraph classes. Disable the Graph check for now and assume inputs are
     # symmetric DiGraphs.
