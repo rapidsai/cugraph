@@ -169,8 +169,6 @@ void populate_graph_container(graph_container_t& graph_container,
                               size_t num_partition_edges,
                               size_t num_global_vertices,
                               size_t num_global_edges,
-                              size_t row_comm_size,  // pcols
-                              size_t col_comm_size,  // prows
                               bool sorted_by_degree,
                               bool transposed,
                               bool multi_gpu);

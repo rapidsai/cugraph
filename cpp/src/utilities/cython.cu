@@ -111,8 +111,6 @@ void populate_graph_container(graph_container_t& graph_container,
                               size_t num_partition_edges,
                               size_t num_global_vertices,
                               size_t num_global_edges,
-                              size_t row_comm_size,  // pcols
-                              size_t col_comm_size,  // prows
                               bool sorted_by_degree,
                               bool transposed,
                               bool multi_gpu)
@@ -123,15 +121,12 @@ void populate_graph_container(graph_container_t& graph_container,
   bool do_expensive_check{false};
   bool hypergraph_partitioned{false};
 
-  // FIXME: once the subcomms are set up earlier (outside this function), remove
-  // the row/col_comm_size params and retrieve them from the handle (commented
-  // out lines below)
   auto& row_comm           = handle.get_subcomm(cugraph::partition_2d::key_naming_t().row_name());
   auto const row_comm_rank = row_comm.get_rank();
-  // auto const row_comm_size = row_comm.get_size(); // pcols
+  auto const row_comm_size = row_comm.get_size(); // pcols
   auto& col_comm           = handle.get_subcomm(cugraph::partition_2d::key_naming_t().col_name());
   auto const col_comm_rank = col_comm.get_rank();
-  // auto const col_comm_size = col_comm.get_size(); // prows
+  auto const col_comm_size = col_comm.get_size(); // prows
 
   graph_container.vertex_partition_offsets = vertex_partition_offsets;
   graph_container.src_vertices             = src_vertices;
