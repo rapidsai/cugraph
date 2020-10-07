@@ -199,7 +199,17 @@ std::pair<size_t, weight_t> call_louvain(raft::handle_t const& handle,
                                          size_t max_level,
                                          weight_t resolution);
 
-// Helper for setting up subcommunicators
+// Helper for setting up subcommunicators, typically called as part of the
+// user-initiated comms initialization in Python.
+//
+// raft::handle_t& handle
+//   Raft handle for which the new subcommunicators will be created. The
+//   subcommunicators will then be accessible from the handle passed to the
+//   parallel processes.
+//
+// size_t row_comm_size
+//   Number of items in a partition row (ie. pcols), needed for creating the
+//   appropriate number of subcommunicator instances.
 void init_subcomms(raft::handle_t& handle, size_t row_comm_size);
 
 }  // namespace cython

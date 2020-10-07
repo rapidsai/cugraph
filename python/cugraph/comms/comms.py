@@ -16,6 +16,7 @@ from cugraph.raft.dask.common.comms import worker_state
 from cugraph.raft.common.handle import Handle
 from cugraph.comms.comms_wrapper import init_subcomms as c_init_subcomms
 from dask.distributed import default_client
+from cugraph.dask.common import read_utils
 import math
 
 
@@ -66,18 +67,16 @@ def _subcomm_init(sID, partition_row_size):
     c_init_subcomms(handle, partition_row_size)
 
 
-# Intialize Comms. If explicit Comms not provided as arg,
-# default Comms are initialized as per client information.
 def initialize(comms=None,
                p2p=False,
                prows=None,
                pcols=None,
                partition_type=1):
-    """
-    Initialize a communicator for multi-node/multi-gpu communications.
-    It is expected to be called right after client initialization for running
-    multi-GPU algorithms. It wraps raft comms that manages underlying NCCL and
-    UCX comms handles across the workers of a Dask cluster.
+    """Initialize a communicator for multi-node/multi-gpu communications.  It is
+    expected to be called right after client initialization for running
+    multi-GPU algorithms (this wraps raft comms that manages underlying NCCL and
+    UCX comms handles across the workers of a Dask cluster).
+
     It is recommended to also call `destroy()` when the comms are no longer
     needed so the underlying resources can be cleaned up.
 
@@ -85,9 +84,26 @@ def initialize(comms=None,
     ----------
     comms : raft Comms
         A pre-initialized raft communicator. If provided, this is used for mnmg
-        communications.
+        communications. If not provided, default comms are initialized as per
+        client information.
     p2p : bool
-        Initialize UCX endpoints
+        Initialize UCX endpoints if True. Default is False.
+    prows : int
+        Specifies the number of rows when performing a 2D partitioning of the
+        input graph. If specified, this must be a factor of the total number of
+        parallel processes. When specified with pcols, prows*pcols should be
+        equal to the total number of parallel processes.
+    pcols : int
+        Specifies the number of columns when performing a 2D partitioning of the
+        input graph. If specified, this must be a factor of the total number of
+        parallel processes. When specified with prows, prows*pcols should be
+        equal to the total number of parallel processes.
+    partition_type : int
+        Valid values are currently 1 or any int other than 1. A value of 1 (the
+        default) represents a partitioning resulting in prows*pcols
+        partitions. A non-1 value currently results in a partitioning of p*pcols
+        partitions, where p is the number of GPUs.
+
     """
 
     global __instance
@@ -106,8 +122,10 @@ def initialize(comms=None,
         raise Exception("Communicator is already initialized")
 
 
-# Check is Comms was initialized.
 def is_initialized():
+    """
+    Returns True if comms was initialized, False otherwise.
+    """
     global __instance
     if __instance is not None:
         return True
@@ -115,34 +133,44 @@ def is_initialized():
         return False
 
 
-# Get raft Comms
 def get_comms():
+    """
+    Returns raft Comms instance
+    """
     global __instance
     return __instance
 
 
-# Get workers in the Comms
 def get_workers():
+    """
+    Returns the workers in the Comms instance, or None if Comms is not
+    initialized.
+    """
     if is_initialized():
         global __instance
         return __instance.worker_addresses
 
 
-# Get sessionId for finding sessionstate of workers.
 def get_session_id():
+    """
+    Returns the sessionId for finding sessionstate of workers, or None if Comms
+    is not initialized.
+    """
     if is_initialized():
         global __instance
         return __instance.sessionId
 
 
-# Get sessionId for finding sessionstate of workers.
 def get_2D_partition():
+    """
+    Returns a tuple representing the 2D partition information: (prows, pcols,
+    partition_type)
+    """
     global __subcomm
     if __subcomm is not None:
         return __subcomm
 
 
-# Destroy Comms
 def destroy():
     """
     Shuts down initialized comms and cleans up resources.
@@ -153,9 +181,10 @@ def destroy():
         __instance = None
 
 
-# Default handle in case Comms is not initialized.
-# This does not perform nccl initialization.
 def get_default_handle():
+    """
+    Returns the default handle. This does not perform nccl initialization.
+    """
     global __default_handle
     if __default_handle is None:
         __default_handle = Handle()
@@ -174,10 +203,16 @@ def get_worker_id(sID):
     return sessionstate['wid']
 
 
+# FIXME: There are several similar instances of utility functions for getting
+# the number of workers, including:
+#   * get_n_workers() (from cugraph.dask.common.read_utils)
+#   * len(get_visible_devices())
+#   * len(numba.cuda.gpus)
+# Consider consolidating these or emphasizing why different functions/techniques
+# are needed.
 def get_n_workers(sID=None):
     if sID is None:
-        client = default_client()
-        return len(client.scheduler_info()['workers'])
+        return read_utils.get_n_workers()
     else:
         sessionstate = worker_state(sID)
         return sessionstate['nworkers']
