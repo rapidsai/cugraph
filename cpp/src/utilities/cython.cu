@@ -123,10 +123,10 @@ void populate_graph_container(graph_container_t& graph_container,
 
   auto& row_comm           = handle.get_subcomm(cugraph::partition_2d::key_naming_t().row_name());
   auto const row_comm_rank = row_comm.get_rank();
-  auto const row_comm_size = row_comm.get_size(); // pcols
+  auto const row_comm_size = row_comm.get_size();  // pcols
   auto& col_comm           = handle.get_subcomm(cugraph::partition_2d::key_naming_t().col_name());
   auto const col_comm_rank = col_comm.get_rank();
-  auto const col_comm_size = col_comm.get_size(); // prows
+  auto const col_comm_size = col_comm.get_size();  // prows
 
   graph_container.vertex_partition_offsets = vertex_partition_offsets;
   graph_container.src_vertices             = src_vertices;
@@ -482,11 +482,10 @@ template std::pair<size_t, double> call_louvain(raft::handle_t const& handle,
                                                 double resolution);
 
 // Helper for setting up subcommunicators
-void init_subcomms(raft::handle_t& handle,
-                   size_t row_comm_size)
+void init_subcomms(raft::handle_t& handle, size_t row_comm_size)
 {
-   partition_2d::subcomm_factory_t<partition_2d::key_naming_t, int> subcomm_factory(handle,
-                                                                                    row_comm_size);
+  partition_2d::subcomm_factory_t<partition_2d::key_naming_t, int> subcomm_factory(handle,
+                                                                                   row_comm_size);
 }
 
 }  // namespace cython
