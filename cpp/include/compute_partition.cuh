@@ -137,22 +137,6 @@ class compute_partition_t {
         std::size_t row = src_partition / row_size_;
         std::size_t col = dst_partition / col_size_;
 
-#if 1
-        printf(
-          "edge_device_view_t: src = %d, dst = %d, d_vertex_partition_offsets = (%d, %d, %d), "
-          "src_partition = %d, row = %d, dst_partition = %d, col = %d, return = %d\n",
-          (int)src,
-          (int)dst,
-          d_vertex_partition_offsets_[0],
-          d_vertex_partition_offsets_[1],
-          d_vertex_partition_offsets_[2],
-          (int)src_partition,
-          (int)row,
-          (int)dst_partition,
-          (int)col,
-          (int)(row * row_size_ + col));
-#endif
-
         return row * row_size_ + col;
       } else {
         return 0;
