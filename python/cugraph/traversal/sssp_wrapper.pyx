@@ -34,13 +34,22 @@ def sssp(input_graph, source):
     Call sssp
     """
     # Step 1: Declare the different variables
-    cdef GraphCSRView[int, int, float]  graph_float     # For weighted float graph (SSSP) and Unweighted (BFS)
-    cdef GraphCSRView[int, int, double] graph_double    # For weighted double graph (SSSP)
+    cdef graph_container_t graph_container
+    # FIXME: Offsets and indices are currently hardcoded to int, but this may
+    #        not be acceptable in the future.
+    numberTypeMap = {np.dtype("int32") : <int>numberTypeEnum.int32Type,
+                     np.dtype("int64") : <int>numberTypeEnum.int64Type,
+                     np.dtype("float32") : <int>numberTypeEnum.floatType,
+                     np.dtype("double") : <int>numberTypeEnum.doubleType}
 
     # Pointers required for CSR Graph
     cdef uintptr_t c_offsets_ptr        = <uintptr_t> NULL # Pointer to the CSR offsets
     cdef uintptr_t c_indices_ptr        = <uintptr_t> NULL # Pointer to the CSR indices
     cdef uintptr_t c_weights_ptr        = <uintptr_t> NULL # Pointer to the CSR weights
+    cdef uintptr_t c_local_verts = <uintptr_t> NULL;
+    cdef uintptr_t c_local_edges = <uintptr_t> NULL;
+    cdef uintptr_t c_local_offsets = <uintptr_t> NULL;
+    weight_t = np.dtype("int32")
 
     # Pointers for SSSP / BFS
     cdef uintptr_t c_identifier_ptr     = <uintptr_t> NULL # Pointer to the DataFrame 'vertex' Series
@@ -49,6 +58,7 @@ def sssp(input_graph, source):
 
     cdef unique_ptr[handle_t] handle_ptr
     handle_ptr.reset(new handle_t())
+    handle_ = handle_ptr.get();
 
     # Step 2: Verify that input_graph has the expected format
     #         the SSSP implementation expects CSR format
@@ -65,9 +75,8 @@ def sssp(input_graph, source):
     c_offsets_ptr = offsets.__cuda_array_interface__['data'][0]
     c_indices_ptr = indices.__cuda_array_interface__['data'][0]
 
-    data_type = np.int32
     if weights is not None:
-        data_type = weights.dtype
+        weight_t = weights.dtype
         c_weights_ptr = weights.__cuda_array_interface__['data'][0]
 
     # Step 4: Setup number of vertices and number of edges
@@ -83,7 +92,7 @@ def sssp(input_graph, source):
     df = cudf.DataFrame()
 
     df['vertex'] = cudf.Series(np.zeros(num_verts, dtype=np.int32))
-    df['distance'] = cudf.Series(np.zeros(num_verts, dtype=data_type))
+    df['distance'] = cudf.Series(np.zeros(num_verts, dtype=weight_t))
     df['predecessor'] = cudf.Series(np.zeros(num_verts, dtype=np.int32))
 
     # Step 7: Associate <uintptr_t> to cudf Series
@@ -94,44 +103,41 @@ def sssp(input_graph, source):
     # Step 8: Dispatch to SSSP / BFS Based on weights
     #         - weights is not None: SSSP float or SSSP double
     #         - weights is None: BFS
+    populate_graph_container_legacy(graph_container,
+                                    <graphTypeEnum>(<int>(graphTypeEnum.LegacyCSR)),
+                                    handle_[0],
+                                    <void*>c_offsets_ptr, <void*>c_indices_ptr, <void*>c_weights_ptr,
+                                    <numberTypeEnum>(<int>(numberTypeEnum.int32Type)),
+                                    <numberTypeEnum>(<int>(numberTypeEnum.int32Type)),
+                                    <numberTypeEnum>(<int>(numberTypeMap[weight_t])),
+                                    num_verts, num_edges,
+                                    <int*>c_local_verts, <int*>c_local_edges, <int*>c_local_offsets)
+
     if weights is not None:
-        if data_type == np.float32:
-            graph_float = GraphCSRView[int, int, float](<int*> c_offsets_ptr,
-                                                     <int*> c_indices_ptr,
-                                                     <float*> c_weights_ptr,
-                                                     num_verts,
-                                                     num_edges)
-            graph_float.get_vertex_identifiers(<int*> c_identifier_ptr)
-            c_sssp.sssp[int, int, float](graph_float,
+        if weight_t == np.float32:
+            c_sssp.call_sssp[int, float](handle_[0],
+                                         graph_container,
+                                         <int*> c_identifier_ptr,
                                          <float*> c_distance_ptr,
                                          <int*> c_predecessor_ptr,
                                          <int> source)
-        elif data_type == np.float64:
-            graph_double = GraphCSRView[int, int, double](<int*> c_offsets_ptr,
-                                                      <int*> c_indices_ptr,
-                                                      <double*> c_weights_ptr,
-                                                      num_verts,
-                                                      num_edges)
-            graph_double.get_vertex_identifiers(<int*> c_identifier_ptr)
-            c_sssp.sssp[int, int, double](graph_double,
+        elif weight_t == np.float64:
+            c_sssp.call_sssp[int, double](handle_[0],
+                                          graph_container,
+                                          <int*> c_identifier_ptr,
                                           <double*> c_distance_ptr,
                                           <int*> c_predecessor_ptr,
                                           <int> source)
         else: # This case should not happen
             raise NotImplementedError
     else:
-        # FIXME: Something might be done here considering WT = float
-        graph_float = GraphCSRView[int, int, float](<int*> c_offsets_ptr,
-                                                <int*> c_indices_ptr,
-                                                <float*> NULL,
-                                                num_verts,
-                                                num_edges)
-        graph_float.get_vertex_identifiers(<int*> c_identifier_ptr)
-        c_bfs.bfs[int, int, float](handle_ptr.get()[0],
-                                   graph_float,
+        c_bfs.call_bfs[int, float](handle_[0],
+                                   graph_container,
+                                   <int*> c_identifier_ptr,
                                    <int*> c_distance_ptr,
                                    <int*> c_predecessor_ptr,
                                    <double*> NULL,
-                                   <int> source)
+                                   <int> source,
+                                   <bool> 1)
 
     return df

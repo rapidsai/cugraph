@@ -239,23 +239,25 @@ class VertexFrontier {
     auto bucket_and_bucket_size_device_ptrs = get_bucket_and_bucket_size_device_pointers();
 
     auto& this_bucket = get_bucket(bucket_idx);
-    raft::grid_1d_thread_t move_and_invalidate_if_grid(
-      this_bucket.size(),
-      detail::move_and_invalidate_if_block_size,
-      handle_ptr_->get_device_properties().maxGridSize[0]);
+    if (this_bucket.size() > 0) {
+      raft::grid_1d_thread_t move_and_invalidate_if_grid(
+        this_bucket.size(),
+        detail::move_and_invalidate_if_block_size,
+        handle_ptr_->get_device_properties().maxGridSize[0]);
 
-    detail::move_and_invalidate_if<kNumBuckets>
-      <<<move_and_invalidate_if_grid.num_blocks,
-         move_and_invalidate_if_grid.block_size,
-         0,
-         handle_ptr_->get_stream()>>>(this_bucket.begin(),
-                                      this_bucket.end(),
-                                      std::get<0>(bucket_and_bucket_size_device_ptrs).get(),
-                                      std::get<1>(bucket_and_bucket_size_device_ptrs).get(),
-                                      bucket_idx,
-                                      kInvalidBucketIdx,
-                                      invalid_vertex,
-                                      split_op);
+      detail::move_and_invalidate_if<kNumBuckets>
+        <<<move_and_invalidate_if_grid.num_blocks,
+           move_and_invalidate_if_grid.block_size,
+           0,
+           handle_ptr_->get_stream()>>>(this_bucket.begin(),
+                                        this_bucket.end(),
+                                        std::get<0>(bucket_and_bucket_size_device_ptrs).get(),
+                                        std::get<1>(bucket_and_bucket_size_device_ptrs).get(),
+                                        bucket_idx,
+                                        kInvalidBucketIdx,
+                                        invalid_vertex,
+                                        split_op);
+    }
 
     // FIXME: if we adopt CUDA cooperative group https://devblogs.nvidia.com/cooperative-groups
     // and global sync(), we can merge this step with the above kernel (and rename the above kernel
