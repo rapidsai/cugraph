@@ -191,11 +191,11 @@ typename GraphViewType::edge_type count_if_e(
 
     if (matrix_partition.get_major_size() > 0) {
       auto row_value_input_offset = GraphViewType::is_adj_matrix_transposed
-                                      ? 0
+                                      ? vertex_t{0}
                                       : matrix_partition.get_major_value_start_offset();
       auto col_value_input_offset = GraphViewType::is_adj_matrix_transposed
                                       ? matrix_partition.get_major_value_start_offset()
-                                      : 0;
+                                      : vertex_t{0};
 
       raft::grid_1d_thread_t update_grid(matrix_partition.get_major_size(),
                                          detail::count_if_e_for_all_block_size,

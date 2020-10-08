@@ -444,18 +444,8 @@ void update_frontier_v_push_if_out_nbr(
     auto buffer_key_first     = std::get<0>(buffer_first);
     auto buffer_payload_first = std::get<1>(buffer_first);
 
-    vertex_t row_value_input_offset = 0;
-    if (GraphViewType::is_multi_gpu) {
-      auto& row_comm = handle.get_subcomm(cugraph::partition_2d::key_naming_t().row_name());
-      auto const row_comm_size = row_comm.get_size();
-      auto& col_comm = handle.get_subcomm(cugraph::partition_2d::key_naming_t().col_name());
-      auto const col_comm_rank = col_comm.get_rank();
-      row_value_input_offset =
-        graph_view.is_hypergraph_partitioned()
-          ? matrix_partition.get_major_value_start_offset()
-          : graph_view.get_vertex_partition_first(col_comm_rank * row_comm_size + i) -
-              graph_view.get_vertex_partition_first(col_comm_rank * row_comm_size);
-    }
+    auto row_value_input_offset =
+      GraphViewType::is_adj_matrix_transposed ? vertex_t{0} : matrix_partition.get_major_value_start_offset();
 
     // FIXME: This is highly inefficeint for graphs with high-degree vertices. If we renumber
     // vertices to insure that rows within a partition are sorted by their out-degree in decreasing

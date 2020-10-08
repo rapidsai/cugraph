@@ -21,6 +21,7 @@
 #include <utilities/comm_utils.cuh>
 #include <utilities/error.hpp>
 #include <utilities/thrust_tuple_utils.cuh>
+#include <vertex_partition_device.cuh>
 
 #include <rmm/thrust_rmm_allocator.h>
 #include <raft/handle.hpp>
@@ -114,24 +115,28 @@ void copy_to_matrix_major(raft::handle_t const& handle,
         host_scalar_allgather(row_comm,
                               static_cast<size_t>(thrust::distance(vertex_first, vertex_last)),
                               handle.get_stream());
-      std::vector<size_t> displacements(row_comm_size, size_t{0});
-      std::partial_sum(rx_counts.begin(), rx_counts.end() - 1, displacements.begin() + 1);
 
       matrix_partition_device_t<GraphViewType> matrix_partition(graph_view, 0);
       for (int i = 0; i < row_comm_size; ++i) {
-        rmm::device_uvector<vertex_t> rx_vertices(rx_counts[i], handle.get_stream());
+        rmm::device_uvector<vertex_t> rx_vertices(row_comm_rank == i ? size_t{0} : rx_counts[i],
+                                                  handle.get_stream());
         auto rx_tmp_buffer =
           allocate_comm_buffer<typename std::iterator_traits<VertexValueInputIterator>::value_type>(
             rx_counts[i], handle.get_stream());
         auto rx_value_first = get_comm_buffer_begin<
           typename std::iterator_traits<VertexValueInputIterator>::value_type>(rx_tmp_buffer);
 
-        if (i == row_comm_rank) {
+        if (row_comm_rank == i) {
+          vertex_partition_device_t<GraphViewType> vertex_partition(graph_view);
+          auto map_first =
+            thrust::make_transform_iterator(vertex_first, [vertex_partition] __device__(auto v) {
+              return vertex_partition.get_local_vertex_offset_from_vertex_nocheck(v);
+            });
           // FIXME: this gather (and temporary buffer) is unnecessary if NCCL directly takes a
           // permutation iterator (and directly gathers to the internal buffer)
           thrust::gather(rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
-                         vertex_first,
-                         vertex_last,
+                         map_first,
+                         map_first + thrust::distance(vertex_first, vertex_last),
                          vertex_value_input_first,
                          rx_value_first);
         }
@@ -143,17 +148,31 @@ void copy_to_matrix_major(raft::handle_t const& handle,
         device_bcast(
           row_comm, rx_value_first, rx_value_first, rx_counts[i], i, handle.get_stream());
 
-        auto map_first = thrust::make_transform_iterator(
-          rx_vertices.begin(), [matrix_partition] __device__(auto v) {
-            return matrix_partition.get_major_offset_from_major_nocheck(v);
-          });
-        // FIXME: this scatter is unnecessary if NCCL directly takes a permutation iterator (and
-        // directly scatters from the internal buffer)
-        thrust::scatter(rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
-                        rx_value_first,
-                        rx_value_first + rx_counts[i],
-                        map_first,
-                        matrix_major_value_output_first);
+        if (row_comm_rank == i) {
+          auto map_first =
+            thrust::make_transform_iterator(vertex_first, [matrix_partition] __device__(auto v) {
+              return matrix_partition.get_major_offset_from_major_nocheck(v);
+            });
+          // FIXME: this scatter is unnecessary if NCCL directly takes a permutation iterator (and
+          // directly scatters from the internal buffer)
+          thrust::scatter(rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
+                          rx_value_first,
+                          rx_value_first + rx_counts[i],
+                          map_first,
+                          matrix_major_value_output_first);
+        } else {
+          auto map_first = thrust::make_transform_iterator(
+            rx_vertices.begin(), [matrix_partition] __device__(auto v) {
+              return matrix_partition.get_major_offset_from_major_nocheck(v);
+            });
+          // FIXME: this scatter is unnecessary if NCCL directly takes a permutation iterator (and
+          // directly scatters from the internal buffer)
+          thrust::scatter(rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
+                          rx_value_first,
+                          rx_value_first + rx_counts[i],
+                          map_first,
+                          matrix_major_value_output_first);
+        }
 
         CUDA_TRY(cudaStreamSynchronize(
           handle.get_stream()));  // this is as necessary rx_tmp_buffer will become out-of-scope
@@ -308,6 +327,8 @@ void copy_to_matrix_minor(raft::handle_t const& handle,
         comm.irecv(&rx_count, 1, comm_src_rank, 0 /* tag */, count_requests.data() + 1);
         comm.waitall(count_requests.size(), count_requests.data());
       }
+
+      vertex_partition_device_t<GraphViewType> vertex_partition(graph_view);
       rmm::device_uvector<vertex_t> dst_vertices(rx_count, handle.get_stream());
       auto dst_tmp_buffer =
         allocate_comm_buffer<typename std::iterator_traits<VertexValueInputIterator>::value_type>(
@@ -320,9 +341,13 @@ void copy_to_matrix_minor(raft::handle_t const& handle,
                      vertex_first,
                      vertex_last,
                      dst_vertices.begin());
+        auto map_first =
+          thrust::make_transform_iterator(vertex_first, [vertex_partition] __device__(auto v) {
+            return vertex_partition.get_local_vertex_offset_from_vertex_nocheck(v);
+          });
         thrust::gather(rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
-                       vertex_first,
-                       vertex_last,
+                       map_first,
+                       map_first + thrust::distance(vertex_first, vertex_last),
                        vertex_value_input_first,
                        dst_value_first);
       } else {
@@ -335,9 +360,13 @@ void copy_to_matrix_minor(raft::handle_t const& handle,
         auto src_value_first = get_comm_buffer_begin<
           typename std::iterator_traits<VertexValueInputIterator>::value_type>(src_tmp_buffer);
 
+        auto map_first =
+          thrust::make_transform_iterator(vertex_first, [vertex_partition] __device__(auto v) {
+            return vertex_partition.get_local_vertex_offset_from_vertex_nocheck(v);
+          });
         thrust::gather(rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
-                       vertex_first,
-                       vertex_last,
+                       map_first,
+                       map_first + thrust::distance(vertex_first, vertex_last),
                        vertex_value_input_first,
                        src_value_first);
 
@@ -385,12 +414,11 @@ void copy_to_matrix_minor(raft::handle_t const& handle,
       // FIXME: now we can clear tx_tmp_buffer
 
       auto rx_counts = host_scalar_allgather(col_comm, rx_count, handle.get_stream());
-      std::vector<size_t> displacements(col_comm_size, size_t{0});
-      std::partial_sum(rx_counts.begin(), rx_counts.end() - 1, displacements.begin() + 1);
 
       matrix_partition_device_t<GraphViewType> matrix_partition(graph_view, 0);
       for (int i = 0; i < col_comm_size; ++i) {
-        rmm::device_uvector<vertex_t> rx_vertices(rx_counts[i], handle.get_stream());
+        rmm::device_uvector<vertex_t> rx_vertices(col_comm_rank == i ? size_t{0} : rx_counts[i],
+                                                  handle.get_stream());
         auto rx_tmp_buffer =
           allocate_comm_buffer<typename std::iterator_traits<VertexValueInputIterator>::value_type>(
             rx_counts[i], handle.get_stream());
@@ -408,16 +436,29 @@ void copy_to_matrix_minor(raft::handle_t const& handle,
         device_bcast(
           col_comm, dst_value_first, rx_value_first, rx_counts[i], i, handle.get_stream());
 
-        auto map_first = thrust::make_transform_iterator(
-          rx_vertices.begin(), [matrix_partition] __device__(auto v) {
-            return matrix_partition.get_minor_offset_from_minor_nocheck(v);
-          });
+        if (col_comm_rank == i) {
+          auto map_first = thrust::make_transform_iterator(
+            dst_vertices.begin(), [matrix_partition] __device__(auto v) {
+              return matrix_partition.get_minor_offset_from_minor_nocheck(v);
+            });
 
-        thrust::scatter(rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
-                        rx_value_first,
-                        rx_value_first + rx_counts[i],
-                        map_first,
-                        matrix_minor_value_output_first);
+          thrust::scatter(rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
+                          dst_value_first,
+                          dst_value_first + rx_counts[i],
+                          map_first,
+                          matrix_minor_value_output_first);
+        } else {
+          auto map_first = thrust::make_transform_iterator(
+            rx_vertices.begin(), [matrix_partition] __device__(auto v) {
+              return matrix_partition.get_minor_offset_from_minor_nocheck(v);
+            });
+
+          thrust::scatter(rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
+                          rx_value_first,
+                          rx_value_first + rx_counts[i],
+                          map_first,
+                          matrix_minor_value_output_first);
+        }
 
         CUDA_TRY(cudaStreamSynchronize(
           handle.get_stream()));  // this is as necessary rx_tmp_buffer will become out-of-scope

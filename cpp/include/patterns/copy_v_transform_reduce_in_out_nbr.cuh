@@ -463,16 +463,12 @@ void copy_v_transform_reduce_nbr(raft::handle_t const& handle,
         auto& col_comm = handle.get_subcomm(cugraph::partition_2d::key_naming_t().col_name());
         auto const col_comm_rank = col_comm.get_rank();
 
-        vertex_t row_value_input_offset = GraphViewType::is_adj_matrix_transposed
-                                            ? 0
-                                            : graph_view.is_hypergraph_partitioned()
-                                                ? matrix_partition.get_major_value_start_offset()
-                                                : 0;
-        vertex_t col_value_input_offset = GraphViewType::is_adj_matrix_transposed
-                                            ? graph_view.is_hypergraph_partitioned()
-                                                ? matrix_partition.get_major_value_start_offset()
-                                                : 0
-                                            : 0;
+        auto row_value_input_offset = GraphViewType::is_adj_matrix_transposed
+                                      ? vertex_t{0}
+                                      : matrix_partition.get_major_value_start_offset();
+        auto col_value_input_offset = GraphViewType::is_adj_matrix_transposed
+                                      ? matrix_partition.get_major_value_start_offset()
+                                      : vertex_t{0};
 
         detail::for_all_major_for_all_nbr_low_degree<in == GraphViewType::is_adj_matrix_transposed>
           <<<update_grid.num_blocks, update_grid.block_size, 0, handle.get_stream()>>>(
