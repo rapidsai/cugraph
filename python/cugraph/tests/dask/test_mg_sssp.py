@@ -39,7 +39,7 @@ def client_connection():
 @pytest.mark.skipif(
     is_single_gpu(), reason="skipping MG testing on Single GPU system"
 )
-def test_dask_bfs(client_connection):
+def test_dask_sssp(client_connection):
     gc.collect()
 
     input_data_path = r"../datasets/netscience.csv"

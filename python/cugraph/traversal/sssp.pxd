@@ -20,10 +20,10 @@ from cugraph.structure.graph_primtypes cimport *
 
 cdef extern from "utilities/cython.hpp" namespace "cugraph::cython":
 
-    cdef void call_sssp[VT, WT](
+    cdef void call_sssp[vertex_t, weight_t](
         const handle_t &handle,
         const graph_container_t &g,
-        VT *identifiers,
-        WT *distances,
-        VT *predecessors,
-        VT start_vertex) except +
+        vertex_t *identifiers,
+        weight_t *distances,
+        vertex_t *predecessors,
+        vertex_t start_vertex) except +
