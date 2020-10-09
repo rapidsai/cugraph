@@ -232,7 +232,7 @@ void pagerank(raft::handle_t const& handle,
 
     auto unvarying_part =
       personalization_vertices == nullptr
-        ? (dangling_sum * alpha + static_cast<result_t>(1.0 - alpha)) / static_cast<result_t>(num_vertices)
+        ? (dangling_sum + static_cast<result_t>(1.0 - alpha)) / static_cast<result_t>(num_vertices)
         : result_t{0.0};
 
     copy_v_transform_reduce_in_nbr(
@@ -258,7 +258,7 @@ void pagerank(raft::handle_t const& handle,
           auto v     = thrust::get<0>(val);
           auto value = thrust::get<1>(val);
           *(pageranks + vertex_partition.get_local_vertex_offset_from_vertex_nocheck(v)) +=
-            (dangling_sum * alpha + static_cast<result_t>(1.0 - alpha)) * (value / personalization_sum);
+            (dangling_sum + static_cast<result_t>(1.0 - alpha)) * (value / personalization_sum);
         });
     }
 
