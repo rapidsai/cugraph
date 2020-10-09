@@ -41,7 +41,9 @@
 - PR #1181 Fix notebook error handling in CI
 - PR #1199 BUG segfault in python test suite
 - PR #1186 BLD Installing raft headers under cugraph 
+- PR #1186 BLD Installing raft headers under cugraph
 - PR #1192 Fix benchmark notes and documentation issues in graph.py
+- PR #1196 Move subcomms init outside of individual algorithm functions
 
 # cuGraph 0.15.0 (26 Aug 2020)
 
