@@ -85,7 +85,6 @@ def mg_pagerank(input_df,
                              <numberTypeEnum>(<int>(numberTypeMap[weight_t])),
                              num_partition_edges,
                              num_global_verts, num_global_edges,
-                             partition_row_size, partition_col_size,
                              True,
                              True, True) 
 
