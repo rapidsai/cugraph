@@ -54,6 +54,10 @@ struct key_naming_t {
 using pair_comms_t =
   std::pair<std::shared_ptr<raft::comms::comms_t>, std::shared_ptr<raft::comms::comms_t>>;
 
+// FIXME: This class is a misnomer since the python layer is currently
+// responsible for creating and managing partitioning. Consider renaming it or
+// refactoring it away.
+//
 // class responsible for creating 2D partition sub-comms:
 // this is instantiated by each worker (processing element, PE)
 // for the row/column it belongs to;
