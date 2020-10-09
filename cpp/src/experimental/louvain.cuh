@@ -540,9 +540,9 @@ class Louvain {
 
     timer_display(std::cout);
 
-#ifdef DEBUG
+    //#ifdef DEBUG
     print_v("resulting cluster", d_cluster_vec, number_of_vertices_);
-#endif
+    //#endif
 
     return std::make_pair(num_level, best_modularity);
   }
