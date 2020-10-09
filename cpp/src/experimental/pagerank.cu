@@ -67,6 +67,7 @@ void pagerank(raft::handle_t const& handle,
 
   auto const num_vertices = pull_graph_view.get_number_of_vertices();
   if (num_vertices == 0) { return; }
+  do_expensive_check = false;
 
   // 1. check input arguments
 
