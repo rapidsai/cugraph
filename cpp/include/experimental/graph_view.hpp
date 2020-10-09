@@ -90,7 +90,7 @@ class partition_t {
               int col_comm_rank)
     : vertex_partition_offsets_(vertex_partition_offsets),
       hypergraph_partitioned_(hypergraph_partitioned),
-      comm_rank_(col_comm_rank * row_comm_size + row_comm_rank),
+      comm_rank_(col_comm_size * row_comm_rank + col_comm_rank),
       row_comm_size_(row_comm_size),
       col_comm_size_(col_comm_size),
       row_comm_rank_(row_comm_rank),
