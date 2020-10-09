@@ -560,7 +560,7 @@ void update_frontier_v_push_if_out_nbr(
     for (size_t i = 0; i < rx_counts.size(); ++i) {
       auto comm_src_rank = graph_view.is_hypergraph_partitioned()
                              ? col_comm_rank * row_comm_size + static_cast<int>(i)
-                             : row_comm_rank + static_cast<int>(i) * row_comm_size;
+                             : static_cast<int>(i) * row_comm_size + comm_rank / col_comm_size;
       if (comm_src_rank == comm_rank) {
         assert(tx_self_i != std::numeric_limits<size_t>::max());
         rx_counts[i] = tx_counts[tx_self_i];
@@ -634,7 +634,7 @@ void update_frontier_v_push_if_out_nbr(
     for (size_t i = 0; i < rx_counts.size(); ++i) {
       auto comm_src_rank = graph_view.is_hypergraph_partitioned()
                              ? col_comm_rank * row_comm_size + static_cast<int>(i)
-                             : row_comm_rank + static_cast<int>(i) * row_comm_size;
+                             : static_cast<int>(i) * row_comm_size + comm_rank / col_comm_size;
       if (comm_src_rank == comm_rank) {
         assert(tx_self_i != std::numeric_limits<size_t>::max());
         assert(rx_counts[i] == tx_counts[tx_self_i]);
