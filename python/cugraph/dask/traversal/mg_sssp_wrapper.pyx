@@ -15,34 +15,29 @@
 #
 
 from cugraph.structure.utils_wrapper import *
-from cugraph.dask.link_analysis cimport mg_pagerank as c_pagerank
+from cugraph.dask.traversal cimport mg_sssp as c_sssp
 import cudf
 from cugraph.structure.graph_primtypes cimport *
 import cugraph.structure.graph_primtypes_wrapper as graph_primtypes_wrapper
 from libc.stdint cimport uintptr_t
-from cython.operator cimport dereference as deref
-import numpy as np
 
+def mg_sssp(input_df,
+            num_global_verts,
+            num_global_edges,
+            partition_row_size,
+            partition_col_size,
+            vertex_partition_offsets,
+            rank,
+            handle,
+            start):
+    """
+    Call sssp
+    """
 
-def mg_pagerank(input_df,
-                num_global_verts,
-                num_global_edges,
-                partition_row_size,
-                partition_col_size,
-                vertex_partition_offsets,
-                rank,
-                handle,
-                alpha=0.85,
-                max_iter=100,
-                tol=1.0e-5,
-                personalization=None,
-                nstart=None):
-    """
-    Call pagerank
-    """
     cdef size_t handle_size_t = <size_t>handle.getHandle()
-    handle_ = <c_pagerank.handle_t*>handle_size_t
+    handle_ = <c_sssp.handle_t*>handle_size_t
 
+    # Local COO information
     src = input_df['src']
     dst = input_df['dst']
     vertex_t = src.dtype
@@ -54,6 +49,7 @@ def mg_pagerank(input_df,
         weights = input_df['value']
         weight_t = weights.dtype
     else:
+        weights = None
         weight_t = np.dtype("float32")
 
     # FIXME: Offsets and indices are currently hardcoded to int, but this may
@@ -69,6 +65,8 @@ def mg_pagerank(input_df,
     cdef uintptr_t c_src_vertices = src.__cuda_array_interface__['data'][0]
     cdef uintptr_t c_dst_vertices = dst.__cuda_array_interface__['data'][0]
     cdef uintptr_t c_edge_weights = <uintptr_t>NULL
+    if weights is not None:
+        c_edge_weights = weights.__cuda_array_interface__['data'][0]
 
     # FIXME: data is on device, move to host (to_pandas()), convert to np array and access pointer to pass to C
     cdef uintptr_t c_vertex_partition_offsets = vertex_partition_offsets.values_host.__array_interface__['data'][0]
@@ -86,31 +84,34 @@ def mg_pagerank(input_df,
                              num_global_verts, num_global_edges,
                              partition_row_size, partition_col_size,
                              True,
-                             True, True) 
+                             False, True) 
 
+    # Generate the cudf.DataFrame result
     df = cudf.DataFrame()
     df['vertex'] = cudf.Series(np.arange(vertex_partition_offsets.iloc[rank], vertex_partition_offsets.iloc[rank+1]), dtype=vertex_t)
-    df['pagerank'] = cudf.Series(np.zeros(len(df['vertex']), dtype=weight_t))
+    df['predecessor'] = cudf.Series(np.zeros(len(df['vertex']), dtype=vertex_t))
+    df['distance'] = cudf.Series(np.zeros(len(df['vertex']), dtype=weight_t))
 
-    cdef uintptr_t c_identifier = df['vertex'].__cuda_array_interface__['data'][0];
-    cdef uintptr_t c_pagerank_val = df['pagerank'].__cuda_array_interface__['data'][0];
+    # Associate <uintptr_t> to cudf Series
+    cdef uintptr_t c_predecessor_ptr = df['predecessor'].__cuda_array_interface__['data'][0]
+    cdef uintptr_t c_distance_ptr = df['distance'].__cuda_array_interface__['data'][0]
 
-    cdef uintptr_t c_pers_vtx = <uintptr_t>NULL
-    cdef uintptr_t c_pers_val = <uintptr_t>NULL
-    cdef int sz = 0
+    # MG BFS path assumes directed is true
+    if weight_t == np.float32:
+        c_sssp.call_sssp[int, float](handle_[0],
+                                     graph_container,
+                                     <int*> NULL,
+                                     <float*> c_distance_ptr,
+                                     <int*> c_predecessor_ptr,
+                                     <int> start)
+    elif weight_t == np.float64:
+        c_sssp.call_sssp[int, double](handle_[0],
+                                      graph_container,
+                                      <int*> NULL,
+                                      <double*> c_distance_ptr,
+                                      <int*> c_predecessor_ptr,
+                                      <int> start)
+    else: # This case should not happen
+        raise NotImplementedError
 
-    if personalization is not None:
-        sz = personalization['vertex'].shape[0]
-        personalization['vertex'] = personalization['vertex'].astype(np.int32)
-        personalization['values'] = personalization['values'].astype(df['pagerank'].dtype)
-        c_pers_vtx = personalization['vertex'].__cuda_array_interface__['data'][0]
-        c_pers_val = personalization['values'].__cuda_array_interface__['data'][0]
-
-    if (df['pagerank'].dtype == np.float32):
-        c_pagerank.call_pagerank[int, float](handle_[0], graph_container, <int*>c_identifier, <float*> c_pagerank_val, sz, <int*> c_pers_vtx, <float*> c_pers_val,
-                                 <float> alpha, <float> tol, <int> max_iter, <bool> 0)
-    else:
-        c_pagerank.call_pagerank[int, double](handle_[0], graph_container, <int*>c_identifier, <double*> c_pagerank_val, sz, <int*> c_pers_vtx, <double*> c_pers_val,
-                            <float> alpha, <float> tol, <int> max_iter, <bool> 0)
-    
     return df

@@ -13,22 +13,16 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
-
 from cugraph.structure.graph_primtypes cimport *
 from libcpp cimport bool
 
 
 cdef extern from "utilities/cython.hpp" namespace "cugraph::cython":
 
-    cdef void call_pagerank[vertex_t, weight_t](
+    cdef void call_sssp[VT,WT](
         const handle_t &handle,
         const graph_container_t &g,
-        vertex_t *identifiers,
-        weight_t *pagerank,
-        vertex_t size,
-        vertex_t *personalization_subset,
-        weight_t *personalization_values,
-        double alpha,
-        double tolerance,
-        long long max_iter,
-        bool has_guess) except +
+        VT *identifiers,
+        WT *distances,
+        VT *predecessors,
+        const VT start_vertex)

@@ -10,6 +10,7 @@
 - PR #1163 Integrated 2D shuffling and Louvain updates
 - PR #1178 Refactored cython graph factory code to scale to additional data types
 - PR #1175 Integrated 2D pagerank python/cython infra
+- PR #1177 Integrated 2D bfs and sssp python/cython infra
 
 ## Improvements
 - PR 1081 MNMG Renumbering - sort partitions by degree
@@ -29,6 +30,7 @@
 - PR #1169 Added RAPIDS cpp packages to cugraph dev env
 - PR #1165 updated remaining algorithms to be NetworkX compatible
 - PR #1176 Update ci/local/README.md
+- PR #1184 BLD getting latest tags
 
 ## Bug Fixes
 - PR #1131 Show style checker errors with set +e
@@ -39,7 +41,8 @@
 - PR #1166 Fix misspelling of function calls in asserts causing debug build to fail
 - PR #1180 BLD Adopt RAFT model for cuhornet dependency
 - PR #1181 Fix notebook error handling in CI
-
+- PR #1186 BLD Installing raft headers under cugraph 
+- PR #1192 Fix benchmark notes and documentation issues in graph.py
 
 # cuGraph 0.15.0 (26 Aug 2020)
 

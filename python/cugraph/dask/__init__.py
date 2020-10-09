@@ -13,5 +13,6 @@
 
 from .link_analysis.pagerank import pagerank
 from .traversal.bfs import bfs
+from .traversal.sssp import sssp
 from .common.read_utils import get_chunksize
 from .community.louvain import louvain

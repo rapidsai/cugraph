@@ -18,10 +18,12 @@
 
 from cugraph.structure.graph_primtypes cimport *
 
-cdef extern from "algorithms.hpp" namespace "cugraph":
+cdef extern from "utilities/cython.hpp" namespace "cugraph::cython":
 
-    cdef void sssp[VT, ET, WT](
-        const GraphCSRView[VT, ET, WT] &graph,
+    cdef void call_sssp[VT, WT](
+        const handle_t &handle,
+        const graph_container_t &g,
+        VT *identifiers,
         WT *distances,
         VT *predecessors,
         VT start_vertex) except +

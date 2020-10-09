@@ -491,6 +491,50 @@ host_scalar_allreduce(raft::comms::comms_t const& comm, T input, cudaStream_t st
 }
 
 template <typename T>
+std::enable_if_t<std::is_arithmetic<T>::value, T> host_scalar_bcast(
+  raft::comms::comms_t const& comm, T input, int root, cudaStream_t stream)
+{
+  rmm::device_uvector<T> d_input(1, stream);
+  if (comm.get_rank() == root) { raft::update_device(d_input.data(), &input, 1, stream); }
+  comm.bcast(d_input.data(), 1, root, stream);
+  auto h_input = input;
+  if (comm.get_rank() != root) { raft::update_host(&h_input, d_input.data(), 1, stream); }
+  auto status = comm.sync_stream(stream);
+  CUGRAPH_EXPECTS(status == raft::comms::status_t::SUCCESS, "sync_stream() failure.");
+  return h_input;
+}
+
+template <typename T>
+std::enable_if_t<cugraph::experimental::is_thrust_tuple_of_arithmetic<T>::value, T>
+host_scalar_bcast(raft::comms::comms_t const& comm, T input, int root, cudaStream_t stream)
+{
+  size_t constexpr tuple_size = thrust::tuple_size<T>::value;
+  std::vector<int64_t> h_tuple_scalar_elements(tuple_size);
+  rmm::device_uvector<int64_t> d_tuple_scalar_elements(tuple_size, stream);
+  auto ret = input;
+
+  if (comm.get_rank() == root) {
+    detail::update_vector_of_tuple_scalar_elements_from_tuple_impl<T, size_t{0}, tuple_size>()
+      .update(h_tuple_scalar_elements, input);
+    raft::update_device(
+      d_tuple_scalar_elements.data(), h_tuple_scalar_elements.data(), tuple_size, stream);
+  }
+  comm.bcast(d_tuple_scalar_elements.data(), d_tuple_scalar_elements.size(), root, stream);
+  if (comm.get_rank() != root) {
+    raft::update_host(
+      h_tuple_scalar_elements.data(), d_tuple_scalar_elements.data(), tuple_size, stream);
+  }
+  auto status = comm.sync_stream(stream);
+  CUGRAPH_EXPECTS(status == raft::comms::status_t::SUCCESS, "sync_stream() failure.");
+  if (comm.get_rank() != root) {
+    detail::update_tuple_from_vector_of_tuple_scalar_elements_impl<T, size_t{0}, tuple_size>()
+      .update(ret, h_tuple_scalar_elements);
+  }
+
+  return ret;
+}
+
+template <typename T>
 std::enable_if_t<std::is_arithmetic<T>::value, std::vector<T>> host_scalar_allgather(
   raft::comms::comms_t const& comm, T input, cudaStream_t stream)
 {

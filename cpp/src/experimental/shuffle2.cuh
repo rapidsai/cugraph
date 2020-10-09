@@ -47,14 +47,15 @@ rmm::device_vector<data_t> variable_shuffle(raft::handle_t const &handle,
   int my_gpu          = comms.get_rank();
 
   rmm::device_vector<size_t> local_sizes_v(num_gpus, size_t{0});
-  rmm::device_vector<bool>   out_of_bounds_v(1, false);
+  rmm::device_vector<bool> out_of_bounds_v(1, false);
 
   thrust::for_each(rmm::exec_policy(stream)->on(stream),
                    partition_iter,
                    partition_iter + n_elements,
-                   [num_gpus, d_out_of_bounds = out_of_bounds_v.data().get(), d_local_sizes = local_sizes_v.data().get()] __device__(auto p) {
-                     if ((p >= num_gpus) || (p < 0))
-                       d_out_of_bounds[0] = true;
+                   [num_gpus,
+                    d_out_of_bounds = out_of_bounds_v.data().get(),
+                    d_local_sizes   = local_sizes_v.data().get()] __device__(auto p) {
+                     if ((p >= num_gpus) || (p < 0)) d_out_of_bounds[0] = true;
                      atomicAdd(d_local_sizes + p, size_t{1});
                    });
 
@@ -210,28 +211,33 @@ rmm::device_vector<data_t> variable_shuffle(raft::handle_t const &handle,
  * MNMG algorithms require shuffling data between partitions
  * to get the data to the right location for computation.
  *
+ * This function operates dynamically, there is no
+ * a priori knowledge about where the data will need
+ * to be transferred.
+ *
  * This function will be executed on each GPU.  Each gpu
  * has a portion of the data (specified by begin_data and
  * end_data iterators) and an iterator that identifies
  * (for each corresponding element) which GPU the data
  * should be shuffled to.
  *
- * This function operates dynamically, there is no
- * a priori knowledge about where the data will need
- * to be transferred.
+ * The return value will be a device vector containing
+ * the data received by this GPU.
  *
- * The return value will be a unique pointer to a newly
- * allocated device pointer containing the data sent to
- * this GPU.
+ * Note that this function accepts iterators as input.
+ * `partition_iterator` will be traversed multiple times.
  *
+ * @tparam is_multi_gpu     If true, multi-gpu - shuffle will occur
+ *                          If false, single GPU - simple copy will occur
  * @tparam data_t           Type of the data being shuffled
  * @tparam iterator_t       Iterator referencing data to be shuffled
  * @tparam partition_iter_t Iterator identifying the destination partition
  *
  * @param  handle         Library handle (RAFT)
- * @param  data           Device vector containing the data.  Note the
- *                        contents of this vector will be reordered
- * @param  partition_iter Random access iterator for the partition
+ * @param  n_elements     Number of elements to transfer
+ * @param  data_iter      Iterator that returns the elements to be transfered
+ * @param  partition_iter Iterator that returns the partition where elements
+ *                        should be transfered.
  */
 template <bool is_multi_gpu,
           typename data_t,

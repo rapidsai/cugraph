@@ -98,6 +98,7 @@ def test_mg_louvain_with_edgevals(daskGraphFromDataset):
     # FIXME: either call Nx with the same dataset and compare results, or
     # hadcode golden results to compare to.
     print()
+    print("partitions")
     print(parts.compute())
-    print(mod)
+    print('modularity = ', mod)
     print()

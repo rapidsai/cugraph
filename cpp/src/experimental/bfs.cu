@@ -41,7 +41,7 @@ namespace experimental {
 namespace detail {
 
 template <typename GraphViewType, typename PredecessorIterator>
-void bfs(raft::handle_t &handle,
+void bfs(raft::handle_t const &handle,
          GraphViewType const &push_graph_view,
          typename GraphViewType::vertex_type *distances,
          PredecessorIterator predecessor_first,
@@ -93,7 +93,10 @@ void bfs(raft::handle_t &handle,
   enum class Bucket { cur, num_buckets };
   std::vector<size_t> bucket_sizes(static_cast<size_t>(Bucket::num_buckets),
                                    push_graph_view.get_number_of_local_vertices());
-  VertexFrontier<thrust::tuple<vertex_t>, vertex_t, false, static_cast<size_t>(Bucket::num_buckets)>
+  VertexFrontier<thrust::tuple<vertex_t>,
+                 vertex_t,
+                 GraphViewType::is_multi_gpu,
+                 static_cast<size_t>(Bucket::num_buckets)>
     vertex_frontier(handle, bucket_sizes);
 
   if (push_graph_view.is_local_vertex_nocheck(source_vertex)) {
@@ -158,13 +161,18 @@ void bfs(raft::handle_t &handle,
     if (depth >= depth_limit) { break; }
   }
 
+  CUDA_TRY(cudaStreamSynchronize(
+    handle.get_stream()));  // this is as necessary vertex_frontier will become out-of-scope once
+                            // this function returns (FIXME: should I stream sync in VertexFrontier
+                            // destructor?)
+
   return;
 }
 
 }  // namespace detail
 
 template <typename vertex_t, typename edge_t, typename weight_t, bool multi_gpu>
-void bfs(raft::handle_t &handle,
+void bfs(raft::handle_t const &handle,
          graph_view_t<vertex_t, edge_t, weight_t, false, multi_gpu> const &graph_view,
          vertex_t *distances,
          vertex_t *predecessors,
@@ -196,7 +204,7 @@ void bfs(raft::handle_t &handle,
 
 // explicit instantiation
 
-template void bfs(raft::handle_t &handle,
+template void bfs(raft::handle_t const &handle,
                   graph_view_t<int32_t, int32_t, float, false, true> const &graph_view,
                   int32_t *distances,
                   int32_t *predecessors,
@@ -205,7 +213,7 @@ template void bfs(raft::handle_t &handle,
                   int32_t depth_limit,
                   bool do_expensive_check);
 
-template void bfs(raft::handle_t &handle,
+template void bfs(raft::handle_t const &handle,
                   graph_view_t<int32_t, int32_t, double, false, true> const &graph_view,
                   int32_t *distances,
                   int32_t *predecessors,
@@ -214,7 +222,7 @@ template void bfs(raft::handle_t &handle,
                   int32_t depth_limit,
                   bool do_expensive_check);
 
-template void bfs(raft::handle_t &handle,
+template void bfs(raft::handle_t const &handle,
                   graph_view_t<int32_t, int64_t, float, false, true> const &graph_view,
                   int32_t *distances,
                   int32_t *predecessors,
@@ -223,7 +231,7 @@ template void bfs(raft::handle_t &handle,
                   int32_t depth_limit,
                   bool do_expensive_check);
 
-template void bfs(raft::handle_t &handle,
+template void bfs(raft::handle_t const &handle,
                   graph_view_t<int32_t, int64_t, double, false, true> const &graph_view,
                   int32_t *distances,
                   int32_t *predecessors,
@@ -232,7 +240,7 @@ template void bfs(raft::handle_t &handle,
                   int32_t depth_limit,
                   bool do_expensive_check);
 
-template void bfs(raft::handle_t &handle,
+template void bfs(raft::handle_t const &handle,
                   graph_view_t<int64_t, int64_t, float, false, true> const &graph_view,
                   int64_t *distances,
                   int64_t *predecessors,
@@ -241,7 +249,7 @@ template void bfs(raft::handle_t &handle,
                   int64_t depth_limit,
                   bool do_expensive_check);
 
-template void bfs(raft::handle_t &handle,
+template void bfs(raft::handle_t const &handle,
                   graph_view_t<int64_t, int64_t, double, false, true> const &graph_view,
                   int64_t *distances,
                   int64_t *predecessors,
@@ -250,7 +258,7 @@ template void bfs(raft::handle_t &handle,
                   int64_t depth_limit,
                   bool do_expensive_check);
 
-template void bfs(raft::handle_t &handle,
+template void bfs(raft::handle_t const &handle,
                   graph_view_t<int32_t, int32_t, float, false, false> const &graph_view,
                   int32_t *distances,
                   int32_t *predecessors,
@@ -259,7 +267,7 @@ template void bfs(raft::handle_t &handle,
                   int32_t depth_limit,
                   bool do_expensive_check);
 
-template void bfs(raft::handle_t &handle,
+template void bfs(raft::handle_t const &handle,
                   graph_view_t<int32_t, int32_t, double, false, false> const &graph_view,
                   int32_t *distances,
                   int32_t *predecessors,
@@ -268,7 +276,7 @@ template void bfs(raft::handle_t &handle,
                   int32_t depth_limit,
                   bool do_expensive_check);
 
-template void bfs(raft::handle_t &handle,
+template void bfs(raft::handle_t const &handle,
                   graph_view_t<int32_t, int64_t, float, false, false> const &graph_view,
                   int32_t *distances,
                   int32_t *predecessors,
@@ -277,7 +285,7 @@ template void bfs(raft::handle_t &handle,
                   int32_t depth_limit,
                   bool do_expensive_check);
 
-template void bfs(raft::handle_t &handle,
+template void bfs(raft::handle_t const &handle,
                   graph_view_t<int32_t, int64_t, double, false, false> const &graph_view,
                   int32_t *distances,
                   int32_t *predecessors,
@@ -286,7 +294,7 @@ template void bfs(raft::handle_t &handle,
                   int32_t depth_limit,
                   bool do_expensive_check);
 
-template void bfs(raft::handle_t &handle,
+template void bfs(raft::handle_t const &handle,
                   graph_view_t<int64_t, int64_t, float, false, false> const &graph_view,
                   int64_t *distances,
                   int64_t *predecessors,
@@ -295,7 +303,7 @@ template void bfs(raft::handle_t &handle,
                   int64_t depth_limit,
                   bool do_expensive_check);
 
-template void bfs(raft::handle_t &handle,
+template void bfs(raft::handle_t const &handle,
                   graph_view_t<int64_t, int64_t, double, false, false> const &graph_view,
                   int64_t *distances,
                   int64_t *predecessors,
