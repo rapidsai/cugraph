@@ -15,7 +15,13 @@
  */
 
 #include <community/louvain.cuh>
+
+// FIXME:  MNMG Louvain requires libcu++, so if it's not available don't compile it
+#ifdef _LIB_CUDACXX_CUDA_API_VERSION
 #include <experimental/louvain.cuh>
+#else
+#include <experimental/graph.hpp>
+#endif
 
 namespace cugraph {
 
@@ -44,12 +50,16 @@ std::pair<size_t, weight_t> louvain(
   size_t max_level,
   weight_t resolution)
 {
+#ifdef _LIB_CUDACXX_CUDA_API_VERSION
   CUGRAPH_EXPECTS(clustering != nullptr, "Invalid input argument: clustering is null");
 
   experimental::Louvain<
     experimental::graph_view_t<vertex_t, edge_t, weight_t, false, multi_gpu>>
     runner(handle, graph_view);
   return runner(clustering, max_level, resolution);
+#else
+  CUGRAPH_FAIL("MNMG Louvain requires libcu++, not currently supported on this CUDA release");
+#endif
 }
 
 }  // namespace detail
