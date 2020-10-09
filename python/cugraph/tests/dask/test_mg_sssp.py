@@ -61,12 +61,13 @@ def test_dask_sssp(client_connection):
     )
 
     g = cugraph.DiGraph()
-    g.from_cudf_edgelist(df, "src", "dst", renumber=True)
+    g.from_cudf_edgelist(df, "src", "dst", "value", renumber=True)
 
     dg = cugraph.DiGraph()
-    dg.from_dask_cudf_edgelist(ddf, "src", "dst")
+    dg.from_dask_cudf_edgelist(ddf, "src", "dst", "value")
 
     expected_dist = cugraph.sssp(g, 0)
+    print(expected_dist)
     result_dist = dcg.sssp(dg, 0)
     result_dist = result_dist.compute()
 
