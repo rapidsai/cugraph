@@ -43,6 +43,7 @@
 - PR #1181 Fix notebook error handling in CI
 - PR #1186 BLD Installing raft headers under cugraph 
 
+
 # cuGraph 0.15.0 (26 Aug 2020)
 
 ## New Features
