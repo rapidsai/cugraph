@@ -139,17 +139,13 @@ void sssp(raft::handle_t const &handle,
         push_graph_view.get_number_of_local_adj_matrix_partition_rows()
       ? true
       : false;
-  rmm::device_uvector<weight_t> adj_matrix_row_distances(0, handle.get_stream());
+  rmm::device_vector<weight_t> adj_matrix_row_distances{};
   if (!vertex_and_adj_matrix_row_ranges_coincide) {
-    adj_matrix_row_distances.resize(push_graph_view.get_number_of_local_adj_matrix_partition_rows(),
-                                    handle.get_stream());
-    thrust::fill(rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
-                 adj_matrix_row_distances.begin(),
-                 adj_matrix_row_distances.end(),
-                 std::numeric_limits<weight_t>::max());
+    adj_matrix_row_distances.assign(push_graph_view.get_number_of_local_adj_matrix_partition_rows(),
+                                    std::numeric_limits<weight_t>::max());
   }
   auto row_distances =
-    !vertex_and_adj_matrix_row_ranges_coincide ? adj_matrix_row_distances.data() : distances;
+    !vertex_and_adj_matrix_row_ranges_coincide ? adj_matrix_row_distances.data().get() : distances;
 
   if (push_graph_view.is_local_vertex_nocheck(source_vertex)) {
     vertex_frontier.get_bucket(static_cast<size_t>(Bucket::cur_near)).insert(source_vertex);
