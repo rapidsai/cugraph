@@ -47,17 +47,11 @@ create_graph(raft::handle_t const& handle, graph_container_t const& graph_contai
       reinterpret_cast<weight_t*>(graph_container.weights),
       static_cast<edge_t>(graph_container.num_partition_edges)}});
 
-  std::cout << "\n" << graph_container.row_comm_size << "\t";
-  std::cout << graph_container.col_comm_size << "\n";
   std::vector<vertex_t> partition_offsets_vector(
     reinterpret_cast<vertex_t*>(graph_container.vertex_partition_offsets),
     reinterpret_cast<vertex_t*>(graph_container.vertex_partition_offsets) +
       (graph_container.row_comm_size * graph_container.col_comm_size) + 1);
 
-  std::cout << "\npartition_offsets_vector:\n ";
-  for (int i = 0; i < partition_offsets_vector.size(); i++) {
-    std::cout << partition_offsets_vector[i] << "\n";
-  }
   experimental::partition_t<vertex_t> partition(partition_offsets_vector,
                                                 graph_container.hypergraph_partitioned,
                                                 graph_container.row_comm_size,
@@ -164,8 +158,6 @@ void populate_graph_container(graph_container_t& graph_container,
   graph_container.sorted_by_degree         = sorted_by_degree;
   graph_container.do_expensive_check       = do_expensive_check;
 
-  int* vp = reinterpret_cast<int*>(graph_container.vertex_partition_offsets);
-  std::cout << "\nVP:\t" << vp[0] << "\t" << vp[1];
   experimental::graph_properties_t graph_props{.is_symmetric = false, .is_multigraph = false};
   graph_container.graph_props = graph_props;
 
