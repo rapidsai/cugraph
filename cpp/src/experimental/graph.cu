@@ -251,7 +251,7 @@ graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu, std::enable_if_
     "is nullptr) or should not be nullptr (otherwise).");
 
   CUGRAPH_EXPECTS((partition.is_hypergraph_partitioned() &&
-                   (edgelists.size() == static_cast<size_t>(col_comm_size))) ||
+                   (edgelists.size() == static_cast<size_t>(row_comm_size))) ||
                     (!(partition.is_hypergraph_partitioned()) && (edgelists.size() == 1)),
                   "Invalid API parameter: errneous edgelists.size().");
 
