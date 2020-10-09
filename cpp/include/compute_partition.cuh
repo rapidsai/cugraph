@@ -44,6 +44,7 @@ class compute_partition_t {
     init<graph_view_t::is_multi_gpu>(graph_view);
   }
 
+ private:
   template <bool is_multi_gpu, typename std::enable_if_t<!is_multi_gpu> * = nullptr>
   void init(graph_view_t const &graph_view)
   {
@@ -61,6 +62,7 @@ class compute_partition_t {
     vertex_partition_offsets_v_ = partition.get_vertex_partition_offsets();
   }
 
+ public:
   /**
    * @brief     Compute the partition id for a vertex
    *
@@ -116,6 +118,13 @@ class compute_partition_t {
     {
     }
 
+    /**
+     * @brief     Compute the partition id for a vertex
+     *
+     * Given a pair of vertices (src, dst), return the partition number to
+     * which an edge between src and dst would be assigned.
+     *
+     */
     __device__ int operator()(vertex_t src, vertex_t dst) const
     {
       if (graph_view_t::is_multi_gpu) {
@@ -150,11 +159,21 @@ class compute_partition_t {
     int size_;
   };
 
+  /**
+   * @brief get a vertex device view so that device code can identify which
+   * gpu a vertex is assigned to
+   *
+   */
   vertex_device_view_t vertex_device_view() const
   {
     return vertex_device_view_t(vertex_partition_offsets_v_.data().get(), size_);
   }
 
+  /**
+   * @brief get an edge device view so that device code can identify which
+   * gpu an edge is assigned to
+   *
+   */
   edge_device_view_t edge_device_view() const
   {
     return edge_device_view_t(
