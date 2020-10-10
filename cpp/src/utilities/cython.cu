@@ -26,8 +26,6 @@
 #include <thrust/copy.h>
 #include <thrust/iterator/counting_iterator.h>
 
-#include <experimental/shuffle2.cuh>
-
 namespace cugraph {
 namespace cython {
 

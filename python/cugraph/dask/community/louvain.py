@@ -18,6 +18,7 @@ from cugraph.dask.common.input_utils import get_distributed_data
 from cugraph.structure.shuffle import shuffle
 from cugraph.dask.community import louvain_wrapper as c_mg_louvain
 
+
 def call_louvain(sID,
                  data,
                  num_verts,
@@ -41,7 +42,8 @@ def call_louvain(sID,
                                 resolution)
 
 
-def louvain(input_graph, max_iter=100, resolution=1.0, load_balance=True, prows=None, pcols=None):
+def louvain(input_graph, max_iter=100, resolution=1.0, load_balance=True,
+            prows=None, pcols=None):
     """
     Compute the modularity optimizing partition of the input graph using the
     Louvain method on multiple GPUs
@@ -83,12 +85,11 @@ def louvain(input_graph, max_iter=100, resolution=1.0, load_balance=True, prows=
          num_verts,
          partition_row_size,
          partition_col_size,
-         vertex_partition_offsets) = shuffle(input_graph, prows=prows, pcols=pcols, transposed=False)
+         vertex_partition_offsets) = shuffle(input_graph, prows=prows,
+                                             pcols=pcols, transposed=False)
 
     num_edges = len(ddf)
     data = get_distributed_data(ddf)
-
-    print('number_map = ', input_graph.renumber_map.implementation.ddf.compute())
 
     result = dict([(data.worker_info[wf[0]]["rank"],
                     client.submit(

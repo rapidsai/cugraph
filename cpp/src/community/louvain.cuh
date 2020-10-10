@@ -30,41 +30,6 @@
 
 namespace cugraph {
 
-template <typename T>
-inline void print_v(const char *label, rmm::device_vector<T> const &vector_v)
-{
-  std::cout << label << "(" << vector_v.size() << "): ";
-  thrust::copy(vector_v.begin(), vector_v.end(), std::ostream_iterator<T>(std::cout, " "));
-  std::cout << std::endl;
-}
-
-inline void print_v(const char *label, const int32_t *ptr, int32_t size)
-{
-  printf("%s(%d): ", label, size);
-  thrust::for_each(rmm::exec_policy(0)->on(0),
-                   thrust::make_counting_iterator(0),
-                   thrust::make_counting_iterator(1),
-                   [ptr, size] __device__(auto) {
-                     for (int32_t i = 0; i < size; ++i) printf("%d ", ptr[i]);
-                   });
-
-  printf("\n");
-}
-
-inline void print_v(const char *label, const float *ptr, int32_t size)
-{
-  printf("%s(%d): ", label, size);
-  thrust::for_each(rmm::exec_policy(0)->on(0),
-                   thrust::make_counting_iterator(0),
-                   thrust::make_counting_iterator(1),
-                   [ptr, size] __device__(auto) {
-                     for (int32_t i = 0; i < size; ++i) printf("%g ", ptr[i]);
-                   });
-
-  printf("\n");
-}
-
-  
 template <typename graph_type>
 class Louvain {
  public:
@@ -143,14 +108,6 @@ class Louvain {
       thrust::make_counting_iterator(0),
       thrust::make_counting_iterator(graph.number_of_vertices),
       [d_deg, d_inc, total_edge_weight, resolution] __device__(vertex_t community) {
-        printf("compute_Q(%d): d_inc = %g, d_deg = %g, plus = %g, minus = %g, total = %g\n",
-               community, d_inc[community], d_deg[community],
-               (d_inc[community] / total_edge_weight),
-               resolution * (d_deg[community] * d_deg[community]) / (total_edge_weight * total_edge_weight),
-               ((d_inc[community] / total_edge_weight) - resolution *
-                                                           (d_deg[community] * d_deg[community]) /
-                                                           (total_edge_weight * total_edge_weight))
-               );
         return ((d_inc[community] / total_edge_weight) - resolution *
                                                            (d_deg[community] * d_deg[community]) /
                                                            (total_edge_weight * total_edge_weight));
@@ -206,8 +163,6 @@ class Louvain {
     }
 
     timer_display(std::cout);
-
-    print_v("resulting cluster", d_cluster_vec, number_of_vertices_);
 
     return std::make_pair(num_level, best_modularity);
   }
@@ -294,8 +249,6 @@ class Louvain {
     // during each iteration of the loop
     bool up_down = true;
 
-    printf("new_Q = %g\n", new_Q);
-
     while (new_Q > (cur_Q + 0.0001)) {
       cur_Q = new_Q;
 
@@ -307,7 +260,6 @@ class Louvain {
       up_down = !up_down;
 
       new_Q = modularity(total_edge_weight, resolution, graph, next_cluster_v.data().get());
-      printf("new_Q = %g\n", new_Q);
 
       if (new_Q > cur_Q) {
         thrust::copy(rmm::exec_policy(stream_)->on(stream_),
@@ -389,15 +341,12 @@ class Louvain {
                            }
                          }
 
-                         printf("loc = %d, adding %g to new cluster sum offsets %d\n", (int) loc, d_weights[loc], offset);
                          atomicAdd(d_new_cluster_sum + offset, d_weights[loc]);
 
                          if (old_cluster == new_cluster)
                            atomicAdd(d_old_cluster_sum + src, d_weights[loc]);
                        }
                      });
-
-    printf("computing delta_Q\n");
 
     thrust::for_each(
       rmm::exec_policy(stream_)->on(stream_),
@@ -421,20 +370,12 @@ class Louvain {
           weight_t a_old       = d_cluster_weights[old_cluster];
           weight_t a_new       = d_cluster_weights[new_cluster];
 
-          weight_t ncs = d_new_cluster_sum[loc];
-
           // NOTE: d_delta_Q and d_new_cluster_sum are aliases
           //       for same device array to save memory
           d_delta_Q[loc] =
             2 * (((d_new_cluster_sum[loc] - d_old_cluster_sum[src]) / total_edge_weight) -
                  resolution * (a_new * k_k - a_old * k_k + k_k * k_k) /
                    (total_edge_weight * total_edge_weight));
-
-          if (d_delta_Q[loc] > 0) {
-            printf("  (%d, %d, %g) ncs = %g, ocs = %g, a_new = %g, k_k = %g, a_old = %g, total_edge_weight = %g\n",
-                   src, new_cluster, d_delta_Q[loc], ncs, d_old_cluster_sum[src],
-                   a_new, k_k, a_old, total_edge_weight);
-          }
         } else {
           d_delta_Q[loc] = weight_t{0.0};
         }
@@ -499,7 +440,6 @@ class Louvain {
                          vertex_t old_cluster = d_next_cluster[d_temp_vertices[id]];
 
                          if ((new_cluster > old_cluster) == up_down) {
-                           printf("moving vertex %d from cluster %d to cluster %d\n", d_temp_vertices[id], old_cluster, new_cluster);
                            weight_t src_weight = d_vertex_weights[d_temp_vertices[id]];
                            d_next_cluster[d_temp_vertices[id]] = d_temp_clusters[id];
 
@@ -508,8 +448,6 @@ class Louvain {
                          }
                        }
                      });
-
-    print_v("cluster_weights", cluster_weights_v_);
   }
 
   void shrink_graph(graph_t &graph, vertex_t *d_cluster_vec)
@@ -629,13 +567,6 @@ class Louvain {
                        d_new_weight[e] = d_old_weight[e];
                      });
 
-    print_v("old_src", src_indices_v_);
-    print_v("old_dst", indices_v_);
-    print_v("old_weight", weights_v_);
-    print_v("new_src", new_src_v);
-    print_v("new_dst", new_dst_v);
-    print_v("new_weight", new_weight_v);
-
     thrust::stable_sort_by_key(
       rmm::exec_policy(stream_)->on(stream_),
       d_new_dst,
@@ -671,11 +602,6 @@ class Louvain {
     src_indices_v_.resize(graph.number_of_edges);
     indices_v_.resize(graph.number_of_edges);
     weights_v_.resize(graph.number_of_edges);
-
-    std::cout << "after shrinking graph" << std::endl;
-    print_v("src_indices", src_indices_v_);
-    print_v("dst_indices", indices_v_);
-    print_v("weights", weights_v_);
   }
 
  protected:
