@@ -68,8 +68,8 @@ using pair_comms_t =
 template <typename name_policy_t = key_naming_t, typename size_type = int>
 class subcomm_factory_t {
  public:
-  subcomm_factory_t(raft::handle_t& handle, size_type row_comm_size)
-    : handle_(handle), row_comm_size_(row_comm_size)
+  subcomm_factory_t(raft::handle_t& handle, size_type row_size)
+    : handle_(handle), row_size_(row_size)
   {
     init_row_col_comms();
   }
@@ -83,16 +83,16 @@ class subcomm_factory_t {
     name_policy_t key;
     raft::comms::comms_t const& communicator = handle_.get_comms();
 
-    int const comm_rank = communicator.get_rank();
-    int row_comm_rank  = comm_rank % row_comm_size_;
-    int col_comm_rank  = comm_rank / row_comm_size_;
+    int const rank = communicator.get_rank();
+    int row_index  = rank / row_size_;
+    int col_index  = rank % row_size_;
 
     auto row_comm =
-      std::make_shared<raft::comms::comms_t>(communicator.comm_split(col_comm_rank, row_comm_rank));
+      std::make_shared<raft::comms::comms_t>(communicator.comm_split(row_index, col_index));
     handle_.set_subcomm(key.row_name(), row_comm);
 
     auto col_comm =
-      std::make_shared<raft::comms::comms_t>(communicator.comm_split(row_comm_rank, col_comm_rank));
+      std::make_shared<raft::comms::comms_t>(communicator.comm_split(col_index, row_index));
     handle_.set_subcomm(key.col_name(), col_comm);
 
     row_col_subcomms_.first  = row_comm;
@@ -101,9 +101,8 @@ class subcomm_factory_t {
 
  private:
   raft::handle_t& handle_;
-  size_type row_comm_size_;
+  size_type row_size_;
   pair_comms_t row_col_subcomms_;
 };
-
 }  // namespace partition_2d
 }  // namespace cugraph

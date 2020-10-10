@@ -78,7 +78,8 @@ def louvain(input_df,
 
     # data is on device, move to host (.values_host) since graph_t in
     # graph_container needs a host array
-    cdef uintptr_t c_vertex_partition_offsets = vertex_partition_offsets.values_host.__array_interface__['data'][0]
+    vertex_partition_offsets_host = vertex_partition_offsets.values_host
+    cdef uintptr_t c_vertex_partition_offsets = vertex_partition_offsets_host.__array_interface__['data'][0]
 
     cdef graph_container_t graph_container
 
