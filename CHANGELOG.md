@@ -41,8 +41,12 @@
 - PR #1166 Fix misspelling of function calls in asserts causing debug build to fail
 - PR #1180 BLD Adopt RAFT model for cuhornet dependency
 - PR #1181 Fix notebook error handling in CI
+- PR #1199 BUG segfault in python test suite
 - PR #1186 BLD Installing raft headers under cugraph 
+- PR #1186 BLD Installing raft headers under cugraph
 - PR #1192 Fix benchmark notes and documentation issues in graph.py
+- PR #1196 Move subcomms init outside of individual algorithm functions
+- PR #1198 Remove deprecated call to from_gpu_matrix
 
 # cuGraph 0.15.0 (26 Aug 2020)
 

@@ -115,8 +115,6 @@ void populate_graph_container(graph_container_t& graph_container,
                               size_t num_partition_edges,
                               size_t num_global_vertices,
                               size_t num_global_edges,
-                              size_t row_comm_size,  // pcols
-                              size_t col_comm_size,  // prows
                               bool sorted_by_degree,
                               bool transposed,
                               bool multi_gpu)
@@ -127,20 +125,12 @@ void populate_graph_container(graph_container_t& graph_container,
   bool do_expensive_check{false};
   bool hypergraph_partitioned{false};
 
-  // FIXME: Consider setting up the subcomms right after initializing comms, no
-  // need to delay to this point.
-  // Setup the subcommunicators needed for this partition on the handle.
-  partition_2d::subcomm_factory_t<partition_2d::key_naming_t, int> subcomm_factory(handle,
-                                                                                   row_comm_size);
-  // FIXME: once the subcomms are set up earlier (outside this function), remove
-  // the row/col_comm_size params and retrieve them from the handle (commented
-  // out lines below)
   auto& row_comm           = handle.get_subcomm(cugraph::partition_2d::key_naming_t().row_name());
   auto const row_comm_rank = row_comm.get_rank();
-  // auto const row_comm_size = row_comm.get_size(); // pcols
+  auto const row_comm_size = row_comm.get_size();  // pcols
   auto& col_comm           = handle.get_subcomm(cugraph::partition_2d::key_naming_t().col_name());
   auto const col_comm_rank = col_comm.get_rank();
-  // auto const col_comm_size = col_comm.get_size(); // prows
+  auto const col_comm_size = col_comm.get_size();  // prows
 
   graph_container.vertex_partition_offsets = vertex_partition_offsets;
   graph_container.src_vertices             = src_vertices;
@@ -718,6 +708,13 @@ template void call_sssp(raft::handle_t const& handle,
                         double* distances,
                         int32_t* predecessors,
                         const int32_t source_vertex);
+
+// Helper for setting up subcommunicators
+void init_subcomms(raft::handle_t& handle, size_t row_comm_size)
+{
+  partition_2d::subcomm_factory_t<partition_2d::key_naming_t, int> subcomm_factory(handle,
+                                                                                   row_comm_size);
+}
 
 }  // namespace cython
 }  // namespace cugraph
