@@ -45,7 +45,7 @@ def call_louvain(sID,
                                 resolution)
 
 
-def louvain(input_graph, max_iter=100, resolution=1.0, load_balance=True):
+def louvain(input_graph, max_iter=100, resolution=1.0, load_balance=True, prows=None, pcols=None):
     """
     Compute the modularity optimizing partition of the input graph using the
     Louvain method on multiple GPUs
@@ -79,11 +79,20 @@ def louvain(input_graph, max_iter=100, resolution=1.0, load_balance=True):
     # Calling renumbering results in data that is sorted by degree
     input_graph.compute_renumber_edge_list(transposed=False)
     sorted_by_degree = True
-    (ddf,
-     num_verts,
-     partition_row_size,
-     partition_col_size,
-     vertex_partition_offsets) = shuffle(input_graph, transposed=False)
+
+    if prows is None:
+        (ddf,
+         num_verts,
+         partition_row_size,
+         partition_col_size,
+         vertex_partition_offsets) = shuffle(input_graph, prows=2, pcols=1, transposed=False)
+    else:
+        (ddf,
+         num_verts,
+         partition_row_size,
+         partition_col_size,
+         vertex_partition_offsets) = shuffle(input_graph, prows=prows, pcols=pcols, transposed=False)
+
     num_edges = len(ddf)
     data = get_distributed_data(ddf)
 
@@ -108,6 +117,8 @@ def louvain(input_graph, max_iter=100, resolution=1.0, load_balance=True):
     wait(result)
 
     (parts, modularity_score) = result[0].result()
+
+    print('result = ', result)
 
     if input_graph.renumbered:
         # MG renumbering is lazy, but it's safe to assume it's been called at

@@ -25,6 +25,15 @@ namespace experimental {
 
 namespace detail {
 
+//
+// FIXME:   This implementation of variable_shuffle stages the data for transfer
+//          in host memory.  It would be more efficient, I believe, to stage the
+//          data in device memory, but it would require actually instantiating
+//          the data in device memory which is already precious in the Louvain
+//          implementation.  We should explore if it's actually more efficient
+//          through device memory and whether the improvement is worth the extra
+//          memory required.
+//
 template <typename data_t, typename iterator_t, typename partition_iter_t>
 rmm::device_vector<data_t> variable_shuffle(raft::handle_t const &handle,
                                             std::size_t n_elements,
@@ -47,19 +56,14 @@ rmm::device_vector<data_t> variable_shuffle(raft::handle_t const &handle,
   int my_gpu          = comms.get_rank();
 
   rmm::device_vector<size_t> local_sizes_v(num_gpus, size_t{0});
-  rmm::device_vector<bool> out_of_bounds_v(1, false);
 
   thrust::for_each(rmm::exec_policy(stream)->on(stream),
                    partition_iter,
                    partition_iter + n_elements,
                    [num_gpus,
-                    d_out_of_bounds = out_of_bounds_v.data().get(),
                     d_local_sizes   = local_sizes_v.data().get()] __device__(auto p) {
-                     if ((p >= num_gpus) || (p < 0)) d_out_of_bounds[0] = true;
                      atomicAdd(d_local_sizes + p, size_t{1});
                    });
-
-  CUGRAPH_EXPECTS(out_of_bounds_v[0] == false, "shuffle range out of bounds");
 
   std::vector<size_t> h_local_sizes_v(num_gpus);
   std::vector<size_t> h_global_sizes_v(num_gpus);

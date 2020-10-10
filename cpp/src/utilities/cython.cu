@@ -284,30 +284,6 @@ void populate_graph_container_legacy(graph_container_t& graph_container,
 ////////////////////////////////////////////////////////////////////////////////
 
 namespace detail {
-template <typename graph_view_t, typename weight_t>
-std::pair<size_t, weight_t> call_louvain(raft::handle_t const& handle,
-                                         graph_view_t const& graph_view,
-                                         void* identifiers,
-                                         void* parts,
-                                         size_t max_level,
-                                         weight_t resolution)
-{
-  thrust::copy(  // rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
-    thrust::device,
-    thrust::make_counting_iterator(graph_view.get_local_vertex_first()),
-    thrust::make_counting_iterator(graph_view.get_local_vertex_last()),
-    reinterpret_cast<typename graph_view_t::vertex_type*>(identifiers));
-
-  return louvain(handle,
-                 graph_view,
-                 reinterpret_cast<typename graph_view_t::vertex_type*>(parts),
-                 max_level,
-                 resolution);
-}
-
-}  // namespace detail
-
-namespace detail {
 
 // Final, fully-templatized call.
 template <bool transposed,
@@ -429,6 +405,11 @@ class louvain_functor {
   std::pair<size_t, weight_t> operator()(raft::handle_t const& handle,
                                          graph_view_t const& graph_view)
   {
+    thrust::copy(rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
+                 thrust::make_counting_iterator(graph_view.get_local_vertex_first()),
+                 thrust::make_counting_iterator(graph_view.get_local_vertex_last()),
+                 reinterpret_cast<typename graph_view_t::vertex_type*>(identifiers_));
+
     return cugraph::louvain(handle,
                             graph_view,
                             reinterpret_cast<typename graph_view_t::vertex_type*>(parts_),
@@ -705,7 +686,7 @@ template void call_pagerank(raft::handle_t const& handle,
                             double tolerance,
                             int64_t max_iter,
                             bool has_guess);
-                            
+
 template void call_bfs<int32_t, float>(raft::handle_t const& handle,
                                        graph_container_t const& graph_container,
                                        int32_t* identifiers,

@@ -73,6 +73,9 @@ def louvain(input_df,
         edge_t = np.dtype("int32")
     weight_t = weights.dtype
 
+    vpo = vertex_partition_offsets.values_host
+    num_local_verts = vpo[rank+1] - vpo[rank]
+
     # COO
     cdef uintptr_t c_src_vertices = src.__cuda_array_interface__['data'][0]
     cdef uintptr_t c_dst_vertices = dst.__cuda_array_interface__['data'][0]
@@ -80,7 +83,7 @@ def louvain(input_df,
 
     # data is on device, move to host (.values_host) since graph_t in
     # graph_container needs a host array
-    cdef uintptr_t c_vertex_partition_offsets = vertex_partition_offsets.values_host.__array_interface__['data'][0]
+    cdef uintptr_t c_vertex_partition_offsets = vpo.__array_interface__['data'][0]
 
     cdef graph_container_t graph_container
 
@@ -103,8 +106,8 @@ def louvain(input_df,
 
     # Create the output dataframe
     df = cudf.DataFrame()
-    df['vertex'] = cudf.Series(np.zeros(num_global_verts, dtype=vertex_t))
-    df['partition'] = cudf.Series(np.zeros(num_global_verts, dtype=vertex_t))
+    df['vertex'] = cudf.Series(np.zeros(num_local_verts, dtype=vertex_t))
+    df['partition'] = cudf.Series(np.zeros(num_local_verts, dtype=vertex_t))
 
     cdef uintptr_t c_identifiers = df['vertex'].__cuda_array_interface__['data'][0]
     cdef uintptr_t c_partition = df['partition'].__cuda_array_interface__['data'][0]
@@ -123,5 +126,5 @@ def louvain(input_df,
             max_level, resolution)
         final_modularity = final_modularity_double
 
-    print("DONE CALLING CL")
+    print("DONE CALLING CL\n")
     return df, final_modularity
