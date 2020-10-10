@@ -636,6 +636,7 @@ void init_subcomms(raft::handle_t& handle, size_t row_comm_size)
                                                                                    row_comm_size);
 }
 
+
 // Explicit instantiations
 
 template std::pair<size_t, float> call_louvain(raft::handle_t const& handle,
