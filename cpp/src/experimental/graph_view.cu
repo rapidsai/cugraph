@@ -17,6 +17,7 @@
 #include <experimental/detail/graph_utils.cuh>
 #include <experimental/graph_view.hpp>
 #include <partition_manager.hpp>
+#include <utilities/comm_utils.cuh>
 #include <utilities/error.hpp>
 
 #include <raft/cudart_utils.h>
@@ -101,7 +102,8 @@ graph_view_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu, std::enabl
 
   CUGRAPH_EXPECTS((sorted_by_global_degree_within_vertex_partition &&
                    (vertex_partition_segment_offsets.size() ==
-                    col_comm_size * (detail::num_segments_per_vertex_partition + 1))) ||
+                    (partition.is_hypergraph_partitioned() ? col_comm_size : row_comm_size) *
+                      (detail::num_segments_per_vertex_partition + 1))) ||
                     (!sorted_by_global_degree_within_vertex_partition &&
                      (vertex_partition_segment_offsets.size() == 0)),
                   "Invalid API parameter: vertex_partition_segment_offsets.size() does not match "
@@ -148,13 +150,8 @@ graph_view_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu, std::enabl
                          out_of_range_t<vertex_t>{minor_first, minor_last}) == 0,
         "Invalid API parameter: adj_matrix_partition_indices[] have out-of-range vertex IDs.");
     }
-    this->get_handle_ptr()->get_comms().allreduce(&number_of_local_edges_sum,
-                                                  &number_of_local_edges_sum,
-                                                  1,
-                                                  raft::comms::op_t::SUM,
-                                                  default_stream);
-    auto status = handle.get_comms().sync_stream(default_stream);
-    CUGRAPH_EXPECTS(status == raft::comms::status_t::SUCCESS, "sync_stream() failure.");
+    number_of_local_edges_sum = host_scalar_allreduce(
+      this->get_handle_ptr()->get_comms(), number_of_local_edges_sum, default_stream);
     CUGRAPH_EXPECTS(number_of_local_edges_sum == this->get_number_of_edges(),
                     "Invalid API parameter: the sum of local edges doe counts not match with "
                     "number_of_local_edges.");
@@ -168,7 +165,8 @@ graph_view_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu, std::enabl
                       "Invalid API parameter: sorted_by_global_degree_within_vertex_partition is "
                       "set to true, but degrees are not non-ascending.");
 
-      for (int i = 0; i < col_comm_size; ++i) {
+      for (int i = 0; i < (partition.is_hypergraph_partitioned() ? col_comm_size : row_comm_size);
+           ++i) {
         CUGRAPH_EXPECTS(std::is_sorted(vertex_partition_segment_offsets.begin() +
                                          (detail::num_segments_per_vertex_partition + 1) * i,
                                        vertex_partition_segment_offsets.begin() +
@@ -180,11 +178,11 @@ graph_view_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu, std::enabl
           "Invalid API parameter: erroneous vertex_partition_segment_offsets.");
         auto vertex_partition_idx = partition.is_hypergraph_partitioned()
                                       ? row_comm_size * i + row_comm_rank
-                                      : col_comm_size * row_comm_rank + i;
+                                      : col_comm_rank * row_comm_size + i;
         CUGRAPH_EXPECTS(
           vertex_partition_segment_offsets[(detail::num_segments_per_vertex_partition + 1) * i +
                                            detail::num_segments_per_vertex_partition] ==
-            partition.get_vertex_partition_first(vertex_partition_idx),
+            partition.get_vertex_partition_size(vertex_partition_idx),
           "Invalid API parameter: erroneous vertex_partition_segment_offsets.");
       }
     }
