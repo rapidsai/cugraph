@@ -60,8 +60,7 @@ rmm::device_vector<data_t> variable_shuffle(raft::handle_t const &handle,
   thrust::for_each(rmm::exec_policy(stream)->on(stream),
                    partition_iter,
                    partition_iter + n_elements,
-                   [num_gpus,
-                    d_local_sizes   = local_sizes_v.data().get()] __device__(auto p) {
+                   [num_gpus, d_local_sizes = local_sizes_v.data().get()] __device__(auto p) {
                      atomicAdd(d_local_sizes + p, size_t{1});
                    });
 

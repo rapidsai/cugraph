@@ -94,7 +94,8 @@ void pagerank_reference(edge_t* offsets,
         pageranks[i] += alpha * old_pageranks[nbr] * (w / out_weight_sums[nbr]);
       }
       if (personalization_vertices == nullptr) {
-        pageranks[i] += (dangling_sum * alpha + (1.0 - alpha)) / static_cast<result_t>(num_vertices);
+        pageranks[i] +=
+          (dangling_sum * alpha + (1.0 - alpha)) / static_cast<result_t>(num_vertices);
       }
     }
     if (personalization_vertices != nullptr) {

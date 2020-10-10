@@ -54,9 +54,9 @@ template <typename vertex_t, typename edge_t, typename weight_t>
 class GraphViewBase {
  public:
   using vertex_type = vertex_t;
-  using edge_type = edge_t;
+  using edge_type   = edge_t;
   using weight_type = weight_t;
-  
+
   raft::handle_t *handle;
   weight_t *edge_data;  ///< edge weight
 

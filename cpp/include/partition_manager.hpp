@@ -84,8 +84,8 @@ class subcomm_factory_t {
     raft::comms::comms_t const& communicator = handle_.get_comms();
 
     int const comm_rank = communicator.get_rank();
-    int row_comm_rank  = comm_rank % row_comm_size_;
-    int col_comm_rank  = comm_rank / row_comm_size_;
+    int row_comm_rank   = comm_rank % row_comm_size_;
+    int col_comm_rank   = comm_rank / row_comm_size_;
 
     auto row_comm =
       std::make_shared<raft::comms::comms_t>(communicator.comm_split(col_comm_rank, row_comm_rank));

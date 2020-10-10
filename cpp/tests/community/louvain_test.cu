@@ -68,7 +68,7 @@ TEST(louvain, success)
 
   int min = *min_element(cluster_id.begin(), cluster_id.end());
 
-std::cout << "modularity = " << modularity << std::endl;
+  std::cout << "modularity = " << modularity << std::endl;
 
   ASSERT_GE(min, 0);
   ASSERT_GE(modularity, 0.402777 * 0.95);

@@ -59,7 +59,7 @@ std::pair<size_t, weight_t> louvain(
     runner(handle, graph_view);
   return runner(clustering, max_level, resolution);
   //#else
-  //CUGRAPH_FAIL("MNMG Louvain requires libcu++, not currently supported on this CUDA release");
+  // CUGRAPH_FAIL("MNMG Louvain requires libcu++, not currently supported on this CUDA release");
   //#endif
 }
 

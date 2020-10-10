@@ -444,8 +444,9 @@ void update_frontier_v_push_if_out_nbr(
     auto buffer_key_first     = std::get<0>(buffer_first);
     auto buffer_payload_first = std::get<1>(buffer_first);
 
-    auto row_value_input_offset =
-      GraphViewType::is_adj_matrix_transposed ? vertex_t{0} : matrix_partition.get_major_value_start_offset();
+    auto row_value_input_offset = GraphViewType::is_adj_matrix_transposed
+                                    ? vertex_t{0}
+                                    : matrix_partition.get_major_value_start_offset();
 
     // FIXME: This is highly inefficeint for graphs with high-degree vertices. If we renumber
     // vertices to insure that rows within a partition are sorted by their out-degree in decreasing
