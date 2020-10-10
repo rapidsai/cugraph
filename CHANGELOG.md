@@ -11,6 +11,7 @@
 - PR #1178 Refactored cython graph factory code to scale to additional data types
 - PR #1175 Integrated 2D pagerank python/cython infra
 - PR #1177 Integrated 2D bfs and sssp python/cython infra
+- PR #1172 MNMG Louvain implementation
 
 ## Improvements
 - PR 1081 MNMG Renumbering - sort partitions by degree
