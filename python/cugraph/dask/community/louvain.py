@@ -85,7 +85,7 @@ def louvain(input_graph, max_iter=100, resolution=1.0, load_balance=True, prows=
          num_verts,
          partition_row_size,
          partition_col_size,
-         vertex_partition_offsets) = shuffle(input_graph, prows=2, pcols=1, transposed=False)
+         vertex_partition_offsets) = shuffle(input_graph, transposed=False)
     else:
         (ddf,
          num_verts,
