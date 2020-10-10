@@ -21,9 +21,6 @@
 
 #include <algorithms.hpp>
 
-//#include <experimental/graph.hpp>
-//#include <experimental/graph_view.hpp>
-
 #include <raft/cudart_utils.h>
 #include <raft/handle.hpp>
 #include <rmm/mr/device/cuda_memory_resource.hpp>
@@ -105,14 +102,8 @@ TEST_P(Tests_Louvain, CheckInt32Int32FloatFloat)
 INSTANTIATE_TEST_CASE_P(simple_test,
                         Tests_Louvain,
                         ::testing::Values(Louvain_Usecase("test/datasets/karate.mtx", true),
-                                          Louvain_Usecase("test/datasets/renumbered_karate.mtx", true)
-#if 1
-                                            ));
-#else
-                                            ,
                                           Louvain_Usecase("test/datasets/web-Google.mtx", true),
                                           Louvain_Usecase("test/datasets/ljournal-2008.mtx", true),
                                           Louvain_Usecase("test/datasets/webbase-1M.mtx", true)));
-#endif
 
 CUGRAPH_TEST_PROGRAM_MAIN()
