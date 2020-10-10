@@ -232,6 +232,7 @@ void call_sssp(raft::handle_t const& handle,
                weight_t* distances,
                vertex_t* predecessors,
                const vertex_t source_vertex);
+
 // Helper for setting up subcommunicators, typically called as part of the
 // user-initiated comms initialization in Python.
 //
