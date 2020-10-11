@@ -11,12 +11,15 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import operator as op
+
 from dask.distributed import wait, default_client
 
 import cugraph.comms.comms as Comms
 from cugraph.dask.common.input_utils import get_distributed_data
 from cugraph.structure.shuffle import shuffle
 from cugraph.dask.community import louvain_wrapper as c_mg_louvain
+import dask_cudf
 
 
 def call_louvain(sID,
@@ -91,29 +94,36 @@ def louvain(input_graph, max_iter=100, resolution=1.0, load_balance=True,
     num_edges = len(ddf)
     data = get_distributed_data(ddf)
 
-    result = dict([(data.worker_info[wf[0]]["rank"],
-                    client.submit(
-                        call_louvain,
-                        Comms.get_session_id(),
-                        wf[1],
-                        num_verts,
-                        num_edges,
-                        vertex_partition_offsets,
-                        sorted_by_degree,
-                        max_iter,
-                        resolution,
-                        workers=[wf[0]]))
-                   for idx, wf in enumerate(data.worker_to_parts.items())])
+    futures = [client.submit(call_louvain,
+                             Comms.get_session_id(),
+                             wf[1],
+                             num_verts,
+                             num_edges,
+                             vertex_partition_offsets,
+                             sorted_by_degree,
+                             max_iter,
+                             resolution,
+                             workers=[wf[0]])
+               for idx, wf in enumerate(data.worker_to_parts.items())]
 
-    wait(result)
+    wait(futures)
 
-    (parts, modularity_score) = result[0].result()
+    # futures is a list of Futures containing tuples of (DataFrame, mod_score),
+    # unpack using separate calls to client.submit with a callable to get
+    # individual items.
+    # FIXME: look into an alternate way (not returning a tuples, accessing
+    # tuples differently, etc.) since multiple client.submit() calls may not be
+    # optimal.
+    df_futures = [client.submit(op.getitem, f, 0) for f in futures]
+    mod_score_futures = [client.submit(op.getitem, f, 1) for f in futures]
 
-    print('result = ', result)
+    ddf = dask_cudf.from_delayed(df_futures)
+    # Each worker should have computed the same mod_score
+    mod_score = mod_score_futures[0].result()
 
     if input_graph.renumbered:
         # MG renumbering is lazy, but it's safe to assume it's been called at
         # this point if renumbered=True
-        parts = input_graph.unrenumber(parts, "vertex")
+        ddf = input_graph.unrenumber(ddf, "vertex")
 
-    return parts, modularity_score
+    return (ddf, mod_score)
