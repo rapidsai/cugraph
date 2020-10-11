@@ -715,12 +715,5 @@ template void call_sssp(raft::handle_t const& handle,
                         int32_t* predecessors,
                         const int32_t source_vertex);
 
-// Helper for setting up subcommunicators
-void init_subcomms(raft::handle_t& handle, size_t row_comm_size)
-{
-  partition_2d::subcomm_factory_t<partition_2d::key_naming_t, int> subcomm_factory(handle,
-                                                                                   row_comm_size);
-}
-
 }  // namespace cython
 }  // namespace cugraph
