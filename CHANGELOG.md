@@ -49,6 +49,7 @@
 - PR #1196 Move subcomms init outside of individual algorithm functions
 - PR #1198 Remove deprecated call to from_gpu_matrix
 
+
 # cuGraph 0.15.0 (26 Aug 2020)
 
 ## New Features

@@ -723,6 +723,7 @@ class Louvain {
   {
 #ifdef DEBUG
     barrier("cache_vertex_properties");
+    CUDA_TRY(cudaStreamSynchronize(stream_));
     sleep(rank_);
     printf("rank = %d\n", (int)rank_);
     std::cout << "resize src cache to: "

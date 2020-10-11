@@ -21,12 +21,12 @@ from libcpp cimport bool
 
 
 cdef extern from "utilities/cython.hpp" namespace "cugraph::cython":
-    cdef void call_bfs[VT,WT](
+    cdef void call_bfs[vertex_t, weight_t](
         const handle_t &handle,
         const graph_container_t &g,
-        VT *identifiers,
-        VT *distances,
-        VT *predecessors,
+        vertex_t *identifiers,
+        vertex_t *distances,
+        vertex_t *predecessors,
         double *sp_counters,
-        const VT start_vertex,
+        const vertex_t start_vertex,
         bool directed) except +

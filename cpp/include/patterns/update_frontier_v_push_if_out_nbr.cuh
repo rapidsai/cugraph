@@ -490,6 +490,7 @@ void update_frontier_v_push_if_out_nbr(
   }
 
   // 2. reduce the buffer
+  std::cout << handle.get_comms().get_rank() << " reduce buffer local start\n";
 
   auto num_buffer_offset = edge_t{0};
 
@@ -503,6 +504,7 @@ void update_frontier_v_push_if_out_nbr(
                                                             vertex_frontier.get_buffer_idx_value(),
                                                             reduce_op);
 
+  std::cout << handle.get_comms().get_rank() << " reduce buffer global start" << std::endl;
   if (GraphViewType::is_multi_gpu) {
     auto& comm               = handle.get_comms();
     auto const comm_rank     = comm.get_rank();
@@ -538,11 +540,11 @@ void update_frontier_v_push_if_out_nbr(
                       d_tx_buffer_last_boundaries.size(),
                       handle.get_stream());
     CUDA_TRY(cudaStreamSynchronize(handle.get_stream()));
-    std::vector<edge_t> tx_counts(h_tx_buffer_last_boundaries.size());
+    std::vector<size_t> tx_counts(h_tx_buffer_last_boundaries.size());
     std::adjacent_difference(
       h_tx_buffer_last_boundaries.begin(), h_tx_buffer_last_boundaries.end(), tx_counts.begin());
 
-    std::vector<edge_t> rx_counts(graph_view.is_hypergraph_partitioned() ? row_comm_size
+    std::vector<size_t> rx_counts(graph_view.is_hypergraph_partitioned() ? row_comm_size
                                                                          : col_comm_size);
     std::vector<raft::comms::request_t> count_requests(tx_counts.size() + rx_counts.size());
     size_t tx_self_i = std::numeric_limits<size_t>::max();
@@ -582,10 +584,12 @@ void update_frontier_v_push_if_out_nbr(
                                      std::numeric_limits<raft::comms::request_t>::max()),
                          count_requests.end());
     comm.waitall(count_requests.size(), count_requests.data());
+    std::cout << handle.get_comms().get_rank() << " reduce buffer global size comm finished"
+              << std::endl;
 
-    std::vector<edge_t> tx_offsets(tx_counts.size() + 1, edge_t{0});
+    std::vector<size_t> tx_offsets(tx_counts.size() + 1, edge_t{0});
     std::partial_sum(tx_counts.begin(), tx_counts.end(), tx_offsets.begin() + 1);
-    std::vector<edge_t> rx_offsets(rx_counts.size() + 1, edge_t{0});
+    std::vector<size_t> rx_offsets(rx_counts.size() + 1, edge_t{0});
     std::partial_sum(rx_counts.begin(), rx_counts.end(), rx_offsets.begin() + 1);
 
     // FIXME: this will require costly reallocation if we don't use the new CUDA feature to reserve
@@ -596,6 +600,87 @@ void update_frontier_v_push_if_out_nbr(
     auto buffer_key_first     = std::get<0>(buffer_first) + num_buffer_offset;
     auto buffer_payload_first = std::get<1>(buffer_first) + num_buffer_offset;
 
+#if 1
+    std::vector<int> tx_dst_ranks(tx_counts.size());
+    std::vector<int> rx_src_ranks(rx_counts.size());
+    for (size_t i = 0; i < tx_dst_ranks.size(); ++i) {
+      tx_dst_ranks[i] = graph_view.is_hypergraph_partitioned()
+                          ? col_comm_rank * row_comm_size + static_cast<int>(i)
+                          : row_comm_rank * col_comm_size + static_cast<int>(i);
+    }
+    for (size_t i = 0; i < rx_src_ranks.size(); ++i) {
+      rx_src_ranks[i] = graph_view.is_hypergraph_partitioned()
+                          ? col_comm_rank * row_comm_size + static_cast<int>(i)
+                          : static_cast<int>(i) * row_comm_size + comm_rank / col_comm_size;
+    }
+    std::cout << handle.get_comms().get_rank()
+              << " reduce buffer global data comm key startedrx_counts.size()=" << rx_counts.size()
+              << " tx_counts.size()=" << tx_counts.size() << " rx_counts=[" << rx_counts[0] << ","
+              << rx_counts[1] << "] rx_offsets=[" << rx_offsets[0] << "," << rx_offsets[1]
+              << "] rx_src_ranks=[" << rx_src_ranks[0] << "," << rx_src_ranks[1] << " tx_counts=["
+              << tx_counts[0] << "," << tx_counts[1] << "] tx_offsets=[" << tx_offsets[0] << ","
+              << tx_offsets[1] << "] tx_dst_rnaks=[" << tx_dst_ranks[0] << "," << tx_dst_ranks[1]
+              << "]" << std::endl;
+#if 0
+if (handle.get_comms().get_rank() == 0) {
+device_sendrecv<decltype(buffer_key_first), decltype(buffer_key_first)>(
+  comm,
+  buffer_key_first,
+  0,
+  1,
+  buffer_key_first + num_buffer_elements,
+  0,
+  1,
+  handle.get_stream());
+}
+else {
+  device_sendrecv<decltype(buffer_key_first), decltype(buffer_key_first)>(
+    comm,
+    buffer_key_first,
+    0,
+    0,
+    buffer_key_first + num_buffer_elements,
+    0,
+    0,
+    handle.get_stream());  
+}
+CUDA_TRY(cudaStreamSynchronize(handle.get_stream()));
+comm.barrier();
+std::cout << handle.get_comms().get_rank() << " AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA" << std::endl;
+#else
+    device_multicast_sendrecv2<decltype(buffer_key_first), decltype(buffer_key_first)>(
+      comm,
+      buffer_key_first,
+      tx_counts,
+      tx_offsets,
+      tx_dst_ranks,
+      buffer_key_first + num_buffer_elements,
+      rx_counts,
+      rx_offsets,
+      rx_src_ranks,
+      handle.get_stream());
+    comm.barrier();
+    CUDA_TRY(cudaStreamSynchronize(handle.get_stream()));
+    std::cout << "AAAAAAAAAAAAAAAAAAAAA " << handle.get_comms().get_rank()
+              << " reduce buffer global data comm pyaload started rx_counts.size()="
+              << rx_counts.size() << " tx_counts.size()=" << tx_counts.size() << std::endl;
+    device_multicast_sendrecv2<decltype(buffer_payload_first), decltype(buffer_payload_first)>(
+      comm,
+      buffer_payload_first,
+      tx_counts,
+      tx_offsets,
+      tx_dst_ranks,
+      buffer_payload_first + num_buffer_elements,
+      rx_counts,
+      rx_offsets,
+      rx_src_ranks,
+      handle.get_stream());
+    comm.barrier();
+    CUDA_TRY(cudaStreamSynchronize(handle.get_stream()));
+    std::cout << "BBBBBBBBBBBBBBBBBBBBBB " << handle.get_comms().get_rank() << " reduce buffer global data comm finished"
+              << std::endl;
+#endif
+#else
     auto constexpr tuple_size = thrust_tuple_size_or_one<
       typename std::iterator_traits<decltype(buffer_payload_first)>::value_type>::value;
 
@@ -675,6 +760,7 @@ void update_frontier_v_push_if_out_nbr(
                                       std::numeric_limits<raft::comms::request_t>::max()),
                           buffer_requests.end());
     comm.waitall(buffer_requests.size(), buffer_requests.data());
+#endif
 
     // FIXME: this does not exploit the fact that each segment is sorted. Lost performance
     // optimization opportunities.
@@ -690,6 +776,8 @@ void update_frontier_v_push_if_out_nbr(
 
   // 3. update vertex properties
 
+  std::cout << handle.get_comms().get_rank()
+            << " update vertex properties start num_elems=" << num_buffer_elements << std::endl;
   if (num_buffer_elements > 0) {
     auto buffer_first         = vertex_frontier.buffer_begin();
     auto buffer_key_first     = std::get<0>(buffer_first) + num_buffer_offset;
@@ -726,6 +814,8 @@ void update_frontier_v_push_if_out_nbr(
       vertex_frontier.get_bucket(i).set_size(bucket_sizes[i]);
     }
   }
+  std::cout << handle.get_comms().get_rank()
+            << " update vertex properties end num_elems=" << num_buffer_elements << std::endl;
 }
 
 /*

@@ -127,6 +127,5 @@ def bfs(graph,
     if graph.renumbered:
         ddf = graph.unrenumber(ddf, 'vertex')
         ddf = graph.unrenumber(ddf, 'predecessor')
-        ddf["predecessor"].fillna(-1)
-
+        ddf["predecessor"] = ddf["predecessor"].fillna(-1)
     return ddf

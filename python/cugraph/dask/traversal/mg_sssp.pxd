@@ -19,10 +19,10 @@ from libcpp cimport bool
 
 cdef extern from "utilities/cython.hpp" namespace "cugraph::cython":
 
-    cdef void call_sssp[VT,WT](
+    cdef void call_sssp[vertex_t, weight_t](
         const handle_t &handle,
         const graph_container_t &g,
-        VT *identifiers,
-        WT *distances,
-        VT *predecessors,
-        const VT start_vertex)
+        vertex_t *identifiers,
+        weight_t *distances,
+        vertex_t *predecessors,
+        const vertex_t start_vertex)

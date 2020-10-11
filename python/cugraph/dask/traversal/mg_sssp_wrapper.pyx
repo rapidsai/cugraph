@@ -69,7 +69,8 @@ def mg_sssp(input_df,
         c_edge_weights = weights.__cuda_array_interface__['data'][0]
 
     # FIXME: data is on device, move to host (to_pandas()), convert to np array and access pointer to pass to C
-    cdef uintptr_t c_vertex_partition_offsets = vertex_partition_offsets.values_host.__array_interface__['data'][0]
+    vertex_partition_offsets_host = vertex_partition_offsets.values_host
+    cdef uintptr_t c_vertex_partition_offsets = vertex_partition_offsets_host.__array_interface__['data'][0]
 
     cdef graph_container_t graph_container
 

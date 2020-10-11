@@ -231,31 +231,17 @@ void copy_to_matrix_minor(raft::handle_t const& handle,
                        (graph_view.get_vertex_partition_first(comm_src_rank) -
                         graph_view.get_vertex_partition_first(row_comm_rank * col_comm_size)));
       } else {
-        CUDA_TRY(cudaStreamSynchronize(
-          handle.get_stream()));  // to ensure data to be sent are ready (FIXME: this can be removed
-                                  // if we use ncclSend in raft::comms)
-        auto constexpr tuple_size = thrust_tuple_size_or_one<
-          typename std::iterator_traits<VertexValueInputIterator>::value_type>::value;
-        std::vector<raft::comms::request_t> requests(2 * tuple_size);
-        device_isend<VertexValueInputIterator, MatrixMinorValueOutputIterator>(
+        device_sendrecv<VertexValueInputIterator, MatrixMinorValueOutputIterator>(
           comm,
           vertex_value_input_first,
           static_cast<size_t>(graph_view.get_number_of_local_vertices()),
           comm_dst_rank,
-          int{0} /* base_tag */,
-          requests.data());
-        device_irecv<VertexValueInputIterator, MatrixMinorValueOutputIterator>(
-          comm,
           matrix_minor_value_output_first +
             (graph_view.get_vertex_partition_first(comm_src_rank) -
              graph_view.get_vertex_partition_first(row_comm_rank * col_comm_size)),
           static_cast<size_t>(graph_view.get_vertex_partition_size(comm_src_rank)),
           comm_src_rank,
-          int{0} /* base_tag */,
-          requests.data() + tuple_size);
-        // FIXME: this waitall can fail if MatrixMinorValueOutputIterator is a discard iterator or a
-        // zip iterator having one or more discard iterator
-        comm.waitall(requests.size(), requests.data());
+          handle.get_stream());
       }
 
       // FIXME: these broadcast operations can be placed between ncclGroupStart() and
@@ -351,9 +337,6 @@ void copy_to_matrix_minor(raft::handle_t const& handle,
                        vertex_value_input_first,
                        dst_value_first);
       } else {
-        auto constexpr tuple_size = thrust_tuple_size_or_one<
-          typename std::iterator_traits<VertexValueInputIterator>::value_type>::value;
-
         auto src_tmp_buffer =
           allocate_comm_buffer<typename std::iterator_traits<VertexValueInputIterator>::value_type>(
             tx_count, handle.get_stream());
@@ -370,41 +353,24 @@ void copy_to_matrix_minor(raft::handle_t const& handle,
                        vertex_value_input_first,
                        src_value_first);
 
-        CUDA_TRY(cudaStreamSynchronize(
-          handle.get_stream()));  // to ensure data to be sent are ready (FIXME: this can be removed
-                                  // if we use ncclSend in raft::comms)
-
-        std::vector<raft::comms::request_t> value_requests(2 * (1 + tuple_size));
-        device_isend<decltype(vertex_first), decltype(dst_vertices.begin())>(comm,
-                                                                             vertex_first,
-                                                                             tx_count,
-                                                                             comm_dst_rank,
-                                                                             int{0} /* base_tag */,
-                                                                             value_requests.data());
-        device_isend<decltype(src_value_first), decltype(dst_value_first)>(
+        device_sendrecv<decltype(vertex_first), decltype(dst_vertices.begin())>(
           comm,
-          src_value_first,
+          vertex_first,
           tx_count,
           comm_dst_rank,
-          int{1} /* base_tag */,
-          value_requests.data() + 1);
-        device_irecv<decltype(vertex_first), decltype(dst_vertices.begin())>(
-          comm,
           dst_vertices.begin(),
           rx_count,
           comm_src_rank,
-          int{0} /* base_tag */,
-          value_requests.data() + (1 + tuple_size));
-        device_irecv<decltype(src_value_first), decltype(dst_value_first)>(
-          comm,
-          dst_value_first,
-          rx_count,
-          comm_src_rank,
-          int{0} /* base_tag */,
-          value_requests.data() + ((1 + tuple_size) + 1));
-        // FIXME: this waitall can fail if MatrixMinorValueOutputIterator is a discard iterator or a
-        // zip iterator having one or more discard iterator
-        comm.waitall(value_requests.size(), value_requests.data());
+          handle.get_stream());
+
+        device_sendrecv<decltype(src_value_first), decltype(dst_value_first)>(comm,
+                                                                              src_value_first,
+                                                                              tx_count,
+                                                                              comm_dst_rank,
+                                                                              dst_value_first,
+                                                                              rx_count,
+                                                                              comm_src_rank,
+                                                                              handle.get_stream());
 
         CUDA_TRY(cudaStreamSynchronize(
           handle.get_stream()));  // this is as necessary rx_tmp_buffer will become out-of-scope
