@@ -464,11 +464,11 @@ void copy_v_transform_reduce_nbr(raft::handle_t const& handle,
         auto const col_comm_rank = col_comm.get_rank();
 
         auto row_value_input_offset = GraphViewType::is_adj_matrix_transposed
-                                      ? vertex_t{0}
-                                      : matrix_partition.get_major_value_start_offset();
+                                        ? vertex_t{0}
+                                        : matrix_partition.get_major_value_start_offset();
         auto col_value_input_offset = GraphViewType::is_adj_matrix_transposed
-                                      ? matrix_partition.get_major_value_start_offset()
-                                      : vertex_t{0};
+                                        ? matrix_partition.get_major_value_start_offset()
+                                        : vertex_t{0};
 
         detail::for_all_major_for_all_nbr_low_degree<in == GraphViewType::is_adj_matrix_transposed>
           <<<update_grid.num_blocks, update_grid.block_size, 0, handle.get_stream()>>>(
@@ -577,13 +577,7 @@ void copy_v_transform_reduce_nbr(raft::handle_t const& handle,
                      minor_buffer_first + offset + size,
                      vertex_value_output_first);
       } else {
-        CUDA_TRY(cudaStreamSynchronize(
-          handle.get_stream()));  // to ensure data to be sent are ready (FIXME: this can be removed
-                                  // if we use ncclSend in raft::comms)
-        auto constexpr tuple_size = thrust_tuple_size_or_one<
-          typename std::iterator_traits<VertexValueOutputIterator>::value_type>::value;
-        std::vector<raft::comms::request_t> requests(2 * tuple_size);
-        device_isend<decltype(minor_buffer_first), VertexValueOutputIterator>(
+        device_sendrecv<decltype(minor_buffer_first), VertexValueOutputIterator>(
           comm,
           minor_buffer_first +
             (graph_view.get_vertex_partition_first(row_comm_rank * col_comm_size + col_comm_rank) -
@@ -591,18 +585,10 @@ void copy_v_transform_reduce_nbr(raft::handle_t const& handle,
           static_cast<size_t>(
             graph_view.get_vertex_partition_size(row_comm_rank * col_comm_size + col_comm_rank)),
           comm_dst_rank,
-          int{0} /* base_tag */,
-          requests.data());
-        device_irecv<decltype(minor_buffer_first), VertexValueOutputIterator>(
-          comm,
           vertex_value_output_first,
           static_cast<size_t>(graph_view.get_vertex_partition_size(comm_rank)),
           comm_src_rank,
-          int{0} /* base_tag */,
-          requests.data() + tuple_size);
-        // FIXME: this waitall can fail if VertexValueOutputIterator is a discard iterator or a zip
-        // iterator having one or more discard iterator
-        comm.waitall(requests.size(), requests.data());
+          handle.get_stream());
       }
     }
   }
