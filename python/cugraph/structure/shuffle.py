@@ -11,9 +11,22 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import math
 from dask.dataframe.shuffle import rearrange_by_column
 import cudf
-import cugraph.comms.comms as Comms
+
+
+def get_n_workers():
+    from dask.distributed import default_client
+    client = default_client()
+    return len(client.scheduler_info()['workers'])
+
+
+def get_2D_div(ngpus):
+    pcols = int(math.sqrt(ngpus))
+    while ngpus % pcols != 0:
+        pcols = pcols - 1
+    return int(ngpus/pcols), pcols
 
 
 def _set_partitions_pre(df, vertex_row_partitions, vertex_col_partitions,
@@ -34,7 +47,7 @@ def _set_partitions_pre(df, vertex_row_partitions, vertex_col_partitions,
     return partitions
 
 
-def shuffle(dg, transposed=False):
+def shuffle(dg, transposed=False, prows=None, pcols=None, partition_type=1):
     """
     Shuffles the renumbered input distributed graph edgelist into ngpu
     partitions. The number of processes/gpus P = prows*pcols. The 2D
@@ -44,8 +57,27 @@ def shuffle(dg, transposed=False):
     """
 
     ddf = dg.edgelist.edgelist_df
-    ngpus = Comms.get_n_workers()
-    prows, pcols, partition_type = Comms.get_2D_partition()
+    ngpus = get_n_workers()
+    if prows is None and pcols is None:
+        if partition_type == 1:
+            pcols, prows = get_2D_div(ngpus)
+        else:
+            prows, pcols = get_2D_div(ngpus)
+    else:
+        if prows is not None and pcols is not None:
+            if ngpus != prows*pcols:
+                raise Exception('prows*pcols should be equal to the\
+ number of processes')
+        elif prows is not None:
+            if ngpus % prows != 0:
+                raise Exception('prows must be a factor of the number\
+ of processes')
+            pcols = int(ngpus/prows)
+        elif pcols is not None:
+            if ngpus % pcols != 0:
+                raise Exception('pcols must be a factor of the number\
+ of processes')
+            prows = int(ngpus/pcols)
 
     renumber_vertex_count = dg.renumber_map.implementation.\
         ddf.map_partitions(len).compute()
