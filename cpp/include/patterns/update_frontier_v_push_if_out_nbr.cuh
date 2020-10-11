@@ -600,7 +600,7 @@ void update_frontier_v_push_if_out_nbr(
     auto buffer_key_first     = std::get<0>(buffer_first) + num_buffer_offset;
     auto buffer_payload_first = std::get<1>(buffer_first) + num_buffer_offset;
 
-#if 1
+#if 0  // FIXME: it seems like this muticast requires NCCL V2.8
     std::vector<int> tx_dst_ranks(tx_counts.size());
     std::vector<int> rx_src_ranks(rx_counts.size());
     for (size_t i = 0; i < tx_dst_ranks.size(); ++i) {
@@ -613,42 +613,8 @@ void update_frontier_v_push_if_out_nbr(
                           ? col_comm_rank * row_comm_size + static_cast<int>(i)
                           : static_cast<int>(i) * row_comm_size + comm_rank / col_comm_size;
     }
-    std::cout << handle.get_comms().get_rank()
-              << " reduce buffer global data comm key startedrx_counts.size()=" << rx_counts.size()
-              << " tx_counts.size()=" << tx_counts.size() << " rx_counts=[" << rx_counts[0] << ","
-              << rx_counts[1] << "] rx_offsets=[" << rx_offsets[0] << "," << rx_offsets[1]
-              << "] rx_src_ranks=[" << rx_src_ranks[0] << "," << rx_src_ranks[1] << " tx_counts=["
-              << tx_counts[0] << "," << tx_counts[1] << "] tx_offsets=[" << tx_offsets[0] << ","
-              << tx_offsets[1] << "] tx_dst_rnaks=[" << tx_dst_ranks[0] << "," << tx_dst_ranks[1]
-              << "]" << std::endl;
-#if 0
-if (handle.get_comms().get_rank() == 0) {
-device_sendrecv<decltype(buffer_key_first), decltype(buffer_key_first)>(
-  comm,
-  buffer_key_first,
-  0,
-  1,
-  buffer_key_first + num_buffer_elements,
-  0,
-  1,
-  handle.get_stream());
-}
-else {
-  device_sendrecv<decltype(buffer_key_first), decltype(buffer_key_first)>(
-    comm,
-    buffer_key_first,
-    0,
-    0,
-    buffer_key_first + num_buffer_elements,
-    0,
-    0,
-    handle.get_stream());  
-}
-CUDA_TRY(cudaStreamSynchronize(handle.get_stream()));
-comm.barrier();
-std::cout << handle.get_comms().get_rank() << " AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA" << std::endl;
-#else
-    device_multicast_sendrecv2<decltype(buffer_key_first), decltype(buffer_key_first)>(
+
+    device_multicast_sendrecv<decltype(buffer_key_first), decltype(buffer_key_first)>(
       comm,
       buffer_key_first,
       tx_counts,
@@ -659,12 +625,7 @@ std::cout << handle.get_comms().get_rank() << " AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
       rx_offsets,
       rx_src_ranks,
       handle.get_stream());
-    comm.barrier();
-    CUDA_TRY(cudaStreamSynchronize(handle.get_stream()));
-    std::cout << "AAAAAAAAAAAAAAAAAAAAA " << handle.get_comms().get_rank()
-              << " reduce buffer global data comm pyaload started rx_counts.size()="
-              << rx_counts.size() << " tx_counts.size()=" << tx_counts.size() << std::endl;
-    device_multicast_sendrecv2<decltype(buffer_payload_first), decltype(buffer_payload_first)>(
+    device_multicast_sendrecv<decltype(buffer_payload_first), decltype(buffer_payload_first)>(
       comm,
       buffer_payload_first,
       tx_counts,
@@ -675,11 +636,6 @@ std::cout << handle.get_comms().get_rank() << " AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
       rx_offsets,
       rx_src_ranks,
       handle.get_stream());
-    comm.barrier();
-    CUDA_TRY(cudaStreamSynchronize(handle.get_stream()));
-    std::cout << "BBBBBBBBBBBBBBBBBBBBBB " << handle.get_comms().get_rank() << " reduce buffer global data comm finished"
-              << std::endl;
-#endif
 #else
     auto constexpr tuple_size = thrust_tuple_size_or_one<
       typename std::iterator_traits<decltype(buffer_payload_first)>::value_type>::value;
