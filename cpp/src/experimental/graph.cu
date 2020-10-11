@@ -256,15 +256,10 @@ graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu, std::enable_if_
                   "Invalid API parameter: errneous edgelists.size().");
 
   // optional expensive checks (part 1/3)
-  std::cout << "EL SIZE: " << edgelists.size() << std::endl;
 
   if (do_expensive_check) {
-    std::cout << "DOING EC 1/3" << std::endl;
     edge_t number_of_local_edges_sum{};
-    std::cout << "CHECKING OOR" << std::endl;
     for (size_t i = 0; i < edgelists.size(); ++i) {
-      std::cout << "EL " << i << std::endl;
-
       vertex_t major_first{};
       vertex_t major_last{};
       vertex_t minor_first{};
@@ -277,18 +272,6 @@ graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu, std::enable_if_
       auto edge_first = thrust::make_zip_iterator(thrust::make_tuple(
         store_transposed ? edgelists[i].p_dst_vertices : edgelists[i].p_src_vertices,
         store_transposed ? edgelists[i].p_src_vertices : edgelists[i].p_dst_vertices));
-
-      raft::print_device_vector<vertex_t, std::ostream>(
-        "p_src_vertices", edgelists[i].p_src_vertices, edgelists[i].number_of_edges, std::cout);
-      raft::print_device_vector<vertex_t, std::ostream>(
-        "p_dst_vertices", edgelists[i].p_dst_vertices, edgelists[i].number_of_edges, std::cout);
-
-      std::cout << "---> major_first:" << major_first << " major_last:" << major_last
-                << " minor_first:" << minor_first << " minor_last:" << minor_last << std::endl;
-      // for(int ii=0;ii<edgelists[i].number_of_edges;++ii){
-      //   printf("%d %d\n" % edgelists[i].p_src_vertices[ii],edgelists[i].p_dst_vertices[ii]);
-      //}
-
       // better use thrust::any_of once https://github.com/thrust/thrust/issues/1016 is resolved
       CUGRAPH_EXPECTS(thrust::count_if(rmm::exec_policy(default_stream)->on(default_stream),
                                        edge_first,
@@ -313,7 +296,6 @@ graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu, std::enable_if_
   adj_matrix_partition_offsets_.reserve(edgelists.size());
   adj_matrix_partition_indices_.reserve(edgelists.size());
   adj_matrix_partition_weights_.reserve(is_weighted ? edgelists.size() : 0);
-  std::cout << "RESERVE OK" << std::endl;
   for (size_t i = 0; i < edgelists.size(); ++i) {
     vertex_t major_first{};
     vertex_t major_last{};
@@ -321,22 +303,16 @@ graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu, std::enable_if_
     vertex_t minor_last{};
     std::tie(major_first, major_last) = partition.get_matrix_partition_major_range(i);
     std::tie(minor_first, minor_last) = partition.get_matrix_partition_minor_range();
-    std::cout << "MJF:" << major_first << " MJL:" << major_last << std::endl;
-    std::cout << "MNF:" << minor_first << " MNL:" << minor_last << std::endl;
 
     rmm::device_uvector<edge_t> offsets(0, default_stream);
     rmm::device_uvector<vertex_t> indices(0, default_stream);
     rmm::device_uvector<weight_t> weights(0, default_stream);
-    std::cout << "ELTCS" << std::endl;
     std::tie(offsets, indices, weights) = edge_list_to_compressed_sparse<store_transposed>(
       *(this->get_handle_ptr()), edgelists[i], major_first, major_last, minor_first, minor_last);
-    std::cout << "DONE ELTCS" << std::endl;
     adj_matrix_partition_offsets_.push_back(std::move(offsets));
     adj_matrix_partition_indices_.push_back(std::move(indices));
     if (is_weighted) { adj_matrix_partition_weights_.push_back(std::move(weights)); }
-    std::cout << "DONE LOOP" << std::endl;
   }
-  std::cout << "DONE CONVERTING COO" << std::endl;
 
   // update degree-based segment offsets (to be used for graph analytics kernel optimization)
 
