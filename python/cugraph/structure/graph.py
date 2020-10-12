@@ -498,10 +498,9 @@ class Graph:
                 )
                 ddf_columns = ddf_columns + [edge_attr]
         input_ddf = input_ddf[ddf_columns]
-        
         if edge_attr is not None:
-            input_ddf = input_ddf.rename({edge_attr:'value'})    
-        
+            input_ddf = input_ddf.rename({edge_attr:'value'})
+
         #
         # Keep all of the original parameters so we can lazily
         # evaluate this function
