@@ -677,8 +677,8 @@ std::cout << handle.get_comms().get_rank() << " AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
       handle.get_stream());
     comm.barrier();
     CUDA_TRY(cudaStreamSynchronize(handle.get_stream()));
-    std::cout << "BBBBBBBBBBBBBBBBBBBBBB " << handle.get_comms().get_rank() << " reduce buffer global data comm finished"
-              << std::endl;
+    std::cout << "BBBBBBBBBBBBBBBBBBBBBB " << handle.get_comms().get_rank()
+              << " reduce buffer global data comm finished" << std::endl;
 #endif
 #else
     auto constexpr tuple_size = thrust_tuple_size_or_one<

@@ -737,16 +737,16 @@ class Louvain {
 
     if (src) {
       src_cache_v.resize(current_graph_view_.get_number_of_local_adj_matrix_partition_rows());
-    CUDA_TRY(cudaStreamSynchronize(stream_));
+      CUDA_TRY(cudaStreamSynchronize(stream_));
       copy_to_adj_matrix_row(
         handle_, current_graph_view_, local_input_v.begin(), src_cache_v.begin());
-    CUDA_TRY(cudaStreamSynchronize(stream_));
+      CUDA_TRY(cudaStreamSynchronize(stream_));
     }
 
     if (dst) {
-    CUDA_TRY(cudaStreamSynchronize(stream_));
+      CUDA_TRY(cudaStreamSynchronize(stream_));
       dst_cache_v.resize(current_graph_view_.get_number_of_local_adj_matrix_partition_cols());
-    CUDA_TRY(cudaStreamSynchronize(stream_));
+      CUDA_TRY(cudaStreamSynchronize(stream_));
       copy_to_adj_matrix_col(
         handle_, current_graph_view_, local_input_v.begin(), dst_cache_v.begin());
     }
