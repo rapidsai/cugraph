@@ -49,7 +49,7 @@ def personalize(v, personalization_perc):
     return cu_personalization
 
 
-PERSONALIZATION_PERC = [0, 10, 50]
+PERSONALIZATION_PERC = [0]
 
 
 @pytest.fixture

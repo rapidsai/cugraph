@@ -1,6 +1,4 @@
-#
 # Copyright (c) 2020, NVIDIA CORPORATION.
-#
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -12,23 +10,16 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-#
 
-from cugraph.structure.graph_primtypes cimport *
-from libcpp cimport bool
+# cython: profile=False
+# distutils: language = c++
+# cython: embedsignature = True
+# cython: language_level = 3
+
+from cugraph.structure.graph_primtypes cimport handle_t
 
 
 cdef extern from "utilities/cython.hpp" namespace "cugraph::cython":
 
-    cdef void call_pagerank[vertex_t, weight_t](
-        const handle_t &handle,
-        const graph_container_t &g,
-        vertex_t *identifiers,
-        weight_t *pagerank,
-        vertex_t size,
-        vertex_t *personalization_subset,
-        weight_t *personalization_values,
-        double alpha,
-        double tolerance,
-        long long max_iter,
-        bool has_guess) except +
+   cdef void init_subcomms(handle_t &handle,
+                           size_t row_comm_size)
