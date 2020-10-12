@@ -24,8 +24,6 @@ from libc.stdint cimport uintptr_t
 def mg_bfs(input_df,
            num_global_verts,
            num_global_edges,
-           partition_row_size,
-           partition_col_size,
            vertex_partition_offsets,
            rank,
            handle,
@@ -81,7 +79,6 @@ def mg_bfs(input_df,
                              <numberTypeEnum>(<int>(numberTypeMap[weight_t])),
                              num_partition_edges,
                              num_global_verts, num_global_edges,
-                             partition_row_size, partition_col_size,
                              True,
                              False, True) 
 
