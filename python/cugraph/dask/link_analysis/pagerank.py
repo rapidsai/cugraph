@@ -14,17 +14,29 @@
 #
 
 from dask.distributed import wait, default_client
-from cugraph.dask.common.input_utils import get_local_data
+from cugraph.dask.common.input_utils import get_distributed_data
+from cugraph.structure.shuffle import shuffle
 from cugraph.dask.link_analysis import mg_pagerank_wrapper as mg_pagerank
 import cugraph.comms.comms as Comms
+import dask_cudf
 
 
-def call_pagerank(sID, data, local_data, alpha, max_iter,
-                  tol, personalization, nstart):
+def call_pagerank(sID,
+                  data,
+                  num_verts,
+                  num_edges,
+                  vertex_partition_offsets,
+                  alpha,
+                  max_iter,
+                  tol,
+                  personalization,
+                  nstart):
     wid = Comms.get_worker_id(sID)
     handle = Comms.get_handle(sID)
     return mg_pagerank.mg_pagerank(data[0],
-                                   local_data,
+                                   num_verts,
+                                   num_edges,
+                                   vertex_partition_offsets,
                                    wid,
                                    handle,
                                    alpha,
@@ -113,15 +125,21 @@ def pagerank(input_graph,
     """
     from cugraph.structure.graph import null_check
 
+    if personalization is not None:
+        raise Exception("Personalization not supported")
+
     nstart = None
 
     client = default_client()
 
-    if(input_graph.local_data is not None and
-       input_graph.local_data['by'] == 'dst'):
-        data = input_graph.local_data['data']
-    else:
-        data = get_local_data(input_graph, by='dst', load_balance=load_balance)
+    input_graph.compute_renumber_edge_list(transposed=True)
+    (ddf,
+     num_verts,
+     partition_row_size,
+     partition_col_size,
+     vertex_partition_offsets) = shuffle(input_graph, transposed=True)
+    num_edges = len(ddf)
+    data = get_distributed_data(ddf)
 
     if personalization is not None:
         null_check(personalization["vertex"])
@@ -131,22 +149,22 @@ def pagerank(input_graph,
                 personalization, "vertex", "vertex"
             ).compute()
 
-    result = dict([(data.worker_info[wf[0]]["rank"],
-                    client.submit(
-                    call_pagerank,
-                    Comms.get_session_id(),
-                    wf[1],
-                    data.local_data,
-                    alpha,
-                    max_iter,
-                    tol,
-                    personalization,
-                    nstart,
-                    workers=[wf[0]]))
-                   for idx, wf in enumerate(data.worker_to_parts.items())])
+    result = [client.submit(call_pagerank,
+                            Comms.get_session_id(),
+                            wf[1],
+                            num_verts,
+                            num_edges,
+                            vertex_partition_offsets,
+                            alpha,
+                            max_iter,
+                            tol,
+                            personalization,
+                            nstart,
+                            workers=[wf[0]])
+              for idx, wf in enumerate(data.worker_to_parts.items())]
     wait(result)
-
+    ddf = dask_cudf.from_delayed(result)
     if input_graph.renumbered:
-        return input_graph.unrenumber(result[0].result(), 'vertex').compute()
+        return input_graph.unrenumber(ddf, 'vertex')
 
-    return result[0].result()
+    return ddf

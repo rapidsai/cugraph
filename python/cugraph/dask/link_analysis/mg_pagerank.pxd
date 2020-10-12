@@ -18,15 +18,16 @@ from cugraph.structure.graph_primtypes cimport *
 from libcpp cimport bool
 
 
-cdef extern from "algorithms.hpp" namespace "cugraph":
+cdef extern from "utilities/cython.hpp" namespace "cugraph::cython":
 
-    cdef void pagerank[VT,ET,WT](
+    cdef void call_pagerank[vertex_t, weight_t](
         const handle_t &handle,
-        const GraphCSCView[VT,ET,WT] &graph,
-        WT *pagerank,
-        VT size,
-        VT *personalization_subset,
-        WT *personalization_values,
+        const graph_container_t &g,
+        vertex_t *identifiers,
+        weight_t *pagerank,
+        vertex_t size,
+        vertex_t *personalization_subset,
+        weight_t *personalization_values,
         double alpha,
         double tolerance,
         long long max_iter,

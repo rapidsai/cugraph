@@ -52,12 +52,12 @@ create_graph(raft::handle_t const& handle, graph_container_t const& graph_contai
     reinterpret_cast<vertex_t*>(graph_container.vertex_partition_offsets) +
       (graph_container.row_comm_size * graph_container.col_comm_size) + 1);
 
-  experimental::partition_t<int> partition(partition_offsets_vector,
-                                           graph_container.hypergraph_partitioned,
-                                           graph_container.row_comm_size,
-                                           graph_container.col_comm_size,
-                                           graph_container.row_comm_rank,
-                                           graph_container.col_comm_rank);
+  experimental::partition_t<vertex_t> partition(partition_offsets_vector,
+                                                graph_container.hypergraph_partitioned,
+                                                graph_container.row_comm_size,
+                                                graph_container.col_comm_size,
+                                                graph_container.row_comm_rank,
+                                                graph_container.col_comm_rank);
 
   return std::make_unique<experimental::graph_t<vertex_t, edge_t, weight_t, transposed, multi_gpu>>(
     handle,
@@ -466,6 +466,83 @@ std::pair<size_t, weight_t> call_louvain(raft::handle_t const& handle,
     handle, graph_container, functor);
 }
 
+// Wrapper for calling Pagerank through a graph container
+template <typename vertex_t, typename weight_t>
+void call_pagerank(raft::handle_t const& handle,
+                   graph_container_t const& graph_container,
+                   vertex_t* identifiers,
+                   weight_t* p_pagerank,
+                   vertex_t personalization_subset_size,
+                   vertex_t* personalization_subset,
+                   weight_t* personalization_values,
+                   double alpha,
+                   double tolerance,
+                   int64_t max_iter,
+                   bool has_guess)
+{
+  if (graph_container.graph_type == graphTypeEnum::GraphCSCViewFloat) {
+    pagerank(handle,
+             *(graph_container.graph_ptr_union.GraphCSCViewFloatPtr),
+             reinterpret_cast<float*>(p_pagerank),
+             static_cast<int32_t>(personalization_subset_size),
+             reinterpret_cast<int32_t*>(personalization_subset),
+             reinterpret_cast<float*>(personalization_values),
+             alpha,
+             tolerance,
+             max_iter,
+             has_guess);
+    graph_container.graph_ptr_union.GraphCSCViewFloatPtr->get_vertex_identifiers(
+      reinterpret_cast<int32_t*>(identifiers));
+  } else if (graph_container.graph_type == graphTypeEnum::GraphCSCViewDouble) {
+    pagerank(handle,
+             *(graph_container.graph_ptr_union.GraphCSCViewDoublePtr),
+             reinterpret_cast<double*>(p_pagerank),
+             static_cast<int32_t>(personalization_subset_size),
+             reinterpret_cast<int32_t*>(personalization_subset),
+             reinterpret_cast<double*>(personalization_values),
+             alpha,
+             tolerance,
+             max_iter,
+             has_guess);
+    graph_container.graph_ptr_union.GraphCSCViewDoublePtr->get_vertex_identifiers(
+      reinterpret_cast<int32_t*>(identifiers));
+  } else if (graph_container.graph_type == graphTypeEnum::graph_t) {
+    if (graph_container.edgeType == numberTypeEnum::int32Type) {
+      auto graph =
+        detail::create_graph<int32_t, int32_t, weight_t, true, true>(handle, graph_container);
+      cugraph::experimental::pagerank(handle,
+                                      graph->view(),
+                                      static_cast<weight_t*>(nullptr),
+                                      reinterpret_cast<int32_t*>(personalization_subset),
+                                      reinterpret_cast<weight_t*>(personalization_values),
+                                      static_cast<int32_t>(personalization_subset_size),
+                                      reinterpret_cast<weight_t*>(p_pagerank),
+                                      static_cast<weight_t>(alpha),
+                                      static_cast<weight_t>(tolerance),
+                                      max_iter,
+                                      has_guess,
+                                      false);
+    } else if (graph_container.edgeType == numberTypeEnum::int64Type) {
+      auto graph =
+        detail::create_graph<vertex_t, int64_t, weight_t, true, true>(handle, graph_container);
+      cugraph::experimental::pagerank(handle,
+                                      graph->view(),
+                                      static_cast<weight_t*>(nullptr),
+                                      reinterpret_cast<vertex_t*>(personalization_subset),
+                                      reinterpret_cast<weight_t*>(personalization_values),
+                                      static_cast<vertex_t>(personalization_subset_size),
+                                      reinterpret_cast<weight_t*>(p_pagerank),
+                                      static_cast<weight_t>(alpha),
+                                      static_cast<weight_t>(tolerance),
+                                      max_iter,
+                                      has_guess,
+                                      false);
+    } else {
+      CUGRAPH_FAIL("vertexType/edgeType combination unsupported");
+    }
+  }
+}
+
 // Explicit instantiations
 template std::pair<size_t, float> call_louvain(raft::handle_t const& handle,
                                                graph_container_t const& graph_container,
@@ -480,6 +557,54 @@ template std::pair<size_t, double> call_louvain(raft::handle_t const& handle,
                                                 void* parts,
                                                 size_t max_level,
                                                 double resolution);
+
+template void call_pagerank(raft::handle_t const& handle,
+                            graph_container_t const& graph_container,
+                            int* identifiers,
+                            float* p_pagerank,
+                            int32_t personalization_subset_size,
+                            int32_t* personalization_subset,
+                            float* personalization_values,
+                            double alpha,
+                            double tolerance,
+                            int64_t max_iter,
+                            bool has_guess);
+
+template void call_pagerank(raft::handle_t const& handle,
+                            graph_container_t const& graph_container,
+                            int* identifiers,
+                            double* p_pagerank,
+                            int32_t personalization_subset_size,
+                            int32_t* personalization_subset,
+                            double* personalization_values,
+                            double alpha,
+                            double tolerance,
+                            int64_t max_iter,
+                            bool has_guess);
+
+template void call_pagerank(raft::handle_t const& handle,
+                            graph_container_t const& graph_container,
+                            int64_t* identifiers,
+                            float* p_pagerank,
+                            int64_t personalization_subset_size,
+                            int64_t* personalization_subset,
+                            float* personalization_values,
+                            double alpha,
+                            double tolerance,
+                            int64_t max_iter,
+                            bool has_guess);
+
+template void call_pagerank(raft::handle_t const& handle,
+                            graph_container_t const& graph_container,
+                            int64_t* identifiers,
+                            double* p_pagerank,
+                            int64_t personalization_subset_size,
+                            int64_t* personalization_subset,
+                            double* personalization_values,
+                            double alpha,
+                            double tolerance,
+                            int64_t max_iter,
+                            bool has_guess);
 
 // Helper for setting up subcommunicators
 void init_subcomms(raft::handle_t& handle, size_t row_comm_size)
