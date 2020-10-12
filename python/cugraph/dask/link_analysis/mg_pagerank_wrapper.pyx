@@ -27,8 +27,6 @@ import numpy as np
 def mg_pagerank(input_df,
                 num_global_verts,
                 num_global_edges,
-                partition_row_size,
-                partition_col_size,
                 vertex_partition_offsets,
                 rank,
                 handle,
