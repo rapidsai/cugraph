@@ -14,8 +14,6 @@
  * limitations under the License.
  */
 
-#include <cuda/std/version>
-
 #include <community/louvain.cuh>
 
 // FIXME:  MNMG Louvain requires libcu++, so if it's not available don't compile it
