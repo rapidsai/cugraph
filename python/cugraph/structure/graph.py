@@ -488,6 +488,14 @@ class Graph:
                 "names not found in input. Recheck the source "
                 "and destination parameters"
             )
+        if not (
+            set([edge_attr]).issubset(set(input_ddf.columns)):
+            raise Exception(
+                "edge_attr column name not found in input."
+                "Recheck the edge_attr parameter"
+            )
+        else:
+            input_ddf = input_ddf.rename({edge_attr:'value'})
         #
         # Keep all of the original parameters so we can lazily
         # evaluate this function
