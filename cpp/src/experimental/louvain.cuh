@@ -34,7 +34,7 @@
 #include <patterns/transform_reduce_v.cuh>
 
 //#define TIMING
-#define DEBUG
+//#define DEBUG
 
 #ifdef TIMING
 #include <utilities/high_res_timer.hpp>
@@ -163,7 +163,7 @@ class src_dst_hasher_t {
   template <typename idx_type>
   __device__ auto operator()(idx_type index) const
   {
-    cuco::detail::MurmurHash3_32<data_t> hasher;
+    MurmurHash3_32<data_t> hasher;
 
     auto h_src = hasher(d_src_[index]);
     auto h_dst = hasher(d_dst_[index]);
@@ -260,7 +260,7 @@ class src_cluster_hasher_t {
   template <typename idx_type>
   __device__ auto operator()(idx_type index) const
   {
-    cuco::detail::MurmurHash3_32<data_t> hasher;
+    MurmurHash3_32<data_t> hasher;
 
     auto h_src     = hasher(d_src_[index]);
     auto h_cluster = hasher(d_dst_cluster_[d_dst_[index] - base_dst_id_]);

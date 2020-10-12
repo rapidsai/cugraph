@@ -177,10 +177,8 @@ message("Fetching cuco")
 
 FetchContent_Declare(
     cuco
-    #GIT_REPOSITORY https://github.com/NVIDIA/cuCollections.git
-    #GIT_TAG        269a9bef3cc8b81b5dfff2d9a5a105c346836d4d
-    GIT_REPOSITORY https://github.com/jrhemstad/cuCollections.git
-    GIT_TAG        46f11515eaefa28d5d5cbd6fb31848e6c93408ad
+    GIT_REPOSITORY https://github.com/NVIDIA/cuCollections.git
+    GIT_TAG        269a9bef3cc8b81b5dfff2d9a5a105c346836d4d
     GIT_SHALLOW    true
 )
 
@@ -189,6 +187,28 @@ if(NOT cuco_POPULATED)
   FetchContent_Populate(cuco)
 endif()
 set(CUCO_INCLUDE_DIR "${cuco_SOURCE_DIR}/include")
+
+# - libcudacxx
+#     NOTE:  This is necessary because libcudacxx is not supported in
+#      debian cuda 10.2 packages.  Once 10.2 is deprecated
+#      we should not need this any longer.
+message("Fetching libcudacxx")
+
+FetchContent_Declare(
+    libcudacxx
+    GIT_REPOSITORY https://github.com/NVIDIA/libcudacxx.git
+    GIT_TAG        1.3.0-rc0
+    GIT_SHALLOW    true
+)
+
+FetchContent_GetProperties(libcudacxx)
+if(NOT libcudacxx_POPULATED)
+  message("populating libcudacxx")
+  FetchContent_Populate(libcudacxx)
+endif()
+set(LIBCUDACXX_INCLUDE_DIR "${libcudacxx_SOURCE_DIR}/include")
+message("set LIBCUDACXX_INCLUDE_DIR to: ${LIBCUDACXX_INCLUDE_DIR}")
+
 
 
 ###################################################################################################
@@ -341,6 +361,7 @@ target_include_directories(cugraph
     PRIVATE
     "${THRUST_INCLUDE_DIR}"
     "${CUCO_INCLUDE_DIR}"
+    "${LIBCUDACXX_INCLUDE_DIR}"
     "${CMAKE_CUDA_TOOLKIT_INCLUDE_DIRECTORIES}"
     "${LIBCYPHERPARSER_INCLUDE}"
     "${Boost_INCLUDE_DIRS}"
