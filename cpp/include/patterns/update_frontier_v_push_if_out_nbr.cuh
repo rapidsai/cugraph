@@ -490,7 +490,6 @@ void update_frontier_v_push_if_out_nbr(
   }
 
   // 2. reduce the buffer
-  std::cout << handle.get_comms().get_rank() << " reduce buffer local start\n";
 
   auto num_buffer_offset = edge_t{0};
 
@@ -504,7 +503,6 @@ void update_frontier_v_push_if_out_nbr(
                                                             vertex_frontier.get_buffer_idx_value(),
                                                             reduce_op);
 
-  std::cout << handle.get_comms().get_rank() << " reduce buffer global start" << std::endl;
   if (GraphViewType::is_multi_gpu) {
     auto& comm               = handle.get_comms();
     auto const comm_rank     = comm.get_rank();
@@ -584,8 +582,6 @@ void update_frontier_v_push_if_out_nbr(
                                      std::numeric_limits<raft::comms::request_t>::max()),
                          count_requests.end());
     comm.waitall(count_requests.size(), count_requests.data());
-    std::cout << handle.get_comms().get_rank() << " reduce buffer global size comm finished"
-              << std::endl;
 
     std::vector<size_t> tx_offsets(tx_counts.size() + 1, edge_t{0});
     std::partial_sum(tx_counts.begin(), tx_counts.end(), tx_offsets.begin() + 1);
@@ -652,8 +648,6 @@ void update_frontier_v_push_if_out_nbr(
 
   // 3. update vertex properties
 
-  std::cout << handle.get_comms().get_rank()
-            << " update vertex properties start num_elems=" << num_buffer_elements << std::endl;
   if (num_buffer_elements > 0) {
     auto buffer_first         = vertex_frontier.buffer_begin();
     auto buffer_key_first     = std::get<0>(buffer_first) + num_buffer_offset;
@@ -690,8 +684,6 @@ void update_frontier_v_push_if_out_nbr(
       vertex_frontier.get_bucket(i).set_size(bucket_sizes[i]);
     }
   }
-  std::cout << handle.get_comms().get_rank()
-            << " update vertex properties end num_elems=" << num_buffer_elements << std::endl;
 }
 
 /*
