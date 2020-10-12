@@ -594,13 +594,14 @@ void update_frontier_v_push_if_out_nbr(
 
     // FIXME: this will require costly reallocation if we don't use the new CUDA feature to reserve
     // address space.
-    vertex_frontier.resize_buffer(num_buffer_elements + rx_offsets.back());
+    // FIXME: std::max(actual size, 1) as ncclRecv currently hangs if recvuff is nullptr even if
+    // count is 0
+    vertex_frontier.resize_buffer(std::max(num_buffer_elements + rx_offsets.back(), size_t(1)));
 
     auto buffer_first         = vertex_frontier.buffer_begin();
     auto buffer_key_first     = std::get<0>(buffer_first) + num_buffer_offset;
     auto buffer_payload_first = std::get<1>(buffer_first) + num_buffer_offset;
 
-#if 0  // FIXME: it seems like this muticast requires NCCL V2.8
     std::vector<int> tx_dst_ranks(tx_counts.size());
     std::vector<int> rx_src_ranks(rx_counts.size());
     for (size_t i = 0; i < tx_dst_ranks.size(); ++i) {
@@ -636,87 +637,6 @@ void update_frontier_v_push_if_out_nbr(
       rx_offsets,
       rx_src_ranks,
       handle.get_stream());
-#else
-    auto constexpr tuple_size = thrust_tuple_size_or_one<
-      typename std::iterator_traits<decltype(buffer_payload_first)>::value_type>::value;
-
-    std::vector<raft::comms::request_t> buffer_requests((tx_counts.size() + rx_counts.size()) *
-                                                        (1 + tuple_size));
-    for (size_t i = 0; i < tx_counts.size(); ++i) {
-      auto comm_dst_rank = graph_view.is_hypergraph_partitioned()
-                             ? col_comm_rank * row_comm_size + static_cast<int>(i)
-                             : row_comm_rank * col_comm_size + static_cast<int>(i);
-      if (comm_dst_rank == comm_rank) {
-        assert(i == tx_self_i);
-        // FIXME: better define request_null (similar to MPI_REQUEST_NULL) under raft::comms
-        std::fill(buffer_requests.data() + i * (1 + tuple_size),
-                  buffer_requests.data() + (i + 1) * (1 + tuple_size),
-                  std::numeric_limits<raft::comms::request_t>::max());
-      } else {
-        CUDA_TRY(cudaStreamSynchronize(
-          handle.get_stream()));  // to ensure data to be sent are ready (FIXME: this can be removed
-                                  // if we use ncclSend in raft::comms)
-
-        device_isend<decltype(buffer_key_first), decltype(buffer_key_first)>(
-          comm,
-          buffer_key_first + tx_offsets[i],
-          static_cast<size_t>(tx_counts[i]),
-          comm_dst_rank,
-          int{0} /* tag */,
-          buffer_requests.data() + i * (1 + tuple_size));
-        device_isend<decltype(buffer_payload_first), decltype(buffer_payload_first)>(
-          comm,
-          buffer_payload_first + tx_offsets[i],
-          static_cast<size_t>(tx_counts[i]),
-          comm_dst_rank,
-          int{1} /* base tag */,
-          buffer_requests.data() + (i * (1 + tuple_size) + 1));
-      }
-    }
-    for (size_t i = 0; i < rx_counts.size(); ++i) {
-      auto comm_src_rank = graph_view.is_hypergraph_partitioned()
-                             ? col_comm_rank * row_comm_size + static_cast<int>(i)
-                             : static_cast<int>(i) * row_comm_size + comm_rank / col_comm_size;
-      if (comm_src_rank == comm_rank) {
-        assert(tx_self_i != std::numeric_limits<size_t>::max());
-        assert(rx_counts[i] == tx_counts[tx_self_i]);
-        thrust::copy(rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
-                     buffer_key_first + tx_offsets[tx_self_i],
-                     buffer_key_first + tx_offsets[tx_self_i] + tx_counts[tx_self_i],
-                     buffer_key_first + num_buffer_elements + rx_offsets[i]);
-        thrust::copy(rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
-                     buffer_payload_first + tx_offsets[tx_self_i],
-                     buffer_payload_first + tx_offsets[tx_self_i] + tx_counts[tx_self_i],
-                     buffer_payload_first + num_buffer_elements + rx_offsets[i]);
-        // FIXME: better define request_null (similar to MPI_REQUEST_NULL) under raft::comms
-        std::fill(buffer_requests.data() + (tx_counts.size() + i) * (1 + tuple_size),
-                  buffer_requests.data() + (tx_counts.size() + i + 1) * (1 + tuple_size),
-                  std::numeric_limits<raft::comms::request_t>::max());
-      } else {
-        device_irecv<decltype(buffer_key_first), decltype(buffer_key_first)>(
-          comm,
-          buffer_key_first + num_buffer_elements + rx_offsets[i],
-          static_cast<size_t>(rx_counts[i]),
-          comm_src_rank,
-          int{0} /* tag */,
-          buffer_requests.data() + ((tx_counts.size() + i) * (1 + tuple_size)));
-        device_irecv<decltype(buffer_payload_first), decltype(buffer_payload_first)>(
-          comm,
-          buffer_payload_first + num_buffer_elements + rx_offsets[i],
-          static_cast<size_t>(rx_counts[i]),
-          comm_src_rank,
-          int{1} /* base tag */,
-          buffer_requests.data() + ((tx_counts.size() + i) * (1 + tuple_size) + 1));
-      }
-    }
-    // FIXME: better define request_null (similar to MPI_REQUEST_NULL) under raft::comms, if
-    // raft::comms::wait immediately returns on seeing request_null, this remove is unnecessary
-    buffer_requests.erase(std::remove(buffer_requests.begin(),
-                                      buffer_requests.end(),
-                                      std::numeric_limits<raft::comms::request_t>::max()),
-                          buffer_requests.end());
-    comm.waitall(buffer_requests.size(), buffer_requests.data());
-#endif
 
     // FIXME: this does not exploit the fact that each segment is sorted. Lost performance
     // optimization opportunities.
