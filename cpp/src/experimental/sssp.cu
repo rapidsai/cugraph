@@ -212,9 +212,9 @@ void sssp(raft::handle_t const &handle,
       auto old_near_far_threshold = near_far_threshold;
       near_far_threshold += delta;
 
-      size_t new_cur_near_size{};
-      size_t new_far_size{};
-      do {
+      size_t new_near_size{0};
+      size_t new_far_size{0};
+      while (true) {
         vertex_frontier.split_bucket(
           static_cast<size_t>(Bucket::far),
           [vertex_partition, distances, old_near_far_threshold, near_far_threshold] __device__(
@@ -229,12 +229,18 @@ void sssp(raft::handle_t const &handle,
               return static_cast<size_t>(Bucket::far);
             }
           });
-        new_cur_near_size =
+        new_near_size =
           vertex_frontier.get_bucket(static_cast<size_t>(Bucket::cur_near)).aggregate_size();
         new_far_size =
           vertex_frontier.get_bucket(static_cast<size_t>(Bucket::far)).aggregate_size();
-      } while ((new_cur_near_size == 0) && (new_far_size > 0));
-      if (new_far_size == 0) { break; }
+        if ((new_near_size > 0) || (new_far_size == 0)) {
+          break;
+        }
+        else {
+          near_far_threshold += delta;
+        }
+      }
+      if ((new_near_size == 0) && (new_far_size == 0)) { break; }
     } else {
       break;
     }
