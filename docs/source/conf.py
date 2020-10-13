@@ -209,6 +209,6 @@ def setup(app):
 
 # The following is used by sphinx.ext.linkcode to provide links to github
 linkcode_resolve = make_linkcode_resolve(
-    'cuml', 'https://github.com/rapidsai/'
-    'cuml/blob/{revision}/python/'
+    'cugraph', 'https://github.com/rapidsai/'
+    'cugraph/blob/{revision}/python/'
     '{package}/{path}#L{lineno}')
