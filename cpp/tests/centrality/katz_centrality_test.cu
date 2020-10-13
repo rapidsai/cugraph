@@ -160,7 +160,7 @@ INSTANTIATE_TEST_CASE_P(
   simple_test,
   Tests_Katz,
   ::testing::Values(Katz_Usecase("test/datasets/karate.mtx", "ref/katz/karate.csv"),
-                    Katz_Usecase("test/datasets/netscience.mtx", "ref/katz/netscience.csv"),
+                    // Katz_Usecase("test/datasets/netscience.mtx", "ref/katz/netscience.csv"),
                     Katz_Usecase("test/datasets/polbooks.mtx", "ref/katz/polbooks.csv"),
                     Katz_Usecase("test/datasets/dolphins.mtx", "ref/katz/dolphins.csv")));
 
