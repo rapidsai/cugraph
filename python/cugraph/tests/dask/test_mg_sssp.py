@@ -39,7 +39,7 @@ def client_connection():
 @pytest.mark.skipif(
     is_single_gpu(), reason="skipping MG testing on Single GPU system"
 )
-def test_dask_bfs(client_connection):
+def test_dask_sssp(client_connection):
     gc.collect()
 
     input_data_path = r"../datasets/netscience.csv"
@@ -61,13 +61,14 @@ def test_dask_bfs(client_connection):
     )
 
     g = cugraph.DiGraph()
-    g.from_cudf_edgelist(df, "src", "dst", renumber=True)
+    g.from_cudf_edgelist(df, "src", "dst", "value", renumber=True)
 
     dg = cugraph.DiGraph()
-    dg.from_dask_cudf_edgelist(ddf, "src", "dst")
+    dg.from_dask_cudf_edgelist(ddf, "src", "dst", "value")
 
-    expected_dist = cugraph.bfs(g, 0)
-    result_dist = dcg.bfs(dg, 0, True)
+    expected_dist = cugraph.sssp(g, 0)
+    print(expected_dist)
+    result_dist = dcg.sssp(dg, 0)
     result_dist = result_dist.compute()
 
     compare_dist = expected_dist.merge(

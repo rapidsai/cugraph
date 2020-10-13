@@ -16,34 +16,32 @@
 from dask.distributed import wait, default_client
 from cugraph.dask.common.input_utils import get_distributed_data
 from cugraph.structure.shuffle import shuffle
-from cugraph.dask.traversal import mg_bfs_wrapper as mg_bfs
+from cugraph.dask.traversal import mg_sssp_wrapper as mg_sssp
 import cugraph.comms.comms as Comms
 import cudf
 import dask_cudf
 
 
-def call_bfs(sID,
-             data,
-             num_verts,
-             num_edges,
-             vertex_partition_offsets,
-             start,
-             return_distances):
+def call_sssp(sID,
+              data,
+              num_verts,
+              num_edges,
+              vertex_partition_offsets,
+              start):
     wid = Comms.get_worker_id(sID)
     handle = Comms.get_handle(sID)
-    return mg_bfs.mg_bfs(data[0],
-                         num_verts,
-                         num_edges,
-                         vertex_partition_offsets,
-                         wid,
-                         handle,
-                         start,
-                         return_distances)
+    return mg_sssp.mg_sssp(data[0],
+                           num_verts,
+                           num_edges,
+                           vertex_partition_offsets,
+                           wid,
+                           handle,
+                           start)
 
 
-def bfs(graph,
-        start,
-        return_distances=False):
+def sssp(graph,
+         source):
+
     """
     Find the distances and predecessors for a breadth first traversal of a
     graph.
@@ -56,11 +54,8 @@ def bfs(graph,
         cuGraph graph descriptor, should contain the connectivity information
         as dask cudf edge list dataframe(edge weights are not used for this
         algorithm). Undirected Graph not currently supported.
-    start : Integer
-        Specify starting vertex for breadth-first search; this function
-        iterates over edges in the component reachable from this node.
-    return_distances : bool, optional, default=False
-        Indicates if distances should be returned
+    source : Integer
+        Specify source vertex
 
     Returns
     -------
@@ -84,7 +79,7 @@ def bfs(graph,
                                  dtype=['int32', 'int32', 'float32'])
     >>> dg = cugraph.DiGraph()
     >>> dg.from_dask_cudf_edgelist(ddf)
-    >>> df = dcg.bfs(dg, 0)
+    >>> df = dcg.sssp(dg, 0)
     >>> Comms.destroy()
     """
 
@@ -100,19 +95,18 @@ def bfs(graph,
     data = get_distributed_data(ddf)
 
     if graph.renumbered:
-        start = graph.lookup_internal_vertex_id(cudf.Series([start],
-                                                dtype='int32')).compute()
-        start = start.iloc[0]
+        source = graph.lookup_internal_vertex_id(cudf.Series([source],
+                                                 dtype='int32')).compute()
+        source = source.iloc[0]
 
     result = [client.submit(
-              call_bfs,
+              call_sssp,
               Comms.get_session_id(),
               wf[1],
               num_verts,
               num_edges,
               vertex_partition_offsets,
-              start,
-              return_distances,
+              source,
               workers=[wf[0]])
               for idx, wf in enumerate(data.worker_to_parts.items())]
     wait(result)
@@ -122,4 +116,5 @@ def bfs(graph,
         ddf = graph.unrenumber(ddf, 'vertex')
         ddf = graph.unrenumber(ddf, 'predecessor')
         ddf["predecessor"] = ddf["predecessor"].fillna(-1)
+
     return ddf
