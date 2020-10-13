@@ -490,7 +490,6 @@ void update_frontier_v_push_if_out_nbr(
   }
 
   // 2. reduce the buffer
-  std::cout << handle.get_comms().get_rank() << " reduce buffer local start\n";
 
   auto num_buffer_offset = edge_t{0};
 
@@ -504,7 +503,6 @@ void update_frontier_v_push_if_out_nbr(
                                                             vertex_frontier.get_buffer_idx_value(),
                                                             reduce_op);
 
-  std::cout << handle.get_comms().get_rank() << " reduce buffer global start" << std::endl;
   if (GraphViewType::is_multi_gpu) {
     auto& comm               = handle.get_comms();
     auto const comm_rank     = comm.get_rank();
@@ -584,8 +582,6 @@ void update_frontier_v_push_if_out_nbr(
                                      std::numeric_limits<raft::comms::request_t>::max()),
                          count_requests.end());
     comm.waitall(count_requests.size(), count_requests.data());
-    std::cout << handle.get_comms().get_rank() << " reduce buffer global size comm finished"
-              << std::endl;
 
     std::vector<size_t> tx_offsets(tx_counts.size() + 1, edge_t{0});
     std::partial_sum(tx_counts.begin(), tx_counts.end(), tx_offsets.begin() + 1);
@@ -594,13 +590,14 @@ void update_frontier_v_push_if_out_nbr(
 
     // FIXME: this will require costly reallocation if we don't use the new CUDA feature to reserve
     // address space.
-    vertex_frontier.resize_buffer(num_buffer_elements + rx_offsets.back());
+    // FIXME: std::max(actual size, 1) as ncclRecv currently hangs if recvuff is nullptr even if
+    // count is 0
+    vertex_frontier.resize_buffer(std::max(num_buffer_elements + rx_offsets.back(), size_t(1)));
 
     auto buffer_first         = vertex_frontier.buffer_begin();
     auto buffer_key_first     = std::get<0>(buffer_first) + num_buffer_offset;
     auto buffer_payload_first = std::get<1>(buffer_first) + num_buffer_offset;
 
-#if 1
     std::vector<int> tx_dst_ranks(tx_counts.size());
     std::vector<int> rx_src_ranks(rx_counts.size());
     for (size_t i = 0; i < tx_dst_ranks.size(); ++i) {
@@ -613,42 +610,8 @@ void update_frontier_v_push_if_out_nbr(
                           ? col_comm_rank * row_comm_size + static_cast<int>(i)
                           : static_cast<int>(i) * row_comm_size + comm_rank / col_comm_size;
     }
-    std::cout << handle.get_comms().get_rank()
-              << " reduce buffer global data comm key startedrx_counts.size()=" << rx_counts.size()
-              << " tx_counts.size()=" << tx_counts.size() << " rx_counts=[" << rx_counts[0] << ","
-              << rx_counts[1] << "] rx_offsets=[" << rx_offsets[0] << "," << rx_offsets[1]
-              << "] rx_src_ranks=[" << rx_src_ranks[0] << "," << rx_src_ranks[1] << " tx_counts=["
-              << tx_counts[0] << "," << tx_counts[1] << "] tx_offsets=[" << tx_offsets[0] << ","
-              << tx_offsets[1] << "] tx_dst_rnaks=[" << tx_dst_ranks[0] << "," << tx_dst_ranks[1]
-              << "]" << std::endl;
-#if 0
-if (handle.get_comms().get_rank() == 0) {
-device_sendrecv<decltype(buffer_key_first), decltype(buffer_key_first)>(
-  comm,
-  buffer_key_first,
-  0,
-  1,
-  buffer_key_first + num_buffer_elements,
-  0,
-  1,
-  handle.get_stream());
-}
-else {
-  device_sendrecv<decltype(buffer_key_first), decltype(buffer_key_first)>(
-    comm,
-    buffer_key_first,
-    0,
-    0,
-    buffer_key_first + num_buffer_elements,
-    0,
-    0,
-    handle.get_stream());  
-}
-CUDA_TRY(cudaStreamSynchronize(handle.get_stream()));
-comm.barrier();
-std::cout << handle.get_comms().get_rank() << " AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA" << std::endl;
-#else
-    device_multicast_sendrecv2<decltype(buffer_key_first), decltype(buffer_key_first)>(
+
+    device_multicast_sendrecv<decltype(buffer_key_first), decltype(buffer_key_first)>(
       comm,
       buffer_key_first,
       tx_counts,
@@ -659,12 +622,7 @@ std::cout << handle.get_comms().get_rank() << " AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
       rx_offsets,
       rx_src_ranks,
       handle.get_stream());
-    comm.barrier();
-    CUDA_TRY(cudaStreamSynchronize(handle.get_stream()));
-    std::cout << "AAAAAAAAAAAAAAAAAAAAA " << handle.get_comms().get_rank()
-              << " reduce buffer global data comm pyaload started rx_counts.size()="
-              << rx_counts.size() << " tx_counts.size()=" << tx_counts.size() << std::endl;
-    device_multicast_sendrecv2<decltype(buffer_payload_first), decltype(buffer_payload_first)>(
+    device_multicast_sendrecv<decltype(buffer_payload_first), decltype(buffer_payload_first)>(
       comm,
       buffer_payload_first,
       tx_counts,
@@ -675,92 +633,6 @@ std::cout << handle.get_comms().get_rank() << " AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
       rx_offsets,
       rx_src_ranks,
       handle.get_stream());
-    comm.barrier();
-    CUDA_TRY(cudaStreamSynchronize(handle.get_stream()));
-    std::cout << "BBBBBBBBBBBBBBBBBBBBBB " << handle.get_comms().get_rank()
-              << " reduce buffer global data comm finished" << std::endl;
-#endif
-#else
-    auto constexpr tuple_size = thrust_tuple_size_or_one<
-      typename std::iterator_traits<decltype(buffer_payload_first)>::value_type>::value;
-
-    std::vector<raft::comms::request_t> buffer_requests((tx_counts.size() + rx_counts.size()) *
-                                                        (1 + tuple_size));
-    for (size_t i = 0; i < tx_counts.size(); ++i) {
-      auto comm_dst_rank = graph_view.is_hypergraph_partitioned()
-                             ? col_comm_rank * row_comm_size + static_cast<int>(i)
-                             : row_comm_rank * col_comm_size + static_cast<int>(i);
-      if (comm_dst_rank == comm_rank) {
-        assert(i == tx_self_i);
-        // FIXME: better define request_null (similar to MPI_REQUEST_NULL) under raft::comms
-        std::fill(buffer_requests.data() + i * (1 + tuple_size),
-                  buffer_requests.data() + (i + 1) * (1 + tuple_size),
-                  std::numeric_limits<raft::comms::request_t>::max());
-      } else {
-        CUDA_TRY(cudaStreamSynchronize(
-          handle.get_stream()));  // to ensure data to be sent are ready (FIXME: this can be removed
-                                  // if we use ncclSend in raft::comms)
-
-        device_isend<decltype(buffer_key_first), decltype(buffer_key_first)>(
-          comm,
-          buffer_key_first + tx_offsets[i],
-          static_cast<size_t>(tx_counts[i]),
-          comm_dst_rank,
-          int{0} /* tag */,
-          buffer_requests.data() + i * (1 + tuple_size));
-        device_isend<decltype(buffer_payload_first), decltype(buffer_payload_first)>(
-          comm,
-          buffer_payload_first + tx_offsets[i],
-          static_cast<size_t>(tx_counts[i]),
-          comm_dst_rank,
-          int{1} /* base tag */,
-          buffer_requests.data() + (i * (1 + tuple_size) + 1));
-      }
-    }
-    for (size_t i = 0; i < rx_counts.size(); ++i) {
-      auto comm_src_rank = graph_view.is_hypergraph_partitioned()
-                             ? col_comm_rank * row_comm_size + static_cast<int>(i)
-                             : static_cast<int>(i) * row_comm_size + comm_rank / col_comm_size;
-      if (comm_src_rank == comm_rank) {
-        assert(tx_self_i != std::numeric_limits<size_t>::max());
-        assert(rx_counts[i] == tx_counts[tx_self_i]);
-        thrust::copy(rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
-                     buffer_key_first + tx_offsets[tx_self_i],
-                     buffer_key_first + tx_offsets[tx_self_i] + tx_counts[tx_self_i],
-                     buffer_key_first + num_buffer_elements + rx_offsets[i]);
-        thrust::copy(rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
-                     buffer_payload_first + tx_offsets[tx_self_i],
-                     buffer_payload_first + tx_offsets[tx_self_i] + tx_counts[tx_self_i],
-                     buffer_payload_first + num_buffer_elements + rx_offsets[i]);
-        // FIXME: better define request_null (similar to MPI_REQUEST_NULL) under raft::comms
-        std::fill(buffer_requests.data() + (tx_counts.size() + i) * (1 + tuple_size),
-                  buffer_requests.data() + (tx_counts.size() + i + 1) * (1 + tuple_size),
-                  std::numeric_limits<raft::comms::request_t>::max());
-      } else {
-        device_irecv<decltype(buffer_key_first), decltype(buffer_key_first)>(
-          comm,
-          buffer_key_first + num_buffer_elements + rx_offsets[i],
-          static_cast<size_t>(rx_counts[i]),
-          comm_src_rank,
-          int{0} /* tag */,
-          buffer_requests.data() + ((tx_counts.size() + i) * (1 + tuple_size)));
-        device_irecv<decltype(buffer_payload_first), decltype(buffer_payload_first)>(
-          comm,
-          buffer_payload_first + num_buffer_elements + rx_offsets[i],
-          static_cast<size_t>(rx_counts[i]),
-          comm_src_rank,
-          int{1} /* base tag */,
-          buffer_requests.data() + ((tx_counts.size() + i) * (1 + tuple_size) + 1));
-      }
-    }
-    // FIXME: better define request_null (similar to MPI_REQUEST_NULL) under raft::comms, if
-    // raft::comms::wait immediately returns on seeing request_null, this remove is unnecessary
-    buffer_requests.erase(std::remove(buffer_requests.begin(),
-                                      buffer_requests.end(),
-                                      std::numeric_limits<raft::comms::request_t>::max()),
-                          buffer_requests.end());
-    comm.waitall(buffer_requests.size(), buffer_requests.data());
-#endif
 
     // FIXME: this does not exploit the fact that each segment is sorted. Lost performance
     // optimization opportunities.
@@ -776,8 +648,6 @@ std::cout << handle.get_comms().get_rank() << " AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
 
   // 3. update vertex properties
 
-  std::cout << handle.get_comms().get_rank()
-            << " update vertex properties start num_elems=" << num_buffer_elements << std::endl;
   if (num_buffer_elements > 0) {
     auto buffer_first         = vertex_frontier.buffer_begin();
     auto buffer_key_first     = std::get<0>(buffer_first) + num_buffer_offset;
@@ -814,8 +684,6 @@ std::cout << handle.get_comms().get_rank() << " AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
       vertex_frontier.get_bucket(i).set_size(bucket_sizes[i]);
     }
   }
-  std::cout << handle.get_comms().get_rank()
-            << " update vertex properties end num_elems=" << num_buffer_elements << std::endl;
 }
 
 /*

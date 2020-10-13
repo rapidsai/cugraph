@@ -219,9 +219,7 @@ void copy_to_matrix_minor(raft::handle_t const& handle,
       // partitioning
       auto comm_src_rank = row_comm_rank * col_comm_size + col_comm_rank;
       auto comm_dst_rank = (comm_rank % col_comm_size) * row_comm_size + comm_rank / col_comm_size;
-      // FIXME: it seems like raft::isend and raft::irecv do not properly handle the destination (or
-      // source) == self case. Need to double check and fix this if this is indeed the case (or RAFT
-      // may use ncclSend/ncclRecv instead of UCX for device data).
+      // FIXME: this branch may no longer necessary with NCCL backend
       if (comm_src_rank == comm_rank) {
         assert(comm_dst_rank == comm_rank);
         thrust::copy(rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
@@ -373,7 +371,7 @@ void copy_to_matrix_minor(raft::handle_t const& handle,
                                                                               handle.get_stream());
 
         CUDA_TRY(cudaStreamSynchronize(
-          handle.get_stream()));  // this is as necessary rx_tmp_buffer will become out-of-scope
+          handle.get_stream()));  // this is as necessary src_tmp_buffer will become out-of-scope
                                   // once control flow exits this block
       }
 

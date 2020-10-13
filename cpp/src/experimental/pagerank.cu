@@ -262,11 +262,6 @@ void pagerank(raft::handle_t const& handle,
         });
     }
 
-    // FIXME: just for debugging, remove!!!
-    auto pagerank_sum = reduce_v(handle, pull_graph_view, pageranks, result_t{0.0});
-    std::cout << "rank=" << (handle.comms_initialized() ? handle.get_comms().get_rank() : int{0})
-              << " iter=" << iter << " PageRank sum=" << pagerank_sum << "\n";
-
     auto diff_sum = transform_reduce_v(
       handle,
       pull_graph_view,
