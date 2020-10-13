@@ -56,7 +56,7 @@ rmm::device_uvector<edge_t> compute_major_degree(
     auto vertex_partition_idx = partition.is_hypergraph_partitioned()
                                   ? static_cast<size_t>(i * row_comm_size + row_comm_rank)
                                   : static_cast<size_t>(col_comm_rank * row_comm_size + i);
-    auto vertex_partition_size = partition.get_vertex_partition_range(vertex_partition_idx);
+    auto vertex_partition_size = partition.get_vertex_partition_size(vertex_partition_idx);
     max_num_local_degrees      = std::max(max_num_local_degrees, vertex_partition_size);
     if (i == (partition.is_hypergraph_partitioned() ? col_comm_rank : row_comm_rank)) {
       degrees.resize(vertex_partition_size, handle.get_stream());
