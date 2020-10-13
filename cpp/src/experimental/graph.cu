@@ -311,9 +311,7 @@ graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu, std::enable_if_
       *(this->get_handle_ptr()), edgelists[i], major_first, major_last, minor_first, minor_last);
     adj_matrix_partition_offsets_.push_back(std::move(offsets));
     adj_matrix_partition_indices_.push_back(std::move(indices));
-    if (is_weighted) {
-      adj_matrix_partition_weights_.push_back(std::move(weights));
-    }
+    if (is_weighted) { adj_matrix_partition_weights_.push_back(std::move(weights)); }
   }
 
   // update degree-based segment offsets (to be used for graph analytics kernel optimization)

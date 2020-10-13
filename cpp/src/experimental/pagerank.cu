@@ -215,17 +215,17 @@ void pagerank(raft::handle_t const& handle,
       },
       result_t{0.0});
 
-    thrust::transform(
-      rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
-      vertex_val_first,
-      vertex_val_first + pull_graph_view.get_number_of_local_vertices(),
-      pageranks,
-      [] __device__(auto val) {
-        auto const pagerank       = thrust::get<0>(val);
-        auto const out_weight_sum = thrust::get<1>(val);
-        auto const divisor = out_weight_sum == result_t{0.0} ? result_t{1.0} : out_weight_sum;
-        return pagerank / divisor;
-      });
+    thrust::transform(rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
+                      vertex_val_first,
+                      vertex_val_first + pull_graph_view.get_number_of_local_vertices(),
+                      pageranks,
+                      [] __device__(auto val) {
+                        auto const pagerank       = thrust::get<0>(val);
+                        auto const out_weight_sum = thrust::get<1>(val);
+                        auto const divisor =
+                          out_weight_sum == result_t{0.0} ? result_t{1.0} : out_weight_sum;
+                        return pagerank / divisor;
+                      });
 
     copy_to_adj_matrix_row(handle, pull_graph_view, pageranks, adj_matrix_row_pageranks.begin());
 

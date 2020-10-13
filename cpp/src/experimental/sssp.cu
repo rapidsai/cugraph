@@ -235,8 +235,7 @@ void sssp(raft::handle_t const &handle,
           vertex_frontier.get_bucket(static_cast<size_t>(Bucket::far)).aggregate_size();
         if ((new_near_size > 0) || (new_far_size == 0)) {
           break;
-        }
-        else {
+        } else {
           near_far_threshold += delta;
         }
       }
