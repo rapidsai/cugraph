@@ -371,7 +371,7 @@ void copy_to_matrix_minor(raft::handle_t const& handle,
                                                                               handle.get_stream());
 
         CUDA_TRY(cudaStreamSynchronize(
-          handle.get_stream()));  // this is as necessary rx_tmp_buffer will become out-of-scope
+          handle.get_stream()));  // this is as necessary src_tmp_buffer will become out-of-scope
                                   // once control flow exits this block
       }
 
