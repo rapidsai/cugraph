@@ -90,7 +90,7 @@ class partition_t {
               int col_comm_rank)
     : vertex_partition_offsets_(vertex_partition_offsets),
       hypergraph_partitioned_(hypergraph_partitioned),
-      comm_rank_(col_comm_size * row_comm_rank + col_comm_rank),
+      comm_rank_(col_comm_rank * row_comm_size + row_comm_rank),
       row_comm_size_(row_comm_size),
       col_comm_size_(col_comm_size),
       row_comm_rank_(row_comm_rank),
@@ -402,7 +402,7 @@ class graph_view_t<vertex_t,
     size_t adj_matrix_partition_idx) const
   {
     return store_transposed
-             ? 0
+             ? vertex_t{0}
              : partition_.get_matrix_partition_major_value_start_offset(adj_matrix_partition_idx);
   }
 
@@ -423,7 +423,7 @@ class graph_view_t<vertex_t,
   {
     return store_transposed
              ? partition_.get_matrix_partition_major_value_start_offset(adj_matrix_partition_idx)
-             : 0;
+             : vertex_t{0};
   }
 
   bool is_hypergraph_partitioned() const { return partition_.is_hypergraph_partitioned(); }

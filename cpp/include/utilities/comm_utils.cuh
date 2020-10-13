@@ -229,6 +229,207 @@ struct device_irecv_tuple_iterator_element_impl<InputIterator, OutputIterator, I
 
 template <typename InputIterator, typename OutputIterator>
 std::enable_if_t<thrust::detail::is_discard_iterator<OutputIterator>::value, void>
+device_sendrecv_impl(raft::comms::comms_t const& comm,
+                     InputIterator input_first,
+                     size_t tx_count,
+                     int dst,
+                     OutputIterator output_first,
+                     size_t rx_count,
+                     int src,
+                     cudaStream_t stream)
+{
+  // no-op
+}
+
+template <typename InputIterator, typename OutputIterator>
+std::enable_if_t<
+  std::is_arithmetic<typename std::iterator_traits<OutputIterator>::value_type>::value,
+  void>
+device_sendrecv_impl(raft::comms::comms_t const& comm,
+                     InputIterator input_first,
+                     size_t tx_count,
+                     int dst,
+                     OutputIterator output_first,
+                     size_t rx_count,
+                     int src,
+                     cudaStream_t stream)
+{
+  using value_type = typename std::iterator_traits<InputIterator>::value_type;
+  static_assert(
+    std::is_same<typename std::iterator_traits<OutputIterator>::value_type, value_type>::value);
+  // ncclSend/ncclRecv pair needs to be located inside ncclGroupStart/ncclGroupEnd to avoid deadlock
+  ncclGroupStart();
+  ncclSend(iter_to_raw_ptr(input_first),
+           tx_count * sizeof(value_type),
+           ncclUint8,
+           dst,
+           comm.get_nccl_comm(),
+           stream);
+  ncclRecv(iter_to_raw_ptr(output_first),
+           rx_count * sizeof(value_type),
+           ncclUint8,
+           src,
+           comm.get_nccl_comm(),
+           stream);
+  ncclGroupEnd();
+}
+
+template <typename InputIterator, typename OutputIterator, size_t I, size_t N>
+struct device_sendrecv_tuple_iterator_element_impl {
+  void run(raft::comms::comms_t const& comm,
+           InputIterator input_first,
+           size_t tx_count,
+           int dst,
+           OutputIterator output_first,
+           size_t rx_count,
+           int src,
+           cudaStream_t stream) const
+  {
+    using output_value_t = typename thrust::
+      tuple_element<I, typename std::iterator_traits<OutputIterator>::value_type>::type;
+    auto tuple_element_input_first  = thrust::get<I>(input_first.get_iterator_tuple());
+    auto tuple_element_output_first = thrust::get<I>(output_first.get_iterator_tuple());
+    device_sendrecv_impl<decltype(tuple_element_input_first), decltype(tuple_element_output_first)>(
+      comm,
+      tuple_element_input_first,
+      tx_count,
+      dst,
+      tuple_element_output_first,
+      rx_count,
+      src,
+      stream);
+    device_sendrecv_tuple_iterator_element_impl<InputIterator, OutputIterator, I + 1, N>().run(
+      comm, input_first, tx_count, dst, output_first, rx_count, src, stream);
+  }
+};
+
+template <typename InputIterator, typename OutputIterator, size_t I>
+struct device_sendrecv_tuple_iterator_element_impl<InputIterator, OutputIterator, I, I> {
+  void run(raft::comms::comms_t const& comm,
+           InputIterator input_first,
+           size_t count,
+           int dst,
+           int base_tag,
+           raft::comms::request_t* requests) const
+  {
+  }
+};
+
+template <typename InputIterator, typename OutputIterator>
+std::enable_if_t<thrust::detail::is_discard_iterator<OutputIterator>::value, void>
+device_multicast_sendrecv_impl(raft::comms::comms_t const& comm,
+                               InputIterator input_first,
+                               std::vector<size_t> const& tx_counts,
+                               std::vector<size_t> const& tx_offsets,
+                               std::vector<int> const& tx_dst_ranks,
+                               OutputIterator output_first,
+                               std::vector<size_t> const& rx_counts,
+                               std::vector<size_t> const& rx_offsets,
+                               std::vector<int> const& rx_src_ranks,
+                               cudaStream_t stream)
+{
+  // no-op
+}
+
+template <typename InputIterator, typename OutputIterator>
+std::enable_if_t<
+  std::is_arithmetic<typename std::iterator_traits<OutputIterator>::value_type>::value,
+  void>
+device_multicast_sendrecv_impl(raft::comms::comms_t const& comm,
+                               InputIterator input_first,
+                               std::vector<size_t> const& tx_counts,
+                               std::vector<size_t> const& tx_offsets,
+                               std::vector<int> const& tx_dst_ranks,
+                               OutputIterator output_first,
+                               std::vector<size_t> const& rx_counts,
+                               std::vector<size_t> const& rx_offsets,
+                               std::vector<int> const& rx_src_ranks,
+                               cudaStream_t stream)
+{
+  using value_type = typename std::iterator_traits<InputIterator>::value_type;
+  static_assert(
+    std::is_same<typename std::iterator_traits<OutputIterator>::value_type, value_type>::value);
+  // ncclSend/ncclRecv pair needs to be located inside ncclGroupStart/ncclGroupEnd to avoid deadlock
+  ncclGroupStart();
+  for (size_t i = 0; i < tx_counts.size(); ++i) {
+    ncclSend(iter_to_raw_ptr(input_first + tx_offsets[i]),
+             tx_counts[i] * sizeof(value_type),
+             ncclUint8,
+             tx_dst_ranks[i],
+             comm.get_nccl_comm(),
+             stream);
+  }
+  for (size_t i = 0; i < rx_counts.size(); ++i) {
+    ncclRecv(iter_to_raw_ptr(output_first + rx_offsets[i]),
+             rx_counts[i] * sizeof(value_type),
+             ncclUint8,
+             rx_src_ranks[i],
+             comm.get_nccl_comm(),
+             stream);
+  }
+  ncclGroupEnd();
+}
+
+template <typename InputIterator, typename OutputIterator, size_t I, size_t N>
+struct device_multicast_sendrecv_tuple_iterator_element_impl {
+  void run(raft::comms::comms_t const& comm,
+           InputIterator input_first,
+           std::vector<size_t> const& tx_counts,
+           std::vector<size_t> const& tx_offsets,
+           std::vector<int> const& tx_dst_ranks,
+           OutputIterator output_first,
+           std::vector<size_t> const& rx_counts,
+           std::vector<size_t> const& rx_offsets,
+           std::vector<int> const& rx_src_ranks,
+           cudaStream_t stream) const
+  {
+    using output_value_t = typename thrust::
+      tuple_element<I, typename std::iterator_traits<OutputIterator>::value_type>::type;
+    auto tuple_element_input_first  = thrust::get<I>(input_first.get_iterator_tuple());
+    auto tuple_element_output_first = thrust::get<I>(output_first.get_iterator_tuple());
+    device_multicast_sendrecv_impl<decltype(tuple_element_input_first),
+                                   decltype(tuple_element_output_first)>(comm,
+                                                                         tuple_element_input_first,
+                                                                         tx_counts,
+                                                                         tx_offsets,
+                                                                         tx_dst_ranks,
+                                                                         tuple_element_output_first,
+                                                                         rx_counts,
+                                                                         rx_offsets,
+                                                                         rx_src_ranks,
+                                                                         stream);
+    device_multicast_sendrecv_tuple_iterator_element_impl<InputIterator, OutputIterator, I + 1, N>()
+      .run(comm,
+           input_first,
+           tx_counts,
+           tx_offsets,
+           tx_dst_ranks,
+           output_first,
+           rx_counts,
+           rx_offsets,
+           rx_src_ranks,
+           stream);
+  }
+};
+
+template <typename InputIterator, typename OutputIterator, size_t I>
+struct device_multicast_sendrecv_tuple_iterator_element_impl<InputIterator, OutputIterator, I, I> {
+  void run(raft::comms::comms_t const& comm,
+           InputIterator input_first,
+           std::vector<size_t> const& tx_counts,
+           std::vector<size_t> const& tx_offsets,
+           std::vector<int> const& tx_dst_ranks,
+           OutputIterator output_first,
+           std::vector<size_t> const& rx_counts,
+           std::vector<size_t> const& rx_offsets,
+           std::vector<int> const& rx_src_ranks,
+           cudaStream_t stream) const
+  {
+  }
+};
+
+template <typename InputIterator, typename OutputIterator>
+std::enable_if_t<thrust::detail::is_discard_iterator<OutputIterator>::value, void>
 device_bcast_impl(raft::comms::comms_t const& comm,
                   InputIterator input_first,
                   OutputIterator output_first,
@@ -491,6 +692,50 @@ host_scalar_allreduce(raft::comms::comms_t const& comm, T input, cudaStream_t st
 }
 
 template <typename T>
+std::enable_if_t<std::is_arithmetic<T>::value, T> host_scalar_bcast(
+  raft::comms::comms_t const& comm, T input, int root, cudaStream_t stream)
+{
+  rmm::device_uvector<T> d_input(1, stream);
+  if (comm.get_rank() == root) { raft::update_device(d_input.data(), &input, 1, stream); }
+  comm.bcast(d_input.data(), 1, root, stream);
+  auto h_input = input;
+  if (comm.get_rank() != root) { raft::update_host(&h_input, d_input.data(), 1, stream); }
+  auto status = comm.sync_stream(stream);
+  CUGRAPH_EXPECTS(status == raft::comms::status_t::SUCCESS, "sync_stream() failure.");
+  return h_input;
+}
+
+template <typename T>
+std::enable_if_t<cugraph::experimental::is_thrust_tuple_of_arithmetic<T>::value, T>
+host_scalar_bcast(raft::comms::comms_t const& comm, T input, int root, cudaStream_t stream)
+{
+  size_t constexpr tuple_size = thrust::tuple_size<T>::value;
+  std::vector<int64_t> h_tuple_scalar_elements(tuple_size);
+  rmm::device_uvector<int64_t> d_tuple_scalar_elements(tuple_size, stream);
+  auto ret = input;
+
+  if (comm.get_rank() == root) {
+    detail::update_vector_of_tuple_scalar_elements_from_tuple_impl<T, size_t{0}, tuple_size>()
+      .update(h_tuple_scalar_elements, input);
+    raft::update_device(
+      d_tuple_scalar_elements.data(), h_tuple_scalar_elements.data(), tuple_size, stream);
+  }
+  comm.bcast(d_tuple_scalar_elements.data(), d_tuple_scalar_elements.size(), root, stream);
+  if (comm.get_rank() != root) {
+    raft::update_host(
+      h_tuple_scalar_elements.data(), d_tuple_scalar_elements.data(), tuple_size, stream);
+  }
+  auto status = comm.sync_stream(stream);
+  CUGRAPH_EXPECTS(status == raft::comms::status_t::SUCCESS, "sync_stream() failure.");
+  if (comm.get_rank() != root) {
+    detail::update_tuple_from_vector_of_tuple_scalar_elements_impl<T, size_t{0}, tuple_size>()
+      .update(ret, h_tuple_scalar_elements);
+  }
+
+  return ret;
+}
+
+template <typename T>
 std::enable_if_t<std::is_arithmetic<T>::value, std::vector<T>> host_scalar_allgather(
   raft::comms::comms_t const& comm, T input, cudaStream_t stream)
 {
@@ -631,6 +876,123 @@ device_irecv(raft::comms::comms_t const& comm,
   detail::
     device_irecv_tuple_iterator_element_impl<InputIterator, OutputIterator, size_t{0}, tuple_size>()
       .run(comm, output_first, count, src, base_tag, requests);
+}
+
+template <typename InputIterator, typename OutputIterator>
+std::enable_if_t<
+  std::is_arithmetic<typename std::iterator_traits<InputIterator>::value_type>::value,
+  void>
+device_sendrecv(raft::comms::comms_t const& comm,
+                InputIterator input_first,
+                size_t tx_count,
+                int dst,
+                OutputIterator output_first,
+                size_t rx_count,
+                int src,
+                cudaStream_t stream)
+{
+  detail::device_sendrecv_impl<InputIterator, OutputIterator>(
+    comm, input_first, tx_count, dst, output_first, rx_count, src, stream);
+}
+
+template <typename InputIterator, typename OutputIterator>
+std::enable_if_t<
+  is_thrust_tuple_of_arithmetic<typename std::iterator_traits<InputIterator>::value_type>::value &&
+    is_thrust_tuple<typename std::iterator_traits<OutputIterator>::value_type>::value,
+  void>
+device_sendrecv(raft::comms::comms_t const& comm,
+                InputIterator input_first,
+                size_t tx_count,
+                int dst,
+                OutputIterator output_first,
+                size_t rx_count,
+                int src,
+                cudaStream_t stream)
+{
+  static_assert(
+    thrust::tuple_size<typename thrust::iterator_traits<InputIterator>::value_type>::value ==
+    thrust::tuple_size<typename thrust::iterator_traits<OutputIterator>::value_type>::value);
+
+  size_t constexpr tuple_size =
+    thrust::tuple_size<typename thrust::iterator_traits<InputIterator>::value_type>::value;
+
+  // FIXME: NCCL 2.7 supports only one ncclSend and one ncclRecv for a source rank and destination
+  // rank inside ncclGroupStart/ncclGroupEnd, so we cannot place this inside
+  // ncclGroupStart/ncclGroupEnd, this restriction will be lifted in NCCL 2.8
+  detail::device_sendrecv_tuple_iterator_element_impl<InputIterator,
+                                                      OutputIterator,
+                                                      size_t{0},
+                                                      tuple_size>()
+    .run(comm, input_first, tx_count, dst, output_first, rx_count, src, stream);
+}
+
+template <typename InputIterator, typename OutputIterator>
+std::enable_if_t<
+  std::is_arithmetic<typename std::iterator_traits<InputIterator>::value_type>::value,
+  void>
+device_multicast_sendrecv(raft::comms::comms_t const& comm,
+                          InputIterator input_first,
+                          std::vector<size_t> const& tx_counts,
+                          std::vector<size_t> const& tx_offsets,
+                          std::vector<int> const& tx_dst_ranks,
+                          OutputIterator output_first,
+                          std::vector<size_t> const& rx_counts,
+                          std::vector<size_t> const& rx_offsets,
+                          std::vector<int> const& rx_src_ranks,
+                          cudaStream_t stream)
+{
+  detail::device_multicast_sendrecv_impl<InputIterator, OutputIterator>(comm,
+                                                                        input_first,
+                                                                        tx_counts,
+                                                                        tx_offsets,
+                                                                        tx_dst_ranks,
+                                                                        output_first,
+                                                                        rx_counts,
+                                                                        rx_offsets,
+                                                                        rx_src_ranks,
+                                                                        stream);
+}
+
+template <typename InputIterator, typename OutputIterator>
+std::enable_if_t<
+  is_thrust_tuple_of_arithmetic<typename std::iterator_traits<InputIterator>::value_type>::value &&
+    is_thrust_tuple<typename std::iterator_traits<OutputIterator>::value_type>::value,
+  void>
+device_multicast_sendrecv(raft::comms::comms_t const& comm,
+                          InputIterator input_first,
+                          std::vector<size_t> const& tx_counts,
+                          std::vector<size_t> const& tx_offsets,
+                          std::vector<int> const& tx_dst_ranks,
+                          OutputIterator output_first,
+                          std::vector<size_t> const& rx_counts,
+                          std::vector<size_t> const& rx_offsets,
+                          std::vector<int> const& rx_src_ranks,
+                          cudaStream_t stream)
+{
+  static_assert(
+    thrust::tuple_size<typename thrust::iterator_traits<InputIterator>::value_type>::value ==
+    thrust::tuple_size<typename thrust::iterator_traits<OutputIterator>::value_type>::value);
+
+  size_t constexpr tuple_size =
+    thrust::tuple_size<typename thrust::iterator_traits<InputIterator>::value_type>::value;
+
+  // FIXME: NCCL 2.7 supports only one ncclSend and one ncclRecv for a source rank and destination
+  // rank inside ncclGroupStart/ncclGroupEnd, so we cannot place this inside
+  // ncclGroupStart/ncclGroupEnd, this restriction will be lifted in NCCL 2.8
+  detail::device_multicast_sendrecv_tuple_iterator_element_impl<InputIterator,
+                                                                OutputIterator,
+                                                                size_t{0},
+                                                                tuple_size>()
+    .run(comm,
+         input_first,
+         tx_counts,
+         tx_offsets,
+         tx_dst_ranks,
+         output_first,
+         rx_counts,
+         rx_offsets,
+         rx_src_ranks,
+         stream);
 }
 
 template <typename InputIterator, typename OutputIterator>

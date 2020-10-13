@@ -93,7 +93,10 @@ void bfs(raft::handle_t const &handle,
   enum class Bucket { cur, num_buckets };
   std::vector<size_t> bucket_sizes(static_cast<size_t>(Bucket::num_buckets),
                                    push_graph_view.get_number_of_local_vertices());
-  VertexFrontier<thrust::tuple<vertex_t>, vertex_t, false, static_cast<size_t>(Bucket::num_buckets)>
+  VertexFrontier<thrust::tuple<vertex_t>,
+                 vertex_t,
+                 GraphViewType::is_multi_gpu,
+                 static_cast<size_t>(Bucket::num_buckets)>
     vertex_frontier(handle, bucket_sizes);
 
   if (push_graph_view.is_local_vertex_nocheck(source_vertex)) {
@@ -157,6 +160,11 @@ void bfs(raft::handle_t const &handle,
     depth++;
     if (depth >= depth_limit) { break; }
   }
+
+  CUDA_TRY(cudaStreamSynchronize(
+    handle.get_stream()));  // this is as necessary vertex_frontier will become out-of-scope once
+                            // this function returns (FIXME: should I stream sync in VertexFrontier
+                            // destructor?)
 
   return;
 }

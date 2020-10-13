@@ -645,7 +645,15 @@ void call_sssp(raft::handle_t const& handle,
   }
 }
 
+// Helper for setting up subcommunicators
+void init_subcomms(raft::handle_t& handle, size_t row_comm_size)
+{
+  partition_2d::subcomm_factory_t<partition_2d::key_naming_t, int> subcomm_factory(handle,
+                                                                                   row_comm_size);
+}
+
 // Explicit instantiations
+
 template std::pair<size_t, float> call_louvain(raft::handle_t const& handle,
                                                graph_container_t const& graph_container,
                                                void* identifiers,
@@ -771,13 +779,6 @@ template void call_sssp(raft::handle_t const& handle,
                         double* distances,
                         int64_t* predecessors,
                         const int64_t source_vertex);
-
-// Helper for setting up subcommunicators
-void init_subcomms(raft::handle_t& handle, size_t row_comm_size)
-{
-  partition_2d::subcomm_factory_t<partition_2d::key_naming_t, int> subcomm_factory(handle,
-                                                                                   row_comm_size);
-}
 
 }  // namespace cython
 }  // namespace cugraph
