@@ -45,8 +45,7 @@ def call_louvain(sID,
                                 resolution)
 
 
-def louvain(input_graph, max_iter=100, resolution=1.0, load_balance=True,
-            prows=None, pcols=None):
+def louvain(input_graph, max_iter=100, resolution=1.0):
     """
     Compute the modularity optimizing partition of the input graph using the
     Louvain method on multiple GPUs
@@ -77,19 +76,11 @@ def louvain(input_graph, max_iter=100, resolution=1.0, load_balance=True,
     input_graph.compute_renumber_edge_list(transposed=False)
     sorted_by_degree = True
 
-    if prows is None:
-        (ddf,
-         num_verts,
-         partition_row_size,
-         partition_col_size,
-         vertex_partition_offsets) = shuffle(input_graph, transposed=False)
-    else:
-        (ddf,
-         num_verts,
-         partition_row_size,
-         partition_col_size,
-         vertex_partition_offsets) = shuffle(input_graph, prows=prows,
-                                             pcols=pcols, transposed=False)
+    (ddf,
+     num_verts,
+     partition_row_size,
+     partition_col_size,
+     vertex_partition_offsets) = shuffle(input_graph, transposed=False)
 
     num_edges = len(ddf)
     data = get_distributed_data(ddf)
