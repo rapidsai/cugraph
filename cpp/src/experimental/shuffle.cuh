@@ -18,20 +18,10 @@
 #include <raft/comms/comms.hpp>
 #include <raft/device_atomics.cuh>
 
-//#define SHUFFLE_DEBUG
-
 namespace cugraph {
 namespace experimental {
 
 namespace detail {
-
-template <typename T>
-void print_v(const char *label, rmm::device_vector<T> const &vector_v)
-{
-  std::cout << label << "(" << vector_v.size() << "): ";
-  thrust::copy(vector_v.begin(), vector_v.end(), std::ostream_iterator<T>(std::cout, " "));
-  std::cout << std::endl;
-}
 
 //
 // FIXME:   This implementation of variable_shuffle stages the data for transfer
@@ -48,12 +38,6 @@ rmm::device_vector<data_t> variable_shuffle(raft::handle_t const &handle,
                                             iterator_t data_iter,
                                             partition_iter_t partition_iter)
 {
-  CUDA_TRY(cudaStreamSynchronize(handle.get_stream()));
-
-#ifdef SHUFFLE_DEBUG
-  std::cout << "in variable_shuffle, n_elements = " << n_elements << std::endl;
-#endif
-
   //
   // We need to compute the size of data movement
   //
@@ -99,22 +83,12 @@ rmm::device_vector<data_t> variable_shuffle(raft::handle_t const &handle,
 
   comms.barrier();
 
-#ifdef SHUFFLE_DEBUG
-  std::cout << "after waitall" << std::endl;
-  std::cout << "h_global_sizes_v:(" << h_global_sizes_v[0] << ", " << h_global_sizes_v[1] << ")"
-            << std::endl;
-#endif
-
   //
   //  Now global_sizes contains all of the counts, we need to
   //  allocate an array of the appropriate size
   //
   int64_t receive_size =
     thrust::reduce(thrust::host, h_global_sizes_v.begin(), h_global_sizes_v.end());
-
-#ifdef SHUFFLE_DEBUG
-  std::cout << "receive_size = " << receive_size << std::endl;
-#endif
 
   std::vector<data_t> temp_data;
 
@@ -131,14 +105,6 @@ rmm::device_vector<data_t> variable_shuffle(raft::handle_t const &handle,
                                   partition_iter,
                                   input_start,
                                   [gpu] __device__(int32_t p) { return p == gpu; });
-  }
-
-  if (input_start != input_v.end()) {
-     sleep(my_gpu);
-     printf("rank = %d\n", my_gpu);
-     rmm::device_vector<int32_t> ppp(partition_iter, partition_iter + n_elements);
-     print_v("ppp", ppp);
-     //CUGRAPH_EXPECTS(input_start == input_v.end(), "ran out of data");
   }
 
   thrust::copy(input_v.begin(), input_v.end(), h_input_v.begin());
@@ -170,37 +136,15 @@ rmm::device_vector<data_t> variable_shuffle(raft::handle_t const &handle,
       if (to_receive > 0) {
         comms.irecv(
           temp_data.data() + h_global_sizes_v[gpu], to_receive, gpu, 0, &requests[request_pos]);
-
-#ifdef SHUFFLE_DEBUG
-        printf("gpu %d receive %d elements from gpu %d, request = %d\n",
-               my_gpu,
-               (int)to_receive,
-               gpu,
-               requests[request_pos]);
-#endif
         ++request_pos;
       }
 
       if (to_send > 0) {
         comms.isend(
           h_input_v.data() + h_local_sizes_v[gpu], to_send, gpu, 0, &requests[request_pos]);
-#ifdef SHUFFLE_DEBUG
-        printf("gpu %d send %d elements to gpu %d, request = %d\n",
-               my_gpu,
-               (int)to_send,
-               gpu,
-               requests[request_pos]);
-#endif
         ++request_pos;
       }
     } else if (to_receive > 0) {
-#ifdef SHUFFLE_DEBUG
-      printf("copy, to_receive = %d, read range (%d, %d), write offset %d\n",
-             (int)to_receive,
-             h_local_sizes_v[gpu],
-             h_local_sizes_v[gpu + 1],
-             h_global_sizes_v[gpu]);
-#endif
       std::copy(h_input_v.begin() + h_local_sizes_v[gpu],
                 h_input_v.begin() + h_local_sizes_v[gpu + 1],
                 temp_data.begin() + h_global_sizes_v[gpu]);
@@ -210,10 +154,6 @@ rmm::device_vector<data_t> variable_shuffle(raft::handle_t const &handle,
   comms.barrier();
 
   if (request_pos > 0) { comms.waitall(request_pos, requests.data()); }
-
-#ifdef SHUFFLE_DEBUG
-  printf("rank %d finished waitall\n", my_gpu);
-#endif
 
   comms.barrier();
 

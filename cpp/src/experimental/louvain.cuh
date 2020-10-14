@@ -34,7 +34,6 @@
 #include <patterns/transform_reduce_v.cuh>
 
 //#define TIMING
-//#define DEBUG 1
 
 #ifdef TIMING
 #include <utilities/high_res_timer.hpp>
@@ -42,61 +41,6 @@
 
 namespace cugraph {
 namespace experimental {
-
-//
-// TODO: Delete these print_v functions after debugging is finished
-//
-template <typename T>
-void print_v(const char *label, rmm::device_vector<T> const &vector_v)
-{
-  std::cout << label << "(" << vector_v.size() << "): ";
-  thrust::copy(vector_v.begin(), vector_v.end(), std::ostream_iterator<T>(std::cout, " "));
-  std::cout << std::endl;
-}
-
-void print_v(const char *label, const int32_t *ptr, int32_t size)
-{
-  printf("%s(%d): ", label, size);
-  thrust::for_each_n(
-    rmm::exec_policy(0)->on(0), thrust::make_counting_iterator(0), 1, [ptr, size] __device__(auto) {
-      for (int32_t i = 0; i < size; ++i) printf("%d ", ptr[i]);
-    });
-
-  printf("\n");
-}
-
-void print_v(const char *label, const int64_t *ptr, int32_t size)
-{
-  printf("%s(%d): ", label, size);
-  thrust::for_each_n(
-    rmm::exec_policy(0)->on(0), thrust::make_counting_iterator(0), 1, [ptr, size] __device__(auto) {
-      for (int32_t i = 0; i < size; ++i) printf("%ld ", ptr[i]);
-    });
-
-  printf("\n");
-}
-
-void print_v(const char *label, const float *ptr, int32_t size)
-{
-  printf("%s(%d): ", label, size);
-  thrust::for_each_n(
-    rmm::exec_policy(0)->on(0), thrust::make_counting_iterator(0), 1, [ptr, size] __device__(auto) {
-      for (int32_t i = 0; i < size; ++i) printf("%g ", ptr[i]);
-    });
-
-  printf("\n");
-}
-
-void print_v(const char *label, const double *ptr, int32_t size)
-{
-  printf("%s(%d): ", label, size);
-  thrust::for_each_n(
-    rmm::exec_policy(0)->on(0), thrust::make_counting_iterator(0), 1, [ptr, size] __device__(auto) {
-      for (int32_t i = 0; i < size; ++i) printf("%g ", ptr[i]);
-    });
-
-  printf("\n");
-}
 
 namespace detail {
 
@@ -492,14 +436,6 @@ class Louvain {
                         src_indices_v_.begin(),
                         thrust::plus<vertex_t>());
     }
-
-#if DEBUG > 1
-    barrier("constructor");
-    sleep(rank_);
-    printf("rank = %d, local_num_edges = %d\n", rank_, (int)local_num_edges_);
-    print_v("src_indices_v", src_indices_v_);
-    print_v("indices", graph_view.indices(), local_num_edges_);
-#endif
   }
 
   virtual std::pair<size_t, weight_t> operator()(vertex_t *d_cluster_vec,
@@ -507,10 +443,6 @@ class Louvain {
                                                  weight_t resolution)
   {
     size_t num_level{0};
-
-#if DEBUG > 1
-    if (rank_ == 0) std::cout << "rank: " << rank_ << " entering louvain" << std::endl;
-#endif
 
     weight_t total_edge_weight;
     total_edge_weight = experimental::transform_reduce_e(
@@ -522,11 +454,6 @@ class Louvain {
       weight_t{0});
 
     weight_t best_modularity = weight_t{-1};
-
-#if DEBUG > 1
-    if (rank_ == 0)
-      std::cout << "rank: " << rank_ << " total_edge_weight = " << total_edge_weight << std::endl;
-#endif
 
     //
     //  Initialize every cluster to reference each vertex to itself
@@ -543,10 +470,6 @@ class Louvain {
 
       weight_t new_Q = update_clustering(total_edge_weight, resolution);
 
-#if DEBUG > 1
-      if (rank_ == 0) std::cout << "new_Q = " << new_Q << std::endl;
-#endif
-
       if (new_Q <= best_modularity) { break; }
 
       best_modularity = new_Q;
@@ -557,10 +480,6 @@ class Louvain {
     }
 
     timer_display(std::cout);
-
-#if DEBUG > 1
-    print_v("resulting cluster", d_cluster_vec, number_of_vertices_);
-#endif
 
     return std::make_pair(num_level, best_modularity);
   }
@@ -590,29 +509,9 @@ class Louvain {
 #endif
   }
 
-  void barrier(std::string const name)
-  {
-    if (graph_t::is_multi_gpu) {
-      handle_.get_comms().barrier();
-#if DEBUG > 0
-      if (rank_ == 0) std::cout << "reached barrier " << name << std::endl;
-#endif
-    }
-  }
-
  public:
   weight_t modularity(weight_t total_edge_weight, weight_t resolution)
   {
-#if DEBUG > 0
-    barrier("compute modularity");
-    sleep(rank_);
-    printf("rank = %d\n", rank_);
-    print_v("offsets", current_graph_view_.offsets(), local_num_vertices_);
-    print_v("new graph... src_indices", src_indices_v_);
-    print_v("indices", current_graph_view_.indices(), local_num_edges_);
-    print_v("cluster_weights_v_", cluster_weights_v_);
-#endif
-
     weight_t sum_degree_squared = experimental::transform_reduce_v(
       handle_,
       current_graph_view_,
@@ -626,8 +525,6 @@ class Louvain {
       src_cluster_cache_v_.begin(),
       dst_cluster_cache_v_.begin(),
       [] __device__(auto src, auto dst, weight_t wt, auto src_cluster, auto nbr_cluster) {
-	printf("sum_internal %d(%d), %d(%d): %g returns %g\n", (int) src, (int) src_cluster, (int) dst, (int) nbr_cluster, wt,
-	       (src_cluster == nbr_cluster) ? wt : weight_t{0});
 	if (src_cluster == nbr_cluster) {
           return wt;
         } else {
@@ -639,34 +536,12 @@ class Louvain {
     weight_t Q = sum_internal / total_edge_weight -
                  (resolution * sum_degree_squared) / (total_edge_weight * total_edge_weight);
 
-#if DEBUG > 0
-    if (rank_ == 0) {
-      CHECK_CUDA(stream_);
-      sleep(rank_);
-      std::cout << "sum_degree_squared = " << sum_degree_squared << std::endl;
-      std::cout << "sum_internal = " << sum_internal << std::endl;
-      std::cout << "** Q = " << Q << std::endl;
-
-      print_v("weights", vertex_weights_v_);
-      print_v("src_cluster_cache", src_cluster_cache_v_);
-      print_v("dst_cluster_cache", dst_cluster_cache_v_);
-    }
-#endif
-
     return Q;
   }
 
   void compute_vertex_and_cluster_weights()
   {
     timer_start("compute_vertex_and_cluster_weights");
-
-#if DEBUG > 1
-    barrier("compute_vertex_and_cluster_weights begin");
-    sleep(rank_);
-    std::cout << "rank = " << rank_ << std::endl;
-    print_v("vertex_weights_v_", vertex_weights_v_);
-    print_v("cluster_weights_v_", cluster_weights_v_);
-#endif
 
     experimental::copy_v_transform_reduce_out_nbr(
       handle_,
@@ -676,16 +551,6 @@ class Louvain {
       [] __device__(auto src, auto, auto wt, auto, auto) { return wt; },
       weight_t{0},
       vertex_weights_v_.begin());
-
-#if DEBUG > 1
-    CUDA_TRY(cudaStreamSynchronize(stream_));
-    barrier("after copy_v_transform_reduce_out_nbr");
-    sleep(rank_);
-    printf("rank = %d\n", rank_);
-    print_v("vertex_weights", vertex_weights_v_);
-    print_v("cluster_weights", cluster_weights_v_);
-    barrier("after copy_v_transform_reduce_out_nbr 2");
-#endif
 
     thrust::copy(rmm::exec_policy(stream_)->on(stream_),
                  vertex_weights_v_.begin(),
@@ -697,14 +562,6 @@ class Louvain {
 
     cache_vertex_properties(
       cluster_weights_v_, src_cluster_weights_cache_v_, dst_cluster_weights_cache_v_);
-
-#if DEBUG > 1
-    barrier("compute_vertex_and_cluster_weights");
-    sleep(rank_);
-    std::cout << "rank = " << rank_ << std::endl;
-    print_v("vertex_weights_v_", vertex_weights_v_);
-    print_v("cluster_weights_v_", cluster_weights_v_);
-#endif
 
     timer_stop(stream_);
   }
@@ -736,12 +593,6 @@ class Louvain {
     }
   }
 
-  //
-  // TODO CHECK:  Should be correct, calls other functions.
-  //              Does populate src_cluster_cache_v, dst_cluster_cache_v_ multiple
-  //              times and will update cluster_v_ if a better clustering is
-  //              identified
-  //
   virtual weight_t update_clustering(weight_t total_edge_weight, weight_t resolution)
   {
     timer_start("update_clustering");
@@ -750,20 +601,8 @@ class Louvain {
 
     cache_vertex_properties(next_cluster_v, src_cluster_cache_v_, dst_cluster_cache_v_);
 
-#if DEBUG > 1
-    barrier("update_clustering, cache_vertex_properties");
-    sleep(rank_);
-    print_v("next_cluster_v", next_cluster_v);
-    print_v("src_cluster_cache_v_", src_cluster_cache_v_);
-    print_v("dst_cluster_cache_v_", dst_cluster_cache_v_);
-#endif
-
     weight_t new_Q = modularity(total_edge_weight, resolution);
     weight_t cur_Q = new_Q - 1;
-
-#if DEBUG > 1
-    std::cout << "update_clustering, new_Q = " << new_Q << std::endl;
-#endif
 
     // To avoid the potential of having two vertices swap clusters
     // we will only allow vertices to move up (true) or down (false)
@@ -781,10 +620,6 @@ class Louvain {
 
       new_Q = modularity(total_edge_weight, resolution);
 
-#if DEBUG > 0
-      if (rank_ == 0) std::cout << "new_Q = " << new_Q << std::endl;
-#endif
-
       if (new_Q > cur_Q) {
         thrust::copy(rmm::exec_policy(stream_)->on(stream_),
                      next_cluster_v.begin(),
@@ -800,9 +635,6 @@ class Louvain {
     return cur_Q;
   }
 
-  //
-  // TODO CHECK:  This is the big one to debug in MNMG
-  //
   void update_by_delta_modularity(weight_t total_edge_weight,
                                   weight_t resolution,
                                   rmm::device_vector<vertex_t> &next_cluster_v,
@@ -810,12 +642,6 @@ class Louvain {
   {
     rmm::device_vector<weight_t> old_cluster_sum_v(local_num_vertices_);
     rmm::device_vector<weight_t> src_old_cluster_sum_cache_v;
-
-#if DEBUG > 1
-    barrier("update_by_delta_modularity");
-    print_v("src_cluster_cache", src_cluster_cache_v_);
-    print_v("dst_cluster_cache", dst_cluster_cache_v_);
-#endif
 
     experimental::copy_v_transform_reduce_out_nbr(
       handle_,
@@ -833,11 +659,6 @@ class Louvain {
 
     cache_vertex_properties(
       old_cluster_sum_v, src_old_cluster_sum_cache_v, empty_cache_weight_v_, true, false);
-
-#if DEBUG > 1
-    print_v("dst_cluster_cache", dst_cluster_cache_v_);
-    print_v("d_weights", current_graph_view_.weights(), local_num_edges_);
-#endif
 
     detail::src_cluster_equality_comparator_t<vertex_t, edge_t> compare(
       src_indices_v_.data().get(),
@@ -867,15 +688,6 @@ class Louvain {
     //
     std::tie(local_cluster_edge_ids_v, nbr_weights_v) = combine_local_src_nbr_cluster_weights(
       hasher, compare, skip_edge, current_graph_view_.weights(), local_num_edges_);
-
-#if DEBUG > 1
-    sleep(rank_);
-    print_v("local_cluster_edge_ids", local_cluster_edge_ids_v);
-    print_v("src_indices", src_indices_v_);
-    print_v("dst_indices", current_graph_view_.indices(), local_num_edges_);
-    print_v("nbr_weights", nbr_weights_v);
-    print_v("cluster", cluster_v_);
-#endif
 
     //
     //  In order to compute delta_Q for a given src/nbr_cluster pair, I need the following
@@ -925,14 +737,6 @@ class Louvain {
     // FIXME:  This should really be a variable_shuffle of a tuple, for time
     //         reasons I'm just doing 6 independent shuffles.
     //
-#if DEBUG > 1
-    print_v("old_cluster_sum_v", src_old_cluster_sum_cache_v);
-
-    if (rank_ == 0) {
-      printf("rank %d, new_edge_size = %d... ocs_v\n", rank_, (int)local_cluster_edge_ids_v.size());
-    }
-#endif
-
     rmm::device_vector<weight_t> ocs_v = variable_shuffle<graph_view_t::is_multi_gpu, weight_t>(
       handle_,
       local_cluster_edge_ids_v.size(),
@@ -942,10 +746,6 @@ class Louvain {
                                                         src_indices_v_.data().get(),
                                                         base_src_vertex_id_)),
       communication_schedule);
-
-#if DEBUG > 1
-    print_v("ocs_v", ocs_v);
-#endif
 
     rmm::device_vector<vertex_t> src_cluster_v =
       variable_shuffle<graph_view_t::is_multi_gpu, vertex_t>(
@@ -987,17 +787,6 @@ class Louvain {
     nbr_weights_v = variable_shuffle<graph_view_t::is_multi_gpu, weight_t>(
       handle_, nbr_weights_v.size(), nbr_weights_v.begin(), communication_schedule);
 
-#if DEBUG > 1
-    barrier("compute delta_Q");
-    sleep(rank_);
-    print_v("src", src_v);
-    print_v("src_cluster", src_cluster_v);
-    print_v("src_vertex_weight", src_vertex_weight_v);
-    print_v("nbr_cluster", nbr_cluster_v);
-    print_v("nbr_weights", nbr_weights_v);
-    print_v("ocs_v", ocs_v);
-#endif
-
     //
     //  At this point, src_v, nbr_cluster_v and nbr_weights_v have been
     //  shuffled to the correct GPU.  We can now compute the final
@@ -1015,11 +804,6 @@ class Louvain {
     std::tie(local_cluster_edge_ids_v, nbr_weights_v) = combine_local_src_nbr_cluster_weights(
       hasher2, compare2, skip_edge2, nbr_weights_v.data().get(), src_v.size());
 
-#if DEBUG > 1
-    print_v("local_cluster_edge_ids", local_cluster_edge_ids_v);
-    print_v("nbr_weights", nbr_weights_v);
-#endif
-
     //
     //  Now local_cluster_edge_ids_v contains the edge ids of the src id/dest
     //  cluster id pairs, and nbr_weights_v contains the weight of edges
@@ -1027,14 +811,6 @@ class Louvain {
     //
     //  Now we can compute (locally) each delta_Q value
     //
-#if DEBUG > 1
-    barrier("compute delta_Q");
-    sleep(rank_);
-    print_v("nbr_weights", nbr_weights_v);
-    print_v("src_cluster_weights", src_cluster_weights_cache_v_);
-    print_v("dst_cluster_weights", dst_cluster_weights_cache_v_);
-#endif
-
     auto iter = thrust::make_zip_iterator(
       thrust::make_tuple(local_cluster_edge_ids_v.begin(), nbr_weights_v.begin()));
 
@@ -1063,32 +839,6 @@ class Louvain {
                         weight_t a_old = d_src_cluster_weights[old_cluster - base_src_vertex_id];
                         weight_t a_new = d_dst_cluster_weights[nbr_cluster - base_dst_vertex_id];
 
-#if DEBUG > 1
-                        vertex_t src = d_src[edge_id];
-
-                        weight_t res =
-                          2 * (((new_cluster_sum - old_cluster_sum) / total_edge_weight) -
-                               resolution * (a_new * k_k - a_old * k_k + k_k * k_k) /
-                                 (total_edge_weight * total_edge_weight));
-
-                        // if (res > 0) {
-                        printf(
-                          "  (%d, %d, %g) ncs = %g, ocs = %g, a_new = %g, k_k = %g, a_old = "
-                          "%g, "
-                          "total_edge_weight = %g, oc = %d\n",
-                          (int)src,
-                          (int)nbr_cluster,
-                          res,
-                          new_cluster_sum,
-                          old_cluster_sum,
-                          a_new,
-                          k_k,
-                          a_old,
-                          total_edge_weight,
-                          (int)old_cluster);
-      //}
-#endif
-
                         return 2 * (((new_cluster_sum - old_cluster_sum) / total_edge_weight) -
                                     resolution * (a_new * k_k - a_old * k_k + k_k * k_k) /
                                       (total_edge_weight * total_edge_weight));
@@ -1101,16 +851,6 @@ class Louvain {
     rmm::device_vector<vertex_t> final_src_v(local_cluster_edge_ids_v.size());
     rmm::device_vector<vertex_t> final_nbr_cluster_v(local_cluster_edge_ids_v.size());
     rmm::device_vector<weight_t> final_nbr_weights_v(local_cluster_edge_ids_v.size());
-
-#if DEBUG > 1
-    barrier("before copy_if");
-    sleep(rank_);
-    printf("before copy_if, rank_ = %d\n", rank_);
-    print_v("src_v", src_v);
-    print_v("nbr_cluster_v", nbr_cluster_v);
-    print_v("nbr_weights_v", nbr_weights_v);
-    print_v("local_cluster_edge_ids_v", local_cluster_edge_ids_v);
-#endif
 
     auto final_input_iter = thrust::make_zip_iterator(thrust::make_tuple(
       thrust::make_permutation_iterator(src_v.begin(), local_cluster_edge_ids_v.begin()),
@@ -1131,15 +871,6 @@ class Louvain {
     final_src_v.resize(thrust::distance(final_output_iter, final_output_pos));
     final_nbr_cluster_v.resize(thrust::distance(final_output_iter, final_output_pos));
     final_nbr_weights_v.resize(thrust::distance(final_output_iter, final_output_pos));
-
-#if DEBUG > 1
-    barrier("before sort");
-    sleep(rank_);
-    printf("before sort, rank_ = %d\n", rank_);
-    print_v("final_src_v", final_src_v);
-    print_v("final_nbr_cluster_v", final_nbr_cluster_v);
-    print_v("final_nbr_weights_v", final_nbr_weights_v);
-#endif
 
     //
     // Sort the results, pick the largest version
@@ -1175,27 +906,12 @@ class Louvain {
                         return sentinel;
                       });
 
-#if DEBUG > 1
-    print_v("before remove local_cluster_edge_ids_v", local_cluster_edge_ids_v);
-#endif
-
     local_cluster_edge_ids_v = detail::remove_elements_from_vector(
       local_cluster_edge_ids_v,
       [sentinel = std::numeric_limits<edge_t>::max()] __device__(auto edge_id) {
         return (edge_id != sentinel);
       },
       stream_);
-
-#if DEBUG > 1
-    CUDA_TRY(cudaStreamSynchronize(stream_));
-    barrier("about to shuffle final_*");
-    sleep(rank_);
-    printf("rank = %d\n", rank_);
-    print_v("final_src_v", final_src_v);
-    print_v("final_nbr_cluster_v", final_nbr_cluster_v);
-    print_v("final_nbr_weights_v", final_nbr_weights_v);
-    print_v("local_cluster_edge_ids_v", local_cluster_edge_ids_v);
-#endif
 
     final_nbr_cluster_v = variable_shuffle<graph_view_t::is_multi_gpu, vertex_t>(
       handle_,
@@ -1228,12 +944,6 @@ class Louvain {
         [d_vertex_device_view = compute_partition_.vertex_device_view()] __device__(vertex_t v) {
           return d_vertex_device_view(v);
         }));
-
-#if DEBUG > 1
-    print_v("final_src_v", final_src_v);
-    print_v("final_nbr_cluster_v", final_nbr_cluster_v);
-    print_v("final_nbr_weights_v", final_nbr_weights_v);
-#endif
 
     //
     //  At this point...
@@ -1293,16 +1003,6 @@ class Louvain {
       },
       stream_);
 
-#if DEBUG > 1
-    barrier("after sort");
-    sleep(rank_);
-    printf("after sort, rank = %d\n", rank_);
-    print_v("final_src_v", final_src_v);
-    print_v("final_nbr_cluster_v", final_nbr_cluster_v);
-    print_v("final_nbr_weights_v", final_nbr_weights_v);
-    print_v("local_cluster_edge_ids_v", local_cluster_edge_ids_v);
-#endif
-
     rmm::device_vector<weight_t> cluster_increase_v(final_src_v.size());
     rmm::device_vector<weight_t> cluster_decrease_v(final_src_v.size());
     rmm::device_vector<vertex_t> old_cluster_v(final_src_v.size());
@@ -1335,14 +1035,6 @@ class Louvain {
         if (new_cluster == old_cluster) return false;
         if ((new_cluster > old_cluster) != up_down) return false;
 
-#if DEBUG > 1
-        printf("edge %d, moving vertex %d from cluster %d to cluster %d, src_weight = %g\n",
-               (int)idx,
-               (int)src,
-               (int)old_cluster,
-               (int)new_cluster,
-	       src_weight);
-#endif
         d_next_cluster[src - base_vertex_id] = new_cluster;
         d_cluster_increase[idx]              = src_weight;
         d_cluster_decrease[idx]              = src_weight;
@@ -1350,17 +1042,6 @@ class Louvain {
         return true;
       },
       stream_);
-
-#if DEBUG > 1
-    barrier("after move...");
-    sleep(rank_);
-    printf("after move, rank = %d\n", rank_);
-    print_v("local_cluster_edge_ids_v", local_cluster_edge_ids_v);
-    print_v("cluster_increase_v", cluster_increase_v);
-    print_v("cluster_decrease_v", cluster_decrease_v);
-    print_v("final_nbr_cluster_v", final_nbr_cluster_v);
-    print_v("old_cluster_v", old_cluster_v);
-#endif
 
     cluster_increase_v = variable_shuffle<graph_view_t::is_multi_gpu, weight_t>(
       handle_,
@@ -1407,25 +1088,6 @@ class Louvain {
           return d_vertex_device_view(v);
         }));
 
-#if DEBUG > 1
-    barrier("before updating cluster weights");
-    sleep(rank_);
-    printf("after shuffle, rank = %d\n", rank_);
-    print_v("next_cluster", next_cluster_v);
-    print_v("cluster_weights", cluster_weights_v_);
-    print_v("final_nbr_cluster_v", final_nbr_cluster_v);
-    print_v("cluster_increase_v", cluster_increase_v);
-    print_v("old_cluster_v", old_cluster_v);
-    print_v("cluster_decrease_v", cluster_decrease_v);
-    printf("addresses:  next_cluster(%p), cluster_weights(%p), final_nbr_cluster_v(%p), cluster_increase_v(%p), old_cluster_v(%p), cluster_decrease_v(%p)\n",
-	   next_cluster_v.data().get(),
-	   cluster_weights_v_.data().get(),
-	   final_nbr_cluster_v.data().get(),
-	   cluster_increase_v.data().get(),
-	   old_cluster_v.data().get(),
-	   cluster_increase_v.data().get());
-#endif
-
     thrust::for_each(rmm::exec_policy(stream_)->on(stream_),
                      thrust::make_zip_iterator(
                        thrust::make_tuple(final_nbr_cluster_v.begin(), cluster_increase_v.begin())),
@@ -1435,10 +1097,6 @@ class Louvain {
                       base_vertex_id    = base_vertex_id_] __device__(auto p) {
                        vertex_t cluster_id = thrust::get<0>(p);
                        weight_t weight     = thrust::get<1>(p);
-
-#if DEBUG > 1
-		       printf("adding %g to cluster %d (current value %g) base = %d\n", weight, (int) cluster_id, d_cluster_weights[cluster_id-base_vertex_id], (int) base_vertex_id);
-#endif
 
                        atomicAdd(d_cluster_weights + cluster_id - base_vertex_id, weight);
                      });
@@ -1453,19 +1111,8 @@ class Louvain {
         vertex_t cluster_id = thrust::get<0>(p);
         weight_t weight     = thrust::get<1>(p);
 
-#if DEBUG > 1
-	printf("subtracting %g from cluster %d (current value %g) base = %d\n", weight, (int) cluster_id, d_cluster_weights[cluster_id-base_vertex_id], (int) base_vertex_id);
-#endif
-
         atomicAdd(d_cluster_weights + cluster_id - base_vertex_id, -weight);
       });
-
-#if DEBUG > 1
-    barrier("after updating cluster weights");
-    sleep(rank_);
-    print_v("next_cluster", next_cluster_v);
-    print_v("cluster_weights", cluster_weights_v_);
-#endif
 
     cache_vertex_properties(
       cluster_weights_v_, src_cluster_weights_cache_v_, dst_cluster_weights_cache_v_);
@@ -1512,10 +1159,6 @@ class Louvain {
         },
         stream_);
 
-#if DEBUG > 1
-      print_v("relevant edges", relevant_edges_v);
-#endif
-
       thrust::for_each_n(
         rmm::exec_policy(stream_)->on(stream_),
         thrust::make_counting_iterator<count_t>(0),
@@ -1553,21 +1196,11 @@ class Louvain {
             }
           }
         });
-
-#if DEBUG > 1
-      print_v("relevant edge weights", relevant_edge_weights_v);
-#endif
     }
 
     return std::make_pair(relevant_edges_v, relevant_edge_weights_v);
   }
 
-  //
-  // TODO CHECK:  Should be OK, calls other functions to do most of the work.
-  //              Reinitializes cluster_v_ at the end which leaves the
-  //              cached values as old, but they are refreshed before the next
-  //              code references them.
-  //
   void shrink_graph(vertex_t *d_cluster_vec)
   {
     timer_start("shrinking graph");
@@ -1576,10 +1209,6 @@ class Louvain {
 
     cuco::static_map<vertex_t, vertex_t> hash_map(
       capacity, std::numeric_limits<vertex_t>::max(), std::numeric_limits<vertex_t>::max());
-
-#if DEBUG > 0
-    barrier("in shrink_graph");
-#endif
 
     // renumber the clusters to the range 0..(num_clusters-1)
     vertex_t num_clusters = renumber_clusters(hash_map);
@@ -1599,22 +1228,9 @@ class Louvain {
     timer_stop(stream_);
   }
 
-  //
-  // TODO CHECK:  There's another check indicator inside this function.
-  //              Seems OK, although should be carefully examined
-  //
   vertex_t renumber_clusters(cuco::static_map<vertex_t, vertex_t> &hash_map)
   {
     rmm::device_vector<vertex_t> cluster_inverse_v(local_num_vertices_, vertex_t{0});
-
-#if DEBUG > 0
-    barrier("renumber_clusters 1");
-    sleep(rank_);
-    printf("rank = %d\n", rank_);
-    print_v("src_indices", src_indices_v_);
-    print_v("dst_indices", current_graph_view_.indices(), src_indices_v_.size());
-    print_v("weights", current_graph_view_.weights(), src_indices_v_.size());
-#endif
 
     //
     // FIXME:  Faster to iterate from graph_.get_vertex_partition_first()
@@ -1643,10 +1259,6 @@ class Louvain {
     hash_map.insert(it_src, it_src + local_num_edges_);
     hash_map.insert(it_dst, it_dst + local_num_edges_);
 
-#if DEBUG > 1
-    barrier("insert pairs complete");
-#endif
-
     // Now I need to get the keys into an array and shuffle them
     rmm::device_vector<vertex_t> used_cluster_ids_v(hash_map.get_size());
 
@@ -1665,20 +1277,12 @@ class Louvain {
       },
       stream_);
 
-#if DEBUG > 1
-    sleep(rank_);
-    print_v("used_cluster_ids", used_cluster_ids_v);
-#endif
-
     auto partition_cluster_ids_iter = thrust::make_transform_iterator(
       used_cluster_ids_v.begin(),
       [d_vertex_device_view = compute_partition_.vertex_device_view()] __device__(vertex_t v) {
         return d_vertex_device_view(v);
       });
 
-    //
-    //   TODO CHECK:  This logic seems right, but need to be tested carefully in MNMG
-    //
     rmm::device_vector<std::size_t> original_gpus_v;
     rmm::device_vector<vertex_t> my_cluster_ids_v =
       variable_shuffle<graph_view_t::is_multi_gpu, vertex_t>(
@@ -1691,12 +1295,6 @@ class Louvain {
         thrust::make_constant_iterator<std::size_t>(rank_),
         partition_cluster_ids_iter);
     }
-
-#if DEBUG > 1
-    sleep(rank_);
-    print_v("after shuffle, my_cluster_ids_v", my_cluster_ids_v);
-    print_v("original_gpus_v", original_gpus_v);
-#endif
 
     //
     //   Now my_cluster_ids contains the cluster ids that this gpu is
@@ -1721,11 +1319,6 @@ class Louvain {
       },
       stream_);
 
-#if DEBUG > 1
-    sleep(rank_);
-    print_v("my_cluster_ids_deduped", my_cluster_ids_deduped_v);
-#endif
-
     //
     //  Need to gather everything to be able to compute base addresses
     //
@@ -1742,10 +1335,6 @@ class Louvain {
                                     sizes_v.begin(),
                                     sizes_v.begin() + rank_,
                                     vertex_t{0});
-
-#if DEBUG > 1
-      printf("rank = %d, base_address = %d\n", (int)rank_, (int)base_address);
-#endif
     }
 
     //
@@ -1763,10 +1352,6 @@ class Louvain {
                         d_cluster_inverse = cluster_inverse_v.data().get()] __device__(auto idx) {
                          d_cluster_inverse[d_my_cluster_ids_deduped[idx]] = idx + base_address;
                        });
-
-#if DEBUG > 1
-    print_v("d_cluster_inverse", cluster_inverse_v);
-#endif
 
     //
     //  Now I need to shuffle back to original gpus the
@@ -1787,13 +1372,6 @@ class Louvain {
       my_cluster_ids_v = variable_shuffle<graph_view_t::is_multi_gpu, vertex_t>(
         handle_, my_cluster_ids_v.size(), my_cluster_ids_v.begin(), original_gpus_v.begin());
     }
-
-#if DEBUG > 0
-    sleep(rank_);
-    printf("rank = %d\n", rank_);
-    print_v("my_cluster_ids", my_cluster_ids_v);
-    print_v("new_vertex_ids", new_vertex_ids_v);
-#endif
 
     //
     //  Now update the hash map with the new vertex id
@@ -1820,23 +1398,10 @@ class Louvain {
     }
   }
 
-  //
-  // TODO CHECK:  Multi-gpu implementation needs to be verified.
-  //
   void renumber_result(cuco::static_map<vertex_t, vertex_t> const &hash_map,
                        vertex_t *d_cluster_vec,
                        vertex_t num_clusters)
   {
-#if DEBUG > 1
-    barrier("renumber_result 1");
-
-    sleep(rank_);
-    printf("rank = %d\n", rank_);
-    print_v("d_cluster_vec", d_cluster_vec, number_of_vertices_);
-
-    barrier("renumber_result 2");
-#endif
-
     if (graph_view_t::is_multi_gpu) {
       //
       // FIXME: Perhaps there's a general purpose function hidden here...
@@ -1854,7 +1419,6 @@ class Louvain {
 
       result_hash_map.insert(cluster_iter, cluster_iter + local_num_vertices_);
 
-      // TODO:  extract_unique_keys???
       rmm::device_vector<vertex_t> used_cluster_ids_v(result_hash_map.get_size());
 
       auto transform_iter = thrust::make_transform_iterator(
@@ -1878,16 +1442,6 @@ class Louvain {
           return d_vertex_device_view(v);
         });
 
-#if DEBUG > 1
-      sleep(rank_);
-      printf("rank = %d\n", rank_);
-      print_v("used_cluster_ids", used_cluster_ids_v);
-      barrier("renumber_result 3");
-#endif
-
-      //
-      //   TODO CHECK:  This logic seems right, but need to be tested carefully in MNMG
-      //
       rmm::device_vector<vertex_t> old_cluster_ids_v =
         variable_shuffle<graph_view_t::is_multi_gpu, vertex_t>(handle_,
                                                                used_cluster_ids_v.size(),
@@ -1900,15 +1454,6 @@ class Louvain {
           used_cluster_ids_v.size(),
           thrust::make_constant_iterator<std::size_t>(rank_),
           partition_cluster_ids_iter);
-
-#if DEBUG > 1
-      sleep(rank_);
-      printf("rank = %d\n", rank_);
-      print_v("old_cluster_ids", old_cluster_ids_v);
-      print_v("original_gpus_v", original_gpus_v);
-      print_v("cluster_v_", cluster_v_);
-      barrier("renumber_result 4");
-#endif
 
       // Now each GPU has old cluster ids, let's compute new cluster ids
       rmm::device_vector<vertex_t> new_cluster_ids_v(old_cluster_ids_v.size());
@@ -1930,14 +1475,6 @@ class Louvain {
         handle_, old_cluster_ids_v.size(), old_cluster_ids_v.begin(), original_gpus_v.begin());
       new_cluster_ids_v = variable_shuffle<graph_view_t::is_multi_gpu, vertex_t>(
         handle_, new_cluster_ids_v.size(), new_cluster_ids_v.begin(), original_gpus_v.begin());
-
-#if DEBUG > 1
-      sleep(rank_);
-      printf("rank = %d\n", rank_);
-      print_v("old_cluster_ids", old_cluster_ids_v);
-      print_v("new_cluster_ids", new_cluster_ids_v);
-      barrier("renumber_result 5");
-#endif
 
       // Update result_hash_map
       thrust::for_each_n(
@@ -1972,38 +1509,15 @@ class Louvain {
                           return pos->second.load();
                         });
     }
-
-#if DEBUG > 1
-    printf("rank = %d\n", rank_);
-    print_v("d_cluster_vec", d_cluster_vec, number_of_vertices_);
-#endif
   }
 
-  //
-  // TODO CHECK:  Multi-gpu implementation needs compile!
-  //
   void generate_supervertices_graph(cuco::static_map<vertex_t, vertex_t> const &hash_map,
                                     vertex_t num_clusters)
   {
-#if DEBUG > 0
-    barrier("generate_supervertices_graph");
-#endif
-
     rmm::device_vector<vertex_t> new_src_v(local_num_edges_);
     rmm::device_vector<vertex_t> new_dst_v(local_num_edges_);
     rmm::device_vector<weight_t> new_weight_v(current_graph_view_.weights(),
                                               current_graph_view_.weights() + local_num_edges_);
-
-#if DEBUG > 0
-    sleep(rank_);
-    printf("rank = %d\n", rank_);
-    print_v("src_indices_v", src_indices_v_);
-    print_v("dst_indices", current_graph_view_.indices(), local_num_edges_);
-    print_v("weights", current_graph_view_.weights(), local_num_edges_);
-    print_v("src_cluster_cache_v", src_cluster_cache_v_);
-    print_v("dst_cluster_cache_v", dst_cluster_cache_v_);
-    barrier("generate supervertices 1");
-#endif
 
     thrust::transform(rmm::exec_policy(stream_)->on(stream_),
                       src_indices_v_.begin(),
@@ -2029,25 +1543,9 @@ class Louvain {
                         return pos->second.load();
                       });
 
-#if DEBUG > 1
-    barrier("computed new_src");
-    sleep(rank_);
-    print_v("new_src", new_src_v);
-    print_v("new_dst", new_dst_v);
-    print_v("new_weight", new_weight_v);
-#endif
-
     // Combine common edges on local gpu
     std::tie(new_src_v, new_dst_v, new_weight_v) =
       combine_local_edges(new_src_v, new_dst_v, new_weight_v);
-
-#if DEBUG > 1
-    barrier("after combine_local_edges");
-    sleep(rank_);
-    print_v("new_src", new_src_v);
-    print_v("new_dst", new_dst_v);
-    print_v("new_weight", new_weight_v);
-#endif
 
     if (graph_view_t::is_multi_gpu) {
       //
@@ -2073,15 +1571,6 @@ class Louvain {
           return d_edge_device_view(thrust::get<0>(tuple), thrust::get<1>(tuple));
         });
 
-#if DEBUG > 1
-      barrier("generate_supervertices, before shuffle");
-      sleep(rank_);
-      print_v("partition_v", partition_v);
-      print_v("new_src_v", new_src_v);
-      print_v("new_dst_v", new_dst_v);
-      print_v("new_weight_v", new_weight_v);
-#endif
-
       new_src_v = variable_shuffle<graph_view_t::is_multi_gpu, vertex_t>(
         handle_, partition_v.size(), new_src_v.begin(), partition_v.begin());
 
@@ -2090,15 +1579,6 @@ class Louvain {
 
       new_weight_v = variable_shuffle<graph_view_t::is_multi_gpu, weight_t>(
         handle_, partition_v.size(), new_weight_v.begin(), partition_v.begin());
-
-#if DEBUG > 1
-      sleep(rank_);
-      printf("after shuffle\n");
-      print_v("partition_v", partition_v);
-      print_v("new_src_v", new_src_v);
-      print_v("new_dst_v", new_dst_v);
-      print_v("new_weight_v", new_weight_v);
-#endif
 
       //
       //  Now everything is on the correct node, again combine like edges
@@ -2112,17 +1592,6 @@ class Louvain {
     //  original clustering (eventually this likely fits on one GPU and
     //  everything else is empty).
     //
-#if DEBUG > 1
-    barrier("about to create_graph");
-    sleep(rank_);
-    std::cout << rank_ << " make new graph, num_edges = " << new_src_v.size() << std::endl;
-    print_v("new_src", new_src_v);
-    print_v("new_dst", new_dst_v);
-    print_v("new_weight", new_weight_v);
-#endif
-
-    // TODO:  What's the local num vertices?
-
     current_graph_ =
       detail::create_graph<vertex_t,
                            edge_t,
@@ -2147,30 +1616,8 @@ class Louvain {
 
     cugraph::detail::offsets_to_indices(
       current_graph_view_.offsets(), local_num_rows_, src_indices_v_.data().get());
-
-    CHECK_CUDA(stream_);
-
-#if DEBUG > 0
-    barrier("after create_graph");
-    sleep(rank_);
-    printf("rank = %d, nverts = %d, nedges = %d, nrows = %d, ncols = %d\n",
-           rank_,
-           local_num_vertices_,
-           local_num_edges_,
-           local_num_rows_,
-           local_num_cols_);
-    print_v("offsets", current_graph_view_.offsets(), local_num_vertices_);
-    print_v("new graph... src_indices", src_indices_v_);
-    print_v("indices", current_graph_view_.indices(), local_num_edges_);
-    print_v("weights", current_graph_view_.weights(), local_num_edges_);
-
-    barrier("back to louvain");
-#endif
   }
 
-  //
-  // TODO CHECK:  This function is single GPU only
-  //
   std::
     tuple<rmm::device_vector<vertex_t>, rmm::device_vector<vertex_t>, rmm::device_vector<weight_t>>
     combine_local_edges(rmm::device_vector<vertex_t> &src_v,
@@ -2187,14 +1634,6 @@ class Louvain {
       src_v.begin(),
       src_v.end(),
       thrust::make_zip_iterator(thrust::make_tuple(dst_v.begin(), weight_v.begin())));
-
-#if DEBUG > 1
-    barrier("combine_local_edges: after sort");
-    sleep(rank_);
-    print_v("src_v", src_v);
-    print_v("dst_v", dst_v);
-    print_v("weight_v", weight_v);
-#endif
 
     rmm::device_vector<vertex_t> combined_src_v(src_v.size());
     rmm::device_vector<vertex_t> combined_dst_v(src_v.size());
@@ -2221,14 +1660,6 @@ class Louvain {
     combined_src_v.resize(num_edges);
     combined_dst_v.resize(num_edges);
     combined_weight_v.resize(num_edges);
-
-#if DEBUG > 1
-    barrier("combine_local_edges: after reduce_by_key");
-    sleep(rank_);
-    print_v("combined_src_v", combined_src_v);
-    print_v("combined_dst_v", combined_dst_v);
-    print_v("combined_weight_v", combined_weight_v);
-#endif
 
     return std::make_tuple(combined_src_v, combined_dst_v, combined_weight_v);
   }
