@@ -62,7 +62,7 @@ class Tests_Louvain : public ::testing::TestWithParam<Louvain_Usecase> {
   {
     raft::handle_t handle{};
 
-std::cout << "read graph file: " << configuration.graph_file_full_path << std::endl;
+    std::cout << "read graph file: " << configuration.graph_file_full_path << std::endl;
 
     auto graph =
       cugraph::test::read_graph_from_matrix_market_file<vertex_t, edge_t, weight_t, false>(
@@ -103,13 +103,14 @@ TEST_P(Tests_Louvain, CheckInt32Int32FloatFloat)
 
 INSTANTIATE_TEST_CASE_P(simple_test,
                         Tests_Louvain,
-                        ::testing::Values(Louvain_Usecase("test/datasets/renumbered_karate.mtx", true)
+                        ::testing::Values(Louvain_Usecase("test/datasets/renumbered_karate.mtx",
+                                                          true)
 #if 0
 			,
                                           Louvain_Usecase("test/datasets/web-Google.mtx", true),
                                           Louvain_Usecase("test/datasets/ljournal-2008.mtx", true),
                                           Louvain_Usecase("test/datasets/webbase-1M.mtx", true)
 #endif
-					  ));
+                                            ));
 
 CUGRAPH_TEST_PROGRAM_MAIN()

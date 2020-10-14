@@ -146,12 +146,7 @@ class compute_partition_t {
         std::size_t row = src_partition / row_size_;
         std::size_t col = dst_partition / col_size_;
 
-	int ret = row * row_size_ + col;
-
-	if ((ret < 0) || (ret >= size_))
-	  printf("e = (%d, %d), ret = %d (out of bounds)\n", (int) src, (int) dst, ret);
-
-	return ret;
+        return row * row_size_ + col;
       } else {
         return 0;
       }

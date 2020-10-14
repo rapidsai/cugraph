@@ -525,7 +525,7 @@ class Louvain {
       src_cluster_cache_v_.begin(),
       dst_cluster_cache_v_.begin(),
       [] __device__(auto src, auto dst, weight_t wt, auto src_cluster, auto nbr_cluster) {
-	if (src_cluster == nbr_cluster) {
+        if (src_cluster == nbr_cluster) {
           return wt;
         } else {
           return weight_t{0};
@@ -829,7 +829,7 @@ class Louvain {
                        d_ocs                 = ocs_v.data().get(),
                        base_src_vertex_id    = base_src_vertex_id_,
                        base_dst_vertex_id    = base_dst_vertex_id_] __device__(auto tuple) {
-                        edge_t edge_id = thrust::get<0>(tuple);
+                        edge_t edge_id           = thrust::get<0>(tuple);
                         vertex_t nbr_cluster     = d_nbr_cluster[edge_id];
                         weight_t new_cluster_sum = thrust::get<1>(tuple);
                         vertex_t old_cluster     = d_src_cluster[edge_id];
@@ -860,13 +860,12 @@ class Louvain {
     auto final_output_iter = thrust::make_zip_iterator(thrust::make_tuple(
       final_src_v.begin(), final_nbr_cluster_v.begin(), final_nbr_weights_v.begin()));
 
-    auto final_output_pos = thrust::copy_if(rmm::exec_policy(stream_)->on(stream_),
-					    final_input_iter,
-					    final_input_iter + local_cluster_edge_ids_v.size(),
-					    final_output_iter,
-					    [] __device__(auto p) {
-					      return (thrust::get<2>(p) > weight_t{0});
-					    });
+    auto final_output_pos =
+      thrust::copy_if(rmm::exec_policy(stream_)->on(stream_),
+                      final_input_iter,
+                      final_input_iter + local_cluster_edge_ids_v.size(),
+                      final_output_iter,
+                      [] __device__(auto p) { return (thrust::get<2>(p) > weight_t{0}); });
 
     final_src_v.resize(thrust::distance(final_output_iter, final_output_pos));
     final_nbr_cluster_v.resize(thrust::distance(final_output_iter, final_output_pos));
@@ -899,9 +898,9 @@ class Louvain {
                       local_cluster_edge_ids_v.begin(),
                       [sentinel = std::numeric_limits<edge_t>::max(),
                        d_src    = final_src_v.data().get()] __device__(edge_t edge_id) {
-			if (edge_id == 0) { return edge_id; }
+                        if (edge_id == 0) { return edge_id; }
 
-			if (d_src[edge_id - 1] != d_src[edge_id]) { return edge_id; }
+                        if (d_src[edge_id - 1] != d_src[edge_id]) { return edge_id; }
 
                         return sentinel;
                       });
