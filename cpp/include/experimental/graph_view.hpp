@@ -114,6 +114,17 @@ class partition_t {
     }
   }
 
+  int get_row_size() const { return row_comm_size_; }
+
+  int get_col_size() const { return col_comm_size_; }
+
+  int get_comm_rank() const { return comm_rank_; }
+
+  std::vector<vertex_t> const& get_vertex_partition_offsets() const
+  {
+    return vertex_partition_offsets_;
+  }
+
   std::tuple<vertex_t, vertex_t> get_local_vertex_range() const
   {
     return std::make_tuple(vertex_partition_offsets_[comm_rank_],
@@ -321,6 +332,8 @@ class graph_view_t<vertex_t,
 
   bool is_weighted() const { return adj_matrix_partition_weights_.size() > 0; }
 
+  partition_t<vertex_t> get_partition() const { return partition_; }
+
   vertex_t get_number_of_local_vertices() const
   {
     return partition_.get_local_vertex_last() - partition_.get_local_vertex_first();
@@ -427,6 +440,24 @@ class graph_view_t<vertex_t,
   }
 
   bool is_hypergraph_partitioned() const { return partition_.is_hypergraph_partitioned(); }
+
+  // FIXME: this function is not part of the public stable API.This function is mainly for pattern
+  // accelerator implementation. This function is currently public to support the legacy
+  // implementations directly accessing CSR/CSC data, but this function will eventually become
+  // private or even disappear if we switch to CSR + DCSR (or CSC + DCSC).
+  edge_t const* offsets() const { return offsets(0); }
+
+  // FIXME: this function is not part of the public stable API.This function is mainly for pattern
+  // accelerator implementation. This function is currently public to support the legacy
+  // implementations directly accessing CSR/CSC data, but this function will eventually become
+  // private or even disappear if we switch to CSR + DCSR (or CSC + DCSC).
+  vertex_t const* indices() const { return indices(0); }
+
+  // FIXME: this function is not part of the public stable API.This function is mainly for pattern
+  // accelerator implementation. This function is currently public to support the legacy
+  // implementations directly accessing CSR/CSC data, but this function will eventually become
+  // private or even disappear if we switch to CSR + DCSR (or CSC + DCSC).
+  weight_t const* weights() const { return weights(0); }
 
   // FIXME: this function is not part of the public stable API.This function is mainly for pattern
   // accelerator implementation. This function is currently public to support the legacy

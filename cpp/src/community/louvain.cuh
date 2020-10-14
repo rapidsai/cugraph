@@ -600,6 +600,8 @@ class Louvain {
     CHECK_CUDA(stream_);
 
     src_indices_v_.resize(graph.number_of_edges);
+    indices_v_.resize(graph.number_of_edges);
+    weights_v_.resize(graph.number_of_edges);
   }
 
  protected:

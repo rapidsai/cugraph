@@ -460,30 +460,29 @@ void remove_duplicate(
   }
 }
 
-template <typename IndexType>
-__global__ void offsets_to_indices_kernel(const IndexType *offsets, IndexType v, IndexType *indices)
+template <typename offsets_t, typename index_t>
+__global__ void offsets_to_indices_kernel(const offsets_t *offsets, index_t v, index_t *indices)
 {
-  int tid, ctaStart;
-  tid      = threadIdx.x;
-  ctaStart = blockIdx.x;
+  auto tid{threadIdx.x};
+  auto ctaStart{blockIdx.x};
 
-  for (int j = ctaStart; j < v; j += gridDim.x) {
-    IndexType colStart = offsets[j];
-    IndexType colEnd   = offsets[j + 1];
-    IndexType rowNnz   = colEnd - colStart;
+  for (index_t j = ctaStart; j < v; j += gridDim.x) {
+    offsets_t colStart = offsets[j];
+    offsets_t colEnd   = offsets[j + 1];
+    offsets_t rowNnz   = colEnd - colStart;
 
-    for (int i = 0; i < rowNnz; i += blockDim.x) {
+    for (offsets_t i = 0; i < rowNnz; i += blockDim.x) {
       if ((colStart + tid + i) < colEnd) { indices[colStart + tid + i] = j; }
     }
   }
 }
 
-template <typename IndexType>
-void offsets_to_indices(const IndexType *offsets, IndexType v, IndexType *indices)
+template <typename offsets_t, typename index_t>
+void offsets_to_indices(const offsets_t *offsets, index_t v, index_t *indices)
 {
   cudaStream_t stream{nullptr};
-  IndexType nthreads = min(v, (IndexType)CUDA_MAX_KERNEL_THREADS);
-  IndexType nblocks  = min((v + nthreads - 1) / nthreads, (IndexType)CUDA_MAX_BLOCKS);
+  index_t nthreads = min(v, (index_t)CUDA_MAX_KERNEL_THREADS);
+  index_t nblocks  = min((v + nthreads - 1) / nthreads, (index_t)CUDA_MAX_BLOCKS);
   offsets_to_indices_kernel<<<nblocks, nthreads, 0, stream>>>(offsets, v, indices);
   CHECK_CUDA(stream);
 }

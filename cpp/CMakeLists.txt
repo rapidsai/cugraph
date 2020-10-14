@@ -210,6 +210,45 @@ if(NOT thrust_POPULATED)
 endif()
 set(THRUST_INCLUDE_DIR "${thrust_SOURCE_DIR}")
 
+# - cuco
+message("Fetching cuco")
+
+FetchContent_Declare(
+    cuco
+    GIT_REPOSITORY https://github.com/NVIDIA/cuCollections.git
+    GIT_TAG        729d07db2e544e173efefdd168db21f7b8adcfaf
+    GIT_SHALLOW    true
+)
+
+FetchContent_GetProperties(cuco)
+if(NOT cuco_POPULATED)
+  FetchContent_Populate(cuco)
+endif()
+set(CUCO_INCLUDE_DIR "${cuco_SOURCE_DIR}/include")
+
+# - libcudacxx
+#     NOTE:  This is necessary because libcudacxx is not supported in
+#      debian cuda 10.2 packages.  Once 10.2 is deprecated
+#      we should not need this any longer.
+message("Fetching libcudacxx")
+
+FetchContent_Declare(
+    libcudacxx
+    GIT_REPOSITORY https://github.com/NVIDIA/libcudacxx.git
+    GIT_TAG        1.3.0-rc0
+    GIT_SHALLOW    true
+)
+
+FetchContent_GetProperties(libcudacxx)
+if(NOT libcudacxx_POPULATED)
+  message("populating libcudacxx")
+  FetchContent_Populate(libcudacxx)
+endif()
+set(LIBCUDACXX_INCLUDE_DIR "${libcudacxx_SOURCE_DIR}/include")
+message("set LIBCUDACXX_INCLUDE_DIR to: ${LIBCUDACXX_INCLUDE_DIR}")
+
+
+
 ###################################################################################################
 # - External Projects -----------------------------------------------------------------------------
 
@@ -354,6 +393,8 @@ add_dependencies(cugraph raft)
 target_include_directories(cugraph
     PRIVATE
     "${THRUST_INCLUDE_DIR}"
+    "${CUCO_INCLUDE_DIR}"
+    "${LIBCUDACXX_INCLUDE_DIR}"
     "${CMAKE_CUDA_TOOLKIT_INCLUDE_DIRECTORIES}"
     "${LIBCYPHERPARSER_INCLUDE}"
     "${Boost_INCLUDE_DIRS}"
