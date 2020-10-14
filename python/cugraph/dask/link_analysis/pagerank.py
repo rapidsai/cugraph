@@ -25,8 +25,6 @@ def call_pagerank(sID,
                   data,
                   num_verts,
                   num_edges,
-                  partition_row_size,
-                  partition_col_size,
                   vertex_partition_offsets,
                   alpha,
                   max_iter,
@@ -38,8 +36,6 @@ def call_pagerank(sID,
     return mg_pagerank.mg_pagerank(data[0],
                                    num_verts,
                                    num_edges,
-                                   partition_row_size,
-                                   partition_col_size,
                                    vertex_partition_offsets,
                                    wid,
                                    handle,
@@ -77,7 +73,7 @@ def pagerank(input_graph,
         Alpha should be greater than 0.0 and strictly lower than 1.0.
     personalization : cudf.Dataframe
         GPU Dataframe containing the personalization information.
-
+        Currently not supported.
         personalization['vertex'] : cudf.Series
             Subset of vertices of graph for personalization
         personalization['values'] : cudf.Series
@@ -103,13 +99,13 @@ def pagerank(input_graph,
 
     Returns
     -------
-    PageRank : cudf.DataFrame
-        GPU data frame containing two cudf.Series of size V: the vertex
-        identifiers and the corresponding PageRank values.
+    PageRank : dask_cudf.DataFrame
+        GPU data frame containing two dask_cudf.Series of size V: the
+        vertex identifiers and the corresponding PageRank values.
 
-        df['vertex'] : cudf.Series
+        ddf['vertex'] : cudf.Series
             Contains the vertex identifiers
-        df['pagerank'] : cudf.Series
+        ddf['pagerank'] : cudf.Series
             Contains the PageRank score
 
     Examples
@@ -158,8 +154,6 @@ def pagerank(input_graph,
                             wf[1],
                             num_verts,
                             num_edges,
-                            partition_row_size,
-                            partition_col_size,
                             vertex_partition_offsets,
                             alpha,
                             max_iter,

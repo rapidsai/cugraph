@@ -34,7 +34,7 @@
 #include <patterns/transform_reduce_v.cuh>
 
 //#define TIMING
-#define DEBUG 1
+//#define DEBUG 1
 
 #ifdef TIMING
 #include <utilities/high_res_timer.hpp>

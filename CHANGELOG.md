@@ -24,6 +24,7 @@
 - PR #1145 Simple edge list generator
 - PR #1144 updated documentation and APIs
 - PR #1139 MNMG Louvain Python updates, Cython cleanup
+- PR #1156 Add aarch64 gencode support
 - PR #1149 Parquet read and concat within workers
 - PR #1152 graph container cleanup, added arg for instantiating legacy types and switch statements to factory function
 - PR #1164 MG symmetrize and conda env updates
@@ -32,6 +33,7 @@
 - PR #1165 updated remaining algorithms to be NetworkX compatible
 - PR #1176 Update ci/local/README.md
 - PR #1184 BLD getting latest tags
+
 
 ## Bug Fixes
 - PR #1131 Show style checker errors with set +e
@@ -48,6 +50,8 @@
 - PR #1192 Fix benchmark notes and documentation issues in graph.py
 - PR #1196 Move subcomms init outside of individual algorithm functions
 - PR #1198 Remove deprecated call to from_gpu_matrix
+- PR #1174 Fix bugs in MNMG pattern accelerators and pattern accelerator based implementations of MNMG PageRank, BFS, and SSSP
+
 
 
 # cuGraph 0.15.0 (26 Aug 2020)

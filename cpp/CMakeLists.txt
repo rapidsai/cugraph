@@ -48,13 +48,51 @@ if(CMAKE_COMPILER_IS_GNUCXX)
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Werror -Wno-error=deprecated-declarations")
 endif(CMAKE_COMPILER_IS_GNUCXX)
 
-set(CMAKE_CUDA_FLAGS "${CMAKE_CUDA_FLAGS} -gencode=arch=compute_60,code=sm_60")
-set(CMAKE_CUDA_FLAGS "${CMAKE_CUDA_FLAGS} -gencode=arch=compute_70,code=sm_70 -gencode=arch=compute_70,code=compute_70")
-
 find_package(CUDA)
-if((CUDA_VERSION_MAJOR EQUAL 10) OR (CUDA_VERSION_MAJOR GREATER 10))
-  set(CMAKE_CUDA_FLAGS "${CMAKE_CUDA_FLAGS} -gencode=arch=compute_75,code=sm_75 -gencode=arch=compute_75,code=compute_75")
+
+# Check for aarch64 vs workstation architectures
+if(CMAKE_SYSTEM_PROCESSOR MATCHES "aarch64")
+  message(STATUS "CMAKE Detected aarch64 CPU architecture, selecting appropriate gencodes")
+  # This is being build for Linux4Tegra or SBSA ARM64 CUDA
+  set(GPU_ARCHS "62") # Default minimum CUDA GenCode - not supported by gunrock
+  if(CUDA_VERSION_MAJOR GREATER_EQUAL 9)
+    set(GPU_ARCHS "${GPU_ARCHS};72")
+    set(GUNROCK_GENCODE "-DGUNROCK_GENCODE_SM72=TRUE")
+  endif()
+  if(CUDA_VERSION_MAJOR GREATER_EQUAL 11)
+    # This is probably for SBSA CUDA, or a next gen Jetson
+    set(GPU_ARCHS "${GPU_ARCHS};75;80")
+    set(GUNROCK_GENCODE "${GUNROCK_GENCODE} -DGUNROCK_GENCODE_SM75=TRUE -DGUNROCK_GENCODE_SM80=TRUE ")
+  endif()
+
+else()
+  message(STATUS "CMAKE selecting appropriate gencodes for x86 or ppc64 CPU architectures")
+  # System architecture was not aarch64,
+  # this is datacenter or workstation class hardware
+  set(GPU_ARCHS "60") # Default minimum supported CUDA gencode
+  set(GUNROCK_GENCODE "-DGUNROCK_GENCODE_SM60=TRUE")
+  if(CUDA_VERSION_MAJOR GREATER_EQUAL 9)
+    set(GPU_ARCHS "${GPU_ARCHS};70")
+    set(GUNROCK_GENCODE "${GUNROCK_GENCODE} -DGUNROCK_GENCODE_SM70=TRUE")
+  endif()
+  if(CUDA_VERSION_MAJOR GREATER_EQUAL 10)
+    set(GPU_ARCHS "${GPU_ARCHS};75")
+    set(GUNROCK_GENCODE "${GUNROCK_GENCODE} -DGUNROCK_GENCODE_SM75=TRUE")
+  endif()
+  if(CUDA_VERSION_MAJOR GREATER_EQUAL 11)
+    set(GPU_ARCHS "${GPU_ARCHS};80")
+    set(GUNROCK_GENCODE "${GUNROCK_GENCODE} -DGUNROCK_GENCODE_SM80=TRUE")
+  endif()
+
 endif()
+
+message("-- Building for GPU_ARCHS = ${GPU_ARCHS}")
+foreach(arch ${GPU_ARCHS})
+  set(CMAKE_CUDA_FLAGS "${CMAKE_CUDA_FLAGS} -gencode arch=compute_${arch},code=sm_${arch}")
+endforeach()
+
+list(GET GPU_ARCHS -1 ptx)
+set(CMAKE_CUDA_FLAGS "${CMAKE_CUDA_FLAGS} -gencode arch=compute_${ptx},code=compute_${ptx}")
 
 set(CMAKE_CUDA_FLAGS "${CMAKE_CUDA_FLAGS} --expt-extended-lambda")
 set(CMAKE_CUDA_FLAGS "${CMAKE_CUDA_FLAGS} -Werror=cross-execution-space-call -Wno-deprecated-declarations -Xptxas --disable-warnings")
@@ -178,7 +216,7 @@ message("Fetching cuco")
 FetchContent_Declare(
     cuco
     GIT_REPOSITORY https://github.com/NVIDIA/cuCollections.git
-    GIT_TAG        269a9bef3cc8b81b5dfff2d9a5a105c346836d4d
+    GIT_TAG        8278b2528f985d7ae139f3b1cc122ec2670605e1
     GIT_SHALLOW    true
 )
 
@@ -187,6 +225,28 @@ if(NOT cuco_POPULATED)
   FetchContent_Populate(cuco)
 endif()
 set(CUCO_INCLUDE_DIR "${cuco_SOURCE_DIR}/include")
+
+# - libcudacxx
+#     NOTE:  This is necessary because libcudacxx is not supported in
+#      debian cuda 10.2 packages.  Once 10.2 is deprecated
+#      we should not need this any longer.
+message("Fetching libcudacxx")
+
+FetchContent_Declare(
+    libcudacxx
+    GIT_REPOSITORY https://github.com/NVIDIA/libcudacxx.git
+    GIT_TAG        1.3.0-rc0
+    GIT_SHALLOW    true
+)
+
+FetchContent_GetProperties(libcudacxx)
+if(NOT libcudacxx_POPULATED)
+  message("populating libcudacxx")
+  FetchContent_Populate(libcudacxx)
+endif()
+set(LIBCUDACXX_INCLUDE_DIR "${libcudacxx_SOURCE_DIR}/include")
+message("set LIBCUDACXX_INCLUDE_DIR to: ${LIBCUDACXX_INCLUDE_DIR}")
+
 
 
 ###################################################################################################
@@ -215,18 +275,13 @@ set(CUGUNROCK_DIR ${CMAKE_CURRENT_BINARY_DIR}/cugunrock CACHE STRING
 
 ExternalProject_Add(cugunrock
   GIT_REPOSITORY    https://github.com/rapidsai/cugunrock.git
-  GIT_TAG           main
+  GIT_TAG           0b92fae6ee9026188a811b4d08915779e7c97178
   PREFIX            ${CUGUNROCK_DIR}
   CMAKE_ARGS        -DCMAKE_INSTALL_PREFIX=<INSTALL_DIR>
-                    -DGPU_ARCHS=""
                     -DGUNROCK_BUILD_SHARED_LIBS=OFF
                     -DGUNROCK_BUILD_TESTS=OFF
                     -DCUDA_AUTODETECT_GENCODE=FALSE
-                    -DGUNROCK_GENCODE_SM60=TRUE
-                    -DGUNROCK_GENCODE_SM61=TRUE
-                    -DGUNROCK_GENCODE_SM70=TRUE
-                    -DGUNROCK_GENCODE_SM72=TRUE
-                    -DGUNROCK_GENCODE_SM75=TRUE
+                    ${GUNROCK_GENCODE}
   BUILD_BYPRODUCTS  ${CUGUNROCK_DIR}/lib/libgunrock.a
 )
 
@@ -267,7 +322,7 @@ else(DEFINED ENV{RAFT_PATH})
 
   ExternalProject_Add(raft
     GIT_REPOSITORY    https://github.com/rapidsai/raft.git
-    GIT_TAG           44eedb23cd52ea1c492c9b6c6cdfe09cfb35dd48
+    GIT_TAG           515ed005aebc2276d52308516e623a4ab0b5e82c
     PREFIX            ${RAFT_DIR}
     CONFIGURE_COMMAND ""
     BUILD_COMMAND     ""
@@ -339,6 +394,7 @@ target_include_directories(cugraph
     PRIVATE
     "${THRUST_INCLUDE_DIR}"
     "${CUCO_INCLUDE_DIR}"
+    "${LIBCUDACXX_INCLUDE_DIR}"
     "${CMAKE_CUDA_TOOLKIT_INCLUDE_DIRECTORIES}"
     "${LIBCYPHERPARSER_INCLUDE}"
     "${Boost_INCLUDE_DIRS}"

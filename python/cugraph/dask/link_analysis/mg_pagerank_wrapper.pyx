@@ -27,8 +27,6 @@ import numpy as np
 def mg_pagerank(input_df,
                 num_global_verts,
                 num_global_edges,
-                partition_row_size,
-                partition_col_size,
                 vertex_partition_offsets,
                 rank,
                 handle,
@@ -69,7 +67,7 @@ def mg_pagerank(input_df,
     cdef uintptr_t c_src_vertices = src.__cuda_array_interface__['data'][0]
     cdef uintptr_t c_dst_vertices = dst.__cuda_array_interface__['data'][0]
     cdef uintptr_t c_edge_weights = <uintptr_t>NULL
-
+    
     # FIXME: data is on device, move to host (to_pandas()), convert to np array and access pointer to pass to C
     vertex_partition_offsets_host = vertex_partition_offsets.values_host
     cdef uintptr_t c_vertex_partition_offsets = vertex_partition_offsets_host.__array_interface__['data'][0]

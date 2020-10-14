@@ -80,7 +80,7 @@ def daskGraphFromDataset(request, client_connection):
     )
 
     dg = cugraph.DiGraph()
-    dg.from_dask_cudf_edgelist(ddf, "src", "dst", "value")
+    dg.from_dask_cudf_edgelist(ddf, "src", "dst")
     return dg
 
 
@@ -98,7 +98,6 @@ def test_mg_louvain_with_edgevals(daskGraphFromDataset):
     # FIXME: either call Nx with the same dataset and compare results, or
     # hadcode golden results to compare to.
     print()
-    print("partitions")
     print(parts.compute())
-    print('modularity = ', mod)
+    print(mod)
     print()

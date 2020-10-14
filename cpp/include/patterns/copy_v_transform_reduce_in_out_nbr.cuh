@@ -562,9 +562,7 @@ void copy_v_transform_reduce_nbr(raft::handle_t const& handle,
       // partitioning
       auto comm_src_rank = (comm_rank % col_comm_size) * row_comm_size + comm_rank / col_comm_size;
       auto comm_dst_rank = row_comm_rank * col_comm_size + col_comm_rank;
-      // FIXME: it seems like raft::isend and raft::irecv do not properly handle the destination (or
-      // source) == self case. Need to double check and fix this if this is indeed the case (or RAFT
-      // may use ncclSend/ncclRecv instead of UCX for device data).
+      // FIXME: this branch may no longer necessary with NCCL backend
       if (comm_src_rank == comm_rank) {
         assert(comm_dst_rank == comm_rank);
         auto offset =
