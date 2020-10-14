@@ -43,42 +43,47 @@ def sssp(graph,
          source):
 
     """
-    Find the distances and predecessors for a breadth first traversal of a
-    graph.
-    The input graph must contain edge list as  dask-cudf dataframe with
+    Compute the distance and predecessors for shortest paths from the specified
+    source to all the vertices in the graph. The distances column will store
+    the distance from the source to each vertex. The predecessors column will
+    store each vertex's predecessor in the shortest path. Vertices that are
+    unreachable will have a distance of infinity denoted by the maximum value
+    of the data type and the predecessor set as -1. The source vertex's
+    predecessor is also set to -1.
+    The input graph must contain edge list as dask-cudf dataframe with
     one partition per GPU.
 
     Parameters
     ----------
     graph : cugraph.DiGraph
         cuGraph graph descriptor, should contain the connectivity information
-        as dask cudf edge list dataframe(edge weights are not used for this
-        algorithm). Undirected Graph not currently supported.
+        as dask cudf edge list dataframe.
+        Undirected Graph not currently supported.
     source : Integer
         Specify source vertex
 
     Returns
     -------
-    df : cudf.DataFrame
-        df['vertex'][i] gives the vertex id of the i'th vertex
+    df : dask_cudf.DataFrame
+        df['vertex'] gives the vertex id
 
-        df['distance'][i] gives the path distance for the i'th vertex from the
-        starting vertex (Only if return_distances is True)
+        df['distance'] gives the path distance from the
+        starting vertex
 
-        df['predecessor'][i] gives for the i'th vertex the vertex it was
+        df['predecessor'] gives the vertex id it was
         reached from in the traversal
 
     Examples
     --------
     >>> import cugraph.dask as dcg
-    >>> Comms.initialize()
+    >>> Comms.initialize(p2p=True)
     >>> chunksize = dcg.get_chunksize(input_data_path)
     >>> ddf = dask_cudf.read_csv(input_data_path, chunksize=chunksize,
                                  delimiter=' ',
                                  names=['src', 'dst', 'value'],
                                  dtype=['int32', 'int32', 'float32'])
     >>> dg = cugraph.DiGraph()
-    >>> dg.from_dask_cudf_edgelist(ddf)
+    >>> dg.from_dask_cudf_edgelist(ddf, 'src', 'dst')
     >>> df = dcg.sssp(dg, 0)
     >>> Comms.destroy()
     """
