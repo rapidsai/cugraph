@@ -58,7 +58,7 @@ for i in range(len(df_page)):
 |              | Force Atlas 2                          | Single-GPU   |                     |
 | Link Analysis|                                        |              |                     |
 |              | Pagerank                               | Multiple-GPU |                     |
-|              | Personal Pagerank                      | Multiple-GPU |                     |
+|              | Personal Pagerank                      | Single-GPU  |                     |
 |              | HITS                      				| Single-GPU   | leverages Gunrock   |
 | Link Prediction |                                     |              |                     |
 |              | Jaccard Similarity                     | Single-GPU   |                     |

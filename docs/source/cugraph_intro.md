@@ -20,15 +20,3 @@ documentation we will mostly use the terms __Node__ and __Edge__ to better
 match NetworkX preferred term use, as well as other Python-based tools.  At
 the CUDA/C layer, we favor the mathematical terms of __Vertex__ and __Edge__.  
 
-## Transition Guides
-* [Transition from NetworkX](./pdfs/Nx-Transition-Guild.pdf)
-
-
-
-## Graph Type
-
-
-## Algorithms
-
-
-## Using
