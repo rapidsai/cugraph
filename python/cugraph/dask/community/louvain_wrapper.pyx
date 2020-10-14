@@ -81,6 +81,8 @@ def louvain(input_df,
     vertex_partition_offsets_host = vertex_partition_offsets.values_host
     cdef uintptr_t c_vertex_partition_offsets = vertex_partition_offsets_host.__array_interface__['data'][0]
 
+    num_local_verts = vertex_partition_offsets_host[rank+1] - vertex_partition_offsets_host[rank]
+
     cdef graph_container_t graph_container
 
     # FIXME: The excessive casting for the enum arg is needed to make cython
@@ -98,10 +100,11 @@ def louvain(input_df,
                              sorted_by_degree,
                              False, True)  # store_transposed, multi_gpu
 
-    # Create the output dataframe
+    # Create the output dataframe, column lengths must be equal to the number of
+    # vertices in the partition
     df = cudf.DataFrame()
-    df['vertex'] = cudf.Series(np.zeros(num_global_verts, dtype=vertex_t))
-    df['partition'] = cudf.Series(np.zeros(num_global_verts, dtype=vertex_t))
+    df['vertex'] = cudf.Series(np.zeros(num_local_verts, dtype=vertex_t))
+    df['partition'] = cudf.Series(np.zeros(num_local_verts, dtype=vertex_t))
 
     cdef uintptr_t c_identifiers = df['vertex'].__cuda_array_interface__['data'][0]
     cdef uintptr_t c_partition = df['partition'].__cuda_array_interface__['data'][0]

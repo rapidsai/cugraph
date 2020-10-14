@@ -192,40 +192,45 @@ T transform_reduce_e(raft::handle_t const& handle,
   T result{};
   for (size_t i = 0; i < graph_view.get_number_of_local_adj_matrix_partitions(); ++i) {
     matrix_partition_device_t<GraphViewType> matrix_partition(graph_view, i);
-    auto row_value_input_offset =
-      GraphViewType::is_adj_matrix_transposed ? 0 : matrix_partition.get_major_value_start_offset();
-    auto col_value_input_offset =
-      GraphViewType::is_adj_matrix_transposed ? matrix_partition.get_major_value_start_offset() : 0;
 
-    raft::grid_1d_thread_t update_grid(matrix_partition.get_major_size(),
-                                       detail::transform_reduce_e_for_all_block_size,
-                                       handle.get_device_properties().maxGridSize[0]);
+    if (matrix_partition.get_major_size() > 0) {
+      auto row_value_input_offset = GraphViewType::is_adj_matrix_transposed
+                                      ? vertex_t{0}
+                                      : matrix_partition.get_major_value_start_offset();
+      auto col_value_input_offset = GraphViewType::is_adj_matrix_transposed
+                                      ? matrix_partition.get_major_value_start_offset()
+                                      : vertex_t{0};
 
-    rmm::device_vector<T> block_results(update_grid.num_blocks);
+      raft::grid_1d_thread_t update_grid(matrix_partition.get_major_size(),
+                                         detail::transform_reduce_e_for_all_block_size,
+                                         handle.get_device_properties().maxGridSize[0]);
 
-    detail::for_all_major_for_all_nbr_low_degree<<<update_grid.num_blocks,
-                                                   update_grid.block_size,
-                                                   0,
-                                                   handle.get_stream()>>>(
-      matrix_partition,
-      adj_matrix_row_value_input_first + row_value_input_offset,
-      adj_matrix_col_value_input_first + col_value_input_offset,
-      block_results.data(),
-      e_op);
+      rmm::device_vector<T> block_results(update_grid.num_blocks);
 
-    // FIXME: we have several options to implement this. With cooperative group support
-    // (https://devblogs.nvidia.com/cooperative-groups/), we can run this synchronization within the
-    // previous kernel. Using atomics at the end of the previous kernel is another option
-    // (sequentialization due to atomics may not be bad as different blocks may reach the
-    // synchronization point in varying timings and the number of SMs is not very big)
-    auto partial_result =
-      thrust::reduce(rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
-                     block_results.begin(),
-                     block_results.end(),
-                     T(),
-                     [] __device__(auto lhs, auto rhs) { return plus_edge_op_result(lhs, rhs); });
+      detail::for_all_major_for_all_nbr_low_degree<<<update_grid.num_blocks,
+                                                     update_grid.block_size,
+                                                     0,
+                                                     handle.get_stream()>>>(
+        matrix_partition,
+        adj_matrix_row_value_input_first + row_value_input_offset,
+        adj_matrix_col_value_input_first + col_value_input_offset,
+        block_results.data(),
+        e_op);
 
-    result = plus_edge_op_result(result, partial_result);
+      // FIXME: we have several options to implement this. With cooperative group support
+      // (https://devblogs.nvidia.com/cooperative-groups/), we can run this synchronization within
+      // the previous kernel. Using atomics at the end of the previous kernel is another option
+      // (sequentialization due to atomics may not be bad as different blocks may reach the
+      // synchronization point in varying timings and the number of SMs is not very big)
+      auto partial_result =
+        thrust::reduce(rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
+                       block_results.begin(),
+                       block_results.end(),
+                       T(),
+                       [] __device__(auto lhs, auto rhs) { return plus_edge_op_result(lhs, rhs); });
+
+      result = plus_edge_op_result(result, partial_result);
+    }
   }
 
   if (GraphViewType::is_multi_gpu) {

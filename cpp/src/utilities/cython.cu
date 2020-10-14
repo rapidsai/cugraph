@@ -66,7 +66,9 @@ create_graph(raft::handle_t const& handle, graph_container_t const& graph_contai
     static_cast<vertex_t>(graph_container.num_global_vertices),
     static_cast<edge_t>(graph_container.num_global_edges),
     graph_container.graph_props,
-    graph_container.sorted_by_degree,
+    // FIXME:  This currently fails if sorted_by_degree is true...
+    // graph_container.sorted_by_degree,
+    false,
     graph_container.do_expensive_check);
 }
 
@@ -270,30 +272,6 @@ void populate_graph_container_legacy(graph_container_t& graph_container,
 ////////////////////////////////////////////////////////////////////////////////
 
 namespace detail {
-template <typename graph_view_t, typename weight_t>
-std::pair<size_t, weight_t> call_louvain(raft::handle_t const& handle,
-                                         graph_view_t const& graph_view,
-                                         void* identifiers,
-                                         void* parts,
-                                         size_t max_level,
-                                         weight_t resolution)
-{
-  thrust::copy(  // rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
-    thrust::device,
-    thrust::make_counting_iterator(graph_view.get_local_vertex_first()),
-    thrust::make_counting_iterator(graph_view.get_local_vertex_last()),
-    reinterpret_cast<typename graph_view_t::vertex_type*>(identifiers));
-
-  return louvain(handle,
-                 graph_view,
-                 reinterpret_cast<typename graph_view_t::vertex_type*>(parts),
-                 max_level,
-                 static_cast<weight_t>(resolution));
-}
-
-}  // namespace detail
-
-namespace detail {
 
 // Final, fully-templatized call.
 template <bool transposed,
@@ -365,10 +343,10 @@ return_t call_function(raft::handle_t const& handle,
                        function_t function)
 {
   if (graph_container.weightType == numberTypeEnum::floatType) {
-    return call_function<transposed, return_t, function_t, float, transposed>(
+    return call_function<transposed, return_t, function_t, float, is_multi_gpu>(
       handle, graph_container, function);
   } else if (graph_container.weightType == numberTypeEnum::doubleType) {
-    return call_function<transposed, return_t, function_t, double, transposed>(
+    return call_function<transposed, return_t, function_t, double, is_multi_gpu>(
       handle, graph_container, function);
   } else {
     CUGRAPH_FAIL("weightType unsupported");
@@ -415,6 +393,11 @@ class louvain_functor {
   std::pair<size_t, weight_t> operator()(raft::handle_t const& handle,
                                          graph_view_t const& graph_view)
   {
+    thrust::copy(rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
+                 thrust::make_counting_iterator(graph_view.get_local_vertex_first()),
+                 thrust::make_counting_iterator(graph_view.get_local_vertex_last()),
+                 reinterpret_cast<typename graph_view_t::vertex_type*>(identifiers_));
+
     return cugraph::louvain(handle,
                             graph_view,
                             reinterpret_cast<typename graph_view_t::vertex_type*>(parts_),
@@ -645,7 +628,15 @@ void call_sssp(raft::handle_t const& handle,
   }
 }
 
+// Helper for setting up subcommunicators
+void init_subcomms(raft::handle_t& handle, size_t row_comm_size)
+{
+  partition_2d::subcomm_factory_t<partition_2d::key_naming_t, int> subcomm_factory(handle,
+                                                                                   row_comm_size);
+}
+
 // Explicit instantiations
+
 template std::pair<size_t, float> call_louvain(raft::handle_t const& handle,
                                                graph_container_t const& graph_container,
                                                void* identifiers,
@@ -771,13 +762,6 @@ template void call_sssp(raft::handle_t const& handle,
                         double* distances,
                         int64_t* predecessors,
                         const int64_t source_vertex);
-
-// Helper for setting up subcommunicators
-void init_subcomms(raft::handle_t& handle, size_t row_comm_size)
-{
-  partition_2d::subcomm_factory_t<partition_2d::key_naming_t, int> subcomm_factory(handle,
-                                                                                   row_comm_size);
-}
 
 }  // namespace cython
 }  // namespace cugraph
