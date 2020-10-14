@@ -10,7 +10,7 @@ Welcome to cugraph's documentation!
    dask-cugraph.rst
    cugraph_blogs.rst
    cugraph_ref.rst
-   nx_transition.md
+   nx_transition.rst
 
 Indices and tables
 ==================
