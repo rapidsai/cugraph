@@ -25,6 +25,14 @@ namespace experimental {
 
 namespace detail {
 
+template <typename T>
+void print_v(const char *label, rmm::device_vector<T> const &vector_v)
+{
+  std::cout << label << "(" << vector_v.size() << "): ";
+  thrust::copy(vector_v.begin(), vector_v.end(), std::ostream_iterator<T>(std::cout, " "));
+  std::cout << std::endl;
+}
+
 //
 // FIXME:   This implementation of variable_shuffle stages the data for transfer
 //          in host memory.  It would be more efficient, I believe, to stage the
@@ -125,7 +133,13 @@ rmm::device_vector<data_t> variable_shuffle(raft::handle_t const &handle,
                                   [gpu] __device__(int32_t p) { return p == gpu; });
   }
 
-  CUGRAPH_EXPECTS(input_start == input_v.end(), "ran out of data");
+  if (input_start != input_v.end()) {
+     sleep(my_gpu);
+     printf("rank = %d\n", my_gpu);
+     rmm::device_vector<int32_t> ppp(partition_iter, partition_iter + n_elements);
+     print_v("ppp", ppp);
+     //CUGRAPH_EXPECTS(input_start == input_v.end(), "ran out of data");
+  }
 
   thrust::copy(input_v.begin(), input_v.end(), h_input_v.begin());
 

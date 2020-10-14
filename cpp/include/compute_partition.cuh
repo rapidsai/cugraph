@@ -90,12 +90,26 @@ class compute_partition_t {
     __device__ int operator()(vertex_t v) const
     {
       if (graph_view_t::is_multi_gpu) {
+#if 0
         return thrust::distance(d_vertex_partition_offsets_,
                                 thrust::upper_bound(thrust::seq,
                                                     d_vertex_partition_offsets_,
                                                     d_vertex_partition_offsets_ + size_ + 1,
                                                     v)) -
                1;
+#else
+        int ret = thrust::distance(d_vertex_partition_offsets_,
+                                thrust::upper_bound(thrust::seq,
+                                                    d_vertex_partition_offsets_,
+                                                    d_vertex_partition_offsets_ + size_ + 1,
+                                                    v)) -
+	  1;
+
+	if ((ret < 0) || (ret >= size_))
+	  printf("v = %d, ret = %d (out of bounds)\n", (int) v, ret);
+
+	return ret;
+#endif
       } else
         return 0;
     }
@@ -146,7 +160,16 @@ class compute_partition_t {
         std::size_t row = src_partition / row_size_;
         std::size_t col = dst_partition / col_size_;
 
+#if 0
         return row * row_size_ + col;
+#else
+	int ret = row * row_size_ + col;
+
+	if ((ret < 0) || (ret >= size_))
+	  printf("e = (%d, %d), ret = %d (out of bounds)\n", (int) src, (int) dst, ret);
+
+	return ret;
+#endif
       } else {
         return 0;
       }
