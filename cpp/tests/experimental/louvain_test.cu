@@ -103,8 +103,7 @@ TEST_P(Tests_Louvain, CheckInt32Int32FloatFloat)
 
 INSTANTIATE_TEST_CASE_P(simple_test,
                         Tests_Louvain,
-                        ::testing::Values(Louvain_Usecase("test/datasets/renumbered_karate.mtx",
-                                                          true)
+                        ::testing::Values(Louvain_Usecase("test/datasets/karate.mtx", true)
 #if 0
 			,
                                           Louvain_Usecase("test/datasets/web-Google.mtx", true),
