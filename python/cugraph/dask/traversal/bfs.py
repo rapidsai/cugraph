@@ -64,26 +64,26 @@ def bfs(graph,
 
     Returns
     -------
-    df : cudf.DataFrame
-        df['vertex'][i] gives the vertex id of the i'th vertex
+    df : dask_cudf.DataFrame
+        df['vertex'] gives the vertex id
 
-        df['distance'][i] gives the path distance for the i'th vertex from the
+        df['distance'] gives the path distance from the
         starting vertex (Only if return_distances is True)
 
-        df['predecessor'][i] gives for the i'th vertex the vertex it was
+        df['predecessor'] gives the vertex it was
         reached from in the traversal
 
     Examples
     --------
     >>> import cugraph.dask as dcg
-    >>> Comms.initialize()
+    >>> Comms.initialize(p2p=True)
     >>> chunksize = dcg.get_chunksize(input_data_path)
     >>> ddf = dask_cudf.read_csv(input_data_path, chunksize=chunksize,
                                  delimiter=' ',
                                  names=['src', 'dst', 'value'],
                                  dtype=['int32', 'int32', 'float32'])
     >>> dg = cugraph.DiGraph()
-    >>> dg.from_dask_cudf_edgelist(ddf)
+    >>> dg.from_dask_cudf_edgelist(ddf, 'src', 'dst')
     >>> df = dcg.bfs(dg, 0)
     >>> Comms.destroy()
     """

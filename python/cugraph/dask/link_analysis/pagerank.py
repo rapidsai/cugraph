@@ -51,8 +51,7 @@ def pagerank(input_graph,
              personalization=None,
              max_iter=100,
              tol=1.0e-5,
-             nstart=None,
-             load_balance=True):
+             nstart=None):
 
     """
     Find the PageRank values for each vertex in a graph using multiple GPUs.
@@ -92,26 +91,21 @@ def pagerank(input_graph,
         acceptable.
     nstart : not supported
         initial guess for pagerank
-    load_balance : bool
-        Set as True to perform load_balancing after global sorting of
-        dask-cudf DataFrame. This ensures that the data is uniformly
-        distributed among multiple GPUs to avoid over-loading.
-
     Returns
     -------
     PageRank : dask_cudf.DataFrame
         GPU data frame containing two dask_cudf.Series of size V: the
         vertex identifiers and the corresponding PageRank values.
 
-        ddf['vertex'] : cudf.Series
+        ddf['vertex'] : dask_cudf.Series
             Contains the vertex identifiers
-        ddf['pagerank'] : cudf.Series
+        ddf['pagerank'] : dask_cudf.Series
             Contains the PageRank score
 
     Examples
     --------
     >>> import cugraph.dask as dcg
-    >>> Comms.initialize()
+    >>> Comms.initialize(p2p=True)
     >>> chunksize = dcg.get_chunksize(input_data_path)
     >>> ddf = dask_cudf.read_csv(input_data_path, chunksize=chunksize,
                                  delimiter=' ',
