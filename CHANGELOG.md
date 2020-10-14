@@ -34,6 +34,7 @@
 - PR #1176 Update ci/local/README.md
 - PR #1184 BLD getting latest tags
 - PR #1222 Added min CUDA version check to MG Louvain
+- PR #1217 NetworkX Transition doc
 
 ## Bug Fixes
 - PR #1131 Show style checker errors with set +e
