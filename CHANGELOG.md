@@ -33,7 +33,7 @@
 - PR #1165 updated remaining algorithms to be NetworkX compatible
 - PR #1176 Update ci/local/README.md
 - PR #1184 BLD getting latest tags
-
+- PR #1223 Update mnmg docs
 
 ## Bug Fixes
 - PR #1131 Show style checker errors with set +e
