@@ -88,7 +88,6 @@ def louvain(input_df,
     # FIXME: The excessive casting for the enum arg is needed to make cython
     #        understand how to pass the enum value (this is the same pattern
     #        used by cudf). This will not be needed with Cython 3.0
-    print("CALLING PGC")
     populate_graph_container(graph_container,
                              handle_[0],
                              <void*>c_src_vertices, <void*>c_dst_vertices, <void*>c_edge_weights,
@@ -124,5 +123,4 @@ def louvain(input_df,
             max_level, resolution)
         final_modularity = final_modularity_double
 
-    print("DONE CALLING CL\n")
     return df, final_modularity
