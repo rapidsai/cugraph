@@ -55,7 +55,7 @@ def louvain(input_graph, max_iter=100, resolution=1.0):
     Examples
     --------
     >>> import cugraph.dask as dcg
-    >>> Comms.initialize()
+    >>> Comms.initialize(p2p=True)
     >>> chunksize = dcg.get_chunksize(input_data_path)
     >>> ddf = dask_cudf.read_csv('datasets/karate.csv', chunksize=chunksize,
                                  delimiter=' ',

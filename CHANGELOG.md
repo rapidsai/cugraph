@@ -35,6 +35,8 @@
 - PR #1184 BLD getting latest tags
 - PR #1222 Added min CUDA version check to MG Louvain
 - PR #1217 NetworkX Transition doc
+- PR #1223 Update mnmg docs
+
 
 ## Bug Fixes
 - PR #1131 Show style checker errors with set +e
