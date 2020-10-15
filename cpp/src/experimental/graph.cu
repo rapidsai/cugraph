@@ -251,7 +251,7 @@ graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu, std::enable_if_
     "is nullptr) or should not be nullptr (otherwise).");
 
   CUGRAPH_EXPECTS((partition.is_hypergraph_partitioned() &&
-                   (edgelists.size() == static_cast<size_t>(row_comm_size))) ||
+                   (edgelists.size() == static_cast<size_t>(col_comm_size))) ||
                     (!(partition.is_hypergraph_partitioned()) && (edgelists.size() == 1)),
                   "Invalid API parameter: errneous edgelists.size().");
 
@@ -311,9 +311,7 @@ graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu, std::enable_if_
       *(this->get_handle_ptr()), edgelists[i], major_first, major_last, minor_first, minor_last);
     adj_matrix_partition_offsets_.push_back(std::move(offsets));
     adj_matrix_partition_indices_.push_back(std::move(indices));
-    if (adj_matrix_partition_weights_.size() > 0) {
-      adj_matrix_partition_weights_.push_back(std::move(weights));
-    }
+    if (is_weighted) { adj_matrix_partition_weights_.push_back(std::move(weights)); }
   }
 
   // update degree-based segment offsets (to be used for graph analytics kernel optimization)
@@ -356,23 +354,41 @@ graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu, std::enable_if_
                         d_thresholds.end(),
                         segment_offsets.begin() + 1);
 
-    rmm::device_uvector<vertex_t> aggregate_segment_offsets(row_comm_size * segment_offsets.size(),
-                                                            default_stream);
-    row_comm.allgather(segment_offsets.data(),
-                       aggregate_segment_offsets.data(),
-                       segment_offsets.size(),
-                       default_stream);
+    rmm::device_uvector<vertex_t> aggregate_segment_offsets(0, default_stream);
+    if (partition.is_hypergraph_partitioned()) {
+      rmm::device_uvector<vertex_t> aggregate_segment_offsets(
+        col_comm_size * segment_offsets.size(), default_stream);
+      col_comm.allgather(segment_offsets.data(),
+                         aggregate_segment_offsets.data(),
+                         segment_offsets.size(),
+                         default_stream);
+    } else {
+      rmm::device_uvector<vertex_t> aggregate_segment_offsets(
+        row_comm_size * segment_offsets.size(), default_stream);
+      row_comm.allgather(segment_offsets.data(),
+                         aggregate_segment_offsets.data(),
+                         segment_offsets.size(),
+                         default_stream);
+    }
 
-    vertex_partition_segment_offsets_.resize(row_comm_size * (segment_offsets.size()));
+    vertex_partition_segment_offsets_.resize(aggregate_segment_offsets.size());
     raft::update_host(vertex_partition_segment_offsets_.data(),
                       aggregate_segment_offsets.data(),
                       aggregate_segment_offsets.size(),
                       default_stream);
 
-    auto status = handle.get_comms().sync_stream(
-      default_stream);  // this is necessary as degrees, d_thresholds, and segment_offsets will
-                        // become out-of-scope once control flow exits this block and
-                        // vertex_partition_segment_offsets_ can be used right after return.
+    raft::comms::status_t status{};
+    if (partition.is_hypergraph_partitioned()) {
+      status = col_comm.sync_stream(
+        default_stream);  // this is necessary as degrees, d_thresholds, and segment_offsets will
+                          // become out-of-scope once control flow exits this block and
+                          // vertex_partition_segment_offsets_ can be used right after return.
+    } else {
+      status = row_comm.sync_stream(
+        default_stream);  // this is necessary as degrees, d_thresholds, and segment_offsets will
+                          // become out-of-scope once control flow exits this block and
+                          // vertex_partition_segment_offsets_ can be used right after return.
+    }
     CUGRAPH_EXPECTS(status == raft::comms::status_t::SUCCESS, "sync_stream() failure.");
   }
 

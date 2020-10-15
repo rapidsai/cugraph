@@ -68,6 +68,68 @@ TEST(louvain, success)
 
   int min = *min_element(cluster_id.begin(), cluster_id.end());
 
+  std::cout << "modularity = " << modularity << std::endl;
+
+  ASSERT_GE(min, 0);
+  ASSERT_GE(modularity, 0.402777 * 0.95);
+}
+
+TEST(louvain_renumbered, success)
+{
+  std::vector<int> off_h = {0,   16,  25,  30,  34,  38,  42,  44,  46,  48,  50,  52,
+                            54,  56,  73,  85,  95,  101, 107, 112, 117, 121, 125, 129,
+                            132, 135, 138, 141, 144, 147, 149, 151, 153, 155, 156
+
+  };
+  std::vector<int> ind_h = {
+    1,  3,  7,  11, 15, 16, 17, 18, 19, 20, 21, 23, 24, 25, 30, 33, 0,  5,  11, 15, 16, 19, 21,
+    25, 30, 4,  13, 14, 22, 27, 0,  9,  20, 24, 2,  13, 15, 26, 1,  13, 14, 18, 13, 15, 0,  16,
+    13, 14, 3,  20, 13, 14, 0,  1,  13, 22, 2,  4,  5,  6,  8,  10, 12, 14, 17, 18, 19, 22, 25,
+    28, 29, 31, 32, 2,  5,  8,  10, 13, 15, 17, 18, 22, 29, 31, 32, 0,  1,  4,  6,  14, 16, 18,
+    19, 21, 28, 0,  1,  7,  15, 19, 21, 0,  13, 14, 26, 27, 28, 0,  5,  13, 14, 15, 0,  1,  13,
+    16, 16, 0,  3,  9,  23, 0,  1,  15, 16, 2,  12, 13, 14, 0,  20, 24, 0,  3,  23, 0,  1,  13,
+    4,  17, 27, 2,  17, 26, 13, 15, 17, 13, 14, 0,  1,  13, 14, 13, 14, 0};
+
+  std::vector<float> w_h = {
+    1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0,
+    1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0,
+    1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0,
+    1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0,
+    1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0,
+    1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0,
+    1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0,
+    1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0,
+    1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0};
+
+  int num_verts = off_h.size() - 1;
+  int num_edges = ind_h.size();
+
+  std::vector<int> cluster_id(num_verts, -1);
+
+  rmm::device_vector<int> offsets_v(off_h);
+  rmm::device_vector<int> indices_v(ind_h);
+  rmm::device_vector<float> weights_v(w_h);
+  rmm::device_vector<int> result_v(cluster_id);
+
+  cugraph::GraphCSRView<int, int, float> G(
+    offsets_v.data().get(), indices_v.data().get(), weights_v.data().get(), num_verts, num_edges);
+
+  float modularity{0.0};
+  size_t num_level = 40;
+
+  raft::handle_t handle;
+
+  std::tie(num_level, modularity) = cugraph::louvain(handle, G, result_v.data().get());
+
+  cudaMemcpy((void*)&(cluster_id[0]),
+             result_v.data().get(),
+             sizeof(int) * num_verts,
+             cudaMemcpyDeviceToHost);
+
+  int min = *min_element(cluster_id.begin(), cluster_id.end());
+
+  std::cout << "modularity = " << modularity << std::endl;
+
   ASSERT_GE(min, 0);
   ASSERT_GE(modularity, 0.402777 * 0.95);
 }

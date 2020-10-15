@@ -90,7 +90,7 @@ class partition_t {
               int col_comm_rank)
     : vertex_partition_offsets_(vertex_partition_offsets),
       hypergraph_partitioned_(hypergraph_partitioned),
-      comm_rank_(col_comm_size * row_comm_rank + col_comm_rank),
+      comm_rank_(col_comm_rank * row_comm_size + row_comm_rank),
       row_comm_size_(row_comm_size),
       col_comm_size_(col_comm_size),
       row_comm_rank_(row_comm_rank),
@@ -112,6 +112,17 @@ class partition_t {
       matrix_partition_major_value_start_offsets_[i] = start_offset;
       start_offset += get_matrix_partition_major_last(i) - get_matrix_partition_major_first(i);
     }
+  }
+
+  int get_row_size() const { return row_comm_size_; }
+
+  int get_col_size() const { return col_comm_size_; }
+
+  int get_comm_rank() const { return comm_rank_; }
+
+  std::vector<vertex_t> const& get_vertex_partition_offsets() const
+  {
+    return vertex_partition_offsets_;
   }
 
   std::tuple<vertex_t, vertex_t> get_local_vertex_range() const
@@ -321,6 +332,8 @@ class graph_view_t<vertex_t,
 
   bool is_weighted() const { return adj_matrix_partition_weights_.size() > 0; }
 
+  partition_t<vertex_t> get_partition() const { return partition_; }
+
   vertex_t get_number_of_local_vertices() const
   {
     return partition_.get_local_vertex_last() - partition_.get_local_vertex_first();
@@ -402,7 +415,7 @@ class graph_view_t<vertex_t,
     size_t adj_matrix_partition_idx) const
   {
     return store_transposed
-             ? 0
+             ? vertex_t{0}
              : partition_.get_matrix_partition_major_value_start_offset(adj_matrix_partition_idx);
   }
 
@@ -423,10 +436,28 @@ class graph_view_t<vertex_t,
   {
     return store_transposed
              ? partition_.get_matrix_partition_major_value_start_offset(adj_matrix_partition_idx)
-             : 0;
+             : vertex_t{0};
   }
 
   bool is_hypergraph_partitioned() const { return partition_.is_hypergraph_partitioned(); }
+
+  // FIXME: this function is not part of the public stable API.This function is mainly for pattern
+  // accelerator implementation. This function is currently public to support the legacy
+  // implementations directly accessing CSR/CSC data, but this function will eventually become
+  // private or even disappear if we switch to CSR + DCSR (or CSC + DCSC).
+  edge_t const* offsets() const { return offsets(0); }
+
+  // FIXME: this function is not part of the public stable API.This function is mainly for pattern
+  // accelerator implementation. This function is currently public to support the legacy
+  // implementations directly accessing CSR/CSC data, but this function will eventually become
+  // private or even disappear if we switch to CSR + DCSR (or CSC + DCSC).
+  vertex_t const* indices() const { return indices(0); }
+
+  // FIXME: this function is not part of the public stable API.This function is mainly for pattern
+  // accelerator implementation. This function is currently public to support the legacy
+  // implementations directly accessing CSR/CSC data, but this function will eventually become
+  // private or even disappear if we switch to CSR + DCSR (or CSC + DCSC).
+  weight_t const* weights() const { return weights(0); }
 
   // FIXME: this function is not part of the public stable API.This function is mainly for pattern
   // accelerator implementation. This function is currently public to support the legacy

@@ -17,6 +17,9 @@
 - PR #1151 MNMG extension for pattern accelerator based PageRank, Katz Centrality, BFS, and SSSP implementations (C++ part)
 - PR #1163 Integrated 2D shuffling and Louvain updates
 - PR #1178 Refactored cython graph factory code to scale to additional data types
+- PR #1175 Integrated 2D pagerank python/cython infra
+- PR #1177 Integrated 2D bfs and sssp python/cython infra
+- PR #1172 MNMG Louvain implementation
 
 ## Improvements
 - PR 1081 MNMG Renumbering - sort partitions by degree
@@ -29,6 +32,7 @@
 - PR #1145 Simple edge list generator
 - PR #1144 updated documentation and APIs
 - PR #1139 MNMG Louvain Python updates, Cython cleanup
+- PR #1156 Add aarch64 gencode support
 - PR #1149 Parquet read and concat within workers
 - PR #1152 graph container cleanup, added arg for instantiating legacy types and switch statements to factory function
 - PR #1164 MG symmetrize and conda env updates
@@ -37,6 +41,10 @@
 - PR #1165 updated remaining algorithms to be NetworkX compatible
 - PR #1176 Update ci/local/README.md
 - PR #1184 BLD getting latest tags
+- PR #1222 Added min CUDA version check to MG Louvain
+- PR #1217 NetworkX Transition doc
+- PR #1223 Update mnmg docs
+
 
 ## Bug Fixes
 - PR #1131 Show style checker errors with set +e
@@ -47,9 +55,14 @@
 - PR #1166 Fix misspelling of function calls in asserts causing debug build to fail
 - PR #1180 BLD Adopt RAFT model for cuhornet dependency
 - PR #1181 Fix notebook error handling in CI
+- PR #1199 BUG segfault in python test suite
 - PR #1186 BLD Installing raft headers under cugraph
 - PR #1192 Fix benchmark notes and documentation issues in graph.py
 - PR #1196 Move subcomms init outside of individual algorithm functions
+- PR #1198 Remove deprecated call to from_gpu_matrix
+- PR #1174 Fix bugs in MNMG pattern accelerators and pattern accelerator based implementations of MNMG PageRank, BFS, and SSSP
+
+
 
 # cuGraph 0.15.0 (26 Aug 2020)
 

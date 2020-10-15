@@ -99,18 +99,6 @@ template std::pair<size_t, double> louvain(
   double);
 template std::pair<size_t, float> louvain(
   raft::handle_t const &,
-  experimental::graph_view_t<int64_t, int32_t, float, false, false> const &,
-  int64_t *,
-  size_t,
-  float);
-template std::pair<size_t, double> louvain(
-  raft::handle_t const &,
-  experimental::graph_view_t<int64_t, int32_t, double, false, false> const &,
-  int64_t *,
-  size_t,
-  double);
-template std::pair<size_t, float> louvain(
-  raft::handle_t const &,
   experimental::graph_view_t<int64_t, int64_t, float, false, false> const &,
   int64_t *,
   size_t,
@@ -135,6 +123,7 @@ template std::pair<size_t, double> louvain(
   int32_t *,
   size_t,
   double);
+
 template std::pair<size_t, float> louvain(
   raft::handle_t const &,
   experimental::graph_view_t<int32_t, int64_t, float, false, true> const &,
@@ -145,18 +134,6 @@ template std::pair<size_t, double> louvain(
   raft::handle_t const &,
   experimental::graph_view_t<int32_t, int64_t, double, false, true> const &,
   int32_t *,
-  size_t,
-  double);
-template std::pair<size_t, float> louvain(
-  raft::handle_t const &,
-  experimental::graph_view_t<int64_t, int32_t, float, false, true> const &,
-  int64_t *,
-  size_t,
-  float);
-template std::pair<size_t, double> louvain(
-  raft::handle_t const &,
-  experimental::graph_view_t<int64_t, int32_t, double, false, true> const &,
-  int64_t *,
   size_t,
   double);
 template std::pair<size_t, float> louvain(

@@ -27,7 +27,7 @@ from cugraph.dask.common.mg_utils import is_single_gpu
 def client_connection():
     cluster = LocalCUDACluster()
     client = Client(cluster)
-    Comms.initialize()
+    Comms.initialize(p2p=True)
 
     yield client
 
@@ -68,6 +68,7 @@ def test_dask_bfs(client_connection):
 
     expected_dist = cugraph.bfs(g, 0)
     result_dist = dcg.bfs(dg, 0, True)
+    result_dist = result_dist.compute()
 
     compare_dist = expected_dist.merge(
         result_dist, on="vertex", suffixes=["_local", "_dask"]

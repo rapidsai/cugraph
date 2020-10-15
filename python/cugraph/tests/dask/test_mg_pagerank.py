@@ -49,14 +49,14 @@ def personalize(v, personalization_perc):
     return cu_personalization
 
 
-PERSONALIZATION_PERC = [0, 10, 50]
+PERSONALIZATION_PERC = [0]
 
 
 @pytest.fixture
 def client_connection():
     cluster = LocalCUDACluster()
     client = Client(cluster)
-    Comms.initialize()
+    Comms.initialize(p2p=True)
 
     yield client
 
@@ -108,6 +108,7 @@ def test_dask_pagerank(client_connection, personalization_perc):
         g, personalization=personalization, tol=1e-6
     )
     result_pr = dcg.pagerank(dg, personalization=personalization, tol=1e-6)
+    result_pr = result_pr.compute()
 
     err = 0
     tol = 1.0e-05
