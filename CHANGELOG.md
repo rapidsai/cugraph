@@ -5,7 +5,6 @@
 ## Improvements
 
 ## Bug Fixes
-- PR #1226 Resolving 0.16 to 0.17 auto-merger failures
 
 
 # cuGraph 0.16.0 (Date TBD)
