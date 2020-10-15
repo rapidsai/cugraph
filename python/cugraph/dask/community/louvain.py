@@ -19,6 +19,8 @@ import cugraph.comms.comms as Comms
 from cugraph.dask.common.input_utils import get_distributed_data
 from cugraph.structure.shuffle import shuffle
 from cugraph.dask.community import louvain_wrapper as c_mg_louvain
+from cugraph.utilities.utils import is_cuda_version_less_than
+
 import dask_cudf
 
 
@@ -65,6 +67,13 @@ def louvain(input_graph, max_iter=100, resolution=1.0):
     >>> parts, modularity_score = dcg.louvain(dg)
     """
     # FIXME: finish docstring: describe parameters, etc.
+
+    # MG Louvain currently requires CUDA 10.2 or higher.
+    # FIXME: remove this check once RAPIDS drops support for CUDA < 10.2
+    if is_cuda_version_less_than((10, 2)):
+        raise NotImplementedError("Multi-GPU Louvain is not implemented for "
+                                  "this version of CUDA. Ensure CUDA version "
+                                  "10.2 or higher is installed.")
 
     # FIXME: dask methods to populate graphs from edgelists are only present on
     # DiGraph classes. Disable the Graph check for now and assume inputs are

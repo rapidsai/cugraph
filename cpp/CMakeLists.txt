@@ -235,7 +235,7 @@ message("Fetching libcudacxx")
 FetchContent_Declare(
     libcudacxx
     GIT_REPOSITORY https://github.com/NVIDIA/libcudacxx.git
-    GIT_TAG        1.3.0-rc0
+    GIT_TAG        1.3.0
     GIT_SHALLOW    true
 )
 
