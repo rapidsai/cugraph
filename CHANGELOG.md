@@ -3,6 +3,7 @@
 ## New Features
 
 ## Improvements
+- PR #XXXX Pin cmake policies to cmake 3.17 version
 
 ## Bug Fixes
 
