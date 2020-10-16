@@ -42,7 +42,7 @@ namespace experimental {
 namespace detail {
 
 template <typename GraphViewType, typename PredecessorIterator>
-void sssp(raft::handle_t &handle,
+void sssp(raft::handle_t const &handle,
           GraphViewType const &push_graph_view,
           typename GraphViewType::weight_type *distances,
           PredecessorIterator predecessor_first,
@@ -128,7 +128,7 @@ void sssp(raft::handle_t &handle,
                                    push_graph_view.get_number_of_local_vertices());
   VertexFrontier<thrust::tuple<weight_t, vertex_t>,
                  vertex_t,
-                 false,
+                 GraphViewType::is_multi_gpu,
                  static_cast<size_t>(Bucket::num_buckets)>
     vertex_frontier(handle, bucket_sizes);
 
@@ -139,13 +139,17 @@ void sssp(raft::handle_t &handle,
         push_graph_view.get_number_of_local_adj_matrix_partition_rows()
       ? true
       : false;
-  rmm::device_vector<weight_t> adj_matrix_row_distances{};
+  rmm::device_uvector<weight_t> adj_matrix_row_distances(0, handle.get_stream());
   if (!vertex_and_adj_matrix_row_ranges_coincide) {
-    adj_matrix_row_distances.assign(push_graph_view.get_number_of_local_adj_matrix_partition_rows(),
-                                    std::numeric_limits<weight_t>::max());
+    adj_matrix_row_distances.resize(push_graph_view.get_number_of_local_adj_matrix_partition_rows(),
+                                    handle.get_stream());
+    thrust::fill(rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
+                 adj_matrix_row_distances.begin(),
+                 adj_matrix_row_distances.end(),
+                 std::numeric_limits<weight_t>::max());
   }
   auto row_distances =
-    !vertex_and_adj_matrix_row_ranges_coincide ? adj_matrix_row_distances.data().get() : distances;
+    !vertex_and_adj_matrix_row_ranges_coincide ? adj_matrix_row_distances.data() : distances;
 
   if (push_graph_view.is_local_vertex_nocheck(source_vertex)) {
     vertex_frontier.get_bucket(static_cast<size_t>(Bucket::cur_near)).insert(source_vertex);
@@ -208,6 +212,8 @@ void sssp(raft::handle_t &handle,
       auto old_near_far_threshold = near_far_threshold;
       near_far_threshold += delta;
 
+      size_t new_near_size{0};
+      size_t new_far_size{0};
       while (true) {
         vertex_frontier.split_bucket(
           static_cast<size_t>(Bucket::far),
@@ -223,17 +229,26 @@ void sssp(raft::handle_t &handle,
               return static_cast<size_t>(Bucket::far);
             }
           });
-        if (vertex_frontier.get_bucket(static_cast<size_t>(Bucket::cur_near)).aggregate_size() >
-            0) {
+        new_near_size =
+          vertex_frontier.get_bucket(static_cast<size_t>(Bucket::cur_near)).aggregate_size();
+        new_far_size =
+          vertex_frontier.get_bucket(static_cast<size_t>(Bucket::far)).aggregate_size();
+        if ((new_near_size > 0) || (new_far_size == 0)) {
           break;
         } else {
           near_far_threshold += delta;
         }
       }
+      if ((new_near_size == 0) && (new_far_size == 0)) { break; }
     } else {
       break;
     }
   }
+
+  CUDA_TRY(cudaStreamSynchronize(
+    handle.get_stream()));  // this is as necessary vertex_frontier will become out-of-scope once
+                            // this function returns (FIXME: should I stream sync in VertexFrontier
+                            // destructor?)
 
   return;
 }
@@ -241,7 +256,7 @@ void sssp(raft::handle_t &handle,
 }  // namespace detail
 
 template <typename vertex_t, typename edge_t, typename weight_t, bool multi_gpu>
-void sssp(raft::handle_t &handle,
+void sssp(raft::handle_t const &handle,
           graph_view_t<vertex_t, edge_t, weight_t, false, multi_gpu> const &graph_view,
           weight_t *distances,
           vertex_t *predecessors,
@@ -265,7 +280,7 @@ void sssp(raft::handle_t &handle,
 
 // explicit instantiation
 
-template void sssp(raft::handle_t &handle,
+template void sssp(raft::handle_t const &handle,
                    graph_view_t<int32_t, int32_t, float, false, true> const &graph_view,
                    float *distances,
                    int32_t *predecessors,
@@ -273,7 +288,7 @@ template void sssp(raft::handle_t &handle,
                    float cutoff,
                    bool do_expensive_check);
 
-template void sssp(raft::handle_t &handle,
+template void sssp(raft::handle_t const &handle,
                    graph_view_t<int32_t, int32_t, double, false, true> const &graph_view,
                    double *distances,
                    int32_t *predecessors,
@@ -281,7 +296,7 @@ template void sssp(raft::handle_t &handle,
                    double cutoff,
                    bool do_expensive_check);
 
-template void sssp(raft::handle_t &handle,
+template void sssp(raft::handle_t const &handle,
                    graph_view_t<int32_t, int64_t, float, false, true> const &graph_view,
                    float *distances,
                    int32_t *predecessors,
@@ -289,7 +304,7 @@ template void sssp(raft::handle_t &handle,
                    float cutoff,
                    bool do_expensive_check);
 
-template void sssp(raft::handle_t &handle,
+template void sssp(raft::handle_t const &handle,
                    graph_view_t<int32_t, int64_t, double, false, true> const &graph_view,
                    double *distances,
                    int32_t *predecessors,
@@ -297,7 +312,7 @@ template void sssp(raft::handle_t &handle,
                    double cutoff,
                    bool do_expensive_check);
 
-template void sssp(raft::handle_t &handle,
+template void sssp(raft::handle_t const &handle,
                    graph_view_t<int64_t, int64_t, float, false, true> const &graph_view,
                    float *distances,
                    int64_t *predecessors,
@@ -305,7 +320,7 @@ template void sssp(raft::handle_t &handle,
                    float cutoff,
                    bool do_expensive_check);
 
-template void sssp(raft::handle_t &handle,
+template void sssp(raft::handle_t const &handle,
                    graph_view_t<int64_t, int64_t, double, false, true> const &graph_view,
                    double *distances,
                    int64_t *predecessors,
@@ -313,7 +328,7 @@ template void sssp(raft::handle_t &handle,
                    double cutoff,
                    bool do_expensive_check);
 
-template void sssp(raft::handle_t &handle,
+template void sssp(raft::handle_t const &handle,
                    graph_view_t<int32_t, int32_t, float, false, false> const &graph_view,
                    float *distances,
                    int32_t *predecessors,
@@ -321,7 +336,7 @@ template void sssp(raft::handle_t &handle,
                    float cutoff,
                    bool do_expensive_check);
 
-template void sssp(raft::handle_t &handle,
+template void sssp(raft::handle_t const &handle,
                    graph_view_t<int32_t, int32_t, double, false, false> const &graph_view,
                    double *distances,
                    int32_t *predecessors,
@@ -329,7 +344,7 @@ template void sssp(raft::handle_t &handle,
                    double cutoff,
                    bool do_expensive_check);
 
-template void sssp(raft::handle_t &handle,
+template void sssp(raft::handle_t const &handle,
                    graph_view_t<int32_t, int64_t, float, false, false> const &graph_view,
                    float *distances,
                    int32_t *predecessors,
@@ -337,7 +352,7 @@ template void sssp(raft::handle_t &handle,
                    float cutoff,
                    bool do_expensive_check);
 
-template void sssp(raft::handle_t &handle,
+template void sssp(raft::handle_t const &handle,
                    graph_view_t<int32_t, int64_t, double, false, false> const &graph_view,
                    double *distances,
                    int32_t *predecessors,
@@ -345,7 +360,7 @@ template void sssp(raft::handle_t &handle,
                    double cutoff,
                    bool do_expensive_check);
 
-template void sssp(raft::handle_t &handle,
+template void sssp(raft::handle_t const &handle,
                    graph_view_t<int64_t, int64_t, float, false, false> const &graph_view,
                    float *distances,
                    int64_t *predecessors,
@@ -353,7 +368,7 @@ template void sssp(raft::handle_t &handle,
                    float cutoff,
                    bool do_expensive_check);
 
-template void sssp(raft::handle_t &handle,
+template void sssp(raft::handle_t const &handle,
                    graph_view_t<int64_t, int64_t, double, false, false> const &graph_view,
                    double *distances,
                    int64_t *predecessors,

@@ -348,7 +348,6 @@ edgelist_from_market_matrix_file_t<vertex_t, weight_t> read_edgelist_from_matrix
 
   MM_typecode mc{};
   vertex_t m{};
-  vertex_t k{};
   edge_t nnz{};
 
   FILE* file = fopen(graph_file_full_path.c_str(), "r");
@@ -359,7 +358,6 @@ edgelist_from_market_matrix_file_t<vertex_t, weight_t> read_edgelist_from_matrix
   auto mm_ret = cugraph::test::mm_properties<edge_t>(file, 1, &mc, &tmp_m, &tmp_k, &nnz);
   CUGRAPH_EXPECTS(mm_ret == 0, "could not read Matrix Market file properties.");
   m = static_cast<vertex_t>(tmp_m);
-  k = static_cast<vertex_t>(tmp_k);
   CUGRAPH_EXPECTS(mm_is_matrix(mc) && mm_is_coordinate(mc) && !mm_is_complex(mc) && !mm_is_skew(mc),
                   "invalid Matrix Market file properties.");
 

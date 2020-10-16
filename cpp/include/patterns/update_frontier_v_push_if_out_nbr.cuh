@@ -15,6 +15,7 @@
  */
 #pragma once
 
+#include <cstdlib>
 #include <experimental/graph_view.hpp>
 #include <matrix_partition_device.cuh>
 #include <partition_manager.hpp>
@@ -23,6 +24,7 @@
 #include <utilities/comm_utils.cuh>
 #include <utilities/error.hpp>
 #include <utilities/thrust_tuple_utils.cuh>
+#include <vertex_partition_device.cuh>
 
 #include <raft/cudart_utils.h>
 #include <rmm/thrust_rmm_allocator.h>
@@ -37,9 +39,12 @@
 #include <thrust/type_traits/integer_sequence.h>
 #include <cub/cub.cuh>
 
+#include <algorithm>
+#include <limits>
 #include <numeric>
 #include <type_traits>
 #include <utility>
+#include <vector>
 
 namespace cugraph {
 namespace experimental {
@@ -108,7 +113,7 @@ __global__ void for_all_frontier_row_for_all_nbr_low_degree(
         static_assert(sizeof(unsigned long long int) == sizeof(size_t));
         auto buffer_idx = atomicAdd(reinterpret_cast<unsigned long long int*>(buffer_idx_ptr),
                                     static_cast<unsigned long long int>(1));
-        *(buffer_key_output_first + buffer_idx) = col_offset;
+        *(buffer_key_output_first + buffer_idx) = col;
         *(buffer_payload_output_first + buffer_idx) =
           remove_first_thrust_tuple_element<decltype(e_op_result)>()(e_op_result);
       }
@@ -178,6 +183,7 @@ size_t reduce_buffer_elements(raft::handle_t const& handle,
 }
 
 template <size_t num_buckets,
+          typename GraphViewType,
           typename BufferKeyInputIterator,
           typename BufferPayloadInputIterator,
           typename VertexValueInputIterator,
@@ -185,6 +191,7 @@ template <size_t num_buckets,
           typename vertex_t,
           typename VertexOp>
 __global__ void update_frontier_and_vertex_output_values(
+  vertex_partition_device_t<GraphViewType> vertex_partition,
   BufferKeyInputIterator buffer_key_input_first,
   BufferPayloadInputIterator buffer_payload_input_first,
   size_t num_buffer_elements,
@@ -221,12 +228,13 @@ __global__ void update_frontier_and_vertex_output_values(
 
     if (idx < num_buffer_elements) {
       key                 = *(buffer_key_input_first + idx);
-      auto v_val          = *(vertex_value_input_first + key);
+      auto key_offset     = vertex_partition.get_local_vertex_offset_from_vertex_nocheck(key);
+      auto v_val          = *(vertex_value_input_first + key_offset);
       auto payload        = *(buffer_payload_input_first + idx);
       auto v_op_result    = v_op(v_val, payload);
       selected_bucket_idx = thrust::get<0>(v_op_result);
       if (selected_bucket_idx != invalid_bucket_idx) {
-        *(vertex_value_output_first + key) =
+        *(vertex_value_output_first + key_offset) =
           remove_first_thrust_tuple_element<decltype(v_op_result)>()(v_op_result);
         bucket_block_local_offsets[selected_bucket_idx] = 1;
       }
@@ -364,6 +372,7 @@ void update_frontier_v_push_if_out_nbr(
     rmm::device_uvector<vertex_t> frontier_rows(
       0, handle.get_stream());  // relevant only if GraphViewType::is_multi_gpu is true
 
+    size_t frontier_size{};
     if (GraphViewType::is_multi_gpu) {
       auto& row_comm = handle.get_subcomm(cugraph::partition_2d::key_naming_t().row_name());
       auto const row_comm_rank = row_comm.get_rank();
@@ -372,47 +381,49 @@ void update_frontier_v_push_if_out_nbr(
       auto const col_comm_rank = col_comm.get_rank();
 
       auto sub_comm_rank = graph_view.is_hypergraph_partitioned() ? col_comm_rank : row_comm_rank;
-      auto frontier_size = (static_cast<size_t>(sub_comm_rank) == i)
-                             ? thrust::distance(vertex_first, vertex_last)
-                             : size_t{0};
-      if (graph_view.is_hypergraph_partitioned()) {
-        col_comm.bcast(&frontier_size, 1, i, handle.get_stream());
-      } else {
-        row_comm.bcast(&frontier_size, 1, i, handle.get_stream());
-      }
+      frontier_size      = host_scalar_bcast(
+        graph_view.is_hypergraph_partitioned() ? col_comm : row_comm,
+        (static_cast<size_t>(sub_comm_rank) == i) ? thrust::distance(vertex_first, vertex_last)
+                                                  : size_t{0},
+        i,
+        handle.get_stream());
       if (static_cast<size_t>(sub_comm_rank) != i) {
         frontier_rows.resize(frontier_size, handle.get_stream());
       }
       device_bcast(graph_view.is_hypergraph_partitioned() ? col_comm : row_comm,
                    vertex_first,
                    frontier_rows.begin(),
-                   frontier_rows.size(),
+                   frontier_size,
                    i,
                    handle.get_stream());
+    } else {
+      frontier_size = thrust::distance(vertex_first, vertex_last);
     }
 
     edge_t max_pushes =
-      frontier_rows.size() > 0
-        ? thrust::transform_reduce(
-            rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
-            frontier_rows.begin(),
-            frontier_rows.end(),
-            [matrix_partition] __device__(auto row) {
-              auto row_offset = matrix_partition.get_major_offset_from_major_nocheck(row);
-              return matrix_partition.get_local_degree(row_offset);
-            },
-            edge_t{0},
-            thrust::plus<edge_t>())
-        : thrust::transform_reduce(
-            rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
-            vertex_first,
-            vertex_last,
-            [matrix_partition] __device__(auto row) {
-              auto row_offset = matrix_partition.get_major_offset_from_major_nocheck(row);
-              return matrix_partition.get_local_degree(row_offset);
-            },
-            edge_t{0},
-            thrust::plus<edge_t>());
+      frontier_size > 0
+        ? frontier_rows.size() > 0
+            ? thrust::transform_reduce(
+                rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
+                frontier_rows.begin(),
+                frontier_rows.end(),
+                [matrix_partition] __device__(auto row) {
+                  auto row_offset = matrix_partition.get_major_offset_from_major_nocheck(row);
+                  return matrix_partition.get_local_degree(row_offset);
+                },
+                edge_t{0},
+                thrust::plus<edge_t>())
+            : thrust::transform_reduce(
+                rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
+                vertex_first,
+                vertex_last,
+                [matrix_partition] __device__(auto row) {
+                  auto row_offset = matrix_partition.get_major_offset_from_major_nocheck(row);
+                  return matrix_partition.get_local_degree(row_offset);
+                },
+                edge_t{0},
+                thrust::plus<edge_t>())
+        : edge_t{0};
 
     // FIXME: This is highly pessimistic for single GPU (and multi-GPU as well if we maintain
     // additional per column data for filtering in e_op). If we can pause & resume execution if
@@ -433,55 +444,48 @@ void update_frontier_v_push_if_out_nbr(
     auto buffer_key_first     = std::get<0>(buffer_first);
     auto buffer_payload_first = std::get<1>(buffer_first);
 
-    vertex_t row_value_input_offset = 0;
-    if (GraphViewType::is_multi_gpu) {
-      auto& row_comm = handle.get_subcomm(cugraph::partition_2d::key_naming_t().row_name());
-      auto const row_comm_size = row_comm.get_size();
-      auto& col_comm = handle.get_subcomm(cugraph::partition_2d::key_naming_t().col_name());
-      auto const col_comm_rank = col_comm.get_rank();
-      row_value_input_offset =
-        graph_view.is_hypergraph_partitioned()
-          ? matrix_partition.get_major_value_start_offset()
-          : graph_view.get_vertex_partition_first(col_comm_rank * row_comm_size + i) -
-              graph_view.get_vertex_partition_first(col_comm_rank * row_comm_size);
-    }
-
-    raft::grid_1d_thread_t for_all_low_degree_grid(
-      frontier_rows.size() > 0 ? frontier_rows.size() : thrust::distance(vertex_first, vertex_last),
-      detail::update_frontier_v_push_if_out_nbr_for_all_block_size,
-      handle.get_device_properties().maxGridSize[0]);
+    auto row_value_input_offset = GraphViewType::is_adj_matrix_transposed
+                                    ? vertex_t{0}
+                                    : matrix_partition.get_major_value_start_offset();
 
     // FIXME: This is highly inefficeint for graphs with high-degree vertices. If we renumber
     // vertices to insure that rows within a partition are sorted by their out-degree in decreasing
     // order, we will apply this kernel only to low out-degree vertices.
-    if (frontier_rows.size() > 0) {
-      detail::for_all_frontier_row_for_all_nbr_low_degree<<<for_all_low_degree_grid.num_blocks,
-                                                            for_all_low_degree_grid.block_size,
-                                                            0,
-                                                            handle.get_stream()>>>(
-        matrix_partition,
-        frontier_rows.begin(),
-        frontier_rows.begin(),
-        adj_matrix_row_value_input_first + row_value_input_offset,
-        adj_matrix_col_value_input_first,
-        buffer_key_first,
-        buffer_payload_first,
-        vertex_frontier.get_buffer_idx_ptr(),
-        e_op);
-    } else {
-      detail::for_all_frontier_row_for_all_nbr_low_degree<<<for_all_low_degree_grid.num_blocks,
-                                                            for_all_low_degree_grid.block_size,
-                                                            0,
-                                                            handle.get_stream()>>>(
-        matrix_partition,
-        vertex_first,
-        vertex_last,
-        adj_matrix_row_value_input_first + row_value_input_offset,
-        adj_matrix_col_value_input_first,
-        buffer_key_first,
-        buffer_payload_first,
-        vertex_frontier.get_buffer_idx_ptr(),
-        e_op);
+    if (frontier_size > 0) {
+      raft::grid_1d_thread_t for_all_low_degree_grid(
+        frontier_size,
+        detail::update_frontier_v_push_if_out_nbr_for_all_block_size,
+        handle.get_device_properties().maxGridSize[0]);
+
+      if (frontier_rows.size() > 0) {
+        detail::for_all_frontier_row_for_all_nbr_low_degree<<<for_all_low_degree_grid.num_blocks,
+                                                              for_all_low_degree_grid.block_size,
+                                                              0,
+                                                              handle.get_stream()>>>(
+          matrix_partition,
+          frontier_rows.begin(),
+          frontier_rows.end(),
+          adj_matrix_row_value_input_first + row_value_input_offset,
+          adj_matrix_col_value_input_first,
+          buffer_key_first,
+          buffer_payload_first,
+          vertex_frontier.get_buffer_idx_ptr(),
+          e_op);
+      } else {
+        detail::for_all_frontier_row_for_all_nbr_low_degree<<<for_all_low_degree_grid.num_blocks,
+                                                              for_all_low_degree_grid.block_size,
+                                                              0,
+                                                              handle.get_stream()>>>(
+          matrix_partition,
+          vertex_first,
+          vertex_last,
+          adj_matrix_row_value_input_first + row_value_input_offset,
+          adj_matrix_col_value_input_first,
+          buffer_key_first,
+          buffer_payload_first,
+          vertex_frontier.get_buffer_idx_ptr(),
+          e_op);
+      }
     }
   }
 
@@ -501,6 +505,7 @@ void update_frontier_v_push_if_out_nbr(
 
   if (GraphViewType::is_multi_gpu) {
     auto& comm               = handle.get_comms();
+    auto const comm_rank     = comm.get_rank();
     auto& row_comm           = handle.get_subcomm(cugraph::partition_2d::key_naming_t().row_name());
     auto const row_comm_rank = row_comm.get_rank();
     auto const row_comm_size = row_comm.get_size();
@@ -515,99 +520,119 @@ void update_frontier_v_push_if_out_nbr(
         graph_view.is_hypergraph_partitioned() ? col_comm_rank * row_comm_size + i
                                                : row_comm_rank * col_comm_size + i);
     }
+
     rmm::device_uvector<vertex_t> d_vertex_lasts(h_vertex_lasts.size(), handle.get_stream());
     raft::update_device(
       d_vertex_lasts.data(), h_vertex_lasts.data(), h_vertex_lasts.size(), handle.get_stream());
     rmm::device_uvector<edge_t> d_tx_buffer_last_boundaries(d_vertex_lasts.size(),
                                                             handle.get_stream());
-    thrust::upper_bound(d_vertex_lasts.begin(),
-                        d_vertex_lasts.end(),
+    thrust::lower_bound(rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
                         buffer_key_first,
                         buffer_key_first + num_buffer_elements,
+                        d_vertex_lasts.begin(),
+                        d_vertex_lasts.end(),
                         d_tx_buffer_last_boundaries.begin());
     std::vector<edge_t> h_tx_buffer_last_boundaries(d_tx_buffer_last_boundaries.size());
     raft::update_host(h_tx_buffer_last_boundaries.data(),
                       d_tx_buffer_last_boundaries.data(),
                       d_tx_buffer_last_boundaries.size(),
                       handle.get_stream());
-    std::vector<edge_t> tx_counts(h_tx_buffer_last_boundaries.size());
+    CUDA_TRY(cudaStreamSynchronize(handle.get_stream()));
+    std::vector<size_t> tx_counts(h_tx_buffer_last_boundaries.size());
     std::adjacent_difference(
       h_tx_buffer_last_boundaries.begin(), h_tx_buffer_last_boundaries.end(), tx_counts.begin());
 
-    std::vector<edge_t> rx_counts(graph_view.is_hypergraph_partitioned() ? row_comm_size
+    std::vector<size_t> rx_counts(graph_view.is_hypergraph_partitioned() ? row_comm_size
                                                                          : col_comm_size);
     std::vector<raft::comms::request_t> count_requests(tx_counts.size() + rx_counts.size());
+    size_t tx_self_i = std::numeric_limits<size_t>::max();
     for (size_t i = 0; i < tx_counts.size(); ++i) {
-      comm.isend(&tx_counts[i],
-                 1,
-                 graph_view.is_hypergraph_partitioned() ? col_comm_rank * row_comm_size + i
-                                                        : row_comm_rank * col_comm_size + i,
-                 0 /* tag */,
-                 count_requests.data() + i);
+      auto comm_dst_rank = graph_view.is_hypergraph_partitioned()
+                             ? col_comm_rank * row_comm_size + static_cast<int>(i)
+                             : row_comm_rank * col_comm_size + static_cast<int>(i);
+      if (comm_dst_rank == comm_rank) {
+        tx_self_i = i;
+        // FIXME: better define request_null (similar to MPI_REQUEST_NULL) under raft::comms
+        count_requests[i] = std::numeric_limits<raft::comms::request_t>::max();
+      } else {
+        comm.isend(&tx_counts[i], 1, comm_dst_rank, 0 /* tag */, count_requests.data() + i);
+      }
     }
     for (size_t i = 0; i < rx_counts.size(); ++i) {
-      comm.irecv(&rx_counts[i],
-                 1,
-                 graph_view.is_hypergraph_partitioned() ? col_comm_rank * row_comm_size + i
-                                                        : row_comm_rank + i * row_comm_size,
-                 0 /* tag */,
-                 count_requests.data() + tx_counts.size() + i);
+      auto comm_src_rank = graph_view.is_hypergraph_partitioned()
+                             ? col_comm_rank * row_comm_size + static_cast<int>(i)
+                             : static_cast<int>(i) * row_comm_size + comm_rank / col_comm_size;
+      if (comm_src_rank == comm_rank) {
+        assert(tx_self_i != std::numeric_limits<size_t>::max());
+        rx_counts[i] = tx_counts[tx_self_i];
+        // FIXME: better define request_null (similar to MPI_REQUEST_NULL) under raft::comms
+        count_requests[tx_counts.size() + i] = std::numeric_limits<raft::comms::request_t>::max();
+      } else {
+        comm.irecv(&rx_counts[i],
+                   1,
+                   comm_src_rank,
+                   0 /* tag */,
+                   count_requests.data() + tx_counts.size() + i);
+      }
     }
+    // FIXME: better define request_null (similar to MPI_REQUEST_NULL) under raft::comms, if
+    // raft::comms::wait immediately returns on seeing request_null, this remove is unnecessary
+    count_requests.erase(std::remove(count_requests.begin(),
+                                     count_requests.end(),
+                                     std::numeric_limits<raft::comms::request_t>::max()),
+                         count_requests.end());
     comm.waitall(count_requests.size(), count_requests.data());
 
-    std::vector<edge_t> tx_offsets(tx_counts.size() + 1, edge_t{0});
+    std::vector<size_t> tx_offsets(tx_counts.size() + 1, edge_t{0});
     std::partial_sum(tx_counts.begin(), tx_counts.end(), tx_offsets.begin() + 1);
-    std::vector<edge_t> rx_offsets(rx_counts.size() + 1, edge_t{0});
+    std::vector<size_t> rx_offsets(rx_counts.size() + 1, edge_t{0});
     std::partial_sum(rx_counts.begin(), rx_counts.end(), rx_offsets.begin() + 1);
 
     // FIXME: this will require costly reallocation if we don't use the new CUDA feature to reserve
     // address space.
-    vertex_frontier.resize_buffer(num_buffer_elements + rx_offsets.back());
+    // FIXME: std::max(actual size, 1) as ncclRecv currently hangs if recvuff is nullptr even if
+    // count is 0
+    vertex_frontier.resize_buffer(std::max(num_buffer_elements + rx_offsets.back(), size_t(1)));
 
     auto buffer_first         = vertex_frontier.buffer_begin();
     auto buffer_key_first     = std::get<0>(buffer_first) + num_buffer_offset;
     auto buffer_payload_first = std::get<1>(buffer_first) + num_buffer_offset;
 
-    auto constexpr tuple_size = thrust_tuple_size_or_one<
-      typename std::iterator_traits<decltype(buffer_payload_first)>::value_type>::value;
+    std::vector<int> tx_dst_ranks(tx_counts.size());
+    std::vector<int> rx_src_ranks(rx_counts.size());
+    for (size_t i = 0; i < tx_dst_ranks.size(); ++i) {
+      tx_dst_ranks[i] = graph_view.is_hypergraph_partitioned()
+                          ? col_comm_rank * row_comm_size + static_cast<int>(i)
+                          : row_comm_rank * col_comm_size + static_cast<int>(i);
+    }
+    for (size_t i = 0; i < rx_src_ranks.size(); ++i) {
+      rx_src_ranks[i] = graph_view.is_hypergraph_partitioned()
+                          ? col_comm_rank * row_comm_size + static_cast<int>(i)
+                          : static_cast<int>(i) * row_comm_size + comm_rank / col_comm_size;
+    }
 
-    std::vector<raft::comms::request_t> buffer_requests((tx_counts.size() + rx_counts.size()) *
-                                                        (1 + tuple_size));
-    for (size_t i = 0; i < tx_counts.size(); ++i) {
-      auto comm_dst_rank = graph_view.is_hypergraph_partitioned()
-                             ? col_comm_rank * row_comm_size + i
-                             : row_comm_rank * col_comm_size + i;
-      comm.isend(detail::iter_to_raw_ptr(buffer_key_first + tx_offsets[i]),
-                 static_cast<size_t>(tx_counts[i]),
-                 comm_dst_rank,
-                 int{0} /* tag */,
-                 buffer_requests.data() + i * (1 + tuple_size));
-      device_isend<decltype(buffer_payload_first), decltype(buffer_payload_first)>(
-        comm,
-        buffer_payload_first + tx_offsets[i],
-        static_cast<size_t>(tx_counts[i]),
-        comm_dst_rank,
-        int{1} /* base tag */,
-        buffer_requests.data() + (i * (1 + tuple_size) + 1));
-    }
-    for (size_t i = 0; i < rx_counts.size(); ++i) {
-      auto comm_src_rank = graph_view.is_hypergraph_partitioned()
-                             ? col_comm_rank * row_comm_size + i
-                             : row_comm_rank + i * row_comm_size;
-      comm.irecv(detail::iter_to_raw_ptr(buffer_key_first + num_buffer_elements + rx_offsets[i]),
-                 static_cast<size_t>(rx_counts[i]),
-                 comm_src_rank,
-                 int{0} /* tag */,
-                 buffer_requests.data() + ((tx_counts.size() + i) * (1 + tuple_size)));
-      device_irecv<decltype(buffer_payload_first), decltype(buffer_payload_first)>(
-        comm,
-        buffer_payload_first + num_buffer_elements + rx_offsets[i],
-        static_cast<size_t>(rx_counts[i]),
-        comm_src_rank,
-        int{1} /* base tag */,
-        buffer_requests.data() + ((tx_counts.size() + i) * (1 + tuple_size) + 1));
-    }
-    comm.waitall(buffer_requests.size(), buffer_requests.data());
+    device_multicast_sendrecv<decltype(buffer_key_first), decltype(buffer_key_first)>(
+      comm,
+      buffer_key_first,
+      tx_counts,
+      tx_offsets,
+      tx_dst_ranks,
+      buffer_key_first + num_buffer_elements,
+      rx_counts,
+      rx_offsets,
+      rx_src_ranks,
+      handle.get_stream());
+    device_multicast_sendrecv<decltype(buffer_payload_first), decltype(buffer_payload_first)>(
+      comm,
+      buffer_payload_first,
+      tx_counts,
+      tx_offsets,
+      tx_dst_ranks,
+      buffer_payload_first + num_buffer_elements,
+      rx_counts,
+      rx_offsets,
+      rx_src_ranks,
+      handle.get_stream());
 
     // FIXME: this does not exploit the fact that each segment is sorted. Lost performance
     // optimization opportunities.
@@ -634,10 +659,13 @@ void update_frontier_v_push_if_out_nbr(
 
     auto constexpr invalid_vertex = invalid_vertex_id<vertex_t>::value;
 
+    vertex_partition_device_t<GraphViewType> vertex_partition(graph_view);
+
     auto bucket_and_bucket_size_device_ptrs =
       vertex_frontier.get_bucket_and_bucket_size_device_pointers();
     detail::update_frontier_and_vertex_output_values<VertexFrontierType::kNumBuckets>
       <<<update_grid.num_blocks, update_grid.block_size, 0, handle.get_stream()>>>(
+        vertex_partition,
         buffer_key_first,
         buffer_payload_first,
         num_buffer_elements,
