@@ -8,16 +8,12 @@ set -o pipefail
 NUMARGS=$#
 ARGS=$*
 
-function logger {
-  echo -e "\n>>>> $@\n"
-}
-
 function hasArg {
     (( ${NUMARGS} != 0 )) && (echo " ${ARGS} " | grep -q " $1 ")
 }
 
 function cleanup {
-  logger "Removing datasets and temp files..."
+  gpuci_logger "Removing datasets and temp files"
   rm -rf $WORKSPACE/datasets/test
   rm -rf $WORKSPACE/datasets/benchmark
   rm -f testoutput.txt
@@ -25,13 +21,13 @@ function cleanup {
 
 # Set cleanup trap for Jenkins
 if [ ! -z "$JENKINS_HOME" ] ; then
-  logger "Jenkins environment detected, setting cleanup trap..."
+  gpuci_logger "Jenkins environment detected, setting cleanup trap"
   trap cleanup EXIT
 fi
 
 # Set path, build parallel level, and CUDA version
-export PATH=/conda/bin:/usr/local/cuda/bin:$PATH
-export PARALLEL_LEVEL=4
+export PATH=/opt/conda/bin:/usr/local/cuda/bin:$PATH
+export PARALLEL_LEVEL=${PARALLEL_LEVEL:-4}
 export CUDA_REL=${CUDA_VERSION%.*}
 
 # Set home to the job's workspace
@@ -46,17 +42,18 @@ export MINOR_VERSION=`echo $GIT_DESCRIBE_TAG | grep -o -E '([0-9]+\.[0-9]+)'`
 # SETUP - Check environment
 ################################################################################
 
-logger "Check environment..."
+gpuci_logger "Check environment"
 env
 
-logger "Check GPU usage..."
+gpuci_logger "Check GPU usage"
 nvidia-smi
 
-logger "Activate conda env..."
-source activate rapids
+gpuci_logger "Activate conda env"
+. /opt/conda/etc/profile.d/conda.sh
+conda activate rapids
 
-logger "conda install required packages"
-conda install -c nvidia -c rapidsai -c rapidsai-nightly -c conda-forge -c defaults \
+gpuci_logger "Install dependencies"
+gpuci_conda_retry install -y \
       "libcudf=${MINOR_VERSION}" \
       "cudf=${MINOR_VERSION}" \
       "librmm=${MINOR_VERSION}" \
@@ -70,29 +67,29 @@ conda install -c nvidia -c rapidsai -c rapidsai-nightly -c conda-forge -c defaul
       rapids-pytest-benchmark
 
 # https://docs.rapids.ai/maintainers/depmgmt/
-# conda remove --force rapids-build-env rapids-notebook-env
-# conda install "your-pkg=1.0.0"
+# gpuci_conda_retry remove --force rapids-build-env rapids-notebook-env
+# gpuci_conda_retry install -y "your-pkg=1.0.0"
 
-# Install the master version of dask and distributed
-logger "pip install git+https://github.com/dask/distributed.git --upgrade --no-deps"
+gpuci_logger "Install the master version of dask and distributed"
 pip install "git+https://github.com/dask/distributed.git" --upgrade --no-deps
-
-logger "pip install git+https://github.com/dask/dask.git --upgrade --no-deps"
 pip install "git+https://github.com/dask/dask.git" --upgrade --no-deps
 
-
-logger "Check versions..."
+gpuci_logger "Check versions"
 python --version
 $CC --version
 $CXX --version
-conda list
+
+gpuci_logger "Check conda environment"
+conda info
+conda config --show-sources
+conda list --show-channel-urls
 
 ################################################################################
 # BUILD - Build libcugraph and cuGraph from source
 ################################################################################
 
 if [[ -z "$PROJECT_FLASH" || "$PROJECT_FLASH" == "0" ]]; then
-  logger "Build libcugraph..."
+  gpuci_logger "Build from source"
   $WORKSPACE/build.sh clean libcugraph cugraph
 fi
 
@@ -105,9 +102,9 @@ EXITCODE=0
 trap "EXITCODE=1" ERR
 
 if hasArg --skip-tests; then
-    logger "Skipping Tests..."
+    gpuci_logger "Skipping Tests"
 else
-    logger "Check GPU usage..."
+    gpuci_logger "Check GPU usage"
     nvidia-smi
 
     # If this is a PR build, skip downloading large datasets and don't run the
