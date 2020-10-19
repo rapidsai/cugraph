@@ -22,7 +22,7 @@
 #include <patterns/count_if_e.cuh>
 #include <patterns/count_if_v.cuh>
 #include <patterns/reduce_v.cuh>
-#include <patterns/transform_reduce_v_with_adj_matrix_row.cuh>
+#include <patterns/transform_reduce_v.cuh>
 #include <utilities/error.hpp>
 #include <vertex_partition_device.cuh>
 
@@ -42,9 +42,9 @@ namespace detail {
 
 // FIXME: personalization_vector_size is confusing in OPG (local or aggregate?)
 template <typename GraphViewType, typename result_t>
-void pagerank(raft::handle_t& handle,
+void pagerank(raft::handle_t const& handle,
               GraphViewType const& pull_graph_view,
-              typename GraphViewType::weight_type* adj_matrix_row_out_weight_sums,
+              typename GraphViewType::weight_type* precomputed_vertex_out_weight_sums,
               typename GraphViewType::vertex_type* personalization_vertices,
               result_t* personalization_values,
               typename GraphViewType::vertex_type personalization_vector_size,
@@ -79,13 +79,13 @@ void pagerank(raft::handle_t& handle,
   CUGRAPH_EXPECTS(epsilon >= 0.0, "Invalid input argument: epsilon should be non-negative.");
 
   if (do_expensive_check) {
-    if (adj_matrix_row_out_weight_sums != nullptr) {
-      auto has_negative_weight_sums = any_of_adj_matrix_row(
-        handle, pull_graph_view, adj_matrix_row_out_weight_sums, [] __device__(auto val) {
+    if (precomputed_vertex_out_weight_sums != nullptr) {
+      auto num_negative_precomputed_vertex_out_weight_sums = count_if_v(
+        handle, pull_graph_view, precomputed_vertex_out_weight_sums, [] __device__(auto val) {
           return val < result_t{0.0};
         });
       CUGRAPH_EXPECTS(
-        has_negative_weight_sums == false,
+        num_negative_precomputed_vertex_out_weight_sums == 0,
         "Invalid input argument: outgoing edge weight sum values should be non-negative.");
     }
 
@@ -134,10 +134,10 @@ void pagerank(raft::handle_t& handle,
 
   // 2. compute the sums of the out-going edge weights (if not provided)
 
-  rmm::device_vector<weight_t> tmp_adj_matrix_row_out_weight_sums{};
-  if (adj_matrix_row_out_weight_sums == nullptr) {
-    rmm::device_vector<weight_t> tmp_out_weight_sums(pull_graph_view.get_number_of_local_vertices(),
-                                                     weight_t{0.0});
+  rmm::device_uvector<weight_t> tmp_vertex_out_weight_sums(0, handle.get_stream());
+  if (precomputed_vertex_out_weight_sums == nullptr) {
+    tmp_vertex_out_weight_sums.resize(pull_graph_view.get_number_of_local_vertices(),
+                                      handle.get_stream());
     // FIXME: better refactor this out (computing out-degree).
     copy_v_transform_reduce_out_nbr(
       handle,
@@ -148,19 +148,12 @@ void pagerank(raft::handle_t& handle,
         return w;
       },
       weight_t{0.0},
-      tmp_out_weight_sums.data().get());
-
-    tmp_adj_matrix_row_out_weight_sums.assign(
-      pull_graph_view.get_number_of_local_adj_matrix_partition_rows(), weight_t{0.0});
-    copy_to_adj_matrix_row(handle,
-                           pull_graph_view,
-                           tmp_out_weight_sums.data().get(),
-                           tmp_adj_matrix_row_out_weight_sums.begin());
+      tmp_vertex_out_weight_sums.data());
   }
 
-  auto row_out_weight_sums = adj_matrix_row_out_weight_sums != nullptr
-                               ? adj_matrix_row_out_weight_sums
-                               : tmp_adj_matrix_row_out_weight_sums.data().get();
+  auto vertex_out_weight_sums = precomputed_vertex_out_weight_sums != nullptr
+                                  ? precomputed_vertex_out_weight_sums
+                                  : tmp_vertex_out_weight_sums.data();
 
   // 3. initialize pagerank values
 
@@ -197,43 +190,49 @@ void pagerank(raft::handle_t& handle,
   // 5. pagerank iteration
 
   // old PageRank values
-  rmm::device_vector<result_t> adj_matrix_row_pageranks(
-    pull_graph_view.get_number_of_local_adj_matrix_partition_rows(), result_t{0.0});
+  rmm::device_uvector<result_t> old_pageranks(pull_graph_view.get_number_of_local_vertices(),
+                                              handle.get_stream());
+  rmm::device_uvector<result_t> adj_matrix_row_pageranks(
+    pull_graph_view.get_number_of_local_adj_matrix_partition_rows(), handle.get_stream());
   size_t iter{0};
   while (true) {
-    copy_to_adj_matrix_row(handle, pull_graph_view, pageranks, adj_matrix_row_pageranks.begin());
+    thrust::copy(rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
+                 pageranks,
+                 pageranks + pull_graph_view.get_number_of_local_vertices(),
+                 old_pageranks.data());
 
-    auto row_val_first = thrust::make_zip_iterator(
-      thrust::make_tuple(adj_matrix_row_pageranks.begin(), row_out_weight_sums));
-    thrust::transform(
-      rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
-      row_val_first,
-      row_val_first + pull_graph_view.get_number_of_local_adj_matrix_partition_rows(),
-      adj_matrix_row_pageranks.begin(),
-      [] __device__(auto val) {
-        auto const row_pagerank       = thrust::get<0>(val);
-        auto const row_out_weight_sum = thrust::get<1>(val);
-        auto const divisor =
-          row_out_weight_sum == result_t{0.0} ? result_t{1.0} : row_out_weight_sum;
-        return row_pagerank / divisor;
-      });
+    auto vertex_val_first =
+      thrust::make_zip_iterator(thrust::make_tuple(pageranks, vertex_out_weight_sums));
 
-    auto dangling_sum = transform_reduce_v_with_adj_matrix_row(
+    auto dangling_sum = transform_reduce_v(
       handle,
       pull_graph_view,
-      thrust::make_constant_iterator(0) /* dummy */,
-      row_val_first,
-      [] __device__(auto v_val, auto row_val) {
-        auto const row_pagerank       = thrust::get<0>(row_val);
-        auto const row_out_weight_sum = thrust::get<1>(row_val);
-        return row_out_weight_sum == result_t{0.0} ? row_pagerank : result_t{0.0};
+      vertex_val_first,
+      [] __device__(auto val) {
+        auto const pagerank       = thrust::get<0>(val);
+        auto const out_weight_sum = thrust::get<1>(val);
+        return out_weight_sum == result_t{0.0} ? pagerank : result_t{0.0};
       },
       result_t{0.0});
 
-    auto unvarying_part =
-      personalization_vertices == nullptr
-        ? (dangling_sum + static_cast<result_t>(1.0 - alpha)) / static_cast<result_t>(num_vertices)
-        : result_t{0.0};
+    thrust::transform(rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
+                      vertex_val_first,
+                      vertex_val_first + pull_graph_view.get_number_of_local_vertices(),
+                      pageranks,
+                      [] __device__(auto val) {
+                        auto const pagerank       = thrust::get<0>(val);
+                        auto const out_weight_sum = thrust::get<1>(val);
+                        auto const divisor =
+                          out_weight_sum == result_t{0.0} ? result_t{1.0} : out_weight_sum;
+                        return pagerank / divisor;
+                      });
+
+    copy_to_adj_matrix_row(handle, pull_graph_view, pageranks, adj_matrix_row_pageranks.begin());
+
+    auto unvarying_part = personalization_vertices == nullptr
+                            ? (dangling_sum * alpha + static_cast<result_t>(1.0 - alpha)) /
+                                static_cast<result_t>(num_vertices)
+                            : result_t{0.0};
 
     copy_v_transform_reduce_in_nbr(
       handle,
@@ -258,21 +257,16 @@ void pagerank(raft::handle_t& handle,
           auto v     = thrust::get<0>(val);
           auto value = thrust::get<1>(val);
           *(pageranks + vertex_partition.get_local_vertex_offset_from_vertex_nocheck(v)) +=
-            (dangling_sum + static_cast<result_t>(1.0 - alpha)) * (value / personalization_sum);
+            (dangling_sum * alpha + static_cast<result_t>(1.0 - alpha)) *
+            (value / personalization_sum);
         });
     }
 
-    auto diff_sum = transform_reduce_v_with_adj_matrix_row(
+    auto diff_sum = transform_reduce_v(
       handle,
       pull_graph_view,
-      pageranks,
-      thrust::make_zip_iterator(
-        thrust::make_tuple(adj_matrix_row_pageranks.begin(), row_out_weight_sums)),
-      [] __device__(auto v_val, auto row_val) {
-        auto multiplier =
-          thrust::get<1>(row_val) == result_t{0.0} ? result_t{1.0} : thrust::get<1>(row_val);
-        return std::abs(v_val - thrust::get<0>(row_val) * multiplier);
-      },
+      thrust::make_zip_iterator(thrust::make_tuple(pageranks, old_pageranks.data())),
+      [] __device__(auto val) { return std::abs(thrust::get<0>(val) - thrust::get<1>(val)); },
       result_t{0.0});
 
     iter++;
@@ -290,9 +284,9 @@ void pagerank(raft::handle_t& handle,
 }  // namespace detail
 
 template <typename vertex_t, typename edge_t, typename weight_t, typename result_t, bool multi_gpu>
-void pagerank(raft::handle_t& handle,
+void pagerank(raft::handle_t const& handle,
               graph_view_t<vertex_t, edge_t, weight_t, true, multi_gpu> const& graph_view,
-              weight_t* adj_matrix_row_out_weight_sums,
+              weight_t* precomputed_vertex_out_weight_sums,
               vertex_t* personalization_vertices,
               result_t* personalization_values,
               vertex_t personalization_vector_size,
@@ -305,7 +299,7 @@ void pagerank(raft::handle_t& handle,
 {
   detail::pagerank(handle,
                    graph_view,
-                   adj_matrix_row_out_weight_sums,
+                   precomputed_vertex_out_weight_sums,
                    personalization_vertices,
                    personalization_values,
                    personalization_vector_size,
@@ -319,9 +313,9 @@ void pagerank(raft::handle_t& handle,
 
 // explicit instantiation
 
-template void pagerank(raft::handle_t& handle,
+template void pagerank(raft::handle_t const& handle,
                        graph_view_t<int32_t, int32_t, float, true, true> const& graph_view,
-                       float* adj_matrix_row_out_weight_sums,
+                       float* precomputed_vertex_out_weight_sums,
                        int32_t* personalization_vertices,
                        float* personalization_values,
                        int32_t personalization_vector_size,
@@ -332,9 +326,9 @@ template void pagerank(raft::handle_t& handle,
                        bool has_initial_guess,
                        bool do_expensive_check);
 
-template void pagerank(raft::handle_t& handle,
+template void pagerank(raft::handle_t const& handle,
                        graph_view_t<int32_t, int32_t, double, true, true> const& graph_view,
-                       double* adj_matrix_row_out_weight_sums,
+                       double* precomputed_vertex_out_weight_sums,
                        int32_t* personalization_vertices,
                        double* personalization_values,
                        int32_t personalization_vector_size,
@@ -345,9 +339,9 @@ template void pagerank(raft::handle_t& handle,
                        bool has_initial_guess,
                        bool do_expensive_check);
 
-template void pagerank(raft::handle_t& handle,
+template void pagerank(raft::handle_t const& handle,
                        graph_view_t<int32_t, int64_t, float, true, true> const& graph_view,
-                       float* adj_matrix_row_out_weight_sums,
+                       float* precomputed_vertex_out_weight_sums,
                        int32_t* personalization_vertices,
                        float* personalization_values,
                        int32_t personalization_vector_size,
@@ -358,9 +352,9 @@ template void pagerank(raft::handle_t& handle,
                        bool has_initial_guess,
                        bool do_expensive_check);
 
-template void pagerank(raft::handle_t& handle,
+template void pagerank(raft::handle_t const& handle,
                        graph_view_t<int32_t, int64_t, double, true, true> const& graph_view,
-                       double* adj_matrix_row_out_weight_sums,
+                       double* precomputed_vertex_out_weight_sums,
                        int32_t* personalization_vertices,
                        double* personalization_values,
                        int32_t personalization_vector_size,
@@ -371,9 +365,9 @@ template void pagerank(raft::handle_t& handle,
                        bool has_initial_guess,
                        bool do_expensive_check);
 
-template void pagerank(raft::handle_t& handle,
+template void pagerank(raft::handle_t const& handle,
                        graph_view_t<int64_t, int64_t, float, true, true> const& graph_view,
-                       float* adj_matrix_row_out_weight_sums,
+                       float* precomputed_vertex_out_weight_sums,
                        int64_t* personalization_vertices,
                        float* personalization_values,
                        int64_t personalization_vector_size,
@@ -384,9 +378,9 @@ template void pagerank(raft::handle_t& handle,
                        bool has_initial_guess,
                        bool do_expensive_check);
 
-template void pagerank(raft::handle_t& handle,
+template void pagerank(raft::handle_t const& handle,
                        graph_view_t<int64_t, int64_t, double, true, true> const& graph_view,
-                       double* adj_matrix_row_out_weight_sums,
+                       double* precomputed_vertex_out_weight_sums,
                        int64_t* personalization_vertices,
                        double* personalization_values,
                        int64_t personalization_vector_size,
@@ -397,9 +391,9 @@ template void pagerank(raft::handle_t& handle,
                        bool has_initial_guess,
                        bool do_expensive_check);
 
-template void pagerank(raft::handle_t& handle,
+template void pagerank(raft::handle_t const& handle,
                        graph_view_t<int32_t, int32_t, float, true, false> const& graph_view,
-                       float* adj_matrix_row_out_weight_sums,
+                       float* precomputed_vertex_out_weight_sums,
                        int32_t* personalization_vertices,
                        float* personalization_values,
                        int32_t personalization_vector_size,
@@ -410,9 +404,9 @@ template void pagerank(raft::handle_t& handle,
                        bool has_initial_guess,
                        bool do_expensive_check);
 
-template void pagerank(raft::handle_t& handle,
+template void pagerank(raft::handle_t const& handle,
                        graph_view_t<int32_t, int32_t, double, true, false> const& graph_view,
-                       double* adj_matrix_row_out_weight_sums,
+                       double* precomputed_vertex_out_weight_sums,
                        int32_t* personalization_vertices,
                        double* personalization_values,
                        int32_t personalization_vector_size,
@@ -423,9 +417,9 @@ template void pagerank(raft::handle_t& handle,
                        bool has_initial_guess,
                        bool do_expensive_check);
 
-template void pagerank(raft::handle_t& handle,
+template void pagerank(raft::handle_t const& handle,
                        graph_view_t<int32_t, int64_t, float, true, false> const& graph_view,
-                       float* adj_matrix_row_out_weight_sums,
+                       float* precomputed_vertex_out_weight_sums,
                        int32_t* personalization_vertices,
                        float* personalization_values,
                        int32_t personalization_vector_size,
@@ -436,9 +430,9 @@ template void pagerank(raft::handle_t& handle,
                        bool has_initial_guess,
                        bool do_expensive_check);
 
-template void pagerank(raft::handle_t& handle,
+template void pagerank(raft::handle_t const& handle,
                        graph_view_t<int32_t, int64_t, double, true, false> const& graph_view,
-                       double* adj_matrix_row_out_weight_sums,
+                       double* precomputed_vertex_out_weight_sums,
                        int32_t* personalization_vertices,
                        double* personalization_values,
                        int32_t personalization_vector_size,
@@ -449,9 +443,9 @@ template void pagerank(raft::handle_t& handle,
                        bool has_initial_guess,
                        bool do_expensive_check);
 
-template void pagerank(raft::handle_t& handle,
+template void pagerank(raft::handle_t const& handle,
                        graph_view_t<int64_t, int64_t, float, true, false> const& graph_view,
-                       float* adj_matrix_row_out_weight_sums,
+                       float* precomputed_vertex_out_weight_sums,
                        int64_t* personalization_vertices,
                        float* personalization_values,
                        int64_t personalization_vector_size,
@@ -462,9 +456,9 @@ template void pagerank(raft::handle_t& handle,
                        bool has_initial_guess,
                        bool do_expensive_check);
 
-template void pagerank(raft::handle_t& handle,
+template void pagerank(raft::handle_t const& handle,
                        graph_view_t<int64_t, int64_t, double, true, false> const& graph_view,
-                       double* adj_matrix_row_out_weight_sums,
+                       double* precomputed_vertex_out_weight_sums,
                        int64_t* personalization_vertices,
                        double* personalization_values,
                        int64_t personalization_vector_size,

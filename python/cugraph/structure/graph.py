@@ -123,8 +123,10 @@ class Graph:
                 self.renumbered = m_graph.renumbered
                 self.renumber_map = m_graph.renumber_map
             else:
-                msg = "Graph can be initialized using MultiGraph\
- and DiGraph can be initialized using MultiDiGraph"
+                msg = (
+                    "Graph can be initialized using MultiGraph "
+                    "and DiGraph can be initialized using MultiDiGraph"
+                )
                 raise Exception(msg)
         # self.number_of_vertices = None
 
@@ -322,29 +324,19 @@ class Graph:
         Parameters
         ----------
         input_df : cudf.DataFrame or dask_cudf.DataFrame
-            This cudf.DataFrame wraps source, destination and weight
-            gdf_column of size E (E: number of edges)
-            The 'src' column contains the source index for each edge.
-            Source indices are in the range [0, V) (V: number of vertices).
-            The 'dst' column contains the destination index for each edge.
-            Destination indices are in the range [0, V) (V: number of
-            vertices).
-            If renumbering needs to be done, renumber
-            argument should be passed as True.
-            For weighted graphs, dataframe contains 'weight' column
-            containing the weight value for each edge.
+            A DataFrame that contains edge information
             If a dask_cudf.DataFrame is passed it will be reinterpreted as
             a cudf.DataFrame. For the distributed path please use
             from_dask_cudf_edgelist.
-        source : str
-            source argument is source column name
-        destination : str
-            destination argument is destination column name.
-        edge_attr : str
-            edge_attr argument is the weights column name.
+        source : str or array-like
+            source column name or array of column names
+        destination : str or array-like
+            destination column name or array of column names
+        edge_attr : str or None
+            the weights column name. Default is None
         renumber : bool
-            If source and destination indices are not in range 0 to V where V
-            is number of vertices, renumber argument should be True.
+            Indicate whether or not to renumber the source and destination
+            vertex IDs. Default is True.
 
         Examples
         --------
@@ -369,29 +361,31 @@ class Graph:
             and set(d_col).issubset(set(input_df.columns))
         ):
             raise Exception(
-                "source column names and/or destination column \
-names not found in input. Recheck the source and destination parameters"
+                "source column names and/or destination column "
+                "names not found in input. Recheck the source and "
+                "destination parameters"
             )
 
+        # FIXME: update for smaller GPUs
         # Consolidation
         if isinstance(input_df, cudf.DataFrame):
             if len(input_df[source]) > 2147483100:
                 raise Exception(
-                    "cudf dataFrame edge list is too big \
-                                 to fit in a single GPU"
+                    "cudf dataFrame edge list is too big "
+                    "to fit in a single GPU"
                 )
             elist = input_df
         elif isinstance(input_df, dask_cudf.DataFrame):
             if len(input_df[source]) > 2147483100:
                 raise Exception(
-                    "dask_cudf dataFrame edge list is too big \
-                                 to fit in a single GPU"
+                    "dask_cudf dataFrame edge list is too big "
+                    "to fit in a single GPU"
                 )
             elist = input_df.compute().reset_index(drop=True)
         else:
             raise Exception(
-                "input should be a cudf.DataFrame or \
-                              a dask_cudf dataFrame"
+                "input should be a cudf.DataFrame or "
+                "a dask_cudf dataFrame"
             )
 
         renumber_map = None
@@ -462,12 +456,12 @@ names not found in input. Recheck the source and destination parameters"
         ----------
         input_ddf : dask_cudf.DataFrame
             The edgelist as a dask_cudf.DataFrame
-        source : str
-            source argument is source column name
+        source : str or array-like
+            source column name or array of column names
         destination : str
-            destination argument is destination column name.
+            destination column name or array of column names
         edge_attr : str
-            edge_attr argument is the weights column name.
+            weights column name.
         renumber : bool
             If source and destination indices are not in range 0 to V where V
             is number of vertices, renumber argument should be True.
@@ -490,9 +484,22 @@ names not found in input. Recheck the source and destination parameters"
             and set(d_col).issubset(set(input_ddf.columns))
         ):
             raise Exception(
-                "source column names and/or destination column \
-names not found in input. Recheck the source and destination parameters"
+                "source column names and/or destination column "
+                "names not found in input. Recheck the source "
+                "and destination parameters"
             )
+        ddf_columns = s_col + d_col
+        if edge_attr is not None:
+            if not (set([edge_attr]).issubset(set(input_ddf.columns))):
+                raise Exception(
+                    "edge_attr column name not found in input."
+                    "Recheck the edge_attr parameter")
+            ddf_columns = ddf_columns + [edge_attr]
+        input_ddf = input_ddf[ddf_columns]
+
+        if edge_attr is not None:
+            input_ddf = input_ddf.rename(columns={edge_attr: 'value'})
+
         #
         # Keep all of the original parameters so we can lazily
         # evaluate this function
@@ -558,16 +565,16 @@ names not found in input. Recheck the source and destination parameters"
 
         Returns
         -------
-        edgelist_df : cudf.DataFrame
+        df : cudf.DataFrame
             This cudf.DataFrame wraps source, destination and weight
-            gdf_column of size E (E: number of edges)
-            The 'src' column contains the source index for each edge.
-            Source indices are in the range [0, V) (V: number of vertices).
-            The 'dst' column contains the destination index for each edge.
-            Destination indices are in the range [0, V) (V: number of
-            vertices).
-            For weighted graphs, dataframe contains 'weight' column
-            containing the weight value for each edge.
+
+            df[src] : cudf.Series
+                contains the source index for each edge
+            df[dst] : cudf.Series
+                contains the destination index for each edge
+            df[weight] : cusd.Series
+                Column is only present for weighted Graph,
+                then containing the weight value for each edge
         """
         if self.distributed:
             if self.edgelist is None:

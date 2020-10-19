@@ -35,8 +35,6 @@ numberTypeMap = {np.dtype("int32") : <int>numberTypeEnum.int32Type,
 def louvain(input_df,
             num_global_verts,
             num_global_edges,
-            partition_row_size,
-            partition_col_size,
             vertex_partition_offsets,
             rank,
             handle,
@@ -80,7 +78,10 @@ def louvain(input_df,
 
     # data is on device, move to host (.values_host) since graph_t in
     # graph_container needs a host array
-    cdef uintptr_t c_vertex_partition_offsets = vertex_partition_offsets.values_host.__array_interface__['data'][0]
+    vertex_partition_offsets_host = vertex_partition_offsets.values_host
+    cdef uintptr_t c_vertex_partition_offsets = vertex_partition_offsets_host.__array_interface__['data'][0]
+
+    num_local_verts = vertex_partition_offsets_host[rank+1] - vertex_partition_offsets_host[rank]
 
     cdef graph_container_t graph_container
 
@@ -96,14 +97,14 @@ def louvain(input_df,
                              <numberTypeEnum>(<int>(numberTypeMap[weight_t])),
                              num_partition_edges,
                              num_global_verts, num_global_edges,
-                             partition_row_size, partition_col_size,
                              sorted_by_degree,
                              False, True)  # store_transposed, multi_gpu
 
-    # Create the output dataframe
+    # Create the output dataframe, column lengths must be equal to the number of
+    # vertices in the partition
     df = cudf.DataFrame()
-    df['vertex'] = cudf.Series(np.zeros(num_global_verts, dtype=vertex_t))
-    df['partition'] = cudf.Series(np.zeros(num_global_verts, dtype=vertex_t))
+    df['vertex'] = cudf.Series(np.zeros(num_local_verts, dtype=vertex_t))
+    df['partition'] = cudf.Series(np.zeros(num_local_verts, dtype=vertex_t))
 
     cdef uintptr_t c_identifiers = df['vertex'].__cuda_array_interface__['data'][0]
     cdef uintptr_t c_partition = df['partition'].__cuda_array_interface__['data'][0]

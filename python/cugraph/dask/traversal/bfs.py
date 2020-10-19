@@ -14,29 +14,36 @@
 #
 
 from dask.distributed import wait, default_client
-from cugraph.dask.common.input_utils import get_local_data
+from cugraph.dask.common.input_utils import get_distributed_data
+from cugraph.structure.shuffle import shuffle
 from cugraph.dask.traversal import mg_bfs_wrapper as mg_bfs
 import cugraph.comms.comms as Comms
 import cudf
+import dask_cudf
 
 
-def call_bfs(sID, data, local_data, start, num_verts, return_distances):
+def call_bfs(sID,
+             data,
+             num_verts,
+             num_edges,
+             vertex_partition_offsets,
+             start,
+             return_distances):
     wid = Comms.get_worker_id(sID)
     handle = Comms.get_handle(sID)
     return mg_bfs.mg_bfs(data[0],
-                         local_data,
+                         num_verts,
+                         num_edges,
+                         vertex_partition_offsets,
                          wid,
                          handle,
                          start,
-                         num_verts,
                          return_distances)
 
 
 def bfs(graph,
         start,
-        return_distances=False,
-        load_balance=True):
-
+        return_distances=False):
     """
     Find the distances and predecessors for a breadth first traversal of a
     graph.
@@ -54,68 +61,65 @@ def bfs(graph,
         iterates over edges in the component reachable from this node.
     return_distances : bool, optional, default=False
         Indicates if distances should be returned
-    load_balance : bool, optional, default=True
-        Set as True to perform load_balancing after global sorting of
-        dask-cudf DataFrame. This ensures that the data is uniformly
-        distributed among multiple GPUs to avoid over-loading.
 
     Returns
     -------
-    df : cudf.DataFrame
-        df['vertex'][i] gives the vertex id of the i'th vertex
+    df : dask_cudf.DataFrame
+        df['vertex'] gives the vertex id
 
-        df['distance'][i] gives the path distance for the i'th vertex from the
+        df['distance'] gives the path distance from the
         starting vertex (Only if return_distances is True)
 
-        df['predecessor'][i] gives for the i'th vertex the vertex it was
+        df['predecessor'] gives the vertex it was
         reached from in the traversal
 
     Examples
     --------
     >>> import cugraph.dask as dcg
-    >>> Comms.initialize()
+    >>> Comms.initialize(p2p=True)
     >>> chunksize = dcg.get_chunksize(input_data_path)
     >>> ddf = dask_cudf.read_csv(input_data_path, chunksize=chunksize,
                                  delimiter=' ',
                                  names=['src', 'dst', 'value'],
                                  dtype=['int32', 'int32', 'float32'])
     >>> dg = cugraph.DiGraph()
-    >>> dg.from_dask_cudf_edgelist(ddf)
+    >>> dg.from_dask_cudf_edgelist(ddf, 'src', 'dst')
     >>> df = dcg.bfs(dg, 0)
     >>> Comms.destroy()
     """
 
     client = default_client()
 
-    if(graph.local_data is not None and
-       graph.local_data['by'] == 'src'):
-        data = graph.local_data['data']
-    else:
-        data = get_local_data(graph, by='src', load_balance=load_balance)
+    graph.compute_renumber_edge_list(transposed=False)
+    (ddf,
+     num_verts,
+     partition_row_size,
+     partition_col_size,
+     vertex_partition_offsets) = shuffle(graph, transposed=False)
+    num_edges = len(ddf)
+    data = get_distributed_data(ddf)
 
     if graph.renumbered:
         start = graph.lookup_internal_vertex_id(cudf.Series([start],
                                                 dtype='int32')).compute()
         start = start.iloc[0]
 
-    result = dict([(data.worker_info[wf[0]]["rank"],
-                    client.submit(
-            call_bfs,
-            Comms.get_session_id(),
-            wf[1],
-            data.local_data,
-            start,
-            data.max_vertex_id+1,
-            return_distances,
-            workers=[wf[0]]))
-            for idx, wf in enumerate(data.worker_to_parts.items())])
+    result = [client.submit(
+              call_bfs,
+              Comms.get_session_id(),
+              wf[1],
+              num_verts,
+              num_edges,
+              vertex_partition_offsets,
+              start,
+              return_distances,
+              workers=[wf[0]])
+              for idx, wf in enumerate(data.worker_to_parts.items())]
     wait(result)
-
-    df = result[0].result()
+    ddf = dask_cudf.from_delayed(result)
 
     if graph.renumbered:
-        df = graph.unrenumber(df, 'vertex').compute()
-        df = graph.unrenumber(df, 'predecessor').compute()
-        df["predecessor"].fillna(-1, inplace=True)
-
-    return df
+        ddf = graph.unrenumber(ddf, 'vertex')
+        ddf = graph.unrenumber(ddf, 'predecessor')
+        ddf["predecessor"] = ddf["predecessor"].fillna(-1)
+    return ddf

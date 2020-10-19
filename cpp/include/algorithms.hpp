@@ -965,7 +965,7 @@ namespace experimental {
  * @param do_expensive_check A flag to run expensive checks for input arguments (if set to `true`).
  */
 template <typename vertex_t, typename edge_t, typename weight_t, bool multi_gpu>
-void bfs(raft::handle_t &handle,
+void bfs(raft::handle_t const &handle,
          graph_view_t<vertex_t, edge_t, weight_t, false, multi_gpu> const &graph_view,
          vertex_t *distances,
          vertex_t *predecessors,
@@ -998,7 +998,7 @@ void bfs(raft::handle_t &handle,
  * @param do_expensive_check A flag to run expensive checks for input arguments (if set to `true`).
  */
 template <typename vertex_t, typename edge_t, typename weight_t, bool multi_gpu>
-void sssp(raft::handle_t &handle,
+void sssp(raft::handle_t const &handle,
           graph_view_t<vertex_t, edge_t, weight_t, false, multi_gpu> const &graph_view,
           weight_t *distances,
           vertex_t *predecessors,
@@ -1046,7 +1046,7 @@ void sssp(raft::handle_t &handle,
  * @param do_expensive_check A flag to run expensive checks for input arguments (if set to `true`).
  */
 template <typename vertex_t, typename edge_t, typename weight_t, typename result_t, bool multi_gpu>
-void pagerank(raft::handle_t &handle,
+void pagerank(raft::handle_t const &handle,
               graph_view_t<vertex_t, edge_t, weight_t, true, multi_gpu> const &graph_view,
               weight_t *adj_matrix_row_out_weight_sums,
               vertex_t *personalization_vertices,

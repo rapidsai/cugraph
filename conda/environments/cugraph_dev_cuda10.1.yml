@@ -5,16 +5,16 @@ channels:
 - rapidsai-nightly
 - conda-forge
 dependencies:
-- cudf=0.16.*
-- libcudf=0.16.*
-- rmm=0.16.*
-- librmm=0.16.*
+- cudf=0.17.*
+- libcudf=0.17.*
+- rmm=0.17.*
+- librmm=0.17.*
 - dask>=2.12.0
 - distributed>=2.12.0
-- dask-cuda=0.16*
-- dask-cudf=0.16*
-- nccl>=2.5
-- ucx-py=0.16*
+- dask-cuda=0.17*
+- dask-cudf=0.17*
+- nccl>=2.7
+- ucx-py=0.17*
 - scipy
 - networkx
 - python-louvain

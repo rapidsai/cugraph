@@ -57,7 +57,9 @@ source activate rapids
 
 logger "conda install required packages"
 conda install -c nvidia -c rapidsai -c rapidsai-nightly -c conda-forge -c defaults \
+      "libcudf=${MINOR_VERSION}" \
       "cudf=${MINOR_VERSION}" \
+      "librmm=${MINOR_VERSION}" \
       "rmm=${MINOR_VERSION}" \
       "cudatoolkit=$CUDA_REL" \
       "dask-cudf=${MINOR_VERSION}" \
