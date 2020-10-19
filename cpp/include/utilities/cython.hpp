@@ -169,8 +169,6 @@ void populate_graph_container(graph_container_t& graph_container,
                               size_t num_partition_edges,
                               size_t num_global_vertices,
                               size_t num_global_edges,
-                              size_t row_comm_size,  // pcols
-                              size_t col_comm_size,  // prows
                               bool sorted_by_degree,
                               bool transposed,
                               bool multi_gpu);
@@ -200,6 +198,53 @@ std::pair<size_t, weight_t> call_louvain(raft::handle_t const& handle,
                                          void* parts,
                                          size_t max_level,
                                          weight_t resolution);
+
+// Wrapper for calling Pagerank using a graph container
+template <typename vertex_t, typename weight_t>
+void call_pagerank(raft::handle_t const& handle,
+                   graph_container_t const& graph_container,
+                   vertex_t* identifiers,
+                   weight_t* pagerank,
+                   vertex_t personalization_subset_size,
+                   vertex_t* personalization_subset,
+                   weight_t* personalization_values,
+                   double alpha,
+                   double tolerance,
+                   int64_t max_iter,
+                   bool has_guess);
+
+// Wrapper for calling BFS through a graph container
+template <typename vertex_t, typename weight_t>
+void call_bfs(raft::handle_t const& handle,
+              graph_container_t const& graph_container,
+              vertex_t* identifiers,
+              vertex_t* distances,
+              vertex_t* predecessors,
+              double* sp_counters,
+              const vertex_t start_vertex,
+              bool directed);
+
+// Wrapper for calling SSSP through a graph container
+template <typename vertex_t, typename weight_t>
+void call_sssp(raft::handle_t const& handle,
+               graph_container_t const& graph_container,
+               vertex_t* identifiers,
+               weight_t* distances,
+               vertex_t* predecessors,
+               const vertex_t source_vertex);
+
+// Helper for setting up subcommunicators, typically called as part of the
+// user-initiated comms initialization in Python.
+//
+// raft::handle_t& handle
+//   Raft handle for which the new subcommunicators will be created. The
+//   subcommunicators will then be accessible from the handle passed to the
+//   parallel processes.
+//
+// size_t row_comm_size
+//   Number of items in a partition row (ie. pcols), needed for creating the
+//   appropriate number of subcommunicator instances.
+void init_subcomms(raft::handle_t& handle, size_t row_comm_size);
 
 }  // namespace cython
 }  // namespace cugraph

@@ -20,13 +20,13 @@ from cugraph.structure.graph_primtypes cimport *
 from libcpp cimport bool
 
 
-cdef extern from "algorithms.hpp" namespace "cugraph":
-
-    cdef void bfs[VT,ET,WT](
+cdef extern from "utilities/cython.hpp" namespace "cugraph::cython":
+    cdef void call_bfs[vertex_t, weight_t](
         const handle_t &handle,
-        const GraphCSRView[VT,ET,WT] &graph,
-        VT *distances,
-        VT *predecessors,
+        const graph_container_t &g,
+        vertex_t *identifiers,
+        vertex_t *distances,
+        vertex_t *predecessors,
         double *sp_counters,
-        const VT start_vertex,
+        const vertex_t start_vertex,
         bool directed) except +

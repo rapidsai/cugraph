@@ -36,9 +36,7 @@ STRONGDATASETS = ['../datasets/dolphins.csv',
                   '../datasets/email-Eu-core.csv']
 
 DATASETS_KTRUSS = [('../datasets/polbooks.csv',
-                    '../datasets/ref/ktruss/polbooks.csv'),
-                   ('../datasets/netscience.csv',
-                    '../datasets/ref/ktruss/netscience.csv')]
+                    '../datasets/ref/ktruss/polbooks.csv')]
 
 DATASETS_SMALL = ['../datasets/karate.csv',
                   '../datasets/dolphins.csv',
