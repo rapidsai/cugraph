@@ -12,6 +12,11 @@ function hasArg {
     (( ${NUMARGS} != 0 )) && (echo " ${ARGS} " | grep -q " $1 ")
 }
 
+# Set path, build parallel level, and CUDA version
+export PATH=/opt/conda/bin:/usr/local/cuda/bin:$PATH
+export PARALLEL_LEVEL=${PARALLEL_LEVEL:-4}
+export CUDA_REL=${CUDA_VERSION%.*}
+
 function cleanup {
   gpuci_logger "Removing datasets and temp files"
   rm -rf $WORKSPACE/datasets/test
@@ -24,11 +29,6 @@ if [ ! -z "$JENKINS_HOME" ] ; then
   gpuci_logger "Jenkins environment detected, setting cleanup trap"
   trap cleanup EXIT
 fi
-
-# Set path, build parallel level, and CUDA version
-export PATH=/opt/conda/bin:/usr/local/cuda/bin:$PATH
-export PARALLEL_LEVEL=${PARALLEL_LEVEL:-4}
-export CUDA_REL=${CUDA_VERSION%.*}
 
 # Set home to the job's workspace
 export HOME=$WORKSPACE
