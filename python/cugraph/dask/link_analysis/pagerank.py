@@ -119,9 +119,6 @@ def pagerank(input_graph,
     """
     from cugraph.structure.graph import null_check
 
-    if personalization is not None:
-        raise Exception("Personalization not supported")
-
     nstart = None
 
     client = default_client()
@@ -141,21 +138,36 @@ def pagerank(input_graph,
         if input_graph.renumbered is True:
             personalization = input_graph.add_internal_vertex_id(
                 personalization, "vertex", "vertex"
-            ).compute()
+            )
+        p_data = get_distributed_data(personalization)
 
-    result = [client.submit(call_pagerank,
-                            Comms.get_session_id(),
-                            wf[1],
-                            num_verts,
-                            num_edges,
-                            vertex_partition_offsets,
-                            alpha,
-                            max_iter,
-                            tol,
-                            personalization,
-                            nstart,
-                            workers=[wf[0]])
-              for idx, wf in enumerate(data.worker_to_parts.items())]
+        result = [client.submit(call_pagerank,
+                                Comms.get_session_id(),
+                                wf[1],
+                                num_verts,
+                                num_edges,
+                                vertex_partition_offsets,
+                                alpha,
+                                max_iter,
+                                tol,
+                                p_data.worker_to_parts[wf[0]][0],
+                                nstart,
+                                workers=[wf[0]])
+                  for idx, wf in enumerate(data.worker_to_parts.items())]
+    else:
+                result = [client.submit(call_pagerank,
+                                Comms.get_session_id(),
+                                wf[1],
+                                num_verts,
+                                num_edges,
+                                vertex_partition_offsets,
+                                alpha,
+                                max_iter,
+                                tol,
+                                personalization,
+                                nstart,
+                                workers=[wf[0]])
+                  for idx, wf in enumerate(data.worker_to_parts.items())]
     wait(result)
     ddf = dask_cudf.from_delayed(result)
     if input_graph.renumbered:
