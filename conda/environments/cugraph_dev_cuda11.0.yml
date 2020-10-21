@@ -15,6 +15,7 @@ dependencies:
 - dask-cudf=0.16*
 - nccl>=2.7
 - ucx-py=0.16*
+- ucx-proc=*=gpu
 - scipy
 - networkx
 - python-louvain
