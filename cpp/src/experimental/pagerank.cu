@@ -71,7 +71,7 @@ void pagerank(raft::handle_t const& handle,
   auto aggregate_personalization_vector_size =
     GraphViewType::is_multi_gpu
       ? host_scalar_allreduce(handle.get_comms(), personalization_vector_size, handle.get_stream())
-      : vertex_t{0};
+      : personalization_vector_size;
 
   // 1. check input arguments
 
