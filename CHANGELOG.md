@@ -1,3 +1,61 @@
+# cuGraph 0.16.0 (21 Oct 2020)
+
+## New Features
+- PR #1098 Add new graph classes to support 2D partitioning
+- PR #1124 Sub-communicator initialization for 2D partitioning support
+- PR #838 Add pattern accelerator API functions and pattern accelerator API based implementations of PageRank, Katz Centrality, BFS, and SSSP
+- PR #1147 Added support for NetworkX graphs as input type
+- PR #1157 Louvain API update to use graph_container_t
+- PR #1151 MNMG extension for pattern accelerator based PageRank, Katz Centrality, BFS, and SSSP implementations (C++ part)
+- PR #1163 Integrated 2D shuffling and Louvain updates
+- PR #1178 Refactored cython graph factory code to scale to additional data types
+- PR #1175 Integrated 2D pagerank python/cython infra
+- PR #1177 Integrated 2D bfs and sssp python/cython infra
+- PR #1172 MNMG Louvain implementation
+
+## Improvements
+- PR 1081 MNMG Renumbering - sort partitions by degree
+- PR 1115 Replace deprecated rmm::mr::get_default_resource with rmm::mr::get_current_device_resource
+- PR #1133 added python 2D shuffling
+- PR 1129 Refactored test to use common dataset and added additional doc pages
+- PR 1135 SG Updates to Louvain et. al.
+- PR 1132 Upgrade Thrust to latest commit
+- PR #1129 Refactored test to use common dataset and added additional doc pages
+- PR #1145 Simple edge list generator
+- PR #1144 updated documentation and APIs
+- PR #1139 MNMG Louvain Python updates, Cython cleanup
+- PR #1156 Add aarch64 gencode support
+- PR #1149 Parquet read and concat within workers
+- PR #1152 graph container cleanup, added arg for instantiating legacy types and switch statements to factory function
+- PR #1164 MG symmetrize and conda env updates
+- PR #1162 enhanced networkx testing
+- PR #1169 Added RAPIDS cpp packages to cugraph dev env
+- PR #1165 updated remaining algorithms to be NetworkX compatible
+- PR #1176 Update ci/local/README.md
+- PR #1184 BLD getting latest tags
+- PR #1222 Added min CUDA version check to MG Louvain
+- PR #1217 NetworkX Transition doc
+- PR #1223 Update mnmg docs
+
+## Bug Fixes
+- PR #1131 Show style checker errors with set +e
+- PR #1150 Update RAFT git tag
+- PR #1155 Remove RMM library dependency and CXX11 ABI handling
+- PR #1158 Pass size_t* & size_t* instead of size_t[] & int[] for raft allgatherv's input parameters recvcounts & displs
+- PR #1168 Disabled MG tests on single GPU
+- PR #1166 Fix misspelling of function calls in asserts causing debug build to fail
+- PR #1180 BLD Adopt RAFT model for cuhornet dependency
+- PR #1181 Fix notebook error handling in CI
+- PR #1199 BUG segfault in python test suite
+- PR #1186 BLD Installing raft headers under cugraph
+- PR #1192 Fix benchmark notes and documentation issues in graph.py
+- PR #1196 Move subcomms init outside of individual algorithm functions
+- PR #1198 Remove deprecated call to from_gpu_matrix
+- PR #1174 Fix bugs in MNMG pattern accelerators and pattern accelerator based implementations of MNMG PageRank, BFS, and SSSP
+- PR #1233 Temporarily disabling C++ tests for 0.16
+- PR #1240 Require `ucx-proc=*=gpu`
+
+
 # cuGraph 0.15.0 (26 Aug 2020)
 
 ## New Features

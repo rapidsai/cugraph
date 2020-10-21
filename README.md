@@ -6,7 +6,7 @@ The [RAPIDS](https://rapids.ai) cuGraph library is a collection of GPU accelerat
 
  For more project details, see [rapids.ai](https://rapids.ai/).
 
-**NOTE:** For the latest stable [README.md](https://github.com/rapidsai/cudf/blob/main/README.md) ensure you are on the latest branch.
+**NOTE:** For the latest stable [README.md](https://github.com/rapidsai/cugraph/blob/main/README.md) ensure you are on the latest branch.
 
 
 
@@ -41,7 +41,7 @@ for i in range(len(df_page)):
 |              | Edge Betweenness Centrality            | Single-GPU   |                     |
 | Community    |                                        |              |                     |
 |              | Leiden                                 | Single-GPU   |                     |
-|              | Louvain                                | Single-GPU   |                     |
+|              | Louvain                                | Multiple-GPU |                     |
 |              | Ensemble Clustering for Graphs         | Single-GPU   |                     |
 |              | Spectral-Clustering - Balanced Cut     | Single-GPU   |                     |
 |              | Spectral-Clustering - Modularity       | Single-GPU   |                     |
@@ -57,16 +57,16 @@ for i in range(len(df_page)):
 | Layout       |                                        |              |                     |
 |              | Force Atlas 2                          | Single-GPU   |                     |
 | Link Analysis|                                        |              |                     |
-|              | Pagerank                               | Multiple-GPU | limited to 2 billion vertices |
-|              | Personal Pagerank                      | Multiple-GPU | limited to 2 billion vertices |
+|              | Pagerank                               | Multiple-GPU |                     |
+|              | Personal Pagerank                      | Single-GPU  |                     |
 |              | HITS                      				| Single-GPU   | leverages Gunrock   |
 | Link Prediction |                                     |              |                     |
 |              | Jaccard Similarity                     | Single-GPU   |                     |
 |              | Weighted Jaccard Similarity            | Single-GPU   |                     |
 |              | Overlap Similarity                     | Single-GPU   |                     |
 | Traversal    |                                        |              |                     |
-|              | Breadth First Search (BFS)             | Multiple-GPU | limited to 2 billion vertices |
-|              | Single Source Shortest Path (SSSP)     | Single-GPU   |                     |
+|              | Breadth First Search (BFS)             | Multiple-GPU |                     |
+|              | Single Source Shortest Path (SSSP)     | Multiple-GPU |                     |
 | Structure    |                                        |              |                     |
 |              | Renumbering                            | Single-GPU   | Also for multiple columns  |
 |              | Symmetrize                             | Single-GPU   |                     |
@@ -81,9 +81,7 @@ for i in range(len(df_page)):
 ## cuGraph Notice
 The current version of cuGraph has some limitations:
 
-- Vertex IDs need to be 32-bit integers (that restriction is going away in 0.16)
 - Vertex IDs are expected to be contiguous integers starting from 0.
---  If the starting index is not zero, cuGraph will add disconnected vertices to fill in the missing range.  (Auto-) Renumbering fixes this issue
 
 cuGraph provides the renumber function to mitigate this problem, which is by default automatically called when data is addted to a graph.  Input vertex IDs for the renumber function can be any type, can be non-contiguous, can be multiple columns, and can start from an arbitrary number. The renumber function maps the provided input vertex IDs to 32-bit contiguous integers starting from 0. cuGraph still requires the renumbered vertex IDs to be representable in 32-bit integers. These limitations are being addressed and will be fixed soon.
 
@@ -96,7 +94,7 @@ The amount of memory required is dependent on the graph structure and the analyt
 
 |       Size        | Recommended GPU Memory |
 |-------------------|------------------------|
-| 500 million edges |  32 GB                  |
+| 500 million edges |  32 GB                 |
 | 250 million edges |  16 GB                 |
 
 The use of managed memory for oversubscription can also be used to exceed the above memory limitations.  See the recent blog on _Tackling Large Graphs with RAPIDS cuGraph and CUDA Unified Memory on GPUs_:  https://medium.com/rapids-ai/tackling-large-graphs-with-rapids-cugraph-and-unified-virtual-memory-b5b69a065d4

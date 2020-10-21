@@ -17,8 +17,8 @@
 # cython: language_level = 3
 
 from cugraph.layout.force_atlas2 cimport force_atlas2 as c_force_atlas2
-from cugraph.structure import graph_new_wrapper
-from cugraph.structure.graph_new cimport *
+from cugraph.structure import graph_primtypes_wrapper
+from cugraph.structure.graph_primtypes cimport *
 from cugraph.structure import utils_wrapper
 from libcpp cimport bool
 from libc.stdint cimport uintptr_t
@@ -127,7 +127,7 @@ def force_atlas2(input_graph,
                 <bool> verbose,
                 <GraphBasedDimRedCallback*>callback_ptr)
 
-        pos_df = cudf.DataFrame.from_gpu_matrix(pos, columns=['x', 'y'])
+        pos_df = cudf.DataFrame(pos, columns=['x', 'y'])
         df['x'] = pos_df['x']
         df['y'] = pos_df['y']
     else:
@@ -159,7 +159,7 @@ def force_atlas2(input_graph,
                 <bool> verbose,
                 <GraphBasedDimRedCallback*>callback_ptr)
 
-        pos_df = cudf.DataFrame.from_gpu_matrix(pos, columns=['x', 'y'])
+        pos_df = cudf.DataFrame(pos, columns=['x', 'y'])
         df['x'] = pos_df['x']
         df['y'] = pos_df['y']
 

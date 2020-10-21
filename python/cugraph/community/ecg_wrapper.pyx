@@ -17,8 +17,8 @@
 # cython: language_level = 3
 
 from cugraph.community.ecg cimport ecg as c_ecg
-from cugraph.structure.graph_new cimport *
-from cugraph.structure import graph_new_wrapper
+from cugraph.structure.graph_primtypes cimport *
+from cugraph.structure import graph_primtypes_wrapper
 from libc.stdint cimport uintptr_t
 
 import cudf
@@ -36,9 +36,12 @@ def ecg(input_graph, min_weight=.05, ensemble_size=16):
     if input_graph.adjlist.weights is None:
         raise Exception('ECG must be called on a weighted graph')
 
-    [offsets, indices] = graph_new_wrapper.datatype_cast([input_graph.adjlist.offsets,
-                                                      input_graph.adjlist.indices], [np.int32, np.int64])
-    [weights] = graph_new_wrapper.datatype_cast([input_graph.adjlist.weights], [np.float32, np.float64])
+    cdef unique_ptr[handle_t] handle_ptr
+    handle_ptr.reset(new handle_t())
+
+    [offsets, indices] = graph_primtypes_wrapper.datatype_cast([input_graph.adjlist.offsets,
+                                                                input_graph.adjlist.indices], [np.int32, np.int64])
+    [weights] = graph_primtypes_wrapper.datatype_cast([input_graph.adjlist.weights], [np.float32, np.float64])
 
     num_verts = input_graph.number_of_vertices()
     num_edges = input_graph.number_of_edges(directed_edges=True)
@@ -62,13 +65,21 @@ def ecg(input_graph, min_weight=.05, ensemble_size=16):
 
         graph_float.get_vertex_identifiers(<int*>c_identifier)
 
-        c_ecg[int,int,float](graph_float, min_weight, ensemble_size, <int*> c_partition)
+        c_ecg[int,int,float](handle_ptr.get()[0],
+                             graph_float,
+                             min_weight,
+                             ensemble_size,
+                             <int*> c_partition)
     else:
         graph_double = GraphCSRView[int,int,double](<int*>c_offsets, <int*>c_indices,
                                                 <double*>c_weights, num_verts, num_edges)
 
         graph_double.get_vertex_identifiers(<int*>c_identifier)
 
-        c_ecg[int,int,double](graph_double, min_weight, ensemble_size, <int*> c_partition)
+        c_ecg[int,int,double](handle_ptr.get()[0],
+                              graph_double,
+                              min_weight,
+                              ensemble_size,
+                              <int*> c_partition)
 
     return df

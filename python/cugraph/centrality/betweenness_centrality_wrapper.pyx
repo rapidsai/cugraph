@@ -19,7 +19,7 @@
 from cugraph.centrality.betweenness_centrality cimport betweenness_centrality as c_betweenness_centrality
 from cugraph.centrality.betweenness_centrality cimport handle_t
 from cugraph.structure.graph import DiGraph
-from cugraph.structure.graph_new cimport *
+from cugraph.structure.graph_primtypes cimport *
 from libc.stdint cimport uintptr_t
 from libcpp cimport bool
 import cudf

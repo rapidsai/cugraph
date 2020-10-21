@@ -12,9 +12,10 @@
 # limitations under the License.
 
 import gc
-
+import pandas
 import cupy
 import numpy as np
+import cudf
 import pytest
 import cugraph
 from cugraph.tests import utils
@@ -110,7 +111,10 @@ def compare_bfs(graph_file, directed=True, return_sp_counter=False, seed=42):
 
 
 def _compare_bfs(G, Gnx, source):
-    df = cugraph.bfs(G, source, return_sp_counter=False)
+    df = cugraph.bfs_edges(G, source, return_sp_counter=False)
+    if isinstance(df, pandas.DataFrame):
+        df = cudf.from_pandas(df)
+
     # This call should only contain 3 columns:
     # 'vertex', 'distance', 'predecessor'
     # It also confirms wether or not 'sp_counter' has been created by the call
@@ -235,7 +239,7 @@ def _compare_bfs_spc(G, Gnx, source):
 # =============================================================================
 # Tests
 # =============================================================================
-@pytest.mark.parametrize("graph_file", utils.DATASETS_5)
+@pytest.mark.parametrize("graph_file", utils.DATASETS)
 @pytest.mark.parametrize("directed", DIRECTED_GRAPH_OPTIONS)
 @pytest.mark.parametrize("seed", SUBSET_SEED_OPTIONS)
 def test_bfs(graph_file, directed, seed):
@@ -257,7 +261,7 @@ def test_bfs_spc(graph_file, directed, seed):
     )
 
 
-@pytest.mark.parametrize("graph_file", utils.TINY_DATASETS)
+@pytest.mark.parametrize("graph_file", utils.DATASETS_SMALL)
 @pytest.mark.parametrize("directed", DIRECTED_GRAPH_OPTIONS)
 def test_bfs_spc_full(graph_file, directed):
     """Test BFS traversal on every vertex with shortest path counting"""
@@ -265,3 +269,23 @@ def test_bfs_spc_full(graph_file, directed):
     compare_bfs(
         graph_file, directed=directed, return_sp_counter=True, seed=None
     )
+
+
+@pytest.mark.parametrize("graph_file", utils.DATASETS)
+@pytest.mark.parametrize("directed", DIRECTED_GRAPH_OPTIONS)
+@pytest.mark.parametrize("seed", SUBSET_SEED_OPTIONS)
+def test_bfs_nx(graph_file, directed, seed):
+    """Test BFS traversal on random source with distance and predecessors"""
+    prepare_test()
+
+    M = utils.read_csv_for_nx(graph_file, read_weights_in_sp=False)
+    G = nx.from_pandas_edgelist(
+        M, source="0", target="1",
+        create_using=nx.Graph()
+    )
+
+    if isinstance(seed, int):
+        random.seed(seed)
+        start_vertex = random.sample(G.nodes(), 1)[0]
+
+    _compare_bfs(G, G, start_vertex)

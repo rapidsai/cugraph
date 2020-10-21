@@ -13,6 +13,8 @@
 
 import gc
 
+import time
+
 import pandas as pd
 import pytest
 
@@ -41,52 +43,14 @@ with warnings.catch_warnings():
 
 
 def compare_series(series_1, series_2):
-    if isinstance(series_1, cudf.Series):
-        series_1 = series_1.values_host
-    if isinstance(series_2, cudf.Series):
-        series_2 = series_2.values_host
-    if len(series_1) != len(series_2):
-        print("Series do not match in length")
-        return 0
-    for i in range(len(series_1)):
-        if series_1[i] != series_2[i]:
-            print(
-                "Series["
-                + str(i)
-                + "] does not match, "
-                + str(series_1[i])
-                + ", "
-                + str(series_2[i])
-            )
-            return 0
-    return True
+    assert len(series_1) == len(series_2)
+    df = cudf.DataFrame({"series_1": series_1, "series_2": series_2})
+    diffs = df.query('series_1 != series_2')
 
+    if len(diffs) > 0:
+        print("diffs:\n", diffs)
 
-def compare_offsets(offset0, offset1):
-    if isinstance(offset0, cudf.Series):
-        offset0 = offset0.values_host
-    if isinstance(offset1, cudf.Series):
-        offset1 = offset1.values_host
-    if not (len(offset0) <= len(offset1)):
-        print(
-            "Mismatched length: "
-            + str(len(offset0))
-            + " != "
-            + str(len(offset1))
-        )
-        return False
-    for i in range(len(offset0)):
-        if offset0[i] != offset1[i]:
-            print(
-                "Series["
-                + str(i)
-                + "]: "
-                + str(offset0[i])
-                + " != "
-                + str(offset1[i])
-            )
-            return False
-    return True
+    assert len(diffs) == 0
 
 
 # This function returns True if two graphs are identical (bijection between the
@@ -134,12 +98,13 @@ def compare_graphs(nx_graph, cu_graph):
 
     if len(edgelist_df.columns) > 2:
         df0 = cudf.from_pandas(nx.to_pandas_edgelist(nx_graph))
-        df0 = df0.sort_values(by=["source", "target"]).reset_index(drop=True)
-        df1 = df.sort_values(by=["source", "target"]).reset_index(drop=True)
-        if not df0["weight"].equals(df1["weight"]):
+        merge = df.merge(df0, on=["source", "target"],
+                         suffixes=("_cugraph", "_nx"))
+        print("merge = \n", merge)
+        print(merge[merge.weight_cugraph != merge.weight_nx])
+        if not merge["weight_cugraph"].equals(merge["weight_nx"]):
             print('weights different')
-            print('df0 = \n', df0)
-            print('df1 = \n', df1)
+            print(merge[merge.weight_cugraph != merge.weight_nx])
             return False
 
     return True
@@ -207,8 +172,8 @@ def test_add_edge_list_to_adj_list(graph_file):
     G = cugraph.DiGraph()
     G.from_cudf_edgelist(cu_M, source="0", destination="1", renumber=False)
     offsets_cu, indices_cu, values_cu = G.view_adj_list()
-    assert compare_offsets(offsets_cu, offsets_exp)
-    assert compare_series(indices_cu, indices_exp)
+    compare_series(offsets_cu, offsets_exp)
+    compare_series(indices_cu, indices_exp)
     assert values_cu is None
 
 
@@ -236,8 +201,8 @@ def test_add_adj_list_to_edge_list(graph_file):
     edgelist = G.view_edge_list()
     sources_cu = edgelist["src"]
     destinations_cu = edgelist["dst"]
-    assert compare_series(sources_cu, sources_exp)
-    assert compare_series(destinations_cu, destinations_exp)
+    compare_series(sources_cu, sources_exp)
+    compare_series(destinations_cu, destinations_exp)
 
 
 # Test
@@ -259,8 +224,8 @@ def test_view_edge_list_from_adj_list(graph_file):
     Mcoo = Mcsr.tocoo()
     src1 = Mcoo.row
     dst1 = Mcoo.col
-    assert compare_series(src1, edgelist_df["src"])
-    assert compare_series(dst1, edgelist_df["dst"])
+    compare_series(src1, edgelist_df["src"])
+    compare_series(dst1, edgelist_df["dst"])
 
 
 # Test
@@ -420,58 +385,6 @@ def test_view_edge_list_for_Graph(graph_file):
 
 
 # Test
-@pytest.mark.parametrize("graph_file", utils.DATASETS)
-def test_networkx_compatibility(graph_file):
-    gc.collect()
-
-    # test from_cudf_edgelist()
-
-    M = utils.read_csv_for_nx(graph_file)
-
-    df = pd.DataFrame()
-    df["source"] = pd.Series(M["0"])
-    df["target"] = pd.Series(M["1"])
-    df["weight"] = pd.Series(M.weight)
-    gdf = cudf.from_pandas(df)
-
-    Gnx = nx.from_pandas_edgelist(
-        df,
-        source="source",
-        target="target",
-        edge_attr="weight",
-        create_using=nx.DiGraph,
-    )
-    G = cugraph.from_cudf_edgelist(
-        gdf,
-        source="source",
-        destination="target",
-        edge_attr="weight",
-        create_using=cugraph.DiGraph,
-    )
-
-    print('g from gdf = \n', gdf)
-    print('nx from df = \n', df)
-    assert compare_graphs(Gnx, G)
-
-    Gnx.clear()
-    G.clear()
-    Gnx = nx.from_pandas_edgelist(
-        df, source="source", target="target", create_using=nx.DiGraph
-    )
-    G = cugraph.from_cudf_edgelist(
-        gdf,
-        source="source",
-        destination="target",
-        create_using=cugraph.DiGraph,
-    )
-
-    assert compare_graphs(Gnx, G)
-
-    Gnx.clear()
-    G.clear()
-
-
-# Test
 @pytest.mark.parametrize('graph_file', utils.DATASETS)
 def test_consolidation(graph_file):
     gc.collect()
@@ -496,7 +409,11 @@ def test_consolidation(graph_file):
     G = cugraph.from_cudf_edgelist(ddf, source='source', destination='target',
                                    create_using=cugraph.DiGraph)
 
+    t1 = time.time()
     assert compare_graphs(Gnx, G)
+    t2 = time.time() - t1
+    print('compare_graphs time: ', t2)
+
     Gnx.clear()
     G.clear()
     client.close()
@@ -504,7 +421,7 @@ def test_consolidation(graph_file):
 
 
 # Test
-@pytest.mark.parametrize('graph_file', utils.DATASETS_2)
+@pytest.mark.parametrize('graph_file', utils.DATASETS_SMALL)
 def test_two_hop_neighbors(graph_file):
     gc.collect()
 
@@ -618,7 +535,7 @@ def test_number_of_vertices(graph_file):
 
 
 # Test
-@pytest.mark.parametrize("graph_file", utils.DATASETS_2)
+@pytest.mark.parametrize("graph_file", utils.DATASETS_SMALL)
 def test_to_directed(graph_file):
     gc.collect()
 
@@ -641,20 +558,20 @@ def test_to_directed(graph_file):
     assert DiG.number_of_nodes() == DiGnx.number_of_nodes()
     assert DiG.number_of_edges() == DiGnx.number_of_edges()
 
-    edgelist_df = G.edgelist.edgelist_df
-    for i in range(len(edgelist_df)):
-        assert DiGnx.has_edge(
-            edgelist_df.iloc[i]["src"], edgelist_df.iloc[i]["dst"]
-        )
+    for index, row in cu_M.to_pandas().iterrows():
+        assert G.has_edge(row['0'], row['1'])
+        assert G.has_edge(row['1'], row['0'])
 
 
 # Test
-@pytest.mark.parametrize("graph_file", utils.DATASETS_2)
+@pytest.mark.parametrize("graph_file", utils.DATASETS_SMALL)
 def test_to_undirected(graph_file):
     gc.collect()
 
+    # Read data and then convert to directed by dropped some edges
     cu_M = utils.read_csv_file(graph_file)
     cu_M = cu_M[cu_M["0"] <= cu_M["1"]].reset_index(drop=True)
+
     M = utils.read_csv_for_nx(graph_file)
     M = M[M["0"] <= M["1"]]
     assert len(cu_M) == len(M)
@@ -662,9 +579,14 @@ def test_to_undirected(graph_file):
     # cugraph add_edge_list
     DiG = cugraph.DiGraph()
     DiG.from_cudf_edgelist(cu_M, source="0", destination="1")
+
     DiGnx = nx.from_pandas_edgelist(
         M, source="0", target="1", create_using=nx.DiGraph()
     )
+
+    for index, row in cu_M.to_pandas().iterrows():
+        assert DiG.has_edge(row['0'], row['1'])
+        assert not DiG.has_edge(row['1'], row['0'])
 
     G = DiG.to_undirected()
     Gnx = DiGnx.to_undirected()
@@ -672,16 +594,13 @@ def test_to_undirected(graph_file):
     assert G.number_of_nodes() == Gnx.number_of_nodes()
     assert G.number_of_edges() == Gnx.number_of_edges()
 
-    edgelist_df = G.edgelist.edgelist_df
-
-    for i in range(len(edgelist_df)):
-        assert Gnx.has_edge(
-            edgelist_df.iloc[i]["src"], edgelist_df.iloc[i]["dst"]
-        )
+    for index, row in cu_M.to_pandas().iterrows():
+        assert G.has_edge(row['0'], row['1'])
+        assert G.has_edge(row['1'], row['0'])
 
 
 # Test
-@pytest.mark.parametrize("graph_file", utils.DATASETS_2)
+@pytest.mark.parametrize("graph_file", utils.DATASETS)
 def test_has_edge(graph_file):
     gc.collect()
 
@@ -692,13 +611,13 @@ def test_has_edge(graph_file):
     G = cugraph.Graph()
     G.from_cudf_edgelist(cu_M, source="0", destination="1")
 
-    for i in range(len(cu_M)):
-        assert G.has_edge(cu_M.loc[i][0], cu_M.loc[i][1])
-        assert G.has_edge(cu_M.loc[i][1], cu_M.loc[i][0])
+    for index, row in cu_M.to_pandas().iterrows():
+        assert G.has_edge(row['0'], row['1'])
+        assert G.has_edge(row['1'], row['0'])
 
 
 # Test
-@pytest.mark.parametrize("graph_file", utils.DATASETS_2)
+@pytest.mark.parametrize("graph_file", utils.DATASETS)
 def test_has_node(graph_file):
     gc.collect()
 
@@ -714,7 +633,7 @@ def test_has_node(graph_file):
 
 
 # Test all combinations of default/managed and pooled/non-pooled allocation
-@pytest.mark.parametrize('graph_file', utils.DATASETS_2)
+@pytest.mark.parametrize('graph_file', utils.DATASETS)
 def test_bipartite_api(graph_file):
     # This test only tests the functionality of adding set of nodes and
     # retrieving them. The datasets currently used are not truly bipartite.

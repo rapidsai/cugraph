@@ -14,12 +14,6 @@ Graph
     :members:
     :undoc-members:
 
-Renumbering
------------
-
-.. automodule:: cugraph.structure.renumber
-    :members:
-    :undoc-members:
 
 Symmetrize
 ----------
@@ -46,6 +40,13 @@ Betweenness Centrality
     :members:
     :undoc-members:
 
+Edge Betweenness Centrality
+---------------------------
+
+.. automodule:: cugraph.centrality.edge_betweenness_centrality
+    :members:
+    :undoc-members:
+
 Katz Centrality
 ---------------
 
@@ -56,6 +57,20 @@ Katz Centrality
 
 Community
 =========
+
+Ensemble clustering for graphs (ECG)
+------------------------------------
+
+.. automodule:: cugraph.community.ecg
+	:members:
+	:undoc-members:
+
+K-Truss
+-------
+
+.. automodule:: cugraph.community.ktruss_subgraph
+    :members:
+    :undoc-members:
 
 Leiden
 -------
@@ -70,20 +85,6 @@ Louvain
 .. automodule:: cugraph.community.louvain
     :members:
     :undoc-members:
-
-K-Truss
--------
-
-.. automodule:: cugraph.community.ktruss_subgraph
-    :members:
-    :undoc-members:
-
-ECG
----
-
-.. automodule:: cugraph.community.ecg
-	:members:
-	:undoc-members:
 
 Spectral Clustering
 -------------------
@@ -117,15 +118,9 @@ Connected Components
     :members:
     :undoc-members:
 
+
 Cores
 =====
-
-K-Core
-------
-
-.. automodule:: cugraph.cores.k_core
-    :members:
-    :undoc-members:
 
 Core Number
 -----------
@@ -133,6 +128,14 @@ Core Number
 .. automodule:: cugraph.cores.core_number
     :members:
     :undoc-members:
+    
+K-Core
+------
+
+.. automodule:: cugraph.cores.k_core
+    :members:
+    :undoc-members:
+
 
 Layout
 ======
@@ -144,8 +147,16 @@ Force Atlas 2
     :members:
     :undoc-members:
 
+
 Link Analysis
 =============
+
+HITS
+---------
+
+.. automodule:: cugraph.link_analysis.hits
+    :members:
+    :undoc-members:
 
 Pagerank
 ---------
@@ -153,6 +164,7 @@ Pagerank
 .. automodule:: cugraph.link_analysis.pagerank
     :members:
     :undoc-members:
+
 
 Link Prediction
 ===============
@@ -179,6 +191,7 @@ Overlap Coefficient
     :members:
     :undoc-members:
 
+
 Traversal
 =========
 
@@ -196,13 +209,9 @@ Single-source-shortest-path
     :members:
     :undoc-members:
 
+
 Utilities
 =========
 
-R-mat Graph Generation
-----------------------
 
-.. automodule:: cugraph.utilities.grmat
-    :members:
-    :undoc-members:
 

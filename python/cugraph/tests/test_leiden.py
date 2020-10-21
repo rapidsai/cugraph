@@ -16,6 +16,7 @@ import time
 
 import pytest
 
+import networkx as nx
 import cugraph
 from cugraph.tests import utils
 
@@ -30,45 +31,71 @@ with warnings.catch_warnings():
     warnings.filterwarnings("ignore", category=DeprecationWarning)
 
 
-def cugraph_leiden(cu_M, edgevals=False):
+def cugraph_leiden(G, edgevals=False):
 
-    G = cugraph.Graph()
-    if edgevals:
-        G.from_cudf_edgelist(cu_M, source="0", destination="1", edge_attr="2")
-    else:
-        G.from_cudf_edgelist(cu_M, source="0", destination="1")
     # cugraph Louvain Call
     t1 = time.time()
     parts, mod = cugraph.leiden(G)
     t2 = time.time() - t1
-    print("Cugraph Time : " + str(t2))
+    print("Cugraph Leiden Time : " + str(t2))
 
     return parts, mod
 
 
-def cugraph_louvain(cu_M, edgevals=False):
+def cugraph_louvain(G, edgevals=False):
+
+    # cugraph Louvain Call
+    t1 = time.time()
+    parts, mod = cugraph.louvain(G)
+    t2 = time.time() - t1
+    print("Cugraph Louvain Time : " + str(t2))
+
+    return parts, mod
+
+
+@pytest.mark.parametrize("graph_file", utils.DATASETS)
+def test_leiden(graph_file):
+    gc.collect()
+    edgevals = True
+
+    cu_M = utils.read_csv_file(graph_file)
 
     G = cugraph.Graph()
     if edgevals:
         G.from_cudf_edgelist(cu_M, source="0", destination="1", edge_attr="2")
     else:
         G.from_cudf_edgelist(cu_M, source="0", destination="1")
-    # cugraph Louvain Call
-    t1 = time.time()
-    parts, mod = cugraph.louvain(G)
-    t2 = time.time() - t1
-    print("Cugraph Time : " + str(t2))
 
-    return parts, mod
+    leiden_parts, leiden_mod = cugraph_leiden(G, edgevals=True)
+    louvain_parts, louvain_mod = cugraph_louvain(G, edgevals=True)
+
+    # Calculating modularity scores for comparison
+    assert leiden_mod >= (0.99 * louvain_mod)
 
 
-@pytest.mark.parametrize("graph_file", utils.DATASETS_3)
-def test_leiden(graph_file):
+@pytest.mark.parametrize("graph_file", utils.DATASETS)
+def test_leiden_nx(graph_file):
     gc.collect()
+    edgevals = True
 
-    cu_M = utils.read_csv_file(graph_file)
-    leiden_parts, leiden_mod = cugraph_leiden(cu_M, edgevals=True)
-    louvain_parts, louvain_mod = cugraph_louvain(cu_M, edgevals=True)
+    NM = utils.read_csv_for_nx(graph_file)
+
+    if edgevals:
+        G = nx.from_pandas_edgelist(NM,
+                                    create_using=nx.Graph(),
+                                    source="0",
+                                    target="1"
+                                    )
+    else:
+        G = nx.from_pandas_edgelist(NM,
+                                    create_using=nx.Graph(),
+                                    source="0",
+                                    target="1",
+                                    edge_attr="2"
+                                    )
+
+    leiden_parts, leiden_mod = cugraph_leiden(G, edgevals=True)
+    louvain_parts, louvain_mod = cugraph_louvain(G, edgevals=True)
 
     # Calculating modularity scores for comparison
     assert leiden_mod >= (0.99 * louvain_mod)

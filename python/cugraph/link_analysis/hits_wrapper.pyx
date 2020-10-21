@@ -17,10 +17,10 @@
 # cython: language_level = 3
 
 from cugraph.link_analysis.hits cimport hits as c_hits
-from cugraph.structure.graph_new cimport *
+from cugraph.structure.graph_primtypes cimport *
 from libcpp cimport bool
 from libc.stdint cimport uintptr_t
-from cugraph.structure import graph_new_wrapper
+from cugraph.structure import graph_primtypes_wrapper
 import cudf
 import rmm
 import numpy as np
@@ -38,7 +38,7 @@ def hits(input_graph, max_iter=100, tol=1.0e-5, nstart=None, normalized=True):
     if not input_graph.adjlist:
         input_graph.view_adj_list()
 
-    [offsets, indices] = graph_new_wrapper.datatype_cast([input_graph.adjlist.offsets, input_graph.adjlist.indices], [np.int32])
+    [offsets, indices] = graph_primtypes_wrapper.datatype_cast([input_graph.adjlist.offsets, input_graph.adjlist.indices], [np.int32])
 
     num_verts = input_graph.number_of_vertices()
     num_edges = input_graph.number_of_edges(directed_edges=True)
@@ -59,7 +59,7 @@ def hits(input_graph, max_iter=100, tol=1.0e-5, nstart=None, normalized=True):
     cdef uintptr_t c_weights = <uintptr_t>NULL
 
     cdef GraphCSRView[int,int,float] graph_float
-    
+
     graph_float = GraphCSRView[int,int,float](<int*>c_offsets, <int*>c_indices, <float*>c_weights, num_verts, num_edges)
 
     c_hits[int,int,float](graph_float, max_iter, tol, <float*> NULL,

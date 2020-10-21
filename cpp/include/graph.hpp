@@ -53,6 +53,10 @@ enum class DegreeDirection {
 template <typename vertex_t, typename edge_t, typename weight_t>
 class GraphViewBase {
  public:
+  using vertex_type = vertex_t;
+  using edge_type   = edge_t;
+  using weight_type = weight_t;
+
   raft::handle_t *handle;
   weight_t *edge_data;  ///< edge weight
 
@@ -390,7 +394,7 @@ class GraphCOO {
            edge_t number_of_edges,
            bool has_data                       = false,
            cudaStream_t stream                 = nullptr,
-           rmm::mr::device_memory_resource *mr = rmm::mr::get_default_resource())
+           rmm::mr::device_memory_resource *mr = rmm::mr::get_current_device_resource())
     : number_of_vertices_p(number_of_vertices),
       number_of_edges_p(number_of_edges),
       src_indices_p(sizeof(vertex_t) * number_of_edges, stream, mr),
@@ -401,7 +405,7 @@ class GraphCOO {
 
   GraphCOO(GraphCOOView<vertex_t, edge_t, weight_t> const &graph,
            cudaStream_t stream                 = nullptr,
-           rmm::mr::device_memory_resource *mr = rmm::mr::get_default_resource())
+           rmm::mr::device_memory_resource *mr = rmm::mr::get_current_device_resource())
     : number_of_vertices_p(graph.number_of_vertices),
       number_of_edges_p(graph.number_of_edges),
       src_indices_p(graph.src_indices, graph.number_of_edges * sizeof(vertex_t), stream, mr),
@@ -554,7 +558,7 @@ class GraphCSR : public GraphCompressedSparseBase<vertex_t, edge_t, weight_t> {
            edge_t number_of_edges_,
            bool has_data_                      = false,
            cudaStream_t stream                 = nullptr,
-           rmm::mr::device_memory_resource *mr = rmm::mr::get_default_resource())
+           rmm::mr::device_memory_resource *mr = rmm::mr::get_current_device_resource())
     : GraphCompressedSparseBase<vertex_t, edge_t, weight_t>(
         number_of_vertices_, number_of_edges_, has_data_, stream, mr)
   {
@@ -605,7 +609,7 @@ class GraphCSC : public GraphCompressedSparseBase<vertex_t, edge_t, weight_t> {
            edge_t number_of_edges_in,
            bool has_data_in                    = false,
            cudaStream_t stream                 = nullptr,
-           rmm::mr::device_memory_resource *mr = rmm::mr::get_default_resource())
+           rmm::mr::device_memory_resource *mr = rmm::mr::get_current_device_resource())
     : GraphCompressedSparseBase<vertex_t, edge_t, weight_t>(
         number_of_vertices_in, number_of_edges_in, has_data_in, stream, mr)
   {

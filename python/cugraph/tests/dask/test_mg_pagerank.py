@@ -20,6 +20,7 @@ import cugraph
 import dask_cudf
 import cudf
 from dask_cuda import LocalCUDACluster
+from cugraph.dask.common.mg_utils import is_single_gpu
 
 # The function selects personalization_perc% of accessible vertices in graph M
 # and randomly assigns them personalization values
@@ -30,31 +31,32 @@ def personalize(v, personalization_perc):
     if personalization_perc != 0:
         personalization = {}
         nnz_vtx = np.arange(0, v)
-        personalization_count = int((nnz_vtx.size *
-                                     personalization_perc)/100.0)
-        nnz_vtx = np.random.choice(nnz_vtx,
-                                   min(nnz_vtx.size, personalization_count),
-                                   replace=False)
+        personalization_count = int(
+            (nnz_vtx.size * personalization_perc) / 100.0
+        )
+        nnz_vtx = np.random.choice(
+            nnz_vtx, min(nnz_vtx.size, personalization_count), replace=False
+        )
         nnz_val = np.random.random(nnz_vtx.size)
-        nnz_val = nnz_val/sum(nnz_val)
+        nnz_val = nnz_val / sum(nnz_val)
         for vtx, val in zip(nnz_vtx, nnz_val):
             personalization[vtx] = val
 
-        k = np.fromiter(personalization.keys(), dtype='int32')
-        v = np.fromiter(personalization.values(), dtype='float32')
-        cu_personalization = cudf.DataFrame({'vertex': k, 'values': v})
+        k = np.fromiter(personalization.keys(), dtype="int32")
+        v = np.fromiter(personalization.values(), dtype="float32")
+        cu_personalization = cudf.DataFrame({"vertex": k, "values": v})
 
     return cu_personalization
 
 
-PERSONALIZATION_PERC = [0, 10, 50]
+PERSONALIZATION_PERC = [0]
 
 
 @pytest.fixture
 def client_connection():
     cluster = LocalCUDACluster()
     client = Client(cluster)
-    Comms.initialize()
+    Comms.initialize(p2p=True)
 
     yield client
 
@@ -63,40 +65,50 @@ def client_connection():
     cluster.close()
 
 
-@pytest.mark.parametrize('personalization_perc', PERSONALIZATION_PERC)
+@pytest.mark.skipif(
+    is_single_gpu(), reason="skipping MG testing on Single GPU system"
+)
+@pytest.mark.parametrize("personalization_perc", PERSONALIZATION_PERC)
 def test_dask_pagerank(client_connection, personalization_perc):
     gc.collect()
 
     input_data_path = r"../datasets/karate.csv"
     chunksize = dcg.get_chunksize(input_data_path)
 
-    ddf = dask_cudf.read_csv(input_data_path, chunksize=chunksize,
-                             delimiter=' ',
-                             names=['src', 'dst', 'value'],
-                             dtype=['int32', 'int32', 'float32'])
+    ddf = dask_cudf.read_csv(
+        input_data_path,
+        chunksize=chunksize,
+        delimiter=" ",
+        names=["src", "dst", "value"],
+        dtype=["int32", "int32", "float32"],
+    )
 
-    df = cudf.read_csv(input_data_path,
-                       delimiter=' ',
-                       names=['src', 'dst', 'value'],
-                       dtype=['int32', 'int32', 'float32'])
+    df = cudf.read_csv(
+        input_data_path,
+        delimiter=" ",
+        names=["src", "dst", "value"],
+        dtype=["int32", "int32", "float32"],
+    )
 
     g = cugraph.DiGraph()
-    g.from_cudf_edgelist(df, 'src', 'dst')
+    g.from_cudf_edgelist(df, "src", "dst")
 
     dg = cugraph.DiGraph()
-    dg.from_dask_cudf_edgelist(ddf)
+    dg.from_dask_cudf_edgelist(ddf, "src", "dst")
 
     # Pre compute local data and personalize
     personalization = None
     if personalization_perc != 0:
-        dg.compute_local_data(by='dst')
-        personalization = personalize(dg.number_of_vertices(),
-                                      personalization_perc)
+        dg.compute_local_data(by="dst")
+        personalization = personalize(
+            dg.number_of_vertices(), personalization_perc
+        )
 
-    expected_pr = cugraph.pagerank(g,
-                                   personalization=personalization,
-                                   tol=1e-6)
+    expected_pr = cugraph.pagerank(
+        g, personalization=personalization, tol=1e-6
+    )
     result_pr = dcg.pagerank(dg, personalization=personalization, tol=1e-6)
+    result_pr = result_pr.compute()
 
     err = 0
     tol = 1.0e-05
@@ -104,12 +116,14 @@ def test_dask_pagerank(client_connection, personalization_perc):
     assert len(expected_pr) == len(result_pr)
 
     compare_pr = expected_pr.merge(
-        result_pr, on="vertex", suffixes=['_local', '_dask']
+        result_pr, on="vertex", suffixes=["_local", "_dask"]
     )
 
     for i in range(len(compare_pr)):
-        diff = abs(compare_pr['pagerank_local'].iloc[i] -
-                   compare_pr['pagerank_dask'].iloc[i])
+        diff = abs(
+            compare_pr["pagerank_local"].iloc[i]
+            - compare_pr["pagerank_dask"].iloc[i]
+        )
         if diff > tol * 1.1:
             err = err + 1
     assert err == 0

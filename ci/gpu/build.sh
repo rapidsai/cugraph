@@ -53,16 +53,19 @@ logger "Check GPU usage..."
 nvidia-smi
 
 logger "Activate conda env..."
-source activate gdf
+source activate rapids
 
 logger "conda install required packages"
 conda install -c nvidia -c rapidsai -c rapidsai-nightly -c conda-forge -c defaults \
+      "libcudf=${MINOR_VERSION}" \
       "cudf=${MINOR_VERSION}" \
+      "librmm=${MINOR_VERSION}" \
       "rmm=${MINOR_VERSION}" \
       "cudatoolkit=$CUDA_REL" \
       "dask-cudf=${MINOR_VERSION}" \
       "dask-cuda=${MINOR_VERSION}" \
       "ucx-py=${MINOR_VERSION}" \
+      "ucx-proc=*=gpu" \
       "rapids-build-env=$MINOR_VERSION.*" \
       "rapids-notebook-env=$MINOR_VERSION.*" \
       rapids-pytest-benchmark
@@ -98,6 +101,10 @@ fi
 # TEST - Run GoogleTest and py.tests for libcugraph and cuGraph
 ################################################################################
 
+set +e -Eo pipefail
+EXITCODE=0
+trap "EXITCODE=1" ERR
+
 if hasArg --skip-tests; then
     logger "Skipping Tests..."
 else
@@ -122,3 +129,5 @@ else
     ${WORKSPACE}/ci/gpu/test-notebooks.sh 2>&1 | tee nbtest.log
     python ${WORKSPACE}/ci/utils/nbtestlog2junitxml.py nbtest.log
 fi
+
+return ${EXITCODE}

@@ -15,15 +15,17 @@ import gc
 
 import pytest
 
+import networkx as nx
 import cugraph
 from cugraph.tests import utils
 
 
 def cugraph_call(G, min_weight, ensemble_size):
     df = cugraph.ecg(G, min_weight, ensemble_size)
-    df = df.sort_values("vertex")
     num_parts = df["partition"].max() + 1
-    score = cugraph.analyzeClustering_modularity(G, num_parts, df["partition"])
+    score = cugraph.analyzeClustering_modularity(G, num_parts, df,
+                                                 'vertex', 'partition')
+
     return score, num_parts
 
 
@@ -65,3 +67,20 @@ def test_ecg_clustering(graph_file, min_weight, ensemble_size):
     # Assert that the partitioning has better modularity than the random
     # assignment
     assert cu_score > (0.95 * golden_score)
+
+
+@pytest.mark.parametrize("graph_file", DATASETS)
+@pytest.mark.parametrize("min_weight", MIN_WEIGHTS)
+@pytest.mark.parametrize("ensemble_size", ENSEMBLE_SIZES)
+def test_ecg_clustering_nx(graph_file, min_weight, ensemble_size):
+    gc.collect()
+
+    # Read in the graph and get a NetworkX graph
+    M = utils.read_csv_for_nx(graph_file, read_weights_in_sp=True)
+    G = nx.from_pandas_edgelist(
+        M, source="0", target="1", edge_attr="weight",
+        create_using=nx.Graph()
+    )
+
+    # Get the modularity score for partitioning versus random assignment
+    _ = cugraph.ecg(G, min_weight, ensemble_size, "weight")

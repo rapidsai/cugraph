@@ -11,6 +11,9 @@
 # captured for returning a final status code. This allows all style check to
 # take place to provide a more comprehensive list of style violations.
 set -o pipefail
+# CI does `set -e` then sources this file, so we override that so we can output
+# the results from the various style checkers
+set +e
 ERRORCODE=0
 PATH=/conda/bin:$PATH
 

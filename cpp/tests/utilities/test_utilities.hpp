@@ -15,7 +15,9 @@
  */
 #pragma once
 
+#include <experimental/graph.hpp>
 #include <functions.hpp>
+#include <utilities/error.hpp>
 
 #include <gtest/gtest.h>
 
@@ -23,17 +25,12 @@ extern "C" {
 #include "mmio.h"
 }
 
+#include <gtest/gtest.h>
+
+#include <cfloat>
 #include <cstdio>
 #include <string>
-
-#define MPICHECK(cmd)                                                  \
-  {                                                                    \
-    int e = cmd;                                                       \
-    if (e != MPI_SUCCESS) {                                            \
-      printf("Failed: MPI error %s:%d '%d'\n", __FILE__, __LINE__, e); \
-      FAIL();                                                          \
-    }                                                                  \
-  }
+#include <vector>
 
 namespace cugraph {
 namespace test {
@@ -332,6 +329,91 @@ static const std::string& get_rapids_dataset_root_dir()
     rdrd               = (envVar != NULL) ? envVar : RAPIDS_DATASET_ROOT_DIR;
   }
   return rdrd;
+}
+
+template <typename vertex_t, typename weight_t>
+struct edgelist_from_market_matrix_file_t {
+  std::vector<vertex_t> h_rows{};
+  std::vector<vertex_t> h_cols{};
+  std::vector<weight_t> h_weights{};
+  vertex_t number_of_vertices{};
+  bool is_symmetric{};
+};
+
+template <typename vertex_t, typename edge_t, typename weight_t>
+edgelist_from_market_matrix_file_t<vertex_t, weight_t> read_edgelist_from_matrix_market_file(
+  std::string const& graph_file_full_path)
+{
+  edgelist_from_market_matrix_file_t<vertex_t, weight_t> ret{};
+
+  MM_typecode mc{};
+  vertex_t m{};
+  edge_t nnz{};
+
+  FILE* file = fopen(graph_file_full_path.c_str(), "r");
+  CUGRAPH_EXPECTS(file != nullptr, "fopen failure.");
+
+  edge_t tmp_m{};
+  edge_t tmp_k{};
+  auto mm_ret = cugraph::test::mm_properties<edge_t>(file, 1, &mc, &tmp_m, &tmp_k, &nnz);
+  CUGRAPH_EXPECTS(mm_ret == 0, "could not read Matrix Market file properties.");
+  m = static_cast<vertex_t>(tmp_m);
+  CUGRAPH_EXPECTS(mm_is_matrix(mc) && mm_is_coordinate(mc) && !mm_is_complex(mc) && !mm_is_skew(mc),
+                  "invalid Matrix Market file properties.");
+
+  ret.h_rows.assign(nnz, vertex_t{0});
+  ret.h_cols.assign(nnz, vertex_t{0});
+  ret.h_weights.assign(nnz, weight_t{0.0});
+  ret.number_of_vertices = m;
+  ret.is_symmetric       = mm_is_symmetric(mc);
+
+  mm_ret = cugraph::test::mm_to_coo<vertex_t, weight_t>(
+    file, 1, nnz, ret.h_rows.data(), ret.h_cols.data(), ret.h_weights.data(), nullptr);
+  CUGRAPH_EXPECTS(mm_ret == 0, "could not read matrix data");
+
+  auto file_ret = fclose(file);
+  CUGRAPH_EXPECTS(file_ret == 0, "fclose failure.");
+
+  return std::move(ret);
+}
+
+template <typename vertex_t, typename edge_t, typename weight_t, bool store_transposed>
+cugraph::experimental::graph_t<vertex_t, edge_t, weight_t, store_transposed, false>
+read_graph_from_matrix_market_file(raft::handle_t const& handle,
+                                   std::string const& graph_file_full_path,
+                                   bool test_weighted)
+{
+  auto mm_graph =
+    read_edgelist_from_matrix_market_file<vertex_t, edge_t, weight_t>(graph_file_full_path);
+  edge_t number_of_edges = static_cast<edge_t>(mm_graph.h_rows.size());
+
+  rmm::device_uvector<vertex_t> d_edgelist_rows(number_of_edges, handle.get_stream());
+  rmm::device_uvector<vertex_t> d_edgelist_cols(number_of_edges, handle.get_stream());
+  rmm::device_uvector<weight_t> d_edgelist_weights(test_weighted ? number_of_edges : 0,
+                                                   handle.get_stream());
+
+  raft::update_device(
+    d_edgelist_rows.data(), mm_graph.h_rows.data(), number_of_edges, handle.get_stream());
+  raft::update_device(
+    d_edgelist_cols.data(), mm_graph.h_cols.data(), number_of_edges, handle.get_stream());
+  if (test_weighted) {
+    raft::update_device(
+      d_edgelist_weights.data(), mm_graph.h_weights.data(), number_of_edges, handle.get_stream());
+  }
+
+  cugraph::experimental::edgelist_t<vertex_t, edge_t, weight_t> edgelist{
+    d_edgelist_rows.data(),
+    d_edgelist_cols.data(),
+    test_weighted ? d_edgelist_weights.data() : nullptr,
+    number_of_edges};
+
+  return cugraph::experimental::graph_t<vertex_t, edge_t, weight_t, store_transposed, false>(
+    handle,
+    edgelist,
+    mm_graph.number_of_vertices,
+    cugraph::experimental::graph_properties_t{mm_graph.is_symmetric, false},
+    false,
+    true);
 }
 
 }  // namespace test

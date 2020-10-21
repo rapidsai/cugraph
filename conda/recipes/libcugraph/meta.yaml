@@ -29,13 +29,15 @@ requirements:
     - cudatoolkit {{ cuda_version }}.*
     - boost-cpp>=1.66
     - libcypher-parser
-    - nccl>=2.5
+    - nccl>=2.7
     - ucx-py {{ minor_version }}
+    - ucx-proc=*=gpu
   run:
     - libcudf={{ minor_version }}
     - {{ pin_compatible('cudatoolkit', max_pin='x.x') }}
-    - nccl>=2.5
+    - nccl>=2.7
     - ucx-py {{ minor_version }}
+    - ucx-proc=*=gpu
 
 #test:
 #  commands:
