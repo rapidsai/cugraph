@@ -250,6 +250,7 @@ void pagerank(raft::handle_t const& handle,
       auto val_first = thrust::make_zip_iterator(
         thrust::make_tuple(personalization_vertices, personalization_values));
       thrust::for_each(
+        rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
         val_first,
         val_first + personalization_vector_size,
         [vertex_partition, pageranks, dangling_sum, personalization_sum, alpha] __device__(
