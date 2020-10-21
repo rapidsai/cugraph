@@ -68,12 +68,20 @@ void pagerank(raft::handle_t const& handle,
   auto const num_vertices = pull_graph_view.get_number_of_vertices();
   if (num_vertices == 0) { return; }
 
+  auto aggregate_personalization_vector_size =
+    GraphViewType::is_multi_gpu
+      ? host_scalar_allreduce(handle.get_comms(), personalization_vector_size, handle.get_stream())
+      : vertex_t{0};
+
   // 1. check input arguments
 
   CUGRAPH_EXPECTS(
-    (personalization_vertices == nullptr) || (personalization_values != nullptr),
-    "Invalid input argument: if personalization verties are provided, personalization "
-    "values should be provided as well.");
+    ((personalization_vector_size > 0) && (personalization_vertices != nullptr) &&
+     (personalization_values != nullptr)) ||
+      ((personalization_vector_size == 0) && (personalization_vertices == nullptr) &&
+       (personalization_values == nullptr)),
+    "Invalid input argument: if personalization_vector_size is non-zero, personalization verties "
+    "and personalization values should be provided. Otherwise, they should not be provided.");
   CUGRAPH_EXPECTS((alpha >= 0.0) && (alpha <= 1.0),
                   "Invalid input argument: alpha should be in [0.0, 1.0].");
   CUGRAPH_EXPECTS(epsilon >= 0.0, "Invalid input argument: epsilon should be non-negative.");
@@ -109,7 +117,7 @@ void pagerank(raft::handle_t const& handle,
                       "Invalid input argument: initial guess values should be non-negative.");
     }
 
-    if (personalization_vertices != nullptr) {
+    if (aggregate_personalization_vector_size > 0) {
       vertex_partition_device_t<GraphViewType> vertex_partition(pull_graph_view);
       auto num_invalid_vertices =
         count_if_v(handle,
@@ -177,7 +185,7 @@ void pagerank(raft::handle_t const& handle,
   // 4. sum the personalization values
 
   result_t personalization_sum{0.0};
-  if (personalization_vertices != nullptr) {
+  if (aggregate_personalization_vector_size > 0) {
     personalization_sum = reduce_v(handle,
                                    pull_graph_view,
                                    personalization_values,
@@ -229,7 +237,7 @@ void pagerank(raft::handle_t const& handle,
 
     copy_to_adj_matrix_row(handle, pull_graph_view, pageranks, adj_matrix_row_pageranks.begin());
 
-    auto unvarying_part = personalization_vertices == nullptr
+    auto unvarying_part = aggregate_personalization_vector_size == 0
                             ? (dangling_sum * alpha + static_cast<result_t>(1.0 - alpha)) /
                                 static_cast<result_t>(num_vertices)
                             : result_t{0.0};
@@ -245,7 +253,7 @@ void pagerank(raft::handle_t const& handle,
       unvarying_part,
       pageranks);
 
-    if (personalization_vertices != nullptr) {
+    if (aggregate_personalization_vector_size > 0) {
       vertex_partition_device_t<GraphViewType> vertex_partition(pull_graph_view);
       auto val_first = thrust::make_zip_iterator(
         thrust::make_tuple(personalization_vertices, personalization_values));
