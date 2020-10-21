@@ -150,7 +150,9 @@ class Tests_KatzCentrality : public ::testing::TestWithParam<KatzCentrality_Usec
 
     result_t const alpha = result_t{1.0} / static_cast<result_t>(*max_it + 1);
     result_t constexpr beta{1.0};
-    result_t constexpr epsilon{1e-6};
+    auto epsilon = graph_view.get_number_of_vertices() > 0
+                     ? result_t{1e-3} / static_cast<result_t>(graph_view.get_number_of_vertices())
+                     : result_t{1e-3};
 
     katz_centrality_reference(
       h_offsets.data(),
@@ -164,7 +166,7 @@ class Tests_KatzCentrality : public ::testing::TestWithParam<KatzCentrality_Usec
       epsilon,
       std::numeric_limits<size_t>::max(),
       false,
-      false);
+      true);
 
     rmm::device_uvector<result_t> d_katz_centralities(graph_view.get_number_of_vertices(),
                                                       handle.get_stream());
@@ -180,7 +182,7 @@ class Tests_KatzCentrality : public ::testing::TestWithParam<KatzCentrality_Usec
                                            epsilon,
                                            std::numeric_limits<size_t>::max(),
                                            false,
-                                           false,
+                                           true,
                                            false);
 
     CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
@@ -193,7 +195,9 @@ class Tests_KatzCentrality : public ::testing::TestWithParam<KatzCentrality_Usec
                       handle.get_stream());
     CUDA_TRY(cudaStreamSynchronize(handle.get_stream()));
 
-    auto nearly_equal = [epsilon](auto lhs, auto rhs) { return std::fabs(lhs - rhs) < epsilon; };
+    auto nearly_equal = [epsilon](auto lhs, auto rhs) {
+      return fabs(lhs - rhs) < std::max(std::max(lhs, rhs), epsilon) * 1e-3;
+    };
 
     ASSERT_TRUE(std::equal(h_reference_katz_centralities.begin(),
                            h_reference_katz_centralities.end(),
