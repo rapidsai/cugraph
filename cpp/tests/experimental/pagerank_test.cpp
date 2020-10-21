@@ -32,6 +32,7 @@
 #include <iterator>
 #include <limits>
 #include <numeric>
+#include <random>
 #include <vector>
 
 template <typename vertex_t, typename edge_t, typename weight_t, typename result_t>
@@ -94,7 +95,8 @@ void pagerank_reference(edge_t* offsets,
         pageranks[i] += alpha * old_pageranks[nbr] * (w / out_weight_sums[nbr]);
       }
       if (personalization_vertices == nullptr) {
-        pageranks[i] += (dangling_sum * alpha + (1.0 - alpha)) / static_cast<result_t>(num_vertices);
+        pageranks[i] +=
+          (dangling_sum * alpha + (1.0 - alpha)) / static_cast<result_t>(num_vertices);
       }
     }
     if (personalization_vertices != nullptr) {
@@ -117,10 +119,13 @@ void pagerank_reference(edge_t* offsets,
 
 typedef struct PageRank_Usecase_t {
   std::string graph_file_full_path{};
+  double personalization_ratio{0.0};
   bool test_weighted{false};
 
-  PageRank_Usecase_t(std::string const& graph_file_path, bool test_weighted)
-    : test_weighted(test_weighted)
+  PageRank_Usecase_t(std::string const& graph_file_path,
+                     double personalization_ratio,
+                     bool test_weighted)
+    : personalization_ratio(personalization_ratio), test_weighted(test_weighted)
   {
     if ((graph_file_path.length() > 0) && (graph_file_path[0] != '/')) {
       graph_file_full_path = cugraph::test::get_rapids_dataset_root_dir() + "/" + graph_file_path;
@@ -169,19 +174,64 @@ class Tests_PageRank : public ::testing::TestWithParam<PageRank_Usecase> {
     }
     CUDA_TRY(cudaStreamSynchronize(handle.get_stream()));
 
+    std::vector<vertex_t> h_personalization_vertices{};
+    std::vector<result_t> h_personalization_values{};
+    if (configuration.personalization_ratio > 0.0) {
+      std::random_device r{};
+      std::default_random_engine generator{r()};
+      std::uniform_real_distribution<double> distribution{0.0, 1.0};
+      h_personalization_vertices.resize(graph_view.get_number_of_local_vertices());
+      std::iota(h_personalization_vertices.begin(),
+                h_personalization_vertices.end(),
+                graph_view.get_local_vertex_first());
+      h_personalization_vertices.erase(
+        std::remove_if(h_personalization_vertices.begin(),
+                       h_personalization_vertices.end(),
+                       [&generator, &distribution, configuration](auto v) {
+                         return distribution(generator) >= configuration.personalization_ratio;
+                       }),
+        h_personalization_vertices.end());
+      h_personalization_values.resize(h_personalization_vertices.size());
+      std::for_each(h_personalization_values.begin(),
+                    h_personalization_values.end(),
+                    [&distribution, &generator](auto& val) { val = distribution(generator); });
+      auto sum = std::accumulate(
+        h_personalization_values.begin(), h_personalization_values.end(), result_t{0.0});
+      std::for_each(h_personalization_values.begin(),
+                    h_personalization_values.end(),
+                    [sum](auto& val) { val /= sum; });
+    }
+
+    rmm::device_uvector<vertex_t> d_personalization_vertices(h_personalization_vertices.size(),
+                                                             handle.get_stream());
+    rmm::device_uvector<result_t> d_personalization_values(d_personalization_vertices.size(),
+                                                           handle.get_stream());
+    if (d_personalization_vertices.size() > 0) {
+      raft::update_device(d_personalization_vertices.data(),
+                          h_personalization_vertices.data(),
+                          h_personalization_vertices.size(),
+                          handle.get_stream());
+      raft::update_device(d_personalization_values.data(),
+                          h_personalization_values.data(),
+                          h_personalization_values.size(),
+                          handle.get_stream());
+    }
+
     std::vector<result_t> h_reference_pageranks(graph_view.get_number_of_vertices());
 
     result_t constexpr alpha{0.85};
-    result_t constexpr epsilon{1e-6};
+    auto epsilon = graph_view.get_number_of_vertices() > 0
+                     ? result_t{1e-3} / static_cast<result_t>(graph_view.get_number_of_vertices())
+                     : result_t{1e-3};
 
     pagerank_reference(h_offsets.data(),
                        h_indices.data(),
                        h_weights.size() > 0 ? h_weights.data() : static_cast<weight_t*>(nullptr),
-                       static_cast<vertex_t*>(nullptr),
-                       static_cast<result_t*>(nullptr),
+                       h_personalization_vertices.data(),
+                       h_personalization_values.data(),
                        h_reference_pageranks.data(),
                        graph_view.get_number_of_vertices(),
-                       vertex_t{0},
+                       static_cast<vertex_t>(h_personalization_vertices.size()),
                        alpha,
                        epsilon,
                        std::numeric_limits<size_t>::max(),
@@ -195,9 +245,9 @@ class Tests_PageRank : public ::testing::TestWithParam<PageRank_Usecase> {
     cugraph::experimental::pagerank(handle,
                                     graph_view,
                                     static_cast<weight_t*>(nullptr),
-                                    static_cast<vertex_t*>(nullptr),
-                                    static_cast<result_t*>(nullptr),
-                                    vertex_t{0},
+                                    d_personalization_vertices.data(),
+                                    d_personalization_values.data(),
+                                    static_cast<vertex_t>(d_personalization_vertices.size()),
                                     d_pageranks.begin(),
                                     alpha,
                                     epsilon,
@@ -213,7 +263,9 @@ class Tests_PageRank : public ::testing::TestWithParam<PageRank_Usecase> {
       h_cugraph_pageranks.data(), d_pageranks.data(), d_pageranks.size(), handle.get_stream());
     CUDA_TRY(cudaStreamSynchronize(handle.get_stream()));
 
-    auto nearly_equal = [epsilon](auto lhs, auto rhs) { return std::fabs(lhs - rhs) < epsilon; };
+    auto nearly_equal = [epsilon](auto lhs, auto rhs) {
+      return fabs(lhs - rhs) < std::max(std::max(lhs, rhs), epsilon) * 1e-3;
+    };
 
     ASSERT_TRUE(std::equal(h_reference_pageranks.begin(),
                            h_reference_pageranks.end(),
@@ -229,16 +281,24 @@ TEST_P(Tests_PageRank, CheckInt32Int32FloatFloat)
   run_current_test<int32_t, int32_t, float, float>(GetParam());
 }
 
-INSTANTIATE_TEST_CASE_P(simple_test,
-                        Tests_PageRank,
-                        ::testing::Values(PageRank_Usecase("test/datasets/karate.mtx", false),
-                                          PageRank_Usecase("test/datasets/karate.mtx", true),
-                                          PageRank_Usecase("test/datasets/web-Google.mtx", false),
-                                          PageRank_Usecase("test/datasets/web-Google.mtx", true),
-                                          PageRank_Usecase("test/datasets/ljournal-2008.mtx",
-                                                           false),
-                                          PageRank_Usecase("test/datasets/ljournal-2008.mtx", true),
-                                          PageRank_Usecase("test/datasets/webbase-1M.mtx", false),
-                                          PageRank_Usecase("test/datasets/webbase-1M.mtx", true)));
+INSTANTIATE_TEST_CASE_P(
+  simple_test,
+  Tests_PageRank,
+  ::testing::Values(PageRank_Usecase("test/datasets/karate.mtx", 0.0, false),
+                    PageRank_Usecase("test/datasets/karate.mtx", 0.5, false),
+                    PageRank_Usecase("test/datasets/karate.mtx", 0.0, true),
+                    PageRank_Usecase("test/datasets/karate.mtx", 0.5, true),
+                    PageRank_Usecase("test/datasets/web-Google.mtx", 0.0, false),
+                    PageRank_Usecase("test/datasets/web-Google.mtx", 0.5, false),
+                    PageRank_Usecase("test/datasets/web-Google.mtx", 0.0, true),
+                    PageRank_Usecase("test/datasets/web-Google.mtx", 0.5, true),
+                    PageRank_Usecase("test/datasets/ljournal-2008.mtx", 0.0, false),
+                    PageRank_Usecase("test/datasets/ljournal-2008.mtx", 0.5, false),
+                    PageRank_Usecase("test/datasets/ljournal-2008.mtx", 0.0, true),
+                    PageRank_Usecase("test/datasets/ljournal-2008.mtx", 0.5, true),
+                    PageRank_Usecase("test/datasets/webbase-1M.mtx", 0.0, false),
+                    PageRank_Usecase("test/datasets/webbase-1M.mtx", 0.5, false),
+                    PageRank_Usecase("test/datasets/webbase-1M.mtx", 0.0, true),
+                    PageRank_Usecase("test/datasets/webbase-1M.mtx", 0.5, true)));
 
 CUGRAPH_TEST_PROGRAM_MAIN()
