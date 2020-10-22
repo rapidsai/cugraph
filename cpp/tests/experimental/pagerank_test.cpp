@@ -107,7 +107,7 @@ void pagerank_reference(edge_t* offsets,
     }
     result_t diff_sum{0.0};
     for (vertex_t i = 0; i < num_vertices; ++i) {
-      diff_sum += fabs(pageranks[i] - old_pageranks[i]);
+      diff_sum += std::abs(pageranks[i] - old_pageranks[i]);
     }
     if (diff_sum < static_cast<result_t>(num_vertices) * epsilon) { break; }
     iter++;
@@ -264,7 +264,7 @@ class Tests_PageRank : public ::testing::TestWithParam<PageRank_Usecase> {
     CUDA_TRY(cudaStreamSynchronize(handle.get_stream()));
 
     auto nearly_equal = [epsilon](auto lhs, auto rhs) {
-      return fabs(lhs - rhs) < std::max(std::max(lhs, rhs), epsilon) * 1e-3;
+      return std::abs(lhs - rhs) < std::max(std::max(lhs, rhs), epsilon) * 1e-3;
     };
 
     ASSERT_TRUE(std::equal(h_reference_pageranks.begin(),

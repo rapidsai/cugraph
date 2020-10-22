@@ -69,7 +69,7 @@ void katz_centrality_reference(edge_t* offsets,
 
     result_t diff_sum{0.0};
     for (vertex_t i = 0; i < num_vertices; ++i) {
-      diff_sum += fabs(katz_centralities[i] - old_katz_centralities[i]);
+      diff_sum += std::abs(katz_centralities[i] - old_katz_centralities[i]);
     }
     if (diff_sum < static_cast<result_t>(num_vertices) * epsilon) { break; }
     iter++;
@@ -196,7 +196,7 @@ class Tests_KatzCentrality : public ::testing::TestWithParam<KatzCentrality_Usec
     CUDA_TRY(cudaStreamSynchronize(handle.get_stream()));
 
     auto nearly_equal = [epsilon](auto lhs, auto rhs) {
-      return fabs(lhs - rhs) < std::max(std::max(lhs, rhs), epsilon) * 1e-3;
+      return std::abs(lhs - rhs) < std::max(std::max(lhs, rhs), epsilon) * 1e-3;
     };
 
     ASSERT_TRUE(std::equal(h_reference_katz_centralities.begin(),
