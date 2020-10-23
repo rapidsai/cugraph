@@ -5,9 +5,10 @@
 ## Improvements
 
 ## Bug Fixes
+- PR #1242 Calling gunrock cmake using explicit -D options, re-enabling C++ tests
 
 
-# cuGraph 0.16.0 (Date TBD)
+# cuGraph 0.16.0 (21 Oct 2020)
 
 ## New Features
 - PR #1098 Add new graph classes to support 2D partitioning
