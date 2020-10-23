@@ -7,7 +7,7 @@
 ## Bug Fixes
 
 
-# cuGraph 0.16.0 (Date TBD)
+# cuGraph 0.16.0 (21 Oct 2020)
 
 ## New Features
 - PR #1098 Add new graph classes to support 2D partitioning
@@ -63,6 +63,7 @@
 - PR #1198 Remove deprecated call to from_gpu_matrix
 - PR #1174 Fix bugs in MNMG pattern accelerators and pattern accelerator based implementations of MNMG PageRank, BFS, and SSSP
 - PR #1233 Temporarily disabling C++ tests for 0.16
+- PR #1240 Require `ucx-proc=*=gpu`
 
 
 # cuGraph 0.15.0 (26 Aug 2020)

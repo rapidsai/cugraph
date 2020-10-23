@@ -75,6 +75,7 @@ gpuci_conda_retry install -c nvidia -c rapidsai -c rapidsai-nightly -c conda-for
       "dask-cudf=${MINOR_VERSION}" \
       "dask-cuda=${MINOR_VERSION}" \
       "ucx-py=${MINOR_VERSION}" \
+      "ucx-proc=*=gpu" \
       "rapids-build-env=${MINOR_VERSION}" \
       rapids-pytest-benchmark
 
