@@ -45,6 +45,7 @@
 - PR #1222 Added min CUDA version check to MG Louvain
 - PR #1217 NetworkX Transition doc
 - PR #1223 Update mnmg docs
+- PR #1230 Improve gpuCI scripts
 
 ## Bug Fixes
 - PR #1131 Show style checker errors with set +e
