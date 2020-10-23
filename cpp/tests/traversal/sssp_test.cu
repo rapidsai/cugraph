@@ -425,10 +425,7 @@ TEST_P(Tests_SSSP, CheckFP64_RANDOM_DIST_PREDS)
 
 // --gtest_filter=*simple_test*
 
-// FIXME: Enable this for 0.17. Temporarily disabled due to sporadic error hard
-// to reproduce: "transform: failed to synchronize: cudaErrorIllegalAddress: an
-// illegal memory access was encountered" thrown in the test body.
-INSTANTIATE_TEST_CASE_P(DISABLED_simple_test,
+INSTANTIATE_TEST_CASE_P(simple_test,
                         Tests_SSSP,
                         ::testing::Values(SSSP_Usecase(MTX, "test/datasets/dblp.mtx", 100),
                                           SSSP_Usecase(MTX, "test/datasets/wiki2003.mtx", 100000),

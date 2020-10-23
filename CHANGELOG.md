@@ -5,6 +5,7 @@
 ## Improvements
 
 ## Bug Fixes
+- PR #1242 Calling gunrock cmake using explicit -D options, re-enabling C++ tests
 
 
 # cuGraph 0.16.0 (21 Oct 2020)
