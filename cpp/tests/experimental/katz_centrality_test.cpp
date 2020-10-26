@@ -71,7 +71,7 @@ void katz_centrality_reference(edge_t* offsets,
     for (vertex_t i = 0; i < num_vertices; ++i) {
       diff_sum += std::abs(katz_centralities[i] - old_katz_centralities[i]);
     }
-    if (diff_sum < static_cast<result_t>(num_vertices) * epsilon) { break; }
+    if (diff_sum < epsilon) { break; }
     iter++;
     ASSERT_TRUE(iter < max_iterations);
   }
@@ -150,9 +150,7 @@ class Tests_KatzCentrality : public ::testing::TestWithParam<KatzCentrality_Usec
 
     result_t const alpha = result_t{1.0} / static_cast<result_t>(*max_it + 1);
     result_t constexpr beta{1.0};
-    auto epsilon = graph_view.get_number_of_vertices() > 0
-                     ? result_t{1e-3} / static_cast<result_t>(graph_view.get_number_of_vertices())
-                     : result_t{1e-3};
+    result_t constexpr epsilon{1e-6};
 
     katz_centrality_reference(
       h_offsets.data(),
@@ -195,8 +193,12 @@ class Tests_KatzCentrality : public ::testing::TestWithParam<KatzCentrality_Usec
                       handle.get_stream());
     CUDA_TRY(cudaStreamSynchronize(handle.get_stream()));
 
-    auto nearly_equal = [epsilon](auto lhs, auto rhs) {
-      return std::abs(lhs - rhs) < std::max(std::max(lhs, rhs), epsilon) * 1e-3;
+    auto threshold_ratio = 1e-3;
+    auto threshold_magnitude =
+      (epsilon / static_cast<result_t>(graph_view.get_number_of_vertices())) * threshold_ratio;
+    auto nearly_equal = [threshold_ratio, threshold_magnitude](auto lhs, auto rhs) {
+      auto diff = std::abs(lhs - rhs);
+      return (diff < std::max(lhs, rhs) * threshold_ratio) || (diff < threshold_magnitude);
     };
 
     ASSERT_TRUE(std::equal(h_reference_katz_centralities.begin(),

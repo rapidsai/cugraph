@@ -109,7 +109,7 @@ void pagerank_reference(edge_t* offsets,
     for (vertex_t i = 0; i < num_vertices; ++i) {
       diff_sum += std::abs(pageranks[i] - old_pageranks[i]);
     }
-    if (diff_sum < static_cast<result_t>(num_vertices) * epsilon) { break; }
+    if (diff_sum < epsilon) { break; }
     iter++;
     ASSERT_TRUE(iter < max_iterations);
   }
@@ -220,9 +220,7 @@ class Tests_PageRank : public ::testing::TestWithParam<PageRank_Usecase> {
     std::vector<result_t> h_reference_pageranks(graph_view.get_number_of_vertices());
 
     result_t constexpr alpha{0.85};
-    auto epsilon = graph_view.get_number_of_vertices() > 0
-                     ? result_t{1e-3} / static_cast<result_t>(graph_view.get_number_of_vertices())
-                     : result_t{1e-3};
+    result_t constexpr epsilon{1e-6};
 
     pagerank_reference(h_offsets.data(),
                        h_indices.data(),
@@ -263,8 +261,12 @@ class Tests_PageRank : public ::testing::TestWithParam<PageRank_Usecase> {
       h_cugraph_pageranks.data(), d_pageranks.data(), d_pageranks.size(), handle.get_stream());
     CUDA_TRY(cudaStreamSynchronize(handle.get_stream()));
 
-    auto nearly_equal = [epsilon](auto lhs, auto rhs) {
-      return std::abs(lhs - rhs) < std::max(std::max(lhs, rhs), epsilon) * 1e-3;
+    auto threshold_ratio = 1e-3;
+    auto threshold_magnitude =
+      (epsilon / static_cast<result_t>(graph_view.get_number_of_vertices())) * threshold_ratio;
+    auto nearly_equal = [threshold_ratio, threshold_magnitude](auto lhs, auto rhs) {
+      auto diff = std::abs(lhs - rhs);
+      return (diff < std::max(lhs, rhs) * threshold_ratio) || (diff < threshold_magnitude);
     };
 
     ASSERT_TRUE(std::equal(h_reference_pageranks.begin(),

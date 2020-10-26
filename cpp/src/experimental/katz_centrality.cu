@@ -136,7 +136,7 @@ void katz_centrality(raft::handle_t &handle,
 
     iter++;
 
-    if (diff_sum < static_cast<result_t>(num_vertices) * epsilon) {
+    if (diff_sum < epsilon) {
       break;
     } else if (iter >= max_iterations) {
       CUGRAPH_FAIL("Katz Centrality failed to converge.");

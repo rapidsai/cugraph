@@ -280,7 +280,7 @@ void pagerank(raft::handle_t const& handle,
 
     iter++;
 
-    if (diff_sum < static_cast<result_t>(num_vertices) * epsilon) {
+    if (diff_sum < epsilon) {
       break;
     } else if (iter >= max_iterations) {
       CUGRAPH_FAIL("PageRank failed to converge.");
