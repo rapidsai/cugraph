@@ -431,6 +431,60 @@ class Graph:
 
         self.renumber_map = renumber_map
 
+    def from_pandas_edgelist(
+        self,
+        input_df,
+        source="source",
+        destination="destination",
+        edge_attr=None,
+        renumber=True,
+    ):
+        """
+        Initialize a graph from the edge list. It is an error to call this
+        method on an initialized Graph object. The passed input_df argument
+        wraps gdf_column objects that represent a graph using the edge list
+        format. source argument is source column name and destination argument
+        is destination column name.
+
+        By default, renumbering is enabled to map the source and destination
+        vertices into an index in the range [0, V) where V is the number
+        of vertices.  If the input vertices are a single column of integers
+        in the range [0, V), renumbering can be disabled and the original
+        external vertex ids will be used.
+
+        If weights are present, edge_attr argument is the weights column name.
+
+        Parameters
+        ----------
+        input_df : pandas.DataFrame
+            A DataFrame that contains edge information
+        source : str or array-like
+            source column name or array of column names
+        destination : str or array-like
+            destination column name or array of column names
+        edge_attr : str or None
+            the weights column name. Default is None
+        renumber : bool
+            Indicate whether or not to renumber the source and destination
+            vertex IDs. Default is True.
+
+        Examples
+        --------
+        >>> df = pandas.read_csv('datasets/karate.csv', delimiter=' ',
+        >>>                   dtype=['int32', 'int32', 'float32'], header=None)
+        >>> G = cugraph.Graph()
+        >>> G.from_pandas_edgelist(df, source='0', destination='1',
+                                 edge_attr='2', renumber=False)
+
+        """
+        gdf = cudf.DataFrame.from_pandas(df)
+        self.from_cudf_edgelist(gdf, source=source, destination=destination,
+                                edge_attr=edge_attr, renumber=renumber)
+
+    def to_pandas_edgelist(self, source='source', destination='destination'):
+        gdf = self.view_edge_list()
+        return gdf.to_pandas()
+
     def from_dask_cudf_edgelist(
         self,
         input_ddf,
