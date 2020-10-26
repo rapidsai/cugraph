@@ -5,7 +5,7 @@
 ## Improvements
 
 ## Bug Fixes
-
+- PR #1237 update tests for assymetric graphs, enable personalization pagerank
 
 # cuGraph 0.16.0 (Date TBD)
 
