@@ -63,6 +63,9 @@ def k_core(G, k=None, core_number=None):
     mytype = type(G)
     KCoreGraph = mytype()
 
+    if mytype is not Graph:
+        raise Exception("directed graph not supported")
+
     if core_number is not None:
         if G.renumbered is True:
             core_number = G.add_internal_vertex_id(
@@ -73,7 +76,7 @@ def k_core(G, k=None, core_number=None):
         core_number = core_number.rename(
             columns={"core_number": "values"}, copy=False
         )
-
+    print(core_number)
     if k is None:
         k = core_number["values"].max()
 
