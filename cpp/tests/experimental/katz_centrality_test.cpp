@@ -69,9 +69,9 @@ void katz_centrality_reference(edge_t* offsets,
 
     result_t diff_sum{0.0};
     for (vertex_t i = 0; i < num_vertices; ++i) {
-      diff_sum += fabs(katz_centralities[i] - old_katz_centralities[i]);
+      diff_sum += std::abs(katz_centralities[i] - old_katz_centralities[i]);
     }
-    if (diff_sum < static_cast<result_t>(num_vertices) * epsilon) { break; }
+    if (diff_sum < epsilon) { break; }
     iter++;
     ASSERT_TRUE(iter < max_iterations);
   }
@@ -164,7 +164,7 @@ class Tests_KatzCentrality : public ::testing::TestWithParam<KatzCentrality_Usec
       epsilon,
       std::numeric_limits<size_t>::max(),
       false,
-      false);
+      true);
 
     rmm::device_uvector<result_t> d_katz_centralities(graph_view.get_number_of_vertices(),
                                                       handle.get_stream());
@@ -180,7 +180,7 @@ class Tests_KatzCentrality : public ::testing::TestWithParam<KatzCentrality_Usec
                                            epsilon,
                                            std::numeric_limits<size_t>::max(),
                                            false,
-                                           false,
+                                           true,
                                            false);
 
     CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
@@ -193,7 +193,13 @@ class Tests_KatzCentrality : public ::testing::TestWithParam<KatzCentrality_Usec
                       handle.get_stream());
     CUDA_TRY(cudaStreamSynchronize(handle.get_stream()));
 
-    auto nearly_equal = [epsilon](auto lhs, auto rhs) { return std::fabs(lhs - rhs) < epsilon; };
+    auto threshold_ratio = 1e-3;
+    auto threshold_magnitude =
+      (epsilon / static_cast<result_t>(graph_view.get_number_of_vertices())) * threshold_ratio;
+    auto nearly_equal = [threshold_ratio, threshold_magnitude](auto lhs, auto rhs) {
+      auto diff = std::abs(lhs - rhs);
+      return (diff < std::max(lhs, rhs) * threshold_ratio) || (diff < threshold_magnitude);
+    };
 
     ASSERT_TRUE(std::equal(h_reference_katz_centralities.begin(),
                            h_reference_katz_centralities.end(),
