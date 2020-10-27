@@ -441,10 +441,8 @@ class Graph:
     ):
         """
         Initialize a graph from the edge list. It is an error to call this
-        method on an initialized Graph object. The passed input_df argument
-        wraps gdf_column objects that represent a graph using the edge list
-        format. source argument is source column name and destination argument
-        is destination column name.
+        method on an initialized Graph object. Source argument is source
+        column name and destination argument is destination column name.
 
         By default, renumbering is enabled to map the source and destination
         vertices into an index in the range [0, V) where V is the number
@@ -484,6 +482,15 @@ class Graph:
     def to_pandas_edgelist(self, source='source', destination='destination'):
         gdf = self.view_edge_list()
         return gdf.to_pandas()
+
+    def from_pandas_adjacency(self, pdf):
+        np_array = pdf.to_numpy()
+        self.from_numpy_array(np_array)
+
+    def to_pandas_adjacency(self):
+        np_array_data = self.to_numpy_array()
+        pdf = pd.DataFrame(np_array_data)
+        return pdf
 
     def to_numpy_array(self):
         import numpy as np
