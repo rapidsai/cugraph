@@ -3,6 +3,7 @@
 ## New Features
 
 ## Improvements
+- PR #1227 Pin cmake policies to cmake 3.17 version
 
 ## Bug Fixes
 - PR #1242 Calling gunrock cmake using explicit -D options, re-enabling C++ tests
