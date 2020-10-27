@@ -485,6 +485,34 @@ class Graph:
         gdf = self.view_edge_list()
         return gdf.to_pandas()
 
+    def to_numpy_array(self):
+        import numpy as np
+        nlen = self.number_of_nodes()
+        elen = self.number_of_edges()
+        df = self.edgelist.edgelist_df
+        np_array = np.full((nlen, nlen), 0.0)
+        for i in range(0, elen):
+            np_array[df['src'].iloc[i],df['dst'].iloc[i]] = 1.0
+        return np_array
+
+    def to_numpy_matrix(self):
+        import numpy as np
+        np_array = self.to_numpy_array()
+        return np.asmatrix(np_array)
+
+    def from_numpy_array(self, np_array):
+        src, dst = np_array.nonzero()
+        weight = np_array[src, dst]
+        df = cudf.DataFrame()
+        df['src'] = src
+        df['dst'] = dst
+        df['weight'] = weight
+        self.from_cudf_edgelist(df, 'src', 'dst', edge_attr='weight', renumber=False)
+
+    def from_numpy_matrix(self, np_matrix):
+        np_array = np.asarray(np_matrix)
+        self.from_numpy_array(np_array)
+
     def from_dask_cudf_edgelist(
         self,
         input_ddf,
