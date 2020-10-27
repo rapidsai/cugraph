@@ -65,3 +65,68 @@ def from_cudf_edgelist(df, source='source', destination='destination',
                          edge_attr=edge_attr, renumber=renumber)
 
     return G
+
+def from_pandas_edgelist(df,
+                         source="source",
+                         destination="destination",
+                         edge_attr=None,
+                         create_using=Graph,
+                         renumber=True):
+    if create_using is Graph:
+        G = Graph()
+    elif create_using is DiGraph:
+        G = DiGraph()
+    else:
+        raise Exception("create_using supports Graph and DiGraph")
+
+    G.from_pandas_edgelist(df, source=source, destination=destination,
+                           edge_attr=edge_attr, renumber=renumber)
+    return G
+
+def to_pandas_edgelist(G, source='source', destination='destination'):
+    pdf = G.to_pandas_edgelist(source=source, destination=destination)
+    return pdf
+
+def from_pandas_adjacency(df, create_using=Graph):
+    if create_using is Graph:
+        G = Graph()
+    elif create_using is DiGraph:
+        G = DiGraph()
+    else:
+        raise Exception("create_using supports Graph and DiGraph")
+
+    G.from_pandas_adjacency(df)
+    return G
+
+def to_pandas_adjacency(G):
+    pdf = G.to_pandas_adjacency()
+    return pdf
+
+def from_numpy_array(A, create_using=Graph):
+    if create_using is Graph:
+        G = Graph()
+    elif create_using is DiGraph:
+        G = DiGraph()
+    else:
+        raise Exception("create_using supports Graph and DiGraph")
+
+    G.from_numpy_array(A)
+    return G
+
+def to_numpy_array(G):
+    A = G.to_numpy_array()
+    return A
+
+def from_numpy_matrix(A, create_using=Graph):
+    if create_using is Graph:
+        G = Graph()
+    elif create_using is DiGraph:
+        G = DiGraph()
+    else:
+        raise Exception("create_using supports Graph and DiGraph")
+    G.from_numpy_matrix(A)
+    return G
+
+def to_numpy_matrix(G):
+    A = G.to_numpy_matrix()
+    return A
