@@ -30,7 +30,7 @@ namespace cugraph {
 
 namespace gunrock {
 
-const int HOST{1};  // gunrock should expose the device constant at the API level.
+const int HOST{1};    // gunrock should expose the device constant at the API level.
 const int DEVICE{2};  // gunrock should expose the device constant at the API level.
 
 template <typename vertex_t, typename edge_t, typename weight_t>

@@ -13,7 +13,6 @@
 
 import gc
 import time
-import numpy as np
 import pandas as pd
 
 import pytest
@@ -79,6 +78,7 @@ def networkx_call(M, max_iter, tol):
 MAX_ITERATIONS = [50]
 TOLERANCE = [1.0e-06]
 
+
 @pytest.mark.parametrize("graph_file", utils.DATASETS_UNDIRECTED)
 @pytest.mark.parametrize("max_iter", MAX_ITERATIONS)
 @pytest.mark.parametrize("tol", TOLERANCE)
@@ -99,11 +99,12 @@ def test_hits(graph_file, max_iter, tol):
 
     hubs_diffs1 = cugraph_hits.query('hubs - nx_hubs > 0.00001')
     hubs_diffs2 = cugraph_hits.query('hubs - nx_hubs < -0.00001')
-    authorities_diffs1 = cugraph_hits.query('authorities - nx_authorities > 0.0001')
-    authorities_diffs2 = cugraph_hits.query('authorities - nx_authorities < -0.0001')
+    authorities_diffs1 = cugraph_hits.query(
+        'authorities - nx_authorities > 0.0001')
+    authorities_diffs2 = cugraph_hits.query(
+        'authorities - nx_authorities < -0.0001')
 
     assert len(hubs_diffs1) == 0
     assert len(hubs_diffs2) == 0
     assert len(authorities_diffs1) == 0
     assert len(authorities_diffs2) == 0
-
