@@ -19,7 +19,8 @@ import cugraph.dask.common.mg_utils as mg_utils
 import cudf
 import dask_cudf
 import cugraph.comms.comms as Comms
-
+import pandas as pd
+import numpy as np
 from cugraph.dask.structure import replication
 
 
@@ -433,7 +434,7 @@ class Graph:
 
     def from_pandas_edgelist(
         self,
-        input_df,
+        pdf,
         source="source",
         destination="destination",
         edge_attr=None,
@@ -475,7 +476,7 @@ class Graph:
                                  edge_attr='2', renumber=False)
 
         """
-        gdf = cudf.DataFrame.from_pandas(df)
+        gdf = cudf.DataFrame.from_pandas(pdf)
         self.from_cudf_edgelist(gdf, source=source, destination=destination,
                                 edge_attr=edge_attr, renumber=renumber)
 
@@ -485,36 +486,43 @@ class Graph:
 
     def from_pandas_adjacency(self, pdf):
         np_array = pdf.to_numpy()
-        self.from_numpy_array(np_array)
+        columns = pdf.columns
+        self.from_numpy_array(np_array, columns)
 
     def to_pandas_adjacency(self):
         np_array_data = self.to_numpy_array()
         pdf = pd.DataFrame(np_array_data)
+        if self.renumbered:
+            nodes = self.renumber_map.implementation.df['0'].values_host.tolist()
+        pdf.columns = nodes
+        pdf.index = nodes
         return pdf
 
     def to_numpy_array(self):
-        import numpy as np
         nlen = self.number_of_nodes()
         elen = self.number_of_edges()
         df = self.edgelist.edgelist_df
         np_array = np.full((nlen, nlen), 0.0)
         for i in range(0, elen):
-            np_array[df['src'].iloc[i],df['dst'].iloc[i]] = 1.0
+            np_array[df['src'].iloc[i],df['dst'].iloc[i]] = df['weights'].iloc[i]
         return np_array
 
     def to_numpy_matrix(self):
-        import numpy as np
         np_array = self.to_numpy_array()
         return np.asmatrix(np_array)
 
-    def from_numpy_array(self, np_array):
+    def from_numpy_array(self, np_array, nodes=None):
         src, dst = np_array.nonzero()
         weight = np_array[src, dst]
         df = cudf.DataFrame()
-        df['src'] = src
-        df['dst'] = dst
+        if nodes is not None:
+            df['src'] = nodes[src]
+            df['dst'] = nodes[dst]
+        else:
+            df['src'] = src
+            df['dst'] = dst
         df['weight'] = weight
-        self.from_cudf_edgelist(df, 'src', 'dst', edge_attr='weight', renumber=False)
+        self.from_cudf_edgelist(df, 'src', 'dst', edge_attr='weight')
 
     def from_numpy_matrix(self, np_matrix):
         np_array = np.asarray(np_matrix)
