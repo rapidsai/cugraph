@@ -7,6 +7,7 @@
 
 ## Bug Fixes
 - PR #1242 Calling gunrock cmake using explicit -D options, re-enabling C++ tests
+- PR #1246 Use latest Gunrock, update HITS implementation
 
 
 # cuGraph 0.16.0 (21 Oct 2020)
