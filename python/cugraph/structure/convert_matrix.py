@@ -66,12 +66,55 @@ def from_cudf_edgelist(df, source='source', destination='destination',
 
     return G
 
+
 def from_pandas_edgelist(df,
                          source="source",
                          destination="destination",
                          edge_attr=None,
                          create_using=Graph,
                          renumber=True):
+    """
+    Initialize a graph from the edge list. It is an error to call this
+    method on an initialized Graph object. Source argument is source
+    column name and destination argument is destination column name.
+
+    By default, renumbering is enabled to map the source and destination
+    vertices into an index in the range [0, V) where V is the number
+    of vertices.  If the input vertices are a single column of integers
+    in the range [0, V), renumbering can be disabled and the original
+    external vertex ids will be used.
+
+    If weights are present, edge_attr argument is the weights column name.
+
+    Parameters
+    ----------
+    input_df : pandas.DataFrame
+        A DataFrame that contains edge information
+    source : str or array-like
+        source column name or array of column names
+    destination : str or array-like
+        destination column name or array of column names
+    edge_attr : str or None
+        the weights column name. Default is None
+    renumber : bool
+        Indicate whether or not to renumber the source and destination
+        vertex IDs. Default is True.
+    create_using: cugraph.DiGraph or cugraph.Graph
+        Indicate whether to create a directed or undirected graph
+
+    Returns
+    -------
+    G : cugraph.DiGraph or cugraph.Graph
+        graph containing edges from the pandas edgelist
+
+    Examples
+    --------
+    >>> df = pandas.read_csv('datasets/karate.csv', delimiter=' ',
+    >>>                   dtype=['int32', 'int32', 'float32'], header=None)
+    >>> G = cugraph.Graph()
+    >>> G.from_pandas_edgelist(df, source='0', destination='1',
+                               edge_attr='2', renumber=False)
+    """
     if create_using is Graph:
         G = Graph()
     elif create_using is DiGraph:
@@ -83,11 +126,36 @@ def from_pandas_edgelist(df,
                            edge_attr=edge_attr, renumber=renumber)
     return G
 
+
 def to_pandas_edgelist(G, source='source', destination='destination'):
+    """
+    Returns the graph edge list as a Pandas DataFrame.
+
+    Parameters
+    ----------
+    G : cugraph.Graph or cugraph.DiGraph
+        Graph containg the edgelist.
+    source : str or array-like
+        source column name or array of column names
+    destination : str or array-like
+        destination column name or array of column names
+
+    Returns
+    ------
+    df : pandas.DataFrame
+        pandas dataframe containing the edgelist as source and
+        destination columns.
+    """
     pdf = G.to_pandas_edgelist(source=source, destination=destination)
     return pdf
 
+
 def from_pandas_adjacency(df, create_using=Graph):
+    """
+    Initializes the graph from pandas adjacency matrix.
+    Set create_using to cugraph.DiGraph for directed graph and
+    cugraph.Graph for undirected Graph.
+    """
     if create_using is Graph:
         G = Graph()
     elif create_using is DiGraph:
@@ -98,11 +166,22 @@ def from_pandas_adjacency(df, create_using=Graph):
     G.from_pandas_adjacency(df)
     return G
 
+
 def to_pandas_adjacency(G):
+    """
+    Returns the graph adjacency matrix as a Pandas DataFrame.
+    The row indices denote source and column names denote destination.
+    """
     pdf = G.to_pandas_adjacency()
     return pdf
 
+
 def from_numpy_array(A, create_using=Graph):
+    """
+    Initializes the graph from numpy array containing adjacency matrix.
+    Set create_using to cugraph.DiGraph for directed graph and
+    cugraph.Graph for undirected Graph.
+    """
     if create_using is Graph:
         G = Graph()
     elif create_using is DiGraph:
@@ -113,11 +192,21 @@ def from_numpy_array(A, create_using=Graph):
     G.from_numpy_array(A)
     return G
 
+
 def to_numpy_array(G):
+    """
+    Returns the graph adjacency matrix as a NumPy array.
+    """
     A = G.to_numpy_array()
     return A
 
+
 def from_numpy_matrix(A, create_using=Graph):
+    """
+    Initializes the graph from numpy matrix containing adjacency matrix.
+    Set create_using to cugraph.DiGraph for directed graph and
+    cugraph.Graph for undirected Graph.
+    """
     if create_using is Graph:
         G = Graph()
     elif create_using is DiGraph:
@@ -127,6 +216,10 @@ def from_numpy_matrix(A, create_using=Graph):
     G.from_numpy_matrix(A)
     return G
 
+
 def to_numpy_matrix(G):
+    """
+    Returns the graph adjacency matrix as a NumPy matrix.
+    """
     A = G.to_numpy_matrix()
     return A

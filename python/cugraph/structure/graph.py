@@ -481,37 +481,72 @@ class Graph:
                                 edge_attr=edge_attr, renumber=renumber)
 
     def to_pandas_edgelist(self, source='source', destination='destination'):
+        """
+        Returns the graph edge list as a Pandas DataFrame.
+
+        Parameters
+        ----------
+        source : str or array-like
+            source column name or array of column names
+        destination : str or array-like
+            destination column name or array of column names
+
+        Returns
+        -------
+        df : pandas.DataFrame
+        """
+
         gdf = self.view_edge_list()
         return gdf.to_pandas()
 
     def from_pandas_adjacency(self, pdf):
+        """
+        Initializes the graph from pandas adjacency matrix
+        """
         np_array = pdf.to_numpy()
         columns = pdf.columns
         self.from_numpy_array(np_array, columns)
 
     def to_pandas_adjacency(self):
+        """
+        Returns the graph adjacency matrix as a Pandas DataFrame.
+        """
+
         np_array_data = self.to_numpy_array()
         pdf = pd.DataFrame(np_array_data)
         if self.renumbered:
-            nodes = self.renumber_map.implementation.df['0'].values_host.tolist()
+            nodes = self.renumber_map.implementation.df['0'].\
+                    values_host.tolist()
         pdf.columns = nodes
         pdf.index = nodes
         return pdf
 
     def to_numpy_array(self):
+        """
+        Returns the graph adjacency matrix as a NumPy array.
+        """
+
         nlen = self.number_of_nodes()
         elen = self.number_of_edges()
         df = self.edgelist.edgelist_df
         np_array = np.full((nlen, nlen), 0.0)
         for i in range(0, elen):
-            np_array[df['src'].iloc[i],df['dst'].iloc[i]] = df['weights'].iloc[i]
+            np_array[df['src'].iloc[i], df['dst'].iloc[i]] = df['weights'].\
+                                                             iloc[i]
         return np_array
 
     def to_numpy_matrix(self):
+        """
+        Returns the graph adjacency matrix as a NumPy matrix.
+        """
+
         np_array = self.to_numpy_array()
         return np.asmatrix(np_array)
 
     def from_numpy_array(self, np_array, nodes=None):
+        """
+        Initializes the graph from numpy array containing adjacency matrix.
+        """
         src, dst = np_array.nonzero()
         weight = np_array[src, dst]
         df = cudf.DataFrame()
@@ -525,6 +560,9 @@ class Graph:
         self.from_cudf_edgelist(df, 'src', 'dst', edge_attr='weight')
 
     def from_numpy_matrix(self, np_matrix):
+        """
+        Initializes the graph from numpy matrix containing adjacency matrix.
+        """
         np_array = np.asarray(np_matrix)
         self.from_numpy_array(np_array)
 
