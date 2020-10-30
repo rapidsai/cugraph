@@ -14,8 +14,6 @@
 import pytest
 import numpy as np
 
-from dask_cuda import LocalCUDACluster
-
 from cugraph.tests.dask.mg_context import MGContext, skip_if_not_enough_devices
 from cugraph.dask.common.mg_utils import is_single_gpu
 
@@ -71,7 +69,6 @@ def test_mg_betweenness_centrality(
     prepare_test()
     skip_if_not_enough_devices(mg_device_count)
     with MGContext(number_of_devices=mg_device_count,
-                   cluster=LocalCUDACluster(),
                    p2p=True):
         sorted_df = calc_betweenness_centrality(
             graph_file,

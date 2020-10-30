@@ -14,7 +14,6 @@
 import pytest
 import gc
 
-from dask_cuda import LocalCUDACluster
 import cudf
 
 import cugraph
@@ -46,7 +45,6 @@ def test_replicate_cudf_dataframe_with_weights(
         dtype=["int32", "int32", "float32"],
     )
     with MGContext(number_of_devices=mg_device_count,
-                   cluster=LocalCUDACluster(),
                    p2p=True):
         worker_to_futures = replication.replicate_cudf_dataframe(df)
         for worker in worker_to_futures:
@@ -71,7 +69,6 @@ def test_replicate_cudf_dataframe_no_weights(input_data_path, mg_device_count):
         dtype=["int32", "int32"],
     )
     with MGContext(number_of_devices=mg_device_count,
-                   cluster=LocalCUDACluster(),
                    p2p=True):
         worker_to_futures = replication.replicate_cudf_dataframe(df)
         for worker in worker_to_futures:
@@ -96,7 +93,6 @@ def test_replicate_cudf_series(input_data_path, mg_device_count):
         dtype=["int32", "int32", "float32"],
     )
     with MGContext(number_of_devices=mg_device_count,
-                   cluster=LocalCUDACluster(),
                    p2p=True):
         for column in df.columns.values:
             series = df[column]
@@ -156,7 +152,6 @@ def test_enable_batch_context_then_views(
     skip_if_not_enough_devices(mg_device_count)
     G = utils.generate_cugraph_graph_from_file(graph_file, directed)
     with MGContext(number_of_devices=mg_device_count,
-                   cluster=LocalCUDACluster(),
                    p2p=True):
         assert G.batch_enabled is False, "Internal property should be False"
         G.enable_batch()
@@ -193,7 +188,6 @@ def test_enable_batch_view_then_context(graph_file, directed, mg_device_count):
     assert G.batch_transposed_adjlists is None
 
     with MGContext(number_of_devices=mg_device_count,
-                   cluster=LocalCUDACluster(),
                    p2p=True):
         assert G.batch_enabled is False, "Internal property should be False"
         G.enable_batch()
@@ -218,7 +212,6 @@ def test_enable_batch_context_no_context_views(
     skip_if_not_enough_devices(mg_device_count)
     G = utils.generate_cugraph_graph_from_file(graph_file, directed)
     with MGContext(number_of_devices=mg_device_count,
-                   cluster=LocalCUDACluster(),
                    p2p=True):
         assert G.batch_enabled is False, "Internal property should be False"
         G.enable_batch()
@@ -244,7 +237,6 @@ def test_enable_batch_edgelist_replication(
     skip_if_not_enough_devices(mg_device_count)
     G = utils.generate_cugraph_graph_from_file(graph_file, directed)
     with MGContext(number_of_devices=mg_device_count,
-                   cluster=LocalCUDACluster(),
                    p2p=True):
         G.enable_batch()
         df = G.edgelist.edgelist_df
@@ -275,7 +267,6 @@ def test_enable_batch_adjlist_replication_weights(
         df, source="src", destination="dst", edge_attr="value"
     )
     with MGContext(number_of_devices=mg_device_count,
-                   cluster=LocalCUDACluster(),
                    p2p=True):
         G.enable_batch()
         G.view_adj_list()
@@ -316,7 +307,6 @@ def test_enable_batch_adjlist_replication_no_weights(
     G = cugraph.DiGraph() if directed else cugraph.Graph()
     G.from_cudf_edgelist(df, source="src", destination="dst")
     with MGContext(number_of_devices=mg_device_count,
-                   cluster=LocalCUDACluster(),
                    p2p=True):
         G.enable_batch()
         G.view_adj_list()
