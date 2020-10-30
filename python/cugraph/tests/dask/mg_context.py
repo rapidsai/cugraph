@@ -54,11 +54,12 @@ class MGContext:
         Number of devices to use, verification must be done prior to call
         to ensure that there are enough devices available.
     """
-    def __init__(self, number_of_devices=None, rmm_managed_memory=False):
+    def __init__(self, number_of_devices=None, rmm_managed_memory=False, cluster=None, p2p=False):
         self._number_of_devices = number_of_devices
         self._rmm_managed_memory = rmm_managed_memory
-        self._cluster = None
+        self._cluster = cluster
         self._client = None
+        self._p2p = p2p
 
     @property
     def client(self):
@@ -78,17 +79,18 @@ class MGContext:
         self._prepare_comms()
 
     def _prepare_cluster(self):
-        self._cluster = CUDACluster(
-            n_workers=self._number_of_devices,
-            rmm_managed_memory=self._rmm_managed_memory
-        )
+        if self._cluster is not None:
+            self._cluster = CUDACluster(
+                n_workers=self._number_of_devices,
+                rmm_managed_memory=self._rmm_managed_memory
+            )
 
     def _prepare_client(self):
         self._client = Client(self._cluster)
         self._client.wait_for_workers(self._number_of_devices)
 
     def _prepare_comms(self):
-        Comms.initialize()
+        Comms.initialize(p2p=self._p2p)
 
     def _close(self):
         Comms.destroy()
