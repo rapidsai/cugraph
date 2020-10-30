@@ -60,7 +60,10 @@ class MGContext:
     p2p : bool
         Initialize UCX endpoints if True. Default is False.
     """
-    def __init__(self, number_of_devices=None, rmm_managed_memory=False, p2p=False):
+    def __init__(self,
+                 number_of_devices=None,
+                 rmm_managed_memory=False,
+                 p2p=False):
         self._number_of_devices = number_of_devices
         self._rmm_managed_memory = rmm_managed_memory
         self._client = None
