@@ -38,14 +38,14 @@ export CUGRAPH_FILE=`conda build conda/recipes/cugraph --python=$PYTHON --output
 
 gpuci_logger "Starting conda uploads"
 
-if [ "$BUILD_LIBCUGRAPH" == "1" && "$UPLOAD_LIBCUGRAPH" == "1" ]; then
+if [[ "$BUILD_LIBCUGRAPH" == "1" && "$UPLOAD_LIBCUGRAPH" == "1" ]]; then
   test -e ${LIBCUGRAPH_FILE}
   echo "Upload libcugraph"
   echo ${LIBCUGRAPH_FILE}
   gpuci_retry anaconda -t ${MY_UPLOAD_KEY} upload -u ${CONDA_USERNAME:-rapidsai} ${LABEL_OPTION} --skip-existing ${LIBCUGRAPH_FILE}
 fi
 
-if [ "$BUILD_CUGRAPH" == "1" && "$UPLOAD_CUGRAPH" == "1" ]; then
+if [[ "$BUILD_CUGRAPH" == "1" && "$UPLOAD_CUGRAPH" == "1" ]]; then
   test -e ${CUGRAPH_FILE}
   echo "Upload cugraph"
   echo ${CUGRAPH_FILE}

@@ -67,7 +67,7 @@
 - PR #1233 Temporarily disabling C++ tests for 0.16
 - PR #1240 Require `ucx-proc=*=gpu`
 - PR #1241 Fix a bug in personalized PageRank with the new graph primitives API.
-
+- PR #1249 Fix upload script syntax
 
 # cuGraph 0.15.0 (26 Aug 2020)
 
