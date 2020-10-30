@@ -3,11 +3,13 @@
 ## New Features
 
 ## Improvements
+- PR #1227 Pin cmake policies to cmake 3.17 version
 
 ## Bug Fixes
 - PR #1237 update tests for assymetric graphs, enable personalization pagerank
+- PR #1242 Calling gunrock cmake using explicit -D options, re-enabling C++ tests
 
-# cuGraph 0.16.0 (Date TBD)
+# cuGraph 0.16.0 (21 Oct 2020)
 
 ## New Features
 - PR #1098 Add new graph classes to support 2D partitioning
@@ -45,7 +47,7 @@
 - PR #1222 Added min CUDA version check to MG Louvain
 - PR #1217 NetworkX Transition doc
 - PR #1223 Update mnmg docs
-
+- PR #1230 Improve gpuCI scripts
 
 ## Bug Fixes
 - PR #1131 Show style checker errors with set +e
@@ -62,7 +64,9 @@
 - PR #1196 Move subcomms init outside of individual algorithm functions
 - PR #1198 Remove deprecated call to from_gpu_matrix
 - PR #1174 Fix bugs in MNMG pattern accelerators and pattern accelerator based implementations of MNMG PageRank, BFS, and SSSP
-
+- PR #1233 Temporarily disabling C++ tests for 0.16
+- PR #1240 Require `ucx-proc=*=gpu`
+- PR #1241 Fix a bug in personalized PageRank with the new graph primitives API.
 
 
 # cuGraph 0.15.0 (26 Aug 2020)

@@ -14,7 +14,7 @@
 # limitations under the License.
 #=============================================================================
 
-cmake_minimum_required(VERSION 3.12 FATAL_ERROR)
+cmake_minimum_required(VERSION 3.12..3.17 FATAL_ERROR)
 
 project(CUGRAPH VERSION 0.17.0 LANGUAGES C CXX CUDA)
 
@@ -50,6 +50,14 @@ endif(CMAKE_COMPILER_IS_GNUCXX)
 
 find_package(CUDA)
 
+# Configure GPU arch to build
+set(GUNROCK_GENCODE_SM60 "OFF")
+set(GUNROCK_GENCODE_SM61 "OFF")
+set(GUNROCK_GENCODE_SM70 "OFF")
+set(GUNROCK_GENCODE_SM72 "OFF")
+set(GUNROCK_GENCODE_SM75 "OFF")
+set(GUNROCK_GENCODE_SM80 "OFF")
+
 # Check for aarch64 vs workstation architectures
 if(CMAKE_SYSTEM_PROCESSOR MATCHES "aarch64")
   message(STATUS "CMAKE Detected aarch64 CPU architecture, selecting appropriate gencodes")
@@ -57,12 +65,13 @@ if(CMAKE_SYSTEM_PROCESSOR MATCHES "aarch64")
   set(GPU_ARCHS "62") # Default minimum CUDA GenCode - not supported by gunrock
   if(CUDA_VERSION_MAJOR GREATER_EQUAL 9)
     set(GPU_ARCHS "${GPU_ARCHS};72")
-    set(GUNROCK_GENCODE "-DGUNROCK_GENCODE_SM72=TRUE")
+    set(GUNROCK_GENCODE_SM72 "ON")
   endif()
   if(CUDA_VERSION_MAJOR GREATER_EQUAL 11)
     # This is probably for SBSA CUDA, or a next gen Jetson
     set(GPU_ARCHS "${GPU_ARCHS};75;80")
-    set(GUNROCK_GENCODE "${GUNROCK_GENCODE} -DGUNROCK_GENCODE_SM75=TRUE -DGUNROCK_GENCODE_SM80=TRUE ")
+    set(GUNROCK_GENCODE_SM75 "ON")
+    set(GUNROCK_GENCODE_SM80 "ON")
   endif()
 
 else()
@@ -70,20 +79,19 @@ else()
   # System architecture was not aarch64,
   # this is datacenter or workstation class hardware
   set(GPU_ARCHS "60") # Default minimum supported CUDA gencode
-  set(GUNROCK_GENCODE "-DGUNROCK_GENCODE_SM60=TRUE")
+  set(GUNROCK_GENCODE_SM60 "ON")
   if(CUDA_VERSION_MAJOR GREATER_EQUAL 9)
     set(GPU_ARCHS "${GPU_ARCHS};70")
-    set(GUNROCK_GENCODE "${GUNROCK_GENCODE} -DGUNROCK_GENCODE_SM70=TRUE")
+    set(GUNROCK_GENCODE_SM70 "ON")
   endif()
   if(CUDA_VERSION_MAJOR GREATER_EQUAL 10)
     set(GPU_ARCHS "${GPU_ARCHS};75")
-    set(GUNROCK_GENCODE "${GUNROCK_GENCODE} -DGUNROCK_GENCODE_SM75=TRUE")
+    set(GUNROCK_GENCODE_SM75 "ON")
   endif()
   if(CUDA_VERSION_MAJOR GREATER_EQUAL 11)
     set(GPU_ARCHS "${GPU_ARCHS};80")
-    set(GUNROCK_GENCODE "${GUNROCK_GENCODE} -DGUNROCK_GENCODE_SM80=TRUE")
+    set(GUNROCK_GENCODE_SM80 "ON")
   endif()
-
 endif()
 
 message("-- Building for GPU_ARCHS = ${GPU_ARCHS}")
@@ -97,6 +105,7 @@ set(CMAKE_CUDA_FLAGS "${CMAKE_CUDA_FLAGS} -gencode arch=compute_${ptx},code=comp
 set(CMAKE_CUDA_FLAGS "${CMAKE_CUDA_FLAGS} --expt-extended-lambda")
 set(CMAKE_CUDA_FLAGS "${CMAKE_CUDA_FLAGS} -Werror=cross-execution-space-call -Wno-deprecated-declarations -Xptxas --disable-warnings")
 set(CMAKE_CUDA_FLAGS "${CMAKE_CUDA_FLAGS} -Xcompiler -Wall,-Wno-error=sign-compare,-Wno-error=unused-but-set-variable")
+
 
 # Option to enable line info in CUDA device compilation to allow introspection when profiling /
 # memchecking
@@ -248,7 +257,6 @@ set(LIBCUDACXX_INCLUDE_DIR "${libcudacxx_SOURCE_DIR}/include")
 message("set LIBCUDACXX_INCLUDE_DIR to: ${LIBCUDACXX_INCLUDE_DIR}")
 
 
-
 ###################################################################################################
 # - External Projects -----------------------------------------------------------------------------
 
@@ -280,7 +288,13 @@ ExternalProject_Add(cugunrock
   CMAKE_ARGS        -DCMAKE_INSTALL_PREFIX=<INSTALL_DIR>
                     -DGUNROCK_BUILD_SHARED_LIBS=OFF
                     -DGUNROCK_BUILD_TESTS=OFF
-                    -DCUDA_AUTODETECT_GENCODE=FALSE
+                    -DCUDA_AUTODETECT_GENCODE=OFF
+                    -DGUNROCK_GENCODE_SM60=${GUNROCK_GENCODE_SM60}
+                    -DGUNROCK_GENCODE_SM61=${GUNROCK_GENCODE_SM61}
+                    -DGUNROCK_GENCODE_SM70=${GUNROCK_GENCODE_SM70}
+                    -DGUNROCK_GENCODE_SM72=${GUNROCK_GENCODE_SM72}
+                    -DGUNROCK_GENCODE_SM75=${GUNROCK_GENCODE_SM75}
+                    -DGUNROCK_GENCODE_SM80=${GUNROCK_GENCODE_SM80}
                     ${GUNROCK_GENCODE}
   BUILD_BYPRODUCTS  ${CUGUNROCK_DIR}/lib/libgunrock.a
 )
