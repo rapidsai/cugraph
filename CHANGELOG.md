@@ -8,6 +8,7 @@
 ## Bug Fixes
 - PR #1242 Calling gunrock cmake using explicit -D options, re-enabling C++ tests
 - PR #1250 Updated cuco commit hash to latest as of 2020-10-30 and removed unneeded GIT_SHALLOW param
+- PR #1251 Changed the MG context testing class to use updated parameters passed in from the individual tests
 
 
 # cuGraph 0.16.0 (21 Oct 2020)
