@@ -14,6 +14,7 @@
 from cugraph.cores import k_core_wrapper, core_number_wrapper
 from cugraph.utilities import cugraph_to_nx
 from cugraph.utilities import check_nx_graph
+from cugraph.structure.graph import Graph
 
 
 def k_core(G, k=None, core_number=None):

@@ -155,7 +155,7 @@ def pagerank(input_graph,
                                 workers=[wf[0]])
                   for idx, wf in enumerate(data.worker_to_parts.items())]
     else:
-                result = [client.submit(call_pagerank,
+        result = [client.submit(call_pagerank,
                                 Comms.get_session_id(),
                                 wf[1],
                                 num_verts,
