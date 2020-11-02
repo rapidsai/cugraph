@@ -11,14 +11,16 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import pytest
+import gc
+
+import cudf
+
 import cugraph
 from cugraph.tests.dask.mg_context import MGContext, skip_if_not_enough_devices
-import cudf
 import cugraph.dask.structure.replication as replication
 from cugraph.dask.common.mg_utils import is_single_gpu
 import cugraph.tests.utils as utils
-import pytest
-import gc
 
 DATASETS_OPTIONS = utils.DATASETS_SMALL
 DIRECTED_GRAPH_OPTIONS = [False, True]
@@ -42,7 +44,8 @@ def test_replicate_cudf_dataframe_with_weights(
         names=["src", "dst", "value"],
         dtype=["int32", "int32", "float32"],
     )
-    with MGContext(mg_device_count):
+    with MGContext(number_of_devices=mg_device_count,
+                   p2p=True):
         worker_to_futures = replication.replicate_cudf_dataframe(df)
         for worker in worker_to_futures:
             replicated_df = worker_to_futures[worker].result()
@@ -65,7 +68,8 @@ def test_replicate_cudf_dataframe_no_weights(input_data_path, mg_device_count):
         names=["src", "dst"],
         dtype=["int32", "int32"],
     )
-    with MGContext(mg_device_count):
+    with MGContext(number_of_devices=mg_device_count,
+                   p2p=True):
         worker_to_futures = replication.replicate_cudf_dataframe(df)
         for worker in worker_to_futures:
             replicated_df = worker_to_futures[worker].result()
@@ -88,7 +92,8 @@ def test_replicate_cudf_series(input_data_path, mg_device_count):
         names=["src", "dst", "value"],
         dtype=["int32", "int32", "float32"],
     )
-    with MGContext(mg_device_count):
+    with MGContext(number_of_devices=mg_device_count,
+                   p2p=True):
         for column in df.columns.values:
             series = df[column]
             worker_to_futures = replication.replicate_cudf_series(series)
@@ -146,7 +151,8 @@ def test_enable_batch_context_then_views(
     gc.collect()
     skip_if_not_enough_devices(mg_device_count)
     G = utils.generate_cugraph_graph_from_file(graph_file, directed)
-    with MGContext(mg_device_count):
+    with MGContext(number_of_devices=mg_device_count,
+                   p2p=True):
         assert G.batch_enabled is False, "Internal property should be False"
         G.enable_batch()
         assert G.batch_enabled is True, "Internal property should be True"
@@ -181,7 +187,8 @@ def test_enable_batch_view_then_context(graph_file, directed, mg_device_count):
     G.view_transposed_adj_list()
     assert G.batch_transposed_adjlists is None
 
-    with MGContext(mg_device_count):
+    with MGContext(number_of_devices=mg_device_count,
+                   p2p=True):
         assert G.batch_enabled is False, "Internal property should be False"
         G.enable_batch()
         assert G.batch_enabled is True, "Internal property should be True"
@@ -204,7 +211,8 @@ def test_enable_batch_context_no_context_views(
     gc.collect()
     skip_if_not_enough_devices(mg_device_count)
     G = utils.generate_cugraph_graph_from_file(graph_file, directed)
-    with MGContext(mg_device_count):
+    with MGContext(number_of_devices=mg_device_count,
+                   p2p=True):
         assert G.batch_enabled is False, "Internal property should be False"
         G.enable_batch()
         assert G.batch_enabled is True, "Internal property should be True"
@@ -228,7 +236,8 @@ def test_enable_batch_edgelist_replication(
     gc.collect()
     skip_if_not_enough_devices(mg_device_count)
     G = utils.generate_cugraph_graph_from_file(graph_file, directed)
-    with MGContext(mg_device_count):
+    with MGContext(number_of_devices=mg_device_count,
+                   p2p=True):
         G.enable_batch()
         df = G.edgelist.edgelist_df
         for worker in G.batch_edgelists:
@@ -257,7 +266,8 @@ def test_enable_batch_adjlist_replication_weights(
     G.from_cudf_edgelist(
         df, source="src", destination="dst", edge_attr="value"
     )
-    with MGContext(mg_device_count):
+    with MGContext(number_of_devices=mg_device_count,
+                   p2p=True):
         G.enable_batch()
         G.view_adj_list()
         adjlist = G.adjlist
@@ -296,7 +306,8 @@ def test_enable_batch_adjlist_replication_no_weights(
     )
     G = cugraph.DiGraph() if directed else cugraph.Graph()
     G.from_cudf_edgelist(df, source="src", destination="dst")
-    with MGContext(mg_device_count):
+    with MGContext(number_of_devices=mg_device_count,
+                   p2p=True):
         G.enable_batch()
         G.view_adj_list()
         adjlist = G.adjlist
