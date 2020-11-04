@@ -1,12 +1,17 @@
 /*
- * Copyright (c) 2018-2020, NVIDIA CORPORATION.  All rights reserved.
+ * Copyright (c) 2020, NVIDIA CORPORATION.
  *
- * NVIDIA CORPORATION and its licensors retain all intellectual property
- * and proprietary rights in and to this software, related documentation
- * and any modifications thereto.  Any use, reproduction, disclosure or
- * distribution of this software and related documentation without an express
- * license agreement from NVIDIA CORPORATION is strictly prohibited.
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
  *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
  */
 
 // Mst solver tests
@@ -100,8 +105,7 @@ weight_t prims(CSRHost<vertex_t, edge_t, weight_t>& csr_h)
 }
 typedef struct Mst_Usecase_t {
   std::string matrix_file;
-  std::string result_file;
-  Mst_Usecase_t(const std::string& a, const std::string& b)
+  Mst_Usecase_t(const std::string& a)
   {
     // assume relative paths are relative to RAPIDS_DATASET_ROOT_DIR
     const std::string& rapidsDatasetRootDir = cugraph::test::get_rapids_dataset_root_dir();
@@ -110,16 +114,10 @@ typedef struct Mst_Usecase_t {
     } else {
       matrix_file = a;
     }
-    if ((b != "") && (b[0] != '/')) {
-      result_file = rapidsDatasetRootDir + "/" + b;
-    } else {
-      result_file = b;
-    }
   }
   Mst_Usecase_t& operator=(const Mst_Usecase_t& rhs)
   {
     matrix_file = rhs.matrix_file;
-    result_file = rhs.result_file;
     return *this;
   }
 } Mst_Usecase;
@@ -176,8 +174,9 @@ class Tests_Mst : public ::testing::TestWithParam<Mst_Usecase> {
       << "\n";
     ASSERT_EQ(fclose(fpin), 0);
 
-    //  Mst runs on CSC, so feed COOtoCSR the row/col backwards.
     raft::handle_t handle;
+    // generating weights between, expecting non unique weights
+    std::generate(cooVal.begin(), cooVal.end(), []() { return static_cast<T>(rand() % v); });
     cugraph::GraphCOOView<int, int, T> G_coo(&cooRowInd[0], &cooColInd[0], &cooVal[0], m, nnz);
     auto G_unique = cugraph::coo_to_csr(G_coo);
     cugraph::GraphCSCView<int, int, T> G(G_unique->view().offsets,
@@ -213,8 +212,7 @@ class Tests_Mst : public ::testing::TestWithParam<Mst_Usecase> {
     auto calculated_mst_weight =
       thrust::reduce(mst_edges.weights, mst_edges.weights + mst_edges.size);
 
-    EXPECT_LE(calculated_mst_weight,
-              expected_mst_weight);  // we tolerate 0.1% of values with a litte difference
+    EXPECT_LE(calculated_mst_weight, expected_mst_weight);
   }
 };
 
@@ -225,13 +223,11 @@ TEST_P(Tests_Mst, CheckFP32_T) { run_current_test<float>(GetParam()); }
 TEST_P(Tests_Mst, CheckFP64_T) { run_current_test<double>(GetParam()); }
 
 // --gtest_filter=*simple_test*
-INSTANTIATE_TEST_CASE_P(
-  simple_test,
-  Tests_Mst,
-  ::testing::Values(
-    Mst_Usecase("test/datasets/karate.mtx", ""),
-    Mst_Usecase("test/datasets/web-Google.mtx", "test/ref/mst/web-Google.mst_val_0.85.bin"),
-    Mst_Usecase("test/datasets/ljournal-2008.mtx", "test/ref/mst/ljournal-2008.mst_val_0.85.bin"),
-    Mst_Usecase("test/datasets/webbase-1M.mtx", "test/ref/mst/webbase-1M.mst_val_0.85.bin")));
+INSTANTIATE_TEST_CASE_P(simple_test,
+                        Tests_Mst,
+                        ::testing::Values(Mst_Usecase("test/datasets/karate.mtx"),
+                                          Mst_Usecase("test/datasets/netscience.mtx"),
+                                          Mst_Usecase("test/datasets/europe_osm.mtx"),
+                                          Mst_Usecase("test/datasets/hollywood.mtx")));
 
 CUGRAPH_TEST_PROGRAM_MAIN()
