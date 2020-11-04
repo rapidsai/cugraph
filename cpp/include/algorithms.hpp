@@ -715,8 +715,37 @@ void ecg(raft::handle_t const &handle,
          vertex_t ensemble_size,
          vertex_t *clustering);
 
-namespace triangle {
+/**
+ * @brief Generate edges in a minimum spanning forest of an undirected weighted graph.
+ *
+ * A minimum spanning tree is a subgraph of the graph (a tree) with the minimum sum of edge weights.
+ * A spanning forest is a union of the spanning trees for each connected component of the graph.
+ * If the graph is connected it returns the minimum spanning tree.
+ *
+ * @throws     cugraph::logic_error when an error occurs.
+ *
+ * @tparam vertex_t                  Type of vertex identifiers. Supported value : int (signed,
+ * 32-bit)
+ * @tparam edge_t                    Type of edge identifiers.  Supported value : int (signed,
+ * 32-bit)
+ * @tparam weight_t                  Type of edge weights. Supported values : float or double.
+ *
+ * @param[in]  handle                Library handle (RAFT). If a communicator is set in the handle,
+ * @param[in]  graph_csr             input graph object (CSR) expected to be symmetric
+ * @param[in]  mr                    Memory resource used to allocate the returned graph
+ * @param[in/out] mst_color          Array of size V, where mst_color[i] contains the minimum
+ * spanning forest label of vertex i. When mst_color contins only zeroes then there is a single
+ * component and a minimum spaning tree was found.
+ * @param[out] out_graph             Unique pointer to MSF subgraph in COO format
+ */
+template <typename vertex_t, typename edge_t, typename weight_t>
+std::unique_ptr<GraphCOO<vertex_t, edge_t, weight_t>> mst(
+  raft::handle_t const &handle,
+  GraphCSRView<vertex_t, edge_t, weight_t> const &graph,
+  vertex_t *colors,
+  rmm::mr::device_memory_resource *mr = rmm::mr::get_current_device_resource());
 
+namespace triangle {
 /**
  * @brief             Count the number of triangles in the graph
  *
