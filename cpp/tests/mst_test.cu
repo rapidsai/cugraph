@@ -197,17 +197,13 @@ class Tests_Mst : public ::testing::TestWithParam<Mst_Usecase> {
     mst_time.push_back(time_tmp);
 
     // Check vs prims
-    CSRHost<vertex_t, edge_t, weight_t> csr_h;
-    csr_h.offsets = cudaMemcpy(csr_h.offsets.data(),
-                               G_unique->view().offsets,
-                               nnz * sizeof(vertex_t),
-                               cudaMemcpyDeviceToHost);
+    CSRHost<int, int, T> csr_h;
+    csr_h.offsets = cudaMemcpy(
+      csr_h.offsets.data(), G_unique->view().offsets, nnz * sizeof(int), cudaMemcpyDeviceToHost);
     csr_h.indices = cudaMemcpy(
-      csr_h.indices.data(), G_unique->view().indices, nnz * sizeof(edge_t), cudaMemcpyDeviceToHost);
-    csr_h.weights            = cudaMemcpy(csr_h.weights.data(),
-                               G_unique->view().weights,
-                               nnz * sizeof(weight_t),
-                               cudaMemcpyDeviceToHost);
+      csr_h.indices.data(), G_unique->view().indices, nnz * sizeof(int), cudaMemcpyDeviceToHost);
+    csr_h.weights = cudaMemcpy(
+      csr_h.weights.data(), G_unique->view().weights, nnz * sizeof(T), cudaMemcpyDeviceToHost);
     auto expected_mst_weight = prims(csr_h);
     auto calculated_mst_weight =
       thrust::reduce(mst_edges.weights, mst_edges.weights + mst_edges.size);
