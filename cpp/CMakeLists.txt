@@ -392,6 +392,7 @@ add_library(cugraph SHARED
     src/experimental/sssp.cu
     src/experimental/pagerank.cu
     src/experimental/katz_centrality.cu
+    src/tree/mst.cu
 )
 
 #
