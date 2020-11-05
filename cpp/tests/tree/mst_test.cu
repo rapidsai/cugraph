@@ -34,7 +34,7 @@
 #include <cmath>
 
 #include "../src/converters/COOtoCSR.cuh"
-
+/*
 template <typename vertex_t, typename edge_t, typename weight_t>
 struct CSRHost {
   std::vector<vertex_t> offsets;
@@ -103,6 +103,7 @@ weight_t prims(CSRHost<vertex_t, edge_t, weight_t>& csr_h)
 
   return total_weight;
 }
+*/
 typedef struct Mst_Usecase_t {
   std::string matrix_file;
   Mst_Usecase_t(const std::string& a)
@@ -163,8 +164,8 @@ class Tests_Mst : public ::testing::TestWithParam<Mst_Usecase> {
     std::vector<T> cooVal(nnz), mst(m);
 
     // device alloc
-    rmm::device_uvector<bool> mst_vector(static_cast<size_t>(nnz), nullptr);
-    bool* d_mst = mst_vector.data();
+    rmm::device_uvector<int> color_vector(static_cast<size_t>(m), nullptr);
+    bool* d_color = color_vector.data();
 
     // Read
     ASSERT_EQ((cugraph::test::mm_to_coo<int, T>(
@@ -189,30 +190,28 @@ class Tests_Mst : public ::testing::TestWithParam<Mst_Usecase> {
 
     hr_clock.start();
     cudaProfilerStart();
-    auto mst_edges = cugraph::mst<int, int, T>(handle, G, d_mst);
+    auto mst_edges = cugraph::mst<int, int, T>(handle, G, colors);
     cudaProfilerStop();
 
     cudaDeviceSynchronize();
     hr_clock.stop(&time_tmp);
-    mst_time.push_back(time_tmp);
+    std::cout << "mst_time" << time_tmp << std::endl;
 
     // Check vs prims
-    CSRHost<int, int, T> csr_h;
-    csr_h.offsets = cudaMemcpy(
-      csr_h.offsets.data(), G_unique->view().offsets, nnz * sizeof(int), cudaMemcpyDeviceToHost);
-    csr_h.indices = cudaMemcpy(
-      csr_h.indices.data(), G_unique->view().indices, nnz * sizeof(int), cudaMemcpyDeviceToHost);
-    csr_h.weights = cudaMemcpy(
-      csr_h.weights.data(), G_unique->view().weights, nnz * sizeof(T), cudaMemcpyDeviceToHost);
-    auto expected_mst_weight = prims(csr_h);
+    // CSRHost<int, int, T> csr_h;
+    // csr_h.offsets = cudaMemcpy(
+    //  csr_h.offsets.data(), G_unique->view().offsets, nnz * sizeof(int), cudaMemcpyDeviceToHost);
+    // csr_h.indices = cudaMemcpy(
+    //  csr_h.indices.data(), G_unique->view().indices, nnz * sizeof(int), cudaMemcpyDeviceToHost);
+    // csr_h.weights = cudaMemcpy(
+    //  csr_h.weights.data(), G_unique->view().weights, nnz * sizeof(T), cudaMemcpyDeviceToHost);
+    auto expected_mst_weight = 0;  // prims(csr_h);
     auto calculated_mst_weight =
       thrust::reduce(mst_edges.weights, mst_edges.weights + mst_edges.size);
 
     EXPECT_LE(calculated_mst_weight, expected_mst_weight);
   }
 };
-
-std::vector<double> Tests_Mst::mst_time;
 
 TEST_P(Tests_Mst, CheckFP32_T) { run_current_test<float>(GetParam()); }
 

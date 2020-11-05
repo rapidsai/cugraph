@@ -21,6 +21,8 @@
  * ---------------------------------------------------------------------------**/
 
 #include <algorithms.hpp>
+#include <memory>
+#include <utility>
 
 #include <rmm/thrust_rmm_allocator.h>
 #include <thrust/transform.h>
@@ -36,32 +38,34 @@ namespace cugraph {
 namespace detail {
 
 template <typename vertex_t, typename edge_t, typename weight_t>
-template std::unique_ptr<GraphCOO<vertex_t, edge_t, weight_t>> mst_impl(
+std::unique_ptr<GraphCOO<vertex_t, edge_t, weight_t>> mst_impl(
   raft::handle_t const &handle,
   GraphCSRView<vertex_t, edge_t, weight_t> const &graph,
   vertex_t *colors,
-  rmm::mr::device_memory_resource *mr = rmm::mr::get_current_device_resource())
+  rmm::mr::device_memory_resource *mr)
 
 {
-  RAFT_EXPECTS(mst_flag != nullptr, "API error, must specify valid location for mst flag");
+  RAFT_EXPECTS(colors != nullptr, "API error, must specify valid location for colors");
 
-  auto stream  = handle.get_stream();
-  auto exec    = rmm::exec_policy(stream);
-  auto t_exe_p = exec->on(stream);
-
+  auto stream    = handle.get_stream();
   auto mst_edges = raft::mst::mst<vertex_t, edge_t, weight_t>(handle,
                                                               graph.offsets,
                                                               graph.indices,
-                                                              graph.weights,
+                                                              graph.edge_data,
                                                               graph.number_of_vertices,
                                                               graph.number_of_edges,
-                                                              colors);
+                                                              colors,
+                                                              stream);
 
   auto out_graph = std::make_unique<GraphCOO<vertex_t, edge_t, weight_t>>(
-    graph.number_of_vertices, mst_edges.size, true, stream, mr);
-  out_graph->src_indices() = std::move(mst_edges.src);
-  out_graph->dst_indices() = std::move(mst_edges.dst);
-  out_graph->weights()     = std::move(mst_edges.weights);
+    graph.number_of_vertices, mst_edges.n_edges, true, stream, mr);
+
+  auto src_ptr     = out_graph->src_indices();
+  auto dst_ptr     = out_graph->dst_indices();
+  auto weights_ptr = out_graph->edge_data();
+  src_ptr          = std::move(mst_edges.src.data());
+  dst_ptr          = std::move(mst_edges.dst.data());
+  weights_ptr      = std::move(mst_edges.weights.data());
 
   return out_graph;
 }
@@ -69,23 +73,23 @@ template std::unique_ptr<GraphCOO<vertex_t, edge_t, weight_t>> mst_impl(
 }  // namespace detail
 
 template <typename vertex_t, typename edge_t, typename weight_t>
-template std::unique_ptr<GraphCOO<vertex_t, edge_t, weight_t>> mst(
+std::unique_ptr<GraphCOO<vertex_t, edge_t, weight_t>> mst(
   raft::handle_t const &handle,
   GraphCSRView<vertex_t, edge_t, weight_t> const &graph,
   vertex_t *colors,
-  rmm::mr::device_memory_resource *mr = rmm::mr::get_current_device_resource())
+  rmm::mr::device_memory_resource *mr)
 {
-  return detail::mst_impl(handle, graph, mst_flag);
+  return detail::mst_impl(handle, graph, colors, mr);
 }
 
 template std::unique_ptr<GraphCOO<int, int, float>> mst<int, int, float>(
   raft::handle_t const &handle,
   GraphCSRView<int, int, float> const &graph,
   int *colors,
-  rmm::mr::device_memory_resource *mr = rmm::mr::get_current_device_resource());
+  rmm::mr::device_memory_resource *mr);
 template std::unique_ptr<GraphCOO<int, int, double>> mst<int, int, double>(
   raft::handle_t const &handle,
   GraphCSRView<int, int, double> const &graph,
   int *colors,
-  rmm::mr::device_memory_resource *mr = rmm::mr::get_current_device_resource());
+  rmm::mr::device_memory_resource *mr);
 }  // namespace cugraph

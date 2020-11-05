@@ -254,6 +254,15 @@ set(FIND_MATCHES_TEST_SRC
 ConfigureTest(FIND_MATCHES_TEST "${FIND_MATCHES_TEST_SRC}" "")
 
 ###################################################################################################
+# - MST tests ----------------------------------------------------------------------------
+
+set(MST_TEST_SRC
+    "${CMAKE_CURRENT_SOURCE_DIR}/tree/mst_test.cu")
+
+ConfigureTest(MST_TEST "${MST_TEST_SRC}" "")
+
+
+###################################################################################################
 # - Experimental Graph tests ----------------------------------------------------------------------
 
 set(EXPERIMENTAL_GRAPH_TEST_SRCS
