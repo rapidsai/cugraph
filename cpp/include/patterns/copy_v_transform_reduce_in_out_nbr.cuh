@@ -627,7 +627,7 @@ void copy_v_transform_reduce_nbr(raft::handle_t const& handle,
  * weight), *(@p adj_matrix_row_value_input_first + i), and *(@p adj_matrix_col_value_input_first +
  * j) (where i is in [0, graph_view.get_number_of_local_adj_matrix_partition_rows()) and j is in [0,
  * get_number_of_local_adj_matrix_partition_cols())) and returns a value to be reduced.
- * @param init Initial value to be added to the reduced @e_op return values for each vertex.
+ * @param init Initial value to be added to the reduced @p e_op return values for each vertex.
  * @param vertex_value_output_first Iterator pointing to the vertex property variables for the first
  * (inclusive) vertex (assigned to tihs process in multi-GPU). `vertex_value_output_last`
  * (exclusive) is deduced as @p vertex_value_output_first + @p
@@ -689,7 +689,7 @@ void copy_v_transform_reduce_in_nbr(raft::handle_t const& handle,
  * adj_matrix_col_value_input_first + j) (where i is in [0,
  * graph_view.get_number_of_local_adj_matrix_partition_rows()) and j is in [0,
  * get_number_of_local_adj_matrix_partition_cols())) and returns a value to be reduced.
- * @param init Initial value to be added to the reduced @e_op return values for each vertex.
+ * @param init Initial value to be added to the reduced @p e_op return values for each vertex.
  * @param vertex_value_output_first Iterator pointing to the vertex property variables for the
  * first (inclusive) vertex (assigned to tihs process in multi-GPU). `vertex_value_output_last`
  * (exclusive) is deduced as @p vertex_value_output_first + @p
