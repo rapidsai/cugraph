@@ -178,7 +178,7 @@ class Tests_Mst : public ::testing::TestWithParam<Mst_Usecase> {
     raft::handle_t handle;
     // generating weights between, expecting non unique weights
     std::generate(cooVal.begin(), cooVal.end(), [&]() { return (rand() % m) / static_cast<T>(m); });
-    for (auto iv : cooVal) { std::cout << iv << " "; }
+
     cugraph::GraphCOOView<int, int, T> G_coo(&cooRowInd[0], &cooColInd[0], &cooVal[0], m, nnz);
     auto G_unique = cugraph::coo_to_csr(G_coo);
     cugraph::GraphCSRView<int, int, T> G(G_unique->view().offsets,
@@ -196,12 +196,13 @@ class Tests_Mst : public ::testing::TestWithParam<Mst_Usecase> {
 
     cudaDeviceSynchronize();
     hr_clock.stop(&time_tmp);
-    std::cout << "mst_time" << time_tmp << std::endl;
+    std::cout << "mst_time: " << time_tmp << " ms" << std::endl;
 
     auto expected_mst_weight   = m;  // TODO FIX this
     auto calculated_mst_weight = thrust::reduce(
       thrust::device_pointer_cast(mst_edges->view().edge_data),
       thrust::device_pointer_cast(mst_edges->view().edge_data) + mst_edges->view().number_of_edges);
+    std::cout << "calculated_mst_weight: " << calculated_mst_weight << std::endl;
 
     EXPECT_LE(calculated_mst_weight, expected_mst_weight);
   }
@@ -216,7 +217,7 @@ INSTANTIATE_TEST_CASE_P(simple_test,
                         Tests_Mst,
                         ::testing::Values(Mst_Usecase("test/datasets/karate.mtx")
      //                                     Mst_Usecase("test/datasets/netscience.mtx"),
-      //                                    Mst_Usecase("test/datasets/europe_osm.mtx"),
-       //                                   Mst_Usecase("test/datasets/hollywood.mtx")));
+     //                                     Mst_Usecase("test/datasets/europe_osm.mtx"),
+     //                                     Mst_Usecase("test/datasets/hollywood.mtx")));
 
 CUGRAPH_TEST_PROGRAM_MAIN()
