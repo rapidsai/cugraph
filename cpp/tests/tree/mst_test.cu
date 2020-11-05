@@ -198,13 +198,18 @@ class Tests_Mst : public ::testing::TestWithParam<Mst_Usecase> {
     hr_clock.stop(&time_tmp);
     std::cout << "mst_time: " << time_tmp << " ms" << std::endl;
 
-    auto expected_mst_weight   = m;  // TODO FIX this
+    // FIXME this is just some upper bound
+    auto expected_mst_weight = thrust::reduce(
+      thrust::device_pointer_cast(G_unique->view().edge_data),
+      thrust::device_pointer_cast(G_unique->view().edge_data) + G_unique->view().number_of_edges);
+
     auto calculated_mst_weight = thrust::reduce(
       thrust::device_pointer_cast(mst_edges->view().edge_data),
       thrust::device_pointer_cast(mst_edges->view().edge_data) + mst_edges->view().number_of_edges);
     std::cout << "calculated_mst_weight: " << calculated_mst_weight << std::endl;
 
     EXPECT_LE(calculated_mst_weight, expected_mst_weight);
+    EXPECT_LE(mst_edges->view().number_of_edges, 2 * m - 2);
   }
 };
 
@@ -215,9 +220,9 @@ TEST_P(Tests_Mst, CheckFP64_T) { run_current_test<double>(GetParam()); }
 // --gtest_filter=*simple_test*
 INSTANTIATE_TEST_CASE_P(simple_test,
                         Tests_Mst,
-                        ::testing::Values(Mst_Usecase("test/datasets/karate.mtx")
-     //                                     Mst_Usecase("test/datasets/netscience.mtx"),
-     //                                     Mst_Usecase("test/datasets/europe_osm.mtx"),
-     //                                     Mst_Usecase("test/datasets/hollywood.mtx")));
+                        ::testing::Values(Mst_Usecase("test/datasets/karate.mtx")));
+//                                     Mst_Usecase("test/datasets/netscience.mtx"),
+//                                     Mst_Usecase("test/datasets/europe_osm.mtx"),
+//                                     Mst_Usecase("test/datasets/hollywood.mtx")));
 
 CUGRAPH_TEST_PROGRAM_MAIN()
