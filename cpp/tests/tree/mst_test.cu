@@ -176,8 +176,11 @@ class Tests_Mst : public ::testing::TestWithParam<Mst_Usecase> {
     ASSERT_EQ(fclose(fpin), 0);
 
     raft::handle_t handle;
-    // generating weights between, expecting non unique weights
-    std::generate(cooVal.begin(), cooVal.end(), [&]() { return (rand() % m) / static_cast<T>(m); });
+    // generating weights, expecting non unique weights. symmetric
+    for (auto i = 0; i < nnz; i++) {
+      cooVal[i] = (cooRowInd[i] + cooColInd[i]) / static_cast<T>(m) +
+                  (cooRowInd[i] * cooColInd[i]) / static_cast<T>(m);
+    }
 
     cugraph::GraphCOOView<int, int, T> G_coo(&cooRowInd[0], &cooColInd[0], &cooVal[0], m, nnz);
     auto G_unique = cugraph::coo_to_csr(G_coo);
