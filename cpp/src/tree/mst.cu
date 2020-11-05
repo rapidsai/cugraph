@@ -57,17 +57,14 @@ std::unique_ptr<GraphCOO<vertex_t, edge_t, weight_t>> mst_impl(
                                                               colors,
                                                               stream);
 
-  auto out_graph = std::make_unique<GraphCOO<vertex_t, edge_t, weight_t>>(
-    graph.number_of_vertices, mst_edges.n_edges, true, stream, mr);
+  GraphCOOContents<vertex_t, edge_t, weight_t> coo_contents{
+    graph.number_of_vertices,
+    mst_edges.n_edges,
+    std::make_unique<rmm::device_buffer>(mst_edges.src.release()),
+    std::make_unique<rmm::device_buffer>(mst_edges.dst.release()),
+    std::make_unique<rmm::device_buffer>(mst_edges.weights.release())};
 
-  auto src_ptr     = out_graph->src_indices();
-  auto dst_ptr     = out_graph->dst_indices();
-  auto weights_ptr = out_graph->edge_data();
-  src_ptr          = std::move(mst_edges.src.data());
-  dst_ptr          = std::move(mst_edges.dst.data());
-  weights_ptr      = std::move(mst_edges.weights.data());
-
-  return out_graph;
+  return std::make_unique<GraphCOO<vertex_t, edge_t, weight_t>>(std::move(coo_contents));
 }
 
 }  // namespace detail

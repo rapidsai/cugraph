@@ -416,6 +416,14 @@ class GraphCOO {
         rmm::device_buffer{graph.edge_data, graph.number_of_edges * sizeof(weight_t), stream, mr};
     }
   }
+  GraphCOO(GraphCOOContents<vertex_t, edge_t, weight_t> &&contents)
+    : number_of_vertices_p(contents.number_of_vertices),
+      number_of_edges_p(contents.number_of_edges),
+      src_indices_p(std::move(*contents.src_indices.release())),
+      dst_indices_p(std::move(*contents.dst_indices.release())),
+      edge_data_p(std::move(*contents.edge_data.release()))
+  {
+  }
 
   vertex_t number_of_vertices(void) { return number_of_vertices_p; }
   edge_t number_of_edges(void) { return number_of_edges_p; }
