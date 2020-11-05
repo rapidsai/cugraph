@@ -33,7 +33,7 @@ namespace experimental {
  * This function is inspired by thrust::transfrom_reduce() (iteration over the outgoing edges
  * part) and thrust::copy() (update vertex properties part, take transform_reduce output as copy
  * input).
- * Unlike coy_v_transform_reduce_out_nbr, this function first aggregates outgoing edges by key to
+ * Unlike copy_v_transform_reduce_out_nbr, this function first aggregates outgoing edges by key to
  * support two level reduction for each vertex.
  *
  * @tparam GraphViewType Type of the passed non-owning graph object.
@@ -52,16 +52,19 @@ namespace experimental {
  * @param adj_matrix_row_value_input_first Iterator pointing to the adjacency matrix row input
  * properties for the first (inclusive) row (assigned to this process in multi-GPU).
  * `adj_matrix_row_value_input_last` (exclusive) is deduced as @p adj_matrix_row_value_input_first
- * +
- * @p graph_view.get_number_of_local_adj_matrix_partition_rows().
+ * + @p graph_view.get_number_of_local_adj_matrix_partition_rows().
  * @param out_nbr_key_first Iterator pointing to the adjacency matrix column key (for aggregation)
  * for the first (inclusive) column (assigned to this process in multi-GPU). `out_nbr_key_last`
  * (exclusive) is deduced as @p out_nbr_key_first + @p
  * graph_view.get_number_of_local_adj_matrix_partition_cols().
- * @param e_op Quinary operator takes edge source, key, aggregated edge weight, *(@p
+ * @param kv_map cuco::static_map object holding (key, value) pairs for the keys pointed by @p
+ * out_nbr_key_first + i (where i is in [0,
+ * graph_view.get_number_of_local_adj_matrix_partition_rows()))
+ * @param key_aggregated_e_op Quinary operator takes edge source, key, aggregated edge weight, *(@p
  * adj_matrix_row_value_input_first + i), and value stored in @p kv_map for the key (where i is in
  * [0, graph_view.get_number_of_local_adj_matrix_partition_rows())) and returns a value to be
  * reduced.
+ * @param reduce_op Binary operator takes two input arguments and reduce the two variables to one.
  * @param init Initial value to be added to the reduced @p key_aggregated_e_op return values for
  * each vertex.
  * @param vertex_value_output_first Iterator pointing to the vertex property variables for the

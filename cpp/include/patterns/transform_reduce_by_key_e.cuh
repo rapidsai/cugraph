@@ -61,7 +61,7 @@ namespace experimental {
  * cuco::static_map (which is local to this process in mulit-GPU).
  * @param map_key_last Iterator pointing to the last (exclusive) key to be stored in the returned
  * cuco::static_map (which is local to this process in multi-GPU).
- * @return cuco::static_map A hash-based map of (key, value) pairs for the keys pointed by
+ * @return cuco::static_map Hash-based map of (key, value) pairs for the keys pointed by
  * [map_key_first, map_key_last).
  */
 template <typename GraphViewType,
