@@ -14,7 +14,7 @@
 # limitations under the License.
 #=============================================================================
 
-cmake_minimum_required(VERSION 3.12 FATAL_ERROR)
+cmake_minimum_required(VERSION 3.12..3.17 FATAL_ERROR)
 
 project(CUGRAPH VERSION 0.17.0 LANGUAGES C CXX CUDA)
 
@@ -225,8 +225,7 @@ message("Fetching cuco")
 FetchContent_Declare(
     cuco
     GIT_REPOSITORY https://github.com/NVIDIA/cuCollections.git
-    GIT_TAG        729d07db2e544e173efefdd168db21f7b8adcfaf
-    GIT_SHALLOW    true
+    GIT_TAG        5f94cdd3b3df0e5f79c47fb772497d6e42455414
 )
 
 FetchContent_GetProperties(cuco)

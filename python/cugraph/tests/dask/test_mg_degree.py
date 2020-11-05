@@ -28,7 +28,7 @@ from dask_cuda import LocalCUDACluster
 def client_connection():
     cluster = LocalCUDACluster()
     client = Client(cluster)
-    Comms.initialize()
+    Comms.initialize(p2p=True)
 
     yield client
 
