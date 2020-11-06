@@ -217,7 +217,6 @@ FetchContent_Declare(
     cuco
     GIT_REPOSITORY https://github.com/NVIDIA/cuCollections.git
     GIT_TAG        729d07db2e544e173efefdd168db21f7b8adcfaf
-    GIT_SHALLOW    true
 )
 
 FetchContent_GetProperties(cuco)
