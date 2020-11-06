@@ -68,7 +68,8 @@ def test_mg_betweenness_centrality(
 ):
     prepare_test()
     skip_if_not_enough_devices(mg_device_count)
-    with MGContext(mg_device_count):
+    with MGContext(number_of_devices=mg_device_count,
+                   p2p=True):
         sorted_df = calc_betweenness_centrality(
             graph_file,
             directed=directed,
