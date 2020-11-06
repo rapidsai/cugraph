@@ -27,12 +27,12 @@
 #include <raft/error.hpp>
 #include <raft/handle.hpp>
 
-#include <rmm/device_uvector.hpp>
-
 #include <cuda_profiler_api.h>
 
 #include <cmath>
 
+#include <thrust/iterator/constant_iterator.h>
+#include <thrust/reduce.h>
 #include "../src/converters/COOtoCSR.cuh"
 /*
 template <typename vertex_t, typename edge_t, typename weight_t>
@@ -104,6 +104,21 @@ weight_t prims(CSRHost<vertex_t, edge_t, weight_t>& csr_h)
   return total_weight;
 }
 */
+
+template <typename T>
+void printv(size_t n, T* vec, int offset)
+{
+  thrust::device_ptr<T> dev_ptr(vec);
+  std::cout.precision(15);
+  std::cout << "sample size = " << n << ", offset = " << offset << std::endl;
+  thrust::copy(
+    dev_ptr + offset,
+    dev_ptr + offset + n,
+    std::ostream_iterator<T>(
+      std::cout, " "));  // Assume no RMM dependency; TODO: check / test (potential BUG !!!!!)
+  CHECK_CUDA(nullptr);
+  std::cout << std::endl;
+}
 typedef struct Mst_Usecase_t {
   std::string matrix_file;
   Mst_Usecase_t(const std::string& a)
@@ -164,8 +179,8 @@ class Tests_Mst : public ::testing::TestWithParam<Mst_Usecase> {
     std::vector<T> cooVal(nnz), mst(m);
 
     // device alloc
-    rmm::device_uvector<int> color_vector(static_cast<size_t>(m), nullptr);
-    int* d_colors = color_vector.data();
+    rmm::device_vector<int> color_vector(static_cast<size_t>(m));
+    int* d_colors = thrust::raw_pointer_cast(color_vector.data());
 
     // Read
     ASSERT_EQ((cugraph::test::mm_to_coo<int, T>(
@@ -210,8 +225,22 @@ class Tests_Mst : public ::testing::TestWithParam<Mst_Usecase> {
     auto calculated_mst_weight = thrust::reduce(
       thrust::device_pointer_cast(mst_edges->view().edge_data),
       thrust::device_pointer_cast(mst_edges->view().edge_data) + mst_edges->view().number_of_edges);
+    rmm::device_vector<int> components_k(static_cast<size_t>(m));
+    rmm::device_vector<int> components_v(static_cast<size_t>(m));
+    auto component_end = thrust::reduce_by_key(color_vector.begin(),
+                                               color_vector.end(),
+                                               thrust::make_constant_iterator(1),
+                                               components_k.begin(),
+                                               components_v.begin());
+    std::cout << "Number of components: "
+              << thrust::distance(components_k.begin(), component_end.first) << std::endl;
     std::cout << "calculated_mst_weight: " << calculated_mst_weight << std::endl;
     std::cout << "number_of_MST_edges: " << mst_edges->view().number_of_edges << std::endl;
+
+    // printv(m, d_colors, 0);
+    // printv(mst_edges->view().number_of_edges, mst_edges->view().src_indices, 0);
+    // printv(mst_edges->view().number_of_edges, mst_edges->view().dst_indices, 0);
+    // printv(mst_edges->view().number_of_edges, mst_edges->view().edge_data, 0);
 
     EXPECT_LE(calculated_mst_weight, expected_mst_weight);
     EXPECT_LE(mst_edges->view().number_of_edges, 2 * m - 2);
@@ -225,8 +254,9 @@ TEST_P(Tests_Mst, CheckFP32_T) { run_current_test<float>(GetParam()); }
 // --gtest_filter=*simple_test*
 INSTANTIATE_TEST_CASE_P(simple_test,
                         Tests_Mst,
-                        ::testing::Values(Mst_Usecase("test/datasets/karate.mtx"),
+                        ::testing::Values(Mst_Usecase("test/datasets/karate.mtx"),  //));
                                           Mst_Usecase("test/datasets/netscience.mtx"),
+                                          Mst_Usecase("test/datasets/scrna_lung_70k_csr.mtx"),
                                           Mst_Usecase("test/datasets/coAuthorsDBLP.mtx"),
                                           Mst_Usecase("test/datasets/coPapersDBLP.mtx"),
                                           Mst_Usecase("test/datasets/hollywood.mtx")));
