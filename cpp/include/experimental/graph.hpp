@@ -70,16 +70,6 @@ class graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu, std::enab
           bool sorted_by_global_degree_within_vertex_partition,
           bool do_expensive_check = false);
 
-  /**
-   * @brief Construct a new graph_t object by label based coarsening.
-   *
-   * @param graph_view Input graph to be coarsened.
-   * @param labels Pointers to vertex labels (on device memory) for coarsening. Vertices with the
-   * same label will be coarsed to a super-vertex.
-   */
-  graph_t(graph_view_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu> const &graph_view,
-          vertex_t *labels);
-
   graph_view_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu> view()
   {
     std::vector<edge_t const *> offsets(adj_matrix_partition_offsets_.size(), nullptr);
@@ -156,16 +146,6 @@ class graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu, std::enab
       segment_offsets_.size() > 0,
       false);
   }
-
-  /**
-   * @brief Construct a new graph_t object by label based coarsening.
-   *
-   * @param graph_view Input graph to be coarsened.
-   * @param labels Pointers to vertex labels (on device memory) for coarsening. Vertices with the
-   * same label will be coarsed to a super-vertex.
-   */
-  graph_t(graph_view_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu> const &graph_view,
-          vertex_t *labels);
 
  private:
   rmm::device_uvector<edge_t> offsets_;
