@@ -178,10 +178,11 @@ class Tests_Mst : public ::testing::TestWithParam<Mst_Usecase> {
     raft::handle_t handle;
     // generating weights, expecting non unique weights. symmetric
     for (auto i = 0; i < nnz; i++) {
-      cooVal[i] = (cooRowInd[i] + cooColInd[i]) / static_cast<T>(m) +
-                  (cooRowInd[i] * cooColInd[i]) / static_cast<T>(m);
+      cooVal[i] = (cooRowInd[i] + cooColInd[i]) % 1000;
+      if (i < 10) std::cout << cooVal[i] << " ";
+      if (i > nnz - 10) std::cout << cooVal[i] << " ";
     }
-
+    std::cout << std::endl;
     cugraph::GraphCOOView<int, int, T> G_coo(&cooRowInd[0], &cooColInd[0], &cooVal[0], m, nnz);
     auto G_unique = cugraph::coo_to_csr(G_coo);
     cugraph::GraphCSRView<int, int, T> G(G_unique->view().offsets,
@@ -199,7 +200,7 @@ class Tests_Mst : public ::testing::TestWithParam<Mst_Usecase> {
 
     cudaDeviceSynchronize();
     hr_clock.stop(&time_tmp);
-    std::cout << "mst_time: " << time_tmp << " ms" << std::endl;
+    std::cout << "mst_time: " << time_tmp << " us" << std::endl;
 
     // FIXME this is just some upper bound
     auto expected_mst_weight = thrust::reduce(
@@ -210,6 +211,7 @@ class Tests_Mst : public ::testing::TestWithParam<Mst_Usecase> {
       thrust::device_pointer_cast(mst_edges->view().edge_data),
       thrust::device_pointer_cast(mst_edges->view().edge_data) + mst_edges->view().number_of_edges);
     std::cout << "calculated_mst_weight: " << calculated_mst_weight << std::endl;
+    std::cout << "number_of_MST_edges: " << mst_edges->view().number_of_edges << std::endl;
 
     EXPECT_LE(calculated_mst_weight, expected_mst_weight);
     EXPECT_LE(mst_edges->view().number_of_edges, 2 * m - 2);
@@ -218,14 +220,15 @@ class Tests_Mst : public ::testing::TestWithParam<Mst_Usecase> {
 
 TEST_P(Tests_Mst, CheckFP32_T) { run_current_test<float>(GetParam()); }
 
-TEST_P(Tests_Mst, CheckFP64_T) { run_current_test<double>(GetParam()); }
+// TEST_P(Tests_Mst, CheckFP64_T) { run_current_test<double>(GetParam()); }
 
 // --gtest_filter=*simple_test*
 INSTANTIATE_TEST_CASE_P(simple_test,
                         Tests_Mst,
-                        ::testing::Values(Mst_Usecase("test/datasets/karate.mtx")));
-//                                     Mst_Usecase("test/datasets/netscience.mtx"),
-//                                     Mst_Usecase("test/datasets/europe_osm.mtx"),
-//                                     Mst_Usecase("test/datasets/hollywood.mtx")));
+                        ::testing::Values(Mst_Usecase("test/datasets/karate.mtx"),
+                                          Mst_Usecase("test/datasets/netscience.mtx"),
+                                          Mst_Usecase("test/datasets/coAuthorsDBLP.mtx"),
+                                          Mst_Usecase("test/datasets/coPapersDBLP.mtx"),
+                                          Mst_Usecase("test/datasets/hollywood.mtx")));
 
 CUGRAPH_TEST_PROGRAM_MAIN()
