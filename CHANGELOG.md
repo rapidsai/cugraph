@@ -1,6 +1,7 @@
 # cuGraph 0.17.0 (Date TBD)
 
 ## New Features
+- PR #1245 Add functions to add pandas and numpy compatibility
 
 ## Improvements
 - PR #1227 Pin cmake policies to cmake 3.17 version
