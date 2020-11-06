@@ -526,6 +526,76 @@ void call_pagerank(raft::handle_t const& handle,
   }
 }
 
+// Wrapper for calling Katz centrality through a graph container
+template <typename vertex_t, typename weight_t>
+void call_katz_centrality(raft::handle_t const& handle,
+                          graph_container_t const& graph_container,
+                          vertex_t* identifiers,
+                          weight_t* katz_centrality,
+                          double alpha,
+                          double beta,
+                          double tolerance,
+                          int64_t max_iter,
+                          bool normalized)
+{
+  if (graph_container.graph_type == graphTypeEnum::GraphCSRViewFloat) {
+    katz_centrality(handle,
+                    *(graph_container.graph_ptr_union.GraphCSRViewFloatPtr),
+                    reinterpret_cast<float*>(katz_centrality),
+                    alpha,
+                    beta,
+                    tolerance,
+                    max_iter,
+                    normalized);
+    graph_container.graph_ptr_union.GraphCSRViewFloatPtr->get_vertex_identifiers(
+      reinterpret_cast<int32_t*>(identifiers));
+  } else if (graph_container.graph_type == graphTypeEnum::GraphCSRViewDouble) {
+    katz_centrality(handle,
+                    *(graph_container.graph_ptr_union.GraphCSRViewDoublePtr),
+                    reinterpret_cast<double*>(katz_centrality),
+                    alpha,
+                    beta,
+                    tolerance,
+                    max_iter,
+                    normalized);
+    graph_container.graph_ptr_union.GraphCSRViewDoublePtr->get_vertex_identifiers(
+      reinterpret_cast<int32_t*>(identifiers));
+  } else if (graph_container.graph_type == graphTypeEnum::graph_t) {
+    if (graph_container.edgeType == numberTypeEnum::int32Type) {
+      auto graph =
+        detail::create_graph<int32_t, int32_t, weight_t, false, true>(handle, graph_container);
+      cugraph::experimental::katz_centrality(handle,
+                                             graph->view(),
+                                             static_cast<weight_t*>(nullptr),
+                                             reinterpret_cast<weight_t*>(katz_centrality),
+                                             static_cast<weight_t>(alpha),
+                                             static_cast<weight_t>(beta),
+                                             static_cast<weight_t>(tolerance),
+                                             max_iter,
+                                             has_guess,
+                                             normalize,
+                                             false);
+    } else if (graph_container.edgeType == numberTypeEnum::int64Type) {
+      auto graph =
+        detail::create_graph<vertex_t, int64_t, weight_t, false, true>(handle, graph_container);
+      cugraph::experimental::katz_centrality(handle,
+                                             graph->view(),
+                                             static_cast<weight_t*>(nullptr),
+                                             reinterpret_cast<weight_t*>(katz_centrality),
+                                             static_cast<weight_t>(alpha),
+                                             static_cast<weight_t>(beta),
+                                             static_cast<weight_t>(tolerance),
+                                             max_iter,
+                                             has_guess,
+                                             normalize,
+                                             false);
+    } else {
+      CUGRAPH_FAIL("vertexType/edgeType combination unsupported");
+    }
+  }
+}
+
+
 // Wrapper for calling BFS through a graph container
 template <typename vertex_t, typename weight_t>
 void call_bfs(raft::handle_t const& handle,

@@ -213,6 +213,18 @@ void call_pagerank(raft::handle_t const& handle,
                    int64_t max_iter,
                    bool has_guess);
 
+// Wrapper for calling Katz centrality using a graph container
+template <typename vertex_t, typename weight_t>
+void call_katz_centrality(raft::handle_t const& handle,
+                          graph_container_t const& graph_container,
+                          vertex_t* identifiers,
+                          weight_t* katz_centrality,
+                          double alpha,
+                          double beta,
+                          double tolerance,
+                          int64_t max_iter,
+                          bool normalized)
+
 // Wrapper for calling BFS through a graph container
 template <typename vertex_t, typename weight_t>
 void call_bfs(raft::handle_t const& handle,
