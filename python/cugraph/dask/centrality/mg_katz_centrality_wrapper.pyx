@@ -15,7 +15,7 @@
 #
 
 from cugraph.structure.utils_wrapper import *
-from cugraph.dask.link_analysis cimport mg_katz_centrality as c_katz_centrality
+from cugraph.dask.centrality cimport mg_katz_centrality as c_katz_centrality
 import cudf
 from cugraph.structure.graph_primtypes cimport *
 import cugraph.structure.graph_primtypes_wrapper as graph_primtypes_wrapper
@@ -74,7 +74,6 @@ def mg_katz_centrality(input_df,
     cdef uintptr_t c_vertex_partition_offsets = vertex_partition_offsets_host.__array_interface__['data'][0]
 
     cdef graph_container_t graph_container
-
     populate_graph_container(graph_container,
                              handle_[0],
                              <void*>c_src_vertices, <void*>c_dst_vertices, <void*>c_edge_weights,
@@ -92,13 +91,13 @@ def mg_katz_centrality(input_df,
     df['katz_centrality'] = cudf.Series(np.zeros(len(df['vertex']), dtype=weight_t))
 
     cdef uintptr_t c_identifier = df['vertex'].__cuda_array_interface__['data'][0];
-    cdef uintptr_t c_pagerank_val = df['katz_centrality'].__cuda_array_interface__['data'][0];
+    cdef uintptr_t c_katz_centralities = df['katz_centrality'].__cuda_array_interface__['data'][0];
 
     if (df['katz_centrality'].dtype == np.float32):
-        c_katz_centrality.call_katz_centrality[int, float](handle_[0], graph_container, <int*>c_identifier, <float*> c_pagerank_val, sz, <int*> c_pers_vtx, <float*> c_pers_val,
-                                               <float> alpha, <float> tol, <int> max_iter, <bool> 0)
+        c_katz_centrality.call_katz_centrality[int, float](handle_[0], graph_container, <int*>c_identifier, <float*> c_katz_centralities,
+                                               alpha, beta, tol, max_iter, <bool>0, <bool> 0)
     else:
-        c_katz_centrality.call_katz_centrality[int, double](handle_[0], graph_container, <int*>c_identifier, <double*> c_pagerank_val, sz, <int*> c_pers_vtx, <double*> c_pers_val,
-                                               <float> alpha, <float> tol, <int> max_iter, <bool> 0)
+        c_katz_centrality.call_katz_centrality[int, double](handle_[0], graph_container, <int*>c_identifier, <double*> c_katz_centralities,
+                                               alpha, beta, tol, max_iter, <bool>0, <bool> 0)
     
     return df

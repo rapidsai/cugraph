@@ -29,4 +29,5 @@ cdef extern from "utilities/cython.hpp" namespace "cugraph::cython":
         double beta,
         double tolerance,
         long long max_iter,
-        bool has_guess) except +
+        bool has_guess,
+        bool normalized) except +

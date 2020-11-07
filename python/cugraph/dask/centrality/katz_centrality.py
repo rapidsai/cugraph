@@ -16,7 +16,7 @@
 from dask.distributed import wait, default_client
 from cugraph.dask.common.input_utils import get_distributed_data
 from cugraph.structure.shuffle import shuffle
-from cugraph.dask.link_analysis import mg_katz_centrality_wrapper as mg_katz_centrality
+from cugraph.dask.centrality import mg_katz_centrality_wrapper as mg_katz_centrality
 import cugraph.comms.comms as Comms
 import dask_cudf
 

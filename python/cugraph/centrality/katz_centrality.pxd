@@ -19,13 +19,16 @@
 from cugraph.structure.graph_primtypes cimport *
 from libcpp cimport bool
 
-cdef extern from "algorithms.hpp" namespace "cugraph":
+cdef extern from "utilities/cython.hpp" namespace "cugraph::cython":
 
-    cdef void katz_centrality[VT,ET,WT,result_t](
-        const GraphCSRView[VT,ET,WT] &graph,
-        result_t *katz_centrality,
+    cdef void call_katz_centrality[VT,WT](
+        const handle_t &handle,
+        const graph_container_t &g,
+        VT *identifiers,
+        WT *katz_centrality,
         double alpha,
-        int max_iter,
-        double tol,
+        double double,
+        double tolerance,
+        long long max_iter,
         bool has_guess,
         bool normalized) except +
