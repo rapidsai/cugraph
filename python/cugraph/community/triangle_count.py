@@ -1,4 +1,4 @@
-# Copyright (c) 2019 - 2020, NVIDIA CORPORATION.
+# Copyright (c) 2019-2020, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -13,16 +13,20 @@
 
 from cugraph.community import triangle_count_wrapper
 from cugraph.structure.graph import Graph
+from cugraph.utilities import check_nx_graph
 
 
 def triangles(G):
     """
-    Compute the triangle (number of cycles of length three) count of the
+    Compute the number of triangles (cycles of length three) in the
     input graph.
+
+    Unlike NetworkX, this algorithm simply returns the total number of
+    triangle and not the number per vertex.
 
     Parameters
     ----------
-    G : cugraph.graph
+    G : cugraph.graph or networkx.Graph
         cuGraph graph descriptor, should contain the connectivity information,
         (edge weights are not used in this algorithm)
 
@@ -34,14 +38,16 @@ def triangles(G):
 
     Examples
     --------
-    >>> M = cudf.read_csv('datasets/karate.csv',
+    >>> gdf = cudf.read_csv('datasets/karate.csv',
                           delimiter = ' ',
                           dtype=['int32', 'int32', 'float32'],
                           header=None)
     >>> G = cugraph.Graph()
-    >>> G.from_cudf_edgelist(M, source='0', destination='1')
+    >>> G.from_cudf_edgelist(gdf, source='0', destination='1')
     >>> count = cugraph.triangles(G)
     """
+
+    G, _ = check_nx_graph(G)
 
     if type(G) is not Graph:
         raise Exception("input graph must be undirected")

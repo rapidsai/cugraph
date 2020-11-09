@@ -1,4 +1,4 @@
-# built from https://github.com/rapidsai/cudf/blob/master/Dockerfile
+# built from https://github.com/rapidsai/cudf/blob/main/Dockerfile
 FROM cudf
 
 ADD src /cugraph/src

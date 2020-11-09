@@ -1,4 +1,4 @@
-# Copyright (c) 2019, NVIDIA CORPORATION.
+# Copyright (c) 2019-2020, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -19,15 +19,15 @@ import pandas as pd
 import cudf
 import cugraph
 from cugraph.tests import utils
+import cugraph.comms as Comms
+from dask.distributed import Client
+from dask_cuda import LocalCUDACluster
+from cugraph.dask.common.mg_utils import is_single_gpu
 
 
 def test_version():
     gc.collect()
     cugraph.__version__
-
-
-DATASETS = ['../datasets/karate',
-            '../datasets/email-Eu-core']
 
 
 def compare(src1, dst1, val1, src2, dst2, val2):
@@ -37,16 +37,16 @@ def compare(src1, dst1, val1, src2, dst2, val2):
     #  start by making two data frames
     #
     df1 = cudf.DataFrame()
-    df1['src1'] = src1
-    df1['dst1'] = dst1
+    df1["src1"] = src1
+    df1["dst1"] = dst1
     if val1 is not None:
-        df1['val1'] = val1
+        df1["val1"] = val1
 
     df2 = cudf.DataFrame()
-    df2['src2'] = src2
-    df2['dst2'] = dst2
+    df2["src2"] = src2
+    df2["dst2"] = dst2
     if val2 is not None:
-        df2['val2'] = val2
+        df2["val2"] = val2
 
     #
     #  Check to see if all pairs in the original data frame
@@ -55,9 +55,7 @@ def compare(src1, dst1, val1, src2, dst2, val2):
     #  then we should get exactly the same number of entries in
     #  the data frame if we did not lose any data.
     #
-    join = df1.merge(df2,
-                     left_on=['src1', 'dst1'],
-                     right_on=['src2', 'dst2'])
+    join = df1.merge(df2, left_on=["src1", "dst1"], right_on=["src2", "dst2"])
     assert len(df1) == len(join)
 
     if val1 is not None:
@@ -68,13 +66,13 @@ def compare(src1, dst1, val1, src2, dst2, val2):
         #  direction, so we'll merge with the edges reversed and
         #  check to make sure that the values all match
         #
-        diffs = join.query('val1 != val2')
-        diffs_check = diffs.merge(df1,
-                                  left_on=['src1', 'dst1'],
-                                  right_on=['dst1', 'src1'])
-        query = diffs_check.query('val1_y != val2')
+        diffs = join.query("val1 != val2")
+        diffs_check = diffs.merge(
+            df1, left_on=["src1", "dst1"], right_on=["dst1", "src1"]
+        )
+        query = diffs_check.query("val1_y != val2")
         if len(query) > 0:
-            print('differences: ')
+            print("differences: ")
             print(query)
             assert 0 == len(query)
 
@@ -87,9 +85,7 @@ def compare(src1, dst1, val1, src2, dst2, val2):
     #  (src1[i] = dst2[i]) and (dst1[i] = src2[i]), and verifying
     #  that we get exactly the same number of entries in the data frame.
     #
-    join = df1.merge(df2,
-                     left_on=['src1', 'dst1'],
-                     right_on=['dst2', 'src2'])
+    join = df1.merge(df2, left_on=["src1", "dst1"], right_on=["dst2", "src2"])
     assert len(df1) == len(join)
 
     if val1 is not None:
@@ -100,13 +96,13 @@ def compare(src1, dst1, val1, src2, dst2, val2):
         #  direction, so we'll merge with the edges reversed and
         #  check to make sure that the values all match
         #
-        diffs = join.query('val1 != val2')
-        diffs_check = diffs.merge(df1,
-                                  left_on=['src2', 'dst2'],
-                                  right_on=['src1', 'dst1'])
-        query = diffs_check.query('val1_y != val2')
+        diffs = join.query("val1 != val2")
+        diffs_check = diffs.merge(
+            df1, left_on=["src2", "dst2"], right_on=["src1", "dst1"]
+        )
+        query = diffs_check.query("val1_y != val2")
         if len(query) > 0:
-            print('differences: ')
+            print("differences: ")
             print(query)
             assert 0 == len(query)
 
@@ -133,13 +129,9 @@ def compare(src1, dst1, val1, src2, dst2, val2):
     #  in both data frames as single rows.  This gives us a data frame
     #  with the same number of rows as the symmetrized data.
     #
-    join1 = df2.merge(df1,
-                      left_on=['src2', 'dst2'],
-                      right_on=['src1', 'dst1'])
-    join2 = df2.merge(df1,
-                      left_on=['src2', 'dst2'],
-                      right_on=['dst1', 'src1'])
-    joinM = join1.merge(join2, how='outer', on=['src2', 'dst2'])
+    join1 = df2.merge(df1, left_on=["src2", "dst2"], right_on=["src1", "dst1"])
+    join2 = df2.merge(df1, left_on=["src2", "dst2"], right_on=["dst1", "src1"])
+    joinM = join1.merge(join2, how="outer", on=["src2", "dst2"])
 
     assert len(df2) == len(joinM)
 
@@ -149,18 +141,19 @@ def compare(src1, dst1, val1, src2, dst2, val2):
     #
 
 
-# Test all combinations of default/managed and pooled/non-pooled allocation
+# Test
 # NOTE: see https://github.com/rapidsai/cudf/issues/2636
 #       drop_duplicates doesn't work well with the pool allocator
 #                        list(product([False, True], [False, True])))
 
-@pytest.mark.parametrize('graph_file', DATASETS)
+
+@pytest.mark.parametrize("graph_file", utils.DATASETS)
 def test_symmetrize_unweighted(graph_file):
     gc.collect()
 
-    cu_M = utils.read_csv_file(graph_file+'.csv')
+    cu_M = utils.read_csv_file(graph_file)
 
-    sym_sources, sym_destinations = cugraph.symmetrize(cu_M['0'], cu_M['1'])
+    sym_sources, sym_destinations = cugraph.symmetrize(cu_M["0"], cu_M["1"])
 
     #
     #  Check to see if all pairs in sources/destinations exist in
@@ -173,49 +166,113 @@ def test_symmetrize_unweighted(graph_file):
     #  the length of the data frames should be equal.
     #
     sym_df = cudf.DataFrame()
-    sym_df['src_s'] = sym_sources
-    sym_df['dst_s'] = sym_destinations
+    sym_df["src_s"] = sym_sources
+    sym_df["dst_s"] = sym_destinations
 
     orig_df = cudf.DataFrame()
-    orig_df['src'] = cu_M['0']
-    orig_df['dst'] = cu_M['1']
+    orig_df["src"] = cu_M["0"]
+    orig_df["dst"] = cu_M["1"]
 
-    compare(orig_df['src'], orig_df['dst'], None,
-            sym_df['src_s'], sym_df['dst_s'], None)
+    compare(
+        orig_df["src"],
+        orig_df["dst"],
+        None,
+        sym_df["src_s"],
+        sym_df["dst_s"],
+        None,
+    )
 
 
-# Test all combinations of default/managed and pooled/non-pooled allocation
+# Test
 # NOTE: see https://github.com/rapidsai/cudf/issues/2636
 #       drop_duplicates doesn't work well with the pool allocator
 #                        list(product([False, True], [False, True])))
 
-@pytest.mark.parametrize('graph_file', DATASETS)
+
+@pytest.mark.parametrize("graph_file", utils.DATASETS)
 def test_symmetrize_weighted(graph_file):
     gc.collect()
 
-    cu_M = utils.read_csv_file(graph_file+'.csv')
+    cu_M = utils.read_csv_file(graph_file)
 
-    sym_src, sym_dst, sym_w = cugraph.symmetrize(cu_M['0'],
-                                                 cu_M['1'],
-                                                 cu_M['2'])
+    sym_src, sym_dst, sym_w = cugraph.symmetrize(
+        cu_M["0"], cu_M["1"], cu_M["2"]
+    )
 
-    compare(cu_M['0'], cu_M['1'], cu_M['2'], sym_src, sym_dst, sym_w)
+    compare(cu_M["0"], cu_M["1"], cu_M["2"], sym_src, sym_dst, sym_w)
 
 
-# Test all combinations of default/managed and pooled/non-pooled allocation
+@pytest.fixture
+def client_connection():
+    cluster = LocalCUDACluster()
+    client = Client(cluster)
+    Comms.initialize()
+
+    yield client
+
+    Comms.destroy()
+    client.close()
+    cluster.close()
+
+
+@pytest.mark.skipif(
+    is_single_gpu(), reason="skipping MG testing on Single GPU system"
+)
+@pytest.mark.parametrize("graph_file", utils.DATASETS_UNDIRECTED)
+def test_mg_symmetrize(graph_file, client_connection):
+    gc.collect()
+
+    ddf = utils.read_dask_cudf_csv_file(graph_file)
+    sym_src, sym_dst = cugraph.symmetrize(ddf["src"], ddf["dst"])
+
+    # convert to regular cudf to facilitate comparison
+    df = ddf.compute()
+
+    compare(
+        df["src"], df["dst"], None, sym_src.compute(), sym_dst.compute(), None
+    )
+
+
+@pytest.mark.skipif(
+    is_single_gpu(), reason="skipping MG testing on Single GPU system"
+)
+@pytest.mark.parametrize("graph_file", utils.DATASETS_UNDIRECTED)
+def test_mg_symmetrize_df(graph_file, client_connection):
+    gc.collect()
+
+    ddf = utils.read_dask_cudf_csv_file(graph_file)
+    sym_ddf = cugraph.symmetrize_ddf(ddf, "src", "dst", "weight")
+
+    # convert to regular cudf to facilitate comparison
+    df = ddf.compute()
+    sym_df = sym_ddf.compute()
+
+    compare(
+        df["src"],
+        df["dst"],
+        df["weight"],
+        sym_df["src"],
+        sym_df["dst"],
+        sym_df["weight"],
+    )
+
+
+# Test
 # NOTE: see https://github.com/rapidsai/cudf/issues/2636
 #       drop_duplicates doesn't work well with the pool allocator
 #                        list(product([False, True], [False, True])))
 
-@pytest.mark.parametrize('graph_file', DATASETS)
+
+@pytest.mark.parametrize("graph_file", utils.DATASETS_UNDIRECTED)
 def test_symmetrize_df(graph_file):
     gc.collect()
 
-    cu_M = utils.read_csv_file(graph_file+'.csv')
-    sym_df = cugraph.symmetrize_df(cu_M, '0', '1')
+    cu_M = utils.read_csv_file(graph_file)
+    sym_df = cugraph.symmetrize_df(cu_M, "0", "1")
 
-    compare(cu_M['0'], cu_M['1'], cu_M['2'],
-            sym_df['0'], sym_df['1'], sym_df['2'])
+    compare(
+        cu_M["0"], cu_M["1"], cu_M["2"], sym_df["0"], sym_df["1"], sym_df["2"]
+    )
 
 
 def test_symmetrize_bad_weights():
@@ -223,14 +280,16 @@ def test_symmetrize_bad_weights():
     dst = [1, 2, 3, 4, 0, 3]
     val = [1.0, 1.0, 1.0, 1.0, 2.0, 1.0]
 
-    df = pd.DataFrame({
-        'src': src,
-        'dst': dst,
-        'val': val
-    })
+    df = pd.DataFrame({"src": src, "dst": dst, "val": val})
 
-    gdf = cudf.DataFrame.from_pandas(df[['src', 'dst', 'val']])
-    sym_df = cugraph.symmetrize_df(gdf, 'src', 'dst')
+    gdf = cudf.DataFrame.from_pandas(df[["src", "dst", "val"]])
+    sym_df = cugraph.symmetrize_df(gdf, "src", "dst")
 
-    compare(gdf['src'], gdf['dst'], gdf['val'],
-            sym_df['src'], sym_df['dst'], sym_df['val'])
+    compare(
+        gdf["src"],
+        gdf["dst"],
+        gdf["val"],
+        sym_df["src"],
+        sym_df["dst"],
+        sym_df["val"],
+    )

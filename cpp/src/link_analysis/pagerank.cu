@@ -22,12 +22,15 @@
 #include <string>
 #include "cub/cub.cuh"
 
-#include <rmm/rmm.h>
+#include <raft/cudart_utils.h>
 #include <rmm/thrust_rmm_allocator.h>
-#include <utilities/error_utils.h>
+#include <utilities/error.hpp>
 
 #include <graph.hpp>
+#include "pagerank_1D.cuh"
 #include "utilities/graph_utils.cuh"
+
+#include <raft/spectral/matrix_wrappers.hpp>
 
 namespace cugraph {
 namespace detail {
@@ -37,7 +40,8 @@ namespace detail {
 #endif
 
 template <typename IndexType, typename ValueType>
-bool pagerankIteration(IndexType n,
+bool pagerankIteration(raft::handle_t const &handle,
+                       IndexType n,
                        IndexType e,
                        IndexType const *cscPtr,
                        IndexType const *cscInd,
@@ -55,6 +59,14 @@ bool pagerankIteration(IndexType n,
                        ValueType *residual)
 {
   ValueType dot_res;
+//#if defined(CUDART_VERSION) and CUDART_VERSION >= 11000
+#if 1
+  {
+    raft::matrix::sparse_matrix_t<IndexType, ValueType> const r_csr_m{
+      handle, cscPtr, cscInd, cscVal, n, e};
+    r_csr_m.mv(1.0, tmp, 0.0, pr);
+  }
+#else
   CUDA_TRY(cub::DeviceSpmv::CsrMV(cub_d_temp_storage,
                                   cub_temp_storage_bytes,
                                   cscVal,
@@ -65,7 +77,7 @@ bool pagerankIteration(IndexType n,
                                   n,
                                   n,
                                   e));
-
+#endif
   scal(n, alpha, pr);
   dot_res = dot(n, a, tmp);
   axpy(n, dot_res, b, pr);
@@ -77,7 +89,13 @@ bool pagerankIteration(IndexType n,
     return true;
   } else {
     if (iter < max_iter) {
-      std::swap(pr, tmp);
+      // FIXME: Copy the pagerank vector results to the tmp vector, since there
+      // are still raw pointers in pagerank pointing to tmp vector locations
+      // that were std::swapped out in the solver.  A thrust::swap would
+      // probably be more efficent if the vectors were passed everywhere instead
+      // of pointers. std::swap is unsafe though. Just copying for now, as this
+      // may soon be replaced by the pattern accelerator.
+      copy(n, pr, tmp);
     } else {
       scal(n, (ValueType)1.0 / nrm1(n, pr), pr);
     }
@@ -86,7 +104,8 @@ bool pagerankIteration(IndexType n,
 }
 
 template <typename IndexType, typename ValueType>
-int pagerankSolver(IndexType n,
+int pagerankSolver(raft::handle_t const &handle,
+                   IndexType n,
                    IndexType e,
                    IndexType const *cscPtr,
                    IndexType const *cscInd,
@@ -136,7 +155,8 @@ int pagerankSolver(IndexType n,
   rmm::device_vector<WT> tmp(n);
   tmp_d = pr.data().get();
 #endif
-  CUDA_CHECK_LAST();
+  // FIXME: this should take a passed CUDA strema instead of default nullptr
+  CHECK_CUDA(nullptr);
 
   if (!has_guess) {
     fill(n, pagerank_vector, randomProbability);
@@ -159,6 +179,14 @@ int pagerankSolver(IndexType n,
   }
   update_dangling_nodes(n, a, alpha);
 
+//#if defined(CUDART_VERSION) and CUDART_VERSION >= 11000
+#if 1
+  {
+    raft::matrix::sparse_matrix_t<IndexType, ValueType> const r_csr_m{
+      handle, cscPtr, cscInd, cscVal, n, e};
+    r_csr_m.mv(1.0, tmp_d, 0.0, pagerank_vector);
+  }
+#else
   CUDA_TRY(cub::DeviceSpmv::CsrMV(cub_d_temp_storage,
                                   cub_temp_storage_bytes,
                                   cscVal,
@@ -169,6 +197,7 @@ int pagerankSolver(IndexType n,
                                   n,
                                   n,
                                   e));
+#endif
   // Allocate temporary storage
   rmm::device_buffer cub_temp_storage(cub_temp_storage_bytes);
   cub_d_temp_storage = cub_temp_storage.data();
@@ -185,7 +214,8 @@ int pagerankSolver(IndexType n,
 
   while (!converged && i < max_it) {
     i++;
-    converged = pagerankIteration<IndexType, ValueType>(n,
+    converged = pagerankIteration<IndexType, ValueType>(handle,
+                                                        n,
                                                         e,
                                                         cscPtr,
                                                         cscInd,
@@ -219,7 +249,8 @@ int pagerankSolver(IndexType n,
 // template int pagerankSolver<int, half> (  int n, int e, int *cscPtr, int *cscInd,half *cscVal,
 // half alpha, half *a, bool has_guess, float tolerance, int max_iter, half * &pagerank_vector, half
 // * &residual);
-template int pagerankSolver<int, float>(int n,
+template int pagerankSolver<int, float>(raft::handle_t const &handle,
+                                        int n,
                                         int e,
                                         int const *cscPtr,
                                         int const *cscInd,
@@ -235,7 +266,8 @@ template int pagerankSolver<int, float>(int n,
                                         int max_iter,
                                         float *&pagerank_vector,
                                         float *&residual);
-template int pagerankSolver<int, double>(int n,
+template int pagerankSolver<int, double>(raft::handle_t const &handle,
+                                         int n,
                                          int e,
                                          const int *cscPtr,
                                          int const *cscInd,
@@ -253,14 +285,15 @@ template int pagerankSolver<int, double>(int n,
                                          double *&residual);
 
 template <typename VT, typename ET, typename WT>
-void pagerank_impl(experimental::GraphCSCView<VT, ET, WT> const &graph,
+void pagerank_impl(raft::handle_t const &handle,
+                   GraphCSCView<VT, ET, WT> const &graph,
                    WT *pagerank,
                    VT personalization_subset_size = 0,
                    VT *personalization_subset     = nullptr,
                    WT *personalization_values     = nullptr,
                    double alpha                   = 0.85,
-                   double tolerance               = 1e-4,
-                   int64_t max_iter               = 200,
+                   double tolerance               = 1e-5,
+                   int64_t max_iter               = 100,
                    bool has_guess                 = false)
 {
   bool has_personalization = false;
@@ -304,7 +337,8 @@ void pagerank_impl(experimental::GraphCSCView<VT, ET, WT> const &graph,
 
   if (has_guess) { copy<WT>(m, (WT *)pagerank, d_pr); }
 
-  status = pagerankSolver<int32_t, WT>(m,
+  status = pagerankSolver<int32_t, WT>(handle,
+                                       m,
                                        nnz,
                                        graph.offsets,
                                        graph.indices,
@@ -324,7 +358,7 @@ void pagerank_impl(experimental::GraphCSCView<VT, ET, WT> const &graph,
   switch (status) {
     case 0: break;
     case -1: CUGRAPH_FAIL("Error : bad parameters in Pagerank");
-    case 1: CUGRAPH_FAIL("Warning : Pagerank did not reached the desired tolerance");
+    case 1: break;  // Warning : Pagerank did not reached the desired tolerance
     default: CUGRAPH_FAIL("Pagerank exec failed");
   }
 
@@ -333,7 +367,8 @@ void pagerank_impl(experimental::GraphCSCView<VT, ET, WT> const &graph,
 }  // namespace detail
 
 template <typename VT, typename ET, typename WT>
-void pagerank(experimental::GraphCSCView<VT, ET, WT> const &graph,
+void pagerank(raft::handle_t const &handle,
+              GraphCSCView<VT, ET, WT> const &graph,
               WT *pagerank,
               VT personalization_subset_size,
               VT *personalization_subset,
@@ -344,20 +379,37 @@ void pagerank(experimental::GraphCSCView<VT, ET, WT> const &graph,
               bool has_guess)
 {
   CUGRAPH_EXPECTS(pagerank != nullptr, "Invalid API parameter: Pagerank array should be of size V");
-
-  return detail::pagerank_impl<VT, ET, WT>(graph,
-                                           pagerank,
-                                           personalization_subset_size,
-                                           personalization_subset,
-                                           personalization_values,
-                                           alpha,
-                                           tolerance,
-                                           max_iter,
-                                           has_guess);
+  // Multi-GPU
+  if (handle.comms_initialized()) {
+    CUGRAPH_EXPECTS(has_guess == false,
+                    "Invalid API parameter: Multi-GPU Pagerank does not guess, please use the "
+                    "single GPU version for this feature");
+    CUGRAPH_EXPECTS(max_iter > 0, "The number of iteration must be positive");
+    cugraph::mg::pagerank<VT, ET, WT>(handle,
+                                      graph,
+                                      pagerank,
+                                      personalization_subset_size,
+                                      personalization_subset,
+                                      personalization_values,
+                                      alpha,
+                                      max_iter,
+                                      tolerance);
+  } else  // Single GPU
+    return detail::pagerank_impl<VT, ET, WT>(handle,
+                                             graph,
+                                             pagerank,
+                                             personalization_subset_size,
+                                             personalization_subset,
+                                             personalization_values,
+                                             alpha,
+                                             tolerance,
+                                             max_iter,
+                                             has_guess);
 }
 
 // explicit instantiation
-template void pagerank<int, int, float>(experimental::GraphCSCView<int, int, float> const &graph,
+template void pagerank<int, int, float>(raft::handle_t const &handle,
+                                        GraphCSCView<int, int, float> const &graph,
                                         float *pagerank,
                                         int personalization_subset_size,
                                         int *personalization_subset,
@@ -366,7 +418,8 @@ template void pagerank<int, int, float>(experimental::GraphCSCView<int, int, flo
                                         double tolerance,
                                         int64_t max_iter,
                                         bool has_guess);
-template void pagerank<int, int, double>(experimental::GraphCSCView<int, int, double> const &graph,
+template void pagerank<int, int, double>(raft::handle_t const &handle,
+                                         GraphCSCView<int, int, double> const &graph,
                                          double *pagerank,
                                          int personalization_subset_size,
                                          int *personalization_subset,

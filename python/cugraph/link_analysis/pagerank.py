@@ -1,4 +1,4 @@
-# Copyright (c) 2019 - 2020, NVIDIA CORPORATION.
+# Copyright (c) 2019-2020, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -13,14 +13,13 @@
 
 from cugraph.link_analysis import pagerank_wrapper
 from cugraph.structure.graph import null_check
+import cugraph
 
 
-def pagerank(G,
-             alpha=0.85,
-             personalization=None,
-             max_iter=100,
-             tol=1.0e-5,
-             nstart=None):
+def pagerank(
+    G, alpha=0.85, personalization=None, max_iter=100, tol=1.0e-5, nstart=None,
+    weight=None, dangling=None
+):
     """
     Find the PageRank score for every vertex in a graph. cuGraph computes an
     approximation of the Pagerank eigenvector using the power method. The
@@ -31,7 +30,7 @@ def pagerank(G,
 
     Parameters
     ----------
-    graph : cugraph.Graph
+    graph : cugraph.Graph or networkx.Graph
         cuGraph graph descriptor, should contain the connectivity information
         as an edge list (edge weights are not used for this algorithm).
         The transposed adjacency list will be computed if not already present.
@@ -41,7 +40,7 @@ def pagerank(G,
         Thus, 1.0-alpha is the probability to “teleport” to a random vertex.
         Alpha should be greater than 0.0 and strictly lower than 1.0.
     personalization : cudf.Dataframe
-        GPU Dataframe containing the personalizatoin information.
+        GPU Dataframe containing the personalization information.
 
         personalization['vertex'] : cudf.Series
             Subset of vertices of graph for personalization
@@ -70,6 +69,13 @@ def pagerank(G,
         nstart['values'] : cudf.Series
             Pagerank values for vertices
 
+    weight : str
+        Edge data column to use.  Default is None
+        This version of PageRank current does not use edge weight.
+        This parameter is here for NetworkX compatibility
+    dangling : dict
+        This parameter is here for NetworkX compatibility and ignored
+
     Returns
     -------
     PageRank : cudf.DataFrame
@@ -91,15 +97,30 @@ def pagerank(G,
     >>> pr = cugraph.pagerank(G, alpha = 0.85, max_iter = 500, tol = 1.0e-05)
     """
 
+    G, isNx = cugraph.utilities.check_nx_graph(G, weight)
+
     if personalization is not None:
-        null_check(personalization['vertex'])
-        null_check(personalization['values'])
+        null_check(personalization["vertex"])
+        null_check(personalization["values"])
+        if G.renumbered is True:
+            personalization = G.add_internal_vertex_id(
+                personalization, "vertex", "vertex"
+            )
 
-    df = pagerank_wrapper.pagerank(G,
-                                   alpha,
-                                   personalization,
-                                   max_iter,
-                                   tol,
-                                   nstart)
+    if nstart is not None:
+        if G.renumbered is True:
+            nstart = G.add_internal_vertex_id(
+                nstart, "vertex", "vertex"
+            )
 
-    return df
+    df = pagerank_wrapper.pagerank(
+        G, alpha, personalization, max_iter, tol, nstart
+    )
+
+    if G.renumbered:
+        df = G.unrenumber(df, "vertex")
+
+    if isNx is True:
+        return cugraph.utilities.df_score_to_dictionary(df, 'pagerank')
+    else:
+        return df

@@ -11,10 +11,13 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import pandas as pd
+import cudf
 from cugraph.structure.graph import Graph
 from cugraph.link_prediction import jaccard_wrapper
 from cugraph.structure.graph import null_check
-import cudf
+from cugraph.utilities import check_nx_graph
+from cugraph.utilities import df_edge_score_to_dictionary
 
 
 def jaccard(input_graph, vertex_pair=None):
@@ -106,14 +109,86 @@ def jaccard(input_graph, vertex_pair=None):
     if type(input_graph) is not Graph:
         raise Exception("input graph must be undirected")
 
-    if (type(vertex_pair) == cudf.DataFrame):
-        null_check(vertex_pair[vertex_pair.columns[0]])
-        null_check(vertex_pair[vertex_pair.columns[1]])
+    # FIXME: Add support for multi-column vertices
+    if type(vertex_pair) == cudf.DataFrame:
+        for col in vertex_pair.columns:
+            null_check(vertex_pair[col])
+            if input_graph.renumbered:
+                vertex_pair = input_graph.add_internal_vertex_id(
+                    vertex_pair, col, col
+                )
+
     elif vertex_pair is None:
         pass
     else:
         raise ValueError("vertex_pair must be a cudf dataframe")
 
     df = jaccard_wrapper.jaccard(input_graph, None, vertex_pair)
+
+    if input_graph.renumbered:
+        df = input_graph.unrenumber(df, "source")
+        df = input_graph.unrenumber(df, "destination")
+
+    return df
+
+
+def jaccard_coefficient(G, ebunch=None):
+    """
+    For NetworkX Compatability.  See `jaccard`
+
+    Parameters
+    ----------
+    graph : cugraph.Graph
+        cuGraph graph descriptor, should contain the connectivity information
+        as an edge list (edge weights are not used for this algorithm). The
+        graph should be undirected where an undirected edge is represented by a
+        directed edge in both direction. The adjacency list will be computed if
+        not already present.
+    ebunch : cudf.DataFrame
+        A GPU dataframe consisting of two columns representing pairs of
+        vertices. If provided, the jaccard coefficient is computed for the
+        given vertex pairs.  If the vertex_pair is not provided then the
+        current implementation computes the jaccard coefficient for all
+        adjacent vertices in the graph.
+
+    Returns
+    -------
+    df  : cudf.DataFrame
+        GPU data frame of size E (the default) or the size of the given pairs
+        (first, second) containing the Jaccard weights. The ordering is
+        relative to the adjacency list, or that given by the specified vertex
+        pairs.
+
+        df['source'] : cudf.Series
+            The source vertex ID (will be identical to first if specified)
+        df['destination'] : cudf.Series
+            The destination vertex ID (will be identical to second if
+            specified)
+        df['jaccard_coeff'] : cudf.Series
+            The computed Jaccard coefficient between the source and destination
+            vertices
+
+    Examples
+    --------
+    >>> gdf = cudf.read_csv('datasets/karate.csv', delimiter=' ',
+    >>>                   dtype=['int32', 'int32', 'float32'], header=None)
+    >>> G = cugraph.Graph()
+    >>> G.from_cudf_edgelist(gdf, source='0', destination='1')
+    >>> df = cugraph.jaccard_coefficient(G)
+    """
+    vertex_pair = None
+
+    G, isNx = check_nx_graph(G)
+
+    if isNx is True and ebunch is not None:
+        vertex_pair = cudf.from_pandas(pd.DataFrame(ebunch))
+
+    df = jaccard(G, vertex_pair)
+
+    if isNx is True:
+        df = df_edge_score_to_dictionary(df,
+                                         k="jaccard_coeff",
+                                         src="source",
+                                         dst="destination")
 
     return df

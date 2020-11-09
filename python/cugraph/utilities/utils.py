@@ -12,6 +12,7 @@
 # limitations under the License.
 
 import cudf
+from numba import cuda
 
 
 def get_traversed_path(df, id):
@@ -121,16 +122,30 @@ def get_traversed_path_list(df, id):
     answer = []
     answer.append(id)
 
-    ddf = df.loc[df['vertex'] == id]
+    ddf = df[df['vertex'] == id]
     if len(ddf) == 0:
         raise ValueError("The vertex (", id, " is not in the result set")
 
-    pred = ddf['predecessor']
+    pred = ddf['predecessor'].iloc[0]
 
-    while (pred != -1):
+    while pred != -1:
         answer.append(pred)
 
-        ddf = df.loc[df['vertex'] == pred]
-        pred = ddf['predecessor']
+        ddf = df[df['vertex'] == pred]
+        pred = ddf['predecessor'].iloc[0]
 
     return answer
+
+
+def is_cuda_version_less_than(min_version=(10, 2)):
+    """
+    Returns True if the version of CUDA being used is less than min_version
+    """
+    this_cuda_ver = cuda.runtime.get_version()  # returns (<major>, <minor>)
+    if this_cuda_ver[0] > min_version[0]:
+        return False
+    if this_cuda_ver[0] < min_version[0]:
+        return True
+    if this_cuda_ver[1] < min_version[1]:
+        return True
+    return False

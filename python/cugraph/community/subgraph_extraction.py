@@ -1,4 +1,4 @@
-# Copyright (c) 2019 - 2020, NVIDIA CORPORATION.
+# Copyright (c) 2019-2020, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -13,6 +13,8 @@
 
 from cugraph.community import subgraph_extraction_wrapper
 from cugraph.structure.graph import null_check
+from cugraph.utilities import check_nx_graph
+from cugraph.utilities import cugraph_to_nx
 
 
 def subgraph(G, vertices):
@@ -36,12 +38,12 @@ def subgraph(G, vertices):
 
     Examples
     --------
-    >>> M = cudf.read_csv('datasets/karate.csv',
+    >>> gdf = cudf.read_csv('datasets/karate.csv',
                           delimiter = ' ',
                           dtype=['int32', 'int32', 'float32'],
                           header=None)
     >>> G = cugraph.Graph()
-    >>> G.from_cudf_edgelist(M, source='0', destination='1')
+    >>> G.from_cudf_edgelist(gdf, source='0', destination='1')
     >>> verts = numpy.zeros(3, dtype=numpy.int32)
     >>> verts[0] = 0
     >>> verts[1] = 1
@@ -52,11 +54,27 @@ def subgraph(G, vertices):
 
     null_check(vertices)
 
+    G, isNx = check_nx_graph(G)
+
+    if G.renumbered:
+        vertices = G.lookup_internal_vertex_id(vertices)
+
     result_graph = type(G)()
 
-    subgraph_extraction_wrapper.subgraph(
-        G,
-        vertices,
-        result_graph)
+    df = subgraph_extraction_wrapper.subgraph(G, vertices)
+
+    if G.renumbered:
+        df = G.unrenumber(df, "src")
+        df = G.unrenumber(df, "dst")
+
+    if G.edgelist.weights:
+        result_graph.from_cudf_edgelist(
+            df, source="src", destination="dst", edge_attr="weight"
+        )
+    else:
+        result_graph.from_cudf_edgelist(df, source="src", destination="dst")
+
+    if isNx is True:
+        result_graph = cugraph_to_nx(result_graph)
 
     return result_graph

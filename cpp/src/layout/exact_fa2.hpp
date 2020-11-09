@@ -17,7 +17,7 @@
 #pragma once
 
 #include <rmm/thrust_rmm_allocator.h>
-#include <utilities/error_utils.h>
+#include <utilities/error.hpp>
 
 #include <stdio.h>
 #include <converters/COOtoCSR.cuh>
@@ -32,7 +32,7 @@ namespace cugraph {
 namespace detail {
 
 template <typename vertex_t, typename edge_t, typename weight_t>
-void exact_fa2(experimental::GraphCOOView<vertex_t, edge_t, weight_t> &graph,
+void exact_fa2(GraphCOOView<vertex_t, edge_t, weight_t> &graph,
                float *pos,
                const int max_iter                            = 500,
                float *x_start                                = nullptr,
@@ -84,9 +84,10 @@ void exact_fa2(experimental::GraphCOOView<vertex_t, edge_t, weight_t> &graph,
   // Sort COO for coalesced memory access.
   cudaStream_t stream = {nullptr};
   sort(graph, stream);
-  CUDA_CHECK_LAST();
-  graph.degree(d_mass, cugraph::experimental::DegreeDirection::OUT);
-  CUDA_CHECK_LAST();
+  CHECK_CUDA(stream);
+  // FIXME: this function should work on "stream"
+  graph.degree(d_mass, cugraph::DegreeDirection::OUT);
+  CHECK_CUDA(stream);
 
   const vertex_t *row = graph.src_indices;
   const vertex_t *col = graph.dst_indices;

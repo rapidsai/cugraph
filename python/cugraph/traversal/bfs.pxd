@@ -1,4 +1,4 @@
-# Copyright (c) 2019, NVIDIA CORPORATION.
+# Copyright (c) 2019-2020, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -16,16 +16,17 @@
 # cython: embedsignature = True
 # cython: language_level = 3
 
-from cugraph.structure.graph_new cimport *
+from cugraph.structure.graph_primtypes cimport *
 from libcpp cimport bool
 
 
-cdef extern from "algorithms.hpp" namespace "cugraph":
-
-    cdef void bfs[VT,ET,WT](
-        const GraphCSRView[VT,ET,WT] &graph,
-        VT *distances,
-        VT *predecessors,
+cdef extern from "utilities/cython.hpp" namespace "cugraph::cython":
+    cdef void call_bfs[vertex_t, weight_t](
+        const handle_t &handle,
+        const graph_container_t &g,
+        vertex_t *identifiers,
+        vertex_t *distances,
+        vertex_t *predecessors,
         double *sp_counters,
-        const VT start_vertex,
+        const vertex_t start_vertex,
         bool directed) except +

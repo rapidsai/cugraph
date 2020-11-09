@@ -1,4 +1,4 @@
-# Copyright (c) 2019 - 2020, NVIDIA CORPORATION.
+# Copyright (c) 2019-2020, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -12,14 +12,13 @@
 # limitations under the License.
 
 from cugraph.centrality import katz_centrality_wrapper
+import cugraph
 
 
-def katz_centrality(G,
-                    alpha=None,
-                    max_iter=100,
-                    tol=1.0e-6,
-                    nstart=None,
-                    normalized=True):
+def katz_centrality(
+    G, alpha=None, beta=None, max_iter=100, tol=1.0e-6,
+    nstart=None, normalized=True
+):
     """
     Compute the Katz centrality for the nodes of the graph G. cuGraph does not
     currently support the 'beta' and 'weight' parameters as seen in the
@@ -33,7 +32,7 @@ def katz_centrality(G,
 
     Parameters
     ----------
-    G : cuGraph.Graph
+    G : cuGraph.Graph or networkx.Graph
         cuGraph graph descriptor with connectivity information. The graph can
         contain either directed (DiGraph) or undirected edges (Graph).
     alpha : float
@@ -48,6 +47,8 @@ def katz_centrality(G,
         (1/degree_max). Therefore, setting alpha to (1/degree_max) will
         guarantee that it will never exceed alpha_max thus in turn fulfilling
         the requirement for convergence.
+    beta : None
+        A weight scalar - currently Not Supported
     max_iter : int
         The maximum number of iterations before an answer is returned. This can
         be used to limit the execution time and do an early exit before the
@@ -75,7 +76,7 @@ def katz_centrality(G,
 
     Returns
     -------
-    df : cudf.DataFrame
+    df : cudf.DataFrame or Dictionary if using NetworkX
         GPU data frame containing two cudf.Series of size V: the vertex
         identifiers and the corresponding katz centrality values.
 
@@ -93,7 +94,27 @@ def katz_centrality(G,
     >>> kc = cugraph.katz_centrality(G)
     """
 
-    df = katz_centrality_wrapper.katz_centrality(G, alpha, max_iter,
-                                                 tol, nstart, normalized)
+    if beta is not None:
+        raise NotImplementedError(
+                "The beta argument is "
+                "currently not supported"
+        )
 
-    return df
+    G, isNx = cugraph.utilities.check_nx_graph(G)
+
+    if nstart is not None:
+        if G.renumbered is True:
+            nstart = G.add_internal_vertex_id(nstart, 'vertex', 'vertex')
+
+    df = katz_centrality_wrapper.katz_centrality(
+        G, alpha, max_iter, tol, nstart, normalized
+    )
+
+    if G.renumbered:
+        df = G.unrenumber(df, "vertex")
+
+    if isNx is True:
+        dict = cugraph.utilities.df_score_to_dictionary(df, 'katz_centrality')
+        return dict
+    else:
+        return df

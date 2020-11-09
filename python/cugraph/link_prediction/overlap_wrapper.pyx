@@ -18,8 +18,8 @@
 
 from cugraph.link_prediction.overlap cimport overlap as c_overlap
 from cugraph.link_prediction.overlap cimport overlap_list as c_overlap_list
-from cugraph.structure.graph_new cimport *
-from cugraph.structure import graph_new_wrapper
+from cugraph.structure.graph_primtypes cimport *
+from cugraph.structure import graph_primtypes_wrapper
 from libc.stdint cimport uintptr_t
 from cython cimport floating
 
@@ -35,10 +35,13 @@ def overlap(input_graph, weights_arr=None, vertex_pair=None):
     if not input_graph.adjlist:
         input_graph.view_adj_list()
 
-    [offsets, indices] = graph_new_wrapper.datatype_cast([input_graph.adjlist.offsets, input_graph.adjlist.indices], [np.int32])
+    [offsets, indices] = graph_primtypes_wrapper.datatype_cast([input_graph.adjlist.offsets, input_graph.adjlist.indices], [np.int32])
 
     num_verts = input_graph.number_of_vertices()
-    num_edges = len(indices)
+    num_edges = input_graph.number_of_edges(directed_edges=True)
+
+    first = None
+    second = None
 
     cdef uintptr_t c_result_col = <uintptr_t> NULL
     cdef uintptr_t c_first_col = <uintptr_t> NULL
@@ -55,7 +58,7 @@ def overlap(input_graph, weights_arr=None, vertex_pair=None):
     weight_type = np.float32
 
     if weights_arr is not None:
-        [weights] = graph_new_wrapper.datatype_cast([weights_arr], [np.float32, np.float64])
+        [weights] = graph_primtypes_wrapper.datatype_cast([weights_arr], [np.float32, np.float64])
         c_weights = weights.__cuda_array_interface__['data'][0]
         weight_type = weights.dtype
 
@@ -66,24 +69,15 @@ def overlap(input_graph, weights_arr=None, vertex_pair=None):
 
         df = cudf.DataFrame()
         df['overlap_coeff'] = result
-        
-        if input_graph.renumbered is True:
-            renumber_df = cudf.DataFrame()
-            renumber_df['map'] = input_graph.edgelist.renumber_map
-            renumber_df['id'] = input_graph.edgelist.renumber_map.index.astype(np.int32)
-            vp = vertex_pair.merge(renumber_df, left_on='first', right_on='map', how='left').drop('map').merge(renumber_df, left_on='second', right_on='map', how='left').drop('map')
 
-            df['source'] = vp['first']
-            df['destination'] = vp['second']
-            c_first_col = vp['id_x'].__cuda_array_interface__['data'][0]
-            c_second_col = vp['id_y'].__cuda_array_interface__['data'][0]
-        else:
-            first = vertex_pair[vertex_pair.columns[0]].astype(np.int32)
-            second = vertex_pair[vertex_pair.columns[1]].astype(np.int32)
-            df['source'] = first
-            df['destination'] = second
-            c_first_col = first.__cuda_array_interface__['data'][0]
-            c_second_col = second.__cuda_array_interface__['data'][0]
+        first = vertex_pair['first']
+        second = vertex_pair['second']
+
+        # FIXME: multi column support
+        df['source'] = first
+        df['destination'] = second
+        c_first_col = first.__cuda_array_interface__['data'][0]
+        c_second_col = second.__cuda_array_interface__['data'][0]
 
         if weight_type == np.float32:
             graph_float = GraphCSRView[int,int,float](<int*>c_offsets, <int*>c_indices,
@@ -103,9 +97,8 @@ def overlap(input_graph, weights_arr=None, vertex_pair=None):
                                            <int*>c_first_col,
                                            <int*>c_second_col,
                                            <double*>c_result_col)
-        
-        return df
 
+        return df
     else:
         # error check performed in overlap.py
         assert vertex_pair is None
@@ -146,15 +139,5 @@ def overlap(input_graph, weights_arr=None, vertex_pair=None):
                                       <double*>c_result_col)
 
             graph_double.get_source_indices(<int*>c_src_index_col)
-            
-        if input_graph.renumbered:
-            if isinstance(input_graph.edgelist.renumber_map, cudf.DataFrame):
-                unrenumbered_df_ = df.merge(input_graph.edgelist.renumber_map, left_on='source', right_on='id', how='left').drop(['id', 'source'])
-                unrenumbered_df = unrenumbered_df_.merge(input_graph.edgelist.renumber_map, left_on='destination', right_on='id', how='left').drop(['id', 'destination'])
-                cols = unrenumbered_df.columns.to_list()
-                df = unrenumbered_df[cols[1:] + [cols[0]]]
-            else:
-                df['source'] = input_graph.edgelist.renumber_map[df['source']].reset_index(drop=True)
-                df['destination'] = input_graph.edgelist.renumber_map[df['destination']].reset_index(drop=True)
 
         return df

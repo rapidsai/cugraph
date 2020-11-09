@@ -1,11 +1,20 @@
 #!/bin/bash
-# Copyright (c) 2018, NVIDIA CORPORATION.
+# Copyright (c) 2018-2020, NVIDIA CORPORATION.
 ########################
 # cuGraph Style Tester #
 ########################
 
-# Ignore errors and set path
+# Assume this script is run from the root of the cugraph repo
+
+# Make failing commands visible when used in a pipeline and allow the script to
+# continue on errors, but use ERRORCODE to still allow any failing command to be
+# captured for returning a final status code. This allows all style check to
+# take place to provide a more comprehensive list of style violations.
+set -o pipefail
+# CI does `set -e` then sources this file, so we override that so we can output
+# the results from the various style checkers
 set +e
+ERRORCODE=0
 PATH=/conda/bin:$PATH
 
 # Activate common conda env
@@ -13,11 +22,12 @@ source activate gdf
 
 # Run flake8 and get results/return code
 FLAKE=`flake8 --config=python/.flake8 python`
-FLAKE_RETVAL=$?
+ERRORCODE=$((ERRORCODE | $?))
 
 # Run clang-format and check for a consistent code format
 CLANG_FORMAT=`python cpp/scripts/run-clang-format.py 2>&1`
 CLANG_FORMAT_RETVAL=$?
+ERRORCODE=$((ERRORCODE | ${CLANG_FORMAT_RETVAL}))
 
 # Output results if failure otherwise show pass
 if [ "$FLAKE" != "" ]; then
@@ -36,8 +46,19 @@ else
   echo -e "\n\n>>>> PASSED: clang format check\n\n"
 fi
 
-RETVALS=($FLAKE_RETVAL $CLANG_FORMAT_RETVAL)
-IFS=$'\n'
-RETVAL=`echo "${RETVALS[*]}" | sort -nr | head -n1`
+# Check for copyright headers in the files modified currently
+#COPYRIGHT=`env PYTHONPATH=ci/utils python ci/checks/copyright.py cpp python benchmarks ci 2>&1`
+COPYRIGHT=`env PYTHONPATH=ci/utils python ci/checks/copyright.py --git-modified-only 2>&1`
+CR_RETVAL=$?
+ERRORCODE=$((ERRORCODE | ${CR_RETVAL}))
 
-exit $RETVAL
+# Output results if failure otherwise show pass
+if [ "$CR_RETVAL" != "0" ]; then
+  echo -e "\n\n>>>> FAILED: copyright check; begin output\n\n"
+  echo -e "$COPYRIGHT"
+  echo -e "\n\n>>>> FAILED: copyright check; end output\n\n"
+else
+  echo -e "\n\n>>>> PASSED: copyright check\n\n"
+fi
+
+exit ${ERRORCODE}

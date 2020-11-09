@@ -1,4 +1,4 @@
-# Copyright (c) 2019, NVIDIA CORPORATION.
+# Copyright (c) 2019-2020, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -27,107 +27,110 @@ from cugraph.tests import utils
 # python 3.7.  Also, this import networkx needs to be relocated in the
 # third-party group once this gets fixed.
 import warnings
+
 with warnings.catch_warnings():
     warnings.filterwarnings("ignore", category=DeprecationWarning)
     import networkx as nx
 
 
-print('Networkx version : {} '.format(nx.__version__))
+print("Networkx version : {} ".format(nx.__version__))
 
 
 def cudify(d):
     if d is None:
         return None
 
-    k = np.fromiter(d.keys(), dtype='int32')
-    v = np.fromiter(d.values(), dtype='float32')
-    cuD = cudf.DataFrame({'vertex': k, 'values': v})
+    k = np.fromiter(d.keys(), dtype="int32")
+    v = np.fromiter(d.values(), dtype="float32")
+    cuD = cudf.DataFrame({"vertex": k, "values": v})
     return cuD
 
 
-def cugraph_call(cu_M, max_iter, tol, alpha, personalization, nstart):
+def cugraph_call(G, max_iter, tol, alpha, personalization, nstart):
     # cugraph Pagerank Call
-    G = cugraph.DiGraph()
-    G.from_cudf_edgelist(cu_M, source='0', destination='1')
     t1 = time.time()
-    df = cugraph.pagerank(G, alpha=alpha, max_iter=max_iter, tol=tol,
-                          personalization=personalization, nstart=nstart)
+    df = cugraph.pagerank(
+        G,
+        alpha=alpha,
+        max_iter=max_iter,
+        tol=tol,
+        personalization=personalization,
+        nstart=nstart,
+    )
     t2 = time.time() - t1
-    print('Cugraph Time : '+str(t2))
+    print("Cugraph Time : " + str(t2))
 
     # Sort Pagerank values
     sorted_pr = []
-    pr_scores = df['pagerank'].to_array()
+
+    df = df.sort_values("vertex").reset_index(drop=True)
+
+    pr_scores = df["pagerank"].to_array()
     for i, rank in enumerate(pr_scores):
         sorted_pr.append((i, rank))
 
     return sorted_pr
 
 
+# need a different function since the Nx version returns a dictionary
+def cugraph_nx_call(G, max_iter, tol, alpha, personalization, nstart):
+    # cugraph Pagerank Call
+    t1 = time.time()
+    pr = cugraph.pagerank(
+        G,
+        alpha=alpha,
+        max_iter=max_iter,
+        tol=tol,
+        personalization=personalization,
+        nstart=nstart,
+    )
+    t2 = time.time() - t1
+    print("Cugraph Time : " + str(t2))
+
+    return pr
+
+
 # The function selects personalization_perc% of accessible vertices in graph M
 # and randomly assigns them personalization values
-def networkx_call(M, max_iter, tol, alpha, personalization_perc):
-    '''nnz_per_row = {r: 0 for r in range(M.get_shape()[0])}
-    for nnz in range(M.getnnz()):
-        nnz_per_row[M.row[nnz]] = 1 + nnz_per_row[M.row[nnz]]
-    for nnz in range(M.getnnz()):
-        M.data[nnz] = 1.0/float(nnz_per_row[M.row[nnz]])
+def networkx_call(Gnx, max_iter, tol, alpha, personalization_perc, nnz_vtx):
 
-    M = M.tocsr()
-    if M is None:
-        raise TypeError('Could not read the input graph')
-    if M.shape[0] != M.shape[1]:
-        raise TypeError('Shape is not square')
-    '''
     personalization = None
     if personalization_perc != 0:
         personalization = {}
-        nnz_vtx = np.unique(M)
-        print(nnz_vtx)
-        personalization_count = int((nnz_vtx.size *
-                                     personalization_perc)/100.0)
+        # print(nnz_vtx)
+        personalization_count = int(
+            (nnz_vtx.size * personalization_perc) / 100.0
+        )
         print(personalization_count)
-        nnz_vtx = np.random.choice(nnz_vtx,
-                                   min(nnz_vtx.size, personalization_count),
-                                   replace=False)
-        print(nnz_vtx)
+        nnz_vtx = np.random.choice(
+            nnz_vtx, min(nnz_vtx.size, personalization_count), replace=False
+        )
+        # print(nnz_vtx)
         nnz_val = np.random.random(nnz_vtx.size)
-        nnz_val = nnz_val/sum(nnz_val)
-        print(nnz_val)
+        nnz_val = nnz_val / sum(nnz_val)
+        # print(nnz_val)
         for vtx, val in zip(nnz_vtx, nnz_val):
             personalization[vtx] = val
 
-    # should be autosorted, but check just to make sure
-    '''if not M.has_sorted_indices:
-        print('sort_indices ... ')
-        M.sort_indices()
-    '''
-    # in NVGRAPH tests we read as CSR and feed as CSC,
-    # so here we do this explicitly
-    print('Format conversion ... ')
-
-    # Directed NetworkX graph
-    Gnx = nx.from_pandas_edgelist(M, source='0', target='1',
-                                  create_using=nx.DiGraph())
-
-    z = {k: 1.0/Gnx.number_of_nodes() for k in range(Gnx.number_of_nodes())}
+    z = {k: 1.0 / Gnx.number_of_nodes() for k in range(Gnx.number_of_nodes())}
 
     # Networkx Pagerank Call
-    print('Solving... ')
     t1 = time.time()
 
-    # same parameters as in NVGRAPH
-    pr = nx.pagerank(Gnx, alpha=alpha, nstart=z, max_iter=max_iter*2,
-                     tol=tol*0.01, personalization=personalization)
+    pr = nx.pagerank(
+        Gnx,
+        alpha=alpha,
+        nstart=z,
+        max_iter=max_iter * 2,
+        tol=tol * 0.01,
+        personalization=personalization,
+    )
     t2 = time.time() - t1
 
-    print('Networkx Time : ' + str(t2))
+    print("Networkx Time : " + str(t2))
 
     return pr, personalization
 
-
-DATASETS = ['../datasets/dolphins.csv',
-            '../datasets/karate.csv']
 
 MAX_ITERATIONS = [500]
 TOLERANCE = [1.0e-06]
@@ -136,38 +139,105 @@ PERSONALIZATION_PERC = [0, 10, 50]
 HAS_GUESS = [0, 1]
 
 
-# Test all combinations of default/managed and pooled/non-pooled allocation
-
-@pytest.mark.parametrize('graph_file', DATASETS)
-@pytest.mark.parametrize('max_iter', MAX_ITERATIONS)
-@pytest.mark.parametrize('tol', TOLERANCE)
-@pytest.mark.parametrize('alpha', ALPHA)
-@pytest.mark.parametrize('personalization_perc', PERSONALIZATION_PERC)
-@pytest.mark.parametrize('has_guess', HAS_GUESS)
-def test_pagerank(graph_file, max_iter, tol, alpha,
-                  personalization_perc, has_guess):
+# FIXME: the default set of datasets includes an asymmetric directed graph
+# (email-EU-core.csv), which currently produces different results between
+# cugraph and Nx and fails that test. Investigate, resolve, and use
+# utils.DATASETS instead.
+#
+# https://github.com/rapidsai/cugraph/issues/533
+#
+# @pytest.mark.parametrize("graph_file", utils.DATASETS)
+@pytest.mark.parametrize("graph_file", utils.DATASETS_UNDIRECTED)
+@pytest.mark.parametrize("max_iter", MAX_ITERATIONS)
+@pytest.mark.parametrize("tol", TOLERANCE)
+@pytest.mark.parametrize("alpha", ALPHA)
+@pytest.mark.parametrize("personalization_perc", PERSONALIZATION_PERC)
+@pytest.mark.parametrize("has_guess", HAS_GUESS)
+def test_pagerank(
+    graph_file, max_iter, tol, alpha, personalization_perc, has_guess
+):
     gc.collect()
 
+    # NetworkX PageRank
     M = utils.read_csv_for_nx(graph_file)
-    networkx_pr, networkx_prsn = networkx_call(M, max_iter, tol, alpha,
-                                               personalization_perc)
+    nnz_vtx = np.unique(M)
+    Gnx = nx.from_pandas_edgelist(
+        M, source="0", target="1", create_using=nx.DiGraph()
+    )
+
+    networkx_pr, networkx_prsn = networkx_call(
+        Gnx, max_iter, tol, alpha, personalization_perc, nnz_vtx
+    )
 
     cu_nstart = None
     if has_guess == 1:
         cu_nstart = cudify(networkx_pr)
         max_iter = 5
     cu_prsn = cudify(networkx_prsn)
+
+    # cuGraph PageRank
     cu_M = utils.read_csv_file(graph_file)
-    cugraph_pr = cugraph_call(cu_M, max_iter, tol, alpha, cu_prsn, cu_nstart)
+    G = cugraph.DiGraph()
+    G.from_cudf_edgelist(cu_M, source="0", destination="1")
+
+    cugraph_pr = cugraph_call(G, max_iter, tol, alpha, cu_prsn, cu_nstart)
 
     # Calculating mismatch
-
     networkx_pr = sorted(networkx_pr.items(), key=lambda x: x[0])
     err = 0
     assert len(cugraph_pr) == len(networkx_pr)
     for i in range(len(cugraph_pr)):
-        if(abs(cugraph_pr[i][1]-networkx_pr[i][1]) > tol*1.1
-           and cugraph_pr[i][0] == networkx_pr[i][0]):
+        if (
+            abs(cugraph_pr[i][1] - networkx_pr[i][1]) > tol * 1.1
+            and cugraph_pr[i][0] == networkx_pr[i][0]
+        ):
             err = err + 1
     print("Mismatches:", err)
-    assert err < (0.01*len(cugraph_pr))
+    assert err < (0.01 * len(cugraph_pr))
+
+
+@pytest.mark.parametrize("graph_file", utils.DATASETS_UNDIRECTED)
+@pytest.mark.parametrize("max_iter", MAX_ITERATIONS)
+@pytest.mark.parametrize("tol", TOLERANCE)
+@pytest.mark.parametrize("alpha", ALPHA)
+@pytest.mark.parametrize("personalization_perc", PERSONALIZATION_PERC)
+@pytest.mark.parametrize("has_guess", HAS_GUESS)
+def test_pagerank_nx(
+    graph_file, max_iter, tol, alpha, personalization_perc, has_guess
+):
+    gc.collect()
+
+    # NetworkX PageRank
+    M = utils.read_csv_for_nx(graph_file)
+    nnz_vtx = np.unique(M)
+    Gnx = nx.from_pandas_edgelist(
+        M, source="0", target="1", create_using=nx.DiGraph()
+    )
+
+    networkx_pr, networkx_prsn = networkx_call(
+        Gnx, max_iter, tol, alpha, personalization_perc, nnz_vtx
+    )
+
+    cu_nstart = None
+    if has_guess == 1:
+        cu_nstart = cudify(networkx_pr)
+        max_iter = 5
+    cu_prsn = cudify(networkx_prsn)
+
+    # cuGraph PageRank with Nx Graph
+    cugraph_pr = cugraph_nx_call(Gnx, max_iter, tol, alpha, cu_prsn, cu_nstart)
+
+    # Calculating mismatch
+    networkx_pr = sorted(networkx_pr.items(), key=lambda x: x[0])
+    cugraph_pr = sorted(cugraph_pr.items(), key=lambda x: x[0])
+    err = 0
+    assert len(cugraph_pr) == len(networkx_pr)
+    for i in range(len(cugraph_pr)):
+        if (
+            abs(cugraph_pr[i][1] - networkx_pr[i][1]) > tol * 1.1
+            and cugraph_pr[i][0] == networkx_pr[i][0]
+        ):
+            err = err + 1
+            print(f"{cugraph_pr[i][1]} and {cugraph_pr[i][1]}")
+    print("Mismatches:", err)
+    assert err < (0.01 * len(cugraph_pr))

@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Copyright (c) 2018, NVIDIA CORPORATION.
+# Copyright (c) 2018-2020, NVIDIA CORPORATION.
 ##########################################
 # cuGraph GPU build & testscript for CI  #
 ##########################################
@@ -8,16 +8,17 @@ set -o pipefail
 NUMARGS=$#
 ARGS=$*
 
-function logger {
-  echo -e "\n>>>> $@\n"
-}
-
 function hasArg {
     (( ${NUMARGS} != 0 )) && (echo " ${ARGS} " | grep -q " $1 ")
 }
 
+# Set path, build parallel level, and CUDA version
+export PATH=/opt/conda/bin:/usr/local/cuda/bin:$PATH
+export PARALLEL_LEVEL=${PARALLEL_LEVEL:-4}
+export CUDA_REL=${CUDA_VERSION%.*}
+
 function cleanup {
-  logger "Removing datasets and temp files..."
+  gpuci_logger "Removing datasets and temp files"
   rm -rf $WORKSPACE/datasets/test
   rm -rf $WORKSPACE/datasets/benchmark
   rm -f testoutput.txt
@@ -25,14 +26,9 @@ function cleanup {
 
 # Set cleanup trap for Jenkins
 if [ ! -z "$JENKINS_HOME" ] ; then
-  logger "Jenkins environment detected, setting cleanup trap..."
+  gpuci_logger "Jenkins environment detected, setting cleanup trap"
   trap cleanup EXIT
 fi
-
-# Set path, build parallel level, and CUDA version
-export PATH=/conda/bin:/usr/local/cuda/bin:$PATH
-export PARALLEL_LEVEL=4
-export CUDA_REL=${CUDA_VERSION%.*}
 
 # Set home to the job's workspace
 export HOME=$WORKSPACE
@@ -46,62 +42,70 @@ export MINOR_VERSION=`echo $GIT_DESCRIBE_TAG | grep -o -E '([0-9]+\.[0-9]+)'`
 # SETUP - Check environment
 ################################################################################
 
-logger "Check environment..."
+gpuci_logger "Check environment"
 env
 
-logger "Check GPU usage..."
+gpuci_logger "Check GPU usage"
 nvidia-smi
 
-logger "Activate conda env..."
-source activate gdf
+gpuci_logger "Activate conda env"
+. /opt/conda/etc/profile.d/conda.sh
+conda activate rapids
 
-logger "conda install required packages"
-conda install -c nvidia -c rapidsai -c rapidsai-nightly -c conda-forge -c defaults \
-      cudf=${MINOR_VERSION} \
-      rmm=${MINOR_VERSION} \
-      networkx>=2.3 \
-      python-louvain \
-      cudatoolkit=$CUDA_REL \
-      dask>=2.12.0 \
-      distributed>=2.12.0 \
-      dask-cudf=${MINOR_VERSION} \
-      dask-cuda=${MINOR_VERSION} \
-      scikit-learn>=0.21 \
-      nccl>=2.5 \
-      ucx-py=${MINOR_VERSION} \
-      libcypher-parser \
-      ipython=7.3* \
-      jupyterlab
+gpuci_logger "Install dependencies"
+gpuci_conda_retry install -y \
+      "libcudf=${MINOR_VERSION}" \
+      "cudf=${MINOR_VERSION}" \
+      "librmm=${MINOR_VERSION}" \
+      "rmm=${MINOR_VERSION}" \
+      "cudatoolkit=$CUDA_REL" \
+      "dask-cudf=${MINOR_VERSION}" \
+      "dask-cuda=${MINOR_VERSION}" \
+      "ucx-py=${MINOR_VERSION}" \
+      "ucx-proc=*=gpu" \
+      "rapids-build-env=$MINOR_VERSION.*" \
+      "rapids-notebook-env=$MINOR_VERSION.*" \
+      rapids-pytest-benchmark
 
-# Install the master version of dask and distributed
-logger "pip install git+https://github.com/dask/distributed.git --upgrade --no-deps"
+# https://docs.rapids.ai/maintainers/depmgmt/
+# gpuci_conda_retry remove --force rapids-build-env rapids-notebook-env
+# gpuci_conda_retry install -y "your-pkg=1.0.0"
+
+gpuci_logger "Install the master version of dask and distributed"
 pip install "git+https://github.com/dask/distributed.git" --upgrade --no-deps
-
-logger "pip install git+https://github.com/dask/dask.git --upgrade --no-deps"
 pip install "git+https://github.com/dask/dask.git" --upgrade --no-deps
 
-
-logger "Check versions..."
+gpuci_logger "Check versions"
 python --version
 $CC --version
 $CXX --version
-conda list
+
+gpuci_logger "Check conda environment"
+conda info
+conda config --show-sources
+conda list --show-channel-urls
 
 ################################################################################
 # BUILD - Build libcugraph and cuGraph from source
 ################################################################################
 
-logger "Build libcugraph..."
-$WORKSPACE/build.sh clean libcugraph cugraph
+if [[ -z "$PROJECT_FLASH" || "$PROJECT_FLASH" == "0" ]]; then
+  gpuci_logger "Build from source"
+  $WORKSPACE/build.sh clean libcugraph cugraph
+fi
 
 ################################################################################
 # TEST - Run GoogleTest and py.tests for libcugraph and cuGraph
 ################################################################################
 
+set +e -Eo pipefail
+EXITCODE=0
+trap "EXITCODE=1" ERR
+
 if hasArg --skip-tests; then
-    logger "Skipping Tests..."
+    gpuci_logger "Skipping Tests"
 else
-    logger "Check GPU usage..."
+    gpuci_logger "Check GPU usage"
     nvidia-smi
 
     # If this is a PR build, skip downloading large datasets and don't run the
@@ -122,3 +126,5 @@ else
     ${WORKSPACE}/ci/gpu/test-notebooks.sh 2>&1 | tee nbtest.log
     python ${WORKSPACE}/ci/utils/nbtestlog2junitxml.py nbtest.log
 fi
+
+return ${EXITCODE}

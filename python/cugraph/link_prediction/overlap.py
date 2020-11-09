@@ -11,9 +11,35 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import pandas as pd
 from cugraph.link_prediction import overlap_wrapper
 from cugraph.structure.graph import null_check
 import cudf
+from cugraph.utilities import check_nx_graph
+from cugraph.utilities import df_edge_score_to_dictionary
+
+
+def overlap_coefficient(G, ebunch=None):
+    """
+    NetworkX similar API.  See 'jaccard' for a description
+
+    """
+    vertex_pair = None
+
+    G, isNx = check_nx_graph(G)
+
+    if isNx is True and ebunch is not None:
+        vertex_pair = cudf.from_pandas(pd.DataFrame(ebunch))
+
+    df = overlap(G, vertex_pair)
+
+    if isNx is True:
+        df = df_edge_score_to_dictionary(df,
+                                         k="overlap_coeff",
+                                         src="source",
+                                         dst="destination")
+
+    return df
 
 
 def overlap(input_graph, vertex_pair=None):
@@ -65,14 +91,23 @@ def overlap(input_graph, vertex_pair=None):
     >>> df = cugraph.overlap(G)
     """
 
-    if (type(vertex_pair) == cudf.DataFrame):
-        null_check(vertex_pair[vertex_pair.columns[0]])
-        null_check(vertex_pair[vertex_pair.columns[1]])
+    # FIXME: Add support for multi-column vertices
+    if type(vertex_pair) == cudf.DataFrame:
+        for col in vertex_pair.columns:
+            null_check(vertex_pair[col])
+            if input_graph.renumbered:
+                vertex_pair = input_graph.add_internal_vertex_id(
+                    vertex_pair, col, col,
+                )
     elif vertex_pair is None:
         pass
     else:
         raise ValueError("vertex_pair must be a cudf dataframe")
 
     df = overlap_wrapper.overlap(input_graph, None, vertex_pair)
+
+    if input_graph.renumbered:
+        df = input_graph.unrenumber(df, "source")
+        df = input_graph.unrenumber(df, "destination")
 
     return df

@@ -1,4 +1,4 @@
-# Copyright (c) 2019, NVIDIA CORPORATION.
+# Copyright (c) 2019-2020, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -16,12 +16,14 @@
 # cython: embedsignature = True
 # cython: language_level = 3
 
-from cugraph.structure.graph_new cimport *
+from cugraph.structure.graph_primtypes cimport *
 
-cdef extern from "algorithms.hpp" namespace "cugraph":
+cdef extern from "utilities/cython.hpp" namespace "cugraph::cython":
 
-    cdef void sssp[VT, ET, WT](
-        const GraphCSRView[VT, ET, WT] &graph,
-        WT *distances,
-        VT *predecessors,
-        VT start_vertex) except +
+    cdef void call_sssp[vertex_t, weight_t](
+        const handle_t &handle,
+        const graph_container_t &g,
+        vertex_t *identifiers,
+        weight_t *distances,
+        vertex_t *predecessors,
+        vertex_t start_vertex) except +

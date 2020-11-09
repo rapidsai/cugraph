@@ -1,4 +1,4 @@
-# Copyright (c) 2019 - 2020, NVIDIA CORPORATION.
+# Copyright (c) 2019-2020, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -12,6 +12,8 @@
 # limitations under the License.
 
 from cugraph.components import connectivity_wrapper
+from cugraph.utilities import check_nx_graph
+from cugraph.utilities import df_score_to_dictionary
 
 
 def weakly_connected_components(G):
@@ -21,7 +23,7 @@ def weakly_connected_components(G):
 
     Parameters
     ----------
-    G : cugraph.Graph
+    G : cugraph.Graph or networkx.Graph
         cuGraph graph descriptor, should contain the connectivity information
         as an edge list (edge weights are not used for this algorithm).
         Currently, the graph should be undirected where an undirected edge is
@@ -32,8 +34,13 @@ def weakly_connected_components(G):
     Returns
     -------
     df : cudf.DataFrame
-      df['labels'][i] gives the label id of the i'th vertex
-      df['vertices'][i] gives the vertex id of the i'th vertex
+        GPU data frame containing two cudf.Series of size V: the vertex
+        identifiers and the corresponding component identifier.
+
+        df['vertices']
+            Contains the vertex identifier
+        df['labels']
+            The component identifier
 
     Examples
     --------
@@ -46,7 +53,15 @@ def weakly_connected_components(G):
     >>> df = cugraph.weakly_connected_components(G)
     """
 
+    G, isNx = check_nx_graph(G)
+
     df = connectivity_wrapper.weakly_connected_components(G)
+
+    if G.renumbered:
+        df = G.unrenumber(df, "vertices")
+
+    if isNx is True:
+        df = df_score_to_dictionary(df, "labels", "vertices")
 
     return df
 
@@ -58,7 +73,7 @@ def strongly_connected_components(G):
 
     Parameters
     ----------
-    G : cugraph.Graph
+    G : cugraph.Graph or networkx.Graph
       cuGraph graph descriptor, should contain the connectivity information as
       an edge list (edge weights are not used for this algorithm). The graph
       can be either directed or undirected where an undirected edge is
@@ -69,8 +84,13 @@ def strongly_connected_components(G):
     Returns
     -------
     df : cudf.DataFrame
-      df['labels'][i] gives the label id of the i'th vertex
-      df['vertices'][i] gives the vertex id of the i'th vertex
+        GPU data frame containing two cudf.Series of size V: the vertex
+        identifiers and the corresponding component identifier.
+
+        df['vertices']
+            Contains the vertex identifier
+        df['labels']
+            The component identifier
 
     Examples
     --------
@@ -83,6 +103,14 @@ def strongly_connected_components(G):
     >>> df = cugraph.strongly_connected_components(G)
     """
 
+    G, isNx = check_nx_graph(G)
+
     df = connectivity_wrapper.strongly_connected_components(G)
+
+    if G.renumbered:
+        df = G.unrenumber(df, "vertices")
+
+    if isNx is True:
+        df = df_score_to_dictionary(df, "labels", "vertices")
 
     return df

@@ -14,35 +14,68 @@
 from cugraph.community import (
     ecg,
     ktruss_subgraph,
+    k_truss,
     louvain,
+    leiden,
     spectralBalancedCutClustering,
     spectralModularityMaximizationClustering,
     analyzeClustering_modularity,
     analyzeClustering_edge_cut,
     analyzeClustering_ratio_cut,
     subgraph,
-    triangles
+    triangles,
 )
 
 from cugraph.structure import (
     Graph,
     DiGraph,
     from_cudf_edgelist,
-    renumber,
+    from_pandas_edgelist,
+    to_pandas_edgelist,
+    from_pandas_adjacency,
+    to_pandas_adjacency,
+    from_numpy_array,
+    to_numpy_array,
+    from_numpy_matrix,
+    to_numpy_matrix,
+    hypergraph,
     symmetrize,
     symmetrize_df,
-    renumber_from_cudf
+    symmetrize_ddf,
 )
 
-from cugraph.centrality import katz_centrality, betweenness_centrality
-from cugraph.cores import core_number, k_core
-from cugraph.components import weakly_connected_components, strongly_connected_components
-from cugraph.link_analysis import pagerank
+from cugraph.centrality import (
+    betweenness_centrality,
+    edge_betweenness_centrality,
+    katz_centrality,
+)
 
-from cugraph.link_prediction import jaccard, overlap, jaccard_w, overlap_w
-from cugraph.traversal import bfs, sssp, filter_unreachable
-# from cugraph.utilities import grmat_gen
-#from cugraph.utilities import device_of_gpu_pointer
+from cugraph.cores import core_number, k_core
+
+from cugraph.components import (
+    weakly_connected_components,
+    strongly_connected_components,
+)
+
+from cugraph.link_analysis import pagerank, hits
+
+from cugraph.link_prediction import (
+    jaccard,
+    jaccard_coefficient,
+    overlap,
+    overlap_coefficient,
+    jaccard_w,
+    overlap_w,
+)
+
+from cugraph.traversal import (
+    bfs,
+    bfs_edges, 
+    sssp,
+    shortest_path,
+    filter_unreachable,
+)
+
 from cugraph.utilities import utils
 
 from cugraph.bsp.traversal import bfs_df_pregel
@@ -53,8 +86,10 @@ from cugraph.proto.structure import find_bicliques
 from cugraph.matching import hungarian
 from cugraph.layout import force_atlas2
 from cugraph.raft import raft_include_test
+from cugraph.comms import comms
 
 # Versioneer
 from ._version import get_versions
-__version__ = get_versions()['version']
+
+__version__ = get_versions()["version"]
 del get_versions

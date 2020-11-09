@@ -1,4 +1,4 @@
-# Copyright (c) 2019 - 2020, NVIDIA CORPORATION.
+# Copyright (c) 2019-2020, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -13,6 +13,8 @@
 
 from cugraph.traversal import sssp_wrapper
 import numpy as np
+import cudf
+from cugraph.utilities import check_nx_graph
 
 
 def sssp(G, source):
@@ -37,11 +39,14 @@ def sssp(G, source):
     Returns
     -------
     df : cudf.DataFrame
-        df['vertex'][i] gives the vertex id of the i'th vertex.
-        df['distance'][i] gives the path distance for the i'th vertex from the
-        starting vertex.
-        df['predecessor'][i] gives the vertex id of the vertex that was reached
-        before the i'th vertex in the traversal.
+        df['vertex']
+            vertex id
+
+        df['distance']
+            gives the path distance from the starting vertex
+
+        df['predecessor']
+            the vertex it was reached from
 
     Examples
     --------
@@ -52,7 +57,15 @@ def sssp(G, source):
     >>> distances = cugraph.sssp(G, 0)
     """
 
+    if G.renumbered is True:
+        source = G.lookup_internal_vertex_id(cudf.Series([source]))[0]
+
     df = sssp_wrapper.sssp(G, source)
+
+    if G.renumbered:
+        df = G.unrenumber(df, "vertex")
+        df = G.unrenumber(df, "predecessor")
+        df["predecessor"].fillna(-1, inplace=True)
 
     return df
 
@@ -75,13 +88,62 @@ def filter_unreachable(df):
         df['predecessor'][i] gives the vertex that was reached before the i'th
         vertex in the traversal.
     """
-    if('distance' not in df):
+    if "distance" not in df:
         raise KeyError("No distance column found in input data frame")
-    if(np.issubdtype(df['distance'].dtype, np.integer)):
-        max_val = np.iinfo(df['distance'].dtype).max
+    if np.issubdtype(df["distance"].dtype, np.integer):
+        max_val = np.iinfo(df["distance"].dtype).max
         return df[df.distance != max_val]
-    elif(np.issubdtype(df['distance'].dtype, np.inexact)):
-        max_val = np.finfo(df['distance'].dtype).max
+    elif np.issubdtype(df["distance"].dtype, np.inexact):
+        max_val = np.finfo(df["distance"].dtype).max
         return df[df.distance != max_val]
     else:
-        raise TypeError("distace type unsupported")
+        raise TypeError("distance type unsupported")
+
+
+def shortest_path(G, source):
+    """
+    Compute the distance and predecessors for shortest paths from the specified
+    source to all the vertices in the graph. The distances column will store
+    the distance from the source to each vertex. The predecessors column will
+    store each vertex's predecessor in the shortest path. Vertices that are
+    unreachable will have a distance of infinity denoted by the maximum value
+    of the data type and the predecessor set as -1. The source vertex's
+    predecessor is also set to -1. Graphs with negative weight cycles are not
+    supported.
+
+    Parameters
+    ----------
+    graph : cuGraph.Graph or NetworkX.Graph
+        cuGraph graph descriptor with connectivity information. Edge weights,
+        if present, should be single or double precision floating point values.
+    source : int
+        Index of the source vertex.
+
+    Returns
+    -------
+    df : cudf.DataFrame or pandas.DataFrame
+        df['vertex']
+            vertex id
+
+        df['distance']
+            gives the path distance from the starting vertex
+
+        df['predecessor']
+            the vertex it was reached from
+
+    Examples
+    --------
+    >>> M = cudf.read_csv('datasets/karate.csv', delimiter=' ',
+    >>>                   dtype=['int32', 'int32', 'float32'], header=None)
+    >>> G = cugraph.Graph()
+    >>> G.from_cudf_edgelist(M, source='0', destination='1')
+    >>> distances = cugraph.shortest_path(G, 0)
+    """
+    G, isNx = check_nx_graph(G)
+
+    df = sssp(G, source)
+
+    if isNx is True:
+        df = df.to_pandas()
+
+    return df

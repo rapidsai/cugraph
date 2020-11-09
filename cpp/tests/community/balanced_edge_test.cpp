@@ -8,13 +8,11 @@
  * license agreement from NVIDIA CORPORATION is strictly prohibited.
  *
  */
-#include <gtest/gtest.h>
+#include <utilities/base_fixture.hpp>
 
 #include <algorithms.hpp>
 
 #include <rmm/thrust_rmm_allocator.h>
-
-#include <rmm/mr/device/cnmem_memory_resource.hpp>
 
 TEST(balanced_edge, success)
 {
@@ -50,7 +48,7 @@ TEST(balanced_edge, success)
   rmm::device_vector<float> weights_v(w_h);
   rmm::device_vector<int> result_v(cluster_id);
 
-  cugraph::experimental::GraphCSRView<int, int, float> G(
+  cugraph::GraphCSRView<int, int, float> G(
     offsets_v.data().get(), indices_v.data().get(), weights_v.data().get(), num_verts, num_edges);
 
   int num_clusters{8};
@@ -61,25 +59,18 @@ TEST(balanced_edge, success)
   int kmean_max_iter{100};
   float score;
 
-  cugraph::nvgraph::balancedCutClustering(G,
-                                          num_clusters,
-                                          num_eigenvectors,
-                                          evs_tolerance,
-                                          evs_max_iter,
-                                          kmean_tolerance,
-                                          kmean_max_iter,
-                                          result_v.data().get());
-  cugraph::nvgraph::analyzeClustering_edge_cut(G, num_clusters, result_v.data().get(), &score);
+  cugraph::ext_raft::balancedCutClustering(G,
+                                           num_clusters,
+                                           num_eigenvectors,
+                                           evs_tolerance,
+                                           evs_max_iter,
+                                           kmean_tolerance,
+                                           kmean_max_iter,
+                                           result_v.data().get());
+  cugraph::ext_raft::analyzeClustering_edge_cut(G, num_clusters, result_v.data().get(), &score);
 
   std::cout << "score = " << score << std::endl;
   ASSERT_LT(score, float{55.0});
 }
 
-int main(int argc, char** argv)
-{
-  testing::InitGoogleTest(&argc, argv);
-  auto resource = std::make_unique<rmm::mr::cnmem_memory_resource>();
-  rmm::mr::set_default_resource(resource.get());
-  int rc = RUN_ALL_TESTS();
-  return rc;
-}
+CUGRAPH_TEST_PROGRAM_MAIN()

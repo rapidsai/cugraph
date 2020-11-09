@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018, NVIDIA CORPORATION.  All rights reserved.
+ * Copyright (c) 2018-2020, NVIDIA CORPORATION.  All rights reserved.
  *
  * NVIDIA CORPORATION and its licensors retain all intellectual property
  * and proprietary rights in and to this software, related documentation
@@ -13,57 +13,27 @@
 // Author: Alex Fender afender@nvidia.com
 #pragma once
 
+#include <utilities/error.hpp>
+
+#include <raft/cudart_utils.h>
+#include <rmm/thrust_rmm_allocator.h>
+#include <raft/device_atomics.cuh>
+
 #include <cuda.h>
 #include <cuda_runtime.h>
-//#include <library_types.h>
-//#include <cuda_fp16.h>
 #include <thrust/functional.h>
 #include <thrust/inner_product.h>
 #include <thrust/iterator/zip_iterator.h>
 #include <thrust/sort.h>
 #include <thrust/transform.h>
 
-#include <rmm/thrust_rmm_allocator.h>
-#include <utilities/error_utils.h>
-
 namespace cugraph {
 namespace detail {
 
-#define USE_CG 1
 //#define DEBUG 1
 #define CUDA_MAX_BLOCKS 65535
-#define CUDA_MAX_KERNEL_THREADS 256  // kernefgdfl will launch at most 256 threads per block
-#define DEFAULT_MASK 0xffffffff
+#define CUDA_MAX_KERNEL_THREADS 256  // kernel will launch at most 256 threads per block
 #define US
-
-template <typename T>
-static __device__ __forceinline__ T
-shfl_up(T r, int offset, int bound = 32, int mask = DEFAULT_MASK)
-{
-#if __CUDA_ARCH__ >= 300
-#if USE_CG
-  return __shfl_up_sync(mask, r, offset, bound);
-#else
-  return __shfl_up(r, offset, bound);
-#endif
-#else
-  return 0.0f;
-#endif
-}
-
-template <typename T>
-static __device__ __forceinline__ T shfl(T r, int lane, int bound = 32, int mask = DEFAULT_MASK)
-{
-#if __CUDA_ARCH__ >= 300
-#if USE_CG
-  return __shfl_sync(mask, r, lane, bound);
-#else
-  return __shfl(r, lane, bound);
-#endif
-#else
-  return 0.0f;
-#endif
-}
 
 template <typename count_t, typename index_t, typename value_t>
 __inline__ __device__ value_t parallel_prefix_sum(count_t n, index_t const *ind, value_t const *w)
@@ -90,14 +60,14 @@ __inline__ __device__ value_t parallel_prefix_sum(count_t n, index_t const *ind,
     // iterations it is the value at the last thread of the previous iterations.
 
     // get the value of the last thread
-    last = shfl(sum, blockDim.x - 1, blockDim.x);
+    last = __shfl_sync(raft::warp_full_mask(), sum, blockDim.x - 1, blockDim.x);
 
     // if you are valid read the value from memory, otherwise set your value to 0
     sum = (valid) ? w[ind[i]] : 0.0;
 
     // do prefix sum (of size warpSize=blockDim.x =< 32)
     for (j = 1; j < blockDim.x; j *= 2) {
-      v = shfl_up(sum, j, blockDim.x);
+      v = __shfl_up_sync(raft::warp_full_mask(), sum, j, blockDim.x);
       if (threadIdx.x >= j) sum += v;
     }
     // shift by last
@@ -105,7 +75,7 @@ __inline__ __device__ value_t parallel_prefix_sum(count_t n, index_t const *ind,
     // notice that no __threadfence or __syncthreads are needed in this implementation
   }
   // get the value of the last thread (to all threads)
-  last = shfl(sum, blockDim.x - 1, blockDim.x);
+  last = __shfl_sync(raft::warp_full_mask(), sum, blockDim.x - 1, blockDim.x);
 
   return last;
 }
@@ -120,7 +90,7 @@ T dot(size_t n, T *x, T *y)
                                    thrust::device_pointer_cast(x + n),
                                    thrust::device_pointer_cast(y),
                                    0.0f);
-  CUDA_CHECK_LAST();
+  CHECK_CUDA(stream);
   return result;
 }
 
@@ -142,7 +112,7 @@ void axpy(size_t n, T a, T *x, T *y)
                     thrust::device_pointer_cast(y),
                     thrust::device_pointer_cast(y),
                     axpy_functor<T>(a));
-  CUDA_CHECK_LAST();
+  CHECK_CUDA(stream);
 }
 
 // norm
@@ -162,7 +132,7 @@ T nrm2(size_t n, T *x)
                                                 square<T>(),
                                                 init,
                                                 thrust::plus<T>()));
-  CUDA_CHECK_LAST();
+  CHECK_CUDA(stream);
   return result;
 }
 
@@ -173,7 +143,7 @@ T nrm1(size_t n, T *x)
   T result = thrust::reduce(rmm::exec_policy(stream)->on(stream),
                             thrust::device_pointer_cast(x),
                             thrust::device_pointer_cast(x + n));
-  CUDA_CHECK_LAST();
+  CHECK_CUDA(stream);
   return result;
 }
 
@@ -187,7 +157,7 @@ void scal(size_t n, T val, T *x)
                     thrust::make_constant_iterator(val),
                     thrust::device_pointer_cast(x),
                     thrust::multiplies<T>());
-  CUDA_CHECK_LAST();
+  CHECK_CUDA(stream);
 }
 
 template <typename T>
@@ -200,7 +170,7 @@ void addv(size_t n, T val, T *x)
                     thrust::make_constant_iterator(val),
                     thrust::device_pointer_cast(x),
                     thrust::plus<T>());
-  CUDA_CHECK_LAST();
+  CHECK_CUDA(stream);
 }
 
 template <typename T>
@@ -211,7 +181,7 @@ void fill(size_t n, T *x, T value)
                thrust::device_pointer_cast(x),
                thrust::device_pointer_cast(x + n),
                value);
-  CUDA_CHECK_LAST();
+  CHECK_CUDA(stream);
 }
 
 template <typename T, typename M>
@@ -223,7 +193,7 @@ void scatter(size_t n, T *src, T *dst, M *map)
                   thrust::device_pointer_cast(src + n),
                   thrust::device_pointer_cast(map),
                   thrust::device_pointer_cast(dst));
-  CUDA_CHECK_LAST();
+  CHECK_CUDA(stream);
 }
 
 template <typename T>
@@ -237,7 +207,7 @@ void printv(size_t n, T *vec, int offset)
     dev_ptr + offset + n,
     std::ostream_iterator<T>(
       std::cout, " "));  // Assume no RMM dependency; TODO: check / test (potential BUG !!!!!)
-  CUDA_CHECK_LAST();
+  CHECK_CUDA(nullptr);
   std::cout << std::endl;
 }
 
@@ -248,7 +218,7 @@ void copy(size_t n, T *x, T *res)
   thrust::device_ptr<T> res_ptr(res);
   cudaStream_t stream{nullptr};
   thrust::copy_n(rmm::exec_policy(stream)->on(stream), dev_ptr, n, res_ptr);
-  CUDA_CHECK_LAST();
+  CHECK_CUDA(stream);
 }
 
 template <typename T>
@@ -273,36 +243,39 @@ void update_dangling_nodes(size_t n, T *dangling_nodes, T damping_factor)
                        thrust::device_pointer_cast(dangling_nodes),
                        dangling_functor<T>(1.0 - damping_factor),
                        is_zero<T>());
-  CUDA_CHECK_LAST();
+  CHECK_CUDA(stream);
 }
 
 // google matrix kernels
 template <typename IndexType, typename ValueType>
-__global__ void __launch_bounds__(CUDA_MAX_KERNEL_THREADS)
-  degree_coo(const IndexType n, const IndexType e, const IndexType *ind, ValueType *degree)
+__global__ void degree_coo(const IndexType n,
+                           const IndexType e,
+                           const IndexType *ind,
+                           ValueType *degree)
 {
   for (int i = threadIdx.x + blockIdx.x * blockDim.x; i < e; i += gridDim.x * blockDim.x)
     atomicAdd(&degree[ind[i]], (ValueType)1.0);
 }
 
 template <typename IndexType, typename ValueType>
-__global__ void __launch_bounds__(CUDA_MAX_KERNEL_THREADS)
-  flag_leafs_kernel(const size_t n, const IndexType *degree, ValueType *bookmark)
+__global__ void flag_leafs_kernel(const size_t n, const IndexType *degree, ValueType *bookmark)
 {
   for (auto i = threadIdx.x + blockIdx.x * blockDim.x; i < n; i += gridDim.x * blockDim.x)
     if (degree[i] == 0) bookmark[i] = 1.0;
 }
 
 template <typename IndexType, typename ValueType>
-__global__ void __launch_bounds__(CUDA_MAX_KERNEL_THREADS)
-  degree_offsets(const IndexType n, const IndexType e, const IndexType *ind, ValueType *degree)
+__global__ void degree_offsets(const IndexType n,
+                               const IndexType e,
+                               const IndexType *ind,
+                               ValueType *degree)
 {
   for (int i = threadIdx.x + blockIdx.x * blockDim.x; i < n; i += gridDim.x * blockDim.x)
     degree[i] += ind[i + 1] - ind[i];
 }
 
 template <typename FromType, typename ToType>
-__global__ void __launch_bounds__(CUDA_MAX_KERNEL_THREADS) type_convert(FromType *array, int n)
+__global__ void type_convert(FromType *array, int n)
 {
   for (int i = threadIdx.x + blockIdx.x * blockDim.x; i < n; i += gridDim.x * blockDim.x) {
     ToType val   = array[i];
@@ -312,12 +285,12 @@ __global__ void __launch_bounds__(CUDA_MAX_KERNEL_THREADS) type_convert(FromType
 }
 
 template <typename IndexType, typename ValueType>
-__global__ void __launch_bounds__(CUDA_MAX_KERNEL_THREADS) equi_prob3(const IndexType n,
-                                                                      const IndexType e,
-                                                                      const IndexType *csrPtr,
-                                                                      const IndexType *csrInd,
-                                                                      ValueType *val,
-                                                                      IndexType *degree)
+__global__ void equi_prob3(const IndexType n,
+                           const IndexType e,
+                           const IndexType *csrPtr,
+                           const IndexType *csrInd,
+                           ValueType *val,
+                           IndexType *degree)
 {
   int j, row, col;
   for (row = threadIdx.z + blockIdx.z * blockDim.z; row < n; row += gridDim.z * blockDim.z) {
@@ -331,12 +304,12 @@ __global__ void __launch_bounds__(CUDA_MAX_KERNEL_THREADS) equi_prob3(const Inde
 }
 
 template <typename IndexType, typename ValueType>
-__global__ void __launch_bounds__(CUDA_MAX_KERNEL_THREADS) equi_prob2(const IndexType n,
-                                                                      const IndexType e,
-                                                                      const IndexType *csrPtr,
-                                                                      const IndexType *csrInd,
-                                                                      ValueType *val,
-                                                                      IndexType *degree)
+__global__ void equi_prob2(const IndexType n,
+                           const IndexType e,
+                           const IndexType *csrPtr,
+                           const IndexType *csrInd,
+                           ValueType *val,
+                           IndexType *degree)
 {
   int row = blockIdx.x * blockDim.x + threadIdx.x;
   if (row < n) {
@@ -371,7 +344,7 @@ void HT_matrix_csc_coo(const IndexType n,
   nblocks.z  = 1;
   degree_coo<IndexType, IndexType>
     <<<nblocks, nthreads, 0, stream>>>(n, e, csrInd, degree.data().get());
-  CUDA_CHECK_LAST();
+  CHECK_CUDA(stream);
 
   int y      = 4;
   nthreads.x = 32 / y;
@@ -382,11 +355,11 @@ void HT_matrix_csc_coo(const IndexType n,
   nblocks.z  = min((n + nthreads.z - 1) / nthreads.z, CUDA_MAX_BLOCKS);  // 1;
   equi_prob3<IndexType, ValueType>
     <<<nblocks, nthreads, 0, stream>>>(n, e, csrPtr, csrInd, val, degree.data().get());
-  CUDA_CHECK_LAST();
+  CHECK_CUDA(stream);
 
   ValueType a = 0.0;
   fill(n, bookmark, a);
-  CUDA_CHECK_LAST();
+  CHECK_CUDA(stream);
 
   nthreads.x = min(n, CUDA_MAX_KERNEL_THREADS);
   nthreads.y = 1;
@@ -396,12 +369,14 @@ void HT_matrix_csc_coo(const IndexType n,
   nblocks.z  = 1;
   flag_leafs_kernel<IndexType, ValueType>
     <<<nblocks, nthreads, 0, stream>>>(n, degree.data().get(), bookmark);
-  CUDA_CHECK_LAST();
+  CHECK_CUDA(stream);
 }
 
 template <typename IndexType, typename ValueType>
-__global__ void __launch_bounds__(CUDA_MAX_KERNEL_THREADS)
-  permute_vals_kernel(const IndexType e, IndexType *perm, ValueType *in, ValueType *out)
+__global__ void permute_vals_kernel(const IndexType e,
+                                    IndexType *perm,
+                                    ValueType *in,
+                                    ValueType *out)
 {
   for (int i = threadIdx.x + blockIdx.x * blockDim.x; i < e; i += gridDim.x * blockDim.x)
     out[i] = in[perm[i]];
@@ -485,33 +460,31 @@ void remove_duplicate(
   }
 }
 
-template <typename IndexType>
-__global__ void __launch_bounds__(CUDA_MAX_KERNEL_THREADS)
-  offsets_to_indices_kernel(const IndexType *offsets, IndexType v, IndexType *indices)
+template <typename offsets_t, typename index_t>
+__global__ void offsets_to_indices_kernel(const offsets_t *offsets, index_t v, index_t *indices)
 {
-  int tid, ctaStart;
-  tid      = threadIdx.x;
-  ctaStart = blockIdx.x;
+  auto tid{threadIdx.x};
+  auto ctaStart{blockIdx.x};
 
-  for (int j = ctaStart; j < v; j += gridDim.x) {
-    IndexType colStart = offsets[j];
-    IndexType colEnd   = offsets[j + 1];
-    IndexType rowNnz   = colEnd - colStart;
+  for (index_t j = ctaStart; j < v; j += gridDim.x) {
+    offsets_t colStart = offsets[j];
+    offsets_t colEnd   = offsets[j + 1];
+    offsets_t rowNnz   = colEnd - colStart;
 
-    for (int i = 0; i < rowNnz; i += blockDim.x) {
+    for (offsets_t i = 0; i < rowNnz; i += blockDim.x) {
       if ((colStart + tid + i) < colEnd) { indices[colStart + tid + i] = j; }
     }
   }
 }
 
-template <typename IndexType>
-void offsets_to_indices(const IndexType *offsets, IndexType v, IndexType *indices)
+template <typename offsets_t, typename index_t>
+void offsets_to_indices(const offsets_t *offsets, index_t v, index_t *indices)
 {
   cudaStream_t stream{nullptr};
-  IndexType nthreads = min(v, (IndexType)CUDA_MAX_KERNEL_THREADS);
-  IndexType nblocks  = min((v + nthreads - 1) / nthreads, (IndexType)CUDA_MAX_BLOCKS);
+  index_t nthreads = min(v, (index_t)CUDA_MAX_KERNEL_THREADS);
+  index_t nblocks  = min((v + nthreads - 1) / nthreads, (index_t)CUDA_MAX_BLOCKS);
   offsets_to_indices_kernel<<<nblocks, nthreads, 0, stream>>>(offsets, v, indices);
-  CUDA_CHECK_LAST();
+  CHECK_CUDA(stream);
 }
 
 template <typename IndexType>
@@ -519,7 +492,7 @@ void sequence(IndexType n, IndexType *vec, IndexType init = 0)
 {
   thrust::sequence(
     thrust::device, thrust::device_pointer_cast(vec), thrust::device_pointer_cast(vec + n), init);
-  CUDA_CHECK_LAST();
+  CHECK_CUDA(nullptr);
 }
 
 template <typename DistType>
@@ -532,7 +505,7 @@ bool has_negative_val(DistType *arr, size_t n)
                                          thrust::device_pointer_cast(arr),
                                          thrust::device_pointer_cast(arr + n));
 
-  CUDA_CHECK_LAST();
+  CHECK_CUDA(stream);
 
   return (result < 0);
 }

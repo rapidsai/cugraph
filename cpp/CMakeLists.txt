@@ -1,6 +1,5 @@
 #=============================================================================
-# Copyright 2018 BlazingDB, Inc.
-#     Copyright 2018 Percy Camilo Triveño Aucahuasi <percy@blazingdb.com>
+# Copyright (c) 2018-2020, NVIDIA CORPORATION.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -15,9 +14,9 @@
 # limitations under the License.
 #=============================================================================
 
-cmake_minimum_required(VERSION 3.12 FATAL_ERROR)
+cmake_minimum_required(VERSION 3.12..3.17 FATAL_ERROR)
 
-project(CUGRAPH VERSION 0.15.0 LANGUAGES C CXX CUDA)
+project(CUGRAPH VERSION 0.17.0 LANGUAGES C CXX CUDA)
 
 ###################################################################################################
 # - build type ------------------------------------------------------------------------------------
@@ -47,42 +46,66 @@ set(CMAKE_CUDA_STANDARD_REQUIRED ON)
 
 if(CMAKE_COMPILER_IS_GNUCXX)
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Werror -Wno-error=deprecated-declarations")
-
-###################################################################################################
-###   C++ ABI changes.
-###
-###   By default, cugraph builds with the new C++ ABI.  In order to insure that thirdparty
-###   applications build with the properly setting (specifically RMM) we need to set
-###   the CMAKE_CXX11_ABI flag appropriately.
-###
-###   If a user wants to build with the OLD ABI, then they need to define CMAKE_CXX11_ABI
-###   to be OFF (typically on the cmake command line).
-###
-###   This block of code will configure the old ABI if the flag is set to OFF and
-###   do nothing (the default behavior of the C++14 compiler).
-###
-    option(CMAKE_CXX11_ABI "Enable the GLIBCXX11 ABI" ON)
-    if(CMAKE_CXX11_ABI)
-        message(STATUS "CUGRAPH: Enabling the GLIBCXX11 ABI")
-    else()
-        message(STATUS "CUGRAPH: Disabling the GLIBCXX11 ABI")
-        set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -D_GLIBCXX_USE_CXX11_ABI=0")
-        set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -D_GLIBCXX_USE_CXX11_ABI=0")
-        set(CMAKE_CUDA_FLAGS "${CMAKE_CUDA_FLAGS} -Xcompiler -D_GLIBCXX_USE_CXX11_ABI=0")
-    endif(CMAKE_CXX11_ABI)
 endif(CMAKE_COMPILER_IS_GNUCXX)
 
-set(CMAKE_CUDA_FLAGS "${CMAKE_CUDA_FLAGS} -gencode=arch=compute_60,code=sm_60")
-set(CMAKE_CUDA_FLAGS "${CMAKE_CUDA_FLAGS} -gencode=arch=compute_70,code=sm_70 -gencode=arch=compute_70,code=compute_70")
-
 find_package(CUDA)
-if((CUDA_VERSION_MAJOR EQUAL 10) OR (CUDA_VERSION_MAJOR GREATER 10))
-  set(CMAKE_CUDA_FLAGS "${CMAKE_CUDA_FLAGS} -gencode=arch=compute_75,code=sm_75 -gencode=arch=compute_75,code=compute_75")
+
+# Configure GPU arch to build
+set(GUNROCK_GENCODE_SM60 "OFF")
+set(GUNROCK_GENCODE_SM61 "OFF")
+set(GUNROCK_GENCODE_SM70 "OFF")
+set(GUNROCK_GENCODE_SM72 "OFF")
+set(GUNROCK_GENCODE_SM75 "OFF")
+set(GUNROCK_GENCODE_SM80 "OFF")
+
+# Check for aarch64 vs workstation architectures
+if(CMAKE_SYSTEM_PROCESSOR MATCHES "aarch64")
+  message(STATUS "CMAKE Detected aarch64 CPU architecture, selecting appropriate gencodes")
+  # This is being build for Linux4Tegra or SBSA ARM64 CUDA
+  set(GPU_ARCHS "62") # Default minimum CUDA GenCode - not supported by gunrock
+  if(CUDA_VERSION_MAJOR GREATER_EQUAL 9)
+    set(GPU_ARCHS "${GPU_ARCHS};72")
+    set(GUNROCK_GENCODE_SM72 "ON")
+  endif()
+  if(CUDA_VERSION_MAJOR GREATER_EQUAL 11)
+    # This is probably for SBSA CUDA, or a next gen Jetson
+    set(GPU_ARCHS "${GPU_ARCHS};75;80")
+    set(GUNROCK_GENCODE_SM75 "ON")
+    set(GUNROCK_GENCODE_SM80 "ON")
+  endif()
+
+else()
+  message(STATUS "CMAKE selecting appropriate gencodes for x86 or ppc64 CPU architectures")
+  # System architecture was not aarch64,
+  # this is datacenter or workstation class hardware
+  set(GPU_ARCHS "60") # Default minimum supported CUDA gencode
+  set(GUNROCK_GENCODE_SM60 "ON")
+  if(CUDA_VERSION_MAJOR GREATER_EQUAL 9)
+    set(GPU_ARCHS "${GPU_ARCHS};70")
+    set(GUNROCK_GENCODE_SM70 "ON")
+  endif()
+  if(CUDA_VERSION_MAJOR GREATER_EQUAL 10)
+    set(GPU_ARCHS "${GPU_ARCHS};75")
+    set(GUNROCK_GENCODE_SM75 "ON")
+  endif()
+  if(CUDA_VERSION_MAJOR GREATER_EQUAL 11)
+    set(GPU_ARCHS "${GPU_ARCHS};80")
+    set(GUNROCK_GENCODE_SM80 "ON")
+  endif()
 endif()
+
+message("-- Building for GPU_ARCHS = ${GPU_ARCHS}")
+foreach(arch ${GPU_ARCHS})
+  set(CMAKE_CUDA_FLAGS "${CMAKE_CUDA_FLAGS} -gencode arch=compute_${arch},code=sm_${arch}")
+endforeach()
+
+list(GET GPU_ARCHS -1 ptx)
+set(CMAKE_CUDA_FLAGS "${CMAKE_CUDA_FLAGS} -gencode arch=compute_${ptx},code=compute_${ptx}")
 
 set(CMAKE_CUDA_FLAGS "${CMAKE_CUDA_FLAGS} --expt-extended-lambda")
 set(CMAKE_CUDA_FLAGS "${CMAKE_CUDA_FLAGS} -Werror=cross-execution-space-call -Wno-deprecated-declarations -Xptxas --disable-warnings")
 set(CMAKE_CUDA_FLAGS "${CMAKE_CUDA_FLAGS} -Xcompiler -Wall,-Wno-error=sign-compare,-Wno-error=unused-but-set-variable")
+
 
 # Option to enable line info in CUDA device compilation to allow introspection when profiling /
 # memchecking
@@ -104,13 +127,6 @@ set(CMAKE_EXE_LINKER_FLAGS "-Wl,--disable-new-dtags")
 option(BUILD_TESTS "Configure CMake to build tests"
        ON)
 
-option(BUILD_MPI "Build with MPI" OFF)
-if (BUILD_MPI)
-    find_package(MPI REQUIRED)
-    set (CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${MPI_C_COMPILE_FLAGS}")
-    set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${MPI_CXX_COMPILE_FLAGS}")
-    set (CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} ${MPI_CXX_LINK_FLAGS}")
-endif(BUILD_MPI)
 ###################################################################################################
 # - cmake modules ---------------------------------------------------------------------------------
 
@@ -180,37 +196,71 @@ find_path(RMM_INCLUDE "rmm"
     "$ENV{CONDA_PREFIX}/include/rmm"
     "$ENV{CONDA_PREFIX}/include")
 
-find_library(RMM_LIBRARY "rmm"
-    HINTS
-    "$ENV{RMM_ROOT}/lib"
-    "$ENV{CONDA_PREFIX}/lib")
-
-message(STATUS "RMM: RMM_LIBRARY set to ${RMM_LIBRARY}")
 message(STATUS "RMM: RMM_INCLUDE set to ${RMM_INCLUDE}")
 
-add_library(rmm SHARED IMPORTED ${RMM_LIBRARY})
-if (RMM_INCLUDE AND RMM_LIBRARY)
-    set_target_properties(rmm PROPERTIES IMPORTED_LOCATION ${RMM_LIBRARY})
-endif (RMM_INCLUDE AND RMM_LIBRARY)
+###################################################################################################
+# - Fetch Content ---------------------------------------------------------------------------------
+include(FetchContent)
+
+# - THRUST/CUB
+message("Fetching Thrust")
+
+FetchContent_Declare(
+    thrust
+    GIT_REPOSITORY https://github.com/thrust/thrust.git
+    # August 28, 2020
+    GIT_TAG        52a8bda46c5c2128414d1d47f546b486ff0be2f0
+)
+
+FetchContent_GetProperties(thrust)
+if(NOT thrust_POPULATED)
+  FetchContent_Populate(thrust)
+  # We are not using the thrust CMake targets, so no need to call `add_subdirectory()`.
+endif()
+set(THRUST_INCLUDE_DIR "${thrust_SOURCE_DIR}")
+
+# - cuco
+message("Fetching cuco")
+
+FetchContent_Declare(
+    cuco
+    GIT_REPOSITORY https://github.com/NVIDIA/cuCollections.git
+    GIT_TAG        5f94cdd3b3df0e5f79c47fb772497d6e42455414
+)
+
+FetchContent_GetProperties(cuco)
+if(NOT cuco_POPULATED)
+  FetchContent_Populate(cuco)
+endif()
+set(CUCO_INCLUDE_DIR "${cuco_SOURCE_DIR}/include")
+
+# - libcudacxx
+#     NOTE:  This is necessary because libcudacxx is not supported in
+#      debian cuda 10.2 packages.  Once 10.2 is deprecated
+#      we should not need this any longer.
+message("Fetching libcudacxx")
+
+FetchContent_Declare(
+    libcudacxx
+    GIT_REPOSITORY https://github.com/NVIDIA/libcudacxx.git
+    GIT_TAG        1.3.0
+    GIT_SHALLOW    true
+)
+
+FetchContent_GetProperties(libcudacxx)
+if(NOT libcudacxx_POPULATED)
+  message("populating libcudacxx")
+  FetchContent_Populate(libcudacxx)
+endif()
+set(LIBCUDACXX_INCLUDE_DIR "${libcudacxx_SOURCE_DIR}/include")
+message("set LIBCUDACXX_INCLUDE_DIR to: ${LIBCUDACXX_INCLUDE_DIR}")
+
 
 ###################################################################################################
 # - External Projects -----------------------------------------------------------------------------
 
 # https://cmake.org/cmake/help/v3.0/module/ExternalProject.html
 include(ExternalProject)
-
-# - CUB
-set(CUB_DIR ${CMAKE_CURRENT_BINARY_DIR}/cub CACHE STRING "Path to cub repo")
-set(CUB_INCLUDE_DIR ${CUB_DIR}/src/cub CACHE STRING "Path to cub includes")
-
-ExternalProject_Add(cub
-  GIT_REPOSITORY    https://github.com/NVlabs/cub.git
-  GIT_TAG           v1.8.0
-  PREFIX            ${CUB_DIR}
-  CONFIGURE_COMMAND ""
-  BUILD_COMMAND     ""
-  INSTALL_COMMAND   ""
-)
 
 # - CUHORNET
 set(CUHORNET_DIR ${CMAKE_CURRENT_BINARY_DIR}/cuhornet CACHE STRING "Path to cuhornet repo")
@@ -219,7 +269,7 @@ set(CUHORNET_INCLUDE_DIR ${CUHORNET_DIR}/src/cuhornet CACHE STRING "Path to cuho
 
 ExternalProject_Add(cuhornet
   GIT_REPOSITORY    https://github.com/rapidsai/cuhornet.git
-  GIT_TAG           master
+  GIT_TAG           9cb8e8803852bd895a9c95c0fe778ad6eeefa7ad
   PREFIX            ${CUHORNET_DIR}
   CONFIGURE_COMMAND ""
   BUILD_COMMAND     ""
@@ -227,25 +277,33 @@ ExternalProject_Add(cuhornet
 )
 
 # - GUNROCK
-set(CUGUNROCK_DIR ${CMAKE_CURRENT_BINARY_DIR}/cugunrock CACHE STRING
-  "Path to cugunrock repo")
+set(GUNROCK_DIR ${CMAKE_CURRENT_BINARY_DIR}/gunrock CACHE STRING "Path to gunrock repo")
+set(GUNROCK_INCLUDE_DIR ${GUNROCK_DIR}/src/gunrock_ext CACHE STRING "Path to gunrock includes")
 
-ExternalProject_Add(cugunrock
-  GIT_REPOSITORY    https://github.com/rapidsai/cugunrock.git
-  GIT_TAG           fea_full_bc      # provide a branch, a tag, or even a commit hash
-  PREFIX            ${CUGUNROCK_DIR}
+ExternalProject_Add(gunrock_ext
+  GIT_REPOSITORY    https://github.com/gunrock/gunrock.git
+  GIT_TAG           dev
+  PREFIX            ${GUNROCK_DIR}
   CMAKE_ARGS        -DCMAKE_INSTALL_PREFIX=<INSTALL_DIR>
-                    -DGPU_ARCHS=""
                     -DGUNROCK_BUILD_SHARED_LIBS=OFF
                     -DGUNROCK_BUILD_TESTS=OFF
-  BUILD_BYPRODUCTS  ${CUGUNROCK_DIR}/lib/libgunrock.a
+                    -DCUDA_AUTODETECT_GENCODE=OFF
+                    -DGUNROCK_GENCODE_SM60=${GUNROCK_GENCODE_SM60}
+                    -DGUNROCK_GENCODE_SM61=${GUNROCK_GENCODE_SM61}
+                    -DGUNROCK_GENCODE_SM70=${GUNROCK_GENCODE_SM70}
+                    -DGUNROCK_GENCODE_SM72=${GUNROCK_GENCODE_SM72}
+                    -DGUNROCK_GENCODE_SM75=${GUNROCK_GENCODE_SM75}
+                    -DGUNROCK_GENCODE_SM80=${GUNROCK_GENCODE_SM80}
+                    ${GUNROCK_GENCODE}
+  BUILD_BYPRODUCTS  ${GUNROCK_DIR}/src/gunrock_ext-build/lib/libgunrock.a
+  INSTALL_COMMAND   ""
 )
 
 add_library(gunrock STATIC IMPORTED)
 
-add_dependencies(gunrock cugunrock)
+add_dependencies(gunrock gunrock_ext)
 
-set_property(TARGET gunrock PROPERTY IMPORTED_LOCATION ${CUGUNROCK_DIR}/lib/libgunrock.a)
+set_property(TARGET gunrock PROPERTY IMPORTED_LOCATION ${GUNROCK_DIR}/src/gunrock_ext-build/lib/libgunrock.a)
 
 # - NCCL
 if(NOT NCCL_PATH)
@@ -263,7 +321,7 @@ endif(NOT NCCL_PATH)
 if(DEFINED ENV{RAFT_PATH})
   message(STATUS "RAFT_PATH environment variable detected.")
   message(STATUS "RAFT_DIR set to $ENV{RAFT_PATH}")
-  set(RAFT_DIR ENV{RAFT_PATH})
+  set(RAFT_DIR "$ENV{RAFT_PATH}")
 
   ExternalProject_Add(raft
     DOWNLOAD_COMMAND  ""
@@ -278,14 +336,14 @@ else(DEFINED ENV{RAFT_PATH})
 
   ExternalProject_Add(raft
     GIT_REPOSITORY    https://github.com/rapidsai/raft.git
-    GIT_TAG           e003de27fc4e4a096337f184dddbd7942a68bb5c
+    GIT_TAG           515ed005aebc2276d52308516e623a4ab0b5e82c
     PREFIX            ${RAFT_DIR}
     CONFIGURE_COMMAND ""
     BUILD_COMMAND     ""
     INSTALL_COMMAND   "")
 
   # Redefining RAFT_DIR so it coincides with the one inferred by env variable.
-  set(RAFT_DIR ${RAFT_DIR}/src/raft/ CACHE STRING "Path to RAFT repo")
+  set(RAFT_DIR "${RAFT_DIR}/src/raft/")
 endif(DEFINED ENV{RAFT_PATH})
 
 
@@ -301,14 +359,16 @@ link_directories(
     "${CMAKE_CUDA_IMPLICIT_LINK_DIRECTORIES}")
 
 add_library(cugraph SHARED
-    src/comms/mpi/comms_mpi.cpp
     src/db/db_object.cu
     src/db/db_parser_integration_test.cu
     src/db/db_operators.cu
-    src/utilities/cusparse_helper.cu
+    src/utilities/spmv_1D.cu
+    src/utilities/cython.cu
     src/structure/graph.cu
     src/linear_assignment/hungarian.cu
     src/link_analysis/pagerank.cu
+    src/link_analysis/pagerank_1D.cu
+    src/link_analysis/gunrock_hits.cpp
     src/traversal/bfs.cu
     src/traversal/sssp.cu
     src/link_prediction/jaccard.cu
@@ -317,58 +377,51 @@ add_library(cugraph SHARED
     src/converters/renumber.cu
     src/converters/COOtoCSR.cu
     src/community/spectral_clustering.cu
-    src/community/louvain.cpp
-    src/community/louvain_kernels.cu
+    src/community/louvain.cu
+    src/community/leiden.cu
     src/community/ktruss.cu
     src/community/ECG.cu
     src/community/triangles_counting.cu
     src/community/extract_subgraph_by_vertex.cu
     src/cores/core_number.cu
     src/traversal/two_hop_neighbors.cu
-    src/utilities/cusparse_helper.cu
     src/components/connectivity.cu
     src/centrality/katz_centrality.cu
     src/centrality/betweenness_centrality.cu
-    src/nvgraph/kmeans.cu
-    src/nvgraph/lanczos.cu
-    src/nvgraph/spectral_matrix.cu
-    src/nvgraph/modularity_maximization.cu
-    src/nvgraph/nvgraph_cusparse.cpp
-    src/nvgraph/nvgraph_cublas.cpp
-    src/nvgraph/nvgraph_lapack.cu
-    src/nvgraph/nvgraph_vector_kernels.cu
-    src/nvgraph/partition.cu
+    src/experimental/graph.cu
+    src/experimental/graph_view.cu
+    src/experimental/bfs.cu
+    src/experimental/sssp.cu
+    src/experimental/pagerank.cu
+    src/experimental/katz_centrality.cu
 )
 
 #
 # NOTE:  This dependency will force the building of cugraph to
 #        wait until after cugunrock is constructed.
 #
-add_dependencies(cugraph cugunrock)
+add_dependencies(cugraph gunrock_ext)
 add_dependencies(cugraph raft)
-
-if (BUILD_MPI)
-    add_compile_definitions(ENABLE_OPG=1)
-endif (BUILD_MPI)
 
 ###################################################################################################
 # - include paths ---------------------------------------------------------------------------------
 target_include_directories(cugraph
     PRIVATE
+    "${THRUST_INCLUDE_DIR}"
+    "${CUCO_INCLUDE_DIR}"
+    "${LIBCUDACXX_INCLUDE_DIR}"
     "${CMAKE_CUDA_TOOLKIT_INCLUDE_DIRECTORIES}"
     "${LIBCYPHERPARSER_INCLUDE}"
     "${Boost_INCLUDE_DIRS}"
     "${RMM_INCLUDE}"
     "${CMAKE_CURRENT_SOURCE_DIR}/../thirdparty"
-    "${CUB_INCLUDE_DIR}"
     "${CUHORNET_INCLUDE_DIR}/hornet/include"
     "${CUHORNET_INCLUDE_DIR}/hornetsnest/include"
     "${CUHORNET_INCLUDE_DIR}/xlib/include"
     "${CUHORNET_INCLUDE_DIR}/primitives"
     "${CMAKE_CURRENT_SOURCE_DIR}/src"
-    "${CUGUNROCK_DIR}/include"
+    "${GUNROCK_INCLUDE_DIR}"
     "${NCCL_INCLUDE_DIRS}"
-    "${MPI_CXX_INCLUDE_PATH}"
     "${RAFT_DIR}/cpp/include"
     PUBLIC
     "${CMAKE_CURRENT_SOURCE_DIR}/include"
@@ -378,7 +431,7 @@ target_include_directories(cugraph
 # - link libraries --------------------------------------------------------------------------------
 
 target_link_libraries(cugraph PRIVATE
-    ${RMM_LIBRARY} gunrock ${NVSTRINGS_LIBRARY} cublas cusparse curand cusolver cudart cuda ${LIBCYPHERPARSER_LIBRARY} ${MPI_CXX_LIBRARIES} ${NCCL_LIBRARIES})
+    gunrock cublas cusparse curand cusolver cudart cuda ${LIBCYPHERPARSER_LIBRARY} ${MPI_CXX_LIBRARIES} ${NCCL_LIBRARIES})
 
 if(OpenMP_CXX_FOUND)
 target_link_libraries(cugraph PRIVATE
@@ -391,7 +444,7 @@ target_link_libraries(cugraph PRIVATE
 ###   ...
 ###
 ###   libgomp.so is included in the conda base environment and copied to every new conda
-###   environment. If a full file path is provided (e.g ${RMM_LIBRARY}), cmake
+###   environment. If a full file path is provided (e.g ${NCCL_LIBRARIES}), cmake
 ###   extracts the directory path and adds the directory path to BUILD_RPATH (if BUILD_RPATH is not
 ###   disabled).
 ###
@@ -404,7 +457,7 @@ target_link_libraries(cugraph PRIVATE
 ###   If a full path to libgomp.so is provided (which is the case with OpenMP::OpenMP_CXX), cmake
 ###   checks whether there is any other libgomp.so with the different full path (after resolving
 ###   soft links) in the search paths (implicit directoires + BUILD_RAPTH). There is one in the
-###   path included in BUILD_RPATH when ${RMM_LIBRARY} are added; this one can
+###   path included in BUILD_RPATH when ${NCCL_LIBRARIES} are added; this one can
 ###   potentially hide the one in the provided full path and cmake generates a warning (and RPATH
 ###   is searched before the directories in /etc/ld.so/conf; ld.so.conf does not coincide but
 ###   overlaps with implicit directories).
@@ -453,6 +506,8 @@ install(TARGETS cugraph LIBRARY
 install(DIRECTORY include/
     DESTINATION include/cugraph)
 
+install(DIRECTORY ${RAFT_DIR}/cpp/include/raft/
+    DESTINATION include/cugraph/raft)
 ###################################################################################################
 # - make documentation ----------------------------------------------------------------------------
 # requires doxygen and graphviz to be installed

@@ -18,10 +18,8 @@
 
 cimport cugraph.traversal.sssp as c_sssp
 cimport cugraph.traversal.bfs as c_bfs
-from cugraph.structure.graph_new cimport *
-from cugraph.structure import graph_new_wrapper
-
-from cugraph.utilities.unrenumber import unrenumber
+from cugraph.structure.graph_primtypes cimport *
+from cugraph.structure import graph_primtypes_wrapper
 
 from libcpp cimport bool
 from libc.stdint cimport uintptr_t
@@ -36,18 +34,31 @@ def sssp(input_graph, source):
     Call sssp
     """
     # Step 1: Declare the different variables
-    cdef GraphCSRView[int, int, float]  graph_float     # For weighted float graph (SSSP) and Unweighted (BFS)
-    cdef GraphCSRView[int, int, double] graph_double    # For weighted double graph (SSSP)
+    cdef graph_container_t graph_container
+    # FIXME: Offsets and indices are currently hardcoded to int, but this may
+    #        not be acceptable in the future.
+    numberTypeMap = {np.dtype("int32") : <int>numberTypeEnum.int32Type,
+                     np.dtype("int64") : <int>numberTypeEnum.int64Type,
+                     np.dtype("float32") : <int>numberTypeEnum.floatType,
+                     np.dtype("double") : <int>numberTypeEnum.doubleType}
 
     # Pointers required for CSR Graph
     cdef uintptr_t c_offsets_ptr        = <uintptr_t> NULL # Pointer to the CSR offsets
     cdef uintptr_t c_indices_ptr        = <uintptr_t> NULL # Pointer to the CSR indices
     cdef uintptr_t c_weights_ptr        = <uintptr_t> NULL # Pointer to the CSR weights
+    cdef uintptr_t c_local_verts = <uintptr_t> NULL;
+    cdef uintptr_t c_local_edges = <uintptr_t> NULL;
+    cdef uintptr_t c_local_offsets = <uintptr_t> NULL;
+    weight_t = np.dtype("int32")
 
     # Pointers for SSSP / BFS
     cdef uintptr_t c_identifier_ptr     = <uintptr_t> NULL # Pointer to the DataFrame 'vertex' Series
     cdef uintptr_t c_distance_ptr       = <uintptr_t> NULL # Pointer to the DataFrame 'distance' Series
     cdef uintptr_t c_predecessor_ptr    = <uintptr_t> NULL # Pointer to the DataFrame 'predecessor' Series
+
+    cdef unique_ptr[handle_t] handle_ptr
+    handle_ptr.reset(new handle_t())
+    handle_ = handle_ptr.get();
 
     # Step 2: Verify that input_graph has the expected format
     #         the SSSP implementation expects CSR format
@@ -59,24 +70,20 @@ def sssp(input_graph, source):
     #         - indices: int (signed, 32-bit)
     #         - weights: float / double
     #         Extract data_type from weights (not None: float / double, None: signed int 32-bit)
-    [offsets, indices] = graph_new_wrapper.datatype_cast([input_graph.adjlist.offsets, input_graph.adjlist.indices], [np.int32])
-    [weights] = graph_new_wrapper.datatype_cast([input_graph.adjlist.weights], [np.float32, np.float64])
+    [offsets, indices] = graph_primtypes_wrapper.datatype_cast([input_graph.adjlist.offsets, input_graph.adjlist.indices], [np.int32])
+    [weights] = graph_primtypes_wrapper.datatype_cast([input_graph.adjlist.weights], [np.float32, np.float64])
     c_offsets_ptr = offsets.__cuda_array_interface__['data'][0]
     c_indices_ptr = indices.__cuda_array_interface__['data'][0]
 
-    data_type = np.int32
     if weights is not None:
-        data_type = weights.dtype
+        weight_t = weights.dtype
         c_weights_ptr = weights.__cuda_array_interface__['data'][0]
 
     # Step 4: Setup number of vertices and number of edges
     num_verts = input_graph.number_of_vertices()
-    num_edges = len(indices)
+    num_edges = input_graph.number_of_edges(directed_edges=True)
 
-    # Step 5: Handle the case our graph had to be renumbered
-    #         Our source index might no longer be valid
-    if input_graph.renumbered is True:
-        source = input_graph.edgelist.renumber_map[input_graph.edgelist.renumber_map == source].index[0]
+    # Step 5: Check if source index is valid
     if not 0 <= source < num_verts:
         raise ValueError("Starting vertex should be between 0 to number of vertices")
 
@@ -85,7 +92,7 @@ def sssp(input_graph, source):
     df = cudf.DataFrame()
 
     df['vertex'] = cudf.Series(np.zeros(num_verts, dtype=np.int32))
-    df['distance'] = cudf.Series(np.zeros(num_verts, dtype=data_type))
+    df['distance'] = cudf.Series(np.zeros(num_verts, dtype=weight_t))
     df['predecessor'] = cudf.Series(np.zeros(num_verts, dtype=np.int32))
 
     # Step 7: Associate <uintptr_t> to cudf Series
@@ -96,57 +103,41 @@ def sssp(input_graph, source):
     # Step 8: Dispatch to SSSP / BFS Based on weights
     #         - weights is not None: SSSP float or SSSP double
     #         - weights is None: BFS
+    populate_graph_container_legacy(graph_container,
+                                    <graphTypeEnum>(<int>(graphTypeEnum.LegacyCSR)),
+                                    handle_[0],
+                                    <void*>c_offsets_ptr, <void*>c_indices_ptr, <void*>c_weights_ptr,
+                                    <numberTypeEnum>(<int>(numberTypeEnum.int32Type)),
+                                    <numberTypeEnum>(<int>(numberTypeEnum.int32Type)),
+                                    <numberTypeEnum>(<int>(numberTypeMap[weight_t])),
+                                    num_verts, num_edges,
+                                    <int*>c_local_verts, <int*>c_local_edges, <int*>c_local_offsets)
+
     if weights is not None:
-        if data_type == np.float32:
-            graph_float = GraphCSRView[int, int, float](<int*> c_offsets_ptr,
-                                                     <int*> c_indices_ptr,
-                                                     <float*> c_weights_ptr,
-                                                     num_verts,
-                                                     num_edges)
-            graph_float.get_vertex_identifiers(<int*> c_identifier_ptr)
-            c_sssp.sssp[int, int, float](graph_float,
+        if weight_t == np.float32:
+            c_sssp.call_sssp[int, float](handle_[0],
+                                         graph_container,
+                                         <int*> c_identifier_ptr,
                                          <float*> c_distance_ptr,
                                          <int*> c_predecessor_ptr,
                                          <int> source)
-        elif data_type == np.float64:
-            graph_double = GraphCSRView[int, int, double](<int*> c_offsets_ptr,
-                                                      <int*> c_indices_ptr,
-                                                      <double*> c_weights_ptr,
-                                                      num_verts,
-                                                      num_edges)
-            graph_double.get_vertex_identifiers(<int*> c_identifier_ptr)
-            c_sssp.sssp[int, int, double](graph_double,
+        elif weight_t == np.float64:
+            c_sssp.call_sssp[int, double](handle_[0],
+                                          graph_container,
+                                          <int*> c_identifier_ptr,
                                           <double*> c_distance_ptr,
                                           <int*> c_predecessor_ptr,
                                           <int> source)
         else: # This case should not happen
             raise NotImplementedError
     else:
-        # FIXME: Something might be done here considering WT = float
-        graph_float = GraphCSRView[int, int, float](<int*> c_offsets_ptr,
-                                                <int*> c_indices_ptr,
-                                                <float*> NULL,
-                                                num_verts,
-                                                num_edges)
-        graph_float.get_vertex_identifiers(<int*> c_identifier_ptr)
-        c_bfs.bfs[int, int, float](graph_float,
+        c_bfs.call_bfs[int, float](handle_[0],
+                                   graph_container,
+                                   <int*> c_identifier_ptr,
                                    <int*> c_distance_ptr,
                                    <int*> c_predecessor_ptr,
                                    <double*> NULL,
-                                   <int> source)
+                                   <int> source,
+                                   <bool> 1)
 
-    #FIXME: Update with multiple column renumbering
-    # Step 9: Unrenumber before return
-    #         It is only required to renumber vertex and predecessors
-    if input_graph.renumbered:
-        if isinstance(input_graph.edgelist.renumber_map, cudf.DataFrame): # Multicolumns renumbering
-            n_cols = len(input_graph.edgelist.renumber_map.columns) - 1
-            unrenumbered_df_ = df.merge(input_graph.edgelist.renumber_map, left_on='vertex', right_on='id', how='left').drop(['id', 'vertex'])
-            unrenumbered_df = unrenumbered_df_.merge(input_graph.edgelist.renumber_map, left_on='predecessor', right_on='id', how='left').drop(['id', 'predecessor'])
-            unrenumbered_df.columns = ['distance'] + ['vertex_' + str(i) for i in range(n_cols)] + ['predecessor_' + str(i) for i in range(n_cols)]
-            cols = unrenumbered_df.columns.to_list()
-            df = unrenumbered_df[cols[1:n_cols + 1] + [cols[0]] + cols[n_cols:]]
-        else: # Simple renumbering
-            df = unrenumber(input_graph.edgelist.renumber_map, df, 'vertex')
-            df['predecessor'][df['predecessor'] >- 1] = input_graph.edgelist.renumber_map[df['predecessor'][df['predecessor'] >- 1]]
     return df

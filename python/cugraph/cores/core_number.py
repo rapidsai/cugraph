@@ -1,4 +1,4 @@
-# Copyright (c) 2019 - 2020, NVIDIA CORPORATION.
+# Copyright (c) 2019-2020, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -12,7 +12,8 @@
 # limitations under the License.
 
 from cugraph.cores import core_number_wrapper
-from cugraph.utilities.unrenumber import unrenumber
+from cugraph.utilities import check_nx_graph
+from cugraph.utilities import df_score_to_dictionary
 
 
 def core_number(G):
@@ -25,15 +26,15 @@ def core_number(G):
 
     Parameters
     ----------
-    graph : cuGraph.Graph
-        cuGraph graph descriptor with connectivity information. The graph
-        should contain undirected edges where undirected edges are represented
-        as directed edges in both directions. While this graph can contain edge
-        weights, they don't participate in the calculation of the core numbers.
+    graph : cuGraph.Graph or networkx.Graph
+        The graph should contain undirected edges where undirected edges are
+        represented as directed edges in both directions. While this graph
+        can contain edge weights, they don't participate in the calculation
+        of the core numbers.
 
     Returns
     -------
-    df : cudf.DataFrame
+    df : cudf.DataFrame or python dictionary (in NetworkX input)
         GPU data frame containing two cudf.Series of size V: the vertex
         identifiers and the corresponding core number values.
 
@@ -51,9 +52,14 @@ def core_number(G):
     >>> cn = cugraph.core_number(G)
     """
 
+    G, isNx = check_nx_graph(G)
+
     df = core_number_wrapper.core_number(G)
 
     if G.renumbered:
-        df = unrenumber(G.edgelist.renumber_map, df, 'vertex')
+        df = G.unrenumber(df, "vertex")
+
+    if isNx is True:
+        df = df_score_to_dictionary(df, 'core_number')
 
     return df

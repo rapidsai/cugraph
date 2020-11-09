@@ -1,4 +1,4 @@
-# Copyright (c) 2019, NVIDIA CORPORATION.
+# Copyright (c) 2019-2020, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -12,4 +12,7 @@
 # limitations under the License.
 
 from cugraph.traversal.bfs import bfs
-from cugraph.traversal.sssp import sssp, filter_unreachable
+from cugraph.traversal.bfs import bfs_edges
+from cugraph.traversal.sssp import sssp
+from cugraph.traversal.sssp import shortest_path
+from cugraph.traversal.sssp import filter_unreachable

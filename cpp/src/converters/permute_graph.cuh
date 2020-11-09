@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 #include <rmm/thrust_rmm_allocator.h>
-#include <utilities/error_utils.h>
 #include <graph.hpp>
+#include <utilities/error.hpp>
 #include "converters/COOtoCSR.cuh"
 #include "utilities/graph_utils.cuh"
 
@@ -42,9 +42,9 @@ struct permutation_functor {
  * @return The permuted graph.
  */
 template <typename vertex_t, typename edge_t, typename weight_t>
-void permute_graph(experimental::GraphCSRView<vertex_t, edge_t, weight_t> const &graph,
+void permute_graph(GraphCSRView<vertex_t, edge_t, weight_t> const &graph,
                    vertex_t const *permutation,
-                   experimental::GraphCSRView<vertex_t, edge_t, weight_t> result,
+                   GraphCSRView<vertex_t, edge_t, weight_t> result,
                    cudaStream_t stream = 0)
 {
   //  Create a COO out of the CSR
@@ -76,7 +76,7 @@ void permute_graph(experimental::GraphCSRView<vertex_t, edge_t, weight_t> const 
                     d_dst,
                     pf);
 
-  cugraph::experimental::GraphCOOView<vertex_t, edge_t, weight_t> graph_coo;
+  GraphCOOView<vertex_t, edge_t, weight_t> graph_coo;
 
   graph_coo.number_of_vertices = graph.number_of_vertices;
   graph_coo.number_of_edges    = graph.number_of_edges;

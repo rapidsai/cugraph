@@ -12,7 +12,7 @@ __Compiler__:
 * `cmake`       version 3.12+
 
 __CUDA:__
-* CUDA 10.0+
+* CUDA 10.1+
 * NVIDIA driver 396.44+
 * Pascal architecture or better
 
@@ -47,14 +47,16 @@ __Create the conda development environment__
 ```bash
 # create the conda environment (assuming in base `cugraph` directory)
 
-# for CUDA 10
-conda env create --name cugraph_dev --file conda/environments/cugraph_dev_cuda10.0.yml
+
 
 # for CUDA 10.1
 conda env create --name cugraph_dev --file conda/environments/cugraph_dev_cuda10.1.yml
 
 # for CUDA 10.2
 conda env create --name cugraph_dev --file conda/environments/cugraph_dev_cuda10.2.yml
+
+# for CUDA 11
+conda env create --name cugraph_dev --file conda/environments/cugraph_dev_cuda11.0.yml
 
 # activate the environment
 conda activate cugraph_dev
@@ -68,14 +70,14 @@ conda deactivate
 
 ```bash
 
-# for CUDA 10
-conda env update --name cugraph_dev --file conda/environments/cugraph_dev_cuda10.0.yml
-
 # for CUDA 10.1
 conda env update --name cugraph_dev --file conda/environments/cugraph_dev_cuda10.1.yml
 
 # for CUDA 10.2
 conda env update --name cugraph_dev --file conda/environments/cugraph_dev_cuda10.2.yml
+
+# for CUDA 11
+conda env update --name cugraph_dev --file conda/environments/cugraph_dev_cuda11.0.yml
 
 conda activate cugraph_dev
 ```
@@ -200,7 +202,7 @@ Run either the C++ or the Python tests with datasets
    make test
    ```
 
-Note: This conda installation only applies to Linux and Python versions 3.6/3.7.
+Note: This conda installation only applies to Linux and Python versions 3.7/3.8.
 
 ### Building and Testing on a gpuCI image locally
 
@@ -226,8 +228,8 @@ Next the env_vars.sh file needs to be edited
 vi ./etc/conda/activate.d/env_vars.sh
 
 #!/bin/bash
-export PATH=/usr/local/cuda-10.0/bin:$PATH # or cuda-10.2 if using CUDA 10.2
-export LD_LIBRARY_PATH=/usr/local/cuda-10.0/lib64:$LD_LIBRARY_PATH # or cuda-10.2 if using CUDA 10.2
+export PATH=/usr/local/cuda-10.1/bin:$PATH # or cuda-10.2 if using CUDA 10.2
+export LD_LIBRARY_PATH=/usr/local/cuda-10.1/lib64:$LD_LIBRARY_PATH # or cuda-10.2 if using CUDA 10.2
 ```
 
 ```
@@ -241,23 +243,6 @@ unset LD_LIBRARY_PATH
 ## Creating documentation
 
 Python API documentation can be generated from [docs](docs) directory.
-
-## C++ ABI issues
-
-cuGraph builds with C++14 features.  By default, we build cuGraph with the latest ABI (the ABI changed with C++11).  The version of cuDF pointed to in
-the conda installation above is build with the new ABI.
-
-If you see link errors indicating trouble finding functions that use C++ strings when trying to build cuGraph you may have an ABI incompatibility.
-
-There are a couple of complications that may make this a problem:
-* if you need to link in a library built with the old ABI, you may need to build the entire tool chain from source using the old ABI.
-* if you build cudf from source (for whatever reason), the default behavior for cudf (at least through version 0.5.x) is to build using the old ABI.  You can build with the new ABI, but you need to follow the instructions in CUDF to explicitly turn that on.
-
-If you must build cugraph with the old ABI, you can use the following command (instead of the cmake call above):
-
-```bash
-cmake .. -DCMAKE_INSTALL_PREFIX=$CONDA_PREFIX -DCMAKE_CXX11_ABI=OFF
-```
 
 ## Attribution
 Portions adopted from https://github.com/pytorch/pytorch/blob/master/CONTRIBUTING.md

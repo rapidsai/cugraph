@@ -16,18 +16,16 @@
 
 #include <algorithms.hpp>
 #include <graph.hpp>
-
-#include <utilities/cuda_utils.cuh>
+#include <utilities/error.hpp>
 
 #include <rmm/thrust_rmm_allocator.h>
-#include <utilities/error_utils.h>
+#include <raft/device_atomics.cuh>
 
 namespace {
 
 template <typename vertex_t, typename edge_t, typename weight_t, bool has_weight>
-std::unique_ptr<cugraph::experimental::GraphCOO<vertex_t, edge_t, weight_t>>
-extract_subgraph_by_vertices(
-  cugraph::experimental::GraphCOOView<vertex_t, edge_t, weight_t> const &graph,
+std::unique_ptr<cugraph::GraphCOO<vertex_t, edge_t, weight_t>> extract_subgraph_by_vertices(
+  cugraph::GraphCOOView<vertex_t, edge_t, weight_t> const &graph,
   vertex_t const *vertices,
   vertex_t num_vertices,
   cudaStream_t stream)
@@ -49,7 +47,7 @@ extract_subgraph_by_vertices(
       if ((v >= 0) && (v < graph_num_verts)) {
         d_vertex_used[v] = idx;
       } else {
-        cugraph::atomicAdd(d_error_count, int64_t{1});
+        atomicAdd(d_error_count, int64_t{1});
       }
     });
 
@@ -72,7 +70,7 @@ extract_subgraph_by_vertices(
     });
 
   if (count > 0) {
-    auto result = std::make_unique<cugraph::experimental::GraphCOO<vertex_t, edge_t, weight_t>>(
+    auto result = std::make_unique<cugraph::GraphCOO<vertex_t, edge_t, weight_t>>(
       num_vertices, count, has_weight);
 
     vertex_t *d_new_src    = result->src_indices();
@@ -99,7 +97,7 @@ extract_subgraph_by_vertices(
                          //     require 2*|E| temporary memory.  If this becomes important perhaps
                          //     we make 2 implementations and pick one based on the number of
                          //     vertices in the subgraph set.
-                         auto pos       = cugraph::atomicAdd(d_error_count, 1);
+                         auto pos       = atomicAdd(d_error_count, int64_t{1});
                          d_new_src[pos] = d_vertex_used[s];
                          d_new_dst[pos] = d_vertex_used[d];
                          if (has_weight) d_new_weight[pos] = graph_weight[e];
@@ -108,18 +106,18 @@ extract_subgraph_by_vertices(
 
     return result;
   } else {
-    return std::make_unique<cugraph::experimental::GraphCOO<vertex_t, edge_t, weight_t>>(
-      0, 0, has_weight);
+    return std::make_unique<cugraph::GraphCOO<vertex_t, edge_t, weight_t>>(0, 0, has_weight);
   }
 }
 }  // namespace
 
 namespace cugraph {
-namespace nvgraph {
+namespace subgraph {
 
 template <typename VT, typename ET, typename WT>
-std::unique_ptr<experimental::GraphCOO<VT, ET, WT>> extract_subgraph_vertex(
-  experimental::GraphCOOView<VT, ET, WT> const &graph, VT const *vertices, VT num_vertices)
+std::unique_ptr<GraphCOO<VT, ET, WT>> extract_subgraph_vertex(GraphCOOView<VT, ET, WT> const &graph,
+                                                              VT const *vertices,
+                                                              VT num_vertices)
 {
   CUGRAPH_EXPECTS(vertices != nullptr, "API error, vertices must be non null");
 
@@ -132,12 +130,14 @@ std::unique_ptr<experimental::GraphCOO<VT, ET, WT>> extract_subgraph_vertex(
   }
 }
 
-template std::unique_ptr<experimental::GraphCOO<int32_t, int32_t, float>>
-extract_subgraph_vertex<int32_t, int32_t, float>(
-  experimental::GraphCOOView<int32_t, int32_t, float> const &, int32_t const *, int32_t);
-template std::unique_ptr<experimental::GraphCOO<int32_t, int32_t, double>>
-extract_subgraph_vertex<int32_t, int32_t, double>(
-  experimental::GraphCOOView<int32_t, int32_t, double> const &, int32_t const *, int32_t);
+template std::unique_ptr<GraphCOO<int32_t, int32_t, float>>
+extract_subgraph_vertex<int32_t, int32_t, float>(GraphCOOView<int32_t, int32_t, float> const &,
+                                                 int32_t const *,
+                                                 int32_t);
+template std::unique_ptr<GraphCOO<int32_t, int32_t, double>>
+extract_subgraph_vertex<int32_t, int32_t, double>(GraphCOOView<int32_t, int32_t, double> const &,
+                                                  int32_t const *,
+                                                  int32_t);
 
-}  // namespace nvgraph
+}  // namespace subgraph
 }  // namespace cugraph

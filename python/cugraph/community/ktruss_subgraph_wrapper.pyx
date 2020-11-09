@@ -1,4 +1,4 @@
-# Copyright (c) 2019, NVIDIA CORPORATION.
+# Copyright (c) 2019-2020, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -17,9 +17,8 @@
 # cython: language_level = 3
 
 from cugraph.community.ktruss_subgraph cimport *
-from cugraph.structure.graph_new cimport *
-from cugraph.structure import graph_new_wrapper
-from cugraph.utilities.unrenumber import unrenumber
+from cugraph.structure.graph_primtypes cimport *
+from cugraph.structure import graph_primtypes_wrapper
 from libcpp cimport bool
 from libc.stdint cimport uintptr_t
 from libc.float cimport FLT_MAX_EXP
@@ -40,7 +39,7 @@ def ktruss_subgraph_double(input_graph, k, use_weights):
 
 
 def ktruss_subgraph(input_graph, k, use_weights):
-    if graph_new_wrapper.weight_type(input_graph) == np.float64 and use_weights:
+    if graph_primtypes_wrapper.weight_type(input_graph) == np.float64 and use_weights:
         return ktruss_subgraph_double(input_graph, k, use_weights)
     else:
         return ktruss_subgraph_float(input_graph, k, use_weights)

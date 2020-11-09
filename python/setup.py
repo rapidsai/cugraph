@@ -1,4 +1,4 @@
-# Copyright (c) 2018-2019, NVIDIA CORPORATION.
+# Copyright (c) 2018-2020, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -84,6 +84,7 @@ class CleanCommand(Command):
         os.system('rm -rf build')
         os.system('rm -rf dist')
         os.system('rm -rf dask-worker-space')
+        os.system('rm -f cugraph/raft')
         os.system('find . -name "__pycache__" -type d -exec rm -rf {} +')
         os.system('rm -rf *.egg-info')
         os.system('find . -name "*.cpp" -type f -delete')

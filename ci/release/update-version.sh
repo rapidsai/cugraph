@@ -1,7 +1,16 @@
 #!/bin/bash
-########################
-# RMM Version Updater #
-########################
+# Copyright (c) 2018-2020, NVIDIA CORPORATION.
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
 
 ## Usage
 # bash update-version.sh <type>
@@ -17,6 +26,7 @@ CURRENT_TAG=`git tag | grep -xE 'v[0-9\.]+' | sort --version-sort | tail -n 1 | 
 CURRENT_MAJOR=`echo $CURRENT_TAG | awk '{split($0, a, "."); print a[1]}'`
 CURRENT_MINOR=`echo $CURRENT_TAG | awk '{split($0, a, "."); print a[2]}'`
 CURRENT_PATCH=`echo $CURRENT_TAG | awk '{split($0, a, "."); print a[3]}'`
+CURRENT_SHORT_TAG=${CURRENT_MAJOR}.${CURRENT_MINOR}
 NEXT_MAJOR=$((CURRENT_MAJOR + 1))
 NEXT_MINOR=$((CURRENT_MINOR + 1))
 NEXT_PATCH=$((CURRENT_PATCH + 1))
@@ -51,3 +61,11 @@ sed_runner 's/'"CUGRAPH VERSION .* LANGUAGES C CXX CUDA)"'/'"CUGRAPH VERSION ${N
 # RTD update
 sed_runner 's/version = .*/version = '"'${NEXT_SHORT_TAG}'"'/g' docs/source/conf.py
 sed_runner 's/release = .*/release = '"'${NEXT_FULL_TAG}'"'/g' docs/source/conf.py
+
+for FILE in conda/environments/*.yml; do
+   sed_runner "s/cudf=${CURRENT_SHORT_TAG}/cudf=${NEXT_SHORT_TAG}/g" ${FILE};
+   sed_runner "s/rmm=${CURRENT_SHORT_TAG}/rmm=${NEXT_SHORT_TAG}/g" ${FILE};
+   sed_runner "s/dask-cuda=${CURRENT_SHORT_TAG}/dask-cuda=${NEXT_SHORT_TAG}/g" ${FILE};
+   sed_runner "s/dask-cudf=${CURRENT_SHORT_TAG}/dask-cudf=${NEXT_SHORT_TAG}/g" ${FILE};
+   sed_runner "s/ucx-py=${CURRENT_SHORT_TAG}/ucx-py=${NEXT_SHORT_TAG}/g" ${FILE};
+done

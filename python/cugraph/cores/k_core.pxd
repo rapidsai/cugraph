@@ -1,4 +1,4 @@
-# Copyright (c) 2019, NVIDIA CORPORATION.
+# Copyright (c) 2019-2020, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -16,7 +16,7 @@
 # cython: embedsignature = True
 # cython: language_level = 3
 
-from cugraph.structure.graph_new cimport *
+from cugraph.structure.graph_primtypes cimport *
 
 cdef extern from "algorithms.hpp" namespace "cugraph":
 

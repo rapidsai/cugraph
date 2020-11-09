@@ -1,4 +1,4 @@
-# Copyright (c) 2019, NVIDIA CORPORATION.
+# Copyright (c) 2019-2020, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -15,6 +15,7 @@ import gc
 import time
 from collections import defaultdict
 import pytest
+import pandas as pd
 
 import cugraph
 from cugraph.tests import utils
@@ -25,66 +26,53 @@ from cugraph.tests import utils
 # python 3.7.  Also, this import networkx needs to be relocated in the
 # third-party group once this gets fixed.
 import warnings
+
 with warnings.catch_warnings():
     warnings.filterwarnings("ignore", category=DeprecationWarning)
     import networkx as nx
 
 
-print('Networkx version : {} '.format(nx.__version__))
+print("Networkx version : {} ".format(nx.__version__))
 
 
 def networkx_weak_call(M):
-    '''M = M.tocsr()
-    if M is None:
-        raise TypeError('Could not read the input graph')
-    if M.shape[0] != M.shape[1]:
-        raise TypeError('Shape is not square')
-
-    Gnx = nx.DiGraph(M)'''
-    Gnx = nx.from_pandas_edgelist(M, source='0', target='1',
-                                  create_using=nx.DiGraph())
+    Gnx = nx.from_pandas_edgelist(
+        M, source="0", target="1", create_using=nx.DiGraph()
+    )
 
     # Weakly Connected components call:
-    print('Solving... ')
     t1 = time.time()
-
-    # same parameters as in NVGRAPH
     result = nx.weakly_connected_components(Gnx)
     t2 = time.time() - t1
-    print('Time : ' + str(t2))
+    print("Time : " + str(t2))
 
     labels = sorted(result)
     return labels
 
 
 def cugraph_weak_call(cu_M):
-    # cugraph Pagerank Call
     G = cugraph.DiGraph()
-    G.from_cudf_edgelist(cu_M, source='0', destination='1')
+    G.from_cudf_edgelist(cu_M, source="0", destination="1")
     t1 = time.time()
     df = cugraph.weakly_connected_components(G)
     t2 = time.time() - t1
-    print('Time : '+str(t2))
+    print("Time : " + str(t2))
 
     label_vertex_dict = defaultdict(list)
     for i in range(len(df)):
-        label_vertex_dict[df['labels'][i]].append(df['vertices'][i])
+        label_vertex_dict[df["labels"][i]].append(df["vertices"][i])
     return label_vertex_dict
 
 
 def networkx_strong_call(M):
-    Gnx = nx.from_pandas_edgelist(M, source='0', target='1',
-                                  create_using=nx.DiGraph())
+    Gnx = nx.from_pandas_edgelist(
+        M, source="0", target="1", create_using=nx.DiGraph()
+    )
 
-    # Weakly Connected components call:
-    print('Solving... ')
     t1 = time.time()
-
-    # same parameters as in NVGRAPH
     result = nx.strongly_connected_components(Gnx)
     t2 = time.time() - t1
-
-    print('Time : ' + str(t2))
+    print("Time : " + str(t2))
 
     labels = sorted(result)
     return labels
@@ -93,30 +81,29 @@ def networkx_strong_call(M):
 def cugraph_strong_call(cu_M):
     # cugraph Pagerank Call
     G = cugraph.DiGraph()
-    G.from_cudf_edgelist(cu_M, source='0', destination='1')
+    G.from_cudf_edgelist(cu_M, source="0", destination="1")
     t1 = time.time()
     df = cugraph.strongly_connected_components(G)
     t2 = time.time() - t1
-    print('Time : '+str(t2))
+    print("Time : " + str(t2))
 
     label_vertex_dict = defaultdict(list)
     for i in range(len(df)):
-        label_vertex_dict[df['labels'][i]].append(df['vertices'][i])
+        label_vertex_dict[df["labels"][i]].append(df["vertices"][i])
     return label_vertex_dict
 
 
-# these should come w/ cugraph/python:
-#
-DATASETS = ['../datasets/dolphins.csv',
-            '../datasets/netscience.csv']
-
-STRONGDATASETS = ['../datasets/dolphins.csv',
-                  '../datasets/netscience.csv',
-                  '../datasets/email-Eu-core.csv']
+def which_cluster_idx(_cluster, _find_vertex):
+    idx = -1
+    for i in range(len(_cluster)):
+        if _find_vertex in _cluster[i]:
+            idx = i
+            break
+    return idx
 
 
 # Test all combinations of default/managed and pooled/non-pooled allocation
-@pytest.mark.parametrize('graph_file', DATASETS)
+@pytest.mark.parametrize("graph_file", utils.DATASETS)
 def test_weak_cc(graph_file):
     gc.collect()
 
@@ -149,13 +136,20 @@ def test_weak_cc(graph_file):
 
     # Compare vertices of largest component
     nx_vertices = sorted(lst_nx_components[0])
-    cg_vertices = sorted(lst_cg_components[0])
+    first_vert = nx_vertices[0]
+
+    idx = which_cluster_idx(lst_cg_components, first_vert)
+    assert idx != -1, "Check for Nx vertex in cuGraph results failed"
+
+    cg_vertices = sorted(lst_cg_components[idx])
+
     assert nx_vertices == cg_vertices
 
 
 # Test all combinations of default/managed and pooled/non-pooled allocation
 
-@pytest.mark.parametrize('graph_file', STRONGDATASETS)
+
+@pytest.mark.parametrize("graph_file", utils.STRONGDATASETS)
 def test_strong_cc(graph_file):
     gc.collect()
 
@@ -173,7 +167,7 @@ def test_strong_cc(graph_file):
     nx_n_components = len(netx_labels)
     cg_n_components = len(cugraph_labels)
 
-    # Comapre number of components
+    # Comapre number of components found
     assert nx_n_components == cg_n_components
 
     lst_nx_components = sorted(netx_labels, key=len, reverse=True)
@@ -187,6 +181,53 @@ def test_strong_cc(graph_file):
     assert lst_nx_components_lens == lst_cg_components_lens
 
     # Compare vertices of largest component
+    # note that there might be more than one largest component
     nx_vertices = sorted(lst_nx_components[0])
-    cg_vertices = sorted(lst_cg_components[0])
+    first_vert = nx_vertices[0]
+
+    idx = which_cluster_idx(lst_cg_components, first_vert)
+    assert idx != -1, "Check for Nx vertex in cuGraph results failed"
+
+    cg_vertices = sorted(lst_cg_components[idx])
     assert nx_vertices == cg_vertices
+
+
+@pytest.mark.parametrize("graph_file", utils.DATASETS)
+def test_weak_cc_nx(graph_file):
+    gc.collect()
+
+    M = utils.read_csv_for_nx(graph_file)
+    Gnx = nx.from_pandas_edgelist(
+        M, source="0", target="1", create_using=nx.DiGraph()
+    )
+
+    nx_wcc = nx.weakly_connected_components(Gnx)
+    nx_result = sorted(nx_wcc)
+
+    cu_wcc = cugraph.weakly_connected_components(Gnx)
+    pdf = pd.DataFrame.from_dict(cu_wcc, orient='index').reset_index()
+    pdf.columns = ["vertex", "labels"]
+    cu_result = pdf["labels"].nunique()
+
+    assert len(nx_result) == cu_result
+
+
+@pytest.mark.parametrize("graph_file", utils.STRONGDATASETS)
+def test_strong_cc_nx(graph_file):
+    gc.collect()
+
+    M = utils.read_csv_for_nx(graph_file)
+    Gnx = nx.from_pandas_edgelist(
+        M, source="0", target="1", create_using=nx.DiGraph()
+    )
+
+    nx_scc = nx.strongly_connected_components(Gnx)
+    nx_result = sorted(nx_scc)
+
+    cu_scc = cugraph.strongly_connected_components(Gnx)
+
+    pdf = pd.DataFrame.from_dict(cu_scc, orient='index').reset_index()
+    pdf.columns = ["vertex", "labels"]
+    cu_result = pdf["labels"].nunique()
+
+    assert len(nx_result) == cu_result

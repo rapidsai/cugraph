@@ -1,7 +1,7 @@
 // -*-c++-*-
 
 /*
- * Copyright (c) 2019, NVIDIA CORPORATION.
+ * Copyright (c) 2019-2020, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,19 +16,18 @@
  * limitations under the License.
  */
 
-#include "gmock/gmock.h"
-#include "gtest/gtest.h"
+//#include "gmock/gmock.h"
 
-#include "cuda_profiler_api.h"
+#include <utilities/base_fixture.hpp>
 
-#include <rmm/rmm.h>
+#include <converters/renumber.cuh>
+
 #include <rmm/thrust_rmm_allocator.h>
-#include <rmm/mr/device/cuda_memory_resource.hpp>
-#include "converters/renumber.cuh"
+
+#include <cuda_profiler_api.h>
+#include <curand_kernel.h>
 
 #include <chrono>
-
-#include <curand_kernel.h>
 
 struct RenumberingTest : public ::testing::Test {
 };
@@ -109,7 +108,7 @@ TEST_F(RenumberingTest, SmallFixedVertexList)
                                                        &unique_verts,
                                                        cugraph::detail::HashFunctionObjectInt(511),
                                                        thrust::less<uint32_t>(),
-                                                       rmm::mr::get_default_resource());
+                                                       rmm::mr::get_current_device_resource());
 
   EXPECT_EQ(cudaMemcpy(
               tmp_map, number_map->data(), sizeof(uint32_t) * unique_verts, cudaMemcpyDeviceToHost),
@@ -166,7 +165,7 @@ TEST_F(RenumberingTest, SmallFixedVertexListNegative)
                                                        &unique_verts,
                                                        cugraph::detail::HashFunctionObjectInt(511),
                                                        thrust::less<int64_t>(),
-                                                       rmm::mr::get_default_resource());
+                                                       rmm::mr::get_current_device_resource());
 
   EXPECT_EQ(
     cudaMemcpy(tmp_map, number_map->data(), sizeof(int64_t) * unique_verts, cudaMemcpyDeviceToHost),
@@ -223,7 +222,7 @@ TEST_F(RenumberingTest, SmallFixedVertexList64Bit)
                                                        &unique_verts,
                                                        cugraph::detail::HashFunctionObjectInt(511),
                                                        thrust::less<uint64_t>(),
-                                                       rmm::mr::get_default_resource());
+                                                       rmm::mr::get_current_device_resource());
 
   EXPECT_EQ(cudaMemcpy(
               tmp_map, number_map->data(), sizeof(uint64_t) * unique_verts, cudaMemcpyDeviceToHost),
@@ -286,7 +285,7 @@ TEST_F(RenumberingTest, SmallFixedVertexList64BitTo32Bit)
                                                        &unique_verts,
                                                        cugraph::detail::HashFunctionObjectInt(511),
                                                        thrust::less<uint64_t>(),
-                                                       rmm::mr::get_default_resource());
+                                                       rmm::mr::get_current_device_resource());
 
   EXPECT_EQ(cudaMemcpy(
               tmp_map, number_map->data(), sizeof(uint64_t) * unique_verts, cudaMemcpyDeviceToHost),
@@ -360,7 +359,7 @@ TEST_F(RenumberingTest, Random100KVertexSet)
                                                        &unique_verts,
                                                        cugraph::detail::HashFunctionObjectInt(511),
                                                        thrust::less<uint64_t>(),
-                                                       rmm::mr::get_default_resource());
+                                                       rmm::mr::get_current_device_resource());
 
   auto end                                      = std::chrono::system_clock::now();
   std::chrono::duration<double> elapsed_seconds = end - start;
@@ -450,7 +449,7 @@ TEST_F(RenumberingTest, Random10MVertexSet)
                                        &unique_verts,
                                        cugraph::detail::HashFunctionObjectInt(hash_size),
                                        thrust::less<uint64_t>(),
-                                       rmm::mr::get_default_resource());
+                                       rmm::mr::get_current_device_resource());
   auto end                                      = std::chrono::system_clock::now();
   std::chrono::duration<double> elapsed_seconds = end - start;
 
@@ -509,7 +508,7 @@ TEST_F(RenumberingTest, Random100MVertexSet)
                                        &unique_verts,
                                        cugraph::detail::HashFunctionObjectInt(hash_size),
                                        thrust::less<uint64_t>(),
-                                       rmm::mr::get_default_resource());
+                                       rmm::mr::get_current_device_resource());
   auto end                                      = std::chrono::system_clock::now();
   std::chrono::duration<double> elapsed_seconds = end - start;
 
@@ -568,7 +567,7 @@ TEST_F(RenumberingTest, Random500MVertexSet)
                                        &unique_verts,
                                        cugraph::detail::HashFunctionObjectInt(hash_size),
                                        thrust::less<uint64_t>(),
-                                       rmm::mr::get_default_resource());
+                                       rmm::mr::get_current_device_resource());
   auto end                                      = std::chrono::system_clock::now();
   std::chrono::duration<double> elapsed_seconds = end - start;
 
@@ -577,11 +576,4 @@ TEST_F(RenumberingTest, Random500MVertexSet)
   std::cout << "  hash size = " << hash_size << std::endl;
 }
 
-int main(int argc, char **argv)
-{
-  testing::InitGoogleTest(&argc, argv);
-  auto resource = std::make_unique<rmm::mr::cuda_memory_resource>();
-  rmm::mr::set_default_resource(resource.get());
-  int rc = RUN_ALL_TESTS();
-  return rc;
-}
+CUGRAPH_TEST_PROGRAM_MAIN()

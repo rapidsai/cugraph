@@ -16,10 +16,10 @@
 # cython: embedsignature = True
 # cython: language_level = 3
 
-from cugraph.structure.graph_new cimport *
+from cugraph.structure.graph_primtypes cimport *
 
 
-cdef extern from "algorithms.hpp" namespace "cugraph::nvgraph":
+cdef extern from "algorithms.hpp" namespace "cugraph::ext_raft":
 
     cdef void balancedCutClustering[VT,ET,WT](
         const GraphCSRView[VT,ET,WT] &graph,
@@ -30,7 +30,7 @@ cdef extern from "algorithms.hpp" namespace "cugraph::nvgraph":
         const float kmean_tolerance,
         const int kmean_max_iter,
         VT* clustering) except +
-    
+
     cdef void spectralModularityMaximization[VT,ET,WT](
         const GraphCSRView[VT,ET,WT] &graph,
         const int n_clusters,
@@ -40,19 +40,19 @@ cdef extern from "algorithms.hpp" namespace "cugraph::nvgraph":
         const float kmean_tolerance,
         const int kmean_max_iter,
         VT* clustering) except +
-    
+
     cdef void analyzeClustering_modularity[VT,ET,WT](
         const GraphCSRView[VT,ET,WT] &graph,
         const int n_clusters,
         const VT* clustering,
         WT* score) except +
-    
+
     cdef void analyzeClustering_edge_cut[VT,ET,WT](
         const GraphCSRView[VT,ET,WT] &graph,
         const int n_clusters,
         const VT* clustering,
         WT* score) except +
-    
+
     cdef void analyzeClustering_ratio_cut[VT,ET,WT](
         const GraphCSRView[VT,ET,WT] &graph,
         const int n_clusters,

@@ -1,0 +1,234 @@
+# Copyright (c) 2020, NVIDIA CORPORATION.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+
+from collections.abc import Sequence
+
+from collections import OrderedDict
+from dask_cudf.core import DataFrame as dcDataFrame
+from dask_cudf.core import Series as daskSeries
+
+import cugraph.comms.comms as Comms
+from cugraph.raft.dask.common.utils import get_client
+from cugraph.dask.common.part_utils import (_extract_partitions,
+                                            load_balance_func)
+from dask.distributed import default_client
+from toolz import first
+from functools import reduce
+
+
+class DistributedDataHandler:
+    """
+    Class to centralize distributed data management. Functionalities include:
+    - Data colocation
+    - Worker information extraction
+    - GPU futures extraction,
+
+    Additional functionality can be added as needed. This class **does not**
+    contain the actual data, just the metadata necessary to handle it,
+    including common pieces of code that need to be performed to call
+    Dask functions.
+
+    The constructor is not meant to be used directly, but through the factory
+    method DistributedDataHandler.create
+
+    """
+
+    def __init__(self, gpu_futures=None, workers=None,
+                 datatype=None, multiple=False, client=None):
+        self.client = get_client(client)
+        self.gpu_futures = gpu_futures
+        self.worker_to_parts = _workers_to_parts(gpu_futures)
+        self.workers = workers
+        self.datatype = datatype
+        self.multiple = multiple
+        self.worker_info = None
+        self.total_rows = None
+        self.max_vertex_id = None
+        self.ranks = None
+        self.parts_to_sizes = None
+        self.local_data = None
+
+    @classmethod
+    def get_client(cls, client=None):
+        return default_client() if client is None else client
+
+    """ Class methods for initalization """
+
+    @classmethod
+    def create(cls, data, client=None):
+        """
+        Creates a distributed data handler instance with the given
+        distributed data set(s).
+
+        Parameters
+        ----------
+
+        data : dask.array, dask.dataframe, or unbounded Sequence of
+               dask.array or dask.dataframe.
+
+        client : dask.distributedClient
+        """
+
+        client = cls.get_client(client)
+
+        multiple = isinstance(data, Sequence)
+
+        if isinstance(first(data) if multiple else data,
+                      (dcDataFrame, daskSeries)):
+            datatype = 'cudf'
+        else:
+            raise Exception("Graph data must be dask-cudf dataframe")
+
+        gpu_futures = client.sync(_extract_partitions, data, client)
+        workers = tuple(OrderedDict.fromkeys(map(lambda x: x[0], gpu_futures)))
+        return DistributedDataHandler(gpu_futures=gpu_futures, workers=workers,
+                                      datatype=datatype, multiple=multiple,
+                                      client=client)
+
+    """ Methods to calculate further attributes """
+
+    def calculate_worker_and_rank_info(self, comms):
+
+        self.worker_info = comms.worker_info(comms.worker_addresses)
+        self.ranks = dict()
+
+        for w, futures in self.worker_to_parts.items():
+            self.ranks[w] = self.worker_info[w]["rank"]
+
+    def calculate_parts_to_sizes(self, comms=None, ranks=None):
+
+        if self.worker_info is None and comms is not None:
+            self.calculate_worker_and_rank_info(comms)
+
+        self.total_rows = 0
+
+        self.parts_to_sizes = dict()
+
+        parts = [(wf[0], self.client.submit(
+            _get_rows,
+            wf[1],
+            self.multiple,
+            workers=[wf[0]],
+            pure=False))
+            for idx, wf in enumerate(self.worker_to_parts.items())]
+
+        sizes = self.client.compute(parts, sync=True)
+
+        for w, sizes_parts in sizes:
+            sizes, total = sizes_parts
+            self.parts_to_sizes[self.worker_info[w]["rank"]] = \
+                sizes
+
+            self.total_rows += total
+
+    def calculate_local_data(self, comms, by):
+
+        if self.worker_info is None and comms is not None:
+            self.calculate_worker_and_rank_info(comms)
+
+        local_data = dict([(self.worker_info[wf[0]]["rank"],
+                            self.client.submit(
+                            _get_local_data,
+                            wf[1],
+                            by,
+                            workers=[wf[0]]))
+                          for idx, wf in enumerate(self.worker_to_parts.items()
+                                                   )])
+
+        _local_data_dict = self.client.compute(local_data, sync=True)
+        local_data_dict = {'edges': [], 'offsets': [], 'verts': []}
+        max_vid = 0
+        for rank in range(len(_local_data_dict)):
+            data = _local_data_dict[rank]
+            local_data_dict['edges'].append(data[0])
+            if rank == 0:
+                local_offset = 0
+            else:
+                prev_data = _local_data_dict[rank-1]
+                local_offset = prev_data[1] + 1
+            local_data_dict['offsets'].append(local_offset)
+            local_data_dict['verts'].append(data[1] - local_offset + 1)
+            if data[2] > max_vid:
+                max_vid = data[2]
+
+        import numpy as np
+        local_data_dict['edges'] = np.array(local_data_dict['edges'],
+                                            dtype=np.int32)
+        local_data_dict['offsets'] = np.array(local_data_dict['offsets'],
+                                              dtype=np.int32)
+        local_data_dict['verts'] = np.array(local_data_dict['verts'],
+                                            dtype=np.int32)
+        self.local_data = local_data_dict
+        self.max_vertex_id = max_vid
+
+
+""" Internal methods, API subject to change """
+
+
+def _workers_to_parts(futures):
+    """
+    Builds an ordered dict mapping each worker to their list
+    of parts
+    :param futures: list of (worker, part) tuples
+    :return:
+    """
+    w_to_p_map = OrderedDict()
+    for w, p in futures:
+        if w not in w_to_p_map:
+            w_to_p_map[w] = []
+        w_to_p_map[w].append(p)
+    return w_to_p_map
+
+
+def _get_rows(objs, multiple):
+    def get_obj(x): return x[0] if multiple else x
+    total = list(map(lambda x: get_obj(x).shape[0], objs))
+    return total, reduce(lambda a, b: a + b, total)
+
+
+def _get_local_data(df, by):
+    df = df[0]
+    num_local_edges = len(df)
+    local_by_max = df[by].iloc[-1]
+    local_max = df[['src', 'dst']].max().max()
+    return num_local_edges, local_by_max, local_max
+
+
+def get_local_data(input_graph, by, load_balance=True):
+    input_graph.compute_renumber_edge_list(transposed=(by == 'dst'))
+    _ddf = input_graph.edgelist.edgelist_df
+    ddf = _ddf.sort_values(by=by, ignore_index=True)
+
+    if load_balance:
+        ddf = load_balance_func(ddf, by=by)
+
+    comms = Comms.get_comms()
+    data = DistributedDataHandler.create(data=ddf)
+    data.calculate_local_data(comms, by)
+    return data
+
+
+def get_mg_batch_data(dask_cudf_data):
+    data = DistributedDataHandler.create(data=dask_cudf_data)
+    return data
+
+
+def get_distributed_data(input_ddf):
+    ddf = input_ddf
+    comms = Comms.get_comms()
+    data = DistributedDataHandler.create(data=ddf)
+    if data.worker_info is None and comms is not None:
+        data.calculate_worker_and_rank_info(comms)
+    return data

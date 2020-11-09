@@ -17,9 +17,8 @@
 # cython: language_level = 3
 
 from cugraph.community.subgraph_extraction cimport extract_subgraph_vertex as c_extract_subgraph_vertex
-from cugraph.structure.graph_new cimport *
-from cugraph.structure import graph_new_wrapper
-from cugraph.utilities.unrenumber import unrenumber
+from cugraph.structure.graph_primtypes cimport *
+from cugraph.structure import graph_primtypes_wrapper
 from libc.stdint cimport uintptr_t
 
 import cudf
@@ -27,26 +26,25 @@ import rmm
 import numpy as np
 
 
-def subgraph(input_graph, vertices, subgraph):
+def subgraph(input_graph, vertices):
     """
     Call extract_subgraph_vertex
     """
     src = None
     dst = None
     weights = None
-    vertices_renumbered = None
     use_float = True
 
     if not input_graph.edgelist:
         input_graph.view_edge_list()
 
-    [src, dst] = graph_new_wrapper.datatype_cast([input_graph.edgelist.edgelist_df['src'], input_graph.edgelist.edgelist_df['dst']], [np.int32])
+    [src, dst] = graph_primtypes_wrapper.datatype_cast([input_graph.edgelist.edgelist_df['src'], input_graph.edgelist.edgelist_df['dst']], [np.int32])
 
     if input_graph.edgelist.weights:
-        [weights] = graph_new_wrapper.datatype_cast([input_graph.edgelist.edgelist_df['weights']], [np.float32, np.float64])
+        [weights] = graph_primtypes_wrapper.datatype_cast([input_graph.edgelist.edgelist_df['weights']], [np.float32, np.float64])
         if weights.dtype == np.float64:
             use_float = False
-        
+
     cdef GraphCOOView[int,int,float]  in_graph_float
     cdef GraphCOOView[int,int,double] in_graph_double
     cdef unique_ptr[GraphCOO[int,int,float]]  out_graph_float
@@ -58,15 +56,8 @@ def subgraph(input_graph, vertices, subgraph):
 
     if weights is not None:
         c_weights = weights.__cuda_array_interface__['data'][0]
-    
-    if input_graph.renumbered:
-        renumber_series = cudf.Series(input_graph.edgelist.renumber_map.index,
-                                      index=input_graph.edgelist.renumber_map, dtype=np.int32)
-        vertices_renumbered = renumber_series.loc[vertices]
-    else:
-        vertices_renumbered = vertices
 
-    cdef uintptr_t c_vertices = vertices_renumbered.__cuda_array_interface__['data'][0]
+    cdef uintptr_t c_vertices = vertices.__cuda_array_interface__['data'][0]
 
     num_verts = input_graph.number_of_vertices()
     num_edges = len(src)
@@ -81,17 +72,10 @@ def subgraph(input_graph, vertices, subgraph):
 
     # renumber vertices to match original input
     vertices_df = cudf.DataFrame()
-    vertices_df['v'] = vertices_renumbered
+    vertices_df['v'] = vertices
     vertices_df = vertices_df.reset_index(drop=True).reset_index()
 
-    df = df.merge(vertices_df, left_on='src', right_on='index', how='left').drop(['src', 'index']).rename({'v': 'src'})
-    df = df.merge(vertices_df, left_on='dst', right_on='index', how='left').drop(['dst', 'index']).rename({'v': 'dst'})
-    
-    if input_graph.renumbered:
-        df = unrenumber(input_graph.edgelist.renumber_map, df, 'src')
-        df = unrenumber(input_graph.edgelist.renumber_map, df, 'dst')
+    df = df.merge(vertices_df, left_on='src', right_on='index', how='left').drop(columns=['src', 'index']).rename(columns={'v': 'src'}, copy=False)
+    df = df.merge(vertices_df, left_on='dst', right_on='index', how='left').drop(columns=['dst', 'index']).rename(columns={'v': 'dst'}, copy=False)
 
-    if weights is not None:
-        subgraph.from_cudf_edgelist(df, source='src', destination='dst', edge_attr='weight')
-    else:
-        subgraph.from_cudf_edgelist(df, source='src', destination='dst')
+    return df

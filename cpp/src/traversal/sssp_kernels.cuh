@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019 NVIDIA CORPORATION.
+ * Copyright (c) 2019-2020, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -18,10 +18,9 @@
 
 #include <iostream>
 
-#include <utilities/sm_utils.h>
 #include <cub/cub.cuh>
 #include "traversal_common.cuh"
-#include "utilities/error_utils.h"
+#include "utilities/error.hpp"
 namespace cugraph {
 namespace detail {
 namespace sssp_kernels {
@@ -548,7 +547,7 @@ void frontier_expand(const IndexType* row_ptr,
     predecessors,
     edge_mask);
 
-  CUDA_CHECK_LAST();
+  CHECK_CUDA(m_stream);
 }
 }  // namespace sssp_kernels
 }  // namespace detail
