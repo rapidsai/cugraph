@@ -307,6 +307,7 @@ add_library(cugraph SHARED
     src/db/db_operators.cu
     src/utilities/cusparse_helper.cu
     src/structure/graph.cu
+    src/linear_assignment/hungarian.cu
     src/link_analysis/pagerank.cu
     src/traversal/bfs.cu
     src/traversal/sssp.cu
