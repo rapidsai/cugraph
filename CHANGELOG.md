@@ -1,6 +1,7 @@
 # cuGraph 0.17.0 (Date TBD)
 
 ## New Features
+- PR #1245 Add functions to add pandas and numpy compatibility
 - PR #1260 Add katz_centrality mnmg wrapper
 
 ## Improvements
@@ -8,6 +9,7 @@
 
 ## Bug Fixes
 - PR #1242 Calling gunrock cmake using explicit -D options, re-enabling C++ tests
+- PR #1246 Use latest Gunrock, update HITS implementation
 - PR #1250 Updated cuco commit hash to latest as of 2020-10-30 and removed unneeded GIT_SHALLOW param
 - PR #1251 Changed the MG context testing class to use updated parameters passed in from the individual tests
 - PR #1253 MG test fixes: updated additional comms.initialize() calls, fixed dask DataFrame comparisons

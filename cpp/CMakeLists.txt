@@ -277,13 +277,13 @@ ExternalProject_Add(cuhornet
 )
 
 # - GUNROCK
-set(CUGUNROCK_DIR ${CMAKE_CURRENT_BINARY_DIR}/cugunrock CACHE STRING
-  "Path to cugunrock repo")
+set(GUNROCK_DIR ${CMAKE_CURRENT_BINARY_DIR}/gunrock CACHE STRING "Path to gunrock repo")
+set(GUNROCK_INCLUDE_DIR ${GUNROCK_DIR}/src/gunrock_ext CACHE STRING "Path to gunrock includes")
 
-ExternalProject_Add(cugunrock
-  GIT_REPOSITORY    https://github.com/rapidsai/cugunrock.git
-  GIT_TAG           0b92fae6ee9026188a811b4d08915779e7c97178
-  PREFIX            ${CUGUNROCK_DIR}
+ExternalProject_Add(gunrock_ext
+  GIT_REPOSITORY    https://github.com/gunrock/gunrock.git
+  GIT_TAG           dev
+  PREFIX            ${GUNROCK_DIR}
   CMAKE_ARGS        -DCMAKE_INSTALL_PREFIX=<INSTALL_DIR>
                     -DGUNROCK_BUILD_SHARED_LIBS=OFF
                     -DGUNROCK_BUILD_TESTS=OFF
@@ -295,14 +295,15 @@ ExternalProject_Add(cugunrock
                     -DGUNROCK_GENCODE_SM75=${GUNROCK_GENCODE_SM75}
                     -DGUNROCK_GENCODE_SM80=${GUNROCK_GENCODE_SM80}
                     ${GUNROCK_GENCODE}
-  BUILD_BYPRODUCTS  ${CUGUNROCK_DIR}/lib/libgunrock.a
+  BUILD_BYPRODUCTS  ${GUNROCK_DIR}/src/gunrock_ext-build/lib/libgunrock.a
+  INSTALL_COMMAND   ""
 )
 
 add_library(gunrock STATIC IMPORTED)
 
-add_dependencies(gunrock cugunrock)
+add_dependencies(gunrock gunrock_ext)
 
-set_property(TARGET gunrock PROPERTY IMPORTED_LOCATION ${CUGUNROCK_DIR}/lib/libgunrock.a)
+set_property(TARGET gunrock PROPERTY IMPORTED_LOCATION ${GUNROCK_DIR}/src/gunrock_ext-build/lib/libgunrock.a)
 
 # - NCCL
 if(NOT NCCL_PATH)
@@ -398,7 +399,7 @@ add_library(cugraph SHARED
 # NOTE:  This dependency will force the building of cugraph to
 #        wait until after cugunrock is constructed.
 #
-add_dependencies(cugraph cugunrock)
+add_dependencies(cugraph gunrock_ext)
 add_dependencies(cugraph raft)
 
 ###################################################################################################
@@ -418,7 +419,7 @@ target_include_directories(cugraph
     "${CUHORNET_INCLUDE_DIR}/xlib/include"
     "${CUHORNET_INCLUDE_DIR}/primitives"
     "${CMAKE_CURRENT_SOURCE_DIR}/src"
-    "${CUGUNROCK_DIR}/include"
+    "${GUNROCK_INCLUDE_DIR}"
     "${NCCL_INCLUDE_DIRS}"
     "${RAFT_DIR}/cpp/include"
     PUBLIC
