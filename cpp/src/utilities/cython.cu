@@ -536,34 +536,24 @@ void call_katz_centrality(raft::handle_t const& handle,
                           double beta,
                           double tolerance,
                           int64_t max_iter,
+                          bool has_guess,
                           bool normalized)
-{
-  if (graph_container.graph_type == graphTypeEnum::GraphCSRViewFloat) {
-    katz_centrality(handle,
-                    *(graph_container.graph_ptr_union.GraphCSRViewFloatPtr),
-                    reinterpret_cast<float*>(katz_centrality),
+  {
+  if (graph_container.graph_type == graphTypeEnum::GraphCSRViewFloat)  {
+    cugraph::katz_centrality(*(graph_container.graph_ptr_union.GraphCSRViewFloatPtr),
+                    reinterpret_cast<double*>(katz_centrality),
                     alpha,
-                    beta,
+                    static_cast<int32_t>(max_iter),
                     tolerance,
-                    max_iter,
+                    has_guess,
                     normalized);
     graph_container.graph_ptr_union.GraphCSRViewFloatPtr->get_vertex_identifiers(
       reinterpret_cast<int32_t*>(identifiers));
-  } else if (graph_container.graph_type == graphTypeEnum::GraphCSRViewDouble) {
-    katz_centrality(handle,
-                    *(graph_container.graph_ptr_union.GraphCSRViewDoublePtr),
-                    reinterpret_cast<double*>(katz_centrality),
-                    alpha,
-                    beta,
-                    tolerance,
-                    max_iter,
-                    normalized);
-    graph_container.graph_ptr_union.GraphCSRViewDoublePtr->get_vertex_identifiers(
-      reinterpret_cast<int32_t*>(identifiers));
-  } else if (graph_container.graph_type == graphTypeEnum::graph_t) {
+  }
+  else if (graph_container.graph_type == graphTypeEnum::graph_t) {
     if (graph_container.edgeType == numberTypeEnum::int32Type) {
       auto graph =
-        detail::create_graph<int32_t, int32_t, weight_t, false, true>(handle, graph_container);
+        detail::create_graph<int32_t, int32_t, weight_t, true, true>(handle, graph_container);
       cugraph::experimental::katz_centrality(handle,
                                              graph->view(),
                                              static_cast<weight_t*>(nullptr),
@@ -571,13 +561,13 @@ void call_katz_centrality(raft::handle_t const& handle,
                                              static_cast<weight_t>(alpha),
                                              static_cast<weight_t>(beta),
                                              static_cast<weight_t>(tolerance),
-                                             max_iter,
+                                             static_cast<size_t>(max_iter),
                                              has_guess,
-                                             normalize,
-                                             false);
+                                             normalized,
+                                             has_guess);
     } else if (graph_container.edgeType == numberTypeEnum::int64Type) {
       auto graph =
-        detail::create_graph<vertex_t, int64_t, weight_t, false, true>(handle, graph_container);
+        detail::create_graph<vertex_t, int64_t, weight_t, true, true>(handle, graph_container);
       cugraph::experimental::katz_centrality(handle,
                                              graph->view(),
                                              static_cast<weight_t*>(nullptr),
@@ -585,10 +575,10 @@ void call_katz_centrality(raft::handle_t const& handle,
                                              static_cast<weight_t>(alpha),
                                              static_cast<weight_t>(beta),
                                              static_cast<weight_t>(tolerance),
-                                             max_iter,
+                                             static_cast<size_t>(max_iter),
                                              has_guess,
-                                             normalize,
-                                             false);
+                                             normalized,
+                                             has_guess);
     } else {
       CUGRAPH_FAIL("vertexType/edgeType combination unsupported");
     }
@@ -768,6 +758,50 @@ template void call_pagerank(raft::handle_t const& handle,
                             double tolerance,
                             int64_t max_iter,
                             bool has_guess);
+
+template void call_katz_centrality(raft::handle_t const& handle,
+                                   graph_container_t const& graph_container,
+                                   int* identifiers,
+                                   float* katz_centrality,
+                                   double alpha,
+                                   double beta,
+                                   double tolerance,
+                                   int64_t max_iter,
+                                   bool has_guess,
+                                   bool normalized);
+
+template void call_katz_centrality(raft::handle_t const& handle,
+                                   graph_container_t const& graph_container,
+                                   int* identifiers,
+                                   double* katz_centrality,
+                                   double alpha,
+                                   double beta,
+                                   double tolerance,
+                                   int64_t max_iter,
+                                   bool has_guess,
+                                   bool normalized);
+
+template void call_katz_centrality(raft::handle_t const& handle,
+                                   graph_container_t const& graph_container,
+                                   int64_t* identifiers,
+                                   float* katz_centrality,
+                                   double alpha,
+                                   double beta,
+                                   double tolerance,
+                                   int64_t max_iter,
+                                   bool has_guess,
+                                   bool normalized);
+
+template void call_katz_centrality(raft::handle_t const& handle,
+                                   graph_container_t const& graph_container,
+                                   int64_t* identifiers,
+                                   double* katz_centrality,
+                                   double alpha,
+                                   double beta,
+                                   double tolerance,
+                                   int64_t max_iter,
+                                   bool has_guess,
+                                   bool normalized);
 
 template void call_bfs<int32_t, float>(raft::handle_t const& handle,
                                        graph_container_t const& graph_container,

@@ -10,7 +10,8 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-import numpy as np
+
+# import numpy as np
 import pytest
 import cugraph.dask as dcg
 import cugraph.comms as Comms
@@ -24,6 +25,7 @@ from cugraph.dask.common.mg_utils import is_single_gpu
 
 # The function selects personalization_perc% of accessible vertices in graph M
 # and randomly assigns them personalization values
+
 
 @pytest.fixture
 def client_connection():
@@ -71,15 +73,15 @@ def test_dask_pagerank(client_connection):
     exp_res = cugraph.katz_centrality(
         g, tol=1e-6)
     mg_res = dcg.katz_centrality(dg, tol=1e-6)
-    result_pr = result_pr.compute()
+    mg_res = mg_res.compute()
 
-    err = 0
-    tol = 1.0e-05
+    # err = 0
+    # tol = 1.0e-05
     print(exp_res)
     print(mg_res)
-    """assert len(expected_pr) == len(result_pr)
+    assert len(exp_res) == len(mg_res)
 
-    compare_pr = expected_pr.merge(
+    """compare_pr = expected_pr.merge(
         result_pr, on="vertex", suffixes=["_local", "_dask"]
     )
 

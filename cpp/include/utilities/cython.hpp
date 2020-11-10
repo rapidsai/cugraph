@@ -223,7 +223,8 @@ void call_katz_centrality(raft::handle_t const& handle,
                           double beta,
                           double tolerance,
                           int64_t max_iter,
-                          bool normalized)
+                          bool normalized,
+                          bool has_guess);
 
 // Wrapper for calling BFS through a graph container
 template <typename vertex_t, typename weight_t>
