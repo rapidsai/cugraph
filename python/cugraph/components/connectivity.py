@@ -14,11 +14,12 @@
 
 from cugraph.components import connectivity_wrapper
 from cugraph.utilities import (convert_from_nx,
+                               check_nx_graph,
                                df_score_to_dictionary,
-                              )
+                               )
 from cugraph.structure import (Graph,
                                DiGraph,
-                              )
+                               )
 
 import cudf
 
@@ -36,8 +37,8 @@ except ModuleNotFoundError:
 def ensure_cugraph_obj(obj, weight=None):
     """
     Convert the input obj - if possible - to a cuGraph Graph-type obj (Graph,
-    DiGraph, etc.) and return a tuple of (cugraph Graph-type obj, original input
-    obj type).
+    DiGraph, etc.) and return a tuple of (cugraph Graph-type obj, original
+    input obj type).
     """
     input_type = type(obj)
     if input_type in [Graph, DiGraph]:
@@ -116,8 +117,8 @@ def weakly_connected_components(G):
 
     If G is a cupy sparse COO matrix, returns:
 
-       cupy ndarray of shape (<num vertices>, 2), where column 0 contains component
-       identifiers and column 1 contains vertices.
+       cupy ndarray of shape (<num vertices>, 2), where column 0 contains
+       component identifiers and column 1 contains vertices.
 
     Examples
     --------

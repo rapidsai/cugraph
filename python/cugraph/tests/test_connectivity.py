@@ -67,19 +67,21 @@ def networkx_weak_call(M):
 def cugraph_weak_call(gpu_benchmark_callable, cuG_or_matrix):
     # if benchmarking is enabled, this call will be benchmarked (ie. run
     # repeatedly, run time averaged, etc.)
-    result = gpu_benchmark_callable(cugraph.weakly_connected_components, cuG_or_matrix)
+    result = gpu_benchmark_callable(cugraph.weakly_connected_components,
+                                    cuG_or_matrix)
 
     # dict of labels to list of vertices with that label
     label_vertex_dict = defaultdict(list)
 
-    # Lookup results differently based on return type, and ensure return type is
-    # correctly set based on input type.
+    # Lookup results differently based on return type, and ensure return type
+    # is correctly set based on input type.
     expected_return_type = cuGraph_input_output_map[type(cuG_or_matrix)]
 
     if expected_return_type is cudf.DataFrame:
         assert type(result) is cudf.DataFrame
         for i in range(len(result)):
-            label_vertex_dict[result["labels"][i]].append(result["vertices"][i])
+            label_vertex_dict[result["labels"][i]].append(
+                result["vertices"][i])
 
     elif expected_return_type is dict:
         assert type(result) is dict
@@ -145,7 +147,7 @@ INPUT_TYPE_PARAMS = [pytest.param(cugraph.DiGraph,
                      pytest.param(cp_coo_matrix,
                                   marks=pytest.mark.cupy_types,
                                   id="CuPy.coo_matrix"),
-                    ]
+                     ]
 
 
 @pytest.fixture(scope="module", params=utils.DATASETS)
