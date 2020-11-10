@@ -17,7 +17,6 @@
 # cython: language_level = 3
 
 from cugraph.linear_assignment.lap cimport hungarian as c_hungarian
-from cugraph.linear_assignment.lap cimport hungarian_dense as c_hungarian_dense
 from cugraph.structure.graph_primtypes cimport *
 from cugraph.structure import graph_primtypes_wrapper
 from libc.stdint cimport uintptr_t
