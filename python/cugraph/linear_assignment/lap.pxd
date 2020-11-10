@@ -16,13 +16,13 @@
 # cython: embedsignature = True
 # cython: language_level = 3
 
-from cugraph.structure.graph_new cimport *
+from cugraph.structure.graph_primtypes cimport *
 
 cdef extern from "algorithms.hpp" namespace "cugraph":
 
     cdef void hungarian[VT,ET,WT](
-        const GraphCOO[VT,ET,WT] &graph,
+        const handle_t &handle,
+        const GraphCOOView[VT,ET,WT] &graph,
         VT num_workers,
         const VT *workers,
         VT *assignment) except +
-

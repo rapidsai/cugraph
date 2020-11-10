@@ -26,6 +26,12 @@
 
 #include <raft/lap/lap.cuh>
 
+//#define TIMING
+
+#ifdef TIMING
+#include <utilities/high_res_timer.hpp>
+#endif
+
 namespace cugraph {
 namespace detail {
 
@@ -64,6 +70,12 @@ weight_t hungarian_sparse(raft::handle_t const &handle,
   CUGRAPH_EXPECTS(assignment != nullptr, "Invalid API parameter: assignment pointer is NULL");
   CUGRAPH_EXPECTS(graph.edge_data != nullptr,
                   "Invalid API parameter: graph must have edge data (costs)");
+
+#ifdef TIMING
+  HighResTimer hr_timer;
+
+  hr_timer.start("prep");
+#endif
 
   //
   //  Translate sparse matrix into dense bipartite matrix.
@@ -148,6 +160,12 @@ weight_t hungarian_sparse(raft::handle_t const &handle,
                      }
                    });
 
+#ifdef TIMING
+  hr_timer.stop();
+
+  hr_timer.start("hungarian");
+#endif
+
   //
   //  temp_assignment_v will hold the assignment in the dense
   //  bipartite matrix numbering
@@ -158,6 +176,13 @@ weight_t hungarian_sparse(raft::handle_t const &handle,
   weight_t min_cost = detail::hungarian(
     handle, matrix_dimension, matrix_dimension, d_cost, d_temp_assignment, stream);
 
+#ifdef TIMING
+  hr_timer.stop();
+
+  hr_timer.start("translate");
+#endif
+
+
   //
   //  Translate the assignment back to the original vertex ids
   //
@@ -167,6 +192,12 @@ weight_t hungarian_sparse(raft::handle_t const &handle,
                    [d_tasks, d_temp_assignment, assignment] __device__(vertex_t id) {
                      assignment[id] = d_tasks[d_temp_assignment[id]];
                    });
+
+#ifdef TIMING
+  hr_timer.stop();
+
+  hr_timer.display(std::cout);
+#endif
 
   return min_cost;
 }

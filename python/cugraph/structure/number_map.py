@@ -585,7 +585,14 @@ class NumberMap:
             tmp_df = df
             tmp_col_names = col_names
 
-        return self.implementation.to_internal_vertex_id(tmp_df, tmp_col_names)
+        reply = self.implementation.to_internal_vertex_id(tmp_df, tmp_col_names)
+
+        if type(df) is cudf.Series:
+            return reply["0"]
+        elif type(df) is dask_cudf.Series:
+            return reply["0"]
+        else:
+            return reply
 
     def add_internal_vertex_id(
         self, df, id_column_name="id", col_names=None, drop=False,

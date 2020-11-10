@@ -11,7 +11,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from cugraph.matching import matching_wrapper
+from cugraph.linear_assignment import lap_wrapper
 
 def hungarian(G, workers):
     """
@@ -62,6 +62,15 @@ def hungarian(G, workers):
     >>> df = cugraph.hungarian(G, workers)
 
     """
-    df = matching_wrapper.hungarian(G, workers)
+
+    if G.renumbered:
+        local_workers = G.lookup_internal_vertex_id(workers);
+    else:
+        local_workers = workers
+
+    df = lap_wrapper.hungarian(G, workers)
+
+    if G.renumbered:
+        df = G.unrenumber(df, 'vertex')
 
     return df

@@ -16,12 +16,12 @@
 # cython: embedsignature = True
 # cython: language_level = 3
 
-from cugraph.matching.matching cimport hungarian as c_hungarian
-from cugraph.structure.graph_new cimport *
-from cugraph.structure import graph_new_wrapper
+from cugraph.linear_assignment.lap cimport hungarian as c_hungarian
+from cugraph.linear_assignment.lap cimport hungarian_dense as c_hungarian_dense
+from cugraph.structure.graph_primtypes cimport *
+from cugraph.structure import graph_primtypes_wrapper
 from libc.stdint cimport uintptr_t
 from cugraph.structure.graph import Graph as type_Graph
-from cugraph.utilities.unrenumber import unrenumber
 
 import cudf
 import numpy as np
@@ -35,6 +35,10 @@ def hungarian(input_graph, workers):
     weights = None
     local_workers = None
 
+    cdef unique_ptr[handle_t] handle_ptr
+    handle_ptr.reset(new handle_t())
+    handle_ = handle_ptr.get();
+
     """
     We need a COO of the graph.
     """
@@ -46,51 +50,37 @@ def hungarian(input_graph, workers):
 
     src = input_graph.edgelist.edgelist_df['src']
     dst = input_graph.edgelist.edgelist_df['dst']
+    weights = input_graph.edgelist.edgelist_df["weights"]
 
-    [src, dst] = graph_new_wrapper.datatype_cast([src, dst], [np.int32])
-    [weights] = graph_new_wrapper.datatype_cast([weights], [np.float32, np.float64])
-
-    """
-    Need to renumber the workers
-    """
-    if input_graph.renumbered is True:
-        renumber_df = cudf.DataFrame()
-        renumber_df['map'] = input_graph.edgelist.renumber_map
-        renumber_df['id'] = input_graph.edgelist.renumber_map.index.astype(np.int32)
-        workers_df = cudf.DataFrame()
-        workers_df['vertex'] = workers
-        local_workers = workers_df.merge(renumber_df, left_on='vertex', right_on='map', how='left')['id']
-    else:
-        [local_workers] = graph_new_wrapper.datatype_cast([workers], [np.int32])
+    [src, dst] = graph_primtypes_wrapper.datatype_cast([src, dst], [np.int32])
+    [weights] = graph_primtypes_wrapper.datatype_cast([weights], [np.float32, np.float64])
+    [local_workers] = graph_primtypes_wrapper.datatype_cast([workers], [np.int32])
 
     num_verts = input_graph.number_of_vertices()
     num_edges = len(src)
 
     df = cudf.DataFrame()
-    df['vertices'] = workers
+    df['vertex'] = workers
     df['assignment'] = cudf.Series(np.zeros(len(workers), dtype=np.int32))
-    
+
     cdef uintptr_t c_src        = src.__cuda_array_interface__['data'][0]
     cdef uintptr_t c_dst        = dst.__cuda_array_interface__['data'][0]
     cdef uintptr_t c_weights    = weights.__cuda_array_interface__['data'][0]
     cdef uintptr_t c_workers    = local_workers.__cuda_array_interface__['data'][0]
 
-    cdef uintptr_t c_identifier = df['vertices'].__cuda_array_interface__['data'][0];
+    cdef uintptr_t c_identifier = df['vertex'].__cuda_array_interface__['data'][0];
     cdef uintptr_t c_assignment = df['assignment'].__cuda_array_interface__['data'][0];
 
-    cdef GraphCOO[int,int,float] g_float
-    cdef GraphCOO[int,int,double] g_double
+    cdef GraphCOOView[int,int,float] g_float
+    cdef GraphCOOView[int,int,double] g_double
 
     if weights.dtype == np.float32:
-        g_float = GraphCOO[int,int,float](<int*>c_src, <int*>c_dst, <float*>c_weights, num_verts, num_edges)
+        g_float = GraphCOOView[int,int,float](<int*>c_src, <int*>c_dst, <float*>c_weights, num_verts, num_edges)
 
-        c_hungarian[int,int,float](g_float, len(workers), <int*>c_workers, <int*>c_assignment)
+        c_hungarian[int,int,float](handle_[0], g_float, len(workers), <int*>c_workers, <int*>c_assignment)
     else:
-        g_double = GraphCOO[int,int,double](<int*>c_src, <int*>c_dst, <double*>c_weights, num_verts, num_edges)
+        g_double = GraphCOOView[int,int,double](<int*>c_src, <int*>c_dst, <double*>c_weights, num_verts, num_edges)
 
-        c_hungarian[int,int,double](g_double, len(workers), <int*>c_workers, <int*>c_assignment)
-
-    if input_graph.renumbered:
-        df = unrenumber(input_graph.edgelist.renumber_map, df, 'vertices')
+        c_hungarian[int,int,double](handle_[0], g_double, len(workers), <int*>c_workers, <int*>c_assignment)
 
     return df
