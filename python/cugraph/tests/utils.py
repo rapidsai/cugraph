@@ -11,13 +11,19 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import cudf
-import cugraph
+import os
+
+# Assume test environment has the following dependencies installed
 import pandas as pd
 import networkx as nx
 import numpy as np
+import cupy as cp
+from cupyx.scipy.sparse.coo import coo_matrix as cp_coo_matrix
+
+import cudf
 import dask_cudf
-import os
+
+import cugraph
 from cugraph.dask.common.mg_utils import (get_client)
 
 #
@@ -60,6 +66,32 @@ def read_csv_for_nx(csv_file, read_weights_in_sp=True):
 
     # return coo_matrix((df['2'], (df['0'], df['1'])), shape=(nverts, nverts))
     return df
+
+
+def create_obj_from_csv(csv_file_name, obj_type):
+    """
+    Return an object based on obj_type populated with the contents of
+    csv_file_name
+    """
+    if obj_type in [cugraph.Graph, cugraph.DiGraph]:
+        return generate_cugraph_graph_from_file(
+            csv_file_name, directed=(obj_type is cugraph.DiGraph))
+
+    elif obj_type is cp_coo_matrix:
+        (rows, cols, weights) = np.genfromtxt(csv_file_name,
+                                              delimiter=" ",
+                                              dtype=np.int32,
+                                              unpack=True)
+        return cp_coo_matrix(
+            (cp.asarray(weights), (cp.asarray(rows), cp.asarray(cols))),
+            dtype=np.float32)
+
+    elif obj_type in [nx.Graph, nx.DiGraph]:
+        return generate_nx_graph_from_file(
+            csv_file_name, directed=(obj_type is nx.DiGraph))
+
+    else:
+        raise TypeError(f"unsupported type: {obj_type}")
 
 
 def read_csv_file(csv_file, read_weights_in_sp=True):

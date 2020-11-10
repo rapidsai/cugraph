@@ -11,19 +11,83 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+
 from cugraph.components import connectivity_wrapper
-from cugraph.utilities import check_nx_graph
-from cugraph.utilities import df_score_to_dictionary
+from cugraph.utilities import (convert_from_nx,
+                               df_score_to_dictionary,
+                              )
+from cugraph.structure import (Graph,
+                               DiGraph,
+                              )
+
+import cudf
+
+try:
+    import cupy as cp
+    from cupyx.scipy.sparse.coo import coo_matrix as cp_coo_matrix
+except ModuleNotFoundError:
+    cp = None
+try:
+    import networkx as nx
+except ModuleNotFoundError:
+    nx = None
+
+
+def ensure_cugraph_obj(obj, weight=None):
+    """
+    Convert the input obj - if possible - to a cuGraph Graph-type obj (Graph,
+    DiGraph, etc.) and return a tuple of (cugraph Graph-type obj, original input
+    obj type).
+    """
+    input_type = type(obj)
+    if input_type in [Graph, DiGraph]:
+        return (obj, input_type)
+
+    elif (nx is not None) and (input_type in [nx.Graph, nx.DiGraph]):
+        return (convert_from_nx(obj, weight), input_type)
+
+    elif (cp is not None) and (input_type is cp_coo_matrix):
+        if weight is not None:
+            df = cudf.DataFrame({"source": cp.ascontiguousarray(obj.row),
+                                 "destination": cp.ascontiguousarray(obj.col),
+                                 weight: cp.ascontiguousarray(obj.data)})
+        else:
+            df = cudf.DataFrame({"source": cp.ascontiguousarray(obj.row),
+                                 "destination": cp.ascontiguousarray(obj.col)})
+
+        G = Graph()
+        G.from_cudf_edgelist(df, edge_attr=weight)
+        return (G, input_type)
+
+    else:
+        raise TypeError(f"obj of type {input_type} is not supported.")
+
+
+def convert_df_to_output_type(df, input_type):
+    """
+    Given a cudf.DataFrame df, convert it to a new type appropriate for the
+    graph algos in this module, based on input_type.
+    """
+    if input_type in [Graph, DiGraph]:
+        return df
+
+    elif (nx is not None) and (input_type in [nx.Graph, nx.DiGraph]):
+        return df_score_to_dictionary(df, "labels", "vertices")
+
+    elif (cp is not None) and (input_type is cp_coo_matrix):
+        return cp.fromDlpack(df.to_dlpack())
+
+    else:
+        raise TypeError(f"{input_type} is not a supported type.")
 
 
 def weakly_connected_components(G):
-    """
-    Generate the Weakly Connected Components and attach a component label to
+    """Generate the Weakly Connected Components and attach a component label to
     each vertex.
 
     Parameters
     ----------
-    G : cugraph.Graph or networkx.Graph
+    G : cugraph.Graph or networkx.Graph or cupy sparse COO matrix
         cuGraph graph descriptor, should contain the connectivity information
         as an edge list (edge weights are not used for this algorithm).
         Currently, the graph should be undirected where an undirected edge is
@@ -33,14 +97,27 @@ def weakly_connected_components(G):
 
     Returns
     -------
-    df : cudf.DataFrame
-        GPU data frame containing two cudf.Series of size V: the vertex
-        identifiers and the corresponding component identifier.
+    Return value type is based on the input type.  If G is a cugraph.Graph,
+    returns:
 
-        df['vertices']
-            Contains the vertex identifier
-        df['labels']
-            The component identifier
+       cudf.DataFrame
+           GPU data frame containing two cudf.Series of size V: the vertex
+           identifiers and the corresponding component identifier.
+
+           df['vertices']
+               Contains the vertex identifier
+           df['labels']
+               The component identifier
+
+    If G is a networkx.Graph, returns:
+
+       python dictionary, where keys are vertices and values are the component
+       identifiers.
+
+    If G is a cupy sparse COO matrix, returns:
+
+       cupy ndarray of shape (<num vertices>, 2), where column 0 contains component
+       identifiers and column 1 contains vertices.
 
     Examples
     --------
@@ -51,19 +128,17 @@ def weakly_connected_components(G):
     >>> G = cugraph.Graph()
     >>> G.from_cudf_edgelist(M, source='0', destination='1', edge_attr=None)
     >>> df = cugraph.weakly_connected_components(G)
+
     """
 
-    G, isNx = check_nx_graph(G)
+    (G, input_type) = ensure_cugraph_obj(G)
 
     df = connectivity_wrapper.weakly_connected_components(G)
 
     if G.renumbered:
         df = G.unrenumber(df, "vertices")
 
-    if isNx is True:
-        df = df_score_to_dictionary(df, "labels", "vertices")
-
-    return df
+    return convert_df_to_output_type(df, input_type)
 
 
 def strongly_connected_components(G):
