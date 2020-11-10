@@ -18,6 +18,8 @@
 #include <graph.hpp>
 #include <algorithms.hpp>
 
+#include <raft/handle.hpp>
+
 #include <utilities/high_res_timer.hpp>
 
 #include <curand_kernel.h>
@@ -57,6 +59,8 @@ struct HungarianTest : public ::testing::Test
 
 TEST_F(HungarianTest, Bipartite4x4)
 {
+  raft::handle_t handle{};
+
   int32_t src_data[] = { 0, 0, 0, 0, 1, 1, 1, 1, 2, 2, 2, 2, 3, 3, 3, 3 };
   int32_t dst_data[] = { 4, 5, 6, 7, 4, 5, 6, 7, 4, 5, 6, 7, 4, 5, 6, 7 };
   float   cost[]     = { 5.0, 9.0, 3.0, 7.0, 8.0, 7.0, 8.0, 2.0, 6.0, 10.0, 12.0, 7.0, 3.0, 10.0, 8.0, 6.0 };
@@ -80,7 +84,7 @@ TEST_F(HungarianTest, Bipartite4x4)
 
   cugraph::GraphCOOView<int32_t, int32_t, float>   g(src_v.data().get(), dst_v.data().get(), cost_v.data().get(), num_vertices, length);
 
-  float r = cugraph::hungarian_sparse(g, length_workers, workers_v.data().get(), assignment_v.data().get());
+  float r = cugraph::hungarian(handle, g, length_workers, workers_v.data().get(), assignment_v.data().get());
   
   EXPECT_EQ(min_cost, r);
   EXPECT_EQ(expected_v, assignment_v);
@@ -88,6 +92,8 @@ TEST_F(HungarianTest, Bipartite4x4)
 
 TEST_F(HungarianTest, Bipartite5x5)
 {
+  raft::handle_t handle{};
+
   int32_t src_data[] = { 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 2, 2, 2, 2, 2, 3, 3, 3, 3, 3, 4, 4, 4, 4, 4 };
   int32_t dst_data[] = { 5, 6, 7, 8, 9, 5, 6, 7, 8, 9, 5, 6, 7, 8, 9, 5, 6, 7, 8, 9, 5, 6, 7, 8, 9 };
   float   cost[]     = { 11.0, 7.0, 10.0, 17.0, 10.0,
@@ -115,7 +121,7 @@ TEST_F(HungarianTest, Bipartite5x5)
 
   cugraph::GraphCOOView<int32_t, int32_t, float>   g(src_v.data().get(), dst_v.data().get(), cost_v.data().get(), num_vertices, length);
 
-  float r = cugraph::hungarian_sparse(g, length_workers, workers_v.data().get(), assignment_v.data().get());
+  float r = cugraph::hungarian(handle, g, length_workers, workers_v.data().get(), assignment_v.data().get());
   
   EXPECT_EQ(min_cost, r);
   EXPECT_EQ(expected_v, assignment_v);
@@ -123,6 +129,8 @@ TEST_F(HungarianTest, Bipartite5x5)
 
 TEST_F(HungarianTest, Bipartite4x4_multiple_answers)
 {
+  raft::handle_t handle{};
+
   int32_t src_data[] = { 0, 0, 0, 0, 1, 1, 1, 1, 2, 2, 2, 2, 3, 3, 3, 3 };
   int32_t dst_data[] = { 4, 5, 6, 7, 4, 5, 6, 7, 4, 5, 6, 7, 4, 5, 6, 7 };
   float   cost[]     = { 3.0, 1.0, 1.0, 4.0,
@@ -156,7 +164,7 @@ TEST_F(HungarianTest, Bipartite4x4_multiple_answers)
 
   cugraph::GraphCOOView<int32_t, int32_t, float>   g(src_v.data().get(), dst_v.data().get(), cost_v.data().get(), num_vertices, length);
 
-  float r = cugraph::hungarian_sparse(g, length_workers, workers_v.data().get(), assignment_v.data().get());
+  float r = cugraph::hungarian(handle, g, length_workers, workers_v.data().get(), assignment_v.data().get());
 
   EXPECT_EQ(min_cost, r);
 
@@ -168,6 +176,8 @@ TEST_F(HungarianTest, Bipartite4x4_multiple_answers)
 
 TEST_F(HungarianTest, May29InfLoop)
 {
+  raft::handle_t handle{};
+
   int32_t num_rows = 4;
   int32_t num_cols = 4;
   float   cost[]     = { 0, 16, 1, 0,
@@ -180,13 +190,15 @@ TEST_F(HungarianTest, May29InfLoop)
   rmm::device_vector<float>   cost_v(cost, cost + num_rows * num_cols);
   rmm::device_vector<int32_t> assignment_v(num_rows);
 
-  float r = cugraph::hungarian_dense(cost_v.data().get(), num_rows, num_cols, assignment_v.data().get());
+  float r = cugraph::dense::hungarian(handle, cost_v.data().get(), num_rows, num_cols, assignment_v.data().get());
 
   EXPECT_EQ(min_cost, r);
 }
 
 TEST_F(HungarianTest, PythonTestFailure)
 {
+  raft::handle_t handle{};
+
 #if 0
   int32_t num_rows = 20;
   int32_t num_cols = 20;
@@ -229,7 +241,7 @@ TEST_F(HungarianTest, PythonTestFailure)
   rmm::device_vector<float>   cost_v(cost, cost + num_rows * num_cols);
   rmm::device_vector<int32_t> assignment_v(num_rows);
 
-  float r = cugraph::hungarian_dense(cost_v.data().get(), num_rows, num_cols, assignment_v.data().get());
+  float r = cugraph::dense::hungarian(handle, cost_v.data().get(), num_rows, num_cols, assignment_v.data().get());
 
   EXPECT_EQ(min_cost, r);
 }

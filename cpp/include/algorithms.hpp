@@ -604,7 +604,7 @@ void bfs(raft::handle_t const &handle,
          bool directed = true,
          bool mg_batch = false);
 
-/**                                                                             
+/**
  * @brief      Compute Hungarian algorithm on a weighted bipartite graph
  *
  * The Hungarian algorithm computes an assigment of "jobs" to "workers".  This function accepts
@@ -614,22 +614,25 @@ void bfs(raft::handle_t const &handle,
  *
  * @throws     cugraph::logic_error when an error occurs.
  *
- * @tparam VT                        Type of vertex identifiers. Supported value : int (signed, 32-bit)
- * @tparam ET                        Type of edge identifiers.  Supported value : int (signed, 32-bit)
- * @tparam WT                        Type of edge weights. Supported values : float or double.   
- *                                                                              
+ * @tparam vertex_t                  Type of vertex identifiers. Supported value : int (signed,
+ * 32-bit)
+ * @tparam edge_t                    Type of edge identifiers.  Supported value : int (signed,
+ * 32-bit)
+ * @tparam weight_t                  Type of edge weights. Supported values : float or double.
+ *
  * @param[in]  graph                 cuGRAPH COO graph
  * @param[in]  num_workers           number of vertices in the worker set
  * @param[in]  workers               device pointer to an array of worker vertex ids
- * @param[out] assignment            device pointer to an array to which the assignment will be written.
- *                                   The array should be num_workers long, and will identify which
- *                                   vertex id (job) is assigned to that worker
- */                                                                             
-template <typename VT, typename ET, typename WT>
-WT hungarian(experimental::GraphCOO<VT, ET, WT> const &graph,
-             VT num_workers,
-             VT const *workers,
-             VT *assignment);
+ * @param[out] assignment            device pointer to an array to which the assignment will be
+ * written. The array should be num_workers long, and will identify which vertex id (job) is
+ * assigned to that worker
+ */
+template <typename vertex_t, typename edge_t, typename weight_t>
+weight_t hungarian(raft::handle_t const &handle,
+                   GraphCOOView<vertex_t, edge_t, weight_t> const &graph,
+                   vertex_t num_workers,
+                   vertex_t const *workers,
+                   vertex_t *assignment);
 
 /**
  * @brief      Louvain implementation
@@ -961,6 +964,37 @@ void hits(GraphCSRView<VT, ET, WT> const &graph,
 
 }  // namespace gunrock
 
+namespace dense {
+/**
+ * @brief      Compute Hungarian algorithm on a weighted bipartite graph
+ *
+ * The Hungarian algorithm computes an assigment of "jobs" to "workers".  This function accepts
+ * a weighted graph and a vertex list identifying the "workers".  The weights in the weighted
+ * graph identify the cost of assigning a particular job to a worker.  The algorithm computes
+ * a minimum cost assignment and returns the cost as well as a vector identifying the assignment.
+ *
+ * @throws     cugraph::logic_error when an error occurs.
+ *
+ * @tparam vertex_t                  Type of vertex identifiers. Supported value : int (signed,
+ * 32-bit)
+ * @tparam weight_t                  Type of edge weights. Supported values : float or double.
+ *
+ * @param[in]  graph                 cuGRAPH COO graph
+ * @param[in]  num_workers           number of vertices in the worker set
+ * @param[in]  workers               device pointer to an array of worker vertex ids
+ * @param[out] assignment            device pointer to an array to which the assignment will be
+ * written. The array should be num_workers long, and will identify which vertex id (job) is
+ * assigned to that worker
+ */
+template <typename vertex_t, typename weight_t>
+weight_t hungarian(raft::handle_t const &handle,
+                   weight_t const *costs,
+                   vertex_t num_rows,
+                   vertex_t num_columns,
+                   vertex_t *assignment);
+
+}  // namespace dense
+
 namespace experimental {
 
 /**
@@ -1134,5 +1168,4 @@ void katz_centrality(raft::handle_t &handle,
                      bool do_expensive_check = false);
 
 }  // namespace experimental
-
 }  // namespace cugraph
