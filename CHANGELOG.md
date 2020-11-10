@@ -1,6 +1,7 @@
 # cuGraph 0.17.0 (Date TBD)
 
 ## New Features
+- PR #1260 Add katz_centrality mnmg wrapper
 
 ## Improvements
 - PR #1227 Pin cmake policies to cmake 3.17 version

@@ -16,7 +16,8 @@
 from dask.distributed import wait, default_client
 from cugraph.dask.common.input_utils import get_distributed_data
 from cugraph.structure.shuffle import shuffle
-from cugraph.dask.centrality import mg_katz_centrality_wrapper as mg_katz_centrality
+from cugraph.dask.centrality import\
+    mg_katz_centrality_wrapper as mg_katz_centrality
 import cugraph.comms.comms as Comms
 import dask_cudf
 
@@ -55,55 +56,61 @@ def katz_centrality(input_graph,
                     tol=1.0e-5,
                     nstart=None,
                     normalized=True):
-
     """
-    Find the PageRank values for each vertex in a graph using multiple GPUs.
-    cuGraph computes an approximation of the Pagerank using the power method.
-    The input graph must contain edge list as  dask-cudf dataframe with
-    one partition per GPU.
+    Compute the Katz centrality for the nodes of the graph G.
 
     Parameters
     ----------
-    graph : cugraph.DiGraph
-        cuGraph graph descriptor, should contain the connectivity information
-        as dask cudf edge list dataframe(edge weights are not used for this
-        algorithm). Undirected Graph not currently supported.
+    G : cuGraph.Graph or networkx.Graph
+        cuGraph graph descriptor with connectivity information. The graph can
+        contain either directed (DiGraph) or undirected edges (Graph).
     alpha : float
-        The damping factor alpha represents the probability to follow an
-        outgoing edge, standard value is 0.85.
-        Thus, 1.0-alpha is the probability to “teleport” to a random vertex.
-        Alpha should be greater than 0.0 and strictly lower than 1.0.
-    personalization : cudf.Dataframe
-        GPU Dataframe containing the personalization information.
-        Currently not supported.
-        personalization['vertex'] : cudf.Series
-            Subset of vertices of graph for personalization
-        personalization['values'] : cudf.Series
-            Personalization values for vertices
+        Attenuation factor defaulted to None. If alpha is not specified then
+        it is internally calculated as 1/(degree_max) where degree_max is the
+        maximum out degree.
+        NOTE : The maximum acceptable value of alpha for convergence
+        alpha_max = 1/(lambda_max) where lambda_max is the largest eigenvalue
+        of the graph.
+        Since lambda_max is always lesser than or equal to degree_max for a
+        graph, alpha_max will always be greater than or equal to
+        (1/degree_max). Therefore, setting alpha to (1/degree_max) will
+        guarantee that it will never exceed alpha_max thus in turn fulfilling
+        the requirement for convergence.
+    beta : None
+        A weight scalar - currently Not Supported
     max_iter : int
-        The maximum number of iterations before an answer is returned.
+        The maximum number of iterations before an answer is returned. This can
+        be used to limit the execution time and do an early exit before the
+        solver reaches the convergence tolerance.
         If this value is lower or equal to 0 cuGraph will use the default
-        value, which is 30.
+        value, which is 100.
     tolerance : float
         Set the tolerance the approximation, this parameter should be a small
         magnitude value.
         The lower the tolerance the better the approximation. If this value is
-        0.0f, cuGraph will use the default value which is 1.0E-5.
+        0.0f, cuGraph will use the default value which is 1.0e-6.
         Setting too small a tolerance can lead to non-convergence due to
-        numerical roundoff. Usually values between 0.01 and 0.00001 are
+        numerical roundoff. Usually values between 1e-2 and 1e-6 are
         acceptable.
-    nstart : not supported
-        initial guess for pagerank
+    nstart : dask_cudf.Dataframe
+        GPU Dataframe containing the initial guess for katz centrality
+        nstart['vertex'] : dask_cudf.Series
+            Contains the vertex identifiers
+        nstart['values'] : dask_cudf.Series
+            Contains the katz centrality values of vertices
+    normalized : bool
+        If True normalize the resulting katz centrality values
+
     Returns
     -------
     PageRank : dask_cudf.DataFrame
         GPU data frame containing two dask_cudf.Series of size V: the
-        vertex identifiers and the corresponding PageRank values.
+        vertex identifiers and the corresponding katz centrality values.
 
         ddf['vertex'] : dask_cudf.Series
             Contains the vertex identifiers
-        ddf['pagerank'] : dask_cudf.Series
-            Contains the PageRank score
+        ddf['katz_centrality'] : dask_cudf.Series
+            Contains the katz centrality of vertices
 
     Examples
     --------
@@ -120,7 +127,6 @@ def katz_centrality(input_graph,
     >>> pr = dcg.katz_centrality(dg)
     >>> Comms.destroy()
     """
-    from cugraph.structure.graph import null_check
 
     nstart = None
 
@@ -146,6 +152,7 @@ def katz_centrality(input_graph,
                             max_iter,
                             tol,
                             nstart,
+                            normalized,
                             workers=[wf[0]])
               for idx, wf in enumerate(data.worker_to_parts.items())]
     wait(result)
