@@ -13,7 +13,6 @@
 
 import gc
 import time
-import numpy as np
 import pandas as pd
 
 import pytest
@@ -35,16 +34,6 @@ with warnings.catch_warnings():
 
 
 print("Networkx version : {} ".format(nx.__version__))
-
-
-def cudify(d):
-    if d is None:
-        return None
-
-    k = np.fromiter(d.keys(), dtype="int32")
-    v = np.fromiter(d.values(), dtype="float32")
-    cuD = cudf.DataFrame({"vertex": k, "values": v})
-    return cuD
 
 
 def cugraph_call(cu_M, max_iter, tol):
@@ -78,19 +67,16 @@ def networkx_call(M, max_iter, tol):
     )
 
     # same parameters as in NVGRAPH
-    pr = nx.hits(Gnx, max_iter, tol, normalized=True)
+    nx_hits = nx.hits(Gnx, max_iter, tol, normalized=True)
     t2 = time.time() - t1
 
     print("Networkx Time : " + str(t2))
 
-    return pr
+    return nx_hits
 
 
 MAX_ITERATIONS = [50]
 TOLERANCE = [1.0e-06]
-
-
-# Test all combinations of default/managed and pooled/non-pooled allocation
 
 
 @pytest.mark.parametrize("graph_file", utils.DATASETS_UNDIRECTED)
@@ -105,52 +91,20 @@ def test_hits(graph_file, max_iter, tol):
     cu_M = utils.read_csv_file(graph_file)
     cugraph_hits = cugraph_call(cu_M, max_iter, tol)
 
-    # Calculating mismatch
-    # hubs = sorted(hubs.items(), key=lambda x: x[0])
-    # print("hubs = ", hubs)
-
-    #
-    #  Scores don't match.  Networkx uses the 1-norm,
-    #  gunrock uses a 2-norm.  Eventually we'll add that
-    #  as a parameter. For now, let's check the order
-    #  which should match.  We'll allow 6 digits to right
-    #  of decimal point accuracy
-    #
     pdf = pd.DataFrame.from_dict(hubs, orient="index").sort_index()
-    pdf = pdf.multiply(1000000).floordiv(1)
     cugraph_hits["nx_hubs"] = cudf.Series.from_pandas(pdf[0])
 
     pdf = pd.DataFrame.from_dict(authorities, orient="index").sort_index()
-    pdf = pdf.multiply(1000000).floordiv(1)
     cugraph_hits["nx_authorities"] = cudf.Series.from_pandas(pdf[0])
 
-    #
-    #  Sort by hubs (cugraph) in descending order.  Then we'll
-    #  check to make sure all scores are in descending order.
-    #
-    cugraph_hits = cugraph_hits.sort_values("hubs", ascending=False)
+    hubs_diffs1 = cugraph_hits.query('hubs - nx_hubs > 0.00001')
+    hubs_diffs2 = cugraph_hits.query('hubs - nx_hubs < -0.00001')
+    authorities_diffs1 = cugraph_hits.query(
+        'authorities - nx_authorities > 0.0001')
+    authorities_diffs2 = cugraph_hits.query(
+        'authorities - nx_authorities < -0.0001')
 
-    assert cugraph_hits["hubs"].is_monotonic_decreasing
-    assert cugraph_hits["nx_hubs"].is_monotonic_decreasing
-
-    cugraph_hits = cugraph_hits.sort_values("authorities", ascending=False)
-
-    assert cugraph_hits["authorities"].is_monotonic_decreasing
-    assert cugraph_hits["nx_authorities"].is_monotonic_decreasing
-
-
-@pytest.mark.parametrize("graph_file", utils.DATASETS_UNDIRECTED)
-@pytest.mark.parametrize("max_iter", MAX_ITERATIONS)
-@pytest.mark.parametrize("tol", TOLERANCE)
-def test_hits_nx(graph_file, max_iter, tol):
-    gc.collect()
-
-    M = utils.read_csv_for_nx(graph_file)
-    Gnx = nx.from_pandas_edgelist(
-        M, source="0", target="1", create_using=nx.DiGraph()
-    )
-    nx_hubs, nx_authorities = nx.hits(Gnx, max_iter, tol, normalized=True)
-    cg_hubs, cg_authorities = cugraph.hits(Gnx, max_iter, tol, normalized=True)
-
-    # assert nx_hubs == cg_hubs
-    # assert nx_authorities == cg_authorities
+    assert len(hubs_diffs1) == 0
+    assert len(hubs_diffs2) == 0
+    assert len(authorities_diffs1) == 0
+    assert len(authorities_diffs2) == 0
