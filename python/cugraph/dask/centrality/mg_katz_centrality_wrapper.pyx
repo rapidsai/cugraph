@@ -55,6 +55,10 @@ def mg_katz_centrality(input_df,
     else:
         weight_t = np.dtype("float32")
 
+    if alpha is None:
+        alpha = 0
+    if beta is None:
+        beta = 0
     # FIXME: Offsets and indices are currently hardcoded to int, but this may
     #        not be acceptable in the future.
     numberTypeMap = {np.dtype("int32") : <int>numberTypeEnum.int32Type,
