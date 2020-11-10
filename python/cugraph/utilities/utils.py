@@ -11,8 +11,20 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import cudf
 from numba import cuda
+
+import cudf
+
+# optional dependencies
+try:
+    import cupy as cp
+    from cupyx.scipy.sparse.coo import coo_matrix as cp_coo_matrix
+except ModuleNotFoundError:
+    cp = None
+try:
+    import networkx as nx
+except ModuleNotFoundError:
+    nx = None
 
 
 def get_traversed_path(df, id):
@@ -149,3 +161,39 @@ def is_cuda_version_less_than(min_version=(10, 2)):
     if this_cuda_ver[1] < min_version[1]:
         return True
     return False
+
+
+def ensure_cugraph_obj(obj, weight=None):
+    """
+    Convert the input obj - if possible - to a cuGraph Graph-type obj (Graph,
+    DiGraph, etc.) and return a tuple of (cugraph Graph-type obj, original
+    input obj type).
+    """
+    # FIXME: importing here to avoid circular import
+    from cugraph.structure import (Graph,
+                                   DiGraph,
+                                   )
+    from cugraph.utilities.nx_factory import convert_from_nx
+
+    input_type = type(obj)
+    if input_type in [Graph, DiGraph]:
+        return (obj, input_type)
+
+    elif (nx is not None) and (input_type in [nx.Graph, nx.DiGraph]):
+        return (convert_from_nx(obj, weight), input_type)
+
+    elif (cp is not None) and (input_type is cp_coo_matrix):
+        if weight is not None:
+            df = cudf.DataFrame({"source": cp.ascontiguousarray(obj.row),
+                                 "destination": cp.ascontiguousarray(obj.col),
+                                 weight: cp.ascontiguousarray(obj.data)})
+        else:
+            df = cudf.DataFrame({"source": cp.ascontiguousarray(obj.row),
+                                 "destination": cp.ascontiguousarray(obj.col)})
+
+        G = Graph()
+        G.from_cudf_edgelist(df, edge_attr=weight)
+        return (G, input_type)
+
+    else:
+        raise TypeError(f"obj of type {input_type} is not supported.")

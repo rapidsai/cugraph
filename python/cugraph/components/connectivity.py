@@ -13,15 +13,13 @@
 
 
 from cugraph.components import connectivity_wrapper
-from cugraph.utilities import (convert_from_nx,
-                               check_nx_graph,
+from cugraph.utilities import (check_nx_graph,
                                df_score_to_dictionary,
+                               ensure_cugraph_obj,
                                )
 from cugraph.structure import (Graph,
                                DiGraph,
                                )
-
-import cudf
 
 try:
     import cupy as cp
@@ -32,36 +30,6 @@ try:
     import networkx as nx
 except ModuleNotFoundError:
     nx = None
-
-
-def ensure_cugraph_obj(obj, weight=None):
-    """
-    Convert the input obj - if possible - to a cuGraph Graph-type obj (Graph,
-    DiGraph, etc.) and return a tuple of (cugraph Graph-type obj, original
-    input obj type).
-    """
-    input_type = type(obj)
-    if input_type in [Graph, DiGraph]:
-        return (obj, input_type)
-
-    elif (nx is not None) and (input_type in [nx.Graph, nx.DiGraph]):
-        return (convert_from_nx(obj, weight), input_type)
-
-    elif (cp is not None) and (input_type is cp_coo_matrix):
-        if weight is not None:
-            df = cudf.DataFrame({"source": cp.ascontiguousarray(obj.row),
-                                 "destination": cp.ascontiguousarray(obj.col),
-                                 weight: cp.ascontiguousarray(obj.data)})
-        else:
-            df = cudf.DataFrame({"source": cp.ascontiguousarray(obj.row),
-                                 "destination": cp.ascontiguousarray(obj.col)})
-
-        G = Graph()
-        G.from_cudf_edgelist(df, edge_attr=weight)
-        return (G, input_type)
-
-    else:
-        raise TypeError(f"obj of type {input_type} is not supported.")
 
 
 def convert_df_to_output_type(df, input_type):
