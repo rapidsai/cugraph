@@ -13,6 +13,7 @@
 
 from cugraph.linear_assignment import lap_wrapper
 
+
 def hungarian(G, workers):
     """
     Execute the Hungarian algorithm against a symmetric, weighted,
@@ -22,7 +23,7 @@ def hungarian(G, workers):
     into two disjoint sets such that all edges connect a vertex from
     one set to a vertex of the other set.  The workers variable identifies
     one of the sets of vertices, the other set is all vertices not in
-    the workers set (V \ workers).
+    the workers set (V - workers).
 
     The edge weights reflect the cost of assigning a particular job to a
     worker.
@@ -46,10 +47,10 @@ def hungarian(G, workers):
     Returns
     -------
     df : cudf.DataFrame
-      df['vertices'][i] gives the vertex id of the i'th vertex.  Only vertices in the
-                        workers list are defined in this column.
-      df['assignment'][i] gives the vertex id of the "job" assigned to the corresponding
-                          vertex.
+      df['vertices'][i] gives the vertex id of the i'th vertex.  Only vertices
+                        in the workers list are defined in this column.
+      df['assignment'][i] gives the vertex id of the "job" assigned to the
+                          corresponding vertex.
 
     FIXME: Update this with a real example...
 
@@ -64,11 +65,11 @@ def hungarian(G, workers):
     """
 
     if G.renumbered:
-        local_workers = G.lookup_internal_vertex_id(workers);
+        local_workers = G.lookup_internal_vertex_id(workers)
     else:
         local_workers = workers
 
-    df = lap_wrapper.hungarian(G, workers)
+    df = lap_wrapper.hungarian(G, local_workers)
 
     if G.renumbered:
         df = G.unrenumber(df, 'vertex')

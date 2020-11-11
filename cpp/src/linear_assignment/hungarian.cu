@@ -182,7 +182,6 @@ weight_t hungarian_sparse(raft::handle_t const &handle,
   hr_timer.start("translate");
 #endif
 
-
   //
   //  Translate the assignment back to the original vertex ids
   //
@@ -222,18 +221,16 @@ template int32_t hungarian<int32_t, int32_t, int32_t>(
   int32_t,
   int32_t const *,
   int32_t *);
-template float hungarian<int32_t, int32_t, float>(
-  raft::handle_t const &,
-  GraphCOOView<int32_t, int32_t, float> const &,
-  int32_t,
-  int32_t const *,
-  int32_t *);
-template double hungarian<int32_t, int32_t, double>(
-  raft::handle_t const &,
-  GraphCOOView<int32_t, int32_t, double> const &,
-  int32_t,
-  int32_t const *,
-  int32_t *);
+template float hungarian<int32_t, int32_t, float>(raft::handle_t const &,
+                                                  GraphCOOView<int32_t, int32_t, float> const &,
+                                                  int32_t,
+                                                  int32_t const *,
+                                                  int32_t *);
+template double hungarian<int32_t, int32_t, double>(raft::handle_t const &,
+                                                    GraphCOOView<int32_t, int32_t, double> const &,
+                                                    int32_t,
+                                                    int32_t const *,
+                                                    int32_t *);
 
 namespace dense {
 

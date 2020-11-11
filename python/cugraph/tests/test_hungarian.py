@@ -15,25 +15,14 @@ import gc
 from itertools import product
 from timeit import default_timer as timer
 
-import pandas as pd
 import numpy as np
 import pytest
 
 import cudf
 import cugraph
-from cugraph.tests import utils
 from scipy.optimize import linear_sum_assignment
 import rmm
 
-# Temporarily suppress warnings till networkX fixes deprecation warnings
-# (Using or importing the ABCs from 'collections' instead of from
-# 'collections.abc' is deprecated, and in 3.8 it will stop working) for
-# python 3.7.  Also, this import networkx needs to be relocated in the
-# third-party group once this gets fixed.
-import warnings
-with warnings.catch_warnings():
-    warnings.filterwarnings("ignore", category=DeprecationWarning)
-    import networkx as nx
 
 def create_random_bipartite(v1, v2, size, dtype):
 
@@ -48,18 +37,25 @@ def create_random_bipartite(v1, v2, size, dtype):
     df2['dst'] = cudf.Series(range(v1, v1+v2, 1))
     df2['key'] = 1
 
-    edges = df1.merge(df2, on='key')[['src', 'dst']].sort_values(['src', 'dst']).reset_index()
+    edges = df1.merge(df2, on='key')[['src', 'dst']]
+    edges = edges.sort_values(['src', 'dst']).reset_index()
 
     # Generate edge weights
     a = np.random.randint(1, high=size, size=(v1, v2)).astype(dtype)
     edges['weight'] = a.flatten()
 
     g = cugraph.Graph()
-    g.from_cudf_edgelist(edges, source='src', destination='dst', edge_attr='weight', renumber=False)
+    g.from_cudf_edgelist(edges,
+                         source='src',
+                         destination='dst',
+                         edge_attr='weight',
+                         renumber=False)
 
     return df1['src'], g, a
 
-SPARSE_SIZES = [ [5, 5, 100] , [500, 500, 10000], [5000, 5000, 100000]  ]
+
+SPARSE_SIZES = [[5, 5, 100], [500, 500, 10000], [5000, 5000, 100000]]
+
 
 # Test all combinations of default/managed and pooled/non-pooled allocation
 @pytest.mark.parametrize('managed, pool',
@@ -76,7 +72,10 @@ def test_hungarian(managed, pool, v1_size, v2_size, weight_limit):
 
     assert(rmm.is_initialized())
 
-    v1, g, m = create_random_bipartite(v1_size, v2_size, weight_limit, np.float)
+    v1, g, m = create_random_bipartite(v1_size,
+                                       v2_size,
+                                       weight_limit,
+                                       np.float)
 
     start = timer()
     matching = cugraph.hungarian(g, v1)

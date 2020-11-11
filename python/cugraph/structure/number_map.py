@@ -585,7 +585,8 @@ class NumberMap:
             tmp_df = df
             tmp_col_names = col_names
 
-        reply = self.implementation.to_internal_vertex_id(tmp_df, tmp_col_names)
+        reply = self.implementation.to_internal_vertex_id(tmp_df,
+                                                          tmp_col_names)
 
         if type(df) is cudf.Series:
             return reply["0"]

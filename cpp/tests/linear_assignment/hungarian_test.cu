@@ -9,14 +9,14 @@
  *
  */
 
-#include "gtest/gtest.h"
 #include "cuda_profiler_api.h"
+#include "gtest/gtest.h"
 
 #include <rmm/thrust_rmm_allocator.h>
 #include <thrust/random.h>
 
-#include <graph.hpp>
 #include <algorithms.hpp>
+#include <graph.hpp>
 
 #include <raft/handle.hpp>
 
@@ -50,42 +50,41 @@ __global__ void generate_random(curandState *state, int n, T *data, int32_t uppe
   state[first] = local_state;
 }
 
-
-
-struct HungarianTest : public ::testing::Test
-{
+struct HungarianTest : public ::testing::Test {
 };
-
 
 TEST_F(HungarianTest, Bipartite4x4)
 {
   raft::handle_t handle{};
 
-  int32_t src_data[] = { 0, 0, 0, 0, 1, 1, 1, 1, 2, 2, 2, 2, 3, 3, 3, 3 };
-  int32_t dst_data[] = { 4, 5, 6, 7, 4, 5, 6, 7, 4, 5, 6, 7, 4, 5, 6, 7 };
-  float   cost[]     = { 5.0, 9.0, 3.0, 7.0, 8.0, 7.0, 8.0, 2.0, 6.0, 10.0, 12.0, 7.0, 3.0, 10.0, 8.0, 6.0 };
+  int32_t src_data[] = {0, 0, 0, 0, 1, 1, 1, 1, 2, 2, 2, 2, 3, 3, 3, 3};
+  int32_t dst_data[] = {4, 5, 6, 7, 4, 5, 6, 7, 4, 5, 6, 7, 4, 5, 6, 7};
+  float cost[]       = {
+    5.0, 9.0, 3.0, 7.0, 8.0, 7.0, 8.0, 2.0, 6.0, 10.0, 12.0, 7.0, 3.0, 10.0, 8.0, 6.0};
 
-  int32_t workers[]  = { 0, 1, 2, 3 };
+  int32_t workers[] = {0, 1, 2, 3};
 
-  float   min_cost = 18.0;
-  int32_t expected[] = { 6, 7, 5, 4 };
+  float min_cost     = 18.0;
+  int32_t expected[] = {6, 7, 5, 4};
 
-  int32_t length = sizeof(src_data) / sizeof(src_data[0]);
+  int32_t length         = sizeof(src_data) / sizeof(src_data[0]);
   int32_t length_workers = sizeof(workers) / sizeof(workers[0]);
-  int32_t num_vertices = 1 + std::max(*std::max_element(src_data, src_data+length),
-                                      *std::max_element(dst_data, dst_data+length));
+  int32_t num_vertices   = 1 + std::max(*std::max_element(src_data, src_data + length),
+                                      *std::max_element(dst_data, dst_data + length));
 
   rmm::device_vector<int32_t> src_v(src_data, src_data + length);
   rmm::device_vector<int32_t> dst_v(dst_data, dst_data + length);
-  rmm::device_vector<float>   cost_v(cost, cost + length);
+  rmm::device_vector<float> cost_v(cost, cost + length);
   rmm::device_vector<int32_t> workers_v(workers, workers + length_workers);
   rmm::device_vector<int32_t> expected_v(expected, expected + length_workers);
   rmm::device_vector<int32_t> assignment_v(length_workers);
 
-  cugraph::GraphCOOView<int32_t, int32_t, float>   g(src_v.data().get(), dst_v.data().get(), cost_v.data().get(), num_vertices, length);
+  cugraph::GraphCOOView<int32_t, int32_t, float> g(
+    src_v.data().get(), dst_v.data().get(), cost_v.data().get(), num_vertices, length);
 
-  float r = cugraph::hungarian(handle, g, length_workers, workers_v.data().get(), assignment_v.data().get());
-  
+  float r = cugraph::hungarian(
+    handle, g, length_workers, workers_v.data().get(), assignment_v.data().get());
+
   EXPECT_EQ(min_cost, r);
   EXPECT_EQ(expected_v, assignment_v);
 }
@@ -94,35 +93,34 @@ TEST_F(HungarianTest, Bipartite5x5)
 {
   raft::handle_t handle{};
 
-  int32_t src_data[] = { 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 2, 2, 2, 2, 2, 3, 3, 3, 3, 3, 4, 4, 4, 4, 4 };
-  int32_t dst_data[] = { 5, 6, 7, 8, 9, 5, 6, 7, 8, 9, 5, 6, 7, 8, 9, 5, 6, 7, 8, 9, 5, 6, 7, 8, 9 };
-  float   cost[]     = { 11.0, 7.0, 10.0, 17.0, 10.0,
-                         13.0, 21.0, 7.0, 11.0, 13.0,
-                         13.0, 13.0, 15.0, 13.0, 14.0,
-                         18.0, 10.0, 13.0, 16.0, 14.0,
-                         12.0, 8.0, 16.0, 19.0, 10.0 };
+  int32_t src_data[] = {0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 2, 2, 2, 2, 2, 3, 3, 3, 3, 3, 4, 4, 4, 4, 4};
+  int32_t dst_data[] = {5, 6, 7, 8, 9, 5, 6, 7, 8, 9, 5, 6, 7, 8, 9, 5, 6, 7, 8, 9, 5, 6, 7, 8, 9};
+  float cost[] = {11.0, 7.0,  10.0, 17.0, 10.0, 13.0, 21.0, 7.0,  11.0, 13.0, 13.0, 13.0, 15.0,
+                  13.0, 14.0, 18.0, 10.0, 13.0, 16.0, 14.0, 12.0, 8.0,  16.0, 19.0, 10.0};
 
-  int32_t workers[]  = { 0, 1, 2, 3, 4 };
+  int32_t workers[] = {0, 1, 2, 3, 4};
 
-  float   min_cost = 51.0;
-  int32_t expected[] = { 5, 7, 8, 6, 9 };
+  float min_cost     = 51.0;
+  int32_t expected[] = {5, 7, 8, 6, 9};
 
-  int32_t length = sizeof(src_data) / sizeof(src_data[0]);
+  int32_t length         = sizeof(src_data) / sizeof(src_data[0]);
   int32_t length_workers = sizeof(workers) / sizeof(workers[0]);
-  int32_t num_vertices = 1 + std::max(*std::max_element(src_data, src_data+length),
-                                      *std::max_element(dst_data, dst_data+length));
+  int32_t num_vertices   = 1 + std::max(*std::max_element(src_data, src_data + length),
+                                      *std::max_element(dst_data, dst_data + length));
 
   rmm::device_vector<int32_t> src_v(src_data, src_data + length);
   rmm::device_vector<int32_t> dst_v(dst_data, dst_data + length);
-  rmm::device_vector<float>   cost_v(cost, cost + length);
+  rmm::device_vector<float> cost_v(cost, cost + length);
   rmm::device_vector<int32_t> workers_v(workers, workers + length_workers);
   rmm::device_vector<int32_t> expected_v(expected, expected + length_workers);
   rmm::device_vector<int32_t> assignment_v(length_workers);
 
-  cugraph::GraphCOOView<int32_t, int32_t, float>   g(src_v.data().get(), dst_v.data().get(), cost_v.data().get(), num_vertices, length);
+  cugraph::GraphCOOView<int32_t, int32_t, float> g(
+    src_v.data().get(), dst_v.data().get(), cost_v.data().get(), num_vertices, length);
 
-  float r = cugraph::hungarian(handle, g, length_workers, workers_v.data().get(), assignment_v.data().get());
-  
+  float r = cugraph::hungarian(
+    handle, g, length_workers, workers_v.data().get(), assignment_v.data().get());
+
   EXPECT_EQ(min_cost, r);
   EXPECT_EQ(expected_v, assignment_v);
 }
@@ -131,29 +129,26 @@ TEST_F(HungarianTest, Bipartite4x4_multiple_answers)
 {
   raft::handle_t handle{};
 
-  int32_t src_data[] = { 0, 0, 0, 0, 1, 1, 1, 1, 2, 2, 2, 2, 3, 3, 3, 3 };
-  int32_t dst_data[] = { 4, 5, 6, 7, 4, 5, 6, 7, 4, 5, 6, 7, 4, 5, 6, 7 };
-  float   cost[]     = { 3.0, 1.0, 1.0, 4.0,
-                         4.0, 2.0, 2.0, 5.0,
-                         5.0, 3.0, 4.0, 8.0,
-                         4.0, 2.0, 5.0, 9.0 };
+  int32_t src_data[] = {0, 0, 0, 0, 1, 1, 1, 1, 2, 2, 2, 2, 3, 3, 3, 3};
+  int32_t dst_data[] = {4, 5, 6, 7, 4, 5, 6, 7, 4, 5, 6, 7, 4, 5, 6, 7};
+  float cost[] = {3.0, 1.0, 1.0, 4.0, 4.0, 2.0, 2.0, 5.0, 5.0, 3.0, 4.0, 8.0, 4.0, 2.0, 5.0, 9.0};
 
-  int32_t workers[]  = { 0, 1, 2, 3 };
+  int32_t workers[] = {0, 1, 2, 3};
 
-  float   min_cost = 13.0;
-  int32_t expected1[] = { 7, 6, 5, 4 };
-  int32_t expected2[] = { 6, 7, 5, 4 };
-  int32_t expected3[] = { 7, 6, 4, 5 };
-  int32_t expected4[] = { 6, 7, 4, 5 };
+  float min_cost      = 13.0;
+  int32_t expected1[] = {7, 6, 5, 4};
+  int32_t expected2[] = {6, 7, 5, 4};
+  int32_t expected3[] = {7, 6, 4, 5};
+  int32_t expected4[] = {6, 7, 4, 5};
 
-  int32_t length = sizeof(src_data) / sizeof(src_data[0]);
+  int32_t length         = sizeof(src_data) / sizeof(src_data[0]);
   int32_t length_workers = sizeof(workers) / sizeof(workers[0]);
-  int32_t num_vertices = 1 + std::max(*std::max_element(src_data, src_data+length),
-                                      *std::max_element(dst_data, dst_data+length));
+  int32_t num_vertices   = 1 + std::max(*std::max_element(src_data, src_data + length),
+                                      *std::max_element(dst_data, dst_data + length));
 
   rmm::device_vector<int32_t> src_v(src_data, src_data + length);
   rmm::device_vector<int32_t> dst_v(dst_data, dst_data + length);
-  rmm::device_vector<float>   cost_v(cost, cost + length);
+  rmm::device_vector<float> cost_v(cost, cost + length);
   rmm::device_vector<int32_t> workers_v(workers, workers + length_workers);
   rmm::device_vector<int32_t> assignment_v(length_workers);
 
@@ -162,9 +157,11 @@ TEST_F(HungarianTest, Bipartite4x4_multiple_answers)
   rmm::device_vector<int32_t> expected3_v(expected3, expected3 + length_workers);
   rmm::device_vector<int32_t> expected4_v(expected4, expected4 + length_workers);
 
-  cugraph::GraphCOOView<int32_t, int32_t, float>   g(src_v.data().get(), dst_v.data().get(), cost_v.data().get(), num_vertices, length);
+  cugraph::GraphCOOView<int32_t, int32_t, float> g(
+    src_v.data().get(), dst_v.data().get(), cost_v.data().get(), num_vertices, length);
 
-  float r = cugraph::hungarian(handle, g, length_workers, workers_v.data().get(), assignment_v.data().get());
+  float r = cugraph::hungarian(
+    handle, g, length_workers, workers_v.data().get(), assignment_v.data().get());
 
   EXPECT_EQ(min_cost, r);
 
@@ -180,17 +177,15 @@ TEST_F(HungarianTest, May29InfLoop)
 
   int32_t num_rows = 4;
   int32_t num_cols = 4;
-  float   cost[]     = { 0, 16, 1, 0,
-                         33, 45, 0, 4,
-                         22, 0, 1000, 2000,
-                         2, 0, 3000, 4000 };
+  float cost[]     = {0, 16, 1, 0, 33, 45, 0, 4, 22, 0, 1000, 2000, 2, 0, 3000, 4000};
 
   float min_cost = 2;
 
-  rmm::device_vector<float>   cost_v(cost, cost + num_rows * num_cols);
+  rmm::device_vector<float> cost_v(cost, cost + num_rows * num_cols);
   rmm::device_vector<int32_t> assignment_v(num_rows);
 
-  float r = cugraph::dense::hungarian(handle, cost_v.data().get(), num_rows, num_cols, assignment_v.data().get());
+  float r = cugraph::dense::hungarian(
+    handle, cost_v.data().get(), num_rows, num_cols, assignment_v.data().get());
 
   EXPECT_EQ(min_cost, r);
 }
@@ -227,21 +222,18 @@ TEST_F(HungarianTest, PythonTestFailure)
 #else
   int32_t num_rows = 5;
   int32_t num_cols = 5;
-  float   cost[]     = {
-    7, 6, 3, 6, 4,
-    6, 9, 2, 9, 9,
-    7, 5, 3, 8, 9,
-    5, 3, 8, 3, 1,
-    6, 2, 1, 1, 3,
+  float cost[]     = {
+    7, 6, 3, 6, 4, 6, 9, 2, 9, 9, 7, 5, 3, 8, 9, 5, 3, 8, 3, 1, 6, 2, 1, 1, 3,
   };
 #endif
 
   float min_cost = 16;
 
-  rmm::device_vector<float>   cost_v(cost, cost + num_rows * num_cols);
+  rmm::device_vector<float> cost_v(cost, cost + num_rows * num_cols);
   rmm::device_vector<int32_t> assignment_v(num_rows);
 
-  float r = cugraph::dense::hungarian(handle, cost_v.data().get(), num_rows, num_cols, assignment_v.data().get());
+  float r = cugraph::dense::hungarian(
+    handle, cost_v.data().get(), num_rows, num_cols, assignment_v.data().get());
 
   EXPECT_EQ(min_cost, r);
 }
