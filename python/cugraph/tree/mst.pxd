@@ -22,5 +22,4 @@ from cugraph.structure.graph_primtypes cimport *
 cdef extern from "algorithms.hpp" namespace "cugraph":
 
     cdef unique_ptr[GraphCOO[VT,ET,WT]] mst[VT,ET,WT](const handle_t &handle,
-        const graph_container_t &g,
-        VT *colors) except +
+        const graph_container_t &g) except +

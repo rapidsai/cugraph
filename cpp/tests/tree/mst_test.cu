@@ -34,14 +34,14 @@
 #include <thrust/iterator/constant_iterator.h>
 #include <thrust/reduce.h>
 #include "../src/converters/COOtoCSR.cuh"
-/*
+
 template <typename vertex_t, typename edge_t, typename weight_t>
 struct CSRHost {
   std::vector<vertex_t> offsets;
   std::vector<edge_t> indices;
   std::vector<weight_t> weights;
+  CSRHost(vertex_t v, edge_t e) : offsets(v + 1), indices(e), weights(e) {}
 };
-
 // Sequential prims function
 // Returns total weight of MST
 template <typename vertex_t, typename edge_t, typename weight_t>
@@ -55,7 +55,7 @@ weight_t prims(CSRHost<vertex_t, edge_t, weight_t>& csr_h)
 
   for (auto i = 0; i < n_vertices; i++) {
     active_vertex[i] = false;
-    curr_edge[i]     = INT_MAX;
+    curr_edge[i]     = FLT_MAX;
   }
   curr_edge[0] = 0;
 
@@ -65,7 +65,7 @@ weight_t prims(CSRHost<vertex_t, edge_t, weight_t>& csr_h)
 
   // function to pick next min vertex-edge
   auto min_vertex_edge = [](auto* curr_edge, auto* active_vertex, auto n_vertices) {
-    weight_t min = INT_MAX;
+    weight_t min = FLT_MAX;
     vertex_t min_vertex;
 
     for (auto v = 0; v < n_vertices; v++) {
@@ -77,6 +77,7 @@ weight_t prims(CSRHost<vertex_t, edge_t, weight_t>& csr_h)
 
     return min_vertex;
   };
+
   // iterate over n vertices
   for (auto v = 0; v < n_vertices - 1; v++) {
     // pick min vertex-edge
@@ -101,9 +102,8 @@ weight_t prims(CSRHost<vertex_t, edge_t, weight_t>& csr_h)
   weight_t total_weight = 0;
   for (auto v = 1; v < n_vertices; v++) { total_weight += curr_edge[v]; }
 
-  return total_weight;
+  return 2 * total_weight;  // switching to directed weight
 }
-*/
 
 template <typename T>
 void printv(size_t n, T* vec, int offset)
@@ -192,11 +192,11 @@ class Tests_Mst : public ::testing::TestWithParam<Mst_Usecase> {
 
     raft::handle_t handle;
     // generating weights, expecting non unique weights. symmetric
-    for (auto i = 0; i < nnz; i++) {
-      cooVal[i] = (cooRowInd[i] + cooColInd[i]) % 1000;
-      if (i < 10) std::cout << cooVal[i] << " ";
-      if (i > nnz - 10) std::cout << cooVal[i] << " ";
-    }
+    // for (auto i = 0; i < nnz; i++) {
+    //  cooVal[i] = (cooRowInd[i] + cooColInd[i]) % 1000;
+    //  if (i < 10) std::cout << cooVal[i] << " ";
+    //  if (i > nnz - 10) std::cout << cooVal[i] << " ";
+    //}
     std::cout << std::endl;
     cugraph::GraphCOOView<int, int, T> G_coo(&cooRowInd[0], &cooColInd[0], &cooVal[0], m, nnz);
     auto G_unique = cugraph::coo_to_csr(G_coo);
@@ -217,23 +217,9 @@ class Tests_Mst : public ::testing::TestWithParam<Mst_Usecase> {
     hr_clock.stop(&time_tmp);
     std::cout << "mst_time: " << time_tmp << " us" << std::endl;
 
-    // FIXME this is just some upper bound
-    auto expected_mst_weight = thrust::reduce(
-      thrust::device_pointer_cast(G_unique->view().edge_data),
-      thrust::device_pointer_cast(G_unique->view().edge_data) + G_unique->view().number_of_edges);
-
     auto calculated_mst_weight = thrust::reduce(
       thrust::device_pointer_cast(mst_edges->view().edge_data),
       thrust::device_pointer_cast(mst_edges->view().edge_data) + mst_edges->view().number_of_edges);
-    rmm::device_vector<int> components_k(static_cast<size_t>(m));
-    rmm::device_vector<int> components_v(static_cast<size_t>(m));
-    auto component_end = thrust::reduce_by_key(color_vector.begin(),
-                                               color_vector.end(),
-                                               thrust::make_constant_iterator(1),
-                                               components_k.begin(),
-                                               components_v.begin());
-    std::cout << "Number of components: "
-              << thrust::distance(components_k.begin(), component_end.first) << std::endl;
     std::cout << "calculated_mst_weight: " << calculated_mst_weight << std::endl;
     std::cout << "number_of_MST_edges: " << mst_edges->view().number_of_edges << std::endl;
 
@@ -242,6 +228,16 @@ class Tests_Mst : public ::testing::TestWithParam<Mst_Usecase> {
     // printv(mst_edges->view().number_of_edges, mst_edges->view().dst_indices, 0);
     // printv(mst_edges->view().number_of_edges, mst_edges->view().edge_data, 0);
 
+    // Check vs prims
+    CSRHost<int, int, T> csr_h(m, nnz);
+    cudaMemcpy(
+      csr_h.offsets.data(), G_unique->view().offsets, m + 1 * sizeof(int), cudaMemcpyDeviceToHost);
+    cudaMemcpy(
+      csr_h.indices.data(), G_unique->view().indices, nnz * sizeof(int), cudaMemcpyDeviceToHost);
+    cudaMemcpy(
+      csr_h.weights.data(), G_unique->view().edge_data, nnz * sizeof(T), cudaMemcpyDeviceToHost);
+    auto expected_mst_weight = prims(csr_h);
+    std::cout << expected_mst_weight << std::endl;
     EXPECT_LE(calculated_mst_weight, expected_mst_weight);
     EXPECT_LE(mst_edges->view().number_of_edges, 2 * m - 2);
   }
@@ -254,11 +250,11 @@ TEST_P(Tests_Mst, CheckFP32_T) { run_current_test<float>(GetParam()); }
 // --gtest_filter=*simple_test*
 INSTANTIATE_TEST_CASE_P(simple_test,
                         Tests_Mst,
-                        ::testing::Values(Mst_Usecase("test/datasets/karate.mtx"),  //));
-                                          Mst_Usecase("test/datasets/netscience.mtx"),
-                                          Mst_Usecase("test/datasets/scrna_lung_70k_csr.mtx"),
-                                          Mst_Usecase("test/datasets/coAuthorsDBLP.mtx"),
-                                          Mst_Usecase("test/datasets/coPapersDBLP.mtx"),
-                                          Mst_Usecase("test/datasets/hollywood.mtx")));
+                        ::testing::Values(  // Mst_Usecase("test/datasets/karate.mtx"),  //));
+                          Mst_Usecase("test/datasets/netscience.mtx"),
+                          Mst_Usecase("test/datasets/scrna_lung_70k_csr.mtx")));
+// Mst_Usecase("test/datasets/coAuthorsDBLP.mtx"),
+// Mst_Usecase("test/datasets/coPapersDBLP.mtx"),
+// Mst_Usecase("test/datasets/hollywood.mtx")));
 
 CUGRAPH_TEST_PROGRAM_MAIN()
