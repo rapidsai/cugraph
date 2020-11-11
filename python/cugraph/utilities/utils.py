@@ -163,11 +163,13 @@ def is_cuda_version_less_than(min_version=(10, 2)):
     return False
 
 
-def ensure_cugraph_obj(obj, weight=None):
+def ensure_cugraph_obj(obj, weight=None, coo_graph_type=None):
     """
     Convert the input obj - if possible - to a cuGraph Graph-type obj (Graph,
     DiGraph, etc.) and return a tuple of (cugraph Graph-type obj, original
-    input obj type).
+    input obj type). If weight is specified, it is a string associated with the
+    attribute name for the weights column. If coo_graph_type is specified, it
+    is used as the cugraph Graph-type obj to create when converting from a COO.
     """
     # FIXME: importing here to avoid circular import
     from cugraph.structure import (Graph,
@@ -183,6 +185,12 @@ def ensure_cugraph_obj(obj, weight=None):
         return (convert_from_nx(obj, weight), input_type)
 
     elif (cp is not None) and (input_type is cp_coo_matrix):
+        if coo_graph_type is None:
+            coo_graph_type = Graph
+        elif coo_graph_type not in [Graph, DiGraph]:
+            raise TypeError(f"coo_graph_type must be either a cugraph Graph "
+                            f"or DiGraph, got: {coo_graph_type}")
+
         if weight is not None:
             df = cudf.DataFrame({"source": cp.ascontiguousarray(obj.row),
                                  "destination": cp.ascontiguousarray(obj.col),
@@ -191,8 +199,14 @@ def ensure_cugraph_obj(obj, weight=None):
             df = cudf.DataFrame({"source": cp.ascontiguousarray(obj.row),
                                  "destination": cp.ascontiguousarray(obj.col)})
 
-        G = Graph()
-        G.from_cudf_edgelist(df, edge_attr=weight)
+        # FIXME:
+        # * do a quick check that symmetry is stored explicitly in the cupy
+        #   data for sym matrices (ie. for each uv, check vu is there)
+        # * populate the cugraph graph with directed data and set renumbering
+        #   to false in from edge list call.
+        G = coo_graph_type()
+        G.from_cudf_edgelist(df, edge_attr=weight, renumber=True)
+
         return (G, input_type)
 
     else:

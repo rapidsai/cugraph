@@ -21,6 +21,7 @@ from cugraph.structure import (Graph,
                                DiGraph,
                                )
 
+# optional dependencies used for handling different input types
 try:
     import cupy as cp
     from cupyx.scipy.sparse.coo import coo_matrix as cp_coo_matrix
@@ -32,7 +33,7 @@ except ModuleNotFoundError:
     nx = None
 
 
-def convert_df_to_output_type(df, input_type):
+def _convert_df_to_output_type(df, input_type):
     """
     Given a cudf.DataFrame df, convert it to a new type appropriate for the
     graph algos in this module, based on input_type.
@@ -41,7 +42,7 @@ def convert_df_to_output_type(df, input_type):
         return df
 
     elif (nx is not None) and (input_type in [nx.Graph, nx.DiGraph]):
-        return df_score_to_dictionary(df, "labels", "vertices")
+        return df_score_to_dictionary(df, "labels", "vertex")
 
     elif (cp is not None) and (input_type is cp_coo_matrix):
         return cp.fromDlpack(df.to_dlpack())
@@ -51,7 +52,8 @@ def convert_df_to_output_type(df, input_type):
 
 
 def weakly_connected_components(G):
-    """Generate the Weakly Connected Components and attach a component label to
+    """
+    Generate the Weakly Connected Components and attach a component label to
     each vertex.
 
     Parameters
@@ -73,7 +75,7 @@ def weakly_connected_components(G):
            GPU data frame containing two cudf.Series of size V: the vertex
            identifiers and the corresponding component identifier.
 
-           df['vertices']
+           df['vertex']
                Contains the vertex identifier
            df['labels']
                The component identifier
@@ -97,17 +99,15 @@ def weakly_connected_components(G):
     >>> G = cugraph.Graph()
     >>> G.from_cudf_edgelist(M, source='0', destination='1', edge_attr=None)
     >>> df = cugraph.weakly_connected_components(G)
-
     """
-
-    (G, input_type) = ensure_cugraph_obj(G)
+    (G, input_type) = ensure_cugraph_obj(G, coo_graph_type=DiGraph)
 
     df = connectivity_wrapper.weakly_connected_components(G)
 
     if G.renumbered:
-        df = G.unrenumber(df, "vertices")
+        df = G.unrenumber(df, "vertex")
 
-    return convert_df_to_output_type(df, input_type)
+    return _convert_df_to_output_type(df, input_type)
 
 
 def strongly_connected_components(G):
@@ -117,24 +117,38 @@ def strongly_connected_components(G):
 
     Parameters
     ----------
-    G : cugraph.Graph or networkx.Graph
-      cuGraph graph descriptor, should contain the connectivity information as
-      an edge list (edge weights are not used for this algorithm). The graph
-      can be either directed or undirected where an undirected edge is
-      represented by a directed edge in both directions.
-      The adjacency list will be computed if not already present.
-      The number of vertices should fit into a 32b int.
+
+    G : cugraph.Graph or networkx.Graph or cupy sparse COO matrix cuGraph graph
+        descriptor, should contain the connectivity information as an edge list
+        (edge weights are not used for this algorithm). The graph can be either
+        directed or undirected where an undirected edge is represented by a
+        directed edge in both directions.  The adjacency list will be computed
+        if not already present.  The number of vertices should fit into a 32b
+        int.
 
     Returns
     -------
-    df : cudf.DataFrame
-        GPU data frame containing two cudf.Series of size V: the vertex
-        identifiers and the corresponding component identifier.
+    Return value type is based on the input type.  If G is a cugraph.Graph,
+    returns:
 
-        df['vertices']
-            Contains the vertex identifier
-        df['labels']
-            The component identifier
+       cudf.DataFrame
+           GPU data frame containing two cudf.Series of size V: the vertex
+           identifiers and the corresponding component identifier.
+
+           df['vertex']
+               Contains the vertex identifier
+           df['labels']
+               The component identifier
+
+    If G is a networkx.Graph, returns:
+
+       python dictionary, where keys are vertices and values are the component
+       identifiers.
+
+    If G is a cupy sparse COO matrix, returns:
+
+       cupy ndarray of shape (<num vertices>, 2), where column 0 contains
+       component identifiers and column 1 contains vertices.
 
     Examples
     --------
@@ -146,15 +160,11 @@ def strongly_connected_components(G):
     >>> G.from_cudf_edgelist(M, source='0', destination='1', edge_attr=None)
     >>> df = cugraph.strongly_connected_components(G)
     """
-
-    G, isNx = check_nx_graph(G)
+    (G, input_type) = ensure_cugraph_obj(G, coo_graph_type=DiGraph)
 
     df = connectivity_wrapper.strongly_connected_components(G)
 
     if G.renumbered:
-        df = G.unrenumber(df, "vertices")
+        df = G.unrenumber(df, "vertex")
 
-    if isNx is True:
-        df = df_score_to_dictionary(df, "labels", "vertices")
-
-    return df
+    return _convert_df_to_output_type(df, input_type)

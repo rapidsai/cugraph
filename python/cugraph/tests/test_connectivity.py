@@ -64,11 +64,18 @@ def networkx_weak_call(M):
     return labels
 
 
-def cugraph_weak_call(gpu_benchmark_callable, cuG_or_matrix):
+def cugraph_call(gpu_benchmark_callable, cugraph_algo, cuG_or_matrix):
+    """
+    Test helper that calls cugraph_algo (which is either
+    weakly_connected_components() or strongly_connected_components()) on the
+    Graph or matrix object cuG_or_matrix, via the gpu_benchmark_callable
+    benchmark callable (which may or may not perform benchmarking based on
+    command-line options), verify the result type, and return a dictionary for
+    comparison.
+    """
     # if benchmarking is enabled, this call will be benchmarked (ie. run
     # repeatedly, run time averaged, etc.)
-    result = gpu_benchmark_callable(cugraph.weakly_connected_components,
-                                    cuG_or_matrix)
+    result = gpu_benchmark_callable(cugraph_algo, cuG_or_matrix)
 
     # dict of labels to list of vertices with that label
     label_vertex_dict = defaultdict(list)
@@ -81,7 +88,7 @@ def cugraph_weak_call(gpu_benchmark_callable, cuG_or_matrix):
         assert type(result) is cudf.DataFrame
         for i in range(len(result)):
             label_vertex_dict[result["labels"][i]].append(
-                result["vertices"][i])
+                result["vertex"][i])
 
     elif expected_return_type is dict:
         assert type(result) is dict
@@ -112,21 +119,6 @@ def networkx_strong_call(M):
 
     labels = sorted(result)
     return labels
-
-
-def cugraph_strong_call(cu_M):
-    # cugraph Pagerank Call
-    G = cugraph.DiGraph()
-    G.from_cudf_edgelist(cu_M, source="0", destination="1")
-    t1 = time.time()
-    df = cugraph.strongly_connected_components(G)
-    t2 = time.time() - t1
-    print("Time : " + str(t2))
-
-    label_vertex_dict = defaultdict(list)
-    for i in range(len(df)):
-        label_vertex_dict[df["labels"][i]].append(df["vertices"][i])
-    return label_vertex_dict
 
 
 def which_cluster_idx(_cluster, _find_vertex):
@@ -161,6 +153,17 @@ def datasetAndNxResultsWeak(request):
     return (graph_file, netx_labels, nx_n_components, lst_nx_components)
 
 
+@pytest.fixture(scope="module", params=utils.STRONGDATASETS)
+def datasetAndNxResultsStrong(request):
+    graph_file = request.param
+
+    M = utils.read_csv_for_nx(graph_file)
+    netx_labels = networkx_strong_call(M)
+    nx_n_components = len(netx_labels)
+    lst_nx_components = sorted(netx_labels, key=len, reverse=True)
+    return (graph_file, netx_labels, nx_n_components, lst_nx_components)
+
+
 @pytest.mark.parametrize("cugraph_input_type", INPUT_TYPE_PARAMS)
 def test_weak_cc(gpubenchmark, datasetAndNxResultsWeak, cugraph_input_type):
     gc.collect()
@@ -171,7 +174,9 @@ def test_weak_cc(gpubenchmark, datasetAndNxResultsWeak, cugraph_input_type):
      nx_n_components, lst_nx_components) = datasetAndNxResultsWeak
 
     cuG_or_matrix = utils.create_obj_from_csv(graph_file, cugraph_input_type)
-    cugraph_labels = cugraph_weak_call(gpubenchmark, cuG_or_matrix)
+    cugraph_labels = cugraph_call(gpubenchmark,
+                                  cugraph.weakly_connected_components,
+                                  cuG_or_matrix)
 
     # while cugraph returns a component label for each vertex;
     cg_n_components = len(cugraph_labels)
@@ -200,28 +205,26 @@ def test_weak_cc(gpubenchmark, datasetAndNxResultsWeak, cugraph_input_type):
     assert nx_vertices == cg_vertices
 
 
-@pytest.mark.parametrize("graph_file", utils.STRONGDATASETS)
-def test_strong_cc(graph_file):
+@pytest.mark.parametrize("cugraph_input_type", INPUT_TYPE_PARAMS)
+def test_strong_cc(gpubenchmark, datasetAndNxResultsStrong, cugraph_input_type):
     gc.collect()
 
-    M = utils.read_csv_for_nx(graph_file)
-    netx_labels = networkx_strong_call(M)
-
-    cu_M = utils.read_csv_file(graph_file)
-    cugraph_labels = cugraph_strong_call(cu_M)
-
     # NetX returns a list of components, each component being a
-    # collection (set{}) of vertex indices;
-    #
-    # while cugraph returns a component label for each vertex;
+    # collection (set{}) of vertex indices
+    (graph_file, netx_labels,
+     nx_n_components, lst_nx_components) = datasetAndNxResultsStrong
 
-    nx_n_components = len(netx_labels)
+    cuG_or_matrix = utils.create_obj_from_csv(graph_file, cugraph_input_type)
+    cugraph_labels = cugraph_call(gpubenchmark,
+                                  cugraph.strongly_connected_components,
+                                  cuG_or_matrix)
+
+    # while cugraph returns a component label for each vertex;
     cg_n_components = len(cugraph_labels)
 
     # Comapre number of components found
     assert nx_n_components == cg_n_components
 
-    lst_nx_components = sorted(netx_labels, key=len, reverse=True)
     lst_nx_components_lens = [len(c) for c in lst_nx_components]
 
     cugraph_vertex_lst = cugraph_labels.values()
