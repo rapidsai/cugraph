@@ -38,7 +38,7 @@ def mst_double(input_graph):
     return coo_to_df(move(mst[int,int,double](in_graph)))
 
 
-def minimum_spanning_edges(input_graph):
+def minimum_spanning_tree(input_graph):
     if not input_graph.adjlist:
         input_graph.view_adj_list()
     [offsets, indices] = graph_primtypes_wrapper.datatype_cast([input_graph.adjlist.offsets, input_graph.adjlist.indices], [np.int32])
