@@ -24,6 +24,7 @@
 
 #include <thrust/sort.h>
 #include <thrust/transform.h>
+#include <cuco/detail/hash_functions.cuh>
 
 #include <algorithm>
 #include <vector>
@@ -135,6 +136,38 @@ struct degree_from_offsets_t {
   edge_t const *offsets{nullptr};
 
   __device__ edge_t operator()(vertex_t v) { return offsets[v + 1] - offsets[v]; }
+};
+
+template <typename vertex_t>
+struct compute_gpu_id_from_vertex_t {
+  int comm_size{0};
+
+  __device__ int operator()(vertex_t v)
+  {
+    cuco::detail::MurmurHash3_32<vertex_t> hash_func{};
+    return hash_func(v) % comm_size;
+  }
+};
+
+template <typename vertex_t, bool store_transposed>
+struct compute_gpu_id_from_edge_t {
+  bool hypergraph_partitioned{false};
+  int comm_size{0};
+  int row_comm_size{0};
+  int col_comm_size{0};
+
+  __device__ int operator()(vertex_t src, vertex_t dst)
+  {
+    cuco::detail::MurmurHash3_32<vertex_t> hash_func{};
+    auto major_comm_rank = hash_func(store_transposed ? dst : src) % comm_size;
+    auto minor_comm_rank = hash_func(store_transposed ? src : dst) % comm_size;
+    if (hypergraph_partitioned) {
+      return (minor_comm_rank / col_comm_size) * row_comm_size + (major_comm_rank % row_comm_size);
+    } else {
+      return (major_comm_rank - (major_comm_rank % row_comm_size)) +
+             (minor_comm_rank / col_comm_size);
+    }
+  }
 };
 
 }  // namespace detail
