@@ -62,11 +62,13 @@ from cugraph.link_prediction import (
 
 from cugraph.traversal import (
     bfs,
-    bfs_edges, 
+    bfs_edges,
     sssp,
     shortest_path,
     filter_unreachable,
 )
+
+from cugraph.tree import minimum_spanning_tree
 
 from cugraph.utilities import utils
 

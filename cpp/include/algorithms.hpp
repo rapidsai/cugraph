@@ -733,16 +733,12 @@ void ecg(raft::handle_t const &handle,
  * @param[in]  handle                Library handle (RAFT). If a communicator is set in the handle,
  * @param[in]  graph_csr             input graph object (CSR) expected to be symmetric
  * @param[in]  mr                    Memory resource used to allocate the returned graph
- * @param[out] mst_color            A device pointer to an array of size V. On output, mst_color[i]
- * contains the minimum spanning forest label of vertex i. When mst_color contins only zeroes then
- * there is a single component and a minimum spaning tree was found.
  * @return out_graph             Unique pointer to MSF subgraph in COO format
  */
 template <typename vertex_t, typename edge_t, typename weight_t>
-std::unique_ptr<GraphCOO<vertex_t, edge_t, weight_t>> mst(
+std::unique_ptr<GraphCOO<vertex_t, edge_t, weight_t>> minimum_spanning_tree(
   raft::handle_t const &handle,
   GraphCSRView<vertex_t, edge_t, weight_t> const &graph,
-  vertex_t *colors,
   rmm::mr::device_memory_resource *mr = rmm::mr::get_current_device_resource());
 
 namespace triangle {

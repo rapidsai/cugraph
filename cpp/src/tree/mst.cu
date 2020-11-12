@@ -41,20 +41,18 @@ template <typename vertex_t, typename edge_t, typename weight_t>
 std::unique_ptr<GraphCOO<vertex_t, edge_t, weight_t>> mst_impl(
   raft::handle_t const &handle,
   GraphCSRView<vertex_t, edge_t, weight_t> const &graph,
-  vertex_t *colors,
   rmm::mr::device_memory_resource *mr)
 
 {
-  RAFT_EXPECTS(colors != nullptr, "API error, must specify valid location for colors");
-
-  auto stream    = handle.get_stream();
+  auto stream = handle.get_stream();
+  rmm::device_uvector<vertex_t> colors(graph.number_of_vertices, stream);
   auto mst_edges = raft::mst::mst<vertex_t, edge_t, weight_t>(handle,
                                                               graph.offsets,
                                                               graph.indices,
                                                               graph.edge_data,
                                                               graph.number_of_vertices,
                                                               graph.number_of_edges,
-                                                              colors,
+                                                              colors.data(),
                                                               stream);
 
   GraphCOOContents<vertex_t, edge_t, weight_t> coo_contents{
@@ -70,23 +68,20 @@ std::unique_ptr<GraphCOO<vertex_t, edge_t, weight_t>> mst_impl(
 }  // namespace detail
 
 template <typename vertex_t, typename edge_t, typename weight_t>
-std::unique_ptr<GraphCOO<vertex_t, edge_t, weight_t>> mst(
+std::unique_ptr<GraphCOO<vertex_t, edge_t, weight_t>> minimum_spanning_tree(
   raft::handle_t const &handle,
   GraphCSRView<vertex_t, edge_t, weight_t> const &graph,
-  vertex_t *colors,
   rmm::mr::device_memory_resource *mr)
 {
-  return detail::mst_impl(handle, graph, colors, mr);
+  return detail::mst_impl(handle, graph, mr);
 }
 
-template std::unique_ptr<GraphCOO<int, int, float>> mst<int, int, float>(
+template std::unique_ptr<GraphCOO<int, int, float>> minimum_spanning_tree<int, int, float>(
   raft::handle_t const &handle,
   GraphCSRView<int, int, float> const &graph,
-  int *colors,
   rmm::mr::device_memory_resource *mr);
-template std::unique_ptr<GraphCOO<int, int, double>> mst<int, int, double>(
+template std::unique_ptr<GraphCOO<int, int, double>> minimum_spanning_tree<int, int, double>(
   raft::handle_t const &handle,
   GraphCSRView<int, int, double> const &graph,
-  int *colors,
   rmm::mr::device_memory_resource *mr);
 }  // namespace cugraph

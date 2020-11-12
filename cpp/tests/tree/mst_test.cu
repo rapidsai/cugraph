@@ -34,76 +34,6 @@
 #include <thrust/iterator/constant_iterator.h>
 #include <thrust/reduce.h>
 #include "../src/converters/COOtoCSR.cuh"
-/*
-template <typename vertex_t, typename edge_t, typename weight_t>
-struct CSRHost {
-  std::vector<vertex_t> offsets;
-  std::vector<edge_t> indices;
-  std::vector<weight_t> weights;
-};
-
-// Sequential prims function
-// Returns total weight of MST
-template <typename vertex_t, typename edge_t, typename weight_t>
-weight_t prims(CSRHost<vertex_t, edge_t, weight_t>& csr_h)
-{
-  auto n_vertices = csr_h.offsets.size() - 1;
-
-  bool active_vertex[n_vertices];
-  // bool mst_set[csr_h.n_edges];
-  weight_t curr_edge[n_vertices];
-
-  for (auto i = 0; i < n_vertices; i++) {
-    active_vertex[i] = false;
-    curr_edge[i]     = INT_MAX;
-  }
-  curr_edge[0] = 0;
-
-  // for (auto i = 0; i < csr_h.n_edges; i++) {
-  //   mst_set[i] = false;
-  // }
-
-  // function to pick next min vertex-edge
-  auto min_vertex_edge = [](auto* curr_edge, auto* active_vertex, auto n_vertices) {
-    weight_t min = INT_MAX;
-    vertex_t min_vertex;
-
-    for (auto v = 0; v < n_vertices; v++) {
-      if (!active_vertex[v] && curr_edge[v] < min) {
-        min        = curr_edge[v];
-        min_vertex = v;
-      }
-    }
-
-    return min_vertex;
-  };
-  // iterate over n vertices
-  for (auto v = 0; v < n_vertices - 1; v++) {
-    // pick min vertex-edge
-    auto curr_v = min_vertex_edge(curr_edge, active_vertex, n_vertices);
-
-    active_vertex[curr_v] = true;  // set to active
-
-    // iterate through edges of current active vertex
-    auto edge_st  = csr_h.offsets[curr_v];
-    auto edge_end = csr_h.offsets[curr_v + 1];
-
-    for (auto e = edge_st; e < edge_end; e++) {
-      // put edges to be considered for next iteration
-      auto neighbor_idx = csr_h.indices[e];
-      if (!active_vertex[neighbor_idx] && csr_h.weights[e] < curr_edge[neighbor_idx]) {
-        curr_edge[neighbor_idx] = csr_h.weights[e];
-      }
-    }
-  }
-
-  // find sum of MST
-  weight_t total_weight = 0;
-  for (auto v = 1; v < n_vertices; v++) { total_weight += curr_edge[v]; }
-
-  return total_weight;
-}
-*/
 
 template <typename T>
 void printv(size_t n, T* vec, int offset)
@@ -178,10 +108,6 @@ class Tests_Mst : public ::testing::TestWithParam<Mst_Usecase> {
     std::vector<int> cooRowInd(nnz), cooColInd(nnz);
     std::vector<T> cooVal(nnz), mst(m);
 
-    // device alloc
-    rmm::device_vector<int> color_vector(static_cast<size_t>(m));
-    int* d_colors = thrust::raw_pointer_cast(color_vector.data());
-
     // Read
     ASSERT_EQ((cugraph::test::mm_to_coo<int, T>(
                 fpin, 1, nnz, &cooRowInd[0], &cooColInd[0], &cooVal[0], NULL)),
@@ -210,7 +136,7 @@ class Tests_Mst : public ::testing::TestWithParam<Mst_Usecase> {
 
     hr_clock.start();
     cudaProfilerStart();
-    auto mst_edges = cugraph::mst<int, int, T>(handle, G, d_colors);
+    auto mst_edges = cugraph::mst<int, int, T>(handle, G);
     cudaProfilerStop();
 
     cudaDeviceSynchronize();
@@ -225,19 +151,10 @@ class Tests_Mst : public ::testing::TestWithParam<Mst_Usecase> {
     auto calculated_mst_weight = thrust::reduce(
       thrust::device_pointer_cast(mst_edges->view().edge_data),
       thrust::device_pointer_cast(mst_edges->view().edge_data) + mst_edges->view().number_of_edges);
-    rmm::device_vector<int> components_k(static_cast<size_t>(m));
-    rmm::device_vector<int> components_v(static_cast<size_t>(m));
-    auto component_end = thrust::reduce_by_key(color_vector.begin(),
-                                               color_vector.end(),
-                                               thrust::make_constant_iterator(1),
-                                               components_k.begin(),
-                                               components_v.begin());
-    std::cout << "Number of components: "
-              << thrust::distance(components_k.begin(), component_end.first) << std::endl;
+
     std::cout << "calculated_mst_weight: " << calculated_mst_weight << std::endl;
     std::cout << "number_of_MST_edges: " << mst_edges->view().number_of_edges << std::endl;
 
-    // printv(m, d_colors, 0);
     // printv(mst_edges->view().number_of_edges, mst_edges->view().src_indices, 0);
     // printv(mst_edges->view().number_of_edges, mst_edges->view().dst_indices, 0);
     // printv(mst_edges->view().number_of_edges, mst_edges->view().edge_data, 0);
@@ -251,7 +168,6 @@ TEST_P(Tests_Mst, CheckFP32_T) { run_current_test<float>(GetParam()); }
 
 // TEST_P(Tests_Mst, CheckFP64_T) { run_current_test<double>(GetParam()); }
 
-// --gtest_filter=*simple_test*
 INSTANTIATE_TEST_CASE_P(simple_test,
                         Tests_Mst,
                         ::testing::Values(Mst_Usecase("test/datasets/karate.mtx"),  //));
