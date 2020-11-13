@@ -39,25 +39,12 @@ print("Networkx version : {} ".format(nx.__version__))
 
 def compare_mst(mst_cugraph, mst_nx):
     mst_nx_df = nx.to_pandas_edgelist(mst_nx)
-
     edgelist_df = mst_cugraph.view_edge_list()
-    src = edgelist_df["src"]
-    dst = edgelist_df["dst"]
-    wgt = edgelist_df["weights"]
-    assert len(edgelist_df) == len(mst_nx_df)
-    for i in range(len(src)):
-        has_edge = (
-            (mst_nx_df["source"] == src[i])
-            & (mst_nx_df["target"] == dst[i])
-            & np.isclose(mst_nx_df["weight"], wgt[i])
-        ).any()
-        has_opp_edge = (
-            (mst_nx_df["source"] == dst[i])
-            & (mst_nx_df["target"] == src[i])
-            & np.isclose(mst_nx_df["weight"], wgt[i])
-        ).any()
-        assert has_edge or has_opp_edge
-    return True
+    cg_sum = edgelist_df["weights"].sum()
+    nx_sum = mst_nx_df["weight"].sum()
+    print(cg_sum)
+    print(nx_sum)
+    assert np.isclose(cg_sum, nx_sum)
 
 
 @pytest.mark.parametrize("graph_file", utils.DATASETS_UNDIRECTED_WEIGHTS)
