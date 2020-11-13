@@ -5,6 +5,7 @@
 
 ## Improvements
 - PR #1227 Pin cmake policies to cmake 3.17 version
+- PR #1271 Add extra check to make serial Louvain deterministic
 
 ## Bug Fixes
 - PR #1242 Calling gunrock cmake using explicit -D options, re-enabling C++ tests
