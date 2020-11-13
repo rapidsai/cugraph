@@ -413,7 +413,7 @@ target_include_directories(cugraph
 # - link libraries --------------------------------------------------------------------------------
 
 target_link_libraries(cugraph PRIVATE
-    gunrock cublas cusparse curand cusolver cudart cuda ${MPI_CXX_LIBRARIES} ${NCCL_LIBRARIES})
+    gunrock cublas cusparse curand cusolver cudart cuda ${NCCL_LIBRARIES})
 
 if(OpenMP_CXX_FOUND)
 target_link_libraries(cugraph PRIVATE
