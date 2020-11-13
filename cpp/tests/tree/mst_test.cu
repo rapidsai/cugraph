@@ -118,11 +118,11 @@ class Tests_Mst : public ::testing::TestWithParam<Mst_Usecase> {
 
     raft::handle_t handle;
     // generating weights, expecting non unique weights. symmetric
-    for (auto i = 0; i < nnz; i++) {
-      cooVal[i] = (cooRowInd[i] + cooColInd[i]) % 1000;
-      if (i < 10) std::cout << cooVal[i] << " ";
-      if (i > nnz - 10) std::cout << cooVal[i] << " ";
-    }
+    // for (auto i = 0; i < nnz; i++) {
+    //  cooVal[i] = (cooRowInd[i] + cooColInd[i]) % 1000;
+    //  if (i < 10) std::cout << cooVal[i] << " ";
+    //  if (i > nnz - 10) std::cout << cooVal[i] << " ";
+    //}
     std::cout << std::endl;
     cugraph::GraphCOOView<int, int, T> G_coo(&cooRowInd[0], &cooColInd[0], &cooVal[0], m, nnz);
     auto G_unique = cugraph::coo_to_csr(G_coo);
@@ -136,14 +136,13 @@ class Tests_Mst : public ::testing::TestWithParam<Mst_Usecase> {
 
     hr_clock.start();
     cudaProfilerStart();
-    auto mst_edges = cugraph::mst<int, int, T>(handle, G);
+    auto mst_edges = cugraph::minimum_spanning_tree<int, int, T>(handle, G);
     cudaProfilerStop();
 
     cudaDeviceSynchronize();
     hr_clock.stop(&time_tmp);
     std::cout << "mst_time: " << time_tmp << " us" << std::endl;
 
-    // FIXME this is just some upper bound
     auto expected_mst_weight = thrust::reduce(
       thrust::device_pointer_cast(G_unique->view().edge_data),
       thrust::device_pointer_cast(G_unique->view().edge_data) + G_unique->view().number_of_edges);
@@ -155,9 +154,9 @@ class Tests_Mst : public ::testing::TestWithParam<Mst_Usecase> {
     std::cout << "calculated_mst_weight: " << calculated_mst_weight << std::endl;
     std::cout << "number_of_MST_edges: " << mst_edges->view().number_of_edges << std::endl;
 
-    // printv(mst_edges->view().number_of_edges, mst_edges->view().src_indices, 0);
-    // printv(mst_edges->view().number_of_edges, mst_edges->view().dst_indices, 0);
-    // printv(mst_edges->view().number_of_edges, mst_edges->view().edge_data, 0);
+    printv(mst_edges->view().number_of_edges, mst_edges->view().src_indices, 0);
+    printv(mst_edges->view().number_of_edges, mst_edges->view().dst_indices, 0);
+    printv(mst_edges->view().number_of_edges, mst_edges->view().edge_data, 0);
 
     EXPECT_LE(calculated_mst_weight, expected_mst_weight);
     EXPECT_LE(mst_edges->view().number_of_edges, 2 * m - 2);
@@ -170,11 +169,11 @@ TEST_P(Tests_Mst, CheckFP32_T) { run_current_test<float>(GetParam()); }
 
 INSTANTIATE_TEST_CASE_P(simple_test,
                         Tests_Mst,
-                        ::testing::Values(Mst_Usecase("test/datasets/karate.mtx"),  //));
-                                          Mst_Usecase("test/datasets/netscience.mtx"),
-                                          Mst_Usecase("test/datasets/scrna_lung_70k_csr.mtx"),
-                                          Mst_Usecase("test/datasets/coAuthorsDBLP.mtx"),
-                                          Mst_Usecase("test/datasets/coPapersDBLP.mtx"),
-                                          Mst_Usecase("test/datasets/hollywood.mtx")));
+                        ::testing::Values(  // Mst_Usecase("test/datasets/karate.mtx"),
+                          Mst_Usecase("test/datasets/netscience.mtx")));
+// Mst_Usecase("test/datasets/scrna_lung_70k_csr.mtx"),
+// Mst_Usecase("test/datasets/coAuthorsDBLP.mtx"),
+// Mst_Usecase("test/datasets/coPapersDBLP.mtx"),
+// Mst_Usecase("test/datasets/hollywood.mtx")
 
 CUGRAPH_TEST_PROGRAM_MAIN()

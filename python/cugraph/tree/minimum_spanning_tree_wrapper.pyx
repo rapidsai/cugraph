@@ -19,9 +19,7 @@
 from cugraph.tree.minimum_spanning_tree cimport minimum_spanning_tree as c_mst
 from cugraph.structure.graph_primtypes cimport *
 from cugraph.structure import graph_primtypes_wrapper
-from libcpp cimport bool
 from libc.stdint cimport uintptr_t
-from libc.float cimport FLT_MAX_EXP
 
 import cudf
 import rmm
@@ -32,6 +30,9 @@ def mst_float(num_verts, num_edges, offsets, indices, weights):
     cdef unique_ptr[handle_t] handle_ptr
     handle_ptr.reset(new handle_t())
     handle_ = handle_ptr.get();
+    print(offsets)
+    print(indices)
+    print(weights)
     cdef uintptr_t c_offsets = offsets.__cuda_array_interface__['data'][0]
     cdef uintptr_t c_indices = indices.__cuda_array_interface__['data'][0]
     cdef uintptr_t c_weights = weights.__cuda_array_interface__['data'][0]
@@ -65,6 +66,8 @@ def minimum_spanning_tree(input_graph):
         weights = cudf.Series(np.full(num_edges, 1.0, dtype=np.float32))
 
     if graph_primtypes_wrapper.weight_type(input_graph) == np.float32:
-        return mst_float(num_verts, num_edges, num_verts, num_edges, offsets, indices, weights)
+         df = mst_float(num_verts, num_edges, offsets, indices, weights)
+         print (df)
+         return df
     else:
         return mst_double(num_verts, num_edges, offsets, indices, weights)
