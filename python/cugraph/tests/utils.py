@@ -107,13 +107,20 @@ def create_obj_from_csv(csv_file_name, obj_type, edgevals=False):
             edgevals=edgevals)
 
     elif obj_type is cp_coo_matrix:
+        # FIXME: should not assume input always has 3 columns
         (rows, cols, weights) = np.genfromtxt(csv_file_name,
                                               delimiter=" ",
                                               dtype=np.float32,
                                               unpack=True)
-        return cp_coo_matrix(
-            (cp.asarray(weights), (cp.asarray(rows), cp.asarray(cols))),
-            dtype=np.float32)
+        # COO matrices must have a value array, so reset all weights to 1 to
+        # treat them as ignored.
+        if edgevals is False:
+            weights = np.array([1] * len(rows))
+
+        return cp_coo_matrix((cp.asarray(weights),
+                              (cp.asarray(rows), cp.asarray(cols))),
+                             dtype=np.float32)
+
 
     elif obj_type in [nx.Graph, nx.DiGraph]:
         return generate_nx_graph_from_file(
