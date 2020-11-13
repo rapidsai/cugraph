@@ -45,7 +45,7 @@ cuGraph_input_output_map = {
     cugraph.DiGraph: cudf.DataFrame,
     nx.Graph: dict,
     nx.DiGraph: dict,
-    cp_coo_matrix: cp.ndarray,
+    cp_coo_matrix: tuple,
 }
 
 
@@ -90,16 +90,41 @@ def cugraph_call(gpu_benchmark_callable, cugraph_algo, cuG_or_matrix):
             label_vertex_dict[result["labels"][i]].append(
                 result["vertex"][i])
 
+    # NetworkX input results in returning a dictionary mapping vertices to their
+    # labels.
     elif expected_return_type is dict:
         assert type(result) is dict
         for (vert, label) in result.items():
             label_vertex_dict[label].append(vert)
 
-    elif expected_return_type is cp.ndarray:
-        assert type(result) is cp.ndarray
-        for i in range(len(result)):
-            # FIXME: is this the best way to get data out of the cp.ndarray?
-            label_vertex_dict[result[i, 0].item()].append(result[i, 1].item())
+    # A CuPy/SciPy input means the return value will be a 2-tuple of:
+    #   n_components: int
+    #       The number of connected components (number of unique labels).
+    #   labels: ndarray
+    #       The length-N array of labels of the connected components.
+    elif expected_return_type is tuple:
+        assert type(result) is tuple
+        assert type(result[0]) is int
+        assert type(result[1]) is cp.ndarray
+
+        unique_labels = set([n.item() for n in result[1]])
+        assert len(unique_labels) == result[0]
+
+        # The returned dict used in the tests for checking correctness needs the
+        # actual vertex IDs, which are not in the retuened data (the CuPy/SciPy
+        # connected_components return types cuGraph is converting to does not
+        # include them). So, extract the vertices from the input COO, order them
+        # to match the returned list of labels (which is just a sort), and
+        # include them in the returned dict.
+        vertices = sorted(set([n.item() for n in cuG_or_matrix.col] + \
+                              [n.item() for n in cuG_or_matrix.row]))
+        num_verts = len(vertices)
+        num_verts_assigned_labels = len(result[1])
+        assert num_verts_assigned_labels == num_verts
+
+        for i in range(num_verts):
+            label = result[1][i].item()
+            label_vertex_dict[label].append(vertices[i])
 
     else:
         raise RuntimeError(f"unsupported return type: {expected_return_type}")
@@ -130,18 +155,6 @@ def which_cluster_idx(_cluster, _find_vertex):
     return idx
 
 
-INPUT_TYPE_PARAMS = [pytest.param(cugraph.DiGraph,
-                                  marks=pytest.mark.cugraph_types,
-                                  id="cugraph.DiGraph"),
-                     pytest.param(nx.DiGraph,
-                                  marks=pytest.mark.nx_types,
-                                  id="nx.DiGraph"),
-                     pytest.param(cp_coo_matrix,
-                                  marks=pytest.mark.cupy_types,
-                                  id="CuPy.coo_matrix"),
-                     ]
-
-
 @pytest.fixture(scope="module", params=utils.DATASETS)
 def datasetAndNxResultsWeak(request):
     graph_file = request.param
@@ -164,7 +177,7 @@ def datasetAndNxResultsStrong(request):
     return (graph_file, netx_labels, nx_n_components, lst_nx_components)
 
 
-@pytest.mark.parametrize("cugraph_input_type", INPUT_TYPE_PARAMS)
+@pytest.mark.parametrize("cugraph_input_type", utils.DIGRAPH_INPUT_TYPE_PARAMS)
 def test_weak_cc(gpubenchmark, datasetAndNxResultsWeak, cugraph_input_type):
     gc.collect()
 
@@ -205,7 +218,7 @@ def test_weak_cc(gpubenchmark, datasetAndNxResultsWeak, cugraph_input_type):
     assert nx_vertices == cg_vertices
 
 
-@pytest.mark.parametrize("cugraph_input_type", INPUT_TYPE_PARAMS)
+@pytest.mark.parametrize("cugraph_input_type", utils.DIGRAPH_INPUT_TYPE_PARAMS)
 def test_strong_cc(gpubenchmark, datasetAndNxResultsStrong, cugraph_input_type):
     gc.collect()
 

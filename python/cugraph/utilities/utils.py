@@ -163,13 +163,17 @@ def is_cuda_version_less_than(min_version=(10, 2)):
     return False
 
 
-def ensure_cugraph_obj(obj, weight=None, coo_graph_type=None):
+# FIXME: if G is a Nx type, the weight attribute is assumed to be "weight", if
+# set. An additional optional parameter for the weight attr name when accepting
+# Nx graphs may be needed.  From the Nx docs:
+# |      Many NetworkX algorithms designed for weighted graphs use
+# |      an edge attribute (by default `weight`) to hold a numerical value.
+def ensure_cugraph_obj(obj, coo_graph_type=None):
     """
     Convert the input obj - if possible - to a cuGraph Graph-type obj (Graph,
-    DiGraph, etc.) and return a tuple of (cugraph Graph-type obj, original
-    input obj type). If weight is specified, it is a string associated with the
-    attribute name for the weights column. If coo_graph_type is specified, it
-    is used as the cugraph Graph-type obj to create when converting from a COO.
+    DiGraph, etc.) and return a tuple of (cugraph Graph-type obj, original input
+    obj type). If coo_graph_type is specified, it is used as the cugraph
+    Graph-type obj to create when converting from a COO.
     """
     # FIXME: importing here to avoid circular import
     from cugraph.structure import (Graph,
@@ -182,6 +186,8 @@ def ensure_cugraph_obj(obj, weight=None, coo_graph_type=None):
         return (obj, input_type)
 
     elif (nx is not None) and (input_type in [nx.Graph, nx.DiGraph]):
+        weight = "weight"
+        #weight = None
         return (convert_from_nx(obj, weight), input_type)
 
     elif (cp is not None) and (input_type is cp_coo_matrix):
@@ -191,13 +197,9 @@ def ensure_cugraph_obj(obj, weight=None, coo_graph_type=None):
             raise TypeError(f"coo_graph_type must be either a cugraph Graph "
                             f"or DiGraph, got: {coo_graph_type}")
 
-        if weight is not None:
-            df = cudf.DataFrame({"source": cp.ascontiguousarray(obj.row),
-                                 "destination": cp.ascontiguousarray(obj.col),
-                                 weight: cp.ascontiguousarray(obj.data)})
-        else:
-            df = cudf.DataFrame({"source": cp.ascontiguousarray(obj.row),
-                                 "destination": cp.ascontiguousarray(obj.col)})
+        df = cudf.DataFrame({"source": cp.ascontiguousarray(obj.row),
+                             "destination": cp.ascontiguousarray(obj.col),
+                             "weight": cp.ascontiguousarray(obj.data)})
 
         # FIXME:
         # * do a quick check that symmetry is stored explicitly in the cupy
@@ -205,7 +207,7 @@ def ensure_cugraph_obj(obj, weight=None, coo_graph_type=None):
         # * populate the cugraph graph with directed data and set renumbering
         #   to false in from edge list call.
         G = coo_graph_type()
-        G.from_cudf_edgelist(df, edge_attr=weight, renumber=True)
+        G.from_cudf_edgelist(df, edge_attr="weight", renumber=True)
 
         return (G, input_type)
 

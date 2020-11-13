@@ -12,7 +12,6 @@
 # limitations under the License.
 
 
-from cugraph.components import connectivity_wrapper
 from cugraph.utilities import (check_nx_graph,
                                df_score_to_dictionary,
                                ensure_cugraph_obj,
@@ -20,6 +19,7 @@ from cugraph.utilities import (check_nx_graph,
 from cugraph.structure import (Graph,
                                DiGraph,
                                )
+from cugraph.components import connectivity_wrapper
 
 # optional dependencies used for handling different input types
 try:
@@ -45,10 +45,19 @@ def _convert_df_to_output_type(df, input_type):
         return df_score_to_dictionary(df, "labels", "vertex")
 
     elif (cp is not None) and (input_type is cp_coo_matrix):
-        return cp.fromDlpack(df.to_dlpack())
+        # Convert DF of 2 columns (labels, vertices) to the SciPy-style return
+        # value:
+        #   n_components: int
+        #       The number of connected components (number of unique labels).
+        #   labels: ndarray
+        #       The length-N array of labels of the connected components.
+        n_components = len(df["labels"].unique())
+        sorted_df = df.sort_values("vertex")
+        labels = cp.fromDlpack(sorted_df["labels"].to_dlpack())
+        return (n_components, labels)
 
     else:
-        raise TypeError(f"{input_type} is not a supported type.")
+        raise TypeError(f"input type {input_type} is not a supported type.")
 
 
 def weakly_connected_components(G):
@@ -58,7 +67,7 @@ def weakly_connected_components(G):
 
     Parameters
     ----------
-    G : cugraph.Graph or networkx.Graph or cupy sparse COO matrix
+    G : cugraph.Graph or networkx.Graph or CuPy sparse COO matrix
         cuGraph graph descriptor, should contain the connectivity information
         as an edge list (edge weights are not used for this algorithm).
         Currently, the graph should be undirected where an undirected edge is
@@ -85,9 +94,9 @@ def weakly_connected_components(G):
        python dictionary, where keys are vertices and values are the component
        identifiers.
 
-    If G is a cupy sparse COO matrix, returns:
+    If G is a CuPy sparse COO matrix, returns:
 
-       cupy ndarray of shape (<num vertices>, 2), where column 0 contains
+       CuPy ndarray of shape (<num vertices>, 2), where column 0 contains
        component identifiers and column 1 contains vertices.
 
     Examples
@@ -118,13 +127,13 @@ def strongly_connected_components(G):
     Parameters
     ----------
 
-    G : cugraph.Graph or networkx.Graph or cupy sparse COO matrix cuGraph graph
-        descriptor, should contain the connectivity information as an edge list
-        (edge weights are not used for this algorithm). The graph can be either
-        directed or undirected where an undirected edge is represented by a
-        directed edge in both directions.  The adjacency list will be computed
-        if not already present.  The number of vertices should fit into a 32b
-        int.
+    G : cugraph.Graph or networkx.Graph or CuPy sparse COO matrix
+        cuGraph graph descriptor, should contain the connectivity information as
+        an edge list (edge weights are not used for this algorithm). The graph
+        can be either directed or undirected where an undirected edge is
+        represented by a directed edge in both directions.  The adjacency list
+        will be computed if not already present.  The number of vertices should
+        fit into a 32b int.
 
     Returns
     -------
@@ -145,9 +154,9 @@ def strongly_connected_components(G):
        python dictionary, where keys are vertices and values are the component
        identifiers.
 
-    If G is a cupy sparse COO matrix, returns:
+    If G is a CuPy sparse COO matrix, returns:
 
-       cupy ndarray of shape (<num vertices>, 2), where column 0 contains
+       CuPy ndarray of shape (<num vertices>, 2), where column 0 contains
        component identifiers and column 1 contains vertices.
 
     Examples

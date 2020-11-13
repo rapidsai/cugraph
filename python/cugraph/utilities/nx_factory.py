@@ -23,7 +23,7 @@ from cudf import from_pandas
 def convert_from_nx(nxG, weight=None):
 
     if nx is None:
-        raise RuntimeError("NetworkX could not be imported, cannot check nxG")
+        raise RuntimeError("NetworkX could not be imported, cannot convert nxG")
     if type(nxG) == nx.classes.graph.Graph:
         G = cugraph.Graph()
     elif type(nxG) == nx.classes.digraph.DiGraph:
