@@ -30,9 +30,6 @@ def mst_float(num_verts, num_edges, offsets, indices, weights):
     cdef unique_ptr[handle_t] handle_ptr
     handle_ptr.reset(new handle_t())
     handle_ = handle_ptr.get();
-    print(offsets)
-    print(indices)
-    print(weights)
     cdef uintptr_t c_offsets = offsets.__cuda_array_interface__['data'][0]
     cdef uintptr_t c_indices = indices.__cuda_array_interface__['data'][0]
     cdef uintptr_t c_weights = weights.__cuda_array_interface__['data'][0]
@@ -67,7 +64,6 @@ def minimum_spanning_tree(input_graph):
 
     if graph_primtypes_wrapper.weight_type(input_graph) == np.float32:
          df = mst_float(num_verts, num_edges, offsets, indices, weights)
-         print (df)
          return df
     else:
         return mst_double(num_verts, num_edges, offsets, indices, weights)

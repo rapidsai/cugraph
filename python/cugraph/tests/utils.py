@@ -25,7 +25,12 @@ from cugraph.dask.common.mg_utils import get_client
 #
 DATASETS_UNDIRECTED = ["../datasets/karate.csv", "../datasets/dolphins.csv"]
 
-DATASETS_UNDIRECTED_WEIGHTS = ["../datasets/netscience.csv"]
+DATASETS_UNDIRECTED_WEIGHTS = [
+    "../datasets/netscience.csv",
+    "/datasets/test/datasets/scrna_lung_70k_csr.csv",
+    "/datasets/test/datasets/hollywood.csv",
+    "/datasets/GAP/twitter.csv",
+]
 
 DATASETS_UNRENUMBERED = ["../datasets/karate-disjoint.csv"]
 
