@@ -150,3 +150,5 @@ template std::pair<size_t, double> louvain(
   double);
 
 }  // namespace cugraph
+
+#include <eidir_graph.hpp>
