@@ -22,7 +22,6 @@ def minimum_spanning_tree_subgraph(G):
     if type(G) is not Graph:
         raise Exception("input graph must be undirected")
     mst_df = minimum_spanning_tree_wrapper.minimum_spanning_tree(G)
-    print(mst_df)
     if G.renumbered:
         mst_df = G.unrenumber(mst_df, "src")
         mst_df = G.unrenumber(mst_df, "dst")

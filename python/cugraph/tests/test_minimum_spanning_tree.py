@@ -20,9 +20,10 @@ from cugraph.tests import utils
 from cugraph.utilities import check_nx_graph
 from cugraph.utilities import cugraph_to_nx
 import rmm
-
+import cudf
 import time
 import numpy as np
+import pandas as pd
 
 # Temporarily suppress warnings till networkX fixes deprecation warnings
 # (Using or importing the ABCs from 'collections' instead of from
@@ -41,6 +42,21 @@ print("Networkx version : {} ".format(nx.__version__))
 def compare_mst(mst_cugraph, mst_nx):
     mst_nx_df = nx.to_pandas_edgelist(mst_nx)
     edgelist_df = mst_cugraph.view_edge_list()
+
+    # check cycles
+    Gnx = nx.from_pandas_edgelist(
+        edgelist_df.to_pandas(),
+        create_using=nx.Graph(),
+        source="src",
+        target="dst",
+    )
+    try:
+        l = find_cycle(G, source=None, orientation="ignore")
+        print(l)
+    except:
+        pass
+
+    # check total weight
     cg_sum = edgelist_df["weights"].sum()
     nx_sum = mst_nx_df["weight"].sum()
     print(cg_sum)
@@ -51,8 +67,6 @@ def compare_mst(mst_cugraph, mst_nx):
 @pytest.mark.parametrize("graph_file", utils.DATASETS_UNDIRECTED_WEIGHTS)
 def test_minimum_spanning_tree_nx(graph_file):
     gc.collect()
-    rmm.reinitialize(managed_memory=True)
-
     # cugraph
     cuG = utils.read_csv_file(graph_file, read_weights_in_sp=True)
     G = cugraph.Graph()
