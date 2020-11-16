@@ -49,7 +49,7 @@ def force_atlas2(
             This controls the maximum number of levels/iterations of the Force
             Atlas algorithm. When specified the algorithm will terminate after
             no more than the specified number of iterations.
-            No error occurs when the algorithm terminates early in this manner.
+            No error occurs when the algorithm terminates in this manner.
             Good short-term quality can be achieved with 50-100 iterations.
             Above 1000 iterations is discouraged.
         pos_list: cudf.DataFrame
@@ -69,6 +69,9 @@ def force_atlas2(
         jitter_tolerance: float
             How much swinging you allow. Above 1 discouraged.
             Lower gives less speed and more precision.
+        barnes_hut_optimize: bool
+            Whether to use the Barnes Hut approximation or the slower
+            exact version.
         barnes_hut_theta: float
             Float between 0 and 1. Tradeoff for speed (1) vs
             accuracy (0) for Barnes Hut only.
@@ -76,6 +79,10 @@ def force_atlas2(
             How much repulsion you want. More makes a more sparse graph.
             Switching from regular mode to LinLog mode needs a readjustment
             of the scaling parameter.
+        strong_gravity_mode: bool
+            Sets a force that attracts the nodes that are distant from the
+            center more. It is so strong that it can sometimes dominate other
+            forces.
         gravity : float
             Attracts nodes to the center. Prevents islands from drifting away.
         verbose: bool
