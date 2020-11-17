@@ -14,8 +14,48 @@
 import cudf
 
 from cugraph.traversal import bfs_wrapper
-from cugraph.structure.graph import Graph
-from cugraph.utilities import check_nx_graph
+from cugraph.structure.graph import Graph, DiGraph
+from cugraph.utilities import ensure_cugraph_obj
+
+# optional dependencies used for handling different input types
+try:
+    import cupy as cp
+    from cupyx.scipy.sparse.coo import coo_matrix as cp_coo_matrix
+except ModuleNotFoundError:
+    cp = None
+try:
+    import networkx as nx
+except ModuleNotFoundError:
+    nx = None
+
+
+def _convert_df_to_output_type(df, input_type):
+    """
+    Given a cudf.DataFrame df, convert it to a new type appropriate for the
+    graph algos in this module, based on input_type.
+    """
+    if input_type in [Graph, DiGraph]:
+        return df
+
+    elif (nx is not None) and (input_type in [nx.Graph, nx.DiGraph]):
+        return df.to_pandas()
+
+    elif (cp is not None) and (input_type is cp_coo_matrix):
+        # A CuPy/SciPy input means the return value will be a 2-tuple of:
+        #   distance: cupy.ndarray
+        #   predecessor: cupy.ndarray
+        sorted_df = df.sort_values("vertex")
+        distances = cp.fromDlpack(sorted_df["distance"].to_dlpack())
+        preds = cp.fromDlpack(sorted_df["predecessor"].to_dlpack())
+        if "sp_counter" in df.columns:
+            return (distances, preds,
+                    cp.fromDlpack(sorted_df["sp_counter"].to_dlpack()))
+        else:
+            return (distances, preds)
+
+    else:
+        raise TypeError(f"input type {input_type} is not a supported type.")
+
 
 
 def bfs(G, start, return_sp_counter=False):
@@ -57,6 +97,8 @@ def bfs(G, start, return_sp_counter=False):
     >>> df = cugraph.bfs(G, 0)
     """
 
+    (G, input_type) = ensure_cugraph_obj(G)
+
     if type(G) is Graph:
         directed = False
     else:
@@ -72,7 +114,7 @@ def bfs(G, start, return_sp_counter=False):
         df = G.unrenumber(df, "predecessor")
         df["predecessor"].fillna(-1, inplace=True)
 
-    return df
+    return _convert_df_to_output_type(df, input_type)
 
 
 def bfs_edges(G, source, reverse=False, depth_limit=None, sort_neighbors=None,
@@ -133,11 +175,4 @@ def bfs_edges(G, source, reverse=False, depth_limit=None, sort_neighbors=None,
             "is not currently supported"
         )
 
-    G, isNx = check_nx_graph(G)
-
-    df = bfs(G, source, return_sp_counter)
-
-    if isNx is True:
-        df = df.to_pandas()
-
-    return df
+    return bfs(G, source, return_sp_counter)
