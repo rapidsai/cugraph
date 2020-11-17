@@ -143,7 +143,7 @@ def force_atlas2(input_graph,
                 <bool> verbose,
                 <GraphBasedDimRedCallback*>callback_ptr)
 
-        pos_df = cudf.DataFrame(pos, columns=['x', 'y'])
+    pos_df = cudf.DataFrame(pos, columns=['x', 'y'])
     df['x'] = pos_df['x']
     df['y'] = pos_df['y']
 

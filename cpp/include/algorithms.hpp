@@ -237,7 +237,7 @@ void overlap_list(GraphCSRView<VT, ET, WT> const &graph,
  * readjustment of the scaling parameter.
  * @params[in] strong_gravity_mode              Sets a force
  * that attracts the nodes that are distant from the center more. It is so strong that it can
- * sometime dominate other forces.
+ * sometimes dominate other forces.
  * @params[in] gravity                          Attracts nodes to the center. Prevents islands from
  * drifting away.
  * @params[in] verbose                          Output convergence info at each interation.
