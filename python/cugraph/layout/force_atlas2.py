@@ -113,7 +113,9 @@ def force_atlas2(
         null_check(pos_list["x"])
         null_check(pos_list["y"])
         if input_graph.renumbered is True:
-            pos_list = input_graph.add_internal_vertex_id(pos_list, "vertex", "vertex")
+            pos_list = input_graph.add_internal_vertex_id(pos_list,
+                                                          "vertex",
+                                                          "vertex")
 
     if prevent_overlapping:
         raise Exception("Feature not supported")
@@ -138,11 +140,7 @@ def force_atlas2(
         verbose=verbose,
         callback=callback,
     )
-    # If the caller passed in a pos_list, those values are already mapped to
-    # original numbering in the call to force_atlas2_wrapper.force_atlas2(),
-    # but if the caller did not specify a pos_list and the graph was
-    # renumbered, the pos dataframe should be mapped back to the original
-    # numbering.
+
     if input_graph.renumbered:
         pos = input_graph.unrenumber(pos, "vertex")
 
