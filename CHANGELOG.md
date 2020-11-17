@@ -6,6 +6,7 @@
 ## Improvements
 - PR #1227 Pin cmake policies to cmake 3.17 version
 - PR #1269 Removed old db code that was not being used
+- PR #1273 Update Force Atlas 2 notebook, wrapper and coding style
 
 ## Bug Fixes
 - PR #1242 Calling gunrock cmake using explicit -D options, re-enabling C++ tests
