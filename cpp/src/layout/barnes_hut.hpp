@@ -35,7 +35,7 @@ namespace detail {
 template <typename vertex_t, typename edge_t, typename weight_t>
 void barnes_hut(GraphCOOView<vertex_t, edge_t, weight_t> &graph,
                 float *pos,
-                const int max_iter                            = 1000,
+                const int max_iter                            = 500,
                 float *x_start                                = nullptr,
                 float *y_start                                = nullptr,
                 bool outbound_attraction_distribution         = true,
@@ -125,12 +125,13 @@ void barnes_hut(GraphCOOView<vertex_t, edge_t, weight_t> &graph,
 
   // Initialize positions with random values
   int random_state = 0;
-  random_vector(nodes_pos, (nnodes + 1) * 2, random_state);
 
   // Copy start x and y positions.
   if (x_start && y_start) {
     copy(n, x_start, nodes_pos);
     copy(n, y_start, nodes_pos + nnodes + 1);
+  } else {
+    random_vector(nodes_pos, (nnodes + 1) * 2, random_state);
   }
 
   // Allocate arrays for force computation
