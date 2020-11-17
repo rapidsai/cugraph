@@ -203,12 +203,12 @@ void overlap_list(GraphCSRView<VT, ET, WT> const &graph,
  *
  * @throws                                      cugraph::logic_error when an error occurs.
  *
- * @tparam VT                                   Type of vertex identifiers. Supported value : int
+ * @tparam vertex_t                                   Type of vertex identifiers. Supported value :
+ * int (signed, 32-bit)
+ * @tparam edge_t                                   Type of edge identifiers.  Supported value : int
  * (signed, 32-bit)
- * @tparam ET                                   Type of edge identifiers.  Supported value : int
- * (signed, 32-bit)
- * @tparam WT                                   Type of edge weights. Supported values : float or
- * double.
+ * @tparam weight_t                                   Type of edge weights. Supported values : float
+ * or double.
  *
  * @param[in] graph                             cuGraph graph descriptor, should contain the
  * connectivity information as a COO. Graph is considered undirected. Edge weights are used for this
@@ -228,8 +228,8 @@ void overlap_list(GraphCSRView<VT, ET, WT> const &graph,
  * is “no influence” and 1 is “normal”.
  * @param[in] jitter_tolerance                  How much swinging you allow. Above 1 discouraged.
  * Lower gives less speed and more precision.
- * @param[in] barnes_hut_optimize:              Whether to use the Barnes Hut approximation or the slower
- * exact version.
+ * @param[in] barnes_hut_optimize:              Whether to use the Barnes Hut approximation or the
+ * slower exact version.
  * @param[in] barnes_hut_theta:                 Float between 0 and 1. Tradeoff for speed (1) vs
  * accuracy (0) for Barnes Hut only.
  * @params[in] scaling_ratio                    Float strictly positive. How much repulsion you
@@ -245,8 +245,8 @@ void overlap_list(GraphCSRView<VT, ET, WT> const &graph,
  * intercept the internal state of positions while they are being trained.
  *
  */
-template <typename VT, typename ET, typename WT>
-void force_atlas2(GraphCOOView<VT, ET, WT> &graph,
+template <typename vertex_t, typename edge_t, typename weight_t>
+void force_atlas2(GraphCOOView<vertex_t, edge_t, weight_t> &graph,
                   float *pos,
                   const int max_iter                            = 500,
                   float *x_start                                = nullptr,
