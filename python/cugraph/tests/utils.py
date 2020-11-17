@@ -224,9 +224,9 @@ def random_edgelist(
 
     df = pd.DataFrame(columns)
     if drop_duplicates:
-        df = df.drop_duplicates()
+        df = df.drop_duplicates(subset=["src", "dst"])
         print("Generated " + str(df.shape[0]) + " edges")
-    return cudf.from_pandas(df)
+    return df
 
 
 def make_int32(v, e, rstate):
@@ -238,7 +238,7 @@ def make_int64(v, e, rstate):
 
 
 def make_float(v, e, rstate):
-    return rstate.rand(e) * 2 - 1
+    return rstate.rand(e)
 
 
 make = {float: make_float, np.int32: make_int32, np.int64: make_int64}
