@@ -40,3 +40,4 @@ dependencies:
 - pip
 - libcypher-parser
 - rapids-pytest-benchmark
+- doxygen
