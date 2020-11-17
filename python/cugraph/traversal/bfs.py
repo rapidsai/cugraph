@@ -65,9 +65,10 @@ def bfs(G, start, return_sp_counter=False):
 
     Parameters
     ----------
-    G : cugraph.graph
-        cuGraph graph descriptor, should contain the connectivity information
-        as an adjacency list.
+    G : cuGraph.Graph, NetworkX.Graph, or CuPy sparse COO matrix
+        cuGraph graph descriptor with connectivity information. Edge weights,
+        if present, should be single or double precision floating point values.
+
     start : Integer
         The index of the graph vertex from which the traversal begins
 
@@ -76,17 +77,38 @@ def bfs(G, start, return_sp_counter=False):
 
     Returns
     -------
-    df : cudf.DataFrame
-        df['vertex'][i] gives the vertex id of the i'th vertex
+    Return value type is based on the input type.  If G is a cugraph.Graph,
+    returns:
 
-        df['distance'][i] gives the path distance for the i'th vertex from the
-        starting vertex
+       cudf.DataFrame
+          df['vertex'] vertex IDs
 
-        df['predecessor'][i] gives for the i'th vertex the vertex it was
-        reached from in the traversal
+          df['distance'] path distance for each vertex from the starting vertex
 
-        df['sp_counter'][i] gives for the i'th vertex the number of shortest
-        path leading to it during traversal (Only if retrun_sp_counter is True)
+          df['predecessor'] for each i'th position in the column, the vertex ID
+          immediately preceding the vertex at position i in the 'vertex' column
+
+          df['sp_counter'] for each i'th position in the column, the number of
+          shortest paths leading to the vertex at position i in the 'vertex'
+          column (Only if retrun_sp_counter is True)
+
+    If G is a networkx.Graph, returns:
+
+       pandas.DataFrame with contents equivalent to the cudf.DataFrame
+       described above.
+
+    If G is a CuPy sparse COO matrix, returns a 2-tuple of cupy.ndarray:
+
+       distance: cupy.ndarray
+          ndarray of shortest distances between source and vertex.
+
+       predecessor: cupy.ndarray
+          ndarray of predecessors of a vertex on the path from source, which
+          can be used to reconstruct the shortest paths.
+
+       sp_counter: cupy.ndarray
+          ndarray of number of shortest paths leading to each vertex (only if
+          retrun_sp_counter is True)
 
     Examples
     --------
