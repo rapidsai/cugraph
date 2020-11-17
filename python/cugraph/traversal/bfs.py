@@ -57,7 +57,6 @@ def _convert_df_to_output_type(df, input_type):
         raise TypeError(f"input type {input_type} is not a supported type.")
 
 
-
 def bfs(G, start, return_sp_counter=False):
     """
     Find the distances and predecessors for a breadth first traversal of a
@@ -118,8 +117,10 @@ def bfs(G, start, return_sp_counter=False):
     >>> G.from_cudf_edgelist(M, source='0', destination='1')
     >>> df = cugraph.bfs(G, 0)
     """
-
-    (G, input_type) = ensure_cugraph_obj(G)
+    # FIXME: allow nx_weight_attr to be specified
+    (G, input_type) = ensure_cugraph_obj(G,
+                                         nx_weight_attr="weight",
+                                         matrix_graph_type=Graph)
 
     if type(G) is Graph:
         directed = False

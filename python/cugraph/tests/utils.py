@@ -121,7 +121,6 @@ def create_obj_from_csv(csv_file_name, obj_type, edgevals=False):
                               (cp.asarray(rows), cp.asarray(cols))),
                              dtype=np.float32)
 
-
     elif obj_type in [nx.Graph, nx.DiGraph]:
         return generate_nx_graph_from_file(
             csv_file_name, directed=(obj_type is nx.DiGraph),
@@ -181,7 +180,8 @@ def generate_nx_graph_from_file(graph_file, directed=True, edgevals=False):
     return Gnx
 
 
-def generate_cugraph_graph_from_file(graph_file, directed=True, edgevals=False):
+def generate_cugraph_graph_from_file(graph_file, directed=True,
+                                     edgevals=False):
     cu_M = read_csv_file(graph_file)
     G = cugraph.DiGraph() if directed else cugraph.Graph()
     if edgevals:

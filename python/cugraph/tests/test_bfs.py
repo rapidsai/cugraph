@@ -54,7 +54,6 @@ def setup_function():
     gc.collect()
 
 
-
 # Map of cuGraph input types to the expected output type for cuGraph
 # connected_components calls.
 cuGraph_input_output_map = {
@@ -67,10 +66,13 @@ cuGraph_input_output_map = {
 
 
 # =============================================================================
-# Functions for comparison
+# Helper functions
 # =============================================================================
 def convert_output_to_cudf(input_G_or_matrix, cugraph_result):
     """
+    Convert cugraph_result to a cudf DataFrame. The conversion is based on the
+    type of input_G_or_matrix, since different input types result in different
+    cugraph_result types (see cugraph_input_output_map).
     """
     expected_return_type = cuGraph_input_output_map[type(input_G_or_matrix)]
     assert type(cugraph_result) is expected_return_type
@@ -97,20 +99,20 @@ def convert_output_to_cudf(input_G_or_matrix, cugraph_result):
         if len(cugraph_result) == 3:
             assert type(cugraph_result[2]) is cp.ndarray
 
-        if np.issubdtype(cugraph_result[0].dtype, np.integer):
-            max_val = np.iinfo(cugraph_result[0].dtype).max
-        else:
-            max_val = np.finfo(cugraph_result[0].dtype).max
-
         # Get unique verts from input since they are not incuded in output
-        verts = sorted(set([n.item() for n in input_G_or_matrix.col] + \
+        verts = sorted(set([n.item() for n in input_G_or_matrix.col] +
                            [n.item() for n in input_G_or_matrix.row]))
         dists = [n.item() for n in cugraph_result[0]]
         preds = [n.item() for n in cugraph_result[1]]
         assert len(verts) == len(dists) == len(preds)
+
         d = {"vertex": verts, "distance": dists, "predecessor": preds}
+
         if len(cugraph_result) == 3:
-            d.update({"sp_counter": [n.item() for n in cugraph_result[2]]})
+            counters = [n.item() for n in cugraph_result[2]]
+            assert len(counters) == len(verts)
+            d.update({"sp_counter": counters})
+
         return cudf.DataFrame(d)
 
     else:
@@ -123,8 +125,10 @@ def compare_single_sp_counter(result, expected, epsilon=DEFAULT_EPSILON):
     return np.isclose(result, expected, rtol=epsilon)
 
 
-def compare_bfs(benchmark_callable, G, nx_values, start_vertex, return_sp_counter=False):
-    """ Genereate both cugraph and reference bfs traversal
+def compare_bfs(benchmark_callable, G, nx_values, start_vertex,
+                return_sp_counter=False):
+    """
+    Genereate both cugraph and reference bfs traversal
 
     Parameters
     -----------
@@ -152,12 +156,9 @@ def compare_bfs(benchmark_callable, G, nx_values, start_vertex, return_sp_counte
 
         if return_sp_counter:
             compare_func = _compare_bfs_spc
-            #_, _, nx_sp_counter = nxacb._single_source_shortest_path_basic(Gnx, start_vertex)
-            #nx_values = nx_sp_counter
 
         else:
             compare_func = _compare_bfs
-            #nx_values = nx.single_source_shortest_path_length(Gnx, start_vertex)
 
         # NOTE: We need to take 2 different path for verification as the nx
         #       functions used as reference return dictionaries that might
@@ -172,7 +173,8 @@ def compare_bfs(benchmark_callable, G, nx_values, start_vertex, return_sp_counte
 
         def func_to_benchmark():
             for sv in start_vertex:
-                cugraph_df = cugraph.bfs_edges(G, sv, return_sp_counter=return_sp_counter)
+                cugraph_df = cugraph.bfs_edges(
+                    G, sv, return_sp_counter=return_sp_counter)
                 all_cugraph_distances.append(cugraph_df)
 
         benchmark_callable(func_to_benchmark)
@@ -211,7 +213,8 @@ def _compare_bfs(cugraph_df, nx_distances, source):
     cu_predecessors = {
         vertex: dist
         for vertex, dist in zip(
-            cugraph_df["vertex"].to_array(), cugraph_df["predecessor"].to_array()
+                cugraph_df["vertex"].to_array(),
+                cugraph_df["predecessor"].to_array()
         )
     }
 
@@ -309,7 +312,7 @@ def _compare_bfs_spc(cugraph_df, nx_sp_counter, unused):
 
 
 # =============================================================================
-# Fixtures
+# Pytest Fixtures
 # =============================================================================
 SEEDS = [pytest.param(s) for s in SUBSET_SEED_OPTIONS]
 DIRECTED = [pytest.param(d) for d in DIRECTED_GRAPH_OPTIONS]
@@ -317,10 +320,11 @@ DATASETS = [pytest.param(d) for d in utils.DATASETS]
 DATASETS_SMALL = [pytest.param(d) for d in utils.DATASETS_SMALL]
 USE_SHORTEST_PATH_COUNTER = [pytest.param(False), pytest.param(True)]
 
-# Call genFixtureParamsProduct() to caluculate the cartesian product of multiple
-# lists of params. This is required since parameterized fixtures do not do this
-# automatically (unlike multiply-parameterized tests). The 2nd item in the tuple
-# is a label for the param value used when displaying the full test name.
+# Call genFixtureParamsProduct() to caluculate the cartesian product of
+# multiple lists of params. This is required since parameterized fixtures do
+# not do this automatically (unlike multiply-parameterized tests). The 2nd
+# item in the tuple is a label for the param value used when displaying the
+# full test name.
 algo_test_fixture_params = utils.genFixtureParamsProduct(
     (SEEDS, "seed"),
     (USE_SHORTEST_PATH_COUNTER, "spc"))
@@ -370,7 +374,8 @@ def dataset_nxresults_startvertex_spc(dataset_nx_graph, request):
     start_vertex = random.sample(Gnx.nodes(), 1)[0]
 
     if use_spc:
-        _, _, nx_sp_counter = nxacb._single_source_shortest_path_basic(Gnx, start_vertex)
+        _, _, nx_sp_counter = \
+            nxacb._single_source_shortest_path_basic(Gnx, start_vertex)
         nx_values = nx_sp_counter
     else:
         nx_values = nx.single_source_shortest_path_length(Gnx, start_vertex)
@@ -388,7 +393,8 @@ def dataset_nxresults_allstartvertices_spc(small_dataset_nx_graph):
 
     all_nx_values = []
     for start_vertex in start_vertices:
-        _, _, nx_sp_counter = nxacb._single_source_shortest_path_basic(Gnx, start_vertex)
+        _, _, nx_sp_counter = \
+            nxacb._single_source_shortest_path_basic(Gnx, start_vertex)
         nx_values = nx_sp_counter
         all_nx_values.append(nx_values)
 
@@ -398,22 +404,19 @@ def dataset_nxresults_allstartvertices_spc(small_dataset_nx_graph):
 # =============================================================================
 # Tests
 # =============================================================================
-"""
-    graph_file : string
-        Path to COO Graph representation in .csv format
-
-    directed : bool, optional, default=True
-        Indicated whether the graph is directed or not
-"""
 @pytest.mark.parametrize("cugraph_input_type", utils.GRAPH_INPUT_TYPE_PARAMS)
-def test_bfs(gpubenchmark, dataset_nxresults_startvertex_spc, cugraph_input_type):
-    """Test BFS traversal on random source with distance and predecessors"""
-    (dataset, directed, nx_values, start_vertex, use_spc) = dataset_nxresults_startvertex_spc
+def test_bfs(gpubenchmark, dataset_nxresults_startvertex_spc,
+             cugraph_input_type):
+    """
+    Test BFS traversal on random source with distance and predecessors
+    """
+    (dataset, directed, nx_values, start_vertex, use_spc) = \
+        dataset_nxresults_startvertex_spc
 
-    # special case: ensure cugraph and Nx Graph types are DiGraphs if "directed"
-    # is set, since the graph type parameterization is currently independent of
-    # the directed parameter. Unfortunately this does not change the "id" in the
-    # pytest output.
+    # special case: ensure cugraph and Nx Graph types are DiGraphs if
+    # "directed" is set, since the graph type parameterization is currently
+    # independent of the directed parameter. Unfortunately this does not
+    # change the "id" in the pytest output.
     if directed:
         if cugraph_input_type is cugraph.Graph:
             cugraph_input_type = cugraph.DiGraph
@@ -429,15 +432,20 @@ def test_bfs(gpubenchmark, dataset_nxresults_startvertex_spc, cugraph_input_type
 
 
 @pytest.mark.parametrize("cugraph_input_type", utils.GRAPH_INPUT_TYPE_PARAMS)
-def test_bfs_spc_full(gpubenchmark, dataset_nxresults_allstartvertices_spc, cugraph_input_type):
-    """Test BFS traversal on every vertex with shortest path counting"""
-    (dataset, directed, all_nx_values, start_vertices, use_spc) = dataset_nxresults_allstartvertices_spc
+def test_bfs_spc_full(gpubenchmark, dataset_nxresults_allstartvertices_spc,
+                      cugraph_input_type):
+    """
+    Test BFS traversal on every vertex with shortest path counting
+    """
+    (dataset, directed, all_nx_values, start_vertices, use_spc) = \
+        dataset_nxresults_allstartvertices_spc
+
     # use_spc is currently always True
 
-    # special case: ensure cugraph and Nx Graph types are DiGraphs if "directed"
-    # is set, since the graph type parameterization is currently independent of
-    # the directed parameter. Unfortunately this does not change the "id" in the
-    # pytest output.
+    # special case: ensure cugraph and Nx Graph types are DiGraphs if
+    # "directed" is set, since the graph type parameterization is currently
+    # independent of the directed parameter. Unfortunately this does not
+    # change the "id" in the pytest output.
     if directed:
         if cugraph_input_type is cugraph.Graph:
             cugraph_input_type = cugraph.DiGraph

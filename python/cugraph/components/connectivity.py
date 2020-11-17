@@ -12,13 +12,8 @@
 # limitations under the License.
 
 
-from cugraph.utilities import (check_nx_graph,
-                               df_score_to_dictionary,
-                               ensure_cugraph_obj,
-                               )
-from cugraph.structure import (Graph,
-                               DiGraph,
-                               )
+from cugraph.utilities import df_score_to_dictionary, ensure_cugraph_obj
+from cugraph.structure import Graph, DiGraph
 from cugraph.components import connectivity_wrapper
 
 # optional dependencies used for handling different input types
@@ -109,7 +104,10 @@ def weakly_connected_components(G):
     >>> G.from_cudf_edgelist(M, source='0', destination='1', edge_attr=None)
     >>> df = cugraph.weakly_connected_components(G)
     """
-    (G, input_type) = ensure_cugraph_obj(G, coo_graph_type=DiGraph)
+    # FIXME: allow nx_weight_attr to be specified
+    (G, input_type) = ensure_cugraph_obj(G,
+                                         nx_weight_attr="weight",
+                                         matrix_graph_type=DiGraph)
 
     df = connectivity_wrapper.weakly_connected_components(G)
 
@@ -128,9 +126,9 @@ def strongly_connected_components(G):
     ----------
 
     G : cugraph.Graph or networkx.Graph or CuPy sparse COO matrix
-        cuGraph graph descriptor, should contain the connectivity information as
-        an edge list (edge weights are not used for this algorithm). The graph
-        can be either directed or undirected where an undirected edge is
+        cuGraph graph descriptor, should contain the connectivity information
+        as an edge list (edge weights are not used for this algorithm). The
+        graph can be either directed or undirected where an undirected edge is
         represented by a directed edge in both directions.  The adjacency list
         will be computed if not already present.  The number of vertices should
         fit into a 32b int.
@@ -169,7 +167,7 @@ def strongly_connected_components(G):
     >>> G.from_cudf_edgelist(M, source='0', destination='1', edge_attr=None)
     >>> df = cugraph.strongly_connected_components(G)
     """
-    (G, input_type) = ensure_cugraph_obj(G, coo_graph_type=DiGraph)
+    (G, input_type) = ensure_cugraph_obj(G, matrix_graph_type=DiGraph)
 
     df = connectivity_wrapper.strongly_connected_components(G)
 

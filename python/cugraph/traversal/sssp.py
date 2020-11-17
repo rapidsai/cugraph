@@ -14,12 +14,8 @@
 import numpy as np
 
 import cudf
-from cugraph.utilities import (check_nx_graph,
-                               ensure_cugraph_obj,
-                               )
-from cugraph.structure import (Graph,
-                               DiGraph,
-                               )
+from cugraph.utilities import ensure_cugraph_obj
+from cugraph.structure import Graph, DiGraph
 from cugraph.traversal import sssp_wrapper
 
 # optional dependencies used for handling different input types
@@ -118,7 +114,10 @@ def sssp(G, source):
     >>> G.from_cudf_edgelist(M, source='0', destination='1')
     >>> distances = cugraph.sssp(G, 0)
     """
-    (G, input_type) = ensure_cugraph_obj(G, coo_graph_type=Graph)
+    # FIXME: allow nx_weight_attr to be specified
+    (G, input_type) = ensure_cugraph_obj(G,
+                                         nx_weight_attr="weight",
+                                         matrix_graph_type=Graph)
 
     if G.renumbered:
         source = G.lookup_internal_vertex_id(cudf.Series([source]))[0]

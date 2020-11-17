@@ -21,9 +21,14 @@ from cudf import from_pandas
 
 
 def convert_from_nx(nxG, weight=None):
-
+    """
+    weight, if given, is the string/name of the edge attr in nxG to use for
+    weights in the resulting cugraph obj.  If nxG has no edge attributes,
+    weight is ignored even if specified.
+    """
     if nx is None:
-        raise RuntimeError("NetworkX could not be imported, cannot convert nxG")
+        raise RuntimeError("NetworkX could not be imported, "
+                           "cannot convert nxG")
     if type(nxG) == nx.classes.graph.Graph:
         G = cugraph.Graph()
     elif type(nxG) == nx.classes.digraph.DiGraph:

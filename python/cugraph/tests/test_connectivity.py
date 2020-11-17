@@ -49,6 +49,16 @@ cuGraph_input_output_map = {
 }
 
 
+# =============================================================================
+# Pytest Setup / Teardown - called for each test function
+# =============================================================================
+def setup_function():
+    gc.collect()
+
+
+# =============================================================================
+# Helper functions
+# =============================================================================
 def networkx_weak_call(M):
     Gnx = nx.from_pandas_edgelist(
         M, source="0", target="1", create_using=nx.DiGraph()
@@ -90,8 +100,8 @@ def cugraph_call(gpu_benchmark_callable, cugraph_algo, cuG_or_matrix):
             label_vertex_dict[result["labels"][i]].append(
                 result["vertex"][i])
 
-    # NetworkX input results in returning a dictionary mapping vertices to their
-    # labels.
+    # NetworkX input results in returning a dictionary mapping vertices to
+    # their labels.
     elif expected_return_type is dict:
         assert type(result) is dict
         for (vert, label) in result.items():
@@ -110,13 +120,13 @@ def cugraph_call(gpu_benchmark_callable, cugraph_algo, cuG_or_matrix):
         unique_labels = set([n.item() for n in result[1]])
         assert len(unique_labels) == result[0]
 
-        # The returned dict used in the tests for checking correctness needs the
-        # actual vertex IDs, which are not in the retuened data (the CuPy/SciPy
-        # connected_components return types cuGraph is converting to does not
-        # include them). So, extract the vertices from the input COO, order them
-        # to match the returned list of labels (which is just a sort), and
-        # include them in the returned dict.
-        vertices = sorted(set([n.item() for n in cuG_or_matrix.col] + \
+        # The returned dict used in the tests for checking correctness needs
+        # the actual vertex IDs, which are not in the retuened data (the
+        # CuPy/SciPy connected_components return types cuGraph is converting
+        # to does not include them). So, extract the vertices from the input
+        # COO, order them to match the returned list of labels (which is just
+        # a sort), and include them in the returned dict.
+        vertices = sorted(set([n.item() for n in cuG_or_matrix.col] +
                               [n.item() for n in cuG_or_matrix.row]))
         num_verts = len(vertices)
         num_verts_assigned_labels = len(result[1])
@@ -155,6 +165,9 @@ def which_cluster_idx(_cluster, _find_vertex):
     return idx
 
 
+# =============================================================================
+# Pytest fixtures
+# =============================================================================
 @pytest.fixture(scope="module", params=utils.DATASETS)
 def datasetAndNxResultsWeak(request):
     graph_file = request.param
@@ -177,10 +190,11 @@ def datasetAndNxResultsStrong(request):
     return (graph_file, netx_labels, nx_n_components, lst_nx_components)
 
 
+# =============================================================================
+# Tests
+# =============================================================================
 @pytest.mark.parametrize("cugraph_input_type", utils.DIGRAPH_INPUT_TYPE_PARAMS)
 def test_weak_cc(gpubenchmark, datasetAndNxResultsWeak, cugraph_input_type):
-    gc.collect()
-
     # NetX returns a list of components, each component being a
     # collection (set{}) of vertex indices
     (graph_file, netx_labels,
@@ -219,8 +233,8 @@ def test_weak_cc(gpubenchmark, datasetAndNxResultsWeak, cugraph_input_type):
 
 
 @pytest.mark.parametrize("cugraph_input_type", utils.DIGRAPH_INPUT_TYPE_PARAMS)
-def test_strong_cc(gpubenchmark, datasetAndNxResultsStrong, cugraph_input_type):
-    gc.collect()
+def test_strong_cc(gpubenchmark, datasetAndNxResultsStrong,
+                   cugraph_input_type):
 
     # NetX returns a list of components, each component being a
     # collection (set{}) of vertex indices
@@ -261,8 +275,6 @@ def test_strong_cc(gpubenchmark, datasetAndNxResultsStrong, cugraph_input_type):
 
 @pytest.mark.parametrize("graph_file", utils.DATASETS)
 def test_weak_cc_nx(graph_file):
-    gc.collect()
-
     M = utils.read_csv_for_nx(graph_file)
     Gnx = nx.from_pandas_edgelist(
         M, source="0", target="1", create_using=nx.DiGraph()
@@ -281,8 +293,6 @@ def test_weak_cc_nx(graph_file):
 
 @pytest.mark.parametrize("graph_file", utils.STRONGDATASETS)
 def test_strong_cc_nx(graph_file):
-    gc.collect()
-
     M = utils.read_csv_for_nx(graph_file)
     Gnx = nx.from_pandas_edgelist(
         M, source="0", target="1", create_using=nx.DiGraph()
