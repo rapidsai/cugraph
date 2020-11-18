@@ -22,6 +22,8 @@ from cugraph.traversal import sssp_wrapper
 try:
     import cupy as cp
     from cupyx.scipy.sparse.coo import coo_matrix as cp_coo_matrix
+    from cupyx.scipy.sparse.csr import csr_matrix as cp_csr_matrix
+    from cupyx.scipy.sparse.csc import csc_matrix as cp_csc_matrix
 except ModuleNotFoundError:
     cp = None
 try:
@@ -41,7 +43,8 @@ def _convert_df_to_output_type(df, input_type):
     elif (nx is not None) and (input_type in [nx.Graph, nx.DiGraph]):
         return df.to_pandas()
 
-    elif (cp is not None) and (input_type is cp_coo_matrix):
+    elif (cp is not None) and \
+         (input_type in [cp_coo_matrix, cp_csr_matrix, cp_csc_matrix]):
         # A CuPy/SciPy input means the return value will be a 2-tuple of:
         #   distance: cupy.ndarray
         #   predecessor: cupy.ndarray

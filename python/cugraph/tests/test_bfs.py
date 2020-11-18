@@ -36,6 +36,8 @@ with warnings.catch_warnings():
 import pandas as pd
 import cupy as cp
 from cupyx.scipy.sparse.coo import coo_matrix as cp_coo_matrix
+from cupyx.scipy.sparse.csr import csr_matrix as cp_csr_matrix
+from cupyx.scipy.sparse.csc import csc_matrix as cp_csc_matrix
 
 # =============================================================================
 # Parameters
@@ -62,6 +64,8 @@ cuGraph_input_output_map = {
     nx.Graph: pd.DataFrame,
     nx.DiGraph: pd.DataFrame,
     cp_coo_matrix: tuple,
+    cp_csr_matrix: tuple,
+    cp_csc_matrix: tuple,
 }
 
 
@@ -100,8 +104,12 @@ def convert_output_to_cudf(input_G_or_matrix, cugraph_result):
             assert type(cugraph_result[2]) is cp.ndarray
 
         # Get unique verts from input since they are not incuded in output
-        verts = sorted(set([n.item() for n in input_G_or_matrix.col] +
-                           [n.item() for n in input_G_or_matrix.row]))
+        if type(input_G_or_matrix) in [cp_csr_matrix, cp_csc_matrix]:
+            coo = input_G_or_matrix.tocoo(copy=False)
+        else:
+            coo = input_G_or_matrix
+        verts = sorted(set([n.item() for n in coo.col] +
+                           [n.item() for n in coo.row]))
         dists = [n.item() for n in cugraph_result[0]]
         preds = [n.item() for n in cugraph_result[1]]
         assert len(verts) == len(dists) == len(preds)
@@ -128,19 +136,7 @@ def compare_single_sp_counter(result, expected, epsilon=DEFAULT_EPSILON):
 def compare_bfs(benchmark_callable, G, nx_values, start_vertex,
                 return_sp_counter=False):
     """
-    Genereate both cugraph and reference bfs traversal
-
-    Parameters
-    -----------
-    benchmark_callable :
-        Function used for benchmarking cugraph bfs_edges call.
-
-    G : cugraph Graph object, either directed or undirected
-
-
-    Returns
-    -------
-    None
+    Genereate both cugraph and reference bfs traversal.
     """
     if isinstance(start_vertex, int):
         result = benchmark_callable(cugraph.bfs_edges, G, start_vertex,
@@ -193,7 +189,6 @@ def compare_bfs(benchmark_callable, G, nx_values, start_vertex,
 
 
 def _compare_bfs(cugraph_df, nx_distances, source):
-
     # This call should only contain 3 columns:
     # 'vertex', 'distance', 'predecessor'
     # It also confirms wether or not 'sp_counter' has been created by the call
@@ -311,6 +306,31 @@ def _compare_bfs_spc(cugraph_df, nx_sp_counter, unused):
     )
 
 
+def get_nx_graph_and_params(dataset, directed) :
+    """
+    Helper for fixtures returning a Nx graph obj and params.
+    """
+    return (dataset, directed,
+            utils.generate_nx_graph_from_file(dataset, directed))
+
+
+def get_nx_results_and_params(seed, use_spc, dataset, directed, Gnx):
+    """
+    Helper for fixtures returning Nx results and params.
+    """
+    random.seed(seed)
+    start_vertex = random.sample(Gnx.nodes(), 1)[0]
+
+    if use_spc:
+        _, _, nx_sp_counter = \
+            nxacb._single_source_shortest_path_basic(Gnx, start_vertex)
+        nx_values = nx_sp_counter
+    else:
+        nx_values = nx.single_source_shortest_path_length(Gnx, start_vertex)
+
+    return (dataset, directed, nx_values, start_vertex, use_spc)
+
+
 # =============================================================================
 # Pytest Fixtures
 # =============================================================================
@@ -337,24 +357,34 @@ small_graph_fixture_params = utils.genFixtureParamsProduct(
     (DATASETS_SMALL, "ds"),
     (DIRECTED, "dirctd"))
 
+# The single param list variants are used when only 1 param combination is
+# needed (eg. testing non-native input types where tests for other combinations
+# was covered elsewhere).
+single_algo_test_fixture_params = utils.genFixtureParamsProduct(
+    ([SEEDS[0]], "seed"),
+    ([USE_SHORTEST_PATH_COUNTER[0]], "spc"))
+
+single_small_graph_fixture_params = utils.genFixtureParamsProduct(
+    ([DATASETS_SMALL[0]], "ds"),
+    (DIRECTED, "dirctd"))
+
 
 # Fixtures that result in a test-per (dataset X directed/undirected)
 # combination. These return the path to the dataset, a bool indicating if a
 # directed graph is being used, and the Nx graph object.
 @pytest.fixture(scope="module", params=graph_fixture_params)
 def dataset_nx_graph(request):
-    dataset = request.param[0]
-    directed = request.param[1]
-    return (dataset, directed,
-            utils.generate_nx_graph_from_file(dataset, directed))
+    return get_nx_graph_and_params(*request.param)
 
 
 @pytest.fixture(scope="module", params=small_graph_fixture_params)
 def small_dataset_nx_graph(request):
-    dataset = request.param[0]
-    directed = request.param[1]
-    return (dataset, directed,
-            utils.generate_nx_graph_from_file(dataset, directed))
+    return get_nx_graph_and_params(*request.param)
+
+
+@pytest.fixture(scope="module", params=single_small_graph_fixture_params)
+def single_small_dataset_nx_graph(request):
+    return get_nx_graph_and_params(*request.param)
 
 
 # Fixtures that result in a test-per (dataset_nx_graph combinations X algo_test
@@ -364,23 +394,14 @@ def small_dataset_nx_graph(request):
 # used.
 @pytest.fixture(scope="module", params=algo_test_fixture_params)
 def dataset_nxresults_startvertex_spc(dataset_nx_graph, request):
-    # Extract the individual params from the request obj
-    seed = request.param[0]
-    use_spc = request.param[1]
+    return get_nx_results_and_params(*request.param, *dataset_nx_graph)
 
-    dataset, directed, Gnx = dataset_nx_graph
 
-    random.seed(seed)
-    start_vertex = random.sample(Gnx.nodes(), 1)[0]
-
-    if use_spc:
-        _, _, nx_sp_counter = \
-            nxacb._single_source_shortest_path_basic(Gnx, start_vertex)
-        nx_values = nx_sp_counter
-    else:
-        nx_values = nx.single_source_shortest_path_length(Gnx, start_vertex)
-
-    return (dataset, directed, nx_values, start_vertex, use_spc)
+@pytest.fixture(scope="module", params=single_algo_test_fixture_params)
+def single_dataset_nxresults_startvertex_spc(single_small_dataset_nx_graph,
+                                             request):
+    return get_nx_results_and_params(*request.param,
+                                     *single_small_dataset_nx_graph)
 
 
 @pytest.fixture(scope="module")
@@ -404,7 +425,7 @@ def dataset_nxresults_allstartvertices_spc(small_dataset_nx_graph):
 # =============================================================================
 # Tests
 # =============================================================================
-@pytest.mark.parametrize("cugraph_input_type", utils.GRAPH_INPUT_TYPE_PARAMS)
+@pytest.mark.parametrize("cugraph_input_type", utils.CUGRAPH_INPUT_TYPES)
 def test_bfs(gpubenchmark, dataset_nxresults_startvertex_spc,
              cugraph_input_type):
     """
@@ -431,7 +452,17 @@ def test_bfs(gpubenchmark, dataset_nxresults_startvertex_spc,
     )
 
 
-@pytest.mark.parametrize("cugraph_input_type", utils.GRAPH_INPUT_TYPE_PARAMS)
+@pytest.mark.parametrize("cugraph_input_type",
+                         utils.NX_INPUT_TYPES + utils.MATRIX_INPUT_TYPES)
+def test_bfs_nonnative_inputs(gpubenchmark,
+                              single_dataset_nxresults_startvertex_spc,
+                              cugraph_input_type):
+    test_bfs(gpubenchmark,
+             single_dataset_nxresults_startvertex_spc,
+             cugraph_input_type)
+
+
+@pytest.mark.parametrize("cugraph_input_type", utils.CUGRAPH_INPUT_TYPES)
 def test_bfs_spc_full(gpubenchmark, dataset_nxresults_allstartvertices_spc,
                       cugraph_input_type):
     """

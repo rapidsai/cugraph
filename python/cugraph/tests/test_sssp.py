@@ -19,6 +19,8 @@ import pytest
 import pandas as pd
 import cupy as cp
 from cupyx.scipy.sparse.coo import coo_matrix as cp_coo_matrix
+from cupyx.scipy.sparse.csr import csr_matrix as cp_csr_matrix
+from cupyx.scipy.sparse.csc import csc_matrix as cp_csc_matrix
 
 import cudf
 import cugraph
@@ -46,6 +48,8 @@ cuGraph_input_output_map = {
     nx.Graph: pd.DataFrame,
     nx.DiGraph: pd.DataFrame,
     cp_coo_matrix: tuple,
+    cp_csr_matrix: tuple,
+    cp_csc_matrix: tuple,
 }
 
 
@@ -59,16 +63,16 @@ def setup_function():
 # =============================================================================
 # Helper functions
 # =============================================================================
-def cugraph_call(gpu_benchmark_callable, G_or_matrix,
+def cugraph_call(gpu_benchmark_callable, input_G_or_matrix,
                  source, edgevals=False):
     """
-    Call cugraph.sssp on G_or_matrix, then convert the result to a standard
-    format (dictionary of vertex IDs to (distance, predecessor) tuples) for
-    easy checking in the test code.
+    Call cugraph.sssp on input_G_or_matrix, then convert the result to a
+    standard format (dictionary of vertex IDs to (distance, predecessor)
+    tuples) for easy checking in the test code.
     """
-    result = gpu_benchmark_callable(cugraph.sssp, G_or_matrix, source)
+    result = gpu_benchmark_callable(cugraph.sssp, input_G_or_matrix, source)
 
-    expected_return_type = cuGraph_input_output_map[type(G_or_matrix)]
+    expected_return_type = cuGraph_input_output_map[type(input_G_or_matrix)]
     assert type(result) is expected_return_type
 
     # Convert cudf and pandas: DF of 3 columns: (vertex, distance, predecessor)
@@ -99,8 +103,12 @@ def cugraph_call(gpu_benchmark_callable, G_or_matrix,
             max_val = np.finfo(result[0].dtype).max
 
         # Get unique verts from input since they are not incuded in output
-        verts = sorted(set([n.item() for n in G_or_matrix.col] +
-                           [n.item() for n in G_or_matrix.row]))
+        if type(input_G_or_matrix) in [cp_csr_matrix, cp_csc_matrix]:
+            coo = input_G_or_matrix.tocoo(copy=False)
+        else:
+            coo = input_G_or_matrix
+        verts = sorted(set([n.item() for n in coo.col] +
+                           [n.item() for n in coo.row]))
         dists = [n.item() for n in result[0]]
         preds = [n.item() for n in result[1]]
         assert len(verts) == len(dists) == len(preds)
@@ -112,7 +120,8 @@ def cugraph_call(gpu_benchmark_callable, G_or_matrix,
     return result_dict, max_val
 
 
-def networkx_call(M, source, edgevals=False):
+def networkx_call(graph_file, source, edgevals=False):
+    M = utils.read_csv_for_nx(graph_file, read_weights_in_sp=True)
     # Directed NetworkX graph
     edge_attr = "weight" if edgevals else None
     Gnx = nx.from_pandas_edgelist(
@@ -126,14 +135,14 @@ def networkx_call(M, source, edgevals=False):
     t1 = time.time()
 
     if edgevals is False:
-        path = nx.single_source_shortest_path_length(Gnx, source)
+        nx_paths = nx.single_source_shortest_path_length(Gnx, source)
     else:
-        path = nx.single_source_dijkstra_path_length(Gnx, source)
+        nx_paths = nx.single_source_dijkstra_path_length(Gnx, source)
 
     t2 = time.time() - t1
-
     print("NX Time : " + str(t2))
-    return path, Gnx
+
+    return (graph_file, source, nx_paths, Gnx)
 
 
 # =============================================================================
@@ -145,52 +154,49 @@ def networkx_call(M, source, edgevals=False):
 # not do this automatically (unlike multiply-parameterized tests). The 2nd
 # item in the tuple is a label for the param value used when displaying the
 # full test name.
-SOURCES = [pytest.param(1)]
 DATASETS = [pytest.param(d) for d in utils.DATASETS]
+SOURCES = [pytest.param(1)]
 fixture_params = utils.genFixtureParamsProduct((DATASETS, "ds"),
                                                (SOURCES, "src"))
+fixture_params_single_dataset = \
+    utils.genFixtureParamsProduct(([DATASETS[0]], "ds"), (SOURCES, "src"))
+
+
+# These fixtures will call networkx BFS algos and save the result. The networkx
+# call is only made only once per input param combination.
+@pytest.fixture(scope="module", params=fixture_params)
+def dataset_source_nxresults(request):
+    # request.param is a tuple of params from fixture_params. When expanded with
+    # *, will be passed to networkx_call() as args (graph_file, source)
+    return networkx_call(*(request.param))
+
+
+@pytest.fixture(scope="module", params=fixture_params_single_dataset)
+def single_dataset_source_nxresults(request):
+    return networkx_call(*(request.param))
 
 
 @pytest.fixture(scope="module", params=fixture_params)
-def datasetAndSourceAndNxResults(request):
-    # Extract the individual params from the request obj
-    graph_file = request.param[0]
-    source = request.param[1]
-
-    # Generate Nx results for this graph_file. pytest will save these results
-    # for each param combination, so this will only be done once per unique
-    # graph_file regardless of how many tests use this fixture.
-    M = utils.read_csv_for_nx(graph_file, read_weights_in_sp=True)
-    nx_paths, Gnx = networkx_call(M, source)
-
-    return (graph_file, source, nx_paths, Gnx)
+def dataset_source_nxresults_weighted(request):
+    return networkx_call(*(request.param), edgevals=True)
 
 
-@pytest.fixture(scope="module", params=fixture_params)
-def datasetAndSourceAndNxResultsWeighted(request):
-    # Extract the individual params from the request obj
-    graph_file = request.param[0]
-    source = request.param[1]
-
-    # Generate Nx results for this graph_file. pytest will save these results
-    # for each param combination, so this will only be done once per unique
-    # graph_file regardless of how many tests use this fixture.
-    M = utils.read_csv_for_nx(graph_file, read_weights_in_sp=True)
-    nx_paths, Gnx = networkx_call(M, source, edgevals=True)
-
-    return (graph_file, source, nx_paths, Gnx)
+@pytest.fixture(scope="module", params=fixture_params_single_dataset)
+def single_dataset_source_nxresults_weighted(request):
+    return networkx_call(*(request.param), edgevals=True)
 
 
 # =============================================================================
 # Tests
 # =============================================================================
-@pytest.mark.parametrize("cugraph_input_type", utils.GRAPH_INPUT_TYPE_PARAMS)
-def test_sssp(gpubenchmark, datasetAndSourceAndNxResults, cugraph_input_type):
+@pytest.mark.parametrize("cugraph_input_type", utils.CUGRAPH_DIR_INPUT_TYPES)
+def test_sssp(gpubenchmark, dataset_source_nxresults, cugraph_input_type):
     # Extract the params generated from the fixture
-    (graph_file, source, nx_paths, Gnx) = datasetAndSourceAndNxResults
+    (graph_file, source, nx_paths, Gnx) = dataset_source_nxresults
 
-    G_or_matrix = utils.create_obj_from_csv(graph_file, cugraph_input_type)
-    cu_paths, max_val = cugraph_call(gpubenchmark, G_or_matrix, source)
+    input_G_or_matrix = utils.create_obj_from_csv(graph_file,
+                                                  cugraph_input_type)
+    cu_paths, max_val = cugraph_call(gpubenchmark, input_G_or_matrix, source)
 
     # Calculating mismatch
     err = 0
@@ -212,15 +218,26 @@ def test_sssp(gpubenchmark, datasetAndSourceAndNxResults, cugraph_input_type):
     assert err == 0
 
 
-@pytest.mark.parametrize("cugraph_input_type", utils.DIGRAPH_INPUT_TYPE_PARAMS)
-def test_sssp_edgevals(gpubenchmark, datasetAndSourceAndNxResultsWeighted,
+@pytest.mark.parametrize("cugraph_input_type",
+                         utils.NX_DIR_INPUT_TYPES + utils.MATRIX_INPUT_TYPES)
+def test_sssp_nonnative_inputs(gpubenchmark,
+                               single_dataset_source_nxresults,
+                               cugraph_input_type):
+    test_sssp(gpubenchmark,
+              single_dataset_source_nxresults,
+              cugraph_input_type)
+
+
+@pytest.mark.parametrize("cugraph_input_type", utils.CUGRAPH_DIR_INPUT_TYPES)
+def test_sssp_edgevals(gpubenchmark, dataset_source_nxresults_weighted,
                        cugraph_input_type):
     # Extract the params generated from the fixture
-    (graph_file, source, nx_paths, Gnx) = datasetAndSourceAndNxResultsWeighted
+    (graph_file, source, nx_paths, Gnx) = dataset_source_nxresults_weighted
 
-    G_or_matrix = utils.create_obj_from_csv(graph_file,
-                                            cugraph_input_type, edgevals=True)
-    cu_paths, max_val = cugraph_call(gpubenchmark, G_or_matrix,
+    input_G_or_matrix = utils.create_obj_from_csv(graph_file,
+                                                  cugraph_input_type,
+                                                  edgevals=True)
+    cu_paths, max_val = cugraph_call(gpubenchmark, input_G_or_matrix,
                                      source, edgevals=True)
 
     # Calculating mismatch
@@ -243,6 +260,17 @@ def test_sssp_edgevals(gpubenchmark, datasetAndSourceAndNxResultsWeighted,
                 err = err + 1
 
     assert err == 0
+
+
+@pytest.mark.parametrize("cugraph_input_type",
+                         utils.NX_DIR_INPUT_TYPES + utils.MATRIX_INPUT_TYPES)
+def test_sssp_edgevals_nonnative_inputs(
+        gpubenchmark,
+        single_dataset_source_nxresults_weighted,
+        cugraph_input_type):
+    test_sssp_edgevals(gpubenchmark,
+                       single_dataset_source_nxresults_weighted,
+                       cugraph_input_type)
 
 
 @pytest.mark.parametrize("graph_file", utils.DATASETS)
@@ -292,47 +320,6 @@ def test_sssp_data_type_conversion(graph_file, source):
                 edge_weight = Gnx[pred][vid]["weight"]
                 if cu_paths[pred][0] + edge_weight != cu_paths[vid][0]:
                     err = err + 1
-        else:
-            if vid in nx_paths.keys():
-                err = err + 1
-
-    assert err == 0
-
-
-# FIXME: this test is redundant since the above tests now include Nx inputs
-@pytest.mark.parametrize("graph_file", utils.DATASETS)
-@pytest.mark.parametrize("source", SOURCES)
-def test_sssp_nx(graph_file, source):
-    # Ignore weights in datasets (eg. netscience)
-    M = utils.read_csv_for_nx(graph_file, read_weights=False)
-    nx_paths, Gnx = networkx_call(M, source, edgevals=False)
-
-    df = cugraph.shortest_path(Gnx, source)
-    df = cudf.from_pandas(df)
-
-    if np.issubdtype(df["distance"].dtype, np.integer):
-        max_val = np.iinfo(df["distance"].dtype).max
-    else:
-        max_val = np.finfo(df["distance"].dtype).max
-
-    verts_np = df["vertex"].to_array()
-    dist_np = df["distance"].to_array()
-    pred_np = df["predecessor"].to_array()
-    cu_paths = dict(zip(verts_np, zip(dist_np, pred_np)))
-
-    # Calculating mismatch
-    err = 0
-    for vid in cu_paths:
-        # Validate vertices that are reachable
-        # NOTE : If distance type is float64 then cu_paths[vid][0]
-        # should be compared against np.finfo(np.float64).max)
-        if cu_paths[vid][0] != max_val:
-            if cu_paths[vid][0] != nx_paths[vid]:
-                err = err + 1
-            # check pred dist + 1 = current dist (since unweighted)
-            pred = cu_paths[vid][1]
-            if vid != source and cu_paths[pred][0] + 1 != cu_paths[vid][0]:
-                err = err + 1
         else:
             if vid in nx_paths.keys():
                 err = err + 1

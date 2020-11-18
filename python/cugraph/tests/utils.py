@@ -21,12 +21,17 @@ import networkx as nx
 import numpy as np
 import cupy as cp
 from cupyx.scipy.sparse.coo import coo_matrix as cp_coo_matrix
+from cupyx.scipy.sparse.csr import csr_matrix as cp_csr_matrix
+from cupyx.scipy.sparse.csc import csc_matrix as cp_csc_matrix
 
 import cudf
 import dask_cudf
 
 import cugraph
 from cugraph.dask.common.mg_utils import (get_client)
+
+
+CUPY_MATRIX_TYPES = [cp_coo_matrix, cp_csr_matrix, cp_csc_matrix]
 
 #
 # Datasets
@@ -50,27 +55,37 @@ DATASETS_SMALL = ['../datasets/karate.csv',
                   '../datasets/dolphins.csv',
                   '../datasets/polbooks.csv']
 
-GRAPH_INPUT_TYPE_PARAMS = [pytest.param(cugraph.Graph,
+MATRIX_INPUT_TYPES = [pytest.param(cp_coo_matrix,
+                                   marks=pytest.mark.cupy_types,
+                                   id="CuPy.coo_matrix"),
+                      pytest.param(cp_csr_matrix,
+                                   marks=pytest.mark.cupy_types,
+                                   id="CuPy.csr_matrix"),
+                      pytest.param(cp_csc_matrix,
+                                   marks=pytest.mark.cupy_types,
+                                   id="CuPy.csc_matrix"),
+                      ]
+
+NX_INPUT_TYPES = [pytest.param(nx.Graph,
+                               marks=pytest.mark.nx_types,
+                               id="nx.Graph"),
+                  ]
+
+NX_DIR_INPUT_TYPES = [pytest.param(nx.Graph,
+                                   marks=pytest.mark.nx_types,
+                                   id="nx.DiGraph"),
+                      ]
+
+CUGRAPH_INPUT_TYPES = [pytest.param(cugraph.Graph,
+                                    marks=pytest.mark.cugraph_types,
+                                    id="cugraph.Graph"),
+                       ]
+
+CUGRAPH_DIR_INPUT_TYPES = [pytest.param(cugraph.DiGraph,
                                         marks=pytest.mark.cugraph_types,
-                                        id="cugraph.Graph"),
-                           pytest.param(nx.Graph,
-                                        marks=pytest.mark.nx_types,
-                                        id="nx.Graph"),
-                           pytest.param(cp_coo_matrix,
-                                        marks=pytest.mark.cupy_types,
-                                        id="CuPy.coo_matrix"),
+                                        id="cugraph.DiGraph"),
                            ]
 
-DIGRAPH_INPUT_TYPE_PARAMS = [pytest.param(cugraph.DiGraph,
-                                          marks=pytest.mark.cugraph_types,
-                                          id="cugraph.DiGraph"),
-                             pytest.param(nx.DiGraph,
-                                          marks=pytest.mark.nx_types,
-                                          id="nx.DiGraph"),
-                             pytest.param(cp_coo_matrix,
-                                          marks=pytest.mark.cupy_types,
-                                          id="CuPy.coo_matrix"),
-                             ]
 
 
 def read_csv_for_nx(csv_file, read_weights_in_sp=True, read_weights=True):
@@ -95,7 +110,7 @@ def read_csv_for_nx(csv_file, read_weights_in_sp=True, read_weights=True):
     return df
 
 
-def create_obj_from_csv(csv_file_name, obj_type, edgevals=False):
+def create_obj_from_csv(csv_file_name, obj_type, csv_has_weights=True, edgevals=False):
     """
     Return an object based on obj_type populated with the contents of
     csv_file_name
@@ -106,20 +121,34 @@ def create_obj_from_csv(csv_file_name, obj_type, edgevals=False):
             directed=(obj_type is cugraph.DiGraph),
             edgevals=edgevals)
 
-    elif obj_type is cp_coo_matrix:
-        # FIXME: should not assume input always has 3 columns
-        (rows, cols, weights) = np.genfromtxt(csv_file_name,
-                                              delimiter=" ",
-                                              dtype=np.float32,
-                                              unpack=True)
-        # COO matrices must have a value array, so reset all weights to 1 to
-        # treat them as ignored.
-        if edgevals is False:
+    elif obj_type in CUPY_MATRIX_TYPES:
+        # FIXME: assuming float32
+        if csv_has_weights:
+            (rows, cols, weights) = np.genfromtxt(csv_file_name,
+                                                  delimiter=" ",
+                                                  dtype=np.float32,
+                                                  unpack=True)
+        else:
+            (rows, cols) = np.genfromtxt(csv_file_name,
+                                         delimiter=" ",
+                                         dtype=np.float32,
+                                         unpack=True)
+
+        if (csv_has_weights is False) or (edgevals is False):
+            # COO matrices must have a value array. Also if edgevals are to be
+            # ignored (False), reset all weights to 1.
             weights = np.array([1] * len(rows))
 
-        return cp_coo_matrix((cp.asarray(weights),
-                              (cp.asarray(rows), cp.asarray(cols))),
-                             dtype=np.float32)
+        coo = cp_coo_matrix((cp.asarray(weights),
+                             (cp.asarray(rows), cp.asarray(cols))),
+                            dtype=np.float32)
+
+        if obj_type is cp_csc_matrix:
+            return coo.tocsr(copy=False)
+        elif obj_type is cp_csc_matrix:
+            return coo.tocsc(copy=False)
+        else:
+            return coo
 
     elif obj_type in [nx.Graph, nx.DiGraph]:
         return generate_nx_graph_from_file(
