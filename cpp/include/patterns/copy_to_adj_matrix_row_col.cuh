@@ -219,7 +219,7 @@ void copy_to_matrix_minor(raft::handle_t const& handle,
       // partitioning
       auto comm_src_rank = row_comm_rank * col_comm_size + col_comm_rank;
       auto comm_dst_rank = (comm_rank % col_comm_size) * row_comm_size + comm_rank / col_comm_size;
-      // FIXME: this branch may no longer necessary with NCCL backend
+      // FIXME: this branch may be no longer necessary with NCCL backend
       if (comm_src_rank == comm_rank) {
         assert(comm_dst_rank == comm_rank);
         thrust::copy(rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
