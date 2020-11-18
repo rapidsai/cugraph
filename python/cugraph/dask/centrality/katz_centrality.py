@@ -132,12 +132,12 @@ def katz_centrality(input_graph,
 
     client = default_client()
 
-    input_graph.compute_renumber_edge_list()
+    input_graph.compute_renumber_edge_list(transposed=True)
     (ddf,
      num_verts,
      partition_row_size,
      partition_col_size,
-     vertex_partition_offsets) = shuffle(input_graph)
+     vertex_partition_offsets) = shuffle(input_graph, transposed=True)
     num_edges = len(ddf)
     data = get_distributed_data(ddf)
 
