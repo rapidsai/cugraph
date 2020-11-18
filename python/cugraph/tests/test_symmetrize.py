@@ -58,11 +58,13 @@ def compare(src1, dst1, val1, src2, dst2, val2):
     join = df1.merge(df2, left_on=["src1", "dst1"], right_on=["src2", "dst2"])
 
     if len(df1) != len(join):
-        join2 = df1.merge(df2, how='left', left_on=["src1", "dst1"], right_on=["src2", "dst2"])
+        join2 = df1.merge(df2, how='left',
+                          left_on=["src1", "dst1"], right_on=["src2", "dst2"])
         pd.set_option('display.max_rows', 500)
         print('df1 = \n', df1.sort_values(["src1", "dst1"]))
         print('df2 = \n', df2.sort_values(["src2", "dst2"]))
-        print('join2 = \n', join2.sort_values(["src1", "dst1"]).to_pandas().query('src2.isnull()', engine='python'))
+        print('join2 = \n', join2.sort_values(["src1", "dst1"])
+              .to_pandas().query('src2.isnull()', engine='python'))
 
     assert len(df1) == len(join)
 
