@@ -16,7 +16,6 @@ import time
 from collections import defaultdict
 
 import pytest
-import pandas as pd
 import cupy as cp
 from cupyx.scipy.sparse.coo import coo_matrix as cp_coo_matrix
 from cupyx.scipy.sparse.csr import csr_matrix as cp_csr_matrix

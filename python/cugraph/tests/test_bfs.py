@@ -306,7 +306,7 @@ def _compare_bfs_spc(cugraph_df, nx_sp_counter, unused):
     )
 
 
-def get_nx_graph_and_params(dataset, directed) :
+def get_nx_graph_and_params(dataset, directed):
     """
     Helper for fixtures returning a Nx graph obj and params.
     """

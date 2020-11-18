@@ -87,7 +87,6 @@ CUGRAPH_DIR_INPUT_TYPES = [pytest.param(cugraph.DiGraph,
                            ]
 
 
-
 def read_csv_for_nx(csv_file, read_weights_in_sp=True, read_weights=True):
     print('Reading ' + str(csv_file) + '...')
     if read_weights:
@@ -110,7 +109,8 @@ def read_csv_for_nx(csv_file, read_weights_in_sp=True, read_weights=True):
     return df
 
 
-def create_obj_from_csv(csv_file_name, obj_type, csv_has_weights=True, edgevals=False):
+def create_obj_from_csv(csv_file_name, obj_type,
+                        csv_has_weights=True, edgevals=False):
     """
     Return an object based on obj_type populated with the contents of
     csv_file_name

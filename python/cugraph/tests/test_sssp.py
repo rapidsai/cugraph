@@ -166,8 +166,8 @@ fixture_params_single_dataset = \
 # call is only made only once per input param combination.
 @pytest.fixture(scope="module", params=fixture_params)
 def dataset_source_nxresults(request):
-    # request.param is a tuple of params from fixture_params. When expanded with
-    # *, will be passed to networkx_call() as args (graph_file, source)
+    # request.param is a tuple of params from fixture_params. When expanded
+    # with *, will be passed to networkx_call() as args (graph_file, source)
     return networkx_call(*(request.param))
 
 
