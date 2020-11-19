@@ -18,7 +18,7 @@ ARGS=$*
 # script, and that this script resides in the repo dir!
 REPODIR=$(cd $(dirname $0); pwd)
 
-VALIDARGS="clean libcugraph cugraph docs -v -g -n --show_depr_warn -h --help"
+VALIDARGS="clean libcugraph cugraph docs -v -g -n --allgpuarch --show_depr_warn -h --help"
 HELP="$0 [<target> ...] [<flag> ...]
  where <target> is:
    clean            - remove all existing build artifacts and configuration (start over)
@@ -29,6 +29,7 @@ HELP="$0 [<target> ...] [<flag> ...]
    -v               - verbose build mode
    -g               - build for debug
    -n               - no install step
+   --allgpuarch     - build for all supported GPU architectures
    --show_depr_warn - show cmake deprecation warnings
    -h               - print this text
 
@@ -43,6 +44,7 @@ VERBOSE=""
 BUILD_TYPE=Release
 INSTALL_TARGET=install
 BUILD_DISABLE_DEPRECATION_WARNING=ON
+BUILD_ALL_GPU_ARCH=0
 
 # Set defaults for vars that may not have been defined externally
 #  FIXME: if PREFIX is not set, check CONDA_PREFIX, but there is no fallback
@@ -80,6 +82,9 @@ fi
 if hasArg -n; then
     INSTALL_TARGET=""
 fi
+if hasArg --allgpuarch; then
+    BUILD_ALL_GPU_ARCH=1
+fi
 if hasArg --show_depr_warn; then
     BUILD_DISABLE_DEPRECATION_WARNING=OFF
 fi
@@ -101,11 +106,19 @@ fi
 ################################################################################
 # Configure, build, and install libcugraph
 if (( ${NUMARGS} == 0 )) || hasArg libcugraph; then
+    if (( ${BUILD_ALL_GPU_ARCH} == 0 )); then
+        GPU_ARCH=""
+        echo "Building for the architecture of the GPU in the system..."
+    else
+        GPU_ARCH="-DGPU_ARCHS=ALL"
+        echo "Building for *ALL* supported GPU architectures..."
+    fi
 
     mkdir -p ${LIBCUGRAPH_BUILD_DIR}
     cd ${LIBCUGRAPH_BUILD_DIR}
     cmake -DCMAKE_INSTALL_PREFIX=${INSTALL_PREFIX} \
-	  -DDISABLE_DEPRECATION_WARNING=${BUILD_DISABLE_DEPRECATION_WARNING} \
+          ${GPU_ARCH} \
+	      -DDISABLE_DEPRECATION_WARNING=${BUILD_DISABLE_DEPRECATION_WARNING} \
           -DCMAKE_BUILD_TYPE=${BUILD_TYPE} ..
     make -j${PARALLEL_LEVEL} VERBOSE=${VERBOSE} ${INSTALL_TARGET}
 fi
