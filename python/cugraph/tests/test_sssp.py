@@ -325,3 +325,81 @@ def test_sssp_data_type_conversion(graph_file, source):
                 err = err + 1
 
     assert err == 0
+
+
+def test_scipy_api_compat():
+    graph_file = utils.DATASETS[0]
+
+    input_cugraph_graph = utils.create_obj_from_csv(graph_file, cugraph.Graph,
+                                                    edgevals=True)
+    input_coo_matrix = utils.create_obj_from_csv(graph_file, cp_coo_matrix,
+                                                 edgevals=True)
+
+    # Ensure scipy-only options are rejected for cugraph inputs
+    with pytest.raises(TypeError):
+        cugraph.shortest_path(input_cugraph_graph, source=0,
+                              directed=False)
+    with pytest.raises(TypeError):
+        cugraph.shortest_path(input_cugraph_graph, source=0,
+                              unweighted=False)
+    with pytest.raises(TypeError):
+        cugraph.shortest_path(input_cugraph_graph, source=0,
+                              overwrite=False)
+    with pytest.raises(TypeError):
+        cugraph.shortest_path(input_cugraph_graph, source=0,
+                              return_predecessors=False)
+
+    # Ensure cugraph-compatible options work as expected
+    # cannot set both source and indices, but must set one
+    with pytest.raises(TypeError):
+        cugraph.shortest_path(input_cugraph_graph, source=0, indices=0)
+    with pytest.raises(TypeError):
+        cugraph.shortest_path(input_cugraph_graph)
+    with pytest.raises(ValueError):
+        cugraph.shortest_path(input_cugraph_graph, source=0,
+                              method="BF")
+    cugraph.shortest_path(input_cugraph_graph, indices=0)
+    with pytest.raises(ValueError):
+        cugraph.shortest_path(input_cugraph_graph, indices=[0,1,2])
+    cugraph.shortest_path(input_cugraph_graph, source=0, method="auto")
+
+    # Ensure SciPy options for matrix inputs work as expected
+    # cannot set both source and indices, but must set one
+    with pytest.raises(TypeError):
+        cugraph.shortest_path(input_coo_matrix, source=0, indices=0)
+    with pytest.raises(TypeError):
+        cugraph.shortest_path(input_coo_matrix)
+    with pytest.raises(ValueError):
+        cugraph.shortest_path(input_coo_matrix, source=0, method="BF")
+    cugraph.shortest_path(input_coo_matrix, source=0, method="auto")
+
+    with pytest.raises(ValueError):
+        cugraph.shortest_path(input_coo_matrix, source=0, directed=3)
+    cugraph.shortest_path(input_coo_matrix, source=0, directed=True)
+    cugraph.shortest_path(input_coo_matrix, source=0, directed=False)
+
+    with pytest.raises(ValueError):
+        cugraph.shortest_path(input_coo_matrix, source=0,
+                              return_predecessors=3)
+    (distances, preds) = cugraph.shortest_path(input_coo_matrix,
+                                               source=0,
+                                               return_predecessors=True)
+    distances = cugraph.shortest_path(input_coo_matrix,
+                                      source=0,
+                                      return_predecessors=False)
+
+    with pytest.raises(ValueError):
+        cugraph.shortest_path(input_coo_matrix, source=0,
+                              unweighted=False)
+    cugraph.shortest_path(input_coo_matrix, source=0,
+                          unweighted=True)
+
+    with pytest.raises(ValueError):
+        cugraph.shortest_path(input_coo_matrix, source=0,
+                              overwrite=True)
+    cugraph.shortest_path(input_coo_matrix, source=0,
+                          overwrite=False)
+
+    with pytest.raises(ValueError):
+        cugraph.shortest_path(input_coo_matrix, indices=[0,1,2])
+    cugraph.shortest_path(input_coo_matrix, indices=0)

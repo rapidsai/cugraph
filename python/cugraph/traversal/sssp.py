@@ -32,10 +32,65 @@ except ModuleNotFoundError:
     nx = None
 
 
-def _convert_df_to_output_type(df, input_type):
+def _ensure_args(G, source, method, directed,
+                 return_predecessors, unweighted, overwrite, indices):
+    """
+    Ensures the args passed in are usable for the API api_name and returns the
+    args with proper defaults if not specified, or raises TypeError if
+    incorrectly specified.
+    """
+    # checks common to all input types
+    if (method is not None) and (method != "auto"):
+        raise ValueError("only 'auto' is currently accepted for method")
+    if (indices is not None) and (type(indices) == list):
+        raise ValueError("indices currently cannot be a list-like type")
+    if (indices is not None) and (source is not None):
+        raise TypeError("cannot specify both 'source' and 'indices'")
+    if (indices is None) and (source is None):
+        raise TypeError("must specify 'source' or 'indices', but not both")
+
+    G_type = type(G)
+    # Check for Graph-type inputs
+    if (G_type in [Graph, DiGraph]) or \
+       ((nx is not None) and (G_type in [nx.Graph, nx.DiGraph])):
+        exc_value = "'%s' cannot be specified for a Graph-type input"
+        if directed is not None:
+            raise TypeError(exc_value % "directed")
+        if return_predecessors is not None:
+            raise TypeError(exc_value % "return_predecessors")
+        if unweighted is not None:
+            raise TypeError(exc_value % "unweighted")
+        if overwrite is not None:
+            raise TypeError(exc_value % "overwrite")
+
+        directed = False
+
+    # Check for non-Graph-type inputs
+    else:
+        if (directed is not None) and (type(directed) != bool):
+            raise ValueError("'directed' must be a bool")
+        if (return_predecessors is not None) and \
+           (type(return_predecessors) != bool):
+            raise ValueError("'return_predecessors' must be a bool")
+        if (unweighted is not None) and (unweighted != True):
+            raise ValueError("'unweighted' currently must be True if specified")
+        if (overwrite is not None) and (overwrite != False):
+            raise ValueError("'overwrite' currently must be False if specified")
+
+    source = source if source is not None else indices
+    if return_predecessors is None:
+        return_predecessors = True
+
+    return (source, directed, return_predecessors)
+
+
+def _convert_df_to_output_type(df, input_type, return_predecessors):
     """
     Given a cudf.DataFrame df, convert it to a new type appropriate for the
     graph algos in this module, based on input_type.
+
+    return_predecessors is only used for return values from cupy/scipy input
+    types.
     """
     if input_type in [Graph, DiGraph]:
         return df
@@ -49,8 +104,11 @@ def _convert_df_to_output_type(df, input_type):
         #   distance: cupy.ndarray
         #   predecessor: cupy.ndarray
         sorted_df = df.sort_values("vertex")
-        return (cp.fromDlpack(sorted_df["distance"].to_dlpack()),
-                cp.fromDlpack(sorted_df["predecessor"].to_dlpack()))
+        if return_predecessors:
+            return (cp.fromDlpack(sorted_df["distance"].to_dlpack()),
+                    cp.fromDlpack(sorted_df["predecessor"].to_dlpack()))
+        else:
+            return cp.fromDlpack(sorted_df["distance"].to_dlpack())
 
     else:
         raise TypeError(f"input type {input_type} is not a supported type.")
@@ -61,7 +119,14 @@ def _convert_df_to_output_type(df, input_type):
 # Nx graphs may be needed.  From the Nx docs:
 # |      Many NetworkX algorithms designed for weighted graphs use
 # |      an edge attribute (by default `weight`) to hold a numerical value.
-def sssp(G, source):
+def sssp(G,
+         source=None,
+         method=None,
+         directed=None,
+         return_predecessors=None,
+         unweighted=None,
+         overwrite=None,
+         indices=None):
     """
     Compute the distance and predecessors for shortest paths from the specified
     source to all the vertices in the graph. The distances column will store
@@ -117,10 +182,14 @@ def sssp(G, source):
     >>> G.from_cudf_edgelist(M, source='0', destination='1')
     >>> distances = cugraph.sssp(G, 0)
     """
+    (source, directed, return_predecessors) = _ensure_args(
+        G, source, method, directed, return_predecessors, unweighted,
+        overwrite, indices)
+
     # FIXME: allow nx_weight_attr to be specified
-    (G, input_type) = ensure_cugraph_obj(G,
-                                         nx_weight_attr="weight",
-                                         matrix_graph_type=Graph)
+    (G, input_type) = ensure_cugraph_obj(
+        G, nx_weight_attr="weight",
+        matrix_graph_type=DiGraph if directed else Graph)
 
     if G.renumbered:
         source = G.lookup_internal_vertex_id(cudf.Series([source]))[0]
@@ -132,7 +201,7 @@ def sssp(G, source):
         df = G.unrenumber(df, "predecessor")
         df["predecessor"].fillna(-1, inplace=True)
 
-    return _convert_df_to_output_type(df, input_type)
+    return _convert_df_to_output_type(df, input_type, return_predecessors)
 
 
 def filter_unreachable(df):
@@ -165,9 +234,17 @@ def filter_unreachable(df):
         raise TypeError("distance type unsupported")
 
 
-def shortest_path(G, source):
+def shortest_path(G,
+                  source=None,
+                  method=None,
+                  directed=None,
+                  return_predecessors=None,
+                  unweighted=None,
+                  overwrite=None,
+                  indices=None):
     """
     Alias for sssp(), provided for API compatibility with NetworkX. See sssp()
     for details.
     """
-    return sssp(G, source)
+    return sssp(G, source, method, directed, return_predecessors,
+                unweighted, overwrite, indices)

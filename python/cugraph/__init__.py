@@ -53,6 +53,7 @@ from cugraph.centrality import (
 from cugraph.cores import core_number, k_core
 
 from cugraph.components import (
+    connected_components,
     weakly_connected_components,
     strongly_connected_components,
 )
@@ -70,7 +71,7 @@ from cugraph.link_prediction import (
 
 from cugraph.traversal import (
     bfs,
-    bfs_edges, 
+    bfs_edges,
     sssp,
     shortest_path,
     filter_unreachable,

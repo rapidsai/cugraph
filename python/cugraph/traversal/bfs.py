@@ -61,8 +61,7 @@ def _convert_df_to_output_type(df, input_type):
 
 
 def bfs(G, start, return_sp_counter=False):
-    """
-    Find the distances and predecessors for a breadth first traversal of a
+    """Find the distances and predecessors for a breadth first traversal of a
     graph.
 
     Parameters
@@ -108,9 +107,11 @@ def bfs(G, start, return_sp_counter=False):
           ndarray of predecessors of a vertex on the path from source, which
           can be used to reconstruct the shortest paths.
 
+       ...or if return_sp_counter is True, returns a 3-tuple with the above two
+       arrays plus:
+
        sp_counter: cupy.ndarray
-          ndarray of number of shortest paths leading to each vertex (only if
-          retrun_sp_counter is True)
+          ndarray of number of shortest paths leading to each vertex.
 
     Examples
     --------
@@ -119,6 +120,7 @@ def bfs(G, start, return_sp_counter=False):
     >>> G = cugraph.Graph()
     >>> G.from_cudf_edgelist(M, source='0', destination='1')
     >>> df = cugraph.bfs(G, 0)
+
     """
     # FIXME: allow nx_weight_attr to be specified
     (G, input_type) = ensure_cugraph_obj(G,
@@ -198,6 +200,9 @@ def bfs_edges(G, source, reverse=False, depth_limit=None, sort_neighbors=None,
           ndarray of predecessors of a vertex on the path from source, which
           can be used to reconstruct the shortest paths.
 
+       ...or if return_sp_counter is True, returns a 3-tuple with the above two
+       arrays plus:
+
        sp_counter: cupy.ndarray
           ndarray of number of shortest paths leading to each vertex (only if
           retrun_sp_counter is True)
@@ -213,14 +218,12 @@ def bfs_edges(G, source, reverse=False, depth_limit=None, sort_neighbors=None,
 
     if reverse is True:
         raise NotImplementedError(
-            "reverse processing of graph is "
-            "currently not supported"
+            "reverse processing of graph is currently not supported"
         )
 
     if depth_limit is not None:
         raise NotImplementedError(
-            "depth limit implementation of BFS "
-            "is not currently supported"
+            "depth limit implementation of BFS is not currently supported"
         )
 
     return bfs(G, source, return_sp_counter)

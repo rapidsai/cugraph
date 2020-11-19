@@ -490,3 +490,34 @@ def test_bfs_spc_full(gpubenchmark, dataset_nxresults_allstartvertices_spc,
         G_or_matrix, all_nx_values, start_vertex=start_vertices,
         return_sp_counter=use_spc
     )
+
+
+def test_scipy_api_compat():
+    graph_file = utils.DATASETS[0]
+
+    input_cugraph_graph = utils.create_obj_from_csv(graph_file, cugraph.Graph,
+                                                    edgevals=True)
+    input_coo_matrix = utils.create_obj_from_csv(graph_file, cp_coo_matrix,
+                                                 edgevals=True)
+    # Ensure scipy-only options are rejected for cugraph inputs
+    with pytest.raises(TypeError):
+        cugraph.bfs(input_cugraph_graph, i_start=0, directed=False)
+    with pytest.raises(TypeError):
+        cugraph.bfs(input_cugraph_graph)  # required arg missing
+
+    # Ensure cugraph-compatible options work as expected
+    cugraph.bfs(input_cugraph_graph, i_start=0)
+    cugraph.bfs(input_cugraph_graph, i_start=0, return_predecessors=True)
+    with pytest.raises(ValueError):
+        cugraph.bfs(input_cugraph_graph, i_start=0, return_predecessors=False)
+
+    # Ensure SciPy options for matrix inputs work as expected
+    cugraph.bfs(input_coo_matrix, i_start=0)
+    cugraph.bfs(input_coo_matrix, i_start=0, directed=True)
+    cugraph.bfs(input_coo_matrix, i_start=0, directed=False)
+    (distances, preds) = cugraph.bfs(input_coo_matrix,
+                                     i_start=0,
+                                     return_predecessors=True)
+    distances = cugraph.bfs(input_coo_matrix,
+                            i_start=0,
+                            return_predecessors=False)
