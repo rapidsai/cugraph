@@ -68,7 +68,7 @@ from cugraph.traversal import (
     filter_unreachable,
 )
 
-from cugraph.tree import minimum_spanning_tree
+from cugraph.tree import minimum_spanning_tree, maximum_spanning_tree
 
 from cugraph.utilities import utils
 

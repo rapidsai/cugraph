@@ -62,7 +62,7 @@ def compare_mst(mst_cugraph, mst_nx):
     nx_sum = mst_nx_df["weight"].sum()
     print(cg_sum)
     print(nx_sum)
-    # assert np.isclose(cg_sum, nx_sum)
+    assert np.isclose(cg_sum, nx_sum)
 
 
 @pytest.mark.parametrize("graph_file", utils.DATASETS_UNDIRECTED_WEIGHTS)

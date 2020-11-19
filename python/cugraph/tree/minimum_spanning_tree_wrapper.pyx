@@ -67,3 +67,21 @@ def minimum_spanning_tree(input_graph):
          return df
     else:
         return mst_double(num_verts, num_edges, offsets, indices, weights)
+
+def maximum_spanning_tree(input_graph):
+    if not input_graph.adjlist:
+        input_graph.view_adj_list()
+    [offsets, indices] = graph_primtypes_wrapper.datatype_cast([input_graph.adjlist.offsets, input_graph.adjlist.indices], [np.int32])
+    num_verts = input_graph.number_of_vertices()
+    num_edges = input_graph.number_of_edges(directed_edges=True)
+
+    if input_graph.adjlist.weights is not None:
+        [weights] = graph_primtypes_wrapper.datatype_cast([input_graph.adjlist.weights], [np.float32, np.float64])
+    else:
+        weights = cudf.Series(np.full(num_edges, 1.0, dtype=np.float32))
+
+    if graph_primtypes_wrapper.weight_type(input_graph) == np.float32:
+         df = mst_float(num_verts, num_edges, offsets, indices, weights)
+         return df
+    else:
+        return mst_double(num_verts, num_edges, offsets, indices, weights)
