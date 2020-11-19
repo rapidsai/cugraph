@@ -43,89 +43,6 @@ namespace experimental {
 
 namespace {
 
-// FIXME: better move this elsewhere for reusability
-template <typename TxValueIterator>
-auto shuffle_values(raft::handle_t const &handle,
-                    TxValueIterator tx_value_first,
-                    rmm::device_uvector<size_t> const &tx_value_counts)
-{
-  auto &comm           = handle.get_comms();
-  auto const comm_size = comm.get_size();
-
-  rmm::device_uvector<size_t> rx_value_counts(comm_size, handle.get_stream());
-
-  // FIXME: this needs to be replaced with AlltoAll once NCCL 2.8 is released.
-  std::vector<size_t> tx_counts(comm_size, size_t{1});
-  std::vector<size_t> tx_offsets(comm_size);
-  std::iota(tx_offsets.begin(), tx_offsets.end(), size_t{0});
-  std::vector<int> tx_dst_ranks(comm_size);
-  std::iota(tx_dst_ranks.begin(), tx_dst_ranks.end(), int{0});
-  std::vector<size_t> rx_counts(comm_size, size_t{1});
-  std::vector<size_t> rx_offsets(comm_size);
-  std::iota(rx_offsets.begin(), rx_offsets.end(), size_t{0});
-  std::vector<int> rx_src_ranks(comm_size);
-  std::iota(rx_src_ranks.begin(), rx_src_ranks.end(), int{0});
-  device_multicast_sendrecv(comm,
-                            tx_value_counts.data(),
-                            tx_counts,
-                            tx_offsets,
-                            tx_dst_ranks,
-                            rx_value_counts.data(),
-                            rx_counts,
-                            rx_offsets,
-                            rx_src_ranks,
-                            handle.get_stream());
-
-  raft::update_host(tx_counts.data(), tx_value_counts.data(), comm_size, handle.get_stream());
-  std::partial_sum(tx_counts.begin(), tx_counts.end() - 1, tx_offsets.begin() + 1);
-  raft::update_host(rx_counts.data(), rx_value_counts.data(), comm_size, handle.get_stream());
-  std::partial_sum(rx_counts.begin(), rx_counts.end() - 1, rx_offsets.begin() + 1);
-
-  auto rx_value_buffer =
-    allocate_comm_buffer<typename std::iterator_traits<TxValueIterator>::value_type>(
-      rx_offsets.back(), handle.get_stream());
-  auto rx_value_first =
-    get_comm_buffer_begin<typename std::iterator_traits<TxValueIterator>::value_type>(
-      rx_value_buffer);
-
-  int num_tx_dst_ranks{0};
-  int num_rx_src_ranks{0};
-  for (int i = 0; i < comm_size; ++i) {
-    if (tx_counts[i] != 0) {
-      tx_counts[num_tx_dst_ranks]    = tx_counts[i];
-      tx_offsets[num_tx_dst_ranks]   = tx_offsets[i];
-      tx_dst_ranks[num_tx_dst_ranks] = tx_dst_ranks[i];
-      ++num_tx_dst_ranks;
-    }
-    if (rx_counts[i] != 0) {
-      rx_counts[num_rx_src_ranks]    = rx_counts[i];
-      rx_offsets[num_rx_src_ranks]   = rx_offsets[i];
-      rx_src_ranks[num_rx_src_ranks] = rx_src_ranks[i];
-    }
-  }
-  tx_counts.resize(num_tx_dst_ranks);
-  tx_offsets.resize(num_tx_dst_ranks);
-  tx_dst_ranks.resize(num_tx_dst_ranks);
-  rx_counts.resize(num_rx_src_ranks);
-  rx_offsets.resize(num_rx_src_ranks);
-  rx_src_ranks.resize(num_rx_src_ranks);
-
-  // FIXME: this needs to be replaced with AlltoAll once NCCL 2.8 is released
-  // (if num_tx_dst_ranks == num_rx_src_ranks == comm_size).
-  device_multicast_sendrecv(comm,
-                            tx_value_first,
-                            tx_counts,
-                            tx_offsets,
-                            tx_dst_ranks,
-                            rx_value_first,
-                            rx_counts,
-                            rx_offsets,
-                            rx_src_ranks,
-                            handle.get_stream());
-
-  return std::move(rx_value_buffer);
-}
-
 template <typename vertex_t, typename edge_t, typename weight_t>
 std::
   tuple<rmm::device_uvector<vertex_t>, rmm::device_uvector<vertex_t>, rmm::device_uvector<weight_t>>
@@ -390,7 +307,7 @@ rmm::device_uvector<vertex_t> compute_renumber_map(
 
     rmm::device_uvector<vertex_t> rx_labels(0, handle.get_stream());
     rmm::device_uvector<edge_t> rx_counts(0, handle.get_stream());
-    std::tie(rx_labels, rx_counts) = shuffle_values(handle, pair_first, tx_value_counts);
+    std::tie(rx_labels, rx_counts) = cugraph::experimental::detail::shuffle_values(handle, pair_first, tx_value_counts);
 
     labels.resize(rx_labels.size(), handle.get_stream());
     counts.resize(labels.size(), handle.get_stream());
@@ -431,13 +348,12 @@ rmm::device_uvector<vertex_t> compute_renumber_map(
 
 }  // namespace
 
-template <typename vertex_t, typename edge_t, typename weight_t, bool multi_gpu>
+template <typename vertex_t, typename edge_t, bool multi_gpu>
 std::enable_if_t<multi_gpu,
                  std::tuple<rmm::device_uvector<vertex_t>, partition_t<vertex_t>, vertex_t, edge_t>>
 renumber_edgelist(raft::handle_t const &handle,
                   rmm::device_uvector<vertex_t> &edgelist_major_vertices /* [INOUT] */,
                   rmm::device_uvector<vertex_t> &edgelist_minor_vertices /* [INOUT] */,
-                  rmm::device_uvector<weight_t> &edgelist_weights /* [INOUT] */,
                   bool is_hypergraph_partitioned)
 {
   auto &comm               = handle.get_comms();
@@ -593,6 +509,41 @@ renumber_edgelist(raft::handle_t const &handle,
 
   return std::make_tuple(
     std::move(renumber_map_labels), partition, number_of_vertices, number_of_edges);
+}
+
+template <typename vertex_t, typename edge_t, bool multi_gpu>
+std::enable_if_t<!multi_gpu, rmm::device_uvector<vertex_t>> renumber_edgelist(
+  raft::handle_t const &handle,
+  rmm::device_uvector<vertex_t> &edgelist_major_vertices /* [INOUT] */,
+  rmm::device_uvector<vertex_t> &edgelist_minor_vertices /* [INOUT] */)
+{
+  auto renumber_map_labels = compute_renumber_map<vertex_t, edge_t, multi_gpu>(
+    handle, edgelist_major_vertices, edgelist_minor_vertices);
+
+  double constexpr load_factor = 0.7;
+
+  // FIXME: compare this hash based approach with a binary search based approach in both memory
+  // footprint and execution time
+
+  cuco::static_map<vertex_t, vertex_t> renumber_map{
+    static_cast<size_t>(static_cast<double>(renumber_map_labels.size()) / load_factor),
+    invalid_vertex_id<vertex_t>::value,
+    invalid_vertex_id<vertex_t>::value};
+  auto pair_first = thrust::make_transform_iterator(
+    thrust::make_zip_iterator(
+      thrust::make_tuple(renumber_map_labels.begin(), thrust::make_counting_iterator(vertex_t{0}))),
+    [] __device__(auto val) {
+      return thrust::make_pair(thrust::get<0>(val), thrust::get<1>(val));
+    });
+  renumber_map.insert(pair_first, pair_first + renumber_map_labels.size());
+  renumber_map.find(edgelist_major_vertices.begin(),
+                    edgelist_major_vertices.end(),
+                    edgelist_major_vertices.begin());
+  renumber_map.find(edgelist_minor_vertices.begin(),
+                    edgelist_minor_vertices.end(),
+                    edgelist_minor_vertices.begin());
+
+  return std::move(renumber_map_labels);
 }
 
 template <typename vertex_t,
@@ -756,7 +707,7 @@ coarsen_graph(
     rmm::device_uvector<vertex_t> rx_edgelist_minor_vertices(0, handle.get_stream());
     rmm::device_uvector<weight_t> rx_edgelist_weights(0, handle.get_stream());
     std::tie(rx_edgelist_major_vertices, rx_edgelist_minor_vertices, rx_edgelist_weights) =
-      shuffle_values(handle, edge_first, tx_value_counts);
+      detail::shuffle_values(handle, edge_first, tx_value_counts);
 
     sort_and_coarsen_edgelist(rx_edgelist_major_vertices,
                               rx_edgelist_minor_vertices,
@@ -779,12 +730,10 @@ coarsen_graph(
   vertex_t number_of_vertices{};
   edge_t number_of_edges{};
   std::tie(renumber_map_labels, partition, number_of_vertices, number_of_edges) =
-    renumber_edgelist<vertex_t, edge_t, weight_t, multi_gpu>(
-      handle,
-      coarsened_edgelist_major_vertices,
-      coarsened_edgelist_minor_vertices,
-      coarsened_edgelist_weights,
-      graph_view.is_hypergraph_partitioned());
+    renumber_edgelist<vertex_t, edge_t, multi_gpu>(handle,
+                                                   coarsened_edgelist_major_vertices,
+                                                   coarsened_edgelist_minor_vertices,
+                                                   graph_view.is_hypergraph_partitioned());
 
   // 4. build a graph
 
@@ -827,7 +776,48 @@ coarsen_graph(
   graph_view_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu> const &graph_view,
   vertex_t const *labels)
 {
-  CUGRAPH_FAIL("unimplemented.");
+  rmm::device_uvector<vertex_t> coarsened_edgelist_major_vertices(0, handle.get_stream());
+  rmm::device_uvector<vertex_t> coarsened_edgelist_minor_vertices(0, handle.get_stream());
+  rmm::device_uvector<weight_t> coarsened_edgelist_weights(0, handle.get_stream());
+  std::tie(coarsened_edgelist_major_vertices,
+           coarsened_edgelist_minor_vertices,
+           coarsened_edgelist_weights) =
+    compressed_sparse_to_relabeled_and_sorted_and_coarsened_edgelist(
+      graph_view.offsets(),
+      graph_view.indices(),
+      graph_view.weights(),
+      labels,
+      labels,
+      vertex_t{0},
+      graph_view.get_number_of_vertices(),
+      vertex_t{0},
+      graph_view.get_number_of_vertices(),
+      handle.get_stream());
+
+  sort_and_coarsen_edgelist(coarsened_edgelist_major_vertices,
+                            coarsened_edgelist_minor_vertices,
+                            coarsened_edgelist_weights,
+                            handle.get_stream());
+
+  auto renumber_map_labels = renumber_edgelist<vertex_t, edge_t, multi_gpu>(
+    handle, coarsened_edgelist_major_vertices, coarsened_edgelist_minor_vertices);
+
+  edgelist_t<vertex_t, edge_t, weight_t> edgelist{};
+  edgelist.p_src_vertices = store_transposed ? coarsened_edgelist_minor_vertices.data()
+                                             : coarsened_edgelist_major_vertices.data();
+  edgelist.p_dst_vertices = store_transposed ? coarsened_edgelist_major_vertices.data()
+                                             : coarsened_edgelist_minor_vertices.data();
+  edgelist.p_edge_weights  = coarsened_edgelist_weights.data();
+  edgelist.number_of_edges = static_cast<edge_t>(coarsened_edgelist_major_vertices.size());
+
+  return std::make_tuple(
+    std::make_unique<graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu>>(
+      handle,
+      edgelist,
+      static_cast<vertex_t>(renumber_map_labels.size()),
+      graph_properties_t{graph_view.is_symmetric(), false},
+      true),
+    std::move(renumber_map_labels));
 }
 
 // explicit instantiation
