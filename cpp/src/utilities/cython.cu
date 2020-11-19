@@ -538,19 +538,18 @@ void call_katz_centrality(raft::handle_t const& handle,
                           int64_t max_iter,
                           bool has_guess,
                           bool normalize)
-  {
-  if (graph_container.graph_type == graphTypeEnum::GraphCSRViewFloat)  {
+{
+  if (graph_container.graph_type == graphTypeEnum::GraphCSRViewFloat) {
     cugraph::katz_centrality(*(graph_container.graph_ptr_union.GraphCSRViewFloatPtr),
-                    reinterpret_cast<double*>(katz_centrality),
-                    alpha,
-                    static_cast<int32_t>(max_iter),
-                    tolerance,
-                    has_guess,
-                    normalize);
+                             reinterpret_cast<double*>(katz_centrality),
+                             alpha,
+                             static_cast<int32_t>(max_iter),
+                             tolerance,
+                             has_guess,
+                             normalize);
     graph_container.graph_ptr_union.GraphCSRViewFloatPtr->get_vertex_identifiers(
       reinterpret_cast<int32_t*>(identifiers));
-  }
-  else if (graph_container.graph_type == graphTypeEnum::graph_t) {
+  } else if (graph_container.graph_type == graphTypeEnum::graph_t) {
     if (graph_container.edgeType == numberTypeEnum::int32Type) {
       auto graph =
         detail::create_graph<int32_t, int32_t, weight_t, true, true>(handle, graph_container);
@@ -584,7 +583,6 @@ void call_katz_centrality(raft::handle_t const& handle,
     }
   }
 }
-
 
 // Wrapper for calling BFS through a graph container
 template <typename vertex_t, typename weight_t>
