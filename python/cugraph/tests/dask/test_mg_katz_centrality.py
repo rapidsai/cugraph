@@ -43,7 +43,7 @@ def client_connection():
 @pytest.mark.skipif(
     is_single_gpu(), reason="skipping MG testing on Single GPU system"
 )
-def test_dask_pagerank(client_connection):
+def test_dask_katz_centrality(client_connection):
     gc.collect()
 
     input_data_path = r"../datasets/karate.csv"
@@ -70,27 +70,35 @@ def test_dask_pagerank(client_connection):
     dg = cugraph.DiGraph()
     dg.from_dask_cudf_edgelist(ddf, "src", "dst")
 
-    exp_res = cugraph.katz_centrality(
-        g, tol=1e-6)
-    mg_res = dcg.katz_centrality(dg, tol=1e-6)
+    largest_out_degree = g.degrees().nlargest(n=1, columns="out_degree")
+    largest_out_degree = largest_out_degree["out_degree"].iloc[0]
+    katz_alpha = 1 / (largest_out_degree + 1)
+
+    mg_res = dcg.katz_centrality(dg, alpha=katz_alpha, tol=1e-6)
     mg_res = mg_res.compute()
 
-    # err = 0
-    # tol = 1.0e-05
-    print(exp_res)
-    print(mg_res)
-    assert len(exp_res) == len(mg_res)
+    import networkx as nx
+    from cugraph.tests import utils
+    NM = utils.read_csv_for_nx(input_data_path)
+    Gnx = nx.from_pandas_edgelist(
+        NM, create_using=nx.DiGraph(), source="0", target="1"
+    )
+    nk = nx.katz_centrality(Gnx, alpha=katz_alpha)
+    import pandas as pd
+    pdf = pd.DataFrame(nk.items(), columns=['vertex', 'katz_centrality'])
+    exp_res = cudf.DataFrame(pdf)
+    err = 0
+    tol = 1.0e-05
 
-    """compare_pr = expected_pr.merge(
-        result_pr, on="vertex", suffixes=["_local", "_dask"]
+    compare_res = exp_res.merge(
+        mg_res, on="vertex", suffixes=["_local", "_dask"]
     )
 
-    for i in range(len(compare_pr)):
+    for i in range(len(compare_res)):
         diff = abs(
-            compare_pr["pagerank_local"].iloc[i]
-            - compare_pr["pagerank_dask"].iloc[i]
+            compare_res["katz_centrality_local"].iloc[i]
+            - compare_res["katz_centrality_dask"].iloc[i]
         )
         if diff > tol * 1.1:
             err = err + 1
     assert err == 0
-    """

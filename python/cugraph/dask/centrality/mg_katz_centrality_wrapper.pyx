@@ -35,7 +35,7 @@ def mg_katz_centrality(input_df,
                        max_iter=100,
                        tol=1.0e-5,
                        nstart=None,
-                       normalized=True):
+                       normalize=True):
     """
     Call katz_centrality
     """
@@ -56,9 +56,9 @@ def mg_katz_centrality(input_df,
         weight_t = np.dtype("float32")
 
     if alpha is None:
-        alpha = 0
+        alpha = 0.1
     if beta is None:
-        beta = 0
+        beta = 1.0
     # FIXME: Offsets and indices are currently hardcoded to int, but this may
     #        not be acceptable in the future.
     numberTypeMap = {np.dtype("int32") : <int>numberTypeEnum.int32Type,
@@ -99,9 +99,9 @@ def mg_katz_centrality(input_df,
 
     if (df['katz_centrality'].dtype == np.float32):
         c_katz_centrality.call_katz_centrality[int, float](handle_[0], graph_container, <int*>c_identifier, <float*> c_katz_centralities,
-                                               alpha, beta, tol, max_iter, <bool>0, <bool> 0)
+                                               alpha, beta, tol, max_iter, <bool>0, <bool> normalize)
     else:
         c_katz_centrality.call_katz_centrality[int, double](handle_[0], graph_container, <int*>c_identifier, <double*> c_katz_centralities,
-                                               alpha, beta, tol, max_iter, <bool>0, <bool> 0)
+                                               alpha, beta, tol, max_iter, <bool>0, <bool> normalize)
     
     return df

@@ -120,7 +120,7 @@ void populate_graph_container(graph_container_t& graph_container,
   CUGRAPH_EXPECTS(graph_container.graph_type == graphTypeEnum::null,
                   "populate_graph_container() can only be called on an empty container.");
 
-  bool do_expensive_check{false};
+  bool do_expensive_check{true};
   bool hypergraph_partitioned{false};
 
   auto& row_comm           = handle.get_subcomm(cugraph::partition_2d::key_naming_t().row_name());
@@ -537,7 +537,7 @@ void call_katz_centrality(raft::handle_t const& handle,
                           double tolerance,
                           int64_t max_iter,
                           bool has_guess,
-                          bool normalized)
+                          bool normalize)
   {
   if (graph_container.graph_type == graphTypeEnum::GraphCSRViewFloat)  {
     cugraph::katz_centrality(*(graph_container.graph_ptr_union.GraphCSRViewFloatPtr),
@@ -546,7 +546,7 @@ void call_katz_centrality(raft::handle_t const& handle,
                     static_cast<int32_t>(max_iter),
                     tolerance,
                     has_guess,
-                    normalized);
+                    normalize);
     graph_container.graph_ptr_union.GraphCSRViewFloatPtr->get_vertex_identifiers(
       reinterpret_cast<int32_t*>(identifiers));
   }
@@ -563,8 +563,8 @@ void call_katz_centrality(raft::handle_t const& handle,
                                              static_cast<weight_t>(tolerance),
                                              static_cast<size_t>(max_iter),
                                              has_guess,
-                                             normalized,
-                                             has_guess);
+                                             normalize,
+                                             false);
     } else if (graph_container.edgeType == numberTypeEnum::int64Type) {
       auto graph =
         detail::create_graph<vertex_t, int64_t, weight_t, true, true>(handle, graph_container);
@@ -577,8 +577,8 @@ void call_katz_centrality(raft::handle_t const& handle,
                                              static_cast<weight_t>(tolerance),
                                              static_cast<size_t>(max_iter),
                                              has_guess,
-                                             normalized,
-                                             has_guess);
+                                             normalize,
+                                             false);
     } else {
       CUGRAPH_FAIL("vertexType/edgeType combination unsupported");
     }
@@ -768,7 +768,7 @@ template void call_katz_centrality(raft::handle_t const& handle,
                                    double tolerance,
                                    int64_t max_iter,
                                    bool has_guess,
-                                   bool normalized);
+                                   bool normalize);
 
 template void call_katz_centrality(raft::handle_t const& handle,
                                    graph_container_t const& graph_container,
@@ -779,7 +779,7 @@ template void call_katz_centrality(raft::handle_t const& handle,
                                    double tolerance,
                                    int64_t max_iter,
                                    bool has_guess,
-                                   bool normalized);
+                                   bool normalize);
 
 template void call_katz_centrality(raft::handle_t const& handle,
                                    graph_container_t const& graph_container,
@@ -790,7 +790,7 @@ template void call_katz_centrality(raft::handle_t const& handle,
                                    double tolerance,
                                    int64_t max_iter,
                                    bool has_guess,
-                                   bool normalized);
+                                   bool normalize);
 
 template void call_katz_centrality(raft::handle_t const& handle,
                                    graph_container_t const& graph_container,
@@ -801,7 +801,7 @@ template void call_katz_centrality(raft::handle_t const& handle,
                                    double tolerance,
                                    int64_t max_iter,
                                    bool has_guess,
-                                   bool normalized);
+                                   bool normalize);
 
 template void call_bfs<int32_t, float>(raft::handle_t const& handle,
                                        graph_container_t const& graph_container,

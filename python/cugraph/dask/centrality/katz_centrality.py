@@ -61,7 +61,7 @@ def katz_centrality(input_graph,
 
     Parameters
     ----------
-    G : cuGraph.Graph or networkx.Graph
+    input_graph : cuGraph.Graph or networkx.Graph
         cuGraph graph descriptor with connectivity information. The graph can
         contain either directed (DiGraph) or undirected edges (Graph).
     alpha : float
@@ -103,7 +103,7 @@ def katz_centrality(input_graph,
 
     Returns
     -------
-    PageRank : dask_cudf.DataFrame
+    katz_centrality : dask_cudf.DataFrame
         GPU data frame containing two dask_cudf.Series of size V: the
         vertex identifiers and the corresponding katz centrality values.
 
