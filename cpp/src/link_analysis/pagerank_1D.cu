@@ -184,3 +184,5 @@ template class Pagerank<int, int, float>;
 
 }  // namespace mg
 }  // namespace cugraph
+
+#include "utilities/eidir_graph_utils.hpp"

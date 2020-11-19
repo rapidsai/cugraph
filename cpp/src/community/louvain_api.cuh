@@ -13,6 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+#pragma once
 
 #include <community/louvain.cuh>
 #include <experimental/louvain.cuh>
@@ -65,45 +66,46 @@ std::pair<size_t, typename graph_t::weight_type> louvain(raft::handle_t const &h
   return detail::louvain(handle, graph, clustering, max_level, resolution);
 }
 
-// Explicit template instantations
-template std::pair<size_t, float> louvain(
+// EIDecl:
+//
+extern template std::pair<size_t, float> louvain(
   raft::handle_t const &, GraphCSRView<int32_t, int32_t, float> const &, int32_t *, size_t, float);
-template std::pair<size_t, double> louvain(raft::handle_t const &,
-                                           GraphCSRView<int32_t, int32_t, double> const &,
-                                           int32_t *,
-                                           size_t,
-                                           double);
-template std::pair<size_t, float> louvain(
+extern template std::pair<size_t, double> louvain(raft::handle_t const &,
+                                                  GraphCSRView<int32_t, int32_t, double> const &,
+                                                  int32_t *,
+                                                  size_t,
+                                                  double);
+extern template std::pair<size_t, float> louvain(
   raft::handle_t const &,
   experimental::graph_view_t<int32_t, int32_t, float, false, false> const &,
   int32_t *,
   size_t,
   float);
-template std::pair<size_t, double> louvain(
+extern template std::pair<size_t, double> louvain(
   raft::handle_t const &,
   experimental::graph_view_t<int32_t, int32_t, double, false, false> const &,
   int32_t *,
   size_t,
   double);
-template std::pair<size_t, float> louvain(
+extern template std::pair<size_t, float> louvain(
   raft::handle_t const &,
   experimental::graph_view_t<int32_t, int64_t, float, false, false> const &,
   int32_t *,
   size_t,
   float);
-template std::pair<size_t, double> louvain(
+extern template std::pair<size_t, double> louvain(
   raft::handle_t const &,
   experimental::graph_view_t<int32_t, int64_t, double, false, false> const &,
   int32_t *,
   size_t,
   double);
-template std::pair<size_t, float> louvain(
+extern template std::pair<size_t, float> louvain(
   raft::handle_t const &,
   experimental::graph_view_t<int64_t, int64_t, float, false, false> const &,
   int64_t *,
   size_t,
   float);
-template std::pair<size_t, double> louvain(
+extern template std::pair<size_t, double> louvain(
   raft::handle_t const &,
   experimental::graph_view_t<int64_t, int64_t, double, false, false> const &,
   int64_t *,
@@ -111,38 +113,38 @@ template std::pair<size_t, double> louvain(
   double);
 
 // instantations with multi_gpu = true
-template std::pair<size_t, float> louvain(
+extern template std::pair<size_t, float> louvain(
   raft::handle_t const &,
   experimental::graph_view_t<int32_t, int32_t, float, false, true> const &,
   int32_t *,
   size_t,
   float);
-template std::pair<size_t, double> louvain(
+extern template std::pair<size_t, double> louvain(
   raft::handle_t const &,
   experimental::graph_view_t<int32_t, int32_t, double, false, true> const &,
   int32_t *,
   size_t,
   double);
 
-template std::pair<size_t, float> louvain(
+extern template std::pair<size_t, float> louvain(
   raft::handle_t const &,
   experimental::graph_view_t<int32_t, int64_t, float, false, true> const &,
   int32_t *,
   size_t,
   float);
-template std::pair<size_t, double> louvain(
+extern template std::pair<size_t, double> louvain(
   raft::handle_t const &,
   experimental::graph_view_t<int32_t, int64_t, double, false, true> const &,
   int32_t *,
   size_t,
   double);
-template std::pair<size_t, float> louvain(
+extern template std::pair<size_t, float> louvain(
   raft::handle_t const &,
   experimental::graph_view_t<int64_t, int64_t, float, false, true> const &,
   int64_t *,
   size_t,
   float);
-template std::pair<size_t, double> louvain(
+extern template std::pair<size_t, double> louvain(
   raft::handle_t const &,
   experimental::graph_view_t<int64_t, int64_t, double, false, true> const &,
   int64_t *,
@@ -150,5 +152,3 @@ template std::pair<size_t, double> louvain(
   double);
 
 }  // namespace cugraph
-
-#include <eidir_graph.hpp>
