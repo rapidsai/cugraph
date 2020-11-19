@@ -3,6 +3,7 @@
 ## New Features
 - PR #1245 Add functions to add pandas and numpy compatibility
 - PR #1260 Add katz_centrality mnmg wrapper
+- PR #1274 Add generic from_edgelist() API
 
 ## Improvements
 - PR #1227 Pin cmake policies to cmake 3.17 version
