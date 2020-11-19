@@ -52,18 +52,18 @@ auto shuffle_values(raft::handle_t const &handle,
   auto &comm           = handle.get_comms();
   auto const comm_size = comm.get_size();
 
-  rmm::device_uvector<size_t> rx_value_counts(comm_size(), handle.get_stream());
+  rmm::device_uvector<size_t> rx_value_counts(comm_size, handle.get_stream());
 
   // FIXME: this needs to be replaced with AlltoAll once NCCL 2.8 is released.
-  std::vector<size_t> tx_counts(comm_size(), size_t{1});
-  std::vector<size_t> tx_offsets(comm_size());
+  std::vector<size_t> tx_counts(comm_size, size_t{1});
+  std::vector<size_t> tx_offsets(comm_size);
   std::iota(tx_offsets.begin(), tx_offsets.end(), size_t{0});
-  std::vector<int> tx_dst_ranks(comm_size());
+  std::vector<int> tx_dst_ranks(comm_size);
   std::iota(tx_dst_ranks.begin(), tx_dst_ranks.end(), int{0});
-  std::vector<size_t> rx_counts(comm_size(), size_t{1});
+  std::vector<size_t> rx_counts(comm_size, size_t{1});
   std::vector<size_t> rx_offsets(comm_size);
   std::iota(rx_offsets.begin(), rx_offsets.end(), size_t{0});
-  std::vector<int> rx_src_ranks(comm_size());
+  std::vector<int> rx_src_ranks(comm_size);
   std::iota(rx_src_ranks.begin(), rx_src_ranks.end(), int{0});
   device_multicast_sendrecv(comm,
                             tx_value_counts.data(),
@@ -76,9 +76,9 @@ auto shuffle_values(raft::handle_t const &handle,
                             rx_src_ranks,
                             handle.get_stream());
 
-  raft::update_host(tx_counts.data(), tx_value_counts.data(), comm_size(), handle.get_stream());
+  raft::update_host(tx_counts.data(), tx_value_counts.data(), comm_size, handle.get_stream());
   std::partial_sum(tx_counts.begin(), tx_counts.end() - 1, tx_offsets.begin() + 1);
-  raft::update_host(rx_counts.data(), rx_value_counts.data(), comm_size(), handle.get_stream());
+  raft::update_host(rx_counts.data(), rx_value_counts.data(), comm_size, handle.get_stream());
   std::partial_sum(rx_counts.begin(), rx_counts.end() - 1, rx_offsets.begin() + 1);
 
   auto rx_value_buffer =
@@ -106,8 +106,8 @@ auto shuffle_values(raft::handle_t const &handle,
   tx_counts.resize(num_tx_dst_ranks);
   tx_offsets.resize(num_tx_dst_ranks);
   tx_dst_ranks.resize(num_tx_dst_ranks);
-  rx_counts.resize(num_rx_dst_ranks);
-  rx_offsets.resize(num_rx_dst_ranks);
+  rx_counts.resize(num_rx_src_ranks);
+  rx_offsets.resize(num_rx_src_ranks);
   rx_src_ranks.resize(num_rx_src_ranks);
 
   // FIXME: this needs to be replaced with AlltoAll once NCCL 2.8 is released
@@ -169,64 +169,65 @@ std::
                  edgelist_weights.data());
   }
 
-  return std::make_tuple(std::move(edgelist_src_vertices),
-                         std::move(edgelist_dst_vertices),
+  return std::make_tuple(std::move(edgelist_major_vertices),
+                         std::move(edgelist_minor_vertices),
                          std::move(edgelist_weights));
 }
 
 template <typename vertex_t, typename weight_t>
-void sort_and_coarsen_edgelist(raft::handle_t const &handle,
-                               rmm::device_uvector<vertex_t> &edgelist_major_vertices /* [INOUT] */,
+void sort_and_coarsen_edgelist(rmm::device_uvector<vertex_t> &edgelist_major_vertices /* [INOUT] */,
                                rmm::device_uvector<vertex_t> &edgelist_minor_vertices /* [INOUT] */,
-                               rmm::device_uvector<weight_t> &edgelist_weights /* [INOUT] */)
+                               rmm::device_uvector<weight_t> &edgelist_weights /* [INOUT] */,
+                               cudaStream_t stream)
 {
   auto pair_first = thrust::make_zip_iterator(
     thrust::make_tuple(edgelist_major_vertices.begin(), edgelist_minor_vertices.begin()));
 
   size_t number_of_edges{0};
   if (edgelist_weights.size() > 0) {
-    thrust::sort_by_key(rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
+    thrust::sort_by_key(rmm::exec_policy(stream)->on(stream),
                         pair_first,
-                        pair_first + edgelist_major_vertices.begin(),
+                        pair_first + edgelist_major_vertices.size(),
                         edgelist_weights.begin());
 
-    rmm::device_uvector<vertex_t> tmp_edgelist_major_vertices(edgelist_major_vertices.size(), handle.get_stream());
-    rmm::device_uvector<vertex_t> tmp_edgelist_minor_vertices(tmp_edgelist_major_vertices.size(), handle.get_stream());
-    rmm::device_uvector<weight_t> tmp_edgelist_weights(tmp_edgelist_major_vertices.size(), handle.get_stream());
+    rmm::device_uvector<vertex_t> tmp_edgelist_major_vertices(edgelist_major_vertices.size(),
+                                                              stream);
+    rmm::device_uvector<vertex_t> tmp_edgelist_minor_vertices(tmp_edgelist_major_vertices.size(),
+                                                              stream);
+    rmm::device_uvector<weight_t> tmp_edgelist_weights(tmp_edgelist_major_vertices.size(), stream);
     auto it = thrust::reduce_by_key(
-      rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
+      rmm::exec_policy(stream)->on(stream),
       pair_first,
-      pair_first + edgelist_major_vertices.begin(),
+      pair_first + edgelist_major_vertices.size(),
       edgelist_weights.begin(),
       thrust::make_zip_iterator(thrust::make_tuple(tmp_edgelist_major_vertices.begin(),
-                                                   tmp_edgeilst_minor_vertices.begin())),
+                                                   tmp_edgelist_minor_vertices.begin())),
       tmp_edgelist_weights.begin());
     number_of_edges = thrust::distance(tmp_edgelist_weights.begin(), thrust::get<1>(it));
 
     CUDA_TRY(cudaStreamSynchronize(
-      handle
-        .get_stream()));  // memory blocks owned by edgelist_(major_vertices,minor_vertices,weights)
-                          // will be freed after the assignments below
+      stream));  // memory blocks owned by edgelist_(major_vertices,minor_vertices,weights) will be
+                 // freed after the assignments below
 
     edgelist_major_vertices = std::move(tmp_edgelist_major_vertices);
     edgelist_minor_vertices = std::move(tmp_edgelist_minor_vertices);
     edgelist_weights        = std::move(tmp_edgelist_weights);
   } else {
-    thrust::sort(rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
+    thrust::sort(rmm::exec_policy(stream)->on(stream),
                  pair_first,
-                 pair_first + edgelist_major_vertices.begin());
-    auto it         = thrust::unique(rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
+                 pair_first + edgelist_major_vertices.size());
+    auto it         = thrust::unique(rmm::exec_policy(stream)->on(stream),
                              pair_first,
                              pair_first + edgelist_major_vertices.size());
     number_of_edges = thrust::distance(pair_first, it);
   }
 
-  edgelist_major_vertices.resize(number_of_edges, handle.get_stream());
-  edgelist_minor_vertices.resize(number_of_edges, handle.get_stream());
-  edgelist_weights.resize(number_of_edges, handle.get_stream());
-  edgelist_major_vertices.shrink_to_fit(handle.get_stream());
-  edgelist_minor_vertices.shrink_to_fit(handle.get_stream());
-  edgelist_weights.shrink_to_fit(handle.get_stream());
+  edgelist_major_vertices.resize(number_of_edges, stream);
+  edgelist_minor_vertices.resize(number_of_edges, stream);
+  edgelist_weights.resize(number_of_edges, stream);
+  edgelist_major_vertices.shrink_to_fit(stream);
+  edgelist_minor_vertices.shrink_to_fit(stream);
+  edgelist_weights.shrink_to_fit(stream);
 
   return;
 }
@@ -241,18 +242,19 @@ std::
     vertex_t const *p_major_labels,
     vertex_t const *p_minor_labels,
     vertex_t major_first,
+    vertex_t major_last,
     vertex_t minor_first,
+    vertex_t minor_last,
     cudaStream_t stream)
 {
   // FIXME: it might be possible to directly create relabled & coarsened edgelist from the
   // compressed sparse format to save memory
 
-  rmm::device_uvector<vertex_t> edgelist_major_vertices(0, handle.get_stream());
-  rmm::device_uvector<vertex_t> edgelist_minor_vertices(0, handle.get_stream());
-  rmm::device_uvector<weight_t> edgelist_weights(0, handle.get_stream());
+  rmm::device_uvector<vertex_t> edgelist_major_vertices(0, stream);
+  rmm::device_uvector<vertex_t> edgelist_minor_vertices(0, stream);
+  rmm::device_uvector<weight_t> edgelist_weights(0, stream);
   std::tie(edgelist_major_vertices, edgelist_minor_vertices, edgelist_weights) =
-    compressed_sparse_to_edgelist(handle,
-                                  compressed_sparse_offsets,
+    compressed_sparse_to_edgelist(compressed_sparse_offsets,
                                   compressed_sparse_indices,
                                   compressed_sparse_weights,
                                   major_first,
@@ -262,7 +264,7 @@ std::
   auto pair_first = thrust::make_zip_iterator(
     thrust::make_tuple(edgelist_major_vertices.begin(), edgelist_minor_vertices.begin()));
   thrust::transform(
-    rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
+    rmm::exec_policy(stream)->on(stream),
     pair_first,
     pair_first + edgelist_major_vertices.size(),
     pair_first,
@@ -272,124 +274,12 @@ std::
     });
 
   sort_and_coarsen_edgelist(
-    handle, edgelist_major_vertices, edgelist_minor_vertices, edgelist_weights);
+    edgelist_major_vertices, edgelist_minor_vertices, edgelist_weights, stream);
 
   return std::make_tuple(std::move(edgelist_major_vertices),
                          std::move(edgelist_minor_vertices),
                          std::move(edgelist_weights));
 }
-
-#if 0
-template <typename vertex_t,
-          typename edge_t,
-          typename weight_t,
-          bool store_transposed,
-          bool multi_gpu>
-void compute_coarsened_edgelist(raft::handle_t const &handle,
-                                rmm::device_uvector<vertex_t> &coarsened_edgelist_major_vertices,
-                                rmm::device_uvector<vertex_t> &coarsened_edgelist_minor_vertices,
-                                rmm::device_uvector<weight_t> &coarsened_edgelist_weights,
-                                edge_t const *uncoarsened_edgelist_major_vertices,
-                                vertex_t const *uncoarsened_edgelist_minor_vertices,
-                                weight_t const *uncoarsened_edgelist_weights,
-                                edge_t number_of_uncoarsened_edges,
-                                vertex_t uncoarsened_major_first,
-                                vertex_t uncoarsened_minor_first,
-                                vertex_t major_labels,
-                                vertex_t minor_labels)
-{
-  auto pair_first = thrust::make_zip_iterator(
-    thrust::make_tuple(uncoarsened_edgelist_major_vertices, uncoarsened_edgelist_minor_vertices));
-  if (uncoarsened_edgelist_eights != nullptr) {
-    thrust::sort_by_key(rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
-                        pair_first,
-                        pair_first + number_of_uncoarsened_edges,
-                        uncoarsened_edgelist_weights);
-  } else {
-    thrust::sort(rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
-                 pair_first,
-                 pair_first + number_of_uncoarsened_edges);
-  }
-  if (coarsened_edgelist_src_vertices.size() > 0) {
-    rmm::device_uvector<vertex_t> tmp_src_vertices(
-      coarsened_edgelist_src_vertices.size() + number_of_uncoarsened_edges, handle.get_stream());
-    rmm::device_uvector<vertex_t> tmp_dst_vertices(tmp_src_vertices.size(), handle.get_stream());
-    rmm::device_uvector<weight_t> tmp_weights(
-      graph_view.is_weighted() ? tmp_src_vertices.size() : 0, handle.get_stream());
-    auto coarsened_src_dst_pair_first = thrust::make_zip_iterator(thrust::make_tuple(
-      coarsened_edgelist_src_vertices.begin(), coarsened_edgelist_dst_vertices.begin()));
-    if (graph_view.is_weighted()) {
-      thrust::merge_by_key(rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
-                           coarsened_src_dst_pair_first,
-                           coarsened_src_dst_pair_first + coarsened_edgelist_src_vertices.size(),
-                           src_dst_pair_first,
-                           src_dst_pair_first + edgelist_src_vertices.size(),
-                           coarsened_edgelist_weights.begin(),
-                           edgelist_weights.begin(),
-                           thrust::make_zip_iterator(thrust::make_tuple(tmp_src_vertices.begin(),
-                                                                        tmp_dst_vertices.begin())),
-                           tmp_weights.begin());
-    } else {
-      thrust::merge(rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
-                    coarsened_src_dst_pair_first,
-                    coarsened_src_dst_pair_first + coarsened_edgelist_src_vertices.size(),
-                    src_dst_pair_first,
-                    src_dst_pair_first + edgelist_src_vertices.size(),
-                    thrust::make_zip_iterator(
-                      thrust::make_tuple(tmp_src_vertices.begin(), tmp_dst_vertices.begin())));
-    }
-    CUDA_TRY(cudaStreamSynchronize(
-      handle.get_stream()));  // this is necessary as memory blocks in edgelist_(src_vertices,
-                              // dst_vertices, weights) will be freed after the following move
-                              // assignments.
-    edgelist_src_vertices = std::move(tmp_src_vertices);
-    edgelist_dst_vertices = std::move(tmp_dst_vertices);
-    edgelist_weights      = std::move(tmp_weights);
-    src_dst_pair_first    = thrust::make_zip_iterator(
-      thrust::make_tuple(edgelist_src_vertices.begin(), edgelist_dst_vertices.begin()));
-  }
-
-  edge_t num_edges{0};
-  if (graph_view.is_weighted()) {
-    coarsened_edgelist_src_vertices.resize(edgelist_src_vertices.size(), handle.get_stream());
-    coarsened_edgelist_dst_vertices.resize(coarsened_edgelist_src_vertices.size(),
-                                           handle.get_stream());
-    coarsened_edgelist_weights.resize(
-      graph_view.is_weighted() ? coarsened_edgelist_src_vertices.size() : 0, handle.get_stream());
-    auto it = thrust::reduce_by_key(
-      rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
-      src_dst_pair_first,
-      src_dst_pair_first + edgelist_src_vertices.size(),
-      edgelist_weights.begin(),
-      thrust::make_zip_iterator(thrust::make_tuple(coarsened_edgelist_src_vertices.begin(),
-                                                   coarsened_edgelist_dst_vertices.begin())),
-      coarsened_edgelist_weights.begin());
-    num_edges = static_cast<edge_t>(thrust::distance(src_dst_pair_first, it));
-  } else {
-    auto it = thrust::unique(rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
-                             src_dst_pair_first,
-                             src_dst_pair_first + edgelist_src_vertices.size());
-    coarsened_edgelist_src_vertices = std::move(edgelist_src_vertices);
-    coarsened_edgelist_dst_vertices = std::move(edgelist_dst_vertices);
-    coarsened_edgelist_weights      = std::move(edgelist_weights);
-    num_edges                       = static_cast<edge_t>(thrust::distance(src_dst_pair_first, it));
-  }
-  coarsened_edgelist_src_vertices.resize(num_edges, handle.get_stream());
-  coarsened_edgelist_dst_vertices.resize(num_edges, handle.get_stream());
-  coarsened_edgelist_weights.resize(graph_view.is_weighted() ? num_edges : 0, handle.get_stream());
-
-  CUDA_TRY(cudaStreamSynchronize(
-    handle.get_stream()));  // this is necessary as edgelist_(src_vertices, dst_vertices,
-                            // weights) will become out-of-scope.
-
-  coarsened_edgelist_src_vertices.shrink_to_fit(handle.get_stream());
-  coarsened_edgelist_dst_vertices.shrink_to_fit(handle.get_stream());
-  coarsened_edgelist_weights.shrink_to_fit(handle.get_stream());
-  return std::make_tuple(std::move(coarsened_edgelist_src_vertices),
-                         std::move(coarsened_edgelist_dst_vertices),
-                         std::move(coarsened_edgelist_weights));
-}
-#endif
 
 template <typename vertex_t, typename edge_t, bool multi_gpu>
 rmm::device_uvector<vertex_t> compute_renumber_map(
@@ -402,7 +292,7 @@ rmm::device_uvector<vertex_t> compute_renumber_map(
 
   // 1. acquire (unique major label, count) pairs
 
-  rmm::device_uvector<vertex_t> tmp_labels = edgelist_major_vertices;
+  rmm::device_uvector<vertex_t> tmp_labels(edgelist_major_vertices, handle.get_stream());
   thrust::sort(rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
                tmp_labels.begin(),
                tmp_labels.end());
@@ -425,7 +315,7 @@ rmm::device_uvector<vertex_t> compute_renumber_map(
 
   // 2. acquire unique minor labels
 
-  rmm::device_uvector<vertex_t> minor_labels = edgelist_minor_vertices;
+  rmm::device_uvector<vertex_t> minor_labels(edgelist_minor_vertices, handle.get_stream());
   thrust::sort(rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
                minor_labels.begin(),
                minor_labels.end());
@@ -433,7 +323,7 @@ rmm::device_uvector<vertex_t> compute_renumber_map(
     thrust::unique(rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
                    minor_labels.begin(),
                    minor_labels.end());
-  minor_labels.resize(thrust::distance(minor_labels.begin(), minor_label_it));
+  minor_labels.resize(thrust::distance(minor_labels.begin(), minor_label_it), handle.get_stream());
   minor_labels.shrink_to_fit(handle.get_stream());
 
   // 3. merge major and minor labels
@@ -467,8 +357,8 @@ rmm::device_uvector<vertex_t> compute_renumber_map(
                           counts.begin());
   merged_labels.resize(0, handle.get_stream());
   merged_counts.resize(0, handle.get_stream());
-  merged_labels.shrink_to_fit();
-  merged_counts.shrink_to_fit();
+  merged_labels.shrink_to_fit(handle.get_stream());
+  merged_counts.shrink_to_fit(handle.get_stream());
   labels.resize(thrust::distance(labels.begin(), thrust::get<0>(pair_it)), handle.get_stream());
   counts.resize(labels.size(), handle.get_stream());
   labels.shrink_to_fit(handle.get_stream());
@@ -542,11 +432,13 @@ rmm::device_uvector<vertex_t> compute_renumber_map(
 }  // namespace
 
 template <typename vertex_t, typename edge_t, typename weight_t, bool multi_gpu>
-std::enable_if_t<multi_gpu, std::tuple<rmm::device_uvector<vertex_t>, partition_t<vertex_t>, vertex_t, edge_t>> renumber_edgelist(
-  raft::handle_t const &handle,
-  rmm::device_uvector<vertex_t> &edgelist_major_vertices /* [INOUT] */,
-  rmm::device_uvector<vertex_t> &edgelist_minor_vertices /* [INOUT] */,
-  rmm::device_uvector<weight_t> &edgelist_weights /* [INOUT] */)
+std::enable_if_t<multi_gpu,
+                 std::tuple<rmm::device_uvector<vertex_t>, partition_t<vertex_t>, vertex_t, edge_t>>
+renumber_edgelist(raft::handle_t const &handle,
+                  rmm::device_uvector<vertex_t> &edgelist_major_vertices /* [INOUT] */,
+                  rmm::device_uvector<vertex_t> &edgelist_minor_vertices /* [INOUT] */,
+                  rmm::device_uvector<weight_t> &edgelist_weights /* [INOUT] */,
+                  bool is_hypergraph_partitioned)
 {
   auto &comm               = handle.get_comms();
   auto const comm_size     = comm.get_size();
@@ -574,7 +466,7 @@ std::enable_if_t<multi_gpu, std::tuple<rmm::device_uvector<vertex_t>, partition_
                    vertex_partition_offsets.begin() + 1);
 
   partition_t<vertex_t> partition(vertex_partition_offsets,
-                                  graph_view.is_hypergraph_partitioned(),
+                                  is_hypergraph_partitioned,
                                   row_comm_size,
                                   col_comm_size,
                                   row_comm_rank,
@@ -582,11 +474,11 @@ std::enable_if_t<multi_gpu, std::tuple<rmm::device_uvector<vertex_t>, partition_
 
   auto number_of_vertices = vertex_partition_offsets.back();
   auto number_of_edges    = host_scalar_allreduce(
-    comm, static_cast<edge_t>(coarsened_edgelist_src_vertices.size()), handle.get_stream());
+    comm, static_cast<edge_t>(edgelist_major_vertices.size()), handle.get_stream());
 
   // 3. renumber edges
 
-  if (graph_view.is_hypergraph_partitioned()) {
+  if (is_hypergraph_partitioned) {
     CUGRAPH_FAIL("unimplemented.");
   } else {
     double constexpr load_factor = 0.7;
@@ -620,8 +512,12 @@ std::enable_if_t<multi_gpu, std::tuple<rmm::device_uvector<vertex_t>, partition_
         static_cast<size_t>(static_cast<double>(renumber_map_major_labels.size()) / load_factor),
         invalid_vertex_id<vertex_t>::value,
         invalid_vertex_id<vertex_t>::value};
-      auto pair_first = thrust::make_zip_iterator(thrust::make_tuple(
-        renumber_map_major_labels.begin(), thrust::make_counting_iterator(major_first)));
+      auto pair_first = thrust::make_transform_iterator(
+        thrust::make_zip_iterator(thrust::make_tuple(renumber_map_major_labels.begin(),
+                                                     thrust::make_counting_iterator(major_first))),
+        [] __device__(auto val) {
+          return thrust::make_pair(thrust::get<0>(val), thrust::get<1>(val));
+        });
       renumber_map.insert(pair_first, pair_first + renumber_map_major_labels.size());
       renumber_map.find(edgelist_major_vertices.begin(),
                         edgelist_major_vertices.end(),
@@ -682,16 +578,21 @@ std::enable_if_t<multi_gpu, std::tuple<rmm::device_uvector<vertex_t>, partition_
         static_cast<size_t>(static_cast<double>(renumber_map_minor_labels.size()) / load_factor),
         invalid_vertex_id<vertex_t>::value,
         invalid_vertex_id<vertex_t>::value};
-      auto pair_first = thrust::make_zip_iterator(thrust::make_tuple(
-        renumber_map_minor_labels.begin(), thrust::make_counting_iterator(minor_first)));
+      auto pair_first = thrust::make_transform_iterator(
+        thrust::make_zip_iterator(thrust::make_tuple(renumber_map_minor_labels.begin(),
+                                                     thrust::make_counting_iterator(minor_first))),
+        [] __device__(auto val) {
+          return thrust::make_pair(thrust::get<0>(val), thrust::get<1>(val));
+        });
       renumber_map.insert(pair_first, pair_first + renumber_map_minor_labels.size());
-      renumber_map.find(coarsened_edgelist_minor_vertices.begin(),
-                        coarsened_edgelist_minor_vertices.end(),
-                        coarsened_edgelist_minor_vertices.begin());
+      renumber_map.find(edgelist_minor_vertices.begin(),
+                        edgelist_minor_vertices.end(),
+                        edgelist_minor_vertices.begin());
     }
   }
 
-  return std::make_tuple(std::move(renumber_map_labels), partition, number_of_vertices, number_of_edges);
+  return std::make_tuple(
+    std::move(renumber_map_labels), partition, number_of_vertices, number_of_edges);
 }
 
 template <typename vertex_t,
@@ -745,7 +646,7 @@ coarsen_graph(
   // cuco::dynamic_map becomes available (so we don't need to preallocate memory assuming the worst
   // case). We may be able to limit the memory requirement close to the final coarsened edgelist
   // with the hash based approach.
-  for (size_t i = 0; i < graph_view.adj_matrix_partition_offsets_.size(); ++i) {
+  for (size_t i = 0; i < graph_view.get_number_of_local_adj_matrix_partitions(); ++i) {
     // get edge list
 
     rmm::device_uvector<vertex_t> edgelist_major_vertices(0, handle.get_stream());
@@ -753,18 +654,22 @@ coarsen_graph(
     rmm::device_uvector<weight_t> edgelist_weights(0, handle.get_stream());
     std::tie(edgelist_major_vertices, edgelist_minor_vertices, edgelist_weights) =
       compressed_sparse_to_relabeled_and_sorted_and_coarsened_edgelist(
-        handle,
-        graph_view.adj_matrix_partition_offsets_[i],
-        graph_view.adj_matrix_partition_indices_[i],
-        graph_view.is_weighted() ? graph_view.adj_matrix_partition_weights_[i] : nullptr,
+        graph_view.offsets(i),
+        graph_view.indices(i),
+        graph_view.weights(i),
         adj_matrix_major_labels.begin() +
-          (store_transposed ? graph_view.get_local_adj_matrix_partition_col_vaule_start_offset(i)
-                            : graph_view.get_local_adj_matrix_partition_row_vaule_start_offset(i)),
+          (store_transposed ? graph_view.get_local_adj_matrix_partition_col_value_start_offset(i)
+                            : graph_view.get_local_adj_matrix_partition_row_value_start_offset(i)),
         adj_matrix_minor_labels.begin(),
         store_transposed ? graph_view.get_local_adj_matrix_partition_col_first(i)
                          : graph_view.get_local_adj_matrix_partition_row_first(i),
+        store_transposed ? graph_view.get_local_adj_matrix_partition_col_last(i)
+                         : graph_view.get_local_adj_matrix_partition_row_last(i),
         store_transposed ? graph_view.get_local_adj_matrix_partition_row_first(i)
-                         : graph_view.get_local_adj_matrix_partition_col_first(i));
+                         : graph_view.get_local_adj_matrix_partition_col_first(i),
+        store_transposed ? graph_view.get_local_adj_matrix_partition_row_last(i)
+                         : graph_view.get_local_adj_matrix_partition_col_last(i),
+        handle.get_stream());
 
     auto cur_size = coarsened_edgelist_major_vertices.size();
     // FIXME: this can lead to frequent costly reallocation; we may be able to avoid this if we can
@@ -778,36 +683,41 @@ coarsen_graph(
       graph_view.is_weighted() ? coarsened_edgelist_major_vertices.size() : 0, handle.get_stream());
 
     if (graph_view.is_weighted()) {
-      auto src_edge_first = thrust::make_zip_iterator(
-        thrust::make_tuple(edgelist_major_vertices.begin(), edgelist_minor_vertices.begin(), edgelist_weights.begin()));
-      auto dst_edge_first = thrust::make_zip_iterator(thrust::make_tuple(coarsened_edgelist_major_vertices.begin(),
-                                                      coarsened_edgelist_minor_vertices.begin(),
-                                                      coarsened_edgelist_weights.begin())) +
-                            cur_size;
+      auto src_edge_first =
+        thrust::make_zip_iterator(thrust::make_tuple(edgelist_major_vertices.begin(),
+                                                     edgelist_minor_vertices.begin(),
+                                                     edgelist_weights.begin()));
+      auto dst_edge_first =
+        thrust::make_zip_iterator(thrust::make_tuple(coarsened_edgelist_major_vertices.begin(),
+                                                     coarsened_edgelist_minor_vertices.begin(),
+                                                     coarsened_edgelist_weights.begin())) +
+        cur_size;
       thrust::copy(rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
                    src_edge_first,
                    src_edge_first + edgelist_major_vertices.size(),
                    dst_edge_first);
     } else {
-      auto src_edge_first =
-        thrust::make_zip_iterator(thrust::make_tuple(edgelist_major_vertices.begin(), edgelist_minor_vertices.begin()));
-      auto dst_edge_first = thrust::make_zip_iterator(thrust::make_tuple(coarsened_edgelist_major_vertices.begin(),
-                                                      coarsened_edgelist_minor_vertices.begin())) +
-                            cur_size;
+      auto src_edge_first = thrust::make_zip_iterator(
+        thrust::make_tuple(edgelist_major_vertices.begin(), edgelist_minor_vertices.begin()));
+      auto dst_edge_first =
+        thrust::make_zip_iterator(thrust::make_tuple(coarsened_edgelist_major_vertices.begin(),
+                                                     coarsened_edgelist_minor_vertices.begin())) +
+        cur_size;
       thrust::copy(rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
                    src_edge_first,
                    src_edge_first + edgelist_major_vertices.size(),
                    dst_edge_first);
     }
 
-    CUDA_TRY(cudaStreamSynchronize(handle.get_stream()));  // edgelist_(major_vertices,minor_vertices,weights)
-                                                           // will become out-of-scope
+    CUDA_TRY(cudaStreamSynchronize(
+      handle.get_stream()));  // edgelist_(major_vertices,minor_vertices,weights)
+                              // will become out-of-scope
   }
 
-  sort_and_coarsen_edgelist(handle,
-                            coarsened_edgelist_major_vertices,
+  sort_and_coarsen_edgelist(coarsened_edgelist_major_vertices,
                             coarsened_edgelist_minor_vertices,
-                            coarsened_edgelist_weights);
+                            coarsened_edgelist_weights,
+                            handle.get_stream());
 
   // 2. globally shuffle edge list and re-coarsen
 
@@ -834,11 +744,11 @@ coarsen_graph(
       return store_transposed ? key_func(thrust::get<1>(val), thrust::get<0>(val))
                               : key_func(thrust::get<0>(val), thrust::get<1>(val));
     });
-    rmm::device_uvector<vertex_t> tx_value_counts(comm.get_size(), handle.get_stream());
+    rmm::device_uvector<size_t> tx_value_counts(comm.get_size(), handle.get_stream());
     thrust::reduce_by_key(rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
                           key_first,
                           key_first + coarsened_edgelist_major_vertices.size(),
-                          thrust::make_constant_iterator(vertex_t{1}),
+                          thrust::make_constant_iterator(size_t{1}),
                           thrust::make_discard_iterator(),
                           tx_value_counts.begin());
 
@@ -848,8 +758,10 @@ coarsen_graph(
     std::tie(rx_edgelist_major_vertices, rx_edgelist_minor_vertices, rx_edgelist_weights) =
       shuffle_values(handle, edge_first, tx_value_counts);
 
-    sort_and_coarsen_edgelist(
-      handle, rx_edgelist_major_vertices, rx_edgelist_minor_vertices, rx_edgelist_weights);
+    sort_and_coarsen_edgelist(rx_edgelist_major_vertices,
+                              rx_edgelist_minor_vertices,
+                              rx_edgelist_weights,
+                              handle.get_stream());
 
     CUDA_TRY(cudaStreamSynchronize(
       handle.get_stream()));  // memory blocks owned by
@@ -861,15 +773,18 @@ coarsen_graph(
     coarsened_edgelist_weights        = std::move(rx_edgelist_weights);
   }
 
-  rmm::device_uvector<vertex_t> renumber_map_labels{};
-  partition_t<vertex_t> partition{};
+  rmm::device_uvector<vertex_t> renumber_map_labels(0, handle.get_stream());
+  partition_t<vertex_t> partition(
+    std::vector<vertex_t>{}, graph_view.is_hypergraph_partitioned(), 0, 0, 0, 0);
   vertex_t number_of_vertices{};
   edge_t number_of_edges{};
   std::tie(renumber_map_labels, partition, number_of_vertices, number_of_edges) =
-    renumber_edgelist<vertex_t, edge_t, weight_t, multi_gpu>(handle,
-                                                             coarsened_edgelist_major_vertices,
-                                                             coarsened_edgelist_minor_vertices,
-                                                             coarsened_edgelist_weights);
+    renumber_edgelist<vertex_t, edge_t, weight_t, multi_gpu>(
+      handle,
+      coarsened_edgelist_major_vertices,
+      coarsened_edgelist_minor_vertices,
+      coarsened_edgelist_weights,
+      graph_view.is_hypergraph_partitioned());
 
   // 4. build a graph
 
