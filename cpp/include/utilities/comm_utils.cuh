@@ -633,7 +633,7 @@ auto allocate_comm_buffer_tuple_impl(std::index_sequence<Is...>,
                                      size_t buffer_size,
                                      cudaStream_t stream)
 {
-  return thrust::make_tuple(
+  return std::make_tuple(
     allocate_comm_buffer_tuple_element_impl<TupleType, Is>(buffer_size, stream)...);
 }
 
@@ -641,12 +641,13 @@ template <typename TupleType, size_t I, typename BufferType>
 auto get_comm_buffer_begin_tuple_element_impl(BufferType& buffer)
 {
   using element_t = typename thrust::tuple_element<I, TupleType>::type;
-  return thrust::get<I>(buffer).begin();
+  return std::get<I>(buffer).begin();
 }
 
 template <typename TupleType, size_t... Is, typename BufferType>
 auto get_comm_buffer_begin_tuple_impl(std::index_sequence<Is...>, BufferType& buffer)
 {
+  // thrust::make_tuple instead of std::make_tuple as this is fed to thrust::make_zip_iterator.
   return thrust::make_tuple(get_comm_buffer_begin_tuple_element_impl<TupleType, Is>(buffer)...);
 }
 
