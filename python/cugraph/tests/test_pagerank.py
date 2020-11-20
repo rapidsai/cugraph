@@ -162,12 +162,6 @@ def test_pagerank(
         M, source="0", target="1", create_using=nx.DiGraph()
     )
 
-    pr = nx.pagerank(
-        Gnx,
-        alpha=alpha,
-        max_iter=max_iter * 2,
-        tol=tol * 0.01)
-
     networkx_pr, networkx_prsn = networkx_call(
         Gnx, max_iter, tol, alpha, personalization_perc, nnz_vtx
     )
