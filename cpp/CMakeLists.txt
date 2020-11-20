@@ -89,6 +89,7 @@ endif()
 message("-- Building for GPU_ARCHS = ${GPU_ARCHS}")
 foreach(arch ${GPU_ARCHS})
   set(CMAKE_CUDA_FLAGS "${CMAKE_CUDA_FLAGS} -gencode arch=compute_${arch},code=sm_${arch}")
+  set(GUNROCK_GENCODE_SM${arch} "ON")
 endforeach()
 
 list(GET GPU_ARCHS -1 ptx)
