@@ -11,8 +11,22 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import cudf
 from numba import cuda
+
+import cudf
+
+# optional dependencies
+try:
+    import cupy as cp
+    from cupyx.scipy.sparse.coo import coo_matrix as cp_coo_matrix
+    from cupyx.scipy.sparse.csr import csr_matrix as cp_csr_matrix
+    from cupyx.scipy.sparse.csc import csc_matrix as cp_csc_matrix
+except ModuleNotFoundError:
+    cp = None
+try:
+    import networkx as nx
+except ModuleNotFoundError:
+    nx = None
 
 
 def get_traversed_path(df, id):
@@ -149,3 +163,58 @@ def is_cuda_version_less_than(min_version=(10, 2)):
     if this_cuda_ver[1] < min_version[1]:
         return True
     return False
+
+
+# FIXME: if G is a Nx type, the weight attribute is assumed to be "weight", if
+# set. An additional optional parameter for the weight attr name when accepting
+# Nx graphs may be needed.  From the Nx docs:
+# |      Many NetworkX algorithms designed for weighted graphs use
+# |      an edge attribute (by default `weight`) to hold a numerical value.
+def ensure_cugraph_obj(obj, nx_weight_attr=None, matrix_graph_type=None):
+    """
+    Convert the input obj - if possible - to a cuGraph Graph-type obj (Graph,
+    DiGraph, etc.) and return a tuple of (cugraph Graph-type obj, original
+    input obj type). If matrix_graph_type is specified, it is used as the
+    cugraph Graph-type obj to create when converting from a matrix type.
+    """
+    # FIXME: importing here to avoid circular import
+    from cugraph.structure import Graph, DiGraph
+    from cugraph.utilities.nx_factory import convert_from_nx
+
+    input_type = type(obj)
+    if input_type in [Graph, DiGraph]:
+        return (obj, input_type)
+
+    elif (nx is not None) and (input_type in [nx.Graph, nx.DiGraph]):
+        return (convert_from_nx(obj, weight=nx_weight_attr), input_type)
+
+    elif (cp is not None) and \
+         (input_type in [cp_coo_matrix, cp_csr_matrix, cp_csc_matrix]):
+
+        if matrix_graph_type is None:
+            matrix_graph_type = Graph
+        elif matrix_graph_type not in [Graph, DiGraph]:
+            raise TypeError(f"matrix_graph_type must be either a cugraph "
+                            f"Graph or DiGraph, got: {matrix_graph_type}")
+
+        if input_type is not cp_coo_matrix:
+            coo = obj.tocoo(copy=False)
+        else:
+            coo = obj
+
+        df = cudf.DataFrame({"source": cp.ascontiguousarray(coo.row),
+                             "destination": cp.ascontiguousarray(coo.col),
+                             "weight": cp.ascontiguousarray(coo.data)})
+
+        # FIXME:
+        # * do a quick check that symmetry is stored explicitly in the cupy
+        #   data for sym matrices (ie. for each uv, check vu is there)
+        # * populate the cugraph graph with directed data and set renumbering
+        #   to false in from edge list call.
+        G = matrix_graph_type()
+        G.from_cudf_edgelist(df, edge_attr="weight", renumber=True)
+
+        return (G, input_type)
+
+    else:
+        raise TypeError(f"obj of type {input_type} is not supported.")

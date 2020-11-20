@@ -48,13 +48,14 @@ void exact_fa2(GraphCOOView<vertex_t, edge_t, weight_t> &graph,
                bool verbose                                  = false,
                internals::GraphBasedDimRedCallback *callback = nullptr)
 {
-  const edge_t e   = graph.number_of_edges;
-  const vertex_t n = graph.number_of_vertices;
+  cudaStream_t stream = {nullptr};
+  const edge_t e      = graph.number_of_edges;
+  const vertex_t n    = graph.number_of_vertices;
 
   float *d_repel{nullptr};
   float *d_attract{nullptr};
   float *d_old_forces{nullptr};
-  edge_t *d_mass{nullptr};
+  int *d_mass{nullptr};
   float *d_swinging{nullptr};
   float *d_traction{nullptr};
 
@@ -62,7 +63,7 @@ void exact_fa2(GraphCOOView<vertex_t, edge_t, weight_t> &graph,
   rmm::device_vector<float> attract(n * 2, 0);
   rmm::device_vector<float> old_forces(n * 2, 0);
   // FA2 requires degree + 1.
-  rmm::device_vector<edge_t> mass(n, 1);
+  rmm::device_vector<int> mass(n, 1);
   rmm::device_vector<float> swinging(n, 0);
   rmm::device_vector<float> traction(n, 0);
 
@@ -74,7 +75,7 @@ void exact_fa2(GraphCOOView<vertex_t, edge_t, weight_t> &graph,
   d_traction   = traction.data().get();
 
   int random_state = 0;
-  random_vector(pos, n * 2, random_state);
+  random_vector(pos, n * 2, random_state, stream);
 
   if (x_start && y_start) {
     copy(n, x_start, pos);
@@ -82,10 +83,9 @@ void exact_fa2(GraphCOOView<vertex_t, edge_t, weight_t> &graph,
   }
 
   // Sort COO for coalesced memory access.
-  cudaStream_t stream = {nullptr};
   sort(graph, stream);
   CHECK_CUDA(stream);
-  // FIXME: this function should work on "stream"
+
   graph.degree(d_mass, cugraph::DegreeDirection::OUT);
   CHECK_CUDA(stream);
 
@@ -99,7 +99,7 @@ void exact_fa2(GraphCOOView<vertex_t, edge_t, weight_t> &graph,
   float jt                        = 0.f;
 
   if (outbound_attraction_distribution) {
-    int sum = thrust::reduce(rmm::exec_policy(nullptr)->on(nullptr), mass.begin(), mass.end());
+    int sum = thrust::reduce(rmm::exec_policy(stream)->on(stream), mass.begin(), mass.end());
     outbound_att_compensation = sum / (float)n;
   }
 
@@ -116,7 +116,7 @@ void exact_fa2(GraphCOOView<vertex_t, edge_t, weight_t> &graph,
     fill(n, d_traction, 0.f);
 
     // Exact repulsion
-    apply_repulsion<vertex_t>(pos, pos + n, d_repel, d_repel + n, d_mass, scaling_ratio, n);
+    apply_repulsion<vertex_t>(pos, pos + n, d_repel, d_repel + n, d_mass, scaling_ratio, n, stream);
 
     apply_gravity<vertex_t>(pos,
                             pos + n,
@@ -126,7 +126,8 @@ void exact_fa2(GraphCOOView<vertex_t, edge_t, weight_t> &graph,
                             gravity,
                             strong_gravity_mode,
                             scaling_ratio,
-                            n);
+                            n,
+                            stream);
 
     apply_attraction<vertex_t, edge_t, weight_t>(row,
                                                  col,
@@ -140,7 +141,8 @@ void exact_fa2(GraphCOOView<vertex_t, edge_t, weight_t> &graph,
                                                  outbound_attraction_distribution,
                                                  lin_log_mode,
                                                  edge_weight_influence,
-                                                 outbound_att_compensation);
+                                                 outbound_att_compensation,
+                                                 stream);
 
     compute_local_speed(d_repel,
                         d_repel + n,
@@ -151,13 +153,14 @@ void exact_fa2(GraphCOOView<vertex_t, edge_t, weight_t> &graph,
                         d_mass,
                         d_swinging,
                         d_traction,
-                        n);
+                        n,
+                        stream);
 
     // Compute global swinging and traction values.
     const float s =
-      thrust::reduce(rmm::exec_policy(nullptr)->on(nullptr), swinging.begin(), swinging.end());
+      thrust::reduce(rmm::exec_policy(stream)->on(stream), swinging.begin(), swinging.end());
     const float t =
-      thrust::reduce(rmm::exec_policy(nullptr)->on(nullptr), traction.begin(), traction.end());
+      thrust::reduce(rmm::exec_policy(stream)->on(stream), traction.begin(), traction.end());
 
     adapt_speed<vertex_t>(jitter_tolerance, &jt, &speed, &speed_efficiency, s, t, n);
 
@@ -171,7 +174,8 @@ void exact_fa2(GraphCOOView<vertex_t, edge_t, weight_t> &graph,
                            d_old_forces + n,
                            d_swinging,
                            speed,
-                           n);
+                           n,
+                           stream);
 
     if (callback) callback->on_epoch_end(pos);
 

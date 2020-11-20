@@ -254,14 +254,6 @@ set(HUNGARIAN_TEST_SRC
 ConfigureTest(HUNGARIAN_TEST "${HUNGARIAN_TEST_SRC}" "")
 
 ###################################################################################################
-# - FIND_MATCHES tests ----------------------------------------------------------------------------
-
-set(FIND_MATCHES_TEST_SRC
-    "${CMAKE_CURRENT_SOURCE_DIR}/db/find_matches_test.cu")
-
-ConfigureTest(FIND_MATCHES_TEST "${FIND_MATCHES_TEST_SRC}" "")
-
-###################################################################################################
 # - Experimental Graph tests ----------------------------------------------------------------------
 
 set(EXPERIMENTAL_GRAPH_TEST_SRCS
