@@ -19,3 +19,4 @@ from cugraph.utilities.nx_factory import df_score_to_dictionary
 from cugraph.utilities.nx_factory import df_edge_score_to_dictionary
 from cugraph.utilities.nx_factory import cugraph_to_nx
 from cugraph.utilities.nx_factory import is_networkx_graph
+from cugraph.utilities.utils import ensure_cugraph_obj

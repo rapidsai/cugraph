@@ -11,14 +11,27 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import cudf
-import cugraph
+import os
+from itertools import product
+
+# Assume test environment has the following dependencies installed
+import pytest
 import pandas as pd
 import networkx as nx
 import numpy as np
+import cupy as cp
+from cupyx.scipy.sparse.coo import coo_matrix as cp_coo_matrix
+from cupyx.scipy.sparse.csr import csr_matrix as cp_csr_matrix
+from cupyx.scipy.sparse.csc import csc_matrix as cp_csc_matrix
+
+import cudf
 import dask_cudf
-import os
+
+import cugraph
 from cugraph.dask.common.mg_utils import (get_client)
+
+
+CUPY_MATRIX_TYPES = [cp_coo_matrix, cp_csr_matrix, cp_csc_matrix]
 
 #
 # Datasets
@@ -42,24 +55,108 @@ DATASETS_SMALL = ['../datasets/karate.csv',
                   '../datasets/dolphins.csv',
                   '../datasets/polbooks.csv']
 
+MATRIX_INPUT_TYPES = [pytest.param(cp_coo_matrix,
+                                   marks=pytest.mark.cupy_types,
+                                   id="CuPy.coo_matrix"),
+                      pytest.param(cp_csr_matrix,
+                                   marks=pytest.mark.cupy_types,
+                                   id="CuPy.csr_matrix"),
+                      pytest.param(cp_csc_matrix,
+                                   marks=pytest.mark.cupy_types,
+                                   id="CuPy.csc_matrix"),
+                      ]
 
-def read_csv_for_nx(csv_file, read_weights_in_sp=True):
+NX_INPUT_TYPES = [pytest.param(nx.Graph,
+                               marks=pytest.mark.nx_types,
+                               id="nx.Graph"),
+                  ]
+
+NX_DIR_INPUT_TYPES = [pytest.param(nx.Graph,
+                                   marks=pytest.mark.nx_types,
+                                   id="nx.DiGraph"),
+                      ]
+
+CUGRAPH_INPUT_TYPES = [pytest.param(cugraph.Graph,
+                                    marks=pytest.mark.cugraph_types,
+                                    id="cugraph.Graph"),
+                       ]
+
+CUGRAPH_DIR_INPUT_TYPES = [pytest.param(cugraph.DiGraph,
+                                        marks=pytest.mark.cugraph_types,
+                                        id="cugraph.DiGraph"),
+                           ]
+
+
+def read_csv_for_nx(csv_file, read_weights_in_sp=True, read_weights=True):
     print('Reading ' + str(csv_file) + '...')
-    if read_weights_in_sp is True:
-        df = pd.read_csv(csv_file, delimiter=' ', header=None,
-                         names=['0', '1', 'weight'],
-                         dtype={'0': 'int32', '1': 'int32',
-                                'weight': 'float32'})
+    if read_weights:
+        if read_weights_in_sp is True:
+            df = pd.read_csv(csv_file, delimiter=' ', header=None,
+                             names=['0', '1', 'weight'],
+                             dtype={'0': 'int32', '1': 'int32',
+                                    'weight': 'float32'})
+        else:
+            df = pd.read_csv(csv_file, delimiter=' ', header=None,
+                             names=['0', '1', 'weight'],
+                             dtype={'0': 'int32', '1': 'int32',
+                                    'weight': 'float64'})
     else:
         df = pd.read_csv(csv_file, delimiter=' ', header=None,
-                         names=['0', '1', 'weight'],
-                         dtype={'0': 'int32', '1': 'int32',
-                                'weight': 'float64'})
+                         names=['0', '1'],
+                         usecols=['0', '1'],
+                         dtype={'0': 'int32', '1': 'int32'})
 
-    # nverts = 1 + max(df['0'].max(), df['1'].max())
-
-    # return coo_matrix((df['2'], (df['0'], df['1'])), shape=(nverts, nverts))
     return df
+
+
+def create_obj_from_csv(csv_file_name, obj_type,
+                        csv_has_weights=True, edgevals=False):
+    """
+    Return an object based on obj_type populated with the contents of
+    csv_file_name
+    """
+    if obj_type in [cugraph.Graph, cugraph.DiGraph]:
+        return generate_cugraph_graph_from_file(
+            csv_file_name,
+            directed=(obj_type is cugraph.DiGraph),
+            edgevals=edgevals)
+
+    elif obj_type in CUPY_MATRIX_TYPES:
+        # FIXME: assuming float32
+        if csv_has_weights:
+            (rows, cols, weights) = np.genfromtxt(csv_file_name,
+                                                  delimiter=" ",
+                                                  dtype=np.float32,
+                                                  unpack=True)
+        else:
+            (rows, cols) = np.genfromtxt(csv_file_name,
+                                         delimiter=" ",
+                                         dtype=np.float32,
+                                         unpack=True)
+
+        if (csv_has_weights is False) or (edgevals is False):
+            # COO matrices must have a value array. Also if edgevals are to be
+            # ignored (False), reset all weights to 1.
+            weights = np.array([1] * len(rows))
+
+        coo = cp_coo_matrix((cp.asarray(weights),
+                             (cp.asarray(rows), cp.asarray(cols))),
+                            dtype=np.float32)
+
+        if obj_type is cp_csc_matrix:
+            return coo.tocsr(copy=False)
+        elif obj_type is cp_csc_matrix:
+            return coo.tocsc(copy=False)
+        else:
+            return coo
+
+    elif obj_type in [nx.Graph, nx.DiGraph]:
+        return generate_nx_graph_from_file(
+            csv_file_name, directed=(obj_type is nx.DiGraph),
+            edgevals=edgevals)
+
+    else:
+        raise TypeError(f"unsupported type: {obj_type}")
 
 
 def read_csv_file(csv_file, read_weights_in_sp=True):
@@ -103,18 +200,23 @@ def read_dask_cudf_csv_file(csv_file, read_weights_in_sp=True,
                                       header=None)
 
 
-def generate_nx_graph_from_file(graph_file, directed=True):
-    M = read_csv_for_nx(graph_file)
+def generate_nx_graph_from_file(graph_file, directed=True, edgevals=False):
+    M = read_csv_for_nx(graph_file, read_weights_in_sp=edgevals)
+    edge_attr = "weight" if edgevals else None
     Gnx = nx.from_pandas_edgelist(M, create_using=(nx.DiGraph() if directed
                                                    else nx.Graph()),
-                                  source='0', target='1')
+                                  source='0', target='1', edge_attr=edge_attr)
     return Gnx
 
 
-def generate_cugraph_graph_from_file(graph_file, directed=True):
+def generate_cugraph_graph_from_file(graph_file, directed=True,
+                                     edgevals=False):
     cu_M = read_csv_file(graph_file)
     G = cugraph.DiGraph() if directed else cugraph.Graph()
-    G.from_cudf_edgelist(cu_M, source='0', destination='1')
+    if edgevals:
+        G.from_cudf_edgelist(cu_M, source='0', destination='1', edge_attr='2')
+    else:
+        G.from_cudf_edgelist(cu_M, source='0', destination='1')
     return G
 
 
@@ -198,3 +300,56 @@ make = {
     np.int32: make_int32,
     np.int64: make_int64
 }
+
+
+def genFixtureParamsProduct(*args):
+    """
+    Returns the cartesian product of the param lists passed in. The lists must
+    be flat lists of pytest.param objects, and the result will be a flat list
+    of pytest.param objects with values and meta-data combined accordingly. A
+    flat list of pytest.param objects is required for pytest fixtures to
+    properly recognize the params. The combinations also include ids generated
+    from the param values and id names associated with each list. For example:
+
+    genFixtureParamsProduct( ([pytest.param(True, marks=[pytest.mark.A_good]),
+                               pytest.param(False, marks=[pytest.mark.A_bad])],
+                              "A"),
+                             ([pytest.param(True, marks=[pytest.mark.B_good]),
+                               pytest.param(False, marks=[pytest.mark.B_bad])],
+                              "B") )
+
+    results in fixture param combinations:
+
+    True, True   - marks=[A_good, B_good] - id="A=True,B=True"
+    True, False  - marks=[A_good, B_bad]  - id="A=True,B=False"
+    False, True  - marks=[A_bad, B_good]  - id="A=False,B=True"
+    False, False - marks=[A_bad, B_bad]   - id="A=False,B=False"
+
+    Simply using itertools.product on the lists would result in a list of
+    sublists of individual param objects (ie. not "merged"), which would not be
+    recognized properly as params for a fixture by pytest.
+
+    NOTE: This function is only needed for parameterized fixtures.
+    Tests/benchmarks will automatically get this behavior when specifying
+    multiple @pytest.mark.parameterize(param_name, param_value_list)
+    decorators.
+    """
+    # Enforce that each arg is a list of pytest.param objs and separate params
+    # and IDs.
+    paramLists = []
+    ids = []
+    paramType = pytest.param().__class__
+    for (paramList, id) in args:
+        for param in paramList:
+            assert isinstance(param, paramType)
+        paramLists.append(paramList)
+        ids.append(id)
+
+    retList = []
+    for paramCombo in product(*paramLists):
+        values = [p.values[0] for p in paramCombo]
+        marks = [m for p in paramCombo for m in p.marks]
+        comboid = ",".join(["%s=%s" % (id, p.values[0])
+                            for (p, id) in zip(paramCombo, ids)])
+        retList.append(pytest.param(values, marks=marks, id=comboid))
+    return retList

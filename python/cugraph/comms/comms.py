@@ -112,6 +112,8 @@ def initialize(comms=None,
         __default_handle = None
         if comms is None:
             # Initialize communicator
+            if not p2p:
+                raise Exception("Set p2p to True for running mnmg algorithms")
             __instance = raftComms(comms_p2p=p2p)
             __instance.init()
             # Initialize subcommunicator

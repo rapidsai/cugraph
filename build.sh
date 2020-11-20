@@ -40,6 +40,7 @@ CUGRAPH_BUILD_DIR=${REPODIR}/python/build
 BUILD_DIRS="${LIBCUGRAPH_BUILD_DIR} ${CUGRAPH_BUILD_DIR}"
 
 # Set defaults for vars modified by flags to this script
+ARG_COUNT=${NUMARGS}
 VERBOSE=""
 BUILD_TYPE=Release
 INSTALL_TARGET=install
@@ -50,7 +51,7 @@ BUILD_ALL_GPU_ARCH=0
 #  FIXME: if PREFIX is not set, check CONDA_PREFIX, but there is no fallback
 #  from there!
 INSTALL_PREFIX=${PREFIX:=${CONDA_PREFIX}}
-PARALLEL_LEVEL=${PARALLEL_LEVEL:=""}
+PARALLEL_LEVEL=${PARALLEL_LEVEL:=`nproc`}
 BUILD_ABI=${BUILD_ABI:=ON}
 
 function hasArg {
@@ -75,18 +76,22 @@ fi
 # Process flags
 if hasArg -v; then
     VERBOSE=1
+    ARG_COUNT=$((ARG_COUNT -1))
 fi
 if hasArg -g; then
     BUILD_TYPE=Debug
+    ARG_COUNT=$((ARG_COUNT -1))
 fi
 if hasArg -n; then
     INSTALL_TARGET=""
+    ARG_COUNT=$((ARG_COUNT -1))
 fi
 if hasArg --allgpuarch; then
     BUILD_ALL_GPU_ARCH=1
 fi
 if hasArg --show_depr_warn; then
     BUILD_DISABLE_DEPRECATION_WARNING=OFF
+    ARG_COUNT=$((ARG_COUNT -1))
 fi
 
 # If clean given, run it prior to any other steps
@@ -105,7 +110,7 @@ fi
 
 ################################################################################
 # Configure, build, and install libcugraph
-if (( ${NUMARGS} == 0 )) || hasArg libcugraph; then
+if (( ${ARG_COUNT} == 0 )) || hasArg libcugraph; then
     if (( ${BUILD_ALL_GPU_ARCH} == 0 )); then
         GPU_ARCH=""
         echo "Building for the architecture of the GPU in the system..."
@@ -124,7 +129,7 @@ if (( ${NUMARGS} == 0 )) || hasArg libcugraph; then
 fi
 
 # Build and install the cugraph Python package
-if (( ${NUMARGS} == 0 )) || hasArg cugraph; then
+if (( ${ARG_COUNT} == 0 )) || hasArg cugraph; then
 
     cd ${REPODIR}/python
     if [[ ${INSTALL_TARGET} != "" ]]; then
@@ -137,7 +142,7 @@ fi
 
 ################################################################################
 # Build the docs
-if (( ${NUMARGS} == 0 )) || hasArg docs; then
+if (( ${ARG_COUNT} == 0 )) || hasArg docs; then
 
     if [ ! -d ${LIBCUGRAPH_BUILD_DIR} ]; then
         mkdir -p ${LIBCUGRAPH_BUILD_DIR}
