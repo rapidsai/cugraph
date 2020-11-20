@@ -2,10 +2,13 @@
 
 ## New Features
 - PR #1245 Add functions to add pandas and numpy compatibility
+- PR #1260 Add katz_centrality mnmg wrapper
+- PR #1264 CuPy sparse matrix input support for WCC, SCC, SSSP, and BFS
 
 ## Improvements
 - PR #1227 Pin cmake policies to cmake 3.17 version
 - PR #1269 Removed old db code that was not being used
+- PR #1271 Add extra check to make SG Louvain deterministic
 - PR #1273 Update Force Atlas 2 notebook, wrapper and coding style
 
 ## Bug Fixes

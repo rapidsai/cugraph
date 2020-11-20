@@ -1092,7 +1092,7 @@ void pagerank(raft::handle_t const &handle,
  * @param do_expensive_check A flag to run expensive checks for input arguments (if set to `true`).
  */
 template <typename vertex_t, typename edge_t, typename weight_t, typename result_t, bool multi_gpu>
-void katz_centrality(raft::handle_t &handle,
+void katz_centrality(raft::handle_t const &handle,
                      graph_view_t<vertex_t, edge_t, weight_t, true, multi_gpu> const &graph_view,
                      result_t *betas,
                      result_t *katz_centralities,

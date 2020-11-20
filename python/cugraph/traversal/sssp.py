@@ -11,12 +11,56 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from cugraph.traversal import sssp_wrapper
 import numpy as np
+
 import cudf
-from cugraph.utilities import check_nx_graph
+from cugraph.utilities import ensure_cugraph_obj
+from cugraph.structure import Graph, DiGraph
+from cugraph.traversal import sssp_wrapper
+
+# optional dependencies used for handling different input types
+try:
+    import cupy as cp
+    from cupyx.scipy.sparse.coo import coo_matrix as cp_coo_matrix
+    from cupyx.scipy.sparse.csr import csr_matrix as cp_csr_matrix
+    from cupyx.scipy.sparse.csc import csc_matrix as cp_csc_matrix
+except ModuleNotFoundError:
+    cp = None
+try:
+    import networkx as nx
+except ModuleNotFoundError:
+    nx = None
 
 
+def _convert_df_to_output_type(df, input_type):
+    """
+    Given a cudf.DataFrame df, convert it to a new type appropriate for the
+    graph algos in this module, based on input_type.
+    """
+    if input_type in [Graph, DiGraph]:
+        return df
+
+    elif (nx is not None) and (input_type in [nx.Graph, nx.DiGraph]):
+        return df.to_pandas()
+
+    elif (cp is not None) and \
+         (input_type in [cp_coo_matrix, cp_csr_matrix, cp_csc_matrix]):
+        # A CuPy/SciPy input means the return value will be a 2-tuple of:
+        #   distance: cupy.ndarray
+        #   predecessor: cupy.ndarray
+        sorted_df = df.sort_values("vertex")
+        return (cp.fromDlpack(sorted_df["distance"].to_dlpack()),
+                cp.fromDlpack(sorted_df["predecessor"].to_dlpack()))
+
+    else:
+        raise TypeError(f"input type {input_type} is not a supported type.")
+
+
+# FIXME: if G is a Nx type, the weight attribute is assumed to be "weight", if
+# set. An additional optional parameter for the weight attr name when accepting
+# Nx graphs may be needed.  From the Nx docs:
+# |      Many NetworkX algorithms designed for weighted graphs use
+# |      an edge attribute (by default `weight`) to hold a numerical value.
 def sssp(G, source):
     """
     Compute the distance and predecessors for shortest paths from the specified
@@ -30,7 +74,7 @@ def sssp(G, source):
 
     Parameters
     ----------
-    graph : cuGraph.Graph
+    graph : cuGraph.Graph, NetworkX.Graph, or CuPy sparse COO matrix
         cuGraph graph descriptor with connectivity information. Edge weights,
         if present, should be single or double precision floating point values.
     source : int
@@ -38,15 +82,32 @@ def sssp(G, source):
 
     Returns
     -------
-    df : cudf.DataFrame
-        df['vertex']
-            vertex id
+    Return value type is based on the input type.  If G is a cugraph.Graph,
+    returns:
 
-        df['distance']
-            gives the path distance from the starting vertex
+       cudf.DataFrame
+          df['vertex']
+              vertex id
 
-        df['predecessor']
-            the vertex it was reached from
+          df['distance']
+              gives the path distance from the starting vertex
+
+          df['predecessor']
+              the vertex it was reached from
+
+    If G is a networkx.Graph, returns:
+
+       pandas.DataFrame with contents equivalent to the cudf.DataFrame
+       described above.
+
+    If G is a CuPy sparse COO matrix, returns a 2-tuple of cupy.ndarray:
+
+       distance: cupy.ndarray
+          ndarray of shortest distances between source and vertex.
+
+       predecessor: cupy.ndarray
+          ndarray of predecessors of a vertex on the path from source, which
+          can be used to reconstruct the shortest paths.
 
     Examples
     --------
@@ -56,8 +117,12 @@ def sssp(G, source):
     >>> G.from_cudf_edgelist(M, source='0', destination='1')
     >>> distances = cugraph.sssp(G, 0)
     """
+    # FIXME: allow nx_weight_attr to be specified
+    (G, input_type) = ensure_cugraph_obj(G,
+                                         nx_weight_attr="weight",
+                                         matrix_graph_type=Graph)
 
-    if G.renumbered is True:
+    if G.renumbered:
         source = G.lookup_internal_vertex_id(cudf.Series([source]))[0]
 
     df = sssp_wrapper.sssp(G, source)
@@ -67,7 +132,7 @@ def sssp(G, source):
         df = G.unrenumber(df, "predecessor")
         df["predecessor"].fillna(-1, inplace=True)
 
-    return df
+    return _convert_df_to_output_type(df, input_type)
 
 
 def filter_unreachable(df):
@@ -102,48 +167,7 @@ def filter_unreachable(df):
 
 def shortest_path(G, source):
     """
-    Compute the distance and predecessors for shortest paths from the specified
-    source to all the vertices in the graph. The distances column will store
-    the distance from the source to each vertex. The predecessors column will
-    store each vertex's predecessor in the shortest path. Vertices that are
-    unreachable will have a distance of infinity denoted by the maximum value
-    of the data type and the predecessor set as -1. The source vertex's
-    predecessor is also set to -1. Graphs with negative weight cycles are not
-    supported.
-
-    Parameters
-    ----------
-    graph : cuGraph.Graph or NetworkX.Graph
-        cuGraph graph descriptor with connectivity information. Edge weights,
-        if present, should be single or double precision floating point values.
-    source : int
-        Index of the source vertex.
-
-    Returns
-    -------
-    df : cudf.DataFrame or pandas.DataFrame
-        df['vertex']
-            vertex id
-
-        df['distance']
-            gives the path distance from the starting vertex
-
-        df['predecessor']
-            the vertex it was reached from
-
-    Examples
-    --------
-    >>> M = cudf.read_csv('datasets/karate.csv', delimiter=' ',
-    >>>                   dtype=['int32', 'int32', 'float32'], header=None)
-    >>> G = cugraph.Graph()
-    >>> G.from_cudf_edgelist(M, source='0', destination='1')
-    >>> distances = cugraph.shortest_path(G, 0)
+    Alias for sssp(), provided for API compatibility with NetworkX. See sssp()
+    for details.
     """
-    G, isNx = check_nx_graph(G)
-
-    df = sssp(G, source)
-
-    if isNx is True:
-        df = df.to_pandas()
-
-    return df
+    return sssp(G, source)
