@@ -1212,7 +1212,7 @@ class Graph:
             df = self.unrenumber(df, "vertex")
 
         if vertex_subset is not None:
-            df = df.query("`vertex` in @vertex_subset")
+            df = df[df['vertex'].isin(vertex_subset)]
 
         return df
 
@@ -1226,7 +1226,7 @@ class Graph:
             df = self.unrenumber(df, "vertex")
 
         if vertex_subset is not None:
-            df = df.query("`vertex` in @vertex_subset")
+            df = df[df['vertex'].isin(vertex_subset)]
 
         return df
 

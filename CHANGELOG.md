@@ -12,6 +12,7 @@
 - PR #1273 Update Force Atlas 2 notebook, wrapper and coding style
 
 ## Bug Fixes
+- PR #1237 update tests for assymetric graphs, enable personalization pagerank
 - PR #1242 Calling gunrock cmake using explicit -D options, re-enabling C++ tests
 - PR #1246 Use latest Gunrock, update HITS implementation
 - PR #1250 Updated cuco commit hash to latest as of 2020-10-30 and removed unneeded GIT_SHALLOW param
