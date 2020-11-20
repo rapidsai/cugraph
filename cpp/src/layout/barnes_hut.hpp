@@ -35,7 +35,7 @@ namespace detail {
 template <typename vertex_t, typename edge_t, typename weight_t>
 void barnes_hut(GraphCOOView<vertex_t, edge_t, weight_t> &graph,
                 float *pos,
-                const int max_iter                            = 1000,
+                const int max_iter                            = 500,
                 float *x_start                                = nullptr,
                 float *y_start                                = nullptr,
                 bool outbound_attraction_distribution         = true,
@@ -50,8 +50,9 @@ void barnes_hut(GraphCOOView<vertex_t, edge_t, weight_t> &graph,
                 bool verbose                                  = false,
                 internals::GraphBasedDimRedCallback *callback = nullptr)
 {
-  const edge_t e   = graph.number_of_edges;
-  const vertex_t n = graph.number_of_vertices;
+  cudaStream_t stream = {nullptr};
+  const edge_t e      = graph.number_of_edges;
+  const vertex_t n    = graph.number_of_vertices;
 
   const int blocks = getMultiProcessorCount();
   // A tiny jitter to promote numerical stability/
@@ -74,10 +75,7 @@ void barnes_hut(GraphCOOView<vertex_t, edge_t, weight_t> &graph,
   int *bottomd      = d_bottomd.data().get();
   float *radiusd    = d_radiusd.data().get();
 
-  cudaStream_t stream = {nullptr};
-
-  // FIXME: this should work on "stream"
-  InitializationKernel<<<1, 1>>>(limiter, maxdepthd, radiusd);
+  InitializationKernel<<<1, 1, 0, stream>>>(limiter, maxdepthd, radiusd);
   CHECK_CUDA(stream);
 
   const int FOUR_NNODES     = 4 * nnodes;
@@ -125,12 +123,13 @@ void barnes_hut(GraphCOOView<vertex_t, edge_t, weight_t> &graph,
 
   // Initialize positions with random values
   int random_state = 0;
-  random_vector(nodes_pos, (nnodes + 1) * 2, random_state);
 
   // Copy start x and y positions.
   if (x_start && y_start) {
     copy(n, x_start, nodes_pos);
     copy(n, y_start, nodes_pos + nnodes + 1);
+  } else {
+    random_vector(nodes_pos, (nnodes + 1) * 2, random_state, stream);
   }
 
   // Allocate arrays for force computation
@@ -152,7 +151,7 @@ void barnes_hut(GraphCOOView<vertex_t, edge_t, weight_t> &graph,
   // Sort COO for coalesced memory access.
   sort(graph, stream);
   CHECK_CUDA(stream);
-  // FIXME: this should work on "stream"
+
   graph.degree(massl, cugraph::DegreeDirection::OUT);
   CHECK_CUDA(stream);
 
@@ -169,7 +168,7 @@ void barnes_hut(GraphCOOView<vertex_t, edge_t, weight_t> &graph,
   // If outboundAttractionDistribution active, compensate.
   if (outbound_attraction_distribution) {
     int sum =
-      thrust::reduce(rmm::exec_policy(nullptr)->on(nullptr), d_massl.begin(), d_massl.begin() + n);
+      thrust::reduce(rmm::exec_policy(stream)->on(stream), d_massl.begin(), d_massl.begin() + n);
     outbound_att_compensation = sum / (float)n;
   }
 
@@ -197,71 +196,64 @@ void barnes_hut(GraphCOOView<vertex_t, edge_t, weight_t> &graph,
     fill(n, swinging, 0.f);
     fill(n, traction, 0.f);
 
-    // FIXME: this should work on "stream"
-    ResetKernel<<<1, 1>>>(radiusd_squared, bottomd, NNODES, radiusd);
+    ResetKernel<<<1, 1, 0, stream>>>(radiusd_squared, bottomd, NNODES, radiusd);
     CHECK_CUDA(stream);
 
-    // FIXME: this should work on "stream"
     // Compute bounding box arround all bodies
-    BoundingBoxKernel<<<blocks * FACTOR1, THREADS1>>>(startl,
-                                                      childl,
-                                                      massl,
-                                                      nodes_pos,
-                                                      nodes_pos + nnodes + 1,
-                                                      maxxl,
-                                                      maxyl,
-                                                      minxl,
-                                                      minyl,
-                                                      FOUR_NNODES,
-                                                      NNODES,
-                                                      n,
-                                                      limiter,
-                                                      radiusd);
+    BoundingBoxKernel<<<blocks * FACTOR1, THREADS1, 0, stream>>>(startl,
+                                                                 childl,
+                                                                 massl,
+                                                                 nodes_pos,
+                                                                 nodes_pos + nnodes + 1,
+                                                                 maxxl,
+                                                                 maxyl,
+                                                                 minxl,
+                                                                 minyl,
+                                                                 FOUR_NNODES,
+                                                                 NNODES,
+                                                                 n,
+                                                                 limiter,
+                                                                 radiusd);
     CHECK_CUDA(stream);
 
-    // FIXME: this should work on "stream"
-    ClearKernel1<<<blocks, 1024>>>(childl, FOUR_NNODES, FOUR_N);
+    ClearKernel1<<<blocks, 1024, 0, stream>>>(childl, FOUR_NNODES, FOUR_N);
     CHECK_CUDA(stream);
 
-    // FIXME: this should work on "stream"
     // Build quadtree
-    TreeBuildingKernel<<<blocks * FACTOR2, THREADS2>>>(
+    TreeBuildingKernel<<<blocks * FACTOR2, THREADS2, 0, stream>>>(
       childl, nodes_pos, nodes_pos + nnodes + 1, NNODES, n, maxdepthd, bottomd, radiusd);
     CHECK_CUDA(stream);
 
-    // FIXME: this should work on "stream"
-    ClearKernel2<<<blocks, 1024>>>(startl, massl, NNODES, bottomd);
+    ClearKernel2<<<blocks, 1024, 0, stream>>>(startl, massl, NNODES, bottomd);
     CHECK_CUDA(stream);
 
-    // FIXME: this should work on "stream"
     // Summarizes mass and position for each cell, bottom up approach
-    SummarizationKernel<<<blocks * FACTOR3, THREADS3>>>(
+    SummarizationKernel<<<blocks * FACTOR3, THREADS3, 0, stream>>>(
       countl, childl, massl, nodes_pos, nodes_pos + nnodes + 1, NNODES, n, bottomd);
     CHECK_CUDA(stream);
 
-    // FIXME: this should work on "stream"
     // Group closed bodies together, used to speed up Repulsion kernel
-    SortKernel<<<blocks * FACTOR4, THREADS4>>>(sortl, countl, startl, childl, NNODES, n, bottomd);
+    SortKernel<<<blocks * FACTOR4, THREADS4, 0, stream>>>(
+      sortl, countl, startl, childl, NNODES, n, bottomd);
     CHECK_CUDA(stream);
 
-    // FIXME: this should work on "stream"
     // Force computation O(n . log(n))
-    RepulsionKernel<<<blocks * FACTOR5, THREADS5>>>(scaling_ratio,
-                                                    theta,
-                                                    epssq,
-                                                    sortl,
-                                                    childl,
-                                                    massl,
-                                                    nodes_pos,
-                                                    nodes_pos + nnodes + 1,
-                                                    rep_forces,
-                                                    rep_forces + nnodes + 1,
-                                                    theta_squared,
-                                                    NNODES,
-                                                    FOUR_NNODES,
-                                                    n,
-                                                    radiusd_squared,
-                                                    maxdepthd);
+    RepulsionKernel<<<blocks * FACTOR5, THREADS5, 0, stream>>>(scaling_ratio,
+                                                               theta,
+                                                               epssq,
+                                                               sortl,
+                                                               childl,
+                                                               massl,
+                                                               nodes_pos,
+                                                               nodes_pos + nnodes + 1,
+                                                               rep_forces,
+                                                               rep_forces + nnodes + 1,
+                                                               theta_squared,
+                                                               NNODES,
+                                                               FOUR_NNODES,
+                                                               n,
+                                                               radiusd_squared,
+                                                               maxdepthd);
     CHECK_CUDA(stream);
 
     apply_gravity<vertex_t>(nodes_pos,
@@ -272,7 +264,8 @@ void barnes_hut(GraphCOOView<vertex_t, edge_t, weight_t> &graph,
                             gravity,
                             strong_gravity_mode,
                             scaling_ratio,
-                            n);
+                            n,
+                            stream);
 
     apply_attraction<vertex_t, edge_t, weight_t>(row,
                                                  col,
@@ -286,7 +279,8 @@ void barnes_hut(GraphCOOView<vertex_t, edge_t, weight_t> &graph,
                                                  outbound_attraction_distribution,
                                                  lin_log_mode,
                                                  edge_weight_influence,
-                                                 outbound_att_compensation);
+                                                 outbound_att_compensation,
+                                                 stream);
 
     compute_local_speed(rep_forces,
                         rep_forces + nnodes + 1,
@@ -297,30 +291,31 @@ void barnes_hut(GraphCOOView<vertex_t, edge_t, weight_t> &graph,
                         massl,
                         swinging,
                         traction,
-                        n);
+                        n,
+                        stream);
 
     // Compute global swinging and traction values
     const float s =
-      thrust::reduce(rmm::exec_policy(nullptr)->on(nullptr), d_swinging.begin(), d_swinging.end());
+      thrust::reduce(rmm::exec_policy(stream)->on(stream), d_swinging.begin(), d_swinging.end());
 
     const float t =
-      thrust::reduce(rmm::exec_policy(nullptr)->on(nullptr), d_traction.begin(), d_traction.end());
+      thrust::reduce(rmm::exec_policy(stream)->on(stream), d_traction.begin(), d_traction.end());
 
     // Compute global speed based on gloab and local swinging and traction.
     adapt_speed<vertex_t>(jitter_tolerance, &jt, &speed, &speed_efficiency, s, t, n);
 
     // Update positions
-    apply_forces_bh<<<blocks * FACTOR6, THREADS6>>>(nodes_pos,
-                                                    nodes_pos + nnodes + 1,
-                                                    attract,
-                                                    attract + n,
-                                                    rep_forces,
-                                                    rep_forces + nnodes + 1,
-                                                    old_forces,
-                                                    old_forces + n,
-                                                    swinging,
-                                                    speed,
-                                                    n);
+    apply_forces_bh<<<blocks * FACTOR6, THREADS6, 0, stream>>>(nodes_pos,
+                                                               nodes_pos + nnodes + 1,
+                                                               attract,
+                                                               attract + n,
+                                                               rep_forces,
+                                                               rep_forces + nnodes + 1,
+                                                               old_forces,
+                                                               old_forces + n,
+                                                               swinging,
+                                                               speed,
+                                                               n);
 
     if (callback) callback->on_epoch_end(nodes_pos);
 

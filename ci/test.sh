@@ -81,7 +81,7 @@ fi
 
 echo "Python pytest for cuGraph..."
 cd ${CUGRAPH_ROOT}/python
-pytest --cache-clear --junitxml=${CUGRAPH_ROOT}/junit-cugraph.xml -v --cov-config=.coveragerc --cov=cugraph --cov-report=xml:${WORKSPACE}/python/cugraph/cugraph-coverage.xml --cov-report term --ignore=cugraph/raft
+pytest --cache-clear --junitxml=${CUGRAPH_ROOT}/junit-cugraph.xml -v --cov-config=.coveragerc --cov=cugraph --cov-report=xml:${WORKSPACE}/python/cugraph/cugraph-coverage.xml --cov-report term --ignore=cugraph/raft --benchmark-disable
 ERRORCODE=$((ERRORCODE | $?))
 
 echo "Python benchmarks for cuGraph (running as tests)..."

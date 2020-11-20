@@ -19,8 +19,8 @@
 
 namespace cugraph {
 
-template <typename VT, typename ET, typename WT>
-void force_atlas2(GraphCOOView<VT, ET, WT> &graph,
+template <typename vertex_t, typename edge_t, typename weight_t>
+void force_atlas2(GraphCOOView<vertex_t, edge_t, weight_t> &graph,
                   float *pos,
                   const int max_iter,
                   float *x_start,
@@ -42,38 +42,38 @@ void force_atlas2(GraphCOOView<VT, ET, WT> &graph,
   CUGRAPH_EXPECTS(graph.number_of_vertices != 0, "Invalid input: Graph is empty");
 
   if (!barnes_hut_optimize) {
-    cugraph::detail::exact_fa2<VT, ET, WT>(graph,
-                                           pos,
-                                           max_iter,
-                                           x_start,
-                                           y_start,
-                                           outbound_attraction_distribution,
-                                           lin_log_mode,
-                                           prevent_overlapping,
-                                           edge_weight_influence,
-                                           jitter_tolerance,
-                                           scaling_ratio,
-                                           strong_gravity_mode,
-                                           gravity,
-                                           verbose,
-                                           callback);
+    cugraph::detail::exact_fa2<vertex_t, edge_t, weight_t>(graph,
+                                                           pos,
+                                                           max_iter,
+                                                           x_start,
+                                                           y_start,
+                                                           outbound_attraction_distribution,
+                                                           lin_log_mode,
+                                                           prevent_overlapping,
+                                                           edge_weight_influence,
+                                                           jitter_tolerance,
+                                                           scaling_ratio,
+                                                           strong_gravity_mode,
+                                                           gravity,
+                                                           verbose,
+                                                           callback);
   } else {
-    cugraph::detail::barnes_hut<VT, ET, WT>(graph,
-                                            pos,
-                                            max_iter,
-                                            x_start,
-                                            y_start,
-                                            outbound_attraction_distribution,
-                                            lin_log_mode,
-                                            prevent_overlapping,
-                                            edge_weight_influence,
-                                            jitter_tolerance,
-                                            barnes_hut_theta,
-                                            scaling_ratio,
-                                            strong_gravity_mode,
-                                            gravity,
-                                            verbose,
-                                            callback);
+    cugraph::detail::barnes_hut<vertex_t, edge_t, weight_t>(graph,
+                                                            pos,
+                                                            max_iter,
+                                                            x_start,
+                                                            y_start,
+                                                            outbound_attraction_distribution,
+                                                            lin_log_mode,
+                                                            prevent_overlapping,
+                                                            edge_weight_influence,
+                                                            jitter_tolerance,
+                                                            barnes_hut_theta,
+                                                            scaling_ratio,
+                                                            strong_gravity_mode,
+                                                            gravity,
+                                                            verbose,
+                                                            callback);
   }
 }
 

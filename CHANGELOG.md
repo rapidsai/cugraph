@@ -3,12 +3,16 @@
 ## New Features
 - PR #1245 Add functions to add pandas and numpy compatibility
 - PR #1260 Add katz_centrality mnmg wrapper
+- PR #1264 CuPy sparse matrix input support for WCC, SCC, SSSP, and BFS
 
 ## Improvements
 - PR #1227 Pin cmake policies to cmake 3.17 version
 - PR #1269 Removed old db code that was not being used
+- PR #1271 Add extra check to make SG Louvain deterministic
+- PR #1273 Update Force Atlas 2 notebook, wrapper and coding style
 
 ## Bug Fixes
+- PR #1237 update tests for assymetric graphs, enable personalization pagerank
 - PR #1242 Calling gunrock cmake using explicit -D options, re-enabling C++ tests
 - PR #1246 Use latest Gunrock, update HITS implementation
 - PR #1250 Updated cuco commit hash to latest as of 2020-10-30 and removed unneeded GIT_SHALLOW param
