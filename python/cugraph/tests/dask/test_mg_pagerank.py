@@ -26,11 +26,11 @@ from cugraph.dask.common.mg_utils import is_single_gpu
 # and randomly assigns them personalization values
 
 
-def personalize(v, personalization_perc):
+def personalize(vertices, personalization_perc):
     personalization = None
     if personalization_perc != 0:
         personalization = {}
-        nnz_vtx = np.arange(0, v)
+        nnz_vtx = vertices.values_host
         personalization_count = int(
             (nnz_vtx.size * personalization_perc) / 100.0
         )
@@ -46,10 +46,10 @@ def personalize(v, personalization_perc):
         v = np.fromiter(personalization.values(), dtype="float32")
         cu_personalization = cudf.DataFrame({"vertex": k, "values": v})
 
-    return cu_personalization
+    return cu_personalization, personalization
 
 
-PERSONALIZATION_PERC = [0, 50]
+PERSONALIZATION_PERC = [0, 10, 50]
 
 
 @pytest.fixture
@@ -96,12 +96,10 @@ def test_dask_pagerank(client_connection, personalization_perc):
     dg = cugraph.DiGraph()
     dg.from_dask_cudf_edgelist(ddf, "src", "dst")
 
-    # Pre compute local data and personalize
     personalization = None
     if personalization_perc != 0:
-        dg.compute_local_data(by="dst")
-        personalization = personalize(
-            dg.number_of_vertices(), personalization_perc
+        personalization, p = personalize(
+            g.nodes(), personalization_perc
         )
 
     expected_pr = cugraph.pagerank(
