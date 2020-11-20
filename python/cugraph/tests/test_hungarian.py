@@ -57,13 +57,15 @@ def create_random_bipartite(v1, v2, size, dtype):
 SPARSE_SIZES = [[5, 5, 100], [500, 500, 10000], [5000, 5000, 100000]]
 
 
+def setup_function():
+    gc.collect()
+
+
 # Test all combinations of default/managed and pooled/non-pooled allocation
 @pytest.mark.parametrize('managed, pool',
                          list(product([False, True], [False, True])))
 @pytest.mark.parametrize('v1_size, v2_size, weight_limit', SPARSE_SIZES)
 def test_hungarian(managed, pool, v1_size, v2_size, weight_limit):
-    gc.collect()
-
     rmm.reinitialize(
         managed_memory=managed,
         pool_allocator=pool,

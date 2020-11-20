@@ -36,8 +36,8 @@ def hungarian(G, workers):
     ----------
     G : cugraph.Graph
         cuGraph graph descriptor, should contain the connectivity information
-        as an adjacency list or an edge list.  Edge weights are required.
-        If an adjacency list is not provided then it will be computed.
+        as an an edge list.  Edge weights are required. If an edge list is
+        not provided then it will be computed.
 
     workers : cudf.Series
         A series or column that identifies the vertex ids of the vertices
@@ -47,8 +47,8 @@ def hungarian(G, workers):
     Returns
     -------
     df : cudf.DataFrame
-      df['vertices'][i] gives the vertex id of the i'th vertex.  Only vertices
-                        in the workers list are defined in this column.
+      df['vertex'][i] gives the vertex id of the i'th vertex.  Only vertices
+                      in the workers list are defined in this column.
       df['assignment'][i] gives the vertex id of the "job" assigned to the
                           corresponding vertex.
 
