@@ -748,10 +748,6 @@ class Graph:
         using the adjacency list format.
         If value_col is None, an unweighted graph is created. If value_col is
         not None, a weighted graph is created.
-        If copy is False, this function stores references to the passed objects
-        pointed by offset_col and index_col. If copy is True, this funcion
-        stores references to the deep-copies of the passed objects pointed by
-        offset_col and index_col.
         Undirected edges must be stored as directed edges in both directions.
 
         Parameters
