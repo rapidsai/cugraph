@@ -23,6 +23,9 @@ import cupy as cp
 from cupyx.scipy.sparse.coo import coo_matrix as cp_coo_matrix
 from cupyx.scipy.sparse.csr import csr_matrix as cp_csr_matrix
 from cupyx.scipy.sparse.csc import csc_matrix as cp_csc_matrix
+from scipy.sparse.coo import coo_matrix as sp_coo_matrix
+from scipy.sparse.csr import csr_matrix as sp_csr_matrix
+from scipy.sparse.csc import csc_matrix as sp_csc_matrix
 
 import cudf
 import dask_cudf
@@ -32,6 +35,7 @@ from cugraph.dask.common.mg_utils import (get_client)
 
 
 CUPY_MATRIX_TYPES = [cp_coo_matrix, cp_csr_matrix, cp_csc_matrix]
+SCIPY_MATRIX_TYPES = [sp_coo_matrix, sp_csr_matrix, sp_csc_matrix]
 
 #
 # Datasets
@@ -56,14 +60,23 @@ DATASETS_SMALL = ['../datasets/karate.csv',
                   '../datasets/polbooks.csv']
 
 MATRIX_INPUT_TYPES = [pytest.param(cp_coo_matrix,
-                                   marks=pytest.mark.cupy_types,
+                                   marks=pytest.mark.matrix_types,
                                    id="CuPy.coo_matrix"),
                       pytest.param(cp_csr_matrix,
-                                   marks=pytest.mark.cupy_types,
+                                   marks=pytest.mark.matrix_types,
                                    id="CuPy.csr_matrix"),
                       pytest.param(cp_csc_matrix,
-                                   marks=pytest.mark.cupy_types,
+                                   marks=pytest.mark.matrix_types,
                                    id="CuPy.csc_matrix"),
+                      pytest.param(sp_coo_matrix,
+                                   marks=pytest.mark.matrix_types,
+                                   id="SciPy.coo_matrix"),
+                      pytest.param(sp_csr_matrix,
+                                   marks=pytest.mark.matrix_types,
+                                   id="SciPy.csr_matrix"),
+                      pytest.param(sp_csc_matrix,
+                                   marks=pytest.mark.matrix_types,
+                                   id="SciPy.csc_matrix"),
                       ]
 
 NX_INPUT_TYPES = [pytest.param(nx.Graph,
@@ -121,7 +134,7 @@ def create_obj_from_csv(csv_file_name, obj_type,
             directed=(obj_type is cugraph.DiGraph),
             edgevals=edgevals)
 
-    elif obj_type in CUPY_MATRIX_TYPES:
+    elif obj_type in SCIPY_MATRIX_TYPES + CUPY_MATRIX_TYPES:
         # FIXME: assuming float32
         if csv_has_weights:
             (rows, cols, weights) = np.genfromtxt(csv_file_name,
@@ -139,13 +152,17 @@ def create_obj_from_csv(csv_file_name, obj_type,
             # ignored (False), reset all weights to 1.
             weights = np.array([1] * len(rows))
 
-        coo = cp_coo_matrix((cp.asarray(weights),
-                             (cp.asarray(rows), cp.asarray(cols))),
-                            dtype=np.float32)
+        if obj_type in CUPY_MATRIX_TYPES:
+            coo = cp_coo_matrix((cp.asarray(weights), (cp.asarray(rows),
+                                                       cp.asarray(cols))),
+                                dtype=np.float32)
+        else:
+            coo = sp_coo_matrix((weights, (np.array(rows, dtype=int),
+                                           np.array(cols, dtype=int))))
 
-        if obj_type is cp_csc_matrix:
+        if obj_type in [cp_csc_matrix, sp_csc_matrix]:
             return coo.tocsr(copy=False)
-        elif obj_type is cp_csc_matrix:
+        elif obj_type in [cp_csc_matrix, sp_csc_matrix]:
             return coo.tocsc(copy=False)
         else:
             return coo
