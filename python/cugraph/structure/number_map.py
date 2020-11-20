@@ -588,9 +588,9 @@ class NumberMap:
         reply = self.implementation.to_internal_vertex_id(tmp_df,
                                                           tmp_col_names)
 
-        if type(df) is cudf.Series:
+        if type(df) is cudf.DataFrame:
             return reply["0"]
-        elif type(df) is dask_cudf.Series:
+        elif type(df) is dask_cudf.DataFrame:
             return reply["0"]
         else:
             return reply
