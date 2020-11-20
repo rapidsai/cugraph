@@ -56,16 +56,16 @@ void apply_repulsion(const float *restrict x_pos,
                      float *restrict repel_y,
                      const int *restrict mass,
                      const float scaling_ratio,
-                     const vertex_t n)
+                     const vertex_t n,
+                     cudaStream_t stream)
 {
   dim3 nthreads(TPB_X, TPB_Y);
   dim3 nblocks(min((n + nthreads.x - 1) / nthreads.x, CUDA_MAX_BLOCKS_2D),
                min((n + nthreads.y - 1) / nthreads.y, CUDA_MAX_BLOCKS_2D));
 
-  // FIXME: apply repulsion should take stream as an input argument
   repulsion_kernel<vertex_t>
-    <<<nblocks, nthreads>>>(x_pos, y_pos, repel_x, repel_y, mass, scaling_ratio, n);
-  CHECK_CUDA(nullptr);
+    <<<nblocks, nthreads, 0, stream>>>(x_pos, y_pos, repel_x, repel_y, mass, scaling_ratio, n);
+  CHECK_CUDA(stream);
 }
 
 }  // namespace detail

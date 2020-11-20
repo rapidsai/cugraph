@@ -79,65 +79,49 @@ def force_atlas2(input_graph,
     if pos_list is not None:
         if len(pos_list) != num_verts:
             raise ValueError('pos_list must have initial positions for all vertices')
-        if input_graph.renumbered is True:
-            start_pos = input_graph.edgelist.renumber_map.add_vertex_id(pos_list, 'id', 'vertex')
-            # Remap pos and vertices
-            df['vertex'][start_pos['id']] = start_pos['vertex']
-            start_pos['x'][start_pos['id']] = start_pos['x']
-            start_pos['y'][start_pos['id']] = start_pos['y']
-            x_start = start_pos['x'].__cuda_array_interface__['data'][0]
-            y_start = start_pos['y'].__cuda_array_interface__['data'][0]
-        else:
-            df['vertex'] = pos_list['vertex']
-            x_start = pos_list['x'].__cuda_array_interface__['data'][0]
-            y_start = pos_list['y'].__cuda_array_interface__['data'][0]
+        pos_list['x'] = pos_list['x'].astype(np.float32)
+        pos_list['y'] = pos_list['y'].astype(np.float32)
+        pos_list['x'][pos_list['vertex']] = pos_list['x']
+        pos_list['y'][pos_list['vertex']] = pos_list['y']
+        x_start = pos_list['x'].__cuda_array_interface__['data'][0]
+        y_start = pos_list['y'].__cuda_array_interface__['data'][0]
 
     cdef uintptr_t callback_ptr = 0
     if callback:
         callback_ptr = callback.get_native_callback()
 
+
+    # We keep np.float32 as results for both cases
+    pos = cuda.device_array(
+            (num_verts, 2),
+            order="F",
+            dtype=np.float32)
+
+    pos_ptr = pos.device_ctypes_pointer.value
+
     if input_graph.edgelist.weights \
             and input_graph.edgelist.edgelist_df['weights'].dtype == np.float64:
-
-        pos = cuda.device_array(
-                        (num_verts, 2),
-                        order="F",
-                        dtype=np.float32)
-
-        pos_ptr = pos.device_ctypes_pointer.value
-
         graph_double = GraphCOOView[int,int, double](<int*>c_src_indices,
-                <int*>c_dst_indices, <double*>c_weights, num_verts, num_edges)
+                        <int*>c_dst_indices, <double*>c_weights, num_verts, num_edges)
 
         c_force_atlas2[int, int, double](graph_double,
-                <float*>pos_ptr,
-                <int>max_iter,
-                <float*>x_start,
-                <float*>y_start,
-                <bool>outbound_attraction_distribution,
-                <bool>lin_log_mode,
-                <bool>prevent_overlapping,
-                <float>edge_weight_influence,
-                <float>jitter_tolerance,
-                <bool>barnes_hut_optimize,
-                <float>barnes_hut_theta,
-                <float>scaling_ratio,
-                <bool> strong_gravity_mode,
-                <float>gravity,
-                <bool> verbose,
-                <GraphBasedDimRedCallback*>callback_ptr)
-
-        pos_df = cudf.DataFrame(pos, columns=['x', 'y'])
-        df['x'] = pos_df['x']
-        df['y'] = pos_df['y']
+                        <float*>pos_ptr,
+                        <int>max_iter,
+                        <float*>x_start,
+                        <float*>y_start,
+                        <bool>outbound_attraction_distribution,
+                        <bool>lin_log_mode,
+                        <bool>prevent_overlapping,
+                        <float>edge_weight_influence,
+                        <float>jitter_tolerance,
+                        <bool>barnes_hut_optimize,
+                        <float>barnes_hut_theta,
+                        <float>scaling_ratio,
+                        <bool> strong_gravity_mode,
+                        <float>gravity,
+                        <bool> verbose,
+                        <GraphBasedDimRedCallback*>callback_ptr)
     else:
-        pos = cuda.device_array(
-                (num_verts, 2),
-                order="F",
-                dtype=np.float32)
-
-        pos_ptr = pos.device_ctypes_pointer.value
-
         graph_float = GraphCOOView[int,int,float](<int*>c_src_indices,
                 <int*>c_dst_indices, <float*>c_weights, num_verts,
                 num_edges)
@@ -159,8 +143,8 @@ def force_atlas2(input_graph,
                 <bool> verbose,
                 <GraphBasedDimRedCallback*>callback_ptr)
 
-        pos_df = cudf.DataFrame(pos, columns=['x', 'y'])
-        df['x'] = pos_df['x']
-        df['y'] = pos_df['y']
+    pos_df = cudf.DataFrame(pos, columns=['x', 'y'])
+    df['x'] = pos_df['x']
+    df['y'] = pos_df['y']
 
     return df
