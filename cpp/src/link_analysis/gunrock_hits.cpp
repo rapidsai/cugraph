@@ -30,6 +30,9 @@ namespace cugraph {
 
 namespace gunrock {
 
+const int HOST{1};    // gunrock should expose the device constant at the API level.
+const int DEVICE{2};  // gunrock should expose the device constant at the API level.
+
 template <typename vertex_t, typename edge_t, typename weight_t>
 void hits(cugraph::GraphCSRView<vertex_t, edge_t, weight_t> const &graph,
           int max_iter,
@@ -44,49 +47,18 @@ void hits(cugraph::GraphCSRView<vertex_t, edge_t, weight_t> const &graph,
                   "Invalid API parameter: authorities array should be of size V");
 
   //
-  //  NOTE:  gunrock doesn't support tolerance parameter
-  //         gunrock doesn't support passing a starting value
-  //         gunrock doesn't support the normalized parameter
+  //  NOTE:  gunrock doesn't support passing a starting value
   //
-  //  FIXME: gunrock uses a 2-norm, while networkx uses a 1-norm.
-  //         They will add a parameter to allow us to specify
-  //         which norm to use.
-  //
-  std::vector<edge_t> local_offsets(graph.number_of_vertices + 1);
-  std::vector<vertex_t> local_indices(graph.number_of_edges);
-  std::vector<weight_t> local_hubs(graph.number_of_vertices);
-  std::vector<weight_t> local_authorities(graph.number_of_vertices);
-
-  //    Ideally:
-  //
-  //::hits(graph.number_of_vertices, graph.number_of_edges, graph.offsets, graph.indices,
-  //       max_iter, hubs, authorities, DEVICE);
-  //
-  //    For now, the following:
-
-  CUDA_TRY(cudaMemcpy(local_offsets.data(),
-                      graph.offsets,
-                      (graph.number_of_vertices + 1) * sizeof(edge_t),
-                      cudaMemcpyDeviceToHost));
-  CUDA_TRY(cudaMemcpy(local_indices.data(),
-                      graph.indices,
-                      graph.number_of_edges * sizeof(vertex_t),
-                      cudaMemcpyDeviceToHost));
-
   ::hits(graph.number_of_vertices,
          graph.number_of_edges,
-         local_offsets.data(),
-         local_indices.data(),
+         graph.offsets,
+         graph.indices,
          max_iter,
-         local_hubs.data(),
-         local_authorities.data());
-
-  CUDA_TRY(cudaMemcpy(
-    hubs, local_hubs.data(), graph.number_of_vertices * sizeof(weight_t), cudaMemcpyHostToDevice));
-  CUDA_TRY(cudaMemcpy(authorities,
-                      local_authorities.data(),
-                      graph.number_of_vertices * sizeof(weight_t),
-                      cudaMemcpyHostToDevice));
+         tolerance,
+         HITS_NORMALIZATION_METHOD_1,
+         hubs,
+         authorities,
+         DEVICE);
 }
 
 template void hits(cugraph::GraphCSRView<int32_t, int32_t, float> const &,
@@ -98,5 +70,4 @@ template void hits(cugraph::GraphCSRView<int32_t, int32_t, float> const &,
                    float *);
 
 }  // namespace gunrock
-
 }  // namespace cugraph

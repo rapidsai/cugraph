@@ -10,7 +10,8 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-import numpy as np
+
+# import numpy as np
 import pytest
 import cugraph.dask as dcg
 import cugraph.comms as Comms
@@ -24,32 +25,6 @@ from cugraph.dask.common.mg_utils import is_single_gpu
 
 # The function selects personalization_perc% of accessible vertices in graph M
 # and randomly assigns them personalization values
-
-
-def personalize(vertices, personalization_perc):
-    personalization = None
-    if personalization_perc != 0:
-        personalization = {}
-        nnz_vtx = vertices.values_host
-        personalization_count = int(
-            (nnz_vtx.size * personalization_perc) / 100.0
-        )
-        nnz_vtx = np.random.choice(
-            nnz_vtx, min(nnz_vtx.size, personalization_count), replace=False
-        )
-        nnz_val = np.random.random(nnz_vtx.size)
-        nnz_val = nnz_val / sum(nnz_val)
-        for vtx, val in zip(nnz_vtx, nnz_val):
-            personalization[vtx] = val
-
-        k = np.fromiter(personalization.keys(), dtype="int32")
-        v = np.fromiter(personalization.values(), dtype="float32")
-        cu_personalization = cudf.DataFrame({"vertex": k, "values": v})
-
-    return cu_personalization, personalization
-
-
-PERSONALIZATION_PERC = [0, 10, 50]
 
 
 @pytest.fixture
@@ -68,8 +43,7 @@ def client_connection():
 @pytest.mark.skipif(
     is_single_gpu(), reason="skipping MG testing on Single GPU system"
 )
-@pytest.mark.parametrize("personalization_perc", PERSONALIZATION_PERC)
-def test_dask_pagerank(client_connection, personalization_perc):
+def test_dask_katz_centrality(client_connection):
     gc.collect()
 
     input_data_path = r"../datasets/karate.csv"
@@ -96,31 +70,34 @@ def test_dask_pagerank(client_connection, personalization_perc):
     dg = cugraph.DiGraph()
     dg.from_dask_cudf_edgelist(ddf, "src", "dst")
 
-    personalization = None
-    if personalization_perc != 0:
-        personalization, p = personalize(
-            g.nodes(), personalization_perc
-        )
+    largest_out_degree = g.degrees().nlargest(n=1, columns="out_degree")
+    largest_out_degree = largest_out_degree["out_degree"].iloc[0]
+    katz_alpha = 1 / (largest_out_degree + 1)
 
-    expected_pr = cugraph.pagerank(
-        g, personalization=personalization, tol=1e-6
+    mg_res = dcg.katz_centrality(dg, alpha=katz_alpha, tol=1e-6)
+    mg_res = mg_res.compute()
+
+    import networkx as nx
+    from cugraph.tests import utils
+    NM = utils.read_csv_for_nx(input_data_path)
+    Gnx = nx.from_pandas_edgelist(
+        NM, create_using=nx.DiGraph(), source="0", target="1"
     )
-    result_pr = dcg.pagerank(dg, personalization=personalization, tol=1e-6)
-    result_pr = result_pr.compute()
-
+    nk = nx.katz_centrality(Gnx, alpha=katz_alpha)
+    import pandas as pd
+    pdf = pd.DataFrame(nk.items(), columns=['vertex', 'katz_centrality'])
+    exp_res = cudf.DataFrame(pdf)
     err = 0
     tol = 1.0e-05
 
-    assert len(expected_pr) == len(result_pr)
-
-    compare_pr = expected_pr.merge(
-        result_pr, on="vertex", suffixes=["_local", "_dask"]
+    compare_res = exp_res.merge(
+        mg_res, on="vertex", suffixes=["_local", "_dask"]
     )
 
-    for i in range(len(compare_pr)):
+    for i in range(len(compare_res)):
         diff = abs(
-            compare_pr["pagerank_local"].iloc[i]
-            - compare_pr["pagerank_dask"].iloc[i]
+            compare_res["katz_centrality_local"].iloc[i]
+            - compare_res["katz_centrality_dask"].iloc[i]
         )
         if diff > tol * 1.1:
             err = err + 1

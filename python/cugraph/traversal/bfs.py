@@ -14,8 +14,50 @@
 import cudf
 
 from cugraph.traversal import bfs_wrapper
-from cugraph.structure.graph import Graph
-from cugraph.utilities import check_nx_graph
+from cugraph.structure.graph import Graph, DiGraph
+from cugraph.utilities import ensure_cugraph_obj
+
+# optional dependencies used for handling different input types
+try:
+    import cupy as cp
+    from cupyx.scipy.sparse.coo import coo_matrix as cp_coo_matrix
+    from cupyx.scipy.sparse.csr import csr_matrix as cp_csr_matrix
+    from cupyx.scipy.sparse.csc import csc_matrix as cp_csc_matrix
+except ModuleNotFoundError:
+    cp = None
+try:
+    import networkx as nx
+except ModuleNotFoundError:
+    nx = None
+
+
+def _convert_df_to_output_type(df, input_type):
+    """
+    Given a cudf.DataFrame df, convert it to a new type appropriate for the
+    graph algos in this module, based on input_type.
+    """
+    if input_type in [Graph, DiGraph]:
+        return df
+
+    elif (nx is not None) and (input_type in [nx.Graph, nx.DiGraph]):
+        return df.to_pandas()
+
+    elif (cp is not None) and \
+         (input_type in [cp_coo_matrix, cp_csr_matrix, cp_csc_matrix]):
+        # A CuPy/SciPy input means the return value will be a 2-tuple of:
+        #   distance: cupy.ndarray
+        #   predecessor: cupy.ndarray
+        sorted_df = df.sort_values("vertex")
+        distances = cp.fromDlpack(sorted_df["distance"].to_dlpack())
+        preds = cp.fromDlpack(sorted_df["predecessor"].to_dlpack())
+        if "sp_counter" in df.columns:
+            return (distances, preds,
+                    cp.fromDlpack(sorted_df["sp_counter"].to_dlpack()))
+        else:
+            return (distances, preds)
+
+    else:
+        raise TypeError(f"input type {input_type} is not a supported type.")
 
 
 def bfs(G, start, return_sp_counter=False):
@@ -25,9 +67,10 @@ def bfs(G, start, return_sp_counter=False):
 
     Parameters
     ----------
-    G : cugraph.graph
-        cuGraph graph descriptor, should contain the connectivity information
-        as an adjacency list.
+    G : cuGraph.Graph, NetworkX.Graph, or CuPy sparse COO matrix
+        cuGraph graph descriptor with connectivity information. Edge weights,
+        if present, should be single or double precision floating point values.
+
     start : Integer
         The index of the graph vertex from which the traversal begins
 
@@ -36,17 +79,38 @@ def bfs(G, start, return_sp_counter=False):
 
     Returns
     -------
-    df : cudf.DataFrame
-        df['vertex'][i] gives the vertex id of the i'th vertex
+    Return value type is based on the input type.  If G is a cugraph.Graph,
+    returns:
 
-        df['distance'][i] gives the path distance for the i'th vertex from the
-        starting vertex
+       cudf.DataFrame
+          df['vertex'] vertex IDs
 
-        df['predecessor'][i] gives for the i'th vertex the vertex it was
-        reached from in the traversal
+          df['distance'] path distance for each vertex from the starting vertex
 
-        df['sp_counter'][i] gives for the i'th vertex the number of shortest
-        path leading to it during traversal (Only if retrun_sp_counter is True)
+          df['predecessor'] for each i'th position in the column, the vertex ID
+          immediately preceding the vertex at position i in the 'vertex' column
+
+          df['sp_counter'] for each i'th position in the column, the number of
+          shortest paths leading to the vertex at position i in the 'vertex'
+          column (Only if retrun_sp_counter is True)
+
+    If G is a networkx.Graph, returns:
+
+       pandas.DataFrame with contents equivalent to the cudf.DataFrame
+       described above.
+
+    If G is a CuPy sparse COO matrix, returns a 2-tuple of cupy.ndarray:
+
+       distance: cupy.ndarray
+          ndarray of shortest distances between source and vertex.
+
+       predecessor: cupy.ndarray
+          ndarray of predecessors of a vertex on the path from source, which
+          can be used to reconstruct the shortest paths.
+
+       sp_counter: cupy.ndarray
+          ndarray of number of shortest paths leading to each vertex (only if
+          retrun_sp_counter is True)
 
     Examples
     --------
@@ -56,6 +120,10 @@ def bfs(G, start, return_sp_counter=False):
     >>> G.from_cudf_edgelist(M, source='0', destination='1')
     >>> df = cugraph.bfs(G, 0)
     """
+    # FIXME: allow nx_weight_attr to be specified
+    (G, input_type) = ensure_cugraph_obj(G,
+                                         nx_weight_attr="weight",
+                                         matrix_graph_type=Graph)
 
     if type(G) is Graph:
         directed = False
@@ -72,7 +140,7 @@ def bfs(G, start, return_sp_counter=False):
         df = G.unrenumber(df, "predecessor")
         df["predecessor"].fillna(-1, inplace=True)
 
-    return df
+    return _convert_df_to_output_type(df, input_type)
 
 
 def bfs_edges(G, source, reverse=False, depth_limit=None, sort_neighbors=None,
@@ -83,8 +151,9 @@ def bfs_edges(G, source, reverse=False, depth_limit=None, sort_neighbors=None,
 
     Parameters
     ----------
-    G : cugraph.graph or NetworkX.Graph
-        graph descriptor that contains connectivity information
+    G : cuGraph.Graph, NetworkX.Graph, or CuPy sparse COO matrix
+        cuGraph graph descriptor with connectivity information. Edge weights,
+        if present, should be single or double precision floating point values.
     source : Integer
         The starting vertex index
     reverse : boolean
@@ -100,17 +169,38 @@ def bfs_edges(G, source, reverse=False, depth_limit=None, sort_neighbors=None,
 
     Returns
     -------
-    df : cudf.DataFrame or Pandas.DataFrame
-        df['vertex'][i] gives the vertex id of the i'th vertex
+    Return value type is based on the input type.  If G is a cugraph.Graph,
+    returns:
 
-        df['distance'][i] gives the path distance for the i'th vertex from the
-        starting vertex
+       cudf.DataFrame
+          df['vertex'] vertex IDs
 
-        df['predecessor'][i] gives for the i'th vertex the vertex it was
-        reached from in the traversal
+          df['distance'] path distance for each vertex from the starting vertex
 
-        df['sp_counter'][i] gives for the i'th vertex the number of shortest
-        path leading to it during traversal (Only if retrun_sp_counter is True)
+          df['predecessor'] for each i'th position in the column, the vertex ID
+          immediately preceding the vertex at position i in the 'vertex' column
+
+          df['sp_counter'] for each i'th position in the column, the number of
+          shortest paths leading to the vertex at position i in the 'vertex'
+          column (Only if retrun_sp_counter is True)
+
+    If G is a networkx.Graph, returns:
+
+       pandas.DataFrame with contents equivalent to the cudf.DataFrame
+       described above.
+
+    If G is a CuPy sparse COO matrix, returns a 2-tuple of cupy.ndarray:
+
+       distance: cupy.ndarray
+          ndarray of shortest distances between source and vertex.
+
+       predecessor: cupy.ndarray
+          ndarray of predecessors of a vertex on the path from source, which
+          can be used to reconstruct the shortest paths.
+
+       sp_counter: cupy.ndarray
+          ndarray of number of shortest paths leading to each vertex (only if
+          retrun_sp_counter is True)
 
     Examples
     --------
@@ -133,11 +223,4 @@ def bfs_edges(G, source, reverse=False, depth_limit=None, sort_neighbors=None,
             "is not currently supported"
         )
 
-    G, isNx = check_nx_graph(G)
-
-    df = bfs(G, source, return_sp_counter)
-
-    if isNx is True:
-        df = df.to_pandas()
-
-    return df
+    return bfs(G, source, return_sp_counter)

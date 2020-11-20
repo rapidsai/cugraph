@@ -33,10 +33,10 @@ struct prg {
   }
 };
 
-void random_vector(float *vec, int n, int seed)
+void random_vector(float *vec, int n, int seed, cudaStream_t stream)
 {
   thrust::counting_iterator<uint32_t> index(seed);
-  thrust::transform(rmm::exec_policy(nullptr)->on(nullptr), index, index + n, vec, prg());
+  thrust::transform(rmm::exec_policy(stream)->on(stream), index, index + n, vec, prg());
 }
 
 /** helper method to get multi-processor count parameter */

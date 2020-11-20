@@ -415,6 +415,9 @@ class Louvain {
                             [] __device__(auto pair1, auto pair2) {
                               if (thrust::get<1>(pair1) > thrust::get<1>(pair2))
                                 return pair1;
+                              else if ((thrust::get<1>(pair1) == thrust::get<1>(pair2)) &&
+                                       (thrust::get<0>(pair1) < thrust::get<0>(pair2)))
+                                return pair1;
                               else
                                 return pair2;
                             });

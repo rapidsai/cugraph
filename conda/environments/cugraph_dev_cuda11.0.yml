@@ -8,6 +8,7 @@ dependencies:
 - cudf=0.17.*
 - libcudf=0.17.*
 - rmm=0.17.*
+- cuxfilter=0.17.*
 - librmm=0.17.*
 - dask>=2.12.0
 - distributed>=2.12.0
@@ -29,6 +30,9 @@ dependencies:
 - cython>=0.29,<0.30
 - pytest
 - scikit-learn>=0.23.1
+- colorcet
+- datashader
+- holoviews
 - sphinx
 - sphinx_rtd_theme
 - sphinxcontrib-websupport
@@ -40,3 +44,4 @@ dependencies:
 - pip
 - libcypher-parser
 - rapids-pytest-benchmark
+- doxygen

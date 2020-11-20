@@ -56,6 +56,16 @@ def compare(src1, dst1, val1, src2, dst2, val2):
     #  the data frame if we did not lose any data.
     #
     join = df1.merge(df2, left_on=["src1", "dst1"], right_on=["src2", "dst2"])
+
+    if len(df1) != len(join):
+        join2 = df1.merge(df2, how='left',
+                          left_on=["src1", "dst1"], right_on=["src2", "dst2"])
+        pd.set_option('display.max_rows', 500)
+        print('df1 = \n', df1.sort_values(["src1", "dst1"]))
+        print('df2 = \n', df2.sort_values(["src2", "dst2"]))
+        print('join2 = \n', join2.sort_values(["src1", "dst1"])
+              .to_pandas().query('src2.isnull()', engine='python'))
+
     assert len(df1) == len(join)
 
     if val1 is not None:
@@ -141,12 +151,7 @@ def compare(src1, dst1, val1, src2, dst2, val2):
     #
 
 
-# Test
-# NOTE: see https://github.com/rapidsai/cudf/issues/2636
-#       drop_duplicates doesn't work well with the pool allocator
-#                        list(product([False, True], [False, True])))
-
-
+@pytest.mark.skip("debugging")
 @pytest.mark.parametrize("graph_file", utils.DATASETS)
 def test_symmetrize_unweighted(graph_file):
     gc.collect()
@@ -159,36 +164,17 @@ def test_symmetrize_unweighted(graph_file):
     #  Check to see if all pairs in sources/destinations exist in
     #  both directions
     #
-    #  Try this with join logic.  Note that if we create data frames
-    #  we can join the data frames (using the DataFrame.merge function).
-    #  The symmetrize function should contain every edge that was contained
-    #  in the input data.  So if we join the input data with the output
-    #  the length of the data frames should be equal.
-    #
-    sym_df = cudf.DataFrame()
-    sym_df["src_s"] = sym_sources
-    sym_df["dst_s"] = sym_destinations
-
-    orig_df = cudf.DataFrame()
-    orig_df["src"] = cu_M["0"]
-    orig_df["dst"] = cu_M["1"]
-
     compare(
-        orig_df["src"],
-        orig_df["dst"],
+        cu_M["0"],
+        cu_M["1"],
         None,
-        sym_df["src_s"],
-        sym_df["dst_s"],
+        sym_sources,
+        sym_destinations,
         None,
     )
 
 
-# Test
-# NOTE: see https://github.com/rapidsai/cudf/issues/2636
-#       drop_duplicates doesn't work well with the pool allocator
-#                        list(product([False, True], [False, True])))
-
-
+@pytest.mark.skip("debugging")
 @pytest.mark.parametrize("graph_file", utils.DATASETS)
 def test_symmetrize_weighted(graph_file):
     gc.collect()
@@ -206,7 +192,7 @@ def test_symmetrize_weighted(graph_file):
 def client_connection():
     cluster = LocalCUDACluster()
     client = Client(cluster)
-    Comms.initialize()
+    Comms.initialize(p2p=True)
 
     yield client
 
@@ -240,6 +226,8 @@ def test_mg_symmetrize(graph_file, client_connection):
 def test_mg_symmetrize_df(graph_file, client_connection):
     gc.collect()
 
+    pd.set_option('display.max_rows', 500)
+
     ddf = utils.read_dask_cudf_csv_file(graph_file)
     sym_ddf = cugraph.symmetrize_ddf(ddf, "src", "dst", "weight")
 
@@ -255,12 +243,6 @@ def test_mg_symmetrize_df(graph_file, client_connection):
         sym_df["dst"],
         sym_df["weight"],
     )
-
-
-# Test
-# NOTE: see https://github.com/rapidsai/cudf/issues/2636
-#       drop_duplicates doesn't work well with the pool allocator
-#                        list(product([False, True], [False, True])))
 
 
 @pytest.mark.parametrize("graph_file", utils.DATASETS_UNDIRECTED)
