@@ -264,7 +264,8 @@ void BFS<IndexType>::traverse(IndexType source_vertex)
   // working data undirected g : need parents to be in children's neighbors
 
   // In case the shortest path counters need to be computeed, the bottom_up approach cannot be used
-  bool can_use_bottom_up = (!sp_counters && !directed && distances);
+  // bool can_use_bottom_up = (!sp_counters && !directed && distances);
+  bool can_use_bottom_up = false;
 
   while (nf > 0) {
     new_frontier     = frontier + nf;

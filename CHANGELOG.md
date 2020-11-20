@@ -2,9 +2,13 @@
 
 ## New Features
 - PR #1245 Add functions to add pandas and numpy compatibility
+- PR #1260 Add katz_centrality mnmg wrapper
+- PR #1264 CuPy sparse matrix input support for WCC, SCC, SSSP, and BFS
 
 ## Improvements
 - PR #1227 Pin cmake policies to cmake 3.17 version
+- PR #1269 Removed old db code that was not being used
+- PR #1271 Add extra check to make SG Louvain deterministic
 
 ## Bug Fixes
 - PR #1237 update tests for assymetric graphs, enable personalization pagerank
@@ -13,6 +17,7 @@
 - PR #1250 Updated cuco commit hash to latest as of 2020-10-30 and removed unneeded GIT_SHALLOW param
 - PR #1251 Changed the MG context testing class to use updated parameters passed in from the individual tests
 - PR #1253 MG test fixes: updated additional comms.initialize() calls, fixed dask DataFrame comparisons
+- PR #1270 Raise exception for p2p, disable bottom up approach for bfs
 
 # cuGraph 0.16.0 (21 Oct 2020)
 

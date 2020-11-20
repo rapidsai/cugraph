@@ -158,19 +158,6 @@ if(OpenMP_FOUND)
     set(CMAKE_CUDA_FLAGS "${CMAKE_CUDA_FLAGS} -Xcompiler=${OpenMP_CXX_FLAGS}")
 endif(OpenMP_FOUND)
 
-###################################################################################################
-# - find libcypher-parser -------------------------------------------------------------------------
-
-find_path(LIBCYPHERPARSER_INCLUDE "cypher-parser.h"
-          HINTS "$ENV{CONDA_PREFIX}/include")
-
-find_library(LIBCYPHERPARSER_LIBRARY STATIC "libcypher-parser.a"
-             HINTS "$ENV{CONDA_PREFIX}/lib")
-
-add_library(libcypher-parser STATIC IMPORTED ${LIBCYPHERPARSER_LIBRARY})
-if (LIBCYPHERPARSER_INCLUDE AND LIBCYPHERPARSER_LIBRARY)
-    set_target_properties(libcypher-parser PROPERTIES IMPORTED_LOCATION ${LIBCYPHERPARSER_LIBRARY})
-endif (LIBCYPHERPARSER_INCLUDE AND LIBCYPHERPARSER_LIBRARY)
 
 ###################################################################################################
 # - find gtest ------------------------------------------------------------------------------------
@@ -359,9 +346,6 @@ link_directories(
     "${CMAKE_CUDA_IMPLICIT_LINK_DIRECTORIES}")
 
 add_library(cugraph SHARED
-    src/db/db_object.cu
-    src/db/db_parser_integration_test.cu
-    src/db/db_operators.cu
     src/utilities/spmv_1D.cu
     src/utilities/cython.cu
     src/structure/graph.cu
@@ -410,7 +394,6 @@ target_include_directories(cugraph
     "${CUCO_INCLUDE_DIR}"
     "${LIBCUDACXX_INCLUDE_DIR}"
     "${CMAKE_CUDA_TOOLKIT_INCLUDE_DIRECTORIES}"
-    "${LIBCYPHERPARSER_INCLUDE}"
     "${Boost_INCLUDE_DIRS}"
     "${RMM_INCLUDE}"
     "${CMAKE_CURRENT_SOURCE_DIR}/../thirdparty"
@@ -430,7 +413,7 @@ target_include_directories(cugraph
 # - link libraries --------------------------------------------------------------------------------
 
 target_link_libraries(cugraph PRIVATE
-    gunrock cublas cusparse curand cusolver cudart cuda ${LIBCYPHERPARSER_LIBRARY} ${MPI_CXX_LIBRARIES} ${NCCL_LIBRARIES})
+    gunrock cublas cusparse curand cusolver cudart cuda ${NCCL_LIBRARIES})
 
 if(OpenMP_CXX_FOUND)
 target_link_libraries(cugraph PRIVATE
