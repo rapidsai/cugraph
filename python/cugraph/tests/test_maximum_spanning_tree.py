@@ -62,34 +62,7 @@ def compare_mst(mst_cugraph, mst_nx):
     nx_sum = mst_nx_df["weight"].sum()
     print(cg_sum)
     print(nx_sum)
-    # assert np.isclose(cg_sum, nx_sum)
-
-
-@pytest.mark.parametrize("graph_file", utils.DATASETS_UNDIRECTED_WEIGHTS)
-def test_maximum_spanning_tree_nx(graph_file):
-    gc.collect()
-    # cugraph
-    cuG = utils.read_csv_file(graph_file, read_weights_in_sp=True)
-    G = cugraph.Graph()
-    G.from_cudf_edgelist(cuG, source="0", destination="1", edge_attr="2")
-    # Just for getting relevant timing
-    G.view_adj_list()
-    t1 = time.time()
-    cugraph_mst = cugraph.maximum_spanning_tree(G)
-    t2 = time.time() - t1
-    print("CuGraph time : " + str(t2))
-
-    # Nx
-    df = utils.read_csv_for_nx(graph_file, read_weights_in_sp=True)
-    Gnx = nx.from_pandas_edgelist(
-        df, create_using=nx.Graph(), source="0", target="1", edge_attr="weight"
-    )
-    t1 = time.time()
-    mst_nx = nx.maximum_spanning_tree(Gnx)
-    t2 = time.time() - t1
-    print("Nx Time : " + str(t2))
-
-    compare_mst(cugraph_mst, mst_nx)
+    assert np.isclose(cg_sum, nx_sum)
 
 
 @pytest.mark.parametrize("graph_file", utils.DATASETS_UNDIRECTED_WEIGHTS)
