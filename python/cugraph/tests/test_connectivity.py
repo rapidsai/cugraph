@@ -14,9 +14,14 @@
 import gc
 import time
 from collections import defaultdict
-import pytest
-import pandas as pd
 
+import pytest
+import cupy as cp
+from cupyx.scipy.sparse.coo import coo_matrix as cp_coo_matrix
+from cupyx.scipy.sparse.csr import csr_matrix as cp_csr_matrix
+from cupyx.scipy.sparse.csc import csc_matrix as cp_csc_matrix
+
+import cudf
 import cugraph
 from cugraph.tests import utils
 
@@ -34,8 +39,31 @@ with warnings.catch_warnings():
 
 print("Networkx version : {} ".format(nx.__version__))
 
+# Map of cuGraph input types to the expected output type for cuGraph
+# connected_components calls.
+cuGraph_input_output_map = {
+    cugraph.Graph: cudf.DataFrame,
+    cugraph.DiGraph: cudf.DataFrame,
+    nx.Graph: dict,
+    nx.DiGraph: dict,
+    cp_coo_matrix: tuple,
+    cp_csr_matrix: tuple,
+    cp_csc_matrix: tuple,
+}
 
-def networkx_weak_call(M):
+
+# =============================================================================
+# Pytest Setup / Teardown - called for each test function
+# =============================================================================
+def setup_function():
+    gc.collect()
+
+
+# =============================================================================
+# Helper functions
+# =============================================================================
+def networkx_weak_call(graph_file):
+    M = utils.read_csv_for_nx(graph_file)
     Gnx = nx.from_pandas_edgelist(
         M, source="0", target="1", create_using=nx.DiGraph()
     )
@@ -46,25 +74,15 @@ def networkx_weak_call(M):
     t2 = time.time() - t1
     print("Time : " + str(t2))
 
-    labels = sorted(result)
-    return labels
+    nx_labels = sorted(result)
+    nx_n_components = len(nx_labels)
+    lst_nx_components = sorted(nx_labels, key=len, reverse=True)
+
+    return (graph_file, nx_labels, nx_n_components, lst_nx_components)
 
 
-def cugraph_weak_call(cu_M):
-    G = cugraph.DiGraph()
-    G.from_cudf_edgelist(cu_M, source="0", destination="1")
-    t1 = time.time()
-    df = cugraph.weakly_connected_components(G)
-    t2 = time.time() - t1
-    print("Time : " + str(t2))
-
-    label_vertex_dict = defaultdict(list)
-    for i in range(len(df)):
-        label_vertex_dict[df["labels"][i]].append(df["vertices"][i])
-    return label_vertex_dict
-
-
-def networkx_strong_call(M):
+def networkx_strong_call(graph_file):
+    M = utils.read_csv_for_nx(graph_file)
     Gnx = nx.from_pandas_edgelist(
         M, source="0", target="1", create_using=nx.DiGraph()
     )
@@ -74,22 +92,82 @@ def networkx_strong_call(M):
     t2 = time.time() - t1
     print("Time : " + str(t2))
 
-    labels = sorted(result)
-    return labels
+    nx_labels = sorted(result)
+    nx_n_components = len(nx_labels)
+    lst_nx_components = sorted(nx_labels, key=len, reverse=True)
+
+    return (graph_file, nx_labels, nx_n_components, lst_nx_components)
 
 
-def cugraph_strong_call(cu_M):
-    # cugraph Pagerank Call
-    G = cugraph.DiGraph()
-    G.from_cudf_edgelist(cu_M, source="0", destination="1")
-    t1 = time.time()
-    df = cugraph.strongly_connected_components(G)
-    t2 = time.time() - t1
-    print("Time : " + str(t2))
+def cugraph_call(gpu_benchmark_callable, cugraph_algo, input_G_or_matrix):
+    """
+    Test helper that calls cugraph_algo (which is either
+    weakly_connected_components() or strongly_connected_components()) on the
+    Graph or matrix object input_G_or_matrix, via the gpu_benchmark_callable
+    benchmark callable (which may or may not perform benchmarking based on
+    command-line options), verify the result type, and return a dictionary for
+    comparison.
+    """
+    # if benchmarking is enabled, this call will be benchmarked (ie. run
+    # repeatedly, run time averaged, etc.)
+    result = gpu_benchmark_callable(cugraph_algo, input_G_or_matrix)
 
+    # dict of labels to list of vertices with that label
     label_vertex_dict = defaultdict(list)
-    for i in range(len(df)):
-        label_vertex_dict[df["labels"][i]].append(df["vertices"][i])
+
+    # Lookup results differently based on return type, and ensure return type
+    # is correctly set based on input type.
+    expected_return_type = cuGraph_input_output_map[type(input_G_or_matrix)]
+
+    if expected_return_type is cudf.DataFrame:
+        assert type(result) is cudf.DataFrame
+        for i in range(len(result)):
+            label_vertex_dict[result["labels"][i]].append(
+                result["vertex"][i])
+
+    # NetworkX input results in returning a dictionary mapping vertices to
+    # their labels.
+    elif expected_return_type is dict:
+        assert type(result) is dict
+        for (vert, label) in result.items():
+            label_vertex_dict[label].append(vert)
+
+    # A CuPy/SciPy input means the return value will be a 2-tuple of:
+    #   n_components: int
+    #       The number of connected components (number of unique labels).
+    #   labels: ndarray
+    #       The length-N array of labels of the connected components.
+    elif expected_return_type is tuple:
+        assert type(result) is tuple
+        assert type(result[0]) is int
+        assert type(result[1]) is cp.ndarray
+
+        unique_labels = set([n.item() for n in result[1]])
+        assert len(unique_labels) == result[0]
+
+        # The returned dict used in the tests for checking correctness needs
+        # the actual vertex IDs, which are not in the retuened data (the
+        # CuPy/SciPy connected_components return types cuGraph is converting
+        # to does not include them). So, extract the vertices from the input
+        # COO, order them to match the returned list of labels (which is just
+        # a sort), and include them in the returned dict.
+        if type(input_G_or_matrix) in [cp_csr_matrix, cp_csc_matrix]:
+            coo = input_G_or_matrix.tocoo(copy=False)
+        else:
+            coo = input_G_or_matrix
+        verts = sorted(set([n.item() for n in coo.col] +
+                           [n.item() for n in coo.row]))
+        num_verts = len(verts)
+        num_verts_assigned_labels = len(result[1])
+        assert num_verts_assigned_labels == num_verts
+
+        for i in range(num_verts):
+            label = result[1][i].item()
+            label_vertex_dict[label].append(verts[i])
+
+    else:
+        raise RuntimeError(f"unsupported return type: {expected_return_type}")
+
     return label_vertex_dict
 
 
@@ -102,29 +180,52 @@ def which_cluster_idx(_cluster, _find_vertex):
     return idx
 
 
-# Test all combinations of default/managed and pooled/non-pooled allocation
-@pytest.mark.parametrize("graph_file", utils.DATASETS)
-def test_weak_cc(graph_file):
-    gc.collect()
+# =============================================================================
+# Pytest fixtures
+# =============================================================================
+@pytest.fixture(scope="module", params=utils.DATASETS)
+def dataset_nxresults_weak(request):
+    return networkx_weak_call(request.param)
 
-    M = utils.read_csv_for_nx(graph_file)
-    netx_labels = networkx_weak_call(M)
 
-    cu_M = utils.read_csv_file(graph_file)
-    cugraph_labels = cugraph_weak_call(cu_M)
+@pytest.fixture(scope="module", params=[utils.DATASETS[0]])
+def single_dataset_nxresults_weak(request):
+    return networkx_weak_call(request.param)
 
+
+@pytest.fixture(scope="module", params=utils.STRONGDATASETS)
+def dataset_nxresults_strong(request):
+    return networkx_strong_call(request.param)
+
+
+@pytest.fixture(scope="module", params=[utils.STRONGDATASETS[0]])
+def single_dataset_nxresults_strong(request):
+    return networkx_strong_call(request.param)
+
+
+# =============================================================================
+# Tests
+# =============================================================================
+@pytest.mark.parametrize("cugraph_input_type", utils.CUGRAPH_DIR_INPUT_TYPES)
+def test_weak_cc(gpubenchmark, dataset_nxresults_weak, cugraph_input_type):
     # NetX returns a list of components, each component being a
-    # collection (set{}) of vertex indices;
-    #
-    # while cugraph returns a component label for each vertex;
+    # collection (set{}) of vertex indices
+    (graph_file, netx_labels,
+     nx_n_components, lst_nx_components) = dataset_nxresults_weak
 
-    nx_n_components = len(netx_labels)
+    input_G_or_matrix = utils.create_obj_from_csv(graph_file,
+                                                  cugraph_input_type,
+                                                  edgevals=True)
+    cugraph_labels = cugraph_call(gpubenchmark,
+                                  cugraph.weakly_connected_components,
+                                  input_G_or_matrix)
+
+    # while cugraph returns a component label for each vertex;
     cg_n_components = len(cugraph_labels)
 
     # Comapre number of components
     assert nx_n_components == cg_n_components
 
-    lst_nx_components = sorted(netx_labels, key=len, reverse=True)
     lst_nx_components_lens = [len(c) for c in lst_nx_components]
 
     cugraph_vertex_lst = cugraph_labels.values()
@@ -146,31 +247,38 @@ def test_weak_cc(graph_file):
     assert nx_vertices == cg_vertices
 
 
-# Test all combinations of default/managed and pooled/non-pooled allocation
+@pytest.mark.parametrize("cugraph_input_type",
+                         utils.NX_DIR_INPUT_TYPES + utils.MATRIX_INPUT_TYPES)
+def test_weak_cc_nonnative_inputs(gpubenchmark,
+                                  single_dataset_nxresults_weak,
+                                  cugraph_input_type):
+    test_weak_cc(gpubenchmark,
+                 single_dataset_nxresults_weak,
+                 cugraph_input_type)
 
 
-@pytest.mark.parametrize("graph_file", utils.STRONGDATASETS)
-def test_strong_cc(graph_file):
-    gc.collect()
-
-    M = utils.read_csv_for_nx(graph_file)
-    netx_labels = networkx_strong_call(M)
-
-    cu_M = utils.read_csv_file(graph_file)
-    cugraph_labels = cugraph_strong_call(cu_M)
+@pytest.mark.parametrize("cugraph_input_type", utils.CUGRAPH_DIR_INPUT_TYPES)
+def test_strong_cc(gpubenchmark, dataset_nxresults_strong,
+                   cugraph_input_type):
 
     # NetX returns a list of components, each component being a
-    # collection (set{}) of vertex indices;
-    #
-    # while cugraph returns a component label for each vertex;
+    # collection (set{}) of vertex indices
+    (graph_file, netx_labels,
+     nx_n_components, lst_nx_components) = dataset_nxresults_strong
 
-    nx_n_components = len(netx_labels)
+    input_G_or_matrix = utils.create_obj_from_csv(graph_file,
+                                                  cugraph_input_type,
+                                                  edgevals=True)
+    cugraph_labels = cugraph_call(gpubenchmark,
+                                  cugraph.strongly_connected_components,
+                                  input_G_or_matrix)
+
+    # while cugraph returns a component label for each vertex;
     cg_n_components = len(cugraph_labels)
 
     # Comapre number of components found
     assert nx_n_components == cg_n_components
 
-    lst_nx_components = sorted(netx_labels, key=len, reverse=True)
     lst_nx_components_lens = [len(c) for c in lst_nx_components]
 
     cugraph_vertex_lst = cugraph_labels.values()
@@ -192,42 +300,11 @@ def test_strong_cc(graph_file):
     assert nx_vertices == cg_vertices
 
 
-@pytest.mark.parametrize("graph_file", utils.DATASETS)
-def test_weak_cc_nx(graph_file):
-    gc.collect()
-
-    M = utils.read_csv_for_nx(graph_file)
-    Gnx = nx.from_pandas_edgelist(
-        M, source="0", target="1", create_using=nx.DiGraph()
-    )
-
-    nx_wcc = nx.weakly_connected_components(Gnx)
-    nx_result = sorted(nx_wcc)
-
-    cu_wcc = cugraph.weakly_connected_components(Gnx)
-    pdf = pd.DataFrame.from_dict(cu_wcc, orient='index').reset_index()
-    pdf.columns = ["vertex", "labels"]
-    cu_result = pdf["labels"].nunique()
-
-    assert len(nx_result) == cu_result
-
-
-@pytest.mark.parametrize("graph_file", utils.STRONGDATASETS)
-def test_strong_cc_nx(graph_file):
-    gc.collect()
-
-    M = utils.read_csv_for_nx(graph_file)
-    Gnx = nx.from_pandas_edgelist(
-        M, source="0", target="1", create_using=nx.DiGraph()
-    )
-
-    nx_scc = nx.strongly_connected_components(Gnx)
-    nx_result = sorted(nx_scc)
-
-    cu_scc = cugraph.strongly_connected_components(Gnx)
-
-    pdf = pd.DataFrame.from_dict(cu_scc, orient='index').reset_index()
-    pdf.columns = ["vertex", "labels"]
-    cu_result = pdf["labels"].nunique()
-
-    assert len(nx_result) == cu_result
+@pytest.mark.parametrize("cugraph_input_type",
+                         utils.NX_DIR_INPUT_TYPES + utils.MATRIX_INPUT_TYPES)
+def test_strong_cc_nonnative_inputs(gpubenchmark,
+                                    single_dataset_nxresults_strong,
+                                    cugraph_input_type):
+    test_strong_cc(gpubenchmark,
+                   single_dataset_nxresults_strong,
+                   cugraph_input_type)

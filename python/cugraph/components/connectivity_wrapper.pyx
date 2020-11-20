@@ -56,12 +56,12 @@ def weakly_connected_components(input_graph):
     num_edges = input_graph.number_of_edges(directed_edges=True)
 
     df = cudf.DataFrame()
-    df['vertices'] = cudf.Series(np.zeros(num_verts, dtype=np.int32))
+    df['vertex'] = cudf.Series(np.zeros(num_verts, dtype=np.int32))
     df['labels'] = cudf.Series(np.zeros(num_verts, dtype=np.int32))
 
     cdef uintptr_t c_offsets    = offsets.__cuda_array_interface__['data'][0]
     cdef uintptr_t c_indices    = indices.__cuda_array_interface__['data'][0]
-    cdef uintptr_t c_identifier = df['vertices'].__cuda_array_interface__['data'][0];
+    cdef uintptr_t c_identifier = df['vertex'].__cuda_array_interface__['data'][0];
     cdef uintptr_t c_labels_val = df['labels'].__cuda_array_interface__['data'][0];
 
     cdef GraphCSRView[int,int,float] g
@@ -89,12 +89,12 @@ def strongly_connected_components(input_graph):
     num_edges = input_graph.number_of_edges(directed_edges=True)
 
     df = cudf.DataFrame()
-    df['vertices'] = cudf.Series(np.zeros(num_verts, dtype=np.int32))
+    df['vertex'] = cudf.Series(np.zeros(num_verts, dtype=np.int32))
     df['labels'] = cudf.Series(np.zeros(num_verts, dtype=np.int32))
 
     cdef uintptr_t c_offsets    = offsets.__cuda_array_interface__['data'][0]
     cdef uintptr_t c_indices    = indices.__cuda_array_interface__['data'][0]
-    cdef uintptr_t c_identifier = df['vertices'].__cuda_array_interface__['data'][0];
+    cdef uintptr_t c_identifier = df['vertex'].__cuda_array_interface__['data'][0];
     cdef uintptr_t c_labels_val = df['labels'].__cuda_array_interface__['data'][0];
 
     cdef GraphCSRView[int,int,float] g

@@ -158,19 +158,6 @@ if(OpenMP_FOUND)
     set(CMAKE_CUDA_FLAGS "${CMAKE_CUDA_FLAGS} -Xcompiler=${OpenMP_CXX_FLAGS}")
 endif(OpenMP_FOUND)
 
-###################################################################################################
-# - find libcypher-parser -------------------------------------------------------------------------
-
-find_path(LIBCYPHERPARSER_INCLUDE "cypher-parser.h"
-          HINTS "$ENV{CONDA_PREFIX}/include")
-
-find_library(LIBCYPHERPARSER_LIBRARY STATIC "libcypher-parser.a"
-             HINTS "$ENV{CONDA_PREFIX}/lib")
-
-add_library(libcypher-parser STATIC IMPORTED ${LIBCYPHERPARSER_LIBRARY})
-if (LIBCYPHERPARSER_INCLUDE AND LIBCYPHERPARSER_LIBRARY)
-    set_target_properties(libcypher-parser PROPERTIES IMPORTED_LOCATION ${LIBCYPHERPARSER_LIBRARY})
-endif (LIBCYPHERPARSER_INCLUDE AND LIBCYPHERPARSER_LIBRARY)
 
 ###################################################################################################
 # - find gtest ------------------------------------------------------------------------------------
@@ -277,13 +264,13 @@ ExternalProject_Add(cuhornet
 )
 
 # - GUNROCK
-set(CUGUNROCK_DIR ${CMAKE_CURRENT_BINARY_DIR}/cugunrock CACHE STRING
-  "Path to cugunrock repo")
+set(GUNROCK_DIR ${CMAKE_CURRENT_BINARY_DIR}/gunrock CACHE STRING "Path to gunrock repo")
+set(GUNROCK_INCLUDE_DIR ${GUNROCK_DIR}/src/gunrock_ext CACHE STRING "Path to gunrock includes")
 
-ExternalProject_Add(cugunrock
-  GIT_REPOSITORY    https://github.com/rapidsai/cugunrock.git
-  GIT_TAG           0b92fae6ee9026188a811b4d08915779e7c97178
-  PREFIX            ${CUGUNROCK_DIR}
+ExternalProject_Add(gunrock_ext
+  GIT_REPOSITORY    https://github.com/gunrock/gunrock.git
+  GIT_TAG           dev
+  PREFIX            ${GUNROCK_DIR}
   CMAKE_ARGS        -DCMAKE_INSTALL_PREFIX=<INSTALL_DIR>
                     -DGUNROCK_BUILD_SHARED_LIBS=OFF
                     -DGUNROCK_BUILD_TESTS=OFF
@@ -295,14 +282,15 @@ ExternalProject_Add(cugunrock
                     -DGUNROCK_GENCODE_SM75=${GUNROCK_GENCODE_SM75}
                     -DGUNROCK_GENCODE_SM80=${GUNROCK_GENCODE_SM80}
                     ${GUNROCK_GENCODE}
-  BUILD_BYPRODUCTS  ${CUGUNROCK_DIR}/lib/libgunrock.a
+  BUILD_BYPRODUCTS  ${GUNROCK_DIR}/src/gunrock_ext-build/lib/libgunrock.a
+  INSTALL_COMMAND   ""
 )
 
 add_library(gunrock STATIC IMPORTED)
 
-add_dependencies(gunrock cugunrock)
+add_dependencies(gunrock gunrock_ext)
 
-set_property(TARGET gunrock PROPERTY IMPORTED_LOCATION ${CUGUNROCK_DIR}/lib/libgunrock.a)
+set_property(TARGET gunrock PROPERTY IMPORTED_LOCATION ${GUNROCK_DIR}/src/gunrock_ext-build/lib/libgunrock.a)
 
 # - NCCL
 if(NOT NCCL_PATH)
@@ -358,9 +346,6 @@ link_directories(
     "${CMAKE_CUDA_IMPLICIT_LINK_DIRECTORIES}")
 
 add_library(cugraph SHARED
-    src/db/db_object.cu
-    src/db/db_parser_integration_test.cu
-    src/db/db_operators.cu
     src/utilities/spmv_1D.cu
     src/utilities/cython.cu
     src/structure/graph.cu
@@ -399,7 +384,7 @@ add_library(cugraph SHARED
 # NOTE:  This dependency will force the building of cugraph to
 #        wait until after cugunrock is constructed.
 #
-add_dependencies(cugraph cugunrock)
+add_dependencies(cugraph gunrock_ext)
 add_dependencies(cugraph raft)
 
 ###################################################################################################
@@ -410,7 +395,6 @@ target_include_directories(cugraph
     "${CUCO_INCLUDE_DIR}"
     "${LIBCUDACXX_INCLUDE_DIR}"
     "${CMAKE_CUDA_TOOLKIT_INCLUDE_DIRECTORIES}"
-    "${LIBCYPHERPARSER_INCLUDE}"
     "${Boost_INCLUDE_DIRS}"
     "${RMM_INCLUDE}"
     "${CMAKE_CURRENT_SOURCE_DIR}/../thirdparty"
@@ -419,7 +403,7 @@ target_include_directories(cugraph
     "${CUHORNET_INCLUDE_DIR}/xlib/include"
     "${CUHORNET_INCLUDE_DIR}/primitives"
     "${CMAKE_CURRENT_SOURCE_DIR}/src"
-    "${CUGUNROCK_DIR}/include"
+    "${GUNROCK_INCLUDE_DIR}"
     "${NCCL_INCLUDE_DIRS}"
     "${RAFT_DIR}/cpp/include"
     PUBLIC
@@ -430,7 +414,7 @@ target_include_directories(cugraph
 # - link libraries --------------------------------------------------------------------------------
 
 target_link_libraries(cugraph PRIVATE
-    gunrock cublas cusparse curand cusolver cudart cuda ${LIBCYPHERPARSER_LIBRARY} ${MPI_CXX_LIBRARIES} ${NCCL_LIBRARIES})
+    gunrock cublas cusparse curand cusolver cudart cuda ${NCCL_LIBRARIES})
 
 if(OpenMP_CXX_FOUND)
 target_link_libraries(cugraph PRIVATE

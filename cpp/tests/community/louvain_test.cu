@@ -41,6 +41,9 @@ TEST(louvain, success)
     1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0,
     1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0};
 
+  std::vector<int> result_h = {1, 1, 1, 1, 0, 0, 0, 1, 3, 1, 0, 1, 1, 1, 3, 3, 0,
+                               1, 3, 1, 3, 1, 3, 2, 2, 2, 3, 2, 1, 3, 3, 2, 3, 3};
+
   int num_verts = off_h.size() - 1;
   int num_edges = ind_h.size();
 
@@ -72,6 +75,7 @@ TEST(louvain, success)
 
   ASSERT_GE(min, 0);
   ASSERT_GE(modularity, 0.402777 * 0.95);
+  ASSERT_EQ(result_v, result_h);
 }
 
 TEST(louvain_renumbered, success)
