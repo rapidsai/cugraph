@@ -368,20 +368,7 @@ add_library(cugraph SHARED
     src/converters/renumber.cu
     src/converters/COOtoCSR.cu
     src/community/spectral_clustering.cu
-    src/community/louvain_giidf.cu
-    src/community/louvain_giidt.cu
-    src/community/louvain_giiff.cu
-    src/community/louvain_giift.cu
-    src/community/louvain_gildf.cu
-    src/community/louvain_gildt.cu
-    src/community/louvain_gilff.cu
-    src/community/louvain_gilft.cu
-    src/community/louvain_glldf.cu
-    src/community/louvain_glldt.cu
-    src/community/louvain_gllff.cu
-    src/community/louvain_gllft.cu
-    src/community/louvain_iid.cu
-    src/community/louvain_iif.cu
+    src/community/louvain.cu
     src/community/leiden.cu
     src/community/ktruss.cu
     src/community/ECG.cu
