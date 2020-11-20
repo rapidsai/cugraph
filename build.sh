@@ -33,7 +33,7 @@ HELP="$0 [<target> ...] [<flag> ...]
    --show_depr_warn - show cmake deprecation warnings
    -h               - print this text
 
- default action (no args) is to build and install 'libcugraph' then 'cugraph' targets
+ default action (no args) is to build and install 'libcugraph' then 'cugraph' targets and then docs
 "
 LIBCUGRAPH_BUILD_DIR=${LIBCUGRAPH_BUILD_DIR:=${REPODIR}/cpp/build}
 CUGRAPH_BUILD_DIR=${REPODIR}/python/build
