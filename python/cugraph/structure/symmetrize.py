@@ -125,6 +125,7 @@ def symmetrize_ddf(df, src_name, dst_name, weight_name=None):
         .min()
         .reset_index()
     )
+
     return result
 
 
@@ -187,7 +188,7 @@ def symmetrize(source_col, dest_col, value_col=None):
     if type(source_col) is dask_cudf.Series:
         output_df = symmetrize_ddf(
             input_df, "source", "destination", weight_name
-        )
+        ).persist()
     else:
         output_df = symmetrize_df(input_df, "source", "destination")
 

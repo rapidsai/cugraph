@@ -83,7 +83,8 @@ void apply_attraction(const vertex_t *restrict row,
                       bool outbound_attraction_distribution,
                       bool lin_log_mode,
                       const float edge_weight_influence,
-                      const float coef)
+                      const float coef,
+                      cudaStream_t stream)
 {
   // 0 edge graph.
   if (!e) return;
@@ -97,21 +98,21 @@ void apply_attraction(const vertex_t *restrict row,
   nblocks.z  = 1;
 
   attraction_kernel<vertex_t, edge_t, weight_t>
-    <<<nblocks, nthreads>>>(row,
-                            col,
-                            v,
-                            e,
-                            x_pos,
-                            y_pos,
-                            attract_x,
-                            attract_y,
-                            mass,
-                            outbound_attraction_distribution,
-                            lin_log_mode,
-                            edge_weight_influence,
-                            coef);
+    <<<nblocks, nthreads, 0, stream>>>(row,
+                                       col,
+                                       v,
+                                       e,
+                                       x_pos,
+                                       y_pos,
+                                       attract_x,
+                                       attract_y,
+                                       mass,
+                                       outbound_attraction_distribution,
+                                       lin_log_mode,
+                                       edge_weight_influence,
+                                       coef);
 
-  CHECK_CUDA(nullptr);
+  CHECK_CUDA(stream);
 }
 
 template <typename vertex_t>
@@ -164,7 +165,8 @@ void apply_gravity(const float *restrict x_pos,
                    const float gravity,
                    bool strong_gravity_mode,
                    const float scaling_ratio,
-                   const vertex_t n)
+                   const vertex_t n,
+                   cudaStream_t stream)
 {
   dim3 nthreads, nblocks;
   nthreads.x = min(n, CUDA_MAX_KERNEL_THREADS);
@@ -174,13 +176,14 @@ void apply_gravity(const float *restrict x_pos,
   nblocks.y  = 1;
   nblocks.z  = 1;
 
-  if (strong_gravity_mode)
-    strong_gravity_kernel<vertex_t>
-      <<<nblocks, nthreads>>>(x_pos, y_pos, attract_x, attract_y, mass, gravity, scaling_ratio, n);
-  else
+  if (strong_gravity_mode) {
+    strong_gravity_kernel<vertex_t><<<nblocks, nthreads, 0, stream>>>(
+      x_pos, y_pos, attract_x, attract_y, mass, gravity, scaling_ratio, n);
+  } else {
     linear_gravity_kernel<vertex_t>
-      <<<nblocks, nthreads>>>(x_pos, y_pos, attract_x, attract_y, mass, gravity, n);
-  CHECK_CUDA(nullptr);
+      <<<nblocks, nthreads, 0, stream>>>(x_pos, y_pos, attract_x, attract_y, mass, gravity, n);
+  }
+  CHECK_CUDA(stream);
 }
 
 template <typename vertex_t>
@@ -216,7 +219,8 @@ void compute_local_speed(const float *restrict repel_x,
                          const int *restrict mass,
                          float *restrict swinging,
                          float *restrict traction,
-                         const vertex_t n)
+                         const vertex_t n,
+                         cudaStream_t stream)
 {
   dim3 nthreads, nblocks;
   nthreads.x = min(n, CUDA_MAX_KERNEL_THREADS);
@@ -226,9 +230,9 @@ void compute_local_speed(const float *restrict repel_x,
   nblocks.y  = 1;
   nblocks.z  = 1;
 
-  local_speed_kernel<<<nblocks, nthreads>>>(
+  local_speed_kernel<<<nblocks, nthreads, 0, stream>>>(
     repel_x, repel_y, attract_x, attract_y, old_dx, old_dy, mass, swinging, traction, n);
-  CHECK_CUDA(nullptr);
+  CHECK_CUDA(stream);
 }
 
 template <typename vertex_t>
@@ -304,7 +308,8 @@ void apply_forces(float *restrict x_pos,
                   float *restrict old_dy,
                   const float *restrict swinging,
                   const float speed,
-                  const vertex_t n)
+                  const vertex_t n,
+                  cudaStream_t stream)
 {
   dim3 nthreads, nblocks;
   nthreads.x = min(n, CUDA_MAX_KERNEL_THREADS);
@@ -314,9 +319,9 @@ void apply_forces(float *restrict x_pos,
   nblocks.y  = 1;
   nblocks.z  = 1;
 
-  update_positions_kernel<vertex_t><<<nblocks, nthreads>>>(
+  update_positions_kernel<vertex_t><<<nblocks, nthreads, 0, stream>>>(
     x_pos, y_pos, repel_x, repel_y, attract_x, attract_y, old_dx, old_dy, swinging, speed, n);
-  CHECK_CUDA(nullptr);
+  CHECK_CUDA(stream);
 }
 
 }  // namespace detail

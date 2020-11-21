@@ -63,6 +63,8 @@ def networkx_call(M):
     edges = []
     for i in range(len(M)):
         edges.append((sources[i], destinations[i]))
+        edges.append((destinations[i], sources[i]))
+    edges = list(dict.fromkeys(edges))
     edges = sorted(edges)
     # in NVGRAPH tests we read as CSR and feed as CSC, so here we doing this
     # explicitly
@@ -71,6 +73,7 @@ def networkx_call(M):
     Gnx = nx.from_pandas_edgelist(
         M, source="0", target="1", edge_attr="weight", create_using=nx.Graph()
     )
+
     # Networkx Jaccard Call
     print("Solving... ")
     t1 = time.time()
@@ -94,7 +97,6 @@ def test_jaccard(graph_file):
 
     M = utils.read_csv_for_nx(graph_file)
     cu_M = utils.read_csv_file(graph_file)
-
     cu_src, cu_dst, cu_coeff = cugraph_call(cu_M)
     nx_src, nx_dst, nx_coeff = networkx_call(M)
 
