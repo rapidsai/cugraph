@@ -58,7 +58,7 @@ cuGraph_input_output_map = {
     sp_csc_matrix: tuple,
 }
 cupy_types = [cp_coo_matrix, cp_csr_matrix, cp_csc_matrix]
-scipy_types = [sp_coo_matrix, sp_csr_matrix, sp_csc_matrix]
+
 
 # =============================================================================
 # Pytest Setup / Teardown - called for each test function
@@ -151,56 +151,32 @@ def cugraph_call(gpu_benchmark_callable, cugraph_algo, input_G_or_matrix):
         assert type(result[0]) is int
         if input_type in cupy_types:
             assert type(result[1]) is cp.ndarray
-
-            unique_labels = set([n.item() for n in result[1]])
-            assert len(unique_labels) == result[0]
-
-            # The returned dict used in the tests for checking correctness needs
-            # the actual vertex IDs, which are not in the returned data (the
-            # CuPy/SciPy connected_components return types cuGraph is converting
-            # to does not include them). So, extract the vertices from the input
-            # COO, order them to match the returned list of labels (which is just
-            # a sort), and include them in the returned dict.
-            if input_type in [cp_csr_matrix, cp_csc_matrix]:
-                coo = input_G_or_matrix.tocoo(copy=False)
-            else:
-                coo = input_G_or_matrix
-            verts = sorted(set([n.item() for n in coo.col] +
-                               [n.item() for n in coo.row]))
-            num_verts = len(verts)
-            num_verts_assigned_labels = len(result[1])
-            assert num_verts_assigned_labels == num_verts
-
-            for i in range(num_verts):
-                label = result[1][i].item()
-                label_vertex_dict[label].append(verts[i])
-
-        elif input_type in scipy_types:
-            import pdb;pdb.set_trace()
+        else:
             assert type(result[1]) is np.ndarray
 
-            unique_labels = set([n.item() for n in result[1]])
-            assert len(unique_labels) == result[0]
+        unique_labels = set([n.item() for n in result[1]])
+        assert len(unique_labels) == result[0]
 
-            # The returned dict used in the tests for checking correctness needs
-            # the actual vertex IDs, which are not in the retuened data (the
-            # CuPy/SciPy connected_components return types cuGraph is converting
-            # to does not include them). So, extract the vertices from the input
-            # COO, order them to match the returned list of labels (which is just
-            # a sort), and include them in the returned dict.
-            if input_type in [sp_csr_matrix, sp_csc_matrix]:
-                coo = input_G_or_matrix.tocoo(copy=False)
-            else:
-                coo = input_G_or_matrix
-            verts = sorted(set([n.item() for n in coo.col] +
-                               [n.item() for n in coo.row]))
-            num_verts = len(verts)
-            num_verts_assigned_labels = len(result[1])
-            assert num_verts_assigned_labels == num_verts
+        # The returned dict used in the tests for checking correctness needs the
+        # actual vertex IDs, which are not in the returned data (the CuPy/SciPy
+        # connected_components return types cuGraph is converting to does not
+        # include them). So, extract the vertices from the input COO, order them
+        # to match the returned list of labels (which is just a sort), and
+        # include them in the returned dict.
+        if input_type in [cp_csr_matrix, cp_csc_matrix,
+                          sp_csr_matrix, sp_csc_matrix]:
+            coo = input_G_or_matrix.tocoo(copy=False)
+        else:
+            coo = input_G_or_matrix
+        verts = sorted(set([n.item() for n in coo.col] +
+                           [n.item() for n in coo.row]))
+        num_verts = len(verts)
+        num_verts_assigned_labels = len(result[1])
+        assert num_verts_assigned_labels == num_verts
 
-            for i in range(num_verts):
-                label = result[1][i].item()
-                label_vertex_dict[label].append(verts[i])
+        for i in range(num_verts):
+            label = result[1][i].item()
+            label_vertex_dict[label].append(verts[i])
 
     else:
         raise RuntimeError(f"unsupported return type: {expected_return_type}")

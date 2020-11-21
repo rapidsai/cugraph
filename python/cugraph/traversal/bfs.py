@@ -15,20 +15,30 @@ import cudf
 
 from cugraph.traversal import bfs_wrapper
 from cugraph.structure.graph import Graph, DiGraph
-from cugraph.utilities import ensure_cugraph_obj
+from cugraph.utilities import (ensure_cugraph_obj,
+                               is_matrix_type,
+                               is_cp_matrix_type,
+                               import_optional,
+                              )
 
 # optional dependencies used for handling different input types
-try:
-    import cupy as cp
-    from cupyx.scipy.sparse.coo import coo_matrix as cp_coo_matrix
-    from cupyx.scipy.sparse.csr import csr_matrix as cp_csr_matrix
-    from cupyx.scipy.sparse.csc import csc_matrix as cp_csc_matrix
-except ModuleNotFoundError:
-    cp = None
-try:
-    import networkx as nx
-except ModuleNotFoundError:
-    nx = None
+nx = import_optional("networkx")
+
+cp = import_optional("cupy")
+cp_coo_matrix = import_optional("coo_matrix",
+                                import_from="cupyx.scipy.sparse.coo")
+cp_csr_matrix = import_optional("csr_matrix",
+                                import_from="cupyx.scipy.sparse.csr")
+cp_csc_matrix = import_optional("csc_matrix",
+                                import_from="cupyx.scipy.sparse.csc")
+
+sp = import_optional("scipy")
+sp_coo_matrix = import_optional("coo_matrix",
+                                import_from="scipy.sparse.coo")
+sp_csr_matrix = import_optional("csr_matrix",
+                                import_from="scipy.sparse.csr")
+sp_csc_matrix = import_optional("csc_matrix",
+                                import_from="scipy.sparse.csc")
 
 
 def _convert_df_to_output_type(df, input_type):
@@ -42,20 +52,27 @@ def _convert_df_to_output_type(df, input_type):
     elif (nx is not None) and (input_type in [nx.Graph, nx.DiGraph]):
         return df.to_pandas()
 
-    elif (cp is not None) and \
-         (input_type in [cp_coo_matrix, cp_csr_matrix, cp_csc_matrix]):
+    elif is_matrix_type(input_type):
         # A CuPy/SciPy input means the return value will be a 2-tuple of:
         #   distance: cupy.ndarray
         #   predecessor: cupy.ndarray
         sorted_df = df.sort_values("vertex")
-        distances = cp.fromDlpack(sorted_df["distance"].to_dlpack())
-        preds = cp.fromDlpack(sorted_df["predecessor"].to_dlpack())
-        if "sp_counter" in df.columns:
-            return (distances, preds,
-                    cp.fromDlpack(sorted_df["sp_counter"].to_dlpack()))
+        if is_cp_matrix_type(input_type):
+            distances = cp.fromDlpack(sorted_df["distance"].to_dlpack())
+            preds = cp.fromDlpack(sorted_df["predecessor"].to_dlpack())
+            if "sp_counter" in df.columns:
+                return (distances, preds,
+                        cp.fromDlpack(sorted_df["sp_counter"].to_dlpack()))
+            else:
+                return (distances, preds)
         else:
-            return (distances, preds)
-
+            distances = sorted_df["distance"].to_array()
+            preds = sorted_df["predecessor"].to_array()
+            if "sp_counter" in df.columns:
+                return (distances, preds,
+                        sorted_df["sp_counter"].to_array())
+            else:
+                return (distances, preds)
     else:
         raise TypeError(f"input type {input_type} is not a supported type.")
 

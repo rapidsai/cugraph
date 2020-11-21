@@ -12,29 +12,40 @@
 # limitations under the License.
 
 
-from cugraph.utilities import df_score_to_dictionary, ensure_cugraph_obj
+from cugraph.utilities import (df_score_to_dictionary,
+                               ensure_cugraph_obj,
+                               is_matrix_type,
+                               is_cp_matrix_type,
+                               import_optional,
+                              )
 from cugraph.structure import Graph, DiGraph
 from cugraph.components import connectivity_wrapper
 
 # optional dependencies used for handling different input types
-try:
-    import cupy as cp
-    from cupyx.scipy.sparse.coo import coo_matrix as cp_coo_matrix
-    from cupyx.scipy.sparse.csr import csr_matrix as cp_csr_matrix
-    from cupyx.scipy.sparse.csc import csc_matrix as cp_csc_matrix
-except ModuleNotFoundError:
-    cp = None
-try:
-    import networkx as nx
-except ModuleNotFoundError:
-    nx = None
+nx = import_optional("networkx")
+
+cp = import_optional("cupy")
+cp_coo_matrix = import_optional("coo_matrix",
+                                import_from="cupyx.scipy.sparse.coo")
+cp_csr_matrix = import_optional("csr_matrix",
+                                import_from="cupyx.scipy.sparse.csr")
+cp_csc_matrix = import_optional("csc_matrix",
+                                import_from="cupyx.scipy.sparse.csc")
+
+sp = import_optional("scipy")
+sp_coo_matrix = import_optional("coo_matrix",
+                                import_from="scipy.sparse.coo")
+sp_csr_matrix = import_optional("csr_matrix",
+                                import_from="scipy.sparse.csr")
+sp_csc_matrix = import_optional("csc_matrix",
+                                import_from="scipy.sparse.csc")
 
 
 def _ensure_args(api_name, G, directed, connection, return_labels):
     """
     Ensures the args passed in are usable for the API api_name and returns the
-    args with proper defaults if not specified, or raises TypeError if
-    incorrectly specified.
+    args with proper defaults if not specified, or raises TypeError or
+    ValueError if incorrectly specified.
     """
     G_type = type(G)
     # Check for Graph-type inputs and set defaults if unset
@@ -84,8 +95,7 @@ def _convert_df_to_output_type(df, input_type, return_labels):
     elif (nx is not None) and (input_type in [nx.Graph, nx.DiGraph]):
         return df_score_to_dictionary(df, "labels", "vertex")
 
-    elif (cp is not None) and \
-         (input_type in [cp_coo_matrix, cp_csr_matrix, cp_csc_matrix]):
+    elif is_matrix_type(input_type):
         # Convert DF of 2 columns (labels, vertices) to the SciPy-style return
         # value:
         #   n_components: int
@@ -95,7 +105,10 @@ def _convert_df_to_output_type(df, input_type, return_labels):
         n_components = len(df["labels"].unique())
         sorted_df = df.sort_values("vertex")
         if return_labels:
-            labels = cp.fromDlpack(sorted_df["labels"].to_dlpack())
+            if is_cp_matrix_type(input_type):
+                labels = cp.fromDlpack(sorted_df["labels"].to_dlpack())
+            else:
+                labels = sorted_df["labels"].to_array()
             return (n_components, labels)
         else:
             return n_components
@@ -199,12 +212,11 @@ def strongly_connected_components(G,
                                   connection=None,
                                   return_labels=None):
     """
-    Generate the Stronlgly Connected Components and attach a component label to
+    Generate the Strongly Connected Components and attach a component label to
     each vertex.
 
     Parameters
     ----------
-
     G : cugraph.Graph or networkx.Graph or CuPy sparse matrix
 
         cuGraph graph descriptor, should contain the connectivity information
@@ -290,12 +302,12 @@ def connected_components(G,
                          directed=None,
                          connection="weak",
                          return_labels=None):
-    """Generate either the stronlgly or weakly connected components and attach a
+    """
+    Generate either the stronlgly or weakly connected components and attach a
     component label to each vertex.
 
     Parameters
     ----------
-
     G : cugraph.Graph or networkx.Graph or CuPy sparse matrix
 
         cuGraph graph descriptor, should contain the connectivity information

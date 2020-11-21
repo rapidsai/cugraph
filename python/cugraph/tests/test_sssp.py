@@ -21,6 +21,9 @@ import cupy as cp
 from cupyx.scipy.sparse.coo import coo_matrix as cp_coo_matrix
 from cupyx.scipy.sparse.csr import csr_matrix as cp_csr_matrix
 from cupyx.scipy.sparse.csc import csc_matrix as cp_csc_matrix
+from scipy.sparse.coo import coo_matrix as sp_coo_matrix
+from scipy.sparse.csr import csr_matrix as sp_csr_matrix
+from scipy.sparse.csc import csc_matrix as sp_csc_matrix
 
 import cudf
 import cugraph
@@ -50,7 +53,11 @@ cuGraph_input_output_map = {
     cp_coo_matrix: tuple,
     cp_csr_matrix: tuple,
     cp_csc_matrix: tuple,
+    sp_coo_matrix: tuple,
+    sp_csr_matrix: tuple,
+    sp_csc_matrix: tuple,
 }
+cupy_types = [cp_coo_matrix, cp_csr_matrix, cp_csc_matrix]
 
 
 # =============================================================================
@@ -72,6 +79,7 @@ def cugraph_call(gpu_benchmark_callable, input_G_or_matrix,
     """
     result = gpu_benchmark_callable(cugraph.sssp, input_G_or_matrix, source)
 
+    input_type = type(input_G_or_matrix)
     expected_return_type = cuGraph_input_output_map[type(input_G_or_matrix)]
     assert type(result) is expected_return_type
 
@@ -95,15 +103,21 @@ def cugraph_call(gpu_benchmark_callable, input_G_or_matrix,
     #      ndarray of predecessors of a vertex on the path from source, which
     #      can be used to reconstruct the shortest paths.
     elif expected_return_type is tuple:
-        assert type(result[0]) is cp.ndarray
-        assert type(result[1]) is cp.ndarray
+        if input_type in cupy_types:
+            assert type(result[0]) is cp.ndarray
+            assert type(result[1]) is cp.ndarray
+        else:
+            assert type(result[0]) is np.ndarray
+            assert type(result[1]) is np.ndarray
+
         if np.issubdtype(result[0].dtype, np.integer):
             max_val = np.iinfo(result[0].dtype).max
         else:
             max_val = np.finfo(result[0].dtype).max
 
         # Get unique verts from input since they are not incuded in output
-        if type(input_G_or_matrix) in [cp_csr_matrix, cp_csc_matrix]:
+        if type(input_G_or_matrix) in [cp_csr_matrix, cp_csc_matrix,
+                                       sp_csr_matrix, sp_csc_matrix]:
             coo = input_G_or_matrix.tocoo(copy=False)
         else:
             coo = input_G_or_matrix
