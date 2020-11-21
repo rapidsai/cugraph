@@ -21,10 +21,7 @@
 
 #include <rmm/thrust_rmm_allocator.h>
 #include <compute_partition.cuh>
-
-// FIXME: ifdef-out for arch < 700
 #include <cuco/static_map.cuh>
-
 #include <experimental/shuffle.cuh>
 #include <utilities/comm_utils.cuh>
 #include <utilities/graph_utils.cuh>
