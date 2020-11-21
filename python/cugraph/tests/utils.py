@@ -160,7 +160,7 @@ def create_obj_from_csv(csv_file_name, obj_type,
             coo = sp_coo_matrix((weights, (np.array(rows, dtype=int),
                                            np.array(cols, dtype=int))))
 
-        if obj_type in [cp_csc_matrix, sp_csc_matrix]:
+        if obj_type in [cp_csr_matrix, sp_csr_matrix]:
             return coo.tocsr(copy=False)
         elif obj_type in [cp_csc_matrix, sp_csc_matrix]:
             return coo.tocsc(copy=False)
