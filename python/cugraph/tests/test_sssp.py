@@ -374,7 +374,7 @@ def test_scipy_api_compat():
                               method="BF")
     cugraph.shortest_path(input_cugraph_graph, indices=0)
     with pytest.raises(ValueError):
-        cugraph.shortest_path(input_cugraph_graph, indices=[0,1,2])
+        cugraph.shortest_path(input_cugraph_graph, indices=[0, 1, 2])
     cugraph.shortest_path(input_cugraph_graph, source=0, method="auto")
 
     # Ensure SciPy options for matrix inputs work as expected
@@ -401,6 +401,7 @@ def test_scipy_api_compat():
     distances = cugraph.shortest_path(input_coo_matrix,
                                       source=0,
                                       return_predecessors=False)
+    assert type(distances) != tuple
 
     with pytest.raises(ValueError):
         cugraph.shortest_path(input_coo_matrix, source=0,
@@ -415,5 +416,5 @@ def test_scipy_api_compat():
                           overwrite=False)
 
     with pytest.raises(ValueError):
-        cugraph.shortest_path(input_coo_matrix, indices=[0,1,2])
+        cugraph.shortest_path(input_coo_matrix, indices=[0, 1, 2])
     cugraph.shortest_path(input_coo_matrix, indices=0)

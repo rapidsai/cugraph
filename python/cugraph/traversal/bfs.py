@@ -19,7 +19,7 @@ from cugraph.utilities import (ensure_cugraph_obj,
                                is_matrix_type,
                                is_cp_matrix_type,
                                import_optional,
-                              )
+                               )
 
 # optional dependencies used for handling different input types
 nx = import_optional("networkx")
@@ -39,6 +39,38 @@ sp_csr_matrix = import_optional("csr_matrix",
                                 import_from="scipy.sparse.csr")
 sp_csc_matrix = import_optional("csc_matrix",
                                 import_from="scipy.sparse.csc")
+
+
+def _ensure_args(G, start, return_sp_counter, i_start, directed):
+    """
+    Ensures the args passed in are usable for the API api_name and returns the
+    args with proper defaults if not specified, or raises TypeError or
+    ValueError if incorrectly specified.
+    """
+    # checks common to all input types
+    if (start is not None) and (i_start is not None):
+        raise TypeError("cannot specify both 'start' and 'i_start'")
+    if (start is None) and (i_start is None):
+        raise TypeError("must specify 'start' or 'i_start', but not both")
+    if (return_sp_counter is not None) and \
+       (return_sp_counter not in [True, False]):
+        raise ValueError("'return_sp_counter' must be a bool")
+
+    G_type = type(G)
+    # Check for Graph-type inputs
+    if (G_type in [Graph, DiGraph]) or \
+       ((nx is not None) and (G_type in [nx.Graph, nx.DiGraph])):
+        if directed is not None:
+            raise TypeError("'directed' cannot be specified for a "
+                            "Graph-type input")
+
+    start = start if start is not None else i_start
+    if directed is None:
+        directed = True
+    if return_sp_counter is None:
+        return_sp_counter = False
+
+    return (start, return_sp_counter, directed)
 
 
 def _convert_df_to_output_type(df, input_type):
@@ -77,7 +109,12 @@ def _convert_df_to_output_type(df, input_type):
         raise TypeError(f"input type {input_type} is not a supported type.")
 
 
-def bfs(G, start, return_sp_counter=False):
+def bfs(G,
+        start=None,
+        return_sp_counter=None,
+        i_start=None,
+        directed=None,
+        return_predecessors=None):
     """Find the distances and predecessors for a breadth first traversal of a
     graph.
 
@@ -92,6 +129,10 @@ def bfs(G, start, return_sp_counter=False):
 
     return_sp_counter : bool, optional, default=False
         Indicates if shortest path counters should be returned
+
+    i_start :
+
+    directed : bool, optional
 
     Returns
     -------
@@ -137,22 +178,24 @@ def bfs(G, start, return_sp_counter=False):
     >>> G = cugraph.Graph()
     >>> G.from_cudf_edgelist(M, source='0', destination='1')
     >>> df = cugraph.bfs(G, 0)
-
     """
+    (start, return_sp_counter, directed) = \
+        _ensure_args(G, start, return_sp_counter, i_start, directed)
+
     # FIXME: allow nx_weight_attr to be specified
-    (G, input_type) = ensure_cugraph_obj(G,
-                                         nx_weight_attr="weight",
-                                         matrix_graph_type=Graph)
+    (G, input_type) = ensure_cugraph_obj(
+        G, nx_weight_attr="weight",
+        matrix_graph_type=DiGraph if directed else Graph)
 
     if type(G) is Graph:
-        directed = False
+        is_directed = False
     else:
-        directed = True
+        is_directed = True
 
     if G.renumbered is True:
         start = G.lookup_internal_vertex_id(cudf.Series([start]))[0]
 
-    df = bfs_wrapper.bfs(G, start, directed, return_sp_counter)
+    df = bfs_wrapper.bfs(G, start, is_directed, return_sp_counter)
 
     if G.renumbered:
         df = G.unrenumber(df, "vertex")

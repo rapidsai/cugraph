@@ -86,7 +86,8 @@ def networkx_weak_call(graph_file):
     nx_n_components = len(nx_labels)
     lst_nx_components = sorted(nx_labels, key=len, reverse=True)
 
-    return (graph_file, nx_labels, nx_n_components, lst_nx_components, "weak")
+    return (graph_file, nx_labels, nx_n_components,
+            lst_nx_components, "weak")
 
 
 def networkx_strong_call(graph_file):
@@ -104,7 +105,8 @@ def networkx_strong_call(graph_file):
     nx_n_components = len(nx_labels)
     lst_nx_components = sorted(nx_labels, key=len, reverse=True)
 
-    return (graph_file, nx_labels, nx_n_components, lst_nx_components, "strong")
+    return (graph_file, nx_labels, nx_n_components,
+            lst_nx_components, "strong")
 
 
 def cugraph_call(gpu_benchmark_callable, cugraph_algo, input_G_or_matrix):
@@ -157,12 +159,12 @@ def cugraph_call(gpu_benchmark_callable, cugraph_algo, input_G_or_matrix):
         unique_labels = set([n.item() for n in result[1]])
         assert len(unique_labels) == result[0]
 
-        # The returned dict used in the tests for checking correctness needs the
-        # actual vertex IDs, which are not in the returned data (the CuPy/SciPy
-        # connected_components return types cuGraph is converting to does not
-        # include them). So, extract the vertices from the input COO, order them
-        # to match the returned list of labels (which is just a sort), and
-        # include them in the returned dict.
+        # The returned dict used in the tests for checking correctness needs
+        # the actual vertex IDs, which are not in the returned data (the
+        # CuPy/SciPy connected_components return types cuGraph is converting
+        # to does not include them). So, extract the vertices from the input
+        # COO, order them to match the returned list of labels (which is just
+        # a sort), and include them in the returned dict.
         if input_type in [cp_csr_matrix, cp_csc_matrix,
                           sp_csr_matrix, sp_csc_matrix]:
             coo = input_G_or_matrix.tocoo(copy=False)
@@ -205,20 +207,20 @@ def assert_scipy_api_compat(graph_file, api_type):
     Parameters
     ----------
         csgraph : array_like or sparse matrix
-            The N x N matrix representing the compressed sparse graph. The input
-            csgraph will be converted to csr format for the calculation.
+            The N x N matrix representing the compressed sparse graph. The
+            input csgraph will be converted to csr format for the calculation.
         directed : bool, optional
             If True (default), then operate on a directed graph: only move from
             point i to point j along paths csgraph[i, j]. If False, then find
-            the shortest path on an undirected graph: the algorithm can progress
-            from point i to j along csgraph[i, j] or csgraph[j, i].
+            the shortest path on an undirected graph: the algorithm can
+            progress from point i to j along csgraph[i, j] or csgraph[j, i].
         connection : str, optional
             [‘weak’|’strong’]. For directed graphs, the type of connection to
-            use. Nodes i and j are strongly connected if a path exists both from
-            i to j and from j to i. A directed graph is weakly connected if
-            replacing all of its directed edges with undirected edges produces a
-            connected (undirected) graph. If directed == False, this keyword is
-            not referenced.
+            use. Nodes i and j are strongly connected if a path exists both
+            from i to j and from j to i. A directed graph is weakly connected
+            if replacing all of its directed edges with undirected edges
+            produces a connected (undirected) graph. If directed == False, this
+            keyword is not referenced.
         return_labels : bool, optional
             If True (default), then return the labels for each of the connected
             components.
@@ -433,8 +435,8 @@ def test_scipy_api_compat(connection_type):
         cugraph.connected_components(input_cugraph_graph,
                                      connection="invalid")
 
-    (n_components, labels) = cugraph.connected_components(input_coo_matrix,
-                                                          connection=connection_type)
+    (n_components, labels) = cugraph.connected_components(
+        input_coo_matrix, connection=connection_type)
     # FIXME: connection should default to "weak", need to test that
     (n_components, labels) = cugraph.connected_components(input_coo_matrix,
                                                           directed=False)

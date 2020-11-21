@@ -20,7 +20,7 @@ from cugraph.utilities import (ensure_cugraph_obj,
                                is_matrix_type,
                                is_cp_matrix_type,
                                import_optional,
-                              )
+                               )
 
 # optional dependencies used for handling different input types
 nx = import_optional("networkx")
@@ -82,10 +82,12 @@ def _ensure_args(G, source, method, directed,
         if (return_predecessors is not None) and \
            (type(return_predecessors) != bool):
             raise ValueError("'return_predecessors' must be a bool")
-        if (unweighted is not None) and (unweighted != True):
-            raise ValueError("'unweighted' currently must be True if specified")
-        if (overwrite is not None) and (overwrite != False):
-            raise ValueError("'overwrite' currently must be False if specified")
+        if (unweighted is not None) and (unweighted is not True):
+            raise ValueError("'unweighted' currently must be True if "
+                             "specified")
+        if (overwrite is not None) and (overwrite is not False):
+            raise ValueError("'overwrite' currently must be False if "
+                             "specified")
 
     source = source if source is not None else indices
     if return_predecessors is None:

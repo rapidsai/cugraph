@@ -516,23 +516,22 @@ def test_scipy_api_compat():
                                                  edgevals=True)
     # Ensure scipy-only options are rejected for cugraph inputs
     with pytest.raises(TypeError):
-        cugraph.bfs(input_cugraph_graph, i_start=0, directed=False)
+        cugraph.bfs(input_cugraph_graph, start=0, directed=False)
     with pytest.raises(TypeError):
         cugraph.bfs(input_cugraph_graph)  # required arg missing
 
     # Ensure cugraph-compatible options work as expected
     cugraph.bfs(input_cugraph_graph, i_start=0)
-    cugraph.bfs(input_cugraph_graph, i_start=0, return_predecessors=True)
-    with pytest.raises(ValueError):
-        cugraph.bfs(input_cugraph_graph, i_start=0, return_predecessors=False)
+    cugraph.bfs(input_cugraph_graph, i_start=0, return_sp_counter=True)
+    # cannot have start and i_start
+    with pytest.raises(TypeError):
+        cugraph.bfs(input_cugraph_graph, start=0, i_start=0)
 
     # Ensure SciPy options for matrix inputs work as expected
     cugraph.bfs(input_coo_matrix, i_start=0)
     cugraph.bfs(input_coo_matrix, i_start=0, directed=True)
     cugraph.bfs(input_coo_matrix, i_start=0, directed=False)
-    (distances, preds) = cugraph.bfs(input_coo_matrix,
-                                     i_start=0,
-                                     return_predecessors=True)
-    distances = cugraph.bfs(input_coo_matrix,
-                            i_start=0,
-                            return_predecessors=False)
+    result = cugraph.bfs(input_coo_matrix, i_start=0,
+                         return_sp_counter=True)
+    assert type(result) is tuple
+    assert len(result) == 3

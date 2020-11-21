@@ -21,8 +21,8 @@ try:
     from cupyx.scipy.sparse.coo import coo_matrix as cp_coo_matrix
     from cupyx.scipy.sparse.csr import csr_matrix as cp_csr_matrix
     from cupyx.scipy.sparse.csc import csc_matrix as cp_csc_matrix
-    CP_MATRIX_TYPES=[cp_coo_matrix, cp_csr_matrix, cp_csc_matrix]
-    CP_COMPRESSED_MATRIX_TYPES=[cp_csr_matrix, cp_csc_matrix]
+    CP_MATRIX_TYPES = [cp_coo_matrix, cp_csr_matrix, cp_csc_matrix]
+    CP_COMPRESSED_MATRIX_TYPES = [cp_csr_matrix, cp_csc_matrix]
 except ModuleNotFoundError:
     cp = None
     CP_MATRIX_TYPES = []
@@ -33,8 +33,8 @@ try:
     from scipy.sparse.coo import coo_matrix as sp_coo_matrix
     from scipy.sparse.csr import csr_matrix as sp_csr_matrix
     from scipy.sparse.csc import csc_matrix as sp_csc_matrix
-    SP_MATRIX_TYPES=[sp_coo_matrix, sp_csr_matrix, sp_csc_matrix]
-    SP_COMPRESSED_MATRIX_TYPES=[sp_csr_matrix, sp_csc_matrix]
+    SP_MATRIX_TYPES = [sp_coo_matrix, sp_csr_matrix, sp_csc_matrix]
+    SP_COMPRESSED_MATRIX_TYPES = [sp_csr_matrix, sp_csc_matrix]
 except ModuleNotFoundError:
     sp = None
     SP_MATRIX_TYPES = []
@@ -214,8 +214,8 @@ def ensure_cugraph_obj(obj, nx_weight_attr=None, matrix_graph_type=None):
             raise TypeError(f"matrix_graph_type must be either a cugraph "
                             f"Graph or DiGraph, got: {matrix_graph_type}")
 
-        if input_type in CP_COMPRESSED_MATRIX_TYPES + \
-                         SP_COMPRESSED_MATRIX_TYPES:
+        if input_type in (CP_COMPRESSED_MATRIX_TYPES +
+                          SP_COMPRESSED_MATRIX_TYPES):
             coo = obj.tocoo(copy=False)
         else:
             coo = obj
@@ -260,8 +260,8 @@ def import_optional(mod, import_from=None):
     return the module object or object.  If the import raises
     ModuleNotFoundError, returns None.
 
-    This method was written to support importing "optional" dependencies so code
-    can be written to run even if the dependency is not installed.
+    This method was written to support importing "optional" dependencies so
+    code can be written to run even if the dependency is not installed.
 
     >>> nx = import_optional("networkx")  # networkx is not installed
     >>> if nx:

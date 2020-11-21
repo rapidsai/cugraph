@@ -17,7 +17,7 @@ from cugraph.utilities import (df_score_to_dictionary,
                                is_matrix_type,
                                is_cp_matrix_type,
                                import_optional,
-                              )
+                               )
 from cugraph.structure import Graph, DiGraph
 from cugraph.components import connectivity_wrapper
 
@@ -141,8 +141,9 @@ def weakly_connected_components(G,
               TypeError if used with a Graph object.
         If True (default), then convert the input matrix to a cugraph.DiGraph
         and only move from point i to point j along paths csgraph[i, j]. If
-        False, then find the shortest path on an undirected graph: the algorithm
-        can progress from point i to j along csgraph[i, j] or csgraph[j, i].
+        False, then find the shortest path on an undirected graph: the
+        algorithm can progress from point i to j along csgraph[i, j] or
+        csgraph[j, i].
 
     connection : str, optional
 
@@ -232,8 +233,9 @@ def strongly_connected_components(G,
               TypeError if used with a Graph object.
         If True (default), then convert the input matrix to a cugraph.DiGraph
         and only move from point i to point j along paths csgraph[i, j]. If
-        False, then find the shortest path on an undirected graph: the algorithm
-        can progress from point i to j along csgraph[i, j] or csgraph[j, i].
+        False, then find the shortest path on an undirected graph: the
+        algorithm can progress from point i to j along csgraph[i, j] or
+        csgraph[j, i].
 
     connection : str, optional
 
@@ -283,12 +285,13 @@ def strongly_connected_components(G,
     >>> df = cugraph.strongly_connected_components(G)
     """
     (directed, connection, return_labels) = _ensure_args(
-        "strongly_connected_components", G, directed, connection, return_labels)
+        "strongly_connected_components", G, directed,
+        connection, return_labels)
 
     # FIXME: allow nx_weight_attr to be specified
-    (G, input_type) = ensure_cugraph_obj(G,
-                                         nx_weight_attr="weight",
-                                         matrix_graph_type=DiGraph if directed else Graph)
+    (G, input_type) = ensure_cugraph_obj(
+        G, nx_weight_attr="weight",
+        matrix_graph_type=DiGraph if directed else Graph)
 
     df = connectivity_wrapper.strongly_connected_components(G)
 
@@ -323,8 +326,9 @@ def connected_components(G,
               TypeError if used with a Graph object.
         If True (default), then convert the input matrix to a cugraph.DiGraph
         and only move from point i to point j along paths csgraph[i, j]. If
-        False, then find the shortest path on an undirected graph: the algorithm
-        can progress from point i to j along csgraph[i, j] or csgraph[j, i].
+        False, then find the shortest path on an undirected graph: the
+        algorithm can progress from point i to j along csgraph[i, j] or
+        csgraph[j, i].
 
     connection : str, optional
 
@@ -373,10 +377,11 @@ def connected_components(G,
     >>> df = cugraph.strongly_connected_components(G)
     """
     if connection == "weak":
-        return weakly_connected_components(G, directed, connection, return_labels)
+        return weakly_connected_components(G, directed,
+                                           connection, return_labels)
     elif connection == "strong":
-        return strongly_connected_components(G, directed, connection,
-                                             return_labels)
+        return strongly_connected_components(G, directed,
+                                             connection, return_labels)
     else:
         raise ValueError(f"invalid connection type: {connection}, "
                          "must be either 'strong' or 'weak'")
