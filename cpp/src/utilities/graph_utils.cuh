@@ -512,3 +512,5 @@ bool has_negative_val(DistType *arr, size_t n)
 
 }  // namespace detail
 }  // namespace cugraph
+
+#include "eidecl_graph_utils.hpp"

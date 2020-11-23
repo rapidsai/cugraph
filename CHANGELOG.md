@@ -8,6 +8,7 @@
 
 ## Improvements
 - PR #1227 Pin cmake policies to cmake 3.17 version
+- PR #1267 Compile time improvements via Explicit Instantiation Declarations.
 - PR #1269 Removed old db code that was not being used
 - PR #1271 Add extra check to make SG Louvain deterministic
 - PR #1273 Update Force Atlas 2 notebook, wrapper and coding style
