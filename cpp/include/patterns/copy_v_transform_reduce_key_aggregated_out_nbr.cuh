@@ -85,7 +85,7 @@ void copy_v_transform_reduce_key_aggregated_out_nbr(
   GraphViewType const& graph_view,
   AdjMatrixRowValueInputIterator adj_matrix_row_value_input_first,
   KeyIterator out_nbr_key_first,
-  cuco::static_map<typename std::iterator_traits<KeyIterator>::value_type, ValueType> kv_map,
+  cuco::static_map<typename std::iterator_traits<KeyIterator>::value_type, ValueType> const& kv_map,
   KeyAggregatedEdgeOp key_aggregated_e_op,
   ReduceOp reduce_op,
   T init,
