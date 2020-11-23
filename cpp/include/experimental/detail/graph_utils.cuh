@@ -116,6 +116,28 @@ rmm::device_uvector<edge_t> compute_major_degree(
   return degrees;
 }
 
+// FIXME: better if I don't need to do this. Haven't found a better way to concatenate a variable
+// which can be either a tuple or not with another variable to create an aggregated/flattened tuple.
+#if 1
+template <typename T>
+struct is_std_tuple : std::false_type {
+};
+
+template <typename... Ts>
+struct is_std_tuple<std::tuple<Ts...>> : std::true_type {
+};
+
+template <typename T>
+auto to_tuple(T&& val, std::enable_if_t<is_std_tuple<T>::value, void>* = nullptr) {
+  return std::forward<T>(val);
+}
+
+template <typename T>
+auto to_tuple(T&& val, std::enable_if_t<!is_std_tuple<T>::value, void>* = nullptr) {
+  return std::make_tuple(std::forward<T>(val));
+}
+#endif
+
 // compute the numbers of nonzeros in rows (of the graph adjacency matrix, if store_transposed =
 // false) or columns (of the graph adjacency matrix, if store_transposed = true)
 template <typename vertex_t, typename edge_t>
@@ -166,8 +188,12 @@ auto shuffle_values(raft::handle_t const &handle,
                             handle.get_stream());
 
   raft::update_host(tx_counts.data(), tx_value_counts.data(), comm_size, handle.get_stream());
-  std::partial_sum(tx_counts.begin(), tx_counts.end() - 1, tx_offsets.begin() + 1);
   raft::update_host(rx_counts.data(), rx_value_counts.data(), comm_size, handle.get_stream());
+
+  CUDA_TRY(
+    cudaStreamSynchronize(handle.get_stream()));  // tx_counts & rx_counts should be up-to-date
+
+  std::partial_sum(tx_counts.begin(), tx_counts.end() - 1, tx_offsets.begin() + 1);
   std::partial_sum(rx_counts.begin(), rx_counts.end() - 1, rx_offsets.begin() + 1);
 
   auto rx_value_buffer =
@@ -206,13 +232,7 @@ auto shuffle_values(raft::handle_t const &handle,
                             tx_counts,
                             tx_offsets,
                             tx_dst_ranks,
-                            rx_value_first,
-                            rx_counts,
-                            rx_offsets,
-                            rx_src_ranks,
-                            handle.get_stream());
-
-  return std::move(rx_value_buffer);
+  return std::tuple_cat(to_tuple(std::move(rx_value_buffer)), std::make_tuple(std::move(rx_value_counts)));
 }
 
 template <typename vertex_t, typename edge_t>
