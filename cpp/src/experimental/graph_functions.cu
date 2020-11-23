@@ -307,7 +307,11 @@ rmm::device_uvector<vertex_t> compute_renumber_map(
 
     rmm::device_uvector<vertex_t> rx_labels(0, handle.get_stream());
     rmm::device_uvector<edge_t> rx_counts(0, handle.get_stream());
-    std::tie(rx_labels, rx_counts) = cugraph::experimental::detail::shuffle_values(handle, pair_first, tx_value_counts);
+
+    CUDA_TRY(cudaStreamSynchronize(handle.get_stream()));  // tx_value_counts should be up-to-date
+
+    std::tie(rx_labels, rx_counts, std::ignore) =
+      cugraph::experimental::detail::shuffle_values(handle, pair_first, tx_value_counts);
 
     labels.resize(rx_labels.size(), handle.get_stream());
     counts.resize(labels.size(), handle.get_stream());
@@ -706,7 +710,11 @@ coarsen_graph(
     rmm::device_uvector<vertex_t> rx_edgelist_major_vertices(0, handle.get_stream());
     rmm::device_uvector<vertex_t> rx_edgelist_minor_vertices(0, handle.get_stream());
     rmm::device_uvector<weight_t> rx_edgelist_weights(0, handle.get_stream());
-    std::tie(rx_edgelist_major_vertices, rx_edgelist_minor_vertices, rx_edgelist_weights) =
+
+    CUDA_TRY(cudaStreamSynchronize(handle.get_stream()));  // tx_value_counts should be up-to-date
+
+    std::tie(
+      rx_edgelist_major_vertices, rx_edgelist_minor_vertices, rx_edgelist_weights, std::ignore) =
       detail::shuffle_values(handle, edge_first, tx_value_counts);
 
     sort_and_coarsen_edgelist(rx_edgelist_major_vertices,
@@ -820,12 +828,190 @@ coarsen_graph(
     std::move(renumber_map_labels));
 }
 
+template <typename vertex_t, bool multi_gpu>
+rmm::device_uvector<vertex_t> relabel(
+  raft::handle_t const &handle,
+  rmm::device_uvector<vertex_t> const &old_labels,
+  std::tuple<rmm::device_uvector<vertex_t>, rmm::device_uvector<vertex_t>> const
+    &old_new_label_pairs)
+{
+  double constexpr load_factor = 0.7;
+  
+  rmm::device_uvector<vertex_t> new_labels(0, handle.get_stream());
+
+  if (multi_gpu) {
+    auto &comm           = handle.get_comms();
+    auto const comm_size = comm.get_size();
+
+    auto key_func = detail::compute_gpu_id_from_vertex_t<vertex_t>{comm_size};
+
+    // find unique old labels (to be relabeled)
+
+    rmm::device_uvector<vertex_t> unique_old_labels(old_labels, handle.get_stream());
+    thrust::sort(rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
+                 unique_old_labels.begin(),
+                 unique_old_labels.end());
+    auto it = thrust::unique(rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
+                             unique_old_labels.begin(),
+                             unique_old_labels.end());
+    unique_old_labels.resize(thrust::distance(unique_old_labels.begin(), it), handle.get_stream());
+    unique_old_labels.shrink_to_fit(handle.get_stream());
+
+    // collect new labels for the unique old labels
+
+    rmm::device_uvector<vertex_t> new_labels_for_unique_old_labels(0, handle.get_stream());
+    {
+      // shuffle the old_new_label_pairs based on applying the compute_gpu_id_from_vertex_t functor
+      // to the old labels
+
+      rmm::device_uvector<vertex_t> rx_label_pair_old_labels(0, handle.get_stream());
+      rmm::device_uvector<vertex_t> rx_label_pair_new_labels(0, handle.get_stream());
+      {
+        rmm::device_uvector<vertex_t> label_pair_old_labels(thrust::get<0>(old_new_label_pairs),
+                                                            handle.get_stream());
+        rmm::device_uvector<vertex_t> label_pair_new_labels(thrust::get<1>(old_new_label_pairs),
+                                                            handle.get_stream());
+        auto pair_first = thrust::make_zip_iterator(
+          thrust::make_tuple(label_pair_old_labels.begin(), label_pair_new_labels.begin()));
+        thrust::sort(rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
+                     pair_first,
+                     pair_first + thrust::get<0>(old_new_label_pairs).size(),
+                     [key_func] __device__(auto lhs, auto rhs) {
+                       return key_func(thrust::get<0>(lhs)) < key_func(thrust::get<0>(rhs));
+                     });
+        auto key_first = thrust::make_transform_iterator(
+          label_pair_old_labels.begin(), [key_func] __device__(auto val) { return key_func(val); });
+        rmm::device_uvector<size_t> tx_value_counts(comm_size, handle.get_stream());
+        thrust::reduce_by_key(rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
+                              key_first,
+                              key_first + label_pair_old_labels.size(),
+                              thrust::make_constant_iterator(size_t{1}),
+                              thrust::make_discard_iterator(),
+                              tx_value_counts.begin());
+
+        CUDA_TRY(
+          cudaStreamSynchronize(handle.get_stream()));  // tx_value_counts should be up-to-date
+
+        std::tie(rx_label_pair_old_labels, rx_label_pair_new_labels, std::ignore) =
+          cugraph::experimental::detail::shuffle_values(handle, pair_first, tx_value_counts);
+
+        CUDA_TRY(cudaStreamSynchronize(
+          handle.get_stream()));  // label_pair_old_labels and label_pair_new_labels will become
+                                  // out-of-scope
+      }
+
+      // update intermediate relabel map
+
+      cuco::static_map<vertex_t, vertex_t> relabel_map{
+        static_cast<size_t>(static_cast<double>(rx_label_pair_old_labels.size()) / load_factor),
+        invalid_vertex_id<vertex_t>::value,
+        invalid_vertex_id<vertex_t>::value};
+
+      auto pair_first = thrust::make_transform_iterator(
+        thrust::make_zip_iterator(
+          thrust::make_tuple(rx_label_pair_old_labels.begin(), rx_label_pair_new_labels.begin())),
+        [] __device__(auto val) {
+          return thrust::make_pair(thrust::get<0>(val), thrust::get<1>(val));
+        });
+      relabel_map.insert(pair_first, pair_first + rx_label_pair_old_labels.size());
+
+      rx_label_pair_old_labels.resize(0, handle.get_stream());
+      rx_label_pair_new_labels.resize(0, handle.get_stream());
+      rx_label_pair_old_labels.shrink_to_fit(handle.get_stream());
+      rx_label_pair_new_labels.shrink_to_fit(handle.get_stream());
+
+      // shuffle unique_old_labels, relabel using the intermediate relabel map, and shuffle back
+
+      {
+        thrust::sort(
+          rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
+          unique_old_labels.begin(),
+          unique_old_labels.end(),
+          [key_func] __device__(auto lhs, auto rhs) { return key_func(lhs) < key_func(rhs); });
+
+        auto key_first = thrust::make_transform_iterator(
+          unique_old_labels.begin(), [key_func] __device__(auto val) { return key_func(val); });
+        rmm::device_uvector<size_t> tx_value_counts(comm_size, handle.get_stream());
+        thrust::reduce_by_key(rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
+                              key_first,
+                              key_first + unique_old_labels.size(),
+                              thrust::make_constant_iterator(size_t{1}),
+                              thrust::make_discard_iterator(),
+                              tx_value_counts.begin());
+
+        rmm::device_uvector<size_t> rx_unique_old_labels(0, handle.get_stream());
+        rmm::device_uvector<size_t> rx_value_counts(0, handle.get_stream());
+
+        std::tie(rx_unique_old_labels, rx_value_counts) =
+          cugraph::experimental::detail::shuffle_values(
+            handle, unique_old_labels.begin(), tx_value_counts);
+
+        CUDA_TRY(cudaStreamSynchronize(
+          handle.get_stream()));  // cuco::static_map currently does not take stream
+
+        relabel_map.find(
+          rx_unique_old_labels.begin(),
+          rx_unique_old_labels.end(),
+          rx_unique_old_labels
+            .begin());  // now rx_unique_old_lables hold new labels for the corresponding old labels
+
+        std::tie(new_labels_for_unique_old_labels, std::ignore) =
+          cugraph::experimental::detail::shuffle_values(
+            handle, rx_unique_old_labels.begin(), rx_value_counts);
+
+        CUDA_TRY(cudaStreamSynchronize(
+          handle.get_stream()));  // tx_value_counts & rx_value_counts will become out-of-scope
+      }
+    }
+
+    cuco::static_map<vertex_t, vertex_t> relabel_map(
+      static_cast<size_t>(static_cast<double>(unique_old_labels.size()) / load_factor),
+      invalid_vertex_id<vertex_t>::value,
+      invalid_vertex_id<vertex_t>::value);
+
+    auto pair_first = thrust::make_transform_iterator(
+      thrust::make_zip_iterator(
+        thrust::make_tuple(unique_old_labels.begin(), new_labels_for_unique_old_labels.begin())),
+      [] __device__(auto val) {
+        return thrust::make_pair(thrust::get<0>(val), thrust::get<1>(val));
+      });
+
+    relabel_map.insert(pair_first, pair_first + unique_old_labels.size());
+    new_labels.resize(old_labels.size(), handle.get_stream());
+    relabel_map.find(old_labels.begin(), old_labels.end(), new_labels.begin());
+  } else {
+    cuco::static_map<vertex_t, vertex_t> relabel_map(
+      static_cast<size_t>(static_cast<double>(old_new_label_pairs.size()) / load_factor),
+      invalid_vertex_id<vertex_t>::value,
+      invalid_vertex_id<vertex_t>::value);
+
+    auto pair_first = thrust::make_transform_iterator(
+      thrust::make_zip_iterator(thrust::make_tuple(std::get<0>(old_new_label_pairs).begin(),
+                                                   std::get<1>(old_new_label_pairs).begin())),
+      [] __device__(auto val) {
+        return thrust::make_pair(thrust::get<0>(val), thrust::get<1>(val));
+      });
+
+    relabel_map.insert(pair_first, pair_first + old_new_label_pairs.size());
+    new_labels.resize(old_labels.size(), handle.get_stream());
+    relabel_map.find(old_labels.begin(), old_labels.end(), new_labels.begin());
+  }
+
+  return std::move(new_labels);
+}
+
 // explicit instantiation
 
 template std::tuple<std::unique_ptr<graph_t<int32_t, int32_t, float, false, true>>,
                     rmm::device_uvector<int32_t>>
 coarsen_graph(raft::handle_t const &handle,
               graph_view_t<int32_t, int32_t, float, false, true> const &graph_view,
+              int32_t const *labels);
+
+template std::tuple<std::unique_ptr<graph_t<int32_t, int32_t, float, false, false>>,
+                    rmm::device_uvector<int32_t>>
+coarsen_graph(raft::handle_t const &handle,
+              graph_view_t<int32_t, int32_t, float, false, false> const &graph_view,
               int32_t const *labels);
 
 }  // namespace experimental

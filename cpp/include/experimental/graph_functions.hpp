@@ -133,7 +133,8 @@ coarsen_graph(
  * handles to various CUDA libraries) to run graph algorithms.
  * @param old_labels Old labels to be relabeled.
  * @param old_new_label_pairs Pairs of an old label and the corresponding new label (each process
- * holds only part of the entire pairs; partitioning can be arbitrary).
+ * holds only part of the entire old labels and the corresponding new labels; partitioning can be
+ * arbitrary).
  * @return rmm::device_uvector<vertex_t> New labels corresponding to the @p old_labels.
  */
 template <typename vertex_t, bool multi_gpu>
