@@ -16,7 +16,7 @@ import cudf
 import dask_cudf
 
 
-def symmetrize_df(df, src_name, dst_name):
+def symmetrize_df(df, src_name, dst_name, multi):
     """
     Take a COO stored in a DataFrame, along with the column names of
     the source and destination columns and create a new data frame
@@ -72,8 +72,10 @@ def symmetrize_df(df, src_name, dst_name):
             )
         else:
             gdf[name] = df[name].append(df[name], ignore_index=True)
-
-    return gdf.groupby(by=[src_name, dst_name], as_index=False).min()
+    if multi:
+        return gdf
+    else:
+        return gdf.groupby(by=[src_name, dst_name], as_index=False).min()
 
 
 def symmetrize_ddf(df, src_name, dst_name, weight_name=None):
@@ -129,7 +131,7 @@ def symmetrize_ddf(df, src_name, dst_name, weight_name=None):
     return result
 
 
-def symmetrize(source_col, dest_col, value_col=None):
+def symmetrize(source_col, dest_col, value_col=None, multi=False):
     """
     Take a COO set of source destination pairs along with associated values
     stored in a single GPU or distributed
@@ -190,7 +192,7 @@ def symmetrize(source_col, dest_col, value_col=None):
             input_df, "source", "destination", weight_name
         ).persist()
     else:
-        output_df = symmetrize_df(input_df, "source", "destination")
+        output_df = symmetrize_df(input_df, "source", "destination", multi)
 
     if value_col is not None:
         return (

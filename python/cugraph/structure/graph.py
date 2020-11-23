@@ -406,24 +406,19 @@ class Graph:
         source_col = elist[source]
         dest_col = elist[destination]
 
-        if self.multi:
-            if type(edge_attr) is not list:
-                raise Exception("edge_attr should be a list of column names")
-            value_col = {}
-            for col_name in edge_attr:
-                value_col[col_name] = elist[col_name]
-        elif edge_attr is not None:
+        if edge_attr is not None:
             value_col = elist[edge_attr]
         else:
             value_col = None
 
-        if not self.symmetrized and not self.multi:
+        if not self.symmetrized:
             if value_col is not None:
                 source_col, dest_col, value_col = symmetrize(
-                    source_col, dest_col, value_col
+                    source_col, dest_col, value_col, multi=self.multi
                 )
             else:
-                source_col, dest_col = symmetrize(source_col, dest_col)
+                source_col, dest_col = symmetrize(source_col, dest_col,
+                                                  multi=self.multi)
 
         self.edgelist = Graph.EdgeList(source_col, dest_col, value_col)
 

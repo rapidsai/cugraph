@@ -15,7 +15,7 @@ import numpy as np
 
 import cudf
 from cugraph.utilities import ensure_cugraph_obj
-from cugraph.structure import Graph, DiGraph
+from cugraph.structure import Graph, DiGraph, MultiGraph, MultiDiGraph
 from cugraph.traversal import sssp_wrapper
 
 # optional dependencies used for handling different input types
@@ -37,7 +37,7 @@ def _convert_df_to_output_type(df, input_type):
     Given a cudf.DataFrame df, convert it to a new type appropriate for the
     graph algos in this module, based on input_type.
     """
-    if input_type in [Graph, DiGraph]:
+    if input_type in [Graph, DiGraph, MultiGraph, MultiDiGraph]:
         return df
 
     elif (nx is not None) and (input_type in [nx.Graph, nx.DiGraph]):
