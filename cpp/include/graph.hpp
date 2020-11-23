@@ -476,7 +476,7 @@ class GraphCompressedSparseBase {
 
  public:
   // previously missing, but invoked cnstr{
-  GraphCompressedSparseBase(void) {}
+  GraphCompressedSparseBase(void) = default;
   //}
 
   /**

@@ -16,6 +16,8 @@
 
 #include <community/louvain.cuh>
 
+// "FIXME": remove the guards after support for Pascal will be dropped;
+//
 // Disable louvain(experimenta::graph_view_t,...)
 // versions for GPU architectures < 700
 //(this is because cuco/static_map.cuh would not
