@@ -400,6 +400,10 @@ class graph_view_t<vertex_t,
     }
   }
 
+  edge_t get_number_of_local_adj_matrix_partition_edges(size_t adj_matrix_partition_idx) const {
+    return adj_matrix_partition_number_of_edges_[adj_matrix_partition_idx];
+  }
+
   vertex_t get_local_adj_matrix_partition_row_first(size_t adj_matrix_partition_idx) const
   {
     return store_transposed ? partition_.get_matrix_partition_minor_first()
@@ -493,6 +497,7 @@ class graph_view_t<vertex_t,
   std::vector<edge_t const*> adj_matrix_partition_offsets_{};
   std::vector<vertex_t const*> adj_matrix_partition_indices_{};
   std::vector<weight_t const*> adj_matrix_partition_weights_{};
+  std::vector<edge_t> adj_matrix_partition_number_of_edges_{};
 
   partition_t<vertex_t> partition_{};
 
@@ -568,6 +573,11 @@ class graph_view_t<vertex_t,
     return this->get_number_of_vertices();
   }
 
+  edge_t get_number_of_local_adj_matrix_partition_edges(size_t adj_matrix_partition_idx) const {
+    assert(adj_matrix_partition_idx == 0);
+    return this->get_number_of_edges();
+  }
+
   vertex_t get_local_adj_matrix_partition_row_first(size_t adj_matrix_partition_idx) const
   {
     assert(adj_matrix_partition_idx == 0);
@@ -630,6 +640,7 @@ class graph_view_t<vertex_t,
   edge_t const* offsets_{nullptr};
   vertex_t const* indices_{nullptr};
   weight_t const* weights_{nullptr};
+
   std::vector<vertex_t> segment_offsets_{};  // segment offsets based on vertex degree, relevant
                                              // only if sorted_by_global_degree is true
 };

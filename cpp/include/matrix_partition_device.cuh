@@ -30,10 +30,13 @@ class matrix_partition_device_base_t {
  public:
   matrix_partition_device_base_t(edge_t const* offsets,
                                  vertex_t const* indices,
-                                 weight_t const* weights)
-    : offsets_(offsets), indices_(indices), weights_(weights)
+                                 weight_t const* weights,
+                                 edge_t number_of_edges)
+    : offsets_(offsets), indices_(indices), weights_(weights), number_of_edges_(number_of_edges)
   {
   }
+
+  __host__ __device__ edge_t get_number_of_edges() const { return number_of_edges_; }
 
   __device__ thrust::tuple<vertex_t const*, weight_t const*, edge_t> get_local_edges(
     vertex_t major_offset) const noexcept
@@ -55,6 +58,7 @@ class matrix_partition_device_base_t {
   edge_t const* offsets_{nullptr};
   vertex_t const* indices_{nullptr};
   weight_t const* weights_{nullptr};
+  edge_t number_of_edges_{0};
 };
 
 template <typename GraphViewType, typename Enable = void>
@@ -73,7 +77,8 @@ class matrix_partition_device_t<GraphViewType, std::enable_if_t<GraphViewType::i
                                      typename GraphViewType::weight_type>(
         graph_view.offsets(partition_idx),
         graph_view.indices(partition_idx),
-        graph_view.weights(partition_idx)),
+        graph_view.weights(partition_idx),
+        graph_view.get_number_of_local_adj_matrix_partition_edges(partition_idx)),
       major_first_(GraphViewType::is_adj_matrix_transposed
                      ? graph_view.get_local_adj_matrix_partition_col_first(partition_idx)
                      : graph_view.get_local_adj_matrix_partition_row_first(partition_idx)),
@@ -93,7 +98,7 @@ class matrix_partition_device_t<GraphViewType, std::enable_if_t<GraphViewType::i
   {
   }
 
-  typename GraphViewType::vertex_type get_major_value_start_offset() const
+  __host__ __device__ typename GraphViewType::vertex_type get_major_value_start_offset() const
   {
     return major_value_start_offset_;
   }
@@ -173,7 +178,10 @@ class matrix_partition_device_t<GraphViewType, std::enable_if_t<!GraphViewType::
     : matrix_partition_device_base_t<typename GraphViewType::vertex_type,
                                      typename GraphViewType::edge_type,
                                      typename GraphViewType::weight_type>(
-        graph_view.offsets(), graph_view.indices(), graph_view.weights()),
+        graph_view.offsets(),
+        graph_view.indices(),
+        graph_view.weights(),
+        graph_view.get_number_of_edges()),
       number_of_vertices_(graph_view.get_number_of_vertices())
   {
     assert(partition_idx == 0);
