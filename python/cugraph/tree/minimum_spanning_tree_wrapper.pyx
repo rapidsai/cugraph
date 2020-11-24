@@ -24,7 +24,7 @@ from libc.stdint cimport uintptr_t
 import cudf
 import rmm
 import numpy as np
-
+import cupy as cp
 
 def mst_float(num_verts, num_edges, offsets, indices, weights):
     cdef unique_ptr[handle_t] handle_ptr
@@ -60,7 +60,7 @@ def minimum_spanning_tree(input_graph):
     if input_graph.adjlist.weights is not None:
         [weights] = graph_primtypes_wrapper.datatype_cast([input_graph.adjlist.weights], [np.float32, np.float64])
     else:
-        weights = cudf.Series(np.full(num_edges, 1.0, dtype=np.float32))
+        weights = cudf.Series(cp.full(num_edges, 1.0, dtype=np.float32))
 
     if graph_primtypes_wrapper.weight_type(input_graph) == np.float32:
          df = mst_float(num_verts, num_edges, offsets, indices, weights)
@@ -78,7 +78,7 @@ def maximum_spanning_tree(input_graph):
     if input_graph.adjlist.weights is not None:
         [weights] = graph_primtypes_wrapper.datatype_cast([input_graph.adjlist.weights], [np.float32, np.float64])
     else:
-        weights = cudf.Series(np.full(num_edges, 1.0, dtype=np.float32))
+        weights = cudf.Series(cp.full(num_edges, 1.0, dtype=np.float32))
 
     if graph_primtypes_wrapper.weight_type(input_graph) == np.float32:
          df = mst_float(num_verts, num_edges, offsets, indices, weights)

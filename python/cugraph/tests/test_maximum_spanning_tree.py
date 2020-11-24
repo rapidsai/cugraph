@@ -36,32 +36,6 @@ with warnings.catch_warnings():
 print("Networkx version : {} ".format(nx.__version__))
 
 
-def compare_mst(mst_cugraph, mst_nx):
-    mst_nx_df = nx.to_pandas_edgelist(mst_nx)
-    edgelist_df = mst_cugraph.view_edge_list()
-    assert len(mst_nx_df) == len(edgelist_df)
-
-    # check cycles
-    Gnx = nx.from_pandas_edgelist(
-        edgelist_df.to_pandas(),
-        create_using=nx.Graph(),
-        source="src",
-        target="dst",
-    )
-    try:
-        lc = nx.find_cycle(Gnx, source=None, orientation="ignore")
-        print(lc)
-    except nx.NetworkXNoCycle:
-        pass
-
-    # check total weight
-    cg_sum = edgelist_df["weights"].sum()
-    nx_sum = mst_nx_df["weight"].sum()
-    print(cg_sum)
-    print(nx_sum)
-    assert np.isclose(cg_sum, nx_sum)
-
-
 @pytest.mark.parametrize("graph_file", utils.DATASETS_UNDIRECTED_WEIGHTS)
 def test_maximum_spanning_tree_nx(graph_file):
     gc.collect()

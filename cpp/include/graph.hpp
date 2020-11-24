@@ -386,7 +386,7 @@ class GraphCOO {
    *
    * @param  number_of_vertices    The number of vertices in the graph
    * @param  number_of_edges       The number of edges in the graph
-   * @param  has_data              Wether or not the class has data, default = False
+   * @param  has_data              Whether or not the class has data, default = False
    * @param  stream                Specify the cudaStream, default = null
    * @param mr                     Specify the memory resource
    */
@@ -419,9 +419,9 @@ class GraphCOO {
   GraphCOO(GraphCOOContents<vertex_t, edge_t, weight_t> &&contents)
     : number_of_vertices_p(contents.number_of_vertices),
       number_of_edges_p(contents.number_of_edges),
-      src_indices_p(std::move(*contents.src_indices.release())),
-      dst_indices_p(std::move(*contents.dst_indices.release())),
-      edge_data_p(std::move(*contents.edge_data.release()))
+      src_indices_p(std::move(*(contents.src_indices.release()))),
+      dst_indices_p(std::move(*(contents.dst_indices.release()))),
+      edge_data_p(std::move(*(contents.edge_data.release())))
   {
   }
 
