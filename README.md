@@ -36,12 +36,12 @@ for i in range(len(df_page)):
 | Category     | Algorithm                              | Scale        |  Notes
 | ------------ | -------------------------------------- | ------------ | ------------------- |
 | Centrality   |                                        |              |                     |
-|              | Katz                                   | Single-GPU   |                     |
+|              | Katz                                   | Multi-GPU    |                     |
 |              | Betweenness Centrality                 | Single-GPU   |                     |
 |              | Edge Betweenness Centrality            | Single-GPU   |                     |
 | Community    |                                        |              |                     |
 |              | Leiden                                 | Single-GPU   |                     |
-|              | Louvain                                | Multiple-GPU |                     |
+|              | Louvain                                | Multi-GPU    |                     |
 |              | Ensemble Clustering for Graphs         | Single-GPU   |                     |
 |              | Spectral-Clustering - Balanced Cut     | Single-GPU   |                     |
 |              | Spectral-Clustering - Modularity       | Single-GPU   |                     |
@@ -57,25 +57,47 @@ for i in range(len(df_page)):
 | Layout       |                                        |              |                     |
 |              | Force Atlas 2                          | Single-GPU   |                     |
 | Link Analysis|                                        |              |                     |
-|              | Pagerank                               | Multiple-GPU |                     |
-|              | Personal Pagerank                      | Single-GPU  |                     |
+|              | Pagerank                               | Multi-GPU    |                     |
+|              | Personal Pagerank                      | Multi-GPU    |                     |
 |              | HITS                      				| Single-GPU   | leverages Gunrock   |
 | Link Prediction |                                     |              |                     |
 |              | Jaccard Similarity                     | Single-GPU   |                     |
 |              | Weighted Jaccard Similarity            | Single-GPU   |                     |
 |              | Overlap Similarity                     | Single-GPU   |                     |
 | Traversal    |                                        |              |                     |
-|              | Breadth First Search (BFS)             | Multiple-GPU |                     |
-|              | Single Source Shortest Path (SSSP)     | Multiple-GPU |                     |
+|              | Breadth First Search (BFS)             | Multi-GPU    |                     |
+|              | Single Source Shortest Path (SSSP)     | Multi-GPU    |                     |
 | Structure    |                                        |              |                     |
-|              | Renumbering                            | Single-GPU   | Also for multiple columns  |
-|              | Symmetrize                             | Single-GPU   |                     |
+|              | Renumbering                            | Single-GPU   | multiple columns, any data type  |
+|              | Symmetrize                             | Multi-GPU    |                     |
+| Other        |                                        |              |                     |
+|              | Hungarian Algorithm                    | Single-GPU   |                     |
+|              | Minimum Spanning Tree                  | Single-GPU   |                     |
+|  |  |
 
+</br></br>
 ## Supported Graph
 | Type            |  Description                                        |
 | --------------- | --------------------------------------------------- |
 | Graph           | An undirected Graph                                 |
 | DiGraph         | A Directed Graph                                    |
+| _Multigraph_      | _coming in 0.18_                                      |
+| _MultiDigraph_    | _coming in 0.18_                                      |
+|  |  |
+
+</br></br>
+## Supported Data Types
+cuGraph supports the creation of a graph several data types:
+* cuDF DataFrame
+* Pandas DataFrame
+
+cuGraph supports execution of graph algorithms from different graph objects
+* cuGraph Graph classes
+* NetworkX graph classes
+* CuPy sparse matrix
+* SciPy sparse matrix
+
+cuGraph tries to match the return type based on the input type.  So a NetworkX input will return the same data type that Network would have.
 
 
 ## cuGraph Notice
