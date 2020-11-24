@@ -232,6 +232,12 @@ auto shuffle_values(raft::handle_t const &handle,
                             tx_counts,
                             tx_offsets,
                             tx_dst_ranks,
+                            rx_value_first,
+                            rx_counts,
+                            rx_offsets,
+                            rx_src_ranks,
+                            handle.get_stream());
+
   return std::tuple_cat(to_tuple(std::move(rx_value_buffer)), std::make_tuple(std::move(rx_value_counts)));
 }
 
