@@ -17,13 +17,10 @@ import pytest
 
 import cugraph
 from cugraph.tests import utils
-from cugraph.utilities import check_nx_graph
-from cugraph.utilities import cugraph_to_nx
 import rmm
 import cudf
 import time
 import numpy as np
-import pandas as pd
 
 # Temporarily suppress warnings till networkX fixes deprecation warnings
 # (Using or importing the ABCs from 'collections' instead of from
@@ -52,9 +49,9 @@ def compare_mst(mst_cugraph, mst_nx):
         target="dst",
     )
     try:
-        l = find_cycle(G, source=None, orientation="ignore")
-        print(l)
-    except:
+        lc = nx.find_cycle(Gnx, source=None, orientation="ignore")
+        print(lc)
+    except nx.NetworkXNoCycle:
         pass
 
     # check total weight
@@ -121,7 +118,7 @@ def test_random_maximum_spanning_tree_nx(graph_size):
     # Just for getting relevant timing
     G.view_adj_list()
     t1 = time.time()
-    cugraph_mst = cugraph.maximum_spanning_tree(G)
+    cugraph.maximum_spanning_tree(G)
     t2 = time.time() - t1
     print("CuGraph time : " + str(t2))
 
@@ -134,7 +131,7 @@ def test_random_maximum_spanning_tree_nx(graph_size):
         edge_attr="weight",
     )
     t1 = time.time()
-    mst_nx = nx.maximum_spanning_tree(Gnx)
+    nx.maximum_spanning_tree(Gnx)
     t3 = time.time() - t1
     print("Nx Time : " + str(t3))
     print("Speedup: " + str(t3 / t2))

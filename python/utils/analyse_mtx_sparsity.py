@@ -13,23 +13,24 @@
 
 # Input:    <matrix.mtx>
 
-# Output:   <mmFile,rows, cols, nnz, sparcity (%), empty rows (%), sparsity the largest row (%),
-#           sparcity at Q1 (%), sparsity at med (%), sparsity at Q3 (%), Gini coeff>
-#           <mmFile>_row_lengths_histogram.png (please comment plt.* at the end of the script if not needed)
+# Output:   <mmFile,rows, cols, nnz, sparcity (%), empty rows (%),
+#               sparsity the largest row (%),
+#           sparsity at Q1 (%), sparsity at med (%), sparsity at Q3 (%),
+#               Gini coeff>
+#           <mmFile>_row_lengths_histogram.png (please comment plt.*
+#               at the end of the script if not needed)
 
 import numpy as np
 import sys
-import time
 from scipy.io import mmread
 import scipy.sparse
 import networkx as nx
-import os
 import matplotlib.pyplot as plt
 
 
 def gini(v):
-    # zero denotes total equality between rows, and one denote the dominance of a single row.
-    # Ref: https://pdfs.semanticscholar.org/84bf/cd2c8e96f982354932020e640e03873ebcfc.pdf
+    # zero denotes total equality between rows,
+    # and one denote the dominance of a single row.
     # v = np.sort(v) #values must be sorted
     index = np.arange(1, v.shape[0] + 1)  # index per v element
     n = v.shape[0]
@@ -42,11 +43,12 @@ def count_consecutive(v):
 
 
 def consecutive_entries_per_row(M):
-    # count the number of consecutive column indicies (of any length of sequence) for each row of a saprse CSR matrix sparse CSR.
-    # not to be confounded with the longest sequence or the number of sequences
+    # count the number of consecutive column indicies
+    # for each row of a saprse CSR matrix sparse CSR.
+    # not to be mixed with the longest sequence or the number of sequences
     v = [0] * M.shape[0]
     for i in range(M.shape[0]):
-        v[i] = count_consecutive(M.indices[M.indptr[i] : M.indptr[i + 1]])
+        v[i] = count_consecutive(M.indices[M.indptr[i]:M.indptr[i + 1]])
     return np.array(v)
 
 
@@ -61,12 +63,6 @@ mmFile = sys.argv[1]
 M_in = mmread(mmFile)
 if M_in is None:
     raise TypeError("Could not read the input")
-
-if scipy.sparse.isspmatrix(M_in):
-    # sparse matrix market
-    M = M_in.tocsr()
-else:
-    # dense matrix market
     M = scipy.sparse.csr_matrix(M_in)
 
 if not M.has_sorted_indices:

@@ -61,16 +61,19 @@ def minimum_spanning_tree(
     G, weight=None, algorithm="boruvka", ignore_nan=False
 ):
     """
-    Returns a minimum spanning tree (MST) or forest (MSF) on an undirected graph
+    Returns a minimum spanning tree (MST) or forest (MSF) on an undirected
+    graph
 
     Parameters
     ----------
     G : cuGraph.Graph or networkx.Graph
         cuGraph graph descriptor with connectivity information.
     weight : string
-        default to the weights in the graph, if the graph edges do not have a weight attribute a default weight of 1 will be used.
+        default to the weights in the graph, if the graph edges do not have a
+        weight attribute a default weight of 1 will be used.
     algorithm : string
-        Default to 'boruvka'. The parallel algorithm to use when finding a minimum spanning tree.
+        Default to 'boruvka'. The parallel algorithm to use when finding a
+        minimum spanning tree.
     ignore_nan : bool
         Default to False
     Returns
@@ -93,16 +96,19 @@ def maximum_spanning_tree(
     G, weight=None, algorithm="boruvka", ignore_nan=False
 ):
     """
-    Returns a maximum spanning tree (MST) or forest (MSF) on an undirected graph
+    Returns a maximum spanning tree (MST) or forest (MSF) on an undirected
+    graph
 
     Parameters
     ----------
     G : cuGraph.Graph or networkx.Graph
         cuGraph graph descriptor with connectivity information.
     weight : string
-        default to the weights in the graph, if the graph edges do not have a weight attribute a default weight of 1 will be used.
+        default to the weights in the graph, if the graph edges do not have a
+        weight attribute a default weight of 1 will be used.
     algorithm : string
-        Default to 'boruvka'. The parallel algorithm to use when finding a maximum spanning tree.
+        Default to 'boruvka'. The parallel algorithm to use when finding a
+        maximum spanning tree.
     ignore_nan : bool
         Default to False
     Returns
