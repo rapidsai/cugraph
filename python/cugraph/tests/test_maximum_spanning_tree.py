@@ -60,7 +60,7 @@ def test_maximum_spanning_tree_nx(graph_file):
     t2 = time.time() - t1
     print("Nx Time : " + str(t2))
 
-    compare_mst(cugraph_mst, mst_nx)
+    utils.compare_mst(cugraph_mst, mst_nx)
 
 
 DATASETS_SIZES = [
