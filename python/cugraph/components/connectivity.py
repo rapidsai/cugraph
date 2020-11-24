@@ -127,13 +127,14 @@ def weakly_connected_components(G,
 
     Parameters
     ----------
-    G : cugraph.Graph or networkx.Graph or CuPy sparse COO matrix
-        cuGraph graph descriptor, should contain the connectivity information
-        as an edge list (edge weights are not used for this algorithm).
-        Currently, the graph should be undirected where an undirected edge is
-        represented by a directed edge in both directions. The adjacency list
-        will be computed if not already present. The number of vertices should
-        fit into a 32b int.
+    G : cugraph.Graph, networkx.Graph, CuPy or SciPy sparse matrix
+
+        Graph or matrix object, which should contain the connectivity
+        information (edge weights are not used for this algorithm). If using a
+        graph object, the graph can be either directed or undirected where an
+        undirected edge is represented by a directed edge in both directions.
+        The adjacency list will be computed if not already present.  The number
+        of vertices should fit into a 32b int.
 
     directed : bool, optional
 
@@ -177,10 +178,11 @@ def weakly_connected_components(G,
        python dictionary, where keys are vertices and values are the component
        identifiers.
 
-    If G is a CuPy sparse COO matrix, returns:
+    If G is a CuPy or SciPy matrix, returns:
 
-       CuPy ndarray of shape (<num vertices>, 2), where column 0 contains
-       component identifiers and column 1 contains vertices.
+       CuPy ndarray (if CuPy matrix input) or Numpy ndarray (if SciPy matrix
+       input) of shape (<num vertices>, 2), where column 0 contains component
+       identifiers and column 1 contains vertices.
 
     Examples
     --------
@@ -218,14 +220,14 @@ def strongly_connected_components(G,
 
     Parameters
     ----------
-    G : cugraph.Graph or networkx.Graph or CuPy sparse matrix
+    G : cugraph.Graph, networkx.Graph, CuPy or SciPy sparse matrix
 
-        cuGraph graph descriptor, should contain the connectivity information
-        as an edge list (edge weights are not used for this algorithm). The
-        graph can be either directed or undirected where an undirected edge is
-        represented by a directed edge in both directions.  The adjacency list
-        will be computed if not already present.  The number of vertices should
-        fit into a 32b int.
+        Graph or matrix object, which should contain the connectivity
+        information (edge weights are not used for this algorithm). If using a
+        graph object, the graph can be either directed or undirected where an
+        undirected edge is represented by a directed edge in both directions.
+        The adjacency list will be computed if not already present.  The number
+        of vertices should fit into a 32b int.
 
     directed : bool, optional
 
@@ -269,10 +271,11 @@ def strongly_connected_components(G,
        python dictionary, where keys are vertices and values are the component
        identifiers.
 
-    If G is a CuPy sparse COO matrix, returns:
+    If G is a CuPy or SciPy matrix, returns:
 
-       CuPy ndarray of shape (<num vertices>, 2), where column 0 contains
-       component identifiers and column 1 contains vertices.
+       CuPy ndarray (if CuPy matrix input) or Numpy ndarray (if SciPy matrix
+       input) of shape (<num vertices>, 2), where column 0 contains component
+       identifiers and column 1 contains vertices.
 
     Examples
     --------
@@ -311,14 +314,14 @@ def connected_components(G,
 
     Parameters
     ----------
-    G : cugraph.Graph or networkx.Graph or CuPy sparse matrix
+    G : cugraph.Graph, networkx.Graph, CuPy or SciPy sparse matrix
 
-        cuGraph graph descriptor, should contain the connectivity information
-        as an edge list (edge weights are not used for this algorithm). The
-        graph can be either directed or undirected where an undirected edge is
-        represented by a directed edge in both directions.  The adjacency list
-        will be computed if not already present.  The number of vertices should
-        fit into a 32b int.
+        Graph or matrix object, which should contain the connectivity
+        information (edge weights are not used for this algorithm). If using a
+        graph object, the graph can be either directed or undirected where an
+        undirected edge is represented by a directed edge in both directions.
+        The adjacency list will be computed if not already present.  The number
+        of vertices should fit into a 32b int.
 
     directed : bool, optional
 
@@ -361,10 +364,11 @@ def connected_components(G,
        python dictionary, where keys are vertices and values are the component
        identifiers.
 
-    If G is a CuPy sparse COO matrix, returns:
+    If G is a CuPy or SciPy matrix, returns:
 
-       CuPy ndarray of shape (<num vertices>, 2), where column 0 contains
-       component identifiers and column 1 contains vertices.
+       CuPy ndarray (if CuPy matrix input) or Numpy ndarray (if SciPy matrix
+       input) of shape (<num vertices>, 2), where column 0 contains component
+       identifiers and column 1 contains vertices.
 
     Examples
     --------

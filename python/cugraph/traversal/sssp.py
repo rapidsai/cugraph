@@ -156,9 +156,10 @@ def sssp(G,
 
     Parameters
     ----------
-    graph : cuGraph.Graph, NetworkX.Graph, or CuPy sparse COO matrix
-        cuGraph graph descriptor with connectivity information. Edge weights,
-        if present, should be single or double precision floating point values.
+    graph : cugraph.Graph, networkx.Graph, CuPy or SciPy sparse matrix Graph or
+        matrix object, which should contain the connectivity information. Edge
+        weights, if present, should be single or double precision floating point
+        values.
     source : int
         Index of the source vertex.
 
@@ -182,12 +183,14 @@ def sssp(G,
        pandas.DataFrame with contents equivalent to the cudf.DataFrame
        described above.
 
-    If G is a CuPy sparse COO matrix, returns a 2-tuple of cupy.ndarray:
+    If G is a CuPy or SciPy matrix, returns:
+       a 2-tuple of CuPy ndarrays (if CuPy matrix input) or Numpy ndarrays (if
+       SciPy matrix input) representing:
 
-       distance: cupy.ndarray
+       distance: cupy or numpy ndarray
           ndarray of shortest distances between source and vertex.
 
-       predecessor: cupy.ndarray
+       predecessor: cupy or numpy ndarray
           ndarray of predecessors of a vertex on the path from source, which
           can be used to reconstruct the shortest paths.
 

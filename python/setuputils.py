@@ -89,12 +89,16 @@ def use_raft_package(raft_path, cpp_build_path,
      raft_include_path: Str
          Path to the C++ include folder of RAFT
     """
-
-    if os.path.islink('cugraph/raft'):
+    if os.path.isdir('cugraph/raft'):
         raft_path = os.path.realpath('cugraph/raft')
         # walk up two dirs from `python/raft`
         raft_path = os.path.join(raft_path, '..', '..')
         print("-- Using existing RAFT folder")
+    elif cpp_build_path and os.path.isdir(os.path.join(cpp_build_path,
+                                                       'raft/src/raft')):
+        raft_path = os.path.join(cpp_build_path, 'raft/src/raft')
+        raft_path = os.path.realpath(raft_path)
+        print("-- Using existing RAFT folder in CPP build dir")
     elif isinstance(raft_path, (str, os.PathLike)):
         print('-- Using RAFT_PATH argument')
     elif os.environ.get('RAFT_PATH', False) is not False:

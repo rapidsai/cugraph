@@ -120,9 +120,10 @@ def bfs(G,
 
     Parameters
     ----------
-    G : cuGraph.Graph, NetworkX.Graph, or CuPy sparse COO matrix
-        cuGraph graph descriptor with connectivity information. Edge weights,
-        if present, should be single or double precision floating point values.
+    G : cugraph.Graph, networkx.Graph, CuPy or SciPy sparse matrix
+        Graph or matrix object, which should contain the connectivity
+        information. Edge weights, if present, should be single or double
+        precision floating point values.
 
     start : Integer
         The index of the graph vertex from which the traversal begins
@@ -130,9 +131,15 @@ def bfs(G,
     return_sp_counter : bool, optional, default=False
         Indicates if shortest path counters should be returned
 
-    i_start :
+    i_start : Integer, optional
+        Identical to start, added for API compatibility. Only start or i_start
+        can be set, not both.
 
     directed : bool, optional
+        NOTE: For non-Graph-type (eg. sparse matrix) values of G only. Raises
+              TypeError if used with a Graph object.
+        If True (default), then convert the input matrix to a cugraph.DiGraph,
+        otherwise a cugraph.Graph object will be used.
 
     Returns
     -------
@@ -156,19 +163,21 @@ def bfs(G,
        pandas.DataFrame with contents equivalent to the cudf.DataFrame
        described above.
 
-    If G is a CuPy sparse COO matrix, returns a 2-tuple of cupy.ndarray:
+    If G is a CuPy or SciPy matrix, returns:
+       a 2-tuple of CuPy ndarrays (if CuPy matrix input) or Numpy ndarrays (if
+       SciPy matrix input) representing:
 
-       distance: cupy.ndarray
+       distance: cupy or numpy ndarray
           ndarray of shortest distances between source and vertex.
 
-       predecessor: cupy.ndarray
+       predecessor: cupy or numpy ndarray
           ndarray of predecessors of a vertex on the path from source, which
           can be used to reconstruct the shortest paths.
 
        ...or if return_sp_counter is True, returns a 3-tuple with the above two
        arrays plus:
 
-       sp_counter: cupy.ndarray
+       sp_counter: cupy or numpy ndarray
           ndarray of number of shortest paths leading to each vertex.
 
     Examples
@@ -178,6 +187,7 @@ def bfs(G,
     >>> G = cugraph.Graph()
     >>> G.from_cudf_edgelist(M, source='0', destination='1')
     >>> df = cugraph.bfs(G, 0)
+
     """
     (start, return_sp_counter, directed) = \
         _ensure_args(G, start, return_sp_counter, i_start, directed)
@@ -213,19 +223,25 @@ def bfs_edges(G, source, reverse=False, depth_limit=None, sort_neighbors=None,
 
     Parameters
     ----------
-    G : cuGraph.Graph, NetworkX.Graph, or CuPy sparse COO matrix
-        cuGraph graph descriptor with connectivity information. Edge weights,
-        if present, should be single or double precision floating point values.
+    G : cugraph.Graph, networkx.Graph, CuPy or SciPy sparse matrix
+        Graph or matrix object, which should contain the connectivity
+        information. Edge weights, if present, should be single or double
+        precision floating point values.
+
     source : Integer
         The starting vertex index
+
     reverse : boolean
         If a directed graph, then process edges in a reverse direction
         Currently not implemented
+
     depth_limit : Int or None
         Limit the depth of the search
         Currently not implemented
+
     sort_neighbors : None or Function
         Currently not implemented
+
     return_sp_counter : bool, optional, default=False
         Indicates if shortest path counters should be returned
 
@@ -251,21 +267,22 @@ def bfs_edges(G, source, reverse=False, depth_limit=None, sort_neighbors=None,
        pandas.DataFrame with contents equivalent to the cudf.DataFrame
        described above.
 
-    If G is a CuPy sparse COO matrix, returns a 2-tuple of cupy.ndarray:
+    If G is a CuPy or SciPy matrix, returns:
+       a 2-tuple of CuPy ndarrays (if CuPy matrix input) or Numpy ndarrays (if
+       SciPy matrix input) representing:
 
-       distance: cupy.ndarray
+       distance: cupy or numpy ndarray
           ndarray of shortest distances between source and vertex.
 
-       predecessor: cupy.ndarray
+       predecessor: cupy or numpy ndarray
           ndarray of predecessors of a vertex on the path from source, which
           can be used to reconstruct the shortest paths.
 
        ...or if return_sp_counter is True, returns a 3-tuple with the above two
        arrays plus:
 
-       sp_counter: cupy.ndarray
-          ndarray of number of shortest paths leading to each vertex (only if
-          retrun_sp_counter is True)
+       sp_counter: cupy or numpy ndarray
+          ndarray of number of shortest paths leading to each vertex.
 
     Examples
     --------
