@@ -515,3 +515,5 @@ template class graph_t<int64_t, int64_t, double, false, false>;
 
 }  // namespace experimental
 }  // namespace cugraph
+
+#include <experimental/eidir_graph.hpp>

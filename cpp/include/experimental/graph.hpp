@@ -182,3 +182,5 @@ struct invalid_edge_id : invalid_idx<edge_t> {
 
 }  // namespace experimental
 }  // namespace cugraph
+
+#include "eidecl_graph.hpp"

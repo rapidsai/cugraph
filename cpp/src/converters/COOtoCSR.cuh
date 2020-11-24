@@ -60,7 +60,7 @@ namespace detail {
  * @param[out] result      Total number of vertices
  */
 template <typename VT, typename ET, typename WT>
-VT sort(GraphCOOView<VT, ET, WT>& graph, cudaStream_t stream)
+VT sort(GraphCOOView<VT, ET, WT> &graph, cudaStream_t stream)
 {
   VT max_src_id;
   VT max_dst_id;
@@ -98,7 +98,7 @@ VT sort(GraphCOOView<VT, ET, WT>& graph, cudaStream_t stream)
 
 template <typename VT, typename ET>
 void fill_offset(
-  VT* source, ET* offsets, VT number_of_vertices, ET number_of_edges, cudaStream_t stream)
+  VT *source, ET *offsets, VT number_of_vertices, ET number_of_edges, cudaStream_t stream)
 {
   thrust::fill(rmm::exec_policy(stream)->on(stream),
                offsets,
@@ -124,16 +124,16 @@ void fill_offset(
 }
 
 template <typename VT, typename ET>
-rmm::device_buffer create_offset(VT* source,
+rmm::device_buffer create_offset(VT *source,
                                  VT number_of_vertices,
                                  ET number_of_edges,
                                  cudaStream_t stream,
-                                 rmm::mr::device_memory_resource* mr)
+                                 rmm::mr::device_memory_resource *mr)
 {
   // Offset array needs an extra element at the end to contain the ending offsets
   // of the last vertex
   rmm::device_buffer offsets_buffer(sizeof(ET) * (number_of_vertices + 1), stream, mr);
-  ET* offsets = static_cast<ET*>(offsets_buffer.data());
+  ET *offsets = static_cast<ET *>(offsets_buffer.data());
 
   fill_offset(source, offsets, number_of_vertices, number_of_edges, stream);
 
@@ -143,8 +143,8 @@ rmm::device_buffer create_offset(VT* source,
 }  // namespace detail
 
 template <typename VT, typename ET, typename WT>
-std::unique_ptr<GraphCSR<VT, ET, WT>> coo_to_csr(GraphCOOView<VT, ET, WT> const& graph,
-                                                 rmm::mr::device_memory_resource* mr)
+std::unique_ptr<GraphCSR<VT, ET, WT>> coo_to_csr(GraphCOOView<VT, ET, WT> const &graph,
+                                                 rmm::mr::device_memory_resource *mr)
 {
   cudaStream_t stream{nullptr};
 
@@ -165,7 +165,7 @@ std::unique_ptr<GraphCSR<VT, ET, WT>> coo_to_csr(GraphCOOView<VT, ET, WT> const&
 }
 
 template <typename VT, typename ET, typename WT>
-void coo_to_csr_inplace(GraphCOOView<VT, ET, WT>& graph, GraphCSRView<VT, ET, WT>& result)
+void coo_to_csr_inplace(GraphCOOView<VT, ET, WT> &graph, GraphCSRView<VT, ET, WT> &result)
 {
   cudaStream_t stream{nullptr};
 
@@ -179,5 +179,65 @@ void coo_to_csr_inplace(GraphCOOView<VT, ET, WT>& graph, GraphCSRView<VT, ET, WT
     CUDA_TRY(cudaMemcpy(
       result.edge_data, graph.edge_data, sizeof(WT) * graph.number_of_edges, cudaMemcpyDefault));
 }
+
+// Explicit Instantiation Declarations (EIDecl)
+// to attempt decrease in compile time:
+//
+// EIDecl for uint32_t + float
+extern template std::unique_ptr<GraphCSR<uint32_t, uint32_t, float>>
+coo_to_csr<uint32_t, uint32_t, float>(GraphCOOView<uint32_t, uint32_t, float> const &graph,
+                                      rmm::mr::device_memory_resource *);
+
+// EIDecl for uint32_t + double
+extern template std::unique_ptr<GraphCSR<uint32_t, uint32_t, double>>
+coo_to_csr<uint32_t, uint32_t, double>(GraphCOOView<uint32_t, uint32_t, double> const &graph,
+                                       rmm::mr::device_memory_resource *);
+
+// EIDecl for int + float
+extern template std::unique_ptr<GraphCSR<int32_t, int32_t, float>>
+coo_to_csr<int32_t, int32_t, float>(GraphCOOView<int32_t, int32_t, float> const &graph,
+                                    rmm::mr::device_memory_resource *);
+
+// EIDecl for int + double
+extern template std::unique_ptr<GraphCSR<int32_t, int32_t, double>>
+coo_to_csr<int32_t, int32_t, double>(GraphCOOView<int32_t, int32_t, double> const &graph,
+                                     rmm::mr::device_memory_resource *);
+
+// EIDecl for int64_t + float
+extern template std::unique_ptr<GraphCSR<int64_t, int64_t, float>>
+coo_to_csr<int64_t, int64_t, float>(GraphCOOView<int64_t, int64_t, float> const &graph,
+                                    rmm::mr::device_memory_resource *);
+
+// EIDecl for int64_t + double
+extern template std::unique_ptr<GraphCSR<int64_t, int64_t, double>>
+coo_to_csr<int64_t, int64_t, double>(GraphCOOView<int64_t, int64_t, double> const &graph,
+                                     rmm::mr::device_memory_resource *);
+
+// in-place versions:
+//
+// EIDecl for uint32_t + float
+extern template void coo_to_csr_inplace<uint32_t, uint32_t, float>(
+  GraphCOOView<uint32_t, uint32_t, float> &graph, GraphCSRView<uint32_t, uint32_t, float> &result);
+
+// EIDecl for uint32_t + double
+extern template void coo_to_csr_inplace<uint32_t, uint32_t, double>(
+  GraphCOOView<uint32_t, uint32_t, double> &graph,
+  GraphCSRView<uint32_t, uint32_t, double> &result);
+
+// EIDecl for int + float
+extern template void coo_to_csr_inplace<int32_t, int32_t, float>(
+  GraphCOOView<int32_t, int32_t, float> &graph, GraphCSRView<int32_t, int32_t, float> &result);
+
+// EIDecl for int + double
+extern template void coo_to_csr_inplace<int32_t, int32_t, double>(
+  GraphCOOView<int32_t, int32_t, double> &graph, GraphCSRView<int32_t, int32_t, double> &result);
+
+// EIDecl for int64_t + float
+extern template void coo_to_csr_inplace<int64_t, int64_t, float>(
+  GraphCOOView<int64_t, int64_t, float> &graph, GraphCSRView<int64_t, int64_t, float> &result);
+
+// EIDecl for int64_t + double
+extern template void coo_to_csr_inplace<int64_t, int64_t, double>(
+  GraphCOOView<int64_t, int64_t, double> &graph, GraphCSRView<int64_t, int64_t, double> &result);
 
 }  // namespace cugraph
