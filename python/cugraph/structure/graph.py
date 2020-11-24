@@ -542,7 +542,6 @@ class Graph:
         """
         Returns the graph adjacency matrix as a NumPy matrix.
         """
-
         np_array = self.to_numpy_array()
         return np.asmatrix(np_array)
 
