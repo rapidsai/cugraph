@@ -475,6 +475,10 @@ class GraphCompressedSparseBase {
   bool has_data_p{false};
 
  public:
+  // previously missing, but invoked cnstr{
+  GraphCompressedSparseBase(void) = default;
+  //}
+
   /**
    * @brief      Take ownership of the provided graph arrays in CSR/CSC format
    *
@@ -616,7 +620,8 @@ class GraphCSC : public GraphCompressedSparseBase<vertex_t, edge_t, weight_t> {
   }
 
   GraphCSC(GraphSparseContents<vertex_t, edge_t, weight_t> &&contents)
-    : GraphCompressedSparseBase<vertex_t, edge_t, weight_t>(contents)
+    : GraphCompressedSparseBase<vertex_t, edge_t, weight_t>(
+        std::forward<GraphSparseContents<vertex_t, edge_t, weight_t>>(contents))
   {
   }
 
@@ -656,3 +661,5 @@ template <typename edge_t>
 struct invalid_edge_id : invalid_idx<edge_t> {
 };
 }  // namespace cugraph
+
+#include "eidecl_graph.hpp"

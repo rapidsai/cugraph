@@ -58,45 +58,38 @@ set(GUNROCK_GENCODE_SM72 "OFF")
 set(GUNROCK_GENCODE_SM75 "OFF")
 set(GUNROCK_GENCODE_SM80 "OFF")
 
-# Check for aarch64 vs workstation architectures
-if(CMAKE_SYSTEM_PROCESSOR MATCHES "aarch64")
-  message(STATUS "CMAKE Detected aarch64 CPU architecture, selecting appropriate gencodes")
-  # This is being build for Linux4Tegra or SBSA ARM64 CUDA
-  set(GPU_ARCHS "62") # Default minimum CUDA GenCode - not supported by gunrock
-  if(CUDA_VERSION_MAJOR GREATER_EQUAL 9)
-    set(GPU_ARCHS "${GPU_ARCHS};72")
-    set(GUNROCK_GENCODE_SM72 "ON")
-  endif()
-  if(CUDA_VERSION_MAJOR GREATER_EQUAL 11)
-    # This is probably for SBSA CUDA, or a next gen Jetson
-    set(GPU_ARCHS "${GPU_ARCHS};75;80")
-    set(GUNROCK_GENCODE_SM75 "ON")
-    set(GUNROCK_GENCODE_SM80 "ON")
-  endif()
+# ARCHS handling:
+#
+if("${GPU_ARCHS}" STREQUAL "")
+  include(cmake/EvalGpuArchs.cmake)
+  evaluate_gpu_archs(GPU_ARCHS)
+endif()
 
+
+# CUDA 11 onwards cub ships with CTK
+if((CUDA_VERSION_MAJOR EQUAL 11) OR (CUDA_VERSION_MAJOR GREATER 11))
+  set(CUB_IS_PART_OF_CTK ON)
 else()
-  message(STATUS "CMAKE selecting appropriate gencodes for x86 or ppc64 CPU architectures")
-  # System architecture was not aarch64,
-  # this is datacenter or workstation class hardware
-  set(GPU_ARCHS "60") # Default minimum supported CUDA gencode
-  set(GUNROCK_GENCODE_SM60 "ON")
-  if(CUDA_VERSION_MAJOR GREATER_EQUAL 9)
+  set(CUB_IS_PART_OF_CTK OFF)
+endif()
+
+if("${GPU_ARCHS}" STREQUAL "ALL")
+  set(GPU_ARCHS "60")
+  if((CUDA_VERSION_MAJOR EQUAL 9) OR (CUDA_VERSION_MAJOR GREATER 9))
     set(GPU_ARCHS "${GPU_ARCHS};70")
-    set(GUNROCK_GENCODE_SM70 "ON")
   endif()
-  if(CUDA_VERSION_MAJOR GREATER_EQUAL 10)
+  if((CUDA_VERSION_MAJOR EQUAL 10) OR (CUDA_VERSION_MAJOR GREATER 10))
     set(GPU_ARCHS "${GPU_ARCHS};75")
-    set(GUNROCK_GENCODE_SM75 "ON")
   endif()
-  if(CUDA_VERSION_MAJOR GREATER_EQUAL 11)
+  if((CUDA_VERSION_MAJOR EQUAL 11) OR (CUDA_VERSION_MAJOR GREATER 11))
     set(GPU_ARCHS "${GPU_ARCHS};80")
-    set(GUNROCK_GENCODE_SM80 "ON")
   endif()
 endif()
 
 message("-- Building for GPU_ARCHS = ${GPU_ARCHS}")
 foreach(arch ${GPU_ARCHS})
   set(CMAKE_CUDA_FLAGS "${CMAKE_CUDA_FLAGS} -gencode arch=compute_${arch},code=sm_${arch}")
+  set(GUNROCK_GENCODE_SM${arch} "ON")
 endforeach()
 
 list(GET GPU_ARCHS -1 ptx)
@@ -212,7 +205,7 @@ message("Fetching cuco")
 FetchContent_Declare(
     cuco
     GIT_REPOSITORY https://github.com/NVIDIA/cuCollections.git
-    GIT_TAG        5f94cdd3b3df0e5f79c47fb772497d6e42455414
+    GIT_TAG        d965ed8dea8f56da8e260a6130dddf3ca351c45f
 )
 
 FetchContent_GetProperties(cuco)
@@ -323,7 +316,7 @@ else(DEFINED ENV{RAFT_PATH})
 
   ExternalProject_Add(raft
     GIT_REPOSITORY    https://github.com/rapidsai/raft.git
-    GIT_TAG           515ed005aebc2276d52308516e623a4ab0b5e82c
+    GIT_TAG           ca7465ed41d1129e446309e4a32649eb2d35e2e3
     PREFIX            ${RAFT_DIR}
     CONFIGURE_COMMAND ""
     BUILD_COMMAND     ""
@@ -349,6 +342,7 @@ add_library(cugraph SHARED
     src/utilities/spmv_1D.cu
     src/utilities/cython.cu
     src/structure/graph.cu
+    src/linear_assignment/hungarian.cu
     src/link_analysis/pagerank.cu
     src/link_analysis/pagerank_1D.cu
     src/link_analysis/gunrock_hits.cpp

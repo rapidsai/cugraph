@@ -29,6 +29,7 @@ from cugraph.community import (
 from cugraph.structure import (
     Graph,
     DiGraph,
+    from_edgelist,
     from_cudf_edgelist,
     from_pandas_edgelist,
     to_pandas_edgelist,
@@ -38,6 +39,7 @@ from cugraph.structure import (
     to_numpy_array,
     from_numpy_matrix,
     to_numpy_matrix,
+    from_adjlist,
     hypergraph,
     symmetrize,
     symmetrize_df,
@@ -84,6 +86,7 @@ from cugraph.bsp.traversal import bfs_df_pregel
 from cugraph.proto.components import strong_connected_component
 from cugraph.proto.structure import find_bicliques
 
+from cugraph.linear_assignment import hungarian
 from cugraph.layout import force_atlas2
 from cugraph.raft import raft_include_test
 from cugraph.comms import comms
