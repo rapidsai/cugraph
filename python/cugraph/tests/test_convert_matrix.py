@@ -145,3 +145,49 @@ def test_from_to_numpy(graph_file):
     res_pdf = res_pdf[['src', 'dst', 'weights']]
 
     assert exp_pdf.equals(res_pdf)
+
+
+@pytest.mark.parametrize("graph_file", utils.DATASETS)
+def test_from_edgelist(graph_file):
+    """
+    Compare the resulting Graph objs from cugraph.from_edgelist() calls of both
+    a cudf and pandas DataFrame and ensure the results are equal.
+    """
+    df = utils.read_csv_file(graph_file)
+    pdf = utils.read_csv_for_nx(graph_file)
+
+    G1 = cugraph.from_edgelist(df, source="0", destination="1")
+    G2 = cugraph.from_edgelist(pdf, source="0", destination="1")
+
+    assert G1.EdgeList == G2.EdgeList
+
+
+@pytest.mark.parametrize("graph_file", utils.DATASETS)
+def test_from_adjlist(graph_file):
+    """
+    Compare the resulting Graph objs from cugraph.from_adjlist() calls of both
+    a cudf and pandas DataFrame and ensure the results are equal.
+    """
+    G = utils.generate_cugraph_graph_from_file(graph_file, directed=True)
+    (cu_offsets, cu_indices, cu_vals) = G.view_adj_list()
+
+    pd_offsets = cu_offsets.to_pandas()
+    pd_indices = cu_indices.to_pandas()
+    if cu_vals is not None:
+        pd_vals = cu_vals.to_pandas()
+    else:
+        pd_vals = None
+
+    # FIXME: should mixing types be allowed?
+    with pytest.raises(TypeError):
+        G1 = cugraph.from_adjlist(cu_offsets, pd_indices)
+    with pytest.raises(TypeError):
+        G1 = cugraph.from_adjlist(cu_offsets, cu_indices, cu_vals,
+                                  create_using=33)
+
+    G1 = cugraph.from_adjlist(cu_offsets, cu_indices, cu_vals,
+                              create_using=cugraph.DiGraph)
+    G2 = cugraph.from_adjlist(pd_offsets, pd_indices, pd_vals,
+                              create_using=cugraph.DiGraph)
+
+    assert G1.AdjList == G2.AdjList

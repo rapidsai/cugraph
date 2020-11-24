@@ -323,7 +323,7 @@ else(DEFINED ENV{RAFT_PATH})
 
   ExternalProject_Add(raft
     GIT_REPOSITORY    https://github.com/rapidsai/raft.git
-    GIT_TAG           515ed005aebc2276d52308516e623a4ab0b5e82c
+    GIT_TAG           ca7465ed41d1129e446309e4a32649eb2d35e2e3
     PREFIX            ${RAFT_DIR}
     CONFIGURE_COMMAND ""
     BUILD_COMMAND     ""
@@ -349,6 +349,7 @@ add_library(cugraph SHARED
     src/utilities/spmv_1D.cu
     src/utilities/cython.cu
     src/structure/graph.cu
+    src/linear_assignment/hungarian.cu
     src/link_analysis/pagerank.cu
     src/link_analysis/pagerank_1D.cu
     src/link_analysis/gunrock_hits.cpp

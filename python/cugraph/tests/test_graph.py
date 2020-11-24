@@ -656,18 +656,3 @@ def test_neighbors(graph_file):
         cu_neighbors.sort()
         nx_neighbors.sort()
         assert cu_neighbors == nx_neighbors
-
-
-@pytest.mark.parametrize("graph_file", utils.DATASETS)
-def test_from_edgelist(graph_file):
-    """
-    Compare the resulting Graph objs from cugraph.from_edgelist() calls of both
-    a cudf and pandas DataFrame and ensure the results are equal.
-    """
-    cu_M = utils.read_csv_file(graph_file)
-    M = utils.read_csv_for_nx(graph_file)
-
-    G1 = cugraph.from_edgelist(cu_M, source="0", destination="1")
-    G2 = cugraph.from_edgelist(M, source="0", destination="1")
-
-    assert G1.EdgeList == G2.EdgeList

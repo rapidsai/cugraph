@@ -73,6 +73,66 @@ def from_edgelist(df, source='source', destination='destination',
         raise TypeError(f"obj of type {df_type} is not supported.")
 
 
+def from_adjlist(offsets, indices, values=None, create_using=Graph):
+    """
+    Initializes the graph from cuDF or Pandas Series representing adjacency
+    matrix CSR data and returns a new cugraph.Graph object if 'create_using' is
+    set to cugraph.Graph (the default), or cugraph.DiGraph if 'create_using' is
+    set to cugraph.DiGraph.
+
+    Parameters
+    ----------
+    offsets : cudf.Series, pandas.Series
+        The offsets of a CSR adjacency matrix.
+    indices : cudf.Series, pandas.Series
+        The indices of a CSR adjacency matrix.
+    values : cudf.Series, pandas.Series, or None (default), optional
+        The values in a CSR adjacency matrix, which represent edge weights in a
+        graph. If not provided, the resulting graph is considered unweighted.
+    create_using : cuGraph.Graph
+        Specify the type of Graph to create.  Default is cugraph.Graph
+
+    Examples
+    --------
+    >>> pdf = pd.read_csv('datasets/karate.csv', delimiter=' ',
+    ...                   dtype={0:'int32', 1:'int32', 2:'float32'},
+    ...                   header=None)
+    >>> M = scipy.sparse.coo_matrix((pdf[2],(pdf[0],pdf[1])))
+    >>> M = M.tocsr()
+    >>> offsets = pd.Series(M.indptr)
+    >>> indices = pd.Series(M.indices)
+    >>> G = cugraph.from_adjlist(offsets, indices, None)
+    """
+    offsets_type = type(offsets)
+    indices_type = type(indices)
+    if offsets_type != indices_type:
+        raise TypeError(f"'offsets' type {offsets_type} != 'indices' "
+                        f"type {indices_type}")
+    if values is not None:
+        values_type = type(values)
+        if values_type != offsets_type:
+            raise TypeError(f"'values' type {values_type} != 'offsets' "
+                            f"type {offsets_type}")
+
+    if create_using in [Graph, DiGraph]:
+        G = create_using()
+    else:
+        raise TypeError(f"'create_using' is type {create_using}, must be "
+                        "either a cugraph.Graph or cugraph.DiGraph")
+
+    if offsets_type is cudf.Series:
+        G.from_cudf_adjlist(offsets, indices, values)
+
+    elif (pd is not None) and (offsets_type is pd.Series):
+        G.from_cudf_adjlist(cudf.Series(offsets), cudf.Series(indices),
+                            None if values is None else cudf.Series(values))
+
+    else:
+        raise TypeError(f"obj of type {offsets_type} is not supported.")
+
+    return G
+
+
 def from_cudf_edgelist(df, source='source', destination='destination',
                        edge_attr=None, create_using=Graph, renumber=True):
     """

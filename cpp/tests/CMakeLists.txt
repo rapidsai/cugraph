@@ -245,6 +245,13 @@ set(SCC_TEST_SRC
 
 ConfigureTest(SCC_TEST "${SCC_TEST_SRC}" "")
 
+###################################################################################################
+#-Hungarian (Linear Assignment Problem)  tests ---------------------------------------------------------------------
+
+set(HUNGARIAN_TEST_SRC
+    "${CMAKE_CURRENT_SOURCE_DIR}/linear_assignment/hungarian_test.cu")
+
+ConfigureTest(HUNGARIAN_TEST "${HUNGARIAN_TEST_SRC}" "")
 
 ###################################################################################################
 # - Experimental Graph tests ----------------------------------------------------------------------

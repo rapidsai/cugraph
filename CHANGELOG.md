@@ -4,7 +4,8 @@
 - PR #1245 Add functions to add pandas and numpy compatibility
 - PR #1260 Add katz_centrality mnmg wrapper
 - PR #1264 CuPy sparse matrix input support for WCC, SCC, SSSP, and BFS
-- PR #1274 Add generic from_edgelist() API
+- PR #1265 Implement Hungarian Algorithm
+- PR #1274 Add generic from_edgelist() and from_adjlist() APIs
 
 ## Improvements
 - PR #1227 Pin cmake policies to cmake 3.17 version
@@ -20,6 +21,7 @@
 - PR #1251 Changed the MG context testing class to use updated parameters passed in from the individual tests
 - PR #1253 MG test fixes: updated additional comms.initialize() calls, fixed dask DataFrame comparisons
 - PR #1270 Raise exception for p2p, disable bottom up approach for bfs
+- PR #1275 Force local artifact conda install
 
 # cuGraph 0.16.0 (21 Oct 2020)
 
