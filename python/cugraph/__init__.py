@@ -29,6 +29,7 @@ from cugraph.community import (
 from cugraph.structure import (
     Graph,
     DiGraph,
+    from_edgelist,
     from_cudf_edgelist,
     from_pandas_edgelist,
     to_pandas_edgelist,
@@ -38,6 +39,7 @@ from cugraph.structure import (
     to_numpy_array,
     from_numpy_matrix,
     to_numpy_matrix,
+    from_adjlist,
     hypergraph,
     symmetrize,
     symmetrize_df,
@@ -70,7 +72,7 @@ from cugraph.link_prediction import (
 
 from cugraph.traversal import (
     bfs,
-    bfs_edges, 
+    bfs_edges,
     sssp,
     shortest_path,
     filter_unreachable,

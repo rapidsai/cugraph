@@ -5,6 +5,7 @@
 - PR #1260 Add katz_centrality mnmg wrapper
 - PR #1264 CuPy sparse matrix input support for WCC, SCC, SSSP, and BFS
 - PR #1265 Implement Hungarian Algorithm
+- PR #1274 Add generic from_edgelist() and from_adjlist() APIs
 
 ## Improvements
 - PR #1227 Pin cmake policies to cmake 3.17 version
