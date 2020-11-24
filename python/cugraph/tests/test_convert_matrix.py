@@ -29,10 +29,15 @@ with warnings.catch_warnings():
     import networkx as nx
 
 
-@pytest.mark.parametrize("graph_file", utils.DATASETS)
-def test_to_from_pandas(graph_file):
+# =============================================================================
+# Pytest Setup / Teardown - called for each test function
+# =============================================================================
+def setup_function():
     gc.collect()
 
+
+@pytest.mark.parametrize("graph_file", utils.DATASETS)
+def test_to_from_pandas(graph_file):
     # Read in the graph
     M = utils.read_csv_for_nx(graph_file, read_weights_in_sp=True)
 
@@ -79,8 +84,6 @@ def test_to_from_pandas(graph_file):
 
 @pytest.mark.parametrize("graph_file", utils.DATASETS)
 def test_from_to_numpy(graph_file):
-    gc.collect()
-
     # Read in the graph
     M = utils.read_csv_for_nx(graph_file, read_weights_in_sp=True)
 

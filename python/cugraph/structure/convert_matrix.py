@@ -16,6 +16,7 @@
 # .py and should be located outside the python/cugraph/bindings directory.
 
 import cudf
+import dask_cudf
 
 from cugraph.structure.graph import DiGraph, Graph
 
@@ -33,7 +34,7 @@ def from_edgelist(df, source='source', destination='destination',
 
     Parameters
     ----------
-    df : cudf.DataFrame, pandas.DataFrame
+    df : cudf.DataFrame, pandas.DataFrame, dask_cudf.core.DataFrame
         This DataFrame contains columns storing edge source vertices,
         destination (or target following NetworkX's terminology) vertices, and
         (optional) weights.
@@ -68,6 +69,15 @@ def from_edgelist(df, source='source', destination='destination',
     elif (pd is not None) and (df_type is pd.DataFrame):
         return from_pandas_edgelist(df, source, destination,
                                     edge_attr, create_using, renumber)
+
+    elif df_type is dask_cudf.core.DataFrame:
+        if create_using in [Graph, DiGraph]:
+            G = create_using()
+        else:
+            raise TypeError(f"'create_using' is type {create_using}, must be "
+                            "either a cugraph.Graph or cugraph.DiGraph")
+        G.from_dask_cudf_edgelist(df, source, destination, edge_attr, renumber)
+        return G
 
     else:
         raise TypeError(f"obj of type {df_type} is not supported.")
