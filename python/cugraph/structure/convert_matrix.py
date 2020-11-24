@@ -15,7 +15,132 @@
 # issue #146 is addressed, this file's extension should be changed from .pyx to
 # .py and should be located outside the python/cugraph/bindings directory.
 
+import cudf
+import dask_cudf
+
 from cugraph.structure.graph import DiGraph, Graph
+
+# optional dependencies used for handling different input types
+try:
+    import pandas as pd
+except ModuleNotFoundError:
+    pd = None
+
+
+def from_edgelist(df, source='source', destination='destination',
+                  edge_attr=None, create_using=Graph, renumber=True):
+    """
+    Return a new graph created from the edge list representaion.
+
+    Parameters
+    ----------
+    df : cudf.DataFrame, pandas.DataFrame, dask_cudf.core.DataFrame
+        This DataFrame contains columns storing edge source vertices,
+        destination (or target following NetworkX's terminology) vertices, and
+        (optional) weights.
+    source : string or integer
+        This is used to index the source column.
+    destination : string or integer
+        This is used to index the destination (or target following NetworkX's
+        terminology) column.
+    edge_attr : string or integer, optional
+        This pointer can be ``None``. If not, this is used to index the weight
+        column.
+    create_using : cuGraph.Graph
+        Specify the type of Graph to create.  Default is cugraph.Graph
+    renumber : bool
+        If source and destination indices are not in range 0 to V where V
+        is number of vertices, renumber argument should be True.
+
+    Examples
+    --------
+    >>> M = cudf.read_csv('datasets/karate.csv', delimiter=' ',
+    >>>                   dtype=['int32', 'int32', 'float32'], header=None)
+    >>> G = cugraph.Graph()
+    >>> G = cugraph.from_edgelist(M, source='0', destination='1',
+                                  edge_attr='2')
+    """
+    df_type = type(df)
+
+    if df_type is cudf.DataFrame:
+        return from_cudf_edgelist(df, source, destination,
+                                  edge_attr, create_using, renumber)
+
+    elif (pd is not None) and (df_type is pd.DataFrame):
+        return from_pandas_edgelist(df, source, destination,
+                                    edge_attr, create_using, renumber)
+
+    elif df_type is dask_cudf.core.DataFrame:
+        if create_using in [Graph, DiGraph]:
+            G = create_using()
+        else:
+            raise TypeError(f"'create_using' is type {create_using}, must be "
+                            "either a cugraph.Graph or cugraph.DiGraph")
+        G.from_dask_cudf_edgelist(df, source, destination, edge_attr, renumber)
+        return G
+
+    else:
+        raise TypeError(f"obj of type {df_type} is not supported.")
+
+
+def from_adjlist(offsets, indices, values=None, create_using=Graph):
+    """
+    Initializes the graph from cuDF or Pandas Series representing adjacency
+    matrix CSR data and returns a new cugraph.Graph object if 'create_using' is
+    set to cugraph.Graph (the default), or cugraph.DiGraph if 'create_using' is
+    set to cugraph.DiGraph.
+
+    Parameters
+    ----------
+    offsets : cudf.Series, pandas.Series
+        The offsets of a CSR adjacency matrix.
+    indices : cudf.Series, pandas.Series
+        The indices of a CSR adjacency matrix.
+    values : cudf.Series, pandas.Series, or None (default), optional
+        The values in a CSR adjacency matrix, which represent edge weights in a
+        graph. If not provided, the resulting graph is considered unweighted.
+    create_using : cuGraph.Graph
+        Specify the type of Graph to create.  Default is cugraph.Graph
+
+    Examples
+    --------
+    >>> pdf = pd.read_csv('datasets/karate.csv', delimiter=' ',
+    ...                   dtype={0:'int32', 1:'int32', 2:'float32'},
+    ...                   header=None)
+    >>> M = scipy.sparse.coo_matrix((pdf[2],(pdf[0],pdf[1])))
+    >>> M = M.tocsr()
+    >>> offsets = pd.Series(M.indptr)
+    >>> indices = pd.Series(M.indices)
+    >>> G = cugraph.from_adjlist(offsets, indices, None)
+    """
+    offsets_type = type(offsets)
+    indices_type = type(indices)
+    if offsets_type != indices_type:
+        raise TypeError(f"'offsets' type {offsets_type} != 'indices' "
+                        f"type {indices_type}")
+    if values is not None:
+        values_type = type(values)
+        if values_type != offsets_type:
+            raise TypeError(f"'values' type {values_type} != 'offsets' "
+                            f"type {offsets_type}")
+
+    if create_using in [Graph, DiGraph]:
+        G = create_using()
+    else:
+        raise TypeError(f"'create_using' is type {create_using}, must be "
+                        "either a cugraph.Graph or cugraph.DiGraph")
+
+    if offsets_type is cudf.Series:
+        G.from_cudf_adjlist(offsets, indices, values)
+
+    elif (pd is not None) and (offsets_type is pd.Series):
+        G.from_cudf_adjlist(cudf.Series(offsets), cudf.Series(indices),
+                            None if values is None else cudf.Series(values))
+
+    else:
+        raise TypeError(f"obj of type {offsets_type} is not supported.")
+
+    return G
 
 
 def from_cudf_edgelist(df, source='source', destination='destination',
@@ -52,7 +177,6 @@ def from_cudf_edgelist(df, source='source', destination='destination',
     >>>                   dtype=['int32', 'int32', 'float32'], header=None)
     >>> G = cugraph.Graph()
     >>> G = cugraph.from_cudf_edgelist(M, source='0', target='1', weight='2')
-
     """
     if create_using is Graph:
         G = Graph()
