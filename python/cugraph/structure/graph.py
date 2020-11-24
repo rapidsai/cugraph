@@ -99,6 +99,7 @@ class Graph:
         self.multi = multi
         self.distributed = False
         self.dynamic = dynamic
+        self.self_loop = False
         self.edgelist = None
         self.adjlist = None
         self.transposedadjlist = None
@@ -403,6 +404,8 @@ class Graph:
             if type(source) is list and type(destination) is list:
                 raise Exception("set renumber to True for multi column ids")
 
+        if (elist[source]==elist[destination]).any():
+            self.self_loop = True
         source_col = elist[source]
         dest_col = elist[destination]
 
