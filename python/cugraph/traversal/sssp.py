@@ -158,8 +158,8 @@ def sssp(G,
     ----------
     graph : cugraph.Graph, networkx.Graph, CuPy or SciPy sparse matrix Graph or
         matrix object, which should contain the connectivity information. Edge
-        weights, if present, should be single or double precision floating point
-        values.
+        weights, if present, should be single or double precision floating
+        point values.
     source : int
         Index of the source vertex.
 
