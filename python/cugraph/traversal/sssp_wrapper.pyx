@@ -84,7 +84,7 @@ def sssp(input_graph, source):
     num_edges = input_graph.number_of_edges(directed_edges=True)
 
     # Step 5: Check if source index is valid
-    if source is cudf.NA or 0 > source or num_verts <= source:
+    if not 0 <= source < num_verts:
         raise ValueError("Starting vertex should be between 0 to number of vertices")
 
     # Step 6: Generation of the result cudf.DataFrame

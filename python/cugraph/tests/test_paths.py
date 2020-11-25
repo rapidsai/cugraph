@@ -142,10 +142,13 @@ def test_shortest_path_length_no_target(graphs):
     nx_gpu_path_1_to_all = cugraph.shortest_path_length(nx_G, "1")
     cupy_path_1_to_all = cugraph.shortest_path_length(cupy_df, 1)
 
-    assert nx_gpu_path_1_to_all == nx_gpu_path_1_to_all
+    # Cast networkx graph on cugraph vertex column type from str to int.
+    # SSSP preserves vertex type, convert for comparison
+    nx_gpu_path_1_to_all["vertex"] = nx_gpu_path_1_to_all["vertex"].astype("int32")
 
+    assert cugraph_path_1_to_all == nx_gpu_path_1_to_all
+    assert cugraph_path_1_to_all == cupy_path_1_to_all
     assert cugraph_path_1_to_all.shape[0] == len(nx_path_1_to_all) + 2  # results for vertex 8 and 9 are not returned
-    assert cugraph_path_1_to_all.shape[0] == len(cupy_path_1_to_all[0])
 
     for index in range(cugraph_path_1_to_all.shape[0]):
 
@@ -158,6 +161,3 @@ def test_shortest_path_length_no_target(graphs):
             assert distance == sys.float_info.max
         else:
             assert distance == nx_path_1_to_all[vertex]
-
-        # verify cugraph against cupy graph
-        assert distance == cupy_path_1_to_all[0][int(vertex) - 1].item()
