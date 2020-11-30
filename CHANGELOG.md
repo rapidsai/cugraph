@@ -1,6 +1,7 @@
 # cuGraph 0.17.0 (Date TBD)
 
 ## New Features
+- PR #1276 MST
 - PR #1245 Add functions to add pandas and numpy compatibility
 - PR #1260 Add katz_centrality mnmg wrapper
 - PR #1264 CuPy sparse matrix input support for WCC, SCC, SSSP, and BFS
