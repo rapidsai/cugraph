@@ -18,7 +18,7 @@ ARGS=$*
 # script, and that this script resides in the repo dir!
 REPODIR=$(cd $(dirname $0); pwd)
 
-VALIDARGS="clean libcugraph cugraph docs -v -g -n --show_depr_warn -h --help"
+VALIDARGS="clean libcugraph cugraph docs -v -g -n --allgpuarch --show_depr_warn -h --help"
 HELP="$0 [<target> ...] [<flag> ...]
  where <target> is:
    clean            - remove all existing build artifacts and configuration (start over)
@@ -29,26 +29,29 @@ HELP="$0 [<target> ...] [<flag> ...]
    -v               - verbose build mode
    -g               - build for debug
    -n               - no install step
+   --allgpuarch     - build for all supported GPU architectures
    --show_depr_warn - show cmake deprecation warnings
    -h               - print this text
 
- default action (no args) is to build and install 'libcugraph' then 'cugraph' targets
+ default action (no args) is to build and install 'libcugraph' then 'cugraph' targets and then docs
 "
 LIBCUGRAPH_BUILD_DIR=${LIBCUGRAPH_BUILD_DIR:=${REPODIR}/cpp/build}
 CUGRAPH_BUILD_DIR=${REPODIR}/python/build
 BUILD_DIRS="${LIBCUGRAPH_BUILD_DIR} ${CUGRAPH_BUILD_DIR}"
 
 # Set defaults for vars modified by flags to this script
+ARG_COUNT=${NUMARGS}
 VERBOSE=""
 BUILD_TYPE=Release
 INSTALL_TARGET=install
 BUILD_DISABLE_DEPRECATION_WARNING=ON
+BUILD_ALL_GPU_ARCH=0
 
 # Set defaults for vars that may not have been defined externally
 #  FIXME: if PREFIX is not set, check CONDA_PREFIX, but there is no fallback
 #  from there!
 INSTALL_PREFIX=${PREFIX:=${CONDA_PREFIX}}
-PARALLEL_LEVEL=${PARALLEL_LEVEL:=""}
+PARALLEL_LEVEL=${PARALLEL_LEVEL:=`nproc`}
 BUILD_ABI=${BUILD_ABI:=ON}
 
 function hasArg {
@@ -73,15 +76,22 @@ fi
 # Process flags
 if hasArg -v; then
     VERBOSE=1
+    ARG_COUNT=$((ARG_COUNT -1))
 fi
 if hasArg -g; then
     BUILD_TYPE=Debug
+    ARG_COUNT=$((ARG_COUNT -1))
 fi
 if hasArg -n; then
     INSTALL_TARGET=""
+    ARG_COUNT=$((ARG_COUNT -1))
+fi
+if hasArg --allgpuarch; then
+    BUILD_ALL_GPU_ARCH=1
 fi
 if hasArg --show_depr_warn; then
     BUILD_DISABLE_DEPRECATION_WARNING=OFF
+    ARG_COUNT=$((ARG_COUNT -1))
 fi
 
 # If clean given, run it prior to any other steps
@@ -100,18 +110,26 @@ fi
 
 ################################################################################
 # Configure, build, and install libcugraph
-if (( ${NUMARGS} == 0 )) || hasArg libcugraph; then
+if (( ${ARG_COUNT} == 0 )) || hasArg libcugraph; then
+    if (( ${BUILD_ALL_GPU_ARCH} == 0 )); then
+        GPU_ARCH=""
+        echo "Building for the architecture of the GPU in the system..."
+    else
+        GPU_ARCH="-DGPU_ARCHS=ALL"
+        echo "Building for *ALL* supported GPU architectures..."
+    fi
 
     mkdir -p ${LIBCUGRAPH_BUILD_DIR}
     cd ${LIBCUGRAPH_BUILD_DIR}
     cmake -DCMAKE_INSTALL_PREFIX=${INSTALL_PREFIX} \
-	  -DDISABLE_DEPRECATION_WARNING=${BUILD_DISABLE_DEPRECATION_WARNING} \
+          ${GPU_ARCH} \
+	      -DDISABLE_DEPRECATION_WARNING=${BUILD_DISABLE_DEPRECATION_WARNING} \
           -DCMAKE_BUILD_TYPE=${BUILD_TYPE} ..
     make -j${PARALLEL_LEVEL} VERBOSE=${VERBOSE} ${INSTALL_TARGET}
 fi
 
 # Build and install the cugraph Python package
-if (( ${NUMARGS} == 0 )) || hasArg cugraph; then
+if (( ${ARG_COUNT} == 0 )) || hasArg cugraph; then
 
     cd ${REPODIR}/python
     if [[ ${INSTALL_TARGET} != "" ]]; then
@@ -124,7 +142,7 @@ fi
 
 ################################################################################
 # Build the docs
-if (( ${NUMARGS} == 0 )) || hasArg docs; then
+if (( ${ARG_COUNT} == 0 )) || hasArg docs; then
 
     if [ ! -d ${LIBCUGRAPH_BUILD_DIR} ]; then
         mkdir -p ${LIBCUGRAPH_BUILD_DIR}

@@ -203,12 +203,12 @@ void overlap_list(GraphCSRView<VT, ET, WT> const &graph,
  *
  * @throws                                      cugraph::logic_error when an error occurs.
  *
- * @tparam VT                                   Type of vertex identifiers. Supported value : int
+ * @tparam vertex_t                                   Type of vertex identifiers. Supported value :
+ * int (signed, 32-bit)
+ * @tparam edge_t                                   Type of edge identifiers.  Supported value : int
  * (signed, 32-bit)
- * @tparam ET                                   Type of edge identifiers.  Supported value : int
- * (signed, 32-bit)
- * @tparam WT                                   Type of edge weights. Supported values : float or
- * double.
+ * @tparam weight_t                                   Type of edge weights. Supported values : float
+ * or double.
  *
  * @param[in] graph                             cuGraph graph descriptor, should contain the
  * connectivity information as a COO. Graph is considered undirected. Edge weights are used for this
@@ -228,18 +228,16 @@ void overlap_list(GraphCSRView<VT, ET, WT> const &graph,
  * is “no influence” and 1 is “normal”.
  * @param[in] jitter_tolerance                  How much swinging you allow. Above 1 discouraged.
  * Lower gives less speed and more precision.
- * @param[in] barnes_hut_optimize:              Whether to use the fast Barnes Hut or use the slower
- * exact version.
+ * @param[in] barnes_hut_optimize:              Whether to use the Barnes Hut approximation or the
+ * slower exact version.
  * @param[in] barnes_hut_theta:                 Float between 0 and 1. Tradeoff for speed (1) vs
  * accuracy (0) for Barnes Hut only.
  * @params[in] scaling_ratio                    Float strictly positive. How much repulsion you
  * want. More makes a more sparse graph. Switching from regular mode to LinLog mode needs a
  * readjustment of the scaling parameter.
- * @params[in] strong_gravity_mode                      The “Strong gravity” option sets a force
- * that attracts the nodes that are distant from the center more ( is this distance). This force has
- * the drawback of being so strong that it is sometimes stronger than the other forces. It may
- * result in a biased placement of the nodes. However, its advantage is to force a very compact
- * layout, which may be useful for certain purposes.
+ * @params[in] strong_gravity_mode              Sets a force
+ * that attracts the nodes that are distant from the center more. It is so strong that it can
+ * sometimes dominate other forces.
  * @params[in] gravity                          Attracts nodes to the center. Prevents islands from
  * drifting away.
  * @params[in] verbose                          Output convergence info at each interation.
@@ -247,8 +245,8 @@ void overlap_list(GraphCSRView<VT, ET, WT> const &graph,
  * intercept the internal state of positions while they are being trained.
  *
  */
-template <typename VT, typename ET, typename WT>
-void force_atlas2(GraphCOOView<VT, ET, WT> &graph,
+template <typename vertex_t, typename edge_t, typename weight_t>
+void force_atlas2(GraphCOOView<vertex_t, edge_t, weight_t> &graph,
                   float *pos,
                   const int max_iter                            = 500,
                   float *x_start                                = nullptr,
@@ -605,6 +603,37 @@ void bfs(raft::handle_t const &handle,
          bool mg_batch = false);
 
 /**
+ * @brief      Compute Hungarian algorithm on a weighted bipartite graph
+ *
+ * The Hungarian algorithm computes an assigment of "jobs" to "workers".  This function accepts
+ * a weighted graph and a vertex list identifying the "workers".  The weights in the weighted
+ * graph identify the cost of assigning a particular job to a worker.  The algorithm computes
+ * a minimum cost assignment and returns the cost as well as a vector identifying the assignment.
+ *
+ * @throws     cugraph::logic_error when an error occurs.
+ *
+ * @tparam vertex_t                  Type of vertex identifiers. Supported value : int (signed,
+ * 32-bit)
+ * @tparam edge_t                    Type of edge identifiers.  Supported value : int (signed,
+ * 32-bit)
+ * @tparam weight_t                  Type of edge weights. Supported values : float or double.
+ *
+ * @param[in]  handle                Library handle (RAFT). If a communicator is set in the handle,
+ * @param[in]  graph                 cuGRAPH COO graph
+ * @param[in]  num_workers           number of vertices in the worker set
+ * @param[in]  workers               device pointer to an array of worker vertex ids
+ * @param[out] assignment            device pointer to an array to which the assignment will be
+ * written. The array should be num_workers long, and will identify which vertex id (job) is
+ * assigned to that worker
+ */
+template <typename vertex_t, typename edge_t, typename weight_t>
+weight_t hungarian(raft::handle_t const &handle,
+                   GraphCOOView<vertex_t, edge_t, weight_t> const &graph,
+                   vertex_t num_workers,
+                   vertex_t const *workers,
+                   vertex_t *assignment);
+
+/**
  * @brief      Louvain implementation
  *
  * Compute a clustering of the graph by maximizing modularity
@@ -715,8 +744,33 @@ void ecg(raft::handle_t const &handle,
          vertex_t ensemble_size,
          vertex_t *clustering);
 
-namespace triangle {
+/**
+ * @brief Generate edges in a minimum spanning forest of an undirected weighted graph.
+ *
+ * A minimum spanning tree is a subgraph of the graph (a tree) with the minimum sum of edge weights.
+ * A spanning forest is a union of the spanning trees for each connected component of the graph.
+ * If the graph is connected it returns the minimum spanning tree.
+ *
+ * @throws     cugraph::logic_error when an error occurs.
+ *
+ * @tparam vertex_t                  Type of vertex identifiers. Supported value : int (signed,
+ * 32-bit)
+ * @tparam edge_t                    Type of edge identifiers.  Supported value : int (signed,
+ * 32-bit)
+ * @tparam weight_t                  Type of edge weights. Supported values : float or double.
+ *
+ * @param[in]  handle                Library handle (RAFT). If a communicator is set in the handle,
+ * @param[in]  graph_csr             input graph object (CSR) expected to be symmetric
+ * @param[in]  mr                    Memory resource used to allocate the returned graph
+ * @return out_graph             Unique pointer to MSF subgraph in COO format
+ */
+template <typename vertex_t, typename edge_t, typename weight_t>
+std::unique_ptr<GraphCOO<vertex_t, edge_t, weight_t>> minimum_spanning_tree(
+  raft::handle_t const &handle,
+  GraphCSRView<vertex_t, edge_t, weight_t> const &graph,
+  rmm::mr::device_memory_resource *mr = rmm::mr::get_current_device_resource());
 
+namespace triangle {
 /**
  * @brief             Count the number of triangles in the graph
  *
@@ -934,6 +988,38 @@ void hits(GraphCSRView<VT, ET, WT> const &graph,
 
 }  // namespace gunrock
 
+namespace dense {
+/**
+ * @brief      Compute Hungarian algorithm on a weighted bipartite graph
+ *
+ * The Hungarian algorithm computes an assigment of "jobs" to "workers".  This function accepts
+ * a weighted graph and a vertex list identifying the "workers".  The weights in the weighted
+ * graph identify the cost of assigning a particular job to a worker.  The algorithm computes
+ * a minimum cost assignment and returns the cost as well as a vector identifying the assignment.
+ *
+ * @throws     cugraph::logic_error when an error occurs.
+ *
+ * @tparam vertex_t                  Type of vertex identifiers. Supported value : int (signed,
+ * 32-bit)
+ * @tparam weight_t                  Type of edge weights. Supported values : float or double.
+ *
+ * @param[in]  handle                Library handle (RAFT). If a communicator is set in the handle,
+ * @param[in]  costs                 pointer to array of costs, stored in row major order
+ * @param[in]  num_rows              number of rows in dense matrix
+ * @param[in]  num_cols              number of cols in dense matrix
+ * @param[out] assignment            device pointer to an array to which the assignment will be
+ *                                   written. The array should be num_cols long, and will identify
+ *                                   which vertex id (job) is assigned to that worker
+ */
+template <typename vertex_t, typename weight_t>
+weight_t hungarian(raft::handle_t const &handle,
+                   weight_t const *costs,
+                   vertex_t num_rows,
+                   vertex_t num_columns,
+                   vertex_t *assignment);
+
+}  // namespace dense
+
 namespace experimental {
 
 /**
@@ -1094,7 +1180,7 @@ void pagerank(raft::handle_t const &handle,
  * @param do_expensive_check A flag to run expensive checks for input arguments (if set to `true`).
  */
 template <typename vertex_t, typename edge_t, typename weight_t, typename result_t, bool multi_gpu>
-void katz_centrality(raft::handle_t &handle,
+void katz_centrality(raft::handle_t const &handle,
                      graph_view_t<vertex_t, edge_t, weight_t, true, multi_gpu> const &graph_view,
                      result_t *betas,
                      result_t *katz_centralities,
@@ -1107,5 +1193,4 @@ void katz_centrality(raft::handle_t &handle,
                      bool do_expensive_check = false);
 
 }  // namespace experimental
-
 }  // namespace cugraph

@@ -65,23 +65,6 @@ def compare_edges(cg, nxg):
     return True
 
 
-# FIXME: the default set of datasets includes an asymmetric directed graph
-# (email-EU-core.csv), which currently produces different results between
-# cugraph and Nx and fails that test. Investigate, resolve, and use
-# utils.DATASETS instead.
-#
-# https://github.com/rapidsai/cugraph/issues/1046
-#
-# @pytest.mark.parametrize("graph_file", utils.DATASETS)
-@pytest.mark.parametrize("graph_file", utils.DATASETS_UNDIRECTED)
-def test_core_number_DiGraph(graph_file):
-    gc.collect()
-
-    cu_kcore, nx_kcore = calc_k_cores(graph_file)
-
-    assert compare_edges(cu_kcore, nx_kcore)
-
-
 @pytest.mark.parametrize("graph_file", utils.DATASETS_UNDIRECTED)
 def test_core_number_Graph(graph_file):
     gc.collect()

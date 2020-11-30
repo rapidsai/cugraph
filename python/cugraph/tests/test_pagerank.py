@@ -97,22 +97,19 @@ def networkx_call(Gnx, max_iter, tol, alpha, personalization_perc, nnz_vtx):
     personalization = None
     if personalization_perc != 0:
         personalization = {}
-        # print(nnz_vtx)
         personalization_count = int(
             (nnz_vtx.size * personalization_perc) / 100.0
         )
-        print(personalization_count)
         nnz_vtx = np.random.choice(
             nnz_vtx, min(nnz_vtx.size, personalization_count), replace=False
         )
-        # print(nnz_vtx)
+
         nnz_val = np.random.random(nnz_vtx.size)
         nnz_val = nnz_val / sum(nnz_val)
-        # print(nnz_val)
         for vtx, val in zip(nnz_vtx, nnz_val):
             personalization[vtx] = val
 
-    z = {k: 1.0 / Gnx.number_of_nodes() for k in range(Gnx.number_of_nodes())}
+    z = {k: 1.0 / Gnx.number_of_nodes() for k in Gnx.nodes()}
 
     # Networkx Pagerank Call
     t1 = time.time()
@@ -147,7 +144,7 @@ HAS_GUESS = [0, 1]
 # https://github.com/rapidsai/cugraph/issues/533
 #
 # @pytest.mark.parametrize("graph_file", utils.DATASETS)
-@pytest.mark.parametrize("graph_file", utils.DATASETS_UNDIRECTED)
+@pytest.mark.parametrize("graph_file", utils.DATASETS)
 @pytest.mark.parametrize("max_iter", MAX_ITERATIONS)
 @pytest.mark.parametrize("tol", TOLERANCE)
 @pytest.mark.parametrize("alpha", ALPHA)
@@ -160,7 +157,7 @@ def test_pagerank(
 
     # NetworkX PageRank
     M = utils.read_csv_for_nx(graph_file)
-    nnz_vtx = np.unique(M)
+    nnz_vtx = np.unique(M[['0', '1']])
     Gnx = nx.from_pandas_edgelist(
         M, source="0", target="1", create_using=nx.DiGraph()
     )
@@ -196,7 +193,7 @@ def test_pagerank(
     assert err < (0.01 * len(cugraph_pr))
 
 
-@pytest.mark.parametrize("graph_file", utils.DATASETS_UNDIRECTED)
+@pytest.mark.parametrize("graph_file", utils.DATASETS)
 @pytest.mark.parametrize("max_iter", MAX_ITERATIONS)
 @pytest.mark.parametrize("tol", TOLERANCE)
 @pytest.mark.parametrize("alpha", ALPHA)
@@ -209,7 +206,7 @@ def test_pagerank_nx(
 
     # NetworkX PageRank
     M = utils.read_csv_for_nx(graph_file)
-    nnz_vtx = np.unique(M)
+    nnz_vtx = np.unique(M[['0', '1']])
     Gnx = nx.from_pandas_edgelist(
         M, source="0", target="1", create_using=nx.DiGraph()
     )
@@ -232,6 +229,7 @@ def test_pagerank_nx(
     cugraph_pr = sorted(cugraph_pr.items(), key=lambda x: x[0])
     err = 0
     assert len(cugraph_pr) == len(networkx_pr)
+
     for i in range(len(cugraph_pr)):
         if (
             abs(cugraph_pr[i][1] - networkx_pr[i][1]) > tol * 1.1

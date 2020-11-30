@@ -99,6 +99,7 @@ class Graph:
         self.multi = multi
         self.distributed = False
         self.dynamic = dynamic
+        self.self_loop = False
         self.edgelist = None
         self.adjlist = None
         self.transposedadjlist = None
@@ -403,6 +404,8 @@ class Graph:
             if type(source) is list and type(destination) is list:
                 raise Exception("set renumber to True for multi column ids")
 
+        if (elist[source] == elist[destination]).any():
+            self.self_loop = True
         source_col = elist[source]
         dest_col = elist[destination]
 
@@ -539,7 +542,6 @@ class Graph:
         """
         Returns the graph adjacency matrix as a NumPy matrix.
         """
-
         np_array = self.to_numpy_array()
         return np.asmatrix(np_array)
 
@@ -748,10 +750,6 @@ class Graph:
         using the adjacency list format.
         If value_col is None, an unweighted graph is created. If value_col is
         not None, a weighted graph is created.
-        If copy is False, this function stores references to the passed objects
-        pointed by offset_col and index_col. If copy is True, this funcion
-        stores references to the deep-copies of the passed objects pointed by
-        offset_col and index_col.
         Undirected edges must be stored as directed edges in both directions.
 
         Parameters
@@ -1216,7 +1214,7 @@ class Graph:
             df = self.unrenumber(df, "vertex")
 
         if vertex_subset is not None:
-            df = df.query("`vertex` in @vertex_subset")
+            df = df[df['vertex'].isin(vertex_subset)]
 
         return df
 
@@ -1230,7 +1228,7 @@ class Graph:
             df = self.unrenumber(df, "vertex")
 
         if vertex_subset is not None:
-            df = df.query("`vertex` in @vertex_subset")
+            df = df[df['vertex'].isin(vertex_subset)]
 
         return df
 
