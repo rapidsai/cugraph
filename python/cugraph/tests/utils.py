@@ -31,7 +31,7 @@ import cudf
 import dask_cudf
 
 import cugraph
-from cugraph.dask.common.mg_utils import (get_client)
+from cugraph.dask.common.mg_utils import get_client
 
 
 CUPY_MATRIX_TYPES = [cp_coo_matrix, cp_csr_matrix, cp_csc_matrix]
@@ -40,90 +40,104 @@ SCIPY_MATRIX_TYPES = [sp_coo_matrix, sp_csr_matrix, sp_csc_matrix]
 #
 # Datasets
 #
-DATASETS_UNDIRECTED = ['../datasets/karate.csv',  '../datasets/dolphins.csv']
-DATASETS_UNRENUMBERED = ['../datasets/karate-disjoint.csv']
+DATASETS_UNDIRECTED = ["../datasets/karate.csv", "../datasets/dolphins.csv"]
 
-DATASETS = ['../datasets/karate-disjoint.csv',
-            '../datasets/dolphins.csv',
-            '../datasets/netscience.csv']
+DATASETS_UNDIRECTED_WEIGHTS = [
+    "../datasets/netscience.csv",
+]
+
+DATASETS_UNRENUMBERED = ["../datasets/karate-disjoint.csv"]
+
+DATASETS = [
+    "../datasets/karate-disjoint.csv",
+    "../datasets/dolphins.csv",
+    "../datasets/netscience.csv",
+]
 #            '../datasets/email-Eu-core.csv']
 
-STRONGDATASETS = ['../datasets/dolphins.csv',
-                  '../datasets/netscience.csv',
-                  '../datasets/email-Eu-core.csv']
+STRONGDATASETS = [
+    "../datasets/dolphins.csv",
+    "../datasets/netscience.csv",
+    "../datasets/email-Eu-core.csv",
+]
 
-DATASETS_KTRUSS = [('../datasets/polbooks.csv',
-                    '../datasets/ref/ktruss/polbooks.csv')]
+DATASETS_KTRUSS = [
+    ("../datasets/polbooks.csv", "../datasets/ref/ktruss/polbooks.csv")
+]
 
-DATASETS_SMALL = ['../datasets/karate.csv',
-                  '../datasets/dolphins.csv',
-                  '../datasets/polbooks.csv']
+DATASETS_SMALL = [
+    "../datasets/karate.csv",
+    "../datasets/dolphins.csv",
+    "../datasets/polbooks.csv",
+]
 
-MATRIX_INPUT_TYPES = [pytest.param(cp_coo_matrix,
-                                   marks=pytest.mark.matrix_types,
-                                   id="CuPy.coo_matrix"),
-                      pytest.param(cp_csr_matrix,
-                                   marks=pytest.mark.matrix_types,
-                                   id="CuPy.csr_matrix"),
-                      pytest.param(cp_csc_matrix,
-                                   marks=pytest.mark.matrix_types,
-                                   id="CuPy.csc_matrix"),
-                      pytest.param(sp_coo_matrix,
-                                   marks=pytest.mark.matrix_types,
-                                   id="SciPy.coo_matrix"),
-                      pytest.param(sp_csr_matrix,
-                                   marks=pytest.mark.matrix_types,
-                                   id="SciPy.csr_matrix"),
-                      pytest.param(sp_csc_matrix,
-                                   marks=pytest.mark.matrix_types,
-                                   id="SciPy.csc_matrix"),
-                      ]
+MATRIX_INPUT_TYPES = [
+    pytest.param(
+        cp_coo_matrix, marks=pytest.mark.cupy_types, id="CuPy.coo_matrix"
+    ),
+    pytest.param(
+        cp_csr_matrix, marks=pytest.mark.cupy_types, id="CuPy.csr_matrix"
+    ),
+    pytest.param(
+        cp_csc_matrix, marks=pytest.mark.cupy_types, id="CuPy.csc_matrix"
+    ),
+]
 
-NX_INPUT_TYPES = [pytest.param(nx.Graph,
-                               marks=pytest.mark.nx_types,
-                               id="nx.Graph"),
-                  ]
+NX_INPUT_TYPES = [
+    pytest.param(nx.Graph, marks=pytest.mark.nx_types, id="nx.Graph"),
+]
 
-NX_DIR_INPUT_TYPES = [pytest.param(nx.Graph,
-                                   marks=pytest.mark.nx_types,
-                                   id="nx.DiGraph"),
-                      ]
+NX_DIR_INPUT_TYPES = [
+    pytest.param(nx.Graph, marks=pytest.mark.nx_types, id="nx.DiGraph"),
+]
 
-CUGRAPH_INPUT_TYPES = [pytest.param(cugraph.Graph,
-                                    marks=pytest.mark.cugraph_types,
-                                    id="cugraph.Graph"),
-                       ]
+CUGRAPH_INPUT_TYPES = [
+    pytest.param(
+        cugraph.Graph, marks=pytest.mark.cugraph_types, id="cugraph.Graph"
+    ),
+]
 
-CUGRAPH_DIR_INPUT_TYPES = [pytest.param(cugraph.DiGraph,
-                                        marks=pytest.mark.cugraph_types,
-                                        id="cugraph.DiGraph"),
-                           ]
+CUGRAPH_DIR_INPUT_TYPES = [
+    pytest.param(
+        cugraph.DiGraph, marks=pytest.mark.cugraph_types, id="cugraph.DiGraph"
+    ),
+]
 
 
 def read_csv_for_nx(csv_file, read_weights_in_sp=True, read_weights=True):
-    print('Reading ' + str(csv_file) + '...')
+    print("Reading " + str(csv_file) + "...")
     if read_weights:
         if read_weights_in_sp is True:
-            df = pd.read_csv(csv_file, delimiter=' ', header=None,
-                             names=['0', '1', 'weight'],
-                             dtype={'0': 'int32', '1': 'int32',
-                                    'weight': 'float32'})
+            df = pd.read_csv(
+                csv_file,
+                delimiter=" ",
+                header=None,
+                names=["0", "1", "weight"],
+                dtype={"0": "int32", "1": "int32", "weight": "float32"},
+            )
         else:
-            df = pd.read_csv(csv_file, delimiter=' ', header=None,
-                             names=['0', '1', 'weight'],
-                             dtype={'0': 'int32', '1': 'int32',
-                                    'weight': 'float64'})
+            df = pd.read_csv(
+                csv_file,
+                delimiter=" ",
+                header=None,
+                names=["0", "1", "weight"],
+                dtype={"0": "int32", "1": "int32", "weight": "float64"},
+            )
     else:
-        df = pd.read_csv(csv_file, delimiter=' ', header=None,
-                         names=['0', '1'],
-                         usecols=['0', '1'],
-                         dtype={'0': 'int32', '1': 'int32'})
-
+        df = pd.read_csv(
+            csv_file,
+            delimiter=" ",
+            header=None,
+            names=["0", "1"],
+            usecols=["0", "1"],
+            dtype={"0": "int32", "1": "int32"},
+        )
     return df
 
 
-def create_obj_from_csv(csv_file_name, obj_type,
-                        csv_has_weights=True, edgevals=False):
+def create_obj_from_csv(
+    csv_file_name, obj_type, csv_has_weights=True, edgevals=False
+):
     """
     Return an object based on obj_type populated with the contents of
     csv_file_name
@@ -132,20 +146,19 @@ def create_obj_from_csv(csv_file_name, obj_type,
         return generate_cugraph_graph_from_file(
             csv_file_name,
             directed=(obj_type is cugraph.DiGraph),
-            edgevals=edgevals)
+            edgevals=edgevals,
+        )
 
     elif obj_type in SCIPY_MATRIX_TYPES + CUPY_MATRIX_TYPES:
         # FIXME: assuming float32
         if csv_has_weights:
-            (rows, cols, weights) = np.genfromtxt(csv_file_name,
-                                                  delimiter=" ",
-                                                  dtype=np.float32,
-                                                  unpack=True)
+            (rows, cols, weights) = np.genfromtxt(
+                csv_file_name, delimiter=" ", dtype=np.float32, unpack=True
+            )
         else:
-            (rows, cols) = np.genfromtxt(csv_file_name,
-                                         delimiter=" ",
-                                         dtype=np.float32,
-                                         unpack=True)
+            (rows, cols) = np.genfromtxt(
+                csv_file_name, delimiter=" ", dtype=np.float32, unpack=True
+            )
 
         if (csv_has_weights is False) or (edgevals is False):
             # COO matrices must have a value array. Also if edgevals are to be
@@ -153,12 +166,15 @@ def create_obj_from_csv(csv_file_name, obj_type,
             weights = np.array([1] * len(rows))
 
         if obj_type in CUPY_MATRIX_TYPES:
-            coo = cp_coo_matrix((cp.asarray(weights), (cp.asarray(rows),
-                                                       cp.asarray(cols))),
-                                dtype=np.float32)
+            coo = cp_coo_matrix(
+                (cp.asarray(weights), (cp.asarray(rows), cp.asarray(cols))),
+                dtype=np.float32,
+            )
         else:
-            coo = sp_coo_matrix((weights, (np.array(rows, dtype=int),
-                                           np.array(cols, dtype=int))))
+            coo = sp_coo_matrix(
+                (weights, (np.array(rows, dtype=int),
+                           np.array(cols, dtype=int))),
+            )
 
         if obj_type in [cp_csr_matrix, sp_csr_matrix]:
             return coo.tocsr(copy=False)
@@ -169,71 +185,98 @@ def create_obj_from_csv(csv_file_name, obj_type,
 
     elif obj_type in [nx.Graph, nx.DiGraph]:
         return generate_nx_graph_from_file(
-            csv_file_name, directed=(obj_type is nx.DiGraph),
-            edgevals=edgevals)
+            csv_file_name, directed=(obj_type is nx.DiGraph), edgevals=edgevals
+        )
 
     else:
         raise TypeError(f"unsupported type: {obj_type}")
 
 
 def read_csv_file(csv_file, read_weights_in_sp=True):
-    print('Reading ' + str(csv_file) + '...')
+    print("Reading " + str(csv_file) + "...")
     if read_weights_in_sp is True:
-        return cudf.read_csv(csv_file, delimiter=' ',
-                             dtype=['int32', 'int32', 'float32'], header=None)
+        return cudf.read_csv(
+            csv_file,
+            delimiter=" ",
+            dtype=["int32", "int32", "float32"],
+            header=None,
+        )
     else:
-        return cudf.read_csv(csv_file, delimiter=' ',
-                             dtype=['int32', 'int32', 'float64'], header=None)
+        return cudf.read_csv(
+            csv_file,
+            delimiter=" ",
+            dtype=["int32", "int32", "float64"],
+            header=None,
+        )
 
 
-def read_dask_cudf_csv_file(csv_file, read_weights_in_sp=True,
-                            single_partition=True):
-    print('Reading ' + str(csv_file) + '...')
+def read_dask_cudf_csv_file(
+    csv_file, read_weights_in_sp=True, single_partition=True
+):
+    print("Reading " + str(csv_file) + "...")
     if read_weights_in_sp is True:
         if single_partition:
             chunksize = os.path.getsize(csv_file)
-            return dask_cudf.read_csv(csv_file, chunksize=chunksize,
-                                      delimiter=' ',
-                                      names=['src', 'dst', 'weight'],
-                                      dtype=['int32', 'int32', 'float32'],
-                                      header=None)
+            return dask_cudf.read_csv(
+                csv_file,
+                chunksize=chunksize,
+                delimiter=" ",
+                names=["src", "dst", "weight"],
+                dtype=["int32", "int32", "float32"],
+                header=None,
+            )
         else:
-            return dask_cudf.read_csv(csv_file, delimiter=' ',
-                                      names=['src', 'dst', 'weight'],
-                                      dtype=['int32', 'int32', 'float32'],
-                                      header=None)
+            return dask_cudf.read_csv(
+                csv_file,
+                delimiter=" ",
+                names=["src", "dst", "weight"],
+                dtype=["int32", "int32", "float32"],
+                header=None,
+            )
     else:
         if single_partition:
             chunksize = os.path.getsize(csv_file)
-            return dask_cudf.read_csv(csv_file, chunksize=chunksize,
-                                      delimiter=' ',
-                                      names=['src', 'dst', 'weight'],
-                                      dtype=['int32', 'int32', 'float32'],
-                                      header=None)
+            return dask_cudf.read_csv(
+                csv_file,
+                chunksize=chunksize,
+                delimiter=" ",
+                names=["src", "dst", "weight"],
+                dtype=["int32", "int32", "float32"],
+                header=None,
+            )
         else:
-            return dask_cudf.read_csv(csv_file, delimiter=' ',
-                                      names=['src', 'dst', 'weight'],
-                                      dtype=['int32', 'int32', 'float64'],
-                                      header=None)
+            return dask_cudf.read_csv(
+                csv_file,
+                delimiter=" ",
+                names=["src", "dst", "weight"],
+                dtype=["int32", "int32", "float64"],
+                header=None,
+            )
 
 
 def generate_nx_graph_from_file(graph_file, directed=True, edgevals=False):
     M = read_csv_for_nx(graph_file, read_weights_in_sp=edgevals)
     edge_attr = "weight" if edgevals else None
-    Gnx = nx.from_pandas_edgelist(M, create_using=(nx.DiGraph() if directed
-                                                   else nx.Graph()),
-                                  source='0', target='1', edge_attr=edge_attr)
+    Gnx = nx.from_pandas_edgelist(
+        M,
+        create_using=(nx.DiGraph() if directed else nx.Graph()),
+        source="0",
+        target="1",
+        edge_attr=edge_attr,
+    )
     return Gnx
 
 
-def generate_cugraph_graph_from_file(graph_file, directed=True,
-                                     edgevals=False):
+def generate_cugraph_graph_from_file(
+    graph_file, directed=True, edgevals=False
+):
     cu_M = read_csv_file(graph_file)
     G = cugraph.DiGraph() if directed else cugraph.Graph()
+
     if edgevals:
-        G.from_cudf_edgelist(cu_M, source='0', destination='1', edge_attr='2')
+        G.from_cudf_edgelist(cu_M, source="0", destination="1", edge_attr="2")
     else:
-        G.from_cudf_edgelist(cu_M, source='0', destination='1')
+        G.from_cudf_edgelist(cu_M, source="0", destination="1")
     return G
 
 
@@ -253,16 +296,21 @@ def build_cu_and_nx_graphs(graph_file, directed=True):
 
 
 def build_mg_batch_cu_and_nx_graphs(graph_file, directed=True):
-    G = generate_mg_batch_cugraph_graph_from_file(graph_file,
-                                                  directed=directed)
+    G = generate_mg_batch_cugraph_graph_from_file(
+        graph_file, directed=directed
+    )
     Gnx = generate_nx_graph_from_file(graph_file, directed=directed)
     return G, Gnx
 
 
-def random_edgelist(e=1024, ef=16,
-                    dtypes={"src": np.int32, "dst": np.int32, "val": float},
-                    drop_duplicates=True, seed=None):
-    """ Create a random edge list
+def random_edgelist(
+    e=1024,
+    ef=16,
+    dtypes={"src": np.int32, "dst": np.int32, "val": float},
+    drop_duplicates=True,
+    seed=None,
+):
+    """Create a random edge list
 
     Parameters
     ----------
@@ -290,14 +338,15 @@ def random_edgelist(e=1024, ef=16,
     >>>    #df.to_parquet('files_parquet/df'+str(x), index=False)
     """
     state = np.random.RandomState(seed)
-    columns = dict((k, make[dt](e // ef, e, state))
-                   for k, dt in dtypes.items())
+    columns = dict(
+        (k, make[dt](e // ef, e, state)) for k, dt in dtypes.items()
+    )
 
     df = pd.DataFrame(columns)
     if drop_duplicates:
-        df = df.drop_duplicates()
-        print("Generated "+str(df.shape[0])+" edges")
-    return cudf.from_pandas(df)
+        df = df.drop_duplicates(subset=["src", "dst"])
+        print("Generated " + str(df.shape[0]) + " edges")
+    return df
 
 
 def make_int32(v, e, rstate):
@@ -309,14 +358,10 @@ def make_int64(v, e, rstate):
 
 
 def make_float(v, e, rstate):
-    return rstate.rand(e) * 2 - 1
+    return rstate.rand(e)
 
 
-make = {
-    float: make_float,
-    np.int32: make_int32,
-    np.int64: make_int64
-}
+make = {float: make_float, np.int32: make_int32, np.int64: make_int64}
 
 
 def genFixtureParamsProduct(*args):
@@ -366,7 +411,35 @@ def genFixtureParamsProduct(*args):
     for paramCombo in product(*paramLists):
         values = [p.values[0] for p in paramCombo]
         marks = [m for p in paramCombo for m in p.marks]
-        comboid = ",".join(["%s=%s" % (id, p.values[0])
-                            for (p, id) in zip(paramCombo, ids)])
+        comboid = ",".join(
+            ["%s=%s" % (id, p.values[0]) for (p, id) in zip(paramCombo, ids)]
+        )
         retList.append(pytest.param(values, marks=marks, id=comboid))
     return retList
+
+
+# shared between min and max spanning tree tests
+def compare_mst(mst_cugraph, mst_nx):
+    mst_nx_df = nx.to_pandas_edgelist(mst_nx)
+    edgelist_df = mst_cugraph.view_edge_list()
+    assert len(mst_nx_df) == len(edgelist_df)
+
+    # check cycles
+    Gnx = nx.from_pandas_edgelist(
+        edgelist_df.to_pandas(),
+        create_using=nx.Graph(),
+        source="src",
+        target="dst",
+    )
+    try:
+        lc = nx.find_cycle(Gnx, source=None, orientation="ignore")
+        print(lc)
+    except nx.NetworkXNoCycle:
+        pass
+
+    # check total weight
+    cg_sum = edgelist_df["weights"].sum()
+    nx_sum = mst_nx_df["weight"].sum()
+    print(cg_sum)
+    print(nx_sum)
+    assert np.isclose(cg_sum, nx_sum)

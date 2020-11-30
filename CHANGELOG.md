@@ -1,11 +1,13 @@
 # cuGraph 0.17.0 (Date TBD)
 
 ## New Features
+- PR #1276 MST
 - PR #1245 Add functions to add pandas and numpy compatibility
 - PR #1260 Add katz_centrality mnmg wrapper
 - PR #1264 CuPy sparse matrix input support for WCC, SCC, SSSP, and BFS
 - PR #1265 Implement Hungarian Algorithm
 - PR #1274 Add generic from_edgelist() and from_adjlist() APIs
+- PR #1279 Add self loop check variable in graph
 - PR #1277 SciPy sparse matrix input support for WCC, SCC, SSSP, and BFS
 
 ## Improvements
