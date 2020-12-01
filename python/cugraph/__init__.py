@@ -78,6 +78,8 @@ from cugraph.traversal import (
     filter_unreachable,
 )
 
+from cugraph.tree import minimum_spanning_tree, maximum_spanning_tree
+
 from cugraph.utilities import utils
 
 from cugraph.bsp.traversal import bfs_df_pregel

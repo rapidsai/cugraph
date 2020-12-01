@@ -378,7 +378,7 @@ class GraphCOO {
   edge_t number_of_edges_p;
   rmm::device_buffer src_indices_p{};  ///< rowInd
   rmm::device_buffer dst_indices_p{};  ///< colInd
-  rmm::device_buffer edge_data_p{};    ///< CSR data
+  rmm::device_buffer edge_data_p{};    ///< data
 
  public:
   /**
@@ -386,7 +386,7 @@ class GraphCOO {
    *
    * @param  number_of_vertices    The number of vertices in the graph
    * @param  number_of_edges       The number of edges in the graph
-   * @param  has_data              Wiether or not the class has data, default = False
+   * @param  has_data              Whether or not the class has data, default = False
    * @param  stream                Specify the cudaStream, default = null
    * @param mr                     Specify the memory resource
    */
@@ -415,6 +415,14 @@ class GraphCOO {
       edge_data_p =
         rmm::device_buffer{graph.edge_data, graph.number_of_edges * sizeof(weight_t), stream, mr};
     }
+  }
+  GraphCOO(GraphCOOContents<vertex_t, edge_t, weight_t> &&contents)
+    : number_of_vertices_p(contents.number_of_vertices),
+      number_of_edges_p(contents.number_of_edges),
+      src_indices_p(std::move(*(contents.src_indices.release()))),
+      dst_indices_p(std::move(*(contents.dst_indices.release()))),
+      edge_data_p(std::move(*(contents.edge_data.release())))
+  {
   }
 
   vertex_t number_of_vertices(void) { return number_of_vertices_p; }
