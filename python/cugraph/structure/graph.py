@@ -1012,7 +1012,7 @@ class Graph:
             return len(self.edgelist.edgelist_df)
         if self.edge_count is None:
             if self.edgelist is not None:
-                if type(self) is Graph:
+                if type(self) is Graph or MultiGraph:
                     self.edge_count = len(
                         self.edgelist.edgelist_df[
                             self.edgelist.edgelist_df["src"]
