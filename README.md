@@ -73,6 +73,8 @@ for i in range(len(df_page)):
 | Other        |                                        |              |                     |
 |              | Hungarian Algorithm                    | Single-GPU   |                     |
 |              | Minimum Spanning Tree                  | Single-GPU   |                     |
+|              | Maximum Spanning Tree                  | Single-GPU   |                     |
+
 |  |  |
 
 </br></br>
@@ -97,7 +99,7 @@ cuGraph supports execution of graph algorithms from different graph objects
 * CuPy sparse matrix
 * SciPy sparse matrix
 
-cuGraph tries to match the return type based on the input type.  So a NetworkX input will return the same data type that Network would have.
+cuGraph tries to match the return type based on the input type.  So a NetworkX input will return the same data type that NetworkX would have.
 
 
 ## cuGraph Notice
