@@ -55,6 +55,7 @@ from cugraph.centrality import (
 from cugraph.cores import core_number, k_core
 
 from cugraph.components import (
+    connected_components,
     weakly_connected_components,
     strongly_connected_components,
 )
