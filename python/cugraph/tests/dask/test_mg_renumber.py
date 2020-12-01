@@ -36,7 +36,7 @@ from cugraph.dask.common.mg_utils import is_single_gpu
 def client_connection():
     cluster = LocalCUDACluster()
     client = Client(cluster)
-    Comms.initialize()
+    Comms.initialize(p2p=True)
 
     yield client
 
@@ -199,7 +199,7 @@ def test_dask_pagerank(client_connection):
     # dg.compute_local_data(by='dst')
 
     expected_pr = cugraph.pagerank(g)
-    result_pr = dcg.pagerank(dg)
+    result_pr = dcg.pagerank(dg).compute()
 
     err = 0
     tol = 1.0e-05

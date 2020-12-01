@@ -10,12 +10,23 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-import networkx as nx
+
 import cugraph
+from .utils import import_optional
 from cudf import from_pandas
+
+nx = import_optional("networkx")
 
 
 def convert_from_nx(nxG, weight=None):
+    """
+    weight, if given, is the string/name of the edge attr in nxG to use for
+    weights in the resulting cugraph obj.  If nxG has no edge attributes,
+    weight is ignored even if specified.
+    """
+    if nx is None:
+        raise RuntimeError("NetworkX could not be imported, "
+                           "cannot convert nxG")
     if type(nxG) == nx.classes.graph.Graph:
         G = cugraph.Graph()
     elif type(nxG) == nx.classes.digraph.DiGraph:
@@ -51,6 +62,8 @@ def convert_from_nx(nxG, weight=None):
 
 
 def is_networkx_graph(G):
+    if nx is None:
+        raise RuntimeError("NetworkX could not be imported, cannot check G")
     return isinstance(G, nx.classes.graph.Graph)
 
 
@@ -74,6 +87,8 @@ def check_nx_graph(G, weight=None):
         indicates rather or not the Graph was converted
     """
 
+    if nx is None:
+        raise RuntimeError("NetworkX could not be imported, cannot check G")
     if isinstance(G, nx.classes.graph.Graph):
         return convert_from_nx(G, weight), True
     else:
@@ -152,6 +167,9 @@ def df_edge_score_to_dictionary(df, k, src="src", dst="dst"):
 
 
 def cugraph_to_nx(G):
+    if nx is None:
+        raise RuntimeError("NetworkX could not be imported, cannot convert G")
+
     pdf = G.view_edge_list().to_pandas()
     num_col = len(pdf.columns)
 

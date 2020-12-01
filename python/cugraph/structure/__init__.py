@@ -14,6 +14,16 @@
 from cugraph.structure.graph import Graph, DiGraph
 from cugraph.structure.number_map import NumberMap
 from cugraph.structure.symmetrize import symmetrize, symmetrize_df , symmetrize_ddf
-from cugraph.structure.convert_matrix import from_cudf_edgelist
+from cugraph.structure.convert_matrix import (from_edgelist,
+                                              from_cudf_edgelist,
+                                              from_pandas_edgelist,
+                                              to_pandas_edgelist,
+                                              from_pandas_adjacency,
+                                              to_pandas_adjacency,
+                                              from_numpy_array,
+                                              to_numpy_array,
+                                              from_numpy_matrix,
+                                              to_numpy_matrix,
+                                              from_adjlist)
 from cugraph.structure.hypergraph import hypergraph
 from cugraph.structure.shuffle import shuffle

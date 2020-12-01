@@ -246,12 +246,22 @@ set(SCC_TEST_SRC
 ConfigureTest(SCC_TEST "${SCC_TEST_SRC}" "")
 
 ###################################################################################################
-# - FIND_MATCHES tests ----------------------------------------------------------------------------
+#-Hungarian (Linear Assignment Problem)  tests ---------------------------------------------------------------------
 
-set(FIND_MATCHES_TEST_SRC
-    "${CMAKE_CURRENT_SOURCE_DIR}/db/find_matches_test.cu")
+set(HUNGARIAN_TEST_SRC
+    "${CMAKE_CURRENT_SOURCE_DIR}/linear_assignment/hungarian_test.cu")
 
-ConfigureTest(FIND_MATCHES_TEST "${FIND_MATCHES_TEST_SRC}" "")
+ConfigureTest(HUNGARIAN_TEST "${HUNGARIAN_TEST_SRC}" "")
+
+###################################################################################################
+# - MST tests ----------------------------------------------------------------------------
+
+set(MST_TEST_SRC
+    "${CMAKE_SOURCE_DIR}/../thirdparty/mmio/mmio.c"
+    "${CMAKE_CURRENT_SOURCE_DIR}/tree/mst_test.cu")
+
+ConfigureTest(MST_TEST "${MST_TEST_SRC}" "")
+
 
 ###################################################################################################
 # - Experimental Graph tests ----------------------------------------------------------------------

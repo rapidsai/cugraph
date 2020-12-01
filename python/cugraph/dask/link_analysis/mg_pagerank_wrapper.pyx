@@ -99,8 +99,8 @@ def mg_pagerank(input_df,
 
     if personalization is not None:
         sz = personalization['vertex'].shape[0]
-        personalization['vertex'] = personalization['vertex'].astype(np.int32)
-        personalization['values'] = personalization['values'].astype(df['pagerank'].dtype)
+        personalization['vertex'] = personalization['vertex'].astype(vertex_t)
+        personalization['values'] = personalization['values'].astype(weight_t)
         c_pers_vtx = personalization['vertex'].__cuda_array_interface__['data'][0]
         c_pers_val = personalization['values'].__cuda_array_interface__['data'][0]
 

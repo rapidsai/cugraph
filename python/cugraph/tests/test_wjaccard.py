@@ -62,6 +62,8 @@ def networkx_call(M):
     edges = []
     for i in range(len(sources)):
         edges.append((sources[i], destinations[i]))
+        edges.append((destinations[i], sources[i]))
+    edges = list(dict.fromkeys(edges))
     edges = sorted(edges)
     # in NVGRAPH tests we read as CSR and feed as CSC, so here we doing this
     # explicitly
