@@ -28,6 +28,7 @@ from dask_cuda import LocalCUDACluster
 def client_connection():
     cluster = LocalCUDACluster()
     client = Client(cluster)
+    client.wait_for_workers(None)  # number of devices None = all vsble devices
     Comms.initialize(p2p=True)
 
     yield client

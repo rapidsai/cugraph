@@ -24,8 +24,8 @@ import cugraph.tests.utils as utils
 
 DATASETS_OPTIONS = utils.DATASETS_SMALL
 DIRECTED_GRAPH_OPTIONS = [False, True]
-# MG_DEVICE_COUNT_OPTIONS = [1, 2, 3, 4]
-MG_DEVICE_COUNT_OPTIONS = [1]
+MG_DEVICE_COUNT_OPTIONS = [1, 2, 3, 4]
+MG_DEVICE_COUNT_OPTIONS = [None]
 
 
 @pytest.mark.skipif(

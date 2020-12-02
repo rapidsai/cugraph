@@ -37,11 +37,12 @@ def get_visible_devices():
 
 
 def skip_if_not_enough_devices(required_devices):
-    visible_devices = get_visible_devices()
-    number_of_visible_devices = len(visible_devices)
-    if required_devices > number_of_visible_devices:
-        pytest.skip("Not enough devices available to "
-                    "test MG({})".format(required_devices))
+    if required_devices is not None:
+        visible_devices = get_visible_devices()
+        number_of_visible_devices = len(visible_devices)
+        if required_devices > number_of_visible_devices:
+            pytest.skip("Not enough devices available to "
+                        "test MG({})".format(required_devices))
 
 
 class MGContext:
