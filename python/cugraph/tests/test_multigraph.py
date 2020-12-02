@@ -24,6 +24,42 @@ def test_multigraph(graph_file):
 
     assert G.number_of_edges() == Gnx.number_of_edges()
     assert G.number_of_nodes() == Gnx.number_of_nodes()
+    cuedges = G.view_edge_list()
+    nxedges = pd.DataFrame(Gnx.edges(data=True))
+    #print(cuedges.sort_values(by=["src","dst"]))
+    #print(nxedges.sort_values(by=["0","1"]))
+
+
+@pytest.mark.parametrize("graph_file", utils.DATASETS)
+def test_Graph_from_MultiGraph(graph_file):
+    cuM = utils.read_csv_file(graph_file)
+    GM = cugraph.MultiGraph()
+    GM.from_cudf_edgelist(cuM, source="0", destination="1", edge_attr="2")
+    nxM = utils.read_csv_for_nx(graph_file, read_weights_in_sp=True)
+    GnxM = nx.from_pandas_edgelist(
+        nxM,
+        source="0",
+        target="1",
+        edge_attr="weight",
+        create_using=nx.MultiGraph(),
+    )
+
+    G = cugraph.Graph(GM)
+    Gnx = nx.Graph(GnxM)
+    assert Gnx.number_of_edges() == G.number_of_edges()
+
+    GdM = cugraph.MultiDiGraph()
+    GdM.from_cudf_edgelist(cuM, source="0", destination="1", edge_attr="2")
+    GnxdM = nx.from_pandas_edgelist(
+        nxM,
+        source="0",
+        target="1",
+        edge_attr="weight",
+        create_using=nx.MultiGraph(),
+    )
+    Gd = cugraph.DiGraph(GdM)
+    Gnxd = nx.DiGraph(GnxdM)
+    assert Gnxd.number_of_edges() == Gd.number_of_edges()
 
 
 @pytest.mark.parametrize("graph_file", utils.DATASETS)
@@ -45,10 +81,8 @@ def test_multigraph_sssp(graph_file):
     )
     nx_paths = nx.single_source_dijkstra_path_length(Gnx, 0)
 
-    print(cu_paths)
-    print(nx_paths)
-
     cu_dist = cu_paths.sort_values(by='vertex')['distance'].to_array()
     nx_dist = [i[1] for i in sorted(nx_paths.items())]
 
     assert (cu_dist == nx_dist).all()
+

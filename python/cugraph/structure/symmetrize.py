@@ -16,7 +16,7 @@ import cudf
 import dask_cudf
 
 
-def symmetrize_df(df, src_name, dst_name, multi):
+def symmetrize_df(df, src_name, dst_name, multi, symmetrize):
     """
     Take a COO stored in a DataFrame, along with the column names of
     the source and destination columns and create a new data frame
@@ -54,24 +54,26 @@ def symmetrize_df(df, src_name, dst_name, multi):
     >>> sym_ddf = cugraph.symmetrize_ddf(ddf, "src", "dst", "weight")
     >>> Comms.destroy()
     """
-    gdf = cudf.DataFrame()
-
     #
     #  Now append the columns.  We add sources to the end of destinations,
     #  and destinations to the end of sources.  Otherwise we append a
     #  column onto itself.
     #
-    for idx, name in enumerate(df.columns):
-        if name == src_name:
-            gdf[src_name] = df[src_name].append(
-                df[dst_name], ignore_index=True
-            )
-        elif name == dst_name:
-            gdf[dst_name] = df[dst_name].append(
-                df[src_name], ignore_index=True
-            )
-        else:
-            gdf[name] = df[name].append(df[name], ignore_index=True)
+    if symmetrize:
+        gdf = cudf.DataFrame()
+        for idx, name in enumerate(df.columns):
+            if name == src_name:
+                gdf[src_name] = df[src_name].append(
+                    df[dst_name], ignore_index=True
+                )
+            elif name == dst_name:
+                gdf[dst_name] = df[dst_name].append(
+                    df[src_name], ignore_index=True
+                )
+            else:
+                gdf[name] = df[name].append(df[name], ignore_index=True)
+    else:
+        gdf = df
     if multi:
         return gdf
     else:
@@ -131,7 +133,8 @@ def symmetrize_ddf(df, src_name, dst_name, weight_name=None):
     return result
 
 
-def symmetrize(source_col, dest_col, value_col=None, multi=False):
+def symmetrize(source_col, dest_col, value_col=None, multi=False,
+               symmetrize=True):
     """
     Take a COO set of source destination pairs along with associated values
     stored in a single GPU or distributed
@@ -192,7 +195,8 @@ def symmetrize(source_col, dest_col, value_col=None, multi=False):
             input_df, "source", "destination", weight_name
         ).persist()
     else:
-        output_df = symmetrize_df(input_df, "source", "destination", multi)
+        output_df = symmetrize_df(input_df, "source", "destination", multi,
+                                  symmetrize)
 
     if value_col is not None:
         return (
