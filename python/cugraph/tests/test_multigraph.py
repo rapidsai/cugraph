@@ -10,7 +10,7 @@ import numpy as np
 def test_multigraph(graph_file):
     gc.collect()
     cuM = utils.read_csv_file(graph_file)
-    G = cugraph.MultiGraph()
+    G = cugraph.MultiDiGraph()
     G.from_cudf_edgelist(cuM, source="0", destination="1", edge_attr="2")
 
     nxM = utils.read_csv_for_nx(graph_file, read_weights_in_sp=True)
@@ -19,15 +19,19 @@ def test_multigraph(graph_file):
         source="0",
         target="1",
         edge_attr="weight",
-        create_using=nx.MultiGraph(),
+        create_using=nx.MultiDiGraph(),
     )
 
     assert G.number_of_edges() == Gnx.number_of_edges()
     assert G.number_of_nodes() == Gnx.number_of_nodes()
-    cuedges = G.view_edge_list()
-    nxedges = pd.DataFrame(Gnx.edges(data=True))
-    #print(cuedges.sort_values(by=["src","dst"]))
-    #print(nxedges.sort_values(by=["0","1"]))
+    cuedges = cugraph.to_pandas_edgelist(G)
+    cuedges.rename(columns = {"src":"source", "dst":"target","weights":"weight"}, inplace=True)
+    cuedges["weight"] = cuedges["weight"].round(decimals = 3)
+    nxedges = nx.to_pandas_edgelist(Gnx).astype(dtype={"source":"int32","target":"int32","weight":"float32"})
+    cuedges = cuedges.sort_values(by=["source","target"]).reset_index(drop=True)
+    nxedges = nxedges.sort_values(by=["source","target"]).reset_index(drop=True)
+    nxedges["weight"] = nxedges["weight"].round(decimals = 3)
+    assert nxedges.equals(cuedges[["source", "target", "weight"]])
 
 
 @pytest.mark.parametrize("graph_file", utils.DATASETS)
@@ -85,4 +89,3 @@ def test_multigraph_sssp(graph_file):
     nx_dist = [i[1] for i in sorted(nx_paths.items())]
 
     assert (cu_dist == nx_dist).all()
-
