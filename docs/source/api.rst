@@ -210,8 +210,20 @@ Single-source-shortest-path
     :undoc-members:
 
 
-Utilities
+Tree
 =========
 
+Minimum Spanning Tree
+---------------------
 
+.. automodule:: cugraph.tree.minimum_spanning_tree
+    :members:
+    :undoc-members:
+
+Maximum Spanning Tree
+---------------------
+
+.. automodule:: cugraph.tree.maximum_spanning_tree
+    :members:
+    :undoc-members:
 
