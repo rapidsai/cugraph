@@ -136,16 +136,15 @@ class Graph:
                 else:
                     weights = None
                 self.from_cudf_edgelist(elist,
-                                        source = "src",
-                                        destination = "dst",
-                                        edge_attr = weights)
+                                        source="src",
+                                        destination="dst",
+                                        edge_attr=weights)
             else:
                 msg = (
                     "Graph can only be initialized using MultiGraph "
                     "or MultiDiGraph"
                 )
                 raise Exception(msg)
-
 
     def enable_batch(self):
         client = mg_utils.get_client()
@@ -436,10 +435,11 @@ class Graph:
         if value_col is not None:
             source_col, dest_col, value_col = symmetrize(
                 source_col, dest_col, value_col, multi=self.multi,
-                symmetrize = not self.symmetrized)
+                symmetrize=not self.symmetrized)
         else:
-            source_col, dest_col = symmetrize(source_col, dest_col,
-                multi=self.multi, symmetrize = not self.symmetrized)
+            source_col, dest_col = symmetrize(
+                source_col, dest_col, multi=self.multi,
+                symmetrize=not self.symmetrized)
 
         self.edgelist = Graph.EdgeList(source_col, dest_col, value_col)
 
@@ -741,7 +741,7 @@ class Graph:
             edgelist_df = self.unrenumber(edgelist_df, "src")
             edgelist_df = self.unrenumber(edgelist_df, "dst")
 
-        if type(self) is Graph:
+        if type(self) is Graph or type(self) is MultiGraph:
             edgelist_df = edgelist_df[edgelist_df["src"] <= edgelist_df["dst"]]
             edgelist_df = edgelist_df.reset_index(drop=True)
             self.edge_count = len(edgelist_df)
