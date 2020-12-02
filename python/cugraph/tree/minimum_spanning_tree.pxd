@@ -11,6 +11,15 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from cugraph.components.connectivity import connected_components
-from cugraph.components.connectivity import weakly_connected_components
-from cugraph.components.connectivity import strongly_connected_components
+# cython: profile=False
+# distutils: language = c++
+# cython: embedsignature = True
+# cython: language_level = 3
+
+from cugraph.structure.graph_primtypes cimport *
+
+
+cdef extern from "algorithms.hpp" namespace "cugraph":
+
+    cdef unique_ptr[GraphCOO[VT,ET,WT]] minimum_spanning_tree[VT,ET,WT](const handle_t &handle,
+        const GraphCSRView[VT,ET,WT] &graph) except +

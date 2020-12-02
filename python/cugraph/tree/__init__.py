@@ -1,4 +1,4 @@
-# Copyright (c) 2019-2020, NVIDIA CORPORATION.
+# Copyright (c) 2020, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -11,6 +11,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from cugraph.components.connectivity import connected_components
-from cugraph.components.connectivity import weakly_connected_components
-from cugraph.components.connectivity import strongly_connected_components
+from cugraph.tree.minimum_spanning_tree import (
+    minimum_spanning_tree,
+    maximum_spanning_tree,
+)

@@ -1,11 +1,14 @@
 # cuGraph 0.17.0 (Date TBD)
 
 ## New Features
+- PR #1276 MST
 - PR #1245 Add functions to add pandas and numpy compatibility
 - PR #1260 Add katz_centrality mnmg wrapper
 - PR #1264 CuPy sparse matrix input support for WCC, SCC, SSSP, and BFS
 - PR #1265 Implement Hungarian Algorithm
 - PR #1274 Add generic from_edgelist() and from_adjlist() APIs
+- PR #1279 Add self loop check variable in graph
+- PR #1277 SciPy sparse matrix input support for WCC, SCC, SSSP, and BFS
 
 ## Improvements
 - PR #1227 Pin cmake policies to cmake 3.17 version
@@ -13,6 +16,8 @@
 - PR #1269 Removed old db code that was not being used
 - PR #1271 Add extra check to make SG Louvain deterministic
 - PR #1273 Update Force Atlas 2 notebook, wrapper and coding style
+- PR #1289 Update api.rst for MST
+- PR #1281 Update README
 
 ## Bug Fixes
 - PR #1237 update tests for assymetric graphs, enable personalization pagerank
@@ -23,6 +28,8 @@
 - PR #1253 MG test fixes: updated additional comms.initialize() calls, fixed dask DataFrame comparisons
 - PR #1270 Raise exception for p2p, disable bottom up approach for bfs
 - PR #1275 Force local artifact conda install
+- PR #1285 Move codecov upload to gpu build script
+
 
 # cuGraph 0.16.0 (21 Oct 2020)
 

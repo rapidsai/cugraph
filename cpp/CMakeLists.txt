@@ -95,7 +95,7 @@ endforeach()
 list(GET GPU_ARCHS -1 ptx)
 set(CMAKE_CUDA_FLAGS "${CMAKE_CUDA_FLAGS} -gencode arch=compute_${ptx},code=compute_${ptx}")
 
-set(CMAKE_CUDA_FLAGS "${CMAKE_CUDA_FLAGS} --expt-extended-lambda")
+set(CMAKE_CUDA_FLAGS "${CMAKE_CUDA_FLAGS} --expt-extended-lambda --expt-relaxed-constexpr")
 set(CMAKE_CUDA_FLAGS "${CMAKE_CUDA_FLAGS} -Werror=cross-execution-space-call -Wno-deprecated-declarations -Xptxas --disable-warnings")
 set(CMAKE_CUDA_FLAGS "${CMAKE_CUDA_FLAGS} -Xcompiler -Wall,-Wno-error=sign-compare,-Wno-error=unused-but-set-variable")
 
@@ -316,7 +316,7 @@ else(DEFINED ENV{RAFT_PATH})
 
   ExternalProject_Add(raft
     GIT_REPOSITORY    https://github.com/rapidsai/raft.git
-    GIT_TAG           ca7465ed41d1129e446309e4a32649eb2d35e2e3
+    GIT_TAG           315de02f8e2304e078e5e0f6df23c6a6799e23f4
     PREFIX            ${RAFT_DIR}
     CONFIGURE_COMMAND ""
     BUILD_COMMAND     ""
@@ -372,6 +372,7 @@ add_library(cugraph SHARED
     src/experimental/sssp.cu
     src/experimental/pagerank.cu
     src/experimental/katz_centrality.cu
+    src/tree/mst.cu
 )
 
 #
