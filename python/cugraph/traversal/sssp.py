@@ -229,7 +229,8 @@ def sssp(G,
         source = G.lookup_internal_vertex_id(cudf.Series([source]))[0]
 
     if source is cudf.NA:
-        raise ValueError("Starting vertex should be between 0 to number of vertices")
+        raise ValueError(
+            "Starting vertex should be between 0 to number of vertices")
 
     df = sssp_wrapper.sssp(G, source)
 
@@ -337,7 +338,8 @@ def shortest_path_length(G, source, target=None):
         if not hasattr(G, "has_node"):
             # G is a cupy coo_matrix. Extract maximum possible vertex value
             as_matrix = G.toarray()
-            if target < 0 or target >= max(as_matrix.shape[0], as_matrix.shape[1]):
+            if target < 0 or target >= max(as_matrix.shape[0],
+                                           as_matrix.shape[1]):
                 raise ValueError("Graph does not contain target vertex")
         elif not G.has_node(target):
             # G is an instance of cugraph or networkx graph
