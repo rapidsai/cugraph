@@ -53,6 +53,11 @@ class matrix_partition_device_base_t {
     return *(offsets_ + (major_offset + 1)) - *(offsets_ + major_offset);
   }
 
+  __device__ edge_t get_local_offset(vertex_t major_offset) const noexcept
+  {
+    return *(offsets_ + major_offset);
+  }
+
  private:
   // should be trivially copyable to device
   edge_t const* offsets_{nullptr};
