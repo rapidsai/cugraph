@@ -310,8 +310,8 @@ rmm::device_uvector<vertex_t> compute_renumber_map(
 
     CUDA_TRY(cudaStreamSynchronize(handle.get_stream()));  // tx_value_counts should be up-to-date
 
-    std::tie(rx_labels, rx_counts, std::ignore) =
-      cugraph::experimental::detail::shuffle_values(handle, pair_first, tx_value_counts);
+    std::tie(rx_labels, rx_counts, std::ignore) = cugraph::experimental::detail::shuffle_values(
+      handle.get_comms(), pair_first, tx_value_counts, handle.get_stream());
 
     labels.resize(rx_labels.size(), handle.get_stream());
     counts.resize(labels.size(), handle.get_stream());
@@ -715,7 +715,7 @@ coarsen_graph(
 
     std::tie(
       rx_edgelist_major_vertices, rx_edgelist_minor_vertices, rx_edgelist_weights, std::ignore) =
-      detail::shuffle_values(handle, edge_first, tx_value_counts);
+      detail::shuffle_values(handle.get_comms(), edge_first, tx_value_counts, handle.get_stream());
 
     sort_and_coarsen_edgelist(rx_edgelist_major_vertices,
                               rx_edgelist_minor_vertices,
@@ -836,7 +836,7 @@ rmm::device_uvector<vertex_t> relabel(
     &old_new_label_pairs)
 {
   double constexpr load_factor = 0.7;
-  
+
   rmm::device_uvector<vertex_t> new_labels(0, handle.get_stream());
 
   if (multi_gpu) {
@@ -893,7 +893,8 @@ rmm::device_uvector<vertex_t> relabel(
           cudaStreamSynchronize(handle.get_stream()));  // tx_value_counts should be up-to-date
 
         std::tie(rx_label_pair_old_labels, rx_label_pair_new_labels, std::ignore) =
-          cugraph::experimental::detail::shuffle_values(handle, pair_first, tx_value_counts);
+          cugraph::experimental::detail::shuffle_values(
+            handle.get_comms(), pair_first, tx_value_counts, handle.get_comms());
 
         CUDA_TRY(cudaStreamSynchronize(
           handle.get_stream()));  // label_pair_old_labels and label_pair_new_labels will become
@@ -944,7 +945,7 @@ rmm::device_uvector<vertex_t> relabel(
 
         std::tie(rx_unique_old_labels, rx_value_counts) =
           cugraph::experimental::detail::shuffle_values(
-            handle, unique_old_labels.begin(), tx_value_counts);
+            handle.get_comms(), unique_old_labels.begin(), tx_value_counts, handle.get_stream());
 
         CUDA_TRY(cudaStreamSynchronize(
           handle.get_stream()));  // cuco::static_map currently does not take stream
@@ -957,7 +958,7 @@ rmm::device_uvector<vertex_t> relabel(
 
         std::tie(new_labels_for_unique_old_labels, std::ignore) =
           cugraph::experimental::detail::shuffle_values(
-            handle, rx_unique_old_labels.begin(), rx_value_counts);
+            handle.get_comms(), rx_unique_old_labels.begin(), rx_value_counts, handle.get_stream());
 
         CUDA_TRY(cudaStreamSynchronize(
           handle.get_stream()));  // tx_value_counts & rx_value_counts will become out-of-scope

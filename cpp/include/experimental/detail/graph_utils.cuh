@@ -128,12 +128,14 @@ struct is_std_tuple<std::tuple<Ts...>> : std::true_type {
 };
 
 template <typename T>
-auto to_tuple(T&& val, std::enable_if_t<is_std_tuple<T>::value, void>* = nullptr) {
+auto to_tuple(T &&val, std::enable_if_t<is_std_tuple<T>::value, void> * = nullptr)
+{
   return std::forward<T>(val);
 }
 
 template <typename T>
-auto to_tuple(T&& val, std::enable_if_t<!is_std_tuple<T>::value, void>* = nullptr) {
+auto to_tuple(T &&val, std::enable_if_t<!is_std_tuple<T>::value, void> * = nullptr)
+{
   return std::make_tuple(std::forward<T>(val));
 }
 #endif
@@ -156,14 +158,14 @@ rmm::device_uvector<edge_t> compute_major_degree(
 }
 
 template <typename TxValueIterator>
-auto shuffle_values(raft::handle_t const &handle,
+auto shuffle_values(raft::comms::comms_t const &comm,
                     TxValueIterator tx_value_first,
-                    rmm::device_uvector<size_t> const &tx_value_counts)
+                    rmm::device_uvector<size_t> const &tx_value_counts,
+                    cudaStream_t stream)
 {
-  auto &comm           = handle.get_comms();
   auto const comm_size = comm.get_size();
 
-  rmm::device_uvector<size_t> rx_value_counts(comm_size, handle.get_stream());
+  rmm::device_uvector<size_t> rx_value_counts(comm_size, stream);
 
   // FIXME: this needs to be replaced with AlltoAll once NCCL 2.8 is released.
   std::vector<size_t> tx_counts(comm_size, size_t{1});
@@ -185,20 +187,19 @@ auto shuffle_values(raft::handle_t const &handle,
                             rx_counts,
                             rx_offsets,
                             rx_src_ranks,
-                            handle.get_stream());
+                            stream);
 
-  raft::update_host(tx_counts.data(), tx_value_counts.data(), comm_size, handle.get_stream());
-  raft::update_host(rx_counts.data(), rx_value_counts.data(), comm_size, handle.get_stream());
+  raft::update_host(tx_counts.data(), tx_value_counts.data(), comm_size, stream);
+  raft::update_host(rx_counts.data(), rx_value_counts.data(), comm_size, stream);
 
-  CUDA_TRY(
-    cudaStreamSynchronize(handle.get_stream()));  // tx_counts & rx_counts should be up-to-date
+  CUDA_TRY(cudaStreamSynchronize(stream));  // tx_counts & rx_counts should be up-to-date
 
   std::partial_sum(tx_counts.begin(), tx_counts.end() - 1, tx_offsets.begin() + 1);
   std::partial_sum(rx_counts.begin(), rx_counts.end() - 1, rx_offsets.begin() + 1);
 
   auto rx_value_buffer =
     allocate_comm_buffer<typename std::iterator_traits<TxValueIterator>::value_type>(
-      rx_offsets.back(), handle.get_stream());
+      rx_offsets.back(), stream);
   auto rx_value_first =
     get_comm_buffer_begin<typename std::iterator_traits<TxValueIterator>::value_type>(
       rx_value_buffer);
@@ -236,9 +237,10 @@ auto shuffle_values(raft::handle_t const &handle,
                             rx_counts,
                             rx_offsets,
                             rx_src_ranks,
-                            handle.get_stream());
+                            stream);
 
-  return std::tuple_cat(to_tuple(std::move(rx_value_buffer)), std::make_tuple(std::move(rx_value_counts)));
+  return std::tuple_cat(to_tuple(std::move(rx_value_buffer)),
+                        std::make_tuple(std::move(rx_value_counts)));
 }
 
 template <typename vertex_t, typename edge_t>
