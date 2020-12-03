@@ -26,6 +26,7 @@
 - PR #1273 Update Force Atlas 2 notebook, wrapper and coding style
 - PR #1289 Update api.rst for MST
 - PR #1281 Update README
+- PR #1293: Updating RAFT to latest
 
 ## Bug Fixes
 - PR #1237 update tests for assymetric graphs, enable personalization pagerank
