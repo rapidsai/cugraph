@@ -38,6 +38,9 @@ import cupy as cp
 from cupyx.scipy.sparse.coo import coo_matrix as cp_coo_matrix
 from cupyx.scipy.sparse.csr import csr_matrix as cp_csr_matrix
 from cupyx.scipy.sparse.csc import csc_matrix as cp_csc_matrix
+from scipy.sparse.coo import coo_matrix as sp_coo_matrix
+from scipy.sparse.csr import csr_matrix as sp_csr_matrix
+from scipy.sparse.csc import csc_matrix as sp_csc_matrix
 
 # =============================================================================
 # Parameters
@@ -47,13 +50,6 @@ DIRECTED_GRAPH_OPTIONS = [True, False]
 SUBSET_SEED_OPTIONS = [42]
 
 DEFAULT_EPSILON = 1e-6
-
-
-# =============================================================================
-# Pytest Setup / Teardown - called for each test function
-# =============================================================================
-def setup_function():
-    gc.collect()
 
 
 # Map of cuGraph input types to the expected output type for cuGraph
@@ -66,7 +62,18 @@ cuGraph_input_output_map = {
     cp_coo_matrix: tuple,
     cp_csr_matrix: tuple,
     cp_csc_matrix: tuple,
+    sp_coo_matrix: tuple,
+    sp_csr_matrix: tuple,
+    sp_csc_matrix: tuple,
 }
+cupy_types = [cp_coo_matrix, cp_csr_matrix, cp_csc_matrix]
+
+
+# =============================================================================
+# Pytest Setup / Teardown - called for each test function
+# =============================================================================
+def setup_function():
+    gc.collect()
 
 
 # =============================================================================
@@ -78,6 +85,7 @@ def convert_output_to_cudf(input_G_or_matrix, cugraph_result):
     type of input_G_or_matrix, since different input types result in different
     cugraph_result types (see cugraph_input_output_map).
     """
+    input_type = type(input_G_or_matrix)
     expected_return_type = cuGraph_input_output_map[type(input_G_or_matrix)]
     assert type(cugraph_result) is expected_return_type
 
@@ -98,13 +106,20 @@ def convert_output_to_cudf(input_G_or_matrix, cugraph_result):
     #      for the i'th position in the array, the number of shortest paths
     #      leading to the vertex at position i in the (input) vertex array.
     elif expected_return_type is tuple:
-        assert type(cugraph_result[0]) is cp.ndarray
-        assert type(cugraph_result[1]) is cp.ndarray
-        if len(cugraph_result) == 3:
-            assert type(cugraph_result[2]) is cp.ndarray
+        if input_type in cupy_types:
+            assert type(cugraph_result[0]) is cp.ndarray
+            assert type(cugraph_result[1]) is cp.ndarray
+            if len(cugraph_result) == 3:
+                assert type(cugraph_result[2]) is cp.ndarray
+        else:
+            assert type(cugraph_result[0]) is np.ndarray
+            assert type(cugraph_result[1]) is np.ndarray
+            if len(cugraph_result) == 3:
+                assert type(cugraph_result[2]) is np.ndarray
 
         # Get unique verts from input since they are not incuded in output
-        if type(input_G_or_matrix) in [cp_csr_matrix, cp_csc_matrix]:
+        if type(input_G_or_matrix) in [cp_csr_matrix, cp_csc_matrix,
+                                       sp_csr_matrix, sp_csc_matrix]:
             coo = input_G_or_matrix.tocoo(copy=False)
         else:
             coo = input_G_or_matrix
@@ -490,3 +505,33 @@ def test_bfs_spc_full(gpubenchmark, dataset_nxresults_allstartvertices_spc,
         G_or_matrix, all_nx_values, start_vertex=start_vertices,
         return_sp_counter=use_spc
     )
+
+
+def test_scipy_api_compat():
+    graph_file = utils.DATASETS[0]
+
+    input_cugraph_graph = utils.create_obj_from_csv(graph_file, cugraph.Graph,
+                                                    edgevals=True)
+    input_coo_matrix = utils.create_obj_from_csv(graph_file, cp_coo_matrix,
+                                                 edgevals=True)
+    # Ensure scipy-only options are rejected for cugraph inputs
+    with pytest.raises(TypeError):
+        cugraph.bfs(input_cugraph_graph, start=0, directed=False)
+    with pytest.raises(TypeError):
+        cugraph.bfs(input_cugraph_graph)  # required arg missing
+
+    # Ensure cugraph-compatible options work as expected
+    cugraph.bfs(input_cugraph_graph, i_start=0)
+    cugraph.bfs(input_cugraph_graph, i_start=0, return_sp_counter=True)
+    # cannot have start and i_start
+    with pytest.raises(TypeError):
+        cugraph.bfs(input_cugraph_graph, start=0, i_start=0)
+
+    # Ensure SciPy options for matrix inputs work as expected
+    cugraph.bfs(input_coo_matrix, i_start=0)
+    cugraph.bfs(input_coo_matrix, i_start=0, directed=True)
+    cugraph.bfs(input_coo_matrix, i_start=0, directed=False)
+    result = cugraph.bfs(input_coo_matrix, i_start=0,
+                         return_sp_counter=True)
+    assert type(result) is tuple
+    assert len(result) == 3

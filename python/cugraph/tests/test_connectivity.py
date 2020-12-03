@@ -17,9 +17,13 @@ from collections import defaultdict
 
 import pytest
 import cupy as cp
+import numpy as np
 from cupyx.scipy.sparse.coo import coo_matrix as cp_coo_matrix
 from cupyx.scipy.sparse.csr import csr_matrix as cp_csr_matrix
 from cupyx.scipy.sparse.csc import csc_matrix as cp_csc_matrix
+from scipy.sparse.coo import coo_matrix as sp_coo_matrix
+from scipy.sparse.csr import csr_matrix as sp_csr_matrix
+from scipy.sparse.csc import csc_matrix as sp_csc_matrix
 
 import cudf
 import cugraph
@@ -49,7 +53,11 @@ cuGraph_input_output_map = {
     cp_coo_matrix: tuple,
     cp_csr_matrix: tuple,
     cp_csc_matrix: tuple,
+    sp_coo_matrix: tuple,
+    sp_csr_matrix: tuple,
+    sp_csc_matrix: tuple,
 }
+cupy_types = [cp_coo_matrix, cp_csr_matrix, cp_csc_matrix]
 
 
 # =============================================================================
@@ -78,7 +86,8 @@ def networkx_weak_call(graph_file):
     nx_n_components = len(nx_labels)
     lst_nx_components = sorted(nx_labels, key=len, reverse=True)
 
-    return (graph_file, nx_labels, nx_n_components, lst_nx_components)
+    return (graph_file, nx_labels, nx_n_components,
+            lst_nx_components, "weak")
 
 
 def networkx_strong_call(graph_file):
@@ -96,7 +105,8 @@ def networkx_strong_call(graph_file):
     nx_n_components = len(nx_labels)
     lst_nx_components = sorted(nx_labels, key=len, reverse=True)
 
-    return (graph_file, nx_labels, nx_n_components, lst_nx_components)
+    return (graph_file, nx_labels, nx_n_components,
+            lst_nx_components, "strong")
 
 
 def cugraph_call(gpu_benchmark_callable, cugraph_algo, input_G_or_matrix):
@@ -117,7 +127,8 @@ def cugraph_call(gpu_benchmark_callable, cugraph_algo, input_G_or_matrix):
 
     # Lookup results differently based on return type, and ensure return type
     # is correctly set based on input type.
-    expected_return_type = cuGraph_input_output_map[type(input_G_or_matrix)]
+    input_type = type(input_G_or_matrix)
+    expected_return_type = cuGraph_input_output_map[input_type]
 
     if expected_return_type is cudf.DataFrame:
         assert type(result) is cudf.DataFrame
@@ -140,18 +151,22 @@ def cugraph_call(gpu_benchmark_callable, cugraph_algo, input_G_or_matrix):
     elif expected_return_type is tuple:
         assert type(result) is tuple
         assert type(result[0]) is int
-        assert type(result[1]) is cp.ndarray
+        if input_type in cupy_types:
+            assert type(result[1]) is cp.ndarray
+        else:
+            assert type(result[1]) is np.ndarray
 
         unique_labels = set([n.item() for n in result[1]])
         assert len(unique_labels) == result[0]
 
         # The returned dict used in the tests for checking correctness needs
-        # the actual vertex IDs, which are not in the retuened data (the
+        # the actual vertex IDs, which are not in the returned data (the
         # CuPy/SciPy connected_components return types cuGraph is converting
         # to does not include them). So, extract the vertices from the input
         # COO, order them to match the returned list of labels (which is just
         # a sort), and include them in the returned dict.
-        if type(input_G_or_matrix) in [cp_csr_matrix, cp_csc_matrix]:
+        if input_type in [cp_csr_matrix, cp_csc_matrix,
+                          sp_csr_matrix, sp_csc_matrix]:
             coo = input_G_or_matrix.tocoo(copy=False)
         else:
             coo = input_G_or_matrix
@@ -178,6 +193,75 @@ def which_cluster_idx(_cluster, _find_vertex):
             idx = i
             break
     return idx
+
+
+def assert_scipy_api_compat(graph_file, api_type):
+    """
+    Ensure cugraph.scc() and cugraph.connected_components() can be used as
+    drop-in replacements for scipy.connected_components():
+
+    scipy.sparse.csgraph.connected_components(csgraph,
+                                              directed=True,
+                                              connection='weak',
+                                              return_labels=True)
+    Parameters
+    ----------
+        csgraph : array_like or sparse matrix
+            The N x N matrix representing the compressed sparse graph. The
+            input csgraph will be converted to csr format for the calculation.
+        directed : bool, optional
+            If True (default), then operate on a directed graph: only move from
+            point i to point j along paths csgraph[i, j]. If False, then find
+            the shortest path on an undirected graph: the algorithm can
+            progress from point i to j along csgraph[i, j] or csgraph[j, i].
+        connection : str, optional
+            [‘weak’|’strong’]. For directed graphs, the type of connection to
+            use. Nodes i and j are strongly connected if a path exists both
+            from i to j and from j to i. A directed graph is weakly connected
+            if replacing all of its directed edges with undirected edges
+            produces a connected (undirected) graph. If directed == False, this
+            keyword is not referenced.
+        return_labels : bool, optional
+            If True (default), then return the labels for each of the connected
+            components.
+
+    Returns
+    -------
+        n_components : int
+            The number of connected components.
+        labels : ndarray
+            The length-N array of labels of the connected components.
+    """
+    api_call = {"strong": cugraph.strongly_connected_components,
+                "weak": cugraph.weakly_connected_components}[api_type]
+    connection = api_type
+    wrong_connection = {"strong": "weak",
+                        "weak": "strong"}[api_type]
+
+    input_cugraph_graph = utils.create_obj_from_csv(graph_file, cugraph.Graph,
+                                                    edgevals=True)
+    input_coo_matrix = utils.create_obj_from_csv(graph_file, cp_coo_matrix,
+                                                 edgevals=True)
+
+    # Ensure scipy-only options are rejected for cugraph inputs
+    with pytest.raises(TypeError):
+        api_call(input_cugraph_graph, directed=False)
+    with pytest.raises(TypeError):
+        api_call(input_cugraph_graph, return_labels=False)
+
+    # Setting connection to strong for strongly_* and weak for weakly_* is
+    # redundant, but valid
+    api_call(input_cugraph_graph, connection=connection)
+
+    # Invalid for the API
+    with pytest.raises(TypeError):
+        (n_components, labels) = api_call(input_coo_matrix,
+                                          connection=wrong_connection)
+
+    (n_components, labels) = api_call(input_coo_matrix, directed=False)
+    (n_components, labels) = api_call(input_coo_matrix, connection=connection)
+    n_components = api_call(input_coo_matrix, return_labels=False)
+    assert type(n_components) is int
 
 
 # =============================================================================
@@ -208,10 +292,8 @@ def single_dataset_nxresults_strong(request):
 # =============================================================================
 @pytest.mark.parametrize("cugraph_input_type", utils.CUGRAPH_DIR_INPUT_TYPES)
 def test_weak_cc(gpubenchmark, dataset_nxresults_weak, cugraph_input_type):
-    # NetX returns a list of components, each component being a
-    # collection (set{}) of vertex indices
     (graph_file, netx_labels,
-     nx_n_components, lst_nx_components) = dataset_nxresults_weak
+     nx_n_components, lst_nx_components, api_type) = dataset_nxresults_weak
 
     input_G_or_matrix = utils.create_obj_from_csv(graph_file,
                                                   cugraph_input_type,
@@ -264,7 +346,7 @@ def test_strong_cc(gpubenchmark, dataset_nxresults_strong,
     # NetX returns a list of components, each component being a
     # collection (set{}) of vertex indices
     (graph_file, netx_labels,
-     nx_n_components, lst_nx_components) = dataset_nxresults_strong
+     nx_n_components, lst_nx_components, api_type) = dataset_nxresults_strong
 
     input_G_or_matrix = utils.create_obj_from_csv(graph_file,
                                                   cugraph_input_type,
@@ -308,3 +390,56 @@ def test_strong_cc_nonnative_inputs(gpubenchmark,
     test_strong_cc(gpubenchmark,
                    single_dataset_nxresults_strong,
                    cugraph_input_type)
+
+
+def test_scipy_api_compat_weak(single_dataset_nxresults_weak):
+    (graph_file, _, _, _, api_type) = single_dataset_nxresults_weak
+    assert_scipy_api_compat(graph_file, api_type)
+
+
+def test_scipy_api_compat_strong(single_dataset_nxresults_strong):
+    (graph_file, _, _, _, api_type) = single_dataset_nxresults_strong
+    assert_scipy_api_compat(graph_file, api_type)
+
+
+@pytest.mark.parametrize("connection_type", ["strong", "weak"])
+def test_scipy_api_compat(connection_type):
+    if connection_type == "strong":
+        graph_file = utils.STRONGDATASETS[0]
+    else:
+        graph_file = utils.DATASETS[0]
+
+    input_cugraph_graph = utils.create_obj_from_csv(graph_file, cugraph.Graph,
+                                                    edgevals=True)
+    input_coo_matrix = utils.create_obj_from_csv(graph_file, cp_coo_matrix,
+                                                 edgevals=True)
+
+    # connection is the only API that is accepted with cugraph objs
+    retval = cugraph.connected_components(input_cugraph_graph,
+                                          connection=connection_type)
+    assert type(retval) is cudf.DataFrame
+
+    # Ensure scipy-only options (except connection) are rejected for cugraph
+    # inputs
+    with pytest.raises(TypeError):
+        cugraph.connected_components(input_cugraph_graph, directed=True)
+    with pytest.raises(TypeError):
+        cugraph.connected_components(input_cugraph_graph, return_labels=False)
+    with pytest.raises(TypeError):
+        cugraph.connected_components(input_cugraph_graph,
+                                     connection=connection_type,
+                                     return_labels=False)
+
+    # only accept weak or strong
+    with pytest.raises(ValueError):
+        cugraph.connected_components(input_cugraph_graph,
+                                     connection="invalid")
+
+    (n_components, labels) = cugraph.connected_components(
+        input_coo_matrix, connection=connection_type)
+    # FIXME: connection should default to "weak", need to test that
+    (n_components, labels) = cugraph.connected_components(input_coo_matrix,
+                                                          directed=False)
+    n_components = cugraph.connected_components(input_coo_matrix,
+                                                return_labels=False)
+    assert type(n_components) is int

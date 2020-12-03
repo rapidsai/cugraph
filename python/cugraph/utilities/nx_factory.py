@@ -11,13 +11,11 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-try:
-    import networkx as nx
-except ModuleNotFoundError:
-    nx = None
-
 import cugraph
+from .utils import import_optional
 from cudf import from_pandas
+
+nx = import_optional("networkx")
 
 
 def convert_from_nx(nxG, weight=None):

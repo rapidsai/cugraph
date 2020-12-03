@@ -98,6 +98,7 @@ class Graph:
         self.multi = multi
         self.distributed = False
         self.dynamic = dynamic
+        self.self_loop = False
         self.edgelist = None
         self.adjlist = None
         self.transposedadjlist = None
@@ -424,6 +425,8 @@ class Graph:
             if type(source) is list and type(destination) is list:
                 raise Exception("set renumber to True for multi column ids")
 
+        if (elist[source] == elist[destination]).any():
+            self.self_loop = True
         source_col = elist[source]
         dest_col = elist[destination]
 
@@ -555,7 +558,6 @@ class Graph:
         """
         Returns the graph adjacency matrix as a NumPy matrix.
         """
-
         np_array = self.to_numpy_array()
         return np.asmatrix(np_array)
 
@@ -1336,7 +1338,7 @@ class Graph:
             return (ddf == n).any().any().compute()
         if self.renumbered:
             tmp = self.renumber_map.to_internal_vertex_id(cudf.Series([n]))
-            return tmp[0] >= 0
+            return tmp[0] is not cudf.NA and tmp[0] >= 0
         else:
             df = self.edgelist.edgelist_df[["src", "dst"]]
             return (df == n).any().any()

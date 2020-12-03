@@ -31,6 +31,7 @@ from cugraph.structure import (
     DiGraph,
     MultiGraph,
     MultiDiGraph,
+    from_edgelist,
     from_cudf_edgelist,
     from_pandas_edgelist,
     to_pandas_edgelist,
@@ -40,6 +41,7 @@ from cugraph.structure import (
     to_numpy_array,
     from_numpy_matrix,
     to_numpy_matrix,
+    from_adjlist,
     hypergraph,
     symmetrize,
     symmetrize_df,
@@ -55,6 +57,7 @@ from cugraph.centrality import (
 from cugraph.cores import core_number, k_core
 
 from cugraph.components import (
+    connected_components,
     weakly_connected_components,
     strongly_connected_components,
 )
@@ -72,11 +75,14 @@ from cugraph.link_prediction import (
 
 from cugraph.traversal import (
     bfs,
-    bfs_edges, 
+    bfs_edges,
     sssp,
     shortest_path,
     filter_unreachable,
+    shortest_path_length
 )
+
+from cugraph.tree import minimum_spanning_tree, maximum_spanning_tree
 
 from cugraph.utilities import utils
 

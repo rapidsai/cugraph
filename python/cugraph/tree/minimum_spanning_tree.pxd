@@ -11,11 +11,15 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from cugraph.traversal.bfs import bfs
-from cugraph.traversal.bfs import bfs_edges
-from cugraph.traversal.sssp import (
-    sssp,
-    shortest_path,
-    filter_unreachable,
-    shortest_path_length
-)
+# cython: profile=False
+# distutils: language = c++
+# cython: embedsignature = True
+# cython: language_level = 3
+
+from cugraph.structure.graph_primtypes cimport *
+
+
+cdef extern from "algorithms.hpp" namespace "cugraph":
+
+    cdef unique_ptr[GraphCOO[VT,ET,WT]] minimum_spanning_tree[VT,ET,WT](const handle_t &handle,
+        const GraphCSRView[VT,ET,WT] &graph) except +
