@@ -606,6 +606,15 @@ def test_has_node(graph_file):
         assert G.has_node(n)
 
 
+def test_invalid_has_node():
+    df = cudf.DataFrame([[1, 2]], columns=["src", "dst"])
+    G = cugraph.Graph()
+    G.from_cudf_edgelist(df, source="src", destination="dst")
+    assert not G.has_node(-1)
+    assert not G.has_node(0)
+    assert not G.has_node(G.number_of_nodes() + 1)
+
+
 @pytest.mark.parametrize('graph_file', utils.DATASETS)
 def test_bipartite_api(graph_file):
     # This test only tests the functionality of adding set of nodes and

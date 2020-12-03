@@ -9,6 +9,7 @@
 - PR #1274 Add generic from_edgelist() and from_adjlist() APIs
 - PR #1279 Add self loop check variable in graph
 - PR #1277 SciPy sparse matrix input support for WCC, SCC, SSSP, and BFS
+- PR #1278 Add support for shortest_path_length and fix graph vertex checks
 
 ## Improvements
 - PR #1227 Pin cmake policies to cmake 3.17 version
