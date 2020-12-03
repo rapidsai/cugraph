@@ -1322,7 +1322,7 @@ class Graph:
             return (ddf == n).any().any().compute()
         if self.renumbered:
             tmp = self.renumber_map.to_internal_vertex_id(cudf.Series([n]))
-            return tmp[0] >= 0
+            return tmp[0] is not cudf.NA and tmp[0] >= 0
         else:
             df = self.edgelist.edgelist_df[["src", "dst"]]
             return (df == n).any().any()

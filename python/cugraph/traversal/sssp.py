@@ -156,12 +156,26 @@ def sssp(G,
 
     Parameters
     ----------
+<<<<<<< HEAD
     graph : cugraph.Graph, networkx.Graph, CuPy or SciPy sparse matrix Graph or
         matrix object, which should contain the connectivity information. Edge
         weights, if present, should be single or double precision floating
         point values.
     source : int
         Index of the source vertex.
+=======
+    graph : cuGraph.Graph, NetworkX.Graph, or CuPy sparse COO matrix
+        cuGraph graph descriptor with connectivity information. Edge weights,
+        if present, should be single or double precision floating point values.
+
+    source : Dependant on graph type. Index of the source vertex.
+
+    If graph is an instance of cuGraph.Graph or CuPy sparse COO matrix:
+        int
+
+    If graph is an instance of a NetworkX.Graph:
+        str
+>>>>>>> Document shortest_path_length and sssp behavior
 
     Returns
     -------
@@ -213,6 +227,10 @@ def sssp(G,
 
     if G.renumbered:
         source = G.lookup_internal_vertex_id(cudf.Series([source]))[0]
+
+    if source is cudf.NA:
+        raise ValueError(
+            "Starting vertex should be between 0 to number of vertices")
 
     df = sssp_wrapper.sssp(G, source)
 
@@ -268,3 +286,83 @@ def shortest_path(G,
     """
     return sssp(G, source, method, directed, return_predecessors,
                 unweighted, overwrite, indices)
+
+
+def shortest_path_length(G, source, target=None):
+    """
+    Compute the distance from a source vertex to one or all vertexes in graph.
+    Uses Single Source Shortest Path (SSSP).
+
+    Parameters
+    ----------
+    graph : cuGraph.Graph, NetworkX.Graph, or CuPy sparse COO matrix
+        cuGraph graph descriptor with connectivity information. Edge weights,
+        if present, should be single or double precision floating point values.
+
+    source : Dependant on graph type. Index of the source vertex.
+
+    If graph is an instance of cuGraph.Graph or CuPy sparse COO matrix:
+        int
+
+    If graph is an instance of a NetworkX.Graph:
+        str
+
+    target: Dependant on graph type. Vertex to find distance to.
+
+    If graph is an instance of cuGraph.Graph or CuPy sparse COO matrix:
+        int
+
+    If graph is an instance of a NetworkX.Graph:
+        str
+
+    Returns
+    -------
+    Return value type is based on the input type.
+
+    If target is None, returns:
+
+        cudf.DataFrame
+            df['vertex']
+                vertex id
+
+            df['distance']
+                gives the path distance from the starting vertex
+
+    If target is not None, returns:
+
+        Distance from source to target vertex.
+    """
+
+    # verify target is in graph before traversing
+    if target is not None:
+        if not hasattr(G, "has_node"):
+            # G is a cupy coo_matrix. Extract maximum possible vertex value
+            as_matrix = G.toarray()
+            if target < 0 or target >= max(as_matrix.shape[0],
+                                           as_matrix.shape[1]):
+                raise ValueError("Graph does not contain target vertex")
+        elif not G.has_node(target):
+            # G is an instance of cugraph or networkx graph
+            raise ValueError("Graph does not contain target vertex")
+
+    df = sssp(G, source)
+
+    if isinstance(df, tuple):
+        # cupy path, df is tuple of (distance, predecessor)
+        if target:
+            return df[0][target-1]
+        results = cudf.DataFrame()
+        results["vertex"] = range(df[0].shape[0])
+        results["distance"] = df[0]
+        return results
+
+    else:
+        # cugraph and networkx path
+        if target:
+            target_distance = df.loc[df["vertex"] == target]
+            return target_distance.iloc[0]["distance"]
+
+        results = cudf.DataFrame()
+        results["vertex"] = df["vertex"]
+        results["distance"] = df["distance"]
+        return results
