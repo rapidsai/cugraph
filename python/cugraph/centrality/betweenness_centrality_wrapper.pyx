@@ -103,7 +103,7 @@ def run_internal_work(handle, input_data, normalized, endpoints,
 
     (offsets, indices, graph_weights), is_directed = input_data
 
-    if graph_weights:
+    if graph_weights is not None:
         c_graph_weights = graph_weights.__cuda_array_interface__['data'][0]
     c_offsets = offsets.__cuda_array_interface__['data'][0]
     c_indices = indices.__cuda_array_interface__['data'][0]
