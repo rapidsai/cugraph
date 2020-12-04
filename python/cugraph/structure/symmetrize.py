@@ -16,7 +16,7 @@ import cudf
 import dask_cudf
 
 
-def symmetrize_df(df, src_name, dst_name, multi, symmetrize):
+def symmetrize_df(df, src_name, dst_name, multi=False, symmetrize=True):
     """
     Take a COO stored in a DataFrame, along with the column names of
     the source and destination columns and create a new data frame
