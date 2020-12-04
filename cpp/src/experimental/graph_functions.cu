@@ -308,8 +308,6 @@ rmm::device_uvector<vertex_t> compute_renumber_map(
     rmm::device_uvector<vertex_t> rx_labels(0, handle.get_stream());
     rmm::device_uvector<edge_t> rx_counts(0, handle.get_stream());
 
-    CUDA_TRY(cudaStreamSynchronize(handle.get_stream()));  // tx_value_counts should be up-to-date
-
     std::tie(rx_labels, rx_counts, std::ignore) = cugraph::experimental::detail::shuffle_values(
       handle.get_comms(), pair_first, tx_value_counts, handle.get_stream());
 
@@ -711,8 +709,6 @@ coarsen_graph(
     rmm::device_uvector<vertex_t> rx_edgelist_minor_vertices(0, handle.get_stream());
     rmm::device_uvector<weight_t> rx_edgelist_weights(0, handle.get_stream());
 
-    CUDA_TRY(cudaStreamSynchronize(handle.get_stream()));  // tx_value_counts should be up-to-date
-
     std::tie(
       rx_edgelist_major_vertices, rx_edgelist_minor_vertices, rx_edgelist_weights, std::ignore) =
       detail::shuffle_values(handle.get_comms(), edge_first, tx_value_counts, handle.get_stream());
@@ -888,9 +884,6 @@ rmm::device_uvector<vertex_t> relabel(
                               thrust::make_constant_iterator(size_t{1}),
                               thrust::make_discard_iterator(),
                               tx_value_counts.begin());
-
-        CUDA_TRY(
-          cudaStreamSynchronize(handle.get_stream()));  // tx_value_counts should be up-to-date
 
         std::tie(rx_label_pair_old_labels, rx_label_pair_new_labels, std::ignore) =
           cugraph::experimental::detail::shuffle_values(
