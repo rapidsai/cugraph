@@ -29,6 +29,7 @@ struct any {
   __host__ __device__ T operator()(T const& lhs, T const& rhs) const { return lhs; }
 };
 
+// FIXME: thrust::minimum can replace this.
 // reducing N elements (operator < should be defined between any two elements), the minimum element
 // should be selected.
 template <typename T>

@@ -400,7 +400,7 @@ void update_frontier_v_push_if_out_nbr(
       frontier_size = thrust::distance(vertex_first, vertex_last);
     }
 
-    edge_t max_pushes =
+    auto max_pushes =
       frontier_size > 0
         ? frontier_rows.size() > 0
             ? thrust::transform_reduce(
