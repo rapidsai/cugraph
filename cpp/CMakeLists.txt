@@ -16,7 +16,7 @@
 
 cmake_minimum_required(VERSION 3.12..3.17 FATAL_ERROR)
 
-project(CUGRAPH VERSION 0.17.0 LANGUAGES C CXX CUDA)
+project(CUGRAPH VERSION 0.18.0 LANGUAGES C CXX CUDA)
 
 ###################################################################################################
 # - build type ------------------------------------------------------------------------------------
@@ -316,7 +316,7 @@ else(DEFINED ENV{RAFT_PATH})
 
   ExternalProject_Add(raft
     GIT_REPOSITORY    https://github.com/rapidsai/raft.git
-    GIT_TAG           315de02f8e2304e078e5e0f6df23c6a6799e23f4
+    GIT_TAG           f75d7b437bf1da3df749108161b8a0505fb6b7b3
     PREFIX            ${RAFT_DIR}
     CONFIGURE_COMMAND ""
     BUILD_COMMAND     ""

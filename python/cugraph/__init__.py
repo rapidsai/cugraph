@@ -55,6 +55,7 @@ from cugraph.centrality import (
 from cugraph.cores import core_number, k_core
 
 from cugraph.components import (
+    connected_components,
     weakly_connected_components,
     strongly_connected_components,
 )
@@ -76,6 +77,7 @@ from cugraph.traversal import (
     sssp,
     shortest_path,
     filter_unreachable,
+    shortest_path_length
 )
 
 from cugraph.tree import minimum_spanning_tree, maximum_spanning_tree
