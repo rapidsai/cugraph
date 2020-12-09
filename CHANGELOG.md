@@ -41,6 +41,7 @@
 - PR #1285 Move codecov upload to gpu build script
 - PR #1290 Update weights check in bc and graph prims wrappers
 - PR #1299 Update doc and notebook
+- PR #1304 Enable all GPU archs for test builds
 
 # cuGraph 0.16.0 (21 Oct 2020)
 
