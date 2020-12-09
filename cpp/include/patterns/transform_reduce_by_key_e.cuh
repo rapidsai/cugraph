@@ -70,20 +70,82 @@ template <typename GraphViewType,
           typename EdgeOp,
           typename T,
           typename KeyIterator>
-cuco::static_map<typename std::iterator_traits<KeyIterator>::value_type, T>
+thrust::tuple<rmm::device_uvector<vertex_t>, rmm::device_uvector<T>>
 transform_reduce_by_key_e(raft::handle_t const& handle,
                           GraphViewType const& graph_view,
                           AdjMatrixRowValueInputIterator adj_matrix_row_value_input_first,
                           AdjMatrixColValueInputIterator adj_matrix_col_value_input_first,
                           EdgeOp e_op,
-                          T init,
-                          KeyIterator map_key_first,
-                          KeyIterator map_key_last)
+                          T init)
 {
   static_assert(is_arithmetic_or_thrust_tuple_of_arithmetic<T>::value);
   static_assert(std::is_integral<typename std::iterator_traits<KeyIterator>::value_type>::value);
 
-  CUGRAPH_FAIL("unimplemented.");
+  // If I change the function name to transform_reduce_by_adj_matrix_col_key_e
+
+  // initialize static::cuco_map with *(adj_matrix_col_key_first + i), init
+  
+  // find(key), add e_op return value
+
+  // iterate and get (key, value) pairs
+
+  // shuffle and reduce again
+
+  // collect value for map_key
+
+  // return static::cuco_map
+
+
+  rmm::device_uvector<vertex_t> keys(0, handle.get_stream());
+  rmm::device_uvector<T> values(0, handle.get_stream());
+  for (size_t i = 0; i < graph_view.get_number_of_local_adj_matrix_partitions(); ++i) {
+    matrix_partition_device_t<GraphViewType> matrix_partition(graph_view, i);
+
+    edge_t max_pushes = matrix_partition.get_number_of_edges();
+
+    // FIXME: This is highly pessimistic as # unique keys is likely to be much smaller than the
+    // number of edges. If we use cuco::dynamic_map and can pause & resume execution if buffer needs
+    // to be increased, we can start with a smaller buffer size than the worst possible size.
+    rmm::device_uvector<vertex_t> keys(max_pushes, handle.get_stream());
+    rmm::device_uvector<T> values(max_pushes, handle.get_stream());
+    auto kv_buffer =
+      allocate_comm_buffer<thurst::tuple<vertex_t, T>>(max_pushes, handle.get_stream());
+    auto kv_buffer_first = get_comm_buffer_begin<thurst::tuple<vertex_t, t>>(kv_buffer);
+    vertex_frontier.resize_buffer(vertex_frontier.get_buffer_idx_value() + max_pushes);
+    auto buffer_first         = vertex_frontier.buffer_begin();
+    auto buffer_key_first     = std::get<0>(buffer_first);
+    auto buffer_payload_first = std::get<1>(buffer_first);
+
+    auto row_value_input_offset = GraphViewType::is_adj_matrix_transposed
+                                    ? vertex_t{0}
+                                    : matrix_partition.get_major_value_start_offset();
+
+    // FIXME: This is highly inefficeint for graphs with high-degree vertices. If we renumber
+    // vertices to insure that rows within a partition are sorted by their out-degree in decreasing
+    // order, we will apply this kernel only to low out-degree vertices.
+    detail::for_all_major_for_all_nbr_low_degree<<<for_all_low_degree_grid.num_blocks,
+                                                   for_all_low_degree_grid.block_size,
+                                                   0,
+                                                   handle.get_stream()>>>(
+      matrix_partition,
+      adj_matrix_row_value_input_first + row_value_input_offset,
+      adj_matrix_col_value_input_first,
+      buffer_key_first,
+      buffer_value_first,
+      vertex_frontier.get_buffer_idx_ptr(),
+      e_op);
+
+    thrust::sort();
+    thrust::reduce_by_key();
+  }
+
+  if (multi_gpu) {
+    thrust::sort();
+    thrust::reduce_by_key();
+
+    tx_keys;
+    rx_values;
+  }
 
   return cuco::static_map<typename std::iterator_traits<KeyIterator>::value_type, T>();
 }
