@@ -35,10 +35,10 @@
 #include <vector>
 
 template <typename vertex_t, typename edge_t, typename weight_t, typename result_t>
-void katz_centrality_reference(edge_t* offsets,
-                               vertex_t* indices,
-                               weight_t* weights,
-                               result_t* betas,
+void katz_centrality_reference(edge_t const* offsets,
+                               vertex_t const* indices,
+                               weight_t const* weights,
+                               result_t const* betas,
                                result_t* katz_centralities,
                                vertex_t num_vertices,
                                result_t alpha,

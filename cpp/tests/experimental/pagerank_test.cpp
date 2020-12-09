@@ -36,11 +36,11 @@
 #include <vector>
 
 template <typename vertex_t, typename edge_t, typename weight_t, typename result_t>
-void pagerank_reference(edge_t* offsets,
-                        vertex_t* indices,
-                        weight_t* weights,
-                        vertex_t* personalization_vertices,
-                        result_t* personalization_values,
+void pagerank_reference(edge_t const* offsets,
+                        vertex_t const* indices,
+                        weight_t const* weights,
+                        vertex_t const* personalization_vertices,
+                        result_t const* personalization_values,
                         result_t* pageranks,
                         vertex_t num_vertices,
                         vertex_t personalization_vector_size,
@@ -61,13 +61,11 @@ void pagerank_reference(edge_t* offsets,
     });
   }
 
+  result_t personalization_sum{0.0};
   if (personalization_vertices != nullptr) {
-    auto sum = std::accumulate(
+    personalization_sum = std::accumulate(
       personalization_values, personalization_values + personalization_vector_size, result_t{0.0});
-    ASSERT_TRUE(sum > 0.0);
-    std::for_each(personalization_values,
-                  personalization_values + personalization_vector_size,
-                  [sum](auto& val) { val /= sum; });
+    ASSERT_TRUE(personalization_sum > 0.0);
   }
 
   std::vector<weight_t> out_weight_sums(num_vertices, result_t{0.0});
@@ -102,7 +100,8 @@ void pagerank_reference(edge_t* offsets,
     if (personalization_vertices != nullptr) {
       for (vertex_t i = 0; i < personalization_vector_size; ++i) {
         auto v = personalization_vertices[i];
-        pageranks[v] += (dangling_sum * alpha + (1.0 - alpha)) * personalization_values[i];
+        pageranks[v] += (dangling_sum * alpha + (1.0 - alpha)) *
+                        (personalization_values[i] / personalization_sum);
       }
     }
     result_t diff_sum{0.0};
