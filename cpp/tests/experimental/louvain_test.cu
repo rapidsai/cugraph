@@ -17,14 +17,17 @@
 #include <utilities/base_fixture.hpp>
 #include <utilities/test_utilities.hpp>
 
+#if defined(__CUDA_ARCH__) && __CUDA_ARCH__ < 700
+#include <experimental/graph.hpp>
+#else
+#include <experimental/louvain.cuh>
+#endif
+
+#include <algorithms.hpp>
+
 #include <raft/cudart_utils.h>
 #include <raft/handle.hpp>
 #include <rmm/mr/device/cuda_memory_resource.hpp>
-
-#include <experimental/graph.hpp>
-#include <experimental/louvain.cuh>
-
-#include <algorithms.hpp>
 
 #include <gtest/gtest.h>
 
@@ -61,28 +64,21 @@ class Tests_Louvain : public ::testing::TestWithParam<Louvain_Usecase> {
   template <typename vertex_t, typename edge_t, typename weight_t, typename result_t>
   void run_current_test(Louvain_Usecase const& configuration)
   {
-    // "FIXME": remove this check
-    //
-    // Disable louvain(experimental::graph_view_t,...)
-    // versions for GPU architectures < 700
-    // (cuco/static_map.cuh depends on features not supported on or before Pascal)
-    //
-    cudaDeviceProp device_prop;
-    CUDA_CHECK(cudaGetDeviceProperties(&device_prop, 0));
+#if defined(__CUDA_ARCH__) && __CUDA_ARCH__ < 700
+    CUGRAPH_FAIL("Louvain not supported on Pascal and older architectures");
+#else
+    raft::handle_t handle{};
 
-    if (device_prop.major < 7) {
-      std::cout << "Louvain not supported on Pascal and older architectures" << std::endl;
-    } else {
-      raft::handle_t handle{};
+    std::cout << "read graph file: " << configuration.graph_file_full_path << std::endl;
 
-      auto graph =
-        cugraph::test::read_graph_from_matrix_market_file<vertex_t, edge_t, weight_t, false>(
-          handle, configuration.graph_file_full_path, configuration.test_weighted);
+    auto graph =
+      cugraph::test::read_graph_from_matrix_market_file<vertex_t, edge_t, weight_t, false>(
+        handle, configuration.graph_file_full_path, configuration.test_weighted);
 
-      auto graph_view = graph.view();
+    auto graph_view = graph.view();
 
-      louvain(graph_view);
-    }
+    louvain(graph_view);
+#endif
   }
 
   template <typename graph_t>
