@@ -52,7 +52,11 @@ void pagerank_reference(edge_t const* offsets,
   if (num_vertices == 0) { return; }
 
   if (has_initial_guess) {
-    auto sum = std::accumulate(pageranks, pageranks + num_vertices, result_t{0.0});
+    // use a double type counter (instead of result_t) to accumulate as std::accumulate is
+    // inaccurate in adding a large number of comparably sized numbers. In C++17 or later,
+    // std::reduce may be a better option.
+    auto sum =
+      static_cast<result_t>(std::accumulate(pageranks, pageranks + num_vertices, double{0.0}));
     ASSERT_TRUE(sum > 0.0);
     std::for_each(pageranks, pageranks + num_vertices, [sum](auto& val) { val /= sum; });
   } else {
@@ -63,8 +67,11 @@ void pagerank_reference(edge_t const* offsets,
 
   result_t personalization_sum{0.0};
   if (personalization_vertices != nullptr) {
-    personalization_sum = std::accumulate(
-      personalization_values, personalization_values + personalization_vector_size, result_t{0.0});
+    // use a double type counter (instead of result_t) to accumulate as std::accumulate is
+    // inaccurate in adding a large number of comparably sized numbers. In C++17 or later,
+    // std::reduce may be a better option.
+    personalization_sum = static_cast<result_t>(std::accumulate(
+      personalization_values, personalization_values + personalization_vector_size, double{0.0}));
     ASSERT_TRUE(personalization_sum > 0.0);
   }
 
@@ -194,8 +201,11 @@ class Tests_PageRank : public ::testing::TestWithParam<PageRank_Usecase> {
       std::for_each(h_personalization_values.begin(),
                     h_personalization_values.end(),
                     [&distribution, &generator](auto& val) { val = distribution(generator); });
-      auto sum = std::accumulate(
-        h_personalization_values.begin(), h_personalization_values.end(), result_t{0.0});
+      // use a double type counter (instead of result_t) to accumulate as std::accumulate is
+      // inaccurate in adding a large number of comparably sized numbers. In C++17 or later,
+      // std::reduce may be a better option.
+      auto sum = static_cast<result_t>(std::accumulate(
+        h_personalization_values.begin(), h_personalization_values.end(), double{0.0}));
       std::for_each(h_personalization_values.begin(),
                     h_personalization_values.end(),
                     [sum](auto& val) { val /= sum; });
