@@ -183,8 +183,7 @@ class Tests_PageRank : public ::testing::TestWithParam<PageRank_Usecase> {
     std::vector<vertex_t> h_personalization_vertices{};
     std::vector<result_t> h_personalization_values{};
     if (configuration.personalization_ratio > 0.0) {
-      std::random_device r{};
-      std::default_random_engine generator{r()};
+      std::default_random_engine generator{};
       std::uniform_real_distribution<double> distribution{0.0, 1.0};
       h_personalization_vertices.resize(graph_view.get_number_of_local_vertices());
       std::iota(h_personalization_vertices.begin(),
