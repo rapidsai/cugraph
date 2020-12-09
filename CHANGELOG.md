@@ -32,7 +32,7 @@
 - PR #1275 Force local artifact conda install
 - PR #1285 Move codecov upload to gpu build script
 - PR #1290 Update weights check in bc and graph prims wrappers
-
+- PR #1304 Enable all GPU archs for test builds, updated check for Pascal or earlier for Louvain
 
 # cuGraph 0.16.0 (21 Oct 2020)
 
