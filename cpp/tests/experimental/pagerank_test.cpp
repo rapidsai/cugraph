@@ -271,7 +271,8 @@ class Tests_PageRank : public ::testing::TestWithParam<PageRank_Usecase> {
 
     auto threshold_ratio = 1e-3;
     auto threshold_magnitude =
-      (epsilon / static_cast<result_t>(graph_view.get_number_of_vertices())) * threshold_ratio;
+      (1.0 / static_cast<result_t>(graph_view.get_number_of_vertices())) *
+      threshold_ratio;  // skip comparison for low PageRank verties (lowly ranked vertices)
     auto nearly_equal = [threshold_ratio, threshold_magnitude](auto lhs, auto rhs) {
       auto diff = std::abs(lhs - rhs);
       return (diff < std::max(lhs, rhs) * threshold_ratio) || (diff < threshold_magnitude);
