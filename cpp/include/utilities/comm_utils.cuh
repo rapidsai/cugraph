@@ -649,6 +649,82 @@ struct device_allgatherv_tuple_iterator_element_impl<InputIterator, OutputIterat
   }
 };
 
+template <typename InputIterator, typename OutputIterator>
+std::enable_if_t<thrust::detail::is_discard_iterator<OutputIterator>::value, void>
+device_gatherv_impl(raft::comms::comms_t const& comm,
+                    InputIterator input_first,
+                    OutputIterator output_first,
+                    size_t sendcount,
+                    std::vector<size_t> const& recvcounts,
+                    std::vector<size_t> const& displacements,
+                    int root,
+                    cudaStream_t stream)
+{
+  // no-op
+}
+
+template <typename InputIterator, typename OutputIterator>
+std::enable_if_t<
+  std::is_arithmetic<typename std::iterator_traits<OutputIterator>::value_type>::value,
+  void>
+device_gatherv_impl(raft::comms::comms_t const& comm,
+                    InputIterator input_first,
+                    OutputIterator output_first,
+                    size_t sendcount,
+                    std::vector<size_t> const& recvcounts,
+                    std::vector<size_t> const& displacements,
+                    int root,
+                    cudaStream_t stream)
+{
+  static_assert(std::is_same<typename std::iterator_traits<InputIterator>::value_type,
+                             typename std::iterator_traits<OutputIterator>::value_type>::value);
+  comm.gatherv(iter_to_raw_ptr(input_first),
+               iter_to_raw_ptr(output_first),
+               sendcount,
+               recvcounts.data(),
+               displacements.data(),
+               root,
+               stream);
+}
+
+template <typename InputIterator, typename OutputIterator, size_t I, size_t N>
+struct device_gatherv_tuple_iterator_element_impl {
+  void run(raft::comms::comms_t const& comm,
+           InputIterator input_first,
+           OutputIterator output_first,
+           size_t sendcount,
+           std::vector<size_t> const& recvcounts,
+           std::vector<size_t> const& displacements,
+           int root,
+           cudaStream_t stream) const
+  {
+    device_gatherv_impl(comm,
+                        thrust::get<I>(input_first.get_iterator_tuple()),
+                        thrust::get<I>(output_first.get_iterator_tuple()),
+                        sendcount,
+                        recvcounts,
+                        displacements,
+                        root,
+                        stream);
+    device_gatherv_tuple_iterator_element_impl<InputIterator, OutputIterator, I + 1, N>().run(
+      comm, input_first, output_first, sendcount, recvcounts, displacements, root, stream);
+  }
+};
+
+template <typename InputIterator, typename OutputIterator, size_t I>
+struct device_gatherv_tuple_iterator_element_impl<InputIterator, OutputIterator, I, I> {
+  void run(raft::comms::comms_t const& comm,
+           InputIterator input_first,
+           OutputIterator output_first,
+           size_t sendcount,
+           std::vector<size_t> const& recvcounts,
+           std::vector<size_t> const& displacements,
+           int root,
+           cudaStream_t stream) const
+  {
+  }
+};
+
 template <typename TupleType, size_t I>
 auto allocate_comm_buffer_tuple_element_impl(size_t buffer_size, cudaStream_t stream)
 {
@@ -1263,6 +1339,51 @@ device_allgatherv(raft::comms::comms_t const& comm,
                                                         size_t{0},
                                                         tuple_size>()
     .run(comm, input_first, output_first, recvcounts, displacements, stream);
+}
+
+template <typename InputIterator, typename OutputIterator>
+std::enable_if_t<
+  std::is_arithmetic<typename std::iterator_traits<InputIterator>::value_type>::value,
+  void>
+device_gatherv(raft::comms::comms_t const& comm,
+               InputIterator input_first,
+               OutputIterator output_first,
+               size_t sendcount,
+               std::vector<size_t> const& recvcounts,
+               std::vector<size_t> const& displacements,
+               int root,
+               cudaStream_t stream)
+{
+  detail::device_gatherv_impl(
+    comm, input_first, output_first, sendcount, recvcounts, displacements, root, stream);
+}
+
+template <typename InputIterator, typename OutputIterator>
+std::enable_if_t<
+  is_thrust_tuple_of_arithmetic<typename std::iterator_traits<InputIterator>::value_type>::value &&
+    is_thrust_tuple<typename std::iterator_traits<OutputIterator>::value_type>::value,
+  void>
+device_gatherv(raft::comms::comms_t const& comm,
+               InputIterator input_first,
+               OutputIterator output_first,
+               size_t sendcount,
+               std::vector<size_t> const& recvcounts,
+               std::vector<size_t> const& displacements,
+               int root,
+               cudaStream_t stream)
+{
+  static_assert(
+    thrust::tuple_size<typename thrust::iterator_traits<InputIterator>::value_type>::value ==
+    thrust::tuple_size<typename thrust::iterator_traits<OutputIterator>::value_type>::value);
+
+  size_t constexpr tuple_size =
+    thrust::tuple_size<typename thrust::iterator_traits<InputIterator>::value_type>::value;
+
+  detail::device_allgatherv_tuple_iterator_element_impl<InputIterator,
+                                                        OutputIterator,
+                                                        size_t{0},
+                                                        tuple_size>()
+    .run(comm, input_first, output_first, sendcount, recvcounts, displacements, root, stream);
 }
 
 template <typename T, typename std::enable_if_t<std::is_arithmetic<T>::value>* = nullptr>
