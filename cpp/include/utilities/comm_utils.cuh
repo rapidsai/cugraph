@@ -27,7 +27,8 @@
 #include <numeric>
 #include <type_traits>
 
-// FIXME: split this file to three: host_scalar_comm_utils.cuh, device_comm_utils.cuh, and buffer_utils.cuh
+// FIXME: split this file to three: host_scalar_comm_utils.cuh, device_comm_utils.cuh, and
+// buffer_utils.cuh
 namespace cugraph {
 namespace experimental {
 
@@ -728,9 +729,7 @@ std::enable_if_t<std::is_arithmetic<T>::value, T> host_scalar_reduce(
   raft::update_device(d_input.data(), &input, 1, stream);
   comm.reduce(d_input.data(), d_input.data(), 1, raft::comms::op_t::SUM, stream);
   T h_input{};
-  if (comm.get_rank() == root) {
-    raft::update_host(&h_input, d_input.data(), 1, stream);
-  }
+  if (comm.get_rank() == root) { raft::update_host(&h_input, d_input.data(), 1, stream); }
   auto status = comm.sync_stream(stream);
   CUGRAPH_EXPECTS(status == raft::comms::status_t::SUCCESS, "sync_stream() failure.");
   return h_input;
@@ -759,8 +758,8 @@ host_scalar_reduce(raft::comms::comms_t const& comm, T input, int root, cudaStre
   auto status = comm.sync_stream(stream);
   CUGRAPH_EXPECTS(status == raft::comms::status_t::SUCCESS, "sync_stream() failure.");
   if (comm.get_rank() == root) {
-  detail::update_tuple_from_vector_of_tuple_scalar_elements_impl<T, size_t{0}, tuple_size>().update(
-    ret, h_tuple_scalar_elements);
+    detail::update_tuple_from_vector_of_tuple_scalar_elements_impl<T, size_t{0}, tuple_size>()
+      .update(ret, h_tuple_scalar_elements);
   }
 
   return ret;
@@ -819,12 +818,13 @@ std::enable_if_t<std::is_arithmetic<T>::value, std::vector<T>> host_scalar_allga
   std::iota(displacements.begin(), displacements.end(), size_t{0});
   rmm::device_uvector<T> d_outputs(rx_counts.size(), stream);
   raft::update_device(d_outputs.data() + comm.get_rank(), &input, 1, stream);
+  // FIXME: better use allgather
   comm.allgatherv(d_outputs.data() + comm.get_rank(),
                   d_outputs.data(),
                   rx_counts.data(),
                   displacements.data(),
                   stream);
-  std::vector<T> h_outputs(rx_counts.size(), size_t{0});
+  std::vector<T> h_outputs(rx_counts.size());
   raft::update_host(h_outputs.data(), d_outputs.data(), rx_counts.size(), stream);
   auto status = comm.sync_stream(stream);
   CUGRAPH_EXPECTS(status == raft::comms::status_t::SUCCESS, "sync_stream() failure.");
@@ -849,6 +849,7 @@ host_scalar_allgather(raft::comms::comms_t const& comm, T input, cudaStream_t st
                       h_tuple_scalar_elements.data(),
                       tuple_size,
                       stream);
+  // FIXME: better use allgather
   comm.allgatherv(d_allgathered_tuple_scalar_elements.data() + comm.get_rank() * tuple_size,
                   d_allgathered_tuple_scalar_elements.data(),
                   rx_counts.data(),
@@ -869,6 +870,81 @@ host_scalar_allgather(raft::comms::comms_t const& comm, T input, cudaStream_t st
       h_allgathered_tuple_scalar_elements.data() + (i + 1) * tuple_size);
     detail::update_tuple_from_vector_of_tuple_scalar_elements_impl<T, size_t{0}, tuple_size>()
       .update(ret[i], h_tuple_scalar_elements);
+  }
+
+  return ret;
+}
+
+// Return value is valid only in root (return value may better be std::optional in C++17 or later)
+template <typename T>
+std::enable_if_t<std::is_arithmetic<T>::value, std::vector<T>> host_scalar_gather(
+  raft::comms::comms_t const& comm, T input, int root, cudaStream_t stream)
+{
+  rmm::device_uvector<T> d_outputs(comm.get_rank() == root ? comm.get_size() : int{1}, stream);
+  raft::update_device(
+    comm.get_rank() == root ? d_outputs.data() + comm.get_rank() : d_outputs.data(),
+    &input,
+    1,
+    stream);
+  comm.gather(comm.get_rank() == root ? d_outputs.data() + comm.get_rank() : d_outputs.data(),
+              d_outputs.data(),
+              size_t{1},
+              root,
+              stream);
+  std::vector<T> h_outputs(comm.get_rank() == root ? comm.get_size() : 0);
+  if (comm.get_rank() == root ?) {
+    raft::update_host(h_outputs.data(), d_outputs.data(), rx_counts.size(), stream);
+  }
+  auto status = comm.sync_stream(stream);
+  CUGRAPH_EXPECTS(status == raft::comms::status_t::SUCCESS, "sync_stream() failure.");
+  return h_outputs;
+}
+
+// Return value is valid only in root (return value may better be std::optional in C++17 or later)
+template <typename T>
+std::enable_if_t<cugraph::experimental::is_thrust_tuple_of_arithmetic<T>::value, std::vector<T>>
+host_scalar_gather(raft::comms::comms_t const& comm, T input, int root, cudaStream_t stream)
+{
+  size_t constexpr tuple_size = thrust::tuple_size<T>::value;
+  std::vector<int64_t> h_tuple_scalar_elements(tuple_size);
+  rmm::device_uvector<int64_t> d_gathered_tuple_scalar_elements(
+    comm.get_rank() == root ? comm.get_size() * tuple_size : tuple_size, stream);
+
+  detail::update_vector_of_tuple_scalar_elements_from_tuple_impl<T, size_t{0}, tuple_size>().update(
+    h_tuple_scalar_elements, input);
+  raft::update_device(comm.get_rank() == root
+                        ? d_gathered_tuple_scalar_elements.data() + comm.get_rank() * tuple_size
+                        : d_gathered_tuple_scalar_elements.data(),
+                      h_tuple_scalar_elements.data(),
+                      tuple_size,
+                      stream);
+  comm.gather(comm.get_rank() == root
+                ? d_gathered_tuple_scalar_elements.data() + comm.get_rank() * tuple_size
+                : d_gathered_tuple_scalar_elements.data(),
+              d_gathered_tuple_scalar_elements.data(),
+              tuple_size,
+              root,
+              stream);
+  std::vector<int64_t> h_gathered_tuple_scalar_elements(
+    comm.get_rank() == root ? comm.get_size() * tuple_size : size_t{0});
+  if (comm.get_rank() == root) {
+    raft::update_host(h_gathered_tuple_scalar_elements.data(),
+                      d_gathered_tuple_scalar_elements.data(),
+                      comm.get_size() * tuple_size,
+                      stream);
+  }
+  auto status = comm.sync_stream(stream);
+  CUGRAPH_EXPECTS(status == raft::comms::status_t::SUCCESS, "sync_stream() failure.");
+
+  std::vector<T> ret(comm.get_size());
+  if (comm.get_rank() == root) {
+    for (size_t i = 0; i < ret.size(); ++i) {
+      std::vector<int64_t> h_tuple_scalar_elements(
+        h_gathered_tuple_scalar_elements.data() + i * tuple_size,
+        h_gathered_tuple_scalar_elements.data() + (i + 1) * tuple_size);
+      detail::update_tuple_from_vector_of_tuple_scalar_elements_impl<T, size_t{0}, tuple_size>()
+        .update(ret[i], h_tuple_scalar_elements);
+    }
   }
 
   return ret;
