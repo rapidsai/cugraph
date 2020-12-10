@@ -1,30 +1,35 @@
+##########
 References
-===============
+##########
 
+**********
 Algorithms
-**************
+**********
 
 Betweenness Centrality
--------------------------
+
 - Brandes, U. (2001). A faster algorithm for betweenness centrality. Journal of mathematical sociology, 25(2), 163-177.
 - Brandes, U. (2008). On variants of shortest-path betweenness centrality and their generic computation. Social Networks, 30(2), 136-145.
 - McLaughlin, A., & Bader, D. A. (2018). Accelerating GPU betweenness centrality. Communications of the ACM, 61(8), 85-92.
 
 
 Katz
--------------------------
 
 - J. Cohen, *Trusses: Cohesive subgraphs for social network analysis* National security agency technical report, 2008
 - O. Green, J. Fox, E. Kim, F. Busato, et al. *Quickly Finding a Truss in a Haystack* IEEE High Performance Extreme Computing Conference (HPEC), 2017 https://doi.org/10.1109/HPEC.2017.8091038
 - O. Green, P. Yalamanchili, L.M. Munguia, “*ast Triangle Counting on GPU* Irregular Applications: Architectures and Algorithms (IA3), 2014
 
+Hungarian Algorithm
 
+- Date, K., & Nagi, R. (2016). GPU-accelerated Hungarian algorithms for the Linear Assignment Problem. Parallel Computing, 57, 52-72.
 
+| 
 
+| 
 
-
+**********
 Data Sets
-**************
+**********
 
 karate
   - W. W. Zachary, *An information flow model for conflict and fission in small groups*, Journal of Anthropological Research 33, 452-473 (1977).

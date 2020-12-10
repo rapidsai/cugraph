@@ -42,6 +42,13 @@ with warnings.catch_warnings():
     import networkx as nx
 
 
+# =============================================================================
+# Pytest Setup / Teardown - called for each test function
+# =============================================================================
+def setup_function():
+    gc.collect()
+
+
 def compare_series(series_1, series_2):
     assert len(series_1) == len(series_2)
     df = cudf.DataFrame({"series_1": series_1, "series_2": series_2})
@@ -151,15 +158,12 @@ def check_all_two_hops(df, M):
 
 
 def test_version():
-    gc.collect()
     cugraph.__version__
 
 
 # Test
 @pytest.mark.parametrize("graph_file", utils.DATASETS)
 def test_add_edge_list_to_adj_list(graph_file):
-    gc.collect()
-
     cu_M = utils.read_csv_file(graph_file)
 
     M = utils.read_csv_for_nx(graph_file)
@@ -180,8 +184,6 @@ def test_add_edge_list_to_adj_list(graph_file):
 # Test
 @pytest.mark.parametrize("graph_file", utils.DATASETS)
 def test_add_adj_list_to_edge_list(graph_file):
-    gc.collect()
-
     Mnx = utils.read_csv_for_nx(graph_file)
     N = max(max(Mnx["0"]), max(Mnx["1"])) + 1
     Mcsr = scipy.sparse.csr_matrix(
@@ -208,8 +210,6 @@ def test_add_adj_list_to_edge_list(graph_file):
 # Test
 @pytest.mark.parametrize("graph_file", utils.DATASETS)
 def test_view_edge_list_from_adj_list(graph_file):
-    gc.collect()
-
     Mnx = utils.read_csv_for_nx(graph_file)
     N = max(max(Mnx["0"]), max(Mnx["1"])) + 1
     Mcsr = scipy.sparse.csr_matrix(
@@ -231,8 +231,6 @@ def test_view_edge_list_from_adj_list(graph_file):
 # Test
 @pytest.mark.parametrize("graph_file", utils.DATASETS)
 def test_delete_edge_list_delete_adj_list(graph_file):
-    gc.collect()
-
     Mnx = utils.read_csv_for_nx(graph_file)
     df = cudf.DataFrame()
     df["src"] = cudf.Series(Mnx["0"])
@@ -261,8 +259,6 @@ def test_delete_edge_list_delete_adj_list(graph_file):
 # Test
 @pytest.mark.parametrize("graph_file", utils.DATASETS)
 def test_add_edge_or_adj_list_after_add_edge_or_adj_list(graph_file):
-    gc.collect()
-
     Mnx = utils.read_csv_for_nx(graph_file)
     df = cudf.DataFrame()
     df["src"] = cudf.Series(Mnx["0"])
@@ -302,8 +298,6 @@ def test_add_edge_or_adj_list_after_add_edge_or_adj_list(graph_file):
 # Test
 @pytest.mark.parametrize("graph_file", utils.DATASETS)
 def test_edges_for_Graph(graph_file):
-    gc.collect()
-
     cu_M = utils.read_csv_file(graph_file)
 
     # Create nx Graph
@@ -342,8 +336,6 @@ def test_edges_for_Graph(graph_file):
 # Test
 @pytest.mark.parametrize("graph_file", utils.DATASETS)
 def test_view_edge_list_for_Graph(graph_file):
-    gc.collect()
-
     cu_M = utils.read_csv_file(graph_file)
 
     # Create nx Graph
@@ -387,8 +379,6 @@ def test_view_edge_list_for_Graph(graph_file):
 # Test
 @pytest.mark.parametrize('graph_file', utils.DATASETS)
 def test_consolidation(graph_file):
-    gc.collect()
-
     cluster = LocalCUDACluster()
     client = Client(cluster)
     chunksize = dcg.get_chunksize(graph_file)
@@ -423,8 +413,6 @@ def test_consolidation(graph_file):
 # Test
 @pytest.mark.parametrize('graph_file', utils.DATASETS_SMALL)
 def test_two_hop_neighbors(graph_file):
-    gc.collect()
-
     cu_M = utils.read_csv_file(graph_file)
 
     G = cugraph.DiGraph()
@@ -444,8 +432,6 @@ def test_two_hop_neighbors(graph_file):
 # Test
 @pytest.mark.parametrize("graph_file", utils.DATASETS)
 def test_degree_functionality(graph_file):
-    gc.collect()
-
     M = utils.read_csv_for_nx(graph_file)
     cu_M = utils.read_csv_file(graph_file)
 
@@ -484,8 +470,6 @@ def test_degree_functionality(graph_file):
 # Test
 @pytest.mark.parametrize("graph_file", utils.DATASETS)
 def test_degrees_functionality(graph_file):
-    gc.collect()
-
     M = utils.read_csv_for_nx(graph_file)
     cu_M = utils.read_csv_file(graph_file)
 
@@ -517,8 +501,6 @@ def test_degrees_functionality(graph_file):
 # Test
 @pytest.mark.parametrize("graph_file", utils.DATASETS)
 def test_number_of_vertices(graph_file):
-    gc.collect()
-
     cu_M = utils.read_csv_file(graph_file)
 
     M = utils.read_csv_for_nx(graph_file)
@@ -537,8 +519,6 @@ def test_number_of_vertices(graph_file):
 # Test
 @pytest.mark.parametrize("graph_file", utils.DATASETS_SMALL)
 def test_to_directed(graph_file):
-    gc.collect()
-
     cu_M = utils.read_csv_file(graph_file)
     cu_M = cu_M[cu_M["0"] <= cu_M["1"]].reset_index(drop=True)
     M = utils.read_csv_for_nx(graph_file)
@@ -566,8 +546,6 @@ def test_to_directed(graph_file):
 # Test
 @pytest.mark.parametrize("graph_file", utils.DATASETS_SMALL)
 def test_to_undirected(graph_file):
-    gc.collect()
-
     # Read data and then convert to directed by dropped some edges
     cu_M = utils.read_csv_file(graph_file)
     cu_M = cu_M[cu_M["0"] <= cu_M["1"]].reset_index(drop=True)
@@ -602,8 +580,6 @@ def test_to_undirected(graph_file):
 # Test
 @pytest.mark.parametrize("graph_file", utils.DATASETS)
 def test_has_edge(graph_file):
-    gc.collect()
-
     cu_M = utils.read_csv_file(graph_file)
     cu_M = cu_M[cu_M["0"] <= cu_M["1"]].reset_index(drop=True)
 
@@ -619,8 +595,6 @@ def test_has_edge(graph_file):
 # Test
 @pytest.mark.parametrize("graph_file", utils.DATASETS)
 def test_has_node(graph_file):
-    gc.collect()
-
     cu_M = utils.read_csv_file(graph_file)
     nodes = cudf.concat([cu_M["0"], cu_M["1"]]).unique()
 
@@ -632,13 +606,19 @@ def test_has_node(graph_file):
         assert G.has_node(n)
 
 
-# Test all combinations of default/managed and pooled/non-pooled allocation
+def test_invalid_has_node():
+    df = cudf.DataFrame([[1, 2]], columns=["src", "dst"])
+    G = cugraph.Graph()
+    G.from_cudf_edgelist(df, source="src", destination="dst")
+    assert not G.has_node(-1)
+    assert not G.has_node(0)
+    assert not G.has_node(G.number_of_nodes() + 1)
+
+
 @pytest.mark.parametrize('graph_file', utils.DATASETS)
 def test_bipartite_api(graph_file):
     # This test only tests the functionality of adding set of nodes and
     # retrieving them. The datasets currently used are not truly bipartite.
-    gc.collect()
-
     cu_M = utils.read_csv_file(graph_file)
     nodes = cudf.concat([cu_M['0'], cu_M['1']]).unique()
 
@@ -670,8 +650,6 @@ def test_bipartite_api(graph_file):
 # Test
 @pytest.mark.parametrize("graph_file", utils.DATASETS)
 def test_neighbors(graph_file):
-    gc.collect()
-
     cu_M = utils.read_csv_file(graph_file)
     nodes = cudf.concat([cu_M["0"], cu_M["1"]]).unique()
     M = utils.read_csv_for_nx(graph_file)

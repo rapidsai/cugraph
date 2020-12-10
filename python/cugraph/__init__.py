@@ -29,7 +29,17 @@ from cugraph.community import (
 from cugraph.structure import (
     Graph,
     DiGraph,
+    from_edgelist,
     from_cudf_edgelist,
+    from_pandas_edgelist,
+    to_pandas_edgelist,
+    from_pandas_adjacency,
+    to_pandas_adjacency,
+    from_numpy_array,
+    to_numpy_array,
+    from_numpy_matrix,
+    to_numpy_matrix,
+    from_adjlist,
     hypergraph,
     symmetrize,
     symmetrize_df,
@@ -45,6 +55,7 @@ from cugraph.centrality import (
 from cugraph.cores import core_number, k_core
 
 from cugraph.components import (
+    connected_components,
     weakly_connected_components,
     strongly_connected_components,
 )
@@ -62,11 +73,14 @@ from cugraph.link_prediction import (
 
 from cugraph.traversal import (
     bfs,
-    bfs_edges, 
+    bfs_edges,
     sssp,
     shortest_path,
     filter_unreachable,
+    shortest_path_length
 )
+
+from cugraph.tree import minimum_spanning_tree, maximum_spanning_tree
 
 from cugraph.utilities import utils
 
@@ -75,6 +89,7 @@ from cugraph.bsp.traversal import bfs_df_pregel
 from cugraph.proto.components import strong_connected_component
 from cugraph.proto.structure import find_bicliques
 
+from cugraph.linear_assignment import hungarian
 from cugraph.layout import force_atlas2
 from cugraph.raft import raft_include_test
 from cugraph.comms import comms

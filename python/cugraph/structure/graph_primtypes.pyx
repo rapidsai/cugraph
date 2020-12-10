@@ -76,7 +76,7 @@ cdef GraphCSRViewType get_csr_graph_view(input_graph, bool weighted=True, GraphC
     cdef uintptr_t c_ind = input_graph.adjlist.indices.__cuda_array_interface__['data'][0]
     cdef uintptr_t c_weights = <uintptr_t>NULL
 
-    if input_graph.adjlist.weights and weighted:
+    if input_graph.adjlist.weights is not None and weighted:
         c_weights = input_graph.adjlist.weights.__cuda_array_interface__['data'][0]
 
     num_verts = input_graph.number_of_vertices()
@@ -97,6 +97,7 @@ cdef GraphCOOViewType get_coo_graph_view(input_graph, bool weighted=True, GraphC
     cdef uintptr_t c_dst = input_graph.edgelist.edgelist_df['dst'].__cuda_array_interface__['data'][0]
     cdef uintptr_t c_weights = <uintptr_t>NULL
 
+    # FIXME explicit check for None fails, different behavior than get_csr_graph_view
     if input_graph.edgelist.weights and weighted:
         c_weights = input_graph.edgelist.edgelist_df['weights'].__cuda_array_interface__['data'][0]
 

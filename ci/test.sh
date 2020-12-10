@@ -64,20 +64,20 @@ else
     cd $WORKSPACE/ci/artifacts/cugraph/cpu/conda_work/cpp/build
 fi
 
-# FIXME: temporarily disabling all C++ tests for 0.16 due to intermittent
-# failures from what appears to be an issue with Thrust (which does not appear
-# to affect the Python API or notebooks). Re-enable once this issue is resolved
-# in 0.17.
-# for gt in gtests/*; do
-#     test_name=$(basename $gt)
-#     echo "Running GoogleTest $test_name"
-#     ${gt} ${GTEST_FILTER} ${GTEST_ARGS}
-#     ERRORCODE=$((ERRORCODE | $?))
-# done
+for gt in gtests/*; do
+    test_name=$(basename $gt)
+    echo "Running GoogleTest $test_name"
+    ${gt} ${GTEST_FILTER} ${GTEST_ARGS}
+    ERRORCODE=$((ERRORCODE | $?))
+done
 
 if [[ "$PROJECT_FLASH" == "1" ]]; then
-    echo "Installing libcugraph..."
-    conda install -c $WORKSPACE/ci/artifacts/cugraph/cpu/conda-bld/ libcugraph
+    CONDA_FILE=`find $WORKSPACE/ci/artifacts/cugraph/cpu/conda-bld/ -name "libcugraph*.tar.bz2"`
+    CONDA_FILE=`basename "$CONDA_FILE" .tar.bz2` #get filename without extension
+    CONDA_FILE=${CONDA_FILE//-/=} #convert to conda install
+    echo "Installing $CONDA_FILE"
+    conda install -c $WORKSPACE/ci/artifacts/cugraph/cpu/conda-bld/ "$CONDA_FILE"
+
     export LIBCUGRAPH_BUILD_DIR="$WORKSPACE/ci/artifacts/cugraph/cpu/conda_work/cpp/build"
     echo "Build cugraph..."
     $WORKSPACE/build.sh cugraph
@@ -85,7 +85,7 @@ fi
 
 echo "Python pytest for cuGraph..."
 cd ${CUGRAPH_ROOT}/python
-pytest --cache-clear --junitxml=${CUGRAPH_ROOT}/junit-cugraph.xml -v --cov-config=.coveragerc --cov=cugraph --cov-report=xml:${WORKSPACE}/python/cugraph/cugraph-coverage.xml --cov-report term --ignore=cugraph/raft
+pytest --cache-clear --junitxml=${CUGRAPH_ROOT}/junit-cugraph.xml -v --cov-config=.coveragerc --cov=cugraph --cov-report=xml:${WORKSPACE}/python/cugraph/cugraph-coverage.xml --cov-report term --ignore=cugraph/raft --benchmark-disable
 ERRORCODE=$((ERRORCODE | $?))
 
 echo "Python benchmarks for cuGraph (running as tests)..."

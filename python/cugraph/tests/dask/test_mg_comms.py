@@ -27,7 +27,7 @@ from cugraph.dask.common.mg_utils import is_single_gpu
 def client_connection():
     cluster = LocalCUDACluster()
     client = Client(cluster)
-    Comms.initialize()
+    Comms.initialize(p2p=True)
 
     yield client
 
@@ -62,7 +62,7 @@ def test_dask_pagerank(client_connection):
     dg1 = cugraph.DiGraph()
     dg1.from_dask_cudf_edgelist(ddf1, "src", "dst")
 
-    result_pr1 = dcg.pagerank(dg1)
+    result_pr1 = dcg.pagerank(dg1).compute()
 
     ddf2 = dask_cudf.read_csv(
         input_data_path2,
@@ -75,7 +75,7 @@ def test_dask_pagerank(client_connection):
     dg2 = cugraph.DiGraph()
     dg2.from_dask_cudf_edgelist(ddf2, "src", "dst")
 
-    result_pr2 = dcg.pagerank(dg2)
+    result_pr2 = dcg.pagerank(dg2).compute()
 
     # Calculate single GPU pagerank for verification of results
     df1 = cudf.read_csv(

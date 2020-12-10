@@ -1,5 +1,4 @@
-#!/usr/bin/env bash
-# Copyright (c) 2018-2020, NVIDIA CORPORATION.
+# Copyright (c) 2019-2020, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -12,14 +11,15 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-set -e
+# cython: profile=False
+# distutils: language = c++
+# cython: embedsignature = True
+# cython: language_level = 3
 
-if [ "$BUILD_LIBCUGRAPH" == '1' ]; then
-  echo "Building libcugraph"
-  CUDA_REL=${CUDA_VERSION%.*}
-  if [[ -z "$PROJECT_FLASH" || "$PROJECT_FLASH" == "0" ]]; then
-    conda build conda/recipes/libcugraph
-  else
-    conda build --dirty --no-remove-work-dir conda/recipes/libcugraph
-  fi
-fi
+from cugraph.structure.graph_primtypes cimport *
+
+
+cdef extern from "algorithms.hpp" namespace "cugraph":
+
+    cdef unique_ptr[GraphCOO[VT,ET,WT]] minimum_spanning_tree[VT,ET,WT](const handle_t &handle,
+        const GraphCSRView[VT,ET,WT] &graph) except +

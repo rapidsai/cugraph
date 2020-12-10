@@ -28,11 +28,18 @@ import numpy as np
 from cugraph.tests import utils
 
 
+# =============================================================================
+# Pytest Setup / Teardown - called for each test function
+# =============================================================================
+def setup_function():
+    gc.collect()
+
+
 @pytest.fixture
 def client_connection():
     cluster = LocalCUDACluster()
     client = Client(cluster)
-    Comms.initialize()
+    Comms.initialize(p2p=True)
 
     yield client
 
@@ -44,9 +51,33 @@ def client_connection():
 @pytest.mark.skipif(
     is_single_gpu(), reason="skipping MG testing on Single GPU system"
 )
-def test_compute_local_data(client_connection):
+def test_from_edgelist(client_connection):
+    input_data_path = r"../datasets/karate.csv"
+    chunksize = dcg.get_chunksize(input_data_path)
+    ddf = dask_cudf.read_csv(
+        input_data_path,
+        chunksize=chunksize,
+        delimiter=" ",
+        names=["src", "dst", "value"],
+        dtype=["int32", "int32", "float32"],
+    )
 
-    gc.collect()
+    dg1 = cugraph.from_edgelist(
+        ddf, source="src", destination="dst", edge_attr="value",
+        create_using=cugraph.DiGraph)
+
+    dg2 = cugraph.DiGraph()
+    dg2.from_dask_cudf_edgelist(
+        ddf, source="src", destination="dst", edge_attr="value"
+    )
+
+    assert dg1.EdgeList == dg2.EdgeList
+
+
+@pytest.mark.skipif(
+    is_single_gpu(), reason="skipping MG testing on Single GPU system"
+)
+def test_compute_local_data(client_connection):
 
     input_data_path = r"../datasets/karate.csv"
     chunksize = dcg.get_chunksize(input_data_path)

@@ -1,5 +1,6 @@
-#!/usr/bin/env bash
-# Copyright (c) 2018-2020, NVIDIA CORPORATION.
+#
+# Copyright (c) 2020, NVIDIA CORPORATION.
+#
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -11,15 +12,22 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+#
 
-set -e
+from cugraph.structure.graph_primtypes cimport *
+from libcpp cimport bool
 
-if [ "$BUILD_CUGRAPH" == "1" ]; then
-  echo "Building cugraph"
-  CUDA_REL=${CUDA_VERSION%.*}
-  if [[ -z "$PROJECT_FLASH" || "$PROJECT_FLASH" == "0" ]]; then
-    conda build conda/recipes/cugraph --python=$PYTHON
-  else
-    conda build conda/recipes/cugraph -c ci/artifacts/cugraph/cpu/conda-bld/ --dirty --no-remove-work-dir --python=$PYTHON
-  fi
-fi
+
+cdef extern from "utilities/cython.hpp" namespace "cugraph::cython":
+
+    cdef void call_katz_centrality[vertex_t, weight_t](
+        const handle_t &handle,
+        const graph_container_t &g,
+        vertex_t *identifiers,
+        weight_t *katz_centrality,
+        double alpha,
+        double beta,
+        double tolerance,
+        long long max_iter,
+        bool has_guess,
+        bool normalized) except +

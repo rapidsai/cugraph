@@ -39,6 +39,7 @@ with warnings.catch_warnings():
 # Parameters
 # =============================================================================
 DIRECTED_GRAPH_OPTIONS = [False, True]
+WEIGHTED_GRAPH_OPTIONS = [False, True]
 NORMALIZED_OPTIONS = [False, True]
 DEFAULT_EPSILON = 0.0001
 
@@ -63,7 +64,8 @@ def calc_edge_betweenness_centrality(
     seed=None,
     result_dtype=np.float64,
     use_k_full=False,
-    multi_gpu_batch=False
+    multi_gpu_batch=False,
+    edgevals=False
 ):
     """ Generate both cugraph and networkx edge betweenness centrality
 
@@ -98,6 +100,10 @@ def calc_edge_betweenness_centrality(
     multi_gpu_batch: bool
         When True, enable mg batch after constructing the graph
 
+    edgevals: bool
+        When True, enable tests with weighted graph, should be ignored
+        during computation.
+
     Returns
     -------
 
@@ -109,7 +115,8 @@ def calc_edge_betweenness_centrality(
     """
     G = None
     Gnx = None
-    G, Gnx = utils.build_cu_and_nx_graphs(graph_file, directed=directed)
+    G, Gnx = utils.build_cu_and_nx_graphs(graph_file, directed=directed,
+                                          edgevals=edgevals)
     assert G is not None and Gnx is not None
     if multi_gpu_batch:
         G.enable_batch()
@@ -300,6 +307,7 @@ def prepare_test():
 @pytest.mark.parametrize("weight", [None])
 @pytest.mark.parametrize("subset_seed", SUBSET_SEED_OPTIONS)
 @pytest.mark.parametrize("result_dtype", RESULT_DTYPE_OPTIONS)
+@pytest.mark.parametrize("edgevals", WEIGHTED_GRAPH_OPTIONS)
 def test_edge_betweenness_centrality(
     graph_file,
     directed,
@@ -308,6 +316,7 @@ def test_edge_betweenness_centrality(
     weight,
     subset_seed,
     result_dtype,
+    edgevals
 ):
     prepare_test()
     sorted_df = calc_edge_betweenness_centrality(
@@ -318,6 +327,7 @@ def test_edge_betweenness_centrality(
         weight=weight,
         seed=subset_seed,
         result_dtype=result_dtype,
+        edgevals=edgevals
     )
     compare_scores(sorted_df, first_key="cu_bc", second_key="ref_bc")
 
@@ -330,6 +340,7 @@ def test_edge_betweenness_centrality(
 @pytest.mark.parametrize("subset_seed", SUBSET_SEED_OPTIONS)
 @pytest.mark.parametrize("result_dtype", RESULT_DTYPE_OPTIONS)
 @pytest.mark.parametrize("use_k_full", [True])
+@pytest.mark.parametrize("edgevals", WEIGHTED_GRAPH_OPTIONS)
 def test_edge_betweenness_centrality_k_full(
     graph_file,
     directed,
@@ -339,6 +350,7 @@ def test_edge_betweenness_centrality_k_full(
     subset_seed,
     result_dtype,
     use_k_full,
+    edgevals
 ):
     """Tests full edge betweenness centrality by using k = G.number_of_vertices()
     instead of k=None, checks that k scales properly"""
@@ -352,6 +364,7 @@ def test_edge_betweenness_centrality_k_full(
         seed=subset_seed,
         result_dtype=result_dtype,
         use_k_full=use_k_full,
+        edgevals=edgevals
     )
     compare_scores(sorted_df, first_key="cu_bc", second_key="ref_bc")
 
@@ -367,6 +380,7 @@ def test_edge_betweenness_centrality_k_full(
 @pytest.mark.parametrize("weight", [None])
 @pytest.mark.parametrize("subset_seed", [None])
 @pytest.mark.parametrize("result_dtype", RESULT_DTYPE_OPTIONS)
+@pytest.mark.parametrize("edgevals", WEIGHTED_GRAPH_OPTIONS)
 def test_edge_betweenness_centrality_fixed_sample(
     graph_file,
     directed,
@@ -375,6 +389,7 @@ def test_edge_betweenness_centrality_fixed_sample(
     weight,
     subset_seed,
     result_dtype,
+    edgevals
 ):
     """Test Edge Betweenness Centrality using a subset
 
@@ -389,6 +404,7 @@ def test_edge_betweenness_centrality_fixed_sample(
         weight=weight,
         seed=subset_seed,
         result_dtype=result_dtype,
+        edgevals=edgevals
     )
     compare_scores(sorted_df, first_key="cu_bc", second_key="ref_bc")
 
@@ -400,6 +416,7 @@ def test_edge_betweenness_centrality_fixed_sample(
 @pytest.mark.parametrize("weight", [[]])
 @pytest.mark.parametrize("subset_seed", SUBSET_SEED_OPTIONS)
 @pytest.mark.parametrize("result_dtype", RESULT_DTYPE_OPTIONS)
+@pytest.mark.parametrize("edgevals", WEIGHTED_GRAPH_OPTIONS)
 def test_edge_betweenness_centrality_weight_except(
     graph_file,
     directed,
@@ -408,6 +425,7 @@ def test_edge_betweenness_centrality_weight_except(
     weight,
     subset_seed,
     result_dtype,
+    edgevals
 ):
     """Test calls edge_betweeness_centrality with weight parameter
 
@@ -424,6 +442,7 @@ def test_edge_betweenness_centrality_weight_except(
             weight=weight,
             seed=subset_seed,
             result_dtype=result_dtype,
+            edgevals=edgevals
         )
         compare_scores(sorted_df, first_key="cu_bc", second_key="ref_bc")
 
@@ -435,6 +454,7 @@ def test_edge_betweenness_centrality_weight_except(
 @pytest.mark.parametrize("weight", [None])
 @pytest.mark.parametrize("subset_seed", SUBSET_SEED_OPTIONS)
 @pytest.mark.parametrize("result_dtype", [str])
+@pytest.mark.parametrize("edgevals", WEIGHTED_GRAPH_OPTIONS)
 def test_edge_betweenness_invalid_dtype(
     graph_file,
     directed,
@@ -443,6 +463,7 @@ def test_edge_betweenness_invalid_dtype(
     weight,
     subset_seed,
     result_dtype,
+    edgevals
 ):
     """Test calls edge_betwenness_centrality an invalid type"""
 
@@ -456,15 +477,22 @@ def test_edge_betweenness_invalid_dtype(
             weight=weight,
             seed=subset_seed,
             result_dtype=result_dtype,
+            edgevals=edgevals
         )
         compare_scores(sorted_df, first_key="cu_bc", second_key="ref_bc")
 
 
 @pytest.mark.parametrize("graph_file", utils.DATASETS_SMALL)
-def test_edge_betweenness_centrality_nx(graph_file):
+@pytest.mark.parametrize("directed", DIRECTED_GRAPH_OPTIONS)
+@pytest.mark.parametrize("edgevals", WEIGHTED_GRAPH_OPTIONS)
+def test_edge_betweenness_centrality_nx(
+        graph_file,
+        directed,
+        edgevals
+):
     prepare_test()
 
-    Gnx = utils.generate_nx_graph_from_file(graph_file)
+    Gnx = utils.generate_nx_graph_from_file(graph_file, directed, edgevals)
 
     nx_bc = nx.edge_betweenness_centrality(Gnx)
     cu_bc = cugraph.edge_betweenness_centrality(Gnx)
