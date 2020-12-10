@@ -32,7 +32,6 @@ dependencies:
 - scikit-learn>=0.23.1
 - colorcet
 - holoviews
-- datashader
 - sphinx
 - sphinx_rtd_theme
 - sphinxcontrib-websupport

@@ -31,7 +31,6 @@ dependencies:
 - pytest
 - scikit-learn>=0.23.1
 - colorcet
-- datashader
 - holoviews
 - sphinx
 - sphinx_rtd_theme
