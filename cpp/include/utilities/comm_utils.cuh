@@ -27,6 +27,7 @@
 #include <numeric>
 #include <type_traits>
 
+// FIXME: split this file to three: host_scalar_comm_utils.cuh, device_comm_utils.cuh, and buffer_utils.cuh
 namespace cugraph {
 namespace experimental {
 
@@ -87,6 +88,32 @@ template <typename TupleType, size_t I>
 struct host_allreduce_tuple_scalar_element_impl<TupleType, I, I> {
   void run(raft::comms::comms_t const& comm,
            rmm::device_uvector<int64_t>& tuple_scalar_elements,
+           cudaStream_t stream) const
+  {
+  }
+};
+
+template <typename TupleType, size_t I, size_t N>
+struct host_reduce_tuple_scalar_element_impl {
+  void run(raft::comms::comms_t const& comm,
+           rmm::device_uvector<int64_t>& tuple_scalar_elements,
+           int root,
+           cudaStream_t stream) const
+  {
+    using element_t = typename thrust::tuple_element<I, TupleType>::type;
+    static_assert(sizeof(element_t) <= sizeof(int64_t));
+    auto ptr = reinterpret_cast<element_t*>(tuple_scalar_elements.data() + I);
+    comm.reduce(ptr, ptr, 1, raft::comms::op_t::SUM, root, stream);
+    host_reduce_tuple_scalar_element_impl<TupleType, I + 1, N>().run(
+      comm, tuple_scalar_elements, root, stream);
+  }
+};
+
+template <typename TupleType, size_t I>
+struct host_reduce_tuple_scalar_element_impl<TupleType, I, I> {
+  void run(raft::comms::comms_t const& comm,
+           rmm::device_uvector<int64_t>& tuple_scalar_elements,
+           int root,
            cudaStream_t stream) const
   {
   }
@@ -688,6 +715,53 @@ host_scalar_allreduce(raft::comms::comms_t const& comm, T input, cudaStream_t st
   CUGRAPH_EXPECTS(status == raft::comms::status_t::SUCCESS, "sync_stream() failure.");
   detail::update_tuple_from_vector_of_tuple_scalar_elements_impl<T, size_t{0}, tuple_size>().update(
     ret, h_tuple_scalar_elements);
+
+  return ret;
+}
+
+// Return value is valid only in root (return value may better be std::optional in C++17 or later)
+template <typename T>
+std::enable_if_t<std::is_arithmetic<T>::value, T> host_scalar_reduce(
+  raft::comms::comms_t const& comm, T input, int root, cudaStream_t stream)
+{
+  rmm::device_uvector<T> d_input(1, stream);
+  raft::update_device(d_input.data(), &input, 1, stream);
+  comm.reduce(d_input.data(), d_input.data(), 1, raft::comms::op_t::SUM, stream);
+  T h_input{};
+  if (comm.get_rank() == root) {
+    raft::update_host(&h_input, d_input.data(), 1, stream);
+  }
+  auto status = comm.sync_stream(stream);
+  CUGRAPH_EXPECTS(status == raft::comms::status_t::SUCCESS, "sync_stream() failure.");
+  return h_input;
+}
+
+// Return value is valid only in root (return value may better be std::optional in C++17 or later)
+template <typename T>
+std::enable_if_t<cugraph::experimental::is_thrust_tuple_of_arithmetic<T>::value, T>
+host_scalar_reduce(raft::comms::comms_t const& comm, T input, int root, cudaStream_t stream)
+{
+  size_t constexpr tuple_size = thrust::tuple_size<T>::value;
+  std::vector<int64_t> h_tuple_scalar_elements(tuple_size);
+  rmm::device_uvector<int64_t> d_tuple_scalar_elements(tuple_size, stream);
+  T ret{};
+
+  detail::update_vector_of_tuple_scalar_elements_from_tuple_impl<T, size_t{0}, tuple_size>().update(
+    h_tuple_scalar_elements, input);
+  raft::update_device(
+    d_tuple_scalar_elements.data(), h_tuple_scalar_elements.data(), tuple_size, stream);
+  detail::host_reduce_tuple_scalar_element_impl<T, size_t{0}, tuple_size>().run(
+    comm, d_tuple_scalar_elements, root, stream);
+  if (comm.get_rank() == root) {
+    raft::update_host(
+      h_tuple_scalar_elements.data(), d_tuple_scalar_elements.data(), tuple_size, stream);
+  }
+  auto status = comm.sync_stream(stream);
+  CUGRAPH_EXPECTS(status == raft::comms::status_t::SUCCESS, "sync_stream() failure.");
+  if (comm.get_rank() == root) {
+  detail::update_tuple_from_vector_of_tuple_scalar_elements_impl<T, size_t{0}, tuple_size>().update(
+    ret, h_tuple_scalar_elements);
+  }
 
   return ret;
 }
