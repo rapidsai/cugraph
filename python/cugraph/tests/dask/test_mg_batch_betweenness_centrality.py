@@ -37,8 +37,11 @@ from cugraph.tests.test_betweenness_centrality import (
 # Parameters
 # =============================================================================
 DATASETS = ["../datasets/karate.csv"]
-MG_DEVICE_COUNT_OPTIONS = [1, 2, 3, 4]
-MG_DEVICE_COUNT_OPTIONS = [None]
+MG_DEVICE_COUNT_OPTIONS = [pytest.param(1, marks=pytest.mark.preset_gpu_count),
+                           pytest.param(2, marks=pytest.mark.preset_gpu_count),
+                           pytest.param(3, marks=pytest.mark.preset_gpu_count),
+                           pytest.param(4, marks=pytest.mark.preset_gpu_count),
+                           None]
 RESULT_DTYPE_OPTIONS = [np.float64]
 
 
