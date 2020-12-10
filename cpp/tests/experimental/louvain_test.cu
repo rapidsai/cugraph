@@ -21,8 +21,17 @@
 #include <raft/handle.hpp>
 #include <rmm/mr/device/cuda_memory_resource.hpp>
 
+// "FIXME": remove this check
+//
+// Disable louvain(experimental::graph_view_t,...)
+// versions for GPU architectures < 700
+// (cuco/static_map.cuh depends on features not supported on or before Pascal)
+//
+#if defined(__CUDA_ARCH__) && __CUDA_ARCH__ < 700
 #include <experimental/graph.hpp>
+#else
 #include <experimental/louvain.cuh>
+#endif
 
 #include <algorithms.hpp>
 

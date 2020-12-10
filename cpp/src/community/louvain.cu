@@ -15,8 +15,18 @@
  */
 
 #include <community/louvain.cuh>
+
+// "FIXME": remove this check
+//
+// Disable louvain(experimental::graph_view_t,...)
+// versions for GPU architectures < 700
+// (cuco/static_map.cuh depends on features not supported on or before Pascal)
+//
+#if defined(__CUDA_ARCH__) && __CUDA_ARCH__ < 700
 #include <experimental/graph.hpp>
+#else
 #include <experimental/louvain.cuh>
+#endif
 
 namespace cugraph {
 
