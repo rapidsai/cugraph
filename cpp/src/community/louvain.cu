@@ -69,9 +69,13 @@ std::pair<size_t, weight_t> louvain(
   if (device_prop.major < 7) {
     CUGRAPH_FAIL("Louvain not supported on Pascal and older architectures");
   } else {
+#if defined(__CUDA_ARCH__) && __CUDA_ARCH__ < 700
+    CUGRAPH_FAIL("Louvain not supported on Pascal and older architectures");
+#else
     experimental::Louvain<experimental::graph_view_t<vertex_t, edge_t, weight_t, false, multi_gpu>>
       runner(handle, graph_view);
     return runner(clustering, max_level, resolution);
+#endif
   }
 }
 
