@@ -968,8 +968,8 @@ std::enable_if_t<std::is_arithmetic<T>::value, std::vector<T>> host_scalar_gathe
               root,
               stream);
   std::vector<T> h_outputs(comm.get_rank() == root ? comm.get_size() : 0);
-  if (comm.get_rank() == root ?) {
-    raft::update_host(h_outputs.data(), d_outputs.data(), rx_counts.size(), stream);
+  if (comm.get_rank() == root) {
+    raft::update_host(h_outputs.data(), d_outputs.data(), comm.get_size(), stream);
   }
   auto status = comm.sync_stream(stream);
   CUGRAPH_EXPECTS(status == raft::comms::status_t::SUCCESS, "sync_stream() failure.");
