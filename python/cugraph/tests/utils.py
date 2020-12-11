@@ -73,13 +73,13 @@ DATASETS_SMALL = [
 
 MATRIX_INPUT_TYPES = [
     pytest.param(
-        cp_coo_matrix, marks=pytest.mark.cupy_types, id="CuPy.coo_matrix"
+        cp_coo_matrix, marks=pytest.mark.matrix_types, id="CuPy.coo_matrix"
     ),
     pytest.param(
-        cp_csr_matrix, marks=pytest.mark.cupy_types, id="CuPy.csr_matrix"
+        cp_csr_matrix, marks=pytest.mark.matrix_types, id="CuPy.csr_matrix"
     ),
     pytest.param(
-        cp_csc_matrix, marks=pytest.mark.cupy_types, id="CuPy.csc_matrix"
+        cp_csc_matrix, marks=pytest.mark.matrix_types, id="CuPy.csc_matrix"
     ),
 ]
 
@@ -289,9 +289,11 @@ def generate_mg_batch_cugraph_graph_from_file(graph_file, directed=True):
     return G
 
 
-def build_cu_and_nx_graphs(graph_file, directed=True):
-    G = generate_cugraph_graph_from_file(graph_file, directed=directed)
-    Gnx = generate_nx_graph_from_file(graph_file, directed=directed)
+def build_cu_and_nx_graphs(graph_file, directed=True, edgevals=False):
+    G = generate_cugraph_graph_from_file(graph_file, directed=directed,
+                                         edgevals=edgevals)
+    Gnx = generate_nx_graph_from_file(graph_file, directed=directed,
+                                      edgevals=edgevals)
     return G, Gnx
 
 
