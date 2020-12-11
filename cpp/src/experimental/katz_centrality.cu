@@ -166,8 +166,6 @@ void katz_centrality(raft::handle_t const &handle,
                       katz_centralities,
                       [l2_norm] __device__(auto val) { return val / l2_norm; });
   }
-
-  return;
 }
 
 }  // namespace detail

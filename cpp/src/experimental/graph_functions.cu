@@ -145,8 +145,6 @@ void sort_and_coarsen_edgelist(rmm::device_uvector<vertex_t> &edgelist_major_ver
   edgelist_major_vertices.shrink_to_fit(stream);
   edgelist_minor_vertices.shrink_to_fit(stream);
   edgelist_weights.shrink_to_fit(stream);
-
-  return;
 }
 
 template <typename vertex_t, typename edge_t, typename weight_t>

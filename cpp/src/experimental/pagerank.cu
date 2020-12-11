@@ -286,8 +286,6 @@ void pagerank(raft::handle_t const& handle,
       CUGRAPH_FAIL("PageRank failed to converge.");
     }
   }
-
-  return;
 }
 
 }  // namespace detail
