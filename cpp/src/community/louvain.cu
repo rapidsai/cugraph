@@ -16,12 +16,11 @@
 
 #include <community/louvain.cuh>
 
-// "FIXME": remove the guards after support for Pascal will be dropped;
+// "FIXME": remove this check
 //
-// Disable louvain(experimenta::graph_view_t,...)
+// Disable louvain(experimental::graph_view_t,...)
 // versions for GPU architectures < 700
-//(this is because cuco/static_map.cuh would not
-// compile on those)
+// (cuco/static_map.cuh depends on features not supported on or before Pascal)
 //
 #if defined(__CUDA_ARCH__) && __CUDA_ARCH__ < 700
 #include <experimental/graph.hpp>
@@ -58,13 +57,26 @@ std::pair<size_t, weight_t> louvain(
 {
   CUGRAPH_EXPECTS(clustering != nullptr, "Invalid input argument: clustering is null");
 
+  // "FIXME": remove this check
+  //
+  // Disable louvain(experimental::graph_view_t,...)
+  // versions for GPU architectures < 700
+  // (cuco/static_map.cuh depends on features not supported on or before Pascal)
+  //
+  cudaDeviceProp device_prop;
+  CUDA_CHECK(cudaGetDeviceProperties(&device_prop, 0));
+
+  if (device_prop.major < 7) {
+    CUGRAPH_FAIL("Louvain not supported on Pascal and older architectures");
+  } else {
 #if defined(__CUDA_ARCH__) && __CUDA_ARCH__ < 700
-  CUGRAPH_FAIL("Louvain not supported on Pascal and older architectures");
+    CUGRAPH_FAIL("Louvain not supported on Pascal and older architectures");
 #else
-  experimental::Louvain<experimental::graph_view_t<vertex_t, edge_t, weight_t, false, multi_gpu>>
-    runner(handle, graph_view);
-  return runner(clustering, max_level, resolution);
+    experimental::Louvain<experimental::graph_view_t<vertex_t, edge_t, weight_t, false, multi_gpu>>
+      runner(handle, graph_view);
+    return runner(clustering, max_level, resolution);
 #endif
+  }
 }
 
 }  // namespace detail

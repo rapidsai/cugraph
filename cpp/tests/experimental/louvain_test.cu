@@ -17,6 +17,16 @@
 #include <utilities/base_fixture.hpp>
 #include <utilities/test_utilities.hpp>
 
+#include <raft/cudart_utils.h>
+#include <raft/handle.hpp>
+#include <rmm/mr/device/cuda_memory_resource.hpp>
+
+// "FIXME": remove this check
+//
+// Disable louvain(experimental::graph_view_t,...)
+// versions for GPU architectures < 700
+// (cuco/static_map.cuh depends on features not supported on or before Pascal)
+//
 #if defined(__CUDA_ARCH__) && __CUDA_ARCH__ < 700
 #include <experimental/graph.hpp>
 #else
@@ -64,9 +74,6 @@ class Tests_Louvain : public ::testing::TestWithParam<Louvain_Usecase> {
   template <typename vertex_t, typename edge_t, typename weight_t, typename result_t>
   void run_current_test(Louvain_Usecase const& configuration)
   {
-#if defined(__CUDA_ARCH__) && __CUDA_ARCH__ < 700
-    CUGRAPH_FAIL("Louvain not supported on Pascal and older architectures");
-#else
     raft::handle_t handle{};
 
     std::cout << "read graph file: " << configuration.graph_file_full_path << std::endl;
@@ -78,7 +85,6 @@ class Tests_Louvain : public ::testing::TestWithParam<Louvain_Usecase> {
     auto graph_view = graph.view();
 
     louvain(graph_view);
-#endif
   }
 
   template <typename graph_t>
