@@ -84,7 +84,20 @@ class Tests_Louvain : public ::testing::TestWithParam<Louvain_Usecase> {
 
     auto graph_view = graph.view();
 
-    louvain(graph_view);
+    // "FIXME": remove this check
+    //
+    // Disable louvain(experimental::graph_view_t,...)
+    // versions for GPU architectures < 700
+    // (cuco/static_map.cuh depends on features not supported on or before Pascal)
+    //
+    cudaDeviceProp device_prop;
+    CUDA_CHECK(cudaGetDeviceProperties(&device_prop, 0));
+
+    if (device_prop.major < 7) {
+      EXPECT_THROW(louvain(graph_view), cugraph::logic_error);
+    } else {
+      louvain(graph_view);
+    }
   }
 
   template <typename graph_t>
