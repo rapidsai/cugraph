@@ -301,4 +301,3 @@ void simulOpt(int nodes, int *neighbors, float *posx, float *posy, int *work)
   }
 
 }
-

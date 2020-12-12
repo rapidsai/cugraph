@@ -15,19 +15,19 @@ from cugraph.algorithms import tsp_wrapper
 from cugraph.structure.graph import null_check
 
 def traveling_salesman(input_graph,
-                       node_pos=None,
+                       pos_list=None,
                        restarts=4096,
                        weight=None
                        distance="euclidean",
 
 ):
 
-    if node_pos is not None:
-        null_check(node_pos['vertex'])
-        null_check(node_pos['x'])
-        null_check(node_pos['y'])
+    if pos_list is not None:
+        null_check(pos_list['vertex'])
+        null_check(pos_list['x'])
+        null_check(pos_list['y'])
         if input_graph.renumbered is True:
-            node_pos = input_graph.add_internal_vertex_id(node_pos,
+            pos_list = input_graph.add_internal_vertex_id(pos_list,
                                                 "vertex",
                                                 "vertex")
 
@@ -35,12 +35,12 @@ def traveling_salesman(input_graph,
         input_graph.to_undirected()
 
     cost = tsp_wrapper.traveling_salesman(input_graph,
-                                          node_pos,
+                                          pos_list,
                                           restarts,
                                           weight,
                                           distance)
 
     if input_graph.renumbered:
-        node_pos = input_graph.unrenumber(node_pos, "vertex")
+        pos_list = input_graph.unrenumber(pos_list, "vertex")
 
     return cost
