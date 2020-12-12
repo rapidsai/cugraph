@@ -17,10 +17,12 @@ from cugraph.structure.graph import null_check
 def traveling_salesman(input_graph,
                        pos_list=None,
                        restarts=4096,
-                       weight=None
                        distance="euclidean",
 
 ):
+
+    if distance != "euclidean":
+        raise Exception("Other metrics not supported")
 
     if pos_list is not None:
         null_check(pos_list['vertex'])

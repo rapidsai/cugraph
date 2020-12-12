@@ -11,7 +11,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from cugraph.traversal.traveling_salesman cimport force_atlas2 as c_force_atlas2
+from cugraph.traversal.traveling_salesman cimport traveling_salesman as c_traveling_salesman
 from cugraph.structure import graph_primtypes_wrapper
 from cugraph.structure.graph_primtypes cimport *
 from cugraph.structure import utils_wrapper
@@ -28,7 +28,6 @@ import numpy.ctypeslib as ctypeslib
 def traveling_salesman(input_graph,
                        pos_list=None,
                        restarts=4096,
-                       weight=None,
                        distance="euclidean"):
     """
     Call traveling_salesman
@@ -39,6 +38,7 @@ def traveling_salesman(input_graph,
 
     num_verts = input_graph.number_of_vertices()
     num_edges = len(input_graph.edgelist.edgelist_df['src'])
+    final_cost = None
 
     cdef GraphCOOView[int,int,float] graph_float
 
@@ -51,7 +51,7 @@ def traveling_salesman(input_graph,
 
     cdef uintptr_t x_start = <uintptr_t>NULL
     cdef uintptr_t y_start = <uintptr_t>NULL
-    cdef uintptr_t pos_ptr = <uintptr_t>NULL
+    cdef float final_cost_float = 0.0
 
     if pos_list is not None:
         if len(pos_list) != num_verts:
@@ -68,4 +68,9 @@ def traveling_salesman(input_graph,
             <int*>c_dst_indices, <float*>c_weights, num_verts,
             num_edges)
 
-    return df
+    final_cost_float = c_traveling_salesman(graph_float,
+                                      <float*> x_start,
+                                      <float*> y_start,
+                                      <int> restarts)
+    final_cost = final_cost_float
+    return final_cost
