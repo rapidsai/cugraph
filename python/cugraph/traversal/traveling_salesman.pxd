@@ -11,11 +11,17 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+# cython: profile=False
+# distutils: language = c++
+# cython: embedsignature = True
+# cython: language_level = 3
+
 from cugraph.structure.graph_primtypes cimport *
 
 cdef extern from "algorithms.hpp" namespace "cugraph":
 
     cdef void traveling_salesman[vertex_t, edge_t, weight_t](
+            const handle_t &handle,
             GraphCOOView[vertex_t, edge_t, weight_t] &graph,
             float* x_start,
             float* y_start,

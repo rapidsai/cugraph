@@ -11,18 +11,57 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+# cython: profile=False
+# distutils: language = c++
+# cython: embedsignature = True
+# cython: language_level = 3
+
 from cugraph.traversal.traveling_salesman cimport traveling_salesman as c_traveling_salesman
 from cugraph.structure import graph_primtypes_wrapper
 from cugraph.structure.graph_primtypes cimport *
-from cugraph.structure import utils_wrapper
-from libcpp cimport bool
 from libc.stdint cimport uintptr_t
 
 import cudf
-import cudf._lib as libcudf
-from numba import cuda
 import numpy as np
-import numpy.ctypeslib as ctypeslib
+
+def traveling_salesman_float(num_verts, num_edges, src_indices, dst_indices, weights):
+    cdef unique_ptr[handle_t] handle_ptr
+    handle_ptr.reset(new handle_t())
+    handle_ = handle_ptr.get();
+    cdef GraphCOOView[int,int,float] graph_float
+    cdef uintptr_t c_src_indices = src_indices.__cuda_array_interface__['data'][0]
+    cdef uintptr_t c_dst_indices = dst_indices.__cuda_array_interface__['data'][0]
+    cdef uintptr_t c_weights = weights.__cuda_array_interface__['data'][0]
+    cdef float final_cost_float = 0.0
+    graph_float = GraphCOOView[int,int,float](<int*>c_src_indices,
+            <int*>c_dst_indices, <float*>c_weights, num_verts,
+            num_edges)
+    final_cost_float = c_traveling_salesman(handle_[0]
+                                            graph_float,
+                                            <float*> x_start,
+                                            <float*> y_start,
+                                            <int> restarts)
+    return final_cost_float
+
+
+def traveling_salesman_double(num_verts, num_edges, src_indices, dst_indices, weights):
+    cdef unique_ptr[handle_t] handle_ptr
+    handle_ptr.reset(new handle_t())
+    handle_ = handle_ptr.get();
+    cdef GraphCOOView[int,int,double] graph_double
+    cdef uintptr_t c_src_indices = src_indices.__cuda_array_interface__['data'][0]
+    cdef uintptr_t c_dst_indices = dst_indices.__cuda_array_interface__['data'][0]
+    cdef uintptr_t c_weights = weights.__cuda_array_interface__['data'][0]
+    cdef double final_cost_double = 0.0
+    graph_double = GraphCOOView[int,int,double](<int*>c_src_indices,
+            <int*>c_dst_indices, <double*>c_weights, num_verts,
+            num_edges)
+    final_cost_double = c_traveling_salesman(handle_[0]
+                                             graph_double,
+                                             <double*> x_start,
+                                             <double*> y_start,
+                                             <int> restarts)
+    return final_cost_double
 
 
 def traveling_salesman(input_graph,
@@ -36,22 +75,21 @@ def traveling_salesman(input_graph,
     if not input_graph.edgelist:
         input_graph.view_edge_list()
 
+    [src_indices, dst_indices] = graph_primtypes_wrapper.datatype_cast(
+            [input_graph.edgelist_df['src'], input_graph.edgelist_df['dst']],
+            [np.int32])
+
     num_verts = input_graph.number_of_vertices()
     num_edges = len(input_graph.edgelist.edgelist_df['src'])
-    final_cost = None
 
-    cdef GraphCOOView[int,int,float] graph_float
-
-    cdef uintptr_t c_src_indices = input_graph.edgelist.edgelist_df['src'].__cuda_array_interface__['data'][0]
-    cdef uintptr_t c_dst_indices = input_graph.edgelist.edgelist_df['dst'].__cuda_array_interface__['data'][0]
-    cdef uintptr_t c_weights = <uintptr_t> NULL
-
-    if input_graph.edgelist.weights:
-        c_weights = input_graph.edgelist.edgelist_df['weights'].__cuda_array_interface__['data'][0]
+    if input_graph.edgelist.weights is not None:
+        [weights] = graph_primtypes_wrapper.datatype_cast(
+                [input_graph.edgelist.weights], [np.float32, np.float64])
+    else:
+        weights = cudf.Series(cp.full(num_edges, 1.0, dtype=np.float32))
 
     cdef uintptr_t x_start = <uintptr_t>NULL
     cdef uintptr_t y_start = <uintptr_t>NULL
-    cdef float final_cost_float = 0.0
 
     if pos_list is not None:
         if len(pos_list) != num_verts:
@@ -63,14 +101,17 @@ def traveling_salesman(input_graph,
         x_start = pos_list['x'].__cuda_array_interface__['data'][0]
         y_start = pos_list['y'].__cuda_array_interface__['data'][0]
 
+    if graph_primtypes_wrapper.weight_type(input_graph) == np.float32:
+        final_cost = traveling_salesman_float(num_verts,
+                                              num_edges,
+                                              src_indices,
+                                              dst_indices,
+                                              weights)
+    else:
+        final_cost = traveling_salesman_double(num_verts,
+                                               num_edges,
+                                               src_indices,
+                                               dst_indices,
+                                               weights)
 
-    graph_float = GraphCOOView[int,int,float](<int*>c_src_indices,
-            <int*>c_dst_indices, <float*>c_weights, num_verts,
-            num_edges)
-
-    final_cost_float = c_traveling_salesman(graph_float,
-                                      <float*> x_start,
-                                      <float*> y_start,
-                                      <int> restarts)
-    final_cost = final_cost_float
     return final_cost

@@ -20,6 +20,8 @@ def traveling_salesman(input_graph,
                        distance="euclidean",
 
 ):
+    if type(G) is not Graph:
+        raise Exception("input graph must be undirected")
 
     if distance != "euclidean":
         raise Exception("Other metrics not supported")
@@ -32,9 +34,6 @@ def traveling_salesman(input_graph,
             pos_list = input_graph.add_internal_vertex_id(pos_list,
                                                 "vertex",
                                                 "vertex")
-
-    if input_graph.is_directed():
-        input_graph.to_undirected()
 
     cost = tsp_wrapper.traveling_salesman(input_graph,
                                           pos_list,
