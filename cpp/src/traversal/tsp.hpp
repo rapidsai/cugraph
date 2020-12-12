@@ -17,23 +17,41 @@
 #pragma once
 
 #include <raft/handle.hpp>
+#include <rmm/device_uvector.hpp>
 
 namespace cugraph {
-namespace detail {
 
   template<typename vertex_t, typename edge_t, typename weight_t>
   class TSP {
     public:
       TSP(const raft::handle_t &handle,
-          const GraphCOOView<vertex_t, edge_t, weight_t> &graph);
-      ~TSP();
+          GraphCOOView<vertex_t, edge_t, weight_t> &graph,
+          const float *x_pos,
+          const float *y_pos,
+          const int restarts);
+
+      float compute();
+
+      ~TSP() {};
 
     private:
-      cudaStream_t stream;
-      int blocks;
-      int threads;
-      int sm_count;
+      const raft::handle_t &handle_;
+      cudaStream_t stream_
+
+      // COO
+      const vertex_t *src_;
+      const vertex_t *dst_;
+      const weight_t *weight_;
+      const vertext_t v_;
+      const edge_t e_;
+
+      const float *x_pos_;
+      const float *y_pos_;
+      const int restarts_;
+
+      int max_blocks_;
+      int max_threads_;
+      int sm_count_;
   }
 
-} // namespace detail;
 } // namespace cugraph;
