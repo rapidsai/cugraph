@@ -25,33 +25,39 @@ namespace cugraph {
   class TSP {
     public:
       TSP(const raft::handle_t &handle,
-          GraphCOOView<vertex_t, edge_t, weight_t> &graph,
+          GraphCOOView<vertex_t, edge_t, weight_t> &graph_,
           const float *x_pos,
           const float *y_pos,
           const int restarts);
 
+      void allocate();
       float compute();
+      void knn();
 
       ~TSP() {};
 
     private:
       const raft::handle_t &handle_;
       cudaStream_t stream_
+      int max_blocks_;
+      int max_threads_;
+      int sm_count_;
 
       // COO
       const vertex_t *src_;
       const vertex_t *dst_;
       const weight_t *weight_;
-      const vertext_t v_;
+      const vertext_t nodes_;
       const edge_t e_;
+
+      // TSP
+      const int restarts_;
+      float *input_x_h_;
+      float *input_y_h_;
 
       const float *x_pos_;
       const float *y_pos_;
-      const int restarts_;
-
-      int max_blocks_;
-      int max_threads_;
-      int sm_count_;
+      rmm::device_vector<int> neighbors_;
   }
 
 } // namespace cugraph;
