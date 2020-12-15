@@ -336,31 +336,16 @@ set_property(TARGET gunrock PROPERTY IMPORTED_LOCATION ${GUNROCK_DIR}/src/gunroc
 # - library targets -------------------------------------------------------------------------------
 
 add_library(cugraph SHARED
-    src/utilities/spmv_1D.cu
-    src/utilities/cython.cu
-    src/structure/graph.cu
-    src/linear_assignment/hungarian.cu
-    src/link_analysis/gunrock_hits.cpp
-    src/traversal/bfs.cu
-    src/traversal/sssp.cu
-    src/link_prediction/jaccard.cu
-    src/link_prediction/overlap.cu
-    src/layout/force_atlas2.cu
-    src/converters/renumber.cu
-    src/converters/COOtoCSR.cu
-    src/community/spectral_clustering.cu
-    src/community/louvain.cu
-    src/community/leiden.cu
-    src/community/ktruss.cu
-    src/community/ecg.cu
-    src/community/triangles_counting.cu
+
     src/community/extract_subgraph_by_vertex.cu
     src/community/egonet.cu
     src/cores/core_number.cu
     src/traversal/two_hop_neighbors.cu
     src/components/connectivity.cu
-    src/centrality/katz_centrality.cu
-    src/centrality/betweenness_centrality.cu
+    src/converters/COOtoCSR.cu
+    src/converters/renumber.cu
+    src/cores/core_number.cu
+    src/experimental/bfs.cu
     src/experimental/graph.cu
     src/experimental/graph_view.cu
     src/experimental/coarsen_graph.cu
@@ -371,7 +356,23 @@ add_library(cugraph SHARED
     src/experimental/sssp.cu
     src/experimental/pagerank.cu
     src/experimental/katz_centrality.cu
+    src/experimental/pagerank.cu
+    src/experimental/sssp.cu
+    src/layout/force_atlas2.cu
+    src/linear_assignment/hungarian.cu
+    src/link_analysis/gunrock_hits.cpp
+    src/link_analysis/pagerank_1D.cu
+    src/link_analysis/pagerank.cu
+    src/link_prediction/jaccard.cu
+    src/link_prediction/overlap.cu
+    src/structure/graph.cu
+    src/traversal/bfs.cu
+    src/traversal/sssp.cu
+    src/traversal/tsp.cu
+    src/traversal/two_hop_neighbors.cu
     src/tree/mst.cu
+    src/utilities/cython.cu
+    src/utilities/spmv_1D.cu
 )
 
 target_link_directories(cugraph

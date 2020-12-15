@@ -23,7 +23,7 @@ cdef extern from "algorithms.hpp" namespace "cugraph":
     cdef void traveling_salesman[vertex_t, edge_t, weight_t](
             const handle_t &handle,
             GraphCOOView[vertex_t, edge_t, weight_t] &graph,
-            float *x_start,
-            float *y_start,
+            float *x_pos,
+            float *y_pos,
             int restarts) except +
 

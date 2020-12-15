@@ -38,8 +38,8 @@ def traveling_salesman_float(num_verts, num_edges, src_indices, dst_indices, wei
             num_edges)
     final_cost_float = c_traveling_salesman(handle_[0]
                                             graph_float,
-                                            <float*> x_start,
-                                            <float*> y_start,
+                                            <float*> x_pos,
+                                            <float*> y_pos,
                                             <int> restarts)
     return final_cost_float
 
@@ -58,8 +58,8 @@ def traveling_salesman_double(num_verts, num_edges, src_indices, dst_indices, we
             num_edges)
     final_cost_double = c_traveling_salesman(handle_[0]
                                              graph_double,
-                                             <double*> x_start,
-                                             <double*> y_start,
+                                             <double*> x_pos,
+                                             <double*> y_pos,
                                              <int> restarts)
     return final_cost_double
 
@@ -88,8 +88,8 @@ def traveling_salesman(input_graph,
     else:
         weights = cudf.Series(cp.full(num_edges, 1.0, dtype=np.float32))
 
-    cdef uintptr_t x_start = <uintptr_t>NULL
-    cdef uintptr_t y_start = <uintptr_t>NULL
+    cdef uintptr_t x_pos = <uintptr_t>NULL
+    cdef uintptr_t y_pos = <uintptr_t>NULL
 
     if pos_list is not None:
         if len(pos_list) != num_verts:
@@ -98,8 +98,8 @@ def traveling_salesman(input_graph,
         pos_list['y'] = pos_list['y'].astype(np.float32)
         pos_list['x'][pos_list['vertex']] = pos_list['x']
         pos_list['y'][pos_list['vertex']] = pos_list['y']
-        x_start = pos_list['x'].__cuda_array_interface__['data'][0]
-        y_start = pos_list['y'].__cuda_array_interface__['data'][0]
+        x_pos = pos_list['x'].__cuda_array_interface__['data'][0]
+        y_pos = pos_list['y'].__cuda_array_interface__['data'][0]
 
     if graph_primtypes_wrapper.weight_type(input_graph) == np.float32:
         final_cost = traveling_salesman_float(num_verts,

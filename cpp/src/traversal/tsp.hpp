@@ -16,12 +16,14 @@
 
 #pragma once
 
+#include <algorithms.hpp>
 #include <raft/handle.hpp>
 #include <rmm/device_uvector.hpp>
+#include <rmm/thrust_rmm_allocator.h>
 
 namespace cugraph {
-
-  template<typename vertex_t, typename edge_t, typename weight_t>
+  namespace detail {
+  template <typename vertex_t, typename edge_t, typename weight_t>
   class TSP {
     public:
       TSP(const raft::handle_t &handle,
@@ -30,25 +32,23 @@ namespace cugraph {
           const float *y_pos,
           const int restarts);
 
-      void allocate();
       float compute();
       void knn();
-
       ~TSP() {};
 
     private:
       const raft::handle_t &handle_;
-      cudaStream_t stream_
+      cudaStream_t stream_;
       int max_blocks_;
       int max_threads_;
       int sm_count_;
 
       // COO
-      const vertex_t *src_;
-      const vertex_t *dst_;
-      const weight_t *weight_;
-      const vertext_t nodes_;
-      const edge_t e_;
+      vertex_t *srcs_;
+      vertex_t *dsts_;
+      weight_t *weights_;
+      vertex_t nodes_;
+      edge_t edges_;
 
       // TSP
       const int restarts_;
@@ -58,6 +58,6 @@ namespace cugraph {
       const float *x_pos_;
       const float *y_pos_;
       rmm::device_vector<int> neighbors_;
-  }
-
-} // namespace cugraph;
+  };
+  } // namespace detail
+} // namespace cugraph

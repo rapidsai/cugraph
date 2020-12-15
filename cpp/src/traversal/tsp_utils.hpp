@@ -21,6 +21,19 @@
 #define cpudist(a, b) (sqrtf((pos[a] - pos[b]) * (pos[a] - pos[b]) + (pos[a+nodes+1] - pos[b+nodes+1]) * (pos[a+nodes+1] - pos[b+nodes+1])))
 #define coo_dist(a, b) (sqrtf((xcoo[a] - xcoo[b]) * (xcoo[a] - xcoo[b]) + (ycoo[a] - ycoo[b]) * (ycoo[a] - ycoo[b])))
 
+/******************************************************************************/
+/*** Simulatenous Hill-climb Opt with beam-search restarts ********************/
+/******************************************************************************/
+// Round all distances to the nearest integer, which is good enough for realistic distances in ft
+#define beamwidth 4
+#define tilesize 128
+#define kswaps 4
+#define dist(a, b) __float2int_rn(sqrtf((px[a] - px[b]) * (px[a] - px[b]) + (py[a] - py[b]) * (py[a] - py[b])))
+#define acudist(a, b) (sqrtf((px[a] - px[b]) * (px[a] - px[b]) + (py[a] - py[b]) * (py[a] - py[b])))
+
+/*only works for floats and int types with +- defined, and if a and b are distinct memory locations */
+#define swap(a, b) { a = a + b; b = a - b;  a = a - b;}
+
 
 #define mallocOnGPU(addr, size) if (cudaSuccess != cudaMalloc((void **)&addr, size)) fprintf(stderr, "could not allocate GPU memory\n");  CudaTest("couldn't allocate GPU memory");
 #define copyToGPU(to, from, size) if (cudaSuccess != cudaMemcpy(to, from, size, cudaMemcpyHostToDevice)) fprintf(stderr, "copying of data to device failed\n");  CudaTest("data copy to device failed");
@@ -31,6 +44,22 @@
 
 namespace cugraph {
   namespace detail {
+
+/******************************************************************************/
+/*** helper code **************************************************************/
+/******************************************************************************/
+
+static void CudaTest(char *msg)
+{
+  cudaError_t e;
+
+  cudaThreadSynchronize();
+  if (cudaSuccess != (e = cudaGetLastError())) {
+    fprintf(stderr, "%s: %d\n", msg, e);
+    fprintf(stderr, "%s\n", cudaGetErrorString(e));
+    exit(-1);
+  }
+}
 
 /* Affine map routine
 

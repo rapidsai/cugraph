@@ -16,18 +16,14 @@
 
 # pragma once
 
-/******************************************************************************/
-/*** Simulatenous Hill-climb Opt with beam-search restarts ********************/
-/******************************************************************************/
-// Round all distances to the nearest integer, which is good enough for realistic distances in ft
-#define beamwidth 4
-#define tilesize 128
-#define kswaps 4
-#define dist(a, b) __float2int_rn(sqrtf((px[a] - px[b]) * (px[a] - px[b]) + (py[a] - py[b]) * (py[a] - py[b])))
-#define acudist(a, b) (sqrtf((px[a] - px[b]) * (px[a] - px[b]) + (py[a] - py[b]) * (py[a] - py[b])))
+#include <stdlib.h>
+#include <stdio.h>
+#include <math.h>
+#include <limits.h>
+#include <cuda.h>
+#include <curand_kernel.h>
 
-/*only works for floats and int types with +- defined, and if a and b are distinct memory locations */
-#define swap(a, b) { a = a + b; b = a - b;  a = a - b;}
+#include "tsp_utils.hpp"
 
 namespace cugraph {
   namespace detail {
@@ -41,7 +37,7 @@ extern __shared__ int shbuf[];
 
 int bw = beamwidth;
 
-static __global__ void Init()
+__global__ void Init()
 {
   mylock = 0;
   n_climbs = 0;
@@ -50,7 +46,7 @@ static __global__ void Init()
   bw_d = beamwidth;
 }
 
-static __global__ __launch_bounds__(2048, 2)
+__global__ __launch_bounds__(2048, 2)
 void simulOpt(int nodes, int *neighbors, float *posx, float *posy, int *work)
 {
   int *buf = &work[blockIdx.x * ((3 * nodes + 2 + 31) / 32 * 32) ];
