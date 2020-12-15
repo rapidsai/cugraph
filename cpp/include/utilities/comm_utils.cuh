@@ -741,6 +741,16 @@ auto allocate_comm_buffer_tuple_impl(std::index_sequence<Is...>,
     allocate_comm_buffer_tuple_element_impl<TupleType, Is>(buffer_size, stream)...);
 }
 
+template <typename TupleType, typename BufferType, size_t I, size_t N>
+void resize_comm_buffer_tuple_element_impl(BufferType& buffer, size_t new_buffer_size, cudaStream_t stream)
+{
+  std::get<I>(buffer).resize(new_buffer_size, stream);
+  resize_comm_buffer_tuple_element_impl<TupleType, BufferType, I + 1, N>(buffer, new_buffer_size, stream);
+}
+
+template <typename TupleType, typename BufferType, size_t I>
+void resize_comm_buffer_tuple_impl(BufferType& buffer, size_t new_buffer_size, cudaStream_t stream) {}
+
 template <typename TupleType, size_t I, typename BufferType>
 auto get_comm_buffer_begin_tuple_element_impl(BufferType& buffer)
 {
@@ -1398,6 +1408,20 @@ auto allocate_comm_buffer(size_t buffer_size, cudaStream_t stream)
   size_t constexpr tuple_size = thrust::tuple_size<T>::value;
   return detail::allocate_comm_buffer_tuple_impl<T>(
     std::make_index_sequence<tuple_size>(), buffer_size, stream);
+}
+
+template <typename T, typename BufferType, typename std::enable_if_t<std::is_arithmetic<T>::value>* = nullptr>
+void resize_comm_buffer(BufferType& buffer, size_t new_buffer_size, cudaStream_t stream)
+{
+  buffer.resize(new_buffer_size, stream);
+}
+
+template <typename T, typename BufferType, typename std::enable_if_t<is_thrust_tuple_of_arithmetic<T>::value>* = nullptr>
+void resize_comm_buffer(BufferType& buffer, size_t new_buffer_size, cudaStream_t stream)
+{
+  size_t constexpr tuple_size = thrust::tuple_size<T>::value;
+  detail::resize_comm_buffer_tuple_impl<T, BufferType, size_t{0}, tuple_size>(
+    buffer, new_buffer_size, stream);
 }
 
 template <typename T,
