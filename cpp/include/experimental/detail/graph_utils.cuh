@@ -157,6 +157,7 @@ rmm::device_uvector<edge_t> compute_major_degree(
   return compute_major_degree(handle, tmp_offsets, partition);
 }
 
+// FIXME: better move this to elsewhere
 template <typename TxValueIterator>
 auto shuffle_values(raft::comms::comms_t const &comm,
                     TxValueIterator tx_value_first,

@@ -15,6 +15,7 @@
  */
 #pragma once
 
+#include <experimental/detail/graph_utils.cuh>
 #include <experimental/graph_view.hpp>
 #include <utilities/error.hpp>
 
@@ -27,6 +28,309 @@
 namespace cugraph {
 namespace experimental {
 
+namespace detail {
+
+// FIXME: block size requires tuning
+int32_t constexpr transform_reduce_by_key_e_for_all_block_size = 128;
+
+template <bool adj_matrix_row_key,
+          typename GraphViewType,
+          typename AdjMatrixRowValueInputIterator,
+          typename AdjMatrixColValueInputIterator,
+          typename VertexIterator,
+          typename EdgeOp,
+          typename T>
+__global__ void for_all_major_for_all_nbr_low_degree(
+  matrix_partition_device_t<GraphViewType> matrix_partition,
+  typename GraphViewType::vertex_type major_first,
+  typename GraphViewType::vertex_type major_last,
+  AdjMatrixRowValueInputIterator adj_matrix_row_value_input_first,
+  AdjMatrixColValueInputIterator adj_matrix_col_value_input_first,
+  VertexIterator adj_matrix_row_col_key_first,
+  EdgeOp e_op,
+  typename GraphViewType::vertex_type* keys,
+  T* values)
+{
+  using vertex_t = typename GraphViewType::vertex_type;
+  using edge_t   = typename GraphViewType::edge_type;
+  using weight_t = typename GraphViewType::weight_type;
+
+  auto const tid          = threadIdx.x + blockIdx.x * blockDim.x;
+  auto major_start_offset = static_cast<size_t>(major_first - matrix_partition.get_major_first());
+  auto idx                = static_cast<size_t>(tid);
+
+  while (idx < static_cast<size_t>(major_last - major_first)) {
+    vertex_t const* indices{nullptr};
+    weight_t const* weights{nullptr};
+    edge_t local_degree{};
+    auto major_offset = major_start_offset + idx;
+    thrust::tie(indices, weights, local_degree) =
+      matrix_partition.get_local_edges(static_cast<vertex_t>(major_offset));
+    if (local_degree > 0) {
+      auto transform_op = [&matrix_partition,
+                           &adj_matrix_row_value_input_first,
+                           &adj_matrix_col_value_input_first,
+                           &adj_matrix_row_col_key_first,
+                           &e_op,
+                           major_offset,
+                           indices,
+                           weights] __device__(auto i) {
+        auto minor        = indices[i];
+        auto weight       = weights != nullptr ? weights[i] : weight_t{1.0};
+        auto minor_offset = matrix_partition.get_minor_offset_from_minor_nocheck(minor);
+        auto row          = GraphViewType::is_adj_matrix_transposed
+                     ? minor
+                     : matrix_partition.get_major_from_major_offset_nocheck(major_offset);
+        auto col = GraphViewType::is_adj_matrix_transposed
+                     ? matrix_partition.get_major_from_major_offset_nocheck(major_offset)
+                     : minor;
+        auto row_offset = GraphViewType::is_adj_matrix_transposed
+                            ? minor_offset
+                            : static_cast<vertex_t>(major_offset);
+        auto col_offset = GraphViewType::is_adj_matrix_transposed
+                            ? static_cast<vertex_t>(major_offset)
+                            : minor_offset;
+
+        auto key =
+          *(adj_matrix_row_col_key_first +
+            ((GraphViewType::is_adj_matrix_transposed != adj_matrix_row_key) ? major_offset
+                                                                             : minor_offset));
+        auto e_op_result = evaluate_edge_op<GraphViewType,
+                                            AdjMatrixRowValueInputIterator,
+                                            AdjMatrixColValueInputIterator,
+                                            EdgeOp>()
+                             .compute(row,
+                                      col,
+                                      weight,
+                                      *(adj_matrix_row_value_input_first + row_offset),
+                                      *(adj_matrix_col_value_input_first + col_offset),
+                                      e_op);
+
+        return thrust::make_tuple(key, e_op_result);
+      };
+
+      auto local_offset = matrix_partition.get_local_offset(major_offset);
+      thrust::transform(
+        thrust::seq,
+        thrust::make_counting_iterator(edge_t{0}),
+        thrust::make_counting_iterator(local_degree),
+        thrust::make_zip_iterator(thrust::make_tuple(keys + local_offset, values + local_offset)),
+        transform_op);
+    }
+
+    idx += gridDim.x * blockDim.x;
+  }
+}
+
+template <bool adj_matrix_row_key,
+          typename GraphViewType,
+          typename AdjMatrixRowValueInputIterator,
+          typename AdjMatrixColValueInputIterator,
+          typename VertexIterator,
+          typename EdgeOp,
+          typename T>
+std::tuple<rmm::device_uvector<typename GraphViewType::vertex_type>,
+           decltype(allocate_comm_buffer<T>(0, cudaStream_t{nullptr}))>
+transform_reduce_by_adj_matrix_row_col_key_e(
+  raft::handle_t const& handle,
+  GraphViewType const& graph_view,
+  AdjMatrixRowValueInputIterator adj_matrix_row_value_input_first,
+  AdjMatrixColValueInputIterator adj_matrix_col_value_input_first,
+  VertexIterator adj_matrix_row_col_key_first,
+  EdgeOp e_op,
+  T init)
+{
+  static_assert(is_arithmetic_or_thrust_tuple_of_arithmetic<T>::value);
+  static_assert(std::is_same<typename std::iterator_traits<VertexIterator>::value_type,
+                             typename GraphViewType::vertex_type>::value);
+
+  using vertex_t = typename GraphViewType::vertex_type;
+  using edge_t   = typename GraphViewType::edge_type;
+  using weight_t = typename GraphViewType::weight_type;
+
+  auto loop_count = size_t{1};
+  if (GraphViewType::is_multi_gpu) {
+    auto& row_comm           = handle.get_subcomm(cugraph::partition_2d::key_naming_t().row_name());
+    auto const row_comm_size = row_comm.get_size();
+    loop_count               = graph_view.is_hypergraph_partitioned()
+                   ? graph_view.get_number_of_local_adj_matrix_partitions()
+                   : static_cast<size_t>(row_comm_size);
+  }
+
+  rmm::device_uvector<vertex_t> keys(0, handle.get_stream());
+  auto value_buffer = allocate_comm_buffer<T>(0, handle.get_stream());
+  for (size_t i = 0; i < loop_count; ++i) {
+    matrix_partition_device_t<GraphViewType> matrix_partition(
+      graph_view, (GraphViewType::is_multi_gpu && !graph_view.is_hypergraph_partitioned()) ? 0 : i);
+
+    int comm_root_rank = 0;
+    if (GraphViewType::is_multi_gpu) {
+      auto& row_comm = handle.get_subcomm(cugraph::partition_2d::key_naming_t().row_name());
+      auto const row_comm_rank = row_comm.get_rank();
+      auto const row_comm_size = row_comm.get_size();
+      auto& col_comm = handle.get_subcomm(cugraph::partition_2d::key_naming_t().col_name());
+      auto const col_comm_rank = col_comm.get_rank();
+      comm_root_rank = graph_view.is_hypergraph_partitioned() ? i * row_comm_size + row_comm_rank
+                                                              : col_comm_rank * row_comm_size + i;
+    }
+
+    auto num_edges = thrust::transform_reduce(
+      rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
+      thrust::make_counting_iterator(graph_view.get_vertex_partition_first(comm_root_rank)),
+      thrust::make_counting_iterator(graph_view.get_vertex_partition_last(comm_root_rank)),
+      [matrix_partition] __device__(auto row) {
+        auto major_offset = matrix_partition.get_major_offset_from_major_nocheck(row);
+        return matrix_partition.get_local_degree(major_offset);
+      },
+      edge_t{0},
+      thrust::plus<edge_t>());
+
+    rmm::device_uvector<vertex_t> tmp_keys(num_edges, handle.get_stream());
+    auto tmp_value_buffer = allocate_comm_buffer<T>(tmp_keys.size(), handle.get_stream());
+
+    if (graph_view.get_vertex_partition_size(comm_root_rank) > 0) {
+      raft::grid_1d_thread_t update_grid(graph_view.get_vertex_partition_size(comm_root_rank),
+                                         detail::transform_reduce_by_key_e_for_all_block_size,
+                                         handle.get_device_properties().maxGridSize[0]);
+
+      // FIXME: This is highly inefficient for graphs with high-degree vertices. If we renumber
+      // vertices to insure that rows within a partition are sorted by their out-degree in
+      // decreasing order, we will apply this kernel only to low out-degree vertices.
+      detail::for_all_major_for_all_nbr_low_degree<adj_matrix_row_key>
+        <<<update_grid.num_blocks, update_grid.block_size, 0, handle.get_stream()>>>(
+          matrix_partition,
+          graph_view.get_vertex_partition_first(comm_root_rank),
+          graph_view.get_vertex_partition_last(comm_root_rank),
+          adj_matrix_row_value_input_first,
+          adj_matrix_col_value_input_first,
+          adj_matrix_row_col_key_first,
+          e_op,
+          tmp_keys.data(),
+          get_comm_buffer_begin<T>(tmp_value_buffer));
+    }
+
+    if (GraphViewType::is_multi_gpu) {
+      auto& comm           = handle.get_comms();
+      auto const comm_size = comm.get_size();
+
+      thrust::sort_by_key(rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
+                          tmp_keys.begin(),
+                          tmp_keys.end(),
+                          get_comm_buffer_begin<T>(tmp_value_buffer));
+
+      auto num_uniques =
+        thrust::count_if(rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
+                         thrust::make_counting_iterator(size_t{0}),
+                         thrust::make_counting_iterator(tmp_keys.size()),
+                         [tmp_keys = tmp_keys.data()] __device__(auto i) {
+                           return ((i == 0) || (tmp_keys[i] != tmp_keys[i - 1])) ? true : false;
+                         });
+      rmm::device_uvector<vertex_t> unique_keys(num_uniques, handle.get_stream());
+      auto value_for_unique_key_buffer =
+        allocate_comm_buffer<T>(unique_keys.size(), handle.get_stream());
+
+      thrust::reduce_by_key(rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
+                            tmp_keys.begin(),
+                            tmp_keys.end(),
+                            get_comm_buffer_begin<T>(tmp_value_buffer),
+                            unique_keys.begin(),
+                            get_comm_buffer_begin<T>(value_for_unique_key_buffer));
+
+      auto key_func = detail::compute_gpu_id_from_vertex_t<vertex_t>{comm_size};
+      thrust::sort_by_key(
+        rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
+        unique_keys.begin(),
+        unique_keys.end(),
+        get_comm_buffer_begin<T>(value_for_unique_key_buffer),
+        [key_func] __device__(auto lhs, auto rhs) { return key_func(lhs) < key_func(rhs); });
+
+      auto key_first = thrust::make_transform_iterator(
+        unique_keys.begin(), [key_func] __device__(auto val) { return key_func(val); });
+      rmm::device_uvector<size_t> tx_value_counts(comm_size, handle.get_stream());
+      thrust::reduce_by_key(rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
+                            key_first,
+                            key_first + unique_keys.size(),
+                            thrust::make_constant_iterator(size_t{1}),
+                            thrust::make_discard_iterator(),
+                            tx_value_counts.begin());
+
+      rmm::device_uvector<vertex_t> rx_unique_keys(0, handle.get_stream());
+      auto rx_value_for_unique_key_buffer = allocate_comm_buffer<T>(0, handle.get_stream());
+
+      std::tie(rx_unique_keys, std::ignore) = cugraph::experimental::detail::shuffle_values(
+        comm, unique_keys.begin(), tx_value_counts, handle.get_stream());
+      std::tie(rx_value_for_unique_key_buffer, std::ignore) =
+        cugraph::experimental::detail::shuffle_values(
+          comm,
+          get_comm_buffer_begin<T>(value_for_unique_key_buffer),
+          tx_value_counts,
+          handle.get_stream());
+
+      // FIXME: we can reduce after shuffle
+
+      tmp_keys         = std::move(rx_unique_keys);
+      tmp_value_buffer = std::move(rx_value_for_unique_key_buffer);
+
+      CUDA_TRY(cudaStreamSynchronize(
+        handle
+          .get_stream()));  // unique_keys & value_for_unique_key_buffer will become out-of-scope
+    }
+
+    auto cur_size = keys.size();
+    // FIXME: this can lead to frequent costly reallocation; we may be able to avoid this if we can
+    // reserve address space to avoid expensive reallocation.
+    // https://devblogs.nvidia.com/introducing-low-level-gpu-virtual-memory-management
+    keys.resize(cur_size + tmp_keys.size(), handle.get_stream());
+    resize_comm_buffer<T>(value_buffer, keys.size(), handle.get_stream());
+
+    thrust::copy(rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
+                 tmp_keys.begin(),
+                 tmp_keys.end(),
+                 keys.begin() + cur_size);
+    thrust::copy(rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
+                 get_comm_buffer_begin<T>(tmp_value_buffer),
+                 get_comm_buffer_begin<T>(tmp_value_buffer) + tmp_keys.size(),
+                 get_comm_buffer_begin<T>(value_buffer) + cur_size);
+  }
+
+  if (GraphViewType::is_multi_gpu) {
+    thrust::sort_by_key(rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
+                        keys.begin(),
+                        keys.end(),
+                        get_comm_buffer_begin<T>(value_buffer));
+
+    auto num_uniques =
+      thrust::count_if(rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
+                       thrust::make_counting_iterator(size_t{0}),
+                       thrust::make_counting_iterator(keys.size()),
+                       [keys = keys.data()] __device__(auto i) {
+                         return ((i == 0) || (keys[i] != keys[i - 1])) ? true : false;
+                       });
+    rmm::device_uvector<vertex_t> unique_keys(num_uniques, handle.get_stream());
+    auto value_for_unique_key_buffer =
+      allocate_comm_buffer<T>(unique_keys.size(), handle.get_stream());
+
+    thrust::reduce_by_key(rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
+                          keys.begin(),
+                          keys.end(),
+                          get_comm_buffer_begin<T>(value_buffer),
+                          unique_keys.begin(),
+                          get_comm_buffer_begin<T>(value_for_unique_key_buffer));
+
+    keys         = std::move(unique_keys);
+    value_buffer = std::move(value_for_unique_key_buffer);
+  }
+
+  // FIXME: add init
+
+  return std::make_tuple(std::move(keys), std::move(value_buffer));
+}
+
+}  // namespace detail
+
+// FIXME: EdgeOp & VertexOp in update_frontier_v_push_if_out_nbr concatenates push inidicator or
+// bucket idx with the value while EdgeOp here does not. This is inconsistent. Better be fixed.
+// FIXME: rmm::device_uvector<T> does not work if T is a tuple.
 /**
  * @brief Iterate over the entire set of edges and reduce @p edge_op outputs to (key, value) pairs.
  *
@@ -39,7 +343,7 @@ namespace experimental {
  * input properties.
  * @tparam EdgeOp Type of the quaternary (or quinary) edge operator.
  * @tparam T Type of the initial value of the value in each (key, value) pair.
- * @tparam KeyIterator Type of the iterator for keys in (key, value) pairs.
+ * @tparam VertexIterator Type of the iterator for keys in (key, value) pairs.
  * @param handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator, and
  * handles to various CUDA libraries) to run graph algorithms.
  * @param graph_view Non-owning graph object.
@@ -67,87 +371,30 @@ namespace experimental {
 template <typename GraphViewType,
           typename AdjMatrixRowValueInputIterator,
           typename AdjMatrixColValueInputIterator,
+          typename VertexIterator,
           typename EdgeOp,
-          typename T,
-          typename KeyIterator>
-thrust::tuple<rmm::device_uvector<vertex_t>, rmm::device_uvector<T>>
-transform_reduce_by_key_e(raft::handle_t const& handle,
-                          GraphViewType const& graph_view,
-                          AdjMatrixRowValueInputIterator adj_matrix_row_value_input_first,
-                          AdjMatrixColValueInputIterator adj_matrix_col_value_input_first,
-                          EdgeOp e_op,
-                          T init)
+          typename T>
+auto transform_reduce_by_adj_matrix_col_key_e(
+  raft::handle_t const& handle,
+  GraphViewType const& graph_view,
+  AdjMatrixRowValueInputIterator adj_matrix_row_value_input_first,
+  AdjMatrixColValueInputIterator adj_matrix_col_value_input_first,
+  VertexIterator adj_matrix_col_key_first,
+  EdgeOp e_op,
+  T init)
 {
   static_assert(is_arithmetic_or_thrust_tuple_of_arithmetic<T>::value);
-  static_assert(std::is_integral<typename std::iterator_traits<KeyIterator>::value_type>::value);
+  static_assert(std::is_same<typename std::iterator_traits<VertexIterator>::value_type,
+                             typename GraphViewType::vertex_type>::value);
 
-  // If I change the function name to transform_reduce_by_adj_matrix_col_key_e
-
-  // initialize static::cuco_map with *(adj_matrix_col_key_first + i), init
-  
-  // find(key), add e_op return value
-
-  // iterate and get (key, value) pairs
-
-  // shuffle and reduce again
-
-  // collect value for map_key
-
-  // return static::cuco_map
-
-
-  rmm::device_uvector<vertex_t> keys(0, handle.get_stream());
-  rmm::device_uvector<T> values(0, handle.get_stream());
-  for (size_t i = 0; i < graph_view.get_number_of_local_adj_matrix_partitions(); ++i) {
-    matrix_partition_device_t<GraphViewType> matrix_partition(graph_view, i);
-
-    edge_t max_pushes = matrix_partition.get_number_of_edges();
-
-    // FIXME: This is highly pessimistic as # unique keys is likely to be much smaller than the
-    // number of edges. If we use cuco::dynamic_map and can pause & resume execution if buffer needs
-    // to be increased, we can start with a smaller buffer size than the worst possible size.
-    rmm::device_uvector<vertex_t> keys(max_pushes, handle.get_stream());
-    rmm::device_uvector<T> values(max_pushes, handle.get_stream());
-    auto kv_buffer =
-      allocate_comm_buffer<thurst::tuple<vertex_t, T>>(max_pushes, handle.get_stream());
-    auto kv_buffer_first = get_comm_buffer_begin<thurst::tuple<vertex_t, t>>(kv_buffer);
-    vertex_frontier.resize_buffer(vertex_frontier.get_buffer_idx_value() + max_pushes);
-    auto buffer_first         = vertex_frontier.buffer_begin();
-    auto buffer_key_first     = std::get<0>(buffer_first);
-    auto buffer_payload_first = std::get<1>(buffer_first);
-
-    auto row_value_input_offset = GraphViewType::is_adj_matrix_transposed
-                                    ? vertex_t{0}
-                                    : matrix_partition.get_major_value_start_offset();
-
-    // FIXME: This is highly inefficeint for graphs with high-degree vertices. If we renumber
-    // vertices to insure that rows within a partition are sorted by their out-degree in decreasing
-    // order, we will apply this kernel only to low out-degree vertices.
-    detail::for_all_major_for_all_nbr_low_degree<<<for_all_low_degree_grid.num_blocks,
-                                                   for_all_low_degree_grid.block_size,
-                                                   0,
-                                                   handle.get_stream()>>>(
-      matrix_partition,
-      adj_matrix_row_value_input_first + row_value_input_offset,
-      adj_matrix_col_value_input_first,
-      buffer_key_first,
-      buffer_value_first,
-      vertex_frontier.get_buffer_idx_ptr(),
-      e_op);
-
-    thrust::sort();
-    thrust::reduce_by_key();
-  }
-
-  if (multi_gpu) {
-    thrust::sort();
-    thrust::reduce_by_key();
-
-    tx_keys;
-    rx_values;
-  }
-
-  return cuco::static_map<typename std::iterator_traits<KeyIterator>::value_type, T>();
+  return detail::transform_reduce_by_adj_matrix_row_col_key_e<false>(
+    handle,
+    graph_view,
+    adj_matrix_row_value_input_first,
+    adj_matrix_col_value_input_first,
+    adj_matrix_col_key_first,
+    e_op,
+    init);
 }
 
 }  // namespace experimental

@@ -35,12 +35,12 @@ namespace detail {
 // FIXME: block size requires tuning
 int32_t constexpr copy_v_transform_reduce_key_aggregated_out_nbr_for_all_block_size = 128;
 
-template <typename GraphViewType, typename KeyIterator>
+template <typename GraphViewType, typename VertexIterator>
 __global__ void for_all_major_for_all_nbr_low_degree(
   matrix_partition_device_t<GraphViewType> matrix_partition,
   typename GraphViewType::vertex_type major_first,
   typename GraphViewType::vertex_type major_last,
-  KeyIterator adj_matrix_minor_key_first,
+  VertexIterator adj_matrix_minor_key_first,
   typename GraphViewType::vertex_type* major_vertices,
   typename GraphViewType::vertex_type* minor_keys,
   typename GraphViewType::weight_type* key_aggregated_edge_weights,
@@ -104,7 +104,6 @@ __global__ void for_all_major_for_all_nbr_low_degree(
                    major_vertices + local_offset + key_idx,
                    major_vertices + local_offset + local_degree,
                    invalid_vertex);
-      // cugraph::experimental::invalid_vertex_id<vertex_t>::value);
     }
 
     idx += gridDim.x * blockDim.x;
@@ -125,7 +124,7 @@ __global__ void for_all_major_for_all_nbr_low_degree(
  * @tparam GraphViewType Type of the passed non-owning graph object.
  * @tparam AdjMatrixRowValueInputIterator Type of the iterator for graph adjacency matrix row
  * input properties.
- * @tparam KeyIterator Type of the iterator for graph adjacency matrix column key values for
+ * @tparam VertexIterator Type of the iterator for graph adjacency matrix column key values for
  * aggregation.
  * @tparam ValueIterator Type of the iterator for values in (key, value) pairs.
  * @tparam KeyAggregatedEdgeOp Type of the quinary key-aggregated edge operator.
@@ -165,7 +164,7 @@ __global__ void for_all_major_for_all_nbr_low_degree(
  */
 template <typename GraphViewType,
           typename AdjMatrixRowValueInputIterator,
-          typename KeyIterator,
+          typename VertexIterator,
           typename ValueIterator,
           typename KeyAggregatedEdgeOp,
           typename ReduceOp,
@@ -175,9 +174,9 @@ void copy_v_transform_reduce_key_aggregated_out_nbr(
   raft::handle_t const& handle,
   GraphViewType const& graph_view,
   AdjMatrixRowValueInputIterator adj_matrix_row_value_input_first,
-  KeyIterator adj_matrix_col_key_first,
-  KeyIterator map_key_first,
-  KeyIterator map_key_last,
+  VertexIterator adj_matrix_col_key_first,
+  VertexIterator map_key_first,
+  VertexIterator map_key_last,
   ValueIterator map_value_first,
   KeyAggregatedEdgeOp key_aggregated_e_op,
   ReduceOp reduce_op,
@@ -186,7 +185,8 @@ void copy_v_transform_reduce_key_aggregated_out_nbr(
 {
   static_assert(!GraphViewType::is_adj_matrix_transposed,
                 "GraphViewType should support the push model.");
-  static_assert(std::is_integral<typename std::iterator_traits<KeyIterator>::value_type>::value);
+  static_assert(std::is_same<typename std::iterator_traits<VertexIterator>::value_type,
+                             typename GraphViewType::vertex_type>::value);
 
   using vertex_t = typename GraphViewType::vertex_type;
   using edge_t   = typename GraphViewType::edge_type;
@@ -450,13 +450,15 @@ void copy_v_transform_reduce_key_aggregated_out_nbr(
 
       auto rx_sizes =
         host_scalar_gather(sub_comm, tmp_major_vertices.size(), i, handle.get_stream());
-      std::vector<size_t> rx_displs(sub_comm_rank == i ? sub_comm_size : int{0}, size_t{0});
-      if (sub_comm_rank == i) {
+      std::vector<size_t> rx_displs(
+        static_cast<size_t>(sub_comm_rank) == i ? sub_comm_size : int{0}, size_t{0});
+      if (static_cast<size_t>(sub_comm_rank) == i) {
         std::partial_sum(rx_sizes.begin(), rx_sizes.end() - 1, rx_displs.begin() + 1);
       }
       rmm::device_uvector<vertex_t> rx_major_vertices(
-        sub_comm_rank == i ? std::accumulate(rx_sizes.begin(), rx_sizes.end(), size_t{0})
-                           : size_t{0},
+        static_cast<size_t>(sub_comm_rank) == i
+          ? std::accumulate(rx_sizes.begin(), rx_sizes.end(), size_t{0})
+          : size_t{0},
         handle.get_stream());
       auto rx_tmp_e_op_result_buffer =
         allocate_comm_buffer<T>(rx_major_vertices.size(), handle.get_stream());
@@ -478,7 +480,7 @@ void copy_v_transform_reduce_key_aggregated_out_nbr(
                      i,
                      handle.get_stream());
 
-      if (sub_comm_rank == i) {
+      if (static_cast<size_t>(sub_comm_rank) == i) {
         major_vertices     = std::move(rx_major_vertices);
         e_op_result_buffer = std::move(rx_tmp_e_op_result_buffer);
       }
