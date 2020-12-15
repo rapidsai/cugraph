@@ -194,11 +194,11 @@ void force_atlas2(GraphCOOView<vertex_t, edge_t, weight_t> &graph,
 
 
 template <typename vertex_t, typename edge_t, typename weight_t>
-void traveling_salesman(const raft::handle_t &handle,
-                        GraphCOOView<vertex_t, edge_t, weight_t> &graph,
-                        const float *x_pos = nullptr,
-                        const float *y_pos = nullptr,
-                        const int restarts = 4096);
+float traveling_salesman(const raft::handle_t &handle,
+                         GraphCOOView<vertex_t, edge_t, weight_t> &graph,
+                         const float *x_pos = nullptr,
+                         const float *y_pos = nullptr,
+                         const int restarts = 4096);
 
 
 /**

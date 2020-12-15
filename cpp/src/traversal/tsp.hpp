@@ -52,12 +52,9 @@ namespace cugraph {
 
       // TSP
       const int restarts_;
-      float *input_x_h_;
-      float *input_y_h_;
-
       const float *x_pos_;
       const float *y_pos_;
-      rmm::device_vector<int> neighbors_;
+      int *neighbors_;
   };
   } // namespace detail
 } // namespace cugraph

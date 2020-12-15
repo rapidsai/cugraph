@@ -23,51 +23,13 @@ from libc.stdint cimport uintptr_t
 
 import cudf
 import numpy as np
-
-def traveling_salesman_float(num_verts, num_edges, src_indices, dst_indices, weights):
-    cdef unique_ptr[handle_t] handle_ptr
-    handle_ptr.reset(new handle_t())
-    handle_ = handle_ptr.get();
-    cdef GraphCOOView[int,int,float] graph_float
-    cdef uintptr_t c_src_indices = src_indices.__cuda_array_interface__['data'][0]
-    cdef uintptr_t c_dst_indices = dst_indices.__cuda_array_interface__['data'][0]
-    cdef uintptr_t c_weights = weights.__cuda_array_interface__['data'][0]
-    cdef float final_cost_float = 0.0
-    graph_float = GraphCOOView[int,int,float](<int*>c_src_indices,
-            <int*>c_dst_indices, <float*>c_weights, num_verts,
-            num_edges)
-    final_cost_float = c_traveling_salesman(handle_[0]
-                                            graph_float,
-                                            <float*> x_pos,
-                                            <float*> y_pos,
-                                            <int> restarts)
-    return final_cost_float
-
-
-def traveling_salesman_double(num_verts, num_edges, src_indices, dst_indices, weights):
-    cdef unique_ptr[handle_t] handle_ptr
-    handle_ptr.reset(new handle_t())
-    handle_ = handle_ptr.get();
-    cdef GraphCOOView[int,int,double] graph_double
-    cdef uintptr_t c_src_indices = src_indices.__cuda_array_interface__['data'][0]
-    cdef uintptr_t c_dst_indices = dst_indices.__cuda_array_interface__['data'][0]
-    cdef uintptr_t c_weights = weights.__cuda_array_interface__['data'][0]
-    cdef double final_cost_double = 0.0
-    graph_double = GraphCOOView[int,int,double](<int*>c_src_indices,
-            <int*>c_dst_indices, <double*>c_weights, num_verts,
-            num_edges)
-    final_cost_double = c_traveling_salesman(handle_[0]
-                                             graph_double,
-                                             <double*> x_pos,
-                                             <double*> y_pos,
-                                             <int> restarts)
-    return final_cost_double
+import cupy as cp
 
 
 def traveling_salesman(input_graph,
-                       pos_list=None,
-                       restarts=4096,
-                       distance="euclidean"):
+        pos_list=None,
+        restarts=4096,
+        distance="euclidean"):
     """
     Call traveling_salesman
     """
@@ -101,17 +63,38 @@ def traveling_salesman(input_graph,
         x_pos = pos_list['x'].__cuda_array_interface__['data'][0]
         y_pos = pos_list['y'].__cuda_array_interface__['data'][0]
 
+    cdef unique_ptr[handle_t] handle_ptr
+    handle_ptr.reset(new handle_t())
+    handle_ = handle_ptr.get();
+    cdef uintptr_t c_src_indices = src_indices.__cuda_array_interface__['data'][0]
+    cdef uintptr_t c_dst_indices = dst_indices.__cuda_array_interface__['data'][0]
+    cdef uintptr_t c_weights = weights.__cuda_array_interface__['data'][0]
+
+    cdef GraphCOOView[int, int, float] graph_float
+    cdef GraphCOOView[int, int, double] graph_double
+    cdef float final_cost_float = 0.0
+    cdef double final_cost_double = 0.0
+    final_cost = None
+
     if graph_primtypes_wrapper.weight_type(input_graph) == np.float32:
-        final_cost = traveling_salesman_float(num_verts,
-                                              num_edges,
-                                              src_indices,
-                                              dst_indices,
-                                              weights)
+        graph_float = GraphCOOView[int,int,float](<int*>c_src_indices,
+                <int*>c_dst_indices, <float*>c_weights, num_verts,
+                num_edges)
+        final_cost_float = c_traveling_salesman(handle_[0],
+                graph_float,
+                <float*> x_pos,
+                <float*> y_pos,
+                <int> restarts)
+        final_cost = final_cost_float
     else:
-        final_cost = traveling_salesman_double(num_verts,
-                                               num_edges,
-                                               src_indices,
-                                               dst_indices,
-                                               weights)
+        graph_double = GraphCOOView[int,int,double](<int*>c_src_indices,
+               <int*>c_dst_indices, <double*>c_weights, num_verts,
+               num_edges)
+        final_cost_double = c_traveling_salesman(handle_[0],
+               graph_double,
+               <float*> x_pos,
+               <float*> y_pos,
+               <int> restarts)
+        final_cost = final_cost_double
 
     return final_cost

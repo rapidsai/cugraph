@@ -18,7 +18,7 @@
 
 /* CPU side validation */
 #define MIN( A, B) ( (A) < (B) ) ?  (A) : (B)
-#define cpudist(a, b) (sqrtf((pos[a] - pos[b]) * (pos[a] - pos[b]) + (pos[a+nodes+1] - pos[b+nodes+1]) * (pos[a+nodes+1] - pos[b+nodes+1])))
+#define cpudist(a, b) (sqrtf((pos[a] - pos[b]) * (pos[a] - pos[b]) + (pos[a+nodes_+1] - pos[b+nodes_+1]) * (pos[a+nodes_+1] - pos[b+nodes_+1])))
 #define coo_dist(a, b) (sqrtf((xcoo[a] - xcoo[b]) * (xcoo[a] - xcoo[b]) + (ycoo[a] - ycoo[b]) * (ycoo[a] - ycoo[b])))
 
 /******************************************************************************/

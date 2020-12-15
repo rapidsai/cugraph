@@ -18,6 +18,7 @@
 
 #include "tsp.hpp"
 #include "tsp_kernels.hpp"
+#include "tsp_knn.hpp"
 #include "tsp_utils.hpp"
 
 namespace cugraph {
@@ -51,6 +52,7 @@ float TSP<vertex_t, edge_t, weight_t>::compute() {
   int restart_batch = 4096; // how large a grid we want to run, this is fixed
   int total_climbs = 0;
   int num_graphs = 1;
+  float valid_coo_dist = 0.f;
 
   int num_restart_batches = (restarts_ + restart_batch -1) / restart_batch;
   int restart_resid = restarts_ - (num_restart_batches - 1) * restart_batch;
@@ -76,16 +78,14 @@ float TSP<vertex_t, edge_t, weight_t>::compute() {
   for (int g = 0; g < num_graphs; g++) {
 
     int global_best  = INT_MAX;
-    int total_climbs = 0;
-    int soln = NULL;
+    float *soln = NULL;
     int best;
-    int num_climbs;
 
     printf("optimizing graph %d kswap = %d \n",g, kswaps);
     for (int b = 0; b < num_restart_batches; b++) {
       Init<<<1, 1>>>();
 
-      if (b == num_restart_batches-1)
+      if (b == num_restart_batches - 1)
         restart_batch = restart_resid;
 
       simulOpt<<<restart_batch, threads, sizeof(int) * threads>>>(
@@ -108,17 +108,14 @@ float TSP<vertex_t, edge_t, weight_t>::compute() {
         for (int i = 0; i < nodes_; i++) {
           valid_dist += cpudist(i, i + 1) ;
         }
-        printf(" validating route gpudist= %d cpudist = %f\n",global_best, valid_dist);
+        printf(" validating route gpudist= %d cpudist = %f\n", global_best, valid_dist);
 
       }
-      copyFromGPUSymbol(&num_climbs, n_climbs, sizeof(int));
-      total_climbs += num_climbs;
     }
 
     printf("Optimized tour length = %d\n", global_best);
-    float valid_coo_dist = 0.0;
-    for (int i = 0; i < nodes; i++) {
-      printf("%.1f %.1f\n",  pos[i], pos[i+nodes+1]);
+    for (int i = 0; i < nodes_; i++) {
+      printf("%.1f %.1f\n",  pos[i], pos[i + nodes_ + 1]);
       valid_coo_dist += cpudist(i , i + 1) ;
     }
     printf(" validating route dist = %f\n", valid_coo_dist);
@@ -130,8 +127,10 @@ template <typename vertex_t, typename edge_t, typename weight_t>
 void TSP<vertex_t, edge_t, weight_t>::knn() {
      int numpackages = nodes_;
      int *neighbors_h = (int *)malloc(bw * nodes_ * sizeof(int));
-     CUDA_TRY(cudaMemcpy(input_x_h_, x_pos_, sizeof(float) * nodes_, cudaMemcpyDeviceToHost));
-     CUDA_TRY(cudaMemcpy(input_y_h_, y_pos_, sizeof(float) * nodes_, cudaMemcpyDeviceToHost));
+     float *input_x_h = (float *)malloc(nodes_ * sizeof(float));
+     float *input_y_h = (float *)malloc(nodes_ * sizeof(float));
+     CUDA_TRY(cudaMemcpy(input_x_h, x_pos_, sizeof(float) * nodes_, cudaMemcpyDeviceToHost));
+     CUDA_TRY(cudaMemcpy(input_y_h, y_pos_, sizeof(float) * nodes_, cudaMemcpyDeviceToHost));
 
      //re-scale arbitrary inputs to fit inside (0,1024)x(0,1024) box
      float xmin = 1e6;
@@ -139,10 +138,10 @@ void TSP<vertex_t, edge_t, weight_t>::knn() {
      float ymin = 1e6;
      float ymax = -1e6;
      for (int np = 0; np < numpackages; np++) {
-         float xc = input_x_h_[np];
+         float xc = input_x_h[np];
          if (xc < xmin) xmin = xc;
          if (xc > xmax) xmax = xc;
-         float yc = input_y_h_[np];
+         float yc = input_y_h[np];
          if (yc < ymin) ymin = yc;
          if (yc > ymax) ymax = yc;
      }
@@ -155,24 +154,24 @@ void TSP<vertex_t, edge_t, weight_t>::knn() {
      float forward_A = 1024. / max((xmax + forward_b), (ymax + forward_b));
      float back_A = 1. / forward_A;
      float back_b = -forward_b;
-     affineTrans(numpackages, 1, input_x_h_, forward_A, forward_b);
-     affineTrans(numpackages, 1, input_y_h_, forward_A, forward_b);
+     affineTrans(numpackages, 1, input_x_h, forward_A, forward_b);
+     affineTrans(numpackages, 1, input_y_h, forward_A, forward_b);
 
-     findKneighbors(numpackages, bw, &input_x_h_, &input_y_h_, &neighbors_h, 0);
+     findKneighbors(numpackages, bw, &input_x_h, &input_y_h, &neighbors_h, 0);
 
      // Reverse the transform
-     affineTrans(numpackages, 0, input.x, back_A, back_b);
-     affineTrans(numpackages, 0, input.y, back_A, back_b);
+     affineTrans(numpackages, 0, input_x_h, back_A, back_b);
+     affineTrans(numpackages, 0, input_y_h, back_A, back_b);
 
      for (int np = 0; np < numpackages; np++) {
-         float xc = input_x_h_[np];
+         float xc = input_x_h[np];
          if (xc < xmin) xmin = xc;
          if (xc > xmax) xmax = xc;
-         float yc = input_y_h_[np];
+         float yc = input_y_h[np];
          if (yc < ymin) ymin = yc;
          if (yc > ymax) ymax = yc;
      }
-     CUDA_TRY(cudaMemcpy(neighbors_, neighbors_h_, sizeof(int) * bw * nodes_, cudaMemcpyHostToDevice));
+     CUDA_TRY(cudaMemcpy(neighbors_, neighbors_h, sizeof(int) * bw * nodes_, cudaMemcpyHostToDevice));
 }
 
 } // namespace detail

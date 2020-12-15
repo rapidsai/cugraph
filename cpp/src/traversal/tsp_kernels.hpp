@@ -47,7 +47,7 @@ __global__ void Init()
 }
 
 __global__ __launch_bounds__(2048, 2)
-void simulOpt(int nodes, int *neighbors, float *posx, float *posy, int *work)
+void simulOpt(int nodes, int *neighbors, const float *posx, const float *posy, int *work)
 {
   int *buf = &work[blockIdx.x * ((3 * nodes + 2 + 31) / 32 * 32) ];
   float *px = (float *)(&buf[nodes]);
