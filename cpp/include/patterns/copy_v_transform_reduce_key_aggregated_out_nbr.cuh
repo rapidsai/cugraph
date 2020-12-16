@@ -113,19 +113,19 @@ __global__ void for_all_major_for_all_nbr_low_degree(
 }  // namespace detail
 
 /**
- * @brief Iterate over the key-aggregated outgoing edges to update vertex properties.
+ * @brief Iterate over every vertex's key-aggregated outgoing edges to update vertex properties.
  *
  * This function is inspired by thrust::transfrom_reduce() (iteration over the outgoing edges
  * part) and thrust::copy() (update vertex properties part, take transform_reduce output as copy
  * input).
  * Unlike copy_v_transform_reduce_out_nbr, this function first aggregates outgoing edges by key to
- * support two level reduction for each vertex.
+ * support two level reduction for every vertex.
  *
  * @tparam GraphViewType Type of the passed non-owning graph object.
  * @tparam AdjMatrixRowValueInputIterator Type of the iterator for graph adjacency matrix row
  * input properties.
  * @tparam VertexIterator Type of the iterator for graph adjacency matrix column key values for
- * aggregation.
+ * aggregation (key type should coincide with vertex type).
  * @tparam ValueIterator Type of the iterator for values in (key, value) pairs.
  * @tparam KeyAggregatedEdgeOp Type of the quinary key-aggregated edge operator.
  * @tparam ReduceOp Type of the binary reduction operator.
@@ -142,18 +142,20 @@ __global__ void for_all_major_for_all_nbr_low_degree(
  * aggregation) for the first (inclusive) column (assigned to this process in multi-GPU).
  * `adj_matrix_col_key_last` (exclusive) is deduced as @p adj_matrix_col_key_first + @p
  * graph_view.get_number_of_local_adj_matrix_partition_cols().
- * @param map_key_first Iterator pointing to the keys in (key, value) pairs (assigned to this
- * process in multi-GPU, `cugraph::experimental::detail::compute_gpu_id_from_vertex_t` is used to
- * assign keys to processes). (Key, value) pairs may be provided by transform_reduce_by_key_e().
- * @param map_key_last
- * @param map_value_first Iterator pointing to the values in (key, value) pairs (assigned to this
- * process in multi-GPU).
+ * @param map_key_first Iterator pointing to the first (inclusive) key in (key, value) pairs
+ * (assigned to this process in multi-GPU,
+ * `cugraph::experimental::detail::compute_gpu_id_from_vertex_t` is used to map keys to processes).
+ * (Key, value) pairs may be provided by transform_reduce_by_adj_matrix_row_key_e() or
+ * transform_reduce_by_adj_matrix_col_key_e().
+ * @param map_key_last Iterator pointing to the last (exclusive) key in (key, value) pairs (assigned
+ * to this process in multi-GPU).
+ * @param map_value_first Iterator pointing to the first (inclusive) value in (key, value) pairs
+ * (assigned to this process in multi-GPU). `map_value_last` (exclusive) is deduced as @p
+ * map_value_first + thrust::distance(@p map_key_first, @p map_key_last).
  * @param key_aggregated_e_op Quinary operator takes edge source, key, aggregated edge weight, *(@p
- * adj_matrix_row_value_input_first + i), and value for the key stored in (@p map_key_first, @p
- * map_value_first)
-  @p kv_map for the key (where i is in
- * [0, graph_view.get_number_of_local_adj_matrix_partition_rows())) and returns a value to be
- * reduced. weight of 1.0 is assumed if unweighted.
+ * adj_matrix_row_value_input_first + i), and value for the key stored in the input (key, value)
+ * pairs provided by @p map_key_first, @p map_key_last, and @p map_value_first (aggregated over the
+ * entire set of processes in multi-GPU).
  * @param reduce_op Binary operator takes two input arguments and reduce the two variables to one.
  * @param init Initial value to be added to the reduced @p key_aggregated_e_op return values for
  * each vertex.

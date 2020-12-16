@@ -330,20 +330,21 @@ transform_reduce_by_adj_matrix_row_col_key_e(
 
 // FIXME: EdgeOp & VertexOp in update_frontier_v_push_if_out_nbr concatenates push inidicator or
 // bucket idx with the value while EdgeOp here does not. This is inconsistent. Better be fixed.
-// FIXME: rmm::device_uvector<T> does not work if T is a tuple.
 /**
  * @brief Iterate over the entire set of edges and reduce @p edge_op outputs to (key, value) pairs.
  *
- * This function is inspired by thrust::transform_reduce() and thrust::reduce_by_key().
+ * This function is inspired by thrust::transform_reduce() and thrust::reduce_by_key(). Keys for
+ * edges are determined by the graph adjacency matrix rows.
  *
  * @tparam GraphViewType Type of the passed non-owning graph object.
  * @tparam AdjMatrixRowValueInputIterator Type of the iterator for graph adjacency matrix row
  * input properties.
  * @tparam AdjMatrixColValueInputIterator Type of the iterator for graph adjacency matrix column
  * input properties.
+ * @tparam VertexIterator Type of the iterator for keys in (key, value) pairs (key type should
+ * coincide with vertex type).
  * @tparam EdgeOp Type of the quaternary (or quinary) edge operator.
- * @tparam T Type of the initial value of the value in each (key, value) pair.
- * @tparam VertexIterator Type of the iterator for keys in (key, value) pairs.
+ * @tparam T Type of the values in (key, value) pairs.
  * @param handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator, and
  * handles to various CUDA libraries) to run graph algorithms.
  * @param graph_view Non-owning graph object.
@@ -355,18 +356,89 @@ transform_reduce_by_adj_matrix_row_col_key_e(
  * properties for the first (inclusive) column (assigned to this process in multi-GPU).
  * `adj_matrix_col_value_output_last` (exclusive) is deduced as @p adj_matrix_col_value_output_first
  * + @p graph_view.get_number_of_local_adj_matrix_partition_cols().
+ * @param adj_matrix_row_key_first Iterator pointing to the adjacency matrix row key for the first
+ * (inclusive) column (assigned to this process in multi-GPU). `adj_matrix_row_key_last` (exclusive)
+ * is deduced as @p adj_matrix_row_key_first + @p graph_view.get_number_of_local_adj_matrix_rows().
  * @param e_op Quaternary (or quinary) operator takes edge source, edge destination, (optional edge
  * weight), *(@p adj_matrix_row_value_input_first + i), and *(@p adj_matrix_col_value_input_first +
  * j) (where i is in [0, graph_view.get_number_of_local_adj_matrix_partition_rows()) and j is in [0,
- * get_number_of_local_adj_matrix_partition_cols())) and returns a pair of a key and a transformed
- * value to be reduced.
+ * get_number_of_local_adj_matrix_partition_cols())) and returns a transformed value to be reduced.
  * @param init Initial value to be added to the value in each transform-reduced (key, value) pair.
- * @param map_key_first Iterator pointing to the first (inclusive) key to be stored in the returned
- * cuco::static_map (which is local to this process in mulit-GPU).
- * @param map_key_last Iterator pointing to the last (exclusive) key to be stored in the returned
- * cuco::static_map (which is local to this process in multi-GPU).
- * @return cuco::static_map Hash-based map of (key, value) pairs for the keys pointed by
- * [map_key_first, map_key_last).
+ * @return std::tuple Tuple of rmm::device_uvector<typename GraphView::vertex_type> and
+ * rmm::device_uvector<T> (if T is arithmetic scalar) or a tuple of rmm::device_uvector objects (if
+ * T is a thrust::tuple type of arithmetic scalar types, one rmm::device_uvector object per scalar
+ * type).
+ */
+template <typename GraphViewType,
+          typename AdjMatrixRowValueInputIterator,
+          typename AdjMatrixColValueInputIterator,
+          typename VertexIterator,
+          typename EdgeOp,
+          typename T>
+auto transform_reduce_by_adj_matrix_row_key_e(
+  raft::handle_t const& handle,
+  GraphViewType const& graph_view,
+  AdjMatrixRowValueInputIterator adj_matrix_row_value_input_first,
+  AdjMatrixColValueInputIterator adj_matrix_col_value_input_first,
+  VertexIterator adj_matrix_row_key_first,
+  EdgeOp e_op,
+  T init)
+{
+  static_assert(is_arithmetic_or_thrust_tuple_of_arithmetic<T>::value);
+  static_assert(std::is_same<typename std::iterator_traits<VertexIterator>::value_type,
+                             typename GraphViewType::vertex_type>::value);
+
+  return detail::transform_reduce_by_adj_matrix_row_col_key_e<true>(
+    handle,
+    graph_view,
+    adj_matrix_row_value_input_first,
+    adj_matrix_col_value_input_first,
+    adj_matrix_row_key_first,
+    e_op,
+    init);
+}
+
+// FIXME: EdgeOp & VertexOp in update_frontier_v_push_if_out_nbr concatenates push inidicator or
+// bucket idx with the value while EdgeOp here does not. This is inconsistent. Better be fixed.
+/**
+ * @brief Iterate over the entire set of edges and reduce @p edge_op outputs to (key, value) pairs.
+ *
+ * This function is inspired by thrust::transform_reduce() and thrust::reduce_by_key(). Keys for
+ * edges are determined by the graph adjacency matrix columns.
+ *
+ * @tparam GraphViewType Type of the passed non-owning graph object.
+ * @tparam AdjMatrixRowValueInputIterator Type of the iterator for graph adjacency matrix row
+ * input properties.
+ * @tparam AdjMatrixColValueInputIterator Type of the iterator for graph adjacency matrix column
+ * input properties.
+ * @tparam VertexIterator Type of the iterator for keys in (key, value) pairs (key type should
+ * coincide with vertex type).
+ * @tparam EdgeOp Type of the quaternary (or quinary) edge operator.
+ * @tparam T Type of the values in (key, value) pairs.
+ * @param handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator, and
+ * handles to various CUDA libraries) to run graph algorithms.
+ * @param graph_view Non-owning graph object.
+ * @param adj_matrix_row_value_input_first Iterator pointing to the adjacency matrix row input
+ * properties for the first (inclusive) row (assigned to this process in multi-GPU).
+ * `adj_matrix_row_value_input_last` (exclusive) is deduced as @p adj_matrix_row_value_input_first +
+ * @p graph_view.get_number_of_local_adj_matrix_partition_rows().
+ * @param adj_matrix_col_value_input_first Iterator pointing to the adjacency matrix column input
+ * properties for the first (inclusive) column (assigned to this process in multi-GPU).
+ * `adj_matrix_col_value_output_last` (exclusive) is deduced as @p adj_matrix_col_value_output_first
+ * + @p graph_view.get_number_of_local_adj_matrix_partition_cols().
+ * @param adj_matrix_col_key_first Iterator pointing to the adjacency matrix column key for the
+ * first (inclusive) column (assigned to this process in multi-GPU).
+ * `adj_matrix_col_key_last` (exclusive) is deduced as @p adj_matrix_col_key_first + @p
+ * graph_view.get_number_of_local_adj_matrix_cols().
+ * @param e_op Quaternary (or quinary) operator takes edge source, edge destination, (optional edge
+ * weight), *(@p adj_matrix_row_value_input_first + i), and *(@p adj_matrix_col_value_input_first +
+ * j) (where i is in [0, graph_view.get_number_of_local_adj_matrix_partition_rows()) and j is in [0,
+ * get_number_of_local_adj_matrix_partition_cols())) and returns a transformed value to be reduced.
+ * @param init Initial value to be added to the value in each transform-reduced (key, value) pair.
+ * @return std::tuple Tuple of rmm::device_uvector<typename GraphView::vertex_type> and
+ * rmm::device_uvector<T> (if T is arithmetic scalar) or a tuple of rmm::device_uvector objects (if
+ * T is a thrust::tuple type of arithmetic scalar types, one rmm::device_uvector object per scalar
+ * type).
  */
 template <typename GraphViewType,
           typename AdjMatrixRowValueInputIterator,
