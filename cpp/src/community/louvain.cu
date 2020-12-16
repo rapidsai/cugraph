@@ -15,18 +15,8 @@
  */
 
 #include <community/louvain.cuh>
-
-// "FIXME": remove the guards after support for Pascal is dropped
-//
-// Disable louvain(experimental::graph_view_t,...)
-// versions for GPU architectures < 700
-// (cuco/static_map.cuh depends on features not supported on or before Pascal)
-//
-#if defined(__CUDA_ARCH__) && __CUDA_ARCH__ < 700
 #include <experimental/graph.hpp>
-#else
 #include <experimental/louvain.cuh>
-#endif
 
 namespace cugraph {
 
@@ -69,12 +59,9 @@ std::pair<size_t, weight_t> louvain(
   if (device_prop.major < 7) {
     CUGRAPH_FAIL("Louvain not supported on Pascal and older architectures");
   } else {
-#if defined(__CUDA_ARCH__) && __CUDA_ARCH__ < 700
-#else
     experimental::Louvain<experimental::graph_view_t<vertex_t, edge_t, weight_t, false, multi_gpu>>
       runner(handle, graph_view);
     return runner(clustering, max_level, resolution);
-#endif
   }
 }
 
