@@ -34,14 +34,17 @@ def traveling_salesman(pos_list,
     # Renumber
     numbering = NumberMap()
     numbering.from_series(pos_list['vertex'])
-    pos_list = numbering.add_internal_vertex_id(pos_list, 'vertex_id', ['vertex'])
+    pos_list = numbering.add_internal_vertex_id(pos_list,
+                                                'vertex_id',
+                                                'vertex',
+                                                drop=False,
+                                                preserve_order=True)
     print(pos_list)
     cost = traveling_salesman_wrapper.traveling_salesman(pos_list,
                                                          restarts,
                                                          k,
                                                          distance)
-
-    # Unrenumber
-    pos_list = numbering.from_internal_vertex_id(pos_list)
+    # Drop internal ids and generated column
+    pos_list = pos_list[["vertex", "x", "y"]]
 
     return cost
