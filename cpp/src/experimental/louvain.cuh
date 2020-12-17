@@ -38,7 +38,6 @@
 #include <cuco/static_map.cuh>
 #endif
 
-
 //#define TIMING
 
 #ifdef TIMING
