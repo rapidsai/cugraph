@@ -11,37 +11,37 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from cugraph.algorithms import tsp_wrapper
+from cugraph.traversal import traveling_salesman_wrapper
 from cugraph.structure.graph import null_check
+from cugraph.structure.number_map import NumberMap
+import cudf
 
-def traveling_salesman(input_graph,
-                       pos_list=None,
+def traveling_salesman(pos_list,
                        restarts=4096,
+                       k=4,
                        distance="euclidean",
-
 ):
-    if type(G) is not Graph:
-        raise Exception("input graph must be undirected")
+    if not isinstance(pos_list, cudf.DataFrame):
+        raise Exception("Instance should be cudf.DataFrame")
 
     if distance != "euclidean":
-        raise Exception("Other metrics not supported")
+        raise Exception("Metric not supported")
 
-    if pos_list is not None:
-        null_check(pos_list['vertex'])
-        null_check(pos_list['x'])
-        null_check(pos_list['y'])
-        if input_graph.renumbered is True:
-            pos_list = input_graph.add_internal_vertex_id(pos_list,
-                                                "vertex",
-                                                "vertex")
+    null_check(pos_list['vertex'])
+    null_check(pos_list['x'])
+    null_check(pos_list['y'])
 
-    cost = tsp_wrapper.traveling_salesman(input_graph,
-                                          pos_list,
-                                          restarts,
-                                          weight,
-                                          distance)
+    # Renumber
+    numbering = NumberMap()
+    numbering.from_series(pos_list['vertex'])
+    pos_list = numbering.add_internal_vertex_id(pos_list, 'vertex_id', ['vertex'])
+    print(pos_list)
+    cost = traveling_salesman_wrapper.traveling_salesman(pos_list,
+                                                         restarts,
+                                                         k,
+                                                         distance)
 
-    if input_graph.renumbered:
-        pos_list = input_graph.unrenumber(pos_list, "vertex")
+    # Unrenumber
+    pos_list = numbering.from_internal_vertex_id(pos_list)
 
     return cost

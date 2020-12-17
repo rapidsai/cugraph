@@ -89,6 +89,7 @@ from cugraph.tree import minimum_spanning_tree, maximum_spanning_tree
 from cugraph.utilities import utils
 
 from cugraph.bsp.traversal import bfs_df_pregel
+from cugraph.traversal import traveling_salesman
 
 from cugraph.proto.components import strong_connected_component
 from cugraph.proto.structure import find_bicliques

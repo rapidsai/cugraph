@@ -23,13 +23,12 @@
 
 namespace cugraph {
   namespace detail {
-  template <typename vertex_t, typename edge_t, typename weight_t>
   class TSP {
     public:
       TSP(const raft::handle_t &handle,
-          GraphCOOView<vertex_t, edge_t, weight_t> &graph_,
           const float *x_pos,
           const float *y_pos,
+          const int nodes,
           const int restarts);
 
       float compute();
@@ -43,17 +42,13 @@ namespace cugraph {
       int max_threads_;
       int sm_count_;
 
-      // COO
-      vertex_t *srcs_;
-      vertex_t *dsts_;
-      weight_t *weights_;
-      vertex_t nodes_;
-      edge_t edges_;
-
       // TSP
-      const int restarts_;
       const float *x_pos_;
       const float *y_pos_;
+      const int restarts_;
+      const int nodes_;
+
+      rmm::device_vector<int> neighbors_vec_;
       int *neighbors_;
   };
   } // namespace detail

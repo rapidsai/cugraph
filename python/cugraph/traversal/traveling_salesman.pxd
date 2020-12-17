@@ -20,10 +20,9 @@ from cugraph.structure.graph_primtypes cimport *
 
 cdef extern from "algorithms.hpp" namespace "cugraph":
 
-    cdef float traveling_salesman[vertex_t, edge_t, weight_t](
-            const handle_t &handle,
-            GraphCOOView[vertex_t, edge_t, weight_t] &graph,
+    cdef float traveling_salesman(const handle_t &handle,
             float *x_pos,
             float *y_pos,
+            int nodes,
             int restarts) except +
 
