@@ -839,6 +839,15 @@ std::unique_ptr<GraphCOO<VT, ET, WT>> extract_subgraph_vertex(GraphCOOView<VT, E
  */
 }  // namespace subgraph
 
+namespace egonet {
+template <typename vertex_t, typename edge_t, typename weight_t>
+std::unique_ptr<GraphCOO<vertex_t, edge_t, weight_t>> extract_ego(
+  raft::handle_t const &handle,
+  GraphCSRView<vertex_t, edge_t, weight_t> const &csr_view,
+  vertex_t source_vertex,
+  vertex_t radius);
+}
+
 namespace ext_raft {
 template <typename VT, typename ET, typename WT>
 void balancedCutClustering(GraphCSRView<VT, ET, WT> const &graph,

@@ -1,0 +1,156 @@
+/*
+ * Copyright (c) 2020, NVIDIA CORPORATION.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+#include <gtest/gtest.h>
+#include <iostream>
+#include <vector>
+
+#include <rmm/thrust_rmm_allocator.h>
+#include <algorithms.hpp>
+#include <graph.hpp>
+
+#include <utilities/base_fixture.hpp>
+
+namespace cugraph {
+namespace ego_test {
+
+template <typename vertex_t, typename edge_t, typename weight_t>
+struct CSRHost {
+  std::vector<edge_t> offsets;
+  std::vector<vertex_t> indices;
+  std::vector<weight_t> weights;
+};
+
+template <typename vertex_t, typename edge_t, typename weight_t>
+class EGONETTest : public ::testing::TestWithParam<CSRHost<vertex_t, edge_t, weight_t>> {
+ protected:
+  cugraph::Graph_COO<vertex_t, edge_t, weight_t> egonet_test()
+  {
+    rmm::device_vector<edge_t> offsets_v(csr_h.offsets);
+    rmm::device_vector<vertex_t> indices_v(csr_h.indices);
+    rmm::device_vector<weight_t> weights_v(csr_h.weights);
+
+    cugraph::GraphCSRView<int, int, float> G(
+      offsets_v.data().get(), indices_v.data().get(), weights_v.data().get(), num_verts, num_edges);
+
+    vertex_t source = 0;
+    vertex_t radius = 3;
+
+    auto result = cugraph::egonet::extract_ego(handle, G, source, radius);
+    raft::print_device_vector(
+      "Final EgoNet Src: ", result.src_indices.data(), result.number_of_edges, std::cout);
+    raft::print_device_vector(
+      "Final EgoNet Dst: ", result.dst_indices.data(), result.number_of_edges, std::cout);
+    std::cout << "number_of_EgoNet_edges: " << result.number_of_edges << std::endl;
+    return result;
+  }
+
+  void SetUp() override
+  {
+    csr_h = ::testing::TestWithParam<CSRHost<vertex_t, edge_t, weight_t>>::GetParam();
+    v     = csr_h.offsets.size();
+    e     = csr_h.indices.size();
+  }
+
+  void TearDown() override {}
+
+ protected:
+  CSRHost<vertex_t, edge_t, weight_t> csr_h;
+  vertex_t v;
+  edge_t e;
+  raft::handle_t handle;
+};
+
+const std::vector<CSRHost<int, int, float>> csr_in_h = {
+  // single iteration
+  {{0, 3, 5, 7, 8}, {1, 2, 3, 0, 3, 0, 0, 1}, {2, 3, 4, 2, 1, 3, 4, 1}},
+
+  //  multiple iterations and cycles
+  {{0, 4, 6, 9, 12, 15, 17, 20},
+   {2, 4, 5, 6, 3, 6, 0, 4, 5, 1, 4, 6, 0, 2, 3, 0, 2, 0, 1, 3},
+   {5.0f, 9.0f,  1.0f, 4.0f, 8.0f, 7.0f, 5.0f, 2.0f, 6.0f, 8.0f,
+    1.0f, 10.0f, 9.0f, 2.0f, 1.0f, 1.0f, 6.0f, 4.0f, 7.0f, 10.0f}},
+  // negative weights
+  {{0, 4, 6, 9, 12, 15, 17, 20},
+   {2, 4, 5, 6, 3, 6, 0, 4, 5, 1, 4, 6, 0, 2, 3, 0, 2, 0, 1, 3},
+   {-5.0f, -9.0f,  -1.0f, 4.0f,  -8.0f, -7.0f, -5.0f, -2.0f, -6.0f, -8.0f,
+    -1.0f, -10.0f, -9.0f, -2.0f, -1.0f, -1.0f, -6.0f, 4.0f,  -7.0f, -10.0f}},
+
+  // equal weights
+  {{0, 4, 6, 9, 12, 15, 17, 20},
+   {2, 4, 5, 6, 3, 6, 0, 4, 5, 1, 4, 6, 0, 2, 3, 0, 2, 0, 1, 3},
+   {0.1, 0.1, 0.1, 0.1, 0.2, 0.2, 0.1, 0.2, 0.2, 0.2,
+    0.1, 0.1, 0.1, 0.2, 0.1, 0.1, 0.2, 0.1, 0.2, 0.1}},
+
+  // self loop
+  {{0, 4, 6, 9, 12, 15, 17, 20},
+   {0, 4, 5, 6, 3, 6, 2, 4, 5, 1, 4, 6, 0, 2, 3, 0, 2, 0, 1, 3},
+   {0.5f, 9.0f,  1.0f, 4.0f, 8.0f, 7.0f, 0.5f, 2.0f, 6.0f, 8.0f,
+    1.0f, 10.0f, 9.0f, 2.0f, 1.0f, 1.0f, 6.0f, 4.0f, 7.0f, 10.0f}},
+
+  //  disconnected
+  {{0, 3, 5, 8, 10, 12, 14, 16},
+   {2, 4, 5, 3, 6, 0, 4, 5, 1, 6, 0, 2, 0, 2, 1, 3},
+   {5.0f,
+    9.0f,
+    1.0f,
+    8.0f,
+    7.0f,
+    5.0f,
+    2.0f,
+    6.0f,
+    8.0f,
+    10.0f,
+    9.0f,
+    2.0f,
+    1.0f,
+    6.0f,
+    7.0f,
+    10.0f}},
+
+  //  singletons
+  {{0, 3, 5, 8, 10, 10, 10, 12, 14, 16, 16},
+   {2, 8, 7, 3, 8, 0, 8, 7, 1, 8, 0, 2, 0, 2, 1, 3},
+   {5.0f,
+    9.0f,
+    1.0f,
+    8.0f,
+    7.0f,
+    5.0f,
+    2.0f,
+    6.0f,
+    8.0f,
+    10.0f,
+    9.0f,
+    2.0f,
+    1.0f,
+    6.0f,
+    7.0f,
+    10.0f}}};
+
+typedef EGONETTest<int, int, float> EGONETTest1;
+TEST_P(EGONETTest1, Sequential)
+{
+  auto gpu_result = egonet_test();
+
+  // do assertions here
+  EXPECT_LE(gpu_result.n_edges, csr_h.size());
+}
+
+INSTANTIATE_TEST_SUITE_P(EGONETTests, EGONETTest1, ::testing::ValuesIn(csr_in_h));
+
+}  // namespace ego_test
+}  // namespace cugraph

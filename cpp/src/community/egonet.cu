@@ -57,16 +57,16 @@ std::unique_ptr<GraphCOO<vertex_t, edge_t, weight_t>> extract_ego(
   cugraph::experimental::bfs(
     handle, csr_view, distances, predecessors, source_vertex, direction_optimizing, radius);
 
-  // extract reached vertices from disatnce array
+  // identify reached vertices from disatnce array
   rmm::device_uvector<vertex_t> v_id(v, stream);
-  rmm::device_uvector<vertex_t> neighbhoors(v, stream);
+  rmm::device_uvector<vertex_t> reached(v, stream);
   thrust::sequence(rmm::exec_policy(stream)->on(stream), v_id.begin(), v_id.end(), 0);
-  auto neighbhoors_end =
+  auto reached_end =
     thrust::remove_copy_if(rmm::exec_policy(stream)->on(stream),
                            vid.begin(),
                            vid.end(),
                            distances,
-                           neighbhoors.begin(),
+                           reached.begin(),
                            thrust::equal_to<vertex_t>(std::numeric_limits<vertex_t>::max()));
 
   // to COO
@@ -80,8 +80,8 @@ std::unique_ptr<GraphCOO<vertex_t, edge_t, weight_t>> extract_ego(
   coo_view.edge_data          = csr_view.edge_data;
 
   // extract
-  auto n_neighbhoors = thrust::distance(neighbhoors.begin(), neighbhoors_end);
-  return extract_subgraph_vertex(coo_view, neighbhoors.data().get(), n_neighbhoors);
+  auto n_reached = thrust::distance(reached.begin(), reached_end);
+  return extract_subgraph_vertex(coo_view, reached.data().get(), n_reached);
 }
 }  // namespace
 
