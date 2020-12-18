@@ -32,6 +32,17 @@
 #include <patterns/transform_reduce_e.cuh>
 #include <patterns/transform_reduce_v.cuh>
 
+// "FIXME": remove the guards below and references to CUCO_STATIC_MAP_DEFINED
+//
+// cuco/static_map.cuh depends on features not supported on or before Pascal.
+//
+// If we build for sm_60 or before, the inclusion of cuco/static_map.cuh wil
+// result in compilation errors.
+//
+// If we're Pascal or before we do nothing here and will suppress including
+// some code below.  If we are later than Pascal we define CUCO_STATIC_MAP_DEFINED
+// which will result in the full implementation being pulled in.
+//
 #if defined(__CUDA_ARCH__) && __CUDA_ARCH__ < 700
 #else
 #define CUCO_STATIC_MAP_DEFINED
