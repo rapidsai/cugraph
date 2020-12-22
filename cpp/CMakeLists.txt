@@ -367,7 +367,9 @@ add_library(cugraph SHARED
     src/centrality/betweenness_centrality.cu
     src/experimental/graph.cu
     src/experimental/graph_view.cu
-    src/experimental/graph_functions.cu
+    src/experimental/coarsen_graph.cu
+    src/experimental/renumber_edgelist.cu
+    src/experimental/relabel.cu
     src/experimental/bfs.cu
     src/experimental/sssp.cu
     src/experimental/pagerank.cu

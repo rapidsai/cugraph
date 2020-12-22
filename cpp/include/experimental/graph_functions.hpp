@@ -119,7 +119,7 @@ template <typename vertex_t,
 std::tuple<std::unique_ptr<graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu>>,
            rmm::device_uvector<vertex_t>>
 coarsen_graph(
-  raft::handel_t const& handle,
+  raft::handle_t const& handle,
   graph_view_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu> const& graph_view,
   vertex_t const* labels);
 
