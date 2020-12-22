@@ -18,6 +18,7 @@
 #include <experimental/detail/graph_utils.cuh>
 #include <experimental/graph.hpp>
 #include <experimental/graph_view.hpp>
+#include <utilities/dataframe_buffer.cuh>
 #include <utilities/error.hpp>
 #include <vertex_partition_device.cuh>
 
@@ -298,7 +299,7 @@ void copy_v_transform_reduce_key_aggregated_out_nbr(
   }
 
   rmm::device_uvector<vertex_t> major_vertices(0, handle.get_stream());
-  auto e_op_result_buffer = allocate_comm_buffer<T>(0, handle.get_stream());
+  auto e_op_result_buffer = allocate_dataframe_buffer<T>(0, handle.get_stream());
   for (size_t i = 0; i < loop_count; ++i) {
     matrix_partition_device_t<GraphViewType> matrix_partition(
       graph_view, (GraphViewType::is_multi_gpu && !graph_view.is_hypergraph_partitioned()) ? 0 : i);
@@ -411,8 +412,8 @@ void copy_v_transform_reduce_key_aggregated_out_nbr(
     }
 
     auto tmp_e_op_result_buffer =
-      allocate_comm_buffer<T>(tmp_major_vertices.size(), handle.get_stream());
-    auto tmp_e_op_result_buffer_first = get_comm_buffer_begin<T>(tmp_e_op_result_buffer);
+      allocate_dataframe_buffer<T>(tmp_major_vertices.size(), handle.get_stream());
+    auto tmp_e_op_result_buffer_first = get_dataframe_buffer_begin<T>(tmp_e_op_result_buffer);
 
     triplet_first = thrust::make_zip_iterator(thrust::make_tuple(
       tmp_major_vertices.begin(), tmp_minor_keys.begin(), tmp_key_aggregated_edge_weights.begin()));
@@ -463,7 +464,7 @@ void copy_v_transform_reduce_key_aggregated_out_nbr(
           : size_t{0},
         handle.get_stream());
       auto rx_tmp_e_op_result_buffer =
-        allocate_comm_buffer<T>(rx_major_vertices.size(), handle.get_stream());
+        allocate_dataframe_buffer<T>(rx_major_vertices.size(), handle.get_stream());
 
       device_gatherv(sub_comm,
                      tmp_major_vertices.data(),
@@ -475,7 +476,7 @@ void copy_v_transform_reduce_key_aggregated_out_nbr(
                      handle.get_stream());
       device_gatherv(sub_comm,
                      tmp_e_op_result_buffer_first,
-                     get_comm_buffer_begin<T>(rx_tmp_e_op_result_buffer),
+                     get_dataframe_buffer_begin<T>(rx_tmp_e_op_result_buffer),
                      tmp_major_vertices.size(),
                      rx_sizes,
                      rx_displs,
@@ -508,7 +509,7 @@ void copy_v_transform_reduce_key_aggregated_out_nbr(
   thrust::sort_by_key(rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
                       major_vertices.begin(),
                       major_vertices.end(),
-                      get_comm_buffer_begin<T>(e_op_result_buffer));
+                      get_dataframe_buffer_begin<T>(e_op_result_buffer));
 
   auto num_uniques = thrust::count_if(
     rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
@@ -535,7 +536,7 @@ void copy_v_transform_reduce_key_aggregated_out_nbr(
     rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
     major_vertices.begin(),
     major_vertices.end(),
-    get_comm_buffer_begin<T>(e_op_result_buffer),
+    get_dataframe_buffer_begin<T>(e_op_result_buffer),
     thrust::make_discard_iterator(),
     thrust::make_permutation_iterator(
       vertex_value_output_first,

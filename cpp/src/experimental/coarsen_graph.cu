@@ -19,7 +19,6 @@
 #include <experimental/graph_functions.hpp>
 #include <experimental/graph_view.hpp>
 #include <patterns/copy_to_adj_matrix_row_col.cuh>
-#include <utilities/comm_utils.cuh>
 #include <utilities/error.hpp>
 
 #include <rmm/thrust_rmm_allocator.h>

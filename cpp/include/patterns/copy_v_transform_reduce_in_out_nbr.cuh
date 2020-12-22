@@ -19,7 +19,8 @@
 #include <matrix_partition_device.cuh>
 #include <patterns/edge_op_utils.cuh>
 #include <patterns/reduce_op.cuh>
-#include <utilities/comm_utils.cuh>
+#include <utilities/dataframe_buffer.cuh>
+#include <utilities/device_comm.cuh>
 #include <utilities/error.hpp>
 
 #include <raft/cudart_utils.h>
@@ -377,8 +378,8 @@ void copy_v_transform_reduce_nbr(raft::handle_t const& handle,
           ? graph_view.get_number_of_local_adj_matrix_partition_rows()
           : graph_view.get_number_of_local_adj_matrix_partition_cols()
       : vertex_t{0};
-  auto minor_tmp_buffer   = allocate_comm_buffer<T>(minor_tmp_buffer_size, handle.get_stream());
-  auto minor_buffer_first = get_comm_buffer_begin<T>(minor_tmp_buffer);
+  auto minor_tmp_buffer = allocate_dataframe_buffer<T>(minor_tmp_buffer_size, handle.get_stream());
+  auto minor_buffer_first = get_dataframe_buffer_begin<T>(minor_tmp_buffer);
 
   if (in != GraphViewType::is_adj_matrix_transposed) {
     auto minor_init = init;
@@ -424,8 +425,9 @@ void copy_v_transform_reduce_nbr(raft::handle_t const& handle,
               : graph_view.get_vertex_partition_size(col_comm_rank * row_comm_size + i)
           : vertex_t{0};
     }
-    auto major_tmp_buffer   = allocate_comm_buffer<T>(major_tmp_buffer_size, handle.get_stream());
-    auto major_buffer_first = get_comm_buffer_begin<T>(major_tmp_buffer);
+    auto major_tmp_buffer =
+      allocate_dataframe_buffer<T>(major_tmp_buffer_size, handle.get_stream());
+    auto major_buffer_first = get_dataframe_buffer_begin<T>(major_tmp_buffer);
 
     auto major_init = T{};
     if (in == GraphViewType::is_adj_matrix_transposed) {

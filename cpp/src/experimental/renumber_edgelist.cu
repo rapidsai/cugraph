@@ -17,8 +17,9 @@
 #include <experimental/detail/graph_utils.cuh>
 #include <experimental/graph_functions.hpp>
 #include <experimental/graph_view.hpp>
-#include <utilities/comm_utils.cuh>
+#include <utilities/device_comm.cuh>
 #include <utilities/error.hpp>
+#include <utilities/host_scalar_comm.cuh>
 
 #include <rmm/thrust_rmm_allocator.h>
 #include <raft/handle.hpp>

@@ -15,8 +15,8 @@
  */
 #pragma once
 
-#include <utilities/comm_utils.cuh>
 #include <utilities/error.hpp>
+#include <utilities/host_scalar_comm.cuh>
 #include <utilities/thrust_tuple_utils.cuh>
 
 #include <raft/cudart_utils.h>

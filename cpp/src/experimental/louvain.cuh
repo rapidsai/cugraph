@@ -23,7 +23,6 @@
 #include <compute_partition.cuh>
 #include <cuco/static_map.cuh>
 #include <experimental/shuffle.cuh>
-#include <utilities/comm_utils.cuh>
 #include <utilities/graph_utils.cuh>
 
 #include <raft/device_atomics.cuh>

@@ -17,6 +17,7 @@
 
 #include <experimental/detail/graph_utils.cuh>
 #include <experimental/graph_view.hpp>
+#include <utilities/dataframe_buffer.cuh>
 #include <utilities/error.hpp>
 
 #include <raft/handle.hpp>
@@ -130,7 +131,7 @@ template <bool adj_matrix_row_key,
           typename EdgeOp,
           typename T>
 std::tuple<rmm::device_uvector<typename GraphViewType::vertex_type>,
-           decltype(allocate_comm_buffer<T>(0, cudaStream_t{nullptr}))>
+           decltype(allocate_dataframe_buffer<T>(0, cudaStream_t{nullptr}))>
 transform_reduce_by_adj_matrix_row_col_key_e(
   raft::handle_t const& handle,
   GraphViewType const& graph_view,
@@ -158,7 +159,7 @@ transform_reduce_by_adj_matrix_row_col_key_e(
   }
 
   rmm::device_uvector<vertex_t> keys(0, handle.get_stream());
-  auto value_buffer = allocate_comm_buffer<T>(0, handle.get_stream());
+  auto value_buffer = allocate_dataframe_buffer<T>(0, handle.get_stream());
   for (size_t i = 0; i < loop_count; ++i) {
     matrix_partition_device_t<GraphViewType> matrix_partition(
       graph_view, (GraphViewType::is_multi_gpu && !graph_view.is_hypergraph_partitioned()) ? 0 : i);
@@ -186,7 +187,7 @@ transform_reduce_by_adj_matrix_row_col_key_e(
       thrust::plus<edge_t>());
 
     rmm::device_uvector<vertex_t> tmp_keys(num_edges, handle.get_stream());
-    auto tmp_value_buffer = allocate_comm_buffer<T>(tmp_keys.size(), handle.get_stream());
+    auto tmp_value_buffer = allocate_dataframe_buffer<T>(tmp_keys.size(), handle.get_stream());
 
     if (graph_view.get_vertex_partition_size(comm_root_rank) > 0) {
       raft::grid_1d_thread_t update_grid(graph_view.get_vertex_partition_size(comm_root_rank),
@@ -206,7 +207,7 @@ transform_reduce_by_adj_matrix_row_col_key_e(
           adj_matrix_row_col_key_first,
           e_op,
           tmp_keys.data(),
-          get_comm_buffer_begin<T>(tmp_value_buffer));
+          get_dataframe_buffer_begin<T>(tmp_value_buffer));
     }
 
     if (GraphViewType::is_multi_gpu) {
@@ -216,7 +217,7 @@ transform_reduce_by_adj_matrix_row_col_key_e(
       thrust::sort_by_key(rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
                           tmp_keys.begin(),
                           tmp_keys.end(),
-                          get_comm_buffer_begin<T>(tmp_value_buffer));
+                          get_dataframe_buffer_begin<T>(tmp_value_buffer));
 
       auto num_uniques =
         thrust::count_if(rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
@@ -227,21 +228,21 @@ transform_reduce_by_adj_matrix_row_col_key_e(
                          });
       rmm::device_uvector<vertex_t> unique_keys(num_uniques, handle.get_stream());
       auto value_for_unique_key_buffer =
-        allocate_comm_buffer<T>(unique_keys.size(), handle.get_stream());
+        allocate_dataframe_buffer<T>(unique_keys.size(), handle.get_stream());
 
       thrust::reduce_by_key(rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
                             tmp_keys.begin(),
                             tmp_keys.end(),
-                            get_comm_buffer_begin<T>(tmp_value_buffer),
+                            get_dataframe_buffer_begin<T>(tmp_value_buffer),
                             unique_keys.begin(),
-                            get_comm_buffer_begin<T>(value_for_unique_key_buffer));
+                            get_dataframe_buffer_begin<T>(value_for_unique_key_buffer));
 
       auto key_func = detail::compute_gpu_id_from_vertex_t<vertex_t>{comm_size};
       thrust::sort_by_key(
         rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
         unique_keys.begin(),
         unique_keys.end(),
-        get_comm_buffer_begin<T>(value_for_unique_key_buffer),
+        get_dataframe_buffer_begin<T>(value_for_unique_key_buffer),
         [key_func] __device__(auto lhs, auto rhs) { return key_func(lhs) < key_func(rhs); });
 
       auto key_first = thrust::make_transform_iterator(
@@ -255,14 +256,14 @@ transform_reduce_by_adj_matrix_row_col_key_e(
                             tx_value_counts.begin());
 
       rmm::device_uvector<vertex_t> rx_unique_keys(0, handle.get_stream());
-      auto rx_value_for_unique_key_buffer = allocate_comm_buffer<T>(0, handle.get_stream());
+      auto rx_value_for_unique_key_buffer = allocate_dataframe_buffer<T>(0, handle.get_stream());
 
       std::tie(rx_unique_keys, std::ignore) = cugraph::experimental::detail::shuffle_values(
         comm, unique_keys.begin(), tx_value_counts, handle.get_stream());
       std::tie(rx_value_for_unique_key_buffer, std::ignore) =
         cugraph::experimental::detail::shuffle_values(
           comm,
-          get_comm_buffer_begin<T>(value_for_unique_key_buffer),
+          get_dataframe_buffer_begin<T>(value_for_unique_key_buffer),
           tx_value_counts,
           handle.get_stream());
 
@@ -281,23 +282,23 @@ transform_reduce_by_adj_matrix_row_col_key_e(
     // reserve address space to avoid expensive reallocation.
     // https://devblogs.nvidia.com/introducing-low-level-gpu-virtual-memory-management
     keys.resize(cur_size + tmp_keys.size(), handle.get_stream());
-    resize_comm_buffer<T>(value_buffer, keys.size(), handle.get_stream());
+    resize_dataframe_buffer<T>(value_buffer, keys.size(), handle.get_stream());
 
     thrust::copy(rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
                  tmp_keys.begin(),
                  tmp_keys.end(),
                  keys.begin() + cur_size);
     thrust::copy(rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
-                 get_comm_buffer_begin<T>(tmp_value_buffer),
-                 get_comm_buffer_begin<T>(tmp_value_buffer) + tmp_keys.size(),
-                 get_comm_buffer_begin<T>(value_buffer) + cur_size);
+                 get_dataframe_buffer_begin<T>(tmp_value_buffer),
+                 get_dataframe_buffer_begin<T>(tmp_value_buffer) + tmp_keys.size(),
+                 get_dataframe_buffer_begin<T>(value_buffer) + cur_size);
   }
 
   if (GraphViewType::is_multi_gpu) {
     thrust::sort_by_key(rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
                         keys.begin(),
                         keys.end(),
-                        get_comm_buffer_begin<T>(value_buffer));
+                        get_dataframe_buffer_begin<T>(value_buffer));
 
     auto num_uniques =
       thrust::count_if(rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
@@ -308,14 +309,14 @@ transform_reduce_by_adj_matrix_row_col_key_e(
                        });
     rmm::device_uvector<vertex_t> unique_keys(num_uniques, handle.get_stream());
     auto value_for_unique_key_buffer =
-      allocate_comm_buffer<T>(unique_keys.size(), handle.get_stream());
+      allocate_dataframe_buffer<T>(unique_keys.size(), handle.get_stream());
 
     thrust::reduce_by_key(rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
                           keys.begin(),
                           keys.end(),
-                          get_comm_buffer_begin<T>(value_buffer),
+                          get_dataframe_buffer_begin<T>(value_buffer),
                           unique_keys.begin(),
-                          get_comm_buffer_begin<T>(value_for_unique_key_buffer));
+                          get_dataframe_buffer_begin<T>(value_for_unique_key_buffer));
 
     keys         = std::move(unique_keys);
     value_buffer = std::move(value_for_unique_key_buffer);

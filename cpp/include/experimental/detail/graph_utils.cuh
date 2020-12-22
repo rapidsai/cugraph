@@ -17,7 +17,8 @@
 
 #include <experimental/graph_view.hpp>
 #include <partition_manager.hpp>
-#include <utilities/comm_utils.cuh>
+#include <utilities/dataframe_buffer.cuh>
+#include <utilities/device_comm.cuh>
 
 #include <rmm/thrust_rmm_allocator.h>
 #include <raft/handle.hpp>
@@ -199,10 +200,10 @@ auto shuffle_values(raft::comms::comms_t const &comm,
   std::partial_sum(rx_counts.begin(), rx_counts.end() - 1, rx_offsets.begin() + 1);
 
   auto rx_value_buffer =
-    allocate_comm_buffer<typename std::iterator_traits<TxValueIterator>::value_type>(
+    allocate_dataframe_buffer<typename std::iterator_traits<TxValueIterator>::value_type>(
       rx_offsets.back(), stream);
   auto rx_value_first =
-    get_comm_buffer_begin<typename std::iterator_traits<TxValueIterator>::value_type>(
+    get_dataframe_buffer_begin<typename std::iterator_traits<TxValueIterator>::value_type>(
       rx_value_buffer);
 
   int num_tx_dst_ranks{0};
