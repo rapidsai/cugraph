@@ -19,6 +19,7 @@
 #include <experimental/graph_view.hpp>
 #include <utilities/dataframe_buffer.cuh>
 #include <utilities/error.hpp>
+#include <utilities/shuffle_comm.cuh>
 
 #include <raft/handle.hpp>
 
@@ -237,34 +238,16 @@ transform_reduce_by_adj_matrix_row_col_key_e(
                             unique_keys.begin(),
                             get_dataframe_buffer_begin<T>(value_for_unique_key_buffer));
 
-      auto key_func = detail::compute_gpu_id_from_vertex_t<vertex_t>{comm_size};
-      thrust::sort_by_key(
-        rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
-        unique_keys.begin(),
-        unique_keys.end(),
-        get_dataframe_buffer_begin<T>(value_for_unique_key_buffer),
-        [key_func] __device__(auto lhs, auto rhs) { return key_func(lhs) < key_func(rhs); });
-
-      auto key_first = thrust::make_transform_iterator(
-        unique_keys.begin(), [key_func] __device__(auto val) { return key_func(val); });
-      rmm::device_uvector<size_t> tx_value_counts(comm_size, handle.get_stream());
-      thrust::reduce_by_key(rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
-                            key_first,
-                            key_first + unique_keys.size(),
-                            thrust::make_constant_iterator(size_t{1}),
-                            thrust::make_discard_iterator(),
-                            tx_value_counts.begin());
-
       rmm::device_uvector<vertex_t> rx_unique_keys(0, handle.get_stream());
       auto rx_value_for_unique_key_buffer = allocate_dataframe_buffer<T>(0, handle.get_stream());
-
-      std::tie(rx_unique_keys, std::ignore) = cugraph::experimental::detail::shuffle_values(
-        comm, unique_keys.begin(), tx_value_counts, handle.get_stream());
-      std::tie(rx_value_for_unique_key_buffer, std::ignore) =
-        cugraph::experimental::detail::shuffle_values(
+      std::tie(rx_unique_keys, rx_value_for_unique_key_buffer, std::ignore) =
+        sort_and_shuffle_kv_pairs(
           comm,
+          unique_keys.begin(),
+          unique_keys.end(),
           get_dataframe_buffer_begin<T>(value_for_unique_key_buffer),
-          tx_value_counts,
+          [key_func = detail::compute_gpu_id_from_vertex_t<vertex_t>{comm_size}] __device__(
+            auto val) { return key_func(val); },
           handle.get_stream());
 
       // FIXME: we can reduce after shuffle

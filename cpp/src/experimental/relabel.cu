@@ -20,6 +20,7 @@
 #include <experimental/graph_view.hpp>
 #include <patterns/copy_to_adj_matrix_row_col.cuh>
 #include <utilities/error.hpp>
+#include <utilities/shuffle_comm.cuh>
 
 #include <rmm/thrust_rmm_allocator.h>
 #include <raft/handle.hpp>
@@ -85,25 +86,14 @@ rmm::device_uvector<vertex_t> relabel(
                                                             handle.get_stream());
         auto pair_first = thrust::make_zip_iterator(
           thrust::make_tuple(label_pair_old_labels.begin(), label_pair_new_labels.begin()));
-        thrust::sort(rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
-                     pair_first,
-                     pair_first + std::get<0>(old_new_label_pairs).size(),
-                     [key_func] __device__(auto lhs, auto rhs) {
-                       return key_func(thrust::get<0>(lhs)) < key_func(thrust::get<0>(rhs));
-                     });
-        auto key_first = thrust::make_transform_iterator(
-          label_pair_old_labels.begin(), [key_func] __device__(auto val) { return key_func(val); });
-        rmm::device_uvector<size_t> tx_value_counts(comm_size, handle.get_stream());
-        thrust::reduce_by_key(rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
-                              key_first,
-                              key_first + label_pair_old_labels.size(),
-                              thrust::make_constant_iterator(size_t{1}),
-                              thrust::make_discard_iterator(),
-                              tx_value_counts.begin());
-
-        std::tie(rx_label_pair_old_labels, rx_label_pair_new_labels, std::ignore) =
-          cugraph::experimental::detail::shuffle_values(
-            handle.get_comms(), pair_first, tx_value_counts, handle.get_stream());
+        std::forward_as_tuple(std::tie(rx_label_pair_old_labels, rx_label_pair_new_labels),
+                              std::ignore) =
+          sort_and_shuffle_values(
+            handle.get_comms(),
+            pair_first,
+            pair_first + label_pair_old_labels.size(),
+            [key_func] __device__(auto val) { return key_func(thrust::get<0>(val)); },
+            handle.get_stream());
 
         CUDA_TRY(cudaStreamSynchronize(
           handle.get_stream()));  // label_pair_old_labels and label_pair_new_labels will become
@@ -133,28 +123,14 @@ rmm::device_uvector<vertex_t> relabel(
       // shuffle unique_old_labels, relabel using the intermediate relabel map, and shuffle back
 
       {
-        thrust::sort(
-          rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
+        rmm::device_uvector<vertex_t> rx_unique_old_labels(0, handle.get_stream());
+        std::vector<size_t> rx_value_counts{};
+        std::tie(rx_unique_old_labels, rx_value_counts) = sort_and_shuffle_values(
+          handle.get_comms(),
           unique_old_labels.begin(),
           unique_old_labels.end(),
-          [key_func] __device__(auto lhs, auto rhs) { return key_func(lhs) < key_func(rhs); });
-
-        auto key_first = thrust::make_transform_iterator(
-          unique_old_labels.begin(), [key_func] __device__(auto val) { return key_func(val); });
-        rmm::device_uvector<size_t> tx_value_counts(comm_size, handle.get_stream());
-        thrust::reduce_by_key(rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
-                              key_first,
-                              key_first + unique_old_labels.size(),
-                              thrust::make_constant_iterator(size_t{1}),
-                              thrust::make_discard_iterator(),
-                              tx_value_counts.begin());
-
-        rmm::device_uvector<vertex_t> rx_unique_old_labels(0, handle.get_stream());
-        rmm::device_uvector<size_t> rx_value_counts(0, handle.get_stream());
-
-        std::tie(rx_unique_old_labels, rx_value_counts) =
-          cugraph::experimental::detail::shuffle_values(
-            handle.get_comms(), unique_old_labels.begin(), tx_value_counts, handle.get_stream());
+          [key_func] __device__(auto val) { return key_func(val); },
+          handle.get_stream());
 
         CUDA_TRY(cudaStreamSynchronize(
           handle.get_stream()));  // cuco::static_map currently does not take stream
@@ -165,9 +141,8 @@ rmm::device_uvector<vertex_t> relabel(
           rx_unique_old_labels
             .begin());  // now rx_unique_old_lables hold new labels for the corresponding old labels
 
-        std::tie(new_labels_for_unique_old_labels, std::ignore) =
-          cugraph::experimental::detail::shuffle_values(
-            handle.get_comms(), rx_unique_old_labels.begin(), rx_value_counts, handle.get_stream());
+        std::tie(new_labels_for_unique_old_labels, std::ignore) = shuffle_values(
+          handle.get_comms(), rx_unique_old_labels.begin(), rx_value_counts, handle.get_stream());
 
         CUDA_TRY(cudaStreamSynchronize(
           handle.get_stream()));  // tx_value_counts & rx_value_counts will become out-of-scope

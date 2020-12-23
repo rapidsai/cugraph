@@ -20,6 +20,7 @@
 #include <experimental/graph_view.hpp>
 #include <patterns/copy_to_adj_matrix_row_col.cuh>
 #include <utilities/error.hpp>
+#include <utilities/shuffle_comm.cuh>
 
 #include <rmm/thrust_rmm_allocator.h>
 #include <raft/handle.hpp>
@@ -326,39 +327,26 @@ coarsen_graph(
       thrust::make_zip_iterator(thrust::make_tuple(coarsened_edgelist_major_vertices.begin(),
                                                    coarsened_edgelist_minor_vertices.begin(),
                                                    coarsened_edgelist_weights.begin()));
-    auto key_func = detail::compute_gpu_id_from_edge_t<vertex_t, store_transposed>{
-      graph_view.is_hypergraph_partitioned(),
-      comm.get_size(),
-      row_comm.get_size(),
-      col_comm.get_size()};
-    thrust::sort(rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
-                 edge_first,
-                 edge_first + coarsened_edgelist_major_vertices.size(),
-                 [key_func] __device__(auto lhs, auto rhs) {
-                   return store_transposed ? (key_func(thrust::get<1>(lhs), thrust::get<0>(lhs)) <
-                                              key_func(thrust::get<1>(rhs), thrust::get<0>(rhs)))
-                                           : (key_func(thrust::get<0>(lhs), thrust::get<1>(lhs)) <
-                                              key_func(thrust::get<0>(rhs), thrust::get<1>(rhs)));
-                 });
-    auto key_first = thrust::make_transform_iterator(edge_first, [key_func] __device__(auto val) {
-      return store_transposed ? key_func(thrust::get<1>(val), thrust::get<0>(val))
-                              : key_func(thrust::get<0>(val), thrust::get<1>(val));
-    });
-    rmm::device_uvector<size_t> tx_value_counts(comm.get_size(), handle.get_stream());
-    thrust::reduce_by_key(rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
-                          key_first,
-                          key_first + coarsened_edgelist_major_vertices.size(),
-                          thrust::make_constant_iterator(size_t{1}),
-                          thrust::make_discard_iterator(),
-                          tx_value_counts.begin());
-
     rmm::device_uvector<vertex_t> rx_edgelist_major_vertices(0, handle.get_stream());
     rmm::device_uvector<vertex_t> rx_edgelist_minor_vertices(0, handle.get_stream());
     rmm::device_uvector<weight_t> rx_edgelist_weights(0, handle.get_stream());
-
-    std::tie(
-      rx_edgelist_major_vertices, rx_edgelist_minor_vertices, rx_edgelist_weights, std::ignore) =
-      detail::shuffle_values(handle.get_comms(), edge_first, tx_value_counts, handle.get_stream());
+    std::forward_as_tuple(
+      std::tie(rx_edgelist_major_vertices, rx_edgelist_minor_vertices, rx_edgelist_weights),
+      std::ignore) =
+      sort_and_shuffle_values(
+        handle.get_comms(),
+        edge_first,
+        edge_first + coarsened_edgelist_major_vertices.size(),
+        [key_func =
+           detail::compute_gpu_id_from_edge_t<vertex_t, store_transposed>{
+             graph_view.is_hypergraph_partitioned(),
+             comm.get_size(),
+             row_comm.get_size(),
+             col_comm.get_size()}] __device__(auto val) {
+          return store_transposed ? key_func(thrust::get<1>(val), thrust::get<0>(val))
+                                  : key_func(thrust::get<0>(val), thrust::get<1>(val));
+        },
+        handle.get_stream());
 
     sort_and_coarsen_edgelist(rx_edgelist_major_vertices,
                               rx_edgelist_minor_vertices,

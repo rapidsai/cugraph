@@ -20,6 +20,7 @@
 #include <experimental/graph_view.hpp>
 #include <utilities/dataframe_buffer.cuh>
 #include <utilities/error.hpp>
+#include <utilities/shuffle_comm.cuh>
 #include <vertex_partition_device.cuh>
 
 #include <raft/handle.hpp>
@@ -231,28 +232,16 @@ void copy_v_transform_reduce_key_aggregated_out_nbr(
                                unique_keys.end());
     unique_keys.resize(thrust::distance(unique_keys.begin(), last), handle.get_stream());
 
-    auto key_func = detail::compute_gpu_id_from_vertex_t<vertex_t>{comm_size};
-    thrust::sort(
-      rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
+    rmm::device_uvector<vertex_t> rx_unique_keys(0, handle.get_stream());
+    std::vector<size_t> rx_value_counts{};
+    std::tie(rx_unique_keys, rx_value_counts) = sort_and_shuffle_values(
+      comm,
       unique_keys.begin(),
       unique_keys.end(),
-      [key_func] __device__(auto lhs, auto rhs) { return key_func(lhs) < key_func(rhs); });
-
-    auto key_first = thrust::make_transform_iterator(
-      unique_keys.begin(), [key_func] __device__(auto val) { return key_func(val); });
-    rmm::device_uvector<size_t> tx_value_counts(comm_size, handle.get_stream());
-    thrust::reduce_by_key(rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
-                          key_first,
-                          key_first + unique_keys.size(),
-                          thrust::make_constant_iterator(size_t{1}),
-                          thrust::make_discard_iterator(),
-                          tx_value_counts.begin());
-
-    rmm::device_uvector<vertex_t> rx_unique_keys(0, handle.get_stream());
-    rmm::device_uvector<size_t> rx_value_counts(0, handle.get_stream());
-
-    std::tie(rx_unique_keys, rx_value_counts) = cugraph::experimental::detail::shuffle_values(
-      comm, unique_keys.begin(), tx_value_counts, handle.get_stream());
+      [key_func = detail::compute_gpu_id_from_vertex_t<vertex_t>{comm_size}] __device__(auto val) {
+        return key_func(val);
+      },
+      handle.get_stream());
 
     rmm::device_uvector<value_t> values_for_unique_keys(rx_unique_keys.size(), handle.get_stream());
 
@@ -264,8 +253,7 @@ void copy_v_transform_reduce_key_aggregated_out_nbr(
     rmm::device_uvector<value_t> rx_values_for_unique_keys(0, handle.get_stream());
 
     std::tie(rx_values_for_unique_keys, std::ignore) =
-      cugraph::experimental::detail::shuffle_values(
-        comm, values_for_unique_keys.begin(), rx_value_counts, handle.get_stream());
+      shuffle_values(comm, values_for_unique_keys.begin(), rx_value_counts, handle.get_stream());
 
     CUDA_TRY(cudaStreamSynchronize(
       handle.get_stream()));  // cuco::static_map currently does not take stream
@@ -379,29 +367,18 @@ void copy_v_transform_reduce_key_aggregated_out_nbr(
         thrust::make_zip_iterator(thrust::make_tuple(tmp_major_vertices.begin(),
                                                      tmp_minor_keys.begin(),
                                                      tmp_key_aggregated_edge_weights.begin()));
-      auto key_func = detail::compute_gpu_id_from_vertex_t<vertex_t>{sub_comm_size};
-      thrust::sort(rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
-                   triplet_first,
-                   triplet_first + tmp_major_vertices.size(),
-                   [key_func] __device__(auto lhs, auto rhs) {
-                     return key_func(thrust::get<1>(lhs) < key_func(thrust::get<1>(rhs)));
-                   });
-      auto key_first = thrust::make_transform_iterator(
-        triplet_first, [key_func] __device__(auto val) { return key_func(thrust::get<1>(val)); });
-      rmm::device_uvector<size_t> tx_value_counts(sub_comm.get_size(), handle.get_stream());
-      thrust::reduce_by_key(rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
-                            key_first,
-                            key_first + tmp_major_vertices.size(),
-                            thrust::make_constant_iterator(size_t{1}),
-                            thrust::make_discard_iterator(),
-                            tx_value_counts.begin());
-
       rmm::device_uvector<vertex_t> rx_major_vertices(0, handle.get_stream());
       rmm::device_uvector<vertex_t> rx_minor_keys(0, handle.get_stream());
       rmm::device_uvector<weight_t> rx_key_aggregated_edge_weights(0, handle.get_stream());
-
-      std::tie(rx_major_vertices, rx_minor_keys, rx_key_aggregated_edge_weights, std::ignore) =
-        detail::shuffle_values(sub_comm, triplet_first, tx_value_counts, handle.get_stream());
+      std::forward_as_tuple(
+        std::tie(rx_major_vertices, rx_minor_keys, rx_key_aggregated_edge_weights), std::ignore) =
+        sort_and_shuffle_values(
+          sub_comm,
+          triplet_first,
+          triplet_first + tmp_major_vertices.size(),
+          [key_func = detail::compute_gpu_id_from_vertex_t<vertex_t>{sub_comm_size}] __device__(
+            auto val) { return key_func(thrust::get<1>(val)); },
+          handle.get_stream());
 
       tmp_major_vertices              = std::move(rx_major_vertices);
       tmp_minor_keys                  = std::move(rx_minor_keys);

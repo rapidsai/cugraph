@@ -117,30 +117,6 @@ rmm::device_uvector<edge_t> compute_major_degree(
   return degrees;
 }
 
-// FIXME: better if I don't need to do this. Haven't found a better way to concatenate a variable
-// which can be either a tuple or not with another variable to create an aggregated/flattened tuple.
-#if 1
-template <typename T>
-struct is_std_tuple : std::false_type {
-};
-
-template <typename... Ts>
-struct is_std_tuple<std::tuple<Ts...>> : std::true_type {
-};
-
-template <typename T>
-auto to_tuple(T &&val, std::enable_if_t<is_std_tuple<T>::value, void> * = nullptr)
-{
-  return std::forward<T>(val);
-}
-
-template <typename T>
-auto to_tuple(T &&val, std::enable_if_t<!is_std_tuple<T>::value, void> * = nullptr)
-{
-  return std::make_tuple(std::forward<T>(val));
-}
-#endif
-
 // compute the numbers of nonzeros in rows (of the graph adjacency matrix, if store_transposed =
 // false) or columns (of the graph adjacency matrix, if store_transposed = true)
 template <typename vertex_t, typename edge_t>
@@ -156,93 +132,6 @@ rmm::device_uvector<edge_t> compute_major_degree(
                  tmp_offsets.begin(),
                  [](auto const &offsets) { return offsets.data(); });
   return compute_major_degree(handle, tmp_offsets, partition);
-}
-
-// FIXME: better move this to elsewhere
-template <typename TxValueIterator>
-auto shuffle_values(raft::comms::comms_t const &comm,
-                    TxValueIterator tx_value_first,
-                    rmm::device_uvector<size_t> const &tx_value_counts,
-                    cudaStream_t stream)
-{
-  auto const comm_size = comm.get_size();
-
-  rmm::device_uvector<size_t> rx_value_counts(comm_size, stream);
-
-  // FIXME: this needs to be replaced with AlltoAll once NCCL 2.8 is released.
-  std::vector<size_t> tx_counts(comm_size, size_t{1});
-  std::vector<size_t> tx_offsets(comm_size);
-  std::iota(tx_offsets.begin(), tx_offsets.end(), size_t{0});
-  std::vector<int> tx_dst_ranks(comm_size);
-  std::iota(tx_dst_ranks.begin(), tx_dst_ranks.end(), int{0});
-  std::vector<size_t> rx_counts(comm_size, size_t{1});
-  std::vector<size_t> rx_offsets(comm_size);
-  std::iota(rx_offsets.begin(), rx_offsets.end(), size_t{0});
-  std::vector<int> rx_src_ranks(comm_size);
-  std::iota(rx_src_ranks.begin(), rx_src_ranks.end(), int{0});
-  device_multicast_sendrecv(comm,
-                            tx_value_counts.data(),
-                            tx_counts,
-                            tx_offsets,
-                            tx_dst_ranks,
-                            rx_value_counts.data(),
-                            rx_counts,
-                            rx_offsets,
-                            rx_src_ranks,
-                            stream);
-
-  raft::update_host(tx_counts.data(), tx_value_counts.data(), comm_size, stream);
-  raft::update_host(rx_counts.data(), rx_value_counts.data(), comm_size, stream);
-
-  CUDA_TRY(cudaStreamSynchronize(stream));  // tx_counts & rx_counts should be up-to-date
-
-  std::partial_sum(tx_counts.begin(), tx_counts.end() - 1, tx_offsets.begin() + 1);
-  std::partial_sum(rx_counts.begin(), rx_counts.end() - 1, rx_offsets.begin() + 1);
-
-  auto rx_value_buffer =
-    allocate_dataframe_buffer<typename std::iterator_traits<TxValueIterator>::value_type>(
-      rx_offsets.back(), stream);
-  auto rx_value_first =
-    get_dataframe_buffer_begin<typename std::iterator_traits<TxValueIterator>::value_type>(
-      rx_value_buffer);
-
-  int num_tx_dst_ranks{0};
-  int num_rx_src_ranks{0};
-  for (int i = 0; i < comm_size; ++i) {
-    if (tx_counts[i] != 0) {
-      tx_counts[num_tx_dst_ranks]    = tx_counts[i];
-      tx_offsets[num_tx_dst_ranks]   = tx_offsets[i];
-      tx_dst_ranks[num_tx_dst_ranks] = tx_dst_ranks[i];
-      ++num_tx_dst_ranks;
-    }
-    if (rx_counts[i] != 0) {
-      rx_counts[num_rx_src_ranks]    = rx_counts[i];
-      rx_offsets[num_rx_src_ranks]   = rx_offsets[i];
-      rx_src_ranks[num_rx_src_ranks] = rx_src_ranks[i];
-    }
-  }
-  tx_counts.resize(num_tx_dst_ranks);
-  tx_offsets.resize(num_tx_dst_ranks);
-  tx_dst_ranks.resize(num_tx_dst_ranks);
-  rx_counts.resize(num_rx_src_ranks);
-  rx_offsets.resize(num_rx_src_ranks);
-  rx_src_ranks.resize(num_rx_src_ranks);
-
-  // FIXME: this needs to be replaced with AlltoAll once NCCL 2.8 is released
-  // (if num_tx_dst_ranks == num_rx_src_ranks == comm_size).
-  device_multicast_sendrecv(comm,
-                            tx_value_first,
-                            tx_counts,
-                            tx_offsets,
-                            tx_dst_ranks,
-                            rx_value_first,
-                            rx_counts,
-                            rx_offsets,
-                            rx_src_ranks,
-                            stream);
-
-  return std::tuple_cat(to_tuple(std::move(rx_value_buffer)),
-                        std::make_tuple(std::move(rx_value_counts)));
 }
 
 template <typename vertex_t, typename edge_t>
