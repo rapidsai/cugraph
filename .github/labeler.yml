@@ -1,0 +1,25 @@
+# https://github.com/actions/labeler#common-examples
+# Adapted from https://github.com/rapidsai/cudf/blob/main/.github/CODEOWNERS
+# Labels culled from https://github.com/rapidsai/cugraph/labels
+
+python:
+  - python/
+  - notebooks/
+  
+cuGraph:
+  - cpp/
+
+CMake:
+  - **/CMakeLists.txt
+  - **/cmake/
+  
+Java:
+  - java/
+  
+Ops:
+  - .github/
+  - /ci/
+  - conda/
+  - **/Dockerfile
+  - **/.dockerignore
+  - docker/
