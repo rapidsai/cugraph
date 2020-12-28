@@ -1373,6 +1373,8 @@ class Graph:
                 return self.renumber_map.implementation.df["0"]
             else:
                 return cudf.concat([df["src"], df["dst"]]).unique()
+        if self.adjlist is not None:
+            return cudf.Series(np.arange(0, self.number_of_nodes()))
         if "all_nodes" in self._nodes.keys():
             return self._nodes["all_nodes"]
         else:
