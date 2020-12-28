@@ -8,7 +8,7 @@ dependencies:
 - cudf=0.18.*
 - libcudf=0.18.*
 - rmm=0.18.*
-- cuxfilter=0.17.*
+- cuxfilter=0.18.*
 - librmm=0.18.*
 - dask>=2.12.0
 - distributed>=2.12.0
@@ -32,7 +32,6 @@ dependencies:
 - scikit-learn>=0.23.1
 - colorcet
 - holoviews
-- datashader
 - sphinx
 - sphinx_rtd_theme
 - sphinxcontrib-websupport
