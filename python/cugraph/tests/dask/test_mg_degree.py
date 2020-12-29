@@ -11,29 +11,24 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from dask.distributed import Client
 import gc
 import pytest
 import cudf
-import cugraph.comms as Comms
 import cugraph
 import dask_cudf
-from cugraph.dask.common.mg_utils import is_single_gpu
-
-# Move to conftest
-from dask_cuda import LocalCUDACluster
+from cugraph.dask.common.mg_utils import (is_single_gpu,
+                                          setup_local_dask_cluster)
 
 
-@pytest.fixture
+@pytest.fixture(scope="module")
 def client_connection():
-    cluster = LocalCUDACluster()
-    client = Client(cluster)
-    client.wait_for_workers(None)  # number of devices None = all vsble devices
-    Comms.initialize(p2p=True)
+    # setup
+    (comms, client, cluster) = setup_local_dask_cluster(p2p=True)
 
     yield client
 
-    Comms.destroy()
+    # teardown
+    comms.destroy()
     client.close()
     cluster.close()
 

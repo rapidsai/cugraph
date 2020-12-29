@@ -12,28 +12,21 @@
 # limitations under the License.
 
 import time
-import os
+
+import pytest
 
 from dask.distributed import Client
+
+from cugraph.dask.common.mg_utils import get_visible_devices
 from dask_cuda import LocalCUDACluster as CUDACluster
 import cugraph.comms as Comms
-import pytest
+
 
 # Maximal number of verifications of the number of workers
 DEFAULT_MAX_ATTEMPT = 100
 
 # Time between each attempt in seconds
 DEFAULT_WAIT_TIME = 0.5
-
-
-def get_visible_devices():
-    _visible_devices = os.environ.get("CUDA_VISIBLE_DEVICES")
-    if _visible_devices is None:
-        # FIXME: We assume that if the variable is unset there is only one GPU
-        visible_devices = ["0"]
-    else:
-        visible_devices = _visible_devices.strip().split(",")
-    return visible_devices
 
 
 def skip_if_not_enough_devices(required_devices):

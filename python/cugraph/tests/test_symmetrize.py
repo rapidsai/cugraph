@@ -19,10 +19,8 @@ import pandas as pd
 import cudf
 import cugraph
 from cugraph.tests import utils
-import cugraph.comms as Comms
-from dask.distributed import Client
-from dask_cuda import LocalCUDACluster
-from cugraph.dask.common.mg_utils import is_single_gpu
+from cugraph.dask.common.mg_utils import (is_single_gpu,
+                                          setup_local_dask_cluster)
 
 
 def test_version():
@@ -188,15 +186,15 @@ def test_symmetrize_weighted(graph_file):
     compare(cu_M["0"], cu_M["1"], cu_M["2"], sym_src, sym_dst, sym_w)
 
 
-@pytest.fixture
+@pytest.fixture(scope="module")
 def client_connection():
-    cluster = LocalCUDACluster()
-    client = Client(cluster)
-    Comms.initialize(p2p=True)
+    # setup
+    (comms, client, cluster) = setup_local_dask_cluster(p2p=True)
 
     yield client
 
-    Comms.destroy()
+    # teardown
+    comms.destroy()
     client.close()
     cluster.close()
 
