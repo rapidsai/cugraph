@@ -84,6 +84,10 @@ float TSP::compute() {
     exit(-1);
   }
 
+  int *offsets = (int *)malloc( (sizeof(int) * (2) ) );
+  offsets[0] = 0;
+  offsets[1] = nodes_;
+
   for (int g = 0; g < num_graphs; g++) {
 
     int global_best  = INT_MAX;
@@ -92,8 +96,6 @@ float TSP::compute() {
 
     printf("optimizing graph %d kswap = %d \n",g, kswaps);
     for (int b = 0; b < num_restart_batches; b++) {
-      printf("batch: %i", b);
-      printf("num_restart_batches: %i\n", num_restart_batches);
       //Init<<<1, 1, 0, stream_>>>(mylock, n_climbs, best_tour, best_soln, bw_d);
       Init<<<1, 1, 0, stream_>>>();
       CHECK_CUDA(stream_);
@@ -106,17 +108,18 @@ float TSP::compute() {
           nodes_, neighbors_, x_pos_ + 0, y_pos_ + nodes_, work_d);
       */
       simulOpt<<<restart_batch, threads, sizeof(int) * threads, stream_>>>(
-          nodes_, neighbors_, x_pos_ + 0, y_pos_ + nodes_, work_d);
+          nodes_, neighbors_, x_pos_ + offsets[g], y_pos_ + offsets[g], work_d);
       CHECK_CUDA(stream_);
       cudaDeviceSynchronize();
 
-      CUDA_TRY(cudaMemcpy(&best, best_tour, sizeof(int), cudaMemcpyDeviceToHost));
+      //CUDA_TRY(cudaMemcpy(&best, best_tour, sizeof(int), cudaMemcpyDeviceToHost));
+      CUDA_TRY(cudaMemcpyFromSymbol(&best, best_tour, sizeof(int)));
       cudaDeviceSynchronize();
       printf("best reported by kernel = %d\n", best);
 
       if (best < global_best) {
         global_best = best;
-         CUDA_TRY(cudaMemcpyFromSymbol(&soln, best_soln_, sizeof(void *)));
+         CUDA_TRY(cudaMemcpyFromSymbol(&soln, best_soln, sizeof(void *)));
         cudaDeviceSynchronize();
 
         CUDA_TRY(cudaMemcpy(pos, soln, sizeof(float) * (nodes_ + 1) * 2, cudaMemcpyDeviceToHost));
@@ -126,8 +129,6 @@ float TSP::compute() {
         for (int i = 0; i < nodes_; i++) {
           valid_dist += cpudist(i, i + 1) ;
         }
-        printf(" validating route gpudist= %d cpudist = %f\n", global_best, valid_dist);
-
       }
     }
 

@@ -68,7 +68,6 @@ void simulOpt(/*int *mylock, int *n_climbs, int *best_tour, float *best_soln,
   float *px = (float *)(&buf[nodes]);
   float *py = &px[nodes + 1];
   //int bw_d_ = bw_d[0];
-  int bw_d = bw_d[0];
   __shared__ int best_change[kswaps];
   __shared__ int best_i[kswaps];
   __shared__ int best_j[kswaps];
@@ -115,10 +114,10 @@ void simulOpt(/*int *mylock, int *n_climbs, int *best_tour, float *best_soln,
        initlen  = 0;
        int randjumps = 0;
        while( progress < nodes-1) {
-          int nj = curand(&rndstate) % bw_d_;  //random offset into neighbors
+          int nj = curand(&rndstate) % bw_d;  //random offset into neighbors
           int linked = 0;
-          for ( int nh = 0; nh < bw_d_; ++nh){
-            v = neighbors[bw_d_*head + nj];
+          for ( int nh = 0; nh < bw_d; ++nh){
+            v = neighbors[bw_d * head + nj];
             if ( v < nodes && buf[v] == 0) {
                head = v;
                progress += 1;
@@ -126,7 +125,7 @@ void simulOpt(/*int *mylock, int *n_climbs, int *best_tour, float *best_soln,
                linked = 1;
                break;
             }
-            nj = (nj + 1) % bw_d_ ;
+            nj = (nj + 1) % bw_d;
           }
           if (linked == 0) {
              if (randjumps > nodes-1) break; //give up on this traversal, we failed to find a next link
@@ -224,7 +223,7 @@ void simulOpt(/*int *mylock, int *n_climbs, int *best_tour, float *best_soln,
     }
     __syncthreads();
 
-    if (threadIdx.x == 0) atomicAdd(n_climbs, 1);  // stats only
+    if (threadIdx.x == 0) atomicAdd(&n_climbs, 1);  // stats only
     __syncthreads();
 
     shbuf[threadIdx.x] = minchange;
@@ -332,17 +331,17 @@ void simulOpt(/*int *mylock, int *n_climbs, int *best_tour, float *best_soln,
   term = shbuf[0];
 
   if (threadIdx.x == 0) {
-    atomicMin(best_tour, term);
-    while (atomicExch(mylock, 1) != 0);  // acquire
-      if (best_tour[0] == term) {
-        best_soln_ = px;
+    atomicMin(&best_tour, term);
+    while (atomicExch(&mylock, 1) != 0);  // acquire
+      if (best_tour == term) {
+        best_soln = px;
+        /*
         for (int i = threadIdx.x; i <= nodes; i += blockDim.x) {
-          //for (int i = 0; i < nodes; ++i)
           best_soln[i] = px[i];
           best_soln[nodes + 1 + i] = py[i];
-        }
+        }*/
       }
-    *mylock = 0;  // release
+    mylock = 0;  // release
     __threadfence();
   }
 }
