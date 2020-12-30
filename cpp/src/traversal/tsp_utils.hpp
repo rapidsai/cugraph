@@ -14,12 +14,15 @@
  * limitations under the License.
  */
 
-# pragma once
+#pragma once
 
 /* CPU side validation */
-#define MIN( A, B) ( (A) < (B) ) ?  (A) : (B)
-#define cpudist(a, b) (sqrtf((pos[a] - pos[b]) * (pos[a] - pos[b]) + (pos[a+nodes_+1] - pos[b+nodes_+1]) * (pos[a+nodes_+1] - pos[b+nodes_+1])))
-#define coo_dist(a, b) (sqrtf((xcoo[a] - xcoo[b]) * (xcoo[a] - xcoo[b]) + (ycoo[a] - ycoo[b]) * (ycoo[a] - ycoo[b])))
+#define MIN(A, B) ((A) < (B)) ? (A) : (B)
+#define cpudist(a, b)                                                                          \
+  (sqrtf((pos[a] - pos[b]) * (pos[a] - pos[b]) + (pos[a + nodes_ + 1] - pos[b + nodes_ + 1]) * \
+                                                   (pos[a + nodes_ + 1] - pos[b + nodes_ + 1])))
+#define coo_dist(a, b) \
+  (sqrtf((xcoo[a] - xcoo[b]) * (xcoo[a] - xcoo[b]) + (ycoo[a] - ycoo[b]) * (ycoo[a] - ycoo[b])))
 
 /******************************************************************************/
 /*** Simulatenous Hill-climb Opt with beam-search restarts ********************/
@@ -28,14 +31,21 @@
 #define beamwidth 4
 #define tilesize 128
 #define kswaps 4
-#define dist(a, b) __float2int_rn(sqrtf((px[a] - px[b]) * (px[a] - px[b]) + (py[a] - py[b]) * (py[a] - py[b])))
+#define dist(a, b) \
+  __float2int_rn(sqrtf((px[a] - px[b]) * (px[a] - px[b]) + (py[a] - py[b]) * (py[a] - py[b])))
 #define acudist(a, b) (sqrtf((px[a] - px[b]) * (px[a] - px[b]) + (py[a] - py[b]) * (py[a] - py[b])))
 
-/*only works for floats and int types with +- defined, and if a and b are distinct memory locations */
-#define swap(a, b) { a = a + b; b = a - b;  a = a - b;}
+/*only works for floats and int types with +- defined, and if a and b are distinct memory locations
+ */
+#define swap(a, b) \
+  {                \
+    a = a + b;     \
+    b = a - b;     \
+    a = a - b;     \
+  }
 
 namespace cugraph {
-  namespace detail {
+namespace detail {
 
 /******************************************************************************/
 /*** helper code **************************************************************/
@@ -59,17 +69,18 @@ static void CudaTest(char *msg)
    Operates in-place and overwrite x
    Inverse operations happen in reverse order
 */
-void affineTrans( int n, bool forward, float *x, float A, float b) {
-   if (forward)
-   for (int i = 0; i< n; i++){
+void affineTrans(int n, bool forward, float *x, float A, float b)
+{
+  if (forward)
+    for (int i = 0; i < n; i++) {
       x[i] += b;
       x[i] *= A;
-   }
-   else
-   for (int i = 0; i< n; i++){
+    }
+  else
+    for (int i = 0; i < n; i++) {
       x[i] *= A;
       x[i] += b;
-   }
+    }
 }
 
 /******************************************************************************/
@@ -86,7 +97,7 @@ int best_thread_count(int nodes)
   best = 0;
   bthr = 4;
   for (threads = 1; threads <= max; threads++) {
-    smem = sizeof(int) * threads + 2 * sizeof(float) * tilesize + sizeof(int) * tilesize;
+    smem   = sizeof(int) * threads + 2 * sizeof(float) * tilesize + sizeof(int) * tilesize;
     blocks = (16384 * 2) / smem;
     if (blocks > sm_count) blocks = sm_count;
     thr = (threads + 31) / 32 * 32;
@@ -101,5 +112,5 @@ int best_thread_count(int nodes)
   return bthr;
 }
 
-} // detail
-} // cugraph
+}  // namespace detail
+}  // namespace cugraph
