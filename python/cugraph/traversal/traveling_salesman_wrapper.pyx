@@ -57,7 +57,8 @@ def traveling_salesman(pos_list,
             <float*> x_pos,
             <float*> y_pos,
             <int> nodes,
-            <int> restarts)
+            <int> restarts,
+            <int> k)
     final_cost = final_cost_float
 
     return final_cost

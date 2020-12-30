@@ -196,7 +196,8 @@ float traveling_salesman(const raft::handle_t &handle,
                          const float *x_pos,
                          const float *y_pos,
                          const int nodes,
-                         const int restarts = 4096);
+                         const int restarts = 4096,
+                         const int k        = 4);
 
 /**
  * @brief     Compute betweenness centrality for a graph

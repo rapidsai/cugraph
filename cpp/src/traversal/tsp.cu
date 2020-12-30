@@ -29,13 +29,16 @@ TSP::TSP(const raft::handle_t &handle,
          const float *x_pos,
          const float *y_pos,
          const int nodes,
-         const int restarts)
-  : handle_(handle), x_pos_(x_pos), y_pos_(y_pos), nodes_(nodes), restarts_(restarts)
+         const int restarts,
+         const int k)
+  : handle_(handle), x_pos_(x_pos), y_pos_(y_pos), nodes_(nodes), restarts_(restarts), k_(k)
 {
   stream_      = handle_.get_stream();
   max_blocks_  = handle_.get_device_properties().maxGridSize[0];
   max_threads_ = handle_.get_device_properties().maxThreadsPerBlock;
   sm_count_    = handle_.get_device_properties().multiProcessorCount;
+  // how large a grid we want to run, this is fixed
+  restart_batch_ = 4096;
 }
 
 void TSP::allocate()
@@ -44,34 +47,31 @@ void TSP::allocate()
   mylock_scalar_.set_value(1, stream_);
   n_climbs_scalar_.set_value(1, stream_);
   best_tour_scalar_.set_value(1, stream_);
-  bw_scalar_.set_value(1, stream_);
 
-  mylock_    = mylock_scalar_.data().get();
-  n_climbs_  = n_climbs_scalar_.data().get();
-  best_tour_ = best_tour_scalar_.data().get();
-  bw_        = bw_scalar_.data().get();
+  mylock_    = mylock_scalar_.data();
+  n_climbs_  = n_climbs_scalar_.data();
+  best_tour_ = best_tour_scalar_.data();
 
   // Vectors
-  neighbors_vec_.resize(bw * nodes_, stream_);
-  best_soln_vec_.resize((nodes_ + 1) * 2, stream_);
-  work_vec_.resize(4 * restart_batch * ((3 * nodes_ + 2 + 31) / 32 * 32), stream_);
+  neighbors_vec_.resize(k_ * nodes_);
+  best_soln_vec_.resize((nodes_ + 1) * 2);
+  work_vec_.resize(4 * restart_batch_ * ((3 * nodes_ + 2 + 31) / 32 * 32));
 
   neighbors_ = neighbors_vec_.data().get();
-  best_soln_ = best_soln_vec.data().get();
-  work_      = work.data().get();
+  best_soln_ = best_soln_vec_.data().get();
+  work_      = work_vec_.data().get();
 }
 
 float TSP::compute()
 {
-  int restart_batch    = 4096;  // how large a grid we want to run, this is fixed
   int num_graphs       = 1;
   float valid_coo_dist = 0.f;
 
-  int num_restart_batches = (restarts_ + restart_batch - 1) / restart_batch;
-  int restart_resid       = restarts_ - (num_restart_batches - 1) * restart_batch;
+  int num_restart_batch_es = (restarts_ + restart_batch_ - 1) / restart_batch_;
+  int restart_resid        = restarts_ - (num_restart_batch_es - 1) * restart_batch_;
   printf(" doing %d batches of size %d, with %d tail \n",
-         num_restart_batches - 1,
-         restart_batch,
+         num_restart_batch_es - 1,
+         restart_batch_,
          restart_resid);
   printf("configuration: %d nodes, %d restart\n", nodes_, restarts_);
   // Tell the cache how we want it to behave
@@ -98,30 +98,37 @@ float TSP::compute()
     int best        = 0;
 
     printf("optimizing graph %d kswap = %d \n", g, kswaps);
-    for (int b = 0; b < num_restart_batches; b++) {
-      // Init<<<1, 1, 0, stream_>>>(mylock, n_climbs, best_tour, best_soln, bw_d);
-      Init<<<1, 1, 0, stream_>>>();
+    for (int b = 0; b < num_restart_batch_es; b++) {
+      Init<<<1, 1, 0, stream_>>>(mylock_, n_climbs_, best_tour_, best_soln_);
       CHECK_CUDA(stream_);
 
-      if (b == num_restart_batches - 1) restart_batch = restart_resid;
+      if (b == num_restart_batch_es - 1) restart_batch_ = restart_resid;
+
+      simulOpt<<<restart_batch_, threads, sizeof(int) * threads, stream_>>>(mylock_,
+                                                                            n_climbs_,
+                                                                            best_tour_,
+                                                                            best_soln_,
+                                                                            k_,
+                                                                            nodes_,
+                                                                            neighbors_,
+                                                                            x_pos_ + offsets[g],
+                                                                            y_pos_ + offsets[g],
+                                                                            work_);
       /*
-      simulOpt<<<restart_batch, threads, sizeof(int) * threads, stream_>>>(
-          mylock, n_climbs, best_tour, best_soln, bw_d,
-          nodes_, neighbors_, x_pos_ + 0, y_pos_ + nodes_, work_d);
-      */
-      simulOpt<<<restart_batch, threads, sizeof(int) * threads, stream_>>>(
+      simulOpt<<<restart_batch_, threads, sizeof(int) * threads, stream_>>>(
         nodes_, neighbors_, x_pos_ + offsets[g], y_pos_ + offsets[g], work_d);
+      */
       CHECK_CUDA(stream_);
       cudaDeviceSynchronize();
 
-      // CUDA_TRY(cudaMemcpy(&best, best_tour, sizeof(int), cudaMemcpyDeviceToHost));
-      CUDA_TRY(cudaMemcpyFromSymbol(&best, best_tour, sizeof(int)));
+      CUDA_TRY(cudaMemcpy(&best, best_tour_, sizeof(int), cudaMemcpyDeviceToHost));
+      // CUDA_TRY(cudaMemcpyFromSymbol(&best, best_tour, sizeof(int)));
       cudaDeviceSynchronize();
       printf("best reported by kernel = %d\n", best);
 
       if (best < global_best) {
         global_best = best;
-        CUDA_TRY(cudaMemcpyFromSymbol(&soln, best_soln, sizeof(void *)));
+        CUDA_TRY(cudaMemcpyFromSymbol(&soln, global_best_soln, sizeof(void *)));
         cudaDeviceSynchronize();
 
         CUDA_TRY(cudaMemcpy(pos, soln, sizeof(float) * (nodes_ + 1) * 2, cudaMemcpyDeviceToHost));
@@ -145,7 +152,7 @@ float TSP::compute()
 void TSP::knn()
 {
   int numpackages  = nodes_;
-  int *neighbors_h = (int *)malloc(bw * nodes_ * sizeof(int));
+  int *neighbors_h = (int *)malloc(k_ * nodes_ * sizeof(int));
   float *input_x_h = (float *)malloc(nodes_ * sizeof(float));
   float *input_y_h = (float *)malloc(nodes_ * sizeof(float));
   CUDA_TRY(cudaMemcpy(input_x_h, x_pos_, sizeof(float) * nodes_, cudaMemcpyDeviceToHost));
@@ -178,8 +185,8 @@ void TSP::knn()
   affineTrans(numpackages, 1, input_x_h, forward_A, forward_b);
   affineTrans(numpackages, 1, input_y_h, forward_A, forward_b);
 
-  printf("Finding %d nearest neighbors \n", bw);
-  findKneighbors(numpackages, bw, &input_x_h, &input_y_h, &neighbors_h, 0);
+  printf("Finding %d nearest neighbors \n", k_);
+  findKneighbors(numpackages, k_, &input_x_h, &input_y_h, &neighbors_h, 0);
 
   // Reverse the transform
   affineTrans(numpackages, 0, input_x_h, back_A, back_b);
@@ -194,9 +201,9 @@ void TSP::knn()
     if (yc > ymax) ymax = yc;
   }
   printf(" after reverse xmin, xmax =%f,%f ymin,ymax = %f,%f\n", xmin, xmax, ymin, ymax);
-  printf("   %d nearest neighbors found!\n", bw);
-  CUDA_TRY(cudaMemcpy(neighbors_, neighbors_h, sizeof(int) * bw * nodes_, cudaMemcpyHostToDevice));
-  printv(nodes_ * bw, neighbors_, 0);
+  printf("   %d nearest neighbors found!\n", k_);
+  CUDA_TRY(cudaMemcpy(neighbors_, neighbors_h, sizeof(int) * k_ * nodes_, cudaMemcpyHostToDevice));
+  printv(nodes_ * k_, neighbors_, 0);
 }
 
 }  // namespace detail
@@ -205,12 +212,14 @@ float traveling_salesman(const raft::handle_t &handle,
                          const float *x_pos,
                          const float *y_pos,
                          const int nodes,
-                         const int restarts)
+                         const int restarts,
+                         const int k)
 {
   RAFT_EXPECTS(nodes > 0, "0 vertices");
   RAFT_EXPECTS(restarts > 0, "0 restarts");
+  RAFT_EXPECTS(k > 0, "0 neighbors");
 
-  cugraph::detail::TSP tsp(handle, x_pos, y_pos, nodes, restarts);
+  cugraph::detail::TSP tsp(handle, x_pos, y_pos, nodes, restarts, k);
   tsp.allocate();
   tsp.knn();
   return tsp.compute();

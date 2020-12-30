@@ -19,6 +19,7 @@
 #include <rmm/thrust_rmm_allocator.h>
 #include <algorithms.hpp>
 #include <raft/handle.hpp>
+#include <rmm/device_scalar.hpp>
 #include <rmm/device_uvector.hpp>
 
 namespace cugraph {
@@ -29,27 +30,47 @@ class TSP {
       const float *x_pos,
       const float *y_pos,
       const int nodes,
-      const int restarts);
+      const int restarts,
+      const int k);
 
+  void allocate();
   float compute();
   void knn();
   ~TSP(){};
 
  private:
+  // Config
   const raft::handle_t &handle_;
   cudaStream_t stream_;
   int max_blocks_;
   int max_threads_;
   int sm_count_;
+  int restart_batch_;
 
   // TSP
   const float *x_pos_;
   const float *y_pos_;
-  const int restarts_;
   const int nodes_;
+  const int restarts_;
+  const int k_;
 
+  // Scalars
+  rmm::device_scalar<int> mylock_scalar_;
+  rmm::device_scalar<int> n_climbs_scalar_;
+  rmm::device_scalar<int> best_tour_scalar_;
+
+  int *mylock_;
+  int *n_climbs_;
+  int *best_tour_;
+
+  // Vectors
   rmm::device_vector<int> neighbors_vec_;
+  rmm::device_vector<float> best_soln_vec_;
+  rmm::device_vector<int> work_vec_;
+
   int *neighbors_;
+  float *best_soln_;
+  int *work_;
 };
 }  // namespace detail
 }  // namespace cugraph

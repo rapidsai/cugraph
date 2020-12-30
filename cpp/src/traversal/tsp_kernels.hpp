@@ -28,39 +28,23 @@
 namespace cugraph {
 namespace detail {
 
-__device__ int mylock;
-__device__ int n_climbs;
-__device__ int best_tour;
-__device__ float *best_soln;
-__device__ int bw_d;
-
+__device__ float *global_best_soln;
 extern __shared__ int shbuf[];
 
-int bw = beamwidth;
-
-/*
-__global__ void Init(int *mylock, int *n_climbs, int *best_tour,
-                     float *best_soln, int *bw_d)
+__global__ void Init(int *mylock, int *n_climbs, int *best_tour, float *best_soln)
 {
-  *mylock = 0;
-  *n_climbs = 0;
-  *best_tour = INT_MAX;
-  *best_soln = NULL;
-  best_soln = NULL;
-  *bw_d = beamwidth;
-}*/
-
-static __global__ void Init()
-{
-  mylock    = 0;
-  n_climbs  = 0;
-  best_tour = INT_MAX;
-  best_soln = NULL;
-  bw_d      = beamwidth;
+  *mylock          = 0;
+  *n_climbs        = 0;
+  *best_tour       = INT_MAX;
+  *best_soln       = NULL;
+  global_best_soln = NULL;
 }
 
-__global__ __launch_bounds__(2048, 2) void simulOpt(/*int *mylock, int *n_climbs, int *best_tour,
-                                                    float *best_soln, int *bw_d, */
+__global__ __launch_bounds__(2048, 2) void simulOpt(int *mylock,
+                                                    int *n_climbs,
+                                                    int *best_tour,
+                                                    float *best_soln,
+                                                    const int K,
                                                     int nodes,
                                                     int *neighbors,
                                                     const float *posx,
@@ -70,7 +54,7 @@ __global__ __launch_bounds__(2048, 2) void simulOpt(/*int *mylock, int *n_climbs
   int *buf  = &work[blockIdx.x * ((3 * nodes + 2 + 31) / 32 * 32)];
   float *px = (float *)(&buf[nodes]);
   float *py = &px[nodes + 1];
-  // int bw_d_ = bw_d[0];
+
   __shared__ int best_change[kswaps];
   __shared__ int best_i[kswaps];
   __shared__ int best_j[kswaps];
@@ -117,10 +101,10 @@ __global__ __launch_bounds__(2048, 2) void simulOpt(/*int *mylock, int *n_climbs
         initlen       = 0;
         int randjumps = 0;
         while (progress < nodes - 1) {
-          int nj = curand(&rndstate) % bw_d;  // random offset into neighbors
+          int nj     = curand(&rndstate) % K;  // random offset into neighbors
           int linked = 0;
-          for (int nh = 0; nh < bw_d; ++nh) {
-            v = neighbors[bw_d * head + nj];
+          for (int nh = 0; nh < K; ++nh) {
+            v = neighbors[K * head + nj];
             if (v < nodes && buf[v] == 0) {
               head = v;
               progress += 1;
@@ -128,7 +112,7 @@ __global__ __launch_bounds__(2048, 2) void simulOpt(/*int *mylock, int *n_climbs
               linked    = 1;
               break;
             }
-            nj = (nj + 1) % bw_d;
+            nj = (nj + 1) % K;
           }
           if (linked == 0) {
             if (randjumps > nodes - 1)
@@ -224,7 +208,7 @@ __global__ __launch_bounds__(2048, 2) void simulOpt(/*int *mylock, int *n_climbs
     }
     __syncthreads();
 
-    if (threadIdx.x == 0) atomicAdd(&n_climbs, 1);  // stats only
+    if (threadIdx.x == 0) atomicAdd(n_climbs, 1);  // stats only
     __syncthreads();
 
     shbuf[threadIdx.x] = minchange;
@@ -328,18 +312,17 @@ __global__ __launch_bounds__(2048, 2) void simulOpt(/*int *mylock, int *n_climbs
   term = shbuf[0];
 
   if (threadIdx.x == 0) {
-    atomicMin(&best_tour, term);
-    while (atomicExch(&mylock, 1) != 0)
+    atomicMin(best_tour, term);
+    while (atomicExch(mylock, 1) != 0)
       ;  // acquire
-    if (best_tour == term) {
-      best_soln = px;
-      /*
+    if (best_tour[0] == term) {
+      global_best_soln = px;
       for (int i = threadIdx.x; i <= nodes; i += blockDim.x) {
-        best_soln[i] = px[i];
+        best_soln[i]             = px[i];
         best_soln[nodes + 1 + i] = py[i];
-      }*/
+      }
     }
-    mylock = 0;  // release
+    *mylock = 0;  // release
     __threadfence();
   }
 }
