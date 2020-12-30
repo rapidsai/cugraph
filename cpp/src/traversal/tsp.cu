@@ -42,12 +42,12 @@ TSP::TSP(const raft::handle_t &handle,
   sm_count_ = handle_.get_device_properties().multiProcessorCount;
 
   // Init GPU vectors and pointers
-  printf("k: %i", bw);
   neighbors_vec_.resize(bw * nodes_);
   neighbors_ = neighbors_vec_.data().get();
 }
 
 float TSP::compute() {
+  /*
   rmm::device_vector<int> mylock_vec(1);
   rmm::device_vector<int> n_climbs_vec(1);
   rmm::device_vector<int> best_tour_vec(1);
@@ -59,6 +59,7 @@ float TSP::compute() {
   int *best_tour = best_tour_vec.data().get();
   float *best_soln = best_soln_vec.data().get();
   int *bw_d = bw_d_vec.data().get();
+  */
 
   int restart_batch = 4096; // how large a grid we want to run, this is fixed
   int num_graphs = 1;
@@ -66,7 +67,8 @@ float TSP::compute() {
 
   int num_restart_batches = (restarts_ + restart_batch -1) / restart_batch;
   int restart_resid = restarts_ - (num_restart_batches - 1) * restart_batch;
-
+  printf(" doing %d batches of size %d, with %d tail \n", num_restart_batches-1, restart_batch, restart_resid);
+  printf("configuration: %d nodes, %d restart\n", nodes_, restarts_);
   //Tell the cache how we want it to behave
   cudaFuncSetCacheConfig(simulOpt, cudaFuncCachePreferEqual);
 
@@ -92,14 +94,18 @@ float TSP::compute() {
     for (int b = 0; b < num_restart_batches; b++) {
       printf("batch: %i", b);
       printf("num_restart_batches: %i\n", num_restart_batches);
-      Init<<<1, 1, 0, stream_>>>(mylock, n_climbs, best_tour, best_soln, bw_d);
+      //Init<<<1, 1, 0, stream_>>>(mylock, n_climbs, best_tour, best_soln, bw_d);
+      Init<<<1, 1, 0, stream_>>>();
       CHECK_CUDA(stream_);
 
       if (b == num_restart_batches - 1)
         restart_batch = restart_resid;
-
+      /*
       simulOpt<<<restart_batch, threads, sizeof(int) * threads, stream_>>>(
           mylock, n_climbs, best_tour, best_soln, bw_d,
+          nodes_, neighbors_, x_pos_ + 0, y_pos_ + nodes_, work_d);
+      */
+      simulOpt<<<restart_batch, threads, sizeof(int) * threads, stream_>>>(
           nodes_, neighbors_, x_pos_ + 0, y_pos_ + nodes_, work_d);
       CHECK_CUDA(stream_);
       cudaDeviceSynchronize();
@@ -142,8 +148,6 @@ void TSP::knn() {
      float *input_y_h = (float *)malloc(nodes_ * sizeof(float));
      CUDA_TRY(cudaMemcpy(input_x_h, x_pos_, sizeof(float) * nodes_, cudaMemcpyDeviceToHost));
      CUDA_TRY(cudaMemcpy(input_y_h, y_pos_, sizeof(float) * nodes_, cudaMemcpyDeviceToHost));
-     printv(nodes_, x_pos_, 0);
-     printv(nodes_, y_pos_, 0);
 
      //re-scale arbitrary inputs to fit inside (0,1024)x(0,1024) box
      float xmin = 1e6;
@@ -159,6 +163,8 @@ void TSP::knn() {
          if (yc > ymax) ymax = yc;
      }
 
+     printf("xmin, xmax =%f,%f ymin,ymax = %f,%f\n", xmin,xmax,ymin,ymax);
+
      // Calculate affine transform A*x + b so that all (x,y) pairs lie in (0,1024)x(0,1024)
      // also calculate inverse so we can recover the original coords
      // We need to use the same scaling for x and y so the Euclidean distance is just scaled
@@ -170,6 +176,7 @@ void TSP::knn() {
      affineTrans(numpackages, 1, input_x_h, forward_A, forward_b);
      affineTrans(numpackages, 1, input_y_h, forward_A, forward_b);
 
+     printf("Finding %d nearest neighbors \n", bw);
      findKneighbors(numpackages, bw, &input_x_h, &input_y_h, &neighbors_h, 0);
 
      // Reverse the transform
@@ -184,6 +191,8 @@ void TSP::knn() {
          if (yc < ymin) ymin = yc;
          if (yc > ymax) ymax = yc;
      }
+     printf(" after reverse xmin, xmax =%f,%f ymin,ymax = %f,%f\n", xmin,xmax,ymin,ymax);
+     printf("   %d nearest neighbors found!\n", bw);
      CUDA_TRY(cudaMemcpy(neighbors_, neighbors_h, sizeof(int) * bw * nodes_, cudaMemcpyHostToDevice));
      printv(nodes_ * bw, neighbors_, 0);
 }

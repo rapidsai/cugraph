@@ -39,7 +39,7 @@ def traveling_salesman(pos_list,
                                                 'vertex',
                                                 drop=False,
                                                 preserve_order=True)
-    print(pos_list)
+
     cost = traveling_salesman_wrapper.traveling_salesman(pos_list,
                                                          restarts,
                                                          k,

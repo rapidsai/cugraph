@@ -28,11 +28,17 @@
 namespace cugraph {
   namespace detail {
 
-__device__ float *best_soln_;
+__device__ int mylock;
+__device__ int n_climbs;
+__device__ int best_tour;
+__device__ float *best_soln;
+__device__ int bw_d;
+
 extern __shared__ int shbuf[];
 
 int bw = beamwidth;
 
+/*
 __global__ void Init(int *mylock, int *n_climbs, int *best_tour,
                      float *best_soln, int *bw_d)
 {
@@ -42,17 +48,27 @@ __global__ void Init(int *mylock, int *n_climbs, int *best_tour,
   *best_soln = NULL;
   best_soln = NULL;
   *bw_d = beamwidth;
+}*/
+
+static __global__ void Init()
+{
+  mylock = 0;
+  n_climbs = 0;
+  best_tour = INT_MAX;
+  best_soln = NULL;
+  bw_d = beamwidth;
 }
 
 __global__ __launch_bounds__(2048, 2)
-void simulOpt(int *mylock, int *n_climbs, int *best_tour, float *best_soln,
-              int *bw_d, int nodes, int *neighbors, const float *posx,
+void simulOpt(/*int *mylock, int *n_climbs, int *best_tour, float *best_soln,
+              int *bw_d, */int nodes, int *neighbors, const float *posx,
               const float *posy, int *work)
 {
   int *buf = &work[blockIdx.x * ((3 * nodes + 2 + 31) / 32 * 32) ];
   float *px = (float *)(&buf[nodes]);
   float *py = &px[nodes + 1];
-  int bw_d_ = bw_d[0];
+  //int bw_d_ = bw_d[0];
+  int bw_d = bw_d[0];
   __shared__ int best_change[kswaps];
   __shared__ int best_i[kswaps];
   __shared__ int best_j[kswaps];
