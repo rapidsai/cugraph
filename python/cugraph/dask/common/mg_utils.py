@@ -62,9 +62,23 @@ def get_visible_devices():
 
 
 def setup_local_dask_cluster(p2p=True):
+    """
+    Performs steps to setup a Dask cluster using LocalCUDACluster and returns
+    the LocalCUDACluster and corresponding client instance.
+    """
     cluster = LocalCUDACluster()
     client = Client(cluster)
     client.wait_for_workers(len(get_visible_devices()))
     Comms.initialize(p2p)
 
-    return (Comms, client, cluster)
+    return (cluster, client)
+
+
+def teardown_local_dask_cluster(cluster, client):
+    """
+    Performs steps to destroy a Dask cluster and a corresponding client
+    instance.
+    """
+    Comms.destroy()
+    client.close()
+    cluster.close()

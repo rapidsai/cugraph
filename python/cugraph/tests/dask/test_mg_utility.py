@@ -21,7 +21,8 @@ import pytest
 from cugraph.dask.common.part_utils import concat_within_workers
 from cugraph.dask.common.read_utils import get_n_workers
 from cugraph.dask.common.mg_utils import (is_single_gpu,
-                                          setup_local_dask_cluster)
+                                          setup_local_dask_cluster,
+                                          teardown_local_dask_cluster)
 import os
 import time
 import numpy as np
@@ -37,15 +38,9 @@ def setup_function():
 
 @pytest.fixture(scope="module")
 def client_connection():
-    # setup
-    (comms, client, cluster) = setup_local_dask_cluster(p2p=True)
-
+    (cluster, client) = setup_local_dask_cluster(p2p=True)
     yield client
-
-    # teardown
-    comms.destroy()
-    client.close()
-    cluster.close()
+    teardown_local_dask_cluster(cluster, client)
 
 
 @pytest.mark.skipif(
