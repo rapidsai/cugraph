@@ -91,7 +91,7 @@ conda list --show-channel-urls
 
 if [[ -z "$PROJECT_FLASH" || "$PROJECT_FLASH" == "0" ]]; then
   gpuci_logger "Build from source"
-  $WORKSPACE/build.sh clean libcugraph cugraph
+  $WORKSPACE/build.sh -v clean libcugraph cugraph --allgpuarch
 fi
 
 ################################################################################

@@ -73,13 +73,13 @@ DATASETS_SMALL = [
 
 MATRIX_INPUT_TYPES = [
     pytest.param(
-        cp_coo_matrix, marks=pytest.mark.cupy_types, id="CuPy.coo_matrix"
+        cp_coo_matrix, marks=pytest.mark.matrix_types, id="CuPy.coo_matrix"
     ),
     pytest.param(
-        cp_csr_matrix, marks=pytest.mark.cupy_types, id="CuPy.csr_matrix"
+        cp_csr_matrix, marks=pytest.mark.matrix_types, id="CuPy.csr_matrix"
     ),
     pytest.param(
-        cp_csc_matrix, marks=pytest.mark.cupy_types, id="CuPy.csc_matrix"
+        cp_csc_matrix, marks=pytest.mark.matrix_types, id="CuPy.csc_matrix"
     ),
 ]
 
