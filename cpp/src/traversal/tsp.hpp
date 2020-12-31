@@ -65,11 +65,9 @@ class TSP {
 
   // Vectors
   rmm::device_vector<int> neighbors_vec_;
-  rmm::device_vector<float> best_soln_vec_;
   rmm::device_vector<int> work_vec_;
 
   int *neighbors_;
-  float *best_soln_;
   int *work_;
 };
 }  // namespace detail

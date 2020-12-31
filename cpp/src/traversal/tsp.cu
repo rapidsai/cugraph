@@ -54,11 +54,9 @@ void TSP::allocate()
 
   // Vectors
   neighbors_vec_.resize(k_ * nodes_);
-  best_soln_vec_.resize((nodes_ + 1) * 2);
   work_vec_.resize(4 * restart_batch_ * ((3 * nodes_ + 2 + 31) / 32 * 32));
 
   neighbors_ = neighbors_vec_.data().get();
-  best_soln_ = best_soln_vec_.data().get();
   work_      = work_vec_.data().get();
 }
 
@@ -99,7 +97,7 @@ float TSP::compute()
 
     printf("optimizing graph %d kswap = %d \n", g, kswaps);
     for (int b = 0; b < num_restart_batch_es; b++) {
-      Init<<<1, 1, 0, stream_>>>(mylock_, n_climbs_, best_tour_, best_soln_);
+      Init<<<1, 1, 0, stream_>>>(mylock_, n_climbs_, best_tour_);
       CHECK_CUDA(stream_);
 
       if (b == num_restart_batch_es - 1) restart_batch_ = restart_resid;
@@ -107,28 +105,22 @@ float TSP::compute()
       simulOpt<<<restart_batch_, threads, sizeof(int) * threads, stream_>>>(mylock_,
                                                                             n_climbs_,
                                                                             best_tour_,
-                                                                            best_soln_,
                                                                             k_,
                                                                             nodes_,
                                                                             neighbors_,
                                                                             x_pos_ + offsets[g],
                                                                             y_pos_ + offsets[g],
                                                                             work_);
-      /*
-      simulOpt<<<restart_batch_, threads, sizeof(int) * threads, stream_>>>(
-        nodes_, neighbors_, x_pos_ + offsets[g], y_pos_ + offsets[g], work_d);
-      */
       CHECK_CUDA(stream_);
       cudaDeviceSynchronize();
 
       CUDA_TRY(cudaMemcpy(&best, best_tour_, sizeof(int), cudaMemcpyDeviceToHost));
-      // CUDA_TRY(cudaMemcpyFromSymbol(&best, best_tour, sizeof(int)));
       cudaDeviceSynchronize();
       printf("best reported by kernel = %d\n", best);
 
       if (best < global_best) {
         global_best = best;
-        CUDA_TRY(cudaMemcpyFromSymbol(&soln, global_best_soln, sizeof(void *)));
+        CUDA_TRY(cudaMemcpyFromSymbol(&soln, best_soln, sizeof(void *)));
         cudaDeviceSynchronize();
 
         CUDA_TRY(cudaMemcpy(pos, soln, sizeof(float) * (nodes_ + 1) * 2, cudaMemcpyDeviceToHost));

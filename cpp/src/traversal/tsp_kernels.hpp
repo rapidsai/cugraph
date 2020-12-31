@@ -28,22 +28,20 @@
 namespace cugraph {
 namespace detail {
 
-__device__ float *global_best_soln;
+__device__ float *best_soln;
 extern __shared__ int shbuf[];
 
-__global__ void Init(int *mylock, int *n_climbs, int *best_tour, float *best_soln)
+__global__ void Init(int *mylock, int *n_climbs, int *best_tour)
 {
   *mylock          = 0;
   *n_climbs        = 0;
   *best_tour       = INT_MAX;
-  *best_soln       = NULL;
-  global_best_soln = NULL;
+  best_soln       = NULL;
 }
 
 __global__ __launch_bounds__(2048, 2) void simulOpt(int *mylock,
                                                     int *n_climbs,
                                                     int *best_tour,
-                                                    float *best_soln,
                                                     const int K,
                                                     int nodes,
                                                     int *neighbors,
@@ -316,11 +314,7 @@ __global__ __launch_bounds__(2048, 2) void simulOpt(int *mylock,
     while (atomicExch(mylock, 1) != 0)
       ;  // acquire
     if (best_tour[0] == term) {
-      global_best_soln = px;
-      for (int i = threadIdx.x; i <= nodes; i += blockDim.x) {
-        best_soln[i]             = px[i];
-        best_soln[nodes + 1 + i] = py[i];
-      }
+      best_soln = px;
     }
     *mylock = 0;  // release
     __threadfence();
