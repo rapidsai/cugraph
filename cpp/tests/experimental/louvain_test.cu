@@ -21,17 +21,8 @@
 #include <raft/handle.hpp>
 #include <rmm/mr/device/cuda_memory_resource.hpp>
 
-// "FIXME": remove this check
-//
-// Disable louvain(experimental::graph_view_t,...)
-// versions for GPU architectures < 700
-// (cuco/static_map.cuh depends on features not supported on or before Pascal)
-//
-#if defined(__CUDA_ARCH__) && __CUDA_ARCH__ < 700
 #include <experimental/graph.hpp>
-#else
 #include <experimental/louvain.cuh>
-#endif
 
 #include <algorithms.hpp>
 
@@ -84,11 +75,10 @@ class Tests_Louvain : public ::testing::TestWithParam<Louvain_Usecase> {
 
     auto graph_view = graph.view();
 
-    // "FIXME": remove this check
+    // "FIXME": remove this check once we drop support for Pascal
     //
-    // Disable louvain(experimental::graph_view_t,...)
-    // versions for GPU architectures < 700
-    // (cuco/static_map.cuh depends on features not supported on or before Pascal)
+    // Calling louvain on Pascal will throw an exception, we'll check that
+    // this is the behavior while we still support Pascal (device_prop.major < 7)
     //
     cudaDeviceProp device_prop;
     CUDA_CHECK(cudaGetDeviceProperties(&device_prop, 0));
