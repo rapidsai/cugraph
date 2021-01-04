@@ -12,16 +12,17 @@
 # limitations under the License.
 
 import cugraph.dask as dcg
-from dask.distributed import Client, default_client, futures_of, wait
+from dask.distributed import default_client, futures_of, wait
 import gc
 import cugraph
 import dask_cudf
 import cugraph.comms as Comms
-from dask_cuda import LocalCUDACluster
 import pytest
 from cugraph.dask.common.part_utils import concat_within_workers
 from cugraph.dask.common.read_utils import get_n_workers
-from cugraph.dask.common.mg_utils import is_single_gpu
+from cugraph.dask.common.mg_utils import (is_single_gpu,
+                                          setup_local_dask_cluster,
+                                          teardown_local_dask_cluster)
 import os
 import time
 import numpy as np
@@ -35,17 +36,11 @@ def setup_function():
     gc.collect()
 
 
-@pytest.fixture
+@pytest.fixture(scope="module")
 def client_connection():
-    cluster = LocalCUDACluster()
-    client = Client(cluster)
-    Comms.initialize(p2p=True)
-
+    (cluster, client) = setup_local_dask_cluster(p2p=True)
     yield client
-
-    Comms.destroy()
-    client.close()
-    cluster.close()
+    teardown_local_dask_cluster(cluster, client)
 
 
 @pytest.mark.skipif(

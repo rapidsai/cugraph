@@ -20,29 +20,22 @@ import pandas
 import numpy as np
 
 import cugraph.dask as dcg
-import cugraph.comms as Comms
-from dask.distributed import Client
 import cugraph
 import dask_cudf
 import dask
 import cudf
-from dask_cuda import LocalCUDACluster
 from cugraph.tests import utils
 from cugraph.structure.number_map import NumberMap
-from cugraph.dask.common.mg_utils import is_single_gpu
+from cugraph.dask.common.mg_utils import (is_single_gpu,
+                                          setup_local_dask_cluster,
+                                          teardown_local_dask_cluster)
 
 
-@pytest.fixture
+@pytest.fixture(scope="module")
 def client_connection():
-    cluster = LocalCUDACluster()
-    client = Client(cluster)
-    Comms.initialize(p2p=True)
-
+    (cluster, client) = setup_local_dask_cluster(p2p=True)
     yield client
-
-    Comms.destroy()
-    client.close()
-    cluster.close()
+    teardown_local_dask_cluster(cluster, client)
 
 
 # Test all combinations of default/managed and pooled/non-pooled allocation
