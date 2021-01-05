@@ -163,7 +163,39 @@ def test_renumber_negative_col():
 
 
 # Test all combinations of default/managed and pooled/non-pooled allocation
+@pytest.mark.parametrize("graph_file", utils.DATASETS)
+def test_renumber_files(graph_file):
+    gc.collect()
+    
+    M = utils.read_csv_for_nx(graph_file)
+    sources = cudf.Series(M["0"])
+    destinations = cudf.Series(M["1"])
 
+    translate = 1000
+
+    df = cudf.DataFrame()
+    df["src"] = cudf.Series([x + translate for x in sources.
+                            values_host])
+    df["dst"] = cudf.Series([x + translate for x in destinations.
+                            values_host])
+
+    numbering_series_1 = cugraph.structure.NumberMap()
+    numbering_series_1.from_series(df["src"])
+
+    numbering_series_2 = cugraph.structure.NumberMap()
+    numbering_series_2.from_series(df["dst"])
+
+    renumbered_src = numbering_series_1.add_internal_vertex_id(
+        df["src"], "src_id")
+    renumbered_dst = numbering_series_2.add_internal_vertex_id(
+        df["dst"], "dst_id")
+
+    check_src = numbering_series_1.from_internal_vertex_id(renumbered_src, "src_id")
+    check_dst = numbering_series_2.from_internal_vertex_id(renumbered_dst, "dst_id")
+
+    assert check_src["0_y"].equals(check_src["0_x"])
+    assert check_dst["0_y"].equals(check_dst["0_x"])
+    
 
 @pytest.mark.parametrize("graph_file", utils.DATASETS)
 def test_renumber_files(graph_file):
