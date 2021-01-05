@@ -265,8 +265,8 @@ class Tests_PageRank : public ::testing::TestWithParam<PageRank_Usecase> {
     auto threshold_magnitude =
       (epsilon / static_cast<result_t>(graph_view.get_number_of_vertices())) * threshold_ratio;
     auto nearly_equal = [threshold_ratio, threshold_magnitude](auto lhs, auto rhs) {
-      auto diff = std::abs(lhs - rhs);
-      return (diff < std::max(lhs, rhs) * threshold_ratio) || (diff < threshold_magnitude);
+      return std::abs(lhs - rhs) <
+             std::max(std::max(lhs, rhs) * threshold_ratio, threshold_magnitude);
     };
 
     ASSERT_TRUE(std::equal(h_reference_pageranks.begin(),

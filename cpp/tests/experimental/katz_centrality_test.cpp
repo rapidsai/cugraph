@@ -197,8 +197,8 @@ class Tests_KatzCentrality : public ::testing::TestWithParam<KatzCentrality_Usec
     auto threshold_magnitude =
       (epsilon / static_cast<result_t>(graph_view.get_number_of_vertices())) * threshold_ratio;
     auto nearly_equal = [threshold_ratio, threshold_magnitude](auto lhs, auto rhs) {
-      auto diff = std::abs(lhs - rhs);
-      return (diff < std::max(lhs, rhs) * threshold_ratio) || (diff < threshold_magnitude);
+      return std::abs(lhs - rhs) <
+             std::max(std::max(lhs, rhs) * threshold_ratio, threshold_magnitude);
     };
 
     ASSERT_TRUE(std::equal(h_reference_katz_centralities.begin(),
