@@ -233,7 +233,6 @@ def edge_betweenness_centrality(
     >>> G.from_cudf_edgelist(gdf, source='0', destination='1')
     >>> ebc = cugraph.edge_betweenness_centrality(G)
     """
-
     if weight is not None:
         raise NotImplementedError(
             "weighted implementation of betweenness "
@@ -254,8 +253,16 @@ def edge_betweenness_centrality(
         df = G.unrenumber(df, "dst")
 
     if type(G) is cugraph.Graph:
+        # select the lower triangle of the df based on src/dst vertex value
         lower_triangle = df['src'] >= df['dst']
-        df[["src", "dst"]][lower_triangle] = df[["dst", "src"]][lower_triangle]
+        # swap the src and dst vertices for the lower triangle only. Because
+        # this is a symmeterized graph, this operation results in a df with
+        # multiple src/dst entries.
+        df['src'][lower_triangle], df['dst'][lower_triangle] = \
+            df['dst'][lower_triangle], df['src'][lower_triangle]
+        # overwrite the df with the sum of the values for all alike src/dst
+        # vertex pairs, resulting in half the edges of the original df from the
+        # symmeterized graph.
         df = df.groupby(by=["src", "dst"]).sum().reset_index()
 
     if isNx is True:

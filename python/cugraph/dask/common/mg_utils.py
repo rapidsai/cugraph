@@ -10,8 +10,16 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-from cugraph.raft.dask.common.utils import default_client
+
+import os
+
 import numba.cuda
+
+from dask_cuda import LocalCUDACluster
+from dask.distributed import Client
+
+from cugraph.raft.dask.common.utils import default_client
+import cugraph.comms as Comms
 
 
 # FIXME: We currently look for the default client from dask, as such is the
@@ -41,3 +49,36 @@ def is_single_gpu():
         return False
     else:
         return True
+
+
+def get_visible_devices():
+    _visible_devices = os.environ.get("CUDA_VISIBLE_DEVICES")
+    if _visible_devices is None:
+        # FIXME: We assume that if the variable is unset there is only one GPU
+        visible_devices = ["0"]
+    else:
+        visible_devices = _visible_devices.strip().split(",")
+    return visible_devices
+
+
+def setup_local_dask_cluster(p2p=True):
+    """
+    Performs steps to setup a Dask cluster using LocalCUDACluster and returns
+    the LocalCUDACluster and corresponding client instance.
+    """
+    cluster = LocalCUDACluster()
+    client = Client(cluster)
+    client.wait_for_workers(len(get_visible_devices()))
+    Comms.initialize(p2p)
+
+    return (cluster, client)
+
+
+def teardown_local_dask_cluster(cluster, client):
+    """
+    Performs steps to destroy a Dask cluster and a corresponding client
+    instance.
+    """
+    Comms.destroy()
+    client.close()
+    cluster.close()
