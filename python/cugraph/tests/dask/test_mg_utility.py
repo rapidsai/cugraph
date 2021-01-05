@@ -77,40 +77,6 @@ def test_from_edgelist(client_connection):
 @pytest.mark.skipif(
     is_single_gpu(), reason="skipping MG testing on Single GPU system"
 )
-def test_compute_local_data(client_connection):
-
-    input_data_path = r"../datasets/karate.csv"
-    chunksize = dcg.get_chunksize(input_data_path)
-    ddf = dask_cudf.read_csv(
-        input_data_path,
-        chunksize=chunksize,
-        delimiter=" ",
-        names=["src", "dst", "value"],
-        dtype=["int32", "int32", "float32"],
-    )
-
-    dg = cugraph.DiGraph()
-    dg.from_dask_cudf_edgelist(
-        ddf, source="src", destination="dst", edge_attr="value"
-    )
-
-    # Compute_local_data
-    dg.compute_local_data(by="dst")
-    data = dg.local_data["data"]
-    by = dg.local_data["by"]
-
-    assert by == "dst"
-    assert Comms.is_initialized()
-
-    global_num_edges = data.local_data["edges"].sum()
-    assert global_num_edges == dg.number_of_edges()
-    global_num_verts = data.local_data["verts"].sum()
-    assert global_num_verts == dg.number_of_nodes()
-
-
-@pytest.mark.skipif(
-    is_single_gpu(), reason="skipping MG testing on Single GPU system"
-)
 @pytest.mark.skip(reason="MG not supported on CI")
 def test_parquet_concat_within_workers(client_connection):
     if not os.path.exists("test_files_parquet"):

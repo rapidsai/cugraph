@@ -198,28 +198,6 @@ def _get_rows(objs, multiple):
     return total, reduce(lambda a, b: a + b, total)
 
 
-def _get_local_data(df, by):
-    df = df[0]
-    num_local_edges = len(df)
-    local_by_max = df[by].iloc[-1]
-    local_max = df[['src', 'dst']].max().max()
-    return num_local_edges, local_by_max, local_max
-
-
-def get_local_data(input_graph, by, load_balance=True):
-    input_graph.compute_renumber_edge_list(transposed=(by == 'dst'))
-    _ddf = input_graph.edgelist.edgelist_df
-    ddf = _ddf.sort_values(by=by, ignore_index=True)
-
-    if load_balance:
-        ddf = load_balance_func(ddf, by=by)
-
-    comms = Comms.get_comms()
-    data = DistributedDataHandler.create(data=ddf)
-    data.calculate_local_data(comms, by)
-    return data
-
-
 def get_mg_batch_data(dask_cudf_data):
     data = DistributedDataHandler.create(data=dask_cudf_data)
     return data

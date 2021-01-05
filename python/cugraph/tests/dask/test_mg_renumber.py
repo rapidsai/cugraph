@@ -195,9 +195,6 @@ def test_dask_pagerank(client_connection):
     dg = cugraph.DiGraph()
     dg.from_dask_cudf_edgelist(ddf, "src", "dst")
 
-    # Pre compute local data
-    # dg.compute_local_data(by='dst')
-
     expected_pr = cugraph.pagerank(g)
     result_pr = dcg.pagerank(dg).compute()
 

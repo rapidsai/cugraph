@@ -5,7 +5,6 @@
 ## Improvements
 
 ## Bug Fixes
-- PR #1319 Fix graph nodes function and renumbering from series
 
 # cuGraph 0.17.0 (Date TBD)
 

@@ -14,7 +14,6 @@
 from cugraph.structure import graph_primtypes_wrapper
 from cugraph.structure.symmetrize import symmetrize
 from cugraph.structure.number_map import NumberMap
-from cugraph.dask.common.input_utils import get_local_data
 import cugraph.dask.common.mg_utils as mg_utils
 import cudf
 import dask_cudf
