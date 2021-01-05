@@ -14,6 +14,11 @@
 from numba import cuda
 
 import cudf
+from rmm._cuda.gpu import (
+    getDeviceAttribute,
+    cudaDeviceAttr,
+)
+
 
 # optional dependencies
 try:
@@ -178,6 +183,25 @@ def is_cuda_version_less_than(min_version=(10, 2)):
     if this_cuda_ver[0] < min_version[0]:
         return True
     if this_cuda_ver[1] < min_version[1]:
+        return True
+    return False
+
+
+def is_device_version_less_than(min_version=(7, 0)):
+    """
+    Returns True if the version of CUDA being used is less than min_version
+    """
+    major_version = getDeviceAttribute(
+        cudaDeviceAttr.cudaDevAttrComputeCapabilityMajor, 0
+    )
+    minor_version = getDeviceAttribute(
+        cudaDeviceAttr.cudaDevAttrComputeCapabilityMinor, 0
+    )
+    if major_version > min_version[0]:
+        return False
+    if major_version < min_version[0]:
+        return True
+    if minor_version < min_version[1]:
         return True
     return False
 
