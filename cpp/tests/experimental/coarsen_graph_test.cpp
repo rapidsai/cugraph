@@ -78,104 +78,138 @@ void check_coarsened_graph_results(edge_t* org_offsets,
                             }) == 0);
   ASSERT_TRUE(num_coarse_vertices <= num_org_vertices);
 
-  std::vector<vertex_t> unique_labels(num_org_vertices);
-  std::copy(org_labels, org_labels + num_org_vertices, unique_labels.begin());
-  std::sort(unique_labels.begin(), unique_labels.end());
-  auto last = std::unique(unique_labels.begin(), unique_labels.end());
-  unique_labels.resize(std::distance(unique_labels.begin(), last));
-  ASSERT_TRUE(unique_labels.size() == static_cast<size_t>(num_coarse_vertices));
+  std::vector<vertex_t> org_unique_vertices(num_org_vertices);
+  std::iota(org_unique_vertices.begin(), org_unique_vertices.end(), vertex_t{0});
+  org_unique_vertices.erase(
+    std::remove_if(org_unique_vertices.begin(),
+                   org_unique_vertices.end(),
+                   [org_offsets](auto v) { return org_offsets[v + 1] == org_offsets[v]; }),
+    org_unique_vertices.end());
+  org_unique_vertices.insert(
+    org_unique_vertices.end(), org_indices, org_indices + org_offsets[num_org_vertices]);
+  std::sort(org_unique_vertices.begin(), org_unique_vertices.end());
+  org_unique_vertices.resize(
+    std::distance(org_unique_vertices.begin(),
+                  std::unique(org_unique_vertices.begin(), org_unique_vertices.end())));
+
+  std::vector<vertex_t> org_unique_labels(org_unique_vertices.size());
+  std::transform(org_unique_vertices.begin(),
+                 org_unique_vertices.end(),
+                 org_unique_labels.begin(),
+                 [org_labels](auto v) { return org_labels[v]; });
+  std::sort(org_unique_labels.begin(), org_unique_labels.end());
+  org_unique_labels.resize(std::distance(
+    org_unique_labels.begin(), std::unique(org_unique_labels.begin(), org_unique_labels.end())));
+
+  ASSERT_TRUE(org_unique_labels.size() == static_cast<size_t>(num_coarse_vertices));
 
   {
     std::vector<vertex_t> tmp_coarse_vertex_labels(coarse_vertex_labels,
                                                    coarse_vertex_labels + num_coarse_vertices);
     std::sort(tmp_coarse_vertex_labels.begin(), tmp_coarse_vertex_labels.end());
-    auto last = std::unique(tmp_coarse_vertex_labels.begin(), tmp_coarse_vertex_labels.end());
-    ASSERT_TRUE(last == tmp_coarse_vertex_labels.end());
-    ASSERT_TRUE(
-      std::equal(unique_labels.begin(), unique_labels.end(), tmp_coarse_vertex_labels.begin()));
+    ASSERT_TRUE(std::unique(tmp_coarse_vertex_labels.begin(), tmp_coarse_vertex_labels.end()) ==
+                tmp_coarse_vertex_labels.end());
+    ASSERT_TRUE(std::equal(
+      org_unique_labels.begin(), org_unique_labels.end(), tmp_coarse_vertex_labels.begin()));
   }
 
-  std::vector<std::tuple<vertex_t, vertex_t>> label_org_vertex_pairs(num_org_vertices);
-  for (vertex_t i = 0; i < num_org_vertices; ++i) {
-    label_org_vertex_pairs[i] = std::make_tuple(org_labels[i], i);
+  std::vector<std::tuple<vertex_t, vertex_t>> label_org_vertex_pairs(org_unique_vertices.size());
+  for (size_t i = 0; i < org_unique_vertices.size(); ++i) {
+    auto v                    = org_unique_vertices[i];
+    label_org_vertex_pairs[i] = std::make_tuple(org_labels[v], v);
   }
   std::sort(label_org_vertex_pairs.begin(), label_org_vertex_pairs.end());
-
-  std::vector<vertex_t> unique_label_counts(unique_labels.size());
-  std::vector<vertex_t> unique_label_offsets(unique_label_counts.size() + 1, 0);
-  std::transform(
-    unique_labels.begin(),
-    unique_labels.end(),
-    unique_label_counts.begin(),
-    [&label_org_vertex_pairs](auto label) {
-      auto lb = std::lower_bound(
-        label_org_vertex_pairs.begin(),
-        label_org_vertex_pairs.end(),
-        std::make_tuple(label, cugraph::experimental::invalid_vertex_id<vertex_t>::value),
-        [](auto lhs, auto rhs) { return std::get<0>(lhs) < std::get<0>(rhs); });
-      auto ub = std::upper_bound(
-        label_org_vertex_pairs.begin(),
-        label_org_vertex_pairs.end(),
-        std::make_tuple(label, cugraph::experimental::invalid_vertex_id<vertex_t>::value),
-        [](auto lhs, auto rhs) { return std::get<0>(lhs) < std::get<0>(rhs); });
-      return static_cast<vertex_t>(std::distance(lb, ub));
-    });
-  std::partial_sum(
-    unique_label_counts.begin(), unique_label_counts.end(), unique_label_offsets.begin() + 1);
 
   std::map<vertex_t, vertex_t> label_to_coarse_vertex_map{};
   for (vertex_t i = 0; i < num_coarse_vertices; ++i) {
     label_to_coarse_vertex_map[coarse_vertex_labels[i]] = i;
   }
 
-  for (size_t i = 0; i < unique_labels.size(); ++i) {
-    auto count  = unique_label_counts[i];
-    auto offset = unique_label_offsets[i];
+  auto threshold_ratio = (org_weights == nullptr) ? weight_t{1.0} /* irrelevant */ : weight_t{1e-4};
+  auto threshold_magnitude =
+    (org_weights == nullptr)
+      ? weight_t{1.0} /* irrelevant */
+      : (std::accumulate(
+           coarse_weights, coarse_weights + coarse_offsets[num_coarse_vertices], weight_t{0.0}) /
+         static_cast<weight_t>(coarse_offsets[num_coarse_vertices])) *
+          threshold_ratio;
+
+  for (size_t i = 0; i < org_unique_labels.size(); ++i) {  // for each vertex in the coarse graph
+    auto lb = std::lower_bound(
+      label_org_vertex_pairs.begin(),
+      label_org_vertex_pairs.end(),
+      std::make_tuple(org_unique_labels[i],
+                      cugraph::experimental::invalid_vertex_id<vertex_t>::value /* dummy */),
+      [](auto lhs, auto rhs) { return std::get<0>(lhs) < std::get<0>(rhs); });
+    auto ub = std::upper_bound(
+      label_org_vertex_pairs.begin(),
+      label_org_vertex_pairs.end(),
+      std::make_tuple(org_unique_labels[i],
+                      cugraph::experimental::invalid_vertex_id<vertex_t>::value /* dummy */),
+      [](auto lhs, auto rhs) { return std::get<0>(lhs) < std::get<0>(rhs); });
+    auto count  = std::distance(lb, ub);
+    auto offset = std::distance(label_org_vertex_pairs.begin(), lb);
     if (org_weights == nullptr) {
       std::vector<vertex_t> coarse_nbrs0{};
-      for (vertex_t j = offset; j < offset + count; ++j) {
-        auto org_vertex = std::get<1>(label_org_vertex_pairs[j]);
-        for (auto k = org_offsets[org_vertex]; k < org_offsets[org_vertex + 1]; ++k) {
-          auto org_nbr    = org_indices[k];
-          auto coarse_nbr = label_to_coarse_vertex_map[org_labels[org_nbr]];
-          coarse_nbrs0.push_back(coarse_nbr);
-        }
-      }
+      std::for_each(
+        lb,
+        ub,
+        [org_offsets, org_indices, org_labels, &label_to_coarse_vertex_map, &coarse_nbrs0](auto t) {
+          auto org_vertex = std::get<1>(t);
+          std::vector<vertex_t> tmp_nbrs(org_offsets[org_vertex + 1] - org_offsets[org_vertex]);
+          std::transform(org_indices + org_offsets[org_vertex],
+                         org_indices + org_offsets[org_vertex + 1],
+                         tmp_nbrs.begin(),
+                         [org_labels, &label_to_coarse_vertex_map](auto nbr) {
+                           return label_to_coarse_vertex_map[org_labels[nbr]];
+                         });
+          coarse_nbrs0.insert(coarse_nbrs0.end(), tmp_nbrs.begin(), tmp_nbrs.end());
+        });
       std::sort(coarse_nbrs0.begin(), coarse_nbrs0.end());
-      auto last = std::unique(coarse_nbrs0.begin(), coarse_nbrs0.end());
-      coarse_nbrs0.resize(std::distance(coarse_nbrs0.begin(), last));
+      coarse_nbrs0.resize(
+        std::distance(coarse_nbrs0.begin(), std::unique(coarse_nbrs0.begin(), coarse_nbrs0.end())));
 
-      auto coarse_vertex = label_to_coarse_vertex_map[unique_labels[i]];
+      auto coarse_vertex = label_to_coarse_vertex_map[org_unique_labels[i]];
       auto coarse_offset = coarse_offsets[coarse_vertex];
       auto coarse_count  = coarse_offsets[coarse_vertex + 1] - coarse_offset;
       std::vector<vertex_t> coarse_nbrs1(coarse_indices + coarse_offset,
                                          coarse_indices + coarse_offset + coarse_count);
       std::sort(coarse_nbrs1.begin(), coarse_nbrs1.end());
 
+      ASSERT_TRUE(coarse_nbrs0.size() == coarse_nbrs1.size());
       ASSERT_TRUE(std::equal(coarse_nbrs0.begin(), coarse_nbrs0.end(), coarse_nbrs1.begin()));
     } else {
       std::vector<std::tuple<vertex_t, weight_t>> coarse_nbr_weight_pairs0{};
-      for (vertex_t j = offset; j < offset + count; ++j) {
-        auto org_vertex = std::get<1>(label_org_vertex_pairs[j]);
-        for (auto k = org_offsets[org_vertex]; k < org_offsets[org_vertex + 1]; ++k) {
-          auto org_nbr    = org_indices[k];
-          auto org_weight = org_weights[k];
-          auto coarse_nbr = label_to_coarse_vertex_map[org_labels[org_nbr]];
-          coarse_nbr_weight_pairs0.push_back(std::make_tuple(coarse_nbr, org_weight));
-        }
-      }
+      std::for_each(lb,
+                    ub,
+                    [org_offsets,
+                     org_indices,
+                     org_weights,
+                     org_labels,
+                     &label_to_coarse_vertex_map,
+                     &coarse_nbr_weight_pairs0](auto t) {
+                      auto org_vertex = std::get<1>(t);
+                      std::vector<std::tuple<vertex_t, weight_t>> tmp_pairs(
+                        org_offsets[org_vertex + 1] - org_offsets[org_vertex]);
+                      for (auto j = org_offsets[org_vertex]; j < org_offsets[org_vertex + 1]; ++j) {
+                        tmp_pairs[j - org_offsets[org_vertex]] = std::make_tuple(
+                          label_to_coarse_vertex_map[org_labels[org_indices[j]]], org_weights[j]);
+                      }
+                      coarse_nbr_weight_pairs0.insert(
+                        coarse_nbr_weight_pairs0.end(), tmp_pairs.begin(), tmp_pairs.end());
+                    });
       std::sort(coarse_nbr_weight_pairs0.begin(), coarse_nbr_weight_pairs0.end());
       // reduce by key
       {
         size_t run_start_idx = 0;
-        for (size_t i = 1; i < coarse_nbr_weight_pairs0.size(); ++i) {
+        for (size_t j = 1; j < coarse_nbr_weight_pairs0.size(); ++j) {
           auto& start = coarse_nbr_weight_pairs0[run_start_idx];
-          auto& cur   = coarse_nbr_weight_pairs0[i];
-          if (std::get<0>(start) == std::get<1>(cur)) {
+          auto& cur   = coarse_nbr_weight_pairs0[j];
+          if (std::get<0>(start) == std::get<0>(cur)) {
             std::get<1>(start) += std::get<1>(cur);
             std::get<0>(cur) = cugraph::experimental::invalid_vertex_id<vertex_t>::value;
           } else {
-            run_start_idx = i;
+            run_start_idx = j;
           }
         }
         coarse_nbr_weight_pairs0.erase(
@@ -188,23 +222,16 @@ void check_coarsened_graph_results(edge_t* org_offsets,
           coarse_nbr_weight_pairs0.end());
       }
 
-      auto coarse_vertex = label_to_coarse_vertex_map[unique_labels[i]];
-      auto coarse_offset = coarse_offsets[coarse_vertex];
-      auto coarse_count  = coarse_offsets[coarse_vertex + 1] - coarse_offset;
-      std::vector<std::tuple<vertex_t, weight_t>> coarse_nbr_weight_pairs1(coarse_count);
-      for (auto j = coarse_offset; j < coarse_offset + coarse_count; ++j) {
-        coarse_nbr_weight_pairs1[i - coarse_offset] =
+      auto coarse_vertex = label_to_coarse_vertex_map[org_unique_labels[i]];
+      std::vector<std::tuple<vertex_t, weight_t>> coarse_nbr_weight_pairs1(
+        coarse_offsets[coarse_vertex + 1] - coarse_offsets[coarse_vertex]);
+      for (auto j = coarse_offsets[coarse_vertex]; j < coarse_offsets[coarse_vertex + 1]; ++j) {
+        coarse_nbr_weight_pairs1[j - coarse_offsets[coarse_vertex]] =
           std::make_tuple(coarse_indices[j], coarse_weights[j]);
       }
       std::sort(coarse_nbr_weight_pairs1.begin(), coarse_nbr_weight_pairs1.end());
 
-      auto threshold_ratio = weight_t{1e-4};
-      auto threshold_magnitude =
-        ((std::accumulate(
-            coarse_weights, coarse_weights + coarse_offsets[num_coarse_vertices], weight_t{0.0}) /
-          static_cast<weight_t>(coarse_offsets[num_coarse_vertices])) *
-         threshold_ratio) *
-        threshold_ratio;
+      ASSERT_TRUE(coarse_nbr_weight_pairs0.size() == coarse_nbr_weight_pairs1.size());
       ASSERT_TRUE(std::equal(
         coarse_nbr_weight_pairs0.begin(),
         coarse_nbr_weight_pairs0.end(),
@@ -260,12 +287,14 @@ class Tests_CoarsenGraph : public ::testing::TestWithParam<CoarsenGraph_Usecase>
         handle, configuration.graph_file_full_path, configuration.test_weighted);
     auto graph_view = graph.view();
 
-    std::vector<vertex_t> h_labels(graph_view.get_number_of_vertices());
-    auto num_labels = static_cast<vertex_t>(h_labels.size() * configuration.coarsen_ratio);
-    ASSERT_TRUE(num_labels > 0);
+    if (graph_view.get_number_of_vertices() == 0) {
+      return;
+    }
 
-    std::random_device r{};
-    std::default_random_engine generator{r()};
+    std::vector<vertex_t> h_labels(graph_view.get_number_of_vertices());
+    auto num_labels = std::max(static_cast<vertex_t>(h_labels.size() * configuration.coarsen_ratio), vertex_t{1});
+
+    std::default_random_engine generator{};
     std::uniform_int_distribution<vertex_t> distribution{0, num_labels - 1};
 
     std::for_each(h_labels.begin(), h_labels.end(), [&distribution, &generator](auto& label) {
@@ -329,7 +358,7 @@ class Tests_CoarsenGraph : public ::testing::TestWithParam<CoarsenGraph_Usecase>
                         handle.get_stream());
     }
 
-    std::vector<vertex_t> h_coarse_vertices_to_labels(h_coarse_vertices_to_labels.size());
+    std::vector<vertex_t> h_coarse_vertices_to_labels(coarse_vertices_to_labels.size());
     raft::update_host(h_coarse_vertices_to_labels.data(),
                       coarse_vertices_to_labels.data(),
                       coarse_vertices_to_labels.size(),
@@ -363,8 +392,6 @@ INSTANTIATE_TEST_CASE_P(
                     CoarsenGraph_Usecase("test/datasets/karate.mtx", 0.2, true),
                     CoarsenGraph_Usecase("test/datasets/web-Google.mtx", 0.1, false),
                     CoarsenGraph_Usecase("test/datasets/web-Google.mtx", 0.1, true),
-                    CoarsenGraph_Usecase("test/datasets/ljournal-2008.mtx", 0.1, false),
-                    CoarsenGraph_Usecase("test/datasets/ljournal-2008.mtx", 0.1, true),
                     CoarsenGraph_Usecase("test/datasets/webbase-1M.mtx", 0.1, false),
                     CoarsenGraph_Usecase("test/datasets/webbase-1M.mtx", 0.1, true)));
 
