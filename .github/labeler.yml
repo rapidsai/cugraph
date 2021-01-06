@@ -5,6 +5,14 @@
 python:
   - python/**
   - notebooks/**
+  - benchmarks/**
+  
+doc:
+  - docs/**
+  - **/*.md
+  
+datasets:
+  - datasets/**
   
 cuGraph:
   - cpp/**
@@ -13,12 +21,9 @@ CMake:
   - **/CMakeLists.txt
   - **/cmake/**
   
-Java:
-  - java/**
-  
 Ops:
   - .github/**
-  - /ci/**
+  - ci/**
   - conda/**
   - **/Dockerfile
   - **/.dockerignore
