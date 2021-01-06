@@ -35,10 +35,10 @@
 #include <vector>
 
 template <typename vertex_t, typename edge_t, typename weight_t, typename result_t>
-void katz_centrality_reference(edge_t* offsets,
-                               vertex_t* indices,
-                               weight_t* weights,
-                               result_t* betas,
+void katz_centrality_reference(edge_t const* offsets,
+                               vertex_t const* indices,
+                               weight_t const* weights,
+                               result_t const* betas,
                                result_t* katz_centralities,
                                vertex_t num_vertices,
                                result_t alpha,
@@ -195,7 +195,8 @@ class Tests_KatzCentrality : public ::testing::TestWithParam<KatzCentrality_Usec
 
     auto threshold_ratio = 1e-3;
     auto threshold_magnitude =
-      (epsilon / static_cast<result_t>(graph_view.get_number_of_vertices())) * threshold_ratio;
+      (1.0 / static_cast<result_t>(graph_view.get_number_of_vertices())) *
+      threshold_ratio;  // skip comparison for low Katz Centrality verties (lowly ranked vertices)
     auto nearly_equal = [threshold_ratio, threshold_magnitude](auto lhs, auto rhs) {
       return std::abs(lhs - rhs) <
              std::max(std::max(lhs, rhs) * threshold_ratio, threshold_magnitude);

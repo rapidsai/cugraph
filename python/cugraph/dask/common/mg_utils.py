@@ -19,7 +19,11 @@ from dask_cuda import LocalCUDACluster
 from dask.distributed import Client
 
 from cugraph.raft.dask.common.utils import default_client
-import cugraph.comms as Comms
+# FIXME: cugraph/__init__.py also imports the comms module, but
+# depending on the import environment, cugraph/comms/__init__.py
+# may be imported instead. The following imports the comms.py
+# module directly
+from cugraph.comms import comms as Comms
 
 
 # FIXME: We currently look for the default client from dask, as such is the
@@ -69,7 +73,7 @@ def setup_local_dask_cluster(p2p=True):
     cluster = LocalCUDACluster()
     client = Client(cluster)
     client.wait_for_workers(len(get_visible_devices()))
-    Comms.initialize(p2p)
+    Comms.initialize(p2p=p2p)
 
     return (cluster, client)
 
