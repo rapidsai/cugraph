@@ -21,8 +21,7 @@ from dask_cudf.core import Series as daskSeries
 
 import cugraph.comms.comms as Comms
 from cugraph.raft.dask.common.utils import get_client
-from cugraph.dask.common.part_utils import (_extract_partitions,
-                                            load_balance_func)
+from cugraph.dask.common.part_utils import _extract_partitions
 from dask.distributed import default_client
 from toolz import first
 from functools import reduce
@@ -173,6 +172,13 @@ class DistributedDataHandler:
         self.local_data = local_data_dict
         self.max_vertex_id = max_vid
 
+
+def _get_local_data(df, by):
+    df = df[0]
+    num_local_edges = len(df)
+    local_by_max = df[by].iloc[-1]
+    local_max = df[['src', 'dst']].max().max()
+    return num_local_edges, local_by_max, local_max
 
 """ Internal methods, API subject to change """
 

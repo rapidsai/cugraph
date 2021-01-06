@@ -16,7 +16,6 @@ from dask.distributed import Client, default_client, futures_of, wait
 import gc
 import cugraph
 import dask_cudf
-import cugraph.comms as Comms
 from dask_cuda import LocalCUDACluster
 import pytest
 from cugraph.dask.common.part_utils import concat_within_workers
