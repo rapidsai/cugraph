@@ -36,11 +36,11 @@
 #include <vector>
 
 template <typename vertex_t, typename edge_t, typename weight_t, typename result_t>
-void pagerank_reference(edge_t* offsets,
-                        vertex_t* indices,
-                        weight_t* weights,
-                        vertex_t* personalization_vertices,
-                        result_t* personalization_values,
+void pagerank_reference(edge_t const* offsets,
+                        vertex_t const* indices,
+                        weight_t const* weights,
+                        vertex_t const* personalization_vertices,
+                        result_t const* personalization_values,
                         result_t* pageranks,
                         vertex_t num_vertices,
                         vertex_t personalization_vector_size,
@@ -52,7 +52,11 @@ void pagerank_reference(edge_t* offsets,
   if (num_vertices == 0) { return; }
 
   if (has_initial_guess) {
-    auto sum = std::accumulate(pageranks, pageranks + num_vertices, result_t{0.0});
+    // use a double type counter (instead of result_t) to accumulate as std::accumulate is
+    // inaccurate in adding a large number of comparably sized numbers. In C++17 or later,
+    // std::reduce may be a better option.
+    auto sum =
+      static_cast<result_t>(std::accumulate(pageranks, pageranks + num_vertices, double{0.0}));
     ASSERT_TRUE(sum > 0.0);
     std::for_each(pageranks, pageranks + num_vertices, [sum](auto& val) { val /= sum; });
   } else {
@@ -61,13 +65,14 @@ void pagerank_reference(edge_t* offsets,
     });
   }
 
+  result_t personalization_sum{0.0};
   if (personalization_vertices != nullptr) {
-    auto sum = std::accumulate(
-      personalization_values, personalization_values + personalization_vector_size, result_t{0.0});
-    ASSERT_TRUE(sum > 0.0);
-    std::for_each(personalization_values,
-                  personalization_values + personalization_vector_size,
-                  [sum](auto& val) { val /= sum; });
+    // use a double type counter (instead of result_t) to accumulate as std::accumulate is
+    // inaccurate in adding a large number of comparably sized numbers. In C++17 or later,
+    // std::reduce may be a better option.
+    personalization_sum = static_cast<result_t>(std::accumulate(
+      personalization_values, personalization_values + personalization_vector_size, double{0.0}));
+    ASSERT_TRUE(personalization_sum > 0.0);
   }
 
   std::vector<weight_t> out_weight_sums(num_vertices, result_t{0.0});
@@ -102,7 +107,8 @@ void pagerank_reference(edge_t* offsets,
     if (personalization_vertices != nullptr) {
       for (vertex_t i = 0; i < personalization_vector_size; ++i) {
         auto v = personalization_vertices[i];
-        pageranks[v] += (dangling_sum * alpha + (1.0 - alpha)) * personalization_values[i];
+        pageranks[v] += (dangling_sum * alpha + (1.0 - alpha)) *
+                        (personalization_values[i] / personalization_sum);
       }
     }
     result_t diff_sum{0.0};
@@ -177,8 +183,7 @@ class Tests_PageRank : public ::testing::TestWithParam<PageRank_Usecase> {
     std::vector<vertex_t> h_personalization_vertices{};
     std::vector<result_t> h_personalization_values{};
     if (configuration.personalization_ratio > 0.0) {
-      std::random_device r{};
-      std::default_random_engine generator{r()};
+      std::default_random_engine generator{};
       std::uniform_real_distribution<double> distribution{0.0, 1.0};
       h_personalization_vertices.resize(graph_view.get_number_of_local_vertices());
       std::iota(h_personalization_vertices.begin(),
@@ -195,8 +200,11 @@ class Tests_PageRank : public ::testing::TestWithParam<PageRank_Usecase> {
       std::for_each(h_personalization_values.begin(),
                     h_personalization_values.end(),
                     [&distribution, &generator](auto& val) { val = distribution(generator); });
-      auto sum = std::accumulate(
-        h_personalization_values.begin(), h_personalization_values.end(), result_t{0.0});
+      // use a double type counter (instead of result_t) to accumulate as std::accumulate is
+      // inaccurate in adding a large number of comparably sized numbers. In C++17 or later,
+      // std::reduce may be a better option.
+      auto sum = static_cast<result_t>(std::accumulate(
+        h_personalization_values.begin(), h_personalization_values.end(), double{0.0}));
       std::for_each(h_personalization_values.begin(),
                     h_personalization_values.end(),
                     [sum](auto& val) { val /= sum; });
@@ -263,7 +271,8 @@ class Tests_PageRank : public ::testing::TestWithParam<PageRank_Usecase> {
 
     auto threshold_ratio = 1e-3;
     auto threshold_magnitude =
-      (epsilon / static_cast<result_t>(graph_view.get_number_of_vertices())) * threshold_ratio;
+      (1.0 / static_cast<result_t>(graph_view.get_number_of_vertices())) *
+      threshold_ratio;  // skip comparison for low PageRank verties (lowly ranked vertices)
     auto nearly_equal = [threshold_ratio, threshold_magnitude](auto lhs, auto rhs) {
       auto diff = std::abs(lhs - rhs);
       return (diff < std::max(lhs, rhs) * threshold_ratio) || (diff < threshold_magnitude);
@@ -299,8 +308,7 @@ INSTANTIATE_TEST_CASE_P(
                     PageRank_Usecase("test/datasets/ljournal-2008.mtx", 0.0, true),
                     PageRank_Usecase("test/datasets/ljournal-2008.mtx", 0.5, true),
                     PageRank_Usecase("test/datasets/webbase-1M.mtx", 0.0, false),
-                    // FIXME: Re-enable test after failures are addressed
-                    // PageRank_Usecase("test/datasets/webbase-1M.mtx", 0.5, false),
+                    PageRank_Usecase("test/datasets/webbase-1M.mtx", 0.5, false),
                     PageRank_Usecase("test/datasets/webbase-1M.mtx", 0.0, true),
                     PageRank_Usecase("test/datasets/webbase-1M.mtx", 0.5, true)));
 
