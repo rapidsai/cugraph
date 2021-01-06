@@ -180,6 +180,7 @@ def _get_local_data(df, by):
     local_max = df[['src', 'dst']].max().max()
     return num_local_edges, local_by_max, local_max
 
+
 """ Internal methods, API subject to change """
 
 
