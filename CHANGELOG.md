@@ -1,3 +1,4 @@
+
 # cuGraph 0.18.0 (Date TBD)
 
 ## New Features
@@ -6,8 +7,7 @@
 
 ## Bug Fixes
 
-# cuGraph 0.17.0 (Date TBD)
-
+# cuGraph 0.17.0 (10 Dec 2020)
 ## New Features
 - PR #1276 MST
 - PR #1245 Add functions to add pandas and numpy compatibility

@@ -14,13 +14,13 @@
 import pytest
 
 import cugraph.dask as dcg
-import cugraph.comms as Comms
-from dask.distributed import Client
 import cugraph
 import dask_cudf
-from dask_cuda import LocalCUDACluster
 from cugraph.tests import utils
-from cugraph.dask.common.mg_utils import is_single_gpu
+from cugraph.utilities.utils import is_device_version_less_than
+from cugraph.dask.common.mg_utils import (is_single_gpu,
+                                          setup_local_dask_cluster,
+                                          teardown_local_dask_cluster)
 
 try:
     from rapids_pytest_benchmark import setFixtureParamNames
@@ -44,17 +44,9 @@ except ImportError:
 # Fixtures
 @pytest.fixture(scope="module")
 def client_connection():
-    # setup
-    cluster = LocalCUDACluster()
-    client = Client(cluster)
-    Comms.initialize(p2p=True)
-
+    (cluster, client) = setup_local_dask_cluster(p2p=True)
     yield client
-
-    # teardown
-    Comms.destroy()
-    client.close()
-    cluster.close()
+    teardown_local_dask_cluster(cluster, client)
 
 
 @pytest.mark.skipif(
@@ -93,11 +85,15 @@ def test_mg_louvain_with_edgevals(daskGraphFromDataset):
     # FIXME: daskGraphFromDataset returns a DiGraph, which Louvain is currently
     # accepting. In the future, an MNMG symmeterize will need to be called to
     # create a Graph for Louvain.
-    parts, mod = dcg.louvain(daskGraphFromDataset)
+    if is_device_version_less_than((7, 0)):
+        with pytest.raises(RuntimeError):
+            parts, mod = dcg.louvain(daskGraphFromDataset)
+    else:
+        parts, mod = dcg.louvain(daskGraphFromDataset)
 
-    # FIXME: either call Nx with the same dataset and compare results, or
-    # hadcode golden results to compare to.
-    print()
-    print(parts.compute())
-    print(mod)
-    print()
+        # FIXME: either call Nx with the same dataset and compare results, or
+        # hardcode golden results to compare to.
+        print()
+        print(parts.compute())
+        print(mod)
+        print()
