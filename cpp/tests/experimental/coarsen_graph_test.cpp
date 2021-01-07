@@ -78,23 +78,10 @@ void check_coarsened_graph_results(edge_t* org_offsets,
                             }) == 0);
   ASSERT_TRUE(num_coarse_vertices <= num_org_vertices);
 
-  std::vector<vertex_t> org_unique_vertices(num_org_vertices);
-  std::iota(org_unique_vertices.begin(), org_unique_vertices.end(), vertex_t{0});
-  org_unique_vertices.erase(
-    std::remove_if(org_unique_vertices.begin(),
-                   org_unique_vertices.end(),
-                   [org_offsets](auto v) { return org_offsets[v + 1] == org_offsets[v]; }),
-    org_unique_vertices.end());
-  org_unique_vertices.insert(
-    org_unique_vertices.end(), org_indices, org_indices + org_offsets[num_org_vertices]);
-  std::sort(org_unique_vertices.begin(), org_unique_vertices.end());
-  org_unique_vertices.resize(
-    std::distance(org_unique_vertices.begin(),
-                  std::unique(org_unique_vertices.begin(), org_unique_vertices.end())));
-
-  std::vector<vertex_t> org_unique_labels(org_unique_vertices.size());
-  std::transform(org_unique_vertices.begin(),
-                 org_unique_vertices.end(),
+  std::vector<vertex_t> org_unique_labels(num_org_vertices);
+  std::iota(org_unique_labels.begin(), org_unique_labels.end(), vertex_t{0});
+  std::transform(org_unique_labels.begin(),
+                 org_unique_labels.end(),
                  org_unique_labels.begin(),
                  [org_labels](auto v) { return org_labels[v]; });
   std::sort(org_unique_labels.begin(), org_unique_labels.end());
@@ -113,10 +100,9 @@ void check_coarsened_graph_results(edge_t* org_offsets,
       org_unique_labels.begin(), org_unique_labels.end(), tmp_coarse_vertex_labels.begin()));
   }
 
-  std::vector<std::tuple<vertex_t, vertex_t>> label_org_vertex_pairs(org_unique_vertices.size());
-  for (size_t i = 0; i < org_unique_vertices.size(); ++i) {
-    auto v                    = org_unique_vertices[i];
-    label_org_vertex_pairs[i] = std::make_tuple(org_labels[v], v);
+  std::vector<std::tuple<vertex_t, vertex_t>> label_org_vertex_pairs(num_org_vertices);
+  for (vertex_t i = 0; i < num_org_vertices; ++i) {
+    label_org_vertex_pairs[i] = std::make_tuple(org_labels[i], i);
   }
   std::sort(label_org_vertex_pairs.begin(), label_org_vertex_pairs.end());
 
@@ -287,12 +273,11 @@ class Tests_CoarsenGraph : public ::testing::TestWithParam<CoarsenGraph_Usecase>
         handle, configuration.graph_file_full_path, configuration.test_weighted);
     auto graph_view = graph.view();
 
-    if (graph_view.get_number_of_vertices() == 0) {
-      return;
-    }
+    if (graph_view.get_number_of_vertices() == 0) { return; }
 
     std::vector<vertex_t> h_labels(graph_view.get_number_of_vertices());
-    auto num_labels = std::max(static_cast<vertex_t>(h_labels.size() * configuration.coarsen_ratio), vertex_t{1});
+    auto num_labels =
+      std::max(static_cast<vertex_t>(h_labels.size() * configuration.coarsen_ratio), vertex_t{1});
 
     std::default_random_engine generator{};
     std::uniform_int_distribution<vertex_t> distribution{0, num_labels - 1};
@@ -380,7 +365,13 @@ class Tests_CoarsenGraph : public ::testing::TestWithParam<CoarsenGraph_Usecase>
 };
 
 // FIXME: add tests for type combinations
-TEST_P(Tests_CoarsenGraph, CheckInt32Int32FloatFloat)
+
+TEST_P(Tests_CoarsenGraph, CheckInt32Int32FloatFloatTransposed)
+{
+  run_current_test<int32_t, int32_t, float, true>(GetParam());
+}
+
+TEST_P(Tests_CoarsenGraph, CheckInt32Int32FloatFloatUntransposed)
 {
   run_current_test<int32_t, int32_t, float, false>(GetParam());
 }
@@ -392,6 +383,8 @@ INSTANTIATE_TEST_CASE_P(
                     CoarsenGraph_Usecase("test/datasets/karate.mtx", 0.2, true),
                     CoarsenGraph_Usecase("test/datasets/web-Google.mtx", 0.1, false),
                     CoarsenGraph_Usecase("test/datasets/web-Google.mtx", 0.1, true),
+                    CoarsenGraph_Usecase("test/datasets/ljournal-2008.mtx", 0.1, false),
+                    CoarsenGraph_Usecase("test/datasets/ljournal-2008.mtx", 0.1, true),
                     CoarsenGraph_Usecase("test/datasets/webbase-1M.mtx", 0.1, false),
                     CoarsenGraph_Usecase("test/datasets/webbase-1M.mtx", 0.1, true)));
 
