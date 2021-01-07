@@ -53,8 +53,8 @@ class Leiden : public Louvain<graph_type> {
     weight_t *d_delta_Q              = delta_Q_v.data().get();
     vertex_t *d_constraint           = constraint_v_.data().get();
 
-    weight_t new_Q =
-      this->modularity(total_edge_weight, resolution, graph, this->dendogram_->current_level_begin());
+    weight_t new_Q = this->modularity(
+      total_edge_weight, resolution, graph, this->dendogram_->current_level_begin());
 
     weight_t cur_Q = new_Q - 1;
 
