@@ -34,7 +34,12 @@ std::pair<size_t, weight_t> louvain(raft::handle_t const &handle,
   CUGRAPH_EXPECTS(clustering != nullptr, "Invalid input argument: clustering is null");
 
   Louvain<GraphCSRView<vertex_t, edge_t, weight_t>> runner(handle, graph_view);
-  return runner(clustering, max_level, resolution);
+  weight_t wt = runner(max_level, resolution);
+
+  runner.get_dendogram().partition_at_level(clustering, runner.get_dendogram().num_levels());
+
+  // FIXME: Consider returning the Dendogram at some point
+  return std::make_pair(runner.get_dendogram().num_levels(), wt);
 }
 
 template <typename vertex_t, typename edge_t, typename weight_t, bool multi_gpu>

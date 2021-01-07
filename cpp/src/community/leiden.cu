@@ -30,8 +30,12 @@ std::pair<size_t, weight_t> leiden(raft::handle_t const &handle,
   CUGRAPH_EXPECTS(clustering != nullptr, "Invalid input argument: clustering is null");
 
   Leiden<GraphCSRView<vertex_t, edge_t, weight_t>> runner(handle, graph);
+  weight_t wt = runner(max_level, resolution);
 
-  return runner(clustering, max_level, resolution);
+  runner.get_dendogram().partition_at_level(clustering, runner.get_dendogram().num_levels());
+
+  // FIXME: Consider returning the Dendogram at some point
+  return std::make_pair(runner.get_dendogram().num_levels(), wt);
 }
 
 // Explicit template instantations
