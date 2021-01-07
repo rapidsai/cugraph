@@ -26,6 +26,7 @@
 #include <raft/handle.hpp>
 #include <rmm/device_uvector.hpp>
 
+#include <thrust/binary_search.h>
 #include <thrust/copy.h>
 #include <thrust/iterator/discard_iterator.h>
 #include <thrust/sort.h>
@@ -45,6 +46,8 @@ namespace detail {
 template <typename vertex_t, typename edge_t, bool multi_gpu>
 rmm::device_uvector<vertex_t> compute_renumber_map(
   raft::handle_t const &handle,
+  vertex_t const *vertices,
+  vertex_t num_local_vertices /* relevant only if vertices != nullptr */,
   rmm::device_uvector<vertex_t> const &edgelist_major_vertices,
   rmm::device_uvector<vertex_t> const &edgelist_minor_vertices)
 {
@@ -87,10 +90,11 @@ rmm::device_uvector<vertex_t> compute_renumber_map(
   minor_labels.resize(thrust::distance(minor_labels.begin(), minor_label_it), handle.get_stream());
   minor_labels.shrink_to_fit(handle.get_stream());
 
-  // 3. merge major and minor labels
+  // 3. merge major and minor labels and vertex labels
 
   rmm::device_uvector<vertex_t> merged_labels(major_labels.size() + minor_labels.size(),
                                               handle.get_stream());
+
   rmm::device_uvector<edge_t> merged_counts(merged_labels.size(), handle.get_stream());
   thrust::merge_by_key(rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
                        major_labels.begin(),
@@ -101,12 +105,14 @@ rmm::device_uvector<vertex_t> compute_renumber_map(
                        thrust::make_constant_iterator(edge_t{0}),
                        merged_labels.begin(),
                        merged_counts.begin());
+
   major_labels.resize(0, handle.get_stream());
   major_counts.resize(0, handle.get_stream());
   minor_labels.resize(0, handle.get_stream());
   major_labels.shrink_to_fit(handle.get_stream());
   major_counts.shrink_to_fit(handle.get_stream());
   minor_labels.shrink_to_fit(handle.get_stream());
+
   rmm::device_uvector<vertex_t> labels(merged_labels.size(), handle.get_stream());
   rmm::device_uvector<edge_t> counts(labels.size(), handle.get_stream());
   auto pair_it =
@@ -165,7 +171,41 @@ rmm::device_uvector<vertex_t> compute_renumber_map(
     labels.shrink_to_fit(handle.get_stream());
   }
 
-  // 5. sort by degree
+  // 5. if vertices != nullptr, add isolated vertices
+
+  rmm::device_uvector<vertex_t> isolated_vertices(0, handle.get_stream());
+  if (vertices != nullptr) {
+    auto num_isolated_vertices = thrust::count_if(
+      rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
+      vertices,
+      vertices + num_local_vertices,
+      [label_first = labels.begin(), label_last = labels.end()] __device__(auto v) {
+        return !thrust::binary_search(thrust::seq, label_first, label_last, v);
+      });
+    isolated_vertices.resize(num_isolated_vertices, handle.get_stream());
+    thrust::copy_if(rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
+                    vertices,
+                    vertices + num_local_vertices,
+                    isolated_vertices.begin(),
+                    [label_first = labels.begin(), label_last = labels.end()] __device__(auto v) {
+                      return !thrust::binary_search(thrust::seq, label_first, label_last, v);
+                    });
+  }
+
+  if (isolated_vertices.size() > 0) {
+    labels.resize(labels.size() + isolated_vertices.size(), handle.get_stream());
+    counts.resize(labels.size(), handle.get_stream());
+    thrust::copy(rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
+                 isolated_vertices.begin(),
+                 isolated_vertices.end(),
+                 labels.end() - isolated_vertices.size());
+    thrust::fill(rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
+                 counts.end() - isolated_vertices.size(),
+                 counts.end(),
+                 edge_t{0});
+  }
+
+  // 6. sort by degree
 
   thrust::sort_by_key(rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
                       counts.begin(),
@@ -180,12 +220,12 @@ rmm::device_uvector<vertex_t> compute_renumber_map(
   return std::move(labels);
 }
 
-}  // namespace detail
-
 template <typename vertex_t, typename edge_t, bool multi_gpu>
 std::enable_if_t<multi_gpu,
                  std::tuple<rmm::device_uvector<vertex_t>, partition_t<vertex_t>, vertex_t, edge_t>>
 renumber_edgelist(raft::handle_t const &handle,
+                  vertex_t const *vertices,
+                  vertex_t num_local_vertices /* relevant only if vertices != nullptr */,
                   rmm::device_uvector<vertex_t> &edgelist_major_vertices /* [INOUT] */,
                   rmm::device_uvector<vertex_t> &edgelist_minor_vertices /* [INOUT] */,
                   bool is_hypergraph_partitioned)
@@ -203,7 +243,7 @@ renumber_edgelist(raft::handle_t const &handle,
   // 1. compute renumber map
 
   auto renumber_map_labels = detail::compute_renumber_map<vertex_t, edge_t, multi_gpu>(
-    handle, edgelist_major_vertices, edgelist_minor_vertices);
+    handle, vertices, num_local_vertices, edgelist_major_vertices, edgelist_minor_vertices);
 
   // 2. initialize partition_t object, number_of_vertices, and number_of_edges for the coarsened
   // graph
@@ -348,11 +388,13 @@ renumber_edgelist(raft::handle_t const &handle,
 template <typename vertex_t, typename edge_t, bool multi_gpu>
 std::enable_if_t<!multi_gpu, rmm::device_uvector<vertex_t>> renumber_edgelist(
   raft::handle_t const &handle,
+  vertex_t const *vertices,
+  vertex_t num_vertices /* relevant only if vertices != nullptr */,
   rmm::device_uvector<vertex_t> &edgelist_major_vertices /* [INOUT] */,
   rmm::device_uvector<vertex_t> &edgelist_minor_vertices /* [INOUT] */)
 {
   auto renumber_map_labels = detail::compute_renumber_map<vertex_t, edge_t, multi_gpu>(
-    handle, edgelist_major_vertices, edgelist_minor_vertices);
+    handle, vertices, num_vertices, edgelist_major_vertices, edgelist_minor_vertices);
 
   double constexpr load_factor = 0.7;
 
@@ -380,6 +422,70 @@ std::enable_if_t<!multi_gpu, rmm::device_uvector<vertex_t>> renumber_edgelist(
   return std::move(renumber_map_labels);
 }
 
+}  // namespace detail
+
+template <typename vertex_t, typename edge_t, bool multi_gpu>
+std::enable_if_t<multi_gpu,
+                 std::tuple<rmm::device_uvector<vertex_t>, partition_t<vertex_t>, vertex_t, edge_t>>
+renumber_edgelist(raft::handle_t const &handle,
+                  rmm::device_uvector<vertex_t> &edgelist_major_vertices /* [INOUT] */,
+                  rmm::device_uvector<vertex_t> &edgelist_minor_vertices /* [INOUT] */,
+                  bool is_hypergraph_partitioned)
+{
+  return detail::renumber_edgelist<vertex_t, edge_t, multi_gpu>(handle,
+                                                                static_cast<vertex_t *>(nullptr),
+                                                                vertex_t{0},
+                                                                edgelist_major_vertices,
+                                                                edgelist_minor_vertices,
+                                                                is_hypergraph_partitioned);
+}
+
+template <typename vertex_t, typename edge_t, bool multi_gpu>
+std::enable_if_t<!multi_gpu, rmm::device_uvector<vertex_t>> renumber_edgelist(
+  raft::handle_t const &handle,
+  rmm::device_uvector<vertex_t> &edgelist_major_vertices /* [INOUT] */,
+  rmm::device_uvector<vertex_t> &edgelist_minor_vertices /* [INOUT] */)
+{
+  return detail::renumber_edgelist<vertex_t, edge_t, multi_gpu>(handle,
+                                                                static_cast<vertex_t *>(nullptr),
+                                                                vertex_t{0} /* dummy */,
+                                                                edgelist_major_vertices,
+                                                                edgelist_minor_vertices);
+}
+
+template <typename vertex_t, typename edge_t, bool multi_gpu>
+std::enable_if_t<multi_gpu,
+                 std::tuple<rmm::device_uvector<vertex_t>, partition_t<vertex_t>, vertex_t, edge_t>>
+renumber_edgelist(raft::handle_t const &handle,
+                  rmm::device_uvector<vertex_t> const &vertices,
+                  rmm::device_uvector<vertex_t> &edgelist_major_vertices /* [INOUT] */,
+                  rmm::device_uvector<vertex_t> &edgelist_minor_vertices /* [INOUT] */,
+                  bool is_hypergraph_partitioned)
+{
+  return detail::renumber_edgelist<vertex_t, edge_t, multi_gpu>(
+    handle,
+    vertices.data(),
+    static_cast<vertex_t>(vertices.size()),
+    edgelist_major_vertices,
+    edgelist_minor_vertices,
+    is_hypergraph_partitioned);
+}
+
+template <typename vertex_t, typename edge_t, bool multi_gpu>
+std::enable_if_t<!multi_gpu, rmm::device_uvector<vertex_t>> renumber_edgelist(
+  raft::handle_t const &handle,
+  rmm::device_uvector<vertex_t> const &vertices,
+  rmm::device_uvector<vertex_t> &edgelist_major_vertices /* [INOUT] */,
+  rmm::device_uvector<vertex_t> &edgelist_minor_vertices /* [INOUT] */)
+{
+  return detail::renumber_edgelist<vertex_t, edge_t, multi_gpu>(
+    handle,
+    vertices.data(),
+    static_cast<vertex_t>(vertices.size()),
+    edgelist_major_vertices,
+    edgelist_minor_vertices);
+}
+
 // explicit instantiation
 
 template std::tuple<rmm::device_uvector<int32_t>, partition_t<int32_t>, int32_t, int32_t>
@@ -389,8 +495,22 @@ renumber_edgelist<int32_t, int32_t, true>(
   rmm::device_uvector<int32_t> &edgelist_minor_vertices /* [INOUT] */,
   bool is_hypergraph_partitioned);
 
+template std::tuple<rmm::device_uvector<int32_t>, partition_t<int32_t>, int32_t, int32_t>
+renumber_edgelist<int32_t, int32_t, true>(
+  raft::handle_t const &handle,
+  rmm::device_uvector<int32_t> const &vertices,
+  rmm::device_uvector<int32_t> &edgelist_major_vertices /* [INOUT] */,
+  rmm::device_uvector<int32_t> &edgelist_minor_vertices /* [INOUT] */,
+  bool is_hypergraph_partitioned);
+
 template rmm::device_uvector<int32_t> renumber_edgelist<int32_t, int32_t, false>(
   raft::handle_t const &handle,
+  rmm::device_uvector<int32_t> &edgelist_major_vertices /* [INOUT] */,
+  rmm::device_uvector<int32_t> &edgelist_minor_vertices /* [INOUT] */);
+
+template rmm::device_uvector<int32_t> renumber_edgelist<int32_t, int32_t, false>(
+  raft::handle_t const &handle,
+  rmm::device_uvector<int32_t> const &vertices,
   rmm::device_uvector<int32_t> &edgelist_major_vertices /* [INOUT] */,
   rmm::device_uvector<int32_t> &edgelist_minor_vertices /* [INOUT] */);
 
