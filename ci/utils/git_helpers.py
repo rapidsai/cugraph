@@ -60,8 +60,8 @@ def uncommittedFiles():
 
 
 def changedFilesFromBase(base):
-    """Returns a list of files changed between the current branch and base"""
-    files = __gitdiff("--name-only", "--ignore-submodules", f"{base}...")
+    """Returns a list of files changed between base and HEAD"""
+    files = __gitdiff("--name-only", "--ignore-submodules", f"{base}...HEAD")
     return files.splitlines()
 
 
