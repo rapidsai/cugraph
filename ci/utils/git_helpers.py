@@ -87,10 +87,9 @@ def changesInFileBetween(file, b1, b2, pathFilter=None):
 
 def modifiedFiles(pathFilter=None):
     """
-    If inside a CI-env (ie. currentBranch=current-pr-branch and the env-var
-    PR_TARGET_BRANCH is defined), then lists out all files modified between
-    these 2 branches. Else, lists out all the uncommitted files in the current
-    branch.
+    If inside a CI-env (ie. TARGET_BRANCH and SOURCE_BRANCH are defined), then
+    lists out all files modified between these 2 branches. Else, lists out all
+    the uncommitted files in the current branch.
 
     Such utility function is helpful while putting checker scripts as part of
     cmake, as well as CI process. This way, during development, only the files
@@ -98,15 +97,24 @@ def modifiedFiles(pathFilter=None):
     process ALL files modified by the dev, as submiited in the PR, will be
     checked. This happens, all the while using the same script.
     """
-    if "PR_TARGET_BRANCH" in os.environ and branch() == "current-pr-branch":
-        allFiles = changedFilesBetween(os.environ["PR_TARGET_BRANCH"],
-                                       branch())
+    targetBranch = os.environ.get("TARGET_BRANCH")
+    sourceBranch = os.environ.get("SOURCE_BRANCH")
+    if targetBranch and sourceBranch:
+        print("   [DEBUG] Assuming a CI environment: ", end="")
+        allFiles = changedFilesBetween(os.environ["TARGET_BRANCH"],
+                                       os.environ["SOURCE_BRANCH"])
     else:
+        print("   [DEBUG] Did not detect CI environment: ", end="")
         allFiles = uncommittedFiles()
+
+    print(f"TARGET_BRANCH={targetBranch}, SOURCE_BRANCH={sourceBranch}")
     files = []
     for f in allFiles:
         if pathFilter is None or pathFilter(f):
             files.append(f)
+
+    filesToCheckString = "\n\t".join(files) if files else "<None>"
+    print(f"   [DEBUG] Found files to check:\n\t{filesToCheckString}\n")
     return files
 
 
