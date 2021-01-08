@@ -47,13 +47,16 @@ cutoff and subgraph extraction
 */
 
 template <typename vertex_t, typename edge_t, typename weight_t>
-std::
-  tuple<rmm::device_uvector<vertex_t>, rmm::device_uvector<vertex_t>, rmm::device_uvector<weight_t>>
-  extract(
-    raft::handle_t const &handle,
-    cugraph::experimental::graph_view_t<vertex_t, edge_t, weight_t, false, false> const &csr_view,
-    vertex_t source_vertex,
-    vertex_t radius)
+std::tuple<rmm::device_uvector<vertex_t>,
+           rmm::device_uvector<vertex_t>,
+           rmm::device_uvector<weight_t>,
+           rmm::device_uvector<size_t>>
+extract(
+  raft::handle_t const &handle,
+  cugraph::experimental::graph_view_t<vertex_t, edge_t, weight_t, false, false> const &csr_view,
+  vertex_t *source_vertex,
+  vertex_t n_subgraphs,
+  vertex_t radius)
 {
   auto v      = csr_view.get_number_of_vertices();
   auto e      = csr_view.get_number_of_edges();
@@ -68,7 +71,7 @@ std::
                                                                 csr_view,
                                                                 reached.data().get(),
                                                                 predecessors.data().get(),
-                                                                source_vertex,
+                                                                source_vertex[0],
                                                                 direction_optimizing,
                                                                 radius);
 
@@ -95,28 +98,41 @@ std::
   rmm::device_uvector<vertex_t> src_indices(v, stream);
   rmm::device_uvector<vertex_t> dst_indices(v, stream);
   rmm::device_uvector<weight_t> weights(v, stream);
+  rmm::device_uvector<size_t> off(v, stream);
 
-  return std::make_tuple(std::move(src_indices), std::move(dst_indices), std::move(weights));
+  return std::make_tuple(
+    std::move(src_indices), std::move(dst_indices), std::move(weights), std::move(off));
 }
 }  // namespace
 namespace cugraph {
 namespace experimental {
 template <typename vertex_t, typename edge_t, typename weight_t, bool multi_gpu>
-std::
-  tuple<rmm::device_uvector<vertex_t>, rmm::device_uvector<vertex_t>, rmm::device_uvector<weight_t>>
-  extract_ego(raft::handle_t const &handle,
-              graph_view_t<vertex_t, edge_t, weight_t, false, multi_gpu> const &graph_view,
-              vertex_t source_vertex,
-              vertex_t radius)
+std::tuple<rmm::device_uvector<vertex_t>,
+           rmm::device_uvector<vertex_t>,
+           rmm::device_uvector<weight_t>,
+           rmm::device_uvector<size_t>>
+extract_ego(raft::handle_t const &handle,
+            graph_view_t<vertex_t, edge_t, weight_t, false, multi_gpu> const &graph_view,
+            vertex_t *source_vertex,
+            vertex_t n_subgraphs,
+            vertex_t radius)
 {
-  return extract<vertex_t, edge_t, weight_t>(handle, graph_view, source_vertex, radius);
+  CUGRAPH_EXPECTS(n_subgraphs == 1, "concurrent egonet subgraphs are not supported yet");
+  CUGRAPH_EXPECTS(radius > 1, "radius should be at least 1");
+  CUGRAPH_EXPECTS(radius < graph_view.get_number_of_vertices(), "radius is too large");
+
+  return extract<vertex_t, edge_t, weight_t>(
+    handle, graph_view, source_vertex, n_subgraphs, radius);
 }
 
-template std::
-  tuple<rmm::device_uvector<int32_t>, rmm::device_uvector<int32_t>, rmm::device_uvector<float>>
-  extract_ego(raft::handle_t const &,
-              graph_view_t<int32_t, int32_t, float, false, false> const &,
-              int32_t,
-              int32_t);
+template std::tuple<rmm::device_uvector<int32_t>,
+                    rmm::device_uvector<int32_t>,
+                    rmm::device_uvector<float>,
+                    rmm::device_uvector<size_t>>
+extract_ego(raft::handle_t const &,
+            graph_view_t<int32_t, int32_t, float, false, false> const &,
+            int32_t *,
+            int32_t,
+            int32_t);
 }  // namespace experimental
 }  // namespace cugraph

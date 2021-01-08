@@ -40,7 +40,8 @@ class EGONETTest : public ::testing::TestWithParam<EL_host<vertex_t, edge_t, wei
  protected:
   std::tuple<rmm::device_uvector<vertex_t>,
              rmm::device_uvector<vertex_t>,
-             rmm::device_uvector<weight_t>>
+             rmm::device_uvector<weight_t>,
+             rmm::device_uvector<size_t>>
   egonet_test()
   {
     rmm::device_vector<vertex_t> d_edgelist_src(edgelist_h.src);
@@ -57,9 +58,9 @@ class EGONETTest : public ::testing::TestWithParam<EL_host<vertex_t, edge_t, wei
       handle, edgelist, v, cugraph::experimental::graph_properties_t{false, false}, false, true);
 
     vertex_t source = 0;
-    vertex_t radius = 3;
+    vertex_t radius = 2;
 
-    auto result = cugraph::experimental::extract_ego(handle, G.view(), source, radius);
+    auto result = cugraph::experimental::extract_ego(handle, G.view(), &source, 1, radius);
     // raft::print_device_vector("Final EgoNet Src: ", result.src_indices.data(),
     // result.number_of_edges, std::cout); raft::print_device_vector("Final EgoNet Dst: ",
     // result.dst_indices.data(), result.number_of_edges, std::cout); std::cout <<

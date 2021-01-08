@@ -1191,13 +1191,35 @@ void katz_centrality(raft::handle_t const &handle,
                      bool has_initial_guess  = false,
                      bool normalize          = false,
                      bool do_expensive_check = false);
-
+/**
+ * @brief returns induced EgoNet subgraph(s) of neighbors centered at nodes in source_vertex within
+ * a given radius.
+ *
+ * @tparam vertex_t Type of vertex identifiers. Needs to be an integral type.
+ * @tparam edge_t Type of edge identifiers. Needs to be an integral type.
+ * @tparam weight_t Type of edge weights. Needs to be a floating point type.
+ * @tparam multi_gpu Flag indicating whether template instantiation should target single-GPU (false)
+ * or multi-GPU (true).
+ * @param handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator, and
+ * handles to various CUDA libraries) to run graph algorithms.
+ * @param graph_view Graph view object of, we extract induced egonet subgraphs from @p graph_view.
+ * @param source_vertex Pointer to egonet center vertices (size == @p n_subgraphs).
+ * @param n_subgraphs Number of induced EgoNet subgraphs to extract (ie. number of elements in @p
+ * source_vertex).
+ * @param radius  Include all neighbors of distance <= radius from @p source_vertex.
+ * @return std::tuple<rmm::device_uvector<vertex_t>, rmm::device_uvector<vertex_t>,
+ * rmm::device_uvector<weight_t>, rmm::device_uvector<size_t>> Quadraplet of edge source vertices,
+ * edge destination vertices, edge weights, and edge offsets for each induced EgoNet subgraph.
+ */
 template <typename vertex_t, typename edge_t, typename weight_t, bool multi_gpu>
-std::
-  tuple<rmm::device_uvector<vertex_t>, rmm::device_uvector<vertex_t>, rmm::device_uvector<weight_t>>
-  extract_ego(raft::handle_t const &handle,
-              graph_view_t<vertex_t, edge_t, weight_t, false, multi_gpu> const &graph_view,
-              vertex_t source_vertex,
-              vertex_t radius);
+std::tuple<rmm::device_uvector<vertex_t>,
+           rmm::device_uvector<vertex_t>,
+           rmm::device_uvector<weight_t>,
+           rmm::device_uvector<size_t>>
+extract_ego(raft::handle_t const &handle,
+            graph_view_t<vertex_t, edge_t, weight_t, false, multi_gpu> const &graph_view,
+            vertex_t *source_vertex,
+            vertex_t n_subgraphs,
+            vertex_t radius);
 }  // namespace experimental
 }  // namespace cugraph
