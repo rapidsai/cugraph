@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 #pragma once
-
+#include <experimental/graph.hpp>
 #include <experimental/graph_view.hpp>
 #include <graph.hpp>
 #include <internals.hpp>
@@ -815,6 +815,7 @@ template <typename VT, typename ET, typename WT>
 std::unique_ptr<GraphCOO<VT, ET, WT>> extract_subgraph_vertex(GraphCOOView<VT, ET, WT> const &graph,
                                                               VT const *vertices,
                                                               VT num_vertices);
+}  // namespace subgraph
 
 /**
  * @brief     Wrapper function for Nvgraph balanced cut clustering
@@ -837,16 +838,6 @@ std::unique_ptr<GraphCOO<VT, ET, WT>> extract_subgraph_vertex(GraphCOOView<VT, E
  * @param[out] clustering            Pointer to device memory where the resulting clustering will
  * be stored
  */
-}  // namespace subgraph
-
-namespace egonet {
-template <typename vertex_t, typename edge_t, typename weight_t>
-std::unique_ptr<GraphCOO<vertex_t, edge_t, weight_t>> extract_ego(
-  raft::handle_t const &handle,
-  GraphCSRView<vertex_t, edge_t, weight_t> const &csr_view,
-  vertex_t source_vertex,
-  vertex_t radius);
-}
 
 namespace ext_raft {
 template <typename VT, typename ET, typename WT>
@@ -1201,5 +1192,12 @@ void katz_centrality(raft::handle_t const &handle,
                      bool normalize          = false,
                      bool do_expensive_check = false);
 
+template <typename vertex_t, typename edge_t, typename weight_t, bool multi_gpu>
+std::
+  tuple<rmm::device_uvector<vertex_t>, rmm::device_uvector<vertex_t>, rmm::device_uvector<weight_t>>
+  extract_ego(raft::handle_t const &handle,
+              graph_view_t<vertex_t, edge_t, weight_t, false, multi_gpu> const &graph_view,
+              vertex_t source_vertex,
+              vertex_t radius);
 }  // namespace experimental
 }  // namespace cugraph
