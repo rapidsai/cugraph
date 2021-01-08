@@ -59,6 +59,12 @@ def uncommittedFiles():
     return ret
 
 
+def changedFilesFromBase(base):
+    """Returns a list of files changed between the current branch and base"""
+    files = __gitdiff("--name-only", "--ignore-submodules", f"{base}...")
+    return files.splitlines()
+
+
 def changedFilesBetween(b1, b2):
     """Returns a list of files changed between branches b1 and b2"""
     current = branch()
@@ -87,9 +93,9 @@ def changesInFileBetween(file, b1, b2, pathFilter=None):
 
 def modifiedFiles(pathFilter=None):
     """
-    If inside a CI-env (ie. TARGET_BRANCH is defined and current branch is
-    HEAD), then lists out all files modified between these 2 branches. Else,
-    lists out all the uncommitted files in the current branch.
+    If inside a CI-env (ie. TARGET_BRANCH is defined), then lists out all files
+    modified between these 2 branches. Else, lists out all the uncommitted files
+    in the current branch.
 
     Such utility function is helpful while putting checker scripts as part of
     cmake, as well as CI process. This way, during development, only the files
@@ -98,15 +104,13 @@ def modifiedFiles(pathFilter=None):
     checked. This happens, all the while using the same script.
     """
     targetBranch = os.environ.get("TARGET_BRANCH")
-    currentBranch = branch()
-    if targetBranch and (currentBranch == "HEAD"):
+    if targetBranch:
         print("   [DEBUG] Assuming a CI environment: "
-              f"TARGET_BRANCH={targetBranch}, currentBranch={currentBranch}")
-        allFiles = changedFilesBetween(os.environ["TARGET_BRANCH"],
-                                       currentBranch)
+              f"TARGET_BRANCH={targetBranch}")
+        allFiles = changedFilesFromBase(base=targetBranch)
     else:
         print("   [DEBUG] Did not detect CI environment: "
-              f"TARGET_BRANCH={targetBranch}, currentBranch={currentBranch}")
+              f"TARGET_BRANCH={targetBranch}")
         allFiles = uncommittedFiles()
 
     files = []
