@@ -3,28 +3,28 @@
 # Labels culled from https://github.com/rapidsai/cugraph/labels
 
 python:
-  - python/**
-  - notebooks/**
-  - benchmarks/**
+  - 'python/**'
+  - 'notebooks/**'
+  - 'benchmarks/**'
   
 doc:
-  - docs/**
-  - **/*.md
+  - 'docs/**'
+  - '**/*.md'
   
 datasets:
-  - datasets/**
+  - 'datasets/**'
   
 cuGraph:
-  - cpp/**
+  - 'cpp/**'
 
 CMake:
-  - **/CMakeLists.txt
-  - **/cmake/**
+  - '**/CMakeLists.txt'
+  - '**/cmake/**'
   
 Ops:
-  - .github/**
-  - ci/**
-  - conda/**
-  - **/Dockerfile
-  - **/.dockerignore
-  - docker/**
+  - '.github/**'
+  - 'ci/**'
+  - 'conda/**'
+  - '**/Dockerfile'
+  - '**/.dockerignore'
+  - 'docker/**'
