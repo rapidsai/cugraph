@@ -152,18 +152,18 @@ struct compute_gpu_id_from_vertex_t {
   }
 };
 
-template <typename vertex_t, bool store_transposed>
+template <typename vertex_t>
 struct compute_gpu_id_from_edge_t {
   bool hypergraph_partitioned{false};
   int comm_size{0};
   int row_comm_size{0};
   int col_comm_size{0};
 
-  __device__ int operator()(vertex_t src, vertex_t dst) const
+  __device__ int operator()(vertex_t major, vertex_t minor) const
   {
     cuco::detail::MurmurHash3_32<vertex_t> hash_func{};
-    auto major_comm_rank = static_cast<int>(hash_func(store_transposed ? dst : src) % comm_size);
-    auto minor_comm_rank = static_cast<int>(hash_func(store_transposed ? src : dst) % comm_size);
+    auto major_comm_rank = static_cast<int>(hash_func(major) % comm_size);
+    auto minor_comm_rank = static_cast<int>(hash_func(minor) % comm_size);
     if (hypergraph_partitioned) {
       return (minor_comm_rank / col_comm_size) * row_comm_size + (major_comm_rank % row_comm_size);
     } else {

@@ -208,7 +208,8 @@ std::enable_if_t<
 coarsen_graph(
   raft::handle_t const &handle,
   graph_view_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu> const &graph_view,
-  vertex_t const *labels)
+  vertex_t const *labels,
+  bool do_expensive_check)
 {
   auto &comm               = handle.get_comms();
   auto const comm_size     = comm.get_size();
@@ -219,6 +220,10 @@ coarsen_graph(
   auto &col_comm           = handle.get_subcomm(cugraph::partition_2d::key_naming_t().col_name());
   auto const col_comm_size = col_comm.get_size();
   auto const col_comm_rank = col_comm.get_rank();
+
+  if (do_expensive_check) {
+    // currently, nothing to do
+  }
 
   // 1. locally construct coarsened edge list
 
@@ -338,13 +343,11 @@ coarsen_graph(
         edge_first,
         edge_first + coarsened_edgelist_major_vertices.size(),
         [key_func =
-           detail::compute_gpu_id_from_edge_t<vertex_t, store_transposed>{
-             graph_view.is_hypergraph_partitioned(),
-             comm.get_size(),
-             row_comm.get_size(),
-             col_comm.get_size()}] __device__(auto val) {
-          return store_transposed ? key_func(thrust::get<1>(val), thrust::get<0>(val))
-                                  : key_func(thrust::get<0>(val), thrust::get<1>(val));
+           detail::compute_gpu_id_from_edge_t<vertex_t>{graph_view.is_hypergraph_partitioned(),
+                                                        comm.get_size(),
+                                                        row_comm.get_size(),
+                                                        col_comm.get_size()}] __device__(auto val) {
+          return key_func(thrust::get<0>(val), thrust::get<1>(val));
         },
         handle.get_stream());
 
@@ -410,11 +413,15 @@ coarsen_graph(
   vertex_t number_of_vertices{};
   edge_t number_of_edges{};
   std::tie(renumber_map_labels, partition, number_of_vertices, number_of_edges) =
-    renumber_edgelist<vertex_t, edge_t, multi_gpu>(handle,
-                                                   unique_labels,
-                                                   coarsened_edgelist_major_vertices,
-                                                   coarsened_edgelist_minor_vertices,
-                                                   graph_view.is_hypergraph_partitioned());
+    renumber_edgelist<vertex_t, edge_t, multi_gpu>(
+      handle,
+      unique_labels.data(),
+      static_cast<vertex_t>(unique_labels.size()),
+      coarsened_edgelist_major_vertices.data(),
+      coarsened_edgelist_minor_vertices.data(),
+      static_cast<edge_t>(coarsened_edgelist_major_vertices.size()),
+      graph_view.is_hypergraph_partitioned(),
+      do_expensive_check);
 
   // 5. build a graph
 
@@ -423,10 +430,10 @@ coarsen_graph(
     CUGRAPH_FAIL("unimplemented.");
   } else {
     edgelists.resize(1);
-    edgelists[0].p_src_vertices  = store_transposed ? coarsened_edgelist_minor_vertices.data()
-                                                    : coarsened_edgelist_major_vertices.data();
-    edgelists[0].p_dst_vertices  = store_transposed ? coarsened_edgelist_major_vertices.data()
-                                                    : coarsened_edgelist_minor_vertices.data();
+    edgelists[0].p_src_vertices = store_transposed ? coarsened_edgelist_minor_vertices.data()
+                                                   : coarsened_edgelist_major_vertices.data();
+    edgelists[0].p_dst_vertices = store_transposed ? coarsened_edgelist_major_vertices.data()
+                                                   : coarsened_edgelist_minor_vertices.data();
     edgelists[0].p_edge_weights  = coarsened_edgelist_weights.data();
     edgelists[0].number_of_edges = static_cast<edge_t>(coarsened_edgelist_major_vertices.size());
   }
@@ -456,8 +463,13 @@ std::enable_if_t<
 coarsen_graph(
   raft::handle_t const &handle,
   graph_view_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu> const &graph_view,
-  vertex_t const *labels)
+  vertex_t const *labels,
+  bool do_expensive_check)
 {
+  if (do_expensive_check) {
+    // currently, nothing to do
+  }
+
   rmm::device_uvector<vertex_t> coarsened_edgelist_major_vertices(0, handle.get_stream());
   rmm::device_uvector<vertex_t> coarsened_edgelist_minor_vertices(0, handle.get_stream());
   rmm::device_uvector<weight_t> coarsened_edgelist_weights(0, handle.get_stream());
@@ -493,13 +505,19 @@ coarsen_graph(
     handle.get_stream());
 
   auto renumber_map_labels = renumber_edgelist<vertex_t, edge_t, multi_gpu>(
-    handle, unique_labels, coarsened_edgelist_major_vertices, coarsened_edgelist_minor_vertices);
+    handle,
+    unique_labels.data(),
+    static_cast<vertex_t>(unique_labels.size()),
+    coarsened_edgelist_major_vertices.data(),
+    coarsened_edgelist_minor_vertices.data(),
+    static_cast<edge_t>(coarsened_edgelist_major_vertices.size()),
+    do_expensive_check);
 
   edgelist_t<vertex_t, edge_t, weight_t> edgelist{};
-  edgelist.p_src_vertices  = store_transposed ? coarsened_edgelist_minor_vertices.data()
-                                              : coarsened_edgelist_major_vertices.data();
-  edgelist.p_dst_vertices  = store_transposed ? coarsened_edgelist_major_vertices.data()
-                                              : coarsened_edgelist_minor_vertices.data();
+  edgelist.p_src_vertices = store_transposed ? coarsened_edgelist_minor_vertices.data()
+                                             : coarsened_edgelist_major_vertices.data();
+  edgelist.p_dst_vertices = store_transposed ? coarsened_edgelist_major_vertices.data()
+                                             : coarsened_edgelist_minor_vertices.data();
   edgelist.p_edge_weights  = coarsened_edgelist_weights.data();
   edgelist.number_of_edges = static_cast<edge_t>(coarsened_edgelist_major_vertices.size());
 
@@ -525,9 +543,10 @@ std::tuple<std::unique_ptr<graph_t<vertex_t, edge_t, weight_t, store_transposed,
 coarsen_graph(
   raft::handle_t const &handle,
   graph_view_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu> const &graph_view,
-  vertex_t const *labels)
+  vertex_t const *labels,
+  bool do_expensive_check)
 {
-  return detail::coarsen_graph(handle, graph_view, labels);
+  return detail::coarsen_graph(handle, graph_view, labels, do_expensive_check);
 }
 
 // explicit instantiation
@@ -536,25 +555,29 @@ template std::tuple<std::unique_ptr<graph_t<int32_t, int32_t, float, true, true>
                     rmm::device_uvector<int32_t>>
 coarsen_graph(raft::handle_t const &handle,
               graph_view_t<int32_t, int32_t, float, true, true> const &graph_view,
-              int32_t const *labels);
+              int32_t const *labels,
+              bool do_expensive_check);
 
 template std::tuple<std::unique_ptr<graph_t<int32_t, int32_t, float, false, true>>,
                     rmm::device_uvector<int32_t>>
 coarsen_graph(raft::handle_t const &handle,
               graph_view_t<int32_t, int32_t, float, false, true> const &graph_view,
-              int32_t const *labels);
+              int32_t const *labels,
+              bool do_expensive_check);
 
 template std::tuple<std::unique_ptr<graph_t<int32_t, int32_t, float, true, false>>,
                     rmm::device_uvector<int32_t>>
 coarsen_graph(raft::handle_t const &handle,
               graph_view_t<int32_t, int32_t, float, true, false> const &graph_view,
-              int32_t const *labels);
+              int32_t const *labels,
+              bool do_expensive_check);
 
 template std::tuple<std::unique_ptr<graph_t<int32_t, int32_t, float, false, false>>,
                     rmm::device_uvector<int32_t>>
 coarsen_graph(raft::handle_t const &handle,
               graph_view_t<int32_t, int32_t, float, false, false> const &graph_view,
-              int32_t const *labels);
+              int32_t const *labels,
+              bool do_expensive_check);
 
 }  // namespace experimental
 }  // namespace cugraph

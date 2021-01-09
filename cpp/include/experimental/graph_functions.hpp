@@ -28,7 +28,6 @@
 namespace cugraph {
 namespace experimental {
 
-// FIXME: add do_expensive_check
 /**
  * @brief renumber edgelist (multi-GPU)
  *
@@ -44,15 +43,17 @@ namespace experimental {
  * @param edgelist_major_vertices Edge source vertex IDs (if the graph adjacency matrix is stored as
  * is) or edge destination vertex IDs (if the transposed graph adjacency matrix is stored). Vertex
  * IDs are updated in-place ([INOUT] parameter). Applying the compute_gpu_id_from_edge_t functor to
- * every (source, destination) pair should return the local GPU ID for this function to work (edges
- * should be pre-shuffled).
+ * every (major, minor) pair should return the local GPU ID for this function to work (edges should
+ * be pre-shuffled).
  * @param edgelist_minor_vertices Edge destination vertex IDs (if the graph adjacency matrix is
  * stored as is) or edge source vertex IDs (if the transposed graph adjacency matrix is stored).
- * Vertex IDs are updated in-place ([INOUT] parameter).
+ * Vertex IDs are updated in-place ([INOUT] parameter). Applying the compute_gpu_id_from_edge_t
+ * functor to every (major, minor) pair should return the local GPU ID for this function to work
+ * (edges should be pre-shuffled).
+ * @param num_edgelist_edges Number of edges in the edgelist.
  * @param is_hypergraph_partitioned Flag indicating whether we are assuming hypergraph partitioning
- * (this flag will be removed in the future). Applying the compute_gpu_id_from_edge_t functor to
- * every (source, destination) pair should return the local GPU ID for this function to work (edges
- * should be pre-shuffled).
+ * (this flag will be removed in the future).
+ * @param do_expensive_check A flag to run expensive checks for input arguments (if set to `true`).
  * @return std::tuple<rmm::device_uvector<vertex_t>, partition_t<vertex_t>, vertex_t, edge_t>
  * Quadruplet of labels (vertex IDs before renumbering) for the entire set of vertices (assigned to
  * this process in multi-GPU), partition_t object storing graph partitioning information, total
@@ -62,11 +63,12 @@ template <typename vertex_t, typename edge_t, bool multi_gpu>
 std::enable_if_t<multi_gpu,
                  std::tuple<rmm::device_uvector<vertex_t>, partition_t<vertex_t>, vertex_t, edge_t>>
 renumber_edgelist(raft::handle_t const& handle,
-                  rmm::device_uvector<vertex_t>& edgelist_major_vertices /* [INOUT] */,
-                  rmm::device_uvector<vertex_t>& edgelist_minor_vertices /* [INOUT] */,
-                  bool is_hypergraph_partitioned);
+                  vertex_t* edgelist_major_vertices /* [INOUT] */,
+                  vertex_t* edgelist_minor_vertices /* [INOUT] */,
+                  edge_t num_edgelist_edges,
+                  bool is_hypergraph_partitioned,
+                  bool do_expensive_check = false);
 
-// FIXME: add do_expensive_check
 /**
  * @brief renumber edgelist (single-GPU)
  *
@@ -82,16 +84,19 @@ renumber_edgelist(raft::handle_t const& handle,
  * @param edgelist_minor_vertices Edge destination vertex IDs (if the graph adjacency matrix is
  * stored as is) or edge source vertex IDs (if the transposed graph adjacency matrix is stored).
  * Vertex IDs are updated in-place ([INOUT] parameter).
+ * @param num_edgelist_edges Number of edges in the edgelist.
+ * @param do_expensive_check A flag to run expensive checks for input arguments (if set to `true`).
  * @return rmm::device_uvector<vertex_t> Labels (vertex IDs before renumbering) for the entire set
  * of vertices.
  */
 template <typename vertex_t, typename edge_t, bool multi_gpu>
 std::enable_if_t<!multi_gpu, rmm::device_uvector<vertex_t>> renumber_edgelist(
   raft::handle_t const& handle,
-  rmm::device_uvector<vertex_t>& edgelist_major_vertices /* [INOUT] */,
-  rmm::device_uvector<vertex_t>& edgelist_minor_vertices /* [INOUT] */);
+  vertex_t* edgelist_major_vertices /* [INOUT] */,
+  vertex_t* edgelist_minor_vertices /* [INOUT] */,
+  edge_t num_edgelist_edges,
+  bool do_expensive_check = false);
 
-// FIXME: add do_expensive_check
 /**
  * @brief renumber edgelist (multi-GPU)
  *
@@ -106,21 +111,24 @@ std::enable_if_t<!multi_gpu, rmm::device_uvector<vertex_t>> renumber_edgelist(
  * or multi-GPU (true).
  * @param handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator, and
  * handles to various CUDA libraries) to run graph algorithms.
- * @param vertices Part of the entire set of vertices in the graph to be renumbered. Applying the
- * compute_gpu_id_from_vertex_t to every vertex should return the local GPU ID for this function to
- * work (vertices should be pre-shuffled).
+ * @param local_vertices Part of the entire set of vertices in the graph to be renumbered. Applying
+ * the compute_gpu_id_from_vertex_t to every vertex should return the local GPU ID for this function
+ * to work (vertices should be pre-shuffled).
+ * @param num_local_vertices Number of local vertices.
  * @param edgelist_major_vertices Edge source vertex IDs (if the graph adjacency matrix is stored as
  * is) or edge destination vertex IDs (if the transposed graph adjacency matrix is stored). Vertex
  * IDs are updated in-place ([INOUT] parameter). Applying the compute_gpu_id_from_edge_t functor to
- * every (source, destination) pair should return the local GPU ID for this function to work (edges
- * should be pre-shuffled).
+ * every (major, minor) pair should return the local GPU ID for this function to work (edges should
+ * be pre-shuffled).
  * @param edgelist_minor_vertices Edge destination vertex IDs (if the graph adjacency matrix is
  * stored as is) or edge source vertex IDs (if the transposed graph adjacency matrix is stored).
- * Vertex IDs are updated in-place ([INOUT] parameter).
+ * Vertex IDs are updated in-place ([INOUT] parameter). Applying the compute_gpu_id_from_edge_t
+ * functor to every (major, minor) pair should return the local GPU ID for this function to work
+ * (edges should be pre-shuffled).
+ * @param num_edgelist_edges Number of edges in the edgelist.
  * @param is_hypergraph_partitioned Flag indicating whether we are assuming hypergraph partitioning
- * (this flag will be removed in the future). Applying the compute_gpu_id_from_edge_t functor to
- * every (source, destination) pair should return the local GPU ID for this function to work (edges
- * should be pre-shuffled).
+ * (this flag will be removed in the future).
+ * @param do_expensive_check A flag to run expensive checks for input arguments (if set to `true`).
  * @return std::tuple<rmm::device_uvector<vertex_t>, partition_t<vertex_t>, vertex_t, edge_t>
  * Quadruplet of labels (vertex IDs before renumbering) for the entire set of vertices (assigned to
  * this process in multi-GPU), partition_t object storing graph partitioning information, total
@@ -130,12 +138,14 @@ template <typename vertex_t, typename edge_t, bool multi_gpu>
 std::enable_if_t<multi_gpu,
                  std::tuple<rmm::device_uvector<vertex_t>, partition_t<vertex_t>, vertex_t, edge_t>>
 renumber_edgelist(raft::handle_t const& handle,
-                  rmm::device_uvector<vertex_t> const& vertices,
-                  rmm::device_uvector<vertex_t>& edgelist_major_vertices /* [INOUT] */,
-                  rmm::device_uvector<vertex_t>& edgelist_minor_vertices /* [INOUT] */,
-                  bool is_hypergraph_partitioned);
+                  vertex_t const* local_vertices,
+                  vertex_t num_local_vertices,
+                  vertex_t* edgelist_major_vertices /* [INOUT] */,
+                  vertex_t* edgelist_minor_vertices /* [INOUT] */,
+                  edge_t num_edgelist_edges,
+                  bool is_hypergraph_partitioned,
+                  bool do_expensive_check = false);
 
-// FIXME: add do_expensive_check
 /**
  * @brief renumber edgelist (single-GPU)
  *
@@ -149,23 +159,28 @@ renumber_edgelist(raft::handle_t const& handle,
  * @param handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator, and
  * handles to various CUDA libraries) to run graph algorithms.
  * @param vertices The entire set of vertices in the graph to be renumbered.
+ * @param num_vertices Number of vertices.
  * @param edgelist_major_vertices Edge source vertex IDs (if the graph adjacency matrix is stored as
  * is) or edge destination vertex IDs (if the transposed graph adjacency matrix is stored). Vertex
  * IDs are updated in-place ([INOUT] parameter).
  * @param edgelist_minor_vertices Edge destination vertex IDs (if the graph adjacency matrix is
  * stored as is) or edge source vertex IDs (if the transposed graph adjacency matrix is stored).
  * Vertex IDs are updated in-place ([INOUT] parameter).
+ * @param num_edgelist_edges Number of edges in the edgelist.
+ * @param do_expensive_check A flag to run expensive checks for input arguments (if set to `true`).
  * @return rmm::device_uvector<vertex_t> Labels (vertex IDs before renumbering) for the entire set
  * of vertices.
  */
 template <typename vertex_t, typename edge_t, bool multi_gpu>
 std::enable_if_t<!multi_gpu, rmm::device_uvector<vertex_t>> renumber_edgelist(
   raft::handle_t const& handle,
-  rmm::device_uvector<vertex_t> const& vertices,
-  rmm::device_uvector<vertex_t>& edgelist_major_vertices /* [INOUT] */,
-  rmm::device_uvector<vertex_t>& edgelist_minor_vertices /* [INOUT] */);
+  vertex_t const* vertices,
+  vertex_t num_vertices,
+  vertex_t* edgelist_major_vertices /* [INOUT] */,
+  vertex_t* edgelist_minor_vertices /* [INOUT] */,
+  edge_t num_edgelist_edges,
+  bool do_expensive_check = false);
 
-// FIXME: add do_expensive_check
 /**
  * @brief Compute the coarsened graph.
  *
@@ -184,6 +199,7 @@ std::enable_if_t<!multi_gpu, rmm::device_uvector<vertex_t>> renumber_edgelist(
  * handles to various CUDA libraries) to run graph algorithms.
  * @param graph_view Graph view object of the input graph to be coarsened.
  * @param labels Vertex labels (assigned to this process in multi-GPU) to be used in coarsening.
+ * @param do_expensive_check A flag to run expensive checks for input arguments (if set to `true`).
  * @return std::tuple<std::unique_ptr<graph_t<vertex_t, edge_t, weight_t, store_transposed,
  * multi_gpu>>, rmm::device_uvector<vertex_t>> Tuple of the coarsened graph and labels mapped to the
  * vertices (assigned to this process in multi-GPU) in the coarsened graph.
@@ -198,9 +214,9 @@ std::tuple<std::unique_ptr<graph_t<vertex_t, edge_t, weight_t, store_transposed,
 coarsen_graph(
   raft::handle_t const& handle,
   graph_view_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu> const& graph_view,
-  vertex_t const* labels);
+  vertex_t const* labels,
+  bool do_expensive_check = false);
 
-// FIXME: add do_expensive_check
 /**
  * @brief Relabel old labels to new labels.
  *
@@ -209,18 +225,23 @@ coarsen_graph(
  * or multi-GPU (true).
  * @param handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator, and
  * handles to various CUDA libraries) to run graph algorithms.
- * @param old_labels Old labels to be relabeled.
  * @param old_new_label_pairs Pairs of an old label and the corresponding new label (each process
  * holds only part of the entire old labels and the corresponding new labels; partitioning can be
  * arbitrary).
+ * @param num_label_pairs Number of (old, new) label pairs.
+ * @param labels Labels to be relabeled. This initially holds old labels. Old labels are updated to
+ * new labels in-place ([INOUT] parameter).
+ * @param num_labels Number of labels to be relabeled.
+ * @param do_expensive_check A flag to run expensive checks for input arguments (if set to `true`).
  * @return rmm::device_uvector<vertex_t> New labels corresponding to the @p old_labels.
  */
 template <typename vertex_t, bool multi_gpu>
-rmm::device_uvector<vertex_t> relabel(
-  raft::handle_t const& handle,
-  rmm::device_uvector<vertex_t> const& old_labels,
-  std::tuple<rmm::device_uvector<vertex_t>, rmm::device_uvector<vertex_t>> const&
-    old_new_label_pairs);
+void relabel(raft::handle_t const& handle,
+             std::tuple<vertex_t const*, vertex_t const*> old_new_label_pairs,
+             vertex_t num_label_pairs,
+             vertex_t* labels /* [INOUT] */,
+             vertex_t num_labels,
+             bool do_expensive_check = false);
 
 }  // namespace experimental
 }  // namespace cugraph
