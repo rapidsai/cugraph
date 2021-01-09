@@ -59,20 +59,23 @@ def uncommittedFiles():
     return ret
 
 
-def changedFilesFromBase(base):
-    """Returns a list of files changed between base and HEAD"""
-    files = __gitdiff("--name-only", "--ignore-submodules", f"{base}...HEAD")
-    return files.splitlines()
-
-
-def changedFilesBetween(b1, b2):
-    """Returns a list of files changed between branches b1 and b2"""
+def changedFilesBetween(base, branch, commitHash):
+    """
+    Returns a list of files changed between branches base and latest commit of
+    branch.
+    """
     current = branch()
-    __git("checkout", "--quiet", b1)
-    __git("checkout", "--quiet", b2)
-    files = __gitdiff("--name-only", "--ignore-submodules", "%s...%s" %
-                      (b1, b2))
-    __git("checkout", "--quiet", current)
+    # checkout "base" branch
+    __git("checkout", "--force", base)
+    # checkout branch for comparing
+    __git("checkout", "--force", branch)
+    # checkout latest commit from branch
+    __git("checkout", "-fq", commitHash)
+
+    files = __gitdiff("--name-only", "--ignore-submodules", f"{base}..{branch}")
+
+    # restore the original branch
+    __git("checkout", "--force", current)
     return files.splitlines()
 
 
@@ -93,9 +96,10 @@ def changesInFileBetween(file, b1, b2, pathFilter=None):
 
 def modifiedFiles(pathFilter=None):
     """
-    If inside a CI-env (ie. TARGET_BRANCH is defined), then lists out all files
-    modified between these 2 branches. Else, lists out all the uncommitted files
-    in the current branch.
+    If inside a CI-env (ie. TARGET_BRANCH and COMMIT_HASH are defined, and
+    current branch is "current-pr-branch"), then lists out all files modified
+    between these 2 branches. Else, lists out all the uncommitted files in the
+    current branch.
 
     Such utility function is helpful while putting checker scripts as part of
     cmake, as well as CI process. This way, during development, only the files
@@ -104,13 +108,16 @@ def modifiedFiles(pathFilter=None):
     checked. This happens, all the while using the same script.
     """
     targetBranch = os.environ.get("TARGET_BRANCH")
-    if targetBranch:
-        print("   [DEBUG] Assuming a CI environment: "
-              f"TARGET_BRANCH={targetBranch}")
-        allFiles = changedFilesFromBase(base=targetBranch)
+    commitHash = os.environ.get("COMMIT_HASH")
+    currentBranch = branch()
+    print(f"   [DEBUG] TARGET_BRANCH={targetBranch}, COMMIT_HASH={commitHash}, "
+          f"currentBranch={currentBranch}")
+
+    if targetBranch and commitHash and (currentBranch == "current-pr-branch"):
+        print("   [DEBUG] Assuming a CI environment.")
+        allFiles = changedFilesBetween(targetBranch, currentBranch, commitHash)
     else:
-        print("   [DEBUG] Did not detect CI environment: "
-              f"TARGET_BRANCH={targetBranch}")
+        print("   [DEBUG] Did not detect CI environment.")
         allFiles = uncommittedFiles()
 
     files = []
