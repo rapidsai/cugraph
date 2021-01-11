@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020, NVIDIA CORPORATION.
+ * Copyright (c) 2020-2021, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -116,7 +116,7 @@ void verify_betweenness_centrality_input(result_t *result,
   static_assert(std::is_same<result_t, float>::value || std::is_same<result_t, double>::value,
                 "result_t should be float or double");
 
-  CUGRAPH_EXPECTS(result != nullptr, "Invalid API parameter: betwenness pointer is NULL");
+  CUGRAPH_EXPECTS(result != nullptr, "Invalid input argument: betwenness pointer is NULL");
   CUGRAPH_EXPECTS(number_of_sources >= 0, "Number of sources must be positive or equal to 0.");
   if (number_of_sources != 0) {
     CUGRAPH_EXPECTS(sources != nullptr,

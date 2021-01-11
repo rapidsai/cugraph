@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019-2020, NVIDIA CORPORATION.
+ * Copyright (c) 2019-2021, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -114,7 +114,7 @@ void ecg(raft::handle_t const &handle,
          vertex_t ensemble_size,
          vertex_t *clustering)
 {
-  CUGRAPH_EXPECTS(graph.edge_data != nullptr, "API error, louvain expects a weighted graph");
+  CUGRAPH_EXPECTS(graph.edge_data != nullptr, "Invalid input argument: louvain expects a weighted graph");
   CUGRAPH_EXPECTS(clustering != nullptr, "Invalid input argument: clustering is NULL");
 
   cudaStream_t stream{0};
