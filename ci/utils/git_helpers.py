@@ -59,20 +59,21 @@ def uncommittedFiles():
     return ret
 
 
-def changedFilesBetween(base, branch, commitHash):
+def changedFilesBetween(baseName, branchName, commitHash):
     """
-    Returns a list of files changed between branches base and latest commit of
-    branch.
+    Returns a list of files changed between branches baseName and latest commit
+    of branchName.
     """
     current = branch()
     # checkout "base" branch
-    __git("checkout", "--force", base)
+    __git("checkout", "--force", baseName)
     # checkout branch for comparing
-    __git("checkout", "--force", branch)
+    __git("checkout", "--force", branchName)
     # checkout latest commit from branch
     __git("checkout", "-fq", commitHash)
 
-    files = __gitdiff("--name-only", "--ignore-submodules", f"{base}..{branch}")
+    files = __gitdiff("--name-only", "--ignore-submodules",
+                      f"{baseName}..{branchName}")
 
     # restore the original branch
     __git("checkout", "--force", current)
