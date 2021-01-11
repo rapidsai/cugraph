@@ -36,8 +36,10 @@ def betweenness_centrality(
     Betweenness centrality is a measure of the number of shortest paths that
     pass through a vertex.  A vertex with a high betweenness centrality score
     has more paths passing through it and is therefore believed to be more
-    important. Rather than doing an all-pair shortest path, a sample of k
-    starting vertices can be used.
+    important. 
+    
+    To improve performance. rather than doing an all-pair shortest path, 
+    a sample of k starting vertices can be used.
 
     CuGraph does not currently support the 'endpoints' and 'weight' parameters
     as seen in the corresponding networkX call.
@@ -52,19 +54,18 @@ def betweenness_centrality(
 
     k : int or list or None, optional, default=None
         If k is not None, use k node samples to estimate betweenness.  Higher
-        values give better approximation
-        If k is a list, use the content of the list for estimation: the list
-        should contain vertices identifiers.
-        If k is None (the default), all the vertices are used to estimate
-        betweenness.
-        Vertices obtained through sampling or defined as a list will be used as
-        sources for traversals inside the algorithm.
+        values give better approximation.  If k is a list, use the content
+        of the list for estimation: the list should contain vertices
+        identifiers. If k is None (the default), all the vertices are used
+        to estimate betweenness.  Vertices obtained through sampling or
+        defined as a list will be used assources for traversals inside the
+        algorithm.
 
     normalized : bool, optional
         Default is True.
         If true, the betweenness values are normalized by
-        2 / ((n - 1) * (n - 2)) for Graphs (undirected), and
-        1 / ((n - 1) * (n - 2)) for DiGraphs (directed graphs)
+        __2 / ((n - 1) * (n - 2))__ for Graphs (undirected), and
+        __1 / ((n - 1) * (n - 2))__ for DiGraphs (directed graphs)
         where n is the number of nodes in G.
         Normalization will ensure that values are in [0, 1],
         this normalization scales for the highest possible value where one
@@ -143,17 +144,24 @@ def betweenness_centrality(
     else:
         return df
 
-
+# NOTE: result_type=float could be an intuitive way to indicate the result type
 def edge_betweenness_centrality(
-    G, k=None, normalized=True, weight=None, seed=None, result_dtype=np.float64
+    G,
+    k=None,
+    normalized=True,
+    weight=None,
+    seed=None,
+    result_dtype=np.float64
 ):
     """
     Compute the edge betweenness centrality for all edges of the graph G.
     Betweenness centrality is a measure of the number of shortest paths
     that pass over an edge.  An edge with a high betweenness centrality
     score has more paths passing over it and is therefore believed to be
-    more important. Rather than doing an all-pair shortest path, a sample
-    of k starting vertices can be used.
+    more important. 
+    
+    To improve performance, rather than doing an all-pair shortest path, 
+    a sample of k starting vertices can be used.
 
     CuGraph does not currently support the 'weight' parameter
     as seen in the corresponding networkX call.
@@ -168,7 +176,7 @@ def edge_betweenness_centrality(
 
     k : int or list or None, optional, default=None
         If k is not None, use k node samples to estimate betweenness.  Higher
-        values give better approximation
+        values give better approximation.
         If k is a list, use the content of the list for estimation: the list
         should contain vertices identifiers.
         Vertices obtained through sampling or defined as a list will be used as
