@@ -114,7 +114,8 @@ void ecg(raft::handle_t const &handle,
          vertex_t ensemble_size,
          vertex_t *clustering)
 {
-  CUGRAPH_EXPECTS(graph.edge_data != nullptr, "Invalid input argument: louvain expects a weighted graph");
+  CUGRAPH_EXPECTS(graph.edge_data != nullptr,
+                  "Invalid input argument: louvain expects a weighted graph");
   CUGRAPH_EXPECTS(clustering != nullptr, "Invalid input argument: clustering is NULL");
 
   cudaStream_t stream{0};

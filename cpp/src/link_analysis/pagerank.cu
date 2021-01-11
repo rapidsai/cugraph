@@ -378,7 +378,8 @@ void pagerank(raft::handle_t const &handle,
               int64_t max_iter,
               bool has_guess)
 {
-  CUGRAPH_EXPECTS(pagerank != nullptr, "Invalid input argument: Pagerank array should be of size V");
+  CUGRAPH_EXPECTS(pagerank != nullptr,
+                  "Invalid input argument: Pagerank array should be of size V");
   // Multi-GPU
   if (handle.comms_initialized()) {
     CUGRAPH_EXPECTS(has_guess == false,

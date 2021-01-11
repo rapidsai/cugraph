@@ -89,10 +89,11 @@ graph_view_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu, std::enabl
   CUGRAPH_EXPECTS(adj_matrix_partition_offsets.size() == adj_matrix_partition_indices.size(),
                   "Invalid input argument: adj_matrix_partition_offsets.size() and "
                   "adj_matrix_partition_indices.size() should coincide.");
-  CUGRAPH_EXPECTS((adj_matrix_partition_weights.size() == adj_matrix_partition_offsets.size()) ||
-                    (adj_matrix_partition_weights.size() == 0),
-                  "Invalid input argument: adj_matrix_partition_weights.size() should coincide with "
-                  "adj_matrix_partition_offsets.size() (if weighted) or 0 (if unweighted).");
+  CUGRAPH_EXPECTS(
+    (adj_matrix_partition_weights.size() == adj_matrix_partition_offsets.size()) ||
+      (adj_matrix_partition_weights.size() == 0),
+    "Invalid input argument: adj_matrix_partition_weights.size() should coincide with "
+    "adj_matrix_partition_offsets.size() (if weighted) or 0 (if unweighted).");
 
   CUGRAPH_EXPECTS(
     (partition.is_hypergraph_partitioned() &&
@@ -158,12 +159,13 @@ graph_view_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu, std::enabl
 
     if (sorted_by_global_degree_within_vertex_partition) {
       auto degrees = detail::compute_major_degree(handle, adj_matrix_partition_offsets, partition);
-      CUGRAPH_EXPECTS(thrust::is_sorted(rmm::exec_policy(default_stream)->on(default_stream),
-                                        degrees.begin(),
-                                        degrees.end(),
-                                        thrust::greater<edge_t>{}),
-                      "Invalid Invalid input argument: sorted_by_global_degree_within_vertex_partition is "
-                      "set to true, but degrees are not non-ascending.");
+      CUGRAPH_EXPECTS(
+        thrust::is_sorted(rmm::exec_policy(default_stream)->on(default_stream),
+                          degrees.begin(),
+                          degrees.end(),
+                          thrust::greater<edge_t>{}),
+        "Invalid Invalid input argument: sorted_by_global_degree_within_vertex_partition is "
+        "set to true, but degrees are not non-ascending.");
 
       for (int i = 0; i < (partition.is_hypergraph_partitioned() ? col_comm_size : row_comm_size);
            ++i) {
@@ -257,12 +259,13 @@ graph_view_t<vertex_t,
       auto degree_first =
         thrust::make_transform_iterator(thrust::make_counting_iterator(vertex_t{0}),
                                         detail::degree_from_offsets_t<vertex_t, edge_t>{offsets});
-      CUGRAPH_EXPECTS(thrust::is_sorted(rmm::exec_policy(default_stream)->on(default_stream),
-                                        degree_first,
-                                        degree_first + this->get_number_of_vertices(),
-                                        thrust::greater<edge_t>{}),
-                      "Invalid input argument: sorted_by_degree is set to true, but degrees are not "
-                      "non-ascending.");
+      CUGRAPH_EXPECTS(
+        thrust::is_sorted(rmm::exec_policy(default_stream)->on(default_stream),
+                          degree_first,
+                          degree_first + this->get_number_of_vertices(),
+                          thrust::greater<edge_t>{}),
+        "Invalid input argument: sorted_by_degree is set to true, but degrees are not "
+        "non-ascending.");
 
       CUGRAPH_EXPECTS(std::is_sorted(segment_offsets.begin(), segment_offsets.end()),
                       "Invalid input argument: erroneous segment_offsets.");

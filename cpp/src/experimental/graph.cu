@@ -472,12 +472,13 @@ graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu, std::enable_if_
     // optional expensive checks (part 2/2)
 
     if (do_expensive_check) {
-      CUGRAPH_EXPECTS(thrust::is_sorted(rmm::exec_policy(default_stream)->on(default_stream),
-                                        degree_first,
-                                        degree_first + this->get_number_of_vertices(),
-                                        thrust::greater<edge_t>{}),
-                      "Invalid input argument: sorted_by_degree is set to true, but degrees are not "
-                      "non-ascending.");
+      CUGRAPH_EXPECTS(
+        thrust::is_sorted(rmm::exec_policy(default_stream)->on(default_stream),
+                          degree_first,
+                          degree_first + this->get_number_of_vertices(),
+                          thrust::greater<edge_t>{}),
+        "Invalid input argument: sorted_by_degree is set to true, but degrees are not "
+        "non-ascending.");
     }
 
     static_assert(detail::num_segments_per_vertex_partition == 3);
