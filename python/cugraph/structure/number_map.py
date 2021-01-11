@@ -340,7 +340,7 @@ class NumberMap:
                     numbering_map, cudf.Series(base_addresses), val_types
                 )
 
-                self.ddf = numbering_map.persist()
+                self.ddf = numbering_map
                 self.numbered = True
 
         def to_internal_vertex_id(self, ddf, col_names):
