@@ -36,9 +36,9 @@ def betweenness_centrality(
     Betweenness centrality is a measure of the number of shortest paths that
     pass through a vertex.  A vertex with a high betweenness centrality score
     has more paths passing through it and is therefore believed to be more
-    important. 
-    
-    To improve performance. rather than doing an all-pair shortest path, 
+    important.
+
+    To improve performance. rather than doing an all-pair shortest path,
     a sample of k starting vertices can be used.
 
     CuGraph does not currently support the 'endpoints' and 'weight' parameters
@@ -144,7 +144,7 @@ def betweenness_centrality(
     else:
         return df
 
-# NOTE: result_type=float could be an intuitive way to indicate the result type
+
 def edge_betweenness_centrality(
     G,
     k=None,
@@ -158,9 +158,9 @@ def edge_betweenness_centrality(
     Betweenness centrality is a measure of the number of shortest paths
     that pass over an edge.  An edge with a high betweenness centrality
     score has more paths passing over it and is therefore believed to be
-    more important. 
-    
-    To improve performance, rather than doing an all-pair shortest path, 
+    more important.
+
+    To improve performance, rather than doing an all-pair shortest path,
     a sample of k starting vertices can be used.
 
     CuGraph does not currently support the 'weight' parameter
