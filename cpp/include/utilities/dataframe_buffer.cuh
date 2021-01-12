@@ -20,8 +20,8 @@
 #include <raft/handle.hpp>
 #include <rmm/device_uvector.hpp>
 
-#include <thrust/tuple.h>
 #include <thrust/iterator/zip_iterator.h>
+#include <thrust/tuple.h>
 
 #include <type_traits>
 

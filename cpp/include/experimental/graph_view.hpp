@@ -400,7 +400,8 @@ class graph_view_t<vertex_t,
     }
   }
 
-  edge_t get_number_of_local_adj_matrix_partition_edges(size_t adj_matrix_partition_idx) const {
+  edge_t get_number_of_local_adj_matrix_partition_edges(size_t adj_matrix_partition_idx) const
+  {
     return adj_matrix_partition_number_of_edges_[adj_matrix_partition_idx];
   }
 
@@ -573,7 +574,8 @@ class graph_view_t<vertex_t,
     return this->get_number_of_vertices();
   }
 
-  edge_t get_number_of_local_adj_matrix_partition_edges(size_t adj_matrix_partition_idx) const {
+  edge_t get_number_of_local_adj_matrix_partition_edges(size_t adj_matrix_partition_idx) const
+  {
     assert(adj_matrix_partition_idx == 0);
     return this->get_number_of_edges();
   }
