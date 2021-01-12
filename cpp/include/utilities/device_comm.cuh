@@ -589,6 +589,10 @@ device_gatherv_impl(raft::comms::comms_t const& comm,
 {
   static_assert(std::is_same<typename std::iterator_traits<InputIterator>::value_type,
                              typename std::iterator_traits<OutputIterator>::value_type>::value);
+  // FIXME: should be enabled once the RAFT gather & gatherv PR is merged
+#if 1
+  CUGRAPH_FAIL("Unimplemented.");
+#else
   comm.gatherv(iter_to_raw_ptr(input_first),
                iter_to_raw_ptr(output_first),
                sendcount,
@@ -596,6 +600,7 @@ device_gatherv_impl(raft::comms::comms_t const& comm,
                displacements.data(),
                root,
                stream);
+#endif
 }
 
 template <typename InputIterator, typename OutputIterator, size_t I, size_t N>
