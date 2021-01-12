@@ -12,7 +12,7 @@
 # limitations under the License.
 
 import time
-
+import os
 import pytest
 
 import cugraph
@@ -61,10 +61,10 @@ def cugraph_call(cu_M, max_iter, pos_list, outbound_attraction_distribution,
 
 
 DATASETS = [
-    ("../datasets/karate.csv", 0.70),
-    ("../datasets/polbooks.csv", 0.75),
-    ("../datasets/dolphins.csv", 0.66),
-    ("../datasets/netscience.csv", 0.66),
+    (os.path.join(utils.rapidsDatasetRootDir, "karate.csv"), 0.70),
+    (os.path.join(utils.rapidsDatasetRootDir, "polbooks.csv"), 0.75),
+    (os.path.join(utils.rapidsDatasetRootDir, "dolphins.csv"), 0.66),
+    (os.path.join(utils.rapidsDatasetRootDir, "netscience.csv"), 0.66),
 ]
 MAX_ITERATIONS = [500]
 BARNES_HUT_OPTIMIZE = [False, True]
@@ -132,3 +132,4 @@ def test_force_atlas2(graph_file, score, max_iter,
     assert test_callback.on_epoch_end_called_count == max_iter
     # verify `on_train_end` was only called once
     assert test_callback.on_train_end_called_count == 1
+

@@ -13,7 +13,7 @@
 
 import gc
 import pytest
-
+import os 
 import cugraph
 from cugraph.tests import utils
 
@@ -22,7 +22,7 @@ def test_bfs_paths():
     with pytest.raises(ValueError) as ErrorMsg:
         gc.collect()
 
-        graph_file = '../datasets/karate.csv'
+        graph_file = os.path.join(utils.rapidsDatasetRootDir,"karate.csv")
 
         cu_M = utils.read_csv_file(graph_file)
 
@@ -47,7 +47,7 @@ def test_bfs_paths_array():
     with pytest.raises(ValueError) as ErrorMsg:
         gc.collect()
 
-        graph_file = '../datasets/karate.csv'
+        graph_file = os.path.join(utils.rapidsDatasetRootDir,"karate.csv")
 
         cu_M = utils.read_csv_file(graph_file)
 
@@ -66,3 +66,4 @@ def test_bfs_paths_array():
         answer = cugraph.utils.get_traversed_path_list(df, 100)
 
         assert "not in the result set" in str(ErrorMsg)
+

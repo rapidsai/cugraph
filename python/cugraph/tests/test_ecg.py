@@ -14,7 +14,7 @@
 import gc
 
 import pytest
-
+import os
 import networkx as nx
 import cugraph
 from cugraph.tests import utils
@@ -30,18 +30,18 @@ def cugraph_call(G, min_weight, ensemble_size):
 
 
 def golden_call(graph_file):
-    if graph_file == "../datasets/dolphins.csv":
+    if graph_file == os.path.join(utils.rapidsDatasetRootDir, "dolphins.csv"):
         return 0.4962422251701355
-    if graph_file == "../datasets/karate.csv":
+    if graph_file == os.path.join(utils.rapidsDatasetRootDir,"karate.csv"):
         return 0.38428664207458496
-    if graph_file == "../datasets/netscience.csv":
+    if graph_file == os.path.join(utils.rapidsDatasetRootDir, "netscience.csv"):
         return 0.9279554486274719
 
 
 DATASETS = [
-    "../datasets/karate.csv",
-    "../datasets/dolphins.csv",
-    "../datasets/netscience.csv",
+    os.path.join(utils.rapidsDatasetRootDir,"karate.csv"),
+    os.path.join(utils.rapidsDatasetRootDir, "dolphins.csv"),
+    os.path.join(utils.rapidsDatasetRootDir, "netscience.csv"),
 ]
 
 MIN_WEIGHTS = [0.05, 0.10, 0.15]
@@ -84,3 +84,4 @@ def test_ecg_clustering_nx(graph_file, min_weight, ensemble_size):
 
     # Get the modularity score for partitioning versus random assignment
     _ = cugraph.ecg(G, min_weight, ensemble_size, "weight")
+

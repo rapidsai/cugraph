@@ -13,7 +13,7 @@
 
 import gc
 import time
-
+import os
 import pytest
 
 import cugraph
@@ -113,7 +113,7 @@ def test_jaccard(graph_file):
     assert err == 0
 
 
-@pytest.mark.parametrize("graph_file", ["../datasets/netscience.csv"])
+@pytest.mark.parametrize("graph_file", [os.path.join(utils.rapidsDatasetRootDir, "netscience.csv")])
 def test_jaccard_edgevals(graph_file):
     gc.collect()
 
@@ -220,3 +220,4 @@ def test_jaccard_nx(graph_file):
     # FIXME:  Nx does a full all-pair Jaccard.
     # cuGraph does a limited 1-hop Jaccard
     # assert nx_j == cg_j
+
