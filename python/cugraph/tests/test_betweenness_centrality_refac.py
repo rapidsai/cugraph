@@ -332,20 +332,6 @@ def Fixture_params_dts_urnbrd(request):
     return utils.build_cu_and_nx_graphs(*request.param)
 
 
-def betweenness_centrality_dts_sml(Fixture_params_dts_sml):
-    
-    _,Gnx=Fixture_params_dts_sml
-    
-"""
-nx.betweenness_centrality(
-        Gnx,
-        k=k,
-        normalized=normalized,
-        weight=weight,
-        endpoints=endpoints,
-        seed=seed,
-    )
-"""
 
 
 # =============================================================================
