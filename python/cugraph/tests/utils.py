@@ -78,8 +78,7 @@ STRONGDATASETS = [
 ]
 
 DATASETS_KTRUSS = [
-    os.path.join(rapidsDatasetRootDir,"polbooks.csv"), 
-    os.path.join(rapidsDatasetRootDir,"/ref/ktruss/","polbooks.csv")
+    (os.path.join(rapidsDatasetRootDir,"polbooks.csv"), os.path.join(rapidsDatasetRootDir,"ref/ktruss","polbooks.csv"))
 ]
 
 DATASETS_SMALL = [
