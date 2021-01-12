@@ -33,6 +33,7 @@ import dask_cudf
 import cugraph
 from cugraph.dask.common.mg_utils import get_client
 
+#RAPIDS_DATASET_ROOT_DIR= "/datasets"
 
 CUPY_MATRIX_TYPES = [cp_coo_matrix, cp_csr_matrix, cp_csc_matrix]
 SCIPY_MATRIX_TYPES = [sp_coo_matrix, sp_csr_matrix, sp_csc_matrix]
@@ -40,46 +41,62 @@ SCIPY_MATRIX_TYPES = [sp_coo_matrix, sp_csr_matrix, sp_csc_matrix]
 #
 # Datasets
 #
-DATASETS_UNDIRECTED = ["../datasets/karate.csv", "../datasets/dolphins.csv"]
+
+RAPIDS_DATASET_ROOT_DIR= "../datasets"
+
+def get_rapids_dataset_root_dir():
+    envVar=os.getenv('RAPIDS_DATASET_ROOT_DIR')
+    if(envVar!=None):
+        return envVar
+    return RAPIDS_DATASET_ROOT_DIR
+
+
+
+
+
+rapidsDatasetRootDir = get_rapids_dataset_root_dir()
+
+DATASETS_UNDIRECTED = [os.path.join(rapidsDatasetRootDir,"karate.csv"), os.path.join(rapidsDatasetRootDir, "dolphins.csv")]
 
 DATASETS_UNDIRECTED_WEIGHTS = [
-    "../datasets/netscience.csv",
+    os.path.join(rapidsDatasetRootDir, "netscience.csv")
 ]
 
-DATASETS_UNRENUMBERED = ["../datasets/karate-disjoint.csv"]
+DATASETS_UNRENUMBERED = [os.path.join(rapidsDatasetRootDir, "karate-disjoint.csv")]
 
 DATASETS = [
-    "../datasets/karate-disjoint.csv",
-    "../datasets/dolphins.csv",
-    "../datasets/netscience.csv",
+    os.path.join(rapidsDatasetRootDir, "karate-disjoint.csv"),
+    os.path.join(rapidsDatasetRootDir, "dolphins.csv"),
+    os.path.join(rapidsDatasetRootDir, "netscience.csv"),
 ]
 #            '../datasets/email-Eu-core.csv']
 
 STRONGDATASETS = [
-    "../datasets/dolphins.csv",
-    "../datasets/netscience.csv",
-    "../datasets/email-Eu-core.csv",
+    os.path.join(rapidsDatasetRootDir, "dolphins.csv"),
+    os.path.join(rapidsDatasetRootDir, "netscience.csv"),
+    os.path.join(rapidsDatasetRootDir, "email-Eu-core.csv"),
 ]
 
 DATASETS_KTRUSS = [
-    ("../datasets/polbooks.csv", "../datasets/ref/ktruss/polbooks.csv")
+    os.path.join(rapidsDatasetRootDir,"polbooks.csv"), 
+    os.path.join(rapidsDatasetRootDir,"/ref/ktruss/","polbooks.csv")
 ]
 
 DATASETS_SMALL = [
-    "../datasets/karate.csv",
-    "../datasets/dolphins.csv",
-    "../datasets/polbooks.csv",
+    os.path.join(rapidsDatasetRootDir, "karate.csv"),
+    os.path.join(rapidsDatasetRootDir, "dolphins.csv"),
+    os.path.join(rapidsDatasetRootDir, "polbooks.csv"),
 ]
 
 MATRIX_INPUT_TYPES = [
     pytest.param(
-        cp_coo_matrix, marks=pytest.mark.matrix_types, id="CuPy.coo_matrix"
+        cp_coo_matrix, marks=pytest.mark.cupy_types, id="CuPy.coo_matrix"
     ),
     pytest.param(
-        cp_csr_matrix, marks=pytest.mark.matrix_types, id="CuPy.csr_matrix"
+        cp_csr_matrix, marks=pytest.mark.cupy_types, id="CuPy.csr_matrix"
     ),
     pytest.param(
-        cp_csc_matrix, marks=pytest.mark.matrix_types, id="CuPy.csc_matrix"
+        cp_csc_matrix, marks=pytest.mark.cupy_types, id="CuPy.csc_matrix"
     ),
 ]
 
@@ -102,6 +119,17 @@ CUGRAPH_DIR_INPUT_TYPES = [
         cugraph.DiGraph, marks=pytest.mark.cugraph_types, id="cugraph.DiGraph"
     ),
 ]
+
+
+
+def get_rapids_dataset_root_dir():
+    envVar=os.getenv('RAPIDS_DATASET_ROOT_DIR')
+    if(envVar!=None):
+        return envVar
+    return RAPIDS_DATASET_ROOT_DIR
+
+
+
 
 
 def read_csv_for_nx(csv_file, read_weights_in_sp=True, read_weights=True):
@@ -445,3 +473,4 @@ def compare_mst(mst_cugraph, mst_nx):
     print(cg_sum)
     print(nx_sum)
     assert np.isclose(cg_sum, nx_sum)
+
