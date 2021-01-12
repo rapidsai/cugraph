@@ -24,8 +24,11 @@ import cugraph.tests.utils as utils
 
 DATASETS_OPTIONS = utils.DATASETS_SMALL
 DIRECTED_GRAPH_OPTIONS = [False, True]
-# MG_DEVICE_COUNT_OPTIONS = [1, 2, 3, 4]
-MG_DEVICE_COUNT_OPTIONS = [1]
+MG_DEVICE_COUNT_OPTIONS = [pytest.param(1, marks=pytest.mark.preset_gpu_count),
+                           pytest.param(2, marks=pytest.mark.preset_gpu_count),
+                           pytest.param(3, marks=pytest.mark.preset_gpu_count),
+                           pytest.param(4, marks=pytest.mark.preset_gpu_count),
+                           None]
 
 
 @pytest.mark.skipif(

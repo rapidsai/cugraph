@@ -36,9 +36,9 @@
 
 // Dijkstra's algorithm
 template <typename vertex_t, typename edge_t, typename weight_t>
-void sssp_reference(edge_t* offsets,
-                    vertex_t* indices,
-                    weight_t* weights,
+void sssp_reference(edge_t const* offsets,
+                    vertex_t const* indices,
+                    weight_t const* weights,
                     weight_t* distances,
                     vertex_t* predecessors,
                     vertex_t num_vertices,

@@ -12,16 +12,16 @@
 # limitations under the License.
 
 import cugraph.dask as dcg
-from dask.distributed import Client, default_client, futures_of, wait
+from dask.distributed import default_client, futures_of, wait
 import gc
 import cugraph
 import dask_cudf
-import cugraph.comms as Comms
-from dask_cuda import LocalCUDACluster
 import pytest
 from cugraph.dask.common.part_utils import concat_within_workers
 from cugraph.dask.common.read_utils import get_n_workers
-from cugraph.dask.common.mg_utils import is_single_gpu
+from cugraph.dask.common.mg_utils import (is_single_gpu,
+                                          setup_local_dask_cluster,
+                                          teardown_local_dask_cluster)
 import os
 import time
 import numpy as np
@@ -35,17 +35,11 @@ def setup_function():
     gc.collect()
 
 
-@pytest.fixture
+@pytest.fixture(scope="module")
 def client_connection():
-    cluster = LocalCUDACluster()
-    client = Client(cluster)
-    Comms.initialize(p2p=True)
-
+    (cluster, client) = setup_local_dask_cluster(p2p=True)
     yield client
-
-    Comms.destroy()
-    client.close()
-    cluster.close()
+    teardown_local_dask_cluster(cluster, client)
 
 
 @pytest.mark.skipif(
@@ -72,40 +66,6 @@ def test_from_edgelist(client_connection):
     )
 
     assert dg1.EdgeList == dg2.EdgeList
-
-
-@pytest.mark.skipif(
-    is_single_gpu(), reason="skipping MG testing on Single GPU system"
-)
-def test_compute_local_data(client_connection):
-
-    input_data_path = r"../datasets/karate.csv"
-    chunksize = dcg.get_chunksize(input_data_path)
-    ddf = dask_cudf.read_csv(
-        input_data_path,
-        chunksize=chunksize,
-        delimiter=" ",
-        names=["src", "dst", "value"],
-        dtype=["int32", "int32", "float32"],
-    )
-
-    dg = cugraph.DiGraph()
-    dg.from_dask_cudf_edgelist(
-        ddf, source="src", destination="dst", edge_attr="value"
-    )
-
-    # Compute_local_data
-    dg.compute_local_data(by="dst")
-    data = dg.local_data["data"]
-    by = dg.local_data["by"]
-
-    assert by == "dst"
-    assert Comms.is_initialized()
-
-    global_num_edges = data.local_data["edges"].sum()
-    assert global_num_edges == dg.number_of_edges()
-    global_num_verts = data.local_data["verts"].sum()
-    assert global_num_verts == dg.number_of_nodes()
 
 
 @pytest.mark.skipif(
