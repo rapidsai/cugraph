@@ -30,7 +30,6 @@
 #include <thrust/iterator/discard_iterator.h>
 #include <thrust/sort.h>
 #include <thrust/tuple.h>
-#include <cuco/static_map.cuh>
 
 #include <algorithm>
 #include <iterator>

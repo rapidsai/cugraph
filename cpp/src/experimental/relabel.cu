@@ -14,6 +14,8 @@
  * limitations under the License.
  */
 
+#include <experimental/include_cuco_static_map.cuh>
+
 #include <experimental/detail/graph_utils.cuh>
 #include <experimental/graph.hpp>
 #include <experimental/graph_functions.hpp>
@@ -30,7 +32,6 @@
 #include <thrust/iterator/discard_iterator.h>
 #include <thrust/sort.h>
 #include <thrust/tuple.h>
-#include <cuco/static_map.cuh>
 
 #include <algorithm>
 #include <iterator>
@@ -51,6 +52,11 @@ void relabel(raft::handle_t const& handle,
 {
   double constexpr load_factor = 0.7;
 
+  // FIXME: remove this check once we drop Pascal support
+  CUGRAPH_EXPECTS(handle.get_device_properties().major >= 7,
+                  "Relabel not supported on Pascal and older architectures.");
+
+#ifdef CUCO_STATIC_MAP_DEFINED
   if (multi_gpu) {
     auto& comm           = handle.get_comms();
     auto const comm_size = comm.get_size();
@@ -200,6 +206,7 @@ void relabel(raft::handle_t const& handle,
                     invalid_vertex_id<vertex_t>::value) == 0,
       "Invalid input argument: labels include old label values missing in old_new_label_pairs.");
   }
+#endif
 
   return;
 }
