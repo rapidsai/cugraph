@@ -193,11 +193,13 @@ void force_atlas2(GraphCOOView<vertex_t, edge_t, weight_t> &graph,
                   internals::GraphBasedDimRedCallback *callback = nullptr);
 
 float traveling_salesman(const raft::handle_t &handle,
+                         int *route,
                          const float *x_pos,
                          const float *y_pos,
                          const int nodes,
                          const int restarts = 4096,
-                         const int k        = 4);
+                         const int k        = 4,
+                         bool verbose = false);
 
 /**
  * @brief     Compute betweenness centrality for a graph

@@ -85,7 +85,7 @@ static int readInput(char *fname,
   }
 
   cnt = 0;
-  while (fscanf(f, "%d %f %f\n", &in1, &in2, &in3) != EOF) {
+  while (fscanf(f, "%d %f %f\n", &in1, &in2, &in3)) {
     input->x[cnt] = in2;
     input->y[cnt] = in3;
     printf("idx: %i: %f, y: %f\n", in1, in2, in3);
@@ -104,6 +104,9 @@ static int readInput(char *fname,
     exit(-1);
   }
 
+  fscanf(f, "%s", str);
+  if (strcmp(str, "EOF") != 0) {fprintf(stderr, "didn't see 'EOF' at end of file\n");  exit(-1);}
+
   fclose(f);
   return nodes;
 }
@@ -120,16 +123,21 @@ int main(int argc, char *argv[])
   }
 
   raft::handle_t handle;
+  rmm::device_uvector<int> route(static_cast<size_t>(nodes), nullptr);
   // device alloc
   rmm::device_uvector<float> x_pos(static_cast<size_t>(nodes), nullptr);
   rmm::device_uvector<float> y_pos(static_cast<size_t>(nodes), nullptr);
+  int *d_route = route.data();
   float *d_x_pos = x_pos.data();
   float *d_y_pos = y_pos.data();
+  int k = 4;
+  bool verbose = false;
 
   CUDA_TRY(cudaMemcpy(d_x_pos, input.x, sizeof(float) * nodes, cudaMemcpyHostToDevice));
   CUDA_TRY(cudaMemcpy(d_y_pos, input.y, sizeof(float) * nodes, cudaMemcpyHostToDevice));
 
-  float final_cost = cugraph::traveling_salesman(handle, d_x_pos, d_y_pos, nodes, restarts);
+  float final_cost = cugraph::traveling_salesman(handle, d_route,
+      d_x_pos, d_y_pos, nodes, restarts, k, verbose);
   cudaDeviceSynchronize();
   std::cout << "Final cost is: " << final_cost << "\n";
   return 0;

@@ -20,6 +20,7 @@ def traveling_salesman(pos_list,
                        restarts=4096,
                        k=4,
                        distance="euclidean",
+                       verbose=False
 ):
     if not isinstance(pos_list, cudf.DataFrame):
         raise Exception("Instance should be cudf.DataFrame")
@@ -43,7 +44,8 @@ def traveling_salesman(pos_list,
     cost = traveling_salesman_wrapper.traveling_salesman(pos_list,
                                                          restarts,
                                                          k,
-                                                         distance)
+                                                         distance,
+                                                         verbose)
     # Drop internal ids and generated column
     pos_list = pos_list[["vertex", "x", "y"]]
 

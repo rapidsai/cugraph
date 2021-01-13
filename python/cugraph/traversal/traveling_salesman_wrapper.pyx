@@ -19,17 +19,19 @@
 from cugraph.traversal.traveling_salesman cimport traveling_salesman as c_traveling_salesman
 from cugraph.structure import graph_primtypes_wrapper
 from cugraph.structure.graph_primtypes cimport *
+from libcpp cimport bool
 from libc.stdint cimport uintptr_t
+from numba import cuda
 
 import cudf
 import numpy as np
-import cupy as cp
 
 
 def traveling_salesman(pos_list,
                        restarts=4096,
                        k=4,
-                       distance="euclidean"
+                       distance="euclidean",
+                       verbose=False
 ):
     """
     Call traveling_salesman
@@ -38,6 +40,7 @@ def traveling_salesman(pos_list,
     nodes = pos_list.shape[0]
     cdef uintptr_t x_pos = <uintptr_t>NULL
     cdef uintptr_t y_pos = <uintptr_t>NULL
+    cdef uintptr_t route_ptr = <uintptr_t>NULL
 
     if pos_list is not None:
         pos_list['x'] = pos_list['x'].astype(np.float32)
@@ -52,13 +55,18 @@ def traveling_salesman(pos_list,
     handle_ = handle_ptr.get();
     cdef float final_cost_float = 0.0
     final_cost = None
+    route_arr = cuda.device_array(nodes, dtype=np.int32)
+    route_ptr = route_arr.device_ctypes_pointer.value
 
     final_cost_float = c_traveling_salesman(handle_[0],
+            <int*> route_ptr,
             <float*> x_pos,
             <float*> y_pos,
             <int> nodes,
             <int> restarts,
-            <int> k)
+            <int> k,
+            <bool> verbose)
+    #route = cudf.Series(route_arr)
+    route = None
     final_cost = final_cost_float
-
-    return final_cost
+    return route, final_cost

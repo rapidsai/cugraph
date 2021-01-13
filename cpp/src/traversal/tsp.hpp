@@ -27,11 +27,13 @@ namespace detail {
 class TSP {
  public:
   TSP(const raft::handle_t &handle,
+      int *route,
       const float *x_pos,
       const float *y_pos,
       const int nodes,
       const int restarts,
-      const int k);
+      const int k,
+      const bool verbose);
 
   void allocate();
   float compute();
@@ -48,11 +50,13 @@ class TSP {
   int restart_batch_;
 
   // TSP
+  int *route_;
   const float *x_pos_;
   const float *y_pos_;
   const int nodes_;
   const int restarts_;
   const int k_;
+  const bool verbose_;
 
   // Scalars
   rmm::device_scalar<int> mylock_scalar_;

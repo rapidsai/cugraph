@@ -26,12 +26,15 @@ namespace cugraph {
 namespace detail {
 
 TSP::TSP(const raft::handle_t &handle,
+         int *route,
          const float *x_pos,
          const float *y_pos,
          const int nodes,
          const int restarts,
-         const int k)
-  : handle_(handle), x_pos_(x_pos), y_pos_(y_pos), nodes_(nodes), restarts_(restarts), k_(k)
+         const int k,
+         const bool verbose)
+  : handle_(handle), route_(route), x_pos_(x_pos), y_pos_(y_pos), nodes_(nodes),
+  restarts_(restarts), k_(k), verbose_(verbose)
 {
   stream_      = handle_.get_stream();
   max_blocks_  = handle_.get_device_properties().maxGridSize[0];
@@ -67,16 +70,19 @@ float TSP::compute()
 
   int num_restart_batch_es = (restarts_ + restart_batch_ - 1) / restart_batch_;
   int restart_resid        = restarts_ - (num_restart_batch_es - 1) * restart_batch_;
-  printf(" doing %d batches of size %d, with %d tail \n",
-         num_restart_batch_es - 1,
-         restart_batch_,
-         restart_resid);
-  printf("configuration: %d nodes, %d restart\n", nodes_, restarts_);
+  if (verbose_) {
+    printf(" doing %d batches of size %d, with %d tail \n",
+        num_restart_batch_es - 1,
+        restart_batch_,
+        restart_resid);
+    printf("configuration: %d nodes, %d restart\n", nodes_, restarts_);
+  }
   // Tell the cache how we want it to behave
   cudaFuncSetCacheConfig(simulOpt, cudaFuncCachePreferEqual);
 
   int threads = best_thread_count(nodes_);
-  printf(" calculated best thread number = %d\n", threads);
+  if (verbose_)
+    printf(" calculated best thread number = %d\n", threads);
   // pre-allocate workspace for climbs, each block needs a separate permutation space and search
   // buffer
 
@@ -95,7 +101,8 @@ float TSP::compute()
     float *soln     = NULL;
     int best        = 0;
 
-    printf("optimizing graph %d kswap = %d \n", g, kswaps);
+    if (verbose_)
+      printf("optimizing graph %d kswap = %d \n", g, kswaps);
     for (int b = 0; b < num_restart_batch_es; b++) {
       Init<<<1, 1, 0, stream_>>>(mylock_, n_climbs_, best_tour_);
       CHECK_CUDA(stream_);
@@ -116,7 +123,8 @@ float TSP::compute()
 
       CUDA_TRY(cudaMemcpy(&best, best_tour_, sizeof(int), cudaMemcpyDeviceToHost));
       cudaDeviceSynchronize();
-      printf("best reported by kernel = %d\n", best);
+      if (verbose_)
+        printf("best reported by kernel = %d\n", best);
 
       if (best < global_best) {
         global_best = best;
@@ -125,18 +133,17 @@ float TSP::compute()
 
         CUDA_TRY(cudaMemcpy(pos, soln, sizeof(float) * (nodes_ + 1) * 2, cudaMemcpyDeviceToHost));
         cudaDeviceSynchronize();
-
-        float valid_dist = 0.0;
-        for (int i = 0; i < nodes_; i++) { valid_dist += cpudist(i, i + 1); }
       }
     }
 
-    printf("Optimized tour length = %d\n", global_best);
-    for (int i = 0; i < nodes_; i++) {
-      printf("%.1f %.1f\n", pos[i], pos[i + nodes_ + 1]);
-      valid_coo_dist += cpudist(i, i + 1);
-    }
-    printf(" validating route dist = %f\n", valid_coo_dist);
+    if (verbose_)
+      printf("Optimized tour length = %d\n", global_best);
+
+      for (int i = 0; i < nodes_; i++) {
+        if (verbose_)
+          printf("%.1f %.1f\n", pos[i], pos[i + nodes_ + 1]);
+        valid_coo_dist += cpudist(i, i + 1);
+      }
   }
   return valid_coo_dist;
 }
@@ -164,8 +171,6 @@ void TSP::knn()
     if (yc > ymax) ymax = yc;
   }
 
-  printf("xmin, xmax =%f,%f ymin,ymax = %f,%f\n", xmin, xmax, ymin, ymax);
-
   // Calculate affine transform A*x + b so that all (x,y) pairs lie in (0,1024)x(0,1024)
   // also calculate inverse so we can recover the original coords
   // We need to use the same scaling for x and y so the Euclidean distance is just scaled
@@ -177,7 +182,6 @@ void TSP::knn()
   affineTrans(numpackages, 1, input_x_h, forward_A, forward_b);
   affineTrans(numpackages, 1, input_y_h, forward_A, forward_b);
 
-  printf("Finding %d nearest neighbors \n", k_);
   findKneighbors(numpackages, k_, &input_x_h, &input_y_h, &neighbors_h, 0);
 
   // Reverse the transform
@@ -192,26 +196,27 @@ void TSP::knn()
     if (yc < ymin) ymin = yc;
     if (yc > ymax) ymax = yc;
   }
-  printf(" after reverse xmin, xmax =%f,%f ymin,ymax = %f,%f\n", xmin, xmax, ymin, ymax);
-  printf("   %d nearest neighbors found!\n", k_);
   CUDA_TRY(cudaMemcpy(neighbors_, neighbors_h, sizeof(int) * k_ * nodes_, cudaMemcpyHostToDevice));
-  printv(nodes_ * k_, neighbors_, 0);
 }
 
 }  // namespace detail
 
 float traveling_salesman(const raft::handle_t &handle,
+                         int *route,
                          const float *x_pos,
                          const float *y_pos,
                          const int nodes,
                          const int restarts,
-                         const int k)
+                         const int k,
+                         const bool verbose)
 {
+  RAFT_EXPECTS(route != nullptr, "route should be of size V");
   RAFT_EXPECTS(nodes > 0, "0 vertices");
   RAFT_EXPECTS(restarts > 0, "0 restarts");
   RAFT_EXPECTS(k > 0, "0 neighbors");
 
-  cugraph::detail::TSP tsp(handle, x_pos, y_pos, nodes, restarts, k);
+  cugraph::detail::TSP tsp(handle, route, x_pos, y_pos,
+                           nodes, restarts, k, verbose);
   tsp.allocate();
   tsp.knn();
   return tsp.compute();

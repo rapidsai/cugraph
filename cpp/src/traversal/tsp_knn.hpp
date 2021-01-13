@@ -108,12 +108,6 @@ void findKneighbors(
   float *nearest   = (float *)malloc(k * sizeof(float));
   int bin_width    = (1024 + divs - 1) / divs;
 
-  printf(" in findKneighbors k=%d, using %d wide bins, %d bins %d divs, useQuad= %d\n",
-         k,
-         bin_width,
-         num_bins,
-         divs,
-         useQuadrants);
   for (int i = 0; i < (num_bins); ++i) bincounts[i] = 0;
   for (int i = 0; i < numPackages; ++i) {
     int ix  = floor((*x)[i] / bin_width);
