@@ -48,23 +48,6 @@ high-speed ETL, statistics, and machine learning. To make things even better,
 RAPIDS and DASK allows cuGraph to scale to multiple GPUs to support 
 multi-billion edge graphs.
 
-Every release of RAPIDS is accompanied with one or more wonderful BLOG(s) 
-about the features of that release (for example, see the release 0.8 blog [1] 
-or Life after Hadoop). This article is slightly different. While current 
-features will be discussed, the main focus is on presenting the vision of 
-cuGraph and how we envision users will interact with the libraries. The cuGraph 
-team has been working hard to provide a rich set of initial features. Over the 
-past three releases (RAPIDS release 0.6 was the first to include cuGraph), the 
-team has provided over a dozen algorithms. The initial goal was to simply get 
-graph analytics released and available with a familiar NetworkX-like API. That 
-is great in the short term since it allows an easy path to switch to RAPIDS. 
-However, cuGraph development will slowly shift towards improving ease-of-use, 
-interoperability, and integration with the rest of RAPIDS. That is not an easy 
-task since there is still so much to be added to the cuGraph ecosystem. Don’t 
-worry, the goal of getting new analytics out will continue since there is a very 
-long list of algorithms to release.
-
-
 
 # Terminology
 
