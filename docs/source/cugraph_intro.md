@@ -35,7 +35,7 @@ have totally changed the paradigm and the goal of an accelerated unified graph
 analytic library is now possible.
 
 The compute power of the latest NVIDIA GPUs (RAPIDS supports Pascal and later 
-GPU architectures) make graph analytics 20x faster on average over NetworkX. 
+GPU architectures) make graph analytics 1000x faster on average over NetworkX. 
 Moreover, the internal memory speed within a GPU allows cuGraph to rapidly 
 switch the data structure to best suit the needs of the analytic rather than 
 being restricted to a single data structure. cuGraph is working with several 
