@@ -246,6 +246,18 @@ void call_sssp(raft::handle_t const& handle,
                vertex_t* predecessors,
                const vertex_t source_vertex);
 
+// Wrapper for calling egonet through a graph container
+template <typename vertex_t, typename weight_t>
+std::tuple<rmm::device_uvector<vertex_t>,
+           rmm::device_uvector<vertex_t>,
+           rmm::device_uvector<weight_t>,
+           rmm::device_uvector<size_t>>
+call_egonet(raft::handle_t const& handle,
+            graph_container_t const& graph_container,
+            vertex_t* source_vertex,
+            vertex_t n_subgraphs,
+            vertex_t radius);
+
 // Helper for setting up subcommunicators, typically called as part of the
 // user-initiated comms initialization in Python.
 //

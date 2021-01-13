@@ -125,6 +125,7 @@ extract_ego(raft::handle_t const &handle,
     handle, graph_view, source_vertex, n_subgraphs, radius);
 }
 
+// SG FP32
 template std::tuple<rmm::device_uvector<int32_t>,
                     rmm::device_uvector<int32_t>,
                     rmm::device_uvector<float>,
@@ -134,5 +135,52 @@ extract_ego(raft::handle_t const &,
             int32_t *,
             int32_t,
             int32_t);
+template std::tuple<rmm::device_uvector<int32_t>,
+                    rmm::device_uvector<int32_t>,
+                    rmm::device_uvector<float>,
+                    rmm::device_uvector<size_t>>
+extract_ego(raft::handle_t const &,
+            graph_view_t<int32_t, int64_t, float, false, false> const &,
+            int32_t *,
+            int32_t,
+            int32_t);
+template std::tuple<rmm::device_uvector<int64_t>,
+                    rmm::device_uvector<int64_t>,
+                    rmm::device_uvector<float>,
+                    rmm::device_uvector<size_t>>
+extract_ego(raft::handle_t const &,
+            graph_view_t<int64_t, int64_t, float, false, false> const &,
+            int64_t *,
+            int64_t,
+            int64_t);
+
+// SG FP64
+template std::tuple<rmm::device_uvector<int32_t>,
+                    rmm::device_uvector<int32_t>,
+                    rmm::device_uvector<double>,
+                    rmm::device_uvector<size_t>>
+extract_ego(raft::handle_t const &,
+            graph_view_t<int32_t, int32_t, double, false, false> const &,
+            int32_t *,
+            int32_t,
+            int32_t);
+template std::tuple<rmm::device_uvector<int32_t>,
+                    rmm::device_uvector<int32_t>,
+                    rmm::device_uvector<double>,
+                    rmm::device_uvector<size_t>>
+extract_ego(raft::handle_t const &,
+            graph_view_t<int32_t, int64_t, double, false, false> const &,
+            int32_t *,
+            int32_t,
+            int32_t);
+template std::tuple<rmm::device_uvector<int64_t>,
+                    rmm::device_uvector<int64_t>,
+                    rmm::device_uvector<double>,
+                    rmm::device_uvector<size_t>>
+extract_ego(raft::handle_t const &,
+            graph_view_t<int64_t, int64_t, double, false, false> const &,
+            int64_t *,
+            int64_t,
+            int64_t);
 }  // namespace experimental
 }  // namespace cugraph

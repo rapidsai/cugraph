@@ -638,6 +638,39 @@ void call_bfs(raft::handle_t const& handle,
   }
 }
 
+// Wrapper for calling BFS through a graph container
+template <typename vertex_t, typename weight_t>
+std::tuple<rmm::device_uvector<vertex_t>,
+           rmm::device_uvector<vertex_t>,
+           rmm::device_uvector<weight_t>,
+           rmm::device_uvector<size_t>>
+call_egonet(raft::handle_t const& handle,
+            graph_container_t const& graph_container,
+            vertex_t* source_vertex,
+            vertex_t n_subgraphs,
+            vertex_t radius)
+{
+  if (graph_container.edgeType == numberTypeEnum::int32Type) {
+    auto graph =
+      detail::create_graph<int32_t, int32_t, weight_t, false, false>(handle, graph_container);
+    return cugraph::experimental::extract_egonet(handle,
+                                                 graph->view(),
+                                                 reinterpret_cast<int32_t*>(source_vertex),
+                                                 static_cast<int32_t>(n_subgraphs),
+                                                 static_cast<int32_t>(radius));
+  } else if (graph_container.edgeType == numberTypeEnum::int64Type) {
+    auto graph =
+      detail::create_graph<vertex_t, int64_t, weight_t, false, false>(handle, graph_container);
+    return cugraph::experimental::extract_egonet(handle,
+                                                 graph->view(),
+                                                 reinterpret_cast<vertex_t*>(source_vertex),
+                                                 static_cast<vertex_t>(n_subgraphs),
+                                                 static_cast<vertex_t>(radius));
+  } else {
+    CUGRAPH_FAIL("vertexType/edgeType combination unsupported");
+  }
+}
+
 // Wrapper for calling SSSP through a graph container
 template <typename vertex_t, typename weight_t>
 void call_sssp(raft::handle_t const& handle,
@@ -836,7 +869,29 @@ template void call_bfs<int64_t, double>(raft::handle_t const& handle,
                                         double* sp_counters,
                                         const int64_t start_vertex,
                                         bool directed);
+template void call_egonet<int32_t, float>(raft::handle_t const& handle,
+                                          graph_container_t const& graph_container,
+                                          int32_t* source_vertex,
+                                          int32_t n_subgraphs,
+                                          int32_t radius);
 
+template void call_egonet<int32_t, double>(raft::handle_t const& handle,
+                                           graph_container_t const& graph_container,
+                                           int32_t* source_vertex,
+                                           int32_t n_subgraphs,
+                                           int32_t radius);
+
+template void call_egonet<int64_t, float>(raft::handle_t const& handle,
+                                          graph_container_t const& graph_container,
+                                          int64_t* source_vertex,
+                                          int64_t n_subgraphs,
+                                          int64_t radius);
+
+template void call_egonet<int64_t, double>(raft::handle_t const& handle,
+                                           graph_container_t const& graph_container,
+                                           int64_t* source_vertex,
+                                           int64_t n_subgraphs,
+                                           int64_t radius);
 template void call_sssp(raft::handle_t const& handle,
                         graph_container_t const& graph_container,
                         int32_t* identifiers,
