@@ -268,6 +268,11 @@ class Tests_CoarsenGraph : public ::testing::TestWithParam<CoarsenGraph_Usecase>
   {
     raft::handle_t handle{};
 
+    // FIXME: remove this once we drop Pascal support
+    if (handle.get_device_properties().major < 7) {  // Pascal is not supported, skip testing
+      return;
+    }
+
     auto graph = cugraph::test::
       read_graph_from_matrix_market_file<vertex_t, edge_t, weight_t, store_transposed>(
         handle, configuration.graph_file_full_path, configuration.test_weighted);
