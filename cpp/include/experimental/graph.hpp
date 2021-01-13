@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020, NVIDIA CORPORATION.
+ * Copyright (c) 2020-2021, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -62,7 +62,7 @@ class graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu, std::enab
   static constexpr bool is_multi_gpu             = multi_gpu;
 
   graph_t(raft::handle_t const &handle,
-          std::vector<edgelist_t<vertex_t, edge_t, weight_t>> const &edge_lists,
+          std::vector<edgelist_t<vertex_t, edge_t, weight_t>> const &edgelists,
           partition_t<vertex_t> const &partition,
           vertex_t number_of_vertices,
           edge_t number_of_edges,
@@ -124,7 +124,7 @@ class graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu, std::enab
   static constexpr bool is_multi_gpu             = multi_gpu;
 
   graph_t(raft::handle_t const &handle,
-          edgelist_t<vertex_t, edge_t, weight_t> const &edge_list,
+          edgelist_t<vertex_t, edge_t, weight_t> const &edgelist,
           vertex_t number_of_vertices,
           graph_properties_t properties,
           bool sorted_by_degree,
