@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020, NVIDIA CORPORATION.
+ * Copyright (c) 2020-2021, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -21,8 +21,9 @@
 #include <partition_manager.hpp>
 #include <patterns/edge_op_utils.cuh>
 #include <patterns/reduce_op.cuh>
-#include <utilities/comm_utils.cuh>
+#include <utilities/device_comm.cuh>
 #include <utilities/error.hpp>
+#include <utilities/host_scalar_comm.cuh>
 #include <utilities/thrust_tuple_utils.cuh>
 #include <vertex_partition_device.cuh>
 
@@ -400,7 +401,7 @@ void update_frontier_v_push_if_out_nbr(
       frontier_size = thrust::distance(vertex_first, vertex_last);
     }
 
-    edge_t max_pushes =
+    auto max_pushes =
       frontier_size > 0
         ? frontier_rows.size() > 0
             ? thrust::transform_reduce(

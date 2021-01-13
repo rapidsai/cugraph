@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020, NVIDIA CORPORATION.
+ * Copyright (c) 2020-2021, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -22,7 +22,6 @@
 #include <rmm/thrust_rmm_allocator.h>
 #include <compute_partition.cuh>
 #include <experimental/shuffle.cuh>
-#include <utilities/comm_utils.cuh>
 #include <utilities/graph_utils.cuh>
 
 #include <raft/device_atomics.cuh>
@@ -32,22 +31,7 @@
 #include <patterns/transform_reduce_e.cuh>
 #include <patterns/transform_reduce_v.cuh>
 
-// "FIXME": remove the guards below and references to CUCO_STATIC_MAP_DEFINED
-//
-// cuco/static_map.cuh depends on features not supported on or before Pascal.
-//
-// If we build for sm_60 or before, the inclusion of cuco/static_map.cuh wil
-// result in compilation errors.
-//
-// If we're Pascal or before we do nothing here and will suppress including
-// some code below.  If we are later than Pascal we define CUCO_STATIC_MAP_DEFINED
-// which will result in the full implementation being pulled in.
-//
-#if defined(__CUDA_ARCH__) && __CUDA_ARCH__ < 700
-#else
-#define CUCO_STATIC_MAP_DEFINED
-#include <cuco/static_map.cuh>
-#endif
+#include <experimental/include_cuco_static_map.cuh>
 
 //#define TIMING
 
