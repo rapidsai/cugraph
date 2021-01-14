@@ -46,6 +46,8 @@ def hungarian(G, workers):
 
     Returns
     -------
+    cost : matches costs.dtype
+        The cost of the overall assignment
     df : cudf.DataFrame
       df['vertex'][i] gives the vertex id of the i'th vertex.  Only vertices
                       in the workers list are defined in this column.
@@ -60,7 +62,7 @@ def hungarian(G, workers):
     >>>                   dtype=['int32', 'int32', 'float32'], header=None)
     >>> G = cugraph.Graph()
     >>> G.from_cudf_edgelist(M, source='0', destination='1', edge_attr='2')
-    >>> df = cugraph.hungarian(G, workers)
+    >>> cost, df = cugraph.hungarian(G, workers)
 
     """
 
@@ -69,9 +71,46 @@ def hungarian(G, workers):
     else:
         local_workers = workers
 
-    df = lap_wrapper.hungarian(G, local_workers)
+    df = lap_wrapper.sparse_hungarian(G, local_workers)
 
     if G.renumbered:
         df = G.unrenumber(df, 'vertex')
 
     return df
+
+
+def dense_hungarian(costs, num_rows, num_columns):
+    """
+    Execute the Hungarian algorithm against a dense bipartite
+    graph representation.
+
+    The Hungarian algorithm identifies the lowest cost matching of vertices
+    such that all workers that can be assigned work are assigned exactly
+    on job.
+
+    Parameters
+    ----------
+    costs : cudf.Series
+        A dense representation (row major order) of the bipartite
+        graph.  Each row represents a worker, each column represents
+        a task, cost[i][j] represents the cost of worker i performing
+        task j.
+    num_rows : int
+        Number of rows in the matrix
+    num_columns : int
+        Number of columns in the matrix
+
+
+    Returns
+    -------
+    cost : matches costs.dtype
+        The cost of the overall assignment
+    assignment : cudf.Series
+      assignment[i] gives the vertex id of the task assigned to the
+                    worker i     
+
+    FIXME: Update this with a real example...
+
+    """
+
+    return lap_wrapper.dense_hungarian(costs, num_rows, num_columns)

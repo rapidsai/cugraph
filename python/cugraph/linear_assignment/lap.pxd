@@ -20,9 +20,19 @@ from cugraph.structure.graph_primtypes cimport *
 
 cdef extern from "algorithms.hpp" namespace "cugraph":
 
-    cdef void hungarian[VT,ET,WT](
+    cdef WT hungarian[VT,ET,WT](
         const handle_t &handle,
         const GraphCOOView[VT,ET,WT] &graph,
         VT num_workers,
         const VT *workers,
+        VT *assignment) except +
+
+
+cdef extern from "algorithms.hpp":
+
+    cdef WT dense_hungarian "cugraph::dense::hungarian" [VT,WT](
+        const handle_t &handle,
+        const WT *costs,
+        VT num_rows,
+        VT num_columns,
         VT *assignment) except +

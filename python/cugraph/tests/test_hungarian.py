@@ -80,7 +80,7 @@ def test_hungarian(managed, pool, v1_size, v2_size, weight_limit):
                                        np.float)
 
     start = timer()
-    matching = cugraph.hungarian(g, v1)
+    cugraph_cost, matching = cugraph.hungarian(g, v1)
     end = timer()
 
     print('cugraph time: ', (end - start))
@@ -92,13 +92,6 @@ def test_hungarian(managed, pool, v1_size, v2_size, weight_limit):
     print('scipy time: ', (end - start))
 
     scipy_cost = m[np_matching[0], np_matching[1]].sum()
-
-    cugraph_df = matching.merge(g.edgelist.edgelist_df,
-                                left_on=['vertex', 'assignment'],
-                                right_on=['src', 'dst'],
-                                how='left')
-
-    cugraph_cost = cugraph_df['weights'].sum()
 
     print('scipy_cost = ', scipy_cost)
     print('cugraph_cost = ', cugraph_cost)

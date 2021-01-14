@@ -11,4 +11,4 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from cugraph.linear_assignment.lap import hungarian
+from cugraph.linear_assignment.lap import hungarian, dense_hungarian
