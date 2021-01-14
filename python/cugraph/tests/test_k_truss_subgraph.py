@@ -1,4 +1,4 @@
-# Copyright (c) 2019-2020, NVIDIA CORPORATION.
+# Copyright (c) 2020-2021, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -99,3 +99,4 @@ def test_ktruss_subgraph_Graph_nx(graph_file, nx_ground_truth):
     nx_df = nx.to_pandas_edgelist(k_truss_nx)
 
     assert len(df) == len(nx_df)
+

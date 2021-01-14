@@ -1,4 +1,4 @@
-# Copyright (c) 2019-2020, NVIDIA CORPORATION.
+# Copyright (c) 2020-2021, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -26,14 +26,13 @@ from cupyx.scipy.sparse.csc import csc_matrix as cp_csc_matrix
 from scipy.sparse.coo import coo_matrix as sp_coo_matrix
 from scipy.sparse.csr import csr_matrix as sp_csr_matrix
 from scipy.sparse.csc import csc_matrix as sp_csc_matrix
-
+from pathlib import PurePath
 import cudf
 import dask_cudf
 
 import cugraph
 from cugraph.dask.common.mg_utils import get_client
 
-#RAPIDS_DATASET_ROOT_DIR= "/datasets"
 
 CUPY_MATRIX_TYPES = [cp_coo_matrix, cp_csr_matrix, cp_csc_matrix]
 SCIPY_MATRIX_TYPES = [sp_coo_matrix, sp_csr_matrix, sp_csc_matrix]
@@ -42,50 +41,50 @@ SCIPY_MATRIX_TYPES = [sp_coo_matrix, sp_csr_matrix, sp_csc_matrix]
 # Datasets
 #
 
-RAPIDS_DATASET_ROOT_DIR= "../datasets"
 
-def get_rapids_dataset_root_dir():
-    envVar=os.getenv('RAPIDS_DATASET_ROOT_DIR')
-    if(envVar!=None):
-        return envVar
-    return RAPIDS_DATASET_ROOT_DIR
+RAPIDS_DATASET_ROOT_DIR = os.getenv("RAPIDS_DATASET_ROOT_DIR", "../datasets")
 
-
-
-
-
-rapidsDatasetRootDir = get_rapids_dataset_root_dir()
-
-DATASETS_UNDIRECTED = [os.path.join(rapidsDatasetRootDir,"karate.csv"), os.path.join(rapidsDatasetRootDir, "dolphins.csv")]
+DATASETS_UNDIRECTED = [PurePath(RAPIDS_DATASET_ROOT_DIR)/f for
+                       f in ["karate.csv", "dolphins.csv"]]
 
 DATASETS_UNDIRECTED_WEIGHTS = [
-    os.path.join(rapidsDatasetRootDir, "netscience.csv")
+    PurePath(RAPIDS_DATASET_ROOT_DIR)/"netscience.csv"
 ]
 
-DATASETS_UNRENUMBERED = [os.path.join(rapidsDatasetRootDir, "karate-disjoint.csv")]
-
-DATASETS = [
-    os.path.join(rapidsDatasetRootDir, "karate-disjoint.csv"),
-    os.path.join(rapidsDatasetRootDir, "dolphins.csv"),
-    os.path.join(rapidsDatasetRootDir, "netscience.csv"),
+DATASETS_UNRENUMBERED = [PurePath(
+    RAPIDS_DATASET_ROOT_DIR)/"karate-disjoint.csv"
 ]
+
+DATASETS = [PurePath(RAPIDS_DATASET_ROOT_DIR)/f for f in [
+    "karate-disjoint.csv",
+    "dolphins.csv",
+    "netscience.csv"]
+]
+
+
 #            '../datasets/email-Eu-core.csv']
 
 STRONGDATASETS = [
-    os.path.join(rapidsDatasetRootDir, "dolphins.csv"),
-    os.path.join(rapidsDatasetRootDir, "netscience.csv"),
-    os.path.join(rapidsDatasetRootDir, "email-Eu-core.csv"),
+    PurePath(RAPIDS_DATASET_ROOT_DIR)/f for f in [
+        "dolphins.csv",
+        "netscience.csv",
+        "email-Eu-core.csv"]
 ]
+
 
 DATASETS_KTRUSS = [
-    (os.path.join(rapidsDatasetRootDir,"polbooks.csv"), os.path.join(rapidsDatasetRootDir,"ref/ktruss","polbooks.csv"))
+    (str(PurePath(RAPIDS_DATASET_ROOT_DIR)/"polbooks.csv"),
+     str(PurePath(RAPIDS_DATASET_ROOT_DIR)/"ref/ktruss/polbooks.csv"))
 ]
 
+
 DATASETS_SMALL = [
-    os.path.join(rapidsDatasetRootDir, "karate.csv"),
-    os.path.join(rapidsDatasetRootDir, "dolphins.csv"),
-    os.path.join(rapidsDatasetRootDir, "polbooks.csv"),
+    PurePath(RAPIDS_DATASET_ROOT_DIR)/f for f in [
+        "karate.csv",
+        "dolphins.csv",
+        "polbooks.csv"]
 ]
+
 
 MATRIX_INPUT_TYPES = [
     pytest.param(
@@ -118,17 +117,6 @@ CUGRAPH_DIR_INPUT_TYPES = [
         cugraph.DiGraph, marks=pytest.mark.cugraph_types, id="cugraph.DiGraph"
     ),
 ]
-
-
-
-def get_rapids_dataset_root_dir():
-    envVar=os.getenv('RAPIDS_DATASET_ROOT_DIR')
-    if(envVar!=None):
-        return envVar
-    return RAPIDS_DATASET_ROOT_DIR
-
-
-
 
 
 def read_csv_for_nx(csv_file, read_weights_in_sp=True, read_weights=True):

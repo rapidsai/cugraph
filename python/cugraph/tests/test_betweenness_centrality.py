@@ -1,4 +1,4 @@
-# Copyright (c) 2019-2020, NVIDIA CORPORATION.:
+# Copyright (c) 2020-2021, NVIDIA CORPORATION.:
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -56,7 +56,7 @@ RESULT_DTYPE_OPTIONS = [np.float32, np.float64]
 # =============================================================================
 def calc_betweenness_centrality(
     Fixture_params_dts_sml,
-    directed=True, #no need of this
+    directed=True,
     k=None,
     normalized=False,
     weight=None,
@@ -65,7 +65,7 @@ def calc_betweenness_centrality(
     result_dtype=np.float64,
     use_k_full=False,
     multi_gpu_batch=False,
-    edgevals=False, #no need of this
+    edgevals=False,
 ):
     """ Generate both cugraph and networkx betweenness centrality
 
@@ -121,8 +121,6 @@ def calc_betweenness_centrality(
     Gnx = None
 
     G, Gnx = Fixture_params_dts_sml
-    
-    
 
     assert G is not None and Gnx is not None
     if multi_gpu_batch:
@@ -298,12 +296,11 @@ def compare_scores(sorted_df, first_key, second_key, epsilon=DEFAULT_EPSILON):
 
 def prepare_test():
     gc.collect()
-    
 
-    
+
 # =============================================================================
 # Pytest Fixtures
-# =============================================================================    
+# =============================================================================
 DIRECTED = [pytest.param(d) for d in DIRECTED_GRAPH_OPTIONS]
 DATASETS_SMALL = [pytest.param(d) for d in utils.DATASETS_SMALL]
 DATASETS_UNRENUMBERED = [pytest.param(d) for d in utils.DATASETS_UNRENUMBERED]
@@ -313,25 +310,22 @@ WEIGHTED_GRAPH_OPTIONS = [pytest.param(w) for w in WEIGHTED_GRAPH_OPTIONS]
 fixture_params_dts_sml = utils.genFixtureParamsProduct(
     (DATASETS_SMALL, "grph"),
     (DIRECTED, "dirctd"),
-    (WEIGHTED_GRAPH_OPTIONS, "wgtd_gph_opts")) 
+    (WEIGHTED_GRAPH_OPTIONS, "wgtd_gph_opts"))
 
 fixture_params_dts_urnbrd = utils.genFixtureParamsProduct(
     (DATASETS_UNRENUMBERED, "grph"),
     (DIRECTED, "dirctd"),
-    (WEIGHTED_GRAPH_OPTIONS, "wgtd_gph_opts")) 
+    (WEIGHTED_GRAPH_OPTIONS, "wgtd_gph_opts"))
+
 
 @pytest.fixture(scope="module", params=fixture_params_dts_sml)
 def Fixture_params_dts_sml(request):
     return utils.build_cu_and_nx_graphs(*request.param)
 
 
-
-
 @pytest.fixture(scope="module", params=fixture_params_dts_urnbrd)
 def Fixture_params_dts_urnbrd(request):
     return utils.build_cu_and_nx_graphs(*request.param)
-
-
 
 
 # =============================================================================
@@ -363,6 +357,7 @@ def test_betweenness_centrality(
         result_dtype=result_dtype,
     )
     compare_scores(sorted_df, first_key="cu_bc", second_key="ref_bc")
+
 
 @pytest.mark.parametrize("subset_size", [None])
 @pytest.mark.parametrize("normalized", NORMALIZED_OPTIONS)
@@ -432,7 +427,7 @@ def test_betweenness_centrality_fixed_sample(
     )
     compare_scores(sorted_df, first_key="cu_bc", second_key="ref_bc")
 
-    
+
 @pytest.mark.parametrize("subset_size", SUBSET_SIZE_OPTIONS)
 @pytest.mark.parametrize("normalized", NORMALIZED_OPTIONS)
 @pytest.mark.parametrize("weight", [[]])
@@ -467,7 +462,6 @@ def test_betweenness_centrality_weight_except(
         compare_scores(sorted_df, first_key="cu_bc", second_key="ref_bc")
 
 
-        
 @pytest.mark.parametrize("normalized", NORMALIZED_OPTIONS)
 @pytest.mark.parametrize("subset_size", SUBSET_SIZE_OPTIONS)
 @pytest.mark.parametrize("weight", [None])
@@ -528,5 +522,4 @@ def test_betweenness_centrality_nx(
             print(f"{cugraph_bc[i][1]} and {cugraph_bc[i][1]}")
     print("Mismatches:", err)
     assert err < (0.01 * len(cugraph_bc))
-
 

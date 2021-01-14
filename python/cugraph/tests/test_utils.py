@@ -1,4 +1,4 @@
-# Copyright (c) 2019-2020, NVIDIA CORPORATION.
+# Copyright (c) 2020-2021, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -13,16 +13,16 @@
 
 import gc
 import pytest
-import os 
 import cugraph
 from cugraph.tests import utils
+from pathlib import PurePath
 
 
 def test_bfs_paths():
     with pytest.raises(ValueError) as ErrorMsg:
         gc.collect()
 
-        graph_file = os.path.join(utils.rapidsDatasetRootDir,"karate.csv")
+        graph_file = PurePath(utils.RAPIDS_DATASET_ROOT_DIR)/"karate.csv"
 
         cu_M = utils.read_csv_file(graph_file)
 
@@ -47,7 +47,7 @@ def test_bfs_paths_array():
     with pytest.raises(ValueError) as ErrorMsg:
         gc.collect()
 
-        graph_file = os.path.join(utils.rapidsDatasetRootDir,"karate.csv")
+        graph_file = PurePath(utils.RAPIDS_DATASET_ROOT_DIR)/"karate.csv"
 
         cu_M = utils.read_csv_file(graph_file)
 

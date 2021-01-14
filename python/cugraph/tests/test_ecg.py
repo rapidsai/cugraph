@@ -1,4 +1,4 @@
-# Copyright (c) 2019-2020, NVIDIA CORPORATION.
+# Copyright (c) 2020-2021, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -14,10 +14,10 @@
 import gc
 
 import pytest
-import os
 import networkx as nx
 import cugraph
 from cugraph.tests import utils
+from pathlib import PurePath
 
 
 def cugraph_call(G, min_weight, ensemble_size):
@@ -30,18 +30,18 @@ def cugraph_call(G, min_weight, ensemble_size):
 
 
 def golden_call(graph_file):
-    if graph_file == os.path.join(utils.rapidsDatasetRootDir, "dolphins.csv"):
+    if graph_file == PurePath(utils.RAPIDS_DATASET_ROOT_DIR)/"dolphins.csv":
         return 0.4962422251701355
-    if graph_file == os.path.join(utils.rapidsDatasetRootDir,"karate.csv"):
+    if graph_file == PurePath(utils.RAPIDS_DATASET_ROOT_DIR)/"karate.csv":
         return 0.38428664207458496
-    if graph_file == os.path.join(utils.rapidsDatasetRootDir, "netscience.csv"):
+    if graph_file == PurePath(utils.RAPIDS_DATASET_ROOT_DIR)/"netscience.csv":
         return 0.9279554486274719
 
 
-DATASETS = [
-    os.path.join(utils.rapidsDatasetRootDir,"karate.csv"),
-    os.path.join(utils.rapidsDatasetRootDir, "dolphins.csv"),
-    os.path.join(utils.rapidsDatasetRootDir, "netscience.csv"),
+DATASETS = [PurePath(utils.RAPIDS_DATASET_ROOT_DIR)/f for f in [
+    "karate.csv",
+    "dolphins.csv",
+    "netscience.csv"]
 ]
 
 MIN_WEIGHTS = [0.05, 0.10, 0.15]
@@ -69,7 +69,7 @@ def test_ecg_clustering(graph_file, min_weight, ensemble_size):
     assert cu_score > (0.95 * golden_score)
 
 
-@pytest.mark.parametrize("graph_file", DATASETS)
+@pytest.mark.parametrize("graph_file", utils.DATASETS)
 @pytest.mark.parametrize("min_weight", MIN_WEIGHTS)
 @pytest.mark.parametrize("ensemble_size", ENSEMBLE_SIZES)
 def test_ecg_clustering_nx(graph_file, min_weight, ensemble_size):
