@@ -199,6 +199,47 @@ void TSP::knn()
   CUDA_TRY(cudaMemcpy(neighbors_, neighbors_h, sizeof(int) * k_ * nodes_, cudaMemcpyHostToDevice));
 }
 
+void TSP::cuml_knn()
+{
+  int dim = 2;
+  bool row_major_order = false;
+
+  rmm::device_vector<float> input(nodes_ * dim);
+  float *input_ptr = input.data().get();
+  raft::copy(input_ptr, x_pos_, nodes_);
+  raft::copy(input_ptr + nodes_, y_pos_, nodes_);
+
+  rmm::device_vector<float> search_data(nodes_ * dim);
+  float *search_data_ptr = search_data.data().get();
+  raft::copy(search_data_ptr, input_ptr, nodes_ * dim);
+
+  rmm::device_vector<float> distances(nodes_ * k_);
+  float *distances_ptr = distances.data().get();
+
+  std::vector<float *> input_vec;
+  std::vector<int> sizes_vec;
+  input_vec.push_back(input_ptr);
+  sizes_vec.push_back(nodes_);
+
+	raft::brute_force_knn(handle_,
+			input_vec,
+			sizes_vec,
+			dim,
+			search_data_ptr,
+			nodes_,
+			neighbors_,
+			distances_ptr,
+			k_,
+			row_major_order,
+			row_major_order,
+			raft::MetricType::METRIC_L2,
+			0.0,
+			false);
+
+  raft::print_device_vector("Neighbors: ", neighbors_,
+                            nodes_ * k_, std::cout);
+  raft::print_device_vector("Distances: ", distances,
+                            nodes_ * k_, std::cout);
 }  // namespace detail
 
 float traveling_salesman(const raft::handle_t &handle,
@@ -218,7 +259,8 @@ float traveling_salesman(const raft::handle_t &handle,
   cugraph::detail::TSP tsp(handle, route, x_pos, y_pos,
                            nodes, restarts, k, verbose);
   tsp.allocate();
-  tsp.knn();
+  //tsp.knn();
+  tsp.cuml_knn();
   return tsp.compute();
 }
 

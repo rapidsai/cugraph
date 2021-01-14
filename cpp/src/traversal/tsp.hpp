@@ -21,6 +21,7 @@
 #include <raft/handle.hpp>
 #include <rmm/device_scalar.hpp>
 #include <rmm/device_uvector.hpp>
+#include <raft/cudart_utils.cuh>
 
 namespace cugraph {
 namespace detail {
