@@ -107,7 +107,7 @@ def dense_hungarian(costs, num_rows, num_columns):
         The cost of the overall assignment
     assignment : cudf.Series
       assignment[i] gives the vertex id of the task assigned to the
-                    worker i     
+                    worker i
 
     FIXME: Update this with a real example...
 
