@@ -1,5 +1,5 @@
 #=============================================================================
-# Copyright (c) 2018-2020, NVIDIA CORPORATION.
+# Copyright (c) 2018-2021, NVIDIA CORPORATION.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -205,7 +205,7 @@ message("Fetching cuco")
 FetchContent_Declare(
     cuco
     GIT_REPOSITORY https://github.com/NVIDIA/cuCollections.git
-    GIT_TAG        d965ed8dea8f56da8e260a6130dddf3ca351c45f
+    GIT_TAG        2196040f0562a0280292eebef5295d914f615e63
 )
 
 FetchContent_GetProperties(cuco)
@@ -367,6 +367,9 @@ add_library(cugraph SHARED
     src/centrality/betweenness_centrality.cu
     src/experimental/graph.cu
     src/experimental/graph_view.cu
+    src/experimental/coarsen_graph.cu
+    src/experimental/renumber_edgelist.cu
+    src/experimental/relabel.cu
     src/experimental/bfs.cu
     src/experimental/sssp.cu
     src/experimental/pagerank.cu

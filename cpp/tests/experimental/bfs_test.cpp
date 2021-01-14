@@ -33,8 +33,8 @@
 #include <vector>
 
 template <typename vertex_t, typename edge_t>
-void bfs_reference(edge_t* offsets,
-                   vertex_t* indices,
+void bfs_reference(edge_t const* offsets,
+                   vertex_t const* indices,
                    vertex_t* distances,
                    vertex_t* predecessors,
                    vertex_t num_vertices,

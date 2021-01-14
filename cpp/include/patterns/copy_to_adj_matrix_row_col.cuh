@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020, NVIDIA CORPORATION.
+ * Copyright (c) 2020-2021, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -18,8 +18,10 @@
 #include <experimental/graph_view.hpp>
 #include <matrix_partition_device.cuh>
 #include <partition_manager.hpp>
-#include <utilities/comm_utils.cuh>
+#include <utilities/dataframe_buffer.cuh>
+#include <utilities/device_comm.cuh>
 #include <utilities/error.hpp>
+#include <utilities/host_scalar_comm.cuh>
 #include <utilities/thrust_tuple_utils.cuh>
 #include <vertex_partition_device.cuh>
 
@@ -120,10 +122,10 @@ void copy_to_matrix_major(raft::handle_t const& handle,
       for (int i = 0; i < row_comm_size; ++i) {
         rmm::device_uvector<vertex_t> rx_vertices(row_comm_rank == i ? size_t{0} : rx_counts[i],
                                                   handle.get_stream());
-        auto rx_tmp_buffer =
-          allocate_comm_buffer<typename std::iterator_traits<VertexValueInputIterator>::value_type>(
-            rx_counts[i], handle.get_stream());
-        auto rx_value_first = get_comm_buffer_begin<
+        auto rx_tmp_buffer = allocate_dataframe_buffer<
+          typename std::iterator_traits<VertexValueInputIterator>::value_type>(rx_counts[i],
+                                                                               handle.get_stream());
+        auto rx_value_first = get_dataframe_buffer_begin<
           typename std::iterator_traits<VertexValueInputIterator>::value_type>(rx_tmp_buffer);
 
         if (row_comm_rank == i) {
@@ -219,7 +221,7 @@ void copy_to_matrix_minor(raft::handle_t const& handle,
       // partitioning
       auto comm_src_rank = row_comm_rank * col_comm_size + col_comm_rank;
       auto comm_dst_rank = (comm_rank % col_comm_size) * row_comm_size + comm_rank / col_comm_size;
-      // FIXME: this branch may no longer necessary with NCCL backend
+      // FIXME: this branch may be no longer necessary with NCCL backend
       if (comm_src_rank == comm_rank) {
         assert(comm_dst_rank == comm_rank);
         thrust::copy(rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
@@ -314,12 +316,11 @@ void copy_to_matrix_minor(raft::handle_t const& handle,
 
       vertex_partition_device_t<GraphViewType> vertex_partition(graph_view);
       rmm::device_uvector<vertex_t> dst_vertices(rx_count, handle.get_stream());
-      auto dst_tmp_buffer =
-        allocate_comm_buffer<typename std::iterator_traits<VertexValueInputIterator>::value_type>(
-          rx_count, handle.get_stream());
-      auto dst_value_first =
-        get_comm_buffer_begin<typename std::iterator_traits<VertexValueInputIterator>::value_type>(
-          dst_tmp_buffer);
+      auto dst_tmp_buffer = allocate_dataframe_buffer<
+        typename std::iterator_traits<VertexValueInputIterator>::value_type>(rx_count,
+                                                                             handle.get_stream());
+      auto dst_value_first = get_dataframe_buffer_begin<
+        typename std::iterator_traits<VertexValueInputIterator>::value_type>(dst_tmp_buffer);
       if (comm_src_rank == comm_rank) {
         thrust::copy(rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
                      vertex_first,
@@ -335,10 +336,10 @@ void copy_to_matrix_minor(raft::handle_t const& handle,
                        vertex_value_input_first,
                        dst_value_first);
       } else {
-        auto src_tmp_buffer =
-          allocate_comm_buffer<typename std::iterator_traits<VertexValueInputIterator>::value_type>(
-            tx_count, handle.get_stream());
-        auto src_value_first = get_comm_buffer_begin<
+        auto src_tmp_buffer = allocate_dataframe_buffer<
+          typename std::iterator_traits<VertexValueInputIterator>::value_type>(tx_count,
+                                                                               handle.get_stream());
+        auto src_value_first = get_dataframe_buffer_begin<
           typename std::iterator_traits<VertexValueInputIterator>::value_type>(src_tmp_buffer);
 
         auto map_first =
@@ -383,10 +384,10 @@ void copy_to_matrix_minor(raft::handle_t const& handle,
       for (int i = 0; i < col_comm_size; ++i) {
         rmm::device_uvector<vertex_t> rx_vertices(col_comm_rank == i ? size_t{0} : rx_counts[i],
                                                   handle.get_stream());
-        auto rx_tmp_buffer =
-          allocate_comm_buffer<typename std::iterator_traits<VertexValueInputIterator>::value_type>(
-            rx_counts[i], handle.get_stream());
-        auto rx_value_first = get_comm_buffer_begin<
+        auto rx_tmp_buffer = allocate_dataframe_buffer<
+          typename std::iterator_traits<VertexValueInputIterator>::value_type>(rx_counts[i],
+                                                                               handle.get_stream());
+        auto rx_value_first = get_dataframe_buffer_begin<
           typename std::iterator_traits<VertexValueInputIterator>::value_type>(rx_tmp_buffer);
 
         // FIXME: these broadcast operations can be placed between ncclGroupStart() and
