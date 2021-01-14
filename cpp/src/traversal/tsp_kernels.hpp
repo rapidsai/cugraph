@@ -22,6 +22,7 @@
 #include <math.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <raft/cuda_utils.cuh>
 
 #include "tsp_utils.hpp"
 
@@ -70,8 +71,8 @@ __global__ __launch_bounds__(2048, 2) void simulOpt(int *mylock,
       for (int i = 1; i < nodes; i++) {
         int j = curand(&rndstate) % (nodes - 1 - i) + i;
         if (i == j) continue;
-        swap(px[i], px[j]);
-        swap(py[i], py[j]);
+        raft::swapVals(px[i], px[j]);
+        raft::swapVals(py[i], py[j]);
       }
       px[nodes] = px[0]; /* close the loop now, avoid special cases later */
       py[nodes] = py[0];
@@ -285,8 +286,8 @@ __global__ __launch_bounds__(2048, 2) void simulOpt(int *mylock,
       for (int i = threadIdx.x; (i + i) < sum; i += blockDim.x) {
         if (best_i[kmin] < i) {
           int j = sum - i;
-          swap(px[i], px[j]);
-          swap(py[i], py[j]);
+          raft::swapVals(px[i], px[j]);
+          raft::swapVals(py[i], py[j]);
         }
       }
       __syncthreads();

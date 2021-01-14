@@ -36,13 +36,13 @@
 #define acudist(a, b) (sqrtf((px[a] - px[b]) * (px[a] - px[b]) + (py[a] - py[b]) * (py[a] - py[b])))
 
 /*only works for floats and int types with +- defined, and if a and b are distinct memory locations
- */
 #define swap(a, b) \
   {                \
     a = a + b;     \
     b = a - b;     \
     a = a - b;     \
   }
+ */
 
 namespace cugraph {
 namespace detail {

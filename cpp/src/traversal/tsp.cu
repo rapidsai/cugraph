@@ -14,13 +14,13 @@
  * limitations under the License.
  */
 
-#include <converters/COOtoCSR.cuh>
 #include "utilities/graph_utils.cuh"
-
 #include "tsp.hpp"
 #include "tsp_kernels.hpp"
 #include "tsp_knn.hpp"
 #include "tsp_utils.hpp"
+
+#include <raft/spatial/knn/knn.hpp>
 
 namespace cugraph {
 namespace detail {
