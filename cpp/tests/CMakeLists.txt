@@ -1,6 +1,6 @@
 ﻿#=============================================================================
 #
-# Copyright (c) 2019-2020, NVIDIA CORPORATION.
+# Copyright (c) 2019-2021, NVIDIA CORPORATION.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -271,6 +271,15 @@ set(EXPERIMENTAL_GRAPH_TEST_SRCS
     "${CMAKE_CURRENT_SOURCE_DIR}/experimental/graph_test.cpp")
 
 ConfigureTest(EXPERIMENTAL_GRAPH_TEST "${EXPERIMENTAL_GRAPH_TEST_SRCS}" "")
+
+###################################################################################################
+# - Experimental coarsening tests -----------------------------------------------------------------
+
+set(EXPERIMENTAL_COARSEN_GRAPH_TEST_SRCS
+    "${CMAKE_SOURCE_DIR}/../thirdparty/mmio/mmio.c"
+    "${CMAKE_CURRENT_SOURCE_DIR}/experimental/coarsen_graph_test.cpp")
+
+ConfigureTest(EXPERIMENTAL_COARSEN_GRAPH_TEST "${EXPERIMENTAL_COARSEN_GRAPH_TEST_SRCS}" "")
 
 ###################################################################################################
 # - Experimental BFS tests ------------------------------------------------------------------------

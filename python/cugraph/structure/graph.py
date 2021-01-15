@@ -14,7 +14,6 @@
 from cugraph.structure import graph_primtypes_wrapper
 from cugraph.structure.symmetrize import symmetrize
 from cugraph.structure.number_map import NumberMap
-from cugraph.dask.common.input_utils import get_local_data
 import cugraph.dask.common.mg_utils as mg_utils
 import cudf
 import dask_cudf
@@ -652,32 +651,6 @@ class Graph:
         self.source_columns = source
         self.destination_columns = destination
         self.store_tranposed = None
-
-    def compute_local_data(self, by, load_balance=True):
-        """
-        Compute the local edges, vertices and offsets for a distributed
-        graph stored as a dask-cudf dataframe and initialize the
-        communicator. Performs global sorting and load_balancing.
-
-        Parameters
-        ----------
-        by : str
-            by argument is the column by which we want to sort and
-            partition. It should be the source column name for generating
-            CSR format and destination column name for generating CSC
-            format.
-        load_balance : bool
-            Set as True to perform load_balancing after global sorting of
-            dask-cudf DataFrame. This ensures that the data is uniformly
-            distributed among multiple GPUs to avoid over-loading.
-        """
-        if self.distributed:
-            data = get_local_data(self, by, load_balance)
-            self.local_data = {}
-            self.local_data["data"] = data
-            self.local_data["by"] = by
-        else:
-            raise Exception("Graph should be a distributed graph")
 
     def view_edge_list(self):
         """
@@ -1373,6 +1346,8 @@ class Graph:
                 return self.renumber_map.implementation.df["0"]
             else:
                 return cudf.concat([df["src"], df["dst"]]).unique()
+        if self.adjlist is not None:
+            return cudf.Series(np.arange(0, self.number_of_nodes()))
         if "all_nodes" in self._nodes.keys():
             return self._nodes["all_nodes"]
         else:

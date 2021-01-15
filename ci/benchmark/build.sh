@@ -20,17 +20,17 @@ function cleanup {
   rm -f testoutput.txt
 }
 
-# Set cleanup trap for Jenkins
-if [ ! -z "$JENKINS_HOME" ] ; then
-  gpuci_logger "Jenkins environment detected, setting cleanup trap"
-  trap cleanup EXIT
-fi
-
 # Set path, build parallel level, and CUDA version
 cd $WORKSPACE
 export PATH=/opt/conda/bin:/usr/local/cuda/bin:$PATH
 export PARALLEL_LEVEL=${PARALLEL_LEVEL:-4}
 export CUDA_REL=${CUDA_VERSION%.*}
+
+# Set cleanup trap for Jenkins
+if [ ! -z "$JENKINS_HOME" ] ; then
+  gpuci_logger "Jenkins environment detected, setting cleanup trap"
+  trap cleanup EXIT
+fi
 
 # Set home
 export HOME=$WORKSPACE

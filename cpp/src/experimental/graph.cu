@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020, NVIDIA CORPORATION.
+ * Copyright (c) 2020-2021, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -17,8 +17,8 @@
 #include <experimental/detail/graph_utils.cuh>
 #include <experimental/graph.hpp>
 #include <partition_manager.hpp>
-#include <utilities/comm_utils.cuh>
 #include <utilities/error.hpp>
+#include <utilities/host_scalar_comm.cuh>
 
 #include <rmm/thrust_rmm_allocator.h>
 #include <raft/device_atomics.cuh>
@@ -62,25 +62,19 @@ struct out_of_range_t {
 template <bool store_transposed, typename vertex_t, typename edge_t, typename weight_t>
 std::
   tuple<rmm::device_uvector<edge_t>, rmm::device_uvector<vertex_t>, rmm::device_uvector<weight_t>>
-  edge_list_to_compressed_sparse(raft::handle_t const &handle,
-                                 edgelist_t<vertex_t, edge_t, weight_t> const &edgelist,
-                                 vertex_t major_first,
-                                 vertex_t major_last,
-                                 vertex_t minor_first,
-                                 vertex_t minor_last)
+  edgelist_to_compressed_sparse(edgelist_t<vertex_t, edge_t, weight_t> const &edgelist,
+                                vertex_t major_first,
+                                vertex_t major_last,
+                                vertex_t minor_first,
+                                vertex_t minor_last,
+                                cudaStream_t stream)
 {
-  rmm::device_uvector<edge_t> offsets((major_last - major_first) + 1, handle.get_stream());
-  rmm::device_uvector<vertex_t> indices(edgelist.number_of_edges, handle.get_stream());
+  rmm::device_uvector<edge_t> offsets((major_last - major_first) + 1, stream);
+  rmm::device_uvector<vertex_t> indices(edgelist.number_of_edges, stream);
   rmm::device_uvector<weight_t> weights(
-    edgelist.p_edge_weights != nullptr ? edgelist.number_of_edges : 0, handle.get_stream());
-  thrust::fill(rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
-               offsets.begin(),
-               offsets.end(),
-               edge_t{0});
-  thrust::fill(rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
-               indices.begin(),
-               indices.end(),
-               vertex_t{0});
+    edgelist.p_edge_weights != nullptr ? edgelist.number_of_edges : 0, stream);
+  thrust::fill(rmm::exec_policy(stream)->on(stream), offsets.begin(), offsets.end(), edge_t{0});
+  thrust::fill(rmm::exec_policy(stream)->on(stream), indices.begin(), indices.end(), vertex_t{0});
 
   // FIXME: need to performance test this code with R-mat graphs having highly-skewed degree
   // distribution. If there is a small number of vertices with very large degrees, atomicAdd can
@@ -98,7 +92,7 @@ std::
   auto p_weights =
     edgelist.p_edge_weights != nullptr ? weights.data() : static_cast<weight_t *>(nullptr);
 
-  thrust::for_each(rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
+  thrust::for_each(rmm::exec_policy(stream)->on(stream),
                    store_transposed ? edgelist.p_dst_vertices : edgelist.p_src_vertices,
                    store_transposed ? edgelist.p_dst_vertices + edgelist.number_of_edges
                                     : edgelist.p_src_vertices + edgelist.number_of_edges,
@@ -106,15 +100,13 @@ std::
                      atomicAdd(p_offsets + (v - major_first), edge_t{1});
                    });
 
-  thrust::exclusive_scan(rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
-                         offsets.begin(),
-                         offsets.end(),
-                         offsets.begin());
+  thrust::exclusive_scan(
+    rmm::exec_policy(stream)->on(stream), offsets.begin(), offsets.end(), offsets.begin());
 
   if (edgelist.p_edge_weights != nullptr) {
     auto edge_first = thrust::make_zip_iterator(thrust::make_tuple(
       edgelist.p_src_vertices, edgelist.p_dst_vertices, edgelist.p_edge_weights));
-    thrust::for_each(rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
+    thrust::for_each(rmm::exec_policy(stream)->on(stream),
                      edge_first,
                      edge_first + edgelist.number_of_edges,
                      [p_offsets, p_indices, p_weights, major_first] __device__(auto e) {
@@ -137,7 +129,7 @@ std::
   } else {
     auto edge_first = thrust::make_zip_iterator(
       thrust::make_tuple(edgelist.p_src_vertices, edgelist.p_dst_vertices));
-    thrust::for_each(rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
+    thrust::for_each(rmm::exec_policy(stream)->on(stream),
                      edge_first,
                      edge_first + edgelist.number_of_edges,
                      [p_offsets, p_indices, p_weights, major_first] __device__(auto e) {
@@ -160,42 +152,6 @@ std::
   // FIXME: need to add an option to sort neighbor lists
 
   return std::make_tuple(std::move(offsets), std::move(indices), std::move(weights));
-}
-
-template <typename vertex_t, typename DegreeIterator, typename ThresholdIterator>
-std::vector<vertex_t> segment_degree_sorted_vertex_partition(raft::handle_t const &handle,
-                                                             DegreeIterator degree_first,
-                                                             DegreeIterator degree_last,
-                                                             ThresholdIterator threshold_first,
-                                                             ThresholdIterator threshold_last)
-{
-  auto num_elements = thrust::distance(degree_first, degree_last);
-  auto num_segments = thrust::distance(threshold_first, threshold_last) + 1;
-
-  std::vector<vertex_t> h_segment_offsets(num_segments + 1);
-  h_segment_offsets[0]     = 0;
-  h_segment_offsets.back() = num_elements;
-
-  rmm::device_uvector<vertex_t> d_segment_offsets(num_segments - 1, handle.get_stream());
-
-  thrust::upper_bound(rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
-                      degree_first,
-                      degree_last,
-                      threshold_first,
-                      threshold_last,
-                      d_segment_offsets.begin());
-
-  raft::update_host(h_segment_offsets.begin() + 1,
-                    d_segment_offsets.begin(),
-                    d_segment_offsets.size(),
-                    handle.get_stream());
-
-  CUDA_TRY(cudaStreamSynchronize(
-    handle.get_stream()));  // this is necessary as d_segment_offsets will become out-of-scope once
-                            // this function returns and this function returns a host variable which
-                            // can be used right after return.
-
-  return h_segment_offsets;
 }
 
 }  // namespace
@@ -307,8 +263,13 @@ graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu, std::enable_if_
     rmm::device_uvector<edge_t> offsets(0, default_stream);
     rmm::device_uvector<vertex_t> indices(0, default_stream);
     rmm::device_uvector<weight_t> weights(0, default_stream);
-    std::tie(offsets, indices, weights) = edge_list_to_compressed_sparse<store_transposed>(
-      *(this->get_handle_ptr()), edgelists[i], major_first, major_last, minor_first, minor_last);
+    std::tie(offsets, indices, weights) =
+      edgelist_to_compressed_sparse<store_transposed>(edgelists[i],
+                                                      major_first,
+                                                      major_last,
+                                                      minor_first,
+                                                      minor_last,
+                                                      this->get_handle_ptr()->get_stream());
     adj_matrix_partition_offsets_.push_back(std::move(offsets));
     adj_matrix_partition_indices_.push_back(std::move(indices));
     if (is_weighted) { adj_matrix_partition_weights_.push_back(std::move(weights)); }
@@ -455,12 +416,12 @@ graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu, std::enable_if_
   // convert edge list (COO) to compressed sparse format (CSR or CSC)
 
   std::tie(offsets_, indices_, weights_) =
-    edge_list_to_compressed_sparse<store_transposed>(*(this->get_handle_ptr()),
-                                                     edgelist,
-                                                     vertex_t{0},
-                                                     this->get_number_of_vertices(),
-                                                     vertex_t{0},
-                                                     this->get_number_of_vertices());
+    edgelist_to_compressed_sparse<store_transposed>(edgelist,
+                                                    vertex_t{0},
+                                                    this->get_number_of_vertices(),
+                                                    vertex_t{0},
+                                                    this->get_number_of_vertices(),
+                                                    this->get_handle_ptr()->get_stream());
 
   // update degree-based segment offsets (to be used for graph analytics kernel optimization)
 

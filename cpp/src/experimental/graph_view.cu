@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020, NVIDIA CORPORATION.
+ * Copyright (c) 2020-2021, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -17,8 +17,8 @@
 #include <experimental/detail/graph_utils.cuh>
 #include <experimental/graph_view.hpp>
 #include <partition_manager.hpp>
-#include <utilities/comm_utils.cuh>
 #include <utilities/error.hpp>
+#include <utilities/host_scalar_comm.cuh>
 
 #include <raft/cudart_utils.h>
 #include <rmm/thrust_rmm_allocator.h>
@@ -49,6 +49,27 @@ struct out_of_range_t {
   __device__ bool operator()(vertex_t v) { return (v < min) || (v >= max); }
 };
 
+template <typename vertex_t, typename edge_t>
+std::vector<edge_t> update_adj_matrix_partition_edge_counts(
+  std::vector<edge_t const*> const& adj_matrix_partition_offsets,
+  partition_t<vertex_t> const& partition,
+  cudaStream_t stream)
+{
+  std::vector<edge_t> adj_matrix_partition_edge_counts(partition.get_number_of_matrix_partitions(),
+                                                       0);
+  for (size_t i = 0; i < adj_matrix_partition_offsets.size(); ++i) {
+    vertex_t major_first{};
+    vertex_t major_last{};
+    std::tie(major_first, major_last) = partition.get_matrix_partition_major_range(i);
+    raft::update_host(&(adj_matrix_partition_edge_counts[i]),
+                      adj_matrix_partition_offsets[i] + (major_last - major_first),
+                      1,
+                      stream);
+  }
+  CUDA_TRY(cudaStreamSynchronize(stream));
+  return adj_matrix_partition_edge_counts;
+}
+
 }  // namespace
 
 template <typename vertex_t,
@@ -73,6 +94,8 @@ graph_view_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu, std::enabl
     adj_matrix_partition_offsets_(adj_matrix_partition_offsets),
     adj_matrix_partition_indices_(adj_matrix_partition_indices),
     adj_matrix_partition_weights_(adj_matrix_partition_weights),
+    adj_matrix_partition_number_of_edges_(update_adj_matrix_partition_edge_counts(
+      adj_matrix_partition_offsets, partition, handle.get_stream())),
     partition_(partition),
     vertex_partition_segment_offsets_(vertex_partition_segment_offsets)
 {
