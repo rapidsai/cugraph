@@ -642,13 +642,11 @@ void call_bfs(raft::handle_t const& handle,
 // FIXME : this should not be a legacy COO and it is not clear how to handle C++ api return type as
 // is.graph_container Need to figure out how to return edge lists
 template <typename vertex_t, typename weight_t>
-std::unique_ptr<cy_multi_edgelists_t> call_egonet(
-  raft::handle_t const& handle,
-  graph_container_t const& graph_container,
-  vertex_t* source_vertex,
-  vertex_t* offsets,  // FIXME this is there for cython bindings
-  vertex_t n_subgraphs,
-  vertex_t radius)
+std::unique_ptr<cy_multi_edgelists_t> call_egonet(raft::handle_t const& handle,
+                                                  graph_container_t const& graph_container,
+                                                  vertex_t* source_vertex,
+                                                  vertex_t n_subgraphs,
+                                                  vertex_t radius)
 {
   if (graph_container.edgeType == numberTypeEnum::int32Type) {
     auto graph =
@@ -891,7 +889,6 @@ template std::unique_ptr<cy_multi_edgelists_t> call_egonet<int32_t, float>(
   raft::handle_t const& handle,
   graph_container_t const& graph_container,
   int32_t* source_vertex,
-  int32_t* offsets,
   int32_t n_subgraphs,
   int32_t radius);
 
@@ -899,14 +896,12 @@ template std::unique_ptr<cy_multi_edgelists_t> call_egonet<int32_t, double>(
   raft::handle_t const& handle,
   graph_container_t const& graph_container,
   int32_t* source_vertex,
-  int32_t* offsets,
   int32_t n_subgraphs,
   int32_t radius);
 
 template std::unique_ptr<cy_multi_edgelists_t> call_egonet<int64_t, float>(
   raft::handle_t const& handle,
   graph_container_t const& graph_container,
-  int64_t* offsets,
   int64_t* source_vertex,
   int64_t n_subgraphs,
   int64_t radius);
@@ -915,7 +910,6 @@ template std::unique_ptr<cy_multi_edgelists_t> call_egonet<int64_t, double>(
   raft::handle_t const& handle,
   graph_container_t const& graph_container,
   int64_t* source_vertex,
-  int64_t* offsets,
   int64_t n_subgraphs,
   int64_t radius);
 

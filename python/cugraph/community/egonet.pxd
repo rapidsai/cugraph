@@ -10,3 +10,14 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+
+
+from cugraph.structure.graph_primtypes cimport *
+
+cdef extern from "utilities/cython.hpp" namespace "cugraph::cython":
+    cdef unique_ptr[cy_multi_edgelists_t] call_bfs[vertex_t, weight_t](
+        const handle_t &handle,
+        const graph_container_t &g,
+        vertex_t* source_vertex,
+        vertex_t n_subgraphs,
+        vertex_t radius) except +

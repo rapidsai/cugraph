@@ -21,5 +21,5 @@ from cugraph.structure.graph_primtypes cimport *
 
 cdef extern from "algorithms.hpp" namespace "cugraph":
 
-    cdef unique_ptr[GraphCOO[VT,ET,WT]] minimum_spanning_tree[VT,ET,WT](const handle_t &handle,
+    cdef unique_ptr[cy_multi_edgelists_t] minimum_spanning_tree[VT,ET,WT](const handle_t &handle,
         const GraphCSRView[VT,ET,WT] &graph) except +
