@@ -192,7 +192,7 @@ void force_atlas2(GraphCOOView<vertex_t, edge_t, weight_t> &graph,
                   bool verbose                                  = false,
                   internals::GraphBasedDimRedCallback *callback = nullptr);
 
-float traveling_salesman(const raft::handle_t &handle,
+float traveling_salesman(raft::handle_t &handle,
                          int *route,
                          const float *x_pos,
                          const float *y_pos,

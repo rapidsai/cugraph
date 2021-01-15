@@ -17,7 +17,7 @@
 #include "utilities/graph_utils.cuh"
 #include "tsp.hpp"
 #include "tsp_kernels.hpp"
-#include "tsp_knn.hpp"
+//#include "tsp_knn.hpp"
 #include "tsp_utils.hpp"
 
 #include <raft/spatial/knn/knn.hpp>
@@ -25,7 +25,7 @@
 namespace cugraph {
 namespace detail {
 
-TSP::TSP(const raft::handle_t &handle,
+TSP::TSP(raft::handle_t &handle,
          int *route,
          const float *x_pos,
          const float *y_pos,
@@ -56,7 +56,7 @@ void TSP::allocate()
   best_tour_ = best_tour_scalar_.data();
 
   // Vectors
-  neighbors_vec_.resize(k_ * nodes_);
+  neighbors_vec_.resize((k_ + 1) * nodes_);
   work_vec_.resize(4 * restart_batch_ * ((3 * nodes_ + 2 + 31) / 32 * 32));
 
   neighbors_ = neighbors_vec_.data().get();
@@ -150,70 +150,21 @@ float TSP::compute()
 
 void TSP::knn()
 {
-  int numpackages  = nodes_;
-  int *neighbors_h = (int *)malloc(k_ * nodes_ * sizeof(int));
-  float *input_x_h = (float *)malloc(nodes_ * sizeof(float));
-  float *input_y_h = (float *)malloc(nodes_ * sizeof(float));
-  CUDA_TRY(cudaMemcpy(input_x_h, x_pos_, sizeof(float) * nodes_, cudaMemcpyDeviceToHost));
-  CUDA_TRY(cudaMemcpy(input_y_h, y_pos_, sizeof(float) * nodes_, cudaMemcpyDeviceToHost));
+  printf("Looking at %i nearest neighbors \n", k_);
 
-  // re-scale arbitrary inputs to fit inside (0,1024)x(0,1024) box
-  float xmin = 1e6;
-  float xmax = -1e6;
-  float ymin = 1e6;
-  float ymax = -1e6;
-  for (int np = 0; np < numpackages; np++) {
-    float xc = input_x_h[np];
-    if (xc < xmin) xmin = xc;
-    if (xc > xmax) xmax = xc;
-    float yc = input_y_h[np];
-    if (yc < ymin) ymin = yc;
-    if (yc > ymax) ymax = yc;
-  }
-
-  // Calculate affine transform A*x + b so that all (x,y) pairs lie in (0,1024)x(0,1024)
-  // also calculate inverse so we can recover the original coords
-  // We need to use the same scaling for x and y so the Euclidean distance is just scaled
-  // otherwise we can get bad neighbors as a result of the scaling
-  float forward_b = max(-xmin, -ymin);
-  float forward_A = 1024. / max((xmax + forward_b), (ymax + forward_b));
-  float back_A    = 1. / forward_A;
-  float back_b    = -forward_b;
-  affineTrans(numpackages, 1, input_x_h, forward_A, forward_b);
-  affineTrans(numpackages, 1, input_y_h, forward_A, forward_b);
-
-  findKneighbors(numpackages, k_, &input_x_h, &input_y_h, &neighbors_h, 0);
-
-  // Reverse the transform
-  affineTrans(numpackages, 0, input_x_h, back_A, back_b);
-  affineTrans(numpackages, 0, input_y_h, back_A, back_b);
-
-  for (int np = 0; np < numpackages; np++) {
-    float xc = input_x_h[np];
-    if (xc < xmin) xmin = xc;
-    if (xc > xmax) xmax = xc;
-    float yc = input_y_h[np];
-    if (yc < ymin) ymin = yc;
-    if (yc > ymax) ymax = yc;
-  }
-  CUDA_TRY(cudaMemcpy(neighbors_, neighbors_h, sizeof(int) * k_ * nodes_, cudaMemcpyHostToDevice));
-}
-
-void TSP::cuml_knn()
-{
   int dim = 2;
   bool row_major_order = false;
 
   rmm::device_vector<float> input(nodes_ * dim);
   float *input_ptr = input.data().get();
-  raft::copy(input_ptr, x_pos_, nodes_);
-  raft::copy(input_ptr + nodes_, y_pos_, nodes_);
+  raft::copy(input_ptr, x_pos_, nodes_, stream_);
+  raft::copy(input_ptr + nodes_, y_pos_, nodes_, stream_);
 
   rmm::device_vector<float> search_data(nodes_ * dim);
   float *search_data_ptr = search_data.data().get();
-  raft::copy(search_data_ptr, input_ptr, nodes_ * dim);
+  raft::copy(search_data_ptr, input_ptr, nodes_ * dim, stream_);
 
-  rmm::device_vector<float> distances(nodes_ * k_);
+  rmm::device_vector<float> distances(nodes_ * (k_ + 1));
   float *distances_ptr = distances.data().get();
 
   std::vector<float *> input_vec;
@@ -221,7 +172,10 @@ void TSP::cuml_knn()
   input_vec.push_back(input_ptr);
   sizes_vec.push_back(nodes_);
 
-	raft::brute_force_knn(handle_,
+  // k neighbors + 1 is needed because the nearest neighbor of each point is
+  // the point itself that we don't want to take into account.
+
+	raft::knn::brute_force_knn(handle_,
 			input_vec,
 			sizes_vec,
 			dim,
@@ -229,20 +183,13 @@ void TSP::cuml_knn()
 			nodes_,
 			neighbors_,
 			distances_ptr,
-			k_,
-			row_major_order,
-			row_major_order,
-			raft::MetricType::METRIC_L2,
-			0.0,
-			false);
-
-  raft::print_device_vector("Neighbors: ", neighbors_,
-                            nodes_ * k_, std::cout);
-  raft::print_device_vector("Distances: ", distances,
-                            nodes_ * k_, std::cout);
+			k_ + 1,
+      row_major_order,
+			row_major_order);
+}
 }  // namespace detail
 
-float traveling_salesman(const raft::handle_t &handle,
+float traveling_salesman(raft::handle_t &handle,
                          int *route,
                          const float *x_pos,
                          const float *y_pos,
@@ -259,8 +206,7 @@ float traveling_salesman(const raft::handle_t &handle,
   cugraph::detail::TSP tsp(handle, route, x_pos, y_pos,
                            nodes, restarts, k, verbose);
   tsp.allocate();
-  //tsp.knn();
-  tsp.cuml_knn();
+  tsp.knn();
   return tsp.compute();
 }
 

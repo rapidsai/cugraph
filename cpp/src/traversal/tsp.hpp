@@ -21,13 +21,13 @@
 #include <raft/handle.hpp>
 #include <rmm/device_scalar.hpp>
 #include <rmm/device_uvector.hpp>
-#include <raft/cudart_utils.cuh>
+#include <raft/cudart_utils.h>
 
 namespace cugraph {
 namespace detail {
 class TSP {
  public:
-  TSP(const raft::handle_t &handle,
+  TSP(raft::handle_t &handle,
       int *route,
       const float *x_pos,
       const float *y_pos,
@@ -43,7 +43,7 @@ class TSP {
 
  private:
   // Config
-  const raft::handle_t &handle_;
+  raft::handle_t &handle_;
   cudaStream_t stream_;
   int max_blocks_;
   int max_threads_;
@@ -69,10 +69,10 @@ class TSP {
   int *best_tour_;
 
   // Vectors
-  rmm::device_vector<int> neighbors_vec_;
+  rmm::device_vector<int64_t> neighbors_vec_;
   rmm::device_vector<int> work_vec_;
 
-  int *neighbors_;
+  int64_t *neighbors_;
   int *work_;
 };
 }  // namespace detail

@@ -45,7 +45,7 @@ __global__ __launch_bounds__(2048, 2) void simulOpt(int *mylock,
                                                     int *best_tour,
                                                     const int K,
                                                     int nodes,
-                                                    int *neighbors,
+                                                    int64_t *neighbors,
                                                     const float *posx,
                                                     const float *posy,
                                                     int *work)
@@ -100,7 +100,7 @@ __global__ __launch_bounds__(2048, 2) void simulOpt(int *mylock,
         initlen       = 0;
         int randjumps = 0;
         while (progress < nodes - 1) {
-          int nj     = curand(&rndstate) % K;  // random offset into neighbors
+          int nj     = (curand(&rndstate) % K) + 1;  // random offset into neighbor + 1 to omit the point itself
           int linked = 0;
           for (int nh = 0; nh < K; ++nh) {
             v = neighbors[K * head + nj];
@@ -111,7 +111,7 @@ __global__ __launch_bounds__(2048, 2) void simulOpt(int *mylock,
               linked    = 1;
               break;
             }
-            nj = (nj + 1) % K;
+            nj = ((nj + 1) % K) + 1;
           }
           if (linked == 0) {
             if (randjumps > nodes - 1)
