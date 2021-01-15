@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020, NVIDIA CORPORATION.
+ * Copyright (c) 2021, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,11 +14,10 @@
  * limitations under the License.
  */
 
-#include "utilities/graph_utils.cuh"
 #include "tsp.hpp"
-#include "tsp_kernels.hpp"
-//#include "tsp_knn.hpp"
+#include "tsp_solver.hpp"
 #include "tsp_utils.hpp"
+#include "utilities/graph_utils.cuh"
 
 #include <raft/spatial/knn/knn.hpp>
 
@@ -33,8 +32,14 @@ TSP::TSP(raft::handle_t &handle,
          const int restarts,
          const int k,
          const bool verbose)
-  : handle_(handle), route_(route), x_pos_(x_pos), y_pos_(y_pos), nodes_(nodes),
-  restarts_(restarts), k_(k), verbose_(verbose)
+  : handle_(handle),
+    route_(route),
+    x_pos_(x_pos),
+    y_pos_(y_pos),
+    nodes_(nodes),
+    restarts_(restarts),
+    k_(k),
+    verbose_(verbose)
 {
   stream_      = handle_.get_stream();
   max_blocks_  = handle_.get_device_properties().maxGridSize[0];
@@ -65,94 +70,78 @@ void TSP::allocate()
 
 float TSP::compute()
 {
-  int num_graphs       = 1;
   float valid_coo_dist = 0.f;
-
   int num_restart_batch_es = (restarts_ + restart_batch_ - 1) / restart_batch_;
   int restart_resid        = restarts_ - (num_restart_batch_es - 1) * restart_batch_;
+  int global_best = INT_MAX;
+  float *soln     = nullptr;
+  int best        = 0;
+
   if (verbose_) {
     printf(" doing %d batches of size %d, with %d tail \n",
-        num_restart_batch_es - 1,
-        restart_batch_,
-        restart_resid);
+           num_restart_batch_es - 1,
+           restart_batch_,
+           restart_resid);
     printf("configuration: %d nodes, %d restart\n", nodes_, restarts_);
   }
+
   // Tell the cache how we want it to behave
   cudaFuncSetCacheConfig(simulOpt, cudaFuncCachePreferEqual);
 
   int threads = best_thread_count(nodes_);
-  if (verbose_)
-    printf(" calculated best thread number = %d\n", threads);
-  // pre-allocate workspace for climbs, each block needs a separate permutation space and search
-  // buffer
+  if (verbose_) printf(" calculated best thread number = %d\n", threads);
 
-  float *pos = (float *)malloc(sizeof(float) * (nodes_ + 1) * 2);
-  if (pos == NULL) {
-    fprintf(stderr, "cannot allocate pos\n");
-    exit(-1);
+  std::vector<float> pos;
+  pos.reserve((nodes_ + 1) * 2);
+
+  if (verbose_) printf("optimizing graph with kswap = %d \n", kswaps);
+
+  for (int b = 0; b < num_restart_batch_es; b++) {
+    Init<<<1, 1, 0, stream_>>>(mylock_, n_climbs_, best_tour_);
+    CHECK_CUDA(stream_);
+
+    if (b == num_restart_batch_es - 1) restart_batch_ = restart_resid;
+
+    simulOpt<<<restart_batch_, threads, sizeof(int) * threads, stream_>>>(mylock_,
+                                                                          n_climbs_,
+                                                                          best_tour_,
+                                                                          k_,
+                                                                          nodes_,
+                                                                          neighbors_,
+                                                                          x_pos_,
+                                                                          y_pos_,
+                                                                          work_);
+    CHECK_CUDA(stream_);
+    cudaDeviceSynchronize();
+
+    CUDA_TRY(cudaMemcpy(&best, best_tour_, sizeof(int), cudaMemcpyDeviceToHost));
+    cudaDeviceSynchronize();
+    if (verbose_) printf("best reported by kernel = %d\n", best);
+
+    if (best < global_best) {
+      global_best = best;
+      CUDA_TRY(cudaMemcpyFromSymbol(&soln, best_soln, sizeof(void *)));
+      cudaDeviceSynchronize();
+
+      CUDA_TRY(cudaMemcpy(pos.data(), soln, sizeof(float) * (nodes_ + 1) * 2, cudaMemcpyDeviceToHost));
+      cudaDeviceSynchronize();
+    }
   }
 
-  int *offsets = (int *)malloc((sizeof(int) * (2)));
-  offsets[0]   = 0;
-  offsets[1]   = nodes_;
+  if (verbose_) printf("Optimized tour length = %d\n", global_best);
 
-  for (int g = 0; g < num_graphs; g++) {
-    int global_best = INT_MAX;
-    float *soln     = NULL;
-    int best        = 0;
-
-    if (verbose_)
-      printf("optimizing graph %d kswap = %d \n", g, kswaps);
-    for (int b = 0; b < num_restart_batch_es; b++) {
-      Init<<<1, 1, 0, stream_>>>(mylock_, n_climbs_, best_tour_);
-      CHECK_CUDA(stream_);
-
-      if (b == num_restart_batch_es - 1) restart_batch_ = restart_resid;
-
-      simulOpt<<<restart_batch_, threads, sizeof(int) * threads, stream_>>>(mylock_,
-                                                                            n_climbs_,
-                                                                            best_tour_,
-                                                                            k_,
-                                                                            nodes_,
-                                                                            neighbors_,
-                                                                            x_pos_ + offsets[g],
-                                                                            y_pos_ + offsets[g],
-                                                                            work_);
-      CHECK_CUDA(stream_);
-      cudaDeviceSynchronize();
-
-      CUDA_TRY(cudaMemcpy(&best, best_tour_, sizeof(int), cudaMemcpyDeviceToHost));
-      cudaDeviceSynchronize();
-      if (verbose_)
-        printf("best reported by kernel = %d\n", best);
-
-      if (best < global_best) {
-        global_best = best;
-        CUDA_TRY(cudaMemcpyFromSymbol(&soln, best_soln, sizeof(void *)));
-        cudaDeviceSynchronize();
-
-        CUDA_TRY(cudaMemcpy(pos, soln, sizeof(float) * (nodes_ + 1) * 2, cudaMemcpyDeviceToHost));
-        cudaDeviceSynchronize();
-      }
-    }
-
-    if (verbose_)
-      printf("Optimized tour length = %d\n", global_best);
-
-      for (int i = 0; i < nodes_; i++) {
-        if (verbose_)
-          printf("%.1f %.1f\n", pos[i], pos[i + nodes_ + 1]);
-        valid_coo_dist += cpudist(i, i + 1);
-      }
+  for (int i = 0; i < nodes_; i++) {
+    if (verbose_) printf("%.1f %.1f\n", pos[i], pos[i + nodes_ + 1]);
+    valid_coo_dist += cpudist(i, i + 1);
   }
   return valid_coo_dist;
 }
 
 void TSP::knn()
 {
-  printf("Looking at %i nearest neighbors \n", k_);
+  if (verbose_) printf("Looking at %i nearest neighbors \n", k_);
 
-  int dim = 2;
+  int dim              = 2;
   bool row_major_order = false;
 
   rmm::device_vector<float> input(nodes_ * dim);
@@ -175,17 +164,17 @@ void TSP::knn()
   // k neighbors + 1 is needed because the nearest neighbor of each point is
   // the point itself that we don't want to take into account.
 
-	raft::knn::brute_force_knn(handle_,
-			input_vec,
-			sizes_vec,
-			dim,
-			search_data_ptr,
-			nodes_,
-			neighbors_,
-			distances_ptr,
-			k_ + 1,
-      row_major_order,
-			row_major_order);
+  raft::knn::brute_force_knn(handle_,
+                             input_vec,
+                             sizes_vec,
+                             dim,
+                             search_data_ptr,
+                             nodes_,
+                             neighbors_,
+                             distances_ptr,
+                             k_ + 1,
+                             row_major_order,
+                             row_major_order);
 }
 }  // namespace detail
 
@@ -203,8 +192,7 @@ float traveling_salesman(raft::handle_t &handle,
   RAFT_EXPECTS(restarts > 0, "0 restarts");
   RAFT_EXPECTS(k > 0, "0 neighbors");
 
-  cugraph::detail::TSP tsp(handle, route, x_pos, y_pos,
-                           nodes, restarts, k, verbose);
+  cugraph::detail::TSP tsp(handle, route, x_pos, y_pos, nodes, restarts, k, verbose);
   tsp.allocate();
   tsp.knn();
   return tsp.compute();

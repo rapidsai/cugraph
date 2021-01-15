@@ -199,7 +199,7 @@ float traveling_salesman(raft::handle_t &handle,
                          const int nodes,
                          const int restarts = 4096,
                          const int k        = 4,
-                         bool verbose = false);
+                         bool verbose       = false);
 
 /**
  * @brief     Compute betweenness centrality for a graph

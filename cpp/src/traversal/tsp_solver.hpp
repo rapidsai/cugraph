@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020, NVIDIA CORPORATION.
+ * Copyright (c) 2021, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -34,10 +34,10 @@ extern __shared__ int shbuf[];
 
 __global__ void Init(int *mylock, int *n_climbs, int *best_tour)
 {
-  *mylock          = 0;
-  *n_climbs        = 0;
-  *best_tour       = INT_MAX;
-  best_soln       = NULL;
+  *mylock    = 0;
+  *n_climbs  = 0;
+  *best_tour = INT_MAX;
+  best_soln  = NULL;
 }
 
 __global__ __launch_bounds__(2048, 2) void simulOpt(int *mylock,
@@ -100,7 +100,8 @@ __global__ __launch_bounds__(2048, 2) void simulOpt(int *mylock,
         initlen       = 0;
         int randjumps = 0;
         while (progress < nodes - 1) {
-          int nj     = (curand(&rndstate) % K) + 1;  // random offset into neighbor + 1 to omit the point itself
+          int nj = (curand(&rndstate) % K) +
+                   1;  // random offset into neighbor + 1 to omit the point itself
           int linked = 0;
           for (int nh = 0; nh < K; ++nh) {
             v = neighbors[K * head + nj];
@@ -314,9 +315,7 @@ __global__ __launch_bounds__(2048, 2) void simulOpt(int *mylock,
     atomicMin(best_tour, term);
     while (atomicExch(mylock, 1) != 0)
       ;  // acquire
-    if (best_tour[0] == term) {
-      best_soln = px;
-    }
+    if (best_tour[0] == term) { best_soln = px; }
     *mylock = 0;  // release
     __threadfence();
   }

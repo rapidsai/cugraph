@@ -105,7 +105,10 @@ static int readInput(char *fname,
   }
 
   fscanf(f, "%s", str);
-  if (strcmp(str, "EOF") != 0) {fprintf(stderr, "didn't see 'EOF' at end of file\n");  exit(-1);}
+  if (strcmp(str, "EOF") != 0) {
+    fprintf(stderr, "didn't see 'EOF' at end of file\n");
+    exit(-1);
+  }
 
   fclose(f);
   return nodes;
@@ -127,17 +130,17 @@ int main(int argc, char *argv[])
   // device alloc
   rmm::device_uvector<float> x_pos(static_cast<size_t>(nodes), nullptr);
   rmm::device_uvector<float> y_pos(static_cast<size_t>(nodes), nullptr);
-  int *d_route = route.data();
+  int *d_route   = route.data();
   float *d_x_pos = x_pos.data();
   float *d_y_pos = y_pos.data();
-  int k = 4;
-  bool verbose = false;
+  int k          = 4;
+  bool verbose   = false;
 
   CUDA_TRY(cudaMemcpy(d_x_pos, input.x, sizeof(float) * nodes, cudaMemcpyHostToDevice));
   CUDA_TRY(cudaMemcpy(d_y_pos, input.y, sizeof(float) * nodes, cudaMemcpyHostToDevice));
 
-  float final_cost = cugraph::traveling_salesman(handle, d_route,
-      d_x_pos, d_y_pos, nodes, restarts, k, verbose);
+  float final_cost =
+    cugraph::traveling_salesman(handle, d_route, d_x_pos, d_y_pos, nodes, restarts, k, verbose);
   cudaDeviceSynchronize();
   std::cout << "Final cost is: " << final_cost << "\n";
   return 0;
