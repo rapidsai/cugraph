@@ -84,6 +84,8 @@ def dense_hungarian(costs, num_rows, num_columns):
     Execute the Hungarian algorithm against a dense bipartite
     graph representation.
 
+    *NOTE*: This API is unstable and subject to change
+
     The Hungarian algorithm identifies the lowest cost matching of vertices
     such that all workers that can be assigned work are assigned exactly
     on job.
