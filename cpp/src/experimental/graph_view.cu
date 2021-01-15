@@ -89,11 +89,10 @@ graph_view_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu, std::enabl
   CUGRAPH_EXPECTS(adj_matrix_partition_offsets.size() == adj_matrix_partition_indices.size(),
                   "Internal Error: adj_matrix_partition_offsets.size() and "
                   "adj_matrix_partition_indices.size() should coincide.");
-  CUGRAPH_EXPECTS(
-    (adj_matrix_partition_weights.size() == adj_matrix_partition_offsets.size()) ||
-      (adj_matrix_partition_weights.size() == 0),
-    "Internal Error: adj_matrix_partition_weights.size() should coincide with "
-    "adj_matrix_partition_offsets.size() (if weighted) or 0 (if unweighted).");
+  CUGRAPH_EXPECTS((adj_matrix_partition_weights.size() == adj_matrix_partition_offsets.size()) ||
+                    (adj_matrix_partition_weights.size() == 0),
+                  "Internal Error: adj_matrix_partition_weights.size() should coincide with "
+                  "adj_matrix_partition_offsets.size() (if weighted) or 0 (if unweighted).");
 
   CUGRAPH_EXPECTS(
     (partition.is_hypergraph_partitioned() &&
@@ -189,9 +188,8 @@ graph_view_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu, std::enabl
       }
     }
 
-    CUGRAPH_EXPECTS(
-      partition.get_vertex_partition_last(comm_size - 1) == number_of_vertices,
-      "Internal Error: vertex partition should cover [0, number_of_vertices).");
+    CUGRAPH_EXPECTS(partition.get_vertex_partition_last(comm_size - 1) == number_of_vertices,
+                    "Internal Error: vertex partition should cover [0, number_of_vertices).");
 
     // FIXME: check for symmetricity may better be implemetned with transpose().
     if (this->is_symmetric()) {}
@@ -231,11 +229,10 @@ graph_view_t<vertex_t,
 {
   // cheap error checks
 
-  CUGRAPH_EXPECTS(
-    (sorted_by_degree &&
-     (segment_offsets.size() == (detail::num_segments_per_vertex_partition + 1))) ||
-      (!sorted_by_degree && (segment_offsets.size() == 0)),
-    "Internal Error: segment_offsets.size() does not match with sorted_by_degree.");
+  CUGRAPH_EXPECTS((sorted_by_degree &&
+                   (segment_offsets.size() == (detail::num_segments_per_vertex_partition + 1))) ||
+                    (!sorted_by_degree && (segment_offsets.size() == 0)),
+                  "Internal Error: segment_offsets.size() does not match with sorted_by_degree.");
 
   // optional expensive checks
 
@@ -259,13 +256,12 @@ graph_view_t<vertex_t,
       auto degree_first =
         thrust::make_transform_iterator(thrust::make_counting_iterator(vertex_t{0}),
                                         detail::degree_from_offsets_t<vertex_t, edge_t>{offsets});
-      CUGRAPH_EXPECTS(
-        thrust::is_sorted(rmm::exec_policy(default_stream)->on(default_stream),
-                          degree_first,
-                          degree_first + this->get_number_of_vertices(),
-                          thrust::greater<edge_t>{}),
-        "Internal Error: sorted_by_degree is set to true, but degrees are not "
-        "in ascending order.");
+      CUGRAPH_EXPECTS(thrust::is_sorted(rmm::exec_policy(default_stream)->on(default_stream),
+                                        degree_first,
+                                        degree_first + this->get_number_of_vertices(),
+                                        thrust::greater<edge_t>{}),
+                      "Internal Error: sorted_by_degree is set to true, but degrees are not "
+                      "in ascending order.");
 
       CUGRAPH_EXPECTS(std::is_sorted(segment_offsets.begin(), segment_offsets.end()),
                       "Internal Error: erroneous segment_offsets.");
