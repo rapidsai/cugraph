@@ -55,7 +55,7 @@ def betweenness_centrality(
     k : int or list or None, optional, default=None
         If k is not None, use k node samples to estimate betweenness.  Higher
         values give better approximation.  If k is a list, use the content
-        of the list for estimation: the list should contain vertices
+        of the list for estimation: the list should contain vertex
         identifiers. If k is None (the default), all the vertices are used
         to estimate betweenness.  Vertices obtained through sampling or
         defined as a list will be used assources for traversals inside the
