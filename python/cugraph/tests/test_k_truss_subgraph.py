@@ -99,4 +99,3 @@ def test_ktruss_subgraph_Graph_nx(graph_file, nx_ground_truth):
     nx_df = nx.to_pandas_edgelist(k_truss_nx)
 
     assert len(df) == len(nx_df)
-

@@ -460,4 +460,3 @@ def compare_mst(mst_cugraph, mst_nx):
     print(cg_sum)
     print(nx_sum)
     assert np.isclose(cg_sum, nx_sum)
-

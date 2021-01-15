@@ -222,4 +222,3 @@ def test_jaccard_nx(graph_file):
     # FIXME:  Nx does a full all-pair Jaccard.
     # cuGraph does a limited 1-hop Jaccard
     # assert nx_j == cg_j
-

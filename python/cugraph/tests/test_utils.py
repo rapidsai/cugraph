@@ -66,4 +66,3 @@ def test_bfs_paths_array():
         answer = cugraph.utils.get_traversed_path_list(df, 100)
 
         assert "not in the result set" in str(ErrorMsg)
-
