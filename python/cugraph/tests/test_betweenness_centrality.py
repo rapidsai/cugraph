@@ -120,7 +120,7 @@ def calc_betweenness_centrality(
     G = None
     Gnx = None
 
-    G, Gnx = Fixture_params_dts_sml
+    G, Gnx = Fixture_params_dts
 
     assert G is not None and Gnx is not None
     if multi_gpu_batch:
@@ -469,7 +469,7 @@ def test_betweenness_centrality_weight_except(
 @pytest.mark.parametrize("subset_seed", SUBSET_SEED_OPTIONS)
 @pytest.mark.parametrize("result_dtype", [str])
 def test_betweenness_invalid_dtype(
-    Fixture_params_dts_smls,
+    Fixture_params_dts_sml,
     subset_size,
     normalized,
     weight,
