@@ -69,7 +69,7 @@ def test_ecg_clustering(graph_file, min_weight, ensemble_size):
     assert cu_score > (0.95 * golden_score)
 
 
-@pytest.mark.parametrize("graph_file", utils.DATASETS)
+@pytest.mark.parametrize("graph_file", DATASETS)
 @pytest.mark.parametrize("min_weight", MIN_WEIGHTS)
 @pytest.mark.parametrize("ensemble_size", ENSEMBLE_SIZES)
 def test_ecg_clustering_nx(graph_file, min_weight, ensemble_size):

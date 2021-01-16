@@ -120,7 +120,7 @@ def calc_betweenness_centrality(
     G = None
     Gnx = None
 
-    G, Gnx = Fixture_params_dts_sml
+    G, Gnx = Fixture_params_dts
 
     assert G is not None and Gnx is not None
     if multi_gpu_batch:
