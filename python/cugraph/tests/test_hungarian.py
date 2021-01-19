@@ -21,7 +21,6 @@ import pytest
 import cudf
 import cugraph
 from scipy.optimize import linear_sum_assignment
-import rmm
 
 
 def create_random_bipartite(v1, v2, size, dtype):
@@ -54,7 +53,8 @@ def create_random_bipartite(v1, v2, size, dtype):
     return df1['src'], g, a
 
 
-SPARSE_SIZES = [[5, 5, 100], [500, 500, 10000], [5000, 5000, 100000]]
+SPARSE_SIZES = [[5, 5, 100], [500, 500, 10000]]
+DENSE_SIZES = [[5, 100], [500, 10000]]
 
 
 def setup_function():
@@ -66,14 +66,6 @@ def setup_function():
                          list(product([False, True], [False, True])))
 @pytest.mark.parametrize('v1_size, v2_size, weight_limit', SPARSE_SIZES)
 def test_hungarian(managed, pool, v1_size, v2_size, weight_limit):
-    rmm.reinitialize(
-        managed_memory=managed,
-        pool_allocator=pool,
-        initial_pool_size=2 << 27
-    )
-
-    assert(rmm.is_initialized())
-
     v1, g, m = create_random_bipartite(v1_size,
                                        v2_size,
                                        weight_limit,
@@ -93,7 +85,32 @@ def test_hungarian(managed, pool, v1_size, v2_size, weight_limit):
 
     scipy_cost = m[np_matching[0], np_matching[1]].sum()
 
-    print('scipy_cost = ', scipy_cost)
-    print('cugraph_cost = ', cugraph_cost)
+    assert(scipy_cost == cugraph_cost)
+
+
+# Test all combinations of default/managed and pooled/non-pooled allocation
+@pytest.mark.parametrize('managed, pool',
+                         list(product([False, True], [False, True])))
+@pytest.mark.parametrize('n, weight_limit', DENSE_SIZES)
+def test_dense_hungarian(managed, pool, n, weight_limit):
+    C = np.random.uniform(
+        0, weight_limit, size=(n, n)
+    ).round().astype(np.float32)
+
+    C_series = cudf.Series(C.flatten())
+
+    start = timer()
+    cugraph_cost, matching = cugraph.dense_hungarian(C_series, n, n)
+    end = timer()
+
+    print('cugraph time: ', (end - start))
+
+    start = timer()
+    np_matching = linear_sum_assignment(C)
+    end = timer()
+
+    print('scipy time: ', (end - start))
+
+    scipy_cost = C[np_matching[0], np_matching[1]].sum()
 
     assert(scipy_cost == cugraph_cost)
