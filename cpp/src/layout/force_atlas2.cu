@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020, NVIDIA CORPORATION.
+ * Copyright (c) 2020-2021, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -38,7 +38,7 @@ void force_atlas2(GraphCOOView<vertex_t, edge_t, weight_t> &graph,
                   bool verbose,
                   internals::GraphBasedDimRedCallback *callback)
 {
-  CUGRAPH_EXPECTS(pos != nullptr, "Invalid API parameter: pos array should be of size 2 * V");
+  CUGRAPH_EXPECTS(pos != nullptr, "Invalid input argument: pos array should be of size 2 * V");
   CUGRAPH_EXPECTS(graph.number_of_vertices != 0, "Invalid input: Graph is empty");
 
   if (!barnes_hut_optimize) {

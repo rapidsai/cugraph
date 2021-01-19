@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020, NVIDIA CORPORATION.
+ * Copyright (c) 2020-2021, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -106,10 +106,10 @@ void Pagerank<VT, ET, WT>::setup(WT _alpha,
     // personalize
     if (personalization_subset_size != 0) {
       CUGRAPH_EXPECTS(personalization_subset != nullptr,
-                      "Invalid API parameter: personalization_subset array should be of size "
+                      "Invalid input argument: personalization_subset array should be of size "
                       "personalization_subset_size");
       CUGRAPH_EXPECTS(personalization_values != nullptr,
-                      "Invalid API parameter: personalization_values array should be of size "
+                      "Invalid input argument: personalization_values array should be of size "
                       "personalization_subset_size");
       CUGRAPH_EXPECTS(personalization_subset_size <= v_glob,
                       "Personalization size should be smaller than V");
