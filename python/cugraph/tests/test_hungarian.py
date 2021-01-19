@@ -12,7 +12,6 @@
 # limitations under the License.
 
 import gc
-from itertools import product
 from timeit import default_timer as timer
 
 import numpy as np
@@ -61,11 +60,8 @@ def setup_function():
     gc.collect()
 
 
-# Test all combinations of default/managed and pooled/non-pooled allocation
-@pytest.mark.parametrize('managed, pool',
-                         list(product([False, True], [False, True])))
 @pytest.mark.parametrize('v1_size, v2_size, weight_limit', SPARSE_SIZES)
-def test_hungarian(managed, pool, v1_size, v2_size, weight_limit):
+def test_hungarian(v1_size, v2_size, weight_limit):
     v1, g, m = create_random_bipartite(v1_size,
                                        v2_size,
                                        weight_limit,
@@ -88,11 +84,8 @@ def test_hungarian(managed, pool, v1_size, v2_size, weight_limit):
     assert(scipy_cost == cugraph_cost)
 
 
-# Test all combinations of default/managed and pooled/non-pooled allocation
-@pytest.mark.parametrize('managed, pool',
-                         list(product([False, True], [False, True])))
 @pytest.mark.parametrize('n, weight_limit', DENSE_SIZES)
-def test_dense_hungarian(managed, pool, n, weight_limit):
+def test_dense_hungarian(n, weight_limit):
     C = np.random.uniform(
         0, weight_limit, size=(n, n)
     ).round().astype(np.float32)
