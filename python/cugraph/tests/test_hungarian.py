@@ -1,4 +1,4 @@
-# Copyright (c) 2020, NVIDIA CORPORATION.
+# Copyright (c) 2020-2021, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -12,7 +12,6 @@
 # limitations under the License.
 
 import gc
-from itertools import product
 from timeit import default_timer as timer
 
 import numpy as np
@@ -21,7 +20,6 @@ import pytest
 import cudf
 import cugraph
 from scipy.optimize import linear_sum_assignment
-import rmm
 
 
 def create_random_bipartite(v1, v2, size, dtype):
@@ -54,33 +52,23 @@ def create_random_bipartite(v1, v2, size, dtype):
     return df1['src'], g, a
 
 
-SPARSE_SIZES = [[5, 5, 100], [500, 500, 10000], [5000, 5000, 100000]]
+SPARSE_SIZES = [[5, 5, 100], [500, 500, 10000]]
+DENSE_SIZES = [[5, 100], [500, 10000]]
 
 
 def setup_function():
     gc.collect()
 
 
-# Test all combinations of default/managed and pooled/non-pooled allocation
-@pytest.mark.parametrize('managed, pool',
-                         list(product([False, True], [False, True])))
 @pytest.mark.parametrize('v1_size, v2_size, weight_limit', SPARSE_SIZES)
-def test_hungarian(managed, pool, v1_size, v2_size, weight_limit):
-    rmm.reinitialize(
-        managed_memory=managed,
-        pool_allocator=pool,
-        initial_pool_size=2 << 27
-    )
-
-    assert(rmm.is_initialized())
-
+def test_hungarian(v1_size, v2_size, weight_limit):
     v1, g, m = create_random_bipartite(v1_size,
                                        v2_size,
                                        weight_limit,
                                        np.float)
 
     start = timer()
-    matching = cugraph.hungarian(g, v1)
+    cugraph_cost, matching = cugraph.hungarian(g, v1)
     end = timer()
 
     print('cugraph time: ', (end - start))
@@ -93,14 +81,29 @@ def test_hungarian(managed, pool, v1_size, v2_size, weight_limit):
 
     scipy_cost = m[np_matching[0], np_matching[1]].sum()
 
-    cugraph_df = matching.merge(g.edgelist.edgelist_df,
-                                left_on=['vertex', 'assignment'],
-                                right_on=['src', 'dst'],
-                                how='left')
+    assert(scipy_cost == cugraph_cost)
 
-    cugraph_cost = cugraph_df['weights'].sum()
 
-    print('scipy_cost = ', scipy_cost)
-    print('cugraph_cost = ', cugraph_cost)
+@pytest.mark.parametrize('n, weight_limit', DENSE_SIZES)
+def test_dense_hungarian(n, weight_limit):
+    C = np.random.uniform(
+        0, weight_limit, size=(n, n)
+    ).round().astype(np.float32)
+
+    C_series = cudf.Series(C.flatten())
+
+    start = timer()
+    cugraph_cost, matching = cugraph.dense_hungarian(C_series, n, n)
+    end = timer()
+
+    print('cugraph time: ', (end - start))
+
+    start = timer()
+    np_matching = linear_sum_assignment(C)
+    end = timer()
+
+    print('scipy time: ', (end - start))
+
+    scipy_cost = C[np_matching[0], np_matching[1]].sum()
 
     assert(scipy_cost == cugraph_cost)
