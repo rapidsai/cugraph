@@ -42,6 +42,13 @@ def symmetrize_df(df, src_name, dst_name, multi=False, symmetrize=True):
         Name of the column in the data frame containing the source ids
     dst_name : string
         Name of the column in the data frame containing the destination ids
+    multi : bool
+        Set to True if graph is a Multi(Di)Graph. This allows multiple
+        edges instead of dropping them.
+    symmetrize : bool
+        Default is True to perform symmetrization. If False only duplicate
+        edges are dropped.
+
     Examples
     --------
     >>> import cugraph.dask as dcg
@@ -109,6 +116,12 @@ def symmetrize_ddf(df, src_name, dst_name, weight_name=None):
         Name of the column in the data frame containing the source ids
     dst_name : string
         Name of the column in the data frame containing the destination ids
+    multi : bool
+        Set to True if graph is a Multi(Di)Graph. This allows multiple
+        edges instead of dropping them.
+    symmetrize : bool
+        Default is True to perform symmetrization. If False only duplicate
+        edges are dropped.
 
     Examples
     --------

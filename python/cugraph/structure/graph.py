@@ -112,24 +112,6 @@ class Graph:
         self.batch_transposed_adjlists = None
 
         if m_graph is not None:
-            """if (type(self) is Graph and type(m_graph) is MultiGraph) or (
-                type(self) is DiGraph and type(m_graph) is MultiDiGraph
-            ):
-                elist = m_graph.view_edge_list()
-                if m_graph.edgelist.weights:
-                    weights = "weights"
-                else:
-                    weights = None
-                self.from_cudf_edgelist(elist,
-                                        source = "src",
-                                        destination = "dst",
-                                        edge_attr = weights)
-            else:
-                msg = (
-                    "Graph can be initialized using MultiGraph "
-                    "and DiGraph can be initialized using MultiDiGraph"
-                )
-                raise Exception(msg)"""
             if type(m_graph) is MultiGraph or type(m_graph) is MultiDiGraph:
                 elist = m_graph.view_edge_list()
                 if m_graph.edgelist.weights:
@@ -1527,7 +1509,7 @@ class Graph:
 
 
 class DiGraph(Graph):
-    def __init__(self, m_graph=None, edge_attr=None):
+    def __init__(self, m_graph=None):
         super().__init__(
             m_graph=m_graph, symmetrized=True
         )

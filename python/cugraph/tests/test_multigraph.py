@@ -6,9 +6,16 @@ import gc
 import numpy as np
 
 
+# =============================================================================
+# Pytest Setup / Teardown - called for each test function
+# =============================================================================
+def setup_function():
+    gc.collect()
+
+
 @pytest.mark.parametrize("graph_file", utils.DATASETS)
 def test_multigraph(graph_file):
-    gc.collect()
+    # FIXME: Migrate to new test fixtures for Graph setup once available
     cuM = utils.read_csv_file(graph_file)
     G = cugraph.MultiDiGraph()
     G.from_cudf_edgelist(cuM, source="0", destination="1", edge_attr="2")
@@ -41,6 +48,7 @@ def test_multigraph(graph_file):
 
 @pytest.mark.parametrize("graph_file", utils.DATASETS)
 def test_Graph_from_MultiGraph(graph_file):
+    # FIXME: Migrate to new test fixtures for Graph setup once available
     cuM = utils.read_csv_file(graph_file)
     GM = cugraph.MultiGraph()
     GM.from_cudf_edgelist(cuM, source="0", destination="1", edge_attr="2")
@@ -73,7 +81,7 @@ def test_Graph_from_MultiGraph(graph_file):
 
 @pytest.mark.parametrize("graph_file", utils.DATASETS)
 def test_multigraph_sssp(graph_file):
-    gc.collect()
+    # FIXME: Migrate to new test fixtures for Graph setup once available
     cuM = utils.read_csv_file(graph_file)
     G = cugraph.MultiDiGraph()
     G.from_cudf_edgelist(cuM, source="0", destination="1", edge_attr="2")
