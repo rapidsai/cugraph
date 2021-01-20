@@ -41,7 +41,11 @@ print("Networkx version : {} ".format(nx.__version__))
 # currently in networkx master and will hopefully will make it to a release
 # soon.
 def ktruss_ground_truth(graph_file):
-    G = nx.read_edgelist(graph_file, nodetype=int, data=(("weights", float),))
+    G = nx.read_edgelist(
+        str(graph_file),
+        nodetype=int,
+        data=(("weights", float),)
+    )
     df = nx.to_pandas_edgelist(G)
     return df
 

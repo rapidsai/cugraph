@@ -123,7 +123,7 @@ def test_force_atlas2(graph_file, score, max_iter,
         iterations on a given graph.
     """
 
-    matrix_file = PurePath(graph_file).with_suffix(".mtx")
+    matrix_file = graph_file.with_suffix(".mtx")
     M = scipy.io.mmread(matrix_file)
     M = M.todense()
     cu_trust = trustworthiness(M, cu_pos[["x", "y"]].to_pandas())
