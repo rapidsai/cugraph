@@ -260,13 +260,9 @@ ExternalProject_Add(cuhornet
 set(GUNROCK_DIR ${CMAKE_CURRENT_BINARY_DIR}/gunrock CACHE STRING "Path to gunrock repo")
 set(GUNROCK_INCLUDE_DIR ${GUNROCK_DIR}/src/gunrock_ext CACHE STRING "Path to gunrock includes")
 
-# FIXME: gunrock commit eb13a501edf10dfa1ff2ddd3c05e9de5ec7220ff is a known
-# working commit, no newer than Jan. 04 2021. This should be updated with a more
-# recent stable commit if possible (or this FIXME removed if not).
-
 ExternalProject_Add(gunrock_ext
   GIT_REPOSITORY    https://github.com/gunrock/gunrock.git
-  GIT_TAG           eb13a501edf10dfa1ff2ddd3c05e9de5ec7220ff
+  GIT_TAG           v1.2
   PREFIX            ${GUNROCK_DIR}
   CMAKE_ARGS        -DCMAKE_INSTALL_PREFIX=<INSTALL_DIR>
                     -DGUNROCK_BUILD_SHARED_LIBS=OFF
