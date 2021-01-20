@@ -20,9 +20,9 @@
 #include <curand_kernel.h>
 #include <limits.h>
 #include <math.h>
+#include <raft/cuda_utils.cuh>
 #include <stdio.h>
 #include <stdlib.h>
-#include <raft/cuda_utils.cuh>
 
 #include "tsp_utils.hpp"
 
@@ -32,7 +32,7 @@ namespace detail {
 __device__ float *best_soln;
 extern __shared__ int shbuf[];
 
-__global__ void Init(int *mylock, int *n_climbs, int *best_tour)
+__global__ void init(int *mylock, int *n_climbs, int *best_tour)
 {
   *mylock    = 0;
   *n_climbs  = 0;
@@ -40,15 +40,15 @@ __global__ void Init(int *mylock, int *n_climbs, int *best_tour)
   best_soln  = NULL;
 }
 
-__global__ __launch_bounds__(2048, 2) void simulOpt(int *mylock,
-                                                    int *n_climbs,
-                                                    int *best_tour,
-                                                    const int K,
-                                                    int nodes,
-                                                    int64_t *neighbors,
-                                                    const float *posx,
-                                                    const float *posy,
-                                                    int *work)
+__global__ __launch_bounds__(2048, 2) void two_opt_search(int *mylock,
+                                                          int *n_climbs,
+                                                          int *best_tour,
+                                                          const int K,
+                                                          int nodes,
+                                                          int64_t *neighbors,
+                                                          const float *posx,
+                                                          const float *posy,
+                                                          int *work)
 {
   int *buf  = &work[blockIdx.x * ((3 * nodes + 2 + 31) / 32 * 32)];
   float *px = (float *)(&buf[nodes]);
@@ -91,8 +91,8 @@ __global__ __launch_bounds__(2048, 2) void simulOpt(int *mylock,
 
       px[0]     = posx[0];
       py[0]     = posy[0];
-      int head  = 0;
-      int v     = 0;
+      int64_t head  = 0;
+      int64_t v     = 0;
       buf[head] = 1;
       while (progress < nodes - 1) {  // beam search as starting point
         for (int i = 1; i <= progress; i++) buf[i] = 0;
@@ -100,11 +100,12 @@ __global__ __launch_bounds__(2048, 2) void simulOpt(int *mylock,
         initlen       = 0;
         int randjumps = 0;
         while (progress < nodes - 1) {
-          int nj = (curand(&rndstate) % K) +
-                   1;  // random offset into neighbor + 1 to omit the point itself
+          int64_t nj = curand(&rndstate) % K;
           int linked = 0;
           for (int nh = 0; nh < K; ++nh) {
-            v = neighbors[K * head + nj];
+            // offset (idx / K) + 1 filters the points as their own nearest neighbors.
+            int64_t offset = (K * head + nj) / K + 1;
+            v = neighbors[K * head + nj + offset];
             if (v < nodes && buf[v] == 0) {
               head = v;
               progress += 1;
@@ -112,7 +113,7 @@ __global__ __launch_bounds__(2048, 2) void simulOpt(int *mylock,
               linked    = 1;
               break;
             }
-            nj = ((nj + 1) % K) + 1;
+            nj = (nj + 1) % K;
           }
           if (linked == 0) {
             if (randjumps > nodes - 1)

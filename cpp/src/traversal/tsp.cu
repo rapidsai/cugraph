@@ -14,12 +14,11 @@
  * limitations under the License.
  */
 
+#include <raft/spatial/knn/knn.hpp>
+
 #include "tsp.hpp"
 #include "tsp_solver.hpp"
 #include "tsp_utils.hpp"
-#include "utilities/graph_utils.cuh"
-
-#include <raft/spatial/knn/knn.hpp>
 
 namespace cugraph {
 namespace detail {
@@ -76,33 +75,32 @@ float TSP::compute()
   int global_best = INT_MAX;
   float *soln     = nullptr;
   int best        = 0;
+  std::vector<float> pos;
+  pos.reserve((nodes_ + 1) * 2);
+
 
   if (verbose_) {
-    printf(" doing %d batches of size %d, with %d tail \n",
+    printf("Doing %d batches of size %d, with %d tail \n",
            num_restart_batch_es - 1,
            restart_batch_,
            restart_resid);
     printf("configuration: %d nodes, %d restart\n", nodes_, restarts_);
+    printf("optimizing graph with kswap = %d \n", kswaps);
   }
 
   // Tell the cache how we want it to behave
-  cudaFuncSetCacheConfig(simulOpt, cudaFuncCachePreferEqual);
+  cudaFuncSetCacheConfig(two_opt_search, cudaFuncCachePreferEqual);
 
   int threads = best_thread_count(nodes_);
-  if (verbose_) printf(" calculated best thread number = %d\n", threads);
-
-  std::vector<float> pos;
-  pos.reserve((nodes_ + 1) * 2);
-
-  if (verbose_) printf("optimizing graph with kswap = %d \n", kswaps);
+  if (verbose_) printf("Calculated best thread number = %d\n", threads);
 
   for (int b = 0; b < num_restart_batch_es; b++) {
-    Init<<<1, 1, 0, stream_>>>(mylock_, n_climbs_, best_tour_);
+    init<<<1, 1, 0, stream_>>>(mylock_, n_climbs_, best_tour_);
     CHECK_CUDA(stream_);
 
     if (b == num_restart_batch_es - 1) restart_batch_ = restart_resid;
 
-    simulOpt<<<restart_batch_, threads, sizeof(int) * threads, stream_>>>(mylock_,
+    two_opt_search<<<restart_batch_, threads, sizeof(int) * threads, stream_>>>(mylock_,
                                                                           n_climbs_,
                                                                           best_tour_,
                                                                           k_,
@@ -116,7 +114,7 @@ float TSP::compute()
 
     CUDA_TRY(cudaMemcpy(&best, best_tour_, sizeof(int), cudaMemcpyDeviceToHost));
     cudaDeviceSynchronize();
-    if (verbose_) printf("best reported by kernel = %d\n", best);
+    if (verbose_) printf("Best reported by kernel = %d\n", best);
 
     if (best < global_best) {
       global_best = best;
@@ -139,7 +137,7 @@ float TSP::compute()
 
 void TSP::knn()
 {
-  if (verbose_) printf("Looking at %i nearest neighbors \n", k_);
+  if (verbose_) printf("Looking at %i nearest neighbors\n", k_);
 
   int dim              = 2;
   bool row_major_order = false;

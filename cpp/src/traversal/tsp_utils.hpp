@@ -21,15 +21,12 @@
 #define cpudist(a, b)                                                                          \
   (sqrtf((pos[a] - pos[b]) * (pos[a] - pos[b]) + (pos[a + nodes_ + 1] - pos[b + nodes_ + 1]) * \
                                                    (pos[a + nodes_ + 1] - pos[b + nodes_ + 1])))
-#define coo_dist(a, b) \
-  (sqrtf((xcoo[a] - xcoo[b]) * (xcoo[a] - xcoo[b]) + (ycoo[a] - ycoo[b]) * (ycoo[a] - ycoo[b])))
 
 // Round all distances to the nearest integer, which is good enough for realistic distances in ft
 #define tilesize 128
 #define kswaps 4
 #define dist(a, b) \
   __float2int_rn(sqrtf((px[a] - px[b]) * (px[a] - px[b]) + (py[a] - py[b]) * (py[a] - py[b])))
-#define acudist(a, b) (sqrtf((px[a] - px[b]) * (px[a] - px[b]) + (py[a] - py[b]) * (py[a] - py[b])))
 
 namespace cugraph {
 namespace detail {

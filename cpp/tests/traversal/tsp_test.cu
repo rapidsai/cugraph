@@ -134,7 +134,7 @@ int main(int argc, char *argv[])
   float *d_x_pos = x_pos.data();
   float *d_y_pos = y_pos.data();
   int k          = 4;
-  bool verbose   = false;
+  bool verbose   = true;
 
   CUDA_TRY(cudaMemcpy(d_x_pos, input.x, sizeof(float) * nodes, cudaMemcpyHostToDevice));
   CUDA_TRY(cudaMemcpy(d_y_pos, input.y, sizeof(float) * nodes, cudaMemcpyHostToDevice));
