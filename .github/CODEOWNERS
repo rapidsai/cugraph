@@ -1,5 +1,5 @@
 # https://docs.github.com/en/github/creating-cloning-and-archiving-repositories/about-code-owners
-# Order matters - match of higest importance goes last (last match wins)
+# Order matters - match of highest importance goes last (last match wins)
 
 #doc code owners
 datasets/          @rapidsai/cugraph-doc-codeowners
