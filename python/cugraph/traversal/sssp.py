@@ -156,17 +156,12 @@ def sssp(G,
 
     Parameters
     ----------
-    graph : cuGraph.Graph, NetworkX.Graph, or CuPy sparse COO matrix
-        cuGraph graph descriptor with connectivity information. Edge weights,
-        if present, should be single or double precision floating point values.
-
-    source : Dependant on graph type. Index of the source vertex.
-
-    If graph is an instance of cuGraph.Graph or CuPy sparse COO matrix:
-        int
-
-    If graph is an instance of a NetworkX.Graph:
-        str
+    graph : cugraph.Graph, networkx.Graph, CuPy or SciPy sparse matrix Graph or
+        matrix object, which should contain the connectivity information. Edge
+        weights, if present, should be single or double precision floating
+        point values.
+    source : int
+        Index of the source vertex.
 
     Returns
     -------
