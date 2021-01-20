@@ -81,19 +81,20 @@ template <typename vertex_t,
 std::unique_ptr<experimental::graph_t<vertex_t, edge_t, weight_t, transposed, multi_gpu>>
 create_graph(raft::handle_t const& handle, graph_container_t const& graph_container)
 {
+  std::cout<<"\nIN SG CREATE_GRAPH";
   experimental::edgelist_t<vertex_t, edge_t, weight_t> edgelist{
     reinterpret_cast<vertex_t*>(graph_container.src_vertices),
     reinterpret_cast<vertex_t*>(graph_container.dst_vertices),
     reinterpret_cast<weight_t*>(graph_container.weights),
     static_cast<edge_t>(graph_container.num_partition_edges)};
-
+  std::cout<<"\nInitializing...";
   return std::make_unique<experimental::graph_t<vertex_t, edge_t, weight_t, transposed, multi_gpu>>(
     handle,
     edgelist,
     static_cast<vertex_t>(graph_container.num_global_vertices),
     graph_container.graph_props,
     graph_container.sorted_by_degree,
-    graph_container.do_expensive_check);
+    true);
 }
 
 }  // namespace detail
@@ -123,12 +124,18 @@ void populate_graph_container(graph_container_t& graph_container,
   bool do_expensive_check{true};
   bool hypergraph_partitioned{false};
 
-  auto& row_comm           = handle.get_subcomm(cugraph::partition_2d::key_naming_t().row_name());
-  auto const row_comm_rank = row_comm.get_rank();
-  auto const row_comm_size = row_comm.get_size();  // pcols
-  auto& col_comm           = handle.get_subcomm(cugraph::partition_2d::key_naming_t().col_name());
-  auto const col_comm_rank = col_comm.get_rank();
-  auto const col_comm_size = col_comm.get_size();  // prows
+  if(multi_gpu){
+    auto& row_comm           = handle.get_subcomm(cugraph::partition_2d::key_naming_t().row_name());
+    auto const row_comm_rank = row_comm.get_rank();
+    auto const row_comm_size = row_comm.get_size();  // pcols
+    auto& col_comm           = handle.get_subcomm(cugraph::partition_2d::key_naming_t().col_name());
+    auto const col_comm_rank = col_comm.get_rank();
+    auto const col_comm_size = col_comm.get_size();  // prows
+    graph_container.row_comm_size            = row_comm_size;
+    graph_container.col_comm_size            = col_comm_size;
+    graph_container.row_comm_rank            = row_comm_rank;
+    graph_container.col_comm_rank            = col_comm_rank;
+  }
 
   graph_container.vertex_partition_offsets = vertex_partition_offsets;
   graph_container.src_vertices             = src_vertices;
@@ -143,10 +150,10 @@ void populate_graph_container(graph_container_t& graph_container,
   graph_container.transposed               = transposed;
   graph_container.is_multi_gpu             = multi_gpu;
   graph_container.hypergraph_partitioned   = hypergraph_partitioned;
-  graph_container.row_comm_size            = row_comm_size;
-  graph_container.col_comm_size            = col_comm_size;
-  graph_container.row_comm_rank            = row_comm_rank;
-  graph_container.col_comm_rank            = col_comm_rank;
+  //graph_container.row_comm_size            = row_comm_size;
+  //graph_container.col_comm_size            = col_comm_size;
+  //graph_container.row_comm_rank            = row_comm_rank;
+  //graph_container.col_comm_rank            = col_comm_rank;
   graph_container.sorted_by_degree         = sorted_by_degree;
   graph_container.do_expensive_check       = do_expensive_check;
 
@@ -284,10 +291,10 @@ template <bool transposed,
 return_t call_function(raft::handle_t const& handle,
                        graph_container_t const& graph_container,
                        function_t function)
-{
+{ std::cout<<"\nCreating graph...";
   auto graph =
     create_graph<vertex_t, edge_t, weight_t, transposed, is_multi_gpu>(handle, graph_container);
-
+  std::cout<<"\nCreation done";
   return function(handle, graph->view());
 }
 
@@ -491,8 +498,16 @@ void call_pagerank(raft::handle_t const& handle,
       reinterpret_cast<int32_t*>(identifiers));
   } else if (graph_container.graph_type == graphTypeEnum::graph_t) {
     if (graph_container.edgeType == numberTypeEnum::int32Type) {
+      std::cout<<"\nGraph_t ifelse";
+      //if(graph_container.is_multi_gpu){
+      //auto graph =
+      //  detail::create_graph<int32_t, int32_t, weight_t, true, true>(handle, graph_container);
+      //}
+      //else{
       auto graph =
-        detail::create_graph<int32_t, int32_t, weight_t, true, true>(handle, graph_container);
+        detail::create_graph<int32_t, int32_t, weight_t, true, false>(handle, graph_container);
+      //}
+      std::cout<<"\ncreated graph!";
       cugraph::experimental::pagerank(handle,
                                       graph->view(),
                                       static_cast<weight_t*>(nullptr),
@@ -504,7 +519,8 @@ void call_pagerank(raft::handle_t const& handle,
                                       static_cast<weight_t>(tolerance),
                                       max_iter,
                                       has_guess,
-                                      false);
+                                      true);
+      std::cout<<"\nFinished Pagerank\n";
     } else if (graph_container.edgeType == numberTypeEnum::int64Type) {
       auto graph =
         detail::create_graph<vertex_t, int64_t, weight_t, true, true>(handle, graph_container);
@@ -519,7 +535,7 @@ void call_pagerank(raft::handle_t const& handle,
                                       static_cast<weight_t>(tolerance),
                                       max_iter,
                                       has_guess,
-                                      false);
+                                      true);
     } else {
       CUGRAPH_FAIL("vertexType/edgeType combination unsupported");
     }
