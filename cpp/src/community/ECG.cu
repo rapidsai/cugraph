@@ -18,10 +18,11 @@
 
 #include <rmm/thrust_rmm_allocator.h>
 #include <thrust/random.h>
+#include <community/louvain.cuh>
 #include <converters/permute_graph.cuh>
 #include <ctime>
 #include <utilities/error.hpp>
-#include "utilities/graph_utils.cuh"
+#include <utilities/graph_utils.cuh>
 
 namespace {
 template <typename IndexType>
@@ -42,25 +43,20 @@ binsearch_maxle(const IndexType *vec, const IndexType val, IndexType low, IndexT
 }
 
 template <typename IdxT, typename ValT>
-__global__ void match_check_kernel(IdxT size,
-                                   IdxT num_verts,
-                                   IdxT *offsets,
-                                   IdxT *indices,
-                                   IdxT *permutation,
-                                   IdxT *parts,
-                                   ValT *weights)
+__global__ void match_check_kernel(
+  IdxT size, IdxT num_verts, IdxT *offsets, IdxT *indices, IdxT *parts, ValT *weights)
 {
   IdxT tid = blockIdx.x * blockDim.x + threadIdx.x;
   while (tid < size) {
     IdxT source = binsearch_maxle(offsets, tid, (IdxT)0, num_verts);
     IdxT dest   = indices[tid];
-    if (parts[permutation[source]] == parts[permutation[dest]]) weights[tid] += 1;
+    if (parts[source] == parts[dest]) weights[tid] += 1;
     tid += gridDim.x * blockDim.x;
   }
 }
 
 struct prg {
-  __host__ __device__ float operator()(int n)
+  __device__ float operator()(int n)
   {
     thrust::default_random_engine rng;
     thrust::uniform_real_distribution<float> dist(0.0, 1.0);
@@ -103,9 +99,71 @@ void get_permutation_vector(T size, T seed, T *permutation, cudaStream_t stream)
     rmm::exec_policy(stream)->on(stream), randoms_v.begin(), randoms_v.end(), permutation);
 }
 
+template <typename graph_type>
+class EcgLouvain : public cugraph::Louvain<graph_type> {
+ public:
+  using graph_t  = graph_type;
+  using vertex_t = typename graph_type::vertex_type;
+  using edge_t   = typename graph_type::edge_type;
+  using weight_t = typename graph_type::weight_type;
+
+  EcgLouvain(raft::handle_t const &handle, graph_type const &graph, vertex_t seed)
+    : cugraph::Louvain<graph_type>(handle, graph), seed_(seed)
+  {
+  }
+
+  void initialize_dendogram_level(vertex_t num_vertices)
+  {
+    this->dendogram_->add_level(num_vertices);
+
+    get_permutation_vector(
+      num_vertices, seed_, this->dendogram_->current_level_begin(), this->stream_);
+  }
+
+ private:
+  vertex_t seed_;
+};
+
 }  // anonymous namespace
 
 namespace cugraph {
+
+#if 0
+template <typename vertex_t, typename edge_t, typename weight_t, bool multi_gpu>
+void ecg(raft::handle_t const &handle,
+         experimental::graph_view_t<vertex_t, edge_t, weight_t, false, multi_gpu> const &graph_view,
+         weight_t min_weight,
+         vertex_t ensemble_size,
+         vertex_t *clustering)
+{
+  using graph_type = experimental::graph_view_t<vertex_t, edge_t, weight_t, false, multi_gpu>;
+
+  CUGRAPH_EXPECTS(clustering != nullptr, "Invalid input argument: clustering is NULL");
+
+  // "FIXME": remove this check and the guards below
+  //
+  // Disable louvain(experimental::graph_view_t,...)
+  // versions for GPU architectures < 700
+  // (cuco/static_map.cuh depends on features not supported on or before Pascal)
+  //
+  cudaDeviceProp device_prop;
+  CUDA_CHECK(cudaGetDeviceProperties(&device_prop, 0));
+
+  if (device_prop.major < 7) {
+    CUGRAPH_FAIL("ECG not supported on Pascal and older architectures");
+  } else {
+    experimental::Louvain<experimental::graph_view_t<vertex_t, edge_t, weight_t, false, multi_gpu>>
+      runner(handle, graph_view);
+
+    weight_t wt = runner(max_level, resolution);
+    // TODO: implement this...
+    //runner.get_dendogram().partition_at_level(clustering, runner.get_dendogram().num_levels());
+
+    // FIXME: Consider returning the Dendogram at some point
+    return std::make_pair(runner.get_dendogram().num_levels(), wt);
+  }
+}
+#endif
 
 template <typename vertex_t, typename edge_t, typename weight_t>
 void ecg(raft::handle_t const &handle,
@@ -114,8 +172,33 @@ void ecg(raft::handle_t const &handle,
          vertex_t ensemble_size,
          vertex_t *clustering)
 {
+  using graph_type = GraphCSRView<vertex_t, edge_t, weight_t>;
+
   CUGRAPH_EXPECTS(graph.edge_data != nullptr, "API error, louvain expects a weighted graph");
   CUGRAPH_EXPECTS(clustering != nullptr, "Invalid input argument: clustering is NULL");
+
+  // TODO:  New idea... rather than creating a permuted graph
+  //     Observe that because of the up/down behavior... the only difference graph ordering
+  //     has on the computation is in deciding what moves in each up/down pass.
+  //     This *should be* equivalent to the following:
+  //        Instead of initializing each vertex to be in a cluster by itself that
+  //        is equal to cluster id, initialize each vertex to be in a cluster by
+  //        itself equal to a random id.  For each random run of a 1-level Louvain,
+  //        the cluster ids would be randomized differently.
+  //
+  //        For MNMG, we could assume an equal distribution across the GPUs and
+  //        generate to a pattern so that we don't need to do any comms.  It wouldn't
+  //        be completely random, but it should result in an appropriate amount of
+  //        randomness to get the desired effect.
+  //
+  //        Note that this would require implementing the highest level Louvain function,
+  //        or splitting the initialization into an overridable function...
+  //
+  //
+  //  MNMG issue... in order to create an MNMG implementation we need to create
+  //    a distributed implementation of get_permutation_vector, preferably without
+  //    comms...
+  //
 
   cudaStream_t stream{0};
 
@@ -123,27 +206,16 @@ void ecg(raft::handle_t const &handle,
                                              graph.edge_data + graph.number_of_edges);
 
   vertex_t size{graph.number_of_vertices};
+  // TODO:  This seed should be a parameter
+  // TODO:  MNMG - should add the rank to the seed so every thread is a separate seed
   vertex_t seed{1};
-
-  auto permuted_graph = std::make_unique<GraphCSR<vertex_t, edge_t, weight_t>>(
-    size, graph.number_of_edges, graph.has_data());
 
   // Iterate over each member of the ensemble
   for (vertex_t i = 0; i < ensemble_size; i++) {
-    // Take random permutation of the graph
-    rmm::device_vector<vertex_t> permutation_v(size);
-    vertex_t *d_permutation = permutation_v.data().get();
-
-    get_permutation_vector(size, seed, d_permutation, stream);
+    EcgLouvain<graph_type> runner(handle, graph, seed);
     seed += size;
 
-    detail::permute_graph<vertex_t, edge_t, weight_t>(graph, d_permutation, permuted_graph->view());
-
-    // Run one level of Louvain clustering on the random permutation
-    rmm::device_vector<vertex_t> parts_v(size);
-    vertex_t *d_parts = parts_v.data().get();
-
-    cugraph::louvain(handle, permuted_graph->view(), d_parts, size_t{1});
+    weight_t wt = runner(size_t{1}, weight_t{1});
 
     // For each edge in the graph determine whether the endpoints are in the same partition
     // Keep a sum for each edge of the total number of times its endpoints are in the same partition
@@ -154,8 +226,7 @@ void ecg(raft::handle_t const &handle,
                                                    graph.number_of_vertices,
                                                    graph.offsets,
                                                    graph.indices,
-                                                   permutation_v.data().get(),
-                                                   d_parts,
+                                                   runner.get_dendogram().get_level_ptr_unsafe(0),
                                                    ecg_weights_v.data().get());
   }
 

@@ -49,26 +49,6 @@ class Dendogram {
 
   vertex_t current_level_size() const { return get_level_size_unsafe(current_level()); }
 
-  void partition_at_level(vertex_t *d_partition, size_t level) const
-  {
-    cudaStream_t stream{0};
-    std::vector<vertex_t *> level_ptrs_v(level);
-
-    for (size_t i = 0; i < level; ++i) { level_ptrs_v[i] = get_level_ptr_unsafe(i); }
-
-    rmm::device_vector<vertex_t *> d_level_ptrs_v(level_ptrs_v);
-
-    thrust::for_each(
-      rmm::exec_policy(stream)->on(stream),
-      thrust::make_counting_iterator<vertex_t>(0),
-      thrust::make_counting_iterator<vertex_t>(get_level_size_unsafe(0)),
-      [d_partition, level, d_level_ptrs = d_level_ptrs_v.data().get()] __device__(vertex_t v) {
-        vertex_t p = v;
-        for (int l = 0; l < level; ++l) { p = d_level_ptrs[l][p]; }
-        d_partition[v] = p;
-      });
-  }
-
  private:
   std::vector<vertex_t> level_size_;
   std::vector<std::unique_ptr<rmm::device_buffer>> level_ptr_;

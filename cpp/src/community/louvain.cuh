@@ -147,11 +147,7 @@ class Louvain {
       //
       //  Initialize every cluster to reference each vertex to itself
       //
-      dendogram_->add_level(current_graph.number_of_vertices);
-
-      thrust::sequence(rmm::exec_policy(stream_)->on(stream_),
-                       dendogram_->current_level_begin(),
-                       dendogram_->current_level_end());
+      initialize_dendogram_level(current_graph.number_of_vertices);
 
       compute_vertex_and_cluster_weights(current_graph);
 
@@ -192,6 +188,14 @@ class Louvain {
 #endif
   }
 
+  void initialize_dendogram_level(vertex_t num_vertices) {
+    dendogram_->add_level(num_vertices);
+
+    thrust::sequence(rmm::exec_policy(stream_)->on(stream_),
+                     dendogram_->current_level_begin(),
+                     dendogram_->current_level_end());
+  }
+  
  public:
   void compute_vertex_and_cluster_weights(graph_type const &graph)
   {
