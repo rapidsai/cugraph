@@ -58,6 +58,13 @@ Katz Centrality
 Community
 =========
 
+EgoNet
+------------------------------------
+
+.. automodule:: cugraph.community.egonet
+	:members:
+	:undoc-members:
+
 Ensemble clustering for graphs (ECG)
 ------------------------------------
 
