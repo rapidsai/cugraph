@@ -73,7 +73,6 @@ class Graph:
     def __init__(
         self,
         m_graph=None,
-        edge_attr=None,
         symmetrized=False,
         bipartite=False,
         multi=False,
@@ -113,24 +112,22 @@ class Graph:
         self.batch_transposed_adjlists = None
 
         if m_graph is not None:
-            if (type(self) is Graph and type(m_graph) is MultiGraph) or (
-                type(self) is DiGraph and type(m_graph) is MultiDiGraph
-            ):
-                self.from_cudf_edgelist(
-                    m_graph.edgelist.edgelist_df,
-                    source="src",
-                    destination="dst",
-                    edge_attr=edge_attr,
-                )
-                self.renumbered = m_graph.renumbered
-                self.renumber_map = m_graph.renumber_map
+            if type(m_graph) is MultiGraph or type(m_graph) is MultiDiGraph:
+                elist = m_graph.view_edge_list()
+                if m_graph.edgelist.weights:
+                    weights = "weights"
+                else:
+                    weights = None
+                self.from_cudf_edgelist(elist,
+                                        source="src",
+                                        destination="dst",
+                                        edge_attr=weights)
             else:
                 msg = (
-                    "Graph can be initialized using MultiGraph "
-                    "and DiGraph can be initialized using MultiDiGraph"
+                    "Graph can only be initialized using MultiGraph "
+                    "or MultiDiGraph"
                 )
                 raise Exception(msg)
-        # self.number_of_vertices = None
 
     def enable_batch(self):
         client = mg_utils.get_client()
@@ -278,6 +275,12 @@ class Graph:
         # TO DO: Call coloring algorithm
         return self.multipartite or self.bipartite
 
+    def is_multigraph(self):
+        """
+        Returns True if the graph is a multigraph. Else returns False.
+        """
+        return self.multi
+
     def sets(self):
         """
         Returns the bipartite set of nodes. This solely relies on the user's
@@ -409,24 +412,19 @@ class Graph:
         source_col = elist[source]
         dest_col = elist[destination]
 
-        if self.multi:
-            if type(edge_attr) is not list:
-                raise Exception("edge_attr should be a list of column names")
-            value_col = {}
-            for col_name in edge_attr:
-                value_col[col_name] = elist[col_name]
-        elif edge_attr is not None:
+        if edge_attr is not None:
             value_col = elist[edge_attr]
         else:
             value_col = None
 
-        if not self.symmetrized and not self.multi:
-            if value_col is not None:
-                source_col, dest_col, value_col = symmetrize(
-                    source_col, dest_col, value_col
-                )
-            else:
-                source_col, dest_col = symmetrize(source_col, dest_col)
+        if value_col is not None:
+            source_col, dest_col, value_col = symmetrize(
+                source_col, dest_col, value_col, multi=self.multi,
+                symmetrize=not self.symmetrized)
+        else:
+            source_col, dest_col = symmetrize(
+                source_col, dest_col, multi=self.multi,
+                symmetrize=not self.symmetrized)
 
         self.edgelist = Graph.EdgeList(source_col, dest_col, value_col)
 
@@ -727,7 +725,7 @@ class Graph:
             edgelist_df = self.unrenumber(edgelist_df, "src")
             edgelist_df = self.unrenumber(edgelist_df, "dst")
 
-        if type(self) is Graph:
+        if type(self) is Graph or type(self) is MultiGraph:
             edgelist_df = edgelist_df[edgelist_df["src"] <= edgelist_df["dst"]]
             edgelist_df = edgelist_df.reset_index(drop=True)
             self.edge_count = len(edgelist_df)
@@ -1019,7 +1017,7 @@ class Graph:
             return len(self.edgelist.edgelist_df)
         if self.edge_count is None:
             if self.edgelist is not None:
-                if type(self) is Graph:
+                if type(self) is Graph or type(self) is MultiGraph:
                     self.edge_count = len(
                         self.edgelist.edgelist_df[
                             self.edgelist.edgelist_df["src"]
@@ -1511,17 +1509,26 @@ class Graph:
 
 
 class DiGraph(Graph):
-    def __init__(self, m_graph=None, edge_attr=None):
+    """
+    cuGraph directed graph class. Drops parallel edges.
+    """
+    def __init__(self, m_graph=None):
         super().__init__(
-            m_graph=m_graph, edge_attr=edge_attr, symmetrized=True
+            m_graph=m_graph, symmetrized=True
         )
 
 
 class MultiGraph(Graph):
+    """
+    cuGraph class to create and store undirected graphs with parallel edges.
+    """
     def __init__(self, renumbered=True):
         super().__init__(multi=True)
 
 
 class MultiDiGraph(Graph):
+    """
+    cuGraph class to create and store directed graphs with parallel edges.
+    """
     def __init__(self, renumbered=True):
         super().__init__(symmetrized=True, multi=True)
