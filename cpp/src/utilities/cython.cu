@@ -732,6 +732,7 @@ major_minor_weights_t<vertex_t, weight_t> call_shuffle(
 }
 
 // Wrapper for calling renumber_edeglist() inplace:
+// TODO: check if return type needs further handling...
 //
 template <typename vertex_t, typename edge_t>
 void call_renumber(raft::handle_t const& handle,
