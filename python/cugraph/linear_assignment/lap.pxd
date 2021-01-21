@@ -1,4 +1,4 @@
-# Copyright (c) 2020, NVIDIA CORPORATION.
+# Copyright (c) 2020-2021, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -20,9 +20,19 @@ from cugraph.structure.graph_primtypes cimport *
 
 cdef extern from "algorithms.hpp" namespace "cugraph":
 
-    cdef void hungarian[VT,ET,WT](
+    cdef weight_t hungarian[vertex_t,edge_t,weight_t](
         const handle_t &handle,
-        const GraphCOOView[VT,ET,WT] &graph,
-        VT num_workers,
-        const VT *workers,
-        VT *assignment) except +
+        const GraphCOOView[vertex_t,edge_t,weight_t] &graph,
+        vertex_t num_workers,
+        const vertex_t *workers,
+        vertex_t *assignment) except +
+
+
+cdef extern from "algorithms.hpp":
+
+    cdef weight_t dense_hungarian "cugraph::dense::hungarian" [vertex_t,weight_t](
+        const handle_t &handle,
+        const weight_t *costs,
+        vertex_t num_rows,
+        vertex_t num_columns,
+        vertex_t *assignment) except +

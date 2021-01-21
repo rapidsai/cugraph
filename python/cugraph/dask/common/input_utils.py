@@ -21,8 +21,7 @@ from dask_cudf.core import Series as daskSeries
 
 import cugraph.comms.comms as Comms
 from cugraph.raft.dask.common.utils import get_client
-from cugraph.dask.common.part_utils import (_extract_partitions,
-                                            load_balance_func)
+from cugraph.dask.common.part_utils import _extract_partitions
 from dask.distributed import default_client
 from toolz import first
 from functools import reduce
@@ -174,6 +173,14 @@ class DistributedDataHandler:
         self.max_vertex_id = max_vid
 
 
+def _get_local_data(df, by):
+    df = df[0]
+    num_local_edges = len(df)
+    local_by_max = df[by].iloc[-1]
+    local_max = df[['src', 'dst']].max().max()
+    return num_local_edges, local_by_max, local_max
+
+
 """ Internal methods, API subject to change """
 
 
@@ -196,28 +203,6 @@ def _get_rows(objs, multiple):
     def get_obj(x): return x[0] if multiple else x
     total = list(map(lambda x: get_obj(x).shape[0], objs))
     return total, reduce(lambda a, b: a + b, total)
-
-
-def _get_local_data(df, by):
-    df = df[0]
-    num_local_edges = len(df)
-    local_by_max = df[by].iloc[-1]
-    local_max = df[['src', 'dst']].max().max()
-    return num_local_edges, local_by_max, local_max
-
-
-def get_local_data(input_graph, by, load_balance=True):
-    input_graph.compute_renumber_edge_list(transposed=(by == 'dst'))
-    _ddf = input_graph.edgelist.edgelist_df
-    ddf = _ddf.sort_values(by=by, ignore_index=True)
-
-    if load_balance:
-        ddf = load_balance_func(ddf, by=by)
-
-    comms = Comms.get_comms()
-    data = DistributedDataHandler.create(data=ddf)
-    data.calculate_local_data(comms, by)
-    return data
 
 
 def get_mg_batch_data(dask_cudf_data):

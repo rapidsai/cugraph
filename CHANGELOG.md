@@ -6,6 +6,7 @@
 ## Improvements
 
 ## Bug Fixes
+- PR #1321 Fix benchmark script trap setup to come after the PATH variable update
 
 # cuGraph 0.17.0 (10 Dec 2020)
 ## New Features

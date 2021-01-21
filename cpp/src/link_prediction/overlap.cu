@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019-2020, NVIDIA CORPORATION.
+ * Copyright (c) 2019-2021, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -316,7 +316,7 @@ int overlap_pairs(vertex_t n,
 template <typename VT, typename ET, typename WT>
 void overlap(GraphCSRView<VT, ET, WT> const &graph, WT const *weights, WT *result)
 {
-  CUGRAPH_EXPECTS(result != nullptr, "Invalid API parameter: result pointer is NULL");
+  CUGRAPH_EXPECTS(result != nullptr, "Invalid input argument: result pointer is NULL");
 
   rmm::device_vector<WT> weight_i(graph.number_of_edges);
   rmm::device_vector<WT> weight_s(graph.number_of_edges);
@@ -353,9 +353,9 @@ void overlap_list(GraphCSRView<VT, ET, WT> const &graph,
                   VT const *second,
                   WT *result)
 {
-  CUGRAPH_EXPECTS(result != nullptr, "Invalid API parameter: result pointer is NULL");
-  CUGRAPH_EXPECTS(first != nullptr, "Invalid API parameter: first column is NULL");
-  CUGRAPH_EXPECTS(second != nullptr, "Invalid API parameter: second column is NULL");
+  CUGRAPH_EXPECTS(result != nullptr, "Invalid input argument: result pointer is NULL");
+  CUGRAPH_EXPECTS(first != nullptr, "Invalid input argument: first column is NULL");
+  CUGRAPH_EXPECTS(second != nullptr, "Invalid input argument: second column is NULL");
 
   rmm::device_vector<WT> weight_i(num_pairs);
   rmm::device_vector<WT> weight_s(num_pairs);

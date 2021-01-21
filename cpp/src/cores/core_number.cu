@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019-2020, NVIDIA CORPORATION.
+ * Copyright (c) 2019-2021, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -151,9 +151,9 @@ std::unique_ptr<GraphCOO<VT, ET, WT>> k_core(GraphCOOView<VT, ET, WT> const &in_
                                              VT num_vertex_ids,
                                              rmm::mr::device_memory_resource *mr)
 {
-  CUGRAPH_EXPECTS(vertex_id != nullptr, "Invalid API parameter: vertex_id is NULL");
-  CUGRAPH_EXPECTS(core_number != nullptr, "Invalid API parameter: core_number is NULL");
-  CUGRAPH_EXPECTS(k >= 0, "Invalid API parameter: k must be >= 0");
+  CUGRAPH_EXPECTS(vertex_id != nullptr, "Invalid input argument: vertex_id is NULL");
+  CUGRAPH_EXPECTS(core_number != nullptr, "Invalid input argument: core_number is NULL");
+  CUGRAPH_EXPECTS(k >= 0, "Invalid input argument: k must be >= 0");
 
   return detail::extract_subgraph(in_graph, vertex_id, core_number, k, num_vertex_ids, mr);
 }
