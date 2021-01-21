@@ -285,10 +285,8 @@ major_minor_weights_t<vertex_t, weight_t> call_shuffle(
 //
 template <typename vertex_t, typename edge_t>
 void call_renumber(raft::handle_t const& handle,
-                   /// output pointers for renumber:
                    vertex_t* shuffled_edgelist_major_vertices /* [INOUT] */,
                    vertex_t* shuffled_edgelist_minor_vertices /* [INOUT] */,
-                   // weights_t const* shuffled_edge_weights,  // [IN]
                    edge_t num_edgelist_edges,
                    bool is_hypergraph_partitioned,
                    bool do_expensive_check,

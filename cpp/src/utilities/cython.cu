@@ -16,6 +16,7 @@
 
 #include <algorithms.hpp>
 #include <experimental/detail/graph_utils.cuh>
+#include <experimental/graph_functions.hpp>
 #include <experimental/graph_view.hpp>
 #include <graph.hpp>
 #include <partition_manager.hpp>
@@ -730,6 +731,37 @@ major_minor_weights_t<vertex_t, weight_t> call_shuffle(
   return ret;  // RVO-ed
 }
 
+// Wrapper for calling renumber_edeglist() inplace:
+//
+template <typename vertex_t, typename edge_t>
+void call_renumber(raft::handle_t const& handle,
+                   vertex_t* shuffled_edgelist_major_vertices /* [INOUT] */,
+                   vertex_t* shuffled_edgelist_minor_vertices /* [INOUT] */,
+                   edge_t num_edgelist_edges,
+                   bool is_hypergraph_partitioned,
+                   bool do_expensive_check,
+                   bool multi_gpu)  // bc. cython cannot take non-type template params
+{
+  // caveat: return values have different types on the 2 branches below:
+  //
+  if (multi_gpu) {
+    auto ret_t = cugraph::experimental::renumber_edgelist<vertex_t, edge_t, true>(
+      handle,
+      shuffled_edgelist_major_vertices,
+      shuffled_edgelist_minor_vertices,
+      num_edgelist_edges,
+      is_hypergraph_partitioned,
+      do_expensive_check);
+  } else {
+    auto ret_f = cugraph::experimental::renumber_edgelist<vertex_t, edge_t, false>(
+      handle,
+      shuffled_edgelist_major_vertices,
+      shuffled_edgelist_minor_vertices,
+      num_edgelist_edges,
+      do_expensive_check);
+  }
+}
+
 // Helper for setting up subcommunicators
 void init_subcomms(raft::handle_t& handle, size_t row_comm_size)
 {
@@ -909,6 +941,8 @@ template void call_sssp(raft::handle_t const& handle,
                         int64_t* predecessors,
                         const int64_t source_vertex);
 
+// TODO: add the remaining relevant EIDIr's:
+//
 template major_minor_weights_t<int32_t, float> call_shuffle(raft::handle_t const& handle,
                                                             int32_t* edgelist_major_vertices,
                                                             int32_t* edgelist_minor_vertices,
@@ -916,5 +950,14 @@ template major_minor_weights_t<int32_t, float> call_shuffle(raft::handle_t const
                                                             int32_t num_edgelist_edges,
                                                             bool is_hypergraph_partitioned);
 
+// TODO: add the remaining relevant EIDIr's:
+//
+template void call_renumber(raft::handle_t const& handle,
+                            int32_t* shuffled_edgelist_major_vertices /* [INOUT] */,
+                            int32_t* shuffled_edgelist_minor_vertices /* [INOUT] */,
+                            int32_t num_edgelist_edges,
+                            bool is_hypergraph_partitioned,
+                            bool do_expensive_check,
+                            bool multi_gpu);
 }  // namespace cython
 }  // namespace cugraph
