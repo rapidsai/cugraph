@@ -56,10 +56,12 @@ for i in range(len(df_page)):
 |              | Core Number                            | Single-GPU   |                     |
 | Layout       |                                        |              |                     |
 |              | Force Atlas 2                          | Single-GPU   |                     |
+| Linear Assignment|                                    |              |                     |
+|              | Hungarian                              | Single-GPU   | [README](cpp/src/linear_assignment/README-hungarian.md) |
 | Link Analysis|                                        |              |                     |
 |              | Pagerank                               | Multi-GPU    |                     |
 |              | Personal Pagerank                      | Multi-GPU    |                     |
-|              | HITS                      				| Single-GPU   | leverages Gunrock   |
+|              | HITS                                   | Single-GPU   | leverages Gunrock   |
 | Link Prediction |                                     |              |                     |
 |              | Jaccard Similarity                     | Single-GPU   |                     |
 |              | Weighted Jaccard Similarity            | Single-GPU   |                     |

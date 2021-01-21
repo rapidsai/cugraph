@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020, NVIDIA CORPORATION.
+ * Copyright (c) 2020-2021, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -42,9 +42,9 @@ void hits(cugraph::GraphCSRView<vertex_t, edge_t, weight_t> const &graph,
           weight_t *hubs,
           weight_t *authorities)
 {
-  CUGRAPH_EXPECTS(hubs != nullptr, "Invalid API parameter: hubs array should be of size V");
+  CUGRAPH_EXPECTS(hubs != nullptr, "Invalid input argument: hubs array should be of size V");
   CUGRAPH_EXPECTS(authorities != nullptr,
-                  "Invalid API parameter: authorities array should be of size V");
+                  "Invalid input argument: authorities array should be of size V");
 
   //
   //  NOTE:  gunrock doesn't support passing a starting value

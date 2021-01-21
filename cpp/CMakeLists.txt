@@ -262,7 +262,7 @@ set(GUNROCK_INCLUDE_DIR ${GUNROCK_DIR}/src/gunrock_ext CACHE STRING "Path to gun
 
 ExternalProject_Add(gunrock_ext
   GIT_REPOSITORY    https://github.com/gunrock/gunrock.git
-  GIT_TAG           dev
+  GIT_TAG           v1.2
   PREFIX            ${GUNROCK_DIR}
   CMAKE_ARGS        -DCMAKE_INSTALL_PREFIX=<INSTALL_DIR>
                     -DGUNROCK_BUILD_SHARED_LIBS=OFF

@@ -1,4 +1,4 @@
-# Copyright (c) 2020, NVIDIA CORPORATION.
+# Copyright (c) 2020-2021, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -17,6 +17,7 @@
 # cython: language_level = 3
 
 from cugraph.linear_assignment.lap cimport hungarian as c_hungarian
+from cugraph.linear_assignment.lap cimport dense_hungarian as c_dense_hungarian
 from cugraph.structure.graph_primtypes cimport *
 from cugraph.structure import graph_primtypes_wrapper
 from libc.stdint cimport uintptr_t
@@ -25,7 +26,7 @@ from cugraph.structure.graph import Graph as type_Graph
 import cudf
 import numpy as np
 
-def hungarian(input_graph, workers):
+def sparse_hungarian(input_graph, workers):
     """
     Call the hungarian algorithm
     """
@@ -76,10 +77,37 @@ def hungarian(input_graph, workers):
     if weights.dtype == np.float32:
         g_float = GraphCOOView[int,int,float](<int*>c_src, <int*>c_dst, <float*>c_weights, num_verts, num_edges)
 
-        c_hungarian[int,int,float](handle_[0], g_float, len(workers), <int*>c_workers, <int*>c_assignment)
+        cost = c_hungarian[int,int,float](handle_[0], g_float, len(workers), <int*>c_workers, <int*>c_assignment)
     else:
         g_double = GraphCOOView[int,int,double](<int*>c_src, <int*>c_dst, <double*>c_weights, num_verts, num_edges)
 
-        c_hungarian[int,int,double](handle_[0], g_double, len(workers), <int*>c_workers, <int*>c_assignment)
+        cost = c_hungarian[int,int,double](handle_[0], g_double, len(workers), <int*>c_workers, <int*>c_assignment)
 
-    return df
+    return cost, df
+
+
+def dense_hungarian(costs, num_rows, num_columns):
+    """
+    Call the dense hungarian algorithm
+    """
+    if type(costs) is not cudf.Series:
+        raise("costs must be a cudf.Series")
+
+    cdef unique_ptr[handle_t] handle_ptr
+    handle_ptr.reset(new handle_t())
+    handle_ = handle_ptr.get();
+
+    assignment = cudf.Series(np.zeros(num_rows, dtype=np.int32))
+
+    cdef uintptr_t c_costs = costs.__cuda_array_interface__['data'][0]
+    cdef uintptr_t c_assignment = assignment.__cuda_array_interface__['data'][0]
+
+
+    if costs.dtype == np.float32:
+        cost = c_dense_hungarian[int,float](handle_[0], <float*> c_costs, num_rows, num_columns, <int*> c_assignment)
+    elif costs.dtype == np.float64:
+        cost = c_dense_hungarian[int,double](handle_[0], <double*> c_costs, num_rows, num_columns, <int*> c_assignment)
+    else:
+        raise("unsported type: ", costs.dtype)
+
+    return cost, assignment

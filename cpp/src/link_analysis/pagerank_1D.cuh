@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020, NVIDIA CORPORATION.
+ * Copyright (c) 2020-2021, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -90,17 +90,17 @@ int pagerank(raft::handle_t const &handle,
              const double tolerance      = 1e-5)
 {
   // null pointers check
-  CUGRAPH_EXPECTS(G.offsets != nullptr, "Invalid API parameter - offsets is null");
-  CUGRAPH_EXPECTS(G.indices != nullptr, "Invalid API parameter - indidices is null");
+  CUGRAPH_EXPECTS(G.offsets != nullptr, "Invalid input argument - offsets is null");
+  CUGRAPH_EXPECTS(G.indices != nullptr, "Invalid input argument - indidices is null");
   CUGRAPH_EXPECTS(pagerank_result != nullptr,
-                  "Invalid API parameter - pagerank output memory must be allocated");
+                  "Invalid input argument - pagerank output memory must be allocated");
 
   // parameter values
   CUGRAPH_EXPECTS(damping_factor > 0.0,
-                  "Invalid API parameter - invalid damping factor value (alpha<0)");
+                  "Invalid input argument - invalid damping factor value (alpha<0)");
   CUGRAPH_EXPECTS(damping_factor < 1.0,
-                  "Invalid API parameter - invalid damping factor value (alpha>1)");
-  CUGRAPH_EXPECTS(n_iter > 0, "Invalid API parameter - n_iter must be > 0");
+                  "Invalid input argument - invalid damping factor value (alpha>1)");
+  CUGRAPH_EXPECTS(n_iter > 0, "Invalid input argument - n_iter must be > 0");
 
   rmm::device_vector<VT> degree(G.number_of_vertices);
 
