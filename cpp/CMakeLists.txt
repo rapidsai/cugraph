@@ -357,7 +357,7 @@ add_library(cugraph SHARED
     src/community/louvain.cu
     src/community/leiden.cu
     src/community/ktruss.cu
-    src/community/ECG.cu
+    src/community/ecg.cu
     src/community/triangles_counting.cu
     src/community/extract_subgraph_by_vertex.cu
     src/cores/core_number.cu
