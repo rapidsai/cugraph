@@ -18,6 +18,7 @@
 #include <experimental/graph.hpp>
 #include <graph.hpp>
 #include <raft/handle.hpp>
+#include <rmm/device_uvector.hpp>
 
 namespace cugraph {
 namespace cython {
@@ -107,6 +108,29 @@ struct graph_container_t {
   int row_comm_rank;
   int col_comm_rank;
   experimental::graph_properties_t graph_props;
+};
+
+// replacement for std::tuple<,,>, since std::tuple is not
+// supported in cython
+//
+template <typename vertex_t, typename weight_t>
+struct major_minor_weights_t {
+  explicit major_minor_weights_t(raft::handle_t const& handle)
+    : shuffled_major_vertices_(0, handle.get_stream()),
+      shuffled_minor_vertices_(0, handle.get_stream()),
+      shuffled_weights_(0, handle.get_stream())
+  {
+  }
+  rmm::device_uvector<vertex_t>& get_major(void) { return shuffled_major_vertices_; }
+
+  rmm::device_uvector<vertex_t>& get_minor(void) { return shuffled_minor_vertices_; }
+
+  rmm::device_uvector<weight_t>& get_weights(void) { return shuffled_weights_; }
+
+ private:
+  rmm::device_uvector<vertex_t> shuffled_major_vertices_;
+  rmm::device_uvector<vertex_t> shuffled_minor_vertices_;
+  rmm::device_uvector<weight_t> shuffled_weights_;
 };
 
 // FIXME: finish description for vertex_partition_offsets
@@ -245,6 +269,33 @@ void call_sssp(raft::handle_t const& handle,
                weight_t* distances,
                vertex_t* predecessors,
                const vertex_t source_vertex);
+
+// wrapper for shuffling:
+//
+template <typename vertex_t, typename edge_t, typename weight_t>
+major_minor_weights_t<vertex_t, weight_t> call_shuffle(
+  raft::handle_t const& handle,
+  vertex_t* edgelist_major_vertices /* [IN] */,  // make_zip_iterator does not accept const !
+  vertex_t* edgelist_minor_vertices /* [IN] */,
+  weight_t* edegelist_weights,
+  edge_t num_edgelist_edges,
+  bool is_hypergraph_partitioned);  // = false
+
+// Wrapper for calling renumber_edeglist():
+//
+template <typename vertex_t, typename edge_t>
+void call_renumber(raft::handle_t const& handle,
+                   /// vertex_t const* vertices, no need
+                   /// vertex_t num_vertices, no need
+                   //
+                   /// output pointers for renumber:
+                   vertex_t* shuffled_edgelist_major_vertices /* [INOUT] */,
+                   vertex_t* shuffled_edgelist_minor_vertices /* [INOUT] */,
+                   // weights_t const* shuffled_edge_weights,  // [IN]
+                   edge_t num_edgelist_edges,
+                   bool is_hypergraph_partitioned,
+                   bool do_expensive_check,
+                   bool multi_gpu);
 
 // Helper for setting up subcommunicators, typically called as part of the
 // user-initiated comms initialization in Python.

@@ -15,16 +15,19 @@
  */
 
 #include <algorithms.hpp>
+#include <experimental/detail/graph_utils.cuh>
 #include <experimental/graph_view.hpp>
 #include <graph.hpp>
 #include <partition_manager.hpp>
 #include <raft/handle.hpp>
 #include <utilities/cython.hpp>
 #include <utilities/error.hpp>
+#include <utilities/shuffle_comm.cuh>
 
 #include <rmm/thrust_rmm_allocator.h>
 #include <thrust/copy.h>
 #include <thrust/iterator/counting_iterator.h>
+#include <thrust/iterator/zip_iterator.h>
 
 namespace cugraph {
 namespace cython {
@@ -686,6 +689,47 @@ void call_sssp(raft::handle_t const& handle,
   }
 }
 
+// wrapper for shuffling:
+//
+template <typename vertex_t, typename edge_t, typename weight_t>
+major_minor_weights_t<vertex_t, weight_t> call_shuffle(
+  raft::handle_t const& handle,
+  vertex_t* edgelist_major_vertices /* [IN] */,  // make_zip_iterator does not accept const !
+  vertex_t* edgelist_minor_vertices /* [IN] */,
+  weight_t* edgelist_weights,
+  edge_t num_edgelist_edges,
+  bool is_hypergraph_partitioned)  // = false
+{
+  auto& comm = handle.get_comms();
+
+  auto& row_comm = handle.get_subcomm(cugraph::partition_2d::key_naming_t().row_name());
+
+  auto& col_comm = handle.get_subcomm(cugraph::partition_2d::key_naming_t().col_name());
+
+  auto zip_edge = thrust::make_zip_iterator(
+    thrust::make_tuple(edgelist_major_vertices, edgelist_minor_vertices, edgelist_weights));
+
+  major_minor_weights_t<vertex_t, weight_t> ret{handle};
+
+  std::forward_as_tuple(std::tie(ret.get_major(), ret.get_minor(), ret.get_weights()),
+                        std::ignore) =
+    cugraph::experimental::sort_and_shuffle_values(
+      comm,  // handle.get_comms(),
+      zip_edge,
+      zip_edge + num_edgelist_edges,
+      [key_func =
+         cugraph::experimental::detail::compute_gpu_id_from_edge_t<vertex_t>{
+           is_hypergraph_partitioned,
+           comm.get_size(),
+           row_comm.get_size(),
+           col_comm.get_size()}] __device__(auto val) {
+        return key_func(thrust::get<0>(val), thrust::get<1>(val));
+      },
+      handle.get_stream());
+
+  return ret;  // RVO-ed
+}
+
 // Helper for setting up subcommunicators
 void init_subcomms(raft::handle_t& handle, size_t row_comm_size)
 {
@@ -864,6 +908,13 @@ template void call_sssp(raft::handle_t const& handle,
                         double* distances,
                         int64_t* predecessors,
                         const int64_t source_vertex);
+
+template major_minor_weights_t<int32_t, float> call_shuffle(raft::handle_t const& handle,
+                                                            int32_t* edgelist_major_vertices,
+                                                            int32_t* edgelist_minor_vertices,
+                                                            float* edegelist_weights,
+                                                            int32_t num_edgelist_edges,
+                                                            bool is_hypergraph_partitioned);
 
 }  // namespace cython
 }  // namespace cugraph
