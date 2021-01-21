@@ -109,7 +109,7 @@ ego_graph(G, n, radius=1, center=True, undirected=False, distance=None):
         partitioning.
     """
 
-    # FIXME: allow nx_weight_attr to be specified
+    #TODO check this
     (G, input_type) = ensure_cugraph_obj(
         G, nx_weight_attr="weight")
 
@@ -121,12 +121,12 @@ ego_graph(G, n, radius=1, center=True, undirected=False, distance=None):
     if G.renumbered:
         df = G.unrenumber(df, "src")
         df = G.unrenumber(df, "dst")
-    # TODO should be returning a graph and casting to the use input/output format
+    # TODO need to return a graph and casting to the use input/output format
     return _convert_df_to_output_type(df, input_type)
 
-batched_ego_graphs(G, vertices, radius=1, center=True, undirected=False, distance=None):
+batched_ego_graphs(G, seeds, radius=1, center=True, undirected=False, distance=None):
     """
-    Compute the  induced subgraph of neighbors centered at node n within a given radius.
+    Compute the  induced subgraph of neighbors for each node in seeds in within a given radius.
 
     Parameters
     ----------
@@ -135,8 +135,8 @@ batched_ego_graphs(G, vertices, radius=1, center=True, undirected=False, distanc
         information. Edge weights, if present, should be single or double
         precision floating point values.
 
-    vertices : cudf.Series
-        Specifies the vertices of the induced egonet subgraph
+    seeds : cudf.Series
+        Specifies the seeds of the induced egonet subgraphs
 
     radius: integer, optional
         Include all neighbors of distance<=radius from n.
@@ -150,18 +150,19 @@ batched_ego_graphs(G, vertices, radius=1, center=True, undirected=False, distanc
 
     Returns
     -------
-    el : cudf.DataFrame
+    ego_edge_lists : cudf.DataFrame
         GPU data frame containing all induced sources identifiers, destination identifiers, edge weights
+    seeds_offsets: cudf.Series
+        Series containing the starting offset in the returned edge list for each seed.
     """
-
-    # FIXME: allow nx_weight_attr to be specified
+    #TODO check this after the regular ego_graph works
     (G, input_type) = ensure_cugraph_obj(
         G, nx_weight_attr="weight")
 
     if G.renumbered is True:
         n = G.lookup_internal_vertex_id(cudf.Series([n]))[0]
 
-    df,offsets = egonet_wrapper.egonet(G, n, radius)
+    df,offsets = egonet_wrapper.egonet(G, seeds, radius)
 
     if G.renumbered:
         df = G.unrenumber(df, "src")

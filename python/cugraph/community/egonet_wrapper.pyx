@@ -37,7 +37,7 @@ def egonet(G, vertices, radius=1):
     cdef uintptr_t c_source_vertex_ptr     = <uintptr_t> NULL # Pointer to the DataFrame 'vertex' Series
 
     # Step 2: Verifiy input_graph has the expected format 
-    #TODO is this how it should be done with non-legacy?
+    #TODO is this how it should be done with non-legacy ? Notice we are not passing CSR later
     if input_graph.adjlist is None:
         input_graph.view_adj_list()
 
@@ -48,7 +48,8 @@ def egonet(G, vertices, radius=1):
     # Step 3: Extract CSR offsets, indices, weights are not expected
     #         - offsets: int (signed, 32-bit)
     #         - indices: int (signed, 32-bit)
-    #TODO 64b types? is this how it should be done with non-legacy? Cna't find populate_graph_container for that
+    #TODO what about 64b types? the backend now supports this 
+    #TODO is this how it should be done with non-legacy? Can't find populate_graph_container for that
     [offsets, indices] = graph_primtypes_wrapper.datatype_cast([input_graph.adjlist.offsets, input_graph.adjlist.indices], [np.int32])
     c_offsets_ptr = offsets.__cuda_array_interface__['data'][0]
     c_indices_ptr = indices.__cuda_array_interface__['data'][0]
@@ -62,13 +63,14 @@ def egonet(G, vertices, radius=1):
         raise ValueError("Starting vertex should be between 0 to number of vertices")
 
     # Step 6: Generate the result
-    #TODO populate a Graph/Digraph to be populated with the returned struct 
     
     # Step 7: Associate <uintptr_t> to cudf Series for offsets
-    c_source_vertex_ptr = 
+    #TODO check this
+    c_source_vertex_ptr = vertices.__cuda_array_interface__['data'][0]
+    n_subgraphs = vertices.size
 
     # Step 8: Proceed to egonet
-    #TODO this should probaby accept csr?
+    #TODO this should probaby accept csr no? maybe add another populate_graph_container for this case?
     cdef graph_container_t graph_container
     populate_graph_container(graph_container,
                              handle_[0],
@@ -82,11 +84,12 @@ def egonet(G, vertices, radius=1):
                              False,
                              False, False) 
 
-    #TODO get the strcut and populate a serie and a graph with output
-    tmp = c_egonet.call_egonet[int, float](handle_ptr.get()[0],
+    el_struct = c_egonet.call_egonet[int, float](handle_ptr.get()[0],
                                graph_container,
                                <int*> c_source_vertex_ptr,
                                <int> n_subgraphs,
                                <int> radius)
+    #TODO get the strcut and populate the offset serie and a graph
+
 
     return tmp
