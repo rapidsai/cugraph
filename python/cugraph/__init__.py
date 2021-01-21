@@ -24,6 +24,7 @@ from cugraph.community import (
     analyzeClustering_ratio_cut,
     subgraph,
     triangles,
+    ego_graph,
 )
 
 from cugraph.structure import (

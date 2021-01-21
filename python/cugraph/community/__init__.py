@@ -25,3 +25,4 @@ from cugraph.community.subgraph_extraction import subgraph
 from cugraph.community.triangle_count import triangles
 from cugraph.community.ktruss_subgraph import ktruss_subgraph
 from cugraph.community.ktruss_subgraph import k_truss
+from cugraph.community.egonet import ego_graph
