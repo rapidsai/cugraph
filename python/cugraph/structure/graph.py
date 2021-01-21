@@ -1509,6 +1509,9 @@ class Graph:
 
 
 class DiGraph(Graph):
+    """
+    cuGraph directed graph class. Drops parallel edges.
+    """
     def __init__(self, m_graph=None):
         super().__init__(
             m_graph=m_graph, symmetrized=True
@@ -1516,10 +1519,16 @@ class DiGraph(Graph):
 
 
 class MultiGraph(Graph):
+    """
+    cuGraph class to create and store undirected graphs with parallel edges.
+    """
     def __init__(self, renumbered=True):
         super().__init__(multi=True)
 
 
 class MultiDiGraph(Graph):
+    """
+    cuGraph class to create and store directed graphs with parallel edges.
+    """
     def __init__(self, renumbered=True):
         super().__init__(symmetrized=True, multi=True)
