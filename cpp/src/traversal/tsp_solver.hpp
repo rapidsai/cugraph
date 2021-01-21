@@ -43,6 +43,9 @@ __global__ void init(int *mylock, int *n_climbs, int *best_tour)
 __global__ __launch_bounds__(2048, 2) void two_opt_search(int *mylock,
                                                           int *n_climbs,
                                                           int *best_tour,
+                                                          const int *vtx_ptr,
+                                                          int *route,
+                                                          const bool beam_search,
                                                           const int K,
                                                           int nodes,
                                                           int64_t *neighbors,
@@ -60,10 +63,12 @@ __global__ __launch_bounds__(2048, 2) void two_opt_search(int *mylock,
   __shared__ float shmem_x[tilesize];
   __shared__ float shmem_y[tilesize];
   __shared__ int shbuf[tilesize];
-  int beam_init = 1;
-  if (!beam_init) {
-    for (int i = threadIdx.x; i <= nodes; i += blockDim.x) px[i] = posx[i];
-    for (int i = threadIdx.x; i <= nodes; i += blockDim.x) py[i] = posy[i];
+  if (!beam_search) {
+    for (int i = threadIdx.x; i <= nodes; i += blockDim.x) {
+      px[i] = posx[i];
+      py[i] = posy[i];
+      route[i] = vtx_ptr[i];
+    }
     __syncthreads();
     if (threadIdx.x == 0) { /* serial permutation as starting point */
       curandState rndstate;
@@ -73,13 +78,15 @@ __global__ __launch_bounds__(2048, 2) void two_opt_search(int *mylock,
         if (i == j) continue;
         raft::swapVals(px[i], px[j]);
         raft::swapVals(py[i], py[j]);
+        raft::swapVals(route[i], route[j]);
       }
       px[nodes] = px[0]; /* close the loop now, avoid special cases later */
       py[nodes] = py[0];
+      route[nodes] = route[0];
     }
     __syncthreads();
   }
-  if (beam_init) {
+  if (beam_search) {
     for (int i = threadIdx.x; i < nodes; i += blockDim.x) buf[i] = 0;
     __syncthreads();
 
@@ -91,8 +98,9 @@ __global__ __launch_bounds__(2048, 2) void two_opt_search(int *mylock,
 
       px[0]     = posx[0];
       py[0]     = posy[0];
-      int64_t head  = 0;
-      int64_t v     = 0;
+      route[0] = vtx_ptr[0];
+      int head  = 0;
+      int v     = 0;
       buf[head] = 1;
       while (progress < nodes - 1) {  // beam search as starting point
         for (int i = 1; i <= progress; i++) buf[i] = 0;
@@ -100,11 +108,11 @@ __global__ __launch_bounds__(2048, 2) void two_opt_search(int *mylock,
         initlen       = 0;
         int randjumps = 0;
         while (progress < nodes - 1) {
-          int64_t nj = curand(&rndstate) % K;
+          int nj = curand(&rndstate) % K;
           int linked = 0;
           for (int nh = 0; nh < K; ++nh) {
             // offset (idx / K) + 1 filters the points as their own nearest neighbors.
-            int64_t offset = (K * head + nj) / K + 1;
+            int offset = (K * head + nj) / K + 1;
             v = neighbors[K * head + nj + offset];
             if (v < nodes && buf[v] == 0) {
               head = v;
@@ -128,16 +136,18 @@ __global__ __launch_bounds__(2048, 2) void two_opt_search(int *mylock,
           // copy from input into beam-search order, update len
           px[progress] = posx[head];
           py[progress] = posy[head];
+          route[progress] =  vtx_ptr[head];
           initlen += dist(progress, progress - 1);
         }
       }
       px[nodes] = px[0];
       py[nodes] = py[0];
+      route[nodes] =  route[0];
       initlen += dist(nodes, 0);
     }
     __syncthreads();
 
-  }  // end if beam_init
+  }  // end if beam_search
 
   int kswaps_active = kswaps;
   int myswaps       = 0;
@@ -290,6 +300,7 @@ __global__ __launch_bounds__(2048, 2) void two_opt_search(int *mylock,
           int j = sum - i;
           raft::swapVals(px[i], px[j]);
           raft::swapVals(py[i], py[j]);
+          raft::swapVals(route[i], route[j]);
         }
       }
       __syncthreads();
@@ -316,7 +327,9 @@ __global__ __launch_bounds__(2048, 2) void two_opt_search(int *mylock,
     atomicMin(best_tour, term);
     while (atomicExch(mylock, 1) != 0)
       ;  // acquire
-    if (best_tour[0] == term) { best_soln = px; }
+    if (best_tour[0] == term) {
+      best_soln = px;
+    }
     *mylock = 0;  // release
     __threadfence();
   }

@@ -18,35 +18,39 @@ import cudf
 
 def traveling_salesman(pos_list,
                        restarts=4096,
+                       beam_search=True,
                        k=4,
-                       distance="euclidean",
-                       verbose=False
+                       nstart=0,
+                       verbose=False,
+                       renumber=True
 ):
     if not isinstance(pos_list, cudf.DataFrame):
         raise Exception("Instance should be cudf.DataFrame")
-
-    if distance != "euclidean":
-        raise Exception("Metric not supported")
 
     null_check(pos_list['vertex'])
     null_check(pos_list['x'])
     null_check(pos_list['y'])
 
     # Renumber
-    numbering = NumberMap()
-    numbering.from_series(pos_list['vertex'])
-    pos_list = numbering.add_internal_vertex_id(pos_list,
-                                                'vertex_id',
-                                                'vertex',
-                                                drop=False,
-                                                preserve_order=True)
+    number_map = None
+    if renumber:
+        number_map = NumberMap()
+        number_map.from_series(pos_list['vertex'])
+        pos_list = number_map.add_internal_vertex_id(pos_list,
+                                                     'vertex_id',
+                                                     'vertex',
+                                                      drop=False,
+                                                      preserve_order=True)
 
-    cost = traveling_salesman_wrapper.traveling_salesman(pos_list,
-                                                         restarts,
-                                                         k,
-                                                         distance,
-                                                         verbose)
+    route, cost = traveling_salesman_wrapper.traveling_salesman(pos_list,
+                                                                restarts,
+                                                                beam_search,
+                                                                k,
+                                                                nstart,
+                                                                verbose,
+                                                                renumber)
     # Drop internal ids and generated column
-    pos_list = pos_list[["vertex", "x", "y"]]
+    if renumber:
+        pos_list = pos_list[["vertex", "x", "y"]]
 
-    return cost
+    return route, cost

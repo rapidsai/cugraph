@@ -21,11 +21,14 @@ from cugraph.structure.graph_primtypes cimport *
 cdef extern from "algorithms.hpp" namespace "cugraph":
 
     cdef float traveling_salesman(const handle_t &handle,
+            int *vtx_ptr,
             int *route,
             float *x_pos,
             float *y_pos,
             int nodes,
             int restarts,
+            bool beam_search,
             int k,
+            int nstart,
             bool verbose) except +
 

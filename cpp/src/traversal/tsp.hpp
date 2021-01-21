@@ -28,12 +28,15 @@ namespace detail {
 class TSP {
  public:
   TSP(raft::handle_t &handle,
+      const int *vtx_ptr,
       int *route,
       const float *x_pos,
       const float *y_pos,
       const int nodes,
       const int restarts,
+      const bool beam_search,
       const int k,
+      const int nstart,
       const bool verbose);
 
   void allocate();
@@ -51,12 +54,15 @@ class TSP {
   int restart_batch_;
 
   // TSP
+  const int *vtx_ptr_;
   int *route_;
   const float *x_pos_;
   const float *y_pos_;
   const int nodes_;
   const int restarts_;
+  const bool beam_search_;
   const int k_;
+  const int nstart_;
   const bool verbose_;
 
   // Scalars

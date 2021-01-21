@@ -24,20 +24,26 @@ namespace cugraph {
 namespace detail {
 
 TSP::TSP(raft::handle_t &handle,
+         const int *vtx_ptr,
          int *route,
          const float *x_pos,
          const float *y_pos,
          const int nodes,
          const int restarts,
+         const bool beam_search,
          const int k,
+         const int nstart,
          const bool verbose)
   : handle_(handle),
+    vtx_ptr_(vtx_ptr),
     route_(route),
     x_pos_(x_pos),
     y_pos_(y_pos),
     nodes_(nodes),
     restarts_(restarts),
+    beam_search_(beam_search),
     k_(k),
+    nstart_(nstart),
     verbose_(verbose)
 {
   stream_      = handle_.get_stream();
@@ -100,15 +106,20 @@ float TSP::compute()
 
     if (b == num_restart_batch_es - 1) restart_batch_ = restart_resid;
 
-    two_opt_search<<<restart_batch_, threads, sizeof(int) * threads, stream_>>>(mylock_,
-                                                                          n_climbs_,
-                                                                          best_tour_,
-                                                                          k_,
-                                                                          nodes_,
-                                                                          neighbors_,
-                                                                          x_pos_,
-                                                                          y_pos_,
-                                                                          work_);
+    two_opt_search<<<restart_batch_, threads, sizeof(int) * threads, stream_>>>(
+        mylock_,
+        n_climbs_,
+        best_tour_,
+        vtx_ptr_,
+        route_,
+        beam_search_,
+        k_,
+        nodes_,
+        neighbors_,
+        x_pos_,
+        y_pos_,
+        work_);
+
     CHECK_CUDA(stream_);
     cudaDeviceSynchronize();
 
@@ -129,7 +140,9 @@ float TSP::compute()
   if (verbose_) printf("Optimized tour length = %d\n", global_best);
 
   for (int i = 0; i < nodes_; i++) {
-    if (verbose_) printf("%.1f %.1f\n", pos[i], pos[i + nodes_ + 1]);
+    if (verbose_) {
+      printf("%.1f %.1f\n", pos[i], pos[i + nodes_ + 1]);
+    }
     valid_coo_dist += cpudist(i, i + 1);
   }
   return valid_coo_dist;
@@ -177,20 +190,26 @@ void TSP::knn()
 }  // namespace detail
 
 float traveling_salesman(raft::handle_t &handle,
+                         const int *vtx_ptr,
                          int *route,
                          const float *x_pos,
                          const float *y_pos,
                          const int nodes,
                          const int restarts,
+                         const bool beam_search,
                          const int k,
+                         const int nstart,
                          const bool verbose)
 {
-  RAFT_EXPECTS(route != nullptr, "route should be of size V");
-  RAFT_EXPECTS(nodes > 0, "0 vertices");
-  RAFT_EXPECTS(restarts > 0, "0 restarts");
-  RAFT_EXPECTS(k > 0, "0 neighbors");
+  RAFT_EXPECTS(route != nullptr, "route should equal the number of nodes");
+  RAFT_EXPECTS(nodes > 0, "nodes should be strictly positive");
+  RAFT_EXPECTS(restarts > 0, "restarts should be strictly positive");
+  RAFT_EXPECTS(k > 0, "k should be strictly positive");
 
-  cugraph::detail::TSP tsp(handle, route, x_pos, y_pos, nodes, restarts, k, verbose);
+  raft::print_device_vector("Cities: ", vtx_ptr, nodes, std::cout);
+
+  cugraph::detail::TSP tsp(handle, vtx_ptr, route, x_pos, y_pos, nodes,
+      restarts, beam_search, k, nstart, verbose);
   tsp.allocate();
   tsp.knn();
   return tsp.compute();
