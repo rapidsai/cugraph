@@ -44,7 +44,7 @@ std::tuple<rmm::device_uvector<vertex_t>,
            rmm::device_uvector<vertex_t>,
            rmm::device_uvector<weight_t>,
            rmm::device_uvector<size_t>>
-extract_induced_subgraph(
+extract_induced_subgraphs(
   raft::handle_t const &handle,
   graph_view_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu> const &graph_view,
   size_t const *subgraph_offsets /* size == num_subgraphs + 1 */,
@@ -257,23 +257,23 @@ template std::tuple<rmm::device_uvector<int32_t>,
                     rmm::device_uvector<int32_t>,
                     rmm::device_uvector<float>,
                     rmm::device_uvector<size_t>>
-extract_induced_subgraph(raft::handle_t const &handle,
-                         graph_view_t<int32_t, int32_t, float, true, false> const &graph_view,
-                         size_t const *subgraph_offsets,
-                         int32_t const *subgraph_vertices,
-                         size_t num_subgraphs,
-                         bool do_expensive_check);
+extract_induced_subgraphs(raft::handle_t const &handle,
+                          graph_view_t<int32_t, int32_t, float, true, false> const &graph_view,
+                          size_t const *subgraph_offsets,
+                          int32_t const *subgraph_vertices,
+                          size_t num_subgraphs,
+                          bool do_expensive_check);
 
 template std::tuple<rmm::device_uvector<int32_t>,
                     rmm::device_uvector<int32_t>,
                     rmm::device_uvector<float>,
                     rmm::device_uvector<size_t>>
-extract_induced_subgraph(raft::handle_t const &handle,
-                         graph_view_t<int32_t, int32_t, float, false, false> const &graph_view,
-                         size_t const *subgraph_offsets,
-                         int32_t const *subgraph_vertices,
-                         size_t num_subgraphs,
-                         bool do_expensive_check);
+extract_induced_subgraphs(raft::handle_t const &handle,
+                          graph_view_t<int32_t, int32_t, float, false, false> const &graph_view,
+                          size_t const *subgraph_offsets,
+                          int32_t const *subgraph_vertices,
+                          size_t num_subgraphs,
+                          bool do_expensive_check);
 
 }  // namespace experimental
 }  // namespace cugraph

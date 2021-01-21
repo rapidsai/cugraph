@@ -279,7 +279,7 @@ std::tuple<rmm::device_uvector<vertex_t>,
            rmm::device_uvector<vertex_t>,
            rmm::device_uvector<weight_t>,
            rmm::device_uvector<size_t>>
-extract_induced_subgraph(
+extract_induced_subgraphs(
   raft::handle_t const& handle,
   graph_view_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu> const& graph_view,
   size_t const* subgraph_offsets /* size == num_subgraphs + 1 */,
