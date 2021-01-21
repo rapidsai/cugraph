@@ -1,4 +1,4 @@
-# Copyright (c) 2019-2020, NVIDIA CORPORATION.
+# Copyright (c) 2020-2021, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -12,7 +12,6 @@
 # limitations under the License.
 
 import time
-
 import pytest
 
 import cugraph
@@ -20,6 +19,7 @@ from cugraph.internals import GraphBasedDimRedCallback
 from cugraph.tests import utils
 from sklearn.manifold import trustworthiness
 import scipy.io
+from pathlib import PurePath
 
 # Temporarily suppress warnings till networkX fixes deprecation warnings
 # (Using or importing the ABCs from 'collections' instead of from
@@ -61,11 +61,14 @@ def cugraph_call(cu_M, max_iter, pos_list, outbound_attraction_distribution,
 
 
 DATASETS = [
-    ("../datasets/karate.csv", 0.70),
-    ("../datasets/polbooks.csv", 0.75),
-    ("../datasets/dolphins.csv", 0.66),
-    ("../datasets/netscience.csv", 0.66),
+    (PurePath(utils.RAPIDS_DATASET_ROOT_DIR)/f,)+(d,) for (f, d) in [
+        ("karate.csv", 0.70),
+        ("polbooks.csv", 0.75),
+        ("dolphins.csv", 0.66),
+        ("netscience.csv", 0.66)]
 ]
+
+
 MAX_ITERATIONS = [500]
 BARNES_HUT_OPTIMIZE = [False, True]
 
@@ -120,7 +123,7 @@ def test_force_atlas2(graph_file, score, max_iter,
         iterations on a given graph.
     """
 
-    matrix_file = graph_file[:-4] + ".mtx"
+    matrix_file = graph_file.with_suffix(".mtx")
     M = scipy.io.mmread(matrix_file)
     M = M.todense()
     cu_trust = trustworthiness(M, cu_pos[["x", "y"]].to_pandas())
