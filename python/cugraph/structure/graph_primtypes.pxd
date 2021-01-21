@@ -147,14 +147,11 @@ cdef extern from "utilities/cython.hpp" namespace "cugraph::cython":
 
     cdef void call_renumber[vertex_t, edge_t](
         const handle_t &handle,
-        const vertex_t *vertices,
-        vertex_t num_vertices,
         vertex_t *edgelist_major_vertices,
         vertex_t *edgelist_minot_vertices,
         edge_t num_edges,
         bool is_hyper_partitioned,
         bool do_check,
-        bool do_shuffle,
         bool multi_gpu) except +
 
 
