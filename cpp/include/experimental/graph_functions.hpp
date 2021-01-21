@@ -243,5 +243,49 @@ void relabel(raft::handle_t const& handle,
              vertex_t num_labels,
              bool do_expensive_check = false);
 
+/**
+ * @brief extract induced subgraph(s).
+ *
+ * @tparam vertex_t Type of vertex identifiers. Needs to be an integral type.
+ * @tparam edge_t Type of edge identifiers. Needs to be an integral type.
+ * @tparam weight_t Type of edge weights.
+ * @tparam store_transposed Flag indicating whether to store the graph adjacency matrix as is or as
+ * transposed.
+ * @tparam multi_gpu Flag indicating whether template instantiation should target single-GPU (false)
+ * or multi-GPU (true).
+ * @param handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator, and
+ * handles to various CUDA libraries) to run graph algorithms.
+ * @param graph_view Graph view object, we extract induced subgraphs from @p graph_view.
+ * @param subgraph_offsets Pointer to subgraph vertex offsets (size == @p num_subgraphs + 1).
+ * @param subgraph_vertices Pointer to subgraph vertices (size == @p subgraph_offsets[@p
+ * num_subgraphs]). The elements of @p subgraph_vertices for each subgraph should be sorted in
+ * ascending order and unique.
+ * @param num_subgraphs Number of induced subgraphs to extract.
+ * @param do_expensive_check A flag to run expensive checks for input arguments (if set to `true`).
+ * @return std::tuple<rmm::device_uvector<vertex_t>, rmm::device_uvector<vertex_t>,
+ * rmm::device_uvector<weight_t>, rmm::device_uvector<size_t>> Quadraplet of edge major (destination
+ * if @p store_transposed is true, source otherwise) vertices, edge minor (source if @p
+ * store_transposed  is true, destination otherwise) vertices, edge weights, and edge offsets for
+ * each induced subgraphs (size == num_subgraphs + 1). The sizes of the edge major & minor vertices
+ * are edge_offsets[num_subgraphs]. The size of the edge weights is either
+ * edge_offsets[num_subgraphs] (if @p graph_view is weighted) or 0 (if @p graph_view is unweighted).
+ */
+template <typename vertex_t,
+          typename edge_t,
+          typename weight_t,
+          bool store_transposed,
+          bool multi_gpu>
+std::tuple<rmm::device_uvector<vertex_t>,
+           rmm::device_uvector<vertex_t>,
+           rmm::device_uvector<weight_t>,
+           rmm::device_uvector<size_t>>
+extract_induced_subgraph(
+  raft::handle_t const& handle,
+  graph_view_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu> const& graph_view,
+  size_t const* subgraph_offsets /* size == num_subgraphs + 1 */,
+  vertex_t const* subgraph_vertices /* size == subgraph_offsets[num_subgraphs] */,
+  size_t num_subgraphs,
+  bool do_expensive_check = false);
+
 }  // namespace experimental
 }  // namespace cugraph
