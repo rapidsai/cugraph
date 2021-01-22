@@ -133,6 +133,31 @@ struct major_minor_weights_t {
   rmm::device_uvector<weight_t> shuffled_weights_;
 };
 
+// wrapper for renumber_edgelist() return
+// (unrenumbering maps, etc.)
+//
+template <typename vertex_t, typename edge_t>
+struct renum_quad_t {
+  explicit renum_quad_t(raft::handle_t const& handle)
+    : dv_(0, handle.get_stream()), part_(std::vector<vertex_t>(), false, 0, 0, 0, 0)
+  {
+  }
+
+  rmm::device_uvector<vertex_t>& get_dv(void) { return dv_; }
+  cugraph::experimental::partition_t<vertex_t>& get_partition(void)
+  {
+    return part_;
+  }  // requires a `pass` Cython exposure, at least, to `partition_t`
+  vertex_t& get_num_vertices(void) { return nv_; }
+  edge_t& get_num_edges(void) { return ne_; }
+
+ private:
+  rmm::device_uvector<vertex_t> dv_;
+  cugraph::experimental::partition_t<vertex_t> part_;
+  vertex_t nv_;
+  edge_t ne_;
+};
+
 // FIXME: finish description for vertex_partition_offsets
 //
 // Factory function for populating an empty graph container with a new graph
@@ -284,13 +309,14 @@ major_minor_weights_t<vertex_t, weight_t> call_shuffle(
 // Wrapper for calling renumber_edeglist() inplace:
 //
 template <typename vertex_t, typename edge_t>
-void call_renumber(raft::handle_t const& handle,
-                   vertex_t* shuffled_edgelist_major_vertices /* [INOUT] */,
-                   vertex_t* shuffled_edgelist_minor_vertices /* [INOUT] */,
-                   edge_t num_edgelist_edges,
-                   bool is_hypergraph_partitioned,
-                   bool do_expensive_check,
-                   bool multi_gpu);
+renum_quad_t<vertex_t, edge_t> call_renumber(
+  raft::handle_t const& handle,
+  vertex_t* shuffled_edgelist_major_vertices /* [INOUT] */,
+  vertex_t* shuffled_edgelist_minor_vertices /* [INOUT] */,
+  edge_t num_edgelist_edges,
+  bool is_hypergraph_partitioned,
+  bool do_expensive_check,
+  bool multi_gpu);
 
 // Helper for setting up subcommunicators, typically called as part of the
 // user-initiated comms initialization in Python.
