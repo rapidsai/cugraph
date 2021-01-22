@@ -94,7 +94,7 @@ create_graph(raft::handle_t const& handle, graph_container_t const& graph_contai
     static_cast<vertex_t>(graph_container.num_global_vertices),
     graph_container.graph_props,
     graph_container.sorted_by_degree,
-    true);
+    graph_container.do_expensive_check);
 }
 
 }  // namespace detail
@@ -150,10 +150,6 @@ void populate_graph_container(graph_container_t& graph_container,
   graph_container.transposed               = transposed;
   graph_container.is_multi_gpu             = multi_gpu;
   graph_container.hypergraph_partitioned   = hypergraph_partitioned;
-  //graph_container.row_comm_size            = row_comm_size;
-  //graph_container.col_comm_size            = col_comm_size;
-  //graph_container.row_comm_rank            = row_comm_rank;
-  //graph_container.col_comm_rank            = col_comm_rank;
   graph_container.sorted_by_degree         = sorted_by_degree;
   graph_container.do_expensive_check       = do_expensive_check;
 
@@ -291,10 +287,8 @@ template <bool transposed,
 return_t call_function(raft::handle_t const& handle,
                        graph_container_t const& graph_container,
                        function_t function)
-{ std::cout<<"\nCreating graph...";
-  auto graph =
+{ auto graph =
     create_graph<vertex_t, edge_t, weight_t, transposed, is_multi_gpu>(handle, graph_container);
-  std::cout<<"\nCreation done";
   return function(handle, graph->view());
 }
 
@@ -470,44 +464,10 @@ void call_pagerank(raft::handle_t const& handle,
                    int64_t max_iter,
                    bool has_guess)
 {
-  if (graph_container.graph_type == graphTypeEnum::GraphCSCViewFloat) {
-    pagerank(handle,
-             *(graph_container.graph_ptr_union.GraphCSCViewFloatPtr),
-             reinterpret_cast<float*>(p_pagerank),
-             static_cast<int32_t>(personalization_subset_size),
-             reinterpret_cast<int32_t*>(personalization_subset),
-             reinterpret_cast<float*>(personalization_values),
-             alpha,
-             tolerance,
-             max_iter,
-             has_guess);
-    graph_container.graph_ptr_union.GraphCSCViewFloatPtr->get_vertex_identifiers(
-      reinterpret_cast<int32_t*>(identifiers));
-  } else if (graph_container.graph_type == graphTypeEnum::GraphCSCViewDouble) {
-    pagerank(handle,
-             *(graph_container.graph_ptr_union.GraphCSCViewDoublePtr),
-             reinterpret_cast<double*>(p_pagerank),
-             static_cast<int32_t>(personalization_subset_size),
-             reinterpret_cast<int32_t*>(personalization_subset),
-             reinterpret_cast<double*>(personalization_values),
-             alpha,
-             tolerance,
-             max_iter,
-             has_guess);
-    graph_container.graph_ptr_union.GraphCSCViewDoublePtr->get_vertex_identifiers(
-      reinterpret_cast<int32_t*>(identifiers));
-  } else if (graph_container.graph_type == graphTypeEnum::graph_t) {
+  if (graph_container.is_multi_gpu) {
     if (graph_container.edgeType == numberTypeEnum::int32Type) {
-      std::cout<<"\nGraph_t ifelse";
-      //if(graph_container.is_multi_gpu){
-      //auto graph =
-      //  detail::create_graph<int32_t, int32_t, weight_t, true, true>(handle, graph_container);
-      //}
-      //else{
       auto graph =
-        detail::create_graph<int32_t, int32_t, weight_t, true, false>(handle, graph_container);
-      //}
-      std::cout<<"\ncreated graph!";
+        detail::create_graph<int32_t, int32_t, weight_t, true, true>(handle, graph_container);
       cugraph::experimental::pagerank(handle,
                                       graph->view(),
                                       static_cast<weight_t*>(nullptr),
@@ -520,8 +480,7 @@ void call_pagerank(raft::handle_t const& handle,
                                       max_iter,
                                       has_guess,
                                       true);
-      std::cout<<"\nFinished Pagerank\n";
-    } else if (graph_container.edgeType == numberTypeEnum::int64Type) {
+    } else if(graph_container.edgeType == numberTypeEnum::int64Type) {
       auto graph =
         detail::create_graph<vertex_t, int64_t, weight_t, true, true>(handle, graph_container);
       cugraph::experimental::pagerank(handle,
@@ -536,8 +495,39 @@ void call_pagerank(raft::handle_t const& handle,
                                       max_iter,
                                       has_guess,
                                       true);
-    } else {
-      CUGRAPH_FAIL("vertexType/edgeType combination unsupported");
+    }
+  } 
+  else {
+    if (graph_container.edgeType == numberTypeEnum::int32Type) {
+      auto graph =
+        detail::create_graph<int32_t, int32_t, weight_t, true, false>(handle, graph_container);
+      cugraph::experimental::pagerank(handle,
+                                      graph->view(),
+                                      static_cast<weight_t*>(nullptr),
+                                      reinterpret_cast<int32_t*>(personalization_subset),
+                                      reinterpret_cast<weight_t*>(personalization_values),
+                                      static_cast<int32_t>(personalization_subset_size),
+                                      reinterpret_cast<weight_t*>(p_pagerank),
+                                      static_cast<weight_t>(alpha),
+                                      static_cast<weight_t>(tolerance),
+                                      max_iter,
+                                      has_guess,
+                                      true);
+    } else if (graph_container.edgeType == numberTypeEnum::int64Type) {
+      auto graph =
+        detail::create_graph<vertex_t, int64_t, weight_t, true, false>(handle, graph_container);
+      cugraph::experimental::pagerank(handle,
+                                      graph->view(),
+                                      static_cast<weight_t*>(nullptr),
+                                      reinterpret_cast<vertex_t*>(personalization_subset),
+                                      reinterpret_cast<weight_t*>(personalization_values),
+                                      static_cast<vertex_t>(personalization_subset_size),
+                                      reinterpret_cast<weight_t*>(p_pagerank),
+                                      static_cast<weight_t>(alpha),
+                                      static_cast<weight_t>(tolerance),
+                                      max_iter,
+                                      has_guess,
+                                      true);
     }
   }
 }

@@ -33,15 +33,9 @@ def pagerank(input_graph, alpha=0.85, personalization=None, max_iter=100, tol=1.
     Call pagerank
     """
 
-    #if not input_graph.transposedadjlist:
-    #    input_graph.view_transposed_adj_list()
-
     cdef unique_ptr[handle_t] handle_ptr
     handle_ptr.reset(new handle_t())
     handle_ = handle_ptr.get();
-
-    #[offsets, indices] = graph_primtypes_wrapper.datatype_cast([input_graph.transposedadjlist.offsets, input_graph.transposedadjlist.indices], [np.int32])
-    #[weights] = graph_primtypes_wrapper.datatype_cast([input_graph.transposedadjlist.weights], [np.float32, np.float64])
 
     [src, dst] = graph_primtypes_wrapper.datatype_cast([input_graph.edgelist.edgelist_df['src'], input_graph.edgelist.edgelist_df['dst']], [np.int32])
     weights = None
@@ -54,7 +48,7 @@ def pagerank(input_graph, alpha=0.85, personalization=None, max_iter=100, tol=1.
     cdef int num_partition_edges = len(src)
 
     df = cudf.DataFrame()
-    df['vertex'] = cudf.Series(np.zeros(num_verts, dtype=np.int32))
+    df['vertex'] = cudf.Series(np.arange(num_verts, dtype=np.int32))
     df['pagerank'] = cudf.Series(np.zeros(num_verts, dtype=np.float32))
 
     cdef bool has_guess = <bool> 0
@@ -69,7 +63,7 @@ def pagerank(input_graph, alpha=0.85, personalization=None, max_iter=100, tol=1.
 
     cdef uintptr_t c_pers_vtx = <uintptr_t>NULL
     cdef uintptr_t c_pers_val = <uintptr_t>NULL
-    cdef sz = 0
+    cdef int sz = 0
 
     cdef uintptr_t c_src_vertices = src.__cuda_array_interface__['data'][0]
     cdef uintptr_t c_dst_vertices = dst.__cuda_array_interface__['data'][0]
@@ -105,8 +99,9 @@ def pagerank(input_graph, alpha=0.85, personalization=None, max_iter=100, tol=1.
                              <numberTypeEnum>(<int>(numberTypeEnum.int32Type)),
                              <numberTypeEnum>(<int>(numberTypeEnum.int32Type)),
                              <numberTypeEnum>(<int>(numberTypeMap[weight_t])),
-                             num_verts, num_edges,
+                             #num_verts, num_edges,
                              num_partition_edges,
+                             num_verts, num_edges,
                              False,
                              True,
                              False)
