@@ -76,6 +76,11 @@ __global__ __launch_bounds__(2048, 2) void two_opt_search(int *mylock,
       path[i] = vtx_ptr[i];
     }
     __syncthreads();
+
+    raft::swapVals(px[0], px[nstart]);
+    raft::swapVals(py[0], py[nstart]);
+    raft::swapVals(path[0], path[nstart]);
+
     if (threadIdx.x == 0) { /* serial permutation as starting point */
       curandState rndstate;
       curand_init(blockIdx.x, 0, 0, &rndstate);
