@@ -30,6 +30,7 @@ namespace cugraph {
 namespace detail {
 
 __device__ float *best_soln;
+__device__ int *best_route;
 extern __shared__ int shbuf[];
 
 __global__ void init(int *mylock, int *n_climbs, int *best_tour)
@@ -37,7 +38,8 @@ __global__ void init(int *mylock, int *n_climbs, int *best_tour)
   *mylock    = 0;
   *n_climbs  = 0;
   *best_tour = INT_MAX;
-  best_soln  = NULL;
+  best_soln  = nullptr;
+  best_route = nullptr;
 }
 
 __global__ __launch_bounds__(2048, 2) void two_opt_search(int *mylock,
@@ -45,17 +47,21 @@ __global__ __launch_bounds__(2048, 2) void two_opt_search(int *mylock,
                                                           int *best_tour,
                                                           const int *vtx_ptr,
                                                           int *route,
+                                                          int *work_route,
                                                           const bool beam_search,
                                                           const int K,
                                                           int nodes,
                                                           int64_t *neighbors,
                                                           const float *posx,
                                                           const float *posy,
-                                                          int *work)
+                                                          int *work,
+                                                          const int nstart)
 {
   int *buf  = &work[blockIdx.x * ((3 * nodes + 2 + 31) / 32 * 32)];
+  int *route_buf  = &work_route[blockIdx.x * ((3 * nodes + 2 + 31) / 32 * 32)];
   float *px = (float *)(&buf[nodes]);
   float *py = &px[nodes + 1];
+  int *path = (int *)(&route_buf[nodes]);
 
   __shared__ int best_change[kswaps];
   __shared__ int best_i[kswaps];
@@ -67,7 +73,7 @@ __global__ __launch_bounds__(2048, 2) void two_opt_search(int *mylock,
     for (int i = threadIdx.x; i <= nodes; i += blockDim.x) {
       px[i] = posx[i];
       py[i] = posy[i];
-      route[i] = vtx_ptr[i];
+      path[i] = vtx_ptr[i];
     }
     __syncthreads();
     if (threadIdx.x == 0) { /* serial permutation as starting point */
@@ -78,11 +84,11 @@ __global__ __launch_bounds__(2048, 2) void two_opt_search(int *mylock,
         if (i == j) continue;
         raft::swapVals(px[i], px[j]);
         raft::swapVals(py[i], py[j]);
-        raft::swapVals(route[i], route[j]);
+        raft::swapVals(path[i], path[j]);
       }
       px[nodes] = px[0]; /* close the loop now, avoid special cases later */
       py[nodes] = py[0];
-      route[nodes] = route[0];
+      path[nodes] = path[0];
     }
     __syncthreads();
   }
@@ -98,7 +104,7 @@ __global__ __launch_bounds__(2048, 2) void two_opt_search(int *mylock,
 
       px[0]     = posx[0];
       py[0]     = posy[0];
-      route[0] = vtx_ptr[0];
+      path[0] = vtx_ptr[0];
       int head  = 0;
       int v     = 0;
       buf[head] = 1;
@@ -136,13 +142,13 @@ __global__ __launch_bounds__(2048, 2) void two_opt_search(int *mylock,
           // copy from input into beam-search order, update len
           px[progress] = posx[head];
           py[progress] = posy[head];
-          route[progress] =  vtx_ptr[head];
+          path[progress] =  vtx_ptr[head];
           initlen += dist(progress, progress - 1);
-        }
+       }
       }
       px[nodes] = px[0];
       py[nodes] = py[0];
-      route[nodes] =  route[0];
+      path[nodes] =  path[0];
       initlen += dist(nodes, 0);
     }
     __syncthreads();
@@ -300,7 +306,7 @@ __global__ __launch_bounds__(2048, 2) void two_opt_search(int *mylock,
           int j = sum - i;
           raft::swapVals(px[i], px[j]);
           raft::swapVals(py[i], py[j]);
-          raft::swapVals(route[i], route[j]);
+          raft::swapVals(path[i], path[j]);
         }
       }
       __syncthreads();
@@ -329,6 +335,7 @@ __global__ __launch_bounds__(2048, 2) void two_opt_search(int *mylock,
       ;  // acquire
     if (best_tour[0] == term) {
       best_soln = px;
+      best_route = path;
     }
     *mylock = 0;  // release
     __threadfence();

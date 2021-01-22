@@ -76,18 +76,20 @@ void TSP::allocate()
 float TSP::compute()
 {
   float valid_coo_dist = 0.f;
-  int num_restart_batch_es = (restarts_ + restart_batch_ - 1) / restart_batch_;
-  int restart_resid        = restarts_ - (num_restart_batch_es - 1) * restart_batch_;
+  int num_restart_batches = (restarts_ + restart_batch_ - 1) / restart_batch_;
+  int restart_resid        = restarts_ - (num_restart_batches - 1) * restart_batch_;
   int global_best = INT_MAX;
   float *soln     = nullptr;
+  int *route_sol = nullptr;
   int best        = 0;
   std::vector<float> pos;
   pos.reserve((nodes_ + 1) * 2);
-
+  rmm::device_vector<int> work_route_vec(4 * restart_batch_ * ((3 * nodes_ + 2 + 31) / 32 * 32));
+  int *work_route = work_route_vec.data().get();
 
   if (verbose_) {
     printf("Doing %d batches of size %d, with %d tail \n",
-           num_restart_batch_es - 1,
+           num_restart_batches - 1,
            restart_batch_,
            restart_resid);
     printf("configuration: %d nodes, %d restart\n", nodes_, restarts_);
@@ -100,11 +102,11 @@ float TSP::compute()
   int threads = best_thread_count(nodes_);
   if (verbose_) printf("Calculated best thread number = %d\n", threads);
 
-  for (int b = 0; b < num_restart_batch_es; b++) {
+  for (int b = 0; b < num_restart_batches; b++) {
     init<<<1, 1, 0, stream_>>>(mylock_, n_climbs_, best_tour_);
     CHECK_CUDA(stream_);
 
-    if (b == num_restart_batch_es - 1) restart_batch_ = restart_resid;
+    if (b == num_restart_batches - 1) restart_batch_ = restart_resid;
 
     two_opt_search<<<restart_batch_, threads, sizeof(int) * threads, stream_>>>(
         mylock_,
@@ -112,13 +114,15 @@ float TSP::compute()
         best_tour_,
         vtx_ptr_,
         route_,
+        work_route,
         beam_search_,
         k_,
         nodes_,
         neighbors_,
         x_pos_,
         y_pos_,
-        work_);
+        work_,
+        nstart_);
 
     CHECK_CUDA(stream_);
     cudaDeviceSynchronize();
@@ -131,6 +135,10 @@ float TSP::compute()
       global_best = best;
       CUDA_TRY(cudaMemcpyFromSymbol(&soln, best_soln, sizeof(void *)));
       cudaDeviceSynchronize();
+      CUDA_TRY(cudaMemcpyFromSymbol(&route_sol, best_route, sizeof(void *)));
+      cudaDeviceSynchronize();
+
+      raft::print_device_vector("Route: ", route_sol, nodes_, std::cout);
 
       CUDA_TRY(cudaMemcpy(pos.data(), soln, sizeof(float) * (nodes_ + 1) * 2, cudaMemcpyDeviceToHost));
       cudaDeviceSynchronize();
@@ -145,6 +153,7 @@ float TSP::compute()
     }
     valid_coo_dist += cpudist(i, i + 1);
   }
+  raft::copy(route_, route_sol, nodes_, stream_);
   return valid_coo_dist;
 }
 
