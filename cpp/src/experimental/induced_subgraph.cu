@@ -84,7 +84,7 @@ extract_induced_subgraphs(
                                      [vertex_partition] __device__(auto v) {
                                        return !vertex_partition.is_valid_vertex(v) ||
                                               !vertex_partition.is_local_vertex_nocheck(v);
-                                     }),
+                                     }) == 0,
                     "Invalid input argument: subgraph_vertices has invalid vertex IDs.");
 
     CUGRAPH_EXPECTS(
@@ -190,9 +190,9 @@ extract_induced_subgraphs(
        edge_minors                    = edge_minors.data(),
        edge_weights                   = edge_weights.data()] __device__(auto i) {
         auto subgraph_idx = thrust::distance(
-          subgraph_offsets,
+          subgraph_offsets + 1,
           thrust::upper_bound(
-            thrust::seq, subgraph_offsets + 1, subgraph_offsets + num_subgraphs, size_t{i}));
+            thrust::seq, subgraph_offsets, subgraph_offsets + num_subgraphs, size_t{i}));
         vertex_t const *indices{nullptr};
         weight_t const *weights{nullptr};
         edge_t local_degree{};
@@ -225,8 +225,9 @@ extract_induced_subgraphs(
                           pair_first + local_degree,
                           thrust::make_zip_iterator(thrust::make_tuple(edge_majors, edge_minors)) +
                             subgraph_vertex_output_offsets[i],
-                          [vertex_first = subgraph_offsets + subgraph_idx,
-                           vertex_last = subgraph_offsets + (subgraph_idx + 1)] __device__(auto t) {
+                          [vertex_first = subgraph_vertices + subgraph_offsets[subgraph_idx],
+                           vertex_last  = subgraph_vertices +
+                                         subgraph_offsets[subgraph_idx + 1]] __device__(auto t) {
                             return thrust::binary_search(
                               thrust::seq, vertex_first, vertex_last, thrust::get<1>(t));
                           });
