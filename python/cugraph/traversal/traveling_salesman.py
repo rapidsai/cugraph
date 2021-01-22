@@ -22,7 +22,6 @@ def traveling_salesman(pos_list,
                        k=4,
                        nstart=0,
                        verbose=False,
-                       renumber=True
 ):
     if not isinstance(pos_list, cudf.DataFrame):
         raise Exception("Instance should be cudf.DataFrame")
@@ -31,26 +30,10 @@ def traveling_salesman(pos_list,
     null_check(pos_list['x'])
     null_check(pos_list['y'])
 
-    # Renumber
-    number_map = None
-    if renumber:
-        number_map = NumberMap()
-        number_map.from_series(pos_list['vertex'])
-        pos_list = number_map.add_internal_vertex_id(pos_list,
-                                                     'vertex_id',
-                                                     'vertex',
-                                                      drop=False,
-                                                      preserve_order=True)
-
     route, cost = traveling_salesman_wrapper.traveling_salesman(pos_list,
                                                                 restarts,
                                                                 beam_search,
                                                                 k,
                                                                 nstart,
-                                                                verbose,
-                                                                renumber)
-    # Drop internal ids and generated column
-    if renumber:
-        pos_list = pos_list[["vertex", "x", "y"]]
-
+                                                                verbose)
     return route, cost

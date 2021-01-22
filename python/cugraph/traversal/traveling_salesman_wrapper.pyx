@@ -32,8 +32,7 @@ def traveling_salesman(pos_list,
                        beam_search=True,
                        k=4,
                        nstart=0,
-                       verbose=False,
-                       renumber=True,
+                       verbose=False
 ):
     """
     Call traveling_salesman
@@ -46,9 +45,6 @@ def traveling_salesman(pos_list,
     pos_list['vertex'] = pos_list['vertex'].astype(np.int32)
     pos_list['x'] = pos_list['x'].astype(np.float32)
     pos_list['y'] = pos_list['y'].astype(np.float32)
-    if renumber:
-        pos_list['x'][pos_list['vertex_id']] = pos_list['x']
-        pos_list['y'][pos_list['vertex_id']] = pos_list['y']
     x_pos = pos_list['x'].__cuda_array_interface__['data'][0]
     y_pos = pos_list['y'].__cuda_array_interface__['data'][0]
 
@@ -64,10 +60,7 @@ def traveling_salesman(pos_list,
     route_ptr = route_arr.device_ctypes_pointer.value
 
     cdef uintptr_t vtx_ptr = <uintptr_t>NULL
-    if renumber:
-        vtx_ptr = pos_list['vertex_id'].__cuda_array_interface__['data'][0]
-    else:
-        vtx_ptr = pos_list['vertex'].__cuda_array_interface__['data'][0]
+    vtx_ptr = pos_list['vertex'].__cuda_array_interface__['data'][0]
 
     final_cost_float = c_traveling_salesman(handle_[0],
             <int*> vtx_ptr,
