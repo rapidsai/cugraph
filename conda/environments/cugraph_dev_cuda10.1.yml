@@ -13,6 +13,7 @@ dependencies:
 - dask>=2.12.0
 - distributed>=2.12.0
 - dask-cuda=0.18*
+- pytest-cov
 - dask-cudf=0.18*
 - nccl>=2.7
 - ucx-py=0.18*
@@ -44,3 +45,4 @@ dependencies:
 - libcypher-parser
 - rapids-pytest-benchmark
 - doxygen
+- pytest-cov
