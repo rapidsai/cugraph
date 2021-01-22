@@ -14,17 +14,23 @@ doc:
 datasets:
   - 'datasets/**'
   
-cuGraph:
+cpp:
   - 'cpp/**'
 
 CMake:
   - '**/CMakeLists.txt'
   - '**/cmake/**'
-  
-Ops:
-  - '.github/**'
-  - 'ci/**'
+
+conda:
   - 'conda/**'
+
+ci:
+  - 'ci/**'
+
+github: 
+   - '.github/**'
+  
+docker:
   - '**/Dockerfile'
   - '**/.dockerignore'
   - 'docker/**'
