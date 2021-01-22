@@ -141,11 +141,51 @@ cdef extern from "functions.hpp" namespace "cugraph":
         VT_OUT *dst_renumbered,
         ET *map_size) except +
 
+
 # renumber_edgelist() interface:
+#
+# 1. `cdef extern partition_t`:
+#
+cdef extern from "experimental/graph_view.hpp" namespace "cugraph::experimental":
+
+    cdef cppclass partition_t[vertex_t]:
+        pass
+
+
+# 2. return type for shuffle:
 #
 cdef extern from "utilities/cython.hpp" namespace "cugraph::cython":
 
-    cdef void call_renumber[vertex_t, edge_t](
+    cdef cppclass major_minor_weights_t[vertex_t, weight_t]:
+        pass
+
+
+# 3. return type for renumber:
+#
+cdef extern from "utilities/cython.hpp" namespace "cugraph::cython":
+
+    cdef cppclass renum_quad_t[vertex_t, edge_t]:
+        pass
+
+
+# 4. `sort_and_shuffle_values()` wrapper:
+#
+cdef extern from "utilities/cython.hpp" namespace "cugraph::cython":
+
+    cdef major_minor_weights_t[vertex_t, weight_t] call_shuffle[vertex_t, edge_t, weight_t](
+        const handle_t &handle,
+        vertex_t *edgelist_major_vertices,
+        vertex_t *edgelist_minot_vertices,
+        weight_t* edegelist_weights,
+        edge_t num_edges,
+        bool is_hyper_partitioned) except +
+
+
+# 5. `renumber_edgelist()` wrapper
+#
+cdef extern from "utilities/cython.hpp" namespace "cugraph::cython":
+
+    cdef renum_quad_t[vertex_t, edge_t] call_renumber[vertex_t, edge_t](
         const handle_t &handle,
         vertex_t *edgelist_major_vertices,
         vertex_t *edgelist_minot_vertices,
