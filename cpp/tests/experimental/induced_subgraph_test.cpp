@@ -282,9 +282,15 @@ class Tests_InducedSubgraph : public ::testing::TestWithParam<InducedSubgraph_Us
 };
 
 // FIXME: add tests for type combinations
+
 TEST_P(Tests_InducedSubgraph, CheckInt32Int32FloatTransposed)
 {
   run_current_test<int32_t, int32_t, float, true>(GetParam());
+}
+
+TEST_P(Tests_InducedSubgraph, CheckInt32Int32FloatUntransposed)
+{
+  run_current_test<int32_t, int32_t, float, false>(GetParam());
 }
 
 INSTANTIATE_TEST_CASE_P(
