@@ -1,4 +1,4 @@
-# Copyright (c) 2018-2020, NVIDIA CORPORATION.
+# Copyright (c) 2018-2021, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -12,7 +12,7 @@
 # limitations under the License.
 
 from cugraph.raft.dask.common.comms import Comms as raftComms
-from cugraph.raft.dask.common.comms import worker_state
+from cugraph.raft.dask.common.comms import get_raft_comm_state
 from cugraph.raft.common.handle import Handle
 from cugraph.comms.comms_wrapper import init_subcomms as c_init_subcomms
 from dask.distributed import default_client
@@ -196,12 +196,12 @@ def get_default_handle():
 # Functions to be called from within workers
 
 def get_handle(sID):
-    sessionstate = worker_state(sID)
+    sessionstate = get_raft_comm_state(sID)
     return sessionstate['handle']
 
 
 def get_worker_id(sID):
-    sessionstate = worker_state(sID)
+    sessionstate = get_raft_comm_state(sID)
     return sessionstate['wid']
 
 
@@ -216,5 +216,5 @@ def get_n_workers(sID=None):
     if sID is None:
         return read_utils.get_n_workers()
     else:
-        sessionstate = worker_state(sID)
+        sessionstate = get_raft_comm_state(sID)
         return sessionstate['nworkers']

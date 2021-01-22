@@ -1,4 +1,4 @@
-# Copyright (c) 2019-2020, NVIDIA CORPORATION.
+# Copyright (c) 2020-2021, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -13,11 +13,11 @@
 
 import gc
 import time
-
 import pytest
 
 import cugraph
 from cugraph.tests import utils
+from pathlib import PurePath
 
 # Temporarily suppress warnings till networkX fixes deprecation warnings
 # (Using or importing the ABCs from 'collections' instead of from
@@ -113,7 +113,9 @@ def test_jaccard(graph_file):
     assert err == 0
 
 
-@pytest.mark.parametrize("graph_file", ["../datasets/netscience.csv"])
+@pytest.mark.parametrize("graph_file", [PurePath(
+    utils.RAPIDS_DATASET_ROOT_DIR)/"netscience.csv"]
+)
 def test_jaccard_edgevals(graph_file):
     gc.collect()
 
