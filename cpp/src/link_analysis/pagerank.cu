@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2020, NVIDIA CORPORATION.  All rights reserved.
+ * Copyright (c) 2018-2021, NVIDIA CORPORATION.  All rights reserved.
  *
  * NVIDIA CORPORATION and its licensors retain all intellectual property
  * and proprietary rights in and to this software, related documentation
@@ -307,10 +307,10 @@ void pagerank_impl(raft::handle_t const &handle,
 
   if (personalization_subset_size != 0) {
     CUGRAPH_EXPECTS(personalization_subset != nullptr,
-                    "Invalid API parameter: personalization_subset array should be of size "
+                    "Invalid input argument: personalization_subset array should be of size "
                     "personalization_subset_size");
     CUGRAPH_EXPECTS(personalization_values != nullptr,
-                    "Invalid API parameter: personalization_values array should be of size "
+                    "Invalid input argument: personalization_values array should be of size "
                     "personalization_subset_size");
     CUGRAPH_EXPECTS(personalization_subset_size <= m,
                     "Personalization size should be smaller than V");
@@ -378,11 +378,12 @@ void pagerank(raft::handle_t const &handle,
               int64_t max_iter,
               bool has_guess)
 {
-  CUGRAPH_EXPECTS(pagerank != nullptr, "Invalid API parameter: Pagerank array should be of size V");
+  CUGRAPH_EXPECTS(pagerank != nullptr,
+                  "Invalid input argument: Pagerank array should be of size V");
   // Multi-GPU
   if (handle.comms_initialized()) {
     CUGRAPH_EXPECTS(has_guess == false,
-                    "Invalid API parameter: Multi-GPU Pagerank does not guess, please use the "
+                    "Invalid input argument: Multi-GPU Pagerank does not guess, please use the "
                     "single GPU version for this feature");
     CUGRAPH_EXPECTS(max_iter > 0, "The number of iteration must be positive");
     cugraph::mg::pagerank<VT, ET, WT>(handle,

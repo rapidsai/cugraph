@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020, NVIDIA CORPORATION.
+ * Copyright (c) 2020-2021, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -67,9 +67,9 @@ weight_t hungarian_sparse(raft::handle_t const &handle,
                           vertex_t *assignment,
                           cudaStream_t stream)
 {
-  CUGRAPH_EXPECTS(assignment != nullptr, "Invalid API parameter: assignment pointer is NULL");
+  CUGRAPH_EXPECTS(assignment != nullptr, "Invalid input argument: assignment pointer is NULL");
   CUGRAPH_EXPECTS(graph.edge_data != nullptr,
-                  "Invalid API parameter: graph must have edge data (costs)");
+                  "Invalid input argument: graph must have edge data (costs)");
 
 #ifdef TIMING
   HighResTimer hr_timer;

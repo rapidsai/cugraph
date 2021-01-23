@@ -189,7 +189,7 @@ graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu, std::enable_if_
   auto default_stream      = this->get_handle_ptr()->get_stream();
 
   CUGRAPH_EXPECTS(edgelists.size() > 0,
-                  "Invalid API parameter: edgelists.size() should be non-zero.");
+                  "Invalid input argument: edgelists.size() should be non-zero.");
 
   bool is_weighted = edgelists[0].p_edge_weights != nullptr;
 
@@ -202,14 +202,14 @@ graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu, std::enable_if_
                          (is_weighted && (edgelist.p_edge_weights == nullptr)) ||
                          (!is_weighted && (edgelist.p_edge_weights != nullptr));
                 }) == false,
-    "Invalid API parameter: edgelists[].p_src_vertices and edgelists[].p_dst_vertices should not "
+    "Invalid input argument: edgelists[].p_src_vertices and edgelists[].p_dst_vertices should not "
     "be nullptr and edgelists[].p_edge_weights should be nullptr (if edgelists[0].p_edge_weights "
     "is nullptr) or should not be nullptr (otherwise).");
 
   CUGRAPH_EXPECTS((partition.is_hypergraph_partitioned() &&
                    (edgelists.size() == static_cast<size_t>(col_comm_size))) ||
                     (!(partition.is_hypergraph_partitioned()) && (edgelists.size() == 1)),
-                  "Invalid API parameter: errneous edgelists.size().");
+                  "Invalid input argument: errneous edgelists.size().");
 
   // optional expensive checks (part 1/3)
 
@@ -234,17 +234,17 @@ graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu, std::enable_if_
                                        edge_first + edgelists[i].number_of_edges,
                                        out_of_range_t<vertex_t>{
                                          major_first, major_last, minor_first, minor_last}) == 0,
-                      "Invalid API parameter: edgelists[] have out-of-range values.");
+                      "Invalid input argument: edgelists[] have out-of-range values.");
     }
     number_of_local_edges_sum =
       host_scalar_allreduce(comm, number_of_local_edges_sum, default_stream);
     CUGRAPH_EXPECTS(number_of_local_edges_sum == this->get_number_of_edges(),
-                    "Invalid API parameter: the sum of local edges doe counts not match with "
+                    "Invalid input argument: the sum of local edges doe counts not match with "
                     "number_of_local_edges.");
 
     CUGRAPH_EXPECTS(
       partition.get_vertex_partition_last(comm_size - 1) == number_of_vertices,
-      "Invalid API parameter: vertex partition should cover [0, number_of_vertices).");
+      "Invalid input argument: vertex partition should cover [0, number_of_vertices).");
   }
 
   // convert edge list (COO) to compressed sparse format (CSR or CSC)
@@ -288,7 +288,7 @@ graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu, std::enable_if_
                                         degrees.begin(),
                                         degrees.end(),
                                         thrust::greater<edge_t>{}),
-                      "Invalid API parameter: sorted_by_global_degree_within_vertex_partition is "
+                      "Invalid input argument: sorted_by_global_degree_within_vertex_partition is "
                       "set to true, but degrees are not non-ascending.");
     }
 
@@ -388,7 +388,7 @@ graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu, std::enable_if_
 
   CUGRAPH_EXPECTS(
     (edgelist.p_src_vertices != nullptr) && (edgelist.p_dst_vertices != nullptr),
-    "Invalid API parameter: edgelist.p_src_vertices and edgelist.p_dst_vertices should "
+    "Invalid input argument: edgelist.p_src_vertices and edgelist.p_dst_vertices should "
     "not be nullptr.");
 
   // optional expensive checks (part 1/2)
@@ -404,7 +404,7 @@ graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu, std::enable_if_
                       edge_first + edgelist.number_of_edges,
                       out_of_range_t<vertex_t>{
                         0, this->get_number_of_vertices(), 0, this->get_number_of_vertices()}) == 0,
-                    "Invalid API parameter: edgelist have out-of-range values.");
+                    "Invalid input argument: edgelist have out-of-range values.");
 
     // FIXME: check for symmetricity may better be implemetned with transpose().
     if (this->is_symmetric()) {}
@@ -433,12 +433,13 @@ graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu, std::enable_if_
     // optional expensive checks (part 2/2)
 
     if (do_expensive_check) {
-      CUGRAPH_EXPECTS(thrust::is_sorted(rmm::exec_policy(default_stream)->on(default_stream),
-                                        degree_first,
-                                        degree_first + this->get_number_of_vertices(),
-                                        thrust::greater<edge_t>{}),
-                      "Invalid API parameter: sorted_by_degree is set to true, but degrees are not "
-                      "non-ascending.");
+      CUGRAPH_EXPECTS(
+        thrust::is_sorted(rmm::exec_policy(default_stream)->on(default_stream),
+                          degree_first,
+                          degree_first + this->get_number_of_vertices(),
+                          thrust::greater<edge_t>{}),
+        "Invalid input argument: sorted_by_degree is set to true, but degrees are not "
+        "non-ascending.");
     }
 
     static_assert(detail::num_segments_per_vertex_partition == 3);
