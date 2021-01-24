@@ -33,6 +33,11 @@ if(NOT CMAKE_BUILD_TYPE AND NOT CMAKE_CONFIGURATION_TYPES)
     "Debug" "Release" "MinSizeRel" "RelWithDebInfo")
 endif()
 
+##############################################################################
+# - User Options  ------------------------------------------------------------
+
+option(BUILD_CUGRAPH_MG_TESTS "Build cuGraph multigpu algorithm tests" OFF)
+
 ###################################################################################################
 # - compiler options ------------------------------------------------------------------------------
 
@@ -293,6 +298,11 @@ else()
     set(NCCL_INCLUDE_DIRS ${NCCL_PATH}/include)
     set(NCCL_LIBRARIES ${NCCL_PATH}/lib/libnccl.so)
 endif(NOT NCCL_PATH)
+
+# - MPI - only enabled if MG tests are to be built
+if(BUILD_CUGRAPH_MG_TESTS)
+  find_package(MPI REQUIRED)
+endif(BUILD_CUGRAPH_MG_TESTS)
 
 # - raft - (header only) -----------------------------------------------------
 

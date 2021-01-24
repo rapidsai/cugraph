@@ -19,12 +19,13 @@ ARGS=$*
 REPODIR=$(cd $(dirname $0); pwd)
 LIBCUGRAPH_BUILD_DIR=${LIBCUGRAPH_BUILD_DIR:=${REPODIR}/cpp/build}
 
-VALIDARGS="clean libcugraph cugraph docs -v -g -n --allgpuarch --show_depr_warn -h --help"
+VALIDARGS="clean libcugraph cugraph cpp-mgtests docs -v -g -n --allgpuarch --show_depr_warn -h --help"
 HELP="$0 [<target> ...] [<flag> ...]
  where <target> is:
    clean            - remove all existing build artifacts and configuration (start over)
    libcugraph       - build the cugraph C++ code
    cugraph          - build the cugraph Python package
+   cpp-mgtests      - build libcugraph mnmg tests. Builds MPI communicator, adding MPI as a dependency.
    docs             - build the docs
  and <flag> is:
    -v               - verbose build mode
@@ -48,6 +49,7 @@ VERBOSE=""
 BUILD_TYPE=Release
 INSTALL_TARGET=install
 BUILD_DISABLE_DEPRECATION_WARNING=ON
+BUILD_CPP_MG_TESTS=OFF
 GPU_ARCH=""
 
 # Set defaults for vars that may not have been defined externally
@@ -96,6 +98,9 @@ fi
 if hasArg --show_depr_warn; then
     BUILD_DISABLE_DEPRECATION_WARNING=OFF
 fi
+if hasArg cpp-mgtests; then
+    BUILD_CPP_MG_TESTS=ON
+fi
 
 # If clean given, run it prior to any other steps
 if hasArg clean; then
@@ -127,9 +132,11 @@ if buildAll || hasArg libcugraph; then
     mkdir -p ${LIBCUGRAPH_BUILD_DIR}
     cd ${LIBCUGRAPH_BUILD_DIR}
     cmake -DCMAKE_INSTALL_PREFIX=${INSTALL_PREFIX} \
-        ${GPU_ARCH} \
-        -DDISABLE_DEPRECATION_WARNING=${BUILD_DISABLE_DEPRECATION_WARNING} \
-        -DCMAKE_BUILD_TYPE=${BUILD_TYPE} ${REPODIR}/cpp
+          ${GPU_ARCH} \
+          -DDISABLE_DEPRECATION_WARNING=${BUILD_DISABLE_DEPRECATION_WARNING} \
+          -DCMAKE_BUILD_TYPE=${BUILD_TYPE} \
+          -DBUILD_CUGRAPH_MG_TESTS=${BUILD_CPP_MG_TESTS} \
+          ${REPODIR}/cpp
     make -j${PARALLEL_LEVEL} VERBOSE=${VERBOSE} ${INSTALL_TARGET}
 fi
 
