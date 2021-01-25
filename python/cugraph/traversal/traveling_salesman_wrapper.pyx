@@ -32,7 +32,8 @@ def traveling_salesman(pos_list,
                        beam_search=True,
                        k=4,
                        nstart=0,
-                       verbose=False
+                       verbose=False,
+                       renumber=True,
 ):
     """
     Call traveling_salesman
@@ -62,6 +63,8 @@ def traveling_salesman(pos_list,
     cdef uintptr_t vtx_ptr = <uintptr_t>NULL
     vtx_ptr = pos_list['vertex'].__cuda_array_interface__['data'][0]
 
+    renumbered_nstart = pos_list[pos_list['vertex'] == nstart].index[0]
+
     final_cost_float = c_traveling_salesman(handle_[0],
             <int*> vtx_ptr,
             <int*> route_ptr,
@@ -71,7 +74,7 @@ def traveling_salesman(pos_list,
             <int> restarts,
             <bool> beam_search,
             <int> k,
-            <int> nstart,
+            <int> renumbered_nstart,
             <bool> verbose)
 
     route = cudf.Series(route_arr)

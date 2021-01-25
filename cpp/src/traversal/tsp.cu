@@ -96,6 +96,9 @@ float TSP::compute()
     printf("optimizing graph with kswap = %d \n", kswaps);
   }
 
+  allocate();
+  knn();
+
   // Tell the cache how we want it to behave
   cudaFuncSetCacheConfig(two_opt_search, cudaFuncCachePreferEqual);
 
@@ -219,8 +222,6 @@ float traveling_salesman(raft::handle_t &handle,
 
   cugraph::detail::TSP tsp(handle, vtx_ptr, route, x_pos, y_pos, nodes,
       restarts, beam_search, k, nstart, verbose);
-  tsp.allocate();
-  tsp.knn();
   return tsp.compute();
 }
 
