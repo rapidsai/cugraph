@@ -127,6 +127,12 @@ struct major_minor_weights_t {
 
   rmm::device_uvector<weight_t>& get_weights(void) { return shuffled_weights_; }
 
+  vertex_t* get_d_raw_major(void) { return shuffled_major_vertices_.data(); }
+
+  vertex_t* get_d_raw_minor(void) { return shuffled_minor_vertices_.data(); }
+
+  weight_t* get_d_raw_weights(void) { return shuffled_weights_.data(); }
+
  private:
   rmm::device_uvector<vertex_t> shuffled_major_vertices_;
   rmm::device_uvector<vertex_t> shuffled_minor_vertices_;

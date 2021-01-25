@@ -157,7 +157,10 @@ cdef extern from "experimental/graph_view.hpp" namespace "cugraph::experimental"
 cdef extern from "utilities/cython.hpp" namespace "cugraph::cython":
 
     cdef cppclass major_minor_weights_t[vertex_t, weight_t]:
-        pass
+        major_minor_weights_t(const handle_t &handle)
+        vertex_t* get_d_raw_major()
+        vertex_t* get_d_raw_minor()
+        weight_t* get_d_raw_weights()
 
 
 # 3. return type for renumber:
