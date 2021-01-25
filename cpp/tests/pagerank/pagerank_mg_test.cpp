@@ -71,8 +71,29 @@ public:
    Pagerank_E2E_MG_Testfixture_t() {}
 
    // Run once for the entire fixture
-   static void SetUpTestCase() {}
-   static void TearDownTestCase() {}
+   //
+   // FIXME: consider a ::testing::Environment gtest instance instead, as done
+   // by cuML test_opg_utils.h
+   static void SetUpTestCase() {
+      MPI_Init(NULL, NULL);
+
+      int rank, size;
+      MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+      MPI_Comm_size(MPI_COMM_WORLD, &size);
+
+      int nGpus;
+      CUDA_CHECK(cudaGetDeviceCount(&nGpus));
+
+      ASSERT(nGpus >= size,
+             "Number of GPUs are lesser than MPI ranks! ngpus=%d, nranks=%d",
+             nGpus, size);
+
+      CUDA_CHECK(cudaSetDevice(rank));
+   }
+
+   static void TearDownTestCase() {
+      MPI_Finalize();
+   }
 
    // Run once for each test instance
    virtual void SetUp() {}
@@ -91,6 +112,12 @@ public:
     const auto &comm = handle.get_comms();
     const auto allocator = handle.get_device_allocator();
 
+    cudaStream_t stream = handle.get_stream();
+
+    int my_rank = comm.get_rank();
+    int size = comm.get_size();
+
+    ////
 
     FILE* fpin = fopen(param.matrix_file.c_str(), "r");
     ASSERT_NE(fpin, nullptr) << "fopen (" << param.matrix_file << ") failure.";

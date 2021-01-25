@@ -344,7 +344,8 @@ if(BUILD_CUGRAPH_MG_TESTS)
             "${CMAKE_SOURCE_DIR}/../thirdparty/mmio/mmio.c"
             "${CMAKE_CURRENT_SOURCE_DIR}/pagerank/pagerank_mg_test.cpp")
 
-        ConfigureTest(MG_PAGERANK_TEST "${MG_PAGERANK_TEST_SRCS}" "${MG_EXTRA_INCLUDE_DIRS}" "${MG_EXTRA_LIBS}")
+        ConfigureTest(MG_PAGERANK_TEST "${MG_PAGERANK_TEST_SRCS}"
+                      "${MG_EXTRA_INCLUDE_DIRS}" "${MG_EXTRA_LIBS}")
 
     else(MPI_CXX_FOUND)
        message(FATAL_ERROR "OpenMPI NOT found, cannot build MG tests.")
