@@ -28,6 +28,3 @@ ci:
 
 conda:
   - 'conda/**'
-  
-Ops:
-  - '.github/**'
