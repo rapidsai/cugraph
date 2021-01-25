@@ -145,6 +145,9 @@ cdef extern from "functions.hpp" namespace "cugraph":
 
 # renumber_edgelist() interface:
 #
+# 0. cdef `device_uvector`:
+#
+
 # 1. `cdef extern partition_t`:
 #
 cdef extern from "experimental/graph_view.hpp" namespace "cugraph::experimental":
@@ -170,6 +173,7 @@ cdef extern from "utilities/cython.hpp" namespace "cugraph::cython":
 
     cdef cppclass renum_quad_t[vertex_t, edge_t]:
         renum_quad_t(const handle_t &handle)
+        pair[unique_ptr[device_buffer], size_t] get_dv_wrap()
         vertex_t& get_num_vertices()
         edge_t& get_num_edges()
         int get_part_row_size()

@@ -150,6 +150,12 @@ struct renum_quad_t {
   }
 
   rmm::device_uvector<vertex_t>& get_dv(void) { return dv_; }
+
+  std::pair<std::unique_ptr<rmm::device_buffer>, size_t> get_dv_wrap(void) const
+  {
+    return std::make_pair(std::make_unique<rmm::device_buffer>(dv_.release()), sizeof(vertex_t));
+  }
+
   cugraph::experimental::partition_t<vertex_t>& get_partition(void) { return part_; }
   vertex_t& get_num_vertices(void) { return nv_; }
   edge_t& get_num_edges(void) { return ne_; }
