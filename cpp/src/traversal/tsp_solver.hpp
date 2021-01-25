@@ -46,7 +46,6 @@ __global__ __launch_bounds__(2048, 2) void two_opt_search(int *mylock,
                                                           int *n_climbs,
                                                           int *best_tour,
                                                           const int *vtx_ptr,
-                                                          int *route,
                                                           int *work_route,
                                                           const bool beam_search,
                                                           const int K,
@@ -79,6 +78,7 @@ __global__ __launch_bounds__(2048, 2) void two_opt_search(int *mylock,
    __syncthreads();
 
     if (threadIdx.x == 0) { /* serial permutation as starting point */
+      // swap to start at nstart node
       raft::swapVals(px[0], px[nstart]);
       raft::swapVals(py[0], py[nstart]);
       raft::swapVals(path[0], path[nstart]);
@@ -99,17 +99,10 @@ __global__ __launch_bounds__(2048, 2) void two_opt_search(int *mylock,
     __syncthreads();
   }
   if (beam_search) {
-    for (int i = threadIdx.x; i < nodes; i += blockDim.x){
+    for (int i = threadIdx.x; i < nodes; i += blockDim.x)
       buf[i] = 0;
-      px[i] = posx[i];
-      py[i] = posy[i];
-      path[i] = vtx_ptr[i];
-    }
-    __syncthreads();
 
-    raft::swapVals(px[0], px[nstart]);
-    raft::swapVals(py[0], py[nstart]);
-    raft::swapVals(path[0], path[nstart]);
+    __syncthreads();
 
     if (threadIdx.x == 0) {
       curandState rndstate;
@@ -117,11 +110,10 @@ __global__ __launch_bounds__(2048, 2) void two_opt_search(int *mylock,
       int progress = 0;
       int initlen  = 0;
 
-      /*px[0]     = posx[nstart];
-      py[0]     = posy[nstart];
-      path[0] = vtx_ptr[0];
-      */
-      int head  = 0;
+      px[0] = posx[nstart];
+      py[0] = posy[nstart];
+      path[0] = vtx_ptr[nstart];
+      int head  = nstart;
       int v     = 0;
       buf[head] = 1;
       while (progress < nodes - 1) {  // beam search as starting point
@@ -162,10 +154,10 @@ __global__ __launch_bounds__(2048, 2) void two_opt_search(int *mylock,
           initlen += dist(progress, progress - 1);
        }
       }
-      px[nodes] = px[0];
-      py[nodes] = py[0];
-      path[nodes] =  path[0];
-      initlen += dist(nodes, 0);
+      px[nodes] = px[nstart];
+      py[nodes] = py[nstart];
+      path[nodes] =  path[nstart];
+      initlen += dist(nodes, nstart);
     }
     __syncthreads();
   }  // end if beam_search

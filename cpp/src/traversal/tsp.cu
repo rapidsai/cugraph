@@ -87,6 +87,9 @@ float TSP::compute()
   rmm::device_vector<int> work_route_vec(4 * restart_batch_ * ((3 * nodes_ + 2 + 31) / 32 * 32));
   int *work_route = work_route_vec.data().get();
 
+  allocate();
+  knn();
+
   if (verbose_) {
     printf("Doing %d batches of size %d, with %d tail \n",
            num_restart_batches - 1,
@@ -95,9 +98,6 @@ float TSP::compute()
     printf("configuration: %d nodes, %d restart\n", nodes_, restarts_);
     printf("optimizing graph with kswap = %d \n", kswaps);
   }
-
-  allocate();
-  knn();
 
   // Tell the cache how we want it to behave
   cudaFuncSetCacheConfig(two_opt_search, cudaFuncCachePreferEqual);
@@ -116,7 +116,6 @@ float TSP::compute()
         n_climbs_,
         best_tour_,
         vtx_ptr_,
-        route_,
         work_route,
         beam_search_,
         k_,

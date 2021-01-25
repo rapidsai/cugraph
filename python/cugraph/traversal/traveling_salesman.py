@@ -16,6 +16,7 @@ from cugraph.structure.graph import null_check
 from cugraph.structure.number_map import NumberMap
 import cudf
 
+
 def traveling_salesman(pos_list,
                        restarts=4096,
                        beam_search=True,
@@ -29,6 +30,9 @@ def traveling_salesman(pos_list,
     null_check(pos_list['vertex'])
     null_check(pos_list['x'])
     null_check(pos_list['y'])
+
+    if not pos_list[pos_list['vertex'] == nstart].index:
+        raise Exception("nstart should be in vertex ids")
 
     route, cost = traveling_salesman_wrapper.traveling_salesman(pos_list,
                                                                 restarts,
