@@ -28,10 +28,10 @@ import numpy as np
 
 
 def traveling_salesman(pos_list,
-                       restarts=4096,
+                       restarts=100000,
                        beam_search=True,
                        k=4,
-                       nstart=0,
+                       nstart=1,
                        verbose=False,
                        renumber=True,
 ):

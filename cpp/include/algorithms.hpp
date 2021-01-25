@@ -198,10 +198,10 @@ float traveling_salesman(raft::handle_t &handle,
                          const float *x_pos,
                          const float *y_pos,
                          const int nodes,
-                         const int restarts = 4096,
+                         const int restarts = 100000,
                          const bool beam_search = true,
                          const int k        = 4,
-                         const int nstart = 0,
+                         const int nstart = 1,
                          bool verbose       = false);
 
 /**

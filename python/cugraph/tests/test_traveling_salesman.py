@@ -42,8 +42,14 @@ def load_tsp(filename=None):
     gdf = cudf.read_csv(filename,
                         delim_whitespace=True,
                         skiprows=6,
-                        names=["vertex", "x", "y"])
+                        names=["vertex", "x", "y"],
+                        dtypes={"vertex" : "int32",
+                            "x": "float32",
+                            "y": "float32"}
+                        )
     gdf = gdf.dropna()
+    gdf['vertex'] = gdf['vertex'].str.strip()
+    gdf['vertex'] = gdf['vertex'].astype("int32")
     return gdf
 
 
@@ -55,7 +61,7 @@ def test_traveling_salesman(tsplib_file):
     # cugraph
     t1 = time.time()
     cu_route, cu_cost = cugraph.traveling_salesman(pos_list,
-                                                   restarts=10000,
+                                                   restarts=4096,
                                                    verbose=False)
     t2 = time.time() - t1
     print("CuGraph time : " + str(t2))

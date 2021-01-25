@@ -77,9 +77,11 @@ class TSP {
   // Vectors
   rmm::device_vector<int64_t> neighbors_vec_;
   rmm::device_vector<int> work_vec_;
+  rmm::device_vector<int> work_route_vec_;
 
   int64_t *neighbors_;
   int *work_;
+  int *work_route_;
 };
 }  // namespace detail
 }  // namespace cugraph

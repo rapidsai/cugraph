@@ -68,9 +68,12 @@ void TSP::allocate()
   // Vectors
   neighbors_vec_.resize((k_ + 1) * nodes_);
   work_vec_.resize(4 * restart_batch_ * ((3 * nodes_ + 2 + 31) / 32 * 32));
+  work_route_vec_.resize(4 * restart_batch_ * ((3 * nodes_ + 2 + 31) / 32 * 32));
 
+  // Pointers
   neighbors_ = neighbors_vec_.data().get();
   work_      = work_vec_.data().get();
+  work_route_      = work_route_vec_.data().get();
 }
 
 float TSP::compute()
@@ -84,10 +87,11 @@ float TSP::compute()
   int best        = 0;
   std::vector<float> pos;
   pos.reserve((nodes_ + 1) * 2);
-  rmm::device_vector<int> work_route_vec(4 * restart_batch_ * ((3 * nodes_ + 2 + 31) / 32 * 32));
-  int *work_route = work_route_vec.data().get();
 
+  // Allocate GPU buffers
   allocate();
+
+  // KNN call
   knn();
 
   if (verbose_) {
@@ -116,7 +120,7 @@ float TSP::compute()
         n_climbs_,
         best_tour_,
         vtx_ptr_,
-        work_route,
+        work_route_,
         beam_search_,
         k_,
         nodes_,
@@ -139,8 +143,6 @@ float TSP::compute()
       cudaDeviceSynchronize();
       CUDA_TRY(cudaMemcpyFromSymbol(&route_sol, best_route, sizeof(void *)));
       cudaDeviceSynchronize();
-
-      raft::print_device_vector("Route: ", route_sol, nodes_, std::cout);
 
       CUDA_TRY(cudaMemcpy(pos.data(), soln, sizeof(float) * (nodes_ + 1) * 2, cudaMemcpyDeviceToHost));
       cudaDeviceSynchronize();
@@ -216,8 +218,6 @@ float traveling_salesman(raft::handle_t &handle,
   RAFT_EXPECTS(nodes > 0, "nodes should be strictly positive");
   RAFT_EXPECTS(restarts > 0, "restarts should be strictly positive");
   RAFT_EXPECTS(k > 0, "k should be strictly positive");
-
-  raft::print_device_vector("Cities: ", vtx_ptr, nodes, std::cout);
 
   cugraph::detail::TSP tsp(handle, vtx_ptr, route, x_pos, y_pos, nodes,
       restarts, beam_search, k, nstart, verbose);
