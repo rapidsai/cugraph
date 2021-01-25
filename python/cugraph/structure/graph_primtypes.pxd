@@ -162,9 +162,9 @@ cdef extern from "utilities/cython.hpp" namespace "cugraph::cython":
 
     cdef cppclass major_minor_weights_t[vertex_t, weight_t]:
         major_minor_weights_t(const handle_t &handle)
-        vertex_t* get_d_raw_major()
-        vertex_t* get_d_raw_minor()
-        weight_t* get_d_raw_weights()
+        pair[unique_ptr[device_buffer], size_t] get_major_wrap()
+        pair[unique_ptr[device_buffer], size_t] get_minor_wrap()
+        pair[unique_ptr[device_buffer], size_t] get_weights_wrap()
 
 
 # 3. return type for renumber:

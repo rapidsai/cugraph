@@ -127,11 +127,23 @@ struct major_minor_weights_t {
 
   rmm::device_uvector<weight_t>& get_weights(void) { return shuffled_weights_; }
 
-  vertex_t* get_d_raw_major(void) { return shuffled_major_vertices_.data(); }
+  std::pair<std::unique_ptr<rmm::device_buffer>, size_t> get_major_wrap(void) const
+  {
+    return std::make_pair(std::make_unique<rmm::device_buffer>(shuffled_major_vertices_.release()),
+                          sizeof(vertex_t));
+  }
 
-  vertex_t* get_d_raw_minor(void) { return shuffled_minor_vertices_.data(); }
+  std::pair<std::unique_ptr<rmm::device_buffer>, size_t> get_minor_wrap(void) const
+  {
+    return std::make_pair(std::make_unique<rmm::device_buffer>(shuffled_minor_vertices_.release()),
+                          sizeof(vertex_t));
+  }
 
-  weight_t* get_d_raw_weights(void) { return shuffled_weights_.data(); }
+  std::pair<std::unique_ptr<rmm::device_buffer>, size_t> get_weights_wrap(void) const
+  {
+    return std::make_pair(std::make_unique<rmm::device_buffer>(shuffled_weights_.release()),
+                          sizeof(weight_t));
+  }
 
  private:
   rmm::device_uvector<vertex_t> shuffled_major_vertices_;
