@@ -241,10 +241,6 @@ extract_induced_subgraphs(
                    subgraph_vertex_output_offsets.begin(),
                    subgraph_edge_offsets.begin());
 
-    CUDA_TRY(
-      cudaStreamSynchronize(handle.get_stream()));  // subgraph_vertex_output_offsets will become
-                                                    // out-of-scope once this function returns
-
     return std::make_tuple(std::move(edge_majors),
                            std::move(edge_minors),
                            std::move(edge_weights),

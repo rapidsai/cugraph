@@ -383,9 +383,6 @@ void copy_v_transform_reduce_key_aggregated_out_nbr(
       tmp_major_vertices              = std::move(rx_major_vertices);
       tmp_minor_keys                  = std::move(rx_minor_keys);
       tmp_key_aggregated_edge_weights = std::move(rx_key_aggregated_edge_weights);
-
-      CUDA_TRY(
-        cudaStreamSynchronize(handle.get_stream()));  // tx_value_counts will become out-of-scope
     }
 
     auto tmp_e_op_result_buffer =
@@ -464,18 +461,9 @@ void copy_v_transform_reduce_key_aggregated_out_nbr(
         major_vertices     = std::move(rx_major_vertices);
         e_op_result_buffer = std::move(rx_tmp_e_op_result_buffer);
       }
-
-      CUDA_TRY(cudaStreamSynchronize(
-        handle
-          .get_stream()));  // tmp_minor_keys, tmp_key_aggregated_edge_weights, rx_major_vertices,
-                            // and rx_tmp_e_op_result_buffer will become out-of-scope
     } else {
       major_vertices     = std::move(tmp_major_vertices);
       e_op_result_buffer = std::move(tmp_e_op_result_buffer);
-
-      CUDA_TRY(cudaStreamSynchronize(
-        handle.get_stream()));  // tmp_minor_keys and tmp_key_aggregated_edge_weights will become
-                                // out-of-scope
     }
   }
 

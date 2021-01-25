@@ -254,10 +254,6 @@ transform_reduce_by_adj_matrix_row_col_key_e(
 
       tmp_keys         = std::move(rx_unique_keys);
       tmp_value_buffer = std::move(rx_value_for_unique_key_buffer);
-
-      CUDA_TRY(cudaStreamSynchronize(
-        handle
-          .get_stream()));  // unique_keys & value_for_unique_key_buffer will become out-of-scope
     }
 
     auto cur_size = keys.size();
