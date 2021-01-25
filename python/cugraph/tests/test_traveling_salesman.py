@@ -52,6 +52,18 @@ def load_tsp(filename=None):
     gdf['vertex'] = gdf['vertex'].astype("int32")
     return gdf
 
+@pytest.mark.parametrize("tsplib_file", utils.DATASETS_TSPLIB)
+def test_traveling_salesman_route(tsplib_file):
+    gc.collect()
+    pos_list = load_tsp(tsplib_file)
+    # cugraph
+    t1 = time.time()
+    cu_route, cu_cost = cugraph.traveling_salesman(pos_list,
+                                                   restarts=4096)
+    t2 = time.time() - t1
+    # Route goes through each vertex once
+    cu_route.nunique == pos_list.shape[0]
+
 
 @pytest.mark.parametrize("tsplib_file", utils.DATASETS_TSPLIB)
 def test_traveling_salesman(tsplib_file):
@@ -61,10 +73,9 @@ def test_traveling_salesman(tsplib_file):
     # cugraph
     t1 = time.time()
     cu_route, cu_cost = cugraph.traveling_salesman(pos_list,
-                                                   restarts=4096,
-                                                   verbose=False)
+                                                   restarts=4096)
     t2 = time.time() - t1
-    print("CuGraph time : " + str(t2))
+    print("Cugraph time : " + str(t2))
 
     tsp_instance = tsplib_file.split('/')[-1].split('.')[0]
     ref_cost = int(ref_gdf.loc[ref_gdf["file"] == tsp_instance, 'cost'].values[0][0])
