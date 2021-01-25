@@ -150,12 +150,95 @@ struct renum_quad_t {
   }
 
   rmm::device_uvector<vertex_t>& get_dv(void) { return dv_; }
-  cugraph::experimental::partition_t<vertex_t>& get_partition(void)
-  {
-    return part_;
-  }  // requires a `pass` Cython exposure, at least, to `partition_t`
+  cugraph::experimental::partition_t<vertex_t>& get_partition(void) { return part_; }
   vertex_t& get_num_vertices(void) { return nv_; }
   edge_t& get_num_edges(void) { return ne_; }
+
+  // `partition_t` pass-through getters
+  //
+  int get_part_row_size() const { return part_.get_row_size(); }
+
+  int get_part_col_size() const { return part_.get_col_size(); }
+
+  int get_part_comm_rank() const { return part_.get_comm_rank(); }
+
+  vertex_t const* get_part_ptr_vertex_partition_offsets(void) const
+  {
+    return part_.get_vertex_partition_offsets().data();
+  }
+
+  std::pair<vertex_t, vertex_t> get_part_local_vertex_range() const
+  {
+    auto tpl_v = part_.get_local_vertex_range();
+    return std::make_pair(std::get<0>(tpl_v), std::get<1>(tpl_v));
+  }
+
+  vertex_t get_part_local_vertex_first() const { return part_.get_local_vertex_first(); }
+
+  vertex_t get_part_local_vertex_last() const { return part_.get_local_vertex_last(); }
+
+  std::pair<vertex_t, vertex_t> get_part_vertex_partition_range(size_t vertex_partition_idx) const
+  {
+    auto tpl_v = part_.get_vertex_partition_range(vertex_partition_idx);
+    return std::make_pair(std::get<0>(tpl_v), std::get<1>(tpl_v));
+  }
+
+  vertex_t get_part_vertex_partition_first(size_t vertex_partition_idx) const
+  {
+    return part_.get_vertex_partition_first(vertex_partition_idx);
+  }
+
+  vertex_t get_part_vertex_partition_last(size_t vertex_partition_idx) const
+  {
+    return part_.get_vertex_partition_last(vertex_partition_idx);
+  }
+
+  vertex_t get_part_vertex_partition_size(size_t vertex_partition_idx) const
+  {
+    return part_.get_vertex_partition_size(vertex_partition_idx);
+  }
+
+  size_t get_part_number_of_matrix_partitions() const
+  {
+    return part_.get_number_of_matrix_partitions();
+  }
+
+  std::pair<vertex_t, vertex_t> get_part_matrix_partition_major_range(size_t partition_idx) const
+  {
+    auto tpl_v = part_.get_matrix_partition_major_range(partition_idx);
+    return std::make_pair(std::get<0>(tpl_v), std::get<1>(tpl_v));
+  }
+
+  vertex_t get_part_matrix_partition_major_first(size_t partition_idx) const
+  {
+    return part_.get_matrix_partition_major_first(partition_idx);
+  }
+
+  vertex_t get_part_matrix_partition_major_last(size_t partition_idx) const
+  {
+    return part_.get_matrix_partition_major_last(partition_idx);
+  }
+
+  vertex_t get_part_matrix_partition_major_value_start_offset(size_t partition_idx) const
+  {
+    return part_.get_part_matrix_partition_major_value_start_offset(partition_idx);
+  }
+
+  std::pair<vertex_t, vertex_t> get_part_matrix_partition_minor_range() const
+  {
+    auto tpl_v = part_.get_matrix_partition_minor_range();
+    return std::make_pair(std::get<0>(tpl_v), std::get<1>(tpl_v));
+  }
+
+  vertex_t get_part_matrix_partition_minor_first() const
+  {
+    return part_.get_matrix_partition_minor_first();
+  }
+
+  vertex_t get_part_matrix_partition_minor_last() const
+  {
+    return part_.get_matrix_partition_minor_last();
+  }
 
  private:
   rmm::device_uvector<vertex_t> dv_;

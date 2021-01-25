@@ -18,6 +18,7 @@
 
 from libcpp cimport bool
 from libcpp.memory cimport unique_ptr
+from libcpp.utility cimport pair
 
 from rmm._lib.device_buffer cimport device_buffer
 
@@ -168,7 +169,27 @@ cdef extern from "utilities/cython.hpp" namespace "cugraph::cython":
 cdef extern from "utilities/cython.hpp" namespace "cugraph::cython":
 
     cdef cppclass renum_quad_t[vertex_t, edge_t]:
-        pass
+        renum_quad_t(const handle_t &handle)
+        vertex_t& get_num_vertices()
+        edge_t& get_num_edges()
+        int get_part_row_size()
+        int get_part_col_size()
+        int get_part_comm_rank()
+        const vertex_t* get_part_ptr_vertex_partition_offsets()
+        pair[vertex_t, vertex_t] get_part_local_vertex_range()
+        vertex_t get_part_local_vertex_first()
+        vertex_t get_part_local_vertex_last()
+        pair[vertex_t, vertex_t] get_part_vertex_partition_range(size_t vertex_partition_idx)
+        vertex_t get_part_vertex_partition_first(size_t vertex_partition_idx)
+        vertex_t get_part_vertex_partition_last(size_t vertex_partition_idx)
+        vertex_t get_part_vertex_partition_size(size_t vertex_partition_idx)
+        size_t get_part_number_of_matrix_partitions()
+        vertex_t get_part_matrix_partition_major_first(size_t partition_idx)
+        vertex_t get_part_matrix_partition_major_last(size_t partition_idx)
+        vertex_t get_part_matrix_partition_major_value_start_offset(size_t partition_idx)
+        pair[vertex_t, vertex_t] get_part_matrix_partition_minor_range()
+        vertex_t get_part_matrix_partition_minor_first()
+        vertex_t get_part_matrix_partition_minor_last()
 
 
 # 4. `sort_and_shuffle_values()` wrapper:
