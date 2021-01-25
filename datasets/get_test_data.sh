@@ -31,6 +31,12 @@ benchmark
 # ~1s download
 https://s3.us-east-2.amazonaws.com/rapidsai-data/cugraph/benchmark/hibench/hibench_1_small.tgz
 benchmark
+
+# ~0.6s download
+https://rapidsai-data.s3.us-east-2.amazonaws.com/cugraph/test/tsplib/datasets.tar.gz
+tsplib
+
+://s3.us-east-2.amazonaws.com/rapidsai-data/
 "
 
 EXTENDED_DATASET_DATA="
