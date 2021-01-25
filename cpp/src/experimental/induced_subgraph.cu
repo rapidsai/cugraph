@@ -131,6 +131,8 @@ extract_induced_subgraphs(
 
     matrix_partition_device_t<graph_view_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu>>
       matrix_partition(graph_view, 0);
+    // count the numbers of the induced subgraph edges for each vertex in the aggregate subgraph
+    // vertex list.
     thrust::transform(
       rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
       thrust::make_counting_iterator(size_t{0}),
@@ -177,6 +179,8 @@ extract_induced_subgraphs(
     rmm::device_uvector<weight_t> edge_weights(
       graph_view.is_weighted() ? num_aggregate_edges : size_t{0}, handle.get_stream());
 
+    // fill the edge list buffer (to be returned) for each vetex in the aggregate subgraph vertex
+    // list (use the offsets computed in the Phase 1)
     thrust::for_each(
       rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
       thrust::make_counting_iterator(size_t{0}),
