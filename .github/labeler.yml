@@ -5,6 +5,8 @@
 python:
   - 'python/**'
   - 'notebooks/**'
+
+benchmarks:
   - 'benchmarks/**'
   
 doc:
@@ -20,11 +22,12 @@ cuGraph:
 CMake:
   - '**/CMakeLists.txt'
   - '**/cmake/**'
+
+ci:
+   - 'ci/**'
+
+conda:
+  - 'conda/**'
   
 Ops:
   - '.github/**'
-  - 'ci/**'
-  - 'conda/**'
-  - '**/Dockerfile'
-  - '**/.dockerignore'
-  - 'docker/**'
