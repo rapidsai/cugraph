@@ -204,7 +204,7 @@ cdef extern from "utilities/cython.hpp" namespace "cugraph::cython":
         const handle_t &handle,
         vertex_t *edgelist_major_vertices,
         vertex_t *edgelist_minor_vertices,
-        weight_t* edegelist_weights,
+        weight_t* edgelist_weights,
         edge_t num_edges,
         bool is_hyper_partitioned) except +
 
