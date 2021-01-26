@@ -216,7 +216,7 @@ cdef extern from "utilities/cython.hpp" namespace "cugraph::cython":
     cdef renum_quad_t[vertex_t, edge_t] call_renumber[vertex_t, edge_t](
         const handle_t &handle,
         vertex_t *edgelist_major_vertices,
-        vertex_t *edgelist_minot_vertices,
+        vertex_t *edgelist_minor_vertices,
         edge_t num_edges,
         bool is_hyper_partitioned,
         bool do_check,
