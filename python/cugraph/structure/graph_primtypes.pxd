@@ -203,7 +203,7 @@ cdef extern from "utilities/cython.hpp" namespace "cugraph::cython":
     cdef major_minor_weights_t[vertex_t, weight_t] call_shuffle[vertex_t, edge_t, weight_t](
         const handle_t &handle,
         vertex_t *edgelist_major_vertices,
-        vertex_t *edgelist_minot_vertices,
+        vertex_t *edgelist_minor_vertices,
         weight_t* edegelist_weights,
         edge_t num_edges,
         bool is_hyper_partitioned) except +
