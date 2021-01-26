@@ -370,6 +370,7 @@ add_library(cugraph SHARED
     src/experimental/coarsen_graph.cu
     src/experimental/renumber_edgelist.cu
     src/experimental/relabel.cu
+    src/experimental/induced_subgraph.cu
     src/experimental/bfs.cu
     src/experimental/sssp.cu
     src/experimental/pagerank.cu

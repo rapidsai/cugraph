@@ -525,12 +525,6 @@ void copy_v_transform_reduce_nbr(raft::handle_t const& handle,
                       handle.get_stream());
       }
     }
-
-    CUDA_TRY(cudaStreamSynchronize(
-      handle.get_stream()));  // this is as necessary major_tmp_buffer will become out-of-scope once
-                              // control flow exits this block (FIXME: we can reduce stream
-                              // synchronization if we compute the maximum major_tmp_buffer_size and
-                              // allocate major_tmp_buffer outside the loop)
   }
 
   if (GraphViewType::is_multi_gpu && (in != GraphViewType::is_adj_matrix_transposed)) {
@@ -592,10 +586,6 @@ void copy_v_transform_reduce_nbr(raft::handle_t const& handle,
       }
     }
   }
-
-  CUDA_TRY(cudaStreamSynchronize(
-    handle.get_stream()));  // this is as necessary minor_tmp_buffer will become out-of-scope once
-                            // control flow exits this block
 }
 
 }  // namespace detail
