@@ -118,7 +118,7 @@ def networkx_call(Gnx, max_iter, tol, alpha, personalization_perc, nnz_vtx):
         Gnx,
         alpha=alpha,
         nstart=z,
-        max_iter=max_iter * 2,
+        max_iter=1000,
         tol=tol * 0.01,
         personalization=personalization,
     )
@@ -129,7 +129,7 @@ def networkx_call(Gnx, max_iter, tol, alpha, personalization_perc, nnz_vtx):
     return pr, personalization
 
 
-MAX_ITERATIONS = [500]
+MAX_ITERATIONS = [17]
 TOLERANCE = [1.0e-06]
 ALPHA = [0.85]
 PERSONALIZATION_PERC = [0, 10, 50]
@@ -143,7 +143,7 @@ HAS_GUESS = [0, 1]
 #
 # https://github.com/rapidsai/cugraph/issues/533
 #
-# @pytest.mark.parametrize("graph_file", utils.DATASETS)
+
 @pytest.mark.parametrize("graph_file", utils.DATASETS)
 @pytest.mark.parametrize("max_iter", MAX_ITERATIONS)
 @pytest.mark.parametrize("tol", TOLERANCE)
@@ -159,7 +159,7 @@ def test_pagerank(
     M = utils.read_csv_for_nx(graph_file)
     nnz_vtx = np.unique(M[['0', '1']])
     Gnx = nx.from_pandas_edgelist(
-        M, source="0", target="1", create_using=nx.DiGraph()
+        M, source="0", target="1", edge_attr="weight", create_using=nx.DiGraph()
     )
 
     networkx_pr, networkx_prsn = networkx_call(
@@ -169,13 +169,13 @@ def test_pagerank(
     cu_nstart = None
     if has_guess == 1:
         cu_nstart = cudify(networkx_pr)
-        max_iter = 5
+        max_iter = 20
     cu_prsn = cudify(networkx_prsn)
 
     # cuGraph PageRank
     cu_M = utils.read_csv_file(graph_file)
     G = cugraph.DiGraph()
-    G.from_cudf_edgelist(cu_M, source="0", destination="1")
+    G.from_cudf_edgelist(cu_M, source="0", destination="1", edge_attr="2")
 
     cugraph_pr = cugraph_call(G, max_iter, tol, alpha, cu_prsn, cu_nstart)
 
@@ -239,3 +239,4 @@ def test_pagerank_nx(
             print(f"{cugraph_pr[i][1]} and {cugraph_pr[i][1]}")
     print("Mismatches:", err)
     assert err < (0.01 * len(cugraph_pr))
+
