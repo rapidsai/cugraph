@@ -122,17 +122,17 @@ void populate_graph_container(graph_container_t& graph_container,
   bool do_expensive_check{true};
   bool hypergraph_partitioned{false};
 
-  if(multi_gpu){
+  if (multi_gpu) {
     auto& row_comm           = handle.get_subcomm(cugraph::partition_2d::key_naming_t().row_name());
     auto const row_comm_rank = row_comm.get_rank();
     auto const row_comm_size = row_comm.get_size();  // pcols
     auto& col_comm           = handle.get_subcomm(cugraph::partition_2d::key_naming_t().col_name());
     auto const col_comm_rank = col_comm.get_rank();
     auto const col_comm_size = col_comm.get_size();  // prows
-    graph_container.row_comm_size            = row_comm_size;
-    graph_container.col_comm_size            = col_comm_size;
-    graph_container.row_comm_rank            = row_comm_rank;
-    graph_container.col_comm_rank            = col_comm_rank;
+    graph_container.row_comm_size = row_comm_size;
+    graph_container.col_comm_size = col_comm_size;
+    graph_container.row_comm_rank = row_comm_rank;
+    graph_container.col_comm_rank = col_comm_rank;
   }
 
   graph_container.vertex_partition_offsets = vertex_partition_offsets;
@@ -285,7 +285,7 @@ template <bool transposed,
 return_t call_function(raft::handle_t const& handle,
                        graph_container_t const& graph_container,
                        function_t function)
-{ 
+{
   auto graph =
     create_graph<vertex_t, edge_t, weight_t, transposed, is_multi_gpu>(handle, graph_container);
 
@@ -480,7 +480,7 @@ void call_pagerank(raft::handle_t const& handle,
                                       max_iter,
                                       has_guess,
                                       true);
-    } else if(graph_container.edgeType == numberTypeEnum::int64Type) {
+    } else if (graph_container.edgeType == numberTypeEnum::int64Type) {
       auto graph =
         detail::create_graph<vertex_t, int64_t, weight_t, true, true>(handle, graph_container);
       cugraph::experimental::pagerank(handle,
@@ -496,8 +496,7 @@ void call_pagerank(raft::handle_t const& handle,
                                       has_guess,
                                       true);
     }
-  } 
-  else {
+  } else {
     if (graph_container.edgeType == numberTypeEnum::int32Type) {
       auto graph =
         detail::create_graph<int32_t, int32_t, weight_t, true, false>(handle, graph_container);
