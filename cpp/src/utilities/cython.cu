@@ -81,13 +81,11 @@ template <typename vertex_t,
 std::unique_ptr<experimental::graph_t<vertex_t, edge_t, weight_t, transposed, multi_gpu>>
 create_graph(raft::handle_t const& handle, graph_container_t const& graph_container)
 {
-  std::cout<<"\nIN SG CREATE_GRAPH";
   experimental::edgelist_t<vertex_t, edge_t, weight_t> edgelist{
     reinterpret_cast<vertex_t*>(graph_container.src_vertices),
     reinterpret_cast<vertex_t*>(graph_container.dst_vertices),
     reinterpret_cast<weight_t*>(graph_container.weights),
     static_cast<edge_t>(graph_container.num_partition_edges)};
-  std::cout<<"\nInitializing...";
   return std::make_unique<experimental::graph_t<vertex_t, edge_t, weight_t, transposed, multi_gpu>>(
     handle,
     edgelist,
@@ -287,8 +285,10 @@ template <bool transposed,
 return_t call_function(raft::handle_t const& handle,
                        graph_container_t const& graph_container,
                        function_t function)
-{ auto graph =
+{ 
+  auto graph =
     create_graph<vertex_t, edge_t, weight_t, transposed, is_multi_gpu>(handle, graph_container);
+
   return function(handle, graph->view());
 }
 
