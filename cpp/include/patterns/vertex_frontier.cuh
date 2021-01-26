@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020, NVIDIA CORPORATION.
+ * Copyright (c) 2020-2021, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -15,8 +15,8 @@
  */
 #pragma once
 
-#include <utilities/comm_utils.cuh>
 #include <utilities/error.hpp>
+#include <utilities/host_scalar_comm.cuh>
 #include <utilities/thrust_tuple_utils.cuh>
 
 #include <raft/cudart_utils.h>

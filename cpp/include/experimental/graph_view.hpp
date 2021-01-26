@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020, NVIDIA CORPORATION.
+ * Copyright (c) 2020-2021, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -332,6 +332,7 @@ class graph_view_t<vertex_t,
 
   bool is_weighted() const { return adj_matrix_partition_weights_.size() > 0; }
 
+  // FIXME: this should be removed once MNMG Louvain is updated to use graph primitives
   partition_t<vertex_t> get_partition() const { return partition_; }
 
   vertex_t get_number_of_local_vertices() const
@@ -399,6 +400,11 @@ class graph_view_t<vertex_t,
     }
   }
 
+  edge_t get_number_of_local_adj_matrix_partition_edges(size_t adj_matrix_partition_idx) const
+  {
+    return adj_matrix_partition_number_of_edges_[adj_matrix_partition_idx];
+  }
+
   vertex_t get_local_adj_matrix_partition_row_first(size_t adj_matrix_partition_idx) const
   {
     return store_transposed ? partition_.get_matrix_partition_minor_first()
@@ -441,25 +447,25 @@ class graph_view_t<vertex_t,
 
   bool is_hypergraph_partitioned() const { return partition_.is_hypergraph_partitioned(); }
 
-  // FIXME: this function is not part of the public stable API.This function is mainly for pattern
+  // FIXME: this function is not part of the public stable API. This function is mainly for pattern
   // accelerator implementation. This function is currently public to support the legacy
   // implementations directly accessing CSR/CSC data, but this function will eventually become
   // private or even disappear if we switch to CSR + DCSR (or CSC + DCSC).
   edge_t const* offsets() const { return offsets(0); }
 
-  // FIXME: this function is not part of the public stable API.This function is mainly for pattern
+  // FIXME: this function is not part of the public stable API. This function is mainly for pattern
   // accelerator implementation. This function is currently public to support the legacy
   // implementations directly accessing CSR/CSC data, but this function will eventually become
   // private or even disappear if we switch to CSR + DCSR (or CSC + DCSC).
   vertex_t const* indices() const { return indices(0); }
 
-  // FIXME: this function is not part of the public stable API.This function is mainly for pattern
+  // FIXME: this function is not part of the public stable API. This function is mainly for pattern
   // accelerator implementation. This function is currently public to support the legacy
   // implementations directly accessing CSR/CSC data, but this function will eventually become
   // private or even disappear if we switch to CSR + DCSR (or CSC + DCSC).
   weight_t const* weights() const { return weights(0); }
 
-  // FIXME: this function is not part of the public stable API.This function is mainly for pattern
+  // FIXME: this function is not part of the public stable API. This function is mainly for pattern
   // accelerator implementation. This function is currently public to support the legacy
   // implementations directly accessing CSR/CSC data, but this function will eventually become
   // private or even disappear if we switch to CSR + DCSR (or CSC + DCSC).
@@ -468,7 +474,7 @@ class graph_view_t<vertex_t,
     return adj_matrix_partition_offsets_[adj_matrix_partition_idx];
   }
 
-  // FIXME: this function is not part of the public stable API.This function is mainly for pattern
+  // FIXME: this function is not part of the public stable API. This function is mainly for pattern
   // accelerator implementation. This function is currently public to support the legacy
   // implementations directly accessing CSR/CSC data, but this function will eventually become
   // private or even disappear if we switch to CSR + DCSR (or CSC + DCSC).
@@ -477,7 +483,7 @@ class graph_view_t<vertex_t,
     return adj_matrix_partition_indices_[adj_matrix_partition_idx];
   }
 
-  // FIXME: this function is not part of the public stable API.This function is mainly for pattern
+  // FIXME: this function is not part of the public stable API. This function is mainly for pattern
   // accelerator implementation. This function is currently public to support the legacy
   // implementations directly accessing CSR/CSC data, but this function will eventually become
   // private or even disappear if we switch to CSR + DCSR (or CSC + DCSC).
@@ -492,6 +498,7 @@ class graph_view_t<vertex_t,
   std::vector<edge_t const*> adj_matrix_partition_offsets_{};
   std::vector<vertex_t const*> adj_matrix_partition_indices_{};
   std::vector<weight_t const*> adj_matrix_partition_weights_{};
+  std::vector<edge_t> adj_matrix_partition_number_of_edges_{};
 
   partition_t<vertex_t> partition_{};
 
@@ -567,6 +574,12 @@ class graph_view_t<vertex_t,
     return this->get_number_of_vertices();
   }
 
+  edge_t get_number_of_local_adj_matrix_partition_edges(size_t adj_matrix_partition_idx) const
+  {
+    assert(adj_matrix_partition_idx == 0);
+    return this->get_number_of_edges();
+  }
+
   vertex_t get_local_adj_matrix_partition_row_first(size_t adj_matrix_partition_idx) const
   {
     assert(adj_matrix_partition_idx == 0);
@@ -629,6 +642,7 @@ class graph_view_t<vertex_t,
   edge_t const* offsets_{nullptr};
   vertex_t const* indices_{nullptr};
   weight_t const* weights_{nullptr};
+
   std::vector<vertex_t> segment_offsets_{};  // segment offsets based on vertex degree, relevant
                                              // only if sorted_by_global_degree is true
 };

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020, NVIDIA CORPORATION.
+ * Copyright (c) 2020-2021, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -21,9 +21,7 @@
 
 #include <rmm/thrust_rmm_allocator.h>
 #include <compute_partition.cuh>
-#include <cuco/static_map.cuh>
 #include <experimental/shuffle.cuh>
-#include <utilities/comm_utils.cuh>
 #include <utilities/graph_utils.cuh>
 
 #include <raft/device_atomics.cuh>
@@ -32,6 +30,8 @@
 #include <patterns/copy_v_transform_reduce_in_out_nbr.cuh>
 #include <patterns/transform_reduce_e.cuh>
 #include <patterns/transform_reduce_v.cuh>
+
+#include <experimental/include_cuco_static_map.cuh>
 
 //#define TIMING
 
@@ -44,6 +44,7 @@ namespace experimental {
 
 namespace detail {
 
+#ifdef CUCO_STATIC_MAP_DEFINED
 template <typename data_t>
 struct create_cuco_pair_t {
   cuco::pair_type<data_t, data_t> __device__ operator()(data_t data)
@@ -54,6 +55,7 @@ struct create_cuco_pair_t {
     return tmp;
   }
 };
+#endif
 
 //
 // These classes should allow cuco::static_map to generate hash tables of
@@ -443,7 +445,9 @@ class Louvain {
                                                  weight_t resolution)
   {
     size_t num_level{0};
+    weight_t best_modularity = weight_t{-1};
 
+#ifdef CUCO_STATIC_MAP_DEFINED
     weight_t total_edge_weight;
     total_edge_weight = experimental::transform_reduce_e(
       handle_,
@@ -452,8 +456,6 @@ class Louvain {
       thrust::make_constant_iterator(0),
       [] __device__(auto, auto, weight_t wt, auto, auto) { return wt; },
       weight_t{0});
-
-    weight_t best_modularity = weight_t{-1};
 
     //
     //  Initialize every cluster to reference each vertex to itself
@@ -480,6 +482,7 @@ class Louvain {
     }
 
     timer_display(std::cout);
+#endif
 
     return std::make_pair(num_level, best_modularity);
   }
@@ -593,6 +596,7 @@ class Louvain {
     }
   }
 
+#ifdef CUCO_STATIC_MAP_DEFINED
   virtual weight_t update_clustering(weight_t total_edge_weight, weight_t resolution)
   {
     timer_start("update_clustering");
@@ -1616,6 +1620,7 @@ class Louvain {
     cugraph::detail::offsets_to_indices(
       current_graph_view_.offsets(), local_num_rows_, src_indices_v_.data().get());
   }
+#endif
 
   std::
     tuple<rmm::device_vector<vertex_t>, rmm::device_vector<vertex_t>, rmm::device_vector<weight_t>>

@@ -6,6 +6,7 @@
 ## Improvements
 
 ## Bug Fixes
+- PR #1321 Fix benchmark script trap setup to come after the PATH variable update
 
 # cuGraph 0.17.0 (10 Dec 2020)
 ## New Features
@@ -18,6 +19,7 @@
 - PR #1279 Add self loop check variable in graph
 - PR #1277 SciPy sparse matrix input support for WCC, SCC, SSSP, and BFS
 - PR #1278 Add support for shortest_path_length and fix graph vertex checks
+- PR #1280 Add Multi(Di)Graph support
 
 ## Improvements
 - PR #1227 Pin cmake policies to cmake 3.17 version

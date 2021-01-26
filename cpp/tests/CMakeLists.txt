@@ -1,6 +1,6 @@
 ﻿#=============================================================================
 #
-# Copyright (c) 2019-2020, NVIDIA CORPORATION.
+# Copyright (c) 2019-2021, NVIDIA CORPORATION.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -280,6 +280,24 @@ set(EXPERIMENTAL_GRAPH_TEST_SRCS
 ConfigureTest(EXPERIMENTAL_GRAPH_TEST "${EXPERIMENTAL_GRAPH_TEST_SRCS}" "")
 
 ###################################################################################################
+# - Experimental coarsening tests -----------------------------------------------------------------
+
+set(EXPERIMENTAL_COARSEN_GRAPH_TEST_SRCS
+    "${CMAKE_SOURCE_DIR}/../thirdparty/mmio/mmio.c"
+    "${CMAKE_CURRENT_SOURCE_DIR}/experimental/coarsen_graph_test.cpp")
+
+ConfigureTest(EXPERIMENTAL_COARSEN_GRAPH_TEST "${EXPERIMENTAL_COARSEN_GRAPH_TEST_SRCS}" "")
+
+###################################################################################################
+# - Experimental induced subgraph tests -----------------------------------------------------------
+
+set(EXPERIMENTAL_INDUCED_SUBGRAPH_TEST_SRCS
+    "${CMAKE_SOURCE_DIR}/../thirdparty/mmio/mmio.c"
+    "${CMAKE_CURRENT_SOURCE_DIR}/experimental/induced_subgraph_test.cpp")
+
+ConfigureTest(EXPERIMENTAL_INDUCED_SUBGRAPH_TEST "${EXPERIMENTAL_INDUCED_SUBGRAPH_TEST_SRCS}" "")
+
+###################################################################################################
 # - Experimental BFS tests ------------------------------------------------------------------------
 
 set(EXPERIMENTAL_BFS_TEST_SRCS
@@ -309,12 +327,11 @@ ConfigureTest(EXPERIMENTAL_PAGERANK_TEST "${EXPERIMENTAL_PAGERANK_TEST_SRCS}" ""
 ###################################################################################################
 # - Experimental LOUVAIN tests -------------------------------------------------------------------
 
-# FIXME: Re-enable once failures are fixed
-#set(EXPERIMENTAL_LOUVAIN_TEST_SRCS
-#    "${CMAKE_SOURCE_DIR}/../thirdparty/mmio/mmio.c"
-#    "${CMAKE_CURRENT_SOURCE_DIR}/experimental/louvain_test.cu")
-#
-#ConfigureTest(EXPERIMENTAL_LOUVAIN_TEST "${EXPERIMENTAL_LOUVAIN_TEST_SRCS}" "")
+set(EXPERIMENTAL_LOUVAIN_TEST_SRCS
+    "${CMAKE_SOURCE_DIR}/../thirdparty/mmio/mmio.c"
+    "${CMAKE_CURRENT_SOURCE_DIR}/experimental/louvain_test.cu")
+
+ConfigureTest(EXPERIMENTAL_LOUVAIN_TEST "${EXPERIMENTAL_LOUVAIN_TEST_SRCS}" "")
 
 ###################################################################################################
 # - Experimental KATZ_CENTRALITY tests ------------------------------------------------------------

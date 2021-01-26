@@ -15,19 +15,8 @@
  */
 
 #include <community/louvain.cuh>
-
-// "FIXME": remove the guards after support for Pascal will be dropped;
-//
-// Disable louvain(experimenta::graph_view_t,...)
-// versions for GPU architectures < 700
-//(this is because cuco/static_map.cuh would not
-// compile on those)
-//
-#if defined(__CUDA_ARCH__) && __CUDA_ARCH__ < 700
 #include <experimental/graph.hpp>
-#else
 #include <experimental/louvain.cuh>
-#endif
 
 namespace cugraph {
 
@@ -58,13 +47,22 @@ std::pair<size_t, weight_t> louvain(
 {
   CUGRAPH_EXPECTS(clustering != nullptr, "Invalid input argument: clustering is null");
 
-#if defined(__CUDA_ARCH__) && __CUDA_ARCH__ < 700
-  CUGRAPH_FAIL("Louvain not supported on Pascal and older architectures");
-#else
-  experimental::Louvain<experimental::graph_view_t<vertex_t, edge_t, weight_t, false, multi_gpu>>
-    runner(handle, graph_view);
-  return runner(clustering, max_level, resolution);
-#endif
+  // "FIXME": remove this check and the guards below
+  //
+  // Disable louvain(experimental::graph_view_t,...)
+  // versions for GPU architectures < 700
+  // (cuco/static_map.cuh depends on features not supported on or before Pascal)
+  //
+  cudaDeviceProp device_prop;
+  CUDA_CHECK(cudaGetDeviceProperties(&device_prop, 0));
+
+  if (device_prop.major < 7) {
+    CUGRAPH_FAIL("Louvain not supported on Pascal and older architectures");
+  } else {
+    experimental::Louvain<experimental::graph_view_t<vertex_t, edge_t, weight_t, false, multi_gpu>>
+      runner(handle, graph_view);
+    return runner(clustering, max_level, resolution);
+  }
 }
 
 }  // namespace detail
@@ -78,11 +76,7 @@ std::pair<size_t, typename graph_t::weight_type> louvain(raft::handle_t const &h
 {
   CUGRAPH_EXPECTS(clustering != nullptr, "Invalid input argument: clustering is null");
 
-#if defined(__CUDA_ARCH__) && __CUDA_ARCH__ < 700
-  CUGRAPH_FAIL("Louvain not supported on Pascal and older architectures");
-#else
   return detail::louvain(handle, graph, clustering, max_level, resolution);
-#endif
 }
 
 // Explicit template instantations

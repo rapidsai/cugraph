@@ -105,11 +105,11 @@ EXTENSIONS = [
                             "../thirdparty/cub",
                             raft_include_dir,
                             os.path.join(
-                                conda_include_dir, "libcudf", "libcudacxx"),
+                                conda_include_dir, "libcudacxx"),
                             cuda_include_dir],
               library_dirs=[get_python_lib()],
               runtime_library_dirs=[conda_lib_dir],
-              libraries=['cugraph', 'cudf', 'nccl'],
+              libraries=['cugraph', 'nccl'],
               language='c++',
               extra_compile_args=['-std=c++14'])
 ]
