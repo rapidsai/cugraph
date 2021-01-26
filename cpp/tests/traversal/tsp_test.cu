@@ -13,9 +13,11 @@
 // Author: Hugo Linsenmaier hlinsenmaier@nvidia.com
 
 #include <algorithms.hpp>
+#include <cassert>
 #include <cmath>
 #include <cuda_profiler_api.h>
 #include <err.h>
+#include <fstream>
 #include <graph.hpp>
 #include <raft/error.hpp>
 #include <raft/handle.hpp>
@@ -23,12 +25,14 @@
 #include <utilities/base_fixture.hpp>
 #include <utilities/high_res_clock.h>
 #include <utilities/test_utilities.hpp>
+#include <vector>
+#include <bits/stdc++.h>
+
 
 typedef struct Tsp_Usecase_t {
   std::string tsp_file;
-  int restarts;
-  int ref_cost;
-  Tsp_Usecase_t(const std::string& a, const int b, const int c)
+  float ref_cost;
+  Tsp_Usecase_t(const std::string& a, const float c)
   {
     // assume relative paths are relative to RAPIDS_DATASET_ROOT_DIR
     const std::string& rapidsDatasetRootDir = cugraph::test::get_rapids_dataset_root_dir();
@@ -37,25 +41,82 @@ typedef struct Tsp_Usecase_t {
     } else {
       tsp_file = a;
     }
-    restarts = b;
     ref_cost = c;
   }
   Tsp_Usecase_t& operator=(const Tsp_Usecase_t& rhs)
   {
     tsp_file = rhs.tsp_file;
-    restarts = rhs.restarts;
     ref_cost = rhs.ref_cost;
     return *this;
   }
 } Tsp_Usecase;
 
+static std::vector<Tsp_Usecase_t> euc_2d {
+  {"tsplib/datasets/a280.tsp", 2579},
+  {"tsplib/datasets/berlin52.tsp", 7542},
+  {"tsplib/datasets/bier127.tsp", 118282},
+  {"tsplib/datasets/ch130.tsp", 6110},
+  {"tsplib/datasets/ch150.tsp", 6528},
+  {"tsplib/datasets/d1291.tsp", 50801},
+  {"tsplib/datasets/d1655.tsp", 62128},
+  {"tsplib/datasets/d198.tsp", 15780},
+  {"tsplib/datasets/d2103.tsp", 80450},
+  {"tsplib/datasets/d493.tsp", 35002},
+  {"tsplib/datasets/d657.tsp", 48912},
+  {"tsplib/datasets/eil101.tsp", 629},
+  {"tsplib/datasets/eil51.tsp", 426},
+  {"tsplib/datasets/eil76.tsp", 538},
+  {"tsplib/datasets/fl1400.tsp", 20127},
+  {"tsplib/datasets/fl1577.tsp", 22249},
+  {"tsplib/datasets/fl417.tsp", 11861},
+  {"tsplib/datasets/gil262.tsp", 2378},
+  {"tsplib/datasets/kroA100.tsp", 21282},
+  {"tsplib/datasets/kroA150.tsp", 26524},
+  {"tsplib/datasets/kroA200.tsp", 29368},
+  {"tsplib/datasets/kroB100.tsp", 22141},
+  {"tsplib/datasets/kroB150.tsp", 26130},
+  {"tsplib/datasets/kroB200.tsp", 29437},
+  {"tsplib/datasets/kroC100.tsp", 20749},
+  {"tsplib/datasets/kroD100.tsp", 21294},
+  {"tsplib/datasets/kroE100.tsp", 22068},
+  {"tsplib/datasets/lin105.tsp", 14379},
+  {"tsplib/datasets/lin318.tsp", 42029},
+  {"tsplib/datasets/nrw1379.tsp", 56638},
+  {"tsplib/datasets/p654.tsp", 34643},
+  {"tsplib/datasets/pcb1173.tsp", 56892},
+  {"tsplib/datasets/pcb442.tsp", 50778},
+  {"tsplib/datasets/pr1002.tsp", 259045},
+  {"tsplib/datasets/pr107.tsp", 44303},
+  {"tsplib/datasets/pr136.tsp", 96772},
+  {"tsplib/datasets/pr144.tsp", 58537},
+  {"tsplib/datasets/pr152.tsp", 73682},
+  {"tsplib/datasets/pr226.tsp", 80369},
+  {"tsplib/datasets/pr264.tsp", 49135},
+  {"tsplib/datasets/pr299.tsp", 48191},
+  {"tsplib/datasets/pr439.tsp", 107217},
+  {"tsplib/datasets/pr76.tsp", 108159},
+  {"tsplib/datasets/rat195.tsp", 2323},
+  {"tsplib/datasets/rat575.tsp", 6773},
+  {"tsplib/datasets/rat783.tsp", 8806},
+  {"tsplib/datasets/rat99.tsp", 1211},
+  {"tsplib/datasets/rd100.tsp", 7910},
+  {"tsplib/datasets/rd400.tsp", 15281},
+  {"tsplib/datasets/rl1323.tsp", 270199},
+  {"tsplib/datasets/st70.tsp", 675},
+  {"tsplib/datasets/ts225.tsp", 126643},
+  {"tsplib/datasets/tsp225.tsp", 3916},
+  {"tsplib/datasets/u1060.tsp", 224094},
+  {"tsplib/datasets/u1432.tsp", 152970},
+  {"tsplib/datasets/u159.tsp", 42080},
+  {"tsplib/datasets/u574.tsp", 36905},
+  {"tsplib/datasets/u724.tsp", 41910},
+  {"tsplib/datasets/vm1084.tsp", 239297},
+};
+
 struct Route {
-  uint num_packages;
-  int *cities;
-  float *x;
-  float *y;
-  float *vol;
-  uint *order;
+  std::vector<int> cities;
+  std::vector<float> x_pos;
+  std::vector<float> y_pos;
 };
 
 class Tests_Tsp : public ::testing::TestWithParam<Tsp_Usecase> {
@@ -66,7 +127,6 @@ class Tests_Tsp : public ::testing::TestWithParam<Tsp_Usecase> {
   virtual void SetUp() {}
   virtual void TearDown() {}
 
-  template <typename T>
   void run_current_test(const Tsp_Usecase& param)
   {
     const ::testing::TestInfo* const test_info =
@@ -77,12 +137,12 @@ class Tests_Tsp : public ::testing::TestWithParam<Tsp_Usecase> {
                           cugraph::test::getFileName(param.tsp_file) + std::string("_") +
                           ss.str().c_str();
 
-    float tol = 5E-2f;
+    float tol = 10E-2f;
     HighResClock hr_clock;
     double time_tmp;
     Route input;
 
-    int restarts = param.restarts;
+    std::cout << "File: " << param.tsp_file.c_str() << "\n";
     int nodes = load_tsp(param.tsp_file.c_str(), &input);
 
     // Device alloc
@@ -97,11 +157,12 @@ class Tests_Tsp : public ::testing::TestWithParam<Tsp_Usecase> {
     float *d_x_pos = x_pos.data();
     float *d_y_pos = y_pos.data();
 
-    CUDA_TRY(cudaMemcpy(vtx_ptr, input.cities, sizeof(int) * nodes, cudaMemcpyHostToDevice));
-    CUDA_TRY(cudaMemcpy(d_x_pos, input.x, sizeof(float) * nodes, cudaMemcpyHostToDevice));
-    CUDA_TRY(cudaMemcpy(d_y_pos, input.y, sizeof(float) * nodes, cudaMemcpyHostToDevice));
+    CUDA_TRY(cudaMemcpy(vtx_ptr, input.cities.data(), sizeof(int) * nodes, cudaMemcpyHostToDevice));
+    CUDA_TRY(cudaMemcpy(d_x_pos, input.x_pos.data(), sizeof(float) * nodes, cudaMemcpyHostToDevice));
+    CUDA_TRY(cudaMemcpy(d_y_pos, input.y_pos.data(), sizeof(float) * nodes, cudaMemcpyHostToDevice));
 
     // Default parameters
+    int restarts = 10000;
     bool beam_search = true;
     int k          = 4;
     int nstart = 0;
@@ -126,88 +187,62 @@ class Tests_Tsp : public ::testing::TestWithParam<Tsp_Usecase> {
     cudaDeviceSynchronize();
     hr_clock.stop(&time_tmp);
     std::cout << "tsp_time: " << time_tmp << " us" << std::endl;
+    std::cout << "Ref cost is: " << param.ref_cost << "\n";
     std::cout << "Final cost is: " << final_cost << "\n";
-    float err = final_cost - param.ref_cost;
+    float err = fabs(final_cost - param.ref_cost);
     err /= param.ref_cost;
     std::cout << "Approximation error is: " << err * 100 << "%\n";
     EXPECT_LE(err, tol);
   }
 
  private:
-  static int load_tsp(const char *fname, Route *input) {
-    int ch, cnt, in1, nodes;
-    float in2, in3;
-    FILE *f;
-    int res;
-    char str[256];  // potential for buffer overrun
-
-    f = fopen(fname, "rt");
-    if (f == NULL)
-      err(1, "could not open file %s\n", fname);
-
-    ch = getc(f);
-    while ((ch != EOF) && (ch != '\n')) ch = getc(f);
-    ch = getc(f);
-    while ((ch != EOF) && (ch != '\n')) ch = getc(f);
-    ch = getc(f);
-    while ((ch != EOF) && (ch != '\n')) ch = getc(f);
-
-    ch = getc(f);
-    while ((ch != EOF) && (ch != ':')) ch = getc(f);
-    res = fscanf(f, "%s\n", str);
-    nodes = atoi(str);
-    input->num_packages = (uint)nodes;
-
-    if (nodes <= 2)
-      err(1, "only %d nodes\n", nodes);
-
-    input->cities = (int *)malloc(sizeof(int) * nodes);
-    if (!input->cities)
-      err(1, "cannot allocate %d city vector\n", nodes);
-    input->x = (float *)malloc(sizeof(float) * nodes);
-    if (!input->x)
-      err(1, "cannot allocate %d xcoords\n", nodes);
-    input->y = (float *)malloc(sizeof(float) * nodes);
-    if (!input->y)
-      err(1, "cannot allocate %d ycoords\n", nodes);
-
-    ch = getc(f);
-    while ((ch != EOF) && (ch != '\n')) ch = getc(f);
-    res = fscanf(f, "%s\n", str);
-    if (strcmp(str, "NODE_COORD_SECTION") != 0)
-      err(1, "wrong file format\n");
-
-    cnt = 0;
-    while (fscanf(f, "%d %f %f\n", &in1, &in2, &in3)) {
-      input->cities[cnt] = in1;
-      input->x[cnt] = in2;
-      input->y[cnt] = in3;
-      cnt++;
-      if (cnt > nodes)
-        err(1, "inconsistent data: input too long\n");
-      if (cnt != in1)
-        err(1, "input line mismatch: expected %d instead of %d\n", cnt, in1);
+    std::vector<std::string> split(const std::string& s, char delimiter)
+    {
+      std::vector<std::string> tokens;
+      std::string token;
+      std::istringstream tokenStream(s);
+      while (std::getline(tokenStream, token, delimiter))
+      {
+        if (token.size() == 0)
+          continue;
+        tokens.push_back(token);
+      }
+      return tokens;
     }
-    if (cnt != nodes)
-      err(1, "inconsistent data: read %d instead of %d nodes\n", cnt, nodes);
 
-    res = fscanf(f, "%s", str);
-    if (strcmp(str, "EOF") != 0)
-      err(1, "didn't see 'EOF' at end of file\n");
-    res = res;
-    fclose(f);
-    return nodes;
-  }
+    int load_tsp(const char *fname, Route *input) {
+      std::fstream fs;
+      fs.open(fname);
+      std::string line;
+      std::vector<std::string> tokens;
+      int nodes = 0;
+      while (std::getline(fs, line) && line.find(':') != std::string::npos) {
+          tokens = split(line, ':');
+          auto strip_token = split(tokens[0], ' ')[0];
+          if (strip_token == "DIMENSION")
+            nodes = std::stof(tokens[1]);
+      }
+
+      while (std::getline(fs, line) && line.find(' ') != std::string::npos) {
+        tokens = split(line, ' ');
+        auto city_id = std::stof(tokens[0]);
+        auto x = std::stof(tokens[1]);
+        auto y = std::stof(tokens[2]);
+        input->cities.push_back(city_id);
+        input->x_pos.push_back(x);
+        input->y_pos.push_back(y);
+      }
+      fs.close();
+      assert(nodes == input->cities.size());
+      return nodes;
+    }
+
 };
 
 
-TEST_P(Tests_Tsp, CheckFP32_T) { run_current_test<float>(GetParam()); }
-
-TEST_P(Tests_Tsp, CheckFP64_T) { run_current_test<double>(GetParam()); }
+TEST_P(Tests_Tsp, CheckFP32_T) { run_current_test(GetParam()); }
 
 INSTANTIATE_TEST_CASE_P(simple_test,
                         Tests_Tsp,
-                        ::testing::Values(Tsp_Usecase("tsplib/datasets/tsp225.tsp", 4096, 3916)
-                       ));
+                        ::testing::ValuesIn(euc_2d));
 CUGRAPH_TEST_PROGRAM_MAIN()
-
