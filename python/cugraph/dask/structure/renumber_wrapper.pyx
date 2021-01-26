@@ -24,6 +24,36 @@ import numpy as np
 
 from rmm._lib.device_buffer cimport device_buffer, DeviceBuffer
 
+def renumber_helper(maj_min_w):
+    # extract shuffled result:
+    #
+    cdef pair[unique_ptr[device_buffer], size_t] pair_s_major   = maj_min_w.get_major_wrap()
+    cdef pair[unique_ptr[device_buffer], size_t] pair_s_minor   = maj_min_w.get_minor_wrap()
+    cdef pair[unique_ptr[device_buffer], size_t] pair_s_weights = maj_min_w.get_weights_wrap()
+    
+    shufled_major_buffer = DeviceBuffer.c_from_unique_ptr(move(pair_s_major.first))
+    shufled_major_buffer = Buffer(shufled_major_buffer)
+    
+    shufled_major_series = cudf.Series(data=shufled_major_buffer, dtype=vertex_t)
+    
+    shufled_minor_buffer = DeviceBuffer.c_from_unique_ptr(move(pair_s_minor.first))
+    shufled_minor_buffer = Buffer(shufled_minor_buffer)
+    
+    shufled_minor_series = cudf.Series(data=shufled_minor_buffer, dtype=vertex_t)
+    
+    shufled_weights_buffer = DeviceBuffer.c_from_unique_ptr(move(pair_s_weights.first))
+    shufled_weights_buffer = Buffer(shufled_weights_buffer)
+    
+    shufled_weights_series = cudf.Series(data=shufled_weights_buffer, dtype=weight_t)
+    
+    shuffled_df = cudf.DataFrame()
+    shuffled_df['src']=shuffled_major_series
+    shuffled_df['dst']=shuffled_minor_series
+    shuffled_df['weights']= shuffled_weights_series
+    
+    return shuffled_df
+
+
 def mg_renumber(input_df,
                 num_global_verts,
                 num_global_edges,    
@@ -67,34 +97,11 @@ def mg_renumber(input_df,
                                                           c_edge_weights,
                                                           num_partition_edges,
                                                           is_hyper_partitioned)
-                # extract shuffled result:
-                #
-                cdef pair[unique_ptr[device_buffer], size_t] pair_s_major   = maj_min_w.get_major_wrap()
-                cdef pair[unique_ptr[device_buffer], size_t] pair_s_minor   = maj_min_w.get_minor_wrap()
-                cdef pair[unique_ptr[device_buffer], size_t] pair_s_weights = maj_min_w.get_weights_wrap()
-
-                shufled_major_buffer = DeviceBuffer.c_from_unique_ptr(move(pair_s_major.first))
-                shufled_major_buffer = Buffer(shufled_major_buffer)
-
-                shufled_major_series = cudf.Series(data=shufled_major_buffer, dtype=vertex_t)
-
-                shufled_minor_buffer = DeviceBuffer.c_from_unique_ptr(move(pair_s_minor.first))
-                shufled_minor_buffer = Buffer(shufled_minor_buffer)
-
-                shufled_minor_series = cudf.Series(data=shufled_minor_buffer, dtype=vertex_t)
-
-                shufled_weights_buffer = DeviceBuffer.c_from_unique_ptr(move(pair_s_weights.first))
-                shufled_weights_buffer = Buffer(shufled_weights_buffer)
-
-                shufled_weights_series = cudf.Series(data=shufled_weights_buffer, dtype=weight_t)
-
-                shuffled_df = cudf.DataFrame()
-                shuffled_df['src']=shuffled_major_series
-                shuffled_df['dst']=shuffled_minor_series
-                shuffled_df['weights']= shuffled_weights_series
+                
+                shuffled_df = renumber_helper(maj_min_w)
                         
-                cdef vertex_t* shuffled_major = shufled_major_series.__cuda_array_interface__['data'][0]
-                cdef vertex_t* shuffled_minor = shufled_minor_series.__cuda_array_interface__['data'][0]
+                cdef int* shuffled_major = shufled_df['src'].__cuda_array_interface__['data'][0]
+                cdef int* shuffled_minor = shufled_df['dst'].__cuda_array_interface__['data'][0]
                 
                 cdef bool do_check = False # ? for now...
                 cdef bool mg_flag = True # run MNMG
@@ -106,3 +113,5 @@ def mg_renumber(input_df,
                                                      is_hyper_partitioned,
                                                      do_check,
                                                      mg_flag)
+
+                
