@@ -964,7 +964,7 @@ template void call_sssp(raft::handle_t const& handle,
 template major_minor_weights_t<int32_t, float> call_shuffle(raft::handle_t const& handle,
                                                             int32_t* edgelist_major_vertices,
                                                             int32_t* edgelist_minor_vertices,
-                                                            float* edegelist_weights,
+                                                            float* edgelist_weights,
                                                             int32_t num_edgelist_edges,
                                                             bool is_hypergraph_partitioned);
 
