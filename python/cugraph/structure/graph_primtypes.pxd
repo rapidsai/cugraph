@@ -179,7 +179,7 @@ cdef extern from "utilities/cython.hpp" namespace "cugraph::cython":
         int get_part_row_size()
         int get_part_col_size()
         int get_part_comm_rank()
-        const vertex_t* get_part_ptr_vertex_partition_offsets()
+        pair[unique_ptr[device_buffer], size_t] get_partition_offsets()
         pair[vertex_t, vertex_t] get_part_local_vertex_range()
         vertex_t get_part_local_vertex_first()
         vertex_t get_part_local_vertex_last()

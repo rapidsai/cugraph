@@ -180,9 +180,11 @@ struct renum_quad_t {
 
   int get_part_comm_rank() const { return part_.get_comm_rank(); }
 
-  vertex_t const* get_part_ptr_vertex_partition_offsets(void) const
+  std::pair<std::unique_ptr<rmm::device_buffer>, size_t> get_partition_offsets(void) const
   {
-    return part_.get_vertex_partition_offsets().data();
+    return std::make_pair(
+      std::make_unique<rmm::device_buffer>(part_.get_vertex_partition_offsets().release()),
+      sizeof(vertex_t));
   }
 
   std::pair<vertex_t, vertex_t> get_part_local_vertex_range() const

@@ -53,7 +53,6 @@ def renumber_helper(maj_min_w):
     
     return shuffled_df
 
-
 def mg_renumber(input_df,
                 num_global_verts,
                 num_global_edges,    
@@ -114,7 +113,25 @@ def mg_renumber(input_df,
                                                      do_check,
                                                      mg_flag)
 
-                renumbered_dict = {shuffled_df['src'] : shuffled_df['dst']} 
-                return renumbered_dict
+                original_series = renum_quad.get_dv_wrap() # original vertices: see helper
+                pt_series = renum_quad.get_partition_offsets() # <- TODO
 
+                # create series
+                #
+                new_series = make_range(pt_series[rank], pt_series[rank+1])
+                #
+                # Example:
+                #
+                # df['vertex'] =
+                #  cudf.Series(np.arange(vertex_partition_offsets.iloc[rank],
+                #                        vertex_partition_offsets.iloc[rank+1]),
+                #              dtype=vertex_t)
+
+                # create new cudf df
+                #
+                # and add the previous series to it:
+                #
+                renumbered_map['original_ids'] = original_series
+                renumbered_map['new_ids'] = new_series
                 
+                return renumbered_map, shuffled_df
