@@ -16,6 +16,7 @@
 
 // Alex Fender afender@nvida.com
 #include <algorithms.hpp>
+#include <cstddef>
 #include <memory>
 #include <tuple>
 #include <utility>
@@ -30,6 +31,7 @@
 #include "experimental/graph.hpp"
 #include "utilities/graph_utils.cuh"
 
+#include <experimental/graph_functions.hpp>
 #include <experimental/graph_view.hpp>
 
 namespace {
@@ -58,50 +60,62 @@ extract(
   vertex_t n_subgraphs,
   vertex_t radius)
 {
-  auto v      = csr_view.get_number_of_vertices();
-  auto e      = csr_view.get_number_of_edges();
-  auto stream = handle.get_stream();
+  auto v           = csr_view.get_number_of_vertices();
+  auto e           = csr_view.get_number_of_edges();
+  auto stream      = handle.get_stream();
+  float avg_degree = e / v;
 
-  // BFS with cutoff
-  rmm::device_vector<vertex_t> reached(v);
-  rmm::device_vector<vertex_t> predecessors(v);  // not used
-  bool direction_optimizing = false;
+  rmm::device_vector<size_t> neighbors_offsets(n_subgraphs + 1);
+  rmm::device_vector<vertex_t> neighbors;
+  // reserve some reasonable memory, but could grow larger than that
+  neighbors.reserve(v + avg_degree * n_subgraphs * radius);
+  neighbors_offsets[0] = 0;
+  // each source should be done concurently in the future
+  for (vertex_t i = 0; i < n_subgraphs; i++) {
+    // BFS with cutoff
+    rmm::device_vector<vertex_t> reached(v);
+    rmm::device_vector<vertex_t> predecessors(v);  // not used
+    bool direction_optimizing = false;
+    cugraph::experimental::bfs<vertex_t, edge_t, weight_t, false>(handle,
+                                                                  csr_view,
+                                                                  reached.data().get(),
+                                                                  predecessors.data().get(),
+                                                                  source_vertex[i],
+                                                                  direction_optimizing,
+                                                                  radius);
 
-  cugraph::experimental::bfs<vertex_t, edge_t, weight_t, false>(handle,
-                                                                csr_view,
-                                                                reached.data().get(),
-                                                                predecessors.data().get(),
-                                                                source_vertex[0],
-                                                                direction_optimizing,
-                                                                radius);
+    // identify reached vertex ids from distance array
+    thrust::transform(rmm::exec_policy(stream)->on(stream),
+                      thrust::make_counting_iterator(vertex_t{0}),
+                      thrust::make_counting_iterator(v),
+                      reached.begin(),
+                      reached.begin(),
+                      [sentinel = std::numeric_limits<vertex_t>::max()] __device__(
+                        auto id, auto val) { return val < sentinel ? id : sentinel; });
 
-  // identify reached vertex ids from distance array
-  thrust::transform(rmm::exec_policy(stream)->on(stream),
-                    thrust::make_counting_iterator(vertex_t{0}),
-                    thrust::make_counting_iterator(v),
-                    reached.begin(),
-                    reached.begin(),
-                    [sentinel = std::numeric_limits<vertex_t>::max()] __device__(
-                      auto id, auto val) { return val < sentinel ? id : sentinel; });
-  // removes unreached data
-  auto reached_end = thrust::remove(rmm::exec_policy(stream)->on(stream),
-                                    reached.begin(),
-                                    reached.end(),
-                                    std::numeric_limits<vertex_t>::max());
-
+    // removes unreached data
+    auto reached_end = thrust::remove(rmm::exec_policy(stream)->on(stream),
+                                      reached.begin(),
+                                      reached.end(),
+                                      std::numeric_limits<vertex_t>::max());
+    thrust::copy(reached.begin(), reached_end, std::ostream_iterator<vertex_t>(std::cout, " "));
+    std::cout << std::endl;
+    // update extraction input
+    size_t n_reached         = thrust::distance(reached.begin(), reached_end);
+    neighbors_offsets[i + 1] = neighbors_offsets[i] + n_reached;
+    if (neighbors_offsets[i + 1] > neighbors.capacity())
+      neighbors.reserve(neighbors_offsets[i + 1] * 2);
+    neighbors.insert(neighbors.end(), reached.begin(), reached_end);
+  }
+  thrust::copy(neighbors_offsets.begin(),
+               neighbors_offsets.end(),
+               std::ostream_iterator<vertex_t>(std::cout, " "));
+  std::cout << std::endl;
+  thrust::copy(neighbors.begin(), neighbors.end(), std::ostream_iterator<vertex_t>(std::cout, " "));
+  std::cout << std::endl;
   // extract
-  vertex_t n_reached = thrust::distance(reached.begin(), reached_end);
-
-  // return cugraph::experimental::extract_subgraph_vertex(csr_view, v, reached.data().get(),
-  // n_reached);
-
-  rmm::device_uvector<vertex_t> src_indices(v, stream);
-  rmm::device_uvector<vertex_t> dst_indices(v, stream);
-  rmm::device_uvector<weight_t> weights(v, stream);
-  rmm::device_uvector<size_t> off(v, stream);
-
-  return std::make_tuple(
-    std::move(src_indices), std::move(dst_indices), std::move(weights), std::move(off));
+  return cugraph::experimental::extract_induced_subgraphs(
+    handle, csr_view, neighbors_offsets.data().get(), neighbors.data().get(), n_subgraphs);
 }
 }  // namespace
 namespace cugraph {
@@ -117,8 +131,8 @@ extract_ego(raft::handle_t const &handle,
             vertex_t n_subgraphs,
             vertex_t radius)
 {
-  CUGRAPH_EXPECTS(n_subgraphs == 1, "concurrent egonet subgraphs are not supported yet");
-  CUGRAPH_EXPECTS(radius > 1, "radius should be at least 1");
+  CUGRAPH_EXPECTS(n_subgraphs > 0, "Need at least one source to extract the egonet from");
+  CUGRAPH_EXPECTS(radius > 0, "Radius should be at least 1");
   CUGRAPH_EXPECTS(radius < graph_view.get_number_of_vertices(), "radius is too large");
 
   return extract<vertex_t, edge_t, weight_t>(

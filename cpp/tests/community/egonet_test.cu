@@ -14,159 +14,146 @@
  * limitations under the License.
  */
 
+#include <utilities/base_fixture.hpp>
+#include <utilities/test_utilities.hpp>
+
+#include <algorithms.hpp>
+#include <experimental/graph.hpp>
+#include <experimental/graph_view.hpp>
+#include <graph.hpp>
+
+#include <raft/cudart_utils.h>
+#include <raft/handle.hpp>
+#include <rmm/device_uvector.hpp>
+#include <rmm/mr/device/cuda_memory_resource.hpp>
+
 #include <gtest/gtest.h>
-#include <iostream>
+
+#include <raft/cudart_utils.h>
+#include <rmm/thrust_rmm_allocator.h>
+#include <algorithm>
 #include <tuple>
 #include <vector>
 
-#include <rmm/thrust_rmm_allocator.h>
-#include <algorithms.hpp>
-#include <graph.hpp>
+typedef struct InducedSubgraph_Usecase_t {
+  std::string graph_file_full_path{};
+  std::vector<int32_t> ego_sources{};
+  int32_t radius;
+  bool test_weighted{false};
 
-#include <utilities/base_fixture.hpp>
-template <typename vertex_t, typename edge_t, typename weight_t>
-struct EL_host {
-  vertex_t v;
-  std::vector<vertex_t> src;
-  std::vector<vertex_t> dst;
-  std::vector<weight_t> weights;
+  InducedSubgraph_Usecase_t(std::string const& graph_file_path,
+                            std::vector<int32_t> const& ego_sources,
+                            int32_t radius,
+                            bool test_weighted)
+    : ego_sources(ego_sources), radius(radius), test_weighted(test_weighted)
+  {
+    if ((graph_file_path.length() > 0) && (graph_file_path[0] != '/')) {
+      graph_file_full_path = cugraph::test::get_rapids_dataset_root_dir() + "/" + graph_file_path;
+    } else {
+      graph_file_full_path = graph_file_path;
+    }
+  };
+} InducedSubgraph_Usecase;
+
+class Tests_InducedSubgraph : public ::testing::TestWithParam<InducedSubgraph_Usecase> {
+ public:
+  Tests_InducedSubgraph() {}
+  static void SetupTestCase() {}
+  static void TearDownTestCase() {}
+
+  virtual void SetUp() {}
+  virtual void TearDown() {}
+
+  template <typename vertex_t, typename edge_t, typename weight_t, bool store_transposed>
+  void run_current_test(InducedSubgraph_Usecase const& configuration)
+  {
+    raft::handle_t handle{};
+
+    auto graph = cugraph::test::
+      read_graph_from_matrix_market_file<vertex_t, edge_t, weight_t, store_transposed>(
+        handle, configuration.graph_file_full_path, configuration.test_weighted);
+    auto graph_view = graph.view();
+
+    rmm::device_uvector<vertex_t> d_ego_sources(configuration.ego_sources.size(),
+                                                handle.get_stream());
+
+    raft::update_device(d_ego_sources.data(),
+                        configuration.ego_sources.data(),
+                        configuration.ego_sources.size(),
+                        handle.get_stream());
+
+    rmm::device_uvector<vertex_t> d_subgraph_edgelist_src(0, handle.get_stream());
+    rmm::device_uvector<vertex_t> d_subgraph_edgelist_dst(0, handle.get_stream());
+    rmm::device_uvector<weight_t> d_subgraph_edgelist_weights(0, handle.get_stream());
+    rmm::device_uvector<size_t> d_subgraph_edge_offsets(0, handle.get_stream());
+
+    std::tie(d_subgraph_edgelist_src,
+             d_subgraph_edgelist_dst,
+             d_subgraph_edgelist_weights,
+             d_subgraph_edge_offsets) =
+      cugraph::experimental::extract_ego(handle,
+                                         graph_view,
+                                         d_ego_sources.data(),
+                                         static_cast<vertex_t>(configuration.ego_sources.size()),
+                                         configuration.radius);
+
+    std::vector<vertex_t> h_cugraph_subgraph_edgelist_src(d_subgraph_edgelist_src.size());
+    std::vector<vertex_t> h_cugraph_subgraph_edgelist_dst(d_subgraph_edgelist_dst.size());
+    std::vector<weight_t> h_cugraph_subgraph_edgelist_weights(d_subgraph_edgelist_weights.size());
+    std::vector<size_t> h_cugraph_subgraph_edge_offsets(d_subgraph_edge_offsets.size());
+
+    raft::update_host(h_cugraph_subgraph_edgelist_src.data(),
+                      d_subgraph_edgelist_src.data(),
+                      d_subgraph_edgelist_src.size(),
+                      handle.get_stream());
+    raft::update_host(h_cugraph_subgraph_edgelist_dst.data(),
+                      d_subgraph_edgelist_dst.data(),
+                      d_subgraph_edgelist_dst.size(),
+                      handle.get_stream());
+    if (configuration.test_weighted) {
+      raft::update_host(h_cugraph_subgraph_edgelist_weights.data(),
+                        d_subgraph_edgelist_weights.data(),
+                        d_subgraph_edgelist_weights.size(),
+                        handle.get_stream());
+    }
+    raft::update_host(h_cugraph_subgraph_edge_offsets.data(),
+                      d_subgraph_edge_offsets.data(),
+                      d_subgraph_edge_offsets.size(),
+                      handle.get_stream());
+
+    raft::print_host_vector("offsets",
+                            &h_cugraph_subgraph_edge_offsets[0],
+                            h_cugraph_subgraph_edge_offsets.size(),
+                            std::cout);
+    raft::print_host_vector("src",
+                            &h_cugraph_subgraph_edgelist_src[0],
+                            h_cugraph_subgraph_edgelist_src.size(),
+                            std::cout);
+    raft::print_host_vector("dst",
+                            &h_cugraph_subgraph_edgelist_dst[0],
+                            h_cugraph_subgraph_edgelist_dst.size(),
+                            std::cout);
+    raft::print_host_vector("weights",
+                            &h_cugraph_subgraph_edgelist_weights[0],
+                            h_cugraph_subgraph_edgelist_weights.size(),
+                            std::cout);
+  }
 };
 
-namespace cugraph {
-namespace ego_test {
-
-template <typename vertex_t, typename edge_t, typename weight_t>
-class EGONETTest : public ::testing::TestWithParam<EL_host<vertex_t, edge_t, weight_t>> {
- protected:
-  std::tuple<rmm::device_uvector<vertex_t>,
-             rmm::device_uvector<vertex_t>,
-             rmm::device_uvector<weight_t>,
-             rmm::device_uvector<size_t>>
-  egonet_test()
-  {
-    rmm::device_vector<vertex_t> d_edgelist_src(edgelist_h.src);
-    rmm::device_vector<vertex_t> d_edgelist_dst(edgelist_h.dst);
-    rmm::device_vector<weight_t> d_edgelist_weights(edgelist_h.weights);
-
-    cugraph::experimental::edgelist_t<vertex_t, edge_t, weight_t> edgelist{
-      d_edgelist_src.data().get(),
-      d_edgelist_dst.data().get(),
-      d_edgelist_weights.data().get(),
-      static_cast<edge_t>(d_edgelist_src.size())};
-
-    auto G = cugraph::experimental::graph_t<vertex_t, edge_t, weight_t, false, false>(
-      handle, edgelist, v, cugraph::experimental::graph_properties_t{false, false}, false, true);
-
-    vertex_t source = 0;
-    vertex_t radius = 2;
-
-    auto result = cugraph::experimental::extract_ego(handle, G.view(), &source, 1, radius);
-    // raft::print_device_vector("Final EgoNet Src: ", result.src_indices.data(),
-    // result.number_of_edges, std::cout); raft::print_device_vector("Final EgoNet Dst: ",
-    // result.dst_indices.data(), result.number_of_edges, std::cout); std::cout <<
-    // "number_of_EgoNet_edges: " << result.number_of_edges << std::endl;
-    return result;
-  }
-
-  void SetUp() override
-  {
-    edgelist_h = ::testing::TestWithParam<EL_host<vertex_t, edge_t, weight_t>>::GetParam();
-    v          = edgelist_h.v;
-    e          = edgelist_h.src.size();
-  }
-
-  void TearDown() override {}
-
- protected:
-  EL_host<vertex_t, edge_t, weight_t> edgelist_h;
-  vertex_t v;
-  edge_t e;
-  raft::handle_t handle;
-};
-
-const std::vector<EL_host<int32_t, int32_t, float>> el_in_h = {
-  // single iteration
-  {8, {0, 0, 0, 1, 1, 2, 2, 3}, {1, 2, 3, 0, 3, 0, 0, 1}, {2, 3, 4, 2, 1, 3, 4, 1}},
-
-  //  multiple iterations and cycles
-  {20,
-   {0, 0, 0, 0, 1, 1, 2, 2, 2, 3, 3, 3, 4, 4, 4, 5, 5, 6, 6, 6},
-   {2, 4, 5, 6, 3, 6, 0, 4, 5, 1, 4, 6, 0, 2, 3, 0, 2, 0, 1, 3},
-   {5.0f, 9.0f,  1.0f, 4.0f, 8.0f, 7.0f, 5.0f, 2.0f, 6.0f, 8.0f,
-    1.0f, 10.0f, 9.0f, 2.0f, 1.0f, 1.0f, 6.0f, 4.0f, 7.0f, 10.0f}},
-  // negative weights
-  {20,
-   {0, 0, 0, 0, 1, 1, 2, 2, 2, 3, 3, 3, 4, 4, 4, 5, 5, 6, 6, 6},
-   {2, 4, 5, 6, 3, 6, 0, 4, 5, 1, 4, 6, 0, 2, 3, 0, 2, 0, 1, 3},
-   {-5.0f, -9.0f,  -1.0f, 4.0f,  -8.0f, -7.0f, -5.0f, -2.0f, -6.0f, -8.0f,
-    -1.0f, -10.0f, -9.0f, -2.0f, -1.0f, -1.0f, -6.0f, 4.0f,  -7.0f, -10.0f}},
-
-  // equal weights
-  {20,
-   {0, 0, 0, 0, 1, 1, 2, 2, 2, 3, 3, 3, 4, 4, 4, 5, 5, 6, 6, 6},
-   {2, 4, 5, 6, 3, 6, 0, 4, 5, 1, 4, 6, 0, 2, 3, 0, 2, 0, 1, 3},
-   {0.1, 0.1, 0.1, 0.1, 0.2, 0.2, 0.1, 0.2, 0.2, 0.2,
-    0.1, 0.1, 0.1, 0.2, 0.1, 0.1, 0.2, 0.1, 0.2, 0.1}},
-
-  // self loop
-  {20,
-   {0, 0, 0, 0, 1, 1, 2, 2, 2, 3, 3, 3, 4, 4, 4, 5, 5, 6, 6, 6},
-   {0, 4, 5, 6, 3, 6, 2, 4, 5, 1, 4, 6, 0, 2, 3, 0, 2, 0, 1, 3},
-   {0.5f, 9.0f,  1.0f, 4.0f, 8.0f, 7.0f, 0.5f, 2.0f, 6.0f, 8.0f,
-    1.0f, 10.0f, 9.0f, 2.0f, 1.0f, 1.0f, 6.0f, 4.0f, 7.0f, 10.0f}},
-
-  //  disconnected
-  {16,
-   {0, 0, 0, 1, 1, 2, 2, 2, 3, 3, 4, 4, 5, 5, 6, 6},
-   {2, 4, 5, 3, 6, 0, 4, 5, 1, 6, 0, 2, 0, 2, 1, 3},
-   {5.0f,
-    9.0f,
-    1.0f,
-    8.0f,
-    7.0f,
-    5.0f,
-    2.0f,
-    6.0f,
-    8.0f,
-    10.0f,
-    9.0f,
-    2.0f,
-    1.0f,
-    6.0f,
-    7.0f,
-    10.0f}},
-
-  //  singletons
-  {16,
-   {0, 0, 0, 1, 1, 2, 2, 2, 3, 3, 6, 6, 7, 7, 8, 8},
-   {2, 8, 7, 3, 8, 0, 8, 7, 1, 8, 0, 2, 0, 2, 1, 3},
-   {5.0f,
-    9.0f,
-    1.0f,
-    8.0f,
-    7.0f,
-    5.0f,
-    2.0f,
-    6.0f,
-    8.0f,
-    10.0f,
-    9.0f,
-    2.0f,
-    1.0f,
-    6.0f,
-    7.0f,
-    10.0f}}};
-
-typedef EGONETTest<int32_t, int32_t, float> EGONETTest1;
-TEST_P(EGONETTest1, happytests)
+TEST_P(Tests_InducedSubgraph, CheckInt32Int32FloatUntransposed)
 {
-  auto gpu_result = egonet_test();
-
-  // do assertions here
-  // EXPECT_LE(gpu_result.n_edges, edgelist_h.size());
+  run_current_test<int32_t, int32_t, float, false>(GetParam());
 }
 
-INSTANTIATE_TEST_CASE_P(EGONETTests, EGONETTest1, ::testing::ValuesIn(el_in_h));
+INSTANTIATE_TEST_CASE_P(
+  simple_test,
+  Tests_InducedSubgraph,
+  ::testing::Values(
+    // InducedSubgraph_Usecase("test/datasets/karate.mtx", std::vector<int32_t>{0}, 1, false),
+    // InducedSubgraph_Usecase("test/datasets/karate.mtx", std::vector<int32_t>{0}, 2, false),
+    InducedSubgraph_Usecase("test/datasets/karate.mtx", std::vector<int32_t>{1}, 3, false),
+    InducedSubgraph_Usecase("test/datasets/karate.mtx", std::vector<int32_t>{10, 0, 5}, 2, false),
+    InducedSubgraph_Usecase("test/datasets/karate.mtx", std::vector<int32_t>{9, 3, 10}, 2, false),
+    InducedSubgraph_Usecase("test/datasets/karate.mtx", std::vector<int32_t>{5, 12, 13}, 2, true)));
 
-}  // namespace ego_test
-}  // namespace cugraph
+CUGRAPH_TEST_PROGRAM_MAIN()

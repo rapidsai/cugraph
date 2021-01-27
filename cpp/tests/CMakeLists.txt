@@ -213,6 +213,7 @@ ConfigureTest(TRIANGLE_TEST "${TRIANGLE_TEST_SRC}" "")
 # - EGO tests --------------------------------------------------------------------------------
 
 set(EGO_TEST_SRC
+    "${CMAKE_SOURCE_DIR}/../thirdparty/mmio/mmio.c"
     "${CMAKE_CURRENT_SOURCE_DIR}/community/egonet_test.cu")
 
 ConfigureTest(EGO_TEST "${EGO_TEST_SRC}" "")
