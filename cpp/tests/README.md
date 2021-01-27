@@ -9,7 +9,7 @@
 ### System Requirements
 * MPI (multi-GPU tests only)
    ```
-   conda install openmpi
+   conda install -c conda-forge openmpi
    ```
 
 ## Building
@@ -25,7 +25,7 @@ To build the multi-GPU tests:
 ```
 <example here>
 ```
-To run the multi-GPU tests (2 GPUs):
+To run the multi-GPU tests (example using 2 GPUs) a flag needs to be passed to mpirun or an environment variable needs to be set to run with CUDA awareness:
 ```
 /path/to/cuGraph> export OMPI_MCA_opal_cuda_support=true
 /path/to/cuGraph> mpirun -n 2 ./cpp/build/gtests/MG_PAGERANK_TEST
