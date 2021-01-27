@@ -103,8 +103,7 @@ extract(
                                       reached.begin(),
                                       reached.end(),
                                       std::numeric_limits<vertex_t>::max());
-    thrust::copy(reached.begin(), reached_end, std::ostream_iterator<vertex_t>(std::cout, " "));
-    std::cout << std::endl;
+
     // update extraction input
     size_t n_reached         = thrust::distance(reached.begin(), reached_end);
     neighbors_offsets[i + 1] = neighbors_offsets[i] + n_reached;
@@ -112,12 +111,7 @@ extract(
       neighbors.reserve(neighbors_offsets[i + 1] * 2);
     neighbors.insert(neighbors.end(), reached.begin(), reached_end);
   }
-  thrust::copy(neighbors_offsets.begin(),
-               neighbors_offsets.end(),
-               std::ostream_iterator<vertex_t>(std::cout, " "));
-  std::cout << std::endl;
-  thrust::copy(neighbors.begin(), neighbors.end(), std::ostream_iterator<vertex_t>(std::cout, " "));
-  std::cout << std::endl;
+
   // extract
   return cugraph::experimental::extract_induced_subgraphs(
     handle, csr_view, neighbors_offsets.data().get(), neighbors.data().get(), n_subgraphs);
