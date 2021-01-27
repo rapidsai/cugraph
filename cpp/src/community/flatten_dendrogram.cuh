@@ -15,7 +15,8 @@
  */
 #pragma once
 
-#include <community/dendogram.cuh>
+#include <rmm/thrust_rmm_allocator.h>
+#include <community/dendrogram.cuh>
 #include <experimental/graph_functions.hpp>
 #include <raft/handle.hpp>
 
@@ -23,27 +24,26 @@ namespace cugraph {
 
 template <typename vertex_t, bool multi_gpu>
 void partition_at_level(raft::handle_t const &handle,
-                        Dendogram<vertex_t> const &dendogram,
+                        Dendrogram<vertex_t> const &dendrogram,
                         vertex_t const *d_vertex_ids,
                         vertex_t *d_partition,
                         size_t level)
 {
-  vertex_t local_num_verts = dendogram.get_level_size_unsafe(0);
+  vertex_t local_num_verts = dendrogram.get_level_size_unsafe(0);
 
-  thrust::copy(
-    rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
-    d_vertex_ids,
-    d_vertex_ids + local_num_verts,
-    d_partition);
+  thrust::copy(rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
+               d_vertex_ids,
+               d_vertex_ids + local_num_verts,
+               d_partition);
 
   std::for_each(thrust::make_counting_iterator<size_t>(0),
                 thrust::make_counting_iterator<size_t>(level),
-                [&handle, &dendogram, d_vertex_ids, &d_partition, local_num_verts](size_t l) {
+                [&handle, &dendrogram, d_vertex_ids, &d_partition, local_num_verts](size_t l) {
                   cugraph::experimental::relabel<vertex_t, multi_gpu>(
                     handle,
                     std::tuple<vertex_t const *, vertex_t const *>(
-                      d_vertex_ids, dendogram.get_level_ptr_unsafe(l)),
-                    dendogram.get_level_size_unsafe(l),
+                      d_vertex_ids, dendrogram.get_level_ptr_unsafe(l)),
+                    dendrogram.get_level_size_unsafe(l),
                     d_partition,
                     local_num_verts);
                 });

@@ -22,7 +22,7 @@
 #include <converters/COOtoCSR.cuh>
 #include <utilities/graph_utils.cuh>
 
-#include <community/dendogram.cuh>
+#include <community/dendrogram.cuh>
 
 //#define TIMING
 
@@ -46,7 +46,7 @@ class Louvain {
       hr_timer_(),
 #endif
       handle_(handle),
-      dendogram_(std::make_unique<Dendogram<vertex_t>>()),
+      dendrogram_(std::make_unique<Dendrogram<vertex_t>>()),
 
       // FIXME:  Don't really need to copy here but would need
       //         to change the logic to populate this properly
@@ -120,9 +120,9 @@ class Louvain {
     return Q;
   }
 
-  Dendogram<vertex_t> &get_dendogram() const { return *dendogram_; }
+  Dendrogram<vertex_t> &get_dendrogram() const { return *dendrogram_; }
 
-  std::unique_ptr<Dendogram<vertex_t>> move_dendogram() { return dendogram_; }
+  std::unique_ptr<Dendrogram<vertex_t>> move_dendrogram() { return dendrogram_; }
 
   virtual weight_t operator()(size_t max_level, weight_t resolution)
   {
@@ -143,11 +143,11 @@ class Louvain {
 
     current_graph.get_source_indices(src_indices_v_.data().get());
 
-    while (dendogram_->num_levels() < max_level) {
+    while (dendrogram_->num_levels() < max_level) {
       //
       //  Initialize every cluster to reference each vertex to itself
       //
-      initialize_dendogram_level(current_graph.number_of_vertices);
+      initialize_dendrogram_level(current_graph.number_of_vertices);
 
       compute_vertex_and_cluster_weights(current_graph);
 
@@ -188,14 +188,15 @@ class Louvain {
 #endif
   }
 
-  void initialize_dendogram_level(vertex_t num_vertices) {
-    dendogram_->add_level(num_vertices);
+  void initialize_dendrogram_level(vertex_t num_vertices)
+  {
+    dendrogram_->add_level(num_vertices);
 
     thrust::sequence(rmm::exec_policy(stream_)->on(stream_),
-                     dendogram_->current_level_begin(),
-                     dendogram_->current_level_end());
+                     dendrogram_->current_level_begin(),
+                     dendrogram_->current_level_end());
   }
-  
+
  public:
   void compute_vertex_and_cluster_weights(graph_type const &graph)
   {
@@ -237,21 +238,21 @@ class Louvain {
     //
 
     // TODO:  will this work, or do I need to use the size and then copy?
-    rmm::device_vector<vertex_t> next_cluster_v(dendogram_->current_level_begin(),
-                                                dendogram_->current_level_end());
+    rmm::device_vector<vertex_t> next_cluster_v(dendrogram_->current_level_begin(),
+                                                dendrogram_->current_level_end());
 
     rmm::device_vector<weight_t> delta_Q_v(graph.number_of_edges);
     rmm::device_vector<vertex_t> cluster_hash_v(graph.number_of_edges);
     rmm::device_vector<weight_t> old_cluster_sum_v(graph.number_of_vertices);
 
     vertex_t *d_cluster_hash         = cluster_hash_v.data().get();
-    vertex_t *d_cluster              = dendogram_->current_level_begin();
+    vertex_t *d_cluster              = dendrogram_->current_level_begin();
     weight_t const *d_vertex_weights = vertex_weights_v_.data().get();
     weight_t *d_cluster_weights      = cluster_weights_v_.data().get();
     weight_t *d_delta_Q              = delta_Q_v.data().get();
 
     weight_t new_Q =
-      modularity(total_edge_weight, resolution, graph, dendogram_->current_level_begin());
+      modularity(total_edge_weight, resolution, graph, dendrogram_->current_level_begin());
 
     weight_t cur_Q = new_Q - 1;
 
@@ -276,7 +277,7 @@ class Louvain {
         thrust::copy(rmm::exec_policy(stream_)->on(stream_),
                      next_cluster_v.begin(),
                      next_cluster_v.end(),
-                     dendogram_->current_level_begin());
+                     dendrogram_->current_level_begin());
       }
     }
 
@@ -295,7 +296,7 @@ class Louvain {
     vertex_t const *d_dst_indices     = graph.indices;
     edge_t const *d_offsets           = graph.offsets;
     weight_t const *d_weights         = graph.edge_data;
-    vertex_t const *d_cluster         = dendogram_->current_level_begin();
+    vertex_t const *d_cluster         = dendrogram_->current_level_begin();
     weight_t const *d_vertex_weights  = vertex_weights_v_.data().get();
     weight_t const *d_cluster_weights = cluster_weights_v_.data().get();
 
@@ -482,9 +483,9 @@ class Louvain {
   {
     vertex_t *d_tmp_array       = tmp_arr_v_.data().get();
     vertex_t *d_cluster_inverse = cluster_inverse_v_.data().get();
-    vertex_t *d_cluster         = dendogram_->current_level_begin();
+    vertex_t *d_cluster         = dendrogram_->current_level_begin();
 
-    vertex_t old_num_clusters = dendogram_->current_level_size();
+    vertex_t old_num_clusters = dendrogram_->current_level_size();
 
     //
     //  New technique.  Initialize cluster_inverse_v_ to 0
@@ -500,7 +501,7 @@ class Louvain {
     thrust::scatter(rmm::exec_policy(stream_)->on(stream_),
                     first_1,
                     last_1,
-                    dendogram_->current_level_begin(),
+                    dendrogram_->current_level_begin(),
                     cluster_inverse_v_.begin());
 
     //
@@ -549,7 +550,7 @@ class Louvain {
     weight_t *d_old_weight = graph.edge_data;
     vertex_t *d_new_src    = new_src_v.data().get();
     vertex_t *d_new_dst    = new_dst_v.data().get();
-    vertex_t *d_clusters   = dendogram_->current_level_begin();
+    vertex_t *d_clusters   = dendrogram_->current_level_begin();
     weight_t *d_new_weight = new_weight_v.data().get();
 
     //
@@ -613,7 +614,7 @@ class Louvain {
   edge_t number_of_edges_;
   cudaStream_t stream_;
 
-  std::unique_ptr<Dendogram<vertex_t>> dendogram_;
+  std::unique_ptr<Dendrogram<vertex_t>> dendrogram_;
 
   //
   //  Copy of graph

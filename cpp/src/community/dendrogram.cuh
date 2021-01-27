@@ -15,12 +15,16 @@
  */
 #pragma once
 
+#include <memory>
+#include <rmm/device_buffer.hpp>
+#include <vector>
+
 namespace cugraph {
 
 template <typename vertex_t>
-class Dendogram {
+class Dendrogram {
  public:
-  Dendogram() : level_size_(), level_ptr_() {}
+  Dendrogram() : level_size_(), level_ptr_() {}
 
   void add_level(vertex_t num_verts)
   {

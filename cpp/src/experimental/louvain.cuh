@@ -17,7 +17,6 @@
 
 #include <thrust/binary_search.h>
 
-#include <community/dendogram.cuh>
 #include <experimental/graph.hpp>
 
 #include <rmm/thrust_rmm_allocator.h>
@@ -33,6 +32,8 @@
 #include <patterns/transform_reduce_v.cuh>
 
 #include <experimental/include_cuco_static_map.cuh>
+
+#include <community/dendrogram.cuh>
 
 //#define TIMING
 
@@ -375,9 +376,9 @@ create_graph(raft::handle_t const &handle,
 //  as above would allow us to eventually run the single GPU version of single level Louvain
 //  on the contracted graphs - which should be more efficient.
 //
-// FIXME: We should return the dendogram and let the python layer clean it up (or have a
-//  separate C++ function to flatten the dendogram).  There are customers that might
-//  like the dendogram and the implementation would be a bit cleaner if we did the
+// FIXME: We should return the dendrogram and let the python layer clean it up (or have a
+//  separate C++ function to flatten the dendrogram).  There are customers that might
+//  like the dendrogram and the implementation would be a bit cleaner if we did the
 //  collapsing as a separate step
 //
 template <typename graph_view_type>
@@ -399,7 +400,7 @@ class Louvain {
       hr_timer_(),
 #endif
       handle_(handle),
-      dendogram_(std::make_unique<Dendogram<vertex_t>>()),
+      dendrogram_(std::make_unique<Dendrogram<vertex_t>>()),
       current_graph_view_(graph_view),
       compute_partition_(graph_view),
       local_num_vertices_(graph_view.get_number_of_local_vertices()),
@@ -441,9 +442,9 @@ class Louvain {
     }
   }
 
-  Dendogram<vertex_t> &get_dendogram() const { return *dendogram_; }
+  Dendrogram<vertex_t> &get_dendrogram() const { return *dendrogram_; }
 
-  std::unique_ptr<Dendogram<vertex_t>> move_dendogram() { return dendogram_; }
+  std::unique_ptr<Dendrogram<vertex_t>> move_dendrogram() { return dendrogram_; }
 
   virtual weight_t operator()(size_t max_level, weight_t resolution)
   {
@@ -459,11 +460,11 @@ class Louvain {
       [] __device__(auto, auto, weight_t wt, auto, auto) { return wt; },
       weight_t{0});
 
-    while (dendogram_->num_levels() < max_level) {
+    while (dendrogram_->num_levels() < max_level) {
       //
       //  Initialize every cluster to reference each vertex to itself
       //
-      initialize_dendogram_level(current_graph_view_.get_number_of_local_vertices());
+      initialize_dendrogram_level(current_graph_view_.get_number_of_local_vertices());
 
       compute_vertex_and_cluster_weights();
 
@@ -507,16 +508,17 @@ class Louvain {
 #endif
   }
 
-protected:
-  void initialize_dendogram_level(vertex_t num_vertices) {
-    dendogram_->add_level(num_vertices);
+ protected:
+  void initialize_dendrogram_level(vertex_t num_vertices)
+  {
+    dendrogram_->add_level(num_vertices);
 
     thrust::sequence(rmm::exec_policy(stream_)->on(stream_),
-                     dendogram_->current_level_begin(),
-                     dendogram_->current_level_end(),
+                     dendrogram_->current_level_begin(),
+                     dendrogram_->current_level_end(),
                      base_vertex_id_);
   }
-  
+
  public:
   weight_t modularity(weight_t total_edge_weight, weight_t resolution)
   {
@@ -599,8 +601,8 @@ protected:
   {
     timer_start("update_clustering");
 
-    rmm::device_vector<vertex_t> next_cluster_v(dendogram_->current_level_begin(),
-                                                dendogram_->current_level_end());
+    rmm::device_vector<vertex_t> next_cluster_v(dendrogram_->current_level_begin(),
+                                                dendrogram_->current_level_end());
 
     cache_vertex_properties(next_cluster_v.begin(), src_cluster_cache_v_, dst_cluster_cache_v_);
 
@@ -627,13 +629,13 @@ protected:
         thrust::copy(rmm::exec_policy(stream_)->on(stream_),
                      next_cluster_v.begin(),
                      next_cluster_v.end(),
-                     dendogram_->current_level_begin());
+                     dendrogram_->current_level_begin());
       }
     }
 
     // cache the final clustering locally on each cpu
     cache_vertex_properties(
-      dendogram_->current_level_begin(), src_cluster_cache_v_, dst_cluster_cache_v_);
+      dendrogram_->current_level_begin(), src_cluster_cache_v_, dst_cluster_cache_v_);
 
     timer_stop(stream_);
     return cur_Q;
@@ -1216,7 +1218,7 @@ protected:
     // renumber the clusters to the range 0..(num_clusters-1)
     vertex_t num_clusters = renumber_clusters(hash_map);
 
-    // TODO: renumber result needs to be moved to the dendogram
+    // TODO: renumber result needs to be moved to the dendrogram
     // renumber_result(hash_map, num_clusters);
 
     // shrink our graph to represent the graph of supervertices
@@ -1553,7 +1555,7 @@ protected:
   raft::handle_t const &handle_;
   cudaStream_t stream_;
 
-  std::unique_ptr<Dendogram<vertex_t>> dendogram_;
+  std::unique_ptr<Dendrogram<vertex_t>> dendrogram_;
 
   vertex_t number_of_vertices_;
   vertex_t base_vertex_id_{0};

@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 
+#include <community/flatten_dendrogram.cuh>
 #include <community/leiden.cuh>
-#include <community/flatten_dendogram.cuh>
 
 namespace cugraph {
 
@@ -34,17 +34,21 @@ std::pair<size_t, weight_t> leiden(raft::handle_t const &handle,
   weight_t wt = runner(max_level, resolution);
 
   thrust::device_vector<vertex_t> vertex_ids_v(graph.number_of_vertices);
-  
-  thrust::copy(
-    rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
-    thrust::make_counting_iterator<vertex_t>(0), // MNMG - base vertex id
-    thrust::make_counting_iterator<vertex_t>(graph.number_of_vertices), // MNMG - base vertex id + number_of_vertices
-    vertex_ids_v.begin());
 
-  partition_at_level<vertex_t, false>(handle, runner.get_dendogram(), vertex_ids_v.data().get(), clustering, runner.get_dendogram().num_levels());
+  thrust::copy(rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
+               thrust::make_counting_iterator<vertex_t>(0),  // MNMG - base vertex id
+               thrust::make_counting_iterator<vertex_t>(
+                 graph.number_of_vertices),  // MNMG - base vertex id + number_of_vertices
+               vertex_ids_v.begin());
 
-  // FIXME: Consider returning the Dendogram at some point
-  return std::make_pair(runner.get_dendogram().num_levels(), wt);
+  partition_at_level<vertex_t, false>(handle,
+                                      runner.get_dendrogram(),
+                                      vertex_ids_v.data().get(),
+                                      clustering,
+                                      runner.get_dendrogram().num_levels());
+
+  // FIXME: Consider returning the Dendrogram at some point
+  return std::make_pair(runner.get_dendrogram().num_levels(), wt);
 }
 
 // Explicit template instantations

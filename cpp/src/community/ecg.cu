@@ -112,12 +112,12 @@ class EcgLouvain : public cugraph::Louvain<graph_type> {
   {
   }
 
-  void initialize_dendogram_level(vertex_t num_vertices)
+  void initialize_dendrogram_level(vertex_t num_vertices)
   {
-    this->dendogram_->add_level(num_vertices);
+    this->dendrogram_->add_level(num_vertices);
 
     get_permutation_vector(
-      num_vertices, seed_, this->dendogram_->current_level_begin(), this->stream_);
+      num_vertices, seed_, this->dendrogram_->current_level_begin(), this->stream_);
   }
 
  private:
@@ -127,43 +127,6 @@ class EcgLouvain : public cugraph::Louvain<graph_type> {
 }  // anonymous namespace
 
 namespace cugraph {
-
-#if 0
-template <typename vertex_t, typename edge_t, typename weight_t, bool multi_gpu>
-void ecg(raft::handle_t const &handle,
-         experimental::graph_view_t<vertex_t, edge_t, weight_t, false, multi_gpu> const &graph_view,
-         weight_t min_weight,
-         vertex_t ensemble_size,
-         vertex_t *clustering)
-{
-  using graph_type = experimental::graph_view_t<vertex_t, edge_t, weight_t, false, multi_gpu>;
-
-  CUGRAPH_EXPECTS(clustering != nullptr, "Invalid input argument: clustering is NULL");
-
-  // "FIXME": remove this check and the guards below
-  //
-  // Disable louvain(experimental::graph_view_t,...)
-  // versions for GPU architectures < 700
-  // (cuco/static_map.cuh depends on features not supported on or before Pascal)
-  //
-  cudaDeviceProp device_prop;
-  CUDA_CHECK(cudaGetDeviceProperties(&device_prop, 0));
-
-  if (device_prop.major < 7) {
-    CUGRAPH_FAIL("ECG not supported on Pascal and older architectures");
-  } else {
-    experimental::Louvain<experimental::graph_view_t<vertex_t, edge_t, weight_t, false, multi_gpu>>
-      runner(handle, graph_view);
-
-    weight_t wt = runner(max_level, resolution);
-    // TODO: implement this...
-    //runner.get_dendogram().partition_at_level(clustering, runner.get_dendogram().num_levels());
-
-    // FIXME: Consider returning the Dendogram at some point
-    return std::make_pair(runner.get_dendogram().num_levels(), wt);
-  }
-}
-#endif
 
 template <typename vertex_t, typename edge_t, typename weight_t>
 void ecg(raft::handle_t const &handle,
@@ -227,7 +190,7 @@ void ecg(raft::handle_t const &handle,
                                                    graph.number_of_vertices,
                                                    graph.offsets,
                                                    graph.indices,
-                                                   runner.get_dendogram().get_level_ptr_unsafe(0),
+                                                   runner.get_dendrogram().get_level_ptr_unsafe(0),
                                                    ecg_weights_v.data().get());
   }
 

@@ -38,8 +38,8 @@ class Leiden : public Louvain<graph_type> {
   {
     this->timer_start("update_clustering_constrained");
 
-    rmm::device_vector<vertex_t> next_cluster_v(this->dendogram_->current_level_begin(),
-                                                this->dendogram_->current_level_end());
+    rmm::device_vector<vertex_t> next_cluster_v(this->dendrogram_->current_level_begin(),
+                                                this->dendrogram_->current_level_end());
     rmm::device_vector<weight_t> delta_Q_v(graph.number_of_edges);
     rmm::device_vector<vertex_t> cluster_hash_v(graph.number_of_edges);
     rmm::device_vector<weight_t> old_cluster_sum_v(graph.number_of_vertices);
@@ -47,14 +47,14 @@ class Leiden : public Louvain<graph_type> {
     vertex_t const *d_src_indices    = this->src_indices_v_.data().get();
     vertex_t const *d_dst_indices    = graph.indices;
     vertex_t *d_cluster_hash         = cluster_hash_v.data().get();
-    vertex_t *d_cluster              = this->dendogram_->current_level_begin();
+    vertex_t *d_cluster              = this->dendrogram_->current_level_begin();
     weight_t const *d_vertex_weights = this->vertex_weights_v_.data().get();
     weight_t *d_cluster_weights      = this->cluster_weights_v_.data().get();
     weight_t *d_delta_Q              = delta_Q_v.data().get();
     vertex_t *d_constraint           = constraint_v_.data().get();
 
     weight_t new_Q = this->modularity(
-      total_edge_weight, resolution, graph, this->dendogram_->current_level_begin());
+      total_edge_weight, resolution, graph, this->dendrogram_->current_level_begin());
 
     weight_t cur_Q = new_Q - 1;
 
@@ -90,7 +90,7 @@ class Leiden : public Louvain<graph_type> {
         thrust::copy(rmm::exec_policy(this->stream_)->on(this->stream_),
                      next_cluster_v.begin(),
                      next_cluster_v.end(),
-                     this->dendogram_->current_level_begin());
+                     this->dendrogram_->current_level_begin());
       }
     }
 
@@ -124,11 +124,11 @@ class Leiden : public Louvain<graph_type> {
       //
       //  Initialize every cluster to reference each vertex to itself
       //
-      this->dendogram_->add_level(current_graph.number_of_vertices);
+      this->dendrogram_->add_level(current_graph.number_of_vertices);
 
       thrust::sequence(rmm::exec_policy(this->stream_)->on(this->stream_),
-                       this->dendogram_->current_level_begin(),
-                       this->dendogram_->current_level_end());
+                       this->dendrogram_->current_level_begin(),
+                       this->dendrogram_->current_level_end());
 
       this->compute_vertex_and_cluster_weights(current_graph);
 
