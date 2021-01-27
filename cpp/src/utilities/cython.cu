@@ -695,7 +695,8 @@ void call_sssp(raft::handle_t const& handle,
 template <typename vertex_t, typename edge_t, typename weight_t>
 major_minor_weights_t<vertex_t, weight_t> call_shuffle(
   raft::handle_t const& handle,
-  vertex_t* edgelist_major_vertices /* [IN] */,  // make_zip_iterator does not accept const !
+  vertex_t* edgelist_major_vertices /* [IN] */,  // sort_and_shuffle_values() assumes
+                                                 // make_zip_iterator's of non-const !
   vertex_t* edgelist_minor_vertices /* [IN] */,
   weight_t* edgelist_weights,
   edge_t num_edgelist_edges,
