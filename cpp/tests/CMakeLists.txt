@@ -290,7 +290,7 @@ set(EXPERIMENTAL_INDUCED_SUBGRAPH_TEST_SRCS
     "${CMAKE_SOURCE_DIR}/../thirdparty/mmio/mmio.c"
     "${CMAKE_CURRENT_SOURCE_DIR}/experimental/induced_subgraph_test.cpp")
 
-ConfigureTest(EXPERIMENTAL_INDUCED_SUBGRAPH_TEST "${EXPERIMENTAL_INDUCED_SUBGRAPH_TEST_SRCS}" "")
+ConfigureTest(EXPERIMENTAL_INDUCED_SUBGRAPH_TEST "${EXPERIMENTAL_INDUCED_SUBGRAPH_TEST_SRCS}" "" "")
 
 ###################################################################################################
 # - Experimental BFS tests ------------------------------------------------------------------------
