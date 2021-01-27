@@ -156,7 +156,7 @@ size_t reduce_buffer_elements(raft::handle_t const& handle,
     // FIXME: actually, we can find how many unique keys are here by now.
     // FIXME: if GraphViewType::is_multi_gpu is true, this should be executed on the GPU holding the
     // vertex unless reduce_op is a pure function.
-    rmm::device_vector<key_t> keys(num_buffer_elements);
+    rmm::device_uvector<key_t> keys(num_buffer_elements, handle.get_stream());
     rmm::device_vector<payload_t> values(num_buffer_elements);
     auto it = thrust::reduce_by_key(rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
                                     buffer_key_output_first,
@@ -176,9 +176,10 @@ size_t reduce_buffer_elements(raft::handle_t const& handle,
                  values.begin(),
                  values.begin() + num_reduced_buffer_elements,
                  buffer_payload_output_first);
-    CUDA_TRY(cudaStreamSynchronize(
-      handle.get_stream()));  // this is necessary as kyes & values will become out-of-scope once
-                              // this function returns
+    // FIXME: this is unecessary if we use a tuple of rmm::device_uvector objects for values
+    CUDA_TRY(
+      cudaStreamSynchronize(handle.get_stream()));  // this is necessary as values will become
+                                                    // out-of-scope once this function returns
     return num_reduced_buffer_elements;
   }
 }

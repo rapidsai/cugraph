@@ -470,9 +470,7 @@ graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu, std::enable_if_
       segment_offsets_.data(), segment_offsets.data(), segment_offsets.size(), default_stream);
 
     CUDA_TRY(cudaStreamSynchronize(
-      default_stream));  // this is necessary as d_thresholds and segment_offsets will become
-                         // out-of-scpe once control flow exits this block and segment_offsets_ can
-                         // be used right after return.
+      default_stream));  // this is necessary as segment_offsets_ can be used right after return.
   }
 
   // optional expensive checks (part 3/3)

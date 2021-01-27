@@ -1,4 +1,4 @@
-# Copyright (c) 2019-2020, NVIDIA CORPORATION.
+# Copyright (c) 2020-2021, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -14,10 +14,10 @@
 import gc
 
 import pytest
-
 import networkx as nx
 import cugraph
 from cugraph.tests import utils
+from pathlib import PurePath
 
 
 def cugraph_call(G, min_weight, ensemble_size):
@@ -30,18 +30,18 @@ def cugraph_call(G, min_weight, ensemble_size):
 
 
 def golden_call(graph_file):
-    if graph_file == "../datasets/dolphins.csv":
+    if graph_file == PurePath(utils.RAPIDS_DATASET_ROOT_DIR)/"dolphins.csv":
         return 0.4962422251701355
-    if graph_file == "../datasets/karate.csv":
+    if graph_file == PurePath(utils.RAPIDS_DATASET_ROOT_DIR)/"karate.csv":
         return 0.38428664207458496
-    if graph_file == "../datasets/netscience.csv":
+    if graph_file == PurePath(utils.RAPIDS_DATASET_ROOT_DIR)/"netscience.csv":
         return 0.9279554486274719
 
 
-DATASETS = [
-    "../datasets/karate.csv",
-    "../datasets/dolphins.csv",
-    "../datasets/netscience.csv",
+DATASETS = [PurePath(utils.RAPIDS_DATASET_ROOT_DIR)/f for f in [
+    "karate.csv",
+    "dolphins.csv",
+    "netscience.csv"]
 ]
 
 MIN_WEIGHTS = [0.05, 0.10, 0.15]

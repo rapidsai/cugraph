@@ -16,7 +16,7 @@ import cudf
 import dask_cudf
 
 
-def symmetrize_df(df, src_name, dst_name):
+def symmetrize_df(df, src_name, dst_name, multi=False, symmetrize=True):
     """
     Take a COO stored in a DataFrame, along with the column names of
     the source and destination columns and create a new data frame
@@ -42,6 +42,13 @@ def symmetrize_df(df, src_name, dst_name):
         Name of the column in the data frame containing the source ids
     dst_name : string
         Name of the column in the data frame containing the destination ids
+    multi : bool
+        Set to True if graph is a Multi(Di)Graph. This allows multiple
+        edges instead of dropping them.
+    symmetrize : bool
+        Default is True to perform symmetrization. If False only duplicate
+        edges are dropped.
+
     Examples
     --------
     >>> import cugraph.dask as dcg
@@ -54,26 +61,30 @@ def symmetrize_df(df, src_name, dst_name):
     >>> sym_ddf = cugraph.symmetrize_ddf(ddf, "src", "dst", "weight")
     >>> Comms.destroy()
     """
-    gdf = cudf.DataFrame()
-
     #
     #  Now append the columns.  We add sources to the end of destinations,
     #  and destinations to the end of sources.  Otherwise we append a
     #  column onto itself.
     #
-    for idx, name in enumerate(df.columns):
-        if name == src_name:
-            gdf[src_name] = df[src_name].append(
-                df[dst_name], ignore_index=True
-            )
-        elif name == dst_name:
-            gdf[dst_name] = df[dst_name].append(
-                df[src_name], ignore_index=True
-            )
-        else:
-            gdf[name] = df[name].append(df[name], ignore_index=True)
-
-    return gdf.groupby(by=[src_name, dst_name], as_index=False).min()
+    if symmetrize:
+        gdf = cudf.DataFrame()
+        for idx, name in enumerate(df.columns):
+            if name == src_name:
+                gdf[src_name] = df[src_name].append(
+                    df[dst_name], ignore_index=True
+                )
+            elif name == dst_name:
+                gdf[dst_name] = df[dst_name].append(
+                    df[src_name], ignore_index=True
+                )
+            else:
+                gdf[name] = df[name].append(df[name], ignore_index=True)
+    else:
+        gdf = df
+    if multi:
+        return gdf
+    else:
+        return gdf.groupby(by=[src_name, dst_name], as_index=False).min()
 
 
 def symmetrize_ddf(df, src_name, dst_name, weight_name=None):
@@ -105,6 +116,12 @@ def symmetrize_ddf(df, src_name, dst_name, weight_name=None):
         Name of the column in the data frame containing the source ids
     dst_name : string
         Name of the column in the data frame containing the destination ids
+    multi : bool
+        Set to True if graph is a Multi(Di)Graph. This allows multiple
+        edges instead of dropping them.
+    symmetrize : bool
+        Default is True to perform symmetrization. If False only duplicate
+        edges are dropped.
 
     Examples
     --------
@@ -129,7 +146,8 @@ def symmetrize_ddf(df, src_name, dst_name, weight_name=None):
     return result
 
 
-def symmetrize(source_col, dest_col, value_col=None):
+def symmetrize(source_col, dest_col, value_col=None, multi=False,
+               symmetrize=True):
     """
     Take a COO set of source destination pairs along with associated values
     stored in a single GPU or distributed
@@ -190,7 +208,8 @@ def symmetrize(source_col, dest_col, value_col=None):
             input_df, "source", "destination", weight_name
         ).persist()
     else:
-        output_df = symmetrize_df(input_df, "source", "destination")
+        output_df = symmetrize_df(input_df, "source", "destination", multi,
+                                  symmetrize)
 
     if value_col is not None:
         return (

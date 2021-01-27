@@ -1,6 +1,6 @@
 # Building from Source
 
-The following instructions are for users wishing to build cuGraph from source code.  These instructions are tested on supported distributions of Linux, CUDA, and Python - See [RAPIDS Getting Started](https://rapids.ai/start.html) for list of supported environments.  Other operating systems _might be_ compatible, but are not currently tested. 
+The following instructions are for users wishing to build cuGraph from source code.  These instructions are tested on supported distributions of Linux, CUDA, and Python - See [RAPIDS Getting Started](https://rapids.ai/start.html) for list of supported environments.  Other operating systems _might be_ compatible, but are not currently tested.
 
 The cuGraph package include both a C/C++ CUDA portion and a python portion.  Both libraries need to be installed in order for cuGraph to operate correctly.
 
@@ -97,16 +97,20 @@ There are several other options available on the build script for advanced users
 `build.sh` options:
 ```bash
 build.sh [<target> ...] [<flag> ...]
-   clean            - remove all existing build artifacts and configuration (start over)
-   libcugraph       - build the cugraph C++ code
-   cugraph          - build the cugraph Python package
-
+ where <target> is:
+    clean            - remove all existing build artifacts and configuration (start over)
+    libcugraph       - build the cugraph C++ code
+    cugraph          - build the cugraph Python package
+    docs             - build the docs
  and <flag> is:
    -v               - verbose build mode
    -g               - build for debug
    -n               - no install step
+   --allgpuarch     - build for all supported GPU architectures
    --show_depr_warn - show cmake deprecation warnings
    -h               - print this text
+
+ default action (no args) is to build and install 'libcugraph' then 'cugraph' then 'docs' targets
 
 examples:
 $ ./build.sh clean                        # remove prior build artifacts (start over)
@@ -189,7 +193,7 @@ Run either the C++ or the Python tests with datasets
 
    ```bash
    cd $CUGRAPH_HOME/datasets
-   source get_test_data.sh #This takes about 10 minutes and download 1GB data (>5 GB uncompressed)
+   source get_test_data.sh #This takes about 10 minutes and downloads 1GB data (>5 GB uncompressed)
    ```
 
    Run the C++ tests on large input:
