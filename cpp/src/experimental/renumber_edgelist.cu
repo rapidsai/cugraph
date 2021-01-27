@@ -224,10 +224,6 @@ rmm::device_uvector<vertex_t> compute_renumber_map(
                       labels.begin(),
                       thrust::greater<edge_t>());
 
-  CUDA_TRY(
-    cudaStreamSynchronize(handle.get_stream()));  // temporary rmm::devicec_uvector objects become
-                                                  // out-of-scope once this function returns.
-
   return std::move(labels);
 }
 
