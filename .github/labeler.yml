@@ -23,7 +23,7 @@ CMake:
   - '**/CMakeLists.txt'
   - '**/cmake/**'
 
-ci:
+gpuCI:
    - 'ci/**'
 
 conda:
