@@ -98,8 +98,9 @@ function(ConfigureTest CMAKE_TEST_NAME CMAKE_TEST_SRC CMAKE_EXTRA_INCLUDE_DIRS C
         ${OpenMP_CXX_LIB_NAMES})
     endif(OpenMP_CXX_FOUND)
     set_target_properties(${CMAKE_TEST_NAME} PROPERTIES
-        RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/gtests/")
-
+        RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/gtests/"
+        CUDA_ARCHITECTURES OFF)  # CUDA_ARCHITECTURES=OFF will not pass arch flags to the compiler.
+                                 #  Arch flags must be manually set by packagers!
     add_test(NAME ${CMAKE_TEST_NAME} COMMAND ${CMAKE_TEST_NAME})
 endfunction()
 
@@ -342,7 +343,8 @@ if(BUILD_CUGRAPH_MG_TESTS)
 
         set(MG_PAGERANK_TEST_SRCS
             "${CMAKE_SOURCE_DIR}/../thirdparty/mmio/mmio.c"
-            "${CMAKE_CURRENT_SOURCE_DIR}/pagerank/pagerank_mg_test.cu")
+            "${CMAKE_CURRENT_SOURCE_DIR}/utilities/mg_test_utilities.cu"
+            "${CMAKE_CURRENT_SOURCE_DIR}/pagerank/pagerank_mg_test.cpp")
 
         ConfigureTest(MG_PAGERANK_TEST "${MG_PAGERANK_TEST_SRCS}"
                       "${MG_EXTRA_INCLUDE_DIRS}" "${MG_EXTRA_LIBS}")

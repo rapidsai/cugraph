@@ -21,11 +21,12 @@
 #include <raft/comms/mpi_comms.hpp>
 
 #include <algorithms.hpp>
-#include <experimental/detail/graph_utils.cuh>
-#include <experimental/graph_functions.hpp>
+#include <partition_manager.hpp>
 
 #include <utilities/test_utilities.hpp>
+#include <utilities/mg_test_utilities.hpp>
 #include <utilities/base_fixture.hpp>
+
 
 ////////////////////////////////////////////////////////////////////////////////
 // Pagerank reference implementation
@@ -124,33 +125,6 @@ void pagerank_reference(edge_t const* offsets,
 // will be instantiated as the parameter to the tests defined below using
 // INSTANTIATE_TEST_CASE_P()
 //
-/*
-typedef struct Pagerank_Testparams_t {
-  std::string matrix_file;
-  std::string result_file;
-  Pagerank_Testparams_t(const std::string& a, const std::string& b)
-  {
-    // assume relative paths are relative to RAPIDS_DATASET_ROOT_DIR
-    const std::string& rapidsDatasetRootDir = cugraph::test::get_rapids_dataset_root_dir();
-    if ((a != "") && (a[0] != '/')) {
-      matrix_file = rapidsDatasetRootDir + "/" + a;
-    } else {
-      matrix_file = a;
-    }
-    if ((b != "") && (b[0] != '/')) {
-      result_file = rapidsDatasetRootDir + "/" + b;
-    } else {
-      result_file = b;
-    }
-  }
-  Pagerank_Testparams_t& operator=(const Pagerank_Testparams_t& rhs)
-  {
-    matrix_file = rhs.matrix_file;
-    result_file = rhs.result_file;
-    return *this;
-  }
-} Pagerank_Testparams;
-*/
 typedef struct Pagerank_Testparams_t {
   std::string graph_file_full_path{};
   double personalization_ratio{0.0};
@@ -170,34 +144,6 @@ typedef struct Pagerank_Testparams_t {
 } Pagerank_Testparams_t;
 
 
-
-//
-// FIXME: compare MG to SG pagerank (DONE? currently comparing to CPU ref. implementation)
-//
-
-    // //Create distributed device uvectors
-    //  Start subprocess
-    //    mpiexec (or mpirun) -n #processes executable_name
-    //
-    //    Read entire input file on every GPU
-    //    https://github.com/rapidsai/cugraph/blob/branch-0.18/cpp/include/experimental/detail/graph_utils.cuh#L156
-    //      given source/dest (major/minor) vertices, gives target GPU ID
-    //
-    //    (copy part of Andrei's PR for calling above util?)
-    //    After keeping edges that belong to you, call:
-    //    https://github.com/rapidsai/cugraph/blob/branch-0.18/cpp/include/experimental/graph_functions.hpp#L65
-    //
-    //    Then call graph ctor with renumbered values
-    //    https://github.com/rapidsai/cugraph/blob/branch-0.18/cpp/include/experimental/graph.hpp#L64
-    //
-    //    Then call pagerank on each GPU
-    //
-    //    https://github.com/rapidsai/cugraph/blob/branch-0.18/cpp/include/experimental/graph_view.hpp#L343
-    //    getlocalvertexfirst() / last
-    //    Each GPU will have pageranks values for their range
-
-
-
 //
 // Parameterized test fixture, to be used with TEST_P().  This defines common
 // setup and teardown steps as well as common utilities used by each E2E MG
@@ -211,7 +157,7 @@ public:
    // Run once for the entire fixture
    //
    // FIXME: consider a ::testing::Environment gtest instance instead, as done
-   // by cuML test_opg_utils.h
+   // by cuML in test_opg_utils.h
    static void SetUpTestCase() {
       MPI_Init(NULL, NULL);
 
@@ -244,12 +190,11 @@ public:
     raft::handle_t handle;
     raft::comms::initialize_mpi_comms(&handle, MPI_COMM_WORLD);
     const auto &comm = handle.get_comms();
-    const auto allocator = handle.get_device_allocator();
 
     cudaStream_t stream = handle.get_stream();
 
     // Assuming 2 GPUs which means 1 row, 2 cols. 2 cols = row_comm_size of 2.
-    // FIXME: DO NOT ASSUME 2 GPUs, add code to compute prows,pcols
+    // FIXME: DO NOT ASSUME 2 GPUs, add code to compute prows, pcols
     size_t row_comm_size{2};
     cugraph::partition_2d::subcomm_factory_t<cugraph::partition_2d::key_naming_t, int>
        subcomm_factory(handle, row_comm_size);
@@ -259,90 +204,11 @@ public:
 
     int my_rank = comm.get_rank();
 
-    std::cout<<"STARTING IN RANK: "<<my_rank<<std::endl;
-
-    // Create a edge_gpu_identifier, which will be used by the individual jobs
-    // to identify if a edge belongs to a particular GPU/job.
-    cugraph::experimental::detail::compute_gpu_id_from_edge_t<vertex_t> edge_gpu_identifier{false, comm.get_size(), row_comm.get_size(), col_comm.get_size()};
-
     auto edgelist_from_mm = ::cugraph::test::read_edgelist_from_matrix_market_file<vertex_t, edge_t, weight_t>(param.graph_file_full_path);
+   std::cout<<"READ DATAFILE IN RANK: "<<my_rank<<std::endl;
 
-    std::cout<<"READ DATAFILE IN RANK: "<<my_rank<<std::endl;
-
-    // filter (shuffle) edgelist_from_mm for this PE using edge_gpu_identifier
-    //    edgelist_from_mm.is_symmetric should remain unchanged since either vertex in a
-    //    symmetric pair would cause both to be removed.
-    auto rows_it = edgelist_from_mm.h_rows.begin();
-    auto cols_it = edgelist_from_mm.h_cols.begin();
-    auto weights_it = edgelist_from_mm.h_weights.begin();
-    for(; rows_it != edgelist_from_mm.h_rows.end(); ) {
-       // FIXME: edge_gpu_identifier(major, minor) - confirm that cols=major, rows=minor
-       if(edge_gpu_identifier(*cols_it, *rows_it) != my_rank) {  // FIXME: this is returning a device int??
-          rows_it = edgelist_from_mm.h_rows.erase(rows_it);
-          cols_it = edgelist_from_mm.h_cols.erase(cols_it);
-          weights_it = edgelist_from_mm.h_weights.erase(weights_it);
-       } else {
-          ++rows_it;
-          ++cols_it;
-          ++weights_it;
-       }
-    }
-    edgelist_from_mm.number_of_vertices = edgelist_from_mm.h_weights.size();
-
-    std::cout<<"SHUFFLED IN RANK: "<<my_rank<<std::endl;
-
-    // renumber filtered edgelist_from_mm
-    edge_t number_of_edges = static_cast<edge_t>(edgelist_from_mm.h_rows.size());
-    auto renumber_info = ::cugraph::experimental::renumber_edgelist<vertex_t, edge_t, true> // multi_gpu=true
-         (handle,
-          edgelist_from_mm.h_cols.data(),  // edgelist_major_vertices, INOUT of vertex_t*
-          edgelist_from_mm.h_rows.data(),  // edgelist_minor_vertices, INOUT of vertex_t*
-          number_of_edges,
-          false, // is_hypergraph_partitioned
-          false); // do_expensive_check
-
-    std::cout<<"RENUMBERED IN RANK: "<<my_rank<<std::endl;
-    // create instance of graph_t using filtered & renumbered edgelist_from_mm
-
-    rmm::device_uvector<vertex_t> d_edgelist_rows(number_of_edges, handle.get_stream());
-    rmm::device_uvector<vertex_t> d_edgelist_cols(number_of_edges, handle.get_stream());
-    rmm::device_uvector<weight_t> d_edgelist_weights(param.test_weighted ? number_of_edges : 0,
-                                                     handle.get_stream());
-
-    raft::update_device(
-        d_edgelist_rows.data(), edgelist_from_mm.h_rows.data(), number_of_edges, handle.get_stream());
-    raft::update_device(
-        d_edgelist_cols.data(), edgelist_from_mm.h_cols.data(), number_of_edges, handle.get_stream());
-    if (param.test_weighted) {
-       raft::update_device(
-           d_edgelist_weights.data(), edgelist_from_mm.h_weights.data(), number_of_edges, handle.get_stream());
-    }
-
-    cugraph::experimental::edgelist_t<vertex_t, edge_t, weight_t> edgelist{
-        d_edgelist_rows.data(),
-        d_edgelist_cols.data(),
-        param.test_weighted ? d_edgelist_weights.data() : nullptr,
-        number_of_edges};
-
-    cugraph::experimental::partition_t<vertex_t> partition = std::get<1>(renumber_info);
-    std::vector<cugraph::experimental::edgelist_t<vertex_t, edge_t, weight_t>> edgelist_vect;
-    edgelist_vect.push_back(edgelist);
-    cugraph::experimental::graph_properties_t properties;
-    properties.is_symmetric = edgelist_from_mm.is_symmetric;
-    properties.is_multigraph = false;
-
-    auto graph = cugraph::experimental::graph_t<vertex_t, edge_t, weight_t, true, true>( //store_transposed=true, multi_gpu=true
-        handle,
-        edgelist_vect,
-        partition,
-        edgelist_from_mm.number_of_vertices,
-        number_of_edges,
-        properties,
-        false, // sorted_by_global_degree_within_vertex_partition
-        false); // do_expensive_check
-
-    std::cout<<"GRAPH CTOR IN RANK: "<<my_rank<<std::endl;
-    ////////
+    auto graph = cugraph::test::create_graph_for_gpu<vertex_t, edge_t, weight_t, true> // store_transposed=true
+       (handle, edgelist_from_mm, param.test_weighted);
 
     auto graph_view = graph.view();
 
@@ -352,17 +218,17 @@ public:
     raft::update_host(h_offsets.data(),
                       graph_view.offsets(),
                       graph_view.get_number_of_vertices() + 1,
-                      handle.get_stream());
+                      stream);
     raft::update_host(h_indices.data(),
                       graph_view.indices(),
                       graph_view.get_number_of_edges(),
-                      handle.get_stream());
+                      stream);
     if (graph_view.is_weighted()) {
       h_weights.assign(graph_view.get_number_of_edges(), weight_t{0.0});
       raft::update_host(h_weights.data(),
                         graph_view.weights(),
                         graph_view.get_number_of_edges(),
-                        handle.get_stream());
+                        stream);
     }
 
     std::vector<vertex_t> h_personalization_vertices{};
@@ -396,22 +262,22 @@ public:
     }
 
     rmm::device_uvector<vertex_t> d_personalization_vertices(h_personalization_vertices.size(),
-                                                             handle.get_stream());
+                                                             stream);
     rmm::device_uvector<result_t> d_personalization_values(d_personalization_vertices.size(),
-                                                           handle.get_stream());
+                                                           stream);
     if (d_personalization_vertices.size() > 0) {
       raft::update_device(d_personalization_vertices.data(),
                           h_personalization_vertices.data(),
                           h_personalization_vertices.size(),
-                          handle.get_stream());
+                          stream);
       raft::update_device(d_personalization_values.data(),
                           h_personalization_values.data(),
                           h_personalization_values.size(),
-                          handle.get_stream());
+                          stream);
     }
 
     rmm::device_uvector<result_t> d_pageranks(graph_view.get_number_of_vertices(),
-                                              handle.get_stream());
+                                              stream);
 
     CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
 
@@ -436,12 +302,16 @@ public:
     std::vector<result_t> h_cugraph_pageranks(graph_view.get_number_of_vertices());
 
     raft::update_host(
-      h_cugraph_pageranks.data(), d_pageranks.data(), d_pageranks.size(), handle.get_stream());
-    CUDA_TRY(cudaStreamSynchronize(handle.get_stream()));
+      h_cugraph_pageranks.data(), d_pageranks.data(), d_pageranks.size(), stream);
+    CUDA_TRY(cudaStreamSynchronize(stream));
 
     // Check for correctness against the reference implementation only on the 0th PE.
     /*
     if (my_rank == 0) {
+       // Gather pagerank values - each GPU will have pagerank values for their range.
+       // graph.get_local_vertex_first()
+       // graph.get_local_vertex_last()
+
        std::vector<result_t> h_reference_pageranks(graph_view.get_number_of_vertices());
 
        pagerank_reference(h_offsets.data(),
@@ -477,36 +347,12 @@ public:
    }
 };
 
-/*
-// Create tests using the test fixture
-//
-TEST_P(Pagerank_E2E_MG_Testfixture_t, CheckFP32_T) { run_test<float>(GetParam()); }
-TEST_P(Pagerank_E2E_MG_Testfixture_t, CheckFP64_T) { run_test<double>(GetParam()); }
 
-
-// Create test instances - this defines the individual tests in the resulting gtest binary.
-//
-// INSTANTIATE_TEST_CASE_P() creates a test for each input param, for each test
-// that uses the Pagerank_E2E_MG_Testfixture_t fixture. The resulting instances
-// for these input params will be part of the suite named "e2e".
-//
-INSTANTIATE_TEST_CASE_P(
-  e2e,
-  Pagerank_E2E_MG_Testfixture_t,
-  ::testing::Values(Pagerank_Testparams_t("test/datasets/karate.mtx", ""),
-                    Pagerank_Testparams_t("test/datasets/web-Google.mtx",
-                                          "test/ref/pagerank/web-Google.pagerank_val_0.85.bin"),
-                    Pagerank_Testparams_t("test/datasets/ljournal-2008.mtx",
-                                          "test/ref/pagerank/ljournal-2008.pagerank_val_0.85.bin"),
-                    Pagerank_Testparams_t("test/datasets/webbase-1M.mtx",
-                                          "test/ref/pagerank/webbase-1M.pagerank_val_0.85.bin"))
-                        );
-*/
-// FIXME: add tests for type combinations
 TEST_P(Pagerank_E2E_MG_Testfixture_t, CheckInt32Int32FloatFloat) {
    run_test<int32_t, int32_t, float, float>(GetParam());
 }
 
+// FIXME: Enable additional test params once the first one is passing.
 INSTANTIATE_TEST_CASE_P(
   e2e,
   Pagerank_E2E_MG_Testfixture_t,
@@ -531,85 +377,6 @@ INSTANTIATE_TEST_CASE_P(
                     )
 );
 
+// FIXME: Enable proper RMM configuration by using CUGRAPH_TEST_PROGRAM_MAIN().
+//        Currently seeing a RMM failure during init, need to investigate.
 //CUGRAPH_TEST_PROGRAM_MAIN()
-
-
-
-
-#if 0
-    int m, k, nnz;
-    MM_typecode mc;
-
-    float tol = 1E-5f;
-
-    // Each GPU will read the entire input file.
-    FILE* fpin = fopen(param.graph_file_full_path.c_str(), "r");
-    ASSERT_NE(fpin, nullptr) << "fopen (" << param.graph_file_full_path << ") failure.";
-
-    ASSERT_EQ(cugraph::test::mm_properties<int>(fpin, 1, &mc, &m, &k, &nnz), 0)
-      << "could not read Matrix Market file properties"
-      << "\n";
-    ASSERT_TRUE(mm_is_matrix(mc));
-    ASSERT_TRUE(mm_is_coordinate(mc));
-    ASSERT_FALSE(mm_is_complex(mc));
-    ASSERT_FALSE(mm_is_skew(mc));
-
-    // Allocate memory on host
-    std::vector<int> cooRowInd(nnz), cooColInd(nnz);
-    std::vector<weight_t> cooVal(nnz), pagerank(m);
-
-    // device alloc
-    rmm::device_uvector<weight_t> pagerank_vector(static_cast<size_t>(m), nullptr);
-    weight_t* d_pagerank = pagerank_vector.data();
-
-    // Read
-    ASSERT_EQ((cugraph::test::mm_to_coo<int, weight_t>(
-                fpin, 1, nnz, &cooRowInd[0], &cooColInd[0], &cooVal[0], NULL)),
-              0)
-      << "could not read matrix data"
-      << "\n";
-    ASSERT_EQ(fclose(fpin), 0);
-
-    //  Pagerank runs on CSC, so feed COOtoCSR the row/col backwards.
-    cugraph::GraphCOOView<int, int, weight_t> G_coo(&cooColInd[0], &cooRowInd[0], &cooVal[0], m, nnz);
-    auto G_unique = cugraph::coo_to_csr(G_coo);
-    cugraph::GraphCSCView<int, int, weight_t> G(G_unique->view().offsets,
-                                         G_unique->view().indices,
-                                         G_unique->view().edge_data,
-                                         G_unique->view().number_of_vertices,
-                                         G_unique->view().number_of_edges);
-
-    cudaDeviceSynchronize();
-
-    //cudaProfilerStart();
-    cugraph::pagerank<int, int, weight_t>(handle, G, d_pagerank);
-    //cudaProfilerStop();
-    cudaDeviceSynchronize();
-
-    /*
-    // Check vs golden data
-    if (param.result_file.length() > 0) {
-      std::vector<weight_t> calculated_res(m);
-
-      CUDA_TRY(cudaMemcpy(&calculated_res[0], d_pagerank, sizeof(weight_t) * m, cudaMemcpyDeviceToHost));
-      std::sort(calculated_res.begin(), calculated_res.end());
-      fpin = fopen(param.result_file.c_str(), "rb");
-      ASSERT_TRUE(fpin != NULL) << " Cannot read file with reference data: " << param.result_file
-                                << std::endl;
-      std::vector<weight_t> expected_res(m);
-      ASSERT_EQ(cugraph::test::read_binary_vector(fpin, m, expected_res), 0);
-      fclose(fpin);
-      weight_t err;
-      int n_err = 0;
-      for (int i = 0; i < m; i++) {
-        err = fabs(expected_res[i] - calculated_res[i]);
-        if (err > tol * 1.1) {
-          n_err++;  // count the number of mismatches
-        }
-      }
-      if (n_err) {
-        EXPECT_LE(n_err, 0.001 * m);  // we tolerate 0.1% of values with a litte difference
-      }
-    }
-    */
-#endif

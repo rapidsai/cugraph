@@ -331,6 +331,8 @@ static const std::string& get_rapids_dataset_root_dir()
   return rdrd;
 }
 
+// FIXME: This type is also defined in <utilities/mg_test_utilities.hpp>
+#ifndef DEFINED_edgelist_from_market_matrix_file_t
 template <typename vertex_t, typename weight_t>
 struct edgelist_from_market_matrix_file_t {
   std::vector<vertex_t> h_rows{};
@@ -339,6 +341,8 @@ struct edgelist_from_market_matrix_file_t {
   vertex_t number_of_vertices{};
   bool is_symmetric{};
 };
+#define DEFINED_edgelist_from_market_matrix_file_t
+#endif
 
 template <typename vertex_t, typename edge_t, typename weight_t>
 edgelist_from_market_matrix_file_t<vertex_t, weight_t> read_edgelist_from_matrix_market_file(
