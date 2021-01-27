@@ -44,4 +44,3 @@ dependencies:
 - libcypher-parser
 - rapids-pytest-benchmark
 - doxygen
-- openmpi
