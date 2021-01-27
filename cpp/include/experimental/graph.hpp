@@ -70,10 +70,6 @@ class graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu, std::enab
           bool sorted_by_global_degree_within_vertex_partition,
           bool do_expensive_check = false);
 
-  // _needs_ to be `const`:
-  // because visitors act on `const` graph objects
-  // and need to extract the view():
-  //
   graph_view_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu> view() const
   {
     std::vector<edge_t const *> offsets(adj_matrix_partition_offsets_.size(), nullptr);
@@ -136,10 +132,6 @@ class graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu, std::enab
 
   vertex_t get_number_of_local_vertices() const { return this->get_number_of_vertices(); }
 
-  // _needs_ to be `const`:
-  // because visitors act on `const` graph objects
-  // and need to extract the view():
-  //
   graph_view_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu> view() const
   {
     return graph_view_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu>(
