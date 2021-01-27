@@ -114,4 +114,7 @@ def mg_renumber(input_df,
                                                      do_check,
                                                      mg_flag)
 
+                renumbered_dict = {shuffled_df['src'] : shuffled_df['dst']} 
+                return renumbered_dict
+
                 
