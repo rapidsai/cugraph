@@ -24,6 +24,37 @@ def traveling_salesman(pos_list,
                        nstart=1,
                        verbose=False,
 ):
+    """
+    Finds an approximate solution to the traveling salesman problem (TSP).
+    cuGraph computes an approximation of the TSP problem using hill climbing
+    optimization.
+    Parameters
+    ----------
+    pos_list: cudf.DataFrame
+        Data frame with initial vertex positions containing three columns:
+        'vertex' ids and 'x', 'y' positions.
+    restarts: int
+        Number of starts to try. The more restarts, the better the solution
+        will be approximated. The number of restarts depends on the problem
+        size and should be kept low for instances above 2k cities.
+    beam_search: bool
+        Specify if the initial solution should use KNN for an approximation
+        solution.
+    k: int
+        Beam width to use in the search. The number of neighbors to choose from
+        for KNN.
+    nstart: int
+        Vertex id to use as starting position.
+    verbose: bool
+        Logs configuration and iterative improvement.
+
+    Returns
+    -------
+    route : cudf.Series
+        cudf.Series of size V containing the ordered list of vertices
+        than needs to be visited.
+    """
+
     if not isinstance(pos_list, cudf.DataFrame):
         raise Exception("Instance should be cudf.DataFrame")
 
