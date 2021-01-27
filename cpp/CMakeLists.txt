@@ -338,14 +338,11 @@ set_property(TARGET gunrock PROPERTY IMPORTED_LOCATION ${GUNROCK_DIR}/src/gunroc
 add_library(cugraph SHARED
 
     src/community/extract_subgraph_by_vertex.cu
-    src/community/egonet.cu
     src/cores/core_number.cu
     src/traversal/two_hop_neighbors.cu
     src/components/connectivity.cu
-    src/converters/COOtoCSR.cu
-    src/converters/renumber.cu
-    src/cores/core_number.cu
-    src/experimental/bfs.cu
+    src/centrality/katz_centrality.cu
+    src/centrality/betweenness_centrality.cu
     src/experimental/graph.cu
     src/experimental/graph_view.cu
     src/experimental/coarsen_graph.cu
@@ -356,23 +353,7 @@ add_library(cugraph SHARED
     src/experimental/sssp.cu
     src/experimental/pagerank.cu
     src/experimental/katz_centrality.cu
-    src/experimental/pagerank.cu
-    src/experimental/sssp.cu
-    src/layout/force_atlas2.cu
-    src/linear_assignment/hungarian.cu
-    src/link_analysis/gunrock_hits.cpp
-    src/link_analysis/pagerank_1D.cu
-    src/link_analysis/pagerank.cu
-    src/link_prediction/jaccard.cu
-    src/link_prediction/overlap.cu
-    src/structure/graph.cu
-    src/traversal/bfs.cu
-    src/traversal/sssp.cu
-    src/traversal/tsp.cu
-    src/traversal/two_hop_neighbors.cu
     src/tree/mst.cu
-    src/utilities/cython.cu
-    src/utilities/spmv_1D.cu
 )
 
 target_link_directories(cugraph
