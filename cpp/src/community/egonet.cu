@@ -64,9 +64,14 @@ extract(
   auto e           = csr_view.get_number_of_edges();
   auto stream      = handle.get_stream();
   float avg_degree = e / v;
-
   rmm::device_vector<size_t> neighbors_offsets(n_subgraphs + 1);
   rmm::device_vector<vertex_t> neighbors;
+
+  // It is the right thing to accept device memory for source_vertex
+  // FIXME consider adding a device API to BFS (ie. accept source on the device)
+  std::vector<vertex_t> h_source_vertex(n_subgraphs);
+  raft::update_host(&h_source_vertex[0], source_vertex, n_subgraphs, stream);
+
   // reserve some reasonable memory, but could grow larger than that
   neighbors.reserve(v + avg_degree * n_subgraphs * radius);
   neighbors_offsets[0] = 0;
@@ -80,7 +85,7 @@ extract(
                                                                   csr_view,
                                                                   reached.data().get(),
                                                                   predecessors.data().get(),
-                                                                  source_vertex[i],
+                                                                  h_source_vertex[i],
                                                                   direction_optimizing,
                                                                   radius);
 
@@ -131,9 +136,17 @@ extract_ego(raft::handle_t const &handle,
             vertex_t n_subgraphs,
             vertex_t radius)
 {
+  if (multi_gpu) {
+    CUGRAPH_FAIL("Unimplemented.");
+    return std::make_tuple(rmm::device_uvector<vertex_t>(0, handle.get_stream()),
+                           rmm::device_uvector<vertex_t>(0, handle.get_stream()),
+                           rmm::device_uvector<weight_t>(0, handle.get_stream()),
+                           rmm::device_uvector<size_t>(0, handle.get_stream()));
+  }
   CUGRAPH_EXPECTS(n_subgraphs > 0, "Need at least one source to extract the egonet from");
   CUGRAPH_EXPECTS(radius > 0, "Radius should be at least 1");
   CUGRAPH_EXPECTS(radius < graph_view.get_number_of_vertices(), "radius is too large");
+  // source_vertex range is checked in bfs.
 
   return extract<vertex_t, edge_t, weight_t>(
     handle, graph_view, source_vertex, n_subgraphs, radius);

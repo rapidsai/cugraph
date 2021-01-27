@@ -149,8 +149,8 @@ INSTANTIATE_TEST_CASE_P(
   simple_test,
   Tests_InducedSubgraph,
   ::testing::Values(
-    // InducedSubgraph_Usecase("test/datasets/karate.mtx", std::vector<int32_t>{0}, 1, false),
-    // InducedSubgraph_Usecase("test/datasets/karate.mtx", std::vector<int32_t>{0}, 2, false),
+    InducedSubgraph_Usecase("test/datasets/karate.mtx", std::vector<int32_t>{0}, 1, false),
+    InducedSubgraph_Usecase("test/datasets/karate.mtx", std::vector<int32_t>{0}, 2, false),
     InducedSubgraph_Usecase("test/datasets/karate.mtx", std::vector<int32_t>{1}, 3, false),
     InducedSubgraph_Usecase("test/datasets/karate.mtx", std::vector<int32_t>{10, 0, 5}, 2, false),
     InducedSubgraph_Usecase("test/datasets/karate.mtx", std::vector<int32_t>{9, 3, 10}, 2, false),
