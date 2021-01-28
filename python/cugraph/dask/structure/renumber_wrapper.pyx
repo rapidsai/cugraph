@@ -89,8 +89,8 @@ def mg_renumber(input_df,           # maybe use cpdef ?
 
     cdef bool is_hyper_partitioned = False # for now
 
-    cdef int* shuffled_major = NULL
-    cdef int* shuffled_minor = NULL
+    cdef uintptr_t shuffled_major = <uintptr_t>NULL
+    cdef uintptr_t shuffled_minor = <uintptr_t>NULL
     
     cdef bool do_check = False # ? for now...
     cdef bool mg_flag = True # run MNMG
@@ -127,9 +127,9 @@ def mg_renumber(input_df,           # maybe use cpdef ?
                 shuffled_major = shuffled_src.__cuda_array_interface__['data'][0]
                 shuffled_minor = shuffled_dst.__cuda_array_interface__['data'][0]
                 
-                renum_quad = call_renumber[int, int](handle,
-                                                     shuffled_major,
-                                                     shuffled_minor,
+                renum_quad = call_renumber[int, int](deref(handle_ptr),
+                                                     <int*>shuffled_major,
+                                                     <int*>shuffled_minor,
                                                      num_partition_edges,
                                                      is_hyper_partitioned,
                                                      do_check,
