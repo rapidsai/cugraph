@@ -96,7 +96,7 @@ def mg_renumber(input_df,           # maybe use cpdef ?
     cdef pair[unique_ptr[device_buffer], size_t] pair_original
     cdef pair[unique_ptr[device_buffer], size_t] pair_partition
 
-    cdef major_minor_weights_t p_maj_min_w = new major_minor_weights_t(handle)
+    # cdef major_minor_weights_t p_maj_min_w = new major_minor_weights_t(handle)
     
     if (vertex_t == np.dtype("int32")):
         if ( edge_t == np.dtype("int32")):
