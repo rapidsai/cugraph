@@ -63,6 +63,7 @@ def mg_renumber(input_df,           # maybe use cpdef ?
     """
     cdef size_t handle_size_t = <size_t>handle.getHandle()
     # TODO: get handle_t out of handle...
+    handle_ptr = <handle_t*>handle_size_t
 
     src = input_df['src']
     dst = input_df['dst']
@@ -113,10 +114,10 @@ def mg_renumber(input_df,           # maybe use cpdef ?
                 #                                           is_hyper_partitioned)
                 
                 # shuffled_df = renumber_helper(maj_min_w) # errors...
-                shuffled_df = renumber_helper(call_shuffle[int, int, float](handle,
-                                                                            c_src_vertices,
-                                                                            c_dst_vertices,
-                                                                            c_edge_weights,
+                shuffled_df = renumber_helper(call_shuffle[int, int, float](deref(handle_ptr),
+                                                                            <int*>c_src_vertices,
+                                                                            <int*>c_dst_vertices,
+                                                                            <float*>c_edge_weights,
                                                                             num_partition_edges,
                                                                             is_hyper_partitioned))
                 
