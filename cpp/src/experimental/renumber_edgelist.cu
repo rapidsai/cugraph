@@ -743,5 +743,73 @@ template rmm::device_uvector<int32_t> renumber_edgelist<int32_t, int32_t, false>
   int32_t num_edgelist_edges,
   bool do_expensive_check);
 
+template std::tuple<rmm::device_uvector<int32_t>, partition_t<int32_t>, int32_t, int64_t>
+renumber_edgelist<int32_t, int64_t, true>(raft::handle_t const& handle,
+                                          int32_t* edgelist_major_vertices /* [INOUT] */,
+                                          int32_t* edgelist_minor_vertices /* [INOUT] */,
+                                          int64_t num_edgelist_edges,
+                                          bool is_hypergraph_partitioned,
+                                          bool do_expensive_check);
+
+template rmm::device_uvector<int32_t> renumber_edgelist<int32_t, int64_t, false>(
+  raft::handle_t const& handle,
+  int32_t* edgelist_major_vertices /* [INOUT] */,
+  int32_t* edgelist_minor_vertices /* [INOUT] */,
+  int64_t num_edgelist_edges,
+  bool do_expensive_check);
+
+template std::tuple<rmm::device_uvector<int32_t>, partition_t<int32_t>, int32_t, int64_t>
+renumber_edgelist<int32_t, int64_t, true>(raft::handle_t const& handle,
+                                          int32_t const* local_vertices,
+                                          int32_t num_local_vertices,
+                                          int32_t* edgelist_major_vertices /* [INOUT] */,
+                                          int32_t* edgelist_minor_vertices /* [INOUT] */,
+                                          int64_t num_edgelist_edges,
+                                          bool is_hypergraph_partitioned,
+                                          bool do_expensive_check);
+
+template rmm::device_uvector<int32_t> renumber_edgelist<int32_t, int64_t, false>(
+  raft::handle_t const& handle,
+  int32_t const* vertices,
+  int32_t num_vertices,
+  int32_t* edgelist_major_vertices /* [INOUT] */,
+  int32_t* edgelist_minor_vertices /* [INOUT] */,
+  int64_t num_edgelist_edges,
+  bool do_expensive_check);
+
+template std::tuple<rmm::device_uvector<int64_t>, partition_t<int64_t>, int64_t, int64_t>
+renumber_edgelist<int64_t, int64_t, true>(raft::handle_t const& handle,
+                                          int64_t* edgelist_major_vertices /* [INOUT] */,
+                                          int64_t* edgelist_minor_vertices /* [INOUT] */,
+                                          int64_t num_edgelist_edges,
+                                          bool is_hypergraph_partitioned,
+                                          bool do_expensive_check);
+
+template rmm::device_uvector<int64_t> renumber_edgelist<int64_t, int64_t, false>(
+  raft::handle_t const& handle,
+  int64_t* edgelist_major_vertices /* [INOUT] */,
+  int64_t* edgelist_minor_vertices /* [INOUT] */,
+  int64_t num_edgelist_edges,
+  bool do_expensive_check);
+
+template std::tuple<rmm::device_uvector<int64_t>, partition_t<int64_t>, int64_t, int64_t>
+renumber_edgelist<int64_t, int64_t, true>(raft::handle_t const& handle,
+                                          int64_t const* local_vertices,
+                                          int64_t num_local_vertices,
+                                          int64_t* edgelist_major_vertices /* [INOUT] */,
+                                          int64_t* edgelist_minor_vertices /* [INOUT] */,
+                                          int64_t num_edgelist_edges,
+                                          bool is_hypergraph_partitioned,
+                                          bool do_expensive_check);
+
+template rmm::device_uvector<int64_t> renumber_edgelist<int64_t, int64_t, false>(
+  raft::handle_t const& handle,
+  int64_t const* vertices,
+  int64_t num_vertices,
+  int64_t* edgelist_major_vertices /* [INOUT] */,
+  int64_t* edgelist_minor_vertices /* [INOUT] */,
+  int64_t num_edgelist_edges,
+  bool do_expensive_check);
+
 }  // namespace experimental
 }  // namespace cugraph

@@ -221,5 +221,20 @@ template void relabel<int32_t, false>(
   int32_t num_labels,
   bool do_expensive_check);
 
+template void relabel<int64_t, true>(raft::handle_t const& handle,
+                                     std::tuple<int64_t const*, int64_t const*> old_new_label_pairs,
+                                     int64_t num_label_pairs,
+                                     int64_t* labels,
+                                     int64_t num_labels,
+                                     bool do_expensive_check);
+
+template void relabel<int64_t, false>(
+  raft::handle_t const& handle,
+  std::tuple<int64_t const*, int64_t const*> old_new_label_pairs,
+  int64_t num_label_pairs,
+  int64_t* labels,
+  int64_t num_labels,
+  bool do_expensive_check);
+
 }  // namespace experimental
 }  // namespace cugraph
