@@ -199,6 +199,9 @@ cdef extern from "utilities/cython.hpp" namespace "cugraph::cython":
         vertex_t get_part_matrix_partition_minor_first()
         vertex_t get_part_matrix_partition_minor_last()
 
+ctypedef fused renum_quad_fused:
+    renum_quad_t[int, int]
+    renum_quad_t[int, long]
 
 # 4. `sort_and_shuffle_values()` wrapper:
 #
