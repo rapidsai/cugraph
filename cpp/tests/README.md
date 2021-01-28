@@ -25,8 +25,7 @@ To build the multi-GPU tests:
 ```
 <example here>
 ```
-To run the multi-GPU tests (example using 2 GPUs) a flag needs to be passed to mpirun or an environment variable needs to be set to run with CUDA awareness:
+To run the multi-GPU tests (example using 2 GPUs):
 ```
-/path/to/cuGraph> export OMPI_MCA_opal_cuda_support=true
 /path/to/cuGraph> mpirun -n 2 ./cpp/build/gtests/MG_PAGERANK_TEST
 ```

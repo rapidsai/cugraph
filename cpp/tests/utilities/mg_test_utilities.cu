@@ -42,12 +42,9 @@ create_graph_for_gpu(raft::handle_t& handle,
 
    int my_rank = comm.get_rank();
 
-   // Create a edge_gpu_identifier, which will be used by the individual jobs
-   // to identify if a edge belongs to a particular GPU/job.
-   //cugraph::experimental::detail::compute_gpu_id_from_edge_t<vertex_t> edge_gpu_identifier{false, comm.get_size(), row_comm.get_size(), col_comm.get_size()};
+   // Create a vertex_gpu_identifier, which will be used by the individual jobs
+   // to identify if a vertex belongs to a particular GPU/job.
    cugraph::experimental::detail::compute_gpu_id_from_vertex_t<vertex_t> vertex_gpu_identifier{comm.get_size()};
-
-   //auto edgelist_from_mm = ::cugraph::test::read_edgelist_from_matrix_market_file<vertex_t, edge_t, weight_t>(graph_file_path);
 
    auto result = \
       cugraph::experimental::sort_and_shuffle_values
@@ -61,9 +58,6 @@ create_graph_for_gpu(raft::handle_t& handle,
        );
 
    std::cout<<"SHUFFLED IN RANK: "<<my_rank<<std::endl;
-
-    // FIXME: transposed: major=dest, minor=src
-    //        not transposed: major=src, minor=dest
 
     // renumber filtered edgelist_from_mm
     edge_t number_of_edges = static_cast<edge_t>(edgelist_from_mm.h_rows.size());
@@ -114,8 +108,6 @@ create_graph_for_gpu(raft::handle_t& handle,
         properties,
         false, // sorted_by_global_degree_within_vertex_partition
         false); // do_expensive_check
-
-    std::cout<<"GRAPH CTOR IN RANK: "<<my_rank<<std::endl;
 }
 
 // explicit instantiation

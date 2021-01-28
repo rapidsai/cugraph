@@ -159,11 +159,11 @@ public:
    // FIXME: consider a ::testing::Environment gtest instance instead, as done
    // by cuML in test_opg_utils.h
    static void SetUpTestCase() {
-      MPI_Init(NULL, NULL);
+      MPI_TRY(MPI_Init(NULL, NULL));
 
       int rank, size;
-      MPI_Comm_rank(MPI_COMM_WORLD, &rank);
-      MPI_Comm_size(MPI_COMM_WORLD, &size);
+      MPI_TRY(MPI_Comm_rank(MPI_COMM_WORLD, &rank));
+      MPI_TRY(MPI_Comm_size(MPI_COMM_WORLD, &size));
 
       int nGpus;
       CUDA_CHECK(cudaGetDeviceCount(&nGpus));
@@ -176,7 +176,7 @@ public:
    }
 
    static void TearDownTestCase() {
-      MPI_Finalize();
+      MPI_TRY(MPI_Finalize());
    }
 
    // Run once for each test instance
@@ -199,9 +199,6 @@ public:
     cugraph::partition_2d::subcomm_factory_t<cugraph::partition_2d::key_naming_t, int>
        subcomm_factory(handle, row_comm_size);
 
-    auto& row_comm = handle.get_subcomm(cugraph::partition_2d::key_naming_t().row_name());
-    auto& col_comm = handle.get_subcomm(cugraph::partition_2d::key_naming_t().col_name());
-
     int my_rank = comm.get_rank();
 
     auto edgelist_from_mm = ::cugraph::test::read_edgelist_from_matrix_market_file<vertex_t, edge_t, weight_t>(param.graph_file_full_path);
@@ -209,6 +206,8 @@ public:
 
     auto graph = cugraph::test::create_graph_for_gpu<vertex_t, edge_t, weight_t, true> // store_transposed=true
        (handle, edgelist_from_mm, param.test_weighted);
+
+    std::cout<<"GRAPH CTOR IN RANK: "<<my_rank<<std::endl;
 
     auto graph_view = graph.view();
 
