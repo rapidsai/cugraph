@@ -97,11 +97,9 @@ class Tests_InducedSubgraph : public ::testing::TestWithParam<InducedSubgraph_Us
                                          static_cast<vertex_t>(configuration.ego_sources.size()),
                                          configuration.radius);
 
+    std::vector<size_t> h_cugraph_subgraph_edge_offsets(d_subgraph_edge_offsets.size());
     std::vector<vertex_t> h_cugraph_subgraph_edgelist_src(d_subgraph_edgelist_src.size());
     std::vector<vertex_t> h_cugraph_subgraph_edgelist_dst(d_subgraph_edgelist_dst.size());
-    std::vector<weight_t> h_cugraph_subgraph_edgelist_weights(d_subgraph_edgelist_weights.size());
-    std::vector<size_t> h_cugraph_subgraph_edge_offsets(d_subgraph_edge_offsets.size());
-
     raft::update_host(h_cugraph_subgraph_edgelist_src.data(),
                       d_subgraph_edgelist_src.data(),
                       d_subgraph_edgelist_src.size(),
@@ -110,17 +108,35 @@ class Tests_InducedSubgraph : public ::testing::TestWithParam<InducedSubgraph_Us
                       d_subgraph_edgelist_dst.data(),
                       d_subgraph_edgelist_dst.size(),
                       handle.get_stream());
+    raft::update_host(h_cugraph_subgraph_edge_offsets.data(),
+                      d_subgraph_edge_offsets.data(),
+                      d_subgraph_edge_offsets.size(),
+                      handle.get_stream());
+    ASSERT_TRUE(d_subgraph_edge_offsets.size() == (configuration.ego_sources.size() + 1));
+    ASSERT_TRUE(d_subgraph_edgelist_src.size() == d_subgraph_edgelist_dst.size());
+    if (configuration.test_weighted)
+      ASSERT_TRUE(d_subgraph_edgelist_src.size() == d_subgraph_edgelist_weights.size());
+    ASSERT_TRUE(h_cugraph_subgraph_edge_offsets[configuration.ego_sources.size()] ==
+                d_subgraph_edgelist_src.size());
+    for (size_t i = 0; i < configuration.ego_sources.size(); i++)
+      ASSERT_TRUE(h_cugraph_subgraph_edge_offsets[i] < h_cugraph_subgraph_edge_offsets[i + 1]);
+    auto n_vertices = graph_view.get_number_of_vertices();
+    for (size_t i = 0; i < d_subgraph_edgelist_src.size(); i++) {
+      ASSERT_TRUE(h_cugraph_subgraph_edgelist_src[i] >= 0);
+      ASSERT_TRUE(h_cugraph_subgraph_edgelist_src[i] < n_vertices);
+      ASSERT_TRUE(h_cugraph_subgraph_edgelist_dst[i] >= 0);
+      ASSERT_TRUE(h_cugraph_subgraph_edgelist_dst[i] < n_vertices);
+    }
+
+    /*
+    // For debuging
+    std::vector<weight_t> h_cugraph_subgraph_edgelist_weights(d_subgraph_edgelist_weights.size());
     if (configuration.test_weighted) {
       raft::update_host(h_cugraph_subgraph_edgelist_weights.data(),
                         d_subgraph_edgelist_weights.data(),
                         d_subgraph_edgelist_weights.size(),
                         handle.get_stream());
     }
-    raft::update_host(h_cugraph_subgraph_edge_offsets.data(),
-                      d_subgraph_edge_offsets.data(),
-                      d_subgraph_edge_offsets.size(),
-                      handle.get_stream());
-
     raft::print_host_vector("offsets",
                             &h_cugraph_subgraph_edge_offsets[0],
                             h_cugraph_subgraph_edge_offsets.size(),
@@ -137,6 +153,7 @@ class Tests_InducedSubgraph : public ::testing::TestWithParam<InducedSubgraph_Us
                             &h_cugraph_subgraph_edgelist_weights[0],
                             h_cugraph_subgraph_edgelist_weights.size(),
                             std::cout);
+    */
   }
 };
 
