@@ -167,6 +167,10 @@ cdef extern from "utilities/cython.hpp" namespace "cugraph::cython":
         pair[unique_ptr[device_buffer], size_t] get_weights_wrap()
 
 
+ctypedef fused shuffled_vertices_t:
+    major_minor_weights_t[int, float]
+    major_minor_weights_t[int, double]
+    
 # 3. return type for renumber:
 #
 cdef extern from "utilities/cython.hpp" namespace "cugraph::cython":

@@ -24,7 +24,7 @@ import numpy as np
 
 from rmm._lib.device_buffer cimport device_buffer, DeviceBuffer
 
-def renumber_helper(maj_min_w):
+cdef renumber_helper(shuffled_vertices_t maj_min_w):
     # extract shuffled result:
     #
     cdef pair[unique_ptr[device_buffer], size_t] pair_s_major   = maj_min_w.get_major_wrap()
@@ -62,6 +62,7 @@ def mg_renumber(input_df,           # maybe use cpdef ?
     Call MNMG renumber
     """
     cdef size_t handle_size_t = <size_t>handle.getHandle()
+    # TODO: get handle_t out of handle...
 
     src = input_df['src']
     dst = input_df['dst']
@@ -101,14 +102,24 @@ def mg_renumber(input_df,           # maybe use cpdef ?
     if (vertex_t == np.dtype("int32")):
         if ( edge_t == np.dtype("int32")):
             if( weight_t == np.dtype("float32")):
-                maj_min_w = call_shuffle[int, int, float](handle,
-                                                          c_src_vertices,
-                                                          c_dst_vertices,
-                                                          c_edge_weights,
-                                                          num_partition_edges,
-                                                          is_hyper_partitioned)
+                #
+                # errors...
+                #
+                # maj_min_w = call_shuffle[int, int, float](handle,
+                #                                           c_src_vertices,
+                #                                           c_dst_vertices,
+                #                                           c_edge_weights,
+                #                                           num_partition_edges,
+                #                                           is_hyper_partitioned)
                 
-                shuffled_df = renumber_helper(maj_min_w)
+                # shuffled_df = renumber_helper(maj_min_w) # errors...
+                shuffled_df = renumber_helper(call_shuffle[int, int, float](handle,
+                                                                            c_src_vertices,
+                                                                            c_dst_vertices,
+                                                                            c_edge_weights,
+                                                                            num_partition_edges,
+                                                                            is_hyper_partitioned))
+                
                 shuffled_src = shufled_df['src']
                 shuffled_dst = shufled_df['dst']
                         
