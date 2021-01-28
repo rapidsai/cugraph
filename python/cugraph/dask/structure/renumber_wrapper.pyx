@@ -87,6 +87,17 @@ def mg_renumber(input_df,           # maybe use cpdef ?
 
     cdef bool is_hyper_partitioned = False # for now
 
+    cdef int* shuffled_major = NULL
+    cdef int* shuffled_minor = NULL
+    
+    cdef bool do_check = False # ? for now...
+    cdef bool mg_flag = True # run MNMG
+
+    cdef pair[unique_ptr[device_buffer], size_t] pair_original
+    cdef pair[unique_ptr[device_buffer], size_t] pair_partition
+
+    cdef major_minor_weights_t p_maj_min_w = new major_minor_weights_t(handle)
+    
     if (vertex_t == np.dtype("int32")):
         if ( edge_t == np.dtype("int32")):
             if( weight_t == np.dtype("float32")):
@@ -98,12 +109,11 @@ def mg_renumber(input_df,           # maybe use cpdef ?
                                                           is_hyper_partitioned)
                 
                 shuffled_df = renumber_helper(maj_min_w)
+                shuffled_src = shufled_df['src']
+                shuffled_dst = shufled_df['dst']
                         
-                cdef int* shuffled_major = shufled_df['src'].__cuda_array_interface__['data'][0]
-                cdef int* shuffled_minor = shufled_df['dst'].__cuda_array_interface__['data'][0]
-                
-                cdef bool do_check = False # ? for now...
-                cdef bool mg_flag = True # run MNMG
+                shuffled_major = shuffled_src.__cuda_array_interface__['data'][0]
+                shuffled_minor = shuffled_dst.__cuda_array_interface__['data'][0]
                 
                 renum_quad = call_renumber[int, int](handle,
                                                      shuffled_major,
@@ -113,7 +123,7 @@ def mg_renumber(input_df,           # maybe use cpdef ?
                                                      do_check,
                                                      mg_flag)
 
-                cdef pair[unique_ptr[device_buffer], size_t] pair_original = renum_quad.get_dv_wrap() # original vertices: see helper
+                pair_original = renum_quad.get_dv_wrap() # original vertices: see helper
                 
 
                 original_buffer = DeviceBuffer.c_from_unique_ptr(move(pair_original.first))
@@ -121,7 +131,7 @@ def mg_renumber(input_df,           # maybe use cpdef ?
 
                 original_series = cudf.Series(data=original_buffer, dtype=vertex_t)
 
-                cdef pair[unique_ptr[device_buffer], size_t] pair_partition = renum_quad.get_partition_offsets()
+                pair_partition = renum_quad.get_partition_offsets()
                 
                 partition_buffer = DeviceBuffer.c_from_unique_ptr(move(pair_partition.first))
                 partition_buffer = Buffer(partition_buffer)
