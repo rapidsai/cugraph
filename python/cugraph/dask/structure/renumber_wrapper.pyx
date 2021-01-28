@@ -53,7 +53,7 @@ def renumber_helper(maj_min_w):
     
     return shuffled_df
 
-def mg_renumber(input_df,
+def mg_renumber(input_df,           # maybe use cpdef ?
                 num_global_verts,
                 num_global_edges,    
                 rank,
@@ -113,24 +113,30 @@ def mg_renumber(input_df,
                                                      do_check,
                                                      mg_flag)
 
-                original_series = renum_quad.get_dv_wrap() # original vertices: see helper
-                pt_series = renum_quad.get_partition_offsets() # <- TODO
+                cdef pair[unique_ptr[device_buffer], size_t] pair_original = renum_quad.get_dv_wrap() # original vertices: see helper
+                
+
+                original_buffer = DeviceBuffer.c_from_unique_ptr(move(pair_original.first))
+                original_buffer = Buffer(original_buffer)
+
+                original_series = cudf.Series(data=original_buffer, dtype=vertex_t)
+
+                cdef pair[unique_ptr[device_buffer], size_t] pair_partition = renum_quad.get_partition_offsets()
+                
+                partition_buffer = DeviceBuffer.c_from_unique_ptr(move(pair_partition.first))
+                partition_buffer = Buffer(partition_buffer)
 
                 # create series
                 #
-                new_series = make_range(pt_series[rank], pt_series[rank+1])
-                #
-                # Example:
-                #
-                # df['vertex'] =
-                #  cudf.Series(np.arange(vertex_partition_offsets.iloc[rank],
-                #                        vertex_partition_offsets.iloc[rank+1]),
-                #              dtype=vertex_t)
-
+                new_series = cudf.Series(np.arange(partition_buffer.iloc[rank],
+                                                   partition_buffer.iloc[rank+1]),
+                                         dtype=vertex_t)
+                
                 # create new cudf df
                 #
                 # and add the previous series to it:
                 #
+                renumbered_map = cudf.DataFrame()
                 renumbered_map['original_ids'] = original_series
                 renumbered_map['new_ids'] = new_series
                 
