@@ -112,10 +112,6 @@ void relabel(raft::handle_t const& handle,
             pair_first + num_label_pairs,
             [key_func] __device__(auto val) { return key_func(thrust::get<0>(val)); },
             handle.get_stream());
-
-        CUDA_TRY(cudaStreamSynchronize(
-          handle.get_stream()));  // label_pair_old_labels and label_pair_new_labels will become
-                                  // out-of-scope
       }
 
       // update intermediate relabel map
@@ -161,9 +157,6 @@ void relabel(raft::handle_t const& handle,
 
         std::tie(new_labels_for_unique_old_labels, std::ignore) = shuffle_values(
           handle.get_comms(), rx_unique_old_labels.begin(), rx_value_counts, handle.get_stream());
-
-        CUDA_TRY(cudaStreamSynchronize(
-          handle.get_stream()));  // tx_value_counts & rx_value_counts will become out-of-scope
       }
     }
 
