@@ -123,12 +123,18 @@ void populate_graph_container(graph_container_t& graph_container,
   bool do_expensive_check{true};
   bool hypergraph_partitioned{false};
 
-  auto& row_comm           = handle.get_subcomm(cugraph::partition_2d::key_naming_t().row_name());
-  auto const row_comm_rank = row_comm.get_rank();
-  auto const row_comm_size = row_comm.get_size();  // pcols
-  auto& col_comm           = handle.get_subcomm(cugraph::partition_2d::key_naming_t().col_name());
-  auto const col_comm_rank = col_comm.get_rank();
-  auto const col_comm_size = col_comm.get_size();  // prows
+  if (multi_gpu) {
+    auto& row_comm           = handle.get_subcomm(cugraph::partition_2d::key_naming_t().row_name());
+    auto const row_comm_rank = row_comm.get_rank();
+    auto const row_comm_size = row_comm.get_size();  // pcols
+    auto& col_comm           = handle.get_subcomm(cugraph::partition_2d::key_naming_t().col_name());
+    auto const col_comm_rank = col_comm.get_rank();
+    auto const col_comm_size = col_comm.get_size();  // prows
+    graph_container.row_comm_size = row_comm_size;
+    graph_container.col_comm_size = col_comm_size;
+    graph_container.row_comm_rank = row_comm_rank;
+    graph_container.col_comm_rank = col_comm_rank;
+  }
 
   graph_container.vertex_partition_offsets = vertex_partition_offsets;
   graph_container.src_vertices             = src_vertices;
@@ -143,10 +149,6 @@ void populate_graph_container(graph_container_t& graph_container,
   graph_container.transposed               = transposed;
   graph_container.is_multi_gpu             = multi_gpu;
   graph_container.hypergraph_partitioned   = hypergraph_partitioned;
-  graph_container.row_comm_size            = row_comm_size;
-  graph_container.col_comm_size            = col_comm_size;
-  graph_container.row_comm_rank            = row_comm_rank;
-  graph_container.col_comm_rank            = col_comm_rank;
   graph_container.sorted_by_degree         = sorted_by_degree;
   graph_container.do_expensive_check       = do_expensive_check;
 
@@ -680,7 +682,7 @@ std::unique_ptr<cy_multi_edgelists_t> call_egonet(raft::handle_t const& handle,
       std::make_unique<rmm::device_buffer>(std::get<0>(g).release()),
       std::make_unique<rmm::device_buffer>(std::get<1>(g).release()),
       std::make_unique<rmm::device_buffer>(std::get<2>(g).release()),
-      std::make_unique<rmm::device_buffer>(std::get<2>(g).release())};
+      std::make_unique<rmm::device_buffer>(std::get<3>(g).release())};
     return std::make_unique<cy_multi_edgelists_t>(std::move(coo_contents));
   } else {
     CUGRAPH_FAIL("vertexType/edgeType combination unsupported");

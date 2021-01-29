@@ -11,12 +11,23 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-def egonet(G, vertices, radius=1):
+from cugraph.community.egonet cimport call_egonet
+from cugraph.structure.graph_primtypes cimport *
+from libcpp cimport bool
+from libc.stdint cimport uintptr_t
+from cugraph.structure import graph_primtypes_wrapper
+import cudf
+import rmm
+import numpy as np
+import numpy.ctypeslib as ctypeslib
+from rmm._lib.device_buffer cimport DeviceBuffer
+from cudf.core.buffer import Buffer
+
+
+def egonet(input_graph, vertices, radius=1):
     """
     Call egonet
     """
-    # Step 1: Declare the different varibales
-    cdef graph_container_t graph_container
     # FIXME: Offsets and indices are currently hardcoded to int, but this may
     #        not be acceptable in the future.
     numberTypeMap = {np.dtype("int32") : <int>numberTypeEnum.int32Type,
@@ -24,72 +35,77 @@ def egonet(G, vertices, radius=1):
                      np.dtype("float32") : <int>numberTypeEnum.floatType,
                      np.dtype("double") : <int>numberTypeEnum.doubleType}
 
-    # Pointers required for CSR Graph
-    cdef uintptr_t c_offsets_ptr        = <uintptr_t> NULL # Pointer to the CSR offsets
-    cdef uintptr_t c_indices_ptr        = <uintptr_t> NULL # Pointer to the CSR indices
-    cdef uintptr_t c_weights = <uintptr_t>NULL
-    cdef uintptr_t c_local_verts = <uintptr_t> NULL;
-    cdef uintptr_t c_local_edges = <uintptr_t> NULL;
-    cdef uintptr_t c_local_offsets = <uintptr_t> NULL;
-    weight_t = np.dtype("float32")
+    [src, dst] = [input_graph.edgelist.edgelist_df['src'], input_graph.edgelist.edgelist_df['dst']]
+    vertex_t = src.dtype
+    edge_t = np.dtype("int32")
+    weights = None
+    if input_graph.edgelist.weights:
+        weights = input_graph.edgelist.edgelist_df['weights']
+
+    num_verts = input_graph.number_of_vertices()
+    num_edges = input_graph.number_of_edges(directed_edges=True)
+    num_partition_edges = num_edges
+
+    cdef uintptr_t c_src_vertices = src.__cuda_array_interface__['data'][0]
+    cdef uintptr_t c_dst_vertices = dst.__cuda_array_interface__['data'][0]
+    cdef uintptr_t c_edge_weights = <uintptr_t>NULL
+    if weights is not None:
+        c_edge_weights = weights.__cuda_array_interface__['data'][0]
+        weight_t = weights.dtype
+    else:
+        weight_t = np.dtype("float32")
 
     # Pointers for egonet
-    cdef uintptr_t c_source_vertex_ptr     = <uintptr_t> NULL # Pointer to the DataFrame 'vertex' Series
-
-    # Step 2: Verifiy input_graph has the expected format 
-    #TODO is this how it should be done with non-legacy ? Notice we are not passing CSR later
-    if input_graph.adjlist is None:
-        input_graph.view_adj_list()
+    cdef uintptr_t c_source_vertex_ptr = vertices.__cuda_array_interface__['data'][0]
+    n_subgraphs = vertices.size
 
     cdef unique_ptr[handle_t] handle_ptr
     handle_ptr.reset(new handle_t())
     handle_ = handle_ptr.get();
 
-    # Step 3: Extract CSR offsets, indices, weights are not expected
-    #         - offsets: int (signed, 32-bit)
-    #         - indices: int (signed, 32-bit)
-    #TODO what about 64b types? the backend now supports this 
-    #TODO is this how it should be done with non-legacy? Can't find populate_graph_container for that
-    [offsets, indices] = graph_primtypes_wrapper.datatype_cast([input_graph.adjlist.offsets, input_graph.adjlist.indices], [np.int32])
-    c_offsets_ptr = offsets.__cuda_array_interface__['data'][0]
-    c_indices_ptr = indices.__cuda_array_interface__['data'][0]
-
-    # Step 4: Setup number of vertices and edges
-    num_verts = input_graph.number_of_vertices()
-    num_edges = input_graph.number_of_edges(directed_edges=True)
-
-    # Step 5: Check if source index is valid
-    if not 0 <= start < num_verts:
-        raise ValueError("Starting vertex should be between 0 to number of vertices")
-
-    # Step 6: Generate the result
-    
-    # Step 7: Associate <uintptr_t> to cudf Series for offsets
-    #TODO check this
-    c_source_vertex_ptr = vertices.__cuda_array_interface__['data'][0]
-    n_subgraphs = vertices.size
-
-    # Step 8: Proceed to egonet
-    #TODO this should probaby accept csr no? maybe add another populate_graph_container for this case?
     cdef graph_container_t graph_container
     populate_graph_container(graph_container,
                              handle_[0],
                              <void*>c_src_vertices, <void*>c_dst_vertices, <void*>c_edge_weights,
-                             <void*>c_vertex_partition_offsets,
+                             <void*>NULL,
                              <numberTypeEnum>(<int>(numberTypeMap[vertex_t])),
                              <numberTypeEnum>(<int>(numberTypeMap[edge_t])),
                              <numberTypeEnum>(<int>(numberTypeMap[weight_t])),
+                             num_partition_edges,
                              num_verts,
-                             num_edges, num_edges,
+                             num_edges,
                              False,
                              False, False) 
 
-    el_struct = c_egonet.call_egonet[int, float](handle_ptr.get()[0],
+    if(weight_t==np.dtype("float32")):
+        el_struct_ptr = move(call_egonet[int, float](handle_[0],
                                graph_container,
                                <int*> c_source_vertex_ptr,
                                <int> n_subgraphs,
-                               <int> radius)
-    #TODO get the strcut and populate the offset serie and a graph
+                               <int> radius))
+    else:
+        el_struct_ptr = move(call_egonet[int, double](handle_[0],
+                               graph_container,
+                               <int*> c_source_vertex_ptr,
+                               <int> n_subgraphs,
+                               <int> radius))
 
+    el_struct = move(el_struct_ptr.get()[0])
+    src = DeviceBuffer.c_from_unique_ptr(move(el_struct.src_indices))
+    dst = DeviceBuffer.c_from_unique_ptr(move(el_struct.dst_indices))
+    wgt = DeviceBuffer.c_from_unique_ptr(move(el_struct.edge_data))
+    src = Buffer(src)
+    dst = Buffer(dst)
+    wgt = Buffer(wgt)
 
-    return tmp
+    src = cudf.Series(data=src, dtype=vertex_t)
+    dst = cudf.Series(data=dst, dtype=vertex_t)
+
+    df = cudf.DataFrame()
+    df['src'] = src
+    df['dst'] = dst
+    if wgt.nbytes != 0:
+        wgt = cudf.Series(data=wgt, dtype=weight_t)
+        df['weight'] = wgt
+    return df
+

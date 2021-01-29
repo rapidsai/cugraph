@@ -11,8 +11,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from cugraph.community import egograph_wrapper
+from cugraph.community import egonet_wrapper
 from cugraph.structure.graph import Graph, DiGraph
+import cudf
 from cugraph.utilities import check_nx_graph
 from cugraph.utilities import (ensure_cugraph_obj,
                                is_matrix_type,
@@ -74,7 +75,7 @@ def _convert_df_to_output_type(df, input_type):
         raise TypeError(f"input type {input_type} is not a supported type.")
 
 
-ego_graph(G, n, radius=1, center=True, undirected=False, distance=None):
+def ego_graph(G, n, radius=1, center=True, undirected=False, distance=None):
     """
     Compute the  induced subgraph of neighbors centered at node n within a given radius.
 
@@ -114,17 +115,18 @@ ego_graph(G, n, radius=1, center=True, undirected=False, distance=None):
         G, nx_weight_attr="weight")
 
     if G.renumbered is True:
-        n = G.lookup_internal_vertex_id(cudf.Series([n]))[0]
+        n = G.lookup_internal_vertex_id(cudf.Series([n]))
 
-    df,s = egonet_wrapper.egonet(G, n, radius)
+    df = egonet_wrapper.egonet(G, n, radius)
 
     if G.renumbered:
         df = G.unrenumber(df, "src")
         df = G.unrenumber(df, "dst")
-    # TODO need to return a graph and casting to the use input/output format
-    return _convert_df_to_output_type(df, input_type)
 
-batched_ego_graphs(G, seeds, radius=1, center=True, undirected=False, distance=None):
+    # TODO need to return a graph and casting to the use input/output format
+    #return _convert_df_to_output_type(df, input_type)
+
+def batched_ego_graphs(G, seeds, radius=1, center=True, undirected=False, distance=None):
     """
     Compute the  induced subgraph of neighbors for each node in seeds in within a given radius.
 

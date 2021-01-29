@@ -159,7 +159,7 @@ extract_ego(raft::handle_t const &,
             int32_t,
             int32_t);
 template std::tuple<rmm::device_uvector<int32_t>,
-                    rmm::device_uvector<int32_t>,
+                    rmm::device_uvector<int64_t>,
                     rmm::device_uvector<float>,
                     rmm::device_uvector<size_t>>
 extract_ego(raft::handle_t const &,
@@ -188,7 +188,7 @@ extract_ego(raft::handle_t const &,
             int32_t,
             int32_t);
 template std::tuple<rmm::device_uvector<int32_t>,
-                    rmm::device_uvector<int32_t>,
+                    rmm::device_uvector<int64_t>,
                     rmm::device_uvector<double>,
                     rmm::device_uvector<size_t>>
 extract_ego(raft::handle_t const &,
