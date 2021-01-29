@@ -128,7 +128,7 @@ create_graph_for_gpu(raft::handle_t& handle,
       number_of_edges,
       properties,
       false, // sorted_by_global_degree_within_vertex_partition
-      false); // do_expensive_check
+      true); // do_expensive_check
 }
 
 // explicit instantiation
