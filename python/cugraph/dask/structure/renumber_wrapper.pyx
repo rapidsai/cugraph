@@ -22,7 +22,105 @@ from libc.stdint cimport uintptr_t
 from cython.operator cimport dereference as deref
 import numpy as np
 
+from libcpp.vector cimport vector
+from libcpp.utility cimport move
 from rmm._lib.device_buffer cimport device_buffer, DeviceBuffer
+
+
+# class needed for creating a cudf.Series()
+# from a std::vector; this is adapted from cudf
+# by making a template class out of it;
+# Note: Cython doesn't compile template classes
+# that are not `extern` from C++;
+# It also does not compile a fused type;
+# Hence, only option left is to create
+# separate classes for each underlying
+# `element_type` 
+#
+#
+# Wrapper around vector<int32_t>:
+#
+cdef class BufferArrayFromInt32Vector:
+    cdef Py_ssize_t length
+    cdef unique_ptr[vector[int]] in_vec
+
+    # these two things declare part of the buffer interface
+    cdef Py_ssize_t shape[1]
+    cdef Py_ssize_t strides[1]
+
+    @staticmethod
+    cdef BufferArrayFromInt32Vector from_unique_ptr(
+        unique_ptr[vector[int]] in_vec
+    ):
+        cdef BufferArrayFromInt32Vector buf = BufferArrayFromInt32Vector()
+        buf.in_vec = move(in_vec)
+        buf.length = deref(buf.in_vec).size()
+        return buf
+
+    def __getbuffer__(self, Py_buffer *buffer, int flags):
+        cdef Py_ssize_t itemsize = sizeof(int)
+
+        self.shape[0] = self.length
+        self.strides[0] = 1
+
+        buffer.buf = deref(self.in_vec).data()
+
+        buffer.format = NULL  # byte
+        buffer.internal = NULL
+        buffer.itemsize = itemsize
+        buffer.len = self.length * itemsize   # product(shape) * itemsize
+        buffer.ndim = 1
+        buffer.obj = self
+        buffer.readonly = 0
+        buffer.shape = self.shape
+        buffer.strides = self.strides
+        buffer.suboffsets = NULL
+
+    def __releasebuffer__(self, Py_buffer *buffer):
+        pass
+
+
+# Wrapper around vector<int64_t>:
+#
+cdef class BufferArrayFromInt64Vector:
+    cdef Py_ssize_t length
+    cdef unique_ptr[vector[long]] in_vec
+
+    # these two things declare part of the buffer interface
+    cdef Py_ssize_t shape[1]
+    cdef Py_ssize_t strides[1]
+
+    @staticmethod
+    cdef BufferArrayFromInt64Vector from_unique_ptr(
+        unique_ptr[vector[long]] in_vec
+    ):
+        cdef BufferArrayFromInt64Vector buf = BufferArrayFromInt64Vector()
+        buf.in_vec = move(in_vec)
+        buf.length = deref(buf.in_vec).size()
+        return buf
+
+    def __getbuffer__(self, Py_buffer *buffer, int flags):
+        cdef Py_ssize_t itemsize = sizeof(long)
+
+        self.shape[0] = self.length
+        self.strides[0] = 1
+
+        buffer.buf = deref(self.in_vec).data()
+
+        buffer.format = NULL  # byte
+        buffer.internal = NULL
+        buffer.itemsize = itemsize
+        buffer.len = self.length * itemsize   # product(shape) * itemsize
+        buffer.ndim = 1
+        buffer.obj = self
+        buffer.readonly = 0
+        buffer.shape = self.shape
+        buffer.strides = self.strides
+        buffer.suboffsets = NULL
+
+    def __releasebuffer__(self, Py_buffer *buffer):
+        pass
+
 
 cdef renumber_helper(shuffled_vertices_t* ptr_maj_min_w):
     # extract shuffled result:
