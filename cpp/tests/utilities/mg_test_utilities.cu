@@ -82,6 +82,9 @@ create_graph_for_gpu(raft::handle_t& handle,
                                     });
 
    number_of_edges = thrust::distance(edgelist_zip_it_begin, new_end);
+   // Free the memory used for the items remove_if "removed". This not only
+   // frees memory, but keeps the actual vector sizes consistent with the data
+   // being used from this point forward.
    d_edgelist_rows.resize(number_of_edges, handle.get_stream());
    d_edgelist_rows.shrink_to_fit(handle.get_stream());
    d_edgelist_cols.resize(number_of_edges, handle.get_stream());
@@ -117,7 +120,7 @@ create_graph_for_gpu(raft::handle_t& handle,
    properties.is_multigraph = false;
 
    // Finally, create instance of graph_t using filtered & renumbered edgelist
-   return cugraph::experimental::graph_t<vertex_t, edge_t, weight_t, true, true>( //store_transposed=true, multi_gpu=true
+   return cugraph::experimental::graph_t<vertex_t, edge_t, weight_t, store_transposed, true>( // multi_gpu=true
       handle,
       edgelist_vect,
       partition,
