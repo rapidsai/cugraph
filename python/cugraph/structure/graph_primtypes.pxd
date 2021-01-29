@@ -207,7 +207,7 @@ ctypedef fused renum_quad_fused:
 #
 cdef extern from "utilities/cython.hpp" namespace "cugraph::cython":
 
-    cdef major_minor_weights_t[vertex_t, weight_t] call_shuffle[vertex_t, edge_t, weight_t](
+    cdef unique_ptr[major_minor_weights_t[vertex_t, weight_t]] call_shuffle[vertex_t, edge_t, weight_t](
         const handle_t &handle,
         vertex_t *edgelist_major_vertices,
         vertex_t *edgelist_minor_vertices,
@@ -220,7 +220,7 @@ cdef extern from "utilities/cython.hpp" namespace "cugraph::cython":
 #
 cdef extern from "utilities/cython.hpp" namespace "cugraph::cython":
 
-    cdef renum_quad_t[vertex_t, edge_t] call_renumber[vertex_t, edge_t](
+    cdef unique_ptr[renum_quad_t[vertex_t, edge_t]] call_renumber[vertex_t, edge_t](
         const handle_t &handle,
         vertex_t *edgelist_major_vertices,
         vertex_t *edgelist_minor_vertices,

@@ -407,7 +407,7 @@ void call_sssp(raft::handle_t const& handle,
 // wrapper for shuffling:
 //
 template <typename vertex_t, typename edge_t, typename weight_t>
-major_minor_weights_t<vertex_t, weight_t> call_shuffle(
+std::unique_ptr<major_minor_weights_t<vertex_t, weight_t>> call_shuffle(
   raft::handle_t const& handle,
   vertex_t* edgelist_major_vertices,  // [IN / OUT]: sort_and_shuffle_values() sorts in-place
   vertex_t* edgelist_minor_vertices,  // [IN / OUT]
@@ -418,7 +418,7 @@ major_minor_weights_t<vertex_t, weight_t> call_shuffle(
 // Wrapper for calling renumber_edeglist() inplace:
 //
 template <typename vertex_t, typename edge_t>
-renum_quad_t<vertex_t, edge_t> call_renumber(
+std::unique_ptr<renum_quad_t<vertex_t, edge_t>> call_renumber(
   raft::handle_t const& handle,
   vertex_t* shuffled_edgelist_major_vertices /* [INOUT] */,
   vertex_t* shuffled_edgelist_minor_vertices /* [INOUT] */,

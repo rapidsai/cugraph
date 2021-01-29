@@ -24,12 +24,12 @@ import numpy as np
 
 from rmm._lib.device_buffer cimport device_buffer, DeviceBuffer
 
-cdef renumber_helper(shuffled_vertices_t maj_min_w):
+cdef renumber_helper(shuffled_vertices_t* ptr_maj_min_w):
     # extract shuffled result:
     #
-    cdef pair[unique_ptr[device_buffer], size_t] pair_s_major   = maj_min_w.get_major_wrap()
-    cdef pair[unique_ptr[device_buffer], size_t] pair_s_minor   = maj_min_w.get_minor_wrap()
-    cdef pair[unique_ptr[device_buffer], size_t] pair_s_weights = maj_min_w.get_weights_wrap()
+    cdef pair[unique_ptr[device_buffer], size_t] pair_s_major   = deref(ptr_maj_min_w).get_major_wrap()
+    cdef pair[unique_ptr[device_buffer], size_t] pair_s_minor   = deref(ptr_maj_min_w).get_minor_wrap()
+    cdef pair[unique_ptr[device_buffer], size_t] pair_s_weights = deref(ptr_maj_min_w).get_weights_wrap()
     
     shufled_major_buffer = DeviceBuffer.c_from_unique_ptr(move(pair_s_major.first))
     shufled_major_buffer = Buffer(shufled_major_buffer)
@@ -98,19 +98,24 @@ def mg_renumber(input_df,           # maybe use cpdef ?
     cdef pair[unique_ptr[device_buffer], size_t] pair_original
     cdef pair[unique_ptr[device_buffer], size_t] pair_partition
 
-    # FIXME (how?): what if [int32_t, int64_t] needs to be instantiated?
-    #
-    cdef renum_quad_t[int, int]* ptr_renum_quad = new renum_quad_t[int, int](deref(handle_ptr))
+    cdef unique_ptr[major_minor_weights_t[int, float]] ptr_shuffled_32_32
+    cdef unique_ptr[major_minor_weights_t[int, double]] ptr_shuffled_32_64
+
+    cdef unique_ptr[renum_quad_t[int, int]] ptr_renum_quad_32_32
+    cdef unique_ptr[renum_quad_t[int, long]] ptr_renum_quad_32_64
+    cdef unique_ptr[renum_quad_t[long, long]] ptr_renum_quad_64_64
     
     if (vertex_t == np.dtype("int32")):
         if ( edge_t == np.dtype("int32")):
             if( weight_t == np.dtype("float32")):
-                shuffled_df = renumber_helper(call_shuffle[int, int, float](deref(handle_ptr),
-                                                                            <int*>c_src_vertices,
-                                                                            <int*>c_dst_vertices,
-                                                                            <float*>c_edge_weights,
-                                                                            num_partition_edges,
-                                                                            is_hyper_partitioned))
+                ptr_shuffled_32_32 = call_shuffle[int, int, float](deref(handle_ptr),
+                                                                   <int*>c_src_vertices,
+                                                                   <int*>c_dst_vertices,
+                                                                   <float*>c_edge_weights,
+                                                                   num_partition_edges,
+                                                                   is_hyper_partitioned)
+                
+                shuffled_df = renumber_helper(ptr_shuffled_32_32.get())
                 
                 shuffled_src = shufled_df['src']
                 shuffled_dst = shufled_df['dst']
@@ -118,15 +123,15 @@ def mg_renumber(input_df,           # maybe use cpdef ?
                 shuffled_major = shuffled_src.__cuda_array_interface__['data'][0]
                 shuffled_minor = shuffled_dst.__cuda_array_interface__['data'][0]
                 
-                ptr_renum_quad[0] = call_renumber[int, int](deref(handle_ptr),
-                                                            <int*>shuffled_major,
-                                                            <int*>shuffled_minor,
-                                                            num_partition_edges,
-                                                            is_hyper_partitioned,
-                                                            do_check,
-                                                            mg_flag)
-
-                pair_original = deref(ptr_renum_quad).get_dv_wrap() # original vertices: see helper
+                ptr_renum_quad_32_32 = call_renumber[int, int](deref(handle_ptr),
+                                                               <int*>shuffled_major,
+                                                               <int*>shuffled_minor,
+                                                               num_partition_edges,
+                                                               is_hyper_partitioned,
+                                                               do_check,
+                                                               mg_flag)
+                
+                pair_original = ptr_renum_quad_32_32.get().get_dv_wrap() # original vertices: see helper
                 
 
                 original_buffer = DeviceBuffer.c_from_unique_ptr(move(pair_original.first))
@@ -134,7 +139,7 @@ def mg_renumber(input_df,           # maybe use cpdef ?
 
                 original_series = cudf.Series(data=original_buffer, dtype=vertex_t)
 
-                pair_partition = deref(ptr_renum_quad).get_partition_offsets()
+                pair_partition = ptr_renum_quad_32_32.get().get_partition_offsets()
                 
                 partition_buffer = DeviceBuffer.c_from_unique_ptr(move(pair_partition.first))
                 partition_buffer = Buffer(partition_buffer)
@@ -153,5 +158,4 @@ def mg_renumber(input_df,           # maybe use cpdef ?
                 renumbered_map['original_ids'] = original_series
                 renumbered_map['new_ids'] = new_series
 
-                del ptr_renum_quad
                 return renumbered_map, shuffled_df
