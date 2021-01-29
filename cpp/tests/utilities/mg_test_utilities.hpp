@@ -43,8 +43,7 @@ struct edgelist_from_market_matrix_file_t {
 template <typename vertex_t, typename edge_t, typename weight_t, bool store_transposed>
 cugraph::experimental::graph_t<vertex_t, edge_t, weight_t, store_transposed, true> // multi_gpu=true
 create_graph_for_gpu(raft::handle_t& handle,
-                     edgelist_from_market_matrix_file_t<vertex_t, weight_t> edgelist_from_mm,
-                     bool input_is_weighted);
+                     edgelist_from_market_matrix_file_t<vertex_t, weight_t> edgelist_from_mm);
 
 } // namespace test
 } // namespace cugraph

@@ -204,31 +204,32 @@ public:
     auto edgelist_from_mm = ::cugraph::test::read_edgelist_from_matrix_market_file<vertex_t, edge_t, weight_t>(param.graph_file_full_path);
    std::cout<<"READ DATAFILE IN RANK: "<<my_rank<<std::endl;
 
-    auto graph = cugraph::test::create_graph_for_gpu<vertex_t, edge_t, weight_t, true> // store_transposed=true
-       (handle, edgelist_from_mm, param.test_weighted);
+   // FIXME: edgelist_from_mm must have weights!
+   auto graph = cugraph::test::create_graph_for_gpu<vertex_t, edge_t, weight_t, true> // store_transposed=true
+      (handle, edgelist_from_mm);
 
-    std::cout<<"GRAPH CTOR IN RANK: "<<my_rank<<std::endl;
+   std::cout<<"GRAPH CTOR IN RANK: "<<my_rank<<std::endl;
 
-    auto graph_view = graph.view();
+   auto graph_view = graph.view();
 
-    std::vector<edge_t> h_offsets(graph_view.get_number_of_vertices() + 1);
-    std::vector<vertex_t> h_indices(graph_view.get_number_of_edges());
-    std::vector<weight_t> h_weights{};
-    raft::update_host(h_offsets.data(),
-                      graph_view.offsets(),
-                      graph_view.get_number_of_vertices() + 1,
-                      stream);
-    raft::update_host(h_indices.data(),
-                      graph_view.indices(),
-                      graph_view.get_number_of_edges(),
-                      stream);
-    if (graph_view.is_weighted()) {
+   std::vector<edge_t> h_offsets(graph_view.get_number_of_vertices() + 1);
+   std::vector<vertex_t> h_indices(graph_view.get_number_of_edges());
+   std::vector<weight_t> h_weights{};
+   raft::update_host(h_offsets.data(),
+                     graph_view.offsets(),
+                     graph_view.get_number_of_vertices() + 1,
+                     stream);
+   raft::update_host(h_indices.data(),
+                     graph_view.indices(),
+                     graph_view.get_number_of_edges(),
+                     stream);
+   if (graph_view.is_weighted()) {
       h_weights.assign(graph_view.get_number_of_edges(), weight_t{0.0});
       raft::update_host(h_weights.data(),
                         graph_view.weights(),
                         graph_view.get_number_of_edges(),
                         stream);
-    }
+   }
 
     std::vector<vertex_t> h_personalization_vertices{};
     std::vector<result_t> h_personalization_values{};

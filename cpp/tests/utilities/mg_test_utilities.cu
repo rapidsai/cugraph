@@ -33,8 +33,7 @@ namespace test {
 template <typename vertex_t, typename edge_t, typename weight_t, bool store_transposed>
 cugraph::experimental::graph_t<vertex_t, edge_t, weight_t, store_transposed, true> // multi_gpu=true
 create_graph_for_gpu(raft::handle_t& handle,
-                     edgelist_from_market_matrix_file_t<vertex_t, weight_t> edgelist_from_mm,
-                     bool input_is_weighted) {
+                     edgelist_from_market_matrix_file_t<vertex_t, weight_t> edgelist_from_mm) {
 
    const auto &comm = handle.get_comms();
    auto& row_comm = handle.get_subcomm(cugraph::partition_2d::key_naming_t().row_name());
@@ -50,19 +49,23 @@ create_graph_for_gpu(raft::handle_t& handle,
    // Copy COO to device
    rmm::device_uvector<vertex_t> d_edgelist_rows(number_of_edges, handle.get_stream());
    rmm::device_uvector<vertex_t> d_edgelist_cols(number_of_edges, handle.get_stream());
-   rmm::device_uvector<weight_t> d_edgelist_weights(input_is_weighted ? number_of_edges : 0,
-                                                    handle.get_stream());
+   rmm::device_uvector<weight_t> d_edgelist_weights(number_of_edges, handle.get_stream());
 
    raft::update_device(
       d_edgelist_rows.data(), edgelist_from_mm.h_rows.data(), number_of_edges, handle.get_stream());
    raft::update_device(
       d_edgelist_cols.data(), edgelist_from_mm.h_cols.data(), number_of_edges, handle.get_stream());
-   if (input_is_weighted) {
-      raft::update_device(
-         d_edgelist_weights.data(), edgelist_from_mm.h_weights.data(), number_of_edges, handle.get_stream());
-   }
+   raft::update_device(
+      d_edgelist_weights.data(), edgelist_from_mm.h_weights.data(), number_of_edges, handle.get_stream());
 
    std::cout<<"COPIED COO TO DEVICE FOR RANK: "<<my_rank<<" SIZE: "<<number_of_edges<<std::endl;
+
+   vertex_t** D = (vertex_t**)malloc(number_of_edges * sizeof(vertex_t));
+   cudaMemcpy(d_edgelist_rows.data(), D, (number_of_edges * sizeof(vertex_t)), cudaMemcpyDeviceToHost);
+   for(int i=0;i<d_edgelist_rows.size(); ++i){
+      std::cout<<" "<<(*D)[i];
+   }
+   printf("\n");
 
    //////////
    // Filter out edges that are not to be associated with this GPU.
@@ -78,16 +81,14 @@ create_graph_for_gpu(raft::handle_t& handle,
                                                    d_edgelist_cols.begin(),
                                                    d_edgelist_weights.begin()));
 
-   // FIXME: this is broken. new_end == original end, even when predicate is hardcoded to true (ie. nothing is ever removed?).
-   auto new_end = thrust::remove_if(edgelist_zip_it_begin,
+   auto new_end = thrust::remove_if(rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
+                                    edgelist_zip_it_begin,
                                     edgelist_zip_it_begin + number_of_edges,
                                     [my_rank, edge_gpu_identifier] __device__(auto tup) {
-                                       //return (edge_gpu_identifier(thrust::get<0>(tup), thrust::get<1>(tup)) != my_rank);
-                                       return true;
+                                       return (edge_gpu_identifier(thrust::get<0>(tup), thrust::get<1>(tup)) != my_rank);
                                     });
-   number_of_edges=0;
-   for ( auto iter = edgelist_zip_it_begin; iter != new_end; ++iter) { number_of_edges++; }
-   //number_of_edges = thrust::distance(edgelist_zip_it_begin, new_end);
+
+   number_of_edges = thrust::distance(edgelist_zip_it_begin, new_end);
    d_edgelist_rows.resize(number_of_edges, handle.get_stream());
    d_edgelist_rows.shrink_to_fit(handle.get_stream());
    d_edgelist_cols.resize(number_of_edges, handle.get_stream());
@@ -96,13 +97,18 @@ create_graph_for_gpu(raft::handle_t& handle,
    d_edgelist_weights.shrink_to_fit(handle.get_stream());
 
    std::cout<<"FILTERED OUT EDGES NOT BELONGING TO RANK: "<<my_rank<<" NEW SIZE: "<<number_of_edges<<std::endl;
+   cudaMemcpy(d_edgelist_rows.data(), D, (number_of_edges * sizeof(vertex_t)), cudaMemcpyDeviceToHost);
+   for(int i=0;i<d_edgelist_rows.size(); ++i){
+      std::cout<<" "<<(*D)[i];
+   }
+   printf("\n");
 
    //////////
    // renumber filtered edgelist_from_mm
    auto renumber_info = ::cugraph::experimental::renumber_edgelist<vertex_t, edge_t, true> // multi_gpu=true
       (handle,
-       d_edgelist_cols.data(),  // edgelist_major_vertices, INOUT of vertex_t*
-       d_edgelist_rows.data(),  // edgelist_minor_vertices, INOUT of vertex_t*
+       d_edgelist_rows.data(),  // edgelist_major_vertices, INOUT of vertex_t*
+       d_edgelist_cols.data(),  // edgelist_minor_vertices, INOUT of vertex_t*
        number_of_edges,
        false, // is_hypergraph_partitioned
        true); // do_expensive_check
@@ -112,7 +118,7 @@ create_graph_for_gpu(raft::handle_t& handle,
    cugraph::experimental::edgelist_t<vertex_t, edge_t, weight_t> edgelist{
       d_edgelist_rows.data(),
       d_edgelist_cols.data(),
-      input_is_weighted ? d_edgelist_weights.data() : nullptr,
+      d_edgelist_weights.data(),
       number_of_edges};
 
    cugraph::experimental::partition_t<vertex_t> partition = std::get<1>(renumber_info);
@@ -138,8 +144,7 @@ create_graph_for_gpu(raft::handle_t& handle,
 template
 cugraph::experimental::graph_t<int, int, float, true, true, void>
 create_graph_for_gpu(raft::handle_t& handle,
-                     edgelist_from_market_matrix_file_t<int, float> edgelist_from_mm,
-                     bool input_is_weighted);
+                     edgelist_from_market_matrix_file_t<int, float> edgelist_from_mm);
 
 } // namespace test
 } // namespace cugraph
