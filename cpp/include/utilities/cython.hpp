@@ -184,11 +184,9 @@ struct renum_quad_t {
 
   // FIXME: part_.get_vertex_partition_offsets() returns a std::vector
   //
-  std::pair<std::unique_ptr<rmm::device_buffer>, size_t> get_partition_offsets(void)  // const
+  std::unique_ptr<std::vector<vertex_t>> get_partition_offsets(void)  // const
   {
-    return std::make_pair(
-      std::make_unique<rmm::device_buffer>(part_.get_vertex_partition_offsets().data()),
-      sizeof(vertex_t));
+    return std::make_unique<std::vector<vertex_t>>(part_.get_vertex_partition_offsets());
   }
 
   std::pair<vertex_t, vertex_t> get_part_local_vertex_range() const

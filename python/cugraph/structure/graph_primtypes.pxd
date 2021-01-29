@@ -19,6 +19,7 @@
 from libcpp cimport bool
 from libcpp.memory cimport unique_ptr
 from libcpp.utility cimport pair
+from libcpp.vector cimport vector
 
 from rmm._lib.device_buffer cimport device_buffer
 
@@ -145,9 +146,7 @@ cdef extern from "functions.hpp" namespace "cugraph":
 
 # renumber_edgelist() interface:
 #
-# 0. cdef `device_uvector`:
 #
-
 # 1. `cdef extern partition_t`:
 #
 cdef extern from "experimental/graph_view.hpp" namespace "cugraph::experimental":
@@ -183,7 +182,7 @@ cdef extern from "utilities/cython.hpp" namespace "cugraph::cython":
         int get_part_row_size()
         int get_part_col_size()
         int get_part_comm_rank()
-        pair[unique_ptr[device_buffer], size_t] get_partition_offsets()
+        unique_ptr[vector[vertex_t]] get_partition_offsets()
         pair[vertex_t, vertex_t] get_part_local_vertex_range()
         vertex_t get_part_local_vertex_first()
         vertex_t get_part_local_vertex_last()

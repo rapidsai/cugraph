@@ -22,7 +22,6 @@ from libc.stdint cimport uintptr_t
 from cython.operator cimport dereference as deref
 import numpy as np
 
-from libcpp.vector cimport vector
 from libcpp.utility cimport move
 from rmm._lib.device_buffer cimport device_buffer, DeviceBuffer
 
@@ -202,6 +201,9 @@ def mg_renumber(input_df,           # maybe use cpdef ?
     cdef unique_ptr[renum_quad_t[int, int]] ptr_renum_quad_32_32
     cdef unique_ptr[renum_quad_t[int, long]] ptr_renum_quad_32_64
     cdef unique_ptr[renum_quad_t[long, long]] ptr_renum_quad_64_64
+
+    cdef unique_ptr[vector[int]] uniq_partition_vector_32
+    cdef unique_ptr[vector[long]] uniq_partition_vector_64
     
     if (vertex_t == np.dtype("int32")):
         if ( edge_t == np.dtype("int32")):
@@ -239,11 +241,8 @@ def mg_renumber(input_df,           # maybe use cpdef ?
 
                 # FIXME: this is a std::vector<>; cannot be converted to a DeviceBuffer:
                 #
-                # pair_partition = ptr_renum_quad_32_32.get().get_partition_offsets()
+                uniq_partition_vector_32 = move(ptr_renum_quad_32_32.get().get_partition_offsets())
                 
-                # partition_buffer = DeviceBuffer.c_from_unique_ptr(move(pair_partition.first))
-                # partition_buffer = Buffer(partition_buffer)
-
                 # # create series
                 # #
                 # new_series = cudf.Series(np.arange(partition_buffer.iloc[rank],
