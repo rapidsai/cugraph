@@ -204,6 +204,8 @@ def mg_renumber(input_df,           # maybe use cpdef ?
 
     cdef unique_ptr[vector[int]] uniq_partition_vector_32
     cdef unique_ptr[vector[long]] uniq_partition_vector_64
+
+    cdef size_t rank_indx = <size_t>rank
     
     if (vertex_t == np.dtype("int32")):
         if ( edge_t == np.dtype("int32")):
@@ -242,19 +244,23 @@ def mg_renumber(input_df,           # maybe use cpdef ?
                 # FIXME: this is a std::vector<>; cannot be converted to a DeviceBuffer:
                 #
                 uniq_partition_vector_32 = move(ptr_renum_quad_32_32.get().get_partition_offsets())
-                
-                # # create series
-                # #
-                # new_series = cudf.Series(np.arange(partition_buffer.iloc[rank],
-                #                                    partition_buffer.iloc[rank+1]),
-                #                          dtype=vertex_t)
-                
-                # # create new cudf df
-                # #
-                # # and add the previous series to it:
-                # #
-                # renumbered_map = cudf.DataFrame()
-                # renumbered_map['original_ids'] = original_series
-                # renumbered_map['new_ids'] = new_series
+                out_metadata_py = BufferArrayFromInt32Vector.from_unique_ptr(move(uniq_partition_vector_32))
 
-                # return renumbered_map, shuffled_df
+                # create series
+                #
+                ### new_series = cudf.Series(np.asarray(out_metadata_py), dtype=vertex_t)
+
+                # FIXME: need a range from rank to rank+1
+                new_series = cudf.Series(np.arange(uniq_partition_vector_32.get()[0].at(rank_indx),
+                                                   uniq_partition_vector_32.get()[0].at(rank_indx+1)),
+                                         dtype=vertex_t)
+                
+                # create new cudf df
+                #
+                # and add the previous series to it:
+                #
+                renumbered_map = cudf.DataFrame()
+                renumbered_map['original_ids'] = original_series
+                renumbered_map['new_ids'] = new_series
+
+                return renumbered_map, shuffled_df
