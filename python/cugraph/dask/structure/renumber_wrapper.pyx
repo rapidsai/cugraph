@@ -108,12 +108,12 @@ def mg_renumber(input_df,           # maybe use cpdef ?
     if (vertex_t == np.dtype("int32")):
         if ( edge_t == np.dtype("int32")):
             if( weight_t == np.dtype("float32")):
-                ptr_shuffled_32_32 = call_shuffle[int, int, float](deref(handle_ptr),
-                                                                   <int*>c_src_vertices,
-                                                                   <int*>c_dst_vertices,
-                                                                   <float*>c_edge_weights,
-                                                                   num_partition_edges,
-                                                                   is_hyper_partitioned)
+                ptr_shuffled_32_32.reset(call_shuffle[int, int, float](deref(handle_ptr),
+                                                                       <int*>c_src_vertices,
+                                                                       <int*>c_dst_vertices,
+                                                                       <float*>c_edge_weights,
+                                                                       num_partition_edges,
+                                                                       is_hyper_partitioned).release())
                 
                 shuffled_df = renumber_helper(ptr_shuffled_32_32.get())
                 
@@ -123,13 +123,13 @@ def mg_renumber(input_df,           # maybe use cpdef ?
                 shuffled_major = shuffled_src.__cuda_array_interface__['data'][0]
                 shuffled_minor = shuffled_dst.__cuda_array_interface__['data'][0]
                 
-                ptr_renum_quad_32_32 = call_renumber[int, int](deref(handle_ptr),
-                                                               <int*>shuffled_major,
-                                                               <int*>shuffled_minor,
-                                                               num_partition_edges,
-                                                               is_hyper_partitioned,
-                                                               do_check,
-                                                               mg_flag)
+                ptr_renum_quad_32_32.reset(call_renumber[int, int](deref(handle_ptr),
+                                                                   <int*>shuffled_major,
+                                                                   <int*>shuffled_minor,
+                                                                   num_partition_edges,
+                                                                   is_hyper_partitioned,
+                                                                   do_check,
+                                                                   mg_flag).release())
                 
                 pair_original = ptr_renum_quad_32_32.get().get_dv_wrap() # original vertices: see helper
                 
@@ -139,23 +139,25 @@ def mg_renumber(input_df,           # maybe use cpdef ?
 
                 original_series = cudf.Series(data=original_buffer, dtype=vertex_t)
 
-                pair_partition = ptr_renum_quad_32_32.get().get_partition_offsets()
+                # FIXME: this is a std::vector<>; cannot be converted to a DeviceBuffer:
+                #
+                # pair_partition = ptr_renum_quad_32_32.get().get_partition_offsets()
                 
-                partition_buffer = DeviceBuffer.c_from_unique_ptr(move(pair_partition.first))
-                partition_buffer = Buffer(partition_buffer)
+                # partition_buffer = DeviceBuffer.c_from_unique_ptr(move(pair_partition.first))
+                # partition_buffer = Buffer(partition_buffer)
 
-                # create series
-                #
-                new_series = cudf.Series(np.arange(partition_buffer.iloc[rank],
-                                                   partition_buffer.iloc[rank+1]),
-                                         dtype=vertex_t)
+                # # create series
+                # #
+                # new_series = cudf.Series(np.arange(partition_buffer.iloc[rank],
+                #                                    partition_buffer.iloc[rank+1]),
+                #                          dtype=vertex_t)
                 
-                # create new cudf df
-                #
-                # and add the previous series to it:
-                #
-                renumbered_map = cudf.DataFrame()
-                renumbered_map['original_ids'] = original_series
-                renumbered_map['new_ids'] = new_series
+                # # create new cudf df
+                # #
+                # # and add the previous series to it:
+                # #
+                # renumbered_map = cudf.DataFrame()
+                # renumbered_map['original_ids'] = original_series
+                # renumbered_map['new_ids'] = new_series
 
-                return renumbered_map, shuffled_df
+                # return renumbered_map, shuffled_df

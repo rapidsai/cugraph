@@ -127,19 +127,20 @@ struct major_minor_weights_t {
 
   rmm::device_uvector<weight_t>& get_weights(void) { return shuffled_weights_; }
 
-  std::pair<std::unique_ptr<rmm::device_buffer>, size_t> get_major_wrap(void) const
+  std::pair<std::unique_ptr<rmm::device_buffer>, size_t> get_major_wrap(
+    void)  // const: triggers errors in Cython autogen-ed C++
   {
     return std::make_pair(std::make_unique<rmm::device_buffer>(shuffled_major_vertices_.release()),
                           sizeof(vertex_t));
   }
 
-  std::pair<std::unique_ptr<rmm::device_buffer>, size_t> get_minor_wrap(void) const
+  std::pair<std::unique_ptr<rmm::device_buffer>, size_t> get_minor_wrap(void)  // const
   {
     return std::make_pair(std::make_unique<rmm::device_buffer>(shuffled_minor_vertices_.release()),
                           sizeof(vertex_t));
   }
 
-  std::pair<std::unique_ptr<rmm::device_buffer>, size_t> get_weights_wrap(void) const
+  std::pair<std::unique_ptr<rmm::device_buffer>, size_t> get_weights_wrap(void)  // const
   {
     return std::make_pair(std::make_unique<rmm::device_buffer>(shuffled_weights_.release()),
                           sizeof(weight_t));
@@ -163,7 +164,8 @@ struct renum_quad_t {
 
   rmm::device_uvector<vertex_t>& get_dv(void) { return dv_; }
 
-  std::pair<std::unique_ptr<rmm::device_buffer>, size_t> get_dv_wrap(void) const
+  std::pair<std::unique_ptr<rmm::device_buffer>, size_t> get_dv_wrap(
+    void)  // const: see above explanation
   {
     return std::make_pair(std::make_unique<rmm::device_buffer>(dv_.release()), sizeof(vertex_t));
   }
@@ -180,10 +182,12 @@ struct renum_quad_t {
 
   int get_part_comm_rank() const { return part_.get_comm_rank(); }
 
-  std::pair<std::unique_ptr<rmm::device_buffer>, size_t> get_partition_offsets(void) const
+  // FIXME: part_.get_vertex_partition_offsets() returns a std::vector
+  //
+  std::pair<std::unique_ptr<rmm::device_buffer>, size_t> get_partition_offsets(void)  // const
   {
     return std::make_pair(
-      std::make_unique<rmm::device_buffer>(part_.get_vertex_partition_offsets().release()),
+      std::make_unique<rmm::device_buffer>(part_.get_vertex_partition_offsets().data()),
       sizeof(vertex_t));
   }
 
