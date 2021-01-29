@@ -60,13 +60,6 @@ create_graph_for_gpu(raft::handle_t& handle,
 
    std::cout<<"COPIED COO TO DEVICE FOR RANK: "<<my_rank<<" SIZE: "<<number_of_edges<<std::endl;
 
-   vertex_t** D = (vertex_t**)malloc(number_of_edges * sizeof(vertex_t));
-   cudaMemcpy(d_edgelist_rows.data(), D, (number_of_edges * sizeof(vertex_t)), cudaMemcpyDeviceToHost);
-   for(int i=0;i<d_edgelist_rows.size(); ++i){
-      std::cout<<" "<<(*D)[i];
-   }
-   printf("\n");
-
    //////////
    // Filter out edges that are not to be associated with this GPU.
    //
@@ -97,11 +90,6 @@ create_graph_for_gpu(raft::handle_t& handle,
    d_edgelist_weights.shrink_to_fit(handle.get_stream());
 
    std::cout<<"FILTERED OUT EDGES NOT BELONGING TO RANK: "<<my_rank<<" NEW SIZE: "<<number_of_edges<<std::endl;
-   cudaMemcpy(d_edgelist_rows.data(), D, (number_of_edges * sizeof(vertex_t)), cudaMemcpyDeviceToHost);
-   for(int i=0;i<d_edgelist_rows.size(); ++i){
-      std::cout<<" "<<(*D)[i];
-   }
-   printf("\n");
 
    //////////
    // renumber filtered edgelist_from_mm
