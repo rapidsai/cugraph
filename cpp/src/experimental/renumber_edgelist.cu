@@ -281,7 +281,7 @@ void expensive_check_edgelist(
                                                         comm_size,
                                                         row_comm_size,
                                                         col_comm_size}] __device__(auto edge) {
-          return key_func(thrust::get<0>(edge), thrust::get<1>(edge)) == comm_rank;
+          return key_func(thrust::get<0>(edge), thrust::get<1>(edge)) != comm_rank;
         }) == 0,
       "Invalid input argument: edgelist_major_vertices & edgelist_minor_vertices should be "
       "pre-shuffled.");
@@ -447,7 +447,7 @@ renumber_edgelist(raft::handle_t const& handle,
                                                               handle.get_stream());
       std::vector<size_t> recvcounts(row_comm_size);
       for (int i = 0; i < row_comm_size; ++i) {
-        recvcounts[i] = partition.get_vertex_partition_size(row_comm_rank * row_comm_size + i);
+        recvcounts[i] = partition.get_vertex_partition_size(col_comm_rank * row_comm_size + i);
       }
       std::vector<size_t> displacements(row_comm_size, 0);
       std::partial_sum(recvcounts.begin(), recvcounts.end() - 1, displacements.begin() + 1);
