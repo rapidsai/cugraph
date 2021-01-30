@@ -1,4 +1,4 @@
-# Copyright (c) 2019-2020, NVIDIA CORPORATION.
+# Copyright (c) 2019-2021, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -57,6 +57,7 @@ def pagerank(input_graph, alpha=0.85, personalization=None, max_iter=100, tol=1.
             raise ValueError('nstart must have initial guess for all vertices')
         df['pagerank'][nstart['vertex']] = nstart['values']
         has_guess = <bool> 1
+    print(df)
 
     cdef uintptr_t c_identifier = df['vertex'].__cuda_array_interface__['data'][0];
     cdef uintptr_t c_pagerank_val = df['pagerank'].__cuda_array_interface__['data'][0];
