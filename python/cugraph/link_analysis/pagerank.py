@@ -112,8 +112,6 @@ def pagerank(
         G, alpha, personalization, max_iter, tol, nstart
     )
 
-    print(G.renumber_map.implementation.df)
-    print(df)
     if G.renumbered:
         df = G.unrenumber(df, "vertex")
 
