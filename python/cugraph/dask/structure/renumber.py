@@ -46,8 +46,11 @@ def renumber(input_graph):
      partition_col_size,
      vertex_partition_offsets) = shuffle(input_graph, transposed=False)
     num_edges = len(ddf)
-    
-    is_mnmg = True # for now; FIXME: find logic to decide SG vs. MG...
+
+    if isinstance(ddf, dask_cudf.DataFrame)::
+        is_mnmg = True
+    else:
+        is_mnmg = False
 
     if is_mnmg:
         result = [client.submit(call_renumber,
@@ -55,7 +58,7 @@ def renumber(input_graph):
                                 wf[1],
                                 num_verts,
                                 num_edges,
-                                True,
+                                is_mnmg,
                                 workers=[wf[0]])
                   for idx, wf in enumerate(data.worker_to_parts.items())]
         wait(result)
@@ -72,4 +75,4 @@ def renumber(input_graph):
                       df,
                       num_verts,
                       num_edges,
-                      False)
+                      is_mnmg)
