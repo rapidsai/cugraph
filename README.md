@@ -78,7 +78,7 @@ As of Release 0.18 - including 0.18 nightly
 |              | Weighted Jaccard Similarity            | Single-GPU   |                     |
 |              | Overlap Similarity                     | Single-GPU   |                     |
 | Traversal    |                                        |              |                     |
-|              | Breadth First Search (BFS)             | Multi-GPU    |                     |
+|              | Breadth First Search (BFS)             | Multi-GPU    | with cutoff support |
 |              | Single Source Shortest Path (SSSP)     | Multi-GPU    |                     |
 | Structure    |                                        |              |                     |
 |              | Renumbering                            | Single-GPU   | multiple columns, any data type  |
