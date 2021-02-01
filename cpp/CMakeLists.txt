@@ -471,7 +471,7 @@ endif(OpenMP_CXX_FOUND)
 if(BUILD_TESTS)
     if(GTEST_FOUND)
         # target_link_directories is added in cmake 3.13, and cmake advises to use this instead of
-        # link_directoires (we should switch to target_link_directories once 3.13 becomes the
+        # link_directories (we should switch to target_link_directories once 3.13 becomes the
         # minimum required version).
         link_directories(${GTEST_LIBRARY_DIR})
         add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/tests)
