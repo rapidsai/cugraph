@@ -39,12 +39,12 @@ def renumber(input_graph):
 
     client = default_client()
 
-    input_graph.compute_renumber_edge_list(transposed=True)
+    input_graph.compute_renumber_edge_list(transposed=False)
     (ddf,
      num_verts,
      partition_row_size,
      partition_col_size,
-     vertex_partition_offsets) = shuffle(input_graph, transposed=True)
+     vertex_partition_offsets) = shuffle(input_graph, transposed=False)
     num_edges = len(ddf)
     
     is_mnmg = True # for now; FIXME: find logic to decide SG vs. MG...
@@ -66,5 +66,10 @@ def renumber(input_graph):
         #    return input_graph.unrenumber(ddf, 'vertex')
 
         return ddf
-    # else:
-        
+    else:
+        df = input_graph.edgelist.edgelist_df
+        call_renumber(Comms.get_session_id(),
+                      df,
+                      num_verts,
+                      num_edges,
+                      False)
