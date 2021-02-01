@@ -8,7 +8,7 @@ The [RAPIDS](https://rapids.ai) cuGraph library is a collection of GPU accelerat
 
 **NOTE:** For the latest stable [README.md](https://github.com/rapidsai/cugraph/blob/main/README.md) ensure you are on the latest branch.
 
-
+As an example, the following Python snippet loads graph data and computes PageRank:
 
 ```python
 import cugraph
@@ -29,6 +29,17 @@ for i in range(len(df_page)):
 	print("vertex " + str(df_page['vertex'].iloc[i]) +
 		" PageRank is " + str(df_page['pagerank'].iloc[i]))
 ```
+
+## Getting cuGraph
+There are 3 ways to get cuGraph :
+1. [Quick start with Docker Demo Repo](#quick)
+2. [Conda Installation](#conda)
+3. [Build from Source](#source)
+<br/><br/>
+
+---
+# Currently Supported Features
+As of Release 0.18 - including 0.18 nightly
 
 
 ## Supported Algorithms
@@ -76,7 +87,6 @@ for i in range(len(df_page)):
 |              | Hungarian Algorithm                    | Single-GPU   |                     |
 |              | Minimum Spanning Tree                  | Single-GPU   |                     |
 |              | Maximum Spanning Tree                  | Single-GPU   |                     |
-
 |  |  |
 
 </br></br>
@@ -85,13 +95,13 @@ for i in range(len(df_page)):
 | --------------- | --------------------------------------------------- |
 | Graph           | An undirected Graph                                 |
 | DiGraph         | A Directed Graph                                    |
-| _Multigraph_      | _coming in 0.18_                                      |
-| _MultiDigraph_    | _coming in 0.18_                                      |
+| Multigraph      | A Graph with multiple edges between a vertex pair   |
+| MultiDigraph    | A Directed Graph with multiple edges between a vertex pair   |
 |  |  |
 
 </br></br>
 ## Supported Data Types
-cuGraph supports the creation of a graph several data types:
+cuGraph supports graph creation with Source and Distentaion being expressed as:
 * cuDF DataFrame
 * Pandas DataFrame
 
@@ -125,22 +135,14 @@ The amount of memory required is dependent on the graph structure and the analyt
 
 The use of managed memory for oversubscription can also be used to exceed the above memory limitations.  See the recent blog on _Tackling Large Graphs with RAPIDS cuGraph and CUDA Unified Memory on GPUs_:  https://medium.com/rapids-ai/tackling-large-graphs-with-rapids-cugraph-and-unified-virtual-memory-b5b69a065d4
 
+</br></br>
 
-## Getting cuGraph
-### Intro
-There are 3 ways to get cuGraph :
-1. [Quick start with Docker Demo Repo](#quick)
-2. [Conda Installation](#conda)
-3. [Build from Source](#source)
-
-
-
-
+---
 ## Quick Start <a name="quick"></a>
 Please see the [Demo Docker Repository](https://hub.docker.com/r/rapidsai/rapidsai/), choosing a tag based on the NVIDIA CUDA version you’re running. This provides a ready to run Docker container with example notebooks and data, showcasing how you can utilize all of the RAPIDS libraries: cuDF, cuML, and cuGraph.
 
 
-### Conda <a name="conda"></a>
+## Conda <a name="conda"></a>
 It is easy to install cuGraph using conda. You can get a minimal conda installation with [Miniconda](https://conda.io/miniconda.html) or get the full installation with [Anaconda](https://www.anaconda.com/download).
 
 Install and update cuGraph using the conda command:
@@ -160,7 +162,7 @@ conda install -c nvidia -c rapidsai -c numba -c conda-forge -c defaults cugraph 
 Note: This conda installation only applies to Linux and Python versions 3.7/3.8.
 
 
-### Build from Source and Contributing <a name="source"></a>
+## Build from Source and Contributing <a name="source"></a>
 
 Please see our [guide for building cuGraph from source](SOURCEBUILD.md)</pr>
 
