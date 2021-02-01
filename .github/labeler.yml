@@ -18,6 +18,10 @@ datasets:
   
 cuGraph:
   - 'cpp/**'
+  
+CMake:
+  - '**/CMakeLists.txt'
+  - '**/cmake/**'
 
 gpuCI:
    - 'ci/**'
