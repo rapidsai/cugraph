@@ -1222,7 +1222,13 @@ class Louvain {
     local_num_vertices_ = current_graph_view_.get_number_of_local_vertices();
     local_num_rows_     = current_graph_view_.get_number_of_local_adj_matrix_partition_rows();
     local_num_cols_     = current_graph_view_.get_number_of_local_adj_matrix_partition_cols();
-    local_num_edges_    = current_graph_view_.get_number_of_edges();
+    base_vertex_id_     = current_graph_view_.get_local_vertex_first();
+
+    raft::copy(&local_num_edges_,
+               current_graph_view_.offsets() + current_graph_view_.get_local_adj_matrix_partition_row_last(0) -
+               current_graph_view_.get_local_adj_matrix_partition_row_first(0),
+               1,
+               stream_);
 
     src_indices_v_.resize(local_num_edges_);
 
