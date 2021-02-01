@@ -39,12 +39,7 @@ def renumber(input_graph):
 
     client = default_client()
 
-    input_graph.compute_renumber_edge_list(transposed=False)
-    (ddf,
-     num_verts,
-     partition_row_size,
-     partition_col_size,
-     vertex_partition_offsets) = shuffle(input_graph, transposed=False)
+    ddf = input_graph.edgelist.edgelist_df
     num_edges = len(ddf)
 
     if isinstance(ddf, dask_cudf.DataFrame)::
@@ -70,9 +65,8 @@ def renumber(input_graph):
 
         return ddf
     else:
-        df = input_graph.edgelist.edgelist_df
         call_renumber(Comms.get_session_id(),
-                      df,
+                      ddf,
                       num_verts,
                       num_edges,
                       is_mnmg)
