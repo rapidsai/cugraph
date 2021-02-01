@@ -156,15 +156,7 @@ endif(OpenMP_FOUND)
 # - find gtest ------------------------------------------------------------------------------------
 
 if(BUILD_TESTS)
-    include(ConfigureGoogleTest)
-
-    if(GTEST_FOUND)
-        message(STATUS
-            "Google C++ Testing Framework (Google Test) found in ${GTEST_ROOT}")
-    else()
-        message(AUTHOR_WARNING
-            "Google C++ Testing Framework (Google Test) not found: automated tests are disabled.")
-    endif(GTEST_FOUND)
+    find_package(GTest REQUIRED)
 endif(BUILD_TESTS)
 
 ###################################################################################################

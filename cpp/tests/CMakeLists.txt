@@ -30,7 +30,6 @@ function(ConfigureTest CMAKE_TEST_NAME CMAKE_TEST_SRC CMAKE_EXTRA_LIBS)
 	"${CUCO_INCLUDE_DIR}"
 	"${LIBCUDACXX_INCLUDE_DIR}"
         "${CMAKE_CUDA_TOOLKIT_INCLUDE_DIRECTORIES}"
-        "${GTEST_INCLUDE_DIR}"
         "${RMM_INCLUDE}"
         "${CUDF_INCLUDE}"
         "${CUDF_INCLUDE}/libcudf/libcudacxx"
@@ -44,7 +43,18 @@ function(ConfigureTest CMAKE_TEST_NAME CMAKE_TEST_SRC CMAKE_EXTRA_LIBS)
 
     target_link_libraries(${CMAKE_TEST_NAME}
         PRIVATE
-        gtest gmock_main gmock cugraph ${CUDF_LIBRARY} ${CMAKE_EXTRA_LIBS}  ${NCCL_LIBRARIES} cudart cuda cublas cusparse cusolver curand)
+        cugraph
+        GTest::GTest
+        GTest::Main
+        ${CUDF_LIBRARY}
+        ${NCCL_LIBRARIES}
+        cudart
+        cuda
+        cublas
+        cusparse
+        cusolver
+        curand
+        ${CMAKE_EXTRA_LIBS})
 
     if(OpenMP_CXX_FOUND)
         target_link_libraries(${CMAKE_TEST_NAME} PRIVATE
@@ -106,7 +116,6 @@ function(ConfigureTest CMAKE_TEST_NAME CMAKE_TEST_SRC CMAKE_EXTRA_LIBS)
     # NOTE: the CUDA_ARCHITECTURES=OFF setting may be removed after migrating to
     # the findcudatoolkit features in cmake 3.17+
     set_target_properties(${CMAKE_TEST_NAME} PROPERTIES
-        RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/gtests/"
         CUDA_ARCHITECTURES OFF)
 
     add_test(NAME ${CMAKE_TEST_NAME} COMMAND ${CMAKE_TEST_NAME})
