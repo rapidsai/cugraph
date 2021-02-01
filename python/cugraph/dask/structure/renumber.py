@@ -48,8 +48,7 @@ def renumber(input_graph):
     else:
         is_mnmg = False
 
-    # FIXME: get `num_verts`
-    #
+    num_verts = input_graph.number_of_vertices()
     
     if is_mnmg:
         data = get_distributed_data(ddf)
