@@ -14,7 +14,7 @@
 # limitations under the License.
 #=============================================================================
 
-cmake_minimum_required(VERSION 3.12..3.17 FATAL_ERROR)
+cmake_minimum_required(VERSION 3.14..3.17 FATAL_ERROR)
 
 project(CUGRAPH VERSION 0.18.0 LANGUAGES C CXX CUDA)
 
@@ -474,7 +474,7 @@ if(BUILD_TESTS)
         # link_directoires (we should switch to target_link_directories once 3.13 becomes the
         # minimum required version).
         link_directories(${GTEST_LIBRARY_DIR})
-        add_subdirectory(${CMAKE_SOURCE_DIR}/tests)
+        add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/tests)
     endif(GTEST_FOUND)
 endif(BUILD_TESTS)
 
