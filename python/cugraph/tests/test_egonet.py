@@ -17,10 +17,6 @@ import pytest
 
 import cugraph
 from cugraph.tests import utils
-import rmm
-import cudf
-import time
-import numpy as np
 
 # Temporarily suppress warnings till networkX fixes deprecation warnings
 # (Using or importing the ABCs from 'collections' instead of from
@@ -35,13 +31,14 @@ with warnings.catch_warnings():
 
 print("Networkx version : {} ".format(nx.__version__))
 
-SEEDS = [0,5,13]
-RADIUS = [1,2,3]
+SEEDS = [0, 5, 13]
+RADIUS = [1, 2, 3]
+
 
 @pytest.mark.parametrize("graph_file", utils.DATASETS)
 @pytest.mark.parametrize("seed", SEEDS)
 @pytest.mark.parametrize("radius", RADIUS)
-def test_ego_graph_nx(graph_file, seed,radius):
+def test_ego_graph_nx(graph_file, seed, radius):
     gc.collect()
 
     # Nx
@@ -49,10 +46,35 @@ def test_ego_graph_nx(graph_file, seed,radius):
     Gnx = nx.from_pandas_edgelist(
         df, create_using=nx.Graph(), source="0", target="1", edge_attr="weight"
     )
-    ego_nx = nx.ego_graph(Gnx,seed,radius=radius)
+    ego_nx = nx.ego_graph(Gnx, seed, radius=radius)
 
     # cugraph
     ego_cugraph = cugraph.ego_graph(Gnx, seed, radius=radius)
 
     assert nx.is_isomorphic(ego_nx, ego_cugraph)
 
+
+def batched_ego_graphs(G, seeds, radius=1):
+    """
+    Compute the  induced subgraph of neighbors for each node in seeds
+    within a given radius.
+    Parameters
+    ----------
+    G : cugraph.Graph, networkx.Graph, CuPy or SciPy sparse matrix
+        Graph or matrix object, which should contain the connectivity
+        information. Edge weights, if present, should be single or double
+        precision floating point values.
+    seeds : cudf.Series
+        Specifies the seeds of the induced egonet subgraphs
+    radius: integer, optional
+        Include all neighbors of distance<=radius from n.
+
+    Returns
+    -------
+    ego_edge_lists : cudf.DataFrame
+        GPU data frame containing all induced sources identifiers,
+        destination identifiers, edge weights
+    seeds_offsets: cudf.Series
+        Series containing the starting offset in the returned edge list
+        for each seed.
+    """
