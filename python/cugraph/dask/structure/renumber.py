@@ -40,6 +40,7 @@ def renumber(input_graph):
     client = default_client()
 
     ddf = input_graph.edgelist.edgelist_df
+    
     num_edges = len(ddf)
 
     if isinstance(ddf, dask_cudf.DataFrame)::
@@ -48,6 +49,7 @@ def renumber(input_graph):
         is_mnmg = False
 
     if is_mnmg:
+        data = get_distributed_data(ddf)
         result = [client.submit(call_renumber,
                                 Comms.get_session_id(),
                                 wf[1],
