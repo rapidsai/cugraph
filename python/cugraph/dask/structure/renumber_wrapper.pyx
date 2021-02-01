@@ -58,7 +58,8 @@ def mg_renumber(input_df,           # maybe use cpdef ?
                 num_global_verts,
                 num_global_edges,    
                 rank,
-                handle):
+                handle,
+                is_multi_gpu):
     """
     Call MNMG renumber
     """
@@ -94,7 +95,7 @@ def mg_renumber(input_df,           # maybe use cpdef ?
     cdef uintptr_t shuffled_minor = <uintptr_t>NULL
     
     cdef bool do_check = False # ? for now...
-    cdef bool mg_flag = True # run MNMG
+    cdef bool mg_flag = is_multi_gpu # run Single-GPU or MNMG
 
     cdef pair[unique_ptr[device_buffer], size_t] pair_original
     cdef pair[unique_ptr[device_buffer], size_t] pair_partition
@@ -151,9 +152,12 @@ def mg_renumber(input_df,           # maybe use cpdef ?
 
                 # create series out of a partition range from rank to rank+1:
                 #
-                new_series = cudf.Series(np.arange(uniq_partition_vector_32.get()[0].at(rank_indx),
-                                                   uniq_partition_vector_32.get()[0].at(rank_indx+1)),
-                                         dtype=vertex_t)
+                if is_multi_gpu:
+                    new_series = cudf.Series(np.arange(uniq_partition_vector_32.get()[0].at(rank_indx),
+                                                       uniq_partition_vector_32.get()[0].at(rank_indx+1)),
+                                             dtype=vertex_t)
+                else:
+                    new_series = cudf.Series(np.arange(0, num_global_verts), dtype=vertex_t)
                 
                 # create new cudf df
                 #
