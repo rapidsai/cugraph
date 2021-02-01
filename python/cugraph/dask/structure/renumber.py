@@ -43,11 +43,14 @@ def renumber(input_graph):
     
     num_edges = len(ddf)
 
-    if isinstance(ddf, dask_cudf.DataFrame)::
+    if isinstance(ddf, dask_cudf.DataFrame):
         is_mnmg = True
     else:
         is_mnmg = False
 
+    # FIXME: get `num_verts`
+    #
+    
     if is_mnmg:
         data = get_distributed_data(ddf)
         result = [client.submit(call_renumber,
