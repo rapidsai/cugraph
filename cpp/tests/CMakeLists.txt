@@ -96,8 +96,18 @@ function(ConfigureTest CMAKE_TEST_NAME CMAKE_TEST_SRC CMAKE_EXTRA_LIBS)
 ###       BUILD_RPATH "${TARGET_BUILD_RPATH}")
         ${OpenMP_CXX_LIB_NAMES})
     endif(OpenMP_CXX_FOUND)
+
+    # CUDA_ARCHITECTURES=OFF implies cmake will not pass arch flags to the
+    # compiler. CUDA_ARCHITECTURES must be set to a non-empty value to prevent
+    # cmake warnings about policy CMP0104. With this setting, arch flags must be
+    # manually set! ("evaluate_gpu_archs(GPU_ARCHS)" is the current mechanism
+    # used in cpp/CMakeLists.txt for setting arch options).
+    # Run "cmake --help-policy CMP0104" for policy details.
+    # NOTE: the CUDA_ARCHITECTURES=OFF setting may be removed after migrating to
+    # the findcudatoolkit features in cmake 3.17+
     set_target_properties(${CMAKE_TEST_NAME} PROPERTIES
-        RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/gtests/")
+        RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/gtests/"
+        CUDA_ARCHITECTURES OFF)
 
     add_test(NAME ${CMAKE_TEST_NAME} COMMAND ${CMAKE_TEST_NAME})
 endfunction()
