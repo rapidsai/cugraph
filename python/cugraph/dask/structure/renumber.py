@@ -62,15 +62,10 @@ def renumber(input_graph):
                   for idx, wf in enumerate(data.worker_to_parts.items())]
         wait(result)
         ddf = dask_cudf.from_delayed(result)
-        #
-        # FIXME: logic below...?
-        # if input_graph.renumbered:
-        #    return input_graph.unrenumber(ddf, 'vertex')
-
-        return ddf
     else:
         call_renumber(Comms.get_session_id(),
                       ddf,
                       num_verts,
                       num_edges,
                       is_mnmg)
+    return ddf
