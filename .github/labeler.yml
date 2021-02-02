@@ -5,26 +5,33 @@
 python:
   - 'python/**'
   - 'notebooks/**'
+
+benchmarks:
   - 'benchmarks/**'
   
 doc:
   - 'docs/**'
   - '**/*.md'
+  - 'datasets/**'
+  - 'notebooks/**'
+  - '**/*.txt'
+  - '**/*.rst'
+  - '**/*.ipynb'
+  - '**/*.pdf'
+  - '**/*.png'
   
 datasets:
   - 'datasets/**'
   
 cuGraph:
   - 'cpp/**'
-
+  
 CMake:
   - '**/CMakeLists.txt'
   - '**/cmake/**'
-  
-Ops:
-  - '.github/**'
-  - 'ci/**'
+
+gpuCI:
+   - 'ci/**'
+
+conda:
   - 'conda/**'
-  - '**/Dockerfile'
-  - '**/.dockerignore'
-  - 'docker/**'

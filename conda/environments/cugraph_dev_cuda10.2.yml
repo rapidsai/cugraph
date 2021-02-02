@@ -44,4 +44,5 @@ dependencies:
 - libcypher-parser
 - rapids-pytest-benchmark
 - doxygen
+- pytest-cov
 - gtest
