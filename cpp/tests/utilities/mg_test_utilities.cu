@@ -43,22 +43,22 @@ create_graph_for_gpu(raft::handle_t& handle,
 
    //auto edgelist_from_mm = ::cugraph::test::read_edgelist_from_matrix_market_file<vertex_t, edge_t, weight_t>(graph_file_path);
 
-   edge_t number_of_edges = static_cast<edge_t>(edgelist_from_mm.h_rows.size());
+   edge_t total_number_edges = static_cast<edge_t>(edgelist_from_mm.h_rows.size());
 
    //////////
    // Copy COO to device
-   rmm::device_uvector<vertex_t> d_edgelist_rows(number_of_edges, handle.get_stream());
-   rmm::device_uvector<vertex_t> d_edgelist_cols(number_of_edges, handle.get_stream());
-   rmm::device_uvector<weight_t> d_edgelist_weights(number_of_edges, handle.get_stream());
+   rmm::device_uvector<vertex_t> d_edgelist_rows(total_number_edges, handle.get_stream());
+   rmm::device_uvector<vertex_t> d_edgelist_cols(total_number_edges, handle.get_stream());
+   rmm::device_uvector<weight_t> d_edgelist_weights(total_number_edges, handle.get_stream());
 
    raft::update_device(
-      d_edgelist_rows.data(), edgelist_from_mm.h_rows.data(), number_of_edges, handle.get_stream());
+      d_edgelist_rows.data(), edgelist_from_mm.h_rows.data(), total_number_edges, handle.get_stream());
    raft::update_device(
-      d_edgelist_cols.data(), edgelist_from_mm.h_cols.data(), number_of_edges, handle.get_stream());
+      d_edgelist_cols.data(), edgelist_from_mm.h_cols.data(), total_number_edges, handle.get_stream());
    raft::update_device(
-      d_edgelist_weights.data(), edgelist_from_mm.h_weights.data(), number_of_edges, handle.get_stream());
+      d_edgelist_weights.data(), edgelist_from_mm.h_weights.data(), total_number_edges, handle.get_stream());
 
-   std::cout<<"COPIED COO TO DEVICE FOR RANK: "<<my_rank<<" SIZE: "<<number_of_edges<<std::endl;
+   std::cout<<"COPIED COO TO DEVICE FOR RANK: "<<my_rank<<" SIZE: "<<total_number_edges<<std::endl;
 
    //////////
    // Filter out edges that are not to be associated with this GPU.
@@ -73,44 +73,59 @@ create_graph_for_gpu(raft::handle_t& handle,
       thrust::make_zip_iterator(thrust::make_tuple(d_edgelist_rows.begin(),
                                                    d_edgelist_cols.begin(),
                                                    d_edgelist_weights.begin()));
+   bool is_transposed{store_transposed};
 
    auto new_end = thrust::remove_if(rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
                                     edgelist_zip_it_begin,
-                                    edgelist_zip_it_begin + number_of_edges,
-                                    [my_rank, edge_gpu_identifier] __device__(auto tup) {
-                                       return (edge_gpu_identifier(thrust::get<0>(tup), thrust::get<1>(tup)) != my_rank);
+                                    edgelist_zip_it_begin + total_number_edges,
+                                    [my_rank, is_transposed, edge_gpu_identifier] __device__(auto tup) {
+                                       if(is_transposed) {
+                                          return (edge_gpu_identifier(thrust::get<1>(tup), thrust::get<0>(tup)) != my_rank);
+                                          //return (edge_gpu_identifier(thrust::get<0>(tup), thrust::get<1>(tup)) != my_rank);
+                                       } else {
+                                          return (edge_gpu_identifier(thrust::get<0>(tup), thrust::get<1>(tup)) != my_rank);
+                                          //return (edge_gpu_identifier(thrust::get<1>(tup), thrust::get<0>(tup)) != my_rank);
+                                       }
                                     });
 
-   number_of_edges = thrust::distance(edgelist_zip_it_begin, new_end);
+   edge_t local_number_edges = thrust::distance(edgelist_zip_it_begin, new_end);
    // Free the memory used for the items remove_if "removed". This not only
    // frees memory, but keeps the actual vector sizes consistent with the data
    // being used from this point forward.
-   d_edgelist_rows.resize(number_of_edges, handle.get_stream());
+   d_edgelist_rows.resize(local_number_edges, handle.get_stream());
    d_edgelist_rows.shrink_to_fit(handle.get_stream());
-   d_edgelist_cols.resize(number_of_edges, handle.get_stream());
+   d_edgelist_cols.resize(local_number_edges, handle.get_stream());
    d_edgelist_cols.shrink_to_fit(handle.get_stream());
-   d_edgelist_weights.resize(number_of_edges, handle.get_stream());
+   d_edgelist_weights.resize(local_number_edges, handle.get_stream());
    d_edgelist_weights.shrink_to_fit(handle.get_stream());
 
-   std::cout<<"FILTERED OUT EDGES NOT BELONGING TO RANK: "<<my_rank<<" NEW SIZE: "<<number_of_edges<<std::endl;
+   std::cout<<"FILTERED OUT EDGES NOT BELONGING TO RANK: "<<my_rank<<" NEW SIZE: "<<local_number_edges<<std::endl;
 
    //////////
    // renumber filtered edgelist_from_mm
+   vertex_t* major_vertices{nullptr};
+   vertex_t* minor_vertices{nullptr};
+   if(is_transposed) {
+      major_vertices = d_edgelist_cols.data();
+      minor_vertices = d_edgelist_rows.data();
+   } else {
+      major_vertices = d_edgelist_rows.data();
+      minor_vertices = d_edgelist_cols.data();
+   }
    auto renumber_info = ::cugraph::experimental::renumber_edgelist<vertex_t, edge_t, true> // multi_gpu=true
       (handle,
-       d_edgelist_rows.data(),  // edgelist_major_vertices, INOUT of vertex_t*
-       d_edgelist_cols.data(),  // edgelist_minor_vertices, INOUT of vertex_t*
-       number_of_edges,
+       major_vertices,  // edgelist_major_vertices, INOUT of vertex_t*
+       minor_vertices,  // edgelist_minor_vertices, INOUT of vertex_t*
+       local_number_edges,
        false, // is_hypergraph_partitioned
        true); // do_expensive_check
-
    std::cout<<"RENUMBERED IN RANK: "<<my_rank<<std::endl;
 
    cugraph::experimental::edgelist_t<vertex_t, edge_t, weight_t> edgelist{
       d_edgelist_rows.data(),
       d_edgelist_cols.data(),
       d_edgelist_weights.data(),
-      number_of_edges};
+      local_number_edges};
 
    cugraph::experimental::partition_t<vertex_t> partition = std::get<1>(renumber_info);
    std::vector<cugraph::experimental::edgelist_t<vertex_t, edge_t, weight_t>> edgelist_vect;
@@ -125,7 +140,7 @@ create_graph_for_gpu(raft::handle_t& handle,
       edgelist_vect,
       partition,
       edgelist_from_mm.number_of_vertices,
-      number_of_edges,
+      total_number_edges,
       properties,
       false, // sorted_by_global_degree_within_vertex_partition
       true); // do_expensive_check
