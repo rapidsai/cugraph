@@ -265,7 +265,6 @@ if(DEFINED ENV{RAFT_PATH})
 
 else(DEFINED ENV{RAFT_PATH})
   message(STATUS "RAFT_PATH environment variable NOT detected, cloning RAFT")
-  set(RAFT_DIR ${CMAKE_CURRENT_BINARY_DIR}/raft CACHE STRING "Path to RAFT repo")
 
   FetchContent_Declare(
     raft
