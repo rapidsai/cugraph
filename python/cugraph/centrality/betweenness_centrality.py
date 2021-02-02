@@ -271,7 +271,7 @@ def edge_betweenness_centrality(
         # overwrite the df with the sum of the values for all alike src/dst
         # vertex pairs, resulting in half the edges of the original df from the
         # symmeterized graph.
-        df = df.groupby(by=["src", "dst"]).sum().reset_index()
+        df = df.groupby(by=["src", "dst"], sort=True).sum().reset_index()
 
     if isNx is True:
         return df_edge_score_to_dictionary(df, 'betweenness_centrality')

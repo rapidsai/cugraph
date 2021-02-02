@@ -178,7 +178,7 @@ def _count_features(_gdf, sort=True):
     aggs = OrderedDict()
     aggs['dst'] = 'count'
 
-    c = _gdf.groupby(['dst'], as_index=False).agg(aggs)
+    c = _gdf.groupby(['dst'], as_index=False, sort=True).agg(aggs)
 
     c = c.rename(columns={'count_dst': 'count'}, copy=False)
 

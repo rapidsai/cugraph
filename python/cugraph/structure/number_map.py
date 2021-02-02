@@ -67,7 +67,7 @@ class NumberMap:
             tmp = (
                 df[src_col_names]
                 .assign(count=source_count)
-                .groupby(src_col_names)
+                .groupby(src_col_names, sort=True)
                 .sum()
                 .reset_index()
                 .rename(
@@ -80,7 +80,7 @@ class NumberMap:
                 tmp_dst = (
                     df[dst_col_names]
                     .assign(count=dest_count)
-                    .groupby(dst_col_names)
+                    .groupby(dst_col_names, sort=True)
                     .sum()
                     .reset_index()
                 )
@@ -96,7 +96,7 @@ class NumberMap:
 
         def compute(self):
             if not self.numbered:
-                tmp = self.df.groupby(self.col_names).sum().sort_values(
+                tmp = self.df.groupby(self.col_names, sort=True).sum().sort_values(
                     'count', ascending=False
                 ).reset_index().drop(columns='count')
 
@@ -197,7 +197,7 @@ class NumberMap:
             s = (
                 df[src_col_names]
                 .assign(count=source_count)
-                .groupby(src_col_names)
+                .groupby(src_col_names, sort=True)
                 .sum()
                 .reset_index()
                 .rename(
@@ -211,7 +211,7 @@ class NumberMap:
                 d = (
                     df[dst_col_names]
                     .assign(count=dest_count)
-                    .groupby(dst_col_names)
+                    .groupby(dst_col_names, sort=True)
                     .sum()
                     .reset_index()
                     .rename(
@@ -314,7 +314,7 @@ class NumberMap:
 
                 numbering_map = rehashed_with_partition_id.map_partitions(
                     lambda df: df.groupby(
-                        self.col_names + ["hash", "partition"]
+                        self.col_names + ["hash", "partition"], sort=True
                     ).sum()
                     .sort_values('count', ascending=False)
                     .reset_index()
@@ -326,7 +326,7 @@ class NumberMap:
                 #  Compute base address for each partition
                 #
                 counts = numbering_map.map_partitions(
-                    lambda df: df.groupby("partition").count()
+                    lambda df: df.groupby("partition", sort=True).count()
                 ).compute()["hash"].to_pandas()
                 base_addresses = np.zeros(len(counts) + 1, self.id_type)
 
