@@ -78,10 +78,11 @@ DATASETS_KTRUSS = [(
 ]
 
 DATASETS_TSPLIB = [
-    ["../datasets/tsplib/a280.tsp", 2579],
-    ["../datasets/tsplib/eil51.tsp", 426],
-    ["../datasets/tsplib/kroA100.tsp", 21282],
-    ["../datasets/tsplib/tsp225.tsp", 3916],
+        (PurePath(RAPIDS_DATASET_ROOT_DIR)/f,) + (d,) for (f, d) in [
+    ("tsplib/a280.tsp", 2579),
+    ("tsplib/eil51.tsp", 426),
+    ("tsplib/kroA100.tsp", 21282),
+    ("tsplib/tsp225.tsp", 3916)]
 ]
 
 DATASETS_SMALL = [

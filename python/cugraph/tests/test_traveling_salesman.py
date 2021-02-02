@@ -11,18 +11,14 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import gc
-
-import pytest
-
-import cugraph
 from cugraph.tests import utils
-import rmm
 import cudf
-import time
+import cugraph
+import gc
 import numpy as np
-
-TSPLIB_REF = "../datasets/ref/tsp/tsplib.csv"
+import pytest
+import rmm
+import time
 
 # Temporarily suppress warnings till networkX fixes deprecation warnings
 # (Using or importing the ABCs from 'collections' instead of from
