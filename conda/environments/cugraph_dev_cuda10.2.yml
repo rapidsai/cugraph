@@ -46,3 +46,4 @@ dependencies:
 - doxygen
 - pytest-cov
 - gtest
+- gmock
