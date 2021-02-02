@@ -79,8 +79,8 @@ def use_raft_package(raft_path, cpp_build_path,
         if you want to change RAFT location.
     - Uses RAFT located in $RAFT_PATH if $RAFT_PATH exists.
     - Otherwise it will look for RAFT in the libcugraph build folder,
-        located either in the default location ../cpp/build or in
-        $CUGRAPH_BUILD_PATH.
+        located either in the default locations ../cpp/build/raft,
+        ../cpp/build/_deps/raft-src, or in $CUGRAPH_BUILD_PATH.
     -Otherwise it will clone RAFT into _external_repositories.
         - Branch/git tag cloned is located in git_info_file in this case.
 
@@ -88,6 +88,7 @@ def use_raft_package(raft_path, cpp_build_path,
      -------
      raft_include_path: Str
          Path to the C++ include folder of RAFT
+
     """
     if os.path.isdir('cugraph/raft'):
         raft_path = os.path.realpath('cugraph/raft')
@@ -95,10 +96,17 @@ def use_raft_package(raft_path, cpp_build_path,
         raft_path = os.path.join(raft_path, '..', '..')
         print("-- Using existing RAFT folder")
     elif cpp_build_path and os.path.isdir(os.path.join(cpp_build_path,
+                                                       '_deps/raft-src')):
+        raft_path = os.path.join(cpp_build_path, '_deps/raft-src')
+        raft_path = os.path.realpath(raft_path)
+        print("-- Using existing RAFT folder in CPP build dir from cmake "
+              "FetchContent")
+    elif cpp_build_path and os.path.isdir(os.path.join(cpp_build_path,
                                                        'raft/src/raft')):
         raft_path = os.path.join(cpp_build_path, 'raft/src/raft')
         raft_path = os.path.realpath(raft_path)
-        print("-- Using existing RAFT folder in CPP build dir")
+        print("-- Using existing RAFT folder in CPP build dir from cmake "
+              "ExternalProject")
     elif isinstance(raft_path, (str, os.PathLike)):
         print('-- Using RAFT_PATH argument')
     elif os.environ.get('RAFT_PATH', False) is not False:
@@ -253,9 +261,9 @@ def get_repo_cmake_info(names, file_path):
         the names of the cmake git clone instruction
         `ExternalProject_Add(name`
     file_path : String
-        Relative path of the location of the CMakeLists.txt (or the cmake
-        module which contains ExternalProject_Add definitions) to extract
-        the information.
+        Relative path of the location of the CMakeLists.txt (or the cmake module
+        which contains FetchContent_Declare or ExternalProject_Add definitions)
+        to extract the information.
 
     Returns
     -------
@@ -271,15 +279,25 @@ def get_repo_cmake_info(names, file_path):
 
     results = {}
 
-    for name in names:
-        res = re.findall(r'ExternalProject_Add\(' + re.escape(name)
-                         + '\s.*GIT_REPOSITORY.*\s.*GIT_TAG.*',  # noqa: W605
-                         s)
+    cmake_ext_proj_decls = ["FetchContent_Declare", "ExternalProject_Add"]
 
-        res = re.sub(' +', ' ', res[0])
-        res = res.split(' ')
-        res = [res[2][:-1], res[4]]
-        results[name] = res
+    for name in names:
+        res = None
+        for decl in cmake_ext_proj_decls:
+            res = re.search(f'{decl}\(\s*'
+                            + '(' + re.escape(name) + ')'
+                            + '\s+.*GIT_REPOSITORY\s+(\S+)\s+.+'
+                            + '\s+.*GIT_TAG\s+(\S+)',
+                            s)
+            if res:
+                break
+        if res is None:
+            raise RuntimeError('Could not find any of the following '
+                               f'statements: {cmake_ext_proj_decls}, for '
+                               f'module "{name}" in file "{file_path}" with '
+                               'GIT_REPOSITORY and GIT_TAG settings')
+
+        results[res.group(1)] = [res.group(2), res.group(3)]
 
     return results
 

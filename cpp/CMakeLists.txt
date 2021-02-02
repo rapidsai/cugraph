@@ -160,7 +160,7 @@ if(BUILD_TESTS)
 endif(BUILD_TESTS)
 
 ###################################################################################################
-# - RMM -------------------------------------------------------------------------------------------
+# - find RMM --------------------------------------------------------------------------------------
 
 find_path(RMM_INCLUDE "rmm"
     HINTS
@@ -169,6 +169,18 @@ find_path(RMM_INCLUDE "rmm"
     "$ENV{CONDA_PREFIX}/include")
 
 message(STATUS "RMM: RMM_INCLUDE set to ${RMM_INCLUDE}")
+
+###################################################################################################
+# - find NCCL -------------------------------------------------------------------------------------
+
+if(NOT NCCL_PATH)
+    find_package(NCCL REQUIRED)
+else()
+    message("-- Manually set NCCL PATH to ${NCCL_PATH}")
+    set(NCCL_INCLUDE_DIRS ${NCCL_PATH}/include)
+    set(NCCL_LIBRARIES ${NCCL_PATH}/lib/libnccl.so)
+endif(NOT NCCL_PATH)
+
 
 ###################################################################################################
 # - Fetch Content ---------------------------------------------------------------------------------
@@ -227,26 +239,61 @@ endif()
 set(LIBCUDACXX_INCLUDE_DIR "${libcudacxx_SOURCE_DIR}/include")
 message("set LIBCUDACXX_INCLUDE_DIR to: ${LIBCUDACXX_INCLUDE_DIR}")
 
+# - CUHORNET
+FetchContent_Declare(
+    cuhornet
+    GIT_REPOSITORY    https://github.com/rapidsai/cuhornet.git
+    GIT_TAG           9cb8e8803852bd895a9c95c0fe778ad6eeefa7ad
+    GIT_SHALLOW       true
+    SOURCE_SUBDIR     hornet
+)
+
+FetchContent_GetProperties(cuhornet)
+if(NOT cuhornet_POPULATED)
+  message("populating cuhornet")
+  FetchContent_Populate(cuhornet)
+  # We are not using the cuhornet CMake targets, so no need to call `add_subdirectory()`.
+endif()
+set(CUHORNET_INCLUDE_DIR ${cuhornet_SOURCE_DIR} CACHE STRING "Path to cuhornet includes")
+
+# - raft - (header only)
+# Only cloned if RAFT_PATH env variable is not defined
+if(DEFINED ENV{RAFT_PATH})
+  message(STATUS "RAFT_PATH environment variable detected.")
+  message(STATUS "RAFT_DIR set to $ENV{RAFT_PATH}")
+  set(RAFT_DIR "$ENV{RAFT_PATH}")
+
+else(DEFINED ENV{RAFT_PATH})
+  message(STATUS "RAFT_PATH environment variable NOT detected, cloning RAFT")
+  set(RAFT_DIR ${CMAKE_CURRENT_BINARY_DIR}/raft CACHE STRING "Path to RAFT repo")
+
+  FetchContent_Declare(
+    raft
+    GIT_REPOSITORY    https://github.com/rapidsai/raft.git
+    GIT_TAG           9dbf2c8a9134ce8135f7fe947ec523d874fcab6a
+    SOURCE_SUBDIR     raft
+  )
+
+  FetchContent_GetProperties(raft)
+  if(NOT raft_POPULATED)
+     message("populating raft")
+     FetchContent_Populate(raft)
+     # We are not using any raft CMake targets, so no need to call `add_subdirectory()`.
+  endif()
+
+  set(RAFT_DIR "${raft_SOURCE_DIR}")
+endif(DEFINED ENV{RAFT_PATH})
 
 ###################################################################################################
 # - External Projects -----------------------------------------------------------------------------
 
 # https://cmake.org/cmake/help/v3.0/module/ExternalProject.html
+
+# FIXME: gunrock is the only external package still using ExternalProject
+# instead of FetchContent. Consider migrating to FetchContent soon (this may
+# require updates to the gunrock cmake files to support this).
+
 include(ExternalProject)
-
-# - CUHORNET
-set(CUHORNET_DIR ${CMAKE_CURRENT_BINARY_DIR}/cuhornet CACHE STRING "Path to cuhornet repo")
-set(CUHORNET_INCLUDE_DIR ${CUHORNET_DIR}/src/cuhornet CACHE STRING "Path to cuhornet includes")
-
-
-ExternalProject_Add(cuhornet
-  GIT_REPOSITORY    https://github.com/rapidsai/cuhornet.git
-  GIT_TAG           9cb8e8803852bd895a9c95c0fe778ad6eeefa7ad
-  PREFIX            ${CUHORNET_DIR}
-  CONFIGURE_COMMAND ""
-  BUILD_COMMAND     ""
-  INSTALL_COMMAND   ""
-)
 
 # - GUNROCK
 set(GUNROCK_DIR ${CMAKE_CURRENT_BINARY_DIR}/gunrock CACHE STRING "Path to gunrock repo")
@@ -272,52 +319,8 @@ ExternalProject_Add(gunrock_ext
 )
 
 add_library(gunrock STATIC IMPORTED)
-
 add_dependencies(gunrock gunrock_ext)
-
 set_property(TARGET gunrock PROPERTY IMPORTED_LOCATION ${GUNROCK_DIR}/src/gunrock_ext-build/lib/libgunrock.a)
-
-# - NCCL
-if(NOT NCCL_PATH)
-    find_package(NCCL REQUIRED)
-else()
-    message("-- Manually set NCCL PATH to ${NCCL_PATH}")
-    set(NCCL_INCLUDE_DIRS ${NCCL_PATH}/include)
-    set(NCCL_LIBRARIES ${NCCL_PATH}/lib/libnccl.so)
-endif(NOT NCCL_PATH)
-
-# - raft - (header only) -----------------------------------------------------
-
-# Only cloned if RAFT_PATH env variable is not defined
-
-if(DEFINED ENV{RAFT_PATH})
-  message(STATUS "RAFT_PATH environment variable detected.")
-  message(STATUS "RAFT_DIR set to $ENV{RAFT_PATH}")
-  set(RAFT_DIR "$ENV{RAFT_PATH}")
-
-  ExternalProject_Add(raft
-    DOWNLOAD_COMMAND  ""
-    SOURCE_DIR        ${RAFT_DIR}
-    CONFIGURE_COMMAND ""
-    BUILD_COMMAND     ""
-    INSTALL_COMMAND   "")
-
-else(DEFINED ENV{RAFT_PATH})
-  message(STATUS "RAFT_PATH environment variable NOT detected, cloning RAFT")
-  set(RAFT_DIR ${CMAKE_CURRENT_BINARY_DIR}/raft CACHE STRING "Path to RAFT repo")
-
-  ExternalProject_Add(raft
-    GIT_REPOSITORY    https://github.com/rapidsai/raft.git
-    GIT_TAG           9dbf2c8a9134ce8135f7fe947ec523d874fcab6a
-    PREFIX            ${RAFT_DIR}
-    CONFIGURE_COMMAND ""
-    BUILD_COMMAND     ""
-    INSTALL_COMMAND   "")
-
-  # Redefining RAFT_DIR so it coincides with the one inferred by env variable.
-  set(RAFT_DIR "${RAFT_DIR}/src/raft/")
-endif(DEFINED ENV{RAFT_PATH})
-
 
 ###################################################################################################
 # - library targets -------------------------------------------------------------------------------
@@ -375,7 +378,6 @@ add_library(cugraph SHARED
 #        wait until after cugunrock is constructed.
 #
 add_dependencies(cugraph gunrock_ext)
-add_dependencies(cugraph raft)
 
 ###################################################################################################
 # - include paths ---------------------------------------------------------------------------------
