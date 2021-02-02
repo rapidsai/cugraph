@@ -188,7 +188,7 @@ void TSP::knn()
   // k neighbors + 1 is needed because the nearest neighbor of each point is
   // the point itself that we don't want to take into account.
 
-  raft::knn::brute_force_knn(handle_,
+  raft::spatial::knn::brute_force_knn(handle_,
                              input_vec,
                              sizes_vec,
                              dim,
