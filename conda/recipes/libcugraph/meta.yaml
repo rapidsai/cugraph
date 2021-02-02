@@ -32,6 +32,7 @@ requirements:
     - nccl>=2.7
     - ucx-py {{ minor_version }}
     - ucx-proc=*=gpu
+    - gtest
   run:
     - libcudf={{ minor_version }}
     - {{ pin_compatible('cudatoolkit', max_pin='x.x') }}
