@@ -1,4 +1,4 @@
-# Copyright (c) 2019-2020, NVIDIA CORPORATION.
+# Copyright (c) 2019-2021, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -143,7 +143,7 @@ HAS_GUESS = [0, 1]
 #
 # https://github.com/rapidsai/cugraph/issues/533
 #
-# @pytest.mark.parametrize("graph_file", utils.DATASETS)
+
 @pytest.mark.parametrize("graph_file", utils.DATASETS)
 @pytest.mark.parametrize("max_iter", MAX_ITERATIONS)
 @pytest.mark.parametrize("tol", TOLERANCE)
@@ -159,7 +159,8 @@ def test_pagerank(
     M = utils.read_csv_for_nx(graph_file)
     nnz_vtx = np.unique(M[['0', '1']])
     Gnx = nx.from_pandas_edgelist(
-        M, source="0", target="1", create_using=nx.DiGraph()
+        M, source="0", target="1", edge_attr="weight",
+        create_using=nx.DiGraph()
     )
 
     networkx_pr, networkx_prsn = networkx_call(
@@ -169,13 +170,13 @@ def test_pagerank(
     cu_nstart = None
     if has_guess == 1:
         cu_nstart = cudify(networkx_pr)
-        max_iter = 5
+        max_iter = 20
     cu_prsn = cudify(networkx_prsn)
 
     # cuGraph PageRank
     cu_M = utils.read_csv_file(graph_file)
     G = cugraph.DiGraph()
-    G.from_cudf_edgelist(cu_M, source="0", destination="1")
+    G.from_cudf_edgelist(cu_M, source="0", destination="1", edge_attr="2")
 
     cugraph_pr = cugraph_call(G, max_iter, tol, alpha, cu_prsn, cu_nstart)
 
@@ -218,7 +219,7 @@ def test_pagerank_nx(
     cu_nstart = None
     if has_guess == 1:
         cu_nstart = cudify(networkx_pr)
-        max_iter = 5
+        max_iter = 20
     cu_prsn = cudify(networkx_prsn)
 
     # cuGraph PageRank with Nx Graph
