@@ -33,6 +33,7 @@ requirements:
     - ucx-py {{ minor_version }}
     - ucx-proc=*=gpu
     - gtest
+    - gmock
   run:
     - libcudf={{ minor_version }}
     - {{ pin_compatible('cudatoolkit', max_pin='x.x') }}
