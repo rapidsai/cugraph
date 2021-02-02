@@ -96,7 +96,8 @@ class NumberMap:
 
         def compute(self):
             if not self.numbered:
-                tmp = self.df.groupby(self.col_names, sort=True).sum().sort_values(
+                tmp = self.df.groupby(
+                    self.col_names, sort=True).sum().sort_values(
                     'count', ascending=False
                 ).reset_index().drop(columns='count')
 

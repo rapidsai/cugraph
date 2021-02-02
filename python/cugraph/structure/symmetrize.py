@@ -84,7 +84,8 @@ def symmetrize_df(df, src_name, dst_name, multi=False, symmetrize=True):
     if multi:
         return gdf
     else:
-        return gdf.groupby(by=[src_name, dst_name], as_index=False, sort=True).min()
+        return gdf.groupby(
+            by=[src_name, dst_name], as_index=False, sort=True).min()
 
 
 def symmetrize_ddf(df, src_name, dst_name, weight_name=None):

@@ -127,7 +127,8 @@ def bfs_df_pregel(_df, start, src_col='src', dst_col='dst', copy_data=True):
         aggsOut = OrderedDict()
         aggsOut['predecessor'] = 'min'
         aggsOut['distance'] = 'min'
-        _a = one_hop.groupby(['vertex'], as_index=False, sort=True).agg(aggsOut)
+        _a = one_hop.groupby(
+            ['vertex'], as_index=False, sort=True).agg(aggsOut)
 
         answer = cudf.concat([answer, _a])
 
