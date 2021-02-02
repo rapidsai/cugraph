@@ -162,7 +162,7 @@ class Tests_Tsp : public ::testing::TestWithParam<Tsp_Usecase> {
     CUDA_TRY(cudaMemcpy(d_y_pos, input.y_pos.data(), sizeof(float) * nodes, cudaMemcpyHostToDevice));
 
     // Default parameters
-    int restarts = 10000;
+    int restarts = 4096;
     bool beam_search = true;
     int k          = 4;
     int nstart = 0;

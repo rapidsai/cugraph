@@ -19,7 +19,7 @@ ARGS=$*
 REPODIR=$(cd $(dirname $0); pwd)
 LIBCUGRAPH_BUILD_DIR=${LIBCUGRAPH_BUILD_DIR:=${REPODIR}/cpp/build}
 
-VALIDARGS="clean libcugraph cugraph cpp-mgtests docs -v -g -n --allgpuarch --show_depr_warn -h --help"
+VALIDARGS="clean libcugraph cugraph docs -v -g -n --allgpuarch --buildfaiss --show_depr_warn -h --help"
 HELP="$0 [<target> ...] [<flag> ...]
  where <target> is:
    clean            - remove all existing build artifacts and configuration (start over)
@@ -32,6 +32,7 @@ HELP="$0 [<target> ...] [<flag> ...]
    -g               - build for debug
    -n               - no install step
    --allgpuarch     - build for all supported GPU architectures
+   --buildfaiss     - build faiss statically into cugraph
    --show_depr_warn - show cmake deprecation warnings
    -h               - print this text
 
@@ -50,6 +51,7 @@ BUILD_TYPE=Release
 INSTALL_TARGET=install
 BUILD_DISABLE_DEPRECATION_WARNING=ON
 BUILD_CPP_MG_TESTS=OFF
+BUILD_STATIC_FAISS=OFF
 GPU_ARCH=""
 
 # Set defaults for vars that may not have been defined externally
@@ -95,6 +97,9 @@ fi
 if hasArg --allgpuarch; then
     GPU_ARCH="-DGPU_ARCHS=ALL"
 fi
+if hasArg --buildfaiss; then
+        BUILD_STATIC_FAISS=ON
+fi
 if hasArg --show_depr_warn; then
     BUILD_DISABLE_DEPRECATION_WARNING=OFF
 fi
@@ -135,6 +140,7 @@ if buildAll || hasArg libcugraph; then
           ${GPU_ARCH} \
           -DDISABLE_DEPRECATION_WARNING=${BUILD_DISABLE_DEPRECATION_WARNING} \
           -DCMAKE_BUILD_TYPE=${BUILD_TYPE} \
+          -DBUILD_STATIC_FAISS=${BUILD_STATIC_FAISS} \
           -DBUILD_CUGRAPH_MG_TESTS=${BUILD_CPP_MG_TESTS} \
           ${REPODIR}/cpp
     make -j${PARALLEL_LEVEL} VERBOSE=${VERBOSE} ${INSTALL_TARGET}
@@ -159,7 +165,8 @@ if buildAll || hasArg docs; then
         cd ${LIBCUGRAPH_BUILD_DIR}
         cmake -DCMAKE_INSTALL_PREFIX=${INSTALL_PREFIX} \
             -DDISABLE_DEPRECATION_WARNING=${BUILD_DISABLE_DEPRECATION_WARNING} \
-            -DCMAKE_BUILD_TYPE=${BUILD_TYPE} ${REPODIR}/cpp
+            -DCMAKE_BUILD_TYPE=${BUILD_TYPE} ${REPODIR}/cpp \
+            -DBUILD_STATIC_FAISS=${BUILD_STATIC_FAISS}
     fi
     cd ${LIBCUGRAPH_BUILD_DIR}
     make -j${PARALLEL_LEVEL} VERBOSE=${VERBOSE} docs_cugraph

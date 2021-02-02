@@ -39,6 +39,11 @@ endif()
 option(BUILD_CUGRAPH_MG_TESTS "Build cuGraph multigpu algorithm tests" OFF)
 
 ###################################################################################################
+# - user options ------------------------------------------------------------------------------
+
+option(BUILD_STATIC_FAISS "Build the FAISS library for nearest neighbors search on GPU" OFF)
+
+###################################################################################################
 # - compiler options ------------------------------------------------------------------------------
 
 set(CMAKE_CXX_STANDARD 14)
@@ -386,6 +391,7 @@ target_include_directories(cugraph
     "${CMAKE_CURRENT_SOURCE_DIR}/src"
     "${GUNROCK_INCLUDE_DIR}"
     "${NCCL_INCLUDE_DIRS}"
+    "${FAISS_INCLUDE_DIRS}"
     "${RAFT_DIR}/cpp/include"
     PUBLIC
     "${CMAKE_CURRENT_SOURCE_DIR}/include"
