@@ -1,4 +1,4 @@
-# Copyright (c) 2019-2020, NVIDIA CORPORATION.
+# Copyright (c) 2019-2021, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -32,7 +32,7 @@ def pagerank(
     ----------
     graph : cugraph.Graph or networkx.Graph
         cuGraph graph descriptor, should contain the connectivity information
-        as an edge list (edge weights are not used for this algorithm).
+        as an edge list.
         The transposed adjacency list will be computed if not already present.
     alpha : float
         The damping factor alpha represents the probability to follow an
@@ -68,11 +68,6 @@ def pagerank(
             Subset of vertices of graph for initial guess for pagerank values
         nstart['values'] : cudf.Series
             Pagerank values for vertices
-
-    weight : str
-        Edge data column to use.  Default is None
-        This version of PageRank current does not use edge weight.
-        This parameter is here for NetworkX compatibility
     dangling : dict
         This parameter is here for NetworkX compatibility and ignored
 
