@@ -261,9 +261,9 @@ def get_repo_cmake_info(names, file_path):
         the names of the cmake git clone instruction
         `ExternalProject_Add(name`
     file_path : String
-        Relative path of the location of the CMakeLists.txt (or the cmake module
-        which contains FetchContent_Declare or ExternalProject_Add definitions)
-        to extract the information.
+        Relative path of the location of the CMakeLists.txt (or the cmake
+        module which contains FetchContent_Declare or ExternalProject_Add
+        definitions) to extract the information.
 
     Returns
     -------
@@ -272,7 +272,6 @@ def get_repo_cmake_info(names, file_path):
         where results[name][0] is the url of the repo and
         repo_info[repo][1] is the tag/commit hash to be cloned as
         specified by cmake.
-
     """
     with open(file_path, encoding='utf-8') as f:
         s = f.read()
@@ -284,10 +283,10 @@ def get_repo_cmake_info(names, file_path):
     for name in names:
         res = None
         for decl in cmake_ext_proj_decls:
-            res = re.search(f'{decl}\(\s*'
+            res = re.search(f'{decl}\(\s*'                        # noqa: W605
                             + '(' + re.escape(name) + ')'
-                            + '\s+.*GIT_REPOSITORY\s+(\S+)\s+.+'
-                            + '\s+.*GIT_TAG\s+(\S+)',
+                            + '\s+.*GIT_REPOSITORY\s+(\S+)\s+.+'  # noqa: W605
+                            + '\s+.*GIT_TAG\s+(\S+)',             # noqa: W605
                             s)
             if res:
                 break
