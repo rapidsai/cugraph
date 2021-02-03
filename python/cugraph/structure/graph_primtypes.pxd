@@ -169,6 +169,8 @@ cdef extern from "utilities/cython.hpp" namespace "cugraph::cython":
 ctypedef fused shuffled_vertices_t:
     major_minor_weights_t[int, float]
     major_minor_weights_t[int, double]
+    major_minor_weights_t[long, float]
+    major_minor_weights_t[long, double]
     
 # 3. return type for renumber:
 #

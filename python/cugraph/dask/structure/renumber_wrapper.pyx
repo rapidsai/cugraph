@@ -82,6 +82,15 @@ def mg_renumber(input_df,           # maybe use cpdef ?
         c_edge_weights = weights.__cuda_array_interface__['data'][0]
     else:
         weight_t = np.dtype("float32")
+        
+    if (vertex_t != np.dtype("int32") and vertex_t != np.dtype("int64")):
+        raise Exception("Incorrect vertex_t type.")
+    if (edge_t != np.dtype("int32") and edge_t != np.dtype("int64")):
+        raise Exception("Incorrect edge_t type.")
+    if (weight_t != np.dtype("float32") and weight_t != np.dtype("float64")):
+        raise Exception("Incorrect weight_t type.")
+    if (vertex_t != np.dtype("int32") and edge_t != np.dtype("int64")):
+        raise Exception("Incompatible vertex_t and edge_t types.")
 
     # FIXME: needs to be edge_t type not int
     cdef int num_partition_edges = len(src)
@@ -100,13 +109,21 @@ def mg_renumber(input_df,           # maybe use cpdef ?
     cdef pair[unique_ptr[device_buffer], size_t] pair_original
     cdef pair[unique_ptr[device_buffer], size_t] pair_partition
 
+    # tparams: vertex_t, weight_t:
+    #
     cdef unique_ptr[major_minor_weights_t[int, float]] ptr_shuffled_32_32
     cdef unique_ptr[major_minor_weights_t[int, double]] ptr_shuffled_32_64
+    cdef unique_ptr[major_minor_weights_t[long, float]] ptr_shuffled_64_32
+    cdef unique_ptr[major_minor_weights_t[long, double]] ptr_shuffled_64_64
 
+    # tparams: vertex_t, edge_t:
+    #
     cdef unique_ptr[renum_quad_t[int, int]] ptr_renum_quad_32_32
     cdef unique_ptr[renum_quad_t[int, long]] ptr_renum_quad_32_64
     cdef unique_ptr[renum_quad_t[long, long]] ptr_renum_quad_64_64
 
+    # tparam: vertex_t:
+    #
     cdef unique_ptr[vector[int]] uniq_partition_vector_32
     cdef unique_ptr[vector[long]] uniq_partition_vector_64
 
@@ -155,6 +172,279 @@ def mg_renumber(input_df,           # maybe use cpdef ?
                 if is_multi_gpu:
                     new_series = cudf.Series(np.arange(uniq_partition_vector_32.get()[0].at(rank_indx),
                                                        uniq_partition_vector_32.get()[0].at(rank_indx+1)),
+                                             dtype=vertex_t)
+                else:
+                    new_series = cudf.Series(np.arange(0, num_global_verts), dtype=vertex_t)
+                
+                # create new cudf df
+                #
+                # and add the previous series to it:
+                #
+                renumbered_map = cudf.DataFrame()
+                renumbered_map['original_ids'] = original_series
+                renumbered_map['new_ids'] = new_series
+
+                return renumbered_map, shuffled_df
+            elif( weight_t == np.dtype("float64")):
+                ptr_shuffled_32_64.reset(call_shuffle[int, int, double](deref(handle_ptr),
+                                                                        <int*>c_src_vertices,
+                                                                        <int*>c_dst_vertices,
+                                                                        <double*>c_edge_weights,
+                                                                        num_partition_edges,
+                                                                        is_hyper_partitioned).release())
+                
+                shuffled_df = renumber_helper(ptr_shuffled_32_64.get())
+                
+                shuffled_src = shufled_df['src']
+                shuffled_dst = shufled_df['dst']
+                        
+                shuffled_major = shuffled_src.__cuda_array_interface__['data'][0]
+                shuffled_minor = shuffled_dst.__cuda_array_interface__['data'][0]
+                
+                ptr_renum_quad_32_32.reset(call_renumber[int, int](deref(handle_ptr),
+                                                                   <int*>shuffled_major,
+                                                                   <int*>shuffled_minor,
+                                                                   num_partition_edges,
+                                                                   is_hyper_partitioned,
+                                                                   do_check,
+                                                                   mg_flag).release())
+                
+                pair_original = ptr_renum_quad_32_32.get().get_dv_wrap() # original vertices: see helper
+                
+
+                original_buffer = DeviceBuffer.c_from_unique_ptr(move(pair_original.first))
+                original_buffer = Buffer(original_buffer)
+
+                original_series = cudf.Series(data=original_buffer, dtype=vertex_t)
+                
+                # extract unique_ptr[partition_offsets]:
+                #
+                uniq_partition_vector_32 = move(ptr_renum_quad_32_32.get().get_partition_offsets())
+
+                # create series out of a partition range from rank to rank+1:
+                #
+                if is_multi_gpu:
+                    new_series = cudf.Series(np.arange(uniq_partition_vector_32.get()[0].at(rank_indx),
+                                                       uniq_partition_vector_32.get()[0].at(rank_indx+1)),
+                                             dtype=vertex_t)
+                else:
+                    new_series = cudf.Series(np.arange(0, num_global_verts), dtype=vertex_t)
+                
+                # create new cudf df
+                #
+                # and add the previous series to it:
+                #
+                renumbered_map = cudf.DataFrame()
+                renumbered_map['original_ids'] = original_series
+                renumbered_map['new_ids'] = new_series
+
+                return renumbered_map, shuffled_df
+        elif ( edge_t == np.dtype("int64")):
+            if( weight_t == np.dtype("float32")):
+                ptr_shuffled_32_32.reset(call_shuffle[int, long, float](deref(handle_ptr),
+                                                                        <int*>c_src_vertices,
+                                                                        <int*>c_dst_vertices,
+                                                                        <float*>c_edge_weights,
+                                                                        num_partition_edges,
+                                                                        is_hyper_partitioned).release())
+                
+                shuffled_df = renumber_helper(ptr_shuffled_32_32.get())
+                
+                shuffled_src = shufled_df['src']
+                shuffled_dst = shufled_df['dst']
+                        
+                shuffled_major = shuffled_src.__cuda_array_interface__['data'][0]
+                shuffled_minor = shuffled_dst.__cuda_array_interface__['data'][0]
+                
+                ptr_renum_quad_32_64.reset(call_renumber[int, long](deref(handle_ptr),
+                                                                    <int*>shuffled_major,
+                                                                    <int*>shuffled_minor,
+                                                                    num_partition_edges,
+                                                                    is_hyper_partitioned,
+                                                                    do_check,
+                                                                    mg_flag).release())
+                
+                pair_original = ptr_renum_quad_32_64.get().get_dv_wrap() # original vertices: see helper
+                
+
+                original_buffer = DeviceBuffer.c_from_unique_ptr(move(pair_original.first))
+                original_buffer = Buffer(original_buffer)
+
+                original_series = cudf.Series(data=original_buffer, dtype=vertex_t)
+                
+                # extract unique_ptr[partition_offsets]:
+                #
+                uniq_partition_vector_32 = move(ptr_renum_quad_32_64.get().get_partition_offsets())
+
+                # create series out of a partition range from rank to rank+1:
+                #
+                if is_multi_gpu:
+                    new_series = cudf.Series(np.arange(uniq_partition_vector_32.get()[0].at(rank_indx),
+                                                       uniq_partition_vector_32.get()[0].at(rank_indx+1)),
+                                             dtype=vertex_t)
+                else:
+                    new_series = cudf.Series(np.arange(0, num_global_verts), dtype=vertex_t)
+                
+                # create new cudf df
+                #
+                # and add the previous series to it:
+                #
+                renumbered_map = cudf.DataFrame()
+                renumbered_map['original_ids'] = original_series
+                renumbered_map['new_ids'] = new_series
+
+                return renumbered_map, shuffled_df
+            elif( weight_t == np.dtype("float64")):
+                ptr_shuffled_32_64.reset(call_shuffle[int, long, double](deref(handle_ptr),
+                                                                         <int*>c_src_vertices,
+                                                                         <int*>c_dst_vertices,
+                                                                         <double*>c_edge_weights,
+                                                                         num_partition_edges,
+                                                                         is_hyper_partitioned).release())
+                
+                shuffled_df = renumber_helper(ptr_shuffled_32_64.get())
+                
+                shuffled_src = shufled_df['src']
+                shuffled_dst = shufled_df['dst']
+                        
+                shuffled_major = shuffled_src.__cuda_array_interface__['data'][0]
+                shuffled_minor = shuffled_dst.__cuda_array_interface__['data'][0]
+                
+                ptr_renum_quad_32_64.reset(call_renumber[int, long](deref(handle_ptr),
+                                                                    <int*>shuffled_major,
+                                                                    <int*>shuffled_minor,
+                                                                    num_partition_edges,
+                                                                    is_hyper_partitioned,
+                                                                    do_check,
+                                                                    mg_flag).release())
+                
+                pair_original = ptr_renum_quad_32_64.get().get_dv_wrap() # original vertices: see helper
+                
+
+                original_buffer = DeviceBuffer.c_from_unique_ptr(move(pair_original.first))
+                original_buffer = Buffer(original_buffer)
+
+                original_series = cudf.Series(data=original_buffer, dtype=vertex_t)
+                
+                # extract unique_ptr[partition_offsets]:
+                #
+                uniq_partition_vector_32 = move(ptr_renum_quad_32_64.get().get_partition_offsets())
+
+                # create series out of a partition range from rank to rank+1:
+                #
+                if is_multi_gpu:
+                    new_series = cudf.Series(np.arange(uniq_partition_vector_32.get()[0].at(rank_indx),
+                                                       uniq_partition_vector_32.get()[0].at(rank_indx+1)),
+                                             dtype=vertex_t)
+                else:
+                    new_series = cudf.Series(np.arange(0, num_global_verts), dtype=vertex_t)
+                
+                # create new cudf df
+                #
+                # and add the previous series to it:
+                #
+                renumbered_map = cudf.DataFrame()
+                renumbered_map['original_ids'] = original_series
+                renumbered_map['new_ids'] = new_series
+
+                return renumbered_map, shuffled_df
+    elif (vertex_t == np.dtype("int64")):
+        if ( edge_t == np.dtype("int64")):
+            if( weight_t == np.dtype("float32")):
+                ptr_shuffled_64_32.reset(call_shuffle[long, long, float](deref(handle_ptr),
+                                                                        <long*>c_src_vertices,
+                                                                        <long*>c_dst_vertices,
+                                                                        <float*>c_edge_weights,
+                                                                        num_partition_edges,
+                                                                        is_hyper_partitioned).release())
+                
+                shuffled_df = renumber_helper(ptr_shuffled_64_32.get())
+                
+                shuffled_src = shufled_df['src']
+                shuffled_dst = shufled_df['dst']
+                        
+                shuffled_major = shuffled_src.__cuda_array_interface__['data'][0]
+                shuffled_minor = shuffled_dst.__cuda_array_interface__['data'][0]
+                
+                ptr_renum_quad_64_64.reset(call_renumber[long, long](deref(handle_ptr),
+                                                                     <long*>shuffled_major,
+                                                                     <long*>shuffled_minor,
+                                                                     num_partition_edges,
+                                                                     is_hyper_partitioned,
+                                                                     do_check,
+                                                                     mg_flag).release())
+                
+                pair_original = ptr_renum_quad_64_64.get().get_dv_wrap() # original vertices: see helper
+                
+
+                original_buffer = DeviceBuffer.c_from_unique_ptr(move(pair_original.first))
+                original_buffer = Buffer(original_buffer)
+
+                original_series = cudf.Series(data=original_buffer, dtype=vertex_t)
+                
+                # extract unique_ptr[partition_offsets]:
+                #
+                uniq_partition_vector_64 = move(ptr_renum_quad_64_64.get().get_partition_offsets())
+
+                # create series out of a partition range from rank to rank+1:
+                #
+                if is_multi_gpu:
+                    new_series = cudf.Series(np.arange(uniq_partition_vector_64.get()[0].at(rank_indx),
+                                                       uniq_partition_vector_64.get()[0].at(rank_indx+1)),
+                                             dtype=vertex_t)
+                else:
+                    new_series = cudf.Series(np.arange(0, num_global_verts), dtype=vertex_t)
+                
+                # create new cudf df
+                #
+                # and add the previous series to it:
+                #
+                renumbered_map = cudf.DataFrame()
+                renumbered_map['original_ids'] = original_series
+                renumbered_map['new_ids'] = new_series
+
+                return renumbered_map, shuffled_df
+            elif( weight_t == np.dtype("float64")):
+                ptr_shuffled_64_64.reset(call_shuffle[long, long, double](deref(handle_ptr),
+                                                                          <long*>c_src_vertices,
+                                                                          <long*>c_dst_vertices,
+                                                                          <double*>c_edge_weights,
+                                                                          num_partition_edges,
+                                                                          is_hyper_partitioned).release())
+                
+                shuffled_df = renumber_helper(ptr_shuffled_64_64.get())
+                
+                shuffled_src = shufled_df['src']
+                shuffled_dst = shufled_df['dst']
+                        
+                shuffled_major = shuffled_src.__cuda_array_interface__['data'][0]
+                shuffled_minor = shuffled_dst.__cuda_array_interface__['data'][0]
+                
+                ptr_renum_quad_64_64.reset(call_renumber[long, long](deref(handle_ptr),
+                                                                     <long*>shuffled_major,
+                                                                     <long*>shuffled_minor,
+                                                                     num_partition_edges,
+                                                                     is_hyper_partitioned,
+                                                                     do_check,
+                                                                     mg_flag).release())
+                
+                pair_original = ptr_renum_quad_64_64.get().get_dv_wrap() # original vertices: see helper
+                
+
+                original_buffer = DeviceBuffer.c_from_unique_ptr(move(pair_original.first))
+                original_buffer = Buffer(original_buffer)
+
+                original_series = cudf.Series(data=original_buffer, dtype=vertex_t)
+                
+                # extract unique_ptr[partition_offsets]:
+                #
+                uniq_partition_vector_64 = move(ptr_renum_quad_64_64.get().get_partition_offsets())
+
+                # create series out of a partition range from rank to rank+1:
+                #
+                if is_multi_gpu:
+                    new_series = cudf.Series(np.arange(uniq_partition_vector_64.get()[0].at(rank_indx),
+                                                       uniq_partition_vector_64.get()[0].at(rank_indx+1)),
                                              dtype=vertex_t)
                 else:
                     new_series = cudf.Series(np.arange(0, num_global_verts), dtype=vertex_t)
