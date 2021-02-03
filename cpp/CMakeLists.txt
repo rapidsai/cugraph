@@ -458,6 +458,17 @@ target_link_libraries(cugraph PRIVATE
     ${OpenMP_CXX_LIB_NAMES})
 endif(OpenMP_CXX_FOUND)
 
+# CUDA_ARCHITECTURES=OFF implies cmake will not pass arch flags to the
+# compiler. CUDA_ARCHITECTURES must be set to a non-empty value to prevent cmake
+# warnings about policy CMP0104. With this setting, arch flags must be manually
+# set! ("evaluate_gpu_archs(GPU_ARCHS)" is the current mechanism used in
+# cpp/CMakeLists.txt for setting arch options).  Run "cmake --help-policy
+# CMP0104" for policy details.
+# NOTE: the CUDA_ARCHITECTURES=OFF setting may be removed after migrating to the
+# findcudatoolkit features in cmake 3.17+
+set_target_properties(cugraph PROPERTIES
+    CUDA_ARCHITECTURES OFF)
+
 ###################################################################################################
 # - generate tests --------------------------------------------------------------------------------
 
