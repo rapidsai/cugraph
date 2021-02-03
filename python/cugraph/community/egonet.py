@@ -58,13 +58,10 @@ def ego_graph(G, n, radius=1, center=True, undirected=False, distance=None):
         Graph or matrix object, which should contain the connectivity
         information. Edge weights, if present, should be single or double
         precision floating point values.
-
     n : integer
         A single node
-
     radius: integer, optional
         Include all neighbors of distance<=radius from n.
-
     center: bool, optional
         Defaults to True. False is not supported
     undirected: bool, optional
@@ -77,10 +74,6 @@ def ego_graph(G, n, radius=1, center=True, undirected=False, distance=None):
     G_ego : cuGraph.Graph or networkx.Graph
         A graph descriptor with a minimum spanning tree or forest.
         The networkx graph will not have all attributes copied over
-
-    modularity_score : float
-        a floating point number containing the global modularity score of the
-        partitioning.
     """
 
     (G, input_type) = ensure_cugraph_obj(G, nx_weight_attr="weight")
@@ -117,13 +110,10 @@ def batched_ego_graphs(
         Graph or matrix object, which should contain the connectivity
         information. Edge weights, if present, should be single or double
         precision floating point values.
-
     seeds : cudf.Series or list
         Specifies the seeds of the induced egonet subgraphs
-
     radius: integer, optional
         Include all neighbors of distance<=radius from n.
-
     center: bool, optional
         Defaults to True. False is not supported
     undirected: bool, optional
