@@ -28,6 +28,8 @@ def traveling_salesman(pos_list,
     Finds an approximate solution to the traveling salesman problem (TSP).
     cuGraph computes an approximation of the TSP problem using hill climbing
     optimization.
+
+    The current implementation does not support a weighted graph.
     Parameters
     ----------
     pos_list: cudf.DataFrame
@@ -41,8 +43,7 @@ def traveling_salesman(pos_list,
         Specify if the initial solution should use KNN for an approximation
         solution.
     k: int
-        Beam width to use in the search. The number of neighbors to choose from
-        for KNN.
+        Beam width to use in the search.
     nstart: int
         Vertex id to use as starting position.
     verbose: bool
