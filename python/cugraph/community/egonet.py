@@ -12,12 +12,9 @@
 # limitations under the License.
 
 from cugraph.community import egonet_wrapper
-from cugraph.structure.graph import Graph, DiGraph
 import cudf
 from cugraph.utilities import (
     ensure_cugraph_obj,
-    is_matrix_type,
-    is_cp_matrix_type,
     import_optional,
 )
 from cugraph.utilities import cugraph_to_nx
@@ -148,7 +145,7 @@ def batched_ego_graphs(
     (G, input_type) = ensure_cugraph_obj(G, nx_weight_attr="weight")
 
     if G.renumbered is True:
-        n = G.lookup_internal_vertex_id(cudf.Series(seeds))
+        seeds = G.lookup_internal_vertex_id(cudf.Series(seeds))
 
     df, offsets = egonet_wrapper.egonet(G, seeds, radius)
 
