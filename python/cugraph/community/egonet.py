@@ -20,63 +20,34 @@ from cugraph.utilities import (
     is_cp_matrix_type,
     import_optional,
 )
+from cugraph.utilities import cugraph_to_nx
 
 # optional dependencies used for handling different input types
 nx = import_optional("networkx")
 
-cp = import_optional("cupy")
-cp_coo_matrix = import_optional(
-    "coo_matrix", import_from="cupyx.scipy.sparse.coo"
-)
-cp_csr_matrix = import_optional(
-    "csr_matrix", import_from="cupyx.scipy.sparse.csr"
-)
-cp_csc_matrix = import_optional(
-    "csc_matrix", import_from="cupyx.scipy.sparse.csc"
-)
 
-sp = import_optional("scipy")
-sp_coo_matrix = import_optional("coo_matrix", import_from="scipy.sparse.coo")
-sp_csr_matrix = import_optional("csr_matrix", import_from="scipy.sparse.csr")
-sp_csc_matrix = import_optional("csc_matrix", import_from="scipy.sparse.csc")
+def _convert_graph_to_output_type(G, input_type):
+    """
+    Given a cugraph.Graph, convert it to a new type appropriate for the
+    graph algos in this module, based on input_type.
+    """
+    if (nx is not None) and (input_type in [nx.Graph, nx.DiGraph]):
+        return cugraph_to_nx(G)
+
+    else:
+        return G
 
 
-def _convert_df_to_output_type(df, input_type):
+def _convert_df_series_to_output_type(df, offsets, input_type):
     """
     Given a cudf.DataFrame df, convert it to a new type appropriate for the
     graph algos in this module, based on input_type.
     """
-    if input_type in [Graph, DiGraph]:
-        return df
+    if (nx is not None) and (input_type in [nx.Graph, nx.DiGraph]):
+        return df.to_pandas(), offsets.values_host.tolist()
 
-    elif (nx is not None) and (input_type in [nx.Graph, nx.DiGraph]):
-        return df.to_pandas()
-
-    elif is_matrix_type(input_type):
-        # A CuPy/SciPy input means the return value will be a 2-tuple of:
-        #   distance: cupy.ndarray
-        #   predecessor: cupy.ndarray
-        sorted_df = df.sort_values("vertex")
-        if is_cp_matrix_type(input_type):
-            distances = cp.fromDlpack(sorted_df["distance"].to_dlpack())
-            preds = cp.fromDlpack(sorted_df["predecessor"].to_dlpack())
-            if "sp_counter" in df.columns:
-                return (
-                    distances,
-                    preds,
-                    cp.fromDlpack(sorted_df["sp_counter"].to_dlpack()),
-                )
-            else:
-                return (distances, preds)
-        else:
-            distances = sorted_df["distance"].to_array()
-            preds = sorted_df["predecessor"].to_array()
-            if "sp_counter" in df.columns:
-                return (distances, preds, sorted_df["sp_counter"].to_array())
-            else:
-                return (distances, preds)
     else:
-        raise TypeError(f"input type {input_type} is not a supported type.")
+        return df, offsets
 
 
 def ego_graph(G, n, radius=1, center=True, undirected=False, distance=None):
@@ -106,7 +77,7 @@ def ego_graph(G, n, radius=1, center=True, undirected=False, distance=None):
 
     Returns
     -------
-    G_ego : cuGraph.Graph, networkx.Graph, CuPy or SciPy sparse matrix
+    G_ego : cuGraph.Graph or networkx.Graph
         A graph descriptor with a minimum spanning tree or forest.
         The networkx graph will not have all attributes copied over
 
@@ -115,20 +86,26 @@ def ego_graph(G, n, radius=1, center=True, undirected=False, distance=None):
         partitioning.
     """
 
-    # TODO check this
     (G, input_type) = ensure_cugraph_obj(G, nx_weight_attr="weight")
+    result_graph = type(G)()
 
     if G.renumbered is True:
         n = G.lookup_internal_vertex_id(cudf.Series([n]))
 
-    df = egonet_wrapper.egonet(G, n, radius)
+    df, offsets = egonet_wrapper.egonet(G, n, radius)
 
     if G.renumbered:
         df = G.unrenumber(df, "src")
         df = G.unrenumber(df, "dst")
 
-    # TODO need to return a graph and casting to the use input/output format
-    # return _convert_df_to_output_type(df, input_type)
+    if G.edgelist.weights:
+        result_graph.from_cudf_edgelist(
+            df, source="src", destination="dst", edge_attr="weight"
+        )
+    else:
+        result_graph.from_cudf_edgelist(df, source="src", destination="dst")
+    print(offsets)
+    return _convert_graph_to_output_type(result_graph, input_type)
 
 
 def batched_ego_graphs(
@@ -145,7 +122,7 @@ def batched_ego_graphs(
         information. Edge weights, if present, should be single or double
         precision floating point values.
 
-    seeds : cudf.Series
+    seeds : cudf.Series or list
         Specifies the seeds of the induced egonet subgraphs
 
     radius: integer, optional
@@ -160,22 +137,23 @@ def batched_ego_graphs(
 
     Returns
     -------
-    ego_edge_lists : cudf.DataFrame
+    ego_edge_lists : cudf.DataFrame or pandas.DataFrame
         GPU data frame containing all induced sources identifiers,
         destination identifiers, edge weights
     seeds_offsets: cudf.Series
         Series containing the starting offset in the returned edge list
         for each seed.
     """
-    # TODO check this after the regular ego_graph works
+
     (G, input_type) = ensure_cugraph_obj(G, nx_weight_attr="weight")
 
-    # if G.renumbered is True:
-    #    n = G.lookup_internal_vertex_id(cudf.Series([n]))[0]
+    if G.renumbered is True:
+        n = G.lookup_internal_vertex_id(cudf.Series(seeds))
 
     df, offsets = egonet_wrapper.egonet(G, seeds, radius)
 
     if G.renumbered:
         df = G.unrenumber(df, "src")
         df = G.unrenumber(df, "dst")
-    return _convert_df_to_output_type(df, input_type), offsets
+
+    return _convert_df_series_to_output_type(df, offsets, input_type)

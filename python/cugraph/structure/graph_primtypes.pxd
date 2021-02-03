@@ -241,3 +241,16 @@ cdef extern from "utilities/cython.hpp" namespace "cugraph::cython":
         int *local_vertices,
         int *local_edges,
         int *local_offsets) except +
+
+    cdef cppclass cy_multi_edgelists_t:
+        size_t number_of_vertices
+        size_t number_of_edges
+        size_t number_of_subgraph
+        unique_ptr[device_buffer] src_indices
+        unique_ptr[device_buffer] dst_indices
+        unique_ptr[device_buffer] edge_data
+        unique_ptr[device_buffer] subgraph_offsets
+
+cdef extern from "<utility>" namespace "std" nogil:
+    cdef cy_multi_edgelists_t move(cy_multi_edgelists_t)
+    cdef unique_ptr[cy_multi_edgelists_t] move(unique_ptr[cy_multi_edgelists_t])

@@ -89,7 +89,7 @@ def egonet(input_graph, vertices, radius=1):
                                <int*> c_source_vertex_ptr,
                                <int> n_subgraphs,
                                <int> radius))
-
+        
     el_struct = move(el_struct_ptr.get()[0])
     src = DeviceBuffer.c_from_unique_ptr(move(el_struct.src_indices))
     dst = DeviceBuffer.c_from_unique_ptr(move(el_struct.dst_indices))
@@ -107,5 +107,10 @@ def egonet(input_graph, vertices, radius=1):
     if wgt.nbytes != 0:
         wgt = cudf.Series(data=wgt, dtype=weight_t)
         df['weight'] = wgt
-    return df
+
+    offsets = DeviceBuffer.c_from_unique_ptr(move(el_struct.subgraph_offsets))
+    offsets = Buffer(offsets)
+    offsets = cudf.Series(data=src, dtype="int")
+
+    return df, offsets
 
