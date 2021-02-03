@@ -284,10 +284,14 @@ public:
 
       ////////
       // Compare MG to SG
+      // Each GPU will have pagerank values for their range, so ech GPU must
+      // compare to specific SG results for their respective range.
+
+      // For this test, each GPU will have the full set of vertices and
+      // therefore the pageranks vectors should be equal in size.
+      // NOTE: Each GPU will only have valid pagerank values for a subset of the
+      // vertices, since each is computing a different subset in parallel.
       ASSERT_EQ(h_sg_pageranks.size(), h_mg_pageranks.size());
-      for(vertex_t i=0; i<h_sg_pageranks.size(); ++i) {
-         std::cout<<"RANK: "<<my_rank<<" i: "<<i<<" SG: "<<h_sg_pageranks[i]<<" MG: "<<h_mg_pageranks[i]<<std::endl;
-      }
 
       auto threshold_ratio = 1e-3;
       auto threshold_magnitude =
@@ -298,11 +302,18 @@ public:
                 std::max(std::max(lhs, rhs) * threshold_ratio, threshold_magnitude);
       };
 
-      ASSERT_TRUE(std::equal(h_sg_pageranks.begin(),
-                             h_sg_pageranks.end(),
-                             h_mg_pageranks.begin(),
-                             nearly_equal))
-         << "MG PageRank values do not match with the SG reference values.";
+      for(vertex_t i=mg_graph_view.get_local_vertex_first(); i < mg_graph_view.get_local_vertex_last(); ++i){
+         std::cout<<"RANK: "<<my_rank<<" MG local vertex: "<<i<<" SG: "<<h_sg_pageranks[i]<<" MG: "<<h_mg_pageranks[i]<<std::endl;
+      }
+      for(vertex_t i=mg_graph_view.get_local_vertex_first(); i < mg_graph_view.get_local_vertex_last(); ++i){
+         ASSERT_TRUE(nearly_equal(h_mg_pageranks[i], h_sg_pageranks[i])) << "MG PageRank value for vertex: " << i << " in rank: " << my_rank << " has value: " << h_mg_pageranks[i] << " which exceeds the error margin for comparing to SG value: " << h_sg_pageranks[i];
+      }
+
+      //ASSERT_TRUE(std::equal(h_sg_pageranks.begin(),
+      //                       h_sg_pageranks.end(),
+      //                       h_mg_pageranks.begin(),
+      //                       nearly_equal))
+      //   << "MG PageRank values do not match with the SG reference values.";
 
       std::cout<<"RANK: "<<my_rank<<" DONE."<<std::endl;
    }
