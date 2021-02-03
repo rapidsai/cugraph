@@ -54,7 +54,10 @@ def test_ego_graph_nx(graph_file, seed, radius):
     assert nx.is_isomorphic(ego_nx, ego_cugraph)
 
 
-def batched_ego_graphs(G, seeds, radius=1):
+@pytest.mark.parametrize("graph_file", utils.DATASETS)
+@pytest.mark.parametrize("seeds", [[0, 5, 13]])
+@pytest.mark.parametrize("radius", [1, 2, 3])
+def test_batched_ego_graphs(graph_file, seeds, radius):
     """
     Compute the  induced subgraph of neighbors for each node in seeds
     within a given radius.
@@ -78,3 +81,21 @@ def batched_ego_graphs(G, seeds, radius=1):
         Series containing the starting offset in the returned edge list
         for each seed.
     """
+    gc.collect()
+
+    # Nx
+    df = utils.read_csv_for_nx(graph_file, read_weights_in_sp=True)
+    Gnx = nx.from_pandas_edgelist(
+        df, create_using=nx.Graph(), source="0", target="1", edge_attr="weight"
+    )
+
+    # cugraph
+    df, offsets = cugraph.batched_ego_graphs(Gnx, seeds, radius=radius)
+    for i in range(len(seeds)):
+        ego_nx = nx.ego_graph(Gnx, seeds[i], radius=radius)
+        ego_df = df[offsets[i]:offsets[i+1]]
+        ego_cugraph = nx.from_pandas_edgelist(ego_df,
+                                              source="src",
+                                              target="dst",
+                                              edge_attr="weight")
+    assert nx.is_isomorphic(ego_nx, ego_cugraph)

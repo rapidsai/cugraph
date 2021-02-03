@@ -895,7 +895,7 @@ class NumberMap:
         if preserve_order:
             df = df.sort_values(
                 index_name
-            ).drop(index_name).reset_index(drop=True)
+            ).drop(columns=index_name).reset_index(drop=True)
 
         if type(df) is dask_cudf.DataFrame:
             return df.map_partitions(

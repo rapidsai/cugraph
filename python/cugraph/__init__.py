@@ -25,6 +25,7 @@ from cugraph.community import (
     subgraph,
     triangles,
     ego_graph,
+    batched_ego_graphs,
 )
 
 from cugraph.structure import (

@@ -149,7 +149,7 @@ def batched_ego_graphs(
     df, offsets = egonet_wrapper.egonet(G, seeds, radius)
 
     if G.renumbered:
-        df = G.unrenumber(df, "src")
-        df = G.unrenumber(df, "dst")
+        df = G.unrenumber(df, "src", preserve_order=True)
+        df = G.unrenumber(df, "dst", preserve_order=True)
 
     return _convert_df_series_to_output_type(df, offsets, input_type)
