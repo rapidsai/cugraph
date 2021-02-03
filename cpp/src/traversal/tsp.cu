@@ -215,7 +215,7 @@ float traveling_salesman(raft::handle_t &handle,
   RAFT_EXPECTS(route != nullptr, "route should equal the number of nodes");
   RAFT_EXPECTS(nodes > 0, "nodes should be strictly positive");
   RAFT_EXPECTS(restarts > 0, "restarts should be strictly positive");
-  RAFT_EXPECTS(nstart > 0 && nstart < nodes, "restarts should be between 0 and nodes - 1");
+  RAFT_EXPECTS(nstart >= 0 && nstart < nodes, "nstart should be between 0 and nodes - 1");
   RAFT_EXPECTS(k > 0, "k should be strictly positive");
 
   cugraph::detail::TSP tsp(
