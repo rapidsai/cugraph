@@ -32,7 +32,7 @@ for i in range(len(df_page)):
 
 ## Getting cuGraph
 There are 3 ways to get cuGraph :
-1. [Quick start with Docker Demo Repo](#quick)
+1. [Quick start with Docker Repo](#quick)
 2. [Conda Installation](#conda)
 3. [Build from Source](#source)
 <br/><br/>
@@ -101,7 +101,7 @@ As of Release 0.18 - including 0.18 nightly
 
 </br></br>
 ## Supported Data Types
-cuGraph supports graph creation with Source and Distentaion being expressed as:
+cuGraph supports graph creation with Source and Destination being expressed as:
 * cuDF DataFrame
 * Pandas DataFrame
 
@@ -139,7 +139,7 @@ The use of managed memory for oversubscription can also be used to exceed the ab
 
 ---
 ## Quick Start <a name="quick"></a>
-Please see the [Demo Docker Repository](https://hub.docker.com/r/rapidsai/rapidsai/), choosing a tag based on the NVIDIA CUDA version you’re running. This provides a ready to run Docker container with example notebooks and data, showcasing how you can utilize all of the RAPIDS libraries: cuDF, cuML, and cuGraph.
+Please see the [Docker Repository](https://hub.docker.com/r/rapidsai/rapidsai/), choosing a tag based on the NVIDIA CUDA version you’re running. This provides a ready to run Docker container with example notebooks and data, showcasing how you can utilize all of the RAPIDS libraries: cuDF, cuML, and cuGraph.
 
 
 ## Conda <a name="conda"></a>
