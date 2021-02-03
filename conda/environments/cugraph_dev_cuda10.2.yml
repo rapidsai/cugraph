@@ -23,7 +23,7 @@ dependencies:
 - cudatoolkit=10.2
 - clang=8.0.1
 - clang-tools=8.0.1
-- cmake>=3.12
+- cmake>=3.18
 - python>=3.6,<3.9
 - notebook>=0.5.0
 - boost
