@@ -20,9 +20,9 @@
 #include <curand_kernel.h>
 #include <limits.h>
 #include <math.h>
-#include <raft/cuda_utils.cuh>
 #include <stdio.h>
 #include <stdlib.h>
+#include <raft/cuda_utils.cuh>
 
 #include "tsp_utils.hpp"
 
@@ -56,11 +56,11 @@ __global__ __launch_bounds__(2048, 2) void two_opt_search(int *mylock,
                                                           int *work,
                                                           const int nstart)
 {
-  int *buf  = &work[blockIdx.x * ((3 * nodes + 2 + 31) / 32 * 32)];
-  int *route_buf  = &work_route[blockIdx.x * ((3 * nodes + 2 + 31) / 32 * 32)];
-  float *px = (float *)(&buf[nodes]);
-  float *py = &px[nodes + 1];
-  int *path = (int *)(&route_buf[nodes]);
+  int *buf       = &work[blockIdx.x * ((3 * nodes + 2 + 31) / 32 * 32)];
+  int *route_buf = &work_route[blockIdx.x * ((3 * nodes + 2 + 31) / 32 * 32)];
+  float *px      = (float *)(&buf[nodes]);
+  float *py      = &px[nodes + 1];
+  int *path      = (int *)(&route_buf[nodes]);
 
   __shared__ int best_change[kswaps];
   __shared__ int best_i[kswaps];
@@ -70,12 +70,12 @@ __global__ __launch_bounds__(2048, 2) void two_opt_search(int *mylock,
   __shared__ int shbuf[tilesize];
   if (!beam_search) {
     for (int i = threadIdx.x; i <= nodes; i += blockDim.x) {
-      px[i] = posx[i];
-      py[i] = posy[i];
+      px[i]   = posx[i];
+      py[i]   = posy[i];
       path[i] = vtx_ptr[i];
     }
 
-   __syncthreads();
+    __syncthreads();
 
     if (threadIdx.x == 0) { /* serial permutation as starting point */
       // swap to start at nstart node
@@ -92,15 +92,14 @@ __global__ __launch_bounds__(2048, 2) void two_opt_search(int *mylock,
         raft::swapVals(py[i], py[j]);
         raft::swapVals(path[i], path[j]);
       }
-      px[nodes] = px[0]; /* close the loop now, avoid special cases later */
-      py[nodes] = py[0];
+      px[nodes]   = px[0]; /* close the loop now, avoid special cases later */
+      py[nodes]   = py[0];
       path[nodes] = path[0];
     }
     __syncthreads();
   }
   if (beam_search) {
-    for (int i = threadIdx.x; i < nodes; i += blockDim.x)
-      buf[i] = 0;
+    for (int i = threadIdx.x; i < nodes; i += blockDim.x) buf[i] = 0;
 
     __syncthreads();
 
@@ -110,9 +109,9 @@ __global__ __launch_bounds__(2048, 2) void two_opt_search(int *mylock,
       int progress = 0;
       int initlen  = 0;
 
-      px[0] = posx[nstart];
-      py[0] = posy[nstart];
-      path[0] = vtx_ptr[nstart];
+      px[0]     = posx[nstart];
+      py[0]     = posy[nstart];
+      path[0]   = vtx_ptr[nstart];
       int head  = nstart;
       int v     = 0;
       buf[head] = 1;
@@ -122,12 +121,12 @@ __global__ __launch_bounds__(2048, 2) void two_opt_search(int *mylock,
         initlen       = 0;
         int randjumps = 0;
         while (progress < nodes - 1) {
-          int nj = curand(&rndstate) % K;
+          int nj     = curand(&rndstate) % K;
           int linked = 0;
           for (int nh = 0; nh < K; ++nh) {
             // offset (idx / K) + 1 filters the points as their own nearest neighbors.
             int offset = (K * head + nj) / K + 1;
-            v = neighbors[K * head + nj + offset];
+            v          = neighbors[K * head + nj + offset];
             if (v < nodes && buf[v] == 0) {
               head = v;
               progress += 1;
@@ -148,15 +147,15 @@ __global__ __launch_bounds__(2048, 2) void two_opt_search(int *mylock,
             buf[head] = 1;
           }
           // copy from input into beam-search order, update len
-          px[progress] = posx[head];
-          py[progress] = posy[head];
-          path[progress] =  vtx_ptr[head];
+          px[progress]   = posx[head];
+          py[progress]   = posy[head];
+          path[progress] = vtx_ptr[head];
           initlen += dist(progress, progress - 1);
-       }
+        }
       }
-      px[nodes] = px[nstart];
-      py[nodes] = py[nstart];
-      path[nodes] =  path[nstart];
+      px[nodes]   = px[nstart];
+      py[nodes]   = py[nstart];
+      path[nodes] = path[nstart];
       initlen += dist(nodes, nstart);
     }
     __syncthreads();
@@ -341,7 +340,7 @@ __global__ __launch_bounds__(2048, 2) void two_opt_search(int *mylock,
     while (atomicExch(mylock, 1) != 0)
       ;  // acquire
     if (best_tour[0] == term) {
-      best_soln = px;
+      best_soln  = px;
       best_route = path;
     }
     *mylock = 0;  // release

@@ -71,20 +71,20 @@ void TSP::allocate()
   work_route_vec_.resize(4 * restart_batch_ * ((3 * nodes_ + 2 + 31) / 32 * 32));
 
   // Pointers
-  neighbors_ = neighbors_vec_.data().get();
-  work_      = work_vec_.data().get();
-  work_route_      = work_route_vec_.data().get();
+  neighbors_  = neighbors_vec_.data().get();
+  work_       = work_vec_.data().get();
+  work_route_ = work_route_vec_.data().get();
 }
 
 float TSP::compute()
 {
-  float valid_coo_dist = 0.f;
+  float valid_coo_dist    = 0.f;
   int num_restart_batches = (restarts_ + restart_batch_ - 1) / restart_batch_;
-  int restart_resid        = restarts_ - (num_restart_batches - 1) * restart_batch_;
-  int global_best = INT_MAX;
-  float *soln     = nullptr;
-  int *route_sol = nullptr;
-  int best        = 0;
+  int restart_resid       = restarts_ - (num_restart_batches - 1) * restart_batch_;
+  int global_best         = INT_MAX;
+  float *soln             = nullptr;
+  int *route_sol          = nullptr;
+  int best                = 0;
   std::vector<float> pos;
   pos.reserve((nodes_ + 1) * 2);
 
@@ -115,20 +115,19 @@ float TSP::compute()
 
     if (b == num_restart_batches - 1) restart_batch_ = restart_resid;
 
-    two_opt_search<<<restart_batch_, threads, sizeof(int) * threads, stream_>>>(
-        mylock_,
-        n_climbs_,
-        best_tour_,
-        vtx_ptr_,
-        work_route_,
-        beam_search_,
-        k_,
-        nodes_,
-        neighbors_,
-        x_pos_,
-        y_pos_,
-        work_,
-        nstart_);
+    two_opt_search<<<restart_batch_, threads, sizeof(int) * threads, stream_>>>(mylock_,
+                                                                                n_climbs_,
+                                                                                best_tour_,
+                                                                                vtx_ptr_,
+                                                                                work_route_,
+                                                                                beam_search_,
+                                                                                k_,
+                                                                                nodes_,
+                                                                                neighbors_,
+                                                                                x_pos_,
+                                                                                y_pos_,
+                                                                                work_,
+                                                                                nstart_);
 
     CHECK_CUDA(stream_);
     cudaDeviceSynchronize();
@@ -144,7 +143,8 @@ float TSP::compute()
       CUDA_TRY(cudaMemcpyFromSymbol(&route_sol, best_route, sizeof(void *)));
       cudaDeviceSynchronize();
 
-      CUDA_TRY(cudaMemcpy(pos.data(), soln, sizeof(float) * (nodes_ + 1) * 2, cudaMemcpyDeviceToHost));
+      CUDA_TRY(
+        cudaMemcpy(pos.data(), soln, sizeof(float) * (nodes_ + 1) * 2, cudaMemcpyDeviceToHost));
       cudaDeviceSynchronize();
     }
   }
@@ -152,9 +152,7 @@ float TSP::compute()
   if (verbose_) printf("Optimized tour length = %d\n", global_best);
 
   for (int i = 0; i < nodes_; i++) {
-    if (verbose_) {
-      printf("%.1f %.1f\n", pos[i], pos[i + nodes_ + 1]);
-    }
+    if (verbose_) { printf("%.1f %.1f\n", pos[i], pos[i + nodes_ + 1]); }
     valid_coo_dist += cpudist(i, i + 1);
   }
   raft::copy(route_, route_sol, nodes_, stream_);
@@ -189,16 +187,16 @@ void TSP::knn()
   // the point itself that we don't want to take into account.
 
   raft::spatial::knn::brute_force_knn(handle_,
-                             input_vec,
-                             sizes_vec,
-                             dim,
-                             search_data_ptr,
-                             nodes_,
-                             neighbors_,
-                             distances_ptr,
-                             k_ + 1,
-                             row_major_order,
-                             row_major_order);
+                                      input_vec,
+                                      sizes_vec,
+                                      dim,
+                                      search_data_ptr,
+                                      nodes_,
+                                      neighbors_,
+                                      distances_ptr,
+                                      k_ + 1,
+                                      row_major_order,
+                                      row_major_order);
 }
 }  // namespace detail
 
@@ -219,8 +217,8 @@ float traveling_salesman(raft::handle_t &handle,
   RAFT_EXPECTS(restarts > 0, "restarts should be strictly positive");
   RAFT_EXPECTS(k > 0, "k should be strictly positive");
 
-  cugraph::detail::TSP tsp(handle, vtx_ptr, route, x_pos, y_pos, nodes,
-      restarts, beam_search, k, nstart, verbose);
+  cugraph::detail::TSP tsp(
+    handle, vtx_ptr, route, x_pos, y_pos, nodes, restarts, beam_search, k, nstart, verbose);
   return tsp.compute();
 }
 
