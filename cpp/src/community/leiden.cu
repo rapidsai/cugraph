@@ -17,6 +17,8 @@
 #include <community/flatten_dendrogram.cuh>
 #include <community/leiden.cuh>
 
+#include <rmm/device_uvector.hpp>
+
 namespace cugraph {
 
 template <typename vertex_t, typename edge_t, typename weight_t>
@@ -28,12 +30,14 @@ std::pair<size_t, weight_t> leiden(raft::handle_t const &handle,
 {
   CUGRAPH_EXPECTS(graph.edge_data != nullptr,
                   "Invalid input argument: leiden expects a weighted graph");
-  CUGRAPH_EXPECTS(clustering != nullptr, "Invalid input argument: clustering is null");
+  CUGRAPH_EXPECTS(clustering != nullptr,
+                  "Invalid input argument: clustering is null, should be a device pointer to "
+                  "memory for storing the result");
 
   Leiden<GraphCSRView<vertex_t, edge_t, weight_t>> runner(handle, graph);
   weight_t wt = runner(max_level, resolution);
 
-  thrust::device_vector<vertex_t> vertex_ids_v(graph.number_of_vertices);
+  rmm::device_uvector<vertex_t> vertex_ids_v(graph.number_of_vertices, handle.get_stream());
 
   thrust::copy(rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
                thrust::make_counting_iterator<vertex_t>(0),  // MNMG - base vertex id
@@ -43,7 +47,7 @@ std::pair<size_t, weight_t> leiden(raft::handle_t const &handle,
 
   partition_at_level<vertex_t, false>(handle,
                                       runner.get_dendrogram(),
-                                      vertex_ids_v.data().get(),
+                                      vertex_ids_v.data(),
                                       clustering,
                                       runner.get_dendrogram().num_levels());
 

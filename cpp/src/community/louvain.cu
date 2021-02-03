@@ -19,6 +19,8 @@
 #include <experimental/graph.hpp>
 #include <experimental/louvain.cuh>
 
+#include <rmm/device_uvector.hpp>
+
 namespace cugraph {
 
 namespace detail {
@@ -32,12 +34,14 @@ std::pair<size_t, weight_t> louvain(raft::handle_t const &handle,
 {
   CUGRAPH_EXPECTS(graph_view.edge_data != nullptr,
                   "Invalid input argument: louvain expects a weighted graph");
-  CUGRAPH_EXPECTS(clustering != nullptr, "Invalid input argument: clustering is null");
+  CUGRAPH_EXPECTS(clustering != nullptr,
+                  "Invalid input argument: clustering is null, should be a device pointer to "
+                  "memory for storing the result");
 
   Louvain<GraphCSRView<vertex_t, edge_t, weight_t>> runner(handle, graph_view);
   weight_t wt = runner(max_level, resolution);
 
-  thrust::device_vector<vertex_t> vertex_ids_v(graph_view.number_of_vertices);
+  rmm::device_uvector<vertex_t> vertex_ids_v(graph_view.number_of_vertices, handle.get_stream());
 
   thrust::copy(rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
                thrust::make_counting_iterator<vertex_t>(0),  // MNMG - base vertex id
@@ -47,7 +51,7 @@ std::pair<size_t, weight_t> louvain(raft::handle_t const &handle,
 
   partition_at_level<vertex_t, false>(handle,
                                       runner.get_dendrogram(),
-                                      vertex_ids_v.data().get(),
+                                      vertex_ids_v.data(),
                                       clustering,
                                       runner.get_dendrogram().num_levels());
 
@@ -63,7 +67,9 @@ std::pair<size_t, weight_t> louvain(
   size_t max_level,
   weight_t resolution)
 {
-  CUGRAPH_EXPECTS(clustering != nullptr, "Invalid input argument: clustering is null");
+  CUGRAPH_EXPECTS(clustering != nullptr,
+                  "Invalid input argument: clustering is null, should be a device pointer to "
+                  "memory for storing the result");
 
   // "FIXME": remove this check and the guards below
   //
