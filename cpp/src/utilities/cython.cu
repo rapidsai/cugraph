@@ -963,14 +963,52 @@ template void call_sssp(raft::handle_t const& handle,
                         int64_t* predecessors,
                         const int64_t source_vertex);
 
-// TODO: add the remaining relevant EIDIr's:
-//
 template std::unique_ptr<major_minor_weights_t<int32_t, float>> call_shuffle(
   raft::handle_t const& handle,
   int32_t* edgelist_major_vertices,
   int32_t* edgelist_minor_vertices,
   float* edgelist_weights,
   int32_t num_edgelist_edges,
+  bool is_hypergraph_partitioned);
+
+template std::unique_ptr<major_minor_weights_t<int32_t, float>> call_shuffle(
+  raft::handle_t const& handle,
+  int32_t* edgelist_major_vertices,
+  int32_t* edgelist_minor_vertices,
+  float* edgelist_weights,
+  int64_t num_edgelist_edges,
+  bool is_hypergraph_partitioned);
+
+template std::unique_ptr<major_minor_weights_t<int32_t, double>> call_shuffle(
+  raft::handle_t const& handle,
+  int32_t* edgelist_major_vertices,
+  int32_t* edgelist_minor_vertices,
+  double* edgelist_weights,
+  int32_t num_edgelist_edges,
+  bool is_hypergraph_partitioned);
+
+template std::unique_ptr<major_minor_weights_t<int32_t, double>> call_shuffle(
+  raft::handle_t const& handle,
+  int32_t* edgelist_major_vertices,
+  int32_t* edgelist_minor_vertices,
+  double* edgelist_weights,
+  int64_t num_edgelist_edges,
+  bool is_hypergraph_partitioned);
+
+template std::unique_ptr<major_minor_weights_t<int64_t, float>> call_shuffle(
+  raft::handle_t const& handle,
+  int64_t* edgelist_major_vertices,
+  int64_t* edgelist_minor_vertices,
+  float* edgelist_weights,
+  int64_t num_edgelist_edges,
+  bool is_hypergraph_partitioned);
+
+template std::unique_ptr<major_minor_weights_t<int64_t, double>> call_shuffle(
+  raft::handle_t const& handle,
+  int64_t* edgelist_major_vertices,
+  int64_t* edgelist_minor_vertices,
+  double* edgelist_weights,
+  int64_t num_edgelist_edges,
   bool is_hypergraph_partitioned);
 
 // TODO: add the remaining relevant EIDIr's:
@@ -983,5 +1021,24 @@ template std::unique_ptr<renum_quad_t<int32_t, int32_t>> call_renumber(
   bool is_hypergraph_partitioned,
   bool do_expensive_check,
   bool multi_gpu);
+
+template std::unique_ptr<renum_quad_t<int32_t, int64_t>> call_renumber(
+  raft::handle_t const& handle,
+  int32_t* shuffled_edgelist_major_vertices /* [INOUT] */,
+  int32_t* shuffled_edgelist_minor_vertices /* [INOUT] */,
+  int64_t num_edgelist_edges,
+  bool is_hypergraph_partitioned,
+  bool do_expensive_check,
+  bool multi_gpu);
+
+template std::unique_ptr<renum_quad_t<int64_t, int64_t>> call_renumber(
+  raft::handle_t const& handle,
+  int64_t* shuffled_edgelist_major_vertices /* [INOUT] */,
+  int64_t* shuffled_edgelist_minor_vertices /* [INOUT] */,
+  int64_t num_edgelist_edges,
+  bool is_hypergraph_partitioned,
+  bool do_expensive_check,
+  bool multi_gpu);
+
 }  // namespace cython
 }  // namespace cugraph
