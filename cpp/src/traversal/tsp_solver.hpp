@@ -241,7 +241,7 @@ __global__ __launch_bounds__(2048, 2) void two_opt_search(int *mylock,
     do {
       int k = (j + 1) / 2;
       if ((threadIdx.x + k) < j) {
-        shbuf[threadIdx.x] = MIN(shbuf[threadIdx.x + k], shbuf[threadIdx.x]);
+        shbuf[threadIdx.x] = min(shbuf[threadIdx.x + k], shbuf[threadIdx.x]);
       }
       j = k;
       __syncthreads();
@@ -278,7 +278,7 @@ __global__ __launch_bounds__(2048, 2) void two_opt_search(int *mylock,
       do {
         int k = (j + 1) / 2;
         if ((threadIdx.x + k) < j) {
-          shbuf[threadIdx.x] = MIN(shbuf[threadIdx.x + k], shbuf[threadIdx.x]);
+          shbuf[threadIdx.x] = min(shbuf[threadIdx.x + k], shbuf[threadIdx.x]);
         }
         j = k;
         __syncthreads();

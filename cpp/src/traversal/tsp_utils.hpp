@@ -17,7 +17,6 @@
 #pragma once
 
 /* CPU side validation */
-#define MIN(A, B) ((A) < (B)) ? (A) : (B)
 #define cpudist(a, b)                                                                          \
   (sqrtf((pos[a] - pos[b]) * (pos[a] - pos[b]) + (pos[a + nodes_ + 1] - pos[b + nodes_ + 1]) * \
                                                    (pos[a + nodes_ + 1] - pos[b + nodes_ + 1])))
