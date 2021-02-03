@@ -394,8 +394,12 @@ coarsen_graph(
   // 4. renumber
 
   rmm::device_uvector<vertex_t> renumber_map_labels(0, handle.get_stream());
-  partition_t<vertex_t> partition(
-    std::vector<vertex_t>{}, graph_view.is_hypergraph_partitioned(), 0, 0, 0, 0);
+  partition_t<vertex_t> partition(std::vector<vertex_t>(comm_size + 1, 0),
+                                  graph_view.is_hypergraph_partitioned(),
+                                  row_comm_size,
+                                  col_comm_size,
+                                  row_comm_rank,
+                                  col_comm_rank);
   vertex_t number_of_vertices{};
   edge_t number_of_edges{};
   std::tie(renumber_map_labels, partition, number_of_vertices, number_of_edges) =

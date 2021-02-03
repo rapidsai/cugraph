@@ -1,12 +1,6 @@
+# 0.18.0
 
-# cuGraph 0.18.0 (Date TBD)
-
-## New Features
-
-## Improvements
-
-## Bug Fixes
-- PR #1321 Fix benchmark script trap setup to come after the PATH variable update
+Please see https://github.com/rapidsai/cugraph/releases/tag/branch-0.18-latest for the latest changes to this development branch.
 
 # cuGraph 0.17.0 (10 Dec 2020)
 ## New Features
