@@ -50,15 +50,24 @@ rmm::device_uvector<size_t> sort_and_count(raft::comms::comms_t const &comm,
   auto gpu_id_first = thrust::make_transform_iterator(
     tx_value_first,
     [value_to_gpu_id_op] __device__(auto value) { return value_to_gpu_id_op(value); });
+  rmm::device_uvector<int> d_tx_dst_ranks(comm_size, stream);
   rmm::device_uvector<size_t> d_tx_value_counts(comm_size, stream);
-  thrust::reduce_by_key(rmm::exec_policy(stream)->on(stream),
-                        gpu_id_first,
-                        gpu_id_first + thrust::distance(tx_value_first, tx_value_last),
-                        thrust::make_constant_iterator(size_t{1}),
-                        thrust::make_discard_iterator(),
-                        d_tx_value_counts.begin());
-  std::vector<size_t> tx_value_counts(comm_size);
-  raft::update_host(tx_value_counts.data(), d_tx_value_counts.data(), comm_size, stream);
+  auto last = thrust::reduce_by_key(rmm::exec_policy(stream)->on(stream),
+                                    gpu_id_first,
+                                    gpu_id_first + thrust::distance(tx_value_first, tx_value_last),
+                                    thrust::make_constant_iterator(size_t{1}),
+                                    d_tx_dst_ranks.begin(),
+                                    d_tx_value_counts.begin());
+  if (thrust::distance(d_tx_value_counts.begin(), thrust::get<1>(last)) < comm_size) {
+    rmm::device_uvector<size_t> d_counts(comm_size, stream);
+    thrust::fill(rmm::exec_policy(stream)->on(stream), d_counts.begin(), d_counts.end(), size_t{0});
+    thrust::scatter(rmm::exec_policy(stream)->on(stream),
+                    d_tx_value_counts.begin(),
+                    thrust::get<1>(last),
+                    d_tx_dst_ranks.begin(),
+                    d_counts.begin());
+    d_tx_value_counts = std::move(d_counts);
+  }
 
   return std::move(d_tx_value_counts);
 }
@@ -83,13 +92,24 @@ rmm::device_uvector<size_t> sort_and_count(raft::comms::comms_t const &comm,
 
   auto gpu_id_first = thrust::make_transform_iterator(
     tx_key_first, [key_to_gpu_id_op] __device__(auto key) { return key_to_gpu_id_op(key); });
+  rmm::device_uvector<int> d_tx_dst_ranks(comm_size, stream);
   rmm::device_uvector<size_t> d_tx_value_counts(comm_size, stream);
-  thrust::reduce_by_key(rmm::exec_policy(stream)->on(stream),
-                        gpu_id_first,
-                        gpu_id_first + thrust::distance(tx_key_first, tx_key_last),
-                        thrust::make_constant_iterator(size_t{1}),
-                        thrust::make_discard_iterator(),
-                        d_tx_value_counts.begin());
+  auto last = thrust::reduce_by_key(rmm::exec_policy(stream)->on(stream),
+                                    gpu_id_first,
+                                    gpu_id_first + thrust::distance(tx_key_first, tx_key_last),
+                                    thrust::make_constant_iterator(size_t{1}),
+                                    d_tx_dst_ranks.begin(),
+                                    d_tx_value_counts.begin());
+  if (thrust::distance(d_tx_value_counts.begin(), thrust::get<1>(last)) < comm_size) {
+    rmm::device_uvector<size_t> d_counts(comm_size, stream);
+    thrust::fill(rmm::exec_policy(stream)->on(stream), d_counts.begin(), d_counts.end(), size_t{0});
+    thrust::scatter(rmm::exec_policy(stream)->on(stream),
+                    d_tx_value_counts.begin(),
+                    thrust::get<1>(last),
+                    d_tx_dst_ranks.begin(),
+                    d_counts.begin());
+    d_tx_value_counts = std::move(d_counts);
+  }
 
   return std::move(d_tx_value_counts);
 }
@@ -191,7 +211,7 @@ auto shuffle_values(raft::comms::comms_t const &comm,
 
   auto rx_value_buffer =
     allocate_dataframe_buffer<typename std::iterator_traits<TxValueIterator>::value_type>(
-      rx_offsets.back(), stream);
+      rx_offsets.size() > 0 ? rx_offsets.back() + rx_counts.back() : size_t{0}, stream);
 
   // FIXME: this needs to be replaced with AlltoAll once NCCL 2.8 is released
   // (if num_tx_dst_ranks == num_rx_src_ranks == comm_size).
@@ -234,7 +254,7 @@ auto sort_and_shuffle_values(raft::comms::comms_t const &comm,
 
   auto rx_value_buffer =
     allocate_dataframe_buffer<typename std::iterator_traits<ValueIterator>::value_type>(
-      rx_offsets.back() + rx_counts.back(), stream);
+      rx_offsets.size() > 0 ? rx_offsets.back() + rx_counts.back() : size_t{0}, stream);
 
   // FIXME: this needs to be replaced with AlltoAll once NCCL 2.8 is released
   // (if num_tx_dst_ranks == num_rx_src_ranks == comm_size).
@@ -275,7 +295,7 @@ auto sort_and_shuffle_kv_pairs(raft::comms::comms_t const &comm,
     detail::compute_tx_rx_counts_offsets_ranks(comm, d_tx_value_counts, stream);
 
   rmm::device_uvector<typename std::iterator_traits<VertexIterator>::value_type> rx_keys(
-    rx_offsets.back() + rx_counts.back(), stream);
+    rx_offsets.size() > 0 ? rx_offsets.back() + rx_counts.back() : size_t{0}, stream);
   auto rx_value_buffer =
     allocate_dataframe_buffer<typename std::iterator_traits<ValueIterator>::value_type>(
       rx_keys.size(), stream);

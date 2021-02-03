@@ -238,9 +238,9 @@ graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu, std::enable_if_
     }
     number_of_local_edges_sum =
       host_scalar_allreduce(comm, number_of_local_edges_sum, default_stream);
-    CUGRAPH_EXPECTS(number_of_local_edges_sum == this->get_number_of_edges(),
-                    "Invalid input argument: the sum of local edges doe counts not match with "
-                    "number_of_local_edges.");
+    CUGRAPH_EXPECTS(
+      number_of_local_edges_sum == this->get_number_of_edges(),
+      "Invalid input argument: the sum of local edge counts does not match with number_of_edges.");
 
     CUGRAPH_EXPECTS(
       partition.get_vertex_partition_last(comm_size - 1) == number_of_vertices,
