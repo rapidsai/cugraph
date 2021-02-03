@@ -79,10 +79,10 @@ DATASETS_KTRUSS = [(
 
 DATASETS_TSPLIB = [
         (PurePath(RAPIDS_DATASET_ROOT_DIR)/f,) + (d,) for (f, d) in [
-    ("tsplib/a280.tsp", 2579),
-    ("tsplib/eil51.tsp", 426),
-    ("tsplib/kroA100.tsp", 21282),
-    ("tsplib/tsp225.tsp", 3916)]
+            ("tsplib/a280.tsp", 2579),
+            ("tsplib/eil51.tsp", 426),
+            ("tsplib/kroA100.tsp", 21282),
+            ("tsplib/tsp225.tsp", 3916)]
 ]
 
 DATASETS_SMALL = [
@@ -211,7 +211,7 @@ def create_obj_from_csv(
         )
 
     else:
-        raise TypeError(f"unsupported type: {obj_type}")
+        raise TypeError("unsupported type: {obj_type}")
 
 
 def read_csv_file(csv_file, read_weights_in_sp=True):

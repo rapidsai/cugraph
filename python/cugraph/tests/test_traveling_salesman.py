@@ -17,7 +17,6 @@ import cugraph
 import gc
 import numpy as np
 import pytest
-import rmm
 import time
 
 # Temporarily suppress warnings till networkX fixes deprecation warnings
@@ -39,9 +38,9 @@ def load_tsp(filename=None):
                         delim_whitespace=True,
                         skiprows=6,
                         names=["vertex", "x", "y"],
-                        dtypes={"vertex" : "int32",
-                            "x": "float32",
-                            "y": "float32"}
+                        dtypes={"vertex": "int32",
+                                "x": "float32",
+                                "y": "float32"}
                         )
     gdf = gdf.dropna()
     gdf['vertex'] = gdf['vertex'].str.strip()
