@@ -110,7 +110,7 @@ def egonet(input_graph, vertices, radius=1):
 
     offsets = DeviceBuffer.c_from_unique_ptr(move(el_struct.subgraph_offsets))
     offsets = Buffer(offsets)
-    offsets = cudf.Series(data=src, dtype="int")
+    offsets = cudf.Series(data=offsets, dtype="int")
 
     return df, offsets
 

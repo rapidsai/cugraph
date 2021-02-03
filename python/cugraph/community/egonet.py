@@ -101,7 +101,6 @@ def ego_graph(G, n, radius=1, center=True, undirected=False, distance=None):
         )
     else:
         result_graph.from_cudf_edgelist(df, source="src", destination="dst")
-    print(offsets)
     return _convert_graph_to_output_type(result_graph, input_type)
 
 

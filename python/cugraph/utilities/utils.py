@@ -223,7 +223,6 @@ def ensure_cugraph_obj(obj, nx_weight_attr=None, matrix_graph_type=None):
     from cugraph.utilities.nx_factory import convert_from_nx
 
     input_type = type(obj)
-    print(input_type)
     if input_type in [Graph, DiGraph, MultiGraph, MultiDiGraph]:
         return (obj, input_type)
 
