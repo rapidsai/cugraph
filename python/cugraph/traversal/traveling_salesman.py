@@ -13,7 +13,6 @@
 
 from cugraph.traversal import traveling_salesman_wrapper
 from cugraph.structure.graph import null_check
-from cugraph.structure.number_map import NumberMap
 import cudf
 
 
@@ -23,7 +22,7 @@ def traveling_salesman(pos_list,
                        k=4,
                        nstart=1,
                        verbose=False,
-):
+                       ):
     """
     Finds an approximate solution to the traveling salesman problem (TSP).
     cuGraph computes an approximation of the TSP problem using hill climbing
