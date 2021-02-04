@@ -26,25 +26,25 @@ from pathlib import PurePath
 def cugraph_call(G, min_weight, ensemble_size):
     df = cugraph.ecg(G, min_weight, ensemble_size)
     num_parts = df["partition"].max() + 1
-    score = cugraph.analyzeClustering_modularity(G, num_parts, df,
-                                                 'vertex', 'partition')
+    score = cugraph.analyzeClustering_modularity(
+        G, num_parts, df, "vertex", "partition"
+    )
 
     return score, num_parts
 
 
 def golden_call(graph_file):
-    if graph_file == PurePath(utils.RAPIDS_DATASET_ROOT_DIR)/"dolphins.csv":
+    if graph_file == PurePath(utils.RAPIDS_DATASET_ROOT_DIR) / "dolphins.csv":
         return 0.4962422251701355
-    if graph_file == PurePath(utils.RAPIDS_DATASET_ROOT_DIR)/"karate.csv":
+    if graph_file == PurePath(utils.RAPIDS_DATASET_ROOT_DIR) / "karate.csv":
         return 0.38428664207458496
-    if graph_file == PurePath(utils.RAPIDS_DATASET_ROOT_DIR)/"netscience.csv":
+    if graph_file == PurePath(utils.RAPIDS_DATASET_ROOT_DIR) / "netscience.csv":
         return 0.9279554486274719
 
 
-DATASETS = [PurePath(utils.RAPIDS_DATASET_ROOT_DIR)/f for f in [
-    "karate.csv",
-    "dolphins.csv",
-    "netscience.csv"]
+DATASETS = [
+    PurePath(utils.RAPIDS_DATASET_ROOT_DIR) / f
+    for f in ["karate.csv", "dolphins.csv", "netscience.csv"]
 ]
 
 MIN_WEIGHTS = [0.05, 0.10, 0.15]
@@ -81,7 +81,9 @@ def test_ecg_clustering(graph_file, min_weight, ensemble_size):
         assert cu_score > (0.95 * golden_score)
 
 
-@pytest.mark.skipif(is_device_version_less_than((7, 0)), reason='Not supported on Pascal')
+@pytest.mark.skipif(
+    is_device_version_less_than((7, 0)), reason="Not supported on Pascal"
+)
 @pytest.mark.parametrize("graph_file", DATASETS)
 @pytest.mark.parametrize("min_weight", MIN_WEIGHTS)
 @pytest.mark.parametrize("ensemble_size", ENSEMBLE_SIZES)
@@ -91,8 +93,7 @@ def test_ecg_clustering_nx(graph_file, min_weight, ensemble_size):
     # Read in the graph and get a NetworkX graph
     M = utils.read_csv_for_nx(graph_file, read_weights_in_sp=True)
     G = nx.from_pandas_edgelist(
-        M, source="0", target="1", edge_attr="weight",
-        create_using=nx.Graph()
+        M, source="0", target="1", edge_attr="weight", create_using=nx.Graph()
     )
 
     # Get the modularity score for partitioning versus random assignment
