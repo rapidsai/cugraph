@@ -110,6 +110,39 @@ struct graph_container_t {
   experimental::graph_properties_t graph_props;
 };
 
+/**
+ * @brief     Owning struct. Allows returning multiple edge lists and edge offsets.
+ *            cython only
+ *
+ * @param  number_of_vertices    The total number of vertices
+ * @param  number_of_edges       The total number of edges (number of elements in src_indices,
+ dst_indices and edge_data)
+ * @param  number_of_subgraph    The number of subgraphs, number of elements in subgraph_offsets - 1
+ * @param  source_indices        This array of size E (number of edges) contains
+ * the index of the
+ * source for each edge. Indices must be in the range [0, V-1].
+ * @param  destination_indices   This array of size E (number of edges) contains
+ * the index of the
+ * destination for each edge. Indices must be in the range [0, V-1].
+ * @param  edge_data             This array size E (number of edges) contains
+ * the weight for each
+ * edge.  This array can be null in which case the graph is considered
+ * unweighted.
+ * @param  subgraph_offsets            This array size number_of_subgraph + 1 contains edge offsets
+ for each subgraph
+
+
+ */
+struct cy_multi_edgelists_t {
+  size_t number_of_vertices;
+  size_t number_of_edges;
+  size_t number_of_subgraph;
+  std::unique_ptr<rmm::device_buffer> src_indices;
+  std::unique_ptr<rmm::device_buffer> dst_indices;
+  std::unique_ptr<rmm::device_buffer> edge_data;
+  std::unique_ptr<rmm::device_buffer> subgraph_offsets;
+};
+
 // replacement for std::tuple<,,>, since std::tuple is not
 // supported in cython
 //
@@ -268,7 +301,6 @@ struct renum_quad_t {
   vertex_t nv_;
   edge_t ne_;
 };
-
 // FIXME: finish description for vertex_partition_offsets
 //
 // Factory function for populating an empty graph container with a new graph
@@ -405,6 +437,14 @@ void call_sssp(raft::handle_t const& handle,
                weight_t* distances,
                vertex_t* predecessors,
                const vertex_t source_vertex);
+
+// Wrapper for calling egonet through a graph container
+template <typename vertex_t, typename weight_t>
+std::unique_ptr<cy_multi_edgelists_t> call_egonet(raft::handle_t const& handle,
+                                                  graph_container_t const& graph_container,
+                                                  vertex_t* source_vertex,
+                                                  vertex_t n_subgraphs,
+                                                  vertex_t radius);
 
 // wrapper for shuffling:
 //

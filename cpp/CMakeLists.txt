@@ -354,6 +354,7 @@ add_library(cugraph SHARED
     src/community/ECG.cu
     src/community/triangles_counting.cu
     src/community/extract_subgraph_by_vertex.cu
+    src/community/egonet.cu
     src/cores/core_number.cu
     src/traversal/two_hop_neighbors.cu
     src/components/connectivity.cu
