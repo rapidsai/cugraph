@@ -102,7 +102,6 @@ def test_subgraph_extraction_Graph(graph_file):
     assert compare_edges(cu_sg, nx_sg)
 
 
-@pytest.mark.skip(reason="needs test updates for graph comparison")
 @pytest.mark.parametrize("graph_file", utils.DATASETS)
 def test_subgraph_extraction_Graph_nx(graph_file):
     gc.collect()
@@ -124,10 +123,9 @@ def test_subgraph_extraction_Graph_nx(graph_file):
         )
 
     nx_sub = nx.subgraph(G, verts)
-    nx_df = nx.to_pandas_edgelist(nx_sub).to_dict()
 
     cu_verts = cudf.Series(verts)
     cu_sub = cugraph.subgraph(G, cu_verts)
-    cu_df = nx.to_pandas_edgelist(cu_sub).to_dict()
 
-    assert nx_df == cu_df
+    for (u, v) in cu_sub.edges():
+        assert nx_sub.has_edge(u, v)
