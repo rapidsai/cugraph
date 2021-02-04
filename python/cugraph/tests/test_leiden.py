@@ -20,6 +20,8 @@ import networkx as nx
 import cugraph
 from cugraph.tests import utils
 
+from cugraph.utilities.utils import is_device_version_less_than
+
 # Temporarily suppress warnings till networkX fixes deprecation warnings
 # (Using or importing the ABCs from 'collections' instead of from
 # 'collections.abc' is deprecated, and in 3.8 it will stop working) for
@@ -53,6 +55,7 @@ def cugraph_louvain(G, edgevals=False):
     return parts, mod
 
 
+@pytest.mark.skipif(is_device_version_less_than((7, 0)), reason='Not supported on Pascal')
 @pytest.mark.parametrize("graph_file", utils.DATASETS)
 def test_leiden(graph_file):
     gc.collect()
@@ -73,6 +76,7 @@ def test_leiden(graph_file):
     assert leiden_mod >= (0.99 * louvain_mod)
 
 
+@pytest.mark.skipif(is_device_version_less_than((7, 0)), reason='Not supported on Pascal')
 @pytest.mark.parametrize("graph_file", utils.DATASETS)
 def test_leiden_nx(graph_file):
     gc.collect()

@@ -18,6 +18,7 @@ import pytest
 
 import cugraph
 from cugraph.tests import utils
+from cugraph.utilities.utils import is_device_version_less_than
 
 # Temporarily suppress warnings till networkX fixes deprecation warnings
 # (Using or importing the ABCs from 'collections' instead of from
@@ -71,51 +72,61 @@ def networkx_call(M):
 def test_louvain_with_edgevals(graph_file):
     gc.collect()
 
-    M = utils.read_csv_for_nx(graph_file)
-    cu_M = utils.read_csv_file(graph_file)
-    cu_parts, cu_mod = cugraph_call(cu_M, edgevals=True)
+    if is_device_version_less_than((7, 0)):
+        cu_M = utils.read_csv_file(graph_file)
+        with pytest.raises(RuntimeError):
+            cu_parts, cu_mod = cugraph_call(cu_M)
+    else:
+        M = utils.read_csv_for_nx(graph_file)
+        cu_M = utils.read_csv_file(graph_file)
+        cu_parts, cu_mod = cugraph_call(cu_M, edgevals=True)
 
-    nx_parts = networkx_call(M)
-    # Calculating modularity scores for comparison
-    Gnx = nx.from_pandas_edgelist(
-        M, source="0", target="1", edge_attr="weight", create_using=nx.Graph()
-    )
+        nx_parts = networkx_call(M)
+        # Calculating modularity scores for comparison
+        Gnx = nx.from_pandas_edgelist(
+            M, source="0", target="1", edge_attr="weight", create_using=nx.Graph()
+        )
 
-    cu_parts = cu_parts.to_pandas()
-    cu_map = dict(zip(cu_parts['vertex'], cu_parts['partition']))
+        cu_parts = cu_parts.to_pandas()
+        cu_map = dict(zip(cu_parts['vertex'], cu_parts['partition']))
 
-    assert set(nx_parts.keys()) == set(cu_map.keys())
+        assert set(nx_parts.keys()) == set(cu_map.keys())
 
-    cu_mod_nx = community.modularity(cu_map, Gnx)
-    nx_mod = community.modularity(nx_parts, Gnx)
+        cu_mod_nx = community.modularity(cu_map, Gnx)
+        nx_mod = community.modularity(nx_parts, Gnx)
 
-    assert len(cu_parts) == len(nx_parts)
-    assert cu_mod > (0.82 * nx_mod)
-    assert abs(cu_mod - cu_mod_nx) < 0.0001
+        assert len(cu_parts) == len(nx_parts)
+        assert cu_mod > (0.82 * nx_mod)
+        assert abs(cu_mod - cu_mod_nx) < 0.0001
 
 
 @pytest.mark.parametrize("graph_file", utils.DATASETS_UNDIRECTED)
 def test_louvain(graph_file):
     gc.collect()
 
-    M = utils.read_csv_for_nx(graph_file)
-    cu_M = utils.read_csv_file(graph_file)
-    cu_parts, cu_mod = cugraph_call(cu_M)
-    nx_parts = networkx_call(M)
+    if is_device_version_less_than((7, 0)):
+        cu_M = utils.read_csv_file(graph_file)
+        with pytest.raises(RuntimeError):
+            cu_parts, cu_mod = cugraph_call(cu_M)
+    else:
+        M = utils.read_csv_for_nx(graph_file)
+        cu_M = utils.read_csv_file(graph_file)
+        cu_parts, cu_mod = cugraph_call(cu_M)
+        nx_parts = networkx_call(M)
 
-    # Calculating modularity scores for comparison
-    Gnx = nx.from_pandas_edgelist(
-        M, source="0", target="1", edge_attr="weight", create_using=nx.Graph()
-    )
+        # Calculating modularity scores for comparison
+        Gnx = nx.from_pandas_edgelist(
+            M, source="0", target="1", edge_attr="weight", create_using=nx.Graph()
+        )
 
-    cu_parts = cu_parts.to_pandas()
-    cu_map = dict(zip(cu_parts['vertex'], cu_parts['partition']))
+        cu_parts = cu_parts.to_pandas()
+        cu_map = dict(zip(cu_parts['vertex'], cu_parts['partition']))
 
-    assert set(nx_parts.keys()) == set(cu_map.keys())
+        assert set(nx_parts.keys()) == set(cu_map.keys())
 
-    cu_mod_nx = community.modularity(cu_map, Gnx)
-    nx_mod = community.modularity(nx_parts, Gnx)
+        cu_mod_nx = community.modularity(cu_map, Gnx)
+        nx_mod = community.modularity(nx_parts, Gnx)
 
-    assert len(cu_parts) == len(nx_parts)
-    assert cu_mod > (0.82 * nx_mod)
-    assert abs(cu_mod - cu_mod_nx) < 0.0001
+        assert len(cu_parts) == len(nx_parts)
+        assert cu_mod > (0.82 * nx_mod)
+        assert abs(cu_mod - cu_mod_nx) < 0.0001
