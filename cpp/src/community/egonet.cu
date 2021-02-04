@@ -37,7 +37,7 @@
 namespace {
 /*
 Description
-Let the egonet graph of a node x be the subgraph that includes the neighborhood of x and all edges
+Let the egonet graph of a node x be the subgraph that includes node x, the neighborhood of x, and all edges
 between them. Naive algorithm
 - Add center node x to the graph.
 - Go through all the neighbors y of this center node x, add edge (x, y) to the graph.
