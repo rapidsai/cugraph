@@ -14,11 +14,7 @@
 # limitations under the License.
 #=============================================================================
 
-<<<<<<< c2ba8775ec7e0aef0a73888aee4862a3b0974b01
 cmake_minimum_required(VERSION 3.18...3.18 FATAL_ERROR)
-=======
-cmake_minimum_required(VERSION 3.14..3.17 FATAL_ERROR)
->>>>>>> Move faiss to using fetch content
 
 project(CUGRAPH VERSION 0.18.0 LANGUAGES C CXX CUDA)
 
@@ -302,7 +298,7 @@ else(DEFINED ENV{RAFT_PATH})
   FetchContent_Declare(
     raft
     GIT_REPOSITORY    https://github.com/rapidsai/raft.git
-    GIT_TAG           9dbf2c8a9134ce8135f7fe947ec523d874fcab6a
+    GIT_TAG           4a79adcb0c0e87964dcdc9b9122f242b5235b702
     SOURCE_SUBDIR     raft
   )
 
@@ -355,47 +351,42 @@ add_dependencies(gunrock gunrock_ext)
 set_property(TARGET gunrock PROPERTY IMPORTED_LOCATION ${GUNROCK_DIR}/src/gunrock_ext-build/lib/libgunrock.a)
 
 # - FAISS
+# FIXME: The commit currently being fetched from faiss is using autotools which
+# is more convenient to build with ExternalProjectAdd.
+# Consider migrating to FetchContent once the tagged commit is changed.
+
 if(BUILD_STATIC_FAISS)
   set(FAISS_DIR ${CMAKE_CURRENT_BINARY_DIR}/faiss CACHE STRING
     "Path to FAISS source directory")
-
-  FetchContent_Declare(faiss
+  ExternalProject_Add(faiss
     GIT_REPOSITORY    https://github.com/facebookresearch/faiss.git
     GIT_TAG           a5b850dec6f1cd6c88ab467bfd5e87b0cac2e41d
+    CONFIGURE_COMMAND LIBS=-pthread
+                      CPPFLAGS=-w
+                      LDFLAGS=-L${CMAKE_INSTALL_PREFIX}/lib
+                              ${CMAKE_CURRENT_BINARY_DIR}/faiss/src/faiss/configure
+	                      --prefix=${CMAKE_CURRENT_BINARY_DIR}/faiss
+	                      --with-blas=${BLAS_LIBRARIES}
+	                      --with-cuda=${CUDA_TOOLKIT_ROOT_DIR}
+	                      --with-cuda-arch=${FAISS_GPU_ARCHS}
+	                      -v
+    PREFIX            ${FAISS_DIR}
+    BUILD_COMMAND     make -j${PARALLEL_LEVEL} VERBOSE=1
+    BUILD_BYPRODUCTS  ${FAISS_DIR}/lib/libfaiss.a
+    BUILD_ALWAYS      1
+    INSTALL_COMMAND   make -s install > /dev/null
+    UPDATE_COMMAND    ""
+    BUILD_IN_SOURCE   1
     PATCH_COMMAND     patch -p1 -N < ${CMAKE_CURRENT_SOURCE_DIR}/cmake/faiss_cuda11.patch || true)
 
-
-  FetchContent_GetProperties(faiss)
-  if(NOT faiss_POPULATED)
-      message("populating faiss")
-        FetchContent_Populate(faiss)
-        # Fetched version of faiss uses autotools
-        # add_custom_target should be replace with: add_subdirectory(${faiss_SOURCE_DIR} ${faiss_BINARY_DIR})
-        # when pointing to a newer commit that uses CMake.
-        add_custom_target(zoo
-          COMMAND LIBS=-pthread
-          CPPFLAGS=-w
-          LDFLAGS=-L${CMAKE_INSTALL_PREFIX}/lib
-                  ${faiss_SOURCE_DIR}/faiss/configure
-          --prefix=${CMAKE_CURRENT_BINARY_DIR}/faiss
-          --with-blas=${BLAS_LIBRARIES}
-          --with-cuda=${CUDA_TOOLKIT_ROOT_DIR}
-          --with-cuda-arch=${FAISS_GPU_ARCHS}
-          -v)
-        add_custom_target(foo
-          COMMAND make -j${PARALLEL_LEVEL} VERBOSE=1
-          DEPENDS zoo
-          BYPRODUCTS ${faiss_SOURCE_DIR}/lib/libfaiss.a)
-  endif()
+  ExternalProject_Get_Property(faiss install_dir)
   add_library(FAISS::FAISS STATIC IMPORTED)
-  #add_dependencies(FAISS::FAISS foo)
+  add_dependencies(FAISS::FAISS faiss)
   set_property(TARGET FAISS::FAISS PROPERTY
-    IMPORTED_LOCATION ${faiss_SOURCE_DIR}/lib/libfaiss.a)
-  set(FAISS_INCLUDE_DIRS "${faiss_SOURCE_DIR}/src")
-  message(STATUS "FAISS: FAISS_INCLUDE_DIRS set to ${FAISS_INCLUDE_DIRS}")
+    IMPORTED_LOCATION ${FAISS_DIR}/lib/libfaiss.a)
 else()
-  add_library(libfaiss SHARED IMPORTED)
-  set_property(TARGET libfaiss PROPERTY
+  add_library(FAISS::FAISS SHARED IMPORTED)
+  set_property(TARGET FAISS::FAISS PROPERTY
     IMPORTED_LOCATION $ENV{CONDA_PREFIX}/lib/libfaiss.so)
   message(STATUS "Found FAISS: $ENV{CONDA_PREFIX}/lib/libfaiss.so")
 endif(BUILD_STATIC_FAISS)
@@ -454,7 +445,6 @@ target_include_directories(cugraph
     "${CMAKE_CURRENT_SOURCE_DIR}/src"
     "${GUNROCK_INCLUDE_DIR}"
     "${NCCL_INCLUDE_DIRS}"
-    "${FAISS_INCLUDE_DIRS}"
     "${RAFT_DIR}/cpp/include"
     PUBLIC
     "${CMAKE_CURRENT_SOURCE_DIR}/include"
