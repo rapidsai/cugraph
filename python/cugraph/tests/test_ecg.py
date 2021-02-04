@@ -18,7 +18,6 @@ import networkx as nx
 import cugraph
 from cugraph.tests import utils
 from pathlib import PurePath
-import cudf
 
 
 def cugraph_call(G, min_weight, ensemble_size):
