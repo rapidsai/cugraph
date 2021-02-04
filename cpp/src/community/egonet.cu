@@ -35,10 +35,11 @@
 #include <experimental/graph_view.hpp>
 
 namespace {
+
 /*
 Description
-Let the egonet graph of a node x be the subgraph that includes node x, the neighborhood of x, and all edges
-between them. Naive algorithm
+Let the egonet graph of a node x be the subgraph that includes node x, the neighborhood of x, and
+all edges between them. Naive algorithm
 - Add center node x to the graph.
 - Go through all the neighbors y of this center node x, add edge (x, y) to the graph.
 - For each neighbor y of center node x, go through all the neighbors z of center node x, if there is
