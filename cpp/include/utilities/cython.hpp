@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020, NVIDIA CORPORATION.
+ * Copyright (c) 2020-2021, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -18,6 +18,7 @@
 #include <experimental/graph.hpp>
 #include <graph.hpp>
 #include <raft/handle.hpp>
+#include <rmm/device_uvector.hpp>
 
 namespace cugraph {
 namespace cython {
@@ -107,6 +108,165 @@ struct graph_container_t {
   int row_comm_rank;
   int col_comm_rank;
   experimental::graph_properties_t graph_props;
+};
+
+// replacement for std::tuple<,,>, since std::tuple is not
+// supported in cython
+//
+template <typename vertex_t, typename weight_t>
+struct major_minor_weights_t {
+  explicit major_minor_weights_t(raft::handle_t const& handle)
+    : shuffled_major_vertices_(0, handle.get_stream()),
+      shuffled_minor_vertices_(0, handle.get_stream()),
+      shuffled_weights_(0, handle.get_stream())
+  {
+  }
+  rmm::device_uvector<vertex_t>& get_major(void) { return shuffled_major_vertices_; }
+
+  rmm::device_uvector<vertex_t>& get_minor(void) { return shuffled_minor_vertices_; }
+
+  rmm::device_uvector<weight_t>& get_weights(void) { return shuffled_weights_; }
+
+  std::pair<std::unique_ptr<rmm::device_buffer>, size_t> get_major_wrap(
+    void)  // const: triggers errors in Cython autogen-ed C++
+  {
+    return std::make_pair(std::make_unique<rmm::device_buffer>(shuffled_major_vertices_.release()),
+                          sizeof(vertex_t));
+  }
+
+  std::pair<std::unique_ptr<rmm::device_buffer>, size_t> get_minor_wrap(void)  // const
+  {
+    return std::make_pair(std::make_unique<rmm::device_buffer>(shuffled_minor_vertices_.release()),
+                          sizeof(vertex_t));
+  }
+
+  std::pair<std::unique_ptr<rmm::device_buffer>, size_t> get_weights_wrap(void)  // const
+  {
+    return std::make_pair(std::make_unique<rmm::device_buffer>(shuffled_weights_.release()),
+                          sizeof(weight_t));
+  }
+
+ private:
+  rmm::device_uvector<vertex_t> shuffled_major_vertices_;
+  rmm::device_uvector<vertex_t> shuffled_minor_vertices_;
+  rmm::device_uvector<weight_t> shuffled_weights_;
+};
+
+// wrapper for renumber_edgelist() return
+// (unrenumbering maps, etc.)
+//
+template <typename vertex_t, typename edge_t>
+struct renum_quad_t {
+  explicit renum_quad_t(raft::handle_t const& handle)
+    : dv_(0, handle.get_stream()), part_(std::vector<vertex_t>(), false, 0, 0, 0, 0)
+  {
+  }
+
+  rmm::device_uvector<vertex_t>& get_dv(void) { return dv_; }
+
+  std::pair<std::unique_ptr<rmm::device_buffer>, size_t> get_dv_wrap(
+    void)  // const: see above explanation
+  {
+    return std::make_pair(std::make_unique<rmm::device_buffer>(dv_.release()), sizeof(vertex_t));
+  }
+
+  cugraph::experimental::partition_t<vertex_t>& get_partition(void) { return part_; }
+  vertex_t& get_num_vertices(void) { return nv_; }
+  edge_t& get_num_edges(void) { return ne_; }
+
+  // `partition_t` pass-through getters
+  //
+  int get_part_row_size() const { return part_.get_row_size(); }
+
+  int get_part_col_size() const { return part_.get_col_size(); }
+
+  int get_part_comm_rank() const { return part_.get_comm_rank(); }
+
+  // FIXME: part_.get_vertex_partition_offsets() returns a std::vector
+  //
+  std::unique_ptr<std::vector<vertex_t>> get_partition_offsets(void)  // const
+  {
+    return std::make_unique<std::vector<vertex_t>>(part_.get_vertex_partition_offsets());
+  }
+
+  std::pair<vertex_t, vertex_t> get_part_local_vertex_range() const
+  {
+    auto tpl_v = part_.get_local_vertex_range();
+    return std::make_pair(std::get<0>(tpl_v), std::get<1>(tpl_v));
+  }
+
+  vertex_t get_part_local_vertex_first() const { return part_.get_local_vertex_first(); }
+
+  vertex_t get_part_local_vertex_last() const { return part_.get_local_vertex_last(); }
+
+  std::pair<vertex_t, vertex_t> get_part_vertex_partition_range(size_t vertex_partition_idx) const
+  {
+    auto tpl_v = part_.get_vertex_partition_range(vertex_partition_idx);
+    return std::make_pair(std::get<0>(tpl_v), std::get<1>(tpl_v));
+  }
+
+  vertex_t get_part_vertex_partition_first(size_t vertex_partition_idx) const
+  {
+    return part_.get_vertex_partition_first(vertex_partition_idx);
+  }
+
+  vertex_t get_part_vertex_partition_last(size_t vertex_partition_idx) const
+  {
+    return part_.get_vertex_partition_last(vertex_partition_idx);
+  }
+
+  vertex_t get_part_vertex_partition_size(size_t vertex_partition_idx) const
+  {
+    return part_.get_vertex_partition_size(vertex_partition_idx);
+  }
+
+  size_t get_part_number_of_matrix_partitions() const
+  {
+    return part_.get_number_of_matrix_partitions();
+  }
+
+  std::pair<vertex_t, vertex_t> get_part_matrix_partition_major_range(size_t partition_idx) const
+  {
+    auto tpl_v = part_.get_matrix_partition_major_range(partition_idx);
+    return std::make_pair(std::get<0>(tpl_v), std::get<1>(tpl_v));
+  }
+
+  vertex_t get_part_matrix_partition_major_first(size_t partition_idx) const
+  {
+    return part_.get_matrix_partition_major_first(partition_idx);
+  }
+
+  vertex_t get_part_matrix_partition_major_last(size_t partition_idx) const
+  {
+    return part_.get_matrix_partition_major_last(partition_idx);
+  }
+
+  vertex_t get_part_matrix_partition_major_value_start_offset(size_t partition_idx) const
+  {
+    return part_.get_part_matrix_partition_major_value_start_offset(partition_idx);
+  }
+
+  std::pair<vertex_t, vertex_t> get_part_matrix_partition_minor_range() const
+  {
+    auto tpl_v = part_.get_matrix_partition_minor_range();
+    return std::make_pair(std::get<0>(tpl_v), std::get<1>(tpl_v));
+  }
+
+  vertex_t get_part_matrix_partition_minor_first() const
+  {
+    return part_.get_matrix_partition_minor_first();
+  }
+
+  vertex_t get_part_matrix_partition_minor_last() const
+  {
+    return part_.get_matrix_partition_minor_last();
+  }
+
+ private:
+  rmm::device_uvector<vertex_t> dv_;
+  cugraph::experimental::partition_t<vertex_t> part_;
+  vertex_t nv_;
+  edge_t ne_;
 };
 
 // FIXME: finish description for vertex_partition_offsets
@@ -245,6 +405,29 @@ void call_sssp(raft::handle_t const& handle,
                weight_t* distances,
                vertex_t* predecessors,
                const vertex_t source_vertex);
+
+// wrapper for shuffling:
+//
+template <typename vertex_t, typename edge_t, typename weight_t>
+std::unique_ptr<major_minor_weights_t<vertex_t, weight_t>> call_shuffle(
+  raft::handle_t const& handle,
+  vertex_t* edgelist_major_vertices,  // [IN / OUT]: sort_and_shuffle_values() sorts in-place
+  vertex_t* edgelist_minor_vertices,  // [IN / OUT]
+  weight_t* edgelist_weights,         // [IN / OUT]
+  edge_t num_edgelist_edges,
+  bool is_hypergraph_partitioned);  // = false
+
+// Wrapper for calling renumber_edeglist() inplace:
+//
+template <typename vertex_t, typename edge_t>
+std::unique_ptr<renum_quad_t<vertex_t, edge_t>> call_renumber(
+  raft::handle_t const& handle,
+  vertex_t* shuffled_edgelist_major_vertices /* [INOUT] */,
+  vertex_t* shuffled_edgelist_minor_vertices /* [INOUT] */,
+  edge_t num_edgelist_edges,
+  bool is_hypergraph_partitioned,
+  bool do_expensive_check,
+  bool multi_gpu);
 
 // Helper for setting up subcommunicators, typically called as part of the
 // user-initiated comms initialization in Python.

@@ -25,13 +25,16 @@
 namespace cugraph {
 namespace test {
 
-// MG test utility which returns a MG graph_t instance constructed from a
-// edgelist (currently assumed to be generated from reading a .mtx file).  The
-// data is partitioned, shuffled, and renumbered based on the current GPU rank
-// before being passed to the graph_t ctor.
-//
+// Given a raft handle and an edgelist from reading a dataset (.mtx in this
+// case), returns a tuple containing:
+//  * graph_t instance for the partition accesible from the raft handle
+//  * 4-tuple containing renumber info resulting from renumbering the
+//    edgelist for the partition
 template <typename vertex_t, typename edge_t, typename weight_t, bool store_transposed>
-cugraph::experimental::graph_t<vertex_t, edge_t, weight_t, store_transposed, true> // multi_gpu=true
+std::tuple<
+   std::unique_ptr<cugraph::experimental::graph_t<vertex_t, edge_t, weight_t, store_transposed, true>>, // multi_gpu=true
+   rmm::device_uvector<vertex_t>
+>
 create_graph_for_gpu(raft::handle_t& handle,
                      edgelist_from_market_matrix_file_t<vertex_t, weight_t> edgelist_from_mm) {
 
@@ -112,7 +115,18 @@ create_graph_for_gpu(raft::handle_t& handle,
       major_vertices = d_edgelist_rows.data();
       minor_vertices = d_edgelist_cols.data();
    }
-   auto renumber_info = ::cugraph::experimental::renumber_edgelist<vertex_t, edge_t, true> // multi_gpu=true
+
+   rmm::device_uvector<vertex_t> renumber_map_labels(0, handle.get_stream());
+   cugraph::experimental::partition_t<vertex_t> partition(std::vector<vertex_t>(comm.get_size() + 1, 0),
+                                   false, // is_hypergraph_partitioned(),
+                                   row_comm.get_size(),
+                                   col_comm.get_size(),
+                                   row_comm.get_rank(),
+                                   col_comm.get_rank());
+   vertex_t number_of_vertices{};
+   edge_t number_of_edges{};
+   std::tie(renumber_map_labels, partition, number_of_vertices, number_of_edges) =
+      ::cugraph::experimental::renumber_edgelist<vertex_t, edge_t, true> // multi_gpu=true
       (handle,
        major_vertices,  // edgelist_major_vertices, INOUT of vertex_t*
        minor_vertices,  // edgelist_minor_vertices, INOUT of vertex_t*
@@ -127,7 +141,7 @@ create_graph_for_gpu(raft::handle_t& handle,
       d_edgelist_weights.data(),
       local_number_edges};
 
-   cugraph::experimental::partition_t<vertex_t> partition = std::get<1>(renumber_info);
+   //cugraph::experimental::partition_t<vertex_t> partition = std::get<1>(renumber_info);
    std::vector<cugraph::experimental::edgelist_t<vertex_t, edge_t, weight_t>> edgelist_vect;
    edgelist_vect.push_back(edgelist);
    cugraph::experimental::graph_properties_t properties;
@@ -135,22 +149,28 @@ create_graph_for_gpu(raft::handle_t& handle,
    properties.is_multigraph = false;
 
    // Finally, create instance of graph_t using filtered & renumbered edgelist
-   return cugraph::experimental::graph_t<vertex_t, edge_t, weight_t, store_transposed, true>( // multi_gpu=true
-      handle,
-      edgelist_vect,
-      partition,
-      edgelist_from_mm.number_of_vertices,
-      total_number_edges,
-      properties,
-      false, // sorted_by_global_degree_within_vertex_partition
-      true); // do_expensive_check
+   return std::make_tuple(
+      std::make_unique<cugraph::experimental::graph_t<vertex_t, edge_t, weight_t, store_transposed, true>>(
+         handle,
+         edgelist_vect,
+         partition,
+         edgelist_from_mm.number_of_vertices,
+         total_number_edges,
+         properties,
+         false, // sorted_by_global_degree_within_vertex_partition
+         true), // do_expensive_check
+      std::move(renumber_map_labels));
 }
 
 // explicit instantiation
+   //   std::tuple<rmm::device_uvector<int32_t>, cugraph::experimental::partition_t<int32_t>, int32_t, int32_t>&&
 template
-cugraph::experimental::graph_t<int, int, float, true, true, void>
+std::tuple<
+   std::unique_ptr<cugraph::experimental::graph_t<int32_t, int32_t, float, true, true>>, // store_transposed=true multi_gpu=true
+   rmm::device_uvector<int32_t>
+>
 create_graph_for_gpu(raft::handle_t& handle,
-                     edgelist_from_market_matrix_file_t<int, float> edgelist_from_mm);
+                     edgelist_from_market_matrix_file_t<int32_t, float> edgelist_from_mm);
 
 } // namespace test
 } // namespace cugraph

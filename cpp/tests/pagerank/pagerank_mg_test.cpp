@@ -29,98 +29,6 @@
 
 
 ////////////////////////////////////////////////////////////////////////////////
-// Pagerank reference implementation
-template <typename vertex_t, typename edge_t, typename weight_t, typename result_t>
-void pagerank_reference(edge_t const* offsets,
-                        vertex_t const* indices,
-                        weight_t const* weights,
-                        vertex_t const* personalization_vertices,
-                        result_t const* personalization_values,
-                        result_t* pageranks,
-                        vertex_t num_vertices,
-                        vertex_t personalization_vector_size,
-                        result_t alpha,
-                        result_t epsilon,
-                        size_t max_iterations,
-                        bool has_initial_guess)
-{
-  if (num_vertices == 0) { return; }
-
-  if (has_initial_guess) {
-    // use a double type counter (instead of result_t) to accumulate as std::accumulate is
-    // inaccurate in adding a large number of comparably sized numbers. In C++17 or later,
-    // std::reduce may be a better option.
-    auto sum =
-      static_cast<result_t>(std::accumulate(pageranks, pageranks + num_vertices, double{0.0}));
-    ASSERT_TRUE(sum > 0.0);
-    std::for_each(pageranks, pageranks + num_vertices, [sum](auto& val) { val /= sum; });
-  } else {
-    std::for_each(pageranks, pageranks + num_vertices, [num_vertices](auto& val) {
-      val = result_t{1.0} / static_cast<result_t>(num_vertices);
-    });
-  }
-
-  result_t personalization_sum{0.0};
-  if (personalization_vertices != nullptr) {
-    // use a double type counter (instead of result_t) to accumulate as std::accumulate is
-    // inaccurate in adding a large number of comparably sized numbers. In C++17 or later,
-    // std::reduce may be a better option.
-    personalization_sum = static_cast<result_t>(std::accumulate(
-      personalization_values, personalization_values + personalization_vector_size, double{0.0}));
-    ASSERT_TRUE(personalization_sum > 0.0);
-  }
-
-  std::vector<weight_t> out_weight_sums(num_vertices, result_t{0.0});
-  for (vertex_t i = 0; i < num_vertices; ++i) {
-    for (auto j = *(offsets + i); j < *(offsets + i + 1); ++j) {
-      auto nbr = indices[j];
-      auto w   = weights != nullptr ? weights[j] : 1.0;
-      out_weight_sums[nbr] += w;
-    }
-  }
-
-  std::vector<result_t> old_pageranks(num_vertices, result_t{0.0});
-  size_t iter{0};
-  while (true) {
-    std::copy(pageranks, pageranks + num_vertices, old_pageranks.begin());
-    result_t dangling_sum{0.0};
-    for (vertex_t i = 0; i < num_vertices; ++i) {
-      if (out_weight_sums[i] == result_t{0.0}) { dangling_sum += old_pageranks[i]; }
-    }
-    for (vertex_t i = 0; i < num_vertices; ++i) {
-      pageranks[i] = result_t{0.0};
-      for (auto j = *(offsets + i); j < *(offsets + i + 1); ++j) {
-        auto nbr = indices[j];
-        auto w   = weights != nullptr ? weights[j] : result_t{1.0};
-        pageranks[i] += alpha * old_pageranks[nbr] * (w / out_weight_sums[nbr]);
-      }
-      if (personalization_vertices == nullptr) {
-        pageranks[i] +=
-          (dangling_sum * alpha + (1.0 - alpha)) / static_cast<result_t>(num_vertices);
-      }
-    }
-    if (personalization_vertices != nullptr) {
-      for (vertex_t i = 0; i < personalization_vector_size; ++i) {
-        auto v = personalization_vertices[i];
-        pageranks[v] += (dangling_sum * alpha + (1.0 - alpha)) *
-                        (personalization_values[i] / personalization_sum);
-      }
-    }
-    result_t diff_sum{0.0};
-    for (vertex_t i = 0; i < num_vertices; ++i) {
-      diff_sum += std::abs(pageranks[i] - old_pageranks[i]);
-    }
-    if (diff_sum < epsilon) { break; }
-    iter++;
-    ASSERT_TRUE(iter < max_iterations);
-  }
-
-  return;
-}
-////////////////////////////////////////////////////////////////////////////////
-
-
-////////////////////////////////////////////////////////////////////////////////
 // Test param object. This defines the input and expected output for a test, and
 // will be instantiated as the parameter to the tests defined below using
 // INSTANTIATE_TEST_CASE_P()
@@ -200,7 +108,7 @@ public:
       // Assuming 2 GPUs which means 1 row, 2 cols. 2 cols = row_comm_size of 2.
       // FIXME: DO NOT ASSUME 2 GPUs, add code to compute prows, pcols
       size_t row_comm_size{2};
-      cugraph::partition_2d::subcomm_factory_t<cugraph::partition_2d::key_naming_t, int>
+      cugraph::partition_2d::subcomm_factory_t<cugraph::partition_2d::key_naming_t, vertex_t>
          subcomm_factory(handle, row_comm_size);
 
       int my_rank = comm.get_rank();
@@ -208,13 +116,21 @@ public:
       auto edgelist_from_mm = ::cugraph::test::read_edgelist_from_matrix_market_file<vertex_t, edge_t, weight_t>(param.graph_file_full_path);
       std::cout<<"READ DATAFILE IN RANK: "<<my_rank<<std::endl;
 
+      //cugraph::experimental::graph_t<vertex_t, edge_t, weight_t, true, true>& mg_graph;  // store_transposed=true, multi_gpu=true
+      //std::tuple<rmm::device_uvector<vertex_t>, cugraph::experimental::partition_t<vertex_t>, vertex_t, edge_t>& mg_renumber_info;
       // FIXME: edgelist_from_mm must have weights!
-      auto mg_graph = cugraph::test::create_graph_for_gpu<vertex_t, edge_t, weight_t, true> // store_transposed=true
-         (handle, edgelist_from_mm);
+      std::unique_ptr<
+         cugraph::experimental::graph_t<vertex_t, edge_t, weight_t, true, true>> // store_transposed=true, multi_gpu=true
+         mg_graph_ptr{};
+      rmm::device_uvector<vertex_t> d_renumber_map_labels(0, handle.get_stream());
 
-      std::cout<<"GRAPH CTOR IN RANK: "<<my_rank<<" NUM VERTS: "<<mg_graph.get_number_of_vertices()<<std::endl;
+      std::tie(mg_graph_ptr, d_renumber_map_labels) =
+         cugraph::test::create_graph_for_gpu<vertex_t, edge_t, weight_t, true> // store_transposed=true
+            (handle, edgelist_from_mm);
 
-      auto mg_graph_view = mg_graph.view();
+      std::cout<<"GRAPH CTOR IN RANK: "<<my_rank<<" NUM VERTS: "<<mg_graph_ptr->get_number_of_vertices()<<std::endl;
+
+      auto mg_graph_view = mg_graph_ptr->view();
 
       ////////
       rmm::device_uvector<result_t> d_mg_pageranks(mg_graph_view.get_number_of_vertices(),
@@ -237,6 +153,7 @@ public:
       CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
 
       // FIXME: un-renumber somewhere?
+      // manually unrenumber using the mapping to properly index the values
       std::vector<result_t> h_mg_pageranks(mg_graph_view.get_number_of_vertices());
 
       raft::update_host(h_mg_pageranks.data(),
@@ -246,6 +163,11 @@ public:
 
       CUDA_TRY(cudaStreamSynchronize(stream));
 
+      std::vector<vertex_t> h_renumber_map_labels(mg_graph_view.get_number_of_vertices());
+      raft::update_host(h_renumber_map_labels.data(),
+                        d_renumber_map_labels.data(),
+                        d_renumber_map_labels.size(),
+                        stream);
 
       ////////
       // single-GPU
@@ -302,11 +224,16 @@ public:
                 std::max(std::max(lhs, rhs) * threshold_ratio, threshold_magnitude);
       };
 
-      for(vertex_t i=mg_graph_view.get_local_vertex_first(); i < mg_graph_view.get_local_vertex_last(); ++i){
-         std::cout<<"RANK: "<<my_rank<<" MG local vertex: "<<i<<" SG: "<<h_sg_pageranks[i]<<" MG: "<<h_mg_pageranks[i]<<std::endl;
+      vertex_t mapped_vertex{0};
+      for(vertex_t i=0; i+mg_graph_view.get_local_vertex_first() < mg_graph_view.get_local_vertex_last(); ++i){
+         mapped_vertex = h_renumber_map_labels[i];
+
+         std::cout<<"RANK: "<<my_rank<<" i: "<<i<<" SG: "<<h_sg_pageranks[mapped_vertex]<<" MG: "<<h_mg_pageranks[i]<<" RNL: "<<mapped_vertex<<std::endl;
       }
-      for(vertex_t i=mg_graph_view.get_local_vertex_first(); i < mg_graph_view.get_local_vertex_last(); ++i){
-         ASSERT_TRUE(nearly_equal(h_mg_pageranks[i], h_sg_pageranks[i])) << "MG PageRank value for vertex: " << i << " in rank: " << my_rank << " has value: " << h_mg_pageranks[i] << " which exceeds the error margin for comparing to SG value: " << h_sg_pageranks[i];
+
+      for(vertex_t i=0; i+mg_graph_view.get_local_vertex_first() < mg_graph_view.get_local_vertex_last(); ++i){
+         mapped_vertex = h_renumber_map_labels[i];
+         ASSERT_TRUE(nearly_equal(h_mg_pageranks[i], h_sg_pageranks[mapped_vertex])) << "MG PageRank value for vertex: " << i << " in rank: " << my_rank << " has value: " << h_mg_pageranks[i] << " which exceeds the error margin for comparing to SG value: " << h_sg_pageranks[i];
       }
 
       //ASSERT_TRUE(std::equal(h_sg_pageranks.begin(),

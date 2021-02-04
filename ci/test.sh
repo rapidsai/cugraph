@@ -64,7 +64,7 @@ else
     cd $WORKSPACE/ci/artifacts/cugraph/cpu/conda_work/cpp/build
 fi
 
-for gt in gtests/*; do
+for gt in tests/*; do
     test_name=$(basename $gt)
     echo "Running GoogleTest $test_name"
     ${gt} ${GTEST_FILTER} ${GTEST_ARGS}
