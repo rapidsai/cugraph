@@ -89,7 +89,9 @@ def test_leiden_nx(graph_file):
     NM = utils.read_csv_for_nx(graph_file)
 
     if edgevals:
-        G = nx.from_pandas_edgelist(NM, create_using=nx.Graph(), source="0", target="1")
+        G = nx.from_pandas_edgelist(
+            NM, create_using=nx.Graph(), source="0", target="1"
+        )
     else:
         G = nx.from_pandas_edgelist(
             NM, create_using=nx.Graph(), source="0", target="1", edge_attr="2"

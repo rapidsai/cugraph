@@ -38,7 +38,10 @@ def golden_call(graph_file):
         return 0.4962422251701355
     if graph_file == PurePath(utils.RAPIDS_DATASET_ROOT_DIR) / "karate.csv":
         return 0.38428664207458496
-    if graph_file == PurePath(utils.RAPIDS_DATASET_ROOT_DIR) / "netscience.csv":
+    if (
+        graph_file
+        == PurePath(utils.RAPIDS_DATASET_ROOT_DIR) / "netscience.csv"
+    ):
         return 0.9279554486274719
 
 

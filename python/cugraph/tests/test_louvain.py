@@ -84,7 +84,8 @@ def test_louvain_with_edgevals(graph_file):
         nx_parts = networkx_call(M)
         # Calculating modularity scores for comparison
         Gnx = nx.from_pandas_edgelist(
-            M, source="0", target="1", edge_attr="weight", create_using=nx.Graph()
+            M, source="0", target="1",
+            edge_attr="weight", create_using=nx.Graph()
         )
 
         cu_parts = cu_parts.to_pandas()
@@ -116,7 +117,8 @@ def test_louvain(graph_file):
 
         # Calculating modularity scores for comparison
         Gnx = nx.from_pandas_edgelist(
-            M, source="0", target="1", edge_attr="weight", create_using=nx.Graph()
+            M, source="0", target="1",
+            edge_attr="weight", create_using=nx.Graph()
         )
 
         cu_parts = cu_parts.to_pandas()
