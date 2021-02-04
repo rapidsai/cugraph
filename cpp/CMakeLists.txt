@@ -14,7 +14,7 @@
 # limitations under the License.
 #=============================================================================
 
-cmake_minimum_required(VERSION 3.12..3.17 FATAL_ERROR)
+cmake_minimum_required(VERSION 3.18...3.18 FATAL_ERROR)
 
 project(CUGRAPH VERSION 0.18.0 LANGUAGES C CXX CUDA)
 
@@ -156,19 +156,11 @@ endif(OpenMP_FOUND)
 # - find gtest ------------------------------------------------------------------------------------
 
 if(BUILD_TESTS)
-    include(ConfigureGoogleTest)
-
-    if(GTEST_FOUND)
-        message(STATUS
-            "Google C++ Testing Framework (Google Test) found in ${GTEST_ROOT}")
-    else()
-        message(AUTHOR_WARNING
-            "Google C++ Testing Framework (Google Test) not found: automated tests are disabled.")
-    endif(GTEST_FOUND)
+    find_package(GTest REQUIRED)
 endif(BUILD_TESTS)
 
 ###################################################################################################
-# - RMM -------------------------------------------------------------------------------------------
+# - find RMM --------------------------------------------------------------------------------------
 
 find_path(RMM_INCLUDE "rmm"
     HINTS
@@ -177,6 +169,18 @@ find_path(RMM_INCLUDE "rmm"
     "$ENV{CONDA_PREFIX}/include")
 
 message(STATUS "RMM: RMM_INCLUDE set to ${RMM_INCLUDE}")
+
+###################################################################################################
+# - find NCCL -------------------------------------------------------------------------------------
+
+if(NOT NCCL_PATH)
+    find_package(NCCL REQUIRED)
+else()
+    message("-- Manually set NCCL PATH to ${NCCL_PATH}")
+    set(NCCL_INCLUDE_DIRS ${NCCL_PATH}/include)
+    set(NCCL_LIBRARIES ${NCCL_PATH}/lib/libnccl.so)
+endif(NOT NCCL_PATH)
+
 
 ###################################################################################################
 # - Fetch Content ---------------------------------------------------------------------------------
@@ -235,26 +239,60 @@ endif()
 set(LIBCUDACXX_INCLUDE_DIR "${libcudacxx_SOURCE_DIR}/include")
 message("set LIBCUDACXX_INCLUDE_DIR to: ${LIBCUDACXX_INCLUDE_DIR}")
 
+# - CUHORNET
+FetchContent_Declare(
+    cuhornet
+    GIT_REPOSITORY    https://github.com/rapidsai/cuhornet.git
+    GIT_TAG           9cb8e8803852bd895a9c95c0fe778ad6eeefa7ad
+    GIT_SHALLOW       true
+    SOURCE_SUBDIR     hornet
+)
+
+FetchContent_GetProperties(cuhornet)
+if(NOT cuhornet_POPULATED)
+  message("populating cuhornet")
+  FetchContent_Populate(cuhornet)
+  # We are not using the cuhornet CMake targets, so no need to call `add_subdirectory()`.
+endif()
+set(CUHORNET_INCLUDE_DIR ${cuhornet_SOURCE_DIR} CACHE STRING "Path to cuhornet includes")
+
+# - raft - (header only)
+# Only cloned if RAFT_PATH env variable is not defined
+if(DEFINED ENV{RAFT_PATH})
+  message(STATUS "RAFT_PATH environment variable detected.")
+  message(STATUS "RAFT_DIR set to $ENV{RAFT_PATH}")
+  set(RAFT_DIR "$ENV{RAFT_PATH}")
+
+else(DEFINED ENV{RAFT_PATH})
+  message(STATUS "RAFT_PATH environment variable NOT detected, cloning RAFT")
+
+  FetchContent_Declare(
+    raft
+    GIT_REPOSITORY    https://github.com/rapidsai/raft.git
+    GIT_TAG           9dbf2c8a9134ce8135f7fe947ec523d874fcab6a
+    SOURCE_SUBDIR     raft
+  )
+
+  FetchContent_GetProperties(raft)
+  if(NOT raft_POPULATED)
+     message("populating raft")
+     FetchContent_Populate(raft)
+     # We are not using any raft CMake targets, so no need to call `add_subdirectory()`.
+  endif()
+
+  set(RAFT_DIR "${raft_SOURCE_DIR}")
+endif(DEFINED ENV{RAFT_PATH})
 
 ###################################################################################################
 # - External Projects -----------------------------------------------------------------------------
 
 # https://cmake.org/cmake/help/v3.0/module/ExternalProject.html
+
+# FIXME: gunrock is the only external package still using ExternalProject
+# instead of FetchContent. Consider migrating to FetchContent soon (this may
+# require updates to the gunrock cmake files to support this).
+
 include(ExternalProject)
-
-# - CUHORNET
-set(CUHORNET_DIR ${CMAKE_CURRENT_BINARY_DIR}/cuhornet CACHE STRING "Path to cuhornet repo")
-set(CUHORNET_INCLUDE_DIR ${CUHORNET_DIR}/src/cuhornet CACHE STRING "Path to cuhornet includes")
-
-
-ExternalProject_Add(cuhornet
-  GIT_REPOSITORY    https://github.com/rapidsai/cuhornet.git
-  GIT_TAG           9cb8e8803852bd895a9c95c0fe778ad6eeefa7ad
-  PREFIX            ${CUHORNET_DIR}
-  CONFIGURE_COMMAND ""
-  BUILD_COMMAND     ""
-  INSTALL_COMMAND   ""
-)
 
 # - GUNROCK
 set(GUNROCK_DIR ${CMAKE_CURRENT_BINARY_DIR}/gunrock CACHE STRING "Path to gunrock repo")
@@ -280,52 +318,8 @@ ExternalProject_Add(gunrock_ext
 )
 
 add_library(gunrock STATIC IMPORTED)
-
 add_dependencies(gunrock gunrock_ext)
-
 set_property(TARGET gunrock PROPERTY IMPORTED_LOCATION ${GUNROCK_DIR}/src/gunrock_ext-build/lib/libgunrock.a)
-
-# - NCCL
-if(NOT NCCL_PATH)
-    find_package(NCCL REQUIRED)
-else()
-    message("-- Manually set NCCL PATH to ${NCCL_PATH}")
-    set(NCCL_INCLUDE_DIRS ${NCCL_PATH}/include)
-    set(NCCL_LIBRARIES ${NCCL_PATH}/lib/libnccl.so)
-endif(NOT NCCL_PATH)
-
-# - raft - (header only) -----------------------------------------------------
-
-# Only cloned if RAFT_PATH env variable is not defined
-
-if(DEFINED ENV{RAFT_PATH})
-  message(STATUS "RAFT_PATH environment variable detected.")
-  message(STATUS "RAFT_DIR set to $ENV{RAFT_PATH}")
-  set(RAFT_DIR "$ENV{RAFT_PATH}")
-
-  ExternalProject_Add(raft
-    DOWNLOAD_COMMAND  ""
-    SOURCE_DIR        ${RAFT_DIR}
-    CONFIGURE_COMMAND ""
-    BUILD_COMMAND     ""
-    INSTALL_COMMAND   "")
-
-else(DEFINED ENV{RAFT_PATH})
-  message(STATUS "RAFT_PATH environment variable NOT detected, cloning RAFT")
-  set(RAFT_DIR ${CMAKE_CURRENT_BINARY_DIR}/raft CACHE STRING "Path to RAFT repo")
-
-  ExternalProject_Add(raft
-    GIT_REPOSITORY    https://github.com/rapidsai/raft.git
-    GIT_TAG           9dbf2c8a9134ce8135f7fe947ec523d874fcab6a
-    PREFIX            ${RAFT_DIR}
-    CONFIGURE_COMMAND ""
-    BUILD_COMMAND     ""
-    INSTALL_COMMAND   "")
-
-  # Redefining RAFT_DIR so it coincides with the one inferred by env variable.
-  set(RAFT_DIR "${RAFT_DIR}/src/raft/")
-endif(DEFINED ENV{RAFT_PATH})
-
 
 ###################################################################################################
 # - library targets -------------------------------------------------------------------------------
@@ -383,7 +377,6 @@ add_library(cugraph SHARED
 #        wait until after cugunrock is constructed.
 #
 add_dependencies(cugraph gunrock_ext)
-add_dependencies(cugraph raft)
 
 ###################################################################################################
 # - include paths ---------------------------------------------------------------------------------
@@ -465,16 +458,27 @@ target_link_libraries(cugraph PRIVATE
     ${OpenMP_CXX_LIB_NAMES})
 endif(OpenMP_CXX_FOUND)
 
+# CUDA_ARCHITECTURES=OFF implies cmake will not pass arch flags to the
+# compiler. CUDA_ARCHITECTURES must be set to a non-empty value to prevent cmake
+# warnings about policy CMP0104. With this setting, arch flags must be manually
+# set! ("evaluate_gpu_archs(GPU_ARCHS)" is the current mechanism used in
+# cpp/CMakeLists.txt for setting arch options).  Run "cmake --help-policy
+# CMP0104" for policy details.
+# NOTE: the CUDA_ARCHITECTURES=OFF setting may be removed after migrating to the
+# findcudatoolkit features in cmake 3.17+
+set_target_properties(cugraph PROPERTIES
+    CUDA_ARCHITECTURES OFF)
+
 ###################################################################################################
 # - generate tests --------------------------------------------------------------------------------
 
 if(BUILD_TESTS)
     if(GTEST_FOUND)
         # target_link_directories is added in cmake 3.13, and cmake advises to use this instead of
-        # link_directoires (we should switch to target_link_directories once 3.13 becomes the
+        # link_directories (we should switch to target_link_directories once 3.13 becomes the
         # minimum required version).
         link_directories(${GTEST_LIBRARY_DIR})
-        add_subdirectory(${CMAKE_SOURCE_DIR}/tests)
+        add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/tests)
     endif(GTEST_FOUND)
 endif(BUILD_TESTS)
 

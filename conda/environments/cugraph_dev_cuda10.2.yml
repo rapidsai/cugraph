@@ -45,3 +45,5 @@ dependencies:
 - rapids-pytest-benchmark
 - doxygen
 - pytest-cov
+- gtest
+- gmock
