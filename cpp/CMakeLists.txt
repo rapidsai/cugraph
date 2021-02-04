@@ -14,7 +14,11 @@
 # limitations under the License.
 #=============================================================================
 
+<<<<<<< c2ba8775ec7e0aef0a73888aee4862a3b0974b01
 cmake_minimum_required(VERSION 3.18...3.18 FATAL_ERROR)
+=======
+cmake_minimum_required(VERSION 3.14..3.17 FATAL_ERROR)
+>>>>>>> Move faiss to using fetch content
 
 project(CUGRAPH VERSION 0.18.0 LANGUAGES C CXX CUDA)
 
@@ -41,6 +45,8 @@ option(BUILD_CUGRAPH_MG_TESTS "Build cuGraph multigpu algorithm tests" OFF)
 ###################################################################################################
 # - user options ------------------------------------------------------------------------------
 
+set(BLAS_LIBRARIES "" CACHE STRING
+    "Location of BLAS library for FAISS build.")
 option(BUILD_STATIC_FAISS "Build the FAISS library for nearest neighbors search on GPU" OFF)
 
 ###################################################################################################
@@ -100,10 +106,12 @@ message("-- Building for GPU_ARCHS = ${GPU_ARCHS}")
 foreach(arch ${GPU_ARCHS})
   set(CMAKE_CUDA_FLAGS "${CMAKE_CUDA_FLAGS} -gencode arch=compute_${arch},code=sm_${arch}")
   set(GUNROCK_GENCODE_SM${arch} "ON")
+  set(FAISS_GPU_ARCHS "${FAISS_GPU_ARCHS} -gencode arch=compute_${arch},code=sm_${arch}")
 endforeach()
 
 list(GET GPU_ARCHS -1 ptx)
 set(CMAKE_CUDA_FLAGS "${CMAKE_CUDA_FLAGS} -gencode arch=compute_${ptx},code=compute_${ptx}")
+set(FAISS_GPU_ARCHS "${FAISS_GPU_ARCHS} -gencode arch=compute_${ptx},code=compute_${ptx}")
 
 set(CMAKE_CUDA_FLAGS "${CMAKE_CUDA_FLAGS} --expt-extended-lambda --expt-relaxed-constexpr")
 set(CMAKE_CUDA_FLAGS "${CMAKE_CUDA_FLAGS} -Werror=cross-execution-space-call -Wno-deprecated-declarations -Xptxas --disable-warnings")
@@ -161,6 +169,15 @@ if(OpenMP_FOUND)
     set(CMAKE_CUDA_FLAGS "${CMAKE_CUDA_FLAGS} -Xcompiler=${OpenMP_CXX_FLAGS}")
 endif(OpenMP_FOUND)
 
+
+###################################################################################################
+# - find blas -------------------------------------------------------------------------------------
+
+if(NOT DEFINED BLAS_LIBRARIES)
+  find_package( BLAS REQUIRED )
+else()
+  message(STATUS "Manually setting BLAS to ${BLAS_LIBRARIES}")
+endif()
 
 ###################################################################################################
 # - find gtest ------------------------------------------------------------------------------------
@@ -337,6 +354,52 @@ add_library(gunrock STATIC IMPORTED)
 add_dependencies(gunrock gunrock_ext)
 set_property(TARGET gunrock PROPERTY IMPORTED_LOCATION ${GUNROCK_DIR}/src/gunrock_ext-build/lib/libgunrock.a)
 
+# - FAISS
+if(BUILD_STATIC_FAISS)
+  set(FAISS_DIR ${CMAKE_CURRENT_BINARY_DIR}/faiss CACHE STRING
+    "Path to FAISS source directory")
+
+  FetchContent_Declare(faiss
+    GIT_REPOSITORY    https://github.com/facebookresearch/faiss.git
+    GIT_TAG           a5b850dec6f1cd6c88ab467bfd5e87b0cac2e41d
+    PATCH_COMMAND     patch -p1 -N < ${CMAKE_CURRENT_SOURCE_DIR}/cmake/faiss_cuda11.patch || true)
+
+
+  FetchContent_GetProperties(faiss)
+  if(NOT faiss_POPULATED)
+      message("populating faiss")
+        FetchContent_Populate(faiss)
+        # Fetched version of faiss uses autotools
+        # add_custom_target should be replace with: add_subdirectory(${faiss_SOURCE_DIR} ${faiss_BINARY_DIR})
+        # when pointing to a newer commit that uses CMake.
+        add_custom_target(zoo
+          COMMAND LIBS=-pthread
+          CPPFLAGS=-w
+          LDFLAGS=-L${CMAKE_INSTALL_PREFIX}/lib
+                  ${faiss_SOURCE_DIR}/faiss/configure
+          --prefix=${CMAKE_CURRENT_BINARY_DIR}/faiss
+          --with-blas=${BLAS_LIBRARIES}
+          --with-cuda=${CUDA_TOOLKIT_ROOT_DIR}
+          --with-cuda-arch=${FAISS_GPU_ARCHS}
+          -v)
+        add_custom_target(foo
+          COMMAND make -j${PARALLEL_LEVEL} VERBOSE=1
+          DEPENDS zoo
+          BYPRODUCTS ${faiss_SOURCE_DIR}/lib/libfaiss.a)
+  endif()
+  add_library(FAISS::FAISS STATIC IMPORTED)
+  #add_dependencies(FAISS::FAISS foo)
+  set_property(TARGET FAISS::FAISS PROPERTY
+    IMPORTED_LOCATION ${faiss_SOURCE_DIR}/lib/libfaiss.a)
+  set(FAISS_INCLUDE_DIRS "${faiss_SOURCE_DIR}/src")
+  message(STATUS "FAISS: FAISS_INCLUDE_DIRS set to ${FAISS_INCLUDE_DIRS}")
+else()
+  add_library(libfaiss SHARED IMPORTED)
+  set_property(TARGET libfaiss PROPERTY
+    IMPORTED_LOCATION $ENV{CONDA_PREFIX}/lib/libfaiss.so)
+  message(STATUS "Found FAISS: $ENV{CONDA_PREFIX}/lib/libfaiss.so")
+endif(BUILD_STATIC_FAISS)
+
 ###################################################################################################
 # - library targets -------------------------------------------------------------------------------
 
@@ -401,7 +464,7 @@ target_include_directories(cugraph
 # - link libraries --------------------------------------------------------------------------------
 
 target_link_libraries(cugraph PRIVATE
-    gunrock cublas cusparse curand cusolver cudart cuda FAISS::FAISS ${NCCL_LIBRARIES})
+  gunrock cublas cusparse curand cusolver cudart cuda FAISS::FAISS ${NCCL_LIBRARIES})
 
 if(OpenMP_CXX_FOUND)
 target_link_libraries(cugraph PRIVATE
