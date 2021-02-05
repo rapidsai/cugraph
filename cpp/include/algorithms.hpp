@@ -207,6 +207,7 @@ void force_atlas2(GraphCOOView<vertex_t, edge_t, weight_t> &graph,
  * @param[out] route                          Device array containing the returned route.
  * @param[in] x_pos                           Device array containing starting x-axis positions.
  * @param[in] y_pos                           Device array containing starting y-axis positions.
+ * @param[in] nodes                           Number of cities.
  * @param[in] restarts												Number of starts to try. The more restarts,
  * the better the solution will be approximated. The number of restarts depends on the problem
  * size and should be kept low for instances above 2k cities.
