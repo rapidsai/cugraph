@@ -29,7 +29,7 @@ dependencies:
 - boost
 - cython>=0.29,<0.30
 - pytest
-- libfaiss>=1.6.3
+- libfaiss=1.6.3
 - faiss-proc=*=cuda
 - scikit-learn>=0.23.1
 - colorcet

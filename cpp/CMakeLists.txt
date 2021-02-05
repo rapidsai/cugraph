@@ -183,6 +183,18 @@ if(BUILD_TESTS)
 endif(BUILD_TESTS)
 
 ###################################################################################################
+# - find faiss ------------------------------------------------------------------------------------
+
+if(NOT BUILD_STATIC_FAISS)
+ find_path(FAISS_INCLUDE_DIRS "faiss"
+    HINTS
+    "$ENV{FAISS_ROOT}/include"
+    "$ENV{CONDA_PREFIX}/include/faiss"
+    "$ENV{CONDA_PREFIX}/include")
+message(STATUS "FAISS: FAISS_INCLUDE_DIRS set to ${FAISS_INCLUDE_DIRS}")
+endif(NOT BUILD_STATIC_FAISS)
+
+###################################################################################################
 # - find RMM --------------------------------------------------------------------------------------
 
 find_path(RMM_INCLUDE "rmm"
@@ -384,6 +396,7 @@ if(BUILD_STATIC_FAISS)
   add_dependencies(FAISS::FAISS faiss)
   set_property(TARGET FAISS::FAISS PROPERTY
     IMPORTED_LOCATION ${FAISS_DIR}/lib/libfaiss.a)
+  set(FAISS_INCLUDE_DIRS "${FAISS_DIR}/src")
 else()
   add_library(FAISS::FAISS SHARED IMPORTED)
   set_property(TARGET FAISS::FAISS PROPERTY
@@ -395,8 +408,29 @@ endif(BUILD_STATIC_FAISS)
 # - library targets -------------------------------------------------------------------------------
 
 add_library(cugraph SHARED
-
+	src/utilities/spmv_1D.cu
+    src/utilities/cython.cu
+    src/structure/graph.cu
+    src/linear_assignment/hungarian.cu
+    src/link_analysis/pagerank.cu
+    src/link_analysis/pagerank_1D.cu
+    src/link_analysis/gunrock_hits.cpp
+    src/traversal/bfs.cu
+    src/traversal/sssp.cu
+    src/traversal/tsp.cu
+    src/link_prediction/jaccard.cu
+    src/link_prediction/overlap.cu
+    src/layout/force_atlas2.cu
+    src/converters/renumber.cu
+    src/converters/COOtoCSR.cu
+    src/community/spectral_clustering.cu
+    src/community/louvain.cu
+    src/community/leiden.cu
+    src/community/ktruss.cu
+    src/community/ECG.cu
+    src/community/triangles_counting.cu
     src/community/extract_subgraph_by_vertex.cu
+    src/community/egonet.cu
     src/cores/core_number.cu
     src/traversal/two_hop_neighbors.cu
     src/components/connectivity.cu
