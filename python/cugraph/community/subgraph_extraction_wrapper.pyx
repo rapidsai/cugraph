@@ -1,4 +1,4 @@
-# Copyright (c) 2019-2020, NVIDIA CORPORATION.
+# Copyright (c) 2019-2021, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -45,6 +45,10 @@ def subgraph(input_graph, vertices):
         if weights.dtype == np.float64:
             use_float = False
 
+    num_verts = input_graph.number_of_vertices()
+    num_edges = len(src)
+    num_input_vertices = len(vertices)
+
     cdef GraphCOOView[int,int,float]  in_graph_float
     cdef GraphCOOView[int,int,double] in_graph_double
     cdef unique_ptr[GraphCOO[int,int,float]]  out_graph_float
@@ -58,10 +62,6 @@ def subgraph(input_graph, vertices):
         c_weights = weights.__cuda_array_interface__['data'][0]
 
     cdef uintptr_t c_vertices = vertices.__cuda_array_interface__['data'][0]
-
-    num_verts = input_graph.number_of_vertices()
-    num_edges = len(src)
-    num_input_vertices = len(vertices)
 
     if use_float:
         in_graph_float = GraphCOOView[int,int,float](<int*>c_src, <int*>c_dst, <float*>c_weights, num_verts, num_edges);

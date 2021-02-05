@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020, NVIDIA CORPORATION.
+ * Copyright (c) 2020-2021, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -17,6 +17,8 @@
 
 #include <community/louvain.cuh>
 
+#include <rmm/device_uvector.hpp>
+
 namespace cugraph {
 
 template <typename graph_type>
@@ -28,7 +30,8 @@ class Leiden : public Louvain<graph_type> {
   using weight_t = typename graph_type::weight_type;
 
   Leiden(raft::handle_t const &handle, graph_type const &graph)
-    : Louvain<graph_type>(handle, graph), constraint_v_(graph.number_of_vertices)
+    : Louvain<graph_type>(handle, graph),
+      constraint_v_(graph.number_of_vertices, handle.get_stream())
   {
   }
 
@@ -38,22 +41,28 @@ class Leiden : public Louvain<graph_type> {
   {
     this->timer_start("update_clustering_constrained");
 
-    rmm::device_vector<vertex_t> next_cluster_v(this->cluster_v_);
-    rmm::device_vector<weight_t> delta_Q_v(graph.number_of_edges);
-    rmm::device_vector<vertex_t> cluster_hash_v(graph.number_of_edges);
-    rmm::device_vector<weight_t> old_cluster_sum_v(graph.number_of_vertices);
+    rmm::device_uvector<vertex_t> next_cluster_v(this->dendrogram_->current_level_size(),
+                                                 this->stream_);
+    rmm::device_uvector<weight_t> delta_Q_v(graph.number_of_edges, this->stream_);
+    rmm::device_uvector<vertex_t> cluster_hash_v(graph.number_of_edges, this->stream_);
+    rmm::device_uvector<weight_t> old_cluster_sum_v(graph.number_of_vertices, this->stream_);
 
-    vertex_t const *d_src_indices    = this->src_indices_v_.data().get();
+    vertex_t const *d_src_indices    = this->src_indices_v_.data();
     vertex_t const *d_dst_indices    = graph.indices;
-    vertex_t *d_cluster_hash         = cluster_hash_v.data().get();
-    vertex_t *d_cluster              = this->cluster_v_.data().get();
-    weight_t const *d_vertex_weights = this->vertex_weights_v_.data().get();
-    weight_t *d_cluster_weights      = this->cluster_weights_v_.data().get();
-    weight_t *d_delta_Q              = delta_Q_v.data().get();
-    vertex_t *d_constraint           = constraint_v_.data().get();
+    vertex_t *d_cluster_hash         = cluster_hash_v.data();
+    vertex_t *d_cluster              = this->dendrogram_->current_level_begin();
+    weight_t const *d_vertex_weights = this->vertex_weights_v_.data();
+    weight_t *d_cluster_weights      = this->cluster_weights_v_.data();
+    weight_t *d_delta_Q              = delta_Q_v.data();
+    vertex_t *d_constraint           = constraint_v_.data();
 
-    weight_t new_Q =
-      this->modularity(total_edge_weight, resolution, graph, this->cluster_v_.data().get());
+    thrust::copy(rmm::exec_policy(this->stream_)->on(this->stream_),
+                 this->dendrogram_->current_level_begin(),
+                 this->dendrogram_->current_level_end(),
+                 next_cluster_v.data());
+
+    weight_t new_Q = this->modularity(
+      total_edge_weight, resolution, graph, this->dendrogram_->current_level_begin());
 
     weight_t cur_Q = new_Q - 1;
 
@@ -83,13 +92,13 @@ class Leiden : public Louvain<graph_type> {
 
       up_down = !up_down;
 
-      new_Q = this->modularity(total_edge_weight, resolution, graph, next_cluster_v.data().get());
+      new_Q = this->modularity(total_edge_weight, resolution, graph, next_cluster_v.data());
 
       if (new_Q > cur_Q) {
         thrust::copy(rmm::exec_policy(this->stream_)->on(this->stream_),
                      next_cluster_v.begin(),
                      next_cluster_v.end(),
-                     this->cluster_v_.begin());
+                     this->dendrogram_->current_level_begin());
       }
     }
 
@@ -97,9 +106,7 @@ class Leiden : public Louvain<graph_type> {
     return cur_Q;
   }
 
-  std::pair<size_t, weight_t> operator()(vertex_t *d_cluster_vec,
-                                         size_t max_level,
-                                         weight_t resolution)
+  weight_t operator()(size_t max_level, weight_t resolution) override
   {
     size_t num_level{0};
 
@@ -110,37 +117,30 @@ class Leiden : public Louvain<graph_type> {
     weight_t best_modularity = weight_t{-1};
 
     //
-    //  Initialize every cluster to reference each vertex to itself
-    //
-    thrust::sequence(rmm::exec_policy(this->stream_)->on(this->stream_),
-                     this->cluster_v_.begin(),
-                     this->cluster_v_.end());
-    thrust::copy(rmm::exec_policy(this->stream_)->on(this->stream_),
-                 this->cluster_v_.begin(),
-                 this->cluster_v_.end(),
-                 d_cluster_vec);
-
-    //
     //  Our copy of the graph.  Each iteration of the outer loop will
     //  shrink this copy of the graph.
     //
-    GraphCSRView<vertex_t, edge_t, weight_t> current_graph(this->offsets_v_.data().get(),
-                                                           this->indices_v_.data().get(),
-                                                           this->weights_v_.data().get(),
+    GraphCSRView<vertex_t, edge_t, weight_t> current_graph(this->offsets_v_.data(),
+                                                           this->indices_v_.data(),
+                                                           this->weights_v_.data(),
                                                            this->number_of_vertices_,
                                                            this->number_of_edges_);
 
-    current_graph.get_source_indices(this->src_indices_v_.data().get());
+    current_graph.get_source_indices(this->src_indices_v_.data());
 
     while (num_level < max_level) {
+      //
+      //  Initialize every cluster to reference each vertex to itself
+      //
+      this->dendrogram_->add_level(current_graph.number_of_vertices);
+
+      thrust::sequence(rmm::exec_policy(this->stream_)->on(this->stream_),
+                       this->dendrogram_->current_level_begin(),
+                       this->dendrogram_->current_level_end());
+
       this->compute_vertex_and_cluster_weights(current_graph);
 
       weight_t new_Q = this->update_clustering(total_edge_weight, resolution, current_graph);
-
-      thrust::copy(rmm::exec_policy(this->stream_)->on(this->stream_),
-                   this->cluster_v_.begin(),
-                   this->cluster_v_.end(),
-                   constraint_v_.begin());
 
       new_Q = update_clustering_constrained(total_edge_weight, resolution, current_graph);
 
@@ -148,18 +148,18 @@ class Leiden : public Louvain<graph_type> {
 
       best_modularity = new_Q;
 
-      this->shrink_graph(current_graph, d_cluster_vec);
+      this->shrink_graph(current_graph);
 
       num_level++;
     }
 
     this->timer_display(std::cout);
 
-    return std::make_pair(num_level, best_modularity);
+    return best_modularity;
   }
 
  private:
-  rmm::device_vector<vertex_t> constraint_v_;
+  rmm::device_uvector<vertex_t> constraint_v_;
 };
 
 }  // namespace cugraph

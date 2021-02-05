@@ -97,9 +97,6 @@ def test_ktruss_subgraph_Graph_nx(graph_file, nx_ground_truth):
         create_using=nx.Graph()
     )
     k_subgraph = cugraph.k_truss(G, k)
-    df = nx.to_pandas_edgelist(k_subgraph)
-
     k_truss_nx = nx.k_truss(G, k)
-    nx_df = nx.to_pandas_edgelist(k_truss_nx)
 
-    assert len(df) == len(nx_df)
+    assert nx.is_isomorphic(k_subgraph, k_truss_nx)
