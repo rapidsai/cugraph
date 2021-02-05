@@ -18,7 +18,6 @@
 
 #include "tsp.hpp"
 #include "tsp_solver.hpp"
-#include "tsp_utils.hpp"
 
 namespace cugraph {
 namespace detail {
@@ -84,8 +83,10 @@ float TSP::compute()
   float *soln             = nullptr;
   int *route_sol          = nullptr;
   int best                = 0;
-  std::vector<float> pos;
-  pos.reserve((nodes_ + 1) * 2);
+  std::vector<float> h_x_pos;
+  std::vector<float> h_y_pos;
+  h_x_pos.reserve(nodes_ + 1);
+  h_y_pos.reserve(nodes_ + 1);
 
   // KNN call
   knn();
@@ -105,7 +106,7 @@ float TSP::compute()
   int threads = best_thread_count(nodes_);
   if (verbose_) printf("Calculated best thread number = %d\n", threads);
 
-  for (int b = 0; b < num_restart_batches; b++) {
+  for (int b = 0; b < num_restart_batches; ++b) {
     init<<<1, 1, 0, stream_>>>(mylock_, best_tour_);
     CHECK_CUDA(stream_);
 
@@ -137,18 +138,20 @@ float TSP::compute()
       cudaDeviceSynchronize();
       CUDA_TRY(cudaMemcpyFromSymbol(&route_sol, best_route, sizeof(void *)));
       cudaDeviceSynchronize();
-
       CUDA_TRY(
-        cudaMemcpy(pos.data(), soln, sizeof(float) * (nodes_ + 1) * 2, cudaMemcpyDeviceToHost));
+        cudaMemcpy(h_x_pos.data(), soln, sizeof(float) * (nodes_ + 1), cudaMemcpyDeviceToHost));
+      cudaDeviceSynchronize();
+      CUDA_TRY(
+        cudaMemcpy(h_y_pos.data(), soln + nodes_ + 1, sizeof(float) * (nodes_ + 1), cudaMemcpyDeviceToHost));
       cudaDeviceSynchronize();
     }
   }
 
   if (verbose_) printf("Optimized tour length = %d\n", global_best);
 
-  for (int i = 0; i < nodes_; i++) {
-    if (verbose_) { printf("%.1f %.1f\n", pos[i], pos[i + nodes_ + 1]); }
-    valid_coo_dist += cpudist(i, i + 1);
+  for (int i = 0; i < nodes_; ++i) {
+    if (verbose_) { printf("%.1f %.1f\n", h_x_pos[i], h_y_pos[i + nodes_ + 1]); }
+    valid_coo_dist += euclidean_dist(h_x_pos.data(), h_y_pos.data(), i, i + 1);
   }
   raft::copy(route_, route_sol, nodes_, stream_);
   return valid_coo_dist;

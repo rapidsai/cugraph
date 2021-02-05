@@ -145,13 +145,13 @@ __device__ void knn_init(float const *posx,
         px[progress]   = posx[head];
         py[progress]   = posy[head];
         path[progress] = vtx_ptr[head];
-        initlen += dist(progress, progress - 1);
+        initlen += __float2int_rn(euclidean_dist(px, py, progress, progress - 1));
       }
     }
     px[nodes]   = px[nstart];
     py[nodes]   = py[nstart];
     path[nodes] = path[nstart];
-    initlen += dist(nodes, nstart);
+    initlen += __float2int_rn(euclidean_dist(px, py, nodes, nstart));
   }
 }
 
@@ -234,7 +234,9 @@ __device__ void hill_climbing(
       }
     }
     __syncthreads();
-    for (int i = threadIdx.x; i < nodes; i += blockDim.x) buf[i] = -dist(i, i + 1);
+    for (int i = threadIdx.x; i < nodes; i += blockDim.x) {
+      buf[i] = - __float2int_rn(euclidean_dist(px, py, i, i + 1));
+    }
     __syncthreads();
 
     // Reset
@@ -337,7 +339,9 @@ __device__ void get_optimal_tour(
 {
   // Now find actual length of the last tour, result of the climb
   int term = 0;
-  for (int i = threadIdx.x; i < nodes; i += blockDim.x) { term += dist(i, i + 1); }
+  for (int i = threadIdx.x; i < nodes; i += blockDim.x) {
+    term += __float2int_rn(euclidean_dist(px, py, i, i + 1));
+  }
   shbuf[threadIdx.x] = term;
   __syncthreads();
 
