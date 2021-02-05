@@ -32,6 +32,7 @@ with warnings.catch_warnings():
 
 print("Networkx version : {} ".format(nx.__version__))
 
+BEAM_SEARCH = [True, False]
 
 def load_tsp(filename=None):
     gdf = cudf.read_csv(filename,
@@ -49,13 +50,15 @@ def load_tsp(filename=None):
 
 
 @pytest.mark.parametrize("tsplib_file, ref_cost", utils.DATASETS_TSPLIB)
-def test_traveling_salesman(tsplib_file, ref_cost):
+@pytest.mark.parametrize("beam_search", BEAM_SEARCH)
+def test_traveling_salesman(tsplib_file, ref_cost, beam_search):
     gc.collect()
     pos_list = load_tsp(tsplib_file)
     # cugraph
     t1 = time.time()
     cu_route, cu_cost = cugraph.traveling_salesman(pos_list,
-                                                   restarts=4096)
+                                                   restarts=4096,
+                                                   beam_search=beam_search)
     t2 = time.time() - t1
     print("Cugraph time : " + str(t2))
     print("Cugraph cost: ", cu_cost)
