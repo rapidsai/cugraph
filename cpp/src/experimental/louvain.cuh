@@ -1225,8 +1225,9 @@ class Louvain {
     base_vertex_id_     = current_graph_view_.get_local_vertex_first();
 
     raft::copy(&local_num_edges_,
-               current_graph_view_.offsets() + current_graph_view_.get_local_adj_matrix_partition_row_last(0) -
-               current_graph_view_.get_local_adj_matrix_partition_row_first(0),
+               current_graph_view_.offsets() +
+                 current_graph_view_.get_local_adj_matrix_partition_row_last(0) -
+                 current_graph_view_.get_local_adj_matrix_partition_row_first(0),
                1,
                stream_);
 

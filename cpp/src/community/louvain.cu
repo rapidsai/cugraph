@@ -88,14 +88,13 @@ std::pair<size_t, weight_t> louvain(
 
     weight_t wt = runner(max_level, resolution);
 
-    rmm::device_uvector<vertex_t> vertex_ids_v(graph_view.get_number_of_vertices(), handle.get_stream());
+    rmm::device_uvector<vertex_t> vertex_ids_v(graph_view.get_number_of_vertices(),
+                                               handle.get_stream());
 
-    thrust::copy(
-      rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
-      thrust::make_counting_iterator<vertex_t>(0),
-      thrust::make_counting_iterator<vertex_t>(
-        graph_view.get_number_of_vertices()),
-      vertex_ids_v.begin());
+    thrust::copy(rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
+                 thrust::make_counting_iterator<vertex_t>(0),
+                 thrust::make_counting_iterator<vertex_t>(graph_view.get_number_of_vertices()),
+                 vertex_ids_v.begin());
 
     partition_at_level<vertex_t, multi_gpu>(handle,
                                             runner.get_dendrogram(),
