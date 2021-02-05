@@ -150,7 +150,7 @@ float TSP::compute()
   if (verbose_) printf("Optimized tour length = %d\n", global_best);
 
   for (int i = 0; i < nodes_; ++i) {
-    if (verbose_) { printf("%.1f %.1f\n", h_x_pos[i], h_y_pos[i + nodes_ + 1]); }
+    if (verbose_) { printf("%.1f %.1f\n", h_x_pos[i], h_y_pos[i]); }
     valid_coo_dist += euclidean_dist(h_x_pos.data(), h_y_pos.data(), i, i + 1);
   }
   raft::copy(route_, route_sol, nodes_, stream_);
