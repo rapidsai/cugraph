@@ -193,14 +193,14 @@ void force_atlas2(GraphCOOView<vertex_t, edge_t, weight_t> &graph,
                   internals::GraphBasedDimRedCallback *callback = nullptr);
 
 /**
- * @brief			Finds an approximate solution to the traveling salesman problem (TSP).
- *   					cuGraph computes an approximation of the TSP problem using hill climbing
- *   					optimization.
+ * @brief Finds an approximate solution to the traveling salesman problem (TSP).
+ *        cuGraph computes an approximation of the TSP problem using hill climbing
+ *        optimization.
  *
- *  The current implementation does not support a weighted graph.
+ *        The current implementation does not support a weighted graph.
  *
- * @throws                                  	cugraph::logic_error when an error occurs.
- * @param[in] handle                        	Library handle (RAFT). If a communicator is set in the
+ * @throws                                    cugraph::logic_error when an error occurs.
+ * @param[in] handle                          Library handle (RAFT). If a communicator is set in the
  * handle, the multi GPU version will be selected.
  * @param[in] vtx_ptr                         Device array containing the vertex identifiers used
  * to initialize the route.
@@ -208,7 +208,7 @@ void force_atlas2(GraphCOOView<vertex_t, edge_t, weight_t> &graph,
  * @param[in] x_pos                           Device array containing starting x-axis positions.
  * @param[in] y_pos                           Device array containing starting y-axis positions.
  * @param[in] nodes                           Number of cities.
- * @param[in] restarts												Number of starts to try. The more restarts,
+ * @param[in] restarts                        Number of starts to try. The more restarts,
  * the better the solution will be approximated. The number of restarts depends on the problem
  * size and should be kept low for instances above 2k cities.
  * @param[in] beam_search 										Specify if the initial solution should use KNN
