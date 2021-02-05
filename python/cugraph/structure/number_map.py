@@ -1,4 +1,4 @@
-# Copyright (c) 2020, NVIDIA CORPORATION.
+# Copyright (c) 2020-2021, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -895,7 +895,7 @@ class NumberMap:
         if preserve_order:
             df = df.sort_values(
                 index_name
-            ).drop(index_name).reset_index(drop=True)
+            ).drop(columns=index_name).reset_index(drop=True)
 
         if type(df) is dask_cudf.DataFrame:
             return df.map_partitions(

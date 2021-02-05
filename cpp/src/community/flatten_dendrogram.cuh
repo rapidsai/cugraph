@@ -15,9 +15,10 @@
  */
 #pragma once
 
-#include <rmm/thrust_rmm_allocator.h>
 #include <community/dendrogram.cuh>
 #include <experimental/graph_functions.hpp>
+
+#include <rmm/thrust_rmm_allocator.h>
 #include <raft/handle.hpp>
 
 namespace cugraph {
@@ -29,7 +30,7 @@ void partition_at_level(raft::handle_t const &handle,
                         vertex_t *d_partition,
                         size_t level)
 {
-  vertex_t local_num_verts = dendrogram.get_level_size_unsafe(0);
+  vertex_t local_num_verts = dendrogram.get_level_size_nocheck(0);
 
   thrust::copy(rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
                d_vertex_ids,
@@ -42,8 +43,8 @@ void partition_at_level(raft::handle_t const &handle,
                   cugraph::experimental::relabel<vertex_t, multi_gpu>(
                     handle,
                     std::tuple<vertex_t const *, vertex_t const *>(
-                      d_vertex_ids, dendrogram.get_level_ptr_unsafe(l)),
-                    dendrogram.get_level_size_unsafe(l),
+                      d_vertex_ids, dendrogram.get_level_ptr_nocheck(l)),
+                    dendrogram.get_level_size_nocheck(l),
                     d_partition,
                     local_num_verts);
                 });

@@ -15,8 +15,9 @@
  */
 #pragma once
 
-#include <memory>
 #include <rmm/device_buffer.hpp>
+
+#include <memory>
 #include <vector>
 
 namespace cugraph {
@@ -24,13 +25,10 @@ namespace cugraph {
 template <typename vertex_t>
 class Dendrogram {
  public:
-  Dendrogram() : level_size_(), level_ptr_() {}
-
-  void add_level(vertex_t num_verts)
+  void add_level(vertex_t num_verts,
+                 cudaStream_t stream                 = 0,
+                 rmm::mr::device_memory_resource *mr = rmm::mr::get_current_device_resource())
   {
-    cudaStream_t stream{0};
-    rmm::mr::device_memory_resource *mr = rmm::mr::get_current_device_resource();
-
     level_ptr_.push_back(
       std::make_unique<rmm::device_buffer>(num_verts * sizeof(vertex_t), stream, mr));
     level_size_.push_back(num_verts);
@@ -40,18 +38,27 @@ class Dendrogram {
 
   size_t num_levels() const { return level_size_.size(); }
 
-  vertex_t *get_level_ptr_unsafe(size_t level) const
+  vertex_t const *get_level_ptr_nocheck(size_t level) const
+  {
+    return static_cast<vertex_t const *>(level_ptr_[level]->data());
+  }
+
+  vertex_t *get_level_ptr_nocheck(size_t level)
   {
     return static_cast<vertex_t *>(level_ptr_[level]->data());
   }
 
-  vertex_t get_level_size_unsafe(size_t level) const { return level_size_[level]; }
+  vertex_t get_level_size_nocheck(size_t level) const { return level_size_[level]; }
 
-  vertex_t *current_level_begin() const { return get_level_ptr_unsafe(current_level()); }
+  vertex_t const *current_level_begin() const { return get_level_ptr_nocheck(current_level()); }
 
-  vertex_t *current_level_end() const { return current_level_begin() + current_level_size(); }
+  vertex_t const *current_level_end() const { return current_level_begin() + current_level_size(); }
 
-  vertex_t current_level_size() const { return get_level_size_unsafe(current_level()); }
+  vertex_t *current_level_begin() { return get_level_ptr_nocheck(current_level()); }
+
+  vertex_t *current_level_end() { return current_level_begin() + current_level_size(); }
+
+  vertex_t current_level_size() const { return get_level_size_nocheck(current_level()); }
 
  private:
   std::vector<vertex_t> level_size_;

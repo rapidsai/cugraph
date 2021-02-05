@@ -116,6 +116,9 @@ void relabel(raft::handle_t const& handle,
 
       // update intermediate relabel map
 
+      CUDA_TRY(cudaStreamSynchronize(
+        handle.get_stream()));  // cuco::static_map currently does not take stream
+
       cuco::static_map<vertex_t, vertex_t> relabel_map{
         static_cast<size_t>(static_cast<double>(rx_label_pair_old_labels.size()) / load_factor),
         invalid_vertex_id<vertex_t>::value,

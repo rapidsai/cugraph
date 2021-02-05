@@ -281,7 +281,7 @@ void expensive_check_edgelist(
                                                         comm_size,
                                                         row_comm_size,
                                                         col_comm_size}] __device__(auto edge) {
-          return key_func(thrust::get<0>(edge), thrust::get<1>(edge)) == comm_rank;
+          return key_func(thrust::get<0>(edge), thrust::get<1>(edge)) != comm_rank;
         }) == 0,
       "Invalid input argument: edgelist_major_vertices & edgelist_minor_vertices should be "
       "pre-shuffled.");
@@ -447,7 +447,7 @@ renumber_edgelist(raft::handle_t const& handle,
                                                               handle.get_stream());
       std::vector<size_t> recvcounts(row_comm_size);
       for (int i = 0; i < row_comm_size; ++i) {
-        recvcounts[i] = partition.get_vertex_partition_size(row_comm_rank * row_comm_size + i);
+        recvcounts[i] = partition.get_vertex_partition_size(col_comm_rank * row_comm_size + i);
       }
       std::vector<size_t> displacements(row_comm_size, 0);
       std::partial_sum(recvcounts.begin(), recvcounts.end() - 1, displacements.begin() + 1);
@@ -707,8 +707,10 @@ std::enable_if_t<!multi_gpu, rmm::device_uvector<vertex_t>> renumber_edgelist(
                                                                 do_expensive_check);
 }
 
-// explicit instantiation
-
+// explicit instantiation directives (EIDir's):
+//
+// instantiations for <vertex_t == int32_t, edge_t == int32_t>
+//
 template std::tuple<rmm::device_uvector<int32_t>, partition_t<int32_t>, int32_t, int32_t>
 renumber_edgelist<int32_t, int32_t, true>(raft::handle_t const& handle,
                                           int32_t* edgelist_major_vertices /* [INOUT] */,
@@ -743,6 +745,8 @@ template rmm::device_uvector<int32_t> renumber_edgelist<int32_t, int32_t, false>
   int32_t num_edgelist_edges,
   bool do_expensive_check);
 
+// instantiations for <vertex_t == int32_t, edge_t == int64_t>
+//
 template std::tuple<rmm::device_uvector<int32_t>, partition_t<int32_t>, int32_t, int64_t>
 renumber_edgelist<int32_t, int64_t, true>(raft::handle_t const& handle,
                                           int32_t* edgelist_major_vertices /* [INOUT] */,
@@ -777,6 +781,8 @@ template rmm::device_uvector<int32_t> renumber_edgelist<int32_t, int64_t, false>
   int64_t num_edgelist_edges,
   bool do_expensive_check);
 
+// instantiations for <vertex_t == int64_t, edge_t == int64_t>
+//
 template std::tuple<rmm::device_uvector<int64_t>, partition_t<int64_t>, int64_t, int64_t>
 renumber_edgelist<int64_t, int64_t, true>(raft::handle_t const& handle,
                                           int64_t* edgelist_major_vertices /* [INOUT] */,

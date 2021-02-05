@@ -30,21 +30,31 @@ function(ConfigureTest CMAKE_TEST_NAME CMAKE_TEST_SRC CMAKE_EXTRA_LIBS)
 	"${CUCO_INCLUDE_DIR}"
 	"${LIBCUDACXX_INCLUDE_DIR}"
         "${CMAKE_CUDA_TOOLKIT_INCLUDE_DIRECTORIES}"
-        "${GTEST_INCLUDE_DIR}"
         "${RMM_INCLUDE}"
         "${CUDF_INCLUDE}"
         "${CUDF_INCLUDE}/libcudf/libcudacxx"
         "${NCCL_INCLUDE_DIRS}"
-        "${CMAKE_SOURCE_DIR}/../thirdparty/mmio"
-        "${CMAKE_SOURCE_DIR}/include"
-        "${CMAKE_SOURCE_DIR}/src"
+        "${CMAKE_CURRENT_SOURCE_DIR}/../../thirdparty/mmio"
+        "${CMAKE_CURRENT_SOURCE_DIR}/../include"
+        "${CMAKE_CURRENT_SOURCE_DIR}/../src"
         "${CMAKE_CURRENT_SOURCE_DIR}"
         "${RAFT_DIR}/cpp/include"
     )
 
     target_link_libraries(${CMAKE_TEST_NAME}
         PRIVATE
-        gtest gmock_main gmock cugraph ${CUDF_LIBRARY} ${CMAKE_EXTRA_LIBS}  ${NCCL_LIBRARIES} cudart cuda cublas cusparse cusolver curand)
+        cugraph
+        GTest::GTest
+        GTest::Main
+        ${CUDF_LIBRARY}
+        ${NCCL_LIBRARIES}
+        cudart
+        cuda
+        cublas
+        cusparse
+        cusolver
+        curand
+        ${CMAKE_EXTRA_LIBS})
 
     if(OpenMP_CXX_FOUND)
         target_link_libraries(${CMAKE_TEST_NAME} PRIVATE
@@ -96,8 +106,17 @@ function(ConfigureTest CMAKE_TEST_NAME CMAKE_TEST_SRC CMAKE_EXTRA_LIBS)
 ###       BUILD_RPATH "${TARGET_BUILD_RPATH}")
         ${OpenMP_CXX_LIB_NAMES})
     endif(OpenMP_CXX_FOUND)
+
+    # CUDA_ARCHITECTURES=OFF implies cmake will not pass arch flags to the
+    # compiler. CUDA_ARCHITECTURES must be set to a non-empty value to prevent
+    # cmake warnings about policy CMP0104. With this setting, arch flags must be
+    # manually set! ("evaluate_gpu_archs(GPU_ARCHS)" is the current mechanism
+    # used in cpp/CMakeLists.txt for setting arch options).
+    # Run "cmake --help-policy CMP0104" for policy details.
+    # NOTE: the CUDA_ARCHITECTURES=OFF setting may be removed after migrating to
+    # the findcudatoolkit features in cmake 3.17+
     set_target_properties(${CMAKE_TEST_NAME} PROPERTIES
-        RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/gtests/")
+        CUDA_ARCHITECTURES OFF)
 
     add_test(NAME ${CMAKE_TEST_NAME} COMMAND ${CMAKE_TEST_NAME})
 endfunction()
@@ -120,7 +139,7 @@ endif(RAPIDS_DATASET_ROOT_DIR)
 # - katz centrality tests -------------------------------------------------------------------------
 
 set(KATZ_TEST_SRC
-    "${CMAKE_SOURCE_DIR}/../thirdparty/mmio/mmio.c"
+    "${CMAKE_CURRENT_SOURCE_DIR}/../../thirdparty/mmio/mmio.c"
     "${CMAKE_CURRENT_SOURCE_DIR}/centrality/katz_centrality_test.cu")
 
   ConfigureTest(KATZ_TEST "${KATZ_TEST_SRC}" "")
@@ -129,31 +148,22 @@ set(KATZ_TEST_SRC
 # - betweenness centrality tests ------------------------------------------------------------------
 
 set(BETWEENNESS_TEST_SRC
-    "${CMAKE_SOURCE_DIR}/../thirdparty/mmio/mmio.c"
+    "${CMAKE_CURRENT_SOURCE_DIR}/../../thirdparty/mmio/mmio.c"
     "${CMAKE_CURRENT_SOURCE_DIR}/centrality/betweenness_centrality_test.cu")
 
   ConfigureTest(BETWEENNESS_TEST "${BETWEENNESS_TEST_SRC}" "")
 
 set(EDGE_BETWEENNESS_TEST_SRC
-    "${CMAKE_SOURCE_DIR}/../thirdparty/mmio/mmio.c"
+    "${CMAKE_CURRENT_SOURCE_DIR}/../../thirdparty/mmio/mmio.c"
     "${CMAKE_CURRENT_SOURCE_DIR}/centrality/edge_betweenness_centrality_test.cu")
 
   ConfigureTest(EDGE_BETWEENNESS_TEST "${EDGE_BETWEENNESS_TEST_SRC}" "")
 
 ###################################################################################################
-# - pagerank tests --------------------------------------------------------------------------------
-
-set(PAGERANK_TEST_SRC
-    "${CMAKE_SOURCE_DIR}/../thirdparty/mmio/mmio.c"
-    "${CMAKE_CURRENT_SOURCE_DIR}/pagerank/pagerank_test.cpp")
-
-ConfigureTest(PAGERANK_TEST "${PAGERANK_TEST_SRC}" "")
-
-###################################################################################################
 # - SSSP tests ------------------------------------------------------------------------------------
 
 set(SSSP_TEST_SRCS
-    "${CMAKE_SOURCE_DIR}/../thirdparty/mmio/mmio.c"
+    "${CMAKE_CURRENT_SOURCE_DIR}/../../thirdparty/mmio/mmio.c"
     "${CMAKE_CURRENT_SOURCE_DIR}/traversal/sssp_test.cu")
 
 ConfigureTest(SSSP_TEST "${SSSP_TEST_SRCS}" "")
@@ -162,7 +172,7 @@ ConfigureTest(SSSP_TEST "${SSSP_TEST_SRCS}" "")
 # - BFS tests -------------------------------------------------------------------------------------
 
 set(BFS_TEST_SRCS
-    "${CMAKE_SOURCE_DIR}/../thirdparty/mmio/mmio.c"
+    "${CMAKE_CURRENT_SOURCE_DIR}/../../thirdparty/mmio/mmio.c"
     "${CMAKE_CURRENT_SOURCE_DIR}/traversal/bfs_test.cu")
 
 ConfigureTest(BFS_TEST "${BFS_TEST_SRCS}" "")
@@ -171,7 +181,7 @@ ConfigureTest(BFS_TEST "${BFS_TEST_SRCS}" "")
 # - LOUVAIN tests ---------------------------------------------------------------------------------
 
 set(LOUVAIN_TEST_SRC
-    "${CMAKE_SOURCE_DIR}/../thirdparty/mmio/mmio.c"
+    "${CMAKE_CURRENT_SOURCE_DIR}/../../thirdparty/mmio/mmio.c"
     "${CMAKE_CURRENT_SOURCE_DIR}/community/louvain_test.cu")
 
 ConfigureTest(LOUVAIN_TEST "${LOUVAIN_TEST_SRC}" "")
@@ -180,7 +190,7 @@ ConfigureTest(LOUVAIN_TEST "${LOUVAIN_TEST_SRC}" "")
 # - LEIDEN tests ---------------------------------------------------------------------------------
 
 set(LEIDEN_TEST_SRC
-    "${CMAKE_SOURCE_DIR}/../thirdparty/mmio/mmio.c"
+    "${CMAKE_CURRENT_SOURCE_DIR}/../../thirdparty/mmio/mmio.c"
     "${CMAKE_CURRENT_SOURCE_DIR}/community/leiden_test.cpp")
 
 ConfigureTest(LEIDEN_TEST "${LEIDEN_TEST_SRC}" "")
@@ -210,10 +220,18 @@ set(TRIANGLE_TEST_SRC
 ConfigureTest(TRIANGLE_TEST "${TRIANGLE_TEST_SRC}" "")
 
 ###################################################################################################
+# - EGO tests --------------------------------------------------------------------------------
+
+set(EGO_TEST_SRC
+    "${CMAKE_SOURCE_DIR}/../thirdparty/mmio/mmio.c"
+    "${CMAKE_CURRENT_SOURCE_DIR}/community/egonet_test.cu")
+
+ConfigureTest(EGO_TEST "${EGO_TEST_SRC}" "")
+###################################################################################################
 # - RENUMBERING tests -----------------------------------------------------------------------------
 
 set(RENUMBERING_TEST_SRC
-    "${CMAKE_SOURCE_DIR}/../thirdparty/mmio/mmio.c"
+    "${CMAKE_CURRENT_SOURCE_DIR}/../../thirdparty/mmio/mmio.c"
     "${CMAKE_CURRENT_SOURCE_DIR}/renumber/renumber_test.cu")
 
 ConfigureTest(RENUMBERING_TEST "${RENUMBERING_TEST_SRC}" "")
@@ -222,7 +240,7 @@ ConfigureTest(RENUMBERING_TEST "${RENUMBERING_TEST_SRC}" "")
 # - FORCE ATLAS 2  tests --------------------------------------------------------------------------
 
 set(FA2_TEST_SRC
-    "${CMAKE_SOURCE_DIR}/../thirdparty/mmio/mmio.c"
+    "${CMAKE_CURRENT_SOURCE_DIR}/../../thirdparty/mmio/mmio.c"
     "${CMAKE_CURRENT_SOURCE_DIR}/layout/force_atlas2_test.cu")
 
 ConfigureTest(FA2_TEST "${FA2_TEST_SRC}" "")
@@ -231,7 +249,7 @@ ConfigureTest(FA2_TEST "${FA2_TEST_SRC}" "")
 # - CONNECTED COMPONENTS  tests -------------------------------------------------------------------
 
 set(CONNECT_TEST_SRC
-    "${CMAKE_SOURCE_DIR}/../thirdparty/mmio/mmio.c"
+    "${CMAKE_CURRENT_SOURCE_DIR}/../../thirdparty/mmio/mmio.c"
     "${CMAKE_CURRENT_SOURCE_DIR}/components/con_comp_test.cu")
 
 ConfigureTest(CONNECT_TEST "${CONNECT_TEST_SRC}" "")
@@ -240,7 +258,7 @@ ConfigureTest(CONNECT_TEST "${CONNECT_TEST_SRC}" "")
 # - STRONGLY CONNECTED COMPONENTS  tests ----------------------------------------------------------
 
 set(SCC_TEST_SRC
-    "${CMAKE_SOURCE_DIR}/../thirdparty/mmio/mmio.c"
+    "${CMAKE_CURRENT_SOURCE_DIR}/../../thirdparty/mmio/mmio.c"
     "${CMAKE_CURRENT_SOURCE_DIR}/components/scc_test.cu")
 
 ConfigureTest(SCC_TEST "${SCC_TEST_SRC}" "")
@@ -257,7 +275,7 @@ ConfigureTest(HUNGARIAN_TEST "${HUNGARIAN_TEST_SRC}" "")
 # - MST tests ----------------------------------------------------------------------------
 
 set(MST_TEST_SRC
-    "${CMAKE_SOURCE_DIR}/../thirdparty/mmio/mmio.c"
+    "${CMAKE_CURRENT_SOURCE_DIR}/../../thirdparty/mmio/mmio.c"
     "${CMAKE_CURRENT_SOURCE_DIR}/tree/mst_test.cu")
 
 ConfigureTest(MST_TEST "${MST_TEST_SRC}" "")
@@ -267,7 +285,7 @@ ConfigureTest(MST_TEST "${MST_TEST_SRC}" "")
 # - Experimental Graph tests ----------------------------------------------------------------------
 
 set(EXPERIMENTAL_GRAPH_TEST_SRCS
-    "${CMAKE_SOURCE_DIR}/../thirdparty/mmio/mmio.c"
+    "${CMAKE_CURRENT_SOURCE_DIR}/../../thirdparty/mmio/mmio.c"
     "${CMAKE_CURRENT_SOURCE_DIR}/experimental/graph_test.cpp")
 
 ConfigureTest(EXPERIMENTAL_GRAPH_TEST "${EXPERIMENTAL_GRAPH_TEST_SRCS}" "")
@@ -276,7 +294,7 @@ ConfigureTest(EXPERIMENTAL_GRAPH_TEST "${EXPERIMENTAL_GRAPH_TEST_SRCS}" "")
 # - Experimental coarsening tests -----------------------------------------------------------------
 
 set(EXPERIMENTAL_COARSEN_GRAPH_TEST_SRCS
-    "${CMAKE_SOURCE_DIR}/../thirdparty/mmio/mmio.c"
+    "${CMAKE_CURRENT_SOURCE_DIR}/../../thirdparty/mmio/mmio.c"
     "${CMAKE_CURRENT_SOURCE_DIR}/experimental/coarsen_graph_test.cpp")
 
 ConfigureTest(EXPERIMENTAL_COARSEN_GRAPH_TEST "${EXPERIMENTAL_COARSEN_GRAPH_TEST_SRCS}" "")
@@ -285,7 +303,7 @@ ConfigureTest(EXPERIMENTAL_COARSEN_GRAPH_TEST "${EXPERIMENTAL_COARSEN_GRAPH_TEST
 # - Experimental induced subgraph tests -----------------------------------------------------------
 
 set(EXPERIMENTAL_INDUCED_SUBGRAPH_TEST_SRCS
-    "${CMAKE_SOURCE_DIR}/../thirdparty/mmio/mmio.c"
+    "${CMAKE_CURRENT_SOURCE_DIR}/../../thirdparty/mmio/mmio.c"
     "${CMAKE_CURRENT_SOURCE_DIR}/experimental/induced_subgraph_test.cpp")
 
 ConfigureTest(EXPERIMENTAL_INDUCED_SUBGRAPH_TEST "${EXPERIMENTAL_INDUCED_SUBGRAPH_TEST_SRCS}" "")
@@ -294,7 +312,7 @@ ConfigureTest(EXPERIMENTAL_INDUCED_SUBGRAPH_TEST "${EXPERIMENTAL_INDUCED_SUBGRAP
 # - Experimental BFS tests ------------------------------------------------------------------------
 
 set(EXPERIMENTAL_BFS_TEST_SRCS
-    "${CMAKE_SOURCE_DIR}/../thirdparty/mmio/mmio.c"
+    "${CMAKE_CURRENT_SOURCE_DIR}/../../thirdparty/mmio/mmio.c"
     "${CMAKE_CURRENT_SOURCE_DIR}/experimental/bfs_test.cpp")
 
 ConfigureTest(EXPERIMENTAL_BFS_TEST "${EXPERIMENTAL_BFS_TEST_SRCS}" "")
@@ -303,7 +321,7 @@ ConfigureTest(EXPERIMENTAL_BFS_TEST "${EXPERIMENTAL_BFS_TEST_SRCS}" "")
 # - Experimental SSSP tests -----------------------------------------------------------------------
 
 set(EXPERIMENTAL_SSSP_TEST_SRCS
-    "${CMAKE_SOURCE_DIR}/../thirdparty/mmio/mmio.c"
+    "${CMAKE_CURRENT_SOURCE_DIR}/../../thirdparty/mmio/mmio.c"
     "${CMAKE_CURRENT_SOURCE_DIR}/experimental/sssp_test.cpp")
 
 ConfigureTest(EXPERIMENTAL_SSSP_TEST "${EXPERIMENTAL_SSSP_TEST_SRCS}" "")
@@ -312,7 +330,7 @@ ConfigureTest(EXPERIMENTAL_SSSP_TEST "${EXPERIMENTAL_SSSP_TEST_SRCS}" "")
 # - Experimental PAGERANK tests -------------------------------------------------------------------
 
 set(EXPERIMENTAL_PAGERANK_TEST_SRCS
-    "${CMAKE_SOURCE_DIR}/../thirdparty/mmio/mmio.c"
+    "${CMAKE_CURRENT_SOURCE_DIR}/../../thirdparty/mmio/mmio.c"
     "${CMAKE_CURRENT_SOURCE_DIR}/experimental/pagerank_test.cpp")
 
 ConfigureTest(EXPERIMENTAL_PAGERANK_TEST "${EXPERIMENTAL_PAGERANK_TEST_SRCS}" "")
@@ -321,7 +339,7 @@ ConfigureTest(EXPERIMENTAL_PAGERANK_TEST "${EXPERIMENTAL_PAGERANK_TEST_SRCS}" ""
 # - Experimental LOUVAIN tests -------------------------------------------------------------------
 
 set(EXPERIMENTAL_LOUVAIN_TEST_SRCS
-    "${CMAKE_SOURCE_DIR}/../thirdparty/mmio/mmio.c"
+    "${CMAKE_CURRENT_SOURCE_DIR}/../../thirdparty/mmio/mmio.c"
     "${CMAKE_CURRENT_SOURCE_DIR}/experimental/louvain_test.cu")
 
 ConfigureTest(EXPERIMENTAL_LOUVAIN_TEST "${EXPERIMENTAL_LOUVAIN_TEST_SRCS}" "")
@@ -330,7 +348,7 @@ ConfigureTest(EXPERIMENTAL_LOUVAIN_TEST "${EXPERIMENTAL_LOUVAIN_TEST_SRCS}" "")
 # - Experimental KATZ_CENTRALITY tests ------------------------------------------------------------
 
 set(EXPERIMENTAL_KATZ_CENTRALITY_TEST_SRCS
-    "${CMAKE_SOURCE_DIR}/../thirdparty/mmio/mmio.c"
+    "${CMAKE_CURRENT_SOURCE_DIR}/../../thirdparty/mmio/mmio.c"
     "${CMAKE_CURRENT_SOURCE_DIR}/experimental/katz_centrality_test.cpp")
 
 ConfigureTest(EXPERIMENTAL_KATZ_CENTRALITY_TEST "${EXPERIMENTAL_KATZ_CENTRALITY_TEST_SRCS}" "")
