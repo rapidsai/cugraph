@@ -146,29 +146,6 @@ void ecg(raft::handle_t const &handle,
                   "Invalid input argument: clustering is NULL, should be a device pointer to "
                   "memory for storing the result");
 
-  // TODO:  New idea... rather than creating a permuted graph
-  //     Observe that because of the up/down behavior... the only difference graph ordering
-  //     has on the computation is in deciding what moves in each up/down pass.
-  //     This *should be* equivalent to the following:
-  //        Instead of initializing each vertex to be in a cluster by itself that
-  //        is equal to cluster id, initialize each vertex to be in a cluster by
-  //        itself equal to a random id.  For each random run of a 1-level Louvain,
-  //        the cluster ids would be randomized differently.
-  //
-  //        For MNMG, we could assume an equal distribution across the GPUs and
-  //        generate to a pattern so that we don't need to do any comms.  It wouldn't
-  //        be completely random, but it should result in an appropriate amount of
-  //        randomness to get the desired effect.
-  //
-  //        Note that this would require implementing the highest level Louvain function,
-  //        or splitting the initialization into an overridable function...
-  //
-  //
-  //  MNMG issue... in order to create an MNMG implementation we need to create
-  //    a distributed implementation of get_permutation_vector, preferably without
-  //    comms...
-  //
-
   cudaStream_t stream{0};
 
   rmm::device_uvector<weight_t> ecg_weights_v(graph.number_of_edges, handle.get_stream());
