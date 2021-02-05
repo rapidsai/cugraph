@@ -160,15 +160,6 @@ set(EDGE_BETWEENNESS_TEST_SRC
   ConfigureTest(EDGE_BETWEENNESS_TEST "${EDGE_BETWEENNESS_TEST_SRC}" "")
 
 ###################################################################################################
-# - pagerank tests --------------------------------------------------------------------------------
-
-set(PAGERANK_TEST_SRC
-    "${CMAKE_CURRENT_SOURCE_DIR}/../../thirdparty/mmio/mmio.c"
-    "${CMAKE_CURRENT_SOURCE_DIR}/pagerank/pagerank_test.cpp")
-
-ConfigureTest(PAGERANK_TEST "${PAGERANK_TEST_SRC}" "")
-
-###################################################################################################
 # - SSSP tests ------------------------------------------------------------------------------------
 
 set(SSSP_TEST_SRCS
