@@ -37,7 +37,7 @@ for folder in ${TOPLEVEL_NB_FOLDERS}; do
     echo "FOLDER: ${folder}"
     echo "========================================"
     cd ${NOTEBOOKS_DIR}/${folder}
-    for nb in $(find . -name "*.ipynb"); do
+    for nb in $(python ${WORKSPACE}/ci/gpu/notebook_list.py); do
         nbBasename=$(basename ${nb})
         # Skip all NBs that use dask (in the code or even in their name)
         if ((echo ${nb}|grep -qi dask) || \
