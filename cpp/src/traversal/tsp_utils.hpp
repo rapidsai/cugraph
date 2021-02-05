@@ -22,9 +22,9 @@
 namespace cugraph {
 namespace detail {
 
-__host__ __device__ inline float euclidean_dist(float *px, float *py, int a, int b) {
-  return sqrtf((px[a] - px[b]) * (px[a] - px[b]) + \
-          (py[a] - py[b]) * (py[a] - py[b]));
+__host__ __device__ inline float euclidean_dist(float *px, float *py, int a, int b)
+{
+  return sqrtf((px[a] - px[b]) * (px[a] - px[b]) + (py[a] - py[b]) * (py[a] - py[b]));
 }
 
 int best_thread_count(int nodes)

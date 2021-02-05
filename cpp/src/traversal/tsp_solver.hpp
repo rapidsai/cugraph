@@ -235,7 +235,7 @@ __device__ void hill_climbing(
     }
     __syncthreads();
     for (int i = threadIdx.x; i < nodes; i += blockDim.x) {
-      buf[i] = - __float2int_rn(euclidean_dist(px, py, i, i + 1));
+      buf[i] = -__float2int_rn(euclidean_dist(px, py, i, i + 1));
     }
     __syncthreads();
 

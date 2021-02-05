@@ -92,19 +92,17 @@ float TSP::compute()
   knn();
 
   if (verbose_) {
-    printf("Doing %d batches of size %d, with %d tail \n",
-           num_restart_batches - 1,
-           restart_batch_,
-           restart_resid);
-    printf("configuration: %d nodes, %d restart\n", nodes_, restarts_);
-    printf("optimizing graph with kswap = %d \n", kswaps);
+    std::cout << "Doing " << num_restart_batches - 1 << "batches of size " << restart_batch_
+              << ", with " << restart_resid << " tail\n";
+    std::cout << "configuration: " << nodes_ << " nodes, " << restarts_ << " restart\n";
+    std::cout << "optimizing graph with kswap = " << kswaps << "\n";
   }
 
   // Tell the cache how we want it to behave
   cudaFuncSetCacheConfig(search_solution, cudaFuncCachePreferEqual);
 
   int threads = best_thread_count(nodes_);
-  if (verbose_) printf("Calculated best thread number = %d\n", threads);
+  if (verbose_) std::cout << "Calculated best thread number = " << threads << "\n";
 
   for (int b = 0; b < num_restart_batches; ++b) {
     init<<<1, 1, 0, stream_>>>(mylock_, best_tour_);
@@ -130,7 +128,7 @@ float TSP::compute()
 
     CUDA_TRY(cudaMemcpy(&best, best_tour_, sizeof(int), cudaMemcpyDeviceToHost));
     cudaDeviceSynchronize();
-    if (verbose_) printf("Best reported by kernel = %d\n", best);
+    if (verbose_) std::cout << "Best reported by kernel = " << best << "\n";
 
     if (best < global_best) {
       global_best = best;
@@ -138,28 +136,29 @@ float TSP::compute()
       cudaDeviceSynchronize();
       CUDA_TRY(cudaMemcpyFromSymbol(&route_sol, best_route, sizeof(void *)));
       cudaDeviceSynchronize();
-      CUDA_TRY(
-        cudaMemcpy(h_x_pos.data(), soln, sizeof(float) * (nodes_ + 1), cudaMemcpyDeviceToHost));
-      cudaDeviceSynchronize();
-      CUDA_TRY(
-        cudaMemcpy(h_y_pos.data(), soln + nodes_ + 1, sizeof(float) * (nodes_ + 1), cudaMemcpyDeviceToHost));
-      cudaDeviceSynchronize();
     }
   }
 
-  if (verbose_) printf("Optimized tour length = %d\n", global_best);
+  if (verbose_) std::cout << "Optimized tour length = " << global_best << "\n";
+
+  raft::copy(route_, route_sol, nodes_, stream_);
+
+  CUDA_TRY(cudaMemcpy(h_x_pos.data(), soln, sizeof(float) * (nodes_ + 1), cudaMemcpyDeviceToHost));
+  cudaDeviceSynchronize();
+  CUDA_TRY(cudaMemcpy(
+    h_y_pos.data(), soln + nodes_ + 1, sizeof(float) * (nodes_ + 1), cudaMemcpyDeviceToHost));
+  cudaDeviceSynchronize();
 
   for (int i = 0; i < nodes_; ++i) {
-    if (verbose_) { printf("%.1f %.1f\n", h_x_pos[i], h_y_pos[i]); }
+    if (verbose_) { std::cout << h_x_pos[i] << " " << h_y_pos[i] << "\n"; }
     valid_coo_dist += euclidean_dist(h_x_pos.data(), h_y_pos.data(), i, i + 1);
   }
-  raft::copy(route_, route_sol, nodes_, stream_);
   return valid_coo_dist;
 }
 
 void TSP::knn()
 {
-  if (verbose_) printf("Looking at %i nearest neighbors\n", k_);
+  if (verbose_) std::cout << "Looking at " << k_ << " nearest neighbors\n";
 
   int dim              = 2;
   bool row_major_order = false;
