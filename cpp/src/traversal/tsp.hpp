@@ -28,16 +28,16 @@ namespace detail {
 class TSP {
  public:
   TSP(raft::handle_t &handle,
-      const int *vtx_ptr,
+      int const *vtx_ptr,
       int *route,
-      const float *x_pos,
-      const float *y_pos,
-      const int nodes,
-      const int restarts,
-      const bool beam_search,
-      const int k,
-      const int nstart,
-      const bool verbose);
+      float const *x_pos,
+      float const *y_pos,
+      int nodes,
+      int restarts,
+      bool beam_search,
+      int k,
+      int nstart,
+      bool verbose);
 
   void allocate();
   float compute();
@@ -54,16 +54,16 @@ class TSP {
   int restart_batch_;
 
   // TSP
-  const int *vtx_ptr_;
+  int const *vtx_ptr_;
   int *route_;
-  const float *x_pos_;
-  const float *y_pos_;
-  const int nodes_;
-  const int restarts_;
-  const bool beam_search_;
-  const int k_;
-  const int nstart_;
-  const bool verbose_;
+  float const *x_pos_;
+  float const *y_pos_;
+  int nodes_;
+  int restarts_;
+  bool beam_search_;
+  int k_;
+  int nstart_;
+  bool verbose_;
 
   // Scalars
   rmm::device_scalar<int> mylock_scalar_;

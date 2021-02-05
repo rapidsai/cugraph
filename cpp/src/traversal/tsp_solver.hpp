@@ -45,16 +45,16 @@ __global__ void init(int *mylock, int *n_climbs, int *best_tour)
 __global__ __launch_bounds__(2048, 2) void two_opt_search(int *mylock,
                                                           int *n_climbs,
                                                           int *best_tour,
-                                                          const int *vtx_ptr,
+                                                          int const *vtx_ptr,
                                                           int *work_route,
-                                                          const bool beam_search,
-                                                          const int K,
+                                                          bool beam_search,
+                                                          int const K,
                                                           int nodes,
                                                           int64_t *neighbors,
-                                                          const float *posx,
-                                                          const float *posy,
+                                                          float const *posx,
+                                                          float const *posy,
                                                           int *work,
-                                                          const int nstart)
+                                                          int const nstart)
 {
   int *buf       = &work[blockIdx.x * ((3 * nodes + 2 + 31) / 32 * 32)];
   int *route_buf = &work_route[blockIdx.x * ((3 * nodes + 2 + 31) / 32 * 32)];

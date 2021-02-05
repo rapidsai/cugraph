@@ -24,16 +24,16 @@ namespace cugraph {
 namespace detail {
 
 TSP::TSP(raft::handle_t &handle,
-         const int *vtx_ptr,
+         int const *vtx_ptr,
          int *route,
-         const float *x_pos,
-         const float *y_pos,
-         const int nodes,
-         const int restarts,
-         const bool beam_search,
-         const int k,
-         const int nstart,
-         const bool verbose)
+         float const *x_pos,
+         float const *y_pos,
+         int nodes,
+         int restarts,
+         bool beam_search,
+         int k,
+         int nstart,
+         bool verbose)
   : handle_(handle),
     vtx_ptr_(vtx_ptr),
     route_(route),
@@ -201,16 +201,16 @@ void TSP::knn()
 }  // namespace detail
 
 float traveling_salesman(raft::handle_t &handle,
-                         const int *vtx_ptr,
+                         int const *vtx_ptr,
                          int *route,
-                         const float *x_pos,
-                         const float *y_pos,
-                         const int nodes,
-                         const int restarts,
-                         const bool beam_search,
-                         const int k,
-                         const int nstart,
-                         const bool verbose)
+                         float const *x_pos,
+                         float const *y_pos,
+                         int nodes,
+                         int restarts,
+                         bool beam_search,
+                         int k,
+                         int nstart,
+                         bool verbose)
 {
   RAFT_EXPECTS(route != nullptr, "route should equal the number of nodes");
   RAFT_EXPECTS(nodes > 0, "nodes should be strictly positive");
