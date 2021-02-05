@@ -44,14 +44,15 @@ TSP::TSP(raft::handle_t &handle,
     beam_search_(beam_search),
     k_(k),
     nstart_(nstart),
-    verbose_(verbose)
+    verbose_(verbose),
+    stream_(handle_.get_stream()),
+    max_blocks_(handle_.get_device_properties().maxGridSize[0]),
+    max_threads_(handle_.get_device_properties().maxThreadsPerBlock),
+    sm_count_(handle_.get_device_properties().multiProcessorCount),
+    restart_batch_(4096)
 {
-  stream_      = handle_.get_stream();
-  max_blocks_  = handle_.get_device_properties().maxGridSize[0];
-  max_threads_ = handle_.get_device_properties().maxThreadsPerBlock;
-  sm_count_    = handle_.get_device_properties().multiProcessorCount;
-  // how large a grid we want to run, this is fixed
-  restart_batch_ = 4096;
+  // Allocate GPU buffers
+  allocate();
 }
 
 void TSP::allocate()
@@ -87,9 +88,6 @@ float TSP::compute()
   int best                = 0;
   std::vector<float> pos;
   pos.reserve((nodes_ + 1) * 2);
-
-  // Allocate GPU buffers
-  allocate();
 
   // KNN call
   knn();

@@ -24,6 +24,7 @@
 // Round all distances to the nearest integer, which is good enough for realistic distances in ft
 #define tilesize 128
 #define kswaps 4
+
 #define dist(a, b) \
   __float2int_rn(sqrtf((px[a] - px[b]) * (px[a] - px[b]) + (py[a] - py[b]) * (py[a] - py[b])))
 

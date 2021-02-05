@@ -51,6 +51,7 @@ class TSP {
   int max_blocks_;
   int max_threads_;
   int sm_count_;
+  // how large a grid we want to run, this is fixed
   int restart_batch_;
 
   // TSP
