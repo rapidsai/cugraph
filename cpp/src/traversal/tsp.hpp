@@ -68,11 +68,9 @@ class TSP {
 
   // Scalars
   rmm::device_scalar<int> mylock_scalar_;
-  rmm::device_scalar<int> n_climbs_scalar_;
   rmm::device_scalar<int> best_tour_scalar_;
 
   int *mylock_;
-  int *n_climbs_;
   int *best_tour_;
 
   // Vectors

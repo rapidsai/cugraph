@@ -59,11 +59,9 @@ void TSP::allocate()
 {
   // Scalars
   mylock_scalar_.set_value(1, stream_);
-  n_climbs_scalar_.set_value(1, stream_);
   best_tour_scalar_.set_value(1, stream_);
 
   mylock_    = mylock_scalar_.data();
-  n_climbs_  = n_climbs_scalar_.data();
   best_tour_ = best_tour_scalar_.data();
 
   // Vectors
@@ -102,30 +100,29 @@ float TSP::compute()
   }
 
   // Tell the cache how we want it to behave
-  cudaFuncSetCacheConfig(two_opt_search, cudaFuncCachePreferEqual);
+  cudaFuncSetCacheConfig(search_solution, cudaFuncCachePreferEqual);
 
   int threads = best_thread_count(nodes_);
   if (verbose_) printf("Calculated best thread number = %d\n", threads);
 
   for (int b = 0; b < num_restart_batches; b++) {
-    init<<<1, 1, 0, stream_>>>(mylock_, n_climbs_, best_tour_);
+    init<<<1, 1, 0, stream_>>>(mylock_, best_tour_);
     CHECK_CUDA(stream_);
 
     if (b == num_restart_batches - 1) restart_batch_ = restart_resid;
 
-    two_opt_search<<<restart_batch_, threads, sizeof(int) * threads, stream_>>>(mylock_,
-                                                                                n_climbs_,
-                                                                                best_tour_,
-                                                                                vtx_ptr_,
-                                                                                work_route_,
-                                                                                beam_search_,
-                                                                                k_,
-                                                                                nodes_,
-                                                                                neighbors_,
-                                                                                x_pos_,
-                                                                                y_pos_,
-                                                                                work_,
-                                                                                nstart_);
+    search_solution<<<restart_batch_, threads, sizeof(int) * threads, stream_>>>(mylock_,
+                                                                                 best_tour_,
+                                                                                 vtx_ptr_,
+                                                                                 work_route_,
+                                                                                 beam_search_,
+                                                                                 k_,
+                                                                                 nodes_,
+                                                                                 neighbors_,
+                                                                                 x_pos_,
+                                                                                 y_pos_,
+                                                                                 work_,
+                                                                                 nstart_);
 
     CHECK_CUDA(stream_);
     cudaDeviceSynchronize();
