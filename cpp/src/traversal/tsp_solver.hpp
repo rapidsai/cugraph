@@ -42,33 +42,14 @@ __global__ void init(int *mylock, int *n_climbs, int *best_tour)
   best_route = nullptr;
 }
 
-__global__ __launch_bounds__(2048, 2) void two_opt_search(int *mylock,
-                                                          int *n_climbs,
-                                                          int *best_tour,
-                                                          int const *vtx_ptr,
-                                                          int *work_route,
-                                                          bool beam_search,
-                                                          int const K,
-                                                          int nodes,
-                                                          int64_t *neighbors,
-                                                          float const *posx,
-                                                          float const *posy,
-                                                          int *work,
-                                                          int const nstart)
-{
-  int *buf       = &work[blockIdx.x * ((3 * nodes + 2 + 31) / 32 * 32)];
-  int *route_buf = &work_route[blockIdx.x * ((3 * nodes + 2 + 31) / 32 * 32)];
-  float *px      = (float *)(&buf[nodes]);
-  float *py      = &px[nodes + 1];
-  int *path      = (int *)(&route_buf[nodes]);
-
-  __shared__ int best_change[kswaps];
-  __shared__ int best_i[kswaps];
-  __shared__ int best_j[kswaps];
-  __shared__ float shmem_x[tilesize];
-  __shared__ float shmem_y[tilesize];
-  __shared__ int shbuf[tilesize];
-  if (!beam_search) {
+__device__ void random_init(float const *posx,
+                            float const *posy,
+                            int const *vtx_ptr,
+                            int *path,
+                            float *px,
+                            float *py,
+                            int const nstart,
+                            int const nodes) {
     for (int i = threadIdx.x; i <= nodes; i += blockDim.x) {
       px[i]   = posx[i];
       py[i]   = posy[i];
@@ -96,9 +77,19 @@ __global__ __launch_bounds__(2048, 2) void two_opt_search(int *mylock,
       py[nodes]   = py[0];
       path[nodes] = path[0];
     }
-    __syncthreads();
-  }
-  if (beam_search) {
+}
+
+__device__ void knn_init(float const *posx,
+                         float const *posy,
+                         int const *vtx_ptr,
+                         int64_t const *neighbors,
+                         int *buf,
+                         int *path,
+                         float *px,
+                         float *py,
+                         int const nstart,
+                         int const nodes,
+                         int const K) {
     for (int i = threadIdx.x; i < nodes; i += blockDim.x) buf[i] = 0;
 
     __syncthreads();
@@ -158,14 +149,46 @@ __global__ __launch_bounds__(2048, 2) void two_opt_search(int *mylock,
       path[nodes] = path[nstart];
       initlen += dist(nodes, nstart);
     }
-    __syncthreads();
-  }  // end if beam_search
+}
+
+__global__ __launch_bounds__(2048, 2) void two_opt_search(int *mylock,
+                                                          int *n_climbs,
+                                                          int *best_tour,
+                                                          int const *vtx_ptr,
+                                                          int *work_route,
+                                                          bool beam_search,
+                                                          int const K,
+                                                          int nodes,
+                                                          int64_t const *neighbors,
+                                                          float const *posx,
+                                                          float const *posy,
+                                                          int *work,
+                                                          int const nstart)
+{
+  int *buf       = &work[blockIdx.x * ((3 * nodes + 2 + 31) / 32 * 32)];
+  int *route_buf = &work_route[blockIdx.x * ((3 * nodes + 2 + 31) / 32 * 32)];
+  float *px      = (float *)(&buf[nodes]);
+  float *py      = &px[nodes + 1];
+  int *path      = (int *)(&route_buf[nodes]);
+
+  __shared__ int best_change[kswaps];
+  __shared__ int best_i[kswaps];
+  __shared__ int best_j[kswaps];
+  __shared__ float shmem_x[tilesize];
+  __shared__ float shmem_y[tilesize];
+  __shared__ int shbuf[tilesize];
 
   int kswaps_active = kswaps;
   int myswaps       = 0;
   int minchange;
   int mini;
   int minj;
+
+  if (!beam_search)
+    random_init(posx, posy, vtx_ptr, path, px, py, nstart, nodes);
+  else
+    knn_init(posx, posy, vtx_ptr, neighbors, buf, path, px, py, nstart, nodes, K);
+  __syncthreads();
 
   do { /* Hill climbing, iteratively improve from the starting guess */
     if (threadIdx.x == 0) {
