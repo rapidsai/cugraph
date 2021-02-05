@@ -32,6 +32,7 @@ with warnings.catch_warnings():
 
 print("Networkx version : {} ".format(nx.__version__))
 
+
 def load_tsp(filename=None):
     gdf = cudf.read_csv(filename,
                         delim_whitespace=True,
