@@ -15,13 +15,15 @@
  */
 
 #include <algorithms.hpp>
+#include <community/louvain.cuh>
+#include <converters/permute_graph.cuh>
+#include <utilities/error.hpp>
+#include <utilities/graph_utils.cuh>
 
 #include <rmm/thrust_rmm_allocator.h>
 #include <thrust/random.h>
-#include <converters/permute_graph.cuh>
+
 #include <ctime>
-#include <utilities/error.hpp>
-#include "utilities/graph_utils.cuh"
 
 namespace {
 template <typename IndexType>
@@ -41,26 +43,23 @@ binsearch_maxle(const IndexType *vec, const IndexType val, IndexType low, IndexT
   }
 }
 
+// FIXME: This shouldn't need to be a custom kernel, this
+//        seems like it should just be a thrust::transform
 template <typename IdxT, typename ValT>
-__global__ void match_check_kernel(IdxT size,
-                                   IdxT num_verts,
-                                   IdxT *offsets,
-                                   IdxT *indices,
-                                   IdxT *permutation,
-                                   IdxT *parts,
-                                   ValT *weights)
+__global__ void match_check_kernel(
+  IdxT size, IdxT num_verts, IdxT *offsets, IdxT *indices, IdxT *parts, ValT *weights)
 {
   IdxT tid = blockIdx.x * blockDim.x + threadIdx.x;
   while (tid < size) {
     IdxT source = binsearch_maxle(offsets, tid, (IdxT)0, num_verts);
     IdxT dest   = indices[tid];
-    if (parts[permutation[source]] == parts[permutation[dest]]) weights[tid] += 1;
+    if (parts[source] == parts[dest]) weights[tid] += 1;
     tid += gridDim.x * blockDim.x;
   }
 }
 
 struct prg {
-  __host__ __device__ float operator()(int n)
+  __device__ float operator()(int n)
   {
     thrust::default_random_engine rng;
     thrust::uniform_real_distribution<float> dist(0.0, 1.0);
@@ -93,7 +92,7 @@ struct update_functor {
 template <typename T>
 void get_permutation_vector(T size, T seed, T *permutation, cudaStream_t stream)
 {
-  rmm::device_vector<float> randoms_v(size);
+  rmm::device_uvector<float> randoms_v(size, stream);
 
   thrust::counting_iterator<uint32_t> index(seed);
   thrust::transform(
@@ -102,6 +101,31 @@ void get_permutation_vector(T size, T seed, T *permutation, cudaStream_t stream)
   thrust::sort_by_key(
     rmm::exec_policy(stream)->on(stream), randoms_v.begin(), randoms_v.end(), permutation);
 }
+
+template <typename graph_type>
+class EcgLouvain : public cugraph::Louvain<graph_type> {
+ public:
+  using graph_t  = graph_type;
+  using vertex_t = typename graph_type::vertex_type;
+  using edge_t   = typename graph_type::edge_type;
+  using weight_t = typename graph_type::weight_type;
+
+  EcgLouvain(raft::handle_t const &handle, graph_type const &graph, vertex_t seed)
+    : cugraph::Louvain<graph_type>(handle, graph), seed_(seed)
+  {
+  }
+
+  void initialize_dendrogram_level(vertex_t num_vertices) override
+  {
+    this->dendrogram_->add_level(num_vertices);
+
+    get_permutation_vector(
+      num_vertices, seed_, this->dendrogram_->current_level_begin(), this->stream_);
+  }
+
+ private:
+  vertex_t seed_;
+};
 
 }  // anonymous namespace
 
@@ -114,37 +138,34 @@ void ecg(raft::handle_t const &handle,
          vertex_t ensemble_size,
          vertex_t *clustering)
 {
+  using graph_type = GraphCSRView<vertex_t, edge_t, weight_t>;
+
   CUGRAPH_EXPECTS(graph.edge_data != nullptr,
-                  "Invalid input argument: louvain expects a weighted graph");
-  CUGRAPH_EXPECTS(clustering != nullptr, "Invalid input argument: clustering is NULL");
+                  "Invalid input argument: ecg expects a weighted graph");
+  CUGRAPH_EXPECTS(clustering != nullptr,
+                  "Invalid input argument: clustering is NULL, should be a device pointer to "
+                  "memory for storing the result");
 
   cudaStream_t stream{0};
 
-  rmm::device_vector<weight_t> ecg_weights_v(graph.edge_data,
-                                             graph.edge_data + graph.number_of_edges);
+  rmm::device_uvector<weight_t> ecg_weights_v(graph.number_of_edges, handle.get_stream());
+
+  thrust::copy(rmm::exec_policy(stream)->on(stream),
+               graph.edge_data,
+               graph.edge_data + graph.number_of_edges,
+               ecg_weights_v.data());
 
   vertex_t size{graph.number_of_vertices};
-  vertex_t seed{1};
 
-  auto permuted_graph = std::make_unique<GraphCSR<vertex_t, edge_t, weight_t>>(
-    size, graph.number_of_edges, graph.has_data());
+  // FIXME:  This seed should be a parameter
+  vertex_t seed{1};
 
   // Iterate over each member of the ensemble
   for (vertex_t i = 0; i < ensemble_size; i++) {
-    // Take random permutation of the graph
-    rmm::device_vector<vertex_t> permutation_v(size);
-    vertex_t *d_permutation = permutation_v.data().get();
-
-    get_permutation_vector(size, seed, d_permutation, stream);
+    EcgLouvain<graph_type> runner(handle, graph, seed);
     seed += size;
 
-    detail::permute_graph<vertex_t, edge_t, weight_t>(graph, d_permutation, permuted_graph->view());
-
-    // Run one level of Louvain clustering on the random permutation
-    rmm::device_vector<vertex_t> parts_v(size);
-    vertex_t *d_parts = parts_v.data().get();
-
-    cugraph::louvain(handle, permuted_graph->view(), d_parts, size_t{1});
+    weight_t wt = runner(size_t{1}, weight_t{1});
 
     // For each edge in the graph determine whether the endpoints are in the same partition
     // Keep a sum for each edge of the total number of times its endpoints are in the same partition
@@ -155,17 +176,16 @@ void ecg(raft::handle_t const &handle,
                                                    graph.number_of_vertices,
                                                    graph.offsets,
                                                    graph.indices,
-                                                   permutation_v.data().get(),
-                                                   d_parts,
-                                                   ecg_weights_v.data().get());
+                                                   runner.get_dendrogram().get_level_ptr_nocheck(0),
+                                                   ecg_weights_v.data());
   }
 
   // Set weights = min_weight + (1 - min-weight)*sum/ensemble_size
   update_functor<weight_t> uf(min_weight, ensemble_size);
   thrust::transform(rmm::exec_policy(stream)->on(stream),
-                    ecg_weights_v.data().get(),
-                    ecg_weights_v.data().get() + graph.number_of_edges,
-                    ecg_weights_v.data().get(),
+                    ecg_weights_v.begin(),
+                    ecg_weights_v.end(),
+                    ecg_weights_v.begin(),
                     uf);
 
   // Run Louvain on the original graph using the computed weights
@@ -173,7 +193,7 @@ void ecg(raft::handle_t const &handle,
   GraphCSRView<vertex_t, edge_t, weight_t> louvain_graph;
   louvain_graph.indices            = graph.indices;
   louvain_graph.offsets            = graph.offsets;
-  louvain_graph.edge_data          = ecg_weights_v.data().get();
+  louvain_graph.edge_data          = ecg_weights_v.data();
   louvain_graph.number_of_vertices = graph.number_of_vertices;
   louvain_graph.number_of_edges    = graph.number_of_edges;
 
