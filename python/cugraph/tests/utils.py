@@ -211,7 +211,7 @@ def create_obj_from_csv(
         )
 
     else:
-        raise TypeError("unsupported type: {obj_type}")
+        raise TypeError(f"unsupported type: {obj_type}")
 
 
 def read_csv_file(csv_file, read_weights_in_sp=True):
