@@ -211,11 +211,11 @@ void force_atlas2(GraphCOOView<vertex_t, edge_t, weight_t> &graph,
  * @param[in] restarts                        Number of starts to try. The more restarts,
  * the better the solution will be approximated. The number of restarts depends on the problem
  * size and should be kept low for instances above 2k cities.
- * @param[in] beam_search 										Specify if the initial solution should use KNN
+ * @param[in] beam_search                     Specify if the initial solution should use KNN
  * for an approximation solution.
- * @param[in] k 															Beam width to use in the search.
- * @param[in] nstart 												  Start from a specific position.
- * @param[in] verbose 												Logs configuration and iterative improvement.
+ * @param[in] k                               Beam width to use in the search.
+ * @param[in] nstart                          Start from a specific position.
+ * @param[in] verbose                         Logs configuration and iterative improvement.
  *
  */
 float traveling_salesman(raft::handle_t &handle,
