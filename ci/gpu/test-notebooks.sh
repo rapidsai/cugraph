@@ -20,11 +20,6 @@ LIBCUDF_KERNEL_CACHE_PATH=${WORKSPACE}/.jitcache
 cd ${NOTEBOOKS_DIR}
 TOPLEVEL_NB_FOLDERS=$(find . -name *.ipynb |cut -d'/' -f2|sort -u)
 
-# Add notebooks that should be skipped here
-# (space-separated list of filenames without paths)
-
-SKIPNBS="uvm.ipynb bfs_benchmark.ipynb louvain_benchmark.ipynb pagerank_benchmark.ipynb sssp_benchmark.ipynb release.ipynb nx_cugraph_bc_benchmarking.ipynb"
-
 ## Check env
 env
 
@@ -39,24 +34,12 @@ for folder in ${TOPLEVEL_NB_FOLDERS}; do
     cd ${NOTEBOOKS_DIR}/${folder}
     for nb in $(python ${WORKSPACE}/ci/gpu/notebook_list.py); do
         nbBasename=$(basename ${nb})
-        # Skip all NBs that use dask (in the code or even in their name)
-        if ((echo ${nb}|grep -qi dask) || \
-            (grep -q dask ${nb})); then
-            echo "--------------------------------------------------------------------------------"
-            echo "SKIPPING: ${nb} (suspected Dask usage, not currently automatable)"
-            echo "--------------------------------------------------------------------------------"
-        elif (echo " ${SKIPNBS} " | grep -q " ${nbBasename} "); then
-            echo "--------------------------------------------------------------------------------"
-            echo "SKIPPING: ${nb} (listed in skip list)"
-            echo "--------------------------------------------------------------------------------"
-        else
-            cd $(dirname ${nb})
-            nvidia-smi
-            ${NBTEST} ${nbBasename}
-            EXITCODE=$((EXITCODE | $?))
-            rm -rf ${LIBCUDF_KERNEL_CACHE_PATH}/*
-            cd ${NOTEBOOKS_DIR}/${folder}
-        fi
+        cd $(dirname ${nb})
+        nvidia-smi
+        ${NBTEST} ${nbBasename}
+        EXITCODE=$((EXITCODE | $?))
+        rm -rf ${LIBCUDF_KERNEL_CACHE_PATH}/*
+        cd ${NOTEBOOKS_DIR}/${folder}
     done
 done
 
