@@ -34,12 +34,15 @@ for filename in glob.iglob('**/*.ipynb', recursive=True):
         if re.search('# Skip notebook test', line):
             skip = True
             print(f'SKIPPING {filename} (marked as skip)', file=sys.stderr)
+            break;
         elif re.search('dask', line):
             print(f'SKIPPING {filename} (suspected Dask usage, not currently automatable)', file=sys.stderr)
             skip = True
+            break;
         elif pascal and re.search('# Does not run on Pascal', line):
             print(f'SKIPPING {filename} (does not run on Pascal)', file=sys.stderr)
             skip = True
+            break;
 
     if not skip:
         print(filename)
