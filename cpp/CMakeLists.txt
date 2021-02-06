@@ -183,18 +183,6 @@ if(BUILD_TESTS)
 endif(BUILD_TESTS)
 
 ###################################################################################################
-# - find faiss ------------------------------------------------------------------------------------
-
-if(NOT BUILD_STATIC_FAISS)
- find_path(FAISS_INCLUDE_DIRS "faiss"
-    HINTS
-    "$ENV{FAISS_ROOT}/include"
-    "$ENV{CONDA_PREFIX}/include/faiss"
-    "$ENV{CONDA_PREFIX}/include")
-message(STATUS "FAISS: FAISS_INCLUDE_DIRS set to ${FAISS_INCLUDE_DIRS}")
-endif(NOT BUILD_STATIC_FAISS)
-
-###################################################################################################
 # - find RMM --------------------------------------------------------------------------------------
 
 find_path(RMM_INCLUDE "rmm"
@@ -401,6 +389,8 @@ else()
   add_library(FAISS::FAISS SHARED IMPORTED)
   set_property(TARGET FAISS::FAISS PROPERTY
     IMPORTED_LOCATION $ENV{CONDA_PREFIX}/lib/libfaiss.so)
+  set(FAISS_INCLUDE_DIRS "$ENV{CONDA_PREFIX}/include")
+  message(STATUS "FAISS: FAISS_INCLUDE_DIRS set to ${FAISS_INCLUDE_DIRS}")
   message(STATUS "Found FAISS: $ENV{CONDA_PREFIX}/lib/libfaiss.so")
 endif(BUILD_STATIC_FAISS)
 
