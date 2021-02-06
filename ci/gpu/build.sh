@@ -1,10 +1,10 @@
 #!/usr/bin/env bash
-# Copyright (c) 2018-2020, NVIDIA CORPORATION.
+# Copyright (c) 2018-2021, NVIDIA CORPORATION.
 ##########################################
 # cuGraph GPU build & testscript for CI  #
 ##########################################
-set -e
-set -o pipefail
+set -e           # abort the script on error, this will change for running tests (see below)
+set -o pipefail  # piped commands propagate their error
 NUMARGS=$#
 ARGS=$*
 
@@ -98,9 +98,13 @@ fi
 # TEST - Run GoogleTest and py.tests for libcugraph and cuGraph
 ################################################################################
 
-set +e -Eo pipefail
+# Switch to +e to allow failing commands to continue the script, which is needed
+# so all testing commands run regardless of pass/fail. This requires the desired
+# exit code to be managed manually by updating it only for commands that
+# represent test failures - other less critical commands can fail if necessary
+# (nbtestlog2junitxml, codecov, etc.) to keep CI unblocked.
+set +e
 EXITCODE=0
-trap "EXITCODE=1" ERR
 
 if hasArg --skip-tests; then
     gpuci_logger "Skipping Tests"
@@ -117,13 +121,15 @@ else
         TEST_MODE_FLAG=""
     fi
 
+    gpuci_logger "Running cuGraph test.sh..."
     ${WORKSPACE}/ci/test.sh ${TEST_MODE_FLAG} | tee testoutput.txt
+    CMDRETCODE=$?; EXITCODE=$((EXITCODE | $CMDRETCODE))
+    gpuci_logger "Ran cuGraph test.sh : return code was: $CMDRETCODE, gpu/build.sh exit code is now: $EXITCODE"
 
-    echo -e "\nTOP 20 SLOWEST TESTS:\n"
-    # Wrap in echo to prevent non-zero exit since this command is non-essential
-    echo "$(${WORKSPACE}/ci/getGTestTimes.sh testoutput.txt | head -20)"
-
+    gpuci_logger "Running cuGraph notebook test script..."
     ${WORKSPACE}/ci/gpu/test-notebooks.sh 2>&1 | tee nbtest.log
+    CMDRETCODE=$?; EXITCODE=$((EXITCODE | $CMDRETCODE))
+    gpuci_logger "Ran cuGraph notebook test script : return code was: $CMDRETCODE, gpu/build.sh exit code is now: $EXITCODE"
     python ${WORKSPACE}/ci/utils/nbtestlog2junitxml.py nbtest.log
 fi
 
@@ -131,4 +137,5 @@ if [ -n "\${CODECOV_TOKEN}" ]; then
     codecov -t \$CODECOV_TOKEN
 fi
 
+gpuci_logger "gpu/build.sh returning value: $EXITCODE"
 return ${EXITCODE}
