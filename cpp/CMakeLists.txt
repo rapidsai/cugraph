@@ -137,6 +137,7 @@ option(BUILD_TESTS "Configure CMake to build tests"
 ###################################################################################################
 # - cmake modules ---------------------------------------------------------------------------------
 
+add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/cmake/templates)
 set(CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake/Modules/" ${CMAKE_MODULE_PATH})
 
 include(FeatureSummary)
@@ -183,6 +184,17 @@ if(BUILD_TESTS)
 endif(BUILD_TESTS)
 
 ###################################################################################################
+# - find faiss ------------------------------------------------------------------------------------
+
+if(NOT BUILD_STATIC_FAISS)
+  GENERATE_FIND_MODULE(
+    NAME         FAISS
+    HEADER_NAME  faiss/IndexFlat.h
+    LIBRARY_NAME faiss)
+endif(NOT BUILD_STATIC_FAISS)
+
+set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} ${CMAKE_CURRENT_BINARY_DIR}/cmake)
+###################################################################################################
 # - find RMM --------------------------------------------------------------------------------------
 
 find_path(RMM_INCLUDE "rmm"
@@ -196,13 +208,13 @@ message(STATUS "RMM: RMM_INCLUDE set to ${RMM_INCLUDE}")
 ###################################################################################################
 # - find NCCL -------------------------------------------------------------------------------------
 
-if(NOT NCCL_PATH)
-    find_package(NCCL REQUIRED)
-else()
-    message("-- Manually set NCCL PATH to ${NCCL_PATH}")
-    set(NCCL_INCLUDE_DIRS ${NCCL_PATH}/include)
-    set(NCCL_LIBRARIES ${NCCL_PATH}/lib/libnccl.so)
-endif(NOT NCCL_PATH)
+#if(NOT NCCL_PATH)
+#    find_package(NCCL REQUIRED)
+#else()
+#    message("-- Manually set NCCL PATH to ${NCCL_PATH}")
+#    set(NCCL_INCLUDE_DIRS ${NCCL_PATH}/include)
+#    set(NCCL_LIBRARIES ${NCCL_PATH}/lib/libnccl.so)
+#endif(NOT NCCL_PATH)
 
 ###################################################################################################
 # - find MPI - only enabled if MG tests are to be built
