@@ -51,6 +51,7 @@ As of Release 0.18 - including 0.18 nightly
 |              | Betweenness Centrality                 | Single-GPU   |                     |
 |              | Edge Betweenness Centrality            | Single-GPU   |                     |
 | Community    |                                        |              |                     |
+|              | EgoNet                                 | Single-GPU   |                     |
 |              | Leiden                                 | Single-GPU   |                     |
 |              | Louvain                                | Multi-GPU    |                     |
 |              | Ensemble Clustering for Graphs         | Single-GPU   |                     |

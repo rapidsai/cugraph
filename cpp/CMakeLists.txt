@@ -340,8 +340,6 @@ add_library(cugraph SHARED
     src/utilities/cython.cu
     src/structure/graph.cu
     src/linear_assignment/hungarian.cu
-    src/link_analysis/pagerank.cu
-    src/link_analysis/pagerank_1D.cu
     src/link_analysis/gunrock_hits.cpp
     src/traversal/bfs.cu
     src/traversal/sssp.cu
@@ -354,9 +352,10 @@ add_library(cugraph SHARED
     src/community/louvain.cu
     src/community/leiden.cu
     src/community/ktruss.cu
-    src/community/ECG.cu
+    src/community/ecg.cu
     src/community/triangles_counting.cu
     src/community/extract_subgraph_by_vertex.cu
+    src/community/egonet.cu
     src/cores/core_number.cu
     src/traversal/two_hop_neighbors.cu
     src/components/connectivity.cu

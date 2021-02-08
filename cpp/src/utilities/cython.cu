@@ -647,6 +647,55 @@ void call_bfs(raft::handle_t const& handle,
   }
 }
 
+// Wrapper for calling extract_egonet through a graph container
+// FIXME : this should not be a legacy COO and it is not clear how to handle C++ api return type as
+// is.graph_container Need to figure out how to return edge lists
+template <typename vertex_t, typename weight_t>
+std::unique_ptr<cy_multi_edgelists_t> call_egonet(raft::handle_t const& handle,
+                                                  graph_container_t const& graph_container,
+                                                  vertex_t* source_vertex,
+                                                  vertex_t n_subgraphs,
+                                                  vertex_t radius)
+{
+  if (graph_container.edgeType == numberTypeEnum::int32Type) {
+    auto graph =
+      detail::create_graph<int32_t, int32_t, weight_t, false, false>(handle, graph_container);
+    auto g = cugraph::experimental::extract_ego(handle,
+                                                graph->view(),
+                                                reinterpret_cast<int32_t*>(source_vertex),
+                                                static_cast<int32_t>(n_subgraphs),
+                                                static_cast<int32_t>(radius));
+    cy_multi_edgelists_t coo_contents{
+      0,  // not used
+      std::get<0>(g).size(),
+      static_cast<size_t>(n_subgraphs),
+      std::make_unique<rmm::device_buffer>(std::get<0>(g).release()),
+      std::make_unique<rmm::device_buffer>(std::get<1>(g).release()),
+      std::make_unique<rmm::device_buffer>(std::get<2>(g).release()),
+      std::make_unique<rmm::device_buffer>(std::get<3>(g).release())};
+    return std::make_unique<cy_multi_edgelists_t>(std::move(coo_contents));
+  } else if (graph_container.edgeType == numberTypeEnum::int64Type) {
+    auto graph =
+      detail::create_graph<vertex_t, int64_t, weight_t, false, false>(handle, graph_container);
+    auto g = cugraph::experimental::extract_ego(handle,
+                                                graph->view(),
+                                                reinterpret_cast<vertex_t*>(source_vertex),
+                                                static_cast<vertex_t>(n_subgraphs),
+                                                static_cast<vertex_t>(radius));
+    cy_multi_edgelists_t coo_contents{
+      0,  // not used
+      std::get<0>(g).size(),
+      static_cast<size_t>(n_subgraphs),
+      std::make_unique<rmm::device_buffer>(std::get<0>(g).release()),
+      std::make_unique<rmm::device_buffer>(std::get<1>(g).release()),
+      std::make_unique<rmm::device_buffer>(std::get<2>(g).release()),
+      std::make_unique<rmm::device_buffer>(std::get<3>(g).release())};
+    return std::make_unique<cy_multi_edgelists_t>(std::move(coo_contents));
+  } else {
+    CUGRAPH_FAIL("vertexType/edgeType combination unsupported");
+  }
+}
+
 // Wrapper for calling SSSP through a graph container
 template <typename vertex_t, typename weight_t>
 void call_sssp(raft::handle_t const& handle,
@@ -939,6 +988,33 @@ template void call_bfs<int64_t, double>(raft::handle_t const& handle,
                                         double* sp_counters,
                                         const int64_t start_vertex,
                                         bool directed);
+template std::unique_ptr<cy_multi_edgelists_t> call_egonet<int32_t, float>(
+  raft::handle_t const& handle,
+  graph_container_t const& graph_container,
+  int32_t* source_vertex,
+  int32_t n_subgraphs,
+  int32_t radius);
+
+template std::unique_ptr<cy_multi_edgelists_t> call_egonet<int32_t, double>(
+  raft::handle_t const& handle,
+  graph_container_t const& graph_container,
+  int32_t* source_vertex,
+  int32_t n_subgraphs,
+  int32_t radius);
+
+template std::unique_ptr<cy_multi_edgelists_t> call_egonet<int64_t, float>(
+  raft::handle_t const& handle,
+  graph_container_t const& graph_container,
+  int64_t* source_vertex,
+  int64_t n_subgraphs,
+  int64_t radius);
+
+template std::unique_ptr<cy_multi_edgelists_t> call_egonet<int64_t, double>(
+  raft::handle_t const& handle,
+  graph_container_t const& graph_container,
+  int64_t* source_vertex,
+  int64_t n_subgraphs,
+  int64_t radius);
 
 template void call_sssp(raft::handle_t const& handle,
                         graph_container_t const& graph_container,

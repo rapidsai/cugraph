@@ -168,16 +168,6 @@ set(EDGE_BETWEENNESS_TEST_SRC
   ConfigureTest(EDGE_BETWEENNESS_TEST "${EDGE_BETWEENNESS_TEST_SRC}")
 
 ###################################################################################################
-# - pagerank tests --------------------------------------------------------------------------------
-
-set(PAGERANK_TEST_SRC
-    "${CMAKE_CURRENT_SOURCE_DIR}/../../thirdparty/mmio/mmio.c"
-    "${CMAKE_CURRENT_SOURCE_DIR}/utilities/test_utilities.cpp"
-    "${CMAKE_CURRENT_SOURCE_DIR}/pagerank/pagerank_test.cpp")
-
-ConfigureTest(PAGERANK_TEST "${PAGERANK_TEST_SRC}")
-
-###################################################################################################
 # - SSSP tests ------------------------------------------------------------------------------------
 
 set(SSSP_TEST_SRCS
@@ -247,6 +237,14 @@ set(TRIANGLE_TEST_SRC
 
 ConfigureTest(TRIANGLE_TEST "${TRIANGLE_TEST_SRC}")
 
+###################################################################################################
+# - EGO tests --------------------------------------------------------------------------------
+
+set(EGO_TEST_SRC
+    "${CMAKE_SOURCE_DIR}/../thirdparty/mmio/mmio.c"
+    "${CMAKE_CURRENT_SOURCE_DIR}/community/egonet_test.cu")
+
+ConfigureTest(EGO_TEST "${EGO_TEST_SRC}" "")
 ###################################################################################################
 # - RENUMBERING tests -----------------------------------------------------------------------------
 

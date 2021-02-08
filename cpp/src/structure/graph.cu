@@ -148,3 +148,5 @@ template class GraphCOOView<int32_t, int32_t, double>;
 template class GraphCompressedSparseBaseView<int32_t, int32_t, float>;
 template class GraphCompressedSparseBaseView<int32_t, int32_t, double>;
 }  // namespace cugraph
+
+#include "utilities/eidir_graph_utils.hpp"
