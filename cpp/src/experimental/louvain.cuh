@@ -36,6 +36,8 @@
 
 #include <community/dendrogram.cuh>
 
+#include <numeric>
+
 //#define TIMING
 
 #ifdef TIMING
@@ -419,11 +421,10 @@ class Louvain {
       base_src_vertex_id_ = graph_view.get_local_adj_matrix_partition_row_first(0);
       base_dst_vertex_id_ = graph_view.get_local_adj_matrix_partition_col_first(0);
 
-      raft::copy(&local_num_edges_,
-                 graph_view.offsets() + graph_view.get_local_adj_matrix_partition_row_last(0) -
-                   graph_view.get_local_adj_matrix_partition_row_first(0),
-                 1,
-                 stream_);
+      local_num_edges_ = edge_t{0};
+      for (size_t i = 0; i < graph_view.get_number_of_local_adj_matrix_partitions(); ++i) {
+        local_num_edges_ += graph_view.get_number_of_local_adj_matrix_partition_edges(i);
+      }
 
       CUDA_TRY(cudaStreamSynchronize(stream_));
     }
@@ -1224,12 +1225,10 @@ class Louvain {
     local_num_cols_     = current_graph_view_.get_number_of_local_adj_matrix_partition_cols();
     base_vertex_id_     = current_graph_view_.get_local_vertex_first();
 
-    raft::copy(&local_num_edges_,
-               current_graph_view_.offsets() +
-                 current_graph_view_.get_local_adj_matrix_partition_row_last(0) -
-                 current_graph_view_.get_local_adj_matrix_partition_row_first(0),
-               1,
-               stream_);
+    local_num_edges_ = edge_t{0};
+    for (size_t i = 0; i < current_graph_view_.get_number_of_local_adj_matrix_partitions(); ++i) {
+      local_num_edges_ += current_graph_view_.get_number_of_local_adj_matrix_partition_edges(i);
+    }
 
     src_indices_v_.resize(local_num_edges_);
 
