@@ -61,6 +61,11 @@ else
     cd $WORKSPACE/ci/artifacts/cugraph/cpu/conda_work/cpp/build
 fi
 
+# FIXME: if possible, any install and build steps should be moved outside this
+# script since a failing install/build step is treated as a failing test command
+# and will not stop the script. This script is also only expected to run tests
+# in a preconfigured environment, and install/build steps are unexpected side
+# effects.
 if [[ "$PROJECT_FLASH" == "1" ]]; then
     CONDA_FILE=`find $WORKSPACE/ci/artifacts/cugraph/cpu/conda-bld/ -name "libcugraph*.tar.bz2"`
     CONDA_FILE=`basename "$CONDA_FILE" .tar.bz2` #get filename without extension

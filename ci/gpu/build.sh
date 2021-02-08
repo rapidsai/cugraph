@@ -100,10 +100,11 @@ fi
 
 # Switch to +e to allow failing commands to continue the script, which is needed
 # so all testing commands run regardless of pass/fail. This requires the desired
-# exit code to be managed manually by updating it only for commands that
-# represent test failures - other less critical commands can fail if necessary
-# (nbtestlog2junitxml, codecov, etc.) to keep CI unblocked.
-set +e
+# exit code to be managed using the ERR trap.
+set +e           # allow script to continue on error
+set -E           # ERR traps are inherited by subcommands
+trap "EXITCODE=1" ERR
+
 EXITCODE=0
 
 if hasArg --skip-tests; then
@@ -123,17 +124,15 @@ else
 
     gpuci_logger "Running cuGraph test.sh..."
     ${WORKSPACE}/ci/test.sh ${TEST_MODE_FLAG} | tee testoutput.txt
-    CMDRETCODE=$?; EXITCODE=$((EXITCODE | $CMDRETCODE))
-    gpuci_logger "Ran cuGraph test.sh : return code was: $CMDRETCODE, gpu/build.sh exit code is now: $EXITCODE"
+    gpuci_logger "Ran cuGraph test.sh : return code was: $?, gpu/build.sh exit code is now: $EXITCODE"
 
     gpuci_logger "Running cuGraph notebook test script..."
     ${WORKSPACE}/ci/gpu/test-notebooks.sh 2>&1 | tee nbtest.log
-    CMDRETCODE=$?; EXITCODE=$((EXITCODE | $CMDRETCODE))
-    gpuci_logger "Ran cuGraph notebook test script : return code was: $CMDRETCODE, gpu/build.sh exit code is now: $EXITCODE"
+    gpuci_logger "Ran cuGraph notebook test script : return code was: $?, gpu/build.sh exit code is now: $EXITCODE"
     python ${WORKSPACE}/ci/utils/nbtestlog2junitxml.py nbtest.log
 fi
 
-if [ -n "\${CODECOV_TOKEN}" ]; then
+if [ -n "${CODECOV_TOKEN}" ]; then
     codecov -t \$CODECOV_TOKEN
 fi
 
