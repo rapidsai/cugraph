@@ -48,7 +48,6 @@ std::string getFileName(const std::string& s);
 template <typename IndexType_>
 int mm_properties(FILE* f, int tg, MM_typecode* t, IndexType_* m, IndexType_* n, IndexType_* nnz);
 
-
 /// Read Matrix Market file and convert to COO format matrix
 /** Matrix Market file is assumed to be a sparse matrix in coordinate
  *  format.
@@ -88,9 +87,8 @@ int read_binary_vector(FILE* fpin, int n, std::vector<double>& val);
  * @tparam
  */
 template <typename vertex_t, typename edge_t, typename weight_t>
-std::unique_ptr<cugraph::GraphCSR<vertex_t, edge_t, weight_t>>
-   generate_graph_csr_from_mm(bool& directed,
-                              std::string mm_file);
+std::unique_ptr<cugraph::GraphCSR<vertex_t, edge_t, weight_t>> generate_graph_csr_from_mm(
+  bool& directed, std::string mm_file);
 
 // Define RAPIDS_DATASET_ROOT_DIR using a preprocessor variable to
 // allow for a build to override the default. This is useful for
@@ -121,7 +119,7 @@ struct edgelist_from_market_matrix_file_t {
 
 template <typename vertex_t, typename edge_t, typename weight_t>
 edgelist_from_market_matrix_file_t<vertex_t, weight_t> read_edgelist_from_matrix_market_file(
-    std::string const& graph_file_full_path);
+  std::string const& graph_file_full_path);
 
 template <typename vertex_t, typename edge_t, typename weight_t, bool store_transposed>
 cugraph::experimental::graph_t<vertex_t, edge_t, weight_t, store_transposed, false>

@@ -15,9 +15,9 @@
  */
 #pragma once
 
-#include <experimental/graph.hpp>
-
 #include <utilities/test_utilities.hpp>
+
+#include <experimental/graph.hpp>
 
 namespace cugraph {
 namespace test {
@@ -35,13 +35,14 @@ namespace test {
 //    edgelist for the partition
 //
 
-   //   std::tuple<rmm::device_uvector<vertex_t>, cugraph::experimental::partition_t<vertex_t>, vertex_t, edge_t>
+//   std::tuple<rmm::device_uvector<vertex_t>, cugraph::experimental::partition_t<vertex_t>,
+//   vertex_t, edge_t>
 
 template <typename vertex_t, typename edge_t, typename weight_t, bool store_transposed>
 std::tuple<
-   std::unique_ptr<cugraph::experimental::graph_t<vertex_t, edge_t, weight_t, store_transposed, true>>, // multi_gpu=true
-   rmm::device_uvector<vertex_t>
->
+  std::unique_ptr<cugraph::experimental::
+                    graph_t<vertex_t, edge_t, weight_t, store_transposed, true>>,  // multi_gpu=true
+  rmm::device_uvector<vertex_t>>
 create_graph_for_gpu(raft::handle_t& handle,
                      edgelist_from_market_matrix_file_t<vertex_t, weight_t> edgelist_from_mm);
 
@@ -57,5 +58,5 @@ template <typename vertex_t, typename edge_t, typename weight_t, bool store_tran
 build_graph_for_gpu(raft::handle_t& handle,
                      edgelist_from_market_matrix_file_t<vertex_t, weight_t> edgelist_from_mm);
 #endif
-} // namespace test
-} // namespace cugraph
+}  // namespace test
+}  // namespace cugraph

@@ -13,6 +13,8 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+#include <utilities/test_utilities.hpp>
+
 #include <experimental/graph.hpp>
 #include <functions.hpp>
 #include <utilities/error.hpp>
@@ -30,12 +32,11 @@ extern "C" {
 #include <string>
 #include <vector>
 
-#include <utilities/test_utilities.hpp>
-
 namespace cugraph {
 namespace test {
 
-std::string getFileName(const std::string& s) {
+std::string getFileName(const std::string& s)
+{
   char sep = '/';
 #ifdef _WIN32
   sep = '\\';
@@ -44,7 +45,6 @@ std::string getFileName(const std::string& s) {
   if (i != std::string::npos) { return (s.substr(i + 1, s.length() - i)); }
   return ("");
 }
-
 
 /// Read matrix properties from Matrix Market file
 /** Matrix Market file is assumed to be a sparse matrix in coordinate
@@ -269,9 +269,8 @@ int read_binary_vector(FILE* fpin, int n, std::vector<double>& val)
  * @tparam
  */
 template <typename vertex_t, typename edge_t, typename weight_t>
-std::unique_ptr<cugraph::GraphCSR<vertex_t, edge_t, weight_t>>
-   generate_graph_csr_from_mm(bool& directed,
-                              std::string mm_file)
+std::unique_ptr<cugraph::GraphCSR<vertex_t, edge_t, weight_t>> generate_graph_csr_from_mm(
+  bool& directed, std::string mm_file)
 {
   vertex_t number_of_vertices;
   edge_t number_of_edges;
@@ -307,7 +306,6 @@ std::unique_ptr<cugraph::GraphCSR<vertex_t, edge_t, weight_t>>
 
   return cugraph::coo_to_csr(cooview);
 }
-
 
 template <typename vertex_t, typename edge_t, typename weight_t>
 edgelist_from_market_matrix_file_t<vertex_t, weight_t> read_edgelist_from_matrix_market_file(
@@ -385,93 +383,60 @@ read_graph_from_matrix_market_file(raft::handle_t const& handle,
     true);
 }
 
-
 // explicit instantiations
 
-template int
-   mm_to_coo(FILE* f,
-             int tg,
-             int nnz,
-             int* cooRowInd,
-             int* cooColInd,
-             int* cooRVal,
-             int* cooIVal);
+template int mm_to_coo(
+  FILE* f, int tg, int nnz, int* cooRowInd, int* cooColInd, int* cooRVal, int* cooIVal);
 
-template int
-   mm_to_coo(FILE* f,
-             int tg,
-             int nnz,
-             int* cooRowInd,
-             int* cooColInd,
-             double* cooRVal,
-             double* cooIVal);
+template int mm_to_coo(
+  FILE* f, int tg, int nnz, int* cooRowInd, int* cooColInd, double* cooRVal, double* cooIVal);
 
-template int
-   mm_to_coo(FILE* f,
-             int tg,
-             int nnz,
-             int* cooRowInd,
-             int* cooColInd,
-             float* cooRVal,
-             float* cooIVal);
+template int mm_to_coo(
+  FILE* f, int tg, int nnz, int* cooRowInd, int* cooColInd, float* cooRVal, float* cooIVal);
 
 template std::unique_ptr<cugraph::GraphCSR<unsigned int, unsigned int, float>>
-   generate_graph_csr_from_mm(bool& directed,
-                              std::string mm_file);
+generate_graph_csr_from_mm(bool& directed, std::string mm_file);
 
-template std::unique_ptr<cugraph::GraphCSR<int, int, float>>
-   generate_graph_csr_from_mm(bool& directed,
-                              std::string mm_file);
+template std::unique_ptr<cugraph::GraphCSR<int, int, float>> generate_graph_csr_from_mm(
+  bool& directed, std::string mm_file);
 
-template std::unique_ptr<cugraph::GraphCSR<int, int, double>>
-   generate_graph_csr_from_mm(bool& directed,
-                              std::string mm_file);
+template std::unique_ptr<cugraph::GraphCSR<int, int, double>> generate_graph_csr_from_mm(
+  bool& directed, std::string mm_file);
 
-template std::unique_ptr<cugraph::GraphCSR<long, long, float>>
-   generate_graph_csr_from_mm(bool& directed,
-                              std::string mm_file);
+template std::unique_ptr<cugraph::GraphCSR<long, long, float>> generate_graph_csr_from_mm(
+  bool& directed, std::string mm_file);
 
 template cugraph::experimental::graph_t<int, int, float, false, false>
-    read_graph_from_matrix_market_file<int, int, float, false>(
-        raft::handle_t const& handle,
-        std::string const& graph_file_full_path,
-        bool test_weighted);
+read_graph_from_matrix_market_file<int, int, float, false>(raft::handle_t const& handle,
+                                                           std::string const& graph_file_full_path,
+                                                           bool test_weighted);
 
 template cugraph::experimental::graph_t<int, int, float, true, false>
-    read_graph_from_matrix_market_file<int, int, float, true>(
-        raft::handle_t const& handle,
-        std::string const& graph_file_full_path,
-        bool test_weighted);
+read_graph_from_matrix_market_file<int, int, float, true>(raft::handle_t const& handle,
+                                                          std::string const& graph_file_full_path,
+                                                          bool test_weighted);
 
 template cugraph::experimental::graph_t<int, long, float, false, false>
-    read_graph_from_matrix_market_file<int, long, float, false>(
-        raft::handle_t const& handle,
-        std::string const& graph_file_full_path,
-        bool test_weighted);
+read_graph_from_matrix_market_file<int, long, float, false>(raft::handle_t const& handle,
+                                                            std::string const& graph_file_full_path,
+                                                            bool test_weighted);
 
 template cugraph::experimental::graph_t<int, long, double, false, false>
-    read_graph_from_matrix_market_file<int, long, double, false>(
-        raft::handle_t const& handle,
-        std::string const& graph_file_full_path,
-        bool test_weighted);
+read_graph_from_matrix_market_file<int, long, double, false>(
+  raft::handle_t const& handle, std::string const& graph_file_full_path, bool test_weighted);
 
 template cugraph::experimental::graph_t<int, int, double, false, false>
-    read_graph_from_matrix_market_file<int, int, double, false>(
-        raft::handle_t const& handle,
-        std::string const& graph_file_full_path,
-        bool test_weighted);
+read_graph_from_matrix_market_file<int, int, double, false>(raft::handle_t const& handle,
+                                                            std::string const& graph_file_full_path,
+                                                            bool test_weighted);
 
 template cugraph::experimental::graph_t<long, long, double, false, false>
-    read_graph_from_matrix_market_file<long, long, double, false>(
-        raft::handle_t const& handle,
-        std::string const& graph_file_full_path,
-        bool test_weighted);
+read_graph_from_matrix_market_file<long, long, double, false>(
+  raft::handle_t const& handle, std::string const& graph_file_full_path, bool test_weighted);
 
 template cugraph::experimental::graph_t<long, long, float, false, false>
-    read_graph_from_matrix_market_file<long, long, float, false>(
-        raft::handle_t const& handle,
-        std::string const& graph_file_full_path,
-        bool test_weighted);
+read_graph_from_matrix_market_file<long, long, float, false>(
+  raft::handle_t const& handle, std::string const& graph_file_full_path, bool test_weighted);
 
 }  // namespace test
 }  // namespace cugraph
