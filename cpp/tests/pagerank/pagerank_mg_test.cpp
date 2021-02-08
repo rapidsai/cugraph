@@ -88,12 +88,9 @@ public:
    }
 
    // Run once for each test instance
-   virtual void SetUp()
-   {
-   }
-   virtual void TearDown()
-   {
-   }
+   virtual void SetUp() {}
+   virtual void TearDown() {}
+
 
    template <typename vertex_t, typename edge_t, typename weight_t, typename result_t>
    std::vector<result_t>
@@ -240,26 +237,26 @@ TEST_P(Pagerank_E2E_MG_Testfixture_t, CheckInt32Int32FloatFloat) {
 INSTANTIATE_TEST_CASE_P(
   e2e,
   Pagerank_E2E_MG_Testfixture_t,
-  ::testing::Values(Pagerank_Testparams_t("test/datasets/karate.mtx", 0.0, false),
-                    Pagerank_Testparams_t("test/datasets/karate.mtx", 0.5, false),
-                    Pagerank_Testparams_t("test/datasets/karate.mtx", 0.0, true),
-                    Pagerank_Testparams_t("test/datasets/karate.mtx", 0.5, true),
-                    Pagerank_Testparams_t("test/datasets/web-Google.mtx", 0.0, false),
-                    /*
-                    Pagerank_Testparams_t("test/datasets/web-Google.mtx", 0.5, false),
-                    Pagerank_Testparams_t("test/datasets/web-Google.mtx", 0.0, true),
-                    Pagerank_Testparams_t("test/datasets/web-Google.mtx", 0.5, true),
-                    */
-                    Pagerank_Testparams_t("test/datasets/ljournal-2008.mtx", 0.0, false),
-                    /*
-                    Pagerank_Testparams_t("test/datasets/ljournal-2008.mtx", 0.5, false),
-                    Pagerank_Testparams_t("test/datasets/ljournal-2008.mtx", 0.0, true),
-                    Pagerank_Testparams_t("test/datasets/ljournal-2008.mtx", 0.5, true),
-                    */
-                    Pagerank_Testparams_t("test/datasets/webbase-1M.mtx", 0.0, false),
-                    Pagerank_Testparams_t("test/datasets/webbase-1M.mtx", 0.5, false),
-                    Pagerank_Testparams_t("test/datasets/webbase-1M.mtx", 0.0, true),
-                    Pagerank_Testparams_t("test/datasets/webbase-1M.mtx", 0.5, true)
+
+  // FIXME: the personalization_ratio and use_weighted boo are not used
+  // (personilization vectors are not used, and all datasets are assumed
+  // weighted). update this to use personilization vectors and non-weighted
+  // graphs.
+  ::testing::Values(Pagerank_Testparams_t("test/datasets/karate.mtx", 0.0, true),
+                    // FIXME: The commented datasets contain isolate vertices
+                    // which result in a different number of vertices in the
+                    // renumbered MG graph (because the renumbering function
+                    // does not include them) vs. the SG graph object used for
+                    // the pagerank comparison because the SG graph reads the
+                    // COO as-is without renumbering.  Update the utility that
+                    // reads a .mtx and constructs a SG graph object to also
+                    // renumber and return the renumber vertices vector. This
+                    // will result in a comparison of an equal number of
+                    // pagerank values.
+                    //
+                    // Pagerank_Testparams_t("test/datasets/web-Google.mtx", 0.0, true),
+                    // Pagerank_Testparams_t("test/datasets/ljournal-2008.mtx", 0.0, true),
+                    Pagerank_Testparams_t("test/datasets/webbase-1M.mtx", 0.0, true)
                     )
 );
 

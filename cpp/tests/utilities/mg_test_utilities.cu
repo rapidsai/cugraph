@@ -144,7 +144,7 @@ create_graph_for_gpu(raft::handle_t& handle,
    properties.is_symmetric = edgelist_from_mm.is_symmetric;
    properties.is_multigraph = false;
 
-   std::cout<<"**** NUM VERTICES IN EL: "<<edgelist_from_mm.number_of_vertices<<" NUM VERTS FROM RENUMBER: "<<number_of_vertices<<std::endl;
+   //std::cout<<"**** NUM VERTICES IN EL: "<<edgelist_from_mm.number_of_vertices<<" NUM VERTS FROM RENUMBER: "<<number_of_vertices<<std::endl;
 
    // Finally, create instance of graph_t using filtered & renumbered edgelist
    return std::make_tuple(
