@@ -17,6 +17,7 @@
 #include <utilities/test_utilities.hpp>
 
 #include <algorithms.hpp>
+#include <functions.hpp>
 #include <graph.hpp>
 
 #include <raft/error.hpp>

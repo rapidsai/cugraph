@@ -61,16 +61,13 @@ create_graph_for_gpu(raft::handle_t& handle,
    raft::update_device(
       d_edgelist_weights.data(), edgelist_from_mm.h_weights.data(), total_number_edges, handle.get_stream());
 
-   std::cout<<"COPIED COO TO DEVICE FOR RANK: "<<my_rank<<" SIZE: "<<total_number_edges<<std::endl;
-
    //////////
-   // Filter out edges that are not to be associated with this GPU.
+   // Filter out edges that are not to be associated with this rank
    //
    // Create a edge_gpu_identifier, which will be used by the individual jobs to
-   // identify if a edge belongs to a particular job's GPU.
+   // identify if a edge belongs to a particular rank
    cugraph::experimental::detail::compute_gpu_id_from_edge_t<vertex_t>
       edge_gpu_identifier{false, comm.get_size(), row_comm.get_size(), col_comm.get_size()};
-   //cugraph::experimental::detail::compute_gpu_id_from_vertex_t<vertex_t> vertex_gpu_identifier{comm.get_size()};
 
    auto edgelist_zip_it_begin =
       thrust::make_zip_iterator(thrust::make_tuple(d_edgelist_rows.begin(),
@@ -78,18 +75,21 @@ create_graph_for_gpu(raft::handle_t& handle,
                                                    d_edgelist_weights.begin()));
    bool is_transposed{store_transposed};
 
-   auto new_end = thrust::remove_if(rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
-                                    edgelist_zip_it_begin,
-                                    edgelist_zip_it_begin + total_number_edges,
-                                    [my_rank, is_transposed, edge_gpu_identifier] __device__(auto tup) {
-                                       if(is_transposed) {
-                                          return (edge_gpu_identifier(thrust::get<1>(tup), thrust::get<0>(tup)) != my_rank);
-                                          //return (edge_gpu_identifier(thrust::get<0>(tup), thrust::get<1>(tup)) != my_rank);
-                                       } else {
-                                          return (edge_gpu_identifier(thrust::get<0>(tup), thrust::get<1>(tup)) != my_rank);
-                                          //return (edge_gpu_identifier(thrust::get<1>(tup), thrust::get<0>(tup)) != my_rank);
-                                       }
-                                    });
+   // Do the removal - note: remove_if does not delete items, it moves "removed"
+   // items to the back of the vector and returns the iterator (new_end) that
+   // represents the items kept. Actual removal of items can be done by
+   // resizing (see below).
+   auto new_end =
+      thrust::remove_if(rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
+                        edgelist_zip_it_begin,
+                        edgelist_zip_it_begin + total_number_edges,
+                        [my_rank, is_transposed, edge_gpu_identifier] __device__(auto tup) {
+                           if(is_transposed) {
+                              return (edge_gpu_identifier(thrust::get<1>(tup), thrust::get<0>(tup)) != my_rank);
+                           } else {
+                              return (edge_gpu_identifier(thrust::get<0>(tup), thrust::get<1>(tup)) != my_rank);
+                           }
+                        });
 
    edge_t local_number_edges = thrust::distance(edgelist_zip_it_begin, new_end);
    // Free the memory used for the items remove_if "removed". This not only
@@ -101,8 +101,6 @@ create_graph_for_gpu(raft::handle_t& handle,
    d_edgelist_cols.shrink_to_fit(handle.get_stream());
    d_edgelist_weights.resize(local_number_edges, handle.get_stream());
    d_edgelist_weights.shrink_to_fit(handle.get_stream());
-
-   std::cout<<"FILTERED OUT EDGES NOT BELONGING TO RANK: "<<my_rank<<" NEW SIZE: "<<local_number_edges<<std::endl;
 
    //////////
    // renumber filtered edgelist_from_mm
@@ -118,7 +116,7 @@ create_graph_for_gpu(raft::handle_t& handle,
 
    rmm::device_uvector<vertex_t> renumber_map_labels(0, handle.get_stream());
    cugraph::experimental::partition_t<vertex_t> partition(std::vector<vertex_t>(comm.get_size() + 1, 0),
-                                   false, // is_hypergraph_partitioned(),
+                                   false,               // is_hypergraph_partitioned()
                                    row_comm.get_size(),
                                    col_comm.get_size(),
                                    row_comm.get_rank(),
@@ -128,12 +126,11 @@ create_graph_for_gpu(raft::handle_t& handle,
    std::tie(renumber_map_labels, partition, number_of_vertices, number_of_edges) =
       ::cugraph::experimental::renumber_edgelist<vertex_t, edge_t, true> // multi_gpu=true
       (handle,
-       major_vertices,  // edgelist_major_vertices, INOUT of vertex_t*
-       minor_vertices,  // edgelist_minor_vertices, INOUT of vertex_t*
+       major_vertices,      // edgelist_major_vertices, INOUT of vertex_t*
+       minor_vertices,      // edgelist_minor_vertices, INOUT of vertex_t*
        local_number_edges,
-       false, // is_hypergraph_partitioned
-       true); // do_expensive_check
-   std::cout<<"RENUMBERED IN RANK: "<<my_rank<<std::endl;
+       false,               // is_hypergraph_partitioned
+       true);               // do_expensive_check
 
    cugraph::experimental::edgelist_t<vertex_t, edge_t, weight_t> edgelist{
       d_edgelist_rows.data(),
@@ -141,12 +138,13 @@ create_graph_for_gpu(raft::handle_t& handle,
       d_edgelist_weights.data(),
       local_number_edges};
 
-   //cugraph::experimental::partition_t<vertex_t> partition = std::get<1>(renumber_info);
    std::vector<cugraph::experimental::edgelist_t<vertex_t, edge_t, weight_t>> edgelist_vect;
    edgelist_vect.push_back(edgelist);
    cugraph::experimental::graph_properties_t properties;
    properties.is_symmetric = edgelist_from_mm.is_symmetric;
    properties.is_multigraph = false;
+
+   std::cout<<"**** NUM VERTICES IN EL: "<<edgelist_from_mm.number_of_vertices<<" NUM VERTS FROM RENUMBER: "<<number_of_vertices<<std::endl;
 
    // Finally, create instance of graph_t using filtered & renumbered edgelist
    return std::make_tuple(
@@ -154,7 +152,8 @@ create_graph_for_gpu(raft::handle_t& handle,
          handle,
          edgelist_vect,
          partition,
-         edgelist_from_mm.number_of_vertices,
+         //edgelist_from_mm.number_of_vertices,
+         number_of_vertices,
          total_number_edges,
          properties,
          false, // sorted_by_global_degree_within_vertex_partition

@@ -88,11 +88,51 @@ public:
    }
 
    // Run once for each test instance
-   virtual void SetUp() {}
-   virtual void TearDown() {}
+   virtual void SetUp()
+   {
+   }
+   virtual void TearDown()
+   {
+   }
 
-   //
-   //
+   template <typename vertex_t, typename edge_t, typename weight_t, typename result_t>
+   std::vector<result_t>
+   get_sg_results(raft::handle_t& handle,
+                  const std::string& graph_file_path,
+                  const result_t alpha,
+                  const result_t epsilon)
+   {
+      auto graph =
+         cugraph::test::read_graph_from_matrix_market_file<vertex_t, edge_t, weight_t, true>(
+             handle, graph_file_path, true); // FIXME: should use param.test_weighted instead of true
+
+      auto graph_view = graph.view();
+      cudaStream_t stream = handle.get_stream();
+      rmm::device_uvector<result_t> d_pageranks(graph_view.get_number_of_vertices(), stream);
+
+      cugraph::experimental::pagerank(handle,
+                                      graph_view,
+                                      static_cast<weight_t*>(nullptr),     // adj_matrix_row_out_weight_sums
+                                      static_cast<vertex_t*>(nullptr),     // personalization_vertices
+                                      static_cast<result_t*>(nullptr),     // personalization_values
+                                      static_cast<vertex_t>(0),            // personalization_vector_size
+                                      d_pageranks.begin(),                 // pageranks
+                                      alpha,                               // alpha (damping factor)
+                                      epsilon,                             // error tolerance for convergence
+                                      std::numeric_limits<size_t>::max(),  // max_iterations
+                                      false,                               // has_initial_guess
+                                      true);                               // do_expensive_check
+
+      std::vector<result_t> h_pageranks(graph_view.get_number_of_vertices());
+      raft::update_host(h_pageranks.data(),
+                        d_pageranks.data(),
+                        d_pageranks.size(),
+                        stream);
+
+      return std::move(h_pageranks);
+   }
+
+
    template <typename vertex_t, typename edge_t, typename weight_t, typename result_t>
    void run_test(const Pagerank_Testparams_t& param)
    {
@@ -114,21 +154,15 @@ public:
       int my_rank = comm.get_rank();
 
       auto edgelist_from_mm = ::cugraph::test::read_edgelist_from_matrix_market_file<vertex_t, edge_t, weight_t>(param.graph_file_full_path);
-      std::cout<<"READ DATAFILE IN RANK: "<<my_rank<<std::endl;
 
-      //cugraph::experimental::graph_t<vertex_t, edge_t, weight_t, true, true>& mg_graph;  // store_transposed=true, multi_gpu=true
-      //std::tuple<rmm::device_uvector<vertex_t>, cugraph::experimental::partition_t<vertex_t>, vertex_t, edge_t>& mg_renumber_info;
       // FIXME: edgelist_from_mm must have weights!
-      std::unique_ptr<
-         cugraph::experimental::graph_t<vertex_t, edge_t, weight_t, true, true>> // store_transposed=true, multi_gpu=true
+      std::unique_ptr<cugraph::experimental::graph_t<vertex_t, edge_t, weight_t, true, true>>  // store_transposed=true, multi_gpu=true
          mg_graph_ptr{};
       rmm::device_uvector<vertex_t> d_renumber_map_labels(0, handle.get_stream());
 
       std::tie(mg_graph_ptr, d_renumber_map_labels) =
          cugraph::test::create_graph_for_gpu<vertex_t, edge_t, weight_t, true> // store_transposed=true
             (handle, edgelist_from_mm);
-
-      std::cout<<"GRAPH CTOR IN RANK: "<<my_rank<<" NUM VERTS: "<<mg_graph_ptr->get_number_of_vertices()<<std::endl;
 
       auto mg_graph_view = mg_graph_ptr->view();
 
@@ -150,18 +184,12 @@ public:
                                       false,                               // has_initial_guess
                                       true);                               // do_expensive_check
 
-      CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
-
-      // FIXME: un-renumber somewhere?
-      // manually unrenumber using the mapping to properly index the values
       std::vector<result_t> h_mg_pageranks(mg_graph_view.get_number_of_vertices());
 
       raft::update_host(h_mg_pageranks.data(),
                         d_mg_pageranks.data(),
                         d_mg_pageranks.size(),
                         stream);
-
-      CUDA_TRY(cudaStreamSynchronize(stream));
 
       std::vector<vertex_t> h_renumber_map_labels(mg_graph_view.get_number_of_vertices());
       raft::update_host(h_renumber_map_labels.data(),
@@ -170,54 +198,20 @@ public:
                         stream);
 
       ////////
-      // single-GPU
-      auto sg_graph =
-         cugraph::test::read_graph_from_matrix_market_file<vertex_t, edge_t, weight_t, true>(
-            handle, param.graph_file_full_path, param.test_weighted);
-      auto sg_graph_view = sg_graph.view();
-
-      rmm::device_uvector<result_t> d_sg_pageranks(sg_graph_view.get_number_of_vertices(), stream);
-      CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
-
-      cugraph::experimental::pagerank(handle,
-                                      sg_graph_view,
-                                      static_cast<weight_t*>(nullptr),     // adj_matrix_row_out_weight_sums
-                                      static_cast<vertex_t*>(nullptr),     // personalization_vertices
-                                      static_cast<result_t*>(nullptr),     // personalization_values
-                                      static_cast<vertex_t>(0),            // personalization_vector_size
-                                      d_sg_pageranks.begin(),                 // pageranks
-                                      alpha,                               // alpha (damping factor)
-                                      epsilon,                             // error tolerance for convergence
-                                      std::numeric_limits<size_t>::max(),  // max_iterations
-                                      false,                               // has_initial_guess
-                                      true);                               // do_expensive_check
-
-      CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
-
-      std::vector<result_t> h_sg_pageranks(sg_graph_view.get_number_of_vertices());
-
-      raft::update_host(h_sg_pageranks.data(),
-                        d_sg_pageranks.data(),
-                        d_sg_pageranks.size(),
-                        stream);
-
-      CUDA_TRY(cudaStreamSynchronize(stream));
-
-
-      ////////
       // Compare MG to SG
       // Each GPU will have pagerank values for their range, so ech GPU must
       // compare to specific SG results for their respective range.
 
+      auto h_sg_pageranks = get_sg_results<vertex_t, edge_t, weight_t, result_t>(
+                                handle, param.graph_file_full_path, alpha, epsilon);
+
       // For this test, each GPU will have the full set of vertices and
       // therefore the pageranks vectors should be equal in size.
-      // NOTE: Each GPU will only have valid pagerank values for a subset of the
-      // vertices, since each is computing a different subset in parallel.
       ASSERT_EQ(h_sg_pageranks.size(), h_mg_pageranks.size());
 
       auto threshold_ratio = 1e-3;
       auto threshold_magnitude =
-         (1.0 / static_cast<result_t>(sg_graph_view.get_number_of_vertices())) *
+         (1.0 / static_cast<result_t>(mg_graph_view.get_number_of_vertices())) *
          threshold_ratio;  // skip comparison for low PageRank verties (lowly ranked vertices)
       auto nearly_equal = [threshold_ratio, threshold_magnitude](auto lhs, auto rhs) {
          return std::abs(lhs - rhs) <
@@ -227,22 +221,13 @@ public:
       vertex_t mapped_vertex{0};
       for(vertex_t i=0; i+mg_graph_view.get_local_vertex_first() < mg_graph_view.get_local_vertex_last(); ++i){
          mapped_vertex = h_renumber_map_labels[i];
-
-         std::cout<<"RANK: "<<my_rank<<" i: "<<i<<" SG: "<<h_sg_pageranks[mapped_vertex]<<" MG: "<<h_mg_pageranks[i]<<" RNL: "<<mapped_vertex<<std::endl;
+         ASSERT_TRUE(nearly_equal(h_mg_pageranks[i],
+                                  h_sg_pageranks[mapped_vertex]))
+            << "MG PageRank value for vertex: " << i << " in rank: " << my_rank
+            << " has value: " << h_mg_pageranks[i]
+            << " which exceeds the error margin for comparing to SG value: "
+            << h_sg_pageranks[i];
       }
-
-      for(vertex_t i=0; i+mg_graph_view.get_local_vertex_first() < mg_graph_view.get_local_vertex_last(); ++i){
-         mapped_vertex = h_renumber_map_labels[i];
-         ASSERT_TRUE(nearly_equal(h_mg_pageranks[i], h_sg_pageranks[mapped_vertex])) << "MG PageRank value for vertex: " << i << " in rank: " << my_rank << " has value: " << h_mg_pageranks[i] << " which exceeds the error margin for comparing to SG value: " << h_sg_pageranks[i];
-      }
-
-      //ASSERT_TRUE(std::equal(h_sg_pageranks.begin(),
-      //                       h_sg_pageranks.end(),
-      //                       h_mg_pageranks.begin(),
-      //                       nearly_equal))
-      //   << "MG PageRank values do not match with the SG reference values.";
-
-      std::cout<<"RANK: "<<my_rank<<" DONE."<<std::endl;
    }
 };
 
@@ -255,24 +240,26 @@ TEST_P(Pagerank_E2E_MG_Testfixture_t, CheckInt32Int32FloatFloat) {
 INSTANTIATE_TEST_CASE_P(
   e2e,
   Pagerank_E2E_MG_Testfixture_t,
-  ::testing::Values(Pagerank_Testparams_t("test/datasets/karate.mtx", 0.0, false)
-                    /*
+  ::testing::Values(Pagerank_Testparams_t("test/datasets/karate.mtx", 0.0, false),
                     Pagerank_Testparams_t("test/datasets/karate.mtx", 0.5, false),
                     Pagerank_Testparams_t("test/datasets/karate.mtx", 0.0, true),
                     Pagerank_Testparams_t("test/datasets/karate.mtx", 0.5, true),
                     Pagerank_Testparams_t("test/datasets/web-Google.mtx", 0.0, false),
+                    /*
                     Pagerank_Testparams_t("test/datasets/web-Google.mtx", 0.5, false),
                     Pagerank_Testparams_t("test/datasets/web-Google.mtx", 0.0, true),
                     Pagerank_Testparams_t("test/datasets/web-Google.mtx", 0.5, true),
+                    */
                     Pagerank_Testparams_t("test/datasets/ljournal-2008.mtx", 0.0, false),
+                    /*
                     Pagerank_Testparams_t("test/datasets/ljournal-2008.mtx", 0.5, false),
                     Pagerank_Testparams_t("test/datasets/ljournal-2008.mtx", 0.0, true),
                     Pagerank_Testparams_t("test/datasets/ljournal-2008.mtx", 0.5, true),
+                    */
                     Pagerank_Testparams_t("test/datasets/webbase-1M.mtx", 0.0, false),
                     Pagerank_Testparams_t("test/datasets/webbase-1M.mtx", 0.5, false),
                     Pagerank_Testparams_t("test/datasets/webbase-1M.mtx", 0.0, true),
-                    Pagerank_Testparams_t("test/datasets/webbase-1M.mtx", 0.5, true))
-                    */
+                    Pagerank_Testparams_t("test/datasets/webbase-1M.mtx", 0.5, true)
                     )
 );
 

@@ -17,23 +17,10 @@
 
 #include <experimental/graph.hpp>
 
+#include <utilities/test_utilities.hpp>
+
 namespace cugraph {
 namespace test {
-
-// FIXME: This type is defined in <utilities/test_utilities.hpp> which cannot be
-// included here since it must also be included in tests. If included here,
-// multiple definitions of various other utility functions will occur.
-#ifndef DEFINED_edgelist_from_market_matrix_file_t
-template <typename vertex_t, typename weight_t>
-struct edgelist_from_market_matrix_file_t {
-  std::vector<vertex_t> h_rows{};
-  std::vector<vertex_t> h_cols{};
-  std::vector<weight_t> h_weights{};
-  vertex_t number_of_vertices{};
-  bool is_symmetric{};
-};
-#define DEFINED_edgelist_from_market_matrix_file_t
-#endif
 
 // FIXME: it might be nicer to take a path to a graph input file instead of the
 // edgelist struct, but creating a edgelist struct from a graph file requires a
