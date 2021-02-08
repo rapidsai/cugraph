@@ -1,5 +1,5 @@
 #!/bin/bash
-# Copyright (c) 2019-2020, NVIDIA CORPORATION.
+# Copyright (c) 2019-2021, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -64,7 +64,7 @@ else
     cd $WORKSPACE/ci/artifacts/cugraph/cpu/conda_work/cpp/build
 fi
 
-for gt in gtests/*; do
+for gt in tests/*_TEST; do
     test_name=$(basename $gt)
     echo "Running GoogleTest $test_name"
     ${gt} ${GTEST_FILTER} ${GTEST_ARGS}
