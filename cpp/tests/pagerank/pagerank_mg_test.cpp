@@ -50,7 +50,7 @@ typedef struct Pagerank_Testparams_t {
   };
 } Pagerank_Testparams_t;
 
-//
+////////////////////////////////////////////////////////////////////////////////
 // Parameterized test fixture, to be used with TEST_P().  This defines common
 // setup and teardown steps as well as common utilities used by each E2E MG
 // test.  In this case, each test is identical except for the inputs and
@@ -87,6 +87,8 @@ class Pagerank_E2E_MG_Testfixture_t : public ::testing::TestWithParam<Pagerank_T
   virtual void SetUp() {}
   virtual void TearDown() {}
 
+  // Return the results of running pagerank on a single GPU for the dataset in
+  // graph_file_path.
   template <typename vertex_t, typename edge_t, typename weight_t, typename result_t>
   std::vector<result_t> get_sg_results(raft::handle_t& handle,
                                        const std::string& graph_file_path,
@@ -121,6 +123,8 @@ class Pagerank_E2E_MG_Testfixture_t : public ::testing::TestWithParam<Pagerank_T
     return std::move(h_pageranks);
   }
 
+  // Compare the results of running pagerank on multiple GPUs to that of a
+  // single-GPU run for the configuration in param.
   template <typename vertex_t, typename edge_t, typename weight_t, typename result_t>
   void run_test(const Pagerank_Testparams_t& param)
   {
@@ -158,7 +162,6 @@ class Pagerank_E2E_MG_Testfixture_t : public ::testing::TestWithParam<Pagerank_T
 
     auto mg_graph_view = mg_graph_ptr->view();
 
-    ////////
     rmm::device_uvector<result_t> d_mg_pageranks(mg_graph_view.get_number_of_vertices(), stream);
     CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
 
@@ -186,7 +189,6 @@ class Pagerank_E2E_MG_Testfixture_t : public ::testing::TestWithParam<Pagerank_T
                       d_renumber_map_labels.size(),
                       stream);
 
-    ////////
     // Compare MG to SG
     // Each GPU will have pagerank values for their range, so ech GPU must
     // compare to specific SG results for their respective range.
@@ -220,6 +222,7 @@ class Pagerank_E2E_MG_Testfixture_t : public ::testing::TestWithParam<Pagerank_T
   }
 };
 
+////////////////////////////////////////////////////////////////////////////////
 TEST_P(Pagerank_E2E_MG_Testfixture_t, CheckInt32Int32FloatFloat)
 {
   run_test<int32_t, int32_t, float, float>(GetParam());
