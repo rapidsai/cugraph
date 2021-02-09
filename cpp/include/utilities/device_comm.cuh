@@ -196,21 +196,13 @@ device_sendrecv_impl(raft::comms::comms_t const& comm,
   using value_type = typename std::iterator_traits<InputIterator>::value_type;
   static_assert(
     std::is_same<typename std::iterator_traits<OutputIterator>::value_type, value_type>::value);
-  // ncclSend/ncclRecv pair needs to be located inside ncclGroupStart/ncclGroupEnd to avoid deadlock
-  ncclGroupStart();
-  ncclSend(iter_to_raw_ptr(input_first),
-           tx_count * sizeof(value_type),
-           ncclUint8,
-           dst,
-           comm.get_nccl_comm(),
-           stream);
-  ncclRecv(iter_to_raw_ptr(output_first),
-           rx_count * sizeof(value_type),
-           ncclUint8,
-           src,
-           comm.get_nccl_comm(),
-           stream);
-  ncclGroupEnd();
+  comm.device_sendrecv(iter_to_raw_ptr(input_first),
+                       tx_count,
+                       dst,
+                       iter_to_raw_ptr(output_first),
+                       rx_count,
+                       src,
+                       stream);
 }
 
 template <typename InputIterator, typename OutputIterator, size_t I, size_t N>
@@ -288,25 +280,15 @@ device_multicast_sendrecv_impl(raft::comms::comms_t const& comm,
   using value_type = typename std::iterator_traits<InputIterator>::value_type;
   static_assert(
     std::is_same<typename std::iterator_traits<OutputIterator>::value_type, value_type>::value);
-  // ncclSend/ncclRecv pair needs to be located inside ncclGroupStart/ncclGroupEnd to avoid deadlock
-  ncclGroupStart();
-  for (size_t i = 0; i < tx_counts.size(); ++i) {
-    ncclSend(iter_to_raw_ptr(input_first + tx_offsets[i]),
-             tx_counts[i] * sizeof(value_type),
-             ncclUint8,
-             tx_dst_ranks[i],
-             comm.get_nccl_comm(),
-             stream);
-  }
-  for (size_t i = 0; i < rx_counts.size(); ++i) {
-    ncclRecv(iter_to_raw_ptr(output_first + rx_offsets[i]),
-             rx_counts[i] * sizeof(value_type),
-             ncclUint8,
-             rx_src_ranks[i],
-             comm.get_nccl_comm(),
-             stream);
-  }
-  ncclGroupEnd();
+  comm.device_multicast_sendrecv(iter_to_raw_ptr(input_first),
+                                 tx_counts,
+                                 tx_offsets,
+                                 tx_dst_ranks,
+                                 iter_to_raw_ptr(output_first),
+                                 rx_counts,
+                                 rx_offsets,
+                                 rx_src_ranks,
+                                 stream);
 }
 
 template <typename InputIterator, typename OutputIterator, size_t I, size_t N>
@@ -589,10 +571,6 @@ device_gatherv_impl(raft::comms::comms_t const& comm,
 {
   static_assert(std::is_same<typename std::iterator_traits<InputIterator>::value_type,
                              typename std::iterator_traits<OutputIterator>::value_type>::value);
-  // FIXME: should be enabled once the RAFT gather & gatherv PR is merged
-#if 1
-  CUGRAPH_FAIL("Unimplemented.");
-#else
   comm.gatherv(iter_to_raw_ptr(input_first),
                iter_to_raw_ptr(output_first),
                sendcount,
@@ -600,7 +578,6 @@ device_gatherv_impl(raft::comms::comms_t const& comm,
                displacements.data(),
                root,
                stream);
-#endif
 }
 
 template <typename InputIterator, typename OutputIterator, size_t I, size_t N>
