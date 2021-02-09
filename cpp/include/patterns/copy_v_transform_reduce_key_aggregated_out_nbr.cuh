@@ -282,8 +282,8 @@ void copy_v_transform_reduce_key_aggregated_out_nbr(
     auto& row_comm           = handle.get_subcomm(cugraph::partition_2d::key_naming_t().row_name());
     auto const row_comm_size = row_comm.get_size();
     loop_count               = graph_view.is_hypergraph_partitioned()
-                                 ? graph_view.get_number_of_local_adj_matrix_partitions()
-                                 : static_cast<size_t>(row_comm_size);
+                   ? graph_view.get_number_of_local_adj_matrix_partitions()
+                   : static_cast<size_t>(row_comm_size);
   }
 
   rmm::device_uvector<vertex_t> major_vertices(0, handle.get_stream());
@@ -359,8 +359,8 @@ void copy_v_transform_reduce_key_aggregated_out_nbr(
 
     if (GraphViewType::is_multi_gpu) {
       auto& sub_comm           = handle.get_subcomm(graph_view.is_hypergraph_partitioned()
-                                                      ? cugraph::partition_2d::key_naming_t().col_name()
-                                                      : cugraph::partition_2d::key_naming_t().row_name());
+                                            ? cugraph::partition_2d::key_naming_t().col_name()
+                                            : cugraph::partition_2d::key_naming_t().row_name());
       auto const sub_comm_size = sub_comm.get_size();
 
       triplet_first =
@@ -417,8 +417,8 @@ void copy_v_transform_reduce_key_aggregated_out_nbr(
 
     if (GraphViewType::is_multi_gpu) {
       auto& sub_comm           = handle.get_subcomm(graph_view.is_hypergraph_partitioned()
-                                                      ? cugraph::partition_2d::key_naming_t().col_name()
-                                                      : cugraph::partition_2d::key_naming_t().row_name());
+                                            ? cugraph::partition_2d::key_naming_t().col_name()
+                                            : cugraph::partition_2d::key_naming_t().row_name());
       auto const sub_comm_rank = sub_comm.get_rank();
       auto const sub_comm_size = sub_comm.get_size();
 

@@ -420,10 +420,10 @@ coarsen_graph(
     CUGRAPH_FAIL("unimplemented.");
   } else {
     edgelists.resize(1);
-    edgelists[0].p_src_vertices  = store_transposed ? coarsened_edgelist_minor_vertices.data()
-                                                    : coarsened_edgelist_major_vertices.data();
-    edgelists[0].p_dst_vertices  = store_transposed ? coarsened_edgelist_major_vertices.data()
-                                                    : coarsened_edgelist_minor_vertices.data();
+    edgelists[0].p_src_vertices = store_transposed ? coarsened_edgelist_minor_vertices.data()
+                                                   : coarsened_edgelist_major_vertices.data();
+    edgelists[0].p_dst_vertices = store_transposed ? coarsened_edgelist_major_vertices.data()
+                                                   : coarsened_edgelist_minor_vertices.data();
     edgelists[0].p_edge_weights  = coarsened_edgelist_weights.data();
     edgelists[0].number_of_edges = static_cast<edge_t>(coarsened_edgelist_major_vertices.size());
   }
@@ -504,10 +504,10 @@ coarsen_graph(
     do_expensive_check);
 
   edgelist_t<vertex_t, edge_t, weight_t> edgelist{};
-  edgelist.p_src_vertices  = store_transposed ? coarsened_edgelist_minor_vertices.data()
-                                              : coarsened_edgelist_major_vertices.data();
-  edgelist.p_dst_vertices  = store_transposed ? coarsened_edgelist_major_vertices.data()
-                                              : coarsened_edgelist_minor_vertices.data();
+  edgelist.p_src_vertices = store_transposed ? coarsened_edgelist_minor_vertices.data()
+                                             : coarsened_edgelist_major_vertices.data();
+  edgelist.p_dst_vertices = store_transposed ? coarsened_edgelist_major_vertices.data()
+                                             : coarsened_edgelist_minor_vertices.data();
   edgelist.p_edge_weights  = coarsened_edgelist_weights.data();
   edgelist.number_of_edges = static_cast<edge_t>(coarsened_edgelist_major_vertices.size());
 
