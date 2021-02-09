@@ -145,7 +145,7 @@ class Tests_Tsp : public ::testing::TestWithParam<Tsp_Usecase> {
     cudaProfilerStart();
 
     float final_cost = cugraph::traveling_salesman(
-      handle, vtx_ptr, d_route, d_x_pos, d_y_pos, nodes, restarts, beam_search, k, nstart, verbose);
+      handle, vtx_ptr, d_x_pos, d_y_pos, nodes, restarts, beam_search, k, nstart, verbose, d_route);
     cudaProfilerStop();
     cudaDeviceSynchronize();
     hr_clock.stop(&time_tmp);

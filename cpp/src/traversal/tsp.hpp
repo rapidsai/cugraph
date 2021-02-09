@@ -29,7 +29,6 @@ class TSP {
  public:
   TSP(raft::handle_t &handle,
       int const *vtx_ptr,
-      int *route,
       float const *x_pos,
       float const *y_pos,
       int nodes,
@@ -37,7 +36,8 @@ class TSP {
       bool beam_search,
       int k,
       int nstart,
-      bool verbose);
+      bool verbose,
+      int *route);
 
   void allocate();
   float compute();
@@ -76,7 +76,6 @@ class TSP {
   // Vectors
   rmm::device_vector<int64_t> neighbors_vec_;
   rmm::device_vector<int> work_vec_;
-  rmm::device_vector<int> work_route_vec_;
 
   int64_t *neighbors_;
   int *work_;

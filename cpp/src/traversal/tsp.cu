@@ -14,6 +14,7 @@
  * limitations under the License.
  */
 
+#include <numeric>
 #include <raft/spatial/knn/knn.hpp>
 
 #include "tsp.hpp"
@@ -24,7 +25,6 @@ namespace detail {
 
 TSP::TSP(raft::handle_t &handle,
          int const *vtx_ptr,
-         int *route,
          float const *x_pos,
          float const *y_pos,
          int nodes,
@@ -32,10 +32,10 @@ TSP::TSP(raft::handle_t &handle,
          bool beam_search,
          int k,
          int nstart,
-         bool verbose)
+         bool verbose,
+         int *route)
   : handle_(handle),
     vtx_ptr_(vtx_ptr),
-    route_(route),
     x_pos_(x_pos),
     y_pos_(y_pos),
     nodes_(nodes),
@@ -44,13 +44,13 @@ TSP::TSP(raft::handle_t &handle,
     k_(k),
     nstart_(nstart),
     verbose_(verbose),
+    route_(route),
     stream_(handle_.get_stream()),
     max_blocks_(handle_.get_device_properties().maxGridSize[0]),
     max_threads_(handle_.get_device_properties().maxThreadsPerBlock),
     sm_count_(handle_.get_device_properties().multiProcessorCount),
     restart_batch_(4096)
 {
-  // Allocate GPU buffers
   allocate();
 }
 
@@ -65,13 +65,14 @@ void TSP::allocate()
 
   // Vectors
   neighbors_vec_.resize((k_ + 1) * nodes_);
-  work_vec_.resize(4 * restart_batch_ * ((3 * nodes_ + 2 + 31) / 32 * 32));
-  work_route_vec_.resize(4 * restart_batch_ * ((3 * nodes_ + 2 + 31) / 32 * 32));
+  // We allocate a work buffer that will store the computed distances, px, py
+  // and the route. We align it on the warp size since each block will work on
+  // his own scope of the work array (see solver).
+  work_vec_.resize(sizeof(int) * restart_batch_ * ((4 * nodes_ + 3 + 31) / 32 * 32));
 
   // Pointers
   neighbors_  = neighbors_vec_.data().get();
   work_       = work_vec_.data().get();
-  work_route_ = work_route_vec_.data().get();
 }
 
 float TSP::compute()
@@ -83,16 +84,23 @@ float TSP::compute()
   float *soln             = nullptr;
   int *route_sol          = nullptr;
   int best                = 0;
+  clock_t start, end;
+  std::vector<long> h_times;
+  h_times.reserve(4);
+  rmm::device_vector<long> times(4);
   std::vector<float> h_x_pos;
   std::vector<float> h_y_pos;
   h_x_pos.reserve(nodes_ + 1);
   h_y_pos.reserve(nodes_ + 1);
 
   // KNN call
+  start = clock();
   knn();
+  end = clock();
+  h_times[0] = end - start;
 
   if (verbose_) {
-    std::cout << "Doing " << num_restart_batches - 1 << "batches of size " << restart_batch_
+    std::cout << "Doing " << num_restart_batches - 1 << " batches of size " << restart_batch_
               << ", with " << restart_resid << " tail\n";
     std::cout << "configuration: " << nodes_ << " nodes, " << restarts_ << " restart\n";
     std::cout << "optimizing graph with kswap = " << kswaps << "\n";
@@ -101,7 +109,7 @@ float TSP::compute()
   // Tell the cache how we want it to behave
   cudaFuncSetCacheConfig(search_solution, cudaFuncCachePreferEqual);
 
-  int threads = best_thread_count(nodes_);
+  int threads = best_thread_count(nodes_, max_threads_, sm_count_);
   if (verbose_) std::cout << "Calculated best thread number = " << threads << "\n";
 
   for (int b = 0; b < num_restart_batches; ++b) {
@@ -113,7 +121,6 @@ float TSP::compute()
     search_solution<<<restart_batch_, threads, sizeof(int) * threads, stream_>>>(mylock_,
                                                                                  best_tour_,
                                                                                  vtx_ptr_,
-                                                                                 work_route_,
                                                                                  beam_search_,
                                                                                  k_,
                                                                                  nodes_,
@@ -121,7 +128,8 @@ float TSP::compute()
                                                                                  x_pos_,
                                                                                  y_pos_,
                                                                                  work_,
-                                                                                 nstart_);
+                                                                                 nstart_,
+                                                                                 times.data().get());
 
     CHECK_CUDA(stream_);
     cudaDeviceSynchronize();
@@ -148,10 +156,29 @@ float TSP::compute()
   CUDA_TRY(cudaMemcpy(
     h_y_pos.data(), soln + nodes_ + 1, sizeof(float) * (nodes_ + 1), cudaMemcpyDeviceToHost));
   cudaDeviceSynchronize();
+  CUDA_TRY(cudaMemcpy(
+    h_y_pos.data(), soln + nodes_ + 1, sizeof(float) * (nodes_ + 1), cudaMemcpyDeviceToHost));
+  cudaDeviceSynchronize();
 
   for (int i = 0; i < nodes_; ++i) {
     if (verbose_) { std::cout << h_x_pos[i] << " " << h_y_pos[i] << "\n"; }
     valid_coo_dist += euclidean_dist(h_x_pos.data(), h_y_pos.data(), i, i + 1);
+  }
+
+  CUDA_TRY(cudaMemcpy(
+    h_times.data() + 1, times.data().get(), sizeof(long) * 4, cudaMemcpyDeviceToHost));
+  cudaDeviceSynchronize();
+
+  if (verbose_) {
+    double total = 0;
+    for (int i = 0; i < 4; ++i)
+      total += h_times[i];
+
+    std::cout << "Knn time: " << h_times[0] << " " << (h_times[0] / total) * 100.0 << "%\n";
+    std::cout << "Init time: " << h_times[1] << " " << (h_times[1] / total) * 100.0 << "%\n";
+    std::cout << "Hill Climbing time: " << h_times[2] << " " << (h_times[2] / total) * 100.0 << "%\n";
+    std::cout << "Retrieve best solution time: " << h_times[3] << " " << (h_times[3] / total) * 100.0 << "%\n";
+    std::cout << "Total time: " << total << "\n";
   }
   return valid_coo_dist;
 }
@@ -199,7 +226,6 @@ void TSP::knn()
 
 float traveling_salesman(raft::handle_t &handle,
                          int const *vtx_ptr,
-                         int *route,
                          float const *x_pos,
                          float const *y_pos,
                          int nodes,
@@ -207,7 +233,8 @@ float traveling_salesman(raft::handle_t &handle,
                          bool beam_search,
                          int k,
                          int nstart,
-                         bool verbose)
+                         bool verbose,
+                         int *route)
 {
   RAFT_EXPECTS(route != nullptr, "route should equal the number of nodes");
   RAFT_EXPECTS(nodes > 0, "nodes should be strictly positive");
@@ -216,7 +243,7 @@ float traveling_salesman(raft::handle_t &handle,
   RAFT_EXPECTS(k > 0, "k should be strictly positive");
 
   cugraph::detail::TSP tsp(
-    handle, vtx_ptr, route, x_pos, y_pos, nodes, restarts, beam_search, k, nstart, verbose);
+    handle, vtx_ptr, x_pos, y_pos, nodes, restarts, beam_search, k, nstart, verbose, route);
   return tsp.compute();
 }
 

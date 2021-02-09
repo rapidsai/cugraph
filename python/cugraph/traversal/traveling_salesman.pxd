@@ -22,7 +22,6 @@ cdef extern from "algorithms.hpp" namespace "cugraph":
 
     cdef float traveling_salesman(const handle_t &handle,
             int *vtx_ptr,
-            int *route,
             float *x_pos,
             float *y_pos,
             int nodes,
@@ -30,5 +29,6 @@ cdef extern from "algorithms.hpp" namespace "cugraph":
             bool beam_search,
             int k,
             int nstart,
-            bool verbose) except +
+            bool verbose,
+            int *route) except +
 

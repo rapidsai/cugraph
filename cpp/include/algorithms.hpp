@@ -204,7 +204,6 @@ void force_atlas2(GraphCOOView<vertex_t, edge_t, weight_t> &graph,
  * handle, the multi GPU version will be selected.
  * @param[in] vtx_ptr                         Device array containing the vertex identifiers used
  * to initialize the route.
- * @param[out] route                          Device array containing the returned route.
  * @param[in] x_pos                           Device array containing starting x-axis positions.
  * @param[in] y_pos                           Device array containing starting y-axis positions.
  * @param[in] nodes                           Number of cities.
@@ -216,19 +215,20 @@ void force_atlas2(GraphCOOView<vertex_t, edge_t, weight_t> &graph,
  * @param[in] k                               Beam width to use in the search.
  * @param[in] nstart                          Start from a specific position.
  * @param[in] verbose                         Logs configuration and iterative improvement.
+ * @param[out] route                          Device array containing the returned route.
  *
  */
 float traveling_salesman(raft::handle_t &handle,
                          int const *vtx_ptr,
-                         int *route,
                          float const *x_pos,
                          float const *y_pos,
                          int nodes,
-                         int restarts     = 100000,
-                         bool beam_search = true,
-                         int k            = 4,
-                         int nstart       = 0,
-                         bool verbose     = false);
+                         int restarts,
+                         bool beam_search,
+                         int k,
+                         int nstart,
+                         bool verbose,
+                         int *route);
 
 /**
  * @brief     Compute betweenness centrality for a graph

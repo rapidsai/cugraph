@@ -370,7 +370,6 @@ __device__ void get_optimal_tour(
 __global__ __launch_bounds__(2048, 2) void search_solution(int *mylock,
                                                            int *best_tour,
                                                            int const *vtx_ptr,
-                                                           int *work_route,
                                                            bool beam_search,
                                                            int const K,
                                                            int nodes,
@@ -378,25 +377,36 @@ __global__ __launch_bounds__(2048, 2) void search_solution(int *mylock,
                                                            float const *posx,
                                                            float const *posy,
                                                            int *work,
-                                                           int const nstart)
+                                                           int const nstart,
+                                                           long *times)
 {
-  int *buf       = &work[blockIdx.x * ((3 * nodes + 2 + 31) / 32 * 32)];
-  int *route_buf = &work_route[blockIdx.x * ((3 * nodes + 2 + 31) / 32 * 32)];
+  int *buf       = &work[blockIdx.x * ((4 * nodes + 3 + 31) / 32 * 32)];
   float *px      = (float *)(&buf[nodes]);
   float *py      = &px[nodes + 1];
-  int *path      = (int *)(&route_buf[nodes]);
+  int *path      = (int *)(&py[nodes + 1]);
   __shared__ int shbuf[tilesize];
+  clock_t start, end;
 
+  start = clock();
   if (!beam_search)
     random_init(posx, posy, vtx_ptr, path, px, py, nstart, nodes);
   else
     knn_init(posx, posy, vtx_ptr, neighbors, buf, path, px, py, nstart, nodes, K);
   __syncthreads();
+  end = clock();
+  times[0] = end - start;
+  //atomicAdd(times[0], end - start);
 
+  start = clock();
   hill_climbing(px, py, buf, path, shbuf, nodes);
   __syncthreads();
+  end = clock();
+  times[1] = end - start;
 
+  start = clock();
   get_optimal_tour(mylock, best_tour, px, py, path, shbuf, nodes);
+  end = clock();
+  times[2] = end - start;
 }
 }  // namespace detail
 }  // namespace cugraph

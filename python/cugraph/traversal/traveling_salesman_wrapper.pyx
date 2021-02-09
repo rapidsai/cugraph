@@ -52,8 +52,7 @@ def traveling_salesman(pos_list,
     handle_ptr.reset(new handle_t())
     handle_ = handle_ptr.get();
 
-    cdef float final_cost_float = 0.0
-    final_cost = None
+    cdef float final_cost = 0.0
 
     cdef uintptr_t route_ptr = <uintptr_t>NULL
     route_arr = cuda.device_array(nodes, dtype=np.int32)
@@ -64,9 +63,8 @@ def traveling_salesman(pos_list,
 
     renumbered_nstart = pos_list[pos_list['vertex'] == nstart].index[0]
 
-    final_cost_float = c_traveling_salesman(handle_[0],
+    final_cost = c_traveling_salesman(handle_[0],
             <int*> vtx_ptr,
-            <int*> route_ptr,
             <float*> x_pos,
             <float*> y_pos,
             <int> nodes,
@@ -74,8 +72,8 @@ def traveling_salesman(pos_list,
             <bool> beam_search,
             <int> k,
             <int> renumbered_nstart,
-            <bool> verbose)
+            <bool> verbose,
+            <int*> route_ptr)
 
     route = cudf.Series(route_arr)
-    final_cost = final_cost_float
     return route, final_cost

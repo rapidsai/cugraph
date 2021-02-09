@@ -19,6 +19,9 @@
 #define tilesize 128
 #define kswaps 4
 
+#include <sys/time.h>
+#include <chrono>
+
 namespace cugraph {
 namespace detail {
 
@@ -27,13 +30,14 @@ __host__ __device__ inline float euclidean_dist(float *px, float *py, int a, int
   return sqrtf((px[a] - px[b]) * (px[a] - px[b]) + (py[a] - py[b]) * (py[a] - py[b]));
 }
 
-int best_thread_count(int nodes)
+// Based on number of nodes, shared memory usage, max threads per block and SM,
+// max blocks for SM and registers per SM
+int best_thread_count(int nodes, int max_threads, int sm_count)
 {
   int max, best, threads, smem, blocks, thr, perf, bthr;
-  int sm_count = 84;
 
   max = nodes - 2;
-  if (max > 1024) max = 1024;
+  if (max > max_threads) max = max_threads;
   best = 0;
   bthr = 4;
   for (threads = 1; threads <= max; threads++) {
@@ -51,6 +55,5 @@ int best_thread_count(int nodes)
 
   return bthr;
 }
-
 }  // namespace detail
 }  // namespace cugraph
