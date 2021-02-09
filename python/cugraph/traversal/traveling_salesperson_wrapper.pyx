@@ -16,7 +16,7 @@
 # cython: embedsignature = True
 # cython: language_level = 3
 
-from cugraph.traversal.traveling_salesman cimport traveling_salesman as c_traveling_salesman
+from cugraph.traversal.traveling_salesperson cimport traveling_salesperson as c_traveling_salesperson
 from cugraph.structure import graph_primtypes_wrapper
 from cugraph.structure.graph_primtypes cimport *
 from libcpp cimport bool
@@ -27,16 +27,16 @@ import cudf
 import numpy as np
 
 
-def traveling_salesman(pos_list,
-                       restarts=100000,
-                       beam_search=True,
-                       k=4,
-                       nstart=1,
-                       verbose=False,
-                       renumber=True,
+def traveling_salesperson(pos_list,
+                          restarts=100000,
+                          beam_search=True,
+                          k=4,
+                          nstart=1,
+                          verbose=False,
+                          renumber=True,
 ):
     """
-    Call traveling_salesman
+    Call traveling_salesperson
     """
 
     nodes = pos_list.shape[0]
@@ -63,7 +63,7 @@ def traveling_salesman(pos_list,
 
     renumbered_nstart = pos_list[pos_list['vertex'] == nstart].index[0]
 
-    final_cost = c_traveling_salesman(handle_[0],
+    final_cost = c_traveling_salesperson(handle_[0],
             <int*> vtx_ptr,
             <float*> x_pos,
             <float*> y_pos,

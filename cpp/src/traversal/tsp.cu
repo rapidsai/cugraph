@@ -224,7 +224,7 @@ void TSP::knn()
 }
 }  // namespace detail
 
-float traveling_salesman(raft::handle_t &handle,
+float traveling_salesperson(raft::handle_t &handle,
                          int const *vtx_ptr,
                          float const *x_pos,
                          float const *y_pos,

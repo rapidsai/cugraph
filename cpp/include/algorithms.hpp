@@ -193,7 +193,7 @@ void force_atlas2(GraphCOOView<vertex_t, edge_t, weight_t> &graph,
                   internals::GraphBasedDimRedCallback *callback = nullptr);
 
 /**
- * @brief Finds an approximate solution to the traveling salesman problem (TSP).
+ * @brief Finds an approximate solution to the traveling salesperson problem (TSP).
  *        cuGraph computes an approximation of the TSP problem using hill climbing
  *        optimization.
  *
@@ -218,17 +218,17 @@ void force_atlas2(GraphCOOView<vertex_t, edge_t, weight_t> &graph,
  * @param[out] route                          Device array containing the returned route.
  *
  */
-float traveling_salesman(raft::handle_t &handle,
-                         int const *vtx_ptr,
-                         float const *x_pos,
-                         float const *y_pos,
-                         int nodes,
-                         int restarts,
-                         bool beam_search,
-                         int k,
-                         int nstart,
-                         bool verbose,
-                         int *route);
+float traveling_salesperson(raft::handle_t &handle,
+                            int const *vtx_ptr,
+                            float const *x_pos,
+                            float const *y_pos,
+                            int nodes,
+                            int restarts,
+                            bool beam_search,
+                            int k,
+                            int nstart,
+                            bool verbose,
+                            int *route);
 
 /**
  * @brief     Compute betweenness centrality for a graph

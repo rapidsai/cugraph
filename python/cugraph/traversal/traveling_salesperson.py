@@ -11,20 +11,20 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from cugraph.traversal import traveling_salesman_wrapper
+from cugraph.traversal import traveling_salesperson_wrapper
 from cugraph.structure.graph import null_check
 import cudf
 
 
-def traveling_salesman(pos_list,
-                       restarts=100000,
-                       beam_search=True,
-                       k=4,
-                       nstart=1,
-                       verbose=False,
-                       ):
+def traveling_salesperson(pos_list,
+                          restarts=100000,
+                          beam_search=True,
+                          k=4,
+                          nstart=1,
+                          verbose=False,
+                          ):
     """
-    Finds an approximate solution to the traveling salesman problem (TSP).
+    Finds an approximate solution to the traveling salesperson problem (TSP).
     cuGraph computes an approximation of the TSP problem using hill climbing
     optimization.
 
@@ -65,10 +65,10 @@ def traveling_salesman(pos_list,
     if not pos_list[pos_list['vertex'] == nstart].index:
         raise Exception("nstart should be in vertex ids")
 
-    route, cost = traveling_salesman_wrapper.traveling_salesman(pos_list,
-                                                                restarts,
-                                                                beam_search,
-                                                                k,
-                                                                nstart,
-                                                                verbose)
+    route, cost = traveling_salesperson_wrapper.traveling_salesperson(pos_list,
+                                                                      restarts,
+                                                                      beam_search,
+                                                                      k,
+                                                                      nstart,
+                                                                      verbose)
     return route, cost
