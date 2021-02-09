@@ -399,12 +399,12 @@ __global__ __launch_bounds__(2048, 2) void search_solution(int *mylock,
   else
     knn_init(posx, posy, vtx_ptr, neighbors, buf, path, px, py, nstart, nodes, K);
   __syncthreads();
-  times[0 * threads + threadIdx.x] = clock64() - start;
+  times[threadIdx.x] = clock64() - start;
 
   start = clock64();
   hill_climbing(px, py, buf, path, shbuf, nodes, climbs);
   __syncthreads();
-  times[1 * threads + threadIdx.x + 1] = clock64() - start;
+  times[threads + threadIdx.x + 1] = clock64() - start;
 
   start = clock64();
   get_optimal_tour(mylock, best_tour, px, py, path, shbuf, nodes);
