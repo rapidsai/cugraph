@@ -48,6 +48,7 @@ TSP::TSP(raft::handle_t &handle,
     stream_(handle_.get_stream()),
     max_blocks_(handle_.get_device_properties().maxGridSize[0]),
     max_threads_(handle_.get_device_properties().maxThreadsPerBlock),
+    warp_size_(handle_.get_device_properties().warpSize),
     sm_count_(handle_.get_device_properties().multiProcessorCount),
     restart_batch_(4096)
 {
@@ -68,7 +69,8 @@ void TSP::allocate()
   // We allocate a work buffer that will store the computed distances, px, py
   // and the route. We align it on the warp size since each block will work on
   // his own scope of the work array (see solver).
-  work_vec_.resize(sizeof(int) * restart_batch_ * ((4 * nodes_ + 3 + 31) / 32 * 32));
+  work_vec_.resize(sizeof(float) * restart_batch_ *
+                   ((4 * nodes_ + 3 + warp_size_ - 1) / warp_size_ * warp_size_));
 
   // Pointers
   neighbors_ = neighbors_vec_.data().get();
@@ -84,10 +86,11 @@ float TSP::compute()
   float *soln             = nullptr;
   int *route_sol          = nullptr;
   int best                = 0;
+  int n_timers            = 4;
   clock_t start, end;
   std::vector<long> h_times;
-  h_times.reserve(4);
-  rmm::device_vector<long> times(4);
+  h_times.reserve(n_timers);
+  rmm::device_vector<long> times(n_timers - 1);
   std::vector<float> h_x_pos;
   std::vector<float> h_y_pos;
   h_x_pos.reserve(nodes_ + 1);
@@ -109,7 +112,7 @@ float TSP::compute()
   // Tell the cache how we want it to behave
   cudaFuncSetCacheConfig(search_solution, cudaFuncCachePreferEqual);
 
-  int threads = best_thread_count(nodes_, max_threads_, sm_count_);
+  int threads = best_thread_count(nodes_, max_threads_, sm_count_, warp_size_);
   if (verbose_) std::cout << "Calculated best thread number = " << threads << "\n";
 
   for (int b = 0; b < num_restart_batches; ++b) {
@@ -157,31 +160,18 @@ float TSP::compute()
   CUDA_TRY(cudaMemcpy(
     h_y_pos.data(), soln + nodes_ + 1, sizeof(float) * (nodes_ + 1), cudaMemcpyDeviceToHost));
   cudaDeviceSynchronize();
-  CUDA_TRY(cudaMemcpy(
-    h_y_pos.data(), soln + nodes_ + 1, sizeof(float) * (nodes_ + 1), cudaMemcpyDeviceToHost));
-  cudaDeviceSynchronize();
 
   for (int i = 0; i < nodes_; ++i) {
     if (verbose_) { std::cout << h_x_pos[i] << " " << h_y_pos[i] << "\n"; }
     valid_coo_dist += euclidean_dist(h_x_pos.data(), h_y_pos.data(), i, i + 1);
   }
 
-  CUDA_TRY(
-    cudaMemcpy(h_times.data() + 1, times.data().get(), sizeof(long) * 4, cudaMemcpyDeviceToHost));
+  CUDA_TRY(cudaMemcpy(
+    h_times.data() + 1, times.data().get(), sizeof(long) * (n_timers - 1), cudaMemcpyDeviceToHost));
   cudaDeviceSynchronize();
 
-  if (verbose_) {
-    double total = 0;
-    for (int i = 0; i < 4; ++i) total += h_times[i];
+  if (verbose_) print_times(h_times, n_timers);
 
-    std::cout << "Knn time: " << h_times[0] << " " << (h_times[0] / total) * 100.0 << "%\n";
-    std::cout << "Init time: " << h_times[1] << " " << (h_times[1] / total) * 100.0 << "%\n";
-    std::cout << "Hill Climbing time: " << h_times[2] << " " << (h_times[2] / total) * 100.0
-              << "%\n";
-    std::cout << "Retrieve best solution time: " << h_times[3] << " "
-              << (h_times[3] / total) * 100.0 << "%\n";
-    std::cout << "Total time: " << total << "\n";
-  }
   return valid_coo_dist;
 }
 

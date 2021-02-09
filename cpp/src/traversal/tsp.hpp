@@ -50,6 +50,7 @@ class TSP {
   cudaStream_t stream_;
   int max_blocks_;
   int max_threads_;
+  int warp_size_;
   int sm_count_;
   // how large a grid we want to run, this is fixed
   int restart_batch_;

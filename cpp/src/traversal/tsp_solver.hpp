@@ -395,7 +395,6 @@ __global__ __launch_bounds__(2048, 2) void search_solution(int *mylock,
   __syncthreads();
   end      = clock();
   times[0] = end - start;
-  // atomicAdd(times[0], end - start);
 
   start = clock();
   hill_climbing(px, py, buf, path, shbuf, nodes);
@@ -406,7 +405,7 @@ __global__ __launch_bounds__(2048, 2) void search_solution(int *mylock,
   start = clock();
   get_optimal_tour(mylock, best_tour, px, py, path, shbuf, nodes);
   end      = clock();
-  times[2] = end - start;
+  times[3] = end - start;
 }
 }  // namespace detail
 }  // namespace cugraph

@@ -20,6 +20,8 @@
 #define kswaps 4
 
 #include <sys/time.h>
+#include <string>
+#include <vector>
 
 namespace cugraph {
 namespace detail {
@@ -29,22 +31,37 @@ __host__ __device__ inline float euclidean_dist(float *px, float *py, int a, int
   return sqrtf((px[a] - px[b]) * (px[a] - px[b]) + (py[a] - py[b]) * (py[a] - py[b]));
 }
 
-// Based on number of nodes, shared memory usage, max threads per block and SM,
-// max blocks for SM and registers per SM
-int best_thread_count(int nodes, int max_threads, int sm_count)
-{
-  int max, best, threads, smem, blocks, thr, perf, bthr;
+static std::vector<std::string> time_func = {"Knn", "Init", "Hill Climbing", "Retrieve path"};
 
-  max = nodes - 2;
+void print_times(std::vector<long> &h_times, int const n_timers)
+{
+  double total = 0;
+  for (int i = 0; i < n_timers; ++i) total += h_times[i];
+  for (int i = 0; i < n_timers; ++i) {
+    std::cout << time_func[i] << " time: " << h_times[i] << " " << (h_times[i] / total) * 100.0
+              << "%\n";
+  }
+  std::cout << "Total time: " << total << "\n";
+}
+
+// Get maximum number of threads we can run on based on number of nodes,
+// shared memory usage, max threads per block and SM, max blocks for SM and registers per SM.
+int best_thread_count(int nodes, int max_threads, int sm_count, int warp_size)
+{
+  int smem, blocks, thr, perf;
+  int const max_threads_sm = 2048;
+  int max                  = nodes - 2;
+  int best                 = 0;
+  int bthr                 = 4;
+
   if (max > max_threads) max = max_threads;
-  best = 0;
-  bthr = 4;
-  for (threads = 1; threads <= max; threads++) {
+
+  for (int threads = 1; threads <= max; ++threads) {
     smem   = sizeof(int) * threads + 2 * sizeof(float) * tilesize + sizeof(int) * tilesize;
     blocks = (16384 * 2) / smem;
     if (blocks > sm_count) blocks = sm_count;
-    thr = (threads + 31) / 32 * 32;
-    while (blocks * thr > 2048) blocks--;
+    thr = (threads + warp_size - 1) / warp_size * warp_size;
+    while (blocks * thr > max_threads_sm) blocks--;
     perf = threads * blocks;
     if (perf > best) {
       best = perf;
