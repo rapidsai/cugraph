@@ -421,10 +421,16 @@ class Louvain {
       base_src_vertex_id_ = graph_view.get_local_adj_matrix_partition_row_first(0);
       base_dst_vertex_id_ = graph_view.get_local_adj_matrix_partition_col_first(0);
 
-      local_num_edges_ = edge_t{0};
-      for (size_t i = 0; i < graph_view.get_number_of_local_adj_matrix_partitions(); ++i) {
-        local_num_edges_ += graph_view.get_number_of_local_adj_matrix_partition_edges(i);
-      }
+      local_num_edges_ = thrust::transform_reduce(
+        thrust::host,
+        thrust::make_counting_iterator<size_t>(0),
+        thrust::make_counting_iterator<size_t>(
+          graph_view.get_number_of_local_adj_matrix_partitions()),
+        [&graph_view](auto indx) {
+          return graph_view.get_number_of_local_adj_matrix_partition_edges(indx);
+        },
+        size_t{0},
+        thrust::plus<size_t>());
 
       CUDA_TRY(cudaStreamSynchronize(stream_));
     }
@@ -1225,10 +1231,16 @@ class Louvain {
     local_num_cols_     = current_graph_view_.get_number_of_local_adj_matrix_partition_cols();
     base_vertex_id_     = current_graph_view_.get_local_vertex_first();
 
-    local_num_edges_ = edge_t{0};
-    for (size_t i = 0; i < current_graph_view_.get_number_of_local_adj_matrix_partitions(); ++i) {
-      local_num_edges_ += current_graph_view_.get_number_of_local_adj_matrix_partition_edges(i);
-    }
+    local_num_edges_ = thrust::transform_reduce(
+      thrust::host,
+      thrust::make_counting_iterator<size_t>(0),
+      thrust::make_counting_iterator<size_t>(
+        current_graph_view_.get_number_of_local_adj_matrix_partitions()),
+      [this](auto indx) {
+        return current_graph_view_.get_number_of_local_adj_matrix_partition_edges(indx);
+      },
+      size_t{0},
+      thrust::plus<size_t>());
 
     src_indices_v_.resize(local_num_edges_);
 
