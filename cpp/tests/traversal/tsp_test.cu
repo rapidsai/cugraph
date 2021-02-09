@@ -24,6 +24,7 @@
 #include <raft/error.hpp>
 #include <raft/handle.hpp>
 #include <rmm/device_uvector.hpp>
+#include <set>
 #include <utilities/base_fixture.hpp>
 #include <utilities/test_utilities.hpp>
 #include <vector>
@@ -149,6 +150,16 @@ class Tests_Tsp : public ::testing::TestWithParam<Tsp_Usecase> {
     cudaProfilerStop();
     cudaDeviceSynchronize();
     hr_clock.stop(&time_tmp);
+
+    std::vector<int> h_route;
+    h_route.reserve(nodes);
+    std::vector<int> h_vertices;
+    h_vertices.reserve(nodes);
+    CUDA_TRY(cudaMemcpy(h_route.data(), d_route, sizeof(int) * nodes, cudaMemcpyDeviceToHost));
+    cudaDeviceSynchronize();
+    CUDA_TRY(cudaMemcpy(h_vertices.data(), vtx_ptr, sizeof(int) * nodes, cudaMemcpyDeviceToHost));
+    cudaDeviceSynchronize();
+
     std::cout << "tsp_time: " << time_tmp << " us" << std::endl;
     std::cout << "Ref cost is: " << param.ref_cost << "\n";
     std::cout << "Final cost is: " << final_cost << "\n";
@@ -156,6 +167,20 @@ class Tests_Tsp : public ::testing::TestWithParam<Tsp_Usecase> {
     err /= param.ref_cost;
     std::cout << "Approximation error is: " << err * 100 << "%\n";
     EXPECT_LE(err, tol);
+
+    // Check route goes through each vertex once
+    size_t u_nodes = nodes;
+    std::set<int> node_set;
+    for (size_t k = 0; k < u_nodes; ++k) node_set.insert(h_route[k]);
+    ASSERT_EQ(node_set.size(), u_nodes);
+
+    // Bound check
+    int min = *std::min_element(h_vertices.begin(), h_vertices.end());
+    int max = *std::max_element(h_vertices.begin(), h_vertices.end());
+    for (auto const& val : h_route) {
+      EXPECT_GE(val, min);
+      EXPECT_LE(val, max);
+    }
   }
 
  private:

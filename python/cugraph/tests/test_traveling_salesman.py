@@ -49,13 +49,13 @@ def load_tsp(filename=None):
 
 
 @pytest.mark.parametrize("tsplib_file, ref_cost", utils.DATASETS_TSPLIB)
-def test_traveling_salesman(tsplib_file, ref_cost):
+def test_traveling_salesperson(tsplib_file, ref_cost):
     gc.collect()
     pos_list = load_tsp(tsplib_file)
     # cugraph
     t1 = time.time()
-    cu_route, cu_cost = cugraph.traveling_salesman(pos_list,
-                                                   restarts=4096)
+    cu_route, cu_cost = cugraph.traveling_salesperson(pos_list,
+                                                      restarts=4096)
     t2 = time.time() - t1
     print("Cugraph time : " + str(t2))
     print("Cugraph cost: ", cu_cost)
@@ -66,3 +66,7 @@ def test_traveling_salesman(tsplib_file, ref_cost):
     # Check we are within 5% of TSPLIB
     assert(error * 100 < 5.)
     assert(cu_route.nunique() == pos_list.shape[0])
+    assert(cu_route.shape[0] == pos_list.shape[0])
+    min_val = pos_list["vertex"].min()
+    max_val = pos_list["vertex"].max()
+    assert(cu_route.clip(min_val, max_val).shape[0] == cu_route.shape[0])

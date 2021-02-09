@@ -71,8 +71,8 @@ void TSP::allocate()
   work_vec_.resize(sizeof(int) * restart_batch_ * ((4 * nodes_ + 3 + 31) / 32 * 32));
 
   // Pointers
-  neighbors_  = neighbors_vec_.data().get();
-  work_       = work_vec_.data().get();
+  neighbors_ = neighbors_vec_.data().get();
+  work_      = work_vec_.data().get();
 }
 
 float TSP::compute()
@@ -96,7 +96,7 @@ float TSP::compute()
   // KNN call
   start = clock();
   knn();
-  end = clock();
+  end        = clock();
   h_times[0] = end - start;
 
   if (verbose_) {
@@ -118,18 +118,19 @@ float TSP::compute()
 
     if (b == num_restart_batches - 1) restart_batch_ = restart_resid;
 
-    search_solution<<<restart_batch_, threads, sizeof(int) * threads, stream_>>>(mylock_,
-                                                                                 best_tour_,
-                                                                                 vtx_ptr_,
-                                                                                 beam_search_,
-                                                                                 k_,
-                                                                                 nodes_,
-                                                                                 neighbors_,
-                                                                                 x_pos_,
-                                                                                 y_pos_,
-                                                                                 work_,
-                                                                                 nstart_,
-                                                                                 times.data().get());
+    search_solution<<<restart_batch_, threads, sizeof(int) * threads, stream_>>>(
+      mylock_,
+      best_tour_,
+      vtx_ptr_,
+      beam_search_,
+      k_,
+      nodes_,
+      neighbors_,
+      x_pos_,
+      y_pos_,
+      work_,
+      nstart_,
+      times.data().get());
 
     CHECK_CUDA(stream_);
     cudaDeviceSynchronize();
@@ -165,19 +166,20 @@ float TSP::compute()
     valid_coo_dist += euclidean_dist(h_x_pos.data(), h_y_pos.data(), i, i + 1);
   }
 
-  CUDA_TRY(cudaMemcpy(
-    h_times.data() + 1, times.data().get(), sizeof(long) * 4, cudaMemcpyDeviceToHost));
+  CUDA_TRY(
+    cudaMemcpy(h_times.data() + 1, times.data().get(), sizeof(long) * 4, cudaMemcpyDeviceToHost));
   cudaDeviceSynchronize();
 
   if (verbose_) {
     double total = 0;
-    for (int i = 0; i < 4; ++i)
-      total += h_times[i];
+    for (int i = 0; i < 4; ++i) total += h_times[i];
 
     std::cout << "Knn time: " << h_times[0] << " " << (h_times[0] / total) * 100.0 << "%\n";
     std::cout << "Init time: " << h_times[1] << " " << (h_times[1] / total) * 100.0 << "%\n";
-    std::cout << "Hill Climbing time: " << h_times[2] << " " << (h_times[2] / total) * 100.0 << "%\n";
-    std::cout << "Retrieve best solution time: " << h_times[3] << " " << (h_times[3] / total) * 100.0 << "%\n";
+    std::cout << "Hill Climbing time: " << h_times[2] << " " << (h_times[2] / total) * 100.0
+              << "%\n";
+    std::cout << "Retrieve best solution time: " << h_times[3] << " "
+              << (h_times[3] / total) * 100.0 << "%\n";
     std::cout << "Total time: " << total << "\n";
   }
   return valid_coo_dist;
@@ -225,16 +227,16 @@ void TSP::knn()
 }  // namespace detail
 
 float traveling_salesperson(raft::handle_t &handle,
-                         int const *vtx_ptr,
-                         float const *x_pos,
-                         float const *y_pos,
-                         int nodes,
-                         int restarts,
-                         bool beam_search,
-                         int k,
-                         int nstart,
-                         bool verbose,
-                         int *route)
+                            int const *vtx_ptr,
+                            float const *x_pos,
+                            float const *y_pos,
+                            int nodes,
+                            int restarts,
+                            bool beam_search,
+                            int k,
+                            int nstart,
+                            bool verbose,
+                            int *route)
 {
   RAFT_EXPECTS(route != nullptr, "route should equal the number of nodes");
   RAFT_EXPECTS(nodes > 0, "nodes should be strictly positive");

@@ -380,10 +380,10 @@ __global__ __launch_bounds__(2048, 2) void search_solution(int *mylock,
                                                            int const nstart,
                                                            long *times)
 {
-  int *buf       = &work[blockIdx.x * ((4 * nodes + 3 + 31) / 32 * 32)];
-  float *px      = (float *)(&buf[nodes]);
-  float *py      = &px[nodes + 1];
-  int *path      = (int *)(&py[nodes + 1]);
+  int *buf  = &work[blockIdx.x * ((4 * nodes + 3 + 31) / 32 * 32)];
+  float *px = (float *)(&buf[nodes]);
+  float *py = &px[nodes + 1];
+  int *path = (int *)(&py[nodes + 1]);
   __shared__ int shbuf[tilesize];
   clock_t start, end;
 
@@ -393,19 +393,19 @@ __global__ __launch_bounds__(2048, 2) void search_solution(int *mylock,
   else
     knn_init(posx, posy, vtx_ptr, neighbors, buf, path, px, py, nstart, nodes, K);
   __syncthreads();
-  end = clock();
+  end      = clock();
   times[0] = end - start;
-  //atomicAdd(times[0], end - start);
+  // atomicAdd(times[0], end - start);
 
   start = clock();
   hill_climbing(px, py, buf, path, shbuf, nodes);
   __syncthreads();
-  end = clock();
+  end      = clock();
   times[1] = end - start;
 
   start = clock();
   get_optimal_tour(mylock, best_tour, px, py, path, shbuf, nodes);
-  end = clock();
+  end      = clock();
   times[2] = end - start;
 }
 }  // namespace detail
