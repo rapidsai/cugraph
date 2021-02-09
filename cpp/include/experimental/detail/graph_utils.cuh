@@ -25,6 +25,7 @@
 #include <rmm/device_uvector.hpp>
 
 #include <thrust/sort.h>
+#include <thrust/tabulate.h>
 #include <thrust/transform.h>
 #include <cuco/detail/hash_functions.cuh>
 
@@ -132,6 +133,21 @@ rmm::device_uvector<edge_t> compute_major_degrees(
                  tmp_offsets.begin(),
                  [](auto const &offsets) { return offsets.data(); });
   return compute_major_degrees(handle, tmp_offsets, partition);
+}
+
+// compute the numbers of nonzeros in rows (of the graph adjacency matrix, if store_transposed =
+// false) or columns (of the graph adjacency matrix, if store_transposed = true)
+template <typename vertex_t, typename edge_t>
+rmm::device_uvector<edge_t> compute_major_degrees(raft::handle_t const &handle,
+                                                  edge_t const *offsets,
+                                                  vertex_t number_of_vertices)
+{
+  rmm::device_uvector<edge_t> degrees(number_of_vertices, handle.get_stream());
+  thrust::tabulate(rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
+                   degrees.begin(),
+                   degrees.end(),
+                   [offsets] __device__(auto i) { return offsets[i + 1] - offsets[i]; });
+  return std::move(degrees);
 }
 
 template <typename vertex_t, typename edge_t>
