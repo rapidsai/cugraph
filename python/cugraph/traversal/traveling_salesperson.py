@@ -65,10 +65,11 @@ def traveling_salesperson(pos_list,
     if not pos_list[pos_list['vertex'] == nstart].index:
         raise Exception("nstart should be in vertex ids")
 
-    route, cost = traveling_salesperson_wrapper.traveling_salesperson(pos_list,
-                                                                      restarts,
-                                                                      beam_search,
-                                                                      k,
-                                                                      nstart,
-                                                                      verbose)
+    route, cost = traveling_salesperson_wrapper.traveling_salesperson(
+            pos_list,
+            restarts,
+            beam_search,
+            k,
+            nstart,
+            verbose)
     return route, cost
