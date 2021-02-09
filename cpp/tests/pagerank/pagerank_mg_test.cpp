@@ -120,7 +120,7 @@ class Pagerank_E2E_MG_Testfixture_t : public ::testing::TestWithParam<Pagerank_T
     std::vector<result_t> h_pageranks(graph_view.get_number_of_vertices());
     raft::update_host(h_pageranks.data(), d_pageranks.data(), d_pageranks.size(), stream);
 
-    return std::move(h_pageranks);
+    return h_pageranks;
   }
 
   // Compare the results of running pagerank on multiple GPUs to that of a
@@ -228,7 +228,6 @@ TEST_P(Pagerank_E2E_MG_Testfixture_t, CheckInt32Int32FloatFloat)
   run_test<int32_t, int32_t, float, float>(GetParam());
 }
 
-// FIXME: Enable additional test params once the first one is passing.
 INSTANTIATE_TEST_CASE_P(
   e2e,
   Pagerank_E2E_MG_Testfixture_t,
