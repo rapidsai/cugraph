@@ -264,6 +264,14 @@ ConfigureTest(MST_TEST "${MST_TEST_SRC}" "")
 
 
 ###################################################################################################
+# - Experimental R-mat graph generation tests -----------------------------------------------------
+
+set(EXPERIMENTAL_GENERATE_RMAT_TEST_SRCS
+    "${CMAKE_CURRENT_SOURCE_DIR}/experimental/generate_rmat_test.cpp")
+
+ConfigureTest(EXPERIMENTAL_GENERATE_RMAT_TEST "${EXPERIMENTAL_GENERATE_RMAT_TEST_SRCS}" "")
+
+###################################################################################################
 # - Experimental Graph tests ----------------------------------------------------------------------
 
 set(EXPERIMENTAL_GRAPH_TEST_SRCS
