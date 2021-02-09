@@ -137,8 +137,8 @@ TEST(ecg, dolphin)
 
     CUDA_TRY(cudaDeviceSynchronize());
 
-    int max    = *max_element(cluster_id.begin(), cluster_id.end());
-    int min    = *min_element(cluster_id.begin(), cluster_id.end());
+    int max = *max_element(cluster_id.begin(), cluster_id.end());
+    int min = *min_element(cluster_id.begin(), cluster_id.end());
 
     ASSERT_EQ((min >= 0), 1);
 
