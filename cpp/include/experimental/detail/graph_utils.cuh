@@ -39,7 +39,7 @@ namespace detail {
 // compute the numbers of nonzeros in rows (of the graph adjacency matrix, if store_transposed =
 // false) or columns (of the graph adjacency matrix, if store_transposed = true)
 template <typename vertex_t, typename edge_t>
-rmm::device_uvector<edge_t> compute_major_degree(
+rmm::device_uvector<edge_t> compute_major_degrees(
   raft::handle_t const &handle,
   std::vector<edge_t const *> const &adj_matrix_partition_offsets,
   partition_t<vertex_t> const &partition)
@@ -120,7 +120,7 @@ rmm::device_uvector<edge_t> compute_major_degree(
 // compute the numbers of nonzeros in rows (of the graph adjacency matrix, if store_transposed =
 // false) or columns (of the graph adjacency matrix, if store_transposed = true)
 template <typename vertex_t, typename edge_t>
-rmm::device_uvector<edge_t> compute_major_degree(
+rmm::device_uvector<edge_t> compute_major_degrees(
   raft::handle_t const &handle,
   std::vector<rmm::device_uvector<edge_t>> const &adj_matrix_partition_offsets,
   partition_t<vertex_t> const &partition)
@@ -131,7 +131,7 @@ rmm::device_uvector<edge_t> compute_major_degree(
                  adj_matrix_partition_offsets.end(),
                  tmp_offsets.begin(),
                  [](auto const &offsets) { return offsets.data(); });
-  return compute_major_degree(handle, tmp_offsets, partition);
+  return compute_major_degrees(handle, tmp_offsets, partition);
 }
 
 template <typename vertex_t, typename edge_t>
