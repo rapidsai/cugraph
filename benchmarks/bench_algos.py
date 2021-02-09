@@ -32,6 +32,7 @@ except ImportError:
 import cugraph
 from cugraph.structure.number_map import NumberMap
 from cugraph.tests import utils
+from cugraph.utilities.utils import is_device_version_less_than
 import rmm
 
 from .params import FIXTURE_PARAMS
@@ -212,6 +213,8 @@ def bench_jaccard(gpubenchmark, graphWithAdjListComputed):
     gpubenchmark(cugraph.jaccard, graphWithAdjListComputed)
 
 
+@pytest.mark.skipif(
+    is_device_version_less_than((7, 0)), reason="Not supported on Pascal")
 def bench_louvain(gpubenchmark, graphWithAdjListComputed):
     gpubenchmark(cugraph.louvain, graphWithAdjListComputed)
 

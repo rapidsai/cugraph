@@ -114,27 +114,42 @@ TEST(ecg, dolphin)
     offsets_v.data().get(), indices_v.data().get(), weights_v.data().get(), num_verts, num_edges);
 
   raft::handle_t handle;
-  cugraph::ecg<int32_t, int32_t, float>(handle, graph_csr, .05, 16, result_v.data().get());
 
-  cluster_id = result_v;
-  int max    = *max_element(cluster_id.begin(), cluster_id.end());
-  int min    = *min_element(cluster_id.begin(), cluster_id.end());
+  // "FIXME": remove this check once we drop support for Pascal
+  //
+  // Calling louvain on Pascal will throw an exception, we'll check that
+  // this is the behavior while we still support Pascal (device_prop.major < 7)
+  //
+  cudaDeviceProp device_prop;
+  CUDA_CHECK(cudaGetDeviceProperties(&device_prop, 0));
 
-  ASSERT_EQ((min >= 0), 1);
+  if (device_prop.major < 7) {
+    EXPECT_THROW(
+      (cugraph::ecg<int32_t, int32_t, float>(handle, graph_csr, .05, 16, result_v.data().get())),
+      cugraph::logic_error);
+  } else {
+    cugraph::ecg<int32_t, int32_t, float>(handle, graph_csr, .05, 16, result_v.data().get());
 
-  std::set<int> cluster_ids;
-  for (auto c : cluster_id) { cluster_ids.insert(c); }
+    cluster_id = result_v;
+    int max    = *max_element(cluster_id.begin(), cluster_id.end());
+    int min    = *min_element(cluster_id.begin(), cluster_id.end());
 
-  ASSERT_EQ(cluster_ids.size(), size_t(max + 1));
+    ASSERT_EQ((min >= 0), 1);
 
-  float modularity{0.0};
+    std::set<int> cluster_ids;
+    for (auto c : cluster_id) { cluster_ids.insert(c); }
 
-  cugraph::ext_raft::analyzeClustering_modularity(
-    graph_csr, max + 1, result_v.data().get(), &modularity);
+    ASSERT_EQ(cluster_ids.size(), size_t(max + 1));
 
-  float random_modularity{0.95 * 0.4962422251701355};
+    float modularity{0.0};
 
-  ASSERT_GT(modularity, random_modularity);
+    cugraph::ext_raft::analyzeClustering_modularity(
+      graph_csr, max + 1, result_v.data().get(), &modularity);
+
+    float random_modularity{0.95 * 0.4962422251701355};
+
+    ASSERT_GT(modularity, random_modularity);
+  }
 }
 
 CUGRAPH_TEST_PROGRAM_MAIN()

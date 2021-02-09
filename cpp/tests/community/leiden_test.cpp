@@ -58,15 +58,28 @@ TEST(leiden_karate, success)
   size_t num_level = 40;
 
   raft::handle_t handle;
-  std::tie(num_level, modularity) = cugraph::leiden(handle, G, result_v.data().get());
 
-  cudaMemcpy((void*)&(cluster_id[0]),
-             result_v.data().get(),
-             sizeof(int) * num_verts,
-             cudaMemcpyDeviceToHost);
+  // "FIXME": remove this check once we drop support for Pascal
+  //
+  // Calling louvain on Pascal will throw an exception, we'll check that
+  // this is the behavior while we still support Pascal (device_prop.major < 7)
+  //
+  cudaDeviceProp device_prop;
+  CUDA_CHECK(cudaGetDeviceProperties(&device_prop, 0));
 
-  int min = *min_element(cluster_id.begin(), cluster_id.end());
+  if (device_prop.major < 7) {
+    EXPECT_THROW(cugraph::leiden(handle, G, result_v.data().get()), cugraph::logic_error);
+  } else {
+    std::tie(num_level, modularity) = cugraph::leiden(handle, G, result_v.data().get());
 
-  ASSERT_GE(min, 0);
-  ASSERT_GE(modularity, 0.41116042 * 0.99);
+    cudaMemcpy((void*)&(cluster_id[0]),
+               result_v.data().get(),
+               sizeof(int) * num_verts,
+               cudaMemcpyDeviceToHost);
+
+    int min = *min_element(cluster_id.begin(), cluster_id.end());
+
+    ASSERT_GE(min, 0);
+    ASSERT_GE(modularity, 0.41116042 * 0.99);
+  }
 }

@@ -62,20 +62,32 @@ TEST(louvain, success)
 
   raft::handle_t handle;
 
-  std::tie(num_level, modularity) = cugraph::louvain(handle, G, result_v.data().get());
+  // "FIXME": remove this check once we drop support for Pascal
+  //
+  // Calling louvain on Pascal will throw an exception, we'll check that
+  // this is the behavior while we still support Pascal (device_prop.major < 7)
+  //
+  cudaDeviceProp device_prop;
+  CUDA_CHECK(cudaGetDeviceProperties(&device_prop, 0));
 
-  cudaMemcpy((void*)&(cluster_id[0]),
-             result_v.data().get(),
-             sizeof(int) * num_verts,
-             cudaMemcpyDeviceToHost);
+  if (device_prop.major < 7) {
+    EXPECT_THROW(cugraph::louvain(handle, G, result_v.data().get()), cugraph::logic_error);
+  } else {
+    std::tie(num_level, modularity) = cugraph::louvain(handle, G, result_v.data().get());
 
-  int min = *min_element(cluster_id.begin(), cluster_id.end());
+    cudaMemcpy((void*)&(cluster_id[0]),
+               result_v.data().get(),
+               sizeof(int) * num_verts,
+               cudaMemcpyDeviceToHost);
 
-  std::cout << "modularity = " << modularity << std::endl;
+    int min = *min_element(cluster_id.begin(), cluster_id.end());
 
-  ASSERT_GE(min, 0);
-  ASSERT_GE(modularity, 0.402777 * 0.95);
-  ASSERT_EQ(result_v, result_h);
+    std::cout << "modularity = " << modularity << std::endl;
+
+    ASSERT_GE(min, 0);
+    ASSERT_GE(modularity, 0.402777 * 0.95);
+    ASSERT_EQ(result_v, result_h);
+  }
 }
 
 TEST(louvain_renumbered, success)
@@ -123,19 +135,31 @@ TEST(louvain_renumbered, success)
 
   raft::handle_t handle;
 
-  std::tie(num_level, modularity) = cugraph::louvain(handle, G, result_v.data().get());
+  // "FIXME": remove this check once we drop support for Pascal
+  //
+  // Calling louvain on Pascal will throw an exception, we'll check that
+  // this is the behavior while we still support Pascal (device_prop.major < 7)
+  //
+  cudaDeviceProp device_prop;
+  CUDA_CHECK(cudaGetDeviceProperties(&device_prop, 0));
 
-  cudaMemcpy((void*)&(cluster_id[0]),
-             result_v.data().get(),
-             sizeof(int) * num_verts,
-             cudaMemcpyDeviceToHost);
+  if (device_prop.major < 7) {
+    EXPECT_THROW(cugraph::louvain(handle, G, result_v.data().get()), cugraph::logic_error);
+  } else {
+    std::tie(num_level, modularity) = cugraph::louvain(handle, G, result_v.data().get());
 
-  int min = *min_element(cluster_id.begin(), cluster_id.end());
+    cudaMemcpy((void*)&(cluster_id[0]),
+               result_v.data().get(),
+               sizeof(int) * num_verts,
+               cudaMemcpyDeviceToHost);
 
-  std::cout << "modularity = " << modularity << std::endl;
+    int min = *min_element(cluster_id.begin(), cluster_id.end());
 
-  ASSERT_GE(min, 0);
-  ASSERT_GE(modularity, 0.402777 * 0.95);
+    std::cout << "modularity = " << modularity << std::endl;
+
+    ASSERT_GE(min, 0);
+    ASSERT_GE(modularity, 0.402777 * 0.95);
+  }
 }
 
 CUGRAPH_TEST_PROGRAM_MAIN()
