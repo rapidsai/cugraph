@@ -20,7 +20,6 @@
 #define kswaps 4
 
 #include <sys/time.h>
-#include <chrono>
 
 namespace cugraph {
 namespace detail {
