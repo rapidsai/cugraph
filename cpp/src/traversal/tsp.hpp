@@ -70,9 +70,11 @@ class TSP {
   // Scalars
   rmm::device_scalar<int> mylock_scalar_;
   rmm::device_scalar<int> best_tour_scalar_;
+  rmm::device_scalar<int> climbs_scalar_;
 
   int *mylock_;
   int *best_tour_;
+  int *climbs_;
 
   // Vectors
   rmm::device_vector<int64_t> neighbors_vec_;

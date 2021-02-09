@@ -33,10 +33,11 @@ __device__ float *best_soln;
 __device__ int *best_route;
 extern __shared__ int shbuf[];
 
-__global__ void init(int *mylock, int *best_tour)
+__global__ void reset(int *mylock, int *best_tour, int *climbs)
 {
   *mylock    = 0;
   *best_tour = INT_MAX;
+  *climbs    = 0;
   best_soln  = nullptr;
   best_route = nullptr;
 }
@@ -212,7 +213,7 @@ __device__ void two_opt_search(
 
 // This function being runned for each block
 __device__ void hill_climbing(
-  float *px, float *py, int *buf, int *path, int *shbuf, int const nodes)
+  float *px, float *py, int *buf, int *path, int *shbuf, int const nodes, int *climbs)
 {
   __shared__ int best_change[kswaps];
   __shared__ int best_i[kswaps];
@@ -247,6 +248,9 @@ __device__ void hill_climbing(
     // Find best indices
     two_opt_search(buf, px, py, shbuf, &minchange, &mini, &minj, nodes);
     __syncthreads();
+
+    // Stats only
+    if (threadIdx.x == 0) atomicAdd(climbs, 1);
 
     shbuf[threadIdx.x] = minchange;
 
@@ -378,34 +382,33 @@ __global__ __launch_bounds__(2048, 2) void search_solution(int *mylock,
                                                            float const *posy,
                                                            int *work,
                                                            int const nstart,
-                                                           long *times)
+                                                           float *times,
+                                                           int *climbs,
+                                                           int threads)
 {
   int *buf  = &work[blockIdx.x * ((4 * nodes + 3 + 31) / 32 * 32)];
   float *px = (float *)(&buf[nodes]);
   float *py = &px[nodes + 1];
   int *path = (int *)(&py[nodes + 1]);
   __shared__ int shbuf[tilesize];
-  clock_t start, end;
+  clock_t start;
 
-  start = clock();
+  start = clock64();
   if (!beam_search)
     random_init(posx, posy, vtx_ptr, path, px, py, nstart, nodes);
   else
     knn_init(posx, posy, vtx_ptr, neighbors, buf, path, px, py, nstart, nodes, K);
   __syncthreads();
-  end      = clock();
-  times[0] = end - start;
+  times[0 * threads + threadIdx.x] = clock64() - start;
 
-  start = clock();
-  hill_climbing(px, py, buf, path, shbuf, nodes);
+  start = clock64();
+  hill_climbing(px, py, buf, path, shbuf, nodes, climbs);
   __syncthreads();
-  end      = clock();
-  times[1] = end - start;
+  times[1 * threads + threadIdx.x + 1] = clock64() - start;
 
-  start = clock();
+  start = clock64();
   get_optimal_tour(mylock, best_tour, px, py, path, shbuf, nodes);
-  end      = clock();
-  times[3] = end - start;
+  times[2 * threads + threadIdx.x + 1] = clock64() - start;
 }
 }  // namespace detail
 }  // namespace cugraph
