@@ -79,7 +79,7 @@ DATASETS_KTRUSS = [(
 
 DATASETS_TSPLIB = [
         (PurePath(RAPIDS_DATASET_ROOT_DIR)/f,) + (d,) for (f, d) in [
-            ("a280.tsp", 2579),
+            ("gil262.tsp", 2378),
             ("eil51.tsp", 426),
             ("kroA100.tsp", 21282),
             ("tsp225.tsp", 3916)]

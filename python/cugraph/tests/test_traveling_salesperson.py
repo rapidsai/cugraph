@@ -54,8 +54,7 @@ def test_traveling_salesperson(tsplib_file, ref_cost):
     pos_list = load_tsp(tsplib_file)
     # cugraph
     t1 = time.time()
-    cu_route, cu_cost = cugraph.traveling_salesperson(pos_list,
-                                                      restarts=4096)
+    cu_route, cu_cost = cugraph.traveling_salesperson(pos_list, restarts=4096)
     t2 = time.time() - t1
     print("Cugraph time : " + str(t2))
     print("Cugraph cost: ", cu_cost)
