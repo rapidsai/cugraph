@@ -127,8 +127,8 @@ else
     python ${WORKSPACE}/ci/utils/nbtestlog2junitxml.py nbtest.log
 fi
 
-if [ -n "\${CODECOV_TOKEN}" ]; then
-    codecov -t \$CODECOV_TOKEN
+if [ -n "${CODECOV_TOKEN}" ]; then
+    codecov -t $CODECOV_TOKEN
 fi
 
 return ${EXITCODE}
