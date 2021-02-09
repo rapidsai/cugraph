@@ -106,7 +106,7 @@ void relabel(raft::handle_t const& handle,
           thrust::make_tuple(label_pair_old_labels.begin(), label_pair_new_labels.begin()));
         std::forward_as_tuple(std::tie(rx_label_pair_old_labels, rx_label_pair_new_labels),
                               std::ignore) =
-          sort_and_shuffle_values(
+          groupby_gpuid_and_shuffle_values(
             handle.get_comms(),
             pair_first,
             pair_first + num_label_pairs,
@@ -142,7 +142,7 @@ void relabel(raft::handle_t const& handle,
       {
         rmm::device_uvector<vertex_t> rx_unique_old_labels(0, handle.get_stream());
         std::vector<size_t> rx_value_counts{};
-        std::tie(rx_unique_old_labels, rx_value_counts) = sort_and_shuffle_values(
+        std::tie(rx_unique_old_labels, rx_value_counts) = groupby_gpuid_and_shuffle_values(
           handle.get_comms(),
           unique_old_labels.begin(),
           unique_old_labels.end(),

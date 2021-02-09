@@ -329,7 +329,7 @@ coarsen_graph(
     std::forward_as_tuple(
       std::tie(rx_edgelist_major_vertices, rx_edgelist_minor_vertices, rx_edgelist_weights),
       std::ignore) =
-      sort_and_shuffle_values(
+      groupby_gpuid_and_shuffle_values(
         handle.get_comms(),
         edge_first,
         edge_first + coarsened_edgelist_major_vertices.size(),
@@ -371,7 +371,7 @@ coarsen_graph(
     handle.get_stream());
 
   rmm::device_uvector<vertex_t> rx_unique_labels(0, handle.get_stream());
-  std::tie(rx_unique_labels, std::ignore) = sort_and_shuffle_values(
+  std::tie(rx_unique_labels, std::ignore) = groupby_gpuid_and_shuffle_values(
     handle.get_comms(),
     unique_labels.begin(),
     unique_labels.end(),
@@ -420,10 +420,10 @@ coarsen_graph(
     CUGRAPH_FAIL("unimplemented.");
   } else {
     edgelists.resize(1);
-    edgelists[0].p_src_vertices = store_transposed ? coarsened_edgelist_minor_vertices.data()
-                                                   : coarsened_edgelist_major_vertices.data();
-    edgelists[0].p_dst_vertices = store_transposed ? coarsened_edgelist_major_vertices.data()
-                                                   : coarsened_edgelist_minor_vertices.data();
+    edgelists[0].p_src_vertices  = store_transposed ? coarsened_edgelist_minor_vertices.data()
+                                                    : coarsened_edgelist_major_vertices.data();
+    edgelists[0].p_dst_vertices  = store_transposed ? coarsened_edgelist_major_vertices.data()
+                                                    : coarsened_edgelist_minor_vertices.data();
     edgelists[0].p_edge_weights  = coarsened_edgelist_weights.data();
     edgelists[0].number_of_edges = static_cast<edge_t>(coarsened_edgelist_major_vertices.size());
   }
@@ -504,10 +504,10 @@ coarsen_graph(
     do_expensive_check);
 
   edgelist_t<vertex_t, edge_t, weight_t> edgelist{};
-  edgelist.p_src_vertices = store_transposed ? coarsened_edgelist_minor_vertices.data()
-                                             : coarsened_edgelist_major_vertices.data();
-  edgelist.p_dst_vertices = store_transposed ? coarsened_edgelist_major_vertices.data()
-                                             : coarsened_edgelist_minor_vertices.data();
+  edgelist.p_src_vertices  = store_transposed ? coarsened_edgelist_minor_vertices.data()
+                                              : coarsened_edgelist_major_vertices.data();
+  edgelist.p_dst_vertices  = store_transposed ? coarsened_edgelist_major_vertices.data()
+                                              : coarsened_edgelist_minor_vertices.data();
   edgelist.p_edge_weights  = coarsened_edgelist_weights.data();
   edgelist.number_of_edges = static_cast<edge_t>(coarsened_edgelist_major_vertices.size());
 

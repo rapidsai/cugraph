@@ -81,17 +81,17 @@ __global__ void for_all_major_for_all_nbr_low_degree(
         auto weight       = weights != nullptr ? weights[i] : weight_t{1.0};
         auto minor_offset = matrix_partition.get_minor_offset_from_minor_nocheck(minor);
         auto row          = GraphViewType::is_adj_matrix_transposed
-                     ? minor
-                     : matrix_partition.get_major_from_major_offset_nocheck(major_offset);
-        auto col = GraphViewType::is_adj_matrix_transposed
-                     ? matrix_partition.get_major_from_major_offset_nocheck(major_offset)
-                     : minor;
-        auto row_offset = GraphViewType::is_adj_matrix_transposed
-                            ? minor_offset
-                            : static_cast<vertex_t>(major_offset);
-        auto col_offset = GraphViewType::is_adj_matrix_transposed
-                            ? static_cast<vertex_t>(major_offset)
-                            : minor_offset;
+                              ? minor
+                              : matrix_partition.get_major_from_major_offset_nocheck(major_offset);
+        auto col          = GraphViewType::is_adj_matrix_transposed
+                              ? matrix_partition.get_major_from_major_offset_nocheck(major_offset)
+                              : minor;
+        auto row_offset   = GraphViewType::is_adj_matrix_transposed
+                              ? minor_offset
+                              : static_cast<vertex_t>(major_offset);
+        auto col_offset   = GraphViewType::is_adj_matrix_transposed
+                              ? static_cast<vertex_t>(major_offset)
+                              : minor_offset;
 
         auto key =
           *(adj_matrix_row_col_key_first +
@@ -155,8 +155,8 @@ transform_reduce_by_adj_matrix_row_col_key_e(
     auto& row_comm           = handle.get_subcomm(cugraph::partition_2d::key_naming_t().row_name());
     auto const row_comm_size = row_comm.get_size();
     loop_count               = graph_view.is_hypergraph_partitioned()
-                   ? graph_view.get_number_of_local_adj_matrix_partitions()
-                   : static_cast<size_t>(row_comm_size);
+                                 ? graph_view.get_number_of_local_adj_matrix_partitions()
+                                 : static_cast<size_t>(row_comm_size);
   }
 
   rmm::device_uvector<vertex_t> keys(0, handle.get_stream());
@@ -241,7 +241,7 @@ transform_reduce_by_adj_matrix_row_col_key_e(
       rmm::device_uvector<vertex_t> rx_unique_keys(0, handle.get_stream());
       auto rx_value_for_unique_key_buffer = allocate_dataframe_buffer<T>(0, handle.get_stream());
       std::tie(rx_unique_keys, rx_value_for_unique_key_buffer, std::ignore) =
-        sort_and_shuffle_kv_pairs(
+        groupby_gpuid_and_shuffle_kv_pairs(
           comm,
           unique_keys.begin(),
           unique_keys.end(),
