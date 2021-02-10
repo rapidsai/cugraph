@@ -152,9 +152,9 @@ class Tests_Tsp : public ::testing::TestWithParam<Tsp_Usecase> {
     hr_clock.stop(&time_tmp);
 
     std::vector<int> h_route;
-    h_route.reserve(nodes);
+    h_route.resize(nodes);
     std::vector<int> h_vertices;
-    h_vertices.reserve(nodes);
+    h_vertices.resize(nodes);
     CUDA_TRY(cudaMemcpy(h_route.data(), d_route, sizeof(int) * nodes, cudaMemcpyDeviceToHost));
     cudaDeviceSynchronize();
     CUDA_TRY(cudaMemcpy(h_vertices.data(), vtx_ptr, sizeof(int) * nodes, cudaMemcpyDeviceToHost));
@@ -170,17 +170,14 @@ class Tests_Tsp : public ::testing::TestWithParam<Tsp_Usecase> {
 
     // Check route goes through each vertex once
     size_t u_nodes = nodes;
-    std::set<int> node_set;
-    for (size_t k = 0; k < u_nodes; ++k) node_set.insert(h_route[k]);
+    std::set<int> node_set(h_route.begin(), h_route.end());
     ASSERT_EQ(node_set.size(), u_nodes);
 
     // Bound check
-    int min = *node_set.begin();
-    int max = *node_set.rbegin();
-    for (auto const& val : h_route) {
-      EXPECT_GE(val, min);
-      EXPECT_LE(val, max);
-    }
+    int max = *std::max_element(h_vertices.begin(), h_vertices.end());
+    int min = *std::min_element(h_vertices.begin(), h_vertices.end());
+    EXPECT_GE(*node_set.begin(), min);
+    EXPECT_LE(*node_set.rbegin(), max);
   }
 
  private:
