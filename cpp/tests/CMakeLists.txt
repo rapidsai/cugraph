@@ -187,6 +187,14 @@ set(LOUVAIN_TEST_SRC
 ConfigureTest(LOUVAIN_TEST "${LOUVAIN_TEST_SRC}" "")
 
 ###################################################################################################
+# - LOUVAIN primitive tests (temporary for debugging) ---------------------------------------------
+
+set(LOUVAIN_PRIMITIVES_TEST_SRC
+    "${CMAKE_CURRENT_SOURCE_DIR}/experimental/louvain_primitives.cu")
+
+ConfigureTest(LOUVAIN_PRIMITIVES_TEST "${LOUVAIN_PRIMITIVES_TEST_SRC}" "")
+
+###################################################################################################
 # - LEIDEN tests ---------------------------------------------------------------------------------
 
 set(LEIDEN_TEST_SRC
