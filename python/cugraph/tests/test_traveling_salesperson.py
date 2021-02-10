@@ -17,7 +17,6 @@ import cugraph
 import gc
 import numpy as np
 import pytest
-import time
 
 # Temporarily suppress warnings till networkX fixes deprecation warnings
 # (Using or importing the ABCs from 'collections' instead of from
