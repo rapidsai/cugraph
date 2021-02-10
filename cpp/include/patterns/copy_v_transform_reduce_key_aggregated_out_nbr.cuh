@@ -161,8 +161,7 @@ __global__ void for_all_major_for_all_nbr_low_degree(
  * pairs provided by @p map_key_first, @p map_key_last, and @p map_value_first (aggregated over the
  * entire set of processes in multi-GPU).
  * @param reduce_op Binary operator takes two input arguments and reduce the two variables to one.
- * @param init Initial value to be added to the reduced @p key_aggregated_e_op return values for
- * each vertex.
+ * @param init Initial value to be added to the reduced @p reduce_op return values for each vertex.
  * @param vertex_value_output_first Iterator pointing to the vertex property variables for the
  * first (inclusive) vertex (assigned to tihs process in multi-GPU). `vertex_value_output_last`
  * (exclusive) is deduced as @p vertex_value_output_first + @p
@@ -193,6 +192,7 @@ void copy_v_transform_reduce_key_aggregated_out_nbr(
                 "GraphViewType should support the push model.");
   static_assert(std::is_same<typename std::iterator_traits<VertexIterator>::value_type,
                              typename GraphViewType::vertex_type>::value);
+  static_assert(is_arithmetic_or_thrust_tuple_of_arithmetic<T>::value);
 
   using vertex_t = typename GraphViewType::vertex_type;
   using edge_t   = typename GraphViewType::edge_type;
@@ -410,7 +410,7 @@ void copy_v_transform_reduce_key_aggregated_out_nbr(
                           w,
                           *(adj_matrix_row_value_input_first +
                             matrix_partition.get_major_offset_from_major_nocheck(major)),
-                          kv_map.find(key)->second);
+                          kv_map.find(key)->second.load(cuda::std::memory_order_relaxed));
                       });
     tmp_minor_keys.resize(0, handle.get_stream());
     tmp_key_aggregated_edge_weights.resize(0, handle.get_stream());
