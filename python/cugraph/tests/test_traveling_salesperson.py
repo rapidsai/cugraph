@@ -33,6 +33,16 @@ with warnings.catch_warnings():
 print("Networkx version : {} ".format(nx.__version__))
 
 
+# =============================================================================
+# Pytest Setup / Teardown - called for each test function
+# =============================================================================
+def setup_function():
+    gc.collect()
+
+
+# =============================================================================
+# Helper functions
+# =============================================================================
 def load_tsp(filename=None):
     gdf = cudf.read_csv(filename,
                         delim_whitespace=True,
@@ -48,18 +58,19 @@ def load_tsp(filename=None):
     return gdf
 
 
+# =============================================================================
+# Tests
+# =============================================================================
 @pytest.mark.parametrize("tsplib_file, ref_cost", utils.DATASETS_TSPLIB)
-def test_traveling_salesperson(tsplib_file, ref_cost):
-    gc.collect()
+def test_traveling_salesperson(gpubenchmark, tsplib_file, ref_cost):
     pos_list = load_tsp(tsplib_file)
-    # cugraph
-    t1 = time.time()
-    cu_route, cu_cost = cugraph.traveling_salesperson(pos_list, restarts=4096)
-    t2 = time.time() - t1
-    print("Cugraph time : " + str(t2))
+
+    cu_route, cu_cost = gpubenchmark(cugraph.traveling_salesperson,
+                                     pos_list,
+                                     restarts=4096)
+
     print("Cugraph cost: ", cu_cost)
     print("Ref cost: ", ref_cost)
-
     error = np.abs(cu_cost - ref_cost) / ref_cost
     print("Approximation error is: {:.2f}%".format(error * 100))
     # Check we are within 5% of TSPLIB
