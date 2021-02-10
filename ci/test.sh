@@ -70,13 +70,13 @@ if [[ "$PROJECT_FLASH" == "1" ]]; then
     export LIBCUGRAPH_BUILD_DIR="$WORKSPACE/ci/artifacts/cugraph/cpu/conda_work/cpp/build"
 
     # Faiss patch
-    echo "Update binaries"
+    echo "Update libcugraph.so"
     cd $LIBCUGRAPH_BUILD_DIR
     chrpath -d libcugraph.so
     chrpath -d libcugraph++.so
     patchelf --replace-needed `patchelf --print-needed libcugraph++.so | grep faiss` libfaiss.so libcugraph++.so
 
-    cd $LIBCUGRAPH_BUILD_DIR
+    echo "Update test binaries"
     for gt in tests/*_TEST; do
       chrpath -d ${gt}
       patchelf --replace-needed `patchelf --print-needed ${gt} | grep faiss` libfaiss.so ${gt}
