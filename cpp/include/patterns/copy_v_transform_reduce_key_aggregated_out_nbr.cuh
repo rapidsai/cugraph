@@ -511,6 +511,7 @@ void copy_v_transform_reduce_key_aggregated_out_nbr(
         major_vertices.begin(),
         [vertex_partition = vertex_partition_device_t<GraphViewType>(graph_view)] __device__(
           auto v) { return vertex_partition.get_local_vertex_offset_from_vertex_nocheck(v); })),
+    thrust::equal_to<vertex_t>{},
     reduce_op);
 
   thrust::transform(rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
