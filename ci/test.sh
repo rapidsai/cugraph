@@ -73,8 +73,7 @@ if [[ "$PROJECT_FLASH" == "1" ]]; then
     echo "Update libcugraph.so"
     cd $LIBCUGRAPH_BUILD_DIR
     chrpath -d libcugraph.so
-    chrpath -d libcugraph++.so
-    patchelf --replace-needed `patchelf --print-needed libcugraph++.so | grep faiss` libfaiss.so libcugraph++.so
+    patchelf --replace-needed `patchelf --print-needed libcugraph++.so | grep faiss` libfaiss.so libcugraph.so
 
     echo "Update test binaries"
     for gt in tests/*_TEST; do
