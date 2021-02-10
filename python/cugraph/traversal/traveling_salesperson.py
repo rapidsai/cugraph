@@ -56,14 +56,14 @@ def traveling_salesperson(pos_list,
     """
 
     if not isinstance(pos_list, cudf.DataFrame):
-        raise Exception("Instance should be cudf.DataFrame")
+        raise TypeError("Instance should be cudf.DataFrame")
 
     null_check(pos_list['vertex'])
     null_check(pos_list['x'])
     null_check(pos_list['y'])
 
     if not pos_list[pos_list['vertex'] == nstart].index:
-        raise Exception("nstart should be in vertex ids")
+        raise ValueError("nstart should be in vertex ids")
 
     route, cost = traveling_salesperson_wrapper.traveling_salesperson(
             pos_list,
