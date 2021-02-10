@@ -108,7 +108,7 @@ class Tests_Tsp : public ::testing::TestWithParam<Tsp_Usecase> {
                           cugraph::test::getFileName(param.tsp_file) + std::string("_") +
                           ss.str().c_str();
 
-    float tol = 10E-2f;
+    float tol = 1E-1f;
     HighResClock hr_clock;
     double time_tmp;
     Route input;
@@ -175,8 +175,8 @@ class Tests_Tsp : public ::testing::TestWithParam<Tsp_Usecase> {
     ASSERT_EQ(node_set.size(), u_nodes);
 
     // Bound check
-    int min = *std::min_element(h_vertices.begin(), h_vertices.end());
-    int max = *std::max_element(h_vertices.begin(), h_vertices.end());
+    int min = *node_set.begin();
+    int max = *node_set.rbegin();
     for (auto const& val : h_route) {
       EXPECT_GE(val, min);
       EXPECT_LE(val, max);
