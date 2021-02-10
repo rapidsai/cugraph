@@ -12,10 +12,16 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-#RAPIDS_DIR=/rapids
+# Any failing command will set EXITCODE to non-zero
+set -e           # abort the script on error, this will change for running tests (see below)
+set -o pipefail  # piped commands propagate their error
+set -E           # ERR traps are inherited by subcommands
+trap "EXITCODE=1" ERR
+
 NOTEBOOKS_DIR=${WORKSPACE}/notebooks
 NBTEST=${WORKSPACE}/ci/utils/nbtest.sh
 LIBCUDF_KERNEL_CACHE_PATH=${WORKSPACE}/.jitcache
+EXITCODE=0
 
 cd ${NOTEBOOKS_DIR}
 TOPLEVEL_NB_FOLDERS=$(find . -name *.ipynb |cut -d'/' -f2|sort -u)
@@ -23,7 +29,10 @@ TOPLEVEL_NB_FOLDERS=$(find . -name *.ipynb |cut -d'/' -f2|sort -u)
 ## Check env
 env
 
-EXITCODE=0
+# Do not abort the script on error. This allows all tests to run regardless of
+# pass/fail but relies on the ERR trap above to manage the EXITCODE for the
+# script.
+set +e
 
 # Always run nbtest in all TOPLEVEL_NB_FOLDERS, set EXITCODE to failure
 # if any run fails
@@ -32,12 +41,14 @@ for folder in ${TOPLEVEL_NB_FOLDERS}; do
     echo "FOLDER: ${folder}"
     echo "========================================"
     cd ${NOTEBOOKS_DIR}/${folder}
-    for nb in $(python ${WORKSPACE}/ci/gpu/notebook_list.py); do
+    NBLIST=$(python ${WORKSPACE}/ci/gpu/notebook_list.py)
+    for nb in ${NBLIST}; do
         nbBasename=$(basename ${nb})
         cd $(dirname ${nb})
         nvidia-smi
         ${NBTEST} ${nbBasename}
-        EXITCODE=$((EXITCODE | $?))
+        echo "Ran nbtest for $nb : return code was: $?, test script exit code is now: $EXITCODE"
+        echo
         rm -rf ${LIBCUDF_KERNEL_CACHE_PATH}/*
         cd ${NOTEBOOKS_DIR}/${folder}
     done
@@ -45,4 +56,5 @@ done
 
 nvidia-smi
 
+echo "Notebook test script exiting with value: $EXITCODE"
 exit ${EXITCODE}
