@@ -145,10 +145,6 @@ class Pagerank_E2E_MG_Testfixture_t : public ::testing::TestWithParam<Pagerank_T
 
     int my_rank = comm.get_rank();
 
-    auto edgelist_from_mm =
-      ::cugraph::test::read_edgelist_from_matrix_market_file<vertex_t, edge_t, weight_t>(
-        param.graph_file_full_path);
-
     // FIXME: edgelist_from_mm must have weights!
     std::unique_ptr<cugraph::experimental::
                       graph_t<vertex_t, edge_t, weight_t, true, true>>  // store_transposed=true,
@@ -158,7 +154,7 @@ class Pagerank_E2E_MG_Testfixture_t : public ::testing::TestWithParam<Pagerank_T
 
     std::tie(mg_graph_ptr, d_renumber_map_labels) = cugraph::test::
       create_graph_for_gpu<vertex_t, edge_t, weight_t, true>  // store_transposed=true
-      (handle, edgelist_from_mm);
+      (handle, param.graph_file_full_path);
 
     auto mg_graph_view = mg_graph_ptr->view();
 

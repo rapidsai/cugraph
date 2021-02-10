@@ -15,6 +15,7 @@
  */
 
 #include <utilities/mg_test_utilities.hpp>
+#include <utilities/test_utilities.hpp>
 
 #include <experimental/detail/graph_utils.cuh>
 #include <experimental/graph.hpp>
@@ -24,30 +25,33 @@
 namespace cugraph {
 namespace test {
 
-// Given a raft handle and an edgelist from reading a dataset (.mtx in this
-// case), returns a tuple containing:
+// Given a raft handle and a path to a dataset (must be a .mtx file), returns a
+// tuple containing:
 //  * graph_t instance for the partition accesible from the raft handle
 //  * vector of indices representing the original unrenumberd vertices
 //
 // This function creates a graph_t instance appropriate for MG graph
-// applications from the edgelist passed in by filtering out the vertices not to
-// be assigned to the GPU in this rank, then renumbering the vertices
-// appropriately. The returned vector of vertices contains the original vertex
-// IDs, ordered by the new sequential renumbered IDs (this is needed for
+// applications from the edgelist graph data file passed in by filtering out the
+// vertices not to be assigned to the GPU in this rank, then renumbering the
+// vertices appropriately. The returned vector of vertices contains the original
+// vertex IDs, ordered by the new sequential renumbered IDs (this is needed for
 // unrenumbering).
 template <typename vertex_t, typename edge_t, typename weight_t, bool store_transposed>
 std::tuple<
   std::unique_ptr<cugraph::experimental::
                     graph_t<vertex_t, edge_t, weight_t, store_transposed, true>>,  // multi_gpu=true
   rmm::device_uvector<vertex_t>>
-create_graph_for_gpu(raft::handle_t& handle,
-                     edgelist_from_market_matrix_file_t<vertex_t, weight_t> edgelist_from_mm)
+create_graph_for_gpu(raft::handle_t& handle, const std::string& graph_file_path)
 {
   const auto& comm = handle.get_comms();
   auto& row_comm   = handle.get_subcomm(cugraph::partition_2d::key_naming_t().row_name());
   auto& col_comm   = handle.get_subcomm(cugraph::partition_2d::key_naming_t().col_name());
 
   int my_rank = comm.get_rank();
+
+  auto edgelist_from_mm =
+    ::cugraph::test::read_edgelist_from_matrix_market_file<vertex_t, edge_t, weight_t>(
+      graph_file_path);
 
   edge_t total_number_edges = static_cast<edge_t>(edgelist_from_mm.h_rows.size());
 
@@ -170,8 +174,7 @@ template std::tuple<
     cugraph::experimental::graph_t<int32_t, int32_t, float, true, true>>,  // store_transposed=true
                                                                            // multi_gpu=true
   rmm::device_uvector<int32_t>>
-create_graph_for_gpu(raft::handle_t& handle,
-                     edgelist_from_market_matrix_file_t<int32_t, float> edgelist_from_mm);
+create_graph_for_gpu(raft::handle_t& handle, const std::string& graph_file_path);
 
 }  // namespace test
 }  // namespace cugraph
