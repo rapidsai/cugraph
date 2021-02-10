@@ -42,6 +42,8 @@ requirements:
     - nccl>=2.7
     - ucx-py {{ minor_version }}
     - ucx-proc=*=gpu
+    - faiss-proc=*=cuda
+    - libfaiss=1.6.3
 
 #test:
 #  commands:
