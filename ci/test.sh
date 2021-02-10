@@ -76,6 +76,7 @@ if [[ "$PROJECT_FLASH" == "1" ]]; then
     patchelf --replace-needed `patchelf --print-needed libcugraph.so | grep faiss` libfaiss.so libcugraph.so
 
     echo "Update test binaries"
+    cd $LIBCUGRAPH_BUILD_DIR
     for gt in tests/*_TEST; do
       chrpath -d ${gt}
       patchelf --replace-needed `patchelf --print-needed ${gt} | grep faiss` libfaiss.so ${gt}
