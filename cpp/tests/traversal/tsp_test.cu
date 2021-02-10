@@ -193,6 +193,9 @@ class Tests_Tsp : public ::testing::TestWithParam<Tsp_Usecase> {
     return tokens;
   }
 
+  // FIXME: At the moment TSP does not accept a graph_t as input and therefore
+  // deviates from the standard testing I/O pattern. Once other input types
+  // are supported we want to reconcile TSP testing with the rest of cugraph.
   int load_tsp(const char* fname, Route* input)
   {
     std::fstream fs;
