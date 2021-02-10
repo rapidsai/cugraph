@@ -182,7 +182,7 @@ ConfigureTest(BFS_TEST "${BFS_TEST_SRCS}" "")
 
 set(LOUVAIN_TEST_SRC
     "${CMAKE_CURRENT_SOURCE_DIR}/../../thirdparty/mmio/mmio.c"
-    "${CMAKE_CURRENT_SOURCE_DIR}/community/louvain_test.cu")
+    "${CMAKE_CURRENT_SOURCE_DIR}/community/louvain_test.cpp")
 
 ConfigureTest(LOUVAIN_TEST "${LOUVAIN_TEST_SRC}" "")
 
@@ -199,7 +199,7 @@ ConfigureTest(LEIDEN_TEST "${LEIDEN_TEST_SRC}" "")
 # - ECG tests ---------------------------------------------------------------------------------
 
 set(ECG_TEST_SRC
-    "${CMAKE_CURRENT_SOURCE_DIR}/community/ecg_test.cu")
+    "${CMAKE_CURRENT_SOURCE_DIR}/community/ecg_test.cpp")
 
 ConfigureTest(ECG_TEST "${ECG_TEST_SRC}" "")
 
