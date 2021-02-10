@@ -133,7 +133,7 @@ else
 fi
 
 if [ -n "${CODECOV_TOKEN}" ]; then
-    codecov -t \$CODECOV_TOKEN
+    codecov -t $CODECOV_TOKEN
 fi
 
 gpuci_logger "gpu/build.sh returning value: $EXITCODE"
