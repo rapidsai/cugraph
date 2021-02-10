@@ -113,7 +113,7 @@ void update_by_delta_modularity(raft::handle_t const& handle,
              old_cluster_sum,
              k_k,
              a_old,
-             a_new);
+             a_new.load());
 
       return thrust::make_tuple(neighbor_cluster, delta_modularity);
     },
