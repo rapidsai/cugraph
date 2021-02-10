@@ -12,9 +12,11 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# note: do not use set -e in order to allow all gtest invocations to take place,
-# and instead keep track of exit status and exit with an overall exit status
-set -o pipefail
+# Any failing command will set EXITCODE to non-zero
+set -e           # abort the script on error, this will change for running tests (see below)
+set -o pipefail  # piped commands propagate their error
+set -E           # ERR traps are inherited by subcommands
+trap "EXITCODE=1" ERR
 
 NUMARGS=$#
 ARGS=$*
@@ -22,7 +24,7 @@ THISDIR=$(cd $(dirname $0);pwd)
 CUGRAPH_ROOT=$(cd ${THISDIR}/..;pwd)
 GTEST_ARGS="--gtest_output=xml:${CUGRAPH_ROOT}/test-results/"
 DOWNLOAD_MODE=""
-ERRORCODE=0
+EXITCODE=0
 
 export RAPIDS_DATASET_ROOT_DIR=${CUGRAPH_ROOT}/datasets
 
@@ -50,27 +52,20 @@ else
     echo "Download datasets..."
     cd ${RAPIDS_DATASET_ROOT_DIR}
     bash ./get_test_data.sh ${DOWNLOAD_MODE}
-    ERRORCODE=$((ERRORCODE | $?))
-    # no need to run tests if dataset download fails
-    if (( ${ERRORCODE} != 0 )); then
-        exit ${ERRORCODE}
-    fi
 fi
 
 if [[ -z "$PROJECT_FLASH" || "$PROJECT_FLASH" == "0" ]]; then
     cd ${CUGRAPH_ROOT}/cpp/build
 else
-    export LD_LIBRARY_PATH="$WORKSPACE/ci/artifacts/cugraph/cpu/conda_work/cpp/build:$LD_LIBRARY_PATH"
+    export LD_LIBRARY_PATH="$WORKSPACE/ci/artifacts/cugraph/cpu/conda_work/cpp/build:$CONDA_PREFIX/lib:$LD_LIBRARY_PATH"
     cd $WORKSPACE/ci/artifacts/cugraph/cpu/conda_work/cpp/build
 fi
 
-for gt in tests/*_TEST; do
-    test_name=$(basename $gt)
-    echo "Running GoogleTest $test_name"
-    ${gt} ${GTEST_FILTER} ${GTEST_ARGS}
-    ERRORCODE=$((ERRORCODE | $?))
-done
-
+# FIXME: if possible, any install and build steps should be moved outside this
+# script since a failing install/build step is treated as a failing test command
+# and will not stop the script. This script is also only expected to run tests
+# in a preconfigured environment, and install/build steps are unexpected side
+# effects.
 if [[ "$PROJECT_FLASH" == "1" ]]; then
     CONDA_FILE=`find $WORKSPACE/ci/artifacts/cugraph/cpu/conda-bld/ -name "libcugraph*.tar.bz2"`
     CONDA_FILE=`basename "$CONDA_FILE" .tar.bz2` #get filename without extension
@@ -83,14 +78,28 @@ if [[ "$PROJECT_FLASH" == "1" ]]; then
     $WORKSPACE/build.sh cugraph
 fi
 
+# Do not abort the script on error from this point on. This allows all tests to
+# run regardless of pass/fail, but relies on the ERR trap above to manage the
+# EXITCODE for the script.
+set +e
+
+echo "C++ gtests for cuGraph..."
+for gt in tests/*_TEST; do
+    test_name=$(basename $gt)
+    echo "Running gtest $test_name"
+    ${gt} ${GTEST_FILTER} ${GTEST_ARGS}
+    echo "Ran gtest $test_name : return code was: $?, test script exit code is now: $EXITCODE"
+done
+
 echo "Python pytest for cuGraph..."
 cd ${CUGRAPH_ROOT}/python
 pytest --cache-clear --junitxml=${CUGRAPH_ROOT}/junit-cugraph.xml -v --cov-config=.coveragerc --cov=cugraph --cov-report=xml:${WORKSPACE}/python/cugraph/cugraph-coverage.xml --cov-report term --ignore=cugraph/raft --benchmark-disable
-ERRORCODE=$((ERRORCODE | $?))
+echo "Ran Python pytest for cugraph : return code was: $?, test script exit code is now: $EXITCODE"
 
 echo "Python benchmarks for cuGraph (running as tests)..."
 cd ${CUGRAPH_ROOT}/benchmarks
 pytest -v -m "managedmem_on and poolallocator_on and tiny" --benchmark-disable
-ERRORCODE=$((ERRORCODE | $?))
+echo "Ran Python benchmarks for cuGraph (running as tests) : return code was: $?, test script exit code is now: $EXITCODE"
 
-exit ${ERRORCODE}
+echo "Test script exiting with value: $EXITCODE"
+exit ${EXITCODE}
