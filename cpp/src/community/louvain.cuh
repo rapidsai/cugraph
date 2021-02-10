@@ -176,11 +176,6 @@ class Louvain {
       best_modularity = new_Q;
 
       shrink_graph(current_graph);
-
-      // TODO:  Note, somehow after shrink_graph - having converted to device_uvector - the
-      //        modularity of the new graph is too small...
-      //   Was that always true?  Perhaps I need to discard the bottom of the dendrogram
-      //   in the break statement above?
     }
 
     timer_display(std::cout);
@@ -256,11 +251,6 @@ class Louvain {
   {
     timer_start("update_clustering");
 
-    //
-    // MNMG: This is the hard one, see writeup
-    //
-
-    // TODO:  will this work, or do I need to use the size and then copy?
     rmm::device_uvector<vertex_t> next_cluster_v(dendrogram_->current_level_size(), stream_);
     rmm::device_uvector<weight_t> delta_Q_v(graph.number_of_edges, stream_);
     rmm::device_uvector<vertex_t> cluster_hash_v(graph.number_of_edges, stream_);
