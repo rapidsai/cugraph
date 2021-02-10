@@ -1,5 +1,5 @@
 #!/bin/bash
-# Copyright (c) 2019-2020, NVIDIA CORPORATION.
+# Copyright (c) 2019-2021, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -12,6 +12,19 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+# Any failing command will set EXITCODE to non-zero
+set +e           # do not abort the script on error
+set -o pipefail  # piped commands propagate their error
+set -E           # ERR traps are inherited by subcommands
+trap "EXITCODE=1" ERR
+
+# Prepend the following code to all scripts generated from nbconvert.  This
+# allows all cell and line magic code to run and update the namespace as if
+# running in jupyter, but will also tolerate failures due to running in a
+# non-jupyter env.
+# Note: depending on the assumptions of the notebook script, ignoring failures
+# may not be acceptable (meaning the converted notebook simply cannot run
+# outside of jupyter as-is), hence the warning.
 MAGIC_OVERRIDE_CODE="
 def my_run_line_magic(*args, **kwargs):
     g=globals()
@@ -58,7 +71,6 @@ for nb in $*; do
     NBEXITCODE=$?
     echo EXIT CODE: ${NBEXITCODE}
     echo
-    EXITCODE=$((EXITCODE | ${NBEXITCODE}))
 done
 
 exit ${EXITCODE}

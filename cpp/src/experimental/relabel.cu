@@ -116,6 +116,9 @@ void relabel(raft::handle_t const& handle,
 
       // update intermediate relabel map
 
+      CUDA_TRY(cudaStreamSynchronize(
+        handle.get_stream()));  // cuco::static_map currently does not take stream
+
       cuco::static_map<vertex_t, vertex_t> relabel_map{
         static_cast<size_t>(static_cast<double>(rx_label_pair_old_labels.size()) / load_factor),
         invalid_vertex_id<vertex_t>::value,
@@ -219,6 +222,21 @@ template void relabel<int32_t, false>(
   int32_t num_label_pairs,
   int32_t* labels,
   int32_t num_labels,
+  bool do_expensive_check);
+
+template void relabel<int64_t, true>(raft::handle_t const& handle,
+                                     std::tuple<int64_t const*, int64_t const*> old_new_label_pairs,
+                                     int64_t num_label_pairs,
+                                     int64_t* labels,
+                                     int64_t num_labels,
+                                     bool do_expensive_check);
+
+template void relabel<int64_t, false>(
+  raft::handle_t const& handle,
+  std::tuple<int64_t const*, int64_t const*> old_new_label_pairs,
+  int64_t num_label_pairs,
+  int64_t* labels,
+  int64_t num_labels,
   bool do_expensive_check);
 
 }  // namespace experimental
