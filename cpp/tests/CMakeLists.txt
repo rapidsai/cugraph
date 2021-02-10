@@ -140,6 +140,10 @@ endif(RAPIDS_DATASET_ROOT_DIR)
 ### test sources ##################################################################################
 ###################################################################################################
 
+# FIXME: consider adding a "add_library(cugraph_testing SHARED ...) instead of
+# adding the same test utility sources to each test target. There may need to be
+# an additional cugraph_mg_testing lib due to the optional inclusion of MPI.
+
 ###################################################################################################
 # - katz centrality tests -------------------------------------------------------------------------
 

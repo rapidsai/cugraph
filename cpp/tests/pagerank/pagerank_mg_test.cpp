@@ -21,8 +21,6 @@
 #include <algorithms.hpp>
 #include <partition_manager.hpp>
 
-#include <raft/comms/mpi_comms.hpp>
-
 #include <gtest/gtest.h>
 
 #include <random>
@@ -56,32 +54,10 @@ typedef struct Pagerank_Testparams_t {
 // test.  In this case, each test is identical except for the inputs and
 // expected outputs, so the entire test is defined in the run_test() method.
 //
-class Pagerank_E2E_MG_Testfixture_t : public ::testing::TestWithParam<Pagerank_Testparams_t> {
+class Pagerank_E2E_MG_Testfixture_t : public cugraph::test::MG_TestFixture_t,
+                                      public ::testing::WithParamInterface<Pagerank_Testparams_t> {
  public:
   Pagerank_E2E_MG_Testfixture_t() {}
-
-  // Run once for the entire fixture
-  //
-  // FIXME: consider a ::testing::Environment gtest instance instead, as done
-  // by cuML in test_opg_utils.h
-  static void SetUpTestCase()
-  {
-    MPI_TRY(MPI_Init(NULL, NULL));
-
-    int rank, size;
-    MPI_TRY(MPI_Comm_rank(MPI_COMM_WORLD, &rank));
-    MPI_TRY(MPI_Comm_size(MPI_COMM_WORLD, &size));
-
-    int nGpus;
-    CUDA_CHECK(cudaGetDeviceCount(&nGpus));
-
-    ASSERT(
-      nGpus >= size, "Number of GPUs are lesser than MPI ranks! ngpus=%d, nranks=%d", nGpus, size);
-
-    CUDA_CHECK(cudaSetDevice(rank));
-  }
-
-  static void TearDownTestCase() { MPI_TRY(MPI_Finalize()); }
 
   // Run once for each test instance
   virtual void SetUp() {}
@@ -145,7 +121,7 @@ class Pagerank_E2E_MG_Testfixture_t : public ::testing::TestWithParam<Pagerank_T
 
     int my_rank = comm.get_rank();
 
-    // FIXME: edgelist_from_mm must have weights!
+    // FIXME: graph must be weighted!
     std::unique_ptr<cugraph::experimental::
                       graph_t<vertex_t, edge_t, weight_t, true, true>>  // store_transposed=true,
                                                                         // multi_gpu=true
