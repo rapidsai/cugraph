@@ -33,6 +33,11 @@ if(NOT CMAKE_BUILD_TYPE AND NOT CMAKE_CONFIGURATION_TYPES)
     "Debug" "Release" "MinSizeRel" "RelWithDebInfo")
 endif()
 
+##############################################################################
+# - User Options  ------------------------------------------------------------
+
+option(BUILD_CUGRAPH_MG_TESTS "Build cuGraph multigpu algorithm tests" OFF)
+
 ###################################################################################################
 # - compiler options ------------------------------------------------------------------------------
 
@@ -181,6 +186,12 @@ else()
     set(NCCL_LIBRARIES ${NCCL_PATH}/lib/libnccl.so)
 endif(NOT NCCL_PATH)
 
+###################################################################################################
+# - find MPI - only enabled if MG tests are to be built
+
+if(BUILD_CUGRAPH_MG_TESTS)
+  find_package(MPI REQUIRED)
+endif(BUILD_CUGRAPH_MG_TESTS)
 
 ###################################################################################################
 # - Fetch Content ---------------------------------------------------------------------------------
@@ -324,14 +335,6 @@ set_property(TARGET gunrock PROPERTY IMPORTED_LOCATION ${GUNROCK_DIR}/src/gunroc
 ###################################################################################################
 # - library targets -------------------------------------------------------------------------------
 
-# target_link_directories is added in cmake 3.13, and cmake advises to use this instead of
-# link_directoires (we should switch to target_link_directories once 3.13 becomes the minimum
-# required version).
-link_directories(
-     # CMAKE_CUDA_IMPLICIT_LINK_DIRECTORIES is an undocumented/unsupported variable containing the
-     # link directories for nvcc.
-    "${CMAKE_CUDA_IMPLICIT_LINK_DIRECTORIES}")
-
 add_library(cugraph SHARED
     src/utilities/spmv_1D.cu
     src/utilities/cython.cu
@@ -370,6 +373,12 @@ add_library(cugraph SHARED
     src/experimental/katz_centrality.cu
     src/tree/mst.cu
 )
+
+target_link_directories(cugraph
+    PRIVATE
+    # CMAKE_CUDA_IMPLICIT_LINK_DIRECTORIES is an undocumented/unsupported variable containing the
+    # link directories for nvcc.
+    "${CMAKE_CUDA_IMPLICIT_LINK_DIRECTORIES}")
 
 #
 # NOTE:  This dependency will force the building of cugraph to
@@ -473,10 +482,6 @@ set_target_properties(cugraph PROPERTIES
 
 if(BUILD_TESTS)
     if(GTEST_FOUND)
-        # target_link_directories is added in cmake 3.13, and cmake advises to use this instead of
-        # link_directories (we should switch to target_link_directories once 3.13 becomes the
-        # minimum required version).
-        link_directories(${GTEST_LIBRARY_DIR})
         add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/tests)
     endif(GTEST_FOUND)
 endif(BUILD_TESTS)
