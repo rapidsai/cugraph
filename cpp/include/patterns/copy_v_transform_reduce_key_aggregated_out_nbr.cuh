@@ -18,8 +18,10 @@
 #include <experimental/detail/graph_utils.cuh>
 #include <experimental/graph.hpp>
 #include <experimental/graph_view.hpp>
+#include <matrix_partition_device.cuh>
 #include <utilities/dataframe_buffer.cuh>
 #include <utilities/error.hpp>
+#include <utilities/host_scalar_comm.cuh>
 #include <utilities/shuffle_comm.cuh>
 #include <vertex_partition_device.cuh>
 
