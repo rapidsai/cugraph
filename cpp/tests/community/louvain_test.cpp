@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019-2020, NVIDIA CORPORATION.  All rights reserved.
+ * Copyright (c) 2019-2021, NVIDIA CORPORATION.  All rights reserved.
  *
  * NVIDIA CORPORATION and its licensors retain all intellectual property
  * and proprietary rights in and to this software, related documentation
@@ -15,10 +15,14 @@
 
 #include <thrust/extrema.h>
 
-#include <rmm/thrust_rmm_allocator.h>
+#include <rmm/device_uvector.hpp>
 
 TEST(louvain, success)
 {
+  raft::handle_t handle;
+
+  auto stream = handle.get_stream();
+
   std::vector<int> off_h = {0,  16,  25,  35,  41,  44,  48,  52,  56,  61,  63, 66,
                             67, 69,  74,  76,  78,  80,  82,  84,  87,  89,  91, 93,
                             98, 101, 104, 106, 110, 113, 117, 121, 127, 139, 156};
@@ -49,42 +53,54 @@ TEST(louvain, success)
 
   std::vector<int> cluster_id(num_verts, -1);
 
-  rmm::device_vector<int> offsets_v(off_h);
-  rmm::device_vector<int> indices_v(ind_h);
-  rmm::device_vector<float> weights_v(w_h);
-  rmm::device_vector<int> result_v(cluster_id);
+  rmm::device_uvector<int> offsets_v(num_verts + 1, stream);
+  rmm::device_uvector<int> indices_v(num_edges, stream);
+  rmm::device_uvector<float> weights_v(num_edges, stream);
+  rmm::device_uvector<int> result_v(num_verts, stream);
+
+  raft::update_device(offsets_v.data(), off_h.data(), off_h.size(), stream);
+  raft::update_device(indices_v.data(), ind_h.data(), ind_h.size(), stream);
+  raft::update_device(weights_v.data(), w_h.data(), w_h.size(), stream);
 
   cugraph::GraphCSRView<int, int, float> G(
-    offsets_v.data().get(), indices_v.data().get(), weights_v.data().get(), num_verts, num_edges);
+    offsets_v.data(), indices_v.data(), weights_v.data(), num_verts, num_edges);
 
   float modularity{0.0};
   size_t num_level = 40;
 
-  raft::handle_t handle;
+  // "FIXME": remove this check once we drop support for Pascal
+  //
+  // Calling louvain on Pascal will throw an exception, we'll check that
+  // this is the behavior while we still support Pascal (device_prop.major < 7)
+  //
+  if (handle.get_device_properties().major < 7) {
+    EXPECT_THROW(cugraph::louvain(handle, G, result_v.data()), cugraph::logic_error);
+  } else {
+    std::tie(num_level, modularity) = cugraph::louvain(handle, G, result_v.data());
 
-  std::tie(num_level, modularity) = cugraph::louvain(handle, G, result_v.data().get());
+    raft::update_host(cluster_id.data(), result_v.data(), num_verts, stream);
 
-  cudaMemcpy((void*)&(cluster_id[0]),
-             result_v.data().get(),
-             sizeof(int) * num_verts,
-             cudaMemcpyDeviceToHost);
+    CUDA_TRY(cudaDeviceSynchronize());
 
-  int min = *min_element(cluster_id.begin(), cluster_id.end());
+    int min = *min_element(cluster_id.begin(), cluster_id.end());
 
-  std::cout << "modularity = " << modularity << std::endl;
+    std::cout << "modularity = " << modularity << std::endl;
 
-  ASSERT_GE(min, 0);
-  ASSERT_GE(modularity, 0.402777 * 0.95);
-  ASSERT_EQ(result_v, result_h);
+    ASSERT_GE(min, 0);
+    ASSERT_GE(modularity, 0.402777 * 0.95);
+    ASSERT_EQ(cluster_id, result_h);
+  }
 }
 
 TEST(louvain_renumbered, success)
 {
+  raft::handle_t handle;
+
+  auto stream = handle.get_stream();
+
   std::vector<int> off_h = {0,   16,  25,  30,  34,  38,  42,  44,  46,  48,  50,  52,
                             54,  56,  73,  85,  95,  101, 107, 112, 117, 121, 125, 129,
-                            132, 135, 138, 141, 144, 147, 149, 151, 153, 155, 156
-
-  };
+                            132, 135, 138, 141, 144, 147, 149, 151, 153, 155, 156};
   std::vector<int> ind_h = {
     1,  3,  7,  11, 15, 16, 17, 18, 19, 20, 21, 23, 24, 25, 30, 33, 0,  5,  11, 15, 16, 19, 21,
     25, 30, 4,  13, 14, 22, 27, 0,  9,  20, 24, 2,  13, 15, 26, 1,  13, 14, 18, 13, 15, 0,  16,
@@ -110,32 +126,42 @@ TEST(louvain_renumbered, success)
 
   std::vector<int> cluster_id(num_verts, -1);
 
-  rmm::device_vector<int> offsets_v(off_h);
-  rmm::device_vector<int> indices_v(ind_h);
-  rmm::device_vector<float> weights_v(w_h);
-  rmm::device_vector<int> result_v(cluster_id);
+  rmm::device_uvector<int> offsets_v(num_verts + 1, stream);
+  rmm::device_uvector<int> indices_v(num_edges, stream);
+  rmm::device_uvector<float> weights_v(num_edges, stream);
+  rmm::device_uvector<int> result_v(num_verts, stream);
+
+  raft::update_device(offsets_v.data(), off_h.data(), off_h.size(), stream);
+  raft::update_device(indices_v.data(), ind_h.data(), ind_h.size(), stream);
+  raft::update_device(weights_v.data(), w_h.data(), w_h.size(), stream);
 
   cugraph::GraphCSRView<int, int, float> G(
-    offsets_v.data().get(), indices_v.data().get(), weights_v.data().get(), num_verts, num_edges);
+    offsets_v.data(), indices_v.data(), weights_v.data(), num_verts, num_edges);
 
   float modularity{0.0};
   size_t num_level = 40;
 
-  raft::handle_t handle;
+  // "FIXME": remove this check once we drop support for Pascal
+  //
+  // Calling louvain on Pascal will throw an exception, we'll check that
+  // this is the behavior while we still support Pascal (device_prop.major < 7)
+  //
+  if (handle.get_device_properties().major < 7) {
+    EXPECT_THROW(cugraph::louvain(handle, G, result_v.data()), cugraph::logic_error);
+  } else {
+    std::tie(num_level, modularity) = cugraph::louvain(handle, G, result_v.data());
 
-  std::tie(num_level, modularity) = cugraph::louvain(handle, G, result_v.data().get());
+    raft::update_host(cluster_id.data(), result_v.data(), num_verts, stream);
 
-  cudaMemcpy((void*)&(cluster_id[0]),
-             result_v.data().get(),
-             sizeof(int) * num_verts,
-             cudaMemcpyDeviceToHost);
+    CUDA_TRY(cudaDeviceSynchronize());
 
-  int min = *min_element(cluster_id.begin(), cluster_id.end());
+    int min = *min_element(cluster_id.begin(), cluster_id.end());
 
-  std::cout << "modularity = " << modularity << std::endl;
+    std::cout << "modularity = " << modularity << std::endl;
 
-  ASSERT_GE(min, 0);
-  ASSERT_GE(modularity, 0.402777 * 0.95);
+    ASSERT_GE(min, 0);
+    ASSERT_GE(modularity, 0.402777 * 0.95);
+  }
 }
 
 CUGRAPH_TEST_PROGRAM_MAIN()
