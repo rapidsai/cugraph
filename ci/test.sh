@@ -76,13 +76,13 @@ if [[ "$PROJECT_FLASH" == "1" ]]; then
     chrpath -d libcugraph++.so
     patchelf --replace-needed `patchelf --print-needed libcugraph++.so | grep faiss` libfaiss.so libcugraph++.so
 
-		cd $LIBCUGRAPH_BUILD_DIR
-		for gt in tests/*_TEST; do
-			chrpath -d ${gt}
-			patchelf --replace-needed `patchelf --print-needed ${gt} | grep faiss` libfaiss.so ${gt}
-		done
+    cd $LIBCUGRAPH_BUILD_DIR
+    for gt in tests/*_TEST; do
+      chrpath -d ${gt}
+      patchelf --replace-needed `patchelf --print-needed ${gt} | grep faiss` libfaiss.so ${gt}
+    done
 
-		CONDA_FILE=`find $WORKSPACE/ci/artifacts/cugraph/cpu/conda-bld/ -name "libcugraph*.tar.bz2"`
+    CONDA_FILE=`find $WORKSPACE/ci/artifacts/cugraph/cpu/conda-bld/ -name "libcugraph*.tar.bz2"`
     CONDA_FILE=`basename "$CONDA_FILE" .tar.bz2` #get filename without extension
     CONDA_FILE=${CONDA_FILE//-/=} #convert to conda install
     echo "Installing $CONDA_FILE"
