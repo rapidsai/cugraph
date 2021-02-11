@@ -12,21 +12,36 @@
 // TSP solver tests
 // Author: Hugo Linsenmaier hlinsenmaier@nvidia.com
 
-#include <bits/stdc++.h>
-#include <cuda_profiler_api.h>
-#include <err.h>
+/*
+ * Copyright (c) 2021, NVIDIA CORPORATION.  All rights reserved.
+ *
+ * NVIDIA CORPORATION and its licensors retain all intellectual property
+ * and proprietary rights in and to this software, related documentation
+ * and any modifications thereto.  Any use, reproduction, disclosure or
+ * distribution of this software and related documentation without an express
+ * license agreement from NVIDIA CORPORATION is strictly prohibited.
+ *
+ */
+
+// TSP solver tests
+// Author: Hugo Linsenmaier hlinsenmaier@nvidia.com
+
 #include <utilities/high_res_clock.h>
-#include <algorithms.hpp>
-#include <cassert>
-#include <cmath>
-#include <fstream>
-#include <graph.hpp>
-#include <raft/error.hpp>
-#include <raft/handle.hpp>
-#include <rmm/device_uvector.hpp>
-#include <set>
 #include <utilities/base_fixture.hpp>
 #include <utilities/test_utilities.hpp>
+
+#include <algorithms.hpp>
+#include <graph.hpp>
+
+#include <cuda_profiler_api.h>
+
+#include <raft/error.hpp>
+#include <raft/handle.hpp>
+
+#include <rmm/device_uvector.hpp>
+
+#include <fstream>
+#include <set>
 #include <vector>
 
 typedef struct Tsp_Usecase_t {

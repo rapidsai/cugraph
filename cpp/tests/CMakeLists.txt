@@ -275,6 +275,7 @@ ConfigureTest(FA2_TEST "${FA2_TEST_SRC}")
 
 set(TSP_TEST_SRC
     "${CMAKE_CURRENT_SOURCE_DIR}/../../thirdparty/mmio/mmio.c"
+    "${CMAKE_CURRENT_SOURCE_DIR}/utilities/test_utilities.cpp"
     "${CMAKE_CURRENT_SOURCE_DIR}/traversal/tsp_test.cu")
 
   ConfigureTest(TSP_TEST "${TSP_TEST_SRC}" "")
