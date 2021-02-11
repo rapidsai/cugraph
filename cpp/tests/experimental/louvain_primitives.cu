@@ -1,22 +1,11 @@
 #include <experimental/graph.hpp>
 
+#include <patterns/copy_v_transform_reduce_key_aggregated_out_nbr.cuh>
+#include <patterns/transform_reduce_by_adj_matrix_row_col_key_e.cuh>
+#include <utilities/dataframe_buffer.cuh>
 #include <utilities/shuffle_comm.cuh>
 
 #include <rmm/device_uvector.hpp>
-
-// TODO:
-//    The following 3 include files are not referenced in my file,
-//    however if they are not included prior to the two pattern
-//    includes below then the compilation fails.  I suspect these
-//    should be included somehow in the patterns includes below
-//
-#include <matrix_partition_device.cuh>
-#include <patterns/edge_op_utils.cuh>
-#include <utilities/host_scalar_comm.cuh>
-// END EXTRA INCLUDES
-
-#include <patterns/copy_v_transform_reduce_key_aggregated_out_nbr.cuh>
-#include <patterns/transform_reduce_by_adj_matrix_row_col_key_e.cuh>
 
 template <typename graph_t>
 void update_by_delta_modularity(raft::handle_t const& handle,
@@ -35,25 +24,29 @@ void update_by_delta_modularity(raft::handle_t const& handle,
 
   raft::update_device(cluster_v.data(), cluster_h.data(), num_verts, handle.get_stream());
 
-  auto tmp = cugraph::experimental::transform_reduce_by_adj_matrix_col_key_e(
-    handle,
-    graph_view,
-    cluster_v.begin(),
-    cluster_v.begin(),
-    cluster_v.begin(),
-    [] __device__(auto r, auto c, auto w, auto rv, auto cv) {
-      printf("transform reduce (%d,%d,%g,%d,%d)\n", (int)r, (int)c, (float)w, (int)rv, (int)cv);
-      return w;
-    },
-    weight_t{0});
+  rmm::device_uvector<vertex_t> communities(0, handle.get_stream());
+  rmm::device_uvector<weight_t> community_in_weight_sums(0, handle.get_stream());
+
+  std::tie(communities, community_in_weight_sums) =
+    cugraph::experimental::transform_reduce_by_adj_matrix_col_key_e(
+      handle,
+      graph_view,
+      cluster_v.begin(),
+      cluster_v.begin(),
+      cluster_v.begin(),
+      [] __device__(auto r, auto c, auto w, auto rv, auto cv) {
+        printf("transform reduce (%d,%d,%g,%d,%d)\n", (int)r, (int)c, (float)w, (int)rv, (int)cv);
+        return w;
+      },
+      weight_t{0});
 
   thrust::for_each(thrust::device,
                    thrust::make_counting_iterator(0),
                    thrust::make_counting_iterator(1),
-                   [b_key   = std::get<0>(tmp).begin(),
-                    e_key   = std::get<0>(tmp).end(),
-                    b_value = std::get<1>(tmp).begin(),
-                    e_value = std::get<1>(tmp).end()] __device__(auto) {
+                   [b_key   = communities.begin(),
+                    e_key   = communities.end(),
+                    b_value = community_in_weight_sums.begin(),
+                    e_value = community_in_weight_sums.end()] __device__(auto) {
                      char comma[2] = {0, 0};
                      printf("keys = ");
                      for (auto p = b_key; p != e_key; ++p) {
@@ -71,21 +64,25 @@ void update_by_delta_modularity(raft::handle_t const& handle,
                    });
 
   if (graph_t::is_multi_gpu) {
-    cugraph::experimental::sort_and_shuffle_kv_pairs(
-      handle.get_comms(),
-      std::get<0>(tmp).begin(),
-      std::get<0>(tmp).end(),
-      std::get<1>(tmp).begin(),
-      [] __device__(auto) { return 0; },
-      handle.get_stream());
+    std::tie(communities, community_in_weight_sums, std::ignore) =
+      cugraph::experimental::sort_and_shuffle_kv_pairs(
+        handle.get_comms(),
+        communities.begin(),
+        communities.end(),
+        community_in_weight_sums.begin(),
+        [] __device__(auto) { return 0; },
+        handle.get_stream());
   }
-
-  rmm::device_vector<thrust::tuple<vertex_t, weight_t>> output_v(num_verts);
 
   // NOTE: these are populated and shuffled before call to update_by_delta_modularity
   rmm::device_uvector<weight_t> old_cluster_sum_v(num_verts, handle.get_stream());
   rmm::device_uvector<weight_t> src_vertex_weight_v(num_verts, handle.get_stream());
   rmm::device_uvector<weight_t> src_cluster_weight_v(num_verts, handle.get_stream());
+
+  // rmm::device_vector<thrust::tuple<vertex_t, weight_t>> output_v(num_verts);
+  auto output_buffer =
+    cugraph::experimental::allocate_dataframe_buffer<thrust::tuple<vertex_t, weight_t>>(
+      num_verts, handle.get_stream());
 
   copy_v_transform_reduce_key_aggregated_out_nbr(
     handle,
@@ -93,9 +90,9 @@ void update_by_delta_modularity(raft::handle_t const& handle,
     thrust::make_zip_iterator(thrust::make_tuple(
       old_cluster_sum_v.begin(), src_vertex_weight_v.begin(), src_cluster_weight_v.begin())),
     cluster_v.begin(),
-    std::get<0>(tmp).begin(),
-    std::get<0>(tmp).end(),
-    std::get<1>(tmp).begin(),
+    communities.begin(),
+    communities.end(),
+    community_in_weight_sums.begin(),
     [total_edge_weight, resolution] __device__(
       auto src, auto neighbor_cluster, auto new_cluster_sum, auto src_info, auto a_new) {
       auto old_cluster_sum = thrust::get<0>(src_info);
@@ -113,19 +110,40 @@ void update_by_delta_modularity(raft::handle_t const& handle,
              old_cluster_sum,
              k_k,
              a_old,
-             a_new.load());
+             a_new);
 
       return thrust::make_tuple(neighbor_cluster, delta_modularity);
     },
     [] __device__(auto p1, auto p2) {
-      if (thrust::get<1>(p1) < thrust::get<1>(p2))
-        return p1;
-      else
-        return p2;
+      printf("reducing (%d, %g) with (%d, %g)\n",
+             thrust::get<0>(p1),
+             thrust::get<1>(p1),
+             thrust::get<0>(p2),
+             thrust::get<1>(p2));
+
+      return (thrust::get<1>(p1) < thrust::get<1>(p2)) ? p1 : p2;
     },
     thrust::make_tuple(vertex_t{-1}, weight_t{std::numeric_limits<weight_t>::max()}),
-    output_v.begin());
+    // output_v.begin());
+    cugraph::experimental::get_dataframe_buffer_begin<thrust::tuple<vertex_t, weight_t>>(
+      output_buffer));
 
+  thrust::for_each(
+    thrust::device,
+    thrust::make_counting_iterator(0),
+    thrust::make_counting_iterator(1),
+    [b_output =
+       cugraph::experimental::get_dataframe_buffer_begin<thrust::tuple<vertex_t, weight_t>>(
+         output_buffer),
+     num_verts] __device__(auto) {
+      char comma[2] = {0, 0};
+      printf("output = ");
+      for (auto p = b_output; p != (b_output + num_verts); ++p) {
+        printf("%s(%d, %g)", comma, thrust::get<0>(*p), thrust::get<1>(*p));
+        comma[0] = ',';
+      }
+      printf("\n");
+    });
   //
   //  output_v contains (for each vertex) the pair (neighbor_cluster, delta_modularity)
   //  for all neighboring clusters with the highest delta modularity
