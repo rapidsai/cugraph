@@ -67,7 +67,10 @@ class Tests_InducedEgo : public ::testing::TestWithParam<InducedEgo_Usecase> {
   template <typename vertex_t, typename edge_t, typename weight_t, bool store_transposed>
   void run_current_test(InducedEgo_Usecase const& configuration)
   {
-    raft::handle_t handle{};
+    int n_streams = 0;
+    if (configuration.ego_sources.size() > 1)
+      n_streams = std::min(configuration.ego_sources.size(), 128);
+    raft::handle_t handle(n_streams);
 
     auto graph = cugraph::test::
       read_graph_from_matrix_market_file<vertex_t, edge_t, weight_t, store_transposed>(

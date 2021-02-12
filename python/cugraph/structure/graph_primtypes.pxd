@@ -20,12 +20,8 @@ from libcpp cimport bool
 from libcpp.memory cimport unique_ptr
 from libcpp.utility cimport pair
 from libcpp.vector cimport vector
-
+from cugraph.raft.common.handle cimport *
 from rmm._lib.device_buffer cimport device_buffer
-
-cdef extern from "raft/handle.hpp" namespace "raft":
-    cdef cppclass handle_t:
-        handle_t() except +
 
 cdef extern from "graph.hpp" namespace "cugraph":
 

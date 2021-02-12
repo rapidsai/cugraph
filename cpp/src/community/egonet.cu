@@ -76,6 +76,8 @@ extract(
   // reserve some reasonable memory, but could grow larger than that
   neighbors.reserve(v + avg_degree * n_subgraphs * radius);
   neighbors_offsets[0] = 0;
+
+  std::cout << handle.get_num_internal_streams() << std::endl;
   // each source should be done concurently in the future
   for (vertex_t i = 0; i < n_subgraphs; i++) {
     // BFS with cutoff
