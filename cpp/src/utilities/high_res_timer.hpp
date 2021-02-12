@@ -20,6 +20,8 @@
 #include <map>
 #include <string>
 
+#define TIMING
+
 class HighResTimer {
  public:
   HighResTimer() : timers() {}
