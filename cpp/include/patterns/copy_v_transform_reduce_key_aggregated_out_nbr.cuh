@@ -102,10 +102,10 @@ __global__ void for_all_major_for_all_nbr_low_degree(
       }
       thrust::fill(thrust::seq,
                    major_vertices + local_offset,
-                   major_vertices + local_offset + key_idx,
+                   major_vertices + local_offset + key_idx + 1,
                    matrix_partition.get_major_from_major_offset_nocheck(major_offset));
       thrust::fill(thrust::seq,
-                   major_vertices + local_offset + key_idx,
+                   major_vertices + local_offset + key_idx + 1,
                    major_vertices + local_offset + local_degree,
                    invalid_vertex);
     }
@@ -395,7 +395,7 @@ void copy_v_transform_reduce_key_aggregated_out_nbr(
       tmp_major_vertices.begin(), tmp_minor_keys.begin(), tmp_key_aggregated_edge_weights.begin()));
     thrust::transform(rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
                       triplet_first,
-                      triplet_first + major_vertices.size(),
+                      triplet_first + tmp_major_vertices.size(),
                       tmp_e_op_result_buffer_first,
                       [adj_matrix_row_value_input_first,
                        key_aggregated_e_op,
@@ -490,11 +490,12 @@ void copy_v_transform_reduce_key_aggregated_out_nbr(
   auto major_vertex_first = thrust::make_transform_iterator(
     thrust::make_counting_iterator(size_t{0}),
     [major_vertices = major_vertices.data()] __device__(auto i) {
-      return ((i == 0) || (major_vertices[i] == major_vertices[i - 1]))
+      return ((i == 0) || (major_vertices[i] != major_vertices[i - 1]))
                ? major_vertices[i]
                : invalid_vertex_id<vertex_t>::value;
     });
   thrust::copy_if(
+    rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
     major_vertex_first,
     major_vertex_first + major_vertices.size(),
     unique_major_vertices.begin(),
@@ -508,7 +509,7 @@ void copy_v_transform_reduce_key_aggregated_out_nbr(
     thrust::make_permutation_iterator(
       vertex_value_output_first,
       thrust::make_transform_iterator(
-        major_vertices.begin(),
+        unique_major_vertices.begin(),
         [vertex_partition = vertex_partition_device_t<GraphViewType>(graph_view)] __device__(
           auto v) { return vertex_partition.get_local_vertex_offset_from_vertex_nocheck(v); })),
     thrust::equal_to<vertex_t>{},
