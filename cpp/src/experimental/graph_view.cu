@@ -91,7 +91,7 @@ rmm::device_uvector<edge_t> compute_minor_degrees(
       [] __device__(vertex_t src, vertex_t dst, weight_t w, auto src_val, auto dst_val) {
         return edge_t{1};
       },
-      edge_t{1},
+      edge_t{0},
       minor_degrees.data());
   } else {
     copy_v_transform_reduce_in_nbr(
@@ -102,7 +102,7 @@ rmm::device_uvector<edge_t> compute_minor_degrees(
       [] __device__(vertex_t src, vertex_t dst, weight_t w, auto src_val, auto dst_val) {
         return edge_t{1};
       },
-      edge_t{1},
+      edge_t{0},
       minor_degrees.data());
   }
 
