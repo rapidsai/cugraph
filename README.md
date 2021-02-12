@@ -81,6 +81,7 @@ As of Release 0.18 - including 0.18 nightly
 | Traversal    |                                        |              |                     |
 |              | Breadth First Search (BFS)             | Multi-GPU    | with cutoff support |
 |              | Single Source Shortest Path (SSSP)     | Multi-GPU    |                     |
+|              | Traveling Salesperson Problem (TSP)    | Single-GPU   |                     |
 | Structure    |                                        |              |                     |
 |              | Renumbering                            | Single-GPU   | multiple columns, any data type  |
 |              | Symmetrize                             | Multi-GPU    |                     |
