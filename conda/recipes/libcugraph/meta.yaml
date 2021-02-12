@@ -33,6 +33,8 @@ requirements:
     - ucx-py {{ minor_version }}
     - ucx-proc=*=gpu
     - gtest
+    - faiss-proc=*=cuda
+    - libfaiss=1.6.3
     - gmock
   run:
     - libcudf={{ minor_version }}
@@ -40,6 +42,8 @@ requirements:
     - nccl>=2.7
     - ucx-py {{ minor_version }}
     - ucx-proc=*=gpu
+    - faiss-proc=*=cuda
+    - libfaiss=1.6.3
 
 #test:
 #  commands:
