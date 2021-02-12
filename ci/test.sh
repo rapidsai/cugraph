@@ -67,13 +67,20 @@ fi
 # in a preconfigured environment, and install/build steps are unexpected side
 # effects.
 if [[ "$PROJECT_FLASH" == "1" ]]; then
+    export LIBCUGRAPH_BUILD_DIR="$WORKSPACE/ci/artifacts/cugraph/cpu/conda_work/cpp/build"
+
+    # Faiss patch
+    echo "Update libcugraph.so"
+    cd $LIBCUGRAPH_BUILD_DIR
+    chrpath -d libcugraph.so
+    patchelf --replace-needed `patchelf --print-needed libcugraph.so | grep faiss` libfaiss.so libcugraph.so
+
     CONDA_FILE=`find $WORKSPACE/ci/artifacts/cugraph/cpu/conda-bld/ -name "libcugraph*.tar.bz2"`
     CONDA_FILE=`basename "$CONDA_FILE" .tar.bz2` #get filename without extension
     CONDA_FILE=${CONDA_FILE//-/=} #convert to conda install
     echo "Installing $CONDA_FILE"
     conda install -c $WORKSPACE/ci/artifacts/cugraph/cpu/conda-bld/ "$CONDA_FILE"
 
-    export LIBCUGRAPH_BUILD_DIR="$WORKSPACE/ci/artifacts/cugraph/cpu/conda_work/cpp/build"
     echo "Build cugraph..."
     $WORKSPACE/build.sh cugraph
 fi
