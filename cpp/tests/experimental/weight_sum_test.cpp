@@ -42,9 +42,7 @@ void weight_sum_reference(edge_t const* offsets,
                           vertex_t num_vertices,
                           bool major)
 {
-  if (!major) {
-    std::fill(weight_sums, weight_sums + num_vertices, weight_t{0.0});
-  }
+  if (!major) { std::fill(weight_sums, weight_sums + num_vertices, weight_t{0.0}); }
   for (vertex_t i = 0; i < num_vertices; ++i) {
     if (major) {
       weight_sums[i] =

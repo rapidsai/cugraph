@@ -133,9 +133,8 @@ class Tests_Degree : public ::testing::TestWithParam<Degree_Usecase> {
                       handle.get_stream());
     CUDA_TRY(cudaStreamSynchronize(handle.get_stream()));
 
-    ASSERT_TRUE(std::equal(h_reference_in_degrees.begin(),
-                           h_reference_in_degrees.end(),
-                           h_cugraph_in_degrees.begin()))
+    ASSERT_TRUE(std::equal(
+      h_reference_in_degrees.begin(), h_reference_in_degrees.end(), h_cugraph_in_degrees.begin()))
       << "In-degree values do not match with the reference values.";
     ASSERT_TRUE(std::equal(h_reference_out_degrees.begin(),
                            h_reference_out_degrees.end(),
