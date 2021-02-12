@@ -147,7 +147,7 @@ rmm::device_uvector<edge_t> compute_major_degrees(raft::handle_t const &handle,
                    degrees.begin(),
                    degrees.end(),
                    [offsets] __device__(auto i) { return offsets[i + 1] - offsets[i]; });
-  return std::move(degrees);
+  return degrees;
 }
 
 template <typename vertex_t, typename edge_t>

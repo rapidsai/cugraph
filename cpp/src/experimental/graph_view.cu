@@ -106,7 +106,7 @@ rmm::device_uvector<edge_t> compute_minor_degrees(
       minor_degrees.data());
   }
 
-  return std::move(minor_degrees);
+  return minor_degrees;
 }
 
 template <bool major,
@@ -145,7 +145,7 @@ rmm::device_uvector<weight_t> compute_weight_sums(
       weight_sums.data());
   }
 
-  return std::move(weight_sums);
+  return weight_sums;
 }
 
 }  // namespace

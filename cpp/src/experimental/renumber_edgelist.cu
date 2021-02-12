@@ -224,7 +224,7 @@ rmm::device_uvector<vertex_t> compute_renumber_map(
                       labels.begin(),
                       thrust::greater<edge_t>());
 
-  return std::move(labels);
+  return labels;
 }
 
 template <typename vertex_t, typename edge_t, bool multi_gpu>
@@ -609,7 +609,7 @@ std::enable_if_t<!multi_gpu, rmm::device_uvector<vertex_t>> renumber_edgelist(
   renumber_map.find(
     edgelist_minor_vertices, edgelist_minor_vertices + num_edgelist_edges, edgelist_minor_vertices);
 
-  return std::move(renumber_map_labels);
+  return renumber_map_labels;
 #else
   return rmm::device_uvector<vertex_t>(0, handle.get_stream());
 #endif
