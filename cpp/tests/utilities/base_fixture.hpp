@@ -32,18 +32,17 @@
 namespace cugraph {
 namespace test {
 
-// FIXME: The BaseFixture class is not used in any tests. This file is only
-// needed for the CUGRAPH_TEST_PROGRAM_MAIN macro and the code that it calls, so
-// consider removing the BaseFixture class and renaming this file, or moving
-// CUGRAPH_TEST_PROGRAM_MAIN to the test_utilities.hpp file and removing this
-// file completely.
+// FIXME: The BaseFixture class is not used in any tests. This file is only needed for the
+// CUGRAPH_TEST_PROGRAM_MAIN macro and the code that it calls, so consider removing the BaseFixture
+// class and renaming this file, or moving CUGRAPH_TEST_PROGRAM_MAIN to the test_utilities.hpp file
+// and removing this file completely.
 
 /**
- * @brief Base test fixture class from which all libcudf tests should inherit.
+ * @brief Base test fixture class from which all libcugraph tests should inherit.
  *
  * Example:
  * ```
- * class MyTestFixture : public cudf::test::BaseFixture {};
+ * class MyTestFixture : public cugraph::test::BaseFixture {};
  * ```
  **/
 class BaseFixture : public ::testing::Test {
@@ -51,8 +50,8 @@ class BaseFixture : public ::testing::Test {
 
  public:
   /**
-   * @brief Returns pointer to `device_memory_resource` that should be used for
-   * all tests inheriting from this fixture
+   * @brief Returns pointer to `device_memory_resource` that should be used for all tests inheriting
+   *from this fixture
    **/
   rmm::mr::device_memory_resource *mr() { return _mr; }
 };
@@ -77,15 +76,14 @@ inline auto make_binning()
 }
 
 /**
- * @brief Creates a memory resource for the unit test environment
- * given the name of the allocation mode.
+ * @brief Creates a memory resource for the unit test environment given the name of the allocation
+ * mode.
  *
- * The returned resource instance must be kept alive for the duration of
- * the tests. Attaching the resource to a TestEnvironment causes
- * issues since the environment objects are not destroyed until
+ * The returned resource instance must be kept alive for the duration of the tests. Attaching the
+ * resource to a TestEnvironment causes issues since the environment objects are not destroyed until
  * after the runtime is shutdown.
  *
- * @throw cudf::logic_error if the `allocation_mode` is unsupported.
+ * @throw cugraph::logic_error if the `allocation_mode` is unsupported.
  *
  * @param allocation_mode String identifies which resource type.
  *        Accepted types are "pool", "cuda", and "managed" only.
@@ -105,17 +103,17 @@ inline std::shared_ptr<rmm::mr::device_memory_resource> create_memory_resource(
 }  // namespace cugraph
 
 /**
- * @brief Parses the cuDF test command line options.
+ * @brief Parses the cuGraph test command line options.
  *
- * Currently only supports 'rmm_mode' string paramater, which set the rmm
- * allocation mode. The default value of the parameter is 'pool'.
+ * Currently only supports 'rmm_mode' string paramater, which set the rmm allocation mode. The
+ * default value of the parameter is 'pool'.
  *
  * @return Parsing results in the form of cxxopts::ParseResult
  */
 inline auto parse_test_options(int argc, char **argv)
 {
   try {
-    cxxopts::Options options(argv[0], " - cuDF tests command line options");
+    cxxopts::Options options(argv[0], " - cuGraph tests command line options");
     options.allow_unrecognised_options().add_options()(
       "rmm_mode", "RMM allocation mode", cxxopts::value<std::string>()->default_value("pool"));
 
@@ -128,13 +126,11 @@ inline auto parse_test_options(int argc, char **argv)
 /**
  * @brief Macro that defines main function for gtest programs that use rmm
  *
- * Should be included in every test program that uses rmm allocators since
- * it maintains the lifespan of the rmm default memory resource.
- * This `main` function is a wrapper around the google test generated `main`,
- * maintaining the original functionality. In addition, this custom `main`
- * function parses the command line to customize test behavior, like the
- * allocation mode used for creating the default memory resource.
- *
+ * Should be included in every test program that uses rmm allocators since it maintains the lifespan
+ * of the rmm default memory resource. This `main` function is a wrapper around the google test
+ * generated `main`, maintaining the original functionality. In addition, this custom `main`
+ * function parses the command line to customize test behavior, like the allocation mode used for
+ * creating the default memory resource.
  */
 #define CUGRAPH_TEST_PROGRAM_MAIN()                                        \
   int main(int argc, char **argv)                                          \
