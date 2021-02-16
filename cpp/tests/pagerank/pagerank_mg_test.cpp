@@ -25,17 +25,12 @@
 
 #include <random>
 
-////////////////////////////////////////////////////////////////////////////////
-// Test param object. This defines the input and expected output for a test, and
-// will be instantiated as the parameter to the tests defined below using
-// INSTANTIATE_TEST_CASE_P()
-//
-typedef struct Pagerank_Testparams_t {
+typedef struct Pagerank_Usecase_t {
   std::string graph_file_full_path{};
   double personalization_ratio{0.0};
   bool test_weighted{false};
 
-  Pagerank_Testparams_t(std::string const& graph_file_path,
+  Pagerank_Usecase_t(std::string const& graph_file_path,
                         double personalization_ratio,
                         bool test_weighted)
     : personalization_ratio(personalization_ratio), test_weighted(test_weighted)
@@ -46,20 +41,14 @@ typedef struct Pagerank_Testparams_t {
       graph_file_full_path = graph_file_path;
     }
   };
-} Pagerank_Testparams_t;
+} Pagerank_Usecase;
 
-////////////////////////////////////////////////////////////////////////////////
-// Parameterized test fixture, to be used with TEST_P().  This defines common
-// setup and teardown steps as well as common utilities used by each E2E MG
-// test.  In this case, each test is identical except for the inputs and
-// expected outputs, so the entire test is defined in the run_test() method.
-//
-class Pagerank_E2E_MG_Testfixture_t : public cugraph::test::MG_TestFixture_t,
-                                      public ::testing::WithParamInterface<Pagerank_Testparams_t> {
+class Tests_MGPageRank : public ::testing::TestWithParam<Pagerank_Usecase> {
  public:
-  Pagerank_E2E_MG_Testfixture_t() {}
+  Tests_MGPageRank() {}
+  static void SetupTestCase() {}
+  static void TearDownTestCase() {}
 
-  // Run once for each test instance
   virtual void SetUp() {}
   virtual void TearDown() {}
 
@@ -99,10 +88,9 @@ class Pagerank_E2E_MG_Testfixture_t : public cugraph::test::MG_TestFixture_t,
     return h_pageranks;
   }
 
-  // Compare the results of running pagerank on multiple GPUs to that of a
-  // single-GPU run for the configuration in param.
+  // Compare the results of running pagerank on multiple GPUs to that of a single-GPU run
   template <typename vertex_t, typename edge_t, typename weight_t, typename result_t>
-  void run_test(const Pagerank_Testparams_t& param)
+  void run_current_test(Pagerank_Usecase const& configuration)
   {
     result_t constexpr alpha{0.85};
     result_t constexpr epsilon{1e-6};
@@ -130,7 +118,7 @@ class Pagerank_E2E_MG_Testfixture_t : public cugraph::test::MG_TestFixture_t,
 
     std::tie(mg_graph_ptr, d_renumber_map_labels) = cugraph::test::
       create_graph_for_gpu<vertex_t, edge_t, weight_t, true>  // store_transposed=true
-      (handle, param.graph_file_full_path);
+      (handle, configuration.graph_file_full_path);
 
     auto mg_graph_view = mg_graph_ptr->view();
 
@@ -166,7 +154,7 @@ class Pagerank_E2E_MG_Testfixture_t : public cugraph::test::MG_TestFixture_t,
     // compare to specific SG results for their respective range.
 
     auto h_sg_pageranks = get_sg_results<vertex_t, edge_t, weight_t, result_t>(
-      handle, param.graph_file_full_path, alpha, epsilon);
+      handle, configuration.graph_file_full_path, alpha, epsilon);
 
     // For this test, each GPU will have the full set of vertices and
     // therefore the pageranks vectors should be equal in size.
@@ -194,21 +182,20 @@ class Pagerank_E2E_MG_Testfixture_t : public cugraph::test::MG_TestFixture_t,
   }
 };
 
-////////////////////////////////////////////////////////////////////////////////
-TEST_P(Pagerank_E2E_MG_Testfixture_t, CheckInt32Int32FloatFloat)
+TEST_P(Tests_MGPageRank, CheckInt32Int32FloatFloat)
 {
-  run_test<int32_t, int32_t, float, float>(GetParam());
+  run_current_test<int32_t, int32_t, float, float>(GetParam());
 }
 
 INSTANTIATE_TEST_CASE_P(
-  e2e,
-  Pagerank_E2E_MG_Testfixture_t,
+  simple_test,
+  Tests_MGPageRank,
 
   // FIXME: the personalization_ratio and use_weighted boo are not used
   // (personilization vectors are not used, and all datasets are assumed
   // weighted). update this to use personilization vectors and non-weighted
   // graphs.
-  ::testing::Values(Pagerank_Testparams_t("test/datasets/karate.mtx", 0.0, true),
+  ::testing::Values(Pagerank_Usecase("test/datasets/karate.mtx", 0.0, true),
                     // FIXME: The commented datasets contain isolate vertices
                     // which result in a different number of vertices in the
                     // renumbered MG graph (because the renumbering function
@@ -220,10 +207,8 @@ INSTANTIATE_TEST_CASE_P(
                     // will result in a comparison of an equal number of
                     // pagerank values.
                     //
-                    // Pagerank_Testparams_t("test/datasets/web-Google.mtx", 0.0, true),
-                    // Pagerank_Testparams_t("test/datasets/ljournal-2008.mtx", 0.0, true),
-                    Pagerank_Testparams_t("test/datasets/webbase-1M.mtx", 0.0, true)));
+                    // Pagerank_Usecase("test/datasets/web-Google.mtx", 0.0, true),
+                    // Pagerank_Usecase("test/datasets/ljournal-2008.mtx", 0.0, true),
+                    Pagerank_Usecase("test/datasets/webbase-1M.mtx", 0.0, true)));
 
-// FIXME: Enable proper RMM configuration by using CUGRAPH_TEST_PROGRAM_MAIN().
-//        Currently seeing a RMM failure during init, need to investigate.
-// CUGRAPH_TEST_PROGRAM_MAIN()
+CUGRAPH_MG_TEST_PROGRAM_MAIN()
