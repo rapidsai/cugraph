@@ -22,7 +22,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
- #pragma once
+#pragma once
 
 #include <cassert>
 #include <cstdint>
@@ -30,11 +30,12 @@
 /* Apply a permutation to scramble vertex numbers; a randomly generated
  * permutation is not used because applying it at scale is too expensive. */
 template <typename vertex_t>
-__device__ std::enable_if_t<sizeof(vertex_t) == 8, vertex_t> scramble(vertex_t value, size_t lgN) {
+__device__ std::enable_if_t<sizeof(vertex_t) == 8, vertex_t> scramble(vertex_t value, size_t lgN)
+{
   assert(std::is_unsigned<vertex_t>::value || lgN < 64);
   assert(value >= 0);
 
-  constexpr uint64_t scramble_value0{606610977102444280};  // randomly generated
+  constexpr uint64_t scramble_value0{606610977102444280};    // randomly generated
   constexpr uint64_t scramble_value1{11680327234415193037};  // randomly generated
 
   auto v = static_cast<uint64_t>(value);
@@ -49,11 +50,12 @@ __device__ std::enable_if_t<sizeof(vertex_t) == 8, vertex_t> scramble(vertex_t v
 /* Apply a permutation to scramble vertex numbers; a randomly generated
  * permutation is not used because applying it at scale is too expensive. */
 template <typename vertex_t>
-__device__ std::enable_if_t<sizeof(vertex_t) == 4, vertex_t> scramble(vertex_t value, size_t lgN) {
+__device__ std::enable_if_t<sizeof(vertex_t) == 4, vertex_t> scramble(vertex_t value, size_t lgN)
+{
   assert(std::is_unsigned<vertex_t>::value || lgN < 32);
   assert(value >= 0);
 
-  constexpr uint32_t scramble_value0{282475248};  // randomly generated
+  constexpr uint32_t scramble_value0{282475248};   // randomly generated
   constexpr uint32_t scramble_value1{2617694917};  // randomly generated
 
   auto v = static_cast<uint32_t>(value);
@@ -68,11 +70,12 @@ __device__ std::enable_if_t<sizeof(vertex_t) == 4, vertex_t> scramble(vertex_t v
 /* Apply a permutation to scramble vertex numbers; a randomly generated
  * permutation is not used because applying it at scale is too expensive. */
 template <typename vertex_t>
-__device__ std::enable_if_t<sizeof(vertex_t) == 2, vertex_t> scramble(vertex_t value, size_t lgN) {
+__device__ std::enable_if_t<sizeof(vertex_t) == 2, vertex_t> scramble(vertex_t value, size_t lgN)
+{
   assert(std::is_unsigned<vertex_t>::value || lgN < 16);
   assert(value >= 0);
 
-  constexpr uint32_t scramble_value0{0};  // randomly generated
+  constexpr uint32_t scramble_value0{0};     // randomly generated
   constexpr uint32_t scramble_value1{8620};  // randomly generated
 
   auto v = static_cast<uint16_t>(value);
