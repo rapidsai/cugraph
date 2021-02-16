@@ -142,3 +142,25 @@ inline auto parse_test_options(int argc, char **argv)
     rmm::mr::set_current_device_resource(resource.get());                  \
     return RUN_ALL_TESTS();                                                \
   }
+
+#define CUGRAPH_MG_TEST_PROGRAM_MAIN()                                                              \
+  int main(int argc, char **argv)                                                                   \
+  {                                                                                                 \
+    MPI_TRY(MPI_Init(&argc, &argv));                                                                \
+    int comm_rank{};                                                                                \
+    int comm_size{};                                                                                \
+    MPI_TRY(MPI_Comm_rank(MPI_COMM_WORLD, &comm_rank));                                             \
+    MPI_TRY(MPI_Comm_size(MPI_COMM_WORLD, &comm_size));                                             \
+    int num_gpus{};                                                                                 \
+    CUDA_TRY(cudaGetDeviceCount(&num_gpus));                                                        \
+    CUGRAPH_EXPECTS(comm_size <= num_gpus, "# MPI ranks (%d) > # GPUs (%d).", comm_size, num_gpus); \
+    CUDA_TRY(cudaSetDevice(comm_rank));                                                             \
+    ::testing::InitGoogleTest(&argc, argv);                                                         \
+    auto const cmd_opts = parse_test_options(argc, argv);                                           \
+    auto const rmm_mode = cmd_opts["rmm_mode"].as<std::string>();                                   \
+    auto resource       = cugraph::test::create_memory_resource(rmm_mode);                          \
+    rmm::mr::set_current_device_resource(resource.get());                                           \
+    auto ret = RUN_ALL_TESTS();                                                                     \
+    MPI_TRY(MPI_Finalize());                                                                        \
+    return ret;                                                                                     \
+  }

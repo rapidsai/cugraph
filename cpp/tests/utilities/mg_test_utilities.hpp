@@ -36,42 +36,5 @@ std::tuple<
   rmm::device_uvector<vertex_t>>
 create_graph_for_gpu(raft::handle_t& handle, const std::string& graph_file_path);
 
-/**
- * @brief Base test fixture class, responsible for handling common operations
- * needed by all MG tests.
- *
- * It's expected this class will be built out and refactored often as new MG C++
- * tests are added and new patterns evolve.
- *
- * Example:
- * ```
- * class MyTestFixture : public cugraph::test::MG_TestFixture_t<My_Testparams_t> {};
- * ```
- **/
-
-// FIXME: consider moving this to a separate file? (eg. mg_test_fixture.cpp)?
-
-class MG_TestFixture_t : public ::testing::Test {
- public:
-  static void SetUpTestCase()
-  {
-    MPI_TRY(MPI_Init(NULL, NULL));
-
-    int rank, size;
-    MPI_TRY(MPI_Comm_rank(MPI_COMM_WORLD, &rank));
-    MPI_TRY(MPI_Comm_size(MPI_COMM_WORLD, &size));
-
-    int nGpus;
-    CUDA_CHECK(cudaGetDeviceCount(&nGpus));
-
-    ASSERT(
-      nGpus >= size, "Number of GPUs are lesser than MPI ranks! ngpus=%d, nranks=%d", nGpus, size);
-
-    CUDA_CHECK(cudaSetDevice(rank));
-  }
-
-  static void TearDownTestCase() { MPI_TRY(MPI_Finalize()); }
-};
-
 }  // namespace test
 }  // namespace cugraph
