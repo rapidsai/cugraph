@@ -20,7 +20,7 @@ def traveling_salesperson(pos_list,
                           restarts=100000,
                           beam_search=True,
                           k=4,
-                          nstart=1,
+                          nstart=None,
                           verbose=False,
                           ):
     """
@@ -62,7 +62,7 @@ def traveling_salesperson(pos_list,
     null_check(pos_list['x'])
     null_check(pos_list['y'])
 
-    if not pos_list[pos_list['vertex'] == nstart].index:
+    if nstart is not None and not pos_list[pos_list['vertex'] == nstart].index:
         raise ValueError("nstart should be in vertex ids")
 
     route, cost = traveling_salesperson_wrapper.traveling_salesperson(
