@@ -43,6 +43,7 @@ def traveling_salesperson(pos_list,
     cdef uintptr_t x_pos = <uintptr_t>NULL
     cdef uintptr_t y_pos = <uintptr_t>NULL
 
+    pos_list['vertex'] = pos_list['vertex'].astype(np.int32)
     pos_list['x'] = pos_list['x'].astype(np.float32)
     pos_list['y'] = pos_list['y'].astype(np.float32)
     x_pos = pos_list['x'].__cuda_array_interface__['data'][0]
