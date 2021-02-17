@@ -341,7 +341,7 @@ edgelist_from_market_matrix_file_t<vertex_t, weight_t> read_edgelist_from_matrix
   auto file_ret = fclose(file);
   CUGRAPH_EXPECTS(file_ret == 0, "fclose failure.");
 
-  return std::move(ret);
+  return ret;
 }
 
 template <typename vertex_t, typename edge_t, typename weight_t, bool store_transposed>
