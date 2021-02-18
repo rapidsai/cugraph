@@ -27,6 +27,9 @@ namespace experimental {
 /**
  * @brief generate an edge list for an R-mat graph.
  *
+ * This function allows multi-edges and self-loops similar to the Graph 500 reference
+ * implementation.
+ *
  * @p scramble_vertex_ids needs to be set to `true` to generate a graph conforming to the Graph 500
  * specification (note that scrambling does not affect cuGraph's graph construction performance, so
  * this is generally unnecessary). If `edge_factor` is given (e.g. Graph 500), set @p num_edges to
