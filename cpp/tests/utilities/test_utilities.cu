@@ -358,6 +358,8 @@ read_graph_from_matrix_market_file(raft::handle_t const& handle,
 {
   CUGRAPH_EXPECTS(renumber, "renumber should be true if multi_gpu is true.");
 
+  // 1. read from the matrix market file
+
   rmm::device_uvector<vertex_t> d_edgelist_rows(0, handle.get_stream());
   rmm::device_uvector<vertex_t> d_edgelist_cols(0, handle.get_stream());
   rmm::device_uvector<weight_t> d_edgelist_weights(0, handle.get_stream());
@@ -373,73 +375,74 @@ read_graph_from_matrix_market_file(raft::handle_t const& handle,
                    d_vertices.end(),
                    vertex_t{0});
 
-  if (multi_gpu) {
-    auto& comm               = handle.get_comms();
-    auto const comm_size     = comm.get_size();
-    auto const comm_rank     = comm.get_rank();
-    auto& row_comm           = handle.get_subcomm(cugraph::partition_2d::key_naming_t().row_name());
-    auto const row_comm_size = row_comm.get_size();
-    auto& col_comm           = handle.get_subcomm(cugraph::partition_2d::key_naming_t().col_name());
-    auto const col_comm_size = col_comm.get_size();
+  // 2. filter non-local vertices & edges
 
-    auto vertex_key_func =
-      cugraph::experimental::detail::compute_gpu_id_from_vertex_t<vertex_t>{comm_size};
-    d_vertices.resize(
-      thrust::distance(
-        d_vertices.begin(),
-        thrust::remove_if(rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
-                          d_vertices.begin(),
-                          d_vertices.end(),
-                          [comm_rank, key_func = vertex_key_func] __device__(auto val) {
-                            return key_func(val) != comm_rank;
-                          })),
-      handle.get_stream());
-    d_vertices.shrink_to_fit(handle.get_stream());
+  auto& comm               = handle.get_comms();
+  auto const comm_size     = comm.get_size();
+  auto const comm_rank     = comm.get_rank();
+  auto& row_comm           = handle.get_subcomm(cugraph::partition_2d::key_naming_t().row_name());
+  auto const row_comm_size = row_comm.get_size();
+  auto& col_comm           = handle.get_subcomm(cugraph::partition_2d::key_naming_t().col_name());
+  auto const col_comm_size = col_comm.get_size();
 
-    auto edge_key_func = cugraph::experimental::detail::compute_gpu_id_from_edge_t<vertex_t>{
-      false, comm_size, row_comm_size, col_comm_size};
-    size_t number_of_local_edges{};
-    if (test_weighted) {
-      auto edge_first       = thrust::make_zip_iterator(thrust::make_tuple(
-        d_edgelist_rows.begin(), d_edgelist_cols.begin(), d_edgelist_weights.begin()));
-      number_of_local_edges = thrust::distance(
-        edge_first,
-        thrust::remove_if(rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
-                          edge_first,
-                          edge_first + d_edgelist_rows.size(),
-                          [comm_rank, key_func = edge_key_func] __device__(auto e) {
-                            auto major = store_transposed ? thrust::get<1>(e) : thrust::get<0>(e);
-                            auto minor = store_transposed ? thrust::get<0>(e) : thrust::get<1>(e);
-                            return key_func(major, minor) != comm_rank;
-                          }));
-    } else {
-      auto edge_first = thrust::make_zip_iterator(
-        thrust::make_tuple(d_edgelist_rows.begin(), d_edgelist_cols.begin()));
-      number_of_local_edges = thrust::distance(
-        edge_first,
-        thrust::remove_if(rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
-                          edge_first,
-                          edge_first + d_edgelist_rows.size(),
-                          [comm_rank, key_func = edge_key_func] __device__(auto e) {
-                            auto major = store_transposed ? thrust::get<1>(e) : thrust::get<0>(e);
-                            auto minor = store_transposed ? thrust::get<0>(e) : thrust::get<1>(e);
-                            return key_func(major, minor) != comm_rank;
-                          }));
-    }
+  auto vertex_key_func =
+    cugraph::experimental::detail::compute_gpu_id_from_vertex_t<vertex_t>{comm_size};
+  d_vertices.resize(
+    thrust::distance(
+      d_vertices.begin(),
+      thrust::remove_if(rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
+                        d_vertices.begin(),
+                        d_vertices.end(),
+                        [comm_rank, key_func = vertex_key_func] __device__(auto val) {
+                          return key_func(val) != comm_rank;
+                        })),
+    handle.get_stream());
+  d_vertices.shrink_to_fit(handle.get_stream());
 
-    d_edgelist_rows.resize(number_of_local_edges, handle.get_stream());
-    d_edgelist_rows.shrink_to_fit(handle.get_stream());
-    d_edgelist_cols.resize(number_of_local_edges, handle.get_stream());
-    d_edgelist_cols.shrink_to_fit(handle.get_stream());
-    if (test_weighted) {
-      d_edgelist_weights.resize(number_of_local_edges, handle.get_stream());
-      d_edgelist_weights.shrink_to_fit(handle.get_stream());
-    }
+  auto edge_key_func = cugraph::experimental::detail::compute_gpu_id_from_edge_t<vertex_t>{
+    false, comm_size, row_comm_size, col_comm_size};
+  size_t number_of_local_edges{};
+  if (test_weighted) {
+    auto edge_first       = thrust::make_zip_iterator(thrust::make_tuple(
+      d_edgelist_rows.begin(), d_edgelist_cols.begin(), d_edgelist_weights.begin()));
+    number_of_local_edges = thrust::distance(
+      edge_first,
+      thrust::remove_if(rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
+                        edge_first,
+                        edge_first + d_edgelist_rows.size(),
+                        [comm_rank, key_func = edge_key_func] __device__(auto e) {
+                          auto major = store_transposed ? thrust::get<1>(e) : thrust::get<0>(e);
+                          auto minor = store_transposed ? thrust::get<0>(e) : thrust::get<1>(e);
+                          return key_func(major, minor) != comm_rank;
+                        }));
+  } else {
+    auto edge_first = thrust::make_zip_iterator(
+      thrust::make_tuple(d_edgelist_rows.begin(), d_edgelist_cols.begin()));
+    number_of_local_edges = thrust::distance(
+      edge_first,
+      thrust::remove_if(rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
+                        edge_first,
+                        edge_first + d_edgelist_rows.size(),
+                        [comm_rank, key_func = edge_key_func] __device__(auto e) {
+                          auto major = store_transposed ? thrust::get<1>(e) : thrust::get<0>(e);
+                          auto minor = store_transposed ? thrust::get<0>(e) : thrust::get<1>(e);
+                          return key_func(major, minor) != comm_rank;
+                        }));
   }
 
+  d_edgelist_rows.resize(number_of_local_edges, handle.get_stream());
+  d_edgelist_rows.shrink_to_fit(handle.get_stream());
+  d_edgelist_cols.resize(number_of_local_edges, handle.get_stream());
+  d_edgelist_cols.shrink_to_fit(handle.get_stream());
+  if (test_weighted) {
+    d_edgelist_weights.resize(number_of_local_edges, handle.get_stream());
+    d_edgelist_weights.shrink_to_fit(handle.get_stream());
+  }
+
+  // 3. renumber
+
   rmm::device_uvector<vertex_t> renumber_map_labels(0, handle.get_stream());
-  cugraph::experimental::partition_t<vertex_t> partition(
-    std::vector<vertex_t>{}, false, 0, 0, 0, 0);
+  cugraph::experimental::partition_t<vertex_t> partition{};
   vertex_t aggregate_number_of_vertices{};
   edge_t number_of_edges{};
   // FIXME: set do_expensive_check to false once validated
@@ -454,6 +457,8 @@ read_graph_from_matrix_market_file(raft::handle_t const& handle,
       false,
       true);
   assert(aggregate_number_of_vertices == number_of_vertices);
+
+  // 4. create a graph
 
   return std::make_tuple(
     cugraph::experimental::graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu>(
