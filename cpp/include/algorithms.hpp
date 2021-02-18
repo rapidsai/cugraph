@@ -1129,7 +1129,7 @@ void katz_centrality(raft::handle_t const &handle,
  * @tparam multi_gpu Flag indicating whether template instantiation should target single-GPU (false)
  * or multi-GPU (true).
  * @param handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator, and
- * handles to various CUDA libraries) to run graph algorithms.
+ * handles to various CUDA libraries) to run graph algorithms. Must have at least one worker stream.
  * @param graph_view Graph view object of, we extract induced egonet subgraphs from @p graph_view.
  * @param source_vertex Pointer to egonet center vertices (size == @p n_subgraphs).
  * @param n_subgraphs Number of induced EgoNet subgraphs to extract (ie. number of elements in @p

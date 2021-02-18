@@ -68,9 +68,7 @@ class Tests_InducedEgo : public ::testing::TestWithParam<InducedEgo_Usecase> {
   template <typename vertex_t, typename edge_t, typename weight_t, bool store_transposed>
   void run_current_test(InducedEgo_Usecase const& configuration)
   {
-    int n_streams = 0;
-    if (configuration.ego_sources.size() > 1)
-      n_streams = std::min(configuration.ego_sources.size(), 128);
+    int n_streams = std::min(configuration.ego_sources.size(), static_cast<std::size_t>(128));
     raft::handle_t handle(n_streams);
 
     auto graph = cugraph::test::
@@ -181,11 +179,11 @@ INSTANTIATE_TEST_CASE_P(
   simple_test,
   Tests_InducedEgo,
   ::testing::Values(
-    InducedEgo_Usecase("test/datasets/soc-LiveJournal1.mtx", std::vector<int32_t>{0}, 1, false),
-    InducedEgo_Usecase("test/datasets/soc-LiveJournal1.mtx", std::vector<int32_t>{0}, 2, false),
-    InducedEgo_Usecase("test/datasets/soc-LiveJournal1.mtx", std::vector<int32_t>{0}, 3, false),
-    InducedEgo_Usecase("test/datasets/soc-LiveJournal1.mtx", std::vector<int32_t>{0}, 4, false),
-    InducedEgo_Usecase("test/datasets/soc-LiveJournal1.mtx", std::vector<int32_t>{0}, 5, false),
+    // InducedEgo_Usecase("test/datasets/soc-LiveJournal1.mtx", std::vector<int32_t>{0}, 1, false),
+    // InducedEgo_Usecase("test/datasets/soc-LiveJournal1.mtx", std::vector<int32_t>{0}, 2, false),
+    // InducedEgo_Usecase("test/datasets/soc-LiveJournal1.mtx", std::vector<int32_t>{0}, 3, false),
+    // InducedEgo_Usecase("test/datasets/soc-LiveJournal1.mtx", std::vector<int32_t>{0}, 4, false),
+    // InducedEgo_Usecase("test/datasets/soc-LiveJournal1.mtx", std::vector<int32_t>{0}, 5, false),
     InducedEgo_Usecase(
       "test/datasets/soc-LiveJournal1.mtx", std::vector<int32_t>{363617}, 2, false),
     InducedEgo_Usecase(
@@ -314,5 +312,4 @@ INSTANTIATE_TEST_CASE_P(
         2079145, 2975635, 535071,  4287509, 3281107, 39606,   3115500, 3204573, 722131,  3124073},
       2,
       false)));
-
 CUGRAPH_TEST_PROGRAM_MAIN()
