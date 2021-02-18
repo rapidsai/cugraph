@@ -280,8 +280,7 @@ class Tests_CoarsenGraph : public ::testing::TestWithParam<CoarsenGraph_Usecase>
       cugraph::experimental::graph_properties_t{},
       false,
       false);
-    std::tie(graph, std::ignore) =
-    cugraph::test::
+    std::tie(graph, std::ignore) = cugraph::test::
       read_graph_from_matrix_market_file<vertex_t, edge_t, weight_t, store_transposed, false>(
         handle, configuration.graph_file_full_path, configuration.test_weighted, false);
     auto graph_view = graph.view();

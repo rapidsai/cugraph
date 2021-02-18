@@ -20,9 +20,9 @@
 #include <algorithms.hpp>
 #include <partition_manager.hpp>
 
-#include <raft/handle.hpp>
 #include <raft/comms/comms.hpp>
 #include <raft/comms/mpi_comms.hpp>
+#include <raft/handle.hpp>
 
 #include <gtest/gtest.h>
 
@@ -34,8 +34,8 @@ typedef struct Pagerank_Usecase_t {
   bool test_weighted{false};
 
   Pagerank_Usecase_t(std::string const& graph_file_path,
-                        double personalization_ratio,
-                        bool test_weighted)
+                     double personalization_ratio,
+                     bool test_weighted)
     : personalization_ratio(personalization_ratio), test_weighted(test_weighted)
   {
     if ((graph_file_path.length() > 0) && (graph_file_path[0] != '/')) {
@@ -70,10 +70,14 @@ class Tests_MGPageRank : public ::testing::TestWithParam<Pagerank_Usecase> {
       cugraph::experimental::graph_properties_t{},
       false,
       false);
-    rmm::device_uvector<vertex_t> renumber_map_labels(0, handle.get_stream());  // dummy if renumber == false
+    rmm::device_uvector<vertex_t> renumber_map_labels(
+      0, handle.get_stream());  // dummy if renumber == false
     std::tie(graph, renumber_map_labels) =
       cugraph::test::read_graph_from_matrix_market_file<vertex_t, edge_t, weight_t, true, false>(
-        handle, graph_file_path, true, true);  // FIXME: should use param.test_weighted instead of true
+        handle,
+        graph_file_path,
+        true,
+        true);  // FIXME: should use param.test_weighted instead of true
 
     auto graph_view     = graph.view();
     cudaStream_t stream = handle.get_stream();
@@ -130,10 +134,14 @@ class Tests_MGPageRank : public ::testing::TestWithParam<Pagerank_Usecase> {
       cugraph::experimental::graph_properties_t{},
       true,
       true);
-    rmm::device_uvector<vertex_t> renumber_map_labels(0, handle.get_stream());  // dummy if renumber == false
+    rmm::device_uvector<vertex_t> renumber_map_labels(
+      0, handle.get_stream());  // dummy if renumber == false
     std::tie(graph, renumber_map_labels) =
       cugraph::test::read_graph_from_matrix_market_file<vertex_t, edge_t, weight_t, true, true>(
-        handle, configuration.graph_file_full_path, configuration.test_weighted, true);  // FIXME: should use param.test_weighted instead of true
+        handle,
+        configuration.graph_file_full_path,
+        configuration.test_weighted,
+        true);  // FIXME: should use param.test_weighted instead of true
 
     auto mg_graph_view = graph.view();
 
@@ -159,10 +167,8 @@ class Tests_MGPageRank : public ::testing::TestWithParam<Pagerank_Usecase> {
     raft::update_host(h_mg_pageranks.data(), d_mg_pageranks.data(), d_mg_pageranks.size(), stream);
 
     std::vector<vertex_t> h_renumber_map_labels(mg_graph_view.get_number_of_vertices());
-    raft::update_host(h_renumber_map_labels.data(),
-                      renumber_map_labels.data(),
-                      renumber_map_labels.size(),
-                      stream);
+    raft::update_host(
+      h_renumber_map_labels.data(), renumber_map_labels.data(), renumber_map_labels.size(), stream);
 
     // Compare MG to SG
     // Each GPU will have pagerank values for their range, so ech GPU must

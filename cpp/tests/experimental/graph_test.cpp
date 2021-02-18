@@ -107,13 +107,10 @@ class Tests_Graph : public ::testing::TestWithParam<Graph_Usecase> {
     std::vector<vertex_t> h_cols(number_of_edges);
     std::vector<weight_t> h_weights(configuration.test_weighted ? number_of_edges : edge_t{0});
 
-    raft::update_host(
-      h_rows.data(), d_rows.data(), number_of_edges, handle.get_stream());
-    raft::update_host(
-      h_cols.data(), d_cols.data(), number_of_edges, handle.get_stream());
+    raft::update_host(h_rows.data(), d_rows.data(), number_of_edges, handle.get_stream());
+    raft::update_host(h_cols.data(), d_cols.data(), number_of_edges, handle.get_stream());
     if (configuration.test_weighted) {
-      raft::update_host(
-        h_weights.data(), d_weights.data(), number_of_edges, handle.get_stream());
+      raft::update_host(h_weights.data(), d_weights.data(), number_of_edges, handle.get_stream());
     }
     CUDA_TRY(cudaStreamSynchronize(handle.get_stream()));
 
