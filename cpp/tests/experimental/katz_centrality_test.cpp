@@ -117,13 +117,7 @@ class Tests_KatzCentrality : public ::testing::TestWithParam<KatzCentrality_Usec
   {
     raft::handle_t handle{};
 
-    cugraph::experimental::graph_t<vertex_t, edge_t, weight_t, true, false> graph(
-      handle,
-      cugraph::experimental::edgelist_t<vertex_t, edge_t, weight_t>{},
-      vertex_t{0},
-      cugraph::experimental::graph_properties_t{},
-      false,
-      false);
+    cugraph::experimental::graph_t<vertex_t, edge_t, weight_t, true, false> graph(handle);
     std::tie(graph, std::ignore) =
       cugraph::test::read_graph_from_matrix_market_file<vertex_t, edge_t, weight_t, true, false>(
         handle, configuration.graph_file_full_path, configuration.test_weighted, false);

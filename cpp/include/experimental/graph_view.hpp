@@ -82,6 +82,8 @@ namespace experimental {
 template <typename vertex_t>
 class partition_t {
  public:
+  partition_t() = default;
+
   partition_t(std::vector<vertex_t> const& vertex_partition_offsets,
               bool hypergraph_partitioned,
               int row_comm_size,
@@ -247,6 +249,8 @@ size_t constexpr num_segments_per_vertex_partition{3};
 template <typename vertex_t, typename edge_t, typename weight_t>
 class graph_base_t {
  public:
+  graph_base_t() = default;
+
   graph_base_t(raft::handle_t const& handle,
                vertex_t number_of_vertices,
                edge_t number_of_edges,
