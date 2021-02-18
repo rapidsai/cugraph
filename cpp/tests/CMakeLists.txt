@@ -57,8 +57,6 @@ function(ConfigureTest CMAKE_TEST_NAME CMAKE_TEST_SRC)
 	"${LIBCUDACXX_INCLUDE_DIR}"
         "${CMAKE_CUDA_TOOLKIT_INCLUDE_DIRECTORIES}"
         "${RMM_INCLUDE}"
-        "${CUDF_INCLUDE}"
-        "${CUDF_INCLUDE}/libcudf/libcudacxx"
         "${NCCL_INCLUDE_DIRS}"
         "${CMAKE_CURRENT_SOURCE_DIR}/../../thirdparty/mmio"
         "${CMAKE_CURRENT_SOURCE_DIR}/../include"
