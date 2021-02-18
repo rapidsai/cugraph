@@ -235,42 +235,6 @@ int mm_to_coo(FILE* f,
   return 0;
 }
 
-int read_binary_vector(FILE* fpin, int n, std::vector<float>& val)
-{
-  size_t is_read1;
-
-  double* t_storage = new double[n];
-  is_read1          = fread(t_storage, sizeof(double), n, fpin);
-  for (int i = 0; i < n; i++) {
-    if (t_storage[i] == DBL_MAX)
-      val[i] = FLT_MAX;
-    else if (t_storage[i] == -DBL_MAX)
-      val[i] = -FLT_MAX;
-    else
-      val[i] = static_cast<float>(t_storage[i]);
-  }
-  delete[] t_storage;
-
-  if (is_read1 != (size_t)n) {
-    printf("%s", "I/O fail\n");
-    return 1;
-  }
-  return 0;
-}
-
-int read_binary_vector(FILE* fpin, int n, std::vector<double>& val)
-{
-  size_t is_read1;
-
-  is_read1 = fread(&val[0], sizeof(double), n, fpin);
-
-  if (is_read1 != (size_t)n) {
-    printf("%s", "I/O fail\n");
-    return 1;
-  }
-  return 0;
-}
-
 // FIXME: A similar function could be useful for CSC format
 //        There are functions above that operate coo -> csr and coo->csc
 /**

@@ -79,10 +79,6 @@ int mm_to_coo(FILE* f,
               ValueType_* cooRVal,
               ValueType_* cooIVal);
 
-int read_binary_vector(FILE* fpin, int n, std::vector<float>& val);
-
-int read_binary_vector(FILE* fpin, int n, std::vector<double>& val);
-
 // FIXME: A similar function could be useful for CSC format
 //        There are functions above that operate coo -> csr and coo->csc
 /**
