@@ -412,7 +412,6 @@ if(BUILD_CUGRAPH_MG_TESTS)
         set(MG_PAGERANK_TEST_SRCS
             "${CMAKE_CURRENT_SOURCE_DIR}/../../thirdparty/mmio/mmio.c"
             "${CMAKE_CURRENT_SOURCE_DIR}/utilities/test_utilities.cu"
-            "${CMAKE_CURRENT_SOURCE_DIR}/utilities/mg_test_utilities.cu"
             "${CMAKE_CURRENT_SOURCE_DIR}/pagerank/pagerank_mg_test.cpp")
 
         ConfigureTest(MG_PAGERANK_TEST "${MG_PAGERANK_TEST_SRCS}")

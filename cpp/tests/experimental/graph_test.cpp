@@ -91,10 +91,31 @@ class Tests_Graph : public ::testing::TestWithParam<Graph_Usecase> {
   template <typename vertex_t, typename edge_t, typename weight_t, bool store_transposed>
   void run_current_test(Graph_Usecase const& configuration)
   {
-    auto mm_graph =
-      cugraph::test::read_edgelist_from_matrix_market_file<vertex_t, edge_t, weight_t>(
-        configuration.graph_file_full_path);
-    edge_t number_of_edges = static_cast<edge_t>(mm_graph.h_rows.size());
+    raft::handle_t handle{};
+
+    rmm::device_uvector<vertex_t> d_rows(0, handle.get_stream());
+    rmm::device_uvector<vertex_t> d_cols(0, handle.get_stream());
+    rmm::device_uvector<weight_t> d_weights(0, handle.get_stream());
+    vertex_t number_of_vertices{};
+    bool is_symmetric{};
+    std::tie(d_rows, d_cols, d_weights, number_of_vertices, is_symmetric) =
+      cugraph::test::read_edgelist_from_matrix_market_file<vertex_t, weight_t>(
+        handle, configuration.graph_file_full_path, configuration.test_weighted);
+    edge_t number_of_edges = static_cast<edge_t>(d_rows.size());
+
+    std::vector<vertex_t> h_rows(number_of_edges);
+    std::vector<vertex_t> h_cols(number_of_edges);
+    std::vector<weight_t> h_weights(configuration.test_weighted ? number_of_edges : edge_t{0});
+
+    raft::update_host(
+      h_rows.data(), d_rows.data(), number_of_edges, handle.get_stream());
+    raft::update_host(
+      h_cols.data(), d_cols.data(), number_of_edges, handle.get_stream());
+    if (configuration.test_weighted) {
+      raft::update_host(
+        h_weights.data(), d_weights.data(), number_of_edges, handle.get_stream());
+    }
+    CUDA_TRY(cudaStreamSynchronize(handle.get_stream()));
 
     std::vector<edge_t> h_reference_offsets{};
     std::vector<vertex_t> h_reference_indices{};
@@ -102,27 +123,11 @@ class Tests_Graph : public ::testing::TestWithParam<Graph_Usecase> {
 
     std::tie(h_reference_offsets, h_reference_indices, h_reference_weights) =
       graph_reference<store_transposed>(
-        mm_graph.h_rows.data(),
-        mm_graph.h_cols.data(),
-        configuration.test_weighted ? mm_graph.h_weights.data() : nullptr,
-        mm_graph.number_of_vertices,
+        h_rows.data(),
+        h_cols.data(),
+        configuration.test_weighted ? h_weights.data() : static_cast<weight_t*>(nullptr),
+        number_of_vertices,
         number_of_edges);
-
-    raft::handle_t handle{};
-
-    rmm::device_uvector<vertex_t> d_rows(number_of_edges, handle.get_stream());
-    rmm::device_uvector<vertex_t> d_cols(number_of_edges, handle.get_stream());
-    rmm::device_uvector<weight_t> d_weights(configuration.test_weighted ? number_of_edges : 0,
-                                            handle.get_stream());
-
-    raft::update_device(
-      d_rows.data(), mm_graph.h_rows.data(), number_of_edges, handle.get_stream());
-    raft::update_device(
-      d_cols.data(), mm_graph.h_cols.data(), number_of_edges, handle.get_stream());
-    if (configuration.test_weighted) {
-      raft::update_device(
-        d_weights.data(), mm_graph.h_weights.data(), number_of_edges, handle.get_stream());
-    }
 
     cugraph::experimental::edgelist_t<vertex_t, edge_t, weight_t> edgelist{
       d_rows.data(),
@@ -136,8 +141,8 @@ class Tests_Graph : public ::testing::TestWithParam<Graph_Usecase> {
       cugraph::experimental::graph_t<vertex_t, edge_t, weight_t, store_transposed, false>(
         handle,
         edgelist,
-        mm_graph.number_of_vertices,
-        cugraph::experimental::graph_properties_t{mm_graph.is_symmetric, false},
+        number_of_vertices,
+        cugraph::experimental::graph_properties_t{is_symmetric, false},
         false,
         true);
 
@@ -145,7 +150,7 @@ class Tests_Graph : public ::testing::TestWithParam<Graph_Usecase> {
 
     CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
 
-    ASSERT_EQ(graph_view.get_number_of_vertices(), mm_graph.number_of_vertices);
+    ASSERT_EQ(graph_view.get_number_of_vertices(), number_of_vertices);
     ASSERT_EQ(graph_view.get_number_of_edges(), number_of_edges);
 
     std::vector<edge_t> h_cugraph_offsets(graph_view.get_number_of_vertices() + 1);
@@ -174,7 +179,7 @@ class Tests_Graph : public ::testing::TestWithParam<Graph_Usecase> {
       std::equal(h_reference_offsets.begin(), h_reference_offsets.end(), h_cugraph_offsets.begin()))
       << "Graph compressed sparse format offsets do not match with the reference values.";
     ASSERT_EQ(h_reference_weights.size(), h_cugraph_weights.size());
-    for (vertex_t i = 0; i < mm_graph.number_of_vertices; ++i) {
+    for (vertex_t i = 0; i < number_of_vertices; ++i) {
       auto start  = h_reference_offsets[i];
       auto degree = h_reference_offsets[i + 1] - start;
       if (configuration.test_weighted) {
