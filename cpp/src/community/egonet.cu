@@ -68,7 +68,7 @@ extract(
 {
   auto v           = csr_view.get_number_of_vertices();
   auto e           = csr_view.get_number_of_edges();
-  auto user_stream = handle.get_stream();
+  auto user_stream = handle.get_stream_view();
   float avg_degree = e / v;
   rmm::device_vector<size_t> neighbors_offsets(n_subgraphs + 1);
   rmm::device_vector<vertex_t> neighbors;
@@ -76,29 +76,41 @@ extract(
   std::vector<vertex_t> h_source_vertex(n_subgraphs);
   std::vector<size_t> neighbors_offsets_h(n_subgraphs + 1);
 
-  raft::update_host(&h_source_vertex[0], source_vertex, n_subgraphs, user_stream);
+  raft::update_host(&h_source_vertex[0], source_vertex, n_subgraphs, user_stream.value());
 
-// each source should be done concurently in the future
+  // Streams will allocate concurrently later
+  std::vector<rmm::device_uvector<vertex_t>> reached{};
+  reached.reserve(handle.get_num_internal_streams());
+
 #ifdef TIMING
   HighResTimer hr_timer;
   hr_timer.start("ego_neighbors");
 #endif
-  std::vector<rmm::device_vector<vertex_t>> reached(handle.get_num_internal_streams());
 
   for (vertex_t i = 0; i < n_subgraphs; i++) {
     // get light handle from worker pool
     raft::handle_t light_handle(handle, i);
     auto worker_stream = light_handle.get_stream_view();
-    reached[i].resize(v);
+
+    // Allocations and operations are attached to the worker stream
+    rmm::device_uvector<vertex_t> local_reach(v, worker_stream);
+    reached.push_back(std::move(local_reach));
 
     // BFS with cutoff
-    // FIXME consider adding a device API to BFS (ie. accept source on the device)
-    rmm::device_vector<vertex_t> predecessors(v);  // not used
+    // consider adding a device API to BFS (ie. accept source on the device)
+    rmm::device_uvector<vertex_t> predecessors(v, worker_stream);  // not used
     bool direction_optimizing = false;
+    thrust::fill(rmm::exec_policy(worker_stream),
+                 reached[i].begin(),
+                 reached[i].end(),
+                 std::numeric_limits<vertex_t>::max());
+    thrust::fill(
+      rmm::exec_policy(worker_stream), reached[i].begin(), reached[i].begin() + 100, 1.0);
+
     cugraph::experimental::bfs<vertex_t, edge_t, weight_t, false>(light_handle,
                                                                   csr_view,
-                                                                  reached[i].data().get(),
-                                                                  predecessors.data().get(),
+                                                                  reached[i].data(),
+                                                                  predecessors.data(),
                                                                   h_source_vertex[i],
                                                                   direction_optimizing,
                                                                   radius);
@@ -117,24 +129,25 @@ extract(
                                       reached[i].begin(),
                                       reached[i].end(),
                                       std::numeric_limits<vertex_t>::max());
-    // worker_stream.synchronize();
-    reached[i].resize(thrust::distance(reached[i].begin(), reached_end));
+    // release temp storage
+    reached[i].resize(thrust::distance(reached[i].begin(), reached_end), worker_stream);
+    reached[i].shrink_to_fit(worker_stream);
   }
 
   // wait on every one to identify their neighboors before proceeding to concatenation
+  // this also sync with user stream
   handle.wait_on_internal_streams();
 
-  // Construct neighboors offsets
+  // Construct neighboors offsets (just a scan on neighborhod vector sizes)
   neighbors_offsets_h[0] = 0;
   for (vertex_t i = 0; i < n_subgraphs; i++) {
     neighbors_offsets_h[i + 1] = neighbors_offsets_h[i] + reached[i].size();
   }
-
   raft::update_device(
-    neighbors_offsets.data().get(), &neighbors_offsets_h[0], n_subgraphs + 1, user_stream);
+    neighbors_offsets.data().get(), &neighbors_offsets_h[0], n_subgraphs + 1, user_stream.value());
   neighbors.resize(neighbors_offsets_h[n_subgraphs]);
 
-  // Construct the neighboors list
+  // Construct the neighboors list concurrently
   for (vertex_t i = 0; i < n_subgraphs; i++) {
     raft::handle_t light_handle(handle, i);
     auto worker_stream = light_handle.get_stream_view();
@@ -142,17 +155,20 @@ extract(
                  reached[i].begin(),
                  reached[i].end(),
                  neighbors.begin() + neighbors_offsets_h[i]);
-    // worker_stream.synchronize();
-    reached[i].clear();
+
+    // reached info is not needed anymore
+    reached[i].resize(0, worker_stream);
+    reached[i].shrink_to_fit(worker_stream);
   }
 
-  // wait on every one before proceeding to group extraction
+  // wait on every one before proceeding to grouped extraction
   handle.wait_on_internal_streams();
 
 #ifdef TIMING
   hr_timer.stop();
   hr_timer.display(std::cout);
 #endif
+
   // extract
   return cugraph::experimental::extract_induced_subgraphs(
     handle, csr_view, neighbors_offsets.data().get(), neighbors.data().get(), n_subgraphs);
