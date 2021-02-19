@@ -226,10 +226,10 @@ class Tests_PageRank : public ::testing::TestWithParam<PageRank_Usecase> {
                           handle.get_stream());
     }
 
-    std::vector<result_t> h_reference_pageranks(graph_view.get_number_of_vertices());
-
     result_t constexpr alpha{0.85};
     result_t constexpr epsilon{1e-6};
+
+    std::vector<result_t> h_reference_pageranks(graph_view.get_number_of_vertices());
 
     pagerank_reference(h_offsets.data(),
                        h_indices.data(),
