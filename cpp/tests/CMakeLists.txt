@@ -380,7 +380,7 @@ if(BUILD_CUGRAPH_MG_TESTS)
         # - MG PAGERANK tests ---------------------------------------------------------------------
 
         set(MG_PAGERANK_TEST_SRCS
-            "${CMAKE_CURRENT_SOURCE_DIR}/pagerank/pagerank_mg_test.cpp")
+            "${CMAKE_CURRENT_SOURCE_DIR}/pagerank/mg_pagerank_test.cpp")
 
         ConfigureTest(MG_PAGERANK_TEST "${MG_PAGERANK_TEST_SRCS}")
         target_link_libraries(MG_PAGERANK_TEST PRIVATE MPI::MPI_C MPI::MPI_CXX)
