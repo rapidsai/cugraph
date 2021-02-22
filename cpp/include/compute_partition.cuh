@@ -65,7 +65,6 @@ class compute_partition_t {
                         vertex_partition_offsets.data(),
                         vertex_partition_offsets.size(),
                         handle.get_stream());
-    CUDA_TRY(cudaStreamSynchronize(handle.get_stream()));
   }
 
  public:
