@@ -241,7 +241,7 @@ transform_reduce_by_adj_matrix_row_col_key_e(
       rmm::device_uvector<vertex_t> rx_unique_keys(0, handle.get_stream());
       auto rx_value_for_unique_key_buffer = allocate_dataframe_buffer<T>(0, handle.get_stream());
       std::tie(rx_unique_keys, rx_value_for_unique_key_buffer, std::ignore) =
-        sort_and_shuffle_kv_pairs(
+        groupby_gpuid_and_shuffle_kv_pairs(
           comm,
           unique_keys.begin(),
           unique_keys.end(),

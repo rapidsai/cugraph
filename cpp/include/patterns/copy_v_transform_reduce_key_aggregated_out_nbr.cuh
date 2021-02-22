@@ -234,7 +234,7 @@ void copy_v_transform_reduce_key_aggregated_out_nbr(
 
     rmm::device_uvector<vertex_t> rx_unique_keys(0, handle.get_stream());
     std::vector<size_t> rx_value_counts{};
-    std::tie(rx_unique_keys, rx_value_counts) = sort_and_shuffle_values(
+    std::tie(rx_unique_keys, rx_value_counts) = groupby_gpuid_and_shuffle_values(
       comm,
       unique_keys.begin(),
       unique_keys.end(),
@@ -372,7 +372,7 @@ void copy_v_transform_reduce_key_aggregated_out_nbr(
       rmm::device_uvector<weight_t> rx_key_aggregated_edge_weights(0, handle.get_stream());
       std::forward_as_tuple(
         std::tie(rx_major_vertices, rx_minor_keys, rx_key_aggregated_edge_weights), std::ignore) =
-        sort_and_shuffle_values(
+        groupby_gpuid_and_shuffle_values(
           sub_comm,
           triplet_first,
           triplet_first + tmp_major_vertices.size(),

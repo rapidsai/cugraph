@@ -749,7 +749,8 @@ void call_sssp(raft::handle_t const& handle,
 template <typename vertex_t, typename edge_t, typename weight_t>
 std::unique_ptr<major_minor_weights_t<vertex_t, weight_t>> call_shuffle(
   raft::handle_t const& handle,
-  vertex_t* edgelist_major_vertices,  // [IN / OUT]: sort_and_shuffle_values() sorts in-place
+  vertex_t*
+    edgelist_major_vertices,  // [IN / OUT]: groupby_gpuid_and_shuffle_values() sorts in-place
   vertex_t* edgelist_minor_vertices,  // [IN / OUT]
   weight_t* edgelist_weights,         // [IN / OUT]
   edge_t num_edgelist_edges,
@@ -770,7 +771,7 @@ std::unique_ptr<major_minor_weights_t<vertex_t, weight_t>> call_shuffle(
   std::forward_as_tuple(
     std::tie(ptr_ret->get_major(), ptr_ret->get_minor(), ptr_ret->get_weights()),
     std::ignore) =
-    cugraph::experimental::sort_and_shuffle_values(
+    cugraph::experimental::groupby_gpuid_and_shuffle_values(
       comm,  // handle.get_comms(),
       zip_edge,
       zip_edge + num_edgelist_edges,
