@@ -157,7 +157,7 @@ class Bucket {
 
   void insert(vertex_t v)
   {
-    *thrust::device_ptr<vertex_t>(elements_.data() + size_) = v;
+    raft::update_device(elements_.data() + size_, &v, 1, handle_ptr_->get_stream());
     ++size_;
   }
 
