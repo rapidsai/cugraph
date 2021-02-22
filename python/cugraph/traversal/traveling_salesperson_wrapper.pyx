@@ -31,7 +31,7 @@ def traveling_salesperson(pos_list,
                           restarts=100000,
                           beam_search=True,
                           k=4,
-                          nstart=1,
+                          nstart=None,
                           verbose=False,
                           renumber=True,
 ):
@@ -43,6 +43,7 @@ def traveling_salesperson(pos_list,
     cdef uintptr_t x_pos = <uintptr_t>NULL
     cdef uintptr_t y_pos = <uintptr_t>NULL
 
+    pos_list['vertex'] = pos_list['vertex'].astype(np.int32)
     pos_list['x'] = pos_list['x'].astype(np.float32)
     pos_list['y'] = pos_list['y'].astype(np.float32)
     x_pos = pos_list['x'].__cuda_array_interface__['data'][0]
@@ -61,7 +62,10 @@ def traveling_salesperson(pos_list,
     cdef uintptr_t vtx_ptr = <uintptr_t>NULL
     vtx_ptr = pos_list['vertex'].__cuda_array_interface__['data'][0]
 
-    renumbered_nstart = pos_list[pos_list['vertex'] == nstart].index[0]
+    if nstart is None:
+      renumbered_nstart = 0
+    else:
+      renumbered_nstart = pos_list[pos_list['vertex'] == nstart].index[0]
 
     final_cost = c_traveling_salesperson(handle_[0],
             <int*> vtx_ptr,
