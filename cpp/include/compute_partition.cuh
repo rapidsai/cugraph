@@ -39,27 +39,33 @@ class compute_partition_t {
   using graph_view_t = graph_view_type;
   using vertex_t     = typename graph_view_type::vertex_type;
 
-  compute_partition_t(graph_view_t const &graph_view)
+  compute_partition_t(raft::handle_t const &handle, graph_view_t const &graph_view)
+    : vertex_partition_offsets_v_(0, handle.get_stream())
   {
-    init<graph_view_t::is_multi_gpu>(graph_view);
+    init<graph_view_t::is_multi_gpu>(handle, graph_view);
   }
 
  private:
   template <bool is_multi_gpu, typename std::enable_if_t<!is_multi_gpu> * = nullptr>
-  void init(graph_view_t const &graph_view)
+  void init(raft::handle_t const &handle, graph_view_t const &graph_view)
   {
   }
 
   template <bool is_multi_gpu, typename std::enable_if_t<is_multi_gpu> * = nullptr>
-  void init(graph_view_t const &graph_view)
+  void init(raft::handle_t const &handle, graph_view_t const &graph_view)
   {
     auto partition = graph_view.get_partition();
     row_size_      = partition.get_row_size();
     col_size_      = partition.get_col_size();
     size_          = row_size_ * col_size_;
 
-    vertex_partition_offsets_v_.resize(size_ + 1);
-    vertex_partition_offsets_v_ = partition.get_vertex_partition_offsets();
+    vertex_partition_offsets_v_.resize(size_ + 1, handle.get_stream());
+    auto vertex_partition_offsets = partition.get_vertex_partition_offsets();
+    raft::update_device(vertex_partition_offsets_v_.data(),
+                        vertex_partition_offsets.data(),
+                        vertex_partition_offsets.size(),
+                        handle.get_stream());
+    CUDA_TRY(cudaStreamSynchronize(handle.get_stream()));
   }
 
  public:
@@ -166,7 +172,7 @@ class compute_partition_t {
    */
   vertex_device_view_t vertex_device_view() const
   {
-    return vertex_device_view_t(vertex_partition_offsets_v_.data().get(), size_);
+    return vertex_device_view_t(vertex_partition_offsets_v_.data(), size_);
   }
 
   /**
@@ -176,12 +182,11 @@ class compute_partition_t {
    */
   edge_device_view_t edge_device_view() const
   {
-    return edge_device_view_t(
-      vertex_partition_offsets_v_.data().get(), row_size_, col_size_, size_);
+    return edge_device_view_t(vertex_partition_offsets_v_.data(), row_size_, col_size_, size_);
   }
 
  private:
-  rmm::device_vector<vertex_t> vertex_partition_offsets_v_{};
+  rmm::device_uvector<vertex_t> vertex_partition_offsets_v_;
   int row_size_{1};
   int col_size_{1};
   int size_{1};
