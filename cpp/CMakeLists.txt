@@ -298,7 +298,7 @@ else(DEFINED ENV{RAFT_PATH})
   FetchContent_Declare(
     raft
     GIT_REPOSITORY    https://github.com/rapidsai/raft.git
-    GIT_TAG           4a79adcb0c0e87964dcdc9b9122f242b5235b702
+    GIT_TAG           a3461b201ea1c9f61571f1927274f739e775d2d2
     SOURCE_SUBDIR     raft
   )
 
