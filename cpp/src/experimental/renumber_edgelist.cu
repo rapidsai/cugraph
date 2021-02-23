@@ -151,14 +151,14 @@ rmm::device_uvector<vertex_t> compute_renumber_map(
     auto pair_first = thrust::make_zip_iterator(thrust::make_tuple(labels.begin(), counts.begin()));
     rmm::device_uvector<vertex_t> rx_labels(0, handle.get_stream());
     rmm::device_uvector<edge_t> rx_counts(0, handle.get_stream());
-    std::forward_as_tuple(std::tie(rx_labels, rx_counts), std::ignore) = sort_and_shuffle_values(
-      comm,
-      pair_first,
-      pair_first + labels.size(),
-      [key_func = detail::compute_gpu_id_from_vertex_t<vertex_t>{comm_size}] __device__(auto val) {
-        return key_func(thrust::get<0>(val));
-      },
-      handle.get_stream());
+    std::forward_as_tuple(std::tie(rx_labels, rx_counts), std::ignore) =
+      groupby_gpuid_and_shuffle_values(
+        comm,
+        pair_first,
+        pair_first + labels.size(),
+        [key_func = detail::compute_gpu_id_from_vertex_t<vertex_t>{comm_size}] __device__(
+          auto val) { return key_func(thrust::get<0>(val)); },
+        handle.get_stream());
 
     labels.resize(rx_labels.size(), handle.get_stream());
     counts.resize(labels.size(), handle.get_stream());
@@ -309,7 +309,7 @@ void expensive_check_edgelist(
         handle.get_stream());
 
       rmm::device_uvector<vertex_t> rx_unique_edge_vertices(0, handle.get_stream());
-      std::tie(rx_unique_edge_vertices, std::ignore) = sort_and_shuffle_values(
+      std::tie(rx_unique_edge_vertices, std::ignore) = groupby_gpuid_and_shuffle_values(
         handle.get_comms(),
         unique_edge_vertices.begin(),
         unique_edge_vertices.end(),
