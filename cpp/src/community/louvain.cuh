@@ -138,7 +138,9 @@ class Louvain {
     return Q;
   }
 
-  Dendrogram<vertex_t> &get_dendrogram() const { return *dendrogram_; }
+  Dendrogram<vertex_t> const &get_dendrogram() const { return *dendrogram_; }
+
+  Dendrogram<vertex_t> &get_dendrogram() { return *dendrogram_; }
 
   std::unique_ptr<Dendrogram<vertex_t>> move_dendrogram() { return dendrogram_; }
 
