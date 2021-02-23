@@ -45,7 +45,7 @@ std::tuple<rmm::device_uvector<vertex_t>, rmm::device_uvector<vertex_t>> generat
   bool scramble_vertex_ids)
 {
   CUGRAPH_EXPECTS(size_t{1} << scale <= std::numeric_limits<vertex_t>::max(),
-                  "Invalid input argument: scale to large for vertex_t.");
+                  "Invalid input argument: scale too large for vertex_t.");
   CUGRAPH_EXPECTS((a >= 0.0) && (b >= 0.0) && (c >= 0.0) && (a + b + c <= 1.0),
                   "Invalid input argument: a, b, c should be non-negative and a + b + c should not "
                   "be larger than 1.0.");
