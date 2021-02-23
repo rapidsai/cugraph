@@ -15,28 +15,17 @@
  */
 #pragma once
 
-#include <thrust/binary_search.h>
+#include <community/dendrogram.cuh>
 
 #include <experimental/graph.hpp>
-
-#include <rmm/thrust_rmm_allocator.h>
-#include <compute_partition.cuh>
-#include <experimental/shuffle.cuh>
-#include <utilities/graph_utils.cuh>
-
-#include <raft/device_atomics.cuh>
-
 #include <experimental/graph_functions.hpp>
+
 #include <patterns/copy_to_adj_matrix_row_col.cuh>
 #include <patterns/copy_v_transform_reduce_in_out_nbr.cuh>
 #include <patterns/copy_v_transform_reduce_key_aggregated_out_nbr.cuh>
 #include <patterns/transform_reduce_by_adj_matrix_row_col_key_e.cuh>
 #include <patterns/transform_reduce_e.cuh>
 #include <patterns/transform_reduce_v.cuh>
-
-#include <community/dendrogram.cuh>
-
-#include <numeric>
 
 //#define TIMING
 
@@ -222,8 +211,7 @@ class Louvain {
   }
 
   template <typename T>
-  T *cache_src_vertex_properties(rmm::device_uvector<T> &input,
-                                   rmm::device_uvector<T> &src_cache_v)
+  T *cache_src_vertex_properties(rmm::device_uvector<T> &input, rmm::device_uvector<T> &src_cache_v)
   {
     if (graph_view_t::is_multi_gpu) {
       src_cache_v.resize(current_graph_view_.get_number_of_local_adj_matrix_partition_rows(),
@@ -236,8 +224,7 @@ class Louvain {
   }
 
   template <typename T>
-  T *cache_dst_vertex_properties(rmm::device_uvector<T> &input,
-                                   rmm::device_uvector<T> &dst_cache_v)
+  T *cache_dst_vertex_properties(rmm::device_uvector<T> &input, rmm::device_uvector<T> &dst_cache_v)
   {
     if (graph_view_t::is_multi_gpu) {
       dst_cache_v.resize(current_graph_view_.get_number_of_local_adj_matrix_partition_cols(),
@@ -470,7 +457,9 @@ class Louvain {
   int rank_{0};
 
   //
-  //  Copy of graph
+  //  Initially we run on the input graph view,
+  //  but as we shrink the graph we'll keep the
+  //  current graph here
   //
   std::unique_ptr<graph_t> current_graph_{};
   graph_view_t current_graph_view_;
@@ -492,7 +481,7 @@ class Louvain {
 #ifdef TIMING
   HighResTimer hr_timer_;
 #endif
-};  // namespace experimental
+};
 
 }  // namespace experimental
 }  // namespace cugraph
