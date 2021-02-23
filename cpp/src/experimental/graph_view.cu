@@ -117,16 +117,12 @@ graph_view_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu, std::enabl
                   "Internal Error: adj_matrix_partition_weights.size() should coincide with "
                   "adj_matrix_partition_offsets.size() (if weighted) or 0 (if unweighted).");
 
-  CUGRAPH_EXPECTS(
-    (partition.is_hypergraph_partitioned() &&
-     (adj_matrix_partition_offsets.size() == static_cast<size_t>(row_comm_size))) ||
-      (!(partition.is_hypergraph_partitioned()) && (adj_matrix_partition_offsets.size() == 1)),
-    "Internal Error: erroneous adj_matrix_partition_offsets.size().");
+  CUGRAPH_EXPECTS(adj_matrix_partition_offsets.size() == static_cast<size_t>(row_comm_size),
+                  "Internal Error: erroneous adj_matrix_partition_offsets.size().");
 
   CUGRAPH_EXPECTS((sorted_by_global_degree_within_vertex_partition &&
                    (vertex_partition_segment_offsets.size() ==
-                    (partition.is_hypergraph_partitioned() ? col_comm_size : row_comm_size) *
-                      (detail::num_segments_per_vertex_partition + 1))) ||
+                    col_comm_size * (detail::num_segments_per_vertex_partition + 1))) ||
                     (!sorted_by_global_degree_within_vertex_partition &&
                      (vertex_partition_segment_offsets.size() == 0)),
                   "Internal Error: vertex_partition_segment_offsets.size() does not match "
@@ -189,8 +185,7 @@ graph_view_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu, std::enabl
         "Invalid Invalid input argument: sorted_by_global_degree_within_vertex_partition is "
         "set to true, but degrees are not non-ascending.");
 
-      for (int i = 0; i < (partition.is_hypergraph_partitioned() ? col_comm_size : row_comm_size);
-           ++i) {
+      for (int i = 0; i < col_comm_size; ++i) {
         CUGRAPH_EXPECTS(std::is_sorted(vertex_partition_segment_offsets.begin() +
                                          (detail::num_segments_per_vertex_partition + 1) * i,
                                        vertex_partition_segment_offsets.begin() +
@@ -200,9 +195,7 @@ graph_view_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu, std::enabl
           vertex_partition_segment_offsets[(detail::num_segments_per_vertex_partition + 1) * i] ==
             0,
           "Internal Error: erroneous vertex_partition_segment_offsets.");
-        auto vertex_partition_idx = partition.is_hypergraph_partitioned()
-                                      ? row_comm_size * i + row_comm_rank
-                                      : col_comm_rank * row_comm_size + i;
+        auto vertex_partition_idx = row_comm_size * i + row_comm_rank;
         CUGRAPH_EXPECTS(
           vertex_partition_segment_offsets[(detail::num_segments_per_vertex_partition + 1) * i +
                                            detail::num_segments_per_vertex_partition] ==

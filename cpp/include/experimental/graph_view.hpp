@@ -40,32 +40,11 @@ namespace experimental {
  *
  * We need to partition 1D vertex arrays (storing per vertex values) and the 2D graph adjacency
  * matrix (or transposed 2D graph adjacency matrix) of G. An 1D vertex array of size V is divided to
- * P linear partitions; each partition has the size close to V / P. We consider two different
- * strategies to partition the 2D matrix: the default strategy and the hypergraph partitioning based
- * strategy (the latter is for future extension).
- * FIXME: in the future we may use the latter for both as this leads to simpler communication
- * patterns and better control over parallelism vs memory footprint trade-off.
+ * P linear partitions; each partition has the size close to V / P.
  *
- * In the default case, one GPU will be responsible for 1 rectangular partition. The matrix will be
- * horizontally partitioned first to P_row slabs. Each slab will be further vertically partitioned
- * to P_col rectangles. Each rectangular partition will have the size close to V / P_row by V /
- * P_col.
- *
- * To be more specific, a GPU with (col_comm_rank, row_comm_rank) will be responsible for one
- * rectangular partition [a,b) by [c,d) where a = vertex_partition_offsets[row_comm_size *
- * col_comm_rank], b = vertex_partition_offsets[row_comm_size * (col_comm_rank + 1)], c =
- * vertex_partition_offsets[col_comm_size * row_comm_rank], and d =
- * vertex_partition_offsets[col_comm_size * (row_comm_rank + 1)].
- *
- * In the future, we may apply hyper-graph partitioning to divide V vertices to P groups minimizing
- * edge cuts across groups while balancing the number of vertices in each group. We will also
- * renumber vertices so the vertices in each group are mapped to consecutive integers. Then, there
- * will be more non-zeros in the diagonal partitions of the 2D graph adjacency matrix (or the
- * transposed 2D graph adjacency matrix) than the off-diagonal partitions. The default strategy does
- * not balance the number of nonzeros if hyper-graph partitioning is applied. To solve this problem,
- * the matrix is first horizontally partitioned to P slabs, then each slab will be further
- * vertically partitioned to P_row (instead of P_col in the default case) rectangles. One GPU will
- * be responsible col_comm_size rectangular partitions in this case.
+ * The 2D graph adjacency matrix is first horizontally partitioned to P slabs, then each slab will
+ * be further vertically partitioned to P_row (instead of P_col in the default case) rectangles. One
+ * GPU will be responsible col_comm_size rectangular partitions.
  *
  * To be more specific, a GPU with (col_comm_rank, row_comm_rank) will be responsible for
  * col_comm_size rectangular partitions [a_i,b_i) by [c,d) where a_i =
@@ -83,13 +62,11 @@ template <typename vertex_t>
 class partition_t {
  public:
   partition_t(std::vector<vertex_t> const& vertex_partition_offsets,
-              bool hypergraph_partitioned,
               int row_comm_size,
               int col_comm_size,
               int row_comm_rank,
               int col_comm_rank)
     : vertex_partition_offsets_(vertex_partition_offsets),
-      hypergraph_partitioned_(hypergraph_partitioned),
       comm_rank_(col_comm_rank * row_comm_size + row_comm_rank),
       row_comm_size_(row_comm_size),
       col_comm_size_(col_comm_size),
@@ -157,10 +134,7 @@ class partition_t {
            get_vertex_partition_first(vertex_partition_idx);
   }
 
-  size_t get_number_of_matrix_partitions() const
-  {
-    return hypergraph_partitioned_ ? col_comm_size_ : 1;
-  }
+  size_t get_number_of_matrix_partitions() const { return col_comm_size_; }
 
   // major: row of the graph adjacency matrix (if the graph adjacency matrix is stored as is) or
   // column of the graph adjacency matrix (if the transposed graph adjacency matrix is stored).
@@ -173,16 +147,12 @@ class partition_t {
 
   vertex_t get_matrix_partition_major_first(size_t partition_idx) const
   {
-    return hypergraph_partitioned_
-             ? vertex_partition_offsets_[row_comm_size_ * partition_idx + row_comm_rank_]
-             : vertex_partition_offsets_[col_comm_rank_ * row_comm_size_];
+    return vertex_partition_offsets_[row_comm_size_ * partition_idx + row_comm_rank_];
   }
 
   vertex_t get_matrix_partition_major_last(size_t partition_idx) const
   {
-    return hypergraph_partitioned_
-             ? vertex_partition_offsets_[row_comm_size_ * partition_idx + row_comm_rank_ + 1]
-             : vertex_partition_offsets_[(col_comm_rank_ + 1) * row_comm_size_];
+    return vertex_partition_offsets_[row_comm_size_ * partition_idx + row_comm_rank_ + 1];
   }
 
   vertex_t get_matrix_partition_major_value_start_offset(size_t partition_idx) const
@@ -202,24 +172,16 @@ class partition_t {
 
   vertex_t get_matrix_partition_minor_first() const
   {
-    return hypergraph_partitioned_ ? vertex_partition_offsets_[col_comm_rank_ * row_comm_size_]
-                                   : vertex_partition_offsets_[row_comm_rank_ * col_comm_size_];
+    return vertex_partition_offsets_[col_comm_rank_ * row_comm_size_];
   }
 
   vertex_t get_matrix_partition_minor_last() const
   {
-    return hypergraph_partitioned_
-             ? vertex_partition_offsets_[(col_comm_rank_ + 1) * row_comm_size_]
-             : vertex_partition_offsets_[(row_comm_rank_ + 1) * col_comm_size_];
+    return vertex_partition_offsets_[(col_comm_rank_ + 1) * row_comm_size_];
   }
-
-  // FIXME: this function may be removed if we use the same partitioning strategy whether hypergraph
-  // partitioning is applied or not
-  bool is_hypergraph_partitioned() const { return hypergraph_partitioned_; }
 
  private:
   std::vector<vertex_t> vertex_partition_offsets_{};  // size = P + 1
-  bool hypergraph_partitioned_{false};
 
   int comm_rank_{0};
   int row_comm_size_{0};
@@ -445,8 +407,6 @@ class graph_view_t<vertex_t,
              : vertex_t{0};
   }
 
-  bool is_hypergraph_partitioned() const { return partition_.is_hypergraph_partitioned(); }
-
   // FIXME: this function is not part of the public stable API. This function is mainly for pattern
   // accelerator implementation. This function is currently public to support the legacy
   // implementations directly accessing CSR/CSC data, but this function will eventually become
@@ -617,8 +577,6 @@ class graph_view_t<vertex_t,
     assert(adj_matrix_partition_idx == 0);
     return vertex_t{0};
   }
-
-  bool is_hypergraph_partitioned() const { return false; }
 
   // FIXME: this function is not part of the public stable API.This function is mainly for pattern
   // accelerator implementation. This function is currently public to support the legacy
