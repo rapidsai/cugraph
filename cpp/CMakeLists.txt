@@ -408,7 +408,12 @@ add_library(cugraph SHARED
     src/converters/renumber.cu
     src/converters/COOtoCSR.cu
     src/community/spectral_clustering.cu
-    src/community/louvain.cu
+    src/community/louvain_32_32_float.cu
+    src/community/louvain_32_64_float.cu
+    src/community/louvain_64_64_float.cu
+    src/community/louvain_32_32_double.cu
+    src/community/louvain_32_64_double.cu
+    src/community/louvain_64_64_double.cu
     src/community/leiden.cu
     src/community/ktruss.cu
     src/community/ecg.cu
