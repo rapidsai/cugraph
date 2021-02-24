@@ -1,4 +1,4 @@
-# Copyright (c) 2018, NVIDIA CORPORATION.
+# Copyright (c) 2018-2021, NVIDIA CORPORATION.
 
 # Usage:
 #   conda build -c nvidia -c rapidsai -c conda-forge -c defaults .
@@ -32,12 +32,18 @@ requirements:
     - nccl>=2.7
     - ucx-py {{ minor_version }}
     - ucx-proc=*=gpu
+    - gtest
+    - faiss-proc=*=cuda
+    - libfaiss=1.6.3
+    - gmock
   run:
     - libcudf={{ minor_version }}
     - {{ pin_compatible('cudatoolkit', max_pin='x.x') }}
     - nccl>=2.7
     - ucx-py {{ minor_version }}
     - ucx-proc=*=gpu
+    - faiss-proc=*=cuda
+    - libfaiss=1.6.3
 
 #test:
 #  commands:

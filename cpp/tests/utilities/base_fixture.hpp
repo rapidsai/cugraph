@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020, NVIDIA CORPORATION.
+ * Copyright (c) 2020-2021, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -31,6 +31,12 @@
 
 namespace cugraph {
 namespace test {
+
+// FIXME: The BaseFixture class is not used in any tests. This file is only
+// needed for the CUGRAPH_TEST_PROGRAM_MAIN macro and the code that it calls, so
+// consider removing the BaseFixture class and renaming this file, or moving
+// CUGRAPH_TEST_PROGRAM_MAIN to the test_utilities.hpp file and removing this
+// file completely.
 
 /**
  * @brief Base test fixture class from which all libcudf tests should inherit.

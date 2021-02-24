@@ -1,4 +1,4 @@
-# Copyright (c) 2019-2020, NVIDIA CORPORATION.
+# Copyright (c) 2019-2021, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -123,10 +123,9 @@ def test_subgraph_extraction_Graph_nx(graph_file):
         )
 
     nx_sub = nx.subgraph(G, verts)
-    nx_df = nx.to_pandas_edgelist(nx_sub).to_dict()
 
     cu_verts = cudf.Series(verts)
     cu_sub = cugraph.subgraph(G, cu_verts)
-    cu_df = nx.to_pandas_edgelist(cu_sub).to_dict()
 
-    assert nx_df == cu_df
+    for (u, v) in cu_sub.edges():
+        assert nx_sub.has_edge(u, v)

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019-2020, NVIDIA CORPORATION.
+ * Copyright (c) 2019-2021, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -315,7 +315,7 @@ int jaccard_pairs(vertex_t n,
 template <typename VT, typename ET, typename WT>
 void jaccard(GraphCSRView<VT, ET, WT> const &graph, WT const *weights, WT *result)
 {
-  CUGRAPH_EXPECTS(result != nullptr, "Invalid API parameter: result pointer is NULL");
+  CUGRAPH_EXPECTS(result != nullptr, "Invalid input argument: result pointer is NULL");
 
   rmm::device_vector<WT> weight_i(graph.number_of_edges);
   rmm::device_vector<WT> weight_s(graph.number_of_edges);
@@ -352,9 +352,9 @@ void jaccard_list(GraphCSRView<VT, ET, WT> const &graph,
                   VT const *second,
                   WT *result)
 {
-  CUGRAPH_EXPECTS(result != nullptr, "Invalid API parameter: result pointer is NULL");
-  CUGRAPH_EXPECTS(first != nullptr, "Invalid API parameter: first is NULL");
-  CUGRAPH_EXPECTS(second != nullptr, "Invalid API parameter: second in NULL");
+  CUGRAPH_EXPECTS(result != nullptr, "Invalid input argument: result pointer is NULL");
+  CUGRAPH_EXPECTS(first != nullptr, "Invalid input argument: first is NULL");
+  CUGRAPH_EXPECTS(second != nullptr, "Invalid input argument: second in NULL");
 
   rmm::device_vector<WT> weight_i(num_pairs, WT{0.0});
   rmm::device_vector<WT> weight_s(num_pairs);

@@ -1,4 +1,4 @@
-# Copyright (c) 2019-2020, NVIDIA CORPORATION.
+# Copyright (c) 2020-2021, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -41,7 +41,11 @@ print("Networkx version : {} ".format(nx.__version__))
 # currently in networkx master and will hopefully will make it to a release
 # soon.
 def ktruss_ground_truth(graph_file):
-    G = nx.read_edgelist(graph_file, nodetype=int, data=(("weights", float),))
+    G = nx.read_edgelist(
+        str(graph_file),
+        nodetype=int,
+        data=(("weights", float),)
+    )
     df = nx.to_pandas_edgelist(G)
     return df
 
@@ -93,9 +97,6 @@ def test_ktruss_subgraph_Graph_nx(graph_file, nx_ground_truth):
         create_using=nx.Graph()
     )
     k_subgraph = cugraph.k_truss(G, k)
-    df = nx.to_pandas_edgelist(k_subgraph)
-
     k_truss_nx = nx.k_truss(G, k)
-    nx_df = nx.to_pandas_edgelist(k_truss_nx)
 
-    assert len(df) == len(nx_df)
+    assert nx.is_isomorphic(k_subgraph, k_truss_nx)

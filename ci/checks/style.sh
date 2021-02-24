@@ -1,5 +1,5 @@
 #!/bin/bash
-# Copyright (c) 2018-2020, NVIDIA CORPORATION.
+# Copyright (c) 2018-2021, NVIDIA CORPORATION.
 ########################
 # cuGraph Style Tester #
 ########################
@@ -52,13 +52,14 @@ COPYRIGHT=`env PYTHONPATH=ci/utils python ci/checks/copyright.py --git-modified-
 CR_RETVAL=$?
 ERRORCODE=$((ERRORCODE | ${CR_RETVAL}))
 
-# Output results if failure otherwise show pass
 if [ "$CR_RETVAL" != "0" ]; then
   echo -e "\n\n>>>> FAILED: copyright check; begin output\n\n"
   echo -e "$COPYRIGHT"
   echo -e "\n\n>>>> FAILED: copyright check; end output\n\n"
 else
-  echo -e "\n\n>>>> PASSED: copyright check\n\n"
+  echo -e "\n\n>>>> PASSED: copyright check; begin debug output\n\n"
+  echo -e "$COPYRIGHT"
+  echo -e "\n\n>>>> PASSED: copyright check; end debug output\n\n"
 fi
 
 exit ${ERRORCODE}

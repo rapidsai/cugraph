@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020, NVIDIA CORPORATION.
+ * Copyright (c) 2020-2021, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -17,11 +17,12 @@
 #include <utilities/base_fixture.hpp>
 #include <utilities/test_utilities.hpp>
 
-#if defined(__CUDA_ARCH__) && __CUDA_ARCH__ < 700
+#include <raft/cudart_utils.h>
+#include <raft/handle.hpp>
+#include <rmm/mr/device/cuda_memory_resource.hpp>
+
 #include <experimental/graph.hpp>
-#else
 #include <experimental/louvain.cuh>
-#endif
 
 #include <algorithms.hpp>
 
@@ -64,9 +65,6 @@ class Tests_Louvain : public ::testing::TestWithParam<Louvain_Usecase> {
   template <typename vertex_t, typename edge_t, typename weight_t, typename result_t>
   void run_current_test(Louvain_Usecase const& configuration)
   {
-#if defined(__CUDA_ARCH__) && __CUDA_ARCH__ < 700
-    CUGRAPH_FAIL("Louvain not supported on Pascal and older architectures");
-#else
     raft::handle_t handle{};
 
     std::cout << "read graph file: " << configuration.graph_file_full_path << std::endl;
@@ -77,8 +75,19 @@ class Tests_Louvain : public ::testing::TestWithParam<Louvain_Usecase> {
 
     auto graph_view = graph.view();
 
-    louvain(graph_view);
-#endif
+    // "FIXME": remove this check once we drop support for Pascal
+    //
+    // Calling louvain on Pascal will throw an exception, we'll check that
+    // this is the behavior while we still support Pascal (device_prop.major < 7)
+    //
+    cudaDeviceProp device_prop;
+    CUDA_CHECK(cudaGetDeviceProperties(&device_prop, 0));
+
+    if (device_prop.major < 7) {
+      EXPECT_THROW(louvain(graph_view), cugraph::logic_error);
+    } else {
+      louvain(graph_view);
+    }
   }
 
   template <typename graph_t>

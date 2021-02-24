@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019-2020, NVIDIA CORPORATION.
+ * Copyright (c) 2019-2021, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -64,8 +64,8 @@ std::enable_if_t<std::is_signed<VT>::value> connected_components_impl(
 {
   using ByteT = unsigned char;  // minimum addressable unit
 
-  CUGRAPH_EXPECTS(graph.offsets != nullptr, "Invalid API parameter: graph.offsets is nullptr");
-  CUGRAPH_EXPECTS(graph.indices != nullptr, "Invalid API parameter: graph.indices is nullptr");
+  CUGRAPH_EXPECTS(graph.offsets != nullptr, "Invalid input argument: graph.offsets is nullptr");
+  CUGRAPH_EXPECTS(graph.indices != nullptr, "Invalid input argument: graph.indices is nullptr");
 
   VT nrows = graph.number_of_vertices;
 
@@ -90,7 +90,7 @@ void connected_components(GraphCSRView<VT, ET, WT> const &graph,
 {
   cudaStream_t stream{nullptr};
 
-  CUGRAPH_EXPECTS(labels != nullptr, "Invalid API parameter: labels parameter is NULL");
+  CUGRAPH_EXPECTS(labels != nullptr, "Invalid input argument: labels parameter is NULL");
 
   return detail::connected_components_impl<VT, ET, WT>(graph, connectivity_type, labels, stream);
 }

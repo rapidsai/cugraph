@@ -1,4 +1,4 @@
-# Copyright (c) 2020, NVIDIA CORPORATION.
+# Copyright (c) 2020-2021, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -88,7 +88,7 @@ class NumberMap:
                     self.df[newname] = tmp[newname].append(tmp_dst[oldname])
                 self.df['count'] = tmp['count'].append(tmp_dst['count'])
             else:
-                for newname, oldname in zip(self.col_names, dst_col_names):
+                for newname in self.col_names:
                     self.df[newname] = tmp[newname]
                 self.df['count'] = tmp['count']
 
@@ -340,7 +340,7 @@ class NumberMap:
                     numbering_map, cudf.Series(base_addresses), val_types
                 )
 
-                self.ddf = numbering_map.persist()
+                self.ddf = numbering_map
                 self.numbered = True
 
         def to_internal_vertex_id(self, ddf, col_names):
@@ -895,7 +895,7 @@ class NumberMap:
         if preserve_order:
             df = df.sort_values(
                 index_name
-            ).drop(index_name).reset_index(drop=True)
+            ).drop(columns=index_name).reset_index(drop=True)
 
         if type(df) is dask_cudf.DataFrame:
             return df.map_partitions(

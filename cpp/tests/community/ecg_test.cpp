@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019-2020, NVIDIA CORPORATION.  All rights reserved.
+ * Copyright (c) 2019-2021, NVIDIA CORPORATION.  All rights reserved.
  *
  * NVIDIA CORPORATION and its licensors retain all intellectual property
  * and proprietary rights in and to this software, related documentation
@@ -77,6 +77,10 @@ TEST(ecg, success)
 
 TEST(ecg, dolphin)
 {
+  raft::handle_t handle;
+
+  auto stream = handle.get_stream();
+
   std::vector<int> off_h = {0,   6,   14,  18,  21,  22,  26,  32,  37,  43,  50,  55,  56,
                             57,  65,  77,  84,  90,  99,  106, 110, 119, 125, 126, 129, 135,
                             138, 141, 146, 151, 160, 165, 166, 169, 179, 184, 185, 192, 203,
@@ -103,38 +107,55 @@ TEST(ecg, dolphin)
   int num_verts = off_h.size() - 1;
   int num_edges = ind_h.size();
 
-  thrust::host_vector<int> cluster_id(num_verts, -1);
+  std::vector<int> cluster_id(num_verts, -1);
 
-  rmm::device_vector<int> offsets_v(off_h);
-  rmm::device_vector<int> indices_v(ind_h);
-  rmm::device_vector<float> weights_v(w_h);
-  rmm::device_vector<int> result_v(cluster_id);
+  rmm::device_uvector<int> offsets_v(num_verts + 1, stream);
+  rmm::device_uvector<int> indices_v(num_edges, stream);
+  rmm::device_uvector<float> weights_v(num_edges, stream);
+  rmm::device_uvector<int> result_v(num_verts, stream);
+
+  raft::update_device(offsets_v.data(), off_h.data(), off_h.size(), stream);
+  raft::update_device(indices_v.data(), ind_h.data(), ind_h.size(), stream);
+  raft::update_device(weights_v.data(), w_h.data(), w_h.size(), stream);
 
   cugraph::GraphCSRView<int, int, float> graph_csr(
-    offsets_v.data().get(), indices_v.data().get(), weights_v.data().get(), num_verts, num_edges);
+    offsets_v.data(), indices_v.data(), weights_v.data(), num_verts, num_edges);
 
-  raft::handle_t handle;
-  cugraph::ecg<int32_t, int32_t, float>(handle, graph_csr, .05, 16, result_v.data().get());
+  // "FIXME": remove this check once we drop support for Pascal
+  //
+  // Calling louvain on Pascal will throw an exception, we'll check that
+  // this is the behavior while we still support Pascal (device_prop.major < 7)
+  //
+  if (handle.get_device_properties().major < 7) {
+    EXPECT_THROW(
+      (cugraph::ecg<int32_t, int32_t, float>(handle, graph_csr, .05, 16, result_v.data())),
+      cugraph::logic_error);
+  } else {
+    cugraph::ecg<int32_t, int32_t, float>(handle, graph_csr, .05, 16, result_v.data());
 
-  cluster_id = result_v;
-  int max    = *max_element(cluster_id.begin(), cluster_id.end());
-  int min    = *min_element(cluster_id.begin(), cluster_id.end());
+    raft::update_host(cluster_id.data(), result_v.data(), num_verts, stream);
 
-  ASSERT_EQ((min >= 0), 1);
+    CUDA_TRY(cudaDeviceSynchronize());
 
-  std::set<int> cluster_ids;
-  for (auto c : cluster_id) { cluster_ids.insert(c); }
+    int max = *max_element(cluster_id.begin(), cluster_id.end());
+    int min = *min_element(cluster_id.begin(), cluster_id.end());
 
-  ASSERT_EQ(cluster_ids.size(), size_t(max + 1));
+    ASSERT_EQ((min >= 0), 1);
 
-  float modularity{0.0};
+    std::set<int> cluster_ids;
+    for (auto c : cluster_id) { cluster_ids.insert(c); }
 
-  cugraph::ext_raft::analyzeClustering_modularity(
-    graph_csr, max + 1, result_v.data().get(), &modularity);
+    ASSERT_EQ(cluster_ids.size(), size_t(max + 1));
 
-  float random_modularity{0.95 * 0.4962422251701355};
+    float modularity{0.0};
 
-  ASSERT_GT(modularity, random_modularity);
+    cugraph::ext_raft::analyzeClustering_modularity(
+      graph_csr, max + 1, result_v.data(), &modularity);
+
+    float random_modularity{0.95 * 0.4962422251701355};
+
+    ASSERT_GT(modularity, random_modularity);
+  }
 }
 
 CUGRAPH_TEST_PROGRAM_MAIN()

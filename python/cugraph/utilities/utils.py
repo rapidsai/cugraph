@@ -1,4 +1,4 @@
-# Copyright (c) 2020, NVIDIA CORPORATION.
+# Copyright (c) 2020-2021, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -14,6 +14,11 @@
 from numba import cuda
 
 import cudf
+from rmm._cuda.gpu import (
+    getDeviceAttribute,
+    cudaDeviceAttr,
+)
+
 
 # optional dependencies
 try:
@@ -182,6 +187,25 @@ def is_cuda_version_less_than(min_version=(10, 2)):
     return False
 
 
+def is_device_version_less_than(min_version=(7, 0)):
+    """
+    Returns True if the version of CUDA being used is less than min_version
+    """
+    major_version = getDeviceAttribute(
+        cudaDeviceAttr.cudaDevAttrComputeCapabilityMajor, 0
+    )
+    minor_version = getDeviceAttribute(
+        cudaDeviceAttr.cudaDevAttrComputeCapabilityMinor, 0
+    )
+    if major_version > min_version[0]:
+        return False
+    if major_version < min_version[0]:
+        return True
+    if minor_version < min_version[1]:
+        return True
+    return False
+
+
 # FIXME: if G is a Nx type, the weight attribute is assumed to be "weight", if
 # set. An additional optional parameter for the weight attr name when accepting
 # Nx graphs may be needed.  From the Nx docs:
@@ -195,11 +219,11 @@ def ensure_cugraph_obj(obj, nx_weight_attr=None, matrix_graph_type=None):
     cugraph Graph-type obj to create when converting from a matrix type.
     """
     # FIXME: importing here to avoid circular import
-    from cugraph.structure import Graph, DiGraph
+    from cugraph.structure import Graph, DiGraph, MultiGraph, MultiDiGraph
     from cugraph.utilities.nx_factory import convert_from_nx
 
     input_type = type(obj)
-    if input_type in [Graph, DiGraph]:
+    if input_type in [Graph, DiGraph, MultiGraph, MultiDiGraph]:
         return (obj, input_type)
 
     elif (nx is not None) and (input_type in [nx.Graph, nx.DiGraph]):

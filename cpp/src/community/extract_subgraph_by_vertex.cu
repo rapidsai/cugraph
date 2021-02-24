@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020, NVIDIA CORPORATION.
+ * Copyright (c) 2020-2021, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -119,7 +119,7 @@ std::unique_ptr<GraphCOO<VT, ET, WT>> extract_subgraph_vertex(GraphCOOView<VT, E
                                                               VT const *vertices,
                                                               VT num_vertices)
 {
-  CUGRAPH_EXPECTS(vertices != nullptr, "API error, vertices must be non null");
+  CUGRAPH_EXPECTS(vertices != nullptr, "Invalid input argument: vertices must be non null");
 
   cudaStream_t stream{0};
 
