@@ -19,8 +19,11 @@
 namespace cugraph {
 
 // Explicit template instantations
-template std::pair<size_t, double> louvain(
-  raft::handle_t const &, GraphCSRView<int32_t, int32_t, double> const &, int32_t *, size_t, double);
+template std::pair<size_t, double> louvain(raft::handle_t const &,
+                                           GraphCSRView<int32_t, int32_t, double> const &,
+                                           int32_t *,
+                                           size_t,
+                                           double);
 
 template std::pair<size_t, double> louvain(
   raft::handle_t const &,
@@ -40,4 +43,3 @@ template std::pair<size_t, double> louvain(
 }  // namespace cugraph
 
 #include <eidir_graph.hpp>
-

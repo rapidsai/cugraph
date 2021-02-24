@@ -36,4 +36,3 @@ template std::pair<size_t, double> louvain(
 }  // namespace cugraph
 
 #include <eidir_graph.hpp>
-
