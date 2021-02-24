@@ -277,20 +277,10 @@ void copy_v_transform_reduce_key_aggregated_out_nbr(
 
   // 2. aggregate each vertex out-going edges based on keys and transform-reduce.
 
-  auto loop_count = size_t{1};
-  if (GraphViewType::is_multi_gpu) {
-    auto& row_comm           = handle.get_subcomm(cugraph::partition_2d::key_naming_t().row_name());
-    auto const row_comm_size = row_comm.get_size();
-    loop_count               = graph_view.is_hypergraph_partitioned()
-                   ? graph_view.get_number_of_local_adj_matrix_partitions()
-                   : static_cast<size_t>(row_comm_size);
-  }
-
   rmm::device_uvector<vertex_t> major_vertices(0, handle.get_stream());
   auto e_op_result_buffer = allocate_dataframe_buffer<T>(0, handle.get_stream());
-  for (size_t i = 0; i < loop_count; ++i) {
-    matrix_partition_device_t<GraphViewType> matrix_partition(
-      graph_view, (GraphViewType::is_multi_gpu && !graph_view.is_hypergraph_partitioned()) ? 0 : i);
+  for (size_t i = 0; i < graph_view.get_number_of_local_adj_matrix_partitions(); ++i) {
+    matrix_partition_device_t<GraphViewType> matrix_partition(graph_view, i);
 
     int comm_root_rank = 0;
     if (GraphViewType::is_multi_gpu) {
@@ -299,8 +289,7 @@ void copy_v_transform_reduce_key_aggregated_out_nbr(
       auto const row_comm_size = row_comm.get_size();
       auto& col_comm = handle.get_subcomm(cugraph::partition_2d::key_naming_t().col_name());
       auto const col_comm_rank = col_comm.get_rank();
-      comm_root_rank = graph_view.is_hypergraph_partitioned() ? i * row_comm_size + row_comm_rank
-                                                              : col_comm_rank * row_comm_size + i;
+      comm_root_rank           = i * row_comm_size + row_comm_rank;
     }
 
     auto num_edges = thrust::transform_reduce(
@@ -358,9 +347,7 @@ void copy_v_transform_reduce_key_aggregated_out_nbr(
     tmp_key_aggregated_edge_weights.resize(tmp_major_vertices.size(), handle.get_stream());
 
     if (GraphViewType::is_multi_gpu) {
-      auto& sub_comm           = handle.get_subcomm(graph_view.is_hypergraph_partitioned()
-                                            ? cugraph::partition_2d::key_naming_t().col_name()
-                                            : cugraph::partition_2d::key_naming_t().row_name());
+      auto& sub_comm = handle.get_subcomm(cugraph::partition_2d::key_naming_t().col_name());
       auto const sub_comm_size = sub_comm.get_size();
 
       triplet_first =
@@ -416,9 +403,7 @@ void copy_v_transform_reduce_key_aggregated_out_nbr(
     tmp_key_aggregated_edge_weights.shrink_to_fit(handle.get_stream());
 
     if (GraphViewType::is_multi_gpu) {
-      auto& sub_comm           = handle.get_subcomm(graph_view.is_hypergraph_partitioned()
-                                            ? cugraph::partition_2d::key_naming_t().col_name()
-                                            : cugraph::partition_2d::key_naming_t().row_name());
+      auto& sub_comm = handle.get_subcomm(cugraph::partition_2d::key_naming_t().col_name());
       auto const sub_comm_rank = sub_comm.get_rank();
       auto const sub_comm_size = sub_comm.get_size();
 

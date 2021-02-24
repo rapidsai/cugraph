@@ -358,18 +358,8 @@ void update_frontier_v_push_if_out_nbr(
 
   vertex_frontier.set_buffer_idx_value(0);
 
-  auto loop_count = size_t{1};
-  if (GraphViewType::is_multi_gpu) {
-    auto& row_comm           = handle.get_subcomm(cugraph::partition_2d::key_naming_t().row_name());
-    auto const row_comm_size = row_comm.get_size();
-    loop_count               = graph_view.is_hypergraph_partitioned()
-                   ? graph_view.get_number_of_local_adj_matrix_partitions()
-                   : static_cast<size_t>(row_comm_size);
-  }
-
-  for (size_t i = 0; i < loop_count; ++i) {
-    matrix_partition_device_t<GraphViewType> matrix_partition(
-      graph_view, (GraphViewType::is_multi_gpu && !graph_view.is_hypergraph_partitioned()) ? 0 : i);
+  for (size_t i = 0; i < graph_view.get_number_of_local_adj_matrix_partitions(); ++i) {
+    matrix_partition_device_t<GraphViewType> matrix_partition(graph_view, i);
 
     rmm::device_uvector<vertex_t> frontier_rows(
       0, handle.get_stream());  // relevant only if GraphViewType::is_multi_gpu is true
@@ -382,22 +372,18 @@ void update_frontier_v_push_if_out_nbr(
       auto& col_comm = handle.get_subcomm(cugraph::partition_2d::key_naming_t().col_name());
       auto const col_comm_rank = col_comm.get_rank();
 
-      auto sub_comm_rank = graph_view.is_hypergraph_partitioned() ? col_comm_rank : row_comm_rank;
-      frontier_size      = host_scalar_bcast(
-        graph_view.is_hypergraph_partitioned() ? col_comm : row_comm,
-        (static_cast<size_t>(sub_comm_rank) == i) ? thrust::distance(vertex_first, vertex_last)
-                                                  : size_t{0},
-        i,
-        handle.get_stream());
+      auto sub_comm_rank = col_comm_rank;
+      frontier_size      = host_scalar_bcast(col_comm,
+                                        (static_cast<size_t>(sub_comm_rank) == i)
+                                          ? thrust::distance(vertex_first, vertex_last)
+                                          : size_t{0},
+                                        i,
+                                        handle.get_stream());
       if (static_cast<size_t>(sub_comm_rank) != i) {
         frontier_rows.resize(frontier_size, handle.get_stream());
       }
-      device_bcast(graph_view.is_hypergraph_partitioned() ? col_comm : row_comm,
-                   vertex_first,
-                   frontier_rows.begin(),
-                   frontier_size,
-                   i,
-                   handle.get_stream());
+      device_bcast(
+        col_comm, vertex_first, frontier_rows.begin(), frontier_size, i, handle.get_stream());
     } else {
       frontier_size = thrust::distance(vertex_first, vertex_last);
     }
@@ -515,12 +501,9 @@ void update_frontier_v_push_if_out_nbr(
     auto const col_comm_rank = col_comm.get_rank();
     auto const col_comm_size = col_comm.get_size();
 
-    std::vector<vertex_t> h_vertex_lasts(graph_view.is_hypergraph_partitioned() ? row_comm_size
-                                                                                : col_comm_size);
+    std::vector<vertex_t> h_vertex_lasts(row_comm_size);
     for (size_t i = 0; i < h_vertex_lasts.size(); ++i) {
-      h_vertex_lasts[i] = graph_view.get_vertex_partition_last(
-        graph_view.is_hypergraph_partitioned() ? col_comm_rank * row_comm_size + i
-                                               : row_comm_rank * col_comm_size + i);
+      h_vertex_lasts[i] = graph_view.get_vertex_partition_last(col_comm_rank * row_comm_size + i);
     }
 
     rmm::device_uvector<vertex_t> d_vertex_lasts(h_vertex_lasts.size(), handle.get_stream());
@@ -544,14 +527,11 @@ void update_frontier_v_push_if_out_nbr(
     std::adjacent_difference(
       h_tx_buffer_last_boundaries.begin(), h_tx_buffer_last_boundaries.end(), tx_counts.begin());
 
-    std::vector<size_t> rx_counts(graph_view.is_hypergraph_partitioned() ? row_comm_size
-                                                                         : col_comm_size);
+    std::vector<size_t> rx_counts(row_comm_size);
     std::vector<raft::comms::request_t> count_requests(tx_counts.size() + rx_counts.size());
     size_t tx_self_i = std::numeric_limits<size_t>::max();
     for (size_t i = 0; i < tx_counts.size(); ++i) {
-      auto comm_dst_rank = graph_view.is_hypergraph_partitioned()
-                             ? col_comm_rank * row_comm_size + static_cast<int>(i)
-                             : row_comm_rank * col_comm_size + static_cast<int>(i);
+      auto comm_dst_rank = col_comm_rank * row_comm_size + static_cast<int>(i);
       if (comm_dst_rank == comm_rank) {
         tx_self_i = i;
         // FIXME: better define request_null (similar to MPI_REQUEST_NULL) under raft::comms
@@ -561,9 +541,7 @@ void update_frontier_v_push_if_out_nbr(
       }
     }
     for (size_t i = 0; i < rx_counts.size(); ++i) {
-      auto comm_src_rank = graph_view.is_hypergraph_partitioned()
-                             ? col_comm_rank * row_comm_size + static_cast<int>(i)
-                             : static_cast<int>(i) * row_comm_size + comm_rank / col_comm_size;
+      auto comm_src_rank = col_comm_rank * row_comm_size + static_cast<int>(i);
       if (comm_src_rank == comm_rank) {
         assert(tx_self_i != std::numeric_limits<size_t>::max());
         rx_counts[i] = tx_counts[tx_self_i];
@@ -603,14 +581,10 @@ void update_frontier_v_push_if_out_nbr(
     std::vector<int> tx_dst_ranks(tx_counts.size());
     std::vector<int> rx_src_ranks(rx_counts.size());
     for (size_t i = 0; i < tx_dst_ranks.size(); ++i) {
-      tx_dst_ranks[i] = graph_view.is_hypergraph_partitioned()
-                          ? col_comm_rank * row_comm_size + static_cast<int>(i)
-                          : row_comm_rank * col_comm_size + static_cast<int>(i);
+      tx_dst_ranks[i] = col_comm_rank * row_comm_size + static_cast<int>(i);
     }
     for (size_t i = 0; i < rx_src_ranks.size(); ++i) {
-      rx_src_ranks[i] = graph_view.is_hypergraph_partitioned()
-                          ? col_comm_rank * row_comm_size + static_cast<int>(i)
-                          : static_cast<int>(i) * row_comm_size + comm_rank / col_comm_size;
+      rx_src_ranks[i] = col_comm_rank * row_comm_size + static_cast<int>(i);
     }
 
     device_multicast_sendrecv<decltype(buffer_key_first), decltype(buffer_key_first)>(
