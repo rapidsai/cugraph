@@ -494,6 +494,12 @@ class graph_view_t<vertex_t,
              : static_cast<weight_t const*>(nullptr);
   }
 
+  rmm::device_uvector<edge_t> compute_in_degrees(raft::handle_t const& handle) const;
+  rmm::device_uvector<edge_t> compute_out_degrees(raft::handle_t const& handle) const;
+
+  rmm::device_uvector<weight_t> compute_in_weight_sums(raft::handle_t const& handle) const;
+  rmm::device_uvector<weight_t> compute_out_weight_sums(raft::handle_t const& handle) const;
+
  private:
   std::vector<edge_t const*> adj_matrix_partition_offsets_{};
   std::vector<vertex_t const*> adj_matrix_partition_indices_{};
@@ -637,6 +643,12 @@ class graph_view_t<vertex_t,
   // implementations directly accessing CSR/CSC data, but this function will eventually become
   // private.
   weight_t const* weights() const { return weights_; }
+
+  rmm::device_uvector<edge_t> compute_in_degrees(raft::handle_t const& handle) const;
+  rmm::device_uvector<edge_t> compute_out_degrees(raft::handle_t const& handle) const;
+
+  rmm::device_uvector<weight_t> compute_in_weight_sums(raft::handle_t const& handle) const;
+  rmm::device_uvector<weight_t> compute_out_weight_sums(raft::handle_t const& handle) const;
 
  private:
   edge_t const* offsets_{nullptr};
