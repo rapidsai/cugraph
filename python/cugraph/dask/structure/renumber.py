@@ -16,7 +16,7 @@
 from dask.distributed import wait, default_client
 from cugraph.dask.common.input_utils import get_distributed_data
 from cugraph.dask.structure import renumber_wrapper as renumber_w
-import cugraph.comms.comms as Comms
+import cugraph.comms as Comms
 import dask_cudf
 
 
@@ -35,23 +35,23 @@ def call_renumber(sID,
                                   is_mnmg)
 
 
-def renumber(input_graph):
+def renumber(df):
 
-    client = default_client()
+    #df = input_graph.edgelist.edgelist_df
 
-    ddf = input_graph.edgelist.edgelist_df
+    num_edges = len(df)
 
-    num_edges = len(ddf)
-
-    if isinstance(ddf, dask_cudf.DataFrame):
+    if isinstance(df, dask_cudf.DataFrame):
         is_mnmg = True
     else:
         is_mnmg = False
 
-    num_verts = input_graph.number_of_vertices()
+    #num_verts = input_graph.number_of_vertices()
+    num_verts = 4
 
     if is_mnmg:
-        data = get_distributed_data(ddf)
+        client = default_client()
+        data = get_distributed_data(df)
         result = [client.submit(call_renumber,
                                 Comms.get_session_id(),
                                 wf[1],
@@ -61,11 +61,11 @@ def renumber(input_graph):
                                 workers=[wf[0]])
                   for idx, wf in enumerate(data.worker_to_parts.items())]
         wait(result)
-        ddf = dask_cudf.from_delayed(result)
+        return dask_cudf.from_delayed(result)
     else:
-        call_renumber(Comms.get_session_id(),
-                      ddf,
-                      num_verts,
-                      num_edges,
-                      is_mnmg)
-    return ddf
+        return renumber_w.mg_renumber(df,
+                                      num_verts,
+                                      num_edges,
+                                      0,
+                                      Comms.get_default_handle(),
+                                      is_mnmg)

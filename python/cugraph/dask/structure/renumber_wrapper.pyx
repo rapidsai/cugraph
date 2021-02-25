@@ -132,17 +132,19 @@ def mg_renumber(input_df,           # maybe use cpdef ?
     if (vertex_t == np.dtype("int32")):
         if ( edge_t == np.dtype("int32")):
             if( weight_t == np.dtype("float32")):
-                ptr_shuffled_32_32.reset(call_shuffle[int, int, float](deref(handle_ptr),
-                                                                       <int*>c_src_vertices,
-                                                                       <int*>c_dst_vertices,
-                                                                       <float*>c_edge_weights,
-                                                                       num_partition_edges,
-                                                                       is_hyper_partitioned).release())
+                if(is_multi_gpu):
+                    ptr_shuffled_32_32.reset(call_shuffle[int, int, float](deref(handle_ptr),
+                                                                           <int*>c_src_vertices,
+                                                                           <int*>c_dst_vertices,
+                                                                           <float*>c_edge_weights,
+                                                                           num_partition_edges,
+                                                                           is_hyper_partitioned).release())
                 
-                shuffled_df = renumber_helper(ptr_shuffled_32_32.get())
-                
-                shuffled_src = shufled_df['src']
-                shuffled_dst = shufled_df['dst']
+                    shuffled_df = renumber_helper(ptr_shuffled_32_32.get())
+                else:
+                    shuffled_df = input_df  
+                shuffled_src = shuffled_df['src']
+                shuffled_dst = shuffled_df['dst']
                         
                 shuffled_major = shuffled_src.__cuda_array_interface__['data'][0]
                 shuffled_minor = shuffled_dst.__cuda_array_interface__['data'][0]
@@ -186,17 +188,20 @@ def mg_renumber(input_df,           # maybe use cpdef ?
 
                 return renumbered_map, shuffled_df
             elif( weight_t == np.dtype("float64")):
-                ptr_shuffled_32_64.reset(call_shuffle[int, int, double](deref(handle_ptr),
-                                                                        <int*>c_src_vertices,
-                                                                        <int*>c_dst_vertices,
-                                                                        <double*>c_edge_weights,
-                                                                        num_partition_edges,
-                                                                        is_hyper_partitioned).release())
+                if(is_multi_gpu):
+                    ptr_shuffled_32_64.reset(call_shuffle[int, int, double](deref(handle_ptr),
+                                                                            <int*>c_src_vertices,
+                                                                            <int*>c_dst_vertices,
+                                                                            <double*>c_edge_weights,
+                                                                            num_partition_edges,
+                                                                            is_hyper_partitioned).release())
                 
-                shuffled_df = renumber_helper(ptr_shuffled_32_64.get())
-                
-                shuffled_src = shufled_df['src']
-                shuffled_dst = shufled_df['dst']
+                    shuffled_df = renumber_helper(ptr_shuffled_32_64.get())
+                else:
+                    shuffled_df = input_df
+
+                shuffled_src = shuffled_df['src']
+                shuffled_dst = shuffled_df['dst']
                         
                 shuffled_major = shuffled_src.__cuda_array_interface__['data'][0]
                 shuffled_minor = shuffled_dst.__cuda_array_interface__['data'][0]
@@ -241,17 +246,20 @@ def mg_renumber(input_df,           # maybe use cpdef ?
                 return renumbered_map, shuffled_df
         elif ( edge_t == np.dtype("int64")):
             if( weight_t == np.dtype("float32")):
-                ptr_shuffled_32_32.reset(call_shuffle[int, long, float](deref(handle_ptr),
-                                                                        <int*>c_src_vertices,
-                                                                        <int*>c_dst_vertices,
-                                                                        <float*>c_edge_weights,
-                                                                        num_partition_edges,
-                                                                        is_hyper_partitioned).release())
+                if(is_multi_gpu):
+                    ptr_shuffled_32_32.reset(call_shuffle[int, long, float](deref(handle_ptr),
+                                                                            <int*>c_src_vertices,
+                                                                            <int*>c_dst_vertices,
+                                                                            <float*>c_edge_weights,
+                                                                            num_partition_edges,
+                                                                            is_hyper_partitioned).release())
                 
-                shuffled_df = renumber_helper(ptr_shuffled_32_32.get())
-                
-                shuffled_src = shufled_df['src']
-                shuffled_dst = shufled_df['dst']
+                    shuffled_df = renumber_helper(ptr_shuffled_32_32.get())
+                else:
+                    shuffled_df = input_df
+
+                shuffled_src = shuffled_df['src']
+                shuffled_dst = shuffled_df['dst']
                         
                 shuffled_major = shuffled_src.__cuda_array_interface__['data'][0]
                 shuffled_minor = shuffled_dst.__cuda_array_interface__['data'][0]
@@ -295,17 +303,20 @@ def mg_renumber(input_df,           # maybe use cpdef ?
 
                 return renumbered_map, shuffled_df
             elif( weight_t == np.dtype("float64")):
-                ptr_shuffled_32_64.reset(call_shuffle[int, long, double](deref(handle_ptr),
-                                                                         <int*>c_src_vertices,
-                                                                         <int*>c_dst_vertices,
-                                                                         <double*>c_edge_weights,
-                                                                         num_partition_edges,
-                                                                         is_hyper_partitioned).release())
+                if(is_multi_gpu):
+                    ptr_shuffled_32_64.reset(call_shuffle[int, long, double](deref(handle_ptr),
+                                                                             <int*>c_src_vertices,
+                                                                             <int*>c_dst_vertices,
+                                                                             <double*>c_edge_weights,
+                                                                             num_partition_edges,
+                                                                             is_hyper_partitioned).release())
                 
-                shuffled_df = renumber_helper(ptr_shuffled_32_64.get())
+                    shuffled_df = renumber_helper(ptr_shuffled_32_64.get())
+                else:
+                    shuffled_df = input_df
                 
-                shuffled_src = shufled_df['src']
-                shuffled_dst = shufled_df['dst']
+                shuffled_src = shuffled_df['src']
+                shuffled_dst = shuffled_df['dst']
                         
                 shuffled_major = shuffled_src.__cuda_array_interface__['data'][0]
                 shuffled_minor = shuffled_dst.__cuda_array_interface__['data'][0]
@@ -351,17 +362,20 @@ def mg_renumber(input_df,           # maybe use cpdef ?
     elif (vertex_t == np.dtype("int64")):
         if ( edge_t == np.dtype("int64")):
             if( weight_t == np.dtype("float32")):
-                ptr_shuffled_64_32.reset(call_shuffle[long, long, float](deref(handle_ptr),
-                                                                        <long*>c_src_vertices,
-                                                                        <long*>c_dst_vertices,
-                                                                        <float*>c_edge_weights,
-                                                                        num_partition_edges,
-                                                                        is_hyper_partitioned).release())
+                if(is_multi_gpu):
+                    ptr_shuffled_64_32.reset(call_shuffle[long, long, float](deref(handle_ptr),
+                                                                            <long*>c_src_vertices,
+                                                                            <long*>c_dst_vertices,
+                                                                            <float*>c_edge_weights,
+                                                                            num_partition_edges,
+                                                                            is_hyper_partitioned).release())
                 
-                shuffled_df = renumber_helper(ptr_shuffled_64_32.get())
+                    shuffled_df = renumber_helper(ptr_shuffled_64_32.get())
+                else:
+                    shuffled_df = input_df
                 
-                shuffled_src = shufled_df['src']
-                shuffled_dst = shufled_df['dst']
+                shuffled_src = shuffled_df['src']
+                shuffled_dst = shuffled_df['dst']
                         
                 shuffled_major = shuffled_src.__cuda_array_interface__['data'][0]
                 shuffled_minor = shuffled_dst.__cuda_array_interface__['data'][0]
@@ -405,17 +419,20 @@ def mg_renumber(input_df,           # maybe use cpdef ?
 
                 return renumbered_map, shuffled_df
             elif( weight_t == np.dtype("float64")):
-                ptr_shuffled_64_64.reset(call_shuffle[long, long, double](deref(handle_ptr),
-                                                                          <long*>c_src_vertices,
-                                                                          <long*>c_dst_vertices,
-                                                                          <double*>c_edge_weights,
-                                                                          num_partition_edges,
-                                                                          is_hyper_partitioned).release())
+                if(is_multi_gpu):
+                    ptr_shuffled_64_64.reset(call_shuffle[long, long, double](deref(handle_ptr),
+                                                                              <long*>c_src_vertices,
+                                                                              <long*>c_dst_vertices,
+                                                                              <double*>c_edge_weights,
+                                                                              num_partition_edges,
+                                                                              is_hyper_partitioned).release())
                 
-                shuffled_df = renumber_helper(ptr_shuffled_64_64.get())
+                    shuffled_df = renumber_helper(ptr_shuffled_64_64.get())
+                else:
+                    shuffled_df = input_df
                 
-                shuffled_src = shufled_df['src']
-                shuffled_dst = shufled_df['dst']
+                shuffled_src = shuffled_df['src']
+                shuffled_dst = shuffled_df['dst']
                         
                 shuffled_major = shuffled_src.__cuda_array_interface__['data'][0]
                 shuffled_minor = shuffled_dst.__cuda_array_interface__['data'][0]
