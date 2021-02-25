@@ -1,12 +1,14 @@
-
-# cuGraph 0.18.0 (Date TBD)
+# cuGraph 0.19.0 (Date TBD)
 
 ## New Features
 
 ## Improvements
 
 ## Bug Fixes
-- PR #1321 Fix benchmark script trap setup to come after the PATH variable update
+
+# 0.18.0
+
+Please see https://github.com/rapidsai/cugraph/releases/tag/branch-0.18-latest for the latest changes to this development branch.
 
 # cuGraph 0.17.0 (10 Dec 2020)
 ## New Features
@@ -19,6 +21,7 @@
 - PR #1279 Add self loop check variable in graph
 - PR #1277 SciPy sparse matrix input support for WCC, SCC, SSSP, and BFS
 - PR #1278 Add support for shortest_path_length and fix graph vertex checks
+- PR #1280 Add Multi(Di)Graph support
 
 ## Improvements
 - PR #1227 Pin cmake policies to cmake 3.17 version

@@ -1,3 +1,17 @@
+# https://docs.github.com/en/github/creating-cloning-and-archiving-repositories/about-code-owners
+# Order matters - match of highest importance goes last (last match wins)
+
+#doc code owners
+datasets/          @rapidsai/cugraph-doc-codeowners
+notebooks/         @rapidsai/cugraph-doc-codeowners
+docs/              @rapidsai/cugraph-doc-codeowners
+**/*.txt           @rapidsai/cugraph-doc-codeowners
+**/*.md            @rapidsai/cugraph-doc-codeowners
+**/*.rst           @rapidsai/cugraph-doc-codeowners
+**/*.ipynb         @rapidsai/cugraph-doc-codeowners
+**/*.pdf           @rapidsai/cugraph-doc-codeowners
+**/*.png           @rapidsai/cugraph-doc-codeowners
+
 #cpp code owners
 cpp/               @rapidsai/cugraph-cpp-codeowners
 
@@ -9,7 +23,7 @@ python/            @rapidsai/cugraph-python-codeowners
 **/cmake/          @rapidsai/cugraph-cmake-codeowners
 
 #build/ops code owners
-.github/           @rapidsai/ops-codeowners 
+.github/           @rapidsai/ops-codeowners
 ci/                @rapidsai/ops-codeowners
 conda/             @rapidsai/ops-codeowners
 **/Dockerfile      @rapidsai/ops-codeowners

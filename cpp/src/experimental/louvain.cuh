@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020, NVIDIA CORPORATION.
+ * Copyright (c) 2020-2021, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -22,32 +22,21 @@
 #include <rmm/thrust_rmm_allocator.h>
 #include <compute_partition.cuh>
 #include <experimental/shuffle.cuh>
-#include <utilities/comm_utils.cuh>
 #include <utilities/graph_utils.cuh>
 
 #include <raft/device_atomics.cuh>
 
+#include <experimental/graph_functions.hpp>
 #include <patterns/copy_to_adj_matrix_row_col.cuh>
 #include <patterns/copy_v_transform_reduce_in_out_nbr.cuh>
 #include <patterns/transform_reduce_e.cuh>
 #include <patterns/transform_reduce_v.cuh>
 
-// "FIXME": remove the guards below and references to CUCO_STATIC_MAP_DEFINED
-//
-// cuco/static_map.cuh depends on features not supported on or before Pascal.
-//
-// If we build for sm_60 or before, the inclusion of cuco/static_map.cuh wil
-// result in compilation errors.
-//
-// If we're Pascal or before we do nothing here and will suppress including
-// some code below.  If we are later than Pascal we define CUCO_STATIC_MAP_DEFINED
-// which will result in the full implementation being pulled in.
-//
-#if defined(__CUDA_ARCH__) && __CUDA_ARCH__ < 700
-#else
-#define CUCO_STATIC_MAP_DEFINED
-#include <cuco/static_map.cuh>
-#endif
+#include <experimental/include_cuco_static_map.cuh>
+
+#include <community/dendrogram.cuh>
+
+#include <numeric>
 
 //#define TIMING
 
@@ -390,9 +379,9 @@ create_graph(raft::handle_t const &handle,
 //  as above would allow us to eventually run the single GPU version of single level Louvain
 //  on the contracted graphs - which should be more efficient.
 //
-// FIXME: We should return the dendogram and let the python layer clean it up (or have a
-//  separate C++ function to flatten the dendogram).  There are customers that might
-//  like the dendogram and the implementation would be a bit cleaner if we did the
+// FIXME: We should return the dendrogram and let the python layer clean it up (or have a
+//  separate C++ function to flatten the dendrogram).  There are customers that might
+//  like the dendrogram and the implementation would be a bit cleaner if we did the
 //  collapsing as a separate step
 //
 template <typename graph_view_type>
@@ -414,6 +403,7 @@ class Louvain {
       hr_timer_(),
 #endif
       handle_(handle),
+      dendrogram_(std::make_unique<Dendrogram<vertex_t>>()),
       current_graph_view_(graph_view),
       compute_partition_(graph_view),
       local_num_vertices_(graph_view.get_number_of_local_vertices()),
@@ -422,7 +412,6 @@ class Louvain {
       local_num_edges_(graph_view.get_number_of_edges()),
       vertex_weights_v_(graph_view.get_number_of_local_vertices()),
       cluster_weights_v_(graph_view.get_number_of_local_vertices()),
-      cluster_v_(graph_view.get_number_of_local_vertices()),
       number_of_vertices_(graph_view.get_number_of_local_vertices()),
       stream_(handle.get_stream())
   {
@@ -432,11 +421,16 @@ class Louvain {
       base_src_vertex_id_ = graph_view.get_local_adj_matrix_partition_row_first(0);
       base_dst_vertex_id_ = graph_view.get_local_adj_matrix_partition_col_first(0);
 
-      raft::copy(&local_num_edges_,
-                 graph_view.offsets() + graph_view.get_local_adj_matrix_partition_row_last(0) -
-                   graph_view.get_local_adj_matrix_partition_row_first(0),
-                 1,
-                 stream_);
+      local_num_edges_ = thrust::transform_reduce(
+        thrust::host,
+        thrust::make_counting_iterator<size_t>(0),
+        thrust::make_counting_iterator<size_t>(
+          graph_view.get_number_of_local_adj_matrix_partitions()),
+        [&graph_view](auto indx) {
+          return graph_view.get_number_of_local_adj_matrix_partition_edges(indx);
+        },
+        size_t{0},
+        thrust::plus<size_t>());
 
       CUDA_TRY(cudaStreamSynchronize(stream_));
     }
@@ -456,11 +450,12 @@ class Louvain {
     }
   }
 
-  virtual std::pair<size_t, weight_t> operator()(vertex_t *d_cluster_vec,
-                                                 size_t max_level,
-                                                 weight_t resolution)
+  Dendrogram<vertex_t> &get_dendrogram() const { return *dendrogram_; }
+
+  std::unique_ptr<Dendrogram<vertex_t>> move_dendrogram() { return dendrogram_; }
+
+  virtual weight_t operator()(size_t max_level, weight_t resolution)
   {
-    size_t num_level{0};
     weight_t best_modularity = weight_t{-1};
 
 #ifdef CUCO_STATIC_MAP_DEFINED
@@ -473,17 +468,12 @@ class Louvain {
       [] __device__(auto, auto, weight_t wt, auto, auto) { return wt; },
       weight_t{0});
 
-    //
-    //  Initialize every cluster to reference each vertex to itself
-    //
-    thrust::sequence(rmm::exec_policy(stream_)->on(stream_),
-                     cluster_v_.begin(),
-                     cluster_v_.end(),
-                     base_vertex_id_);
-    thrust::copy(
-      rmm::exec_policy(stream_)->on(stream_), cluster_v_.begin(), cluster_v_.end(), d_cluster_vec);
+    while (dendrogram_->num_levels() < max_level) {
+      //
+      //  Initialize every cluster to reference each vertex to itself
+      //
+      initialize_dendrogram_level(current_graph_view_.get_number_of_local_vertices());
 
-    while (num_level < max_level) {
       compute_vertex_and_cluster_weights();
 
       weight_t new_Q = update_clustering(total_edge_weight, resolution);
@@ -492,15 +482,13 @@ class Louvain {
 
       best_modularity = new_Q;
 
-      shrink_graph(d_cluster_vec);
-
-      num_level++;
+      shrink_graph();
     }
 
     timer_display(std::cout);
 #endif
 
-    return std::make_pair(num_level, best_modularity);
+    return best_modularity;
   }
 
  protected:
@@ -526,6 +514,17 @@ class Louvain {
 #ifdef TIMING
     if (rank_ == 0) hr_timer_.display(os);
 #endif
+  }
+
+ protected:
+  void initialize_dendrogram_level(vertex_t num_vertices)
+  {
+    dendrogram_->add_level(num_vertices);
+
+    thrust::sequence(rmm::exec_policy(stream_)->on(stream_),
+                     dendrogram_->current_level_begin(),
+                     dendrogram_->current_level_end(),
+                     base_vertex_id_);
   }
 
  public:
@@ -577,23 +576,16 @@ class Louvain {
                  cluster_weights_v_.begin());
 
     cache_vertex_properties(
-      vertex_weights_v_, src_vertex_weights_cache_v_, dst_vertex_weights_cache_v_);
+      vertex_weights_v_.begin(), src_vertex_weights_cache_v_, dst_vertex_weights_cache_v_);
 
     cache_vertex_properties(
-      cluster_weights_v_, src_cluster_weights_cache_v_, dst_cluster_weights_cache_v_);
+      cluster_weights_v_.begin(), src_cluster_weights_cache_v_, dst_cluster_weights_cache_v_);
 
     timer_stop(stream_);
   }
 
-  //
-  // FIXME:  Consider returning d_src_cache and d_dst_cache
-  //         (as a pair).  This would be a nice optimization
-  //         for single GPU, as we wouldn't need to make 3 copies
-  //         of the data, could return a pair of device pointers to
-  //         local_input_v.
-  //
-  template <typename T>
-  void cache_vertex_properties(rmm::device_vector<T> const &local_input_v,
+  template <typename iterator_t, typename T>
+  void cache_vertex_properties(iterator_t const &local_input_iterator,
                                rmm::device_vector<T> &src_cache_v,
                                rmm::device_vector<T> &dst_cache_v,
                                bool src = true,
@@ -602,13 +594,13 @@ class Louvain {
     if (src) {
       src_cache_v.resize(current_graph_view_.get_number_of_local_adj_matrix_partition_rows());
       copy_to_adj_matrix_row(
-        handle_, current_graph_view_, local_input_v.begin(), src_cache_v.begin());
+        handle_, current_graph_view_, local_input_iterator, src_cache_v.begin());
     }
 
     if (dst) {
       dst_cache_v.resize(current_graph_view_.get_number_of_local_adj_matrix_partition_cols());
       copy_to_adj_matrix_col(
-        handle_, current_graph_view_, local_input_v.begin(), dst_cache_v.begin());
+        handle_, current_graph_view_, local_input_iterator, dst_cache_v.begin());
     }
   }
 
@@ -617,9 +609,10 @@ class Louvain {
   {
     timer_start("update_clustering");
 
-    rmm::device_vector<vertex_t> next_cluster_v(cluster_v_);
+    rmm::device_vector<vertex_t> next_cluster_v(dendrogram_->current_level_begin(),
+                                                dendrogram_->current_level_end());
 
-    cache_vertex_properties(next_cluster_v, src_cluster_cache_v_, dst_cluster_cache_v_);
+    cache_vertex_properties(next_cluster_v.begin(), src_cluster_cache_v_, dst_cluster_cache_v_);
 
     weight_t new_Q = modularity(total_edge_weight, resolution);
     weight_t cur_Q = new_Q - 1;
@@ -636,7 +629,7 @@ class Louvain {
 
       up_down = !up_down;
 
-      cache_vertex_properties(next_cluster_v, src_cluster_cache_v_, dst_cluster_cache_v_);
+      cache_vertex_properties(next_cluster_v.begin(), src_cluster_cache_v_, dst_cluster_cache_v_);
 
       new_Q = modularity(total_edge_weight, resolution);
 
@@ -644,12 +637,13 @@ class Louvain {
         thrust::copy(rmm::exec_policy(stream_)->on(stream_),
                      next_cluster_v.begin(),
                      next_cluster_v.end(),
-                     cluster_v_.begin());
+                     dendrogram_->current_level_begin());
       }
     }
 
     // cache the final clustering locally on each cpu
-    cache_vertex_properties(cluster_v_, src_cluster_cache_v_, dst_cluster_cache_v_);
+    cache_vertex_properties(
+      dendrogram_->current_level_begin(), src_cluster_cache_v_, dst_cluster_cache_v_);
 
     timer_stop(stream_);
     return cur_Q;
@@ -678,7 +672,7 @@ class Louvain {
       old_cluster_sum_v.begin());
 
     cache_vertex_properties(
-      old_cluster_sum_v, src_old_cluster_sum_cache_v, empty_cache_weight_v_, true, false);
+      old_cluster_sum_v.begin(), src_old_cluster_sum_cache_v, empty_cache_weight_v_, true, false);
 
     detail::src_cluster_equality_comparator_t<vertex_t, edge_t> compare(
       src_indices_v_.data().get(),
@@ -1134,7 +1128,7 @@ class Louvain {
       });
 
     cache_vertex_properties(
-      cluster_weights_v_, src_cluster_weights_cache_v_, dst_cluster_weights_cache_v_);
+      cluster_weights_v_.begin(), src_cluster_weights_cache_v_, dst_cluster_weights_cache_v_);
   }
 
   template <typename hash_t, typename compare_t, typename skip_edge_t, typename count_t>
@@ -1219,474 +1213,62 @@ class Louvain {
 
     return std::make_pair(relevant_edges_v, relevant_edge_weights_v);
   }
+#endif
 
-  void shrink_graph(vertex_t *d_cluster_vec)
+  void shrink_graph()
   {
     timer_start("shrinking graph");
 
-    std::size_t capacity{static_cast<std::size_t>((local_num_rows_ + local_num_cols_) / 0.7)};
+    rmm::device_uvector<vertex_t> numbering_map(0, stream_);
 
-    cuco::static_map<vertex_t, vertex_t> hash_map(
-      capacity, std::numeric_limits<vertex_t>::max(), std::numeric_limits<vertex_t>::max());
-
-    // renumber the clusters to the range 0..(num_clusters-1)
-    vertex_t num_clusters = renumber_clusters(hash_map);
-
-    renumber_result(hash_map, d_cluster_vec, num_clusters);
-
-    // shrink our graph to represent the graph of supervertices
-    generate_supervertices_graph(hash_map, num_clusters);
-
-    // assign each new vertex to its own cluster
-    //  MNMG:  This can be done locally with no communication required
-    thrust::sequence(rmm::exec_policy(stream_)->on(stream_),
-                     cluster_v_.begin(),
-                     cluster_v_.end(),
-                     base_vertex_id_);
-
-    timer_stop(stream_);
-  }
-
-  vertex_t renumber_clusters(cuco::static_map<vertex_t, vertex_t> &hash_map)
-  {
-    rmm::device_vector<vertex_t> cluster_inverse_v(local_num_vertices_, vertex_t{0});
-
-    //
-    // FIXME:  Faster to iterate from graph_.get_vertex_partition_first()
-    //         to graph_.get_vertex_partition_last()?  That would potentially
-    //         result in adding a cluster that isn't used on this GPU,
-    //         although I don't think it would break the result in any way.
-    //
-    //         This would also eliminate this use of src_indices_v_.
-    //
-    auto it_src = thrust::make_transform_iterator(
-      src_indices_v_.begin(),
-      [base_src_vertex_id  = base_src_vertex_id_,
-       d_src_cluster_cache = src_cluster_cache_v_.data().get()] __device__(auto idx) {
-        return detail::create_cuco_pair_t<vertex_t>()(
-          d_src_cluster_cache[idx - base_src_vertex_id]);
-      });
-
-    auto it_dst = thrust::make_transform_iterator(
-      current_graph_view_.indices(),
-      [base_dst_vertex_id  = base_dst_vertex_id_,
-       d_dst_cluster_cache = dst_cluster_cache_v_.data().get()] __device__(auto idx) {
-        return detail::create_cuco_pair_t<vertex_t>()(
-          d_dst_cluster_cache[idx - base_dst_vertex_id]);
-      });
-
-    hash_map.insert(it_src, it_src + local_num_edges_);
-    hash_map.insert(it_dst, it_dst + local_num_edges_);
-
-    // Now I need to get the keys into an array and shuffle them
-    rmm::device_vector<vertex_t> used_cluster_ids_v(hash_map.get_size());
-
-    auto transform_iter = thrust::make_transform_iterator(
-      thrust::make_counting_iterator<std::size_t>(0),
-      [d_hash_map = hash_map.get_device_view()] __device__(std::size_t idx) {
-        return d_hash_map.begin_slot()[idx].first.load();
-      });
-
-    used_cluster_ids_v = detail::remove_elements_from_vector(
-      used_cluster_ids_v,
-      transform_iter,
-      transform_iter + hash_map.get_capacity(),
-      [vmax = std::numeric_limits<vertex_t>::max()] __device__(vertex_t cluster) {
-        return cluster != vmax;
-      },
-      stream_);
-
-    auto partition_cluster_ids_iter = thrust::make_transform_iterator(
-      used_cluster_ids_v.begin(),
-      [d_vertex_device_view = compute_partition_.vertex_device_view()] __device__(vertex_t v) {
-        return d_vertex_device_view(v);
-      });
-
-    rmm::device_vector<std::size_t> original_gpus_v;
-    rmm::device_vector<vertex_t> my_cluster_ids_v =
-      variable_shuffle<graph_view_t::is_multi_gpu, vertex_t>(
-        handle_, used_cluster_ids_v.size(), used_cluster_ids_v.begin(), partition_cluster_ids_iter);
-
-    if (graph_view_t::is_multi_gpu) {
-      original_gpus_v = variable_shuffle<graph_view_t::is_multi_gpu, std::size_t>(
-        handle_,
-        used_cluster_ids_v.size(),
-        thrust::make_constant_iterator<std::size_t>(rank_),
-        partition_cluster_ids_iter);
-    }
-
-    //
-    //   Now my_cluster_ids contains the cluster ids that this gpu is
-    //   responsible for. I'm going to set cluster_inverse_v to one
-    //   for each cluster in this list.
-    //
-    thrust::for_each(
-      rmm::exec_policy(stream_)->on(stream_),
-      my_cluster_ids_v.begin(),
-      my_cluster_ids_v.end(),
-      [base_vertex_id    = base_vertex_id_,
-       d_cluster_inverse = cluster_inverse_v.data().get()] __device__(vertex_t cluster) {
-        d_cluster_inverse[cluster - base_vertex_id] = 1;
-      });
-
-    rmm::device_vector<vertex_t> my_cluster_ids_deduped_v = detail::remove_elements_from_vector(
-      my_cluster_ids_v,
-      thrust::make_counting_iterator<size_t>(0),
-      thrust::make_counting_iterator<size_t>(cluster_inverse_v.size()),
-      [d_cluster_inverse = cluster_inverse_v.data().get()] __device__(auto idx) {
-        return d_cluster_inverse[idx] == 1;
-      },
-      stream_);
-
-    //
-    //  Need to gather everything to be able to compute base addresses
-    //
-    vertex_t base_address{0};
-
-    if (graph_view_t::is_multi_gpu) {
-      int num_gpus{1};
-      rmm::device_vector<std::size_t> sizes_v(num_gpus + 1, my_cluster_ids_deduped_v.size());
-
-      handle_.get_comms().allgather(
-        sizes_v.data().get() + num_gpus, sizes_v.data().get(), num_gpus, stream_);
-
-      base_address = thrust::reduce(rmm::exec_policy(stream_)->on(stream_),
-                                    sizes_v.begin(),
-                                    sizes_v.begin() + rank_,
-                                    vertex_t{0});
-    }
-
-    //
-    //  Now let's update cluster_inverse_v to contain
-    //  the mapping of old cluster id to new vertex id
-    //
-    thrust::fill(
-      cluster_inverse_v.begin(), cluster_inverse_v.end(), std::numeric_limits<vertex_t>::max());
-
-    thrust::for_each_n(rmm::exec_policy(stream_)->on(stream_),
-                       thrust::make_counting_iterator<std::size_t>(0),
-                       my_cluster_ids_deduped_v.size(),
-                       [base_address,
-                        d_my_cluster_ids_deduped = my_cluster_ids_deduped_v.data().get(),
-                        d_cluster_inverse = cluster_inverse_v.data().get()] __device__(auto idx) {
-                         d_cluster_inverse[d_my_cluster_ids_deduped[idx]] = idx + base_address;
-                       });
-
-    //
-    //  Now I need to shuffle back to original gpus the
-    //  subset of my mapping that is required
-    //
-    rmm::device_vector<vertex_t> new_vertex_ids_v =
-      variable_shuffle<graph_view_t::is_multi_gpu, vertex_t>(
-        handle_,
-        my_cluster_ids_v.size(),
-        thrust::make_transform_iterator(my_cluster_ids_v.begin(),
-                                        [d_cluster_inverse = cluster_inverse_v.data().get(),
-                                         base_vertex_id    = base_vertex_id_] __device__(auto v) {
-                                          return d_cluster_inverse[v - base_vertex_id];
-                                        }),
-        original_gpus_v.begin());
-
-    if (graph_view_t::is_multi_gpu) {
-      my_cluster_ids_v = variable_shuffle<graph_view_t::is_multi_gpu, vertex_t>(
-        handle_, my_cluster_ids_v.size(), my_cluster_ids_v.begin(), original_gpus_v.begin());
-    }
-
-    //
-    //  Now update the hash map with the new vertex id
-    //
-    thrust::for_each_n(rmm::exec_policy(stream_)->on(stream_),
-                       thrust::make_zip_iterator(
-                         thrust::make_tuple(my_cluster_ids_v.begin(), new_vertex_ids_v.begin())),
-                       my_cluster_ids_v.size(),
-                       [d_hash_map = hash_map.get_device_view()] __device__(auto p) mutable {
-                         auto pos = d_hash_map.find(thrust::get<0>(p));
-                         pos->second.store(thrust::get<1>(p));
-                       });
-
-    //
-    //  At this point we have a renumbered COO that is
-    //  improperly distributed around the cluster, which
-    //  will be fixed by generate_supervertices_graph
-    //
-    if (graph_t::is_multi_gpu) {
-      return host_scalar_allreduce(
-        handle_.get_comms(), static_cast<vertex_t>(my_cluster_ids_deduped_v.size()), stream_);
-    } else {
-      return static_cast<vertex_t>(my_cluster_ids_deduped_v.size());
-    }
-  }
-
-  void renumber_result(cuco::static_map<vertex_t, vertex_t> const &hash_map,
-                       vertex_t *d_cluster_vec,
-                       vertex_t num_clusters)
-  {
-    if (graph_view_t::is_multi_gpu) {
-      //
-      // FIXME: Perhaps there's a general purpose function hidden here...
-      //        Given a set of vertex_t values, and a distributed set of
-      //        vertex properties, go to the proper node and retrieve
-      //        the vertex properties and return them to this gpu.
-      //
-      std::size_t capacity{static_cast<std::size_t>((local_num_vertices_) / 0.7)};
-      cuco::static_map<vertex_t, vertex_t> result_hash_map(
-        capacity, std::numeric_limits<vertex_t>::max(), std::numeric_limits<vertex_t>::max());
-
-      auto cluster_iter = thrust::make_transform_iterator(d_cluster_vec, [] __device__(vertex_t c) {
-        return detail::create_cuco_pair_t<vertex_t>()(c);
-      });
-
-      result_hash_map.insert(cluster_iter, cluster_iter + local_num_vertices_);
-
-      rmm::device_vector<vertex_t> used_cluster_ids_v(result_hash_map.get_size());
-
-      auto transform_iter = thrust::make_transform_iterator(
-        thrust::make_counting_iterator<std::size_t>(0),
-        [d_result_hash_map = result_hash_map.get_device_view()] __device__(std::size_t idx) {
-          return d_result_hash_map.begin_slot()[idx].first.load();
-        });
-
-      used_cluster_ids_v = detail::remove_elements_from_vector(
-        used_cluster_ids_v,
-        transform_iter,
-        transform_iter + result_hash_map.get_capacity(),
-        [vmax = std::numeric_limits<vertex_t>::max()] __device__(vertex_t cluster) {
-          return cluster != vmax;
-        },
-        stream_);
-
-      auto partition_cluster_ids_iter = thrust::make_transform_iterator(
-        used_cluster_ids_v.begin(),
-        [d_vertex_device_view = compute_partition_.vertex_device_view()] __device__(vertex_t v) {
-          return d_vertex_device_view(v);
-        });
-
-      rmm::device_vector<vertex_t> old_cluster_ids_v =
-        variable_shuffle<graph_view_t::is_multi_gpu, vertex_t>(handle_,
-                                                               used_cluster_ids_v.size(),
-                                                               used_cluster_ids_v.begin(),
-                                                               partition_cluster_ids_iter);
-
-      rmm::device_vector<std::size_t> original_gpus_v =
-        variable_shuffle<graph_view_t::is_multi_gpu, std::size_t>(
-          handle_,
-          used_cluster_ids_v.size(),
-          thrust::make_constant_iterator<std::size_t>(rank_),
-          partition_cluster_ids_iter);
-
-      // Now each GPU has old cluster ids, let's compute new cluster ids
-      rmm::device_vector<vertex_t> new_cluster_ids_v(old_cluster_ids_v.size());
-
-      thrust::transform(rmm::exec_policy(stream_)->on(stream_),
-                        old_cluster_ids_v.begin(),
-                        old_cluster_ids_v.end(),
-                        new_cluster_ids_v.begin(),
-                        [base_vertex_id = base_vertex_id_,
-                         d_cluster      = cluster_v_.data().get(),
-                         d_hash_map = hash_map.get_device_view()] __device__(vertex_t cluster_id) {
-                          vertex_t c = d_cluster[cluster_id - base_vertex_id];
-                          auto pos   = d_hash_map.find(c);
-                          return pos->second.load();
-                        });
-
-      // Shuffle everything back
-      old_cluster_ids_v = variable_shuffle<graph_view_t::is_multi_gpu, vertex_t>(
-        handle_, old_cluster_ids_v.size(), old_cluster_ids_v.begin(), original_gpus_v.begin());
-      new_cluster_ids_v = variable_shuffle<graph_view_t::is_multi_gpu, vertex_t>(
-        handle_, new_cluster_ids_v.size(), new_cluster_ids_v.begin(), original_gpus_v.begin());
-
-      // Update result_hash_map
-      thrust::for_each_n(
-        rmm::exec_policy(stream_)->on(stream_),
-        thrust::make_zip_iterator(
-          thrust::make_tuple(old_cluster_ids_v.begin(), new_cluster_ids_v.begin())),
-        old_cluster_ids_v.size(),
-        [d_result_hash_map = result_hash_map.get_device_view()] __device__(auto pair) mutable {
-          auto pos = d_result_hash_map.find(thrust::get<0>(pair));
-          pos->second.store(thrust::get<1>(pair));
-        });
-
-      thrust::transform(
-        rmm::exec_policy(stream_)->on(stream_),
-        d_cluster_vec,
-        d_cluster_vec + number_of_vertices_,
-        d_cluster_vec,
-        [d_result_hash_map = result_hash_map.get_device_view()] __device__(vertex_t c) {
-          auto pos = d_result_hash_map.find(c);
-          return pos->second.load();
-        });
-
-    } else {
-      thrust::transform(rmm::exec_policy(stream_)->on(stream_),
-                        d_cluster_vec,
-                        d_cluster_vec + number_of_vertices_,
-                        d_cluster_vec,
-                        [d_hash_map    = hash_map.get_device_view(),
-                         d_dst_cluster = dst_cluster_cache_v_.data()] __device__(vertex_t v) {
-                          vertex_t c = d_dst_cluster[v];
-                          auto pos   = d_hash_map.find(c);
-                          return pos->second.load();
-                        });
-    }
-  }
-
-  void generate_supervertices_graph(cuco::static_map<vertex_t, vertex_t> const &hash_map,
-                                    vertex_t num_clusters)
-  {
-    rmm::device_vector<vertex_t> new_src_v(local_num_edges_);
-    rmm::device_vector<vertex_t> new_dst_v(local_num_edges_);
-    rmm::device_vector<weight_t> new_weight_v(current_graph_view_.weights(),
-                                              current_graph_view_.weights() + local_num_edges_);
-
-    thrust::transform(rmm::exec_policy(stream_)->on(stream_),
-                      src_indices_v_.begin(),
-                      src_indices_v_.end(),
-                      new_src_v.begin(),
-                      [base_src_vertex_id = base_src_vertex_id_,
-                       d_src_cluster      = src_cluster_cache_v_.data().get(),
-                       d_hash_map         = hash_map.get_device_view()] __device__(vertex_t v) {
-                        vertex_t c = d_src_cluster[v - base_src_vertex_id];
-                        auto pos   = d_hash_map.find(c);
-                        return pos->second.load();
-                      });
-
-    thrust::transform(rmm::exec_policy(stream_)->on(stream_),
-                      current_graph_view_.indices(),
-                      current_graph_view_.indices() + local_num_edges_,
-                      new_dst_v.begin(),
-                      [base_dst_vertex_id = base_dst_vertex_id_,
-                       d_dst_cluster      = dst_cluster_cache_v_.data().get(),
-                       d_hash_map         = hash_map.get_device_view()] __device__(vertex_t v) {
-                        vertex_t c = d_dst_cluster[v - base_dst_vertex_id];
-                        auto pos   = d_hash_map.find(c);
-                        return pos->second.load();
-                      });
-
-    // Combine common edges on local gpu
-    std::tie(new_src_v, new_dst_v, new_weight_v) =
-      combine_local_edges(new_src_v, new_dst_v, new_weight_v);
-
-    if (graph_view_t::is_multi_gpu) {
-      //
-      // Shuffle the data to the proper GPU
-      //   FIXME:  This needs some performance exploration.  It is
-      //           possible (likely?) that the shrunken graph is
-      //           more dense than the original graph.  Perhaps that
-      //           changes the dynamic of partitioning efficiently.
-      //
-      // For now, we're going to keep the partitioning the same,
-      // but because we've renumbered to lower numbers, fewer
-      // partitions will actually have data.
-      //
-      rmm::device_vector<int> partition_v(new_src_v.size());
-
-      thrust::transform(
-        rmm::exec_policy(stream_)->on(stream_),
-        thrust::make_zip_iterator(thrust::make_tuple(new_src_v.begin(), new_dst_v.begin())),
-        thrust::make_zip_iterator(thrust::make_tuple(new_src_v.end(), new_dst_v.end())),
-        partition_v.begin(),
-        [d_edge_device_view = compute_partition_.edge_device_view()] __device__(
-          thrust::tuple<vertex_t, vertex_t> tuple) {
-          return d_edge_device_view(thrust::get<0>(tuple), thrust::get<1>(tuple));
-        });
-
-      new_src_v = variable_shuffle<graph_view_t::is_multi_gpu, vertex_t>(
-        handle_, partition_v.size(), new_src_v.begin(), partition_v.begin());
-
-      new_dst_v = variable_shuffle<graph_view_t::is_multi_gpu, vertex_t>(
-        handle_, partition_v.size(), new_dst_v.begin(), partition_v.begin());
-
-      new_weight_v = variable_shuffle<graph_view_t::is_multi_gpu, weight_t>(
-        handle_, partition_v.size(), new_weight_v.begin(), partition_v.begin());
-
-      //
-      //  Now everything is on the correct node, again combine like edges
-      //
-      std::tie(new_src_v, new_dst_v, new_weight_v) =
-        combine_local_edges(new_src_v, new_dst_v, new_weight_v);
-    }
-
-    //
-    //  Now I have a COO of the new graph, distributed according to the
-    //  original clustering (eventually this likely fits on one GPU and
-    //  everything else is empty).
-    //
-    current_graph_ =
-      detail::create_graph<vertex_t,
-                           edge_t,
-                           weight_t,
-                           graph_t::is_adj_matrix_transposed,
-                           graph_t::is_multi_gpu>(handle_,
-                                                  new_src_v,
-                                                  new_dst_v,
-                                                  new_weight_v,
-                                                  num_clusters,
-                                                  experimental::graph_properties_t{true, true},
-                                                  current_graph_view_);
+    std::tie(current_graph_, numbering_map) =
+      coarsen_graph(handle_, current_graph_view_, dendrogram_->current_level_begin());
 
     current_graph_view_ = current_graph_->view();
-
-    src_indices_v_.resize(new_src_v.size());
 
     local_num_vertices_ = current_graph_view_.get_number_of_local_vertices();
     local_num_rows_     = current_graph_view_.get_number_of_local_adj_matrix_partition_rows();
     local_num_cols_     = current_graph_view_.get_number_of_local_adj_matrix_partition_cols();
-    local_num_edges_    = new_src_v.size();
+    base_vertex_id_     = current_graph_view_.get_local_vertex_first();
+
+    local_num_edges_ = thrust::transform_reduce(
+      thrust::host,
+      thrust::make_counting_iterator<size_t>(0),
+      thrust::make_counting_iterator<size_t>(
+        current_graph_view_.get_number_of_local_adj_matrix_partitions()),
+      [this](auto indx) {
+        return current_graph_view_.get_number_of_local_adj_matrix_partition_edges(indx);
+      },
+      size_t{0},
+      thrust::plus<size_t>());
+
+    src_indices_v_.resize(local_num_edges_);
 
     cugraph::detail::offsets_to_indices(
       current_graph_view_.offsets(), local_num_rows_, src_indices_v_.data().get());
-  }
-#endif
 
-  std::
-    tuple<rmm::device_vector<vertex_t>, rmm::device_vector<vertex_t>, rmm::device_vector<weight_t>>
-    combine_local_edges(rmm::device_vector<vertex_t> &src_v,
-                        rmm::device_vector<vertex_t> &dst_v,
-                        rmm::device_vector<weight_t> &weight_v)
-  {
-    thrust::stable_sort_by_key(
-      rmm::exec_policy(stream_)->on(stream_),
-      dst_v.begin(),
-      dst_v.end(),
-      thrust::make_zip_iterator(thrust::make_tuple(src_v.begin(), weight_v.begin())));
-    thrust::stable_sort_by_key(
-      rmm::exec_policy(stream_)->on(stream_),
-      src_v.begin(),
-      src_v.end(),
-      thrust::make_zip_iterator(thrust::make_tuple(dst_v.begin(), weight_v.begin())));
+    rmm::device_uvector<vertex_t> numbering_indices(numbering_map.size(), stream_);
+    thrust::sequence(rmm::exec_policy(stream_)->on(stream_),
+                     numbering_indices.begin(),
+                     numbering_indices.end(),
+                     base_vertex_id_);
 
-    rmm::device_vector<vertex_t> combined_src_v(src_v.size());
-    rmm::device_vector<vertex_t> combined_dst_v(src_v.size());
-    rmm::device_vector<weight_t> combined_weight_v(src_v.size());
+    relabel<vertex_t, graph_view_t::is_multi_gpu>(
+      handle_,
+      std::make_tuple(static_cast<vertex_t const *>(numbering_map.begin()),
+                      static_cast<vertex_t const *>(numbering_indices.begin())),
+      local_num_vertices_,
+      dendrogram_->current_level_begin(),
+      dendrogram_->current_level_size());
 
-    //
-    //  Now we reduce by key to combine the weights of duplicate
-    //  edges.
-    //
-    auto start = thrust::make_zip_iterator(thrust::make_tuple(src_v.begin(), dst_v.begin()));
-    auto new_start =
-      thrust::make_zip_iterator(thrust::make_tuple(combined_src_v.begin(), combined_dst_v.begin()));
-    auto new_end = thrust::reduce_by_key(rmm::exec_policy(stream_)->on(stream_),
-                                         start,
-                                         start + src_v.size(),
-                                         weight_v.begin(),
-                                         new_start,
-                                         combined_weight_v.begin(),
-                                         thrust::equal_to<thrust::tuple<vertex_t, vertex_t>>(),
-                                         thrust::plus<weight_t>());
-
-    auto num_edges = thrust::distance(new_start, new_end.first);
-
-    combined_src_v.resize(num_edges);
-    combined_dst_v.resize(num_edges);
-    combined_weight_v.resize(num_edges);
-
-    return std::make_tuple(combined_src_v, combined_dst_v, combined_weight_v);
+    timer_stop(stream_);
   }
 
  protected:
   raft::handle_t const &handle_;
   cudaStream_t stream_;
+
+  std::unique_ptr<Dendrogram<vertex_t>> dendrogram_;
 
   vertex_t number_of_vertices_;
   vertex_t base_vertex_id_{0};
@@ -1723,7 +1305,6 @@ class Louvain {
   rmm::device_vector<weight_t> src_cluster_weights_cache_v_{};
   rmm::device_vector<weight_t> dst_cluster_weights_cache_v_{};
 
-  rmm::device_vector<vertex_t> cluster_v_;
   rmm::device_vector<vertex_t> src_cluster_cache_v_{};
   rmm::device_vector<vertex_t> dst_cluster_cache_v_{};
 

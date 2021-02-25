@@ -1,4 +1,4 @@
-# Copyright (c) 2020, NVIDIA CORPORATION.
+# Copyright (c) 2020-2021, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -219,11 +219,11 @@ def ensure_cugraph_obj(obj, nx_weight_attr=None, matrix_graph_type=None):
     cugraph Graph-type obj to create when converting from a matrix type.
     """
     # FIXME: importing here to avoid circular import
-    from cugraph.structure import Graph, DiGraph
+    from cugraph.structure import Graph, DiGraph, MultiGraph, MultiDiGraph
     from cugraph.utilities.nx_factory import convert_from_nx
 
     input_type = type(obj)
-    if input_type in [Graph, DiGraph]:
+    if input_type in [Graph, DiGraph, MultiGraph, MultiDiGraph]:
         return (obj, input_type)
 
     elif (nx is not None) and (input_type in [nx.Graph, nx.DiGraph]):

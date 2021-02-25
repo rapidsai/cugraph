@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020, NVIDIA CORPORATION.
+ * Copyright (c) 2020-2021, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -21,8 +21,9 @@
 #include <partition_manager.hpp>
 #include <patterns/edge_op_utils.cuh>
 #include <patterns/reduce_op.cuh>
-#include <utilities/comm_utils.cuh>
+#include <utilities/device_comm.cuh>
 #include <utilities/error.hpp>
+#include <utilities/host_scalar_comm.cuh>
 #include <utilities/thrust_tuple_utils.cuh>
 #include <vertex_partition_device.cuh>
 
@@ -155,7 +156,7 @@ size_t reduce_buffer_elements(raft::handle_t const& handle,
     // FIXME: actually, we can find how many unique keys are here by now.
     // FIXME: if GraphViewType::is_multi_gpu is true, this should be executed on the GPU holding the
     // vertex unless reduce_op is a pure function.
-    rmm::device_vector<key_t> keys(num_buffer_elements);
+    rmm::device_uvector<key_t> keys(num_buffer_elements, handle.get_stream());
     rmm::device_vector<payload_t> values(num_buffer_elements);
     auto it = thrust::reduce_by_key(rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
                                     buffer_key_output_first,
@@ -175,9 +176,10 @@ size_t reduce_buffer_elements(raft::handle_t const& handle,
                  values.begin(),
                  values.begin() + num_reduced_buffer_elements,
                  buffer_payload_output_first);
-    CUDA_TRY(cudaStreamSynchronize(
-      handle.get_stream()));  // this is necessary as kyes & values will become out-of-scope once
-                              // this function returns
+    // FIXME: this is unecessary if we use a tuple of rmm::device_uvector objects for values
+    CUDA_TRY(
+      cudaStreamSynchronize(handle.get_stream()));  // this is necessary as values will become
+                                                    // out-of-scope once this function returns
     return num_reduced_buffer_elements;
   }
 }
@@ -400,7 +402,7 @@ void update_frontier_v_push_if_out_nbr(
       frontier_size = thrust::distance(vertex_first, vertex_last);
     }
 
-    edge_t max_pushes =
+    auto max_pushes =
       frontier_size > 0
         ? frontier_rows.size() > 0
             ? thrust::transform_reduce(

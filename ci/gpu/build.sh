@@ -1,10 +1,10 @@
 #!/usr/bin/env bash
-# Copyright (c) 2018-2020, NVIDIA CORPORATION.
+# Copyright (c) 2018-2021, NVIDIA CORPORATION.
 ##########################################
 # cuGraph GPU build & testscript for CI  #
 ##########################################
-set -e
-set -o pipefail
+set -e           # abort the script on error, this will change for running tests (see below)
+set -o pipefail  # piped commands propagate their error
 NUMARGS=$#
 ARGS=$*
 
@@ -98,9 +98,14 @@ fi
 # TEST - Run GoogleTest and py.tests for libcugraph and cuGraph
 ################################################################################
 
-set +e -Eo pipefail
-EXITCODE=0
+# Switch to +e to allow failing commands to continue the script, which is needed
+# so all testing commands run regardless of pass/fail. This requires the desired
+# exit code to be managed using the ERR trap.
+set +e           # allow script to continue on error
+set -E           # ERR traps are inherited by subcommands
 trap "EXITCODE=1" ERR
+
+EXITCODE=0
 
 if hasArg --skip-tests; then
     gpuci_logger "Skipping Tests"
@@ -117,18 +122,19 @@ else
         TEST_MODE_FLAG=""
     fi
 
+    gpuci_logger "Running cuGraph test.sh..."
     ${WORKSPACE}/ci/test.sh ${TEST_MODE_FLAG} | tee testoutput.txt
+    gpuci_logger "Ran cuGraph test.sh : return code was: $?, gpu/build.sh exit code is now: $EXITCODE"
 
-    echo -e "\nTOP 20 SLOWEST TESTS:\n"
-    # Wrap in echo to prevent non-zero exit since this command is non-essential
-    echo "$(${WORKSPACE}/ci/getGTestTimes.sh testoutput.txt | head -20)"
-
+    gpuci_logger "Running cuGraph notebook test script..."
     ${WORKSPACE}/ci/gpu/test-notebooks.sh 2>&1 | tee nbtest.log
+    gpuci_logger "Ran cuGraph notebook test script : return code was: $?, gpu/build.sh exit code is now: $EXITCODE"
     python ${WORKSPACE}/ci/utils/nbtestlog2junitxml.py nbtest.log
 fi
 
-if [ -n "\${CODECOV_TOKEN}" ]; then
-    codecov -t \$CODECOV_TOKEN
+if [ -n "${CODECOV_TOKEN}" ]; then
+    codecov -t $CODECOV_TOKEN
 fi
 
+gpuci_logger "gpu/build.sh returning value: $EXITCODE"
 return ${EXITCODE}

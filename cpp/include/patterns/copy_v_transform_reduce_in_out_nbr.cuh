@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020, NVIDIA CORPORATION.
+ * Copyright (c) 2020-2021, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -19,7 +19,8 @@
 #include <matrix_partition_device.cuh>
 #include <patterns/edge_op_utils.cuh>
 #include <patterns/reduce_op.cuh>
-#include <utilities/comm_utils.cuh>
+#include <utilities/dataframe_buffer.cuh>
+#include <utilities/device_comm.cuh>
 #include <utilities/error.hpp>
 
 #include <raft/cudart_utils.h>
@@ -377,8 +378,8 @@ void copy_v_transform_reduce_nbr(raft::handle_t const& handle,
           ? graph_view.get_number_of_local_adj_matrix_partition_rows()
           : graph_view.get_number_of_local_adj_matrix_partition_cols()
       : vertex_t{0};
-  auto minor_tmp_buffer   = allocate_comm_buffer<T>(minor_tmp_buffer_size, handle.get_stream());
-  auto minor_buffer_first = get_comm_buffer_begin<T>(minor_tmp_buffer);
+  auto minor_tmp_buffer = allocate_dataframe_buffer<T>(minor_tmp_buffer_size, handle.get_stream());
+  auto minor_buffer_first = get_dataframe_buffer_begin<T>(minor_tmp_buffer);
 
   if (in != GraphViewType::is_adj_matrix_transposed) {
     auto minor_init = init;
@@ -424,8 +425,9 @@ void copy_v_transform_reduce_nbr(raft::handle_t const& handle,
               : graph_view.get_vertex_partition_size(col_comm_rank * row_comm_size + i)
           : vertex_t{0};
     }
-    auto major_tmp_buffer   = allocate_comm_buffer<T>(major_tmp_buffer_size, handle.get_stream());
-    auto major_buffer_first = get_comm_buffer_begin<T>(major_tmp_buffer);
+    auto major_tmp_buffer =
+      allocate_dataframe_buffer<T>(major_tmp_buffer_size, handle.get_stream());
+    auto major_buffer_first = get_dataframe_buffer_begin<T>(major_tmp_buffer);
 
     auto major_init = T{};
     if (in == GraphViewType::is_adj_matrix_transposed) {
@@ -523,12 +525,6 @@ void copy_v_transform_reduce_nbr(raft::handle_t const& handle,
                       handle.get_stream());
       }
     }
-
-    CUDA_TRY(cudaStreamSynchronize(
-      handle.get_stream()));  // this is as necessary major_tmp_buffer will become out-of-scope once
-                              // control flow exits this block (FIXME: we can reduce stream
-                              // synchronization if we compute the maximum major_tmp_buffer_size and
-                              // allocate major_tmp_buffer outside the loop)
   }
 
   if (GraphViewType::is_multi_gpu && (in != GraphViewType::is_adj_matrix_transposed)) {
@@ -590,10 +586,6 @@ void copy_v_transform_reduce_nbr(raft::handle_t const& handle,
       }
     }
   }
-
-  CUDA_TRY(cudaStreamSynchronize(
-    handle.get_stream()));  // this is as necessary minor_tmp_buffer will become out-of-scope once
-                            // control flow exits this block
 }
 
 }  // namespace detail
@@ -627,7 +619,7 @@ void copy_v_transform_reduce_nbr(raft::handle_t const& handle,
  * weight), *(@p adj_matrix_row_value_input_first + i), and *(@p adj_matrix_col_value_input_first +
  * j) (where i is in [0, graph_view.get_number_of_local_adj_matrix_partition_rows()) and j is in [0,
  * get_number_of_local_adj_matrix_partition_cols())) and returns a value to be reduced.
- * @param init Initial value to be added to the reduced @e_op return values for each vertex.
+ * @param init Initial value to be added to the reduced @p e_op return values for each vertex.
  * @param vertex_value_output_first Iterator pointing to the vertex property variables for the first
  * (inclusive) vertex (assigned to tihs process in multi-GPU). `vertex_value_output_last`
  * (exclusive) is deduced as @p vertex_value_output_first + @p
@@ -689,7 +681,7 @@ void copy_v_transform_reduce_in_nbr(raft::handle_t const& handle,
  * adj_matrix_col_value_input_first + j) (where i is in [0,
  * graph_view.get_number_of_local_adj_matrix_partition_rows()) and j is in [0,
  * get_number_of_local_adj_matrix_partition_cols())) and returns a value to be reduced.
- * @param init Initial value to be added to the reduced @e_op return values for each vertex.
+ * @param init Initial value to be added to the reduced @p e_op return values for each vertex.
  * @param vertex_value_output_first Iterator pointing to the vertex property variables for the
  * first (inclusive) vertex (assigned to tihs process in multi-GPU). `vertex_value_output_last`
  * (exclusive) is deduced as @p vertex_value_output_first + @p

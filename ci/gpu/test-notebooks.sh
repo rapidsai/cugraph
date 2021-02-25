@@ -1,5 +1,5 @@
 #!/bin/bash
-# Copyright (c) 2019-2020, NVIDIA CORPORATION.
+# Copyright (c) 2019-2021, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -12,23 +12,27 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-#RAPIDS_DIR=/rapids
+# Any failing command will set EXITCODE to non-zero
+set -e           # abort the script on error, this will change for running tests (see below)
+set -o pipefail  # piped commands propagate their error
+set -E           # ERR traps are inherited by subcommands
+trap "EXITCODE=1" ERR
+
 NOTEBOOKS_DIR=${WORKSPACE}/notebooks
 NBTEST=${WORKSPACE}/ci/utils/nbtest.sh
 LIBCUDF_KERNEL_CACHE_PATH=${WORKSPACE}/.jitcache
+EXITCODE=0
 
 cd ${NOTEBOOKS_DIR}
 TOPLEVEL_NB_FOLDERS=$(find . -name *.ipynb |cut -d'/' -f2|sort -u)
 
-# Add notebooks that should be skipped here
-# (space-separated list of filenames without paths)
-
-SKIPNBS="uvm.ipynb bfs_benchmark.ipynb louvain_benchmark.ipynb pagerank_benchmark.ipynb sssp_benchmark.ipynb release.ipynb nx_cugraph_bc_benchmarking.ipynb"
-
 ## Check env
 env
 
-EXITCODE=0
+# Do not abort the script on error. This allows all tests to run regardless of
+# pass/fail but relies on the ERR trap above to manage the EXITCODE for the
+# script.
+set +e
 
 # Always run nbtest in all TOPLEVEL_NB_FOLDERS, set EXITCODE to failure
 # if any run fails
@@ -37,29 +41,20 @@ for folder in ${TOPLEVEL_NB_FOLDERS}; do
     echo "FOLDER: ${folder}"
     echo "========================================"
     cd ${NOTEBOOKS_DIR}/${folder}
-    for nb in $(find . -name "*.ipynb"); do
+    NBLIST=$(python ${WORKSPACE}/ci/gpu/notebook_list.py)
+    for nb in ${NBLIST}; do
         nbBasename=$(basename ${nb})
-        # Skip all NBs that use dask (in the code or even in their name)
-        if ((echo ${nb}|grep -qi dask) || \
-            (grep -q dask ${nb})); then
-            echo "--------------------------------------------------------------------------------"
-            echo "SKIPPING: ${nb} (suspected Dask usage, not currently automatable)"
-            echo "--------------------------------------------------------------------------------"
-        elif (echo " ${SKIPNBS} " | grep -q " ${nbBasename} "); then
-            echo "--------------------------------------------------------------------------------"
-            echo "SKIPPING: ${nb} (listed in skip list)"
-            echo "--------------------------------------------------------------------------------"
-        else
-            cd $(dirname ${nb})
-            nvidia-smi
-            ${NBTEST} ${nbBasename}
-            EXITCODE=$((EXITCODE | $?))
-            rm -rf ${LIBCUDF_KERNEL_CACHE_PATH}/*
-            cd ${NOTEBOOKS_DIR}/${folder}
-        fi
+        cd $(dirname ${nb})
+        nvidia-smi
+        ${NBTEST} ${nbBasename}
+        echo "Ran nbtest for $nb : return code was: $?, test script exit code is now: $EXITCODE"
+        echo
+        rm -rf ${LIBCUDF_KERNEL_CACHE_PATH}/*
+        cd ${NOTEBOOKS_DIR}/${folder}
     done
 done
 
 nvidia-smi
 
+echo "Notebook test script exiting with value: $EXITCODE"
 exit ${EXITCODE}

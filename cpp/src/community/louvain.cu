@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020, NVIDIA CORPORATION.
+ * Copyright (c) 2020-2021, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,9 +14,12 @@
  * limitations under the License.
  */
 
+#include <community/flatten_dendrogram.cuh>
 #include <community/louvain.cuh>
 #include <experimental/graph.hpp>
 #include <experimental/louvain.cuh>
+
+#include <rmm/device_uvector.hpp>
 
 namespace cugraph {
 
@@ -31,10 +34,28 @@ std::pair<size_t, weight_t> louvain(raft::handle_t const &handle,
 {
   CUGRAPH_EXPECTS(graph_view.edge_data != nullptr,
                   "Invalid input argument: louvain expects a weighted graph");
-  CUGRAPH_EXPECTS(clustering != nullptr, "Invalid input argument: clustering is null");
+  CUGRAPH_EXPECTS(clustering != nullptr,
+                  "Invalid input argument: clustering is null, should be a device pointer to "
+                  "memory for storing the result");
 
   Louvain<GraphCSRView<vertex_t, edge_t, weight_t>> runner(handle, graph_view);
-  return runner(clustering, max_level, resolution);
+  weight_t wt = runner(max_level, resolution);
+
+  rmm::device_uvector<vertex_t> vertex_ids_v(graph_view.number_of_vertices, handle.get_stream());
+
+  thrust::sequence(rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
+                   vertex_ids_v.begin(),
+                   vertex_ids_v.end(),
+                   vertex_t{0});
+
+  partition_at_level<vertex_t, false>(handle,
+                                      runner.get_dendrogram(),
+                                      vertex_ids_v.data(),
+                                      clustering,
+                                      runner.get_dendrogram().num_levels());
+
+  // FIXME: Consider returning the Dendrogram at some point
+  return std::make_pair(runner.get_dendrogram().num_levels(), wt);
 }
 
 template <typename vertex_t, typename edge_t, typename weight_t, bool multi_gpu>
@@ -45,7 +66,9 @@ std::pair<size_t, weight_t> louvain(
   size_t max_level,
   weight_t resolution)
 {
-  CUGRAPH_EXPECTS(clustering != nullptr, "Invalid input argument: clustering is null");
+  CUGRAPH_EXPECTS(clustering != nullptr,
+                  "Invalid input argument: clustering is null, should be a device pointer to "
+                  "memory for storing the result");
 
   // "FIXME": remove this check and the guards below
   //
@@ -61,7 +84,25 @@ std::pair<size_t, weight_t> louvain(
   } else {
     experimental::Louvain<experimental::graph_view_t<vertex_t, edge_t, weight_t, false, multi_gpu>>
       runner(handle, graph_view);
-    return runner(clustering, max_level, resolution);
+
+    weight_t wt = runner(max_level, resolution);
+
+    rmm::device_uvector<vertex_t> vertex_ids_v(graph_view.get_number_of_vertices(),
+                                               handle.get_stream());
+
+    thrust::sequence(rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
+                     vertex_ids_v.begin(),
+                     vertex_ids_v.end(),
+                     graph_view.get_local_vertex_first());
+
+    partition_at_level<vertex_t, multi_gpu>(handle,
+                                            runner.get_dendrogram(),
+                                            vertex_ids_v.data(),
+                                            clustering,
+                                            runner.get_dendrogram().num_levels());
+
+    // FIXME: Consider returning the Dendrogram at some point
+    return std::make_pair(runner.get_dendrogram().num_levels(), wt);
   }
 }
 

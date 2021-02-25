@@ -1,4 +1,4 @@
-# Copyright (c) 2019-2020, NVIDIA CORPORATION.
+# Copyright (c) 2020-2021, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -26,7 +26,7 @@ from cupyx.scipy.sparse.csc import csc_matrix as cp_csc_matrix
 from scipy.sparse.coo import coo_matrix as sp_coo_matrix
 from scipy.sparse.csr import csr_matrix as sp_csr_matrix
 from scipy.sparse.csc import csc_matrix as sp_csc_matrix
-
+from pathlib import PurePath
 import cudf
 import dask_cudf
 
@@ -40,36 +40,58 @@ SCIPY_MATRIX_TYPES = [sp_coo_matrix, sp_csr_matrix, sp_csc_matrix]
 #
 # Datasets
 #
-DATASETS_UNDIRECTED = ["../datasets/karate.csv", "../datasets/dolphins.csv"]
+
+
+RAPIDS_DATASET_ROOT_DIR = os.getenv("RAPIDS_DATASET_ROOT_DIR", "../datasets")
+
+DATASETS_UNDIRECTED = [PurePath(RAPIDS_DATASET_ROOT_DIR)/f for
+                       f in ["karate.csv", "dolphins.csv"]]
 
 DATASETS_UNDIRECTED_WEIGHTS = [
-    "../datasets/netscience.csv",
+    PurePath(RAPIDS_DATASET_ROOT_DIR)/"netscience.csv"
 ]
 
-DATASETS_UNRENUMBERED = ["../datasets/karate-disjoint.csv"]
-
-DATASETS = [
-    "../datasets/karate-disjoint.csv",
-    "../datasets/dolphins.csv",
-    "../datasets/netscience.csv",
+DATASETS_UNRENUMBERED = [PurePath(
+    RAPIDS_DATASET_ROOT_DIR)/"karate-disjoint.csv"
 ]
+
+DATASETS = [PurePath(RAPIDS_DATASET_ROOT_DIR)/f for f in [
+    "karate-disjoint.csv",
+    "dolphins.csv",
+    "netscience.csv"]
+]
+
+
 #            '../datasets/email-Eu-core.csv']
 
 STRONGDATASETS = [
-    "../datasets/dolphins.csv",
-    "../datasets/netscience.csv",
-    "../datasets/email-Eu-core.csv",
+    PurePath(RAPIDS_DATASET_ROOT_DIR)/f for f in [
+        "dolphins.csv",
+        "netscience.csv",
+        "email-Eu-core.csv"]
 ]
 
-DATASETS_KTRUSS = [
-    ("../datasets/polbooks.csv", "../datasets/ref/ktruss/polbooks.csv")
+
+DATASETS_KTRUSS = [(
+    PurePath(RAPIDS_DATASET_ROOT_DIR)/"polbooks.csv",
+    PurePath(RAPIDS_DATASET_ROOT_DIR)/"ref/ktruss/polbooks.csv")
+]
+
+DATASETS_TSPLIB = [
+        (PurePath(RAPIDS_DATASET_ROOT_DIR)/f,) + (d,) for (f, d) in [
+            ("gil262.tsp", 2378),
+            ("eil51.tsp", 426),
+            ("kroA100.tsp", 21282),
+            ("tsp225.tsp", 3916)]
 ]
 
 DATASETS_SMALL = [
-    "../datasets/karate.csv",
-    "../datasets/dolphins.csv",
-    "../datasets/polbooks.csv",
+    PurePath(RAPIDS_DATASET_ROOT_DIR)/f for f in [
+        "karate.csv",
+        "dolphins.csv",
+        "polbooks.csv"]
 ]
+
 
 MATRIX_INPUT_TYPES = [
     pytest.param(

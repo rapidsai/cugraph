@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020, NVIDIA CORPORATION.
+ * Copyright (c) 2020-2021, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -274,8 +274,8 @@ class Tests_PageRank : public ::testing::TestWithParam<PageRank_Usecase> {
       (1.0 / static_cast<result_t>(graph_view.get_number_of_vertices())) *
       threshold_ratio;  // skip comparison for low PageRank verties (lowly ranked vertices)
     auto nearly_equal = [threshold_ratio, threshold_magnitude](auto lhs, auto rhs) {
-      auto diff = std::abs(lhs - rhs);
-      return (diff < std::max(lhs, rhs) * threshold_ratio) || (diff < threshold_magnitude);
+      return std::abs(lhs - rhs) <
+             std::max(std::max(lhs, rhs) * threshold_ratio, threshold_magnitude);
     };
 
     ASSERT_TRUE(std::equal(h_reference_pageranks.begin(),

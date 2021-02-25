@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020, NVIDIA CORPORATION.
+ * Copyright (c) 2020-2021, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -15,16 +15,20 @@
  */
 
 #include <algorithms.hpp>
+#include <experimental/detail/graph_utils.cuh>
+#include <experimental/graph_functions.hpp>
 #include <experimental/graph_view.hpp>
 #include <graph.hpp>
 #include <partition_manager.hpp>
 #include <raft/handle.hpp>
 #include <utilities/cython.hpp>
 #include <utilities/error.hpp>
+#include <utilities/shuffle_comm.cuh>
 
 #include <rmm/thrust_rmm_allocator.h>
 #include <thrust/copy.h>
 #include <thrust/iterator/counting_iterator.h>
+#include <thrust/iterator/zip_iterator.h>
 
 namespace cugraph {
 namespace cython {
@@ -86,7 +90,6 @@ create_graph(raft::handle_t const& handle, graph_container_t const& graph_contai
     reinterpret_cast<vertex_t*>(graph_container.dst_vertices),
     reinterpret_cast<weight_t*>(graph_container.weights),
     static_cast<edge_t>(graph_container.num_partition_edges)};
-
   return std::make_unique<experimental::graph_t<vertex_t, edge_t, weight_t, transposed, multi_gpu>>(
     handle,
     edgelist,
@@ -123,12 +126,18 @@ void populate_graph_container(graph_container_t& graph_container,
   bool do_expensive_check{true};
   bool hypergraph_partitioned{false};
 
-  auto& row_comm           = handle.get_subcomm(cugraph::partition_2d::key_naming_t().row_name());
-  auto const row_comm_rank = row_comm.get_rank();
-  auto const row_comm_size = row_comm.get_size();  // pcols
-  auto& col_comm           = handle.get_subcomm(cugraph::partition_2d::key_naming_t().col_name());
-  auto const col_comm_rank = col_comm.get_rank();
-  auto const col_comm_size = col_comm.get_size();  // prows
+  if (multi_gpu) {
+    auto& row_comm           = handle.get_subcomm(cugraph::partition_2d::key_naming_t().row_name());
+    auto const row_comm_rank = row_comm.get_rank();
+    auto const row_comm_size = row_comm.get_size();  // pcols
+    auto& col_comm           = handle.get_subcomm(cugraph::partition_2d::key_naming_t().col_name());
+    auto const col_comm_rank = col_comm.get_rank();
+    auto const col_comm_size = col_comm.get_size();  // prows
+    graph_container.row_comm_size = row_comm_size;
+    graph_container.col_comm_size = col_comm_size;
+    graph_container.row_comm_rank = row_comm_rank;
+    graph_container.col_comm_rank = col_comm_rank;
+  }
 
   graph_container.vertex_partition_offsets = vertex_partition_offsets;
   graph_container.src_vertices             = src_vertices;
@@ -143,10 +152,6 @@ void populate_graph_container(graph_container_t& graph_container,
   graph_container.transposed               = transposed;
   graph_container.is_multi_gpu             = multi_gpu;
   graph_container.hypergraph_partitioned   = hypergraph_partitioned;
-  graph_container.row_comm_size            = row_comm_size;
-  graph_container.col_comm_size            = col_comm_size;
-  graph_container.row_comm_rank            = row_comm_rank;
-  graph_container.col_comm_rank            = col_comm_rank;
   graph_container.sorted_by_degree         = sorted_by_degree;
   graph_container.do_expensive_check       = do_expensive_check;
 
@@ -463,33 +468,7 @@ void call_pagerank(raft::handle_t const& handle,
                    int64_t max_iter,
                    bool has_guess)
 {
-  if (graph_container.graph_type == graphTypeEnum::GraphCSCViewFloat) {
-    pagerank(handle,
-             *(graph_container.graph_ptr_union.GraphCSCViewFloatPtr),
-             reinterpret_cast<float*>(p_pagerank),
-             static_cast<int32_t>(personalization_subset_size),
-             reinterpret_cast<int32_t*>(personalization_subset),
-             reinterpret_cast<float*>(personalization_values),
-             alpha,
-             tolerance,
-             max_iter,
-             has_guess);
-    graph_container.graph_ptr_union.GraphCSCViewFloatPtr->get_vertex_identifiers(
-      reinterpret_cast<int32_t*>(identifiers));
-  } else if (graph_container.graph_type == graphTypeEnum::GraphCSCViewDouble) {
-    pagerank(handle,
-             *(graph_container.graph_ptr_union.GraphCSCViewDoublePtr),
-             reinterpret_cast<double*>(p_pagerank),
-             static_cast<int32_t>(personalization_subset_size),
-             reinterpret_cast<int32_t*>(personalization_subset),
-             reinterpret_cast<double*>(personalization_values),
-             alpha,
-             tolerance,
-             max_iter,
-             has_guess);
-    graph_container.graph_ptr_union.GraphCSCViewDoublePtr->get_vertex_identifiers(
-      reinterpret_cast<int32_t*>(identifiers));
-  } else if (graph_container.graph_type == graphTypeEnum::graph_t) {
+  if (graph_container.is_multi_gpu) {
     if (graph_container.edgeType == numberTypeEnum::int32Type) {
       auto graph =
         detail::create_graph<int32_t, int32_t, weight_t, true, true>(handle, graph_container);
@@ -504,7 +483,7 @@ void call_pagerank(raft::handle_t const& handle,
                                       static_cast<weight_t>(tolerance),
                                       max_iter,
                                       has_guess,
-                                      false);
+                                      true);
     } else if (graph_container.edgeType == numberTypeEnum::int64Type) {
       auto graph =
         detail::create_graph<vertex_t, int64_t, weight_t, true, true>(handle, graph_container);
@@ -519,9 +498,39 @@ void call_pagerank(raft::handle_t const& handle,
                                       static_cast<weight_t>(tolerance),
                                       max_iter,
                                       has_guess,
-                                      false);
-    } else {
-      CUGRAPH_FAIL("vertexType/edgeType combination unsupported");
+                                      true);
+    }
+  } else {
+    if (graph_container.edgeType == numberTypeEnum::int32Type) {
+      auto graph =
+        detail::create_graph<int32_t, int32_t, weight_t, true, false>(handle, graph_container);
+      cugraph::experimental::pagerank(handle,
+                                      graph->view(),
+                                      static_cast<weight_t*>(nullptr),
+                                      reinterpret_cast<int32_t*>(personalization_subset),
+                                      reinterpret_cast<weight_t*>(personalization_values),
+                                      static_cast<int32_t>(personalization_subset_size),
+                                      reinterpret_cast<weight_t*>(p_pagerank),
+                                      static_cast<weight_t>(alpha),
+                                      static_cast<weight_t>(tolerance),
+                                      max_iter,
+                                      has_guess,
+                                      true);
+    } else if (graph_container.edgeType == numberTypeEnum::int64Type) {
+      auto graph =
+        detail::create_graph<vertex_t, int64_t, weight_t, true, false>(handle, graph_container);
+      cugraph::experimental::pagerank(handle,
+                                      graph->view(),
+                                      static_cast<weight_t*>(nullptr),
+                                      reinterpret_cast<vertex_t*>(personalization_subset),
+                                      reinterpret_cast<weight_t*>(personalization_values),
+                                      static_cast<vertex_t>(personalization_subset_size),
+                                      reinterpret_cast<weight_t*>(p_pagerank),
+                                      static_cast<weight_t>(alpha),
+                                      static_cast<weight_t>(tolerance),
+                                      max_iter,
+                                      has_guess,
+                                      true);
     }
   }
 }
@@ -638,6 +647,55 @@ void call_bfs(raft::handle_t const& handle,
   }
 }
 
+// Wrapper for calling extract_egonet through a graph container
+// FIXME : this should not be a legacy COO and it is not clear how to handle C++ api return type as
+// is.graph_container Need to figure out how to return edge lists
+template <typename vertex_t, typename weight_t>
+std::unique_ptr<cy_multi_edgelists_t> call_egonet(raft::handle_t const& handle,
+                                                  graph_container_t const& graph_container,
+                                                  vertex_t* source_vertex,
+                                                  vertex_t n_subgraphs,
+                                                  vertex_t radius)
+{
+  if (graph_container.edgeType == numberTypeEnum::int32Type) {
+    auto graph =
+      detail::create_graph<int32_t, int32_t, weight_t, false, false>(handle, graph_container);
+    auto g = cugraph::experimental::extract_ego(handle,
+                                                graph->view(),
+                                                reinterpret_cast<int32_t*>(source_vertex),
+                                                static_cast<int32_t>(n_subgraphs),
+                                                static_cast<int32_t>(radius));
+    cy_multi_edgelists_t coo_contents{
+      0,  // not used
+      std::get<0>(g).size(),
+      static_cast<size_t>(n_subgraphs),
+      std::make_unique<rmm::device_buffer>(std::get<0>(g).release()),
+      std::make_unique<rmm::device_buffer>(std::get<1>(g).release()),
+      std::make_unique<rmm::device_buffer>(std::get<2>(g).release()),
+      std::make_unique<rmm::device_buffer>(std::get<3>(g).release())};
+    return std::make_unique<cy_multi_edgelists_t>(std::move(coo_contents));
+  } else if (graph_container.edgeType == numberTypeEnum::int64Type) {
+    auto graph =
+      detail::create_graph<vertex_t, int64_t, weight_t, false, false>(handle, graph_container);
+    auto g = cugraph::experimental::extract_ego(handle,
+                                                graph->view(),
+                                                reinterpret_cast<vertex_t*>(source_vertex),
+                                                static_cast<vertex_t>(n_subgraphs),
+                                                static_cast<vertex_t>(radius));
+    cy_multi_edgelists_t coo_contents{
+      0,  // not used
+      std::get<0>(g).size(),
+      static_cast<size_t>(n_subgraphs),
+      std::make_unique<rmm::device_buffer>(std::get<0>(g).release()),
+      std::make_unique<rmm::device_buffer>(std::get<1>(g).release()),
+      std::make_unique<rmm::device_buffer>(std::get<2>(g).release()),
+      std::make_unique<rmm::device_buffer>(std::get<3>(g).release())};
+    return std::make_unique<cy_multi_edgelists_t>(std::move(coo_contents));
+  } else {
+    CUGRAPH_FAIL("vertexType/edgeType combination unsupported");
+  }
+}
+
 // Wrapper for calling SSSP through a graph container
 template <typename vertex_t, typename weight_t>
 void call_sssp(raft::handle_t const& handle,
@@ -684,6 +742,101 @@ void call_sssp(raft::handle_t const& handle,
       CUGRAPH_FAIL("vertexType/edgeType combination unsupported");
     }
   }
+}
+
+// wrapper for shuffling:
+//
+template <typename vertex_t, typename edge_t, typename weight_t>
+std::unique_ptr<major_minor_weights_t<vertex_t, weight_t>> call_shuffle(
+  raft::handle_t const& handle,
+  vertex_t*
+    edgelist_major_vertices,  // [IN / OUT]: groupby_gpuid_and_shuffle_values() sorts in-place
+  vertex_t* edgelist_minor_vertices,  // [IN / OUT]
+  weight_t* edgelist_weights,         // [IN / OUT]
+  edge_t num_edgelist_edges,
+  bool is_hypergraph_partitioned)  // = false
+{
+  auto& comm = handle.get_comms();
+
+  auto& row_comm = handle.get_subcomm(cugraph::partition_2d::key_naming_t().row_name());
+
+  auto& col_comm = handle.get_subcomm(cugraph::partition_2d::key_naming_t().col_name());
+
+  auto zip_edge = thrust::make_zip_iterator(
+    thrust::make_tuple(edgelist_major_vertices, edgelist_minor_vertices, edgelist_weights));
+
+  std::unique_ptr<major_minor_weights_t<vertex_t, weight_t>> ptr_ret =
+    std::make_unique<major_minor_weights_t<vertex_t, weight_t>>(handle);
+
+  std::forward_as_tuple(
+    std::tie(ptr_ret->get_major(), ptr_ret->get_minor(), ptr_ret->get_weights()),
+    std::ignore) =
+    cugraph::experimental::groupby_gpuid_and_shuffle_values(
+      comm,  // handle.get_comms(),
+      zip_edge,
+      zip_edge + num_edgelist_edges,
+      [key_func =
+         cugraph::experimental::detail::compute_gpu_id_from_edge_t<vertex_t>{
+           is_hypergraph_partitioned,
+           comm.get_size(),
+           row_comm.get_size(),
+           col_comm.get_size()}] __device__(auto val) {
+        return key_func(thrust::get<0>(val), thrust::get<1>(val));
+      },
+      handle.get_stream());
+
+  return ptr_ret;  // RVO-ed
+}
+
+// Wrapper for calling renumber_edeglist() inplace:
+// TODO: check if return type needs further handling...
+//
+template <typename vertex_t, typename edge_t>
+std::unique_ptr<renum_quad_t<vertex_t, edge_t>> call_renumber(
+  raft::handle_t const& handle,
+  vertex_t* shuffled_edgelist_major_vertices /* [INOUT] */,
+  vertex_t* shuffled_edgelist_minor_vertices /* [INOUT] */,
+  edge_t num_edgelist_edges,
+  bool is_hypergraph_partitioned,
+  bool do_expensive_check,
+  bool multi_gpu)  // bc. cython cannot take non-type template params
+{
+  // caveat: return values have different types on the 2 branches below:
+  //
+  std::unique_ptr<renum_quad_t<vertex_t, edge_t>> p_ret =
+    std::make_unique<renum_quad_t<vertex_t, edge_t>>(handle);
+
+  if (multi_gpu) {
+    std::tie(
+      p_ret->get_dv(), p_ret->get_partition(), p_ret->get_num_vertices(), p_ret->get_num_edges()) =
+      cugraph::experimental::renumber_edgelist<vertex_t, edge_t, true>(
+        handle,
+        shuffled_edgelist_major_vertices,
+        shuffled_edgelist_minor_vertices,
+        num_edgelist_edges,
+        is_hypergraph_partitioned,
+        do_expensive_check);
+  } else {
+    auto ret_f = cugraph::experimental::renumber_edgelist<vertex_t, edge_t, false>(
+      handle,
+      shuffled_edgelist_major_vertices,
+      shuffled_edgelist_minor_vertices,
+      num_edgelist_edges,
+      do_expensive_check);
+
+    auto tot_vertices = static_cast<vertex_t>(ret_f.size());
+
+    p_ret->get_dv() = std::move(ret_f);
+    cugraph::experimental::partition_t<vertex_t> part_sg(
+      std::vector<vertex_t>{0, tot_vertices}, false, 1, 1, 0, 0);
+
+    p_ret->get_partition() = std::move(part_sg);
+
+    p_ret->get_num_vertices() = tot_vertices;
+    p_ret->get_num_edges()    = num_edgelist_edges;
+  }
+
+  return p_ret;  // RVO-ed (copy ellision)
 }
 
 // Helper for setting up subcommunicators
@@ -836,6 +989,33 @@ template void call_bfs<int64_t, double>(raft::handle_t const& handle,
                                         double* sp_counters,
                                         const int64_t start_vertex,
                                         bool directed);
+template std::unique_ptr<cy_multi_edgelists_t> call_egonet<int32_t, float>(
+  raft::handle_t const& handle,
+  graph_container_t const& graph_container,
+  int32_t* source_vertex,
+  int32_t n_subgraphs,
+  int32_t radius);
+
+template std::unique_ptr<cy_multi_edgelists_t> call_egonet<int32_t, double>(
+  raft::handle_t const& handle,
+  graph_container_t const& graph_container,
+  int32_t* source_vertex,
+  int32_t n_subgraphs,
+  int32_t radius);
+
+template std::unique_ptr<cy_multi_edgelists_t> call_egonet<int64_t, float>(
+  raft::handle_t const& handle,
+  graph_container_t const& graph_container,
+  int64_t* source_vertex,
+  int64_t n_subgraphs,
+  int64_t radius);
+
+template std::unique_ptr<cy_multi_edgelists_t> call_egonet<int64_t, double>(
+  raft::handle_t const& handle,
+  graph_container_t const& graph_container,
+  int64_t* source_vertex,
+  int64_t n_subgraphs,
+  int64_t radius);
 
 template void call_sssp(raft::handle_t const& handle,
                         graph_container_t const& graph_container,
@@ -864,6 +1044,83 @@ template void call_sssp(raft::handle_t const& handle,
                         double* distances,
                         int64_t* predecessors,
                         const int64_t source_vertex);
+
+template std::unique_ptr<major_minor_weights_t<int32_t, float>> call_shuffle(
+  raft::handle_t const& handle,
+  int32_t* edgelist_major_vertices,
+  int32_t* edgelist_minor_vertices,
+  float* edgelist_weights,
+  int32_t num_edgelist_edges,
+  bool is_hypergraph_partitioned);
+
+template std::unique_ptr<major_minor_weights_t<int32_t, float>> call_shuffle(
+  raft::handle_t const& handle,
+  int32_t* edgelist_major_vertices,
+  int32_t* edgelist_minor_vertices,
+  float* edgelist_weights,
+  int64_t num_edgelist_edges,
+  bool is_hypergraph_partitioned);
+
+template std::unique_ptr<major_minor_weights_t<int32_t, double>> call_shuffle(
+  raft::handle_t const& handle,
+  int32_t* edgelist_major_vertices,
+  int32_t* edgelist_minor_vertices,
+  double* edgelist_weights,
+  int32_t num_edgelist_edges,
+  bool is_hypergraph_partitioned);
+
+template std::unique_ptr<major_minor_weights_t<int32_t, double>> call_shuffle(
+  raft::handle_t const& handle,
+  int32_t* edgelist_major_vertices,
+  int32_t* edgelist_minor_vertices,
+  double* edgelist_weights,
+  int64_t num_edgelist_edges,
+  bool is_hypergraph_partitioned);
+
+template std::unique_ptr<major_minor_weights_t<int64_t, float>> call_shuffle(
+  raft::handle_t const& handle,
+  int64_t* edgelist_major_vertices,
+  int64_t* edgelist_minor_vertices,
+  float* edgelist_weights,
+  int64_t num_edgelist_edges,
+  bool is_hypergraph_partitioned);
+
+template std::unique_ptr<major_minor_weights_t<int64_t, double>> call_shuffle(
+  raft::handle_t const& handle,
+  int64_t* edgelist_major_vertices,
+  int64_t* edgelist_minor_vertices,
+  double* edgelist_weights,
+  int64_t num_edgelist_edges,
+  bool is_hypergraph_partitioned);
+
+// TODO: add the remaining relevant EIDIr's:
+//
+template std::unique_ptr<renum_quad_t<int32_t, int32_t>> call_renumber(
+  raft::handle_t const& handle,
+  int32_t* shuffled_edgelist_major_vertices /* [INOUT] */,
+  int32_t* shuffled_edgelist_minor_vertices /* [INOUT] */,
+  int32_t num_edgelist_edges,
+  bool is_hypergraph_partitioned,
+  bool do_expensive_check,
+  bool multi_gpu);
+
+template std::unique_ptr<renum_quad_t<int32_t, int64_t>> call_renumber(
+  raft::handle_t const& handle,
+  int32_t* shuffled_edgelist_major_vertices /* [INOUT] */,
+  int32_t* shuffled_edgelist_minor_vertices /* [INOUT] */,
+  int64_t num_edgelist_edges,
+  bool is_hypergraph_partitioned,
+  bool do_expensive_check,
+  bool multi_gpu);
+
+template std::unique_ptr<renum_quad_t<int64_t, int64_t>> call_renumber(
+  raft::handle_t const& handle,
+  int64_t* shuffled_edgelist_major_vertices /* [INOUT] */,
+  int64_t* shuffled_edgelist_minor_vertices /* [INOUT] */,
+  int64_t num_edgelist_edges,
+  bool is_hypergraph_partitioned,
+  bool do_expensive_check,
+  bool multi_gpu);
 
 }  // namespace cython
 }  // namespace cugraph

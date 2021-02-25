@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020, NVIDIA CORPORATION.
+ * Copyright (c) 2020-2021, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -166,8 +166,6 @@ void katz_centrality(raft::handle_t const &handle,
                       katz_centralities,
                       [l2_norm] __device__(auto val) { return val / l2_norm; });
   }
-
-  return;
 }
 
 }  // namespace detail

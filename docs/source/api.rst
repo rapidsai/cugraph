@@ -40,13 +40,6 @@ Betweenness Centrality
     :members:
     :undoc-members:
 
-Edge Betweenness Centrality
----------------------------
-
-.. automodule:: cugraph.centrality.edge_betweenness_centrality
-    :members:
-    :undoc-members:
-
 Katz Centrality
 ---------------
 
@@ -57,6 +50,13 @@ Katz Centrality
 
 Community
 =========
+
+EgoNet
+------------------------------------
+
+.. automodule:: cugraph.community.egonet
+	:members:
+	:undoc-members:
 
 Ensemble clustering for graphs (ECG)
 ------------------------------------

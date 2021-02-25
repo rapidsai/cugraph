@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019-2020, NVIDIA CORPORATION.  All rights reserved.
+ * Copyright (c) 2019-2021, NVIDIA CORPORATION.  All rights reserved.
  *
  * NVIDIA CORPORATION and its licensors retain all intellectual property
  * and proprietary rights in and to this software, related documentation
@@ -19,6 +19,10 @@
 
 TEST(leiden_karate, success)
 {
+  raft::handle_t handle;
+
+  auto stream = handle.get_stream();
+
   std::vector<int> off_h = {0,  16,  25,  35,  41,  44,  48,  52,  56,  61,  63, 66,
                             67, 69,  74,  76,  78,  80,  82,  84,  87,  89,  91, 93,
                             98, 101, 104, 106, 110, 113, 117, 121, 127, 139, 156};
@@ -46,27 +50,38 @@ TEST(leiden_karate, success)
 
   std::vector<int> cluster_id(num_verts, -1);
 
-  rmm::device_vector<int> offsets_v(off_h);
-  rmm::device_vector<int> indices_v(ind_h);
-  rmm::device_vector<float> weights_v(w_h);
-  rmm::device_vector<int> result_v(cluster_id);
+  rmm::device_uvector<int> offsets_v(num_verts + 1, stream);
+  rmm::device_uvector<int> indices_v(num_edges, stream);
+  rmm::device_uvector<float> weights_v(num_edges, stream);
+  rmm::device_uvector<int> result_v(num_verts, stream);
+
+  raft::update_device(offsets_v.data(), off_h.data(), off_h.size(), stream);
+  raft::update_device(indices_v.data(), ind_h.data(), ind_h.size(), stream);
+  raft::update_device(weights_v.data(), w_h.data(), w_h.size(), stream);
 
   cugraph::GraphCSRView<int, int, float> G(
-    offsets_v.data().get(), indices_v.data().get(), weights_v.data().get(), num_verts, num_edges);
+    offsets_v.data(), indices_v.data(), weights_v.data(), num_verts, num_edges);
 
   float modularity{0.0};
   size_t num_level = 40;
 
-  raft::handle_t handle;
-  std::tie(num_level, modularity) = cugraph::leiden(handle, G, result_v.data().get());
+  // "FIXME": remove this check once we drop support for Pascal
+  //
+  // Calling louvain on Pascal will throw an exception, we'll check that
+  // this is the behavior while we still support Pascal (device_prop.major < 7)
+  //
+  if (handle.get_device_properties().major < 7) {
+    EXPECT_THROW(cugraph::leiden(handle, G, result_v.data()), cugraph::logic_error);
+  } else {
+    std::tie(num_level, modularity) = cugraph::leiden(handle, G, result_v.data());
 
-  cudaMemcpy((void*)&(cluster_id[0]),
-             result_v.data().get(),
-             sizeof(int) * num_verts,
-             cudaMemcpyDeviceToHost);
+    raft::update_host(cluster_id.data(), result_v.data(), num_verts, stream);
 
-  int min = *min_element(cluster_id.begin(), cluster_id.end());
+    CUDA_TRY(cudaDeviceSynchronize());
 
-  ASSERT_GE(min, 0);
-  ASSERT_GE(modularity, 0.41116042 * 0.99);
+    int min = *min_element(cluster_id.begin(), cluster_id.end());
+
+    ASSERT_GE(min, 0);
+    ASSERT_GE(modularity, 0.41116042 * 0.99);
+  }
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020, NVIDIA CORPORATION.
+ * Copyright (c) 2020-2021, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -62,7 +62,7 @@ class graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu, std::enab
   static constexpr bool is_multi_gpu             = multi_gpu;
 
   graph_t(raft::handle_t const &handle,
-          std::vector<edgelist_t<vertex_t, edge_t, weight_t>> const &edge_lists,
+          std::vector<edgelist_t<vertex_t, edge_t, weight_t>> const &edgelists,
           partition_t<vertex_t> const &partition,
           vertex_t number_of_vertices,
           edge_t number_of_edges,
@@ -70,7 +70,7 @@ class graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu, std::enab
           bool sorted_by_global_degree_within_vertex_partition,
           bool do_expensive_check = false);
 
-  graph_view_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu> view()
+  graph_view_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu> view() const
   {
     std::vector<edge_t const *> offsets(adj_matrix_partition_offsets_.size(), nullptr);
     std::vector<vertex_t const *> indices(adj_matrix_partition_indices_.size(), nullptr);
@@ -124,7 +124,7 @@ class graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu, std::enab
   static constexpr bool is_multi_gpu             = multi_gpu;
 
   graph_t(raft::handle_t const &handle,
-          edgelist_t<vertex_t, edge_t, weight_t> const &edge_list,
+          edgelist_t<vertex_t, edge_t, weight_t> const &edgelist,
           vertex_t number_of_vertices,
           graph_properties_t properties,
           bool sorted_by_degree,
@@ -132,7 +132,7 @@ class graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu, std::enab
 
   vertex_t get_number_of_local_vertices() const { return this->get_number_of_vertices(); }
 
-  graph_view_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu> view()
+  graph_view_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu> view() const
   {
     return graph_view_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu>(
       *(this->get_handle_ptr()),
