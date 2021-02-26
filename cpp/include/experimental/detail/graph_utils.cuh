@@ -140,6 +140,21 @@ struct compute_gpu_id_from_edge_t {
   }
 };
 
+template <typename vertex_t>
+struct compute_partition_id_from_edge_t {
+  int comm_size{0};
+  int row_comm_size{0};
+  int col_comm_size{0};
+
+  __device__ int operator()(vertex_t major, vertex_t minor) const
+  {
+    cuco::detail::MurmurHash3_32<vertex_t> hash_func{};
+    auto major_comm_rank = static_cast<int>(hash_func(major) % comm_size);
+    auto minor_comm_rank = static_cast<int>(hash_func(minor) % comm_size);
+    return major_comm_rank * col_comm_size + minor_comm_rank / row_comm_size;
+  }
+};
+
 }  // namespace detail
 }  // namespace experimental
 }  // namespace cugraph
