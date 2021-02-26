@@ -88,16 +88,17 @@ __global__ void for_all_major_for_all_nbr_low_degree(
       // in-place reduce_by_key
       vertex_t key_idx{0};
       key_aggregated_edge_weights[local_offset + key_idx] =
-        weights != nullptr ? weights[0] : weight_t{1.0};
+        weights != nullptr ? key_aggregated_edge_weights[local_offset] : weight_t{1.0};
+
       for (edge_t i = 1; i < local_degree; ++i) {
         if (minor_keys[local_offset + i] == minor_keys[local_offset + key_idx]) {
           key_aggregated_edge_weights[local_offset + key_idx] +=
-            weights != nullptr ? weights[i] : weight_t{1.0};
+            weights != nullptr ? key_aggregated_edge_weights[local_offset + i] : weight_t{1.0};
         } else {
           ++key_idx;
           minor_keys[local_offset + key_idx] = minor_keys[local_offset + i];
           key_aggregated_edge_weights[local_offset + key_idx] =
-            weights != nullptr ? weights[i] : weight_t{1.0};
+            weights != nullptr ? key_aggregated_edge_weights[local_offset + i] : weight_t{1.0};
         }
       }
       thrust::fill(thrust::seq,
@@ -170,6 +171,7 @@ __global__ void for_all_major_for_all_nbr_low_degree(
 template <typename GraphViewType,
           typename AdjMatrixRowValueInputIterator,
           typename VertexIterator,
+          typename VertexIterator2,
           typename ValueIterator,
           typename KeyAggregatedEdgeOp,
           typename ReduceOp,
@@ -180,8 +182,8 @@ void copy_v_transform_reduce_key_aggregated_out_nbr(
   GraphViewType const& graph_view,
   AdjMatrixRowValueInputIterator adj_matrix_row_value_input_first,
   VertexIterator adj_matrix_col_key_first,
-  VertexIterator map_key_first,
-  VertexIterator map_key_last,
+  VertexIterator2 map_key_first,
+  VertexIterator2 map_key_last,
   ValueIterator map_value_first,
   KeyAggregatedEdgeOp key_aggregated_e_op,
   ReduceOp reduce_op,
