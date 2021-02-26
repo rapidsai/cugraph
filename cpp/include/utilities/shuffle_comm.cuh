@@ -58,7 +58,7 @@ rmm::device_uvector<size_t> groupby_and_count(raft::comms::comms_t const &comm,
                                     thrust::make_constant_iterator(size_t{1}),
                                     d_tx_dst_ranks.begin(),
                                     d_tx_value_counts.begin());
-  if (thrust::distance(d_tx_value_counts.begin(), thrust::get<1>(last)) < comm_size) {
+  if (thrust::distance(d_tx_dst_ranks.begin(), thrust::get<0>(last)) < comm_size) {
     rmm::device_uvector<size_t> d_counts(comm_size, stream);
     thrust::fill(rmm::exec_policy(stream)->on(stream), d_counts.begin(), d_counts.end(), size_t{0});
     thrust::scatter(rmm::exec_policy(stream)->on(stream),
@@ -100,7 +100,7 @@ rmm::device_uvector<size_t> groupby_and_count(raft::comms::comms_t const &comm,
                                     thrust::make_constant_iterator(size_t{1}),
                                     d_tx_dst_ranks.begin(),
                                     d_tx_value_counts.begin());
-  if (thrust::distance(d_tx_value_counts.begin(), thrust::get<1>(last)) < comm_size) {
+  if (thrust::distance(d_tx_dst_ranks.begin(), thrust::get<0>(last)) < comm_size) {
     rmm::device_uvector<size_t> d_counts(comm_size, stream);
     thrust::fill(rmm::exec_policy(stream)->on(stream), d_counts.begin(), d_counts.end(), size_t{0});
     thrust::scatter(rmm::exec_policy(stream)->on(stream),

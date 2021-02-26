@@ -412,16 +412,14 @@ void copy_v_transform_reduce_key_aggregated_out_nbr(
 
       auto rx_sizes =
         host_scalar_gather(sub_comm, tmp_major_vertices.size(), i, handle.get_stream());
-      std::vector<size_t> rx_displs(
-        static_cast<size_t>(sub_comm_rank) == i ? sub_comm_size : int{0}, size_t{0});
+      std::vector<size_t> rx_displs{};
+      rmm::device_uvector<vertex_t> rx_major_vertices(0, handle.get_stream());
       if (static_cast<size_t>(sub_comm_rank) == i) {
+        rx_displs.assign(sub_comm_size, size_t{0});
         std::partial_sum(rx_sizes.begin(), rx_sizes.end() - 1, rx_displs.begin() + 1);
+        rmm::device_uvector<vertex_t> rx_major_vertices.resize(rx_displs.back() + rx_sizes.back(),
+                                                               handle.get_stream());
       }
-      rmm::device_uvector<vertex_t> rx_major_vertices(
-        static_cast<size_t>(sub_comm_rank) == i
-          ? std::accumulate(rx_sizes.begin(), rx_sizes.end(), size_t{0})
-          : size_t{0},
-        handle.get_stream());
       auto rx_tmp_e_op_result_buffer =
         allocate_dataframe_buffer<T>(rx_major_vertices.size(), handle.get_stream());
 
