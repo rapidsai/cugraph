@@ -155,6 +155,11 @@ class partition_t {
     return vertex_partition_offsets_[row_comm_size_ * partition_idx + row_comm_rank_ + 1];
   }
 
+  vertex_t get_matrix_partition_major_size(size_t partition_idx) const
+  {
+    return get_matrix_partition_major_last(partition_idx) - get_matrix_partition_major_first(partition_idx);
+  }
+
   vertex_t get_matrix_partition_major_value_start_offset(size_t partition_idx) const
   {
     return matrix_partition_major_value_start_offsets_[partition_idx];
@@ -178,6 +183,11 @@ class partition_t {
   vertex_t get_matrix_partition_minor_last() const
   {
     return vertex_partition_offsets_[(col_comm_rank_ + 1) * row_comm_size_];
+  }
+
+  vertex_t get_matrix_partition_minor_size() const
+  {
+    return get_matrix_partition_minor_last() - get_matrix_partition_minor_first();
   }
 
  private:
