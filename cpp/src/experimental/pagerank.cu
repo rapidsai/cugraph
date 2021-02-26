@@ -142,23 +142,9 @@ void pagerank(raft::handle_t const& handle,
 
   // 2. compute the sums of the out-going edge weights (if not provided)
 
-  rmm::device_uvector<weight_t> tmp_vertex_out_weight_sums(0, handle.get_stream());
-  if (precomputed_vertex_out_weight_sums == nullptr) {
-    tmp_vertex_out_weight_sums.resize(pull_graph_view.get_number_of_local_vertices(),
-                                      handle.get_stream());
-    // FIXME: better refactor this out (computing out-degree).
-    copy_v_transform_reduce_out_nbr(
-      handle,
-      pull_graph_view,
-      thrust::make_constant_iterator(0) /* dummy */,
-      thrust::make_constant_iterator(0) /* dummy */,
-      [alpha] __device__(vertex_t src, vertex_t dst, weight_t w, auto src_val, auto dst_val) {
-        return w;
-      },
-      weight_t{0.0},
-      tmp_vertex_out_weight_sums.data());
-  }
-
+  auto tmp_vertex_out_weight_sums = precomputed_vertex_out_weight_sums == nullptr
+                                      ? pull_graph_view.compute_out_weight_sums(handle)
+                                      : rmm::device_uvector<weight_t>(0, handle.get_stream());
   auto vertex_out_weight_sums = precomputed_vertex_out_weight_sums != nullptr
                                   ? precomputed_vertex_out_weight_sums
                                   : tmp_vertex_out_weight_sums.data();

@@ -46,7 +46,7 @@ CUGRAPH_BUILD_DIR=${REPODIR}/python/build
 BUILD_DIRS="${LIBCUGRAPH_BUILD_DIR} ${CUGRAPH_BUILD_DIR}"
 
 # Set defaults for vars modified by flags to this script
-VERBOSE=""
+VERBOSE_FLAG=""
 BUILD_TYPE=Release
 INSTALL_TARGET=install
 BUILD_DISABLE_DEPRECATION_WARNING=ON
@@ -86,7 +86,7 @@ fi
 
 # Process flags
 if hasArg -v; then
-    VERBOSE=1
+    VERBOSE_FLAG="-v"
 fi
 if hasArg -g; then
     BUILD_TYPE=Debug
@@ -143,7 +143,7 @@ if buildAll || hasArg libcugraph; then
           -DBUILD_STATIC_FAISS=${BUILD_STATIC_FAISS} \
           -DBUILD_CUGRAPH_MG_TESTS=${BUILD_CPP_MG_TESTS} \
           ${REPODIR}/cpp
-    make -j${PARALLEL_LEVEL} VERBOSE=${VERBOSE} ${INSTALL_TARGET}
+    cmake --build "${LIBCUGRAPH_BUILD_DIR}" -j${PARALLEL_LEVEL} --target ${INSTALL_TARGET} ${VERBOSE_FLAG}
 fi
 
 # Build and install the cugraph Python package
@@ -169,7 +169,7 @@ if buildAll || hasArg docs; then
             -DBUILD_STATIC_FAISS=${BUILD_STATIC_FAISS}
     fi
     cd ${LIBCUGRAPH_BUILD_DIR}
-    make -j${PARALLEL_LEVEL} VERBOSE=${VERBOSE} docs_cugraph
+    cmake --build "${LIBCUGRAPH_BUILD_DIR}" -j${PARALLEL_LEVEL} --target docs_cugraph ${VERBOSE_FLAG}
     cd ${REPODIR}/docs
     make html
 fi
