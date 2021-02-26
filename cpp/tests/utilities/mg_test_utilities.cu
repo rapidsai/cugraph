@@ -176,5 +176,12 @@ template std::tuple<
   rmm::device_uvector<int32_t>>
 create_graph_for_gpu(raft::handle_t& handle, const std::string& graph_file_path);
 
+template std::tuple<
+  std::unique_ptr<
+    cugraph::experimental::graph_t<int32_t, int32_t, float, false, true>>,  // store_transposed=true
+                                                                            // multi_gpu=true
+  rmm::device_uvector<int32_t>>
+create_graph_for_gpu(raft::handle_t& handle, const std::string& graph_file_path);
+
 }  // namespace test
 }  // namespace cugraph

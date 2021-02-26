@@ -438,6 +438,18 @@ if(BUILD_CUGRAPH_MG_TESTS)
         ConfigureTest(MG_PAGERANK_TEST "${MG_PAGERANK_TEST_SRCS}")
         target_link_libraries(MG_PAGERANK_TEST PRIVATE MPI::MPI_C MPI::MPI_CXX)
 
+        ###########################################################################################
+        # - MG LOUVAIN tests ---------------------------------------------------------------------
+
+        set(MG_LOUVAIN_TEST_SRCS
+            "${CMAKE_CURRENT_SOURCE_DIR}/../../thirdparty/mmio/mmio.c"
+            "${CMAKE_CURRENT_SOURCE_DIR}/utilities/test_utilities.cpp"
+            "${CMAKE_CURRENT_SOURCE_DIR}/utilities/mg_test_utilities.cu"
+            "${CMAKE_CURRENT_SOURCE_DIR}/community/louvain_mg_test.cpp")
+
+        ConfigureTest(MG_LOUVAIN_TEST "${MG_LOUVAIN_TEST_SRCS}")
+        target_link_libraries(MG_LOUVAIN_TEST PRIVATE MPI::MPI_C MPI::MPI_CXX)
+
     else(MPI_CXX_FOUND)
        message(FATAL_ERROR "OpenMPI NOT found, cannot build MG tests.")
     endif(MPI_CXX_FOUND)

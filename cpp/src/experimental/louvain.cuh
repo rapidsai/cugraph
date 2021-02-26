@@ -183,18 +183,7 @@ class Louvain {
   {
     timer_start("compute_vertex_and_cluster_weights");
 
-    //
-    // TODO: Once PR 1394 is merged, this can be replaced by:
-    //    vertex_weights_v_ = current_graph_view_.compute_out_weight_sums(handle_);
-    //
-    experimental::copy_v_transform_reduce_out_nbr(
-      handle_,
-      current_graph_view_,
-      thrust::make_constant_iterator(0),
-      thrust::make_constant_iterator(0),
-      [] __device__(auto src, auto, auto wt, auto, auto) { return wt; },
-      weight_t{0},
-      vertex_weights_v_.begin());
+    vertex_weights_v_ = current_graph_view_.compute_out_weight_sums(handle_);
 
     thrust::copy(rmm::exec_policy(stream_)->on(stream_),
                  vertex_weights_v_.begin(),
@@ -301,6 +290,7 @@ class Louvain {
     rmm::device_uvector<vertex_t> tmp_cluster_keys_v(0, stream_);
     rmm::device_uvector<weight_t> tmp_cluster_weights_v(0, stream_);
 
+    // TODO: These two calls could be combined and return a pair, I would think that would be faster
     experimental::copy_v_transform_reduce_out_nbr(
       handle_,
       current_graph_view_,
@@ -408,7 +398,9 @@ class Louvain {
     thrust::scatter(rmm::exec_policy(stream_)->on(stream_),
                     tmp_cluster_weights_v.begin(),
                     tmp_cluster_weights_v.end(),
-                    tmp_cluster_keys_v.begin(),
+                    thrust::make_transform_iterator(tmp_cluster_keys_v.begin(),
+                                                    [base_vertex_id = base_vertex_id_] __device__(
+                                                      auto key) { return key - base_vertex_id; }),
                     cluster_weights_v_.begin());
 
     std::tie(d_src_cluster_weights_cache_, d_dst_cluster_weights_cache_) = cache_vertex_properties(
