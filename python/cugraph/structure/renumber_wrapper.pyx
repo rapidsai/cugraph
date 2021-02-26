@@ -54,12 +54,12 @@ cdef renumber_helper(shuffled_vertices_t* ptr_maj_min_w):
     
     return shuffled_df
 
-def mg_renumber(input_df,           # maybe use cpdef ?
-                num_global_verts,
-                num_global_edges,    
-                rank,
-                handle,
-                is_multi_gpu):
+def renumber(input_df,           # maybe use cpdef ?
+             num_global_verts,
+             num_global_edges,    
+             rank,
+             handle,
+             is_multi_gpu):
     """
     Call MNMG renumber
     """
