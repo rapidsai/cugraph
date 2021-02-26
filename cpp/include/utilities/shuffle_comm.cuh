@@ -32,11 +32,11 @@ namespace experimental {
 namespace detail {
 
 template <typename ValueIterator, typename ValueToGPUIdOp>
-rmm::device_uvector<size_t> sort_and_count(raft::comms::comms_t const &comm,
-                                           ValueIterator tx_value_first /* [INOUT */,
-                                           ValueIterator tx_value_last /* [INOUT */,
-                                           ValueToGPUIdOp value_to_gpu_id_op,
-                                           cudaStream_t stream)
+rmm::device_uvector<size_t> groupby_and_count(raft::comms::comms_t const &comm,
+                                              ValueIterator tx_value_first /* [INOUT */,
+                                              ValueIterator tx_value_last /* [INOUT */,
+                                              ValueToGPUIdOp value_to_gpu_id_op,
+                                              cudaStream_t stream)
 {
   auto const comm_size = comm.get_size();
 
@@ -73,12 +73,12 @@ rmm::device_uvector<size_t> sort_and_count(raft::comms::comms_t const &comm,
 }
 
 template <typename VertexIterator, typename ValueIterator, typename KeyToGPUIdOp>
-rmm::device_uvector<size_t> sort_and_count(raft::comms::comms_t const &comm,
-                                           VertexIterator tx_key_first /* [INOUT */,
-                                           VertexIterator tx_key_last /* [INOUT */,
-                                           ValueIterator tx_value_first /* [INOUT */,
-                                           KeyToGPUIdOp key_to_gpu_id_op,
-                                           cudaStream_t stream)
+rmm::device_uvector<size_t> groupby_and_count(raft::comms::comms_t const &comm,
+                                              VertexIterator tx_key_first /* [INOUT */,
+                                              VertexIterator tx_key_last /* [INOUT */,
+                                              ValueIterator tx_value_first /* [INOUT */,
+                                              KeyToGPUIdOp key_to_gpu_id_op,
+                                              cudaStream_t stream)
 {
   auto const comm_size = comm.get_size();
 
@@ -241,7 +241,7 @@ auto groupby_gpuid_and_shuffle_values(raft::comms::comms_t const &comm,
   auto const comm_size = comm.get_size();
 
   auto d_tx_value_counts =
-    detail::sort_and_count(comm, tx_value_first, tx_value_last, value_to_gpu_id_op, stream);
+    detail::groupby_and_count(comm, tx_value_first, tx_value_last, value_to_gpu_id_op, stream);
 
   std::vector<size_t> tx_counts{};
   std::vector<size_t> tx_offsets{};
@@ -282,7 +282,7 @@ auto groupby_gpuid_and_shuffle_kv_pairs(raft::comms::comms_t const &comm,
                                         KeyToGPUIdOp key_to_gpu_id_op,
                                         cudaStream_t stream)
 {
-  auto d_tx_value_counts = detail::sort_and_count(
+  auto d_tx_value_counts = detail::groupby_and_count(
     comm, tx_key_first, tx_key_last, tx_value_first, key_to_gpu_id_op, stream);
 
   std::vector<size_t> tx_counts{};
