@@ -69,7 +69,7 @@ rmm::device_uvector<size_t> groupby_and_count(raft::comms::comms_t const &comm,
     d_tx_value_counts = std::move(d_counts);
   }
 
-  return std::move(d_tx_value_counts);
+  return d_tx_value_counts;
 }
 
 template <typename VertexIterator, typename ValueIterator, typename KeyToGPUIdOp>
@@ -111,7 +111,7 @@ rmm::device_uvector<size_t> groupby_and_count(raft::comms::comms_t const &comm,
     d_tx_value_counts = std::move(d_counts);
   }
 
-  return std::move(d_tx_value_counts);
+  return d_tx_value_counts;
 }
 
 // inline to suppress a complaint about ODR violation

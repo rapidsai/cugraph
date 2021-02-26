@@ -17,6 +17,7 @@
 #include <experimental/detail/graph_utils.cuh>
 #include <experimental/graph_view.hpp>
 #include <partition_manager.hpp>
+#include <patterns/copy_v_transform_reduce_in_out_nbr.cuh>
 #include <utilities/error.hpp>
 #include <utilities/host_scalar_comm.cuh>
 
@@ -68,6 +69,83 @@ std::vector<edge_t> update_adj_matrix_partition_edge_counts(
   }
   CUDA_TRY(cudaStreamSynchronize(stream));
   return adj_matrix_partition_edge_counts;
+}
+
+template <typename vertex_t,
+          typename edge_t,
+          typename weight_t,
+          bool store_transposed,
+          bool multi_gpu>
+rmm::device_uvector<edge_t> compute_minor_degrees(
+  raft::handle_t const& handle,
+  graph_view_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu> const& graph_view)
+{
+  rmm::device_uvector<edge_t> minor_degrees(graph_view.get_number_of_local_vertices(),
+                                            handle.get_stream());
+  if (store_transposed) {
+    copy_v_transform_reduce_out_nbr(
+      handle,
+      graph_view,
+      thrust::make_constant_iterator(0) /* dummy */,
+      thrust::make_constant_iterator(0) /* dummy */,
+      [] __device__(vertex_t src, vertex_t dst, weight_t w, auto src_val, auto dst_val) {
+        return edge_t{1};
+      },
+      edge_t{0},
+      minor_degrees.data());
+  } else {
+    copy_v_transform_reduce_in_nbr(
+      handle,
+      graph_view,
+      thrust::make_constant_iterator(0) /* dummy */,
+      thrust::make_constant_iterator(0) /* dummy */,
+      [] __device__(vertex_t src, vertex_t dst, weight_t w, auto src_val, auto dst_val) {
+        return edge_t{1};
+      },
+      edge_t{0},
+      minor_degrees.data());
+  }
+
+  return minor_degrees;
+}
+
+template <bool major,
+          typename vertex_t,
+          typename edge_t,
+          typename weight_t,
+          bool store_transposed,
+          bool multi_gpu>
+rmm::device_uvector<weight_t> compute_weight_sums(
+  raft::handle_t const& handle,
+  graph_view_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu> const& graph_view)
+{
+  rmm::device_uvector<weight_t> weight_sums(graph_view.get_number_of_local_vertices(),
+                                            handle.get_stream());
+  if (major == store_transposed) {
+    copy_v_transform_reduce_in_nbr(
+      handle,
+      graph_view,
+      thrust::make_constant_iterator(0) /* dummy */,
+      thrust::make_constant_iterator(0) /* dummy */,
+      [] __device__(vertex_t src, vertex_t dst, weight_t w, auto src_val, auto dst_val) {
+        return w;
+      },
+      weight_t{0.0},
+      weight_sums.data());
+  } else {
+    copy_v_transform_reduce_out_nbr(
+      handle,
+      graph_view,
+      thrust::make_constant_iterator(0) /* dummy */,
+      thrust::make_constant_iterator(0) /* dummy */,
+      [] __device__(vertex_t src, vertex_t dst, weight_t w, auto src_val, auto dst_val) {
+        return w;
+      },
+      weight_t{0.0},
+      weight_sums.data());
+  }
+
+  return weight_sums;
 }
 
 }  // namespace
@@ -176,7 +254,7 @@ graph_view_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu, std::enabl
                     "number_of_local_edges.");
 
     if (sorted_by_global_degree_within_vertex_partition) {
-      auto degrees = detail::compute_major_degree(handle, adj_matrix_partition_offsets, partition);
+      auto degrees = detail::compute_major_degrees(handle, adj_matrix_partition_offsets, partition);
       CUGRAPH_EXPECTS(
         thrust::is_sorted(rmm::exec_policy(default_stream)->on(default_stream),
                           degrees.begin(),
@@ -291,6 +369,154 @@ graph_view_t<vertex_t,
     // FIXME: check for duplicate edges may better be implemented after deciding whether to sort
     // neighbor list or not.
     if (!this->is_multigraph()) {}
+  }
+}
+
+template <typename vertex_t,
+          typename edge_t,
+          typename weight_t,
+          bool store_transposed,
+          bool multi_gpu>
+rmm::device_uvector<edge_t>
+graph_view_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu, std::enable_if_t<multi_gpu>>::
+  compute_in_degrees(raft::handle_t const& handle) const
+{
+  if (store_transposed) {
+    return detail::compute_major_degrees(
+      handle, this->adj_matrix_partition_offsets_, this->partition_);
+  } else {
+    return compute_minor_degrees(handle, *this);
+  }
+}
+
+template <typename vertex_t,
+          typename edge_t,
+          typename weight_t,
+          bool store_transposed,
+          bool multi_gpu>
+rmm::device_uvector<edge_t>
+graph_view_t<vertex_t,
+             edge_t,
+             weight_t,
+             store_transposed,
+             multi_gpu,
+             std::enable_if_t<!multi_gpu>>::compute_in_degrees(raft::handle_t const& handle) const
+{
+  if (store_transposed) {
+    return detail::compute_major_degrees(
+      handle, this->offsets_, this->get_number_of_local_vertices());
+  } else {
+    return compute_minor_degrees(handle, *this);
+  }
+}
+
+template <typename vertex_t,
+          typename edge_t,
+          typename weight_t,
+          bool store_transposed,
+          bool multi_gpu>
+rmm::device_uvector<edge_t>
+graph_view_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu, std::enable_if_t<multi_gpu>>::
+  compute_out_degrees(raft::handle_t const& handle) const
+{
+  if (store_transposed) {
+    return compute_minor_degrees(handle, *this);
+  } else {
+    return detail::compute_major_degrees(
+      handle, this->adj_matrix_partition_offsets_, this->partition_);
+  }
+}
+
+template <typename vertex_t,
+          typename edge_t,
+          typename weight_t,
+          bool store_transposed,
+          bool multi_gpu>
+rmm::device_uvector<edge_t>
+graph_view_t<vertex_t,
+             edge_t,
+             weight_t,
+             store_transposed,
+             multi_gpu,
+             std::enable_if_t<!multi_gpu>>::compute_out_degrees(raft::handle_t const& handle) const
+{
+  if (store_transposed) {
+    return compute_minor_degrees(handle, *this);
+  } else {
+    return detail::compute_major_degrees(
+      handle, this->offsets_, this->get_number_of_local_vertices());
+  }
+}
+
+template <typename vertex_t,
+          typename edge_t,
+          typename weight_t,
+          bool store_transposed,
+          bool multi_gpu>
+rmm::device_uvector<weight_t>
+graph_view_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu, std::enable_if_t<multi_gpu>>::
+  compute_in_weight_sums(raft::handle_t const& handle) const
+{
+  if (store_transposed) {
+    return compute_weight_sums<true>(handle, *this);
+  } else {
+    return compute_weight_sums<false>(handle, *this);
+  }
+}
+
+template <typename vertex_t,
+          typename edge_t,
+          typename weight_t,
+          bool store_transposed,
+          bool multi_gpu>
+rmm::device_uvector<weight_t> graph_view_t<
+  vertex_t,
+  edge_t,
+  weight_t,
+  store_transposed,
+  multi_gpu,
+  std::enable_if_t<!multi_gpu>>::compute_in_weight_sums(raft::handle_t const& handle) const
+{
+  if (store_transposed) {
+    return compute_weight_sums<true>(handle, *this);
+  } else {
+    return compute_weight_sums<false>(handle, *this);
+  }
+}
+
+template <typename vertex_t,
+          typename edge_t,
+          typename weight_t,
+          bool store_transposed,
+          bool multi_gpu>
+rmm::device_uvector<weight_t>
+graph_view_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu, std::enable_if_t<multi_gpu>>::
+  compute_out_weight_sums(raft::handle_t const& handle) const
+{
+  if (store_transposed) {
+    return compute_weight_sums<false>(handle, *this);
+  } else {
+    return compute_weight_sums<true>(handle, *this);
+  }
+}
+
+template <typename vertex_t,
+          typename edge_t,
+          typename weight_t,
+          bool store_transposed,
+          bool multi_gpu>
+rmm::device_uvector<weight_t> graph_view_t<
+  vertex_t,
+  edge_t,
+  weight_t,
+  store_transposed,
+  multi_gpu,
+  std::enable_if_t<!multi_gpu>>::compute_out_weight_sums(raft::handle_t const& handle) const
+{
+  if (store_transposed) {
+    return compute_weight_sums<false>(handle, *this);
+  } else {
+    return compute_weight_sums<true>(handle, *this);
   }
 }
 

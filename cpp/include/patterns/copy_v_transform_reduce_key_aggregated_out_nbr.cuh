@@ -18,8 +18,10 @@
 #include <experimental/detail/graph_utils.cuh>
 #include <experimental/graph.hpp>
 #include <experimental/graph_view.hpp>
+#include <matrix_partition_device.cuh>
 #include <utilities/dataframe_buffer.cuh>
 #include <utilities/error.hpp>
+#include <utilities/host_scalar_comm.cuh>
 #include <utilities/shuffle_comm.cuh>
 #include <vertex_partition_device.cuh>
 
@@ -100,10 +102,10 @@ __global__ void for_all_major_for_all_nbr_low_degree(
       }
       thrust::fill(thrust::seq,
                    major_vertices + local_offset,
-                   major_vertices + local_offset + key_idx,
+                   major_vertices + local_offset + key_idx + 1,
                    matrix_partition.get_major_from_major_offset_nocheck(major_offset));
       thrust::fill(thrust::seq,
-                   major_vertices + local_offset + key_idx,
+                   major_vertices + local_offset + key_idx + 1,
                    major_vertices + local_offset + local_degree,
                    invalid_vertex);
     }
@@ -159,8 +161,7 @@ __global__ void for_all_major_for_all_nbr_low_degree(
  * pairs provided by @p map_key_first, @p map_key_last, and @p map_value_first (aggregated over the
  * entire set of processes in multi-GPU).
  * @param reduce_op Binary operator takes two input arguments and reduce the two variables to one.
- * @param init Initial value to be added to the reduced @p key_aggregated_e_op return values for
- * each vertex.
+ * @param init Initial value to be added to the reduced @p reduce_op return values for each vertex.
  * @param vertex_value_output_first Iterator pointing to the vertex property variables for the
  * first (inclusive) vertex (assigned to tihs process in multi-GPU). `vertex_value_output_last`
  * (exclusive) is deduced as @p vertex_value_output_first + @p
@@ -191,6 +192,7 @@ void copy_v_transform_reduce_key_aggregated_out_nbr(
                 "GraphViewType should support the push model.");
   static_assert(std::is_same<typename std::iterator_traits<VertexIterator>::value_type,
                              typename GraphViewType::vertex_type>::value);
+  static_assert(is_arithmetic_or_thrust_tuple_of_arithmetic<T>::value);
 
   using vertex_t = typename GraphViewType::vertex_type;
   using edge_t   = typename GraphViewType::edge_type;
@@ -380,7 +382,7 @@ void copy_v_transform_reduce_key_aggregated_out_nbr(
       tmp_major_vertices.begin(), tmp_minor_keys.begin(), tmp_key_aggregated_edge_weights.begin()));
     thrust::transform(rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
                       triplet_first,
-                      triplet_first + major_vertices.size(),
+                      triplet_first + tmp_major_vertices.size(),
                       tmp_e_op_result_buffer_first,
                       [adj_matrix_row_value_input_first,
                        key_aggregated_e_op,
@@ -395,7 +397,7 @@ void copy_v_transform_reduce_key_aggregated_out_nbr(
                           w,
                           *(adj_matrix_row_value_input_first +
                             matrix_partition.get_major_offset_from_major_nocheck(major)),
-                          kv_map.find(key)->second);
+                          kv_map.find(key)->second.load(cuda::std::memory_order_relaxed));
                       });
     tmp_minor_keys.resize(0, handle.get_stream());
     tmp_key_aggregated_edge_weights.resize(0, handle.get_stream());
@@ -471,11 +473,12 @@ void copy_v_transform_reduce_key_aggregated_out_nbr(
   auto major_vertex_first = thrust::make_transform_iterator(
     thrust::make_counting_iterator(size_t{0}),
     [major_vertices = major_vertices.data()] __device__(auto i) {
-      return ((i == 0) || (major_vertices[i] == major_vertices[i - 1]))
+      return ((i == 0) || (major_vertices[i] != major_vertices[i - 1]))
                ? major_vertices[i]
                : invalid_vertex_id<vertex_t>::value;
     });
   thrust::copy_if(
+    rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
     major_vertex_first,
     major_vertex_first + major_vertices.size(),
     unique_major_vertices.begin(),
@@ -489,9 +492,10 @@ void copy_v_transform_reduce_key_aggregated_out_nbr(
     thrust::make_permutation_iterator(
       vertex_value_output_first,
       thrust::make_transform_iterator(
-        major_vertices.begin(),
+        unique_major_vertices.begin(),
         [vertex_partition = vertex_partition_device_t<GraphViewType>(graph_view)] __device__(
           auto v) { return vertex_partition.get_local_vertex_offset_from_vertex_nocheck(v); })),
+    thrust::equal_to<vertex_t>{},
     reduce_op);
 
   thrust::transform(rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
