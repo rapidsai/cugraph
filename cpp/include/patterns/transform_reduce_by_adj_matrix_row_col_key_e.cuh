@@ -17,6 +17,8 @@
 
 #include <experimental/detail/graph_utils.cuh>
 #include <experimental/graph_view.hpp>
+#include <matrix_partition_device.cuh>
+#include <patterns/edge_op_utils.cuh>
 #include <utilities/dataframe_buffer.cuh>
 #include <utilities/error.hpp>
 #include <utilities/shuffle_comm.cuh>
@@ -124,6 +126,35 @@ __global__ void for_all_major_for_all_nbr_low_degree(
   }
 }
 
+// FIXME: better derive value_t from BufferType
+template <typename vertex_t, typename value_t, typename BufferType>
+std::tuple<rmm::device_uvector<vertex_t>, BufferType> reduce_to_unique_kv_pairs(
+  rmm::device_uvector<vertex_t>&& keys, BufferType&& value_buffer, cudaStream_t stream)
+{
+  thrust::sort_by_key(rmm::exec_policy(stream)->on(stream),
+                      keys.begin(),
+                      keys.end(),
+                      get_dataframe_buffer_begin<value_t>(value_buffer));
+  auto num_uniques =
+    thrust::count_if(rmm::exec_policy(stream)->on(stream),
+                     thrust::make_counting_iterator(size_t{0}),
+                     thrust::make_counting_iterator(keys.size()),
+                     [keys = keys.data()] __device__(auto i) {
+                       return ((i == 0) || (keys[i] != keys[i - 1])) ? true : false;
+                     });
+
+  rmm::device_uvector<vertex_t> unique_keys(num_uniques, stream);
+  auto value_for_unique_key_buffer = allocate_dataframe_buffer<value_t>(unique_keys.size(), stream);
+  thrust::reduce_by_key(rmm::exec_policy(stream)->on(stream),
+                        keys.begin(),
+                        keys.end(),
+                        get_dataframe_buffer_begin<value_t>(value_buffer),
+                        unique_keys.begin(),
+                        get_dataframe_buffer_begin<value_t>(value_for_unique_key_buffer));
+
+  return std::make_tuple(std::move(unique_keys), std::move(value_for_unique_key_buffer));
+}
+
 template <bool adj_matrix_row_key,
           typename GraphViewType,
           typename AdjMatrixRowValueInputIterator,
@@ -210,95 +241,54 @@ transform_reduce_by_adj_matrix_row_col_key_e(
           tmp_keys.data(),
           get_dataframe_buffer_begin<T>(tmp_value_buffer));
     }
+    std::tie(tmp_keys, tmp_value_buffer) = reduce_to_unique_kv_pairs<vertex_t, T>(
+      std::move(tmp_keys), std::move(tmp_value_buffer), handle.get_stream());
 
     if (GraphViewType::is_multi_gpu) {
       auto& comm           = handle.get_comms();
       auto const comm_size = comm.get_size();
-
-      thrust::sort_by_key(rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
-                          tmp_keys.begin(),
-                          tmp_keys.end(),
-                          get_dataframe_buffer_begin<T>(tmp_value_buffer));
-
-      auto num_uniques =
-        thrust::count_if(rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
-                         thrust::make_counting_iterator(size_t{0}),
-                         thrust::make_counting_iterator(tmp_keys.size()),
-                         [tmp_keys = tmp_keys.data()] __device__(auto i) {
-                           return ((i == 0) || (tmp_keys[i] != tmp_keys[i - 1])) ? true : false;
-                         });
-      rmm::device_uvector<vertex_t> unique_keys(num_uniques, handle.get_stream());
-      auto value_for_unique_key_buffer =
-        allocate_dataframe_buffer<T>(unique_keys.size(), handle.get_stream());
-
-      thrust::reduce_by_key(rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
-                            tmp_keys.begin(),
-                            tmp_keys.end(),
-                            get_dataframe_buffer_begin<T>(tmp_value_buffer),
-                            unique_keys.begin(),
-                            get_dataframe_buffer_begin<T>(value_for_unique_key_buffer));
 
       rmm::device_uvector<vertex_t> rx_unique_keys(0, handle.get_stream());
       auto rx_value_for_unique_key_buffer = allocate_dataframe_buffer<T>(0, handle.get_stream());
       std::tie(rx_unique_keys, rx_value_for_unique_key_buffer, std::ignore) =
         groupby_gpuid_and_shuffle_kv_pairs(
           comm,
-          unique_keys.begin(),
-          unique_keys.end(),
-          get_dataframe_buffer_begin<T>(value_for_unique_key_buffer),
+          tmp_keys.begin(),
+          tmp_keys.end(),
+          get_dataframe_buffer_begin<T>(tmp_value_buffer),
           [key_func = detail::compute_gpu_id_from_vertex_t<vertex_t>{comm_size}] __device__(
             auto val) { return key_func(val); },
           handle.get_stream());
 
-      // FIXME: we can reduce after shuffle
-
-      tmp_keys         = std::move(rx_unique_keys);
-      tmp_value_buffer = std::move(rx_value_for_unique_key_buffer);
+      std::tie(tmp_keys, tmp_value_buffer) = reduce_to_unique_kv_pairs<vertex_t, T>(
+        std::move(rx_unique_keys), std::move(rx_value_for_unique_key_buffer), handle.get_stream());
     }
 
     auto cur_size = keys.size();
-    // FIXME: this can lead to frequent costly reallocation; we may be able to avoid this if we can
-    // reserve address space to avoid expensive reallocation.
-    // https://devblogs.nvidia.com/introducing-low-level-gpu-virtual-memory-management
-    keys.resize(cur_size + tmp_keys.size(), handle.get_stream());
-    resize_dataframe_buffer<T>(value_buffer, keys.size(), handle.get_stream());
+    if (cur_size == 0) {
+      keys         = std::move(tmp_keys);
+      value_buffer = std::move(tmp_value_buffer);
+    } else {
+      // FIXME: this can lead to frequent costly reallocation; we may be able to avoid this if we
+      // can reserve address space to avoid expensive reallocation.
+      // https://devblogs.nvidia.com/introducing-low-level-gpu-virtual-memory-management
+      keys.resize(cur_size + tmp_keys.size(), handle.get_stream());
+      resize_dataframe_buffer<T>(value_buffer, keys.size(), handle.get_stream());
 
-    thrust::copy(rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
-                 tmp_keys.begin(),
-                 tmp_keys.end(),
-                 keys.begin() + cur_size);
-    thrust::copy(rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
-                 get_dataframe_buffer_begin<T>(tmp_value_buffer),
-                 get_dataframe_buffer_begin<T>(tmp_value_buffer) + tmp_keys.size(),
-                 get_dataframe_buffer_begin<T>(value_buffer) + cur_size);
+      thrust::copy(rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
+                   tmp_keys.begin(),
+                   tmp_keys.end(),
+                   keys.begin() + cur_size);
+      thrust::copy(rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
+                   get_dataframe_buffer_begin<T>(tmp_value_buffer),
+                   get_dataframe_buffer_begin<T>(tmp_value_buffer) + tmp_keys.size(),
+                   get_dataframe_buffer_begin<T>(value_buffer) + cur_size);
+    }
   }
 
   if (GraphViewType::is_multi_gpu) {
-    thrust::sort_by_key(rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
-                        keys.begin(),
-                        keys.end(),
-                        get_dataframe_buffer_begin<T>(value_buffer));
-
-    auto num_uniques =
-      thrust::count_if(rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
-                       thrust::make_counting_iterator(size_t{0}),
-                       thrust::make_counting_iterator(keys.size()),
-                       [keys = keys.data()] __device__(auto i) {
-                         return ((i == 0) || (keys[i] != keys[i - 1])) ? true : false;
-                       });
-    rmm::device_uvector<vertex_t> unique_keys(num_uniques, handle.get_stream());
-    auto value_for_unique_key_buffer =
-      allocate_dataframe_buffer<T>(unique_keys.size(), handle.get_stream());
-
-    thrust::reduce_by_key(rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
-                          keys.begin(),
-                          keys.end(),
-                          get_dataframe_buffer_begin<T>(value_buffer),
-                          unique_keys.begin(),
-                          get_dataframe_buffer_begin<T>(value_for_unique_key_buffer));
-
-    keys         = std::move(unique_keys);
-    value_buffer = std::move(value_for_unique_key_buffer);
+    std::tie(keys, value_buffer) = reduce_to_unique_kv_pairs<vertex_t, T>(
+      std::move(keys), std::move(value_buffer), handle.get_stream());
   }
 
   // FIXME: add init
