@@ -362,8 +362,6 @@ void copy_v_transform_reduce_nbr(raft::handle_t const& handle,
 
   static_assert(is_arithmetic_or_thrust_tuple_of_arithmetic<T>::value);
 
-  auto comm_rank = GraphViewType::is_multi_gpu ? handle.get_comms().get_rank() : int{0};
-
   auto minor_tmp_buffer_size =
     (GraphViewType::is_multi_gpu && (in != GraphViewType::is_adj_matrix_transposed))
       ? GraphViewType::is_adj_matrix_transposed
@@ -378,9 +376,7 @@ void copy_v_transform_reduce_nbr(raft::handle_t const& handle,
     if (GraphViewType::is_multi_gpu) {
       auto& row_comm = handle.get_subcomm(cugraph::partition_2d::key_naming_t().row_name());
       auto const row_comm_rank = row_comm.get_rank();
-      auto& col_comm = handle.get_subcomm(cugraph::partition_2d::key_naming_t().col_name());
-      auto const col_comm_rank = col_comm.get_rank();
-      minor_init               = (row_comm_rank == 0) ? init : T {}
+      minor_init               = (row_comm_rank == 0) ? init : T {};
     }
 
     if (GraphViewType::is_multi_gpu) {
@@ -401,17 +397,10 @@ void copy_v_transform_reduce_nbr(raft::handle_t const& handle,
   for (size_t i = 0; i < graph_view.get_number_of_local_adj_matrix_partitions(); ++i) {
     matrix_partition_device_t<GraphViewType> matrix_partition(graph_view, i);
 
-    auto major_tmp_buffer_size = vertex_t{0};
-    if (GraphViewType::is_multi_gpu) {
-      auto& row_comm = handle.get_subcomm(cugraph::partition_2d::key_naming_t().row_name());
-      auto const row_comm_size = row_comm.get_size();
-      auto& col_comm = handle.get_subcomm(cugraph::partition_2d::key_naming_t().col_name());
-      auto const col_comm_rank = col_comm.get_rank();
-
-      major_tmp_buffer_size = (in == GraphViewType::is_adj_matrix_transposed)
-                                ? matrix_partition.get_major_size()
-                                : vertex_t{0};
-    }
+    auto major_tmp_buffer_size =
+      GraphViewType::is_multi_gpu && (in == GraphViewType::is_adj_matrix_transposed)
+        ? matrix_partition.get_major_size()
+        : vertex_t{0};
     auto major_tmp_buffer =
       allocate_dataframe_buffer<T>(major_tmp_buffer_size, handle.get_stream());
     auto major_buffer_first = get_dataframe_buffer_begin<T>(major_tmp_buffer);

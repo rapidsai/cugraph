@@ -389,6 +389,10 @@ class graph_view_t<vertex_t,
                             : partition_.get_matrix_partition_major_last(adj_matrix_partition_idx);
   }
 
+  vertex_t get_number_of_local_adj_matrix_partition_rows(size_t adj_matrix_partition_idx) const {
+    return get_local_adj_matrix_partition_row_last(adj_matrix_partition_idx) - get_local_adj_matrix_partition_row_first(adj_matrix_partition_idx);
+  }
+
   vertex_t get_local_adj_matrix_partition_row_value_start_offset(
     size_t adj_matrix_partition_idx) const
   {
@@ -407,6 +411,10 @@ class graph_view_t<vertex_t,
   {
     return store_transposed ? partition_.get_matrix_partition_major_last(adj_matrix_partition_idx)
                             : partition_.get_matrix_partition_minor_last();
+  }
+
+  vertex_t get_number_of_local_adj_matrix_partition_cols(size_t adj_matrix_partition_idx) const {
+    return get_local_adj_matrix_partition_col_last(adj_matrix_partition_idx) - get_local_adj_matrix_partition_col_first(adj_matrix_partition_idx);
   }
 
   vertex_t get_local_adj_matrix_partition_col_value_start_offset(
