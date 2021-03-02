@@ -82,6 +82,8 @@ namespace experimental {
 template <typename vertex_t>
 class partition_t {
  public:
+  partition_t() = default;
+
   partition_t(std::vector<vertex_t> const& vertex_partition_offsets,
               bool hypergraph_partitioned,
               int row_comm_size,
@@ -247,6 +249,8 @@ size_t constexpr num_segments_per_vertex_partition{3};
 template <typename vertex_t, typename edge_t, typename weight_t>
 class graph_base_t {
  public:
+  graph_base_t() = default;
+
   graph_base_t(raft::handle_t const& handle,
                vertex_t number_of_vertices,
                edge_t number_of_edges,
@@ -494,6 +498,12 @@ class graph_view_t<vertex_t,
              : static_cast<weight_t const*>(nullptr);
   }
 
+  rmm::device_uvector<edge_t> compute_in_degrees(raft::handle_t const& handle) const;
+  rmm::device_uvector<edge_t> compute_out_degrees(raft::handle_t const& handle) const;
+
+  rmm::device_uvector<weight_t> compute_in_weight_sums(raft::handle_t const& handle) const;
+  rmm::device_uvector<weight_t> compute_out_weight_sums(raft::handle_t const& handle) const;
+
  private:
   std::vector<edge_t const*> adj_matrix_partition_offsets_{};
   std::vector<vertex_t const*> adj_matrix_partition_indices_{};
@@ -637,6 +647,12 @@ class graph_view_t<vertex_t,
   // implementations directly accessing CSR/CSC data, but this function will eventually become
   // private.
   weight_t const* weights() const { return weights_; }
+
+  rmm::device_uvector<edge_t> compute_in_degrees(raft::handle_t const& handle) const;
+  rmm::device_uvector<edge_t> compute_out_degrees(raft::handle_t const& handle) const;
+
+  rmm::device_uvector<weight_t> compute_in_weight_sums(raft::handle_t const& handle) const;
+  rmm::device_uvector<weight_t> compute_out_weight_sums(raft::handle_t const& handle) const;
 
  private:
   edge_t const* offsets_{nullptr};
