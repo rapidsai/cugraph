@@ -15,9 +15,11 @@
 
 from dask.distributed import wait, default_client
 from cugraph.dask.common.input_utils import get_distributed_data
-from cugraph.dask.structure import renumber_wrapper as c_renumber
+from cugraph.structure import renumber_wrapper as c_renumber
 import cugraph.comms as Comms
 import dask_cudf
+import numpy as np
+import cudf
 
 
 def call_renumber(sID,
@@ -149,18 +151,21 @@ class NumberMap:
         """
         return [str(i) for i in range(len(column_names))]
 
-   def renumber(df):
+    def renumber(df, src_col_names, dst_col_names, preserve_order=False,
+                 store_transposed=False):
 
         renumber_map = NumberMap()
-
+        if not isinstance(src_col_names, list):
+            src_col_names = [src_col_names]
+            dst_col_names = [dst_col_names]
         if type(df) is cudf.DataFrame:
-            self.implementation = NumberMap.SingleGPU(
-                df, src_col_names, dst_col_names, self.id_type,
+            renumber_map.implementation = NumberMap.SingleGPU(
+                df, src_col_names, dst_col_names, renumber_map.id_type,
                 store_transposed
             )
         elif type(df) is dask_cudf.DataFrame:
-            self.implementation = NumberMap.MultiGPU(
-                df, src_col_names, dst_col_names, self.id_type,
+            renumber_map.implementation = NumberMap.MultiGPU(
+                df, src_col_names, dst_col_names, renumber_map.id_type,
                 store_transposed
             )
         else:
@@ -177,7 +182,10 @@ class NumberMap:
 
         if is_mnmg:
             client = default_client()
+            print("AAAAAAAA")
+            print(df)
             data = get_distributed_data(df)
+            print("BBBBBBBB")
             result = [client.submit(call_renumber,
                                     Comms.get_session_id(),
                                     wf[1],
@@ -264,4 +272,4 @@ class NumberMap:
                 lambda df: df.rename(columns=mapping, copy=False)
             )
         else:
-            return df.rename(columns=mapping, copy=False)1~
+            return df.rename(columns=mapping, copy=False)
