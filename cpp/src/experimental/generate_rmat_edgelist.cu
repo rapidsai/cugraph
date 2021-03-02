@@ -113,8 +113,8 @@ std::tuple<rmm::device_uvector<vertex_t>, rmm::device_uvector<vertex_t>> generat
                       pair_first + srcs.size(),
                       pair_first,
                       [scale] __device__(auto pair) {
-                        return thrust::make_tuple(scramble(thrust::get<0>(pair), scale),
-                                                  scramble(thrust::get<1>(pair), scale));
+                        return thrust::make_tuple(detail::scramble(thrust::get<0>(pair), scale),
+                                                  detail::scramble(thrust::get<1>(pair), scale));
                       });
   }
 
