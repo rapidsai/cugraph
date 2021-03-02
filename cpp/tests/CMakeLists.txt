@@ -337,8 +337,6 @@ ConfigureTest(EXPERIMENTAL_GRAPH_TEST "${EXPERIMENTAL_GRAPH_TEST_SRCS}")
 # - Experimental weight-sum tests -----------------------------------------------------------------
 
 set(EXPERIMENTAL_WEIGHT_SUM_TEST_SRCS
-    "${CMAKE_CURRENT_SOURCE_DIR}/../../thirdparty/mmio/mmio.c"
-    "${CMAKE_CURRENT_SOURCE_DIR}/utilities/test_utilities.cpp"
     "${CMAKE_CURRENT_SOURCE_DIR}/experimental/weight_sum_test.cpp")
 
 ConfigureTest(EXPERIMENTAL_WEIGHT_SUM_TEST "${EXPERIMENTAL_WEIGHT_SUM_TEST_SRCS}")
@@ -347,8 +345,6 @@ ConfigureTest(EXPERIMENTAL_WEIGHT_SUM_TEST "${EXPERIMENTAL_WEIGHT_SUM_TEST_SRCS}
 # - Experimental degree tests ---------------------------------------------------------------------
 
 set(EXPERIMENTAL_DEGREE_TEST_SRCS
-    "${CMAKE_CURRENT_SOURCE_DIR}/../../thirdparty/mmio/mmio.c"
-    "${CMAKE_CURRENT_SOURCE_DIR}/utilities/test_utilities.cpp"
     "${CMAKE_CURRENT_SOURCE_DIR}/experimental/degree_test.cpp")
 
 ConfigureTest(EXPERIMENTAL_DEGREE_TEST "${EXPERIMENTAL_DEGREE_TEST_SRCS}")
