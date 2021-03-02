@@ -37,7 +37,7 @@ def ecg(input_graph, min_weight=.05, ensemble_size=16):
         raise Exception('ECG must be called on a weighted graph')
 
     cdef unique_ptr[handle_t] handle_ptr
-    handle_ptr.reset(new handle_t())
+    handle_ptr.reset(new handle_t(16))
 
     [offsets, indices] = graph_primtypes_wrapper.datatype_cast([input_graph.adjlist.offsets,
                                                                 input_graph.adjlist.indices], [np.int32, np.int64])

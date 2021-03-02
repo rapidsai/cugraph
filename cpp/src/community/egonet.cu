@@ -135,7 +135,6 @@ extract(
   }
 
   // wait on every one to identify their neighboors before proceeding to concatenation
-  // this also sync with user stream
   handle.wait_on_internal_streams();
 
   // Construct neighboors offsets (just a scan on neighborhod vector sizes)

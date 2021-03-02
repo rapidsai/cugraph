@@ -98,7 +98,7 @@ set(CMAKE_CUDA_FLAGS "${CMAKE_CUDA_FLAGS} -gencode arch=compute_${ptx},code=comp
 set(CMAKE_CUDA_FLAGS "${CMAKE_CUDA_FLAGS} --expt-extended-lambda --expt-relaxed-constexpr")
 set(CMAKE_CUDA_FLAGS "${CMAKE_CUDA_FLAGS} -Werror=cross-execution-space-call -Wno-deprecated-declarations -Xptxas --disable-warnings")
 set(CMAKE_CUDA_FLAGS "${CMAKE_CUDA_FLAGS} -Xcompiler -Wall,-Wno-error=sign-compare,-Wno-error=unused-but-set-variable")
-
+set(CMAKE_CUDA_FLAGS "${CMAKE_CUDA_FLAGS} --default-stream per-thread")
 
 # Option to enable line info in CUDA device compilation to allow introspection when profiling /
 # memchecking
@@ -323,7 +323,6 @@ set_property(TARGET gunrock PROPERTY IMPORTED_LOCATION ${GUNROCK_DIR}/src/gunroc
 
 ###################################################################################################
 # - library targets -------------------------------------------------------------------------------
-
 # target_link_directories is added in cmake 3.13, and cmake advises to use this instead of
 # link_directoires (we should switch to target_link_directories once 3.13 becomes the minimum
 # required version).
@@ -376,6 +375,8 @@ add_library(cugraph SHARED
 #        wait until after cugunrock is constructed.
 #
 add_dependencies(cugraph gunrock_ext)
+
+target_compile_definitions(cugraph PUBLIC CUDA_API_PER_THREAD_DEFAULT_STREAM)
 
 ###################################################################################################
 # - include paths ---------------------------------------------------------------------------------
