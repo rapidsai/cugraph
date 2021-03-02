@@ -130,5 +130,19 @@ read_graph_from_matrix_market_file(raft::handle_t const& handle,
                                    bool test_weighted,
                                    bool renumber);
 
+template <typename vertex_t>
+std::enable_if_t<std::is_signed<vertex_t>::value, bool> is_valid_vertex(vertex_t num_vertices,
+                                                                        vertex_t v)
+{
+  return (v >= 0) && (v < num_vertices);
+}
+
+template <typename vertex_t>
+std::enable_if_t<std::is_unsigned<vertex_t>::value, bool> is_valid_vertex(vertex_t num_vertices,
+                                                                          vertex_t v)
+{
+  return v < num_vertices;
+}
+
 }  // namespace test
 }  // namespace cugraph
