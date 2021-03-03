@@ -17,12 +17,11 @@
 # cython: language_level = 3
 
 from cugraph.community cimport louvain as c_louvain
-from cugraph.structure.graph_primtypes cimport *
+from cugraph.structure.graph_utilities cimport *
 from cugraph.structure import graph_primtypes_wrapper
 from libc.stdint cimport uintptr_t
 
 import cudf
-import rmm
 import numpy as np
 
 

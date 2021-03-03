@@ -17,9 +17,7 @@ from libcpp cimport bool
 from libc.stdint cimport uintptr_t
 from cugraph.structure import graph_primtypes_wrapper
 import cudf
-import rmm
 import numpy as np
-import numpy.ctypeslib as ctypeslib
 from rmm._lib.device_buffer cimport DeviceBuffer
 from cudf.core.buffer import Buffer
 

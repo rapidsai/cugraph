@@ -23,12 +23,9 @@ from cugraph.community.spectral_clustering cimport analyzeClustering_edge_cut as
 from cugraph.community.spectral_clustering cimport analyzeClustering_ratio_cut as c_analyze_clustering_ratio_cut
 from cugraph.structure.graph_primtypes cimport *
 from cugraph.structure import graph_primtypes_wrapper
-from libcpp cimport bool
 from libc.stdint cimport uintptr_t
-
 import cugraph
 import cudf
-import rmm
 import numpy as np
 
 

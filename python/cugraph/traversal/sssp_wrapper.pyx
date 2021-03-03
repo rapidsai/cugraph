@@ -18,16 +18,13 @@
 
 cimport cugraph.traversal.sssp as c_sssp
 cimport cugraph.traversal.bfs as c_bfs
-from cugraph.structure.graph_primtypes cimport *
+from cugraph.structure.graph_utilities cimport *
 from cugraph.structure import graph_primtypes_wrapper
-
 from libcpp cimport bool
 from libc.stdint cimport uintptr_t
-from libc.float cimport FLT_MAX_EXP
-
 import cudf
-import rmm
 import numpy as np
+
 
 def sssp(input_graph, source):
     """

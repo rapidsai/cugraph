@@ -23,7 +23,6 @@ from cugraph.structure import graph_primtypes_wrapper
 from libc.stdint cimport uintptr_t
 from cugraph.structure.symmetrize import symmetrize
 from cugraph.structure.graph import Graph as type_Graph
-
 import cudf
 import numpy as np
 

@@ -17,13 +17,10 @@
 # cython: language_level = 3
 
 from cugraph.centrality.katz_centrality cimport call_katz_centrality
-from cugraph.structure.graph_primtypes cimport *
+from cugraph.structure.graph_utilities cimport *
 from cugraph.structure import graph_primtypes_wrapper
-from libcpp cimport bool
 from libc.stdint cimport uintptr_t
-
 import cudf
-import rmm
 import numpy as np
 
 

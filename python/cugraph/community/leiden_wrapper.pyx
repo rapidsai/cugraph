@@ -22,7 +22,6 @@ from cugraph.structure import graph_primtypes_wrapper
 from libc.stdint cimport uintptr_t
 
 import cudf
-import rmm
 import numpy as np
 
 

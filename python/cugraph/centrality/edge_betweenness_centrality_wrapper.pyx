@@ -24,8 +24,6 @@ from libc.stdint cimport uintptr_t
 from libcpp cimport bool
 import cudf
 import numpy as np
-import numpy.ctypeslib as ctypeslib
-
 from cugraph.dask.common.mg_utils import get_client
 import cugraph.comms.comms as Comms
 import dask.distributed

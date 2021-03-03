@@ -22,7 +22,6 @@ from cugraph.structure.graph_primtypes cimport *
 from libc.stdint cimport uintptr_t
 
 import cudf
-import rmm
 import numpy as np
 from rmm._lib.device_buffer cimport DeviceBuffer
 from cudf.core.buffer import Buffer

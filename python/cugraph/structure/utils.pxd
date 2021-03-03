@@ -19,9 +19,6 @@
 from cugraph.structure.graph_primtypes cimport *
 from libcpp.memory cimport unique_ptr
 
-cdef extern from "raft/handle.hpp" namespace "raft":
-    cdef cppclass handle_t:
-        handle_t() except +
 
 cdef extern from "functions.hpp" namespace "cugraph":
 

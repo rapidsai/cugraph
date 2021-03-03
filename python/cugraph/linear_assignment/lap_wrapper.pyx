@@ -21,10 +21,9 @@ from cugraph.linear_assignment.lap cimport dense_hungarian as c_dense_hungarian
 from cugraph.structure.graph_primtypes cimport *
 from cugraph.structure import graph_primtypes_wrapper
 from libc.stdint cimport uintptr_t
-from cugraph.structure.graph import Graph as type_Graph
-
 import cudf
 import numpy as np
+
 
 def sparse_hungarian(input_graph, workers):
     """

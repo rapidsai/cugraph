@@ -1,5 +1,5 @@
 
-from cugraph.structure.graph_primtypes cimport handle_t
+from cugraph.raft.common.handle cimport *
 from cugraph.comms.comms cimport init_subcomms as c_init_subcomms
 
 

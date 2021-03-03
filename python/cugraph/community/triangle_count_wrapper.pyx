@@ -21,9 +21,7 @@ from cugraph.structure.graph_primtypes cimport *
 from cugraph.structure import graph_primtypes_wrapper
 from libc.stdint cimport uintptr_t
 import numpy as np
-
 import cudf
-import rmm
 
 
 def triangles(input_graph):

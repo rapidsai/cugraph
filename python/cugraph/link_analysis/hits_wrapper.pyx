@@ -18,13 +18,10 @@
 
 from cugraph.link_analysis.hits cimport hits as c_hits
 from cugraph.structure.graph_primtypes cimport *
-from libcpp cimport bool
 from libc.stdint cimport uintptr_t
 from cugraph.structure import graph_primtypes_wrapper
 import cudf
-import rmm
 import numpy as np
-import numpy.ctypeslib as ctypeslib
 
 
 def hits(input_graph, max_iter=100, tol=1.0e-5, nstart=None, normalized=True):
@@ -47,8 +44,6 @@ def hits(input_graph, max_iter=100, tol=1.0e-5, nstart=None, normalized=True):
     df['vertex'] = cudf.Series(np.zeros(num_verts, dtype=np.int32))
     df['hubs'] = cudf.Series(np.zeros(num_verts, dtype=np.float32))
     df['authorities'] = cudf.Series(np.zeros(num_verts, dtype=np.float32))
-
-    #cdef bool normalized = <bool> 1
 
     cdef uintptr_t c_identifier = df['vertex'].__cuda_array_interface__['data'][0];
     cdef uintptr_t c_hubs = df['hubs'].__cuda_array_interface__['data'][0];

@@ -21,8 +21,6 @@ from cugraph.link_prediction.overlap cimport overlap_list as c_overlap_list
 from cugraph.structure.graph_primtypes cimport *
 from cugraph.structure import graph_primtypes_wrapper
 from libc.stdint cimport uintptr_t
-from cython cimport floating
-
 import cudf
 import numpy as np
 

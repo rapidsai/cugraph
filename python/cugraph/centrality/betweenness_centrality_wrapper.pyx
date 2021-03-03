@@ -17,18 +17,12 @@
 # cython: language_level = 3
 
 from cugraph.centrality.betweenness_centrality cimport betweenness_centrality as c_betweenness_centrality
-from cugraph.centrality.betweenness_centrality cimport handle_t
 from cugraph.structure.graph import DiGraph
 from cugraph.structure.graph_primtypes cimport *
 from libc.stdint cimport uintptr_t
 from libcpp cimport bool
 import cudf
 import numpy as np
-import numpy.ctypeslib as ctypeslib
-
-import dask_cudf
-import dask_cuda
-
 import cugraph.comms.comms as Comms
 from cugraph.dask.common.mg_utils import get_client
 import dask.distributed

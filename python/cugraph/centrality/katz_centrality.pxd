@@ -16,7 +16,7 @@
 # cython: embedsignature = True
 # cython: language_level = 3
 
-from cugraph.structure.graph_primtypes cimport *
+from cugraph.structure.graph_utilities cimport *
 from libcpp cimport bool
 
 cdef extern from "utilities/cython.hpp" namespace "cugraph::cython":

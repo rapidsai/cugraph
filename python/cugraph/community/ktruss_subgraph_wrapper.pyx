@@ -19,12 +19,6 @@
 from cugraph.community.ktruss_subgraph cimport *
 from cugraph.structure.graph_primtypes cimport *
 from cugraph.structure import graph_primtypes_wrapper
-from libcpp cimport bool
-from libc.stdint cimport uintptr_t
-from libc.float cimport FLT_MAX_EXP
-
-import cudf
-import rmm
 import numpy as np
 
 
