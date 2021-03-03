@@ -146,6 +146,25 @@ generate_graph_from_edgelist(raft::handle_t const& handle,
                              bool test_weighted,
                              bool renumber);
 
+template <typename vertex_t,
+          typename edge_t,
+          typename weight_t,
+          bool store_transposed,
+          bool multi_gpu>
+std::tuple<cugraph::experimental::graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu>,
+           rmm::device_uvector<vertex_t>>
+generate_graph_from_rmat_params(raft::handle_t const& handle,
+                                size_t scale,
+                                size_t edge_factor,
+                                double a,
+                                double b,
+                                double c,
+                                uint64_t seed,
+                                bool undirected,
+                                bool scramble_vertex_ids,
+                                bool test_weighted,
+                                bool renumber);
+
 template <typename vertex_t>
 std::enable_if_t<std::is_signed<vertex_t>::value, bool> is_valid_vertex(vertex_t num_vertices,
                                                                         vertex_t v)
