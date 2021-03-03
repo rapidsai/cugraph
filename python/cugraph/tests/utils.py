@@ -77,6 +77,13 @@ DATASETS_KTRUSS = [(
     PurePath(RAPIDS_DATASET_ROOT_DIR)/"ref/ktruss/polbooks.csv")
 ]
 
+DATASETS_TSPLIB = [
+        (PurePath(RAPIDS_DATASET_ROOT_DIR)/f,) + (d,) for (f, d) in [
+            ("gil262.tsp", 2378),
+            ("eil51.tsp", 426),
+            ("kroA100.tsp", 21282),
+            ("tsp225.tsp", 3916)]
+]
 
 DATASETS_SMALL = [
     PurePath(RAPIDS_DATASET_ROOT_DIR)/f for f in [

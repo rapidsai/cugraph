@@ -33,6 +33,18 @@ if(NOT CMAKE_BUILD_TYPE AND NOT CMAKE_CONFIGURATION_TYPES)
     "Debug" "Release" "MinSizeRel" "RelWithDebInfo")
 endif()
 
+##############################################################################
+# - User Options  ------------------------------------------------------------
+
+option(BUILD_CUGRAPH_MG_TESTS "Build cuGraph multigpu algorithm tests" OFF)
+
+###################################################################################################
+# - user options ------------------------------------------------------------------------------
+
+set(BLAS_LIBRARIES "" CACHE STRING
+    "Location of BLAS library for FAISS build.")
+option(BUILD_STATIC_FAISS "Build the FAISS library for nearest neighbors search on GPU" OFF)
+
 ###################################################################################################
 # - compiler options ------------------------------------------------------------------------------
 
@@ -90,10 +102,12 @@ message("-- Building for GPU_ARCHS = ${GPU_ARCHS}")
 foreach(arch ${GPU_ARCHS})
   set(CMAKE_CUDA_FLAGS "${CMAKE_CUDA_FLAGS} -gencode arch=compute_${arch},code=sm_${arch}")
   set(GUNROCK_GENCODE_SM${arch} "ON")
+  set(FAISS_GPU_ARCHS "${FAISS_GPU_ARCHS} -gencode arch=compute_${arch},code=sm_${arch}")
 endforeach()
 
 list(GET GPU_ARCHS -1 ptx)
 set(CMAKE_CUDA_FLAGS "${CMAKE_CUDA_FLAGS} -gencode arch=compute_${ptx},code=compute_${ptx}")
+set(FAISS_GPU_ARCHS "${FAISS_GPU_ARCHS} -gencode arch=compute_${ptx},code=compute_${ptx}")
 
 set(CMAKE_CUDA_FLAGS "${CMAKE_CUDA_FLAGS} --expt-extended-lambda --expt-relaxed-constexpr")
 set(CMAKE_CUDA_FLAGS "${CMAKE_CUDA_FLAGS} -Werror=cross-execution-space-call -Wno-deprecated-declarations -Xptxas --disable-warnings")
@@ -152,6 +166,15 @@ endif(OpenMP_FOUND)
 
 
 ###################################################################################################
+# - find blas -------------------------------------------------------------------------------------
+
+if(NOT DEFINED BLAS_LIBRARIES)
+  find_package( BLAS REQUIRED )
+else()
+  message(STATUS "Manually setting BLAS to ${BLAS_LIBRARIES}")
+endif()
+
+###################################################################################################
 # - find gtest ------------------------------------------------------------------------------------
 
 if(BUILD_TESTS)
@@ -180,6 +203,12 @@ else()
     set(NCCL_LIBRARIES ${NCCL_PATH}/lib/libnccl.so)
 endif(NOT NCCL_PATH)
 
+###################################################################################################
+# - find MPI - only enabled if MG tests are to be built
+
+if(BUILD_CUGRAPH_MG_TESTS)
+  find_package(MPI REQUIRED)
+endif(BUILD_CUGRAPH_MG_TESTS)
 
 ###################################################################################################
 # - Fetch Content ---------------------------------------------------------------------------------
@@ -269,6 +298,7 @@ else(DEFINED ENV{RAFT_PATH})
     raft
     GIT_REPOSITORY    https://github.com/rapidsai/raft.git
     GIT_TAG           b055cf862a599fd45537d21a309edd8a6e06da4c
+
     SOURCE_SUBDIR     raft
   )
 
@@ -320,15 +350,48 @@ add_library(gunrock STATIC IMPORTED)
 add_dependencies(gunrock gunrock_ext)
 set_property(TARGET gunrock PROPERTY IMPORTED_LOCATION ${GUNROCK_DIR}/src/gunrock_ext-build/lib/libgunrock.a)
 
+# - FAISS
+# FIXME: The commit currently being fetched from faiss is using autotools which
+# is more convenient to build with ExternalProjectAdd.
+# Consider migrating to FetchContent once the tagged commit is changed.
+
+if(BUILD_STATIC_FAISS)
+  set(FAISS_DIR ${CMAKE_CURRENT_BINARY_DIR}/faiss CACHE STRING
+    "Path to FAISS source directory")
+  ExternalProject_Add(faiss
+    GIT_REPOSITORY    https://github.com/facebookresearch/faiss.git
+    GIT_TAG           a5b850dec6f1cd6c88ab467bfd5e87b0cac2e41d
+    CONFIGURE_COMMAND LIBS=-pthread
+                      CPPFLAGS=-w
+                      LDFLAGS=-L${CMAKE_INSTALL_PREFIX}/lib
+                              ${CMAKE_CURRENT_BINARY_DIR}/faiss/src/faiss/configure
+	                      --prefix=${CMAKE_CURRENT_BINARY_DIR}/faiss
+	                      --with-blas=${BLAS_LIBRARIES}
+	                      --with-cuda=${CUDA_TOOLKIT_ROOT_DIR}
+	                      --with-cuda-arch=${FAISS_GPU_ARCHS}
+	                      -v
+    PREFIX            ${FAISS_DIR}
+    BUILD_COMMAND     make -j${PARALLEL_LEVEL} VERBOSE=1
+    BUILD_BYPRODUCTS  ${FAISS_DIR}/lib/libfaiss.a
+    BUILD_ALWAYS      1
+    INSTALL_COMMAND   make -s install > /dev/null
+    UPDATE_COMMAND    ""
+    BUILD_IN_SOURCE   1
+    PATCH_COMMAND     patch -p1 -N < ${CMAKE_CURRENT_SOURCE_DIR}/cmake/faiss_cuda11.patch || true)
+
+  ExternalProject_Get_Property(faiss install_dir)
+  add_library(FAISS::FAISS STATIC IMPORTED)
+  add_dependencies(FAISS::FAISS faiss)
+  set_property(TARGET FAISS::FAISS PROPERTY
+    IMPORTED_LOCATION ${FAISS_DIR}/lib/libfaiss.a)
+  set(FAISS_INCLUDE_DIRS "${FAISS_DIR}/src")
+else()
+  set(FAISS_INSTALL_DIR ENV{FAISS_ROOT})
+  find_package(FAISS REQUIRED)
+endif(BUILD_STATIC_FAISS)
+
 ###################################################################################################
 # - library targets -------------------------------------------------------------------------------
-# target_link_directories is added in cmake 3.13, and cmake advises to use this instead of
-# link_directoires (we should switch to target_link_directories once 3.13 becomes the minimum
-# required version).
-link_directories(
-     # CMAKE_CUDA_IMPLICIT_LINK_DIRECTORIES is an undocumented/unsupported variable containing the
-     # link directories for nvcc.
-    "${CMAKE_CUDA_IMPLICIT_LINK_DIRECTORIES}")
 
 add_library(cugraph SHARED
     src/utilities/spmv_1D.cu
@@ -338,6 +401,7 @@ add_library(cugraph SHARED
     src/link_analysis/gunrock_hits.cpp
     src/traversal/bfs.cu
     src/traversal/sssp.cu
+    src/traversal/tsp.cu
     src/link_prediction/jaccard.cu
     src/link_prediction/overlap.cu
     src/layout/force_atlas2.cu
@@ -356,6 +420,7 @@ add_library(cugraph SHARED
     src/components/connectivity.cu
     src/centrality/katz_centrality.cu
     src/centrality/betweenness_centrality.cu
+    src/experimental/generate_rmat_edgelist.cu
     src/experimental/graph.cu
     src/experimental/graph_view.cu
     src/experimental/coarsen_graph.cu
@@ -368,6 +433,12 @@ add_library(cugraph SHARED
     src/experimental/katz_centrality.cu
     src/tree/mst.cu
 )
+
+target_link_directories(cugraph
+    PRIVATE
+    # CMAKE_CUDA_IMPLICIT_LINK_DIRECTORIES is an undocumented/unsupported variable containing the
+    # link directories for nvcc.
+    "${CMAKE_CUDA_IMPLICIT_LINK_DIRECTORIES}")
 
 #
 # NOTE:  This dependency will force the building of cugraph to
@@ -406,7 +477,7 @@ target_include_directories(cugraph
 # - link libraries --------------------------------------------------------------------------------
 
 target_link_libraries(cugraph PRIVATE
-    gunrock cublas cusparse curand cusolver cudart cuda ${NCCL_LIBRARIES})
+  gunrock cublas cusparse curand cusolver cudart cuda FAISS::FAISS ${NCCL_LIBRARIES})
 
 if(OpenMP_CXX_FOUND)
 target_link_libraries(cugraph PRIVATE
@@ -475,10 +546,6 @@ set_target_properties(cugraph PROPERTIES
 
 if(BUILD_TESTS)
     if(GTEST_FOUND)
-        # target_link_directories is added in cmake 3.13, and cmake advises to use this instead of
-        # link_directories (we should switch to target_link_directories once 3.13 becomes the
-        # minimum required version).
-        link_directories(${GTEST_LIBRARY_DIR})
         add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/tests)
     endif(GTEST_FOUND)
 endif(BUILD_TESTS)

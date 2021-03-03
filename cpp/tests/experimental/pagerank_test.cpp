@@ -155,9 +155,10 @@ class Tests_PageRank : public ::testing::TestWithParam<PageRank_Usecase> {
   {
     raft::handle_t handle{};
 
-    auto graph =
-      cugraph::test::read_graph_from_matrix_market_file<vertex_t, edge_t, weight_t, true>(
-        handle, configuration.graph_file_full_path, configuration.test_weighted);
+    cugraph::experimental::graph_t<vertex_t, edge_t, weight_t, true, false> graph(handle);
+    std::tie(graph, std::ignore) =
+      cugraph::test::read_graph_from_matrix_market_file<vertex_t, edge_t, weight_t, true, false>(
+        handle, configuration.graph_file_full_path, configuration.test_weighted, false);
     auto graph_view = graph.view();
 
     std::vector<edge_t> h_offsets(graph_view.get_number_of_vertices() + 1);
@@ -225,10 +226,10 @@ class Tests_PageRank : public ::testing::TestWithParam<PageRank_Usecase> {
                           handle.get_stream());
     }
 
-    std::vector<result_t> h_reference_pageranks(graph_view.get_number_of_vertices());
-
     result_t constexpr alpha{0.85};
     result_t constexpr epsilon{1e-6};
+
+    std::vector<result_t> h_reference_pageranks(graph_view.get_number_of_vertices());
 
     pagerank_reference(h_offsets.data(),
                        h_indices.data(),

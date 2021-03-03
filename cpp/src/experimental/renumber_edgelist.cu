@@ -151,14 +151,14 @@ rmm::device_uvector<vertex_t> compute_renumber_map(
     auto pair_first = thrust::make_zip_iterator(thrust::make_tuple(labels.begin(), counts.begin()));
     rmm::device_uvector<vertex_t> rx_labels(0, handle.get_stream());
     rmm::device_uvector<edge_t> rx_counts(0, handle.get_stream());
-    std::forward_as_tuple(std::tie(rx_labels, rx_counts), std::ignore) = sort_and_shuffle_values(
-      comm,
-      pair_first,
-      pair_first + labels.size(),
-      [key_func = detail::compute_gpu_id_from_vertex_t<vertex_t>{comm_size}] __device__(auto val) {
-        return key_func(thrust::get<0>(val));
-      },
-      handle.get_stream());
+    std::forward_as_tuple(std::tie(rx_labels, rx_counts), std::ignore) =
+      groupby_gpuid_and_shuffle_values(
+        comm,
+        pair_first,
+        pair_first + labels.size(),
+        [key_func = detail::compute_gpu_id_from_vertex_t<vertex_t>{comm_size}] __device__(
+          auto val) { return key_func(thrust::get<0>(val)); },
+        handle.get_stream());
 
     labels.resize(rx_labels.size(), handle.get_stream());
     counts.resize(labels.size(), handle.get_stream());
@@ -224,7 +224,7 @@ rmm::device_uvector<vertex_t> compute_renumber_map(
                       labels.begin(),
                       thrust::greater<edge_t>());
 
-  return std::move(labels);
+  return labels;
 }
 
 template <typename vertex_t, typename edge_t, bool multi_gpu>
@@ -309,7 +309,7 @@ void expensive_check_edgelist(
         handle.get_stream());
 
       rmm::device_uvector<vertex_t> rx_unique_edge_vertices(0, handle.get_stream());
-      std::tie(rx_unique_edge_vertices, std::ignore) = sort_and_shuffle_values(
+      std::tie(rx_unique_edge_vertices, std::ignore) = groupby_gpuid_and_shuffle_values(
         handle.get_comms(),
         unique_edge_vertices.begin(),
         unique_edge_vertices.end(),
@@ -547,11 +547,10 @@ renumber_edgelist(raft::handle_t const& handle,
   return std::make_tuple(
     std::move(renumber_map_labels), partition, number_of_vertices, number_of_edges);
 #else
-  return std::make_tuple(
-    rmm::device_uvector<vertex_t>(0, handle.get_stream()),
-    partition_t<vertex_t>(std::vector<vertex_t>(), false, int{0}, int{0}, int{0}, int{0}),
-    vertex_t{0},
-    edge_t{0});
+  return std::make_tuple(rmm::device_uvector<vertex_t>(0, handle.get_stream()),
+                         partition_t<vertex_t>{},
+                         vertex_t{0},
+                         edge_t{0});
 #endif
 }
 
@@ -609,7 +608,7 @@ std::enable_if_t<!multi_gpu, rmm::device_uvector<vertex_t>> renumber_edgelist(
   renumber_map.find(
     edgelist_minor_vertices, edgelist_minor_vertices + num_edgelist_edges, edgelist_minor_vertices);
 
-  return std::move(renumber_map_labels);
+  return renumber_map_labels;
 #else
   return rmm::device_uvector<vertex_t>(0, handle.get_stream());
 #endif

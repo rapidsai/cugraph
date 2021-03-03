@@ -196,7 +196,7 @@ cdef extern from "utilities/cython.hpp" namespace "cugraph::cython":
         vertex_t get_part_matrix_partition_minor_first()
         vertex_t get_part_matrix_partition_minor_last()        
 
-# 4. `sort_and_shuffle_values()` wrapper:
+# 4. `groupby_gpuid_and_shuffle_values()` wrapper:
 #
 cdef extern from "utilities/cython.hpp" namespace "cugraph::cython":
 
