@@ -36,20 +36,6 @@
 #include <type_traits>
 #include <vector>
 
-template <typename vertex_t>
-std::enable_if_t<std::is_signed<vertex_t>::value, bool> is_valid_vertex(vertex_t num_vertices,
-                                                                        vertex_t v)
-{
-  return (v >= 0) && (v < num_vertices);
-}
-
-template <typename vertex_t>
-std::enable_if_t<std::is_unsigned<vertex_t>::value, bool> is_valid_vertex(vertex_t num_vertices,
-                                                                          vertex_t v)
-{
-  return v < num_vertices;
-}
-
 template <typename vertex_t, typename edge_t, typename weight_t>
 void check_coarsened_graph_results(edge_t* org_offsets,
                                    vertex_t* org_indices,
@@ -68,13 +54,13 @@ void check_coarsened_graph_results(edge_t* org_offsets,
   ASSERT_TRUE(std::count_if(org_indices,
                             org_indices + org_offsets[num_org_vertices],
                             [num_org_vertices](auto nbr) {
-                              return !is_valid_vertex(num_org_vertices, nbr);
+                              return !cugraph::test::is_valid_vertex(num_org_vertices, nbr);
                             }) == 0);
   ASSERT_TRUE(std::is_sorted(coarse_offsets, coarse_offsets + num_coarse_vertices));
   ASSERT_TRUE(std::count_if(coarse_indices,
                             coarse_indices + coarse_offsets[num_coarse_vertices],
                             [num_coarse_vertices](auto nbr) {
-                              return !is_valid_vertex(num_coarse_vertices, nbr);
+                              return !cugraph::test::is_valid_vertex(num_coarse_vertices, nbr);
                             }) == 0);
   ASSERT_TRUE(num_coarse_vertices <= num_org_vertices);
 
@@ -273,9 +259,11 @@ class Tests_CoarsenGraph : public ::testing::TestWithParam<CoarsenGraph_Usecase>
       return;
     }
 
-    auto graph = cugraph::test::
-      read_graph_from_matrix_market_file<vertex_t, edge_t, weight_t, store_transposed>(
-        handle, configuration.graph_file_full_path, configuration.test_weighted);
+    cugraph::experimental::graph_t<vertex_t, edge_t, weight_t, store_transposed, false> graph(
+      handle);
+    std::tie(graph, std::ignore) = cugraph::test::
+      read_graph_from_matrix_market_file<vertex_t, edge_t, weight_t, store_transposed, false>(
+        handle, configuration.graph_file_full_path, configuration.test_weighted, false);
     auto graph_view = graph.view();
 
     if (graph_view.get_number_of_vertices() == 0) { return; }

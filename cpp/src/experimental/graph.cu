@@ -278,7 +278,7 @@ graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu, std::enable_if_
   // update degree-based segment offsets (to be used for graph analytics kernel optimization)
 
   if (sorted_by_global_degree_within_vertex_partition) {
-    auto degrees = detail::compute_major_degree(
+    auto degrees = detail::compute_major_degrees(
       *(this->get_handle_ptr()), adj_matrix_partition_offsets_, partition_);
 
     // optional expensive checks (part 2/3)
