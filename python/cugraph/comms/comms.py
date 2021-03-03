@@ -189,7 +189,7 @@ def get_default_handle():
     """
     global __default_handle
     if __default_handle is None:
-        __default_handle = Handle(16)
+        __default_handle = Handle()
     return __default_handle
 
 
