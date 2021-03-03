@@ -117,9 +117,10 @@ class Tests_KatzCentrality : public ::testing::TestWithParam<KatzCentrality_Usec
   {
     raft::handle_t handle{};
 
-    auto graph =
-      cugraph::test::read_graph_from_matrix_market_file<vertex_t, edge_t, weight_t, true>(
-        handle, configuration.graph_file_full_path, configuration.test_weighted);
+    cugraph::experimental::graph_t<vertex_t, edge_t, weight_t, true, false> graph(handle);
+    std::tie(graph, std::ignore) =
+      cugraph::test::read_graph_from_matrix_market_file<vertex_t, edge_t, weight_t, true, false>(
+        handle, configuration.graph_file_full_path, configuration.test_weighted, false);
     auto graph_view = graph.view();
 
     std::vector<edge_t> h_offsets(graph_view.get_number_of_vertices() + 1);

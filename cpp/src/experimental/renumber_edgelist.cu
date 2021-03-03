@@ -550,11 +550,10 @@ renumber_edgelist(raft::handle_t const& handle,
   return std::make_tuple(
     std::move(renumber_map_labels), partition, number_of_vertices, number_of_edges);
 #else
-  return std::make_tuple(
-    rmm::device_uvector<vertex_t>(0, handle.get_stream()),
-    partition_t<vertex_t>(std::vector<vertex_t>(), false, int{0}, int{0}, int{0}, int{0}),
-    vertex_t{0},
-    edge_t{0});
+  return std::make_tuple(rmm::device_uvector<vertex_t>(0, handle.get_stream()),
+                         partition_t<vertex_t>{},
+                         vertex_t{0},
+                         edge_t{0});
 #endif
 }
 
