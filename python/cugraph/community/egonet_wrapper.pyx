@@ -59,7 +59,7 @@ def egonet(input_graph, vertices, radius=1):
     # Pointers for egonet
     cdef uintptr_t c_source_vertex_ptr = vertices.__cuda_array_interface__['data'][0]
     n_subgraphs = vertices.size
-    n_streams = 0
+    n_streams = 1
     if n_subgraphs > 1 :
         n_streams = min(n_subgraphs, 32)
     cdef unique_ptr[handle_t] handle_ptr
