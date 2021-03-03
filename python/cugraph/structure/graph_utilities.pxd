@@ -18,6 +18,11 @@
 
 
 from cugraph.raft.common.handle cimport *
+from libcpp cimport bool
+from libcpp.memory cimport unique_ptr
+from libcpp.utility cimport pair
+from libcpp.vector cimport vector
+from rmm._lib.device_buffer cimport device_buffer
 
 # C++ graph utilities
 cdef extern from "utilities/cython.hpp" namespace "cugraph::cython":
@@ -79,9 +84,12 @@ cdef extern from "utilities/cython.hpp" namespace "cugraph::cython":
         unique_ptr[device_buffer] subgraph_offsets
 
 cdef extern from "<utility>" namespace "std" nogil:
+    cdef device_buffer move(device_buffer)
+    cdef unique_ptr[device_buffer] move(unique_ptr[device_buffer]) 
     cdef cy_multi_edgelists_t move(cy_multi_edgelists_t)
     cdef unique_ptr[cy_multi_edgelists_t] move(unique_ptr[cy_multi_edgelists_t])
-
+    #cdef device_buffer move(device_buffer)
+    #cdef unique_ptr[device_buffer] move(unique_ptr[device_buffer])
 
 # renumber_edgelist() interface utilities:
 #

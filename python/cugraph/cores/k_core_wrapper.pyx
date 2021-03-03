@@ -18,7 +18,8 @@
 
 from cugraph.cores.k_core cimport k_core as c_k_core
 from cugraph.structure.graph_primtypes cimport *
-from cugraph.structure import graph_primtypes_wrapperfrom libc.stdint cimport uintptr_t
+from cugraph.structure import graph_primtypes_wrapper
+from libc.stdint cimport uintptr_t
 import numpy as np
 
 

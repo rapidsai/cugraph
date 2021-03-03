@@ -12,7 +12,7 @@
 # limitations under the License.
 
 from cugraph.community.egonet cimport call_egonet
-from cugraph.structure.graph_primtypes cimport *
+from cugraph.structure.graph_utilities cimport *
 from libcpp cimport bool
 from libc.stdint cimport uintptr_t
 from cugraph.structure import graph_primtypes_wrapper
