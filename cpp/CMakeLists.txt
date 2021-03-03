@@ -98,7 +98,6 @@ set(CMAKE_CUDA_FLAGS "${CMAKE_CUDA_FLAGS} -gencode arch=compute_${ptx},code=comp
 set(CMAKE_CUDA_FLAGS "${CMAKE_CUDA_FLAGS} --expt-extended-lambda --expt-relaxed-constexpr")
 set(CMAKE_CUDA_FLAGS "${CMAKE_CUDA_FLAGS} -Werror=cross-execution-space-call -Wno-deprecated-declarations -Xptxas --disable-warnings")
 set(CMAKE_CUDA_FLAGS "${CMAKE_CUDA_FLAGS} -Xcompiler -Wall,-Wno-error=sign-compare,-Wno-error=unused-but-set-variable")
-set(CMAKE_CUDA_FLAGS "${CMAKE_CUDA_FLAGS} --default-stream per-thread")
 
 # Option to enable line info in CUDA device compilation to allow introspection when profiling /
 # memchecking
@@ -269,7 +268,7 @@ else(DEFINED ENV{RAFT_PATH})
   FetchContent_Declare(
     raft
     GIT_REPOSITORY    https://github.com/rapidsai/raft.git
-    GIT_TAG           9dbf2c8a9134ce8135f7fe947ec523d874fcab6a
+    GIT_TAG           b055cf862a599fd45537d21a309edd8a6e06da4c
     SOURCE_SUBDIR     raft
   )
 
@@ -376,6 +375,8 @@ add_library(cugraph SHARED
 #
 add_dependencies(cugraph gunrock_ext)
 
+# Per-thread default stream option see https://docs.nvidia.com/cuda/cuda-runtime-api/stream-sync-behavior.html
+# The per-thread default stream does not synchronize with other streams
 target_compile_definitions(cugraph PUBLIC CUDA_API_PER_THREAD_DEFAULT_STREAM)
 
 ###################################################################################################

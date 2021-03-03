@@ -61,7 +61,7 @@ def egonet(input_graph, vertices, radius=1):
     n_subgraphs = vertices.size
     n_streams = 0
     if n_subgraphs > 1 :
-        n_streams = min(n_subgraphs, 128)
+        n_streams = min(n_subgraphs, 32)
     cdef unique_ptr[handle_t] handle_ptr
     handle_ptr.reset(new handle_t(n_streams))
     handle_ = handle_ptr.get();
