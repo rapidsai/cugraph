@@ -148,7 +148,7 @@ extract(
                       n_subgraphs + 1,
                       user_stream_view.value());
   neighbors.resize(h_neighbors_offsets[n_subgraphs]);
-  user_stream.synchronize();
+  user_stream_view.synchronize();
 
   // Construct the neighboors list concurrently
   for (vertex_t i = 0; i < n_subgraphs; i++) {
