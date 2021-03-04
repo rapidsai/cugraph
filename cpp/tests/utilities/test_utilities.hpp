@@ -165,6 +165,23 @@ generate_graph_from_rmat_params(raft::handle_t const& handle,
                                 bool test_weighted,
                                 bool renumber);
 
+struct rmat_params_t {
+  size_t scale{};
+  size_t edge_factor{};
+  double a{};
+  double b{};
+  double c{};
+  uint64_t seed{};
+  bool undirected{};
+  bool scramble_vertex_ids{};
+};
+
+struct input_graph_specifier_t {
+  enum { MATRIX_MARKET_FILE_PATH, RMAT_PARAMS } tag{};
+  std::string graph_file_full_path{};
+  rmat_params_t rmat_params{};
+};
+
 template <typename vertex_t>
 std::enable_if_t<std::is_signed<vertex_t>::value, bool> is_valid_vertex(vertex_t num_vertices,
                                                                         vertex_t v)
