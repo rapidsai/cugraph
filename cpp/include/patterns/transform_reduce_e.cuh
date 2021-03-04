@@ -206,7 +206,8 @@ T transform_reduce_e(raft::handle_t const& handle,
                                          detail::transform_reduce_e_for_all_block_size,
                                          handle.get_device_properties().maxGridSize[0]);
 
-      rmm::device_vector<T> block_results(update_grid.num_blocks);
+      auto block_result_buffer =
+        allocate_dataframe_buffer<T>(update_grid.num_blocks, handle.get_stream());
 
       detail::for_all_major_for_all_nbr_low_degree<<<update_grid.num_blocks,
                                                      update_grid.block_size,
@@ -215,7 +216,7 @@ T transform_reduce_e(raft::handle_t const& handle,
         matrix_partition,
         adj_matrix_row_value_input_first + row_value_input_offset,
         adj_matrix_col_value_input_first + col_value_input_offset,
-        block_results.data(),
+        get_dataframe_buffer_begin<T>(block_result_buffer),
         e_op);
 
       // FIXME: we have several options to implement this. With cooperative group support
@@ -225,10 +226,10 @@ T transform_reduce_e(raft::handle_t const& handle,
       // synchronization point in varying timings and the number of SMs is not very big)
       auto partial_result =
         thrust::reduce(rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
-                       block_results.begin(),
-                       block_results.end(),
+                       get_dataframe_buffer_begin<T>(block_result_buffer),
+                       get_dataframe_buffer_begin<T>(block_result_buffer) + update_grid.num_blocks,
                        T(),
-                       [] __device__(auto lhs, auto rhs) { return plus_edge_op_result(lhs, rhs); });
+                       [] __device__(T lhs, T rhs) { return plus_edge_op_result(lhs, rhs); });
 
       result = plus_edge_op_result(result, partial_result);
     }
