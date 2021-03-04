@@ -69,7 +69,6 @@ extract(
   auto v                = csr_view.get_number_of_vertices();
   auto e                = csr_view.get_number_of_edges();
   auto user_stream_view = handle.get_stream_view();
-  float avg_degree      = e / v;
   rmm::device_vector<size_t> neighbors_offsets(n_subgraphs + 1);
   rmm::device_vector<vertex_t> neighbors;
 
@@ -83,7 +82,7 @@ extract(
   reached.reserve(handle.get_num_internal_streams());
 
   // h_source_vertex[i] is used by other streams in the for loop
-  user_stream.synchronize();
+  user_stream_view.synchronize();
 #ifdef TIMING
   HighResTimer hr_timer;
   hr_timer.start("ego_neighbors");
