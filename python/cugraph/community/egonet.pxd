@@ -12,7 +12,7 @@
 # limitations under the License.
 
 
-from cugraph.structure.graph_primtypes cimport *
+from cugraph.structure.graph_utilities cimport *
 
 cdef extern from "utilities/cython.hpp" namespace "cugraph::cython":
     cdef unique_ptr[cy_multi_edgelists_t] call_egonet[vertex_t, weight_t](
