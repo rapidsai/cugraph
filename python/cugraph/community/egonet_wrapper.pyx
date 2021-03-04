@@ -12,15 +12,12 @@
 # limitations under the License.
 
 from cugraph.community.egonet cimport call_egonet
-from cugraph.structure.graph_primtypes cimport *
-from cugraph.raft.common.handle cimport *
+from cugraph.structure.graph_utilities cimport *
 from libcpp cimport bool
 from libc.stdint cimport uintptr_t
 from cugraph.structure import graph_primtypes_wrapper
 import cudf
-import rmm
 import numpy as np
-import numpy.ctypeslib as ctypeslib
 from rmm._lib.device_buffer cimport DeviceBuffer
 from cudf.core.buffer import Buffer
 

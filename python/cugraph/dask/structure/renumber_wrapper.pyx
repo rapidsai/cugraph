@@ -16,7 +16,7 @@
 
 from cugraph.structure.utils_wrapper import *
 import cudf
-from cugraph.structure.graph_primtypes cimport *
+from cugraph.structure.graph_utilities cimport *
 import cugraph.structure.graph_primtypes_wrapper as graph_primtypes_wrapper
 from libc.stdint cimport uintptr_t
 from cython.operator cimport dereference as deref
