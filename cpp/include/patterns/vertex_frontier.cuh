@@ -147,13 +147,17 @@ template <typename vertex_t, bool is_multi_gpu = false>
 class Bucket {
  public:
   Bucket(raft::handle_t const& handle, size_t capacity)
-    : handle_ptr_(&handle), elements_(capacity, invalid_vertex_id<vertex_t>::value)
+    : handle_ptr_(&handle), elements_(capacity, handle.get_stream())
   {
+    thrust::fill(rmm::exec_policy(handle_ptr_->get_stream())->on(handle_ptr_->get_stream()),
+                 elements_.begin(),
+                 elements_.end(),
+                 invalid_vertex_id<vertex_t>::value);
   }
 
   void insert(vertex_t v)
   {
-    elements_[size_] = v;
+    raft::update_device(elements_.data() + size_, &v, 1, handle_ptr_->get_stream());
     ++size_;
   }
 
@@ -177,9 +181,9 @@ class Bucket {
 
   size_t capacity() const { return elements_.size(); }
 
-  auto const data() const { return elements_.data().get(); }
+  auto const data() const { return elements_.data(); }
 
-  auto data() { return elements_.data().get(); }
+  auto data() { return elements_.data(); }
 
   auto const begin() const { return elements_.begin(); }
 
@@ -191,7 +195,7 @@ class Bucket {
 
  private:
   raft::handle_t const* handle_ptr_{nullptr};
-  rmm::device_vector<vertex_t> elements_{};
+  rmm::device_uvector<vertex_t> elements_;
   size_t size_{0};
 };
 
@@ -206,13 +210,21 @@ class VertexFrontier {
 
   VertexFrontier(raft::handle_t const& handle, std::vector<size_t> bucket_capacities)
     : handle_ptr_(&handle),
-      tmp_bucket_ptrs_(num_buckets, nullptr),
-      tmp_bucket_sizes_(num_buckets, 0),
+      tmp_bucket_ptrs_(num_buckets, handle.get_stream()),
+      tmp_bucket_sizes_(num_buckets, handle.get_stream()),
       buffer_ptrs_(kReduceInputTupleSize + 1 /* to store destination column number */, nullptr),
       buffer_idx_(0, handle_ptr_->get_stream())
   {
     CUGRAPH_EXPECTS(bucket_capacities.size() == num_buckets,
                     "invalid input argument bucket_capacities (size mismatch)");
+    thrust::fill(rmm::exec_policy(handle_ptr_->get_stream())->on(handle_ptr_->get_stream()),
+                 tmp_bucket_ptrs_.begin(),
+                 tmp_bucket_ptrs_.end(),
+                 static_cast<vertex_t*>(nullptr));
+    thrust::fill(rmm::exec_policy(handle_ptr_->get_stream())->on(handle_ptr_->get_stream()),
+                 tmp_bucket_sizes_.begin(),
+                 tmp_bucket_sizes_.end(),
+                 size_t{0});
     for (size_t i = 0; i < num_buckets; ++i) {
       buckets_.emplace_back(handle, bucket_capacities[i]);
     }
@@ -251,8 +263,8 @@ class VertexFrontier {
            0,
            handle_ptr_->get_stream()>>>(this_bucket.begin(),
                                         this_bucket.end(),
-                                        std::get<0>(bucket_and_bucket_size_device_ptrs).get(),
-                                        std::get<1>(bucket_and_bucket_size_device_ptrs).get(),
+                                        std::get<0>(bucket_and_bucket_size_device_ptrs),
+                                        std::get<1>(bucket_and_bucket_size_device_ptrs),
                                         bucket_idx,
                                         kInvalidBucketIdx,
                                         invalid_vertex,
@@ -269,8 +281,10 @@ class VertexFrontier {
                         [] __device__(auto value) { return value == invalid_vertex; });
 
     auto bucket_sizes_device_ptr = std::get<1>(bucket_and_bucket_size_device_ptrs);
-    thrust::host_vector<size_t> bucket_sizes(bucket_sizes_device_ptr,
-                                             bucket_sizes_device_ptr + kNumBuckets);
+    std::vector<size_t> bucket_sizes(kNumBuckets);
+    raft::update_host(
+      bucket_sizes.data(), bucket_sizes_device_ptr, kNumBuckets, handle_ptr_->get_stream());
+    CUDA_TRY(cudaStreamSynchronize(handle_ptr_->get_stream()));
     for (size_t i = 0; i < kNumBuckets; ++i) {
       if (i != bucket_idx) { get_bucket(i).set_size(bucket_sizes[i]); }
     }
@@ -283,14 +297,17 @@ class VertexFrontier {
 
   auto get_bucket_and_bucket_size_device_pointers()
   {
-    thrust::host_vector<vertex_t*> tmp_ptrs(buckets_.size(), nullptr);
-    thrust::host_vector<size_t> tmp_sizes(buckets_.size(), 0);
+    std::vector<vertex_t*> tmp_ptrs(buckets_.size(), nullptr);
+    std::vector<size_t> tmp_sizes(buckets_.size(), 0);
     for (size_t i = 0; i < buckets_.size(); ++i) {
       tmp_ptrs[i]  = get_bucket(i).data();
       tmp_sizes[i] = get_bucket(i).size();
     }
-    tmp_bucket_ptrs_  = tmp_ptrs;
-    tmp_bucket_sizes_ = tmp_sizes;
+    raft::update_device(
+      tmp_bucket_ptrs_.data(), tmp_ptrs.data(), tmp_ptrs.size(), handle_ptr_->get_stream());
+    raft::update_device(
+      tmp_bucket_sizes_.data(), tmp_sizes.data(), tmp_sizes.size(), handle_ptr_->get_stream());
+    CUDA_TRY(cudaStreamSynchronize(handle_ptr_->get_stream()));
     return std::make_tuple(tmp_bucket_ptrs_.data(), tmp_bucket_sizes_.data());
   }
 
@@ -345,8 +362,8 @@ class VertexFrontier {
 
   raft::handle_t const* handle_ptr_{nullptr};
   std::vector<Bucket<vertex_t, is_multi_gpu>> buckets_{};
-  rmm::device_vector<vertex_t*> tmp_bucket_ptrs_{};
-  rmm::device_vector<size_t> tmp_bucket_sizes_{};
+  rmm::device_uvector<vertex_t*> tmp_bucket_ptrs_;
+  rmm::device_uvector<size_t> tmp_bucket_sizes_;
 
   std::array<size_t, kReduceInputTupleSize> tuple_element_sizes_ =
     compute_thrust_tuple_element_sizes<ReduceInputTupleType>()();

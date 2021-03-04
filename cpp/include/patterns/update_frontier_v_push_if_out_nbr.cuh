@@ -21,6 +21,7 @@
 #include <partition_manager.hpp>
 #include <patterns/edge_op_utils.cuh>
 #include <patterns/reduce_op.cuh>
+#include <utilities/dataframe_buffer.cuh>
 #include <utilities/device_comm.cuh>
 #include <utilities/error.hpp>
 #include <utilities/host_scalar_comm.cuh>
@@ -157,13 +158,14 @@ size_t reduce_buffer_elements(raft::handle_t const& handle,
     // FIXME: if GraphViewType::is_multi_gpu is true, this should be executed on the GPU holding the
     // vertex unless reduce_op is a pure function.
     rmm::device_uvector<key_t> keys(num_buffer_elements, handle.get_stream());
-    rmm::device_vector<payload_t> values(num_buffer_elements);
+    auto value_buffer =
+      allocate_dataframe_buffer<payload_t>(num_buffer_elements, handle.get_stream());
     auto it = thrust::reduce_by_key(rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
                                     buffer_key_output_first,
                                     buffer_key_output_first + num_buffer_elements,
                                     buffer_payload_output_first,
                                     keys.begin(),
-                                    values.begin(),
+                                    get_dataframe_buffer_begin<payload_t>(value_buffer),
                                     thrust::equal_to<key_t>(),
                                     reduce_op);
     auto num_reduced_buffer_elements =
@@ -173,13 +175,9 @@ size_t reduce_buffer_elements(raft::handle_t const& handle,
                  keys.begin() + num_reduced_buffer_elements,
                  buffer_key_output_first);
     thrust::copy(rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
-                 values.begin(),
-                 values.begin() + num_reduced_buffer_elements,
+                 get_dataframe_buffer_begin<payload_t>(value_buffer),
+                 get_dataframe_buffer_begin<payload_t>(value_buffer) + num_reduced_buffer_elements,
                  buffer_payload_output_first);
-    // FIXME: this is unecessary if we use a tuple of rmm::device_uvector objects for values
-    CUDA_TRY(
-      cudaStreamSynchronize(handle.get_stream()));  // this is necessary as values will become
-                                                    // out-of-scope once this function returns
     return num_reduced_buffer_elements;
   }
 }
@@ -673,15 +671,19 @@ void update_frontier_v_push_if_out_nbr(
         num_buffer_elements,
         vertex_value_input_first,
         vertex_value_output_first,
-        std::get<0>(bucket_and_bucket_size_device_ptrs).get(),
-        std::get<1>(bucket_and_bucket_size_device_ptrs).get(),
+        std::get<0>(bucket_and_bucket_size_device_ptrs),
+        std::get<1>(bucket_and_bucket_size_device_ptrs),
         VertexFrontierType::kInvalidBucketIdx,
         invalid_vertex,
         v_op);
 
     auto bucket_sizes_device_ptr = std::get<1>(bucket_and_bucket_size_device_ptrs);
-    thrust::host_vector<size_t> bucket_sizes(
-      bucket_sizes_device_ptr, bucket_sizes_device_ptr + VertexFrontierType::kNumBuckets);
+    std::vector<size_t> bucket_sizes(VertexFrontierType::kNumBuckets);
+    raft::update_host(bucket_sizes.data(),
+                      bucket_sizes_device_ptr,
+                      VertexFrontierType::kNumBuckets,
+                      handle.get_stream());
+    CUDA_TRY(cudaStreamSynchronize(handle.get_stream()));
     for (size_t i = 0; i < VertexFrontierType::kNumBuckets; ++i) {
       vertex_frontier.get_bucket(i).set_size(bucket_sizes[i]);
     }
