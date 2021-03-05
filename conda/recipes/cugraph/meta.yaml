@@ -29,6 +29,7 @@ requirements:
     - cudf={{ minor_version }}
     - ucx-py {{ minor_version }}
     - ucx-proc=*=gpu
+    - nccl>=2.8.4
   run:
     - python x.x
     - libcugraph={{ version }}
