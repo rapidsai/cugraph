@@ -1,4 +1,4 @@
-# Copyright (c) 2019-2020, NVIDIA CORPORATION.
+# Copyright (c) 2019-2021, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -23,12 +23,9 @@ from cugraph.community.spectral_clustering cimport analyzeClustering_edge_cut as
 from cugraph.community.spectral_clustering cimport analyzeClustering_ratio_cut as c_analyze_clustering_ratio_cut
 from cugraph.structure.graph_primtypes cimport *
 from cugraph.structure import graph_primtypes_wrapper
-from libcpp cimport bool
 from libc.stdint cimport uintptr_t
-
 import cugraph
 import cudf
-import rmm
 import numpy as np
 
 
