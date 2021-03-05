@@ -23,7 +23,6 @@ from libcpp.vector cimport vector
 from cugraph.raft.common.handle cimport *
 from rmm._lib.device_buffer cimport device_buffer
 
-
 cdef extern from "graph.hpp" namespace "cugraph":
 
     ctypedef enum PropType:
