@@ -32,6 +32,8 @@
 
 #include <tuple>
 
+#include <utilities/high_res_timer.hpp>
+
 namespace cugraph {
 namespace experimental {
 
@@ -52,6 +54,10 @@ extract_induced_subgraphs(
   size_t num_subgraphs,
   bool do_expensive_check)
 {
+#ifdef TIMING
+  HighResTimer hr_timer;
+  hr_timer.start("extract_induced_subgraphs");
+#endif
   // FIXME: this code is inefficient for the vertices with their local degrees much larger than the
   // number of vertices in the subgraphs (in this case, searching that the subgraph vertices are
   // included in the local neighbors is more efficient than searching the local neighbors are
@@ -244,7 +250,10 @@ extract_induced_subgraphs(
                    subgraph_offsets + (num_subgraphs + 1),
                    subgraph_vertex_output_offsets.begin(),
                    subgraph_edge_offsets.begin());
-
+#ifdef TIMING
+    hr_timer.stop();
+    hr_timer.display(std::cout);
+#endif
     return std::make_tuple(std::move(edge_majors),
                            std::move(edge_minors),
                            std::move(edge_weights),
