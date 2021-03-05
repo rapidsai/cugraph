@@ -124,7 +124,8 @@ void pagerank_reference(edge_t const* offsets,
 }
 
 typedef struct PageRank_Usecase_t {
-  std::string graph_file_full_path{};
+  cugraph::test::input_graph_specifier_t input_graph_specifier{};
+
   double personalization_ratio{0.0};
   bool test_weighted{false};
 
@@ -133,12 +134,24 @@ typedef struct PageRank_Usecase_t {
                      bool test_weighted)
     : personalization_ratio(personalization_ratio), test_weighted(test_weighted)
   {
+    std::string graph_file_full_path{};
     if ((graph_file_path.length() > 0) && (graph_file_path[0] != '/')) {
       graph_file_full_path = cugraph::test::get_rapids_dataset_root_dir() + "/" + graph_file_path;
     } else {
       graph_file_full_path = graph_file_path;
     }
+    input_graph_specifier.tag = cugraph::test::input_graph_specifier_t::MATRIX_MARKET_FILE_PATH;
+    input_graph_specifier.graph_file_full_path = graph_file_full_path;
   };
+
+  PageRank_Usecase_t(cugraph::test::rmat_params_t rmat_params,
+                     double personalization_ratio,
+                     bool test_weighted)
+    : personalization_ratio(personalization_ratio), test_weighted(test_weighted)
+  {
+    input_graph_specifier.tag         = cugraph::test::input_graph_specifier_t::RMAT_PARAMS;
+    input_graph_specifier.rmat_params = rmat_params;
+  }
 } PageRank_Usecase;
 
 class Tests_PageRank : public ::testing::TestWithParam<PageRank_Usecase> {
@@ -157,8 +170,26 @@ class Tests_PageRank : public ::testing::TestWithParam<PageRank_Usecase> {
 
     cugraph::experimental::graph_t<vertex_t, edge_t, weight_t, true, false> graph(handle);
     std::tie(graph, std::ignore) =
-      cugraph::test::read_graph_from_matrix_market_file<vertex_t, edge_t, weight_t, true, false>(
-        handle, configuration.graph_file_full_path, configuration.test_weighted, false);
+      configuration.input_graph_specifier.tag ==
+          cugraph::test::input_graph_specifier_t::MATRIX_MARKET_FILE_PATH
+        ? cugraph::test::
+            read_graph_from_matrix_market_file<vertex_t, edge_t, weight_t, true, false>(
+              handle,
+              configuration.input_graph_specifier.graph_file_full_path,
+              configuration.test_weighted,
+              false)
+        : cugraph::test::generate_graph_from_rmat_params<vertex_t, edge_t, weight_t, true, false>(
+            handle,
+            configuration.input_graph_specifier.rmat_params.scale,
+            configuration.input_graph_specifier.rmat_params.edge_factor,
+            configuration.input_graph_specifier.rmat_params.a,
+            configuration.input_graph_specifier.rmat_params.b,
+            configuration.input_graph_specifier.rmat_params.c,
+            configuration.input_graph_specifier.rmat_params.seed,
+            configuration.input_graph_specifier.rmat_params.undirected,
+            configuration.input_graph_specifier.rmat_params.scramble_vertex_ids,
+            configuration.test_weighted,
+            false);
     auto graph_view = graph.view();
 
     std::vector<edge_t> h_offsets(graph_view.get_number_of_vertices() + 1);
@@ -296,21 +327,34 @@ TEST_P(Tests_PageRank, CheckInt32Int32FloatFloat)
 INSTANTIATE_TEST_CASE_P(
   simple_test,
   Tests_PageRank,
-  ::testing::Values(PageRank_Usecase("test/datasets/karate.mtx", 0.0, false),
-                    PageRank_Usecase("test/datasets/karate.mtx", 0.5, false),
-                    PageRank_Usecase("test/datasets/karate.mtx", 0.0, true),
-                    PageRank_Usecase("test/datasets/karate.mtx", 0.5, true),
-                    PageRank_Usecase("test/datasets/web-Google.mtx", 0.0, false),
-                    PageRank_Usecase("test/datasets/web-Google.mtx", 0.5, false),
-                    PageRank_Usecase("test/datasets/web-Google.mtx", 0.0, true),
-                    PageRank_Usecase("test/datasets/web-Google.mtx", 0.5, true),
-                    PageRank_Usecase("test/datasets/ljournal-2008.mtx", 0.0, false),
-                    PageRank_Usecase("test/datasets/ljournal-2008.mtx", 0.5, false),
-                    PageRank_Usecase("test/datasets/ljournal-2008.mtx", 0.0, true),
-                    PageRank_Usecase("test/datasets/ljournal-2008.mtx", 0.5, true),
-                    PageRank_Usecase("test/datasets/webbase-1M.mtx", 0.0, false),
-                    PageRank_Usecase("test/datasets/webbase-1M.mtx", 0.5, false),
-                    PageRank_Usecase("test/datasets/webbase-1M.mtx", 0.0, true),
-                    PageRank_Usecase("test/datasets/webbase-1M.mtx", 0.5, true)));
+  ::testing::Values(
+    PageRank_Usecase("test/datasets/karate.mtx", 0.0, false),
+    PageRank_Usecase("test/datasets/karate.mtx", 0.5, false),
+    PageRank_Usecase("test/datasets/karate.mtx", 0.0, true),
+    PageRank_Usecase("test/datasets/karate.mtx", 0.5, true),
+    PageRank_Usecase("test/datasets/web-Google.mtx", 0.0, false),
+    PageRank_Usecase("test/datasets/web-Google.mtx", 0.5, false),
+    PageRank_Usecase("test/datasets/web-Google.mtx", 0.0, true),
+    PageRank_Usecase("test/datasets/web-Google.mtx", 0.5, true),
+    PageRank_Usecase("test/datasets/ljournal-2008.mtx", 0.0, false),
+    PageRank_Usecase("test/datasets/ljournal-2008.mtx", 0.5, false),
+    PageRank_Usecase("test/datasets/ljournal-2008.mtx", 0.0, true),
+    PageRank_Usecase("test/datasets/ljournal-2008.mtx", 0.5, true),
+    PageRank_Usecase("test/datasets/webbase-1M.mtx", 0.0, false),
+    PageRank_Usecase("test/datasets/webbase-1M.mtx", 0.5, false),
+    PageRank_Usecase("test/datasets/webbase-1M.mtx", 0.0, true),
+    PageRank_Usecase("test/datasets/webbase-1M.mtx", 0.5, true),
+    PageRank_Usecase(cugraph::test::rmat_params_t{10, 16, 0.57, 0.19, 0.19, 0, false, false},
+                     0.0,
+                     false),
+    PageRank_Usecase(cugraph::test::rmat_params_t{10, 16, 0.57, 0.19, 0.19, 0, false, false},
+                     0.5,
+                     false),
+    PageRank_Usecase(cugraph::test::rmat_params_t{10, 16, 0.57, 0.19, 0.19, 0, false, false},
+                     0.0,
+                     true),
+    PageRank_Usecase(cugraph::test::rmat_params_t{10, 16, 0.57, 0.19, 0.19, 0, false, false},
+                     0.5,
+                     true)));
 
 CUGRAPH_TEST_PROGRAM_MAIN()
