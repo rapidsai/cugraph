@@ -41,7 +41,7 @@ requirements:
     - ucx-proc=*=gpu
     - gtest
     - faiss-proc=*=cuda
-    - libfaiss=1.6.3
+    - libfaiss=1.7.0
     - gmock
   run:
     - libcudf={{ minor_version }}
