@@ -26,7 +26,8 @@ def call_renumber(sID,
                   data,
                   num_verts,
                   num_edges,
-                  is_mnmg):
+                  is_mnmg,
+                  store_transposed):
     wid = Comms.get_worker_id(sID)
     handle = Comms.get_handle(sID)
     return c_renumber.renumber(data[0],
@@ -34,7 +35,9 @@ def call_renumber(sID,
                                num_edges,
                                wid,
                                handle,
-                               is_mnmg)
+                               is_mnmg,
+                               store_transposed)
+
 
 class NumberMap:
 
@@ -121,7 +124,6 @@ class NumberMap:
                     )
                 )
 
-
     def __init__(self, id_type=np.int32):
         self.implementation = None
         self.id_type = id_type
@@ -178,24 +180,39 @@ class NumberMap:
         else:
             is_mnmg = False
 
-        num_verts = 6 #input_graph.number_of_vertices()
+        num_verts = 6  # input_graph.number_of_vertices()
 
         if is_mnmg:
             client = default_client()
-            print("AAAAAAAA")
-            print(df)
             data = get_distributed_data(df)
-            print("BBBBBBBB")
-            result = [client.submit(call_renumber,
-                                    Comms.get_session_id(),
-                                    wf[1],
-                                    num_verts,
-                                    num_edges,
-                                    is_mnmg,
-                                    workers=[wf[0]])
+            result = [(client.submit(call_renumber,
+                                     Comms.get_session_id(),
+                                     wf[1],
+                                     num_verts,
+                                     num_edges,
+                                     is_mnmg,
+                                     store_transposed,
+                                     workers=[wf[0]]), wf[0])
                       for idx, wf in enumerate(data.worker_to_parts.items())]
             wait(result)
-            return dask_cudf.from_delayed(result)
+
+            def get_renumber_map(data):
+                return data[0]
+
+            def get_renumbered_df(data):
+                return data[1]
+
+            renumber_map = dask_cudf.from_delayed(
+                               [client.submit(get_renumber_map,
+                                              data,
+                                              workers=[wf])
+                                   for (data, wf) in result])
+            renumbered_df = dask_cudf.from_delayed(
+                               [client.submit(get_renumbered_df,
+                                              data,
+                                              workers=[wf])
+                                   for (data, wf) in result])
+            return renumber_map, renumbered_df
         else:
             return c_renumber.renumber(df,
                                        num_verts,
@@ -203,7 +220,6 @@ class NumberMap:
                                        0,
                                        Comms.get_default_handle(),
                                        is_mnmg)
-
 
     def unrenumber(self, df, column_name, preserve_order=False):
         """
