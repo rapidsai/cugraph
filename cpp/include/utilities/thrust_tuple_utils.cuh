@@ -15,6 +15,7 @@
  */
 #pragma once
 
+#include <raft/cudart_utils.h>
 #include <raft/device_atomics.cuh>
 
 #include <thrust/iterator/discard_iterator.h>
