@@ -193,6 +193,44 @@ void force_atlas2(GraphCOOView<vertex_t, edge_t, weight_t> &graph,
                   internals::GraphBasedDimRedCallback *callback = nullptr);
 
 /**
+ * @brief Finds an approximate solution to the traveling salesperson problem (TSP).
+ *        cuGraph computes an approximation of the TSP problem using hill climbing
+ *        optimization.
+ *
+ *        The current implementation does not support a weighted graph.
+ *
+ * @throws                                    cugraph::logic_error when an error occurs.
+ * @param[in] handle                          Library handle (RAFT). If a communicator is set in the
+ * handle, the multi GPU version will be selected.
+ * @param[in] vtx_ptr                         Device array containing the vertex identifiers used
+ * to initialize the route.
+ * @param[in] x_pos                           Device array containing starting x-axis positions.
+ * @param[in] y_pos                           Device array containing starting y-axis positions.
+ * @param[in] nodes                           Number of cities.
+ * @param[in] restarts                        Number of starts to try. The more restarts,
+ * the better the solution will be approximated. The number of restarts depends on the problem
+ * size and should be kept low for instances above 2k cities.
+ * @param[in] beam_search                     Specify if the initial solution should use KNN
+ * for an approximation solution.
+ * @param[in] k                               Beam width to use in the search.
+ * @param[in] nstart                          Start from a specific position.
+ * @param[in] verbose                         Logs configuration and iterative improvement.
+ * @param[out] route                          Device array containing the returned route.
+ *
+ */
+float traveling_salesperson(raft::handle_t &handle,
+                            int const *vtx_ptr,
+                            float const *x_pos,
+                            float const *y_pos,
+                            int nodes,
+                            int restarts,
+                            bool beam_search,
+                            int k,
+                            int nstart,
+                            bool verbose,
+                            int *route);
+
+/**
  * @brief     Compute betweenness centrality for a graph
  *
  * Betweenness centrality for a vertex is the sum of the fraction of
@@ -1062,9 +1100,9 @@ void sssp(raft::handle_t const &handle,
 template <typename vertex_t, typename edge_t, typename weight_t, typename result_t, bool multi_gpu>
 void pagerank(raft::handle_t const &handle,
               graph_view_t<vertex_t, edge_t, weight_t, true, multi_gpu> const &graph_view,
-              weight_t *adj_matrix_row_out_weight_sums,
-              vertex_t *personalization_vertices,
-              result_t *personalization_values,
+              weight_t const *adj_matrix_row_out_weight_sums,
+              vertex_t const *personalization_vertices,
+              result_t const *personalization_values,
               vertex_t personalization_vector_size,
               result_t *pageranks,
               result_t alpha,
@@ -1110,7 +1148,7 @@ void pagerank(raft::handle_t const &handle,
 template <typename vertex_t, typename edge_t, typename weight_t, typename result_t, bool multi_gpu>
 void katz_centrality(raft::handle_t const &handle,
                      graph_view_t<vertex_t, edge_t, weight_t, true, multi_gpu> const &graph_view,
-                     result_t *betas,
+                     result_t const *betas,
                      result_t *katz_centralities,
                      result_t alpha,
                      result_t beta,
@@ -1129,7 +1167,7 @@ void katz_centrality(raft::handle_t const &handle,
  * @tparam multi_gpu Flag indicating whether template instantiation should target single-GPU (false)
  * or multi-GPU (true).
  * @param handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator, and
- * handles to various CUDA libraries) to run graph algorithms.
+ * handles to various CUDA libraries) to run graph algorithms. Must have at least one worker stream.
  * @param graph_view Graph view object of, we extract induced egonet subgraphs from @p graph_view.
  * @param source_vertex Pointer to egonet center vertices (size == @p n_subgraphs).
  * @param n_subgraphs Number of induced EgoNet subgraphs to extract (ie. number of elements in @p

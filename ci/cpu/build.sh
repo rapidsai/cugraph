@@ -1,5 +1,5 @@
 #!/bin/bash
-# Copyright (c) 2018-2020, NVIDIA CORPORATION.
+# Copyright (c) 2018-2021, NVIDIA CORPORATION.
 #########################################
 # cuGraph CPU conda build script for CI #
 #########################################
@@ -23,6 +23,9 @@ fi
 # Setup 'gpuci_conda_retry' for build retries (results in 2 total attempts)
 export GPUCI_CONDA_RETRY_MAX=1
 export GPUCI_CONDA_RETRY_SLEEP=30
+
+# Use Ninja to build
+export CMAKE_GENERATOR="Ninja"
 
 ################################################################################
 # SETUP - Check environment

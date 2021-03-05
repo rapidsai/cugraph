@@ -1,6 +1,61 @@
-# 0.18.0
+# cuGraph 0.19.0 (Date TBD)
 
-Please see https://github.com/rapidsai/cugraph/releases/tag/branch-0.18-latest for the latest changes to this development branch.
+Please see https://github.com/rapidsai/cugraph/releases/tag/branch-0.19-latest for the latest changes to this development branch.
+
+# cuGraph 0.18.0 (24 Feb 2021)
+
+## Bug Fixes 🐛
+
+- Fixed TSP returned routes (#1412) @hlinsen
+- Updated CI scripts to use a different error handling convention, updated LD_LIBRARY_PATH for project flash runs (#1386) @rlratzel
+- Bug fixes for MNMG coarsen_graph, renumber_edgelist, relabel (#1364) @seunghwak
+- Set a specific known working commit hash for gunrock instead of &quot;dev&quot; (#1336) @rlratzel
+- Updated git utils used by copyright.py for compatibility with current CI env (#1325) @rlratzel
+- Fix MNMG Louvain tests on Pascal architecture (#1322) @ChuckHastings
+- FIX Set bash trap after PATH is updated (#1321) @dillon-cullinan
+- Fix graph nodes function and renumbering from series (#1319) @Iroy30
+- Fix Branch 0.18 merge 0.17 (#1314) @BradReesWork
+- Fix EXPERIMENTAL_LOUVAIN_TEST on Pascal (#1312) @ChuckHastings
+- Updated cuxfilter to 0.18, removed datashader indirect dependency in conda dev .yml files (#1311) @rlratzel
+- Update SG PageRank C++ tests (#1307) @seunghwak
+
+## Documentation 📖
+
+- Enabled MultiGraph class and tests, updated SOURCEBUILD.md to include the latest build.sh options (#1351) @rlratzel
+
+## New Features 🚀
+
+- New EgoNet extractor (#1365) @afender
+- Implement induced subgraph extraction primitive (SG C++) (#1354) @seunghwak
+
+## Improvements 🛠️
+
+- Update stale GHA with exemptions &amp; new labels (#1413) @mike-wendt
+- Add GHA to mark issues/prs as stale/rotten (#1408) @Ethyling
+- update subgraph tests and remove legacy pagerank (#1378) @Iroy30
+- Update the conda environments and README file (#1369) @BradReesWork
+- Prepare Changelog for Automation (#1368) @ajschmidt8
+- Update CMakeLists.txt files for consistency with RAPIDS and to support cugraph as an external project and other tech debt removal (#1367) @rlratzel
+- Use new coarsen_graph primitive in Louvain (#1362) @ChuckHastings
+- Added initial infrastructure for MG C++ testing and a Pagerank MG test using it (#1361) @rlratzel
+- Add SG TSP (#1360) @hlinsen
+- Build a Dendrogram class, adapt Louvain/Leiden/ECG to use it (#1359) @ChuckHastings
+- Auto-label PRs based on their content (#1358) @jolorunyomi
+- Implement MNMG Renumber (#1355) @aschaffer
+- Enabling pytest code coverage output by default (#1352) @jnke2016
+- Added configuration for new cugraph-doc-codeowners review group (#1344) @rlratzel
+- API update to match RAFT PR #120 (#1343) @drobison00
+- Pin gunrock to v1.2 for version 0.18 (#1342) @ChuckHastings
+- Fix #1340 - Use generic from_edgelist() methods (#1341) @miguelusque
+- Using RAPIDS_DATASET_ROOT_DIR env var in place of absolute path to datasets in tests (#1337) @jnke2016
+- Expose dense implementation of Hungarian algorithm (#1333) @ChuckHastings
+- SG Pagerank transition (#1332) @Iroy30
+- improving error checking and docs (#1327) @BradReesWork
+- Fix MNMG cleanup exceptions (#1326) @Iroy30
+- Create labeler.yml (#1318) @jolorunyomi
+- Updates to support nightly MG test automation (#1308) @rlratzel
+- Add C++ graph functions (coarsen_grpah, renumber_edgelist, relabel) and primitvies (transform_reduce_by_adj_matrix_row_key, transform_reduce_by_adj_matrix_col_key, copy_v_transform_reduce_key_aggregated_out_nbr) (#1257) @seunghwak
+>>>>>>> upstream/branch-0.18
 
 # cuGraph 0.17.0 (10 Dec 2020)
 ## New Features

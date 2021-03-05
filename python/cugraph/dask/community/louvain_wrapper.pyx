@@ -1,4 +1,4 @@
-# Copyright (c) 2020, NVIDIA CORPORATION.
+# Copyright (c) 2020-2021, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -19,8 +19,7 @@
 from libc.stdint cimport uintptr_t
 
 from cugraph.dask.community cimport louvain as c_louvain
-from cugraph.structure.graph_primtypes cimport *
-
+from cugraph.structure.graph_utilities cimport *
 import cudf
 import numpy as np
 

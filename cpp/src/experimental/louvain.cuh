@@ -405,7 +405,7 @@ class Louvain {
       handle_(handle),
       dendrogram_(std::make_unique<Dendrogram<vertex_t>>()),
       current_graph_view_(graph_view),
-      compute_partition_(graph_view),
+      compute_partition_(handle, graph_view),
       local_num_vertices_(graph_view.get_number_of_local_vertices()),
       local_num_rows_(graph_view.get_number_of_local_adj_matrix_partition_rows()),
       local_num_cols_(graph_view.get_number_of_local_adj_matrix_partition_cols()),

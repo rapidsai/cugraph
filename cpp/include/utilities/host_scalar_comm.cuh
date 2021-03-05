@@ -321,16 +321,11 @@ std::enable_if_t<std::is_arithmetic<T>::value, std::vector<T>> host_scalar_gathe
     &input,
     1,
     stream);
-  // FIXME: should be enabled once the RAFT gather & gatherv PR is merged
-#if 1
-  CUGRAPH_FAIL("Unimplemented.");
-#else
   comm.gather(comm.get_rank() == root ? d_outputs.data() + comm.get_rank() : d_outputs.data(),
               d_outputs.data(),
               size_t{1},
               root,
               stream);
-#endif
   std::vector<T> h_outputs(comm.get_rank() == root ? comm.get_size() : 0);
   if (comm.get_rank() == root) {
     raft::update_host(h_outputs.data(), d_outputs.data(), comm.get_size(), stream);
@@ -358,10 +353,6 @@ host_scalar_gather(raft::comms::comms_t const& comm, T input, int root, cudaStre
                       h_tuple_scalar_elements.data(),
                       tuple_size,
                       stream);
-  // FIXME: should be enabled once the RAFT gather & gatherv PR is merged
-#if 1
-  CUGRAPH_FAIL("Unimplemented.");
-#else
   comm.gather(comm.get_rank() == root
                 ? d_gathered_tuple_scalar_elements.data() + comm.get_rank() * tuple_size
                 : d_gathered_tuple_scalar_elements.data(),
@@ -369,7 +360,6 @@ host_scalar_gather(raft::comms::comms_t const& comm, T input, int root, cudaStre
               tuple_size,
               root,
               stream);
-#endif
   std::vector<int64_t> h_gathered_tuple_scalar_elements(
     comm.get_rank() == root ? comm.get_size() * tuple_size : size_t{0});
   if (comm.get_rank() == root) {
