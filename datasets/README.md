@@ -16,7 +16,11 @@ This directory contains small public datasets in `mtx` and `csv` format used by 
 
 **netscience** : The graph netscience contains a coauthorship network of scientists working on network theory and experiment, as compiled by M. Newman in May 2006.
 
-The datasets below was added to check for coverage where some of them include self loops, string and isolated vertices 
+
+
+## Tests coverage 
+
+The datasets below was added to check for coverage where some of them include self loops, string vertex IDs and isolated vertices 
 
 | Graph         | V       | E          | Directed | Weighted | self-loops | Isolated V | String V IDs |  
 | ------------- | ------- | --------   | -------- | -------- | ---------- | ---------- | ------------ | 
@@ -27,13 +31,13 @@ The datasets below was added to check for coverage where some of them include se
 | karate_mod    | 43      | 81         | No       | No       | No          | Yes       | Yes          |
 | karate_str    | 34      | 78         | No       | No       | No          | No        | Yes          |
 ​
-**ca-AstroPh** : The graph "ca-AstroPh" covers scientific collaborations between authors papers submitted to Astro Physics category in the period from January 1993 to April 2003 (124 months), as compiled by .
+**ca-AstroPh** : The graph "ca-AstroPh" covers scientific collaborations between authors papers submitted to Astro Physics category in the period from January 1993 to April 2003 (124 months), as described by J. Leskovec, J. Kleinberg and C. Faloutsos in 2007.
 ​
-**ca-CondMat** : The graph "ca-CondMat" covers scientific collaborations between authors papers submitted to Condense Matter category in the period from January 1993 to April 2003 (124 months), as compiled by .
+**ca-CondMat** : The graph "ca-CondMat" covers scientific collaborations between authors papers submitted to Condense Matter category in the period from January 1993 to April 2003 (124 months), as described by J. Leskovec, J. Kleinberg and C. Faloutsos in 2007.
 ​
-**ca-GrQc** : The graph "ca-GrQc" covers scientific collaborations between authors papers submitted to General Relativity and Quantum Cosmology category in the period from January 1993 to April 2003 (124 months), as compiled by .
+**ca-GrQc** : The graph "ca-GrQc" covers scientific collaborations between authors papers submitted to General Relativity and Quantum Cosmology category in the period from January 1993 to April 2003 (124 months), as described by J. Leskovec, J. Kleinberg and C. Faloutsos in 2007.
 ​
-**ca-HepTh** : The graph "ca-HepTh" covers scientific collaborations between authors papers submitted to High Energy Physics - Theory category in the period from January 1993 to April 2003 (124 months), as compiled by
+**ca-HepTh** : The graph "ca-HepTh" covers scientific collaborations between authors papers submitted to High Energy Physics - Theory category in the period from January 1993 to April 2003 (124 months), as described by J. Leskovec, J. Kleinberg and C. Faloutsos in 2007.
 ​
 **karate_mod** : The graph "karate_mod" is a modified version of the  "karate" graph where vertices and edges were added
 ​
@@ -90,3 +94,4 @@ _NOTE: the benchmark datasets were converted to a CSV format from their original
 
 ## Reference
 The SuiteSparse Matrix Collection (formerly the University of Florida Sparse Matrix Collection) : https://sparse.tamu.edu/
+The Stanford Network Analysis Platform (SNAP) 
