@@ -61,6 +61,18 @@ DATASETS = [PurePath(RAPIDS_DATASET_ROOT_DIR)/f for f in [
     "netscience.csv"]
 ]
 
+DATASETS_SELF_LOOPS = [PurePath(RAPIDS_DATASET_ROOT_DIR)/f for f in [
+    "ca-HepTh.csv",
+    "ca-AstroPh.csv",
+    "ca-CondMat.csv",
+    "ca-GrQc.csv"]
+]
+
+DATASETS_STR_ISLD_V = [PurePath(RAPIDS_DATASET_ROOT_DIR)/f for f in [
+    "karate_mod.mtx",
+    "karate_str.mtx"]
+]
+
 
 #            '../datasets/email-Eu-core.csv']
 
