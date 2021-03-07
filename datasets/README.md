@@ -31,17 +31,16 @@ The datasets below was added to check for coverage where some of them include se
 | karate_mod    | 43      | 81         | No       | No       | No          | Yes       | Yes          |
 | karate_str    | 34      | 78         | No       | No       | No          | No        | Yes          |
 
-​
 **ca-AstroPh** : The graph "ca-AstroPh" covers scientific collaborations between authors papers submitted to Astro Physics category in the period from January 1993 to April 2003 (124 months), as described by J. Leskovec, J. Kleinberg and C. Faloutsos in 2007.
-​
+
 **ca-CondMat** : The graph "ca-CondMat" covers scientific collaborations between authors papers submitted to Condense Matter category in the period from January 1993 to April 2003 (124 months), as described by J. Leskovec, J. Kleinberg and C. Faloutsos in 2007.
-​
+
 **ca-GrQc** : The graph "ca-GrQc" covers scientific collaborations between authors papers submitted to General Relativity and Quantum Cosmology category in the period from January 1993 to April 2003 (124 months), as described by J. Leskovec, J. Kleinberg and C. Faloutsos in 2007.
-​
+
 **ca-HepTh** : The graph "ca-HepTh" covers scientific collaborations between authors papers submitted to High Energy Physics - Theory category in the period from January 1993 to April 2003 (124 months), as described by J. Leskovec, J. Kleinberg and C. Faloutsos in 2007.
-​
+
 **karate_mod** : The graph "karate_mod" is a modified version of the  "karate" graph where vertices and edges were added
-​
+
 **karate_str** : The graph "karate_str" contains the network of friendships between the 34 members of a karate club at a US university, as described by Wayne Zachary in 1977. The integer vertices were replaced by strings
 
 
