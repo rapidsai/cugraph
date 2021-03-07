@@ -66,6 +66,8 @@ DATASETS_SELF_LOOPS = [PurePath(RAPIDS_DATASET_ROOT_DIR)/f for f in [
     "ca-AstroPh.csv",
     "ca-CondMat.csv",
     "ca-GrQc.csv"]
+
+    
 ]
 
 DATASETS_STR_ISLD_V = [PurePath(RAPIDS_DATASET_ROOT_DIR)/f for f in [
