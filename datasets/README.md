@@ -30,6 +30,7 @@ The datasets below was added to check for coverage where some of them include se
 | ca-HepTh      | 9,877   | 25,998     | No       | No       | Yes         | No        | No           | 
 | karate_mod    | 43      | 81         | No       | No       | No          | Yes       | Yes          |
 | karate_str    | 34      | 78         | No       | No       | No          | No        | Yes          |
+
 ​
 **ca-AstroPh** : The graph "ca-AstroPh" covers scientific collaborations between authors papers submitted to Astro Physics category in the period from January 1993 to April 2003 (124 months), as described by J. Leskovec, J. Kleinberg and C. Faloutsos in 2007.
 ​
