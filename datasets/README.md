@@ -16,6 +16,31 @@ This directory contains small public datasets in `mtx` and `csv` format used by 
 
 **netscience** : The graph netscience contains a coauthorship network of scientists working on network theory and experiment, as compiled by M. Newman in May 2006.
 
+The datasets below was added to check for coverage where some of them include self loops, string and isolated vertices 
+
+| Graph         | V       | E          | Directed | Weighted | self-loops | Isolated V | String V IDs |  
+| ------------- | ------- | --------   | -------- | -------- | ---------- | ---------- | ------------ | 
+| ca-AstroPh    | 18,772  | 198,110    | No       | No       | Yes         | No        | No           |
+| ca-CondMat    | 23,133  | 93,497     | No       | No       | Yes         | No        | No           |
+| ca-GrQc       | 5,242   | 14,387     | No       | No       | Yes         | No        | No           |
+| ca-HepTh      | 9,877   | 25,998     | No       | No       | Yes         | No        | No           | 
+| karate_mod    | 43      | 81         | No       | No       | No          | Yes       | Yes          |
+| karate_str    | 34      | 78         | No       | No       | No          | No        | Yes          |
+​
+**ca-AstroPh** : The graph "ca-AstroPh" covers scientific collaborations between authors papers submitted to Astro Physics category in the period from January 1993 to April 2003 (124 months), as compiled by .
+​
+**ca-CondMat** : The graph "ca-CondMat" covers scientific collaborations between authors papers submitted to Condense Matter category in the period from January 1993 to April 2003 (124 months), as compiled by .
+​
+**ca-GrQc** : The graph "ca-GrQc" covers scientific collaborations between authors papers submitted to General Relativity and Quantum Cosmology category in the period from January 1993 to April 2003 (124 months), as compiled by .
+​
+**ca-HepTh** : The graph "ca-HepTh" covers scientific collaborations between authors papers submitted to High Energy Physics - Theory category in the period from January 1993 to April 2003 (124 months), as compiled by
+​
+**karate_mod** : The graph "karate_mod" is a modified version of the  "karate" graph where vertices and edges were added
+​
+**karate_str** : The graph "karate_str" contains the network of friendships between the 34 members of a karate club at a US university, as described by Wayne Zachary in 1977. The integer vertices were replaced by strings
+
+
+
 ## C++
 Cugraph's C++ analytics tests need larger datasets (>5GB uncompressed) and reference results (>125MB uncompressed). They can be downloaded by running the provided script from the `datasets` directory.
 ```
