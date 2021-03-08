@@ -50,8 +50,15 @@ generate_graph_from_rmat_params(raft::handle_t const& handle,
   rmm::device_uvector<vertex_t> d_edgelist_rows(0, handle.get_stream());
   rmm::device_uvector<vertex_t> d_edgelist_cols(0, handle.get_stream());
   std::tie(d_edgelist_rows, d_edgelist_cols) =
-    cugraph::experimental::generate_rmat_edgelist<vertex_t>(
-      handle, scale, edge_factor, a, b, c, seed, undirected ? true : false, scramble_vertex_ids);
+    cugraph::experimental::generate_rmat_edgelist<vertex_t>(handle,
+                                                            scale,
+                                                            (size_t{1} << scale) * edge_factor,
+                                                            a,
+                                                            b,
+                                                            c,
+                                                            seed,
+                                                            undirected ? true : false,
+                                                            scramble_vertex_ids);
   if (undirected) {
     // FIXME: need to symmetrize
     CUGRAPH_FAIL("unimplemented.");
