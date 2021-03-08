@@ -322,7 +322,7 @@ coarsen_graph(
             edge_first + edgelist_major_vertices.size(),
             [key_func =
                detail::compute_gpu_id_from_edge_t<vertex_t>{
-                 comm.get_size(), row_comm.get_size(), col_comm.get_size()}] __device__(auto val) {
+                 comm_size, row_comm_size, col_comm_size}] __device__(auto val) {
               return key_func(thrust::get<0>(val), thrust::get<1>(val));
             },
             handle.get_stream());
@@ -337,7 +337,7 @@ coarsen_graph(
             edge_first + edgelist_major_vertices.size(),
             [key_func =
                detail::compute_gpu_id_from_edge_t<vertex_t>{
-                 comm.get_size(), row_comm.get_size(), col_comm.get_size()}] __device__(auto val) {
+                 comm_size, row_comm_size, col_comm_size}] __device__(auto val) {
               return key_func(thrust::get<0>(val), thrust::get<1>(val));
             },
             handle.get_stream());
@@ -353,66 +353,35 @@ coarsen_graph(
     // FIXME: we can skip this if groupby_gpuid_and_shuffle_values is updated to return sorted edge
     // list based on the final matrix partition (maybe add
     // groupby_adj_matrix_partition_and_shuffle_values).
-    auto key_func = detail::compute_partition_id_from_edge_t<vertex_t>{
-      comm.get_size(), row_comm.get_size(), col_comm.get_size()};
+
+    auto local_partition_id_op =
+      [comm_size,
+       key_func = detail::compute_partition_id_from_edge_t<vertex_t>{
+         comm_size, row_comm_size, col_comm_size}] __device__(auto pair) {
+        return key_func(thrust::get<0>(pair), thrust::get<1>(pair)) /
+               comm_size;  // global partition id to local partition id
+      };
     auto pair_first = thrust::make_zip_iterator(
       thrust::make_tuple(edgelist_major_vertices.begin(), edgelist_minor_vertices.begin()));
-    if (graph_view.is_weighted()) {
-      thrust::sort_by_key(rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
-                          pair_first,
-                          pair_first + edgelist_major_vertices.size(),
-                          edgelist_weights.begin(),
-                          [key_func] __device__(auto lhs, auto rhs) {
-                            return key_func(thrust::get<0>(lhs), thrust::get<1>(lhs)) <
-                                   key_func(thrust::get<0>(rhs), thrust::get<1>(rhs));
-                          });
-    } else {
-      thrust::sort(rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
-                   pair_first,
-                   pair_first + edgelist_major_vertices.size(),
-                   [key_func] __device__(auto lhs, auto rhs) {
-                     return key_func(thrust::get<0>(lhs), thrust::get<1>(lhs)) <
-                            key_func(thrust::get<0>(rhs), thrust::get<1>(rhs));
-                   });
-    }
-    auto partition_id_first = thrust::make_transform_iterator(
-      thrust::make_zip_iterator(
-        thrust::make_tuple(edgelist_major_vertices.begin(), edgelist_minor_vertices.begin())),
-      [key_func] __device__(auto val) {
-        return key_func(thrust::get<0>(val), thrust::get<1>(val));
-      });
-    rmm::device_uvector<int> partition_ids(graph_view.get_number_of_local_adj_matrix_partitions(),
-                                           handle.get_stream());
-    rmm::device_uvector<edge_t> displacements(partition_ids.size() + 1, handle.get_stream());
-    auto last =
-      thrust::reduce_by_key(rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
-                            partition_id_first,
-                            partition_id_first + edgelist_major_vertices.size(),
-                            thrust::make_constant_iterator(edge_t{1}),
-                            partition_ids.begin(),
-                            displacements.begin());
-    if (static_cast<size_t>(thrust::distance(partition_ids.begin(), thrust::get<0>(last))) <
-        partition_ids.size()) {
-      rmm::device_uvector<edge_t> tmps(displacements.size(), handle.get_stream());
-      thrust::fill(rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
-                   displacements.begin(),
-                   displacements.end(),
-                   edge_t{0});
-      thrust::scatter(displacements.begin(),
-                      thrust::get<1>(last),
-                      thrust::make_transform_iterator(
-                        partition_ids.begin(),
-                        [comm_size] __device__(auto id) {
-                          return id / comm_size;  // global partition id to local partition id
-                        }),
-                      tmps.begin());
-      displacements = std::move(tmps);
-    }
+    auto displacements =
+      graph_view.is_weighted()
+        ? groupby_and_count(pair_first,
+                            pair_first + edgelist_major_vertices.size(),
+                            edgelist_weights.begin(),
+                            local_partition_id_op,
+                            graph_view.get_number_of_local_adj_matrix_partitions(),
+                            handle.get_stream())
+        : groupby_and_count(pair_first,
+                            pair_first + edgelist_major_vertices.size(),
+                            local_partition_id_op,
+                            graph_view.get_number_of_local_adj_matrix_partitions(),
+                            handle.get_stream());
     thrust::exclusive_scan(rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
                            displacements.begin(),
                            displacements.end(),
                            displacements.begin());
-    std::vector<edge_t> h_displacements(displacements.size());
+
+    std::vector<size_t> h_displacements(displacements.size());
     raft::update_host(
       h_displacements.data(), displacements.data(), displacements.size(), handle.get_stream());
     CUDA_TRY(cudaStreamSynchronize(handle.get_stream()));
