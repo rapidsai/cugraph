@@ -120,7 +120,6 @@ generate_graph_from_edgelist(raft::handle_t const& handle,
   cugraph::experimental::partition_t<vertex_t> partition{};
   vertex_t aggregate_number_of_vertices{};
   edge_t number_of_edges{};
-  // FIXME: set do_expensive_check to false once validated
   std::tie(renumber_map_labels, partition, aggregate_number_of_vertices, number_of_edges) =
     cugraph::experimental::renumber_edgelist<vertex_t, edge_t, multi_gpu>(
       handle,
@@ -129,8 +128,7 @@ generate_graph_from_edgelist(raft::handle_t const& handle,
       store_transposed ? edgelist_cols.data() : edgelist_rows.data(),
       store_transposed ? edgelist_rows.data() : edgelist_cols.data(),
       edgelist_rows.size(),
-      false,
-      true);
+      false);
   assert(aggregate_number_of_vertices == number_of_vertices);
 
   // 4. create a graph
@@ -148,7 +146,6 @@ generate_graph_from_edgelist(raft::handle_t const& handle,
       number_of_vertices,
       number_of_edges,
       cugraph::experimental::graph_properties_t{is_symmetric, false},
-      true,
       true),
     std::move(renumber_map_labels));
 }
@@ -174,7 +171,6 @@ generate_graph_from_edgelist(raft::handle_t const& handle,
 {
   vertex_t number_of_vertices = static_cast<vertex_t>(vertices.size());
 
-  // FIXME: set do_expensive_check to false once validated
   auto renumber_map_labels =
     renumber ? cugraph::experimental::renumber_edgelist<vertex_t, edge_t, multi_gpu>(
                  handle,
@@ -182,11 +178,9 @@ generate_graph_from_edgelist(raft::handle_t const& handle,
                  static_cast<vertex_t>(vertices.size()),
                  store_transposed ? edgelist_cols.data() : edgelist_rows.data(),
                  store_transposed ? edgelist_rows.data() : edgelist_cols.data(),
-                 static_cast<edge_t>(edgelist_rows.size()),
-                 true)
+                 static_cast<edge_t>(edgelist_rows.size()))
              : rmm::device_uvector<vertex_t>(0, handle.get_stream());
 
-  // FIXME: set do_expensive_check to false once validated
   return std::make_tuple(
     cugraph::experimental::graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu>(
       handle,
@@ -197,8 +191,7 @@ generate_graph_from_edgelist(raft::handle_t const& handle,
         static_cast<edge_t>(edgelist_rows.size())},
       number_of_vertices,
       cugraph::experimental::graph_properties_t{is_symmetric, false},
-      renumber ? true : false,
-      true),
+      renumber ? true : false),
     std::move(renumber_map_labels));
 }
 
