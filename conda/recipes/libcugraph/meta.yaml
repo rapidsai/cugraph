@@ -36,7 +36,7 @@ requirements:
     - cudatoolkit {{ cuda_version }}.*
     - boost-cpp>=1.66
     - libcypher-parser
-    - nccl>=2.7
+    - nccl>=2.8.4
     - ucx-py {{ minor_version }}
     - ucx-proc=*=gpu
     - gtest
@@ -46,7 +46,7 @@ requirements:
   run:
     - libcudf={{ minor_version }}
     - {{ pin_compatible('cudatoolkit', max_pin='x.x') }}
-    - nccl>=2.7
+    - nccl>=2.8.4
     - ucx-py {{ minor_version }}
     - ucx-proc=*=gpu
     - faiss-proc=*=cuda
