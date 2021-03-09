@@ -82,11 +82,10 @@ __global__ void for_all_frontier_row_for_all_nbr_low_degree(
   static_assert(!GraphViewType::is_adj_matrix_transposed,
                 "GraphViewType should support the push model.");
 
-  auto num_rows  = static_cast<size_t>(thrust::distance(row_first, row_last));
   auto const tid = threadIdx.x + blockIdx.x * blockDim.x;
   size_t idx     = tid;
 
-  while (idx < num_rows) {
+  while (idx < static_cast<size_t>(thrust::distance(row_first, row_last))) {
     vertex_t row    = *(row_first + idx);
     auto row_offset = matrix_partition.get_major_offset_from_major_nocheck(row);
     vertex_t const* indices{nullptr};

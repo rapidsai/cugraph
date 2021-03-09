@@ -45,6 +45,8 @@ template <typename GraphViewType,
           typename EdgeOp>
 __global__ void for_all_major_for_all_nbr_low_degree(
   matrix_partition_device_t<GraphViewType> matrix_partition,
+  typename GraphViewType::vertex_type major_first,
+  typename GraphViewType::vertex_type major_last,
   AdjMatrixRowValueInputIterator adj_matrix_row_value_input_first,
   AdjMatrixColValueInputIterator adj_matrix_col_value_input_first,
   BlockResultIterator block_result_first,
@@ -55,16 +57,18 @@ __global__ void for_all_major_for_all_nbr_low_degree(
   using weight_t      = typename GraphViewType::weight_type;
   using e_op_result_t = typename std::iterator_traits<BlockResultIterator>::value_type;
 
-  auto const tid = threadIdx.x + blockIdx.x * blockDim.x;
-  size_t idx     = static_cast<size_t>(tid);
+  auto const tid          = threadIdx.x + blockIdx.x * blockDim.x;
+  auto major_start_offset = static_cast<size_t>(major_first - matrix_partition.get_major_first());
+  size_t idx              = static_cast<size_t>(tid);
 
   e_op_result_t e_op_result_sum{};
-  while (idx < static_cast<size_t>(matrix_partition.get_major_size())) {
+  while (idx < static_cast<size_t>(major_last - major_first)) {
+    auto major_offset = major_start_offset + idx;
     vertex_t const* indices{nullptr};
     weight_t const* weights{nullptr};
     edge_t local_degree{};
-    thrust::tie(indices, weights, local_degree) = matrix_partition.get_local_edges(idx);
-    auto sum = thrust::transform_reduce(
+    thrust::tie(indices, weights, local_degree) = matrix_partition.get_local_edges(major_offset);
+    auto sum                                    = thrust::transform_reduce(
       thrust::seq,
       thrust::make_counting_iterator(edge_t{0}),
       thrust::make_counting_iterator(local_degree),
@@ -184,6 +188,8 @@ T transform_reduce_e(raft::handle_t const& handle,
                                                      0,
                                                      handle.get_stream()>>>(
         matrix_partition,
+        matrix_partition.get_major_first(),
+        matrix_partition.get_major_last(),
         adj_matrix_row_value_input_first + row_value_input_offset,
         adj_matrix_col_value_input_first + col_value_input_offset,
         get_dataframe_buffer_begin<T>(block_result_buffer),

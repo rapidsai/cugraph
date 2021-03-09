@@ -64,10 +64,10 @@ __global__ void for_all_major_for_all_nbr_low_degree(
   auto idx                = static_cast<size_t>(tid);
 
   while (idx < static_cast<size_t>(major_last - major_first)) {
+    auto major_offset = major_start_offset + idx;
     vertex_t const* indices{nullptr};
     weight_t const* weights{nullptr};
     edge_t local_degree{};
-    auto major_offset = major_start_offset + idx;
     thrust::tie(indices, weights, local_degree) =
       matrix_partition.get_local_edges(static_cast<vertex_t>(major_offset));
     if (local_degree > 0) {
