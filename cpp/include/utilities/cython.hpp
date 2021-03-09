@@ -191,7 +191,7 @@ struct major_minor_weights_t {
 template <typename vertex_t, typename edge_t>
 struct renum_quad_t {
   explicit renum_quad_t(raft::handle_t const& handle)
-    : dv_(0, handle.get_stream()), part_(std::vector<vertex_t>{0}, false, 0, 0, 0, 0)
+    : dv_(0, handle.get_stream()), part_()
   {
   }
 
