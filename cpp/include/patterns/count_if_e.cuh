@@ -64,7 +64,6 @@ __global__ void for_all_major_for_all_nbr_low_degree(
     weight_t const* weights{nullptr};
     edge_t local_degree{};
     thrust::tie(indices, weights, local_degree) = matrix_partition.get_local_edges(idx);
-#if 1
     count += thrust::count_if(
       thrust::seq,
       thrust::make_counting_iterator(edge_t{0}),
@@ -102,35 +101,6 @@ __global__ void for_all_major_for_all_nbr_low_degree(
 
         return e_op_result;
       });
-#else
-    // FIXME: delete this once we verify that the code above is not slower than this.
-    for (vertex_t i = 0; i < local_degree; ++i) {
-      auto minor        = indices[i];
-      auto weight       = weights != nullptr ? weights[i] : 1.0;
-      auto minor_offset = matrix_partition.get_minor_offset_from_minor_nocheck(minor);
-      auto row          = GraphViewType::is_adj_matrix_transposed
-                   ? minor
-                   : matrix_partition.get_major_from_major_offset_nocheck(idx);
-      auto col = GraphViewType::is_adj_matrix_transposed
-                   ? matrix_partition.get_major_from_major_offset_nocheck(idx)
-                   : minor;
-      auto row_offset =
-        GraphViewType::is_adj_matrix_transposed ? minor_offset : static_cast<vertex_t>(idx);
-      auto col_offset =
-        GraphViewType::is_adj_matrix_transposed ? static_cast<vertex_t>(idx) : minor_offset;
-      auto e_op_result = evaluate_edge_op<GraphViewType,
-                                          AdjMatrixRowValueInputIterator,
-                                          AdjMatrixColValueInputIterator,
-                                          EdgeOp>()
-                           .compute(row,
-                                    col,
-                                    weight,
-                                    *(adj_matrix_row_value_input_first + row_offset),
-                                    *(adj_matrix_col_value_input_first + col_offset),
-                                    e_op);
-      if (e_op_result) { count++; }
-    }
-#endif
     idx += gridDim.x * blockDim.x;
   }
 
