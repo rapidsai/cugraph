@@ -375,7 +375,7 @@ if(BUILD_STATIC_FAISS)
                         -DBLAS_LIBRARIES=${BLAS_LIBRARIES}
     PREFIX            ${FAISS_DIR}
     BUILD_COMMAND     make -C build -j${PARALLEL_LEVEL} VERBOSE=1
-    BUILD_BYPRODUCTS  ${FAISS_DIR}/Ssrc/faiss/build/faiss/libfaiss.a
+    BUILD_BYPRODUCTS  ${FAISS_DIR}/src/faiss/build/faiss/libfaiss.a
     BUILD_ALWAYS      1
     INSTALL_COMMAND   ""
     UPDATE_COMMAND    ""
