@@ -1,31 +1,5 @@
+from .graph_implentation import *
 
-class simpleGraphBase:
-    def __init__(self):
-        #Structure
-        self.edgelist = None
-        self.adjlist = None
-        self.transposedadjlist = None
-        self.renumber_map = None
-
-    #Functions
-    
-
-class npartiteGraphBase:
-    self.edgelist = None
-    self.adjlist = None
-    self.transposedadjlist = None
-    self.renumber_map = None
-    self.partition_map = None
-
-class propertyGraphBase:
-    self.edgelist = None
-    self.adjlist = None
-    self.transposedadjlist = None
-    edge_attr_col_names = []
-    self.renumber_map = None
-
-class hyperGraphBase:
-    #TBD
 class Graph:
     def __init__(self):
         self.Base = None
@@ -86,7 +60,7 @@ class Graph:
         >>> G.from_cudf_edgelist(df, source='0', destination='1',
                                  edge_attr='2', renumber=False)
         """
-        self.Base = simpleGraphBase(SGBase)
+        self.Base = simpleGraphImpl
         self.Base.from_edgelist(input_df,
                                 source="source",
                                 destination="destination",
@@ -125,7 +99,7 @@ class Graph:
             If source and destination indices are not in range 0 to V where V
             is number of vertices, renumber argument should be True.
         """
-        self.Base = simpleGraphBase(DistributedBase)
+        self.Base = simpleDistributedGraphImpl
         self.Base.from_edgelist(input_ddf,
                                 source="source",
                                 destination="destination",
