@@ -67,9 +67,14 @@ struct random_walker_t {
                    d_v_stopped_.begin());
   }
 
-  // TODO: take one step in sync for all paths:
+  // take one step in sync for all paths:
   //
-  void step(void) {}
+  void step(rmm::device_uvector<vertex_t>& d_v_paths_v_set,  // coalesced vertex set
+            rmm::device_uvector<weight_t>& d_v_paths_w_set,  // coalesced weight set
+            rmm::device_uvector<size_t>& d_v_paths_sz)       // paths sizes
+  {
+    // TODO:
+  }
 
   bool all_stopped(void) const
   {
@@ -146,6 +151,23 @@ random_walks(raft::handle_t const& handle,
 
   random_walker_t<graph_t, random_engine_t> rand_walker{
     handle, nPaths, d_v_start.data(), rnd_engine};
+
+  auto coalesced_sz = nPaths * max_depth;
+
+  rmm::device_uvector<vertex_t> d_v_paths_v_set{coalesced_sz, stream};  // coalesced vertex set
+  rmm::device_uvector<weight_t> d_v_paths_w_set{coalesced_sz, stream};  // coalesced weight set
+  rmm::device_uvector<size_t> d_v_paths_sz{nPaths, stream};             // paths sizes
+
+  for (auto step_indx = 0; step_indx < max_depth; ++step_indx) {
+    rand_walker.step(d_v_paths_v_set, d_v_paths_w_set, d_v_paths_sz);
+
+    // early exit: all paths have reached sinks:
+    //
+    if (rand_walker.all_stopped()) break;
+  }
+
+  // TODO: truncate v_set, w_set to actaual space used:
+  //
 }
 
 /**
