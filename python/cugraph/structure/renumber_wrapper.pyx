@@ -59,7 +59,6 @@ cdef renumber_helper(shuffled_vertices_t* ptr_maj_min_w, vertex_t, weights):
 
 
 def renumber(input_df,           # maybe use cpdef ?
-             num_global_verts,
              num_global_edges,    
              rank,
              handle,
@@ -153,9 +152,11 @@ def renumber(input_df,           # maybe use cpdef ?
                     shuffled_df = renumber_helper(ptr_shuffled_32_32.get(), vertex_t, weights)
                 else:
                     shuffled_df = input_df  
+ 
                 shuffled_src = shuffled_df['src']
                 shuffled_dst = shuffled_df['dst']
-                        
+                num_partition_edges = len(shuffled_df)
+                       
                 shuffled_major = shuffled_src.__cuda_array_interface__['data'][0]
                 shuffled_minor = shuffled_dst.__cuda_array_interface__['data'][0]
                 ptr_renum_quad_32_32.reset(call_renumber[int, int](deref(handle_ptr),
@@ -185,8 +186,9 @@ def renumber(input_df,           # maybe use cpdef ?
                                                        uniq_partition_vector_32.get()[0].at(rank_indx+1)),
                                              dtype=vertex_t)
                 else:
-                    new_series = cudf.Series(np.arange(0, num_global_verts), dtype=vertex_t)
-                
+                    new_series = cudf.Series(np.arange(uniq_partition_vector_32.get()[0].at(0),
+                                                       uniq_partition_vector_32.get()[0].at(1)),
+                                             dtype=vertex_t)                
                 # create new cudf df
                 #
                 # and add the previous series to it:
@@ -212,6 +214,7 @@ def renumber(input_df,           # maybe use cpdef ?
 
                 shuffled_src = shuffled_df['src']
                 shuffled_dst = shuffled_df['dst']
+                num_partition_edges = len(shuffled_df)
                         
                 shuffled_major = shuffled_src.__cuda_array_interface__['data'][0]
                 shuffled_minor = shuffled_dst.__cuda_array_interface__['data'][0]
@@ -243,7 +246,9 @@ def renumber(input_df,           # maybe use cpdef ?
                                                        uniq_partition_vector_32.get()[0].at(rank_indx+1)),
                                              dtype=vertex_t)
                 else:
-                    new_series = cudf.Series(np.arange(0, num_global_verts), dtype=vertex_t)
+                    new_series = cudf.Series(np.arange(uniq_partition_vector_32.get()[0].at(0),
+                                                       uniq_partition_vector_32.get()[0].at(1)),
+                                             dtype=vertex_t)
                 
                 # create new cudf df
                 #
@@ -270,6 +275,7 @@ def renumber(input_df,           # maybe use cpdef ?
 
                 shuffled_src = shuffled_df['src']
                 shuffled_dst = shuffled_df['dst']
+                num_partition_edges = len(shuffled_df)
                         
                 shuffled_major = shuffled_src.__cuda_array_interface__['data'][0]
                 shuffled_minor = shuffled_dst.__cuda_array_interface__['data'][0]
@@ -301,8 +307,10 @@ def renumber(input_df,           # maybe use cpdef ?
                                                        uniq_partition_vector_32.get()[0].at(rank_indx+1)),
                                              dtype=vertex_t)
                 else:
-                    new_series = cudf.Series(np.arange(0, num_global_verts), dtype=vertex_t)
-                
+                    new_series = cudf.Series(np.arange(uniq_partition_vector_32.get()[0].at(0),
+                                                       uniq_partition_vector_32.get()[0].at(1)),
+                                             dtype=vertex_t)
+               
                 # create new cudf df
                 #
                 # and add the previous series to it:
@@ -327,6 +335,7 @@ def renumber(input_df,           # maybe use cpdef ?
                 
                 shuffled_src = shuffled_df['src']
                 shuffled_dst = shuffled_df['dst']
+                num_partition_edges = len(shuffled_df)
                         
                 shuffled_major = shuffled_src.__cuda_array_interface__['data'][0]
                 shuffled_minor = shuffled_dst.__cuda_array_interface__['data'][0]
@@ -358,8 +367,9 @@ def renumber(input_df,           # maybe use cpdef ?
                                                        uniq_partition_vector_32.get()[0].at(rank_indx+1)),
                                              dtype=vertex_t)
                 else:
-                    new_series = cudf.Series(np.arange(0, num_global_verts), dtype=vertex_t)
-                
+                    new_series = cudf.Series(np.arange(uniq_partition_vector_32.get()[0].at(0),
+                                                       uniq_partition_vector_32.get()[0].at(1)),
+                                             dtype=vertex_t)                
                 # create new cudf df
                 #
                 # and add the previous series to it:
@@ -386,6 +396,7 @@ def renumber(input_df,           # maybe use cpdef ?
                 
                 shuffled_src = shuffled_df['src']
                 shuffled_dst = shuffled_df['dst']
+                num_partition_edges = len(shuffled_df)
                         
                 shuffled_major = shuffled_src.__cuda_array_interface__['data'][0]
                 shuffled_minor = shuffled_dst.__cuda_array_interface__['data'][0]
@@ -417,7 +428,9 @@ def renumber(input_df,           # maybe use cpdef ?
                                                        uniq_partition_vector_64.get()[0].at(rank_indx+1)),
                                              dtype=vertex_t)
                 else:
-                    new_series = cudf.Series(np.arange(0, num_global_verts), dtype=vertex_t)
+                    new_series = cudf.Series(np.arange(uniq_partition_vector_32.get()[0].at(0),
+                                                       uniq_partition_vector_32.get()[0].at(1)),
+                                             dtype=vertex_t)
                 
                 # create new cudf df
                 #
@@ -443,6 +456,7 @@ def renumber(input_df,           # maybe use cpdef ?
                 
                 shuffled_src = shuffled_df['src']
                 shuffled_dst = shuffled_df['dst']
+                num_partition_edges = len(shuffled_df)
                         
                 shuffled_major = shuffled_src.__cuda_array_interface__['data'][0]
                 shuffled_minor = shuffled_dst.__cuda_array_interface__['data'][0]
@@ -474,7 +488,9 @@ def renumber(input_df,           # maybe use cpdef ?
                                                        uniq_partition_vector_64.get()[0].at(rank_indx+1)),
                                              dtype=vertex_t)
                 else:
-                    new_series = cudf.Series(np.arange(0, num_global_verts), dtype=vertex_t)
+                    new_series = cudf.Series(np.arange(uniq_partition_vector_32.get()[0].at(0),
+                                                       uniq_partition_vector_32.get()[0].at(1)),
+                                             dtype=vertex_t)
                 
                 # create new cudf df
                 #

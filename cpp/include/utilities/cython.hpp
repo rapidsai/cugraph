@@ -298,8 +298,8 @@ struct renum_quad_t {
  private:
   rmm::device_uvector<vertex_t> dv_;
   cugraph::experimental::partition_t<vertex_t> part_;
-  vertex_t nv_;
-  edge_t ne_;
+  vertex_t nv_{0};
+  edge_t ne_{0};
 };
 // FIXME: finish description for vertex_partition_offsets
 //
