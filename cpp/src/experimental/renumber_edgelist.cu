@@ -59,30 +59,34 @@ rmm::device_uvector<vertex_t> compute_renumber_map(
 
   // 1. acquire (unique major label, count) pairs
 
-  rmm::device_uvector<vertex_t> tmp_labels(num_edgelist_edges, handle.get_stream());
-  thrust::copy(rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
-               edgelist_major_vertices,
-               edgelist_major_vertices + num_edgelist_edges,
-               tmp_labels.begin());
-  thrust::sort(rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
-               tmp_labels.begin(),
-               tmp_labels.end());
-  rmm::device_uvector<vertex_t> major_labels(tmp_labels.size(), handle.get_stream());
-  rmm::device_uvector<edge_t> major_counts(major_labels.size(), handle.get_stream());
-  auto major_pair_it =
-    thrust::reduce_by_key(rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
-                          tmp_labels.begin(),
-                          tmp_labels.end(),
-                          thrust::make_constant_iterator(edge_t{1}),
-                          major_labels.begin(),
-                          major_counts.begin());
-  tmp_labels.resize(0, handle.get_stream());
-  tmp_labels.shrink_to_fit(handle.get_stream());
-  major_labels.resize(thrust::distance(major_labels.begin(), thrust::get<0>(major_pair_it)),
-                      handle.get_stream());
-  major_counts.resize(major_labels.size(), handle.get_stream());
-  major_labels.shrink_to_fit(handle.get_stream());
-  major_counts.shrink_to_fit(handle.get_stream());
+  rmm::device_uvector<vertex_t> major_labels(0, handle.get_stream());
+  rmm::device_uvector<edge_t> major_counts(0, handle.get_stream());
+  {
+    rmm::device_uvector<vertex_t> tmp_labels(num_edgelist_edges, handle.get_stream());
+    thrust::copy(rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
+                 edgelist_major_vertices,
+                 edgelist_major_vertices + num_edgelist_edges,
+                 tmp_labels.begin());
+    thrust::sort(rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
+                 tmp_labels.begin(),
+                 tmp_labels.end());
+    auto num_unique_labels =
+      thrust::count_if(rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
+                       thrust::make_counting_iterator(size_t{0}),
+                       thrust::make_counting_iterator(tmp_labels.size()),
+                       [labels = tmp_labels.data()] __device__(auto i) {
+                         return (i == 0) || (labels[i - 1] != labels[i]);
+                       });
+    major_labels.resize(num_unique_labels, handle.get_stream());
+    major_counts.resize(major_labels.size(), handle.get_stream());
+    auto major_pair_it =
+      thrust::reduce_by_key(rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
+                            tmp_labels.begin(),
+                            tmp_labels.end(),
+                            thrust::make_constant_iterator(edge_t{1}),
+                            major_labels.begin(),
+                            major_counts.begin());
+  }
 
   // 2. acquire unique minor labels
 

@@ -133,6 +133,7 @@ void sort_and_coarsen_edgelist(rmm::device_uvector<vertex_t> &edgelist_major_ver
     number_of_edges = thrust::distance(pair_first, it);
   }
 
+  // FIXME: we might be able to avoid this resize (and cut memory footprint)
   edgelist_major_vertices.resize(number_of_edges, stream);
   edgelist_minor_vertices.resize(number_of_edges, stream);
   edgelist_weights.resize(number_of_edges, stream);
