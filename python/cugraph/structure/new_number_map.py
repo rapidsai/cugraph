@@ -81,7 +81,6 @@ class NumberMap:
                     copy=False,
                 )
 
-
     class MultiGPU:
         def __init__(
             self, ddf, src_col_names, dst_col_names, id_type, store_transposed
@@ -158,19 +157,20 @@ class NumberMap:
 
         if isinstance(src_col_names, list):
             renumber_type = 'legacy'
-        #elif isinstance(df[src_col_names].dtype, string):
+        # elif isinstance(df[src_col_names].dtype, string):
         #    renumber_type = 'legacy'
         else:
             renumber_type = 'experimental'
 
         if renumber_type == 'legacy':
-            renumber_map, renumbered_df = legacy_number_map.renumber(df,
+            renumber_map, renumbered_df = legacy_number_map.renumber(
+                                              df,
                                               src_col_names,
                                               dst_col_names,
                                               preserve_order,
                                               store_transposed)
-            ## Add shuffling once algorithms are switched to new renumber
-            #(ddf,
+            # Add shuffling once algorithms are switched to new renumber
+            # (ddf,
             # num_verts,
             # partition_row_size,
             # partition_col_size,

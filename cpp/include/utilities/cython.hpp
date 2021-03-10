@@ -190,10 +190,7 @@ struct major_minor_weights_t {
 //
 template <typename vertex_t, typename edge_t>
 struct renum_quad_t {
-  explicit renum_quad_t(raft::handle_t const& handle)
-    : dv_(0, handle.get_stream()), part_()
-  {
-  }
+  explicit renum_quad_t(raft::handle_t const& handle) : dv_(0, handle.get_stream()), part_() {}
 
   rmm::device_uvector<vertex_t>& get_dv(void) { return dv_; }
 

@@ -765,7 +765,7 @@ std::unique_ptr<major_minor_weights_t<vertex_t, weight_t>> call_shuffle(
   std::unique_ptr<major_minor_weights_t<vertex_t, weight_t>> ptr_ret =
     std::make_unique<major_minor_weights_t<vertex_t, weight_t>>(handle);
 
-  if(edgelist_weights != nullptr) {
+  if (edgelist_weights != nullptr) {
     auto zip_edge = thrust::make_zip_iterator(
       thrust::make_tuple(edgelist_major_vertices, edgelist_minor_vertices, edgelist_weights));
 
@@ -785,14 +785,12 @@ std::unique_ptr<major_minor_weights_t<vertex_t, weight_t>> call_shuffle(
           return key_func(thrust::get<0>(val), thrust::get<1>(val));
         },
         handle.get_stream());
-  }
-  else {
+  } else {
     auto zip_edge = thrust::make_zip_iterator(
       thrust::make_tuple(edgelist_major_vertices, edgelist_minor_vertices));
-  
-    std::forward_as_tuple(
-      std::tie(ptr_ret->get_major(), ptr_ret->get_minor()),
-      std::ignore) =
+
+    std::forward_as_tuple(std::tie(ptr_ret->get_major(), ptr_ret->get_minor()),
+                          std::ignore) =
       cugraph::experimental::groupby_gpuid_and_shuffle_values(
         comm,  // handle.get_comms(),
         zip_edge,
