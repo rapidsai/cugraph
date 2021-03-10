@@ -22,12 +22,15 @@
 #include <experimental/shuffle.cuh>
 #include <utilities/graph_utils.cuh>
 
+#include <raft/device_atomics.cuh>
 #include <raft/handle.hpp>
 #include <rmm/device_uvector.hpp>
 
-#include <raft/device_atomics.cuh>
+#include <thrust/copy.h>
+#include <thrust/find.h>
+#include <thrust/iterator/constant_iterator.h>
 
-#include <experimental/include_cuco_static_map.cuh>
+//#include <experimental/include_cuco_static_map.cuh>
 
 #include <type_traits>
 
@@ -35,6 +38,59 @@ namespace cugraph {
 namespace experimental {
 
 namespace detail {
+
+// class abstracting the RW stepping algorithm:
+//
+template <typename graph_t, typename random_engine_t>
+struct random_walker_t {
+  static_assert(std::is_trivially_copyable<random_engine_t>::value,
+                "random engine assumed trivially copyable.");
+
+  using vertex_t = typename graph_t::vertex_type;
+  using weight_t = typename graph_t::weight_type;
+
+  random_walker_t(raft::handle_t const& handle,
+                  size_t nPaths,
+                  vertex_t* ptr_d_current_vertices,
+                  random_engine_t const& rnd)
+    : handle_(handle),
+      num_paths_(nPaths),
+      ptr_d_vertex_set_(ptr_d_current_vertices),
+      d_v_stopped_{nPaths, handle_.get_stream()},
+      rnd_(rnd)
+  {
+    // init d_v_stopped_ to {0} (i.e., no path is stopped):
+    //
+    thrust::copy_n(rmm::exec_policy(handle_.get_stream())->on(handle_.get_stream()),
+                   thrust::make_constant_iterator(0),
+                   nPaths,
+                   d_v_stopped_.begin());
+  }
+
+  // TODO: take one step in sync for all paths:
+  //
+  void step(void) {}
+
+  bool all_stopped(void) const
+  {
+    auto pos = thrust::find(rmm::exec_policy(handle_.get_stream())->on(handle_.get_stream()),
+                            d_v_stopped_.begin(),
+                            d_v_stopped_.end(),
+                            0);
+
+    if (pos != d_v_stopped_.end())
+      return false;
+    else
+      return true;
+  }
+
+ private:
+  raft::handle_t const& handle_;
+  size_t num_paths_;
+  vertex_t* ptr_d_vertex_set_;
+  rmm::device_uvector<int> d_v_stopped_;  // keeps track of paths that stopped (==1)
+  random_engine_t rnd_;
+};
 
 /**
  * @brief returns random walks (RW) from starting sources, where each path is of given maximum
@@ -65,7 +121,32 @@ random_walks(raft::handle_t const& handle,
              graph_t const& graph,
              std::vector<typename graph_t::vertex_type> const& start_vertex_set,
              size_t max_depth,
-             random_engine_t& rnd_engine);
+             random_engine_t& rnd_engine)
+{
+  using vertex_t = typename graph_t::vertex_type;
+  using weight_t = typename graph_t::weight_type;
+
+  // TODO: Potentially this might change, if it's decided to pass the
+  // starting vector directly on device...
+  //
+  auto nPaths = start_vertex_set.size();
+  auto stream = handle.get_stream();
+
+  rmm::device_uvector<vertex_t> d_v_start{nPaths, stream};
+
+  // Copy starting set on device:
+  //
+  CUDA_TRY(cudaMemcpyAsync(d_v_start.data(),
+                           start_vertex_set.data(),
+                           nPaths * sizeof(vertex_t),
+                           cudaMemcpyHostToDevice,
+                           stream));
+
+  cudaStreamSynchronize(stream);
+
+  random_walker_t<graph_t, random_engine_t> rand_walker{
+    handle, nPaths, d_v_start.data(), rnd_engine};
+}
 
 /**
  * @brief returns random walks (RW) from starting sources, where each path is of given maximum
