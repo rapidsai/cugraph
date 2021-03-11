@@ -148,6 +148,17 @@ Force Atlas 2
     :undoc-members:
 
 
+linear_assignment
+=================
+
+Hungarian
+-------------
+
+.. automodule:: cugraph.linear_assignment.hungarian
+    :members:
+    :undoc-members:
+
+
 Link Analysis
 =============
 
