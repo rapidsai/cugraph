@@ -148,7 +148,7 @@ Force Atlas 2
     :undoc-members:
 
 
-linear_assignment
+Linear Assignment
 =================
 
 Hungarian
