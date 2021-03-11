@@ -387,6 +387,9 @@ void copy_v_transform_reduce_nbr(raft::handle_t const& handle,
     }
     auto segment_offsets = graph_view.get_local_adj_matrix_partition_segment_offsets(i);
     if (segment_offsets.size() > 0) {
+      // FIXME: we may further improve performance by 1) concurrently running kernels on different
+      // segments; 2) individually tuning block sizes for different segments; and 3) adding one more
+      // segment for very high degree vertices and running segmented reduction
       static_assert(detail::num_segments_per_vertex_partition == 3);
       if (segment_offsets[1] > 0) {
         raft::grid_1d_warp_t update_grid(segment_offsets[1],
