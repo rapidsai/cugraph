@@ -40,19 +40,9 @@ namespace experimental {
  * or multi-GPU (true).
  * @param handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator, and
  * handles to various CUDA libraries) to run graph algorithms.
- * @param edgelist_major_vertices Edge source vertex IDs (if the graph adjacency matrix is stored as
- * is) or edge destination vertex IDs (if the transposed graph adjacency matrix is stored). Vertex
- * IDs are updated in-place ([INOUT] parameter). Applying the compute_gpu_id_from_edge_t functor to
- * every (major, minor) pair should return the local GPU ID for this function to work (edges should
- * be pre-shuffled).
- * @param edgelist_minor_vertices Edge destination vertex IDs (if the graph adjacency matrix is
- * stored as is) or edge source vertex IDs (if the transposed graph adjacency matrix is stored).
- * Vertex IDs are updated in-place ([INOUT] parameter). Applying the compute_gpu_id_from_edge_t
- * functor to every (major, minor) pair should return the local GPU ID for this function to work
- * (edges should be pre-shuffled).
- * @param num_edgelist_edges Number of edges in the edgelist.
- * @param is_hypergraph_partitioned Flag indicating whether we are assuming hypergraph partitioning
- * (this flag will be removed in the future).
+ * @param edgelist_major_vertices Pointers (one pointer per local graph adjacency matrix partition assigned to this process) to edge source vertex IDs (if the graph adjacency matrix is stored as is) or edge destination vertex IDs (if the transposed graph adjacency matrix is stored). Vertex IDs are updated in-place ([INOUT] parameter). Edges should be pre-shuffled to their final target process & matrix partition; i.e. applying the compute_gpu_id_from_edge_t functor to every (major, minor) pair should return the GPU ID of this process and applying the compute_partition_id_from_edge_t fuctor to every (major, minor) pair for a local matrix partition should return the partition ID of the corresponding matrix partition.
+ * @param edgelist_minor_vertices Pointers (one pointer per local graph adjacency matrix partition assigned to this process) to edge destination vertex IDs (if the graph adjacency matrix is stored as is) or edge source vertex IDs (if the transposed graph adjacency matrix is stored). Vertex IDs are updated in-place ([INOUT] parameter). Edges should be pre-shuffled to their final target process & matrix partition; i.e. applying the compute_gpu_id_from_edge_t functor to every (major, minor) pair should return the GPU ID of this process and applying the compute_partition_id_from_edge_t fuctor to every (major, minor) pair for a local matrix partition should return the partition ID of the corresponding matrix partition.
+ * @param edgelist_edge_counts Edge counts (one count per local graph adjacency matrix partition assigned to this process).
  * @param do_expensive_check A flag to run expensive checks for input arguments (if set to `true`).
  * @return std::tuple<rmm::device_uvector<vertex_t>, partition_t<vertex_t>, vertex_t, edge_t>
  * Quadruplet of labels (vertex IDs before renumbering) for the entire set of vertices (assigned to
@@ -63,10 +53,9 @@ template <typename vertex_t, typename edge_t, bool multi_gpu>
 std::enable_if_t<multi_gpu,
                  std::tuple<rmm::device_uvector<vertex_t>, partition_t<vertex_t>, vertex_t, edge_t>>
 renumber_edgelist(raft::handle_t const& handle,
-                  vertex_t* edgelist_major_vertices /* [INOUT] */,
-                  vertex_t* edgelist_minor_vertices /* [INOUT] */,
-                  edge_t num_edgelist_edges,
-                  bool is_hypergraph_partitioned,
+                  std::vector<vertex_t*> const& edgelist_major_vertices /* [INOUT] */,
+                  std::vector<vertex_t*> const& edgelist_minor_vertices /* [INOUT] */,
+                  std::vector<edge_t> const& num_edgelist_edges,
                   bool do_expensive_check = false);
 
 /**
@@ -115,19 +104,9 @@ std::enable_if_t<!multi_gpu, rmm::device_uvector<vertex_t>> renumber_edgelist(
  * the compute_gpu_id_from_vertex_t to every vertex should return the local GPU ID for this function
  * to work (vertices should be pre-shuffled).
  * @param num_local_vertices Number of local vertices.
- * @param edgelist_major_vertices Edge source vertex IDs (if the graph adjacency matrix is stored as
- * is) or edge destination vertex IDs (if the transposed graph adjacency matrix is stored). Vertex
- * IDs are updated in-place ([INOUT] parameter). Applying the compute_gpu_id_from_edge_t functor to
- * every (major, minor) pair should return the local GPU ID for this function to work (edges should
- * be pre-shuffled).
- * @param edgelist_minor_vertices Edge destination vertex IDs (if the graph adjacency matrix is
- * stored as is) or edge source vertex IDs (if the transposed graph adjacency matrix is stored).
- * Vertex IDs are updated in-place ([INOUT] parameter). Applying the compute_gpu_id_from_edge_t
- * functor to every (major, minor) pair should return the local GPU ID for this function to work
- * (edges should be pre-shuffled).
- * @param num_edgelist_edges Number of edges in the edgelist.
- * @param is_hypergraph_partitioned Flag indicating whether we are assuming hypergraph partitioning
- * (this flag will be removed in the future).
+ * @param edgelist_major_vertices Pointers (one pointer per local graph adjacency matrix partition assigned to this process) to edge source vertex IDs (if the graph adjacency matrix is stored as is) or edge destination vertex IDs (if the transposed graph adjacency matrix is stored). Vertex IDs are updated in-place ([INOUT] parameter). Edges should be pre-shuffled to their final target process & matrix partition; i.e. applying the compute_gpu_id_from_edge_t functor to every (major, minor) pair should return the GPU ID of this process and applying the compute_partition_id_from_edge_t fuctor to every (major, minor) pair for a local matrix partition should return the partition ID of the corresponding matrix partition.
+ * @param edgelist_minor_vertices Pointers (one pointer per local graph adjacency matrix partition assigned to this process) to edge destination vertex IDs (if the graph adjacency matrix is stored as is) or edge source vertex IDs (if the transposed graph adjacency matrix is stored). Vertex IDs are updated in-place ([INOUT] parameter). Edges should be pre-shuffled to their final target process & matrix partition; i.e. applying the compute_gpu_id_from_edge_t functor to every (major, minor) pair should return the GPU ID of this process and applying the compute_partition_id_from_edge_t fuctor to every (major, minor) pair for a local matrix partition should return the partition ID of the corresponding matrix partition.
+ * @param edgelist_edge_counts Edge counts (one count per local graph adjacency matrix partition assigned to this process).
  * @param do_expensive_check A flag to run expensive checks for input arguments (if set to `true`).
  * @return std::tuple<rmm::device_uvector<vertex_t>, partition_t<vertex_t>, vertex_t, edge_t>
  * Quadruplet of labels (vertex IDs before renumbering) for the entire set of vertices (assigned to
@@ -140,10 +119,9 @@ std::enable_if_t<multi_gpu,
 renumber_edgelist(raft::handle_t const& handle,
                   vertex_t const* local_vertices,
                   vertex_t num_local_vertices,
-                  vertex_t* edgelist_major_vertices /* [INOUT] */,
-                  vertex_t* edgelist_minor_vertices /* [INOUT] */,
-                  edge_t num_edgelist_edges,
-                  bool is_hypergraph_partitioned,
+                  std::vector<vertex_t*> const& edgelist_major_vertices /* [INOUT] */,
+                  std::vector<vertex_t*> const& edgelist_minor_vertices /* [INOUT] */,
+                  std::vector<edge_t> const& num_edgelist_edges,
                   bool do_expensive_check = false);
 
 /**

@@ -18,6 +18,7 @@
 #include <experimental/detail/graph_utils.cuh>
 #include <experimental/graph_functions.hpp>
 #include <utilities/error.hpp>
+#include <utilities/shuffle_comm.cuh>
 
 #include <rmm/thrust_rmm_allocator.h>
 
@@ -75,7 +76,7 @@ generate_graph_from_edgelist(raft::handle_t const& handle,
   vertices.shrink_to_fit(handle.get_stream());
 
   auto edge_key_func = cugraph::experimental::detail::compute_gpu_id_from_edge_t<vertex_t>{
-    false, comm_size, row_comm_size, col_comm_size};
+    comm_size, row_comm_size, col_comm_size};
   size_t number_of_local_edges{};
   if (test_weighted) {
     auto edge_first = thrust::make_zip_iterator(
@@ -114,22 +115,68 @@ generate_graph_from_edgelist(raft::handle_t const& handle,
     edgelist_weights.shrink_to_fit(handle.get_stream());
   }
 
+  auto local_partition_id_op =
+    [comm_size,
+     key_func = cugraph::experimental::detail::compute_partition_id_from_edge_t<vertex_t>{
+       comm_size, row_comm_size, col_comm_size}] __device__(auto pair) {
+      return key_func(thrust::get<0>(pair), thrust::get<1>(pair)) /
+             comm_size;  // global partition id to local partition id
+    };
+  auto pair_first =
+    store_transposed
+      ? thrust::make_zip_iterator(thrust::make_tuple(edgelist_cols.begin(), edgelist_rows.begin()))
+      : thrust::make_zip_iterator(thrust::make_tuple(edgelist_rows.begin(), edgelist_cols.begin()));
+  auto displacements =
+    test_weighted ? cugraph::experimental::groupby_and_count(pair_first,
+                                                             pair_first + edgelist_rows.size(),
+                                                             edgelist_weights.begin(),
+                                                             local_partition_id_op,
+                                                             col_comm_size,
+                                                             handle.get_stream())
+                  : cugraph::experimental::groupby_and_count(pair_first,
+                                                             pair_first + edgelist_rows.size(),
+                                                             local_partition_id_op,
+                                                             col_comm_size,
+                                                             handle.get_stream());
+  thrust::exclusive_scan(rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
+                         displacements.begin(),
+                         displacements.end(),
+                         displacements.begin());
+
+  std::vector<size_t> h_displacements(displacements.size());
+  raft::update_host(
+    h_displacements.data(), displacements.data(), displacements.size(), handle.get_stream());
+  CUDA_TRY(cudaStreamSynchronize(handle.get_stream()));
+
   // 3. renumber
 
   rmm::device_uvector<vertex_t> renumber_map_labels(0, handle.get_stream());
   cugraph::experimental::partition_t<vertex_t> partition{};
   vertex_t aggregate_number_of_vertices{};
   edge_t number_of_edges{};
-  std::tie(renumber_map_labels, partition, aggregate_number_of_vertices, number_of_edges) =
-    cugraph::experimental::renumber_edgelist<vertex_t, edge_t, multi_gpu>(
-      handle,
-      vertices.data(),
-      static_cast<vertex_t>(vertices.size()),
-      store_transposed ? edgelist_cols.data() : edgelist_rows.data(),
-      store_transposed ? edgelist_rows.data() : edgelist_cols.data(),
-      edgelist_rows.size(),
-      false);
-  assert(aggregate_number_of_vertices == number_of_vertices);
+  {
+    std::vector<vertex_t*> major_ptrs(edgelist_rows.size());
+    std::vector<vertex_t*> minor_ptrs(major_ptrs.size());
+    std::vector<edge_t> counts(major_ptrs.size());
+    for (size_t i = 0; i < edgelist_rows.size(); ++i) {
+      major_ptrs[i] =
+        (store_transposed ? edgelist_cols.begin() : edgelist_rows.begin()) + h_displacements[i];
+      minor_ptrs[i] =
+        (store_transposed ? edgelist_rows.begin() : edgelist_cols.begin()) + h_displacements[i];
+      counts[i] = static_cast<edge_t>(
+        ((i == edgelist_rows.size() - 1) ? edgelist_rows.size() : h_displacements[i + 1]) -
+        h_displacements[i]);
+    }
+    std::tie(renumber_map_labels, partition, aggregate_number_of_vertices, number_of_edges) =
+      cugraph::experimental::renumber_edgelist<vertex_t, edge_t, multi_gpu>(
+        handle,
+        vertices.data(),
+        static_cast<vertex_t>(vertices.size()),
+        major_ptrs,
+        minor_ptrs,
+        counts);
+    assert(aggregate_number_of_vertices == number_of_vertices);
+  }
 
   // 4. create a graph
 

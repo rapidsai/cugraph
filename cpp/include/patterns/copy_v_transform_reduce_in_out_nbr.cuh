@@ -308,16 +308,6 @@ void copy_v_transform_reduce_nbr(raft::handle_t const& handle,
 
   static_assert(is_arithmetic_or_thrust_tuple_of_arithmetic<T>::value);
 
-  auto loop_count = size_t{1};
-  if (GraphViewType::is_multi_gpu) {
-    auto& row_comm           = handle.get_subcomm(cugraph::partition_2d::key_naming_t().row_name());
-    auto const row_comm_size = row_comm.get_size();
-    loop_count               = graph_view.is_hypergraph_partitioned()
-                   ? graph_view.get_number_of_local_adj_matrix_partitions()
-                   : static_cast<size_t>(row_comm_size);
-  }
-  auto comm_rank = handle.comms_initialized() ? handle.get_comms().get_rank() : int{0};
-
   auto minor_tmp_buffer_size =
     (GraphViewType::is_multi_gpu && (in != GraphViewType::is_adj_matrix_transposed))
       ? GraphViewType::is_adj_matrix_transposed
@@ -332,10 +322,7 @@ void copy_v_transform_reduce_nbr(raft::handle_t const& handle,
     if (GraphViewType::is_multi_gpu) {
       auto& row_comm = handle.get_subcomm(cugraph::partition_2d::key_naming_t().row_name());
       auto const row_comm_rank = row_comm.get_rank();
-      auto& col_comm = handle.get_subcomm(cugraph::partition_2d::key_naming_t().col_name());
-      auto const col_comm_rank = col_comm.get_rank();
-      minor_init = graph_view.is_hypergraph_partitioned() ? (row_comm_rank == 0) ? init : T{}
-                                                          : (col_comm_rank == 0) ? init : T{};
+      minor_init               = (row_comm_rank == 0) ? init : T {};
     }
 
     if (GraphViewType::is_multi_gpu) {
@@ -353,24 +340,13 @@ void copy_v_transform_reduce_nbr(raft::handle_t const& handle,
     assert(minor_tmp_buffer_size == 0);
   }
 
-  for (size_t i = 0; i < loop_count; ++i) {
-    matrix_partition_device_t<GraphViewType> matrix_partition(
-      graph_view, (GraphViewType::is_multi_gpu && !graph_view.is_hypergraph_partitioned()) ? 0 : i);
+  for (size_t i = 0; i < graph_view.get_number_of_local_adj_matrix_partitions(); ++i) {
+    matrix_partition_device_t<GraphViewType> matrix_partition(graph_view, i);
 
-    auto major_tmp_buffer_size = vertex_t{0};
-    if (GraphViewType::is_multi_gpu) {
-      auto& row_comm = handle.get_subcomm(cugraph::partition_2d::key_naming_t().row_name());
-      auto const row_comm_size = row_comm.get_size();
-      auto& col_comm = handle.get_subcomm(cugraph::partition_2d::key_naming_t().col_name());
-      auto const col_comm_rank = col_comm.get_rank();
-
-      major_tmp_buffer_size =
-        (in == GraphViewType::is_adj_matrix_transposed)
-          ? graph_view.is_hypergraph_partitioned()
-              ? matrix_partition.get_major_size()
-              : graph_view.get_vertex_partition_size(col_comm_rank * row_comm_size + i)
-          : vertex_t{0};
-    }
+    auto major_tmp_buffer_size =
+      GraphViewType::is_multi_gpu && (in == GraphViewType::is_adj_matrix_transposed)
+        ? matrix_partition.get_major_size()
+        : vertex_t{0};
     auto major_tmp_buffer =
       allocate_dataframe_buffer<T>(major_tmp_buffer_size, handle.get_stream());
     auto major_buffer_first = get_dataframe_buffer_begin<T>(major_tmp_buffer);
@@ -378,12 +354,9 @@ void copy_v_transform_reduce_nbr(raft::handle_t const& handle,
     auto major_init = T{};
     if (in == GraphViewType::is_adj_matrix_transposed) {
       if (GraphViewType::is_multi_gpu) {
-        auto& row_comm = handle.get_subcomm(cugraph::partition_2d::key_naming_t().row_name());
-        auto const row_comm_rank = row_comm.get_rank();
         auto& col_comm = handle.get_subcomm(cugraph::partition_2d::key_naming_t().col_name());
         auto const col_comm_rank = col_comm.get_rank();
-        major_init = graph_view.is_hypergraph_partitioned() ? (col_comm_rank == 0) ? init : T{}
-                                                            : (row_comm_rank == 0) ? init : T{};
+        major_init               = (col_comm_rank == 0) ? init : T{};
       } else {
         major_init = init;
       }
@@ -396,8 +369,7 @@ void copy_v_transform_reduce_nbr(raft::handle_t const& handle,
       auto const row_comm_size = row_comm.get_size();
       auto& col_comm = handle.get_subcomm(cugraph::partition_2d::key_naming_t().col_name());
       auto const col_comm_rank = col_comm.get_rank();
-      comm_root_rank = graph_view.is_hypergraph_partitioned() ? i * row_comm_size + row_comm_rank
-                                                              : col_comm_rank * row_comm_size + i;
+      comm_root_rank           = i * row_comm_size + row_comm_rank;
     }
 
     if (graph_view.get_vertex_partition_size(comm_root_rank) > 0) {
@@ -451,25 +423,14 @@ void copy_v_transform_reduce_nbr(raft::handle_t const& handle,
       auto const col_comm_rank = col_comm.get_rank();
       auto const col_comm_size = col_comm.get_size();
 
-      if (graph_view.is_hypergraph_partitioned()) {
-        device_reduce(
-          col_comm,
-          major_buffer_first,
-          vertex_value_output_first,
-          static_cast<size_t>(graph_view.get_vertex_partition_size(i * row_comm_size + i)),
-          raft::comms::op_t::SUM,
-          i,
-          handle.get_stream());
-      } else {
-        device_reduce(row_comm,
-                      major_buffer_first,
-                      vertex_value_output_first,
-                      static_cast<size_t>(
-                        graph_view.get_vertex_partition_size(col_comm_rank * row_comm_size + i)),
-                      raft::comms::op_t::SUM,
-                      i,
-                      handle.get_stream());
-      }
+      device_reduce(
+        col_comm,
+        major_buffer_first,
+        vertex_value_output_first,
+        static_cast<size_t>(graph_view.get_vertex_partition_size(i * row_comm_size + i)),
+        raft::comms::op_t::SUM,
+        i,
+        handle.get_stream());
     }
   }
 
@@ -483,53 +444,17 @@ void copy_v_transform_reduce_nbr(raft::handle_t const& handle,
     auto const col_comm_rank = col_comm.get_rank();
     auto const col_comm_size = col_comm.get_size();
 
-    if (graph_view.is_hypergraph_partitioned()) {
-      CUGRAPH_FAIL("unimplemented.");
-    } else {
-      for (int i = 0; i < col_comm_size; ++i) {
-        auto offset = (graph_view.get_vertex_partition_first(row_comm_rank * col_comm_size + i) -
-                       graph_view.get_vertex_partition_first(row_comm_rank * col_comm_size));
-        auto size   = static_cast<size_t>(
-          graph_view.get_vertex_partition_size(row_comm_rank * col_comm_size + i));
-        device_reduce(col_comm,
-                      minor_buffer_first + offset,
-                      minor_buffer_first + offset,
-                      size,
-                      raft::comms::op_t::SUM,
-                      i,
-                      handle.get_stream());
-      }
-
-      // FIXME: this P2P is unnecessary if we apply the partitioning scheme used with hypergraph
-      // partitioning
-      auto comm_src_rank = (comm_rank % col_comm_size) * row_comm_size + comm_rank / col_comm_size;
-      auto comm_dst_rank = row_comm_rank * col_comm_size + col_comm_rank;
-      // FIXME: this branch may no longer necessary with NCCL backend
-      if (comm_src_rank == comm_rank) {
-        assert(comm_dst_rank == comm_rank);
-        auto offset =
-          graph_view.get_vertex_partition_first(row_comm_rank * col_comm_size + col_comm_rank) -
-          graph_view.get_vertex_partition_first(row_comm_rank * col_comm_size);
-        auto size = static_cast<size_t>(
-          graph_view.get_vertex_partition_size(row_comm_rank * col_comm_size + col_comm_rank));
-        thrust::copy(rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
-                     minor_buffer_first + offset,
-                     minor_buffer_first + offset + size,
-                     vertex_value_output_first);
-      } else {
-        device_sendrecv<decltype(minor_buffer_first), VertexValueOutputIterator>(
-          comm,
-          minor_buffer_first +
-            (graph_view.get_vertex_partition_first(row_comm_rank * col_comm_size + col_comm_rank) -
-             graph_view.get_vertex_partition_first(row_comm_rank * col_comm_size)),
-          static_cast<size_t>(
-            graph_view.get_vertex_partition_size(row_comm_rank * col_comm_size + col_comm_rank)),
-          comm_dst_rank,
-          vertex_value_output_first,
-          static_cast<size_t>(graph_view.get_vertex_partition_size(comm_rank)),
-          comm_src_rank,
-          handle.get_stream());
-      }
+    for (int i = 0; i < row_comm_size; ++i) {
+      auto offset = (graph_view.get_vertex_partition_first(col_comm_rank * row_comm_size + i) -
+                     graph_view.get_vertex_partition_first(col_comm_rank * row_comm_size));
+      device_reduce(row_comm,
+                    minor_buffer_first + offset,
+                    vertex_value_output_first,
+                    static_cast<size_t>(
+                      graph_view.get_vertex_partition_size(col_comm_rank * row_comm_size + i)),
+                    raft::comms::op_t::SUM,
+                    i,
+                    handle.get_stream());
     }
   }
 }
