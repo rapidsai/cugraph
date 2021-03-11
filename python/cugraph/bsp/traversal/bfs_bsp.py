@@ -11,7 +11,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-
+import warnings
 import cudf
 from collections import OrderedDict
 
@@ -58,6 +58,12 @@ def bfs_df_pregel(_df, start, src_col='src', dst_col='dst', copy_data=True):
     >>> df = cugraph.pregel_bfs(data_df, 1, '0', '1')
 
     """
+
+    warnings.warn(
+            "This feature is deprecated and will be"
+            "dropped from cuGraph in release 0.20.",
+            FutureWarning,
+        )
 
     # extract the src and dst into a dataframe that can be modified
     if copy_data:
