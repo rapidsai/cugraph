@@ -55,7 +55,7 @@ std::enable_if_t<multi_gpu,
 renumber_edgelist(raft::handle_t const& handle,
                   std::vector<vertex_t*> const& edgelist_major_vertices /* [INOUT] */,
                   std::vector<vertex_t*> const& edgelist_minor_vertices /* [INOUT] */,
-                  std::vector<edge_t> const& num_edgelist_edges,
+                  std::vector<edge_t> const& edgelist_edge_counts,
                   bool do_expensive_check = false);
 
 /**
@@ -121,7 +121,7 @@ renumber_edgelist(raft::handle_t const& handle,
                   vertex_t num_local_vertices,
                   std::vector<vertex_t*> const& edgelist_major_vertices /* [INOUT] */,
                   std::vector<vertex_t*> const& edgelist_minor_vertices /* [INOUT] */,
-                  std::vector<edge_t> const& num_edgelist_edges,
+                  std::vector<edge_t> const& edgelist_edge_counts,
                   bool do_expensive_check = false);
 
 /**
