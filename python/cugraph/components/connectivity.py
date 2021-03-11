@@ -378,7 +378,7 @@ def connected_components(G,
                           header=None)
     >>> G = cugraph.Graph()
     >>> G.from_cudf_edgelist(M, source='0', destination='1', edge_attr=None)
-    >>> df = cugraph.strongly_connected_components(G)
+    >>> df = cugraph.connected_components(G, connection="weak")
     """
     if connection == "weak":
         return weakly_connected_components(G, directed,
