@@ -25,9 +25,9 @@ The datasets below was added to check for coverage where some of them include se
 | Graph         | V       | E          | Directed | Weighted | self-loops | Isolated V | String V IDs |  
 | ------------- | ------- | --------   | -------- | -------- | ---------- | ---------- | ------------ | 
 | ca-AstroPh    | 18,772  | 198,110    | No       | No       | Yes         | No        | No           |
-| ca-CondMat    | 23,133  | 93,497     | No       | No       | Yes         | No        | No           |
+| ca-CondMat    | 23,133  | 93,497     | No       | Yes       | Yes         | No        | No           |
 | ca-GrQc       | 5,242   | 14,387     | No       | No       | Yes         | No        | No           |
-| ca-HepTh      | 9,877   | 25,998     | No       | No       | Yes         | No        | No           | 
+| ca-HepTh      | 9,877   | 25,998     | No       | Yes      | Yes         | No        | No           | 
 | karate_mod    | 43      | 81         | No       | No       | No          | Yes       | Yes          |
 | karate_str    | 34      | 78         | No       | No       | No          | No        | Yes          |
 ​

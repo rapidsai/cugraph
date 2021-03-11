@@ -50,6 +50,8 @@ https://rapidsai-data.s3.us-east-2.amazonaws.com/cugraph/test/tsplib/datasets.ta
 tsplib
 "
 
+
+
 EXTENDED_DATASET_DATA="
 # ~42s download - tests using this dataset are currently not run in test.sh with --quick
 https://s3.us-east-2.amazonaws.com/rapidsai-data/cugraph/benchmark/hibench/hibench_1_huge.tgz
@@ -61,6 +63,12 @@ BENCHMARK_DATASET_DATA="
 https://rapidsai-data.s3.us-east-2.amazonaws.com/cugraph/benchmark/benchmark_csv_data.tgz
 csv
 "
+
+SELF_LOOPS_DATASET_DATA="
+# ~2s download 
+https://rapidsai-data.s3.us-east-2.amazonaws.com/cugraph/benchmark/benchmark_csv_data_self_loops.tgz
+self_loops
+"
 ################################################################################
 # Do not change the script below this line if only adding/updating a dataset
 
@@ -71,7 +79,7 @@ function hasArg {
 }
 
 if hasArg -h || hasArg --help; then
-    echo "$0 [--subset | --benchmark]"
+    echo "$0 [--subset | --benchmark | --self_loops]"
     exit 0
 fi
 
@@ -80,6 +88,8 @@ if hasArg "--benchmark"; then
     DATASET_DATA="${BENCHMARK_DATASET_DATA}"
 elif hasArg "--subset"; then
     DATASET_DATA="${BASE_DATASET_DATA}"
+elif hasArg "--self_loops"; then 
+    DATASET_DATA="${SELF_LOOPS_DATASET_DATA}"
 # Do not include benchmark datasets by default - too big
 else
     DATASET_DATA="${BASE_DATASET_DATA} ${EXTENDED_DATASET_DATA}"
