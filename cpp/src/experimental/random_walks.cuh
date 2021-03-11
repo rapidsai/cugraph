@@ -18,8 +18,8 @@
 #include <experimental/graph.hpp>
 
 #include <rmm/thrust_rmm_allocator.h>
-#include <compute_partition.cuh>
-#include <experimental/shuffle.cuh>
+//#include <compute_partition.cuh>
+//#include <experimental/shuffle.cuh>
 #include <utilities/graph_utils.cuh>
 
 #include <raft/device_atomics.cuh>
@@ -32,6 +32,7 @@
 
 //#include <experimental/include_cuco_static_map.cuh>
 
+#include <tuple>
 #include <type_traits>
 
 namespace cugraph {
@@ -167,7 +168,7 @@ random_walks(raft::handle_t const& handle,
   rmm::device_uvector<weight_t> d_v_paths_w_set{coalesced_sz, stream};  // coalesced weight set
   rmm::device_uvector<size_t> d_v_paths_sz{nPaths, stream};             // paths sizes
 
-  for (auto step_indx = 0; step_indx < max_depth; ++step_indx) {
+  for (decltype(max_depth) step_indx = 0; step_indx < max_depth; ++step_indx) {
     rand_walker.step(d_v_paths_v_set, d_v_paths_w_set, d_v_paths_sz);
 
     // early exit: all paths have reached sinks:
@@ -177,6 +178,11 @@ random_walks(raft::handle_t const& handle,
 
   // TODO: truncate v_set, w_set to actaual space used:
   //
+
+  // because device_uvector is not copy-cnstr-able:
+  //
+  return std::make_tuple(
+    std::move(d_v_paths_v_set), std::move(d_v_paths_w_set), std::move(d_v_paths_sz));
 }
 
 /**
@@ -208,7 +214,10 @@ random_walks(raft::handle_t const& handle,
              graph_t const& graph,
              std::vector<typename graph_t::vertex_type> const& start_vertex_set,
              size_t max_depth,
-             random_engine_t& rnd_engine);
+             random_engine_t& rnd_engine)
+{
+  CUGRAPH_FAIL("Not implemented yet.");
+}
 
 }  // namespace detail
 
