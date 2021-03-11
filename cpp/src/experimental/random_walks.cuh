@@ -152,8 +152,17 @@ random_walks(raft::handle_t const& handle,
   random_walker_t<graph_t, random_engine_t> rand_walker{
     handle, nPaths, d_v_start.data(), rnd_engine};
 
+  // return approaches:
+  // 1. faster but (potentially) more memory hungry:
+  //    pre-allocate by maximum possible size;
+  //
+  // 2. more memory economic but less performant: fill iteration local vectors
+  //    in each iteration and then incrementally append the necessary size to
+  //    the result vectors below;
+  //
+  // use 1. for now:
+  //
   auto coalesced_sz = nPaths * max_depth;
-
   rmm::device_uvector<vertex_t> d_v_paths_v_set{coalesced_sz, stream};  // coalesced vertex set
   rmm::device_uvector<weight_t> d_v_paths_w_set{coalesced_sz, stream};  // coalesced weight set
   rmm::device_uvector<size_t> d_v_paths_sz{nPaths, stream};             // paths sizes
