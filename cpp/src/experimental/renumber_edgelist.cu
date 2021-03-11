@@ -79,13 +79,12 @@ rmm::device_uvector<vertex_t> compute_renumber_map(
                        });
     major_labels.resize(num_unique_labels, handle.get_stream());
     major_counts.resize(major_labels.size(), handle.get_stream());
-    auto major_pair_it =
-      thrust::reduce_by_key(rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
-                            tmp_labels.begin(),
-                            tmp_labels.end(),
-                            thrust::make_constant_iterator(edge_t{1}),
-                            major_labels.begin(),
-                            major_counts.begin());
+    thrust::reduce_by_key(rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
+                          tmp_labels.begin(),
+                          tmp_labels.end(),
+                          thrust::make_constant_iterator(edge_t{1}),
+                          major_labels.begin(),
+                          major_counts.begin());
   }
 
   // 2. acquire unique minor labels

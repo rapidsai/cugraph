@@ -449,6 +449,17 @@ class graph_view_t<vertex_t,
              : vertex_t{0};
   }
 
+  std::vector<vertex_t> get_local_adj_matrix_partition_segment_offsets(size_t partition_idx) const
+  {
+    return vertex_partition_segment_offsets_.size() > 0
+             ? std::vector<vertex_t>(
+                 vertex_partition_segment_offsets_.begin() +
+                   partition_idx * (detail::num_segments_per_vertex_partition + 1),
+                 vertex_partition_segment_offsets_.begin() +
+                   (partition_idx + 1) * (detail::num_segments_per_vertex_partition + 1))
+             : std::vector<vertex_t>{};
+  }
+
   bool is_hypergraph_partitioned() const { return partition_.is_hypergraph_partitioned(); }
 
   // FIXME: this function is not part of the public stable API. This function is mainly for pattern
@@ -626,6 +637,13 @@ class graph_view_t<vertex_t,
   {
     assert(adj_matrix_partition_idx == 0);
     return vertex_t{0};
+  }
+
+  std::vector<vertex_t> get_local_adj_matrix_partition_segment_offsets(
+    size_t adj_matrix_partition_idx) const
+  {
+    assert(adj_matrix_partition_idx == 0);
+    return segment_offsets_.size() > 0 ? segment_offsets_ : std::vector<vertex_t>{};
   }
 
   bool is_hypergraph_partitioned() const { return false; }
