@@ -159,7 +159,8 @@ class partition_t {
 
   vertex_t get_matrix_partition_major_size(size_t partition_idx) const
   {
-    return get_matrix_partition_major_last(partition_idx) - get_matrix_partition_major_first(partition_idx);
+    return get_matrix_partition_major_last(partition_idx) -
+           get_matrix_partition_major_first(partition_idx);
   }
 
   vertex_t get_matrix_partition_major_value_start_offset(size_t partition_idx) const
@@ -298,7 +299,7 @@ class graph_view_t<vertex_t,
                std::vector<edge_t const*> const& adj_matrix_partition_offsets,
                std::vector<vertex_t const*> const& adj_matrix_partition_indices,
                std::vector<weight_t const*> const& adj_matrix_partition_weights,
-               std::vector<vertex_t> const& vertex_partition_segment_offsets,
+               std::vector<vertex_t> const& adj_matrix_partition_segment_offsets,
                partition_t<vertex_t> const& partition,
                vertex_t number_of_vertices,
                edge_t number_of_edges,
@@ -393,8 +394,10 @@ class graph_view_t<vertex_t,
                             : partition_.get_matrix_partition_major_last(adj_matrix_partition_idx);
   }
 
-  vertex_t get_number_of_local_adj_matrix_partition_rows(size_t adj_matrix_partition_idx) const {
-    return get_local_adj_matrix_partition_row_last(adj_matrix_partition_idx) - get_local_adj_matrix_partition_row_first(adj_matrix_partition_idx);
+  vertex_t get_number_of_local_adj_matrix_partition_rows(size_t adj_matrix_partition_idx) const
+  {
+    return get_local_adj_matrix_partition_row_last(adj_matrix_partition_idx) -
+           get_local_adj_matrix_partition_row_first(adj_matrix_partition_idx);
   }
 
   vertex_t get_local_adj_matrix_partition_row_value_start_offset(
@@ -417,8 +420,10 @@ class graph_view_t<vertex_t,
                             : partition_.get_matrix_partition_minor_last();
   }
 
-  vertex_t get_number_of_local_adj_matrix_partition_cols(size_t adj_matrix_partition_idx) const {
-    return get_local_adj_matrix_partition_col_last(adj_matrix_partition_idx) - get_local_adj_matrix_partition_col_first(adj_matrix_partition_idx);
+  vertex_t get_number_of_local_adj_matrix_partition_cols(size_t adj_matrix_partition_idx) const
+  {
+    return get_local_adj_matrix_partition_col_last(adj_matrix_partition_idx) -
+           get_local_adj_matrix_partition_col_first(adj_matrix_partition_idx);
   }
 
   vertex_t get_local_adj_matrix_partition_col_value_start_offset(
@@ -431,11 +436,11 @@ class graph_view_t<vertex_t,
 
   std::vector<vertex_t> get_local_adj_matrix_partition_segment_offsets(size_t partition_idx) const
   {
-    return vertex_partition_segment_offsets_.size() > 0
+    return adj_matrix_partition_segment_offsets_.size() > 0
              ? std::vector<vertex_t>(
-                 vertex_partition_segment_offsets_.begin() +
+                 adj_matrix_partition_segment_offsets_.begin() +
                    partition_idx * (detail::num_segments_per_vertex_partition + 1),
-                 vertex_partition_segment_offsets_.begin() +
+                 adj_matrix_partition_segment_offsets_.begin() +
                    (partition_idx + 1) * (detail::num_segments_per_vertex_partition + 1))
              : std::vector<vertex_t>{};
   }
@@ -502,9 +507,10 @@ class graph_view_t<vertex_t,
   partition_t<vertex_t> partition_{};
 
   std::vector<vertex_t>
-    vertex_partition_segment_offsets_{};  // segment offsets within the vertex partition based on
-                                          // vertex degree, relevant only if
-                                          // sorted_by_global_degree_within_vertex_partition is true
+    adj_matrix_partition_segment_offsets_{};  // segment offsets within the vertex partition based
+                                              // on vertex degree, relevant only if
+                                              // sorted_by_global_degree_within_vertex_partition is
+                                              // true
 };
 
 // single-GPU version

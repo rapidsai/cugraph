@@ -88,12 +88,12 @@ class graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu, std::enab
       offsets,
       indices,
       weights,
-      vertex_partition_segment_offsets_,
+      adj_matrix_partition_segment_offsets_,
       partition_,
       this->get_number_of_vertices(),
       this->get_number_of_edges(),
       this->get_graph_properties(),
-      vertex_partition_segment_offsets_.size() > 0,
+      adj_matrix_partition_segment_offsets_.size() > 0,
       false);
   }
 
@@ -105,9 +105,10 @@ class graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu, std::enab
   partition_t<vertex_t> partition_{};
 
   std::vector<vertex_t>
-    vertex_partition_segment_offsets_{};  // segment offsets within the vertex partition based on
-                                          // vertex degree, relevant only if
-                                          // sorted_by_global_degree_within_vertex_partition is true
+    adj_matrix_partition_segment_offsets_{};  // segment offsets within the vertex partition based
+                                              // on vertex degree, relevant only if
+                                              // sorted_by_global_degree_within_vertex_partition is
+                                              // true
 };
 
 // single-GPU version
