@@ -17,7 +17,7 @@ from cugraph.utilities import check_nx_graph
 from cugraph.utilities import cugraph_to_nx
 
 
-def minimum_spanning_tree_subgraph(G):
+def _minimum_spanning_tree_subgraph(G):
     mst_subgraph = Graph()
     if type(G) is not Graph:
         raise Exception("input graph must be undirected")
@@ -32,7 +32,7 @@ def minimum_spanning_tree_subgraph(G):
     return mst_subgraph
 
 
-def maximum_spanning_tree_subgraph(G):
+def _maximum_spanning_tree_subgraph(G):
     mst_subgraph = Graph()
     if type(G) is not Graph:
         raise Exception("input graph must be undirected")
@@ -91,10 +91,10 @@ def minimum_spanning_tree(
     G, isNx = check_nx_graph(G)
 
     if isNx is True:
-        mst = minimum_spanning_tree_subgraph(G)
+        mst = _minimum_spanning_tree_subgraph(G)
         return cugraph_to_nx(mst)
     else:
-        return minimum_spanning_tree_subgraph(G)
+        return _minimum_spanning_tree_subgraph(G)
 
 
 def maximum_spanning_tree(
@@ -131,7 +131,7 @@ def maximum_spanning_tree(
     G, isNx = check_nx_graph(G)
 
     if isNx is True:
-        mst = maximum_spanning_tree_subgraph(G)
+        mst = _maximum_spanning_tree_subgraph(G)
         return cugraph_to_nx(mst)
     else:
-        return maximum_spanning_tree_subgraph(G)
+        return _maximum_spanning_tree_subgraph(G)
