@@ -68,19 +68,24 @@ def minimum_spanning_tree(
     ----------
     G : cuGraph.Graph or networkx.Graph
         cuGraph graph descriptor with connectivity information.
+
     weight : string
         default to the weights in the graph, if the graph edges do not have a
         weight attribute a default weight of 1 will be used.
+
     algorithm : string
         Default to 'boruvka'. The parallel algorithm to use when finding a
         minimum spanning tree.
+
     ignore_nan : bool
         Default to False
+
     Returns
     -------
     G_mst : cuGraph.Graph or networkx.Graph
         A graph descriptor with a minimum spanning tree or forest.
         The networkx graph will not have all attributes copied over
+
     """
 
     G, isNx = check_nx_graph(G)
@@ -103,19 +108,24 @@ def maximum_spanning_tree(
     ----------
     G : cuGraph.Graph or networkx.Graph
         cuGraph graph descriptor with connectivity information.
+
     weight : string
         default to the weights in the graph, if the graph edges do not have a
         weight attribute a default weight of 1 will be used.
+
     algorithm : string
         Default to 'boruvka'. The parallel algorithm to use when finding a
         maximum spanning tree.
+
     ignore_nan : bool
         Default to False
+
     Returns
     -------
     G_mst : cuGraph.Graph or networkx.Graph
         A graph descriptor with a maximum spanning tree or forest.
         The networkx graph will not have all attributes copied over
+
     """
 
     G, isNx = check_nx_graph(G)
