@@ -20,29 +20,57 @@ This directory contains small public datasets in `mtx` and `csv` format used by 
 
 ## Tests coverage 
 
-The datasets below was added to check for coverage where some of them include self loops, string vertex IDs and isolated vertices 
+The datasets below was added to check for coverage where some of them include self-loops, string vertex IDs, isolated vertices and multi-edges 
 
-| Graph         | V       | E          | Directed | Weighted | self-loops | Isolated V | String V IDs |  
-| ------------- | ------- | --------   | -------- | -------- | ---------- | ---------- | ------------ | 
-| ca-AstroPh    | 18,772  | 198,110    | No       | No       | Yes         | No        | No           |
-| ca-CondMat    | 23,133  | 93,497     | No       | Yes       | Yes         | No        | No           |
-| ca-GrQc       | 5,242   | 14,387     | No       | No       | Yes         | No        | No           |
-| ca-HepTh      | 9,877   | 25,998     | No       | Yes      | Yes         | No        | No           | 
-| karate_mod    | 43      | 81         | No       | No       | No          | Yes       | Yes          |
-| karate_str    | 34      | 78         | No       | No       | No          | No        | Yes          |
+| Graph               | V       | E          | Directed | Weighted  | self-loops | Isolated V | String V IDs | Multi-edges | 
+| ------------------- | ------- | ---------- | -------- | --------- | ---------- | ---------- | ------------ | ----------- |
+| karate_multi_edge   | 34      | 160        | No       | Yes       | No         | No         | No           | Yes         |
+| dolphins_multi_edge | 62      | 325        | No       | Yes       | No         | No         | No           | Yes         |
+| karate_s_loop       | 34      | 160        | No       | Yes       | Yes        | No         | No           | No          |
+| dolphins_s_loop     | 62      | 321        | No       | Yes       | Yes        | No         | No           | No          |
+| karate_mod          | 43      | 81         | No       | No        | No         | Yes        | No           | No          |
+| karate_str          | 34      | 156        | No       | Yes       | No         | No         | Yes          | No          |
 ​
-**ca-AstroPh** : The graph "ca-AstroPh" covers scientific collaborations between authors papers submitted to Astro Physics category in the period from January 1993 to April 2003 (124 months), as described by J. Leskovec, J. Kleinberg and C. Faloutsos in 2007.
+**karate_multi_edge** : The graph "karate_multi_edge" is a modified version of the  "karate" graph where multi-edges were added
 ​
-**ca-CondMat** : The graph "ca-CondMat" covers scientific collaborations between authors papers submitted to Condense Matter category in the period from January 1993 to April 2003 (124 months), as described by J. Leskovec, J. Kleinberg and C. Faloutsos in 2007.
+**dolphins_multi_edge** : The graph "dolphins_multi_edge" is a modified version of the  "dolphin" graph where multi-edges were added
 ​
-**ca-GrQc** : The graph "ca-GrQc" covers scientific collaborations between authors papers submitted to General Relativity and Quantum Cosmology category in the period from January 1993 to April 2003 (124 months), as described by J. Leskovec, J. Kleinberg and C. Faloutsos in 2007.
+**karate_s_loop** : The graph "karate_s_loop" is a modified version of the  "karate" graph where self-loops were added
 ​
-**ca-HepTh** : The graph "ca-HepTh" covers scientific collaborations between authors papers submitted to High Energy Physics - Theory category in the period from January 1993 to April 2003 (124 months), as described by J. Leskovec, J. Kleinberg and C. Faloutsos in 2007.
+**dolphins_s_loop** : The graph "dolphins_s_loop" is a modified version of the  "dolphin" graph where self-loops were added
 ​
 **karate_mod** : The graph "karate_mod" is a modified version of the  "karate" graph where vertices and edges were added
 ​
 **karate_str** : The graph "karate_str" contains the network of friendships between the 34 members of a karate club at a US university, as described by Wayne Zachary in 1977. The integer vertices were replaced by strings
 
+Larger datasets containing self-loops can be downloaded by running the provided script from `datasets` directory using the `--self_loops` 
+option: 
+```
+cd <repo>/datasets
+./get_test_data.sh --self_loops
+```
+```
+<repo>/datasets/self_loops
+|-ca-AstroPh  (5.3M) 
+|-ca-CondMat  (2.8M)
+|-ca-GrQc     (348K)
+|-ca-HepTh    (763K)
+```
+The self_loops datasets are described below 
+| Graph         | V       | E          | Directed | Weighted | self-loops | Isolated V | String V IDs | Multi-edges |  
+| ------------- | ------- | --------   | -------- | -------- | ---------- | ---------- | ------------ | ----------- |
+| ca-AstroPh    | 18,772  | 198,110    | No       | No       | Yes        | No         | No           | No          |
+| ca-CondMat    | 23,133  | 93,497     | No       | Yes      | Yes        | No         | No           | No          |
+| ca-GrQc       | 5,242   | 14,387     | No       | No       | Yes        | No         | No           | No          |
+| ca-HepTh      | 9,877   | 25,998     | No       | Yes      | Yes        | No         | No           | No          |
+
+**ca-AstroPh** : The graph "ca-AstroPh" covers scientific collaborations between authors papers submitted to Astro Physics category in the period from January 1993 to April 2003 (124 months), as described by J. Leskovec, J. Kleinberg and C. Faloutsos in 2007.
+
+**ca-CondMat** : The graph "ca-CondMat" covers scientific collaborations between authors papers submitted to Condense Matter category in the period from January 1993 to April 2003 (124 months), as described by J. Leskovec, J. Kleinberg and C. Faloutsos in 2007.
+
+**ca-GrQc** : The graph "ca-GrQc" covers scientific collaborations between authors papers submitted to General Relativity and Quantum Cosmology category in the period from January 1993 to April 2003 (124 months), as described by J. Leskovec, J. Kleinberg and C. Faloutsos in 2007.
+
+**ca-HepTh** : The graph "ca-HepTh" covers scientific collaborations between authors papers submitted to High Energy Physics - Theory category in the period from January 1993 to April 2003 (124 months), as described by J. Leskovec, J. Kleinberg and C. Faloutsos in 2007.
 
 
 ## C++

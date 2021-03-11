@@ -50,8 +50,6 @@ https://rapidsai-data.s3.us-east-2.amazonaws.com/cugraph/test/tsplib/datasets.ta
 tsplib
 "
 
-
-
 EXTENDED_DATASET_DATA="
 # ~42s download - tests using this dataset are currently not run in test.sh with --quick
 https://s3.us-east-2.amazonaws.com/rapidsai-data/cugraph/benchmark/hibench/hibench_1_huge.tgz
@@ -65,7 +63,7 @@ csv
 "
 
 SELF_LOOPS_DATASET_DATA="
-# ~2s download 
+# ~1s download 
 https://rapidsai-data.s3.us-east-2.amazonaws.com/cugraph/benchmark/benchmark_csv_data_self_loops.tgz
 self_loops
 "
