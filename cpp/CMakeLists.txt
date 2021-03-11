@@ -297,7 +297,7 @@ else(DEFINED ENV{RAFT_PATH})
   FetchContent_Declare(
     raft
     GIT_REPOSITORY    https://github.com/rapidsai/raft.git
-    GIT_TAG           b055cf862a599fd45537d21a309edd8a6e06da4c
+    GIT_TAG           6455e05b3889db2b495cf3189b33c2b07bfbebf2
 
     SOURCE_SUBDIR     raft
   )
@@ -317,9 +317,9 @@ endif(DEFINED ENV{RAFT_PATH})
 
 # https://cmake.org/cmake/help/v3.0/module/ExternalProject.html
 
-# FIXME: gunrock is the only external package still using ExternalProject
-# instead of FetchContent. Consider migrating to FetchContent soon (this may
-# require updates to the gunrock cmake files to support this).
+# FIXME: gunrock is still using ExternalProject instead of
+# FetchContent. Consider migrating to FetchContent soon (this may require
+# updates to the gunrock cmake files to support this).
 
 include(ExternalProject)
 
@@ -360,31 +360,32 @@ if(BUILD_STATIC_FAISS)
     "Path to FAISS source directory")
   ExternalProject_Add(faiss
     GIT_REPOSITORY    https://github.com/facebookresearch/faiss.git
-    GIT_TAG           a5b850dec6f1cd6c88ab467bfd5e87b0cac2e41d
+    GIT_TAG           7c2d2388a492d65fdda934c7e74ae87acaeed066
     CONFIGURE_COMMAND LIBS=-pthread
                       CPPFLAGS=-w
                       LDFLAGS=-L${CMAKE_INSTALL_PREFIX}/lib
-                              ${CMAKE_CURRENT_BINARY_DIR}/faiss/src/faiss/configure
-	                      --prefix=${CMAKE_CURRENT_BINARY_DIR}/faiss
-	                      --with-blas=${BLAS_LIBRARIES}
-	                      --with-cuda=${CUDA_TOOLKIT_ROOT_DIR}
-	                      --with-cuda-arch=${FAISS_GPU_ARCHS}
-	                      -v
+                        cmake -B build .
+                        -DCMAKE_BUILD_TYPE=Release
+                        -DBUILD_TESTING=OFF
+                        -DFAISS_ENABLE_PYTHON=OFF
+                        -DBUILD_SHARED_LIBS=OFF
+                        -DFAISS_ENABLE_GPU=ON
+                        -DCUDAToolkit_ROOT=${CUDA_TOOLKIT_ROOT_DIR}
+                        -DCUDA_ARCHITECTURES=${FAISS_GPU_ARCHS}
+                        -DBLAS_LIBRARIES=${BLAS_LIBRARIES}
     PREFIX            ${FAISS_DIR}
-    BUILD_COMMAND     make -j${PARALLEL_LEVEL} VERBOSE=1
-    BUILD_BYPRODUCTS  ${FAISS_DIR}/lib/libfaiss.a
+    BUILD_COMMAND     make -C build -j${PARALLEL_LEVEL} VERBOSE=1
+    BUILD_BYPRODUCTS  ${FAISS_DIR}/src/faiss/build/faiss/libfaiss.a
     BUILD_ALWAYS      1
-    INSTALL_COMMAND   make -s install > /dev/null
+    INSTALL_COMMAND   ""
     UPDATE_COMMAND    ""
-    BUILD_IN_SOURCE   1
-    PATCH_COMMAND     patch -p1 -N < ${CMAKE_CURRENT_SOURCE_DIR}/cmake/faiss_cuda11.patch || true)
+    BUILD_IN_SOURCE   1)
 
   ExternalProject_Get_Property(faiss install_dir)
   add_library(FAISS::FAISS STATIC IMPORTED)
-  add_dependencies(FAISS::FAISS faiss)
   set_property(TARGET FAISS::FAISS PROPERTY
-    IMPORTED_LOCATION ${FAISS_DIR}/lib/libfaiss.a)
-  set(FAISS_INCLUDE_DIRS "${FAISS_DIR}/src")
+    IMPORTED_LOCATION ${FAISS_DIR}/src/faiss/build/faiss/libfaiss.a)
+  set(FAISS_INCLUDE_DIRS "${FAISS_DIR}/src/faiss")
 else()
   set(FAISS_INSTALL_DIR ENV{FAISS_ROOT})
   find_package(FAISS REQUIRED)
