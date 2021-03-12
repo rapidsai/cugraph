@@ -48,6 +48,13 @@ Katz Centrality
     :undoc-members:
 
 
+Katz Centrality (MG)
+--------------------
+
+.. automodule:: cugraph.dask.centrality.katz_centrality
+    :members:
+    :undoc-members:
+
 Community
 =========
 
@@ -85,6 +92,14 @@ Louvain
 .. automodule:: cugraph.community.louvain
     :members:
     :undoc-members:
+
+Louvain (MG)
+------------
+
+.. automodule:: cugraph.dask.community.louvain
+    :members:
+    :undoc-members:
+
 
 Spectral Clustering
 -------------------
@@ -176,6 +191,13 @@ Pagerank
     :members:
     :undoc-members:
 
+Pagerank (MG)
+---------
+
+.. automodule:: cugraph.dask.link_analysis.pagerank
+    :members: pagerank
+    :undoc-members: 
+
 
 Link Prediction
 ===============
@@ -213,10 +235,24 @@ Breadth-first-search
     :members:
     :undoc-members:
 
+Breadth-first-search (MG)
+--------------------
+
+.. automodule:: cugraph.dask.traversal.bfs
+    :members:
+    :undoc-members:
+
 Single-source-shortest-path
 ---------------------------
 
 .. automodule:: cugraph.traversal.sssp
+    :members:
+    :undoc-members:
+
+Single-source-shortest-path (MG)
+---------------------------
+
+.. automodule:: cugraph.dask.traversal.sssp
     :members:
     :undoc-members:
 
@@ -238,3 +274,18 @@ Maximum Spanning Tree
     :members:
     :undoc-members:
 
+
+DASK Graph Helper functions 
+===========================
+
+.. automodule:: cugraph.comms.comms
+    :members: initialize
+    :undoc-members:
+
+.. automodule:: cugraph.comms.comms
+    :members: destroy
+    :undoc-members:
+
+.. automodule:: cugraph.dask.common.read_utils
+    :members: get_chunksize
+    :undoc-members:

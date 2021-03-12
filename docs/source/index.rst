@@ -7,7 +7,6 @@ Welcome to cugraph's documentation!
 
    cugraph_intro.md
    api.rst
-   dask-cugraph.rst
    cugraph_blogs.rst
    cugraph_ref.rst
    nx_transition.rst
