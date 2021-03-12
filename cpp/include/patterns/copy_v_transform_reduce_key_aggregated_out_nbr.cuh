@@ -66,8 +66,7 @@ __global__ void for_all_major_for_all_nbr_low_degree(
     thrust::tie(indices, weights, local_degree) =
       matrix_partition.get_local_edges(static_cast<vertex_t>(major_offset));
     if (local_degree > 0) {
-      auto local_offset = matrix_partition.get_local_offset(major_offset) -
-                          matrix_partition.get_local_offset(major_first);
+      auto local_offset    = matrix_partition.get_local_offset(major_offset);
       auto minor_key_first = thrust::make_transform_iterator(
         indices, [matrix_partition, adj_matrix_minor_key_first] __device__(auto minor) {
           return *(adj_matrix_minor_key_first +
