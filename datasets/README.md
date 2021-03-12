@@ -30,17 +30,17 @@ The datasets below was added to check for coverage where some of them include se
 | dolphins_s_loop     | 62      | 321        | No       | Yes       | Yes        | No         | No           | No          |
 | karate_mod          | 43      | 81         | No       | No        | No         | Yes        | No           | No          |
 | karate_str          | 34      | 156        | No       | Yes       | No         | No         | Yes          | No          |
-​
+
 **karate_multi_edge** : The graph "karate_multi_edge" is a modified version of the  "karate" graph where multi-edges were added
-​
+
 **dolphins_multi_edge** : The graph "dolphins_multi_edge" is a modified version of the  "dolphin" graph where multi-edges were added
-​
+
 **karate_s_loop** : The graph "karate_s_loop" is a modified version of the  "karate" graph where self-loops were added
-​
+
 **dolphins_s_loop** : The graph "dolphins_s_loop" is a modified version of the  "dolphin" graph where self-loops were added
-​
+
 **karate_mod** : The graph "karate_mod" is a modified version of the  "karate" graph where vertices and edges were added
-​
+
 **karate_str** : The graph "karate_str" contains the network of friendships between the 34 members of a karate club at a US university, as described by Wayne Zachary in 1977. The integer vertices were replaced by strings
 
 Larger datasets containing self-loops can be downloaded by running the provided script from `datasets` directory using the `--self_loops` 
