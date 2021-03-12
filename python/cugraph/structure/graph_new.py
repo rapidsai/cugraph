@@ -1,15 +1,17 @@
 from .graph_implentation import *
 
 class Graph:
-    def __init__(self):
+    def __init__(self, multi_edge = False, directed = False, tree = False):
         self.Base = None
-        self.multi = False
-        self.directed = False
-        self.tree = False
+        self.multi_edge = multi_edge
+        self.directed = directed
+        self.tree = tree
 
     def __getattr__(self, name):
-        if hasattr(self.base, name):
-            return getattr(self.base, name)
+        if self.Base is None:
+            raise Exception("Graph is Empty")
+        if hasattr(self.Base, name):
+            return getattr(self.Base, name)
         else:
             raise Exception("method not found")
 
@@ -60,7 +62,7 @@ class Graph:
         >>> G.from_cudf_edgelist(df, source='0', destination='1',
                                  edge_attr='2', renumber=False)
         """
-        self.Base = simpleGraphImpl
+        self.Base = simpleGraphImpl()
         self.Base.from_edgelist(input_df,
                                 source="source",
                                 destination="destination",
@@ -99,38 +101,122 @@ class Graph:
             If source and destination indices are not in range 0 to V where V
             is number of vertices, renumber argument should be True.
         """
-        self.Base = simpleDistributedGraphImpl
+        self.Base = simpleDistributedGraphImpl()
         self.Base.from_edgelist(input_ddf,
                                 source="source",
                                 destination="destination",
                                 edge_attr=None,
                                 renumber=True)
 
+    def unrenumber(self, df, column_name, preserve_order=False):
+        """
+        Given a DataFrame containing internal vertex ids in the identified
+        column, replace this with external vertex ids.  If the renumbering
+        is from a single column, the output dataframe will use the same
+        name for the external vertex identifiers.  If the renumbering is from
+        a multi-column input, the output columns will be labeled 0 through
+        n-1 with a suffix of _column_name.
+        Note that this function does not guarantee order in single GPU mode,
+        and does not guarantee order or partitioning in multi-GPU mode.  If you
+        wish to preserve ordering, add an index column to df and sort the
+        return by that index column.
+        Parameters
+        ----------
+        df: cudf.DataFrame or dask_cudf.DataFrame
+            A DataFrame containing internal vertex identifiers that will be
+            converted into external vertex identifiers.
+        column_name: string
+            Name of the column containing the internal vertex id.
+        preserve_order: (optional) bool
+            If True, preserve the order of the rows in the output
+            DataFrame to match the input DataFrame
+        Returns
+        ---------
+        df : cudf.DataFrame or dask_cudf.DataFrame
+            The original DataFrame columns exist unmodified.  The external
+            vertex identifiers are added to the DataFrame, the internal
+            vertex identifier column is removed from the dataframe.
+        """
+        return self.renumber_map.unrenumber(df, column_name, preserve_order)
+
+    def lookup_internal_vertex_id(self, df, column_name=None):
+        """
+        Given a DataFrame containing external vertex ids in the identified
+        columns, or a Series containing external vertex ids, return a
+        Series with the internal vertex ids.
+        Note that this function does not guarantee order in single GPU mode,
+        and does not guarantee order or partitioning in multi-GPU mode.
+        Parameters
+        ----------
+        df: cudf.DataFrame, cudf.Series, dask_cudf.DataFrame, dask_cudf.Series
+            A DataFrame containing external vertex identifiers that will be
+            converted into internal vertex identifiers.
+        column_name: (optional) string
+            Name of the column containing the external vertex ids
+        Returns
+        ---------
+        series : cudf.Series or dask_cudf.Series
+            The internal vertex identifiers
+        """
+        return self.renumber_map.to_internal_vertex_id(df, column_name)
+
+    def add_internal_vertex_id(
+        self,
+        df,
+        internal_column_name,
+        external_column_name,
+        drop=True,
+        preserve_order=False,
+    ):
+        """
+        Given a DataFrame containing external vertex ids in the identified
+        columns, return a DataFrame containing the internal vertex ids as the
+        specified column name.  Optionally drop the external vertex id columns.
+        Optionally preserve the order of the original DataFrame.
+        Parameters
+        ----------
+        df: cudf.DataFrame or dask_cudf.DataFrame
+            A DataFrame containing external vertex identifiers that will be
+            converted into internal vertex identifiers.
+        internal_column_name: string
+            Name of column to contain the internal vertex id
+        external_column_name: string or list of strings
+            Name of the column(s) containing the external vertex ids
+        drop: (optional) bool, defaults to True
+            Drop the external columns from the returned DataFrame
+        preserve_order: (optional) bool, defaults to False
+            Preserve the order of the data frame (requires an extra sort)
+        Returns
+        ---------
+        df : cudf.DataFrame or dask_cudf.DataFrame
+            Original DataFrame with new column containing internal vertex
+            id
+        """
+        return self.renumber_map.add_internal_vertex_id(
+            df,
+            internal_column_name,
+            external_column_name,
+            drop,
+            preserve_order,
+        )
+
 class DiGraph(Graph):
     def __init__(self):
-        super(Digraph, self).__init__()
-        self.directed = True
+        super(Digraph, self).__init__(directed=True)
 
 class MultiGraph(Graph):
-    def __init__(self):
-        super(MultiGraph, self).__init__()
-        self.multi = True
+    def __init__(self, directed=False):
+        super(MultiGraph, self).__init__(directed=directed, multi_edge=True)
 
-class MultiDiGraph(MultiGraph, DiGraph):
+class MultiDiGraph(MultiGraph):
     def __init__(self):
-        super(MultiDiGraph, self).__init__()
-        self.directed = True
-        self.multi = True
+        super(MultiDiGraph, self).__init__(directed=True)
 
 class Tree(Graph):
-    def __init__(self):
-        super(Tree, self).__init__()
-        self.Tree = True
+    def __init__(self, directed=False):
+        super(Tree, self).__init__(directed=directed, multi_edge=False, tree=True)
 
-class DiTree(Tree, DiGraph):
+class DiTree(Tree):
     def __init__(self):
-        super(DiTree, self).__init__()
-        self.directed = True
-        self.multi = True
-
+        super(DiTree, self).__init__(directed=True)
 

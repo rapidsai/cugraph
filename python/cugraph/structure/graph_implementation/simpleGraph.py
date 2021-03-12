@@ -24,15 +24,24 @@ class simpleGraphImpl:
         def __init__(self, offsets, indices, value=None):
             Graph.AdjList.__init__(self, offsets, indices, value)
 
-    class properties:
-        def __init__(self):
-            self.bipartite
-    def __init__(self):
+    class Properties:
+        def __init__(self, properties):
+            self.multi_edge=properties.multi_edge
+            self.directed=properties.directed
+            self.tree=properties.tree
+            self.renumbered=False
+            self.self_loop=None
+            self.isolated_vertices=None
+            self.node_count=None
+            self.edge_count=None
+
+    def __init__(self, properties):
         #Structure
         self.edgelist = None
         self.adjlist = None
         self.transposedadjlist = None
         self.renumber_map = None
+        self.properties = simpleGraphImpl.Properties(properties)
 
     #Functions
     def from_edgelist(
@@ -115,11 +124,12 @@ class simpleGraphImpl:
         # TODO: Update Symmetrize to work on Graph and/or DataFrame
         if value_col is not None:
             source_col, dest_col, value_col = symmetrize(
-                source_col, dest_col, value_col, multi=self.multi,
+                source_col, dest_col, value_col,
+                multi=self.properties.multi_edge,
                 symmetrize=not self.symmetrized)
         else:
             source_col, dest_col = symmetrize(
-                source_col, dest_col, multi=self.multi,
+                source_col, dest_col, multi=self.properties.multi_edge,
                 symmetrize=not self.symmetrized)
 
         self.edgelist = simpleGraphImpl.EdgeList(source_col, dest_col, value_col)
@@ -287,7 +297,6 @@ class simpleGraphImpl:
             self.edgelist = self.EdgeList(src, dst, weights)
 
         edgelist_df = self.edgelist.edgelist_df
-
 
         # TODO: Move to outer Graphs?
         if self.renumbered:
@@ -515,17 +524,17 @@ class simpleGraphImpl:
         """
         Get the number of nodes in the graph.
         """
-        if self.node_count is None:
+        if self.properties.node_count is None:
             if self.adjlist is not None:
-                self.node_count = len(self.adjlist.offsets) - 1
+                self.properties.node_count = len(self.adjlist.offsets) - 1
             elif self.transposedadjlist is not None:
-                self.node_count = len(self.transposedadjlist.offsets) - 1
+                self.properties.node_count = len(self.transposedadjlist.offsets) - 1
             elif self.edgelist is not None:
                 df = self.edgelist.edgelist_df[["src", "dst"]]
-                self.node_count = df.max().max() + 1
+                self.properties.node_count = df.max().max() + 1
             else:
                 raise Exception("Graph is Empty")
-        return self.node_count
+        return self.properties.node_count
 
     def number_of_nodes(self):
         """
@@ -541,24 +550,24 @@ class simpleGraphImpl:
         # TODO: Move to Outer graphs?
         if directed_edges and self.edgelist is not None:
             return len(self.edgelist.edgelist_df)
-        if self.edge_count is None:
+        if self.properties.edge_count is None:
             if self.edgelist is not None:
-                if type(self) is Graph or type(self) is MultiGraph:
-                    self.edge_count = len(
+                if self.properties.directed is False:
+                    self.properties.edge_count = len(
                         self.edgelist.edgelist_df[
                             self.edgelist.edgelist_df["src"]
                             >= self.edgelist.edgelist_df["dst"]
                         ]
                     )
                 else:
-                    self.edge_count = len(self.edgelist.edgelist_df)
+                    self.properties.edge_count = len(self.edgelist.edgelist_df)
             elif self.adjlist is not None:
                 self.edge_count = len(self.adjlist.indices)
             elif self.transposedadjlist is not None:
-                self.edge_count = len(self.transposedadjlist.indices)
+                self.properties.edge_count = len(self.transposedadjlist.indices)
             else:
                 raise ValueError("Graph is Empty")
-        return self.edge_count
+        return self.properties.edge_count
 
     def in_degree(self, vertex_subset=None):
         """
@@ -851,6 +860,10 @@ class simpleGraphImpl:
                 return cudf.concat([df["src"], df["dst"]]).unique()
         if self.adjlist is not None:
             return cudf.Series(np.arange(0, self.number_of_nodes()))
+
+        #TODO: Move to Bipartite Graph
+        """
+        # For BipartiteGraphImpl
         if "all_nodes" in self._nodes.keys():
             return self._nodes["all_nodes"]
         else:
@@ -859,6 +872,7 @@ class simpleGraphImpl:
             for k in set_names:
                 n = n.append(self._nodes[k])
             return n
+        """
 
     def neighbors(self, n):
         if self.edgelist is None:
@@ -876,96 +890,3 @@ class simpleGraphImpl:
             return self.renumber_map.from_internal_vertex_id(neighbors)["0"]
         else:
             return neighbors
-
-    def unrenumber(self, df, column_name, preserve_order=False):
-        """
-        Given a DataFrame containing internal vertex ids in the identified
-        column, replace this with external vertex ids.  If the renumbering
-        is from a single column, the output dataframe will use the same
-        name for the external vertex identifiers.  If the renumbering is from
-        a multi-column input, the output columns will be labeled 0 through
-        n-1 with a suffix of _column_name.
-        Note that this function does not guarantee order in single GPU mode,
-        and does not guarantee order or partitioning in multi-GPU mode.  If you
-        wish to preserve ordering, add an index column to df and sort the
-        return by that index column.
-        Parameters
-        ----------
-        df: cudf.DataFrame or dask_cudf.DataFrame
-            A DataFrame containing internal vertex identifiers that will be
-            converted into external vertex identifiers.
-        column_name: string
-            Name of the column containing the internal vertex id.
-        preserve_order: (optional) bool
-            If True, preserve the order of the rows in the output
-            DataFrame to match the input DataFrame
-        Returns
-        ---------
-        df : cudf.DataFrame or dask_cudf.DataFrame
-            The original DataFrame columns exist unmodified.  The external
-            vertex identifiers are added to the DataFrame, the internal
-            vertex identifier column is removed from the dataframe.
-        """
-        return self.renumber_map.unrenumber(df, column_name, preserve_order)
-
-    def lookup_internal_vertex_id(self, df, column_name=None):
-        """
-        Given a DataFrame containing external vertex ids in the identified
-        columns, or a Series containing external vertex ids, return a
-        Series with the internal vertex ids.
-        Note that this function does not guarantee order in single GPU mode,
-        and does not guarantee order or partitioning in multi-GPU mode.
-        Parameters
-        ----------
-        df: cudf.DataFrame, cudf.Series, dask_cudf.DataFrame, dask_cudf.Series
-            A DataFrame containing external vertex identifiers that will be
-            converted into internal vertex identifiers.
-        column_name: (optional) string
-            Name of the column containing the external vertex ids
-        Returns
-        ---------
-        series : cudf.Series or dask_cudf.Series
-            The internal vertex identifiers
-        """
-        return self.renumber_map.to_internal_vertex_id(df, column_name)
-
-    def add_internal_vertex_id(
-        self,
-        df,
-        internal_column_name,
-        external_column_name,
-        drop=True,
-        preserve_order=False,
-    ):
-        """
-        Given a DataFrame containing external vertex ids in the identified
-        columns, return a DataFrame containing the internal vertex ids as the
-        specified column name.  Optionally drop the external vertex id columns.
-        Optionally preserve the order of the original DataFrame.
-        Parameters
-        ----------
-        df: cudf.DataFrame or dask_cudf.DataFrame
-            A DataFrame containing external vertex identifiers that will be
-            converted into internal vertex identifiers.
-        internal_column_name: string
-            Name of column to contain the internal vertex id
-        external_column_name: string or list of strings
-            Name of the column(s) containing the external vertex ids
-        drop: (optional) bool, defaults to True
-            Drop the external columns from the returned DataFrame
-        preserve_order: (optional) bool, defaults to False
-            Preserve the order of the data frame (requires an extra sort)
-        Returns
-        ---------
-        df : cudf.DataFrame or dask_cudf.DataFrame
-            Original DataFrame with new column containing internal vertex
-            id
-        """
-        return self.renumber_map.add_internal_vertex_id(
-            df,
-            internal_column_name,
-            external_column_name,
-            drop,
-            preserve_order,
-        )
-

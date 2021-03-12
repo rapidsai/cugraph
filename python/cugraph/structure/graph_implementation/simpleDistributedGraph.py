@@ -12,17 +12,22 @@ class simpleDistributedGraphImpl:
     # Not Supported
 
     class Properties:
-        def __init__(self, directed = False, multi_edge = False, store_transposed = None):
-            self.multi_edge = multi_edge
-            self.directed = directed
-            self.store_transposed = store_transposed
-            self.renumbered = renumber
+        def __init__(self, properties):
+            self.multi_edge=properties.multi_edge
+            self.directed=properties.directed
+            self.tree=properties.tree
+            self.renumbered=False
+            self.store_transposed=False
+            self.self_loop=None
+            self.isolated_vertices=None
+            self.node_count=None
+            self.edge_count=None
 
-    def __init__(self, directed, multi_edge):
+    def __init__(self, properties):
         #Structure
         self.edgelist = None
         self.renumber_map = None
-        self.properties = self.Properties(directed, multi_edge)
+        self.properties = simpleDistributedGraphImpl.Properties(properties)
         self.source_columns = None
         self.destination_columns = None
 
@@ -34,6 +39,7 @@ class simpleDistributedGraphImpl:
         destination="destination",
         edge_attr=None,
         renumber=True,
+        store_transposed=False,
     ):
         """
         Initializes the distributed graph from the dask_cudf.DataFrame
@@ -424,94 +430,56 @@ class simpleDistributedGraphImpl:
         ddf = self.edgelist.edgelist_df
         return ddf[ddf["src"] == n]["dst"].reset_index(drop=True)
 
-    def unrenumber(self, df, column_name, preserve_order=False):
+    def compute_renumber_edge_list(self, transposed=False):
         """
-        Given a DataFrame containing internal vertex ids in the identified
-        column, replace this with external vertex ids.  If the renumbering
-        is from a single column, the output dataframe will use the same
-        name for the external vertex identifiers.  If the renumbering is from
-        a multi-column input, the output columns will be labeled 0 through
-        n-1 with a suffix of _column_name.
-        Note that this function does not guarantee order in single GPU mode,
-        and does not guarantee order or partitioning in multi-GPU mode.  If you
-        wish to preserve ordering, add an index column to df and sort the
-        return by that index column.
+        Compute a renumbered edge list
+        This function works in the MNMG pipeline and will transform
+        the input dask_cudf.DataFrame into a renumbered edge list
+        in the prescribed direction.
+        This function will be called by the algorithms to ensure
+        that the graph is renumbered properly.  The graph object will
+        cache the most recent renumbering attempt.  For benchmarking
+        purposes, this function can be called prior to calling a
+        graph algorithm so we can measure the cost of computing
+        the renumbering separately from the cost of executing the
+        algorithm.
+        When creating a CSR-like structure, set transposed to False.
+        When creating a CSC-like structure, set transposed to True.
         Parameters
         ----------
-        df: cudf.DataFrame or dask_cudf.DataFrame
-            A DataFrame containing internal vertex identifiers that will be
-            converted into external vertex identifiers.
-        column_name: string
-            Name of the column containing the internal vertex id.
-        preserve_order: (optional) bool
-            If True, preserve the order of the rows in the output
-            DataFrame to match the input DataFrame
-        Returns
-        ---------
-        df : cudf.DataFrame or dask_cudf.DataFrame
-            The original DataFrame columns exist unmodified.  The external
-            vertex identifiers are added to the DataFrame, the internal
-            vertex identifier column is removed from the dataframe.
+        transposed : (optional) bool
+            If True, renumber with the intent to make a CSC-like
+            structure.  If False, renumber with the intent to make
+            a CSR-like structure.  Defaults to False.
         """
-        return self.renumber_map.unrenumber(df, column_name, preserve_order)
+        # FIXME:  What to do about edge_attr???
+        #         currently ignored for MNMG
 
-    def lookup_internal_vertex_id(self, df, column_name=None):
-        """
-        Given a DataFrame containing external vertex ids in the identified
-        columns, or a Series containing external vertex ids, return a
-        Series with the internal vertex ids.
-        Note that this function does not guarantee order in single GPU mode,
-        and does not guarantee order or partitioning in multi-GPU mode.
-        Parameters
-        ----------
-        df: cudf.DataFrame, cudf.Series, dask_cudf.DataFrame, dask_cudf.Series
-            A DataFrame containing external vertex identifiers that will be
-            converted into internal vertex identifiers.
-        column_name: (optional) string
-            Name of the column containing the external vertex ids
-        Returns
-        ---------
-        series : cudf.Series or dask_cudf.Series
-            The internal vertex identifiers
-        """
-        return self.renumber_map.to_internal_vertex_id(df, column_name)
+        if not self.distributed:
+            raise Exception(
+                "compute_renumber_edge_list should only be used "
+                "for distributed graphs"
+            )
 
-    def add_internal_vertex_id(
-        self,
-        df,
-        internal_column_name,
-        external_column_name,
-        drop=True,
-        preserve_order=False,
-    ):
-        """
-        Given a DataFrame containing external vertex ids in the identified
-        columns, return a DataFrame containing the internal vertex ids as the
-        specified column name.  Optionally drop the external vertex id columns.
-        Optionally preserve the order of the original DataFrame.
-        Parameters
-        ----------
-        df: cudf.DataFrame or dask_cudf.DataFrame
-            A DataFrame containing external vertex identifiers that will be
-            converted into internal vertex identifiers.
-        internal_column_name: string
-            Name of column to contain the internal vertex id
-        external_column_name: string or list of strings
-            Name of the column(s) containing the external vertex ids
-        drop: (optional) bool, defaults to True
-            Drop the external columns from the returned DataFrame
-        preserve_order: (optional) bool, defaults to False
-            Preserve the order of the data frame (requires an extra sort)
-        Returns
-        ---------
-        df : cudf.DataFrame or dask_cudf.DataFrame
-            Original DataFrame with new column containing internal vertex
-            id
-        """
-        return self.renumber_map.add_internal_vertex_id(
-            df,
-            internal_column_name,
-            external_column_name,
-            drop,
-            preserve_order,
-        )
+        if not self.renumbered:
+            self.edgelist = self.EdgeList(self.input_df)
+            self.renumber_map = None
+        else:
+            if self.edgelist is not None:
+                if type(self) is Graph:
+                    return
+
+                if self.store_transposed == transposed:
+                    return
+
+                del self.edgelist
+
+            renumbered_ddf, number_map = NumberMap.renumber(
+                self.input_df,
+                self.source_columns,
+                self.destination_columns,
+                store_transposed=transposed,
+            )
+            self.edgelist = self.EdgeList(renumbered_ddf)
+            self.renumber_map = number_map
+            self.properties.store_transposed = transposed
