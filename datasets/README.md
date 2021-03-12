@@ -28,7 +28,7 @@ The datasets below was added to check for coverage where some of them include se
 | dolphins_multi_edge | 62      | 325        | No       | Yes       | No         | No         | No           | Yes         |
 | karate_s_loop       | 34      | 160        | No       | Yes       | Yes        | No         | No           | No          |
 | dolphins_s_loop     | 62      | 321        | No       | Yes       | Yes        | No         | No           | No          |
-| karate_mod          | 43      | 81         | No       | No        | No         | Yes        | No           | No          |
+| karate_mod          | 37      | 156        | No       | No        | No         | Yes        | No           | No          |
 | karate_str          | 34      | 156        | No       | Yes       | No         | No         | Yes          | No          |
 
 **karate_multi_edge** : The graph "karate_multi_edge" is a modified version of the  "karate" graph where multi-edges were added
