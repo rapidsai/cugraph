@@ -275,7 +275,7 @@ Maximum Spanning Tree
     :undoc-members:
 
 
-DASK Graph Helper functions 
+DASK MG Helper functions 
 ===========================
 
 .. automodule:: cugraph.comms.comms
