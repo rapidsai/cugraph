@@ -41,6 +41,7 @@ namespace experimental {
 namespace detail {
 
 // class abstracting the RW stepping algorithm:
+// preprocessing, stepping, and post-processing
 //
 template <typename graph_t, typename random_engine_t>
 struct random_walker_t {
@@ -48,9 +49,11 @@ struct random_walker_t {
                 "random engine assumed trivially copyable.");
 
   using vertex_t = typename graph_t::vertex_type;
+  using edge_t   = typename graph_t::edge_type;
   using weight_t = typename graph_t::weight_type;
 
   random_walker_t(raft::handle_t const& handle,
+                  graph_t const& graph,
                   size_t nPaths,
                   vertex_t* ptr_d_current_vertices,
                   random_engine_t const& rnd)
@@ -58,7 +61,9 @@ struct random_walker_t {
       num_paths_(nPaths),
       ptr_d_vertex_set_(ptr_d_current_vertices),
       d_v_stopped_{nPaths, handle_.get_stream()},
-      rnd_(rnd)
+      rnd_(rnd),
+      d_v_out_degs_(graph.compute_out_degrees(handle_)),
+      d_v_rnd_n_indx_(get_random_neighbor_indices(d_v_out_degs_))
   {
     // init d_v_stopped_ to {0} (i.e., no path is stopped):
     //
@@ -70,11 +75,24 @@ struct random_walker_t {
 
   // take one step in sync for all paths:
   //
-  void step(rmm::device_uvector<vertex_t>& d_v_paths_v_set,  // coalesced vertex set
+  void step(graph_t const& graph,
+            size_t step,
+            rmm::device_uvector<vertex_t>& d_v_paths_v_set,  // coalesced vertex set
             rmm::device_uvector<weight_t>& d_v_paths_w_set,  // coalesced weight set
             rmm::device_uvector<size_t>& d_v_paths_sz)       // paths sizes
   {
-    // TODO:
+    // TODO: gather:
+    // for each indx in [0..nPaths) {
+    //   v_indx = d_v_rnd_n_indx[indx];
+    //
+    //   // get the `v_indx`-th out-vertex of d_v_paths_v_set[indx] vertex:
+    //
+    //   d_v_paths_v_set[indx*nPaths + step] =
+    //       get_out_vertex(graph, d_v_paths_v_set[indx*nPaths + (step-1)], v_indx);
+    //   d_v_paths_w_set[indx*nPaths + step] =
+    //       get_out_edge_weight(graph, d_v_paths_v_set[indx*nPaths + (step-1)], v_indx);
+    //   update(d_v_stopped);
+    // }
   }
 
   bool all_stopped(void) const
@@ -90,12 +108,39 @@ struct random_walker_t {
       return true;
   }
 
+  void initialize(size_t max_depth, rmm::device_uvector<vertex_t>& d_v_paths_v_set) const
+  {
+    // TODO: gather from ptr_d_vertex_set_
+    // for each i in [0..num_paths_) {
+    //   d_v_paths_v_set[i*max_depth] = ptr_d_vertex_set_[i];
+  }
+
+  void defragment(rmm::device_uvector<vertex_t>& d_v_paths_v_set,         // coalesced vertex set
+                  rmm::device_uvector<weight_t>& d_v_paths_w_set,         // coalesced weight set
+                  rmm::device_uvector<size_t> const& d_v_paths_sz) const  // paths sizes
+  {
+    // TODO: perform de-fragmentation on d_v_paths_v/w_sets
+  }
+
  private:
   raft::handle_t const& handle_;
   size_t num_paths_;
   vertex_t* ptr_d_vertex_set_;
   rmm::device_uvector<int> d_v_stopped_;  // keeps track of paths that stopped (==1)
   random_engine_t rnd_;
+  rmm::device_uvector<edge_t> d_v_out_degs_;
+  rmm::device_uvector<vertex_t> d_v_rnd_n_indx_;
+
+  rmm::device_uvector<vertex_t> get_random_neighbor_indices(
+    rmm::device_uvector<typename graph_t::edge_type> const& d_v_out_degs)
+  {
+    // TODO: for each (local) vertex v in V,
+    // generate random indexes in [0, N(v))
+    // ( N(v): out-neighbors of v);
+    // using random engine rnd_
+
+    return rmm::device_uvector<vertex_t>{0, handle_.get_stream()};  // TODO:
+  }
 };
 
 /**
@@ -151,7 +196,7 @@ random_walks(raft::handle_t const& handle,
   cudaStreamSynchronize(stream);
 
   random_walker_t<graph_t, random_engine_t> rand_walker{
-    handle, nPaths, d_v_start.data(), rnd_engine};
+    handle, graph, nPaths, d_v_start.data(), rnd_engine};
 
   // return approaches:
   // 1. faster but (potentially) more memory hungry:
@@ -168,8 +213,14 @@ random_walks(raft::handle_t const& handle,
   rmm::device_uvector<weight_t> d_v_paths_w_set{coalesced_sz, stream};  // coalesced weight set
   rmm::device_uvector<size_t> d_v_paths_sz{nPaths, stream};             // paths sizes
 
-  for (decltype(max_depth) step_indx = 0; step_indx < max_depth; ++step_indx) {
-    rand_walker.step(d_v_paths_v_set, d_v_paths_w_set, d_v_paths_sz);
+  // very first vertex, for each path:
+  //
+  rand_walker.initialize(max_depth, d_v_paths_v_set);
+
+  // start from 1, as 0-th was initialized above:
+  //
+  for (decltype(max_depth) step_indx = 1; step_indx < max_depth; ++step_indx) {
+    rand_walker.step(graph, step_indx, d_v_paths_v_set, d_v_paths_w_set, d_v_paths_sz);
 
     // early exit: all paths have reached sinks:
     //
@@ -178,6 +229,7 @@ random_walks(raft::handle_t const& handle,
 
   // TODO: truncate v_set, w_set to actaual space used:
   //
+  rand_walker.defragment(d_v_paths_v_set, d_v_paths_w_set, d_v_paths_sz);
 
   // because device_uvector is not copy-cnstr-able:
   //
