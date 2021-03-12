@@ -83,6 +83,7 @@ template <typename GraphViewType,
           typename EdgeOp,
           typename T>
 struct cast_edge_op_bool_to_integer {
+  static_assert(std::is_integral<T>::value);
   using vertex_type    = typename GraphViewType::vertex_type;
   using weight_type    = typename GraphViewType::weight_type;
   using row_value_type = typename std::iterator_traits<AdjMatrixRowValueInputIterator>::value_type;
@@ -95,8 +96,7 @@ struct cast_edge_op_bool_to_integer {
             typename R = row_value_type,
             typename C = col_value_type,
             typename E = EdgeOp>
-  __device__ std::enable_if_t<is_valid_edge_op<typename std::result_of<E(V, V, W, R, C)>>::valid,
-                              typename std::result_of<E(V, V, W, R, C)>::type>
+  __device__ std::enable_if_t<is_valid_edge_op<typename std::result_of<E(V, V, W, R, C)>>::valid, T>
   operator()(V r, V c, W w, R rv, C cv)
   {
     return e_op(r, c, w, rv, cv) ? T{1} : T{0};
@@ -106,8 +106,7 @@ struct cast_edge_op_bool_to_integer {
             typename R = row_value_type,
             typename C = col_value_type,
             typename E = EdgeOp>
-  __device__ std::enable_if_t<is_valid_edge_op<typename std::result_of<E(V, V, R, C)>>::valid,
-                              typename std::result_of<E(V, V, R, C)>::type>
+  __device__ std::enable_if_t<is_valid_edge_op<typename std::result_of<E(V, V, R, C)>>::valid, T>
   operator()(V r, V c, R rv, C cv)
   {
     return e_op(r, c, rv, cv) ? T{1} : T{0};

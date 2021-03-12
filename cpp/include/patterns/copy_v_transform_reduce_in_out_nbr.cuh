@@ -164,10 +164,10 @@ __global__ void for_all_major_for_all_nbr_mid_degree(
   auto idx                = static_cast<size_t>(tid / raft::warp_size());
 
   while (idx < static_cast<size_t>(major_last - major_first)) {
+    auto major_offset = major_start_offset + idx;
     vertex_t const* indices{nullptr};
     weight_t const* weights{nullptr};
     edge_t local_degree{};
-    auto major_offset                           = major_start_offset + idx;
     thrust::tie(indices, weights, local_degree) = matrix_partition.get_local_edges(major_offset);
     auto e_op_result_sum =
       lane_id == 0 ? init : e_op_result_t{};  // relevent only if update_major == true
@@ -238,10 +238,10 @@ __global__ void for_all_major_for_all_nbr_high_degree(
   auto idx                = static_cast<size_t>(blockIdx.x);
 
   while (idx < static_cast<size_t>(major_last - major_first)) {
+    auto major_offset = major_start_offset + idx;
     vertex_t const* indices{nullptr};
     weight_t const* weights{nullptr};
     edge_t local_degree{};
-    auto major_offset                           = major_start_offset + idx;
     thrust::tie(indices, weights, local_degree) = matrix_partition.get_local_edges(major_offset);
     auto e_op_result_sum =
       threadIdx.x == 0 ? init : e_op_result_t{};  // relevent only if update_major == true
@@ -360,31 +360,12 @@ void copy_v_transform_reduce_nbr(raft::handle_t const& handle,
       }
     }
 
-    int comm_root_rank = 0;
-    if (GraphViewType::is_multi_gpu) {
-      auto& row_comm = handle.get_subcomm(cugraph::partition_2d::key_naming_t().row_name());
-      auto const row_comm_rank = row_comm.get_rank();
-      auto const row_comm_size = row_comm.get_size();
-      auto& col_comm = handle.get_subcomm(cugraph::partition_2d::key_naming_t().col_name());
-      auto const col_comm_rank = col_comm.get_rank();
-      comm_root_rank           = i * row_comm_size + row_comm_rank;
-    }
-
-    vertex_t row_value_input_offset{0};
-    vertex_t col_value_input_offset{0};
-    if (GraphViewType::is_multi_gpu) {
-      auto& row_comm = handle.get_subcomm(cugraph::partition_2d::key_naming_t().row_name());
-      auto const row_comm_size = row_comm.get_size();
-      auto& col_comm = handle.get_subcomm(cugraph::partition_2d::key_naming_t().col_name());
-      auto const col_comm_rank = col_comm.get_rank();
-
-      row_value_input_offset = GraphViewType::is_adj_matrix_transposed
-                                 ? vertex_t{0}
-                                 : matrix_partition.get_major_value_start_offset();
-      col_value_input_offset = GraphViewType::is_adj_matrix_transposed
-                                 ? matrix_partition.get_major_value_start_offset()
-                                 : vertex_t{0};
-    }
+    auto row_value_input_offset = GraphViewType::is_adj_matrix_transposed
+                                    ? vertex_t{0}
+                                    : matrix_partition.get_major_value_start_offset();
+    auto col_value_input_offset = GraphViewType::is_adj_matrix_transposed
+                                    ? matrix_partition.get_major_value_start_offset()
+                                    : vertex_t{0};
     auto segment_offsets = graph_view.get_local_adj_matrix_partition_segment_offsets(i);
     if (segment_offsets.size() > 0) {
       // FIXME: we may further improve performance by 1) concurrently running kernels on different
@@ -392,9 +373,9 @@ void copy_v_transform_reduce_nbr(raft::handle_t const& handle,
       // segment for very high degree vertices and running segmented reduction
       static_assert(detail::num_segments_per_vertex_partition == 3);
       if (segment_offsets[1] > 0) {
-        raft::grid_1d_warp_t update_grid(segment_offsets[1],
-                                         detail::copy_v_transform_reduce_nbr_for_all_block_size,
-                                         handle.get_device_properties().maxGridSize[0]);
+        raft::grid_1d_block_t update_grid(segment_offsets[1],
+                                          detail::copy_v_transform_reduce_nbr_for_all_block_size,
+                                          handle.get_device_properties().maxGridSize[0]);
         if (GraphViewType::is_multi_gpu) {
           detail::for_all_major_for_all_nbr_high_degree<update_major>
             <<<update_grid.num_blocks, update_grid.block_size, 0, handle.get_stream()>>>(
@@ -477,8 +458,8 @@ void copy_v_transform_reduce_nbr(raft::handle_t const& handle,
         }
       }
     } else {
-      if (graph_view.get_vertex_partition_size(comm_root_rank) > 0) {
-        raft::grid_1d_thread_t update_grid(graph_view.get_vertex_partition_size(comm_root_rank),
+      if (matrix_partition.get_major_size() > 0) {
+        raft::grid_1d_thread_t update_grid(matrix_partition.get_major_size(),
                                            detail::copy_v_transform_reduce_nbr_for_all_block_size,
                                            handle.get_device_properties().maxGridSize[0]);
 
