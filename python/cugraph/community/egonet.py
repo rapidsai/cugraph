@@ -74,7 +74,7 @@ def ego_graph(G, n, radius=1, center=True, undirected=False, distance=None):
     G_ego : cuGraph.Graph or networkx.Graph
         A graph descriptor with a minimum spanning tree or forest.
         The networkx graph will not have all attributes copied over
-    
+
     Examples
     --------
     >>> M = cudf.read_csv('datasets/karate.csv',
