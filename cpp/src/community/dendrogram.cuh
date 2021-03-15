@@ -26,12 +26,14 @@ template <typename vertex_t>
 class Dendrogram {
  public:
   void add_level(vertex_t num_verts,
+                 vertex_t first_index,
                  cudaStream_t stream                 = 0,
                  rmm::mr::device_memory_resource *mr = rmm::mr::get_current_device_resource())
   {
     level_ptr_.push_back(
       std::make_unique<rmm::device_buffer>(num_verts * sizeof(vertex_t), stream, mr));
     level_size_.push_back(num_verts);
+    level_first_index_.push_back(first_index);
   }
 
   size_t current_level() const { return level_size_.size() - 1; }
@@ -50,6 +52,8 @@ class Dendrogram {
 
   vertex_t get_level_size_nocheck(size_t level) const { return level_size_[level]; }
 
+  vertex_t get_level_first_index_nocheck(size_t level) const { return level_first_index_[level]; }
+
   vertex_t const *current_level_begin() const { return get_level_ptr_nocheck(current_level()); }
 
   vertex_t const *current_level_end() const { return current_level_begin() + current_level_size(); }
@@ -60,8 +64,11 @@ class Dendrogram {
 
   vertex_t current_level_size() const { return get_level_size_nocheck(current_level()); }
 
+  vertex_t current_level_first_index() const { return get_level_first_index_nocheck(current_level()); }
+
  private:
   std::vector<vertex_t> level_size_;
+  std::vector<vertex_t> level_first_index_;
   std::vector<std::unique_ptr<rmm::device_buffer>> level_ptr_;
 };
 

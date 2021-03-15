@@ -26,6 +26,9 @@
 #include <patterns/transform_reduce_by_adj_matrix_row_col_key_e.cuh>
 #include <patterns/transform_reduce_e.cuh>
 #include <patterns/transform_reduce_v.cuh>
+#include <utilities/collect_comm.cuh>
+
+#include <thrust/transform_reduce.h>
 
 //#define TIMING
 
@@ -57,19 +60,16 @@ class Louvain {
       handle_(handle),
       dendrogram_(std::make_unique<Dendrogram<vertex_t>>()),
       current_graph_view_(graph_view),
-      local_num_vertices_(graph_view.get_number_of_local_vertices()),
-      vertex_weights_v_(graph_view.get_number_of_local_vertices(), handle.get_stream()),
+      cluster_keys_v_(graph_view.get_number_of_local_vertices(), handle.get_stream()),
       cluster_weights_v_(graph_view.get_number_of_local_vertices(), handle.get_stream()),
+      vertex_weights_v_(graph_view.get_number_of_local_vertices(), handle.get_stream()),
       src_vertex_weights_cache_v_(0, handle.get_stream()),
-      src_cluster_weights_cache_v_(0, handle.get_stream()),
-      dst_cluster_weights_cache_v_(0, handle.get_stream()),
       src_cluster_cache_v_(0, handle.get_stream()),
       dst_cluster_cache_v_(0, handle.get_stream()),
       stream_(handle.get_stream())
   {
     if (graph_view_t::is_multi_gpu) {
       rank_           = handle.get_comms().get_rank();
-      base_vertex_id_ = graph_view.get_local_vertex_first();
     }
   }
 
@@ -88,7 +88,7 @@ class Louvain {
       current_graph_view_,
       thrust::make_constant_iterator(0),
       thrust::make_constant_iterator(0),
-      [] __device__(auto, auto, weight_t wt, auto, auto) { return wt; },
+      [] __device__(auto src, auto dst, weight_t wt, auto, auto) { return wt; },
       weight_t{0});
 
     while (dendrogram_->num_levels() < max_level) {
@@ -141,23 +141,28 @@ class Louvain {
  protected:
   void initialize_dendrogram_level(vertex_t num_vertices)
   {
-    dendrogram_->add_level(num_vertices);
+    dendrogram_->add_level(num_vertices, current_graph_view_.get_local_vertex_first());
 
     thrust::sequence(rmm::exec_policy(stream_)->on(stream_),
                      dendrogram_->current_level_begin(),
                      dendrogram_->current_level_end(),
-                     base_vertex_id_);
+                     current_graph_view_.get_local_vertex_first());
   }
 
  public:
   weight_t modularity(weight_t total_edge_weight, weight_t resolution)
   {
-    weight_t sum_degree_squared = experimental::transform_reduce_v(
-      handle_,
-      current_graph_view_,
+    weight_t sum_degree_squared = thrust::transform_reduce(
+      rmm::exec_policy(stream_)->on(stream_),
       cluster_weights_v_.begin(),
+      cluster_weights_v_.end(),
       [] __device__(weight_t p) { return p * p; },
-      weight_t{0});
+      weight_t{0},
+      thrust::plus<weight_t>());
+
+    if (graph_t::is_multi_gpu) {
+      sum_degree_squared = host_scalar_allreduce(handle_.get_comms(), sum_degree_squared, stream_);
+    }
 
     weight_t sum_internal = experimental::transform_reduce_e(
       handle_,
@@ -185,16 +190,38 @@ class Louvain {
 
     vertex_weights_v_ = current_graph_view_.compute_out_weight_sums(handle_);
 
-    thrust::copy(rmm::exec_policy(stream_)->on(stream_),
-                 vertex_weights_v_.begin(),
-                 vertex_weights_v_.end(),
-                 cluster_weights_v_.begin());
+    thrust::sequence(rmm::exec_policy(stream_)->on(stream_),
+                     cluster_keys_v_.begin(),
+                     cluster_keys_v_.end(),
+                     current_graph_view_.get_local_vertex_first());
+
+    raft::copy(
+      cluster_weights_v_.begin(), vertex_weights_v_.begin(), vertex_weights_v_.size(), stream_);
 
     d_src_vertex_weights_cache_ =
       cache_src_vertex_properties(vertex_weights_v_, src_vertex_weights_cache_v_);
 
-    std::tie(d_src_cluster_weights_cache_, d_dst_cluster_weights_cache_) = cache_vertex_properties(
-      cluster_weights_v_, src_cluster_weights_cache_v_, dst_cluster_weights_cache_v_);
+    if (graph_view_t::is_multi_gpu) {
+      auto const comm_size = handle_.get_comms().get_size();
+      rmm::device_uvector<vertex_t> rx_keys_v(0, handle_.get_stream());
+      rmm::device_uvector<weight_t> rx_weights_v(0, handle_.get_stream());
+
+      auto pair_first = thrust::make_zip_iterator(
+        thrust::make_tuple(cluster_keys_v_.begin(), cluster_weights_v_.begin()));
+
+      std::forward_as_tuple(std::tie(rx_keys_v, rx_weights_v), std::ignore) =
+        groupby_gpuid_and_shuffle_values(
+          handle_.get_comms(),
+          pair_first,
+          pair_first + current_graph_view_.get_number_of_local_vertices(),
+          [key_func =
+             cugraph::experimental::detail::compute_gpu_id_from_vertex_t<vertex_t>{
+               comm_size}] __device__(auto val) { return key_func(thrust::get<0>(val)); },
+          handle_.get_stream());
+
+      cluster_keys_v_    = std::move(rx_keys_v);
+      cluster_weights_v_ = std::move(rx_weights_v);
+    }
 
     timer_stop(stream_);
   }
@@ -268,10 +295,10 @@ class Louvain {
       new_Q = modularity(total_edge_weight, resolution);
 
       if (new_Q > cur_Q) {
-        thrust::copy(rmm::exec_policy(stream_)->on(stream_),
-                     next_cluster_v.begin(),
-                     next_cluster_v.end(),
-                     dendrogram_->current_level_begin());
+        raft::copy(dendrogram_->current_level_begin(),
+                   next_cluster_v.begin(),
+                   next_cluster_v.size(),
+                   stream_);
       }
     }
 
@@ -279,46 +306,118 @@ class Louvain {
     return cur_Q;
   }
 
+  void compute_cluster_sum_and_subtract(rmm::device_uvector<weight_t> &old_cluster_sum_v,
+                                        rmm::device_uvector<weight_t> &cluster_subtract_v)
+  {
+    auto output_buffer =
+      cugraph::experimental::allocate_dataframe_buffer<thrust::tuple<weight_t, weight_t>>(
+        current_graph_view_.get_number_of_local_vertices(), stream_);
+
+    experimental::copy_v_transform_reduce_out_nbr(
+      handle_,
+      current_graph_view_,
+      d_src_cluster_cache_,
+      d_dst_cluster_cache_,
+      [] __device__(auto src, auto dst, auto wt, auto src_cluster, auto nbr_cluster) {
+        weight_t subtract{0};
+        weight_t sum{0};
+
+        if (src == dst)
+          subtract = wt;
+        else if (src_cluster == nbr_cluster)
+          sum = wt;
+
+        return thrust::make_tuple(subtract, sum);
+      },
+      thrust::make_tuple(weight_t{0}, weight_t{0}),
+      cugraph::experimental::get_dataframe_buffer_begin<thrust::tuple<weight_t, weight_t>>(
+        output_buffer));
+
+    thrust::transform(
+      rmm::exec_policy(stream_)->on(stream_),
+      cugraph::experimental::get_dataframe_buffer_begin<thrust::tuple<weight_t, weight_t>>(
+        output_buffer),
+      cugraph::experimental::get_dataframe_buffer_begin<thrust::tuple<weight_t, weight_t>>(
+        output_buffer) +
+        current_graph_view_.get_number_of_local_vertices(),
+      old_cluster_sum_v.begin(),
+      [] __device__(auto p) { return thrust::get<1>(p); });
+
+    thrust::transform(
+      rmm::exec_policy(stream_)->on(stream_),
+      cugraph::experimental::get_dataframe_buffer_begin<thrust::tuple<weight_t, weight_t>>(
+        output_buffer),
+      cugraph::experimental::get_dataframe_buffer_begin<thrust::tuple<weight_t, weight_t>>(
+        output_buffer) +
+        current_graph_view_.get_number_of_local_vertices(),
+      cluster_subtract_v.begin(),
+      [] __device__(auto p) { return thrust::get<0>(p); });
+  }
+
   void update_by_delta_modularity(weight_t total_edge_weight,
                                   weight_t resolution,
                                   rmm::device_uvector<vertex_t> &next_cluster_v,
                                   bool up_down)
   {
-    rmm::device_uvector<weight_t> old_cluster_sum_v(local_num_vertices_, stream_);
-    rmm::device_uvector<weight_t> cluster_subtract_v(local_num_vertices_, stream_);
+    rmm::device_uvector<weight_t> old_cluster_sum_v(current_graph_view_.get_number_of_local_vertices(), stream_);
+    rmm::device_uvector<weight_t> cluster_subtract_v(current_graph_view_.get_number_of_local_vertices(), stream_);
+    rmm::device_uvector<weight_t> src_cluster_weights_v(next_cluster_v.size(), stream_);
+    rmm::device_uvector<weight_t> dst_cluster_weights_v(next_cluster_v.size(), stream_);
 
-    rmm::device_uvector<vertex_t> tmp_cluster_keys_v(0, stream_);
-    rmm::device_uvector<weight_t> tmp_cluster_weights_v(0, stream_);
-
-    // TODO: These two calls could be combined and return a pair, I would think that would be faster
-    experimental::copy_v_transform_reduce_out_nbr(
-      handle_,
-      current_graph_view_,
-      d_src_cluster_cache_,
-      d_dst_cluster_cache_,
-      [] __device__(auto src, auto dst, auto wt, auto src_cluster, auto nbr_cluster) {
-        if ((src != dst) && (src_cluster == nbr_cluster)) {
-          return wt;
-        } else
-          return weight_t{0};
-      },
-      weight_t{0},
-      old_cluster_sum_v.begin());
-
-    experimental::copy_v_transform_reduce_out_nbr(
-      handle_,
-      current_graph_view_,
-      d_src_cluster_cache_,
-      d_dst_cluster_cache_,
-      [] __device__(auto src, auto dst, auto wt, auto src_cluster, auto nbr_cluster) {
-        return (src == dst) ? wt : weight_t{0};
-      },
-      weight_t{0},
-      cluster_subtract_v.begin());
+    compute_cluster_sum_and_subtract(old_cluster_sum_v, cluster_subtract_v);
 
     auto output_buffer =
       cugraph::experimental::allocate_dataframe_buffer<thrust::tuple<vertex_t, weight_t>>(
-        local_num_vertices_, stream_);
+        current_graph_view_.get_number_of_local_vertices(), stream_);
+
+    vertex_t *map_key_first;
+    vertex_t *map_key_last;
+    weight_t *map_value_first;
+
+    if (graph_t::is_multi_gpu) {
+      cugraph::experimental::detail::compute_gpu_id_from_vertex_t<vertex_t> vertex_to_gpu_id_op{
+        handle_.get_comms().get_size()};
+
+      src_cluster_weights_v = cugraph::experimental::collect_values_for_keys(
+        handle_.get_comms(),
+        cluster_keys_v_.begin(),
+        cluster_keys_v_.end(),
+        cluster_weights_v_.data(),
+        d_src_cluster_cache_,
+        d_src_cluster_cache_ + src_cluster_cache_v_.size(),
+        vertex_to_gpu_id_op,
+        stream_);
+
+      dst_cluster_weights_v = cugraph::experimental::collect_values_for_keys(
+        handle_.get_comms(),
+        cluster_keys_v_.begin(),
+        cluster_keys_v_.end(),
+        cluster_weights_v_.data(),
+        d_dst_cluster_cache_,
+        d_dst_cluster_cache_ + dst_cluster_cache_v_.size(),
+        vertex_to_gpu_id_op,
+        stream_);
+
+      map_key_first   = d_dst_cluster_cache_;
+      map_key_last    = d_dst_cluster_cache_ + dst_cluster_cache_v_.size();
+      map_value_first = dst_cluster_weights_v.begin();
+    } else {
+      thrust::transform(rmm::exec_policy(stream_)->on(stream_),
+                        next_cluster_v.begin(),
+                        next_cluster_v.end(),
+                        src_cluster_weights_v.begin(),
+                        [d_cluster_weights = cluster_weights_v_.data(),
+                         d_cluster_keys    = cluster_keys_v_.data(),
+                         num_clusters      = cluster_keys_v_.size()] __device__(vertex_t cluster) {
+                          auto pos = thrust::find(
+                            thrust::seq, d_cluster_keys, d_cluster_keys + num_clusters, cluster);
+                          return d_cluster_weights[pos - d_cluster_keys];
+                        });
+
+      map_key_first   = d_src_cluster_cache_;
+      map_key_last    = d_src_cluster_cache_ + src_cluster_weights_v.size();
+      map_value_first = src_cluster_weights_v.begin();
+    }
 
     copy_v_transform_reduce_key_aggregated_out_nbr(
       handle_,
@@ -326,25 +425,20 @@ class Louvain {
       thrust::make_zip_iterator(thrust::make_tuple(old_cluster_sum_v.begin(),
                                                    d_src_vertex_weights_cache_,
                                                    cluster_subtract_v.begin(),
-                                                   d_src_cluster_cache_)),
+                                                   d_src_cluster_cache_,
+                                                   src_cluster_weights_v.begin())),
 
       d_dst_cluster_cache_,
-      thrust::make_counting_iterator<vertex_t>(base_vertex_id_),
-      thrust::make_counting_iterator<vertex_t>(base_vertex_id_ + local_num_vertices_),
-      d_dst_cluster_weights_cache_,
-      [base_vertex_id        = base_vertex_id_,
-       d_src_cluster_weights = d_src_cluster_weights_cache_,
-       total_edge_weight,
-       resolution] __device__(auto src,
-                              auto neighbor_cluster,
-                              auto new_cluster_sum,
-                              auto src_info,
-                              auto a_new) {
+      map_key_first,
+      map_key_last,
+      map_value_first,
+      [rank = rank_, total_edge_weight, resolution] __device__(
+        auto src, auto neighbor_cluster, auto new_cluster_sum, auto src_info, auto a_new) {
         auto old_cluster_sum  = thrust::get<0>(src_info);
         auto k_k              = thrust::get<1>(src_info);
         auto cluster_subtract = thrust::get<2>(src_info);
         auto src_cluster      = thrust::get<3>(src_info);
-        auto a_old            = d_src_cluster_weights[src_cluster];
+        auto a_old            = thrust::get<4>(src_info);
 
         if (src_cluster == neighbor_cluster) new_cluster_sum -= cluster_subtract;
 
@@ -352,10 +446,31 @@ class Louvain {
                                          resolution * (a_new * k_k - a_old * k_k + k_k * k_k) /
                                            (total_edge_weight * total_edge_weight));
 
+#if 0
+          printf(
+            "rank = %d, src = %d, neighbor_cluster = %d, new_cluster_sum = %g, old_cluster_sum = "
+            "%g, "
+            "a_new = %g, a_old = %g, k_k = %g, delta_modularity = %g\n",
+            (int)rank,
+            (int)src,
+            (int)neighbor_cluster,
+            (float)new_cluster_sum,
+            (float)old_cluster_sum,
+            (float)a_new,
+            (float)a_old,
+            (float)k_k,
+            (float)delta_modularity);
+#endif
+
         return thrust::make_tuple(neighbor_cluster, delta_modularity);
       },
       [] __device__(auto p1, auto p2) {
-        return (thrust::get<1>(p1) < thrust::get<1>(p2)) ? p2 : p1;
+        auto id1 = thrust::get<0>(p1);
+        auto id2 = thrust::get<0>(p2);
+        auto wt1 = thrust::get<1>(p1);
+        auto wt2 = thrust::get<1>(p2);
+
+        return (wt1 < wt2) ? p2 : ((wt1 > wt2) ? p1 : ((id1 < id2) ? p1 : p2));
       },
       thrust::make_tuple(vertex_t{-1}, weight_t{0}),
       cugraph::experimental::get_dataframe_buffer_begin<thrust::tuple<vertex_t, weight_t>>(
@@ -368,9 +483,19 @@ class Louvain {
       cugraph::experimental::get_dataframe_buffer_begin<thrust::tuple<vertex_t, weight_t>>(
         output_buffer),
       next_cluster_v.begin(),
-      [up_down] __device__(vertex_t old_cluster, auto p) {
+      [rank = rank_, up_down] __device__(vertex_t old_cluster, auto p) {
         vertex_t new_cluster      = thrust::get<0>(p);
         weight_t delta_modularity = thrust::get<1>(p);
+
+#if 0
+        printf(
+          "rank = %d, old_cluster = %d, new_cluster = %d, delta_modularity = %g, up_down = %s\n",
+          (int)rank,
+          (int)old_cluster,
+          (int)new_cluster,
+          (float)delta_modularity,
+          up_down ? "true" : false);
+#endif
 
         return (delta_modularity > weight_t{0})
                  ? (((new_cluster > old_cluster) != up_down) ? old_cluster : new_cluster)
@@ -380,31 +505,15 @@ class Louvain {
     std::tie(d_src_cluster_cache_, d_dst_cluster_cache_) =
       cache_vertex_properties(next_cluster_v, src_cluster_cache_v_, dst_cluster_cache_v_);
 
-    std::tie(tmp_cluster_keys_v, tmp_cluster_weights_v) =
+    std::tie(cluster_keys_v_, cluster_weights_v_) =
       cugraph::experimental::transform_reduce_by_adj_matrix_row_key_e(
         handle_,
         current_graph_view_,
         thrust::make_constant_iterator(0),
         thrust::make_constant_iterator(0),
         d_src_cluster_cache_,
-        [] __device__(auto src, auto, auto wt, auto, auto) { return wt; },
+        [] __device__(auto src, auto dst, auto wt, auto x, auto y) { return wt; },
         weight_t{0});
-
-    thrust::fill(rmm::exec_policy(stream_)->on(stream_),
-                 cluster_weights_v_.begin(),
-                 cluster_weights_v_.end(),
-                 weight_t{0});
-
-    thrust::scatter(rmm::exec_policy(stream_)->on(stream_),
-                    tmp_cluster_weights_v.begin(),
-                    tmp_cluster_weights_v.end(),
-                    thrust::make_transform_iterator(tmp_cluster_keys_v.begin(),
-                                                    [base_vertex_id = base_vertex_id_] __device__(
-                                                      auto key) { return key - base_vertex_id; }),
-                    cluster_weights_v_.begin());
-
-    std::tie(d_src_cluster_weights_cache_, d_dst_cluster_weights_cache_) = cache_vertex_properties(
-      cluster_weights_v_, src_cluster_weights_cache_v_, dst_cluster_weights_cache_v_);
   }
 
   void shrink_graph()
@@ -418,20 +527,17 @@ class Louvain {
 
     current_graph_view_ = current_graph_->view();
 
-    local_num_vertices_ = current_graph_view_.get_number_of_local_vertices();
-    base_vertex_id_     = current_graph_view_.get_local_vertex_first();
-
     rmm::device_uvector<vertex_t> numbering_indices(numbering_map.size(), stream_);
     thrust::sequence(rmm::exec_policy(stream_)->on(stream_),
                      numbering_indices.begin(),
                      numbering_indices.end(),
-                     base_vertex_id_);
+                     current_graph_view_.get_local_vertex_first());
 
     relabel<vertex_t, graph_view_t::is_multi_gpu>(
       handle_,
       std::make_tuple(static_cast<vertex_t const *>(numbering_map.begin()),
                       static_cast<vertex_t const *>(numbering_indices.begin())),
-      local_num_vertices_,
+      current_graph_view_.get_number_of_local_vertices(),
       dendrogram_->current_level_begin(),
       dendrogram_->current_level_size());
 
@@ -444,8 +550,6 @@ class Louvain {
 
   std::unique_ptr<Dendrogram<vertex_t>> dendrogram_;
 
-  vertex_t local_num_vertices_;
-  vertex_t base_vertex_id_{0};
   int rank_{0};
 
   //
@@ -457,16 +561,13 @@ class Louvain {
   graph_view_t current_graph_view_;
 
   rmm::device_uvector<weight_t> vertex_weights_v_;
-  rmm::device_uvector<weight_t> cluster_weights_v_;
   rmm::device_uvector<weight_t> src_vertex_weights_cache_v_;
-  rmm::device_uvector<weight_t> src_cluster_weights_cache_v_;
-  rmm::device_uvector<weight_t> dst_cluster_weights_cache_v_;
   rmm::device_uvector<vertex_t> src_cluster_cache_v_;
   rmm::device_uvector<vertex_t> dst_cluster_cache_v_;
+  rmm::device_uvector<vertex_t> cluster_keys_v_;
+  rmm::device_uvector<weight_t> cluster_weights_v_;
 
   weight_t *d_src_vertex_weights_cache_;
-  weight_t *d_src_cluster_weights_cache_;
-  weight_t *d_dst_cluster_weights_cache_;
   vertex_t *d_src_cluster_cache_;
   vertex_t *d_dst_cluster_cache_;
 
