@@ -190,10 +190,7 @@ struct major_minor_weights_t {
 //
 template <typename vertex_t, typename edge_t>
 struct renum_quad_t {
-  explicit renum_quad_t(raft::handle_t const& handle)
-    : dv_(0, handle.get_stream()), part_(std::vector<vertex_t>(), false, 0, 0, 0, 0)
-  {
-  }
+  explicit renum_quad_t(raft::handle_t const& handle) : dv_(0, handle.get_stream()), part_() {}
 
   rmm::device_uvector<vertex_t>& get_dv(void) { return dv_; }
 
@@ -298,8 +295,8 @@ struct renum_quad_t {
  private:
   rmm::device_uvector<vertex_t> dv_;
   cugraph::experimental::partition_t<vertex_t> part_;
-  vertex_t nv_;
-  edge_t ne_;
+  vertex_t nv_{0};
+  edge_t ne_{0};
 };
 // FIXME: finish description for vertex_partition_offsets
 //
