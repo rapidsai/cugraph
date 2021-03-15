@@ -31,6 +31,9 @@
 #include <thrust/iterator/constant_iterator.h>
 #include <thrust/iterator/counting_iterator.h>
 //#include <thrust/reduce.h>
+#include <thrust/random.h>
+#include <thrust/random/linear_congruential_engine.h>
+#include <thrust/random/uniform_int_distribution.h>
 #include <thrust/remove.h>
 
 //#include <experimental/include_cuco_static_map.cuh>
@@ -43,6 +46,29 @@ namespace cugraph {
 namespace experimental {
 
 namespace detail {
+
+// thrust random generator:
+//
+template <typename vertex_t, typename seed_t = long, typename engine_t = thrust::minstd_rand>
+struct trandom_gen_t {
+  trandom_gen_t(vertex_t const* d_ptr_ub, seed_t seed) : seed_(seed), d_ptr_ubounds_(d_ptr_ub) {}
+
+  template <typename index_t = size_t>
+  __device__ vertex_t operator()(index_t indx) const
+  {
+    engine_t rng(seed_);
+    vertex_t lb = 0;
+    auto ub     = d_ptr_ubounds_[indx] - 1;  // bounds are inclusive!
+
+    thrust::uniform_int_distribution<vertex_t> dist(lb, ub);
+    rng.discard(seed_);
+    return dist(rng);
+  }
+
+ private:
+  seed_t seed_;
+  vertex_t const* d_ptr_ubounds_;
+};
 
 // class abstracting the RW stepping algorithm:
 // preprocessing, stepping, and post-processing
