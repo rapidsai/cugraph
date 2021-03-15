@@ -113,6 +113,8 @@ class Tests_SSSP : public ::testing::TestWithParam<SSSP_Usecase> {
   template <typename vertex_t, typename edge_t, typename weight_t>
   void run_current_test(SSSP_Usecase const& configuration)
   {
+    constexpr bool renumber = false;
+
     raft::handle_t handle{};
 
     cugraph::experimental::graph_t<vertex_t, edge_t, weight_t, false, false> graph(handle);
@@ -121,7 +123,7 @@ class Tests_SSSP : public ::testing::TestWithParam<SSSP_Usecase> {
           cugraph::test::input_graph_specifier_t::MATRIX_MARKET_FILE_PATH
         ? cugraph::test::
             read_graph_from_matrix_market_file<vertex_t, edge_t, weight_t, false, false>(
-              handle, configuration.input_graph_specifier.graph_file_full_path, true, false)
+              handle, configuration.input_graph_specifier.graph_file_full_path, true, renumber)
         : cugraph::test::generate_graph_from_rmat_params<vertex_t, edge_t, weight_t, false, false>(
             handle,
             configuration.input_graph_specifier.rmat_params.scale,
@@ -133,7 +135,7 @@ class Tests_SSSP : public ::testing::TestWithParam<SSSP_Usecase> {
             configuration.input_graph_specifier.rmat_params.undirected,
             configuration.input_graph_specifier.rmat_params.scramble_vertex_ids,
             true,
-            false);
+            renumber);
     auto graph_view = graph.view();
 
     std::vector<edge_t> h_offsets(graph_view.get_number_of_vertices() + 1);
