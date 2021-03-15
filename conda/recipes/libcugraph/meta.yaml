@@ -36,21 +36,21 @@ requirements:
     - cudatoolkit {{ cuda_version }}.*
     - boost-cpp>=1.66
     - libcypher-parser
-    - nccl>=2.7
+    - nccl>=2.8.4
     - ucx-py {{ minor_version }}
     - ucx-proc=*=gpu
     - gtest
     - faiss-proc=*=cuda
-    - libfaiss=1.6.3
+    - conda-forge::libfaiss=1.7.0
     - gmock
   run:
     - libcudf={{ minor_version }}
     - {{ pin_compatible('cudatoolkit', max_pin='x.x') }}
-    - nccl>=2.7
+    - nccl>=2.8.4
     - ucx-py {{ minor_version }}
     - ucx-proc=*=gpu
     - faiss-proc=*=cuda
-    - libfaiss=1.6.3
+    - conda-forge::libfaiss=1.7.0
 
 #test:
 #  commands:

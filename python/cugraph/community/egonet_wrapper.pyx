@@ -12,14 +12,12 @@
 # limitations under the License.
 
 from cugraph.community.egonet cimport call_egonet
-from cugraph.structure.graph_primtypes cimport *
+from cugraph.structure.graph_utilities cimport *
 from libcpp cimport bool
 from libc.stdint cimport uintptr_t
 from cugraph.structure import graph_primtypes_wrapper
 import cudf
-import rmm
 import numpy as np
-import numpy.ctypeslib as ctypeslib
 from rmm._lib.device_buffer cimport DeviceBuffer
 from cudf.core.buffer import Buffer
 
@@ -58,9 +56,11 @@ def egonet(input_graph, vertices, radius=1):
     # Pointers for egonet
     cdef uintptr_t c_source_vertex_ptr = vertices.__cuda_array_interface__['data'][0]
     n_subgraphs = vertices.size
-
+    n_streams = 1
+    if n_subgraphs > 1 :
+        n_streams = min(n_subgraphs, 32)
     cdef unique_ptr[handle_t] handle_ptr
-    handle_ptr.reset(new handle_t())
+    handle_ptr.reset(new handle_t(n_streams))
     handle_ = handle_ptr.get();
 
     cdef graph_container_t graph_container

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020, NVIDIA CORPORATION.
+ * Copyright (c) 2020-2021, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -79,17 +79,26 @@ void sssp_reference(edge_t const* offsets,
 }
 
 typedef struct SSSP_Usecase_t {
-  std::string graph_file_full_path{};
+  cugraph::test::input_graph_specifier_t input_graph_specifier{};
   size_t source{false};
 
   SSSP_Usecase_t(std::string const& graph_file_path, size_t source) : source(source)
   {
+    std::string graph_file_full_path{};
     if ((graph_file_path.length() > 0) && (graph_file_path[0] != '/')) {
       graph_file_full_path = cugraph::test::get_rapids_dataset_root_dir() + "/" + graph_file_path;
     } else {
       graph_file_full_path = graph_file_path;
     }
+    input_graph_specifier.tag = cugraph::test::input_graph_specifier_t::MATRIX_MARKET_FILE_PATH;
+    input_graph_specifier.graph_file_full_path = graph_file_full_path;
   };
+
+  SSSP_Usecase_t(cugraph::test::rmat_params_t rmat_params, size_t source) : source(source)
+  {
+    input_graph_specifier.tag         = cugraph::test::input_graph_specifier_t::RMAT_PARAMS;
+    input_graph_specifier.rmat_params = rmat_params;
+  }
 } SSSP_Usecase;
 
 class Tests_SSSP : public ::testing::TestWithParam<SSSP_Usecase> {
@@ -106,9 +115,25 @@ class Tests_SSSP : public ::testing::TestWithParam<SSSP_Usecase> {
   {
     raft::handle_t handle{};
 
-    auto graph =
-      cugraph::test::read_graph_from_matrix_market_file<vertex_t, edge_t, weight_t, false>(
-        handle, configuration.graph_file_full_path, true);
+    cugraph::experimental::graph_t<vertex_t, edge_t, weight_t, false, false> graph(handle);
+    std::tie(graph, std::ignore) =
+      configuration.input_graph_specifier.tag ==
+          cugraph::test::input_graph_specifier_t::MATRIX_MARKET_FILE_PATH
+        ? cugraph::test::
+            read_graph_from_matrix_market_file<vertex_t, edge_t, weight_t, false, false>(
+              handle, configuration.input_graph_specifier.graph_file_full_path, true, false)
+        : cugraph::test::generate_graph_from_rmat_params<vertex_t, edge_t, weight_t, false, false>(
+            handle,
+            configuration.input_graph_specifier.rmat_params.scale,
+            configuration.input_graph_specifier.rmat_params.edge_factor,
+            configuration.input_graph_specifier.rmat_params.a,
+            configuration.input_graph_specifier.rmat_params.b,
+            configuration.input_graph_specifier.rmat_params.c,
+            configuration.input_graph_specifier.rmat_params.seed,
+            configuration.input_graph_specifier.rmat_params.undirected,
+            configuration.input_graph_specifier.rmat_params.scramble_vertex_ids,
+            true,
+            false);
     auto graph_view = graph.view();
 
     std::vector<edge_t> h_offsets(graph_view.get_number_of_vertices() + 1);
@@ -208,16 +233,13 @@ class Tests_SSSP : public ::testing::TestWithParam<SSSP_Usecase> {
 // FIXME: add tests for type combinations
 TEST_P(Tests_SSSP, CheckInt32Int32Float) { run_current_test<int32_t, int32_t, float>(GetParam()); }
 
-#if 0
-INSTANTIATE_TEST_CASE_P(simple_test,
-                        Tests_SSSP,
-                        ::testing::Values(SSSP_Usecase("test/datasets/karate.mtx", 0)));
-#else
-INSTANTIATE_TEST_CASE_P(simple_test,
-                        Tests_SSSP,
-                        ::testing::Values(SSSP_Usecase("test/datasets/karate.mtx", 0),
-                                          SSSP_Usecase("test/datasets/dblp.mtx", 0),
-                                          SSSP_Usecase("test/datasets/wiki2003.mtx", 1000)));
-#endif
+INSTANTIATE_TEST_CASE_P(
+  simple_test,
+  Tests_SSSP,
+  ::testing::Values(
+    SSSP_Usecase("test/datasets/karate.mtx", 0),
+    SSSP_Usecase("test/datasets/dblp.mtx", 0),
+    SSSP_Usecase("test/datasets/wiki2003.mtx", 1000),
+    SSSP_Usecase(cugraph::test::rmat_params_t{10, 16, 0.57, 0.19, 0.19, 0, false, false}, 0)));
 
 CUGRAPH_TEST_PROGRAM_MAIN()

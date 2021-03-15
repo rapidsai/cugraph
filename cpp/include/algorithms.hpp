@@ -1100,9 +1100,9 @@ void sssp(raft::handle_t const &handle,
 template <typename vertex_t, typename edge_t, typename weight_t, typename result_t, bool multi_gpu>
 void pagerank(raft::handle_t const &handle,
               graph_view_t<vertex_t, edge_t, weight_t, true, multi_gpu> const &graph_view,
-              weight_t *adj_matrix_row_out_weight_sums,
-              vertex_t *personalization_vertices,
-              result_t *personalization_values,
+              weight_t const *adj_matrix_row_out_weight_sums,
+              vertex_t const *personalization_vertices,
+              result_t const *personalization_values,
               vertex_t personalization_vector_size,
               result_t *pageranks,
               result_t alpha,
@@ -1148,7 +1148,7 @@ void pagerank(raft::handle_t const &handle,
 template <typename vertex_t, typename edge_t, typename weight_t, typename result_t, bool multi_gpu>
 void katz_centrality(raft::handle_t const &handle,
                      graph_view_t<vertex_t, edge_t, weight_t, true, multi_gpu> const &graph_view,
-                     result_t *betas,
+                     result_t const *betas,
                      result_t *katz_centralities,
                      result_t alpha,
                      result_t beta,
@@ -1167,7 +1167,7 @@ void katz_centrality(raft::handle_t const &handle,
  * @tparam multi_gpu Flag indicating whether template instantiation should target single-GPU (false)
  * or multi-GPU (true).
  * @param handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator, and
- * handles to various CUDA libraries) to run graph algorithms.
+ * handles to various CUDA libraries) to run graph algorithms. Must have at least one worker stream.
  * @param graph_view Graph view object of, we extract induced egonet subgraphs from @p graph_view.
  * @param source_vertex Pointer to egonet center vertices (size == @p n_subgraphs).
  * @param n_subgraphs Number of induced EgoNet subgraphs to extract (ie. number of elements in @p
