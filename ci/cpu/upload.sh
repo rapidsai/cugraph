@@ -29,8 +29,8 @@ fi
 
 gpuci_logger "Get conda file output locations"
 
-export LIBCUGRAPH_FILE=`conda build conda/recipes/libcugraph --output`
-export CUGRAPH_FILE=`conda build conda/recipes/cugraph --python=$PYTHON --output`
+export LIBCUGRAPH_FILE=`conda build --no-build-id --croot ${CONDA_BLD_DIR} conda/recipes/libcugraph --output`
+export CUGRAPH_FILE=`conda build --croot ${CONDA_BLD_DIR} conda/recipes/cugraph --python=$PYTHON --output`
 
 ################################################################################
 # UPLOAD - Conda packages

@@ -25,6 +25,7 @@ CUGRAPH_ROOT=$(cd ${THISDIR}/..;pwd)
 GTEST_ARGS="--gtest_output=xml:${CUGRAPH_ROOT}/test-results/"
 DOWNLOAD_MODE=""
 EXITCODE=0
+CONDA_ARTIFACT_PATH=${WORKSPACE}/ci/artifacts/cugraph/cpu/.conda-bld/
 
 export RAPIDS_DATASET_ROOT_DIR=${CUGRAPH_ROOT}/datasets
 
@@ -75,11 +76,11 @@ if [[ "$PROJECT_FLASH" == "1" ]]; then
     chrpath -d libcugraph.so
     patchelf --replace-needed `patchelf --print-needed libcugraph.so | grep faiss` libfaiss.so libcugraph.so
 
-    CONDA_FILE=`find $WORKSPACE/ci/artifacts/cugraph/cpu/conda-bld/ -name "libcugraph*.tar.bz2"`
+    CONDA_FILE=`find ${CONDA_ARTIFACT_PATH} -name "libcugraph*.tar.bz2"`
     CONDA_FILE=`basename "$CONDA_FILE" .tar.bz2` #get filename without extension
     CONDA_FILE=${CONDA_FILE//-/=} #convert to conda install
     echo "Installing $CONDA_FILE"
-    conda install -c $WORKSPACE/ci/artifacts/cugraph/cpu/conda-bld/ "$CONDA_FILE"
+    conda install -c ${CONDA_ARTIFACT_PATH} "$CONDA_FILE"
 
     echo "Build cugraph..."
     $WORKSPACE/build.sh cugraph
