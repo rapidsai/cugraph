@@ -107,6 +107,8 @@ class Tests_BFS : public ::testing::TestWithParam<BFS_Usecase> {
   template <typename vertex_t, typename edge_t>
   void run_current_test(BFS_Usecase const& configuration)
   {
+    constexpr bool renumber = false;
+
     using weight_t = float;
 
     raft::handle_t handle{};
@@ -117,7 +119,7 @@ class Tests_BFS : public ::testing::TestWithParam<BFS_Usecase> {
           cugraph::test::input_graph_specifier_t::MATRIX_MARKET_FILE_PATH
         ? cugraph::test::
             read_graph_from_matrix_market_file<vertex_t, edge_t, weight_t, false, false>(
-              handle, configuration.input_graph_specifier.graph_file_full_path, false, false)
+              handle, configuration.input_graph_specifier.graph_file_full_path, false, renumber)
         : cugraph::test::generate_graph_from_rmat_params<vertex_t, edge_t, weight_t, false, false>(
             handle,
             configuration.input_graph_specifier.rmat_params.scale,
@@ -129,7 +131,7 @@ class Tests_BFS : public ::testing::TestWithParam<BFS_Usecase> {
             configuration.input_graph_specifier.rmat_params.undirected,
             configuration.input_graph_specifier.rmat_params.scramble_vertex_ids,
             false,
-            false);
+            renumber);
     auto graph_view = graph.view();
 
     std::vector<edge_t> h_offsets(graph_view.get_number_of_vertices() + 1);

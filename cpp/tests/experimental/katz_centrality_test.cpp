@@ -128,6 +128,8 @@ class Tests_KatzCentrality : public ::testing::TestWithParam<KatzCentrality_Usec
   template <typename vertex_t, typename edge_t, typename weight_t, typename result_t>
   void run_current_test(KatzCentrality_Usecase const& configuration)
   {
+    constexpr bool renumber = false;
+
     raft::handle_t handle{};
 
     cugraph::experimental::graph_t<vertex_t, edge_t, weight_t, true, false> graph(handle);
@@ -139,7 +141,7 @@ class Tests_KatzCentrality : public ::testing::TestWithParam<KatzCentrality_Usec
               handle,
               configuration.input_graph_specifier.graph_file_full_path,
               configuration.test_weighted,
-              false)
+              renumber)
         : cugraph::test::generate_graph_from_rmat_params<vertex_t, edge_t, weight_t, true, false>(
             handle,
             configuration.input_graph_specifier.rmat_params.scale,
@@ -151,7 +153,7 @@ class Tests_KatzCentrality : public ::testing::TestWithParam<KatzCentrality_Usec
             configuration.input_graph_specifier.rmat_params.undirected,
             configuration.input_graph_specifier.rmat_params.scramble_vertex_ids,
             configuration.test_weighted,
-            false);
+            renumber);
     auto graph_view = graph.view();
 
     std::vector<edge_t> h_offsets(graph_view.get_number_of_vertices() + 1);
