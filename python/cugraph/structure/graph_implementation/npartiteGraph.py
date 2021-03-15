@@ -1,9 +1,9 @@
+from .simpleGraph import simpleGraphImpl
+import cudf
+
 class npartiteGraphImpl(simpleGraphImpl):
-    self.edgelist = None
-    self.adjlist = None
-    self.transposedadjlist = None
-    self.renumber_map = None
-    self.partition_map = None
+    def __init__(self, properties):
+        super(npartiteGraphImpl, self).__init__(properties)
 
     # API may change in future
     def __from_edgelist(
@@ -14,13 +14,13 @@ class npartiteGraphImpl(simpleGraphImpl):
         edge_attr=None,
         renumber=True,
     ):
-    _simpleGraphImpl__from_edgelist(
-        input_df,
-        source="source",
-        destination="destination",
-        edge_attr=None,
-        renumber=True,
-    )
+        _simpleGraphImpl__from_edgelist(
+            input_df,
+            source="source",
+            destination="destination",
+            edge_attr=None,
+            renumber=True,
+        )
 
     def sets(self):
         """
@@ -32,7 +32,7 @@ class npartiteGraphImpl(simpleGraphImpl):
         """
         # TO DO: Call coloring algorithm
         set_names = [i for i in self._nodes.keys() if i != "all_nodes"]
-        if self.bipartite:
+        if self.properties.bipartite:
             top = self._nodes[set_names[0]]
             if len(set_names) == 2:
                 bottom = self._nodes[set_names[1]]
@@ -66,19 +66,16 @@ class npartiteGraphImpl(simpleGraphImpl):
         else:
             set_names = [i for i in self._nodes.keys() if i != "all_nodes"]
             if multipartite is not None:
-                if self.bipartite:
+                if self.properties.bipartite:
                     raise Exception(
-                        "The Graph is already set as bipartite. "
+                        "The Graph is bipartite. "
                         "Use bipartite option instead."
                     )
-                self.multipartite = True
             elif bipartite is not None:
-                if self.multipartite:
+                if not self.properties.bipartite:
                     raise Exception(
-                        "The Graph is set as multipartite. "
-                        "Use multipartite option instead."
-                    )
-                self.bipartite = True
+                        "The Graph is set as npartite. "
+                        "Use multipartite option instead.")
                 multipartite = bipartite
                 if multipartite not in set_names and len(set_names) == 2:
                     raise Exception(

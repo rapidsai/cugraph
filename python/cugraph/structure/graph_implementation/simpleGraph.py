@@ -40,6 +40,8 @@ class simpleGraphImpl:
             self.multi_edge=properties.multi_edge
             self.directed=properties.directed
             self.tree=properties.tree
+            self.bipartite=properties.bipartite
+            self.npartite=properties.npartite
             self.renumbered=False
             self.self_loop=None
             self.isolated_vertices=None
@@ -53,6 +55,7 @@ class simpleGraphImpl:
         self.transposedadjlist = None
         self.renumber_map = None
         self.properties = simpleGraphImpl.Properties(properties)
+        self._nodes = {}
 
         # TODO: Move to new batch class
         # MG - Batch

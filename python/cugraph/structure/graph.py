@@ -186,8 +186,9 @@ class Graph:
         if bipartite is None and multipartite is None:
             self.Base._nodes["all_nodes"] = cudf.Series(nodes)
         else:
-            self.Base =  NPartiteGraphImpl(self.graph_properties)
-            self.Base.add_nodes_from(self, nodes, bipartite=bipartite, multipartite=multipartite)
+            if self.Base is None:
+                self.Base =  npartiteGraphImpl(self.graph_properties)
+            self.Base.add_nodes_from(nodes, bipartite=bipartite, multipartite=multipartite)
 
     def unrenumber(self, df, column_name, preserve_order=False):
         """
@@ -294,7 +295,7 @@ class Graph:
         graph to check if it is bipartite.
         """
         # TO DO: Call coloring algorithm
-        return self.properties.bipartite
+        return self.graph_properties.bipartite
 
     def is_multipartite(self):
         """
@@ -303,20 +304,20 @@ class Graph:
         the graph to check if it is multipartite.
         """
         # TO DO: Call coloring algorithm
-        return self.properties.multipartite or self.properties.bipartite
+        return self.graph_properties.multipartite or self.graph_properties.bipartite
 
     def is_multigraph(self):
         """
         Returns True if the graph is a multigraph. Else returns False.
         """
-        return self.properties.multi_edge
+        return self.graph_properties.multi_edge
 
     def is_directed(self):
         """
         Returns True if the graph is a directed graph.
         Returns False if the graph is an undirected graph.
         """
-        returns self.properties.directed
+        return self.graph_properties.directed
 
     # TODO: Add function
     # def properties():
@@ -342,8 +343,8 @@ class DiTree(Tree):
         super(DiTree, self).__init__(directed=True)
 
 class NPartiteGraph(Graph):
-    def __init__(self, directed=False):
-        super(NPartiteGraph, self).__init__(directed=directed, multipartite=True)
+    def __init__(self, bipartite=False, directed=False):
+        super(NPartiteGraph, self).__init__(directed=directed, bipartite=bipartite, npartite=True)
 
     def from_cudf_edgelist(
         self,
