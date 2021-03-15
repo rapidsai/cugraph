@@ -29,9 +29,13 @@
 #include <thrust/copy.h>
 #include <thrust/find.h>
 #include <thrust/iterator/constant_iterator.h>
+#include <thrust/iterator/counting_iterator.h>
+//#include <thrust/reduce.h>
+#include <thrust/remove.h>
 
 //#include <experimental/include_cuco_static_map.cuh>
 
+#include <cassert>
 #include <tuple>
 #include <type_traits>
 
@@ -115,11 +119,48 @@ struct random_walker_t {
     //   d_v_paths_v_set[i*max_depth] = ptr_d_vertex_set_[i];
   }
 
-  void defragment(rmm::device_uvector<vertex_t>& d_v_paths_v_set,         // coalesced vertex set
-                  rmm::device_uvector<weight_t>& d_v_paths_w_set,         // coalesced weight set
-                  rmm::device_uvector<size_t> const& d_v_paths_sz) const  // paths sizes
+  void defragment(rmm::device_uvector<vertex_t>& d_coalesced_v,  // coalesced vertex set
+                  rmm::device_uvector<weight_t>& d_coalesced_w,  // coalesced weight set
+                  rmm::device_uvector<size_t> const& d_sizes,    // paths sizes
+                  size_t nPaths,
+                  size_t max_depth) const
   {
-    // TODO: perform de-fragmentation on d_v_paths_v/w_sets
+    assert(max_depth > 1);  // else, no need to step; and no edges
+
+    size_t const* ptr_d_sizes = d_sizes.data();
+
+    auto predicate_v = [max_depth, ptr_d_sizes] __device__(auto indx) {
+      auto row_indx = indx / max_depth;
+      auto col_indx = indx % max_depth;
+
+      return (col_indx >= ptr_d_sizes[row_indx]);
+    };
+
+    auto predicate_w = [max_depth, ptr_d_sizes] __device__(auto indx) {
+      auto row_indx = indx / (max_depth - 1);
+      auto col_indx = indx % (max_depth - 1);
+
+      return (col_indx >= ptr_d_sizes[row_indx] - 1);
+    };
+
+    auto new_end_v =
+      thrust::remove_if(rmm::exec_policy(handle_.get_stream())->on(handle_.get_stream()),
+                        d_coalesced_v.begin(),
+                        d_coalesced_v.end(),
+                        thrust::make_counting_iterator<size_t>(0),
+                        predicate_v);
+
+    auto new_end_w =
+      thrust::remove_if(rmm::exec_policy(handle_.get_stream())->on(handle_.get_stream()),
+                        d_coalesced_w.begin(),
+                        d_coalesced_w.end(),
+                        thrust::make_counting_iterator<size_t>(0),
+                        predicate_w);
+
+    CUDA_TRY(cudaStreamSynchronize(handle_.get_stream()));
+
+    d_coalesced_v.resize(thrust::distance(d_coalesced_v.begin(), new_end_v), handle_.get_stream());
+    d_coalesced_w.resize(thrust::distance(d_coalesced_w.begin(), new_end_w), handle_.get_stream());
   }
 
  private:
@@ -129,7 +170,8 @@ struct random_walker_t {
   rmm::device_uvector<int> d_v_stopped_;  // keeps track of paths that stopped (==1)
   random_engine_t rnd_;
   rmm::device_uvector<edge_t> d_v_out_degs_;
-  rmm::device_uvector<vertex_t> d_v_rnd_n_indx_;
+  rmm::device_uvector<vertex_t>
+    d_v_rnd_n_indx_;  // TODO: FIXME: this must be updated at each iteration (step)
 
   rmm::device_uvector<vertex_t> get_random_neighbor_indices(
     rmm::device_uvector<typename graph_t::edge_type> const& d_v_out_degs)
@@ -227,9 +269,9 @@ random_walks(raft::handle_t const& handle,
     if (rand_walker.all_stopped()) break;
   }
 
-  // TODO: truncate v_set, w_set to actaual space used:
+  // truncate v_set, w_set to actual space used:
   //
-  rand_walker.defragment(d_v_paths_v_set, d_v_paths_w_set, d_v_paths_sz);
+  rand_walker.defragment(d_v_paths_v_set, d_v_paths_w_set, d_v_paths_sz, nPaths, max_depth);
 
   // because device_uvector is not copy-cnstr-able:
   //
