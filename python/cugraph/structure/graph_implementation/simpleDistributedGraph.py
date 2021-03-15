@@ -1,3 +1,14 @@
+from cugraph.structure import graph_primtypes_wrapper
+from cugraph.structure.symmetrize import symmetrize
+from cugraph.structure.number_map import NumberMap
+import cugraph.dask.common.mg_utils as mg_utils
+import cudf
+import dask_cudf
+import cugraph.comms.comms as Comms
+import pandas as pd
+import numpy as np
+from cugraph.dask.structure import replication
+
 class simpleDistributedGraphImpl:
     class EdgeList:
         def __init__(self, source, destination, edge_attr=None):
@@ -32,7 +43,7 @@ class simpleDistributedGraphImpl:
         self.destination_columns = None
 
     #Functions
-    def from_edgelist(
+    def __from_edgelist(
         self,
         input_ddf,
         source="source",
@@ -41,30 +52,6 @@ class simpleDistributedGraphImpl:
         renumber=True,
         store_transposed=False,
     ):
-        """
-        Initializes the distributed graph from the dask_cudf.DataFrame
-        edgelist. Undirected Graphs are not currently supported.
-        By default, renumbering is enabled to map the source and destination
-        vertices into an index in the range [0, V) where V is the number
-        of vertices.  If the input vertices are a single column of integers
-        in the range [0, V), renumbering can be disabled and the original
-        external vertex ids will be used.
-        Note that the graph object will store a reference to the
-        dask_cudf.DataFrame provided.
-        Parameters
-        ----------
-        input_ddf : dask_cudf.DataFrame
-            The edgelist as a dask_cudf.DataFrame
-        source : str or array-like
-            source column name or array of column names
-        destination : str
-            destination column name or array of column names
-        edge_attr : str
-            weights column name.
-        renumber : bool
-            If source and destination indices are not in range 0 to V where V
-            is number of vertices, renumber argument should be True.
-        """
         if self.edgelist is not None or self.adjlist is not None:
             raise Exception("Graph already has values")
         if not isinstance(input_ddf, dask_cudf.DataFrame):
@@ -388,7 +375,7 @@ class simpleDistributedGraphImpl:
             raise Exception("Graph has no Edgelist.")
         # FIXME: Check renumber map 
         ddf = self.edgelist.edgelist_df[["src", "dst"]]
-            return (ddf == n).any().any().compute()
+        return (ddf == n).any().any().compute()
 
     def has_edge(self, u, v):
         """

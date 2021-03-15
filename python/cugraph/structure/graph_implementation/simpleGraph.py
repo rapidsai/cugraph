@@ -1,3 +1,14 @@
+from cugraph.structure import graph_primtypes_wrapper
+from cugraph.structure.symmetrize import symmetrize
+from cugraph.structure.number_map import NumberMap
+import cugraph.dask.common.mg_utils as mg_utils
+import cudf
+import dask_cudf
+import cugraph.comms.comms as Comms
+import pandas as pd
+import numpy as np
+from cugraph.dask.structure import replication
+
 class simpleGraphImpl:
 
     class EdgeList:
@@ -36,15 +47,22 @@ class simpleGraphImpl:
             self.edge_count=None
 
     def __init__(self, properties):
-        #Structure
+        # Structure
         self.edgelist = None
         self.adjlist = None
         self.transposedadjlist = None
         self.renumber_map = None
         self.properties = simpleGraphImpl.Properties(properties)
 
-    #Functions
-    def from_edgelist(
+        # TODO: Move to new batch class
+        # MG - Batch
+        self.batch_enabled = False
+        self.batch_edgelists = None
+        self.batch_adjlists = None
+        self.batch_transposed_adjlists = None
+
+    # Functions
+    def __from_edgelist(
         self,
         input_df,
         source="source",
@@ -52,6 +70,9 @@ class simpleGraphImpl:
         edge_attr=None,
         renumber=True,
     ):
+
+        if self.edgelist is not None or self.adjlist is not None:
+            raise Exception("Graph already has values")
 
         # Verify column names present in input DataFrame
         s_col = source
@@ -101,7 +122,7 @@ class simpleGraphImpl:
             )
             source = "src"
             destination = "dst"
-            self.renumbered = True
+            self.properties.renumbered = True
             self.renumber_map = renumber_map
         else:
             if type(source) is list and type(destination) is list:
@@ -110,7 +131,7 @@ class simpleGraphImpl:
 
         # Detect self loop
         if (elist[source] == elist[destination]).any():
-            self.self_loop = True
+            self.properties.self_loop = True
 
         # Populate graph edgelist
         source_col = elist[source]
@@ -126,11 +147,11 @@ class simpleGraphImpl:
             source_col, dest_col, value_col = symmetrize(
                 source_col, dest_col, value_col,
                 multi=self.properties.multi_edge,
-                symmetrize=not self.symmetrized)
+                symmetrize=not self.properties.directed)
         else:
             source_col, dest_col = symmetrize(
                 source_col, dest_col, multi=self.properties.multi_edge,
-                symmetrize=not self.symmetrized)
+                symmetrize=not self.properties.directed)
 
         self.edgelist = simpleGraphImpl.EdgeList(source_col, dest_col, value_col)
 
@@ -298,15 +319,14 @@ class simpleGraphImpl:
 
         edgelist_df = self.edgelist.edgelist_df
 
-        # TODO: Move to outer Graphs?
-        if self.renumbered:
-            edgelist_df = self.unrenumber(edgelist_df, "src")
-            edgelist_df = self.unrenumber(edgelist_df, "dst")
+        if self.properties.renumbered:
+            edgelist_df = self.renumber_map.unrenumber(edgelist_df, "src")
+            edgelist_df = self.renumber_map.unrenumber(edgelist_df, "dst")
 
-        if type(self) is Graph or type(self) is MultiGraph:
+        if not self.properties.directed:
             edgelist_df = edgelist_df[edgelist_df["src"] <= edgelist_df["dst"]]
             edgelist_df = edgelist_df.reset_index(drop=True)
-            self.edge_count = len(edgelist_df)
+            self.properties.edge_count = len(edgelist_df)
 
         return edgelist_df
 
@@ -317,6 +337,14 @@ class simpleGraphImpl:
         # decrease reference count to free memory if the referenced objects are
         # no longer used.
         self.edgelist = None
+
+    def __from_adjlist(self, offset_col, index_col, value_col=None):
+        if self.edgelist is not None or self.adjlist is not None:
+            raise Exception("Graph already has values")
+        self.adjlist = simpleGraphImpl.AdjList(offset_col, index_col, value_col)
+
+        if self.batch_enabled:
+            self._replicate_adjlist()
 
     def view_adj_list(self):
         """
@@ -343,7 +371,8 @@ class simpleGraphImpl:
         """
 
         if self.adjlist is None:
-            if self.transposedadjlist is not None and type(self) is Graph:
+            if self.transposedadjlist is not None and\
+            self.properties.directed is False:
                 off, ind, vals = (
                     self.transposedadjlist.offsets,
                     self.transposedadjlist.indices,
@@ -485,18 +514,6 @@ class simpleGraphImpl:
     def _replicate_transposed_adjlist(self):
         self.batch_transposed_adjlists = True
 
-    def clear(self):
-        """
-        Empty this graph. This function is added for NetworkX compatibility.
-        """
-        self.edgelist = None
-        self.adjlist = None
-        self.transposedadjlist = None
-
-        self.batch_edgelists = None
-        self.batch_adjlists = None
-        self.batch_transposed_adjlists = None
-
     def get_two_hop_neighbors(self):
         """
         Compute vertex pairs that are two hops apart. The resulting pairs are
@@ -514,9 +531,9 @@ class simpleGraphImpl:
 
         df = graph_primtypes_wrapper.get_two_hop_neighbors(self)
 
-        if self.renumbered is True:
-            df = self.unrenumber(df, "first")
-            df = self.unrenumber(df, "second")
+        if self.properties.renumbered is True:
+            df = self.renumber_map.unrenumber(df, "first")
+            df = self.renumber_map.unrenumber(df, "second")
 
         return df
 
@@ -562,7 +579,7 @@ class simpleGraphImpl:
                 else:
                     self.properties.edge_count = len(self.edgelist.edgelist_df)
             elif self.adjlist is not None:
-                self.edge_count = len(self.adjlist.indices)
+                self.properties.edge_count = len(self.adjlist.indices)
             elif self.transposedadjlist is not None:
                 self.properties.edge_count = len(self.transposedadjlist.indices)
             else:
@@ -717,8 +734,8 @@ class simpleGraphImpl:
         df["in_degree"] = in_degree_col
         df["out_degree"] = out_degree_col
 
-        if self.renumbered is True:
-            df = self.unrenumber(df, "vertex")
+        if self.properties.renumbered is True:
+            df = self.renumber_map.unrenumber(df, "vertex")
 
         if vertex_subset is not None:
             df = df[df['vertex'].isin(vertex_subset)]
@@ -731,8 +748,8 @@ class simpleGraphImpl:
         df["vertex"] = vertex_col
         df["degree"] = degree_col
 
-        if self.renumbered is True:
-            df = self.unrenumber(df, "vertex")
+        if self.properties.renumbered is True:
+            df = self.renumber_map.unrenumber(df, "vertex")
 
         if vertex_subset is not None:
             df = df[df['vertex'].isin(vertex_subset)]
@@ -811,7 +828,7 @@ class simpleGraphImpl:
         """
         Returns True if the graph contains the node n.
         """
-        if self.renumbered:
+        if self.properties.renumbered:
             tmp = self.renumber_map.to_internal_vertex_id(cudf.Series([n]))
             return tmp[0] is not cudf.NA and tmp[0] >= 0
         else:
@@ -822,10 +839,10 @@ class simpleGraphImpl:
         """
         Returns True if the graph contains the edge (u,v).
         """
-        if self.renumbered:
+        if self.properties.renumbered:
             tmp = cudf.DataFrame({"src": [u, v]})
             tmp = tmp.astype({"src": "int"})
-            tmp = self.add_internal_vertex_id(
+            tmp = self.renumber_map.add_internal_vertex_id(
                 tmp, "id", "src", preserve_order=True
             )
 
@@ -849,7 +866,7 @@ class simpleGraphImpl:
         """
         if self.edgelist is not None:
             df = self.edgelist.edgelist_df
-            if self.renumbered:
+            if self.properties.renumbered:
                 # FIXME: If vertices are multicolumn
                 #        this needs to return a dataframe
                 # FIXME: This relies on current implementation
@@ -877,7 +894,7 @@ class simpleGraphImpl:
     def neighbors(self, n):
         if self.edgelist is None:
             raise Exception("Graph has no Edgelist.")
-        if self.renumbered:
+        if self.properties.renumbered:
             node = self.renumber_map.to_internal_vertex_id(cudf.Series([n]))
             if len(node) == 0:
                 return cudf.Series(dtype="int")
@@ -885,7 +902,7 @@ class simpleGraphImpl:
 
         df = self.edgelist.edgelist_df
         neighbors = df[df["src"] == n]["dst"].reset_index(drop=True)
-        if self.renumbered:
+        if self.properties.renumbered:
             # FIXME:  Multi-column vertices
             return self.renumber_map.from_internal_vertex_id(neighbors)["0"]
         else:
