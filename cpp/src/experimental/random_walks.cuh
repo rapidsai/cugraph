@@ -24,6 +24,7 @@
 
 #include <raft/device_atomics.cuh>
 #include <raft/handle.hpp>
+#include <raft/random/rng.cuh>
 #include <rmm/device_uvector.hpp>
 
 #include <thrust/copy.h>
@@ -48,12 +49,14 @@ namespace experimental {
 namespace detail {
 
 // thrust random generator:
+// (using upper-bound cached "map"
+//  giving out_deg(v) for each v in [0, |V|))
 //
 template <typename vertex_t, typename seed_t = long, typename engine_t = thrust::minstd_rand>
 struct trandom_gen_t {
   trandom_gen_t(vertex_t const* d_ptr_ub, seed_t seed) : seed_(seed), d_ptr_ubounds_(d_ptr_ub) {}
 
-  template <typename index_t = size_t>
+  template <typename index_t>
   __device__ vertex_t operator()(index_t indx) const
   {
     engine_t rng(seed_);
@@ -68,6 +71,42 @@ struct trandom_gen_t {
  private:
   seed_t seed_;
   vertex_t const* d_ptr_ubounds_;
+};
+
+// raft random generator:
+// (using upper-bound cached "map"
+//  giving out_deg(v) for each v in [0, |V|);
+//  and a pre-generated vector of float random values
+//  in [0,1] to be brought into [0, d_ub[v]))
+//
+template <typename vertex_t, typename seed_t = long, typename real_t = float>
+struct rrandom_gen_t {
+  rrandom_gen_t(raft::handle_t const& handle, size_t nPaths, vertex_t const* d_ptr_ub, seed_t seed)
+    : seed_(seed),
+      d_ptr_ubounds_(d_ptr_ub),
+      d_random_{nPaths, handle.get_stream()},
+      d_ptr_random_(d_random_.data())
+  {
+    raft::random::Rng rng(seed_);
+    rng.uniform<real_t, size_t>(
+      d_ptr_random_, nPaths, real_t{0.0}, real_t{1.0}, handle.get_stream());
+  }
+
+  template <typename index_t>
+  __device__ vertex_t operator()(index_t indx) const
+  {
+    real_t real_rnd_vindx = d_ptr_random_[indx];
+    real_t max_ub         = static_cast<real_t>(d_ptr_ubounds_[indx]);
+    auto rnd_vindx        = real_rnd_vindx * max_ub + real_t{.5};
+    vertex_t v_indx       = static_cast<vertex_t>(rnd_vindx);
+    return (v_indx >= d_ptr_ubounds_[indx] ? d_ptr_ubounds_[indx] - 1 : v_indx);
+  }
+
+ private:
+  seed_t seed_;
+  vertex_t const* d_ptr_ubounds_;
+  rmm::device_uvector<real_t> d_random_;
+  real_t* d_ptr_random_;  // device pointer to d_random_ to be used in device code
 };
 
 // class abstracting the RW stepping algorithm:
