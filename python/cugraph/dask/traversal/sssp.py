@@ -76,7 +76,8 @@ def sssp(graph,
     Examples
     --------
     >>> import cugraph.dask as dcg
-    >>> ... Init a DASK Cluster (see https://docs.rapids.ai/api/cugraph/stable/dask-cugraph.html)
+    >>> ... Init a DASK Cluster
+    >>    see https://docs.rapids.ai/api/cugraph/stable/dask-cugraph.html
     >>> chunksize = dcg.get_chunksize(input_data_path)
     >>> ddf = dask_cudf.read_csv(input_data_path, chunksize=chunksize,
                                  delimiter=' ',
