@@ -424,7 +424,7 @@ class Graph:
             if isinstance(value_col, cudf.DataFrame):
                 value_dict = {}
                 for i in value_col.columns:
-                    value_dict[i]=value_col[i]
+                    value_dict[i] = value_col[i]
                 value_col = value_dict
         else:
             source_col, dest_col = symmetrize(
