@@ -29,8 +29,10 @@
 
 #include <thrust/copy.h>
 #include <thrust/find.h>
+#include <thrust/gather.h>
 #include <thrust/iterator/constant_iterator.h>
 #include <thrust/iterator/counting_iterator.h>
+#include <thrust/iterator/transform_iterator.h>
 //#include <thrust/reduce.h>
 #include <thrust/random.h>
 #include <thrust/random/linear_congruential_engine.h>
@@ -47,6 +49,21 @@ namespace cugraph {
 namespace experimental {
 
 namespace detail {
+
+template <typename T>
+using device_vec_t = rmm::device_uvector<T>;
+
+template <typename value_t>
+value_t* raw_ptr(device_vec_t<value_t>& dv)
+{
+  return dv.data();
+}
+
+template <typename value_t>
+value_t const* raw_const_ptr(device_vec_t<value_t> const& dv)
+{
+  return dv.data();
+}
 
 // thrust random generator:
 // (using upper-bound cached "map"
@@ -228,6 +245,31 @@ struct random_walker_t {
 
     d_coalesced_v.resize(thrust::distance(d_coalesced_v.begin(), new_end_v), handle_.get_stream());
     d_coalesced_w.resize(thrust::distance(d_coalesced_w.begin(), new_end_w), handle_.get_stream());
+  }
+
+  template <typename vertex_t, typename src_vec_t = vertex_t, typename index_t = vertex_t>
+  static device_vec_t<src_vec_t> gather_from_coalesced(device_vec_t<vertex_t> const& d_coalesced,
+                                                       device_vec_t<src_vec_t> const& d_src,
+                                                       index_t stride,
+                                                       index_t delta,
+                                                       index_t nelems)
+  {
+    vertex_t const* ptr_d_coalesced = raw_const_ptr(d_coalesced);
+    device_vec_t<src_vec_t> result(nelems);
+
+    auto dlambda = [stride, delta, ptr_d_coalesced] __device__(auto indx) {
+      return ptr_d_coalesced[indx * stride + delta];
+    };
+
+    // use the transform iterator as map:
+    //
+    auto map_it_begin =
+      thrust::make_transform_iterator(thrust::make_counting_iterator<index_t>(0), dlambda);
+
+    thrust::gather(
+      thrust::device, map_it_begin, map_it_begin + nelems, d_src.begin(), result.begin());
+
+    return result;
   }
 
  private:
