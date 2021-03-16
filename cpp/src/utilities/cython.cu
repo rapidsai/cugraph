@@ -749,7 +749,8 @@ void call_sssp(raft::handle_t const& handle,
 template <typename vertex_t, typename edge_t, typename weight_t>
 std::unique_ptr<major_minor_weights_t<vertex_t, weight_t>> call_shuffle(
   raft::handle_t const& handle,
-  vertex_t* edgelist_major_vertices,  // [IN / OUT]: sort_and_shuffle_values() sorts in-place
+  vertex_t*
+    edgelist_major_vertices,  // [IN / OUT]: groupby_gpuid_and_shuffle_values() sorts in-place
   vertex_t* edgelist_minor_vertices,  // [IN / OUT]
   weight_t* edgelist_weights,         // [IN / OUT]
   edge_t num_edgelist_edges,
@@ -761,28 +762,49 @@ std::unique_ptr<major_minor_weights_t<vertex_t, weight_t>> call_shuffle(
 
   auto& col_comm = handle.get_subcomm(cugraph::partition_2d::key_naming_t().col_name());
 
-  auto zip_edge = thrust::make_zip_iterator(
-    thrust::make_tuple(edgelist_major_vertices, edgelist_minor_vertices, edgelist_weights));
-
   std::unique_ptr<major_minor_weights_t<vertex_t, weight_t>> ptr_ret =
     std::make_unique<major_minor_weights_t<vertex_t, weight_t>>(handle);
 
-  std::forward_as_tuple(
-    std::tie(ptr_ret->get_major(), ptr_ret->get_minor(), ptr_ret->get_weights()),
-    std::ignore) =
-    cugraph::experimental::sort_and_shuffle_values(
-      comm,  // handle.get_comms(),
-      zip_edge,
-      zip_edge + num_edgelist_edges,
-      [key_func =
-         cugraph::experimental::detail::compute_gpu_id_from_edge_t<vertex_t>{
-           is_hypergraph_partitioned,
-           comm.get_size(),
-           row_comm.get_size(),
-           col_comm.get_size()}] __device__(auto val) {
-        return key_func(thrust::get<0>(val), thrust::get<1>(val));
-      },
-      handle.get_stream());
+  if (edgelist_weights != nullptr) {
+    auto zip_edge = thrust::make_zip_iterator(
+      thrust::make_tuple(edgelist_major_vertices, edgelist_minor_vertices, edgelist_weights));
+
+    std::forward_as_tuple(
+      std::tie(ptr_ret->get_major(), ptr_ret->get_minor(), ptr_ret->get_weights()),
+      std::ignore) =
+      cugraph::experimental::groupby_gpuid_and_shuffle_values(
+        comm,  // handle.get_comms(),
+        zip_edge,
+        zip_edge + num_edgelist_edges,
+        [key_func =
+           cugraph::experimental::detail::compute_gpu_id_from_edge_t<vertex_t>{
+             is_hypergraph_partitioned,
+             comm.get_size(),
+             row_comm.get_size(),
+             col_comm.get_size()}] __device__(auto val) {
+          return key_func(thrust::get<0>(val), thrust::get<1>(val));
+        },
+        handle.get_stream());
+  } else {
+    auto zip_edge = thrust::make_zip_iterator(
+      thrust::make_tuple(edgelist_major_vertices, edgelist_minor_vertices));
+
+    std::forward_as_tuple(std::tie(ptr_ret->get_major(), ptr_ret->get_minor()),
+                          std::ignore) =
+      cugraph::experimental::groupby_gpuid_and_shuffle_values(
+        comm,  // handle.get_comms(),
+        zip_edge,
+        zip_edge + num_edgelist_edges,
+        [key_func =
+           cugraph::experimental::detail::compute_gpu_id_from_edge_t<vertex_t>{
+             is_hypergraph_partitioned,
+             comm.get_size(),
+             row_comm.get_size(),
+             col_comm.get_size()}] __device__(auto val) {
+          return key_func(thrust::get<0>(val), thrust::get<1>(val));
+        },
+        handle.get_stream());
+  }
 
   return ptr_ret;  // RVO-ed
 }

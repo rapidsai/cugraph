@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# Copyright (c) 2019-2020, NVIDIA CORPORATION.
+# Copyright (c) 2019-2021, NVIDIA CORPORATION.
 
 # cugraph build script
 
@@ -19,18 +19,20 @@ ARGS=$*
 REPODIR=$(cd $(dirname $0); pwd)
 LIBCUGRAPH_BUILD_DIR=${LIBCUGRAPH_BUILD_DIR:=${REPODIR}/cpp/build}
 
-VALIDARGS="clean libcugraph cugraph docs -v -g -n --allgpuarch --show_depr_warn -h --help"
+VALIDARGS="clean libcugraph cugraph docs -v -g -n --allgpuarch --buildfaiss --show_depr_warn -h --help"
 HELP="$0 [<target> ...] [<flag> ...]
  where <target> is:
    clean            - remove all existing build artifacts and configuration (start over)
    libcugraph       - build the cugraph C++ code
    cugraph          - build the cugraph Python package
+   cpp-mgtests      - build libcugraph mnmg tests. Builds MPI communicator, adding MPI as a dependency.
    docs             - build the docs
  and <flag> is:
    -v               - verbose build mode
    -g               - build for debug
    -n               - no install step
    --allgpuarch     - build for all supported GPU architectures
+   --buildfaiss     - build faiss statically into cugraph
    --show_depr_warn - show cmake deprecation warnings
    -h               - print this text
 
@@ -44,10 +46,12 @@ CUGRAPH_BUILD_DIR=${REPODIR}/python/build
 BUILD_DIRS="${LIBCUGRAPH_BUILD_DIR} ${CUGRAPH_BUILD_DIR}"
 
 # Set defaults for vars modified by flags to this script
-VERBOSE=""
+VERBOSE_FLAG=""
 BUILD_TYPE=Release
 INSTALL_TARGET=install
 BUILD_DISABLE_DEPRECATION_WARNING=ON
+BUILD_CPP_MG_TESTS=OFF
+BUILD_STATIC_FAISS=OFF
 GPU_ARCH=""
 
 # Set defaults for vars that may not have been defined externally
@@ -82,7 +86,7 @@ fi
 
 # Process flags
 if hasArg -v; then
-    VERBOSE=1
+    VERBOSE_FLAG="-v"
 fi
 if hasArg -g; then
     BUILD_TYPE=Debug
@@ -93,8 +97,14 @@ fi
 if hasArg --allgpuarch; then
     GPU_ARCH="-DGPU_ARCHS=ALL"
 fi
+if hasArg --buildfaiss; then
+        BUILD_STATIC_FAISS=ON
+fi
 if hasArg --show_depr_warn; then
     BUILD_DISABLE_DEPRECATION_WARNING=OFF
+fi
+if hasArg cpp-mgtests; then
+    BUILD_CPP_MG_TESTS=ON
 fi
 
 # If clean given, run it prior to any other steps
@@ -127,10 +137,13 @@ if buildAll || hasArg libcugraph; then
     mkdir -p ${LIBCUGRAPH_BUILD_DIR}
     cd ${LIBCUGRAPH_BUILD_DIR}
     cmake -DCMAKE_INSTALL_PREFIX=${INSTALL_PREFIX} \
-        ${GPU_ARCH} \
-        -DDISABLE_DEPRECATION_WARNING=${BUILD_DISABLE_DEPRECATION_WARNING} \
-        -DCMAKE_BUILD_TYPE=${BUILD_TYPE} ${REPODIR}/cpp
-    make -j${PARALLEL_LEVEL} VERBOSE=${VERBOSE} ${INSTALL_TARGET}
+          ${GPU_ARCH} \
+          -DDISABLE_DEPRECATION_WARNING=${BUILD_DISABLE_DEPRECATION_WARNING} \
+          -DCMAKE_BUILD_TYPE=${BUILD_TYPE} \
+          -DBUILD_STATIC_FAISS=${BUILD_STATIC_FAISS} \
+          -DBUILD_CUGRAPH_MG_TESTS=${BUILD_CPP_MG_TESTS} \
+          ${REPODIR}/cpp
+    cmake --build "${LIBCUGRAPH_BUILD_DIR}" -j${PARALLEL_LEVEL} --target ${INSTALL_TARGET} ${VERBOSE_FLAG}
 fi
 
 # Build and install the cugraph Python package
@@ -152,10 +165,11 @@ if buildAll || hasArg docs; then
         cd ${LIBCUGRAPH_BUILD_DIR}
         cmake -DCMAKE_INSTALL_PREFIX=${INSTALL_PREFIX} \
             -DDISABLE_DEPRECATION_WARNING=${BUILD_DISABLE_DEPRECATION_WARNING} \
-            -DCMAKE_BUILD_TYPE=${BUILD_TYPE} ${REPODIR}/cpp
+            -DCMAKE_BUILD_TYPE=${BUILD_TYPE} ${REPODIR}/cpp \
+            -DBUILD_STATIC_FAISS=${BUILD_STATIC_FAISS}
     fi
     cd ${LIBCUGRAPH_BUILD_DIR}
-    make -j${PARALLEL_LEVEL} VERBOSE=${VERBOSE} docs_cugraph
+    cmake --build "${LIBCUGRAPH_BUILD_DIR}" -j${PARALLEL_LEVEL} --target docs_cugraph ${VERBOSE_FLAG}
     cd ${REPODIR}/docs
     make html
 fi

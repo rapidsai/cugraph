@@ -69,7 +69,7 @@ rmm::device_uvector<size_t> sort_and_count(raft::comms::comms_t const &comm,
     d_tx_value_counts = std::move(d_counts);
   }
 
-  return std::move(d_tx_value_counts);
+  return d_tx_value_counts;
 }
 
 template <typename VertexIterator, typename ValueIterator, typename KeyToGPUIdOp>
@@ -111,7 +111,7 @@ rmm::device_uvector<size_t> sort_and_count(raft::comms::comms_t const &comm,
     d_tx_value_counts = std::move(d_counts);
   }
 
-  return std::move(d_tx_value_counts);
+  return d_tx_value_counts;
 }
 
 // inline to suppress a complaint about ODR violation
@@ -228,15 +228,24 @@ auto shuffle_values(raft::comms::comms_t const &comm,
     rx_src_ranks,
     stream);
 
+  if (rx_counts.size() < static_cast<size_t>(comm_size)) {
+    std::vector<size_t> tmp_rx_counts(comm_size, size_t{0});
+    for (size_t i = 0; i < rx_src_ranks.size(); ++i) {
+      assert(rx_src_ranks[i] < comm_size);
+      tmp_rx_counts[rx_src_ranks[i]] = rx_counts[i];
+    }
+    rx_counts = std::move(tmp_rx_counts);
+  }
+
   return std::make_tuple(std::move(rx_value_buffer), rx_counts);
 }
 
 template <typename ValueIterator, typename ValueToGPUIdOp>
-auto sort_and_shuffle_values(raft::comms::comms_t const &comm,
-                             ValueIterator tx_value_first /* [INOUT */,
-                             ValueIterator tx_value_last /* [INOUT */,
-                             ValueToGPUIdOp value_to_gpu_id_op,
-                             cudaStream_t stream)
+auto groupby_gpuid_and_shuffle_values(raft::comms::comms_t const &comm,
+                                      ValueIterator tx_value_first /* [INOUT */,
+                                      ValueIterator tx_value_last /* [INOUT */,
+                                      ValueToGPUIdOp value_to_gpu_id_op,
+                                      cudaStream_t stream)
 {
   auto const comm_size = comm.get_size();
 
@@ -271,17 +280,27 @@ auto sort_and_shuffle_values(raft::comms::comms_t const &comm,
     rx_src_ranks,
     stream);
 
+  if (rx_counts.size() < static_cast<size_t>(comm_size)) {
+    std::vector<size_t> tmp_rx_counts(comm_size, size_t{0});
+    for (size_t i = 0; i < rx_src_ranks.size(); ++i) {
+      tmp_rx_counts[rx_src_ranks[i]] = rx_counts[i];
+    }
+    rx_counts = std::move(tmp_rx_counts);
+  }
+
   return std::make_tuple(std::move(rx_value_buffer), rx_counts);
 }
 
 template <typename VertexIterator, typename ValueIterator, typename KeyToGPUIdOp>
-auto sort_and_shuffle_kv_pairs(raft::comms::comms_t const &comm,
-                               VertexIterator tx_key_first /* [INOUT */,
-                               VertexIterator tx_key_last /* [INOUT */,
-                               ValueIterator tx_value_first /* [INOUT */,
-                               KeyToGPUIdOp key_to_gpu_id_op,
-                               cudaStream_t stream)
+auto groupby_gpuid_and_shuffle_kv_pairs(raft::comms::comms_t const &comm,
+                                        VertexIterator tx_key_first /* [INOUT */,
+                                        VertexIterator tx_key_last /* [INOUT */,
+                                        ValueIterator tx_value_first /* [INOUT */,
+                                        KeyToGPUIdOp key_to_gpu_id_op,
+                                        cudaStream_t stream)
 {
+  auto const comm_size = comm.get_size();
+
   auto d_tx_value_counts = detail::sort_and_count(
     comm, tx_key_first, tx_key_last, tx_value_first, key_to_gpu_id_op, stream);
 
@@ -327,6 +346,15 @@ auto sort_and_shuffle_kv_pairs(raft::comms::comms_t const &comm,
     rx_offsets,
     rx_src_ranks,
     stream);
+
+  if (rx_counts.size() < static_cast<size_t>(comm_size)) {
+    std::vector<size_t> tmp_rx_counts(comm_size, size_t{0});
+    for (size_t i = 0; i < rx_src_ranks.size(); ++i) {
+      assert(rx_src_ranks[i] < comm_size);
+      tmp_rx_counts[rx_src_ranks[i]] = rx_counts[i];
+    }
+    rx_counts = std::move(tmp_rx_counts);
+  }
 
   return std::make_tuple(std::move(rx_keys), std::move(rx_value_buffer), rx_counts);
 }

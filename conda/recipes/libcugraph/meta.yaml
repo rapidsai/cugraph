@@ -21,6 +21,13 @@ build:
     - CUDAHOSTCXX
     - PARALLEL_LEVEL
     - VERSION_SUFFIX
+    - CCACHE_DIR
+    - CCACHE_NOHASHDIR
+    - CCACHE_COMPILERCHECK
+    - CMAKE_GENERATOR
+    - CMAKE_C_COMPILER_LAUNCHER
+    - CMAKE_CXX_COMPILER_LAUNCHER
+    - CMAKE_CUDA_COMPILER_LAUNCHER
 
 requirements:
   build:
@@ -29,17 +36,21 @@ requirements:
     - cudatoolkit {{ cuda_version }}.*
     - boost-cpp>=1.66
     - libcypher-parser
-    - nccl>=2.7
+    - nccl>=2.8.4
     - ucx-py {{ minor_version }}
     - ucx-proc=*=gpu
     - gtest
+    - faiss-proc=*=cuda
+    - conda-forge::libfaiss=1.7.0
     - gmock
   run:
     - libcudf={{ minor_version }}
     - {{ pin_compatible('cudatoolkit', max_pin='x.x') }}
-    - nccl>=2.7
+    - nccl>=2.8.4
     - ucx-py {{ minor_version }}
     - ucx-proc=*=gpu
+    - faiss-proc=*=cuda
+    - conda-forge::libfaiss=1.7.0
 
 #test:
 #  commands:

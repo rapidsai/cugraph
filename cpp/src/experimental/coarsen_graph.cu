@@ -329,7 +329,7 @@ coarsen_graph(
     std::forward_as_tuple(
       std::tie(rx_edgelist_major_vertices, rx_edgelist_minor_vertices, rx_edgelist_weights),
       std::ignore) =
-      sort_and_shuffle_values(
+      groupby_gpuid_and_shuffle_values(
         handle.get_comms(),
         edge_first,
         edge_first + coarsened_edgelist_major_vertices.size(),
@@ -371,7 +371,7 @@ coarsen_graph(
     handle.get_stream());
 
   rmm::device_uvector<vertex_t> rx_unique_labels(0, handle.get_stream());
-  std::tie(rx_unique_labels, std::ignore) = sort_and_shuffle_values(
+  std::tie(rx_unique_labels, std::ignore) = groupby_gpuid_and_shuffle_values(
     handle.get_comms(),
     unique_labels.begin(),
     unique_labels.end(),

@@ -15,24 +15,28 @@
 
 from dask.distributed import wait, default_client
 from cugraph.dask.common.input_utils import get_distributed_data
-from cugraph.dask.structure import renumber_wrapper as c_renumber
+from cugraph.structure import renumber_wrapper as c_renumber
 import cugraph.comms as Comms
 import dask_cudf
+import numpy as np
+import cudf
+import cugraph.structure.number_map as legacy_number_map
 
 
 def call_renumber(sID,
                   data,
-                  num_verts,
                   num_edges,
-                  is_mnmg):
+                  is_mnmg,
+                  store_transposed):
     wid = Comms.get_worker_id(sID)
     handle = Comms.get_handle(sID)
     return c_renumber.renumber(data[0],
-                               num_verts,
                                num_edges,
                                wid,
                                handle,
-                               is_mnmg)
+                               is_mnmg,
+                               store_transposed)
+
 
 class NumberMap:
 
@@ -119,7 +123,6 @@ class NumberMap:
                     )
                 )
 
-
     def __init__(self, id_type=np.int32):
         self.implementation = None
         self.id_type = id_type
@@ -149,18 +152,43 @@ class NumberMap:
         """
         return [str(i) for i in range(len(column_names))]
 
-   def renumber(df):
+    def renumber(df, src_col_names, dst_col_names, preserve_order=False,
+                 store_transposed=False):
+
+        if isinstance(src_col_names, list):
+            renumber_type = 'legacy'
+        # elif isinstance(df[src_col_names].dtype, string):
+        #    renumber_type = 'legacy'
+        else:
+            renumber_type = 'experimental'
+
+        if renumber_type == 'legacy':
+            renumber_map, renumbered_df = legacy_number_map.renumber(
+                                              df,
+                                              src_col_names,
+                                              dst_col_names,
+                                              preserve_order,
+                                              store_transposed)
+            # Add shuffling once algorithms are switched to new renumber
+            # (ddf,
+            # num_verts,
+            # partition_row_size,
+            # partition_col_size,
+            # vertex_partition_offsets) = shuffle(input_graph, transposed=True)
+            return renumber_map, renumbered_df
 
         renumber_map = NumberMap()
-
+        if not isinstance(src_col_names, list):
+            src_col_names = [src_col_names]
+            dst_col_names = [dst_col_names]
         if type(df) is cudf.DataFrame:
-            self.implementation = NumberMap.SingleGPU(
-                df, src_col_names, dst_col_names, self.id_type,
+            renumber_map.implementation = NumberMap.SingleGPU(
+                df, src_col_names, dst_col_names, renumber_map.id_type,
                 store_transposed
             )
         elif type(df) is dask_cudf.DataFrame:
-            self.implementation = NumberMap.MultiGPU(
-                df, src_col_names, dst_col_names, self.id_type,
+            renumber_map.implementation = NumberMap.MultiGPU(
+                df, src_col_names, dst_col_names, renumber_map.id_type,
                 store_transposed
             )
         else:
@@ -173,29 +201,51 @@ class NumberMap:
         else:
             is_mnmg = False
 
-        num_verts = 6 #input_graph.number_of_vertices()
-
         if is_mnmg:
             client = default_client()
             data = get_distributed_data(df)
-            result = [client.submit(call_renumber,
-                                    Comms.get_session_id(),
-                                    wf[1],
-                                    num_verts,
-                                    num_edges,
-                                    is_mnmg,
-                                    workers=[wf[0]])
+            result = [(client.submit(call_renumber,
+                                     Comms.get_session_id(),
+                                     wf[1],
+                                     num_edges,
+                                     is_mnmg,
+                                     store_transposed,
+                                     workers=[wf[0]]), wf[0])
                       for idx, wf in enumerate(data.worker_to_parts.items())]
             wait(result)
-            return dask_cudf.from_delayed(result)
-        else:
-            return c_renumber.renumber(df,
-                                       num_verts,
-                                       num_edges,
-                                       0,
-                                       Comms.get_default_handle(),
-                                       is_mnmg)
 
+            def get_renumber_map(data):
+                return data[0]
+
+            def get_renumbered_df(data):
+                return data[1]
+
+            renumbering_map = dask_cudf.from_delayed(
+                                 [client.submit(get_renumber_map,
+                                                data,
+                                                workers=[wf])
+                                     for (data, wf) in result])
+            renumbered_df = dask_cudf.from_delayed(
+                               [client.submit(get_renumbered_df,
+                                              data,
+                                              workers=[wf])
+                                   for (data, wf) in result])
+
+            renumber_map.implementation.ddf = renumbering_map
+            renumber_map.implementation.numbered = True
+
+            return renumbered_df, renumber_map
+        else:
+            renumbering_map, renumbered_df = c_renumber.renumber(
+                                             df,
+                                             num_edges,
+                                             0,
+                                             Comms.get_default_handle(),
+                                             is_mnmg,
+                                             store_transposed)
+            renumber_map.implementation.df = renumbering_map
+            renumber_map.implementation.numbered = True
+            return renumbered_df, renumber_map
 
     def unrenumber(self, df, column_name, preserve_order=False):
         """
@@ -264,4 +314,4 @@ class NumberMap:
                 lambda df: df.rename(columns=mapping, copy=False)
             )
         else:
-            return df.rename(columns=mapping, copy=False)1~
+            return df.rename(columns=mapping, copy=False)

@@ -16,16 +16,13 @@
 # cython: embedsignature = True
 # cython: language_level = 3
 
-#cimport cugraph.link_analysis.pagerank as c_pagerank
 from cugraph.link_analysis.pagerank cimport call_pagerank
-from cugraph.structure.graph_primtypes cimport *
+from cugraph.structure.graph_utilities cimport *
 from libcpp cimport bool
 from libc.stdint cimport uintptr_t
 from cugraph.structure import graph_primtypes_wrapper
 import cudf
-import rmm
 import numpy as np
-import numpy.ctypeslib as ctypeslib
 
 
 def pagerank(input_graph, alpha=0.85, personalization=None, max_iter=100, tol=1.0e-5, nstart=None):
@@ -57,7 +54,6 @@ def pagerank(input_graph, alpha=0.85, personalization=None, max_iter=100, tol=1.
             raise ValueError('nstart must have initial guess for all vertices')
         df['pagerank'][nstart['vertex']] = nstart['values']
         has_guess = <bool> 1
-    print(df)
 
     cdef uintptr_t c_identifier = df['vertex'].__cuda_array_interface__['data'][0];
     cdef uintptr_t c_pagerank_val = df['pagerank'].__cuda_array_interface__['data'][0];
