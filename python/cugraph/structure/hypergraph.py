@@ -493,4 +493,3 @@ def _empty_cat_dt():
     return cudf.core.dtypes.CategoricalDtype(
         categories=np.array([], dtype="str"), ordered=False
     )
-
