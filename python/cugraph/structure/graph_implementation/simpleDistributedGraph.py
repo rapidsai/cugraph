@@ -1,17 +1,25 @@
+# Copyright (c) 2021, NVIDIA CORPORATION.
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
 from cugraph.structure import graph_primtypes_wrapper
-from cugraph.structure.symmetrize import symmetrize
 from cugraph.structure.number_map import NumberMap
-import cugraph.dask.common.mg_utils as mg_utils
 import cudf
 import dask_cudf
-import cugraph.comms.comms as Comms
-import pandas as pd
-import numpy as np
-from cugraph.dask.structure import replication
+
 
 class simpleDistributedGraphImpl:
     class EdgeList:
-        def __init__(self, source, destination, edge_attr=None):
+        def __init__(self, ddf):
             self.edgelist_df = ddf
             self.weights = False
             # FIXME: Edge Attribute not handled
@@ -24,25 +32,25 @@ class simpleDistributedGraphImpl:
 
     class Properties:
         def __init__(self, properties):
-            self.multi_edge=properties.multi_edge
-            self.directed=properties.directed
-            self.tree=properties.tree
-            self.renumbered=False
-            self.store_transposed=False
-            self.self_loop=None
-            self.isolated_vertices=None
-            self.node_count=None
-            self.edge_count=None
+            self.multi_edge = properties.multi_edge
+            self.directed = properties.directed
+            self.tree = properties.tree
+            self.renumbered = False
+            self.store_transposed = False
+            self.self_loop = None
+            self.isolated_vertices = None
+            self.node_count = None
+            self.edge_count = None
 
     def __init__(self, properties):
-        #Structure
+        # Structure
         self.edgelist = None
         self.renumber_map = None
         self.properties = simpleDistributedGraphImpl.Properties(properties)
         self.source_columns = None
         self.destination_columns = None
 
-    #Functions
+    # Functions
     def __from_edgelist(
         self,
         input_ddf,
@@ -56,7 +64,7 @@ class simpleDistributedGraphImpl:
             raise Exception("Graph already has values")
         if not isinstance(input_ddf, dask_cudf.DataFrame):
             raise Exception("input should be a dask_cudf dataFrame")
-        if type(self) is Graph:
+        if self.properties.directed is False:
             raise Exception("Undirected distributed graph not supported")
 
         s_col = source
@@ -127,7 +135,7 @@ class simpleDistributedGraphImpl:
                 then containing the weight value for each edge
         """
         if self.edgelist is None:
-                raise Exception("Graph has no Edgelist.")
+            raise Exception("Graph has no Edgelist.")
         return self.edgelist.edgelist_df
 
     def delete_edge_list(self):
@@ -148,13 +156,13 @@ class simpleDistributedGraphImpl:
         """
         Get the number of nodes in the graph.
         """
-        if self.node_count is None:
+        if self.properties.node_count is None:
             if self.edgelist is not None:
                 ddf = self.edgelist.edgelist_df[["src", "dst"]]
-                self.node_count = ddf.max().max().compute() + 1
+                self.properties.node_count = ddf.max().max().compute() + 1
             else:
                 raise Exception("Graph is Empty")
-        return node_count
+        return self.properties.node_count
 
     def number_of_nodes(self):
         """
@@ -373,7 +381,7 @@ class simpleDistributedGraphImpl:
         """
         if self.edgelist is None:
             raise Exception("Graph has no Edgelist.")
-        # FIXME: Check renumber map 
+        # FIXME: Check renumber map
         ddf = self.edgelist.edgelist_df[["src", "dst"]]
         return (ddf == n).any().any().compute()
 
@@ -382,7 +390,7 @@ class simpleDistributedGraphImpl:
         Returns True if the graph contains the edge (u,v).
         """
         # TODO: Verify Correctness
-        if self.renumbered:
+        if self.properties.renumbered:
             tmp = cudf.DataFrame({"src": [u, v]})
             tmp = tmp.astype({"src": "int"})
             tmp = self.add_internal_vertex_id(
@@ -442,18 +450,12 @@ class simpleDistributedGraphImpl:
         # FIXME:  What to do about edge_attr???
         #         currently ignored for MNMG
 
-        if not self.distributed:
-            raise Exception(
-                "compute_renumber_edge_list should only be used "
-                "for distributed graphs"
-            )
-
-        if not self.renumbered:
+        if not self.properties.renumbered:
             self.edgelist = self.EdgeList(self.input_df)
             self.renumber_map = None
         else:
             if self.edgelist is not None:
-                if type(self) is Graph:
+                if self.properties.directed is False:
                     return
 
                 if self.store_transposed == transposed:

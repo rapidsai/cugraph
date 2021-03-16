@@ -1,4 +1,4 @@
-# Copyright (c) 2019-2020, NVIDIA CORPORATION.
+# Copyright (c) 2019-2021, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -200,6 +200,7 @@ def test_add_adj_list_to_edge_list(graph_file):
     # cugraph add_adj_list to_edge_list call
     G = cugraph.DiGraph()
     G.from_cudf_adjlist(offsets, indices, None)
+
     edgelist = G.view_edge_list()
     sources_cu = edgelist["src"]
     destinations_cu = edgelist["dst"]
@@ -535,6 +536,7 @@ def test_to_directed(graph_file):
     DiG = G.to_directed()
     DiGnx = Gnx.to_directed()
 
+    assert DiG.is_directed()
     assert DiG.number_of_nodes() == DiGnx.number_of_nodes()
     assert DiG.number_of_edges() == DiGnx.number_of_edges()
 
@@ -569,6 +571,7 @@ def test_to_undirected(graph_file):
     G = DiG.to_undirected()
     Gnx = DiGnx.to_undirected()
 
+    assert not G.is_directed()
     assert G.number_of_nodes() == Gnx.number_of_nodes()
     assert G.number_of_edges() == Gnx.number_of_edges()
 
@@ -627,16 +630,12 @@ def test_bipartite_api(graph_file):
     set2_exp = cudf.Series(set(nodes.values_host)
                            - set(set1_exp.values_host))
 
-    G = cugraph.Graph()
-    assert not G.is_bipartite()
+    G = cugraph.BiPartiteGraph()
+    assert G.is_bipartite()
 
     # Add a set of nodes present in one partition
     G.add_nodes_from(set1_exp, bipartite='set1')
     G.from_cudf_edgelist(cu_M, source='0', destination='1')
-
-    # Check if Graph is bipartite. It should return True since we have
-    # added the partition in add_nodes_from()
-    assert G.is_bipartite()
 
     # Call sets() to get the bipartite set of nodes.
     set1, set2 = G.sets()

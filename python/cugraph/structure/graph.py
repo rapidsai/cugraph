@@ -1,9 +1,27 @@
-from .graph_implementation import *
+# Copyright (c) 2021, NVIDIA CORPORATION.
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+from .graph_implementation import (simpleGraphImpl,
+                                   simpleDistributedGraphImpl,
+                                   npartiteGraphImpl)
+import cudf
+
 
 # TODO: Move to utilities
 def null_check(col):
     if col.null_count != 0:
         raise ValueError("Series contains NULL values")
+
 
 class Graph:
     class Properties:
@@ -14,17 +32,21 @@ class Graph:
             self.bipartite = bipartite
             self.npartite = npartite
 
-    def __init__(self, multi_edge=False, directed=False, tree=False, bipartite=False, npartite=False):
+    def __init__(self, multi_edge=False, directed=False, tree=False,
+                 bipartite=False, npartite=False):
         self.Base = None
-        self.graph_properties = Graph.Properties(multi_edge, directed, tree, bipartite, npartite)
+        self.graph_properties = Graph.Properties(multi_edge, directed, tree,
+                                                 bipartite, npartite)
 
     def __getattr__(self, name):
         if self.Base is None:
             raise Exception("Graph is Empty")
         if hasattr(self.Base, name):
             return getattr(self.Base, name)
+        elif hasattr(self.Base.properties, name):
+            return getattr(self.Base.properties, name)
         else:
-            raise Exception("method not found")
+            raise AttributeError
 
     def __dir__(self):
         return dir(self.base)
@@ -187,8 +209,9 @@ class Graph:
             self.Base._nodes["all_nodes"] = cudf.Series(nodes)
         else:
             if self.Base is None:
-                self.Base =  npartiteGraphImpl(self.graph_properties)
-            self.Base.add_nodes_from(nodes, bipartite=bipartite, multipartite=multipartite)
+                self.Base = npartiteGraphImpl(self.graph_properties)
+            self.Base.add_nodes_from(nodes, bipartite=bipartite,
+                                     multipartite=multipartite)
 
     def unrenumber(self, df, column_name, preserve_order=False):
         """
@@ -304,7 +327,8 @@ class Graph:
         the graph to check if it is multipartite.
         """
         # TO DO: Call coloring algorithm
-        return self.graph_properties.multipartite or self.graph_properties.bipartite
+        return (self.graph_properties.multipartite or
+                self.graph_properties.bipartite)
 
     def is_multigraph(self):
         """
@@ -319,32 +343,105 @@ class Graph:
         """
         return self.graph_properties.directed
 
+    def is_renumbered(self):
+        """
+        Returns True if the graph is renumbered.
+        """
+        return self.properties.renumbered
+
+    def has_isolated_vertices(self):
+        """
+        Returns True if the graph has isolated vertices.
+        """
+        return self.properties.isolated_vertices
+
+    def to_directed(self):
+        """
+        Return a directed representation of the graph.
+        This function sets the type of graph as DiGraph() and returns the
+        directed view.
+        Returns
+        -------
+        G : DiGraph
+            A directed graph with the same nodes, and each edge (u,v,weights)
+            replaced by two directed edges (u,v,weights) and (v,u,weights).
+        Examples
+        --------
+        >>> M = cudf.read_csv('datasets/karate.csv', delimiter=' ',
+        >>>                   dtype=['int32', 'int32', 'float32'], header=None)
+        >>> G = cugraph.Graph()
+        >>> G.from_cudf_edgelist(M, '0', '1')
+        >>> DiG = G.to_directed()
+        """
+        if self.graph_properties.directed is True:
+            return self
+        else:
+            directed_graph = type(self)(directed=True)
+            directed_graph.Base = type(self.Base)(directed_graph.
+                                                  graph_properties)
+            self.Base.to_directed(directed_graph.Base)
+            return directed_graph
+
+    def to_undirected(self):
+        """
+        Return an undirected copy of the graph.
+        Returns
+        -------
+        G : Graph
+            A undirected graph with the same nodes, and each directed edge
+            (u,v,weights) replaced by an undirected edge (u,v,weights).
+        Examples
+        --------
+        >>> M = cudf.read_csv('datasets/karate.csv', delimiter=' ',
+        >>>                   dtype=['int32', 'int32', 'float32'], header=None)
+        >>> DiG = cugraph.DiGraph()
+        >>> DiG.from_cudf_edgelist(M, '0', '1')
+        >>> G = DiG.to_undirected()
+        """
+
+        if self.graph_properties.directed is False:
+            return self
+        else:
+            undirected_graph = self.__class__.__bases__[0]()
+            undirected_graph.Base = type(self.Base)(undirected_graph.
+                                                    graph_properties)
+            self.Base.to_undirected(undirected_graph.Base)
+            return undirected_graph
+
     # TODO: Add function
     # def properties():
+
 
 class DiGraph(Graph):
     def __init__(self):
         super(DiGraph, self).__init__(directed=True)
 
+
 class MultiGraph(Graph):
     def __init__(self, directed=False):
         super(MultiGraph, self).__init__(directed=directed, multi_edge=True)
+
 
 class MultiDiGraph(MultiGraph):
     def __init__(self):
         super(MultiDiGraph, self).__init__(directed=True)
 
+
 class Tree(Graph):
     def __init__(self, directed=False):
         super(Tree, self).__init__(directed=directed, tree=True)
+
 
 class DiTree(Tree):
     def __init__(self):
         super(DiTree, self).__init__(directed=True)
 
+
 class NPartiteGraph(Graph):
     def __init__(self, bipartite=False, directed=False):
-        super(NPartiteGraph, self).__init__(directed=directed, bipartite=bipartite, npartite=True)
+        super(NPartiteGraph, self).__init__(directed=directed,
+                                            bipartite=bipartite,
+                                            npartite=True)
 
     def from_cudf_edgelist(
         self,
@@ -391,13 +488,13 @@ class NPartiteGraph(Graph):
                                  edge_attr='2', renumber=False)
         """
         if self.Base is None:
-            self.Base =  NPartiteGraphImpl(self.graph_properties)
+            self.Base = npartiteGraphImpl(self.graph_properties)
         # API may change in future
-        self.Base._simpleGraphImpl__from_edgelist(input_df,
-                                                  source=source,
-                                                  destination=destination,
-                                                  edge_attr=edge_attr,
-                                                  renumber=renumber)
+        self.Base._npartiteGraphImpl__from_edgelist(input_df,
+                                                    source=source,
+                                                    destination=destination,
+                                                    edge_attr=edge_attr,
+                                                    renumber=renumber)
 
     def from_dask_cudf_edgelist(
         self,
@@ -433,15 +530,17 @@ class NPartiteGraph(Graph):
         """
         raise Exception("Distributed N-partite graph not supported")
 
+
 class BiPartiteGraph(NPartiteGraph):
     def __init__(self, directed=False):
         super(BiPartiteGraph, self).__init__(directed=directed, bipartite=True)
+
 
 class BiPartiteDiGraph(BiPartiteGraph):
     def __init__(self):
         super(BiPartiteDiGraph, self).__init__(directed=True)
 
+
 class NPartiteDiGraph(NPartiteGraph):
     def __init__(self):
         super(NPartiteGraph, self).__init__(directed=True)
-
