@@ -81,12 +81,15 @@ struct trandom_gen_t {
 //
 template <typename vertex_t, typename seed_t = long, typename real_t = float>
 struct rrandom_gen_t {
-  rrandom_gen_t(raft::handle_t const& handle, size_t nPaths, vertex_t const* d_ptr_ub, seed_t seed)
-    : seed_(seed),
-      d_ptr_ubounds_(d_ptr_ub),
-      d_random_{nPaths, handle.get_stream()},
-      d_ptr_random_(d_random_.data())
+  rrandom_gen_t(raft::handle_t const& handle,
+                size_t nPaths,
+                rmm::device_uvector<real_t>& d_random,
+                vertex_t const* d_ptr_ub,
+                seed_t seed)
+    : seed_(seed), d_ptr_ubounds_(d_ptr_ub), d_ptr_random_(d_random.data())
   {
+    CUGRAPH_EXPECTS(d_random.size() >= nPaths, "Un-allocated random buffer.");
+
     raft::random::Rng rng(seed_);
     rng.uniform<real_t, size_t>(
       d_ptr_random_, nPaths, real_t{0.0}, real_t{1.0}, handle.get_stream());
@@ -105,8 +108,7 @@ struct rrandom_gen_t {
  private:
   seed_t seed_;
   vertex_t const* d_ptr_ubounds_;
-  rmm::device_uvector<real_t> d_random_;
-  real_t* d_ptr_random_;  // device pointer to d_random_ to be used in device code
+  real_t* d_ptr_random_;
 };
 
 // class abstracting the RW stepping algorithm:
