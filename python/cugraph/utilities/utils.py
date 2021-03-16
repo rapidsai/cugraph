@@ -205,6 +205,13 @@ def is_device_version_less_than(min_version=(7, 0)):
         return True
     return False
 
+def get_device_memory_info():
+    """
+    Returns the total amount of global memory on the device in bytes
+    """
+    meminfo = cuda.current_context().get_memory_info()
+    return meminfo[1]
+
 
 # FIXME: if G is a Nx type, the weight attribute is assumed to be "weight", if
 # set. An additional optional parameter for the weight attr name when accepting
@@ -305,3 +312,4 @@ def import_optional(mod, import_from=None):
         pass
 
     return namespace.get(mod)
+

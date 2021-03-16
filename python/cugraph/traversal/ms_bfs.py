@@ -11,6 +11,80 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import cudf
+from cugraph.structure.graph import Graph, DiGraph
+from cugraph.utilities.utils import get_device_memory_info
+import warnings
+
+def _get_feasibility(G, sources, components=None,  depth_limit=None)
+    """
+    Evaluate the feasibility for breadth first traversal from multiple sources in a graph.
+
+    Parameters
+    ----------
+    G : cugraph.Graph or cugraph.DiGraph
+        The adjacency list will be computed if not already present.
+
+    sources :  cudf.Series
+        Subset of vertices from which the traversals start. A BFS is run for
+        each source in the Series. 
+        The size of the series should be at least one and cannot exceed the size
+        of the graph.
+
+    depth_limit : Integer, optional, default=None
+        Limit the depth of the search. Terminates if no more vertices are
+        reachable within the distance of depth_limit
+
+    components : cudf.DataFrame, optional, default=None
+        GPU Dataframe containing the component information.
+        Passing this information may impact the return type.
+        When no component information is passed BFS uses one component
+        behavior settings.
+
+        components['vertex'] : cudf.Series
+            vertex IDs
+        components['color'] : cudf.Series
+            component IDs/color for vertices.  
+
+    Returns
+    -------
+    count : int64
+        Estimated memory foot print size in Bytes
+    """
+
+    mem = get_device_memory_info()
+    n_sources = sources.size
+    V = G.number_of_vertices()
+    E = G.number_of_edges()
+    # fix me retreive in graph
+    size_of_v = 4
+    size_of_e = 4
+    size_of_w = 4
+    G_sz = E*size_of_e + E*size_of_w + V*size_of_v 
+    mean_component_sz = V 
+    n_components = 1
+
+    #dense output
+    output_sz = n_sources * 2 * V * size_of_v
+
+    #sparse output
+    if components is not None:
+        tmp = components['color'].value_counts()
+        n_components = tmp.size
+        mean_component_sz = tmp.mean()
+        output_sz = 2*mean_component_sz*n_sources*size_of_e
+
+    # counting 10% for context, handle and temporary allocations
+    mem_footprint = (G_sz + output_sz)*1.1
+    if mem_footprint > mem:
+        warnings.warn("Comms have already been initialized.")(f"Cannot execute in-memory :{output_sz} Bytes")
+
+    return mem_footprint, n_components, mean_component_sz
+
+ 
+
+
+
 def concurrent_bfs(Graphs, sources, depth_limit=None, offload=False):
     """
     Find the breadth first traversals of multiple graphs with multiple sources
@@ -52,6 +126,7 @@ def concurrent_bfs(Graphs, sources, depth_limit=None, offload=False):
     If offload is True, or if the output does not fit in memory :
         Writes csv files containing BFS output to the disk.
     """
+
     if not isinstance(Graphs, list):
         raise TypeError(
                 "Graphs should be a list of cugraph.Graph or cugraph.DiGraph"
@@ -75,6 +150,7 @@ def concurrent_bfs(Graphs, sources, depth_limit=None, offload=False):
     # Renumber and concatenate sources in a single df 
 
     # Call multi_source_bfs
+    multi_source_bfs(G, sources, components, depth_limit, offload)
 
 
 def multi_source_bfs(G, sources, components=None, depth_limit=None, offload=False):
@@ -136,23 +212,29 @@ def multi_source_bfs(G, sources, components=None, depth_limit=None, offload=Fals
     If offload is True, or if the output does not fit in memory :
         Writes csv files containing BFS output to the disk.
     """
-    if components is not None:
-        null_check(components["vertex"])
-        null_check(components["colors"])
-    
-    if depth_limit is not None:
-        raise NotImplementedError(
-            "depth limit implementation of BFS is not currently supported"
-        )
 
-    if offload is True:
-        raise NotImplementedError(
-            "Offloading is coming soon! Please up vote the github issue #1461
-             to help us prioritize"
-        )
-    
+    #if components is not None:
+    #    null_check(components["vertex"])
+    #    null_check(components["colors"])
+    #
+    #if depth_limit is not None:
+    #    raise NotImplementedError(
+    #        "depth limit implementation of BFS is not currently supported"
+    #    )
+
+    #if offload is True:
+    #    raise NotImplementedError(
+    #        "Offloading is coming soon! Please up vote the github issue #1461
+    #         to help us prioritize"
+    #    )
+    if isinstance(sources, list)
+        sources = cudf.Series(sources)
+    if G.renumbered is True:
+        sources = G.lookup_internal_vertex_id(cudf.Series(sources))
+        
     # Memory footprint check
+    _get_feasibility(G, sources, components, depth_limit)
 
     # Call multi_source_bfs
-
-
+    #FIXME remove when implemented
+    raise NotImplementedError("Commming soon")
