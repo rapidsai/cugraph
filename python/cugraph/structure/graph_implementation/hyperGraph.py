@@ -1,2 +1,0 @@
-class hyperGraphImpl:
-    #TBD
