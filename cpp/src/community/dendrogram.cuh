@@ -25,8 +25,8 @@ namespace cugraph {
 template <typename vertex_t>
 class Dendrogram {
  public:
-  void add_level(vertex_t num_verts,
-                 vertex_t first_index,
+  void add_level(vertex_t first_index,
+                 vertex_t num_verts,
                  cudaStream_t stream                 = 0,
                  rmm::mr::device_memory_resource *mr = rmm::mr::get_current_device_resource())
   {

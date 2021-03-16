@@ -132,7 +132,7 @@ class Leiden : public Louvain<graph_type> {
       //
       //  Initialize every cluster to reference each vertex to itself
       //
-      this->dendrogram_->add_level(current_graph.number_of_vertices, 0);
+      this->dendrogram_->add_level(0, current_graph.number_of_vertices);
 
       thrust::sequence(rmm::exec_policy(this->stream_)->on(this->stream_),
                        this->dendrogram_->current_level_begin(),

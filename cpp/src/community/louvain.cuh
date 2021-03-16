@@ -210,7 +210,7 @@ class Louvain {
 
   virtual void initialize_dendrogram_level(vertex_t num_vertices)
   {
-    dendrogram_->add_level(num_vertices, 0);
+    dendrogram_->add_level(0, num_vertices);
 
     thrust::sequence(rmm::exec_policy(stream_)->on(stream_),
                      dendrogram_->current_level_begin(),
