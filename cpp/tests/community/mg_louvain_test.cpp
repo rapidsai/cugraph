@@ -37,7 +37,7 @@ void compare(double modularity, double sg_modularity)
 // will be instantiated as the parameter to the tests defined below using
 // INSTANTIATE_TEST_CASE_P()
 //
-struct Louvain_Testparams {
+struct Louvain_Usecase {
   std::string graph_file_full_path{};
   bool weighted{false};
   size_t max_level;
@@ -46,10 +46,10 @@ struct Louvain_Testparams {
   // FIXME:  We really should have a Graph_Testparms_Base class or something
   //         like that which can handle this graph_full_path thing.
   //
-  Louvain_Testparams(std::string const& graph_file_path,
-                     bool weighted,
-                     size_t max_level,
-                     double resolution)
+  Louvain_Usecase(std::string const& graph_file_path,
+                  bool weighted,
+                  size_t max_level,
+                  double resolution)
     : weighted(weighted), max_level(max_level), resolution(resolution)
   {
     if ((graph_file_path.length() > 0) && (graph_file_path[0] != '/')) {
@@ -66,7 +66,7 @@ struct Louvain_Testparams {
 // test.  In this case, each test is identical except for the inputs and
 // expected outputs, so the entire test is defined in the run_test() method.
 //
-class Louvain_MG_Testfixture : public ::testing::TestWithParam<Louvain_Testparams> {
+class Louvain_MG_Testfixture : public ::testing::TestWithParam<Louvain_Usecase> {
  public:
   static void SetUpTestCase() {}
   static void TearDownTestCase() {}
@@ -116,7 +116,7 @@ class Louvain_MG_Testfixture : public ::testing::TestWithParam<Louvain_Testparam
   // iteration of the outer loop.  Renumbering of the partitions when coarsening
   // the graph is a function of the number of GPUs in the GPU cluster.
   template <typename vertex_t, typename edge_t, typename weight_t>
-  void run_test(const Louvain_Testparams& param)
+  void run_test(const Louvain_Usecase& param)
   {
     raft::handle_t handle;
 
@@ -183,7 +183,7 @@ TEST_P(Louvain_MG_Testfixture, CheckInt32Int32Float)
 INSTANTIATE_TEST_CASE_P(
   simple_test,
   Louvain_MG_Testfixture,
-  ::testing::Values(Louvain_Testparams("test/datasets/karate.mtx", true, 100, 1),
-                    Louvain_Testparams("test/datasets/smallworld.mtx", true, 100, 1)));
+  ::testing::Values(Louvain_Usecase("test/datasets/karate.mtx", true, 100, 1),
+                    Louvain_Usecase("test/datasets/smallworld.mtx", true, 100, 1)));
 
 CUGRAPH_MG_TEST_PROGRAM_MAIN()
