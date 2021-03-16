@@ -1,4 +1,4 @@
-# Copyright (c) 2019-2020, NVIDIA CORPORATION.
+# Copyright (c) 2019-2021, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -419,10 +419,10 @@ class Graph:
         if value_col is not None:
             source_col, dest_col, value_col = symmetrize(
                 source_col, dest_col, value_col,
-                multi=self.properties.multi_edge,
-                symmetrize=not self.properties.directed)
+                multi=self.multi,
+                symmetrize=not self.symmetrized)
             if isinstance(value_col, cudf.DataFrame):
-                value_dict={}
+                value_dict = {}
                 for i in value_col.columns:
                     value_dict[i]=value_col[i]
                 value_col = value_dict
