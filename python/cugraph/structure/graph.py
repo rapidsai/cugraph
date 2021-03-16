@@ -418,8 +418,14 @@ class Graph:
 
         if value_col is not None:
             source_col, dest_col, value_col = symmetrize(
-                source_col, dest_col, value_col, multi=self.multi,
-                symmetrize=not self.symmetrized)
+                source_col, dest_col, value_col,
+                multi=self.properties.multi_edge,
+                symmetrize=not self.properties.directed)
+            if isinstance(value_col, cudf.DataFrame):
+                value_dict={}
+                for i in value_col.columns:
+                    value_dict[i]=value_col[i]
+                value_col = value_dict
         else:
             source_col, dest_col = symmetrize(
                 source_col, dest_col, multi=self.multi,
