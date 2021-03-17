@@ -302,6 +302,8 @@ auto groupby_gpuid_and_shuffle_kv_pairs(raft::comms::comms_t const &comm,
                                         KeyToGPUIdOp key_to_gpu_id_op,
                                         cudaStream_t stream)
 {
+  auto const comm_size = comm.get_size();
+
   auto d_tx_value_counts = groupby_and_count(
     tx_key_first, tx_key_last, tx_value_first, key_to_gpu_id_op, comm.get_size(), stream);
 

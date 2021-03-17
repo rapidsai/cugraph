@@ -302,9 +302,15 @@ graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu, std::enable_if_
 
     rmm::device_uvector<vertex_t> segment_offsets(detail::num_segments_per_vertex_partition + 1,
                                                   default_stream);
-    segment_offsets.set_element_async(0, 0, default_stream);
+
+    // temporaries are necessary because the &&-overload of device_uvector is deleted
+    // Note that we must sync `default_stream` before these temporaries go out of scope to
+    // avoid use after free. (The syncs are at the end of this function)
+    auto zero_vertex  = vertex_t{0};
+    auto vertex_count = static_cast<vertex_t>(degrees.size());
+    segment_offsets.set_element_async(0, zero_vertex, default_stream);
     segment_offsets.set_element_async(
-      detail::num_segments_per_vertex_partition, degrees.size(), default_stream);
+      detail::num_segments_per_vertex_partition, vertex_count, default_stream);
 
     thrust::upper_bound(rmm::exec_policy(default_stream)->on(default_stream),
                         degrees.begin(),
@@ -435,9 +441,16 @@ graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu, std::enable_if_
 
     rmm::device_uvector<vertex_t> segment_offsets(detail::num_segments_per_vertex_partition + 1,
                                                   default_stream);
-    segment_offsets.set_element_async(0, 0, default_stream);
+
+    // temporaries are necessary because the &&-overload of device_uvector is deleted
+    // Note that we must sync `default_stream` before these temporaries go out of scope to
+    // avoid use after free. (The syncs are at the end of this function)
+    auto zero_vertex  = vertex_t{0};
+    auto vertex_count = static_cast<vertex_t>(this->get_number_of_vertices());
+    segment_offsets.set_element_async(0, zero_vertex, default_stream);
+
     segment_offsets.set_element_async(
-      detail::num_segments_per_vertex_partition, this->get_number_of_vertices(), default_stream);
+      detail::num_segments_per_vertex_partition, vertex_count, default_stream);
 
     thrust::upper_bound(rmm::exec_policy(default_stream)->on(default_stream),
                         degree_first,

@@ -195,7 +195,7 @@ graph_view_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu, std::enabl
                   "Internal Error: adj_matrix_partition_weights.size() should coincide with "
                   "adj_matrix_partition_offsets.size() (if weighted) or 0 (if unweighted).");
 
-  CUGRAPH_EXPECTS(adj_matrix_partition_offsets.size() == static_cast<size_t>(row_comm_size),
+  CUGRAPH_EXPECTS(adj_matrix_partition_offsets.size() == static_cast<size_t>(col_comm_size),
                   "Internal Error: erroneous adj_matrix_partition_offsets.size().");
 
   CUGRAPH_EXPECTS((sorted_by_global_degree_within_vertex_partition &&
