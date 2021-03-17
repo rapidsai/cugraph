@@ -13,58 +13,41 @@ With cuGraph and Dask, whether you’re using a single NVIDIA GPU or multiple no
 
 If your graph comfortably fits in memory on a single GPU, you would want to use the single-GPU version of cuGraph. If you want to distribute your workflow across multiple GPUs and have more data than you can fit in memory on a single GPU, you would want to use cuGraph's multi-GPU features.
 
+Example
+========
 
-Distributed Graph Algorithms
-----------------------------
+.. code-block:: python
 
-.. automodule:: cugraph.dask.link_analysis.pagerank
-    :members: pagerank
-    :undoc-members: 
+    from dask.distributed import Client, wait
+    from dask_cuda import LocalCUDACluster
+    import cugraph.comms as Comms
+    import cugraph.dask as dask_cugraph
 
-.. automodule:: cugraph.dask.traversal.bfs
-    :members: bfs
-    :undoc-members: 
+    cluster = LocalCUDACluster()
+    client = Client(cluster)
+    Comms.initialize(p2p=True)
+
+    # Helper function to set the reader chunk size to automatically get one partition per GPU  
+    chunksize = dask_cugraph.get_chunksize(input_data_path)
+
+    # Multi-GPU CSV reader
+    e_list = dask_cudf.read_csv(input_data_path, 
+            chunksize = chunksize, 
+            delimiter=' ', 
+            names=['src', 'dst'], 
+            dtype=['int32', 'int32'])
+
+    G = cugraph.DiGraph()
+    G.from_dask_cudf_edgelist(e_list, source='src', destination='dst')
+
+    # now run PageRank
+    pr_df = dask_cugraph.pagerank(G, tol=1e-4)
+
+    # All done, clean up
+    Comms.destroy()
+    client.close()
+    cluster.close()
 
 
-Helper functions 
-----------------
+|
 
-.. automodule:: cugraph.comms.comms
-    :members: initialize
-    :undoc-members:
-
-.. automodule:: cugraph.comms.comms
-    :members: destroy
-    :undoc-members:
-
-.. automodule:: cugraph.dask.common.read_utils
-    :members: get_chunksize
-    :undoc-members:
-
-Consolidation
-=============
-
-cuGraph can transparently interpret the Dask cuDF Dataframe as a regular Dataframe when loading the edge list. This is particularly helpful for workflows extracting a single GPU sized edge list from a distributed dataset. From there any existing single GPU feature will just work on this input.
-
-For instance, consolidation allows leveraging Dask cuDF CSV reader to load file(s) on multiple GPUs and consolidate this input to a single GPU graph. Reading is often the time and memory bottleneck, with this feature users can call the Multi-GPU version of the reader without changing anything else. 
-
-Batch Processing
-================
-
-cuGraph can leverage multi GPUs to increase processing speed for graphs that fit on a single GPU, providing faster analytics on such graphs.
-You will be able to use the Graph the same way as you used to in a Single GPU environment, but analytics that support batch processing will automatically use the GPUs available to the dask client.
-For example, Betweenness Centrality scores can be slow to obtain depending on the number of vertices used in the approximation. Thank to Multi GPUs Batch Processing,
-you can create Single GPU graph as you would regularly do it using cuDF CSV reader, enable Batch analytics on it, and obtain scores much faster as each GPU will handle a sub-set of the sources.
-In order to use Batch Analytics you need to set up a Dask Cluster and Client in addition to the cuGraph communicator, then you can simply call `enable_batch()` on you graph, and algorithms supporting batch processing will use multiple GPUs.
-
-Algorithms supporting Batch Processing
---------------------------------------
-.. automodule:: cugraph.centrality
-    :members: betweenness_centrality
-    :undoc-members:
-    :noindex:
-
-.. automodule:: cugraph.centrality
-    :members: edge_betweenness_centrality
-    :undoc-members:
-    :noindex:

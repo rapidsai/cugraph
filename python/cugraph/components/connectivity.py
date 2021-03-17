@@ -1,4 +1,4 @@
-# Copyright (c) 2019-2020, NVIDIA CORPORATION.
+# Copyright (c) 2019-2021, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -378,7 +378,7 @@ def connected_components(G,
                           header=None)
     >>> G = cugraph.Graph()
     >>> G.from_cudf_edgelist(M, source='0', destination='1', edge_attr=None)
-    >>> df = cugraph.strongly_connected_components(G)
+    >>> df = cugraph.connected_components(G, connection="weak")
     """
     if connection == "weak":
         return weakly_connected_components(G, directed,
