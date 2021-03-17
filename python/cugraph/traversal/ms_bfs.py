@@ -11,12 +11,14 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import numpy as np
 import cudf
 from cugraph.structure.graph import Graph, DiGraph
 from cugraph.utilities.utils import get_device_memory_info
 import warnings
 
-def _get_feasibility(G, sources, components=None,  depth_limit=None)
+
+def _get_feasibility(G, sources, components=None, depth_limit=None):
     """
     Evaluate the feasibility for breadth first traversal from multiple sources in a graph.
 
@@ -48,41 +50,61 @@ def _get_feasibility(G, sources, components=None,  depth_limit=None)
 
     Returns
     -------
-    count : int64
+    mem_footprint : integer
         Estimated memory foot print size in Bytes
     """
 
-    mem = get_device_memory_info()
+    # Fixme not implemented in RMM yet
+    # using 96GB upper bound for now
+    # mem = get_device_memory_info()
+    mem = 9.6e10
     n_sources = sources.size
     V = G.number_of_vertices()
     E = G.number_of_edges()
-    # fix me retreive in graph
-    size_of_v = 4
-    size_of_e = 4
-    size_of_w = 4
-    G_sz = E*size_of_e + E*size_of_w + V*size_of_v 
-    mean_component_sz = V 
+    mean_component_sz = V
     n_components = 1
 
-    #dense output
+    # Retreive types
+    size_of_v = 4
+    size_of_e = 4
+    size_of_w = 0
+    if G.adjlist.weights is not None:
+        if G.adjlist.weights.dtype is np.float64:
+            size_of_w = 8
+        else:
+            size_of_w = 4
+    if G.adjlist.offsets.dtype is np.float64:
+        size_of_v = 8
+    if G.adjlist.indices.dtype is np.float64:
+        size_of_e = 8
+
+    # Graph size
+    G_sz = E * size_of_e + E * size_of_w + V * size_of_v
+
+    # The impact of depth limit depends on the sparsity
+    # pattern and diameter. We cannot leverage it without
+    # traversing the full dataset a the moment.
+
+    # dense output
     output_sz = n_sources * 2 * V * size_of_v
 
-    #sparse output
+    # sparse output
     if components is not None:
-        tmp = components['color'].value_counts()
+        tmp = components["color"].value_counts()
         n_components = tmp.size
+        if n_sources / n_components > 100:
+            warnings.warn(
+                "High number of seeds per component result in large output."
+            )
         mean_component_sz = tmp.mean()
-        output_sz = 2*mean_component_sz*n_sources*size_of_e
+        output_sz = mean_component_sz * n_sources * 2 * size_of_e
 
     # counting 10% for context, handle and temporary allocations
-    mem_footprint = (G_sz + output_sz)*1.1
+    mem_footprint = (G_sz + output_sz) * 1.1
     if mem_footprint > mem:
-        warnings.warn("Comms have already been initialized.")(f"Cannot execute in-memory :{output_sz} Bytes")
+        warnings.warn(f"Cannot execute in-memory :{mem_footprint} Bytes")
 
-    return mem_footprint, n_components, mean_component_sz
-
- 
-
+    return mem_footprint
 
 
 def concurrent_bfs(Graphs, sources, depth_limit=None, offload=False):
@@ -129,31 +151,37 @@ def concurrent_bfs(Graphs, sources, depth_limit=None, offload=False):
 
     if not isinstance(Graphs, list):
         raise TypeError(
-                "Graphs should be a list of cugraph.Graph or cugraph.DiGraph"
-            )
+            "Graphs should be a list of cugraph.Graph or cugraph.DiGraph"
+        )
     if not isinstance(sources, list):
-        raise TypeError(
-                "sources should be a list of cudf.Series"
-            )
+        raise TypeError("sources should be a list of cudf.Series")
     if len(Graphs) != len(sources):
         raise ValueError(
-                "The size of the sources list must match the size of the graph list."
-            )
+            "The size of the sources list must match the size of the graph list."
+        )
     if offload is True:
         raise NotImplementedError(
-            "Offloading is coming soon! Please up vote the github issue #1461
+            "Offloading is coming soon! Please up vote the github issue 1461\
              to help us prioritize"
         )
-    
+
     # Consolidate graphs in a single graph and record components
 
-    # Renumber and concatenate sources in a single df 
+    # Renumber and concatenate sources in a single df
 
     # Call multi_source_bfs
-    multi_source_bfs(G, sources, components, depth_limit, offload)
+    # multi_source_bfs(
+    #    G,
+    #    sources,
+    #    components=components,
+    #    depth_limit=depth_limit,
+    #    offload=offload,
+    # )
 
 
-def multi_source_bfs(G, sources, components=None, depth_limit=None, offload=False):
+def multi_source_bfs(
+    G, sources, components=None, depth_limit=None, offload=False
+):
     """
     Find the breadth first traversal from multiple sources in a graph.
 
@@ -213,28 +241,32 @@ def multi_source_bfs(G, sources, components=None, depth_limit=None, offload=Fals
         Writes csv files containing BFS output to the disk.
     """
 
-    #if components is not None:
+    # if components is not None:
     #    null_check(components["vertex"])
     #    null_check(components["colors"])
     #
-    #if depth_limit is not None:
+    # if depth_limit is not None:
     #    raise NotImplementedError(
     #        "depth limit implementation of BFS is not currently supported"
     #    )
 
-    #if offload is True:
+    # if offload is True:
     #    raise NotImplementedError(
-    #        "Offloading is coming soon! Please up vote the github issue #1461
+    #        "Offloading is coming soon! Please up vote the github issue 1461
     #         to help us prioritize"
     #    )
-    if isinstance(sources, list)
+    if isinstance(sources, list):
         sources = cudf.Series(sources)
     if G.renumbered is True:
         sources = G.lookup_internal_vertex_id(cudf.Series(sources))
-        
+    if not G.adjlist:
+        G.view_adj_list()
     # Memory footprint check
-    _get_feasibility(G, sources, components, depth_limit)
-
+    footprint = _get_feasibility(
+        G, sources, components=components, depth_limit=depth_limit
+    )
+    print(footprint)
     # Call multi_source_bfs
-    #FIXME remove when implemented
-    raise NotImplementedError("Commming soon")
+    # FIXME remove when implemented
+    # raise NotImplementedError("Commming soon")
+
