@@ -116,11 +116,19 @@ struct rrandom_gen_t {
   {
     CUGRAPH_EXPECTS(d_random.size() >= nPaths, "Un-allocated random buffer.");
 
+    // FIXME: not only in constructor,
+    // this must be done at each step,
+    // unless this object is constructed at each step;
+    //
     raft::random::Rng rng(seed_);
     rng.uniform<real_t, index_t>(
       d_ptr_random_, nPaths, real_t{0.0}, real_t{1.0}, handle.get_stream());
   }
 
+  // for each v {
+  // if out_deg(v) > 0
+  //   return random index in [0, out_deg(v))
+  //}
   device_vec_t<vertex_t> generate_col_indices(void) const
   {
     device_vec_t<vertex_t> d_col_indx{num_paths_, handle_.get_stream()};
@@ -146,9 +154,10 @@ struct rrandom_gen_t {
  private:
   raft::handle_t const& handle_;
   index_t num_paths_;
-  edge_t const* d_ptr_out_degs_;
-  real_t* d_ptr_random_;
-  seed_t seed_;
+  edge_t const* d_ptr_out_degs_;  // device puffer with out-deg of current set of vertices (most
+                                  // recent vertex in each path); size = num_paths_
+  real_t* d_ptr_random_;          // device buffer with real random values; size = num_paths_
+  seed_t seed_;                   // seed to be used for current batch
 };
 
 // class abstracting the RW stepping algorithm:
@@ -175,8 +184,7 @@ struct random_walker_t {
       ptr_d_vertex_set_(ptr_d_current_vertices),
       d_v_stopped_{static_cast<size_t>(nPaths), handle_.get_stream()},
       rnd_(rnd),
-      d_v_out_degs_(graph.compute_out_degrees(handle_)),
-      d_v_rnd_n_indx_(get_random_neighbor_indices(d_v_out_degs_))
+      d_v_out_degs_(graph.compute_out_degrees(handle_))
   {
     // init d_v_stopped_ to {0} (i.e., no path is stopped):
     //
@@ -272,20 +280,20 @@ struct random_walker_t {
     d_coalesced_w.resize(thrust::distance(d_coalesced_w.begin(), new_end_w), handle_.get_stream());
   }
 
-  // gather d_src[d_coalesced[indx*stride + d_sizes[indx] -1]]
+  // in-place non-static (needs handle_):
+  // gather d_result[indx] = d_src[d_coalesced[indx*stride + d_sizes[indx] -1]]
   //
-  template <typename vertex_t, typename src_vec_t = vertex_t>
-  device_vec_t<src_vec_t> gather_from_coalesced(
-    device_vec_t<vertex_t> const& d_coalesced,  // gather map
-    device_vec_t<src_vec_t> const& d_src,       // gather src
-    device_vec_t<index_t> const& d_sizes,       // paths sizes
+  template <typename src_vec_t = vertex_t>
+  void gather_from_coalesced(
+    device_vec_t<vertex_t> const& d_coalesced,  // |gather map| = stride*nelems
+    device_vec_t<src_vec_t> const& d_src,       // |gather src| = nelems
+    device_vec_t<index_t> const& d_sizes,       // |paths sizes| = nelems, elems in [1, stride]
+    device_vec_t<src_vec_t>& d_result,          // |output| = nelems
     index_t stride,
     index_t nelems) const
   {
     vertex_t const* ptr_d_coalesced = raw_const_ptr(d_coalesced);
     index_t const* ptr_d_sizes      = raw_const_ptr(d_sizes);
-
-    device_vec_t<src_vec_t> result{nelems, handle_.get_stream()};
 
     // delta = ptr_d_sizes[indx] - 1
     //
@@ -303,9 +311,47 @@ struct random_walker_t {
                    map_it_begin,
                    map_it_begin + nelems,
                    d_src.begin(),
-                   result.begin());
+                   d_result.begin());
+  }
 
-    return result;
+  // if ( d_crt_out_degs[indx] > 0 )
+  //    d_coalesced[indx*stride + (d_sizes[indx] - adjust)- 1] = d_src[indx]
+  // adjust := 0 for coalesced vertices; 1 for weights
+  // (because |edges| = |vertices| - 1, in each path);
+  //
+  template <typename src_vec_t>
+  void scatter_to_coalesced(
+    device_vec_t<src_vec_t> const& d_src,
+    device_vec_t<src_vec_t>& d_coalesced,
+    device_vec_t<edge_t> const& d_crt_out_degs,
+    device_vec_t<index_t> const&
+      d_sizes,  // paths sizes used to provide delta in coalesced paths;
+                // pre-condition: assumed as updated to reflect new vertex additions
+    index_t stride,
+    index_t nelems,
+    index_t adjust = 0) const
+  {
+    index_t const* ptr_d_sizes = raw_const_ptr(d_sizes);
+
+    auto dlambda = [stride, adjust, ptr_d_sizes] __device__(auto indx) {
+      auto delta = ptr_d_sizes[indx] - adjust - 1;
+      return indx * stride + delta;
+    };
+
+    // use the transform iterator as map:
+    //
+    auto map_it_begin =
+      thrust::make_transform_iterator(thrust::make_counting_iterator<index_t>(0), dlambda);
+
+    thrust::scatter_if(rmm::exec_policy(handle_.get_stream())->on(handle_.get_stream()),
+                       d_src.begin(),
+                       d_src.end(),
+                       map_it_begin,
+                       d_crt_out_degs.begin(),
+                       d_coalesced.begin(),
+                       [] __device__(auto crt_out_deg) {
+                         return crt_out_deg > 0;  // predicate
+                       });
   }
 
  private:
@@ -315,19 +361,6 @@ struct random_walker_t {
   rmm::device_uvector<int> d_v_stopped_;  // keeps track of paths that stopped (==1)
   random_engine_t rnd_;
   rmm::device_uvector<edge_t> d_v_out_degs_;
-  rmm::device_uvector<vertex_t>
-    d_v_rnd_n_indx_;  // TODO: FIXME: this must be updated at each iteration (step)
-
-  rmm::device_uvector<vertex_t> get_random_neighbor_indices(
-    rmm::device_uvector<typename graph_t::edge_type> const& d_v_out_degs)
-  {
-    // TODO: for each (local) vertex v in V,
-    // generate random indexes in [0, N(v))
-    // ( N(v): out-neighbors of v);
-    // using random engine rnd_
-
-    return rmm::device_uvector<vertex_t>{0, handle_.get_stream()};  // TODO:
-  }
 };
 
 /**
