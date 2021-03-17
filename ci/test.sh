@@ -61,30 +61,6 @@ else
     cd $WORKSPACE/ci/artifacts/cugraph/cpu/conda_work/cpp/build
 fi
 
-# FIXME: if possible, any install and build steps should be moved outside this
-# script since a failing install/build step is treated as a failing test command
-# and will not stop the script. This script is also only expected to run tests
-# in a preconfigured environment, and install/build steps are unexpected side
-# effects.
-if [[ "$PROJECT_FLASH" == "1" ]]; then
-    export LIBCUGRAPH_BUILD_DIR="$WORKSPACE/ci/artifacts/cugraph/cpu/conda_work/cpp/build"
-
-    # Faiss patch
-    echo "Update libcugraph.so"
-    cd $LIBCUGRAPH_BUILD_DIR
-    chrpath -d libcugraph.so
-    patchelf --replace-needed `patchelf --print-needed libcugraph.so | grep faiss` libfaiss.so libcugraph.so
-
-    CONDA_FILE=`find $WORKSPACE/ci/artifacts/cugraph/cpu/conda-bld/ -name "libcugraph*.tar.bz2"`
-    CONDA_FILE=`basename "$CONDA_FILE" .tar.bz2` #get filename without extension
-    CONDA_FILE=${CONDA_FILE//-/=} #convert to conda install
-    echo "Installing $CONDA_FILE"
-    conda install -c $WORKSPACE/ci/artifacts/cugraph/cpu/conda-bld/ "$CONDA_FILE"
-
-    echo "Build cugraph..."
-    $WORKSPACE/build.sh cugraph
-fi
-
 # Do not abort the script on error from this point on. This allows all tests to
 # run regardless of pass/fail, but relies on the ERR trap above to manage the
 # EXITCODE for the script.
