@@ -27,7 +27,7 @@ namespace cugraph {
 namespace detail {
 class TSP {
  public:
-  TSP(raft::handle_t &handle,
+  TSP(raft::handle_t const &handle,
       int const *vtx_ptr,
       float const *x_pos,
       float const *y_pos,
@@ -46,7 +46,7 @@ class TSP {
 
  private:
   // Config
-  raft::handle_t &handle_;
+  raft::handle_t const &handle_;
   cudaStream_t stream_;
   int max_blocks_;
   int max_threads_;

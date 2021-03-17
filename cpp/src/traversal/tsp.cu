@@ -23,7 +23,7 @@
 namespace cugraph {
 namespace detail {
 
-TSP::TSP(raft::handle_t &handle,
+TSP::TSP(raft::handle_t const &handle,
          int const *vtx_ptr,
          float const *x_pos,
          float const *y_pos,
@@ -67,7 +67,7 @@ void TSP::allocate()
   // pre-allocate workspace for climbs, each block needs a separate permutation space and search
   // buffer. We allocate a work buffer that will store the computed distances, px, py and the route.
   // We align it on the warp size.
-  work_vec_.resize(sizeof(float) * restart_batch_ *
+  work_vec_.resize(restart_batch_ *
                    ((4 * nodes_ + 3 + warp_size_ - 1) / warp_size_ * warp_size_));
 
   // Pointers
@@ -115,11 +115,11 @@ float TSP::compute()
   h_times.reserve(n_timers * threads + n_timers);
 
   gettimeofday(&starttime, NULL);
-  for (int b = 0; b < num_restart_batches; ++b) {
+  for (int batch = 1; batch <= num_restart_batches; ++batch) {
     reset<<<1, 1, 0, stream_>>>(mylock_, best_tour_, climbs_);
     CHECK_CUDA(stream_);
 
-    if (b == num_restart_batches - 1) restart_batch_ = restart_resid;
+    if (batch == num_restart_batches) restart_batch_ = restart_resid;
 
     search_solution<<<restart_batch_, threads, sizeof(int) * threads, stream_>>>(mylock_,
                                                                                  best_tour_,
@@ -134,7 +134,8 @@ float TSP::compute()
                                                                                  nstart_,
                                                                                  times.data().get(),
                                                                                  climbs_,
-                                                                                 threads);
+                                                                                 threads,
+                                                                                 batch);
 
     CHECK_CUDA(stream_);
     cudaDeviceSynchronize();
@@ -226,7 +227,7 @@ void TSP::knn()
 }
 }  // namespace detail
 
-float traveling_salesperson(raft::handle_t &handle,
+float traveling_salesperson(raft::handle_t const &handle,
                             int const *vtx_ptr,
                             float const *x_pos,
                             float const *y_pos,

@@ -31,7 +31,6 @@ namespace detail {
 
 __device__ float *best_soln;
 __device__ int *best_route;
-extern __shared__ int shbuf[];
 
 __global__ void reset(int *mylock, int *best_tour, int *climbs)
 {
@@ -50,7 +49,8 @@ __device__ void random_init(float const *posx,
                             float *px,
                             float *py,
                             int const nstart,
-                            int const nodes)
+                            int const nodes,
+                            int const batch)
 {
   // Fill values
   for (int i = threadIdx.x; i <= nodes; i += blockDim.x) {
@@ -68,7 +68,7 @@ __device__ void random_init(float const *posx,
     raft::swapVals(path[0], path[nstart]);
 
     curandState rndstate;
-    curand_init(blockIdx.x, 0, 0, &rndstate);
+    curand_init(blockIdx.x * batch, 0, 0, &rndstate);
     for (int i = 1; i < nodes; i++) {
       int j = curand(&rndstate) % (nodes - 1 - i) + i;
       if (i == j) continue;
@@ -93,7 +93,8 @@ __device__ void knn_init(float const *posx,
                          float *py,
                          int const nstart,
                          int const nodes,
-                         int const K)
+                         int const K,
+                         int const batch)
 {
   for (int i = threadIdx.x; i < nodes; i += blockDim.x) buf[i] = 0;
 
@@ -101,7 +102,7 @@ __device__ void knn_init(float const *posx,
 
   if (threadIdx.x == 0) {
     curandState rndstate;
-    curand_init(blockIdx.x, 0, 0, &rndstate);
+    curand_init(blockIdx.x * batch, 0, 0, &rndstate);
     int progress = 0;
     int initlen  = 0;
 
@@ -384,7 +385,8 @@ __global__ __launch_bounds__(2048, 2) void search_solution(int *mylock,
                                                            int const nstart,
                                                            float *times,
                                                            int *climbs,
-                                                           int threads)
+                                                           int const threads,
+                                                           int const batch)
 {
   int *buf  = &work[blockIdx.x * ((4 * nodes + 3 + 31) / 32 * 32)];
   float *px = (float *)(&buf[nodes]);
@@ -395,9 +397,9 @@ __global__ __launch_bounds__(2048, 2) void search_solution(int *mylock,
 
   start = clock64();
   if (!beam_search)
-    random_init(posx, posy, vtx_ptr, path, px, py, nstart, nodes);
+    random_init(posx, posy, vtx_ptr, path, px, py, nstart, nodes, batch);
   else
-    knn_init(posx, posy, vtx_ptr, neighbors, buf, path, px, py, nstart, nodes, K);
+    knn_init(posx, posy, vtx_ptr, neighbors, buf, path, px, py, nstart, nodes, K, batch);
   __syncthreads();
   times[threadIdx.x] = clock64() - start;
 
