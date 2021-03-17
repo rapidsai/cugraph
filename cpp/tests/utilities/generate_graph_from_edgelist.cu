@@ -126,27 +126,23 @@ generate_graph_from_edgelist(raft::handle_t const& handle,
     store_transposed
       ? thrust::make_zip_iterator(thrust::make_tuple(edgelist_cols.begin(), edgelist_rows.begin()))
       : thrust::make_zip_iterator(thrust::make_tuple(edgelist_rows.begin(), edgelist_cols.begin()));
-  auto displacements =
-    test_weighted ? cugraph::experimental::groupby_and_count(pair_first,
-                                                             pair_first + edgelist_rows.size(),
-                                                             edgelist_weights.begin(),
-                                                             local_partition_id_op,
-                                                             col_comm_size,
-                                                             handle.get_stream())
-                  : cugraph::experimental::groupby_and_count(pair_first,
-                                                             pair_first + edgelist_rows.size(),
-                                                             local_partition_id_op,
-                                                             col_comm_size,
-                                                             handle.get_stream());
-  thrust::exclusive_scan(rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
-                         displacements.begin(),
-                         displacements.end(),
-                         displacements.begin());
+  auto edge_counts = test_weighted
+                       ? cugraph::experimental::groupby_and_count(pair_first,
+                                                                  pair_first + edgelist_rows.size(),
+                                                                  edgelist_weights.begin(),
+                                                                  local_partition_id_op,
+                                                                  col_comm_size,
+                                                                  handle.get_stream())
+                       : cugraph::experimental::groupby_and_count(pair_first,
+                                                                  pair_first + edgelist_rows.size(),
+                                                                  local_partition_id_op,
+                                                                  col_comm_size,
+                                                                  handle.get_stream());
 
-  std::vector<size_t> h_displacements(displacements.size());
+  std::vector<size_t> h_edge_counts(edge_counts.size());
   raft::update_host(
-    h_displacements.data(), displacements.data(), displacements.size(), handle.get_stream());
-  CUDA_TRY(cudaStreamSynchronize(handle.get_stream()));
+    h_edge_counts.data(), edge_counts.data(), edge_counts.size(), handle.get_stream());
+  handle.get_stream_view().synchronize();
 
   // 3. renumber
 
@@ -155,17 +151,18 @@ generate_graph_from_edgelist(raft::handle_t const& handle,
   vertex_t aggregate_number_of_vertices{};
   edge_t number_of_edges{};
   {
-    std::vector<vertex_t*> major_ptrs(edgelist_rows.size());
+    std::vector<size_t> h_displacements(h_edge_counts.size(), size_t{0});
+    std::partial_sum(h_edge_counts.begin(), h_edge_counts.end() - 1, h_displacements.begin() + 1);
+
+    std::vector<vertex_t*> major_ptrs(h_edge_counts.size());
     std::vector<vertex_t*> minor_ptrs(major_ptrs.size());
     std::vector<edge_t> counts(major_ptrs.size());
-    for (size_t i = 0; i < edgelist_rows.size(); ++i) {
+    for (size_t i = 0; i < h_edge_counts.size(); ++i) {
       major_ptrs[i] =
         (store_transposed ? edgelist_cols.begin() : edgelist_rows.begin()) + h_displacements[i];
       minor_ptrs[i] =
         (store_transposed ? edgelist_rows.begin() : edgelist_cols.begin()) + h_displacements[i];
-      counts[i] = static_cast<edge_t>(
-        ((i == edgelist_rows.size() - 1) ? edgelist_rows.size() : h_displacements[i + 1]) -
-        h_displacements[i]);
+      counts[i] = static_cast<edge_t>(h_edge_counts[i]);
     }
     // FIXME: set do_expensive_check to false once validated
     std::tie(renumber_map_labels, partition, aggregate_number_of_vertices, number_of_edges) =

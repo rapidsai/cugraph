@@ -98,7 +98,7 @@ rmm::device_uvector<vertex_t> compute_renumber_map(
         rx_displs.assign(col_comm_size, size_t{0});
         std::partial_sum(rx_sizes.begin(), rx_sizes.end() - 1, rx_displs.begin() + 1);
         rx_major_labels.resize(rx_displs.back() + rx_sizes.back(), handle.get_stream());
-        rx_major_counts.resize(major_labels.size(), handle.get_stream());
+        rx_major_counts.resize(rx_major_labels.size(), handle.get_stream());
       }
       device_gatherv(col_comm,
                      thrust::make_zip_iterator(
@@ -537,11 +537,12 @@ renumber_edgelist(raft::handle_t const& handle,
 
   for (size_t i = 0; i < edgelist_major_vertices.size(); ++i) {
     rmm::device_uvector<vertex_t> renumber_map_major_labels(
-      partition.get_matrix_partition_major_size(i), handle.get_stream());
+      col_comm_rank == i ? vertex_t{0} : partition.get_matrix_partition_major_size(i),
+      handle.get_stream());
     device_bcast(col_comm,
                  renumber_map_labels.data(),
                  renumber_map_major_labels.data(),
-                 renumber_map_major_labels.size(),
+                 partition.get_matrix_partition_major_size(i),
                  i,
                  handle.get_stream());
 
@@ -549,17 +550,18 @@ renumber_edgelist(raft::handle_t const& handle,
       handle.get_stream()));  // cuco::static_map currently does not take stream
 
     cuco::static_map<vertex_t, vertex_t> renumber_map{
-      static_cast<size_t>(static_cast<double>(renumber_map_major_labels.size()) / load_factor),
+      static_cast<size_t>(static_cast<double>(partition.get_matrix_partition_major_size(i)) /
+                          load_factor),
       invalid_vertex_id<vertex_t>::value,
       invalid_vertex_id<vertex_t>::value};
     auto pair_first = thrust::make_transform_iterator(
       thrust::make_zip_iterator(thrust::make_tuple(
-        renumber_map_major_labels.begin(),
+        col_comm_rank == i ? renumber_map_labels.begin() : renumber_map_major_labels.begin(),
         thrust::make_counting_iterator(partition.get_matrix_partition_major_first(i)))),
       [] __device__(auto val) {
         return thrust::make_pair(thrust::get<0>(val), thrust::get<1>(val));
       });
-    renumber_map.insert(pair_first, pair_first + renumber_map_major_labels.size());
+    renumber_map.insert(pair_first, pair_first + partition.get_matrix_partition_major_size(i));
     renumber_map.find(edgelist_major_vertices[i],
                       edgelist_major_vertices[i] + edgelist_edge_counts[i],
                       edgelist_major_vertices[i]);

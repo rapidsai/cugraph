@@ -860,7 +860,6 @@ std::unique_ptr<renum_quad_t<vertex_t, edge_t>> call_renumber(
       major_ptrs[i] = shuffled_edgelist_major_vertices + displacements[i];
       minor_ptrs[i] = shuffled_edgelist_minor_vertices + displacements[i];
     }
-    assert(aggregate_number_of_vertices == number_of_vertices);
 
     std::tie(
       p_ret->get_dv(), p_ret->get_partition(), p_ret->get_num_vertices(), p_ret->get_num_edges()) =
