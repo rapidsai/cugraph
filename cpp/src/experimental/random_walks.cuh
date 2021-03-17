@@ -272,17 +272,25 @@ struct random_walker_t {
     d_coalesced_w.resize(thrust::distance(d_coalesced_w.begin(), new_end_w), handle_.get_stream());
   }
 
+  // gather d_src[d_coalesced[indx*stride + d_sizes[indx] -1]]
+  //
   template <typename vertex_t, typename src_vec_t = vertex_t>
-  device_vec_t<src_vec_t> gather_from_coalesced(device_vec_t<vertex_t> const& d_coalesced,
-                                                device_vec_t<src_vec_t> const& d_src,
-                                                index_t stride,
-                                                index_t delta,
-                                                index_t nelems) const
+  device_vec_t<src_vec_t> gather_from_coalesced(
+    device_vec_t<vertex_t> const& d_coalesced,  // gather map
+    device_vec_t<src_vec_t> const& d_src,       // gather src
+    device_vec_t<index_t> const& d_sizes,       // paths sizes
+    index_t stride,
+    index_t nelems) const
   {
     vertex_t const* ptr_d_coalesced = raw_const_ptr(d_coalesced);
+    index_t const* ptr_d_sizes      = raw_const_ptr(d_sizes);
+
     device_vec_t<src_vec_t> result{nelems, handle_.get_stream()};
 
-    auto dlambda = [stride, delta, ptr_d_coalesced] __device__(auto indx) {
+    // delta = ptr_d_sizes[indx] - 1
+    //
+    auto dlambda = [stride, ptr_d_sizes, ptr_d_coalesced] __device__(auto indx) {
+      auto delta = ptr_d_sizes[indx] - 1;
       return ptr_d_coalesced[indx * stride + delta];
     };
 
