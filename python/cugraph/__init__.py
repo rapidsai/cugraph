@@ -33,6 +33,10 @@ from cugraph.structure import (
     DiGraph,
     MultiGraph,
     MultiDiGraph,
+    BiPartiteGraph,
+    BiPartiteDiGraph,
+    NPartiteGraph,
+    NPartiteDiGraph,
     from_edgelist,
     from_cudf_edgelist,
     from_pandas_edgelist,
@@ -82,7 +86,7 @@ from cugraph.traversal import (
     shortest_path,
     filter_unreachable,
     shortest_path_length,
-    traveling_salesperson
+    #traveling_salesperson
 )
 
 from cugraph.tree import minimum_spanning_tree, maximum_spanning_tree
