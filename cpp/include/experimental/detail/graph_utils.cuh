@@ -152,7 +152,7 @@ struct compute_gpu_id_from_edge_t {
     cuco::detail::MurmurHash3_32<vertex_t> hash_func{};
     auto major_comm_rank = static_cast<int>(hash_func(major) % comm_size);
     auto minor_comm_rank = static_cast<int>(hash_func(minor) % comm_size);
-    return (minor_comm_rank / col_comm_size) * row_comm_size + (major_comm_rank % row_comm_size);
+    return (minor_comm_rank / row_comm_size) * row_comm_size + (major_comm_rank % row_comm_size);
   }
 };
 

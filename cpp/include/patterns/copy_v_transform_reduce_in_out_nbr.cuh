@@ -481,7 +481,7 @@ void copy_v_transform_reduce_nbr(raft::handle_t const& handle,
         col_comm,
         major_buffer_first,
         vertex_value_output_first,
-        static_cast<size_t>(graph_view.get_vertex_partition_size(i * row_comm_size + i)),
+        matrix_partition.get_major_size(),
         raft::comms::op_t::SUM,
         i,
         handle.get_stream());

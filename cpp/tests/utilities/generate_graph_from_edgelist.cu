@@ -144,6 +144,9 @@ generate_graph_from_edgelist(raft::handle_t const& handle,
     h_edge_counts.data(), edge_counts.data(), edge_counts.size(), handle.get_stream());
   handle.get_stream_view().synchronize();
 
+  std::vector<size_t> h_displacements(h_edge_counts.size(), size_t{0});
+  std::partial_sum(h_edge_counts.begin(), h_edge_counts.end() - 1, h_displacements.begin() + 1);
+
   // 3. renumber
 
   rmm::device_uvector<vertex_t> renumber_map_labels(0, handle.get_stream());
@@ -151,9 +154,6 @@ generate_graph_from_edgelist(raft::handle_t const& handle,
   vertex_t aggregate_number_of_vertices{};
   edge_t number_of_edges{};
   {
-    std::vector<size_t> h_displacements(h_edge_counts.size(), size_t{0});
-    std::partial_sum(h_edge_counts.begin(), h_edge_counts.end() - 1, h_displacements.begin() + 1);
-
     std::vector<vertex_t*> major_ptrs(h_edge_counts.size());
     std::vector<vertex_t*> minor_ptrs(major_ptrs.size());
     std::vector<edge_t> counts(major_ptrs.size());
@@ -179,15 +179,21 @@ generate_graph_from_edgelist(raft::handle_t const& handle,
 
   // 4. create a graph
 
+  std::vector<cugraph::experimental::edgelist_t<vertex_t, edge_t, weight_t>> edgelists(
+    h_edge_counts.size());
+  for (size_t i = 0; i < h_edge_counts.size(); ++i) {
+    edgelists[i] = cugraph::experimental::edgelist_t<vertex_t, edge_t, weight_t>{
+      edgelist_rows.data() + h_displacements[i],
+      edgelist_cols.data() + h_displacements[i],
+      test_weighted ? edgelist_weights.data() + h_displacements[i]
+                    : static_cast<weight_t*>(nullptr),
+      static_cast<edge_t>(h_edge_counts[i])};
+  }
+
   return std::make_tuple(
     cugraph::experimental::graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu>(
       handle,
-      std::vector<cugraph::experimental::edgelist_t<vertex_t, edge_t, weight_t>>{
-        cugraph::experimental::edgelist_t<vertex_t, edge_t, weight_t>{
-          edgelist_rows.data(),
-          edgelist_cols.data(),
-          test_weighted ? edgelist_weights.data() : nullptr,
-          static_cast<edge_t>(edgelist_rows.size())}},
+      edgelists,
       partition,
       number_of_vertices,
       number_of_edges,
