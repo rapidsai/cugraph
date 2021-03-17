@@ -38,6 +38,7 @@
 #include <thrust/random/linear_congruential_engine.h>
 #include <thrust/random/uniform_int_distribution.h>
 #include <thrust/remove.h>
+#include <thrust/transform.h>
 
 //#include <experimental/include_cuco_static_map.cuh>
 
@@ -96,42 +97,66 @@ struct trandom_gen_t {
 //  and a pre-generated vector of float random values
 //  in [0,1] to be brought into [0, d_ub[v]))
 //
-template <typename vertex_t, typename seed_t = long, typename real_t = float>
+template <typename vertex_t,
+          typename edge_t,
+          typename seed_t  = long,
+          typename real_t  = float,
+          typename index_t = vertex_t>
 struct rrandom_gen_t {
   rrandom_gen_t(raft::handle_t const& handle,
-                size_t nPaths,
-                rmm::device_uvector<real_t>& d_random,
-                vertex_t const* d_ptr_ub,
-                seed_t seed)
-    : seed_(seed), d_ptr_ubounds_(d_ptr_ub), d_ptr_random_(d_random.data())
+                index_t nPaths,
+                device_vec_t<real_t>& d_random,             // scratch-pad, non-coalesced
+                device_vec_t<edge_t> const& d_crt_out_deg,  // non-coalesced
+                seed_t seed = seed_t{})
+    : handle_(handle),
+      seed_(seed),
+      num_paths_(nPaths),
+      d_ptr_out_degs_(raw_const_ptr(d_crt_out_deg)),
+      d_ptr_random_(raw_ptr(d_random))
   {
     CUGRAPH_EXPECTS(d_random.size() >= nPaths, "Un-allocated random buffer.");
 
     raft::random::Rng rng(seed_);
-    rng.uniform<real_t, size_t>(
+    rng.uniform<real_t, index_t>(
       d_ptr_random_, nPaths, real_t{0.0}, real_t{1.0}, handle.get_stream());
   }
 
-  template <typename index_t>
-  __device__ vertex_t operator()(index_t indx) const
+  device_vec_t<vertex_t> generate_col_indices(void) const
   {
-    real_t real_rnd_vindx = d_ptr_random_[indx];
-    real_t max_ub         = static_cast<real_t>(d_ptr_ubounds_[indx]);
-    auto rnd_vindx        = real_rnd_vindx * max_ub + real_t{.5};
-    vertex_t v_indx       = static_cast<vertex_t>(rnd_vindx);
-    return (v_indx >= d_ptr_ubounds_[indx] ? d_ptr_ubounds_[indx] - 1 : v_indx);
+    device_vec_t<vertex_t> d_col_indx{num_paths_, handle_.get_stream()};
+
+    thrust::transform_if(
+      rmm::exec_policy(handle_.get_stream())->on(handle_.get_stream()),
+      d_ptr_random_,
+      d_ptr_random_ + num_paths_,  // input1
+      d_ptr_out_degs_,             // input2
+      d_ptr_out_degs_,             // also stencil
+      d_col_indx.begin(),
+      [] __device__(real_t rnd_vindx, edge_t crt_out_deg) {
+        real_t max_ub     = static_cast<real_t>(crt_out_deg - 1);
+        auto interp_vindx = rnd_vindx * max_ub + real_t{.5};
+        vertex_t v_indx   = static_cast<vertex_t>(interp_vindx);
+        return (v_indx >= crt_out_deg ? crt_out_deg - 1 : v_indx);
+      },
+      [] __device__(auto crt_out_deg) { return crt_out_deg > 0; });
+
+    return d_col_indx;
   }
 
  private:
-  seed_t seed_;
-  vertex_t const* d_ptr_ubounds_;
+  raft::handle_t const& handle_;
+  index_t num_paths_;
+  edge_t const* d_ptr_out_degs_;
   real_t* d_ptr_random_;
+  seed_t seed_;
 };
 
 // class abstracting the RW stepping algorithm:
 // preprocessing, stepping, and post-processing
 //
-template <typename graph_t, typename random_engine_t>
+template <typename graph_t,
+          typename random_engine_t,
+          typename index_t = typename graph_t::vertex_type>
 struct random_walker_t {
   static_assert(std::is_trivially_copyable<random_engine_t>::value,
                 "random engine assumed trivially copyable.");
@@ -142,13 +167,13 @@ struct random_walker_t {
 
   random_walker_t(raft::handle_t const& handle,
                   graph_t const& graph,
-                  size_t nPaths,
+                  index_t nPaths,
                   vertex_t* ptr_d_current_vertices,
                   random_engine_t const& rnd)
     : handle_(handle),
       num_paths_(nPaths),
       ptr_d_vertex_set_(ptr_d_current_vertices),
-      d_v_stopped_{nPaths, handle_.get_stream()},
+      d_v_stopped_{static_cast<size_t>(nPaths), handle_.get_stream()},
       rnd_(rnd),
       d_v_out_degs_(graph.compute_out_degrees(handle_)),
       d_v_rnd_n_indx_(get_random_neighbor_indices(d_v_out_degs_))
@@ -164,10 +189,10 @@ struct random_walker_t {
   // take one step in sync for all paths:
   //
   void step(graph_t const& graph,
-            size_t step,
+            index_t step,
             rmm::device_uvector<vertex_t>& d_v_paths_v_set,  // coalesced vertex set
             rmm::device_uvector<weight_t>& d_v_paths_w_set,  // coalesced weight set
-            rmm::device_uvector<size_t>& d_v_paths_sz)       // paths sizes
+            rmm::device_uvector<index_t>& d_v_paths_sz)      // paths sizes
   {
     // TODO: gather:
     // for each indx in [0..nPaths) {
@@ -196,7 +221,7 @@ struct random_walker_t {
       return true;
   }
 
-  void initialize(size_t max_depth, rmm::device_uvector<vertex_t>& d_v_paths_v_set) const
+  void initialize(index_t max_depth, rmm::device_uvector<vertex_t>& d_v_paths_v_set) const
   {
     // TODO: gather from ptr_d_vertex_set_
     // for each i in [0..num_paths_) {
@@ -205,13 +230,13 @@ struct random_walker_t {
 
   void defragment(rmm::device_uvector<vertex_t>& d_coalesced_v,  // coalesced vertex set
                   rmm::device_uvector<weight_t>& d_coalesced_w,  // coalesced weight set
-                  rmm::device_uvector<size_t> const& d_sizes,    // paths sizes
-                  size_t nPaths,
-                  size_t max_depth) const
+                  rmm::device_uvector<index_t> const& d_sizes,   // paths sizes
+                  index_t nPaths,
+                  index_t max_depth) const
   {
     assert(max_depth > 1);  // else, no need to step; and no edges
 
-    size_t const* ptr_d_sizes = d_sizes.data();
+    index_t const* ptr_d_sizes = d_sizes.data();
 
     auto predicate_v = [max_depth, ptr_d_sizes] __device__(auto indx) {
       auto row_indx = indx / max_depth;
@@ -231,14 +256,14 @@ struct random_walker_t {
       thrust::remove_if(rmm::exec_policy(handle_.get_stream())->on(handle_.get_stream()),
                         d_coalesced_v.begin(),
                         d_coalesced_v.end(),
-                        thrust::make_counting_iterator<size_t>(0),
+                        thrust::make_counting_iterator<index_t>(0),
                         predicate_v);
 
     auto new_end_w =
       thrust::remove_if(rmm::exec_policy(handle_.get_stream())->on(handle_.get_stream()),
                         d_coalesced_w.begin(),
                         d_coalesced_w.end(),
-                        thrust::make_counting_iterator<size_t>(0),
+                        thrust::make_counting_iterator<index_t>(0),
                         predicate_w);
 
     CUDA_TRY(cudaStreamSynchronize(handle_.get_stream()));
@@ -247,12 +272,12 @@ struct random_walker_t {
     d_coalesced_w.resize(thrust::distance(d_coalesced_w.begin(), new_end_w), handle_.get_stream());
   }
 
-  template <typename vertex_t, typename src_vec_t = vertex_t, typename index_t = vertex_t>
-  static device_vec_t<src_vec_t> gather_from_coalesced(device_vec_t<vertex_t> const& d_coalesced,
-                                                       device_vec_t<src_vec_t> const& d_src,
-                                                       index_t stride,
-                                                       index_t delta,
-                                                       index_t nelems)
+  template <typename vertex_t, typename src_vec_t = vertex_t>
+  device_vec_t<src_vec_t> gather_from_coalesced(device_vec_t<vertex_t> const& d_coalesced,
+                                                device_vec_t<src_vec_t> const& d_src,
+                                                index_t stride,
+                                                index_t delta,
+                                                index_t nelems)
   {
     vertex_t const* ptr_d_coalesced = raw_const_ptr(d_coalesced);
     device_vec_t<src_vec_t> result(nelems);
@@ -266,15 +291,18 @@ struct random_walker_t {
     auto map_it_begin =
       thrust::make_transform_iterator(thrust::make_counting_iterator<index_t>(0), dlambda);
 
-    thrust::gather(
-      thrust::device, map_it_begin, map_it_begin + nelems, d_src.begin(), result.begin());
+    thrust::gather(rmm::exec_policy(handle_.get_stream())->on(handle_.get_stream()),
+                   map_it_begin,
+                   map_it_begin + nelems,
+                   d_src.begin(),
+                   result.begin());
 
     return result;
   }
 
  private:
   raft::handle_t const& handle_;
-  size_t num_paths_;
+  index_t num_paths_;
   vertex_t* ptr_d_vertex_set_;
   rmm::device_uvector<int> d_v_stopped_;  // keeps track of paths that stopped (==1)
   random_engine_t rnd_;
@@ -310,19 +338,21 @@ struct random_walker_t {
  * @param max_depth maximum length of RWs.
  * @param rnd_engine Random engine parameter (e.g., uniform).
  * @return std::tuple<rmm::device_uvector<vertex_t>, rmm::device_uvector<weight_t>,
- * rmm::device_uvector<size_t>> Triplet of coalesced RW paths, with corresponding edge weights for
+ * rmm::device_uvector<index_t>> Triplet of coalesced RW paths, with corresponding edge weights for
  * each, and coresponding path sizes. This is meant to minimize the number of DF's to be passed to
  * the Python layer.
  */
-template <typename graph_t, typename random_engine_t>
+template <typename graph_t,
+          typename random_engine_t,
+          typename index_t = typename graph_t::vertex_type>
 std::enable_if_t<graph_t::is_multi_gpu == false,
                  std::tuple<rmm::device_uvector<typename graph_t::vertex_type>,
                             rmm::device_uvector<typename graph_t::weight_type>,
-                            rmm::device_uvector<size_t>>>
+                            rmm::device_uvector<index_t>>>
 random_walks(raft::handle_t const& handle,
              graph_t const& graph,
              std::vector<typename graph_t::vertex_type> const& start_vertex_set,
-             size_t max_depth,
+             index_t max_depth,
              random_engine_t& rnd_engine)
 {
   using vertex_t = typename graph_t::vertex_type;
@@ -347,7 +377,7 @@ random_walks(raft::handle_t const& handle,
   cudaStreamSynchronize(stream);
 
   random_walker_t<graph_t, random_engine_t> rand_walker{
-    handle, graph, nPaths, d_v_start.data(), rnd_engine};
+    handle, graph, static_cast<index_t>(nPaths), d_v_start.data(), rnd_engine};
 
   // return approaches:
   // 1. faster but (potentially) more memory hungry:
@@ -362,7 +392,7 @@ random_walks(raft::handle_t const& handle,
   auto coalesced_sz = nPaths * max_depth;
   rmm::device_uvector<vertex_t> d_v_paths_v_set{coalesced_sz, stream};  // coalesced vertex set
   rmm::device_uvector<weight_t> d_v_paths_w_set{coalesced_sz, stream};  // coalesced weight set
-  rmm::device_uvector<size_t> d_v_paths_sz{nPaths, stream};             // paths sizes
+  rmm::device_uvector<index_t> d_v_paths_sz{nPaths, stream};            // paths sizes
 
   // very first vertex, for each path:
   //
@@ -380,7 +410,8 @@ random_walks(raft::handle_t const& handle,
 
   // truncate v_set, w_set to actual space used:
   //
-  rand_walker.defragment(d_v_paths_v_set, d_v_paths_w_set, d_v_paths_sz, nPaths, max_depth);
+  rand_walker.defragment(
+    d_v_paths_v_set, d_v_paths_w_set, d_v_paths_sz, static_cast<index_t>(nPaths), max_depth);
 
   // because device_uvector is not copy-cnstr-able:
   //
@@ -404,19 +435,21 @@ random_walks(raft::handle_t const& handle,
  * @param max_depth maximum length of RWs.
  * @param rnd_engine Random engine parameter (e.g., uniform).
  * @return std::tuple<rmm::device_uvector<vertex_t>, rmm::device_uvector<weight_t>,
- * rmm::device_uvector<size_t>> Triplet of coalesced RW paths, with corresponding edge weights for
+ * rmm::device_uvector<index_t>> Triplet of coalesced RW paths, with corresponding edge weights for
  * each, and coresponding path sizes. This is meant to minimize the number of DF's to be passed to
  * the Python layer.
  */
-template <typename graph_t, typename random_engine_t>
+template <typename graph_t,
+          typename random_engine_t,
+          typename index_t = typename graph_t::vertex_type>
 std::enable_if_t<graph_t::is_multi_gpu == true,
                  std::tuple<rmm::device_uvector<typename graph_t::vertex_type>,
                             rmm::device_uvector<typename graph_t::weight_type>,
-                            rmm::device_uvector<size_t>>>
+                            rmm::device_uvector<index_t>>>
 random_walks(raft::handle_t const& handle,
              graph_t const& graph,
              std::vector<typename graph_t::vertex_type> const& start_vertex_set,
-             size_t max_depth,
+             index_t max_depth,
              random_engine_t& rnd_engine)
 {
   CUGRAPH_FAIL("Not implemented yet.");
@@ -438,17 +471,17 @@ random_walks(raft::handle_t const& handle,
  * start_vertex_set.size().
  * @param max_depth maximum length of RWs.
  * @return std::tuple<rmm::device_uvector<vertex_t>, rmm::device_uvector<weight_t>,
- * rmm::device_uvector<size_t>> Triplet of coalesced RW paths, with corresponding edge weights for
+ * rmm::device_uvector<index_t>> Triplet of coalesced RW paths, with corresponding edge weights for
  * each, and coresponding path sizes. This is meant to minimize the number of DF's to be passed to
  * the Python layer.
  */
-template <typename graph_t>
+template <typename graph_t, typename index_t = typename graph_t::vertex_type>
 std::tuple<rmm::device_uvector<typename graph_t::vertex_type>,
            rmm::device_uvector<typename graph_t::weight_type>,
-           rmm::device_uvector<size_t>>
+           rmm::device_uvector<index_t>>
 random_walks(raft::handle_t const& handle,
              graph_t const& graph,
              std::vector<typename graph_t::vertex_type> const& start_vertex_set,
-             size_t max_depth);
+             index_t max_depth);
 }  // namespace experimental
 }  // namespace cugraph

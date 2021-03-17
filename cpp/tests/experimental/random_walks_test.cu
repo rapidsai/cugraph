@@ -84,7 +84,7 @@ class Tests_RandomWalks : public ::testing::TestWithParam<RandomWalks_Usecase> {
 
     raft::handle_t handle{};
     std::vector<vertex_t> empty_vec{};  // for now...
-    size_t max_d{10};
+    vertex_t max_d{10};
 
     auto ret_tuple =
       cugraph::experimental::detail::random_walks(handle, graph, empty_vec, max_d, rnd_eng);
