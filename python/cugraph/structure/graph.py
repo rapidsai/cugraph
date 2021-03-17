@@ -16,6 +16,7 @@ from .graph_implementation import (simpleGraphImpl,
                                    simpleDistributedGraphImpl,
                                    npartiteGraphImpl)
 import cudf
+import warnings
 
 
 # TODO: Move to utilities
@@ -33,11 +34,28 @@ class Graph:
             self.bipartite = bipartite
             self.npartite = npartite
 
-    def __init__(self, multi_edge=False, directed=False, tree=False,
-                 bipartite=False, npartite=False):
+    def __init__(self, m_graph=None, multi_edge=False, directed=False,
+                 tree=False, bipartite=False, npartite=False):
         self.Base = None
         self.graph_properties = Graph.Properties(multi_edge, directed, tree,
                                                  bipartite, npartite)
+        if m_graph is not None:
+            if m_graph.is_multigraph():
+                elist = m_graph.view_edge_list()
+                if m_graph.Base.edgelist.weights:
+                    weights = "weights"
+                else:
+                    weights = None
+                self.from_cudf_edgelist(elist,
+                                        source="src",
+                                        destination="dst",
+                                        edge_attr=weights)
+            else:
+                msg = (
+                    "Graph can only be initialized using MultiGraph "
+                    "or MultiDiGraph"
+                )
+                raise Exception(msg)
 
     def __getattr__(self, name):
         if self.Base is None:
@@ -489,8 +507,11 @@ class Graph:
 
 
 class DiGraph(Graph):
-    def __init__(self):
-        super(DiGraph, self).__init__(directed=True)
+    def __init__(self, m_graph=None):
+        warnings.warn(
+            "DiGraph is deprecated, use Graph(directed=True) instead",
+        )
+        super(DiGraph, self).__init__(m_graph, directed=True)
 
 
 class MultiGraph(Graph):
@@ -500,6 +521,10 @@ class MultiGraph(Graph):
 
 class MultiDiGraph(MultiGraph):
     def __init__(self):
+        warnings.warn(
+            "MultiDiGraph is deprecated,\
+ use MultiGraph(directed=True) instead",
+        )
         super(MultiDiGraph, self).__init__(directed=True)
 
 
@@ -614,9 +639,17 @@ class BiPartiteGraph(NPartiteGraph):
 
 class BiPartiteDiGraph(BiPartiteGraph):
     def __init__(self):
+        warnings.warn(
+            "BiPartiteDiGraph is deprecated,\
+ use BiPartiteGraph(directed=True) instead",
+        )
         super(BiPartiteDiGraph, self).__init__(directed=True)
 
 
 class NPartiteDiGraph(NPartiteGraph):
     def __init__(self):
+        warnings.warn(
+            "NPartiteDiGraph is deprecated,\
+ use NPartiteGraph(directed=True) instead",
+        )
         super(NPartiteGraph, self).__init__(directed=True)
