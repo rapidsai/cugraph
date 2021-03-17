@@ -35,6 +35,11 @@
 #include <random>
 #include <vector>
 
+// do the perf measurements
+// enabled by command line parameter s'--perf'
+//
+static int PERF = 0;
+
 template <typename vertex_t, typename edge_t, typename weight_t, typename result_t>
 void pagerank_reference(edge_t const* offsets,
                         vertex_t const* indices,
@@ -128,11 +133,15 @@ typedef struct PageRank_Usecase_t {
 
   double personalization_ratio{0.0};
   bool test_weighted{false};
+  bool check_correctness{false};
 
   PageRank_Usecase_t(std::string const& graph_file_path,
                      double personalization_ratio,
-                     bool test_weighted)
-    : personalization_ratio(personalization_ratio), test_weighted(test_weighted)
+                     bool test_weighted,
+                     bool check_correctness = true)
+    : personalization_ratio(personalization_ratio),
+      test_weighted(test_weighted),
+      check_correctness(check_correctness)
   {
     std::string graph_file_full_path{};
     if ((graph_file_path.length() > 0) && (graph_file_path[0] != '/')) {
@@ -146,13 +155,45 @@ typedef struct PageRank_Usecase_t {
 
   PageRank_Usecase_t(cugraph::test::rmat_params_t rmat_params,
                      double personalization_ratio,
-                     bool test_weighted)
-    : personalization_ratio(personalization_ratio), test_weighted(test_weighted)
+                     bool test_weighted,
+                     bool check_correctness = true)
+    : personalization_ratio(personalization_ratio),
+      test_weighted(test_weighted),
+      check_correctness(check_correctness)
   {
     input_graph_specifier.tag         = cugraph::test::input_graph_specifier_t::RMAT_PARAMS;
     input_graph_specifier.rmat_params = rmat_params;
   }
 } PageRank_Usecase;
+
+template <typename vertex_t, typename edge_t, typename weight_t>
+cugraph::experimental::graph_t<vertex_t, edge_t, weight_t, true, false> read_graph(
+  raft::handle_t const& handle, PageRank_Usecase const& configuration, bool renumber)
+{
+  cugraph::experimental::graph_t<vertex_t, edge_t, weight_t, true, false> graph(handle);
+  std::tie(graph, std::ignore) =
+    configuration.input_graph_specifier.tag ==
+        cugraph::test::input_graph_specifier_t::MATRIX_MARKET_FILE_PATH
+      ? cugraph::test::read_graph_from_matrix_market_file<vertex_t, edge_t, weight_t, true, false>(
+          handle,
+          configuration.input_graph_specifier.graph_file_full_path,
+          configuration.test_weighted,
+          renumber)
+      : cugraph::test::generate_graph_from_rmat_params<vertex_t, edge_t, weight_t, true, false>(
+          handle,
+          configuration.input_graph_specifier.rmat_params.scale,
+          configuration.input_graph_specifier.rmat_params.edge_factor,
+          configuration.input_graph_specifier.rmat_params.a,
+          configuration.input_graph_specifier.rmat_params.b,
+          configuration.input_graph_specifier.rmat_params.c,
+          configuration.input_graph_specifier.rmat_params.seed,
+          configuration.input_graph_specifier.rmat_params.undirected,
+          configuration.input_graph_specifier.rmat_params.scramble_vertex_ids,
+          configuration.test_weighted,
+          renumber);
+
+  return graph;
+}
 
 class Tests_PageRank : public ::testing::TestWithParam<PageRank_Usecase> {
  public:
@@ -170,49 +211,8 @@ class Tests_PageRank : public ::testing::TestWithParam<PageRank_Usecase> {
 
     raft::handle_t handle{};
 
-    cugraph::experimental::graph_t<vertex_t, edge_t, weight_t, true, false> graph(handle);
-    std::tie(graph, std::ignore) =
-      configuration.input_graph_specifier.tag ==
-          cugraph::test::input_graph_specifier_t::MATRIX_MARKET_FILE_PATH
-        ? cugraph::test::
-            read_graph_from_matrix_market_file<vertex_t, edge_t, weight_t, true, false>(
-              handle,
-              configuration.input_graph_specifier.graph_file_full_path,
-              configuration.test_weighted,
-              renumber)
-        : cugraph::test::generate_graph_from_rmat_params<vertex_t, edge_t, weight_t, true, false>(
-            handle,
-            configuration.input_graph_specifier.rmat_params.scale,
-            configuration.input_graph_specifier.rmat_params.edge_factor,
-            configuration.input_graph_specifier.rmat_params.a,
-            configuration.input_graph_specifier.rmat_params.b,
-            configuration.input_graph_specifier.rmat_params.c,
-            configuration.input_graph_specifier.rmat_params.seed,
-            configuration.input_graph_specifier.rmat_params.undirected,
-            configuration.input_graph_specifier.rmat_params.scramble_vertex_ids,
-            configuration.test_weighted,
-            renumber);
+    auto graph      = read_graph<vertex_t, edge_t, weight_t>(handle, configuration, renumber);
     auto graph_view = graph.view();
-
-    std::vector<edge_t> h_offsets(graph_view.get_number_of_vertices() + 1);
-    std::vector<vertex_t> h_indices(graph_view.get_number_of_edges());
-    std::vector<weight_t> h_weights{};
-    raft::update_host(h_offsets.data(),
-                      graph_view.offsets(),
-                      graph_view.get_number_of_vertices() + 1,
-                      handle.get_stream());
-    raft::update_host(h_indices.data(),
-                      graph_view.indices(),
-                      graph_view.get_number_of_edges(),
-                      handle.get_stream());
-    if (graph_view.is_weighted()) {
-      h_weights.assign(graph_view.get_number_of_edges(), weight_t{0.0});
-      raft::update_host(h_weights.data(),
-                        graph_view.weights(),
-                        graph_view.get_number_of_edges(),
-                        handle.get_stream());
-    }
-    CUDA_TRY(cudaStreamSynchronize(handle.get_stream()));
 
     std::vector<vertex_t> h_personalization_vertices{};
     std::vector<result_t> h_personalization_values{};
@@ -262,21 +262,6 @@ class Tests_PageRank : public ::testing::TestWithParam<PageRank_Usecase> {
     result_t constexpr alpha{0.85};
     result_t constexpr epsilon{1e-6};
 
-    std::vector<result_t> h_reference_pageranks(graph_view.get_number_of_vertices());
-
-    pagerank_reference(h_offsets.data(),
-                       h_indices.data(),
-                       h_weights.size() > 0 ? h_weights.data() : static_cast<weight_t*>(nullptr),
-                       h_personalization_vertices.data(),
-                       h_personalization_values.data(),
-                       h_reference_pageranks.data(),
-                       graph_view.get_number_of_vertices(),
-                       static_cast<vertex_t>(h_personalization_vertices.size()),
-                       alpha,
-                       epsilon,
-                       std::numeric_limits<size_t>::max(),
-                       false);
-
     rmm::device_uvector<result_t> d_pageranks(graph_view.get_number_of_vertices(),
                                               handle.get_stream());
 
@@ -297,26 +282,70 @@ class Tests_PageRank : public ::testing::TestWithParam<PageRank_Usecase> {
 
     CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
 
-    std::vector<result_t> h_cugraph_pageranks(graph_view.get_number_of_vertices());
+    if (configuration.check_correctness) {
+      cugraph::experimental::graph_t<vertex_t, edge_t, weight_t, true, false> unrenumbered_graph(
+        handle);
+      if (renumber) {
+        unrenumbered_graph = read_graph<vertex_t, edge_t, weight_t>(handle, configuration, false);
+      }
+      auto unrenumbered_graph_view = renumber ? unrenumbered_graph.view() : graph_view;
 
-    raft::update_host(
-      h_cugraph_pageranks.data(), d_pageranks.data(), d_pageranks.size(), handle.get_stream());
-    CUDA_TRY(cudaStreamSynchronize(handle.get_stream()));
+      std::vector<edge_t> h_offsets(unrenumbered_graph_view.get_number_of_vertices() + 1);
+      std::vector<vertex_t> h_indices(unrenumbered_graph_view.get_number_of_edges());
+      std::vector<weight_t> h_weights{};
+      raft::update_host(h_offsets.data(),
+                        unrenumbered_graph_view.offsets(),
+                        unrenumbered_graph_view.get_number_of_vertices() + 1,
+                        handle.get_stream());
+      raft::update_host(h_indices.data(),
+                        unrenumbered_graph_view.indices(),
+                        unrenumbered_graph_view.get_number_of_edges(),
+                        handle.get_stream());
+      if (unrenumbered_graph_view.is_weighted()) {
+        h_weights.assign(unrenumbered_graph_view.get_number_of_edges(), weight_t{0.0});
+        raft::update_host(h_weights.data(),
+                          unrenumbered_graph_view.weights(),
+                          unrenumbered_graph_view.get_number_of_edges(),
+                          handle.get_stream());
+      }
+      handle.get_stream_view().synchronize();
 
-    auto threshold_ratio = 1e-3;
-    auto threshold_magnitude =
-      (1.0 / static_cast<result_t>(graph_view.get_number_of_vertices())) *
-      threshold_ratio;  // skip comparison for low PageRank verties (lowly ranked vertices)
-    auto nearly_equal = [threshold_ratio, threshold_magnitude](auto lhs, auto rhs) {
-      return std::abs(lhs - rhs) <
-             std::max(std::max(lhs, rhs) * threshold_ratio, threshold_magnitude);
-    };
+      std::vector<result_t> h_reference_pageranks(unrenumbered_graph_view.get_number_of_vertices());
 
-    ASSERT_TRUE(std::equal(h_reference_pageranks.begin(),
-                           h_reference_pageranks.end(),
-                           h_cugraph_pageranks.begin(),
-                           nearly_equal))
-      << "PageRank values do not match with the reference values.";
+      pagerank_reference(h_offsets.data(),
+                         h_indices.data(),
+                         h_weights.size() > 0 ? h_weights.data() : static_cast<weight_t*>(nullptr),
+                         h_personalization_vertices.data(),
+                         h_personalization_values.data(),
+                         h_reference_pageranks.data(),
+                         unrenumbered_graph_view.get_number_of_vertices(),
+                         static_cast<vertex_t>(h_personalization_vertices.size()),
+                         alpha,
+                         epsilon,
+                         std::numeric_limits<size_t>::max(),
+                         false);
+
+      std::vector<result_t> h_cugraph_pageranks(graph_view.get_number_of_vertices());
+
+      raft::update_host(
+        h_cugraph_pageranks.data(), d_pageranks.data(), d_pageranks.size(), handle.get_stream());
+      handle.get_stream_view().synchronize();
+
+      auto threshold_ratio = 1e-3;
+      auto threshold_magnitude =
+        (1.0 / static_cast<result_t>(graph_view.get_number_of_vertices())) *
+        threshold_ratio;  // skip comparison for low PageRank verties (lowly ranked vertices)
+      auto nearly_equal = [threshold_ratio, threshold_magnitude](auto lhs, auto rhs) {
+        return std::abs(lhs - rhs) <
+               std::max(std::max(lhs, rhs) * threshold_ratio, threshold_magnitude);
+      };
+
+      ASSERT_TRUE(std::equal(h_reference_pageranks.begin(),
+                             h_reference_pageranks.end(),
+                             h_cugraph_pageranks.begin(),
+                             nearly_equal))
+        << "PageRank values do not match with the reference values.";
+    }
   }
 };
 
@@ -330,6 +359,7 @@ INSTANTIATE_TEST_CASE_P(
   simple_test,
   Tests_PageRank,
   ::testing::Values(
+    // enable correctness checks
     PageRank_Usecase("test/datasets/karate.mtx", 0.0, false),
     PageRank_Usecase("test/datasets/karate.mtx", 0.5, false),
     PageRank_Usecase("test/datasets/karate.mtx", 0.0, true),
@@ -357,6 +387,15 @@ INSTANTIATE_TEST_CASE_P(
                      true),
     PageRank_Usecase(cugraph::test::rmat_params_t{10, 16, 0.57, 0.19, 0.19, 0, false, false},
                      0.5,
-                     true)));
+                     true),
+    // disable correctness checks for large graphs
+    PageRank_Usecase(
+      cugraph::test::rmat_params_t{25, 32, 0.57, 0.19, 0.19, 0, false, false}, 0.0, false, false),
+    PageRank_Usecase(
+      cugraph::test::rmat_params_t{25, 32, 0.57, 0.19, 0.19, 0, false, false}, 0.5, false, false),
+    PageRank_Usecase(
+      cugraph::test::rmat_params_t{25, 32, 0.57, 0.19, 0.19, 0, false, false}, 0.0, true, false),
+    PageRank_Usecase(
+      cugraph::test::rmat_params_t{25, 32, 0.57, 0.19, 0.19, 0, false, false}, 0.5, true, false)));
 
 CUGRAPH_TEST_PROGRAM_MAIN()
