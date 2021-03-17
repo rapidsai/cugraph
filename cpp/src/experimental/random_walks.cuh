@@ -277,10 +277,10 @@ struct random_walker_t {
                                                 device_vec_t<src_vec_t> const& d_src,
                                                 index_t stride,
                                                 index_t delta,
-                                                index_t nelems)
+                                                index_t nelems) const
   {
     vertex_t const* ptr_d_coalesced = raw_const_ptr(d_coalesced);
-    device_vec_t<src_vec_t> result(nelems);
+    device_vec_t<src_vec_t> result{nelems, handle_.get_stream()};
 
     auto dlambda = [stride, delta, ptr_d_coalesced] __device__(auto indx) {
       return ptr_d_coalesced[indx * stride + delta];
