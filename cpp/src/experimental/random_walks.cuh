@@ -281,16 +281,17 @@ struct random_walker_t {
   }
 
   // in-place non-static (needs handle_):
-  // gather d_result[indx] = d_src[d_coalesced[indx*stride + d_sizes[indx] -1]]
+  // for indx in [0, nelems):
+  //   gather d_result[indx] = d_src[d_coalesced[indx*stride + d_sizes[indx] -1]]
   //
   template <typename src_vec_t = vertex_t>
   void gather_from_coalesced(
     device_vec_t<vertex_t> const& d_coalesced,  // |gather map| = stride*nelems
-    device_vec_t<src_vec_t> const& d_src,       // |gather src| = nelems
+    device_vec_t<src_vec_t> const& d_src,       // |gather input| = nelems
     device_vec_t<index_t> const& d_sizes,       // |paths sizes| = nelems, elems in [1, stride]
     device_vec_t<src_vec_t>& d_result,          // |output| = nelems
-    index_t stride,
-    index_t nelems) const
+    index_t stride,        // stride = coalesce block size (typically max_depth)
+    index_t nelems) const  // nelems = number of elements to gather (typically num_paths_)
   {
     vertex_t const* ptr_d_coalesced = raw_const_ptr(d_coalesced);
     index_t const* ptr_d_sizes      = raw_const_ptr(d_sizes);
@@ -314,22 +315,30 @@ struct random_walker_t {
                    d_result.begin());
   }
 
-  // if ( d_crt_out_degs[indx] > 0 )
-  //    d_coalesced[indx*stride + (d_sizes[indx] - adjust)- 1] = d_src[indx]
+  // in-place non-static (needs handle_);
+  // for indx in [0, nelems):
+  //   if ( d_crt_out_degs[indx] > 0 )
+  //     d_coalesced[indx*stride + (d_sizes[indx] - adjust)- 1] = d_src[indx]
+  //
   // adjust := 0 for coalesced vertices; 1 for weights
   // (because |edges| = |vertices| - 1, in each path);
   //
   template <typename src_vec_t>
   void scatter_to_coalesced(
-    device_vec_t<src_vec_t> const& d_src,
-    device_vec_t<src_vec_t>& d_coalesced,
-    device_vec_t<edge_t> const& d_crt_out_degs,
+    device_vec_t<src_vec_t> const& d_src,        // |scatter input| = nelems
+    device_vec_t<src_vec_t>& d_coalesced,        // |scatter input| = stride*nelems
+    device_vec_t<edge_t> const& d_crt_out_degs,  // |current set of vertex out degrees| = nelems, to
+                                                 // be used as stencil (don't scatter if 0)
     device_vec_t<index_t> const&
       d_sizes,  // paths sizes used to provide delta in coalesced paths;
-                // pre-condition: assumed as updated to reflect new vertex additions
-    index_t stride,
-    index_t nelems,
-    index_t adjust = 0) const
+                // pre-condition: assumed as updated to reflect new vertex additions;
+                // also, this is the number of _vertices_ in each path;
+    // hence for scattering weights this needs to be adjusted; hence the `adjust` parameter
+    index_t
+      stride,  // stride = coalesce block size (max_depth for vertices; max_depth-1 for weights)
+    index_t nelems,  // nelems = number of elements to gather (typically num_paths_)
+    index_t adjust = 0)
+    const  // adjusting parameter for scattering vertices (0) or weights (1); see above for more;
   {
     index_t const* ptr_d_sizes = raw_const_ptr(d_sizes);
 
@@ -352,6 +361,24 @@ struct random_walker_t {
                        [] __device__(auto crt_out_deg) {
                          return crt_out_deg > 0;  // predicate
                        });
+  }
+
+  void scatter_vertices(device_vec_t<vertex_t> const& d_src,
+                        device_vec_t<vertex_t>& d_coalesced,
+                        device_vec_t<edge_t> const& d_crt_out_degs,
+                        device_vec_t<index_t> const& d_sizes,
+                        index_t max_depth) const
+  {
+    scatter_to_coalesced(d_src, d_coalesced, d_crt_out_degs, d_sizes, max_depth, num_paths_);
+  }
+
+  void scatter_weights(device_vec_t<weight_t> const& d_src,
+                       device_vec_t<weight_t>& d_coalesced,
+                       device_vec_t<edge_t> const& d_crt_out_degs,
+                       device_vec_t<index_t> const& d_sizes,
+                       index_t max_depth) const
+  {
+    scatter_to_coalesced(d_src, d_coalesced, d_crt_out_degs, d_sizes, max_depth - 1, num_paths_, 1);
   }
 
  private:
