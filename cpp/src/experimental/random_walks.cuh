@@ -36,10 +36,6 @@
 #include <thrust/iterator/zip_iterator.h>  //
 #include <thrust/tuple.h>                  //
 
-//#include <thrust/reduce.h>
-#include <thrust/random.h>
-#include <thrust/random/linear_congruential_engine.h>
-#include <thrust/random/uniform_int_distribution.h>
 #include <thrust/remove.h>
 #include <thrust/transform.h>
 
@@ -71,31 +67,6 @@ value_t const* raw_const_ptr(device_vec_t<value_t> const& dv)
 {
   return dv.data();
 }
-
-// thrust random generator:
-// (using upper-bound cached "map"
-//  giving out_deg(v) for each v in [0, |V|))
-//
-template <typename vertex_t, typename seed_t = long, typename engine_t = thrust::minstd_rand>
-struct trandom_gen_t {
-  trandom_gen_t(vertex_t const* d_ptr_ub, seed_t seed) : seed_(seed), d_ptr_ubounds_(d_ptr_ub) {}
-
-  template <typename index_t>
-  __device__ vertex_t operator()(index_t indx) const
-  {
-    engine_t rng(seed_);
-    vertex_t lb = 0;
-    auto ub     = d_ptr_ubounds_[indx] - 1;  // bounds are inclusive!
-
-    thrust::uniform_int_distribution<vertex_t> dist(lb, ub);
-    rng.discard(seed_);
-    return dist(rng);
-  }
-
- private:
-  seed_t seed_;
-  vertex_t const* d_ptr_ubounds_;
-};
 
 // raft random generator:
 // (using upper-bound cached "map"
@@ -210,6 +181,23 @@ struct col_indx_extract_t<graph_t, index_t, std::enable_if_t<graph_t::is_multi_g
       col_indices_(p_d_indices),
       row_offsets_(p_d_offsets),
       values_(p_d_values),
+      out_degs_(p_d_crt_out_degs),
+      sizes_(p_d_sizes),
+      num_paths_(num_paths),
+      max_depth_(max_depth)
+  {
+  }
+
+  col_indx_extract_t(raft::handle_t const& handle,
+                     graph_t const& graph,
+                     edge_t const* p_d_crt_out_degs,
+                     index_t const* p_d_sizes,
+                     index_t num_paths,
+                     index_t max_depth)
+    : handle_(handle),
+      col_indices_(graph.indices()),
+      row_offsets_(graph.offsets()),
+      values_(graph.weights()),
       out_degs_(p_d_crt_out_degs),
       sizes_(p_d_sizes),
       num_paths_(num_paths),
