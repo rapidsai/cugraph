@@ -15,6 +15,7 @@
  */
 
 #include <utilities/base_fixture.hpp>
+#include <utilities/renumber_utilities.hpp>
 #include <utilities/test_utilities.hpp>
 
 #include <algorithms.hpp>
@@ -28,6 +29,7 @@
 
 #include <gtest/gtest.h>
 
+#include <algorithm>
 #include <iterator>
 #include <limits>
 #include <vector>
@@ -107,29 +109,28 @@ typedef struct BFS_Usecase_t {
 } BFS_Usecase;
 
 template <typename vertex_t, typename edge_t, typename weight_t>
-cugraph::experimental::graph_t<vertex_t, edge_t, weight_t, false, false> read_graph(
-  raft::handle_t const& handle, BFS_Usecase const& configuration, bool renumber)
+std::tuple<cugraph::experimental::graph_t<vertex_t, edge_t, weight_t, false, false>,
+           rmm::device_uvector<vertex_t>>
+read_graph(raft::handle_t const& handle, BFS_Usecase const& configuration, bool renumber)
 {
-  cugraph::experimental::graph_t<vertex_t, edge_t, weight_t, false, false> graph(handle);
-  std::tie(graph, std::ignore) =
-    configuration.input_graph_specifier.tag ==
-        cugraph::test::input_graph_specifier_t::MATRIX_MARKET_FILE_PATH
-      ? cugraph::test::read_graph_from_matrix_market_file<vertex_t, edge_t, weight_t, false, false>(
-          handle, configuration.input_graph_specifier.graph_file_full_path, false, renumber)
-      : cugraph::test::generate_graph_from_rmat_params<vertex_t, edge_t, weight_t, false, false>(
-          handle,
-          configuration.input_graph_specifier.rmat_params.scale,
-          configuration.input_graph_specifier.rmat_params.edge_factor,
-          configuration.input_graph_specifier.rmat_params.a,
-          configuration.input_graph_specifier.rmat_params.b,
-          configuration.input_graph_specifier.rmat_params.c,
-          configuration.input_graph_specifier.rmat_params.seed,
-          configuration.input_graph_specifier.rmat_params.undirected,
-          configuration.input_graph_specifier.rmat_params.scramble_vertex_ids,
-          false,
-          renumber);
-
-  return graph;
+  return configuration.input_graph_specifier.tag ==
+             cugraph::test::input_graph_specifier_t::MATRIX_MARKET_FILE_PATH
+           ? cugraph::test::
+               read_graph_from_matrix_market_file<vertex_t, edge_t, weight_t, false, false>(
+                 handle, configuration.input_graph_specifier.graph_file_full_path, false, renumber)
+           : cugraph::test::
+               generate_graph_from_rmat_params<vertex_t, edge_t, weight_t, false, false>(
+                 handle,
+                 configuration.input_graph_specifier.rmat_params.scale,
+                 configuration.input_graph_specifier.rmat_params.edge_factor,
+                 configuration.input_graph_specifier.rmat_params.a,
+                 configuration.input_graph_specifier.rmat_params.b,
+                 configuration.input_graph_specifier.rmat_params.c,
+                 configuration.input_graph_specifier.rmat_params.seed,
+                 configuration.input_graph_specifier.rmat_params.undirected,
+                 configuration.input_graph_specifier.rmat_params.scramble_vertex_ids,
+                 false,
+                 renumber);
 }
 
 class Tests_BFS : public ::testing::TestWithParam<BFS_Usecase> {
@@ -144,17 +145,35 @@ class Tests_BFS : public ::testing::TestWithParam<BFS_Usecase> {
   template <typename vertex_t, typename edge_t>
   void run_current_test(BFS_Usecase const& configuration)
   {
-    constexpr bool renumber = false;
+    constexpr bool renumber = true;
 
     using weight_t = float;
 
     raft::handle_t handle{};
 
-    auto graph      = read_graph<vertex_t, edge_t, weight_t>(handle, configuration, renumber);
+    cugraph::experimental::graph_t<vertex_t, edge_t, weight_t, false, false> graph(handle);
+    rmm::device_uvector<vertex_t> d_renumber_map_labels(0, handle.get_stream());
+    std::tie(graph, d_renumber_map_labels) =
+      read_graph<vertex_t, edge_t, weight_t>(handle, configuration, renumber);
     auto graph_view = graph.view();
 
-    ASSERT_TRUE(configuration.source >= 0 &&
-                configuration.source <= graph_view.get_number_of_vertices())
+    auto source = static_cast<vertex_t>(configuration.source);
+    if (renumber) {
+      std::vector<vertex_t> h_renumber_map_labels(d_renumber_map_labels.size());
+      raft::update_host(h_renumber_map_labels.data(),
+                        d_renumber_map_labels.data(),
+                        d_renumber_map_labels.size(),
+                        handle.get_stream());
+
+      handle.get_stream_view().synchronize();
+
+      source = static_cast<vertex_t>(thrust::distance(
+        h_renumber_map_labels.begin(),
+        std::find(
+          h_renumber_map_labels.begin(), h_renumber_map_labels.end(), configuration.source)));
+    }
+
+    ASSERT_TRUE(source >= 0 && source < graph_view.get_number_of_vertices())
       << "Starting sources should be >= 0 and"
       << " less than the number of vertices in the graph.";
 
@@ -169,7 +188,7 @@ class Tests_BFS : public ::testing::TestWithParam<BFS_Usecase> {
                                graph_view,
                                d_distances.begin(),
                                d_predecessors.begin(),
-                               static_cast<vertex_t>(configuration.source),
+                               source,
                                false,
                                std::numeric_limits<vertex_t>::max(),
                                false);
@@ -180,7 +199,8 @@ class Tests_BFS : public ::testing::TestWithParam<BFS_Usecase> {
       cugraph::experimental::graph_t<vertex_t, edge_t, weight_t, false, false> unrenumbered_graph(
         handle);
       if (renumber) {
-        unrenumbered_graph = read_graph<vertex_t, edge_t, weight_t>(handle, configuration, false);
+        std::tie(unrenumbered_graph, std::ignore) =
+          read_graph<vertex_t, edge_t, weight_t>(handle, configuration, false);
       }
       auto unrenumbered_graph_view = renumber ? unrenumbered_graph.view() : graph_view;
 
@@ -194,6 +214,7 @@ class Tests_BFS : public ::testing::TestWithParam<BFS_Usecase> {
                         unrenumbered_graph_view.indices(),
                         unrenumbered_graph_view.get_number_of_edges(),
                         handle.get_stream());
+
       handle.get_stream_view().synchronize();
 
       std::vector<vertex_t> h_reference_distances(unrenumbered_graph_view.get_number_of_vertices());
@@ -210,14 +231,48 @@ class Tests_BFS : public ::testing::TestWithParam<BFS_Usecase> {
 
       std::vector<vertex_t> h_cugraph_distances(graph_view.get_number_of_vertices());
       std::vector<vertex_t> h_cugraph_predecessors(graph_view.get_number_of_vertices());
+      if (renumber) {
+        auto d_unrenumbered_distances = cugraph::test::sort_values_by_key(
+          handle, d_renumber_map_labels.data(), d_distances.data(), d_renumber_map_labels.size());
+        auto d_unrenumbered_predecessors =
+          cugraph::test::sort_values_by_key(handle,
+                                            d_renumber_map_labels.data(),
+                                            d_predecessors.data(),
+                                            d_renumber_map_labels.size());
+        raft::update_host(h_cugraph_distances.data(),
+                          d_unrenumbered_distances.data(),
+                          d_unrenumbered_distances.size(),
+                          handle.get_stream());
+        raft::update_host(h_cugraph_predecessors.data(),
+                          d_unrenumbered_predecessors.data(),
+                          d_unrenumbered_predecessors.size(),
+                          handle.get_stream());
 
-      raft::update_host(
-        h_cugraph_distances.data(), d_distances.data(), d_distances.size(), handle.get_stream());
-      raft::update_host(h_cugraph_predecessors.data(),
-                        d_predecessors.data(),
-                        d_predecessors.size(),
-                        handle.get_stream());
-      handle.get_stream_view().synchronize();
+        std::vector<vertex_t> h_renumber_map_labels(d_renumber_map_labels.size());
+        raft::update_host(h_renumber_map_labels.data(),
+                          d_renumber_map_labels.data(),
+                          d_renumber_map_labels.size(),
+                          handle.get_stream());
+
+        handle.get_stream_view().synchronize();
+
+        std::transform(
+          h_cugraph_predecessors.begin(),
+          h_cugraph_predecessors.end(),
+          h_cugraph_predecessors.begin(),
+          [&h_renumber_map_labels](auto v) {
+            return v == cugraph::invalid_vertex_id<vertex_t>::value ? v : h_renumber_map_labels[v];
+          });
+      } else {
+        raft::update_host(
+          h_cugraph_distances.data(), d_distances.data(), d_distances.size(), handle.get_stream());
+        raft::update_host(h_cugraph_predecessors.data(),
+                          d_predecessors.data(),
+                          d_predecessors.size(),
+                          handle.get_stream());
+
+        handle.get_stream_view().synchronize();
+      }
 
       ASSERT_TRUE(std::equal(
         h_reference_distances.begin(), h_reference_distances.end(), h_cugraph_distances.begin()))
@@ -261,6 +316,8 @@ INSTANTIATE_TEST_CASE_P(
     BFS_Usecase("test/datasets/wiki-Talk.mtx", 1000),
     BFS_Usecase(cugraph::test::rmat_params_t{10, 16, 0.57, 0.19, 0.19, 0, false, false}, 0),
     // disable correctness checks for large graphs
-    BFS_Usecase(cugraph::test::rmat_params_t{25, 32, 0.57, 0.19, 0.19, 0, false, false}, 0, false)));
+    BFS_Usecase(cugraph::test::rmat_params_t{25, 32, 0.57, 0.19, 0.19, 0, false, false},
+                0,
+                false)));
 
 CUGRAPH_TEST_PROGRAM_MAIN()
