@@ -42,6 +42,7 @@
 //#include <experimental/include_cuco_static_map.cuh>
 
 #include <cassert>
+#include <ctime>
 #include <tuple>
 #include <type_traits>
 
@@ -91,7 +92,9 @@ struct rrandom_gen_t {
       d_ptr_out_degs_(raw_const_ptr(d_crt_out_deg)),
       d_ptr_random_(raw_ptr(d_random))
   {
-    CUGRAPH_EXPECTS(d_random.size() >= nPaths, "Un-allocated random buffer.");
+    auto rnd_sz = d_random.size();
+
+    CUGRAPH_EXPECTS(rnd_sz >= static_cast<decltype(rnd_sz)>(nPaths), "Un-allocated random buffer.");
 
     // FIXME: not only in constructor,
     // this must be done at each step,
@@ -103,7 +106,7 @@ struct rrandom_gen_t {
   }
 
   // in place:
-  // for each v {
+  // for each v in [0, num_paths) {
   // if out_deg(v) > 0
   //   d_col_indx[v] = random index in [0, out_deg(v))
   //}
@@ -302,44 +305,73 @@ struct random_walker_t {
   }
 
   // in-place updates its arguments from one step to next
-  // (to avoid copying)
+  // (to avoid copying); all "crt" arguments are updated at each step()
+  // and passed as scratchpad space to avoid copying them
+  // from one step to another
   //
-  // take one step in sync for all paths:
+  // take one step in sync for all paths that have not reached sinks:
   //
-  void step(graph_t const& graph,
-            index_t step,
-            device_vec_t<vertex_t>& d_v_paths_v_set,  // coalesced vertex set
-            device_vec_t<weight_t>& d_v_paths_w_set,  // coalesced weight set
-            device_vec_t<index_t>& d_v_paths_sz,      // paths sizes
-            device_vec_t<edge_t>& d_crt_out_degs)     // out-degs for current set of vertices
+  template <typename real_t = float, typename seed_t = long>
+  void step(
+    graph_t const& graph,
+    seed_t seed,
+    device_vec_t<vertex_t>& d_coalesced_v,  // crt coalesced vertex set
+    device_vec_t<weight_t>& d_coalesced_w,  // crt coalesced weight set
+    device_vec_t<index_t>& d_paths_sz,      // crt paths sizes
+    device_vec_t<edge_t>& d_crt_out_degs,   // crt out-degs for current set of vertices
+    device_vec_t<real_t>& d_random,         // crt set of random real values
+    device_vec_t<vertex_t>& d_col_indx,  // crt col col indices to be used for retrieving next step
+    device_vec_t<vertex_t>& d_next_v,    // crt set of destination vertices, for next step
+    device_vec_t<weight_t>& d_next_w)
+    const  // set of weights between src and destination vertices, for next step
   {
     // update crt snapshot of out-degs,
     // from cached out degs, using
     // latest vertex in each path as source:
     //
     gather_from_coalesced(
-      d_v_paths_v_set, d_cached_out_degs_, d_v_paths_sz, d_crt_out_degs, max_depth_, num_paths_);
+      d_coalesced_v, d_cached_out_degs_, d_paths_sz, d_crt_out_degs, max_depth_, num_paths_);
 
-    // column extraction:
+    // generate random destination indices:
+    //
+    rrandom_gen_t<vertex_t, edge_t, seed_t, real_t> rgen(
+      handle_, num_paths_, d_random, d_crt_out_degs, seed);
+
+    rgen.generate_col_indices(d_col_indx);
+
+    // dst extraction from dst indices:
     //
     col_indx_extract_t<graph_t> col_extractor(handle_,
                                               graph,
                                               raw_const_ptr(d_crt_out_degs),
-                                              raw_const_ptr(d_v_paths_sz),
+                                              raw_const_ptr(d_paths_sz),
                                               num_paths_,
                                               max_depth_);
-    // TODO: gather:
+
+    // The following steps update the next entry in each path,
+    // except the paths that reached sinks;
+    //
     // for each indx in [0..nPaths) {
     //   v_indx = d_v_rnd_n_indx[indx];
     //
-    //   // get the `v_indx`-th out-vertex of d_v_paths_v_set[indx] vertex:
+    //   -- get the `v_indx`-th out-vertex of d_v_paths_v_set[indx] vertex:
+    //   -- also, note the size deltas increased by 1 in dst (d_sizes[]):
     //
-    //   d_v_paths_v_set[indx*nPaths + step] =
-    //       get_out_vertex(graph, d_v_paths_v_set[indx*nPaths + (step-1)], v_indx);
-    //   d_v_paths_w_set[indx*nPaths + step] =
-    //       get_out_edge_weight(graph, d_v_paths_v_set[indx*nPaths + (step-1)], v_indx);
-    //   update(d_v_stopped);
-    // }
+    //   d_coalesced_v[indx*nPaths + d_sizes[indx]] =
+    //       get_out_vertex(graph, d_coalesced_v[indx*nPaths + d_sizes[indx] -1)], v_indx);
+    //   d_coalesced_w[indx*(nPaths-1) + d_sizes[indx] - 1] =
+    //       get_out_edge_weight(graph, d_coalesced_v[indx*nPaths + d_sizes[indx]-2], v_indx);
+    //
+    // (1) generate actual vertex destinations:
+    //
+    col_extractor(d_coalesced_v, d_col_indx, d_next_v, d_next_w);
+
+    // TODO: update path sizes:
+    //
+
+    // (2) actual coalesced updates
+    scatter_vertices(d_next_v, d_coalesced_v, d_crt_out_degs, d_paths_sz);
+    scatter_weights(d_next_w, d_coalesced_w, d_crt_out_degs, d_paths_sz);
   }
 
   bool all_stopped(void) const
@@ -360,9 +392,9 @@ struct random_walker_t {
   // for each i in [0..num_paths_) {
   //   d_paths_v_set[i*max_depth] = d_src_init_v[i];
   //
-  void initialize(device_vec_t<vertex_t> const& d_src_init_v,
-                  device_vec_t<vertex_t>& d_paths_v_set,
-                  device_vec_t<index_t>& d_sizes) const
+  void start(device_vec_t<vertex_t> const& d_src_init_v,
+             device_vec_t<vertex_t>& d_paths_v_set,
+             device_vec_t<index_t>& d_sizes) const
   {
     // intialize path sizes to 1, as they contain at least one vertex each:
     // the initial set: d_src_init_v;
@@ -388,9 +420,12 @@ struct random_walker_t {
                     d_paths_v_set.begin());
   }
 
-  void defragment(device_vec_t<vertex_t>& d_coalesced_v,       // coalesced vertex set
-                  device_vec_t<weight_t>& d_coalesced_w,       // coalesced weight set
-                  device_vec_t<index_t> const& d_sizes) const  // paths sizes
+  // wrap-up, post-process:
+  // truncate v_set, w_set to actual space used
+  //
+  void stop(device_vec_t<vertex_t>& d_coalesced_v,       // coalesced vertex set
+            device_vec_t<weight_t>& d_coalesced_w,       // coalesced weight set
+            device_vec_t<index_t> const& d_sizes) const  // paths sizes
   {
     assert(max_depth_ > 1);  // else, no need to step; and no edges
 
@@ -466,6 +501,9 @@ struct random_walker_t {
   }
 
   // in-place non-static (needs handle_);
+  // pre-condition: path sizes are assumed updated
+  // to reflect new vertex additions;
+  //
   // for indx in [0, nelems):
   //   if ( d_crt_out_degs[indx] > 0 )
   //     d_coalesced[indx*stride + (d_sizes[indx] - adjust)- 1] = d_src[indx]
@@ -513,22 +551,24 @@ struct random_walker_t {
                        });
   }
 
+  // updates the entries in the corresponding coalesced vector,
+  // for which out_deg > 0
+  //
   void scatter_vertices(device_vec_t<vertex_t> const& d_src,
                         device_vec_t<vertex_t>& d_coalesced,
                         device_vec_t<edge_t> const& d_crt_out_degs,
-                        device_vec_t<index_t> const& d_sizes,
-                        index_t max_depth) const
+                        device_vec_t<index_t> const& d_sizes) const
   {
-    scatter_to_coalesced(d_src, d_coalesced, d_crt_out_degs, d_sizes, max_depth, num_paths_);
+    scatter_to_coalesced(d_src, d_coalesced, d_crt_out_degs, d_sizes, max_depth_, num_paths_);
   }
 
   void scatter_weights(device_vec_t<weight_t> const& d_src,
                        device_vec_t<weight_t>& d_coalesced,
                        device_vec_t<edge_t> const& d_crt_out_degs,
-                       device_vec_t<index_t> const& d_sizes,
-                       index_t max_depth) const
+                       device_vec_t<index_t> const& d_sizes) const
   {
-    scatter_to_coalesced(d_src, d_coalesced, d_crt_out_degs, d_sizes, max_depth - 1, num_paths_, 1);
+    scatter_to_coalesced(
+      d_src, d_coalesced, d_crt_out_degs, d_sizes, max_depth_ - 1, num_paths_, 1);
   }
 
  private:
@@ -577,6 +617,8 @@ random_walks(raft::handle_t const& handle,
   using vertex_t = typename graph_t::vertex_type;
   using edge_t   = typename graph_t::edge_type;
   using weight_t = typename graph_t::weight_type;
+  using real_t   = float;
+  using seed_t   = long;
 
   // TODO: Potentially this might change, if it's decided to pass the
   // starting vector directly on device...
@@ -602,34 +644,50 @@ random_walks(raft::handle_t const& handle,
   // pre-allocate num_paths * max_depth;
   //
   auto coalesced_sz = nPaths * max_depth;
-  device_vec_t<vertex_t> d_v_paths_v_set{coalesced_sz, stream};  // coalesced vertex set
-  device_vec_t<weight_t> d_v_paths_w_set{coalesced_sz, stream};  // coalesced weight set
-  device_vec_t<index_t> d_v_paths_sz{nPaths, stream};            // paths sizes
+  device_vec_t<vertex_t> d_coalesced_v{coalesced_sz, stream};  // coalesced vertex set
+  device_vec_t<weight_t> d_coalesced_w{coalesced_sz, stream};  // coalesced weight set
+  device_vec_t<index_t> d_paths_sz{nPaths, stream};            // paths sizes
   device_vec_t<edge_t> d_crt_out_degs{nPaths, stream};  // out-degs for current set of vertices
+  device_vec_t<real_t> d_random{nPaths, stream};
+  device_vec_t<vertex_t> d_col_indx{nPaths, stream};
+  device_vec_t<vertex_t> d_next_v{nPaths, stream};
+  device_vec_t<weight_t> d_next_w{nPaths, stream};
+
+  // FIXME: abstract out seed initialization:
+  //
+  seed_t seed0 = static_cast<seed_t>(std::time(nullptr));
 
   // very first vertex, for each path:
   //
-  rand_walker.initialize(d_v_start, d_v_paths_v_set, d_v_paths_sz);
+  rand_walker.start(d_v_start, d_coalesced_v, d_paths_sz);
 
   // start from 1, as 0-th was initialized above:
   //
   for (decltype(max_depth) step_indx = 1; step_indx < max_depth; ++step_indx) {
-    rand_walker.step(
-      graph, step_indx, d_v_paths_v_set, d_v_paths_w_set, d_v_paths_sz, d_crt_out_degs);
+    rand_walker.step(graph,
+                     seed0 + static_cast<seed_t>(step_indx),
+                     d_coalesced_v,
+                     d_coalesced_w,
+                     d_paths_sz,
+                     d_crt_out_degs,
+                     d_random,
+                     d_col_indx,
+                     d_next_v,
+                     d_next_w);
 
     // early exit: all paths have reached sinks:
     //
     if (rand_walker.all_stopped()) break;
   }
 
-  // truncate v_set, w_set to actual space used:
+  // wrap-up, post-process:
+  // truncate v_set, w_set to actual space used
   //
-  rand_walker.defragment(d_v_paths_v_set, d_v_paths_w_set, d_v_paths_sz);
+  rand_walker.stop(d_coalesced_v, d_coalesced_w, d_paths_sz);
 
   // because device_uvector is not copy-cnstr-able:
   //
-  return std::make_tuple(
-    std::move(d_v_paths_v_set), std::move(d_v_paths_w_set), std::move(d_v_paths_sz));
+  return std::make_tuple(std::move(d_coalesced_v), std::move(d_coalesced_w), std::move(d_paths_sz));
 }
 
 /**
