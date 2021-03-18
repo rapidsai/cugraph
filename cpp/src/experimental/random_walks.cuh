@@ -277,9 +277,9 @@ struct random_walker_t {
   //
   void step(graph_t const& graph,
             index_t step,
-            rmm::device_uvector<vertex_t>& d_v_paths_v_set,  // coalesced vertex set
-            rmm::device_uvector<weight_t>& d_v_paths_w_set,  // coalesced weight set
-            rmm::device_uvector<index_t>& d_v_paths_sz)      // paths sizes
+            device_vec_t<vertex_t>& d_v_paths_v_set,  // coalesced vertex set
+            device_vec_t<weight_t>& d_v_paths_w_set,  // coalesced weight set
+            device_vec_t<index_t>& d_v_paths_sz)      // paths sizes
   {
     // TODO: gather:
     // for each indx in [0..nPaths) {
@@ -308,16 +308,16 @@ struct random_walker_t {
       return true;
   }
 
-  void initialize(index_t max_depth, rmm::device_uvector<vertex_t>& d_v_paths_v_set) const
+  void initialize(index_t max_depth, device_vec_t<vertex_t>& d_v_paths_v_set) const
   {
     // TODO: scatter from ptr_d_vertex_set_
     // for each i in [0..num_paths_) {
     //   d_v_paths_v_set[i*max_depth] = ptr_d_vertex_set_[i];
   }
 
-  void defragment(rmm::device_uvector<vertex_t>& d_coalesced_v,  // coalesced vertex set
-                  rmm::device_uvector<weight_t>& d_coalesced_w,  // coalesced weight set
-                  rmm::device_uvector<index_t> const& d_sizes,   // paths sizes
+  void defragment(device_vec_t<vertex_t>& d_coalesced_v,  // coalesced vertex set
+                  device_vec_t<weight_t>& d_coalesced_w,  // coalesced weight set
+                  device_vec_t<index_t> const& d_sizes,   // paths sizes
                   index_t nPaths,
                   index_t max_depth) const
   {
@@ -464,9 +464,9 @@ struct random_walker_t {
   raft::handle_t const& handle_;
   index_t num_paths_;
   vertex_t* ptr_d_vertex_set_;
-  rmm::device_uvector<int> d_v_stopped_;  // keeps track of paths that stopped (==1)
+  device_vec_t<int> d_v_stopped_;  // keeps track of paths that stopped (==1)
   random_engine_t rnd_;
-  rmm::device_uvector<edge_t> d_v_out_degs_;
+  device_vec_t<edge_t> d_v_out_degs_;
 };
 
 /**
@@ -484,8 +484,8 @@ struct random_walker_t {
  * start_vertex_set.size().
  * @param max_depth maximum length of RWs.
  * @param rnd_engine Random engine parameter (e.g., uniform).
- * @return std::tuple<rmm::device_uvector<vertex_t>, rmm::device_uvector<weight_t>,
- * rmm::device_uvector<index_t>> Triplet of coalesced RW paths, with corresponding edge weights for
+ * @return std::tuple<device_vec_t<vertex_t>, device_vec_t<weight_t>,
+ * device_vec_t<index_t>> Triplet of coalesced RW paths, with corresponding edge weights for
  * each, and coresponding path sizes. This is meant to minimize the number of DF's to be passed to
  * the Python layer.
  */
@@ -493,9 +493,9 @@ template <typename graph_t,
           typename random_engine_t,
           typename index_t = typename graph_t::vertex_type>
 std::enable_if_t<graph_t::is_multi_gpu == false,
-                 std::tuple<rmm::device_uvector<typename graph_t::vertex_type>,
-                            rmm::device_uvector<typename graph_t::weight_type>,
-                            rmm::device_uvector<index_t>>>
+                 std::tuple<device_vec_t<typename graph_t::vertex_type>,
+                            device_vec_t<typename graph_t::weight_type>,
+                            device_vec_t<index_t>>>
 random_walks(raft::handle_t const& handle,
              graph_t const& graph,
              std::vector<typename graph_t::vertex_type> const& start_vertex_set,
@@ -511,7 +511,7 @@ random_walks(raft::handle_t const& handle,
   auto nPaths = start_vertex_set.size();
   auto stream = handle.get_stream();
 
-  rmm::device_uvector<vertex_t> d_v_start{nPaths, stream};
+  device_vec_t<vertex_t> d_v_start{nPaths, stream};
 
   // Copy starting set on device:
   //
@@ -537,9 +537,9 @@ random_walks(raft::handle_t const& handle,
   // use 1. for now:
   //
   auto coalesced_sz = nPaths * max_depth;
-  rmm::device_uvector<vertex_t> d_v_paths_v_set{coalesced_sz, stream};  // coalesced vertex set
-  rmm::device_uvector<weight_t> d_v_paths_w_set{coalesced_sz, stream};  // coalesced weight set
-  rmm::device_uvector<index_t> d_v_paths_sz{nPaths, stream};            // paths sizes
+  device_vec_t<vertex_t> d_v_paths_v_set{coalesced_sz, stream};  // coalesced vertex set
+  device_vec_t<weight_t> d_v_paths_w_set{coalesced_sz, stream};  // coalesced weight set
+  device_vec_t<index_t> d_v_paths_sz{nPaths, stream};            // paths sizes
 
   // very first vertex, for each path:
   //
@@ -581,8 +581,8 @@ random_walks(raft::handle_t const& handle,
  * start_vertex_set.size().
  * @param max_depth maximum length of RWs.
  * @param rnd_engine Random engine parameter (e.g., uniform).
- * @return std::tuple<rmm::device_uvector<vertex_t>, rmm::device_uvector<weight_t>,
- * rmm::device_uvector<index_t>> Triplet of coalesced RW paths, with corresponding edge weights for
+ * @return std::tuple<device_vec_t<vertex_t>, device_vec_t<weight_t>,
+ * device_vec_t<index_t>> Triplet of coalesced RW paths, with corresponding edge weights for
  * each, and coresponding path sizes. This is meant to minimize the number of DF's to be passed to
  * the Python layer.
  */
@@ -590,9 +590,9 @@ template <typename graph_t,
           typename random_engine_t,
           typename index_t = typename graph_t::vertex_type>
 std::enable_if_t<graph_t::is_multi_gpu == true,
-                 std::tuple<rmm::device_uvector<typename graph_t::vertex_type>,
-                            rmm::device_uvector<typename graph_t::weight_type>,
-                            rmm::device_uvector<index_t>>>
+                 std::tuple<device_vec_t<typename graph_t::vertex_type>,
+                            device_vec_t<typename graph_t::weight_type>,
+                            device_vec_t<index_t>>>
 random_walks(raft::handle_t const& handle,
              graph_t const& graph,
              std::vector<typename graph_t::vertex_type> const& start_vertex_set,
@@ -617,8 +617,8 @@ random_walks(raft::handle_t const& handle,
  * @param start_vertex_set Set of starting vertex indices for the RW. number(RW) ==
  * start_vertex_set.size().
  * @param max_depth maximum length of RWs.
- * @return std::tuple<rmm::device_uvector<vertex_t>, rmm::device_uvector<weight_t>,
- * rmm::device_uvector<index_t>> Triplet of coalesced RW paths, with corresponding edge weights for
+ * @return std::tuple<device_vec_t<vertex_t>, device_vec_t<weight_t>,
+ * device_vec_t<index_t>> Triplet of coalesced RW paths, with corresponding edge weights for
  * each, and coresponding path sizes. This is meant to minimize the number of DF's to be passed to
  * the Python layer.
  */
