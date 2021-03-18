@@ -570,15 +570,7 @@ random_walks(raft::handle_t const& handle,
                                                         d_v_start.data(),
                                                         rnd_engine};
 
-  // return approaches:
-  // 1. faster but (potentially) more memory hungry:
-  //    pre-allocate by maximum possible size;
-  //
-  // 2. more memory economic but less performant: fill iteration local vectors
-  //    in each iteration and then incrementally append the necessary size to
-  //    the result vectors below;
-  //
-  // use 1. for now:
+  // pre-allocate num_paths * max_depth;
   //
   auto coalesced_sz = nPaths * max_depth;
   device_vec_t<vertex_t> d_v_paths_v_set{coalesced_sz, stream};  // coalesced vertex set
