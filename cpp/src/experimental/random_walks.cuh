@@ -96,9 +96,9 @@ struct rrandom_gen_t {
 
     CUGRAPH_EXPECTS(rnd_sz >= static_cast<decltype(rnd_sz)>(nPaths), "Un-allocated random buffer.");
 
-    // FIXME: not only in constructor,
+    // done in constructor;
     // this must be done at each step,
-    // unless this object is constructed at each step;
+    // but this object is constructed at each step;
     //
     raft::random::Rng rng(seed_);
     rng.uniform<real_t, index_t>(
@@ -366,10 +366,12 @@ struct random_walker_t {
     //
     col_extractor(d_coalesced_v, d_col_indx, d_next_v, d_next_w);
 
-    // TODO: update path sizes:
+    // (2) update path sizes:
     //
+    update_path_sizes(d_crt_out_degs, d_paths_sz);
 
-    // (2) actual coalesced updates
+    // (3) actual coalesced updates:
+    //
     scatter_vertices(d_next_v, d_coalesced_v, d_crt_out_degs, d_paths_sz);
     scatter_weights(d_next_w, d_coalesced_w, d_crt_out_degs, d_paths_sz);
   }
@@ -561,7 +563,7 @@ struct random_walker_t {
   {
     scatter_to_coalesced(d_src, d_coalesced, d_crt_out_degs, d_sizes, max_depth_, num_paths_);
   }
-
+  //
   void scatter_weights(device_vec_t<weight_t> const& d_src,
                        device_vec_t<weight_t>& d_coalesced,
                        device_vec_t<edge_t> const& d_crt_out_degs,
@@ -569,6 +571,23 @@ struct random_walker_t {
   {
     scatter_to_coalesced(
       d_src, d_coalesced, d_crt_out_degs, d_sizes, max_depth_ - 1, num_paths_, 1);
+  }
+
+  // in-place update (increment) path sizes for paths
+  // that have not reached a sink; i.e., for which
+  // d_crt_out_degs[indx]>0:
+  //
+  void update_path_sizes(device_vec_t<edge_t> const& d_crt_out_degs,
+                         device_vec_t<index_t>& d_sizes) const
+  {
+    thrust::transform_if(
+      rmm::exec_policy(handle_.get_stream())->on(handle_.get_stream()),
+      d_sizes.begin(),
+      d_sizes.end(),           // input
+      d_crt_out_degs.begin(),  // stencil
+      d_sizes.begin(),         // output: in-place
+      [] __device__(auto crt_sz) { return crt_sz + 1; },
+      [] __device__(auto crt_out_deg) { return crt_out_deg > 0; });
   }
 
  private:
