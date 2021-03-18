@@ -23,6 +23,7 @@ add_library(cugraphtestutil STATIC
             "${CMAKE_CURRENT_SOURCE_DIR}/utilities/generate_graph_from_edgelist.cu"
             "${CMAKE_CURRENT_SOURCE_DIR}/utilities/matrix_market_file_utilities.cu"
             "${CMAKE_CURRENT_SOURCE_DIR}/utilities/rmat_utilities.cu"
+            "${CMAKE_CURRENT_SOURCE_DIR}/utilities/renumber_utilities.cu"
             "${CMAKE_CURRENT_SOURCE_DIR}/utilities/misc_utilities.cpp"
             "${CMAKE_CURRENT_SOURCE_DIR}/../../thirdparty/mmio/mmio.c")
 
