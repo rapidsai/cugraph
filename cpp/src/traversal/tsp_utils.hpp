@@ -31,29 +31,6 @@ __host__ __device__ inline float euclidean_dist(float *px, float *py, int a, int
   return sqrtf((px[a] - px[b]) * (px[a] - px[b]) + (py[a] - py[b]) * (py[a] - py[b]));
 }
 
-static std::vector<std::string> device_func = {"Find First", "Hill Climbing", "Retrieve Path"};
-
-void print_times(std::vector<float> &h_times, int const n_timers, int device, int threads)
-{
-  int clock_rate;
-  cudaDeviceGetAttribute(&clock_rate, cudaDevAttrClockRate, device);
-
-  double total = 0;
-  h_times[0] /= (float)clock_rate;
-  total += h_times[0];
-  for (int i = 1; i < n_timers; ++i) {
-    h_times[i * threads + 1] /= (float)clock_rate;
-    total += h_times[i * threads + 1];
-  }
-  std::cout << "Stats: \n";
-  std::cout << device_func[0] << " time: " << h_times[0] * 1e-3 << " "
-            << (h_times[0] / total) * 100.0 << "%\n";
-  for (int i = 1; i < n_timers; ++i) {
-    std::cout << device_func[i] << " time: " << h_times[i * threads + 1] * 1e-3 << " "
-              << (h_times[i * threads + 1] / total) * 100.0 << "%\n";
-  }
-}
-
 // Get maximum number of threads we can run on based on number of nodes,
 // shared memory usage, max threads per block and SM, max blocks for SM and registers per SM.
 int best_thread_count(int nodes, int max_threads, int sm_count, int warp_size)

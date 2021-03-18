@@ -25,6 +25,14 @@
 
 namespace cugraph {
 namespace detail {
+
+struct TSPResults{
+  float **best_x_pos;
+  float **best_y_pos;
+  int **best_route;
+  int *best_cost;
+};
+
 class TSP {
  public:
   TSP(raft::handle_t const &handle,
@@ -39,7 +47,8 @@ class TSP {
       bool verbose,
       int *route);
 
-  void allocate();
+  void setup();
+  void reset_batch();
   float compute();
   void knn();
   ~TSP(){};
@@ -69,20 +78,24 @@ class TSP {
 
   // Scalars
   rmm::device_scalar<int> mylock_scalar_;
-  rmm::device_scalar<int> best_tour_scalar_;
+  rmm::device_scalar<int> best_cost_scalar_;
   rmm::device_scalar<int> climbs_scalar_;
 
   int *mylock_;
-  int *best_tour_;
+  int *best_cost_;
   int *climbs_;
 
   // Vectors
   rmm::device_vector<int64_t> neighbors_vec_;
   rmm::device_vector<int> work_vec_;
+  rmm::device_vector<float*> best_x_pos_vec_;
+  rmm::device_vector<float*> best_y_pos_vec_;
+  rmm::device_vector<int*> best_route_vec_;
 
   int64_t *neighbors_;
   int *work_;
   int *work_route_;
+  TSPResults results_;
 };
 }  // namespace detail
 }  // namespace cugraph

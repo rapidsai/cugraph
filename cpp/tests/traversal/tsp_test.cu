@@ -67,6 +67,8 @@ typedef struct Tsp_Usecase_t {
 } Tsp_Usecase;
 
 static std::vector<Tsp_Usecase_t> euc_2d{
+{"tsplib/datasets/tsp225.tsp", 3916},
+  /*
   {"tsplib/datasets/a280.tsp", 2579},      {"tsplib/datasets/berlin52.tsp", 7542},
   {"tsplib/datasets/bier127.tsp", 118282}, {"tsplib/datasets/ch130.tsp", 6110},
   {"tsplib/datasets/ch150.tsp", 6528},     {"tsplib/datasets/d1291.tsp", 50801},
@@ -96,7 +98,7 @@ static std::vector<Tsp_Usecase_t> euc_2d{
   {"tsplib/datasets/tsp225.tsp", 3916},    {"tsplib/datasets/u1060.tsp", 224094},
   {"tsplib/datasets/u1432.tsp", 152970},   {"tsplib/datasets/u159.tsp", 42080},
   {"tsplib/datasets/u574.tsp", 36905},     {"tsplib/datasets/u724.tsp", 41910},
-  {"tsplib/datasets/vm1084.tsp", 239297},
+  {"tsplib/datasets/vm1084.tsp", 239297},*/
 };
 
 struct Route {
@@ -130,9 +132,10 @@ class Tests_Tsp : public ::testing::TestWithParam<Tsp_Usecase> {
 
     std::cout << "File: " << param.tsp_file.c_str() << "\n";
     int nodes = load_tsp(param.tsp_file.c_str(), &input);
+    std::cout << "Nodes: " << nodes << std::endl;
 
     // Device alloc
-    raft::handle_t handle;
+    raft::handle_t const handle;
     rmm::device_uvector<int> vertices(static_cast<size_t>(nodes), nullptr);
     rmm::device_uvector<int> route(static_cast<size_t>(nodes), nullptr);
     rmm::device_uvector<float> x_pos(static_cast<size_t>(nodes), nullptr);
@@ -154,7 +157,7 @@ class Tests_Tsp : public ::testing::TestWithParam<Tsp_Usecase> {
     bool beam_search = true;
     int k            = 4;
     int nstart       = 0;
-    bool verbose     = false;
+    bool verbose     = true;
 
     hr_clock.start();
     cudaDeviceSynchronize();

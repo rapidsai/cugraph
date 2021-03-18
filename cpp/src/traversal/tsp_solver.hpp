@@ -29,18 +29,6 @@
 namespace cugraph {
 namespace detail {
 
-__device__ float *best_soln;
-__device__ int *best_route;
-
-__global__ void reset(int *mylock, int *best_tour, int *climbs)
-{
-  *mylock    = 0;
-  *best_tour = INT_MAX;
-  *climbs    = 0;
-  best_soln  = nullptr;
-  best_route = nullptr;
-}
-
 // random permutation kernel
 __device__ void random_init(float const *posx,
                             float const *posy,
@@ -212,7 +200,6 @@ __device__ void two_opt_search(
   }
 }
 
-// This function being runned for each block
 __device__ void hill_climbing(
   float *px, float *py, int *buf, int *path, int *shbuf, int const nodes, int *climbs)
 {
@@ -340,7 +327,8 @@ __device__ void hill_climbing(
 }
 
 __device__ void get_optimal_tour(
-  int *mylock, int *best_tour, float *px, float *py, int *path, int *shbuf, int const nodes)
+    TSPResults results, int *mylock, float *px, float *py, int *path,
+    int *shbuf, int const nodes)
 {
   // Now find actual length of the last tour, result of the climb
   int term = 0;
@@ -360,20 +348,21 @@ __device__ void get_optimal_tour(
   term = shbuf[0];
 
   if (threadIdx.x == 0) {
-    atomicMin(best_tour, term);
+    atomicMin(results.best_cost, term);
     while (atomicExch(mylock, 1) != 0)
       ;  // acquire
-    if (best_tour[0] == term) {
-      best_soln  = px;
-      best_route = path;
+    if (results.best_cost[0] == term) {
+      results.best_x_pos[0]  = px;
+      results.best_y_pos[0]   = py;
+      results.best_route[0] = path;
     }
     *mylock = 0;  // release
     __threadfence();
   }
 }
 
-__global__ __launch_bounds__(2048, 2) void search_solution(int *mylock,
-                                                           int *best_tour,
+__global__ __launch_bounds__(2048, 2) void search_solution(TSPResults results,
+                                                           int *mylock,
                                                            int const *vtx_ptr,
                                                            bool beam_search,
                                                            int const K,
@@ -383,7 +372,6 @@ __global__ __launch_bounds__(2048, 2) void search_solution(int *mylock,
                                                            float const *posy,
                                                            int *work,
                                                            int const nstart,
-                                                           float *times,
                                                            int *climbs,
                                                            int const threads,
                                                            int const batch)
@@ -393,24 +381,17 @@ __global__ __launch_bounds__(2048, 2) void search_solution(int *mylock,
   float *py = &px[nodes + 1];
   int *path = (int *)(&py[nodes + 1]);
   __shared__ int shbuf[tilesize];
-  clock_t start;
 
-  start = clock64();
   if (!beam_search)
     random_init(posx, posy, vtx_ptr, path, px, py, nstart, nodes, batch);
   else
     knn_init(posx, posy, vtx_ptr, neighbors, buf, path, px, py, nstart, nodes, K, batch);
   __syncthreads();
-  times[threadIdx.x] = clock64() - start;
 
-  start = clock64();
   hill_climbing(px, py, buf, path, shbuf, nodes, climbs);
   __syncthreads();
-  times[threads + threadIdx.x + 1] = clock64() - start;
 
-  start = clock64();
-  get_optimal_tour(mylock, best_tour, px, py, path, shbuf, nodes);
-  times[2 * threads + threadIdx.x + 1] = clock64() - start;
+  get_optimal_tour(results, mylock, px, py, path, shbuf, nodes);
 }
 }  // namespace detail
 }  // namespace cugraph

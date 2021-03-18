@@ -52,14 +52,13 @@ TSP::TSP(raft::handle_t const &handle,
     sm_count_(handle_.get_device_properties().multiProcessorCount),
     restart_batch_(4096)
 {
-  allocate();
+  setup();
 }
 
-void TSP::allocate()
+void TSP::setup()
 {
   // Scalars
   mylock_    = mylock_scalar_.data();
-  best_tour_ = best_tour_scalar_.data();
   climbs_    = climbs_scalar_.data();
 
   // Vectors
@@ -69,30 +68,49 @@ void TSP::allocate()
   // We align it on the warp size.
   work_vec_.resize(restart_batch_ *
                    ((4 * nodes_ + 3 + warp_size_ - 1) / warp_size_ * warp_size_));
+  best_x_pos_vec_.resize(1);
+  best_y_pos_vec_.resize(1);
+  best_route_vec_.resize(1);
 
   // Pointers
   neighbors_ = neighbors_vec_.data().get();
   work_      = work_vec_.data().get();
+
+  // Setup results
+  results_.best_x_pos = best_x_pos_vec_.data().get();
+  results_.best_y_pos = best_y_pos_vec_.data().get();
+  results_.best_route = best_route_vec_.data().get();
+  results_.best_cost = best_cost_scalar_.data();
+}
+
+void TSP::reset_batch() {
+  mylock_scalar_.set_value(0, stream_);
+  best_cost_scalar_.set_value(std::numeric_limits<int>::max(), stream_);
+  climbs_scalar_.set_value(0, stream_);
 }
 
 float TSP::compute()
 {
-  float valid_coo_dist    = 0.f;
+  // Setup
+  float final_cost    = 0.f;
   int num_restart_batches = (restarts_ + restart_batch_ - 1) / restart_batch_;
   int restart_resid       = restarts_ - (num_restart_batches - 1) * restart_batch_;
-  int global_best         = INT_MAX;
-  float *soln             = nullptr;
-  int *route_sol          = nullptr;
+  int global_best         = std::numeric_limits<int>::max();
   int best                = 0;
+
   std::vector<float> h_x_pos;
   std::vector<float> h_y_pos;
+  std::vector<int> h_route;
   h_x_pos.reserve(nodes_ + 1);
   h_y_pos.reserve(nodes_ + 1);
+  h_route.reserve(nodes_);
+
+	std::vector<float*> addr_best_x_pos(1);
+	std::vector<float*> addr_best_y_pos(1);
+	std::vector<int*> addr_best_route(1);
 
   // Stats
-  int n_timers      = 3;
   long total_climbs = 0;
-  std::vector<float> h_times;
   struct timeval starttime, endtime;
 
   // KNN call
@@ -111,18 +129,15 @@ float TSP::compute()
   int threads = best_thread_count(nodes_, max_threads_, sm_count_, warp_size_);
   if (verbose_) std::cout << "Calculated best thread number = " << threads << "\n";
 
-  rmm::device_vector<float> times(n_timers * threads + n_timers);
-  h_times.reserve(n_timers * threads + n_timers);
-
   gettimeofday(&starttime, NULL);
-  for (int batch = 1; batch <= num_restart_batches; ++batch) {
-    reset<<<1, 1, 0, stream_>>>(mylock_, best_tour_, climbs_);
-    CHECK_CUDA(stream_);
 
+  for (int batch = 1; batch <= num_restart_batches; ++batch) {
+
+    reset_batch();
     if (batch == num_restart_batches) restart_batch_ = restart_resid;
 
-    search_solution<<<restart_batch_, threads, sizeof(int) * threads, stream_>>>(mylock_,
-                                                                                 best_tour_,
+    search_solution<<<restart_batch_, threads, sizeof(int) * threads, stream_>>>(results_,
+                                                                                 mylock_,
                                                                                  vtx_ptr_,
                                                                                  beam_search_,
                                                                                  k_,
@@ -132,7 +147,6 @@ float TSP::compute()
                                                                                  y_pos_,
                                                                                  work_,
                                                                                  nstart_,
-                                                                                 times.data().get(),
                                                                                  climbs_,
                                                                                  threads,
                                                                                  batch);
@@ -140,16 +154,22 @@ float TSP::compute()
     CHECK_CUDA(stream_);
     cudaDeviceSynchronize();
 
-    CUDA_TRY(cudaMemcpy(&best, best_tour_, sizeof(int), cudaMemcpyDeviceToHost));
-    cudaDeviceSynchronize();
+    best = best_cost_scalar_.value(stream_);
+
     if (verbose_) std::cout << "Best reported by kernel = " << best << "\n";
 
     if (best < global_best) {
-      global_best = best;
-      CUDA_TRY(cudaMemcpyFromSymbol(&soln, best_soln, sizeof(void *)));
+			global_best = best;
+			cudaMemcpy(addr_best_x_pos.data(), results_.best_x_pos, sizeof(float*), cudaMemcpyDeviceToHost);
+			cudaMemcpy(addr_best_y_pos.data(), results_.best_y_pos, sizeof(float*), cudaMemcpyDeviceToHost);
+			cudaMemcpy(addr_best_route.data(), results_.best_route, sizeof(int*), cudaMemcpyDeviceToHost);
+      CHECK_CUDA(stream_);
       cudaDeviceSynchronize();
-      CUDA_TRY(cudaMemcpyFromSymbol(&route_sol, best_route, sizeof(void *)));
-      cudaDeviceSynchronize();
+
+      raft::copy(h_x_pos.data(), addr_best_x_pos[0], nodes_ + 1, stream_);
+      raft::copy(h_y_pos.data(), addr_best_y_pos[0], nodes_ + 1, stream_);
+      raft::copy(h_route.data(), addr_best_route[0], nodes_, stream_);
+      CHECK_CUDA(stream_);
     }
     total_climbs += climbs_scalar_.value(stream_);
   }
@@ -158,32 +178,17 @@ float TSP::compute()
     endtime.tv_sec + endtime.tv_usec / 1e6 - starttime.tv_sec - starttime.tv_usec / 1e6;
   long long moves = 1LL * total_climbs * (nodes_ - 2) * (nodes_ - 1) / 2;
 
-  raft::copy(route_, route_sol, nodes_, stream_);
-
-  CUDA_TRY(cudaMemcpy(h_x_pos.data(), soln, sizeof(float) * (nodes_ + 1), cudaMemcpyDeviceToHost));
-  cudaDeviceSynchronize();
-  CUDA_TRY(cudaMemcpy(
-    h_y_pos.data(), soln + nodes_ + 1, sizeof(float) * (nodes_ + 1), cudaMemcpyDeviceToHost));
-  cudaDeviceSynchronize();
-
   for (int i = 0; i < nodes_; ++i) {
     if (verbose_) { std::cout << h_x_pos[i] << " " << h_y_pos[i] << "\n"; }
-    valid_coo_dist += euclidean_dist(h_x_pos.data(), h_y_pos.data(), i, i + 1);
+    final_cost += euclidean_dist(h_x_pos.data(), h_y_pos.data(), i, i + 1);
   }
-
-  CUDA_TRY(cudaMemcpy(h_times.data(),
-                      times.data().get(),
-                      sizeof(float) * n_timers * threads + n_timers,
-                      cudaMemcpyDeviceToHost));
-  cudaDeviceSynchronize();
 
   if (verbose_) {
     std::cout << "Search runtime = " << runtime << ", " << moves * 1e-9 / runtime << " Gmoves/s\n";
     std::cout << "Optimized tour length = " << global_best << "\n";
-    print_times(h_times, n_timers, handle_.get_device(), threads);
   }
 
-  return valid_coo_dist;
+  return final_cost;
 }
 
 void TSP::knn()
