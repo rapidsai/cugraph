@@ -93,9 +93,7 @@ def _get_feasibility(G, sources, components=None, depth_limit=None):
         tmp = components["color"].value_counts()
         n_components = tmp.size
         if n_sources / n_components > 100:
-            warnings.warn(
-                "High number of seeds per component result in large output."
-            )
+            warnings.warn("High number of seeds per component result in large output.")
         mean_component_sz = tmp.mean()
         output_sz = mean_component_sz * n_sources * 2 * size_of_e
 
@@ -150,9 +148,7 @@ def concurrent_bfs(Graphs, sources, depth_limit=None, offload=False):
     """
 
     if not isinstance(Graphs, list):
-        raise TypeError(
-            "Graphs should be a list of cugraph.Graph or cugraph.DiGraph"
-        )
+        raise TypeError("Graphs should be a list of cugraph.Graph or cugraph.DiGraph")
     if not isinstance(sources, list):
         raise TypeError("sources should be a list of cudf.Series")
     if len(Graphs) != len(sources):
@@ -179,9 +175,7 @@ def concurrent_bfs(Graphs, sources, depth_limit=None, offload=False):
     # )
 
 
-def multi_source_bfs(
-    G, sources, components=None, depth_limit=None, offload=False
-):
+def multi_source_bfs(G, sources, components=None, depth_limit=None, offload=False):
     """
     Find the breadth first traversal from multiple sources in a graph.
 
@@ -269,4 +263,3 @@ def multi_source_bfs(
     # Call multi_source_bfs
     # FIXME remove when implemented
     # raise NotImplementedError("Commming soon")
-

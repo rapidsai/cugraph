@@ -26,6 +26,7 @@ try:
     from cupyx.scipy.sparse.coo import coo_matrix as cp_coo_matrix
     from cupyx.scipy.sparse.csr import csr_matrix as cp_csr_matrix
     from cupyx.scipy.sparse.csc import csc_matrix as cp_csc_matrix
+
     CP_MATRIX_TYPES = [cp_coo_matrix, cp_csr_matrix, cp_csc_matrix]
     CP_COMPRESSED_MATRIX_TYPES = [cp_csr_matrix, cp_csc_matrix]
 except ModuleNotFoundError:
@@ -38,6 +39,7 @@ try:
     from scipy.sparse.coo import coo_matrix as sp_coo_matrix
     from scipy.sparse.csr import csr_matrix as sp_csr_matrix
     from scipy.sparse.csc import csc_matrix as sp_csc_matrix
+
     SP_MATRIX_TYPES = [sp_coo_matrix, sp_csr_matrix, sp_csc_matrix]
     SP_COMPRESSED_MATRIX_TYPES = [sp_csr_matrix, sp_csc_matrix]
 except ModuleNotFoundError:
@@ -80,15 +82,21 @@ def get_traversed_path(df, id):
     >>> path = cugraph.utils.get_traversed_path(sssp_df, 32)
     """
 
-    if 'vertex' not in df.columns:
-        raise ValueError("DataFrame does not appear to be a BFS or "
-                         "SSP result - 'vertex' column missing")
-    if 'distance' not in df.columns:
-        raise ValueError("DataFrame does not appear to be a BFS or "
-                         "SSP result - 'distance' column missing")
-    if 'predecessor' not in df.columns:
-        raise ValueError("DataFrame does not appear to be a BFS or "
-                         "SSP result - 'predecessor' column missing")
+    if "vertex" not in df.columns:
+        raise ValueError(
+            "DataFrame does not appear to be a BFS or "
+            "SSP result - 'vertex' column missing"
+        )
+    if "distance" not in df.columns:
+        raise ValueError(
+            "DataFrame does not appear to be a BFS or "
+            "SSP result - 'distance' column missing"
+        )
+    if "predecessor" not in df.columns:
+        raise ValueError(
+            "DataFrame does not appear to be a BFS or "
+            "SSP result - 'predecessor' column missing"
+        )
     if type(id) != int:
         raise ValueError("The vertex 'id' needs to be an integer")
 
@@ -96,17 +104,17 @@ def get_traversed_path(df, id):
     # or edited.  Therefore we cannot assume that using the vertex ID
     # as an index will work
 
-    ddf = df[df['vertex'] == id]
+    ddf = df[df["vertex"] == id]
     if len(ddf) == 0:
         raise ValueError("The vertex (", id, " is not in the result set")
-    pred = ddf['predecessor'].iloc[0]
+    pred = ddf["predecessor"].iloc[0]
 
     answer = []
     answer.append(ddf)
 
     while pred != -1:
-        ddf = df[df['vertex'] == pred]
-        pred = ddf['predecessor'].iloc[0]
+        ddf = df[df["vertex"] == pred]
+        pred = ddf["predecessor"].iloc[0]
         answer.append(ddf)
 
     return cudf.concat(answer)
@@ -138,15 +146,21 @@ def get_traversed_path_list(df, id):
     >>> path = cugraph.utils.get_traversed_path_list(sssp_df, 32)
     """
 
-    if 'vertex' not in df.columns:
-        raise ValueError("DataFrame does not appear to be a BFS or "
-                         "SSP result - 'vertex' column missing")
-    if 'distance' not in df.columns:
-        raise ValueError("DataFrame does not appear to be a BFS or "
-                         "SSP result - 'distance' column missing")
-    if 'predecessor' not in df.columns:
-        raise ValueError("DataFrame does not appear to be a BFS or "
-                         "SSP result - 'predecessor' column missing")
+    if "vertex" not in df.columns:
+        raise ValueError(
+            "DataFrame does not appear to be a BFS or "
+            "SSP result - 'vertex' column missing"
+        )
+    if "distance" not in df.columns:
+        raise ValueError(
+            "DataFrame does not appear to be a BFS or "
+            "SSP result - 'distance' column missing"
+        )
+    if "predecessor" not in df.columns:
+        raise ValueError(
+            "DataFrame does not appear to be a BFS or "
+            "SSP result - 'predecessor' column missing"
+        )
     if type(id) != int:
         raise ValueError("The vertex 'id' needs to be an integer")
 
@@ -158,17 +172,17 @@ def get_traversed_path_list(df, id):
     answer = []
     answer.append(id)
 
-    ddf = df[df['vertex'] == id]
+    ddf = df[df["vertex"] == id]
     if len(ddf) == 0:
         raise ValueError("The vertex (", id, " is not in the result set")
 
-    pred = ddf['predecessor'].iloc[0]
+    pred = ddf["predecessor"].iloc[0]
 
     while pred != -1:
         answer.append(pred)
 
-        ddf = df[df['vertex'] == pred]
-        pred = ddf['predecessor'].iloc[0]
+        ddf = df[df["vertex"] == pred]
+        pred = ddf["predecessor"].iloc[0]
 
     return answer
 
@@ -205,6 +219,7 @@ def is_device_version_less_than(min_version=(7, 0)):
         return True
     return False
 
+
 def get_device_memory_info():
     """
     Returns the total amount of global memory on the device in bytes
@@ -236,29 +251,33 @@ def ensure_cugraph_obj(obj, nx_weight_attr=None, matrix_graph_type=None):
     elif (nx is not None) and (input_type in [nx.Graph, nx.DiGraph]):
         return (convert_from_nx(obj, weight=nx_weight_attr), input_type)
 
-    elif (input_type in CP_MATRIX_TYPES) or \
-         (input_type in SP_MATRIX_TYPES):
+    elif (input_type in CP_MATRIX_TYPES) or (input_type in SP_MATRIX_TYPES):
 
         if matrix_graph_type is None:
             matrix_graph_type = Graph
         elif matrix_graph_type not in [Graph, DiGraph]:
-            raise TypeError(f"matrix_graph_type must be either a cugraph "
-                            f"Graph or DiGraph, got: {matrix_graph_type}")
+            raise TypeError(
+                f"matrix_graph_type must be either a cugraph "
+                f"Graph or DiGraph, got: {matrix_graph_type}"
+            )
 
-        if input_type in (CP_COMPRESSED_MATRIX_TYPES +
-                          SP_COMPRESSED_MATRIX_TYPES):
+        if input_type in (CP_COMPRESSED_MATRIX_TYPES + SP_COMPRESSED_MATRIX_TYPES):
             coo = obj.tocoo(copy=False)
         else:
             coo = obj
 
         if input_type in CP_MATRIX_TYPES:
-            df = cudf.DataFrame({"source": cp.ascontiguousarray(coo.row),
-                                 "destination": cp.ascontiguousarray(coo.col),
-                                 "weight": cp.ascontiguousarray(coo.data)})
+            df = cudf.DataFrame(
+                {
+                    "source": cp.ascontiguousarray(coo.row),
+                    "destination": cp.ascontiguousarray(coo.col),
+                    "weight": cp.ascontiguousarray(coo.data),
+                }
+            )
         else:
-            df = cudf.DataFrame({"source": coo.row,
-                                 "destination": coo.col,
-                                 "weight": coo.data})
+            df = cudf.DataFrame(
+                {"source": coo.row, "destination": coo.col, "weight": coo.data}
+            )
         # FIXME:
         # * do a quick check that symmetry is stored explicitly in the cupy
         #   data for sym matrices (ie. for each uv, check vu is there)
@@ -312,4 +331,3 @@ def import_optional(mod, import_from=None):
         pass
 
     return namespace.get(mod)
-
