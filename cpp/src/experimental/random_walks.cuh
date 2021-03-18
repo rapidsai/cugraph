@@ -33,6 +33,9 @@
 #include <thrust/iterator/constant_iterator.h>
 #include <thrust/iterator/counting_iterator.h>
 #include <thrust/iterator/transform_iterator.h>
+#include <thrust/iterator/zip_iterator.h>  //
+#include <thrust/tuple.h>                  //
+
 //#include <thrust/reduce.h>
 #include <thrust/random.h>
 #include <thrust/random/linear_congruential_engine.h>
@@ -53,6 +56,9 @@ namespace detail {
 
 template <typename T>
 using device_vec_t = rmm::device_uvector<T>;
+
+template <typename T>
+using device_v_it = typename device_vec_t<T>::iterator;
 
 template <typename value_t>
 value_t* raw_ptr(device_vec_t<value_t>& dv)
@@ -160,7 +166,9 @@ struct rrandom_gen_t {
 // classes abstracting the next vertex extraction mechanism:
 //
 // primary template, purposely undefined
-template <typename graph_t, typename index_t, typename enable_t = void>
+template <typename graph_t,
+          typename index_t  = typename graph_t::edge_type,
+          typename enable_t = void>
 struct col_indx_extract_t;
 
 // specialization for single-gpu functionality:
@@ -169,19 +177,41 @@ template <typename graph_t, typename index_t>
 struct col_indx_extract_t<graph_t, index_t, std::enable_if_t<graph_t::is_multi_gpu == false>> {
   using vertex_t = typename graph_t::vertex_type;
   using edge_t   = typename graph_t::edge_type;
+  using weight_t = typename graph_t::weight_type;
 
   col_indx_extract_t(raft::handle_t const& handle,
                      device_vec_t<vertex_t> const& d_indices,
                      device_vec_t<edge_t> const& d_offsets,
+                     device_vec_t<weight_t> const& d_values,
                      device_vec_t<edge_t> const& d_crt_out_degs,
-                     device_vec_t<edge_t> const& d_sizes,
+                     device_vec_t<index_t> const& d_sizes,
                      index_t num_paths,
                      index_t max_depth)
     : handle_(handle),
       col_indices_(raw_const_ptr(d_indices)),
       row_offsets_(raw_const_ptr(d_offsets)),
+      values_(raw_const_ptr(d_values)),
       out_degs_(raw_const_ptr(d_crt_out_degs)),
       sizes_(raw_const_ptr(d_sizes)),
+      num_paths_(num_paths),
+      max_depth_(max_depth)
+  {
+  }
+
+  col_indx_extract_t(raft::handle_t const& handle,
+                     vertex_t const* p_d_indices,
+                     edge_t const* p_d_offsets,
+                     weight_t const* p_d_values,
+                     edge_t const* p_d_crt_out_degs,
+                     index_t const* p_d_sizes,
+                     index_t num_paths,
+                     index_t max_depth)
+    : handle_(handle),
+      col_indices_(p_d_indices),
+      row_offsets_(p_d_offsets),
+      values_(p_d_values),
+      out_degs_(p_d_crt_out_degs),
+      sizes_(p_d_sizes),
       num_paths_(num_paths),
       max_depth_(max_depth)
   {
@@ -203,11 +233,16 @@ struct col_indx_extract_t<graph_t, index_t, std::enable_if_t<graph_t::is_multi_g
   void operator()(
     device_vec_t<vertex_t> const& d_coalesced_src_v,  // coalesced vector of vertices
     device_vec_t<vertex_t> const& d_v_col_indx,  // column indices, given by stepper's random engine
-    device_vec_t<vertex_t>& d_v_next_vertices)
-    const  // set of destination vertices, maing the next step
+    device_vec_t<vertex_t>& d_v_next_vertices,   // set of destination vertices, for next step
+    device_vec_t<weight_t>&
+      d_v_next_weights)  // set of weights between src and destination vertices, for next step
+    const
   {
-    auto max_depth          = max_depth_;  // to avoid capturing `this`...
-    auto const* ptr_d_sizes = sizes_;
+    using zip_iterator_t =
+      thrust::zip_iterator<thrust::tuple<device_v_it<vertex_t>, device_v_it<weight_t>>>;
+
+    // auto max_depth          = max_depth_;  // to avoid capturing `this`...
+    // auto const* ptr_d_sizes = sizes_;
 
     thrust::transform_if(
       rmm::exec_policy(handle_.get_stream())->on(handle_.get_stream()),
@@ -215,16 +250,18 @@ struct col_indx_extract_t<graph_t, index_t, std::enable_if_t<graph_t::is_multi_g
       thrust::make_counting_iterator<index_t>(num_paths_),  // input1
       d_v_col_indx.begin(),                                 // input2
       out_degs_,                                            // stencil
-      d_v_next_vertices.begin(),
-      [max_depth,
-       ptr_d_sizes,
+      thrust::make_zip_iterator(
+        thrust::make_tuple(d_v_next_vertices.begin(), d_v_next_weights.begin())),  // output
+      [max_depth         = max_depth_,
+       ptr_d_sizes       = sizes_,
        ptr_d_coalesced_v = raw_const_ptr(d_coalesced_src_v),
        row_offsets       = row_offsets_,
-       col_indices       = col_indices_] __device__(auto indx, auto col_indx) {
+       col_indices       = col_indices_,
+       values            = values_] __device__(auto indx, auto col_indx) {
         auto delta     = ptr_d_sizes[indx] - 1;
         auto v_indx    = ptr_d_coalesced_v[indx * max_depth + delta];
         auto start_row = row_offsets[v_indx];
-        return col_indices[start_row + col_indx];
+        return thrust::make_tuple(col_indices[start_row + col_indx], values[start_row + col_indx]);
       },
       [] __device__(auto crt_out_deg) { return crt_out_deg > 0; });
   }
@@ -233,6 +270,8 @@ struct col_indx_extract_t<graph_t, index_t, std::enable_if_t<graph_t::is_multi_g
   raft::handle_t const& handle_;
   vertex_t const* col_indices_;
   edge_t const* row_offsets_;
+  weight_t const* values_;
+
   edge_t const* out_degs_;
   index_t const* sizes_;
   index_t num_paths_;
