@@ -157,6 +157,88 @@ struct rrandom_gen_t {
   seed_t seed_;                   // seed to be used for current batch
 };
 
+// classes abstracting the next vertex extraction mechanism:
+//
+// primary template, purposely undefined
+template <typename graph_t, typename index_t, typename enable_t = void>
+struct col_indx_extract_t;
+
+// specialization for single-gpu functionality:
+//
+template <typename graph_t, typename index_t>
+struct col_indx_extract_t<graph_t, index_t, std::enable_if_t<graph_t::is_multi_gpu == false>> {
+  using vertex_t = typename graph_t::vertex_type;
+  using edge_t   = typename graph_t::edge_type;
+
+  col_indx_extract_t(raft::handle_t const& handle,
+                     device_vec_t<vertex_t> const& d_indices,
+                     device_vec_t<edge_t> const& d_offsets,
+                     device_vec_t<edge_t> const& d_crt_out_degs,
+                     device_vec_t<edge_t> const& d_sizes,
+                     index_t num_paths,
+                     index_t max_depth)
+    : handle_(handle),
+      col_indices_(raw_const_ptr(d_indices)),
+      row_offsets_(raw_const_ptr(d_offsets)),
+      out_degs_(raw_const_ptr(d_crt_out_degs)),
+      sizes_(raw_const_ptr(d_sizes)),
+      num_paths_(num_paths),
+      max_depth_(max_depth)
+  {
+  }
+
+  // in-place extractor of next set of vertices, d_v_next_vertices,
+  // given start set of vertices. d_v_src_vertices,
+  // and corresponding column index set, d_v_col_indx:
+  //
+  // for each indx in [0, num_paths){
+  //   v_indx = d_v_src_vertices[indx*max_depth + d_sizes[indx] - 1];
+  //   if( out_degs_[v_indx] > 0 ) {
+  //      start_row = row_offsets_[v_indx];
+  //      delta = d_v_col_indx[indx];
+  //      d_v_next_vertices[indx] = col_indices_[start_row + delta];
+  // }
+  // (use tranform_if() with transform iterator)
+  //
+  void operator()(
+    device_vec_t<vertex_t> const& d_coalesced_src_v,  // coalesced vector of vertices
+    device_vec_t<vertex_t> const& d_v_col_indx,  // column indices, given by stepper's random engine
+    device_vec_t<vertex_t>& d_v_next_vertices)
+    const  // set of destination vertices, maing the next step
+  {
+    auto max_depth          = max_depth_;  // to avoid capturing `this`...
+    auto const* ptr_d_sizes = sizes_;
+
+    thrust::transform_if(
+      rmm::exec_policy(handle_.get_stream())->on(handle_.get_stream()),
+      thrust::make_counting_iterator<index_t>(0),
+      thrust::make_counting_iterator<index_t>(num_paths_),  // input1
+      d_v_col_indx.begin(),                                 // input2
+      out_degs_,                                            // stencil
+      d_v_next_vertices.begin(),
+      [max_depth,
+       ptr_d_sizes,
+       ptr_d_coalesced_v = raw_const_ptr(d_coalesced_src_v),
+       row_offsets       = row_offsets_,
+       col_indices       = col_indices_] __device__(auto indx, auto col_indx) {
+        auto delta     = ptr_d_sizes[indx] - 1;
+        auto v_indx    = ptr_d_coalesced_v[indx * max_depth + delta];
+        auto start_row = row_offsets[v_indx];
+        return col_indices[start_row + col_indx];
+      },
+      [] __device__(auto crt_out_deg) { return crt_out_deg > 0; });
+  }
+
+ private:
+  raft::handle_t const& handle_;
+  vertex_t const* col_indices_;
+  edge_t const* row_offsets_;
+  edge_t const* out_degs_;
+  index_t const* sizes_;
+  index_t num_paths_;
+  index_t max_depth_;
+};
+
 // class abstracting the RW stepping algorithm:
 // preprocessing, stepping, and post-processing
 //
