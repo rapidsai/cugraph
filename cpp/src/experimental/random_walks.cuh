@@ -285,15 +285,13 @@ struct random_walker_t {
                   graph_t const& graph,
                   index_t nPaths,
                   index_t max_depth,
-                  vertex_t* ptr_d_current_vertices,
                   random_engine_t const& rnd)
     : handle_(handle),
       num_paths_(nPaths),
       max_depth_(max_depth),
-      ptr_d_vertex_set_(ptr_d_current_vertices),
       d_v_stopped_{static_cast<size_t>(nPaths), handle_.get_stream()},
       rnd_(rnd),
-      d_crt_out_degs_(graph.compute_out_degrees(handle_))
+      d_cached_out_degs_(graph.compute_out_degrees(handle_))
   {
     // init d_v_stopped_ to {0} (i.e., no path is stopped):
     //
@@ -303,17 +301,28 @@ struct random_walker_t {
                    d_v_stopped_.begin());
   }
 
+  // in-place updates its arguments from one step to next
+  // (to avoid copying)
+  //
   // take one step in sync for all paths:
   //
   void step(graph_t const& graph,
             index_t step,
             device_vec_t<vertex_t>& d_v_paths_v_set,  // coalesced vertex set
             device_vec_t<weight_t>& d_v_paths_w_set,  // coalesced weight set
-            device_vec_t<index_t>& d_v_paths_sz)      // paths sizes
+            device_vec_t<index_t>& d_v_paths_sz,      // paths sizes
+            device_vec_t<edge_t>& d_crt_out_degs)     // out-degs for current set of vertices
   {
+    // update crt snapshot of out-degs,
+    // from cached out degs, using
+    // latest vertex in each path as source:
+    //
+    gather_from_coalesced(
+      d_v_paths_v_set, d_cached_out_degs_, d_v_paths_sz, d_crt_out_degs, max_depth_, num_paths_);
+
     col_indx_extract_t<graph_t> col_extractor(handle_,
                                               graph,
-                                              raw_const_ptr(d_crt_out_degs_),
+                                              raw_const_ptr(d_crt_out_degs),
                                               raw_const_ptr(d_v_paths_sz),
                                               num_paths_,
                                               max_depth_);
@@ -346,31 +355,53 @@ struct random_walker_t {
       return true;
   }
 
-  void initialize(index_t max_depth, device_vec_t<vertex_t>& d_v_paths_v_set) const
+  // for each i in [0..num_paths_) {
+  //   d_paths_v_set[i*max_depth] = d_src_init_v[i];
+  //
+  void initialize(device_vec_t<vertex_t> const& d_src_init_v,
+                  device_vec_t<vertex_t>& d_paths_v_set,
+                  device_vec_t<index_t>& d_sizes) const
   {
-    // TODO: scatter from ptr_d_vertex_set_
-    // for each i in [0..num_paths_) {
-    //   d_v_paths_v_set[i*max_depth] = ptr_d_vertex_set_[i];
+    // intialize path sizes to 1, as they contain at least one vertex each:
+    // the initial set: d_src_init_v;
+    //
+    thrust::copy_n(rmm::exec_policy(handle_.get_stream())->on(handle_.get_stream()),
+                   thrust::make_constant_iterator<index_t>(1),
+                   num_paths_,
+                   d_sizes.begin());
+
+    // scatter d_src_init_v to coalesced vertex vector:
+    //
+    auto dlambda = [stride = max_depth_] __device__(auto indx) { return indx * stride; };
+
+    // use the transform iterator as map:
+    //
+    auto map_it_begin =
+      thrust::make_transform_iterator(thrust::make_counting_iterator<index_t>(0), dlambda);
+
+    thrust::scatter(rmm::exec_policy(handle_.get_stream())->on(handle_.get_stream()),
+                    d_src_init_v.begin(),
+                    d_src_init_v.end(),
+                    map_it_begin,
+                    d_paths_v_set.begin());
   }
 
-  void defragment(device_vec_t<vertex_t>& d_coalesced_v,  // coalesced vertex set
-                  device_vec_t<weight_t>& d_coalesced_w,  // coalesced weight set
-                  device_vec_t<index_t> const& d_sizes,   // paths sizes
-                  index_t nPaths,
-                  index_t max_depth) const
+  void defragment(device_vec_t<vertex_t>& d_coalesced_v,       // coalesced vertex set
+                  device_vec_t<weight_t>& d_coalesced_w,       // coalesced weight set
+                  device_vec_t<index_t> const& d_sizes) const  // paths sizes
   {
-    assert(max_depth > 1);  // else, no need to step; and no edges
+    assert(max_depth_ > 1);  // else, no need to step; and no edges
 
     index_t const* ptr_d_sizes = d_sizes.data();
 
-    auto predicate_v = [max_depth, ptr_d_sizes] __device__(auto indx) {
+    auto predicate_v = [max_depth = max_depth_, ptr_d_sizes] __device__(auto indx) {
       auto row_indx = indx / max_depth;
       auto col_indx = indx % max_depth;
 
       return (col_indx >= ptr_d_sizes[row_indx]);
     };
 
-    auto predicate_w = [max_depth, ptr_d_sizes] __device__(auto indx) {
+    auto predicate_w = [max_depth = max_depth_, ptr_d_sizes] __device__(auto indx) {
       auto row_indx = indx / (max_depth - 1);
       auto col_indx = indx % (max_depth - 1);
 
@@ -502,11 +533,10 @@ struct random_walker_t {
   raft::handle_t const& handle_;
   index_t num_paths_;
   index_t max_depth_;
-  vertex_t* ptr_d_vertex_set_;
   device_vec_t<int> d_v_stopped_;  // keeps track of paths that stopped (==1); FIXME: remove, not
-                                   // needed (use p_d_crt_out_degs_ instead)
+                                   // needed (use p_d_crt_out_degs instead)
   random_engine_t rnd_;
-  device_vec_t<edge_t> d_crt_out_degs_;
+  device_vec_t<edge_t> d_cached_out_degs_;
 };
 
 /**
@@ -543,6 +573,7 @@ random_walks(raft::handle_t const& handle,
              random_engine_t& rnd_engine)
 {
   using vertex_t = typename graph_t::vertex_type;
+  using edge_t   = typename graph_t::edge_type;
   using weight_t = typename graph_t::weight_type;
 
   // TODO: Potentially this might change, if it's decided to pass the
@@ -563,12 +594,8 @@ random_walks(raft::handle_t const& handle,
 
   cudaStreamSynchronize(stream);
 
-  random_walker_t<graph_t, random_engine_t> rand_walker{handle,
-                                                        graph,
-                                                        static_cast<index_t>(nPaths),
-                                                        static_cast<index_t>(max_depth),
-                                                        d_v_start.data(),
-                                                        rnd_engine};
+  random_walker_t<graph_t, random_engine_t> rand_walker{
+    handle, graph, static_cast<index_t>(nPaths), static_cast<index_t>(max_depth), rnd_engine};
 
   // pre-allocate num_paths * max_depth;
   //
@@ -576,15 +603,17 @@ random_walks(raft::handle_t const& handle,
   device_vec_t<vertex_t> d_v_paths_v_set{coalesced_sz, stream};  // coalesced vertex set
   device_vec_t<weight_t> d_v_paths_w_set{coalesced_sz, stream};  // coalesced weight set
   device_vec_t<index_t> d_v_paths_sz{nPaths, stream};            // paths sizes
+  device_vec_t<edge_t> d_crt_out_degs{nPaths, stream};  // out-degs for current set of vertices
 
   // very first vertex, for each path:
   //
-  rand_walker.initialize(max_depth, d_v_paths_v_set);
+  rand_walker.initialize(d_v_start, d_v_paths_v_set, d_v_paths_sz);
 
   // start from 1, as 0-th was initialized above:
   //
   for (decltype(max_depth) step_indx = 1; step_indx < max_depth; ++step_indx) {
-    rand_walker.step(graph, step_indx, d_v_paths_v_set, d_v_paths_w_set, d_v_paths_sz);
+    rand_walker.step(
+      graph, step_indx, d_v_paths_v_set, d_v_paths_w_set, d_v_paths_sz, d_crt_out_degs);
 
     // early exit: all paths have reached sinks:
     //
@@ -593,8 +622,7 @@ random_walks(raft::handle_t const& handle,
 
   // truncate v_set, w_set to actual space used:
   //
-  rand_walker.defragment(
-    d_v_paths_v_set, d_v_paths_w_set, d_v_paths_sz, static_cast<index_t>(nPaths), max_depth);
+  rand_walker.defragment(d_v_paths_v_set, d_v_paths_w_set, d_v_paths_sz);
 
   // because device_uvector is not copy-cnstr-able:
   //
