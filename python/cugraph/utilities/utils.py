@@ -261,7 +261,9 @@ def ensure_cugraph_obj(obj, nx_weight_attr=None, matrix_graph_type=None):
                 f"Graph or DiGraph, got: {matrix_graph_type}"
             )
 
-        if input_type in (CP_COMPRESSED_MATRIX_TYPES + SP_COMPRESSED_MATRIX_TYPES):
+        if input_type in (
+            CP_COMPRESSED_MATRIX_TYPES + SP_COMPRESSED_MATRIX_TYPES
+        ):
             coo = obj.tocoo(copy=False)
         else:
             coo = obj

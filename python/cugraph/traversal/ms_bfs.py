@@ -13,14 +13,16 @@
 
 import numpy as np
 import cudf
-from cugraph.structure.graph import Graph, DiGraph
-from cugraph.utilities.utils import get_device_memory_info
+
+# from cugraph.structure.graph import Graph, DiGraph
+# from cugraph.utilities.utils import get_device_memory_info
 import warnings
 
 
 def _get_feasibility(G, sources, components=None, depth_limit=None):
     """
-    Evaluate the feasibility for breadth first traversal from multiple sources in a graph.
+    Evaluate the feasibility for breadth first traversal from multiple sources
+    in a graph.
 
     Parameters
     ----------
@@ -29,9 +31,9 @@ def _get_feasibility(G, sources, components=None, depth_limit=None):
 
     sources :  cudf.Series
         Subset of vertices from which the traversals start. A BFS is run for
-        each source in the Series. 
-        The size of the series should be at least one and cannot exceed the size
-        of the graph.
+        each source in the Series.
+        The size of the series should be at least one and cannot exceed
+        the size of the graph.
 
     depth_limit : Integer, optional, default=None
         Limit the depth of the search. Terminates if no more vertices are
@@ -46,7 +48,7 @@ def _get_feasibility(G, sources, components=None, depth_limit=None):
         components['vertex'] : cudf.Series
             vertex IDs
         components['color'] : cudf.Series
-            component IDs/color for vertices.  
+            component IDs/color for vertices.
 
     Returns
     -------
@@ -93,7 +95,9 @@ def _get_feasibility(G, sources, components=None, depth_limit=None):
         tmp = components["color"].value_counts()
         n_components = tmp.size
         if n_sources / n_components > 100:
-            warnings.warn("High number of seeds per component result in large output.")
+            warnings.warn(
+                "High number of seeds per component result in large output."
+            )
         mean_component_sz = tmp.mean()
         output_sz = mean_component_sz * n_sources * 2 * size_of_e
 
@@ -116,11 +120,11 @@ def concurrent_bfs(Graphs, sources, depth_limit=None, offload=False):
         The adjacency lists will be computed if not already present.
 
     sources : list of cudf.Series
-        For each graph, subset of vertices from which the traversals start. 
+        For each graph, subset of vertices from which the traversals start.
         A BFS is run in Graphs[i] for each source in the Series at sources[i].
         The size of this list must match the size of the graph list.
-        The size of each Series (ie. the number of sources per graph) is flexible,
-        but cannot exceed the size of the corresponding graph.
+        The size of each Series (ie. the number of sources per graph)
+        is flexible, but cannot exceed the size of the corresponding graph.
 
 
     depth_limit : Integer, optional, default=None
@@ -128,7 +132,7 @@ def concurrent_bfs(Graphs, sources, depth_limit=None, offload=False):
         reachable within the distance of depth_limit
 
     offload : boolean, optional, default=False
-        Indicates if output should be written to the disk. 
+        Indicates if output should be written to the disk.
         When not provided, the algorithms decides if offloading is needed
         based on the input parameters.
 
@@ -141,19 +145,23 @@ def concurrent_bfs(Graphs, sources, depth_limit=None, offload=False):
         BFS_edge_lists : cudf.DataFrame
             GPU data frame containing all BFS edges
         source_offsets: cudf.Series
-            Series containing the starting offset in the returned edge list for each source.
+            Series containing the starting offset in the returned edge list
+            for each source.
 
     If offload is True, or if the output does not fit in memory :
         Writes csv files containing BFS output to the disk.
     """
 
     if not isinstance(Graphs, list):
-        raise TypeError("Graphs should be a list of cugraph.Graph or cugraph.DiGraph")
+        raise TypeError(
+            "Graphs should be a list of cugraph.Graph or cugraph.DiGraph"
+        )
     if not isinstance(sources, list):
         raise TypeError("sources should be a list of cudf.Series")
     if len(Graphs) != len(sources):
         raise ValueError(
-            "The size of the sources list must match the size of the graph list."
+            "The size of the sources list must match\
+             the size of the graph list."
         )
     if offload is True:
         raise NotImplementedError(
@@ -175,7 +183,9 @@ def concurrent_bfs(Graphs, sources, depth_limit=None, offload=False):
     # )
 
 
-def multi_source_bfs(G, sources, components=None, depth_limit=None, offload=False):
+def multi_source_bfs(
+    G, sources, components=None, depth_limit=None, offload=False
+):
     """
     Find the breadth first traversal from multiple sources in a graph.
 
@@ -186,9 +196,9 @@ def multi_source_bfs(G, sources, components=None, depth_limit=None, offload=Fals
 
     sources :  cudf.Series
         Subset of vertices from which the traversals start. A BFS is run for
-        each source in the Series. 
-        The size of the series should be at least one and cannot exceed the size
-        of the graph.
+        each source in the Series.
+        The size of the series should be at least one and cannot exceed the
+        size of the graph.
 
     depth_limit : Integer, optional, default=None
         Limit the depth of the search. Terminates if no more vertices are
@@ -203,10 +213,10 @@ def multi_source_bfs(G, sources, components=None, depth_limit=None, offload=Fals
         components['vertex'] : cudf.Series
             vertex IDs
         components['color'] : cudf.Series
-            component IDs/color for vertices.  
+            component IDs/color for vertices.
 
     offload : boolean, optional, default=False
-        Indicates if output should be written to the disk. 
+        Indicates if output should be written to the disk.
         When not provided, the algorithms decides if offloading is needed
         based on the input parameters.
 
@@ -218,18 +228,19 @@ def multi_source_bfs(G, sources, components=None, depth_limit=None, offload=Fals
        cudf.DataFrame
           df['vertex'] vertex IDs
 
-          df['distance_<source>'] path distance for each vertex from the starting vertex
-          One column per source.
+          df['distance_<source>'] path distance for each vertex from the
+          starting vertex. One column per source.
 
-          df['predecessor_<source>'] for each i'th position in the column, the vertex ID
-          immediately preceding the vertex at position i in the 'vertex' column
-          One column per source.
+          df['predecessor_<source>'] for each i'th position in the column,
+          the vertex ID immediately preceding the vertex at position i in
+          the 'vertex' column. One column per source.
 
     If G is a cugraph.Graph and component information is present returns :
         BFS_edge_lists : cudf.DataFrame
             GPU data frame containing all BFS edges
         source_offsets: cudf.Series
-            Series containing the starting offset in the returned edge list for each source.
+            Series containing the starting offset in the returned edge list
+            for each source.
 
     If offload is True, or if the output does not fit in memory :
         Writes csv files containing BFS output to the disk.
