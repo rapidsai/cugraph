@@ -125,14 +125,13 @@ struct rrandom_gen_t {
       d_ptr_random_, nPaths, real_t{0.0}, real_t{1.0}, handle.get_stream());
   }
 
+  // in place:
   // for each v {
   // if out_deg(v) > 0
-  //   return random index in [0, out_deg(v))
+  //   d_col_indx[v] = random index in [0, out_deg(v))
   //}
-  device_vec_t<vertex_t> generate_col_indices(void) const
+  void generate_col_indices(device_vec_t<vertex_t>& d_col_indx) const
   {
-    device_vec_t<vertex_t> d_col_indx{num_paths_, handle_.get_stream()};
-
     thrust::transform_if(
       rmm::exec_policy(handle_.get_stream())->on(handle_.get_stream()),
       d_ptr_random_,
@@ -147,8 +146,6 @@ struct rrandom_gen_t {
         return (v_indx >= crt_out_deg ? crt_out_deg - 1 : v_indx);
       },
       [] __device__(auto crt_out_deg) { return crt_out_deg > 0; });
-
-    return d_col_indx;
   }
 
  private:
@@ -231,7 +228,7 @@ struct random_walker_t {
 
   void initialize(index_t max_depth, rmm::device_uvector<vertex_t>& d_v_paths_v_set) const
   {
-    // TODO: gather from ptr_d_vertex_set_
+    // TODO: scatter from ptr_d_vertex_set_
     // for each i in [0..num_paths_) {
     //   d_v_paths_v_set[i*max_depth] = ptr_d_vertex_set_[i];
   }
