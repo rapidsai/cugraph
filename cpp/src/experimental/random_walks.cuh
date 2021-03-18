@@ -205,7 +205,8 @@ struct col_indx_extract_t<graph_t, index_t, std::enable_if_t<graph_t::is_multi_g
   {
   }
 
-  // in-place extractor of next set of vertices, d_v_next_vertices,
+  // in-place extractor of next set of vertices and weights,
+  // (d_v_next_vertices, d_v_next_weights),
   // given start set of vertices. d_v_src_vertices,
   // and corresponding column index set, d_v_col_indx:
   //
@@ -271,7 +272,7 @@ struct col_indx_extract_t<graph_t, index_t, std::enable_if_t<graph_t::is_multi_g
 //
 template <typename graph_t,
           typename random_engine_t,
-          typename index_t = typename graph_t::vertex_type>
+          typename index_t = typename graph_t::edge_type>
 struct random_walker_t {
   static_assert(std::is_trivially_copyable<random_engine_t>::value,
                 "random engine assumed trivially copyable.");
@@ -283,14 +284,16 @@ struct random_walker_t {
   random_walker_t(raft::handle_t const& handle,
                   graph_t const& graph,
                   index_t nPaths,
+                  index_t max_depth,
                   vertex_t* ptr_d_current_vertices,
                   random_engine_t const& rnd)
     : handle_(handle),
       num_paths_(nPaths),
+      max_depth_(max_depth),
       ptr_d_vertex_set_(ptr_d_current_vertices),
       d_v_stopped_{static_cast<size_t>(nPaths), handle_.get_stream()},
       rnd_(rnd),
-      d_v_out_degs_(graph.compute_out_degrees(handle_))
+      d_crt_out_degs_(graph.compute_out_degrees(handle_))
   {
     // init d_v_stopped_ to {0} (i.e., no path is stopped):
     //
@@ -308,6 +311,12 @@ struct random_walker_t {
             device_vec_t<weight_t>& d_v_paths_w_set,  // coalesced weight set
             device_vec_t<index_t>& d_v_paths_sz)      // paths sizes
   {
+    col_indx_extract_t<graph_t> col_extractor(handle_,
+                                              graph,
+                                              raw_const_ptr(d_crt_out_degs_),
+                                              raw_const_ptr(d_v_paths_sz),
+                                              num_paths_,
+                                              max_depth_);
     // TODO: gather:
     // for each indx in [0..nPaths) {
     //   v_indx = d_v_rnd_n_indx[indx];
@@ -324,6 +333,8 @@ struct random_walker_t {
 
   bool all_stopped(void) const
   {
+    // FIXME: use (all(d_crt_out_degs, (==0))
+    //
     auto pos = thrust::find(rmm::exec_policy(handle_.get_stream())->on(handle_.get_stream()),
                             d_v_stopped_.begin(),
                             d_v_stopped_.end(),
@@ -490,10 +501,12 @@ struct random_walker_t {
  private:
   raft::handle_t const& handle_;
   index_t num_paths_;
+  index_t max_depth_;
   vertex_t* ptr_d_vertex_set_;
-  device_vec_t<int> d_v_stopped_;  // keeps track of paths that stopped (==1)
+  device_vec_t<int> d_v_stopped_;  // keeps track of paths that stopped (==1); FIXME: remove, not
+                                   // needed (use p_d_crt_out_degs_ instead)
   random_engine_t rnd_;
-  device_vec_t<edge_t> d_v_out_degs_;
+  device_vec_t<edge_t> d_crt_out_degs_;
 };
 
 /**
@@ -550,8 +563,12 @@ random_walks(raft::handle_t const& handle,
 
   cudaStreamSynchronize(stream);
 
-  random_walker_t<graph_t, random_engine_t> rand_walker{
-    handle, graph, static_cast<index_t>(nPaths), d_v_start.data(), rnd_engine};
+  random_walker_t<graph_t, random_engine_t> rand_walker{handle,
+                                                        graph,
+                                                        static_cast<index_t>(nPaths),
+                                                        static_cast<index_t>(max_depth),
+                                                        d_v_start.data(),
+                                                        rnd_engine};
 
   // return approaches:
   // 1. faster but (potentially) more memory hungry:
