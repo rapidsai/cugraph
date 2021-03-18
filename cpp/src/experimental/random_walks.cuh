@@ -78,7 +78,7 @@ template <typename vertex_t,
           typename edge_t,
           typename seed_t  = long,
           typename real_t  = float,
-          typename index_t = vertex_t>
+          typename index_t = edge_t>
 struct rrandom_gen_t {
   rrandom_gen_t(raft::handle_t const& handle,
                 index_t nPaths,
@@ -320,6 +320,8 @@ struct random_walker_t {
     gather_from_coalesced(
       d_v_paths_v_set, d_cached_out_degs_, d_v_paths_sz, d_crt_out_degs, max_depth_, num_paths_);
 
+    // column extraction:
+    //
     col_indx_extract_t<graph_t> col_extractor(handle_,
                                               graph,
                                               raw_const_ptr(d_crt_out_degs),
@@ -561,7 +563,7 @@ struct random_walker_t {
  */
 template <typename graph_t,
           typename random_engine_t,
-          typename index_t = typename graph_t::vertex_type>
+          typename index_t = typename graph_t::edge_type>
 std::enable_if_t<graph_t::is_multi_gpu == false,
                  std::tuple<device_vec_t<typename graph_t::vertex_type>,
                             device_vec_t<typename graph_t::weight_type>,
@@ -652,7 +654,7 @@ random_walks(raft::handle_t const& handle,
  */
 template <typename graph_t,
           typename random_engine_t,
-          typename index_t = typename graph_t::vertex_type>
+          typename index_t = typename graph_t::edge_type>
 std::enable_if_t<graph_t::is_multi_gpu == true,
                  std::tuple<device_vec_t<typename graph_t::vertex_type>,
                             device_vec_t<typename graph_t::weight_type>,
@@ -686,7 +688,7 @@ random_walks(raft::handle_t const& handle,
  * each, and coresponding path sizes. This is meant to minimize the number of DF's to be passed to
  * the Python layer.
  */
-template <typename graph_t, typename index_t = typename graph_t::vertex_type>
+template <typename graph_t, typename index_t = typename graph_t::edge_type>
 std::tuple<rmm::device_uvector<typename graph_t::vertex_type>,
            rmm::device_uvector<typename graph_t::weight_type>,
            rmm::device_uvector<index_t>>
