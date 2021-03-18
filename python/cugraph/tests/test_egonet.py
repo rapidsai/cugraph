@@ -70,7 +70,7 @@ def test_batched_ego_graphs(graph_file, seeds, radius):
     df, offsets = cugraph.batched_ego_graphs(Gnx, seeds, radius=radius)
     for i in range(len(seeds)):
         ego_nx = nx.ego_graph(Gnx, seeds[i], radius=radius)
-        ego_df = df[offsets[i] : offsets[i + 1]]
+        ego_df = df[offsets[i]:offsets[i + 1]]
         ego_cugraph = nx.from_pandas_edgelist(
             ego_df, source="src", target="dst", edge_attr="weight"
         )
