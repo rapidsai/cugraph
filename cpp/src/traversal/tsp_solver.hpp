@@ -326,26 +326,32 @@ __device__ void hill_climbing(
   } while (minchange < 0 && myswaps < 2 * nodes);
 }
 
-__device__ void get_optimal_tour(
-    TSPResults results, int *mylock, float *px, float *py, int *path,
-    int *shbuf, int const nodes)
+__global__ void get_optimal_tour(TSPResults results, int *mylock, int *work,
+    int const nodes)
 {
+  extern __shared__ int accumulator[];
+  int climber_id = blockIdx.x;
+  int *buf  = &work[climber_id * ((4 * nodes + 3 + 31) / 32 * 32)];
+  float *px = (float *)(&buf[nodes]);
+  float *py = &px[nodes + 1];
+  int *path = (int *)(&py[nodes + 1]);
+
   // Now find actual length of the last tour, result of the climb
   int term = 0;
   for (int i = threadIdx.x; i < nodes; i += blockDim.x) {
     term += __float2int_rn(euclidean_dist(px, py, i, i + 1));
   }
-  shbuf[threadIdx.x] = term;
+  accumulator[threadIdx.x] = term;
   __syncthreads();
 
   int j = blockDim.x;  // block level reduction
   do {
     int k = (j + 1) / 2;
-    if ((threadIdx.x + k) < j) { shbuf[threadIdx.x] += shbuf[threadIdx.x + k]; }
+    if ((threadIdx.x + k) < j) { accumulator[threadIdx.x] += accumulator[threadIdx.x + k]; }
     j = k;  // divide active warp size in half
     __syncthreads();
   } while (j > 1);
-  term = shbuf[0];
+  term = accumulator[0];
 
   if (threadIdx.x == 0) {
     atomicMin(results.best_cost, term);
@@ -389,9 +395,6 @@ __global__ __launch_bounds__(2048, 2) void search_solution(TSPResults results,
   __syncthreads();
 
   hill_climbing(px, py, buf, path, shbuf, nodes, climbs);
-  __syncthreads();
-
-  get_optimal_tour(results, mylock, px, py, path, shbuf, nodes);
 }
 }  // namespace detail
 }  // namespace cugraph

@@ -150,6 +150,8 @@ float TSP::compute()
                                                                                  climbs_,
                                                                                  threads,
                                                                                  batch);
+    get_optimal_tour<<<restart_batch_, threads, sizeof(int) * threads, stream_>>>(results_,
+        mylock_, work_, nodes_);
 
     CHECK_CUDA(stream_);
     cudaDeviceSynchronize();
@@ -179,7 +181,7 @@ float TSP::compute()
   long long moves = 1LL * total_climbs * (nodes_ - 2) * (nodes_ - 1) / 2;
 
   for (int i = 0; i < nodes_; ++i) {
-    if (verbose_) { std::cout << h_x_pos[i] << " " << h_y_pos[i] << "\n"; }
+    if (verbose_) { std::cout << h_route[i] << ": " << h_x_pos[i] << " " << h_y_pos[i] << "\n"; }
     final_cost += euclidean_dist(h_x_pos.data(), h_y_pos.data(), i, i + 1);
   }
 
