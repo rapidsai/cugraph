@@ -34,7 +34,8 @@
 #include <thrust/iterator/counting_iterator.h>
 #include <thrust/iterator/transform_iterator.h>
 #include <thrust/iterator/zip_iterator.h>  //
-#include <thrust/tuple.h>                  //
+#include <thrust/logical.h>
+#include <thrust/tuple.h>  //
 
 #include <thrust/remove.h>
 #include <thrust/transform.h>
@@ -376,19 +377,14 @@ struct random_walker_t {
     scatter_weights(d_next_w, d_coalesced_w, d_crt_out_degs, d_paths_sz);
   }
 
-  bool all_stopped(void) const
+  // returns true if all paths reached sinks:
+  //
+  bool all_paths_stopped(device_vec_t<edge_t> const& d_crt_out_degs) const
   {
-    // FIXME: use (all(d_crt_out_degs, (==0))
-    //
-    auto pos = thrust::find(rmm::exec_policy(handle_.get_stream())->on(handle_.get_stream()),
-                            d_v_stopped_.begin(),
-                            d_v_stopped_.end(),
-                            0);
-
-    if (pos != d_v_stopped_.end())
-      return false;
-    else
-      return true;
+    return thrust::all_of(rmm::exec_policy(handle_.get_stream())->on(handle_.get_stream()),
+                          d_crt_out_degs.begin(),
+                          d_crt_out_degs.end(),
+                          [] __device__(auto crt_out_deg) { return crt_out_deg == 0; });
   }
 
   // for each i in [0..num_paths_) {
@@ -683,6 +679,8 @@ random_walks(raft::handle_t const& handle,
   // start from 1, as 0-th was initialized above:
   //
   for (decltype(max_depth) step_indx = 1; step_indx < max_depth; ++step_indx) {
+    // take one-step in-sync for each path in parallel:
+    //
     rand_walker.step(graph,
                      seed0 + static_cast<seed_t>(step_indx),
                      d_coalesced_v,
@@ -696,7 +694,7 @@ random_walks(raft::handle_t const& handle,
 
     // early exit: all paths have reached sinks:
     //
-    if (rand_walker.all_stopped()) break;
+    if (rand_walker.all_paths_stopped(d_crt_out_degs)) break;
   }
 
   // wrap-up, post-process:
