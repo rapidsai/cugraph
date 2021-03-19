@@ -32,30 +32,21 @@ build:
 requirements:
   build:
     - cmake>=3.12.4
-    - libcudf={{ minor_version }}
     - cudatoolkit {{ cuda_version }}.*
+    - librmm {{ minor_version }}.*
     - boost-cpp>=1.66
-    - libcypher-parser
     - nccl>=2.8.4
-    - ucx-py {{ minor_version }}
     - ucx-proc=*=gpu
     - gtest
+    - gmock
     - faiss-proc=*=cuda
     - conda-forge::libfaiss=1.7.0
-    - gmock
   run:
-    - libcudf={{ minor_version }}
     - {{ pin_compatible('cudatoolkit', max_pin='x.x') }}
     - nccl>=2.8.4
-    - ucx-py {{ minor_version }}
     - ucx-proc=*=gpu
     - faiss-proc=*=cuda
     - conda-forge::libfaiss=1.7.0
-
-#test:
-#  commands:
-#    - test -f $PREFIX/include/cugraph.h
-
 
 about:
   home: http://rapids.ai/

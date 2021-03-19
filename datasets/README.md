@@ -16,20 +16,84 @@ This directory contains small public datasets in `mtx` and `csv` format used by 
 
 **netscience** : The graph netscience contains a coauthorship network of scientists working on network theory and experiment, as compiled by M. Newman in May 2006.
 
-## C++
-Cugraph's C++ analytics tests need larger datasets (>5GB uncompressed) and reference results (>125MB uncompressed). They can be downloaded by running the provided script from the `datasets` directory.
+
+
+### Modified datasets 
+
+The datasets below were added to provide input that contains self-loops, string vertex IDs, isolated vertices, and multiple edges.
+
+| Graph               | V       | E          | Directed | Weighted  | self-loops | Isolated V | String V IDs | Multi-edges | 
+| ------------------- | ------- | ---------- | -------- | --------- | ---------- | ---------- | ------------ | ----------- |
+| karate_multi_edge   | 34      | 160        | No       | Yes       | No         | No         | No           | Yes         |
+| dolphins_multi_edge | 62      | 325        | No       | Yes       | No         | No         | No           | Yes         |
+| karate_s_loop       | 34      | 160        | No       | Yes       | Yes        | No         | No           | No          |
+| dolphins_s_loop     | 62      | 321        | No       | Yes       | Yes        | No         | No           | No          |
+| karate_mod          | 37      | 156        | No       | No        | No         | Yes        | No           | No          |
+| karate_str          | 34      | 156        | No       | Yes       | No         | No         | Yes          | No          |
+
+**karate_multi_edge** : The graph "karate_multi_edge" is a modified version of the  "karate" graph where multi-edges were added
+
+**dolphins_multi_edge** : The graph "dolphins_multi_edge" is a modified version of the  "dolphin" graph where multi-edges were added
+
+**karate_s_loop** : The graph "karate_s_loop" is a modified version of the  "karate" graph where self-loops were added
+
+**dolphins_s_loop** : The graph "dolphins_s_loop" is a modified version of the  "dolphin" graph where self-loops were added
+
+**karate_mod** : The graph "karate_mod" is a modified version of the  "karate" graph where vertices and edges were added
+
+**karate_str** : The graph "karate_str" contains the network of friendships between the 34 members of a karate club at a US university, as described by Wayne Zachary in 1977. The integer vertices were replaced by strings
+
+
+### Additional datasets
+
+Larger datasets containing self-loops can be downloaded by running the provided script from the `datasets` directory using the `--self_loops` 
+option: 
+```
+cd <repo>/datasets
+./get_test_data.sh --self_loops
+```
+```
+<repo>/datasets/self_loops
+ |-ca-AstroPh  (5.3M) 
+ |-ca-CondMat  (2.8M)
+ |-ca-GrQc     (348K)
+ |-ca-HepTh    (763K)
+```
+These datasets are not currently used by any tests or benchmarks
+
+| Graph         | V       | E          | Directed | Weighted | self-loops | Isolated V | String V IDs | Multi-edges |  
+| ------------- | ------- | --------   | -------- | -------- | ---------- | ---------- | ------------ | ----------- |
+| ca-AstroPh    | 18,772  | 198,110    | No       | No       | Yes        | No         | No           | No          |
+| ca-CondMat    | 23,133  | 93,497     | No       | Yes      | Yes        | No         | No           | No          |
+| ca-GrQc       | 5,242   | 14,387     | No       | No       | Yes        | No         | No           | No          |
+| ca-HepTh      | 9,877   | 25,998     | No       | Yes      | Yes        | No         | No           | No          |
+
+**ca-AstroPh** : The graph "ca-AstroPh" covers scientific collaborations between authors papers submitted to Astro Physics category in the period from January 1993 to April 2003 (124 months), as described by J. Leskovec, J. Kleinberg and C. Faloutsos in 2007.
+
+**ca-CondMat** : The graph "ca-CondMat" covers scientific collaborations between authors papers submitted to Condense Matter category in the period from January 1993 to April 2003 (124 months), as described by J. Leskovec, J. Kleinberg and C. Faloutsos in 2007.
+
+**ca-GrQc** : The graph "ca-GrQc" covers scientific collaborations between authors papers submitted to General Relativity and Quantum Cosmology category in the period from January 1993 to April 2003 (124 months), as described by J. Leskovec, J. Kleinberg and C. Faloutsos in 2007.
+
+**ca-HepTh** : The graph "ca-HepTh" covers scientific collaborations between authors papers submitted to High Energy Physics - Theory category in the period from January 1993 to April 2003 (124 months), as described by J. Leskovec, J. Kleinberg and C. Faloutsos in 2007.
+
+
+## Custom path to larger datasets directory  
+
+Cugraph's C++ and Python analytics tests need larger datasets (>5GB uncompressed) and reference results (>125MB uncompressed). They can be downloaded by running the provided script from the `datasets` directory.
 ```
 cd <repo>/datasets
 ./get_test_data.sh
 ```
-You may run this script from elsewhere and store C++ test input to another location.
+You may run this script from elsewhere and store C++ or Python test input to another location.
 
 Before running the tests, you should let cuGraph know where to find the test input by using:
 ```
-export RAPIDS_DATASET_ROOT_DIR=<path_to_ccp_test_and_reference_data>
+export RAPIDS_DATASET_ROOT_DIR=<path_to_datasets_dir>
 ```
 
+
 ## Benchmarks
+
 Cugraph benchmarks (which can be found [here](../benchmarks)) also use datasets installed to this folder. Because the datasets used for benchmarking are also quite large (~14GB uncompressed), they are not installed by default. To install datasets for benchmarks, run the same script shown above from the `datasets` directory using the `--benchmark` option:
 ```
 cd <repo>/datasets
@@ -65,3 +129,4 @@ _NOTE: the benchmark datasets were converted to a CSV format from their original
 
 ## Reference
 The SuiteSparse Matrix Collection (formerly the University of Florida Sparse Matrix Collection) : https://sparse.tamu.edu/
+The Stanford Network Analysis Platform (SNAP) 
