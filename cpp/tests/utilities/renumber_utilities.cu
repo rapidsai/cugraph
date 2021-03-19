@@ -28,17 +28,20 @@ namespace test {
 template <typename vertex_t, typename value_t>
 std::tuple<rmm::device_uvector<vertex_t>, rmm::device_uvector<value_t>> unrenumber_kv_pairs(
   raft::handle_t const& handle,
-  vertex_t const* keys /* 0 <= keys[] < renumber_map_size */,
+  vertex_t const* keys,
   value_t const* values,
   size_t num_pairs,
   vertex_t const* renumber_map_labels,
-  size_t renumber_map_size)
+  vertex_t map_key_first,
+  vertex_t map_key_last)
 {
   rmm::device_uvector<vertex_t> unrenumbered_keys(num_pairs, handle.get_stream_view());
   rmm::device_uvector<value_t> values_for_unrenumbered_keys(num_pairs, handle.get_stream_view());
 
-  auto unrenumbered_key_first = thrust::make_transform_iterator(
-    keys, [renumber_map_labels] __device__(auto v) { return renumber_map_labels[v]; });
+  auto unrenumbered_key_first =
+    thrust::make_transform_iterator(keys, [renumber_map_labels, map_key_first] __device__(auto v) {
+      return renumber_map_labels[v - map_key_first];
+    });
   thrust::copy(rmm::exec_policy(handle.get_stream_view()),
                unrenumbered_key_first,
                unrenumbered_key_first + num_pairs,
@@ -84,7 +87,8 @@ unrenumber_kv_pairs<int32_t, float>(raft::handle_t const& handle,
                                     float const* values,
                                     size_t num_pairs,
                                     int32_t const* renumber_map_labels,
-                                    size_t renumber_map_size);
+                                    int32_t map_key_first,
+                                    int32_t map_key_last);
 
 template std::tuple<rmm::device_uvector<int32_t>, rmm::device_uvector<double>>
 unrenumber_kv_pairs<int32_t, double>(raft::handle_t const& handle,
@@ -92,7 +96,8 @@ unrenumber_kv_pairs<int32_t, double>(raft::handle_t const& handle,
                                      double const* values,
                                      size_t num_pairs,
                                      int32_t const* renumber_map_labels,
-                                     size_t renumber_map_size);
+                                     int32_t map_key_first,
+                                     int32_t map_key_last);
 
 template std::tuple<rmm::device_uvector<int64_t>, rmm::device_uvector<float>>
 unrenumber_kv_pairs<int64_t, float>(raft::handle_t const& handle,
@@ -100,7 +105,8 @@ unrenumber_kv_pairs<int64_t, float>(raft::handle_t const& handle,
                                     float const* values,
                                     size_t num_pairs,
                                     int64_t const* renumber_map_labels,
-                                    size_t renumber_map_size);
+                                    int64_t map_key_first,
+                                    int64_t map_key_last);
 
 template std::tuple<rmm::device_uvector<int64_t>, rmm::device_uvector<double>>
 unrenumber_kv_pairs<int64_t, double>(raft::handle_t const& handle,
@@ -108,7 +114,8 @@ unrenumber_kv_pairs<int64_t, double>(raft::handle_t const& handle,
                                      double const* values,
                                      size_t num_pairs,
                                      int64_t const* renumber_map_labels,
-                                     size_t renumber_map_size);
+                                     int64_t map_key_first,
+                                     int64_t map_key_last);
 
 template rmm::device_uvector<float> sort_values_by_key<int32_t, float>(raft::handle_t const& handle,
                                                                        int32_t const* keys,

@@ -326,7 +326,8 @@ class Tests_PageRank : public ::testing::TestWithParam<PageRank_Usecase> {
                                              d_personalization_values.data(),
                                              d_personalization_vertices.size(),
                                              d_renumber_map_labels.data(),
-                                             d_renumber_map_labels.size());
+                                             vertex_t{0},
+                                             static_cast<vertex_t>(d_renumber_map_labels.size()));
 
         raft::update_host(h_unrenumbered_personalization_vertices.data(),
                           d_unrenumbered_personalization_vertices.data(),

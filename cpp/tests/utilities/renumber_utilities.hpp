@@ -23,11 +23,12 @@ namespace test {
 template <typename vertex_t, typename value_t>
 std::tuple<rmm::device_uvector<vertex_t>, rmm::device_uvector<value_t>> unrenumber_kv_pairs(
   raft::handle_t const& handle,
-  vertex_t const* keys,
+  vertex_t const* keys /* map_key_first <= keys[] < map_key_last */,
   value_t const* values,
   size_t num_pairs,
   vertex_t const* renumber_map_labels,
-  size_t renumber_map_size);
+  vertex_t map_key_first,
+  vertex_t map_key_last);
 
 template <typename vertex_t, typename value_t>
 rmm::device_uvector<value_t> sort_values_by_key(raft::handle_t const& handle,
