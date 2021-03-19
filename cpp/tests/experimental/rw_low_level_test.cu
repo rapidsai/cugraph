@@ -70,7 +70,7 @@ struct RandomWalksPrimsTest : public ::testing::Test {
 
 using namespace cugraph::experimental;
 
-TEST_F(RandomWalksPrimsTest, RandGenSeed)
+TEST_F(RandomWalksPrimsTest, SimpleGraphColExtraction)
 {
   using vertex_t = int32_t;
   using edge_t   = vertex_t;
@@ -83,7 +83,7 @@ TEST_F(RandomWalksPrimsTest, RandGenSeed)
 
   std::vector<vertex_t> v_src{0, 1, 1, 2, 2, 2, 3, 4};
   std::vector<vertex_t> v_dst{1, 3, 4, 0, 1, 3, 5, 5};
-  std::vector<weight_t> v_w(num_edges, 1.0);
+  std::vector<weight_t> v_w{0.1, 1.1, 2.1, 3.1, 4.1, 5.1, 6.1, 7.1};
 
   rmm::device_uvector<vertex_t> d_src(num_edges, handle.get_stream());
   rmm::device_uvector<vertex_t> d_dst(num_edges, handle.get_stream());
@@ -103,18 +103,23 @@ TEST_F(RandomWalksPrimsTest, RandGenSeed)
 
   edge_t const* offsets   = graph_view.offsets();
   vertex_t const* indices = graph_view.indices();
+  weight_t const* values  = graph_view.weights();
 
   std::vector<edge_t> v_ro(num_vertices + 1);
   std::vector<vertex_t> v_ci(num_edges);
+  std::vector<weight_t> v_vs(num_edges);
 
   copy_n(handle, v_ro, offsets, num_vertices + 1);
   copy_n(handle, v_ci, indices, num_edges);
+  copy_n(handle, v_vs, values, num_edges);
 
   std::vector<edge_t> v_ro_expected{0, 1, 3, 6, 7, 8, 8};
   std::vector<vertex_t> v_ci_expected{1, 3, 4, 0, 1, 3, 5, 5};
+  std::vector<weight_t> v_vs_expected{0.1, 1.1, 2.1, 3.1, 4.1, 5.1, 6.1, 7.1};
 
   EXPECT_EQ(v_ro, v_ro_expected);
   EXPECT_EQ(v_ci, v_ci_expected);
+  EXPECT_EQ(v_vs, v_vs_expected);
 
   // ASSERT_TRUE(true);
 }
