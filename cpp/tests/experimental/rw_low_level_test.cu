@@ -75,6 +75,7 @@ TEST_F(RandomWalksPrimsTest, SimpleGraphColExtraction)
   using vertex_t = int32_t;
   using edge_t   = vertex_t;
   using weight_t = float;
+  using index_t  = int32_t;
 
   raft::handle_t handle{};
 
@@ -120,6 +121,15 @@ TEST_F(RandomWalksPrimsTest, SimpleGraphColExtraction)
   EXPECT_EQ(v_ro, v_ro_expected);
   EXPECT_EQ(v_ci, v_ci_expected);
   EXPECT_EQ(v_vs, v_vs_expected);
+
+  index_t num_paths = 4;
+  index_t max_depth = 3;
+  index_t total_sz  = num_paths * max_depth;
+
+  std::vector<vertex_t> v_start{1, 0, 4, 2};
+
+  std::vector<vertex_t> v_coalesced(total_sz, -1);
+  std::vector<weight_t> w_coalesced(total_sz, -1);
 
   // ASSERT_TRUE(true);
 }

@@ -82,6 +82,9 @@ template <typename vertex_t,
           typename real_t  = float,
           typename index_t = edge_t>
 struct rrandom_gen_t {
+  using seed_type = seed_t;
+  using real_type = real_t;
+
   rrandom_gen_t(raft::handle_t const& handle,
                 index_t nPaths,
                 device_vec_t<real_t>& d_random,             // scratch-pad, non-coalesced
@@ -275,7 +278,8 @@ struct col_indx_extract_t<graph_t, index_t, std::enable_if_t<graph_t::is_multi_g
 // preprocessing, stepping, and post-processing
 //
 template <typename graph_t,
-          typename random_engine_t,
+          typename random_engine_t =
+            rrandom_gen_t<typename graph_t::vertex_type, typename graph_t::edge_type>,
           typename index_t = typename graph_t::edge_type>
 struct random_walker_t {
   static_assert(std::is_trivially_copyable<random_engine_t>::value,
@@ -284,17 +288,17 @@ struct random_walker_t {
   using vertex_t = typename graph_t::vertex_type;
   using edge_t   = typename graph_t::edge_type;
   using weight_t = typename graph_t::weight_type;
+  using seed_t   = typename random_engine_t::seed_type;
+  using real_t   = typename random_engine_t::real_type;
 
   random_walker_t(raft::handle_t const& handle,
                   graph_t const& graph,
                   index_t nPaths,
-                  index_t max_depth,
-                  random_engine_t const& rnd)
+                  index_t max_depth)
     : handle_(handle),
       num_paths_(nPaths),
       max_depth_(max_depth),
       d_v_stopped_{static_cast<size_t>(nPaths), handle_.get_stream()},
-      rnd_(rnd),
       d_cached_out_degs_(graph.compute_out_degrees(handle_))
   {
     // init d_v_stopped_ to {0} (i.e., no path is stopped):
@@ -312,7 +316,7 @@ struct random_walker_t {
   //
   // take one step in sync for all paths that have not reached sinks:
   //
-  template <typename real_t = float, typename seed_t = long>
+  // FIXME: remove template <typename real_t = float, typename seed_t = long>
   void step(
     graph_t const& graph,
     seed_t seed,
@@ -335,8 +339,8 @@ struct random_walker_t {
 
     // generate random destination indices:
     //
-    rrandom_gen_t<vertex_t, edge_t, seed_t, real_t> rgen(
-      handle_, num_paths_, d_random, d_crt_out_degs, seed);
+    // FIXME: remove: rrandom_gen_t<vertex_t, edge_t, seed_t, real_t>
+    random_engine_t rgen(handle_, num_paths_, d_random, d_crt_out_degs, seed);
 
     rgen.generate_col_indices(d_col_indx);
 
@@ -592,7 +596,6 @@ struct random_walker_t {
   index_t max_depth_;
   device_vec_t<int> d_v_stopped_;  // keeps track of paths that stopped (==1); FIXME: remove, not
                                    // needed (use p_d_crt_out_degs instead)
-  random_engine_t rnd_;
   device_vec_t<edge_t> d_cached_out_degs_;
 };
 
@@ -610,14 +613,14 @@ struct random_walker_t {
  * @param start_vertex_set Set of starting vertex indices for the RW. number(RW) ==
  * start_vertex_set.size().
  * @param max_depth maximum length of RWs.
- * @param rnd_engine Random engine parameter (e.g., uniform).
  * @return std::tuple<device_vec_t<vertex_t>, device_vec_t<weight_t>,
  * device_vec_t<index_t>> Triplet of coalesced RW paths, with corresponding edge weights for
  * each, and coresponding path sizes. This is meant to minimize the number of DF's to be passed to
  * the Python layer.
  */
 template <typename graph_t,
-          typename random_engine_t,
+          typename random_engine_t =
+            rrandom_gen_t<typename graph_t::vertex_type, typename graph_t::edge_type>,
           typename index_t = typename graph_t::edge_type>
 std::enable_if_t<graph_t::is_multi_gpu == false,
                  std::tuple<device_vec_t<typename graph_t::vertex_type>,
@@ -626,14 +629,13 @@ std::enable_if_t<graph_t::is_multi_gpu == false,
 random_walks(raft::handle_t const& handle,
              graph_t const& graph,
              std::vector<typename graph_t::vertex_type> const& start_vertex_set,
-             index_t max_depth,
-             random_engine_t& rnd_engine)
+             index_t max_depth)
 {
   using vertex_t = typename graph_t::vertex_type;
   using edge_t   = typename graph_t::edge_type;
   using weight_t = typename graph_t::weight_type;
-  using real_t   = float;
-  using seed_t   = long;
+  using seed_t   = typename random_engine_t::seed_type;
+  using real_t   = typename random_engine_t::real_type;
 
   // TODO: Potentially this might change, if it's decided to pass the
   // starting vector directly on device...
@@ -654,7 +656,7 @@ random_walks(raft::handle_t const& handle,
   cudaStreamSynchronize(stream);
 
   random_walker_t<graph_t, random_engine_t> rand_walker{
-    handle, graph, static_cast<index_t>(nPaths), static_cast<index_t>(max_depth), rnd_engine};
+    handle, graph, static_cast<index_t>(nPaths), static_cast<index_t>(max_depth)};
 
   // pre-allocate num_paths * max_depth;
   //
@@ -721,14 +723,14 @@ random_walks(raft::handle_t const& handle,
  * @param start_vertex_set Set of starting vertex indices for the RW. number(RW) ==
  * start_vertex_set.size().
  * @param max_depth maximum length of RWs.
- * @param rnd_engine Random engine parameter (e.g., uniform).
  * @return std::tuple<device_vec_t<vertex_t>, device_vec_t<weight_t>,
  * device_vec_t<index_t>> Triplet of coalesced RW paths, with corresponding edge weights for
  * each, and coresponding path sizes. This is meant to minimize the number of DF's to be passed to
  * the Python layer.
  */
 template <typename graph_t,
-          typename random_engine_t,
+          typename random_engine_t =
+            rrandom_gen_t<typename graph_t::vertex_type, typename graph_t::edge_type>,
           typename index_t = typename graph_t::edge_type>
 std::enable_if_t<graph_t::is_multi_gpu == true,
                  std::tuple<device_vec_t<typename graph_t::vertex_type>,
@@ -737,8 +739,7 @@ std::enable_if_t<graph_t::is_multi_gpu == true,
 random_walks(raft::handle_t const& handle,
              graph_t const& graph,
              std::vector<typename graph_t::vertex_type> const& start_vertex_set,
-             index_t max_depth,
-             random_engine_t& rnd_engine)
+             index_t max_depth)
 {
   CUGRAPH_FAIL("Not implemented yet.");
 }
