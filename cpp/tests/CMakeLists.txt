@@ -413,6 +413,12 @@ set(EXPERIMENTAL_RANDOM_WALKS_TEST_SRCS
 
 ConfigureTest(EXPERIMENTAL_RANDOM_WALKS_TEST "${EXPERIMENTAL_RANDOM_WALKS_TEST_SRCS}")
 
+###################################################################################################
+set(EXPERIMENTAL_RANDOM_WALKS_LOW_LEVEL_SRCS
+    "${CMAKE_CURRENT_SOURCE_DIR}/experimental/rw_low_level_test.cu")
+
+ConfigureTest(EXPERIMENTAL_RANDOM_WALKS_LOW_LEVEL_TEST "${EXPERIMENTAL_RANDOM_WALKS_LOW_LEVEL_SRCS}")
+
 
 ###################################################################################################
 # - MG tests --------------------------------------------------------------------------------------
