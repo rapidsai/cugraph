@@ -137,7 +137,6 @@ float TSP::compute()
   if (verbose_) std::cout << "Calculated best thread number = " << threads << "\n";
 
   gettimeofday(&starttime, NULL);
-
   for (int batch = 1; batch <= num_restart_batches; ++batch) {
 
     reset_batch();
@@ -158,7 +157,6 @@ float TSP::compute()
                                                                                  climbs_);
     get_optimal_tour<<<restart_batch_, threads, sizeof(int) * threads, stream_>>>(results_,
         mylock_, work_, nodes_);
-
     CHECK_CUDA(stream_);
     cudaDeviceSynchronize();
 
@@ -177,6 +175,7 @@ float TSP::compute()
       raft::copy(h_x_pos.data(), addr_best_x_pos[0], nodes_ + 1, stream_);
       raft::copy(h_y_pos.data(), addr_best_y_pos[0], nodes_ + 1, stream_);
       raft::copy(h_route.data(), addr_best_route[0], nodes_, stream_);
+      raft::copy(route_, addr_best_route[0], nodes_, stream_);
       CHECK_CUDA(stream_);
     }
     total_climbs += climbs_scalar_.value(stream_);
@@ -184,7 +183,6 @@ float TSP::compute()
   gettimeofday(&endtime, NULL);
   double runtime =
     endtime.tv_sec + endtime.tv_usec / 1e6 - starttime.tv_sec - starttime.tv_usec / 1e6;
-  long long moves = 1LL * total_climbs * (nodes_ - 2) * (nodes_ - 1) / 2;
 
   for (int i = 0; i < nodes_; ++i) {
     if (verbose_) { std::cout << h_route[i] << ": " << h_x_pos[i] << " " << h_y_pos[i] << "\n"; }
@@ -192,11 +190,11 @@ float TSP::compute()
   }
 
   if (verbose_) {
+    long long moves = 1LL * total_climbs * (nodes_ - 2) * (nodes_ - 1) / 2;
     std::cout << "Search runtime = " << runtime << ", " << moves * 1e-9 / runtime << " Gmoves/s\n";
     std::cout << "Optimized tour length = " << global_best << "\n";
   }
 
-  raft::copy(route_, addr_best_route[0], nodes_, stream_);
   return final_cost;
 }
 
