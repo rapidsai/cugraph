@@ -89,6 +89,17 @@ void TSP::reset_batch() {
   climbs_scalar_.set_value(0, stream_);
 }
 
+void TSP::get_initial_solution(int const batch) {
+  const int threads = 128;
+  if (!beam_search_)
+    random_init<<<restart_batch_, threads>>>(work_, x_pos_, y_pos_, vtx_ptr_, nstart_, nodes_, batch);
+  else {
+    // KNN call
+    knn();
+    knn_init<<<restart_batch_, threads>>>(work_, x_pos_, y_pos_, vtx_ptr_, neighbors_, nstart_, nodes_, k_, batch);
+  }
+}
+
 float TSP::compute()
 {
   // Setup
@@ -104,7 +115,6 @@ float TSP::compute()
   h_x_pos.reserve(nodes_ + 1);
   h_y_pos.reserve(nodes_ + 1);
   h_route.reserve(nodes_);
-
 	std::vector<float*> addr_best_x_pos(1);
 	std::vector<float*> addr_best_y_pos(1);
 	std::vector<int*> addr_best_route(1);
@@ -113,11 +123,8 @@ float TSP::compute()
   long total_climbs = 0;
   struct timeval starttime, endtime;
 
-  // KNN call
-  knn();
-
   if (verbose_) {
-    std::cout << "Doing " << num_restart_batches - 1 << " batches of size " << restart_batch_
+    std::cout << "Doing " << num_restart_batches << " batches of size " << restart_batch_
               << ", with " << restart_resid << " tail\n";
     std::cout << "configuration: " << nodes_ << " nodes, " << restarts_ << " restart\n";
     std::cout << "optimizing graph with kswap = " << kswaps << "\n";
@@ -136,6 +143,7 @@ float TSP::compute()
     reset_batch();
     if (batch == num_restart_batches) restart_batch_ = restart_resid;
 
+    get_initial_solution(batch);
     search_solution<<<restart_batch_, threads, sizeof(int) * threads, stream_>>>(results_,
                                                                                  mylock_,
                                                                                  vtx_ptr_,
@@ -147,9 +155,7 @@ float TSP::compute()
                                                                                  y_pos_,
                                                                                  work_,
                                                                                  nstart_,
-                                                                                 climbs_,
-                                                                                 threads,
-                                                                                 batch);
+                                                                                 climbs_);
     get_optimal_tour<<<restart_batch_, threads, sizeof(int) * threads, stream_>>>(results_,
         mylock_, work_, nodes_);
 
@@ -190,6 +196,7 @@ float TSP::compute()
     std::cout << "Optimized tour length = " << global_best << "\n";
   }
 
+  raft::copy(route_, addr_best_route[0], nodes_, stream_);
   return final_cost;
 }
 

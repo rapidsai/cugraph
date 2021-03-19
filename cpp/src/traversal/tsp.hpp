@@ -49,6 +49,7 @@ class TSP {
 
   void setup();
   void reset_batch();
+  void get_initial_solution(int const batch);
   float compute();
   void knn();
   ~TSP(){};

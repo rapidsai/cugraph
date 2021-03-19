@@ -29,17 +29,20 @@
 namespace cugraph {
 namespace detail {
 
-// random permutation kernel
-__device__ void random_init(float const *posx,
+__global__ void random_init(int *work,
+                            float const *posx,
                             float const *posy,
                             int const *vtx_ptr,
-                            int *path,
-                            float *px,
-                            float *py,
                             int const nstart,
                             int const nodes,
                             int const batch)
 {
+  int *buf  = &work[blockIdx.x * ((4 * nodes + 3 + 31) / 32 * 32)];
+  float *px = (float *)(&buf[nodes]);
+  float *py = &px[nodes + 1];
+  int *path = (int *)(&py[nodes + 1]);
+
+
   // Fill values
   for (int i = threadIdx.x; i <= nodes; i += blockDim.x) {
     px[i]   = posx[i];
@@ -70,20 +73,21 @@ __device__ void random_init(float const *posx,
   }
 }
 
-// Use KNN as a starting solution
-__device__ void knn_init(float const *posx,
+__global__ void knn_init(int *work,
+                         float const *posx,
                          float const *posy,
                          int const *vtx_ptr,
                          int64_t const *neighbors,
-                         int *buf,
-                         int *path,
-                         float *px,
-                         float *py,
                          int const nstart,
                          int const nodes,
                          int const K,
                          int const batch)
 {
+  int *buf  = &work[blockIdx.x * ((4 * nodes + 3 + 31) / 32 * 32)];
+  float *px = (float *)(&buf[nodes]);
+  float *py = &px[nodes + 1];
+  int *path = (int *)(&py[nodes + 1]);
+
   for (int i = threadIdx.x; i < nodes; i += blockDim.x) buf[i] = 0;
 
   __syncthreads();
@@ -200,9 +204,25 @@ __device__ void two_opt_search(
   }
 }
 
-__device__ void hill_climbing(
-  float *px, float *py, int *buf, int *path, int *shbuf, int const nodes, int *climbs)
+__global__ __launch_bounds__(2048, 2) void search_solution(TSPResults results,
+                                                           int *mylock,
+                                                           int const *vtx_ptr,
+                                                           bool beam_search,
+                                                           int const K,
+                                                           int nodes,
+                                                           int64_t const *neighbors,
+                                                           float const *posx,
+                                                           float const *posy,
+                                                           int *work,
+                                                           int const nstart,
+                                                           int *climbs)
 {
+  int *buf  = &work[blockIdx.x * ((4 * nodes + 3 + 31) / 32 * 32)];
+  float *px = (float *)(&buf[nodes]);
+  float *py = &px[nodes + 1];
+  int *path = (int *)(&py[nodes + 1]);
+
+  __shared__ int shbuf[tilesize];
   __shared__ int best_change[kswaps];
   __shared__ int best_i[kswaps];
   __shared__ int best_j[kswaps];
@@ -367,34 +387,5 @@ __global__ void get_optimal_tour(TSPResults results, int *mylock, int *work,
   }
 }
 
-__global__ __launch_bounds__(2048, 2) void search_solution(TSPResults results,
-                                                           int *mylock,
-                                                           int const *vtx_ptr,
-                                                           bool beam_search,
-                                                           int const K,
-                                                           int nodes,
-                                                           int64_t const *neighbors,
-                                                           float const *posx,
-                                                           float const *posy,
-                                                           int *work,
-                                                           int const nstart,
-                                                           int *climbs,
-                                                           int const threads,
-                                                           int const batch)
-{
-  int *buf  = &work[blockIdx.x * ((4 * nodes + 3 + 31) / 32 * 32)];
-  float *px = (float *)(&buf[nodes]);
-  float *py = &px[nodes + 1];
-  int *path = (int *)(&py[nodes + 1]);
-  __shared__ int shbuf[tilesize];
-
-  if (!beam_search)
-    random_init(posx, posy, vtx_ptr, path, px, py, nstart, nodes, batch);
-  else
-    knn_init(posx, posy, vtx_ptr, neighbors, buf, path, px, py, nstart, nodes, K, batch);
-  __syncthreads();
-
-  hill_climbing(px, py, buf, path, shbuf, nodes, climbs);
-}
 }  // namespace detail
 }  // namespace cugraph
