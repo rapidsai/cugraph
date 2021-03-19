@@ -61,6 +61,21 @@ DATASETS = [PurePath(RAPIDS_DATASET_ROOT_DIR)/f for f in [
     "netscience.csv"]
 ]
 
+DATASETS_MULTI_EDGES = [PurePath(RAPIDS_DATASET_ROOT_DIR)/f for f in [
+    "karate_multi_edge.csv",
+    "dolphins_multi_edge.csv"]
+]
+
+DATASETS_STR_ISLT_V = [PurePath(RAPIDS_DATASET_ROOT_DIR)/f for f in [
+    "karate_mod.mtx",
+    "karate_str.mtx"]
+]
+
+DATASETS_SELF_LOOPS = [PurePath(RAPIDS_DATASET_ROOT_DIR)/f for f in [
+    "karate_s_loop.csv",
+    "dolphins_s_loop.csv"]
+]
+
 
 #            '../datasets/email-Eu-core.csv']
 
