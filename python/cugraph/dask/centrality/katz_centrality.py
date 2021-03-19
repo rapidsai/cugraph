@@ -1,4 +1,4 @@
-# Copyright (c) 2019-2020, NVIDIA CORPORATION.
+# Copyright (c) 2019-2021, NVIDIA CORPORATION.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -115,7 +115,8 @@ def katz_centrality(input_graph,
     Examples
     --------
     >>> import cugraph.dask as dcg
-    >>> Comms.initialize(p2p=True)
+    >>> ... Init a DASK Cluster
+    >>    see https://docs.rapids.ai/api/cugraph/stable/dask-cugraph.html
     >>> chunksize = dcg.get_chunksize(input_data_path)
     >>> ddf = dask_cudf.read_csv(input_data_path, chunksize=chunksize,
                                  delimiter=' ',
@@ -125,7 +126,6 @@ def katz_centrality(input_graph,
     >>> dg.from_dask_cudf_edgelist(ddf, source='src', destination='dst',
                                    edge_attr='value')
     >>> pr = dcg.katz_centrality(dg)
-    >>> Comms.destroy()
     """
 
     nstart = None
