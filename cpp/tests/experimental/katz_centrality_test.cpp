@@ -150,7 +150,9 @@ read_graph(raft::handle_t const& handle, KatzCentrality_Usecase const& configura
                  configuration.input_graph_specifier.rmat_params.undirected,
                  configuration.input_graph_specifier.rmat_params.scramble_vertex_ids,
                  configuration.test_weighted,
-                 renumber);
+                 renumber,
+                 std::vector<size_t>{0},
+                 size_t{1});
 }
 
 class Tests_KatzCentrality : public ::testing::TestWithParam<KatzCentrality_Usecase> {

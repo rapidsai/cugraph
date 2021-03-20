@@ -28,8 +28,9 @@
 
 namespace cugraph {
 namespace test {
-
 namespace detail {
+
+namespace {
 
 template <typename vertex_t,
           typename edge_t,
@@ -41,14 +42,14 @@ std::enable_if_t<
   std::tuple<
     cugraph::experimental::graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu>,
     rmm::device_uvector<vertex_t>>>
-generate_graph_from_edgelist(raft::handle_t const& handle,
-                             rmm::device_uvector<vertex_t>&& vertices,
-                             rmm::device_uvector<vertex_t>&& edgelist_rows,
-                             rmm::device_uvector<vertex_t>&& edgelist_cols,
-                             rmm::device_uvector<weight_t>&& edgelist_weights,
-                             bool is_symmetric,
-                             bool test_weighted,
-                             bool renumber)
+generate_graph_from_edgelist_impl(raft::handle_t const& handle,
+                                  rmm::device_uvector<vertex_t>&& vertices,
+                                  rmm::device_uvector<vertex_t>&& edgelist_rows,
+                                  rmm::device_uvector<vertex_t>&& edgelist_cols,
+                                  rmm::device_uvector<weight_t>&& edgelist_weights,
+                                  bool is_symmetric,
+                                  bool test_weighted,
+                                  bool renumber)
 {
   CUGRAPH_EXPECTS(renumber, "renumber should be true if multi_gpu is true.");
 
@@ -59,61 +60,6 @@ generate_graph_from_edgelist(raft::handle_t const& handle,
   auto const row_comm_size = row_comm.get_size();
   auto& col_comm           = handle.get_subcomm(cugraph::partition_2d::key_naming_t().col_name());
   auto const col_comm_size = col_comm.get_size();
-
-  vertex_t number_of_vertices = static_cast<vertex_t>(vertices.size());
-
-  auto vertex_key_func =
-    cugraph::experimental::detail::compute_gpu_id_from_vertex_t<vertex_t>{comm_size};
-  vertices.resize(thrust::distance(vertices.begin(),
-                                   thrust::remove_if(
-                                     rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
-                                     vertices.begin(),
-                                     vertices.end(),
-                                     [comm_rank, key_func = vertex_key_func] __device__(auto val) {
-                                       return key_func(val) != comm_rank;
-                                     })),
-                  handle.get_stream());
-  vertices.shrink_to_fit(handle.get_stream());
-
-  auto edge_key_func = cugraph::experimental::detail::compute_gpu_id_from_edge_t<vertex_t>{
-    comm_size, row_comm_size, col_comm_size};
-  size_t number_of_local_edges{};
-  if (test_weighted) {
-    auto edge_first = thrust::make_zip_iterator(
-      thrust::make_tuple(edgelist_rows.begin(), edgelist_cols.begin(), edgelist_weights.begin()));
-    number_of_local_edges = thrust::distance(
-      edge_first,
-      thrust::remove_if(rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
-                        edge_first,
-                        edge_first + edgelist_rows.size(),
-                        [comm_rank, key_func = edge_key_func] __device__(auto e) {
-                          auto major = store_transposed ? thrust::get<1>(e) : thrust::get<0>(e);
-                          auto minor = store_transposed ? thrust::get<0>(e) : thrust::get<1>(e);
-                          return key_func(major, minor) != comm_rank;
-                        }));
-  } else {
-    auto edge_first =
-      thrust::make_zip_iterator(thrust::make_tuple(edgelist_rows.begin(), edgelist_cols.begin()));
-    number_of_local_edges = thrust::distance(
-      edge_first,
-      thrust::remove_if(rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
-                        edge_first,
-                        edge_first + edgelist_rows.size(),
-                        [comm_rank, key_func = edge_key_func] __device__(auto e) {
-                          auto major = store_transposed ? thrust::get<1>(e) : thrust::get<0>(e);
-                          auto minor = store_transposed ? thrust::get<0>(e) : thrust::get<1>(e);
-                          return key_func(major, minor) != comm_rank;
-                        }));
-  }
-
-  edgelist_rows.resize(number_of_local_edges, handle.get_stream());
-  edgelist_rows.shrink_to_fit(handle.get_stream());
-  edgelist_cols.resize(number_of_local_edges, handle.get_stream());
-  edgelist_cols.shrink_to_fit(handle.get_stream());
-  if (test_weighted) {
-    edgelist_weights.resize(number_of_local_edges, handle.get_stream());
-    edgelist_weights.shrink_to_fit(handle.get_stream());
-  }
 
   auto local_partition_id_op =
     [comm_size,
@@ -151,7 +97,7 @@ generate_graph_from_edgelist(raft::handle_t const& handle,
 
   rmm::device_uvector<vertex_t> renumber_map_labels(0, handle.get_stream());
   cugraph::experimental::partition_t<vertex_t> partition{};
-  vertex_t aggregate_number_of_vertices{};
+  vertex_t number_of_vertices{};
   edge_t number_of_edges{};
   {
     std::vector<vertex_t*> major_ptrs(h_edge_counts.size());
@@ -165,7 +111,7 @@ generate_graph_from_edgelist(raft::handle_t const& handle,
       counts[i] = static_cast<edge_t>(h_edge_counts[i]);
     }
     // FIXME: set do_expensive_check to false once validated
-    std::tie(renumber_map_labels, partition, aggregate_number_of_vertices, number_of_edges) =
+    std::tie(renumber_map_labels, partition, number_of_vertices, number_of_edges) =
       cugraph::experimental::renumber_edgelist<vertex_t, edge_t, multi_gpu>(
         handle,
         vertices.data(),
@@ -174,7 +120,6 @@ generate_graph_from_edgelist(raft::handle_t const& handle,
         minor_ptrs,
         counts,
         true);
-    assert(aggregate_number_of_vertices == number_of_vertices);
   }
 
   // 4. create a graph
@@ -213,14 +158,14 @@ std::enable_if_t<
   std::tuple<
     cugraph::experimental::graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu>,
     rmm::device_uvector<vertex_t>>>
-generate_graph_from_edgelist(raft::handle_t const& handle,
-                             rmm::device_uvector<vertex_t>&& vertices,
-                             rmm::device_uvector<vertex_t>&& edgelist_rows,
-                             rmm::device_uvector<vertex_t>&& edgelist_cols,
-                             rmm::device_uvector<weight_t>&& edgelist_weights,
-                             bool is_symmetric,
-                             bool test_weighted,
-                             bool renumber)
+generate_graph_from_edgelist_impl(raft::handle_t const& handle,
+                                  rmm::device_uvector<vertex_t>&& vertices,
+                                  rmm::device_uvector<vertex_t>&& edgelist_rows,
+                                  rmm::device_uvector<vertex_t>&& edgelist_cols,
+                                  rmm::device_uvector<weight_t>&& edgelist_weights,
+                                  bool is_symmetric,
+                                  bool test_weighted,
+                                  bool renumber)
 {
   vertex_t number_of_vertices = static_cast<vertex_t>(vertices.size());
 
@@ -252,7 +197,7 @@ generate_graph_from_edgelist(raft::handle_t const& handle,
     std::move(renumber_map_labels));
 }
 
-}  // namespace detail
+}  // namespace
 
 template <typename vertex_t,
           typename edge_t,
@@ -270,16 +215,15 @@ generate_graph_from_edgelist(raft::handle_t const& handle,
                              bool test_weighted,
                              bool renumber)
 {
-  return detail::
-    generate_graph_from_edgelist<vertex_t, edge_t, weight_t, store_transposed, multi_gpu>(
-      handle,
-      std::move(vertices),
-      std::move(edgelist_rows),
-      std::move(edgelist_cols),
-      std::move(edgelist_weights),
-      is_symmetric,
-      test_weighted,
-      renumber);
+  return generate_graph_from_edgelist_impl<vertex_t, edge_t, weight_t, store_transposed, multi_gpu>(
+    handle,
+    std::move(vertices),
+    std::move(edgelist_rows),
+    std::move(edgelist_cols),
+    std::move(edgelist_weights),
+    is_symmetric,
+    test_weighted,
+    renumber);
 }
 
 // explicit instantiations
@@ -572,5 +516,6 @@ generate_graph_from_edgelist<int64_t, int64_t, double, true, true>(
   bool test_weighted,
   bool renumber);
 
+}  // namespace detail
 }  // namespace test
 }  // namespace cugraph

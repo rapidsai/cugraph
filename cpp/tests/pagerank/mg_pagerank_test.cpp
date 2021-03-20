@@ -74,6 +74,15 @@ std::tuple<cugraph::experimental::graph_t<vertex_t, edge_t, weight_t, true, mult
            rmm::device_uvector<vertex_t>>
 read_graph(raft::handle_t const& handle, PageRank_Usecase const& configuration, bool renumber)
 {
+  auto& comm           = handle.get_comms();
+  auto const comm_size = comm.get_size();
+  auto const comm_rank = comm.get_rank();
+
+  std::vector<size_t> partition_ids(multi_gpu ? size_t{1} : static_cast<size_t>(comm_size));
+  std::iota(partition_ids.begin(),
+            partition_ids.end(),
+            multi_gpu ? static_cast<size_t>(comm_rank) : size_t{0});
+
   return configuration.input_graph_specifier.tag ==
              cugraph::test::input_graph_specifier_t::MATRIX_MARKET_FILE_PATH
            ? cugraph::test::
@@ -94,7 +103,9 @@ read_graph(raft::handle_t const& handle, PageRank_Usecase const& configuration, 
                  configuration.input_graph_specifier.rmat_params.undirected,
                  configuration.input_graph_specifier.rmat_params.scramble_vertex_ids,
                  configuration.test_weighted,
-                 renumber);
+                 renumber,
+                 partition_ids,
+                 static_cast<size_t>(comm_size));
 }
 
 class Tests_MGPageRank : public ::testing::TestWithParam<PageRank_Usecase> {

@@ -130,7 +130,9 @@ read_graph(raft::handle_t const& handle, BFS_Usecase const& configuration, bool 
                  configuration.input_graph_specifier.rmat_params.undirected,
                  configuration.input_graph_specifier.rmat_params.scramble_vertex_ids,
                  false,
-                 renumber);
+                 renumber,
+                 std::vector<size_t>{0},
+                 size_t{1});
 }
 
 class Tests_BFS : public ::testing::TestWithParam<BFS_Usecase> {

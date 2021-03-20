@@ -136,7 +136,9 @@ read_graph(raft::handle_t const& handle, SSSP_Usecase const& configuration, bool
                  configuration.input_graph_specifier.rmat_params.undirected,
                  configuration.input_graph_specifier.rmat_params.scramble_vertex_ids,
                  true,
-                 renumber);
+                 renumber,
+                 std::vector<size_t>{0},
+                 size_t{1});
 }
 
 class Tests_SSSP : public ::testing::TestWithParam<SSSP_Usecase> {
