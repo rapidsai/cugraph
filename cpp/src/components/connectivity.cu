@@ -78,7 +78,7 @@ std::enable_if_t<std::is_signed<VT>::value> connected_components_impl(
                                                    stream);
   } else {
     SCC_Data<ByteT, VT> sccd(nrows, graph.offsets, graph.indices);
-    sccd.run_scc(labels);
+    auto num_iters = sccd.run_scc(labels);
   }
 }
 }  // namespace detail

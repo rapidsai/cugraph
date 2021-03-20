@@ -164,8 +164,8 @@ struct Tests_Strongly_CC : ::testing::TestWithParam<Usecase> {
     // Allocate memory on host
     std::vector<IndexT> cooRowInd(nnz);
     std::vector<IndexT> cooColInd(nnz);
-    std::vector<IndexT> labels(m);  // for G(V, E), m := |V|
-    std::vector<IndexT> verts(m);
+    std::vector<IndexT> labels(nrows);  // for G(V, E), m := |V|
+    std::vector<IndexT> verts(nrows);
 
     // Read: COO Format
     //
@@ -176,11 +176,11 @@ struct Tests_Strongly_CC : ::testing::TestWithParam<Usecase> {
       << "\n";
     ASSERT_EQ(fclose(fpin), 0);
 
-    cugraph::GraphCOOView<int, int, float> G_coo(&cooRowInd[0], &cooColInd[0], nullptr, m, nnz);
+    cugraph::GraphCOOView<int, int, float> G_coo(&cooRowInd[0], &cooColInd[0], nullptr, nrows, nnz);
     auto G_unique                            = cugraph::coo_to_csr(G_coo);
     cugraph::GraphCSRView<int, int, float> G = G_unique->view();
 
-    rmm::device_vector<int> d_labels(m);
+    rmm::device_vector<int> d_labels(nrows);
 
     size_t count = 0;
 
@@ -200,7 +200,7 @@ struct Tests_Strongly_CC : ::testing::TestWithParam<Usecase> {
     }
     strongly_cc_counts.push_back(count);
 
-    DVector<size_t> d_counts;
+    DVector<size_t> d_counts(nrows);
     auto count_labels = get_component_sizes(d_labels.data().get(), nrows, d_counts);
   }
 };
@@ -208,7 +208,7 @@ struct Tests_Strongly_CC : ::testing::TestWithParam<Usecase> {
 std::vector<double> Tests_Strongly_CC::strongly_cc_time;
 std::vector<int> Tests_Strongly_CC::strongly_cc_counts;
 
-TEST_P(Tests_Strongly_CC, DISABLED_Strongly_CC) { run_current_test(GetParam()); }
+TEST_P(Tests_Strongly_CC, Strongly_CC) { run_current_test(GetParam()); }
 
 // --gtest_filter=*simple_test*
 INSTANTIATE_TEST_CASE_P(
