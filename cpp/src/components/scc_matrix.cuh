@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019-2020, NVIDIA CORPORATION.
+ * Copyright (c) 2019-2021, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -77,6 +77,7 @@ struct SCC_Data {
   }
 
   const thrust::device_vector<ByteT>& get_C(void) const { return d_C; }
+  const thrust::device_vector<ByteT>& get_Cprev0(void) const { return d_Cprev; }
 
   size_t nrows(void) const { return nrows_; }
 
@@ -145,9 +146,11 @@ struct SCC_Data {
                          auto i = indx / nrows;
                          auto j = indx % nrows;
 
-                         if ((i == j) || (p_d_Cprev[indx] == one))
+                         if ((i == j) || (p_d_Cprev[indx] == one)) {
+                           if (p_d_C[indx] != p_d_Cprev[indx]) *p_d_flag = 1;
+
                            p_d_C[indx] = one;
-                         else {
+                         } else {
                            // this is where a hash-map could help:
                            // only need hashmap[(i,j)]={0,1} (`1` for "hit");
                            // and only for new entries!
@@ -180,13 +183,17 @@ struct SCC_Data {
                          }
 
                          if (p_d_C[indx] != p_d_Cprev[indx])
-                           *p_d_flag = 1;  // race-condition: harmless, worst case many threads
-                                           // write the same value
+                           *p_d_flag = 1;  // race-condition: harmless,
+                                           // worst case many threads
+                                           // write the _same_ value
                        });
       ++count;
       cudaDeviceSynchronize();
 
-      std::swap(p_d_C, p_d_Cprev);
+      std::swap(p_d_C, p_d_Cprev);  // Note 1: this swap makes `p_d_Cprev` the
+                                    // most recently updated matrix pointer
+                                    // at the end of this loop
+                                    // (see `Note 2` why this matters);
     } while (flag.is_set());
 
     // C & Ct:
@@ -201,6 +208,8 @@ struct SCC_Data {
                        auto j     = indx % nrows;
                        auto tindx = j * nrows + i;
 
+                       // Note 2: per Note 1, p_d_Cprev is latest:
+                       //
                        p_d_C[indx] = (p_d_Cprev[indx]) & (p_d_Cprev[tindx]);
                      });
 

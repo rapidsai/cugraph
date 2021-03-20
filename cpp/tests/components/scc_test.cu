@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019-2020, NVIDIA CORPORATION.  All rights reserved.
+ * Copyright (c) 2019-2021, NVIDIA CORPORATION.  All rights reserved.
  *
  * NVIDIA CORPORATION and its licensors retain all intellectual property
  * and proprietary rights in and to this software, related documentation
@@ -24,6 +24,9 @@
 
 #include <cuda_profiler_api.h>
 
+#include <thrust/iterator/constant_iterator.h>
+#include <thrust/iterator/discard_iterator.h>
+#include <thrust/reduce.h>
 #include <thrust/sequence.h>
 #include <thrust/unique.h>
 
@@ -57,41 +60,48 @@ struct Usecase {
   std::string matrix_file;
 };
 
-// checker of counts of labels for each component
-// expensive, for testing purposes only;
+// counts number of vertices in each component;
+// (of same label);
+// potentially expensive, for testing purposes only;
 //
 // params:
-// p_d_labels: device array of labels of size nrows;
-// nrows: |V| for graph G(V, E);
-// d_v_counts: #labels for each component; (_not_ pre-allocated!)
+// in: p_d_labels: device array of labels of size nrows;
+// in: nrows: |V| for graph G(V, E);
+// out: d_v_counts: #labels for each component; (_not_ pre-allocated!)
+// return: number of components;
 //
 template <typename IndexT>
-size_t get_component_sizes(const IndexT* p_d_labels, size_t nrows, DVector<size_t>& d_v_counts)
+size_t get_component_sizes(const IndexT* p_d_labels,
+                           size_t nrows,
+                           DVector<size_t>& d_num_vs_per_component)
 {
   DVector<IndexT> d_sorted_l(p_d_labels, p_d_labels + nrows);
   thrust::sort(d_sorted_l.begin(), d_sorted_l.end());
 
-  size_t counts =
-    thrust::distance(d_sorted_l.begin(), thrust::unique(d_sorted_l.begin(), d_sorted_l.end()));
+  auto pair_it = thrust::reduce_by_key(d_sorted_l.begin(),
+                                       d_sorted_l.end(),
+                                       thrust::make_constant_iterator<size_t>(1),
+                                       thrust::make_discard_iterator(),  // ignore...
+                                       d_num_vs_per_component.begin());
 
-  IndexT* p_d_srt_l = d_sorted_l.data().get();
+  size_t counts = thrust::distance(d_num_vs_per_component.begin(), pair_it.second);
 
-  d_v_counts.resize(counts);
-  thrust::transform(
-    thrust::device,
-    d_sorted_l.begin(),
-    d_sorted_l.begin() + counts,
-    d_v_counts.begin(),
-    [p_d_srt_l, counts] __device__(IndexT indx) {
-      return thrust::count_if(
-        thrust::seq, p_d_srt_l, p_d_srt_l + counts, [indx](IndexT label) { return label == indx; });
-    });
-
-  // sort the counts:
-  thrust::sort(d_v_counts.begin(), d_v_counts.end());
-
+  d_num_vs_per_component.resize(counts);
   return counts;
 }
+
+template <typename ByteT, typename IndexT>
+DVector<IndexT> byte_matrix_to_int(const DVector<ByteT>& d_adj_byte_matrix)
+{
+  auto n2 = d_adj_byte_matrix.size();
+  thrust::device_vector<IndexT> d_vec_matrix(n2, 0);
+  thrust::transform(d_adj_byte_matrix.begin(),
+                    d_adj_byte_matrix.end(),
+                    d_vec_matrix.begin(),
+                    [] __device__(auto byte_v) { return static_cast<IndexT>(byte_v); });
+  return d_vec_matrix;
+}
+
 }  // namespace
 
 struct Tests_Strongly_CC : ::testing::TestWithParam<Usecase> {
@@ -198,7 +208,7 @@ struct Tests_Strongly_CC : ::testing::TestWithParam<Usecase> {
 std::vector<double> Tests_Strongly_CC::strongly_cc_time;
 std::vector<int> Tests_Strongly_CC::strongly_cc_counts;
 
-TEST_P(Tests_Strongly_CC, Strongly_CC) { run_current_test(GetParam()); }
+TEST_P(Tests_Strongly_CC, DISABLED_Strongly_CC) { run_current_test(GetParam()); }
 
 // --gtest_filter=*simple_test*
 INSTANTIATE_TEST_CASE_P(
@@ -207,5 +217,58 @@ INSTANTIATE_TEST_CASE_P(
   ::testing::Values(
     Usecase("test/datasets/cage6.mtx")  // DG "small" enough to meet SCC GPU memory requirements
     ));
+
+struct SCCSmallTest : public ::testing::Test {
+};
+
+TEST_F(SCCSmallTest, CustomGraphWithSelfLoops)
+{
+  using IndexT = int;
+
+  size_t nrows = 5;
+  size_t n2    = 2 * nrows * nrows;
+
+  cudaDeviceProp prop;
+  int device = 0;
+  cudaGetDeviceProperties(&prop, device);
+
+  ASSERT_TRUE(n2 < prop.totalGlobalMem);
+
+  // Allocate memory on host
+  std::vector<IndexT> cooRowInd{0, 0, 1, 1, 2, 2, 3, 3, 4};
+  std::vector<IndexT> cooColInd{0, 1, 0, 1, 0, 2, 1, 3, 4};
+  std::vector<IndexT> labels(nrows);
+  std::vector<IndexT> verts(nrows);
+
+  size_t nnz = cooRowInd.size();
+
+  EXPECT_EQ(nnz, cooColInd.size());
+
+  cugraph::GraphCOOView<int, int, float> G_coo(&cooRowInd[0], &cooColInd[0], nullptr, nrows, nnz);
+  auto G_unique                            = cugraph::coo_to_csr(G_coo);
+  cugraph::GraphCSRView<int, int, float> G = G_unique->view();
+
+  rmm::device_vector<IndexT> d_labels(nrows);
+
+  cugraph::connected_components(G, cugraph::cugraph_cc_t::CUGRAPH_STRONG, d_labels.data().get());
+
+  DVector<size_t> d_counts(nrows);
+  auto count_components = get_component_sizes(d_labels.data().get(), nrows, d_counts);
+
+  EXPECT_EQ(count_components, static_cast<size_t>(4));
+
+  std::vector<size_t> v_counts(d_counts.size());
+
+  cudaMemcpy(v_counts.data(),
+             d_counts.data().get(),
+             sizeof(size_t) * v_counts.size(),
+             cudaMemcpyDeviceToHost);
+
+  cudaDeviceSynchronize();
+
+  std::vector<size_t> v_counts_exp{2, 1, 1, 1};
+
+  EXPECT_EQ(v_counts, v_counts_exp);
+}
 
 CUGRAPH_TEST_PROGRAM_MAIN()
