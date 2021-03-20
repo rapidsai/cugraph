@@ -228,6 +228,15 @@ auto shuffle_values(raft::comms::comms_t const &comm,
     rx_src_ranks,
     stream);
 
+  if (rx_counts.size() < static_cast<size_t>(comm_size)) {
+    std::vector<size_t> tmp_rx_counts(comm_size, size_t{0});
+    for (size_t i = 0; i < rx_src_ranks.size(); ++i) {
+      assert(rx_src_ranks[i] < comm_size);
+      tmp_rx_counts[rx_src_ranks[i]] = rx_counts[i];
+    }
+    rx_counts = std::move(tmp_rx_counts);
+  }
+
   return std::make_tuple(std::move(rx_value_buffer), rx_counts);
 }
 
@@ -271,6 +280,14 @@ auto groupby_gpuid_and_shuffle_values(raft::comms::comms_t const &comm,
     rx_src_ranks,
     stream);
 
+  if (rx_counts.size() < static_cast<size_t>(comm_size)) {
+    std::vector<size_t> tmp_rx_counts(comm_size, size_t{0});
+    for (size_t i = 0; i < rx_src_ranks.size(); ++i) {
+      tmp_rx_counts[rx_src_ranks[i]] = rx_counts[i];
+    }
+    rx_counts = std::move(tmp_rx_counts);
+  }
+
   return std::make_tuple(std::move(rx_value_buffer), rx_counts);
 }
 
@@ -282,6 +299,8 @@ auto groupby_gpuid_and_shuffle_kv_pairs(raft::comms::comms_t const &comm,
                                         KeyToGPUIdOp key_to_gpu_id_op,
                                         cudaStream_t stream)
 {
+  auto const comm_size = comm.get_size();
+
   auto d_tx_value_counts = detail::sort_and_count(
     comm, tx_key_first, tx_key_last, tx_value_first, key_to_gpu_id_op, stream);
 
@@ -327,6 +346,15 @@ auto groupby_gpuid_and_shuffle_kv_pairs(raft::comms::comms_t const &comm,
     rx_offsets,
     rx_src_ranks,
     stream);
+
+  if (rx_counts.size() < static_cast<size_t>(comm_size)) {
+    std::vector<size_t> tmp_rx_counts(comm_size, size_t{0});
+    for (size_t i = 0; i < rx_src_ranks.size(); ++i) {
+      assert(rx_src_ranks[i] < comm_size);
+      tmp_rx_counts[rx_src_ranks[i]] = rx_counts[i];
+    }
+    rx_counts = std::move(tmp_rx_counts);
+  }
 
   return std::make_tuple(std::move(rx_keys), std::move(rx_value_buffer), rx_counts);
 }

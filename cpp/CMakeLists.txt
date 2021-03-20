@@ -113,7 +113,6 @@ set(CMAKE_CUDA_FLAGS "${CMAKE_CUDA_FLAGS} --expt-extended-lambda --expt-relaxed-
 set(CMAKE_CUDA_FLAGS "${CMAKE_CUDA_FLAGS} -Werror=cross-execution-space-call -Wno-deprecated-declarations -Xptxas --disable-warnings")
 set(CMAKE_CUDA_FLAGS "${CMAKE_CUDA_FLAGS} -Xcompiler -Wall,-Wno-error=sign-compare,-Wno-error=unused-but-set-variable")
 
-
 # Option to enable line info in CUDA device compilation to allow introspection when profiling /
 # memchecking
 option(CMAKE_CUDA_LINEINFO "Enable the -lineinfo option for nvcc (useful for cuda-memcheck / profiler" OFF)
@@ -298,7 +297,8 @@ else(DEFINED ENV{RAFT_PATH})
   FetchContent_Declare(
     raft
     GIT_REPOSITORY    https://github.com/rapidsai/raft.git
-    GIT_TAG           a3461b201ea1c9f61571f1927274f739e775d2d2
+    GIT_TAG           6455e05b3889db2b495cf3189b33c2b07bfbebf2
+
     SOURCE_SUBDIR     raft
   )
 
@@ -317,9 +317,9 @@ endif(DEFINED ENV{RAFT_PATH})
 
 # https://cmake.org/cmake/help/v3.0/module/ExternalProject.html
 
-# FIXME: gunrock is the only external package still using ExternalProject
-# instead of FetchContent. Consider migrating to FetchContent soon (this may
-# require updates to the gunrock cmake files to support this).
+# FIXME: gunrock is still using ExternalProject instead of
+# FetchContent. Consider migrating to FetchContent soon (this may require
+# updates to the gunrock cmake files to support this).
 
 include(ExternalProject)
 
@@ -360,31 +360,32 @@ if(BUILD_STATIC_FAISS)
     "Path to FAISS source directory")
   ExternalProject_Add(faiss
     GIT_REPOSITORY    https://github.com/facebookresearch/faiss.git
-    GIT_TAG           a5b850dec6f1cd6c88ab467bfd5e87b0cac2e41d
+    GIT_TAG           7c2d2388a492d65fdda934c7e74ae87acaeed066
     CONFIGURE_COMMAND LIBS=-pthread
                       CPPFLAGS=-w
                       LDFLAGS=-L${CMAKE_INSTALL_PREFIX}/lib
-                              ${CMAKE_CURRENT_BINARY_DIR}/faiss/src/faiss/configure
-	                      --prefix=${CMAKE_CURRENT_BINARY_DIR}/faiss
-	                      --with-blas=${BLAS_LIBRARIES}
-	                      --with-cuda=${CUDA_TOOLKIT_ROOT_DIR}
-	                      --with-cuda-arch=${FAISS_GPU_ARCHS}
-	                      -v
+                        cmake -B build .
+                        -DCMAKE_BUILD_TYPE=Release
+                        -DBUILD_TESTING=OFF
+                        -DFAISS_ENABLE_PYTHON=OFF
+                        -DBUILD_SHARED_LIBS=OFF
+                        -DFAISS_ENABLE_GPU=ON
+                        -DCUDAToolkit_ROOT=${CUDA_TOOLKIT_ROOT_DIR}
+                        -DCUDA_ARCHITECTURES=${FAISS_GPU_ARCHS}
+                        -DBLAS_LIBRARIES=${BLAS_LIBRARIES}
     PREFIX            ${FAISS_DIR}
-    BUILD_COMMAND     make -j${PARALLEL_LEVEL} VERBOSE=1
-    BUILD_BYPRODUCTS  ${FAISS_DIR}/lib/libfaiss.a
+    BUILD_COMMAND     make -C build -j${PARALLEL_LEVEL} VERBOSE=1
+    BUILD_BYPRODUCTS  ${FAISS_DIR}/src/faiss/build/faiss/libfaiss.a
     BUILD_ALWAYS      1
-    INSTALL_COMMAND   make -s install > /dev/null
+    INSTALL_COMMAND   ""
     UPDATE_COMMAND    ""
-    BUILD_IN_SOURCE   1
-    PATCH_COMMAND     patch -p1 -N < ${CMAKE_CURRENT_SOURCE_DIR}/cmake/faiss_cuda11.patch || true)
+    BUILD_IN_SOURCE   1)
 
   ExternalProject_Get_Property(faiss install_dir)
   add_library(FAISS::FAISS STATIC IMPORTED)
-  add_dependencies(FAISS::FAISS faiss)
   set_property(TARGET FAISS::FAISS PROPERTY
-    IMPORTED_LOCATION ${FAISS_DIR}/lib/libfaiss.a)
-  set(FAISS_INCLUDE_DIRS "${FAISS_DIR}/src")
+    IMPORTED_LOCATION ${FAISS_DIR}/src/faiss/build/faiss/libfaiss.a)
+  set(FAISS_INCLUDE_DIRS "${FAISS_DIR}/src/faiss")
 else()
   set(FAISS_INSTALL_DIR ENV{FAISS_ROOT})
   find_package(FAISS REQUIRED)
@@ -420,6 +421,7 @@ add_library(cugraph SHARED
     src/components/connectivity.cu
     src/centrality/katz_centrality.cu
     src/centrality/betweenness_centrality.cu
+    src/experimental/generate_rmat_edgelist.cu
     src/experimental/graph.cu
     src/experimental/graph_view.cu
     src/experimental/coarsen_graph.cu
@@ -444,6 +446,10 @@ target_link_directories(cugraph
 #        wait until after cugunrock is constructed.
 #
 add_dependencies(cugraph gunrock_ext)
+
+# Per-thread default stream option see https://docs.nvidia.com/cuda/cuda-runtime-api/stream-sync-behavior.html
+# The per-thread default stream does not synchronize with other streams
+target_compile_definitions(cugraph PUBLIC CUDA_API_PER_THREAD_DEFAULT_STREAM)
 
 ###################################################################################################
 # - include paths ---------------------------------------------------------------------------------
