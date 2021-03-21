@@ -24,6 +24,7 @@
 #include <raft/cudart_utils.h>
 #include <rmm/thrust_rmm_allocator.h>
 #include <raft/handle.hpp>
+#include <rmm/device_scalar.hpp>
 
 #include <thrust/count.h>
 #include <thrust/iterator/counting_iterator.h>
@@ -518,6 +519,174 @@ rmm::device_uvector<weight_t> graph_view_t<
   } else {
     return compute_weight_sums<true>(handle, *this);
   }
+}
+
+template <typename vertex_t,
+          typename edge_t,
+          typename weight_t,
+          bool store_transposed,
+          bool multi_gpu>
+edge_t
+graph_view_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu, std::enable_if_t<multi_gpu>>::
+  compute_max_in_degree(raft::handle_t const& handle) const
+{
+  auto in_degrees = compute_in_degrees(handle);
+  auto it = thrust::max_element(rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
+                                in_degrees.begin(),
+                                in_degrees.end());
+  rmm::device_scalar<edge_t> ret(handle.get_stream());
+  device_allreduce(
+    handle.get_comms(), it, ret.data(), 1, raft::comms::op_t::MAX, handle.get_stream());
+  return ret.value();
+}
+
+template <typename vertex_t,
+          typename edge_t,
+          typename weight_t,
+          bool store_transposed,
+          bool multi_gpu>
+edge_t graph_view_t<vertex_t,
+                    edge_t,
+                    weight_t,
+                    store_transposed,
+                    multi_gpu,
+                    std::enable_if_t<!multi_gpu>>::compute_max_in_degree(raft::handle_t const&
+                                                                           handle) const
+{
+  auto in_degrees = compute_in_degrees(handle);
+  auto it = thrust::max_element(rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
+                                in_degrees.begin(),
+                                in_degrees.end());
+  edge_t ret{};
+  raft::update_host(&ret, it, 1, handle.get_stream());
+  handle.get_stream_view().synchronize();
+  return ret;
+}
+
+template <typename vertex_t,
+          typename edge_t,
+          typename weight_t,
+          bool store_transposed,
+          bool multi_gpu>
+edge_t
+graph_view_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu, std::enable_if_t<multi_gpu>>::
+  compute_max_out_degree(raft::handle_t const& handle) const
+{
+  auto out_degrees = compute_out_degrees(handle);
+  auto it = thrust::max_element(rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
+                                out_degrees.begin(),
+                                out_degrees.end());
+  rmm::device_scalar<edge_t> ret(handle.get_stream());
+  device_allreduce(
+    handle.get_comms(), it, ret.data(), 1, raft::comms::op_t::MAX, handle.get_stream());
+  return ret.value();
+}
+
+template <typename vertex_t,
+          typename edge_t,
+          typename weight_t,
+          bool store_transposed,
+          bool multi_gpu>
+edge_t graph_view_t<vertex_t,
+                    edge_t,
+                    weight_t,
+                    store_transposed,
+                    multi_gpu,
+                    std::enable_if_t<!multi_gpu>>::compute_max_out_degree(raft::handle_t const&
+                                                                            handle) const
+{
+  auto out_degrees = compute_out_degrees(handle);
+  auto it = thrust::max_element(rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
+                                out_degrees.begin(),
+                                out_degrees.end());
+  edge_t ret{};
+  raft::update_host(&ret, it, 1, handle.get_stream());
+  handle.get_stream_view().synchronize();
+  return ret;
+}
+
+template <typename vertex_t,
+          typename edge_t,
+          typename weight_t,
+          bool store_transposed,
+          bool multi_gpu>
+weight_t
+graph_view_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu, std::enable_if_t<multi_gpu>>::
+  compute_max_in_weight_sum(raft::handle_t const& handle) const
+{
+  auto in_weight_sums = compute_in_weight_sums(handle);
+  auto it = thrust::max_element(rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
+                                in_weight_sums.begin(),
+                                in_weight_sums.end());
+  rmm::device_scalar<weight_t> ret(handle.get_stream());
+  device_allreduce(
+    handle.get_comms(), it, ret.data(), 1, raft::comms::op_t::MAX, handle.get_stream());
+  return ret.value();
+}
+
+template <typename vertex_t,
+          typename edge_t,
+          typename weight_t,
+          bool store_transposed,
+          bool multi_gpu>
+weight_t graph_view_t<vertex_t,
+                      edge_t,
+                      weight_t,
+                      store_transposed,
+                      multi_gpu,
+                      std::enable_if_t<!multi_gpu>>::compute_max_in_weight_sum(raft::handle_t const&
+                                                                                 handle) const
+{
+  auto in_weight_sums = compute_in_weight_sums(handle);
+  auto it = thrust::max_element(rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
+                                in_weight_sums.begin(),
+                                in_weight_sums.end());
+  weight_t ret{};
+  raft::update_host(&ret, it, 1, handle.get_stream());
+  handle.get_stream_view().synchronize();
+  return ret;
+}
+
+template <typename vertex_t,
+          typename edge_t,
+          typename weight_t,
+          bool store_transposed,
+          bool multi_gpu>
+weight_t
+graph_view_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu, std::enable_if_t<multi_gpu>>::
+  compute_max_out_weight_sum(raft::handle_t const& handle) const
+{
+  auto out_weight_sums = compute_out_weight_sums(handle);
+  auto it = thrust::max_element(rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
+                                out_weight_sums.begin(),
+                                out_weight_sums.end());
+  rmm::device_scalar<weight_t> ret(handle.get_stream());
+  device_allreduce(
+    handle.get_comms(), it, ret.data(), 1, raft::comms::op_t::MAX, handle.get_stream());
+  return ret.value();
+}
+
+template <typename vertex_t,
+          typename edge_t,
+          typename weight_t,
+          bool store_transposed,
+          bool multi_gpu>
+weight_t graph_view_t<
+  vertex_t,
+  edge_t,
+  weight_t,
+  store_transposed,
+  multi_gpu,
+  std::enable_if_t<!multi_gpu>>::compute_max_out_weight_sum(raft::handle_t const& handle) const
+{
+  auto out_weight_sums = compute_out_weight_sums(handle);
+  auto it = thrust::max_element(rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
+                                out_weight_sums.begin(),
+                                out_weight_sums.end());
+  weight_t ret{};
+  raft::update_host(&ret, it, 1, handle.get_stream());
+  handle.get_stream_view().synchronize();
+  return ret;
 }
 
 // explicit instantiation
