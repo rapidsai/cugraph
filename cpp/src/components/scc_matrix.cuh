@@ -148,18 +148,11 @@ struct SCC_Data {
 
                          bool has_self_loops = p_d_ci[p_d_ro[i] + i] == 1;
 
-                         if (i == j) {
+                         if ((i == j) || (p_d_Cprev[indx] == one)) {
                            if ((p_d_C[indx] != p_d_Cprev[indx]) && has_self_loops) {
                              *p_d_flag = 1;
                            }
 
-                           p_d_C[indx] = one;
-                         }
-                         // if ((i == j) || (p_d_Cprev[indx] == one))
-                         else if (p_d_Cprev[indx] == one) {
-                           if ((p_d_C[indx] != p_d_Cprev[indx]) && has_self_loops) {
-                             *p_d_flag = 1;
-                           }
                            p_d_C[indx] = one;
                          } else {
                            // this is where a hash-map could help:

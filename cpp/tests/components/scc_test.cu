@@ -252,16 +252,10 @@ TEST_F(SCCSmallTest, CustomGraphSimpleLoops)
 
   cugraph::connected_components(G, cugraph::cugraph_cc_t::CUGRAPH_STRONG, d_labels.data().get());
 
-  std::cout << "vertice labels:\n";
-  print_v(d_labels, std::cout);
-
   DVector<size_t> d_counts(nrows);
   auto count_components = get_component_sizes(d_labels.data().get(), nrows, d_counts);
 
-  std::cout << "#vertices / component:\n";
-  print_v(d_counts, std::cout);
-
-  // EXPECT_EQ(count_components, static_cast<size_t>(3));
+  EXPECT_EQ(count_components, static_cast<size_t>(3));
 
   std::vector<size_t> v_counts(d_counts.size());
 
