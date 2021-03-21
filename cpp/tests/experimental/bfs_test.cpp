@@ -318,7 +318,7 @@ INSTANTIATE_TEST_CASE_P(
     BFS_Usecase("test/datasets/wiki-Talk.mtx", 1000),
     BFS_Usecase(cugraph::test::rmat_params_t{10, 16, 0.57, 0.19, 0.19, 0, false, false}, 0),
     // disable correctness checks for large graphs
-    BFS_Usecase(cugraph::test::rmat_params_t{25, 32, 0.57, 0.19, 0.19, 0, false, false},
+    BFS_Usecase(cugraph::test::rmat_params_t{20, 32, 0.57, 0.19, 0.19, 0, false, false},
                 0,
                 false)));
 

@@ -331,7 +331,7 @@ INSTANTIATE_TEST_CASE_P(
     SSSP_Usecase("test/datasets/wiki2003.mtx", 1000),
     SSSP_Usecase(cugraph::test::rmat_params_t{10, 16, 0.57, 0.19, 0.19, 0, false, false}, 0),
     // disable correctness checks for large graphs
-    SSSP_Usecase(cugraph::test::rmat_params_t{25, 16, 0.57, 0.19, 0.19, 0, false, false},
+    SSSP_Usecase(cugraph::test::rmat_params_t{20, 16, 0.57, 0.19, 0.19, 0, false, false},
                  0,
                  false)));
 

@@ -441,12 +441,12 @@ INSTANTIATE_TEST_CASE_P(
                      true),
     // disable correctness checks for large graphs
     PageRank_Usecase(
-      cugraph::test::rmat_params_t{25, 32, 0.57, 0.19, 0.19, 0, false, false}, 0.0, false, false),
+      cugraph::test::rmat_params_t{20, 32, 0.57, 0.19, 0.19, 0, false, false}, 0.0, false, false),
     PageRank_Usecase(
-      cugraph::test::rmat_params_t{25, 32, 0.57, 0.19, 0.19, 0, false, false}, 0.5, false, false),
+      cugraph::test::rmat_params_t{20, 32, 0.57, 0.19, 0.19, 0, false, false}, 0.5, false, false),
     PageRank_Usecase(
-      cugraph::test::rmat_params_t{25, 32, 0.57, 0.19, 0.19, 0, false, false}, 0.0, true, false),
+      cugraph::test::rmat_params_t{20, 32, 0.57, 0.19, 0.19, 0, false, false}, 0.0, true, false),
     PageRank_Usecase(
-      cugraph::test::rmat_params_t{25, 32, 0.57, 0.19, 0.19, 0, false, false}, 0.5, true, false)));
+      cugraph::test::rmat_params_t{20, 32, 0.57, 0.19, 0.19, 0, false, false}, 0.5, true, false)));
 
 CUGRAPH_TEST_PROGRAM_MAIN()

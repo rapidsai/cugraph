@@ -315,10 +315,10 @@ INSTANTIATE_TEST_CASE_P(
     KatzCentrality_Usecase(cugraph::test::rmat_params_t{10, 16, 0.57, 0.19, 0.19, 0, false, false},
                            true),
     // disable correctness checks for large graphs
-    KatzCentrality_Usecase(cugraph::test::rmat_params_t{25, 32, 0.57, 0.19, 0.19, 0, false, false},
+    KatzCentrality_Usecase(cugraph::test::rmat_params_t{20, 32, 0.57, 0.19, 0.19, 0, false, false},
                            false,
                            false),
-    KatzCentrality_Usecase(cugraph::test::rmat_params_t{25, 32, 0.57, 0.19, 0.19, 0, false, false},
+    KatzCentrality_Usecase(cugraph::test::rmat_params_t{20, 32, 0.57, 0.19, 0.19, 0, false, false},
                            true,
                            false)));
 
