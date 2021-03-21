@@ -184,7 +184,7 @@ class Tests_MGPageRank : public ::testing::TestWithParam<PageRank_Usecase> {
                           handle.get_stream());
     }
 
-    // 4. run MG pagerank
+    // 4. run MG PageRank
 
     result_t constexpr alpha{0.85};
     result_t constexpr epsilon{1e-6};
@@ -267,7 +267,7 @@ class Tests_MGPageRank : public ::testing::TestWithParam<PageRank_Usecase> {
                         handle.get_stream());
       }
 
-      // 5-3. run SG pagerank
+      // 5-3. run SG PageRank
 
       rmm::device_uvector<result_t> d_sg_pageranks(sg_graph_view.get_number_of_vertices(),
                                                    handle.get_stream());

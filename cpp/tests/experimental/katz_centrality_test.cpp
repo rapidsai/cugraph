@@ -201,8 +201,7 @@ class Tests_KatzCentrality : public ::testing::TestWithParam<KatzCentrality_Usec
                                            epsilon,
                                            std::numeric_limits<size_t>::max(),
                                            false,
-                                           true,
-                                           false);
+                                           true);
 
     CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
 
