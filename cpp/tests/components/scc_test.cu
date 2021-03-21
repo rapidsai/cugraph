@@ -221,7 +221,63 @@ INSTANTIATE_TEST_CASE_P(
 struct SCCSmallTest : public ::testing::Test {
 };
 
-TEST_F(SCCSmallTest, CustomGraphWithSelfLoops)
+TEST_F(SCCSmallTest, CustomGraphSimpleLoops)
+{
+  using IndexT = int;
+
+  size_t nrows = 5;
+  size_t n2    = 2 * nrows * nrows;
+
+  cudaDeviceProp prop;
+  int device = 0;
+  cudaGetDeviceProperties(&prop, device);
+
+  ASSERT_TRUE(n2 < prop.totalGlobalMem);
+
+  // Allocate memory on host
+  std::vector<IndexT> cooRowInd{0, 1, 2, 3, 3, 4};
+  std::vector<IndexT> cooColInd{1, 0, 0, 1, 4, 3};
+  std::vector<IndexT> labels(nrows);
+  std::vector<IndexT> verts(nrows);
+
+  size_t nnz = cooRowInd.size();
+
+  EXPECT_EQ(nnz, cooColInd.size());
+
+  cugraph::GraphCOOView<int, int, float> G_coo(&cooRowInd[0], &cooColInd[0], nullptr, nrows, nnz);
+  auto G_unique                            = cugraph::coo_to_csr(G_coo);
+  cugraph::GraphCSRView<int, int, float> G = G_unique->view();
+
+  rmm::device_vector<IndexT> d_labels(nrows);
+
+  cugraph::connected_components(G, cugraph::cugraph_cc_t::CUGRAPH_STRONG, d_labels.data().get());
+
+  std::cout << "vertice labels:\n";
+  print_v(d_labels, std::cout);
+
+  DVector<size_t> d_counts(nrows);
+  auto count_components = get_component_sizes(d_labels.data().get(), nrows, d_counts);
+
+  std::cout << "#vertices / component:\n";
+  print_v(d_counts, std::cout);
+
+  // EXPECT_EQ(count_components, static_cast<size_t>(3));
+
+  std::vector<size_t> v_counts(d_counts.size());
+
+  cudaMemcpy(v_counts.data(),
+             d_counts.data().get(),
+             sizeof(size_t) * v_counts.size(),
+             cudaMemcpyDeviceToHost);
+
+  cudaDeviceSynchronize();
+
+  std::vector<size_t> v_counts_exp{2, 1, 2};
+
+  EXPECT_EQ(v_counts, v_counts_exp);
+}
+
+TEST_F(SCCSmallTest, /*DISABLED_*/ CustomGraphWithSelfLoops)
 {
   using IndexT = int;
 
