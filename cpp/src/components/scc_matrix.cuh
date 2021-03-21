@@ -146,8 +146,14 @@ struct SCC_Data {
                          auto i = indx / nrows;
                          auto j = indx % nrows;
 
+                         auto begin = p_d_ci + p_d_ro[i];
+                         auto end   = p_d_ci + p_d_ro[i + 1];
+                         auto pos   = thrust::find_if(
+                           thrust::seq, begin, end, [i](IndexT v_indx) { return (v_indx == i); });
+
+                         bool has_self_loops = (pos != end);
+
                          if ((i == j) || (p_d_Cprev[indx] == one)) {
-                           bool has_self_loops = p_d_ci[p_d_ro[i] + i] == 1;
                            if ((p_d_C[indx] != p_d_Cprev[indx]) && has_self_loops) {
                              *p_d_flag = 1;
                            }
