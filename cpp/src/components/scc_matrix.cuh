@@ -146,9 +146,8 @@ struct SCC_Data {
                          auto i = indx / nrows;
                          auto j = indx % nrows;
 
-                         bool has_self_loops = p_d_ci[p_d_ro[i] + i] == 1;
-
                          if ((i == j) || (p_d_Cprev[indx] == one)) {
+                           bool has_self_loops = p_d_ci[p_d_ro[i] + i] == 1;
                            if ((p_d_C[indx] != p_d_Cprev[indx]) && has_self_loops) {
                              *p_d_flag = 1;
                            }
