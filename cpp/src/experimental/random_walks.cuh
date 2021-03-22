@@ -590,6 +590,8 @@ struct random_walker_t {
       [] __device__(auto crt_out_deg) { return crt_out_deg > 0; });
   }
 
+  device_vec_t<edge_t> const& get_out_degs(void) const { return d_cached_out_degs_; }
+
  private:
   raft::handle_t const& handle_;
   index_t num_paths_;
