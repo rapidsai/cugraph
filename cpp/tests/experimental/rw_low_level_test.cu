@@ -234,13 +234,20 @@ TEST_F(RandomWalksPrimsTest, SimpleGraphColExtraction)
 
   rand_walker.start(d_start, d_coalesced_v, d_sizes);
 
-  std::vector<edge_t> v_crt_out_degs{2, 1, 1, 3};
+  vector_test_t<edge_t> d_crt_out_degs(num_paths, handle.get_stream());
+  rand_walker.gather_from_coalesced(
+    d_coalesced_v, d_out_degs, d_sizes, d_crt_out_degs, max_depth, num_paths);
+
+  std::vector<edge_t> v_crt_out_degs(num_paths);
+  copy_n(handle, v_crt_out_degs, raw_const_ptr(d_crt_out_degs), num_paths);
+
+  std::vector<edge_t> v_crt_out_degs_exp{2, 1, 1, 3};
+  EXPECT_EQ(v_crt_out_degs, v_crt_out_degs_exp);
+
   std::vector<vertex_t> v_col_indx{1, 0, 0, 2};
 
   std::vector<vertex_t> v_next_v(num_paths);
   std::vector<weight_t> v_next_w(num_paths);
-
-  vector_test_t<edge_t> d_crt_out_degs(num_paths, handle.get_stream());
 
   col_indx_extract_t<decltype(graph_view), index_t> col_extractor{handle,
                                                                   graph_view,
