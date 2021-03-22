@@ -175,7 +175,7 @@ TEST_F(RandomWalksPrimsTest, SimpleGraphRWStart)
   EXPECT_EQ(v_sizes, v_sz_exp);
 }
 
-TEST_F(RandomWalksPrimsTest, SimpleGraphColExtraction)
+TEST_F(RandomWalksPrimsTest, SimpleGraphCoalesceExperiments)
 {
   using namespace cugraph::experimental::detail;
 
@@ -243,11 +243,63 @@ TEST_F(RandomWalksPrimsTest, SimpleGraphColExtraction)
 
   std::vector<edge_t> v_crt_out_degs_exp{2, 1, 1, 3};
   EXPECT_EQ(v_crt_out_degs, v_crt_out_degs_exp);
+}
 
-  std::vector<vertex_t> v_col_indx{1, 0, 0, 2};
+TEST_F(RandomWalksPrimsTest, SimpleGraphColExtraction)
+{
+  using namespace cugraph::experimental::detail;
 
-  std::vector<vertex_t> v_next_v(num_paths);
-  std::vector<weight_t> v_next_w(num_paths);
+  using vertex_t = int32_t;
+  using edge_t   = vertex_t;
+  using weight_t = float;
+  using index_t  = vertex_t;
+
+  raft::handle_t handle{};
+
+  edge_t num_edges      = 8;
+  vertex_t num_vertices = 6;
+
+  std::vector<vertex_t> v_src{0, 1, 1, 2, 2, 2, 3, 4};
+  std::vector<vertex_t> v_dst{1, 3, 4, 0, 1, 3, 5, 5};
+  std::vector<weight_t> v_w{0.1, 1.1, 2.1, 3.1, 4.1, 5.1, 6.1, 7.1};
+
+  auto graph = make_graph(handle, v_src, v_dst, v_w, num_vertices, num_edges);
+
+  auto graph_view = graph.view();
+
+  edge_t const* offsets   = graph_view.offsets();
+  vertex_t const* indices = graph_view.indices();
+  weight_t const* values  = graph_view.weights();
+
+  index_t num_paths = 4;
+  index_t max_depth = 3;
+  index_t total_sz  = num_paths * max_depth;
+
+  std::vector<vertex_t> v_coalesced(total_sz, -1);
+  std::vector<weight_t> w_coalesced(total_sz - num_paths, -1);
+
+  vector_test_t<vertex_t> d_coalesced_v(total_sz, handle.get_stream());
+  vector_test_t<weight_t> d_coalesced_w(total_sz - num_paths, handle.get_stream());
+
+  copy_n(handle, d_coalesced_v, v_coalesced);
+  copy_n(handle, d_coalesced_w, w_coalesced);
+
+  std::vector<vertex_t> v_start{1, 0, 4, 2};
+  vector_test_t<vertex_t> d_start(num_paths, handle.get_stream());
+
+  copy_n(handle, d_start, v_start);
+
+  vector_test_t<index_t> d_sizes(num_paths, handle.get_stream());
+
+  random_walker_t<decltype(graph_view)> rand_walker{handle, graph_view, num_paths, max_depth};
+
+  auto const& d_out_degs = rand_walker.get_out_degs();
+
+  rand_walker.start(d_start, d_coalesced_v, d_sizes);
+
+  vector_test_t<edge_t> d_crt_out_degs(num_paths, handle.get_stream());
+  rand_walker.gather_from_coalesced(
+    d_coalesced_v, d_out_degs, d_sizes, d_crt_out_degs, max_depth, num_paths);
 
   col_indx_extract_t<decltype(graph_view), index_t> col_extractor{handle,
                                                                   graph_view,
@@ -255,5 +307,30 @@ TEST_F(RandomWalksPrimsTest, SimpleGraphColExtraction)
                                                                   raw_const_ptr(d_sizes),
                                                                   num_paths,
                                                                   max_depth};
+
+  // typically given by random engine:
+  //
+  std::vector<vertex_t> v_col_indx{1, 0, 0, 2};
+  vector_test_t<vertex_t> d_col_indx(num_paths, handle.get_stream());
+
+  copy_n(handle, d_col_indx, v_col_indx);
+
+  vector_test_t<vertex_t> d_next_v(num_paths, handle.get_stream());
+  vector_test_t<weight_t> d_next_w(num_paths, handle.get_stream());
+
+  col_extractor(d_coalesced_v, d_col_indx, d_next_v, d_next_w);
+
+  std::vector<vertex_t> v_next_v(num_paths);
+  std::vector<weight_t> v_next_w(num_paths);
+
+  copy_n(handle, v_next_v, raw_const_ptr(d_next_v), num_paths);
+  copy_n(handle, v_next_w, raw_const_ptr(d_next_w), num_paths);
+
+  std::vector<vertex_t> v_next_v_exp{4, 1, 5, 3};
+  std::vector<weight_t> v_next_w_exp{2.1f, 0.1f, 7.1f, 5.1f};
+
+  EXPECT_EQ(v_next_v, v_next_v_exp);
+  EXPECT_EQ(v_next_w, v_next_w_exp);
+
   // ASSERT_TRUE(true);
 }

@@ -227,11 +227,12 @@ struct col_indx_extract_t<graph_t, index_t, std::enable_if_t<graph_t::is_multi_g
   // (use tranform_if() with transform iterator)
   //
   void operator()(
-    device_vec_t<vertex_t> const& d_coalesced_src_v,  // coalesced vector of vertices
-    device_vec_t<vertex_t> const& d_v_col_indx,  // column indices, given by stepper's random engine
-    device_vec_t<vertex_t>& d_v_next_vertices,   // set of destination vertices, for next step
+    device_vec_t<vertex_t> const& d_coalesced_src_v,  // in: coalesced vector of vertices
+    device_vec_t<vertex_t> const&
+      d_v_col_indx,  // in: column indices, given by stepper's random engine
+    device_vec_t<vertex_t>& d_v_next_vertices,  // out: set of destination vertices, for next step
     device_vec_t<weight_t>&
-      d_v_next_weights)  // set of weights between src and destination vertices, for next step
+      d_v_next_weights)  // out: set of weights between src and destination vertices, for next step
     const
   {
     using zip_iterator_t =
