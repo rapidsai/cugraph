@@ -316,7 +316,6 @@ struct random_walker_t {
   //
   // take one step in sync for all paths that have not reached sinks:
   //
-  // FIXME: remove template <typename real_t = float, typename seed_t = long>
   void step(
     graph_t const& graph,
     seed_t seed,
@@ -339,7 +338,6 @@ struct random_walker_t {
 
     // generate random destination indices:
     //
-    // FIXME: remove: rrandom_gen_t<vertex_t, edge_t, seed_t, real_t>
     random_engine_t rgen(handle_, num_paths_, d_random, d_crt_out_degs, seed);
 
     rgen.generate_col_indices(d_col_indx);
