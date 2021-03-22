@@ -90,13 +90,12 @@ void TSP::reset_batch() {
 }
 
 void TSP::get_initial_solution(int const batch) {
-  const int threads = 128;
   if (!beam_search_)
-    random_init<<<restart_batch_, threads>>>(work_, x_pos_, y_pos_, vtx_ptr_, nstart_, nodes_, batch);
+    random_init<<<restart_batch_, best_thread_num_>>>(work_, x_pos_, y_pos_, vtx_ptr_, nstart_, nodes_, batch);
   else {
     // KNN call
     knn();
-    knn_init<<<restart_batch_, threads>>>(work_, x_pos_, y_pos_, vtx_ptr_, neighbors_, nstart_, nodes_, k_, batch);
+    knn_init<<<restart_batch_, best_thread_num_>>>(work_, x_pos_, y_pos_, vtx_ptr_, neighbors_, nstart_, nodes_, k_, batch);
   }
 }
 
@@ -133,8 +132,8 @@ float TSP::compute()
   // Tell the cache how we want it to behave
   cudaFuncSetCacheConfig(search_solution, cudaFuncCachePreferEqual);
 
-  int threads = best_thread_count(nodes_, max_threads_, sm_count_, warp_size_);
-  if (verbose_) std::cout << "Calculated best thread number = " << threads << "\n";
+  best_thread_num_ = best_thread_count(nodes_, max_threads_, sm_count_, warp_size_);
+  if (verbose_) std::cout << "Calculated best thread number = " << best_thread_num_ << "\n";
 
   gettimeofday(&starttime, NULL);
   for (int batch = 1; batch <= num_restart_batches; ++batch) {
@@ -143,7 +142,7 @@ float TSP::compute()
     if (batch == num_restart_batches) restart_batch_ = restart_resid;
 
     get_initial_solution(batch);
-    search_solution<<<restart_batch_, threads, sizeof(int) * threads, stream_>>>(results_,
+    search_solution<<<restart_batch_, best_thread_num_, sizeof(int) * best_thread_num_, stream_>>>(results_,
                                                                                  mylock_,
                                                                                  vtx_ptr_,
                                                                                  beam_search_,
@@ -155,7 +154,7 @@ float TSP::compute()
                                                                                  work_,
                                                                                  nstart_,
                                                                                  climbs_);
-    get_optimal_tour<<<restart_batch_, threads, sizeof(int) * threads, stream_>>>(results_,
+    get_optimal_tour<<<restart_batch_, best_thread_num_, sizeof(int) * best_thread_num_, stream_>>>(results_,
         mylock_, work_, nodes_);
     CHECK_CUDA(stream_);
     cudaDeviceSynchronize();

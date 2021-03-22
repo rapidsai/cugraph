@@ -64,6 +64,7 @@ class TSP {
   int sm_count_;
   // how large a grid we want to run, this is fixed
   int restart_batch_;
+  int best_thread_num_;
 
   // TSP
   int const *vtx_ptr_;

@@ -96,7 +96,6 @@ __global__ void knn_init(int *work,
     curandState rndstate;
     curand_init(blockIdx.x * batch, 0, 0, &rndstate);
     int progress = 0;
-    int initlen  = 0;
 
     px[0]     = posx[nstart];
     py[0]     = posy[nstart];
@@ -107,7 +106,6 @@ __global__ void knn_init(int *work,
     while (progress < nodes - 1) {  // beam search as starting point
       for (int i = 1; i <= progress; i++) buf[i] = 0;
       progress      = 0;  // reset current location in path and visited array
-      initlen       = 0;
       int randjumps = 0;
       while (progress < nodes - 1) {
         int nj     = curand(&rndstate) % K;
@@ -139,13 +137,11 @@ __global__ void knn_init(int *work,
         px[progress]   = posx[head];
         py[progress]   = posy[head];
         path[progress] = vtx_ptr[head];
-        initlen += __float2int_rn(euclidean_dist(px, py, progress, progress - 1));
       }
     }
     px[nodes]   = px[nstart];
     py[nodes]   = py[nstart];
     path[nodes] = path[nstart];
-    initlen += __float2int_rn(euclidean_dist(px, py, nodes, nstart));
   }
 }
 
