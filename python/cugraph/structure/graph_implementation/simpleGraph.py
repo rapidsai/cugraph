@@ -54,8 +54,6 @@ class simpleGraphImpl:
             self.multi_edge = properties.multi_edge
             self.directed = properties.directed
             self.tree = properties.tree
-            self.bipartite = properties.bipartite
-            self.npartite = properties.npartite
             self.renumbered = False
             self.self_loop = None
             self.isolated_vertices = None

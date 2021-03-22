@@ -16,9 +16,7 @@ from cugraph.structure.graph import (Graph,
                                      MultiGraph,
                                      MultiDiGraph,
                                      BiPartiteGraph,
-                                     BiPartiteDiGraph,
-                                     NPartiteGraph,
-                                     NPartiteDiGraph)
+                                     BiPartiteDiGraph)
 from cugraph.structure.number_map import NumberMap
 from cugraph.structure.symmetrize import symmetrize, symmetrize_df , symmetrize_ddf
 from cugraph.structure.convert_matrix import (from_edgelist,

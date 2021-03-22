@@ -27,18 +27,15 @@ def null_check(col):
 
 class Graph:
     class Properties:
-        def __init__(self, multi_edge, directed, tree, bipartite, npartite):
+        def __init__(self, multi_edge, directed, tree):
             self.multi_edge = multi_edge
             self.directed = directed
             self.tree = tree
-            self.bipartite = bipartite
-            self.npartite = npartite
 
     def __init__(self, m_graph=None, multi_edge=False, directed=False,
                  tree=False, bipartite=False, npartite=False):
         self.Base = None
-        self.graph_properties = Graph.Properties(multi_edge, directed, tree,
-                                                 bipartite, npartite)
+        self.graph_properties = Graph.Properties(multi_edge, directed, tree)
         if m_graph is not None:
             if m_graph.is_multigraph():
                 elist = m_graph.view_edge_list()
@@ -283,30 +280,6 @@ class Graph:
         np_array = np.asarray(np_matrix)
         self.from_numpy_array(np_array)
 
-    def add_nodes_from(self, nodes, bipartite=None, multipartite=None):
-        """
-        Add nodes information to the Graph.
-        Parameters
-        ----------
-        nodes : list or cudf.Series
-            The nodes of the graph to be stored. If bipartite and multipartite
-            arguments are not passed, the nodes are considered to be a list of
-            all the nodes present in the Graph.
-        bipartite : str
-            Sets the Graph as bipartite. The nodes are stored as a set of nodes
-            of the partition named as bipartite argument.
-        multipartite : str
-            Sets the Graph as multipartite. The nodes are stored as a set of
-            nodes of the partition named as multipartite argument.
-        """
-        if bipartite is None and multipartite is None:
-            self.Base._nodes["all_nodes"] = cudf.Series(nodes)
-        else:
-            if self.Base is None:
-                self.Base = npartiteGraphImpl(self.graph_properties)
-            self.Base.add_nodes_from(nodes, bipartite=bipartite,
-                                     multipartite=multipartite)
-
     def unrenumber(self, df, column_name, preserve_order=False):
         """
         Given a DataFrame containing internal vertex ids in the identified
@@ -412,7 +385,10 @@ class Graph:
         graph to check if it is bipartite.
         """
         # TO DO: Call coloring algorithm
-        return self.graph_properties.bipartite
+        if hasattr(self.graph_properties, 'bipartite'):
+            return self.graph_properties.bipartite
+        else:
+            return False
 
     def is_multipartite(self):
         """
@@ -421,8 +397,10 @@ class Graph:
         the graph to check if it is multipartite.
         """
         # TO DO: Call coloring algorithm
-        return (self.graph_properties.multipartite or
-                self.graph_properties.bipartite)
+        if hasattr(self.graph_properties, 'multipartite'):
+            return self.graph_properties.multipartite
+        else:
+            return False
 
     def is_multigraph(self):
         """
@@ -502,6 +480,16 @@ class Graph:
             self.Base.to_undirected(undirected_graph.Base)
             return undirected_graph
 
+    def add_nodes_from(self, nodes):
+        """
+        Add nodes information to the Graph.
+        Parameters
+        ----------
+        nodes : list or cudf.Series
+            The nodes of the graph to be stored.
+        """
+        self.Base._nodes["all_nodes"] = cudf.Series(nodes)
+
     # TODO: Add function
     # def properties():
 
@@ -540,9 +528,9 @@ class DiTree(Tree):
 
 class NPartiteGraph(Graph):
     def __init__(self, bipartite=False, directed=False):
-        super(NPartiteGraph, self).__init__(directed=directed,
-                                            bipartite=bipartite,
-                                            npartite=True)
+        super(NPartiteGraph, self).__init__(directed=directed)
+        self.graph_properties.bipartite = bipartite
+        self.graph_properties.multipartite = True
 
     def from_cudf_edgelist(
         self,
@@ -630,6 +618,30 @@ class NPartiteGraph(Graph):
             is number of vertices, renumber argument should be True.
         """
         raise Exception("Distributed N-partite graph not supported")
+
+    def add_nodes_from(self, nodes, bipartite=None, multipartite=None):
+        """
+        Add nodes information to the Graph.
+        Parameters
+        ----------
+        nodes : list or cudf.Series
+            The nodes of the graph to be stored. If bipartite and multipartite
+            arguments are not passed, the nodes are considered to be a list of
+            all the nodes present in the Graph.
+        bipartite : str
+            Sets the Graph as bipartite. The nodes are stored as a set of nodes
+            of the partition named as bipartite argument.
+        multipartite : str
+            Sets the Graph as multipartite. The nodes are stored as a set of
+            nodes of the partition named as multipartite argument.
+        """
+        if self.Base is None:
+            self.Base = npartiteGraphImpl(self.graph_properties)
+        if bipartite is None and multipartite is None:
+            self.Base._nodes["all_nodes"] = cudf.Series(nodes)
+        else:
+            self.Base.add_nodes_from(nodes, bipartite=bipartite,
+                                     multipartite=multipartite)
 
 
 class BiPartiteGraph(NPartiteGraph):

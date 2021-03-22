@@ -18,6 +18,7 @@ import cudf
 class npartiteGraphImpl(simpleGraphImpl):
     def __init__(self, properties):
         super(npartiteGraphImpl, self).__init__(properties)
+        self.properties.bipartite = properties.bipartite
 
     # API may change in future
     def __from_edgelist(
