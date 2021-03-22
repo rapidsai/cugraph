@@ -394,9 +394,9 @@ struct random_walker_t {
   // for each i in [0..num_paths_) {
   //   d_paths_v_set[i*max_depth] = d_src_init_v[i];
   //
-  void start(device_vec_t<vertex_t> const& d_src_init_v,
-             device_vec_t<vertex_t>& d_paths_v_set,
-             device_vec_t<index_t>& d_sizes) const
+  void start(device_vec_t<vertex_t> const& d_src_init_v,  // in: start set
+             device_vec_t<vertex_t>& d_paths_v_set,       // out: coalesced v
+             device_vec_t<index_t>& d_sizes) const        // out: init sizes to {1,...}
   {
     // intialize path sizes to 1, as they contain at least one vertex each:
     // the initial set: d_src_init_v;

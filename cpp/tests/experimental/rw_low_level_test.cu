@@ -70,12 +70,17 @@ struct RandomWalksPrimsTest : public ::testing::Test {
 
 using namespace cugraph::experimental;
 
-TEST_F(RandomWalksPrimsTest, SimpleGraphColExtraction)
+template <typename value_t>
+using vector_test_t = detail::device_vec_t<value_t>;  // for debug purposes
+
+TEST_F(RandomWalksPrimsTest, SimpleGraphRWStart)
 {
+  using namespace cugraph::experimental::detail;
+
   using vertex_t = int32_t;
   using edge_t   = vertex_t;
   using weight_t = float;
-  using index_t  = int32_t;
+  using index_t  = vertex_t;
 
   raft::handle_t handle{};
 
@@ -86,9 +91,9 @@ TEST_F(RandomWalksPrimsTest, SimpleGraphColExtraction)
   std::vector<vertex_t> v_dst{1, 3, 4, 0, 1, 3, 5, 5};
   std::vector<weight_t> v_w{0.1, 1.1, 2.1, 3.1, 4.1, 5.1, 6.1, 7.1};
 
-  rmm::device_uvector<vertex_t> d_src(num_edges, handle.get_stream());
-  rmm::device_uvector<vertex_t> d_dst(num_edges, handle.get_stream());
-  rmm::device_uvector<weight_t> d_weights(num_edges, handle.get_stream());
+  vector_test_t<vertex_t> d_src(num_edges, handle.get_stream());
+  vector_test_t<vertex_t> d_dst(num_edges, handle.get_stream());
+  vector_test_t<weight_t> d_weights(num_edges, handle.get_stream());
 
   copy_n(handle, d_src, v_src);
   copy_n(handle, d_dst, v_dst);
@@ -126,10 +131,128 @@ TEST_F(RandomWalksPrimsTest, SimpleGraphColExtraction)
   index_t max_depth = 3;
   index_t total_sz  = num_paths * max_depth;
 
+  std::vector<vertex_t> v_coalesced(total_sz, -1);
+  std::vector<weight_t> w_coalesced(total_sz - num_paths, -1);
+
+  vector_test_t<vertex_t> d_coalesced_v(total_sz, handle.get_stream());
+  vector_test_t<weight_t> d_coalesced_w(total_sz - num_paths, handle.get_stream());
+
+  copy_n(handle, d_coalesced_v, v_coalesced);
+  copy_n(handle, d_coalesced_w, w_coalesced);
+
   std::vector<vertex_t> v_start{1, 0, 4, 2};
+  vector_test_t<vertex_t> d_start(num_paths, handle.get_stream());
+
+  copy_n(handle, d_start, v_start);
+
+  vector_test_t<index_t> d_sizes(num_paths, handle.get_stream());
+
+  random_walker_t<decltype(graph_view)> rand_walker{handle, graph_view, num_paths, max_depth};
+
+  rand_walker.start(d_start, d_coalesced_v, d_sizes);
+
+  std::vector<vertex_t> v_coalesced_exp{1, -1, -1, 0, -1, -1, 4, -1, -1, 2, -1, -1};
+  copy_n(handle, v_coalesced, raw_const_ptr(d_coalesced_v), total_sz);
+  EXPECT_EQ(v_coalesced, v_coalesced_exp);
+
+  std::vector<index_t> v_sizes{1, 1, 1, 1};
+  std::vector<index_t> v_sz_exp(num_paths);
+  copy_n(handle, v_sz_exp, raw_const_ptr(d_sizes), num_paths);
+
+  EXPECT_EQ(v_sizes, v_sz_exp);
+}
+
+TEST_F(RandomWalksPrimsTest, SimpleGraphColExtraction)
+{
+  using namespace cugraph::experimental::detail;
+
+  using vertex_t = int32_t;
+  using edge_t   = vertex_t;
+  using weight_t = float;
+  using index_t  = vertex_t;
+
+  raft::handle_t handle{};
+
+  edge_t num_edges      = 8;
+  vertex_t num_vertices = 6;
+
+  std::vector<vertex_t> v_src{0, 1, 1, 2, 2, 2, 3, 4};
+  std::vector<vertex_t> v_dst{1, 3, 4, 0, 1, 3, 5, 5};
+  std::vector<weight_t> v_w{0.1, 1.1, 2.1, 3.1, 4.1, 5.1, 6.1, 7.1};
+
+  vector_test_t<vertex_t> d_src(num_edges, handle.get_stream());
+  vector_test_t<vertex_t> d_dst(num_edges, handle.get_stream());
+  vector_test_t<weight_t> d_weights(num_edges, handle.get_stream());
+
+  copy_n(handle, d_src, v_src);
+  copy_n(handle, d_dst, v_dst);
+  copy_n(handle, d_weights, v_w);
+
+  edgelist_t<vertex_t, edge_t, weight_t> edgelist{
+    d_src.data(), d_dst.data(), d_weights.data(), num_edges};
+
+  graph_t<vertex_t, edge_t, weight_t, false, false> graph(
+    handle, edgelist, num_vertices, graph_properties_t{}, false);
+
+  auto graph_view = graph.view();
+
+  edge_t const* offsets   = graph_view.offsets();
+  vertex_t const* indices = graph_view.indices();
+  weight_t const* values  = graph_view.weights();
+
+  std::vector<edge_t> v_ro(num_vertices + 1);
+  std::vector<vertex_t> v_ci(num_edges);
+  std::vector<weight_t> v_vs(num_edges);
+
+  copy_n(handle, v_ro, offsets, num_vertices + 1);
+  copy_n(handle, v_ci, indices, num_edges);
+  copy_n(handle, v_vs, values, num_edges);
+
+  std::vector<edge_t> v_ro_expected{0, 1, 3, 6, 7, 8, 8};
+  std::vector<vertex_t> v_ci_expected{1, 3, 4, 0, 1, 3, 5, 5};
+  std::vector<weight_t> v_vs_expected{0.1, 1.1, 2.1, 3.1, 4.1, 5.1, 6.1, 7.1};
+
+  EXPECT_EQ(v_ro, v_ro_expected);
+  EXPECT_EQ(v_ci, v_ci_expected);
+  EXPECT_EQ(v_vs, v_vs_expected);
+
+  index_t num_paths = 4;
+  index_t max_depth = 3;
+  index_t total_sz  = num_paths * max_depth;
 
   std::vector<vertex_t> v_coalesced(total_sz, -1);
-  std::vector<weight_t> w_coalesced(total_sz, -1);
+  std::vector<weight_t> w_coalesced(total_sz - num_paths, -1);
 
+  vector_test_t<vertex_t> d_coalesced_v(total_sz, handle.get_stream());
+  vector_test_t<weight_t> d_coalesced_w(total_sz - num_paths, handle.get_stream());
+
+  copy_n(handle, d_coalesced_v, v_coalesced);
+  copy_n(handle, d_coalesced_w, w_coalesced);
+
+  std::vector<vertex_t> v_start{1, 0, 4, 2};
+  vector_test_t<vertex_t> d_start(num_paths, handle.get_stream());
+
+  copy_n(handle, d_start, v_start);
+
+  vector_test_t<index_t> d_sizes(num_paths, handle.get_stream());
+
+  random_walker_t<decltype(graph_view)> rand_walker{handle, graph_view, num_paths, max_depth};
+
+  rand_walker.start(d_start, d_coalesced_v, d_sizes);
+
+  std::vector<edge_t> v_crt_out_degs{2, 1, 1, 3};
+  std::vector<vertex_t> v_col_indx{1, 0, 0, 2};
+
+  std::vector<vertex_t> v_next_v(num_paths);
+  std::vector<weight_t> v_next_w(num_paths);
+
+  vector_test_t<edge_t> d_crt_out_degs(num_paths, handle.get_stream());
+
+  col_indx_extract_t<decltype(graph_view), index_t> col_extractor{handle,
+                                                                  graph_view,
+                                                                  raw_const_ptr(d_crt_out_degs),
+                                                                  raw_const_ptr(d_sizes),
+                                                                  num_paths,
+                                                                  max_depth};
   // ASSERT_TRUE(true);
 }
