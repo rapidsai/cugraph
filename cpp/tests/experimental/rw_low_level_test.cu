@@ -26,6 +26,7 @@
 #include <raft/random/rng.cuh>
 
 #include <algorithm>
+#include <iostream>
 #include <iterator>
 #include <limits>
 #include <numeric>
@@ -38,6 +39,7 @@ template <typename value_t>
 using vector_test_t = detail::device_vec_t<value_t>;  // for debug purposes
 
 namespace {  // anonym.
+
 template <typename value_t>
 void copy_n(raft::handle_t const& handle,
             rmm::device_uvector<value_t>& d_dst,
@@ -92,6 +94,26 @@ graph_t<vertex_t, edge_t, weight_t, false, false> make_graph(raft::handle_t cons
     handle, edgelist, num_vertices, graph_properties_t{}, false);
 
   return graph;
+}
+
+template <typename vertex_t, typename edge_t, typename index_t>
+bool check_col_indices(raft::handle_t const& handle,
+                       vector_test_t<edge_t> const& d_crt_out_degs,
+                       vector_test_t<vertex_t> const& d_col_indx,
+                       index_t num_paths)
+{
+  bool all_indices_within_degs = thrust::all_of(
+    rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
+    thrust::make_counting_iterator<index_t>(0),
+    thrust::make_counting_iterator<index_t>(num_paths),
+    [p_d_col_indx     = detail::raw_const_ptr(d_col_indx),
+     p_d_crt_out_degs = detail::raw_const_ptr(d_crt_out_degs)] __device__(auto indx) {
+      if (p_d_crt_out_degs[indx] > 0)
+        return ((p_d_col_indx[indx] >= 0) && (p_d_col_indx[indx] < p_d_crt_out_degs[indx]));
+      else
+        return true;
+    });
+  return all_indices_within_degs;
 }
 }  // namespace
 
@@ -331,6 +353,101 @@ TEST_F(RandomWalksPrimsTest, SimpleGraphColExtraction)
 
   EXPECT_EQ(v_next_v, v_next_v_exp);
   EXPECT_EQ(v_next_w, v_next_w_exp);
+}
 
-  // ASSERT_TRUE(true);
+TEST_F(RandomWalksPrimsTest, SimpleGraphRndGenColIndx)
+{
+  using namespace cugraph::experimental::detail;
+
+  using vertex_t = int32_t;
+  using edge_t   = vertex_t;
+  using weight_t = float;
+  using index_t  = vertex_t;
+  using real_t   = float;
+  using seed_t   = long;
+
+  using random_engine_t = rrandom_gen_t<vertex_t, edge_t>;
+
+  raft::handle_t handle{};
+
+  edge_t num_edges      = 8;
+  vertex_t num_vertices = 6;
+
+  std::vector<vertex_t> v_src{0, 1, 1, 2, 2, 2, 3, 4};
+  std::vector<vertex_t> v_dst{1, 3, 4, 0, 1, 3, 5, 5};
+  std::vector<weight_t> v_w{0.1, 1.1, 2.1, 3.1, 4.1, 5.1, 6.1, 7.1};
+
+  auto graph = make_graph(handle, v_src, v_dst, v_w, num_vertices, num_edges);
+
+  auto graph_view = graph.view();
+
+  edge_t const* offsets   = graph_view.offsets();
+  vertex_t const* indices = graph_view.indices();
+  weight_t const* values  = graph_view.weights();
+
+  index_t num_paths = 4;
+  index_t max_depth = 3;
+  index_t total_sz  = num_paths * max_depth;
+
+  std::vector<vertex_t> v_coalesced(total_sz, -1);
+  std::vector<weight_t> w_coalesced(total_sz - num_paths, -1);
+
+  vector_test_t<vertex_t> d_coalesced_v(total_sz, handle.get_stream());
+  vector_test_t<weight_t> d_coalesced_w(total_sz - num_paths, handle.get_stream());
+
+  copy_n(handle, d_coalesced_v, v_coalesced);
+  copy_n(handle, d_coalesced_w, w_coalesced);
+
+  std::vector<vertex_t> v_start{1, 0, 4, 2};
+  vector_test_t<vertex_t> d_start(num_paths, handle.get_stream());
+
+  copy_n(handle, d_start, v_start);
+
+  vector_test_t<index_t> d_sizes(num_paths, handle.get_stream());
+
+  random_walker_t<decltype(graph_view)> rand_walker{handle, graph_view, num_paths, max_depth};
+
+  auto const& d_out_degs = rand_walker.get_out_degs();
+
+  rand_walker.start(d_start, d_coalesced_v, d_sizes);
+
+  vector_test_t<edge_t> d_crt_out_degs(num_paths, handle.get_stream());
+  rand_walker.gather_from_coalesced(
+    d_coalesced_v, d_out_degs, d_sizes, d_crt_out_degs, max_depth, num_paths);
+
+  // random engine generated:
+  //
+  vector_test_t<vertex_t> d_col_indx(num_paths, handle.get_stream());
+  vector_test_t<real_t> d_random(num_paths, handle.get_stream());
+
+  seed_t seed = static_cast<seed_t>(std::time(nullptr));
+  random_engine_t rgen(handle, num_paths, d_random, d_crt_out_degs, seed);
+  rgen.generate_col_indices(d_col_indx);
+
+#ifdef PRINT_RANDOM
+  std::vector<vertex_t> v_col_indx(num_paths);
+  std::vector<edge_t> v_crt_out_degs(num_paths);
+  std::vector<real_t> v_random(num_paths);
+
+  copy_n(handle, v_col_indx, raw_const_ptr(d_col_indx), num_paths);
+  copy_n(handle, v_crt_out_degs, raw_const_ptr(d_crt_out_degs), num_paths);
+  copy_n(handle, v_random, raw_const_ptr(d_random), num_paths);
+
+  std::cout << "v_random:\n";
+  std::copy(v_random.begin(), v_random.end(), std::ostream_iterator<real_t>(std::cout, ", "));
+  std::cout << '\n';
+
+  std::cout << "crt_out_degs:\n";
+  std::copy(
+    v_crt_out_degs.begin(), v_crt_out_degs.end(), std::ostream_iterator<edge_t>(std::cout, ", "));
+  std::cout << '\n';
+
+  std::cout << "col_indx:\n";
+  std::copy(v_col_indx.begin(), v_col_indx.end(), std::ostream_iterator<vertex_t>(std::cout, ", "));
+  std::cout << '\n';
+#endif
+
+  bool all_indices_within_degs = check_col_indices(handle, d_crt_out_degs, d_col_indx, num_paths);
+
+  ASSERT_TRUE(all_indices_within_degs);
 }
