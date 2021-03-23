@@ -221,6 +221,8 @@ INSTANTIATE_TEST_CASE_P(
 struct SCCSmallTest : public ::testing::Test {
 };
 
+// FIXME: we should take advantage of gtest parameterization over copy-and-paste reuse.
+//
 TEST_F(SCCSmallTest, CustomGraphSimpleLoops)
 {
   using IndexT = int;
