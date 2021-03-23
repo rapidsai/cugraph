@@ -741,3 +741,39 @@ TEST_F(RandomWalksPrimsTest, SimpleGraphCoalesceDefragment)
     EXPECT_EQ(w_coalesced, w_coalesced_exp);
   }
 }
+
+TEST_F(RandomWalksPrimsTest, SimpleGraphRandomWalk)
+{
+  using vertex_t = int32_t;
+  using edge_t   = vertex_t;
+  using weight_t = float;
+  using index_t  = vertex_t;
+
+  raft::handle_t handle{};
+
+  edge_t num_edges      = 8;
+  vertex_t num_vertices = 6;
+
+  std::vector<vertex_t> v_src{0, 1, 1, 2, 2, 2, 3, 4};
+  std::vector<vertex_t> v_dst{1, 3, 4, 0, 1, 3, 5, 5};
+  std::vector<weight_t> v_w{0.1, 1.1, 2.1, 3.1, 4.1, 5.1, 6.1, 7.1};
+
+  auto graph = make_graph(handle, v_src, v_dst, v_w, num_vertices, num_edges);
+
+  auto graph_view = graph.view();
+
+  edge_t const* offsets   = graph_view.offsets();
+  vertex_t const* indices = graph_view.indices();
+  weight_t const* values  = graph_view.weights();
+
+  std::vector<vertex_t> v_start{1, 0, 4, 2};
+
+  index_t max_depth = 5;
+  auto triplet      = detail::random_walks(handle, graph_view, v_start, max_depth);
+
+  auto& d_coalesced_v = std::get<0>(triplet);
+  auto& d_coalesced_w = std::get<1>(triplet);
+  auto& d_sizes       = std::get<2>(triplet);
+
+  ASSERT_TRUE(d_sizes.size() == v_start.size());
+}
