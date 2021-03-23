@@ -256,6 +256,8 @@ TEST_F(RandomWalksPrimsTest, SimpleGraphCoalesceExperiments)
 
   rand_walker.start(d_start, d_coalesced_v, d_sizes);
 
+  // update crt_out_degs:
+  //
   vector_test_t<edge_t> d_crt_out_degs(num_paths, handle.get_stream());
   rand_walker.gather_from_coalesced(
     d_coalesced_v, d_out_degs, d_sizes, d_crt_out_degs, max_depth, num_paths);
@@ -319,6 +321,8 @@ TEST_F(RandomWalksPrimsTest, SimpleGraphColExtraction)
 
   rand_walker.start(d_start, d_coalesced_v, d_sizes);
 
+  // update crt_out_degs:
+  //
   vector_test_t<edge_t> d_crt_out_degs(num_paths, handle.get_stream());
   rand_walker.gather_from_coalesced(
     d_coalesced_v, d_out_degs, d_sizes, d_crt_out_degs, max_depth, num_paths);
@@ -411,6 +415,8 @@ TEST_F(RandomWalksPrimsTest, SimpleGraphRndGenColIndx)
 
   rand_walker.start(d_start, d_coalesced_v, d_sizes);
 
+  // update crt_out_degs:
+  //
   vector_test_t<edge_t> d_crt_out_degs(num_paths, handle.get_stream());
   rand_walker.gather_from_coalesced(
     d_coalesced_v, d_out_degs, d_sizes, d_crt_out_degs, max_depth, num_paths);
@@ -450,4 +456,75 @@ TEST_F(RandomWalksPrimsTest, SimpleGraphRndGenColIndx)
   bool all_indices_within_degs = check_col_indices(handle, d_crt_out_degs, d_col_indx, num_paths);
 
   ASSERT_TRUE(all_indices_within_degs);
+}
+
+TEST_F(RandomWalksPrimsTest, SimpleGraphUpdatePathSizes)
+{
+  using namespace cugraph::experimental::detail;
+
+  using vertex_t = int32_t;
+  using edge_t   = vertex_t;
+  using weight_t = float;
+  using index_t  = vertex_t;
+  using real_t   = float;
+  using seed_t   = long;
+
+  using random_engine_t = rrandom_gen_t<vertex_t, edge_t>;
+
+  raft::handle_t handle{};
+
+  edge_t num_edges      = 8;
+  vertex_t num_vertices = 6;
+
+  std::vector<vertex_t> v_src{0, 1, 1, 2, 2, 2, 3, 4};
+  std::vector<vertex_t> v_dst{1, 3, 4, 0, 1, 3, 5, 5};
+  std::vector<weight_t> v_w{0.1, 1.1, 2.1, 3.1, 4.1, 5.1, 6.1, 7.1};
+
+  auto graph = make_graph(handle, v_src, v_dst, v_w, num_vertices, num_edges);
+
+  auto graph_view = graph.view();
+
+  edge_t const* offsets   = graph_view.offsets();
+  vertex_t const* indices = graph_view.indices();
+  weight_t const* values  = graph_view.weights();
+
+  index_t num_paths = 4;
+  index_t max_depth = 3;
+  index_t total_sz  = num_paths * max_depth;
+
+  std::vector<vertex_t> v_coalesced(total_sz, -1);
+  std::vector<weight_t> w_coalesced(total_sz - num_paths, -1);
+
+  vector_test_t<vertex_t> d_coalesced_v(total_sz, handle.get_stream());
+  vector_test_t<weight_t> d_coalesced_w(total_sz - num_paths, handle.get_stream());
+
+  copy_n(handle, d_coalesced_v, v_coalesced);
+  copy_n(handle, d_coalesced_w, w_coalesced);
+
+  std::vector<vertex_t> v_start{1, 0, 4, 2};
+  vector_test_t<vertex_t> d_start(num_paths, handle.get_stream());
+
+  copy_n(handle, d_start, v_start);
+
+  vector_test_t<index_t> d_sizes(num_paths, handle.get_stream());
+
+  random_walker_t<decltype(graph_view)> rand_walker{handle, graph_view, num_paths, max_depth};
+
+  auto const& d_out_degs = rand_walker.get_out_degs();
+
+  rand_walker.start(d_start, d_coalesced_v, d_sizes);
+
+  // say, if d_crt_out_degs were this:
+  //
+  std::vector<edge_t> v_crt_out_degs{2, 0, 1, 0};
+  vector_test_t<edge_t> d_crt_out_degs(num_paths, handle.get_stream());
+  copy_n(handle, d_crt_out_degs, v_crt_out_degs);
+
+  rand_walker.update_path_sizes(d_crt_out_degs, d_sizes);
+
+  std::vector<index_t> v_sizes(num_paths);
+  copy_n(handle, v_sizes, raw_const_ptr(d_sizes), num_paths);
+  std::vector<index_t> v_sizes_exp{2, 1, 2, 1};
+
+  EXPECT_EQ(v_sizes, v_sizes_exp);
 }
