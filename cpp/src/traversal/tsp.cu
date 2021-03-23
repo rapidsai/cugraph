@@ -85,8 +85,9 @@ void TSP::setup()
 
 void TSP::reset_batch()
 {
-  mylock_scalar_.set_value(0, stream_);
-  best_cost_scalar_.set_value(std::numeric_limits<int>::max(), stream_);
+  mylock_scalar_.set_value_zero(stream_);
+  auto const max{std::numeric_limits<int>::max()};
+  best_cost_scalar_.set_value(max, stream_);
 }
 
 void TSP::get_initial_solution(int const batch)
