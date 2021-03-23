@@ -668,3 +668,76 @@ TEST_F(RandomWalksPrimsTest, SimpleGraphScatterUpdate)
     EXPECT_EQ(w_coalesced, w_coalesced_exp);
   }
 }
+
+TEST_F(RandomWalksPrimsTest, SimpleGraphCoalesceDefragment)
+{
+  using namespace cugraph::experimental::detail;
+
+  using vertex_t = int32_t;
+  using edge_t   = vertex_t;
+  using weight_t = float;
+  using index_t  = vertex_t;
+
+  raft::handle_t handle{};
+
+  edge_t num_edges      = 8;
+  vertex_t num_vertices = 6;
+
+  std::vector<vertex_t> v_src{0, 1, 1, 2, 2, 2, 3, 4};
+  std::vector<vertex_t> v_dst{1, 3, 4, 0, 1, 3, 5, 5};
+  std::vector<weight_t> v_w{0.1, 1.1, 2.1, 3.1, 4.1, 5.1, 6.1, 7.1};
+
+  auto graph = make_graph(handle, v_src, v_dst, v_w, num_vertices, num_edges);
+
+  auto graph_view = graph.view();
+
+  edge_t const* offsets   = graph_view.offsets();
+  vertex_t const* indices = graph_view.indices();
+  weight_t const* values  = graph_view.weights();
+
+  index_t num_paths = 4;
+  index_t max_depth = 3;
+  index_t total_sz  = num_paths * max_depth;
+
+  std::vector<index_t> v_sizes{1, 2, 2, 1};
+  vector_test_t<index_t> d_sizes(num_paths, handle.get_stream());
+  copy_n(handle, d_sizes, v_sizes);
+
+  std::vector<vertex_t> v_coalesced(total_sz, -1);
+  v_coalesced[0]                 = 3;
+  v_coalesced[max_depth]         = 5;
+  v_coalesced[max_depth + 1]     = 2;
+  v_coalesced[2 * max_depth]     = 4;
+  v_coalesced[2 * max_depth + 1] = 0;
+  v_coalesced[3 * max_depth]     = 1;
+
+  std::vector<weight_t> w_coalesced(total_sz - num_paths, -1);
+  w_coalesced[max_depth - 1]     = 10.1;
+  w_coalesced[2 * max_depth - 2] = 11.2;
+
+  vector_test_t<vertex_t> d_coalesced_v(total_sz, handle.get_stream());
+  vector_test_t<weight_t> d_coalesced_w(total_sz - num_paths, handle.get_stream());
+
+  copy_n(handle, d_coalesced_v, v_coalesced);
+  copy_n(handle, d_coalesced_w, w_coalesced);
+
+  random_walker_t<decltype(graph_view)> rand_walker{handle, graph_view, num_paths, max_depth};
+
+  rand_walker.stop(d_coalesced_v, d_coalesced_w, d_sizes);
+
+  // check vertex/weight defragment:
+  //
+  {
+    v_coalesced.resize(d_coalesced_v.size());
+    w_coalesced.resize(d_coalesced_w.size());
+
+    copy_n(handle, v_coalesced, raw_const_ptr(d_coalesced_v), d_coalesced_v.size());
+    copy_n(handle, w_coalesced, raw_const_ptr(d_coalesced_w), d_coalesced_w.size());
+
+    std::vector<vertex_t> v_coalesced_exp{3, 5, 2, 4, 0, 1};
+    std::vector<weight_t> w_coalesced_exp{10.1, 11.2};
+
+    EXPECT_EQ(v_coalesced, v_coalesced_exp);
+    EXPECT_EQ(w_coalesced, w_coalesced_exp);
+  }
+}
