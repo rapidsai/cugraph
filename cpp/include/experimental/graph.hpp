@@ -189,15 +189,15 @@ struct invalid_edge_id : invalid_idx<edge_t> {
 };
 
 template <typename vertex_t>
-std::enable_if_t<std::is_signed<vertex_t>::value, bool> is_valid_vertex(vertex_t num_vertices,
-                                                                        vertex_t v)
+__host__ __device__ std::enable_if_t<std::is_signed<vertex_t>::value, bool> is_valid_vertex(
+  vertex_t num_vertices, vertex_t v)
 {
   return (v >= 0) && (v < num_vertices);
 }
 
 template <typename vertex_t>
-std::enable_if_t<std::is_unsigned<vertex_t>::value, bool> is_valid_vertex(vertex_t num_vertices,
-                                                                          vertex_t v)
+__host__ __device__ std::enable_if_t<std::is_unsigned<vertex_t>::value, bool> is_valid_vertex(
+  vertex_t num_vertices, vertex_t v)
 {
   return v < num_vertices;
 }
