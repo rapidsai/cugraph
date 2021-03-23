@@ -115,6 +115,64 @@ bool check_col_indices(raft::handle_t const& handle,
     });
   return all_indices_within_degs;
 }
+
+// std::vector printer:
+//
+template <typename value_t>
+void print_vec(std::vector<value_t> const& vec, std::ostream& os)
+{
+  std::copy(vec.begin(), vec.end(), std::ostream_iterator<value_t>(os, ", "));
+  std::cout << '\n';
+}
+
+// host side utility to check a if a sequence of vertices is connected:
+//
+template <typename vertex_t, typename edge_t, typename weight_t>
+bool host_check_path(std::vector<edge_t> const& row_offsets,
+                     std::vector<vertex_t> const& col_inds,
+                     std::vector<weight_t> const& values,
+                     typename std::vector<vertex_t>::const_iterator v_path_begin,
+                     typename std::vector<vertex_t>::const_iterator v_path_end,
+                     typename std::vector<weight_t>::const_iterator w_path_begin)
+{
+  bool assert1 = (row_offsets.size() > 0);
+  bool assert2 = (col_inds.size() == values.size());
+
+  vertex_t num_rows = row_offsets.size() - 1;
+  edge_t nnz        = row_offsets.back();
+
+  bool assert3 = (nnz == static_cast<edge_t>(col_inds.size()));
+  if (assert1 == false || assert2 == false || assert3 == false) {
+    std::cout << "CSR inconsistency\n";
+    return false;
+  }
+
+  auto it_w = w_path_begin;
+  for (auto it_v = v_path_begin; it_v != v_path_end - 1; ++it_v, ++it_w) {
+    auto crt_vertex  = *it_v;
+    auto next_vertex = *(it_v + 1);
+
+    auto begin      = col_inds.begin() + row_offsets[crt_vertex];
+    auto end        = col_inds.begin() + row_offsets[crt_vertex + 1];
+    auto found_next = std::find_if(
+      begin, end, [next_vertex](auto dst_vertex) { return dst_vertex == next_vertex; });
+    if (found_next == end) {
+      std::cout << "vertex not found: " << next_vertex << " as neighbor of " << crt_vertex << '\n';
+      return false;
+    }
+
+    auto delta = row_offsets[crt_vertex] + std::distance(begin, found_next);
+
+    // std::cout << "delta in ci: " << delta << '\n';
+    auto found_edge = values.begin() + delta;
+    if (*found_edge != *it_w) {
+      std::cout << "weight not found: " << *found_edge << " between " << crt_vertex << " and "
+                << next_vertex << '\n';
+      return false;
+    }
+  }
+  return true;
+}
 }  // namespace
 
 struct RandomWalksPrimsTest : public ::testing::Test {
@@ -766,6 +824,14 @@ TEST_F(RandomWalksPrimsTest, SimpleGraphRandomWalk)
   vertex_t const* indices = graph_view.indices();
   weight_t const* values  = graph_view.weights();
 
+  std::vector<edge_t> v_ro(num_vertices + 1);
+  std::vector<vertex_t> v_ci(num_edges);
+  std::vector<weight_t> v_vals(num_edges);
+
+  copy_n(handle, v_ro, offsets, v_ro.size());
+  copy_n(handle, v_ci, indices, v_ci.size());
+  copy_n(handle, v_vals, values, v_vals.size());
+
   std::vector<vertex_t> v_start{1, 0, 4, 2};
 
   index_t max_depth = 5;
@@ -776,4 +842,39 @@ TEST_F(RandomWalksPrimsTest, SimpleGraphRandomWalk)
   auto& d_sizes       = std::get<2>(triplet);
 
   ASSERT_TRUE(d_sizes.size() == v_start.size());
+
+  // std::vector<vertex_t> v_coalesced{2, 0, 1, 4, 5};
+  // std::vector<weight_t> w_coalesced{3.1, 0.1, 2.1, 7.1};
+
+  std::vector<vertex_t> v_coalesced(d_coalesced_v.size());
+  std::vector<weight_t> w_coalesced(d_coalesced_w.size());
+  std::vector<index_t> v_sizes(d_sizes.size());
+
+  copy_n(handle, v_coalesced, detail::raw_const_ptr(d_coalesced_v), d_coalesced_v.size());
+  copy_n(handle, w_coalesced, detail::raw_const_ptr(d_coalesced_w), d_coalesced_w.size());
+  copy_n(handle, v_sizes, detail::raw_const_ptr(d_sizes), d_sizes.size());
+
+  auto it_v_begin = v_coalesced.begin();
+  auto it_w_begin = w_coalesced.begin();
+  for (auto&& crt_sz : v_sizes) {
+    auto it_v_end = it_v_begin + crt_sz;
+
+    bool test_path = host_check_path(v_ro, v_ci, v_vals, it_v_begin, it_v_end, it_w_begin);
+
+    it_v_begin = it_v_end;
+    it_w_begin += crt_sz - 1;
+
+    if (!test_path) {  // something went wrong; print to debug (since it's random)
+      std::cout << "sizes:\n";
+      print_vec(v_sizes, std::cout);
+
+      std::cout << "coalesced v:\n";
+      print_vec(v_coalesced, std::cout);
+
+      std::cout << "coalesced w:\n";
+      print_vec(w_coalesced, std::cout);
+    }
+
+    ASSERT_TRUE(test_path);
+  }
 }
