@@ -206,12 +206,10 @@ __global__ __launch_bounds__(2048, 2) void search_solution(TSPResults results,
                                                            bool beam_search,
                                                            int const K,
                                                            int nodes,
-                                                           int64_t const *neighbors,
                                                            float const *posx,
                                                            float const *posy,
                                                            int *work,
-                                                           int const nstart,
-                                                           int *climbs)
+                                                           int const nstart)
 {
   int *buf  = &work[blockIdx.x * ((4 * nodes + 3 + 31) / 32 * 32)];
   float *px = (float *)(&buf[nodes]);
@@ -252,9 +250,6 @@ __global__ __launch_bounds__(2048, 2) void search_solution(TSPResults results,
     // Find best indices
     two_opt_search(buf, px, py, shbuf, &minchange, &mini, &minj, nodes);
     __syncthreads();
-
-    // Stats only
-    if (threadIdx.x == 0) atomicAdd(climbs, 1);
 
     shbuf[threadIdx.x] = minchange;
 

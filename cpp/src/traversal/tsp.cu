@@ -16,6 +16,7 @@
 
 #include <numeric>
 #include <raft/spatial/knn/knn.hpp>
+#include <utilities/high_res_timer.hpp>
 
 #include "tsp.hpp"
 #include "tsp_solver.hpp"
@@ -50,7 +51,7 @@ TSP::TSP(raft::handle_t const &handle,
     max_threads_(handle_.get_device_properties().maxThreadsPerBlock),
     warp_size_(handle_.get_device_properties().warpSize),
     sm_count_(handle_.get_device_properties().multiProcessorCount),
-    restart_batch_(4096)
+    restart_batch_(8192)
 {
   setup();
 }
@@ -59,7 +60,6 @@ void TSP::setup()
 {
   // Scalars
   mylock_    = mylock_scalar_.data();
-  climbs_    = climbs_scalar_.data();
 
   // Vectors
   neighbors_vec_.resize((k_ + 1) * nodes_);
@@ -76,7 +76,7 @@ void TSP::setup()
   neighbors_ = neighbors_vec_.data().get();
   work_      = work_vec_.data().get();
 
-  // Setup results
+  // Results
   results_.best_x_pos = best_x_pos_vec_.data().get();
   results_.best_y_pos = best_y_pos_vec_.data().get();
   results_.best_route = best_route_vec_.data().get();
@@ -86,7 +86,6 @@ void TSP::setup()
 void TSP::reset_batch() {
   mylock_scalar_.set_value(0, stream_);
   best_cost_scalar_.set_value(std::numeric_limits<int>::max(), stream_);
-  climbs_scalar_.set_value(0, stream_);
 }
 
 void TSP::get_initial_solution(int const batch) {
@@ -119,8 +118,7 @@ float TSP::compute()
 	std::vector<int*> addr_best_route(1);
 
   // Stats
-  long total_climbs = 0;
-  struct timeval starttime, endtime;
+  HighResTimer hr_timer;;
 
   if (verbose_) {
     std::cout << "Doing " << num_restart_batches << " batches of size " << restart_batch_
@@ -135,7 +133,8 @@ float TSP::compute()
   best_thread_num_ = best_thread_count(nodes_, max_threads_, sm_count_, warp_size_);
   if (verbose_) std::cout << "Calculated best thread number = " << best_thread_num_ << "\n";
 
-  gettimeofday(&starttime, NULL);
+  if (verbose_)
+    hr_timer.start("tsp_search");
   for (int batch = 1; batch <= num_restart_batches; ++batch) {
 
     reset_batch();
@@ -148,12 +147,10 @@ float TSP::compute()
                                                                                  beam_search_,
                                                                                  k_,
                                                                                  nodes_,
-                                                                                 neighbors_,
                                                                                  x_pos_,
                                                                                  y_pos_,
                                                                                  work_,
-                                                                                 nstart_,
-                                                                                 climbs_);
+                                                                                 nstart_);
     get_optimal_tour<<<restart_batch_, best_thread_num_, sizeof(int) * best_thread_num_, stream_>>>(results_,
         mylock_, work_, nodes_);
     CHECK_CUDA(stream_);
@@ -177,11 +174,7 @@ float TSP::compute()
       raft::copy(route_, addr_best_route[0], nodes_, stream_);
       CHECK_CUDA(stream_);
     }
-    total_climbs += climbs_scalar_.value(stream_);
   }
-  gettimeofday(&endtime, NULL);
-  double runtime =
-    endtime.tv_sec + endtime.tv_usec / 1e6 - starttime.tv_sec - starttime.tv_usec / 1e6;
 
   for (int i = 0; i < nodes_; ++i) {
     if (verbose_) { std::cout << h_route[i] << ": " << h_x_pos[i] << " " << h_y_pos[i] << "\n"; }
@@ -189,8 +182,8 @@ float TSP::compute()
   }
 
   if (verbose_) {
-    long long moves = 1LL * total_climbs * (nodes_ - 2) * (nodes_ - 1) / 2;
-    std::cout << "Search runtime = " << runtime << ", " << moves * 1e-9 / runtime << " Gmoves/s\n";
+    hr_timer.stop();
+    hr_timer.display(std::cout);
     std::cout << "Optimized tour length = " << global_best << "\n";
   }
 

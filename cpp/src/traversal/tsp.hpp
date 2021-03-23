@@ -85,7 +85,6 @@ class TSP {
 
   int *mylock_;
   int *best_cost_;
-  int *climbs_;
 
   // Vectors
   rmm::device_vector<int64_t> neighbors_vec_;
