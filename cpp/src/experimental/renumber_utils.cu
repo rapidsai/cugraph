@@ -66,31 +66,67 @@ void renumber_ext_vertices(raft::handle_t const& handle,
                     "Invalid input arguments: renumber_map_labels have duplicate elements.");
   }
 
+  auto renumber_map_ptr = std::make_unique<cuco::static_map<vertex_t, vertex_t>>(
+    size_t{0}, invalid_vertex_id<vertex_t>::value, invalid_vertex_id<vertex_t>::value);
   if (multi_gpu) {
     auto& comm           = handle.get_comms();
     auto const comm_size = comm.get_size();
 
-    // FIXME: renumbered_vertices and thrust::copy are unnecessary if there exists an in-place
-    // version of collect_values_for_keys (when the key type is identical to the value type)
-    auto renumbered_vertices =
-      collect_values_for_keys(comm,
-                              renumber_map_labels,
-                              renumber_map_labels + local_int_vertex_last - local_int_vertex_first,
-                              thrust::make_counting_iterator(local_int_vertex_first),
-                              vertices,
-                              vertices + num_vertices,
-                              detail::compute_gpu_id_from_vertex_t<vertex_t>{comm_size},
-                              handle.get_stream());
-    thrust::copy(rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
-                 renumbered_vertices.begin(),
-                 renumbered_vertices.end(),
-                 vertices);
+    rmm::device_uvector<vertex_t> sorted_unique_ext_vertices(num_vertices, handle.get_stream());
+    sorted_unique_ext_vertices.resize(
+      thrust::distance(
+        sorted_unique_ext_vertices.begin(),
+        thrust::copy_if(rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
+                        vertices,
+                        vertices + num_vertices,
+                        sorted_unique_ext_vertices.begin(),
+                        [] __device__(auto v) { return v != invalid_vertex_id<vertex_t>::value; })),
+      handle.get_stream());
+    thrust::sort(rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
+                 sorted_unique_ext_vertices.begin(),
+                 sorted_unique_ext_vertices.end());
+    sorted_unique_ext_vertices.resize(
+      thrust::distance(
+        sorted_unique_ext_vertices.begin(),
+        thrust::unique(rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
+                       sorted_unique_ext_vertices.begin(),
+                       sorted_unique_ext_vertices.end())),
+      handle.get_stream());
+
+    auto int_vertices_for_sorted_unique_ext_vertices = collect_values_for_unique_keys(
+      comm,
+      renumber_map_labels,
+      renumber_map_labels + (local_int_vertex_last - local_int_vertex_first),
+      thrust::make_counting_iterator(local_int_vertex_first),
+      sorted_unique_ext_vertices.begin(),
+      sorted_unique_ext_vertices.end(),
+      detail::compute_gpu_id_from_vertex_t<vertex_t>{comm_size},
+      handle.get_stream());
+
+    handle.get_stream_view().synchronize();  // cuco::static_map currently does not take stream
+
+    renumber_map_ptr.reset();
+
+    renumber_map_ptr = std::make_unique<cuco::static_map<vertex_t, vertex_t>>(
+      static_cast<size_t>(static_cast<double>(sorted_unique_ext_vertices.size()) / load_factor),
+      invalid_vertex_id<vertex_t>::value,
+      invalid_vertex_id<vertex_t>::value);
+
+    auto kv_pair_first = thrust::make_transform_iterator(
+      thrust::make_zip_iterator(thrust::make_tuple(
+        sorted_unique_ext_vertices.begin(), int_vertices_for_sorted_unique_ext_vertices.begin())),
+      [] __device__(auto val) {
+        return thrust::make_pair(thrust::get<0>(val), thrust::get<1>(val));
+      });
+    renumber_map_ptr->insert(kv_pair_first, kv_pair_first + sorted_unique_ext_vertices.size());
   } else {
-    cuco::static_map<vertex_t, vertex_t> renumber_map{
+    renumber_map_ptr.reset();
+
+    renumber_map_ptr = std::make_unique<cuco::static_map<vertex_t, vertex_t>>(
       static_cast<size_t>(static_cast<double>(local_int_vertex_last - local_int_vertex_first) /
                           load_factor),
       invalid_vertex_id<vertex_t>::value,
-      invalid_vertex_id<vertex_t>::value};
+      invalid_vertex_id<vertex_t>::value);
 
     auto pair_first = thrust::make_transform_iterator(
       thrust::make_zip_iterator(
@@ -98,20 +134,29 @@ void renumber_ext_vertices(raft::handle_t const& handle,
       [] __device__(auto val) {
         return thrust::make_pair(thrust::get<0>(val), thrust::get<1>(val));
       });
-    renumber_map.insert(pair_first, pair_first + (local_int_vertex_last - local_int_vertex_first));
-    renumber_map.find(vertices, vertices + num_vertices, vertices);
+    renumber_map_ptr->insert(pair_first,
+                             pair_first + (local_int_vertex_last - local_int_vertex_first));
   }
 
   if (do_expensive_check) {
+    rmm::device_uvector<bool> contains(num_vertices, handle.get_stream());
+    renumber_map_ptr->contains(vertices, vertices + num_vertices, contains.begin());
+    auto vc_pair_first = thrust::make_zip_iterator(thrust::make_tuple(vertices, contains.begin()));
     CUGRAPH_EXPECTS(thrust::count_if(rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
-                                     vertices,
-                                     vertices + num_vertices,
-                                     [] __device__(auto v) {
-                                       return v == invalid_vertex_id<vertex_t>::value;
+                                     vc_pair_first,
+                                     vc_pair_first + num_vertices,
+                                     [] __device__(auto pair) {
+                                       auto v = thrust::get<0>(pair);
+                                       auto c = thrust::get<1>(pair);
+                                       return v == invalid_vertex_id<vertex_t>::value
+                                                ? (c == true)
+                                                : (c == false);
                                      }) == 0,
                     "Invalid input arguments: vertices have elements that are missing in "
                     "(aggregate) renumber_map_labels.");
   }
+
+  renumber_map_ptr->find(vertices, vertices + num_vertices, vertices);
 #endif
 }
 
@@ -136,7 +181,8 @@ void unrenumber_local_int_vertices(
                        vertices,
                        vertices + num_vertices,
                        [local_int_vertex_first, local_int_vertex_last] __device__(auto v) {
-                         return v < local_int_vertex_first || v >= local_int_vertex_last;
+                         return v != invalid_vertex_id<vertex_t>::value &&
+                                (v < local_int_vertex_first || v >= local_int_vertex_last);
                        }) == 0,
       "Invalid input arguments: there are non-local vertices in [vertices, vertices "
       "+ num_vertices).");
@@ -147,7 +193,9 @@ void unrenumber_local_int_vertices(
                     vertices + num_vertices,
                     vertices,
                     [renumber_map_labels, local_int_vertex_first] __device__(auto v) {
-                      return renumber_map_labels[v - local_int_vertex_first];
+                      return v == invalid_vertex_id<vertex_t>::value
+                               ? v
+                               : renumber_map_labels[v - local_int_vertex_first];
                     });
 #endif
 }
@@ -170,13 +218,16 @@ void unrenumber_int_vertices(raft::handle_t const& handle,
 
 #ifdef CUCO_STATIC_MAP_DEFINED
   if (do_expensive_check) {
-    CUGRAPH_EXPECTS(thrust::count_if(rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
-                                     vertices,
-                                     vertices + num_vertices,
-                                     [num_vertices = vertex_partition_lasts.back()] __device__(
-                                       auto v) { return !is_valid_vertex(num_vertices, v); }) == 0,
-                    "Invalid input arguments: there are non-local vertices in [vertices, vertices "
-                    "+ num_vertices).");
+    CUGRAPH_EXPECTS(
+      thrust::count_if(rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
+                       vertices,
+                       vertices + num_vertices,
+                       [num_vertices = vertex_partition_lasts.back()] __device__(auto v) {
+                         return v != invalid_vertex_id<vertex_t>::value &&
+                                !is_valid_vertex(num_vertices, v);
+                       }) == 0,
+      "Invalid input arguments: there are out-of-range vertices in [vertices, vertices "
+      "+ num_vertices).");
   }
 
   if (multi_gpu) {
@@ -184,10 +235,15 @@ void unrenumber_int_vertices(raft::handle_t const& handle,
     auto const comm_size = comm.get_size();
 
     rmm::device_uvector<vertex_t> sorted_unique_int_vertices(num_vertices, handle.get_stream());
-    thrust::copy(rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
-                 vertices,
-                 vertices + num_vertices,
-                 sorted_unique_int_vertices.begin());
+    sorted_unique_int_vertices.resize(
+      thrust::distance(
+        sorted_unique_int_vertices.begin(),
+        thrust::copy_if(rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
+                        vertices,
+                        vertices + num_vertices,
+                        sorted_unique_int_vertices.begin(),
+                        [] __device__(auto v) { return v != invalid_vertex_id<vertex_t>::value; })),
+      handle.get_stream());
     thrust::sort(rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
                  sorted_unique_int_vertices.begin(),
                  sorted_unique_int_vertices.end());
@@ -200,7 +256,7 @@ void unrenumber_int_vertices(raft::handle_t const& handle,
       handle.get_stream());
 
     rmm::device_uvector<vertex_t> d_vertex_partition_lasts(vertex_partition_lasts.size(),
-                                                         handle.get_stream());
+                                                           handle.get_stream());
     raft::update_device(d_vertex_partition_lasts.data(),
                         vertex_partition_lasts.data(),
                         vertex_partition_lasts.size(),

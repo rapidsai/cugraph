@@ -193,6 +193,8 @@ std::enable_if_t<!multi_gpu, rmm::device_uvector<vertex_t>> renumber_edgelist(
  * @brief Renumber external vertices to internal vertices based on the provoided @p
  * renumber_map_labels.
  *
+ * Note cugraph::experimental::invalid_id<vertex_t>::value remains unchanged.
+ *
  * @tparam vertex_t Type of vertex identifiers. Needs to be an integral type.
  * @tparam multi_gpu Flag indicating whether template instantiation should target single-GPU (false)
  * or multi-GPU (true).
@@ -222,6 +224,8 @@ void renumber_ext_vertices(raft::handle_t const& handle,
  * @brief Unrenumber local internal vertices to external vertices based on the providied @p
  * renumber_map_labels.
  *
+ * Note cugraph::experimental::invalid_id<vertex_t>::value remains unchanged.
+ *
  * @tparam vertex_t Type of vertex identifiers. Needs to be an integral type.
  * @param handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator, and
  * handles to various CUDA libraries) to run graph algorithms.
@@ -250,6 +254,8 @@ void unrenumber_local_int_vertices(
 /**
  * @brief Unrenumber (possibly non-local) internal vertices to external vertices based on the
  * providied @p renumber_map_labels.
+ *
+ * Note cugraph::experimental::invalid_id<vertex_t>::value remains unchanged.
  *
  * @tparam vertex_t Type of vertex identifiers. Needs to be an integral type.
  * @tparam multi_gpu Flag indicating whether template instantiation should target single-GPU (false)
