@@ -35,7 +35,8 @@ __global__ void random_init(int *work,
                             int const *vtx_ptr,
                             int const nstart,
                             int const nodes,
-                            int const batch)
+                            int const batch,
+                            int const restart_batch)
 {
   int *buf  = &work[blockIdx.x * ((4 * nodes + 3 + 31) / 32 * 32)];
   float *px = (float *)(&buf[nodes]);
@@ -58,7 +59,7 @@ __global__ void random_init(int *work,
     raft::swapVals(path[0], path[nstart]);
 
     curandState rndstate;
-    curand_init(blockIdx.x * batch, 0, 0, &rndstate);
+    curand_init(blockIdx.x + (restart_batch * batch), 0, 0, &rndstate);
     for (int i = 1; i < nodes; i++) {
       int j = curand(&rndstate) % (nodes - 1 - i) + i;
       if (i == j) continue;
@@ -81,7 +82,8 @@ __global__ void knn_init(int *work,
                          int const nstart,
                          int const nodes,
                          int const K,
-                         int const batch)
+                         int const batch,
+                         int const restart_batch)
 {
   int *buf  = &work[blockIdx.x * ((4 * nodes + 3 + 31) / 32 * 32)];
   float *px = (float *)(&buf[nodes]);
@@ -94,7 +96,7 @@ __global__ void knn_init(int *work,
 
   if (threadIdx.x == 0) {
     curandState rndstate;
-    curand_init(blockIdx.x * batch, 0, 0, &rndstate);
+    curand_init(blockIdx.x + (restart_batch * batch), 0, 0, &rndstate);
     int progress = 0;
 
     px[0]     = posx[nstart];

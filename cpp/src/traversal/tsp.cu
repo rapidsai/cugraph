@@ -93,11 +93,11 @@ void TSP::get_initial_solution(int const batch)
 {
   if (!beam_search_) {
     random_init<<<restart_batch_, best_thread_num_>>>(
-      work_, x_pos_, y_pos_, vtx_ptr_, nstart_, nodes_, batch);
+      work_, x_pos_, y_pos_, vtx_ptr_, nstart_, nodes_, batch, restart_batch_);
     CHECK_CUDA(stream_);
   } else {
     knn_init<<<restart_batch_, best_thread_num_>>>(
-      work_, x_pos_, y_pos_, vtx_ptr_, neighbors_, nstart_, nodes_, k_, batch);
+      work_, x_pos_, y_pos_, vtx_ptr_, neighbors_, nstart_, nodes_, k_, batch, restart_batch_);
     CHECK_CUDA(stream_);
   }
 }
@@ -138,13 +138,13 @@ float TSP::compute()
   if (verbose_) std::cout << "Calculated best thread number = " << best_thread_num_ << "\n";
 
   if (beam_search_) {
-      auto timer = create_timer("knn");
-      knn();
+    auto timer = create_timer("knn");
+    knn();
   }
 
-  for (int batch = 1; batch <= num_restart_batches; ++batch) {
+  for (auto batch = 0; batch < num_restart_batches; ++batch) {
     reset_batch();
-    if (batch == num_restart_batches) restart_batch_ = restart_resid;
+    if (batch == num_restart_batches - 1) restart_batch_ = restart_resid;
 
     {
       auto timer = create_timer("initial_sol");
