@@ -321,4 +321,41 @@ TEST_F(SCCSmallTest, /*DISABLED_*/ CustomGraphWithSelfLoops)
   EXPECT_EQ(v_counts, v_counts_exp);
 }
 
+TEST_F(SCCSmallTest, SmallGraphWithSelfLoops1)
+{
+  using IndexT = int;
+
+  size_t nrows = 3;
+
+  std::vector<IndexT> cooRowInd{0, 0, 1, 2};
+  std::vector<IndexT> cooColInd{0, 1, 0, 0};
+
+  std::vector<size_t> v_counts_exp{2, 1};
+
+  std::vector<IndexT> labels(nrows);
+  std::vector<IndexT> verts(nrows);
+
+  size_t nnz = cooRowInd.size();
+
+  EXPECT_EQ(nnz, cooColInd.size());
+
+  cugraph::GraphCOOView<int, int, float> G_coo(&cooRowInd[0], &cooColInd[0], nullptr, nrows, nnz);
+  auto G_unique                            = cugraph::coo_to_csr(G_coo);
+  cugraph::GraphCSRView<int, int, float> G = G_unique->view();
+
+  rmm::device_vector<IndexT> d_labels(nrows);
+
+  cugraph::connected_components(G, cugraph::cugraph_cc_t::CUGRAPH_STRONG, d_labels.data().get());
+
+  DVector<size_t> d_counts(nrows);
+  auto count_components = get_component_sizes(d_labels.data().get(), nrows, d_counts);
+
+  // std::cout << "vertex labels:\n";
+  // print_v(d_labels, std::cout);
+
+  decltype(count_components) num_components_exp = 2;
+
+  EXPECT_EQ(count_components, num_components_exp);
+}
+
 CUGRAPH_TEST_PROGRAM_MAIN()
