@@ -21,7 +21,6 @@
 #include <algorithms.hpp>
 #include <experimental/graph.hpp>
 #include <experimental/graph_view.hpp>
-#include <graph.hpp>
 
 #include <raft/cudart_utils.h>
 #include <raft/handle.hpp>
@@ -129,8 +128,10 @@ class Tests_InducedEgo : public ::testing::TestWithParam<InducedEgo_Usecase> {
       ASSERT_TRUE(h_cugraph_ego_edge_offsets[i] <= h_cugraph_ego_edge_offsets[i + 1]);
     auto n_vertices = graph_view.get_number_of_vertices();
     for (size_t i = 0; i < d_ego_edgelist_src.size(); i++) {
-      ASSERT_TRUE(cugraph::test::is_valid_vertex(n_vertices, h_cugraph_ego_edgelist_src[i]));
-      ASSERT_TRUE(cugraph::test::is_valid_vertex(n_vertices, h_cugraph_ego_edgelist_dst[i]));
+      ASSERT_TRUE(
+        cugraph::experimental::is_valid_vertex(n_vertices, h_cugraph_ego_edgelist_src[i]));
+      ASSERT_TRUE(
+        cugraph::experimental::is_valid_vertex(n_vertices, h_cugraph_ego_edgelist_dst[i]));
     }
 
     /*
