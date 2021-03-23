@@ -16,6 +16,7 @@
 
 #include <numeric>
 #include <raft/spatial/knn/knn.hpp>
+
 #include <utilities/high_res_timer.hpp>
 
 #include "tsp.hpp"
@@ -93,10 +94,11 @@ void TSP::get_initial_solution(int const batch)
   if (!beam_search_) {
     random_init<<<restart_batch_, best_thread_num_>>>(
       work_, x_pos_, y_pos_, vtx_ptr_, nstart_, nodes_, batch);
+    CHECK_CUDA(stream_);
   } else {
-    knn();
     knn_init<<<restart_batch_, best_thread_num_>>>(
       work_, x_pos_, y_pos_, vtx_ptr_, neighbors_, nstart_, nodes_, k_, batch);
+    CHECK_CUDA(stream_);
   }
 }
 
@@ -118,6 +120,9 @@ float TSP::compute()
   std::vector<float *> addr_best_y_pos(1);
   std::vector<int *> addr_best_route(1);
   HighResTimer hr_timer;
+  auto create_timer = [&hr_timer, this](char const *name) {
+    return VerboseTimer(name, hr_timer, verbose_);
+  };
 
   if (verbose_) {
     std::cout << "Doing " << num_restart_batches << " batches of size " << restart_batch_
@@ -130,23 +135,42 @@ float TSP::compute()
   cudaFuncSetCacheConfig(search_solution, cudaFuncCachePreferEqual);
   best_thread_num_ = best_thread_count(nodes_, max_threads_, sm_count_, warp_size_);
 
-  if (verbose_) {
-    std::cout << "Calculated best thread number = " << best_thread_num_ << "\n";
-    hr_timer.start("tsp_search");
+  if (verbose_) std::cout << "Calculated best thread number = " << best_thread_num_ << "\n";
+
+  if (beam_search_) {
+      auto timer = create_timer("knn");
+      knn();
   }
 
   for (int batch = 1; batch <= num_restart_batches; ++batch) {
     reset_batch();
     if (batch == num_restart_batches) restart_batch_ = restart_resid;
 
-    get_initial_solution(batch);
-    search_solution<<<restart_batch_, best_thread_num_, sizeof(int) * best_thread_num_, stream_>>>(
-      results_, mylock_, vtx_ptr_, beam_search_, k_, nodes_, x_pos_, y_pos_, work_, nstart_);
-    get_optimal_tour<<<restart_batch_, best_thread_num_, sizeof(int) * best_thread_num_, stream_>>>(
-      results_, mylock_, work_, nodes_);
-    CHECK_CUDA(stream_);
-    cudaDeviceSynchronize();
+    {
+      auto timer = create_timer("initial_sol");
+      get_initial_solution(batch);
+    }
 
+    {
+      auto timer = create_timer("search_sol");
+      search_solution<<<restart_batch_,
+                        best_thread_num_,
+                        sizeof(int) * best_thread_num_,
+                        stream_>>>(
+        results_, mylock_, vtx_ptr_, beam_search_, k_, nodes_, x_pos_, y_pos_, work_, nstart_);
+      CHECK_CUDA(stream_);
+    }
+
+    {
+      auto timer = create_timer("optimal_tour");
+      get_optimal_tour<<<restart_batch_,
+                         best_thread_num_,
+                         sizeof(int) * best_thread_num_,
+                         stream_>>>(results_, mylock_, work_, nodes_);
+      CHECK_CUDA(stream_);
+    }
+
+    cudaDeviceSynchronize();
     best = best_cost_scalar_.value(stream_);
 
     if (verbose_) std::cout << "Best reported by kernel = " << best << "\n";
@@ -170,13 +194,12 @@ float TSP::compute()
     }
   }
 
-  for (int i = 0; i < nodes_; ++i) {
+  for (auto i = 0; i < nodes_; ++i) {
     if (verbose_) { std::cout << h_route[i] << ": " << h_x_pos[i] << " " << h_y_pos[i] << "\n"; }
     final_cost += euclidean_dist(h_x_pos.data(), h_y_pos.data(), i, i + 1);
   }
 
   if (verbose_) {
-    hr_timer.stop();
     hr_timer.display(std::cout);
     std::cout << "Optimized tour length = " << global_best << "\n";
   }

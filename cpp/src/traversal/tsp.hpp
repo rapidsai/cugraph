@@ -98,5 +98,25 @@ class TSP {
   int *work_route_;
   TSPResults results_;
 };
+
+class VerboseTimer {
+ public:
+  VerboseTimer(char const *name, HighResTimer &hr_timer, bool verbose)
+    : name_(name), hr_timer_(hr_timer), verbose_(verbose)
+  {
+    if (verbose_) hr_timer_.start(name_);
+  }
+
+  ~VerboseTimer()
+  {
+    if (verbose_) hr_timer_.stop();
+  }
+
+ private:
+  const char *name_;
+  HighResTimer &hr_timer_;
+  bool verbose_;
+};
+
 }  // namespace detail
 }  // namespace cugraph

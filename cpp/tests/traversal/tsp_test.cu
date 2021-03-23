@@ -130,7 +130,6 @@ class Tests_Tsp : public ::testing::TestWithParam<Tsp_Usecase> {
 
     std::cout << "File: " << param.tsp_file.c_str() << "\n";
     int nodes = load_tsp(param.tsp_file.c_str(), &input);
-    std::cout << "Nodes: " << nodes << std::endl;
 
     // Device alloc
     raft::handle_t const handle;
