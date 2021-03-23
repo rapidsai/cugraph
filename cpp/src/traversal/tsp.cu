@@ -59,15 +59,14 @@ TSP::TSP(raft::handle_t const &handle,
 void TSP::setup()
 {
   // Scalars
-  mylock_    = mylock_scalar_.data();
+  mylock_ = mylock_scalar_.data();
 
   // Vectors
   neighbors_vec_.resize((k_ + 1) * nodes_);
   // pre-allocate workspace for climbs, each block needs a separate permutation space and search
   // buffer. We allocate a work buffer that will store the computed distances, px, py and the route.
   // We align it on the warp size.
-  work_vec_.resize(restart_batch_ *
-                   ((4 * nodes_ + 3 + warp_size_ - 1) / warp_size_ * warp_size_));
+  work_vec_.resize(restart_batch_ * ((4 * nodes_ + 3 + warp_size_ - 1) / warp_size_ * warp_size_));
   best_x_pos_vec_.resize(1);
   best_y_pos_vec_.resize(1);
   best_route_vec_.resize(1);
@@ -80,28 +79,30 @@ void TSP::setup()
   results_.best_x_pos = best_x_pos_vec_.data().get();
   results_.best_y_pos = best_y_pos_vec_.data().get();
   results_.best_route = best_route_vec_.data().get();
-  results_.best_cost = best_cost_scalar_.data();
+  results_.best_cost  = best_cost_scalar_.data();
 }
 
-void TSP::reset_batch() {
+void TSP::reset_batch()
+{
   mylock_scalar_.set_value(0, stream_);
   best_cost_scalar_.set_value(std::numeric_limits<int>::max(), stream_);
 }
 
-void TSP::get_initial_solution(int const batch) {
-  if (!beam_search_)
-    random_init<<<restart_batch_, best_thread_num_>>>(work_, x_pos_, y_pos_, vtx_ptr_, nstart_, nodes_, batch);
-  else {
-    // KNN call
+void TSP::get_initial_solution(int const batch)
+{
+  if (!beam_search_) {
+    random_init<<<restart_batch_, best_thread_num_>>>(
+      work_, x_pos_, y_pos_, vtx_ptr_, nstart_, nodes_, batch);
+  } else {
     knn();
-    knn_init<<<restart_batch_, best_thread_num_>>>(work_, x_pos_, y_pos_, vtx_ptr_, neighbors_, nstart_, nodes_, k_, batch);
+    knn_init<<<restart_batch_, best_thread_num_>>>(
+      work_, x_pos_, y_pos_, vtx_ptr_, neighbors_, nstart_, nodes_, k_, batch);
   }
 }
 
 float TSP::compute()
 {
-  // Setup
-  float final_cost    = 0.f;
+  float final_cost        = 0.f;
   int num_restart_batches = (restarts_ + restart_batch_ - 1) / restart_batch_;
   int restart_resid       = restarts_ - (num_restart_batches - 1) * restart_batch_;
   int global_best         = std::numeric_limits<int>::max();
@@ -113,12 +114,10 @@ float TSP::compute()
   h_x_pos.reserve(nodes_ + 1);
   h_y_pos.reserve(nodes_ + 1);
   h_route.reserve(nodes_);
-	std::vector<float*> addr_best_x_pos(1);
-	std::vector<float*> addr_best_y_pos(1);
-	std::vector<int*> addr_best_route(1);
-
-  // Stats
-  HighResTimer hr_timer;;
+  std::vector<float *> addr_best_x_pos(1);
+  std::vector<float *> addr_best_y_pos(1);
+  std::vector<int *> addr_best_route(1);
+  HighResTimer hr_timer;
 
   if (verbose_) {
     std::cout << "Doing " << num_restart_batches << " batches of size " << restart_batch_
@@ -129,30 +128,22 @@ float TSP::compute()
 
   // Tell the cache how we want it to behave
   cudaFuncSetCacheConfig(search_solution, cudaFuncCachePreferEqual);
-
   best_thread_num_ = best_thread_count(nodes_, max_threads_, sm_count_, warp_size_);
-  if (verbose_) std::cout << "Calculated best thread number = " << best_thread_num_ << "\n";
 
-  if (verbose_)
+  if (verbose_) {
+    std::cout << "Calculated best thread number = " << best_thread_num_ << "\n";
     hr_timer.start("tsp_search");
-  for (int batch = 1; batch <= num_restart_batches; ++batch) {
+  }
 
+  for (int batch = 1; batch <= num_restart_batches; ++batch) {
     reset_batch();
     if (batch == num_restart_batches) restart_batch_ = restart_resid;
 
     get_initial_solution(batch);
-    search_solution<<<restart_batch_, best_thread_num_, sizeof(int) * best_thread_num_, stream_>>>(results_,
-                                                                                 mylock_,
-                                                                                 vtx_ptr_,
-                                                                                 beam_search_,
-                                                                                 k_,
-                                                                                 nodes_,
-                                                                                 x_pos_,
-                                                                                 y_pos_,
-                                                                                 work_,
-                                                                                 nstart_);
-    get_optimal_tour<<<restart_batch_, best_thread_num_, sizeof(int) * best_thread_num_, stream_>>>(results_,
-        mylock_, work_, nodes_);
+    search_solution<<<restart_batch_, best_thread_num_, sizeof(int) * best_thread_num_, stream_>>>(
+      results_, mylock_, vtx_ptr_, beam_search_, k_, nodes_, x_pos_, y_pos_, work_, nstart_);
+    get_optimal_tour<<<restart_batch_, best_thread_num_, sizeof(int) * best_thread_num_, stream_>>>(
+      results_, mylock_, work_, nodes_);
     CHECK_CUDA(stream_);
     cudaDeviceSynchronize();
 
@@ -161,10 +152,13 @@ float TSP::compute()
     if (verbose_) std::cout << "Best reported by kernel = " << best << "\n";
 
     if (best < global_best) {
-			global_best = best;
-			cudaMemcpy(addr_best_x_pos.data(), results_.best_x_pos, sizeof(float*), cudaMemcpyDeviceToHost);
-			cudaMemcpy(addr_best_y_pos.data(), results_.best_y_pos, sizeof(float*), cudaMemcpyDeviceToHost);
-			cudaMemcpy(addr_best_route.data(), results_.best_route, sizeof(int*), cudaMemcpyDeviceToHost);
+      global_best = best;
+      cudaMemcpy(
+        addr_best_x_pos.data(), results_.best_x_pos, sizeof(float *), cudaMemcpyDeviceToHost);
+      cudaMemcpy(
+        addr_best_y_pos.data(), results_.best_y_pos, sizeof(float *), cudaMemcpyDeviceToHost);
+      cudaMemcpy(
+        addr_best_route.data(), results_.best_route, sizeof(int *), cudaMemcpyDeviceToHost);
       CHECK_CUDA(stream_);
       cudaDeviceSynchronize();
 

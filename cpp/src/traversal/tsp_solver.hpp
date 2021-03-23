@@ -42,7 +42,6 @@ __global__ void random_init(int *work,
   float *py = &px[nodes + 1];
   int *path = (int *)(&py[nodes + 1]);
 
-
   // Fill values
   for (int i = threadIdx.x; i <= nodes; i += blockDim.x) {
     px[i]   = posx[i];
@@ -51,8 +50,8 @@ __global__ void random_init(int *work,
   }
 
   __syncthreads();
-
-  if (threadIdx.x == 0) { /* serial permutation as starting point */
+  // serial permutation as starting point
+  if (threadIdx.x == 0) {
     // swap to start at nstart node
     raft::swapVals(px[0], px[nstart]);
     raft::swapVals(py[0], py[nstart]);
@@ -67,7 +66,8 @@ __global__ void random_init(int *work,
       raft::swapVals(py[i], py[j]);
       raft::swapVals(path[i], path[j]);
     }
-    px[nodes]   = px[0]; /* close the loop now, avoid special cases later */
+    // close the loop now, avoid special cases later
+    px[nodes]   = px[0];
     py[nodes]   = py[0];
     path[nodes] = path[0];
   }
@@ -337,15 +337,14 @@ __global__ __launch_bounds__(2048, 2) void search_solution(TSPResults results,
   } while (minchange < 0 && myswaps < 2 * nodes);
 }
 
-__global__ void get_optimal_tour(TSPResults results, int *mylock, int *work,
-    int const nodes)
+__global__ void get_optimal_tour(TSPResults results, int *mylock, int *work, int const nodes)
 {
   extern __shared__ int accumulator[];
   int climber_id = blockIdx.x;
-  int *buf  = &work[climber_id * ((4 * nodes + 3 + 31) / 32 * 32)];
-  float *px = (float *)(&buf[nodes]);
-  float *py = &px[nodes + 1];
-  int *path = (int *)(&py[nodes + 1]);
+  int *buf       = &work[climber_id * ((4 * nodes + 3 + 31) / 32 * 32)];
+  float *px      = (float *)(&buf[nodes]);
+  float *py      = &px[nodes + 1];
+  int *path      = (int *)(&py[nodes + 1]);
 
   // Now find actual length of the last tour, result of the climb
   int term = 0;
@@ -369,8 +368,8 @@ __global__ void get_optimal_tour(TSPResults results, int *mylock, int *work,
     while (atomicExch(mylock, 1) != 0)
       ;  // acquire
     if (results.best_cost[0] == term) {
-      results.best_x_pos[0]  = px;
-      results.best_y_pos[0]   = py;
+      results.best_x_pos[0] = px;
+      results.best_y_pos[0] = py;
       results.best_route[0] = path;
     }
     *mylock = 0;  // release

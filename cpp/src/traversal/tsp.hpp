@@ -26,7 +26,7 @@
 namespace cugraph {
 namespace detail {
 
-struct TSPResults{
+struct TSPResults {
   float **best_x_pos;
   float **best_y_pos;
   int **best_route;
@@ -89,9 +89,9 @@ class TSP {
   // Vectors
   rmm::device_vector<int64_t> neighbors_vec_;
   rmm::device_vector<int> work_vec_;
-  rmm::device_vector<float*> best_x_pos_vec_;
-  rmm::device_vector<float*> best_y_pos_vec_;
-  rmm::device_vector<int*> best_route_vec_;
+  rmm::device_vector<float *> best_x_pos_vec_;
+  rmm::device_vector<float *> best_y_pos_vec_;
+  rmm::device_vector<int *> best_route_vec_;
 
   int64_t *neighbors_;
   int *work_;
