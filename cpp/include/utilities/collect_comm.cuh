@@ -58,7 +58,8 @@ collect_values_for_keys(raft::comms::comms_t const &comm,
   double constexpr load_factor = 0.7;
 
   // FIXME: we may compare the performance & memory footprint of this hash based approach vs binary
-  // search based approach
+  // search based approach (especially when thrust::distance(collect_key_first, collect_key_last) <<
+  // thrust::distance(map_key_first, map_key_last)
 
   // 1. build a cuco::static_map object for the map k, v pairs.
 

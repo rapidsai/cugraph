@@ -42,6 +42,7 @@
 namespace cugraph {
 namespace experimental {
 
+// FIXME: think about requiring old_new_label_pairs to be pre-shuffled
 template <typename vertex_t, bool multi_gpu>
 void relabel(raft::handle_t const& handle,
              std::tuple<vertex_t const*, vertex_t const*> old_new_label_pairs,
