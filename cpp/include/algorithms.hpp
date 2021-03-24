@@ -1187,5 +1187,32 @@ extract_ego(raft::handle_t const &handle,
             vertex_t *source_vertex,
             vertex_t n_subgraphs,
             vertex_t radius);
+
+/**
+ * @brief returns random walks (RW) from starting sources, where each path is of given maximum
+ * length. Uniform distribution is assumed for the random engine.
+ *
+ * @tparam graph_t Type of graph.
+ * @tparam vertex_type Type of vertex identifiers. Needs to be an integral type.
+ * @tparam weight_type Type of edge weights. Needs to be a floating point type.
+ * @param handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator, and
+ * handles to various CUDA libraries) to run graph algorithms.
+ * @param graph Graph object to generate RW on.
+ * @param d_v_start Device set of starting vertex indices for the RW.
+ * number(paths) == d_v_start.size().
+ * @param max_depth maximum length of RWs.
+ * @return std::tuple<device_vec_t<vertex_t>, device_vec_t<weight_t>,
+ * device_vec_t<index_t>> Triplet of coalesced RW paths, with corresponding edge weights for
+ * each, and coresponding path sizes. This is meant to minimize the number of DF's to be passed to
+ * the Python layer.
+ */
+template <typename graph_t, typename index_t>
+std::tuple<rmm::device_uvector<typename graph_t::vertex_type>,
+           rmm::device_uvector<typename graph_t::weight_type>,
+           rmm::device_uvector<index_t>>
+random_walks(raft::handle_t const &handle,
+             graph_t const &graph,
+             rmm::device_uvector<typename graph_t::vertex_type> const &d_start,
+             index_t max_depth);
 }  // namespace experimental
 }  // namespace cugraph

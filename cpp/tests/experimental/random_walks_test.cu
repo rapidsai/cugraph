@@ -95,6 +95,7 @@ class Tests_RandomWalks : public ::testing::TestWithParam<RandomWalks_Usecase> {
   void start_random_walks(graph_vt const& graph_view)
   {
     using vertex_t = typename graph_vt::vertex_type;
+    using edge_t   = typename graph_vt::edge_type;
     using weight_t = typename graph_vt::weight_type;
 
     raft::handle_t handle{};
@@ -104,7 +105,7 @@ class Tests_RandomWalks : public ::testing::TestWithParam<RandomWalks_Usecase> {
     vertex_t num_vertices = graph_view.get_number_of_vertices();
     fill_start(handle, d_start, num_vertices);
 
-    vertex_t max_d{10};
+    edge_t max_d{10};
 
     auto ret_tuple = cugraph::experimental::random_walks(handle, graph_view, d_start, max_d);
   }

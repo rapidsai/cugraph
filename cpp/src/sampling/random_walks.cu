@@ -16,7 +16,7 @@
 
 // Andrei Schaffer, aschaffer@nvidia.com
 //
-
+#include <algorithms.hpp>
 #include <experimental/random_walks.cuh>
 
 namespace cugraph {
