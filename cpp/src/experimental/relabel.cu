@@ -121,7 +121,11 @@ void relabel(raft::handle_t const& handle,
         handle.get_stream()));  // cuco::static_map currently does not take stream
 
       cuco::static_map<vertex_t, vertex_t> relabel_map{
-        static_cast<size_t>(static_cast<double>(rx_label_pair_old_labels.size()) / load_factor),
+        // FIXME: std::max(..., size_t{1}) as a temporary workaround for
+        // https://github.com/NVIDIA/cuCollections/issues/72
+        std::max(
+          static_cast<size_t>(static_cast<double>(rx_label_pair_old_labels.size()) / load_factor),
+          size_t{1}),
         invalid_vertex_id<vertex_t>::value,
         invalid_vertex_id<vertex_t>::value};
 
@@ -165,7 +169,10 @@ void relabel(raft::handle_t const& handle,
     }
 
     cuco::static_map<vertex_t, vertex_t> relabel_map(
-      static_cast<size_t>(static_cast<double>(unique_old_labels.size()) / load_factor),
+      // FIXME: std::max(..., size_t{1}) as a temporary workaround for
+      // https://github.com/NVIDIA/cuCollections/issues/72
+      std::max(static_cast<size_t>(static_cast<double>(unique_old_labels.size()) / load_factor),
+               size_t{1}),
       invalid_vertex_id<vertex_t>::value,
       invalid_vertex_id<vertex_t>::value);
 
@@ -180,7 +187,9 @@ void relabel(raft::handle_t const& handle,
     relabel_map.find(labels, labels + num_labels, labels);
   } else {
     cuco::static_map<vertex_t, vertex_t> relabel_map(
-      static_cast<size_t>(static_cast<double>(num_label_pairs) / load_factor),
+      // FIXME: std::max(..., size_t{1}) as a temporary workaround for
+      // https://github.com/NVIDIA/cuCollections/issues/72
+      std::max(static_cast<size_t>(static_cast<double>(num_label_pairs) / load_factor), size_t{1}),
       invalid_vertex_id<vertex_t>::value,
       invalid_vertex_id<vertex_t>::value);
 

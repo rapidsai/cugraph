@@ -206,8 +206,11 @@ void copy_v_transform_reduce_key_aggregated_out_nbr(
   // 1. build a cuco::static_map object for the k, v pairs.
 
   auto kv_map_ptr = std::make_unique<cuco::static_map<vertex_t, value_t>>(
-    static_cast<size_t>(static_cast<double>(thrust::distance(map_key_first, map_key_last)) /
-                        load_factor),
+    // FIXME: std::max(..., size_t{1}) as a temporary workaround for
+    // https://github.com/NVIDIA/cuCollections/issues/72
+    std::max(static_cast<size_t>(
+               static_cast<double>(thrust::distance(map_key_first, map_key_last)) / load_factor),
+             size_t{1}),
     invalid_vertex_id<vertex_t>::value,
     invalid_vertex_id<vertex_t>::value);
   auto pair_first = thrust::make_transform_iterator(
