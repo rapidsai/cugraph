@@ -178,12 +178,12 @@ float TSP::compute()
 
     if (best < global_best) {
       global_best = best;
-      cudaMemcpy(
-        addr_best_x_pos.data(), results_.best_x_pos, sizeof(float *), cudaMemcpyDeviceToHost);
-      cudaMemcpy(
-        addr_best_y_pos.data(), results_.best_y_pos, sizeof(float *), cudaMemcpyDeviceToHost);
-      cudaMemcpy(
-        addr_best_route.data(), results_.best_route, sizeof(int *), cudaMemcpyDeviceToHost);
+      CUDA_TRY(cudaMemcpy(
+        addr_best_x_pos.data(), results_.best_x_pos, sizeof(float *), cudaMemcpyDeviceToHost));
+      CUDA_TRY(cudaMemcpy(
+        addr_best_y_pos.data(), results_.best_y_pos, sizeof(float *), cudaMemcpyDeviceToHost));
+      CUDA_TRY(cudaMemcpy(
+        addr_best_route.data(), results_.best_route, sizeof(int *), cudaMemcpyDeviceToHost));
       CHECK_CUDA(stream_);
       cudaDeviceSynchronize();
 
