@@ -91,22 +91,22 @@ class Tests_RandomWalks : public ::testing::TestWithParam<RandomWalks_Usecase> {
     start_random_walks(graph_view);
   }
 
-  template <typename graph_t>
-  void start_random_walks(graph_t const& graph)
+  template <typename graph_vt>
+  void start_random_walks(graph_vt const& graph_view)
   {
-    using vertex_t = typename graph_t::vertex_type;
-    using weight_t = typename graph_t::weight_type;
+    using vertex_t = typename graph_vt::vertex_type;
+    using weight_t = typename graph_vt::weight_type;
 
     raft::handle_t handle{};
     vertex_t num_paths = 10;
     rmm::device_uvector<vertex_t> d_start(num_paths, handle.get_stream());
 
-    vertex_t num_vertices = graph.get_number_of_vertices();
+    vertex_t num_vertices = graph_view.get_number_of_vertices();
     fill_start(handle, d_start, num_vertices);
 
     vertex_t max_d{10};
 
-    auto ret_tuple = cugraph::experimental::random_walks(handle, graph, d_start, max_d);
+    auto ret_tuple = cugraph::experimental::random_walks(handle, graph_view, d_start, max_d);
   }
 };
 

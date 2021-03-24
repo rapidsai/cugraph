@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020-2021, NVIDIA CORPORATION.
+ * Copyright (c) 2021, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -13,13 +13,14 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
+// Andrei Schaffer, aschaffer@nvidia.com
+//
 #pragma once
 
 #include <experimental/graph.hpp>
 
 #include <rmm/thrust_rmm_allocator.h>
-//#include <compute_partition.cuh>
-//#include <experimental/shuffle.cuh>
 #include <utilities/graph_utils.cuh>
 
 #include <raft/device_atomics.cuh>
@@ -33,14 +34,12 @@
 #include <thrust/iterator/constant_iterator.h>
 #include <thrust/iterator/counting_iterator.h>
 #include <thrust/iterator/transform_iterator.h>
-#include <thrust/iterator/zip_iterator.h>  //
+#include <thrust/iterator/zip_iterator.h>
 #include <thrust/logical.h>
-#include <thrust/tuple.h>  //
+#include <thrust/tuple.h>
 
 #include <thrust/remove.h>
 #include <thrust/transform.h>
-
-//#include <experimental/include_cuco_static_map.cuh>
 
 #include <cassert>
 #include <ctime>
@@ -335,15 +334,8 @@ struct random_walker_t {
     : handle_(handle),
       num_paths_(nPaths),
       max_depth_(max_depth),
-      d_v_stopped_{static_cast<size_t>(nPaths), handle_.get_stream()},
       d_cached_out_degs_(graph.compute_out_degrees(handle_))
   {
-    // init d_v_stopped_ to {0} (i.e., no path is stopped):
-    //
-    thrust::copy_n(rmm::exec_policy(handle_.get_stream())->on(handle_.get_stream()),
-                   thrust::make_constant_iterator(0),
-                   nPaths,
-                   d_v_stopped_.begin());
   }
 
   // in-place updates its arguments from one step to next
@@ -631,8 +623,6 @@ struct random_walker_t {
   raft::handle_t const& handle_;
   index_t num_paths_;
   index_t max_depth_;
-  device_vec_t<int> d_v_stopped_;  // keeps track of paths that stopped (==1); FIXME: remove, not
-                                   // needed (use p_d_crt_out_degs instead)
   device_vec_t<edge_t> d_cached_out_degs_;
 };
 
@@ -796,7 +786,7 @@ random_walks_impl(raft::handle_t const& handle,
  * each, and coresponding path sizes. This is meant to minimize the number of DF's to be passed to
  * the Python layer.
  */
-template <typename graph_t, typename index_t = typename graph_t::edge_type>
+template <typename graph_t, typename index_t>
 std::tuple<rmm::device_uvector<typename graph_t::vertex_type>,
            rmm::device_uvector<typename graph_t::weight_type>,
            rmm::device_uvector<index_t>>
