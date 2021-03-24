@@ -20,7 +20,7 @@ from cugraph.structure.graph_primtypes cimport *
 
 cdef extern from "utilities/path_retrieval.hpp" namespace "cugraph":
 
-    cdef void get_traversed_path(const handle_t &handle,
+    cdef void get_traversed_cost(const handle_t &handle,
             int *vertices,
             int *preds,
             float *info_weights,

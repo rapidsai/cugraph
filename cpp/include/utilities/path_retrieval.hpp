@@ -19,7 +19,7 @@
 #include <raft/handle.hpp>
 
 namespace cugraph {
-  void get_traversed_path(raft::handle_t const &handle,
+  void get_traversed_cost(raft::handle_t const &handle,
                           int const *vtx_ptr,
                           int const *preds,
                           float const *info_weights,

@@ -12,6 +12,7 @@
 # limitations under the License.
 
 from numba import cuda
+from cugraph.structure.symmetrize import symmetrize
 from cugraph.utilities import path_retrieval_wrapper
 
 import cudf
@@ -198,9 +199,32 @@ def get_traversed_cost(df, info_df):
     if 'predecessor' not in df.columns:
         raise ValueError("DataFrame does not appear to be a BFS or "
                          "SSP result - 'predecessor' column missing")
+    if 'source' not in info_df.columns:
+        raise ValueError("")
+    if 'destination' not in info_df.columns:
+        raise ValueError("")
+    if 'weights' not in info_df.columns:
+        raise ValueError("")
+
+    src, dst, val = symmetrize(info_df['source'],
+                               info_df['destination'],
+                               info_df['weights'])
+
+    symmetrized_df = cudf.DataFrame()
+    symmetrized_df['source'] = src
+    symmetrized_df['destination'] = dst
+    symmetrized_df['weights'] = val
+
+    input_df = df.merge(symmetrized_df,
+            left_on=['vertex', 'predecessor'],
+            right_on=['source', 'destination'],
+            how="left"
+            )
+    input_df = input_df.fillna(0)
 
     out_df = path_retrieval_wrapper.get_traversed_cost(input_df)
     return out_df
+
 def is_cuda_version_less_than(min_version=(10, 2)):
     """
     Returns True if the version of CUDA being used is less than min_version

@@ -24,9 +24,13 @@ __global__
   void compute_cost_kernel(int const *vtx_ptr, int const *preds,
     float const *info_weights, float *out, int num_vertices)
 {
+  /*
   for (int i = threadIdx.x + blockIdx.x * blockDim.x;
       i < num_vertices;
       i += gridDim.x * blockDim.x) {
+      */
+  if (!threadIdx.x && !blockIdx.x) {
+    int i = 0;
     float sum = 0;
     int cur_vtx = vtx_ptr[i];
     int pred = preds[cur_vtx];
@@ -38,7 +42,7 @@ __global__
     out[i] = sum;
   }
 }
-    void get_traversed_path(raft::handle_t const &handle, int const *vtx_ptr,
+    void get_traversed_cost(raft::handle_t const &handle, int const *vtx_ptr,
         int const *preds, float const *info_weights, float *out, int num_vertices)
     {
       dim3 nthreads, nblocks;
@@ -49,16 +53,20 @@ __global__
       nblocks.y  = 1;
       nblocks.z  = 1;
 
+      raft::print_device_vector("vtx_ptr: ", vtx_ptr, num_vertices, std::cout);
+      raft::print_device_vector("preds: ", preds, num_vertices, std::cout);
+      raft::print_device_vector("info_weights: ", info_weights, num_vertices, std::cout);
+      return;
       compute_cost_kernel<<<nblocks, nthreads>>>(vtx_ptr, preds, info_weights,
           out, num_vertices);
     }
   } // namespace detail
 
-  void get_traversed_path(raft::handle_t const &handle, int const *vtx_ptr,
+  void get_traversed_cost(raft::handle_t const &handle, int const *vtx_ptr,
       int const *preds, float const *info_weights, float *out, int num_vertices)
   {
 		RAFT_EXPECTS(num_vertices > 0 , "num_vertices should be strictly positive");
-		cugraph::detail::get_traversed_path(handle, vtx_ptr, preds, info_weights,
+		cugraph::detail::get_traversed_cost(handle, vtx_ptr, preds, info_weights,
         out, num_vertices);
   }
 }  // namespace cugraph
