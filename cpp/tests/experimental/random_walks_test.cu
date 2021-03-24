@@ -32,6 +32,23 @@
 #include <utilities/high_res_timer.hpp>
 #include <vector>
 
+namespace {  // anonym.
+template <typename vertex_t, typename index_t>
+void fill_start(raft::handle_t const& handle,
+                rmm::device_uvector<vertex_t>& d_start,
+                index_t num_vertices)
+{
+  index_t num_paths = d_start.size();
+
+  thrust::transform(rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
+                    thrust::make_counting_iterator<index_t>(0),
+                    thrust::make_counting_iterator<index_t>(num_paths),
+
+                    d_start.begin(),
+                    [num_vertices] __device__(auto indx) { return indx % num_vertices; });
+}
+}  // namespace
+
 struct RandomWalks_Usecase {
   std::string graph_file_full_path{};
   bool test_weighted{false};
@@ -69,9 +86,6 @@ class Tests_RandomWalks : public ::testing::TestWithParam<RandomWalks_Usecase> {
         handle, configuration.graph_file_full_path, configuration.test_weighted, false);
 
     auto graph_view = graph.view();
-    // FIXME: remove dead code:
-    // uint64_t seed{101201301401};
-    // raft::random::Rng rnd(seed);  // TODO: have it passed as argument from the test instance;
 
     // call random_walks:
     start_random_walks(graph_view);
@@ -84,10 +98,15 @@ class Tests_RandomWalks : public ::testing::TestWithParam<RandomWalks_Usecase> {
     using weight_t = typename graph_t::weight_type;
 
     raft::handle_t handle{};
-    std::vector<vertex_t> empty_vec{};  // for now...
+    vertex_t num_paths = 10;
+    rmm::device_uvector<vertex_t> d_start(num_paths, handle.get_stream());
+
+    vertex_t num_vertices = graph.get_number_of_vertices();
+    fill_start(handle, d_start, num_vertices);
+
     vertex_t max_d{10};
 
-    auto ret_tuple = cugraph::experimental::detail::random_walks(handle, graph, empty_vec, max_d);
+    auto ret_tuple = cugraph::experimental::detail::random_walks(handle, graph, d_start, max_d);
   }
 };
 

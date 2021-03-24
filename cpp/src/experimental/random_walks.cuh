@@ -647,8 +647,8 @@ struct random_walker_t {
  * @param handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator, and
  * handles to various CUDA libraries) to run graph algorithms.
  * @param graph Graph object to generate RW on.
- * @param start_vertex_set Set of starting vertex indices for the RW. number(RW) ==
- * start_vertex_set.size().
+ * @param d_v_start Device set of starting vertex indices for the RW.
+ * number(paths) == d_v_start.size().
  * @param max_depth maximum length of RWs.
  * @return std::tuple<device_vec_t<vertex_t>, device_vec_t<weight_t>,
  * device_vec_t<index_t>> Triplet of coalesced RW paths, with corresponding edge weights for
@@ -665,7 +665,7 @@ std::enable_if_t<graph_t::is_multi_gpu == false,
                             device_vec_t<index_t>>>
 random_walks(raft::handle_t const& handle,
              graph_t const& graph,
-             std::vector<typename graph_t::vertex_type> const& start_vertex_set,
+             rmm::device_uvector<typename graph_t::vertex_type> const& d_v_start,
              index_t max_depth)
 {
   using vertex_t = typename graph_t::vertex_type;
@@ -677,20 +677,8 @@ random_walks(raft::handle_t const& handle,
   // TODO: Potentially this might change, if it's decided to pass the
   // starting vector directly on device...
   //
-  auto nPaths = start_vertex_set.size();
+  auto nPaths = d_v_start.size();
   auto stream = handle.get_stream();
-
-  device_vec_t<vertex_t> d_v_start{nPaths, stream};
-
-  // Copy starting set on device:
-  //
-  CUDA_TRY(cudaMemcpyAsync(d_v_start.data(),
-                           start_vertex_set.data(),
-                           nPaths * sizeof(vertex_t),
-                           cudaMemcpyHostToDevice,
-                           stream));
-
-  cudaStreamSynchronize(stream);
 
   random_walker_t<graph_t, random_engine_t> rand_walker{
     handle, graph, static_cast<index_t>(nPaths), static_cast<index_t>(max_depth)};
@@ -757,8 +745,8 @@ random_walks(raft::handle_t const& handle,
  * @param handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator, and
  * handles to various CUDA libraries) to run graph algorithms.
  * @param graph Graph object to generate RW on.
- * @param start_vertex_set Set of starting vertex indices for the RW. number(RW) ==
- * start_vertex_set.size().
+ * @param d_v_start Device set of starting vertex indices for the RW. number(RW) ==
+ * d_v_start.size().
  * @param max_depth maximum length of RWs.
  * @return std::tuple<device_vec_t<vertex_t>, device_vec_t<weight_t>,
  * device_vec_t<index_t>> Triplet of coalesced RW paths, with corresponding edge weights for
@@ -775,7 +763,7 @@ std::enable_if_t<graph_t::is_multi_gpu == true,
                             device_vec_t<index_t>>>
 random_walks(raft::handle_t const& handle,
              graph_t const& graph,
-             std::vector<typename graph_t::vertex_type> const& start_vertex_set,
+             rmm::device_uvector<typename graph_t::vertex_type> const& d_start,
              index_t max_depth)
 {
   CUGRAPH_FAIL("Not implemented yet.");
@@ -793,8 +781,8 @@ random_walks(raft::handle_t const& handle,
  * @param handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator, and
  * handles to various CUDA libraries) to run graph algorithms.
  * @param graph Graph object to generate RW on.
- * @param start_vertex_set Set of starting vertex indices for the RW. number(RW) ==
- * start_vertex_set.size().
+ * @param d_v_start Device set of starting vertex indices for the RW.
+ * number(paths) == d_v_start.size().
  * @param max_depth maximum length of RWs.
  * @return std::tuple<device_vec_t<vertex_t>, device_vec_t<weight_t>,
  * device_vec_t<index_t>> Triplet of coalesced RW paths, with corresponding edge weights for
@@ -807,7 +795,7 @@ std::tuple<rmm::device_uvector<typename graph_t::vertex_type>,
            rmm::device_uvector<index_t>>
 random_walks(raft::handle_t const& handle,
              graph_t const& graph,
-             std::vector<typename graph_t::vertex_type> const& start_vertex_set,
+             rmm::device_uvector<typename graph_t::vertex_type> const& d_start,
              index_t max_depth);
 }  // namespace experimental
 }  // namespace cugraph

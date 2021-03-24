@@ -833,9 +833,11 @@ TEST_F(RandomWalksPrimsTest, SimpleGraphRandomWalk)
   copy_n(handle, v_vals, values, v_vals.size());
 
   std::vector<vertex_t> v_start{1, 0, 4, 2};
+  vector_test_t<vertex_t> d_v_start(v_start.size(), handle.get_stream());
+  copy_n(handle, d_v_start, v_start);
 
   index_t max_depth = 5;
-  auto triplet      = detail::random_walks(handle, graph_view, v_start, max_depth);
+  auto triplet      = detail::random_walks(handle, graph_view, d_v_start, max_depth);
 
   auto& d_coalesced_v = std::get<0>(triplet);
   auto& d_coalesced_w = std::get<1>(triplet);
