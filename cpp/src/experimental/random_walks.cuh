@@ -69,6 +69,39 @@ value_t const* raw_const_ptr(device_vec_t<value_t> const& dv)
   return dv.data();
 }
 
+template <typename value_t, typename index_t = size_t>
+struct device_const_vector_view {
+  device_const_vector_view(value_t const* d_buffer, index_t size) : d_buffer_(d_buffer), size_(size)
+  {
+  }
+
+  device_const_vector_view(device_const_vector_view const& other) = delete;
+  device_const_vector_view& operator=(device_const_vector_view const& other) = delete;
+
+  device_const_vector_view(device_const_vector_view&& other)
+  {
+    d_buffer_ = other.d_buffer_;
+    size_     = other.size_;
+  }
+  device_const_vector_view& operator=(device_const_vector_view&& other)
+  {
+    d_buffer_ = other.d_buffer_;
+    size_     = other.size_;
+
+    return *this;
+  }
+
+  value_t const* begin(void) const { return d_buffer_; }
+
+  value_t const* end() const { return d_buffer_ + size_; }
+
+  index_t size(void) const { return size_; }
+
+ private:
+  value_t const* d_buffer_{nullptr};
+  index_t size_;
+};
+
 // raft random generator:
 // (using upper-bound cached "map"
 //  giving out_deg(v) for each v in [0, |V|);
@@ -421,9 +454,9 @@ struct random_walker_t {
   // for each i in [0..num_paths_) {
   //   d_paths_v_set[i*max_depth] = d_src_init_v[i];
   //
-  void start(device_vec_t<vertex_t> const& d_src_init_v,  // in: start set
-             device_vec_t<vertex_t>& d_paths_v_set,       // out: coalesced v
-             device_vec_t<index_t>& d_sizes) const        // out: init sizes to {1,...}
+  void start(device_const_vector_view<vertex_t, index_t>& d_src_init_v,  // in: start set
+             device_vec_t<vertex_t>& d_paths_v_set,                      // out: coalesced v
+             device_vec_t<index_t>& d_sizes) const  // out: init sizes to {1,...}
   {
     // intialize path sizes to 1, as they contain at least one vertex each:
     // the initial set: d_src_init_v;
@@ -447,6 +480,19 @@ struct random_walker_t {
                     d_src_init_v.end(),
                     map_it_begin,
                     d_paths_v_set.begin());
+  }
+
+  // overload for start() with device_uvector d_v_start
+  // (handy for testing)
+  //
+  void start(device_vec_t<vertex_t> const& d_start,  // in: start set
+             device_vec_t<vertex_t>& d_paths_v_set,  // out: coalesced v
+             device_vec_t<index_t>& d_sizes) const   // out: init sizes to {1,...}
+  {
+    device_const_vector_view<vertex_t, index_t> d_start_cview{d_start.data(),
+                                                              static_cast<index_t>(d_start.size())};
+
+    start(d_start_cview, d_paths_v_set, d_sizes);
   }
 
   // wrap-up, post-process:
@@ -544,8 +590,8 @@ struct random_walker_t {
   void scatter_to_coalesced(
     device_vec_t<src_vec_t> const& d_src,        // |scatter input| = nelems
     device_vec_t<src_vec_t>& d_coalesced,        // |scatter input| = stride*nelems
-    device_vec_t<edge_t> const& d_crt_out_degs,  // |current set of vertex out degrees| = nelems, to
-                                                 // be used as stencil (don't scatter if 0)
+    device_vec_t<edge_t> const& d_crt_out_degs,  // |current set of vertex out degrees| = nelems,
+                                                 // to be used as stencil (don't scatter if 0)
     device_vec_t<index_t> const&
       d_sizes,  // paths sizes used to provide delta in coalesced paths;
                 // pre-condition: assumed as updated to reflect new vertex additions;
@@ -655,7 +701,7 @@ std::enable_if_t<graph_t::is_multi_gpu == false,
                             device_vec_t<index_t>>>
 random_walks_impl(raft::handle_t const& handle,
                   graph_t const& graph,
-                  rmm::device_uvector<typename graph_t::vertex_type> const& d_v_start,
+                  device_const_vector_view<typename graph_t::vertex_type, index_t>& d_v_start,
                   index_t max_depth)
 {
   using vertex_t = typename graph_t::vertex_type;
@@ -683,14 +729,14 @@ random_walks_impl(raft::handle_t const& handle,
   // pre-allocate num_paths * max_depth;
   //
   auto coalesced_sz = nPaths * max_depth;
-  device_vec_t<vertex_t> d_coalesced_v{coalesced_sz, stream};  // coalesced vertex set
-  device_vec_t<weight_t> d_coalesced_w{coalesced_sz, stream};  // coalesced weight set
-  device_vec_t<index_t> d_paths_sz{nPaths, stream};            // paths sizes
-  device_vec_t<edge_t> d_crt_out_degs{nPaths, stream};  // out-degs for current set of vertices
-  device_vec_t<real_t> d_random{nPaths, stream};
-  device_vec_t<vertex_t> d_col_indx{nPaths, stream};
-  device_vec_t<vertex_t> d_next_v{nPaths, stream};
-  device_vec_t<weight_t> d_next_w{nPaths, stream};
+  device_vec_t<vertex_t> d_coalesced_v(coalesced_sz, stream);  // coalesced vertex set
+  device_vec_t<weight_t> d_coalesced_w(coalesced_sz, stream);  // coalesced weight set
+  device_vec_t<index_t> d_paths_sz(nPaths, stream);            // paths sizes
+  device_vec_t<edge_t> d_crt_out_degs(nPaths, stream);  // out-degs for current set of vertices
+  device_vec_t<real_t> d_random(nPaths, stream);
+  device_vec_t<vertex_t> d_col_indx(nPaths, stream);
+  device_vec_t<vertex_t> d_next_v(nPaths, stream);
+  device_vec_t<weight_t> d_next_w(nPaths, stream);
 
   // FIXME: abstract out seed initialization:
   //
@@ -760,7 +806,7 @@ std::enable_if_t<graph_t::is_multi_gpu == true,
                             device_vec_t<index_t>>>
 random_walks_impl(raft::handle_t const& handle,
                   graph_t const& graph,
-                  rmm::device_uvector<typename graph_t::vertex_type> const& d_start,
+                  device_const_vector_view<typename graph_t::vertex_type, index_t>& d_v_start,
                   index_t max_depth)
 {
   CUGRAPH_FAIL("Not implemented yet.");
@@ -778,8 +824,8 @@ random_walks_impl(raft::handle_t const& handle,
  * @param handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator, and
  * handles to various CUDA libraries) to run graph algorithms.
  * @param graph Graph object to generate RW on.
- * @param d_v_start Device set of starting vertex indices for the RW.
- * number(paths) == d_v_start.size().
+ * @param ptr_d_start Device pointer to set of starting vertex indices for the RW.
+ * @param num_paths = number(paths) == d_v_start.size().
  * @param max_depth maximum length of RWs.
  * @return std::tuple<device_vec_t<vertex_t>, device_vec_t<weight_t>,
  * device_vec_t<index_t>> Triplet of coalesced RW paths, with corresponding edge weights for
@@ -792,10 +838,17 @@ std::tuple<rmm::device_uvector<typename graph_t::vertex_type>,
            rmm::device_uvector<index_t>>
 random_walks(raft::handle_t const& handle,
              graph_t const& graph,
-             rmm::device_uvector<typename graph_t::vertex_type> const& d_start,
+             typename graph_t::vertex_type const* ptr_d_start,
+             index_t num_paths,
              index_t max_depth)
 {
-  return detail::random_walks_impl(handle, graph, d_start, max_depth);
+  using vertex_t = typename graph_t::vertex_type;
+
+  // 0-copy const device view:
+  //
+  detail::device_const_vector_view<vertex_t, index_t> d_v_start{ptr_d_start, num_paths};
+
+  return detail::random_walks_impl(handle, graph, d_v_start, max_depth);
 }
 }  // namespace experimental
 }  // namespace cugraph

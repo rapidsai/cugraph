@@ -99,7 +99,7 @@ class Tests_RandomWalks : public ::testing::TestWithParam<RandomWalks_Usecase> {
     using weight_t = typename graph_vt::weight_type;
 
     raft::handle_t handle{};
-    vertex_t num_paths = 10;
+    edge_t num_paths = 10;
     rmm::device_uvector<vertex_t> d_start(num_paths, handle.get_stream());
 
     vertex_t num_vertices = graph_view.get_number_of_vertices();
@@ -107,7 +107,8 @@ class Tests_RandomWalks : public ::testing::TestWithParam<RandomWalks_Usecase> {
 
     edge_t max_d{10};
 
-    auto ret_tuple = cugraph::experimental::random_walks(handle, graph_view, d_start, max_d);
+    auto ret_tuple =
+      cugraph::experimental::random_walks(handle, graph_view, d_start.data(), num_paths, max_d);
   }
 };
 
