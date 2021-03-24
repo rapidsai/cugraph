@@ -187,6 +187,18 @@ def get_traversed_path_list(df, id):
     return answer
 
 
+def get_traversed_cost(df, info_df):
+    if 'vertex' not in df.columns:
+        raise ValueError("DataFrame does not appear to be a BFS or "
+                         "SSP result - 'vertex' column missing")
+    if 'distance' not in df.columns:
+        raise ValueError("DataFrame does not appear to be a BFS or "
+                         "SSP result - 'distance' column missing")
+    if 'predecessor' not in df.columns:
+        raise ValueError("DataFrame does not appear to be a BFS or "
+                         "SSP result - 'predecessor' column missing")
+
+
 def is_cuda_version_less_than(min_version=(10, 2)):
     """
     Returns True if the version of CUDA being used is less than min_version
