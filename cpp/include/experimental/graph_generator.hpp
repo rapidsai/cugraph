@@ -120,7 +120,8 @@ enum class generator_distribution_t { POWER_LAW = 0, UNIFORM };
  * rmm::device_uvector objects for edge source vertex IDs and edge destination vertex IDs.
  */
 template <typename vertex_t>
-std::tuple<rmm::device_uvector<vertex_t>, rmm::device_uvector<vertex_t>> generate_rmat_edgelists(
+std::vector<std::tuple<rmm::device_uvector<vertex_t>, rmm::device_uvector<vertex_t>>>
+generate_rmat_edgelists(
   raft::handle_t const& handle,
   size_t n_edgelists,
   size_t min_scale,

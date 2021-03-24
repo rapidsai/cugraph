@@ -146,24 +146,27 @@ generate_rmat_edgelists(raft::handle_t const& handle,
 
   std::default_random_engine eng;
   eng.seed(seed);
-  std::uniform_int_distribution<vertex_t> uniform_dist(min_scale, max_scale);
-  std::generate(scale.begin(), scale.end(), [&uniform_dist, &eng]() { return uniform_dist(eng); });
+  if (component_distribution == generator_distribution_t::UNIFORM) {
+    std::uniform_int_distribution<vertex_t> dist(min_scale, max_scale);
+    std::generate(scale.begin(), scale.end(), [&dist, &eng]() { return dist(eng); });
+  } else {
+    // May expose this as a parameter in the future
+    std::exponential_distribution<float> dist(4);
+    // The modulo is here to protect the range because exponential distribution is defined on
+    // [0,infinity). With exponent 4 most values are between 0 and 1
+    auto range = max_scale - min_scale;
+    std::generate(scale.begin(), scale.end(), [&dist, &eng, &min_scale, &range]() {
+      return min_scale + static_cast<vertex_t>(static_cast<float>(range) * dist(eng)) % range;
+    });
+  }
 
-  for (auto& s : scale)
-    if (component_distribution == generator_distribution_t::POWER_LAW)
-      s = std::pow(
-        std::pow(max_scale, 3) - std::pow(min_scale, 3) * (1.0 / s) + std::pow(min_scale, 3),
-        1.0 / 3.0);
-
-  // intialized to powerlaw values
+  // intialized to standard powerlaw values
   double a = 0.57, b = 0.19, c = 0.19;
   if (edge_distribution == generator_distribution_t::UNIFORM) {
     a = 0.25;
     b = a;
     c = a;
   }
-
-  for (auto& s : scale) std::cout << s << std::endl;
 
   for (size_t i = 0; i < n_edgelists; i++) {
     output.push_back(generate_rmat_edgelist<vertex_t>(
