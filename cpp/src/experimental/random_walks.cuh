@@ -674,9 +674,16 @@ random_walks(raft::handle_t const& handle,
   using seed_t   = typename random_engine_t::seed_type;
   using real_t   = typename random_engine_t::real_type;
 
-  // TODO: Potentially this might change, if it's decided to pass the
-  // starting vector directly on device...
-  //
+  vertex_t num_vertices = graph.get_number_of_vertices();
+  bool valid_start = thrust::all_of(rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
+                                    d_v_start.begin(),
+                                    d_v_start.end(),
+                                    [num_vertices] __device__(auto crt_vertex) {
+                                      return (crt_vertex >= 0) && (crt_vertex < num_vertices);
+                                    });
+
+  CUGRAPH_EXPECTS(valid_start == true, "Invalid set of starting vertices.");
+
   auto nPaths = d_v_start.size();
   auto stream = handle.get_stream();
 
