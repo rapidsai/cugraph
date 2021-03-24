@@ -275,9 +275,45 @@ struct col_indx_extract_t<graph_t, index_t, std::enable_if_t<graph_t::is_multi_g
   index_t max_depth_;
 };
 
-// class abstracting the RW stepping algorithm:
-// preprocessing, stepping, and post-processing
-//
+/**
+ * @brief Class abstracting the RW initialization, stepping, and stopping functionality
+ *        The outline of the algorithm is as follows:
+ *
+ *        (1) vertex sets are coalesced into d_coalesced_v,
+ *            weight sets are coalesced into d_coalesced_w;
+ *            i.e., the 2 coalesced vectors are allocated to
+ *            num_paths * max_depth, and num_paths * (max_depth -1), respectively
+ *            (since each path has a number of edges equal one
+ *             less than the number of vertices);
+ *            d_coalesced_v is initialized for each i*max_depth entry
+ *            (i=0,,,,num_paths-1) to the corresponding starting vertices;
+ *        (2) d_sizes maintains the current size is for each path;
+ *            Note that a path may end prematurely if it reaches a sink vertex;
+ *        (3) d_crt_out_degs maintains the out-degree of each of the latest
+ *            vertices in the path; i.e., if N(v) := set of destination
+ *            vertices from v, then this vector stores |N(v)|
+ *            for last v in each path; i.e.,
+ *            d_crt_out_degs[i] =
+ *              out-degree( d_coalesced_v[i*max_depth + d_sizes[i]-1] ),
+ *            for i in {0,..., num_paths-1};
+ *        (4) a set of num_paths floating point numbers between [0,1]
+ *            are generated at each step; then they get translated into
+ *            _indices_ k in {0,...d_crt_out_degs[i]-1};
+ *        (5) the next vertex v is then picked as the k-th out-neighbor:
+ *            next(v) = N(v)[k];
+ *        (6) d_sizes are incremented accordingly; i.e., for those paths whose
+ *            corresponding last vertex has out-degree > 0;
+ *        (7) then next(v) and corresponding weight of (v, next(v)) are stored
+ *            at appropriate location in their corresponding coalesced vectors;
+ *        (8) the client of this class (the random_walks() function) then repeats
+ *            this process max_depth times or until all paths
+ *            have reached sinks; i.e., d_crt_out_degs = {0, 0,...,0},
+ *            whichever comes first;
+ *        (9) in the end some post-processing is done (stop()) to remove
+ *            unused entries from the 2 coalesced vectors;
+ *        (10) the triplet made of the 2 coalesced vectors and d_sizes is then returned;
+ *
+ */
 template <typename graph_t,
           typename random_engine_t =
             rrandom_gen_t<typename graph_t::vertex_type, typename graph_t::edge_type>,
