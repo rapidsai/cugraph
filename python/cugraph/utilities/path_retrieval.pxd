@@ -24,5 +24,6 @@ cdef extern from "utilities/path_retrieval.hpp" namespace "cugraph":
             int *vertices,
             int *preds,
             float *info_weights,
+            float *out,
             int num_vertices) except +
 

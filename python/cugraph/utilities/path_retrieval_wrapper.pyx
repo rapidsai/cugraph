@@ -25,7 +25,7 @@ import cudf
 import numpy as np
 
 
-def get_traversed_path(input_df
+def get_traversed_cost(input_df
 ):
     """
     Call get_traversed_path
@@ -41,17 +41,20 @@ def get_traversed_path(input_df
 
     cdef uintptr_t vertices = <uintptr_t>NULL
     cdef uintptr_t preds = <uintptr_t>NULL
+    cdef uintptr_t out = <uintptr_t>NULL
     cdef uintptr_t info_weights = <uintptr_t>NULL
 
     vertices = input_df['vertex'].__cuda_array_interface__['data'][0]
     preds = input_df['predecessors'].__cuda_array_interface__['data'][0]
-    info_weights = df['info'].__cuda_array_interface__['data'][0]
+    info_weights = input_df['weights'].__cuda__array_interface__['data'][0]
+    out = df['info'].__cuda_array_interface__['data'][0]
 
 
     c_get_traversed_path(handle_[0],
             <int*> vertices,
             <int *> preds,
             <float *> info_weights,
+            <float *> out,
             num_verts
             )
 

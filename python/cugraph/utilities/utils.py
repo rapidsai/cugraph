@@ -12,6 +12,7 @@
 # limitations under the License.
 
 from numba import cuda
+from cugraph.utilities import path_retrieval_wrapper
 
 import cudf
 from rmm._cuda.gpu import (
@@ -198,7 +199,8 @@ def get_traversed_cost(df, info_df):
         raise ValueError("DataFrame does not appear to be a BFS or "
                          "SSP result - 'predecessor' column missing")
 
-
+    out_df = path_retrieval_wrapper.get_traversed_cost(input_df)
+    return out_df
 def is_cuda_version_less_than(min_version=(10, 2)):
     """
     Returns True if the version of CUDA being used is less than min_version

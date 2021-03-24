@@ -22,6 +22,7 @@ namespace cugraph {
   void get_traversed_path(raft::handle_t const &handle,
                           int const *vtx_ptr,
                           int const *preds,
-                          float *info_weights,
+                          float const *info_weights,
+                          float *out,
                           int num_vertices);
 } // namespace cugraph
