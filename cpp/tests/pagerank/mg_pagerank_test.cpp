@@ -15,10 +15,13 @@
  */
 
 #include <utilities/base_fixture.hpp>
-#include <utilities/renumber_utilities.hpp>
 #include <utilities/test_utilities.hpp>
+#include <utilities/thrust_wrapper.hpp>
 
 #include <algorithms.hpp>
+#include <experimental/graph.hpp>
+#include <experimental/graph_functions.hpp>
+#include <experimental/graph_view.hpp>
 #include <partition_manager.hpp>
 
 #include <raft/comms/comms.hpp>
@@ -200,7 +203,7 @@ class Tests_MGPageRank : public ::testing::TestWithParam<PageRank_Usecase> {
                                     d_mg_personalization_vertices.data(),
                                     d_mg_personalization_values.data(),
                                     static_cast<vertex_t>(d_mg_personalization_vertices.size()),
-                                    d_mg_pageranks.begin(),
+                                    d_mg_pageranks.data(),
                                     alpha,
                                     epsilon,
                                     std::numeric_limits<size_t>::max(),
@@ -224,17 +227,32 @@ class Tests_MGPageRank : public ::testing::TestWithParam<PageRank_Usecase> {
       rmm::device_uvector<vertex_t> d_sg_personalization_vertices(0, handle.get_stream());
       rmm::device_uvector<result_t> d_sg_personalization_values(0, handle.get_stream());
       if (configuration.personalization_ratio > 0.0) {
-        rmm::device_uvector<vertex_t> d_unrenumbered_personalization_vertices(0,
-                                                                              handle.get_stream());
-        rmm::device_uvector<result_t> d_unrenumbered_personalization_values(0, handle.get_stream());
-        std::tie(d_unrenumbered_personalization_vertices, d_unrenumbered_personalization_values) =
-          cugraph::test::unrenumber_kv_pairs(handle,
-                                             d_mg_personalization_vertices.data(),
-                                             d_mg_personalization_values.data(),
-                                             d_mg_personalization_vertices.size(),
-                                             d_mg_renumber_map_labels.data(),
-                                             mg_graph_view.get_local_vertex_first(),
-                                             mg_graph_view.get_local_vertex_last());
+        rmm::device_uvector<vertex_t> d_unrenumbered_personalization_vertices(
+          d_mg_personalization_vertices.size(), handle.get_stream());
+        rmm::device_uvector<result_t> d_unrenumbered_personalization_values(
+          d_unrenumbered_personalization_vertices.size(), handle.get_stream());
+        raft::copy_async(d_unrenumbered_personalization_vertices.data(),
+                         d_mg_personalization_vertices.data(),
+                         d_mg_personalization_vertices.size(),
+                         handle.get_stream());
+        raft::copy_async(d_unrenumbered_personalization_values.data(),
+                         d_mg_personalization_values.data(),
+                         d_mg_personalization_values.size(),
+                         handle.get_stream());
+
+        std::vector<vertex_t> vertex_partition_lasts(comm_size);
+        for (size_t i = 0; i < vertex_partition_lasts.size(); ++i) {
+          vertex_partition_lasts[i] = mg_graph_view.get_vertex_partition_last(i);
+        }
+        cugraph::experimental::unrenumber_int_vertices<vertex_t, true>(
+          handle,
+          d_unrenumbered_personalization_vertices.data(),
+          d_unrenumbered_personalization_vertices.size(),
+          d_mg_renumber_map_labels.data(),
+          mg_graph_view.get_local_vertex_first(),
+          mg_graph_view.get_local_vertex_last(),
+          vertex_partition_lasts,
+          handle.get_stream());
 
         rmm::device_scalar<size_t> d_local_personalization_vector_size(
           d_unrenumbered_personalization_vertices.size(), handle.get_stream());
@@ -265,6 +283,11 @@ class Tests_MGPageRank : public ::testing::TestWithParam<PageRank_Usecase> {
                         recvcounts.data(),
                         displacements.data(),
                         handle.get_stream());
+
+        cugraph::test::sort_by_key(handle,
+                                   d_unrenumbered_personalization_vertices.data(),
+                                   d_unrenumbered_personalization_values.data(),
+                                   d_unrenumbered_personalization_vertices.size());
       }
 
       // 5-3. run SG PageRank
@@ -278,7 +301,7 @@ class Tests_MGPageRank : public ::testing::TestWithParam<PageRank_Usecase> {
                                       d_sg_personalization_vertices.data(),
                                       d_sg_personalization_values.data(),
                                       static_cast<vertex_t>(d_sg_personalization_vertices.size()),
-                                      d_sg_pageranks.begin(),
+                                      d_sg_pageranks.data(),
                                       alpha,
                                       epsilon,
                                       std::numeric_limits<size_t>::max(),  // max_iterations

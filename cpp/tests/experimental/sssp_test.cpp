@@ -15,11 +15,12 @@
  */
 
 #include <utilities/base_fixture.hpp>
-#include <utilities/renumber_utilities.hpp>
 #include <utilities/test_utilities.hpp>
+#include <utilities/thrust_wrapper.hpp>
 
 #include <algorithms.hpp>
 #include <experimental/graph.hpp>
+#include <experimental/graph_functions.hpp>
 #include <experimental/graph_view.hpp>
 
 #include <raft/cudart_utils.h>
@@ -88,7 +89,7 @@ void sssp_reference(edge_t const* offsets,
 typedef struct SSSP_Usecase_t {
   cugraph::test::input_graph_specifier_t input_graph_specifier{};
 
-  size_t source{false};
+  size_t source{0};
   bool check_correctness{false};
 
   SSSP_Usecase_t(std::string const& graph_file_path, size_t source, bool check_correctness = true)
@@ -192,8 +193,8 @@ class Tests_SSSP : public ::testing::TestWithParam<SSSP_Usecase> {
 
     cugraph::experimental::sssp(handle,
                                 graph_view,
-                                d_distances.begin(),
-                                d_predecessors.begin(),
+                                d_distances.data(),
+                                d_predecessors.data(),
                                 source,
                                 std::numeric_limits<weight_t>::max(),
                                 false);
@@ -242,13 +243,21 @@ class Tests_SSSP : public ::testing::TestWithParam<SSSP_Usecase> {
       std::vector<weight_t> h_cugraph_distances(graph_view.get_number_of_vertices());
       std::vector<vertex_t> h_cugraph_predecessors(graph_view.get_number_of_vertices());
       if (renumber) {
-        auto d_unrenumbered_distances = cugraph::test::sort_values_by_key(
+        cugraph::experimental::unrenumber_local_int_vertices(handle,
+                                                             d_predecessors.data(),
+                                                             d_predecessors.size(),
+                                                             d_renumber_map_labels.data(),
+                                                             vertex_t{0},
+                                                             graph_view.get_number_of_vertices(),
+                                                             true);
+
+        auto d_unrenumbered_distances = cugraph::test::sort_by_key(
           handle, d_renumber_map_labels.data(), d_distances.data(), d_renumber_map_labels.size());
-        auto d_unrenumbered_predecessors =
-          cugraph::test::sort_values_by_key(handle,
-                                            d_renumber_map_labels.data(),
-                                            d_predecessors.data(),
-                                            d_renumber_map_labels.size());
+        auto d_unrenumbered_predecessors = cugraph::test::sort_by_key(handle,
+                                                                      d_renumber_map_labels.data(),
+                                                                      d_predecessors.data(),
+                                                                      d_renumber_map_labels.size());
+
         raft::update_host(h_cugraph_distances.data(),
                           d_unrenumbered_distances.data(),
                           d_unrenumbered_distances.size(),
@@ -258,21 +267,7 @@ class Tests_SSSP : public ::testing::TestWithParam<SSSP_Usecase> {
                           d_unrenumbered_predecessors.size(),
                           handle.get_stream());
 
-        std::vector<vertex_t> h_renumber_map_labels(d_renumber_map_labels.size());
-        raft::update_host(h_renumber_map_labels.data(),
-                          d_renumber_map_labels.data(),
-                          d_renumber_map_labels.size(),
-                          handle.get_stream());
-
         handle.get_stream_view().synchronize();
-
-        std::transform(
-          h_cugraph_predecessors.begin(),
-          h_cugraph_predecessors.end(),
-          h_cugraph_predecessors.begin(),
-          [&h_renumber_map_labels](auto v) {
-            return v == cugraph::invalid_vertex_id<vertex_t>::value ? v : h_renumber_map_labels[v];
-          });
       } else {
         raft::update_host(
           h_cugraph_distances.data(), d_distances.data(), d_distances.size(), handle.get_stream());

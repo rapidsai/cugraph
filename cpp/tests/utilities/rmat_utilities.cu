@@ -55,9 +55,11 @@ generate_graph_from_rmat_params(raft::handle_t const& handle,
                                 size_t num_partitions)
 {
   CUGRAPH_EXPECTS(!multi_gpu || renumber, "renumber should be true if multi_gpu is true.");
-  CUGRAPH_EXPECTS(size_t{1} << scale <= std::numeric_limits<vertex_t>::max(), "vertex_t overflow.");
-  CUGRAPH_EXPECTS((size_t{1} << scale) * edge_factor <= std::numeric_limits<edge_t>::max(),
-                  " edge_t overflow.");
+  CUGRAPH_EXPECTS(size_t{1} << scale <= static_cast<size_t>(std::numeric_limits<vertex_t>::max()),
+                  "vertex_t overflow.");
+  CUGRAPH_EXPECTS(
+    (size_t{1} << scale) * edge_factor <= static_cast<size_t>(std::numeric_limits<edge_t>::max()),
+    " edge_t overflow.");
 
   vertex_t number_of_vertices = static_cast<vertex_t>(size_t{1} << scale);
   edge_t number_of_edges =
