@@ -106,7 +106,7 @@ class Tests_RandomWalks : public ::testing::TestWithParam<RandomWalks_Usecase> {
 
     vertex_t max_d{10};
 
-    auto ret_tuple = cugraph::experimental::detail::random_walks(handle, graph, d_start, max_d);
+    auto ret_tuple = cugraph::experimental::random_walks(handle, graph, d_start, max_d);
   }
 };
 

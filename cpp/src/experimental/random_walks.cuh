@@ -663,10 +663,10 @@ std::enable_if_t<graph_t::is_multi_gpu == false,
                  std::tuple<device_vec_t<typename graph_t::vertex_type>,
                             device_vec_t<typename graph_t::weight_type>,
                             device_vec_t<index_t>>>
-random_walks(raft::handle_t const& handle,
-             graph_t const& graph,
-             rmm::device_uvector<typename graph_t::vertex_type> const& d_v_start,
-             index_t max_depth)
+random_walks_impl(raft::handle_t const& handle,
+                  graph_t const& graph,
+                  rmm::device_uvector<typename graph_t::vertex_type> const& d_v_start,
+                  index_t max_depth)
 {
   using vertex_t = typename graph_t::vertex_type;
   using edge_t   = typename graph_t::edge_type;
@@ -768,10 +768,10 @@ std::enable_if_t<graph_t::is_multi_gpu == true,
                  std::tuple<device_vec_t<typename graph_t::vertex_type>,
                             device_vec_t<typename graph_t::weight_type>,
                             device_vec_t<index_t>>>
-random_walks(raft::handle_t const& handle,
-             graph_t const& graph,
-             rmm::device_uvector<typename graph_t::vertex_type> const& d_start,
-             index_t max_depth)
+random_walks_impl(raft::handle_t const& handle,
+                  graph_t const& graph,
+                  rmm::device_uvector<typename graph_t::vertex_type> const& d_start,
+                  index_t max_depth)
 {
   CUGRAPH_FAIL("Not implemented yet.");
 }
@@ -803,6 +803,9 @@ std::tuple<rmm::device_uvector<typename graph_t::vertex_type>,
 random_walks(raft::handle_t const& handle,
              graph_t const& graph,
              rmm::device_uvector<typename graph_t::vertex_type> const& d_start,
-             index_t max_depth);
+             index_t max_depth)
+{
+  return detail::random_walks_impl(handle, graph, d_start, max_depth);
+}
 }  // namespace experimental
 }  // namespace cugraph
