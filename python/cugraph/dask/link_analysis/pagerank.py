@@ -15,10 +15,10 @@
 
 from dask.distributed import wait, default_client
 from cugraph.dask.common.input_utils import get_distributed_data
-from cugraph.structure.shuffle import shuffle
 from cugraph.dask.link_analysis import mg_pagerank_wrapper as mg_pagerank
 import cugraph.comms.comms as Comms
 import dask_cudf
+import cudf
 
 
 def call_pagerank(sID,
@@ -32,6 +32,10 @@ def call_pagerank(sID,
                   personalization,
                   nstart):
     wid = Comms.get_worker_id(sID)
+    print("RANK: ", wid)
+    if wid == 1:
+        for i in range(len(data[0])):
+            print(data[0]['src'].iloc[i], data[0]['dst'].iloc[i])
     handle = Comms.get_handle(sID)
     return mg_pagerank.mg_pagerank(data[0],
                                    num_verts,
@@ -124,11 +128,24 @@ def pagerank(input_graph,
     client = default_client()
 
     input_graph.compute_renumber_edge_list(transposed=True)
-    (ddf,
+
+    """(ddf,
      num_verts,
      partition_row_size,
      partition_col_size,
      vertex_partition_offsets) = shuffle(input_graph, transposed=True)
+    """
+    ddf = input_graph.edgelist.edgelist_df
+
+    renumber_vertex_count = input_graph.renumber_map.implementation.ddf.\
+        map_partitions(len).compute()
+    renumber_vertex_cumsum = renumber_vertex_count.cumsum()
+    vertex_dtype = ddf['dst'].dtype
+    vertex_partition_offsets = cudf.Series([0], dtype=vertex_dtype)
+    vertex_partition_offsets = vertex_partition_offsets.append(cudf.Series(
+        renumber_vertex_cumsum, dtype=vertex_dtype))
+    num_verts = vertex_partition_offsets.iloc[-1]
+
     num_edges = len(ddf)
     data = get_distributed_data(ddf)
 
