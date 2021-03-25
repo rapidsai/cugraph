@@ -45,21 +45,6 @@ using vector_test_t = detail::device_vec_t<value_t>;  // for debug purposes
 
 namespace {  // anonym.
 
-template <typename value_t>
-void _copy_n(raft::handle_t const& handle,
-             rmm::device_uvector<value_t>& d_dst,
-             std::vector<value_t> const& v_src)
-{
-  auto stream = handle.get_stream();
-
-  // Copy starting set on device:
-  //
-  CUDA_TRY(cudaMemcpyAsync(
-    d_dst.data(), v_src.data(), v_src.size() * sizeof(value_t), cudaMemcpyHostToDevice, stream));
-
-  cudaStreamSynchronize(stream);
-}
-
 template <typename vertex_t, typename edge_t, typename weight_t>
 graph_t<vertex_t, edge_t, weight_t, false, false> make_graph(raft::handle_t const& handle,
                                                              std::vector<vertex_t> const& v_src,
@@ -72,9 +57,9 @@ graph_t<vertex_t, edge_t, weight_t, false, false> make_graph(raft::handle_t cons
   vector_test_t<vertex_t> d_dst(num_edges, handle.get_stream());
   vector_test_t<weight_t> d_weights(num_edges, handle.get_stream());
 
-  _copy_n(handle, d_src, v_src);
-  _copy_n(handle, d_dst, v_dst);
-  _copy_n(handle, d_weights, v_w);
+  raft::update_device(d_src.data(), v_src.data(), d_src.size(), handle.get_stream());
+  raft::update_device(d_dst.data(), v_dst.data(), d_dst.size(), handle.get_stream());
+  raft::update_device(d_weights.data(), v_w.data(), d_weights.size(), handle.get_stream());
 
   edgelist_t<vertex_t, edge_t, weight_t> edgelist{
     d_src.data(), d_dst.data(), d_weights.data(), num_edges};
@@ -282,13 +267,15 @@ TEST_F(RandomWalksPrimsTest, SimpleGraphRWStart)
   vector_test_t<vertex_t> d_coalesced_v(total_sz, handle.get_stream());
   vector_test_t<weight_t> d_coalesced_w(total_sz - num_paths, handle.get_stream());
 
-  _copy_n(handle, d_coalesced_v, v_coalesced);
-  _copy_n(handle, d_coalesced_w, w_coalesced);
+  raft::update_device(
+    d_coalesced_v.data(), v_coalesced.data(), d_coalesced_v.size(), handle.get_stream());
+  raft::update_device(
+    d_coalesced_w.data(), w_coalesced.data(), d_coalesced_w.size(), handle.get_stream());
 
   std::vector<vertex_t> v_start{1, 0, 4, 2};
   vector_test_t<vertex_t> d_start(num_paths, handle.get_stream());
 
-  _copy_n(handle, d_start, v_start);
+  raft::update_device(d_start.data(), v_start.data(), d_start.size(), handle.get_stream());
 
   vector_test_t<index_t> d_sizes(num_paths, handle.get_stream());
 
@@ -344,13 +331,15 @@ TEST_F(RandomWalksPrimsTest, SimpleGraphCoalesceExperiments)
   vector_test_t<vertex_t> d_coalesced_v(total_sz, handle.get_stream());
   vector_test_t<weight_t> d_coalesced_w(total_sz - num_paths, handle.get_stream());
 
-  _copy_n(handle, d_coalesced_v, v_coalesced);
-  _copy_n(handle, d_coalesced_w, w_coalesced);
+  raft::update_device(
+    d_coalesced_v.data(), v_coalesced.data(), d_coalesced_v.size(), handle.get_stream());
+  raft::update_device(
+    d_coalesced_w.data(), w_coalesced.data(), d_coalesced_w.size(), handle.get_stream());
 
   std::vector<vertex_t> v_start{1, 0, 4, 2};
   vector_test_t<vertex_t> d_start(num_paths, handle.get_stream());
 
-  _copy_n(handle, d_start, v_start);
+  raft::update_device(d_start.data(), v_start.data(), d_start.size(), handle.get_stream());
 
   vector_test_t<index_t> d_sizes(num_paths, handle.get_stream());
 
@@ -418,13 +407,15 @@ TEST_F(RandomWalksPrimsTest, SimpleGraphColExtraction)
   vector_test_t<vertex_t> d_coalesced_v(total_sz, handle.get_stream());
   vector_test_t<weight_t> d_coalesced_w(total_sz - num_paths, handle.get_stream());
 
-  _copy_n(handle, d_coalesced_v, v_coalesced);
-  _copy_n(handle, d_coalesced_w, w_coalesced);
+  raft::update_device(
+    d_coalesced_v.data(), v_coalesced.data(), d_coalesced_v.size(), handle.get_stream());
+  raft::update_device(
+    d_coalesced_w.data(), w_coalesced.data(), d_coalesced_w.size(), handle.get_stream());
 
   std::vector<vertex_t> v_start{1, 0, 4, 2};
   vector_test_t<vertex_t> d_start(num_paths, handle.get_stream());
 
-  _copy_n(handle, d_start, v_start);
+  raft::update_device(d_start.data(), v_start.data(), d_start.size(), handle.get_stream());
 
   vector_test_t<index_t> d_sizes(num_paths, handle.get_stream());
 
@@ -452,7 +443,7 @@ TEST_F(RandomWalksPrimsTest, SimpleGraphColExtraction)
   std::vector<vertex_t> v_col_indx{1, 0, 0, 2};
   vector_test_t<vertex_t> d_col_indx(num_paths, handle.get_stream());
 
-  _copy_n(handle, d_col_indx, v_col_indx);
+  raft::update_device(d_col_indx.data(), v_col_indx.data(), d_col_indx.size(), handle.get_stream());
 
   vector_test_t<vertex_t> d_next_v(num_paths, handle.get_stream());
   vector_test_t<weight_t> d_next_w(num_paths, handle.get_stream());
@@ -512,13 +503,15 @@ TEST_F(RandomWalksPrimsTest, SimpleGraphRndGenColIndx)
   vector_test_t<vertex_t> d_coalesced_v(total_sz, handle.get_stream());
   vector_test_t<weight_t> d_coalesced_w(total_sz - num_paths, handle.get_stream());
 
-  _copy_n(handle, d_coalesced_v, v_coalesced);
-  _copy_n(handle, d_coalesced_w, w_coalesced);
+  raft::update_device(
+    d_coalesced_v.data(), v_coalesced.data(), d_coalesced_v.size(), handle.get_stream());
+  raft::update_device(
+    d_coalesced_w.data(), w_coalesced.data(), d_coalesced_w.size(), handle.get_stream());
 
   std::vector<vertex_t> v_start{1, 0, 4, 2};
   vector_test_t<vertex_t> d_start(num_paths, handle.get_stream());
 
-  _copy_n(handle, d_start, v_start);
+  raft::update_device(d_start.data(), v_start.data(), d_start.size(), handle.get_stream());
 
   vector_test_t<index_t> d_sizes(num_paths, handle.get_stream());
 
@@ -588,13 +581,15 @@ TEST_F(RandomWalksPrimsTest, SimpleGraphUpdatePathSizes)
   vector_test_t<vertex_t> d_coalesced_v(total_sz, handle.get_stream());
   vector_test_t<weight_t> d_coalesced_w(total_sz - num_paths, handle.get_stream());
 
-  _copy_n(handle, d_coalesced_v, v_coalesced);
-  _copy_n(handle, d_coalesced_w, w_coalesced);
+  raft::update_device(
+    d_coalesced_v.data(), v_coalesced.data(), d_coalesced_v.size(), handle.get_stream());
+  raft::update_device(
+    d_coalesced_w.data(), w_coalesced.data(), d_coalesced_w.size(), handle.get_stream());
 
   std::vector<vertex_t> v_start{1, 0, 4, 2};
   vector_test_t<vertex_t> d_start(num_paths, handle.get_stream());
 
-  _copy_n(handle, d_start, v_start);
+  raft::update_device(d_start.data(), v_start.data(), d_start.size(), handle.get_stream());
 
   vector_test_t<index_t> d_sizes(num_paths, handle.get_stream());
 
@@ -608,7 +603,8 @@ TEST_F(RandomWalksPrimsTest, SimpleGraphUpdatePathSizes)
   //
   std::vector<edge_t> v_crt_out_degs{2, 0, 1, 0};
   vector_test_t<edge_t> d_crt_out_degs(num_paths, handle.get_stream());
-  _copy_n(handle, d_crt_out_degs, v_crt_out_degs);
+  raft::update_device(
+    d_crt_out_degs.data(), v_crt_out_degs.data(), d_crt_out_degs.size(), handle.get_stream());
 
   rand_walker.update_path_sizes(d_crt_out_degs, d_sizes);
 
@@ -656,13 +652,15 @@ TEST_F(RandomWalksPrimsTest, SimpleGraphScatterUpdate)
   vector_test_t<vertex_t> d_coalesced_v(total_sz, handle.get_stream());
   vector_test_t<weight_t> d_coalesced_w(total_sz - num_paths, handle.get_stream());
 
-  _copy_n(handle, d_coalesced_v, v_coalesced);
-  _copy_n(handle, d_coalesced_w, w_coalesced);
+  raft::update_device(
+    d_coalesced_v.data(), v_coalesced.data(), d_coalesced_v.size(), handle.get_stream());
+  raft::update_device(
+    d_coalesced_w.data(), w_coalesced.data(), d_coalesced_w.size(), handle.get_stream());
 
   std::vector<vertex_t> v_start{1, 0, 4, 2};
   vector_test_t<vertex_t> d_start(num_paths, handle.get_stream());
 
-  _copy_n(handle, d_start, v_start);
+  raft::update_device(d_start.data(), v_start.data(), d_start.size(), handle.get_stream());
 
   vector_test_t<index_t> d_sizes(num_paths, handle.get_stream());
 
@@ -690,7 +688,7 @@ TEST_F(RandomWalksPrimsTest, SimpleGraphScatterUpdate)
   std::vector<vertex_t> v_col_indx{1, 0, 0, 2};
   vector_test_t<vertex_t> d_col_indx(num_paths, handle.get_stream());
 
-  _copy_n(handle, d_col_indx, v_col_indx);
+  raft::update_device(d_col_indx.data(), v_col_indx.data(), d_col_indx.size(), handle.get_stream());
 
   vector_test_t<vertex_t> d_next_v(num_paths, handle.get_stream());
   vector_test_t<weight_t> d_next_w(num_paths, handle.get_stream());
@@ -795,7 +793,7 @@ TEST_F(RandomWalksPrimsTest, SimpleGraphCoalesceDefragment)
 
   std::vector<index_t> v_sizes{1, 2, 2, 1};
   vector_test_t<index_t> d_sizes(num_paths, handle.get_stream());
-  _copy_n(handle, d_sizes, v_sizes);
+  raft::update_device(d_sizes.data(), v_sizes.data(), d_sizes.size(), handle.get_stream());
 
   std::vector<vertex_t> v_coalesced(total_sz, -1);
   v_coalesced[0]                 = 3;
@@ -812,8 +810,10 @@ TEST_F(RandomWalksPrimsTest, SimpleGraphCoalesceDefragment)
   vector_test_t<vertex_t> d_coalesced_v(total_sz, handle.get_stream());
   vector_test_t<weight_t> d_coalesced_w(total_sz - num_paths, handle.get_stream());
 
-  _copy_n(handle, d_coalesced_v, v_coalesced);
-  _copy_n(handle, d_coalesced_w, w_coalesced);
+  raft::update_device(
+    d_coalesced_v.data(), v_coalesced.data(), d_coalesced_v.size(), handle.get_stream());
+  raft::update_device(
+    d_coalesced_w.data(), w_coalesced.data(), d_coalesced_w.size(), handle.get_stream());
 
   random_walker_t<decltype(graph_view)> rand_walker{handle, graph_view, num_paths, max_depth};
 
@@ -872,7 +872,7 @@ TEST_F(RandomWalksPrimsTest, SimpleGraphRandomWalk)
 
   std::vector<vertex_t> v_start{1, 0, 4, 2};
   vector_test_t<vertex_t> d_v_start(v_start.size(), handle.get_stream());
-  _copy_n(handle, d_v_start, v_start);
+  raft::update_device(d_v_start.data(), v_start.data(), d_v_start.size(), handle.get_stream());
 
   index_t num_paths = v_start.size();
   index_t max_depth = 5;
