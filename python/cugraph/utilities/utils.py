@@ -13,6 +13,7 @@
 
 from numba import cuda
 from cugraph.structure.symmetrize import symmetrize
+from cugraph.structure.number_map import NumberMap
 from cugraph.utilities import path_retrieval_wrapper
 
 import cudf
@@ -190,6 +191,23 @@ def get_traversed_path_list(df, id):
 
 
 def get_traversed_cost(df, info_df):
+    """
+    Take the DataFrame result from a BFS or SSSP function call and extract
+    the path to a specified vertex as a series of steps
+
+    Input Parameters
+    ----------
+    df : cudf.DataFrame
+        The dataframe containing the results of a BFS or SSSP call
+     : Int
+        The vertex ID
+
+    Returns
+    ---------
+    a : Python array
+        a ordered array containing the steps from id to root
+    """
+
     if 'vertex' not in df.columns:
         raise ValueError("DataFrame does not appear to be a BFS or "
                          "SSP result - 'vertex' column missing")
@@ -221,8 +239,15 @@ def get_traversed_cost(df, info_df):
             how="left"
             )
     input_df = input_df.fillna(0)
-
-    out_df = path_retrieval_wrapper.get_traversed_cost(input_df)
+    numbering = NumberMap()
+    numbering.from_series(df['vertex'])
+    renumbered_df = numbering.add_internal_vertex_id(input_df, "vertex_id", ["vertex"])
+    preds = numbering.to_internal_vertex_id(renumbered_df['predecessor'])
+    preds = preds.fillna(-1)
+    renumbered_df['predecessor'] = preds
+    #renumbered_df = renumbered_df.sort_values(by='vertex_id')
+    print(renumbered_df)
+    out_df = path_retrieval_wrapper.get_traversed_cost(renumbered_df)
     return out_df
 
 def is_cuda_version_less_than(min_version=(10, 2)):

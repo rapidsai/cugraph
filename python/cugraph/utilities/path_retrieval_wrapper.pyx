@@ -31,6 +31,7 @@ def get_traversed_cost(input_df):
     num_verts = input_df.shape[0]
 
     df = cudf.DataFrame()
+    df['vertex'] = input_df['vertex']
     df['info'] = cudf.Series(np.zeros(num_verts, dtype=np.float32))
 
     cdef unique_ptr[handle_t] handle_ptr
@@ -39,12 +40,13 @@ def get_traversed_cost(input_df):
 
     cdef uintptr_t vertices = <uintptr_t>NULL
     cdef uintptr_t preds = <uintptr_t>NULL
+    cdef uintptr_t vtx_map = <uintptr_t>NULL
     cdef uintptr_t out = <uintptr_t>NULL
     cdef uintptr_t info_weights = <uintptr_t>NULL
 
-    input_df['vertex'] = input_df['vertex'].astype(np.int32)
+    input_df['vertex_id'] = input_df['vertex_id'].astype(np.int32)
     input_df['predecessor'] = input_df['predecessor'].astype(np.int32)
-    vertices = input_df['vertex'].__cuda_array_interface__['data'][0]
+    vertices = input_df['vertex_id'].__cuda_array_interface__['data'][0]
     preds = input_df['predecessor'].__cuda_array_interface__['data'][0]
     info_weights = input_df['weights'].__cuda_array_interface__['data'][0]
     out = df['info'].__cuda_array_interface__['data'][0]
