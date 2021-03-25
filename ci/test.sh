@@ -25,7 +25,6 @@ CUGRAPH_ROOT=$(cd ${THISDIR}/..;pwd)
 GTEST_ARGS="--gtest_output=xml:${CUGRAPH_ROOT}/test-results/"
 DOWNLOAD_MODE=""
 EXITCODE=0
-CONDA_ARTIFACT_PATH=${WORKSPACE}/ci/artifacts/cugraph/cpu/.conda-bld/
 
 export RAPIDS_DATASET_ROOT_DIR=${CUGRAPH_ROOT}/datasets
 
