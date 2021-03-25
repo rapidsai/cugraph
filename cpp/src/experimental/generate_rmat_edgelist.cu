@@ -170,7 +170,7 @@ generate_rmat_edgelists(raft::handle_t const& handle,
 
   for (size_t i = 0; i < n_edgelists; i++) {
     output.push_back(generate_rmat_edgelist<vertex_t>(
-      handle, scale[i], edge_factor, a, b, c, i, clip_and_flip, scramble_vertex_ids));
+      handle, scale[i], scale[i] * edge_factor, a, b, c, i, clip_and_flip, scramble_vertex_ids));
   }
   return output;
 }

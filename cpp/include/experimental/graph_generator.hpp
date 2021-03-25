@@ -47,7 +47,7 @@ namespace experimental {
  * handles to various CUDA libraries) to run graph algorithms.
  * @param scale Scale factor to set the number of verties in the graph. Vertex IDs have values in
  * [0, V), where V = 1 << @p scale.
- * @param edge_factor Average number of edges per vertex to generate.
+ * @param num_edges Number of edges to generate.
  * @param a a, b, c, d (= 1.0 - (a + b + c)) in the R-mat graph generator (vist https://graph500.org
  * for additional details). a, b, c, d should be non-negative and a + b + c should be no larger
  * than 1.0.
@@ -72,7 +72,7 @@ template <typename vertex_t>
 std::tuple<rmm::device_uvector<vertex_t>, rmm::device_uvector<vertex_t>> generate_rmat_edgelist(
   raft::handle_t const& handle,
   size_t scale,
-  size_t edge_factor       = 16,
+  size_t num_edges         = 16,
   double a                 = 0.57,
   double b                 = 0.19,
   double c                 = 0.19,

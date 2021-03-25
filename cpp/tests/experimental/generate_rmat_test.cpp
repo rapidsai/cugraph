@@ -14,6 +14,7 @@
  * limitations under the License.
  */
 
+#include <tuple>
 #include <utilities/base_fixture.hpp>
 #include <utilities/test_utilities.hpp>
 
@@ -318,7 +319,7 @@ class Tests_GenerateRmats : public ::testing::TestWithParam<GenerateRmats_Usecas
 
     CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
 
-    auto output =
+    auto outputs =
       cugraph::experimental::generate_rmat_edgelists<vertex_t>(handle,
                                                                configuration.n_edgelists,
                                                                configuration.min_scale,
@@ -329,6 +330,12 @@ class Tests_GenerateRmats : public ::testing::TestWithParam<GenerateRmats_Usecas
                                                                uint64_t{0});
 
     CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
+    ASSERT_EQ(configuration.n_edgelists, outputs.size());
+    for (auto i = outputs.begin(); i != outputs.end(); ++i) {
+      ASSERT_EQ(std::get<0>(*i).size(), std::get<1>(*i).size());
+      ASSERT_TRUE((configuration.min_scale * configuration.edge_factor) <= std::get<0>(*i).size());
+      ASSERT_TRUE((configuration.max_scale * configuration.edge_factor) >= std::get<0>(*i).size());
+    }
   }
 };
 TEST_P(Tests_GenerateRmats, CheckInt32) { run_current_test<int32_t>(GetParam()); }
@@ -340,25 +347,25 @@ INSTANTIATE_TEST_CASE_P(
     GenerateRmats_Usecase(8,
                           1,
                           16,
-                          8,
+                          32,
                           cugraph::experimental::generator_distribution_t::UNIFORM,
                           cugraph::experimental::generator_distribution_t::UNIFORM),
     GenerateRmats_Usecase(8,
                           1,
                           16,
-                          8,
+                          32,
                           cugraph::experimental::generator_distribution_t::UNIFORM,
                           cugraph::experimental::generator_distribution_t::POWER_LAW),
     GenerateRmats_Usecase(8,
                           3,
                           16,
-                          8,
+                          32,
                           cugraph::experimental::generator_distribution_t::POWER_LAW,
                           cugraph::experimental::generator_distribution_t::UNIFORM),
     GenerateRmats_Usecase(8,
                           3,
                           16,
-                          8,
+                          32,
                           cugraph::experimental::generator_distribution_t::POWER_LAW,
                           cugraph::experimental::generator_distribution_t::POWER_LAW)));
 CUGRAPH_TEST_PROGRAM_MAIN()
