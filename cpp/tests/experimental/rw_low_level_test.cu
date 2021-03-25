@@ -178,6 +178,62 @@ bool host_check_path(std::vector<edge_t> const& row_offsets,
   }
   return true;
 }
+
+template <typename vertex_t, typename edge_t, typename weight_t, typename index_t = edge_t>
+bool host_check_rw_paths(raft::handle_t const& handle,
+                         graph_view_t<vertex_t, edge_t, weight_t, false, false> const& graph_view,
+                         vector_test_t<vertex_t> const& d_coalesced_v,
+                         vector_test_t<weight_t> const& d_coalesced_w,
+                         vector_test_t<index_t> const& d_sizes)
+{
+  edge_t num_edges      = graph_view.get_number_of_edges();
+  vertex_t num_vertices = graph_view.get_number_of_vertices();
+
+  edge_t const* offsets   = graph_view.offsets();
+  vertex_t const* indices = graph_view.indices();
+  weight_t const* values  = graph_view.weights();
+
+  std::vector<edge_t> v_ro(num_vertices + 1);
+  std::vector<vertex_t> v_ci(num_edges);
+  std::vector<weight_t> v_vals(num_edges);
+
+  copy_n(handle, v_ro, offsets, v_ro.size());
+  copy_n(handle, v_ci, indices, v_ci.size());
+  copy_n(handle, v_vals, values, v_vals.size());
+
+  std::vector<vertex_t> v_coalesced(d_coalesced_v.size());
+  std::vector<weight_t> w_coalesced(d_coalesced_w.size());
+  std::vector<index_t> v_sizes(d_sizes.size());
+
+  copy_n(handle, v_coalesced, detail::raw_const_ptr(d_coalesced_v), d_coalesced_v.size());
+  copy_n(handle, w_coalesced, detail::raw_const_ptr(d_coalesced_w), d_coalesced_w.size());
+  copy_n(handle, v_sizes, detail::raw_const_ptr(d_sizes), d_sizes.size());
+
+  auto it_v_begin = v_coalesced.begin();
+  auto it_w_begin = w_coalesced.begin();
+  for (auto&& crt_sz : v_sizes) {
+    auto it_v_end = it_v_begin + crt_sz;
+
+    bool test_path = host_check_path(v_ro, v_ci, v_vals, it_v_begin, it_v_end, it_w_begin);
+
+    it_v_begin = it_v_end;
+    it_w_begin += crt_sz - 1;
+
+    if (!test_path) {  // something went wrong; print to debug (since it's random)
+      std::cout << "sizes:\n";
+      print_vec(v_sizes, std::cout);
+
+      std::cout << "coalesced v:\n";
+      print_vec(v_coalesced, std::cout);
+
+      std::cout << "coalesced w:\n";
+      print_vec(w_coalesced, std::cout);
+
+      return false;
+    }
+  }
+  return true;
+}
 }  // namespace
 
 struct RandomWalksPrimsTest : public ::testing::Test {
@@ -849,40 +905,8 @@ TEST_F(RandomWalksPrimsTest, SimpleGraphRandomWalk)
   auto& d_coalesced_w = std::get<1>(triplet);
   auto& d_sizes       = std::get<2>(triplet);
 
-  ASSERT_TRUE(d_sizes.size() == v_start.size());
+  bool test_all_paths =
+    host_check_rw_paths(handle, graph_view, d_coalesced_v, d_coalesced_w, d_sizes);
 
-  // std::vector<vertex_t> v_coalesced{2, 0, 1, 4, 5};
-  // std::vector<weight_t> w_coalesced{3.1, 0.1, 2.1, 7.1};
-
-  std::vector<vertex_t> v_coalesced(d_coalesced_v.size());
-  std::vector<weight_t> w_coalesced(d_coalesced_w.size());
-  std::vector<index_t> v_sizes(d_sizes.size());
-
-  copy_n(handle, v_coalesced, detail::raw_const_ptr(d_coalesced_v), d_coalesced_v.size());
-  copy_n(handle, w_coalesced, detail::raw_const_ptr(d_coalesced_w), d_coalesced_w.size());
-  copy_n(handle, v_sizes, detail::raw_const_ptr(d_sizes), d_sizes.size());
-
-  auto it_v_begin = v_coalesced.begin();
-  auto it_w_begin = w_coalesced.begin();
-  for (auto&& crt_sz : v_sizes) {
-    auto it_v_end = it_v_begin + crt_sz;
-
-    bool test_path = host_check_path(v_ro, v_ci, v_vals, it_v_begin, it_v_end, it_w_begin);
-
-    it_v_begin = it_v_end;
-    it_w_begin += crt_sz - 1;
-
-    if (!test_path) {  // something went wrong; print to debug (since it's random)
-      std::cout << "sizes:\n";
-      print_vec(v_sizes, std::cout);
-
-      std::cout << "coalesced v:\n";
-      print_vec(v_coalesced, std::cout);
-
-      std::cout << "coalesced w:\n";
-      print_vec(w_coalesced, std::cout);
-    }
-
-    ASSERT_TRUE(test_path);
-  }
+  ASSERT_TRUE(test_all_paths);
 }
