@@ -52,34 +52,29 @@ TSP::TSP(raft::handle_t const &handle,
     max_threads_(handle_.get_device_properties().maxThreadsPerBlock),
     warp_size_(handle_.get_device_properties().warpSize),
     sm_count_(handle_.get_device_properties().multiProcessorCount),
-    restart_batch_(8192)
+    restart_batch_(8192),
+    neighbors_vec_((k_ + 1) * nodes_, stream_),
+    work_vec_(restart_batch_ * ((4 * nodes_ + 3 + warp_size_ - 1) / warp_size_ * warp_size_), stream_),
+    best_x_pos_vec_(1, stream_),
+    best_y_pos_vec_(1, stream_),
+    best_route_vec_(1, stream_)
 {
   setup();
 }
 
 void TSP::setup()
 {
-  // Scalars
   mylock_ = mylock_scalar_.data();
 
-  // Vectors
-  neighbors_vec_.resize((k_ + 1) * nodes_);
+  neighbors_ = neighbors_vec_.data();
   // pre-allocate workspace for climbs, each block needs a separate permutation space and search
   // buffer. We allocate a work buffer that will store the computed distances, px, py and the route.
   // We align it on the warp size.
-  work_vec_.resize(restart_batch_ * ((4 * nodes_ + 3 + warp_size_ - 1) / warp_size_ * warp_size_));
-  best_x_pos_vec_.resize(1);
-  best_y_pos_vec_.resize(1);
-  best_route_vec_.resize(1);
+  work_      = work_vec_.data();
 
-  // Pointers
-  neighbors_ = neighbors_vec_.data().get();
-  work_      = work_vec_.data().get();
-
-  // Results
-  results_.best_x_pos = best_x_pos_vec_.data().get();
-  results_.best_y_pos = best_y_pos_vec_.data().get();
-  results_.best_route = best_route_vec_.data().get();
+  results_.best_x_pos = best_x_pos_vec_.data();
+  results_.best_y_pos = best_y_pos_vec_.data();
+  results_.best_route = best_route_vec_.data();
   results_.best_cost  = best_cost_scalar_.data();
 }
 
@@ -212,17 +207,17 @@ void TSP::knn()
   int dim              = 2;
   bool row_major_order = false;
 
-  rmm::device_vector<float> input(nodes_ * dim);
-  float *input_ptr = input.data().get();
+  rmm::device_uvector<float> input(nodes_ * dim, stream_);
+  float *input_ptr = input.data();
   raft::copy(input_ptr, x_pos_, nodes_, stream_);
   raft::copy(input_ptr + nodes_, y_pos_, nodes_, stream_);
 
-  rmm::device_vector<float> search_data(nodes_ * dim);
-  float *search_data_ptr = search_data.data().get();
+  rmm::device_uvector<float> search_data(nodes_ * dim, stream_);
+  float *search_data_ptr = search_data.data();
   raft::copy(search_data_ptr, input_ptr, nodes_ * dim, stream_);
 
-  rmm::device_vector<float> distances(nodes_ * (k_ + 1));
-  float *distances_ptr = distances.data().get();
+  rmm::device_uvector<float> distances(nodes_ * (k_ + 1), stream_);
+  float *distances_ptr = distances.data();
 
   std::vector<float *> input_vec;
   std::vector<int> sizes_vec;

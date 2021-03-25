@@ -16,12 +16,14 @@
 
 #pragma once
 
-#include <raft/cudart_utils.h>
-#include <rmm/thrust_rmm_allocator.h>
 #include <algorithms.hpp>
+
+#include <raft/cudart_utils.h>
 #include <raft/handle.hpp>
+
 #include <rmm/device_scalar.hpp>
 #include <rmm/device_uvector.hpp>
+#include <rmm/thrust_rmm_allocator.h>
 
 namespace cugraph {
 namespace detail {
@@ -81,17 +83,16 @@ class TSP {
   // Scalars
   rmm::device_scalar<int> mylock_scalar_;
   rmm::device_scalar<int> best_cost_scalar_;
-  rmm::device_scalar<int> climbs_scalar_;
 
   int *mylock_;
   int *best_cost_;
 
   // Vectors
-  rmm::device_vector<int64_t> neighbors_vec_;
-  rmm::device_vector<int> work_vec_;
-  rmm::device_vector<float *> best_x_pos_vec_;
-  rmm::device_vector<float *> best_y_pos_vec_;
-  rmm::device_vector<int *> best_route_vec_;
+  rmm::device_uvector<int64_t> neighbors_vec_;
+  rmm::device_uvector<int> work_vec_;
+  rmm::device_uvector<float *> best_x_pos_vec_;
+  rmm::device_uvector<float *> best_y_pos_vec_;
+  rmm::device_uvector<int *> best_route_vec_;
 
   int64_t *neighbors_;
   int *work_;
