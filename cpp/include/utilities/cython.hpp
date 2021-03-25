@@ -19,6 +19,7 @@
 #include <graph.hpp>
 #include <raft/handle.hpp>
 #include <rmm/device_uvector.hpp>
+#include <utilities/graph_traits.hpp>
 
 namespace cugraph {
 namespace cython {
@@ -458,6 +459,16 @@ std::unique_ptr<cy_multi_edgelists_t> call_egonet(raft::handle_t const& handle,
                                                   vertex_t* source_vertex,
                                                   vertex_t n_subgraphs,
                                                   vertex_t radius);
+// wrapper for random_walks.
+//
+template <typename vertex_t, typename edge_t>
+std::enable_if_t<cugraph::experimental::is_vertex_edge_combo<vertex_t, edge_t>::value,
+                 std::unique_ptr<random_walk_ret_t>>
+call_random_walks(raft::handle_t const& handle,
+                  graph_container_t const& graph_container,
+                  vertex_t const* ptr_start_set,
+                  edge_t num_paths,
+                  edge_t max_depth);
 
 // wrapper for shuffling:
 //

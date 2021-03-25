@@ -699,81 +699,47 @@ std::unique_ptr<cy_multi_edgelists_t> call_egonet(raft::handle_t const& handle,
 // Wrapper for random_walks() through a graph container
 // to expose the API to cython.
 //
-template <typename vertex_t, typename weight_t>
-std::unique_ptr<random_walk_ret_t> call_random_walks(raft::handle_t const& handle,
-                                                     graph_container_t const& graph_container,
-                                                     vertex_t const* ptr_start_set,
-                                                     size_t num_paths,
-                                                     size_t max_depth)
+template <typename vertex_t, typename edge_t>
+std::enable_if_t<cugraph::experimental::is_vertex_edge_combo<vertex_t, edge_t>::value,
+                 std::unique_ptr<random_walk_ret_t>>
+call_random_walks(raft::handle_t const& handle,
+                  graph_container_t const& graph_container,
+                  vertex_t const* ptr_start_set,
+                  edge_t num_paths,
+                  edge_t max_depth)
 {
-  // General PROBLEM with cython.cu approach:
-  // without a proper dispatch mechanism it cannot
-  // type-erase arguments; which is why it mixes
-  // compile-time constraints (templates) with
-  // runtime constraints;
-  // The result is that all posssible template combinations
-  // are compiled including invalid ones (vertex_t > edge_t);
-  // Those might fail, resulting in compiler errors;
-  // or might trigger dependencies that are not instantiated
-  // (e.g., graph_t<vertex_t=long, edge_t = int,...>)
-  // resulting in linker errors;
-  // To avoid those, template params are substituted by a
-  // semi-runtime dispatch mechanism, whereby arguments must be
-  // force-cast (reinterpret_cast) to avoid linker errors
-  // while enforcing runtime constraints... (see below)
-  // FIXME: get rid of cython.hpp/cu
-  //
-  if (graph_container.edgeType == numberTypeEnum::int32Type) {
-    using vertex_type = int32_t;  // enforced by runtime
-    using edge_t      = int32_t;
-    using index_t     = edge_t;
-
-    index_t num_paths_ = static_cast<index_t>(num_paths);
-    index_t max_depth_ = static_cast<index_t>(max_depth);
+  if (graph_container.weightType == numberTypeEnum::floatType) {
+    using weight_t = float;
 
     auto graph =
-      detail::create_graph<vertex_type, edge_t, weight_t, false, false>(handle, graph_container);
+      detail::create_graph<vertex_t, edge_t, weight_t, false, false>(handle, graph_container);
 
     auto triplet = cugraph::experimental::random_walks(
-      handle,
-      graph->view(),
-      reinterpret_cast<vertex_type const*>(
-        ptr_start_set),  // cast necessary to enforce the runtime vertex_type,
-                         // which can differ than all possible vertex_t instantiations,
-                         // including inconsistent ones,
-                         // like sizeof(vertex_t) > sizeof(edge_t);
-                         // i.e., those where vertex_type == graph_t::vertex_type != vertex_t,
-                         // for which instantiations don't exist
-      num_paths_,
-      max_depth_);
+      handle, graph->view(), ptr_start_set, num_paths, max_depth);
 
     random_walk_ret_t rw_tri{std::get<0>(triplet).size(),
                              std::get<1>(triplet).size(),
-                             num_paths,
-                             max_depth,
+                             static_cast<size_t>(num_paths),
+                             static_cast<size_t>(max_depth),
                              std::make_unique<rmm::device_buffer>(std::get<0>(triplet).release()),
                              std::make_unique<rmm::device_buffer>(std::get<1>(triplet).release()),
                              std::make_unique<rmm::device_buffer>(std::get<2>(triplet).release())};
 
     return std::make_unique<random_walk_ret_t>(std::move(rw_tri));
 
-  } else if (graph_container.edgeType == numberTypeEnum::int64Type) {
-    using edge_t  = int64_t;
-    using index_t = edge_t;
-
-    index_t num_paths_ = static_cast<index_t>(num_paths);
-    index_t max_depth_ = static_cast<index_t>(max_depth);
+  } else if (graph_container.weightType == numberTypeEnum::doubleType) {
+    using weight_t = double;
 
     auto graph =
       detail::create_graph<vertex_t, edge_t, weight_t, false, false>(handle, graph_container);
 
     auto triplet = cugraph::experimental::random_walks(
-      handle, graph->view(), ptr_start_set, num_paths_, max_depth_);
+      handle, graph->view(), ptr_start_set, num_paths, max_depth);
 
     random_walk_ret_t rw_tri{std::get<0>(triplet).size(),
                              std::get<1>(triplet).size(),
-                             num_paths,
-                             max_depth,
+                             static_cast<size_t>(num_paths),
+                             static_cast<size_t>(max_depth),
                              std::make_unique<rmm::device_buffer>(std::get<0>(triplet).release()),
                              std::make_unique<rmm::device_buffer>(std::get<1>(triplet).release()),
                              std::make_unique<rmm::device_buffer>(std::get<2>(triplet).release())};
@@ -781,7 +747,7 @@ std::unique_ptr<random_walk_ret_t> call_random_walks(raft::handle_t const& handl
     return std::make_unique<random_walk_ret_t>(std::move(rw_tri));
 
   } else {
-    CUGRAPH_FAIL("vertexType/edgeType combination unsupported");
+    CUGRAPH_FAIL("Unsupported weight type.");
   }
 }
 
@@ -1106,33 +1072,26 @@ template std::unique_ptr<cy_multi_edgelists_t> call_egonet<int64_t, double>(
   int64_t n_subgraphs,
   int64_t radius);
 
-template std::unique_ptr<random_walk_ret_t> call_random_walks<int32_t, float>(
+template std::unique_ptr<random_walk_ret_t> call_random_walks<int32_t, int32_t>(
   raft::handle_t const& handle,
   graph_container_t const& graph_container,
   int32_t const* ptr_start_set,
-  size_t num_paths,
-  size_t max_depth);
+  int32_t num_paths,
+  int32_t max_depth);
 
-template std::unique_ptr<random_walk_ret_t> call_random_walks<int32_t, double>(
+template std::unique_ptr<random_walk_ret_t> call_random_walks<int32_t, int64_t>(
   raft::handle_t const& handle,
   graph_container_t const& graph_container,
   int32_t const* ptr_start_set,
-  size_t num_paths,
-  size_t max_depth);
+  int64_t num_paths,
+  int64_t max_depth);
 
-template std::unique_ptr<random_walk_ret_t> call_random_walks<int64_t, float>(
+template std::unique_ptr<random_walk_ret_t> call_random_walks<int64_t, int64_t>(
   raft::handle_t const& handle,
   graph_container_t const& graph_container,
   int64_t const* ptr_start_set,
-  size_t num_paths,
-  size_t max_depth);
-
-template std::unique_ptr<random_walk_ret_t> call_random_walks<int64_t, double>(
-  raft::handle_t const& handle,
-  graph_container_t const& graph_container,
-  int64_t const* ptr_start_set,
-  size_t num_paths,
-  size_t max_depth);
+  int64_t num_paths,
+  int64_t max_depth);
 
 template void call_sssp(raft::handle_t const& handle,
                         graph_container_t const& graph_container,
