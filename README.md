@@ -86,7 +86,6 @@ As of Release 0.18 - including 0.18 nightly
 |              | Renumbering                            | Single-GPU   | multiple columns, any data type  |
 |              | Symmetrize                             | Multi-GPU    |                     |
 | Other        |                                        |              |                     |
-|              | Hungarian Algorithm                    | Single-GPU   |                     |
 |              | Minimum Spanning Tree                  | Single-GPU   |                     |
 |              | Maximum Spanning Tree                  | Single-GPU   |                     |
 |  |  |

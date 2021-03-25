@@ -91,7 +91,6 @@ function(ConfigureTest CMAKE_TEST_NAME CMAKE_TEST_SRC)
         cugraph
         GTest::GTest
         GTest::Main
-        ${CUDF_LIBRARY}
         ${NCCL_LIBRARIES}
         cudart
         cuda
