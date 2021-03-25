@@ -90,15 +90,6 @@ bool check_col_indices(raft::handle_t const& handle,
   return all_indices_within_degs;
 }
 
-// std::vector printer:
-//
-template <typename value_t>
-void print_vec(std::vector<value_t> const& vec, std::ostream& os)
-{
-  std::copy(vec.begin(), vec.end(), std::ostream_iterator<value_t>(os, ", "));
-  std::cout << '\n';
-}
-
 // host side utility to check a if a sequence of vertices is connected:
 //
 template <typename vertex_t, typename edge_t, typename weight_t>
@@ -196,14 +187,11 @@ bool host_check_rw_paths(raft::handle_t const& handle,
     it_w_begin += crt_sz - 1;
 
     if (!test_path) {  // something went wrong; print to debug (since it's random)
-      std::cout << "sizes:\n";
-      print_vec(v_sizes, std::cout);
+      raft::print_host_vector("sizes", v_sizes.data(), v_sizes.size(), std::cout);
 
-      std::cout << "coalesced v:\n";
-      print_vec(v_coalesced, std::cout);
+      raft::print_host_vector("coalesced v", v_coalesced.data(), v_coalesced.size(), std::cout);
 
-      std::cout << "coalesced w:\n";
-      print_vec(w_coalesced, std::cout);
+      raft::print_host_vector("coalesced w", w_coalesced.data(), w_coalesced.size(), std::cout);
 
       return false;
     }
