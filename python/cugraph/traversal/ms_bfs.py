@@ -151,7 +151,10 @@ def concurrent_bfs(Graphs, sources, depth_limit=None, offload=False):
     If offload is True, or if the output does not fit in memory :
         Writes csv files containing BFS output to the disk.
     """
-
+    raise NotImplementedError(
+        "concurrent_bfs is coming soon! Please up vote the github issue 1465\
+             to help us prioritize"
+    )
     if not isinstance(Graphs, list):
         raise TypeError(
             "Graphs should be a list of cugraph.Graph or cugraph.DiGraph"
@@ -245,7 +248,10 @@ def multi_source_bfs(
     If offload is True, or if the output does not fit in memory :
         Writes csv files containing BFS output to the disk.
     """
-
+    raise NotImplementedError(
+        "concurrent_bfs is coming soon! Please up vote the github issue 1465\
+             to help us prioritize"
+    )
     # if components is not None:
     #    null_check(components["vertex"])
     #    null_check(components["colors"])
