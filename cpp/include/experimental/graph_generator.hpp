@@ -72,7 +72,7 @@ template <typename vertex_t>
 std::tuple<rmm::device_uvector<vertex_t>, rmm::device_uvector<vertex_t>> generate_rmat_edgelist(
   raft::handle_t const& handle,
   size_t scale,
-  size_t num_edges         = 16,
+  size_t num_edges,
   double a                 = 0.57,
   double b                 = 0.19,
   double c                 = 0.19,
