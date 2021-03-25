@@ -190,22 +190,33 @@ def get_traversed_path_list(df, id):
     return answer
 
 
-def get_traversed_cost(df, info_df):
+def get_traversed_cost(df, source_col, dest_col, value_col):
     """
-    Take the DataFrame result from a BFS or SSSP function call and extract
-    the path to a specified vertex as a series of steps
+    Take the DataFrame result from a BFS or SSSP function call and sums
+    the given weights along the path to the starting vertex.
 
     Input Parameters
     ----------
     df : cudf.DataFrame
         The dataframe containing the results of a BFS or SSSP call
-     : Int
-        The vertex ID
+    source_col : cudf.DataFrame
+        This cudf.Series wraps a gdf_column of size E (E: number of edges).
+        The gdf column contains the source index for each edge.
+        Source indices must be an integer type.
+    dest_col : cudf.Series
+        This cudf.Series wraps a gdf_column of size E (E: number of edges).
+        The gdf column contains the destination index for each edge.
+        Destination indices must be an integer type.
+    value_col : cudf.Series
+        This cudf.Series wraps a gdf_column of size E (E: number of edges).
+        The gdf column contains values associated with this edge.
+	Weight values must be of type float32 or float64.
 
     Returns
     ---------
-    a : Python array
-        a ordered array containing the steps from id to root
+    df : cudf.DataFrame
+        DataFrame containing 'vertex' ids as given by the results of SSSP
+        and the sum of weights along the path.
     """
 
     if 'vertex' not in df.columns:
@@ -217,16 +228,10 @@ def get_traversed_cost(df, info_df):
     if 'predecessor' not in df.columns:
         raise ValueError("DataFrame does not appear to be a BFS or "
                          "SSP result - 'predecessor' column missing")
-    if 'source' not in info_df.columns:
-        raise ValueError("")
-    if 'destination' not in info_df.columns:
-        raise ValueError("")
-    if 'weights' not in info_df.columns:
-        raise ValueError("")
 
-    src, dst, val = symmetrize(info_df['source'],
-                               info_df['destination'],
-                               info_df['weights'])
+    src, dst, val = symmetrize(source_col,
+                               dest_col,
+                               value_col)
 
     symmetrized_df = cudf.DataFrame()
     symmetrized_df['source'] = src
@@ -239,14 +244,13 @@ def get_traversed_cost(df, info_df):
             how="left"
             )
     input_df = input_df.fillna(0)
+
     numbering = NumberMap()
     numbering.from_series(df['vertex'])
     renumbered_df = numbering.add_internal_vertex_id(input_df, "vertex_id", ["vertex"])
-    preds = numbering.to_internal_vertex_id(renumbered_df['predecessor'])
-    preds = preds.fillna(-1)
-    renumbered_df['predecessor'] = preds
-    #renumbered_df = renumbered_df.sort_values(by='vertex_id')
-    print(renumbered_df)
+    renumbered_df['predecessor_id'] = numbering.to_internal_vertex_id(renumbered_df['predecessor'])
+    renumbered_df['predecessor_id']  = renumbered_df['predecessor_id'].fillna(-1)
+
     out_df = path_retrieval_wrapper.get_traversed_cost(renumbered_df)
     return out_df
 
