@@ -27,15 +27,12 @@ def null_check(col):
 
 class Graph:
     class Properties:
-        def __init__(self, multi_edge, directed, tree):
-            self.multi_edge = multi_edge
+        def __init__(self, directed):
             self.directed = directed
-            self.tree = tree
 
-    def __init__(self, m_graph=None, multi_edge=False, directed=False,
-                 tree=False, bipartite=False, npartite=False):
-        self.Base = None
-        self.graph_properties = Graph.Properties(multi_edge, directed, tree)
+    def __init__(self, m_graph=None, directed=False):
+        self.Impl = None
+        self.graph_properties = Graph.Properties(directed)
         if m_graph is not None:
             if m_graph.is_multigraph():
                 elist = m_graph.view_edge_list()
@@ -55,12 +52,12 @@ class Graph:
                 raise Exception(msg)
 
     def __getattr__(self, name):
-        if self.Base is None:
+        if self.Impl is None:
             raise Exception("Graph is Empty")
-        if hasattr(self.Base, name):
-            return getattr(self.Base, name)
-        elif hasattr(self.Base.properties, name):
-            return getattr(self.Base.properties, name)
+        if hasattr(self.Impl, name):
+            return getattr(self.Impl, name)
+        elif hasattr(self.Impl.properties, name):
+            return getattr(self.Impl.properties, name)
         else:
             raise AttributeError
 
@@ -111,9 +108,9 @@ class Graph:
         >>> G.from_cudf_edgelist(df, source='0', destination='1',
                                  edge_attr='2', renumber=False)
         """
-        if self.Base is None:
-            self.Base = simpleGraphImpl(self.graph_properties)
-        self.Base._simpleGraphImpl__from_edgelist(input_df,
+        if self.Impl is None:
+            self.Impl = simpleGraphImpl(self.graph_properties)
+        self.Impl._simpleGraphImpl__from_edgelist(input_df,
                                                   source=source,
                                                   destination=destination,
                                                   edge_attr=edge_attr,
@@ -159,9 +156,9 @@ class Graph:
         >>> G = cugraph.Graph()
         >>> G.from_cudf_adjlist(offsets, indices, None)
         """
-        if self.Base is None:
-            self.Base = simpleGraphImpl(self.graph_properties)
-        self.Base._simpleGraphImpl__from_adjlist(offset_col,
+        if self.Impl is None:
+            self.Impl = simpleGraphImpl(self.graph_properties)
+        self.Impl._simpleGraphImpl__from_adjlist(offset_col,
                                                  index_col,
                                                  value_col)
 
@@ -197,9 +194,9 @@ class Graph:
             If source and destination indices are not in range 0 to V where V
             is number of vertices, renumber argument should be True.
         """
-        if self.Base is None:
-            self.Base = simpleDistributedGraphImpl(self.graph_properties)
-        self.Base._simpleDistributedGraphImpl__from_edgelist(input_ddf,
+        if self.Impl is None:
+            self.Impl = simpleDistributedGraphImpl(self.graph_properties)
+        self.Impl._simpleDistributedGraphImpl__from_edgelist(input_ddf,
                                                              source,
                                                              destination,
                                                              edge_attr,
@@ -376,7 +373,7 @@ class Graph:
         """
         Empty the graph.
         """
-        self.Base = None
+        self.Impl = None
 
     def is_bipartite(self):
         """
@@ -406,7 +403,11 @@ class Graph:
         """
         Returns True if the graph is a multigraph. Else returns False.
         """
-        return self.graph_properties.multi_edge
+        # TO DO: Call coloring algorithm
+        if hasattr(self.graph_properties, 'multi_edge'):
+            return self.graph_properties.multi_edge
+        else:
+            return False
 
     def is_directed(self):
         """
@@ -449,9 +450,9 @@ class Graph:
             return self
         else:
             directed_graph = type(self)(directed=True)
-            directed_graph.Base = type(self.Base)(directed_graph.
+            directed_graph.Impl = type(self.Impl)(directed_graph.
                                                   graph_properties)
-            self.Base.to_directed(directed_graph.Base)
+            self.Impl.to_directed(directed_graph.Impl)
             return directed_graph
 
     def to_undirected(self):
@@ -475,9 +476,9 @@ class Graph:
             return self
         else:
             undirected_graph = self.__class__.__bases__[0]()
-            undirected_graph.Base = type(self.Base)(undirected_graph.
+            undirected_graph.Impl = type(self.Impl)(undirected_graph.
                                                     graph_properties)
-            self.Base.to_undirected(undirected_graph.Base)
+            self.Impl.to_undirected(undirected_graph.Impl)
             return undirected_graph
 
     def add_nodes_from(self, nodes):
@@ -488,7 +489,7 @@ class Graph:
         nodes : list or cudf.Series
             The nodes of the graph to be stored.
         """
-        self.Base._nodes["all_nodes"] = cudf.Series(nodes)
+        self.Impl._nodes["all_nodes"] = cudf.Series(nodes)
 
     # TODO: Add function
     # def properties():
@@ -504,7 +505,8 @@ class DiGraph(Graph):
 
 class MultiGraph(Graph):
     def __init__(self, directed=False):
-        super(MultiGraph, self).__init__(directed=directed, multi_edge=True)
+        super(MultiGraph, self).__init__(directed=directed)
+        self.graph_properties.multi_edge = True
 
 
 class MultiDiGraph(MultiGraph):
@@ -518,7 +520,8 @@ class MultiDiGraph(MultiGraph):
 
 class Tree(Graph):
     def __init__(self, directed=False):
-        super(Tree, self).__init__(directed=directed, tree=True)
+        super(Tree, self).__init__(directed=directed)
+        self.graph_properties.tree = True
 
 
 class DiTree(Tree):
@@ -576,10 +579,10 @@ class NPartiteGraph(Graph):
         >>> G.from_cudf_edgelist(df, source='0', destination='1',
                                  edge_attr='2', renumber=False)
         """
-        if self.Base is None:
-            self.Base = npartiteGraphImpl(self.graph_properties)
+        if self.Impl is None:
+            self.Impl = npartiteGraphImpl(self.graph_properties)
         # API may change in future
-        self.Base._npartiteGraphImpl__from_edgelist(input_df,
+        self.Impl._npartiteGraphImpl__from_edgelist(input_df,
                                                     source=source,
                                                     destination=destination,
                                                     edge_attr=edge_attr,
@@ -635,12 +638,12 @@ class NPartiteGraph(Graph):
             Sets the Graph as multipartite. The nodes are stored as a set of
             nodes of the partition named as multipartite argument.
         """
-        if self.Base is None:
-            self.Base = npartiteGraphImpl(self.graph_properties)
+        if self.Impl is None:
+            self.Impl = npartiteGraphImpl(self.graph_properties)
         if bipartite is None and multipartite is None:
-            self.Base._nodes["all_nodes"] = cudf.Series(nodes)
+            self.Impl._nodes["all_nodes"] = cudf.Series(nodes)
         else:
-            self.Base.add_nodes_from(nodes, bipartite=bipartite,
+            self.Impl.add_nodes_from(nodes, bipartite=bipartite,
                                      multipartite=multipartite)
 
 

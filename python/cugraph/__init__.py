@@ -84,7 +84,7 @@ from cugraph.traversal import (
     shortest_path,
     filter_unreachable,
     shortest_path_length,
-    #traveling_salesperson
+    traveling_salesperson
 )
 
 from cugraph.tree import minimum_spanning_tree, maximum_spanning_tree

@@ -51,9 +51,8 @@ class simpleGraphImpl:
 
     class Properties:
         def __init__(self, properties):
-            self.multi_edge = properties.multi_edge
+            self.multi_edge = getattr(properties, 'multi_edge', False)
             self.directed = properties.directed
-            self.tree = properties.tree
             self.renumbered = False
             self.self_loop = None
             self.isolated_vertices = None
