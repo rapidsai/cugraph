@@ -305,6 +305,49 @@ class NumberMap:
         """
         return [str(i) for i in range(len(column_names))]
 
+    def to_internal_vertex_id(self, df, col_names=None):
+        """
+        Given a collection of external vertex ids, return the internal
+        vertex ids
+        Parameters
+        ----------
+        df: cudf.DataFrame, cudf.Series, dask_cudf.DataFrame, dask_cudf.Series
+            Contains a list of external vertex identifiers that will be
+            converted into internal vertex identifiers
+        col_names: (optional) list of strings
+            This list of 1 or more strings contain the names
+            of the columns that uniquely identify an external
+            vertex identifier
+        Returns
+        ---------
+        vertex_ids : cudf.Series or dask_cudf.Series
+            The vertex identifiers.  Note that to_internal_vertex_id
+            does not guarantee order or partitioning (in the case of
+            dask_cudf) of vertex ids. If order matters use
+            add_internal_vertex_id
+        """
+        tmp_df = None
+        tmp_col_names = None
+        if type(df) is cudf.Series:
+            tmp_df = cudf.DataFrame()
+            tmp_df["0"] = df
+            tmp_col_names = ["0"]
+        elif type(df) is dask_cudf.Series:
+            tmp_df = dask_cudf.DataFrame()
+            tmp_df["0"] = df
+            tmp_col_names = ["0"]
+        else:
+            tmp_df = df
+            tmp_col_names = col_names
+
+        reply = self.implementation.to_internal_vertex_id(tmp_df,
+                                                          tmp_col_names)
+
+        if type(df) in [cudf.DataFrame, dask_cudf.DataFrame]:
+            return reply["0"]
+        else:
+            return reply
+
     def add_internal_vertex_id(
         self, df, id_column_name="id", col_names=None, drop=False,
         preserve_order=False
