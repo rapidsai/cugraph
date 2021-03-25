@@ -164,25 +164,8 @@ class Tests_SSSP : public ::testing::TestWithParam<SSSP_Usecase> {
       read_graph<vertex_t, edge_t, weight_t>(handle, configuration, renumber);
     auto graph_view = graph.view();
 
-    auto source = static_cast<vertex_t>(configuration.source);
-    if (renumber) {
-      std::vector<vertex_t> h_renumber_map_labels(d_renumber_map_labels.size());
-      raft::update_host(h_renumber_map_labels.data(),
-                        d_renumber_map_labels.data(),
-                        d_renumber_map_labels.size(),
-                        handle.get_stream());
-
-      handle.get_stream_view().synchronize();
-
-      source = static_cast<vertex_t>(thrust::distance(
-        h_renumber_map_labels.begin(),
-        std::find(
-          h_renumber_map_labels.begin(), h_renumber_map_labels.end(), configuration.source)));
-    }
-
-    ASSERT_TRUE(source >= 0 && source < graph_view.get_number_of_vertices())
-      << "Starting sources should be >= 0 and"
-      << " less than the number of vertices in the graph.";
+    ASSERT_TRUE(static_cast<vertex_t>(configuration.source) >= 0 &&
+                static_cast<vertex_t>(configuration.source) < graph_view.get_number_of_vertices());
 
     rmm::device_uvector<weight_t> d_distances(graph_view.get_number_of_vertices(),
                                               handle.get_stream());
@@ -195,7 +178,7 @@ class Tests_SSSP : public ::testing::TestWithParam<SSSP_Usecase> {
                                 graph_view,
                                 d_distances.data(),
                                 d_predecessors.data(),
-                                source,
+                                static_cast<vertex_t>(configuration.source),
                                 std::numeric_limits<weight_t>::max(),
                                 false);
 
@@ -228,6 +211,19 @@ class Tests_SSSP : public ::testing::TestWithParam<SSSP_Usecase> {
 
       handle.get_stream_view().synchronize();
 
+      auto unrenumbered_source = static_cast<vertex_t>(configuration.source);
+      if (renumber) {
+        std::vector<vertex_t> h_renumber_map_labels(d_renumber_map_labels.size());
+        raft::update_host(h_renumber_map_labels.data(),
+                          d_renumber_map_labels.data(),
+                          d_renumber_map_labels.size(),
+                          handle.get_stream());
+
+        handle.get_stream_view().synchronize();
+
+        unrenumbered_source = h_renumber_map_labels[configuration.source];
+      }
+
       std::vector<weight_t> h_reference_distances(unrenumbered_graph_view.get_number_of_vertices());
       std::vector<vertex_t> h_reference_predecessors(
         unrenumbered_graph_view.get_number_of_vertices());
@@ -238,7 +234,8 @@ class Tests_SSSP : public ::testing::TestWithParam<SSSP_Usecase> {
                      h_reference_distances.data(),
                      h_reference_predecessors.data(),
                      unrenumbered_graph_view.get_number_of_vertices(),
-                     static_cast<vertex_t>(configuration.source));
+                     unrenumbered_source,
+                     std::numeric_limits<weight_t>::max());
 
       std::vector<weight_t> h_cugraph_distances(graph_view.get_number_of_vertices());
       std::vector<vertex_t> h_cugraph_predecessors(graph_view.get_number_of_vertices());

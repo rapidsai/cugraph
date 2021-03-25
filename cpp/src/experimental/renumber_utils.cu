@@ -229,9 +229,9 @@ void unrenumber_int_vertices(raft::handle_t const& handle,
       thrust::count_if(rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
                        vertices,
                        vertices + num_vertices,
-                       [num_vertices = vertex_partition_lasts.back()] __device__(auto v) {
+                       [int_vertex_last = vertex_partition_lasts.back()] __device__(auto v) {
                          return v != invalid_vertex_id<vertex_t>::value &&
-                                !is_valid_vertex(num_vertices, v);
+                                !is_valid_vertex(int_vertex_last, v);
                        }) == 0,
       "Invalid input arguments: there are out-of-range vertices in [vertices, vertices "
       "+ num_vertices).");
