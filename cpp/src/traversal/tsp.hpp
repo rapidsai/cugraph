@@ -21,9 +21,9 @@
 #include <raft/cudart_utils.h>
 #include <raft/handle.hpp>
 
+#include <rmm/thrust_rmm_allocator.h>
 #include <rmm/device_scalar.hpp>
 #include <rmm/device_uvector.hpp>
-#include <rmm/thrust_rmm_allocator.h>
 
 namespace cugraph {
 namespace detail {

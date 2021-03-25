@@ -54,7 +54,8 @@ TSP::TSP(raft::handle_t const &handle,
     sm_count_(handle_.get_device_properties().multiProcessorCount),
     restart_batch_(8192),
     neighbors_vec_((k_ + 1) * nodes_, stream_),
-    work_vec_(restart_batch_ * ((4 * nodes_ + 3 + warp_size_ - 1) / warp_size_ * warp_size_), stream_),
+    work_vec_(restart_batch_ * ((4 * nodes_ + 3 + warp_size_ - 1) / warp_size_ * warp_size_),
+              stream_),
     best_x_pos_vec_(1, stream_),
     best_y_pos_vec_(1, stream_),
     best_route_vec_(1, stream_)
@@ -70,7 +71,7 @@ void TSP::setup()
   // pre-allocate workspace for climbs, each block needs a separate permutation space and search
   // buffer. We allocate a work buffer that will store the computed distances, px, py and the route.
   // We align it on the warp size.
-  work_      = work_vec_.data();
+  work_ = work_vec_.data();
 
   results_.best_x_pos = best_x_pos_vec_.data();
   results_.best_y_pos = best_y_pos_vec_.data();
