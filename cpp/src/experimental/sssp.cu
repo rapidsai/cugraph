@@ -188,7 +188,7 @@ void sssp(raft::handle_t const &handle,
           threshold         = old_distance < threshold ? old_distance : threshold;
         }
         if (new_distance >= threshold) { push = false; }
-        return thrust::make_tuple(push, new_distance, src);
+        return thrust::make_tuple(push, thrust::make_tuple(new_distance, src));
       },
       reduce_op::min<thrust::tuple<weight_t, vertex_t>>(),
       distances,
@@ -200,7 +200,7 @@ void sssp(raft::handle_t const &handle,
                      ? (new_dist < near_far_threshold ? static_cast<size_t>(Bucket::new_near)
                                                       : static_cast<size_t>(Bucket::far))
                      : VertexFrontier<thrust::tuple<vertex_t>, vertex_t>::kInvalidBucketIdx;
-        return thrust::make_tuple(idx, thrust::get<0>(pushed_val), thrust::get<1>(pushed_val));
+        return thrust::make_tuple(idx, pushed_val);
       });
 
     vertex_frontier.get_bucket(static_cast<size_t>(Bucket::cur_near)).clear();

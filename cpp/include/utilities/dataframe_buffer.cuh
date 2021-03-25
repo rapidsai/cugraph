@@ -47,21 +47,19 @@ auto allocate_dataframe_buffer_tuple_impl(std::index_sequence<Is...>,
 }
 
 template <typename TupleType, typename BufferType, size_t I, size_t N>
-void resize_dataframe_buffer_tuple_element_impl(BufferType& buffer,
-                                                size_t new_buffer_size,
-                                                cudaStream_t stream)
-{
-  std::get<I>(buffer).resize(new_buffer_size, stream);
-  resize_dataframe_buffer_tuple_element_impl<TupleType, BufferType, I + 1, N>(
-    buffer, new_buffer_size, stream);
-}
+struct resize_dataframe_buffer_tuple_iterator_element_impl {
+  void run(BufferType& buffer, size_t new_buffer_size, cudaStream_t stream)
+  {
+    std::get<I>(buffer).resize(new_buffer_size, stream);
+    resize_dataframe_buffer_tuple_iterator_element_impl<TupleType, BufferType, I + 1, N>().run(
+      buffer, new_buffer_size, stream);
+  }
+};
 
 template <typename TupleType, typename BufferType, size_t I>
-void resize_dataframe_buffer_tuple_impl(BufferType& buffer,
-                                        size_t new_buffer_size,
-                                        cudaStream_t stream)
-{
-}
+struct resize_dataframe_buffer_tuple_iterator_element_impl<TupleType, BufferType, I, I> {
+  void run(BufferType& buffer, size_t new_buffer_size, cudaStream_t stream) {}
+};
 
 template <typename TupleType, size_t I, typename BufferType>
 auto get_dataframe_buffer_begin_tuple_element_impl(BufferType& buffer)
@@ -108,8 +106,9 @@ template <typename T,
 void resize_dataframe_buffer(BufferType& buffer, size_t new_buffer_size, cudaStream_t stream)
 {
   size_t constexpr tuple_size = thrust::tuple_size<T>::value;
-  detail::resize_dataframe_buffer_tuple_impl<T, BufferType, size_t{0}, tuple_size>(
-    buffer, new_buffer_size, stream);
+  detail::
+    resize_dataframe_buffer_tuple_iterator_element_impl<T, BufferType, size_t{0}, tuple_size>()
+      .run(buffer, new_buffer_size, stream);
 }
 
 template <typename T,
