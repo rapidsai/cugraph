@@ -267,12 +267,6 @@ struct col_indx_extract_t<graph_t, index_t, std::enable_if_t<graph_t::is_multi_g
       d_v_next_weights)  // out: set of weights between src and destination vertices, for next step
     const
   {
-    using zip_iterator_t =
-      thrust::zip_iterator<thrust::tuple<device_v_it<vertex_t>, device_v_it<weight_t>>>;
-
-    // auto max_depth          = max_depth_;  // to avoid capturing `this`...
-    // auto const* ptr_d_sizes = sizes_;
-
     thrust::transform_if(
       rmm::exec_policy(handle_.get_stream())->on(handle_.get_stream()),
       thrust::make_counting_iterator<index_t>(0),
