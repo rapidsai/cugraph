@@ -427,10 +427,12 @@ if(BUILD_CUGRAPH_MG_TESTS)
         # - MG LOUVAIN tests ---------------------------------------------------------------------
 
         set(MG_LOUVAIN_TEST_SRCS
+	    "${CMAKE_CURRENT_SOURCE_DIR}/community/mg_louvain_helper.cu"
             "${CMAKE_CURRENT_SOURCE_DIR}/community/mg_louvain_test.cpp")
 
         ConfigureTest(MG_LOUVAIN_TEST "${MG_LOUVAIN_TEST_SRCS}")
         target_link_libraries(MG_LOUVAIN_TEST PRIVATE MPI::MPI_C MPI::MPI_CXX)
+        target_link_libraries(MG_LOUVAIN_TEST PRIVATE cugraph)
 
     else(MPI_CXX_FOUND)
        message(FATAL_ERROR "OpenMPI NOT found, cannot build MG tests.")

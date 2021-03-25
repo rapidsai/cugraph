@@ -20,7 +20,7 @@
 #include <converters/COOtoCSR.cuh>
 #include <utilities/graph_utils.cuh>
 
-#include <community/dendrogram.cuh>
+#include <dendrogram.hpp>
 
 #include <rmm/device_uvector.hpp>
 
@@ -142,7 +142,7 @@ class Louvain {
 
   Dendrogram<vertex_t> &get_dendrogram() { return *dendrogram_; }
 
-  std::unique_ptr<Dendrogram<vertex_t>> move_dendrogram() { return dendrogram_; }
+  std::unique_ptr<Dendrogram<vertex_t>> move_dendrogram() { return std::move(dendrogram_); }
 
   virtual weight_t operator()(size_t max_level, weight_t resolution)
   {

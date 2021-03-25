@@ -15,7 +15,7 @@
  */
 #pragma once
 
-#include <community/dendrogram.cuh>
+#include <dendrogram.hpp>
 
 #include <experimental/graph.hpp>
 #include <experimental/graph_functions.hpp>
@@ -73,7 +73,7 @@ class Louvain {
 
   Dendrogram<vertex_t> &get_dendrogram() { return *dendrogram_; }
 
-  std::unique_ptr<Dendrogram<vertex_t>> move_dendrogram() { return dendrogram_; }
+  std::unique_ptr<Dendrogram<vertex_t>> move_dendrogram() { return std::move(dendrogram_); }
 
   virtual weight_t operator()(size_t max_level, weight_t resolution)
   {

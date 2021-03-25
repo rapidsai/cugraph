@@ -15,7 +15,7 @@
  */
 #pragma once
 
-#include <community/dendrogram.cuh>
+#include <dendrogram.hpp>
 #include <experimental/graph_functions.hpp>
 
 #include <rmm/thrust_rmm_allocator.h>

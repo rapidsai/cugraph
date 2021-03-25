@@ -14,15 +14,20 @@
  * limitations under the License.
  */
 
+#include "mg_louvain_helper.hpp"
+
 #include <utilities/base_fixture.hpp>
 #include <utilities/test_utilities.hpp>
 
 #include <algorithms.hpp>
 #include <partition_manager.hpp>
 
+#include <raft/cudart_utils.h>
 #include <raft/comms/comms.hpp>
 #include <raft/comms/mpi_comms.hpp>
 #include <raft/handle.hpp>
+
+#include <thrust/sequence.h>
 
 #include <gtest/gtest.h>
 
@@ -75,39 +80,87 @@ class Louvain_MG_Testfixture : public ::testing::TestWithParam<Louvain_Usecase> 
   virtual void SetUp() {}
   virtual void TearDown() {}
 
-  // Return the results of running louvain on a single GPU for the dataset in
-  // graph_file_path.
+  // Compare the results of MNMG Louvain with the results of running
+  // each step of SG Louvain, renumbering the coarsened graphs based
+  // on the MNMG renumbering.
   template <typename vertex_t, typename edge_t, typename weight_t>
-  std::tuple<int, weight_t, std::vector<vertex_t>> get_sg_results(
-    raft::handle_t const& handle,
-    std::string const& graph_file_path,
-    size_t max_level,
-    weight_t resolution)
+  void compare_sg_results(raft::handle_t const& handle,
+                          std::string const& graph_filename,
+                          rmm::device_uvector<vertex_t>& d_renumber_map_gathered_v,
+                          cugraph::Dendrogram<vertex_t> const& dendrogram,
+                          weight_t resolution,
+                          int rank,
+                          weight_t modularity)
   {
-    // FIXME:  Put this in the Graph test base class
-    //         (make the call simpler here)
-    auto graph_tuple =
-      cugraph::test::read_graph_from_matrix_market_file<vertex_t, edge_t, weight_t, false, false>(
-        handle,
-        graph_file_path,
-        true,
-        false);  // FIXME: should use param.test_weighted instead of true
+    auto sg_graph =
+      std::make_unique<cugraph::experimental::graph_t<vertex_t, edge_t, weight_t, false, false>>(
+        handle);
+    rmm::device_uvector<vertex_t> d_clustering_v(0, handle.get_stream());
+    weight_t sg_modularity;
 
-    auto graph_view     = std::get<0>(graph_tuple).view();
-    cudaStream_t stream = handle.get_stream();
+    if (rank == 0) {
+      // Create initial SG graph, renumbered according to the MNMG renumber map
+      rmm::device_uvector<vertex_t> d_edgelist_rows(0, handle.get_stream());
+      rmm::device_uvector<vertex_t> d_edgelist_cols(0, handle.get_stream());
+      rmm::device_uvector<weight_t> d_edgelist_weights(0, handle.get_stream());
+      vertex_t number_of_vertices{};
+      bool is_symmetric{};
 
-    rmm::device_uvector<vertex_t> clustering_v(graph_view.get_number_of_local_vertices(), stream);
+      std::tie(
+        d_edgelist_rows, d_edgelist_cols, d_edgelist_weights, number_of_vertices, is_symmetric) =
+        cugraph::test::read_edgelist_from_matrix_market_file<vertex_t, weight_t>(
+          handle, graph_filename, true);
 
-    size_t level;
-    weight_t modularity;
+      rmm::device_uvector<vertex_t> d_vertices(number_of_vertices, handle.get_stream());
+      std::vector<vertex_t> h_vertices(number_of_vertices);
 
-    std::tie(level, modularity) =
-      cugraph::louvain(handle, graph_view, clustering_v.data(), max_level, resolution);
+      d_clustering_v.resize(d_vertices.size(), handle.get_stream());
 
-    std::vector<vertex_t> clustering(graph_view.get_number_of_local_vertices());
-    raft::update_host(clustering.data(), clustering_v.data(), clustering_v.size(), stream);
+      thrust::sequence(thrust::host, h_vertices.begin(), h_vertices.end(), vertex_t{0});
+      raft::update_device(
+        d_vertices.data(), h_vertices.data(), d_vertices.size(), handle.get_stream());
 
-    return std::make_tuple(level, modularity, clustering);
+      // renumber using d_renumber_map_gathered_v
+      cugraph::test::single_gpu_renumber_edgelist_given_number_map(
+        handle, d_edgelist_rows, d_edgelist_cols, d_renumber_map_gathered_v);
+
+      std::tie(*sg_graph, std::ignore) =
+        cugraph::test::generate_graph_from_edgelist<vertex_t, edge_t, weight_t, false, false>(
+          handle,
+          std::move(d_vertices),
+          std::move(d_edgelist_rows),
+          std::move(d_edgelist_cols),
+          std::move(d_edgelist_weights),
+          is_symmetric,
+          true,
+          false);
+    }
+
+    std::for_each(
+      thrust::make_counting_iterator<size_t>(0),
+      thrust::make_counting_iterator<size_t>(dendrogram.num_levels()),
+      [&dendrogram, &sg_graph, &d_clustering_v, &sg_modularity, &handle, resolution, rank](
+        size_t i) {
+        auto d_dendrogram_gathered_v = cugraph::test::gather_distributed_vector(
+          handle, dendrogram.get_level_ptr_nocheck(i), dendrogram.get_level_size_nocheck(i));
+
+        if (rank == 0) {
+          auto graph_view = sg_graph->view();
+
+          d_clustering_v.resize(graph_view.get_number_of_vertices(), handle.get_stream());
+
+          std::tie(std::ignore, sg_modularity) =
+            cugraph::louvain(handle, graph_view, d_clustering_v.data(), 1, resolution);
+
+          EXPECT_TRUE(cugraph::test::compare_renumbered_vectors(
+            handle, d_clustering_v, d_dendrogram_gathered_v));
+
+          sg_graph =
+            cugraph::test::coarsen_graph(handle, graph_view, d_dendrogram_gathered_v.data());
+        }
+      });
+
+    if (rank == 0) compare(modularity, sg_modularity);
   }
 
   // Compare the results of running louvain on multiple GPUs to that of a
@@ -134,43 +187,33 @@ class Louvain_MG_Testfixture : public ::testing::TestWithParam<Louvain_Usecase> 
     cudaStream_t stream = handle.get_stream();
 
     cugraph::experimental::graph_t<vertex_t, edge_t, weight_t, false, true> mg_graph(handle);
+
     rmm::device_uvector<vertex_t> d_renumber_map_labels(0, handle.get_stream());
 
     std::tie(mg_graph, d_renumber_map_labels) =
       cugraph::test::read_graph_from_matrix_market_file<vertex_t, edge_t, weight_t, false, true>(
-        handle, param.graph_file_full_path, true, false);
-
-    // Each GPU will have a subset of the clustering
-    int sg_level;
-    weight_t sg_modularity;
-    std::vector<vertex_t> sg_clustering;
-
-    // FIXME:  Consider how to test for max_level > 1
-    //         perhaps some sort of approximation
-    // size_t local_max_level{param.max_level};
-    size_t local_max_level{1};
+        handle, param.graph_file_full_path, true, true);
 
     auto mg_graph_view = mg_graph.view();
 
-    rmm::device_uvector<vertex_t> clustering_v(mg_graph_view.get_number_of_local_vertices(),
-                                               stream);
-
-    CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
-
-    int level;
+    std::unique_ptr<cugraph::Dendrogram<vertex_t>> dendrogram;
     weight_t modularity;
 
-    std::tie(level, modularity) = cugraph::louvain(
-      handle, mg_graph_view, clustering_v.data(), local_max_level, param.resolution);
+    std::tie(dendrogram, modularity) =
+      cugraph::louvain(handle, mg_graph_view, param.max_level, param.resolution);
 
-    if (comm_rank == 0) {
-      SCOPED_TRACE("compare modularity input: " + param.graph_file_full_path);
+    SCOPED_TRACE("compare modularity input: " + param.graph_file_full_path);
 
-      std::tie(sg_level, sg_modularity, sg_clustering) = get_sg_results<vertex_t, edge_t, weight_t>(
-        handle, param.graph_file_full_path, local_max_level, param.resolution);
+    auto d_renumber_map_gathered_v = cugraph::test::gather_distributed_vector(
+      handle, d_renumber_map_labels.data(), d_renumber_map_labels.size());
 
-      compare(modularity, sg_modularity);
-    }
+    compare_sg_results<vertex_t, edge_t, weight_t>(handle,
+                                                   param.graph_file_full_path,
+                                                   d_renumber_map_gathered_v,
+                                                   *dendrogram,
+                                                   param.resolution,
+                                                   comm_rank,
+                                                   modularity);
   }
 };
 
@@ -183,7 +226,8 @@ TEST_P(Louvain_MG_Testfixture, CheckInt32Int32Float)
 INSTANTIATE_TEST_CASE_P(
   simple_test,
   Louvain_MG_Testfixture,
-  ::testing::Values(Louvain_Usecase("test/datasets/karate.mtx", true, 100, 1),
-                    Louvain_Usecase("test/datasets/smallworld.mtx", true, 100, 1)));
+  ::testing::Values(Louvain_Usecase("test/datasets/karate.mtx", true, 100, 1)
+                    //,Louvain_Usecase("test/datasets/smallworld.mtx", true, 100, 1)
+                    ));
 
 CUGRAPH_MG_TEST_PROGRAM_MAIN()

@@ -16,6 +16,7 @@
 #pragma once
 
 #include <rmm/device_buffer.hpp>
+#include <rmm/device_uvector.hpp>
 
 #include <memory>
 #include <vector>
@@ -30,27 +31,26 @@ class Dendrogram {
                  cudaStream_t stream                 = 0,
                  rmm::mr::device_memory_resource *mr = rmm::mr::get_current_device_resource())
   {
-    level_ptr_.push_back(
-      std::make_unique<rmm::device_buffer>(num_verts * sizeof(vertex_t), stream, mr));
-    level_size_.push_back(num_verts);
+    level_ptr_.push_back(std::make_unique<rmm::device_uvector<vertex_t>>(num_verts, stream, mr));
     level_first_index_.push_back(first_index);
   }
 
-  size_t current_level() const { return level_size_.size() - 1; }
+  size_t current_level() const { return level_ptr_.size() - 1; }
 
-  size_t num_levels() const { return level_size_.size(); }
+  size_t num_levels() const { return level_ptr_.size(); }
 
   vertex_t const *get_level_ptr_nocheck(size_t level) const
   {
-    return static_cast<vertex_t const *>(level_ptr_[level]->data());
+    //return static_cast<vertex_t const *>(level_ptr_[level]->data());
+    return level_ptr_[level]->data();
   }
 
   vertex_t *get_level_ptr_nocheck(size_t level)
   {
-    return static_cast<vertex_t *>(level_ptr_[level]->data());
+    return level_ptr_[level]->data();
   }
 
-  vertex_t get_level_size_nocheck(size_t level) const { return level_size_[level]; }
+  size_t get_level_size_nocheck(size_t level) const { return level_ptr_[level]->size(); }
 
   vertex_t get_level_first_index_nocheck(size_t level) const { return level_first_index_[level]; }
 
@@ -62,14 +62,16 @@ class Dendrogram {
 
   vertex_t *current_level_end() { return current_level_begin() + current_level_size(); }
 
-  vertex_t current_level_size() const { return get_level_size_nocheck(current_level()); }
+  size_t current_level_size() const { return get_level_size_nocheck(current_level()); }
 
-  vertex_t current_level_first_index() const { return get_level_first_index_nocheck(current_level()); }
+  vertex_t current_level_first_index() const
+  {
+    return get_level_first_index_nocheck(current_level());
+  }
 
  private:
-  std::vector<vertex_t> level_size_;
   std::vector<vertex_t> level_first_index_;
-  std::vector<std::unique_ptr<rmm::device_buffer>> level_ptr_;
+  std::vector<std::unique_ptr<rmm::device_uvector<vertex_t>>> level_ptr_;
 };
 
 }  // namespace cugraph

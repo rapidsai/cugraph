@@ -14,10 +14,14 @@
  * limitations under the License.
  */
 #pragma once
+
+#include <dendrogram.hpp>
 #include <experimental/graph.hpp>
 #include <experimental/graph_view.hpp>
+
 #include <graph.hpp>
 #include <internals.hpp>
+
 #include <raft/handle.hpp>
 
 namespace cugraph {
@@ -636,6 +640,66 @@ std::pair<size_t, typename graph_t::weight_type> louvain(
   typename graph_t::vertex_type *clustering,
   size_t max_level                         = 100,
   typename graph_t::weight_type resolution = typename graph_t::weight_type{1});
+
+/**
+ * @brief      Louvain implementation, returning dendrogram
+ *
+ * Compute a clustering of the graph by maximizing modularity
+ *
+ * Computed using the Louvain method described in:
+ *
+ *    VD Blondel, J-L Guillaume, R Lambiotte and E Lefebvre: Fast unfolding of
+ *    community hierarchies in large networks, J Stat Mech P10008 (2008),
+ *    http://arxiv.org/abs/0803.0476
+ *
+ * @throws     cugraph::logic_error when an error occurs.
+ *
+ * @tparam     graph_t               Type of graph
+ *
+ * @param[in]  handle                Library handle (RAFT). If a communicator is set in the handle,
+ * @param[in]  graph                 input graph object (CSR)
+ * @param[in]  max_level             (optional) maximum number of levels to run (default 100)
+ * @param[in]  resolution            (optional) The value of the resolution parameter to use.
+ *                                   Called gamma in the modularity formula, this changes the size
+ *                                   of the communities.  Higher resolutions lead to more smaller
+ *                                   communities, lower resolutions lead to fewer larger
+ *                                   communities. (default 1)
+ *
+ * @return                           a pair containing:
+ *                                     1) unique pointer to dendrogram
+ *                                     2) modularity of the returned clustering
+ *
+ */
+template <typename graph_t>
+std::pair<std::unique_ptr<Dendrogram<typename graph_t::vertex_type>>, typename graph_t::weight_type>
+louvain(raft::handle_t const &handle,
+        graph_t const &graph,
+        size_t max_level                         = 100,
+        typename graph_t::weight_type resolution = typename graph_t::weight_type{1});
+
+/**
+ * @brief      Flatten a Dendrogram at a particular level
+ *
+ * A Dendrogram represents a hierarchical clustering/partitioning of
+ * a graph.  This function will flatten the hierarchical clustering into
+ * a label for each vertex representing the final cluster/partition to
+ * which it is assigned
+ *
+ * @throws     cugraph::logic_error when an error occurs.
+ *
+ * @tparam     graph_t               Type of graph
+ *
+ * @param[in]  handle                Library handle (RAFT). If a communicator is set in the handle,
+ * @param[in]  graph                 input graph object
+ * @param[in]  dendrogram            input dendrogram object
+ * @param[out] clustering            Pointer to device array where the clustering should be stored
+ *
+ */
+template <typename graph_t>
+void flatten_dendrogram(raft::handle_t const &handle,
+                        graph_t const &graph_view,
+                        Dendrogram<typename graph_t::vertex_type> const &dendrogram,
+                        typename graph_t::vertex_type *clustering);
 
 /**
  * @brief      Leiden implementation

@@ -69,6 +69,14 @@ class GraphViewBase {
   edge_t *local_edges;
   vertex_t *local_offsets;
 
+  vertex_t get_number_of_vertices() const {
+    return number_of_vertices;
+  }
+
+  vertex_t get_local_vertex_first() const {
+    return vertex_t{0};
+  }
+
   /**
    * @brief      Fill the identifiers array with the vertex identifiers.
    *
