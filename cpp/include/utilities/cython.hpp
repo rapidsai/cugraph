@@ -185,6 +185,19 @@ struct major_minor_weights_t {
   rmm::device_uvector<weight_t> shuffled_weights_;
 };
 
+// aggregate for random_walks() return type
+// to be exposed to cython:
+//
+struct random_walk_ret_t {
+  size_t coalesced_sz_v_;
+  size_t coalesced_sz_w_;
+  size_t num_paths_;
+  size_t max_depth_;
+  std::unique_ptr<rmm::device_buffer> d_coalesced_v_;
+  std::unique_ptr<rmm::device_buffer> d_coalesced_w_;
+  std::unique_ptr<rmm::device_buffer> d_sizes_;
+};
+
 // wrapper for renumber_edgelist() return
 // (unrenumbering maps, etc.)
 //
