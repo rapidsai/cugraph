@@ -46,9 +46,9 @@ using vector_test_t = detail::device_vec_t<value_t>;  // for debug purposes
 namespace {  // anonym.
 
 template <typename value_t>
-void copy_n(raft::handle_t const& handle,
-            rmm::device_uvector<value_t>& d_dst,
-            std::vector<value_t> const& v_src)
+void _copy_n(raft::handle_t const& handle,
+             rmm::device_uvector<value_t>& d_dst,
+             std::vector<value_t> const& v_src)
 {
   auto stream = handle.get_stream();
 
@@ -56,22 +56,6 @@ void copy_n(raft::handle_t const& handle,
   //
   CUDA_TRY(cudaMemcpyAsync(
     d_dst.data(), v_src.data(), v_src.size() * sizeof(value_t), cudaMemcpyHostToDevice, stream));
-
-  cudaStreamSynchronize(stream);
-}
-
-template <typename value_t>
-void copy_n(raft::handle_t const& handle,
-            std::vector<value_t>& v_dst,
-            value_t const* d_src,
-            size_t nelems)
-{
-  auto stream = handle.get_stream();
-
-  // Copy starting set on device:
-  //
-  CUDA_TRY(
-    cudaMemcpyAsync(v_dst.data(), d_src, nelems * sizeof(value_t), cudaMemcpyDeviceToHost, stream));
 
   cudaStreamSynchronize(stream);
 }
@@ -88,9 +72,9 @@ graph_t<vertex_t, edge_t, weight_t, false, false> make_graph(raft::handle_t cons
   vector_test_t<vertex_t> d_dst(num_edges, handle.get_stream());
   vector_test_t<weight_t> d_weights(num_edges, handle.get_stream());
 
-  copy_n(handle, d_src, v_src);
-  copy_n(handle, d_dst, v_dst);
-  copy_n(handle, d_weights, v_w);
+  _copy_n(handle, d_src, v_src);
+  _copy_n(handle, d_dst, v_dst);
+  _copy_n(handle, d_weights, v_w);
 
   edgelist_t<vertex_t, edge_t, weight_t> edgelist{
     d_src.data(), d_dst.data(), d_weights.data(), num_edges};
@@ -197,17 +181,24 @@ bool host_check_rw_paths(raft::handle_t const& handle,
   std::vector<vertex_t> v_ci(num_edges);
   std::vector<weight_t> v_vals(num_edges);
 
-  copy_n(handle, v_ro, offsets, v_ro.size());
-  copy_n(handle, v_ci, indices, v_ci.size());
-  copy_n(handle, v_vals, values, v_vals.size());
+  raft::update_host(v_ro.data(), offsets, v_ro.size(), handle.get_stream());
+  raft::update_host(v_ci.data(), indices, v_ci.size(), handle.get_stream());
+  raft::update_host(v_vals.data(), values, v_vals.size(), handle.get_stream());
 
   std::vector<vertex_t> v_coalesced(d_coalesced_v.size());
   std::vector<weight_t> w_coalesced(d_coalesced_w.size());
   std::vector<index_t> v_sizes(d_sizes.size());
 
-  copy_n(handle, v_coalesced, detail::raw_const_ptr(d_coalesced_v), d_coalesced_v.size());
-  copy_n(handle, w_coalesced, detail::raw_const_ptr(d_coalesced_w), d_coalesced_w.size());
-  copy_n(handle, v_sizes, detail::raw_const_ptr(d_sizes), d_sizes.size());
+  raft::update_host(v_coalesced.data(),
+                    detail::raw_const_ptr(d_coalesced_v),
+                    d_coalesced_v.size(),
+                    handle.get_stream());
+  raft::update_host(w_coalesced.data(),
+                    detail::raw_const_ptr(d_coalesced_w),
+                    d_coalesced_w.size(),
+                    handle.get_stream());
+  raft::update_host(
+    v_sizes.data(), detail::raw_const_ptr(d_sizes), d_sizes.size(), handle.get_stream());
 
   auto it_v_begin = v_coalesced.begin();
   auto it_w_begin = w_coalesced.begin();
@@ -269,9 +260,9 @@ TEST_F(RandomWalksPrimsTest, SimpleGraphRWStart)
   std::vector<vertex_t> v_ci(num_edges);
   std::vector<weight_t> v_vs(num_edges);
 
-  copy_n(handle, v_ro, offsets, num_vertices + 1);
-  copy_n(handle, v_ci, indices, num_edges);
-  copy_n(handle, v_vs, values, num_edges);
+  raft::update_host(v_ro.data(), offsets, num_vertices + 1, handle.get_stream());
+  raft::update_host(v_ci.data(), indices, num_edges, handle.get_stream());
+  raft::update_host(v_vs.data(), values, num_edges, handle.get_stream());
 
   std::vector<edge_t> v_ro_expected{0, 1, 3, 6, 7, 8, 8};
   std::vector<vertex_t> v_ci_expected{1, 3, 4, 0, 1, 3, 5, 5};
@@ -291,13 +282,13 @@ TEST_F(RandomWalksPrimsTest, SimpleGraphRWStart)
   vector_test_t<vertex_t> d_coalesced_v(total_sz, handle.get_stream());
   vector_test_t<weight_t> d_coalesced_w(total_sz - num_paths, handle.get_stream());
 
-  copy_n(handle, d_coalesced_v, v_coalesced);
-  copy_n(handle, d_coalesced_w, w_coalesced);
+  _copy_n(handle, d_coalesced_v, v_coalesced);
+  _copy_n(handle, d_coalesced_w, w_coalesced);
 
   std::vector<vertex_t> v_start{1, 0, 4, 2};
   vector_test_t<vertex_t> d_start(num_paths, handle.get_stream());
 
-  copy_n(handle, d_start, v_start);
+  _copy_n(handle, d_start, v_start);
 
   vector_test_t<index_t> d_sizes(num_paths, handle.get_stream());
 
@@ -306,12 +297,13 @@ TEST_F(RandomWalksPrimsTest, SimpleGraphRWStart)
   rand_walker.start(d_start, d_coalesced_v, d_sizes);
 
   std::vector<vertex_t> v_coalesced_exp{1, -1, -1, 0, -1, -1, 4, -1, -1, 2, -1, -1};
-  copy_n(handle, v_coalesced, raw_const_ptr(d_coalesced_v), total_sz);
+  raft::update_host(
+    v_coalesced.data(), raw_const_ptr(d_coalesced_v), total_sz, handle.get_stream());
   EXPECT_EQ(v_coalesced, v_coalesced_exp);
 
   std::vector<index_t> v_sizes{1, 1, 1, 1};
   std::vector<index_t> v_sz_exp(num_paths);
-  copy_n(handle, v_sz_exp, raw_const_ptr(d_sizes), num_paths);
+  raft::update_host(v_sz_exp.data(), raw_const_ptr(d_sizes), num_paths, handle.get_stream());
 
   EXPECT_EQ(v_sizes, v_sz_exp);
 }
@@ -352,13 +344,13 @@ TEST_F(RandomWalksPrimsTest, SimpleGraphCoalesceExperiments)
   vector_test_t<vertex_t> d_coalesced_v(total_sz, handle.get_stream());
   vector_test_t<weight_t> d_coalesced_w(total_sz - num_paths, handle.get_stream());
 
-  copy_n(handle, d_coalesced_v, v_coalesced);
-  copy_n(handle, d_coalesced_w, w_coalesced);
+  _copy_n(handle, d_coalesced_v, v_coalesced);
+  _copy_n(handle, d_coalesced_w, w_coalesced);
 
   std::vector<vertex_t> v_start{1, 0, 4, 2};
   vector_test_t<vertex_t> d_start(num_paths, handle.get_stream());
 
-  copy_n(handle, d_start, v_start);
+  _copy_n(handle, d_start, v_start);
 
   vector_test_t<index_t> d_sizes(num_paths, handle.get_stream());
 
@@ -368,7 +360,8 @@ TEST_F(RandomWalksPrimsTest, SimpleGraphCoalesceExperiments)
   EXPECT_EQ(static_cast<size_t>(num_vertices), d_out_degs.size());
 
   std::vector<edge_t> v_out_degs(num_vertices);
-  copy_n(handle, v_out_degs, raw_const_ptr(d_out_degs), num_vertices);
+  raft::update_host(
+    v_out_degs.data(), raw_const_ptr(d_out_degs), num_vertices, handle.get_stream());
 
   std::vector<edge_t> v_out_degs_exp{1, 2, 3, 1, 1, 0};
   EXPECT_EQ(v_out_degs, v_out_degs_exp);
@@ -382,7 +375,8 @@ TEST_F(RandomWalksPrimsTest, SimpleGraphCoalesceExperiments)
     d_coalesced_v, d_out_degs, d_sizes, d_crt_out_degs, max_depth, num_paths);
 
   std::vector<edge_t> v_crt_out_degs(num_paths);
-  copy_n(handle, v_crt_out_degs, raw_const_ptr(d_crt_out_degs), num_paths);
+  raft::update_host(
+    v_crt_out_degs.data(), raw_const_ptr(d_crt_out_degs), num_paths, handle.get_stream());
 
   std::vector<edge_t> v_crt_out_degs_exp{2, 1, 1, 3};
   EXPECT_EQ(v_crt_out_degs, v_crt_out_degs_exp);
@@ -424,13 +418,13 @@ TEST_F(RandomWalksPrimsTest, SimpleGraphColExtraction)
   vector_test_t<vertex_t> d_coalesced_v(total_sz, handle.get_stream());
   vector_test_t<weight_t> d_coalesced_w(total_sz - num_paths, handle.get_stream());
 
-  copy_n(handle, d_coalesced_v, v_coalesced);
-  copy_n(handle, d_coalesced_w, w_coalesced);
+  _copy_n(handle, d_coalesced_v, v_coalesced);
+  _copy_n(handle, d_coalesced_w, w_coalesced);
 
   std::vector<vertex_t> v_start{1, 0, 4, 2};
   vector_test_t<vertex_t> d_start(num_paths, handle.get_stream());
 
-  copy_n(handle, d_start, v_start);
+  _copy_n(handle, d_start, v_start);
 
   vector_test_t<index_t> d_sizes(num_paths, handle.get_stream());
 
@@ -458,7 +452,7 @@ TEST_F(RandomWalksPrimsTest, SimpleGraphColExtraction)
   std::vector<vertex_t> v_col_indx{1, 0, 0, 2};
   vector_test_t<vertex_t> d_col_indx(num_paths, handle.get_stream());
 
-  copy_n(handle, d_col_indx, v_col_indx);
+  _copy_n(handle, d_col_indx, v_col_indx);
 
   vector_test_t<vertex_t> d_next_v(num_paths, handle.get_stream());
   vector_test_t<weight_t> d_next_w(num_paths, handle.get_stream());
@@ -468,8 +462,8 @@ TEST_F(RandomWalksPrimsTest, SimpleGraphColExtraction)
   std::vector<vertex_t> v_next_v(num_paths);
   std::vector<weight_t> v_next_w(num_paths);
 
-  copy_n(handle, v_next_v, raw_const_ptr(d_next_v), num_paths);
-  copy_n(handle, v_next_w, raw_const_ptr(d_next_w), num_paths);
+  raft::update_host(v_next_v.data(), raw_const_ptr(d_next_v), num_paths, handle.get_stream());
+  raft::update_host(v_next_w.data(), raw_const_ptr(d_next_w), num_paths, handle.get_stream());
 
   std::vector<vertex_t> v_next_v_exp{4, 1, 5, 3};
   std::vector<weight_t> v_next_w_exp{2.1f, 0.1f, 7.1f, 5.1f};
@@ -518,13 +512,13 @@ TEST_F(RandomWalksPrimsTest, SimpleGraphRndGenColIndx)
   vector_test_t<vertex_t> d_coalesced_v(total_sz, handle.get_stream());
   vector_test_t<weight_t> d_coalesced_w(total_sz - num_paths, handle.get_stream());
 
-  copy_n(handle, d_coalesced_v, v_coalesced);
-  copy_n(handle, d_coalesced_w, w_coalesced);
+  _copy_n(handle, d_coalesced_v, v_coalesced);
+  _copy_n(handle, d_coalesced_w, w_coalesced);
 
   std::vector<vertex_t> v_start{1, 0, 4, 2};
   vector_test_t<vertex_t> d_start(num_paths, handle.get_stream());
 
-  copy_n(handle, d_start, v_start);
+  _copy_n(handle, d_start, v_start);
 
   vector_test_t<index_t> d_sizes(num_paths, handle.get_stream());
 
@@ -548,29 +542,6 @@ TEST_F(RandomWalksPrimsTest, SimpleGraphRndGenColIndx)
   seed_t seed = static_cast<seed_t>(std::time(nullptr));
   random_engine_t rgen(handle, num_paths, d_random, d_crt_out_degs, seed);
   rgen.generate_col_indices(d_col_indx);
-
-#ifdef PRINT_RANDOM
-  std::vector<vertex_t> v_col_indx(num_paths);
-  std::vector<edge_t> v_crt_out_degs(num_paths);
-  std::vector<real_t> v_random(num_paths);
-
-  copy_n(handle, v_col_indx, raw_const_ptr(d_col_indx), num_paths);
-  copy_n(handle, v_crt_out_degs, raw_const_ptr(d_crt_out_degs), num_paths);
-  copy_n(handle, v_random, raw_const_ptr(d_random), num_paths);
-
-  std::cout << "v_random:\n";
-  std::copy(v_random.begin(), v_random.end(), std::ostream_iterator<real_t>(std::cout, ", "));
-  std::cout << '\n';
-
-  std::cout << "crt_out_degs:\n";
-  std::copy(
-    v_crt_out_degs.begin(), v_crt_out_degs.end(), std::ostream_iterator<edge_t>(std::cout, ", "));
-  std::cout << '\n';
-
-  std::cout << "col_indx:\n";
-  std::copy(v_col_indx.begin(), v_col_indx.end(), std::ostream_iterator<vertex_t>(std::cout, ", "));
-  std::cout << '\n';
-#endif
 
   bool all_indices_within_degs = check_col_indices(handle, d_crt_out_degs, d_col_indx, num_paths);
 
@@ -617,13 +588,13 @@ TEST_F(RandomWalksPrimsTest, SimpleGraphUpdatePathSizes)
   vector_test_t<vertex_t> d_coalesced_v(total_sz, handle.get_stream());
   vector_test_t<weight_t> d_coalesced_w(total_sz - num_paths, handle.get_stream());
 
-  copy_n(handle, d_coalesced_v, v_coalesced);
-  copy_n(handle, d_coalesced_w, w_coalesced);
+  _copy_n(handle, d_coalesced_v, v_coalesced);
+  _copy_n(handle, d_coalesced_w, w_coalesced);
 
   std::vector<vertex_t> v_start{1, 0, 4, 2};
   vector_test_t<vertex_t> d_start(num_paths, handle.get_stream());
 
-  copy_n(handle, d_start, v_start);
+  _copy_n(handle, d_start, v_start);
 
   vector_test_t<index_t> d_sizes(num_paths, handle.get_stream());
 
@@ -637,12 +608,12 @@ TEST_F(RandomWalksPrimsTest, SimpleGraphUpdatePathSizes)
   //
   std::vector<edge_t> v_crt_out_degs{2, 0, 1, 0};
   vector_test_t<edge_t> d_crt_out_degs(num_paths, handle.get_stream());
-  copy_n(handle, d_crt_out_degs, v_crt_out_degs);
+  _copy_n(handle, d_crt_out_degs, v_crt_out_degs);
 
   rand_walker.update_path_sizes(d_crt_out_degs, d_sizes);
 
   std::vector<index_t> v_sizes(num_paths);
-  copy_n(handle, v_sizes, raw_const_ptr(d_sizes), num_paths);
+  raft::update_host(v_sizes.data(), raw_const_ptr(d_sizes), num_paths, handle.get_stream());
   std::vector<index_t> v_sizes_exp{2, 1, 2, 1};
   // i.e., corresponding 0-entries in crt-out-degs, don't get updated;
 
@@ -685,13 +656,13 @@ TEST_F(RandomWalksPrimsTest, SimpleGraphScatterUpdate)
   vector_test_t<vertex_t> d_coalesced_v(total_sz, handle.get_stream());
   vector_test_t<weight_t> d_coalesced_w(total_sz - num_paths, handle.get_stream());
 
-  copy_n(handle, d_coalesced_v, v_coalesced);
-  copy_n(handle, d_coalesced_w, w_coalesced);
+  _copy_n(handle, d_coalesced_v, v_coalesced);
+  _copy_n(handle, d_coalesced_w, w_coalesced);
 
   std::vector<vertex_t> v_start{1, 0, 4, 2};
   vector_test_t<vertex_t> d_start(num_paths, handle.get_stream());
 
-  copy_n(handle, d_start, v_start);
+  _copy_n(handle, d_start, v_start);
 
   vector_test_t<index_t> d_sizes(num_paths, handle.get_stream());
 
@@ -719,7 +690,7 @@ TEST_F(RandomWalksPrimsTest, SimpleGraphScatterUpdate)
   std::vector<vertex_t> v_col_indx{1, 0, 0, 2};
   vector_test_t<vertex_t> d_col_indx(num_paths, handle.get_stream());
 
-  copy_n(handle, d_col_indx, v_col_indx);
+  _copy_n(handle, d_col_indx, v_col_indx);
 
   vector_test_t<vertex_t> d_next_v(num_paths, handle.get_stream());
   vector_test_t<weight_t> d_next_w(num_paths, handle.get_stream());
@@ -732,7 +703,8 @@ TEST_F(RandomWalksPrimsTest, SimpleGraphScatterUpdate)
   //
   {
     std::vector<vertex_t> v_coalesced_exp{1, -1, -1, 0, -1, -1, 4, -1, -1, 2, -1, -1};
-    copy_n(handle, v_coalesced, raw_const_ptr(d_coalesced_v), total_sz);
+    raft::update_host(
+      v_coalesced.data(), raw_const_ptr(d_coalesced_v), total_sz, handle.get_stream());
     EXPECT_EQ(v_coalesced, v_coalesced_exp);
   }
 
@@ -740,7 +712,8 @@ TEST_F(RandomWalksPrimsTest, SimpleGraphScatterUpdate)
   //
   {
     std::vector<edge_t> v_crt_out_degs(num_paths);
-    copy_n(handle, v_crt_out_degs, raw_const_ptr(d_crt_out_degs), num_paths);
+    raft::update_host(
+      v_crt_out_degs.data(), raw_const_ptr(d_crt_out_degs), num_paths, handle.get_stream());
     std::vector<edge_t> v_crt_out_degs_exp{2, 1, 1, 3};
     EXPECT_EQ(v_crt_out_degs, v_crt_out_degs_exp);
   }
@@ -749,7 +722,7 @@ TEST_F(RandomWalksPrimsTest, SimpleGraphScatterUpdate)
   //
   {
     std::vector<index_t> v_sizes(num_paths);
-    copy_n(handle, v_sizes, raw_const_ptr(d_sizes), num_paths);
+    raft::update_host(v_sizes.data(), raw_const_ptr(d_sizes), num_paths, handle.get_stream());
     std::vector<index_t> v_sizes_exp{2, 2, 2, 2};
     // i.e., corresponding 0-entries in crt-out-degs, don't get updated;
     EXPECT_EQ(v_sizes, v_sizes_exp);
@@ -761,8 +734,8 @@ TEST_F(RandomWalksPrimsTest, SimpleGraphScatterUpdate)
     std::vector<vertex_t> v_next_v(num_paths);
     std::vector<weight_t> v_next_w(num_paths);
 
-    copy_n(handle, v_next_v, raw_const_ptr(d_next_v), num_paths);
-    copy_n(handle, v_next_w, raw_const_ptr(d_next_w), num_paths);
+    raft::update_host(v_next_v.data(), raw_const_ptr(d_next_v), num_paths, handle.get_stream());
+    raft::update_host(v_next_w.data(), raw_const_ptr(d_next_w), num_paths, handle.get_stream());
 
     std::vector<vertex_t> v_next_v_exp{4, 1, 5, 3};
     std::vector<weight_t> v_next_w_exp{2.1f, 0.1f, 7.1f, 5.1f};
@@ -777,8 +750,10 @@ TEST_F(RandomWalksPrimsTest, SimpleGraphScatterUpdate)
   // check vertex/weight scatter:
   //
   {
-    copy_n(handle, v_coalesced, raw_const_ptr(d_coalesced_v), total_sz);
-    copy_n(handle, w_coalesced, raw_const_ptr(d_coalesced_w), total_sz - num_paths);
+    raft::update_host(
+      v_coalesced.data(), raw_const_ptr(d_coalesced_v), total_sz, handle.get_stream());
+    raft::update_host(
+      w_coalesced.data(), raw_const_ptr(d_coalesced_w), total_sz - num_paths, handle.get_stream());
 
     std::vector<vertex_t> v_coalesced_exp{1, 4, -1, 0, 1, -1, 4, 5, -1, 2, 3, -1};
     std::vector<weight_t> w_coalesced_exp{2.1, -1, 0.1, -1, 7.1, -1, 5.1, -1};
@@ -820,7 +795,7 @@ TEST_F(RandomWalksPrimsTest, SimpleGraphCoalesceDefragment)
 
   std::vector<index_t> v_sizes{1, 2, 2, 1};
   vector_test_t<index_t> d_sizes(num_paths, handle.get_stream());
-  copy_n(handle, d_sizes, v_sizes);
+  _copy_n(handle, d_sizes, v_sizes);
 
   std::vector<vertex_t> v_coalesced(total_sz, -1);
   v_coalesced[0]                 = 3;
@@ -837,8 +812,8 @@ TEST_F(RandomWalksPrimsTest, SimpleGraphCoalesceDefragment)
   vector_test_t<vertex_t> d_coalesced_v(total_sz, handle.get_stream());
   vector_test_t<weight_t> d_coalesced_w(total_sz - num_paths, handle.get_stream());
 
-  copy_n(handle, d_coalesced_v, v_coalesced);
-  copy_n(handle, d_coalesced_w, w_coalesced);
+  _copy_n(handle, d_coalesced_v, v_coalesced);
+  _copy_n(handle, d_coalesced_w, w_coalesced);
 
   random_walker_t<decltype(graph_view)> rand_walker{handle, graph_view, num_paths, max_depth};
 
@@ -850,8 +825,10 @@ TEST_F(RandomWalksPrimsTest, SimpleGraphCoalesceDefragment)
     v_coalesced.resize(d_coalesced_v.size());
     w_coalesced.resize(d_coalesced_w.size());
 
-    copy_n(handle, v_coalesced, raw_const_ptr(d_coalesced_v), d_coalesced_v.size());
-    copy_n(handle, w_coalesced, raw_const_ptr(d_coalesced_w), d_coalesced_w.size());
+    raft::update_host(
+      v_coalesced.data(), raw_const_ptr(d_coalesced_v), d_coalesced_v.size(), handle.get_stream());
+    raft::update_host(
+      w_coalesced.data(), raw_const_ptr(d_coalesced_w), d_coalesced_w.size(), handle.get_stream());
 
     std::vector<vertex_t> v_coalesced_exp{3, 5, 2, 4, 0, 1};
     std::vector<weight_t> w_coalesced_exp{10.1, 11.2};
@@ -889,13 +866,13 @@ TEST_F(RandomWalksPrimsTest, SimpleGraphRandomWalk)
   std::vector<vertex_t> v_ci(num_edges);
   std::vector<weight_t> v_vals(num_edges);
 
-  copy_n(handle, v_ro, offsets, v_ro.size());
-  copy_n(handle, v_ci, indices, v_ci.size());
-  copy_n(handle, v_vals, values, v_vals.size());
+  raft::update_host(v_ro.data(), offsets, v_ro.size(), handle.get_stream());
+  raft::update_host(v_ci.data(), indices, v_ci.size(), handle.get_stream());
+  raft::update_host(v_vals.data(), values, v_vals.size(), handle.get_stream());
 
   std::vector<vertex_t> v_start{1, 0, 4, 2};
   vector_test_t<vertex_t> d_v_start(v_start.size(), handle.get_stream());
-  copy_n(handle, d_v_start, v_start);
+  _copy_n(handle, d_v_start, v_start);
 
   index_t num_paths = v_start.size();
   index_t max_depth = 5;
