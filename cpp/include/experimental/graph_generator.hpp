@@ -83,7 +83,7 @@ std::tuple<rmm::device_uvector<vertex_t>, rmm::device_uvector<vertex_t>> generat
 enum class generator_distribution_t { POWER_LAW = 0, UNIFORM };
 
 /**
- * @brief generate an edge list for an R-mat graph.
+ * @brief generate multiple edge lists using the R-mat graph generator.
  *
  * This function allows multi-edges and self-loops similar to the Graph 500 reference
  * implementation.
@@ -95,10 +95,6 @@ enum class generator_distribution_t { POWER_LAW = 0, UNIFORM };
  * clip_and_flip = true. All the resulting edges will be placed in the lower triangular part
  * (inculding the diagonal) of the graph adjacency matrix.
  *
- * For multi-GPU generation with `P` GPUs, @p seed should be set to different values in different
- * GPUs to avoid every GPU generating the same set of edges. @p num_edges should be adjusted as
- * well; e.g. assuming `edge_factor` is given, set @p num_edges = (size_t{1} << @p scale) *
- * `edge_factor` / `P` + (rank < (((size_t{1} << @p scale) * `edge_factor`) % P) ? 1 : 0).
  *
  * @tparam vertex_t Type of vertex identifiers. Needs to be an integral type.
  * @param handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator, and
