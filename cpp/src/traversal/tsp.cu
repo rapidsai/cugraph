@@ -178,14 +178,11 @@ float TSP::compute()
 
     if (best < global_best) {
       global_best = best;
-      CUDA_TRY(cudaMemcpy(
-        addr_best_x_pos.data(), results_.best_x_pos, sizeof(float *), cudaMemcpyDeviceToHost));
-      CUDA_TRY(cudaMemcpy(
-        addr_best_y_pos.data(), results_.best_y_pos, sizeof(float *), cudaMemcpyDeviceToHost));
-      CUDA_TRY(cudaMemcpy(
-        addr_best_route.data(), results_.best_route, sizeof(int *), cudaMemcpyDeviceToHost));
-      CHECK_CUDA(stream_);
-      cudaDeviceSynchronize();
+
+      raft::update_host(addr_best_x_pos.data(), results_.best_x_pos, 1, stream_);
+      raft::update_host(addr_best_y_pos.data(), results_.best_y_pos, 1, stream_);
+      raft::update_host(addr_best_route.data(), results_.best_route, 1, stream_);
+      CUDA_TRY(cudaStreamSynchronize(stream_));
 
       raft::copy(h_x_pos.data(), addr_best_x_pos[0], nodes_ + 1, stream_);
       raft::copy(h_y_pos.data(), addr_best_y_pos[0], nodes_ + 1, stream_);
