@@ -94,6 +94,10 @@ bool check_col_indices(raft::handle_t const& handle,
 
 }  // namespace
 
+// FIXME (per rlratzel request):
+// This test may be considered an e2e test
+// which could be moved to a different test suite:
+//
 struct RandomWalksPrimsTest : public ::testing::Test {
 };
 

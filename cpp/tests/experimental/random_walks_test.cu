@@ -85,7 +85,9 @@ class Tests_RandomWalks : public ::testing::TestWithParam<RandomWalks_Usecase> {
   {
     raft::handle_t handle{};
 
-    std::cout << "read graph file: " << configuration.graph_file_full_path << std::endl;
+    // debuf info:
+    //
+    // std::cout << "read graph file: " << configuration.graph_file_full_path << std::endl;
 
     cugraph::experimental::graph_t<vertex_t, edge_t, weight_t, false, false> graph(handle);
     std::tie(graph, std::ignore) =
