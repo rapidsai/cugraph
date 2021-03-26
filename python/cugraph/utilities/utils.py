@@ -210,13 +210,12 @@ def get_traversed_cost(df, source_col, dest_col, value_col):
     value_col : cudf.Series
         This cudf.Series wraps a gdf_column of size E (E: number of edges).
         The gdf column contains values associated with this edge.
-	Weight values must be of type float32 or float64.
+        Weight can be of any type
 
     Returns
     ---------
     df : cudf.DataFrame
-        DataFrame containing 'vertex' ids as given by the results of SSSP
-        and the sum of weights along the path.
+        DataFrame containing two columns 'vertex' and 'info'.
     """
 
     if 'vertex' not in df.columns:
@@ -239,20 +238,23 @@ def get_traversed_cost(df, source_col, dest_col, value_col):
     symmetrized_df['weights'] = val
 
     input_df = df.merge(symmetrized_df,
-            left_on=['vertex', 'predecessor'],
-            right_on=['source', 'destination'],
-            how="left"
-            )
+                        left_on=['vertex', 'predecessor'],
+                        right_on=['source', 'destination'],
+                        how="left"
+                        )
     input_df = input_df.fillna(0)
 
     numbering = NumberMap()
     numbering.from_series(df['vertex'])
-    renumbered_df = numbering.add_internal_vertex_id(input_df, "vertex_id", ["vertex"])
-    renumbered_df['predecessor_id'] = numbering.to_internal_vertex_id(renumbered_df['predecessor'])
-    renumbered_df['predecessor_id']  = renumbered_df['predecessor_id'].fillna(-1)
+    renumbered_df = numbering.add_internal_vertex_id(input_df,
+                                                     "vertex_id",
+                                                     ["vertex"])
+    renumbered_df['predecessor_id'] = numbering.to_internal_vertex_id(
+            renumbered_df['predecessor']).fillna(-1)
 
     out_df = path_retrieval_wrapper.get_traversed_cost(renumbered_df)
     return out_df
+
 
 def is_cuda_version_less_than(min_version=(10, 2)):
     """

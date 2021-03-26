@@ -77,15 +77,16 @@ def test_get_traversed_cost():
     cu_M = utils.read_csv_file(graph_file)
 
     noise = cudf.Series(np.random.randint(10, size=(cu_M.shape[0])))
-    cu_M['secondary'] = cu_M['2'] + noise
+    cu_M['info'] = cu_M['2'] + noise
 
     G = cugraph.Graph()
-    G.from_cudf_edgelist(cu_M, source='0', destination='1', edge_attr='secondary')
+    G.from_cudf_edgelist(cu_M, source='0', destination='1', edge_attr='info')
 
     # run SSSP starting at vertex 17
     df = cugraph.sssp(G,  16)
 
-    answer = cugraph.utils.get_traversed_cost(df, cu_M['0'], cu_M['1'], cu_M['secondary'])
+    answer = cugraph.utils.get_traversed_cost(df, cu_M['0'], cu_M['1'],
+                                              cu_M['info'])
 
     df = df.sort_values(by='vertex').reset_index()
     answer = answer.sort_values(by='vertex').reset_index()
