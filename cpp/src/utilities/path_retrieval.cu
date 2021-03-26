@@ -73,17 +73,8 @@ void get_traversed_cost_impl(raft::handle_t const &handle,
   thrust::stable_sort_by_key(
     rmm::exec_policy(stream)->on(stream), vtx_keys, vtx_keys + num_vertices, vtx_map);
 
-  /*
-  raft::print_device_vector("vertices: ", vertices, num_vertices, std::cout);
-  raft::print_device_vector("vtx_keys: ", vtx_keys, num_vertices, std::cout);
-  raft::print_device_vector("preds: ", preds, num_vertices, std::cout);
-  raft::print_device_vector("info_weights: ", info_weights, num_vertices, std::cout);
-  raft::print_device_vector("vtx_map: ", vtx_map, num_vertices, std::cout);
-  */
-
   get_traversed_cost_kernel<<<nblocks, nthreads>>>(
     vertices, preds, vtx_map, info_weights, out, num_vertices);
-  // raft::print_device_vector("out: ", out, num_vertices, std::cout);
 }
 }  // namespace detail
 
