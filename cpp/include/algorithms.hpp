@@ -616,7 +616,7 @@ weight_t hungarian(raft::handle_t const &handle,
  *
  * @throws     cugraph::logic_error when an error occurs.
  *
- * @tparam     graph_t               Type of graph
+ * @tparam     graph_view_t          Type of graph
  *
  * @param[in]  handle                Library handle (RAFT). If a communicator is set in the handle,
  * @param[in]  graph                 input graph object (CSR)
@@ -633,13 +633,13 @@ weight_t hungarian(raft::handle_t const &handle,
  *                                     2) modularity of the returned clustering
  *
  */
-template <typename graph_t>
-std::pair<size_t, typename graph_t::weight_type> louvain(
+template <typename graph_view_t>
+std::pair<size_t, typename graph_view_t::weight_type> louvain(
   raft::handle_t const &handle,
-  graph_t const &graph,
-  typename graph_t::vertex_type *clustering,
-  size_t max_level                         = 100,
-  typename graph_t::weight_type resolution = typename graph_t::weight_type{1});
+  graph_view_t const &graph_view,
+  typename graph_view_t::vertex_type *clustering,
+  size_t max_level                              = 100,
+  typename graph_view_t::weight_type resolution = typename graph_view_t::weight_type{1});
 
 /**
  * @brief      Louvain implementation, returning dendrogram
@@ -654,10 +654,10 @@ std::pair<size_t, typename graph_t::weight_type> louvain(
  *
  * @throws     cugraph::logic_error when an error occurs.
  *
- * @tparam     graph_t               Type of graph
+ * @tparam     graph_view_t          Type of graph
  *
  * @param[in]  handle                Library handle (RAFT)
- * @param[in]  graph                 Input graph object (CSR)
+ * @param[in]  graph_view            Input graph view object (CSR)
  * @param[in]  max_level             (optional) maximum number of levels to run (default 100)
  * @param[in]  resolution            (optional) The value of the resolution parameter to use.
  *                                   Called gamma in the modularity formula, this changes the size
@@ -670,12 +670,13 @@ std::pair<size_t, typename graph_t::weight_type> louvain(
  *                                     2) modularity of the returned clustering
  *
  */
-template <typename graph_t>
-std::pair<std::unique_ptr<Dendrogram<typename graph_t::vertex_type>>, typename graph_t::weight_type>
+template <typename graph_view_t>
+std::pair<std::unique_ptr<Dendrogram<typename graph_view_t::vertex_type>>,
+          typename graph_view_t::weight_type>
 louvain(raft::handle_t const &handle,
-        graph_t const &graph,
-        size_t max_level                         = 100,
-        typename graph_t::weight_type resolution = typename graph_t::weight_type{1});
+        graph_view_t const &graph_view,
+        size_t max_level                              = 100,
+        typename graph_view_t::weight_type resolution = typename graph_view_t::weight_type{1});
 
 /**
  * @brief      Flatten a Dendrogram at a particular level
@@ -687,7 +688,7 @@ louvain(raft::handle_t const &handle,
  *
  * @throws     cugraph::logic_error when an error occurs.
  *
- * @tparam     graph_t               Type of graph
+ * @tparam     graph_view_t          Type of graph
  *
  * @param[in]  handle                Library handle (RAFT). If a communicator is set in the handle,
  * @param[in]  graph                 input graph object
@@ -695,11 +696,11 @@ louvain(raft::handle_t const &handle,
  * @param[out] clustering            Pointer to device array where the clustering should be stored
  *
  */
-template <typename graph_t>
+template <typename graph_view_t>
 void flatten_dendrogram(raft::handle_t const &handle,
-                        graph_t const &graph_view,
-                        Dendrogram<typename graph_t::vertex_type> const &dendrogram,
-                        typename graph_t::vertex_type *clustering);
+                        graph_view_t const &graph_view,
+                        Dendrogram<typename graph_view_t::vertex_type> const &dendrogram,
+                        typename graph_view_t::vertex_type *clustering);
 
 /**
  * @brief      Leiden implementation

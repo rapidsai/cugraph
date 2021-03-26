@@ -107,43 +107,43 @@ void flatten_dendrogram(
 
 }  // namespace detail
 
-template <typename graph_t>
-std::pair<std::unique_ptr<Dendrogram<typename graph_t::vertex_type>>, typename graph_t::weight_type>
+template <typename graph_view_t>
+std::pair<std::unique_ptr<Dendrogram<typename graph_view_t::vertex_type>>, typename graph_view_t::weight_type>
 louvain(raft::handle_t const &handle,
-        graph_t const &graph,
+        graph_view_t const &graph_view,
         size_t max_level,
-        typename graph_t::weight_type resolution)
+        typename graph_view_t::weight_type resolution)
 {
-  return detail::louvain(handle, graph, max_level, resolution);
+  return detail::louvain(handle, graph_view, max_level, resolution);
 }
 
-template <typename graph_t>
+template <typename graph_view_t>
 void flatten_dendrogram(raft::handle_t const &handle,
-                        graph_t const &graph_view,
-                        Dendrogram<typename graph_t::vertex_type> const &dendrogram,
-                        typename graph_t::vertex_type *clustering)
+                        graph_view_t const &graph_view,
+                        Dendrogram<typename graph_view_t::vertex_type> const &dendrogram,
+                        typename graph_view_t::vertex_type *clustering)
 {
   detail::flatten_dendrogram(handle, graph_view, dendrogram, clustering);
 }
 
-template <typename graph_t>
-std::pair<size_t, typename graph_t::weight_type> louvain(raft::handle_t const &handle,
-                                                         graph_t const &graph,
-                                                         typename graph_t::vertex_type *clustering,
+template <typename graph_view_t>
+std::pair<size_t, typename graph_view_t::weight_type> louvain(raft::handle_t const &handle,
+                                                         graph_view_t const &graph_view,
+                                                         typename graph_view_t::vertex_type *clustering,
                                                          size_t max_level,
-                                                         typename graph_t::weight_type resolution)
+                                                         typename graph_view_t::weight_type resolution)
 {
-  using vertex_t = typename graph_t::vertex_type;
-  using weight_t = typename graph_t::weight_type;
+  using vertex_t = typename graph_view_t::vertex_type;
+  using weight_t = typename graph_view_t::weight_type;
 
   CUGRAPH_EXPECTS(clustering != nullptr, "Invalid input argument: clustering is null");
 
   std::unique_ptr<Dendrogram<vertex_t>> dendrogram;
   weight_t modularity;
 
-  std::tie(dendrogram, modularity) = louvain(handle, graph, max_level, resolution);
+  std::tie(dendrogram, modularity) = louvain(handle, graph_view, max_level, resolution);
 
-  flatten_dendrogram(handle, graph, *dendrogram, clustering);
+  flatten_dendrogram(handle, graph_view, *dendrogram, clustering);
 
   return std::make_pair(dendrogram->num_levels(), modularity);
 }
