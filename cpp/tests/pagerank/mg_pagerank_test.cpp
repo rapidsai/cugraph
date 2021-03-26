@@ -15,10 +15,13 @@
  */
 
 #include <utilities/base_fixture.hpp>
-#include <utilities/renumber_utilities.hpp>
 #include <utilities/test_utilities.hpp>
+#include <utilities/thrust_wrapper.hpp>
 
 #include <algorithms.hpp>
+#include <experimental/graph.hpp>
+#include <experimental/graph_functions.hpp>
+#include <experimental/graph_view.hpp>
 #include <partition_manager.hpp>
 
 #include <raft/comms/comms.hpp>
@@ -74,6 +77,15 @@ std::tuple<cugraph::experimental::graph_t<vertex_t, edge_t, weight_t, true, mult
            rmm::device_uvector<vertex_t>>
 read_graph(raft::handle_t const& handle, PageRank_Usecase const& configuration, bool renumber)
 {
+  auto& comm           = handle.get_comms();
+  auto const comm_size = comm.get_size();
+  auto const comm_rank = comm.get_rank();
+
+  std::vector<size_t> partition_ids(multi_gpu ? size_t{1} : static_cast<size_t>(comm_size));
+  std::iota(partition_ids.begin(),
+            partition_ids.end(),
+            multi_gpu ? static_cast<size_t>(comm_rank) : size_t{0});
+
   return configuration.input_graph_specifier.tag ==
              cugraph::test::input_graph_specifier_t::MATRIX_MARKET_FILE_PATH
            ? cugraph::test::
@@ -94,7 +106,9 @@ read_graph(raft::handle_t const& handle, PageRank_Usecase const& configuration, 
                  configuration.input_graph_specifier.rmat_params.undirected,
                  configuration.input_graph_specifier.rmat_params.scramble_vertex_ids,
                  configuration.test_weighted,
-                 renumber);
+                 renumber,
+                 partition_ids,
+                 static_cast<size_t>(comm_size));
 }
 
 class Tests_MGPageRank : public ::testing::TestWithParam<PageRank_Usecase> {
@@ -106,7 +120,7 @@ class Tests_MGPageRank : public ::testing::TestWithParam<PageRank_Usecase> {
   virtual void SetUp() {}
   virtual void TearDown() {}
 
-  // Compare the results of running pagerank on multiple GPUs to that of a single-GPU run
+  // Compare the results of running PageRank on multiple GPUs to that of a single-GPU run
   template <typename vertex_t, typename edge_t, typename weight_t, typename result_t>
   void run_current_test(PageRank_Usecase const& configuration)
   {
@@ -173,7 +187,7 @@ class Tests_MGPageRank : public ::testing::TestWithParam<PageRank_Usecase> {
                           handle.get_stream());
     }
 
-    // 4. run MG pagerank
+    // 4. run MG PageRank
 
     result_t constexpr alpha{0.85};
     result_t constexpr epsilon{1e-6};
@@ -189,7 +203,7 @@ class Tests_MGPageRank : public ::testing::TestWithParam<PageRank_Usecase> {
                                     d_mg_personalization_vertices.data(),
                                     d_mg_personalization_values.data(),
                                     static_cast<vertex_t>(d_mg_personalization_vertices.size()),
-                                    d_mg_pageranks.begin(),
+                                    d_mg_pageranks.data(),
                                     alpha,
                                     epsilon,
                                     std::numeric_limits<size_t>::max(),
@@ -213,17 +227,32 @@ class Tests_MGPageRank : public ::testing::TestWithParam<PageRank_Usecase> {
       rmm::device_uvector<vertex_t> d_sg_personalization_vertices(0, handle.get_stream());
       rmm::device_uvector<result_t> d_sg_personalization_values(0, handle.get_stream());
       if (configuration.personalization_ratio > 0.0) {
-        rmm::device_uvector<vertex_t> d_unrenumbered_personalization_vertices(0,
-                                                                              handle.get_stream());
-        rmm::device_uvector<result_t> d_unrenumbered_personalization_values(0, handle.get_stream());
-        std::tie(d_unrenumbered_personalization_vertices, d_unrenumbered_personalization_values) =
-          cugraph::test::unrenumber_kv_pairs(handle,
-                                             d_mg_personalization_vertices.data(),
-                                             d_mg_personalization_values.data(),
-                                             d_mg_personalization_vertices.size(),
-                                             d_mg_renumber_map_labels.data(),
-                                             mg_graph_view.get_local_vertex_first(),
-                                             mg_graph_view.get_local_vertex_last());
+        rmm::device_uvector<vertex_t> d_unrenumbered_personalization_vertices(
+          d_mg_personalization_vertices.size(), handle.get_stream());
+        rmm::device_uvector<result_t> d_unrenumbered_personalization_values(
+          d_unrenumbered_personalization_vertices.size(), handle.get_stream());
+        raft::copy_async(d_unrenumbered_personalization_vertices.data(),
+                         d_mg_personalization_vertices.data(),
+                         d_mg_personalization_vertices.size(),
+                         handle.get_stream());
+        raft::copy_async(d_unrenumbered_personalization_values.data(),
+                         d_mg_personalization_values.data(),
+                         d_mg_personalization_values.size(),
+                         handle.get_stream());
+
+        std::vector<vertex_t> vertex_partition_lasts(comm_size);
+        for (size_t i = 0; i < vertex_partition_lasts.size(); ++i) {
+          vertex_partition_lasts[i] = mg_graph_view.get_vertex_partition_last(i);
+        }
+        cugraph::experimental::unrenumber_int_vertices<vertex_t, true>(
+          handle,
+          d_unrenumbered_personalization_vertices.data(),
+          d_unrenumbered_personalization_vertices.size(),
+          d_mg_renumber_map_labels.data(),
+          mg_graph_view.get_local_vertex_first(),
+          mg_graph_view.get_local_vertex_last(),
+          vertex_partition_lasts,
+          handle.get_stream());
 
         rmm::device_scalar<size_t> d_local_personalization_vector_size(
           d_unrenumbered_personalization_vertices.size(), handle.get_stream());
@@ -254,9 +283,14 @@ class Tests_MGPageRank : public ::testing::TestWithParam<PageRank_Usecase> {
                         recvcounts.data(),
                         displacements.data(),
                         handle.get_stream());
+
+        cugraph::test::sort_by_key(handle,
+                                   d_unrenumbered_personalization_vertices.data(),
+                                   d_unrenumbered_personalization_values.data(),
+                                   d_unrenumbered_personalization_vertices.size());
       }
 
-      // 5-3. run SG pagerank
+      // 5-3. run SG PageRank
 
       rmm::device_uvector<result_t> d_sg_pageranks(sg_graph_view.get_number_of_vertices(),
                                                    handle.get_stream());
@@ -267,7 +301,7 @@ class Tests_MGPageRank : public ::testing::TestWithParam<PageRank_Usecase> {
                                       d_sg_personalization_vertices.data(),
                                       d_sg_personalization_values.data(),
                                       static_cast<vertex_t>(d_sg_personalization_vertices.size()),
-                                      d_sg_pageranks.begin(),
+                                      d_sg_pageranks.data(),
                                       alpha,
                                       epsilon,
                                       std::numeric_limits<size_t>::max(),  // max_iterations
@@ -352,12 +386,12 @@ INSTANTIATE_TEST_CASE_P(
                      true),
     // disable correctness checks for large graphs
     PageRank_Usecase(
-      cugraph::test::rmat_params_t{25, 32, 0.57, 0.19, 0.19, 0, false, false}, 0.0, false, false),
+      cugraph::test::rmat_params_t{20, 32, 0.57, 0.19, 0.19, 0, false, false}, 0.0, false, false),
     PageRank_Usecase(
-      cugraph::test::rmat_params_t{25, 32, 0.57, 0.19, 0.19, 0, false, false}, 0.5, false, false),
+      cugraph::test::rmat_params_t{20, 32, 0.57, 0.19, 0.19, 0, false, false}, 0.5, false, false),
     PageRank_Usecase(
-      cugraph::test::rmat_params_t{25, 32, 0.57, 0.19, 0.19, 0, false, false}, 0.0, true, false),
+      cugraph::test::rmat_params_t{20, 32, 0.57, 0.19, 0.19, 0, false, false}, 0.0, true, false),
     PageRank_Usecase(
-      cugraph::test::rmat_params_t{25, 32, 0.57, 0.19, 0.19, 0, false, false}, 0.5, true, false)));
+      cugraph::test::rmat_params_t{20, 32, 0.57, 0.19, 0.19, 0, false, false}, 0.5, true, false)));
 
 CUGRAPH_MG_TEST_PROGRAM_MAIN()

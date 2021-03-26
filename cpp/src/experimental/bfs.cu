@@ -93,8 +93,7 @@ void bfs(raft::handle_t const &handle,
   enum class Bucket { cur, num_buckets };
   std::vector<size_t> bucket_sizes(static_cast<size_t>(Bucket::num_buckets),
                                    push_graph_view.get_number_of_local_vertices());
-  VertexFrontier<thrust::tuple<vertex_t>,
-                 vertex_t,
+  VertexFrontier<vertex_t,
                  GraphViewType::is_multi_gpu,
                  static_cast<size_t>(Bucket::num_buckets)>
     vertex_frontier(handle, bucket_sizes);
@@ -133,19 +132,17 @@ void bfs(raft::handle_t const &handle,
               *(distances + vertex_partition.get_local_vertex_offset_from_vertex_nocheck(dst));
             if (distance != invalid_distance) { push = false; }
           }
-          // FIXME: need to test this works properly if payload size is 0 (returns a tuple of size
-          // 1)
           return thrust::make_tuple(push, src);
         },
-        reduce_op::any<thrust::tuple<vertex_t>>(),
+        reduce_op::any<vertex_t>(),
         distances,
         thrust::make_zip_iterator(thrust::make_tuple(distances, predecessor_first)),
         vertex_frontier,
         [depth] __device__(auto v_val, auto pushed_val) {
           auto idx = (v_val == invalid_distance)
                        ? static_cast<size_t>(Bucket::cur)
-                       : VertexFrontier<thrust::tuple<vertex_t>, vertex_t>::kInvalidBucketIdx;
-          return thrust::make_tuple(idx, depth + 1, thrust::get<0>(pushed_val));
+                       : VertexFrontier<vertex_t>::kInvalidBucketIdx;
+          return thrust::make_tuple(idx, thrust::make_tuple(depth + 1, pushed_val));
         });
 
       auto new_vertex_frontier_aggregate_size =

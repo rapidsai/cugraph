@@ -15,11 +15,12 @@
  */
 
 #include <utilities/base_fixture.hpp>
-#include <utilities/renumber_utilities.hpp>
 #include <utilities/test_utilities.hpp>
+#include <utilities/thrust_wrapper.hpp>
 
 #include <algorithms.hpp>
 #include <experimental/graph.hpp>
+#include <experimental/graph_functions.hpp>
 #include <experimental/graph_view.hpp>
 
 #include <raft/cudart_utils.h>
@@ -150,7 +151,9 @@ read_graph(raft::handle_t const& handle, KatzCentrality_Usecase const& configura
                  configuration.input_graph_specifier.rmat_params.undirected,
                  configuration.input_graph_specifier.rmat_params.scramble_vertex_ids,
                  configuration.test_weighted,
-                 renumber);
+                 renumber,
+                 std::vector<size_t>{0},
+                 size_t{1});
 }
 
 class Tests_KatzCentrality : public ::testing::TestWithParam<KatzCentrality_Usecase> {
@@ -193,14 +196,13 @@ class Tests_KatzCentrality : public ::testing::TestWithParam<KatzCentrality_Usec
     cugraph::experimental::katz_centrality(handle,
                                            graph_view,
                                            static_cast<result_t*>(nullptr),
-                                           d_katz_centralities.begin(),
+                                           d_katz_centralities.data(),
                                            alpha,
                                            beta,
                                            epsilon,
                                            std::numeric_limits<size_t>::max(),
                                            false,
-                                           true,
-                                           false);
+                                           true);
 
     CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
 
@@ -254,10 +256,10 @@ class Tests_KatzCentrality : public ::testing::TestWithParam<KatzCentrality_Usec
       std::vector<result_t> h_cugraph_katz_centralities(graph_view.get_number_of_vertices());
       if (renumber) {
         auto d_unrenumbered_katz_centralities =
-          cugraph::test::sort_values_by_key(handle,
-                                            d_renumber_map_labels.data(),
-                                            d_katz_centralities.data(),
-                                            d_renumber_map_labels.size());
+          cugraph::test::sort_by_key(handle,
+                                     d_renumber_map_labels.data(),
+                                     d_katz_centralities.data(),
+                                     d_renumber_map_labels.size());
         raft::update_host(h_cugraph_katz_centralities.data(),
                           d_unrenumbered_katz_centralities.data(),
                           d_unrenumbered_katz_centralities.size(),
@@ -313,10 +315,10 @@ INSTANTIATE_TEST_CASE_P(
     KatzCentrality_Usecase(cugraph::test::rmat_params_t{10, 16, 0.57, 0.19, 0.19, 0, false, false},
                            true),
     // disable correctness checks for large graphs
-    KatzCentrality_Usecase(cugraph::test::rmat_params_t{25, 32, 0.57, 0.19, 0.19, 0, false, false},
+    KatzCentrality_Usecase(cugraph::test::rmat_params_t{20, 32, 0.57, 0.19, 0.19, 0, false, false},
                            false,
                            false),
-    KatzCentrality_Usecase(cugraph::test::rmat_params_t{25, 32, 0.57, 0.19, 0.19, 0, false, false},
+    KatzCentrality_Usecase(cugraph::test::rmat_params_t{20, 32, 0.57, 0.19, 0.19, 0, false, false},
                            true,
                            false)));
 

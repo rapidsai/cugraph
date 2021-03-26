@@ -498,6 +498,12 @@ class graph_view_t<vertex_t,
   rmm::device_uvector<weight_t> compute_in_weight_sums(raft::handle_t const& handle) const;
   rmm::device_uvector<weight_t> compute_out_weight_sums(raft::handle_t const& handle) const;
 
+  edge_t compute_max_in_degree(raft::handle_t const& handle) const;
+  edge_t compute_max_out_degree(raft::handle_t const& handle) const;
+
+  weight_t compute_max_in_weight_sum(raft::handle_t const& handle) const;
+  weight_t compute_max_out_weight_sum(raft::handle_t const& handle) const;
+
  private:
   std::vector<edge_t const*> adj_matrix_partition_offsets_{};
   std::vector<vertex_t const*> adj_matrix_partition_indices_{};
@@ -653,6 +659,12 @@ class graph_view_t<vertex_t,
 
   rmm::device_uvector<weight_t> compute_in_weight_sums(raft::handle_t const& handle) const;
   rmm::device_uvector<weight_t> compute_out_weight_sums(raft::handle_t const& handle) const;
+
+  edge_t compute_max_in_degree(raft::handle_t const& handle) const;
+  edge_t compute_max_out_degree(raft::handle_t const& handle) const;
+
+  weight_t compute_max_in_weight_sum(raft::handle_t const& handle) const;
+  weight_t compute_max_out_weight_sum(raft::handle_t const& handle) const;
 
  private:
   edge_t const* offsets_{nullptr};

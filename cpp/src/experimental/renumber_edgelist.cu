@@ -544,7 +544,8 @@ renumber_edgelist(raft::handle_t const& handle,
 
   for (size_t i = 0; i < edgelist_major_vertices.size(); ++i) {
     rmm::device_uvector<vertex_t> renumber_map_major_labels(
-      col_comm_rank == i ? vertex_t{0} : partition.get_matrix_partition_major_size(i),
+      col_comm_rank == static_cast<int>(i) ? vertex_t{0}
+                                           : partition.get_matrix_partition_major_size(i),
       handle.get_stream());
     device_bcast(col_comm,
                  renumber_map_labels.data(),
@@ -557,13 +558,18 @@ renumber_edgelist(raft::handle_t const& handle,
       handle.get_stream()));  // cuco::static_map currently does not take stream
 
     cuco::static_map<vertex_t, vertex_t> renumber_map{
-      static_cast<size_t>(static_cast<double>(partition.get_matrix_partition_major_size(i)) /
-                          load_factor),
+      // FIXME: std::max(..., ...) as a temporary workaround for
+      // https://github.com/NVIDIA/cuCollections/issues/72 and
+      // https://github.com/NVIDIA/cuCollections/issues/73
+      std::max(static_cast<size_t>(
+                 static_cast<double>(partition.get_matrix_partition_major_size(i)) / load_factor),
+               static_cast<size_t>(partition.get_matrix_partition_major_size(i)) + 1),
       invalid_vertex_id<vertex_t>::value,
       invalid_vertex_id<vertex_t>::value};
     auto pair_first = thrust::make_transform_iterator(
       thrust::make_zip_iterator(thrust::make_tuple(
-        col_comm_rank == i ? renumber_map_labels.begin() : renumber_map_major_labels.begin(),
+        col_comm_rank == static_cast<int>(i) ? renumber_map_labels.begin()
+                                             : renumber_map_major_labels.begin(),
         thrust::make_counting_iterator(partition.get_matrix_partition_major_first(i)))),
       [] __device__(auto val) {
         return thrust::make_pair(thrust::get<0>(val), thrust::get<1>(val));
@@ -594,7 +600,12 @@ renumber_edgelist(raft::handle_t const& handle,
       handle.get_stream()));  // cuco::static_map currently does not take stream
 
     cuco::static_map<vertex_t, vertex_t> renumber_map{
-      static_cast<size_t>(static_cast<double>(renumber_map_minor_labels.size()) / load_factor),
+      // FIXME: std::max(..., ...) as a temporary workaround for
+      // https://github.com/NVIDIA/cuCollections/issues/72 and
+      // https://github.com/NVIDIA/cuCollections/issues/73
+      std::max(
+        static_cast<size_t>(static_cast<double>(renumber_map_minor_labels.size()) / load_factor),
+        renumber_map_minor_labels.size() + 1),
       invalid_vertex_id<vertex_t>::value,
       invalid_vertex_id<vertex_t>::value};
     auto pair_first = thrust::make_transform_iterator(
@@ -662,7 +673,11 @@ std::enable_if_t<!multi_gpu, rmm::device_uvector<vertex_t>> renumber_edgelist(
   // footprint and execution time
 
   cuco::static_map<vertex_t, vertex_t> renumber_map{
-    static_cast<size_t>(static_cast<double>(renumber_map_labels.size()) / load_factor),
+    // FIXME: std::max(..., ...) as a temporary workaround for
+    // https://github.com/NVIDIA/cuCollections/issues/72 and
+    // https://github.com/NVIDIA/cuCollections/issues/73
+    std::max(static_cast<size_t>(static_cast<double>(renumber_map_labels.size()) / load_factor),
+             renumber_map_labels.size() + 1),
     invalid_vertex_id<vertex_t>::value,
     invalid_vertex_id<vertex_t>::value};
   auto pair_first = thrust::make_transform_iterator(

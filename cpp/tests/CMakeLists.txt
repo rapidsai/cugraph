@@ -20,11 +20,11 @@
 # - common test utils -----------------------------------------------------------------------------
 
 add_library(cugraphtestutil STATIC
-            "${CMAKE_CURRENT_SOURCE_DIR}/utilities/generate_graph_from_edgelist.cu"
             "${CMAKE_CURRENT_SOURCE_DIR}/utilities/matrix_market_file_utilities.cu"
             "${CMAKE_CURRENT_SOURCE_DIR}/utilities/rmat_utilities.cu"
-            "${CMAKE_CURRENT_SOURCE_DIR}/utilities/renumber_utilities.cu"
+            "${CMAKE_CURRENT_SOURCE_DIR}/utilities/thrust_wrapper.cu"
             "${CMAKE_CURRENT_SOURCE_DIR}/utilities/misc_utilities.cpp"
+            "${CMAKE_CURRENT_SOURCE_DIR}/utilities/detail/generate_graph_from_edgelist.cu"
             "${CMAKE_CURRENT_SOURCE_DIR}/../../thirdparty/mmio/mmio.c")
 
 set_property(TARGET cugraphtestutil PROPERTY POSITION_INDEPENDENT_CODE ON)
@@ -438,6 +438,33 @@ if(BUILD_CUGRAPH_MG_TESTS)
 
         ConfigureTest(MG_PAGERANK_TEST "${MG_PAGERANK_TEST_SRCS}")
         target_link_libraries(MG_PAGERANK_TEST PRIVATE MPI::MPI_C MPI::MPI_CXX)
+
+        ###########################################################################################
+        # - MG KATZ CENTRALITY tests --------------------------------------------------------------
+
+        set(MG_KATZ_CENTRALITY_TEST_SRCS
+            "${CMAKE_CURRENT_SOURCE_DIR}/experimental/mg_katz_centrality_test.cpp")
+
+        ConfigureTest(MG_KATZ_CENTRALITY_TEST "${MG_KATZ_CENTRALITY_TEST_SRCS}")
+        target_link_libraries(MG_KATZ_CENTRALITY_TEST PRIVATE MPI::MPI_C MPI::MPI_CXX)
+
+        ###########################################################################################
+        # - MG BFS tests --------------------------------------------------------------------------
+
+        set(MG_BFS_TEST_SRCS
+            "${CMAKE_CURRENT_SOURCE_DIR}/experimental/mg_bfs_test.cpp")
+
+        ConfigureTest(MG_BFS_TEST "${MG_BFS_TEST_SRCS}")
+        target_link_libraries(MG_BFS_TEST PRIVATE MPI::MPI_C MPI::MPI_CXX)
+
+        ###########################################################################################
+        # - MG SSSP tests -------------------------------------------------------------------------
+
+        set(MG_SSSP_TEST_SRCS
+            "${CMAKE_CURRENT_SOURCE_DIR}/experimental/mg_sssp_test.cpp")
+
+        ConfigureTest(MG_SSSP_TEST "${MG_SSSP_TEST_SRCS}")
+        target_link_libraries(MG_SSSP_TEST PRIVATE MPI::MPI_C MPI::MPI_CXX)
 
     else(MPI_CXX_FOUND)
        message(FATAL_ERROR "OpenMPI NOT found, cannot build MG tests.")

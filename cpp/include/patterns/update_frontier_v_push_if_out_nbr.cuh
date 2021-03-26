@@ -25,12 +25,14 @@
 #include <utilities/device_comm.cuh>
 #include <utilities/error.hpp>
 #include <utilities/host_scalar_comm.cuh>
+#include <utilities/shuffle_comm.cuh>
 #include <utilities/thrust_tuple_utils.cuh>
 #include <vertex_partition_device.cuh>
 
 #include <raft/cudart_utils.h>
 #include <rmm/thrust_rmm_allocator.h>
 #include <raft/handle.hpp>
+#include <rmm/device_scalar.hpp>
 
 #include <thrust/binary_search.h>
 #include <thrust/distance.h>
@@ -114,12 +116,10 @@ __global__ void for_all_frontier_row_for_all_nbr_low_degree(
         static_assert(sizeof(unsigned long long int) == sizeof(size_t));
         auto buffer_idx = atomicAdd(reinterpret_cast<unsigned long long int*>(buffer_idx_ptr),
                                     static_cast<unsigned long long int>(1));
-        *(buffer_key_output_first + buffer_idx) = col;
-        *(buffer_payload_output_first + buffer_idx) =
-          remove_first_thrust_tuple_element<decltype(e_op_result)>()(e_op_result);
+        *(buffer_key_output_first + buffer_idx)     = col;
+        *(buffer_payload_output_first + buffer_idx) = thrust::get<1>(e_op_result);
       }
     }
-
     idx += gridDim.x * blockDim.x;
   }
 }
@@ -289,8 +289,8 @@ size_t reduce_buffer_elements(raft::handle_t const& handle,
     // temporary buffer size exceeds the maximum buffer size (may be definied as percentage of the
     // system HBM size or a function of the maximum number of threads in the system))
     // FIXME: actually, we can find how many unique keys are here by now.
-    // FIXME: if GraphViewType::is_multi_gpu is true, this should be executed on the GPU holding the
-    // vertex unless reduce_op is a pure function.
+    // FIXME: if GraphViewType::is_multi_gpu is true, this should be executed on the GPU holding
+    // the vertex unless reduce_op is a pure function.
     rmm::device_uvector<key_t> keys(num_buffer_elements, handle.get_stream());
     auto value_buffer =
       allocate_dataframe_buffer<payload_t>(num_buffer_elements, handle.get_stream());
@@ -368,8 +368,7 @@ __global__ void update_frontier_and_vertex_output_values(
       auto v_op_result    = v_op(v_val, payload);
       selected_bucket_idx = thrust::get<0>(v_op_result);
       if (selected_bucket_idx != invalid_bucket_idx) {
-        *(vertex_value_output_first + key_offset) =
-          remove_first_thrust_tuple_element<decltype(v_op_result)>()(v_op_result);
+        *(vertex_value_output_first + key_offset)       = thrust::get<1>(v_op_result);
         bucket_block_local_offsets[selected_bucket_idx] = 1;
       }
     }
@@ -483,13 +482,16 @@ void update_frontier_v_push_if_out_nbr(
   static_assert(!GraphViewType::is_adj_matrix_transposed,
                 "GraphViewType should support the push model.");
 
-  using vertex_t = typename GraphViewType::vertex_type;
-  using edge_t   = typename GraphViewType::edge_type;
+  using vertex_t  = typename GraphViewType::vertex_type;
+  using edge_t    = typename GraphViewType::edge_type;
+  using weight_t  = typename GraphViewType::weight_type;
+  using payload_t = typename ReduceOp::type;
 
   // 1. fill the buffer
 
-  vertex_frontier.set_buffer_idx_value(0);
-
+  rmm::device_uvector<vertex_t> keys(size_t{0}, handle.get_stream());
+  auto payload_buffer = allocate_dataframe_buffer<payload_t>(size_t{0}, handle.get_stream());
+  rmm::device_scalar<size_t> buffer_idx(size_t{0}, handle.get_stream());
   for (size_t i = 0; i < graph_view.get_number_of_local_adj_matrix_partitions(); ++i) {
     matrix_partition_device_t<GraphViewType> matrix_partition(graph_view, i);
 
@@ -557,10 +559,8 @@ void update_frontier_v_push_if_out_nbr(
     // locking.
     // FIXME: if i != 0, this will require costly reallocation if we don't use the new CUDA feature
     // to reserve address space.
-    vertex_frontier.resize_buffer(vertex_frontier.get_buffer_idx_value() + max_pushes);
-    auto buffer_first         = vertex_frontier.buffer_begin();
-    auto buffer_key_first     = std::get<0>(buffer_first);
-    auto buffer_payload_first = std::get<1>(buffer_first);
+    keys.resize(buffer_idx.value(handle.get_stream()) + max_pushes, handle.get_stream());
+    resize_dataframe_buffer<payload_t>(payload_buffer, keys.size(), handle.get_stream());
 
     auto row_value_input_offset = GraphViewType::is_adj_matrix_transposed
                                     ? vertex_t{0}
@@ -642,9 +642,9 @@ void update_frontier_v_push_if_out_nbr(
           frontier_rows.end(),
           adj_matrix_row_value_input_first + row_value_input_offset,
           adj_matrix_col_value_input_first,
-          buffer_key_first,
-          buffer_payload_first,
-          vertex_frontier.get_buffer_idx_ptr(),
+          keys.begin(),
+          get_dataframe_buffer_begin<payload_t>(payload_buffer),
+          buffer_idx.data(),
           e_op);
       }
     } else {
@@ -663,9 +663,9 @@ void update_frontier_v_push_if_out_nbr(
           frontier_rows.end(),
           adj_matrix_row_value_input_first + row_value_input_offset,
           adj_matrix_col_value_input_first,
-          buffer_key_first,
-          buffer_payload_first,
-          vertex_frontier.get_buffer_idx_ptr(),
+          keys.begin(),
+          get_dataframe_buffer_begin<payload_t>(payload_buffer),
+          buffer_idx.data(),
           e_op);
       }
     }
@@ -673,18 +673,12 @@ void update_frontier_v_push_if_out_nbr(
 
   // 2. reduce the buffer
 
-  auto num_buffer_offset = edge_t{0};
-
-  auto buffer_first         = vertex_frontier.buffer_begin();
-  auto buffer_key_first     = std::get<0>(buffer_first) + num_buffer_offset;
-  auto buffer_payload_first = std::get<1>(buffer_first) + num_buffer_offset;
-
-  auto num_buffer_elements = detail::reduce_buffer_elements(handle,
-                                                            buffer_key_first,
-                                                            buffer_payload_first,
-                                                            vertex_frontier.get_buffer_idx_value(),
-                                                            reduce_op);
-
+  auto num_buffer_elements =
+    detail::reduce_buffer_elements(handle,
+                                   keys.begin(),
+                                   get_dataframe_buffer_begin<payload_t>(payload_buffer),
+                                   buffer_idx.value(handle.get_stream()),
+                                   reduce_op);
   if (GraphViewType::is_multi_gpu) {
     auto& comm               = handle.get_comms();
     auto const comm_rank     = comm.get_rank();
@@ -706,8 +700,8 @@ void update_frontier_v_push_if_out_nbr(
     rmm::device_uvector<edge_t> d_tx_buffer_last_boundaries(d_vertex_lasts.size(),
                                                             handle.get_stream());
     thrust::lower_bound(rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
-                        buffer_key_first,
-                        buffer_key_first + num_buffer_elements,
+                        keys.begin(),
+                        keys.begin() + num_buffer_elements,
                         d_vertex_lasts.begin(),
                         d_vertex_lasts.end(),
                         d_tx_buffer_last_boundaries.begin());
@@ -716,113 +710,35 @@ void update_frontier_v_push_if_out_nbr(
                       d_tx_buffer_last_boundaries.data(),
                       d_tx_buffer_last_boundaries.size(),
                       handle.get_stream());
-    CUDA_TRY(cudaStreamSynchronize(handle.get_stream()));
+    handle.get_stream_view().synchronize();
     std::vector<size_t> tx_counts(h_tx_buffer_last_boundaries.size());
     std::adjacent_difference(
       h_tx_buffer_last_boundaries.begin(), h_tx_buffer_last_boundaries.end(), tx_counts.begin());
 
-    std::vector<size_t> rx_counts(row_comm_size);
-    std::vector<raft::comms::request_t> count_requests(tx_counts.size() + rx_counts.size());
-    size_t tx_self_i = std::numeric_limits<size_t>::max();
-    for (size_t i = 0; i < tx_counts.size(); ++i) {
-      auto comm_dst_rank = col_comm_rank * row_comm_size + static_cast<int>(i);
-      if (comm_dst_rank == comm_rank) {
-        tx_self_i = i;
-        // FIXME: better define request_null (similar to MPI_REQUEST_NULL) under raft::comms
-        count_requests[i] = std::numeric_limits<raft::comms::request_t>::max();
-      } else {
-        comm.isend(&tx_counts[i], 1, comm_dst_rank, 0 /* tag */, count_requests.data() + i);
-      }
-    }
-    for (size_t i = 0; i < rx_counts.size(); ++i) {
-      auto comm_src_rank = col_comm_rank * row_comm_size + static_cast<int>(i);
-      if (comm_src_rank == comm_rank) {
-        assert(tx_self_i != std::numeric_limits<size_t>::max());
-        rx_counts[i] = tx_counts[tx_self_i];
-        // FIXME: better define request_null (similar to MPI_REQUEST_NULL) under raft::comms
-        count_requests[tx_counts.size() + i] = std::numeric_limits<raft::comms::request_t>::max();
-      } else {
-        comm.irecv(&rx_counts[i],
-                   1,
-                   comm_src_rank,
-                   0 /* tag */,
-                   count_requests.data() + tx_counts.size() + i);
-      }
-    }
-    // FIXME: better define request_null (similar to MPI_REQUEST_NULL) under raft::comms, if
-    // raft::comms::wait immediately returns on seeing request_null, this remove is unnecessary
-    count_requests.erase(std::remove(count_requests.begin(),
-                                     count_requests.end(),
-                                     std::numeric_limits<raft::comms::request_t>::max()),
-                         count_requests.end());
-    comm.waitall(count_requests.size(), count_requests.data());
+    rmm::device_uvector<vertex_t> rx_keys(size_t{0}, handle.get_stream());
+    std::tie(rx_keys, std::ignore) =
+      shuffle_values(row_comm, keys.begin(), tx_counts, handle.get_stream());
+    keys = std::move(rx_keys);
 
-    std::vector<size_t> tx_offsets(tx_counts.size() + 1, edge_t{0});
-    std::partial_sum(tx_counts.begin(), tx_counts.end(), tx_offsets.begin() + 1);
-    std::vector<size_t> rx_offsets(rx_counts.size() + 1, edge_t{0});
-    std::partial_sum(rx_counts.begin(), rx_counts.end(), rx_offsets.begin() + 1);
+    auto rx_payload_buffer = allocate_dataframe_buffer<payload_t>(size_t{0}, handle.get_stream());
+    std::tie(rx_payload_buffer, std::ignore) =
+      shuffle_values(row_comm,
+                     get_dataframe_buffer_begin<payload_t>(payload_buffer),
+                     tx_counts,
+                     handle.get_stream());
+    payload_buffer = std::move(rx_payload_buffer);
 
-    // FIXME: this will require costly reallocation if we don't use the new CUDA feature to reserve
-    // address space.
-    // FIXME: std::max(actual size, 1) as ncclRecv currently hangs if recvuff is nullptr even if
-    // count is 0
-    vertex_frontier.resize_buffer(std::max(num_buffer_elements + rx_offsets.back(), size_t(1)));
-
-    auto buffer_first         = vertex_frontier.buffer_begin();
-    auto buffer_key_first     = std::get<0>(buffer_first) + num_buffer_offset;
-    auto buffer_payload_first = std::get<1>(buffer_first) + num_buffer_offset;
-
-    std::vector<int> tx_dst_ranks(tx_counts.size());
-    std::vector<int> rx_src_ranks(rx_counts.size());
-    for (size_t i = 0; i < tx_dst_ranks.size(); ++i) {
-      tx_dst_ranks[i] = col_comm_rank * row_comm_size + static_cast<int>(i);
-    }
-    for (size_t i = 0; i < rx_src_ranks.size(); ++i) {
-      rx_src_ranks[i] = col_comm_rank * row_comm_size + static_cast<int>(i);
-    }
-
-    device_multicast_sendrecv<decltype(buffer_key_first), decltype(buffer_key_first)>(
-      comm,
-      buffer_key_first,
-      tx_counts,
-      tx_offsets,
-      tx_dst_ranks,
-      buffer_key_first + num_buffer_elements,
-      rx_counts,
-      rx_offsets,
-      rx_src_ranks,
-      handle.get_stream());
-    device_multicast_sendrecv<decltype(buffer_payload_first), decltype(buffer_payload_first)>(
-      comm,
-      buffer_payload_first,
-      tx_counts,
-      tx_offsets,
-      tx_dst_ranks,
-      buffer_payload_first + num_buffer_elements,
-      rx_counts,
-      rx_offsets,
-      rx_src_ranks,
-      handle.get_stream());
-
-    // FIXME: this does not exploit the fact that each segment is sorted. Lost performance
-    // optimization opportunities.
-    // FIXME: we can use [vertex_frontier.buffer_begin(), vertex_frontier.buffer_begin() +
-    // num_buffer_elements) as temporary buffer inside reduce_buffer_elements().
-    num_buffer_offset   = num_buffer_elements;
-    num_buffer_elements = detail::reduce_buffer_elements(handle,
-                                                         buffer_key_first + num_buffer_elements,
-                                                         buffer_payload_first + num_buffer_elements,
-                                                         rx_offsets.back(),
-                                                         reduce_op);
+    num_buffer_elements =
+      detail::reduce_buffer_elements(handle,
+                                     keys.begin(),
+                                     get_dataframe_buffer_begin<payload_t>(payload_buffer),
+                                     keys.size(),
+                                     reduce_op);
   }
 
   // 3. update vertex properties
 
   if (num_buffer_elements > 0) {
-    auto buffer_first         = vertex_frontier.buffer_begin();
-    auto buffer_key_first     = std::get<0>(buffer_first) + num_buffer_offset;
-    auto buffer_payload_first = std::get<1>(buffer_first) + num_buffer_offset;
-
     raft::grid_1d_thread_t update_grid(num_buffer_elements,
                                        detail::update_frontier_v_push_if_out_nbr_update_block_size,
                                        handle.get_device_properties().maxGridSize[0]);
@@ -836,8 +752,8 @@ void update_frontier_v_push_if_out_nbr(
     detail::update_frontier_and_vertex_output_values<VertexFrontierType::kNumBuckets>
       <<<update_grid.num_blocks, update_grid.block_size, 0, handle.get_stream()>>>(
         vertex_partition,
-        buffer_key_first,
-        buffer_payload_first,
+        keys.begin(),
+        get_dataframe_buffer_begin<payload_t>(payload_buffer),
         num_buffer_elements,
         vertex_value_input_first,
         vertex_value_output_first,
@@ -859,22 +775,6 @@ void update_frontier_v_push_if_out_nbr(
     }
   }
 }
-
-/*
-
-FIXME:
-
-iterating over lower triangular (or upper triangular) : triangle counting
-LRB might be necessary if the cost of processing an edge (i, j) is a function of degree(i) and
-degree(j) : triangle counting
-push-pull switching support (e.g. DOBFS), in this case, we need both
-CSR & CSC (trade-off execution time vs memory requirement, unless graph is symmetric)
-if graph is symmetric, there will be additional optimization opportunities (e.g. in-degree ==
-out-degree) For BFS, sending a bit vector (for the entire set of dest vertices per partitoin may
-work better we can use thrust::set_intersection for triangle counting think about adding thrust
-wrappers for reduction functions. Can I pass nullptr for dummy
-instead of thrust::make_counting_iterator(0)?
-*/
 
 }  // namespace experimental
 }  // namespace cugraph

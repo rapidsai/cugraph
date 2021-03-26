@@ -137,22 +137,6 @@ template <typename vertex_t,
           bool multi_gpu>
 std::tuple<cugraph::experimental::graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu>,
            rmm::device_uvector<vertex_t>>
-generate_graph_from_edgelist(raft::handle_t const& handle,
-                             rmm::device_uvector<vertex_t>&& vertices,
-                             rmm::device_uvector<vertex_t>&& edgelist_rows,
-                             rmm::device_uvector<vertex_t>&& edgelist_cols,
-                             rmm::device_uvector<weight_t>&& edgelist_weights,
-                             bool is_symmetric,
-                             bool test_weighted,
-                             bool renumber);
-
-template <typename vertex_t,
-          typename edge_t,
-          typename weight_t,
-          bool store_transposed,
-          bool multi_gpu>
-std::tuple<cugraph::experimental::graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu>,
-           rmm::device_uvector<vertex_t>>
 generate_graph_from_rmat_params(raft::handle_t const& handle,
                                 size_t scale,
                                 size_t edge_factor,
@@ -163,7 +147,9 @@ generate_graph_from_rmat_params(raft::handle_t const& handle,
                                 bool undirected,
                                 bool scramble_vertex_ids,
                                 bool test_weighted,
-                                bool renumber);
+                                bool renumber,
+                                std::vector<size_t> const& partition_ids,
+                                size_t num_partitions);
 
 struct rmat_params_t {
   size_t scale{};
@@ -181,20 +167,6 @@ struct input_graph_specifier_t {
   std::string graph_file_full_path{};
   rmat_params_t rmat_params{};
 };
-
-template <typename vertex_t>
-std::enable_if_t<std::is_signed<vertex_t>::value, bool> is_valid_vertex(vertex_t num_vertices,
-                                                                        vertex_t v)
-{
-  return (v >= 0) && (v < num_vertices);
-}
-
-template <typename vertex_t>
-std::enable_if_t<std::is_unsigned<vertex_t>::value, bool> is_valid_vertex(vertex_t num_vertices,
-                                                                          vertex_t v)
-{
-  return v < num_vertices;
-}
 
 }  // namespace test
 }  // namespace cugraph
