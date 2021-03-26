@@ -15,7 +15,6 @@
  */
 #pragma once
 
-#include <rmm/device_buffer.hpp>
 #include <rmm/device_uvector.hpp>
 
 #include <memory>
