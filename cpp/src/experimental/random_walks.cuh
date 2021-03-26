@@ -20,12 +20,13 @@
 
 #include <experimental/graph.hpp>
 
-#include <rmm/thrust_rmm_allocator.h>
 #include <utilities/graph_utils.cuh>
 
 #include <raft/device_atomics.cuh>
 #include <raft/handle.hpp>
 #include <raft/random/rng.cuh>
+
+#include <rmm/thrust_rmm_allocator.h>
 #include <rmm/device_uvector.hpp>
 
 #include <thrust/copy.h>
@@ -37,10 +38,9 @@
 #include <thrust/iterator/transform_iterator.h>
 #include <thrust/iterator/zip_iterator.h>
 #include <thrust/logical.h>
-#include <thrust/tuple.h>
-
 #include <thrust/remove.h>
 #include <thrust/transform.h>
+#include <thrust/tuple.h>
 
 #include <cassert>
 #include <ctime>
