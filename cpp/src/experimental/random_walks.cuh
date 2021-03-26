@@ -29,6 +29,7 @@
 #include <rmm/device_uvector.hpp>
 
 #include <thrust/copy.h>
+#include <thrust/count.h>
 #include <thrust/find.h>
 #include <thrust/gather.h>
 #include <thrust/iterator/constant_iterator.h>
@@ -439,10 +440,12 @@ struct random_walker_t {
   //
   bool all_paths_stopped(device_vec_t<edge_t> const& d_crt_out_degs) const
   {
-    return thrust::all_of(rmm::exec_policy(handle_.get_stream())->on(handle_.get_stream()),
-                          d_crt_out_degs.begin(),
-                          d_crt_out_degs.end(),
-                          [] __device__(auto crt_out_deg) { return crt_out_deg == 0; });
+    auto how_many_stopped =
+      thrust::count_if(rmm::exec_policy(handle_.get_stream())->on(handle_.get_stream()),
+                       d_crt_out_degs.begin(),
+                       d_crt_out_degs.end(),
+                       [] __device__(auto crt_out_deg) { return crt_out_deg == 0; });
+    return (static_cast<size_t>(how_many_stopped) == d_crt_out_degs.size());
   }
 
   // for each i in [0..num_paths_) {
@@ -705,14 +708,17 @@ random_walks_impl(raft::handle_t const& handle,
   using real_t   = typename random_engine_t::real_type;
 
   vertex_t num_vertices = graph.get_number_of_vertices();
-  bool valid_start = thrust::all_of(rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
-                                    d_v_start.begin(),
-                                    d_v_start.end(),
-                                    [num_vertices] __device__(auto crt_vertex) {
-                                      return (crt_vertex >= 0) && (crt_vertex < num_vertices);
-                                    });
 
-  CUGRAPH_EXPECTS(valid_start == true, "Invalid set of starting vertices.");
+  auto how_many_valid =
+    thrust::count_if(rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
+                     d_v_start.begin(),
+                     d_v_start.end(),
+                     [num_vertices] __device__(auto crt_vertex) {
+                       return (crt_vertex >= 0) && (crt_vertex < num_vertices);
+                     });
+
+  CUGRAPH_EXPECTS(static_cast<index_t>(how_many_valid) == d_v_start.size(),
+                  "Invalid set of starting vertices.");
 
   auto nPaths = d_v_start.size();
   auto stream = handle.get_stream();
