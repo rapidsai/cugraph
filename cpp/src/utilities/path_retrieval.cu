@@ -23,16 +23,17 @@
 
 namespace cugraph {
 namespace detail {
-__global__ void get_traversed_cost_kernel(int const *vtx_ptr,
+
+template <typename weight_t>
+__global__ void get_traversed_cost_kernel(int const *vertices,
                                           int const *preds,
                                           int const *vtx_map,
-                                          float const *info_weights,
-                                          float *out,
+                                          weight_t const *info_weights,
+                                          weight_t *out,
                                           int num_vertices)
 {
   for (int i = threadIdx.x + blockIdx.x * blockDim.x; i < num_vertices;
        i += gridDim.x * blockDim.x) {
-    // if (!threadIdx.x && !blockIdx.x) {
     float sum = info_weights[i];
     int pred  = preds[i];
     while (pred != -1) {
@@ -43,11 +44,13 @@ __global__ void get_traversed_cost_kernel(int const *vtx_ptr,
     out[i] = sum;
   }
 }
+
+template <typename weight_t>
 void get_traversed_cost_impl(raft::handle_t const &handle,
-                             int const *vtx_ptr,
+                             int const *vertices,
                              int const *preds,
-                             float const *info_weights,
-                             float *out,
+                             weight_t const *info_weights,
+                             weight_t *out,
                              int num_vertices)
 {
   dim3 nthreads, nblocks;
@@ -63,7 +66,7 @@ void get_traversed_cost_impl(raft::handle_t const &handle,
   rmm::device_uvector<int> vtx_keys_v(num_vertices, stream);
   auto *vtx_map  = vtx_map_v.data();
   auto *vtx_keys = vtx_keys_v.data();
-  raft::copy(vtx_keys, vtx_ptr, num_vertices, stream);
+  raft::copy(vtx_keys, vertices, num_vertices, stream);
 
   thrust::sequence(rmm::exec_policy(stream)->on(stream), vtx_map, vtx_map + num_vertices);
 
@@ -71,7 +74,7 @@ void get_traversed_cost_impl(raft::handle_t const &handle,
     rmm::exec_policy(stream)->on(stream), vtx_keys, vtx_keys + num_vertices, vtx_map);
 
   /*
-  raft::print_device_vector("vtx_ptr: ", vtx_ptr, num_vertices, std::cout);
+  raft::print_device_vector("vertices: ", vertices, num_vertices, std::cout);
   raft::print_device_vector("vtx_keys: ", vtx_keys, num_vertices, std::cout);
   raft::print_device_vector("preds: ", preds, num_vertices, std::cout);
   raft::print_device_vector("info_weights: ", info_weights, num_vertices, std::cout);
@@ -79,19 +82,33 @@ void get_traversed_cost_impl(raft::handle_t const &handle,
   */
 
   get_traversed_cost_kernel<<<nblocks, nthreads>>>(
-    vtx_ptr, preds, vtx_map, info_weights, out, num_vertices);
+    vertices, preds, vtx_map, info_weights, out, num_vertices);
   // raft::print_device_vector("out: ", out, num_vertices, std::cout);
 }
 }  // namespace detail
 
+template <typename weight_t>
 void get_traversed_cost(raft::handle_t const &handle,
-                        int const *vtx_ptr,
+                        int const *vertices,
                         int const *preds,
-                        float const *info_weights,
-                        float *out,
+                        weight_t const *info_weights,
+                        weight_t *out,
                         int num_vertices)
 {
   RAFT_EXPECTS(num_vertices > 0, "num_vertices should be strictly positive");
-  cugraph::detail::get_traversed_cost_impl(handle, vtx_ptr, preds, info_weights, out, num_vertices);
+  cugraph::detail::get_traversed_cost_impl(handle, vertices, preds, info_weights, out, num_vertices);
 }
+
+template void get_traversed_cost<float>(raft::handle_t const &handle,
+                        int const *vertices,
+                        int const *preds,
+                        float const *info_weights,
+                        float *out,
+                        int num_vertices);
+template void get_traversed_cost<double>(raft::handle_t const &handle,
+                        int const *vertices,
+                        int const *preds,
+                        double const *info_weights,
+                        double *out,
+                        int num_vertices);
 }  // namespace cugraph

@@ -29,10 +29,11 @@ def get_traversed_cost(input_df):
     Call get_traversed_cost
     """
     num_verts = input_df.shape[0]
+    weight_t = input_df.weights.dtype
 
     df = cudf.DataFrame()
     df['vertex'] = input_df['vertex']
-    df['info'] = cudf.Series(np.zeros(num_verts, dtype=np.float32))
+    df['info'] = cudf.Series(np.zeros(num_verts, dtype=weight_t))
 
     cdef unique_ptr[handle_t] handle_ptr
     handle_ptr.reset(new handle_t())
@@ -43,19 +44,28 @@ def get_traversed_cost(input_df):
     cdef uintptr_t out = <uintptr_t>NULL
     cdef uintptr_t info_weights = <uintptr_t>NULL
 
-    input_df['vertex_id'] = input_df['vertex_id'].astype(np.int32)
-    input_df['predecessor_id'] = input_df['predecessor_id'].astype(np.int32)
     vertices = input_df['vertex_id'].__cuda_array_interface__['data'][0]
     preds = input_df['predecessor_id'].__cuda_array_interface__['data'][0]
     info_weights = input_df['weights'].__cuda_array_interface__['data'][0]
     out = df['info'].__cuda_array_interface__['data'][0]
 
-    c_get_traversed_cost(handle_[0],
-            <int*> vertices,
-            <int *> preds,
-            <float *> info_weights,
-            <float *> out,
-            num_verts
-            )
+    if weight_t == np.float32 or weight_t == np.int32:
+        c_get_traversed_cost(handle_[0],
+                <int*> vertices,
+                <int *> preds,
+                <float *> info_weights,
+                <float *> out,
+                num_verts
+                )
+    elif weight_t == np.float64 or weight_t == np.int64:
+        c_get_traversed_cost(handle_[0],
+                <int*> vertices,
+                <int *> preds,
+                <double *> info_weights,
+                <double *> out,
+                num_verts
+                )
+    else:
+        raise NotImplementedError
 
     return df

@@ -19,10 +19,12 @@
 #include <raft/handle.hpp>
 
 namespace cugraph {
+
+template <typename weight_t>
 void get_traversed_cost(raft::handle_t const &handle,
-                        int const *vtx_ptr,
+                        int const *vertices,
                         int const *preds,
-                        float const *info_weights,
-                        float *out,
+                        weight_t const *info_weights,
+                        weight_t *out,
                         int num_vertices);
 }  // namespace cugraph
