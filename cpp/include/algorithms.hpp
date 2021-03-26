@@ -222,7 +222,7 @@ void force_atlas2(GraphCOOView<vertex_t, edge_t, weight_t> &graph,
  * @param[out] route                          Device array containing the returned route.
  *
  */
-float traveling_salesperson(raft::handle_t &handle,
+float traveling_salesperson(raft::handle_t const &handle,
                             int const *vtx_ptr,
                             float const *x_pos,
                             float const *y_pos,
