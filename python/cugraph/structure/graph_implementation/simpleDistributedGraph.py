@@ -32,7 +32,7 @@ class simpleDistributedGraphImpl:
 
     class Properties:
         def __init__(self, properties):
-            self.multi_edge = properties.multi_edge
+            self.multi_edge = getattr(properties, 'multi_edge', False)
             self.directed = properties.directed
             self.tree = properties.tree
             self.renumbered = False
@@ -60,7 +60,7 @@ class simpleDistributedGraphImpl:
         renumber=True,
         store_transposed=False,
     ):
-        if self.edgelist is not None or self.adjlist is not None:
+        if self.edgelist is not None:
             raise Exception("Graph already has values")
         if not isinstance(input_ddf, dask_cudf.DataFrame):
             raise Exception("input should be a dask_cudf dataFrame")
