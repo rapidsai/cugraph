@@ -17,6 +17,8 @@ from cugraph.traversal.sssp import (
     sssp,
     shortest_path,
     filter_unreachable,
-    shortest_path_length
+    shortest_path_length,
 )
 from cugraph.traversal.traveling_salesperson import traveling_salesperson
+
+from cugraph.traversal.ms_bfs import concurrent_bfs, multi_source_bfs
