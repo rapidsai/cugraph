@@ -131,27 +131,12 @@ TEST_P(Tests_RandomWalks, Initialize_i32_i32_f)
   run_current_test<int32_t, int32_t, float>(GetParam());
 }
 
-INSTANTIATE_TEST_CASE_P(simple_test,
-                        Tests_RandomWalks,
-                        ::testing::Values(RandomWalks_Usecase("test/datasets/karate.mtx", true)
-#if 0
-			,
-                                          RandomWalks_Usecase("test/datasets/web-Google.mtx", true),
-                                          RandomWalks_Usecase("test/datasets/ljournal-2008.mtx", true),
-                                          RandomWalks_Usecase("test/datasets/webbase-1M.mtx", true)
-#endif
-                                            ));
+INSTANTIATE_TEST_CASE_P(
+  simple_test,
+  Tests_RandomWalks,
+  ::testing::Values(RandomWalks_Usecase("test/datasets/karate.mtx", true),
+                    RandomWalks_Usecase("test/datasets/web-Google.mtx", true),
+                    RandomWalks_Usecase("test/datasets/ljournal-2008.mtx", true),
+                    RandomWalks_Usecase("test/datasets/webbase-1M.mtx", true)));
 
 CUGRAPH_TEST_PROGRAM_MAIN()
-
-/*
-struct RandomWalksTest : public ::testing::Test {
-};
-
-TEST_F(RandomWalksTest, CorrectInit)
-{
-  raft::handle_t handle{};
-
-  ASSERT_TRUE(true);
-}
-*/
