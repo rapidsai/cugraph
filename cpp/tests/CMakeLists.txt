@@ -319,6 +319,13 @@ set(MST_TEST_SRC
 
 ConfigureTest(MST_TEST "${MST_TEST_SRC}")
 
+###################################################################################################
+# - Experimental stream tests -----------------------------------------------------
+
+set(EXPERIMENTAL_STREAM_SRCS
+    "${CMAKE_CURRENT_SOURCE_DIR}/experimental/streams.cu")
+
+ConfigureTest(EXPERIMENTAL_STREAM "${EXPERIMENTAL_STREAM_SRCS}" "")
 
 ###################################################################################################
 # - Experimental R-mat graph generation tests -----------------------------------------------------
@@ -375,6 +382,15 @@ set(EXPERIMENTAL_BFS_TEST_SRCS
     "${CMAKE_CURRENT_SOURCE_DIR}/experimental/bfs_test.cpp")
 
 ConfigureTest(EXPERIMENTAL_BFS_TEST "${EXPERIMENTAL_BFS_TEST_SRCS}")
+
+###################################################################################################
+# - Experimental BFS tests ------------------------------------------------------------------------
+
+set(EXPERIMENTAL_MSBFS_TEST_SRCS
+    "${CMAKE_CURRENT_SOURCE_DIR}/experimental/ms_bfs_test.cpp")
+
+ConfigureTest(EXPERIMENTAL_MSBFS_TEST "${EXPERIMENTAL_MSBFS_TEST_SRCS}")
+
 
 ###################################################################################################
 # - Experimental SSSP tests -----------------------------------------------------------------------

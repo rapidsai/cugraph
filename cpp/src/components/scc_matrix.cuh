@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019-2020, NVIDIA CORPORATION.
+ * Copyright (c) 2019-2021, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -71,12 +71,13 @@ struct SCC_Data {
       p_d_r_o_(p_d_r_o),
       p_d_c_i_(p_d_c_i),
       d_C(nrows * nrows, 0),
-      d_Cprev(nrows * nrows, 0)
+      d_Cprev(nrows * nrows, 0),
+      p_d_C_(d_C.data().get())
   {
     init();
   }
 
-  const thrust::device_vector<ByteT>& get_C(void) const { return d_C; }
+  ByteT const* get_Cptr(void) const { return p_d_C_; }
 
   size_t nrows(void) const { return nrows_; }
 
@@ -100,13 +101,12 @@ struct SCC_Data {
 
   void get_labels(IndexT* d_labels) const
   {
-    auto* p_d_C = d_C.data().get();
-    size_t n    = nrows_;  // for lambda capture, since I cannot capture `this` (host), or `nrows_`
+    size_t n = nrows_;  // for lambda capture, since I cannot capture `this` (host), or `nrows_`
     thrust::transform(thrust::device,
                       thrust::make_counting_iterator<IndexT>(0),
                       thrust::make_counting_iterator<IndexT>(nrows_),
                       d_labels,
-                      [n, p_d_C] __device__(IndexT k) {
+                      [n, p_d_C = p_d_C_] __device__(IndexT k) {
                         auto begin = p_d_C + k * n;
                         auto end   = begin + n;
                         ByteT one{1};
@@ -124,7 +124,6 @@ struct SCC_Data {
     size_t nrows = nrows_;
     size_t count = 0;
 
-    ByteT* p_d_C     = d_C.data().get();
     ByteT* p_d_Cprev = get_Cprev().data().get();
 
     size_t n2            = nrows * nrows;
@@ -136,57 +135,60 @@ struct SCC_Data {
     do {
       flag.set(0);
 
-      thrust::for_each(thrust::device,
-                       thrust::make_counting_iterator<size_t>(0),
-                       thrust::make_counting_iterator<size_t>(n2),
-                       [nrows, p_d_C, p_d_Cprev, p_d_flag, p_d_ro, p_d_ci] __device__(size_t indx) {
-                         ByteT one{1};
+      thrust::for_each(
+        thrust::device,
+        thrust::make_counting_iterator<size_t>(0),
+        thrust::make_counting_iterator<size_t>(n2),
+        [nrows, p_d_C = p_d_C_, p_d_Cprev, p_d_flag, p_d_ro, p_d_ci] __device__(size_t indx) {
+          ByteT one{1};
 
-                         auto i = indx / nrows;
-                         auto j = indx % nrows;
+          auto i = indx / nrows;
+          auto j = indx % nrows;
 
-                         if ((i == j) || (p_d_Cprev[indx] == one))
-                           p_d_C[indx] = one;
-                         else {
-                           // this is where a hash-map could help:
-                           // only need hashmap[(i,j)]={0,1} (`1` for "hit");
-                           // and only for new entries!
-                           // already existent entries are covered by
-                           // the `if`-branch above!
-                           // Hence, hashmap[] can use limited space:
-                           // M = max_l{number(new `1` entries)}, where
-                           // l = #iterations in the do-loop!
-                           // M ~ new `1` entries between A^k and A^{k+1},
-                           //    k=1,2,...
-                           // Might M actually be M ~ nnz(A) = |E| ?!
-                           // Probably, because the primitive hash
-                           //(via find_if) uses a search space of nnz(A)
-                           //
-                           // But, what if more than 1 entry pops-up in a row?
-                           // Not an issue! Because the hash key is (i,j), and no
-                           // more than one entry can exist in position (i,j)!
-                           //
-                           // And remember, we only need to store the new (i,j) keys
-                           // that an iteration produces wrt to the previous iteration!
-                           //
-                           auto begin = p_d_ci + p_d_ro[i];
-                           auto end   = p_d_ci + p_d_ro[i + 1];
-                           auto pos   = thrust::find_if(
-                             thrust::seq, begin, end, [one, j, nrows, p_d_Cprev, p_d_ci](IndexT k) {
-                               return (p_d_Cprev[k * nrows + j] == one);
-                             });
+          if ((i == j) || (p_d_Cprev[indx] == one)) {
+            p_d_C[indx] = one;
+          } else {
+            // this ammounts to A (^,v) B
+            // (where A = adjacency matrix defined by (p_ro, p_ci),
+            //  B := p_d_Cprev; (^,v) := (*,+) semiring);
+            // Here's why:
+            // (A (^,v) B)[i][j] := A[i][.] (^,v) B[j][.]
+            // (where X[i][.] := i-th row of X;
+            //        X[.][j] := j-th column of X);
+            // which is:
+            // 1, iff A[i][.] and B[j][.] have a 1 in the same location,
+            // 0, otherwise;
+            //
+            // i.e., corresponfing entry in p_d_C is 1
+            // if B[k][j] == 1 for any column k in A's i-th row;
+            // hence, for each column k of row A[i][.],
+            // which is the set:
+            // k \in {p_ci + p_ro[i], ..., p_ci + p_ro[i+1] - 1},
+            // check if (B[k][j] == 1),
+            // i.e., p_d_Cprev[k*nrows + j]) == 1:
+            //
+            auto begin = p_d_ci + p_d_ro[i];
+            auto end   = p_d_ci + p_d_ro[i + 1];
+            auto pos   = thrust::find_if(
+              thrust::seq, begin, end, [one, j, nrows, p_d_Cprev, p_d_ci](IndexT k) {
+                return (p_d_Cprev[k * nrows + j] == one);
+              });
 
-                           if (pos != end) p_d_C[indx] = one;
-                         }
+            if (pos != end) p_d_C[indx] = one;
+          }
 
-                         if (p_d_C[indx] != p_d_Cprev[indx])
-                           *p_d_flag = 1;  // race-condition: harmless, worst case many threads
-                                           // write the same value
-                       });
+          if (p_d_C[indx] != p_d_Cprev[indx])
+            *p_d_flag = 1;  // race-condition: harmless,
+                            // worst case many threads
+                            // write the _same_ value
+        });
       ++count;
       cudaDeviceSynchronize();
 
-      std::swap(p_d_C, p_d_Cprev);
+      std::swap(p_d_C_, p_d_Cprev);  // Note 1: this swap makes `p_d_Cprev` the
+                                     // most recently updated matrix pointer
+                                     // at the end of this loop
+                                     // (see `Note 2` why this matters);
     } while (flag.is_set());
 
     // C & Ct:
@@ -196,11 +198,13 @@ struct SCC_Data {
     thrust::for_each(thrust::device,
                      thrust::make_counting_iterator<size_t>(0),
                      thrust::make_counting_iterator<size_t>(n2),
-                     [nrows, p_d_C, p_d_Cprev] __device__(size_t indx) {
+                     [nrows, p_d_C = p_d_C_, p_d_Cprev] __device__(size_t indx) {
                        auto i     = indx / nrows;
                        auto j     = indx % nrows;
                        auto tindx = j * nrows + i;
 
+                       // Note 2: per Note 1, p_d_Cprev is latest:
+                       //
                        p_d_C[indx] = (p_d_Cprev[indx]) & (p_d_Cprev[tindx]);
                      });
 
@@ -215,6 +219,9 @@ struct SCC_Data {
   const IndexT* p_d_c_i_;  // column indices
   thrust::device_vector<ByteT> d_C;
   thrust::device_vector<ByteT> d_Cprev;
+  ByteT* p_d_C_{nullptr};  // holds the most recent update,
+  // which can have storage in any of d_C or d_Cprev,
+  // because the pointers get swapped!
 
   thrust::device_vector<ByteT>& get_Cprev(void) { return d_Cprev; }
 };
