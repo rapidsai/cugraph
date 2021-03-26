@@ -168,7 +168,7 @@ struct rrandom_gen_t {
  private:
   raft::handle_t const& handle_;
   index_t num_paths_;
-  edge_t const* d_ptr_out_degs_;  // device puffer with out-deg of current set of vertices (most
+  edge_t const* d_ptr_out_degs_;  // device buffer with out-deg of current set of vertices (most
                                   // recent vertex in each path); size = num_paths_
   real_t* d_ptr_random_;          // device buffer with real random values; size = num_paths_
   seed_t seed_;                   // seed to be used for current batch
@@ -673,14 +673,12 @@ struct random_walker_t {
  * @brief returns random walks (RW) from starting sources, where each path is of given maximum
  * length. Single-GPU specialization.
  *
- * @tparam graph_t Type of graph.
- * @tparam vertex_type Type of vertex identifiers. Needs to be an integral type.
- * @tparam weight_type Type of edge weights. Needs to be a floating point type.
+ * @tparam graph_t Type of graph (view).
  * @tparam random_engine_t Type of random engine used to generate RW.
  * @param handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator, and
  * handles to various CUDA libraries) to run graph algorithms.
  * @param graph Graph object to generate RW on.
- * @param d_v_start Device set of starting vertex indices for the RW.
+ * @param d_v_start Device (view) set of starting vertex indices for the RW.
  * number(paths) == d_v_start.size().
  * @param max_depth maximum length of RWs.
  * @return std::tuple<device_vec_t<vertex_t>, device_vec_t<weight_t>,
@@ -781,14 +779,12 @@ random_walks_impl(raft::handle_t const& handle,
  * @brief returns random walks (RW) from starting sources, where each path is of given maximum
  * length. Multi-GPU specialization.
  *
- * @tparam graph_t Type of graph.
- * @tparam vertex_type Type of vertex identifiers. Needs to be an integral type.
- * @tparam weight_type Type of edge weights. Needs to be a floating point type.
+ * @tparam graph_t Type of graph (view).
  * @tparam random_engine_t Type of random engine used to generate RW.
  * @param handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator, and
  * handles to various CUDA libraries) to run graph algorithms.
  * @param graph Graph object to generate RW on.
- * @param d_v_start Device set of starting vertex indices for the RW. number(RW) ==
+ * @param d_v_start Device (view) set of starting vertex indices for the RW. number(RW) ==
  * d_v_start.size().
  * @param max_depth maximum length of RWs.
  * @return std::tuple<device_vec_t<vertex_t>, device_vec_t<weight_t>,
@@ -818,14 +814,12 @@ random_walks_impl(raft::handle_t const& handle,
  * @brief returns random walks (RW) from starting sources, where each path is of given maximum
  * length. Uniform distribution is assumed for the random engine.
  *
- * @tparam graph_t Type of graph.
- * @tparam vertex_type Type of vertex identifiers. Needs to be an integral type.
- * @tparam weight_type Type of edge weights. Needs to be a floating point type.
+ * @tparam graph_t Type of graph (view).
  * @param handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator, and
  * handles to various CUDA libraries) to run graph algorithms.
  * @param graph Graph object to generate RW on.
  * @param ptr_d_start Device pointer to set of starting vertex indices for the RW.
- * @param num_paths = number(paths) == d_v_start.size().
+ * @param num_paths = number(paths).
  * @param max_depth maximum length of RWs.
  * @return std::tuple<device_vec_t<vertex_t>, device_vec_t<weight_t>,
  * device_vec_t<index_t>> Triplet of coalesced RW paths, with corresponding edge weights for
