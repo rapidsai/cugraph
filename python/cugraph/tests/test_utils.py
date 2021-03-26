@@ -90,4 +90,4 @@ def test_get_traversed_cost():
     df = df.sort_values(by='vertex').reset_index()
     answer = answer.sort_values(by='vertex').reset_index()
 
-    assert df['distance'].equals(answer['secondary'])
+    assert df['distance'].equals(answer['info'])

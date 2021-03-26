@@ -96,19 +96,20 @@ void get_traversed_cost(raft::handle_t const &handle,
                         int num_vertices)
 {
   RAFT_EXPECTS(num_vertices > 0, "num_vertices should be strictly positive");
-  cugraph::detail::get_traversed_cost_impl(handle, vertices, preds, info_weights, out, num_vertices);
+  cugraph::detail::get_traversed_cost_impl(
+    handle, vertices, preds, info_weights, out, num_vertices);
 }
 
 template void get_traversed_cost<float>(raft::handle_t const &handle,
-                        int const *vertices,
-                        int const *preds,
-                        float const *info_weights,
-                        float *out,
-                        int num_vertices);
+                                        int const *vertices,
+                                        int const *preds,
+                                        float const *info_weights,
+                                        float *out,
+                                        int num_vertices);
 template void get_traversed_cost<double>(raft::handle_t const &handle,
-                        int const *vertices,
-                        int const *preds,
-                        double const *info_weights,
-                        double *out,
-                        int num_vertices);
+                                         int const *vertices,
+                                         int const *preds,
+                                         double const *info_weights,
+                                         double *out,
+                                         int num_vertices);
 }  // namespace cugraph
