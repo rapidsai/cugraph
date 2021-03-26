@@ -33,7 +33,7 @@ def egonet(input_graph, vertices, radius=1):
                      np.dtype("float32") : <int>numberTypeEnum.floatType,
                      np.dtype("double") : <int>numberTypeEnum.doubleType}
 
-    [src, dst] = [input_graph.edgelist.edgelist_df['src'], input_graph.edgelist.edgelist_df['dst']]
+    [src, dst] = graph_primtypes_wrapper.datatype_cast([input_graph.edgelist.edgelist_df['src'], input_graph.edgelist.edgelist_df['dst']], [np.int32])
     vertex_t = src.dtype
     edge_t = np.dtype("int32")
     weights = None
@@ -54,6 +54,7 @@ def egonet(input_graph, vertices, radius=1):
         weight_t = np.dtype("float32")
 
     # Pointers for egonet
+    vertices = vertices.astype('int32')
     cdef uintptr_t c_source_vertex_ptr = vertices.__cuda_array_interface__['data'][0]
     n_subgraphs = vertices.size
     n_streams = 1
