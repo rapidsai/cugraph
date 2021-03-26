@@ -120,158 +120,153 @@ __global__ void for_all_frontier_row_for_all_nbr_low_degree(
         *(buffer_key_output_first + buffer_idx)     = col;
         *(buffer_payload_output_first + buffer_idx) = thrust::get<1>(e_op_result);
       }
-
-      idx += gridDim.x * blockDim.x;
     }
+    idx += gridDim.x * blockDim.x;
   }
+}
 
-  template <typename BufferKeyOutputIterator,
-            typename BufferPayloadOutputIterator,
-            typename ReduceOp>
-  size_t reduce_buffer_elements(raft::handle_t const& handle,
-                                BufferKeyOutputIterator buffer_key_output_first,
-                                BufferPayloadOutputIterator buffer_payload_output_first,
-                                size_t num_buffer_elements,
-                                ReduceOp reduce_op)
-  {
-    thrust::sort_by_key(rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
-                        buffer_key_output_first,
-                        buffer_key_output_first + num_buffer_elements,
-                        buffer_payload_output_first);
+template <typename BufferKeyOutputIterator, typename BufferPayloadOutputIterator, typename ReduceOp>
+size_t reduce_buffer_elements(raft::handle_t const& handle,
+                              BufferKeyOutputIterator buffer_key_output_first,
+                              BufferPayloadOutputIterator buffer_payload_output_first,
+                              size_t num_buffer_elements,
+                              ReduceOp reduce_op)
+{
+  thrust::sort_by_key(rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
+                      buffer_key_output_first,
+                      buffer_key_output_first + num_buffer_elements,
+                      buffer_payload_output_first);
 
-    if (std::is_same<ReduceOp, reduce_op::any<typename ReduceOp::type>>::value) {
-      // FIXME: if ReducOp is any, we may have a cheaper alternative than sort & uique (i.e. discard
-      // non-first elements)
-      auto it =
-        thrust::unique_by_key(rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
-                              buffer_key_output_first,
-                              buffer_key_output_first + num_buffer_elements,
-                              buffer_payload_output_first);
-      return static_cast<size_t>(thrust::distance(buffer_key_output_first, thrust::get<0>(it)));
-    } else {
-      using key_t     = typename std::iterator_traits<BufferKeyOutputIterator>::value_type;
-      using payload_t = typename std::iterator_traits<BufferPayloadOutputIterator>::value_type;
-      // FIXME: better avoid temporary buffer or at least limit the maximum buffer size (if we adopt
-      // CUDA cooperative group https://devblogs.nvidia.com/cooperative-groups and global sync(), we
-      // can use aggregate shared memory as a temporary buffer, or we can limit the buffer size, and
-      // split one thrust::reduce_by_key call to multiple thrust::reduce_by_key calls if the
-      // temporary buffer size exceeds the maximum buffer size (may be definied as percentage of the
-      // system HBM size or a function of the maximum number of threads in the system))
-      // FIXME: actually, we can find how many unique keys are here by now.
-      // FIXME: if GraphViewType::is_multi_gpu is true, this should be executed on the GPU holding
-      // the vertex unless reduce_op is a pure function.
-      rmm::device_uvector<key_t> keys(num_buffer_elements, handle.get_stream());
-      auto value_buffer =
-        allocate_dataframe_buffer<payload_t>(num_buffer_elements, handle.get_stream());
-      auto it =
-        thrust::reduce_by_key(rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
-                              buffer_key_output_first,
-                              buffer_key_output_first + num_buffer_elements,
-                              buffer_payload_output_first,
-                              keys.begin(),
-                              get_dataframe_buffer_begin<payload_t>(value_buffer),
-                              thrust::equal_to<key_t>(),
-                              reduce_op);
-      auto num_reduced_buffer_elements =
-        static_cast<size_t>(thrust::distance(keys.begin(), thrust::get<0>(it)));
-      thrust::copy(rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
-                   keys.begin(),
-                   keys.begin() + num_reduced_buffer_elements,
-                   buffer_key_output_first);
-      thrust::copy(
-        rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
-        get_dataframe_buffer_begin<payload_t>(value_buffer),
-        get_dataframe_buffer_begin<payload_t>(value_buffer) + num_reduced_buffer_elements,
-        buffer_payload_output_first);
-      return num_reduced_buffer_elements;
-    }
+  if (std::is_same<ReduceOp, reduce_op::any<typename ReduceOp::type>>::value) {
+    // FIXME: if ReducOp is any, we may have a cheaper alternative than sort & uique (i.e. discard
+    // non-first elements)
+    auto it = thrust::unique_by_key(rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
+                                    buffer_key_output_first,
+                                    buffer_key_output_first + num_buffer_elements,
+                                    buffer_payload_output_first);
+    return static_cast<size_t>(thrust::distance(buffer_key_output_first, thrust::get<0>(it)));
+  } else {
+    using key_t     = typename std::iterator_traits<BufferKeyOutputIterator>::value_type;
+    using payload_t = typename std::iterator_traits<BufferPayloadOutputIterator>::value_type;
+    // FIXME: better avoid temporary buffer or at least limit the maximum buffer size (if we adopt
+    // CUDA cooperative group https://devblogs.nvidia.com/cooperative-groups and global sync(), we
+    // can use aggregate shared memory as a temporary buffer, or we can limit the buffer size, and
+    // split one thrust::reduce_by_key call to multiple thrust::reduce_by_key calls if the
+    // temporary buffer size exceeds the maximum buffer size (may be definied as percentage of the
+    // system HBM size or a function of the maximum number of threads in the system))
+    // FIXME: actually, we can find how many unique keys are here by now.
+    // FIXME: if GraphViewType::is_multi_gpu is true, this should be executed on the GPU holding
+    // the vertex unless reduce_op is a pure function.
+    rmm::device_uvector<key_t> keys(num_buffer_elements, handle.get_stream());
+    auto value_buffer =
+      allocate_dataframe_buffer<payload_t>(num_buffer_elements, handle.get_stream());
+    auto it = thrust::reduce_by_key(rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
+                                    buffer_key_output_first,
+                                    buffer_key_output_first + num_buffer_elements,
+                                    buffer_payload_output_first,
+                                    keys.begin(),
+                                    get_dataframe_buffer_begin<payload_t>(value_buffer),
+                                    thrust::equal_to<key_t>(),
+                                    reduce_op);
+    auto num_reduced_buffer_elements =
+      static_cast<size_t>(thrust::distance(keys.begin(), thrust::get<0>(it)));
+    thrust::copy(rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
+                 keys.begin(),
+                 keys.begin() + num_reduced_buffer_elements,
+                 buffer_key_output_first);
+    thrust::copy(rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
+                 get_dataframe_buffer_begin<payload_t>(value_buffer),
+                 get_dataframe_buffer_begin<payload_t>(value_buffer) + num_reduced_buffer_elements,
+                 buffer_payload_output_first);
+    return num_reduced_buffer_elements;
   }
+}
 
-  template <size_t num_buckets,
-            typename GraphViewType,
-            typename BufferKeyInputIterator,
-            typename BufferPayloadInputIterator,
-            typename VertexValueInputIterator,
-            typename VertexValueOutputIterator,
-            typename vertex_t,
-            typename VertexOp>
-  __global__ void update_frontier_and_vertex_output_values(
-    vertex_partition_device_t<GraphViewType> vertex_partition,
-    BufferKeyInputIterator buffer_key_input_first,
-    BufferPayloadInputIterator buffer_payload_input_first,
-    size_t num_buffer_elements,
-    VertexValueInputIterator vertex_value_input_first,
-    VertexValueOutputIterator vertex_value_output_first,
-    vertex_t * *bucket_ptrs,
-    size_t * bucket_sizes_ptr,
-    size_t invalid_bucket_idx,
-    vertex_t invalid_vertex,
-    VertexOp v_op)
-  {
-    static_assert(std::is_same<typename std::iterator_traits<BufferKeyInputIterator>::value_type,
-                               vertex_t>::value);
-    auto const tid   = threadIdx.x + blockIdx.x * blockDim.x;
-    size_t idx       = tid;
-    size_t block_idx = blockIdx.x;
-    // FIXME: it might be more performant to process more than one element per thread
-    auto num_blocks = (num_buffer_elements + blockDim.x - 1) / blockDim.x;
+template <size_t num_buckets,
+          typename GraphViewType,
+          typename BufferKeyInputIterator,
+          typename BufferPayloadInputIterator,
+          typename VertexValueInputIterator,
+          typename VertexValueOutputIterator,
+          typename vertex_t,
+          typename VertexOp>
+__global__ void update_frontier_and_vertex_output_values(
+  vertex_partition_device_t<GraphViewType> vertex_partition,
+  BufferKeyInputIterator buffer_key_input_first,
+  BufferPayloadInputIterator buffer_payload_input_first,
+  size_t num_buffer_elements,
+  VertexValueInputIterator vertex_value_input_first,
+  VertexValueOutputIterator vertex_value_output_first,
+  vertex_t** bucket_ptrs,
+  size_t* bucket_sizes_ptr,
+  size_t invalid_bucket_idx,
+  vertex_t invalid_vertex,
+  VertexOp v_op)
+{
+  static_assert(std::is_same<typename std::iterator_traits<BufferKeyInputIterator>::value_type,
+                             vertex_t>::value);
+  auto const tid   = threadIdx.x + blockIdx.x * blockDim.x;
+  size_t idx       = tid;
+  size_t block_idx = blockIdx.x;
+  // FIXME: it might be more performant to process more than one element per thread
+  auto num_blocks = (num_buffer_elements + blockDim.x - 1) / blockDim.x;
 
-    using BlockScan =
-      cub::BlockScan<size_t, detail::update_frontier_v_push_if_out_nbr_update_block_size>;
-    __shared__ typename BlockScan::TempStorage temp_storage;
+  using BlockScan =
+    cub::BlockScan<size_t, detail::update_frontier_v_push_if_out_nbr_update_block_size>;
+  __shared__ typename BlockScan::TempStorage temp_storage;
 
-    __shared__ size_t bucket_block_start_offsets[num_buckets];
+  __shared__ size_t bucket_block_start_offsets[num_buckets];
 
-    size_t bucket_block_local_offsets[num_buckets];
-    size_t bucket_block_aggregate_sizes[num_buckets];
+  size_t bucket_block_local_offsets[num_buckets];
+  size_t bucket_block_aggregate_sizes[num_buckets];
 
-    while (block_idx < num_blocks) {
-      for (size_t i = 0; i < num_buckets; ++i) { bucket_block_local_offsets[i] = 0; }
+  while (block_idx < num_blocks) {
+    for (size_t i = 0; i < num_buckets; ++i) { bucket_block_local_offsets[i] = 0; }
 
-      size_t selected_bucket_idx{invalid_bucket_idx};
-      vertex_t key{invalid_vertex};
+    size_t selected_bucket_idx{invalid_bucket_idx};
+    vertex_t key{invalid_vertex};
 
-      if (idx < num_buffer_elements) {
-        key                 = *(buffer_key_input_first + idx);
-        auto key_offset     = vertex_partition.get_local_vertex_offset_from_vertex_nocheck(key);
-        auto v_val          = *(vertex_value_input_first + key_offset);
-        auto payload        = *(buffer_payload_input_first + idx);
-        auto v_op_result    = v_op(v_val, payload);
-        selected_bucket_idx = thrust::get<0>(v_op_result);
-        if (selected_bucket_idx != invalid_bucket_idx) {
-          *(vertex_value_output_first + key_offset)       = thrust::get<1>(v_op_result);
-          bucket_block_local_offsets[selected_bucket_idx] = 1;
-        }
-      }
-
-      for (size_t i = 0; i < num_buckets; ++i) {
-        BlockScan(temp_storage)
-          .ExclusiveSum(bucket_block_local_offsets[i],
-                        bucket_block_local_offsets[i],
-                        bucket_block_aggregate_sizes[i]);
-      }
-
-      if (threadIdx.x == 0) {
-        for (size_t i = 0; i < num_buckets; ++i) {
-          static_assert(sizeof(unsigned long long int) == sizeof(size_t));
-          bucket_block_start_offsets[i] =
-            atomicAdd(reinterpret_cast<unsigned long long int*>(bucket_sizes_ptr + i),
-                      static_cast<unsigned long long int>(bucket_block_aggregate_sizes[i]));
-        }
-      }
-
-      __syncthreads();
-
-      // FIXME: better use shared memory buffer to aggreaget global memory writes
+    if (idx < num_buffer_elements) {
+      key                 = *(buffer_key_input_first + idx);
+      auto key_offset     = vertex_partition.get_local_vertex_offset_from_vertex_nocheck(key);
+      auto v_val          = *(vertex_value_input_first + key_offset);
+      auto payload        = *(buffer_payload_input_first + idx);
+      auto v_op_result    = v_op(v_val, payload);
+      selected_bucket_idx = thrust::get<0>(v_op_result);
       if (selected_bucket_idx != invalid_bucket_idx) {
-        bucket_ptrs[selected_bucket_idx][bucket_block_start_offsets[selected_bucket_idx] +
-                                         bucket_block_local_offsets[selected_bucket_idx]] = key;
+        *(vertex_value_output_first + key_offset)       = thrust::get<1>(v_op_result);
+        bucket_block_local_offsets[selected_bucket_idx] = 1;
       }
-
-      idx += gridDim.x * blockDim.x;
-      block_idx += gridDim.x;
     }
+
+    for (size_t i = 0; i < num_buckets; ++i) {
+      BlockScan(temp_storage)
+        .ExclusiveSum(bucket_block_local_offsets[i],
+                      bucket_block_local_offsets[i],
+                      bucket_block_aggregate_sizes[i]);
+    }
+
+    if (threadIdx.x == 0) {
+      for (size_t i = 0; i < num_buckets; ++i) {
+        static_assert(sizeof(unsigned long long int) == sizeof(size_t));
+        bucket_block_start_offsets[i] =
+          atomicAdd(reinterpret_cast<unsigned long long int*>(bucket_sizes_ptr + i),
+                    static_cast<unsigned long long int>(bucket_block_aggregate_sizes[i]));
+      }
+    }
+
+    __syncthreads();
+
+    // FIXME: better use shared memory buffer to aggreaget global memory writes
+    if (selected_bucket_idx != invalid_bucket_idx) {
+      bucket_ptrs[selected_bucket_idx][bucket_block_start_offsets[selected_bucket_idx] +
+                                       bucket_block_local_offsets[selected_bucket_idx]] = key;
+    }
+
+    idx += gridDim.x * blockDim.x;
+    block_idx += gridDim.x;
   }
+}
 
 }  // namespace detail
 
@@ -432,7 +427,7 @@ void update_frontier_v_push_if_out_nbr(
     // locking.
     // FIXME: if i != 0, this will require costly reallocation if we don't use the new CUDA feature
     // to reserve address space.
-    keys.resize(buffer_idx.value() + max_pushes, handle.get_stream());
+    keys.resize(buffer_idx.value(handle.get_stream()) + max_pushes, handle.get_stream());
     resize_dataframe_buffer<payload_t>(payload_buffer, keys.size(), handle.get_stream());
 
     auto row_value_input_offset = GraphViewType::is_adj_matrix_transposed
@@ -486,7 +481,7 @@ void update_frontier_v_push_if_out_nbr(
     detail::reduce_buffer_elements(handle,
                                    keys.begin(),
                                    get_dataframe_buffer_begin<payload_t>(payload_buffer),
-                                   buffer_idx.value(),
+                                   buffer_idx.value(handle.get_stream()),
                                    reduce_op);
   if (GraphViewType::is_multi_gpu) {
     auto& comm               = handle.get_comms();
@@ -585,5 +580,5 @@ void update_frontier_v_push_if_out_nbr(
   }
 }
 
-}  // namespace detail
 }  // namespace experimental
+}  // namespace cugraph

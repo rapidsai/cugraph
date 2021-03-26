@@ -48,26 +48,6 @@ inline size_t round_up(size_t number_to_round, size_t modulus)
   return ((number_to_round + (modulus - 1)) / modulus) * modulus;
 }
 
-template <typename TupleType, typename vertex_t, size_t... Is>
-auto make_buffer_zip_iterator_impl(std::vector<void*>& buffer_ptrs,
-                                   size_t offset,
-                                   std::index_sequence<Is...>)
-{
-  auto key_ptr    = reinterpret_cast<vertex_t*>(buffer_ptrs[0]) + offset;
-  auto payload_it = thrust::make_zip_iterator(
-    thrust::make_tuple(reinterpret_cast<typename thrust::tuple_element<Is, TupleType>::type*>(
-      buffer_ptrs[1 + Is])...));
-  return std::make_tuple(key_ptr, payload_it);
-}
-
-template <typename TupleType, typename vertex_t>
-auto make_buffer_zip_iterator(std::vector<void*>& buffer_ptrs, size_t offset)
-{
-  size_t constexpr tuple_size = thrust::tuple_size<TupleType>::value;
-  return make_buffer_zip_iterator_impl<TupleType, vertex_t>(
-    buffer_ptrs, offset, std::make_index_sequence<tuple_size>());
-}
-
 template <size_t num_buckets, typename RowIterator, typename vertex_t, typename SplitOp>
 __global__ void move_and_invalidate_if(RowIterator row_first,
                                        RowIterator row_last,
@@ -199,10 +179,7 @@ class Bucket {
   size_t size_{0};
 };
 
-template <typename ReduceInputTupleType,
-          typename vertex_t,
-          bool is_multi_gpu  = false,
-          size_t num_buckets = 1>
+template <typename vertex_t, bool is_multi_gpu = false, size_t num_buckets = 1>
 class VertexFrontier {
  public:
   static size_t constexpr kNumBuckets = num_buckets;
@@ -211,9 +188,7 @@ class VertexFrontier {
   VertexFrontier(raft::handle_t const& handle, std::vector<size_t> bucket_capacities)
     : handle_ptr_(&handle),
       tmp_bucket_ptrs_(num_buckets, handle.get_stream()),
-      tmp_bucket_sizes_(num_buckets, handle.get_stream()),
-      buffer_ptrs_(kReduceInputTupleSize + 1 /* to store destination column number */, nullptr),
-      buffer_idx_(0, handle_ptr_->get_stream())
+      tmp_bucket_sizes_(num_buckets, handle.get_stream())
   {
     CUGRAPH_EXPECTS(bucket_capacities.size() == num_buckets,
                     "invalid input argument bucket_capacities (size mismatch)");
@@ -228,7 +203,6 @@ class VertexFrontier {
     for (size_t i = 0; i < num_buckets; ++i) {
       buckets_.emplace_back(handle, bucket_capacities[i]);
     }
-    buffer_.set_stream(handle_ptr_->get_stream());
   }
 
   Bucket<vertex_t, is_multi_gpu>& get_bucket(size_t bucket_idx) { return buckets_[bucket_idx]; }
@@ -311,90 +285,11 @@ class VertexFrontier {
     return std::make_tuple(tmp_bucket_ptrs_.data(), tmp_bucket_sizes_.data());
   }
 
-  void resize_buffer(size_t size)
-  {
-    // FIXME: rmm::device_buffer resize incurs copy if memory is reallocated, which is unnecessary
-    // in this case.
-    buffer_.resize(compute_aggregate_buffer_size_in_bytes(size), handle_ptr_->get_stream());
-    if (size > buffer_capacity_) {
-      buffer_capacity_ = size;
-      update_buffer_ptrs();
-    }
-    buffer_size_ = size;
-  }
-
-  void clear_buffer() { resize_buffer(0); }
-
-  void shrink_to_fit_buffer()
-  {
-    if (buffer_size_ != buffer_capacity_) {
-      // FIXME: rmm::device_buffer shrink_to_fit incurs copy if memory is reallocated, which is
-      // unnecessary in this case.
-      buffer_.shrink_to_fit(handle_ptr_->get_stream());
-      update_buffer_ptrs();
-      buffer_capacity_ = buffer_size_;
-    }
-  }
-
-  auto buffer_begin()
-  {
-    return detail::make_buffer_zip_iterator<ReduceInputTupleType, vertex_t>(buffer_ptrs_, 0);
-  }
-
-  auto buffer_end()
-  {
-    return detail::make_buffer_zip_iterator<ReduceInputTupleType, vertex_t>(buffer_ptrs_,
-                                                                            buffer_size_);
-  }
-
-  auto get_buffer_idx_ptr() { return buffer_idx_.data(); }
-
-  size_t get_buffer_idx_value() { return buffer_idx_.value(handle_ptr_->get_stream()); }
-
-  void set_buffer_idx_value(size_t value)
-  {
-    buffer_idx_.set_value(value, handle_ptr_->get_stream());
-  }
-
  private:
-  static size_t constexpr kReduceInputTupleSize = thrust::tuple_size<ReduceInputTupleType>::value;
-  static size_t constexpr kBufferAlignment      = 128;
-
   raft::handle_t const* handle_ptr_{nullptr};
   std::vector<Bucket<vertex_t, is_multi_gpu>> buckets_{};
   rmm::device_uvector<vertex_t*> tmp_bucket_ptrs_;
   rmm::device_uvector<size_t> tmp_bucket_sizes_;
-
-  std::array<size_t, kReduceInputTupleSize> tuple_element_sizes_ =
-    compute_thrust_tuple_element_sizes<ReduceInputTupleType>()();
-  std::vector<void*> buffer_ptrs_{};
-  rmm::device_buffer buffer_{};
-  size_t buffer_size_{0};
-  size_t buffer_capacity_{0};
-  rmm::device_scalar<size_t> buffer_idx_{};
-
-  // FIXME: better pick between this apporach or the approach used in allocate_comm_buffer
-  size_t compute_aggregate_buffer_size_in_bytes(size_t size)
-  {
-    size_t aggregate_buffer_size_in_bytes =
-      detail::round_up(sizeof(vertex_t) * size, kBufferAlignment);
-    for (size_t i = 0; i < kReduceInputTupleSize; ++i) {
-      aggregate_buffer_size_in_bytes +=
-        detail::round_up(tuple_element_sizes_[i] * size, kBufferAlignment);
-    }
-    return aggregate_buffer_size_in_bytes;
-  }
-
-  void update_buffer_ptrs()
-  {
-    uintptr_t ptr   = reinterpret_cast<uintptr_t>(buffer_.data());
-    buffer_ptrs_[0] = reinterpret_cast<void*>(ptr);
-    ptr += detail::round_up(sizeof(vertex_t) * buffer_capacity_, kBufferAlignment);
-    for (size_t i = 0; i < kReduceInputTupleSize; ++i) {
-      buffer_ptrs_[1 + i] = reinterpret_cast<void*>(ptr);
-      ptr += detail::round_up(tuple_element_sizes_[i] * buffer_capacity_, kBufferAlignment);
-    }
-  }
 };
 
 }  // namespace experimental

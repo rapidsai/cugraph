@@ -537,7 +537,7 @@ graph_view_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu, std::enabl
   rmm::device_scalar<edge_t> ret(handle.get_stream());
   device_allreduce(
     handle.get_comms(), it, ret.data(), 1, raft::comms::op_t::MAX, handle.get_stream());
-  return ret.value();
+  return ret.value(handle.get_stream());
 }
 
 template <typename vertex_t,
@@ -579,7 +579,7 @@ graph_view_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu, std::enabl
   rmm::device_scalar<edge_t> ret(handle.get_stream());
   device_allreduce(
     handle.get_comms(), it, ret.data(), 1, raft::comms::op_t::MAX, handle.get_stream());
-  return ret.value();
+  return ret.value(handle.get_stream());
 }
 
 template <typename vertex_t,
@@ -621,7 +621,7 @@ graph_view_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu, std::enabl
   rmm::device_scalar<weight_t> ret(handle.get_stream());
   device_allreduce(
     handle.get_comms(), it, ret.data(), 1, raft::comms::op_t::MAX, handle.get_stream());
-  return ret.value();
+  return ret.value(handle.get_stream());
 }
 
 template <typename vertex_t,
@@ -663,7 +663,7 @@ graph_view_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu, std::enabl
   rmm::device_scalar<weight_t> ret(handle.get_stream());
   device_allreduce(
     handle.get_comms(), it, ret.data(), 1, raft::comms::op_t::MAX, handle.get_stream());
-  return ret.value();
+  return ret.value(handle.get_stream());
 }
 
 template <typename vertex_t,

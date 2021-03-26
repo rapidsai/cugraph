@@ -126,8 +126,7 @@ void sssp(raft::handle_t const &handle,
   // FIXME: need to double check the bucket sizes are sufficient
   std::vector<size_t> bucket_sizes(static_cast<size_t>(Bucket::num_buckets),
                                    push_graph_view.get_number_of_local_vertices());
-  VertexFrontier<thrust::tuple<weight_t, vertex_t>,
-                 vertex_t,
+  VertexFrontier<vertex_t,
                  GraphViewType::is_multi_gpu,
                  static_cast<size_t>(Bucket::num_buckets)>
     vertex_frontier(handle, bucket_sizes);
@@ -199,7 +198,7 @@ void sssp(raft::handle_t const &handle,
         auto idx      = new_dist < v_val
                      ? (new_dist < near_far_threshold ? static_cast<size_t>(Bucket::new_near)
                                                       : static_cast<size_t>(Bucket::far))
-                     : VertexFrontier<thrust::tuple<vertex_t>, vertex_t>::kInvalidBucketIdx;
+                     : VertexFrontier<vertex_t>::kInvalidBucketIdx;
         return thrust::make_tuple(idx, pushed_val);
       });
 
@@ -222,7 +221,7 @@ void sssp(raft::handle_t const &handle,
             auto dist =
               *(distances + vertex_partition.get_local_vertex_offset_from_vertex_nocheck(v));
             if (dist < old_near_far_threshold) {
-              return VertexFrontier<thrust::tuple<vertex_t>, vertex_t>::kInvalidBucketIdx;
+              return VertexFrontier<vertex_t>::kInvalidBucketIdx;
             } else if (dist < near_far_threshold) {
               return static_cast<size_t>(Bucket::cur_near);
             } else {
