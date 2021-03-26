@@ -30,6 +30,8 @@
 #include <raft/handle.hpp>
 #include <raft/random/rng.cuh>
 
+#include "random_walks_utils.cuh"
+
 #include <algorithm>
 #include <iterator>
 #include <limits>
@@ -114,6 +116,13 @@ class Tests_RandomWalks : public ::testing::TestWithParam<RandomWalks_Usecase> {
 
     auto ret_tuple =
       cugraph::experimental::random_walks(handle, graph_view, d_start.data(), num_paths, max_d);
+
+    // check results:
+    //
+    bool test_all_paths = cugraph::test::host_check_rw_paths(
+      handle, graph_view, std::get<0>(ret_tuple), std::get<1>(ret_tuple), std::get<2>(ret_tuple));
+
+    ASSERT_TRUE(test_all_paths);
   }
 };
 
