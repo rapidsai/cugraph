@@ -150,7 +150,7 @@ class Louvain_MG_Testfixture : public ::testing::TestWithParam<Louvain_Usecase> 
           d_clustering_v.resize(graph_view.get_number_of_vertices(), handle.get_stream());
 
           std::tie(std::ignore, sg_modularity) =
-            cugraph::louvain(handle, graph_view, d_clustering_v.data(), 1, resolution);
+            cugraph::louvain(handle, graph_view, d_clustering_v.data(), size_t{1}, resolution);
 
           EXPECT_TRUE(cugraph::test::compare_renumbered_vectors(
             handle, d_clustering_v, d_dendrogram_gathered_v));

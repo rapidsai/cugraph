@@ -82,11 +82,8 @@ void flatten_dendrogram(raft::handle_t const &handle,
                    vertex_ids_v.end(),
                    vertex_t{0});
 
-  partition_at_level<vertex_t, false>(handle,
-                                      dendrogram,
-                                      vertex_ids_v.data(),
-                                      clustering,
-                                      dendrogram.num_levels());
+  partition_at_level<vertex_t, false>(
+    handle, dendrogram, vertex_ids_v.data(), clustering, dendrogram.num_levels());
 }
 
 template <typename vertex_t, typename edge_t, typename weight_t, bool multi_gpu>
@@ -104,11 +101,8 @@ void flatten_dendrogram(
                    vertex_ids_v.end(),
                    graph_view.get_local_vertex_first());
 
-  partition_at_level<vertex_t, multi_gpu>(handle,
-                                          dendrogram,
-                                          vertex_ids_v.data(),
-                                          clustering,
-                                          dendrogram.num_levels());
+  partition_at_level<vertex_t, multi_gpu>(
+    handle, dendrogram, vertex_ids_v.data(), clustering, dendrogram.num_levels());
 }
 
 }  // namespace detail
@@ -127,8 +121,8 @@ template <typename graph_t>
 void flatten_dendrogram(raft::handle_t const &handle,
                         graph_t const &graph_view,
                         Dendrogram<typename graph_t::vertex_type> const &dendrogram,
-                        typename graph_t::vertex_type *clustering) {
-
+                        typename graph_t::vertex_type *clustering)
+{
   detail::flatten_dendrogram(handle, graph_view, dendrogram, clustering);
 }
 
@@ -155,6 +149,67 @@ std::pair<size_t, typename graph_t::weight_type> louvain(raft::handle_t const &h
 }
 
 // Explicit template instantations
+template std::pair<std::unique_ptr<Dendrogram<int32_t>>, float> louvain(
+  raft::handle_t const &,
+  experimental::graph_view_t<int32_t, int32_t, float, false, false> const &,
+  size_t,
+  float);
+template std::pair<std::unique_ptr<Dendrogram<int32_t>>, float> louvain(
+  raft::handle_t const &,
+  experimental::graph_view_t<int32_t, int64_t, float, false, false> const &,
+  size_t,
+  float);
+template std::pair<std::unique_ptr<Dendrogram<int64_t>>, float> louvain(
+  raft::handle_t const &,
+  experimental::graph_view_t<int64_t, int64_t, float, false, false> const &,
+  size_t,
+  float);
+template std::pair<std::unique_ptr<Dendrogram<int32_t>>, double> louvain(
+  raft::handle_t const &,
+  experimental::graph_view_t<int32_t, int32_t, double, false, false> const &,
+  size_t,
+  double);
+template std::pair<std::unique_ptr<Dendrogram<int32_t>>, double> louvain(
+  raft::handle_t const &,
+  experimental::graph_view_t<int32_t, int64_t, double, false, false> const &,
+  size_t,
+  double);
+template std::pair<std::unique_ptr<Dendrogram<int64_t>>, double> louvain(
+  raft::handle_t const &,
+  experimental::graph_view_t<int64_t, int64_t, double, false, false> const &,
+  size_t,
+  double);
+template std::pair<std::unique_ptr<Dendrogram<int32_t>>, float> louvain(
+  raft::handle_t const &,
+  experimental::graph_view_t<int32_t, int32_t, float, false, true> const &,
+  size_t,
+  float);
+template std::pair<std::unique_ptr<Dendrogram<int32_t>>, float> louvain(
+  raft::handle_t const &,
+  experimental::graph_view_t<int32_t, int64_t, float, false, true> const &,
+  size_t,
+  float);
+template std::pair<std::unique_ptr<Dendrogram<int64_t>>, float> louvain(
+  raft::handle_t const &,
+  experimental::graph_view_t<int64_t, int64_t, float, false, true> const &,
+  size_t,
+  float);
+template std::pair<std::unique_ptr<Dendrogram<int32_t>>, double> louvain(
+  raft::handle_t const &,
+  experimental::graph_view_t<int32_t, int32_t, double, false, true> const &,
+  size_t,
+  double);
+template std::pair<std::unique_ptr<Dendrogram<int32_t>>, double> louvain(
+  raft::handle_t const &,
+  experimental::graph_view_t<int32_t, int64_t, double, false, true> const &,
+  size_t,
+  double);
+template std::pair<std::unique_ptr<Dendrogram<int64_t>>, double> louvain(
+  raft::handle_t const &,
+  experimental::graph_view_t<int64_t, int64_t, double, false, true> const &,
+  size_t,
+  double);
+
 template std::pair<size_t, float> louvain(
   raft::handle_t const &, GraphCSRView<int32_t, int32_t, float> const &, int32_t *, size_t, float);
 template std::pair<size_t, double> louvain(raft::handle_t const &,
