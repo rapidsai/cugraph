@@ -64,11 +64,12 @@ collect_values_for_keys(raft::comms::comms_t const &comm,
   // 1. build a cuco::static_map object for the map k, v pairs.
 
   auto kv_map_ptr = std::make_unique<cuco::static_map<vertex_t, value_t>>(
-    // FIXME: std::max(..., size_t{1}) as a temporary workaround for
-    // https://github.com/NVIDIA/cuCollections/issues/72
+    // FIXME: std::max(..., ...) as a temporary workaround for
+    // https://github.com/NVIDIA/cuCollections/issues/72 and
+    // https://github.com/NVIDIA/cuCollections/issues/73
     std::max(static_cast<size_t>(
                static_cast<double>(thrust::distance(map_key_first, map_key_last)) / load_factor),
-             size_t{1}),
+             static_cast<size_t>(thrust::distance(map_key_first, map_key_last)) + 1),
     invalid_vertex_id<vertex_t>::value,
     invalid_vertex_id<vertex_t>::value);
   {
@@ -126,9 +127,11 @@ collect_values_for_keys(raft::comms::comms_t const &comm,
   kv_map_ptr.reset();
 
   kv_map_ptr = std::make_unique<cuco::static_map<vertex_t, value_t>>(
-    // FIXME: std::max(..., size_t{1}) as a temporary workaround for
-    // https://github.com/NVIDIA/cuCollections/issues/72
-    std::max(static_cast<size_t>(static_cast<double>(unique_keys.size()) / load_factor), size_t{1}),
+    // FIXME: std::max(..., ...) as a temporary workaround for
+    // https://github.com/NVIDIA/cuCollections/issues/72 and
+    // https://github.com/NVIDIA/cuCollections/issues/73
+    std::max(static_cast<size_t>(static_cast<double>(unique_keys.size()) / load_factor),
+             unique_keys.size() + 1),
     invalid_vertex_id<vertex_t>::value,
     invalid_vertex_id<vertex_t>::value);
   {
@@ -183,11 +186,12 @@ collect_values_for_unique_keys(raft::comms::comms_t const &comm,
   // 1. build a cuco::static_map object for the map k, v pairs.
 
   auto kv_map_ptr = std::make_unique<cuco::static_map<vertex_t, value_t>>(
-    // FIXME: std::max(..., size_t{1}) as a temporary workaround for
-    // https://github.com/NVIDIA/cuCollections/issues/72
+    // FIXME: std::max(..., ...) as a temporary workaround for
+    // https://github.com/NVIDIA/cuCollections/issues/72 and
+    // https://github.com/NVIDIA/cuCollections/issues/73
     std::max(static_cast<size_t>(
                static_cast<double>(thrust::distance(map_key_first, map_key_last)) / load_factor),
-             size_t{1}),
+             static_cast<size_t>(thrust::distance(map_key_first, map_key_last)) + 1),
     invalid_vertex_id<vertex_t>::value,
     invalid_vertex_id<vertex_t>::value);
   {
@@ -241,9 +245,11 @@ collect_values_for_unique_keys(raft::comms::comms_t const &comm,
   kv_map_ptr.reset();
 
   kv_map_ptr = std::make_unique<cuco::static_map<vertex_t, value_t>>(
-    // FIXME: std::max(..., size_t{1}) as a temporary workaround for
-    // https://github.com/NVIDIA/cuCollections/issues/72
-    std::max(static_cast<size_t>(static_cast<double>(unique_keys.size()) / load_factor), size_t{1}),
+    // FIXME: std::max(..., ...) as a temporary workaround for
+    // https://github.com/NVIDIA/cuCollections/issues/72 and
+    // https://github.com/NVIDIA/cuCollections/issues/73
+    std::max(static_cast<size_t>(static_cast<double>(unique_keys.size()) / load_factor),
+             unique_keys.size() + 1),
     invalid_vertex_id<vertex_t>::value,
     invalid_vertex_id<vertex_t>::value);
   {

@@ -558,11 +558,12 @@ renumber_edgelist(raft::handle_t const& handle,
       handle.get_stream()));  // cuco::static_map currently does not take stream
 
     cuco::static_map<vertex_t, vertex_t> renumber_map{
-      // FIXME: std::max(..., size_t{1}) as a temporary workaround for
-      // https://github.com/NVIDIA/cuCollections/issues/72
+      // FIXME: std::max(..., ...) as a temporary workaround for
+      // https://github.com/NVIDIA/cuCollections/issues/72 and
+      // https://github.com/NVIDIA/cuCollections/issues/73
       std::max(static_cast<size_t>(
                  static_cast<double>(partition.get_matrix_partition_major_size(i)) / load_factor),
-               size_t{1}),
+               partition.get_matrix_partition_major_size(i) + 1),
       invalid_vertex_id<vertex_t>::value,
       invalid_vertex_id<vertex_t>::value};
     auto pair_first = thrust::make_transform_iterator(
@@ -599,11 +600,12 @@ renumber_edgelist(raft::handle_t const& handle,
       handle.get_stream()));  // cuco::static_map currently does not take stream
 
     cuco::static_map<vertex_t, vertex_t> renumber_map{
-      // FIXME: std::max(..., size_t{1}) as a temporary workaround for
-      // https://github.com/NVIDIA/cuCollections/issues/72
+      // FIXME: std::max(..., ...) as a temporary workaround for
+      // https://github.com/NVIDIA/cuCollections/issues/72 and
+      // https://github.com/NVIDIA/cuCollections/issues/73
       std::max(
         static_cast<size_t>(static_cast<double>(renumber_map_minor_labels.size()) / load_factor),
-        size_t{1}),
+        renumber_map_minor_labels.size() + 1),
       invalid_vertex_id<vertex_t>::value,
       invalid_vertex_id<vertex_t>::value};
     auto pair_first = thrust::make_transform_iterator(
@@ -671,10 +673,11 @@ std::enable_if_t<!multi_gpu, rmm::device_uvector<vertex_t>> renumber_edgelist(
   // footprint and execution time
 
   cuco::static_map<vertex_t, vertex_t> renumber_map{
-    // FIXME: std::max(..., size_t{1}) as a temporary workaround for
-    // https://github.com/NVIDIA/cuCollections/issues/72
+    // FIXME: std::max(..., ...) as a temporary workaround for
+    // https://github.com/NVIDIA/cuCollections/issues/72 and
+    // https://github.com/NVIDIA/cuCollections/issues/73
     std::max(static_cast<size_t>(static_cast<double>(renumber_map_labels.size()) / load_factor),
-             size_t{1}),
+             renumber_map_labels.size() + 1),
     invalid_vertex_id<vertex_t>::value,
     invalid_vertex_id<vertex_t>::value};
   auto pair_first = thrust::make_transform_iterator(

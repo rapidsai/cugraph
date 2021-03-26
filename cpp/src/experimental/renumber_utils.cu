@@ -108,11 +108,12 @@ void renumber_ext_vertices(raft::handle_t const& handle,
     renumber_map_ptr.reset();
 
     renumber_map_ptr = std::make_unique<cuco::static_map<vertex_t, vertex_t>>(
-      // FIXME: std::max(..., size_t{1}) as a temporary workaround for
-      // https://github.com/NVIDIA/cuCollections/issues/72
+      // FIXME: std::max(..., ...) as a temporary workaround for
+      // https://github.com/NVIDIA/cuCollections/issues/72 and
+      // https://github.com/NVIDIA/cuCollections/issues/73
       std::max(
         static_cast<size_t>(static_cast<double>(sorted_unique_ext_vertices.size()) / load_factor),
-        size_t{1}),
+        sorted_unique_ext_vertices.size() + 1),
       invalid_vertex_id<vertex_t>::value,
       invalid_vertex_id<vertex_t>::value);
 
@@ -127,11 +128,12 @@ void renumber_ext_vertices(raft::handle_t const& handle,
     renumber_map_ptr.reset();
 
     renumber_map_ptr = std::make_unique<cuco::static_map<vertex_t, vertex_t>>(
-      // FIXME: std::max(..., size_t{1}) as a temporary workaround for
-      // https://github.com/NVIDIA/cuCollections/issues/72
+      // FIXME: std::max(..., ...) as a temporary workaround for
+      // https://github.com/NVIDIA/cuCollections/issues/72 and
+      // https://github.com/NVIDIA/cuCollections/issues/73
       std::max(static_cast<size_t>(
                  static_cast<double>(local_int_vertex_last - local_int_vertex_first) / load_factor),
-               size_t{1}),
+               static_cast<size_t>(local_int_vertex_last - local_int_vertex_first) + 1),
       invalid_vertex_id<vertex_t>::value,
       invalid_vertex_id<vertex_t>::value);
 
@@ -163,7 +165,20 @@ void renumber_ext_vertices(raft::handle_t const& handle,
                     "(aggregate) renumber_map_labels.");
   }
 
+  // FIXME: a temporary workaround for https://github.com/NVIDIA/cuCollections/issues/74
+#if 1
+  thrust::transform(rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
+                    vertices,
+                    vertices + num_vertices,
+                    vertices,
+                    [view = renumber_map_ptr->get_device_view()] __device__(auto v) {
+                      return v != invalid_vertex_id<vertex_t>::value
+                               ? view.find(v)->second.load(cuda::std::memory_order_relaxed)
+                               : invalid_vertex_id<vertex_t>::value;
+                    });
+#else
   renumber_map_ptr->find(vertices, vertices + num_vertices, vertices);
+#endif
 #endif
 }
 
@@ -307,11 +322,12 @@ void unrenumber_int_vertices(raft::handle_t const& handle,
     handle.get_stream_view().synchronize();  // cuco::static_map currently does not take stream
 
     cuco::static_map<vertex_t, vertex_t> unrenumber_map(
-      // FIXME: std::max(..., size_t{1}) as a temporary workaround for
-      // https://github.com/NVIDIA/cuCollections/issues/72
+      // FIXME: std::max(..., ...) as a temporary workaround for
+      // https://github.com/NVIDIA/cuCollections/issues/72 and
+      // https://github.com/NVIDIA/cuCollections/issues/73
       std::max(
         static_cast<size_t>(static_cast<double>(sorted_unique_int_vertices.size()) / load_factor),
-        size_t{1}),
+        sorted_unique_int_vertices.size() + 1),
       invalid_vertex_id<vertex_t>::value,
       invalid_vertex_id<vertex_t>::value);
 
@@ -323,7 +339,20 @@ void unrenumber_int_vertices(raft::handle_t const& handle,
         return thrust::make_pair(thrust::get<0>(val), thrust::get<1>(val));
       });
     unrenumber_map.insert(pair_first, pair_first + sorted_unique_int_vertices.size());
+    // FIXME: a temporary workaround for https://github.com/NVIDIA/cuCollections/issues/74
+#if 1
+    thrust::transform(rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
+                      vertices,
+                      vertices + num_vertices,
+                      vertices,
+                      [view = unrenumber_map.get_device_view()] __device__(auto v) {
+                        return v != invalid_vertex_id<vertex_t>::value
+                                 ? view.find(v)->second.load(cuda::std::memory_order_relaxed)
+                                 : invalid_vertex_id<vertex_t>::value;
+                      });
+#else
     unrenumber_map.find(vertices, vertices + num_vertices, vertices);
+#endif
   } else {
     unrenumber_local_int_vertices(handle,
                                   vertices,
