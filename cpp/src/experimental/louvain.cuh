@@ -29,6 +29,7 @@
 #include <utilities/collect_comm.cuh>
 
 #include <thrust/transform_reduce.h>
+#include <thrust/binary_search.h>
 
 //#define TIMING
 
@@ -408,6 +409,11 @@ class Louvain {
       map_key_last    = d_dst_cluster_cache_ + dst_cluster_cache_v_.size();
       map_value_first = dst_cluster_weights_v.begin();
     } else {
+      thrust::sort_by_key(rmm::exec_policy(handle_.get_stream())->on(handle_.get_stream()),
+                          cluster_keys_v_.begin(),
+                          cluster_keys_v_.end(),
+                          cluster_weights_v_.begin());
+      
       thrust::transform(rmm::exec_policy(handle_.get_stream())->on(handle_.get_stream()),
                         next_cluster_v.begin(),
                         next_cluster_v.end(),
@@ -415,7 +421,7 @@ class Louvain {
                         [d_cluster_weights = cluster_weights_v_.data(),
                          d_cluster_keys    = cluster_keys_v_.data(),
                          num_clusters      = cluster_keys_v_.size()] __device__(vertex_t cluster) {
-                          auto pos = thrust::find(
+                          auto pos = thrust::lower_bound(
                             thrust::seq, d_cluster_keys, d_cluster_keys + num_clusters, cluster);
                           return d_cluster_weights[pos - d_cluster_keys];
                         });

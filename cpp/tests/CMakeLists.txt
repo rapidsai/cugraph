@@ -392,14 +392,6 @@ set(EXPERIMENTAL_PAGERANK_TEST_SRCS
 ConfigureTest(EXPERIMENTAL_PAGERANK_TEST "${EXPERIMENTAL_PAGERANK_TEST_SRCS}")
 
 ###################################################################################################
-# - Experimental LOUVAIN tests -------------------------------------------------------------------
-
-set(EXPERIMENTAL_LOUVAIN_TEST_SRCS
-    "${CMAKE_CURRENT_SOURCE_DIR}/experimental/louvain_test.cu")
-
-ConfigureTest(EXPERIMENTAL_LOUVAIN_TEST "${EXPERIMENTAL_LOUVAIN_TEST_SRCS}")
-
-###################################################################################################
 # - Experimental KATZ_CENTRALITY tests ------------------------------------------------------------
 
 set(EXPERIMENTAL_KATZ_CENTRALITY_TEST_SRCS

@@ -656,8 +656,8 @@ std::pair<size_t, typename graph_t::weight_type> louvain(
  *
  * @tparam     graph_t               Type of graph
  *
- * @param[in]  handle                Library handle (RAFT). If a communicator is set in the handle,
- * @param[in]  graph                 input graph object (CSR)
+ * @param[in]  handle                Library handle (RAFT)
+ * @param[in]  graph                 Input graph object (CSR)
  * @param[in]  max_level             (optional) maximum number of levels to run (default 100)
  * @param[in]  resolution            (optional) The value of the resolution parameter to use.
  *                                   Called gamma in the modularity formula, this changes the size
