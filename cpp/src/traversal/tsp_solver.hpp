@@ -29,29 +29,20 @@
 namespace cugraph {
 namespace detail {
 
-__device__ float *best_soln;
-__device__ int *best_route;
-extern __shared__ int shbuf[];
-
-__global__ void reset(int *mylock, int *best_tour, int *climbs)
-{
-  *mylock    = 0;
-  *best_tour = INT_MAX;
-  *climbs    = 0;
-  best_soln  = nullptr;
-  best_route = nullptr;
-}
-
-// random permutation kernel
-__device__ void random_init(float const *posx,
+__global__ void random_init(int *work,
+                            float const *posx,
                             float const *posy,
                             int const *vtx_ptr,
-                            int *path,
-                            float *px,
-                            float *py,
                             int const nstart,
-                            int const nodes)
+                            int const nodes,
+                            int const batch,
+                            int const restart_batch)
 {
+  int *buf  = &work[blockIdx.x * ((4 * nodes + 3 + 31) / 32 * 32)];
+  float *px = (float *)(&buf[nodes]);
+  float *py = &px[nodes + 1];
+  int *path = (int *)(&py[nodes + 1]);
+
   // Fill values
   for (int i = threadIdx.x; i <= nodes; i += blockDim.x) {
     px[i]   = posx[i];
@@ -60,15 +51,15 @@ __device__ void random_init(float const *posx,
   }
 
   __syncthreads();
-
-  if (threadIdx.x == 0) { /* serial permutation as starting point */
+  // serial permutation as starting point
+  if (threadIdx.x == 0) {
     // swap to start at nstart node
     raft::swapVals(px[0], px[nstart]);
     raft::swapVals(py[0], py[nstart]);
     raft::swapVals(path[0], path[nstart]);
 
     curandState rndstate;
-    curand_init(blockIdx.x, 0, 0, &rndstate);
+    curand_init(blockIdx.x + (restart_batch * batch), 0, 0, &rndstate);
     for (int i = 1; i < nodes; i++) {
       int j = curand(&rndstate) % (nodes - 1 - i) + i;
       if (i == j) continue;
@@ -76,34 +67,37 @@ __device__ void random_init(float const *posx,
       raft::swapVals(py[i], py[j]);
       raft::swapVals(path[i], path[j]);
     }
-    px[nodes]   = px[0]; /* close the loop now, avoid special cases later */
+    // close the loop now, avoid special cases later
+    px[nodes]   = px[0];
     py[nodes]   = py[0];
     path[nodes] = path[0];
   }
 }
 
-// Use KNN as a starting solution
-__device__ void knn_init(float const *posx,
+__global__ void knn_init(int *work,
+                         float const *posx,
                          float const *posy,
                          int const *vtx_ptr,
                          int64_t const *neighbors,
-                         int *buf,
-                         int *path,
-                         float *px,
-                         float *py,
                          int const nstart,
                          int const nodes,
-                         int const K)
+                         int const K,
+                         int const batch,
+                         int const restart_batch)
 {
+  int *buf  = &work[blockIdx.x * ((4 * nodes + 3 + 31) / 32 * 32)];
+  float *px = (float *)(&buf[nodes]);
+  float *py = &px[nodes + 1];
+  int *path = (int *)(&py[nodes + 1]);
+
   for (int i = threadIdx.x; i < nodes; i += blockDim.x) buf[i] = 0;
 
   __syncthreads();
 
   if (threadIdx.x == 0) {
     curandState rndstate;
-    curand_init(blockIdx.x, 0, 0, &rndstate);
+    curand_init(blockIdx.x + (restart_batch * batch), 0, 0, &rndstate);
     int progress = 0;
-    int initlen  = 0;
 
     px[0]     = posx[nstart];
     py[0]     = posy[nstart];
@@ -114,7 +108,6 @@ __device__ void knn_init(float const *posx,
     while (progress < nodes - 1) {  // beam search as starting point
       for (int i = 1; i <= progress; i++) buf[i] = 0;
       progress      = 0;  // reset current location in path and visited array
-      initlen       = 0;
       int randjumps = 0;
       while (progress < nodes - 1) {
         int nj     = curand(&rndstate) % K;
@@ -146,13 +139,11 @@ __device__ void knn_init(float const *posx,
         px[progress]   = posx[head];
         py[progress]   = posy[head];
         path[progress] = vtx_ptr[head];
-        initlen += __float2int_rn(euclidean_dist(px, py, progress, progress - 1));
       }
     }
     px[nodes]   = px[nstart];
     py[nodes]   = py[nstart];
     path[nodes] = path[nstart];
-    initlen += __float2int_rn(euclidean_dist(px, py, nodes, nstart));
   }
 }
 
@@ -211,10 +202,23 @@ __device__ void two_opt_search(
   }
 }
 
-// This function being runned for each block
-__device__ void hill_climbing(
-  float *px, float *py, int *buf, int *path, int *shbuf, int const nodes, int *climbs)
+__global__ __launch_bounds__(2048, 2) void search_solution(TSPResults results,
+                                                           int *mylock,
+                                                           int const *vtx_ptr,
+                                                           bool beam_search,
+                                                           int const K,
+                                                           int nodes,
+                                                           float const *posx,
+                                                           float const *posy,
+                                                           int *work,
+                                                           int const nstart)
 {
+  int *buf  = &work[blockIdx.x * ((4 * nodes + 3 + 31) / 32 * 32)];
+  float *px = (float *)(&buf[nodes]);
+  float *py = &px[nodes + 1];
+  int *path = (int *)(&py[nodes + 1]);
+
+  __shared__ int shbuf[tilesize];
   __shared__ int best_change[kswaps];
   __shared__ int best_i[kswaps];
   __shared__ int best_j[kswaps];
@@ -248,9 +252,6 @@ __device__ void hill_climbing(
     // Find best indices
     two_opt_search(buf, px, py, shbuf, &minchange, &mini, &minj, nodes);
     __syncthreads();
-
-    // Stats only
-    if (threadIdx.x == 0) atomicAdd(climbs, 1);
 
     shbuf[threadIdx.x] = minchange;
 
@@ -338,77 +339,45 @@ __device__ void hill_climbing(
   } while (minchange < 0 && myswaps < 2 * nodes);
 }
 
-__device__ void get_optimal_tour(
-  int *mylock, int *best_tour, float *px, float *py, int *path, int *shbuf, int const nodes)
+__global__ void get_optimal_tour(TSPResults results, int *mylock, int *work, int const nodes)
 {
+  extern __shared__ int accumulator[];
+  int climber_id = blockIdx.x;
+  int *buf       = &work[climber_id * ((4 * nodes + 3 + 31) / 32 * 32)];
+  float *px      = (float *)(&buf[nodes]);
+  float *py      = &px[nodes + 1];
+  int *path      = (int *)(&py[nodes + 1]);
+
   // Now find actual length of the last tour, result of the climb
   int term = 0;
   for (int i = threadIdx.x; i < nodes; i += blockDim.x) {
     term += __float2int_rn(euclidean_dist(px, py, i, i + 1));
   }
-  shbuf[threadIdx.x] = term;
+  accumulator[threadIdx.x] = term;
   __syncthreads();
 
   int j = blockDim.x;  // block level reduction
   do {
     int k = (j + 1) / 2;
-    if ((threadIdx.x + k) < j) { shbuf[threadIdx.x] += shbuf[threadIdx.x + k]; }
+    if ((threadIdx.x + k) < j) { accumulator[threadIdx.x] += accumulator[threadIdx.x + k]; }
     j = k;  // divide active warp size in half
     __syncthreads();
   } while (j > 1);
-  term = shbuf[0];
+  term = accumulator[0];
 
   if (threadIdx.x == 0) {
-    atomicMin(best_tour, term);
+    atomicMin(results.best_cost, term);
     while (atomicExch(mylock, 1) != 0)
       ;  // acquire
-    if (best_tour[0] == term) {
-      best_soln  = px;
-      best_route = path;
+    if (results.best_cost[0] == term) {
+      results.best_x_pos[0] = px;
+      results.best_y_pos[0] = py;
+      results.best_route[0] = path;
     }
     *mylock = 0;  // release
     __threadfence();
   }
 }
 
-__global__ __launch_bounds__(2048, 2) void search_solution(int *mylock,
-                                                           int *best_tour,
-                                                           int const *vtx_ptr,
-                                                           bool beam_search,
-                                                           int const K,
-                                                           int nodes,
-                                                           int64_t const *neighbors,
-                                                           float const *posx,
-                                                           float const *posy,
-                                                           int *work,
-                                                           int const nstart,
-                                                           float *times,
-                                                           int *climbs,
-                                                           int threads)
-{
-  int *buf  = &work[blockIdx.x * ((4 * nodes + 3 + 31) / 32 * 32)];
-  float *px = (float *)(&buf[nodes]);
-  float *py = &px[nodes + 1];
-  int *path = (int *)(&py[nodes + 1]);
-  __shared__ int shbuf[tilesize];
-  clock_t start;
-
-  start = clock64();
-  if (!beam_search)
-    random_init(posx, posy, vtx_ptr, path, px, py, nstart, nodes);
-  else
-    knn_init(posx, posy, vtx_ptr, neighbors, buf, path, px, py, nstart, nodes, K);
-  __syncthreads();
-  times[threadIdx.x] = clock64() - start;
-
-  start = clock64();
-  hill_climbing(px, py, buf, path, shbuf, nodes, climbs);
-  __syncthreads();
-  times[threads + threadIdx.x + 1] = clock64() - start;
-
-  start = clock64();
-  get_optimal_tour(mylock, best_tour, px, py, path, shbuf, nodes);
-  times[2 * threads + threadIdx.x + 1] = clock64() - start;
-}
 }  // namespace detail
 }  // namespace cugraph

@@ -21,6 +21,7 @@
 #include <algorithms.hpp>
 #include <experimental/graph.hpp>
 #include <experimental/graph_view.hpp>
+#include <graph.hpp>
 
 #include <raft/cudart_utils.h>
 #include <raft/handle.hpp>
@@ -29,25 +30,25 @@
 
 #include <gtest/gtest.h>
 
+#include <cuda_profiler_api.h>
 #include <raft/cudart_utils.h>
 #include <rmm/thrust_rmm_allocator.h>
 #include <algorithm>
+#include <iostream>
 #include <tuple>
 #include <vector>
 
-#include <cuda_profiler_api.h>
-
-typedef struct InducedEgo_Usecase_t {
+typedef struct MsBfs_Usecase_t {
   std::string graph_file_full_path{};
-  std::vector<int32_t> ego_sources{};
+  std::vector<int32_t> sources{};
   int32_t radius;
   bool test_weighted{false};
 
-  InducedEgo_Usecase_t(std::string const& graph_file_path,
-                       std::vector<int32_t> const& ego_sources,
-                       int32_t radius,
-                       bool test_weighted)
-    : ego_sources(ego_sources), radius(radius), test_weighted(test_weighted)
+  MsBfs_Usecase_t(std::string const& graph_file_path,
+                  std::vector<int32_t> const& sources,
+                  int32_t radius,
+                  bool test_weighted)
+    : sources(sources), radius(radius), test_weighted(test_weighted)
   {
     if ((graph_file_path.length() > 0) && (graph_file_path[0] != '/')) {
       graph_file_full_path = cugraph::test::get_rapids_dataset_root_dir() + "/" + graph_file_path;
@@ -55,11 +56,11 @@ typedef struct InducedEgo_Usecase_t {
       graph_file_full_path = graph_file_path;
     }
   };
-} InducedEgo_Usecase;
+} MsBfs_Usecase;
 
-class Tests_InducedEgo : public ::testing::TestWithParam<InducedEgo_Usecase> {
+class Tests_MsBfs : public ::testing::TestWithParam<MsBfs_Usecase> {
  public:
-  Tests_InducedEgo() {}
+  Tests_MsBfs() {}
   static void SetupTestCase() {}
   static void TearDownTestCase() {}
 
@@ -67,9 +68,10 @@ class Tests_InducedEgo : public ::testing::TestWithParam<InducedEgo_Usecase> {
   virtual void TearDown() {}
 
   template <typename vertex_t, typename edge_t, typename weight_t, bool store_transposed>
-  void run_current_test(InducedEgo_Usecase const& configuration)
+  void run_current_test(MsBfs_Usecase const& configuration)
   {
-    int n_streams = std::min(configuration.ego_sources.size(), static_cast<std::size_t>(128));
+    auto n_seeds  = configuration.sources.size();
+    int n_streams = std::min(n_seeds, static_cast<std::size_t>(128));
     raft::handle_t handle(n_streams);
 
     cugraph::experimental::graph_t<vertex_t, edge_t, weight_t, store_transposed, false> graph(
@@ -78,128 +80,105 @@ class Tests_InducedEgo : public ::testing::TestWithParam<InducedEgo_Usecase> {
       read_graph_from_matrix_market_file<vertex_t, edge_t, weight_t, store_transposed, false>(
         handle, configuration.graph_file_full_path, configuration.test_weighted, false);
     auto graph_view = graph.view();
+    // Streams will allocate concurrently later
+    std::vector<rmm::device_uvector<vertex_t>> d_distances{};
+    std::vector<rmm::device_uvector<vertex_t>> d_predecessors{};
 
-    rmm::device_uvector<vertex_t> d_ego_sources(configuration.ego_sources.size(),
-                                                handle.get_stream());
+    d_distances.reserve(n_seeds);
+    d_predecessors.reserve(n_seeds);
+    for (vertex_t i = 0; i < n_seeds; i++) {
+      // Allocations and operations are attached to the worker stream
+      rmm::device_uvector<vertex_t> tmp_distances(graph_view.get_number_of_vertices(),
+                                                  handle.get_internal_stream_view(i));
+      rmm::device_uvector<vertex_t> tmp_predecessors(graph_view.get_number_of_vertices(),
+                                                     handle.get_internal_stream_view(i));
 
-    raft::update_device(d_ego_sources.data(),
-                        configuration.ego_sources.data(),
-                        configuration.ego_sources.size(),
-                        handle.get_stream());
+      d_distances.push_back(std::move(tmp_distances));
+      d_predecessors.push_back(std::move(tmp_predecessors));
+    }
 
-    rmm::device_uvector<vertex_t> d_ego_edgelist_src(0, handle.get_stream());
-    rmm::device_uvector<vertex_t> d_ego_edgelist_dst(0, handle.get_stream());
-    rmm::device_uvector<weight_t> d_ego_edgelist_weights(0, handle.get_stream());
-    rmm::device_uvector<size_t> d_ego_edge_offsets(0, handle.get_stream());
+    std::vector<vertex_t> radius(n_seeds);
+    std::generate(radius.begin(), radius.end(), [n = 0]() mutable { return (n++ % 12 + 1); });
+
+    // warm up
+    cugraph::experimental::bfs(handle,
+                               graph_view,
+                               d_distances[0].begin(),
+                               d_predecessors[0].begin(),
+                               static_cast<vertex_t>(configuration.sources[0]),
+                               false,
+                               radius[0]);
+
+    // one by one
     HighResTimer hr_timer;
-    hr_timer.start("egonet");
+    hr_timer.start("bfs");
     cudaProfilerStart();
-    std::tie(d_ego_edgelist_src, d_ego_edgelist_dst, d_ego_edgelist_weights, d_ego_edge_offsets) =
-      cugraph::experimental::extract_ego(handle,
-                                         graph_view,
-                                         d_ego_sources.data(),
-                                         static_cast<vertex_t>(configuration.ego_sources.size()),
-                                         configuration.radius);
+    for (vertex_t i = 0; i < n_seeds; i++) {
+      cugraph::experimental::bfs(handle,
+                                 graph_view,
+                                 d_distances[i].begin(),
+                                 d_predecessors[i].begin(),
+                                 static_cast<vertex_t>(configuration.sources[i]),
+                                 false,
+                                 radius[i]);
+    }
     cudaProfilerStop();
     hr_timer.stop();
     hr_timer.display(std::cout);
-    std::vector<size_t> h_cugraph_ego_edge_offsets(d_ego_edge_offsets.size());
-    std::vector<vertex_t> h_cugraph_ego_edgelist_src(d_ego_edgelist_src.size());
-    std::vector<vertex_t> h_cugraph_ego_edgelist_dst(d_ego_edgelist_dst.size());
-    raft::update_host(h_cugraph_ego_edgelist_src.data(),
-                      d_ego_edgelist_src.data(),
-                      d_ego_edgelist_src.size(),
-                      handle.get_stream());
-    raft::update_host(h_cugraph_ego_edgelist_dst.data(),
-                      d_ego_edgelist_dst.data(),
-                      d_ego_edgelist_dst.size(),
-                      handle.get_stream());
-    raft::update_host(h_cugraph_ego_edge_offsets.data(),
-                      d_ego_edge_offsets.data(),
-                      d_ego_edge_offsets.size(),
-                      handle.get_stream());
-    ASSERT_TRUE(d_ego_edge_offsets.size() == (configuration.ego_sources.size() + 1));
-    ASSERT_TRUE(d_ego_edgelist_src.size() == d_ego_edgelist_dst.size());
-    if (configuration.test_weighted)
-      ASSERT_TRUE(d_ego_edgelist_src.size() == d_ego_edgelist_weights.size());
-    ASSERT_TRUE(h_cugraph_ego_edge_offsets[configuration.ego_sources.size()] ==
-                d_ego_edgelist_src.size());
-    for (size_t i = 0; i < configuration.ego_sources.size(); i++)
-      ASSERT_TRUE(h_cugraph_ego_edge_offsets[i] <= h_cugraph_ego_edge_offsets[i + 1]);
-    auto n_vertices = graph_view.get_number_of_vertices();
-    for (size_t i = 0; i < d_ego_edgelist_src.size(); i++) {
-      ASSERT_TRUE(
-        cugraph::experimental::is_valid_vertex(n_vertices, h_cugraph_ego_edgelist_src[i]));
-      ASSERT_TRUE(
-        cugraph::experimental::is_valid_vertex(n_vertices, h_cugraph_ego_edgelist_dst[i]));
+
+    // concurrent
+    hr_timer.start("bfs");
+    cudaProfilerStart();
+#pragma omp parallel for
+    for (vertex_t i = 0; i < n_seeds; i++) {
+      raft::handle_t light_handle(handle, i);
+      auto worker_stream_view = light_handle.get_stream_view();
+      cugraph::experimental::bfs(light_handle,
+                                 graph_view,
+                                 d_distances[i].begin(),
+                                 d_predecessors[i].begin(),
+                                 static_cast<vertex_t>(configuration.sources[i]),
+                                 false,
+                                 radius[i]);
     }
 
-    /*
-    // For inspecting data
-    std::vector<weight_t> h_cugraph_ego_edgelist_weights(d_ego_edgelist_weights.size());
-    if (configuration.test_weighted) {
-      raft::update_host(h_cugraph_ego_edgelist_weights.data(),
-                        d_ego_edgelist_weights.data(),
-                        d_ego_edgelist_weights.size(),
-                        handle.get_stream());
-    }
-    raft::print_host_vector("offsets",
-                            &h_cugraph_ego_edge_offsets[0],
-                            h_cugraph_ego_edge_offsets.size(),
-                            std::cout);
-    raft::print_host_vector("src",
-                            &h_cugraph_ego_edgelist_src[0],
-                            h_cugraph_ego_edgelist_src.size(),
-                            std::cout);
-    raft::print_host_vector("dst",
-                            &h_cugraph_ego_edgelist_dst[0],
-                            h_cugraph_ego_edgelist_dst.size(),
-                            std::cout);
-    raft::print_host_vector("weights",
-                            &h_cugraph_ego_edgelist_weights[0],
-                            h_cugraph_ego_edgelist_weights.size(),
-                            std::cout);
-    */
+    cudaProfilerStop();
+    hr_timer.stop();
+    hr_timer.display(std::cout);
   }
 };
 
-TEST_P(Tests_InducedEgo, CheckInt32Int32FloatUntransposed)
+TEST_P(Tests_MsBfs, DISABLED_CheckInt32Int32FloatUntransposed)
 {
   run_current_test<int32_t, int32_t, float, false>(GetParam());
 }
-
-INSTANTIATE_TEST_CASE_P(
-  simple_test,
-  Tests_InducedEgo,
-  ::testing::Values(
-    InducedEgo_Usecase("test/datasets/karate.mtx", std::vector<int32_t>{0}, 1, false),
-    InducedEgo_Usecase("test/datasets/karate.mtx", std::vector<int32_t>{0}, 2, false),
-    InducedEgo_Usecase("test/datasets/karate.mtx", std::vector<int32_t>{1}, 3, false),
-    InducedEgo_Usecase("test/datasets/karate.mtx", std::vector<int32_t>{10, 0, 5}, 2, false),
-    InducedEgo_Usecase("test/datasets/karate.mtx", std::vector<int32_t>{9, 3, 10}, 2, false),
-    InducedEgo_Usecase(
-      "test/datasets/karate.mtx", std::vector<int32_t>{5, 9, 3, 10, 12, 13}, 2, true)));
-
-// For perf analysis
 /*
 INSTANTIATE_TEST_CASE_P(
   simple_test,
-  Tests_InducedEgo,
+  Tests_MsBfs,
   ::testing::Values(
-    InducedEgo_Usecase("test/datasets/soc-LiveJournal1.mtx", std::vector<int32_t>{0}, 1, false),
-    InducedEgo_Usecase("test/datasets/soc-LiveJournal1.mtx", std::vector<int32_t>{0}, 2, false),
-    InducedEgo_Usecase("test/datasets/soc-LiveJournal1.mtx", std::vector<int32_t>{0}, 3, false),
-    InducedEgo_Usecase("test/datasets/soc-LiveJournal1.mtx", std::vector<int32_t>{0}, 4, false),
-    InducedEgo_Usecase("test/datasets/soc-LiveJournal1.mtx", std::vector<int32_t>{0}, 5, false),
-    InducedEgo_Usecase(
-      "test/datasets/soc-LiveJournal1.mtx", std::vector<int32_t>{363617}, 2, false),
-    InducedEgo_Usecase(
+    MsBfs_Usecase("test/datasets/karate.mtx", std::vector<int32_t>{0}, 1, false),
+    MsBfs_Usecase("test/datasets/karate.mtx", std::vector<int32_t>{0}, 2, false),
+    MsBfs_Usecase("test/datasets/karate.mtx", std::vector<int32_t>{1}, 3, false),
+    MsBfs_Usecase("test/datasets/karate.mtx", std::vector<int32_t>{10, 0, 5}, 2, false),
+    MsBfs_Usecase("test/datasets/karate.mtx", std::vector<int32_t>{9, 3, 10}, 2, false),
+    MsBfs_Usecase(
+      "test/datasets/karate.mtx", std::vector<int32_t>{5, 9, 3, 10, 12, 13}, 2, true)));
+*/
+// For perf analysis
+
+INSTANTIATE_TEST_CASE_P(
+  simple_test,
+  Tests_MsBfs,
+  ::testing::Values(
+    MsBfs_Usecase("test/datasets/soc-LiveJournal1.mtx", std::vector<int32_t>{363617}, 2, false),
+    MsBfs_Usecase(
       "test/datasets/soc-LiveJournal1.mtx",
       std::vector<int32_t>{
         363617, 722214, 2337449, 2510183, 2513389, 225853, 2035807, 3836330, 1865496, 28755},
       2,
       false),
-    InducedEgo_Usecase(
+    MsBfs_Usecase(
       "test/datasets/soc-LiveJournal1.mtx",
       std::vector<int32_t>{
         363617,  722214,  2337449, 2510183, 2513389, 225853,  2035807, 3836330, 1865496, 28755,
@@ -214,7 +193,7 @@ INSTANTIATE_TEST_CASE_P(
         2029646, 4575891, 1488598, 79105,   4827273, 3795434, 4647518, 4733397, 3980718, 1184627},
       2,
       false),
-    InducedEgo_Usecase(
+    MsBfs_Usecase(
       "test/datasets/soc-LiveJournal1.mtx",
       std::vector<int32_t>{
         363617,  722214,  2337449, 2510183, 2513389, 225853,  2035807, 3836330, 1865496, 28755,
@@ -319,5 +298,4 @@ INSTANTIATE_TEST_CASE_P(
         2079145, 2975635, 535071,  4287509, 3281107, 39606,   3115500, 3204573, 722131,  3124073},
       2,
       false)));
-*/
 CUGRAPH_TEST_PROGRAM_MAIN()

@@ -18,6 +18,10 @@ cmake_minimum_required(VERSION 3.18...3.18 FATAL_ERROR)
 
 project(CUGRAPH VERSION 0.19.0 LANGUAGES C CXX CUDA)
 
+# Write the version header
+include(cmake/Modules/Version.cmake)
+write_version()
+
 ###################################################################################################
 # - build type ------------------------------------------------------------------------------------
 
@@ -560,6 +564,9 @@ install(TARGETS cugraph LIBRARY
 
 install(DIRECTORY include/
     DESTINATION include/cugraph)
+
+install(FILES ${CMAKE_CURRENT_BINARY_DIR}/include/cugraph/version_config.hpp
+        DESTINATION include/cugraph)
 
 install(DIRECTORY ${RAFT_DIR}/cpp/include/raft/
     DESTINATION include/cugraph/raft)
