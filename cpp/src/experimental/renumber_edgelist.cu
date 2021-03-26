@@ -563,7 +563,7 @@ renumber_edgelist(raft::handle_t const& handle,
       // https://github.com/NVIDIA/cuCollections/issues/73
       std::max(static_cast<size_t>(
                  static_cast<double>(partition.get_matrix_partition_major_size(i)) / load_factor),
-               partition.get_matrix_partition_major_size(i) + 1),
+               static_cast<size_t>(partition.get_matrix_partition_major_size(i)) + 1),
       invalid_vertex_id<vertex_t>::value,
       invalid_vertex_id<vertex_t>::value};
     auto pair_first = thrust::make_transform_iterator(

@@ -150,11 +150,12 @@ void copy_to_matrix_major(raft::handle_t const& handle,
           });
         // FIXME: this scatter is unnecessary if NCCL directly takes a permutation iterator (and
         // directly scatters from the internal buffer)
-        thrust::scatter(rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
-                        rx_value_first,
-                        rx_value_first + rx_counts[i],
-                        map_first,
-                        matrix_major_value_output_first);
+        thrust::scatter(
+          rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
+          rx_value_first,
+          rx_value_first + rx_counts[i],
+          map_first,
+          matrix_major_value_output_first + matrix_partition.get_major_value_start_offset());
       } else {
         auto map_first = thrust::make_transform_iterator(
           rx_vertices.begin(), [matrix_partition] __device__(auto v) {
@@ -162,11 +163,12 @@ void copy_to_matrix_major(raft::handle_t const& handle,
           });
         // FIXME: this scatter is unnecessary if NCCL directly takes a permutation iterator (and
         // directly scatters from the internal buffer)
-        thrust::scatter(rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
-                        rx_value_first,
-                        rx_value_first + rx_counts[i],
-                        map_first,
-                        matrix_major_value_output_first);
+        thrust::scatter(
+          rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
+          rx_value_first,
+          rx_value_first + rx_counts[i],
+          map_first,
+          matrix_major_value_output_first + matrix_partition.get_major_value_start_offset());
       }
     }
   } else {
