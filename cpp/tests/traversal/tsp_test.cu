@@ -132,7 +132,7 @@ class Tests_Tsp : public ::testing::TestWithParam<Tsp_Usecase> {
     int nodes = load_tsp(param.tsp_file.c_str(), &input);
 
     // Device alloc
-    raft::handle_t handle;
+    raft::handle_t const handle;
     rmm::device_uvector<int> vertices(static_cast<size_t>(nodes), nullptr);
     rmm::device_uvector<int> route(static_cast<size_t>(nodes), nullptr);
     rmm::device_uvector<float> x_pos(static_cast<size_t>(nodes), nullptr);
