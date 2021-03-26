@@ -891,9 +891,11 @@ device_reduce(raft::comms::comms_t const& comm,
   size_t constexpr tuple_size =
     thrust::tuple_size<typename thrust::iterator_traits<InputIterator>::value_type>::value;
 
-  detail::
-    device_reduce_tuple_iterator_element_impl<InputIterator, OutputIterator, size_t{0}, tuple_size>().run(
-      comm, input_first, output_first, count, op, root, stream);
+  detail::device_reduce_tuple_iterator_element_impl<InputIterator,
+                                                    OutputIterator,
+                                                    size_t{0},
+                                                    tuple_size>()
+    .run(comm, input_first, output_first, count, op, root, stream);
 }
 
 template <typename InputIterator, typename OutputIterator>

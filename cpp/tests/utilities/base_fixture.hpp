@@ -162,7 +162,7 @@ inline auto parse_test_options(int argc, char **argv)
     auto resource       = cugraph::test::create_memory_resource(rmm_mode);            \
                                                                                       \
     if (comm_rank != 0) {                                                             \
-      auto& listeners = ::testing::UnitTest::GetInstance()->listeners();              \
+      auto &listeners = ::testing::UnitTest::GetInstance()->listeners();              \
       delete listeners.Release(listeners.default_result_printer());                   \
     }                                                                                 \
     rmm::mr::set_current_device_resource(resource.get());                             \

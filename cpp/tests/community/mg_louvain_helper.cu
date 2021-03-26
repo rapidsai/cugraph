@@ -85,16 +85,16 @@ bool compare_renumbered_vectors(raft::handle_t const &handle,
                      d_map[e1] = e2;
                    });
 
-  auto error_count = thrust::count_if(
-    rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
-    iter,
-    iter + v1.size(),
-    [d_map = map.data()] __device__(auto pair) {
-      vertex_t e1 = thrust::get<0>(pair);
-      vertex_t e2 = thrust::get<1>(pair);
+  auto error_count =
+    thrust::count_if(rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
+                     iter,
+                     iter + v1.size(),
+                     [d_map = map.data()] __device__(auto pair) {
+                       vertex_t e1 = thrust::get<0>(pair);
+                       vertex_t e2 = thrust::get<1>(pair);
 
-      return (d_map[e1] != e2);
-    });
+                       return (d_map[e1] != e2);
+                     });
 
   return (error_count == 0);
 }

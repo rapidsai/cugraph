@@ -41,14 +41,10 @@ class Dendrogram {
 
   vertex_t const *get_level_ptr_nocheck(size_t level) const
   {
-    //return static_cast<vertex_t const *>(level_ptr_[level]->data());
     return level_ptr_[level]->data();
   }
 
-  vertex_t *get_level_ptr_nocheck(size_t level)
-  {
-    return level_ptr_[level]->data();
-  }
+  vertex_t *get_level_ptr_nocheck(size_t level) { return level_ptr_[level]->data(); }
 
   size_t get_level_size_nocheck(size_t level) const { return level_ptr_[level]->size(); }
 

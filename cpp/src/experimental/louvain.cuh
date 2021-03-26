@@ -28,8 +28,8 @@
 #include <patterns/transform_reduce_v.cuh>
 #include <utilities/collect_comm.cuh>
 
-#include <thrust/transform_reduce.h>
 #include <thrust/binary_search.h>
+#include <thrust/transform_reduce.h>
 
 //#define TIMING
 
@@ -413,7 +413,7 @@ class Louvain {
                           cluster_keys_v_.begin(),
                           cluster_keys_v_.end(),
                           cluster_weights_v_.begin());
-      
+
       thrust::transform(rmm::exec_policy(handle_.get_stream())->on(handle_.get_stream()),
                         next_cluster_v.begin(),
                         next_cluster_v.end(),
