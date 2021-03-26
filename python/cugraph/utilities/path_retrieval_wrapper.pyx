@@ -49,7 +49,7 @@ def get_traversed_cost(input_df):
     info_weights = input_df['weights'].__cuda_array_interface__['data'][0]
     out = df['info'].__cuda_array_interface__['data'][0]
 
-    if weight_t == np.float32 or weight_t == np.int32:
+    if weight_t == np.float32:
         c_get_traversed_cost(handle_[0],
                 <int*> vertices,
                 <int *> preds,
@@ -57,7 +57,7 @@ def get_traversed_cost(input_df):
                 <float *> out,
                 num_verts
                 )
-    elif weight_t == np.float64 or weight_t == np.int64:
+    elif weight_t == np.float64:
         c_get_traversed_cost(handle_[0],
                 <int*> vertices,
                 <int *> preds,

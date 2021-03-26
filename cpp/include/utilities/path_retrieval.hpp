@@ -20,6 +20,19 @@
 
 namespace cugraph {
 
+/**
+ * @brief Takes the results of BFS or SSSP function call and sums the given
+ * weights along the path to the starting vertex.
+ *
+ * @tparam weight_t Type of edge weights. Needs to be a floating point type.
+ * @param handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator, and
+ * handles to various CUDA libraries) to run graph algorithms. Must have at least one worker stream.
+ * @param vertices Pointer to vertex ids.
+ * @param preds Pointer to predecessors.
+ * @param info_weights Secondary weights along the edge from predecessor to vertex.
+ * @param out Contains for each index the sum of weights along the path unfolding.
+ * @param num_vertices Number of vertices.
+ **/
 template <typename weight_t>
 void get_traversed_cost(raft::handle_t const &handle,
                         int const *vertices,
