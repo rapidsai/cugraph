@@ -184,8 +184,7 @@ __global__ void for_all_frontier_row_for_all_nbr_mid_degree(
         auto buffer_idx = atomicAdd(reinterpret_cast<unsigned long long int*>(buffer_idx_ptr),
                                     static_cast<unsigned long long int>(1));
         *(buffer_key_output_first + buffer_idx) = col;
-        *(buffer_payload_output_first + buffer_idx) =
-          remove_first_thrust_tuple_element<decltype(e_op_result)>()(e_op_result);
+        *(buffer_payload_output_first + buffer_idx) = thrust::get<1>(e_op_result);
       }
     }
 
@@ -250,8 +249,7 @@ __global__ void for_all_frontier_row_for_all_nbr_high_degree(
         auto buffer_idx = atomicAdd(reinterpret_cast<unsigned long long int*>(buffer_idx_ptr),
                                     static_cast<unsigned long long int>(1));
         *(buffer_key_output_first + buffer_idx) = col;
-        *(buffer_payload_output_first + buffer_idx) =
-          remove_first_thrust_tuple_element<decltype(e_op_result)>()(e_op_result);
+        *(buffer_payload_output_first + buffer_idx) = thrust::get<1>(e_op_result);
       }
     }
 
@@ -602,9 +600,9 @@ void update_frontier_v_push_if_out_nbr(
           frontier_rows.begin() + h_offsets[0],
           adj_matrix_row_value_input_first + row_value_input_offset,
           adj_matrix_col_value_input_first,
-          buffer_key_first,
-          buffer_payload_first,
-          vertex_frontier.get_buffer_idx_ptr(),
+          keys.begin(),
+          get_dataframe_buffer_begin<payload_t>(payload_buffer),
+          buffer_idx.data(),
           e_op);
       }
       if (h_offsets[1] - h_offsets[0] > 0) {
@@ -622,9 +620,9 @@ void update_frontier_v_push_if_out_nbr(
           frontier_rows.begin() + h_offsets[1],
           adj_matrix_row_value_input_first + row_value_input_offset,
           adj_matrix_col_value_input_first,
-          buffer_key_first,
-          buffer_payload_first,
-          vertex_frontier.get_buffer_idx_ptr(),
+          keys.begin(),
+          get_dataframe_buffer_begin<payload_t>(payload_buffer),
+          buffer_idx.data(),
           e_op);
       }
       if (frontier_rows.size() - h_offsets[1] > 0) {
