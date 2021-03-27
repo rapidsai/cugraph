@@ -119,19 +119,20 @@ struct rrandom_gen_t {
   using real_type = real_t;
 
   rrandom_gen_t(raft::handle_t const& handle,
-                index_t nPaths,
+                index_t num_paths,
                 device_vec_t<real_t>& d_random,             // scratch-pad, non-coalesced
                 device_vec_t<edge_t> const& d_crt_out_deg,  // non-coalesced
                 seed_t seed = seed_t{})
     : handle_(handle),
       seed_(seed),
-      num_paths_(nPaths),
+      num_paths_(num_paths),
       d_ptr_out_degs_(raw_const_ptr(d_crt_out_deg)),
       d_ptr_random_(raw_ptr(d_random))
   {
     auto rnd_sz = d_random.size();
 
-    CUGRAPH_EXPECTS(rnd_sz >= static_cast<decltype(rnd_sz)>(nPaths), "Un-allocated random buffer.");
+    CUGRAPH_EXPECTS(rnd_sz >= static_cast<decltype(rnd_sz)>(num_paths),
+                    "Un-allocated random buffer.");
 
     // done in constructor;
     // this must be done at each step,
@@ -139,7 +140,7 @@ struct rrandom_gen_t {
     //
     raft::random::Rng rng(seed_);
     rng.uniform<real_t, index_t>(
-      d_ptr_random_, nPaths, real_t{0.0}, real_t{1.0}, handle.get_stream());
+      d_ptr_random_, num_paths, real_t{0.0}, real_t{1.0}, handle.get_stream());
   }
 
   // in place:
@@ -172,6 +173,29 @@ struct rrandom_gen_t {
                                   // recent vertex in each path); size = num_paths_
   real_t* d_ptr_random_;          // device buffer with real random values; size = num_paths_
   seed_t seed_;                   // seed to be used for current batch
+};
+
+// seeding policy: time (clock) dependent,
+// to avoid RW calls repeating same random data:
+//
+template <typename seed_t>
+struct clock_seeding_t {
+  clock_seeding_t(void) = default;
+
+  seed_t operator()(void) { return static_cast<seed_t>(std::time(nullptr)); }
+};
+
+// seeding policy: fixed for debug/testing repro
+//
+template <typename seed_t>
+struct fixed_seeding_t {
+  // purposely no default cnstr.
+
+  fixed_seeding_t(seed_t seed) : seed_(seed) {}
+  seed_t operator()(void) { return seed_; }
+
+ private:
+  seed_t seed_;
 };
 
 // classes abstracting the next vertex extraction mechanism:
@@ -357,10 +381,10 @@ struct random_walker_t {
 
   random_walker_t(raft::handle_t const& handle,
                   graph_t const& graph,
-                  index_t nPaths,
+                  index_t num_paths,
                   index_t max_depth)
     : handle_(handle),
-      num_paths_(nPaths),
+      num_paths_(num_paths),
       max_depth_(max_depth),
       d_cached_out_degs_(graph.compute_out_degrees(handle_))
   {
@@ -411,16 +435,16 @@ struct random_walker_t {
     // The following steps update the next entry in each path,
     // except the paths that reached sinks;
     //
-    // for each indx in [0..nPaths) {
+    // for each indx in [0..num_paths) {
     //   v_indx = d_v_rnd_n_indx[indx];
     //
     //   -- get the `v_indx`-th out-vertex of d_v_paths_v_set[indx] vertex:
     //   -- also, note the size deltas increased by 1 in dst (d_sizes[]):
     //
-    //   d_coalesced_v[indx*nPaths + d_sizes[indx]] =
-    //       get_out_vertex(graph, d_coalesced_v[indx*nPaths + d_sizes[indx] -1)], v_indx);
-    //   d_coalesced_w[indx*(nPaths-1) + d_sizes[indx] - 1] =
-    //       get_out_edge_weight(graph, d_coalesced_v[indx*nPaths + d_sizes[indx]-2], v_indx);
+    //   d_coalesced_v[indx*num_paths + d_sizes[indx]] =
+    //       get_out_vertex(graph, d_coalesced_v[indx*num_paths + d_sizes[indx] -1)], v_indx);
+    //   d_coalesced_w[indx*(num_paths-1) + d_sizes[indx] - 1] =
+    //       get_out_edge_weight(graph, d_coalesced_v[indx*num_paths + d_sizes[indx]-2], v_indx);
     //
     // (1) generate actual vertex destinations:
     //
@@ -689,7 +713,8 @@ struct random_walker_t {
 template <typename graph_t,
           typename random_engine_t =
             rrandom_gen_t<typename graph_t::vertex_type, typename graph_t::edge_type>,
-          typename index_t = typename graph_t::edge_type>
+          typename seeding_policy_t = clock_seeding_t<typename random_engine_t::seed_type>,
+          typename index_t          = typename graph_t::edge_type>
 std::enable_if_t<graph_t::is_multi_gpu == false,
                  std::tuple<device_vec_t<typename graph_t::vertex_type>,
                             device_vec_t<typename graph_t::weight_type>,
@@ -697,7 +722,8 @@ std::enable_if_t<graph_t::is_multi_gpu == false,
 random_walks_impl(raft::handle_t const& handle,
                   graph_t const& graph,
                   device_const_vector_view<typename graph_t::vertex_type, index_t>& d_v_start,
-                  index_t max_depth)
+                  index_t max_depth,
+                  seeding_policy_t seeder = clock_seeding_t<typename random_engine_t::seed_type>{})
 {
   using vertex_t = typename graph_t::vertex_type;
   using edge_t   = typename graph_t::edge_type;
@@ -718,27 +744,27 @@ random_walks_impl(raft::handle_t const& handle,
   CUGRAPH_EXPECTS(static_cast<index_t>(how_many_valid) == d_v_start.size(),
                   "Invalid set of starting vertices.");
 
-  auto nPaths = d_v_start.size();
-  auto stream = handle.get_stream();
+  auto num_paths = d_v_start.size();
+  auto stream    = handle.get_stream();
 
   random_walker_t<graph_t, random_engine_t> rand_walker{
-    handle, graph, static_cast<index_t>(nPaths), static_cast<index_t>(max_depth)};
+    handle, graph, static_cast<index_t>(num_paths), static_cast<index_t>(max_depth)};
 
   // pre-allocate num_paths * max_depth;
   //
-  auto coalesced_sz = nPaths * max_depth;
+  auto coalesced_sz = num_paths * max_depth;
   device_vec_t<vertex_t> d_coalesced_v(coalesced_sz, stream);  // coalesced vertex set
   device_vec_t<weight_t> d_coalesced_w(coalesced_sz, stream);  // coalesced weight set
-  device_vec_t<index_t> d_paths_sz(nPaths, stream);            // paths sizes
-  device_vec_t<edge_t> d_crt_out_degs(nPaths, stream);  // out-degs for current set of vertices
-  device_vec_t<real_t> d_random(nPaths, stream);
-  device_vec_t<vertex_t> d_col_indx(nPaths, stream);
-  device_vec_t<vertex_t> d_next_v(nPaths, stream);
-  device_vec_t<weight_t> d_next_w(nPaths, stream);
+  device_vec_t<index_t> d_paths_sz(num_paths, stream);         // paths sizes
+  device_vec_t<edge_t> d_crt_out_degs(num_paths, stream);  // out-degs for current set of vertices
+  device_vec_t<real_t> d_random(num_paths, stream);
+  device_vec_t<vertex_t> d_col_indx(num_paths, stream);
+  device_vec_t<vertex_t> d_next_v(num_paths, stream);
+  device_vec_t<weight_t> d_next_w(num_paths, stream);
 
-  // FIXME: abstract out seed initialization:
+  // abstracted out seed initialization:
   //
-  seed_t seed0 = static_cast<seed_t>(std::time(nullptr));
+  seed_t seed0 = static_cast<seed_t>(seeder());
 
   // very first vertex, for each path:
   //
@@ -795,7 +821,8 @@ random_walks_impl(raft::handle_t const& handle,
 template <typename graph_t,
           typename random_engine_t =
             rrandom_gen_t<typename graph_t::vertex_type, typename graph_t::edge_type>,
-          typename index_t = typename graph_t::edge_type>
+          typename seeding_policy_t = clock_seeding_t<typename random_engine_t::seed_type>,
+          typename index_t          = typename graph_t::edge_type>
 std::enable_if_t<graph_t::is_multi_gpu == true,
                  std::tuple<device_vec_t<typename graph_t::vertex_type>,
                             device_vec_t<typename graph_t::weight_type>,
@@ -803,7 +830,8 @@ std::enable_if_t<graph_t::is_multi_gpu == true,
 random_walks_impl(raft::handle_t const& handle,
                   graph_t const& graph,
                   device_const_vector_view<typename graph_t::vertex_type, index_t>& d_v_start,
-                  index_t max_depth)
+                  index_t max_depth,
+                  seeding_policy_t seeder = clock_seeding_t<typename random_engine_t::seed_type>{})
 {
   CUGRAPH_FAIL("Not implemented yet.");
 }
