@@ -763,14 +763,21 @@ TEST_F(RandomWalksPrimsTest, SimpleGraphRandomWalk)
 
   index_t num_paths = v_start.size();
   index_t max_depth = 5;
-  auto triplet      = random_walks(handle, graph_view, d_v_start.data(), num_paths, max_depth);
 
-  auto& d_coalesced_v = std::get<0>(triplet);
-  auto& d_coalesced_w = std::get<1>(triplet);
-  auto& d_sizes       = std::get<2>(triplet);
+  // 0-copy const device view:
+  //
+  detail::device_const_vector_view<vertex_t, index_t> d_start_view{d_v_start.data(), num_paths};
+  auto quad = detail::random_walks_impl(handle, graph_view, d_start_view, max_depth);
+
+  auto& d_coalesced_v = std::get<0>(quad);
+  auto& d_coalesced_w = std::get<1>(quad);
+  auto& d_sizes       = std::get<2>(quad);
+  auto seed0          = std::get<3>(quad);
 
   bool test_all_paths =
     cugraph::test::host_check_rw_paths(handle, graph_view, d_coalesced_v, d_coalesced_w, d_sizes);
+
+  if (!test_all_paths) std::cout << "starting seed on failure: " << seed0 << '\n';
 
   ASSERT_TRUE(test_all_paths);
 }

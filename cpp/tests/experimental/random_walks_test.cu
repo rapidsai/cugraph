@@ -114,15 +114,23 @@ class Tests_RandomWalks : public ::testing::TestWithParam<RandomWalks_Usecase> {
     vertex_t num_vertices = graph_view.get_number_of_vertices();
     fill_start(handle, d_start, num_vertices);
 
-    edge_t max_d{10};
+    // 0-copy const device view:
+    //
+    cugraph::experimental::detail::device_const_vector_view<vertex_t, edge_t> d_start_view{
+      d_start.data(), num_paths};
+
+    edge_t max_depth{10};
 
     auto ret_tuple =
-      cugraph::experimental::random_walks(handle, graph_view, d_start.data(), num_paths, max_d);
+      cugraph::experimental::detail::random_walks_impl(handle, graph_view, d_start_view, max_depth);
 
     // check results:
     //
     bool test_all_paths = cugraph::test::host_check_rw_paths(
       handle, graph_view, std::get<0>(ret_tuple), std::get<1>(ret_tuple), std::get<2>(ret_tuple));
+
+    if (!test_all_paths)
+      std::cout << "starting seed on failure: " << std::get<3>(ret_tuple) << '\n';
 
     ASSERT_TRUE(test_all_paths);
   }

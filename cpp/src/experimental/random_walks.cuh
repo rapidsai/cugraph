@@ -718,7 +718,8 @@ template <typename graph_t,
 std::enable_if_t<graph_t::is_multi_gpu == false,
                  std::tuple<device_vec_t<typename graph_t::vertex_type>,
                             device_vec_t<typename graph_t::weight_type>,
-                            device_vec_t<index_t>>>
+                            device_vec_t<index_t>,
+                            typename random_engine_t::seed_type>>
 random_walks_impl(raft::handle_t const& handle,
                   graph_t const& graph,
                   device_const_vector_view<typename graph_t::vertex_type, index_t>& d_v_start,
@@ -798,7 +799,10 @@ random_walks_impl(raft::handle_t const& handle,
 
   // because device_uvector is not copy-cnstr-able:
   //
-  return std::make_tuple(std::move(d_coalesced_v), std::move(d_coalesced_w), std::move(d_paths_sz));
+  return std::make_tuple(std::move(d_coalesced_v),
+                         std::move(d_coalesced_w),
+                         std::move(d_paths_sz),
+                         seed0);  // also return seed for repro
 }
 
 /**
@@ -826,7 +830,8 @@ template <typename graph_t,
 std::enable_if_t<graph_t::is_multi_gpu == true,
                  std::tuple<device_vec_t<typename graph_t::vertex_type>,
                             device_vec_t<typename graph_t::weight_type>,
-                            device_vec_t<index_t>>>
+                            device_vec_t<index_t>,
+                            typename random_engine_t::seed_type>>
 random_walks_impl(raft::handle_t const& handle,
                   graph_t const& graph,
                   device_const_vector_view<typename graph_t::vertex_type, index_t>& d_v_start,
@@ -870,7 +875,13 @@ random_walks(raft::handle_t const& handle,
   //
   detail::device_const_vector_view<vertex_t, index_t> d_v_start{ptr_d_start, num_paths};
 
-  return detail::random_walks_impl(handle, graph, d_v_start, max_depth);
+  auto quad_tuple = detail::random_walks_impl(handle, graph, d_v_start, max_depth);
+  // ignore last element of the quad, seed,
+  // since it's meant for testing / debugging, only:
+  //
+  return std::make_tuple(std::move(std::get<0>(quad_tuple)),
+                         std::move(std::get<1>(quad_tuple)),
+                         std::move(std::get<2>(quad_tuple)));
 }
 }  // namespace experimental
 }  // namespace cugraph
