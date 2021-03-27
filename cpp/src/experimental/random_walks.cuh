@@ -111,7 +111,7 @@ struct device_const_vector_view {
 //
 template <typename vertex_t,
           typename edge_t,
-          typename seed_t  = long,
+          typename seed_t  = uint64_t,
           typename real_t  = float,
           typename index_t = edge_t>
 struct rrandom_gen_t {
