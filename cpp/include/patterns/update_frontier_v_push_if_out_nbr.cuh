@@ -678,6 +678,7 @@ void update_frontier_v_push_if_out_nbr(
                                    buffer_idx.value(handle.get_stream()),
                                    reduce_op);
   if (GraphViewType::is_multi_gpu) {
+    // FIXME: this step is unnecessary if row_comm_size== 1
     auto& comm               = handle.get_comms();
     auto const comm_rank     = comm.get_rank();
     auto& row_comm           = handle.get_subcomm(cugraph::partition_2d::key_naming_t().row_name());
