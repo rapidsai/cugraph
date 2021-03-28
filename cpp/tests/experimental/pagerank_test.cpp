@@ -15,6 +15,7 @@
  */
 
 #include <utilities/base_fixture.hpp>
+#include <utilities/high_res_clock.h>
 #include <utilities/test_utilities.hpp>
 #include <utilities/thrust_wrapper.hpp>
 
@@ -40,7 +41,7 @@
 // do the perf measurements
 // enabled by command line parameter s'--perf'
 //
-static int PERF = 0;
+static int PERF = 1;
 
 template <typename vertex_t, typename edge_t, typename weight_t, typename result_t>
 void pagerank_reference(edge_t const* offsets,
@@ -213,11 +214,22 @@ class Tests_PageRank : public ::testing::TestWithParam<PageRank_Usecase> {
     constexpr bool renumber = true;
 
     raft::handle_t handle{};
+    HighResClock hr_clock{};
 
+    if (PERF) {
+      CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
+      hr_clock.start();
+    }
     cugraph::experimental::graph_t<vertex_t, edge_t, weight_t, true, false> graph(handle);
     rmm::device_uvector<vertex_t> d_renumber_map_labels(0, handle.get_stream());
     std::tie(graph, d_renumber_map_labels) =
       read_graph<vertex_t, edge_t, weight_t>(handle, configuration, renumber);
+    if (PERF) {
+      CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
+      double elapsed_time{0.0};
+      hr_clock.stop(&elapsed_time);
+      std::cout << "read_graph took " << elapsed_time * 1e-6 << " s.\n";
+    }
     auto graph_view = graph.view();
 
     std::vector<vertex_t> h_personalization_vertices{};
@@ -271,7 +283,10 @@ class Tests_PageRank : public ::testing::TestWithParam<PageRank_Usecase> {
     rmm::device_uvector<result_t> d_pageranks(graph_view.get_number_of_vertices(),
                                               handle.get_stream());
 
-    CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
+    if (PERF) {
+      CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
+      hr_clock.start();
+    }
 
     cugraph::experimental::pagerank(handle,
                                     graph_view,
@@ -286,7 +301,12 @@ class Tests_PageRank : public ::testing::TestWithParam<PageRank_Usecase> {
                                     false,
                                     false);
 
-    CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
+    if (PERF) {
+      CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
+      double elapsed_time{0.0};
+      hr_clock.stop(&elapsed_time);
+      std::cout << "PageRank took " << elapsed_time * 1e-6 << " s.\n";
+    }
 
     if (configuration.check_correctness) {
       cugraph::experimental::graph_t<vertex_t, edge_t, weight_t, true, false> unrenumbered_graph(

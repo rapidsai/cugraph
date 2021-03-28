@@ -15,6 +15,7 @@
  */
 
 #include <utilities/base_fixture.hpp>
+#include <utilities/high_res_clock.h>
 #include <utilities/test_utilities.hpp>
 #include <utilities/thrust_wrapper.hpp>
 
@@ -33,6 +34,11 @@
 #include <gtest/gtest.h>
 
 #include <random>
+
+// do the perf measurements
+// enabled by command line parameter s'--perf'
+//
+static int PERF = 1;
 
 typedef struct SSSP_Usecase_t {
   cugraph::test::input_graph_specifier_t input_graph_specifier{};
@@ -115,6 +121,7 @@ class Tests_MGSSSP : public ::testing::TestWithParam<SSSP_Usecase> {
     // 1. initialize handle
 
     raft::handle_t handle{};
+    HighResClock hr_clock{};
 
     raft::comms::initialize_mpi_comms(&handle, MPI_COMM_WORLD);
     auto& comm           = handle.get_comms();
@@ -128,10 +135,20 @@ class Tests_MGSSSP : public ::testing::TestWithParam<SSSP_Usecase> {
 
     // 2. create MG graph
 
+    if (PERF) {
+      CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
+      hr_clock.start();
+    }
     cugraph::experimental::graph_t<vertex_t, edge_t, weight_t, false, true> mg_graph(handle);
     rmm::device_uvector<vertex_t> d_mg_renumber_map_labels(0, handle.get_stream());
     std::tie(mg_graph, d_mg_renumber_map_labels) =
       read_graph<vertex_t, edge_t, weight_t, true>(handle, configuration, true);
+    if (PERF) {
+      CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
+      double elapsed_time{0.0};
+      hr_clock.stop(&elapsed_time);
+      std::cout << "MG read_graph took " << elapsed_time * 1e-6 << " s.\n";
+    }
 
     auto mg_graph_view = mg_graph.view();
 
@@ -147,7 +164,10 @@ class Tests_MGSSSP : public ::testing::TestWithParam<SSSP_Usecase> {
     rmm::device_uvector<vertex_t> d_mg_predecessors(mg_graph_view.get_number_of_local_vertices(),
                                                     handle.get_stream());
 
-    CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
+    if (PERF) {
+      CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
+      hr_clock.start();
+    }
 
     // FIXME: disable do_expensive_check
     cugraph::experimental::sssp(handle,
@@ -158,7 +178,12 @@ class Tests_MGSSSP : public ::testing::TestWithParam<SSSP_Usecase> {
                                 std::numeric_limits<weight_t>::max(),
                                 true);
 
-    CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
+    if (PERF) {
+      CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
+      double elapsed_time{0.0};
+      hr_clock.stop(&elapsed_time);
+      std::cout << "MG PageRank took " << elapsed_time * 1e-6 << " s.\n";
+    }
 
     // 5. copmare SG & MG results
 
