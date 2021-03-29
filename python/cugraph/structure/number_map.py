@@ -579,8 +579,6 @@ class NumberMap:
                 renumber_map.implementation.df = renumbering_map.rename(
                     columns={'original_ids': '0', 'new_ids': 'id'}, copy=False)
             renumber_map.implementation.numbered = True
-            print("############")
-            print(renumbered_df.dtypes)
             return renumbered_df, renumber_map
 
     def unrenumber(self, df, column_name, preserve_order=False):

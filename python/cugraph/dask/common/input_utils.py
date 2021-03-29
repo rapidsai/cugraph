@@ -217,3 +217,15 @@ def get_distributed_data(input_ddf):
     if data.worker_info is None and comms is not None:
         data.calculate_worker_and_rank_info(comms)
     return data
+
+
+def get_vertex_partition_offsets(input_graph):
+    import cudf
+    renumber_vertex_count = input_graph.renumber_map.implementation.ddf.\
+        map_partitions(len).compute()
+    renumber_vertex_cumsum = renumber_vertex_count.cumsum()
+    vertex_dtype = input_graph.edgelist.edgelist_df['src'].dtype
+    vertex_partition_offsets = cudf.Series([0], dtype=vertex_dtype)
+    vertex_partition_offsets = vertex_partition_offsets.append(cudf.Series(
+        renumber_vertex_cumsum, dtype=vertex_dtype))
+    return vertex_partition_offsets
