@@ -471,11 +471,10 @@ class NumberMap:
 
     def renumber(df, src_col_names, dst_col_names, preserve_order=False,
                  store_transposed=False):
-
         if isinstance(src_col_names, list):
             renumber_type = 'legacy'
-        elif not (isinstance(df[src_col_names].dtype, np.int32) or
-                  isinstance(df[src_col_names].dtype, np.int64)):
+        elif not (df[src_col_names].dtype == np.int32 or
+                  df[src_col_names].dtype == np.int64):
             renumber_type = 'legacy'
         else:
             renumber_type = 'experimental'
