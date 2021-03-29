@@ -108,7 +108,8 @@ void flatten_dendrogram(
 }  // namespace detail
 
 template <typename graph_view_t>
-std::pair<std::unique_ptr<Dendrogram<typename graph_view_t::vertex_type>>, typename graph_view_t::weight_type>
+std::pair<std::unique_ptr<Dendrogram<typename graph_view_t::vertex_type>>,
+          typename graph_view_t::weight_type>
 louvain(raft::handle_t const &handle,
         graph_view_t const &graph_view,
         size_t max_level,
@@ -127,11 +128,12 @@ void flatten_dendrogram(raft::handle_t const &handle,
 }
 
 template <typename graph_view_t>
-std::pair<size_t, typename graph_view_t::weight_type> louvain(raft::handle_t const &handle,
-                                                         graph_view_t const &graph_view,
-                                                         typename graph_view_t::vertex_type *clustering,
-                                                         size_t max_level,
-                                                         typename graph_view_t::weight_type resolution)
+std::pair<size_t, typename graph_view_t::weight_type> louvain(
+  raft::handle_t const &handle,
+  graph_view_t const &graph_view,
+  typename graph_view_t::vertex_type *clustering,
+  size_t max_level,
+  typename graph_view_t::weight_type resolution)
 {
   using vertex_t = typename graph_view_t::vertex_type;
   using weight_t = typename graph_view_t::weight_type;
