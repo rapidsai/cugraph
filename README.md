@@ -53,7 +53,7 @@ As of Release 0.18 - including 0.18 nightly
 | Community    |                                        |              |                     |
 |              | EgoNet                                 | Single-GPU   |                     |
 |              | Leiden                                 | Single-GPU   |                     |
-|              | Louvain                                | Multi-GPU    |                     |
+|              | Louvain                                | Multi-GPU    |  [README](cpp/src/community/README-louvain+.md) |
 |              | Ensemble Clustering for Graphs         | Single-GPU   |                     |
 |              | Spectral-Clustering - Balanced Cut     | Single-GPU   |                     |
 |              | Spectral-Clustering - Modularity       | Single-GPU   |                     |
