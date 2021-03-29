@@ -15,7 +15,6 @@
  */
 #pragma once
 
-#include <cstdlib>
 #include <experimental/graph_view.hpp>
 #include <matrix_partition_device.cuh>
 #include <partition_manager.hpp>
@@ -45,6 +44,7 @@
 #include <cub/cub.cuh>
 
 #include <algorithm>
+#include <cstdlib>
 #include <limits>
 #include <numeric>
 #include <type_traits>
