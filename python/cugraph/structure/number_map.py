@@ -474,8 +474,9 @@ class NumberMap:
 
         if isinstance(src_col_names, list):
             renumber_type = 'legacy'
-            # elif isinstance(df[src_col_names].dtype, string):
-            #    renumber_type = 'legacy'
+        elif not (isinstance(df[src_col_names].dtype, np.int32) or
+                  isinstance(df[src_col_names].dtype, np.int64)):
+            renumber_type = 'legacy'
         else:
             renumber_type = 'experimental'
             df = df.rename(columns={src_col_names: "src",
@@ -579,7 +580,8 @@ class NumberMap:
                 renumber_map.implementation.df = renumbering_map.rename(
                     columns={'original_ids': '0', 'new_ids': 'id'}, copy=False)
             renumber_map.implementation.numbered = True
-
+            print("############")
+            print(renumbered_df.dtypes)
             return renumbered_df, renumber_map
 
     def unrenumber(self, df, column_name, preserve_order=False):
