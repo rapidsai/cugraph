@@ -370,9 +370,6 @@ template <typename graph_t,
             rrandom_gen_t<typename graph_t::vertex_type, typename graph_t::edge_type>,
           typename index_t = typename graph_t::edge_type>
 struct random_walker_t {
-  static_assert(std::is_trivially_copyable<random_engine_t>::value,
-                "random engine assumed trivially copyable.");
-
   using vertex_t = typename graph_t::vertex_type;
   using edge_t   = typename graph_t::edge_type;
   using weight_t = typename graph_t::weight_type;
