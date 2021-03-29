@@ -19,8 +19,8 @@ In order to make efficient use of the GPU parallelism, the cuGraph implementatio
 
 The unit test code is the best place to search for examples on calling louvain.
 
- * [SG Implementation](cpp/tests/community/louvain_test.cpp)
- * [MG Implementation](cpp/tests/community/mg_louvain_test.cpp)
+ * [SG Implementation](../../tests/community/louvain_test.cpp)
+ * [MG Implementation](../../tests/community/mg_louvain_test.cpp)
 
 The API itself is very simple.  There are two variations:
  * Return a flat clustering
