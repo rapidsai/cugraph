@@ -1193,6 +1193,7 @@ extract_ego(raft::handle_t const &handle,
  * length. Uniform distribution is assumed for the random engine.
  *
  * @tparam graph_t Type of graph/view (typically, graph_view_t).
+ * @tparam index_t Type used to store indexing and sizes.
  * @param handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator, and
  * handles to various CUDA libraries) to run graph algorithms.
  * @param graph Graph (view )object to generate RW on.
@@ -1201,8 +1202,9 @@ extract_ego(raft::handle_t const &handle,
  * @param max_depth maximum length of RWs.
  * @return std::tuple<device_vec_t<vertex_t>, device_vec_t<weight_t>,
  * device_vec_t<index_t>> Triplet of coalesced RW paths, with corresponding edge weights for
- * each, and coresponding path sizes. This is meant to minimize the number of DF's to be passed to
- * the Python layer.
+ * each, and corresponding path sizes. This is meant to minimize the number of DF's to be passed to
+ * the Python layer. The meaning of "coalesced" here is that a 2D array of paths of different sizes
+ * is represented as a 1D array.
  */
 template <typename graph_t, typename index_t>
 std::tuple<rmm::device_uvector<typename graph_t::vertex_type>,

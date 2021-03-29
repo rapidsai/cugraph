@@ -706,9 +706,10 @@ struct random_walker_t {
  * number(paths) == d_v_start.size().
  * @param max_depth maximum length of RWs.
  * @return std::tuple<device_vec_t<vertex_t>, device_vec_t<weight_t>,
- * device_vec_t<index_t>> Triplet of coalesced RW paths, with corresponding edge weights for
- * each, and coresponding path sizes. This is meant to minimize the number of DF's to be passed to
- * the Python layer.
+ * device_vec_t<index_t>, seed> Quadruplet of coalesced RW paths, with corresponding edge weights
+ * for each, and corresponding path sizes. This is meant to minimize the number of DF's to be passed
+ * to the Python layer. Also returning seed for testing / debugging repro. The meaning of
+ * "coalesced" here is that a 2D array of paths of different sizes is represented as a 1D array.
  */
 template <typename graph_t,
           typename random_engine_t =
@@ -818,9 +819,10 @@ random_walks_impl(raft::handle_t const& handle,
  * d_v_start.size().
  * @param max_depth maximum length of RWs.
  * @return std::tuple<device_vec_t<vertex_t>, device_vec_t<weight_t>,
- * device_vec_t<index_t>> Triplet of coalesced RW paths, with corresponding edge weights for
- * each, and coresponding path sizes. This is meant to minimize the number of DF's to be passed to
- * the Python layer.
+ * device_vec_t<index_t>, seed> Quadruplet of coalesced RW paths, with corresponding edge weights
+ * for each, and coresponding path sizes. This is meant to minimize the number of DF's to be passed
+ * to the Python layer. Also returning seed for testing / debugging repro. The meaning of
+ * "coalesced" here is that a 2D array of paths of different sizes is represented as a 1D array.
  */
 template <typename graph_t,
           typename random_engine_t =
@@ -848,6 +850,7 @@ random_walks_impl(raft::handle_t const& handle,
  * length. Uniform distribution is assumed for the random engine.
  *
  * @tparam graph_t Type of graph (view).
+ * @tparam index_t Type used to store indexing and sizes.
  * @param handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator, and
  * handles to various CUDA libraries) to run graph algorithms.
  * @param graph Graph object to generate RW on.
