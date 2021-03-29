@@ -61,6 +61,21 @@ struct resize_dataframe_buffer_tuple_iterator_element_impl<TupleType, BufferType
   void run(BufferType& buffer, size_t new_buffer_size, cudaStream_t stream) {}
 };
 
+template <typename TupleType, typename BufferType, size_t I, size_t N>
+struct shrink_to_fit_dataframe_buffer_tuple_iterator_element_impl {
+  void run(BufferType& buffer, cudaStream_t stream)
+  {
+    std::get<I>(buffer).shrink_to_fit(stream);
+    shrink_to_fit_dataframe_buffer_tuple_iterator_element_impl<TupleType, BufferType, I + 1, N>().run(
+      buffer, stream);
+  }
+};
+
+template <typename TupleType, typename BufferType, size_t I>
+struct shrink_to_fit_dataframe_buffer_tuple_iterator_element_impl<TupleType, BufferType, I, I> {
+  void run(BufferType& buffer, cudaStream_t stream) {}
+};
+
 template <typename TupleType, size_t I, typename BufferType>
 auto get_dataframe_buffer_begin_tuple_element_impl(BufferType& buffer)
 {
@@ -109,6 +124,25 @@ void resize_dataframe_buffer(BufferType& buffer, size_t new_buffer_size, cudaStr
   detail::
     resize_dataframe_buffer_tuple_iterator_element_impl<T, BufferType, size_t{0}, tuple_size>()
       .run(buffer, new_buffer_size, stream);
+}
+
+template <typename T,
+          typename BufferType,
+          typename std::enable_if_t<std::is_arithmetic<T>::value>* = nullptr>
+void shrink_to_fit_dataframe_buffer(BufferType& buffer, cudaStream_t stream)
+{
+  buffer.shrink_to_fit(stream);
+}
+
+template <typename T,
+          typename BufferType,
+          typename std::enable_if_t<is_thrust_tuple_of_arithmetic<T>::value>* = nullptr>
+void shrink_to_fit_dataframe_buffer(BufferType& buffer, cudaStream_t stream)
+{
+  size_t constexpr tuple_size = thrust::tuple_size<T>::value;
+  detail::
+    shrink_to_fit_dataframe_buffer_tuple_iterator_element_impl<T, BufferType, size_t{0}, tuple_size>()
+      .run(buffer, stream);
 }
 
 template <typename T,
