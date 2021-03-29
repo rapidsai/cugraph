@@ -90,13 +90,9 @@ void bfs(raft::handle_t const &handle,
 
   // 3. initialize BFS frontier
 
-  enum class Bucket { cur, num_buckets };
-  std::vector<size_t> bucket_sizes(static_cast<size_t>(Bucket::num_buckets),
-                                   push_graph_view.get_number_of_local_vertices());
-  VertexFrontier<vertex_t,
-                 GraphViewType::is_multi_gpu,
-                 static_cast<size_t>(Bucket::num_buckets)>
-    vertex_frontier(handle, bucket_sizes);
+  enum class Bucket { cur, next, num_buckets };
+  VertexFrontier<vertex_t, GraphViewType::is_multi_gpu, static_cast<size_t>(Bucket::num_buckets)>
+    vertex_frontier(handle);
 
   if (push_graph_view.is_local_vertex_nocheck(source_vertex)) {
     vertex_frontier.get_bucket(static_cast<size_t>(Bucket::cur)).insert(source_vertex);
@@ -105,23 +101,18 @@ void bfs(raft::handle_t const &handle,
   // 4. BFS iteration
 
   vertex_t depth{0};
-  auto cur_local_vertex_frontier_first =
-    vertex_frontier.get_bucket(static_cast<size_t>(Bucket::cur)).begin();
-  auto cur_vertex_frontier_aggregate_size =
-    vertex_frontier.get_bucket(static_cast<size_t>(Bucket::cur)).aggregate_size();
   while (true) {
     if (direction_optimizing) {
       CUGRAPH_FAIL("unimplemented.");
     } else {
       vertex_partition_device_t<GraphViewType> vertex_partition(push_graph_view);
 
-      auto cur_local_vertex_frontier_last =
-        vertex_frontier.get_bucket(static_cast<size_t>(Bucket::cur)).end();
       update_frontier_v_push_if_out_nbr(
         handle,
         push_graph_view,
-        cur_local_vertex_frontier_first,
-        cur_local_vertex_frontier_last,
+        vertex_frontier,
+        static_cast<size_t>(Bucket::cur),
+        std::vector<size_t>{static_cast<size_t>(Bucket::next)},
         thrust::make_constant_iterator(0) /* dummy */,
         thrust::make_constant_iterator(0) /* dummy */,
         [vertex_partition, distances] __device__(
@@ -137,21 +128,19 @@ void bfs(raft::handle_t const &handle,
         reduce_op::any<vertex_t>(),
         distances,
         thrust::make_zip_iterator(thrust::make_tuple(distances, predecessor_first)),
-        vertex_frontier,
         [depth] __device__(auto v_val, auto pushed_val) {
-          auto idx = (v_val == invalid_distance)
-                       ? static_cast<size_t>(Bucket::cur)
-                       : VertexFrontier<vertex_t>::kInvalidBucketIdx;
+          auto idx = (v_val == invalid_distance) ? static_cast<size_t>(Bucket::next)
+                                                 : VertexFrontier<vertex_t>::kInvalidBucketIdx;
           return thrust::make_tuple(idx, thrust::make_tuple(depth + 1, pushed_val));
         });
 
-      auto new_vertex_frontier_aggregate_size =
-        vertex_frontier.get_bucket(static_cast<size_t>(Bucket::cur)).aggregate_size() -
-        cur_vertex_frontier_aggregate_size;
-      if (new_vertex_frontier_aggregate_size == 0) { break; }
-
-      cur_local_vertex_frontier_first = cur_local_vertex_frontier_last;
-      cur_vertex_frontier_aggregate_size += new_vertex_frontier_aggregate_size;
+      vertex_frontier.get_bucket(static_cast<size_t>(Bucket::cur)).clear();
+      vertex_frontier.get_bucket(static_cast<size_t>(Bucket::cur)).shrink_to_fit();
+      vertex_frontier.swap_buckets(static_cast<size_t>(Bucket::cur),
+                                   static_cast<size_t>(Bucket::next));
+      if (vertex_frontier.get_bucket(static_cast<size_t>(Bucket::cur)).aggregate_size() == 0) {
+        break;
+      }
     }
 
     depth++;
