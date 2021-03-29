@@ -182,7 +182,7 @@ class Tests_MGSSSP : public ::testing::TestWithParam<SSSP_Usecase> {
       CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
       double elapsed_time{0.0};
       hr_clock.stop(&elapsed_time);
-      std::cout << "MG PageRank took " << elapsed_time * 1e-6 << " s.\n";
+      std::cout << "MG SSSP took " << elapsed_time * 1e-6 << " s.\n";
     }
 
     // 5. copmare SG & MG results
