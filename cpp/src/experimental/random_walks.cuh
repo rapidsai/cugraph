@@ -390,6 +390,50 @@ struct random_walker_t {
   {
   }
 
+  // for each i in [0..num_paths_) {
+  //   d_paths_v_set[i*max_depth] = d_src_init_v[i];
+  //
+  void start(device_const_vector_view<vertex_t, index_t>& d_src_init_v,  // in: start set
+             device_vec_t<vertex_t>& d_paths_v_set,                      // out: coalesced v
+             device_vec_t<index_t>& d_sizes) const  // out: init sizes to {1,...}
+  {
+    // intialize path sizes to 1, as they contain at least one vertex each:
+    // the initial set: d_src_init_v;
+    //
+    thrust::copy_n(rmm::exec_policy(handle_.get_stream())->on(handle_.get_stream()),
+                   thrust::make_constant_iterator<index_t>(1),
+                   num_paths_,
+                   d_sizes.begin());
+
+    // scatter d_src_init_v to coalesced vertex vector:
+    //
+    auto dlambda = [stride = max_depth_] __device__(auto indx) { return indx * stride; };
+
+    // use the transform iterator as map:
+    //
+    auto map_it_begin =
+      thrust::make_transform_iterator(thrust::make_counting_iterator<index_t>(0), dlambda);
+
+    thrust::scatter(rmm::exec_policy(handle_.get_stream())->on(handle_.get_stream()),
+                    d_src_init_v.begin(),
+                    d_src_init_v.end(),
+                    map_it_begin,
+                    d_paths_v_set.begin());
+  }
+
+  // overload for start() with device_uvector d_v_start
+  // (handy for testing)
+  //
+  void start(device_vec_t<vertex_t> const& d_start,  // in: start set
+             device_vec_t<vertex_t>& d_paths_v_set,  // out: coalesced v
+             device_vec_t<index_t>& d_sizes) const   // out: init sizes to {1,...}
+  {
+    device_const_vector_view<vertex_t, index_t> d_start_cview{d_start.data(),
+                                                              static_cast<index_t>(d_start.size())};
+
+    start(d_start_cview, d_paths_v_set, d_sizes);
+  }
+
   // in-place updates its arguments from one step to next
   // (to avoid copying); all "crt" arguments are updated at each step()
   // and passed as scratchpad space to avoid copying them
@@ -470,50 +514,6 @@ struct random_walker_t {
                        d_crt_out_degs.end(),
                        [] __device__(auto crt_out_deg) { return crt_out_deg == 0; });
     return (static_cast<size_t>(how_many_stopped) == d_crt_out_degs.size());
-  }
-
-  // for each i in [0..num_paths_) {
-  //   d_paths_v_set[i*max_depth] = d_src_init_v[i];
-  //
-  void start(device_const_vector_view<vertex_t, index_t>& d_src_init_v,  // in: start set
-             device_vec_t<vertex_t>& d_paths_v_set,                      // out: coalesced v
-             device_vec_t<index_t>& d_sizes) const  // out: init sizes to {1,...}
-  {
-    // intialize path sizes to 1, as they contain at least one vertex each:
-    // the initial set: d_src_init_v;
-    //
-    thrust::copy_n(rmm::exec_policy(handle_.get_stream())->on(handle_.get_stream()),
-                   thrust::make_constant_iterator<index_t>(1),
-                   num_paths_,
-                   d_sizes.begin());
-
-    // scatter d_src_init_v to coalesced vertex vector:
-    //
-    auto dlambda = [stride = max_depth_] __device__(auto indx) { return indx * stride; };
-
-    // use the transform iterator as map:
-    //
-    auto map_it_begin =
-      thrust::make_transform_iterator(thrust::make_counting_iterator<index_t>(0), dlambda);
-
-    thrust::scatter(rmm::exec_policy(handle_.get_stream())->on(handle_.get_stream()),
-                    d_src_init_v.begin(),
-                    d_src_init_v.end(),
-                    map_it_begin,
-                    d_paths_v_set.begin());
-  }
-
-  // overload for start() with device_uvector d_v_start
-  // (handy for testing)
-  //
-  void start(device_vec_t<vertex_t> const& d_start,  // in: start set
-             device_vec_t<vertex_t>& d_paths_v_set,  // out: coalesced v
-             device_vec_t<index_t>& d_sizes) const   // out: init sizes to {1,...}
-  {
-    device_const_vector_view<vertex_t, index_t> d_start_cview{d_start.data(),
-                                                              static_cast<index_t>(d_start.size())};
-
-    start(d_start_cview, d_paths_v_set, d_sizes);
   }
 
   // wrap-up, post-process:
