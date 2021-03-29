@@ -74,10 +74,26 @@ class Tests_Louvain : public ::testing::TestWithParam<Louvain_Usecase> {
       directed, configuration.graph_file_full_path_);
     auto graph_view = graph->view();
 
-    louvain(graph_view,
-            graph_view.get_number_of_vertices(),
-            configuration.expected_level_,
-            configuration.expected_modularity_);
+    // "FIXME": remove this check once we drop support for Pascal
+    //
+    // Calling louvain on Pascal will throw an exception, we'll check that
+    // this is the behavior while we still support Pascal (device_prop.major < 7)
+    //
+    cudaDeviceProp device_prop;
+    CUDA_CHECK(cudaGetDeviceProperties(&device_prop, 0));
+
+    if (device_prop.major < 7) {
+      EXPECT_THROW(louvain(graph_view,
+                           graph_view.get_number_of_vertices(),
+                           configuration.expected_level_,
+                           configuration.expected_modularity_),
+                   cugraph::logic_error);
+    } else {
+      louvain(graph_view,
+              graph_view.get_number_of_vertices(),
+              configuration.expected_level_,
+              configuration.expected_modularity_);
+    }
   }
 
   template <typename vertex_t, typename edge_t, typename weight_t, typename result_t>
