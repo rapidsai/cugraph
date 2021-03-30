@@ -385,7 +385,7 @@ void copy_v_transform_reduce_key_aggregated_out_nbr(
       if (static_cast<size_t>(sub_comm_rank) == i) {
         rx_displs.assign(sub_comm_size, size_t{0});
         std::partial_sum(rx_sizes.begin(), rx_sizes.end() - 1, rx_displs.begin() + 1);
-        rmm::device_uvector<vertex_t> rx_major_vertices.resize(rx_displs.back() + rx_sizes.back(),
+        rx_major_vertices.resize(rx_displs.back() + rx_sizes.back(),
                                                                handle.get_stream());
       }
       auto rx_tmp_e_op_result_buffer =
