@@ -1,5 +1,5 @@
 # Pagerank
-cuGraph Pagerank is implemented on our graph primitive library
+cuGraph Pagerank is implemented using our graph primitive library
 
 ## Calling Pagerank
 
