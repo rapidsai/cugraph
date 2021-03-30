@@ -363,7 +363,7 @@ coarsen_graph(
       };
     auto pair_first = thrust::make_zip_iterator(
       thrust::make_tuple(edgelist_major_vertices.begin(), edgelist_minor_vertices.begin()));
-    auto displacements =
+    auto counts =
       graph_view.is_weighted()
         ? groupby_and_count(pair_first,
                             pair_first + edgelist_major_vertices.size(),
@@ -376,15 +376,14 @@ coarsen_graph(
                             local_partition_id_op,
                             graph_view.get_number_of_local_adj_matrix_partitions(),
                             handle.get_stream());
-    thrust::exclusive_scan(rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
-                           displacements.begin(),
-                           displacements.end(),
-                           displacements.begin());
 
-    std::vector<size_t> h_displacements(displacements.size());
+    std::vector<size_t> h_counts(counts.size());
     raft::update_host(
-      h_displacements.data(), displacements.data(), displacements.size(), handle.get_stream());
-    CUDA_TRY(cudaStreamSynchronize(handle.get_stream()));
+      h_counts.data(), counts.data(), counts.size(), handle.get_stream());
+    handle.get_stream_view().synchronize();
+
+    std::vector<size_t> h_displacements(h_counts.size(), size_t{0});
+    std::partial_sum(h_counts.begin(), h_counts.end() - 1, h_displacements.begin() + 1);
 
     for (int j = 0; j < col_comm_size; ++j) {
       auto number_of_partition_edges = groupby_e_and_coarsen_edgelist(
@@ -392,7 +391,7 @@ coarsen_graph(
         edgelist_minor_vertices.begin() + h_displacements[j],
         graph_view.is_weighted() ? edgelist_weights.begin() + h_displacements[j]
                                  : static_cast<weight_t *>(nullptr),
-        h_displacements[j + 1] - h_displacements[j],
+        h_counts[j],
         handle.get_stream());
 
       auto cur_size = coarsened_edgelist_major_vertices[j].size();
@@ -527,7 +526,7 @@ coarsen_graph(
 
   std::vector<edgelist_t<vertex_t, edge_t, weight_t>> edgelists{};
   edgelists.resize(graph_view.get_number_of_local_adj_matrix_partitions());
-  for (size_t i = 0; edgelists.size(); ++i) {
+  for (size_t i = 0; i < edgelists.size(); ++i) {
     edgelists[i].p_src_vertices = store_transposed ? coarsened_edgelist_minor_vertices[i].data()
                                                    : coarsened_edgelist_major_vertices[i].data();
     edgelists[i].p_dst_vertices = store_transposed ? coarsened_edgelist_major_vertices[i].data()
