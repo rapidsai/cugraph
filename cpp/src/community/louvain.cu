@@ -26,50 +26,28 @@ namespace cugraph {
 namespace detail {
 
 template <typename vertex_t, typename edge_t, typename weight_t>
-std::pair<size_t, weight_t> louvain(raft::handle_t const &handle,
-                                    GraphCSRView<vertex_t, edge_t, weight_t> const &graph_view,
-                                    vertex_t *clustering,
-                                    size_t max_level,
-                                    weight_t resolution)
+std::pair<std::unique_ptr<Dendrogram<vertex_t>>, weight_t> louvain(
+  raft::handle_t const &handle,
+  GraphCSRView<vertex_t, edge_t, weight_t> const &graph_view,
+  size_t max_level,
+  weight_t resolution)
 {
   CUGRAPH_EXPECTS(graph_view.edge_data != nullptr,
                   "Invalid input argument: louvain expects a weighted graph");
-  CUGRAPH_EXPECTS(clustering != nullptr,
-                  "Invalid input argument: clustering is null, should be a device pointer to "
-                  "memory for storing the result");
 
   Louvain<GraphCSRView<vertex_t, edge_t, weight_t>> runner(handle, graph_view);
   weight_t wt = runner(max_level, resolution);
 
-  rmm::device_uvector<vertex_t> vertex_ids_v(graph_view.number_of_vertices, handle.get_stream());
-
-  thrust::sequence(rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
-                   vertex_ids_v.begin(),
-                   vertex_ids_v.end(),
-                   vertex_t{0});
-
-  partition_at_level<vertex_t, false>(handle,
-                                      runner.get_dendrogram(),
-                                      vertex_ids_v.data(),
-                                      clustering,
-                                      runner.get_dendrogram().num_levels());
-
-  // FIXME: Consider returning the Dendrogram at some point
-  return std::make_pair(runner.get_dendrogram().num_levels(), wt);
+  return std::make_pair(runner.move_dendrogram(), wt);
 }
 
 template <typename vertex_t, typename edge_t, typename weight_t, bool multi_gpu>
-std::pair<size_t, weight_t> louvain(
+std::pair<std::unique_ptr<Dendrogram<vertex_t>>, weight_t> louvain(
   raft::handle_t const &handle,
   experimental::graph_view_t<vertex_t, edge_t, weight_t, false, multi_gpu> const &graph_view,
-  vertex_t *clustering,
   size_t max_level,
   weight_t resolution)
 {
-  CUGRAPH_EXPECTS(clustering != nullptr,
-                  "Invalid input argument: clustering is null, should be a device pointer to "
-                  "memory for storing the result");
-
   // "FIXME": remove this check and the guards below
   //
   // Disable louvain(experimental::graph_view_t,...)
@@ -87,40 +65,153 @@ std::pair<size_t, weight_t> louvain(
 
     weight_t wt = runner(max_level, resolution);
 
-    rmm::device_uvector<vertex_t> vertex_ids_v(graph_view.get_number_of_vertices(),
-                                               handle.get_stream());
-
-    thrust::sequence(rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
-                     vertex_ids_v.begin(),
-                     vertex_ids_v.end(),
-                     graph_view.get_local_vertex_first());
-
-    partition_at_level<vertex_t, multi_gpu>(handle,
-                                            runner.get_dendrogram(),
-                                            vertex_ids_v.data(),
-                                            clustering,
-                                            runner.get_dendrogram().num_levels());
-
-    // FIXME: Consider returning the Dendrogram at some point
-    return std::make_pair(runner.get_dendrogram().num_levels(), wt);
+    return std::make_pair(runner.move_dendrogram(), wt);
   }
+}
+
+template <typename vertex_t, typename edge_t, typename weight_t>
+void flatten_dendrogram(raft::handle_t const &handle,
+                        GraphCSRView<vertex_t, edge_t, weight_t> const &graph_view,
+                        Dendrogram<vertex_t> const &dendrogram,
+                        vertex_t *clustering)
+{
+  rmm::device_uvector<vertex_t> vertex_ids_v(graph_view.number_of_vertices, handle.get_stream());
+
+  thrust::sequence(rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
+                   vertex_ids_v.begin(),
+                   vertex_ids_v.end(),
+                   vertex_t{0});
+
+  partition_at_level<vertex_t, false>(
+    handle, dendrogram, vertex_ids_v.data(), clustering, dendrogram.num_levels());
+}
+
+template <typename vertex_t, typename edge_t, typename weight_t, bool multi_gpu>
+void flatten_dendrogram(
+  raft::handle_t const &handle,
+  experimental::graph_view_t<vertex_t, edge_t, weight_t, false, multi_gpu> const &graph_view,
+  Dendrogram<vertex_t> const &dendrogram,
+  vertex_t *clustering)
+{
+  rmm::device_uvector<vertex_t> vertex_ids_v(graph_view.get_number_of_vertices(),
+                                             handle.get_stream());
+
+  thrust::sequence(rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
+                   vertex_ids_v.begin(),
+                   vertex_ids_v.end(),
+                   graph_view.get_local_vertex_first());
+
+  partition_at_level<vertex_t, multi_gpu>(
+    handle, dendrogram, vertex_ids_v.data(), clustering, dendrogram.num_levels());
 }
 
 }  // namespace detail
 
-template <typename graph_t>
-std::pair<size_t, typename graph_t::weight_type> louvain(raft::handle_t const &handle,
-                                                         graph_t const &graph,
-                                                         typename graph_t::vertex_type *clustering,
-                                                         size_t max_level,
-                                                         typename graph_t::weight_type resolution)
+template <typename graph_view_t>
+std::pair<std::unique_ptr<Dendrogram<typename graph_view_t::vertex_type>>,
+          typename graph_view_t::weight_type>
+louvain(raft::handle_t const &handle,
+        graph_view_t const &graph_view,
+        size_t max_level,
+        typename graph_view_t::weight_type resolution)
 {
+  return detail::louvain(handle, graph_view, max_level, resolution);
+}
+
+template <typename graph_view_t>
+void flatten_dendrogram(raft::handle_t const &handle,
+                        graph_view_t const &graph_view,
+                        Dendrogram<typename graph_view_t::vertex_type> const &dendrogram,
+                        typename graph_view_t::vertex_type *clustering)
+{
+  detail::flatten_dendrogram(handle, graph_view, dendrogram, clustering);
+}
+
+template <typename graph_view_t>
+std::pair<size_t, typename graph_view_t::weight_type> louvain(
+  raft::handle_t const &handle,
+  graph_view_t const &graph_view,
+  typename graph_view_t::vertex_type *clustering,
+  size_t max_level,
+  typename graph_view_t::weight_type resolution)
+{
+  using vertex_t = typename graph_view_t::vertex_type;
+  using weight_t = typename graph_view_t::weight_type;
+
   CUGRAPH_EXPECTS(clustering != nullptr, "Invalid input argument: clustering is null");
 
-  return detail::louvain(handle, graph, clustering, max_level, resolution);
+  std::unique_ptr<Dendrogram<vertex_t>> dendrogram;
+  weight_t modularity;
+
+  std::tie(dendrogram, modularity) = louvain(handle, graph_view, max_level, resolution);
+
+  flatten_dendrogram(handle, graph_view, *dendrogram, clustering);
+
+  return std::make_pair(dendrogram->num_levels(), modularity);
 }
 
 // Explicit template instantations
+template std::pair<std::unique_ptr<Dendrogram<int32_t>>, float> louvain(
+  raft::handle_t const &,
+  experimental::graph_view_t<int32_t, int32_t, float, false, false> const &,
+  size_t,
+  float);
+template std::pair<std::unique_ptr<Dendrogram<int32_t>>, float> louvain(
+  raft::handle_t const &,
+  experimental::graph_view_t<int32_t, int64_t, float, false, false> const &,
+  size_t,
+  float);
+template std::pair<std::unique_ptr<Dendrogram<int64_t>>, float> louvain(
+  raft::handle_t const &,
+  experimental::graph_view_t<int64_t, int64_t, float, false, false> const &,
+  size_t,
+  float);
+template std::pair<std::unique_ptr<Dendrogram<int32_t>>, double> louvain(
+  raft::handle_t const &,
+  experimental::graph_view_t<int32_t, int32_t, double, false, false> const &,
+  size_t,
+  double);
+template std::pair<std::unique_ptr<Dendrogram<int32_t>>, double> louvain(
+  raft::handle_t const &,
+  experimental::graph_view_t<int32_t, int64_t, double, false, false> const &,
+  size_t,
+  double);
+template std::pair<std::unique_ptr<Dendrogram<int64_t>>, double> louvain(
+  raft::handle_t const &,
+  experimental::graph_view_t<int64_t, int64_t, double, false, false> const &,
+  size_t,
+  double);
+template std::pair<std::unique_ptr<Dendrogram<int32_t>>, float> louvain(
+  raft::handle_t const &,
+  experimental::graph_view_t<int32_t, int32_t, float, false, true> const &,
+  size_t,
+  float);
+template std::pair<std::unique_ptr<Dendrogram<int32_t>>, float> louvain(
+  raft::handle_t const &,
+  experimental::graph_view_t<int32_t, int64_t, float, false, true> const &,
+  size_t,
+  float);
+template std::pair<std::unique_ptr<Dendrogram<int64_t>>, float> louvain(
+  raft::handle_t const &,
+  experimental::graph_view_t<int64_t, int64_t, float, false, true> const &,
+  size_t,
+  float);
+template std::pair<std::unique_ptr<Dendrogram<int32_t>>, double> louvain(
+  raft::handle_t const &,
+  experimental::graph_view_t<int32_t, int32_t, double, false, true> const &,
+  size_t,
+  double);
+template std::pair<std::unique_ptr<Dendrogram<int32_t>>, double> louvain(
+  raft::handle_t const &,
+  experimental::graph_view_t<int32_t, int64_t, double, false, true> const &,
+  size_t,
+  double);
+template std::pair<std::unique_ptr<Dendrogram<int64_t>>, double> louvain(
+  raft::handle_t const &,
+  experimental::graph_view_t<int64_t, int64_t, double, false, true> const &,
+  size_t,
+  double);
+
 template std::pair<size_t, float> louvain(
   raft::handle_t const &, GraphCSRView<int32_t, int32_t, float> const &, int32_t *, size_t, float);
 template std::pair<size_t, double> louvain(raft::handle_t const &,
