@@ -51,19 +51,19 @@ def get_traversed_cost(input_df):
 
     if weight_t == np.float32:
         c_get_traversed_cost(handle_[0],
-                <int*> vertices,
+                <int *> vertices,
                 <int *> preds,
                 <float *> info_weights,
                 <float *> out,
-                num_verts
+                <int> num_verts
                 )
     elif weight_t == np.float64:
         c_get_traversed_cost(handle_[0],
-                <int*> vertices,
+                <int *> vertices,
                 <int *> preds,
                 <double *> info_weights,
                 <double *> out,
-                num_verts
+                <int>num_verts
                 )
     else:
         raise NotImplementedError
