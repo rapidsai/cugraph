@@ -63,7 +63,7 @@ def get_traversed_cost(input_df):
                 <int *> preds,
                 <double *> info_weights,
                 <double *> out,
-                <int>num_verts
+                <int> num_verts
                 )
     else:
         raise NotImplementedError

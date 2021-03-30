@@ -24,6 +24,7 @@ namespace cugraph {
  * @brief Takes the results of BFS or SSSP function call and sums the given
  * weights along the path to the starting vertex.
  *
+ * @tparam vertex_t Type of vertex identifiers. Needs to be an integral type.
  * @tparam weight_t Type of edge weights. Needs to be a floating point type.
  * @param handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator, and
  * handles to various CUDA libraries) to run graph algorithms. Must have at least one worker stream.
