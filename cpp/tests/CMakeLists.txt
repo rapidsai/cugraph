@@ -416,6 +416,20 @@ set(EXPERIMENTAL_KATZ_CENTRALITY_TEST_SRCS
 
 ConfigureTest(EXPERIMENTAL_KATZ_CENTRALITY_TEST "${EXPERIMENTAL_KATZ_CENTRALITY_TEST_SRCS}")
 
+###################################################################################################
+# - Experimental RANDOM_WALKS tests ------------------------------------------------------------
+
+set(EXPERIMENTAL_RANDOM_WALKS_TEST_SRCS
+    "${CMAKE_CURRENT_SOURCE_DIR}/experimental/random_walks_test.cu")
+
+ConfigureTest(EXPERIMENTAL_RANDOM_WALKS_TEST "${EXPERIMENTAL_RANDOM_WALKS_TEST_SRCS}")
+
+###################################################################################################
+set(EXPERIMENTAL_RANDOM_WALKS_LOW_LEVEL_SRCS
+    "${CMAKE_CURRENT_SOURCE_DIR}/experimental/rw_low_level_test.cu")
+
+ConfigureTest(EXPERIMENTAL_RANDOM_WALKS_LOW_LEVEL_TEST "${EXPERIMENTAL_RANDOM_WALKS_LOW_LEVEL_SRCS}")
+
 
 ###################################################################################################
 # - MG tests --------------------------------------------------------------------------------------
