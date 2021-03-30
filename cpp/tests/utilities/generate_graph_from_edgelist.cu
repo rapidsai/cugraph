@@ -28,7 +28,6 @@
 
 namespace cugraph {
 namespace test {
-namespace detail {
 
 namespace {
 
@@ -516,6 +515,5 @@ generate_graph_from_edgelist<int64_t, int64_t, double, true, true>(
   bool test_weighted,
   bool renumber);
 
-}  // namespace detail
 }  // namespace test
 }  // namespace cugraph

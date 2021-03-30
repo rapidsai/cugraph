@@ -106,6 +106,22 @@ static const std::string& get_rapids_dataset_root_dir()
   return rdrd;
 }
 
+template <typename vertex_t,
+          typename edge_t,
+          typename weight_t,
+          bool store_transposed,
+          bool multi_gpu>
+std::tuple<cugraph::experimental::graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu>,
+           rmm::device_uvector<vertex_t>>
+generate_graph_from_edgelist(raft::handle_t const& handle,
+                             rmm::device_uvector<vertex_t>&& vertices,
+                             rmm::device_uvector<vertex_t>&& edgelist_rows,
+                             rmm::device_uvector<vertex_t>&& edgelist_cols,
+                             rmm::device_uvector<weight_t>&& edgelist_weights,
+                             bool is_symmetric,
+                             bool test_weighted,
+                             bool renumber);
+
 // returns a tuple of (rows, columns, weights, number_of_vertices, is_symmetric)
 template <typename vertex_t, typename weight_t>
 std::tuple<rmm::device_uvector<vertex_t>,
