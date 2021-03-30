@@ -53,7 +53,7 @@ cdef renumber_helper(shuffled_vertices_t* ptr_maj_min_w, vertex_t, weights):
     
         shuffled_weights_series = cudf.Series(data=shuffled_weights_buffer, dtype=weight_t)
     
-        shuffled_df['weights']= shuffled_weights_series
+        shuffled_df['value']= shuffled_weights_series
     
     return shuffled_df
 
