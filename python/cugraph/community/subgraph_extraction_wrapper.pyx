@@ -59,6 +59,7 @@ def subgraph(input_graph, vertices):
     if weights is not None:
         c_weights = weights.__cuda_array_interface__['data'][0]
 
+    [vertices] = graph_primtypes_wrapper.datatype_cast([vertices], [np.int32])
     cdef uintptr_t c_vertices = vertices.__cuda_array_interface__['data'][0]
 
     if use_float:

@@ -16,8 +16,8 @@ import operator as op
 from dask.distributed import wait, default_client
 
 import cugraph.comms.comms as Comms
-from cugraph.dask.common.input_utils import get_distributed_data
-from cugraph.structure.shuffle import shuffle
+from cugraph.dask.common.input_utils import (get_distributed_data,
+                                             get_vertex_partition_offsets)
 from cugraph.dask.community import louvain_wrapper as c_mg_louvain
 from cugraph.utilities.utils import is_cuda_version_less_than
 
@@ -86,12 +86,9 @@ def louvain(input_graph, max_iter=100, resolution=1.0):
     input_graph.compute_renumber_edge_list(transposed=False)
     sorted_by_degree = True
 
-    (ddf,
-     num_verts,
-     partition_row_size,
-     partition_col_size,
-     vertex_partition_offsets) = shuffle(input_graph, transposed=False)
-
+    ddf = input_graph.edgelist.edgelist_df
+    vertex_partition_offsets = get_vertex_partition_offsets(input_graph)
+    num_verts = vertex_partition_offsets.iloc[-1]
     num_edges = len(ddf)
     data = get_distributed_data(ddf)
 
