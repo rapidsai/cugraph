@@ -19,6 +19,7 @@
 
 #include <raft/handle.hpp>
 
+#include <utilities/error.hpp>
 #include <utilities/path_retrieval.hpp>
 
 namespace cugraph {
@@ -89,8 +90,8 @@ void get_traversed_cost(raft::handle_t const &handle,
                         weight_t *out,
                         vertex_t num_vertices)
 {
-  RAFT_EXPECTS(num_vertices > 0, "num_vertices should be strictly positive");
-  RAFT_EXPECTS(out != nullptr, "out should be of size num_vertices");
+  CUGRAPH_EXPECTS(num_vertices > 0, "num_vertices should be strictly positive");
+  CUGRAPH_EXPECTS(out != nullptr, "out should be of size num_vertices");
   cugraph::detail::get_traversed_cost_impl(
     handle, vertices, preds, info_weights, out, num_vertices);
 }
