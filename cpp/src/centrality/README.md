@@ -1,7 +1,7 @@
-# Pagerank
+# Centrality algorithms
 cuGraph Pagerank is implemented using our graph primitive library
 
-## Calling Pagerank
+## Pagerank
 
 The unit test code is the best place to search for examples on calling louvain.
 

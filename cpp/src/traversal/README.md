@@ -1,7 +1,7 @@
-# SSSP
-cuGraph SSSP (Single Source Shortest Path) is implemented using our graph primitive library
+# Traversal
+cuGraph traversal algorithms are contained in this directory
 
-## Calling SSSP
+## SSSP
 
 The unit test code is the best place to search for examples on calling louvain.
 
