@@ -31,10 +31,10 @@
 
 #include <gtest/gtest.h>
 
-void compare(float modularity, float sg_modularity) { ASSERT_FLOAT_EQ(modularity, sg_modularity); }
-void compare(double modularity, double sg_modularity)
+void compare(float mg_modularity, float sg_modularity) { ASSERT_FLOAT_EQ(mg_modularity, sg_modularity); }
+void compare(double mg_modularity, double sg_modularity)
 {
-  ASSERT_DOUBLE_EQ(modularity, sg_modularity);
+  ASSERT_DOUBLE_EQ(mg_modularity, sg_modularity);
 }
 
 ////////////////////////////////////////////////////////////////////////////////
