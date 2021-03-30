@@ -71,7 +71,7 @@ As of Release 0.18 - including 0.18 nightly
 | Linear Assignment|                                    |              |                     |
 |              | Hungarian                              | Single-GPU   | [README](cpp/src/linear_assignment/README-hungarian.md) |
 | Link Analysis|                                        |              |                     |
-|              | Pagerank                               | Multi-GPU    | [C++ README](cpp/src/centrality/README.md#Simple-Pagerank) |
+|              | Pagerank                               | Multi-GPU    | [C++ README](cpp/src/centrality/README.md#Pagerank) |
 |              | Personal Pagerank                      | Multi-GPU    | [C++ README](cpp/src/centrality/README.md#Personalized-Pagerank) |
 |              | HITS                                   | Single-GPU   | leverages Gunrock   |
 | Link Prediction |                                     |              |                     |
@@ -79,7 +79,7 @@ As of Release 0.18 - including 0.18 nightly
 |              | Weighted Jaccard Similarity            | Single-GPU   |                     |
 |              | Overlap Similarity                     | Single-GPU   |                     |
 | Traversal    |                                        |              |                     |
-|              | Breadth First Search (BFS)             | Multi-GPU    | with cutoff support [C++ README](cpp/src/traversal/README.md#BFS) |
+|              | Breadth First Search (BFS)             | Multi-GPU    | with cutoff support <br/> [C++ README](cpp/src/traversal/README.md#BFS) |
 |              | Single Source Shortest Path (SSSP)     | Multi-GPU    | [C++ README](cpp/src/traversal/README.md#SSSP) |
 |              | Traveling Salesperson Problem (TSP)    | Single-GPU   |                     |
 | Structure    |                                        |              |                     |
