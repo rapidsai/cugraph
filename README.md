@@ -72,7 +72,7 @@ As of Release 0.18 - including 0.18 nightly
 |              | Hungarian                              | Single-GPU   | [README](cpp/src/linear_assignment/README-hungarian.md) |
 | Link Analysis|                                        |              |                     |
 |              | Pagerank                               | Multi-GPU    | [C++ README](cpp/src/centrality/README-pagerank.md) |
-|              | Personal Pagerank                      | Multi-GPU    |                     |
+|              | Personal Pagerank                      | Multi-GPU    | [C++ README](cpp/src/centrality/README-pagerank.md#Personalized-Pagerank) |
 |              | HITS                                   | Single-GPU   | leverages Gunrock   |
 | Link Prediction |                                     |              |                     |
 |              | Jaccard Similarity                     | Single-GPU   |                     |

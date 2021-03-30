@@ -33,7 +33,7 @@ rmm::device_uvector<result_t> pageranks_v(graph_view.get_number_of_vertices(), h
 cugraph::experimental::pagerank(handle, graph_view, nullptr, nullptr, nullptr, vertex_t{0}, pageranks_v.data(), alpha, epsilon);
 ```
 
-### Personalize Pagerank
+## Personalized Pagerank
 
 The example assumes that you create an SG or MG graph somehow.  The caller must create the pageranks vector in device memory and pass in the raw pointer to that vector into the pagerank function.  Additionally, the caller must create personalization_vertices and personalized_values vectors in device memory, populate them and pass in the raw pointers to those vectors.
 
