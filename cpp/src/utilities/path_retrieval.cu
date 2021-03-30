@@ -24,20 +24,20 @@
 namespace cugraph {
 namespace detail {
 
-template <typename weight_t>
-__global__ void get_traversed_cost_kernel(int const *vertices,
-                                          int const *preds,
-                                          int const *vtx_map,
+template <typename vertex_t, typename weight_t>
+__global__ void get_traversed_cost_kernel(vertex_t const *vertices,
+                                          vertex_t const *preds,
+                                          vertex_t const *vtx_map,
                                           weight_t const *info_weights,
                                           weight_t *out,
-                                          int num_vertices)
+                                          vertex_t num_vertices)
 {
-  for (int i = threadIdx.x + blockIdx.x * blockDim.x; i < num_vertices;
+  for (auto i = threadIdx.x + blockIdx.x * blockDim.x; i < num_vertices;
        i += gridDim.x * blockDim.x) {
-    float sum = info_weights[i];
-    int pred  = preds[i];
+    weight_t sum = info_weights[i];
+    vertex_t pred  = preds[i];
     while (pred != -1) {
-      int pos = vtx_map[pred];
+      vertex_t pos = vtx_map[pred];
       sum += info_weights[pos];
       pred = preds[pos];
     }
@@ -45,25 +45,25 @@ __global__ void get_traversed_cost_kernel(int const *vertices,
   }
 }
 
-template <typename weight_t>
+template <typename vertex_t, typename weight_t>
 void get_traversed_cost_impl(raft::handle_t const &handle,
-                             int const *vertices,
-                             int const *preds,
+                             vertex_t const *vertices,
+                             vertex_t const *preds,
                              weight_t const *info_weights,
                              weight_t *out,
-                             int num_vertices)
+                             vertex_t num_vertices)
 {
   dim3 nthreads, nblocks;
-  nthreads.x = min(num_vertices, CUDA_MAX_KERNEL_THREADS);
+  nthreads.x =  std::min<vertex_t>(num_vertices, CUDA_MAX_KERNEL_THREADS);
   nthreads.y = 1;
   nthreads.z = 1;
-  nblocks.x  = min((num_vertices + nthreads.x - 1) / nthreads.x, CUDA_MAX_BLOCKS);
+  nblocks.x  = std::min<vertex_t>((num_vertices + nthreads.x - 1) / nthreads.x, CUDA_MAX_BLOCKS);
   nblocks.y  = 1;
   nblocks.z  = 1;
 
   auto stream = handle.get_stream();
-  rmm::device_uvector<int> vtx_map_v(num_vertices, stream);
-  rmm::device_uvector<int> vtx_keys_v(num_vertices, stream);
+  rmm::device_uvector<vertex_t> vtx_map_v(num_vertices, stream);
+  rmm::device_uvector<vertex_t> vtx_keys_v(num_vertices, stream);
   auto *vtx_map  = vtx_map_v.data();
   auto *vtx_keys = vtx_keys_v.data();
   raft::copy(vtx_keys, vertices, num_vertices, stream);
@@ -78,29 +78,44 @@ void get_traversed_cost_impl(raft::handle_t const &handle,
 }
 }  // namespace detail
 
-template <typename weight_t>
+template <typename vertex_t, typename weight_t>
 void get_traversed_cost(raft::handle_t const &handle,
-                        int const *vertices,
-                        int const *preds,
+                        vertex_t const *vertices,
+                        vertex_t const *preds,
                         weight_t const *info_weights,
                         weight_t *out,
-                        int num_vertices)
+                        vertex_t num_vertices)
 {
   RAFT_EXPECTS(num_vertices > 0, "num_vertices should be strictly positive");
   cugraph::detail::get_traversed_cost_impl(
     handle, vertices, preds, info_weights, out, num_vertices);
 }
 
-template void get_traversed_cost<float>(raft::handle_t const &handle,
-                                        int const *vertices,
-                                        int const *preds,
+template void get_traversed_cost<int32_t, float>(raft::handle_t const &handle,
+                                        int32_t const *vertices,
+                                        int32_t const *preds,
                                         float const *info_weights,
                                         float *out,
-                                        int num_vertices);
-template void get_traversed_cost<double>(raft::handle_t const &handle,
-                                         int const *vertices,
-                                         int const *preds,
+                                        int32_t num_vertices);
+
+template void get_traversed_cost<int32_t, double>(raft::handle_t const &handle,
+                                        int32_t const *vertices,
+                                        int32_t const *preds,
+                                        double const *info_weights,
+                                        double *out,
+                                        int32_t num_vertices);
+
+template void get_traversed_cost<int64_t, float>(raft::handle_t const &handle,
+                                         int64_t const *vertices,
+                                         int64_t const *preds,
+                                         float const *info_weights,
+                                         float *out,
+                                         int64_t num_vertices);
+
+template void get_traversed_cost<int64_t, double>(raft::handle_t const &handle,
+                                         int64_t const *vertices,
+                                         int64_t const *preds,
                                          double const *info_weights,
                                          double *out,
-                                         int num_vertices);
+                                         int64_t num_vertices);
 }  // namespace cugraph

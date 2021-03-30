@@ -33,11 +33,11 @@ namespace cugraph {
  * @param out Contains for each index the sum of weights along the path unfolding.
  * @param num_vertices Number of vertices.
  **/
-template <typename weight_t>
+template <typename vertex_t, typename weight_t>
 void get_traversed_cost(raft::handle_t const &handle,
-                        int const *vertices,
-                        int const *preds,
+                        vertex_t const *vertices,
+                        vertex_t const *preds,
                         weight_t const *info_weights,
                         weight_t *out,
-                        int num_vertices);
+                        vertex_t num_vertices);
 }  // namespace cugraph
