@@ -15,11 +15,11 @@
  */
 
 #include <rmm/device_uvector.hpp>
+#include <rmm/thrust_rmm_allocator.h>
 
 #include <raft/handle.hpp>
 
 #include <utilities/path_retrieval.hpp>
-#include "utilities/graph_utils.cuh"
 
 namespace cugraph {
 namespace detail {
@@ -53,19 +53,22 @@ void get_traversed_cost_impl(raft::handle_t const &handle,
                              weight_t *out,
                              vertex_t num_vertices)
 {
+  auto stream = handle.get_stream();
+  vertex_t  max_blocks = handle.get_device_properties().maxGridSize[0];
+  vertex_t  max_threads = handle.get_device_properties().maxThreadsPerBlock;
+
   dim3 nthreads, nblocks;
-  nthreads.x =  std::min<vertex_t>(num_vertices, CUDA_MAX_KERNEL_THREADS);
+  nthreads.x =  std::min<vertex_t>(num_vertices, max_threads);
   nthreads.y = 1;
   nthreads.z = 1;
-  nblocks.x  = std::min<vertex_t>((num_vertices + nthreads.x - 1) / nthreads.x, CUDA_MAX_BLOCKS);
+  nblocks.x  = std::min<vertex_t>((num_vertices + nthreads.x - 1) / nthreads.x, max_blocks);
   nblocks.y  = 1;
   nblocks.z  = 1;
 
-  auto stream = handle.get_stream();
   rmm::device_uvector<vertex_t> vtx_map_v(num_vertices, stream);
   rmm::device_uvector<vertex_t> vtx_keys_v(num_vertices, stream);
-  auto *vtx_map  = vtx_map_v.data();
-  auto *vtx_keys = vtx_keys_v.data();
+  vertex_t *vtx_map  = vtx_map_v.data();
+  vertex_t *vtx_keys = vtx_keys_v.data();
   raft::copy(vtx_keys, vertices, num_vertices, stream);
 
   thrust::sequence(rmm::exec_policy(stream)->on(stream), vtx_map, vtx_map + num_vertices);
