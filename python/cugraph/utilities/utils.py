@@ -194,6 +194,8 @@ def get_traversed_cost(df, source_col, dest_col, value_col):
     """
     Take the DataFrame result from a BFS or SSSP function call and sums
     the given weights along the path to the starting vertex.
+    The source_col, dest_col identifiers need to match with the vertex and
+    predecessor columns of df.
 
     Input Parameters
     ----------
@@ -210,7 +212,7 @@ def get_traversed_cost(df, source_col, dest_col, value_col):
     value_col : cudf.Series
         This cudf.Series wraps a gdf_column of size E (E: number of edges).
         The gdf column contains values associated with this edge.
-        Weight can be of any type
+        Weight should be a floating type.
 
     Returns
     ---------
