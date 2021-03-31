@@ -249,7 +249,7 @@ def get_traversed_cost(df, source, source_col, dest_col, value_col):
                         how="left"
                         )
 
-    # Set unreachable vertex weights to max float and source vertex weight to 0.
+    # Set unreachable vertex weights to max float and source vertex weight to 0
     max_val = np.finfo(val.dtype).max
     input_df[['weights']] = input_df[['weights']].fillna(max_val)
     input_df.loc[input_df['vertex'] == source, 'weights'] = 0
