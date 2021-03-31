@@ -382,10 +382,7 @@ class Graph:
         graph to check if it is bipartite.
         """
         # TO DO: Call coloring algorithm
-        if hasattr(self.graph_properties, 'bipartite'):
-            return self.graph_properties.bipartite
-        else:
-            return False
+        return False
 
     def is_multipartite(self):
         """
@@ -394,20 +391,14 @@ class Graph:
         the graph to check if it is multipartite.
         """
         # TO DO: Call coloring algorithm
-        if hasattr(self.graph_properties, 'multipartite'):
-            return self.graph_properties.multipartite
-        else:
-            return False
+        return False
 
     def is_multigraph(self):
         """
         Returns True if the graph is a multigraph. Else returns False.
         """
         # TO DO: Call coloring algorithm
-        if hasattr(self.graph_properties, 'multi_edge'):
-            return self.graph_properties.multi_edge
-        else:
-            return False
+        return False
 
     def is_directed(self):
         """
@@ -508,6 +499,12 @@ class MultiGraph(Graph):
         super(MultiGraph, self).__init__(directed=directed)
         self.graph_properties.multi_edge = True
 
+    def is_multigraph(self):
+        """
+        Returns True if the graph is a multigraph. Else returns False.
+        """
+        # TO DO: Call coloring algorithm
+        return True
 
 class MultiDiGraph(MultiGraph):
     def __init__(self):
@@ -646,10 +643,26 @@ class NPartiteGraph(Graph):
             self.Impl.add_nodes_from(nodes, bipartite=bipartite,
                                      multipartite=multipartite)
 
+    def is_multipartite(self):
+        """
+        Checks if Graph is multipartite. This solely relies on the user call
+        of add_nodes_from with the partition parameter and the Graph created.
+        This does not parse the graph to check if it is multipartite.
+        """
+        return True
+
 
 class BiPartiteGraph(NPartiteGraph):
     def __init__(self, directed=False):
         super(BiPartiteGraph, self).__init__(directed=directed, bipartite=True)
+
+    def is_bipartite(self):
+        """
+        Checks if Graph is bipartite. This solely relies on the user call of
+        add_nodes_from with the bipartite parameter and the Graph created.
+        This does not parse the graph to check if it is bipartite.
+        """
+        return True
 
 
 class BiPartiteDiGraph(BiPartiteGraph):
