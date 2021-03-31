@@ -221,7 +221,7 @@ def get_traversed_cost(df, source, source_col, dest_col, value_col):
     ---------
     df : cudf.DataFrame
         DataFrame containing two columns 'vertex' and 'info'.
-        Unreachable vertex will have value 0.
+        Unreachable vertices will have value the max value of the weight type.
     """
 
     if 'vertex' not in df.columns:
