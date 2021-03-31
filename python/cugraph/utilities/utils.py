@@ -11,6 +11,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import numpy as np
 from numba import cuda
 from cugraph.structure.symmetrize import symmetrize
 from cugraph.structure.number_map import NumberMap
@@ -190,7 +191,7 @@ def get_traversed_path_list(df, id):
     return answer
 
 
-def get_traversed_cost(df, source_col, dest_col, value_col):
+def get_traversed_cost(df, source, source_col, dest_col, value_col):
     """
     Take the DataFrame result from a BFS or SSSP function call and sums
     the given weights along the path to the starting vertex.
@@ -201,6 +202,8 @@ def get_traversed_cost(df, source_col, dest_col, value_col):
     ----------
     df : cudf.DataFrame
         The dataframe containing the results of a BFS or SSSP call
+    source: int
+        Index of the source vertex.
     source_col : cudf.DataFrame
         This cudf.Series wraps a gdf_column of size E (E: number of edges).
         The gdf column contains the source index for each edge.
@@ -245,7 +248,11 @@ def get_traversed_cost(df, source_col, dest_col, value_col):
                         right_on=['source', 'destination'],
                         how="left"
                         )
-    input_df = input_df.fillna(0)
+
+    # Set unreachable vertex weights to max float and source vertex weight to 0.
+    max_val = np.finfo(val.dtype).max
+    input_df[['weights']] = input_df[['weights']].fillna(max_val)
+    input_df.loc[input_df['vertex'] == source, 'weights'] = 0
 
     numbering = NumberMap()
     numbering.from_series(df['vertex'])

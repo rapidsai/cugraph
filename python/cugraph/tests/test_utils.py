@@ -72,8 +72,8 @@ def test_bfs_paths_array():
         assert "not in the result set" in str(ErrorMsg)
 
 
-def test_get_traversed_cost():
-    graph_file = PurePath(utils.RAPIDS_DATASET_ROOT_DIR)/"karate.csv"
+@pytest.mark.parametrize("graph_file", utils.DATASETS)
+def test_get_traversed_cost(graph_file):
     cu_M = utils.read_csv_file(graph_file)
 
     noise = cudf.Series(np.random.randint(10, size=(cu_M.shape[0])))
@@ -85,10 +85,11 @@ def test_get_traversed_cost():
     # run SSSP starting at vertex 17
     df = cugraph.sssp(G,  16)
 
-    answer = cugraph.utils.get_traversed_cost(df, cu_M['0'], cu_M['1'],
+    answer = cugraph.utils.get_traversed_cost(df, 16, cu_M['0'], cu_M['1'],
                                               cu_M['info'])
 
     df = df.sort_values(by='vertex').reset_index()
     answer = answer.sort_values(by='vertex').reset_index()
 
-    assert df['distance'].equals(answer['info'])
+    assert df.shape[0] == answer.shape[0]
+    assert np.allclose(df['distance'], answer['info'])
