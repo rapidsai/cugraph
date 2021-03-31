@@ -363,23 +363,21 @@ coarsen_graph(
       };
     auto pair_first = thrust::make_zip_iterator(
       thrust::make_tuple(edgelist_major_vertices.begin(), edgelist_minor_vertices.begin()));
-    auto counts =
-      graph_view.is_weighted()
-        ? groupby_and_count(pair_first,
-                            pair_first + edgelist_major_vertices.size(),
-                            edgelist_weights.begin(),
-                            local_partition_id_op,
-                            graph_view.get_number_of_local_adj_matrix_partitions(),
-                            handle.get_stream())
-        : groupby_and_count(pair_first,
-                            pair_first + edgelist_major_vertices.size(),
-                            local_partition_id_op,
-                            graph_view.get_number_of_local_adj_matrix_partitions(),
-                            handle.get_stream());
+    auto counts = graph_view.is_weighted()
+                    ? groupby_and_count(pair_first,
+                                        pair_first + edgelist_major_vertices.size(),
+                                        edgelist_weights.begin(),
+                                        local_partition_id_op,
+                                        graph_view.get_number_of_local_adj_matrix_partitions(),
+                                        handle.get_stream())
+                    : groupby_and_count(pair_first,
+                                        pair_first + edgelist_major_vertices.size(),
+                                        local_partition_id_op,
+                                        graph_view.get_number_of_local_adj_matrix_partitions(),
+                                        handle.get_stream());
 
     std::vector<size_t> h_counts(counts.size());
-    raft::update_host(
-      h_counts.data(), counts.data(), counts.size(), handle.get_stream());
+    raft::update_host(h_counts.data(), counts.data(), counts.size(), handle.get_stream());
     handle.get_stream_view().synchronize();
 
     std::vector<size_t> h_displacements(h_counts.size(), size_t{0});
@@ -400,10 +398,10 @@ coarsen_graph(
       // https://devblogs.nvidia.com/introducing-low-level-gpu-virtual-memory-management
       coarsened_edgelist_major_vertices[j].resize(cur_size + number_of_partition_edges,
                                                   handle.get_stream());
-      coarsened_edgelist_minor_vertices[j].resize(coarsened_edgelist_major_vertices.size(),
+      coarsened_edgelist_minor_vertices[j].resize(coarsened_edgelist_major_vertices[j].size(),
                                                   handle.get_stream());
       if (graph_view.is_weighted()) {
-        coarsened_edgelist_weights[j].resize(coarsened_edgelist_major_vertices.size(),
+        coarsened_edgelist_weights[j].resize(coarsened_edgelist_major_vertices[j].size(),
                                              handle.get_stream());
 
         auto src_edge_first =
