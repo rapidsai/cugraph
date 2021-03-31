@@ -10,7 +10,7 @@ package:
   version: {{ version }}
 
 source:
-  path: ../../..
+  git_url: ../../..
 
 build:
   number: {{ GIT_DESCRIBE_NUMBER }}
@@ -25,13 +25,13 @@ requirements:
   build:
     - python x.x
     - cython>=0.29,<0.30
-    - libcugraph={{ version }}
+    - libcugraph={{ version }}=*_{{ GIT_DESCRIBE_NUMBER }}
     - cudf={{ minor_version }}
     - ucx-py {{ minor_version }}
     - ucx-proc=*=gpu
   run:
     - python x.x
-    - libcugraph={{ version }}
+    - libcugraph={{ version }}=*_{{ GIT_DESCRIBE_NUMBER }}
     - cudf={{ minor_version }}
     - dask-cudf {{ minor_version }}
     - dask-cuda {{ minor_version }}

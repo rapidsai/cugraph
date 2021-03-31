@@ -58,29 +58,6 @@ def test_ego_graph_nx(graph_file, seed, radius):
 @pytest.mark.parametrize("seeds", [[0, 5, 13]])
 @pytest.mark.parametrize("radius", [1, 2, 3])
 def test_batched_ego_graphs(graph_file, seeds, radius):
-    """
-    Compute the  induced subgraph of neighbors for each node in seeds
-    within a given radius.
-    Parameters
-    ----------
-    G : cugraph.Graph, networkx.Graph, CuPy or SciPy sparse matrix
-        Graph or matrix object, which should contain the connectivity
-        information. Edge weights, if present, should be single or double
-        precision floating point values.
-    seeds : cudf.Series
-        Specifies the seeds of the induced egonet subgraphs
-    radius: integer, optional
-        Include all neighbors of distance<=radius from n.
-
-    Returns
-    -------
-    ego_edge_lists : cudf.DataFrame
-        GPU data frame containing all induced sources identifiers,
-        destination identifiers, edge weights
-    seeds_offsets: cudf.Series
-        Series containing the starting offset in the returned edge list
-        for each seed.
-    """
     gc.collect()
 
     # Nx
@@ -93,9 +70,8 @@ def test_batched_ego_graphs(graph_file, seeds, radius):
     df, offsets = cugraph.batched_ego_graphs(Gnx, seeds, radius=radius)
     for i in range(len(seeds)):
         ego_nx = nx.ego_graph(Gnx, seeds[i], radius=radius)
-        ego_df = df[offsets[i]:offsets[i+1]]
-        ego_cugraph = nx.from_pandas_edgelist(ego_df,
-                                              source="src",
-                                              target="dst",
-                                              edge_attr="weight")
+        ego_df = df[offsets[i]:offsets[i + 1]]
+        ego_cugraph = nx.from_pandas_edgelist(
+            ego_df, source="src", target="dst", edge_attr="weight"
+        )
     assert nx.is_isomorphic(ego_nx, ego_cugraph)

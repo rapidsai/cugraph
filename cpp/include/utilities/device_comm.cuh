@@ -238,10 +238,12 @@ template <typename InputIterator, typename OutputIterator, size_t I>
 struct device_sendrecv_tuple_iterator_element_impl<InputIterator, OutputIterator, I, I> {
   void run(raft::comms::comms_t const& comm,
            InputIterator input_first,
-           size_t count,
+           size_t tx_count,
            int dst,
-           int base_tag,
-           raft::comms::request_t* requests) const
+           OutputIterator output_first,
+           size_t rx_count,
+           int src,
+           cudaStream_t stream) const
   {
   }
 };
@@ -460,7 +462,7 @@ struct device_reduce_tuple_iterator_element_impl {
                        op,
                        root,
                        stream);
-    device_reduce_tuple_iterator_element_impl<InputIterator, OutputIterator, I + 1, N>(
+    device_reduce_tuple_iterator_element_impl<InputIterator, OutputIterator, I + 1, N>().run(
       comm, input_first, output_first, count, op, root, stream);
   }
 };
@@ -889,9 +891,11 @@ device_reduce(raft::comms::comms_t const& comm,
   size_t constexpr tuple_size =
     thrust::tuple_size<typename thrust::iterator_traits<InputIterator>::value_type>::value;
 
-  detail::
-    device_reduce_tuple_iterator_element_impl<InputIterator, OutputIterator, size_t{0}, tuple_size>(
-      comm, input_first, output_first, count, op, root, stream);
+  detail::device_reduce_tuple_iterator_element_impl<InputIterator,
+                                                    OutputIterator,
+                                                    size_t{0},
+                                                    tuple_size>()
+    .run(comm, input_first, output_first, count, op, root, stream);
 }
 
 template <typename InputIterator, typename OutputIterator>
