@@ -14,7 +14,6 @@
 import numpy as np
 from numba import cuda
 from cugraph.structure.symmetrize import symmetrize
-from cugraph.structure.number_map import NumberMap
 from cugraph.utilities import path_retrieval_wrapper
 
 import cudf
@@ -254,15 +253,7 @@ def get_traversed_cost(df, source, source_col, dest_col, value_col):
     input_df[['weights']] = input_df[['weights']].fillna(max_val)
     input_df.loc[input_df['vertex'] == source, 'weights'] = 0
 
-    numbering = NumberMap()
-    numbering.from_series(df['vertex'])
-    renumbered_df = numbering.add_internal_vertex_id(input_df,
-                                                     "vertex_id",
-                                                     ["vertex"])
-    renumbered_df['predecessor_id'] = numbering.to_internal_vertex_id(
-            renumbered_df['predecessor']).fillna(-1)
-
-    out_df = path_retrieval_wrapper.get_traversed_cost(renumbered_df)
+    out_df = path_retrieval_wrapper.get_traversed_cost(input_df)
     return out_df
 
 
