@@ -108,8 +108,6 @@ def renumber(input_df,           # maybe use cpdef ?
     cdef uintptr_t c_major_vertices = major_vertices.__cuda_array_interface__['data'][0]
     cdef uintptr_t c_minor_vertices = minor_vertices.__cuda_array_interface__['data'][0]
 
-    cdef bool is_hyper_partitioned = False # for now
-
     cdef uintptr_t shuffled_major = <uintptr_t>NULL
     cdef uintptr_t shuffled_minor = <uintptr_t>NULL
     
@@ -119,12 +117,14 @@ def renumber(input_df,           # maybe use cpdef ?
     cdef pair[unique_ptr[device_buffer], size_t] pair_original
     cdef pair[unique_ptr[device_buffer], size_t] pair_partition
 
-    # tparams: vertex_t, weight_t:
+    # tparams: vertex_t, edge_t, weight_t:
     #
-    cdef unique_ptr[major_minor_weights_t[int, float]] ptr_shuffled_32_32
-    cdef unique_ptr[major_minor_weights_t[int, double]] ptr_shuffled_32_64
-    cdef unique_ptr[major_minor_weights_t[long, float]] ptr_shuffled_64_32
-    cdef unique_ptr[major_minor_weights_t[long, double]] ptr_shuffled_64_64
+    cdef unique_ptr[major_minor_weights_t[int, int, float]] ptr_shuffled_32_32_32
+    cdef unique_ptr[major_minor_weights_t[int, int, double]] ptr_shuffled_32_32_64
+    cdef unique_ptr[major_minor_weights_t[int, long, float]] ptr_shuffled_32_64_32
+    cdef unique_ptr[major_minor_weights_t[int, long, double]] ptr_shuffled_32_64_64
+    cdef unique_ptr[major_minor_weights_t[long, long, float]] ptr_shuffled_64_64_32
+    cdef unique_ptr[major_minor_weights_t[long, long, double]] ptr_shuffled_64_64_64
 
     # tparams: vertex_t, edge_t:
     #
@@ -143,13 +143,12 @@ def renumber(input_df,           # maybe use cpdef ?
         if ( edge_t == np.dtype("int32")):
             if( weight_t == np.dtype("float32")):
                 if(is_multi_gpu):
-                    ptr_shuffled_32_32.reset(call_shuffle[int, int, float](deref(handle_ptr),
+                    ptr_shuffled_32_32_32.reset(call_shuffle[int, int, float](deref(handle_ptr),
                                                                            <int*>c_major_vertices,
                                                                            <int*>c_minor_vertices,
                                                                            <float*>c_edge_weights,
-                                                                           num_partition_edges,
-                                                                           is_hyper_partitioned).release())
-                    shuffled_df = renumber_helper(ptr_shuffled_32_32.get(), vertex_t, weights)
+                                                                           num_partition_edges).release())
+                    shuffled_df = renumber_helper(ptr_shuffled_32_32_32.get(), vertex_t, weights)
                     major_vertices = shuffled_df['major_vertices']
                     minor_vertices = shuffled_df['minor_vertices']
                     num_partition_edges = len(shuffled_df)
@@ -163,11 +162,12 @@ def renumber(input_df,           # maybe use cpdef ?
                        
                 shuffled_major = major_vertices.__cuda_array_interface__['data'][0]
                 shuffled_minor = minor_vertices.__cuda_array_interface__['data'][0]
+                edge_counts_32 = move(ptr_shuffled_32_32_32.get().get_edge_counts_wrap())
+
                 ptr_renum_quad_32_32.reset(call_renumber[int, int](deref(handle_ptr),
                                                                    <int*>shuffled_major,
                                                                    <int*>shuffled_minor,
-                                                                   num_partition_edges,
-                                                                   is_hyper_partitioned,
+                                                                   deref(edge_counts_32.get()),
                                                                    1,
                                                                    mg_flag).release())
                 
@@ -205,14 +205,13 @@ def renumber(input_df,           # maybe use cpdef ?
 
             elif( weight_t == np.dtype("float64")):
                 if(is_multi_gpu):
-                    ptr_shuffled_32_64.reset(call_shuffle[int, int, double](deref(handle_ptr),
+                    ptr_shuffled_32_32_64.reset(call_shuffle[int, int, double](deref(handle_ptr),
                                                                             <int*>c_major_vertices,
                                                                             <int*>c_minor_vertices,
                                                                             <double*>c_edge_weights,
-                                                                            num_partition_edges,
-                                                                            is_hyper_partitioned).release())
+                                                                            num_partition_edges).release())
                 
-                    shuffled_df = renumber_helper(ptr_shuffled_32_64.get(), vertex_t, weights)
+                    shuffled_df = renumber_helper(ptr_shuffled_32_32_64.get(), vertex_t, weights)
                     major_vertices = shuffled_df['major_vertices']
                     minor_vertices = shuffled_df['minor_vertices']
                     num_partition_edges = len(shuffled_df)
@@ -226,12 +225,12 @@ def renumber(input_df,           # maybe use cpdef ?
       
                 shuffled_major = major_vertices.__cuda_array_interface__['data'][0]
                 shuffled_minor = minor_vertices.__cuda_array_interface__['data'][0]
+                edge_counts_32 = move(ptr_shuffled_32_32_64.get().get_edge_counts_wrap())
                 
                 ptr_renum_quad_32_32.reset(call_renumber[int, int](deref(handle_ptr),
                                                                    <int*>shuffled_major,
                                                                    <int*>shuffled_minor,
-                                                                   num_partition_edges,
-                                                                   is_hyper_partitioned,
+                                                                   deref(edge_counts_32.get()),
                                                                    do_check,
                                                                    mg_flag).release())
                 
@@ -271,14 +270,13 @@ def renumber(input_df,           # maybe use cpdef ?
         elif ( edge_t == np.dtype("int64")):
             if( weight_t == np.dtype("float32")):
                 if(is_multi_gpu):
-                    ptr_shuffled_32_32.reset(call_shuffle[int, long, float](deref(handle_ptr),
+                    ptr_shuffled_32_64_32.reset(call_shuffle[int, long, float](deref(handle_ptr),
                                                                             <int*>c_major_vertices,
                                                                             <int*>c_minor_vertices,
                                                                             <float*>c_edge_weights,
-                                                                            num_partition_edges,
-                                                                            is_hyper_partitioned).release())
+                                                                            num_partition_edges).release())
                 
-                    shuffled_df = renumber_helper(ptr_shuffled_32_32.get(), vertex_t, weights)
+                    shuffled_df = renumber_helper(ptr_shuffled_32_64_32.get(), vertex_t, weights)
                     major_vertices = shuffled_df['major_vertices']
                     minor_vertices = shuffled_df['minor_vertices']
                     num_partition_edges = len(shuffled_df)
@@ -292,12 +290,12 @@ def renumber(input_df,           # maybe use cpdef ?
                  
                 shuffled_major = major_vertices.__cuda_array_interface__['data'][0]
                 shuffled_minor = minor_vertices.__cuda_array_interface__['data'][0]
+                edge_counts_64 = move(ptr_shuffled_32_64_32.get().get_edge_counts_wrap())
                 
                 ptr_renum_quad_32_64.reset(call_renumber[int, long](deref(handle_ptr),
                                                                     <int*>shuffled_major,
                                                                     <int*>shuffled_minor,
-                                                                    num_partition_edges,
-                                                                    is_hyper_partitioned,
+                                                                    deref(edge_counts_64.get()),
                                                                     do_check,
                                                                     mg_flag).release())
                 
@@ -335,14 +333,13 @@ def renumber(input_df,           # maybe use cpdef ?
                 return renumbered_map, shuffled_df
             elif( weight_t == np.dtype("float64")):
                 if(is_multi_gpu):
-                    ptr_shuffled_32_64.reset(call_shuffle[int, long, double](deref(handle_ptr),
+                    ptr_shuffled_32_64_64.reset(call_shuffle[int, long, double](deref(handle_ptr),
                                                                              <int*>c_major_vertices,
                                                                              <int*>c_minor_vertices,
                                                                              <double*>c_edge_weights,
-                                                                             num_partition_edges,
-                                                                             is_hyper_partitioned).release())
+                                                                             num_partition_edges).release())
                 
-                    shuffled_df = renumber_helper(ptr_shuffled_32_64.get(), vertex_t, weights)
+                    shuffled_df = renumber_helper(ptr_shuffled_32_64_64.get(), vertex_t, weights)
                     major_vertices = shuffled_df['major_vertices']
                     minor_vertices = shuffled_df['minor_vertices']
                     num_partition_edges = len(shuffled_df)
@@ -356,12 +353,12 @@ def renumber(input_df,           # maybe use cpdef ?
                                        
                 shuffled_major = major_vertices.__cuda_array_interface__['data'][0]
                 shuffled_minor = minor_vertices.__cuda_array_interface__['data'][0]
+                edge_counts_64 = move(ptr_shuffled_32_64_64.get().get_edge_counts_wrap())
                 
                 ptr_renum_quad_32_64.reset(call_renumber[int, long](deref(handle_ptr),
                                                                     <int*>shuffled_major,
                                                                     <int*>shuffled_minor,
-                                                                    num_partition_edges,
-                                                                    is_hyper_partitioned,
+                                                                    deref(edge_counts_64.get()),
                                                                     do_check,
                                                                     mg_flag).release())
                 
@@ -401,14 +398,13 @@ def renumber(input_df,           # maybe use cpdef ?
         if ( edge_t == np.dtype("int64")):
             if( weight_t == np.dtype("float32")):
                 if(is_multi_gpu):
-                    ptr_shuffled_64_32.reset(call_shuffle[long, long, float](deref(handle_ptr),
+                    ptr_shuffled_64_64_32.reset(call_shuffle[long, long, float](deref(handle_ptr),
                                                                             <long*>c_major_vertices,
                                                                             <long*>c_minor_vertices,
                                                                             <float*>c_edge_weights,
-                                                                            num_partition_edges,
-                                                                            is_hyper_partitioned).release())
+                                                                            num_partition_edges).release())
                 
-                    shuffled_df = renumber_helper(ptr_shuffled_64_32.get(), vertex_t, weights)
+                    shuffled_df = renumber_helper(ptr_shuffled_64_64_32.get(), vertex_t, weights)
                     major_vertices = shuffled_df['major_vertices']
                     minor_vertices = shuffled_df['minor_vertices']
                     num_partition_edges = len(shuffled_df)
@@ -422,12 +418,12 @@ def renumber(input_df,           # maybe use cpdef ?
 
                 shuffled_major = major_vertices.__cuda_array_interface__['data'][0]
                 shuffled_minor = minor_vertices.__cuda_array_interface__['data'][0]
+                edge_counts_64 = move(ptr_shuffled_64_64_32.get().get_edge_counts_wrap())
                 
                 ptr_renum_quad_64_64.reset(call_renumber[long, long](deref(handle_ptr),
                                                                      <long*>shuffled_major,
                                                                      <long*>shuffled_minor,
-                                                                     num_partition_edges,
-                                                                     is_hyper_partitioned,
+                                                                     deref(edge_counts_64.get()),
                                                                      do_check,
                                                                      mg_flag).release())
                 
@@ -466,14 +462,13 @@ def renumber(input_df,           # maybe use cpdef ?
 
             elif( weight_t == np.dtype("float64")):
                 if(is_multi_gpu):
-                    ptr_shuffled_64_64.reset(call_shuffle[long, long, double](deref(handle_ptr),
+                    ptr_shuffled_64_64_64.reset(call_shuffle[long, long, double](deref(handle_ptr),
                                                                               <long*>c_major_vertices,
                                                                               <long*>c_minor_vertices,
                                                                               <double*>c_edge_weights,
-                                                                              num_partition_edges,
-                                                                              is_hyper_partitioned).release())
+                                                                              num_partition_edges).release())
                 
-                    shuffled_df = renumber_helper(ptr_shuffled_64_64.get(), vertex_t, weights)
+                    shuffled_df = renumber_helper(ptr_shuffled_64_64_64.get(), vertex_t, weights)
                     major_vertices = shuffled_df['major_vertices']
                     minor_vertices = shuffled_df['minor_vertices']
                     num_partition_edges = len(shuffled_df)
@@ -487,12 +482,12 @@ def renumber(input_df,           # maybe use cpdef ?
 
                 shuffled_major = major_vertices.__cuda_array_interface__['data'][0]
                 shuffled_minor = minor_vertices.__cuda_array_interface__['data'][0]
+                edge_counts_64 = move(ptr_shuffled_64_64_64.get().get_edge_counts_wrap())
                 
                 ptr_renum_quad_64_64.reset(call_renumber[long, long](deref(handle_ptr),
                                                                      <long*>shuffled_major,
                                                                      <long*>shuffled_minor,
-                                                                     num_partition_edges,
-                                                                     is_hyper_partitioned,
+                                                                     deref(edge_counts_64.get()),
                                                                      do_check,
                                                                      mg_flag).release())
                 

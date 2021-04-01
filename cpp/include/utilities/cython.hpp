@@ -182,6 +182,11 @@ struct major_minor_weights_t {
                           sizeof(weight_t));
   }
 
+  std::unique_ptr<std::vector<edge_t>> get_edge_counts_wrap(void)  // const
+  {
+    return std::make_unique<std::vector<edge_t>>(edge_counts_.begin(), edge_counts_.end());
+  }
+
  private:
   rmm::device_uvector<vertex_t> shuffled_major_vertices_;
   rmm::device_uvector<vertex_t> shuffled_minor_vertices_;
@@ -492,7 +497,7 @@ std::unique_ptr<renum_quad_t<vertex_t, edge_t>> call_renumber(
   raft::handle_t const& handle,
   vertex_t* shuffled_edgelist_major_vertices /* [INOUT] */,
   vertex_t* shuffled_edgelist_minor_vertices /* [INOUT] */,
-  edge_t num_edgelist_edges,
+  std::vector<edge_t> const& edge_counts,
   bool do_expensive_check,
   bool multi_gpu);
 
