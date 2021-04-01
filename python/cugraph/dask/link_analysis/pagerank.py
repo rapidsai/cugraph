@@ -14,8 +14,8 @@
 #
 
 from dask.distributed import wait, default_client
-from cugraph.dask.common.input_utils import get_distributed_data
-from cugraph.structure.shuffle import shuffle
+from cugraph.dask.common.input_utils import (get_distributed_data,
+                                             get_vertex_partition_offsets)
 from cugraph.dask.link_analysis import mg_pagerank_wrapper as mg_pagerank
 import cugraph.comms.comms as Comms
 import dask_cudf
@@ -124,11 +124,10 @@ def pagerank(input_graph,
     client = default_client()
 
     input_graph.compute_renumber_edge_list(transposed=True)
-    (ddf,
-     num_verts,
-     partition_row_size,
-     partition_col_size,
-     vertex_partition_offsets) = shuffle(input_graph, transposed=True)
+
+    ddf = input_graph.edgelist.edgelist_df
+    vertex_partition_offsets = get_vertex_partition_offsets(input_graph)
+    num_verts = vertex_partition_offsets.iloc[-1]
     num_edges = len(ddf)
     data = get_distributed_data(ddf)
 

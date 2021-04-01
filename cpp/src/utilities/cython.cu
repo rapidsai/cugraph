@@ -699,6 +699,61 @@ std::unique_ptr<cy_multi_edgelists_t> call_egonet(raft::handle_t const& handle,
   }
 }
 
+// Wrapper for random_walks() through a graph container
+// to expose the API to cython.
+//
+template <typename vertex_t, typename edge_t>
+std::enable_if_t<cugraph::experimental::is_vertex_edge_combo<vertex_t, edge_t>::value,
+                 std::unique_ptr<random_walk_ret_t>>
+call_random_walks(raft::handle_t const& handle,
+                  graph_container_t const& graph_container,
+                  vertex_t const* ptr_start_set,
+                  edge_t num_paths,
+                  edge_t max_depth)
+{
+  if (graph_container.weightType == numberTypeEnum::floatType) {
+    using weight_t = float;
+
+    auto graph =
+      detail::create_graph<vertex_t, edge_t, weight_t, false, false>(handle, graph_container);
+
+    auto triplet = cugraph::experimental::random_walks(
+      handle, graph->view(), ptr_start_set, num_paths, max_depth);
+
+    random_walk_ret_t rw_tri{std::get<0>(triplet).size(),
+                             std::get<1>(triplet).size(),
+                             static_cast<size_t>(num_paths),
+                             static_cast<size_t>(max_depth),
+                             std::make_unique<rmm::device_buffer>(std::get<0>(triplet).release()),
+                             std::make_unique<rmm::device_buffer>(std::get<1>(triplet).release()),
+                             std::make_unique<rmm::device_buffer>(std::get<2>(triplet).release())};
+
+    return std::make_unique<random_walk_ret_t>(std::move(rw_tri));
+
+  } else if (graph_container.weightType == numberTypeEnum::doubleType) {
+    using weight_t = double;
+
+    auto graph =
+      detail::create_graph<vertex_t, edge_t, weight_t, false, false>(handle, graph_container);
+
+    auto triplet = cugraph::experimental::random_walks(
+      handle, graph->view(), ptr_start_set, num_paths, max_depth);
+
+    random_walk_ret_t rw_tri{std::get<0>(triplet).size(),
+                             std::get<1>(triplet).size(),
+                             static_cast<size_t>(num_paths),
+                             static_cast<size_t>(max_depth),
+                             std::make_unique<rmm::device_buffer>(std::get<0>(triplet).release()),
+                             std::make_unique<rmm::device_buffer>(std::get<1>(triplet).release()),
+                             std::make_unique<rmm::device_buffer>(std::get<2>(triplet).release())};
+
+    return std::make_unique<random_walk_ret_t>(std::move(rw_tri));
+
+  } else {
+    CUGRAPH_FAIL("Unsupported weight type.");
+  }
+}
+
 // Wrapper for calling SSSP through a graph container
 template <typename vertex_t, typename weight_t>
 void call_sssp(raft::handle_t const& handle,
@@ -1044,6 +1099,27 @@ template std::unique_ptr<cy_multi_edgelists_t> call_egonet<int64_t, double>(
   int64_t* source_vertex,
   int64_t n_subgraphs,
   int64_t radius);
+
+template std::unique_ptr<random_walk_ret_t> call_random_walks<int32_t, int32_t>(
+  raft::handle_t const& handle,
+  graph_container_t const& graph_container,
+  int32_t const* ptr_start_set,
+  int32_t num_paths,
+  int32_t max_depth);
+
+template std::unique_ptr<random_walk_ret_t> call_random_walks<int32_t, int64_t>(
+  raft::handle_t const& handle,
+  graph_container_t const& graph_container,
+  int32_t const* ptr_start_set,
+  int64_t num_paths,
+  int64_t max_depth);
+
+template std::unique_ptr<random_walk_ret_t> call_random_walks<int64_t, int64_t>(
+  raft::handle_t const& handle,
+  graph_container_t const& graph_container,
+  int64_t const* ptr_start_set,
+  int64_t num_paths,
+  int64_t max_depth);
 
 template void call_sssp(raft::handle_t const& handle,
                         graph_container_t const& graph_container,

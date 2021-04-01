@@ -14,10 +14,14 @@
  * limitations under the License.
  */
 #pragma once
+
+#include <dendrogram.hpp>
 #include <experimental/graph.hpp>
 #include <experimental/graph_view.hpp>
+
 #include <graph.hpp>
 #include <internals.hpp>
+
 #include <raft/handle.hpp>
 
 namespace cugraph {
@@ -218,7 +222,7 @@ void force_atlas2(GraphCOOView<vertex_t, edge_t, weight_t> &graph,
  * @param[out] route                          Device array containing the returned route.
  *
  */
-float traveling_salesperson(raft::handle_t &handle,
+float traveling_salesperson(raft::handle_t const &handle,
                             int const *vtx_ptr,
                             float const *x_pos,
                             float const *y_pos,
@@ -613,7 +617,7 @@ weight_t hungarian(raft::handle_t const &handle,
  *
  * @throws     cugraph::logic_error when an error occurs.
  *
- * @tparam     graph_t               Type of graph
+ * @tparam     graph_view_t          Type of graph
  *
  * @param[in]  handle                Library handle (RAFT). If a communicator is set in the handle,
  * @param[in]  graph                 input graph object (CSR)
@@ -630,13 +634,74 @@ weight_t hungarian(raft::handle_t const &handle,
  *                                     2) modularity of the returned clustering
  *
  */
-template <typename graph_t>
-std::pair<size_t, typename graph_t::weight_type> louvain(
+template <typename graph_view_t>
+std::pair<size_t, typename graph_view_t::weight_type> louvain(
   raft::handle_t const &handle,
-  graph_t const &graph,
-  typename graph_t::vertex_type *clustering,
-  size_t max_level                         = 100,
-  typename graph_t::weight_type resolution = typename graph_t::weight_type{1});
+  graph_view_t const &graph_view,
+  typename graph_view_t::vertex_type *clustering,
+  size_t max_level                              = 100,
+  typename graph_view_t::weight_type resolution = typename graph_view_t::weight_type{1});
+
+/**
+ * @brief      Louvain implementation, returning dendrogram
+ *
+ * Compute a clustering of the graph by maximizing modularity
+ *
+ * Computed using the Louvain method described in:
+ *
+ *    VD Blondel, J-L Guillaume, R Lambiotte and E Lefebvre: Fast unfolding of
+ *    community hierarchies in large networks, J Stat Mech P10008 (2008),
+ *    http://arxiv.org/abs/0803.0476
+ *
+ * @throws     cugraph::logic_error when an error occurs.
+ *
+ * @tparam     graph_view_t          Type of graph
+ *
+ * @param[in]  handle                Library handle (RAFT)
+ * @param[in]  graph_view            Input graph view object (CSR)
+ * @param[in]  max_level             (optional) maximum number of levels to run (default 100)
+ * @param[in]  resolution            (optional) The value of the resolution parameter to use.
+ *                                   Called gamma in the modularity formula, this changes the size
+ *                                   of the communities.  Higher resolutions lead to more smaller
+ *                                   communities, lower resolutions lead to fewer larger
+ *                                   communities. (default 1)
+ *
+ * @return                           a pair containing:
+ *                                     1) unique pointer to dendrogram
+ *                                     2) modularity of the returned clustering
+ *
+ */
+template <typename graph_view_t>
+std::pair<std::unique_ptr<Dendrogram<typename graph_view_t::vertex_type>>,
+          typename graph_view_t::weight_type>
+louvain(raft::handle_t const &handle,
+        graph_view_t const &graph_view,
+        size_t max_level                              = 100,
+        typename graph_view_t::weight_type resolution = typename graph_view_t::weight_type{1});
+
+/**
+ * @brief      Flatten a Dendrogram at a particular level
+ *
+ * A Dendrogram represents a hierarchical clustering/partitioning of
+ * a graph.  This function will flatten the hierarchical clustering into
+ * a label for each vertex representing the final cluster/partition to
+ * which it is assigned
+ *
+ * @throws     cugraph::logic_error when an error occurs.
+ *
+ * @tparam     graph_view_t          Type of graph
+ *
+ * @param[in]  handle                Library handle (RAFT). If a communicator is set in the handle,
+ * @param[in]  graph                 input graph object
+ * @param[in]  dendrogram            input dendrogram object
+ * @param[out] clustering            Pointer to device array where the clustering should be stored
+ *
+ */
+template <typename graph_view_t>
+void flatten_dendrogram(raft::handle_t const &handle,
+                        graph_view_t const &graph_view,
+                        Dendrogram<typename graph_view_t::vertex_type> const &dendrogram,
+                        typename graph_view_t::vertex_type *clustering);
 
 /**
  * @brief      Leiden implementation
@@ -1191,5 +1256,33 @@ extract_ego(raft::handle_t const &handle,
             vertex_t *source_vertex,
             vertex_t n_subgraphs,
             vertex_t radius);
+
+/**
+ * @brief returns random walks (RW) from starting sources, where each path is of given maximum
+ * length. Uniform distribution is assumed for the random engine.
+ *
+ * @tparam graph_t Type of graph/view (typically, graph_view_t).
+ * @tparam index_t Type used to store indexing and sizes.
+ * @param handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator, and
+ * handles to various CUDA libraries) to run graph algorithms.
+ * @param graph Graph (view )object to generate RW on.
+ * @param ptr_d_start Device pointer to set of starting vertex indices for the RW.
+ * @param num_paths = number(paths).
+ * @param max_depth maximum length of RWs.
+ * @return std::tuple<device_vec_t<vertex_t>, device_vec_t<weight_t>,
+ * device_vec_t<index_t>> Triplet of coalesced RW paths, with corresponding edge weights for
+ * each, and corresponding path sizes. This is meant to minimize the number of DF's to be passed to
+ * the Python layer. The meaning of "coalesced" here is that a 2D array of paths of different sizes
+ * is represented as a 1D array.
+ */
+template <typename graph_t, typename index_t>
+std::tuple<rmm::device_uvector<typename graph_t::vertex_type>,
+           rmm::device_uvector<typename graph_t::weight_type>,
+           rmm::device_uvector<index_t>>
+random_walks(raft::handle_t const &handle,
+             graph_t const &graph,
+             typename graph_t::vertex_type const *ptr_d_start,
+             index_t num_paths,
+             index_t max_depth);
 }  // namespace experimental
 }  // namespace cugraph
