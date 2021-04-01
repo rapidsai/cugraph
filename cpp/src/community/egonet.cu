@@ -151,7 +151,7 @@ extract(
   neighbors.resize(h_neighbors_offsets[n_subgraphs]);
   user_stream_view.synchronize();
 
-// Construct the neighboors list concurrently
+  // Construct the neighboors list concurrently
   for (vertex_t i = 0; i < n_subgraphs; i++) {
     auto worker_stream_view = handle.get_internal_stream_view(i);
     thrust::copy(rmm::exec_policy(worker_stream_view),
