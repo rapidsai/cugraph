@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020-2021, NVIDIA CORPORATION.
+ * Copyright (c) 2021, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -48,6 +48,7 @@ void ms_bfs(raft::handle_t const &handle,
             PredecessorIterator predecessor_first,
             typename GraphViewType::vertex_type *sources,
             size_t n_sources,
+            bool one_source_per_component,
             bool direction_optimizing,
             typename GraphViewType::vertex_type depth_limit,
             bool do_expensive_check)
@@ -92,32 +93,20 @@ void ms_bfs(raft::handle_t const &handle,
                distances + push_graph_view.get_number_of_local_vertices(),
                std::numeric_limits<vertex_t>::max());
   thrust::fill(distances,
-               distances + push_graph_view.get_number_of_local_vertices(),
+               predecessor_first + push_graph_view.get_number_of_local_vertices(),
                invalid_vertex_id<vertex_t>::value);
+  vertex_partition_device_t<GraphViewType> vertex_partition(push_graph_view);
   thrust::for_each(
     rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
     sources,
     sources + n_sources,
-    [vertex_partition, pageranks, dangling_sum, personalization_sum, alpha] __device__(auto val) {
-      auto v     = thrust::get<0>(val);
-      auto value = thrust::get<1>(val);
-      *(pageranks + vertex_partition.get_local_vertex_offset_from_vertex_nocheck(v)) +=
-        (dangling_sum * alpha + static_cast<result_t>(1.0 - alpha)) * (value / personalization_sum);
+    [vertex_partition, distances, predecessor_first] __device__(auto v) {
+      *(distances + vertex_partition.get_local_vertex_offset_from_vertex_nocheck(v)) = vertex_t{0};
     });
-  auto val_first = thrust::make_zip_iterator(thrust::make_tuple(distances, predecessor_first));
-
-  thrust::transform(rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
-                    thrust::make_counting_iterator(push_graph_view.get_local_vertex_first()),
-                    thrust::make_counting_iterator(push_graph_view.get_local_vertex_last()),
-                    val_first,
-                    [sources] __device__(auto val) {
-                      auto distance = invalid_distance;
-                      if (val == sources) { distance = vertex_t{0}; }
-                      return thrust::make_tuple(distance, invalid_vertex);
-                    });
+  raft::print_device_vector(
+    "distances", distances, push_graph_view.get_number_of_local_vertices(), std::cout);
 
   // 3. initialize BFS frontier
-
   enum class Bucket { cur, num_buckets };
   std::vector<size_t> bucket_sizes(static_cast<size_t>(Bucket::num_buckets),
                                    push_graph_view.get_number_of_local_vertices());
@@ -127,67 +116,68 @@ void ms_bfs(raft::handle_t const &handle,
                  static_cast<size_t>(Bucket::num_buckets)>
     vertex_frontier(handle, bucket_sizes);
 
-  if (push_graph_view.is_local_vertex_nocheck(sources)) {
-    vertex_frontier.get_bucket(static_cast<size_t>(Bucket::cur)).insert(sources);
-  }
-
-  // 4. BFS iteration
-
-  vertex_t depth{0};
-  auto cur_local_vertex_frontier_first =
-    vertex_frontier.get_bucket(static_cast<size_t>(Bucket::cur)).begin();
-  auto cur_vertex_frontier_aggregate_size =
-    vertex_frontier.get_bucket(static_cast<size_t>(Bucket::cur)).aggregate_size();
-  while (true) {
-    if (direction_optimizing) {
-      CUGRAPH_FAIL("unimplemented.");
-    } else {
-      vertex_partition_device_t<GraphViewType> vertex_partition(push_graph_view);
-
-      auto cur_local_vertex_frontier_last =
-        vertex_frontier.get_bucket(static_cast<size_t>(Bucket::cur)).end();
-      update_frontier_v_push_if_out_nbr(
-        handle,
-        push_graph_view,
-        cur_local_vertex_frontier_first,
-        cur_local_vertex_frontier_last,
-        thrust::make_constant_iterator(0) /* dummy */,
-        thrust::make_constant_iterator(0) /* dummy */,
-        [vertex_partition, distances] __device__(
-          vertex_t src, vertex_t dst, auto src_val, auto dst_val) {
-          auto push = true;
-          if (vertex_partition.is_local_vertex_nocheck(dst)) {
-            auto distance =
-              *(distances + vertex_partition.get_local_vertex_offset_from_vertex_nocheck(dst));
-            if (distance != invalid_distance) { push = false; }
-          }
-          // FIXME: need to test this works properly if payload size is 0 (returns a tuple of size
-          // 1)
-          return thrust::make_tuple(push, src);
-        },
-        reduce_op::any<thrust::tuple<vertex_t>>(),
-        distances,
-        thrust::make_zip_iterator(thrust::make_tuple(distances, predecessor_first)),
-        vertex_frontier,
-        [depth] __device__(auto v_val, auto pushed_val) {
-          auto idx = (v_val == invalid_distance)
-                       ? static_cast<size_t>(Bucket::cur)
-                       : VertexFrontier<thrust::tuple<vertex_t>, vertex_t>::kInvalidBucketIdx;
-          return thrust::make_tuple(idx, depth + 1, thrust::get<0>(pushed_val));
-        });
-
-      auto new_vertex_frontier_aggregate_size =
-        vertex_frontier.get_bucket(static_cast<size_t>(Bucket::cur)).aggregate_size() -
-        cur_vertex_frontier_aggregate_size;
-      if (new_vertex_frontier_aggregate_size == 0) { break; }
-
-      cur_local_vertex_frontier_first = cur_local_vertex_frontier_last;
-      cur_vertex_frontier_aggregate_size += new_vertex_frontier_aggregate_size;
-    }
-
-    depth++;
-    if (depth >= depth_limit) { break; }
-  }
+  //  // if (push_graph_view.is_local_vertex_nocheck(sources)) {}
+  //  vertex_frontier.get_bucket(static_cast<size_t>(Bucket::cur)).insert(sources, n_soources);
+  //
+  //
+  //  // 4. BFS iteration
+  //
+  //  vertex_t depth{0};
+  //  auto cur_local_vertex_frontier_first =
+  //    vertex_frontier.get_bucket(static_cast<size_t>(Bucket::cur)).begin();
+  //  auto cur_vertex_frontier_aggregate_size =
+  //    vertex_frontier.get_bucket(static_cast<size_t>(Bucket::cur)).aggregate_size();
+  //  while (true) {
+  //    if (direction_optimizing) {
+  //      CUGRAPH_FAIL("unimplemented.");
+  //    } else {
+  //      vertex_partition_device_t<GraphViewType> vertex_partition(push_graph_view);
+  //
+  //      auto cur_local_vertex_frontier_last =
+  //        vertex_frontier.get_bucket(static_cast<size_t>(Bucket::cur)).end();
+  //      update_frontier_v_push_if_out_nbr(
+  //        handle,
+  //        push_graph_view,
+  //        cur_local_vertex_frontier_first,
+  //        cur_local_vertex_frontier_last,
+  //        thrust::make_constant_iterator(0) /* dummy */,
+  //        thrust::make_constant_iterator(0) /* dummy */,
+  //        [vertex_partition, distances] __device__(
+  //          vertex_t src, vertex_t dst, auto src_val, auto dst_val) {
+  //          auto push = true;
+  //          if (vertex_partition.is_local_vertex_nocheck(dst)) {
+  //            auto distance =
+  //              *(distances + vertex_partition.get_local_vertex_offset_from_vertex_nocheck(dst));
+  //            if (distance != invalid_distance) { push = false; }
+  //          }
+  //          // FIXME: need to test this works properly if payload size is 0 (returns a tuple of
+  //          size
+  //          // 1)
+  //          return thrust::make_tuple(push, src);
+  //        },
+  //        reduce_op::any<thrust::tuple<vertex_t>>(),
+  //        distances,
+  //        thrust::make_zip_iterator(thrust::make_tuple(distances, predecessor_first)),
+  //        vertex_frontier,
+  //        [depth] __device__(auto v_val, auto pushed_val) {
+  //          auto idx = (v_val == invalid_distance)
+  //                       ? static_cast<size_t>(Bucket::cur)
+  //                       : VertexFrontier<thrust::tuple<vertex_t>, vertex_t>::kInvalidBucketIdx;
+  //          return thrust::make_tuple(idx, depth + 1, thrust::get<0>(pushed_val));
+  //        });
+  //
+  //      auto new_vertex_frontier_aggregate_size =
+  //        vertex_frontier.get_bucket(static_cast<size_t>(Bucket::cur)).aggregate_size() -
+  //        cur_vertex_frontier_aggregate_size;
+  //      if (new_vertex_frontier_aggregate_size == 0) { break; }
+  //
+  //      cur_local_vertex_frontier_first = cur_local_vertex_frontier_last;
+  //      cur_vertex_frontier_aggregate_size += new_vertex_frontier_aggregate_size;
+  //    }
+  //
+  //    depth++;
+  //    if (depth >= depth_limit) { break; }
+  //  }
 
   CUDA_TRY(cudaStreamSynchronize(
     handle.get_stream()));  // this is as necessary vertex_frontier will become out-of-scope once
@@ -204,6 +194,7 @@ void ms_bfs(raft::handle_t const &handle,
             vertex_t *predecessors,
             vertex_t *sources,
             size_t n_sources,
+            bool one_source_per_component,
             bool direction_optimizing,
             vertex_t depth_limit,
             bool do_expensive_check)
@@ -239,6 +230,7 @@ template void ms_bfs(raft::handle_t const &handle,
                      int32_t *predecessors,
                      int32_t *sources,
                      size_t n_sources,
+                     bool one_source_per_component,
                      bool direction_optimizing,
                      int32_t depth_limit,
                      bool do_expensive_check);
@@ -249,6 +241,7 @@ template void ms_bfs(raft::handle_t const &handle,
                      int32_t *predecessors,
                      int32_t *sources,
                      size_t n_sources,
+                     bool one_source_per_component,
                      bool direction_optimizing,
                      int32_t depth_limit,
                      bool do_expensive_check);
@@ -259,6 +252,7 @@ template void ms_bfs(raft::handle_t const &handle,
                      int32_t *predecessors,
                      int32_t *sources,
                      size_t n_sources,
+                     bool one_source_per_component,
                      bool direction_optimizing,
                      int32_t depth_limit,
                      bool do_expensive_check);
@@ -269,6 +263,7 @@ template void ms_bfs(raft::handle_t const &handle,
                      int32_t *predecessors,
                      int32_t *sources,
                      size_t n_sources,
+                     bool one_source_per_component,
                      bool direction_optimizing,
                      int32_t depth_limit,
                      bool do_expensive_check);
@@ -279,6 +274,7 @@ template void ms_bfs(raft::handle_t const &handle,
                      int64_t *predecessors,
                      int64_t *sources,
                      size_t n_sources,
+                     bool one_source_per_component,
                      bool direction_optimizing,
                      int64_t depth_limit,
                      bool do_expensive_check);
@@ -289,6 +285,7 @@ template void ms_bfs(raft::handle_t const &handle,
                      int64_t *predecessors,
                      int64_t *sources,
                      size_t n_sources,
+                     bool one_source_per_component,
                      bool direction_optimizing,
                      int64_t depth_limit,
                      bool do_expensive_check);
@@ -299,6 +296,7 @@ template void ms_bfs(raft::handle_t const &handle,
                      int32_t *predecessors,
                      int32_t *sources,
                      size_t n_sources,
+                     bool one_source_per_component,
                      bool direction_optimizing,
                      int32_t depth_limit,
                      bool do_expensive_check);
@@ -309,6 +307,7 @@ template void ms_bfs(raft::handle_t const &handle,
                      int32_t *predecessors,
                      int32_t *sources,
                      size_t n_sources,
+                     bool one_source_per_component,
                      bool direction_optimizing,
                      int32_t depth_limit,
                      bool do_expensive_check);
@@ -319,6 +318,7 @@ template void ms_bfs(raft::handle_t const &handle,
                      int32_t *predecessors,
                      int32_t *sources,
                      size_t n_sources,
+                     bool one_source_per_component,
                      bool direction_optimizing,
                      int32_t depth_limit,
                      bool do_expensive_check);
@@ -329,6 +329,7 @@ template void ms_bfs(raft::handle_t const &handle,
                      int32_t *predecessors,
                      int32_t *sources,
                      size_t n_sources,
+                     bool one_source_per_component,
                      bool direction_optimizing,
                      int32_t depth_limit,
                      bool do_expensive_check);
@@ -339,6 +340,7 @@ template void ms_bfs(raft::handle_t const &handle,
                      int64_t *predecessors,
                      int64_t *sources,
                      size_t n_sources,
+                     bool one_source_per_component,
                      bool direction_optimizing,
                      int64_t depth_limit,
                      bool do_expensive_check);
@@ -349,6 +351,7 @@ template void ms_bfs(raft::handle_t const &handle,
                      int64_t *predecessors,
                      int64_t *sources,
                      size_t n_sources,
+                     bool one_source_per_component,
                      bool direction_optimizing,
                      int64_t depth_limit,
                      bool do_expensive_check);

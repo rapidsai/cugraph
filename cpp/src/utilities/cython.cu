@@ -601,7 +601,8 @@ void call_bfs(raft::handle_t const& handle,
               vertex_t* distances,
               vertex_t* predecessors,
               double* sp_counters,
-              const vertex_t start_vertex,
+              vertex_t* sources,
+              size_t n_sources,
               bool directed)
 {
   if (graph_container.graph_type == graphTypeEnum::GraphCSRViewFloat) {
@@ -612,7 +613,7 @@ void call_bfs(raft::handle_t const& handle,
         reinterpret_cast<int32_t*>(distances),
         reinterpret_cast<int32_t*>(predecessors),
         sp_counters,
-        static_cast<int32_t>(start_vertex),
+        static_cast<int32_t>(*sources),
         directed);
   } else if (graph_container.graph_type == graphTypeEnum::GraphCSRViewDouble) {
     graph_container.graph_ptr_union.GraphCSRViewDoublePtr->get_vertex_identifiers(
@@ -622,7 +623,7 @@ void call_bfs(raft::handle_t const& handle,
         reinterpret_cast<int32_t*>(distances),
         reinterpret_cast<int32_t*>(predecessors),
         sp_counters,
-        static_cast<int32_t>(start_vertex),
+        static_cast<int32_t>(*sources),
         directed);
   } else if (graph_container.graph_type == graphTypeEnum::graph_t) {
     if (graph_container.edgeType == numberTypeEnum::int32Type) {
@@ -632,7 +633,8 @@ void call_bfs(raft::handle_t const& handle,
                                  graph->view(),
                                  reinterpret_cast<int32_t*>(distances),
                                  reinterpret_cast<int32_t*>(predecessors),
-                                 static_cast<int32_t>(start_vertex));
+                                 reinterpret_cast<int32_t*>(sources),
+                                 static_cast<size_t>(n_sources));
     } else if (graph_container.edgeType == numberTypeEnum::int64Type) {
       auto graph =
         detail::create_graph<vertex_t, int64_t, weight_t, false, true>(handle, graph_container);
@@ -640,7 +642,8 @@ void call_bfs(raft::handle_t const& handle,
                                  graph->view(),
                                  reinterpret_cast<vertex_t*>(distances),
                                  reinterpret_cast<vertex_t*>(predecessors),
-                                 static_cast<vertex_t>(start_vertex));
+                                 reinterpret_cast<vertex_t*>(sources),
+                                 static_cast<size_t>(n_sources));
     } else {
       CUGRAPH_FAIL("vertexType/edgeType combination unsupported");
     }
@@ -981,7 +984,8 @@ template void call_bfs<int32_t, float>(raft::handle_t const& handle,
                                        int32_t* distances,
                                        int32_t* predecessors,
                                        double* sp_counters,
-                                       const int32_t start_vertex,
+                                       int32_t* sources,
+                                       size_t n_sources,
                                        bool directed);
 
 template void call_bfs<int32_t, double>(raft::handle_t const& handle,
@@ -990,7 +994,8 @@ template void call_bfs<int32_t, double>(raft::handle_t const& handle,
                                         int32_t* distances,
                                         int32_t* predecessors,
                                         double* sp_counters,
-                                        const int32_t start_vertex,
+                                        int32_t* sources,
+                                        size_t n_sources,
                                         bool directed);
 
 template void call_bfs<int64_t, float>(raft::handle_t const& handle,
@@ -999,7 +1004,8 @@ template void call_bfs<int64_t, float>(raft::handle_t const& handle,
                                        int64_t* distances,
                                        int64_t* predecessors,
                                        double* sp_counters,
-                                       const int64_t start_vertex,
+                                       int64_t* sources,
+                                       size_t n_sources,
                                        bool directed);
 
 template void call_bfs<int64_t, double>(raft::handle_t const& handle,
@@ -1008,7 +1014,8 @@ template void call_bfs<int64_t, double>(raft::handle_t const& handle,
                                         int64_t* distances,
                                         int64_t* predecessors,
                                         double* sp_counters,
-                                        const int64_t start_vertex,
+                                        int64_t* sources,
+                                        size_t n_sources,
                                         bool directed);
 template std::unique_ptr<cy_multi_edgelists_t> call_egonet<int32_t, float>(
   raft::handle_t const& handle,

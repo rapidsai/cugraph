@@ -167,11 +167,13 @@ class Tests_BFS : public ::testing::TestWithParam<BFS_Usecase> {
 
     CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
 
+    vertex_t source = configuration.source;
     cugraph::experimental::bfs(handle,
                                graph_view,
                                d_distances.begin(),
                                d_predecessors.begin(),
-                               static_cast<vertex_t>(configuration.source),
+                               &source,
+                               1,
                                false,
                                std::numeric_limits<vertex_t>::max(),
                                false);
