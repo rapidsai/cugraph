@@ -93,9 +93,7 @@ void bfs(raft::handle_t const &handle,
   enum class Bucket { cur, num_buckets };
   std::vector<size_t> bucket_sizes(static_cast<size_t>(Bucket::num_buckets),
                                    push_graph_view.get_number_of_local_vertices());
-  VertexFrontier<vertex_t,
-                 GraphViewType::is_multi_gpu,
-                 static_cast<size_t>(Bucket::num_buckets)>
+  VertexFrontier<vertex_t, GraphViewType::is_multi_gpu, static_cast<size_t>(Bucket::num_buckets)>
     vertex_frontier(handle, bucket_sizes);
 
   if (push_graph_view.is_local_vertex_nocheck(source_vertex)) {
@@ -139,9 +137,8 @@ void bfs(raft::handle_t const &handle,
         thrust::make_zip_iterator(thrust::make_tuple(distances, predecessor_first)),
         vertex_frontier,
         [depth] __device__(auto v_val, auto pushed_val) {
-          auto idx = (v_val == invalid_distance)
-                       ? static_cast<size_t>(Bucket::cur)
-                       : VertexFrontier<vertex_t>::kInvalidBucketIdx;
+          auto idx = (v_val == invalid_distance) ? static_cast<size_t>(Bucket::cur)
+                                                 : VertexFrontier<vertex_t>::kInvalidBucketIdx;
           return thrust::make_tuple(idx, thrust::make_tuple(depth + 1, pushed_val));
         });
 
