@@ -116,6 +116,7 @@ void populate_graph_container(graph_container_t& graph_container,
                               size_t num_global_vertices,
                               size_t num_global_edges,
                               bool sorted_by_degree,
+                              bool is_weighted,
                               bool transposed,
                               bool multi_gpu)
 {
@@ -152,7 +153,8 @@ void populate_graph_container(graph_container_t& graph_container,
   graph_container.sorted_by_degree         = sorted_by_degree;
   graph_container.do_expensive_check       = do_expensive_check;
 
-  experimental::graph_properties_t graph_props{.is_symmetric = false, .is_multigraph = false};
+  experimental::graph_properties_t graph_props{
+    .is_symmetric = false, .is_multigraph = false, .is_weighted = is_weighted};
   graph_container.graph_props = graph_props;
 
   graph_container.graph_type = graphTypeEnum::graph_t;
@@ -174,7 +176,7 @@ void populate_graph_container_legacy(graph_container_t& graph_container,
                                      int* local_offsets)
 {
   CUGRAPH_EXPECTS(graph_container.graph_type == graphTypeEnum::null,
-                  "populate_graph_container() can only be called on an empty container.");
+                  "populate_graph_container_legacy() can only be called on an empty container.");
 
   // FIXME: This is soon-to-be legacy code left in place until the new graph_t
   // class is supported everywhere else. Remove everything down to the comment

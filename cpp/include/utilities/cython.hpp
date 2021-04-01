@@ -356,6 +356,9 @@ struct renum_quad_t {
 //   The number of vertices and edges respectively in the graph represented by
 //   the above arrays.
 //
+// bool is_weighted
+//   true if the resulting graph object should store edge weights
+//
 // bool transposed
 //   true if the resulting graph object should store a transposed adjacency
 //   matrix
@@ -376,6 +379,7 @@ void populate_graph_container(graph_container_t& graph_container,
                               size_t num_global_vertices,
                               size_t num_global_edges,
                               bool sorted_by_degree,
+                              bool is_weighted,
                               bool transposed,
                               bool multi_gpu);
 
