@@ -213,6 +213,13 @@ transform_reduce_by_adj_matrix_row_col_key_e(
                                          detail::transform_reduce_by_key_e_for_all_block_size,
                                          handle.get_device_properties().maxGridSize[0]);
 
+      auto row_value_input_offset = GraphViewType::is_adj_matrix_transposed
+                                      ? vertex_t{0}
+                                      : matrix_partition.get_major_value_start_offset();
+      auto col_value_input_offset = GraphViewType::is_adj_matrix_transposed
+                                      ? matrix_partition.get_major_value_start_offset()
+                                      : vertex_t{0};
+
       // FIXME: This is highly inefficient for graphs with high-degree vertices. If we renumber
       // vertices to insure that rows within a partition are sorted by their out-degree in
       // decreasing order, we will apply this kernel only to low out-degree vertices.
@@ -221,9 +228,10 @@ transform_reduce_by_adj_matrix_row_col_key_e(
           matrix_partition,
           graph_view.get_vertex_partition_first(comm_root_rank),
           graph_view.get_vertex_partition_last(comm_root_rank),
-          adj_matrix_row_value_input_first,
-          adj_matrix_col_value_input_first,
-          adj_matrix_row_col_key_first,
+          adj_matrix_row_value_input_first + row_value_input_offset,
+          adj_matrix_col_value_input_first + col_value_input_offset,
+          adj_matrix_row_col_key_first +
+            (adj_matrix_row_key ? row_value_input_offset : col_value_input_offset),
           e_op,
           tmp_keys.data(),
           get_dataframe_buffer_begin<T>(tmp_value_buffer));
