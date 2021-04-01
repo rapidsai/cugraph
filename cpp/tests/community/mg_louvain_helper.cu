@@ -323,7 +323,8 @@ coarsen_graph(
     handle,
     edgelist,
     new_number_of_vertices,
-    cugraph::experimental::graph_properties_t{graph_view.is_symmetric(), false},
+    cugraph::experimental::graph_properties_t{
+      graph_view.is_symmetric(), false, graph_view.is_weighted()},
     true);
 }
 
