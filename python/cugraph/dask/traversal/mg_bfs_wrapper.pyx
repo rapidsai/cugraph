@@ -80,6 +80,7 @@ def mg_bfs(input_df,
                              num_partition_edges,
                              num_global_verts, num_global_edges,
                              True,
+                             False, # BFS runs on unweighted graphs
                              False, True) 
 
     # Generate the cudf.DataFrame result

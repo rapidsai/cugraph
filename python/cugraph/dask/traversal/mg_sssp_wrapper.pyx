@@ -46,9 +46,11 @@ def mg_sssp(input_df,
     if "value" in input_df.columns:
         weights = input_df['value']
         weight_t = weights.dtype
+        is_weighted = True
     else:
         weights = None
         weight_t = np.dtype("float32")
+        is_weighted = False
 
     # FIXME: Offsets and indices are currently hardcoded to int, but this may
     #        not be acceptable in the future.
@@ -82,6 +84,7 @@ def mg_sssp(input_df,
                              num_partition_edges,
                              num_global_verts, num_global_edges,
                              True,
+                             is_weighted,
                              False, True) 
 
     # Generate the cudf.DataFrame result

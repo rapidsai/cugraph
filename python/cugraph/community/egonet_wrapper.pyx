@@ -50,8 +50,10 @@ def egonet(input_graph, vertices, radius=1):
     if weights is not None:
         c_edge_weights = weights.__cuda_array_interface__['data'][0]
         weight_t = weights.dtype
+        is_weighted = True
     else:
         weight_t = np.dtype("float32")
+        is_weighted = False
 
     # Pointers for egonet
     vertices = vertices.astype('int32')
@@ -76,6 +78,7 @@ def egonet(input_graph, vertices, radius=1):
                              num_verts,
                              num_edges,
                              False,
+                             is_weighted,
                              False, False) 
 
     if(weight_t==np.dtype("float32")):

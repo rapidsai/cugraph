@@ -50,6 +50,7 @@ cdef extern from "utilities/cython.hpp" namespace "cugraph::cython":
         size_t num_global_vertices,
         size_t num_global_edges,
         bool sorted_by_degree,
+        bool is_weighted,
         bool transposed,
         bool multi_gpu) except +
 
