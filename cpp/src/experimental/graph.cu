@@ -67,12 +67,12 @@ std::
                                 vertex_t major_last,
                                 vertex_t minor_first,
                                 vertex_t minor_last,
+                                bool is_weighted,
                                 cudaStream_t stream)
 {
   rmm::device_uvector<edge_t> offsets((major_last - major_first) + 1, stream);
   rmm::device_uvector<vertex_t> indices(edgelist.number_of_edges, stream);
-  rmm::device_uvector<weight_t> weights(
-    edgelist.p_edge_weights != nullptr ? edgelist.number_of_edges : 0, stream);
+  rmm::device_uvector<weight_t> weights(is_weighted ? edgelist.number_of_edges : 0, stream);
   thrust::fill(rmm::exec_policy(stream)->on(stream), offsets.begin(), offsets.end(), edge_t{0});
   thrust::fill(rmm::exec_policy(stream)->on(stream), indices.begin(), indices.end(), vertex_t{0});
 
@@ -89,8 +89,7 @@ std::
 
   auto p_offsets = offsets.data();
   auto p_indices = indices.data();
-  auto p_weights =
-    edgelist.p_edge_weights != nullptr ? weights.data() : static_cast<weight_t *>(nullptr);
+  auto p_weights = is_weighted ? weights.data() : static_cast<weight_t *>(nullptr);
 
   thrust::for_each(rmm::exec_policy(stream)->on(stream),
                    store_transposed ? edgelist.p_dst_vertices : edgelist.p_src_vertices,
@@ -103,7 +102,7 @@ std::
   thrust::exclusive_scan(
     rmm::exec_policy(stream)->on(stream), offsets.begin(), offsets.end(), offsets.begin());
 
-  if (edgelist.p_edge_weights != nullptr) {
+  if (is_weighted) {
     auto edge_first = thrust::make_zip_iterator(thrust::make_tuple(
       edgelist.p_src_vertices, edgelist.p_dst_vertices, edgelist.p_edge_weights));
     thrust::for_each(rmm::exec_policy(stream)->on(stream),
@@ -191,20 +190,20 @@ graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu, std::enable_if_
   CUGRAPH_EXPECTS(edgelists.size() > 0,
                   "Invalid input argument: edgelists.size() should be non-zero.");
 
-  bool is_weighted = edgelists[0].p_edge_weights != nullptr;
-
   CUGRAPH_EXPECTS(
     std::any_of(edgelists.begin() + 1,
                 edgelists.end(),
-                [is_weighted](auto edgelist) {
-                  return (edgelist.p_src_vertices == nullptr) ||
-                         (edgelist.p_dst_vertices == nullptr) ||
-                         (is_weighted && (edgelist.p_edge_weights == nullptr)) ||
+                [is_weighted = properties.is_weighted](auto edgelist) {
+                  return ((edgelist.number_of_edges > 0) && (edgelist.p_src_vertices == nullptr)) ||
+                         ((edgelist.number_of_edges > 0) && (edgelist.p_dst_vertices == nullptr)) ||
+                         (is_weighted && (edgelist.number_of_edges > 0) &&
+                          (edgelist.p_edge_weights == nullptr)) ||
                          (!is_weighted && (edgelist.p_edge_weights != nullptr));
                 }) == false,
     "Invalid input argument: edgelists[].p_src_vertices and edgelists[].p_dst_vertices should not "
-    "be nullptr and edgelists[].p_edge_weights should be nullptr (if edgelists[0].p_edge_weights "
-    "is nullptr) or should not be nullptr (otherwise).");
+    "be nullptr if edgelists[].number_of_edges > 0 and edgelists[].p_edge_weights should be "
+    "nullptr if unweighted or should not be nullptr if weighted and edgelists[].number_of_edges > "
+    "0.");
 
   CUGRAPH_EXPECTS(edgelists.size() == static_cast<size_t>(col_comm_size),
                   "Invalid input argument: errneous edgelists.size().");
@@ -249,7 +248,7 @@ graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu, std::enable_if_
 
   adj_matrix_partition_offsets_.reserve(edgelists.size());
   adj_matrix_partition_indices_.reserve(edgelists.size());
-  adj_matrix_partition_weights_.reserve(is_weighted ? edgelists.size() : 0);
+  adj_matrix_partition_weights_.reserve(properties.is_weighted ? edgelists.size() : 0);
   for (size_t i = 0; i < edgelists.size(); ++i) {
     vertex_t major_first{};
     vertex_t major_last{};
@@ -267,10 +266,11 @@ graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu, std::enable_if_
                                                       major_last,
                                                       minor_first,
                                                       minor_last,
+                                                      properties.is_weighted,
                                                       this->get_handle_ptr()->get_stream());
     adj_matrix_partition_offsets_.push_back(std::move(offsets));
     adj_matrix_partition_indices_.push_back(std::move(indices));
-    if (is_weighted) { adj_matrix_partition_weights_.push_back(std::move(weights)); }
+    if (properties.is_weighted) { adj_matrix_partition_weights_.push_back(std::move(weights)); }
   }
 
   // update degree-based segment offsets (to be used for graph analytics kernel optimization)
@@ -373,9 +373,14 @@ graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu, std::enable_if_
   auto default_stream = this->get_handle_ptr()->get_stream();
 
   CUGRAPH_EXPECTS(
-    (edgelist.p_src_vertices != nullptr) && (edgelist.p_dst_vertices != nullptr),
+    ((edgelist.number_of_edges == 0) || (edgelist.p_src_vertices != nullptr)) &&
+      ((edgelist.number_of_edges == 0) || (edgelist.p_dst_vertices != nullptr)) &&
+      ((properties.is_weighted &&
+        ((edgelist.number_of_edges == 0) || (edgelist.p_edge_weights != nullptr))) ||
+       (!properties.is_weighted && (edgelist.p_edge_weights == nullptr))),
     "Invalid input argument: edgelist.p_src_vertices and edgelist.p_dst_vertices should "
-    "not be nullptr.");
+    "not be nullptr if edgelist.number_of_edges > 0 and edgelist.p_edge_weights should be nullptr "
+    "if unweighted or should not be nullptr if weighted and edgelist.number_of_edges > 0.");
 
   // optional expensive checks (part 1/2)
 
@@ -407,6 +412,7 @@ graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu, std::enable_if_
                                                     this->get_number_of_vertices(),
                                                     vertex_t{0},
                                                     this->get_number_of_vertices(),
+                                                    properties.is_weighted,
                                                     this->get_handle_ptr()->get_stream());
 
   // update degree-based segment offsets (to be used for graph analytics kernel optimization)
