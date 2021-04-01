@@ -125,6 +125,8 @@ void renumber_ext_vertices(raft::handle_t const& handle,
       });
     renumber_map_ptr->insert(kv_pair_first, kv_pair_first + sorted_unique_ext_vertices.size());
   } else {
+    handle.get_stream_view().synchronize();  // cuco::static_map currently does not take stream
+
     renumber_map_ptr.reset();
 
     renumber_map_ptr = std::make_unique<cuco::static_map<vertex_t, vertex_t>>(
