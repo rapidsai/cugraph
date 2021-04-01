@@ -93,8 +93,6 @@ extract(
   hr_timer.start("ego_neighbors");
 #endif
 
-// FixMe CI fix tentative
-// #pragma omp parallel for
   for (vertex_t i = 0; i < n_subgraphs; i++) {
     // get light handle from worker pool
     raft::handle_t light_handle(handle, i);
@@ -154,7 +152,6 @@ extract(
   user_stream_view.synchronize();
 
 // Construct the neighboors list concurrently
-// #pragma omp parallel for
   for (vertex_t i = 0; i < n_subgraphs; i++) {
     auto worker_stream_view = handle.get_internal_stream_view(i);
     thrust::copy(rmm::exec_policy(worker_stream_view),
