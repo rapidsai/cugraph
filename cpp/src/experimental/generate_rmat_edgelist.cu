@@ -27,7 +27,9 @@
 #include <thrust/iterator/zip_iterator.h>
 #include <thrust/tuple.h>
 
+#include <random>
 #include <tuple>
+#include "rmm/detail/error.hpp"
 
 namespace cugraph {
 namespace experimental {
@@ -121,7 +123,57 @@ std::tuple<rmm::device_uvector<vertex_t>, rmm::device_uvector<vertex_t>> generat
   return std::make_tuple(std::move(srcs), std::move(dsts));
 }
 
-// explicit instantiation
+template <typename vertex_t>
+std::vector<std::tuple<rmm::device_uvector<vertex_t>, rmm::device_uvector<vertex_t>>>
+generate_rmat_edgelists(raft::handle_t const& handle,
+                        size_t n_edgelists,
+                        size_t min_scale,
+                        size_t max_scale,
+                        size_t edge_factor,
+                        generator_distribution_t component_distribution,
+                        generator_distribution_t edge_distribution,
+                        uint64_t seed,
+                        bool clip_and_flip,
+                        bool scramble_vertex_ids)
+{
+  CUGRAPH_EXPECTS(min_scale > 0, "minimum graph scale is 1.");
+  CUGRAPH_EXPECTS(size_t{1} << max_scale <= std::numeric_limits<vertex_t>::max(),
+                  "Invalid input argument: scale too large for vertex_t.");
+
+  std::vector<std::tuple<rmm::device_uvector<vertex_t>, rmm::device_uvector<vertex_t>>> output{};
+  output.reserve(n_edgelists);
+  std::vector<vertex_t> scale(n_edgelists);
+
+  std::default_random_engine eng;
+  eng.seed(seed);
+  if (component_distribution == generator_distribution_t::UNIFORM) {
+    std::uniform_int_distribution<vertex_t> dist(min_scale, max_scale);
+    std::generate(scale.begin(), scale.end(), [&dist, &eng]() { return dist(eng); });
+  } else {
+    // May expose this as a parameter in the future
+    std::exponential_distribution<float> dist(4);
+    // The modulo is here to protect the range because exponential distribution is defined on
+    // [0,infinity). With exponent 4 most values are between 0 and 1
+    auto range = max_scale - min_scale;
+    std::generate(scale.begin(), scale.end(), [&dist, &eng, &min_scale, &range]() {
+      return min_scale + static_cast<vertex_t>(static_cast<float>(range) * dist(eng)) % range;
+    });
+  }
+
+  // intialized to standard powerlaw values
+  double a = 0.57, b = 0.19, c = 0.19;
+  if (edge_distribution == generator_distribution_t::UNIFORM) {
+    a = 0.25;
+    b = a;
+    c = a;
+  }
+
+  for (size_t i = 0; i < n_edgelists; i++) {
+    output.push_back(generate_rmat_edgelist<vertex_t>(
+      handle, scale[i], scale[i] * edge_factor, a, b, c, i, clip_and_flip, scramble_vertex_ids));
+  }
+  return output;
+}
 
 template std::tuple<rmm::device_uvector<int32_t>, rmm::device_uvector<int32_t>>
 generate_rmat_edgelist<int32_t>(raft::handle_t const& handle,
@@ -144,6 +196,30 @@ generate_rmat_edgelist<int64_t>(raft::handle_t const& handle,
                                 uint64_t seed,
                                 bool clip_and_flip,
                                 bool scramble_vertex_ids);
+
+template std::vector<std::tuple<rmm::device_uvector<int32_t>, rmm::device_uvector<int32_t>>>
+generate_rmat_edgelists<int32_t>(raft::handle_t const& handle,
+                                 size_t n_edgelists,
+                                 size_t min_scale,
+                                 size_t max_scale,
+                                 size_t edge_factor,
+                                 generator_distribution_t component_distribution,
+                                 generator_distribution_t edge_distribution,
+                                 uint64_t seed,
+                                 bool clip_and_flip,
+                                 bool scramble_vertex_ids);
+
+template std::vector<std::tuple<rmm::device_uvector<int64_t>, rmm::device_uvector<int64_t>>>
+generate_rmat_edgelists<int64_t>(raft::handle_t const& handle,
+                                 size_t n_edgelists,
+                                 size_t min_scale,
+                                 size_t max_scale,
+                                 size_t edge_factor,
+                                 generator_distribution_t component_distribution,
+                                 generator_distribution_t edge_distribution,
+                                 uint64_t seed,
+                                 bool clip_and_flip,
+                                 bool scramble_vertex_ids);
 
 }  // namespace experimental
 }  // namespace cugraph
