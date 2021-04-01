@@ -9,15 +9,157 @@
  *
  */
 #include <utilities/base_fixture.hpp>
+#include <utilities/test_utilities.hpp>
+
+#include <raft/cudart_utils.h>
+#include <raft/handle.hpp>
+#include <rmm/device_uvector.hpp>
+#include <rmm/mr/device/cuda_memory_resource.hpp>
+
+#include <experimental/graph.hpp>
 
 #include <algorithms.hpp>
-#include <graph.hpp>
 
-#include <thrust/extrema.h>
+#include <raft/cudart_utils.h>
+#include <raft/handle.hpp>
+#include <rmm/mr/device/cuda_memory_resource.hpp>
 
-#include <rmm/device_uvector.hpp>
+#include <gtest/gtest.h>
 
-TEST(louvain, success)
+#include <algorithm>
+#include <iterator>
+#include <limits>
+#include <numeric>
+#include <vector>
+
+struct Louvain_Usecase {
+  std::string graph_file_full_path_{};
+  bool test_weighted_{false};
+  int expected_level_{0};
+  float expected_modularity_{0};
+
+  Louvain_Usecase(std::string const& graph_file_path,
+                  bool test_weighted,
+                  int expected_level,
+                  float expected_modularity)
+    : test_weighted_(test_weighted),
+      expected_level_(expected_level),
+      expected_modularity_(expected_modularity)
+  {
+    if ((graph_file_path.length() > 0) && (graph_file_path[0] != '/')) {
+      graph_file_full_path_ = cugraph::test::get_rapids_dataset_root_dir() + "/" + graph_file_path;
+    } else {
+      graph_file_full_path_ = graph_file_path;
+    }
+  };
+};
+
+class Tests_Louvain : public ::testing::TestWithParam<Louvain_Usecase> {
+ public:
+  Tests_Louvain() {}
+  static void SetupTestCase() {}
+  static void TearDownTestCase() {}
+
+  virtual void SetUp() {}
+  virtual void TearDown() {}
+
+  template <typename vertex_t, typename edge_t, typename weight_t, typename result_t>
+  void run_legacy_test(Louvain_Usecase const& configuration)
+  {
+    raft::handle_t handle{};
+
+    bool directed{false};
+
+    auto graph = cugraph::test::generate_graph_csr_from_mm<vertex_t, edge_t, weight_t>(
+      directed, configuration.graph_file_full_path_);
+    auto graph_view = graph->view();
+
+    // "FIXME": remove this check once we drop support for Pascal
+    //
+    // Calling louvain on Pascal will throw an exception, we'll check that
+    // this is the behavior while we still support Pascal (device_prop.major < 7)
+    //
+    cudaDeviceProp device_prop;
+    CUDA_CHECK(cudaGetDeviceProperties(&device_prop, 0));
+
+    if (device_prop.major < 7) {
+      EXPECT_THROW(louvain(graph_view,
+                           graph_view.get_number_of_vertices(),
+                           configuration.expected_level_,
+                           configuration.expected_modularity_),
+                   cugraph::logic_error);
+    } else {
+      louvain(graph_view,
+              graph_view.get_number_of_vertices(),
+              configuration.expected_level_,
+              configuration.expected_modularity_);
+    }
+  }
+
+  template <typename vertex_t, typename edge_t, typename weight_t, typename result_t>
+  void run_current_test(Louvain_Usecase const& configuration)
+  {
+    raft::handle_t handle{};
+
+    cugraph::experimental::graph_t<vertex_t, edge_t, weight_t, false, false> graph(handle);
+    std::tie(graph, std::ignore) =
+      cugraph::test::read_graph_from_matrix_market_file<vertex_t, edge_t, weight_t, false, false>(
+        handle, configuration.graph_file_full_path_, configuration.test_weighted_, false);
+
+    auto graph_view = graph.view();
+
+    // "FIXME": remove this check once we drop support for Pascal
+    //
+    // Calling louvain on Pascal will throw an exception, we'll check that
+    // this is the behavior while we still support Pascal (device_prop.major < 7)
+    //
+    cudaDeviceProp device_prop;
+    CUDA_CHECK(cudaGetDeviceProperties(&device_prop, 0));
+
+    if (device_prop.major < 7) {
+      EXPECT_THROW(louvain(graph_view,
+                           graph_view.get_number_of_local_vertices(),
+                           configuration.expected_level_,
+                           configuration.expected_modularity_),
+                   cugraph::logic_error);
+    } else {
+      louvain(graph_view,
+              graph_view.get_number_of_local_vertices(),
+              configuration.expected_level_,
+              configuration.expected_modularity_);
+    }
+  }
+
+  template <typename graph_t>
+  void louvain(graph_t const& graph_view,
+               typename graph_t::vertex_type num_vertices,
+               int expected_level,
+               float expected_modularity)
+  {
+    using vertex_t = typename graph_t::vertex_type;
+    using weight_t = typename graph_t::weight_type;
+
+    raft::handle_t handle{};
+
+    rmm::device_uvector<vertex_t> clustering_v(num_vertices, handle.get_stream());
+    size_t level;
+    weight_t modularity;
+
+    std::tie(level, modularity) =
+      cugraph::louvain(handle, graph_view, clustering_v.data(), size_t{100}, weight_t{1});
+
+    CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
+
+    float compare_modularity = static_cast<float>(modularity);
+
+    ASSERT_FLOAT_EQ(compare_modularity, expected_modularity);
+    ASSERT_EQ(level, expected_level);
+  }
+};
+
+// FIXME: add tests for type combinations
+
+TEST(louvain_legacy, success)
 {
   raft::handle_t handle;
 
@@ -84,15 +226,13 @@ TEST(louvain, success)
 
     int min = *min_element(cluster_id.begin(), cluster_id.end());
 
-    std::cout << "modularity = " << modularity << std::endl;
-
     ASSERT_GE(min, 0);
-    ASSERT_GE(modularity, 0.402777 * 0.95);
+    ASSERT_FLOAT_EQ(modularity, 0.408695);
     ASSERT_EQ(cluster_id, result_h);
   }
 }
 
-TEST(louvain_renumbered, success)
+TEST(louvain_legacy_renumbered, success)
 {
   raft::handle_t handle;
 
@@ -157,11 +297,25 @@ TEST(louvain_renumbered, success)
 
     int min = *min_element(cluster_id.begin(), cluster_id.end());
 
-    std::cout << "modularity = " << modularity << std::endl;
-
     ASSERT_GE(min, 0);
-    ASSERT_GE(modularity, 0.402777 * 0.95);
+    ASSERT_FLOAT_EQ(modularity, 0.41880345);
   }
 }
+
+TEST_P(Tests_Louvain, CheckInt32Int32FloatFloatLegacy)
+{
+  run_legacy_test<int32_t, int32_t, float, float>(GetParam());
+}
+
+TEST_P(Tests_Louvain, CheckInt32Int32FloatFloat)
+{
+  run_current_test<int32_t, int32_t, float, float>(GetParam());
+}
+
+// FIXME: Expand testing once we evaluate RMM memory use
+INSTANTIATE_TEST_CASE_P(
+  simple_test,
+  Tests_Louvain,
+  ::testing::Values(Louvain_Usecase("test/datasets/karate.mtx", true, 3, 0.408695)));
 
 CUGRAPH_TEST_PROGRAM_MAIN()

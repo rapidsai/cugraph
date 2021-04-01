@@ -25,8 +25,6 @@
 
 #include <raft/handle.hpp>
 
-#include <cuco/static_map.cuh>
-
 #include <type_traits>
 
 namespace cugraph {

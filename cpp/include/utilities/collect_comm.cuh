@@ -16,6 +16,7 @@
 #pragma once
 
 #include <experimental/graph.hpp>
+#include <experimental/include_cuco_static_map.cuh>
 #include <utilities/dataframe_buffer.cuh>
 #include <utilities/shuffle_comm.cuh>
 
@@ -24,7 +25,6 @@
 #include <rmm/exec_policy.hpp>
 
 #include <thrust/distance.h>
-#include <cuco/static_map.cuh>
 
 #include <iterator>
 #include <memory>

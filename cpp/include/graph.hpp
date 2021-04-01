@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020, NVIDIA CORPORATION.
+ * Copyright (c) 2020-2021, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -68,6 +68,10 @@ class GraphViewBase {
   vertex_t *local_vertices;
   edge_t *local_edges;
   vertex_t *local_offsets;
+
+  vertex_t get_number_of_vertices() const { return number_of_vertices; }
+
+  vertex_t get_local_vertex_first() const { return vertex_t{0}; }
 
   /**
    * @brief      Fill the identifiers array with the vertex identifiers.
