@@ -70,6 +70,9 @@ void sssp(raft::handle_t const &handle,
 
   CUGRAPH_EXPECTS(push_graph_view.is_valid_vertex(source_vertex),
                   "Invalid input argument: source vertex out-of-range.");
+  CUGRAPH_EXPECTS(push_graph_view.is_weighted(),
+                  "Invalid input argument: an unweighted graph is passed to SSSP, BFS is more "
+                  "efficient for unweighted graphs.");
 
   if (do_expensive_check) {
     auto num_negative_edge_weights =
@@ -126,9 +129,7 @@ void sssp(raft::handle_t const &handle,
   // FIXME: need to double check the bucket sizes are sufficient
   std::vector<size_t> bucket_sizes(static_cast<size_t>(Bucket::num_buckets),
                                    push_graph_view.get_number_of_local_vertices());
-  VertexFrontier<vertex_t,
-                 GraphViewType::is_multi_gpu,
-                 static_cast<size_t>(Bucket::num_buckets)>
+  VertexFrontier<vertex_t, GraphViewType::is_multi_gpu, static_cast<size_t>(Bucket::num_buckets)>
     vertex_frontier(handle, bucket_sizes);
 
   // 5. SSSP iteration
