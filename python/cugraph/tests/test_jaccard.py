@@ -17,7 +17,6 @@ import pytest
 
 import cugraph
 from cugraph.tests import utils
-from cugraph.utilities.utils import is_device_version_less_than
 from pathlib import PurePath
 
 # Temporarily suppress warnings till networkX fixes deprecation warnings
@@ -92,9 +91,6 @@ def networkx_call(M):
     return src, dst, coeff
 
 
-@pytest.mark.skipif(
-    is_device_version_less_than((7, 0)), reason="Not supported on Pascal"
-)
 @pytest.mark.parametrize("graph_file", utils.DATASETS_UNDIRECTED)
 def test_jaccard(graph_file):
     gc.collect()
@@ -117,9 +113,6 @@ def test_jaccard(graph_file):
     assert err == 0
 
 
-@pytest.mark.skipif(
-    is_device_version_less_than((7, 0)), reason="Not supported on Pascal"
-)
 @pytest.mark.parametrize("graph_file", [PurePath(
     utils.RAPIDS_DATASET_ROOT_DIR)/"netscience.csv"]
 )
@@ -144,9 +137,6 @@ def test_jaccard_edgevals(graph_file):
     assert err == 0
 
 
-@pytest.mark.skipif(
-    is_device_version_less_than((7, 0)), reason="Not supported on Pascal"
-)
 @pytest.mark.parametrize("graph_file", utils.DATASETS_UNDIRECTED)
 def test_jaccard_two_hop(graph_file):
     gc.collect()
@@ -179,9 +169,6 @@ def test_jaccard_two_hop(graph_file):
         assert diff < 1.0e-6
 
 
-@pytest.mark.skipif(
-    is_device_version_less_than((7, 0)), reason="Not supported on Pascal"
-)
 @pytest.mark.parametrize("graph_file", utils.DATASETS_UNDIRECTED)
 def test_jaccard_two_hop_edge_vals(graph_file):
     gc.collect()
@@ -216,9 +203,6 @@ def test_jaccard_two_hop_edge_vals(graph_file):
         assert diff < 1.0e-6
 
 
-@pytest.mark.skipif(
-    is_device_version_less_than((7, 0)), reason="Not supported on Pascal"
-)
 @pytest.mark.parametrize("graph_file", utils.DATASETS_UNDIRECTED)
 def test_jaccard_nx(graph_file):
     gc.collect()

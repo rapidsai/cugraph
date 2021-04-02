@@ -19,7 +19,7 @@ import pytest
 import cudf
 import cugraph
 from cugraph.tests import utils
-from cugraph.utilities.utils import is_device_version_less_than
+
 
 # Temporarily suppress warnings till networkX fixes deprecation warnings
 # (Using or importing the ABCs from 'collections' instead of from
@@ -71,9 +71,6 @@ def nx_call(M, verts, directed=True):
     return nx.subgraph(G, verts)
 
 
-@pytest.mark.skipif(
-    is_device_version_less_than((7, 0)), reason="Not supported on Pascal"
-)
 @pytest.mark.parametrize("graph_file", utils.DATASETS)
 def test_subgraph_extraction_DiGraph(graph_file):
     gc.collect()
@@ -88,9 +85,6 @@ def test_subgraph_extraction_DiGraph(graph_file):
     assert compare_edges(cu_sg, nx_sg)
 
 
-@pytest.mark.skipif(
-    is_device_version_less_than((7, 0)), reason="Not supported on Pascal"
-)
 @pytest.mark.parametrize("graph_file", utils.DATASETS)
 def test_subgraph_extraction_Graph(graph_file):
     gc.collect()
@@ -105,9 +99,6 @@ def test_subgraph_extraction_Graph(graph_file):
     assert compare_edges(cu_sg, nx_sg)
 
 
-@pytest.mark.skipif(
-    is_device_version_less_than((7, 0)), reason="Not supported on Pascal"
-)
 @pytest.mark.parametrize("graph_file", utils.DATASETS)
 def test_subgraph_extraction_Graph_nx(graph_file):
     gc.collect()

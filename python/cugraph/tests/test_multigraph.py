@@ -11,13 +11,14 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import cugraph
-import networkx as nx
-from cugraph.tests import utils
-from cugraph.utilities.utils import is_device_version_less_than
-import pytest
 import gc
+
+import pytest
+import networkx as nx
 import numpy as np
+
+import cugraph
+from cugraph.tests import utils
 
 
 # =============================================================================
@@ -27,9 +28,6 @@ def setup_function():
     gc.collect()
 
 
-@pytest.mark.skipif(
-    is_device_version_less_than((7, 0)), reason="Not supported on Pascal"
-)
 @pytest.mark.parametrize("graph_file", utils.DATASETS)
 def test_multigraph(graph_file):
     # FIXME: Migrate to new test fixtures for Graph setup once available
@@ -63,9 +61,6 @@ def test_multigraph(graph_file):
     assert nxedges.equals(cuedges[["source", "target", "weight"]])
 
 
-@pytest.mark.skipif(
-    is_device_version_less_than((7, 0)), reason="Not supported on Pascal"
-)
 @pytest.mark.parametrize("graph_file", utils.DATASETS)
 def test_Graph_from_MultiGraph(graph_file):
     # FIXME: Migrate to new test fixtures for Graph setup once available
@@ -99,9 +94,6 @@ def test_Graph_from_MultiGraph(graph_file):
     assert Gnxd.number_of_edges() == Gd.number_of_edges()
 
 
-@pytest.mark.skipif(
-    is_device_version_less_than((7, 0)), reason="Not supported on Pascal"
-)
 @pytest.mark.parametrize("graph_file", utils.DATASETS)
 def test_multigraph_sssp(graph_file):
     # FIXME: Migrate to new test fixtures for Graph setup once available

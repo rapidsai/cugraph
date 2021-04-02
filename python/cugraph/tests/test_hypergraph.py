@@ -42,7 +42,6 @@ import cudf
 from cudf.tests.utils import assert_eq
 
 import cugraph
-from cugraph.utilities.utils import is_device_version_less_than
 
 
 simple_df = cudf.DataFrame.from_pandas(pd.DataFrame({
@@ -59,9 +58,6 @@ hyper_df = cudf.DataFrame.from_pandas(pd.DataFrame({
 }))
 
 
-@pytest.mark.skipif(
-    is_device_version_less_than((7, 0)), reason="Not supported on Pascal"
-)
 def test_complex_df():
     complex_df = pd.DataFrame({
         "src": [0, 1, 2, 3],
@@ -107,9 +103,6 @@ def test_complex_df():
     cugraph.hypergraph(complex_df)
 
 
-@pytest.mark.skipif(
-    is_device_version_less_than((7, 0)), reason="Not supported on Pascal"
-)
 @pytest.mark.parametrize("categorical_metadata", [False, True])
 def test_hyperedges(categorical_metadata):
 
@@ -180,9 +173,6 @@ def test_hyperedges(categorical_metadata):
         assert_eq(len(h[k]), v)
 
 
-@pytest.mark.skipif(
-    is_device_version_less_than((7, 0)), reason="Not supported on Pascal"
-)
 def test_hyperedges_direct():
 
     h = cugraph.hypergraph(hyper_df, direct=True)
@@ -191,9 +181,6 @@ def test_hyperedges_direct():
     assert_eq(len(h["nodes"]), 9)
 
 
-@pytest.mark.skipif(
-    is_device_version_less_than((7, 0)), reason="Not supported on Pascal"
-)
 def test_hyperedges_direct_categories():
 
     h = cugraph.hypergraph(
@@ -210,9 +197,6 @@ def test_hyperedges_direct_categories():
     assert_eq(len(h["nodes"]), 6)
 
 
-@pytest.mark.skipif(
-    is_device_version_less_than((7, 0)), reason="Not supported on Pascal"
-)
 def test_hyperedges_direct_manual_shaping():
 
     h1 = cugraph.hypergraph(
@@ -230,9 +214,6 @@ def test_hyperedges_direct_manual_shaping():
     assert_eq(len(h2["edges"]), 12)
 
 
-@pytest.mark.skipif(
-    is_device_version_less_than((7, 0)), reason="Not supported on Pascal"
-)
 @pytest.mark.parametrize("categorical_metadata", [False, True])
 def test_drop_edge_attrs(categorical_metadata):
 
@@ -284,9 +265,6 @@ def test_drop_edge_attrs(categorical_metadata):
         assert_eq(len(h[k]), v)
 
 
-@pytest.mark.skipif(
-    is_device_version_less_than((7, 0)), reason="Not supported on Pascal"
-)
 @pytest.mark.parametrize("categorical_metadata", [False, True])
 def test_drop_edge_attrs_direct(categorical_metadata):
 
@@ -328,9 +306,6 @@ def test_drop_edge_attrs_direct(categorical_metadata):
         assert_eq(len(h[k]), v)
 
 
-@pytest.mark.skipif(
-    is_device_version_less_than((7, 0)), reason="Not supported on Pascal"
-)
 def test_skip_hyper():
 
     df = cudf.DataFrame.from_pandas(pd.DataFrame({
@@ -345,9 +320,6 @@ def test_skip_hyper():
     assert len(hg["graph"].edges()) == 6
 
 
-@pytest.mark.skipif(
-    is_device_version_less_than((7, 0)), reason="Not supported on Pascal"
-)
 def test_skip_drop_na_hyper():
 
     df = cudf.DataFrame.from_pandas(pd.DataFrame({
@@ -362,9 +334,6 @@ def test_skip_drop_na_hyper():
     assert len(hg["graph"].edges()) == 5
 
 
-@pytest.mark.skipif(
-    is_device_version_less_than((7, 0)), reason="Not supported on Pascal"
-)
 def test_skip_direct():
 
     df = cudf.DataFrame.from_pandas(pd.DataFrame({
@@ -379,9 +348,6 @@ def test_skip_direct():
     assert len(hg["graph"].edges()) == 3
 
 
-@pytest.mark.skipif(
-    is_device_version_less_than((7, 0)), reason="Not supported on Pascal"
-)
 def test_skip_drop_na_direct():
 
     df = cudf.DataFrame.from_pandas(pd.DataFrame({
@@ -396,9 +362,6 @@ def test_skip_drop_na_direct():
     assert len(hg["graph"].edges()) == 2
 
 
-@pytest.mark.skipif(
-    is_device_version_less_than((7, 0)), reason="Not supported on Pascal"
-)
 def test_drop_na_hyper():
 
     df = cudf.DataFrame.from_pandas(
@@ -411,9 +374,6 @@ def test_drop_na_hyper():
     assert len(hg["graph"].edges()) == 4
 
 
-@pytest.mark.skipif(
-    is_device_version_less_than((7, 0)), reason="Not supported on Pascal"
-)
 def test_drop_na_direct():
 
     df = cudf.DataFrame.from_pandas(
@@ -426,9 +386,6 @@ def test_drop_na_direct():
     assert len(hg["graph"].edges()) == 1
 
 
-@pytest.mark.skipif(
-    is_device_version_less_than((7, 0)), reason="Not supported on Pascal"
-)
 def test_skip_na_hyperedge():
 
     nans_df = cudf.DataFrame.from_pandas(pd.DataFrame({
@@ -448,9 +405,6 @@ def test_skip_na_hyperedge():
     assert_eq(len(default_h_edges), len(expected_hits))
 
 
-@pytest.mark.skipif(
-    is_device_version_less_than((7, 0)), reason="Not supported on Pascal"
-)
 def test_hyper_to_pa_vanilla():
 
     df = cudf.DataFrame.from_pandas(pd.DataFrame({
@@ -465,9 +419,6 @@ def test_hyper_to_pa_vanilla():
     assert len(edges_err) == 6
 
 
-@pytest.mark.skipif(
-    is_device_version_less_than((7, 0)), reason="Not supported on Pascal"
-)
 def test_hyper_to_pa_mixed():
 
     df = cudf.DataFrame.from_pandas(pd.DataFrame({
@@ -482,9 +433,6 @@ def test_hyper_to_pa_mixed():
     assert len(edges_err) == 6
 
 
-@pytest.mark.skipif(
-    is_device_version_less_than((7, 0)), reason="Not supported on Pascal"
-)
 def test_hyper_to_pa_na():
 
     df = cudf.DataFrame.from_pandas(pd.DataFrame({
@@ -502,9 +450,6 @@ def test_hyper_to_pa_na():
     assert len(edges_err) == 6
 
 
-@pytest.mark.skipif(
-    is_device_version_less_than((7, 0)), reason="Not supported on Pascal"
-)
 def test_hyper_to_pa_all():
     hg = cugraph.hypergraph(simple_df, ["id", "a1", "🙈"])
     nodes_arr = hg["graph"].nodes().to_arrow()
@@ -515,9 +460,6 @@ def test_hyper_to_pa_all():
     assert len(edges_err) == 9
 
 
-@pytest.mark.skipif(
-    is_device_version_less_than((7, 0)), reason="Not supported on Pascal"
-)
 def test_hyper_to_pa_all_direct():
     hg = cugraph.hypergraph(simple_df, ["id", "a1", "🙈"], direct=True)
     nodes_arr = hg["graph"].nodes().to_arrow()
