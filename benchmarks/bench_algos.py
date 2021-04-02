@@ -162,6 +162,8 @@ def anyGraphWithTransposedAdjListComputed(request):
 ###############################################################################
 # Benchmarks
 @pytest.mark.ETL
+@pytest.mark.skipif(
+    is_device_version_less_than((7, 0)), reason="Not supported on Pascal")
 def bench_create_graph(gpubenchmark, edgelistCreated):
     gpubenchmark(cugraph.from_cudf_edgelist,
                  edgelistCreated,
@@ -179,6 +181,8 @@ def bench_create_graph(gpubenchmark, edgelistCreated):
     warmup_iterations=10,
     max_time=0.005
 )
+@pytest.mark.skipif(
+    is_device_version_less_than((7, 0)), reason="Not supported on Pascal")
 def bench_create_digraph(gpubenchmark, edgelistCreated):
     gpubenchmark(cugraph.from_cudf_edgelist,
                  edgelistCreated,
@@ -188,27 +192,39 @@ def bench_create_digraph(gpubenchmark, edgelistCreated):
 
 
 @pytest.mark.ETL
+@pytest.mark.skipif(
+    is_device_version_less_than((7, 0)), reason="Not supported on Pascal")
 def bench_renumber(gpubenchmark, edgelistCreated):
     gpubenchmark(NumberMap.renumber, edgelistCreated, "0", "1")
 
 
+@pytest.mark.skipif(
+    is_device_version_less_than((7, 0)), reason="Not supported on Pascal")
 def bench_pagerank(gpubenchmark, anyGraphWithTransposedAdjListComputed):
     gpubenchmark(cugraph.pagerank, anyGraphWithTransposedAdjListComputed)
 
 
+@pytest.mark.skipif(
+    is_device_version_less_than((7, 0)), reason="Not supported on Pascal")
 def bench_bfs(gpubenchmark, anyGraphWithAdjListComputed):
     gpubenchmark(cugraph.bfs, anyGraphWithAdjListComputed, 0)
 
 
+@pytest.mark.skipif(
+    is_device_version_less_than((7, 0)), reason="Not supported on Pascal")
 def bench_force_atlas2(gpubenchmark, anyGraphWithAdjListComputed):
     gpubenchmark(cugraph.force_atlas2, anyGraphWithAdjListComputed,
                  max_iter=50)
 
 
+@pytest.mark.skipif(
+    is_device_version_less_than((7, 0)), reason="Not supported on Pascal")
 def bench_sssp(gpubenchmark, anyGraphWithAdjListComputed):
     gpubenchmark(cugraph.sssp, anyGraphWithAdjListComputed, 0)
 
 
+@pytest.mark.skipif(
+    is_device_version_less_than((7, 0)), reason="Not supported on Pascal")
 def bench_jaccard(gpubenchmark, graphWithAdjListComputed):
     gpubenchmark(cugraph.jaccard, graphWithAdjListComputed)
 
@@ -219,20 +235,28 @@ def bench_louvain(gpubenchmark, graphWithAdjListComputed):
     gpubenchmark(cugraph.louvain, graphWithAdjListComputed)
 
 
+@pytest.mark.skipif(
+    is_device_version_less_than((7, 0)), reason="Not supported on Pascal")
 def bench_weakly_connected_components(gpubenchmark,
                                       anyGraphWithAdjListComputed):
     gpubenchmark(cugraph.weakly_connected_components,
                  anyGraphWithAdjListComputed)
 
 
+@pytest.mark.skipif(
+    is_device_version_less_than((7, 0)), reason="Not supported on Pascal")
 def bench_overlap(gpubenchmark, anyGraphWithAdjListComputed):
     gpubenchmark(cugraph.overlap, anyGraphWithAdjListComputed)
 
 
+@pytest.mark.skipif(
+    is_device_version_less_than((7, 0)), reason="Not supported on Pascal")
 def bench_triangles(gpubenchmark, graphWithAdjListComputed):
     gpubenchmark(cugraph.triangles, graphWithAdjListComputed)
 
 
+@pytest.mark.skipif(
+    is_device_version_less_than((7, 0)), reason="Not supported on Pascal")
 def bench_spectralBalancedCutClustering(gpubenchmark,
                                         graphWithAdjListComputed):
     gpubenchmark(cugraph.spectralBalancedCutClustering,
@@ -247,19 +271,27 @@ def bench_spectralModularityMaximizationClustering(
                  anyGraphWithAdjListComputed, 2)
 
 
+@pytest.mark.skipif(
+    is_device_version_less_than((7, 0)), reason="Not supported on Pascal")
 def bench_graph_degree(gpubenchmark, anyGraphWithAdjListComputed):
     gpubenchmark(anyGraphWithAdjListComputed.degree)
 
 
+@pytest.mark.skipif(
+    is_device_version_less_than((7, 0)), reason="Not supported on Pascal")
 def bench_graph_degrees(gpubenchmark, anyGraphWithAdjListComputed):
     gpubenchmark(anyGraphWithAdjListComputed.degrees)
 
 
+@pytest.mark.skipif(
+    is_device_version_less_than((7, 0)), reason="Not supported on Pascal")
 def bench_betweenness_centrality(gpubenchmark, anyGraphWithAdjListComputed):
     gpubenchmark(cugraph.betweenness_centrality,
                  anyGraphWithAdjListComputed, k=10, seed=123)
 
 
+@pytest.mark.skipif(
+    is_device_version_less_than((7, 0)), reason="Not supported on Pascal")
 def bench_edge_betweenness_centrality(gpubenchmark,
                                       anyGraphWithAdjListComputed):
     gpubenchmark(cugraph.edge_betweenness_centrality,

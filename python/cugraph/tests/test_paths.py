@@ -1,11 +1,28 @@
+# Copyright (c) 2019-2021, NVIDIA CORPORATION.
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+import sys
+from tempfile import NamedTemporaryFile
+
 import cudf
-import cugraph
 from cupy.sparse import coo_matrix as cupy_coo_matrix
 import cupy
 import networkx as nx
 import pytest
-import sys
-from tempfile import NamedTemporaryFile
+
+import cugraph
+from cugraph.utilities.utils import is_device_version_less_than
+
 
 CONNECTED_GRAPH = """1,5,3
 1,4,1
@@ -58,6 +75,9 @@ def graphs(request):
         yield cugraph_G, nx_G, cupy_df
 
 
+@pytest.mark.skipif(
+    is_device_version_less_than((7, 0)), reason="Not supported on Pascal"
+)
 @pytest.mark.parametrize("graphs", [CONNECTED_GRAPH], indirect=True)
 def test_connected_graph_shortest_path_length(graphs):
     cugraph_G, nx_G, cupy_df = graphs
@@ -91,6 +111,9 @@ def test_connected_graph_shortest_path_length(graphs):
     assert path_1_to_6_length == cugraph.shortest_path_length(cupy_df, 1, 6)
 
 
+@pytest.mark.skipif(
+    is_device_version_less_than((7, 0)), reason="Not supported on Pascal"
+)
 @pytest.mark.parametrize("graphs", [CONNECTED_GRAPH], indirect=True)
 def test_shortest_path_length_invalid_source(graphs):
     cugraph_G, nx_G, cupy_df = graphs
@@ -105,6 +128,9 @@ def test_shortest_path_length_invalid_source(graphs):
         cugraph.shortest_path_length(cupy_df, -1, 1)
 
 
+@pytest.mark.skipif(
+    is_device_version_less_than((7, 0)), reason="Not supported on Pascal"
+)
 @pytest.mark.parametrize("graphs", [DISCONNECTED_GRAPH], indirect=True)
 def test_shortest_path_length_invalid_target(graphs):
     cugraph_G, nx_G, cupy_df = graphs
@@ -119,6 +145,9 @@ def test_shortest_path_length_invalid_target(graphs):
         cugraph.shortest_path_length(cupy_df, 1, 10)
 
 
+@pytest.mark.skipif(
+    is_device_version_less_than((7, 0)), reason="Not supported on Pascal"
+)
 @pytest.mark.parametrize("graphs", [CONNECTED_GRAPH], indirect=True)
 def test_shortest_path_length_invalid_vertexes(graphs):
     cugraph_G, nx_G, cupy_df = graphs
@@ -133,6 +162,9 @@ def test_shortest_path_length_invalid_vertexes(graphs):
         cugraph.shortest_path_length(cupy_df, 0, 42)
 
 
+@pytest.mark.skipif(
+    is_device_version_less_than((7, 0)), reason="Not supported on Pascal"
+)
 @pytest.mark.parametrize("graphs", [DISCONNECTED_GRAPH], indirect=True)
 def test_shortest_path_length_no_path(graphs):
     cugraph_G, nx_G, cupy_df = graphs
@@ -143,6 +175,9 @@ def test_shortest_path_length_no_path(graphs):
     assert path_1_to_8 == cugraph.shortest_path_length(cupy_df, 1, 8)
 
 
+@pytest.mark.skipif(
+    is_device_version_less_than((7, 0)), reason="Not supported on Pascal"
+)
 @pytest.mark.parametrize("graphs", [DISCONNECTED_GRAPH], indirect=True)
 def test_shortest_path_length_no_target(graphs):
     cugraph_G, nx_G, cupy_df = graphs

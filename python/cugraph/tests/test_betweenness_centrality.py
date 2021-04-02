@@ -17,6 +17,7 @@ import pytest
 
 import cugraph
 from cugraph.tests import utils
+from cugraph.utilities.utils import is_device_version_less_than
 import random
 import numpy as np
 import cudf
@@ -55,7 +56,7 @@ RESULT_DTYPE_OPTIONS = [np.float32, np.float64]
 # Comparison functions
 # =============================================================================
 def calc_betweenness_centrality(
-    graph_obj_tuple,
+    graph_file,
     directed=True,
     k=None,
     normalized=False,
@@ -68,49 +69,36 @@ def calc_betweenness_centrality(
     edgevals=False,
 ):
     """ Generate both cugraph and networkx betweenness centrality
-
     Parameters
     ----------
     graph_file : string
         Path to COO Graph representation in .csv format
-
     directed : bool, optional, default=True
-
     k : int or None, optional, default=None
         int:  Number of sources  to sample  from
         None: All sources are used to compute
-
     normalized : bool
         True: Normalize Betweenness Centrality scores
         False: Scores are left unnormalized
-
     weight : cudf.DataFrame:
         Not supported as of 06/2020
-
     endpoints : bool
         True: Endpoints are included when computing scores
         False: Endpoints are not considered
-
     seed : int or None, optional, default=None
         Seed for random sampling  of the starting point
-
     result_dtype :  numpy.dtype
         Expected type of the result, either np.float32 or np.float64
-
     use_k_full : bool
         When True, if k is None replaces k by the number of sources of the
         Graph
-
     multi_gpu_batch : bool
         When True, enable mg batch after constructing the graph
-
     edgevals: bool
         When True, enable tests with weighted graph, should be ignored
         during computation.
-
     Returns
     -------
-
     sorted_df : cudf.DataFrame
         Contains 'vertex' and  'cu_bc' 'ref_bc' columns,  where 'cu_bc'
         and 'ref_bc' are the two betweenness centrality scores to compare.
@@ -120,7 +108,8 @@ def calc_betweenness_centrality(
     G = None
     Gnx = None
 
-    G, Gnx = graph_obj_tuple
+    G, Gnx = utils.build_cu_and_nx_graphs(graph_file, directed=directed,
+                                          edgevals=edgevals)
 
     assert G is not None and Gnx is not None
     if multi_gpu_batch:
@@ -299,66 +288,51 @@ def prepare_test():
 
 
 # =============================================================================
-# Pytest Fixtures
-# =============================================================================
-DIRECTED = [pytest.param(d) for d in DIRECTED_GRAPH_OPTIONS]
-DATASETS_SMALL = [pytest.param(d) for d in utils.DATASETS_SMALL]
-DATASETS_UNRENUMBERED = [pytest.param(d) for d in utils.DATASETS_UNRENUMBERED]
-WEIGHTED_GRAPH_OPTIONS = [pytest.param(w) for w in WEIGHTED_GRAPH_OPTIONS]
-
-
-small_graph_fixture_params = utils.genFixtureParamsProduct(
-    (DATASETS_SMALL, "grph"),
-    (DIRECTED, "dirctd"),
-    (WEIGHTED_GRAPH_OPTIONS, "wgtd_gph_opts"))
-
-unrenumbered_graph_fixture_params = utils.genFixtureParamsProduct(
-    (DATASETS_UNRENUMBERED, "grph"),
-    (DIRECTED, "dirctd"),
-    (WEIGHTED_GRAPH_OPTIONS, "wgtd_gph_opts"))
-
-
-@pytest.fixture(scope="module", params=small_graph_fixture_params)
-def get_cu_nx_graph_datasets_small(request):
-    return utils.build_cu_and_nx_graphs(*request.param)
-
-
-@pytest.fixture(scope="module", params=unrenumbered_graph_fixture_params)
-def get_cu_nx_graph_datasets_unrenumbered(request):
-    return utils.build_cu_and_nx_graphs(*request.param)
-
-
-# =============================================================================
 # Tests
 # =============================================================================
+@pytest.mark.skipif(
+    is_device_version_less_than((7, 0)), reason="Not supported on Pascal"
+)
+@pytest.mark.parametrize("graph_file", utils.DATASETS_SMALL)
+@pytest.mark.parametrize("directed", DIRECTED_GRAPH_OPTIONS)
 @pytest.mark.parametrize("subset_size", SUBSET_SIZE_OPTIONS)
 @pytest.mark.parametrize("normalized", NORMALIZED_OPTIONS)
 @pytest.mark.parametrize("weight", [None])
 @pytest.mark.parametrize("endpoints", ENDPOINTS_OPTIONS)
 @pytest.mark.parametrize("subset_seed", SUBSET_SEED_OPTIONS)
 @pytest.mark.parametrize("result_dtype", RESULT_DTYPE_OPTIONS)
+@pytest.mark.parametrize("edgevals", WEIGHTED_GRAPH_OPTIONS)
 def test_betweenness_centrality(
-    get_cu_nx_graph_datasets_small,
+    graph_file,
+    directed,
     subset_size,
     normalized,
     weight,
     endpoints,
     subset_seed,
     result_dtype,
+    edgevals
 ):
     prepare_test()
     sorted_df = calc_betweenness_centrality(
-        get_cu_nx_graph_datasets_small,
+        graph_file,
+        directed=directed,
         normalized=normalized,
         k=subset_size,
         weight=weight,
         endpoints=endpoints,
         seed=subset_seed,
         result_dtype=result_dtype,
+        edgevals=edgevals,
     )
     compare_scores(sorted_df, first_key="cu_bc", second_key="ref_bc")
 
 
+@pytest.mark.skipif(
+    is_device_version_less_than((7, 0)), reason="Not supported on Pascal"
+)
+@pytest.mark.parametrize("graph_file", utils.DATASETS_SMALL)
+@pytest.mark.parametrize("directed", DIRECTED_GRAPH_OPTIONS)
 @pytest.mark.parametrize("subset_size", [None])
 @pytest.mark.parametrize("normalized", NORMALIZED_OPTIONS)
 @pytest.mark.parametrize("weight", [None])
@@ -366,8 +340,10 @@ def test_betweenness_centrality(
 @pytest.mark.parametrize("subset_seed", SUBSET_SEED_OPTIONS)
 @pytest.mark.parametrize("result_dtype", RESULT_DTYPE_OPTIONS)
 @pytest.mark.parametrize("use_k_full", [True])
+@pytest.mark.parametrize("edgevals", WEIGHTED_GRAPH_OPTIONS)
 def test_betweenness_centrality_k_full(
-    get_cu_nx_graph_datasets_small,
+    graph_file,
+    directed,
     subset_size,
     normalized,
     weight,
@@ -375,12 +351,14 @@ def test_betweenness_centrality_k_full(
     subset_seed,
     result_dtype,
     use_k_full,
+    edgevals
 ):
     """Tests full betweenness centrality by using k = G.number_of_vertices()
     instead of k=None, checks that k scales properly"""
     prepare_test()
     sorted_df = calc_betweenness_centrality(
-        get_cu_nx_graph_datasets_small,
+        graph_file,
+        directed=directed,
         normalized=normalized,
         k=subset_size,
         weight=weight,
@@ -388,6 +366,7 @@ def test_betweenness_centrality_k_full(
         seed=subset_seed,
         result_dtype=result_dtype,
         use_k_full=use_k_full,
+        edgevals=edgevals
     )
     compare_scores(sorted_df, first_key="cu_bc", second_key="ref_bc")
 
@@ -396,103 +375,134 @@ def test_betweenness_centrality_k_full(
 #       the function operating the comparison inside is first proceeding
 #       to a random sampling over the number of vertices (thus direct offsets)
 #       in the graph structure instead of actual vertices identifiers
+@pytest.mark.skipif(
+    is_device_version_less_than((7, 0)), reason="Not supported on Pascal"
+)
+@pytest.mark.parametrize("graph_file", utils.DATASETS_UNRENUMBERED)
+@pytest.mark.parametrize("directed", DIRECTED_GRAPH_OPTIONS)
 @pytest.mark.parametrize("subset_size", SUBSET_SIZE_OPTIONS)
 @pytest.mark.parametrize("normalized", NORMALIZED_OPTIONS)
 @pytest.mark.parametrize("weight", [None])
 @pytest.mark.parametrize("endpoints", ENDPOINTS_OPTIONS)
 @pytest.mark.parametrize("subset_seed", [None])
 @pytest.mark.parametrize("result_dtype", RESULT_DTYPE_OPTIONS)
+@pytest.mark.parametrize("edgevals", WEIGHTED_GRAPH_OPTIONS)
 def test_betweenness_centrality_fixed_sample(
-    get_cu_nx_graph_datasets_unrenumbered,
+    graph_file,
+    directed,
     subset_size,
     normalized,
     weight,
     endpoints,
     subset_seed,
     result_dtype,
+    edgevals
 ):
     """Test Betweenness Centrality using a subset
-
     Only k sources are considered for an approximate Betweenness Centrality
     """
     prepare_test()
     sorted_df = calc_betweenness_centrality(
-        get_cu_nx_graph_datasets_unrenumbered,
+        graph_file,
+        directed=directed,
         k=subset_size,
         normalized=normalized,
         weight=weight,
         endpoints=endpoints,
         seed=subset_seed,
         result_dtype=result_dtype,
+        edgevals=edgevals
     )
     compare_scores(sorted_df, first_key="cu_bc", second_key="ref_bc")
 
 
+@pytest.mark.skipif(
+    is_device_version_less_than((7, 0)), reason="Not supported on Pascal"
+)
+@pytest.mark.parametrize("graph_file", utils.DATASETS_SMALL)
+@pytest.mark.parametrize("directed", DIRECTED_GRAPH_OPTIONS)
 @pytest.mark.parametrize("subset_size", SUBSET_SIZE_OPTIONS)
 @pytest.mark.parametrize("normalized", NORMALIZED_OPTIONS)
 @pytest.mark.parametrize("weight", [[]])
 @pytest.mark.parametrize("endpoints", ENDPOINTS_OPTIONS)
 @pytest.mark.parametrize("subset_seed", SUBSET_SEED_OPTIONS)
 @pytest.mark.parametrize("result_dtype", RESULT_DTYPE_OPTIONS)
+@pytest.mark.parametrize("edgevals", WEIGHTED_GRAPH_OPTIONS)
 def test_betweenness_centrality_weight_except(
-    get_cu_nx_graph_datasets_small,
+    graph_file,
+    directed,
     subset_size,
     normalized,
     weight,
     endpoints,
     subset_seed,
     result_dtype,
+    edgevals
 ):
     """Calls betwenness_centrality with weight
-
     As of 05/28/2020, weight is not supported and should raise
     a NotImplementedError
     """
     prepare_test()
     with pytest.raises(NotImplementedError):
         sorted_df = calc_betweenness_centrality(
-            get_cu_nx_graph_datasets_small,
+            graph_file,
+            directed=directed,
             k=subset_size,
             normalized=normalized,
             weight=weight,
             endpoints=endpoints,
             seed=subset_seed,
             result_dtype=result_dtype,
+            edgevals=edgevals
         )
         compare_scores(sorted_df, first_key="cu_bc", second_key="ref_bc")
 
 
+@pytest.mark.skipif(
+    is_device_version_less_than((7, 0)), reason="Not supported on Pascal"
+)
+@pytest.mark.parametrize("graph_file", utils.DATASETS_SMALL)
+@pytest.mark.parametrize("directed", DIRECTED_GRAPH_OPTIONS)
 @pytest.mark.parametrize("normalized", NORMALIZED_OPTIONS)
 @pytest.mark.parametrize("subset_size", SUBSET_SIZE_OPTIONS)
 @pytest.mark.parametrize("weight", [None])
 @pytest.mark.parametrize("endpoints", ENDPOINTS_OPTIONS)
 @pytest.mark.parametrize("subset_seed", SUBSET_SEED_OPTIONS)
 @pytest.mark.parametrize("result_dtype", [str])
+@pytest.mark.parametrize("edgevals", WEIGHTED_GRAPH_OPTIONS)
 def test_betweenness_invalid_dtype(
-    get_cu_nx_graph_datasets_small,
+    graph_file,
+    directed,
     subset_size,
     normalized,
     weight,
     endpoints,
     subset_seed,
     result_dtype,
+    edgevals
 ):
     """Test calls edge_betwenness_centrality an invalid type"""
 
     prepare_test()
     with pytest.raises(TypeError):
         sorted_df = calc_betweenness_centrality(
-            get_cu_nx_graph_datasets_small,
+            graph_file,
+            directed=directed,
             k=subset_size,
             normalized=normalized,
             weight=weight,
             endpoints=endpoints,
             seed=subset_seed,
             result_dtype=result_dtype,
+            edgevals=edgevals
         )
         compare_scores(sorted_df, first_key="cu_bc", second_key="ref_bc")
 
 
+@pytest.mark.skipif(
+    is_device_version_less_than((7, 0)), reason="Not supported on Pascal"
+)
 @pytest.mark.parametrize("graph_file", utils.DATASETS_SMALL)
 @pytest.mark.parametrize("directed", DIRECTED_GRAPH_OPTIONS)
 @pytest.mark.parametrize("edgevals", WEIGHTED_GRAPH_OPTIONS)
