@@ -62,7 +62,7 @@ class Graph:
             raise AttributeError
 
     def __dir__(self):
-        return dir(self.base)
+        return dir(self.Impl)
 
     def from_cudf_edgelist(
         self,
@@ -437,14 +437,12 @@ class Graph:
         >>> G.from_cudf_edgelist(M, '0', '1')
         >>> DiG = G.to_directed()
         """
-        if self.graph_properties.directed is True:
-            return self
-        else:
-            directed_graph = type(self)(directed=True)
-            directed_graph.Impl = type(self.Impl)(directed_graph.
-                                                  graph_properties)
-            self.Impl.to_directed(directed_graph.Impl)
-            return directed_graph
+        directed_graph = type(self)()
+        directed_graph.graph_properties.directed = True
+        directed_graph.Impl = type(self.Impl)(directed_graph.
+                                              graph_properties)
+        self.Impl.to_directed(directed_graph.Impl)
+        return directed_graph
 
     def to_undirected(self):
         """
@@ -464,13 +462,13 @@ class Graph:
         """
 
         if self.graph_properties.directed is False:
-            return self
+            undirected_graph = type(self)()
         else:
             undirected_graph = self.__class__.__bases__[0]()
-            undirected_graph.Impl = type(self.Impl)(undirected_graph.
-                                                    graph_properties)
-            self.Impl.to_undirected(undirected_graph.Impl)
-            return undirected_graph
+        undirected_graph.Impl = type(self.Impl)(undirected_graph.
+                                                graph_properties)
+        self.Impl.to_undirected(undirected_graph.Impl)
+        return undirected_graph
 
     def add_nodes_from(self, nodes):
         """
@@ -506,6 +504,7 @@ class MultiGraph(Graph):
         # TO DO: Call coloring algorithm
         return True
 
+
 class MultiDiGraph(MultiGraph):
     def __init__(self):
         warnings.warn(
@@ -519,11 +518,6 @@ class Tree(Graph):
     def __init__(self, directed=False):
         super(Tree, self).__init__(directed=directed)
         self.graph_properties.tree = True
-
-
-class DiTree(Tree):
-    def __init__(self):
-        super(DiTree, self).__init__(directed=True)
 
 
 class NPartiteGraph(Graph):

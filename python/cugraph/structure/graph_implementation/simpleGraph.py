@@ -128,7 +128,7 @@ class simpleGraphImpl:
             )
 
         # Renumbering
-        renumber_map = None
+        self.renumber_map = None
         if renumber:
             # FIXME: Should SG do lazy evaluation like MG?
             elist, renumber_map = NumberMap.renumber(
@@ -141,7 +141,6 @@ class simpleGraphImpl:
         else:
             if type(source) is list and type(destination) is list:
                 raise Exception("set renumber to True for multi column ids")
-        self.renumber_map = renumber_map
 
         # Populate graph edgelist
         source_col = elist[source]
@@ -703,21 +702,9 @@ class simpleGraphImpl:
 
     def to_directed(self, DiG):
         """
-        Return a directed representation of the graph.
-        This function sets the type of graph as DiGraph() and returns the
+        Return a directed representation of the graph Implementation.
+        This function copies the internal structures and returns the
         directed view.
-        Returns
-        -------
-        G : DiGraph
-            A directed graph with the same nodes, and each edge (u,v,weights)
-            replaced by two directed edges (u,v,weights) and (v,u,weights).
-        Examples
-        --------
-        >>> M = cudf.read_csv('datasets/karate.csv', delimiter=' ',
-        >>>                   dtype=['int32', 'int32', 'float32'], header=None)
-        >>> G = cugraph.Graph()
-        >>> G.from_cudf_edgelist(M, '0', '1')
-        >>> DiG = G.to_directed()
         """
         DiG.properties.renumbered = self.properties.renumbered
         DiG.renumber_map = self.renumber_map
@@ -728,30 +715,24 @@ class simpleGraphImpl:
     def to_undirected(self, G):
         """
         Return an undirected copy of the graph.
-        Returns
-        -------
-        G : Graph
-            A undirected graph with the same nodes, and each directed edge
-            (u,v,weights) replaced by an undirected edge (u,v,weights).
-        Examples
-        --------
-        >>> M = cudf.read_csv('datasets/karate.csv', delimiter=' ',
-        >>>                   dtype=['int32', 'int32', 'float32'], header=None)
-        >>> DiG = cugraph.DiGraph()
-        >>> DiG.from_cudf_edgelist(M, '0', '1')
-        >>> G = DiG.to_undirected()
         """
-        df = self.edgelist.edgelist_df
         G.properties.renumbered = self.properties.renumbered
         G.renumber_map = self.renumber_map
-        if self.edgelist.weights:
-            source_col, dest_col, value_col = symmetrize(
-                df["src"], df["dst"], df["weights"]
-            )
+        if self.properties.directed is False:
+            G.edgelist = self.edgelist
+            G.adjlist = self.adjlist
+            G.transposedadjlist = self.transposedadjlist
         else:
-            source_col, dest_col = symmetrize(df["src"], df["dst"])
-            value_col = None
-        G.edgelist = simpleGraphImpl.EdgeList(source_col, dest_col, value_col)
+            df = self.edgelist.edgelist_df
+            if self.edgelist.weights:
+                source_col, dest_col, value_col = symmetrize(
+                    df["src"], df["dst"], df["weights"]
+                )
+            else:
+                source_col, dest_col = symmetrize(df["src"], df["dst"])
+                value_col = None
+            G.edgelist = simpleGraphImpl.EdgeList(source_col, dest_col,
+                                                  value_col)
 
     def has_node(self, n):
         """
