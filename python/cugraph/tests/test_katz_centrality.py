@@ -17,7 +17,6 @@ import pytest
 
 import cugraph
 from cugraph.tests import utils
-from cugraph.utilities.utils import is_device_version_less_than
 
 # Temporarily suppress warnings till networkX fixes deprecation warnings
 # (Using or importing the ABCs from 'collections' instead of from
@@ -71,9 +70,6 @@ def calc_katz(graph_file):
 # https://github.com/rapidsai/cugraph/issues/1042
 #
 # @pytest.mark.parametrize("graph_file", utils.DATASETS)
-@pytest.mark.skipif(
-    is_device_version_less_than((7, 0)), reason="Not supported on Pascal"
-)
 @pytest.mark.parametrize("graph_file", utils.DATASETS_UNDIRECTED)
 def test_katz_centrality(graph_file):
     gc.collect()
@@ -86,9 +82,6 @@ def test_katz_centrality(graph_file):
     assert topKNX.equals(topKCU)
 
 
-@pytest.mark.skipif(
-    is_device_version_less_than((7, 0)), reason="Not supported on Pascal"
-)
 @pytest.mark.parametrize("graph_file", utils.DATASETS_UNDIRECTED)
 def test_katz_centrality_nx(graph_file):
     gc.collect()

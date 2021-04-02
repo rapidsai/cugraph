@@ -16,11 +16,11 @@ import time
 
 import pytest
 import scipy
+import numpy as np
 import cudf
+
 import cugraph
 from cugraph.tests import utils
-from cugraph.utilities.utils import is_device_version_less_than
-import numpy as np
 
 
 def cugraph_call(cu_M, pairs):
@@ -84,9 +84,6 @@ def cpu_call(M, first, second):
     return result
 
 
-@pytest.mark.skipif(
-    is_device_version_less_than((7, 0)), reason="Not supported on Pascal"
-)
 @pytest.mark.parametrize("graph_file", utils.DATASETS_UNDIRECTED)
 def test_woverlap(graph_file):
     gc.collect()

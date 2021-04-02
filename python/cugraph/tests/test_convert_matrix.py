@@ -15,7 +15,6 @@ import gc
 import pytest
 import cugraph
 from cugraph.tests import utils
-from cugraph.utilities.utils import is_device_version_less_than
 import numpy as np
 
 # Temporarily suppress warnings till networkX fixes deprecation warnings
@@ -37,9 +36,6 @@ def setup_function():
     gc.collect()
 
 
-@pytest.mark.skipif(
-    is_device_version_less_than((7, 0)), reason="Not supported on Pascal"
-)
 @pytest.mark.parametrize("graph_file", utils.DATASETS)
 def test_to_from_pandas(graph_file):
     # Read in the graph
@@ -86,9 +82,6 @@ def test_to_from_pandas(graph_file):
     assert exp_pdf.equals(res_pdf)
 
 
-@pytest.mark.skipif(
-    is_device_version_less_than((7, 0)), reason="Not supported on Pascal"
-)
 @pytest.mark.parametrize("graph_file", utils.DATASETS)
 def test_from_to_numpy(graph_file):
     # Read in the graph
@@ -157,9 +150,6 @@ def test_from_to_numpy(graph_file):
     assert exp_pdf.equals(res_pdf)
 
 
-@pytest.mark.skipif(
-    is_device_version_less_than((7, 0)), reason="Not supported on Pascal"
-)
 @pytest.mark.parametrize("graph_file", utils.DATASETS)
 def test_from_edgelist(graph_file):
     """
@@ -175,9 +165,6 @@ def test_from_edgelist(graph_file):
     assert G1.EdgeList == G2.EdgeList
 
 
-@pytest.mark.skipif(
-    is_device_version_less_than((7, 0)), reason="Not supported on Pascal"
-)
 @pytest.mark.parametrize("graph_file", utils.DATASETS)
 def test_from_adjlist(graph_file):
     """

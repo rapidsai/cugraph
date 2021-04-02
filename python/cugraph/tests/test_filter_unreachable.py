@@ -18,7 +18,6 @@ import numpy as np
 
 import cugraph
 from cugraph.tests import utils
-from cugraph.utilities.utils import is_device_version_less_than
 
 # Temporarily suppress warnings till networkX fixes deprecation warnings
 # (Using or importing the ABCs from 'collections' instead of from
@@ -37,9 +36,6 @@ print("Networkx version : {} ".format(nx.__version__))
 SOURCES = [1]
 
 
-@pytest.mark.skipif(
-    is_device_version_less_than((7, 0)), reason="Not supported on Pascal"
-)
 @pytest.mark.parametrize("graph_file", utils.DATASETS)
 @pytest.mark.parametrize("source", SOURCES)
 def test_filter_unreachable(graph_file, source):

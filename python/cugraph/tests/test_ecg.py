@@ -55,9 +55,6 @@ MIN_WEIGHTS = [0.05, 0.10, 0.15]
 ENSEMBLE_SIZES = [16, 32]
 
 
-@pytest.mark.skipif(
-    is_device_version_less_than((7, 0)), reason="Not supported on Pascal"
-)
 @pytest.mark.parametrize("graph_file", DATASETS)
 @pytest.mark.parametrize("min_weight", MIN_WEIGHTS)
 @pytest.mark.parametrize("ensemble_size", ENSEMBLE_SIZES)
