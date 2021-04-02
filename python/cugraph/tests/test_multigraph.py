@@ -1,6 +1,20 @@
+# Copyright (c) 2020-2021, NVIDIA CORPORATION.
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
 import cugraph
 import networkx as nx
 from cugraph.tests import utils
+from cugraph.utilities.utils import is_device_version_less_than
 import pytest
 import gc
 import numpy as np
@@ -13,6 +27,9 @@ def setup_function():
     gc.collect()
 
 
+@pytest.mark.skipif(
+    is_device_version_less_than((7, 0)), reason="Not supported on Pascal"
+)
 @pytest.mark.parametrize("graph_file", utils.DATASETS)
 def test_multigraph(graph_file):
     # FIXME: Migrate to new test fixtures for Graph setup once available
@@ -46,6 +63,9 @@ def test_multigraph(graph_file):
     assert nxedges.equals(cuedges[["source", "target", "weight"]])
 
 
+@pytest.mark.skipif(
+    is_device_version_less_than((7, 0)), reason="Not supported on Pascal"
+)
 @pytest.mark.parametrize("graph_file", utils.DATASETS)
 def test_Graph_from_MultiGraph(graph_file):
     # FIXME: Migrate to new test fixtures for Graph setup once available
@@ -79,6 +99,9 @@ def test_Graph_from_MultiGraph(graph_file):
     assert Gnxd.number_of_edges() == Gd.number_of_edges()
 
 
+@pytest.mark.skipif(
+    is_device_version_less_than((7, 0)), reason="Not supported on Pascal"
+)
 @pytest.mark.parametrize("graph_file", utils.DATASETS)
 def test_multigraph_sssp(graph_file):
     # FIXME: Migrate to new test fixtures for Graph setup once available

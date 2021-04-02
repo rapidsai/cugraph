@@ -1,4 +1,4 @@
-# Copyright (c) 2019-2020, NVIDIA CORPORATION.
+# Copyright (c) 2019-2021, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -28,6 +28,7 @@ from scipy.sparse.csc import csc_matrix as sp_csc_matrix
 import cudf
 import cugraph
 from cugraph.tests import utils
+from cugraph.utilities.utils import is_device_version_less_than
 
 # Temporarily suppress warnings till networkX fixes deprecation warnings
 # (Using or importing the ABCs from 'collections' instead of from
@@ -290,6 +291,9 @@ def single_dataset_nxresults_strong(request):
 # =============================================================================
 # Tests
 # =============================================================================
+@pytest.mark.skipif(
+    is_device_version_less_than((7, 0)), reason="Not supported on Pascal"
+)
 @pytest.mark.parametrize("cugraph_input_type", utils.CUGRAPH_DIR_INPUT_TYPES)
 def test_weak_cc(gpubenchmark, dataset_nxresults_weak, cugraph_input_type):
     (graph_file, netx_labels,
@@ -329,6 +333,9 @@ def test_weak_cc(gpubenchmark, dataset_nxresults_weak, cugraph_input_type):
     assert nx_vertices == cg_vertices
 
 
+@pytest.mark.skipif(
+    is_device_version_less_than((7, 0)), reason="Not supported on Pascal"
+)
 @pytest.mark.parametrize("cugraph_input_type",
                          utils.NX_DIR_INPUT_TYPES + utils.MATRIX_INPUT_TYPES)
 def test_weak_cc_nonnative_inputs(gpubenchmark,
@@ -339,6 +346,9 @@ def test_weak_cc_nonnative_inputs(gpubenchmark,
                  cugraph_input_type)
 
 
+@pytest.mark.skipif(
+    is_device_version_less_than((7, 0)), reason="Not supported on Pascal"
+)
 @pytest.mark.parametrize("cugraph_input_type", utils.CUGRAPH_DIR_INPUT_TYPES)
 def test_strong_cc(gpubenchmark, dataset_nxresults_strong,
                    cugraph_input_type):
@@ -382,6 +392,9 @@ def test_strong_cc(gpubenchmark, dataset_nxresults_strong,
     assert nx_vertices == cg_vertices
 
 
+@pytest.mark.skipif(
+    is_device_version_less_than((7, 0)), reason="Not supported on Pascal"
+)
 @pytest.mark.parametrize("cugraph_input_type",
                          utils.NX_DIR_INPUT_TYPES + utils.MATRIX_INPUT_TYPES)
 def test_strong_cc_nonnative_inputs(gpubenchmark,
@@ -392,16 +405,25 @@ def test_strong_cc_nonnative_inputs(gpubenchmark,
                    cugraph_input_type)
 
 
+@pytest.mark.skipif(
+    is_device_version_less_than((7, 0)), reason="Not supported on Pascal"
+)
 def test_scipy_api_compat_weak(single_dataset_nxresults_weak):
     (graph_file, _, _, _, api_type) = single_dataset_nxresults_weak
     assert_scipy_api_compat(graph_file, api_type)
 
 
+@pytest.mark.skipif(
+    is_device_version_less_than((7, 0)), reason="Not supported on Pascal"
+)
 def test_scipy_api_compat_strong(single_dataset_nxresults_strong):
     (graph_file, _, _, _, api_type) = single_dataset_nxresults_strong
     assert_scipy_api_compat(graph_file, api_type)
 
 
+@pytest.mark.skipif(
+    is_device_version_less_than((7, 0)), reason="Not supported on Pascal"
+)
 @pytest.mark.parametrize("connection_type", ["strong", "weak"])
 def test_scipy_api_compat(connection_type):
     if connection_type == "strong":

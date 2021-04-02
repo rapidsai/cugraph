@@ -1,4 +1,4 @@
-# Copyright (c) 2019-2020, NVIDIA CORPORATION.
+# Copyright (c) 2019-2021, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -19,6 +19,7 @@ import cudf
 import pytest
 import cugraph
 from cugraph.tests import utils
+from cugraph.utilities.utils import is_device_version_less_than
 import random
 
 # Temporarily suppress warnings till networkX fixes deprecation warnings
@@ -440,6 +441,9 @@ def dataset_nxresults_allstartvertices_spc(small_dataset_nx_graph):
 # =============================================================================
 # Tests
 # =============================================================================
+@pytest.mark.skipif(
+    is_device_version_less_than((7, 0)), reason="Not supported on Pascal"
+)
 @pytest.mark.parametrize("cugraph_input_type", utils.CUGRAPH_INPUT_TYPES)
 def test_bfs(gpubenchmark, dataset_nxresults_startvertex_spc,
              cugraph_input_type):
@@ -467,6 +471,9 @@ def test_bfs(gpubenchmark, dataset_nxresults_startvertex_spc,
     )
 
 
+@pytest.mark.skipif(
+    is_device_version_less_than((7, 0)), reason="Not supported on Pascal"
+)
 @pytest.mark.parametrize("cugraph_input_type",
                          utils.NX_INPUT_TYPES + utils.MATRIX_INPUT_TYPES)
 def test_bfs_nonnative_inputs(gpubenchmark,
@@ -477,6 +484,9 @@ def test_bfs_nonnative_inputs(gpubenchmark,
              cugraph_input_type)
 
 
+@pytest.mark.skipif(
+    is_device_version_less_than((7, 0)), reason="Not supported on Pascal"
+)
 @pytest.mark.parametrize("cugraph_input_type", utils.CUGRAPH_INPUT_TYPES)
 def test_bfs_spc_full(gpubenchmark, dataset_nxresults_allstartvertices_spc,
                       cugraph_input_type):
@@ -507,6 +517,9 @@ def test_bfs_spc_full(gpubenchmark, dataset_nxresults_allstartvertices_spc,
     )
 
 
+@pytest.mark.skipif(
+    is_device_version_less_than((7, 0)), reason="Not supported on Pascal"
+)
 def test_scipy_api_compat():
     graph_file = utils.DATASETS[0]
 
