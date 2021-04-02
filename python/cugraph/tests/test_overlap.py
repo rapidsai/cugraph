@@ -1,4 +1,4 @@
-# Copyright (c) 2019-2020, NVIDIA CORPORATION.
+# Copyright (c) 2019-2021, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -19,6 +19,7 @@ import numpy as np
 import scipy
 import cugraph
 from cugraph.tests import utils
+from cugraph.utilities.utils import is_device_version_less_than
 
 
 def cugraph_call(cu_M, pairs, edgevals=False):
@@ -82,6 +83,9 @@ def cpu_call(M, first, second):
 
 
 # Test
+@pytest.mark.skipif(
+    is_device_version_less_than((7, 0)), reason="Not supported on Pascal"
+)
 @pytest.mark.parametrize("graph_file", utils.DATASETS_UNDIRECTED)
 def test_overlap(graph_file):
     gc.collect()
@@ -116,6 +120,9 @@ def test_overlap(graph_file):
 
 
 # Test
+@pytest.mark.skipif(
+    is_device_version_less_than((7, 0)), reason="Not supported on Pascal"
+)
 @pytest.mark.parametrize("graph_file", utils.DATASETS_UNDIRECTED)
 def test_overlap_edge_vals(graph_file):
     gc.collect()

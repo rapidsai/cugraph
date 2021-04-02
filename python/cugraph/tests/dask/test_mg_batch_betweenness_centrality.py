@@ -1,4 +1,4 @@
-# Copyright (c) 2019-2020, NVIDIA CORPORATION.
+# Copyright (c) 2021, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -16,6 +16,7 @@ import numpy as np
 
 from cugraph.tests.dask.mg_context import MGContext, skip_if_not_enough_devices
 from cugraph.dask.common.mg_utils import is_single_gpu
+from cugraph.tests import utils
 
 # Get parameters from standard betwenness_centrality_test
 from cugraph.tests.test_betweenness_centrality import (
@@ -36,7 +37,7 @@ from cugraph.tests.test_betweenness_centrality import (
 # =============================================================================
 # Parameters
 # =============================================================================
-DATASETS = ["../datasets/karate.csv"]
+DATASETS = [utils.DATASETS_UNDIRECTED[0]]
 MG_DEVICE_COUNT_OPTIONS = [pytest.param(1, marks=pytest.mark.preset_gpu_count),
                            pytest.param(2, marks=pytest.mark.preset_gpu_count),
                            pytest.param(3, marks=pytest.mark.preset_gpu_count),

@@ -15,9 +15,13 @@ import gc
 import pytest
 import cugraph
 from cugraph.tests import utils
+from cugraph.utilities.utils import is_device_version_less_than
 from pathlib import PurePath
 
 
+@pytest.mark.skipif(
+    is_device_version_less_than((7, 0)), reason="Not supported on Pascal"
+)
 def test_bfs_paths():
     with pytest.raises(ValueError) as ErrorMsg:
         gc.collect()
@@ -43,6 +47,9 @@ def test_bfs_paths():
         assert "not in the result set" in str(ErrorMsg)
 
 
+@pytest.mark.skipif(
+    is_device_version_less_than((7, 0)), reason="Not supported on Pascal"
+)
 def test_bfs_paths_array():
     with pytest.raises(ValueError) as ErrorMsg:
         gc.collect()
