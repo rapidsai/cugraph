@@ -18,7 +18,7 @@ import pytest
 import cudf
 import cugraph
 from cugraph.tests import utils
-from cugraph.utilities.utils import is_device_version_less_than
+
 
 # Temporarily suppress warnings till networkX fixes deprecation warnings
 # (Using or importing the ABCs from 'collections' instead of from
@@ -67,9 +67,6 @@ def networkx_call(M):
 # https://github.com/rapidsai/cugraph/issues/1043
 #
 # @pytest.mark.parametrize("graph_file", utils.DATASETS)
-@pytest.mark.skipif(
-    is_device_version_less_than((7, 0)), reason="Not supported on Pascal"
-)
 @pytest.mark.parametrize("graph_file", utils.DATASETS_UNDIRECTED)
 def test_triangles(graph_file):
     gc.collect()
@@ -80,9 +77,6 @@ def test_triangles(graph_file):
     assert cu_count == nx_count
 
 
-@pytest.mark.skipif(
-    is_device_version_less_than((7, 0)), reason="Not supported on Pascal"
-)
 @pytest.mark.parametrize("graph_file", utils.DATASETS_UNDIRECTED)
 def test_triangles_edge_vals(graph_file):
     gc.collect()
@@ -93,9 +87,6 @@ def test_triangles_edge_vals(graph_file):
     assert cu_count == nx_count
 
 
-@pytest.mark.skipif(
-    is_device_version_less_than((7, 0)), reason="Not supported on Pascal"
-)
 @pytest.mark.parametrize("graph_file", utils.DATASETS_UNDIRECTED)
 def test_triangles_nx(graph_file):
     gc.collect()

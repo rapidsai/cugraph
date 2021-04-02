@@ -11,17 +11,17 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import time
 import gc
 
 import pytest
+import numpy as np
+import rmm
+import cudf
 
 import cugraph
 from cugraph.tests import utils
-from cugraph.utilities.utils import is_device_version_less_than
-import rmm
-import cudf
-import time
-import numpy as np
+
 
 # Temporarily suppress warnings till networkX fixes deprecation warnings
 # (Using or importing the ABCs from 'collections' instead of from
@@ -37,9 +37,6 @@ with warnings.catch_warnings():
 print("Networkx version : {} ".format(nx.__version__))
 
 
-@pytest.mark.skipif(
-    is_device_version_less_than((7, 0)), reason="Not supported on Pascal"
-)
 @pytest.mark.parametrize("graph_file", utils.DATASETS_UNDIRECTED_WEIGHTS)
 def test_maximum_spanning_tree_nx(graph_file):
     gc.collect()
@@ -75,9 +72,6 @@ DATASETS_SIZES = [
 ]
 
 
-@pytest.mark.skipif(
-    is_device_version_less_than((7, 0)), reason="Not supported on Pascal"
-)
 @pytest.mark.skip(reason="Skipping large tests")
 @pytest.mark.parametrize("graph_size", DATASETS_SIZES)
 def test_random_maximum_spanning_tree_nx(graph_size):

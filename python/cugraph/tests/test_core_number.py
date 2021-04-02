@@ -15,7 +15,6 @@ import gc
 import pytest
 import cugraph
 from cugraph.tests import utils
-from cugraph.utilities.utils import is_device_version_less_than
 from cugraph.utilities import df_score_to_dictionary
 
 # Temporarily suppress warnings till networkX fixes deprecation warnings
@@ -79,9 +78,6 @@ def calc_core_number(graph_file):
 # https://github.com/rapidsai/cugraph/issues/1045
 #
 # @pytest.mark.parametrize("graph_file", utils.DATASETS)
-@pytest.mark.skipif(
-    is_device_version_less_than((7, 0)), reason="Not supported on Pascal"
-)
 @pytest.mark.parametrize("graph_file", utils.DATASETS_UNDIRECTED)
 def test_core_number(graph_file):
     gc.collect()
@@ -95,9 +91,6 @@ def test_core_number(graph_file):
     assert cg_num_dic == nx_num
 
 
-@pytest.mark.skipif(
-    is_device_version_less_than((7, 0)), reason="Not supported on Pascal"
-)
 @pytest.mark.parametrize("graph_file", utils.DATASETS_UNDIRECTED)
 def test_core_number_nx(graph_file):
     gc.collect()

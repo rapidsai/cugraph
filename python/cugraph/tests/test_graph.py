@@ -23,7 +23,6 @@ import cudf
 from cudf.tests.utils import assert_eq
 import cugraph
 from cugraph.tests import utils
-from cugraph.utilities.utils import is_device_version_less_than
 
 # MG
 import cugraph.dask as dcg
@@ -163,9 +162,6 @@ def test_version():
 
 
 # Test
-@pytest.mark.skipif(
-    is_device_version_less_than((7, 0)), reason="Not supported on Pascal"
-)
 @pytest.mark.parametrize("graph_file", utils.DATASETS)
 def test_add_edge_list_to_adj_list(graph_file):
     cu_M = utils.read_csv_file(graph_file)
@@ -186,9 +182,6 @@ def test_add_edge_list_to_adj_list(graph_file):
 
 
 # Test
-@pytest.mark.skipif(
-    is_device_version_less_than((7, 0)), reason="Not supported on Pascal"
-)
 @pytest.mark.parametrize("graph_file", utils.DATASETS)
 def test_add_adj_list_to_edge_list(graph_file):
     Mnx = utils.read_csv_for_nx(graph_file)
@@ -215,9 +208,6 @@ def test_add_adj_list_to_edge_list(graph_file):
 
 
 # Test
-@pytest.mark.skipif(
-    is_device_version_less_than((7, 0)), reason="Not supported on Pascal"
-)
 @pytest.mark.parametrize("graph_file", utils.DATASETS)
 def test_view_edge_list_from_adj_list(graph_file):
     Mnx = utils.read_csv_for_nx(graph_file)
@@ -239,9 +229,6 @@ def test_view_edge_list_from_adj_list(graph_file):
 
 
 # Test
-@pytest.mark.skipif(
-    is_device_version_less_than((7, 0)), reason="Not supported on Pascal"
-)
 @pytest.mark.parametrize("graph_file", utils.DATASETS)
 def test_delete_edge_list_delete_adj_list(graph_file):
     Mnx = utils.read_csv_for_nx(graph_file)
@@ -270,9 +257,6 @@ def test_delete_edge_list_delete_adj_list(graph_file):
 
 
 # Test
-@pytest.mark.skipif(
-    is_device_version_less_than((7, 0)), reason="Not supported on Pascal"
-)
 @pytest.mark.parametrize("graph_file", utils.DATASETS)
 def test_add_edge_or_adj_list_after_add_edge_or_adj_list(graph_file):
     Mnx = utils.read_csv_for_nx(graph_file)
@@ -312,9 +296,6 @@ def test_add_edge_or_adj_list_after_add_edge_or_adj_list(graph_file):
 
 
 # Test
-@pytest.mark.skipif(
-    is_device_version_less_than((7, 0)), reason="Not supported on Pascal"
-)
 @pytest.mark.parametrize("graph_file", utils.DATASETS)
 def test_edges_for_Graph(graph_file):
     cu_M = utils.read_csv_file(graph_file)
@@ -353,9 +334,6 @@ def test_edges_for_Graph(graph_file):
 
 
 # Test
-@pytest.mark.skipif(
-    is_device_version_less_than((7, 0)), reason="Not supported on Pascal"
-)
 @pytest.mark.parametrize("graph_file", utils.DATASETS)
 def test_view_edge_list_for_Graph(graph_file):
     cu_M = utils.read_csv_file(graph_file)
@@ -399,9 +377,6 @@ def test_view_edge_list_for_Graph(graph_file):
 
 
 # Test
-@pytest.mark.skipif(
-    is_device_version_less_than((7, 0)), reason="Not supported on Pascal"
-)
 @pytest.mark.parametrize('graph_file', utils.DATASETS)
 def test_consolidation(graph_file):
     cluster = LocalCUDACluster()
@@ -436,9 +411,6 @@ def test_consolidation(graph_file):
 
 
 # Test
-@pytest.mark.skipif(
-    is_device_version_less_than((7, 0)), reason="Not supported on Pascal"
-)
 @pytest.mark.parametrize('graph_file', utils.DATASETS_SMALL)
 def test_two_hop_neighbors(graph_file):
     cu_M = utils.read_csv_file(graph_file)
@@ -458,9 +430,6 @@ def test_two_hop_neighbors(graph_file):
 
 
 # Test
-@pytest.mark.skipif(
-    is_device_version_less_than((7, 0)), reason="Not supported on Pascal"
-)
 @pytest.mark.parametrize("graph_file", utils.DATASETS)
 def test_degree_functionality(graph_file):
     M = utils.read_csv_for_nx(graph_file)
@@ -499,9 +468,6 @@ def test_degree_functionality(graph_file):
 
 
 # Test
-@pytest.mark.skipif(
-    is_device_version_less_than((7, 0)), reason="Not supported on Pascal"
-)
 @pytest.mark.parametrize("graph_file", utils.DATASETS)
 def test_degrees_functionality(graph_file):
     M = utils.read_csv_for_nx(graph_file)
@@ -533,9 +499,6 @@ def test_degrees_functionality(graph_file):
 
 
 # Test
-@pytest.mark.skipif(
-    is_device_version_less_than((7, 0)), reason="Not supported on Pascal"
-)
 @pytest.mark.parametrize("graph_file", utils.DATASETS)
 def test_number_of_vertices(graph_file):
     cu_M = utils.read_csv_file(graph_file)
@@ -554,9 +517,6 @@ def test_number_of_vertices(graph_file):
 
 
 # Test
-@pytest.mark.skipif(
-    is_device_version_less_than((7, 0)), reason="Not supported on Pascal"
-)
 @pytest.mark.parametrize("graph_file", utils.DATASETS_SMALL)
 def test_to_directed(graph_file):
     cu_M = utils.read_csv_file(graph_file)
@@ -584,9 +544,6 @@ def test_to_directed(graph_file):
 
 
 # Test
-@pytest.mark.skipif(
-    is_device_version_less_than((7, 0)), reason="Not supported on Pascal"
-)
 @pytest.mark.parametrize("graph_file", utils.DATASETS_SMALL)
 def test_to_undirected(graph_file):
     # Read data and then convert to directed by dropped some edges
@@ -621,9 +578,6 @@ def test_to_undirected(graph_file):
 
 
 # Test
-@pytest.mark.skipif(
-    is_device_version_less_than((7, 0)), reason="Not supported on Pascal"
-)
 @pytest.mark.parametrize("graph_file", utils.DATASETS)
 def test_has_edge(graph_file):
     cu_M = utils.read_csv_file(graph_file)
@@ -639,9 +593,6 @@ def test_has_edge(graph_file):
 
 
 # Test
-@pytest.mark.skipif(
-    is_device_version_less_than((7, 0)), reason="Not supported on Pascal"
-)
 @pytest.mark.parametrize("graph_file", utils.DATASETS)
 def test_has_node(graph_file):
     cu_M = utils.read_csv_file(graph_file)
@@ -655,9 +606,6 @@ def test_has_node(graph_file):
         assert G.has_node(n)
 
 
-@pytest.mark.skipif(
-    is_device_version_less_than((7, 0)), reason="Not supported on Pascal"
-)
 def test_invalid_has_node():
     df = cudf.DataFrame([[1, 2]], columns=["src", "dst"])
     G = cugraph.Graph()
@@ -667,9 +615,6 @@ def test_invalid_has_node():
     assert not G.has_node(G.number_of_nodes() + 1)
 
 
-@pytest.mark.skipif(
-    is_device_version_less_than((7, 0)), reason="Not supported on Pascal"
-)
 @pytest.mark.parametrize('graph_file', utils.DATASETS)
 def test_bipartite_api(graph_file):
     # This test only tests the functionality of adding set of nodes and
@@ -703,9 +648,6 @@ def test_bipartite_api(graph_file):
 
 
 # Test
-@pytest.mark.skipif(
-    is_device_version_less_than((7, 0)), reason="Not supported on Pascal"
-)
 @pytest.mark.parametrize("graph_file", utils.DATASETS)
 def test_neighbors(graph_file):
     cu_M = utils.read_csv_file(graph_file)

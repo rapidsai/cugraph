@@ -12,11 +12,13 @@
 # limitations under the License.
 
 import gc
+
 import pytest
 import cudf
+
 import cugraph
 from cugraph.tests import utils
-from cugraph.utilities.utils import is_device_version_less_than
+
 
 # Temporarily suppress warnings till networkX fixes deprecation warnings
 # (Using or importing the ABCs from 'collections' instead of from
@@ -49,9 +51,6 @@ def _compare_graphs(nxG, cuG, has_wt=True):
     assert cu_df.to_dict() == nx_df.to_dict()
 
 
-@pytest.mark.skipif(
-    is_device_version_less_than((7, 0)), reason="Not supported on Pascal"
-)
 @pytest.mark.parametrize("graph_file", utils.DATASETS)
 def test_networkx_compatibility(graph_file):
     # test to make sure cuGraph and Nx build similar Graphs
@@ -81,9 +80,6 @@ def test_networkx_compatibility(graph_file):
     _compare_graphs(nxG, cuG)
 
 
-@pytest.mark.skipif(
-    is_device_version_less_than((7, 0)), reason="Not supported on Pascal"
-)
 @pytest.mark.parametrize("graph_file", utils.DATASETS)
 def test_nx_convert(graph_file):
     gc.collect()
@@ -97,9 +93,6 @@ def test_nx_convert(graph_file):
     _compare_graphs(nxG, cuG, has_wt=False)
 
 
-@pytest.mark.skipif(
-    is_device_version_less_than((7, 0)), reason="Not supported on Pascal"
-)
 @pytest.mark.parametrize("graph_file", utils.DATASETS)
 def test_nx_convert_multicol(graph_file):
     gc.collect()
