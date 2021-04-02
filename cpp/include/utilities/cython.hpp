@@ -184,7 +184,7 @@ struct major_minor_weights_t {
 
   std::unique_ptr<std::vector<edge_t>> get_edge_counts_wrap(void)  // const
   {
-    return std::make_unique<std::vector<edge_t>>(edge_counts_.begin(), edge_counts_.end());
+    return std::make_unique<std::vector<edge_t>>(edge_counts_);
   }
 
  private:

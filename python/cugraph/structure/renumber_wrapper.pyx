@@ -22,6 +22,7 @@ from libc.stdint cimport uintptr_t
 from cython.operator cimport dereference as deref
 import numpy as np
 
+from libcpp.memory cimport make_unique
 from libcpp.utility cimport move
 from rmm._lib.device_buffer cimport device_buffer, DeviceBuffer
 
@@ -134,6 +135,11 @@ def renumber(input_df,           # maybe use cpdef ?
 
     # tparam: vertex_t:
     #
+    cdef unique_ptr[vector[int]] edge_counts_32
+    cdef unique_ptr[vector[long]] edge_counts_64
+
+    # tparam: vertex_t:
+    #
     cdef unique_ptr[vector[int]] uniq_partition_vector_32
     cdef unique_ptr[vector[long]] uniq_partition_vector_64
 
@@ -157,12 +163,13 @@ def renumber(input_df,           # maybe use cpdef ?
                     else:
                         major = 'dst'; minor = 'src'
                     shuffled_df = shuffled_df.rename(columns={'major_vertices':major, 'minor_vertices':minor}, copy=False)
+                    edge_counts_32 = move(ptr_shuffled_32_32_32.get().get_edge_counts_wrap())
                 else:
                     shuffled_df = input_df
-                       
+                    edge_counts_32 = make_unique[vector[int]](1, num_partition_edges)
+                      
                 shuffled_major = major_vertices.__cuda_array_interface__['data'][0]
                 shuffled_minor = minor_vertices.__cuda_array_interface__['data'][0]
-                edge_counts_32 = move(ptr_shuffled_32_32_32.get().get_edge_counts_wrap())
 
                 ptr_renum_quad_32_32.reset(call_renumber[int, int](deref(handle_ptr),
                                                                    <int*>shuffled_major,
@@ -190,8 +197,7 @@ def renumber(input_df,           # maybe use cpdef ?
                                                        uniq_partition_vector_32.get()[0].at(rank_indx+1)),
                                              dtype=vertex_t)
                 else:
-                    new_series = cudf.Series(np.arange(uniq_partition_vector_32.get()[0].at(0),
-                                                       uniq_partition_vector_32.get()[0].at(1)),
+                    new_series = cudf.Series(np.arange(0, ptr_renum_quad_32_32.get().get_num_vertices()),
                                              dtype=vertex_t)                
                 # create new cudf df
                 #
@@ -220,12 +226,13 @@ def renumber(input_df,           # maybe use cpdef ?
                     else:
                         major = 'dst'; minor = 'src'
                     shuffled_df = shuffled_df.rename(columns={'major_vertices':major, 'minor_vertices':minor}, copy=False)
+                    edge_counts_32 = move(ptr_shuffled_32_32_64.get().get_edge_counts_wrap())
                 else:
                     shuffled_df = input_df
+                    edge_counts_32 = make_unique[vector[int]](1, num_partition_edges)
       
                 shuffled_major = major_vertices.__cuda_array_interface__['data'][0]
                 shuffled_minor = minor_vertices.__cuda_array_interface__['data'][0]
-                edge_counts_32 = move(ptr_shuffled_32_32_64.get().get_edge_counts_wrap())
                 
                 ptr_renum_quad_32_32.reset(call_renumber[int, int](deref(handle_ptr),
                                                                    <int*>shuffled_major,
@@ -253,8 +260,7 @@ def renumber(input_df,           # maybe use cpdef ?
                                                        uniq_partition_vector_32.get()[0].at(rank_indx+1)),
                                              dtype=vertex_t)
                 else:
-                    new_series = cudf.Series(np.arange(uniq_partition_vector_32.get()[0].at(0),
-                                                       uniq_partition_vector_32.get()[0].at(1)),
+                    new_series = cudf.Series(np.arange(0, ptr_renum_quad_32_32.get().get_num_vertices()),
                                              dtype=vertex_t)
                 
                 # create new cudf df
@@ -285,12 +291,13 @@ def renumber(input_df,           # maybe use cpdef ?
                     else:
                         major = 'dst'; minor = 'src'
                     shuffled_df = shuffled_df.rename(columns={'major_vertices':major, 'minor_vertices':minor}, copy=False)
+                    edge_counts_64 = move(ptr_shuffled_32_64_32.get().get_edge_counts_wrap())
                 else:
                     shuffled_df = input_df
+                    edge_counts_64 = make_unique[vector[long]](1, num_partition_edges)
                  
                 shuffled_major = major_vertices.__cuda_array_interface__['data'][0]
                 shuffled_minor = minor_vertices.__cuda_array_interface__['data'][0]
-                edge_counts_64 = move(ptr_shuffled_32_64_32.get().get_edge_counts_wrap())
                 
                 ptr_renum_quad_32_64.reset(call_renumber[int, long](deref(handle_ptr),
                                                                     <int*>shuffled_major,
@@ -318,8 +325,7 @@ def renumber(input_df,           # maybe use cpdef ?
                                                        uniq_partition_vector_32.get()[0].at(rank_indx+1)),
                                              dtype=vertex_t)
                 else:
-                    new_series = cudf.Series(np.arange(uniq_partition_vector_32.get()[0].at(0),
-                                                       uniq_partition_vector_32.get()[0].at(1)),
+                    new_series = cudf.Series(np.arange(0, ptr_renum_quad_32_64.get().get_num_vertices()),
                                              dtype=vertex_t)
                
                 # create new cudf df
@@ -348,12 +354,13 @@ def renumber(input_df,           # maybe use cpdef ?
                     else:
                         major = 'dst'; minor = 'src'
                     shuffled_df = shuffled_df.rename(columns={'major_vertices':major, 'minor_vertices':minor}, copy=False)
+                    edge_counts_64 = move(ptr_shuffled_32_64_64.get().get_edge_counts_wrap())
                 else:
                     shuffled_df = input_df
+                    edge_counts_64 = make_unique[vector[long]](1, num_partition_edges)
                                        
                 shuffled_major = major_vertices.__cuda_array_interface__['data'][0]
                 shuffled_minor = minor_vertices.__cuda_array_interface__['data'][0]
-                edge_counts_64 = move(ptr_shuffled_32_64_64.get().get_edge_counts_wrap())
                 
                 ptr_renum_quad_32_64.reset(call_renumber[int, long](deref(handle_ptr),
                                                                     <int*>shuffled_major,
@@ -381,8 +388,7 @@ def renumber(input_df,           # maybe use cpdef ?
                                                        uniq_partition_vector_32.get()[0].at(rank_indx+1)),
                                              dtype=vertex_t)
                 else:
-                    new_series = cudf.Series(np.arange(uniq_partition_vector_32.get()[0].at(0),
-                                                       uniq_partition_vector_32.get()[0].at(1)),
+                    new_series = cudf.Series(np.arange(0, ptr_renum_quad_32_64.get().get_num_vertices()),
                                              dtype=vertex_t)                
                 # create new cudf df
                 #
@@ -413,12 +419,13 @@ def renumber(input_df,           # maybe use cpdef ?
                     else:
                         major = 'dst'; minor = 'src'
                     shuffled_df = shuffled_df.rename(columns={'major_vertices':major, 'minor_vertices':minor}, copy=False)
+                    edge_counts_64 = move(ptr_shuffled_64_64_32.get().get_edge_counts_wrap())
                 else:
                     shuffled_df = input_df
+                    edge_counts_64 = make_unique[vector[long]](1, num_partition_edges)
 
                 shuffled_major = major_vertices.__cuda_array_interface__['data'][0]
                 shuffled_minor = minor_vertices.__cuda_array_interface__['data'][0]
-                edge_counts_64 = move(ptr_shuffled_64_64_32.get().get_edge_counts_wrap())
                 
                 ptr_renum_quad_64_64.reset(call_renumber[long, long](deref(handle_ptr),
                                                                      <long*>shuffled_major,
@@ -446,8 +453,7 @@ def renumber(input_df,           # maybe use cpdef ?
                                                        uniq_partition_vector_64.get()[0].at(rank_indx+1)),
                                              dtype=vertex_t)
                 else:
-                    new_series = cudf.Series(np.arange(uniq_partition_vector_64.get()[0].at(0),
-                                                       uniq_partition_vector_64.get()[0].at(1)),
+                    new_series = cudf.Series(np.arange(0, ptr_renum_quad_64_64.get().get_num_vertices()),
                                              dtype=vertex_t)
                 
                 # create new cudf df
@@ -477,12 +483,13 @@ def renumber(input_df,           # maybe use cpdef ?
                     else:
                         major = 'dst'; minor = 'src'
                     shuffled_df = shuffled_df.rename(columns={'major_vertices':major, 'minor_vertices':minor}, copy=False)
+                    edge_counts_64 = move(ptr_shuffled_64_64_64.get().get_edge_counts_wrap())
                 else:
                     shuffled_df = input_df
+                    edge_counts_64 = make_unique[vector[long]](1, num_partition_edges)
 
                 shuffled_major = major_vertices.__cuda_array_interface__['data'][0]
                 shuffled_minor = minor_vertices.__cuda_array_interface__['data'][0]
-                edge_counts_64 = move(ptr_shuffled_64_64_64.get().get_edge_counts_wrap())
                 
                 ptr_renum_quad_64_64.reset(call_renumber[long, long](deref(handle_ptr),
                                                                      <long*>shuffled_major,
@@ -510,8 +517,7 @@ def renumber(input_df,           # maybe use cpdef ?
                                                        uniq_partition_vector_64.get()[0].at(rank_indx+1)),
                                              dtype=vertex_t)
                 else:
-                    new_series = cudf.Series(np.arange(uniq_partition_vector_64.get()[0].at(0),
-                                                       uniq_partition_vector_64.get()[0].at(1)),
+                    new_series = cudf.Series(np.arange(0, ptr_renum_quad_64_64.get().get_num_vertices()),
                                              dtype=vertex_t)
                 
                 # create new cudf df
