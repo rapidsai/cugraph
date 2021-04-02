@@ -1,4 +1,4 @@
-# Copyright (c) 2019-2020, NVIDIA CORPORATION.
+# Copyright (c) 2019-2021, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -28,6 +28,7 @@ from scipy.sparse.csc import csc_matrix as sp_csc_matrix
 import cudf
 import cugraph
 from cugraph.tests import utils
+from cugraph.utilities.utils import is_device_version_less_than
 
 # Temporarily suppress warnings till networkX fixes deprecation warnings
 # (Using or importing the ABCs from 'collections' instead of from
@@ -203,6 +204,9 @@ def single_dataset_source_nxresults_weighted(request):
 # =============================================================================
 # Tests
 # =============================================================================
+@pytest.mark.skipif(
+    is_device_version_less_than((7, 0)), reason="Not supported on Pascal"
+)
 @pytest.mark.parametrize("cugraph_input_type", utils.CUGRAPH_DIR_INPUT_TYPES)
 def test_sssp(gpubenchmark, dataset_source_nxresults, cugraph_input_type):
     # Extract the params generated from the fixture
@@ -232,6 +236,9 @@ def test_sssp(gpubenchmark, dataset_source_nxresults, cugraph_input_type):
     assert err == 0
 
 
+@pytest.mark.skipif(
+    is_device_version_less_than((7, 0)), reason="Not supported on Pascal"
+)
 @pytest.mark.parametrize("cugraph_input_type",
                          utils.NX_DIR_INPUT_TYPES + utils.MATRIX_INPUT_TYPES)
 def test_sssp_nonnative_inputs(gpubenchmark,
@@ -242,6 +249,9 @@ def test_sssp_nonnative_inputs(gpubenchmark,
               cugraph_input_type)
 
 
+@pytest.mark.skipif(
+    is_device_version_less_than((7, 0)), reason="Not supported on Pascal"
+)
 @pytest.mark.parametrize("cugraph_input_type", utils.CUGRAPH_DIR_INPUT_TYPES)
 def test_sssp_edgevals(gpubenchmark, dataset_source_nxresults_weighted,
                        cugraph_input_type):
@@ -276,6 +286,9 @@ def test_sssp_edgevals(gpubenchmark, dataset_source_nxresults_weighted,
     assert err == 0
 
 
+@pytest.mark.skipif(
+    is_device_version_less_than((7, 0)), reason="Not supported on Pascal"
+)
 @pytest.mark.parametrize("cugraph_input_type",
                          utils.NX_DIR_INPUT_TYPES + utils.MATRIX_INPUT_TYPES)
 def test_sssp_edgevals_nonnative_inputs(
@@ -287,6 +300,9 @@ def test_sssp_edgevals_nonnative_inputs(
                        cugraph_input_type)
 
 
+@pytest.mark.skipif(
+    is_device_version_less_than((7, 0)), reason="Not supported on Pascal"
+)
 @pytest.mark.parametrize("graph_file", utils.DATASETS)
 @pytest.mark.parametrize("source", SOURCES)
 def test_sssp_data_type_conversion(graph_file, source):
@@ -341,6 +357,9 @@ def test_sssp_data_type_conversion(graph_file, source):
     assert err == 0
 
 
+@pytest.mark.skipif(
+    is_device_version_less_than((7, 0)), reason="Not supported on Pascal"
+)
 def test_scipy_api_compat():
     graph_file = utils.DATASETS[0]
 

@@ -1,4 +1,4 @@
-# Copyright (c) 2019-2020, NVIDIA CORPORATION.
+# Copyright (c) 2019-2021, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -17,6 +17,7 @@ import pytest
 
 import cugraph
 from cugraph.tests import utils
+from cugraph.utilities.utils import is_device_version_less_than
 import rmm
 import cudf
 import time
@@ -36,6 +37,9 @@ with warnings.catch_warnings():
 print("Networkx version : {} ".format(nx.__version__))
 
 
+@pytest.mark.skipif(
+    is_device_version_less_than((7, 0)), reason="Not supported on Pascal"
+)
 @pytest.mark.parametrize("graph_file", utils.DATASETS_UNDIRECTED_WEIGHTS)
 def test_minimum_spanning_tree_nx(graph_file):
     gc.collect()
@@ -71,6 +75,9 @@ DATASETS_SIZES = [
 ]
 
 
+@pytest.mark.skipif(
+    is_device_version_less_than((7, 0)), reason="Not supported on Pascal"
+)
 @pytest.mark.skip(reason="Skipping large tests")
 @pytest.mark.parametrize("graph_size", DATASETS_SIZES)
 def test_random_minimum_spanning_tree_nx(graph_size):

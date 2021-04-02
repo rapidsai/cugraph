@@ -1,4 +1,4 @@
-# Copyright (c) 2019-2020, NVIDIA CORPORATION.
+# Copyright (c) 2019-2021, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -19,6 +19,7 @@ import pytest
 import cudf
 import cugraph
 from cugraph.tests import utils
+from cugraph.utilities.utils import is_device_version_less_than
 
 
 def cugraph_call(G, partitions):
@@ -52,6 +53,9 @@ PARTITIONS = [2, 4, 8]
 
 
 # Test all combinations of default/managed and pooled/non-pooled allocation
+@pytest.mark.skipif(
+    is_device_version_less_than((7, 0)), reason="Not supported on Pascal"
+)
 @pytest.mark.parametrize("graph_file", utils.DATASETS)
 @pytest.mark.parametrize("partitions", PARTITIONS)
 def test_modularity_clustering(graph_file, partitions):

@@ -1,4 +1,4 @@
-# Copyright (c) 2019-2020, NVIDIA CORPORATION.
+# Copyright (c) 2019-2021, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -17,6 +17,7 @@ import pytest
 
 import cugraph
 from cugraph.tests import utils
+from cugraph.utilities.utils import is_device_version_less_than
 
 # Temporarily suppress warnings till networkX fixes deprecation warnings
 # (Using or importing the ABCs from 'collections' instead of from
@@ -65,6 +66,9 @@ def compare_edges(cg, nxg):
     return True
 
 
+@pytest.mark.skipif(
+    is_device_version_less_than((7, 0)), reason="Not supported on Pascal"
+)
 @pytest.mark.parametrize("graph_file", utils.DATASETS_UNDIRECTED)
 def test_core_number_Graph(graph_file):
     gc.collect()
@@ -74,6 +78,9 @@ def test_core_number_Graph(graph_file):
     assert compare_edges(cu_kcore, nx_kcore)
 
 
+@pytest.mark.skipif(
+    is_device_version_less_than((7, 0)), reason="Not supported on Pascal"
+)
 @pytest.mark.parametrize("graph_file", utils.DATASETS_UNDIRECTED)
 def test_core_number_Graph_nx(graph_file):
     gc.collect()

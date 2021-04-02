@@ -1,4 +1,4 @@
-# Copyright (c) 2019-2020, NVIDIA CORPORATION.
+# Copyright (c) 2019-2021, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -18,6 +18,7 @@ import numpy as np
 
 import cugraph
 from cugraph.tests import utils
+from cugraph.utilities.utils import is_device_version_less_than
 
 # Temporarily suppress warnings till networkX fixes deprecation warnings
 # (Using or importing the ABCs from 'collections' instead of from
@@ -36,6 +37,9 @@ print("Networkx version : {} ".format(nx.__version__))
 SOURCES = [1]
 
 
+@pytest.mark.skipif(
+    is_device_version_less_than((7, 0)), reason="Not supported on Pascal"
+)
 @pytest.mark.parametrize("graph_file", utils.DATASETS)
 @pytest.mark.parametrize("source", SOURCES)
 def test_filter_unreachable(graph_file, source):
