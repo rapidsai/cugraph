@@ -65,7 +65,7 @@ def mg_pagerank(input_df,
                      np.dtype("double") : <int>numberTypeEnum.doubleType}
 
     # FIXME: needs to be edge_t type not int
-    cdef int num_partition_edges = len(src)
+    cdef int num_local_edges = len(src)
 
     cdef uintptr_t c_src_vertices = src.__cuda_array_interface__['data'][0]
     cdef uintptr_t c_dst_vertices = dst.__cuda_array_interface__['data'][0]
@@ -84,7 +84,7 @@ def mg_pagerank(input_df,
                              <numberTypeEnum>(<int>(numberTypeMap[vertex_t])),
                              <numberTypeEnum>(<int>(numberTypeMap[edge_t])),
                              <numberTypeEnum>(<int>(numberTypeMap[weight_t])),
-                             num_partition_edges,
+                             num_local_edges,
                              num_global_verts, num_global_edges,
                              True,
                              is_weighted,

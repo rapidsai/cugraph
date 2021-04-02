@@ -56,12 +56,12 @@ def louvain(input_df,
 
     src = input_df['src']
     dst = input_df['dst']
-    num_partition_edges = len(src)
+    num_local_edges = len(src)
 
     if "value" in input_df.columns:
         weights = input_df['value']
     else:
-        weights = cudf.Series(np.full(num_partition_edges, 1.0, dtype=np.float32))
+        weights = cudf.Series(np.full(num_local_edges, 1.0, dtype=np.float32))
 
     vertex_t = src.dtype
     if num_global_edges > (2**31 - 1):
@@ -94,7 +94,7 @@ def louvain(input_df,
                              <numberTypeEnum>(<int>(numberTypeMap[vertex_t])),
                              <numberTypeEnum>(<int>(numberTypeMap[edge_t])),
                              <numberTypeEnum>(<int>(numberTypeMap[weight_t])),
-                             num_partition_edges,
+                             num_local_edges,
                              num_global_verts, num_global_edges,
                              sorted_by_degree,
                              True,

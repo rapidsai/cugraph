@@ -46,7 +46,7 @@ cdef extern from "utilities/cython.hpp" namespace "cugraph::cython":
         numberTypeEnum vertexType,
         numberTypeEnum edgeType,
         numberTypeEnum weightType,
-        size_t num_partition_edges,
+        size_t num_local_edges,
         size_t num_global_vertices,
         size_t num_global_edges,
         bool sorted_by_degree,

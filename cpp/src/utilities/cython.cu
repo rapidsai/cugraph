@@ -49,7 +49,7 @@ create_graph(raft::handle_t const& handle, graph_container_t const& graph_contai
     {{reinterpret_cast<vertex_t*>(graph_container.src_vertices),
       reinterpret_cast<vertex_t*>(graph_container.dst_vertices),
       reinterpret_cast<weight_t*>(graph_container.weights),
-      static_cast<edge_t>(graph_container.num_partition_edges)}});
+      static_cast<edge_t>(graph_container.num_local_edges)}});
 
   std::vector<vertex_t> partition_offsets_vector(
     reinterpret_cast<vertex_t*>(graph_container.vertex_partition_offsets),
@@ -88,7 +88,7 @@ create_graph(raft::handle_t const& handle, graph_container_t const& graph_contai
     reinterpret_cast<vertex_t*>(graph_container.src_vertices),
     reinterpret_cast<vertex_t*>(graph_container.dst_vertices),
     reinterpret_cast<weight_t*>(graph_container.weights),
-    static_cast<edge_t>(graph_container.num_partition_edges)};
+    static_cast<edge_t>(graph_container.num_local_edges)};
   return std::make_unique<experimental::graph_t<vertex_t, edge_t, weight_t, transposed, multi_gpu>>(
     handle,
     edgelist,
@@ -112,7 +112,7 @@ void populate_graph_container(graph_container_t& graph_container,
                               numberTypeEnum vertexType,
                               numberTypeEnum edgeType,
                               numberTypeEnum weightType,
-                              size_t num_partition_edges,
+                              size_t num_local_edges,
                               size_t num_global_vertices,
                               size_t num_global_edges,
                               bool sorted_by_degree,
@@ -142,7 +142,7 @@ void populate_graph_container(graph_container_t& graph_container,
   graph_container.src_vertices             = src_vertices;
   graph_container.dst_vertices             = dst_vertices;
   graph_container.weights                  = weights;
-  graph_container.num_partition_edges      = num_partition_edges;
+  graph_container.num_local_edges          = num_local_edges;
   graph_container.num_global_vertices      = num_global_vertices;
   graph_container.num_global_edges         = num_global_edges;
   graph_container.vertexType               = vertexType;

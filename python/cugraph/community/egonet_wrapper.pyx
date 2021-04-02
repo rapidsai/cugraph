@@ -42,7 +42,7 @@ def egonet(input_graph, vertices, radius=1):
 
     num_verts = input_graph.number_of_vertices()
     num_edges = input_graph.number_of_edges(directed_edges=True)
-    num_partition_edges = num_edges
+    num_local_edges = num_edges
 
     cdef uintptr_t c_src_vertices = src.__cuda_array_interface__['data'][0]
     cdef uintptr_t c_dst_vertices = dst.__cuda_array_interface__['data'][0]
@@ -74,7 +74,7 @@ def egonet(input_graph, vertices, radius=1):
                              <numberTypeEnum>(<int>(numberTypeMap[vertex_t])),
                              <numberTypeEnum>(<int>(numberTypeMap[edge_t])),
                              <numberTypeEnum>(<int>(numberTypeMap[weight_t])),
-                             num_partition_edges,
+                             num_local_edges,
                              num_verts,
                              num_edges,
                              False,

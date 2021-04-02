@@ -93,7 +93,7 @@ struct graph_container_t {
   void* weights;
   void* vertex_partition_offsets;
 
-  size_t num_partition_edges;
+  size_t num_local_edges;
   size_t num_global_vertices;
   size_t num_global_edges;
   numberTypeEnum vertexType;
@@ -380,7 +380,7 @@ void populate_graph_container(graph_container_t& graph_container,
                               numberTypeEnum vertexType,
                               numberTypeEnum edgeType,
                               numberTypeEnum weightType,
-                              size_t num_partition_edges,
+                              size_t num_local_edges,
                               size_t num_global_vertices,
                               size_t num_global_edges,
                               bool sorted_by_degree,

@@ -42,7 +42,7 @@ def pagerank(input_graph, alpha=0.85, personalization=None, max_iter=100, tol=1.
     num_verts = input_graph.number_of_vertices()
     num_edges = input_graph.number_of_edges(directed_edges=True)
     # FIXME: needs to be edge_t type not int
-    cdef int num_partition_edges = len(src)
+    cdef int num_local_edges = len(src)
 
     df = cudf.DataFrame()
     df['vertex'] = cudf.Series(np.arange(num_verts, dtype=np.int32))
@@ -98,8 +98,7 @@ def pagerank(input_graph, alpha=0.85, personalization=None, max_iter=100, tol=1.
                              <numberTypeEnum>(<int>(numberTypeEnum.int32Type)),
                              <numberTypeEnum>(<int>(numberTypeEnum.int32Type)),
                              <numberTypeEnum>(<int>(numberTypeMap[weight_t])),
-                             #num_verts, num_edges,
-                             num_partition_edges,
+                             num_local_edges,
                              num_verts, num_edges,
                              False,
                              is_weighted,

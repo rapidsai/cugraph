@@ -104,7 +104,7 @@ def renumber(input_df,           # maybe use cpdef ?
         raise Exception("Incompatible vertex_t and edge_t types.")
 
     # FIXME: needs to be edge_t type not int
-    cdef int num_partition_edges = len(major_vertices)
+    cdef int num_local_edges = len(major_vertices)
 
     cdef uintptr_t c_major_vertices = major_vertices.__cuda_array_interface__['data'][0]
     cdef uintptr_t c_minor_vertices = minor_vertices.__cuda_array_interface__['data'][0]
@@ -153,11 +153,11 @@ def renumber(input_df,           # maybe use cpdef ?
                                                                            <int*>c_major_vertices,
                                                                            <int*>c_minor_vertices,
                                                                            <float*>c_edge_weights,
-                                                                           num_partition_edges).release())
+                                                                           num_local_edges).release())
                     shuffled_df = renumber_helper(ptr_shuffled_32_32_32.get(), vertex_t, weights)
                     major_vertices = shuffled_df['major_vertices']
                     minor_vertices = shuffled_df['minor_vertices']
-                    num_partition_edges = len(shuffled_df)
+                    num_local_edges = len(shuffled_df)
                     if not transposed:
                         major = 'src'; minor = 'dst'
                     else:
@@ -166,7 +166,7 @@ def renumber(input_df,           # maybe use cpdef ?
                     edge_counts_32 = move(ptr_shuffled_32_32_32.get().get_edge_counts_wrap())
                 else:
                     shuffled_df = input_df
-                    edge_counts_32 = make_unique[vector[int]](1, num_partition_edges)
+                    edge_counts_32 = make_unique[vector[int]](1, num_local_edges)
                       
                 shuffled_major = major_vertices.__cuda_array_interface__['data'][0]
                 shuffled_minor = minor_vertices.__cuda_array_interface__['data'][0]
@@ -215,12 +215,12 @@ def renumber(input_df,           # maybe use cpdef ?
                                                                             <int*>c_major_vertices,
                                                                             <int*>c_minor_vertices,
                                                                             <double*>c_edge_weights,
-                                                                            num_partition_edges).release())
+                                                                            num_local_edges).release())
                 
                     shuffled_df = renumber_helper(ptr_shuffled_32_32_64.get(), vertex_t, weights)
                     major_vertices = shuffled_df['major_vertices']
                     minor_vertices = shuffled_df['minor_vertices']
-                    num_partition_edges = len(shuffled_df)
+                    num_local_edges = len(shuffled_df)
                     if not transposed:
                         major = 'src'; minor = 'dst'
                     else:
@@ -229,7 +229,7 @@ def renumber(input_df,           # maybe use cpdef ?
                     edge_counts_32 = move(ptr_shuffled_32_32_64.get().get_edge_counts_wrap())
                 else:
                     shuffled_df = input_df
-                    edge_counts_32 = make_unique[vector[int]](1, num_partition_edges)
+                    edge_counts_32 = make_unique[vector[int]](1, num_local_edges)
       
                 shuffled_major = major_vertices.__cuda_array_interface__['data'][0]
                 shuffled_minor = minor_vertices.__cuda_array_interface__['data'][0]
@@ -280,12 +280,12 @@ def renumber(input_df,           # maybe use cpdef ?
                                                                             <int*>c_major_vertices,
                                                                             <int*>c_minor_vertices,
                                                                             <float*>c_edge_weights,
-                                                                            num_partition_edges).release())
+                                                                            num_local_edges).release())
                 
                     shuffled_df = renumber_helper(ptr_shuffled_32_64_32.get(), vertex_t, weights)
                     major_vertices = shuffled_df['major_vertices']
                     minor_vertices = shuffled_df['minor_vertices']
-                    num_partition_edges = len(shuffled_df)
+                    num_local_edges = len(shuffled_df)
                     if not transposed:
                         major = 'src'; minor = 'dst'
                     else:
@@ -294,7 +294,7 @@ def renumber(input_df,           # maybe use cpdef ?
                     edge_counts_64 = move(ptr_shuffled_32_64_32.get().get_edge_counts_wrap())
                 else:
                     shuffled_df = input_df
-                    edge_counts_64 = make_unique[vector[long]](1, num_partition_edges)
+                    edge_counts_64 = make_unique[vector[long]](1, num_local_edges)
                  
                 shuffled_major = major_vertices.__cuda_array_interface__['data'][0]
                 shuffled_minor = minor_vertices.__cuda_array_interface__['data'][0]
@@ -343,12 +343,12 @@ def renumber(input_df,           # maybe use cpdef ?
                                                                              <int*>c_major_vertices,
                                                                              <int*>c_minor_vertices,
                                                                              <double*>c_edge_weights,
-                                                                             num_partition_edges).release())
+                                                                             num_local_edges).release())
                 
                     shuffled_df = renumber_helper(ptr_shuffled_32_64_64.get(), vertex_t, weights)
                     major_vertices = shuffled_df['major_vertices']
                     minor_vertices = shuffled_df['minor_vertices']
-                    num_partition_edges = len(shuffled_df)
+                    num_local_edges = len(shuffled_df)
                     if not transposed:
                         major = 'src'; minor = 'dst'
                     else:
@@ -357,7 +357,7 @@ def renumber(input_df,           # maybe use cpdef ?
                     edge_counts_64 = move(ptr_shuffled_32_64_64.get().get_edge_counts_wrap())
                 else:
                     shuffled_df = input_df
-                    edge_counts_64 = make_unique[vector[long]](1, num_partition_edges)
+                    edge_counts_64 = make_unique[vector[long]](1, num_local_edges)
                                        
                 shuffled_major = major_vertices.__cuda_array_interface__['data'][0]
                 shuffled_minor = minor_vertices.__cuda_array_interface__['data'][0]
@@ -408,12 +408,12 @@ def renumber(input_df,           # maybe use cpdef ?
                                                                             <long*>c_major_vertices,
                                                                             <long*>c_minor_vertices,
                                                                             <float*>c_edge_weights,
-                                                                            num_partition_edges).release())
+                                                                            num_local_edges).release())
                 
                     shuffled_df = renumber_helper(ptr_shuffled_64_64_32.get(), vertex_t, weights)
                     major_vertices = shuffled_df['major_vertices']
                     minor_vertices = shuffled_df['minor_vertices']
-                    num_partition_edges = len(shuffled_df)
+                    num_local_edges = len(shuffled_df)
                     if not transposed:
                         major = 'src'; minor = 'dst'
                     else:
@@ -422,7 +422,7 @@ def renumber(input_df,           # maybe use cpdef ?
                     edge_counts_64 = move(ptr_shuffled_64_64_32.get().get_edge_counts_wrap())
                 else:
                     shuffled_df = input_df
-                    edge_counts_64 = make_unique[vector[long]](1, num_partition_edges)
+                    edge_counts_64 = make_unique[vector[long]](1, num_local_edges)
 
                 shuffled_major = major_vertices.__cuda_array_interface__['data'][0]
                 shuffled_minor = minor_vertices.__cuda_array_interface__['data'][0]
@@ -472,12 +472,12 @@ def renumber(input_df,           # maybe use cpdef ?
                                                                               <long*>c_major_vertices,
                                                                               <long*>c_minor_vertices,
                                                                               <double*>c_edge_weights,
-                                                                              num_partition_edges).release())
+                                                                              num_local_edges).release())
                 
                     shuffled_df = renumber_helper(ptr_shuffled_64_64_64.get(), vertex_t, weights)
                     major_vertices = shuffled_df['major_vertices']
                     minor_vertices = shuffled_df['minor_vertices']
-                    num_partition_edges = len(shuffled_df)
+                    num_local_edges = len(shuffled_df)
                     if not transposed:
                         major = 'src'; minor = 'dst'
                     else:
@@ -486,7 +486,7 @@ def renumber(input_df,           # maybe use cpdef ?
                     edge_counts_64 = move(ptr_shuffled_64_64_64.get().get_edge_counts_wrap())
                 else:
                     shuffled_df = input_df
-                    edge_counts_64 = make_unique[vector[long]](1, num_partition_edges)
+                    edge_counts_64 = make_unique[vector[long]](1, num_local_edges)
 
                 shuffled_major = major_vertices.__cuda_array_interface__['data'][0]
                 shuffled_minor = minor_vertices.__cuda_array_interface__['data'][0]
