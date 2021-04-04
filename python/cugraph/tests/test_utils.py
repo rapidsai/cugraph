@@ -12,10 +12,12 @@
 # limitations under the License.
 
 import gc
+from pathlib import PurePath
+
 import pytest
+
 import cugraph
 from cugraph.tests import utils
-from pathlib import PurePath
 
 
 def test_bfs_paths():

@@ -20,22 +20,101 @@
 #include <experimental/graph_view.hpp>
 #include <graph.hpp>
 #include <partition_manager.hpp>
-#include <raft/handle.hpp>
 #include <utilities/cython.hpp>
 #include <utilities/error.hpp>
 #include <utilities/shuffle_comm.cuh>
 
 #include <rmm/thrust_rmm_allocator.h>
+#include <raft/handle.hpp>
+#include <rmm/device_uvector.hpp>
+
 #include <thrust/copy.h>
+#include <thrust/fill.h>
+#include <thrust/iterator/constant_iterator.h>
 #include <thrust/iterator/counting_iterator.h>
+#include <thrust/iterator/transform_iterator.h>
 #include <thrust/iterator/zip_iterator.h>
+#include <thrust/reduce.h>
+#include <thrust/scatter.h>
+
+#include <numeric>
+#include <vector>
 
 namespace cugraph {
 namespace cython {
 
 namespace detail {
 
-// FIXME: Add description of this function
+// workaround for CUDA extended lambda restrictions
+template <typename vertex_t>
+struct compute_local_partition_id_t {
+  vertex_t const* lasts{nullptr};
+  size_t num_local_partitions{0};
+
+  __device__ size_t operator()(vertex_t v)
+  {
+    for (size_t i = 0; i < num_local_partitions; ++i) {
+      if (v < lasts[i]) { return i; }
+    }
+    return num_local_partitions;
+  }
+};
+
+// FIXME: this is unnecessary if edge_counts_ in the major_minor_weights_t object returned by
+// call_shuffle() is passed back, better be fixed. this code assumes that the entire set of edges
+// for each partition are consecutively stored.
+template <typename vertex_t, typename edge_t, bool transposed>
+std::vector<edge_t> compute_edge_counts(raft::handle_t const& handle,
+                                        graph_container_t const& graph_container)
+{
+  auto num_local_partitions = static_cast<size_t>(graph_container.col_comm_size);
+
+  std::vector<vertex_t> partition_offsets_vector(
+    reinterpret_cast<vertex_t*>(graph_container.vertex_partition_offsets),
+    reinterpret_cast<vertex_t*>(graph_container.vertex_partition_offsets) +
+      (graph_container.row_comm_size * graph_container.col_comm_size) + 1);
+
+  std::vector<vertex_t> h_lasts(num_local_partitions);
+  for (size_t i = 0; i < h_lasts.size(); ++i) {
+    h_lasts[i] = partition_offsets_vector[graph_container.row_comm_size * (i + 1)];
+  }
+  rmm::device_uvector<vertex_t> d_lasts(h_lasts.size(), handle.get_stream());
+  raft::update_device(d_lasts.data(), h_lasts.data(), h_lasts.size(), handle.get_stream());
+  auto major_vertices = transposed
+                          ? reinterpret_cast<vertex_t const*>(graph_container.dst_vertices)
+                          : reinterpret_cast<vertex_t const*>(graph_container.src_vertices);
+  auto key_first = thrust::make_transform_iterator(
+    major_vertices, compute_local_partition_id_t<vertex_t>{d_lasts.data(), num_local_partitions});
+  rmm::device_uvector<size_t> d_local_partition_ids(num_local_partitions, handle.get_stream());
+  rmm::device_uvector<edge_t> d_edge_counts(d_local_partition_ids.size(), handle.get_stream());
+  auto it = thrust::reduce_by_key(rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
+                                  key_first,
+                                  key_first + graph_container.num_local_edges,
+                                  thrust::make_constant_iterator(edge_t{1}),
+                                  d_local_partition_ids.begin(),
+                                  d_edge_counts.begin());
+  if (static_cast<size_t>(thrust::distance(d_local_partition_ids.begin(), thrust::get<0>(it))) <
+      num_local_partitions) {
+    rmm::device_uvector<edge_t> d_counts(num_local_partitions, handle.get_stream());
+    thrust::fill(rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
+                 d_counts.begin(),
+                 d_counts.end(),
+                 edge_t{0});
+    thrust::scatter(rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
+                    d_edge_counts.begin(),
+                    thrust::get<1>(it),
+                    d_local_partition_ids.begin(),
+                    d_counts.begin());
+    d_edge_counts = std::move(d_counts);
+  }
+  std::vector<edge_t> h_edge_counts(num_local_partitions, 0);
+  raft::update_host(
+    h_edge_counts.data(), d_edge_counts.data(), d_edge_counts.size(), handle.get_stream());
+  handle.get_stream_view().synchronize();
+
+  return h_edge_counts;
+}
+
 template <typename vertex_t,
           typename edge_t,
           typename weight_t,
@@ -45,16 +124,29 @@ template <typename vertex_t,
 std::unique_ptr<experimental::graph_t<vertex_t, edge_t, weight_t, transposed, multi_gpu>>
 create_graph(raft::handle_t const& handle, graph_container_t const& graph_container)
 {
-  std::vector<experimental::edgelist_t<vertex_t, edge_t, weight_t>> edgelist(
-    {{reinterpret_cast<vertex_t*>(graph_container.src_vertices),
-      reinterpret_cast<vertex_t*>(graph_container.dst_vertices),
-      reinterpret_cast<weight_t*>(graph_container.weights),
-      static_cast<edge_t>(graph_container.num_partition_edges)}});
+  auto num_local_partitions = static_cast<size_t>(graph_container.col_comm_size);
 
   std::vector<vertex_t> partition_offsets_vector(
     reinterpret_cast<vertex_t*>(graph_container.vertex_partition_offsets),
     reinterpret_cast<vertex_t*>(graph_container.vertex_partition_offsets) +
       (graph_container.row_comm_size * graph_container.col_comm_size) + 1);
+
+  auto edge_counts = compute_edge_counts<vertex_t, edge_t, transposed>(handle, graph_container);
+
+  std::vector<edge_t> displacements(edge_counts.size(), 0);
+  std::partial_sum(edge_counts.begin(), edge_counts.end() - 1, displacements.begin() + 1);
+
+  std::vector<cugraph::experimental::edgelist_t<vertex_t, edge_t, weight_t>> edgelists(
+    num_local_partitions);
+  for (size_t i = 0; i < edgelists.size(); ++i) {
+    edgelists[i] = cugraph::experimental::edgelist_t<vertex_t, edge_t, weight_t>{
+      reinterpret_cast<vertex_t*>(graph_container.src_vertices) + displacements[i],
+      reinterpret_cast<vertex_t*>(graph_container.dst_vertices) + displacements[i],
+      graph_container.graph_props.is_weighted
+        ? reinterpret_cast<weight_t*>(graph_container.weights) + displacements[i]
+        : static_cast<weight_t*>(nullptr),
+      edge_counts[i]};
+  }
 
   experimental::partition_t<vertex_t> partition(partition_offsets_vector,
                                                 graph_container.row_comm_size,
@@ -64,14 +156,12 @@ create_graph(raft::handle_t const& handle, graph_container_t const& graph_contai
 
   return std::make_unique<experimental::graph_t<vertex_t, edge_t, weight_t, transposed, multi_gpu>>(
     handle,
-    edgelist,
+    edgelists,
     partition,
     static_cast<vertex_t>(graph_container.num_global_vertices),
     static_cast<edge_t>(graph_container.num_global_edges),
     graph_container.graph_props,
-    // FIXME:  This currently fails if sorted_by_degree is true...
-    // graph_container.sorted_by_degree,
-    false,
+    true,
     graph_container.do_expensive_check);
 }
 
@@ -88,7 +178,7 @@ create_graph(raft::handle_t const& handle, graph_container_t const& graph_contai
     reinterpret_cast<vertex_t*>(graph_container.src_vertices),
     reinterpret_cast<vertex_t*>(graph_container.dst_vertices),
     reinterpret_cast<weight_t*>(graph_container.weights),
-    static_cast<edge_t>(graph_container.num_partition_edges)};
+    static_cast<edge_t>(graph_container.num_local_edges)};
   return std::make_unique<experimental::graph_t<vertex_t, edge_t, weight_t, transposed, multi_gpu>>(
     handle,
     edgelist,
@@ -112,10 +202,11 @@ void populate_graph_container(graph_container_t& graph_container,
                               numberTypeEnum vertexType,
                               numberTypeEnum edgeType,
                               numberTypeEnum weightType,
-                              size_t num_partition_edges,
+                              size_t num_local_edges,
                               size_t num_global_vertices,
                               size_t num_global_edges,
                               bool sorted_by_degree,
+                              bool is_weighted,
                               bool transposed,
                               bool multi_gpu)
 {
@@ -141,7 +232,7 @@ void populate_graph_container(graph_container_t& graph_container,
   graph_container.src_vertices             = src_vertices;
   graph_container.dst_vertices             = dst_vertices;
   graph_container.weights                  = weights;
-  graph_container.num_partition_edges      = num_partition_edges;
+  graph_container.num_local_edges          = num_local_edges;
   graph_container.num_global_vertices      = num_global_vertices;
   graph_container.num_global_edges         = num_global_edges;
   graph_container.vertexType               = vertexType;
@@ -152,7 +243,8 @@ void populate_graph_container(graph_container_t& graph_container,
   graph_container.sorted_by_degree         = sorted_by_degree;
   graph_container.do_expensive_check       = do_expensive_check;
 
-  experimental::graph_properties_t graph_props{.is_symmetric = false, .is_multigraph = false};
+  experimental::graph_properties_t graph_props{
+    .is_symmetric = false, .is_multigraph = false, .is_weighted = is_weighted};
   graph_container.graph_props = graph_props;
 
   graph_container.graph_type = graphTypeEnum::graph_t;
@@ -174,7 +266,7 @@ void populate_graph_container_legacy(graph_container_t& graph_container,
                                      int* local_offsets)
 {
   CUGRAPH_EXPECTS(graph_container.graph_type == graphTypeEnum::null,
-                  "populate_graph_container() can only be called on an empty container.");
+                  "populate_graph_container_legacy() can only be called on an empty container.");
 
   // FIXME: This is soon-to-be legacy code left in place until the new graph_t
   // class is supported everywhere else. Remove everything down to the comment
@@ -693,6 +785,61 @@ std::unique_ptr<cy_multi_edgelists_t> call_egonet(raft::handle_t const& handle,
   }
 }
 
+// Wrapper for random_walks() through a graph container
+// to expose the API to cython.
+//
+template <typename vertex_t, typename edge_t>
+std::enable_if_t<cugraph::experimental::is_vertex_edge_combo<vertex_t, edge_t>::value,
+                 std::unique_ptr<random_walk_ret_t>>
+call_random_walks(raft::handle_t const& handle,
+                  graph_container_t const& graph_container,
+                  vertex_t const* ptr_start_set,
+                  edge_t num_paths,
+                  edge_t max_depth)
+{
+  if (graph_container.weightType == numberTypeEnum::floatType) {
+    using weight_t = float;
+
+    auto graph =
+      detail::create_graph<vertex_t, edge_t, weight_t, false, false>(handle, graph_container);
+
+    auto triplet = cugraph::experimental::random_walks(
+      handle, graph->view(), ptr_start_set, num_paths, max_depth);
+
+    random_walk_ret_t rw_tri{std::get<0>(triplet).size(),
+                             std::get<1>(triplet).size(),
+                             static_cast<size_t>(num_paths),
+                             static_cast<size_t>(max_depth),
+                             std::make_unique<rmm::device_buffer>(std::get<0>(triplet).release()),
+                             std::make_unique<rmm::device_buffer>(std::get<1>(triplet).release()),
+                             std::make_unique<rmm::device_buffer>(std::get<2>(triplet).release())};
+
+    return std::make_unique<random_walk_ret_t>(std::move(rw_tri));
+
+  } else if (graph_container.weightType == numberTypeEnum::doubleType) {
+    using weight_t = double;
+
+    auto graph =
+      detail::create_graph<vertex_t, edge_t, weight_t, false, false>(handle, graph_container);
+
+    auto triplet = cugraph::experimental::random_walks(
+      handle, graph->view(), ptr_start_set, num_paths, max_depth);
+
+    random_walk_ret_t rw_tri{std::get<0>(triplet).size(),
+                             std::get<1>(triplet).size(),
+                             static_cast<size_t>(num_paths),
+                             static_cast<size_t>(max_depth),
+                             std::make_unique<rmm::device_buffer>(std::get<0>(triplet).release()),
+                             std::make_unique<rmm::device_buffer>(std::get<1>(triplet).release()),
+                             std::make_unique<rmm::device_buffer>(std::get<2>(triplet).release())};
+
+    return std::make_unique<random_walk_ret_t>(std::move(rw_tri));
+
+  } else {
+    CUGRAPH_FAIL("Unsupported weight type.");
+  }
+}
+
 // Wrapper for calling SSSP through a graph container
 template <typename vertex_t, typename weight_t>
 void call_sssp(raft::handle_t const& handle,
@@ -1059,6 +1206,27 @@ template std::unique_ptr<cy_multi_edgelists_t> call_egonet<int64_t, double>(
   int64_t* source_vertex,
   int64_t n_subgraphs,
   int64_t radius);
+
+template std::unique_ptr<random_walk_ret_t> call_random_walks<int32_t, int32_t>(
+  raft::handle_t const& handle,
+  graph_container_t const& graph_container,
+  int32_t const* ptr_start_set,
+  int32_t num_paths,
+  int32_t max_depth);
+
+template std::unique_ptr<random_walk_ret_t> call_random_walks<int32_t, int64_t>(
+  raft::handle_t const& handle,
+  graph_container_t const& graph_container,
+  int32_t const* ptr_start_set,
+  int64_t num_paths,
+  int64_t max_depth);
+
+template std::unique_ptr<random_walk_ret_t> call_random_walks<int64_t, int64_t>(
+  raft::handle_t const& handle,
+  graph_container_t const& graph_container,
+  int64_t const* ptr_start_set,
+  int64_t num_paths,
+  int64_t max_depth);
 
 template void call_sssp(raft::handle_t const& handle,
                         graph_container_t const& graph_container,

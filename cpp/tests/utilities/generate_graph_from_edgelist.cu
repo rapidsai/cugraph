@@ -28,7 +28,6 @@
 
 namespace cugraph {
 namespace test {
-namespace detail {
 
 namespace {
 
@@ -140,7 +139,7 @@ generate_graph_from_edgelist_impl(raft::handle_t const& handle,
       partition,
       number_of_vertices,
       number_of_edges,
-      cugraph::experimental::graph_properties_t{is_symmetric, false},
+      cugraph::experimental::graph_properties_t{is_symmetric, false, test_weighted},
       true),
     std::move(renumber_map_labels));
 }
@@ -185,7 +184,7 @@ generate_graph_from_edgelist_impl(raft::handle_t const& handle,
         test_weighted ? edgelist_weights.data() : nullptr,
         static_cast<edge_t>(edgelist_rows.size())},
       number_of_vertices,
-      cugraph::experimental::graph_properties_t{is_symmetric, false},
+      cugraph::experimental::graph_properties_t{is_symmetric, false, test_weighted},
       renumber ? true : false),
     std::move(renumber_map_labels));
 }
@@ -509,6 +508,5 @@ generate_graph_from_edgelist<int64_t, int64_t, double, true, true>(
   bool test_weighted,
   bool renumber);
 
-}  // namespace detail
 }  // namespace test
 }  // namespace cugraph

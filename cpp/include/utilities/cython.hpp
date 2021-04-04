@@ -19,6 +19,7 @@
 #include <graph.hpp>
 #include <raft/handle.hpp>
 #include <rmm/device_uvector.hpp>
+#include <utilities/graph_traits.hpp>
 
 namespace cugraph {
 namespace cython {
@@ -92,7 +93,7 @@ struct graph_container_t {
   void* weights;
   void* vertex_partition_offsets;
 
-  size_t num_partition_edges;
+  size_t num_local_edges;
   size_t num_global_vertices;
   size_t num_global_edges;
   numberTypeEnum vertexType;
@@ -181,11 +182,29 @@ struct major_minor_weights_t {
                           sizeof(weight_t));
   }
 
+  std::unique_ptr<std::vector<edge_t>> get_edge_counts_wrap(void)  // const
+  {
+    return std::make_unique<std::vector<edge_t>>(edge_counts_);
+  }
+
  private:
   rmm::device_uvector<vertex_t> shuffled_major_vertices_;
   rmm::device_uvector<vertex_t> shuffled_minor_vertices_;
   rmm::device_uvector<weight_t> shuffled_weights_;
   std::vector<edge_t> edge_counts_{};
+};
+
+// aggregate for random_walks() return type
+// to be exposed to cython:
+//
+struct random_walk_ret_t {
+  size_t coalesced_sz_v_;
+  size_t coalesced_sz_w_;
+  size_t num_paths_;
+  size_t max_depth_;
+  std::unique_ptr<rmm::device_buffer> d_coalesced_v_;
+  std::unique_ptr<rmm::device_buffer> d_coalesced_w_;
+  std::unique_ptr<rmm::device_buffer> d_sizes_;
 };
 
 // wrapper for renumber_edgelist() return
@@ -342,6 +361,9 @@ struct renum_quad_t {
 //   The number of vertices and edges respectively in the graph represented by
 //   the above arrays.
 //
+// bool is_weighted
+//   true if the resulting graph object should store edge weights
+//
 // bool transposed
 //   true if the resulting graph object should store a transposed adjacency
 //   matrix
@@ -358,10 +380,11 @@ void populate_graph_container(graph_container_t& graph_container,
                               numberTypeEnum vertexType,
                               numberTypeEnum edgeType,
                               numberTypeEnum weightType,
-                              size_t num_partition_edges,
+                              size_t num_local_edges,
                               size_t num_global_vertices,
                               size_t num_global_edges,
                               bool sorted_by_degree,
+                              bool is_weighted,
                               bool transposed,
                               bool multi_gpu);
 
@@ -445,6 +468,16 @@ std::unique_ptr<cy_multi_edgelists_t> call_egonet(raft::handle_t const& handle,
                                                   vertex_t* source_vertex,
                                                   vertex_t n_subgraphs,
                                                   vertex_t radius);
+// wrapper for random_walks.
+//
+template <typename vertex_t, typename edge_t>
+std::enable_if_t<cugraph::experimental::is_vertex_edge_combo<vertex_t, edge_t>::value,
+                 std::unique_ptr<random_walk_ret_t>>
+call_random_walks(raft::handle_t const& handle,
+                  graph_container_t const& graph_container,
+                  vertex_t const* ptr_start_set,
+                  edge_t num_paths,
+                  edge_t max_depth);
 
 // wrapper for shuffling:
 //
@@ -464,7 +497,7 @@ std::unique_ptr<renum_quad_t<vertex_t, edge_t>> call_renumber(
   raft::handle_t const& handle,
   vertex_t* shuffled_edgelist_major_vertices /* [INOUT] */,
   vertex_t* shuffled_edgelist_minor_vertices /* [INOUT] */,
-  edge_t num_edgelist_edges,
+  std::vector<edge_t> const& edge_counts,
   bool do_expensive_check,
   bool multi_gpu);
 

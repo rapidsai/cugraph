@@ -70,6 +70,9 @@ void sssp(raft::handle_t const &handle,
 
   CUGRAPH_EXPECTS(push_graph_view.is_valid_vertex(source_vertex),
                   "Invalid input argument: source vertex out-of-range.");
+  CUGRAPH_EXPECTS(push_graph_view.is_weighted(),
+                  "Invalid input argument: an unweighted graph is passed to SSSP, BFS is more "
+                  "efficient for unweighted graphs.");
 
   if (do_expensive_check) {
     auto num_negative_edge_weights =

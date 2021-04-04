@@ -16,6 +16,7 @@
 #pragma once
 
 #include <experimental/graph.hpp>
+#include <experimental/include_cuco_static_map.cuh>
 #include <utilities/dataframe_buffer.cuh>
 #include <utilities/shuffle_comm.cuh>
 
@@ -24,7 +25,6 @@
 #include <rmm/exec_policy.hpp>
 
 #include <thrust/distance.h>
-#include <cuco/static_map.cuh>
 
 #include <iterator>
 #include <memory>
@@ -78,7 +78,11 @@ collect_values_for_keys(raft::comms::comms_t const &comm,
       [] __device__(auto val) {
         return thrust::make_pair(thrust::get<0>(val), thrust::get<1>(val));
       });
-    kv_map_ptr->insert(pair_first, pair_first + thrust::distance(map_key_first, map_key_last));
+    // FIXME: a temporary workaround. cuco::static_map currently launches a kernel even if the grid
+    // size is 0; this leads to cudaErrorInvaildConfiguration.
+    if (thrust::distance(map_key_first, map_key_last) > 0) {
+      kv_map_ptr->insert(pair_first, pair_first + thrust::distance(map_key_first, map_key_last));
+    }
   }
 
   // 2. collect values for the unique keys in [collect_key_first, collect_key_last)
@@ -109,8 +113,12 @@ collect_values_for_keys(raft::comms::comms_t const &comm,
 
     CUDA_TRY(cudaStreamSynchronize(stream));  // cuco::static_map currently does not take stream
 
-    kv_map_ptr->find(
-      rx_unique_keys.begin(), rx_unique_keys.end(), values_for_rx_unique_keys.begin());
+    // FIXME: a temporary workaround. cuco::static_map currently launches a kernel even if the grid
+    // size is 0; this leads to cudaErrorInvaildConfiguration.
+    if (rx_unique_keys.size() > 0) {
+      kv_map_ptr->find(
+        rx_unique_keys.begin(), rx_unique_keys.end(), values_for_rx_unique_keys.begin());
+    }
 
     rmm::device_uvector<value_t> rx_values_for_unique_keys(0, stream);
     std::tie(rx_values_for_unique_keys, std::ignore) =
@@ -142,15 +150,21 @@ collect_values_for_keys(raft::comms::comms_t const &comm,
         return thrust::make_pair(thrust::get<0>(val), thrust::get<1>(val));
       });
 
-    kv_map_ptr->insert(pair_first, pair_first + unique_keys.size());
+    // FIXME: a temporary workaround. cuco::static_map currently launches a kernel even if the grid
+    // size is 0; this leads to cudaErrorInvaildConfiguration.
+    if (unique_keys.size() > 0) { kv_map_ptr->insert(pair_first, pair_first + unique_keys.size()); }
   }
 
   // 4. find values for [collect_key_first, collect_key_last)
 
   auto value_buffer = allocate_dataframe_buffer<value_t>(
     thrust::distance(collect_key_first, collect_key_last), stream);
-  kv_map_ptr->find(
-    collect_key_first, collect_key_last, get_dataframe_buffer_begin<value_t>(value_buffer));
+  // FIXME: a temporary workaround. cuco::static_map currently launches a kernel even if the grid
+  // size is 0; this leads to cudaErrorInvaildConfiguration.
+  if (thrust::distance(collect_key_first, collect_key_last) > 0) {
+    kv_map_ptr->find(
+      collect_key_first, collect_key_last, get_dataframe_buffer_begin<value_t>(value_buffer));
+  }
 
   return value_buffer;
 }
@@ -200,7 +214,11 @@ collect_values_for_unique_keys(raft::comms::comms_t const &comm,
       [] __device__(auto val) {
         return thrust::make_pair(thrust::get<0>(val), thrust::get<1>(val));
       });
-    kv_map_ptr->insert(pair_first, pair_first + thrust::distance(map_key_first, map_key_last));
+    // FIXME: a temporary workaround. cuco::static_map currently launches a kernel even if the grid
+    // size is 0; this leads to cudaErrorInvaildConfiguration.
+    if (thrust::distance(map_key_first, map_key_last)) {
+      kv_map_ptr->insert(pair_first, pair_first + thrust::distance(map_key_first, map_key_last));
+    }
   }
 
   // 2. collect values for the unique keys in [collect_unique_key_first, collect_unique_key_last)
@@ -227,8 +245,12 @@ collect_values_for_unique_keys(raft::comms::comms_t const &comm,
 
     CUDA_TRY(cudaStreamSynchronize(stream));  // cuco::static_map currently does not take stream
 
-    kv_map_ptr->find(
-      rx_unique_keys.begin(), rx_unique_keys.end(), values_for_rx_unique_keys.begin());
+    // FIXME: a temporary workaround. cuco::static_map currently launches a kernel even if the grid
+    // size is 0; this leads to cudaErrorInvaildConfiguration.
+    if (rx_unique_keys.size() > 0) {
+      kv_map_ptr->find(
+        rx_unique_keys.begin(), rx_unique_keys.end(), values_for_rx_unique_keys.begin());
+    }
 
     rmm::device_uvector<value_t> rx_values_for_unique_keys(0, stream);
     std::tie(rx_values_for_unique_keys, std::ignore) =
@@ -260,16 +282,22 @@ collect_values_for_unique_keys(raft::comms::comms_t const &comm,
         return thrust::make_pair(thrust::get<0>(val), thrust::get<1>(val));
       });
 
-    kv_map_ptr->insert(pair_first, pair_first + unique_keys.size());
+    // FIXME: a temporary workaround. cuco::static_map currently launches a kernel even if the grid
+    // size is 0; this leads to cudaErrorInvaildConfiguration.
+    if (unique_keys.size() > 0) { kv_map_ptr->insert(pair_first, pair_first + unique_keys.size()); }
   }
 
   // 4. find values for [collect_unique_key_first, collect_unique_key_last)
 
   auto value_buffer = allocate_dataframe_buffer<value_t>(
     thrust::distance(collect_unique_key_first, collect_unique_key_last), stream);
-  kv_map_ptr->find(collect_unique_key_first,
-                   collect_unique_key_last,
-                   get_dataframe_buffer_begin<value_t>(value_buffer));
+  // FIXME: a temporary workaround. cuco::static_map currently launches a kernel even if the grid
+  // size is 0; this leads to cudaErrorInvaildConfiguration.
+  if (thrust::distance(collect_unique_key_first, collect_unique_key_last)) {
+    kv_map_ptr->find(collect_unique_key_first,
+                     collect_unique_key_last,
+                     get_dataframe_buffer_begin<value_t>(value_buffer));
+  }
 
   return value_buffer;
 }

@@ -497,14 +497,13 @@ void copy_v_transform_reduce_nbr(raft::handle_t const& handle,
       auto const col_comm_rank = col_comm.get_rank();
       auto const col_comm_size = col_comm.get_size();
 
-      device_reduce(
-        col_comm,
-        major_buffer_first,
-        vertex_value_output_first,
-        matrix_partition.get_major_size(),
-        raft::comms::op_t::SUM,
-        i,
-        handle.get_stream());
+      device_reduce(col_comm,
+                    major_buffer_first,
+                    vertex_value_output_first,
+                    matrix_partition.get_major_size(),
+                    raft::comms::op_t::SUM,
+                    i,
+                    handle.get_stream());
     }
   }
 

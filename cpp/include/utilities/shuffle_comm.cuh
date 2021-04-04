@@ -252,8 +252,8 @@ auto groupby_gpuid_and_shuffle_values(raft::comms::comms_t const &comm,
 {
   auto const comm_size = comm.get_size();
 
-  auto d_tx_value_counts = groupby_and_count(
-    tx_value_first, tx_value_last, value_to_gpu_id_op, comm.get_size(), stream);
+  auto d_tx_value_counts =
+    groupby_and_count(tx_value_first, tx_value_last, value_to_gpu_id_op, comm.get_size(), stream);
 
   std::vector<size_t> tx_counts{};
   std::vector<size_t> tx_offsets{};

@@ -14,7 +14,6 @@
  * limitations under the License.
  */
 
-#include <utilities/detail/generate_graph_from_edgelist.hpp>
 #include <utilities/test_utilities.hpp>
 
 #include <experimental/detail/graph_utils.cuh>
@@ -410,16 +409,15 @@ read_graph_from_matrix_market_file(raft::handle_t const& handle,
   }
 
   handle.get_stream_view().synchronize();
-  return detail::
-    generate_graph_from_edgelist<vertex_t, edge_t, weight_t, store_transposed, multi_gpu>(
-      handle,
-      std::move(d_vertices),
-      std::move(d_edgelist_rows),
-      std::move(d_edgelist_cols),
-      std::move(d_edgelist_weights),
-      is_symmetric,
-      test_weighted,
-      renumber);
+  return generate_graph_from_edgelist<vertex_t, edge_t, weight_t, store_transposed, multi_gpu>(
+    handle,
+    std::move(d_vertices),
+    std::move(d_edgelist_rows),
+    std::move(d_edgelist_cols),
+    std::move(d_edgelist_weights),
+    is_symmetric,
+    test_weighted,
+    renumber);
 }
 
 // explicit instantiations

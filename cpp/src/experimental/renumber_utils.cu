@@ -123,8 +123,14 @@ void renumber_ext_vertices(raft::handle_t const& handle,
       [] __device__(auto val) {
         return thrust::make_pair(thrust::get<0>(val), thrust::get<1>(val));
       });
-    renumber_map_ptr->insert(kv_pair_first, kv_pair_first + sorted_unique_ext_vertices.size());
+    // FIXME: a temporary workaround. cuco::static_map currently launches a kernel even if the grid
+    // size is 0; this leads to cudaErrorInvaildConfiguration.
+    if (sorted_unique_ext_vertices.size()) {
+      renumber_map_ptr->insert(kv_pair_first, kv_pair_first + sorted_unique_ext_vertices.size());
+    }
   } else {
+    handle.get_stream_view().synchronize();  // cuco::static_map currently does not take stream
+
     renumber_map_ptr.reset();
 
     renumber_map_ptr = std::make_unique<cuco::static_map<vertex_t, vertex_t>>(
@@ -143,13 +149,21 @@ void renumber_ext_vertices(raft::handle_t const& handle,
       [] __device__(auto val) {
         return thrust::make_pair(thrust::get<0>(val), thrust::get<1>(val));
       });
-    renumber_map_ptr->insert(pair_first,
-                             pair_first + (local_int_vertex_last - local_int_vertex_first));
+    // FIXME: a temporary workaround. cuco::static_map currently launches a kernel even if the grid
+    // size is 0; this leads to cudaErrorInvaildConfiguration.
+    if ((local_int_vertex_last - local_int_vertex_first) > 0) {
+      renumber_map_ptr->insert(pair_first,
+                               pair_first + (local_int_vertex_last - local_int_vertex_first));
+    }
   }
 
   if (do_expensive_check) {
     rmm::device_uvector<bool> contains(num_vertices, handle.get_stream());
-    renumber_map_ptr->contains(vertices, vertices + num_vertices, contains.begin());
+    // FIXME: a temporary workaround. cuco::static_map currently launches a kernel even if the grid
+    // size is 0; this leads to cudaErrorInvaildConfiguration.
+    if (num_vertices > 0) {
+      renumber_map_ptr->contains(vertices, vertices + num_vertices, contains.begin());
+    }
     auto vc_pair_first = thrust::make_zip_iterator(thrust::make_tuple(vertices, contains.begin()));
     CUGRAPH_EXPECTS(thrust::count_if(rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
                                      vc_pair_first,
@@ -177,7 +191,9 @@ void renumber_ext_vertices(raft::handle_t const& handle,
                                : invalid_vertex_id<vertex_t>::value;
                     });
 #else
-  renumber_map_ptr->find(vertices, vertices + num_vertices, vertices);
+  // FIXME: a temporary workaround. cuco::static_map currently launches a kernel even if the grid
+  // size is 0; this leads to cudaErrorInvaildConfiguration.
+  if (num_vertices > 0) { renumber_map_ptr->find(vertices, vertices + num_vertices, vertices); }
 #endif
 #endif
 }
@@ -338,7 +354,11 @@ void unrenumber_int_vertices(raft::handle_t const& handle,
       [] __device__(auto val) {
         return thrust::make_pair(thrust::get<0>(val), thrust::get<1>(val));
       });
-    unrenumber_map.insert(pair_first, pair_first + sorted_unique_int_vertices.size());
+    // FIXME: a temporary workaround. cuco::static_map currently launches a kernel even if the grid
+    // size is 0; this leads to cudaErrorInvaildConfiguration.
+    if (sorted_unique_int_vertices.size()) {
+      unrenumber_map.insert(pair_first, pair_first + sorted_unique_int_vertices.size());
+    }
     // FIXME: a temporary workaround for https://github.com/NVIDIA/cuCollections/issues/74
 #if 1
     thrust::transform(rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
@@ -351,7 +371,9 @@ void unrenumber_int_vertices(raft::handle_t const& handle,
                                  : invalid_vertex_id<vertex_t>::value;
                       });
 #else
-    unrenumber_map.find(vertices, vertices + num_vertices, vertices);
+    // FIXME: a temporary workaround. cuco::static_map currently launches a kernel even if the grid
+    // size is 0; this leads to cudaErrorInvaildConfiguration.
+    if (num_vertices > 0) { unrenumber_map.find(vertices, vertices + num_vertices, vertices); }
 #endif
   } else {
     unrenumber_local_int_vertices(handle,

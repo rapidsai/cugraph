@@ -357,7 +357,12 @@ void expensive_check_edgelist(
         "Invalid input argument: edgelist_major_vertices & edgelist_minor_vertices should be "
         "pre-shuffled.");
 
-      if (local_vertices != nullptr) {
+      auto aggregate_vertexlist_size = host_scalar_allreduce(
+        comm,
+        local_vertices != nullptr ? num_local_vertices : vertex_t{0},
+        handle.get_stream());  // local_vertices != nullptr is insufficient in multi-GPU as only a
+                               // subset of GPUs may have a non-zero vertices
+      if (aggregate_vertexlist_size > 0) {
         auto& row_comm = handle.get_subcomm(cugraph::partition_2d::key_naming_t().row_name());
         auto& col_comm = handle.get_subcomm(cugraph::partition_2d::key_naming_t().col_name());
 
@@ -428,18 +433,6 @@ void expensive_check_edgelist(
     assert(edgelist_minor_vertices.size() == 1);
 
     if (local_vertices != nullptr) {
-      CUGRAPH_EXPECTS(
-        thrust::count_if(
-          rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
-          edgelist_major_vertices[0],
-          edgelist_major_vertices[0] + edgelist_edge_counts[0],
-          [num_local_vertices,
-           sorted_local_vertices = sorted_local_vertices.data()] __device__(auto v) {
-            return !thrust::binary_search(
-              thrust::seq, sorted_local_vertices, sorted_local_vertices + num_local_vertices, v);
-          }) == 0,
-        "Invalid input argument: edgelist_major_vertices has invalid vertex ID(s).");
-
       auto edge_first = thrust::make_zip_iterator(
         thrust::make_tuple(edgelist_major_vertices[0], edgelist_minor_vertices[0]));
       CUGRAPH_EXPECTS(
@@ -574,10 +567,18 @@ renumber_edgelist(raft::handle_t const& handle,
       [] __device__(auto val) {
         return thrust::make_pair(thrust::get<0>(val), thrust::get<1>(val));
       });
-    renumber_map.insert(pair_first, pair_first + partition.get_matrix_partition_major_size(i));
-    renumber_map.find(edgelist_major_vertices[i],
-                      edgelist_major_vertices[i] + edgelist_edge_counts[i],
-                      edgelist_major_vertices[i]);
+    // FIXME: a temporary workaround. cuco::static_map currently launches a kernel even if the grid
+    // size is 0; this leads to cudaErrorInvaildConfiguration.
+    if (partition.get_matrix_partition_major_size(i) > 0) {
+      renumber_map.insert(pair_first, pair_first + partition.get_matrix_partition_major_size(i));
+    }
+    // FIXME: a temporary workaround. cuco::static_map currently launches a kernel even if the grid
+    // size is 0; this leads to cudaErrorInvaildConfiguration.
+    if (edgelist_edge_counts[i]) {
+      renumber_map.find(edgelist_major_vertices[i],
+                        edgelist_major_vertices[i] + edgelist_edge_counts[i],
+                        edgelist_major_vertices[i]);
+    }
   }
 
   {
@@ -615,11 +616,19 @@ renumber_edgelist(raft::handle_t const& handle,
       [] __device__(auto val) {
         return thrust::make_pair(thrust::get<0>(val), thrust::get<1>(val));
       });
-    renumber_map.insert(pair_first, pair_first + renumber_map_minor_labels.size());
+    // FIXME: a temporary workaround. cuco::static_map currently launches a kernel even if the grid
+    // size is 0; this leads to cudaErrorInvaildConfiguration.
+    if (renumber_map_minor_labels.size()) {
+      renumber_map.insert(pair_first, pair_first + renumber_map_minor_labels.size());
+    }
     for (size_t i = 0; i < edgelist_major_vertices.size(); ++i) {
-      renumber_map.find(edgelist_minor_vertices[i],
-                        edgelist_minor_vertices[i] + edgelist_edge_counts[i],
-                        edgelist_minor_vertices[i]);
+      // FIXME: a temporary workaround. cuco::static_map currently launches a kernel even if the
+      // grid size is 0; this leads to cudaErrorInvaildConfiguration.
+      if (edgelist_edge_counts[i]) {
+        renumber_map.find(edgelist_minor_vertices[i],
+                          edgelist_minor_vertices[i] + edgelist_edge_counts[i],
+                          edgelist_minor_vertices[i]);
+      }
     }
   }
 
@@ -686,11 +695,21 @@ std::enable_if_t<!multi_gpu, rmm::device_uvector<vertex_t>> renumber_edgelist(
     [] __device__(auto val) {
       return thrust::make_pair(thrust::get<0>(val), thrust::get<1>(val));
     });
-  renumber_map.insert(pair_first, pair_first + renumber_map_labels.size());
-  renumber_map.find(
-    edgelist_major_vertices, edgelist_major_vertices + num_edgelist_edges, edgelist_major_vertices);
-  renumber_map.find(
-    edgelist_minor_vertices, edgelist_minor_vertices + num_edgelist_edges, edgelist_minor_vertices);
+  // FIXME: a temporary workaround. cuco::static_map currently launches a kernel even if the grid
+  // size is 0; this leads to cudaErrorInvaildConfiguration.
+  if (renumber_map_labels.size()) {
+    renumber_map.insert(pair_first, pair_first + renumber_map_labels.size());
+  }
+  // FIXME: a temporary workaround. cuco::static_map currently launches a kernel even if the grid
+  // size is 0; this leads to cudaErrorInvaildConfiguration.
+  if (num_edgelist_edges > 0) {
+    renumber_map.find(edgelist_major_vertices,
+                      edgelist_major_vertices + num_edgelist_edges,
+                      edgelist_major_vertices);
+    renumber_map.find(edgelist_minor_vertices,
+                      edgelist_minor_vertices + num_edgelist_edges,
+                      edgelist_minor_vertices);
+  }
 
   return renumber_map_labels;
 #else
