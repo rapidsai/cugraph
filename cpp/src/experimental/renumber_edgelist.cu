@@ -357,7 +357,12 @@ void expensive_check_edgelist(
         "Invalid input argument: edgelist_major_vertices & edgelist_minor_vertices should be "
         "pre-shuffled.");
 
-      if (local_vertices != nullptr) {
+      auto aggregate_vertexlist_size = host_scalar_allreduce(
+        comm,
+        local_vertices != nullptr ? num_local_vertices : vertex_t{0},
+        handle.get_stream());  // local_vertices != nullptr is insufficient in multi-GPU as only a
+                               // subset of GPUs may have a non-zero vertices
+      if (aggregate_vertexlist_size > 0) {
         auto& row_comm = handle.get_subcomm(cugraph::partition_2d::key_naming_t().row_name());
         auto& col_comm = handle.get_subcomm(cugraph::partition_2d::key_naming_t().col_name());
 
@@ -428,18 +433,6 @@ void expensive_check_edgelist(
     assert(edgelist_minor_vertices.size() == 1);
 
     if (local_vertices != nullptr) {
-      CUGRAPH_EXPECTS(
-        thrust::count_if(
-          rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
-          edgelist_major_vertices[0],
-          edgelist_major_vertices[0] + edgelist_edge_counts[0],
-          [num_local_vertices,
-           sorted_local_vertices = sorted_local_vertices.data()] __device__(auto v) {
-            return !thrust::binary_search(
-              thrust::seq, sorted_local_vertices, sorted_local_vertices + num_local_vertices, v);
-          }) == 0,
-        "Invalid input argument: edgelist_major_vertices has invalid vertex ID(s).");
-
       auto edge_first = thrust::make_zip_iterator(
         thrust::make_tuple(edgelist_major_vertices[0], edgelist_minor_vertices[0]));
       CUGRAPH_EXPECTS(
