@@ -136,7 +136,11 @@ void relabel(raft::handle_t const& handle,
         [] __device__(auto val) {
           return thrust::make_pair(thrust::get<0>(val), thrust::get<1>(val));
         });
-      relabel_map.insert(pair_first, pair_first + rx_label_pair_old_labels.size());
+      // FIXME: a temporary workaround. cuco::static_map currently launches a kernel even if the
+      // grid size is 0; this leads to cudaErrorInvaildConfiguration.
+      if (rx_label_pair_old_labels.size() > 0) {
+        relabel_map.insert(pair_first, pair_first + rx_label_pair_old_labels.size());
+      }
 
       rx_label_pair_old_labels.resize(0, handle.get_stream());
       rx_label_pair_new_labels.resize(0, handle.get_stream());
@@ -158,16 +162,22 @@ void relabel(raft::handle_t const& handle,
         CUDA_TRY(cudaStreamSynchronize(
           handle.get_stream()));  // cuco::static_map currently does not take stream
 
-        relabel_map.find(
-          rx_unique_old_labels.begin(),
-          rx_unique_old_labels.end(),
-          rx_unique_old_labels
-            .begin());  // now rx_unique_old_lables hold new labels for the corresponding old labels
+        // FIXME: a temporary workaround. cuco::static_map currently launches a kernel even if the
+        // grid size is 0; this leads to cudaErrorInvaildConfiguration.
+        if (rx_unique_old_labels.size() > 0) {
+          relabel_map.find(
+            rx_unique_old_labels.begin(),
+            rx_unique_old_labels.end(),
+            rx_unique_old_labels.begin());  // now rx_unique_old_lables hold new labels for the
+                                            // corresponding old labels
+        }
 
         std::tie(new_labels_for_unique_old_labels, std::ignore) = shuffle_values(
           handle.get_comms(), rx_unique_old_labels.begin(), rx_value_counts, handle.get_stream());
       }
     }
+
+    handle.get_stream_view().synchronize();  // cuco::static_map currently does not take stream
 
     cuco::static_map<vertex_t, vertex_t> relabel_map(
       // FIXME: std::max(..., ...) as a temporary workaround for
@@ -185,8 +195,14 @@ void relabel(raft::handle_t const& handle,
         return thrust::make_pair(thrust::get<0>(val), thrust::get<1>(val));
       });
 
-    relabel_map.insert(pair_first, pair_first + unique_old_labels.size());
-    relabel_map.find(labels, labels + num_labels, labels);
+    // FIXME: a temporary workaround. cuco::static_map currently launches a kernel even if the grid
+    // size is 0; this leads to cudaErrorInvaildConfiguration.
+    if (unique_old_labels.size() > 0) {
+      relabel_map.insert(pair_first, pair_first + unique_old_labels.size());
+    }
+    // FIXME: a temporary workaround. cuco::static_map currently launches a kernel even if the grid
+    // size is 0; this leads to cudaErrorInvaildConfiguration.
+    if (num_labels > 0) { relabel_map.find(labels, labels + num_labels, labels); }
   } else {
     cuco::static_map<vertex_t, vertex_t> relabel_map(
       // FIXME: std::max(..., ...) as a temporary workaround for
@@ -204,8 +220,12 @@ void relabel(raft::handle_t const& handle,
         return thrust::make_pair(thrust::get<0>(val), thrust::get<1>(val));
       });
 
-    relabel_map.insert(pair_first, pair_first + num_label_pairs);
-    relabel_map.find(labels, labels + num_labels, labels);
+    // FIXME: a temporary workaround. cuco::static_map currently launches a kernel even if the grid
+    // size is 0; this leads to cudaErrorInvaildConfiguration.
+    if (num_label_pairs > 0) { relabel_map.insert(pair_first, pair_first + num_label_pairs); }
+    // FIXME: a temporary workaround. cuco::static_map currently launches a kernel even if the grid
+    // size is 0; this leads to cudaErrorInvaildConfiguration.
+    if (num_labels > 0) { relabel_map.find(labels, labels + num_labels, labels); }
   }
 
   if (do_expensive_check) {

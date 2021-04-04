@@ -270,7 +270,9 @@ void copy_v_transform_reduce_key_aggregated_out_nbr(
       [] __device__(auto val) {
         return thrust::make_pair(thrust::get<0>(val), thrust::get<1>(val));
       });
-    kv_map_ptr->insert(pair_first, pair_first + map_keys.size());
+    // FIXME: a temporary workaround. cuco::static_map currently launches a kernel even if the grid
+    // size is 0; this leads to cudaErrorInvaildConfiguration.
+    if (map_keys.size()) { kv_map_ptr->insert(pair_first, pair_first + map_keys.size()); }
   } else {
     handle.get_stream_view().synchronize();  // cuco::static_map currently does not take stream
 
@@ -291,7 +293,11 @@ void copy_v_transform_reduce_key_aggregated_out_nbr(
       [] __device__(auto val) {
         return thrust::make_pair(thrust::get<0>(val), thrust::get<1>(val));
       });
-    kv_map_ptr->insert(pair_first, pair_first + thrust::distance(map_key_first, map_key_last));
+    // FIXME: a temporary workaround. cuco::static_map currently launches a kernel even if the grid
+    // size is 0; this leads to cudaErrorInvaildConfiguration.
+    if (thrust::distance(map_key_first, map_key_last) > 0) {
+      kv_map_ptr->insert(pair_first, pair_first + thrust::distance(map_key_first, map_key_last));
+    }
   }
 
   // 2. aggregate each vertex out-going edges based on keys and transform-reduce.
