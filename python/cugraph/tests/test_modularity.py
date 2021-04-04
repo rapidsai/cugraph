@@ -19,7 +19,6 @@ import pytest
 import cudf
 import cugraph
 from cugraph.tests import utils
-from cugraph.utilities.utils import is_device_version_less_than
 
 
 def cugraph_call(G, partitions):
@@ -53,9 +52,6 @@ PARTITIONS = [2, 4, 8]
 
 
 # Test all combinations of default/managed and pooled/non-pooled allocation
-@pytest.mark.skipif(
-    is_device_version_less_than((7, 0)), reason="Not supported on Pascal"
-)
 @pytest.mark.parametrize("graph_file", utils.DATASETS)
 @pytest.mark.parametrize("partitions", PARTITIONS)
 def test_modularity_clustering(graph_file, partitions):

@@ -17,7 +17,6 @@ import pytest
 
 import cugraph
 from cugraph.tests import utils
-from cugraph.utilities.utils import is_device_version_less_than
 
 import numpy as np
 
@@ -74,9 +73,6 @@ def compare_k_truss(k_truss_cugraph, k, ground_truth_file):
     return True
 
 
-@pytest.mark.skipif(
-    is_device_version_less_than((7, 0)), reason="Not supported on Pascal"
-)
 @pytest.mark.parametrize("graph_file, nx_ground_truth", utils.DATASETS_KTRUSS)
 def test_ktruss_subgraph_Graph(graph_file, nx_ground_truth):
     gc.collect()
@@ -90,9 +86,6 @@ def test_ktruss_subgraph_Graph(graph_file, nx_ground_truth):
     compare_k_truss(k_subgraph, k, nx_ground_truth)
 
 
-@pytest.mark.skipif(
-    is_device_version_less_than((7, 0)), reason="Not supported on Pascal"
-)
 @pytest.mark.parametrize("graph_file, nx_ground_truth", utils.DATASETS_KTRUSS)
 def test_ktruss_subgraph_Graph_nx(graph_file, nx_ground_truth):
     gc.collect()

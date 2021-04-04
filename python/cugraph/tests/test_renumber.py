@@ -21,12 +21,8 @@ import cudf
 
 from cugraph.structure.number_map import NumberMap
 from cugraph.tests import utils
-from cugraph.utilities.utils import is_device_version_less_than
 
 
-@pytest.mark.skipif(
-    is_device_version_less_than((7, 0)), reason="Not supported on Pascal"
-)
 def test_renumber_ips():
     source_list = [
         "192.168.1.1",
@@ -61,9 +57,6 @@ def test_renumber_ips():
     assert check_dst.equals(gdf["dest_as_int"])
 
 
-@pytest.mark.skipif(
-    is_device_version_less_than((7, 0)), reason="Not supported on Pascal"
-)
 def test_renumber_ips_cols():
 
     source_list = [
@@ -132,9 +125,6 @@ def test_renumber_ips_str_cols():
     assert check_dst.equals(gdf["dest_list"])
 
 
-@pytest.mark.skipif(
-    is_device_version_less_than((7, 0)), reason="Not supported on Pascal"
-)
 def test_renumber_negative():
     source_list = [4, 6, 8, -20, 1]
     dest_list = [1, 29, 35, 0, 77]
@@ -156,9 +146,6 @@ def test_renumber_negative():
     assert check_dst.equals(gdf["dest_list"])
 
 
-@pytest.mark.skipif(
-    is_device_version_less_than((7, 0)), reason="Not supported on Pascal"
-)
 def test_renumber_negative_col():
     source_list = [4, 6, 8, -20, 1]
     dest_list = [1, 29, 35, 0, 77]
@@ -180,9 +167,6 @@ def test_renumber_negative_col():
     assert check_dst.equals(gdf["dest_list"])
 
 
-@pytest.mark.skipif(
-    is_device_version_less_than((7, 0)), reason="Not supported on Pascal"
-)
 @pytest.mark.skip(reason="dropped renumbering from series support")
 @pytest.mark.parametrize("graph_file", utils.DATASETS)
 def test_renumber_series(graph_file):
@@ -220,9 +204,6 @@ def test_renumber_series(graph_file):
     assert check_dst["0_y"].equals(check_dst["0_x"])
 
 
-@pytest.mark.skipif(
-    is_device_version_less_than((7, 0)), reason="Not supported on Pascal"
-)
 @pytest.mark.parametrize("graph_file", utils.DATASETS)
 def test_renumber_files(graph_file):
     gc.collect()
@@ -256,9 +237,6 @@ def test_renumber_files(graph_file):
     assert exp_dst.equals(unrenumbered_df["dst"])
 
 
-@pytest.mark.skipif(
-    is_device_version_less_than((7, 0)), reason="Not supported on Pascal"
-)
 @pytest.mark.parametrize("graph_file", utils.DATASETS)
 def test_renumber_files_col(graph_file):
     gc.collect()
@@ -291,9 +269,6 @@ def test_renumber_files_col(graph_file):
     assert exp_dst.equals(unrenumbered_df["dst"])
 
 
-@pytest.mark.skipif(
-    is_device_version_less_than((7, 0)), reason="Not supported on Pascal"
-)
 @pytest.mark.parametrize("graph_file", utils.DATASETS)
 def test_renumber_files_multi_col(graph_file):
     gc.collect()
