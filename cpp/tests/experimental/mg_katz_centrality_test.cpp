@@ -180,8 +180,7 @@ class Tests_MGKatzCentrality : public ::testing::TestWithParam<KatzCentrality_Us
                                            beta,
                                            epsilon,
                                            std::numeric_limits<size_t>::max(),
-                                           false,
-                                           true);
+                                           false);
 
     if (PERF) {
       CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
@@ -214,8 +213,7 @@ class Tests_MGKatzCentrality : public ::testing::TestWithParam<KatzCentrality_Us
                                              beta,
                                              epsilon,
                                              std::numeric_limits<size_t>::max(),  // max_iterations
-                                             false,
-                                             true);
+                                             false);
 
       // 5-4. compare
 

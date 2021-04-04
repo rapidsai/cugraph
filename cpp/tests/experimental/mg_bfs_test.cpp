@@ -177,8 +177,7 @@ class Tests_MGBFS : public ::testing::TestWithParam<BFS_Usecase> {
                                d_mg_predecessors.data(),
                                static_cast<vertex_t>(configuration.source),
                                false,
-                               std::numeric_limits<vertex_t>::max(),
-                               true);
+                               std::numeric_limits<vertex_t>::max());
 
     if (PERF) {
       CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
@@ -229,8 +228,7 @@ class Tests_MGBFS : public ::testing::TestWithParam<BFS_Usecase> {
                                  d_sg_predecessors.data(),
                                  unrenumbered_source,
                                  false,
-                                 std::numeric_limits<vertex_t>::max(),
-                                 true);
+                                 std::numeric_limits<vertex_t>::max());
 
       // 5-3. compare
 

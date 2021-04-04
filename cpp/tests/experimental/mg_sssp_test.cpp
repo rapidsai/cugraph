@@ -175,8 +175,7 @@ class Tests_MGSSSP : public ::testing::TestWithParam<SSSP_Usecase> {
                                 d_mg_distances.data(),
                                 d_mg_predecessors.data(),
                                 static_cast<vertex_t>(configuration.source),
-                                std::numeric_limits<weight_t>::max(),
-                                true);
+                                std::numeric_limits<weight_t>::max());
 
     if (PERF) {
       CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
@@ -227,8 +226,7 @@ class Tests_MGSSSP : public ::testing::TestWithParam<SSSP_Usecase> {
                                   d_sg_distances.data(),
                                   d_sg_predecessors.data(),
                                   unrenumbered_source,
-                                  std::numeric_limits<weight_t>::max(),
-                                  true);
+                                  std::numeric_limits<weight_t>::max());
 
       // 5-3. compare
 
