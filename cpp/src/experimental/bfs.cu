@@ -76,12 +76,11 @@ void bfs(raft::handle_t const &handle,
   rmm::device_uvector<vertex_t> d_sources_v(0, handle.get_stream());
   cudaPointerAttributes s_att;
   CUDA_CHECK(cudaPointerGetAttributes(&s_att, sources));
-  if (s_att.device == -1) {
-    std::cout << "transfered" << std::endl;
+  if (s_att.devicePointer == nullptr) {
     d_sources_v.resize(n_sources, handle.get_stream());
     d_sources = d_sources_v.data();
     raft::copy(d_sources, sources, n_sources, handle.get_stream());
-    std::cout << "transfered" << std::endl;
+
   } else {
     d_sources = sources;
   }
@@ -122,8 +121,8 @@ void bfs(raft::handle_t const &handle,
     [vertex_partition, distances, predecessor_first] __device__(auto v) {
       *(distances + vertex_partition.get_local_vertex_offset_from_vertex_nocheck(v)) = vertex_t{0};
     });
-  raft::print_device_vector(
-    "distances", distances, push_graph_view.get_number_of_local_vertices(), std::cout);
+  // raft::print_device_vector(
+  //  "distances", distances, push_graph_view.get_number_of_local_vertices(), std::cout);
 
   // 3. initialize BFS frontier
   enum class Bucket { cur, num_buckets };
@@ -145,7 +144,6 @@ void bfs(raft::handle_t const &handle,
   }
 
   // 4. BFS iteration
-
   vertex_t depth{0};
   auto cur_local_vertex_frontier_first =
     vertex_frontier.get_bucket(static_cast<size_t>(Bucket::cur)).begin();

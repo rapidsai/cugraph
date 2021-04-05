@@ -101,26 +101,32 @@ class Tests_MsBfs : public ::testing::TestWithParam<MsBfs_Usecase> {
     std::generate(radius.begin(), radius.end(), [n = 0]() mutable { return (n++ % 12 + 1); });
 
     // warm up
+    vertex_t source = configuration.sources[0];
     cugraph::experimental::bfs(handle,
                                graph_view,
                                d_distances[0].begin(),
                                d_predecessors[0].begin(),
-                               static_cast<vertex_t>(configuration.sources[0]),
+                               &source,
+                               1,
                                false,
-                               radius[0]);
+                               radius[0],
+                               false);
 
     // one by one
     HighResTimer hr_timer;
     hr_timer.start("bfs");
     cudaProfilerStart();
     for (vertex_t i = 0; i < n_seeds; i++) {
+      source = configuration.sources[i];
       cugraph::experimental::bfs(handle,
                                  graph_view,
                                  d_distances[i].begin(),
                                  d_predecessors[i].begin(),
-                                 static_cast<vertex_t>(configuration.sources[i]),
+                                 &source,
+                                 1,
                                  false,
-                                 radius[i]);
+                                 radius[i],
+                                 false);
     }
     cudaProfilerStop();
     hr_timer.stop();
@@ -131,15 +137,18 @@ class Tests_MsBfs : public ::testing::TestWithParam<MsBfs_Usecase> {
     cudaProfilerStart();
 #pragma omp parallel for
     for (vertex_t i = 0; i < n_seeds; i++) {
+      vertex_t loc_source = configuration.sources[i];
       raft::handle_t light_handle(handle, i);
       auto worker_stream_view = light_handle.get_stream_view();
       cugraph::experimental::bfs(light_handle,
                                  graph_view,
                                  d_distances[i].begin(),
                                  d_predecessors[i].begin(),
-                                 static_cast<vertex_t>(configuration.sources[i]),
+                                 &loc_source,
+                                 1,
                                  false,
-                                 radius[i]);
+                                 radius[i],
+                                 false);
     }
 
     cudaProfilerStop();
@@ -148,11 +157,11 @@ class Tests_MsBfs : public ::testing::TestWithParam<MsBfs_Usecase> {
   }
 };
 
-TEST_P(Tests_MsBfs, DISABLED_CheckInt32Int32FloatUntransposed)
+TEST_P(Tests_MsBfs, CheckInt32Int32FloatUntransposed)
 {
   run_current_test<int32_t, int32_t, float, false>(GetParam());
 }
-/*
+
 INSTANTIATE_TEST_CASE_P(
   simple_test,
   Tests_MsBfs,
@@ -162,11 +171,10 @@ INSTANTIATE_TEST_CASE_P(
     MsBfs_Usecase("test/datasets/karate.mtx", std::vector<int32_t>{1}, 3, false),
     MsBfs_Usecase("test/datasets/karate.mtx", std::vector<int32_t>{10, 0, 5}, 2, false),
     MsBfs_Usecase("test/datasets/karate.mtx", std::vector<int32_t>{9, 3, 10}, 2, false),
-    MsBfs_Usecase(
-      "test/datasets/karate.mtx", std::vector<int32_t>{5, 9, 3, 10, 12, 13}, 2, true)));
-*/
-// For perf analysis
+    MsBfs_Usecase("test/datasets/karate.mtx", std::vector<int32_t>{5, 9, 3, 10, 12, 13}, 2, true)));
 
+// For perf analysis
+/*
 INSTANTIATE_TEST_CASE_P(
   simple_test,
   Tests_MsBfs,
@@ -297,5 +305,5 @@ INSTANTIATE_TEST_CASE_P(
         1175290, 3749667, 1209593, 3295627, 3169065, 2460328, 1838486, 1436923, 2843887, 3676426,
         2079145, 2975635, 535071,  4287509, 3281107, 39606,   3115500, 3204573, 722131,  3124073},
       2,
-      false)));
+      false)));*/
 CUGRAPH_TEST_PROGRAM_MAIN()
