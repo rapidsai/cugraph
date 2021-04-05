@@ -36,7 +36,7 @@
 
 import cudf
 import numpy as np
-from cugraph.structure.graph import Graph
+from cugraph.structure.graph_classes import Graph
 
 
 def hypergraph(

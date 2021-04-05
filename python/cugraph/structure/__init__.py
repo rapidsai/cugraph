@@ -11,12 +11,17 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from cugraph.structure.graph import (Graph,
-                                     DiGraph,
-                                     MultiGraph,
-                                     MultiDiGraph,
-                                     BiPartiteGraph,
-                                     BiPartiteDiGraph)
+from cugraph.structure.graph_classes import (Graph,
+                                             DiGraph,
+                                             MultiGraph,
+                                             MultiDiGraph,
+                                             BiPartiteGraph,
+                                             BiPartiteDiGraph)
+from cugraph.structure.graph_classes import (is_weighted,
+                                             is_directed,
+                                             is_multigraph,
+                                             is_bipartite,
+                                             is_multipartite)
 from cugraph.structure.number_map import NumberMap
 from cugraph.structure.symmetrize import symmetrize, symmetrize_df , symmetrize_ddf
 from cugraph.structure.convert_matrix import (from_edgelist,

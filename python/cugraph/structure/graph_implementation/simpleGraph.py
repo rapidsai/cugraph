@@ -58,6 +58,7 @@ class simpleGraphImpl:
             self.isolated_vertices = None
             self.node_count = None
             self.edge_count = None
+            self.weighted = False
 
     def __init__(self, properties):
         # Structure
@@ -147,6 +148,7 @@ class simpleGraphImpl:
         dest_col = elist[destination]
 
         if edge_attr is not None:
+            self.weighted = True
             value_col = elist[edge_attr]
         else:
             value_col = None

@@ -34,13 +34,13 @@ class simpleDistributedGraphImpl:
         def __init__(self, properties):
             self.multi_edge = getattr(properties, 'multi_edge', False)
             self.directed = properties.directed
-            self.tree = properties.tree
             self.renumbered = False
             self.store_transposed = False
             self.self_loop = None
             self.isolated_vertices = None
             self.node_count = None
             self.edge_count = None
+            self.weighted = False
 
     def __init__(self, properties):
         # Structure
@@ -88,6 +88,7 @@ class simpleDistributedGraphImpl:
                 raise Exception(
                     "edge_attr column name not found in input."
                     "Recheck the edge_attr parameter")
+            self.weighted = True
             ddf_columns = ddf_columns + [edge_attr]
         input_ddf = input_ddf[ddf_columns]
 
@@ -334,7 +335,7 @@ class simpleDistributedGraphImpl:
 
         return df
 
-    def to_directed(self):
+    def to_directed(self, DiG):
         """
         Return a directed representation of the graph.
         This function sets the type of graph as DiGraph() and returns the
@@ -355,7 +356,7 @@ class simpleDistributedGraphImpl:
         # TODO: Add support
         raise Exception("Not supported for distributed graph")
 
-    def to_undirected(self):
+    def to_undirected(self, G):
         """
         Return an undirected copy of the graph.
         Returns

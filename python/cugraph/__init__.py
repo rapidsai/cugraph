@@ -50,7 +50,11 @@ from cugraph.structure import (
     symmetrize,
     symmetrize_df,
     symmetrize_ddf,
-)
+    is_weighted,
+    is_directed,
+    is_multigraph,
+    is_bipartite,
+    is_multipartite)
 
 from cugraph.centrality import (
     betweenness_centrality,
@@ -84,7 +88,7 @@ from cugraph.traversal import (
     shortest_path,
     filter_unreachable,
     shortest_path_length,
-    traveling_salesperson
+    #traveling_salesperson
 )
 
 from cugraph.tree import minimum_spanning_tree, maximum_spanning_tree
