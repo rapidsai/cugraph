@@ -49,6 +49,10 @@ def k_core(input_graph, k, core_number):
     """
     Call k_core
     """
+    [input_graph.edgelist.edgelist_df['src'],
+     input_graph.edgelist.edgelist_df['dst']] = graph_primtypes_wrapper.datatype_cast([input_graph.edgelist.edgelist_df['src'],
+                                                                                       input_graph.edgelist.edgelist_df['dst']],
+                                                                                      [np.int32])
     if graph_primtypes_wrapper.weight_type(input_graph) == np.float64:
         return k_core_double(input_graph, k, core_number)
     else:

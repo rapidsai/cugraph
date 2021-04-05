@@ -15,7 +15,7 @@
  */
 #pragma once
 
-#include <community/dendrogram.cuh>
+#include <dendrogram.hpp>
 #include <experimental/graph_functions.hpp>
 
 #include <rmm/thrust_rmm_allocator.h>
@@ -31,23 +31,28 @@ void partition_at_level(raft::handle_t const &handle,
                         size_t level)
 {
   vertex_t local_num_verts = dendrogram.get_level_size_nocheck(0);
+  rmm::device_uvector<vertex_t> local_vertex_ids_v(local_num_verts, handle.get_stream());
 
-  thrust::copy(rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
-               d_vertex_ids,
-               d_vertex_ids + local_num_verts,
-               d_partition);
+  raft::copy(d_partition, d_vertex_ids, local_num_verts, handle.get_stream());
 
-  std::for_each(thrust::make_counting_iterator<size_t>(0),
-                thrust::make_counting_iterator<size_t>(level),
-                [&handle, &dendrogram, d_vertex_ids, &d_partition, local_num_verts](size_t l) {
-                  cugraph::experimental::relabel<vertex_t, multi_gpu>(
-                    handle,
-                    std::tuple<vertex_t const *, vertex_t const *>(
-                      d_vertex_ids, dendrogram.get_level_ptr_nocheck(l)),
-                    dendrogram.get_level_size_nocheck(l),
-                    d_partition,
-                    local_num_verts);
-                });
+  std::for_each(
+    thrust::make_counting_iterator<size_t>(0),
+    thrust::make_counting_iterator<size_t>(level),
+    [&handle, &dendrogram, &local_vertex_ids_v, d_vertex_ids, &d_partition, local_num_verts](
+      size_t l) {
+      thrust::sequence(rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
+                       local_vertex_ids_v.begin(),
+                       local_vertex_ids_v.begin() + dendrogram.get_level_size_nocheck(l),
+                       dendrogram.get_level_first_index_nocheck(l));
+
+      cugraph::experimental::relabel<vertex_t, multi_gpu>(
+        handle,
+        std::tuple<vertex_t const *, vertex_t const *>(local_vertex_ids_v.data(),
+                                                       dendrogram.get_level_ptr_nocheck(l)),
+        dendrogram.get_level_size_nocheck(l),
+        d_partition,
+        local_num_verts);
+    });
 }
 
 }  // namespace cugraph

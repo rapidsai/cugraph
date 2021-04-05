@@ -53,7 +53,7 @@ As of Release 0.18 - including 0.18 nightly
 | Community    |                                        |              |                     |
 |              | EgoNet                                 | Single-GPU   |                     |
 |              | Leiden                                 | Single-GPU   |                     |
-|              | Louvain                                | Multi-GPU    |                     |
+|              | Louvain                                | Multi-GPU    |  [C++ README](cpp/src/community/README.md#Louvain) |
 |              | Ensemble Clustering for Graphs         | Single-GPU   |                     |
 |              | Spectral-Clustering - Balanced Cut     | Single-GPU   |                     |
 |              | Spectral-Clustering - Modularity       | Single-GPU   |                     |
@@ -71,22 +71,21 @@ As of Release 0.18 - including 0.18 nightly
 | Linear Assignment|                                    |              |                     |
 |              | Hungarian                              | Single-GPU   | [README](cpp/src/linear_assignment/README-hungarian.md) |
 | Link Analysis|                                        |              |                     |
-|              | Pagerank                               | Multi-GPU    |                     |
-|              | Personal Pagerank                      | Multi-GPU    |                     |
+|              | Pagerank                               | Multi-GPU    | [C++ README](cpp/src/centrality/README.md#Pagerank) |
+|              | Personal Pagerank                      | Multi-GPU    | [C++ README](cpp/src/centrality/README.md#Personalized-Pagerank) |
 |              | HITS                                   | Single-GPU   | leverages Gunrock   |
 | Link Prediction |                                     |              |                     |
 |              | Jaccard Similarity                     | Single-GPU   |                     |
 |              | Weighted Jaccard Similarity            | Single-GPU   |                     |
 |              | Overlap Similarity                     | Single-GPU   |                     |
 | Traversal    |                                        |              |                     |
-|              | Breadth First Search (BFS)             | Multi-GPU    | with cutoff support |
-|              | Single Source Shortest Path (SSSP)     | Multi-GPU    |                     |
+|              | Breadth First Search (BFS)             | Multi-GPU    | with cutoff support <br/> [C++ README](cpp/src/traversal/README.md#BFS) |
+|              | Single Source Shortest Path (SSSP)     | Multi-GPU    | [C++ README](cpp/src/traversal/README.md#SSSP) |
 |              | Traveling Salesperson Problem (TSP)    | Single-GPU   |                     |
 | Structure    |                                        |              |                     |
 |              | Renumbering                            | Single-GPU   | multiple columns, any data type  |
 |              | Symmetrize                             | Multi-GPU    |                     |
 | Other        |                                        |              |                     |
-|              | Hungarian Algorithm                    | Single-GPU   |                     |
 |              | Minimum Spanning Tree                  | Single-GPU   |                     |
 |              | Maximum Spanning Tree                  | Single-GPU   |                     |
 |  |  |

@@ -24,7 +24,9 @@ from numba import cuda
 pascal = False
 
 device = cuda.get_current_device()
-cc = getattr(device, 'COMPUTE_CAPABILITY')
+# check for the attribute using both pre and post numba 0.53 names
+cc = getattr(device, 'COMPUTE_CAPABILITY', None) or \
+     getattr(device, 'compute_capability')
 if (cc[0] < 7):
     pascal = True
 

@@ -18,6 +18,10 @@ cmake_minimum_required(VERSION 3.18...3.18 FATAL_ERROR)
 
 project(CUGRAPH VERSION 0.19.0 LANGUAGES C CXX CUDA)
 
+# Write the version header
+include(cmake/Modules/Version.cmake)
+write_version()
+
 ###################################################################################################
 # - build type ------------------------------------------------------------------------------------
 
@@ -112,6 +116,7 @@ set(FAISS_GPU_ARCHS "${FAISS_GPU_ARCHS} -gencode arch=compute_${ptx},code=comput
 set(CMAKE_CUDA_FLAGS "${CMAKE_CUDA_FLAGS} --expt-extended-lambda --expt-relaxed-constexpr")
 set(CMAKE_CUDA_FLAGS "${CMAKE_CUDA_FLAGS} -Werror=cross-execution-space-call -Wno-deprecated-declarations -Xptxas --disable-warnings")
 set(CMAKE_CUDA_FLAGS "${CMAKE_CUDA_FLAGS} -Xcompiler -Wall,-Wno-error=sign-compare,-Wno-error=unused-but-set-variable")
+set(CMAKE_CUDA_FLAGS "${CMAKE_CUDA_FLAGS} -Xfatbin=-compress-all")
 
 # Option to enable line info in CUDA device compilation to allow introspection when profiling /
 # memchecking
@@ -271,7 +276,7 @@ message("set LIBCUDACXX_INCLUDE_DIR to: ${LIBCUDACXX_INCLUDE_DIR}")
 FetchContent_Declare(
     cuhornet
     GIT_REPOSITORY    https://github.com/rapidsai/cuhornet.git
-    GIT_TAG           9cb8e8803852bd895a9c95c0fe778ad6eeefa7ad
+    GIT_TAG           e58d0ecdbc270fc28867d66c965787a62a7a882c
     GIT_SHALLOW       true
     SOURCE_SUBDIR     hornet
 )
@@ -416,6 +421,7 @@ add_library(cugraph SHARED
     src/community/triangles_counting.cu
     src/community/extract_subgraph_by_vertex.cu
     src/community/egonet.cu
+    src/sampling/random_walks.cu
     src/cores/core_number.cu
     src/traversal/two_hop_neighbors.cu
     src/components/connectivity.cu
@@ -559,6 +565,9 @@ install(TARGETS cugraph LIBRARY
 
 install(DIRECTORY include/
     DESTINATION include/cugraph)
+
+install(FILES ${CMAKE_CURRENT_BINARY_DIR}/include/cugraph/version_config.hpp
+        DESTINATION include/cugraph)
 
 install(DIRECTORY ${RAFT_DIR}/cpp/include/raft/
     DESTINATION include/cugraph/raft)

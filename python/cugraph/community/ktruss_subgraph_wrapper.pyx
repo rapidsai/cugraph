@@ -33,6 +33,10 @@ def ktruss_subgraph_double(input_graph, k, use_weights):
 
 
 def ktruss_subgraph(input_graph, k, use_weights):
+    [input_graph.edgelist.edgelist_df['src'],
+     input_graph.edgelist.edgelist_df['dst']] = graph_primtypes_wrapper.datatype_cast([input_graph.edgelist.edgelist_df['src'],
+                                                                                       input_graph.edgelist.edgelist_df['dst']],
+                                                                                      [np.int32])
     if graph_primtypes_wrapper.weight_type(input_graph) == np.float64 and use_weights:
         return ktruss_subgraph_double(input_graph, k, use_weights)
     else:

@@ -91,7 +91,6 @@ function(ConfigureTest CMAKE_TEST_NAME CMAKE_TEST_SRC)
         cugraph
         GTest::GTest
         GTest::Main
-        ${CUDF_LIBRARY}
         ${NCCL_LIBRARIES}
         cudart
         cuda
@@ -319,6 +318,13 @@ set(MST_TEST_SRC
 
 ConfigureTest(MST_TEST "${MST_TEST_SRC}")
 
+###################################################################################################
+# - Experimental stream tests -----------------------------------------------------
+
+set(EXPERIMENTAL_STREAM_SRCS
+    "${CMAKE_CURRENT_SOURCE_DIR}/experimental/streams.cu")
+
+ConfigureTest(EXPERIMENTAL_STREAM "${EXPERIMENTAL_STREAM_SRCS}" "")
 
 ###################################################################################################
 # - Experimental R-mat graph generation tests -----------------------------------------------------
@@ -377,6 +383,15 @@ set(EXPERIMENTAL_BFS_TEST_SRCS
 ConfigureTest(EXPERIMENTAL_BFS_TEST "${EXPERIMENTAL_BFS_TEST_SRCS}")
 
 ###################################################################################################
+# - Experimental BFS tests ------------------------------------------------------------------------
+
+set(EXPERIMENTAL_MSBFS_TEST_SRCS
+    "${CMAKE_CURRENT_SOURCE_DIR}/experimental/ms_bfs_test.cpp")
+
+ConfigureTest(EXPERIMENTAL_MSBFS_TEST "${EXPERIMENTAL_MSBFS_TEST_SRCS}")
+
+
+###################################################################################################
 # - Experimental SSSP tests -----------------------------------------------------------------------
 
 set(EXPERIMENTAL_SSSP_TEST_SRCS
@@ -393,20 +408,26 @@ set(EXPERIMENTAL_PAGERANK_TEST_SRCS
 ConfigureTest(EXPERIMENTAL_PAGERANK_TEST "${EXPERIMENTAL_PAGERANK_TEST_SRCS}")
 
 ###################################################################################################
-# - Experimental LOUVAIN tests -------------------------------------------------------------------
-
-set(EXPERIMENTAL_LOUVAIN_TEST_SRCS
-    "${CMAKE_CURRENT_SOURCE_DIR}/experimental/louvain_test.cu")
-
-ConfigureTest(EXPERIMENTAL_LOUVAIN_TEST "${EXPERIMENTAL_LOUVAIN_TEST_SRCS}")
-
-###################################################################################################
 # - Experimental KATZ_CENTRALITY tests ------------------------------------------------------------
 
 set(EXPERIMENTAL_KATZ_CENTRALITY_TEST_SRCS
     "${CMAKE_CURRENT_SOURCE_DIR}/experimental/katz_centrality_test.cpp")
 
 ConfigureTest(EXPERIMENTAL_KATZ_CENTRALITY_TEST "${EXPERIMENTAL_KATZ_CENTRALITY_TEST_SRCS}")
+
+###################################################################################################
+# - Experimental RANDOM_WALKS tests ------------------------------------------------------------
+
+set(EXPERIMENTAL_RANDOM_WALKS_TEST_SRCS
+    "${CMAKE_CURRENT_SOURCE_DIR}/experimental/random_walks_test.cu")
+
+ConfigureTest(EXPERIMENTAL_RANDOM_WALKS_TEST "${EXPERIMENTAL_RANDOM_WALKS_TEST_SRCS}")
+
+###################################################################################################
+set(EXPERIMENTAL_RANDOM_WALKS_LOW_LEVEL_SRCS
+    "${CMAKE_CURRENT_SOURCE_DIR}/experimental/rw_low_level_test.cu")
+
+ConfigureTest(EXPERIMENTAL_RANDOM_WALKS_LOW_LEVEL_TEST "${EXPERIMENTAL_RANDOM_WALKS_LOW_LEVEL_SRCS}")
 
 
 ###################################################################################################
@@ -422,6 +443,17 @@ if(BUILD_CUGRAPH_MG_TESTS)
 
         ConfigureTest(MG_PAGERANK_TEST "${MG_PAGERANK_TEST_SRCS}")
         target_link_libraries(MG_PAGERANK_TEST PRIVATE MPI::MPI_C MPI::MPI_CXX)
+
+        ###########################################################################################
+        # - MG LOUVAIN tests ---------------------------------------------------------------------
+
+        set(MG_LOUVAIN_TEST_SRCS
+	    "${CMAKE_CURRENT_SOURCE_DIR}/community/mg_louvain_helper.cu"
+            "${CMAKE_CURRENT_SOURCE_DIR}/community/mg_louvain_test.cpp")
+
+        ConfigureTest(MG_LOUVAIN_TEST "${MG_LOUVAIN_TEST_SRCS}")
+        target_link_libraries(MG_LOUVAIN_TEST PRIVATE MPI::MPI_C MPI::MPI_CXX)
+        target_link_libraries(MG_LOUVAIN_TEST PRIVATE cugraph)
 
     else(MPI_CXX_FOUND)
        message(FATAL_ERROR "OpenMPI NOT found, cannot build MG tests.")

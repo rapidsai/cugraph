@@ -27,7 +27,7 @@
 
 #include <raft/handle.hpp>
 
-#include <cuco/static_map.cuh>
+#include <experimental/include_cuco_static_map.cuh>
 
 #include <type_traits>
 

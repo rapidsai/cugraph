@@ -20,6 +20,7 @@ import cudf
 import cugraph
 from cugraph.tests import utils
 
+
 # Temporarily suppress warnings till networkX fixes deprecation warnings
 # (Using or importing the ABCs from 'collections' instead of from
 # 'collections.abc' is deprecated, and in 3.8 it will stop working) for
@@ -70,7 +71,6 @@ def nx_call(M, verts, directed=True):
     return nx.subgraph(G, verts)
 
 
-# Test all combinations of default/managed and pooled/non-pooled allocation
 @pytest.mark.parametrize("graph_file", utils.DATASETS)
 def test_subgraph_extraction_DiGraph(graph_file):
     gc.collect()
@@ -83,9 +83,6 @@ def test_subgraph_extraction_DiGraph(graph_file):
     cu_sg = cugraph_call(M, verts)
     nx_sg = nx_call(M, verts)
     assert compare_edges(cu_sg, nx_sg)
-
-
-# Test all combinations of default/managed and pooled/non-pooled allocation
 
 
 @pytest.mark.parametrize("graph_file", utils.DATASETS)
