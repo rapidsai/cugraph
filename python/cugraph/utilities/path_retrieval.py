@@ -15,7 +15,7 @@ import numpy as np
 import cudf
 
 from cugraph.structure.symmetrize import symmetrize
-from  cugraph.structure.number_map import NumberMap
+from cugraph.structure.number_map import NumberMap
 from cugraph.utilities import path_retrieval_wrapper
 
 
@@ -87,8 +87,8 @@ def get_traversed_cost(df, source, source_col, dest_col, value_col):
                                                       ["vertex"],
                                                       ["predecessor"],
                                                       preserve_order=True)
-    renumbered_gdf = renumbered_gdf.rename(columns={'src' : 'vertex',
-                                                    'dst' : 'predecessor'})
+    renumbered_gdf = renumbered_gdf.rename(columns={'src': 'vertex',
+                                                    'dst': 'predecessor'})
 
     # Renumbering removed the predecessor information so we assign -1 to
     # the undefined edges like it was before the call
@@ -101,4 +101,3 @@ def get_traversed_cost(df, source, source_col, dest_col, value_col):
     out_df['vertex'] = renumber_map.unrenumber(renumbered_gdf, 'vertex',
                                                preserve_order=True)["vertex"]
     return out_df
-

@@ -86,10 +86,10 @@ def test_get_traversed_cost(graph_file):
     df = cugraph.sssp(G,  16)
 
     answer = cugraph.utilities.path_retrieval.get_traversed_cost(df, 16,
-                                                                   cu_M['0'],
-                                                                   cu_M['1'],
-                                                                   cu_M['info']
-                                                                   )
+                                                                 cu_M['0'],
+                                                                 cu_M['1'],
+                                                                 cu_M['info']
+                                                                 )
 
     df = df.sort_values(by='vertex').reset_index()
     answer = answer.sort_values(by='vertex').reset_index()
