@@ -86,9 +86,6 @@ class simpleGraphImpl:
         renumber=True,
     ):
 
-        if self.edgelist is not None or self.adjlist is not None:
-            raise Exception("Graph already has values")
-
         # Verify column names present in input DataFrame
         s_col = source
         d_col = destination
@@ -282,8 +279,6 @@ class simpleGraphImpl:
         self.edgelist = None
 
     def __from_adjlist(self, offset_col, index_col, value_col=None):
-        if self.edgelist is not None or self.adjlist is not None:
-            raise Exception("Graph already has values")
         self.adjlist = simpleGraphImpl.AdjList(offset_col, index_col,
                                                value_col)
 

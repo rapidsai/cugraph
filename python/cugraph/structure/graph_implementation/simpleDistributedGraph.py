@@ -60,8 +60,6 @@ class simpleDistributedGraphImpl:
         renumber=True,
         store_transposed=False,
     ):
-        if self.edgelist is not None:
-            raise Exception("Graph already has values")
         if not isinstance(input_ddf, dask_cudf.DataFrame):
             raise Exception("input should be a dask_cudf dataFrame")
         if self.properties.directed is False:
