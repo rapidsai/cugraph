@@ -37,7 +37,7 @@ class Graph:
         if m_graph is not None:
             if m_graph.is_multigraph():
                 elist = m_graph.view_edge_list()
-                if m_graph._Impl.edgelist.weights:
+                if m_graph.is_weighted():
                     weights = "weights"
                 else:
                     weights = None
