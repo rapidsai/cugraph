@@ -110,17 +110,17 @@ template void get_traversed_cost<int32_t, double>(raft::handle_t const &handle,
                                                   double *out,
                                                   int32_t num_vertices);
 
-template void get_traversed_cost<int64_t, float>(raft::handle_t const &handle,
-                                                 int64_t const *vertices,
-                                                 int64_t const *preds,
-                                                 float const *info_weights,
-                                                 float *out,
-                                                 int64_t num_vertices);
+template void get_traversed_cost<long long, float>(raft::handle_t const &handle,
+                                                   long long const *vertices,
+                                                   long long const *preds,
+                                                   float const *info_weights,
+                                                   float *out,
+                                                   long long num_vertices);
 
-template void get_traversed_cost<int64_t, double>(raft::handle_t const &handle,
-                                                  int64_t const *vertices,
-                                                  int64_t const *preds,
-                                                  double const *info_weights,
-                                                  double *out,
-                                                  int64_t num_vertices);
+template void get_traversed_cost<long long, double>(raft::handle_t const &handle,
+                                                    long long const *vertices,
+                                                    long long const *preds,
+                                                    double const *info_weights,
+                                                    double *out,
+                                                    long long num_vertices);
 }  // namespace cugraph

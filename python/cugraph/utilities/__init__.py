@@ -25,3 +25,4 @@ from cugraph.utilities.utils import (import_optional,
                                      is_cp_matrix_type,
                                      is_sp_matrix_type,
                                      )
+from cugraph.utilities.path_retrieval import get_traversed_cost

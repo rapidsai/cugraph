@@ -11,10 +11,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import numpy as np
 from numba import cuda
-from cugraph.structure.symmetrize import symmetrize
-from cugraph.utilities import path_retrieval_wrapper
 
 import cudf
 from rmm._cuda.gpu import (
@@ -188,73 +185,6 @@ def get_traversed_path_list(df, id):
         pred = ddf["predecessor"].iloc[0]
 
     return answer
-
-
-def get_traversed_cost(df, source, source_col, dest_col, value_col):
-    """
-    Take the DataFrame result from a BFS or SSSP function call and sums
-    the given weights along the path to the starting vertex.
-    The source_col, dest_col identifiers need to match with the vertex and
-    predecessor columns of df.
-
-    Input Parameters
-    ----------
-    df : cudf.DataFrame
-        The dataframe containing the results of a BFS or SSSP call
-    source: int
-        Index of the source vertex.
-    source_col : cudf.DataFrame
-        This cudf.Series wraps a gdf_column of size E (E: number of edges).
-        The gdf column contains the source index for each edge.
-        Source indices must be an integer type.
-    dest_col : cudf.Series
-        This cudf.Series wraps a gdf_column of size E (E: number of edges).
-        The gdf column contains the destination index for each edge.
-        Destination indices must be an integer type.
-    value_col : cudf.Series
-        This cudf.Series wraps a gdf_column of size E (E: number of edges).
-        The gdf column contains values associated with this edge.
-        Weight should be a floating type.
-
-    Returns
-    ---------
-    df : cudf.DataFrame
-        DataFrame containing two columns 'vertex' and 'info'.
-        Unreachable vertices will have value the max value of the weight type.
-    """
-
-    if 'vertex' not in df.columns:
-        raise ValueError("DataFrame does not appear to be a BFS or "
-                         "SSP result - 'vertex' column missing")
-    if 'distance' not in df.columns:
-        raise ValueError("DataFrame does not appear to be a BFS or "
-                         "SSP result - 'distance' column missing")
-    if 'predecessor' not in df.columns:
-        raise ValueError("DataFrame does not appear to be a BFS or "
-                         "SSP result - 'predecessor' column missing")
-
-    src, dst, val = symmetrize(source_col,
-                               dest_col,
-                               value_col)
-
-    symmetrized_df = cudf.DataFrame()
-    symmetrized_df['source'] = src
-    symmetrized_df['destination'] = dst
-    symmetrized_df['weights'] = val
-
-    input_df = df.merge(symmetrized_df,
-                        left_on=['vertex', 'predecessor'],
-                        right_on=['source', 'destination'],
-                        how="left"
-                        )
-
-    # Set unreachable vertex weights to max float and source vertex weight to 0
-    max_val = np.finfo(val.dtype).max
-    input_df[['weights']] = input_df[['weights']].fillna(max_val)
-    input_df.loc[input_df['vertex'] == source, 'weights'] = 0
-
-    out_df = path_retrieval_wrapper.get_traversed_cost(input_df)
-    return out_df
 
 
 def is_cuda_version_less_than(min_version=(10, 2)):
