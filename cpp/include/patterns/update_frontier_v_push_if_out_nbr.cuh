@@ -679,8 +679,11 @@ void update_frontier_v_push_if_out_nbr(
         auto bucket_idx  = thrust::get<0>(v_op_result);
         if (bucket_idx != invalid_bucket_idx) {
           *(vertex_value_output_first + key_offset) = thrust::get<1>(v_op_result);
+          return static_cast<uint8_t>(bucket_idx);
         }
-        return bucket_idx;
+        else {
+          return std::numeric_limits<uint8_t>::max();
+        }
       });
 
     resize_dataframe_buffer<payload_t>(payload_buffer, size_t{0}, handle.get_stream());
@@ -694,8 +697,8 @@ void update_frontier_v_push_if_out_nbr(
         thrust::remove_if(rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
                           bucket_key_pair_first,
                           bucket_key_pair_first + num_buffer_elements,
-                          [invalid_bucket_idx = VertexFrontierType::kInvalidBucketIdx] __device__(
-                            auto pair) { return thrust::get<0>(pair) == invalid_bucket_idx; })),
+                          [] __device__(
+                            auto pair) { return thrust::get<0>(pair) == std::numeric_limits<uint8_t>::max(); })),
       handle.get_stream());
     bucket_indices.resize(keys.size(), handle.get_stream());
     keys.shrink_to_fit(handle.get_stream());
