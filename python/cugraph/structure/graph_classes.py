@@ -111,6 +111,10 @@ class Graph:
         """
         if self._Impl is None:
             self._Impl = simpleGraphImpl(self.graph_properties)
+        else:
+            if (self._Impl.edgelist is not None or
+            self._Impl.adjlist is not None):
+                raise Exception("Graph already has values")
         self._Impl._simpleGraphImpl__from_edgelist(input_df,
                                                    source=source,
                                                    destination=destination,
@@ -159,6 +163,10 @@ class Graph:
         """
         if self._Impl is None:
             self._Impl = simpleGraphImpl(self.graph_properties)
+        else:
+            if (self._Impl.edgelist is not None or
+            self._Impl.adjlist is not None):
+                raise Exception("Graph already has values")
         self._Impl._simpleGraphImpl__from_adjlist(offset_col,
                                                   index_col,
                                                   value_col)
@@ -197,6 +205,9 @@ class Graph:
         """
         if self._Impl is None:
             self._Impl = simpleDistributedGraphImpl(self.graph_properties)
+        else:
+            if (self._Impl.edgelist is not None):
+                raise Exception("Graph already has values")
         self._Impl._simpleDistributedGraphImpl__from_edgelist(input_ddf,
                                                               source,
                                                               destination,
