@@ -432,6 +432,7 @@ add_library(cugraph SHARED
     src/experimental/graph_view.cu
     src/experimental/coarsen_graph.cu
     src/experimental/renumber_edgelist.cu
+    src/experimental/renumber_utils.cu
     src/experimental/relabel.cu
     src/experimental/induced_subgraph.cu
     src/experimental/bfs.cu

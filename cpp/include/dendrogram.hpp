@@ -27,7 +27,7 @@ class Dendrogram {
  public:
   void add_level(vertex_t first_index,
                  vertex_t num_verts,
-                 cudaStream_t stream                 = 0,
+                 cudaStream_t stream,
                  rmm::mr::device_memory_resource *mr = rmm::mr::get_current_device_resource())
   {
     level_ptr_.push_back(std::make_unique<rmm::device_uvector<vertex_t>>(num_verts, stream, mr));
