@@ -45,7 +45,8 @@ def get_traversed_cost(input_df):
     cdef uintptr_t out = <uintptr_t>NULL
     cdef uintptr_t info_weights = <uintptr_t>NULL
 
-    input_df['predecessor'] = input_df['predecessor'].astype(vertex_t)
+    input_df['vertex'] = input_df['vertex'].astype(np.int32)
+    input_df['predecessor'] = input_df['predecessor'].astype(np.int32)
     vertices = input_df['vertex'].__cuda_array_interface__['data'][0]
     preds = input_df['predecessor'].__cuda_array_interface__['data'][0]
     info_weights = input_df['weights'].__cuda_array_interface__['data'][0]
