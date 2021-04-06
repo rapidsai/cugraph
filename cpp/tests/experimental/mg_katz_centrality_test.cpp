@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 
-#include <utilities/base_fixture.hpp>
 #include <utilities/high_res_clock.h>
+#include <utilities/base_fixture.hpp>
 #include <utilities/test_utilities.hpp>
 #include <utilities/thrust_wrapper.hpp>
 

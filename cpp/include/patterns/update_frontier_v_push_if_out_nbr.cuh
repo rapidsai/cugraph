@@ -680,8 +680,7 @@ void update_frontier_v_push_if_out_nbr(
         if (bucket_idx != invalid_bucket_idx) {
           *(vertex_value_output_first + key_offset) = thrust::get<1>(v_op_result);
           return static_cast<uint8_t>(bucket_idx);
-        }
-        else {
+        } else {
           return std::numeric_limits<uint8_t>::max();
         }
       });
@@ -691,15 +690,16 @@ void update_frontier_v_push_if_out_nbr(
 
     auto bucket_key_pair_first =
       thrust::make_zip_iterator(thrust::make_tuple(bucket_indices.begin(), keys.begin()));
-    keys.resize(
-      thrust::distance(
-        bucket_key_pair_first,
-        thrust::remove_if(rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
-                          bucket_key_pair_first,
-                          bucket_key_pair_first + num_buffer_elements,
-                          [] __device__(
-                            auto pair) { return thrust::get<0>(pair) == std::numeric_limits<uint8_t>::max(); })),
-      handle.get_stream());
+    keys.resize(thrust::distance(
+                  bucket_key_pair_first,
+                  thrust::remove_if(rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
+                                    bucket_key_pair_first,
+                                    bucket_key_pair_first + num_buffer_elements,
+                                    [] __device__(auto pair) {
+                                      return thrust::get<0>(pair) ==
+                                             std::numeric_limits<uint8_t>::max();
+                                    })),
+                handle.get_stream());
     bucket_indices.resize(keys.size(), handle.get_stream());
     keys.shrink_to_fit(handle.get_stream());
     bucket_indices.shrink_to_fit(handle.get_stream());

@@ -66,8 +66,8 @@ struct shrink_to_fit_dataframe_buffer_tuple_iterator_element_impl {
   void run(BufferType& buffer, cudaStream_t stream)
   {
     std::get<I>(buffer).shrink_to_fit(stream);
-    shrink_to_fit_dataframe_buffer_tuple_iterator_element_impl<TupleType, BufferType, I + 1, N>().run(
-      buffer, stream);
+    shrink_to_fit_dataframe_buffer_tuple_iterator_element_impl<TupleType, BufferType, I + 1, N>()
+      .run(buffer, stream);
   }
 };
 
@@ -140,9 +140,11 @@ template <typename T,
 void shrink_to_fit_dataframe_buffer(BufferType& buffer, cudaStream_t stream)
 {
   size_t constexpr tuple_size = thrust::tuple_size<T>::value;
-  detail::
-    shrink_to_fit_dataframe_buffer_tuple_iterator_element_impl<T, BufferType, size_t{0}, tuple_size>()
-      .run(buffer, stream);
+  detail::shrink_to_fit_dataframe_buffer_tuple_iterator_element_impl<T,
+                                                                     BufferType,
+                                                                     size_t{0},
+                                                                     tuple_size>()
+    .run(buffer, stream);
 }
 
 template <typename T,
