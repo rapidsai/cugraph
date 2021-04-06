@@ -93,7 +93,7 @@ struct graph_container_t {
   void* weights;
   void* vertex_partition_offsets;
 
-  size_t num_partition_edges;
+  size_t num_local_edges;
   size_t num_global_vertices;
   size_t num_global_edges;
   numberTypeEnum vertexType;
@@ -103,7 +103,6 @@ struct graph_container_t {
   bool is_multi_gpu;
   bool sorted_by_degree;
   bool do_expensive_check;
-  bool hypergraph_partitioned;
   int row_comm_size;
   int col_comm_size;
   int row_comm_rank;
@@ -147,7 +146,7 @@ struct cy_multi_edgelists_t {
 // replacement for std::tuple<,,>, since std::tuple is not
 // supported in cython
 //
-template <typename vertex_t, typename weight_t>
+template <typename vertex_t, typename edge_t, typename weight_t>
 struct major_minor_weights_t {
   explicit major_minor_weights_t(raft::handle_t const& handle)
     : shuffled_major_vertices_(0, handle.get_stream()),
@@ -155,11 +154,14 @@ struct major_minor_weights_t {
       shuffled_weights_(0, handle.get_stream())
   {
   }
+
   rmm::device_uvector<vertex_t>& get_major(void) { return shuffled_major_vertices_; }
 
   rmm::device_uvector<vertex_t>& get_minor(void) { return shuffled_minor_vertices_; }
 
   rmm::device_uvector<weight_t>& get_weights(void) { return shuffled_weights_; }
+
+  std::vector<edge_t>& get_edge_counts(void) { return edge_counts_; }
 
   std::pair<std::unique_ptr<rmm::device_buffer>, size_t> get_major_wrap(
     void)  // const: triggers errors in Cython autogen-ed C++
@@ -180,10 +182,16 @@ struct major_minor_weights_t {
                           sizeof(weight_t));
   }
 
+  std::unique_ptr<std::vector<edge_t>> get_edge_counts_wrap(void)  // const
+  {
+    return std::make_unique<std::vector<edge_t>>(edge_counts_);
+  }
+
  private:
   rmm::device_uvector<vertex_t> shuffled_major_vertices_;
   rmm::device_uvector<vertex_t> shuffled_minor_vertices_;
   rmm::device_uvector<weight_t> shuffled_weights_;
+  std::vector<edge_t> edge_counts_{};
 };
 
 // aggregate for random_walks() return type
@@ -353,6 +361,9 @@ struct renum_quad_t {
 //   The number of vertices and edges respectively in the graph represented by
 //   the above arrays.
 //
+// bool is_weighted
+//   true if the resulting graph object should store edge weights
+//
 // bool transposed
 //   true if the resulting graph object should store a transposed adjacency
 //   matrix
@@ -369,10 +380,11 @@ void populate_graph_container(graph_container_t& graph_container,
                               numberTypeEnum vertexType,
                               numberTypeEnum edgeType,
                               numberTypeEnum weightType,
-                              size_t num_partition_edges,
+                              size_t num_local_edges,
                               size_t num_global_vertices,
                               size_t num_global_edges,
                               bool sorted_by_degree,
+                              bool is_weighted,
                               bool transposed,
                               bool multi_gpu);
 
@@ -470,14 +482,13 @@ call_random_walks(raft::handle_t const& handle,
 // wrapper for shuffling:
 //
 template <typename vertex_t, typename edge_t, typename weight_t>
-std::unique_ptr<major_minor_weights_t<vertex_t, weight_t>> call_shuffle(
+std::unique_ptr<major_minor_weights_t<vertex_t, edge_t, weight_t>> call_shuffle(
   raft::handle_t const& handle,
   vertex_t*
     edgelist_major_vertices,  // [IN / OUT]: groupby_gpuid_and_shuffle_values() sorts in-place
   vertex_t* edgelist_minor_vertices,  // [IN / OUT]
   weight_t* edgelist_weights,         // [IN / OUT]
-  edge_t num_edgelist_edges,
-  bool is_hypergraph_partitioned);  // = false
+  edge_t num_edgelist_edges);
 
 // Wrapper for calling renumber_edeglist() inplace:
 //
@@ -486,8 +497,7 @@ std::unique_ptr<renum_quad_t<vertex_t, edge_t>> call_renumber(
   raft::handle_t const& handle,
   vertex_t* shuffled_edgelist_major_vertices /* [INOUT] */,
   vertex_t* shuffled_edgelist_minor_vertices /* [INOUT] */,
-  edge_t num_edgelist_edges,
-  bool is_hypergraph_partitioned,
+  std::vector<edge_t> const& edge_counts,
   bool do_expensive_check,
   bool multi_gpu);
 

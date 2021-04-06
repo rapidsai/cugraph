@@ -16,9 +16,11 @@
 
 #include <utilities/base_fixture.hpp>
 #include <utilities/test_utilities.hpp>
+#include <utilities/thrust_wrapper.hpp>
 
 #include <algorithms.hpp>
 #include <experimental/graph.hpp>
+#include <experimental/graph_functions.hpp>
 #include <experimental/graph_view.hpp>
 
 #include <raft/cudart_utils.h>
@@ -33,6 +35,11 @@
 #include <limits>
 #include <numeric>
 #include <vector>
+
+// do the perf measurements
+// enabled by command line parameter s'--perf'
+//
+static int PERF = 0;
 
 template <typename vertex_t, typename edge_t, typename weight_t, typename result_t>
 void katz_centrality_reference(edge_t const* offsets,
@@ -92,9 +99,12 @@ typedef struct KatzCentrality_Usecase_t {
   cugraph::test::input_graph_specifier_t input_graph_specifier{};
 
   bool test_weighted{false};
+  bool check_correctness{false};
 
-  KatzCentrality_Usecase_t(std::string const& graph_file_path, bool test_weighted)
-    : test_weighted(test_weighted)
+  KatzCentrality_Usecase_t(std::string const& graph_file_path,
+                           bool test_weighted,
+                           bool check_correctness = true)
+    : test_weighted(test_weighted), check_correctness(check_correctness)
   {
     std::string graph_file_full_path{};
     if ((graph_file_path.length() > 0) && (graph_file_path[0] != '/')) {
@@ -107,14 +117,44 @@ typedef struct KatzCentrality_Usecase_t {
   };
 
   KatzCentrality_Usecase_t(cugraph::test::rmat_params_t rmat_params,
-                           double personalization_ratio,
-                           bool test_weighted)
-    : test_weighted(test_weighted)
+                           bool test_weighted,
+                           bool check_correctness = true)
+    : test_weighted(test_weighted), check_correctness(check_correctness)
   {
     input_graph_specifier.tag         = cugraph::test::input_graph_specifier_t::RMAT_PARAMS;
     input_graph_specifier.rmat_params = rmat_params;
   }
 } KatzCentrality_Usecase;
+
+template <typename vertex_t, typename edge_t, typename weight_t>
+std::tuple<cugraph::experimental::graph_t<vertex_t, edge_t, weight_t, true, false>,
+           rmm::device_uvector<vertex_t>>
+read_graph(raft::handle_t const& handle, KatzCentrality_Usecase const& configuration, bool renumber)
+{
+  return configuration.input_graph_specifier.tag ==
+             cugraph::test::input_graph_specifier_t::MATRIX_MARKET_FILE_PATH
+           ? cugraph::test::
+               read_graph_from_matrix_market_file<vertex_t, edge_t, weight_t, true, false>(
+                 handle,
+                 configuration.input_graph_specifier.graph_file_full_path,
+                 configuration.test_weighted,
+                 renumber)
+           : cugraph::test::
+               generate_graph_from_rmat_params<vertex_t, edge_t, weight_t, true, false>(
+                 handle,
+                 configuration.input_graph_specifier.rmat_params.scale,
+                 configuration.input_graph_specifier.rmat_params.edge_factor,
+                 configuration.input_graph_specifier.rmat_params.a,
+                 configuration.input_graph_specifier.rmat_params.b,
+                 configuration.input_graph_specifier.rmat_params.c,
+                 configuration.input_graph_specifier.rmat_params.seed,
+                 configuration.input_graph_specifier.rmat_params.undirected,
+                 configuration.input_graph_specifier.rmat_params.scramble_vertex_ids,
+                 configuration.test_weighted,
+                 renumber,
+                 std::vector<size_t>{0},
+                 size_t{1});
+}
 
 class Tests_KatzCentrality : public ::testing::TestWithParam<KatzCentrality_Usecase> {
  public:
@@ -128,75 +168,25 @@ class Tests_KatzCentrality : public ::testing::TestWithParam<KatzCentrality_Usec
   template <typename vertex_t, typename edge_t, typename weight_t, typename result_t>
   void run_current_test(KatzCentrality_Usecase const& configuration)
   {
+    constexpr bool renumber = true;
+
     raft::handle_t handle{};
 
     cugraph::experimental::graph_t<vertex_t, edge_t, weight_t, true, false> graph(handle);
-    std::tie(graph, std::ignore) =
-      configuration.input_graph_specifier.tag ==
-          cugraph::test::input_graph_specifier_t::MATRIX_MARKET_FILE_PATH
-        ? cugraph::test::
-            read_graph_from_matrix_market_file<vertex_t, edge_t, weight_t, true, false>(
-              handle,
-              configuration.input_graph_specifier.graph_file_full_path,
-              configuration.test_weighted,
-              false)
-        : cugraph::test::generate_graph_from_rmat_params<vertex_t, edge_t, weight_t, true, false>(
-            handle,
-            configuration.input_graph_specifier.rmat_params.scale,
-            configuration.input_graph_specifier.rmat_params.edge_factor,
-            configuration.input_graph_specifier.rmat_params.a,
-            configuration.input_graph_specifier.rmat_params.b,
-            configuration.input_graph_specifier.rmat_params.c,
-            configuration.input_graph_specifier.rmat_params.seed,
-            configuration.input_graph_specifier.rmat_params.undirected,
-            configuration.input_graph_specifier.rmat_params.scramble_vertex_ids,
-            configuration.test_weighted,
-            false);
+    rmm::device_uvector<vertex_t> d_renumber_map_labels(0, handle.get_stream());
+    std::tie(graph, d_renumber_map_labels) =
+      read_graph<vertex_t, edge_t, weight_t>(handle, configuration, renumber);
     auto graph_view = graph.view();
 
-    std::vector<edge_t> h_offsets(graph_view.get_number_of_vertices() + 1);
-    std::vector<vertex_t> h_indices(graph_view.get_number_of_edges());
-    std::vector<weight_t> h_weights{};
-    raft::update_host(h_offsets.data(),
-                      graph_view.offsets(),
-                      graph_view.get_number_of_vertices() + 1,
-                      handle.get_stream());
-    raft::update_host(h_indices.data(),
-                      graph_view.indices(),
-                      graph_view.get_number_of_edges(),
-                      handle.get_stream());
-    if (graph_view.is_weighted()) {
-      h_weights.assign(graph_view.get_number_of_edges(), weight_t{0.0});
-      raft::update_host(h_weights.data(),
-                        graph_view.weights(),
-                        graph_view.get_number_of_edges(),
-                        handle.get_stream());
-    }
-    CUDA_TRY(cudaStreamSynchronize(handle.get_stream()));
-
-    std::vector<result_t> h_reference_katz_centralities(graph_view.get_number_of_vertices());
-
-    std::vector<edge_t> tmps(h_offsets.size());
-    std::adjacent_difference(h_offsets.begin(), h_offsets.end(), tmps.begin());
-    auto max_it = std::max_element(tmps.begin(), tmps.end());
+    auto degrees = graph_view.compute_in_degrees(handle);
+    std::vector<edge_t> h_degrees(degrees.size());
+    raft::update_host(h_degrees.data(), degrees.data(), degrees.size(), handle.get_stream());
+    handle.get_stream_view().synchronize();
+    auto max_it = std::max_element(h_degrees.begin(), h_degrees.end());
 
     result_t const alpha = result_t{1.0} / static_cast<result_t>(*max_it + 1);
     result_t constexpr beta{1.0};
     result_t constexpr epsilon{1e-6};
-
-    katz_centrality_reference(
-      h_offsets.data(),
-      h_indices.data(),
-      h_weights.size() > 0 ? h_weights.data() : static_cast<weight_t*>(nullptr),
-      static_cast<result_t*>(nullptr),
-      h_reference_katz_centralities.data(),
-      graph_view.get_number_of_vertices(),
-      alpha,
-      beta,
-      epsilon,
-      std::numeric_limits<size_t>::max(),
-      false,
-      true);
 
     rmm::device_uvector<result_t> d_katz_centralities(graph_view.get_number_of_vertices(),
                                                       handle.get_stream());
@@ -206,39 +196,98 @@ class Tests_KatzCentrality : public ::testing::TestWithParam<KatzCentrality_Usec
     cugraph::experimental::katz_centrality(handle,
                                            graph_view,
                                            static_cast<result_t*>(nullptr),
-                                           d_katz_centralities.begin(),
+                                           d_katz_centralities.data(),
                                            alpha,
                                            beta,
                                            epsilon,
                                            std::numeric_limits<size_t>::max(),
                                            false,
-                                           true,
-                                           false);
+                                           true);
 
     CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
 
-    std::vector<result_t> h_cugraph_katz_centralities(graph_view.get_number_of_vertices());
+    if (configuration.check_correctness) {
+      cugraph::experimental::graph_t<vertex_t, edge_t, weight_t, true, false> unrenumbered_graph(
+        handle);
+      if (renumber) {
+        std::tie(unrenumbered_graph, std::ignore) =
+          read_graph<vertex_t, edge_t, weight_t>(handle, configuration, false);
+      }
+      auto unrenumbered_graph_view = renumber ? unrenumbered_graph.view() : graph_view;
 
-    raft::update_host(h_cugraph_katz_centralities.data(),
-                      d_katz_centralities.data(),
-                      d_katz_centralities.size(),
-                      handle.get_stream());
-    CUDA_TRY(cudaStreamSynchronize(handle.get_stream()));
+      std::vector<edge_t> h_offsets(unrenumbered_graph_view.get_number_of_vertices() + 1);
+      std::vector<vertex_t> h_indices(unrenumbered_graph_view.get_number_of_edges());
+      std::vector<weight_t> h_weights{};
+      raft::update_host(h_offsets.data(),
+                        unrenumbered_graph_view.offsets(),
+                        unrenumbered_graph_view.get_number_of_vertices() + 1,
+                        handle.get_stream());
+      raft::update_host(h_indices.data(),
+                        unrenumbered_graph_view.indices(),
+                        unrenumbered_graph_view.get_number_of_edges(),
+                        handle.get_stream());
+      if (unrenumbered_graph_view.is_weighted()) {
+        h_weights.assign(unrenumbered_graph_view.get_number_of_edges(), weight_t{0.0});
+        raft::update_host(h_weights.data(),
+                          unrenumbered_graph_view.weights(),
+                          unrenumbered_graph_view.get_number_of_edges(),
+                          handle.get_stream());
+      }
 
-    auto threshold_ratio = 1e-3;
-    auto threshold_magnitude =
-      (1.0 / static_cast<result_t>(graph_view.get_number_of_vertices())) *
-      threshold_ratio;  // skip comparison for low Katz Centrality verties (lowly ranked vertices)
-    auto nearly_equal = [threshold_ratio, threshold_magnitude](auto lhs, auto rhs) {
-      return std::abs(lhs - rhs) <
-             std::max(std::max(lhs, rhs) * threshold_ratio, threshold_magnitude);
-    };
+      handle.get_stream_view().synchronize();
 
-    ASSERT_TRUE(std::equal(h_reference_katz_centralities.begin(),
-                           h_reference_katz_centralities.end(),
-                           h_cugraph_katz_centralities.begin(),
-                           nearly_equal))
-      << "Katz centrality values do not match with the reference values.";
+      std::vector<result_t> h_reference_katz_centralities(
+        unrenumbered_graph_view.get_number_of_vertices());
+
+      katz_centrality_reference(
+        h_offsets.data(),
+        h_indices.data(),
+        h_weights.size() > 0 ? h_weights.data() : static_cast<weight_t*>(nullptr),
+        static_cast<result_t*>(nullptr),
+        h_reference_katz_centralities.data(),
+        unrenumbered_graph_view.get_number_of_vertices(),
+        alpha,
+        beta,
+        epsilon,
+        std::numeric_limits<size_t>::max(),
+        false,
+        true);
+
+      std::vector<result_t> h_cugraph_katz_centralities(graph_view.get_number_of_vertices());
+      if (renumber) {
+        auto d_unrenumbered_katz_centralities =
+          cugraph::test::sort_by_key(handle,
+                                     d_renumber_map_labels.data(),
+                                     d_katz_centralities.data(),
+                                     d_renumber_map_labels.size());
+        raft::update_host(h_cugraph_katz_centralities.data(),
+                          d_unrenumbered_katz_centralities.data(),
+                          d_unrenumbered_katz_centralities.size(),
+                          handle.get_stream());
+      } else {
+        raft::update_host(h_cugraph_katz_centralities.data(),
+                          d_katz_centralities.data(),
+                          d_katz_centralities.size(),
+                          handle.get_stream());
+      }
+
+      handle.get_stream_view().synchronize();
+
+      auto threshold_ratio = 1e-3;
+      auto threshold_magnitude =
+        (1.0 / static_cast<result_t>(graph_view.get_number_of_vertices())) *
+        threshold_ratio;  // skip comparison for low Katz Centrality verties (lowly ranked vertices)
+      auto nearly_equal = [threshold_ratio, threshold_magnitude](auto lhs, auto rhs) {
+        return std::abs(lhs - rhs) <
+               std::max(std::max(lhs, rhs) * threshold_ratio, threshold_magnitude);
+      };
+
+      ASSERT_TRUE(std::equal(h_reference_katz_centralities.begin(),
+                             h_reference_katz_centralities.end(),
+                             h_cugraph_katz_centralities.begin(),
+                             nearly_equal))
+        << "Katz centrality values do not match with the reference values.";
+    }
   }
 };
 
@@ -252,6 +301,7 @@ INSTANTIATE_TEST_CASE_P(
   simple_test,
   Tests_KatzCentrality,
   ::testing::Values(
+    // enable correctness checks
     KatzCentrality_Usecase("test/datasets/karate.mtx", false),
     KatzCentrality_Usecase("test/datasets/karate.mtx", true),
     KatzCentrality_Usecase("test/datasets/web-Google.mtx", false),
@@ -261,16 +311,15 @@ INSTANTIATE_TEST_CASE_P(
     KatzCentrality_Usecase("test/datasets/webbase-1M.mtx", false),
     KatzCentrality_Usecase("test/datasets/webbase-1M.mtx", true),
     KatzCentrality_Usecase(cugraph::test::rmat_params_t{10, 16, 0.57, 0.19, 0.19, 0, false, false},
-                           0.0,
                            false),
     KatzCentrality_Usecase(cugraph::test::rmat_params_t{10, 16, 0.57, 0.19, 0.19, 0, false, false},
-                           0.5,
-                           false),
-    KatzCentrality_Usecase(cugraph::test::rmat_params_t{10, 16, 0.57, 0.19, 0.19, 0, false, false},
-                           0.0,
                            true),
-    KatzCentrality_Usecase(cugraph::test::rmat_params_t{10, 16, 0.57, 0.19, 0.19, 0, false, false},
-                           0.5,
-                           true)));
+    // disable correctness checks for large graphs
+    KatzCentrality_Usecase(cugraph::test::rmat_params_t{20, 32, 0.57, 0.19, 0.19, 0, false, false},
+                           false,
+                           false),
+    KatzCentrality_Usecase(cugraph::test::rmat_params_t{20, 32, 0.57, 0.19, 0.19, 0, false, false},
+                           true,
+                           false)));
 
 CUGRAPH_TEST_PROGRAM_MAIN()
