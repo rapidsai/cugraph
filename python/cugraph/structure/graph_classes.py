@@ -57,6 +57,7 @@ class Graph:
             raise AttributeError(name)
         if hasattr(self._Impl, name):
             return getattr(self._Impl, name)
+        # FIXME: Remove access to Impl properties
         elif hasattr(self._Impl.properties, name):
             return getattr(self._Impl.properties, name)
         else:

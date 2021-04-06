@@ -23,6 +23,7 @@ import numpy as np
 from cugraph.dask.structure import replication
 
 
+# FIXME: Change to consistent camel case naming
 class simpleGraphImpl:
 
     class EdgeList:
@@ -77,6 +78,8 @@ class simpleGraphImpl:
         self.batch_transposed_adjlists = None
 
     # Functions
+    # FIXME: Change to public function
+    # FIXME: Make function more modular
     def __from_edgelist(
         self,
         input_df,
@@ -97,6 +100,7 @@ class simpleGraphImpl:
             set(s_col).issubset(set(input_df.columns))
             and set(d_col).issubset(set(input_df.columns))
         ):
+            # FIXME: Raise concrete Exceptions
             raise Exception(
                 "source column names and/or destination column "
                 "names not found in input. Recheck the source and "
@@ -380,6 +384,7 @@ class simpleGraphImpl:
         """
         self.adjlist = None
 
+    # FIXME: Update batch workflow and refactor to suitable file
     def enable_batch(self):
         client = mg_utils.get_client()
         comms = Comms.get_comms()
