@@ -376,6 +376,8 @@ void copy_v_transform_reduce_nbr(raft::handle_t const& handle,
         raft::grid_1d_block_t update_grid(segment_offsets[1],
                                           detail::copy_v_transform_reduce_nbr_for_all_block_size,
                                           handle.get_device_properties().maxGridSize[0]);
+        // FIXME: with C++17 we can collapse the if-else statement below with a functor with "if
+        // constexpr" that returns either a multi-GPU output buffer or a single-GPU output buffer.
         if (GraphViewType::is_multi_gpu) {
           detail::for_all_major_for_all_nbr_high_degree<update_major>
             <<<update_grid.num_blocks, update_grid.block_size, 0, handle.get_stream()>>>(
@@ -404,6 +406,8 @@ void copy_v_transform_reduce_nbr(raft::handle_t const& handle,
         raft::grid_1d_warp_t update_grid(segment_offsets[2] - segment_offsets[1],
                                          detail::copy_v_transform_reduce_nbr_for_all_block_size,
                                          handle.get_device_properties().maxGridSize[0]);
+        // FIXME: with C++17 we can collapse the if-else statement below with a functor with "if
+        // constexpr" that returns either a multi-GPU output buffer or a single-GPU output buffer.
         if (GraphViewType::is_multi_gpu) {
           detail::for_all_major_for_all_nbr_mid_degree<update_major>
             <<<update_grid.num_blocks, update_grid.block_size, 0, handle.get_stream()>>>(
@@ -432,7 +436,8 @@ void copy_v_transform_reduce_nbr(raft::handle_t const& handle,
         raft::grid_1d_thread_t update_grid(segment_offsets[3] - segment_offsets[2],
                                            detail::copy_v_transform_reduce_nbr_for_all_block_size,
                                            handle.get_device_properties().maxGridSize[0]);
-
+        // FIXME: with C++17 we can collapse the if-else statement below with a functor with "if
+        // constexpr" that returns either a multi-GPU output buffer or a single-GPU output buffer.
         if (GraphViewType::is_multi_gpu) {
           detail::for_all_major_for_all_nbr_low_degree<update_major>
             <<<update_grid.num_blocks, update_grid.block_size, 0, handle.get_stream()>>>(
@@ -462,7 +467,8 @@ void copy_v_transform_reduce_nbr(raft::handle_t const& handle,
         raft::grid_1d_thread_t update_grid(matrix_partition.get_major_size(),
                                            detail::copy_v_transform_reduce_nbr_for_all_block_size,
                                            handle.get_device_properties().maxGridSize[0]);
-
+        // FIXME: with C++17 we can collapse the if-else statement below with a functor with "if
+        // constexpr" that returns either a multi-GPU output buffer or a single-GPU output buffer.
         if (GraphViewType::is_multi_gpu) {
           detail::for_all_major_for_all_nbr_low_degree<update_major>
             <<<update_grid.num_blocks, update_grid.block_size, 0, handle.get_stream()>>>(
