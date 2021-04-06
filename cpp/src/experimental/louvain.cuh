@@ -151,7 +151,8 @@ class Louvain {
  protected:
   void initialize_dendrogram_level(vertex_t num_vertices)
   {
-    dendrogram_->add_level(current_graph_view_.get_local_vertex_first(), num_vertices);
+    dendrogram_->add_level(
+      current_graph_view_.get_local_vertex_first(), num_vertices, handle_.get_stream());
 
     thrust::sequence(rmm::exec_policy(handle_.get_stream())->on(handle_.get_stream()),
                      dendrogram_->current_level_begin(),
@@ -369,8 +370,6 @@ class Louvain {
       current_graph_view_.get_number_of_local_vertices(), handle_.get_stream());
     rmm::device_uvector<weight_t> src_cluster_weights_v(next_cluster_v.size(),
                                                         handle_.get_stream());
-    rmm::device_uvector<weight_t> dst_cluster_weights_v(next_cluster_v.size(),
-                                                        handle_.get_stream());
 
     compute_cluster_sum_and_subtract(old_cluster_sum_v, cluster_subtract_v);
 
@@ -396,19 +395,9 @@ class Louvain {
         vertex_to_gpu_id_op,
         handle_.get_stream());
 
-      dst_cluster_weights_v = cugraph::experimental::collect_values_for_keys(
-        handle_.get_comms(),
-        cluster_keys_v_.begin(),
-        cluster_keys_v_.end(),
-        cluster_weights_v_.data(),
-        d_dst_cluster_cache_,
-        d_dst_cluster_cache_ + dst_cluster_cache_v_.size(),
-        vertex_to_gpu_id_op,
-        handle_.get_stream());
-
-      map_key_first   = d_dst_cluster_cache_;
-      map_key_last    = d_dst_cluster_cache_ + dst_cluster_cache_v_.size();
-      map_value_first = dst_cluster_weights_v.begin();
+      map_key_first   = cluster_keys_v_.begin();
+      map_key_last    = cluster_keys_v_.end();
+      map_value_first = cluster_weights_v_.begin();
     } else {
       thrust::sort_by_key(rmm::exec_policy(handle_.get_stream())->on(handle_.get_stream()),
                           cluster_keys_v_.begin(),
@@ -432,12 +421,21 @@ class Louvain {
       map_value_first = src_cluster_weights_v.begin();
     }
 
+    rmm::device_uvector<weight_t> src_old_cluster_sum_v(
+      current_graph_view_.get_number_of_local_adj_matrix_partition_rows(), handle_.get_stream());
+    rmm::device_uvector<weight_t> src_cluster_subtract_v(
+      current_graph_view_.get_number_of_local_adj_matrix_partition_rows(), handle_.get_stream());
+    copy_to_adj_matrix_row(
+      handle_, current_graph_view_, old_cluster_sum_v.begin(), src_old_cluster_sum_v.begin());
+    copy_to_adj_matrix_row(
+      handle_, current_graph_view_, cluster_subtract_v.begin(), src_cluster_subtract_v.begin());
+
     copy_v_transform_reduce_key_aggregated_out_nbr(
       handle_,
       current_graph_view_,
-      thrust::make_zip_iterator(thrust::make_tuple(old_cluster_sum_v.begin(),
+      thrust::make_zip_iterator(thrust::make_tuple(src_old_cluster_sum_v.begin(),
                                                    d_src_vertex_weights_cache_,
-                                                   cluster_subtract_v.begin(),
+                                                   src_cluster_subtract_v.begin(),
                                                    d_src_cluster_cache_,
                                                    src_cluster_weights_v.begin())),
 

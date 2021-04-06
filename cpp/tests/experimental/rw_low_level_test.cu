@@ -53,7 +53,8 @@ graph_t<vertex_t, edge_t, weight_t, false, false> make_graph(raft::handle_t cons
                                                              std::vector<vertex_t> const& v_dst,
                                                              std::vector<weight_t> const& v_w,
                                                              vertex_t num_vertices,
-                                                             edge_t num_edges)
+                                                             edge_t num_edges,
+                                                             bool is_weighted)
 {
   vector_test_t<vertex_t> d_src(num_edges, handle.get_stream());
   vector_test_t<vertex_t> d_dst(num_edges, handle.get_stream());
@@ -67,7 +68,7 @@ graph_t<vertex_t, edge_t, weight_t, false, false> make_graph(raft::handle_t cons
     d_src.data(), d_dst.data(), d_weights.data(), num_edges};
 
   graph_t<vertex_t, edge_t, weight_t, false, false> graph(
-    handle, edgelist, num_vertices, graph_properties_t{}, false);
+    handle, edgelist, num_vertices, graph_properties_t{false, false, is_weighted}, false);
 
   return graph;
 }
@@ -119,7 +120,7 @@ TEST_F(RandomWalksPrimsTest, SimpleGraphRWStart)
   std::vector<vertex_t> v_dst{1, 3, 4, 0, 1, 3, 5, 5};
   std::vector<weight_t> v_w{0.1, 1.1, 2.1, 3.1, 4.1, 5.1, 6.1, 7.1};
 
-  auto graph = make_graph(handle, v_src, v_dst, v_w, num_vertices, num_edges);
+  auto graph = make_graph(handle, v_src, v_dst, v_w, num_vertices, num_edges, true);
 
   auto graph_view = graph.view();
 
@@ -199,7 +200,7 @@ TEST_F(RandomWalksPrimsTest, SimpleGraphCoalesceExperiments)
   std::vector<vertex_t> v_dst{1, 3, 4, 0, 1, 3, 5, 5};
   std::vector<weight_t> v_w{0.1, 1.1, 2.1, 3.1, 4.1, 5.1, 6.1, 7.1};
 
-  auto graph = make_graph(handle, v_src, v_dst, v_w, num_vertices, num_edges);
+  auto graph = make_graph(handle, v_src, v_dst, v_w, num_vertices, num_edges, true);
 
   auto graph_view = graph.view();
 
@@ -275,7 +276,7 @@ TEST_F(RandomWalksPrimsTest, SimpleGraphColExtraction)
   std::vector<vertex_t> v_dst{1, 3, 4, 0, 1, 3, 5, 5};
   std::vector<weight_t> v_w{0.1, 1.1, 2.1, 3.1, 4.1, 5.1, 6.1, 7.1};
 
-  auto graph = make_graph(handle, v_src, v_dst, v_w, num_vertices, num_edges);
+  auto graph = make_graph(handle, v_src, v_dst, v_w, num_vertices, num_edges, true);
 
   auto graph_view = graph.view();
 
@@ -371,7 +372,7 @@ TEST_F(RandomWalksPrimsTest, SimpleGraphRndGenColIndx)
   std::vector<vertex_t> v_dst{1, 3, 4, 0, 1, 3, 5, 5};
   std::vector<weight_t> v_w{0.1, 1.1, 2.1, 3.1, 4.1, 5.1, 6.1, 7.1};
 
-  auto graph = make_graph(handle, v_src, v_dst, v_w, num_vertices, num_edges);
+  auto graph = make_graph(handle, v_src, v_dst, v_w, num_vertices, num_edges, true);
 
   auto graph_view = graph.view();
 
@@ -449,7 +450,7 @@ TEST_F(RandomWalksPrimsTest, SimpleGraphUpdatePathSizes)
   std::vector<vertex_t> v_dst{1, 3, 4, 0, 1, 3, 5, 5};
   std::vector<weight_t> v_w{0.1, 1.1, 2.1, 3.1, 4.1, 5.1, 6.1, 7.1};
 
-  auto graph = make_graph(handle, v_src, v_dst, v_w, num_vertices, num_edges);
+  auto graph = make_graph(handle, v_src, v_dst, v_w, num_vertices, num_edges, true);
 
   auto graph_view = graph.view();
 
@@ -521,7 +522,7 @@ TEST_F(RandomWalksPrimsTest, SimpleGraphScatterUpdate)
   std::vector<vertex_t> v_dst{1, 3, 4, 0, 1, 3, 5, 5};
   std::vector<weight_t> v_w{0.1, 1.1, 2.1, 3.1, 4.1, 5.1, 6.1, 7.1};
 
-  auto graph = make_graph(handle, v_src, v_dst, v_w, num_vertices, num_edges);
+  auto graph = make_graph(handle, v_src, v_dst, v_w, num_vertices, num_edges, true);
 
   auto graph_view = graph.view();
 
@@ -666,7 +667,7 @@ TEST_F(RandomWalksPrimsTest, SimpleGraphCoalesceDefragment)
   std::vector<vertex_t> v_dst{1, 3, 4, 0, 1, 3, 5, 5};
   std::vector<weight_t> v_w{0.1, 1.1, 2.1, 3.1, 4.1, 5.1, 6.1, 7.1};
 
-  auto graph = make_graph(handle, v_src, v_dst, v_w, num_vertices, num_edges);
+  auto graph = make_graph(handle, v_src, v_dst, v_w, num_vertices, num_edges, true);
 
   auto graph_view = graph.view();
 
@@ -741,7 +742,7 @@ TEST_F(RandomWalksPrimsTest, SimpleGraphRandomWalk)
   std::vector<vertex_t> v_dst{1, 3, 4, 0, 1, 3, 5, 5};
   std::vector<weight_t> v_w{0.1, 1.1, 2.1, 3.1, 4.1, 5.1, 6.1, 7.1};
 
-  auto graph = make_graph(handle, v_src, v_dst, v_w, num_vertices, num_edges);
+  auto graph = make_graph(handle, v_src, v_dst, v_w, num_vertices, num_edges, true);
 
   auto graph_view = graph.view();
 

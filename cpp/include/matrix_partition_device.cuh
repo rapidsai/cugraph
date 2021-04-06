@@ -192,7 +192,7 @@ class matrix_partition_device_t<GraphViewType, std::enable_if_t<!GraphViewType::
     assert(partition_idx == 0);
   }
 
-  typename GraphViewType::vertex_type get_major_value_start_offset() const
+  __host__ __device__ typename GraphViewType::vertex_type get_major_value_start_offset() const
   {
     return typename GraphViewType::vertex_type{0};
   }

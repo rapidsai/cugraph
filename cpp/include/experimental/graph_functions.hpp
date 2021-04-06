@@ -17,13 +17,13 @@
 
 #include <experimental/graph.hpp>
 #include <experimental/graph_view.hpp>
-#include <utilities/error.hpp>
 
 #include <raft/handle.hpp>
 #include <rmm/device_uvector.hpp>
 
 #include <memory>
 #include <tuple>
+#include <vector>
 
 namespace cugraph {
 namespace experimental {
@@ -40,19 +40,24 @@ namespace experimental {
  * or multi-GPU (true).
  * @param handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator, and
  * handles to various CUDA libraries) to run graph algorithms.
- * @param edgelist_major_vertices Edge source vertex IDs (if the graph adjacency matrix is stored as
+ * @param edgelist_major_vertices Pointers (one pointer per local graph adjacency matrix partition
+ * assigned to this process) to edge source vertex IDs (if the graph adjacency matrix is stored as
  * is) or edge destination vertex IDs (if the transposed graph adjacency matrix is stored). Vertex
- * IDs are updated in-place ([INOUT] parameter). Applying the compute_gpu_id_from_edge_t functor to
- * every (major, minor) pair should return the local GPU ID for this function to work (edges should
- * be pre-shuffled).
- * @param edgelist_minor_vertices Edge destination vertex IDs (if the graph adjacency matrix is
- * stored as is) or edge source vertex IDs (if the transposed graph adjacency matrix is stored).
- * Vertex IDs are updated in-place ([INOUT] parameter). Applying the compute_gpu_id_from_edge_t
- * functor to every (major, minor) pair should return the local GPU ID for this function to work
- * (edges should be pre-shuffled).
- * @param num_edgelist_edges Number of edges in the edgelist.
- * @param is_hypergraph_partitioned Flag indicating whether we are assuming hypergraph partitioning
- * (this flag will be removed in the future).
+ * IDs are updated in-place ([INOUT] parameter). Edges should be pre-shuffled to their final target
+ * process & matrix partition; i.e. applying the compute_gpu_id_from_edge_t functor to every (major,
+ * minor) pair should return the GPU ID of this process and applying the
+ * compute_partition_id_from_edge_t fuctor to every (major, minor) pair for a local matrix partition
+ * should return the partition ID of the corresponding matrix partition.
+ * @param edgelist_minor_vertices Pointers (one pointer per local graph adjacency matrix partition
+ * assigned to this process) to edge destination vertex IDs (if the graph adjacency matrix is stored
+ * as is) or edge source vertex IDs (if the transposed graph adjacency matrix is stored). Vertex IDs
+ * are updated in-place ([INOUT] parameter). Edges should be pre-shuffled to their final target
+ * process & matrix partition; i.e. applying the compute_gpu_id_from_edge_t functor to every (major,
+ * minor) pair should return the GPU ID of this process and applying the
+ * compute_partition_id_from_edge_t fuctor to every (major, minor) pair for a local matrix partition
+ * should return the partition ID of the corresponding matrix partition.
+ * @param edgelist_edge_counts Edge counts (one count per local graph adjacency matrix partition
+ * assigned to this process).
  * @param do_expensive_check A flag to run expensive checks for input arguments (if set to `true`).
  * @return std::tuple<rmm::device_uvector<vertex_t>, partition_t<vertex_t>, vertex_t, edge_t>
  * Quadruplet of labels (vertex IDs before renumbering) for the entire set of vertices (assigned to
@@ -63,10 +68,9 @@ template <typename vertex_t, typename edge_t, bool multi_gpu>
 std::enable_if_t<multi_gpu,
                  std::tuple<rmm::device_uvector<vertex_t>, partition_t<vertex_t>, vertex_t, edge_t>>
 renumber_edgelist(raft::handle_t const& handle,
-                  vertex_t* edgelist_major_vertices /* [INOUT] */,
-                  vertex_t* edgelist_minor_vertices /* [INOUT] */,
-                  edge_t num_edgelist_edges,
-                  bool is_hypergraph_partitioned,
+                  std::vector<vertex_t*> const& edgelist_major_vertices /* [INOUT] */,
+                  std::vector<vertex_t*> const& edgelist_minor_vertices /* [INOUT] */,
+                  std::vector<edge_t> const& edgelist_edge_counts,
                   bool do_expensive_check = false);
 
 /**
@@ -115,19 +119,24 @@ std::enable_if_t<!multi_gpu, rmm::device_uvector<vertex_t>> renumber_edgelist(
  * the compute_gpu_id_from_vertex_t to every vertex should return the local GPU ID for this function
  * to work (vertices should be pre-shuffled).
  * @param num_local_vertices Number of local vertices.
- * @param edgelist_major_vertices Edge source vertex IDs (if the graph adjacency matrix is stored as
+ * @param edgelist_major_vertices Pointers (one pointer per local graph adjacency matrix partition
+ * assigned to this process) to edge source vertex IDs (if the graph adjacency matrix is stored as
  * is) or edge destination vertex IDs (if the transposed graph adjacency matrix is stored). Vertex
- * IDs are updated in-place ([INOUT] parameter). Applying the compute_gpu_id_from_edge_t functor to
- * every (major, minor) pair should return the local GPU ID for this function to work (edges should
- * be pre-shuffled).
- * @param edgelist_minor_vertices Edge destination vertex IDs (if the graph adjacency matrix is
- * stored as is) or edge source vertex IDs (if the transposed graph adjacency matrix is stored).
- * Vertex IDs are updated in-place ([INOUT] parameter). Applying the compute_gpu_id_from_edge_t
- * functor to every (major, minor) pair should return the local GPU ID for this function to work
- * (edges should be pre-shuffled).
- * @param num_edgelist_edges Number of edges in the edgelist.
- * @param is_hypergraph_partitioned Flag indicating whether we are assuming hypergraph partitioning
- * (this flag will be removed in the future).
+ * IDs are updated in-place ([INOUT] parameter). Edges should be pre-shuffled to their final target
+ * process & matrix partition; i.e. applying the compute_gpu_id_from_edge_t functor to every (major,
+ * minor) pair should return the GPU ID of this process and applying the
+ * compute_partition_id_from_edge_t fuctor to every (major, minor) pair for a local matrix partition
+ * should return the partition ID of the corresponding matrix partition.
+ * @param edgelist_minor_vertices Pointers (one pointer per local graph adjacency matrix partition
+ * assigned to this process) to edge destination vertex IDs (if the graph adjacency matrix is stored
+ * as is) or edge source vertex IDs (if the transposed graph adjacency matrix is stored). Vertex IDs
+ * are updated in-place ([INOUT] parameter). Edges should be pre-shuffled to their final target
+ * process & matrix partition; i.e. applying the compute_gpu_id_from_edge_t functor to every (major,
+ * minor) pair should return the GPU ID of this process and applying the
+ * compute_partition_id_from_edge_t fuctor to every (major, minor) pair for a local matrix partition
+ * should return the partition ID of the corresponding matrix partition.
+ * @param edgelist_edge_counts Edge counts (one count per local graph adjacency matrix partition
+ * assigned to this process).
  * @param do_expensive_check A flag to run expensive checks for input arguments (if set to `true`).
  * @return std::tuple<rmm::device_uvector<vertex_t>, partition_t<vertex_t>, vertex_t, edge_t>
  * Quadruplet of labels (vertex IDs before renumbering) for the entire set of vertices (assigned to
@@ -140,10 +149,9 @@ std::enable_if_t<multi_gpu,
 renumber_edgelist(raft::handle_t const& handle,
                   vertex_t const* local_vertices,
                   vertex_t num_local_vertices,
-                  vertex_t* edgelist_major_vertices /* [INOUT] */,
-                  vertex_t* edgelist_minor_vertices /* [INOUT] */,
-                  edge_t num_edgelist_edges,
-                  bool is_hypergraph_partitioned,
+                  std::vector<vertex_t*> const& edgelist_major_vertices /* [INOUT] */,
+                  std::vector<vertex_t*> const& edgelist_minor_vertices /* [INOUT] */,
+                  std::vector<edge_t> const& edgelist_edge_counts,
                   bool do_expensive_check = false);
 
 /**
@@ -180,6 +188,102 @@ std::enable_if_t<!multi_gpu, rmm::device_uvector<vertex_t>> renumber_edgelist(
   vertex_t* edgelist_minor_vertices /* [INOUT] */,
   edge_t num_edgelist_edges,
   bool do_expensive_check = false);
+
+/**
+ * @brief Renumber external vertices to internal vertices based on the provoided @p
+ * renumber_map_labels.
+ *
+ * Note cugraph::experimental::invalid_id<vertex_t>::value remains unchanged.
+ *
+ * @tparam vertex_t Type of vertex identifiers. Needs to be an integral type.
+ * @tparam multi_gpu Flag indicating whether template instantiation should target single-GPU (false)
+ * or multi-GPU (true).
+ * @param handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator, and
+ * handles to various CUDA libraries) to run graph algorithms.
+ * @param vertices Pointer to the vertices to be renumbered. The input external vertices are
+ * renumbered to internal vertices in-place.
+ * @param num_vertices Number of vertices to be renumbered.
+ * @param renumber_map_labels Pointer to the external vertices corresponding to the internal
+ * vertices in the range [@p local_int_vertex_first, @p local_int_vertex_last).
+ * @param local_int_vertex_first The first local internal vertex (inclusive, assigned to this
+ * process in multi-GPU).
+ * @param local_int_vertex_last The last local internal vertex (exclusive, assigned to this process
+ * in multi-GPU).
+ * @param do_expensive_check A flag to run expensive checks for input arguments (if set to `true`).
+ */
+template <typename vertex_t, bool multi_gpu>
+void renumber_ext_vertices(raft::handle_t const& handle,
+                           vertex_t* vertices /* [INOUT] */,
+                           size_t num_vertices,
+                           vertex_t const* renumber_map_labels,
+                           vertex_t local_int_vertex_first,
+                           vertex_t local_int_vertex_last,
+                           bool do_expensive_check = false);
+
+/**
+ * @brief Unrenumber local internal vertices to external vertices based on the providied @p
+ * renumber_map_labels.
+ *
+ * Note cugraph::experimental::invalid_id<vertex_t>::value remains unchanged.
+ *
+ * @tparam vertex_t Type of vertex identifiers. Needs to be an integral type.
+ * @param handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator, and
+ * handles to various CUDA libraries) to run graph algorithms.
+ * @param vertices Pointer to the local internal vertices to be unrenumbered. Each input element
+ * should be in [@p local_int_vertex_first, @p local_int_vertex_last). The input internal vertices
+ * are renumbered to external vertices in-place.
+ * @param num_vertices Number of vertices to be unrenumbered.
+ * @param renumber_map_labels Pointer to the external vertices corresponding to the internal
+ * vertices in the range [@p local_int_vertex_first, @p local_int_vertex_last).
+ * @param local_int_vertex_first The first local internal vertex (inclusive, assigned to this
+ * process in multi-GPU).
+ * @param local_int_vertex_last The last local internal vertex (exclusive, assigned to this process
+ * in multi-GPU).
+ * @param do_expensive_check A flag to run expensive checks for input arguments (if set to `true`).
+ */
+template <typename vertex_t>
+void unrenumber_local_int_vertices(
+  raft::handle_t const& handle,
+  vertex_t* vertices /* [INOUT] */,
+  size_t num_vertices,
+  vertex_t const* renumber_map_labels /* size = local_int_vertex_last - local_int_vertex_first */,
+  vertex_t local_int_vertex_first,
+  vertex_t local_int_vertex_last,
+  bool do_expensive_check = false);
+
+/**
+ * @brief Unrenumber (possibly non-local) internal vertices to external vertices based on the
+ * providied @p renumber_map_labels.
+ *
+ * Note cugraph::experimental::invalid_id<vertex_t>::value remains unchanged.
+ *
+ * @tparam vertex_t Type of vertex identifiers. Needs to be an integral type.
+ * @tparam multi_gpu Flag indicating whether template instantiation should target single-GPU (false)
+ * or multi-GPU (true).
+ * @param handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator, and
+ * handles to various CUDA libraries) to run graph algorithms.
+ * @param vertices Pointer to the internal vertices to be unrenumbered. The input internal vertices
+ * are renumbered to external vertices in-place.
+ * @param num_vertices Number of vertices to be unrenumbered.
+ * @param renumber_map_labels Pointer to the external vertices corresponding to the internal
+ * vertices in the range [@p local_int_vertex_first, @p local_int_vertex_last).
+ * @param local_int_vertex_first The first local internal vertex (inclusive, assigned to this
+ * process in multi-GPU).
+ * @param local_int_vertex_last The last local internal vertex (exclusive, assigned to this process
+ * in multi-GPU).
+ * @param vertex_partition_lasts Last local internal vertices (exclusive, assigned to each process
+ * in multi-GPU).
+ * @param do_expensive_check A flag to run expensive checks for input arguments (if set to `true`).
+ */
+template <typename vertex_t, bool multi_gpu>
+void unrenumber_int_vertices(raft::handle_t const& handle,
+                             vertex_t* vertices /* [INOUT] */,
+                             size_t num_vertices,
+                             vertex_t const* renumber_map_labels,
+                             vertex_t local_int_vertex_first,
+                             vertex_t local_int_vertex_last,
+                             std::vector<vertex_t>& vertex_partition_lasts,
+                             bool do_expensive_check = false);
 
 /**
  * @brief Compute the coarsened graph.

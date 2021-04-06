@@ -18,6 +18,7 @@
 #include <utilities/base_fixture.hpp>
 #include <utilities/test_utilities.hpp>
 
+#include <experimental/graph.hpp>
 #include <experimental/graph_generator.hpp>
 
 #include <raft/cudart_utils.h>
@@ -201,17 +202,19 @@ class Tests_GenerateRmat : public ::testing::TestWithParam<GenerateRmat_Usecase>
         (h_cugraph_srcs.size() == (size_t{1} << configuration.scale) * configuration.edge_factor) &&
         (h_cugraph_dsts.size() == (size_t{1} << configuration.scale) * configuration.edge_factor))
         << "Returned an invalid number of R-mat graph edges.";
-      ASSERT_TRUE(
-        std::count_if(h_cugraph_srcs.begin(),
-                      h_cugraph_srcs.end(),
-                      [num_vertices = static_cast<vertex_t>(size_t{1} << configuration.scale)](
-                        auto v) { return !cugraph::test::is_valid_vertex(num_vertices, v); }) == 0)
+      ASSERT_TRUE(std::count_if(h_cugraph_srcs.begin(),
+                                h_cugraph_srcs.end(),
+                                [num_vertices = static_cast<vertex_t>(
+                                   size_t{1} << configuration.scale)](auto v) {
+                                  return !cugraph::experimental::is_valid_vertex(num_vertices, v);
+                                }) == 0)
         << "Returned R-mat graph edges have invalid source vertex IDs.";
-      ASSERT_TRUE(
-        std::count_if(h_cugraph_dsts.begin(),
-                      h_cugraph_dsts.end(),
-                      [num_vertices = static_cast<vertex_t>(size_t{1} << configuration.scale)](
-                        auto v) { return !cugraph::test::is_valid_vertex(num_vertices, v); }) == 0)
+      ASSERT_TRUE(std::count_if(h_cugraph_dsts.begin(),
+                                h_cugraph_dsts.end(),
+                                [num_vertices = static_cast<vertex_t>(
+                                   size_t{1} << configuration.scale)](auto v) {
+                                  return !cugraph::experimental::is_valid_vertex(num_vertices, v);
+                                }) == 0)
         << "Returned R-mat graph edges have invalid destination vertex IDs.";
 
       if (!scramble) {
