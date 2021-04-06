@@ -54,7 +54,7 @@ class Graph:
 
     def __getattr__(self, name):
         if self._Impl is None:
-            raise Exception("Graph is Empty")
+            raise AttributeError(name)
         if hasattr(self._Impl, name):
             return getattr(self._Impl, name)
         elif hasattr(self._Impl.properties, name):
@@ -111,6 +111,8 @@ class Graph:
         """
         if self._Impl is None:
             self._Impl = simpleGraphImpl(self.graph_properties)
+        elif type(self._Impl) is not simpleGraphImpl:
+            raise Exception("Graph is already initialized")
         elif (self._Impl.edgelist is not None or
               self._Impl.adjlist is not None):
             raise Exception("Graph already has values")
@@ -162,6 +164,8 @@ class Graph:
         """
         if self._Impl is None:
             self._Impl = simpleGraphImpl(self.graph_properties)
+        elif type(self._Impl) is not simpleGraphImpl:
+            raise Exception("Graph is already initialized")
         elif (self._Impl.edgelist is not None or
               self._Impl.adjlist is not None):
             raise Exception("Graph already has values")
@@ -203,9 +207,10 @@ class Graph:
         """
         if self._Impl is None:
             self._Impl = simpleDistributedGraphImpl(self.graph_properties)
-        else:
-            if (self._Impl.edgelist is not None):
-                raise Exception("Graph already has values")
+        elif type(self._Impl) is not simpleDistributedGraphImpl:
+            raise Exception("Graph is already initialized")
+        elif (self._Impl.edgelist is not None):
+            raise Exception("Graph already has values")
         self._Impl._simpleDistributedGraphImpl__from_edgelist(input_ddf,
                                                               source,
                                                               destination,
@@ -425,7 +430,7 @@ class Graph:
 
     def is_weighted(self):
         """
-        Returns True if the graph is renumbered.
+        Returns True if the graph has edge weights.
         """
         return self.properties.weighted
 
@@ -479,6 +484,8 @@ class Graph:
 
         if self.graph_properties.directed is False:
             undirected_graph = type(self)()
+        elif self.__class__.__bases__[0] == object:
+            undirected_graph = type(self)()
         else:
             undirected_graph = self.__class__.__bases__[0]()
         undirected_graph._Impl = type(self._Impl)(undirected_graph.
@@ -504,6 +511,7 @@ class DiGraph(Graph):
     def __init__(self, m_graph=None):
         warnings.warn(
             "DiGraph is deprecated, use Graph(directed=True) instead",
+            DeprecationWarning
         )
         super(DiGraph, self).__init__(m_graph, directed=True)
 
@@ -526,6 +534,7 @@ class MultiDiGraph(MultiGraph):
         warnings.warn(
             "MultiDiGraph is deprecated,\
  use MultiGraph(directed=True) instead",
+            DeprecationWarning
         )
         super(MultiDiGraph, self).__init__(directed=True)
 
@@ -582,7 +591,7 @@ class NPartiteGraph(Graph):
         --------
         >>> df = cudf.read_csv('datasets/karate.csv', delimiter=' ',
         >>>                   dtype=['int32', 'int32', 'float32'], header=None)
-        >>> G = cugraph.Graph()
+        >>> G = cugraph.BiPartiteGraph()
         >>> G.from_cudf_edgelist(df, source='0', destination='1',
                                  edge_attr='2', renumber=False)
         """
@@ -680,6 +689,7 @@ class BiPartiteDiGraph(BiPartiteGraph):
         warnings.warn(
             "BiPartiteDiGraph is deprecated,\
  use BiPartiteGraph(directed=True) instead",
+            DeprecationWarning
         )
         super(BiPartiteDiGraph, self).__init__(directed=True)
 
@@ -689,25 +699,44 @@ class NPartiteDiGraph(NPartiteGraph):
         warnings.warn(
             "NPartiteDiGraph is deprecated,\
  use NPartiteGraph(directed=True) instead",
+            DeprecationWarning
         )
         super(NPartiteGraph, self).__init__(directed=True)
 
 
 def is_directed(G):
+    """
+    Returns True if the graph is a directed graph.
+    Returns False if the graph is an undirected graph.
+    """
     return G.is_directed()
 
 
 def is_multigraph(G):
+    """
+    Returns True if the graph is a multigraph. Else returns False.
+    """
     return G.is_multigraph()
 
 
 def is_multipartite(G):
+    """
+    Checks if Graph is multipartite. This solely relies on the Graph
+    type. This does not parse the graph to check if it is multipartite.
+    """
     return G.is_multipatite()
 
 
 def is_bipartite(G):
+    """
+    Checks if Graph is bipartite. This solely relies on the Graph type.
+    This does not parse the graph to check if it is bipartite.
+    """
     return G.is_bipartite()
 
 
 def is_weighted(G):
+    """
+    Returns True if the graph has edge weights.
+    """
     return G.is_weighted()
