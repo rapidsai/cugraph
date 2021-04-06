@@ -34,7 +34,10 @@ def client_connection():
 def test_dask_mg_degree(client_connection):
     gc.collect()
 
+    # FIXME: update this to allow dataset to be parameterized and have dataset
+    # part of test param id (see other tests)
     input_data_path = r"../datasets/karate.csv"
+    print(f"dataset={input_data_path}")
 
     chunksize = cugraph.dask.get_chunksize(input_data_path)
 

@@ -42,7 +42,9 @@ def client_connection():
 @pytest.mark.skipif(
     is_single_gpu(), reason="skipping MG testing on Single GPU system"
 )
-@pytest.mark.parametrize("graph_file", utils.DATASETS_UNRENUMBERED)
+@pytest.mark.parametrize("graph_file", utils.DATASETS_UNRENUMBERED,
+                         ids=[f"dataset={d.as_posix()}"
+                              for d in utils.DATASETS_UNRENUMBERED])
 def test_mg_renumber(graph_file, client_connection):
     gc.collect()
 
