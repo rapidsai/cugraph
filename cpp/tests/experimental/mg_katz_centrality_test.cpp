@@ -35,7 +35,7 @@
 // do the perf measurements
 // enabled by command line parameter s'--perf'
 //
-static int PERF = 1;
+static int PERF = 0;
 
 typedef struct KatzCentrality_Usecase_t {
   cugraph::test::input_graph_specifier_t input_graph_specifier{};

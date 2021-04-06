@@ -41,7 +41,7 @@
 // do the perf measurements
 // enabled by command line parameter s'--perf'
 //
-static int PERF = 1;
+static int PERF = 0;
 
 template <typename vertex_t, typename edge_t, typename weight_t, typename result_t>
 void pagerank_reference(edge_t const* offsets,
