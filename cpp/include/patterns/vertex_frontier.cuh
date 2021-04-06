@@ -55,6 +55,12 @@ class SortedUniqueElementBucket {
     }
   }
 
+  /**
+   * @ brief insert a list of vertices to the bucket
+   *
+   * @param sorted_unique_vertices Device pointer to the array storing the vertex list.
+   * @param num_sorted_unique_vertices Size of the vertex list to insert.
+   */
   void insert(vertex_t const* sorted_unique_vertices, vertex_t num_sorted_unique_vertices)
   {
     if (elements_.size() > 0) {
