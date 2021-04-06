@@ -25,5 +25,6 @@ cdef extern from "utilities/path_retrieval.hpp" namespace "cugraph":
             const vertex_t *preds,
             const weight_t *info_weights,
             weight_t *out,
+            vertex_t stop_vertex,
             vertex_t num_vertices) except +
 

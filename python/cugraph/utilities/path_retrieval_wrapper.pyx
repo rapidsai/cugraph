@@ -24,7 +24,7 @@ import cudf
 import numpy as np
 
 
-def get_traversed_cost(input_df):
+def get_traversed_cost(input_df, stop_vertex):
     """
     Call get_traversed_cost
     """
@@ -45,8 +45,6 @@ def get_traversed_cost(input_df):
     cdef uintptr_t out = <uintptr_t>NULL
     cdef uintptr_t info_weights = <uintptr_t>NULL
 
-    input_df['vertex'] = input_df['vertex'].astype(np.int32)
-    input_df['predecessor'] = input_df['predecessor'].astype(np.int32)
     vertices = input_df['vertex'].__cuda_array_interface__['data'][0]
     preds = input_df['predecessor'].__cuda_array_interface__['data'][0]
     info_weights = input_df['weights'].__cuda_array_interface__['data'][0]
@@ -58,6 +56,7 @@ def get_traversed_cost(input_df):
             <int *> preds,
             <float *> info_weights,
             <float *> out,
+            <int> stop_vertex,
             <int> num_verts)
     elif weight_t == np.float64:
         c_get_traversed_cost(handle_[0],
@@ -65,6 +64,7 @@ def get_traversed_cost(input_df):
             <int *> preds,
             <double *> info_weights,
             <double *> out,
+            <int> stop_vertex,
             <int> num_verts)
     else:
         raise NotImplementedError

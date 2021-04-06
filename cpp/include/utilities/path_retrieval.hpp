@@ -40,5 +40,6 @@ void get_traversed_cost(raft::handle_t const &handle,
                         vertex_t const *preds,
                         weight_t const *info_weights,
                         weight_t *out,
+                        vertex_t stop_vertex,
                         vertex_t num_vertices);
 }  // namespace cugraph

@@ -89,13 +89,10 @@ def get_traversed_cost(df, source, source_col, dest_col, value_col):
                                                       preserve_order=True)
     renumbered_gdf = renumbered_gdf.rename(columns={'src': 'vertex',
                                                     'dst': 'predecessor'})
+    stop_vertex = renumber_map.to_internal_vertex_id(cudf.Series(-1)).values[0]
 
-    # Renumbering removed the predecessor information so we assign -1 to
-    # the undefined edges like it was before the call
-    na_rows = renumbered_gdf['source'].isna()
-    renumbered_gdf.loc[na_rows, 'predecessor'] = -1
-
-    out_df = path_retrieval_wrapper.get_traversed_cost(renumbered_gdf)
+    out_df = path_retrieval_wrapper.get_traversed_cost(renumbered_gdf,
+                                                       stop_vertex)
 
     # Unrenumber
     out_df['vertex'] = renumber_map.unrenumber(renumbered_gdf, 'vertex',
