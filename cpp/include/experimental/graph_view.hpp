@@ -309,9 +309,6 @@ class graph_view_t<vertex_t,
                bool sorted_by_global_degree_within_vertex_partition,
                bool do_expensive_check = false);
 
-  // FIXME: this should be removed once MNMG Louvain is updated to use graph primitives
-  partition_t<vertex_t> get_partition() const { return partition_; }
-
   vertex_t get_number_of_local_vertices() const
   {
     return partition_.get_local_vertex_last() - partition_.get_local_vertex_first();

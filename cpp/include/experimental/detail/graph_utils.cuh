@@ -82,12 +82,6 @@ rmm::device_uvector<edge_t> compute_major_degrees(
                     handle.get_stream());
   }
 
-  // FIXME: is this necessary?
-  auto status =
-    col_comm.sync_stream(handle.get_stream());  // this is necessary as local_degrees will become
-                                                // out-of-scope once this function returns.
-  CUGRAPH_EXPECTS(status == raft::comms::status_t::SUCCESS, "sync_stream() failure.");
-
   return degrees;
 }
 
