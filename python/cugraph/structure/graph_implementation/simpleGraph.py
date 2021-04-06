@@ -452,6 +452,7 @@ class simpleGraphImpl:
     # FIXME: Not implemented yet
     def _replicate_transposed_adjlist(self):
         self.batch_transposed_adjlists = True
+        raise NotImplementedError
 
     def get_two_hop_neighbors(self):
         """
