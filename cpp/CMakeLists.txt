@@ -402,6 +402,7 @@ endif(BUILD_STATIC_FAISS)
 add_library(cugraph SHARED
     src/utilities/spmv_1D.cu
     src/utilities/cython.cu
+    src/utilities/path_retrieval.cu
     src/structure/graph.cu
     src/linear_assignment/hungarian.cu
     src/link_analysis/gunrock_hits.cpp
