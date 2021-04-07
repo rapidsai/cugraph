@@ -38,7 +38,6 @@ def client_connection():
     teardown_local_dask_cluster(cluster, client)
 
 
-# Test all combinations of default/managed and pooled/non-pooled allocation
 @pytest.mark.skipif(
     is_single_gpu(), reason="skipping MG testing on Single GPU system"
 )
@@ -62,71 +61,28 @@ def test_mg_renumber(graph_file, client_connection):
 
     ddf = dask.dataframe.from_pandas(gdf, npartitions=2)
 
-    numbering = NumberMap()
-    numbering.from_dataframe(ddf, ["src", "src_old"], ["dst", "dst_old"])
-    renumbered_df = numbering.add_internal_vertex_id(
-        numbering.add_internal_vertex_id(ddf, "src_id", ["src", "src_old"]),
-        "dst_id",
-        ["dst", "dst_old"],
-    )
+    renumbered_gdf, renumber_map = NumberMap.renumber(ddf,
+                                                      ["src", "src_old"],
+                                                      ["dst", "dst_old"],
+                                                      preserve_order=True)
+    unrenumbered_df = renumber_map.unrenumber(renumbered_df, "src",
+                                              preserve_order=True)
+    unrenumbered_df = renumber_map.unrenumber(unrenumbered_df, "dst",
+                                              preserve_order=True)
 
-    check_src = numbering.from_internal_vertex_id(
-        renumbered_df, "src_id"
-    ).compute()
-    check_dst = numbering.from_internal_vertex_id(
-        renumbered_df, "dst_id"
-    ).compute()
-
-    assert check_src["0"].to_pandas().equals(check_src["src"].to_pandas())
-    assert check_src["1"].to_pandas().equals(check_src["src_old"].to_pandas())
-    assert check_dst["0"].to_pandas().equals(check_dst["dst"].to_pandas())
-    assert check_dst["1"].to_pandas().equals(check_dst["dst_old"].to_pandas())
+    assert gdf["src"].to_pandas().equals(unrenumbered_df["0_src"].to_pandas())
+    assert gdf["src_old"].to_pandas().equals(unrenumbered_df["1_src"].to_pandas())
+    assert gdf["dst"].to_pandas().equals(unrenumbered_df["0_dst"].to_pandas())
+    assert gdf["dst_old"].to_pandas().equals(unrenumbered_df["1_dst"].to_pandas())
 
 
-# Test all combinations of default/managed and pooled/non-pooled allocation
 @pytest.mark.skipif(
     is_single_gpu(), reason="skipping MG testing on Single GPU system"
 )
-@pytest.mark.parametrize("graph_file", utils.DATASETS_UNRENUMBERED)
-def test_mg_renumber2(graph_file, client_connection):
-    gc.collect()
-
-    M = utils.read_csv_for_nx(graph_file)
-    sources = cudf.Series(M["0"])
-    destinations = cudf.Series(M["1"])
-
-    translate = 1000
-
-    gdf = cudf.DataFrame()
-    gdf["src_old"] = sources
-    gdf["dst_old"] = destinations
-    gdf["src"] = sources + translate
-    gdf["dst"] = destinations + translate
-    gdf["weight"] = gdf.index.astype(np.float)
-
-    ddf = dask.dataframe.from_pandas(gdf, npartitions=2)
-
-    ren2, num2 = NumberMap.renumber(
-        ddf, ["src", "src_old"], ["dst", "dst_old"]
-    )
-
-    check_src = num2.from_internal_vertex_id(ren2, "src").compute()
-    check_src = check_src.sort_values("weight").reset_index(drop=True)
-    check_dst = num2.from_internal_vertex_id(ren2, "dst").compute()
-    check_dst = check_dst.sort_values("weight").reset_index(drop=True)
-
-    assert check_src["0"].to_pandas().equals(gdf["src"].to_pandas())
-    assert check_src["1"].to_pandas().equals(gdf["src_old"].to_pandas())
-    assert check_dst["0"].to_pandas().equals(gdf["dst"].to_pandas())
-    assert check_dst["1"].to_pandas().equals(gdf["dst_old"].to_pandas())
-
-
-# Test all combinations of default/managed and pooled/non-pooled allocation
-@pytest.mark.skipif(
-    is_single_gpu(), reason="skipping MG testing on Single GPU system"
-)
-@pytest.mark.parametrize("graph_file", utils.DATASETS_UNRENUMBERED)
-def test_mg_renumber3(graph_file, client_connection):
+@pytest.mark.parametrize("graph_file", utils.DATASETS_UNRENUMBERED,
+                         ids=[f"dataset={d.as_posix()}"
+                              for d in utils.DATASETS_UNRENUMBERED])
+def test_mg_renumber_add_internal_vertex_id(graph_file, client_connection):
     gc.collect()
 
     M = utils.read_csv_for_nx(graph_file)
