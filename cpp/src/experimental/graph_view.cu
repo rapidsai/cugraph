@@ -161,7 +161,7 @@ graph_view_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu, std::enabl
                std::vector<edge_t const*> const& adj_matrix_partition_offsets,
                std::vector<vertex_t const*> const& adj_matrix_partition_indices,
                std::vector<weight_t const*> const& adj_matrix_partition_weights,
-               std::vector<vertex_t> const& vertex_partition_segment_offsets,
+               std::vector<vertex_t> const& adj_matrix_partition_segment_offsets,
                partition_t<vertex_t> const& partition,
                vertex_t number_of_vertices,
                edge_t number_of_edges,
@@ -176,7 +176,7 @@ graph_view_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu, std::enabl
     adj_matrix_partition_number_of_edges_(update_adj_matrix_partition_edge_counts(
       adj_matrix_partition_offsets, partition, handle.get_stream())),
     partition_(partition),
-    vertex_partition_segment_offsets_(vertex_partition_segment_offsets)
+    adj_matrix_partition_segment_offsets_(adj_matrix_partition_segment_offsets)
 {
   // cheap error checks
 
@@ -200,11 +200,11 @@ graph_view_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu, std::enabl
                   "Internal Error: erroneous adj_matrix_partition_offsets.size().");
 
   CUGRAPH_EXPECTS((sorted_by_global_degree_within_vertex_partition &&
-                   (vertex_partition_segment_offsets.size() ==
+                   (adj_matrix_partition_segment_offsets.size() ==
                     col_comm_size * (detail::num_segments_per_vertex_partition + 1))) ||
                     (!sorted_by_global_degree_within_vertex_partition &&
-                     (vertex_partition_segment_offsets.size() == 0)),
-                  "Internal Error: vertex_partition_segment_offsets.size() does not match "
+                     (adj_matrix_partition_segment_offsets.size() == 0)),
+                  "Internal Error: adj_matrix_partition_segment_offsets.size() does not match "
                   "with sorted_by_global_degree_within_vertex_partition.");
 
   // optional expensive checks
@@ -265,21 +265,21 @@ graph_view_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu, std::enabl
         "set to true, but degrees are not non-ascending.");
 
       for (int i = 0; i < col_comm_size; ++i) {
-        CUGRAPH_EXPECTS(std::is_sorted(vertex_partition_segment_offsets.begin() +
+        CUGRAPH_EXPECTS(std::is_sorted(adj_matrix_partition_segment_offsets.begin() +
                                          (detail::num_segments_per_vertex_partition + 1) * i,
-                                       vertex_partition_segment_offsets.begin() +
+                                       adj_matrix_partition_segment_offsets.begin() +
                                          (detail::num_segments_per_vertex_partition + 1) * (i + 1)),
-                        "Internal Error: erroneous vertex_partition_segment_offsets.");
+                        "Internal Error: erroneous adj_matrix_partition_segment_offsets.");
         CUGRAPH_EXPECTS(
-          vertex_partition_segment_offsets[(detail::num_segments_per_vertex_partition + 1) * i] ==
-            0,
-          "Internal Error: erroneous vertex_partition_segment_offsets.");
+          adj_matrix_partition_segment_offsets[(detail::num_segments_per_vertex_partition + 1) *
+                                               i] == 0,
+          "Internal Error: erroneous adj_matrix_partition_segment_offsets.");
         auto vertex_partition_idx = row_comm_size * i + row_comm_rank;
         CUGRAPH_EXPECTS(
-          vertex_partition_segment_offsets[(detail::num_segments_per_vertex_partition + 1) * i +
-                                           detail::num_segments_per_vertex_partition] ==
+          adj_matrix_partition_segment_offsets[(detail::num_segments_per_vertex_partition + 1) * i +
+                                               detail::num_segments_per_vertex_partition] ==
             partition.get_vertex_partition_size(vertex_partition_idx),
-          "Internal Error: erroneous vertex_partition_segment_offsets.");
+          "Internal Error: erroneous adj_matrix_partition_segment_offsets.");
       }
     }
 
