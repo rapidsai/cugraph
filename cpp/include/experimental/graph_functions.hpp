@@ -251,6 +251,8 @@ void unrenumber_local_int_vertices(
   vertex_t local_int_vertex_last,
   bool do_expensive_check = false);
 
+// FIXME: We may add unrenumber_int_rows(or cols) as this will require communication only within a
+// sub-communicator and potentially be more efficient.
 /**
  * @brief Unrenumber (possibly non-local) internal vertices to external vertices based on the
  * providied @p renumber_map_labels.

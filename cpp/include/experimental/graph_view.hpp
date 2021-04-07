@@ -301,7 +301,7 @@ class graph_view_t<vertex_t,
                std::vector<edge_t const*> const& adj_matrix_partition_offsets,
                std::vector<vertex_t const*> const& adj_matrix_partition_indices,
                std::vector<weight_t const*> const& adj_matrix_partition_weights,
-               std::vector<vertex_t> const& vertex_partition_segment_offsets,
+               std::vector<vertex_t> const& adj_matrix_partition_segment_offsets,
                partition_t<vertex_t> const& partition,
                vertex_t number_of_vertices,
                edge_t number_of_edges,
@@ -431,6 +431,17 @@ class graph_view_t<vertex_t,
              : vertex_t{0};
   }
 
+  std::vector<vertex_t> get_local_adj_matrix_partition_segment_offsets(size_t partition_idx) const
+  {
+    return adj_matrix_partition_segment_offsets_.size() > 0
+             ? std::vector<vertex_t>(
+                 adj_matrix_partition_segment_offsets_.begin() +
+                   partition_idx * (detail::num_segments_per_vertex_partition + 1),
+                 adj_matrix_partition_segment_offsets_.begin() +
+                   (partition_idx + 1) * (detail::num_segments_per_vertex_partition + 1))
+             : std::vector<vertex_t>{};
+  }
+
   // FIXME: this function is not part of the public stable API. This function is mainly for pattern
   // accelerator implementation. This function is currently public to support the legacy
   // implementations directly accessing CSR/CSC data, but this function will eventually become
@@ -499,9 +510,10 @@ class graph_view_t<vertex_t,
   partition_t<vertex_t> partition_{};
 
   std::vector<vertex_t>
-    vertex_partition_segment_offsets_{};  // segment offsets within the vertex partition based on
-                                          // vertex degree, relevant only if
-                                          // sorted_by_global_degree_within_vertex_partition is true
+    adj_matrix_partition_segment_offsets_{};  // segment offsets within the vertex partition based
+                                              // on vertex degree, relevant only if
+                                              // sorted_by_global_degree_within_vertex_partition is
+                                              // true
 };
 
 // single-GPU version
@@ -610,6 +622,13 @@ class graph_view_t<vertex_t,
   {
     assert(adj_matrix_partition_idx == 0);
     return vertex_t{0};
+  }
+
+  std::vector<vertex_t> get_local_adj_matrix_partition_segment_offsets(
+    size_t adj_matrix_partition_idx) const
+  {
+    assert(adj_matrix_partition_idx == 0);
+    return segment_offsets_.size() > 0 ? segment_offsets_ : std::vector<vertex_t>{};
   }
 
   // FIXME: this function is not part of the public stable API.This function is mainly for pattern
