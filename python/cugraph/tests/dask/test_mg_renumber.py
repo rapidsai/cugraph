@@ -61,19 +61,29 @@ def test_mg_renumber(graph_file, client_connection):
 
     ddf = dask.dataframe.from_pandas(gdf, npartitions=2)
 
-    renumbered_gdf, renumber_map = NumberMap.renumber(ddf,
-                                                      ["src", "src_old"],
-                                                      ["dst", "dst_old"],
-                                                      preserve_order=True)
+    # preserve_order is not supported for MG
+    renumbered_df, renumber_map = NumberMap.renumber(ddf,
+                                                     ["src", "src_old"],
+                                                     ["dst", "dst_old"],
+                                                     preserve_order=False)
     unrenumbered_df = renumber_map.unrenumber(renumbered_df, "src",
-                                              preserve_order=True)
+                                              preserve_order=False)
     unrenumbered_df = renumber_map.unrenumber(unrenumbered_df, "dst",
-                                              preserve_order=True)
+                                              preserve_order=False)
 
-    assert gdf["src"].to_pandas().equals(unrenumbered_df["0_src"].to_pandas())
-    assert gdf["src_old"].to_pandas().equals(unrenumbered_df["1_src"].to_pandas())
-    assert gdf["dst"].to_pandas().equals(unrenumbered_df["0_dst"].to_pandas())
-    assert gdf["dst_old"].to_pandas().equals(unrenumbered_df["1_dst"].to_pandas())
+    # sort needed only for comparisons, since preserve_order is False
+    gdf = gdf.sort_values(by=["src", "src_old", "dst", "dst_old"])
+    gdf = gdf.reset_index()
+    unrenumbered_df = unrenumbered_df.compute()
+    unrenumbered_df = unrenumbered_df.sort_values(by=["0_src", "1_src", "0_dst", "1_dst"])
+    unrenumbered_df = unrenumbered_df.reset_index()
+
+    for i in range(len(gdf)): print(i, gdf['src'].iloc[i], unrenumbered_df['0_src'].iloc[i], (gdf['src'].iloc[i] == unrenumbered_df['0_src'].iloc[i]))
+
+    assert gdf["src"].equals(unrenumbered_df["0_src"])
+    assert gdf["src_old"].equals(unrenumbered_df["1_src"])
+    assert gdf["dst"].equals(unrenumbered_df["0_dst"])
+    assert gdf["dst_old"].equals(unrenumbered_df["1_dst"])
 
 
 @pytest.mark.skipif(
