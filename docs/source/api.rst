@@ -225,6 +225,17 @@ Overlap Coefficient
     :undoc-members:
 
 
+Sampling
+========
+
+Random Walks
+------------
+
+.. automodule:: cugraph.sampling.random_walks
+    :members:
+    :undoc-members:
+
+
 Traversal
 =========
 
