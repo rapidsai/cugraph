@@ -16,6 +16,8 @@ from cugraph.sampling import random_walks_wrapper
 import cugraph
 from collections import defaultdict
 
+# FIXME might be more efficient to return either (df + offset) or 3 cudf.Series
+
 
 def random_walks(
     G,
@@ -38,7 +40,7 @@ def random_walks(
         the random walks
 
     max_depth : int
-        The depth of the random walks
+        The maximum depth of the random walks
 
 
     Returns
@@ -49,7 +51,7 @@ def random_walks(
 
     seeds_offsets: cudf.Series
         Series containing the starting offset in the returned edge list
-        for each seed.
+        for each vertex in start_vertices.
     """
     if max_depth is None:
         raise TypeError("must specify a 'max_depth'")

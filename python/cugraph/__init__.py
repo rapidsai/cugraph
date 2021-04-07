@@ -101,6 +101,8 @@ from cugraph.layout import force_atlas2
 from cugraph.raft import raft_include_test
 from cugraph.comms import comms
 
+from cugraph.sampling import random_walks
+
 # Versioneer
 from ._version import get_versions
 
