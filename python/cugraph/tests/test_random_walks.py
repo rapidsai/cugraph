@@ -69,7 +69,6 @@ def calc_random_walks(
 
     k = random.randint(1, 10)
     start_vertices = random.sample(range(G.number_of_vertices()), k)
-    print(start_vertices)
     df, offsets = cugraph.random_walks(G, start_vertices, max_depth)
 
     return df, offsets, start_vertices
