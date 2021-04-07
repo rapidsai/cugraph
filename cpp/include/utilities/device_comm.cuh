@@ -238,10 +238,12 @@ template <typename InputIterator, typename OutputIterator, size_t I>
 struct device_sendrecv_tuple_iterator_element_impl<InputIterator, OutputIterator, I, I> {
   void run(raft::comms::comms_t const& comm,
            InputIterator input_first,
-           size_t count,
+           size_t tx_count,
            int dst,
-           int base_tag,
-           raft::comms::request_t* requests) const
+           OutputIterator output_first,
+           size_t rx_count,
+           int src,
+           cudaStream_t stream) const
   {
   }
 };
@@ -415,6 +417,66 @@ struct device_bcast_tuple_iterator_element_impl<InputIterator, OutputIterator, I
 
 template <typename InputIterator, typename OutputIterator>
 std::enable_if_t<thrust::detail::is_discard_iterator<OutputIterator>::value, void>
+device_allreduce_impl(raft::comms::comms_t const& comm,
+                      InputIterator input_first,
+                      OutputIterator output_first,
+                      size_t count,
+                      raft::comms::op_t op,
+                      cudaStream_t stream)
+{
+  // no-op
+}
+
+template <typename InputIterator, typename OutputIterator>
+std::enable_if_t<
+  std::is_arithmetic<typename std::iterator_traits<OutputIterator>::value_type>::value,
+  void>
+device_allreduce_impl(raft::comms::comms_t const& comm,
+                      InputIterator input_first,
+                      OutputIterator output_first,
+                      size_t count,
+                      raft::comms::op_t op,
+                      cudaStream_t stream)
+{
+  static_assert(std::is_same<typename std::iterator_traits<InputIterator>::value_type,
+                             typename std::iterator_traits<OutputIterator>::value_type>::value);
+  comm.allreduce(iter_to_raw_ptr(input_first), iter_to_raw_ptr(output_first), count, op, stream);
+}
+
+template <typename InputIterator, typename OutputIterator, size_t I, size_t N>
+struct device_allreduce_tuple_iterator_element_impl {
+  void run(raft::comms::comms_t const& comm,
+           InputIterator input_first,
+           OutputIterator output_first,
+           size_t count,
+           raft::comms::op_t op,
+           cudaStream_t stream) const
+  {
+    device_allreduce_impl(comm,
+                          thrust::get<I>(input_first.get_iterator_tuple()),
+                          thrust::get<I>(output_first.get_iterator_tuple()),
+                          count,
+                          op,
+                          stream);
+    device_allreduce_tuple_iterator_element_impl<InputIterator, OutputIterator, I + 1, N>(
+      comm, input_first, output_first, count, op, stream);
+  }
+};
+
+template <typename InputIterator, typename OutputIterator, size_t I>
+struct device_allreduce_tuple_iterator_element_impl<InputIterator, OutputIterator, I, I> {
+  void run(raft::comms::comms_t const& comm,
+           InputIterator input_first,
+           OutputIterator output_first,
+           size_t count,
+           raft::comms::op_t op,
+           cudaStream_t stream) const
+  {
+  }
+};
+
+template <typename InputIterator, typename OutputIterator>
+std::enable_if_t<thrust::detail::is_discard_iterator<OutputIterator>::value, void>
 device_reduce_impl(raft::comms::comms_t const& comm,
                    InputIterator input_first,
                    OutputIterator output_first,
@@ -460,7 +522,7 @@ struct device_reduce_tuple_iterator_element_impl {
                        op,
                        root,
                        stream);
-    device_reduce_tuple_iterator_element_impl<InputIterator, OutputIterator, I + 1, N>(
+    device_reduce_tuple_iterator_element_impl<InputIterator, OutputIterator, I + 1, N>().run(
       comm, input_first, output_first, count, op, root, stream);
   }
 };
@@ -858,6 +920,46 @@ template <typename InputIterator, typename OutputIterator>
 std::enable_if_t<
   std::is_arithmetic<typename std::iterator_traits<InputIterator>::value_type>::value,
   void>
+device_allreduce(raft::comms::comms_t const& comm,
+                 InputIterator input_first,
+                 OutputIterator output_first,
+                 size_t count,
+                 raft::comms::op_t op,
+                 cudaStream_t stream)
+{
+  detail::device_allreduce_impl(comm, input_first, output_first, count, op, stream);
+}
+
+template <typename InputIterator, typename OutputIterator>
+std::enable_if_t<
+  is_thrust_tuple_of_arithmetic<typename std::iterator_traits<InputIterator>::value_type>::value &&
+    is_thrust_tuple<typename std::iterator_traits<OutputIterator>::value_type>::value,
+  void>
+device_allreduce(raft::comms::comms_t const& comm,
+                 InputIterator input_first,
+                 OutputIterator output_first,
+                 size_t count,
+                 raft::comms::op_t op,
+                 cudaStream_t stream)
+{
+  static_assert(
+    thrust::tuple_size<typename thrust::iterator_traits<InputIterator>::value_type>::value ==
+    thrust::tuple_size<typename thrust::iterator_traits<OutputIterator>::value_type>::value);
+
+  size_t constexpr tuple_size =
+    thrust::tuple_size<typename thrust::iterator_traits<InputIterator>::value_type>::value;
+
+  detail::device_allreduce_tuple_iterator_element_impl<InputIterator,
+                                                       OutputIterator,
+                                                       size_t{0},
+                                                       tuple_size>(
+    comm, input_first, output_first, count, op, stream);
+}
+
+template <typename InputIterator, typename OutputIterator>
+std::enable_if_t<
+  std::is_arithmetic<typename std::iterator_traits<InputIterator>::value_type>::value,
+  void>
 device_reduce(raft::comms::comms_t const& comm,
               InputIterator input_first,
               OutputIterator output_first,
@@ -889,9 +991,11 @@ device_reduce(raft::comms::comms_t const& comm,
   size_t constexpr tuple_size =
     thrust::tuple_size<typename thrust::iterator_traits<InputIterator>::value_type>::value;
 
-  detail::
-    device_reduce_tuple_iterator_element_impl<InputIterator, OutputIterator, size_t{0}, tuple_size>(
-      comm, input_first, output_first, count, op, root, stream);
+  detail::device_reduce_tuple_iterator_element_impl<InputIterator,
+                                                    OutputIterator,
+                                                    size_t{0},
+                                                    tuple_size>()
+    .run(comm, input_first, output_first, count, op, root, stream);
 }
 
 template <typename InputIterator, typename OutputIterator>

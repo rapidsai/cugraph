@@ -22,6 +22,12 @@
 #include <raft/handle.hpp>
 #include <rmm/device_uvector.hpp>
 
+#include <thrust/distance.h>
+#include <thrust/fill.h>
+#include <thrust/reduce.h>
+#include <thrust/scatter.h>
+#include <thrust/tuple.h>
+
 #include <algorithm>
 #include <numeric>
 #include <vector>
@@ -30,89 +36,6 @@ namespace cugraph {
 namespace experimental {
 
 namespace detail {
-
-template <typename ValueIterator, typename ValueToGPUIdOp>
-rmm::device_uvector<size_t> sort_and_count(raft::comms::comms_t const &comm,
-                                           ValueIterator tx_value_first /* [INOUT */,
-                                           ValueIterator tx_value_last /* [INOUT */,
-                                           ValueToGPUIdOp value_to_gpu_id_op,
-                                           cudaStream_t stream)
-{
-  auto const comm_size = comm.get_size();
-
-  thrust::sort(rmm::exec_policy(stream)->on(stream),
-               tx_value_first,
-               tx_value_last,
-               [value_to_gpu_id_op] __device__(auto lhs, auto rhs) {
-                 return value_to_gpu_id_op(lhs) < value_to_gpu_id_op(rhs);
-               });
-
-  auto gpu_id_first = thrust::make_transform_iterator(
-    tx_value_first,
-    [value_to_gpu_id_op] __device__(auto value) { return value_to_gpu_id_op(value); });
-  rmm::device_uvector<int> d_tx_dst_ranks(comm_size, stream);
-  rmm::device_uvector<size_t> d_tx_value_counts(comm_size, stream);
-  auto last = thrust::reduce_by_key(rmm::exec_policy(stream)->on(stream),
-                                    gpu_id_first,
-                                    gpu_id_first + thrust::distance(tx_value_first, tx_value_last),
-                                    thrust::make_constant_iterator(size_t{1}),
-                                    d_tx_dst_ranks.begin(),
-                                    d_tx_value_counts.begin());
-  if (thrust::distance(d_tx_value_counts.begin(), thrust::get<1>(last)) < comm_size) {
-    rmm::device_uvector<size_t> d_counts(comm_size, stream);
-    thrust::fill(rmm::exec_policy(stream)->on(stream), d_counts.begin(), d_counts.end(), size_t{0});
-    thrust::scatter(rmm::exec_policy(stream)->on(stream),
-                    d_tx_value_counts.begin(),
-                    thrust::get<1>(last),
-                    d_tx_dst_ranks.begin(),
-                    d_counts.begin());
-    d_tx_value_counts = std::move(d_counts);
-  }
-
-  return d_tx_value_counts;
-}
-
-template <typename VertexIterator, typename ValueIterator, typename KeyToGPUIdOp>
-rmm::device_uvector<size_t> sort_and_count(raft::comms::comms_t const &comm,
-                                           VertexIterator tx_key_first /* [INOUT */,
-                                           VertexIterator tx_key_last /* [INOUT */,
-                                           ValueIterator tx_value_first /* [INOUT */,
-                                           KeyToGPUIdOp key_to_gpu_id_op,
-                                           cudaStream_t stream)
-{
-  auto const comm_size = comm.get_size();
-
-  thrust::sort_by_key(rmm::exec_policy(stream)->on(stream),
-                      tx_key_first,
-                      tx_key_last,
-                      tx_value_first,
-                      [key_to_gpu_id_op] __device__(auto lhs, auto rhs) {
-                        return key_to_gpu_id_op(lhs) < key_to_gpu_id_op(rhs);
-                      });
-
-  auto gpu_id_first = thrust::make_transform_iterator(
-    tx_key_first, [key_to_gpu_id_op] __device__(auto key) { return key_to_gpu_id_op(key); });
-  rmm::device_uvector<int> d_tx_dst_ranks(comm_size, stream);
-  rmm::device_uvector<size_t> d_tx_value_counts(comm_size, stream);
-  auto last = thrust::reduce_by_key(rmm::exec_policy(stream)->on(stream),
-                                    gpu_id_first,
-                                    gpu_id_first + thrust::distance(tx_key_first, tx_key_last),
-                                    thrust::make_constant_iterator(size_t{1}),
-                                    d_tx_dst_ranks.begin(),
-                                    d_tx_value_counts.begin());
-  if (thrust::distance(d_tx_value_counts.begin(), thrust::get<1>(last)) < comm_size) {
-    rmm::device_uvector<size_t> d_counts(comm_size, stream);
-    thrust::fill(rmm::exec_policy(stream)->on(stream), d_counts.begin(), d_counts.end(), size_t{0});
-    thrust::scatter(rmm::exec_policy(stream)->on(stream),
-                    d_tx_value_counts.begin(),
-                    thrust::get<1>(last),
-                    d_tx_dst_ranks.begin(),
-                    d_counts.begin());
-    d_tx_value_counts = std::move(d_counts);
-  }
-
-  return d_tx_value_counts;
-}
 
 // inline to suppress a complaint about ODR violation
 inline std::tuple<std::vector<size_t>,
@@ -187,6 +110,86 @@ compute_tx_rx_counts_offsets_ranks(raft::comms::comms_t const &comm,
 
 }  // namespace detail
 
+template <typename ValueIterator, typename ValueToGPUIdOp>
+rmm::device_uvector<size_t> groupby_and_count(ValueIterator tx_value_first /* [INOUT */,
+                                              ValueIterator tx_value_last /* [INOUT */,
+                                              ValueToGPUIdOp value_to_group_id_op,
+                                              int num_groups,
+                                              cudaStream_t stream)
+{
+  thrust::sort(rmm::exec_policy(stream)->on(stream),
+               tx_value_first,
+               tx_value_last,
+               [value_to_group_id_op] __device__(auto lhs, auto rhs) {
+                 return value_to_group_id_op(lhs) < value_to_group_id_op(rhs);
+               });
+
+  auto group_id_first = thrust::make_transform_iterator(
+    tx_value_first,
+    [value_to_group_id_op] __device__(auto value) { return value_to_group_id_op(value); });
+  rmm::device_uvector<int> d_tx_dst_ranks(num_groups, stream);
+  rmm::device_uvector<size_t> d_tx_value_counts(d_tx_dst_ranks.size(), stream);
+  auto last =
+    thrust::reduce_by_key(rmm::exec_policy(stream)->on(stream),
+                          group_id_first,
+                          group_id_first + thrust::distance(tx_value_first, tx_value_last),
+                          thrust::make_constant_iterator(size_t{1}),
+                          d_tx_dst_ranks.begin(),
+                          d_tx_value_counts.begin());
+  if (thrust::distance(d_tx_dst_ranks.begin(), thrust::get<0>(last)) < num_groups) {
+    rmm::device_uvector<size_t> d_counts(num_groups, stream);
+    thrust::fill(rmm::exec_policy(stream)->on(stream), d_counts.begin(), d_counts.end(), size_t{0});
+    thrust::scatter(rmm::exec_policy(stream)->on(stream),
+                    d_tx_value_counts.begin(),
+                    thrust::get<1>(last),
+                    d_tx_dst_ranks.begin(),
+                    d_counts.begin());
+    d_tx_value_counts = std::move(d_counts);
+  }
+
+  return d_tx_value_counts;
+}
+
+template <typename VertexIterator, typename ValueIterator, typename KeyToGPUIdOp>
+rmm::device_uvector<size_t> groupby_and_count(VertexIterator tx_key_first /* [INOUT */,
+                                              VertexIterator tx_key_last /* [INOUT */,
+                                              ValueIterator tx_value_first /* [INOUT */,
+                                              KeyToGPUIdOp key_to_group_id_op,
+                                              int num_groups,
+                                              cudaStream_t stream)
+{
+  thrust::sort_by_key(rmm::exec_policy(stream)->on(stream),
+                      tx_key_first,
+                      tx_key_last,
+                      tx_value_first,
+                      [key_to_group_id_op] __device__(auto lhs, auto rhs) {
+                        return key_to_group_id_op(lhs) < key_to_group_id_op(rhs);
+                      });
+
+  auto group_id_first = thrust::make_transform_iterator(
+    tx_key_first, [key_to_group_id_op] __device__(auto key) { return key_to_group_id_op(key); });
+  rmm::device_uvector<int> d_tx_dst_ranks(num_groups, stream);
+  rmm::device_uvector<size_t> d_tx_value_counts(d_tx_dst_ranks.size(), stream);
+  auto last = thrust::reduce_by_key(rmm::exec_policy(stream)->on(stream),
+                                    group_id_first,
+                                    group_id_first + thrust::distance(tx_key_first, tx_key_last),
+                                    thrust::make_constant_iterator(size_t{1}),
+                                    d_tx_dst_ranks.begin(),
+                                    d_tx_value_counts.begin());
+  if (thrust::distance(d_tx_dst_ranks.begin(), thrust::get<0>(last)) < num_groups) {
+    rmm::device_uvector<size_t> d_counts(num_groups, stream);
+    thrust::fill(rmm::exec_policy(stream)->on(stream), d_counts.begin(), d_counts.end(), size_t{0});
+    thrust::scatter(rmm::exec_policy(stream)->on(stream),
+                    d_tx_value_counts.begin(),
+                    thrust::get<1>(last),
+                    d_tx_dst_ranks.begin(),
+                    d_counts.begin());
+    d_tx_value_counts = std::move(d_counts);
+  }
+
+  return d_tx_value_counts;
+}
+
 template <typename TxValueIterator>
 auto shuffle_values(raft::comms::comms_t const &comm,
                     TxValueIterator tx_value_first,
@@ -250,7 +253,7 @@ auto groupby_gpuid_and_shuffle_values(raft::comms::comms_t const &comm,
   auto const comm_size = comm.get_size();
 
   auto d_tx_value_counts =
-    detail::sort_and_count(comm, tx_value_first, tx_value_last, value_to_gpu_id_op, stream);
+    groupby_and_count(tx_value_first, tx_value_last, value_to_gpu_id_op, comm.get_size(), stream);
 
   std::vector<size_t> tx_counts{};
   std::vector<size_t> tx_offsets{};
@@ -301,8 +304,8 @@ auto groupby_gpuid_and_shuffle_kv_pairs(raft::comms::comms_t const &comm,
 {
   auto const comm_size = comm.get_size();
 
-  auto d_tx_value_counts = detail::sort_and_count(
-    comm, tx_key_first, tx_key_last, tx_value_first, key_to_gpu_id_op, stream);
+  auto d_tx_value_counts = groupby_and_count(
+    tx_key_first, tx_key_last, tx_value_first, key_to_gpu_id_op, comm.get_size(), stream);
 
   std::vector<size_t> tx_counts{};
   std::vector<size_t> tx_offsets{};

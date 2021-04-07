@@ -18,7 +18,7 @@ dependencies:
 - ucx-py=0.19*
 - ucx-proc=*=gpu
 - scipy
-- networkx
+- networkx>=2.5.1
 - python-louvain
 - cudatoolkit=11.0
 - clang=8.0.1

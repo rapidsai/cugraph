@@ -14,9 +14,11 @@
  * limitations under the License.
  */
 
+#include <tuple>
 #include <utilities/base_fixture.hpp>
 #include <utilities/test_utilities.hpp>
 
+#include <experimental/graph.hpp>
 #include <experimental/graph_generator.hpp>
 
 #include <raft/cudart_utils.h>
@@ -200,17 +202,19 @@ class Tests_GenerateRmat : public ::testing::TestWithParam<GenerateRmat_Usecase>
         (h_cugraph_srcs.size() == (size_t{1} << configuration.scale) * configuration.edge_factor) &&
         (h_cugraph_dsts.size() == (size_t{1} << configuration.scale) * configuration.edge_factor))
         << "Returned an invalid number of R-mat graph edges.";
-      ASSERT_TRUE(
-        std::count_if(h_cugraph_srcs.begin(),
-                      h_cugraph_srcs.end(),
-                      [num_vertices = static_cast<vertex_t>(size_t{1} << configuration.scale)](
-                        auto v) { return !cugraph::test::is_valid_vertex(num_vertices, v); }) == 0)
+      ASSERT_TRUE(std::count_if(h_cugraph_srcs.begin(),
+                                h_cugraph_srcs.end(),
+                                [num_vertices = static_cast<vertex_t>(
+                                   size_t{1} << configuration.scale)](auto v) {
+                                  return !cugraph::experimental::is_valid_vertex(num_vertices, v);
+                                }) == 0)
         << "Returned R-mat graph edges have invalid source vertex IDs.";
-      ASSERT_TRUE(
-        std::count_if(h_cugraph_dsts.begin(),
-                      h_cugraph_dsts.end(),
-                      [num_vertices = static_cast<vertex_t>(size_t{1} << configuration.scale)](
-                        auto v) { return !cugraph::test::is_valid_vertex(num_vertices, v); }) == 0)
+      ASSERT_TRUE(std::count_if(h_cugraph_dsts.begin(),
+                                h_cugraph_dsts.end(),
+                                [num_vertices = static_cast<vertex_t>(
+                                   size_t{1} << configuration.scale)](auto v) {
+                                  return !cugraph::experimental::is_valid_vertex(num_vertices, v);
+                                }) == 0)
         << "Returned R-mat graph edges have invalid destination vertex IDs.";
 
       if (!scramble) {
@@ -281,5 +285,90 @@ INSTANTIATE_TEST_CASE_P(simple_test,
                                           GenerateRmat_Usecase(20, 16, 0.57, 0.19, 0.19, false),
                                           GenerateRmat_Usecase(20, 16, 0.45, 0.22, 0.22, true),
                                           GenerateRmat_Usecase(20, 16, 0.45, 0.22, 0.22, false)));
+typedef struct GenerateRmats_Usecase_t {
+  size_t n_edgelists{0};
+  size_t min_scale{0};
+  size_t max_scale{0};
+  size_t edge_factor{0};
+  cugraph::experimental::generator_distribution_t component_distribution;
+  cugraph::experimental::generator_distribution_t edge_distribution;
 
+  GenerateRmats_Usecase_t(size_t n_edgelists,
+                          size_t min_scale,
+                          size_t max_scale,
+                          size_t edge_factor,
+                          cugraph::experimental::generator_distribution_t component_distribution,
+                          cugraph::experimental::generator_distribution_t edge_distribution)
+    : n_edgelists(n_edgelists),
+      min_scale(min_scale),
+      max_scale(max_scale),
+      component_distribution(component_distribution),
+      edge_distribution(edge_distribution),
+      edge_factor(edge_factor){};
+} GenerateRmats_Usecase;
+class Tests_GenerateRmats : public ::testing::TestWithParam<GenerateRmats_Usecase> {
+ public:
+  Tests_GenerateRmats() {}
+  static void SetupTestCase() {}
+  static void TearDownTestCase() {}
+
+  virtual void SetUp() {}
+  virtual void TearDown() {}
+
+  template <typename vertex_t>
+  void run_current_test(GenerateRmats_Usecase const& configuration)
+  {
+    raft::handle_t handle{};
+
+    CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
+
+    auto outputs =
+      cugraph::experimental::generate_rmat_edgelists<vertex_t>(handle,
+                                                               configuration.n_edgelists,
+                                                               configuration.min_scale,
+                                                               configuration.max_scale,
+                                                               configuration.edge_factor,
+                                                               configuration.component_distribution,
+                                                               configuration.edge_distribution,
+                                                               uint64_t{0});
+
+    CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
+    ASSERT_EQ(configuration.n_edgelists, outputs.size());
+    for (auto i = outputs.begin(); i != outputs.end(); ++i) {
+      ASSERT_EQ(std::get<0>(*i).size(), std::get<1>(*i).size());
+      ASSERT_TRUE((configuration.min_scale * configuration.edge_factor) <= std::get<0>(*i).size());
+      ASSERT_TRUE((configuration.max_scale * configuration.edge_factor) >= std::get<0>(*i).size());
+    }
+  }
+};
+TEST_P(Tests_GenerateRmats, CheckInt32) { run_current_test<int32_t>(GetParam()); }
+
+INSTANTIATE_TEST_CASE_P(
+  simple_test,
+  Tests_GenerateRmats,
+  ::testing::Values(
+    GenerateRmats_Usecase(8,
+                          1,
+                          16,
+                          32,
+                          cugraph::experimental::generator_distribution_t::UNIFORM,
+                          cugraph::experimental::generator_distribution_t::UNIFORM),
+    GenerateRmats_Usecase(8,
+                          1,
+                          16,
+                          32,
+                          cugraph::experimental::generator_distribution_t::UNIFORM,
+                          cugraph::experimental::generator_distribution_t::POWER_LAW),
+    GenerateRmats_Usecase(8,
+                          3,
+                          16,
+                          32,
+                          cugraph::experimental::generator_distribution_t::POWER_LAW,
+                          cugraph::experimental::generator_distribution_t::UNIFORM),
+    GenerateRmats_Usecase(8,
+                          3,
+                          16,
+                          32,
+                          cugraph::experimental::generator_distribution_t::POWER_LAW,
+                          cugraph::experimental::generator_distribution_t::POWER_LAW)));
 CUGRAPH_TEST_PROGRAM_MAIN()

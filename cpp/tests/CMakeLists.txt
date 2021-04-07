@@ -20,9 +20,10 @@
 # - common test utils -----------------------------------------------------------------------------
 
 add_library(cugraphtestutil STATIC
-            "${CMAKE_CURRENT_SOURCE_DIR}/utilities/generate_graph_from_edgelist.cu"
             "${CMAKE_CURRENT_SOURCE_DIR}/utilities/matrix_market_file_utilities.cu"
             "${CMAKE_CURRENT_SOURCE_DIR}/utilities/rmat_utilities.cu"
+            "${CMAKE_CURRENT_SOURCE_DIR}/utilities/generate_graph_from_edgelist.cu"
+            "${CMAKE_CURRENT_SOURCE_DIR}/utilities/thrust_wrapper.cu"
             "${CMAKE_CURRENT_SOURCE_DIR}/utilities/misc_utilities.cpp"
             "${CMAKE_CURRENT_SOURCE_DIR}/../../thirdparty/mmio/mmio.c")
 
@@ -318,6 +319,13 @@ set(MST_TEST_SRC
 
 ConfigureTest(MST_TEST "${MST_TEST_SRC}")
 
+###################################################################################################
+# - Experimental stream tests -----------------------------------------------------
+
+set(EXPERIMENTAL_STREAM_SRCS
+    "${CMAKE_CURRENT_SOURCE_DIR}/experimental/streams.cu")
+
+ConfigureTest(EXPERIMENTAL_STREAM "${EXPERIMENTAL_STREAM_SRCS}" "")
 
 ###################################################################################################
 # - Experimental R-mat graph generation tests -----------------------------------------------------
@@ -376,6 +384,15 @@ set(EXPERIMENTAL_BFS_TEST_SRCS
 ConfigureTest(EXPERIMENTAL_BFS_TEST "${EXPERIMENTAL_BFS_TEST_SRCS}")
 
 ###################################################################################################
+# - Experimental BFS tests ------------------------------------------------------------------------
+
+set(EXPERIMENTAL_MSBFS_TEST_SRCS
+    "${CMAKE_CURRENT_SOURCE_DIR}/experimental/ms_bfs_test.cpp")
+
+ConfigureTest(EXPERIMENTAL_MSBFS_TEST "${EXPERIMENTAL_MSBFS_TEST_SRCS}")
+
+
+###################################################################################################
 # - Experimental SSSP tests -----------------------------------------------------------------------
 
 set(EXPERIMENTAL_SSSP_TEST_SRCS
@@ -392,20 +409,26 @@ set(EXPERIMENTAL_PAGERANK_TEST_SRCS
 ConfigureTest(EXPERIMENTAL_PAGERANK_TEST "${EXPERIMENTAL_PAGERANK_TEST_SRCS}")
 
 ###################################################################################################
-# - Experimental LOUVAIN tests -------------------------------------------------------------------
-
-set(EXPERIMENTAL_LOUVAIN_TEST_SRCS
-    "${CMAKE_CURRENT_SOURCE_DIR}/experimental/louvain_test.cu")
-
-ConfigureTest(EXPERIMENTAL_LOUVAIN_TEST "${EXPERIMENTAL_LOUVAIN_TEST_SRCS}")
-
-###################################################################################################
 # - Experimental KATZ_CENTRALITY tests ------------------------------------------------------------
 
 set(EXPERIMENTAL_KATZ_CENTRALITY_TEST_SRCS
     "${CMAKE_CURRENT_SOURCE_DIR}/experimental/katz_centrality_test.cpp")
 
 ConfigureTest(EXPERIMENTAL_KATZ_CENTRALITY_TEST "${EXPERIMENTAL_KATZ_CENTRALITY_TEST_SRCS}")
+
+###################################################################################################
+# - Experimental RANDOM_WALKS tests ------------------------------------------------------------
+
+set(EXPERIMENTAL_RANDOM_WALKS_TEST_SRCS
+    "${CMAKE_CURRENT_SOURCE_DIR}/experimental/random_walks_test.cu")
+
+ConfigureTest(EXPERIMENTAL_RANDOM_WALKS_TEST "${EXPERIMENTAL_RANDOM_WALKS_TEST_SRCS}")
+
+###################################################################################################
+set(EXPERIMENTAL_RANDOM_WALKS_LOW_LEVEL_SRCS
+    "${CMAKE_CURRENT_SOURCE_DIR}/experimental/rw_low_level_test.cu")
+
+ConfigureTest(EXPERIMENTAL_RANDOM_WALKS_LOW_LEVEL_TEST "${EXPERIMENTAL_RANDOM_WALKS_LOW_LEVEL_SRCS}")
 
 
 ###################################################################################################
@@ -421,6 +444,43 @@ if(BUILD_CUGRAPH_MG_TESTS)
 
         ConfigureTest(MG_PAGERANK_TEST "${MG_PAGERANK_TEST_SRCS}")
         target_link_libraries(MG_PAGERANK_TEST PRIVATE MPI::MPI_C MPI::MPI_CXX)
+
+        ###########################################################################################
+        # - MG KATZ CENTRALITY tests --------------------------------------------------------------
+
+        set(MG_KATZ_CENTRALITY_TEST_SRCS
+            "${CMAKE_CURRENT_SOURCE_DIR}/experimental/mg_katz_centrality_test.cpp")
+
+        ConfigureTest(MG_KATZ_CENTRALITY_TEST "${MG_KATZ_CENTRALITY_TEST_SRCS}")
+        target_link_libraries(MG_KATZ_CENTRALITY_TEST PRIVATE MPI::MPI_C MPI::MPI_CXX)
+
+        ###########################################################################################
+        # - MG BFS tests --------------------------------------------------------------------------
+
+        set(MG_BFS_TEST_SRCS
+            "${CMAKE_CURRENT_SOURCE_DIR}/experimental/mg_bfs_test.cpp")
+
+        ConfigureTest(MG_BFS_TEST "${MG_BFS_TEST_SRCS}")
+        target_link_libraries(MG_BFS_TEST PRIVATE MPI::MPI_C MPI::MPI_CXX)
+
+        ###########################################################################################
+        # - MG SSSP tests -------------------------------------------------------------------------
+
+        set(MG_SSSP_TEST_SRCS
+            "${CMAKE_CURRENT_SOURCE_DIR}/experimental/mg_sssp_test.cpp")
+
+        ConfigureTest(MG_SSSP_TEST "${MG_SSSP_TEST_SRCS}")
+        target_link_libraries(MG_SSSP_TEST PRIVATE MPI::MPI_C MPI::MPI_CXX)
+
+        ###########################################################################################
+        # - MG LOUVAIN tests ----------------------------------------------------------------------
+
+        set(MG_LOUVAIN_TEST_SRCS
+	    "${CMAKE_CURRENT_SOURCE_DIR}/community/mg_louvain_helper.cu"
+            "${CMAKE_CURRENT_SOURCE_DIR}/community/mg_louvain_test.cpp")
+
+        ConfigureTest(MG_LOUVAIN_TEST "${MG_LOUVAIN_TEST_SRCS}")
+        target_link_libraries(MG_LOUVAIN_TEST PRIVATE MPI::MPI_C MPI::MPI_CXX)
 
     else(MPI_CXX_FOUND)
        message(FATAL_ERROR "OpenMPI NOT found, cannot build MG tests.")

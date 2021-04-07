@@ -1,4 +1,4 @@
-# Copyright (c) 2019-2020, NVIDIA CORPORATION.
+# Copyright (c) 2019-2021, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -12,10 +12,13 @@
 # limitations under the License.
 
 import gc
+
 import pytest
 import cudf
+
 import cugraph
 from cugraph.tests import utils
+
 
 # Temporarily suppress warnings till networkX fixes deprecation warnings
 # (Using or importing the ABCs from 'collections' instead of from
@@ -77,7 +80,6 @@ def test_networkx_compatibility(graph_file):
     _compare_graphs(nxG, cuG)
 
 
-# Test
 @pytest.mark.parametrize("graph_file", utils.DATASETS)
 def test_nx_convert(graph_file):
     gc.collect()

@@ -20,22 +20,101 @@
 #include <experimental/graph_view.hpp>
 #include <graph.hpp>
 #include <partition_manager.hpp>
-#include <raft/handle.hpp>
 #include <utilities/cython.hpp>
 #include <utilities/error.hpp>
 #include <utilities/shuffle_comm.cuh>
 
 #include <rmm/thrust_rmm_allocator.h>
+#include <raft/handle.hpp>
+#include <rmm/device_uvector.hpp>
+
 #include <thrust/copy.h>
+#include <thrust/fill.h>
+#include <thrust/iterator/constant_iterator.h>
 #include <thrust/iterator/counting_iterator.h>
+#include <thrust/iterator/transform_iterator.h>
 #include <thrust/iterator/zip_iterator.h>
+#include <thrust/reduce.h>
+#include <thrust/scatter.h>
+
+#include <numeric>
+#include <vector>
 
 namespace cugraph {
 namespace cython {
 
 namespace detail {
 
-// FIXME: Add description of this function
+// workaround for CUDA extended lambda restrictions
+template <typename vertex_t>
+struct compute_local_partition_id_t {
+  vertex_t const* lasts{nullptr};
+  size_t num_local_partitions{0};
+
+  __device__ size_t operator()(vertex_t v)
+  {
+    for (size_t i = 0; i < num_local_partitions; ++i) {
+      if (v < lasts[i]) { return i; }
+    }
+    return num_local_partitions;
+  }
+};
+
+// FIXME: this is unnecessary if edge_counts_ in the major_minor_weights_t object returned by
+// call_shuffle() is passed back, better be fixed. this code assumes that the entire set of edges
+// for each partition are consecutively stored.
+template <typename vertex_t, typename edge_t, bool transposed>
+std::vector<edge_t> compute_edge_counts(raft::handle_t const& handle,
+                                        graph_container_t const& graph_container)
+{
+  auto num_local_partitions = static_cast<size_t>(graph_container.col_comm_size);
+
+  std::vector<vertex_t> partition_offsets_vector(
+    reinterpret_cast<vertex_t*>(graph_container.vertex_partition_offsets),
+    reinterpret_cast<vertex_t*>(graph_container.vertex_partition_offsets) +
+      (graph_container.row_comm_size * graph_container.col_comm_size) + 1);
+
+  std::vector<vertex_t> h_lasts(num_local_partitions);
+  for (size_t i = 0; i < h_lasts.size(); ++i) {
+    h_lasts[i] = partition_offsets_vector[graph_container.row_comm_size * (i + 1)];
+  }
+  rmm::device_uvector<vertex_t> d_lasts(h_lasts.size(), handle.get_stream());
+  raft::update_device(d_lasts.data(), h_lasts.data(), h_lasts.size(), handle.get_stream());
+  auto major_vertices = transposed
+                          ? reinterpret_cast<vertex_t const*>(graph_container.dst_vertices)
+                          : reinterpret_cast<vertex_t const*>(graph_container.src_vertices);
+  auto key_first = thrust::make_transform_iterator(
+    major_vertices, compute_local_partition_id_t<vertex_t>{d_lasts.data(), num_local_partitions});
+  rmm::device_uvector<size_t> d_local_partition_ids(num_local_partitions, handle.get_stream());
+  rmm::device_uvector<edge_t> d_edge_counts(d_local_partition_ids.size(), handle.get_stream());
+  auto it = thrust::reduce_by_key(rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
+                                  key_first,
+                                  key_first + graph_container.num_local_edges,
+                                  thrust::make_constant_iterator(edge_t{1}),
+                                  d_local_partition_ids.begin(),
+                                  d_edge_counts.begin());
+  if (static_cast<size_t>(thrust::distance(d_local_partition_ids.begin(), thrust::get<0>(it))) <
+      num_local_partitions) {
+    rmm::device_uvector<edge_t> d_counts(num_local_partitions, handle.get_stream());
+    thrust::fill(rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
+                 d_counts.begin(),
+                 d_counts.end(),
+                 edge_t{0});
+    thrust::scatter(rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
+                    d_edge_counts.begin(),
+                    thrust::get<1>(it),
+                    d_local_partition_ids.begin(),
+                    d_counts.begin());
+    d_edge_counts = std::move(d_counts);
+  }
+  std::vector<edge_t> h_edge_counts(num_local_partitions, 0);
+  raft::update_host(
+    h_edge_counts.data(), d_edge_counts.data(), d_edge_counts.size(), handle.get_stream());
+  handle.get_stream_view().synchronize();
+
+  return h_edge_counts;
+}
+
 template <typename vertex_t,
           typename edge_t,
           typename weight_t,
@@ -45,19 +124,31 @@ template <typename vertex_t,
 std::unique_ptr<experimental::graph_t<vertex_t, edge_t, weight_t, transposed, multi_gpu>>
 create_graph(raft::handle_t const& handle, graph_container_t const& graph_container)
 {
-  std::vector<experimental::edgelist_t<vertex_t, edge_t, weight_t>> edgelist(
-    {{reinterpret_cast<vertex_t*>(graph_container.src_vertices),
-      reinterpret_cast<vertex_t*>(graph_container.dst_vertices),
-      reinterpret_cast<weight_t*>(graph_container.weights),
-      static_cast<edge_t>(graph_container.num_partition_edges)}});
+  auto num_local_partitions = static_cast<size_t>(graph_container.col_comm_size);
 
   std::vector<vertex_t> partition_offsets_vector(
     reinterpret_cast<vertex_t*>(graph_container.vertex_partition_offsets),
     reinterpret_cast<vertex_t*>(graph_container.vertex_partition_offsets) +
       (graph_container.row_comm_size * graph_container.col_comm_size) + 1);
 
+  auto edge_counts = compute_edge_counts<vertex_t, edge_t, transposed>(handle, graph_container);
+
+  std::vector<edge_t> displacements(edge_counts.size(), 0);
+  std::partial_sum(edge_counts.begin(), edge_counts.end() - 1, displacements.begin() + 1);
+
+  std::vector<cugraph::experimental::edgelist_t<vertex_t, edge_t, weight_t>> edgelists(
+    num_local_partitions);
+  for (size_t i = 0; i < edgelists.size(); ++i) {
+    edgelists[i] = cugraph::experimental::edgelist_t<vertex_t, edge_t, weight_t>{
+      reinterpret_cast<vertex_t*>(graph_container.src_vertices) + displacements[i],
+      reinterpret_cast<vertex_t*>(graph_container.dst_vertices) + displacements[i],
+      graph_container.graph_props.is_weighted
+        ? reinterpret_cast<weight_t*>(graph_container.weights) + displacements[i]
+        : static_cast<weight_t*>(nullptr),
+      edge_counts[i]};
+  }
+
   experimental::partition_t<vertex_t> partition(partition_offsets_vector,
-                                                graph_container.hypergraph_partitioned,
                                                 graph_container.row_comm_size,
                                                 graph_container.col_comm_size,
                                                 graph_container.row_comm_rank,
@@ -65,14 +156,12 @@ create_graph(raft::handle_t const& handle, graph_container_t const& graph_contai
 
   return std::make_unique<experimental::graph_t<vertex_t, edge_t, weight_t, transposed, multi_gpu>>(
     handle,
-    edgelist,
+    edgelists,
     partition,
     static_cast<vertex_t>(graph_container.num_global_vertices),
     static_cast<edge_t>(graph_container.num_global_edges),
     graph_container.graph_props,
-    // FIXME:  This currently fails if sorted_by_degree is true...
-    // graph_container.sorted_by_degree,
-    false,
+    true,
     graph_container.do_expensive_check);
 }
 
@@ -89,7 +178,7 @@ create_graph(raft::handle_t const& handle, graph_container_t const& graph_contai
     reinterpret_cast<vertex_t*>(graph_container.src_vertices),
     reinterpret_cast<vertex_t*>(graph_container.dst_vertices),
     reinterpret_cast<weight_t*>(graph_container.weights),
-    static_cast<edge_t>(graph_container.num_partition_edges)};
+    static_cast<edge_t>(graph_container.num_local_edges)};
   return std::make_unique<experimental::graph_t<vertex_t, edge_t, weight_t, transposed, multi_gpu>>(
     handle,
     edgelist,
@@ -113,10 +202,11 @@ void populate_graph_container(graph_container_t& graph_container,
                               numberTypeEnum vertexType,
                               numberTypeEnum edgeType,
                               numberTypeEnum weightType,
-                              size_t num_partition_edges,
+                              size_t num_local_edges,
                               size_t num_global_vertices,
                               size_t num_global_edges,
                               bool sorted_by_degree,
+                              bool is_weighted,
                               bool transposed,
                               bool multi_gpu)
 {
@@ -124,7 +214,6 @@ void populate_graph_container(graph_container_t& graph_container,
                   "populate_graph_container() can only be called on an empty container.");
 
   bool do_expensive_check{true};
-  bool hypergraph_partitioned{false};
 
   if (multi_gpu) {
     auto& row_comm           = handle.get_subcomm(cugraph::partition_2d::key_naming_t().row_name());
@@ -143,7 +232,7 @@ void populate_graph_container(graph_container_t& graph_container,
   graph_container.src_vertices             = src_vertices;
   graph_container.dst_vertices             = dst_vertices;
   graph_container.weights                  = weights;
-  graph_container.num_partition_edges      = num_partition_edges;
+  graph_container.num_local_edges          = num_local_edges;
   graph_container.num_global_vertices      = num_global_vertices;
   graph_container.num_global_edges         = num_global_edges;
   graph_container.vertexType               = vertexType;
@@ -151,11 +240,11 @@ void populate_graph_container(graph_container_t& graph_container,
   graph_container.weightType               = weightType;
   graph_container.transposed               = transposed;
   graph_container.is_multi_gpu             = multi_gpu;
-  graph_container.hypergraph_partitioned   = hypergraph_partitioned;
   graph_container.sorted_by_degree         = sorted_by_degree;
   graph_container.do_expensive_check       = do_expensive_check;
 
-  experimental::graph_properties_t graph_props{.is_symmetric = false, .is_multigraph = false};
+  experimental::graph_properties_t graph_props{
+    .is_symmetric = false, .is_multigraph = false, .is_weighted = is_weighted};
   graph_container.graph_props = graph_props;
 
   graph_container.graph_type = graphTypeEnum::graph_t;
@@ -177,7 +266,7 @@ void populate_graph_container_legacy(graph_container_t& graph_container,
                                      int* local_offsets)
 {
   CUGRAPH_EXPECTS(graph_container.graph_type == graphTypeEnum::null,
-                  "populate_graph_container() can only be called on an empty container.");
+                  "populate_graph_container_legacy() can only be called on an empty container.");
 
   // FIXME: This is soon-to-be legacy code left in place until the new graph_t
   // class is supported everywhere else. Remove everything down to the comment
@@ -696,6 +785,61 @@ std::unique_ptr<cy_multi_edgelists_t> call_egonet(raft::handle_t const& handle,
   }
 }
 
+// Wrapper for random_walks() through a graph container
+// to expose the API to cython.
+//
+template <typename vertex_t, typename edge_t>
+std::enable_if_t<cugraph::experimental::is_vertex_edge_combo<vertex_t, edge_t>::value,
+                 std::unique_ptr<random_walk_ret_t>>
+call_random_walks(raft::handle_t const& handle,
+                  graph_container_t const& graph_container,
+                  vertex_t const* ptr_start_set,
+                  edge_t num_paths,
+                  edge_t max_depth)
+{
+  if (graph_container.weightType == numberTypeEnum::floatType) {
+    using weight_t = float;
+
+    auto graph =
+      detail::create_graph<vertex_t, edge_t, weight_t, false, false>(handle, graph_container);
+
+    auto triplet = cugraph::experimental::random_walks(
+      handle, graph->view(), ptr_start_set, num_paths, max_depth);
+
+    random_walk_ret_t rw_tri{std::get<0>(triplet).size(),
+                             std::get<1>(triplet).size(),
+                             static_cast<size_t>(num_paths),
+                             static_cast<size_t>(max_depth),
+                             std::make_unique<rmm::device_buffer>(std::get<0>(triplet).release()),
+                             std::make_unique<rmm::device_buffer>(std::get<1>(triplet).release()),
+                             std::make_unique<rmm::device_buffer>(std::get<2>(triplet).release())};
+
+    return std::make_unique<random_walk_ret_t>(std::move(rw_tri));
+
+  } else if (graph_container.weightType == numberTypeEnum::doubleType) {
+    using weight_t = double;
+
+    auto graph =
+      detail::create_graph<vertex_t, edge_t, weight_t, false, false>(handle, graph_container);
+
+    auto triplet = cugraph::experimental::random_walks(
+      handle, graph->view(), ptr_start_set, num_paths, max_depth);
+
+    random_walk_ret_t rw_tri{std::get<0>(triplet).size(),
+                             std::get<1>(triplet).size(),
+                             static_cast<size_t>(num_paths),
+                             static_cast<size_t>(max_depth),
+                             std::make_unique<rmm::device_buffer>(std::get<0>(triplet).release()),
+                             std::make_unique<rmm::device_buffer>(std::get<1>(triplet).release()),
+                             std::make_unique<rmm::device_buffer>(std::get<2>(triplet).release())};
+
+    return std::make_unique<random_walk_ret_t>(std::move(rw_tri));
+
+  } else {
+    CUGRAPH_FAIL("Unsupported weight type.");
+  }
+}
+
 // Wrapper for calling SSSP through a graph container
 template <typename vertex_t, typename weight_t>
 void call_sssp(raft::handle_t const& handle,
@@ -747,23 +891,23 @@ void call_sssp(raft::handle_t const& handle,
 // wrapper for shuffling:
 //
 template <typename vertex_t, typename edge_t, typename weight_t>
-std::unique_ptr<major_minor_weights_t<vertex_t, weight_t>> call_shuffle(
+std::unique_ptr<major_minor_weights_t<vertex_t, edge_t, weight_t>> call_shuffle(
   raft::handle_t const& handle,
   vertex_t*
     edgelist_major_vertices,  // [IN / OUT]: groupby_gpuid_and_shuffle_values() sorts in-place
   vertex_t* edgelist_minor_vertices,  // [IN / OUT]
   weight_t* edgelist_weights,         // [IN / OUT]
-  edge_t num_edgelist_edges,
-  bool is_hypergraph_partitioned)  // = false
+  edge_t num_edgelist_edges)
 {
-  auto& comm = handle.get_comms();
+  auto& comm               = handle.get_comms();
+  auto const comm_size     = comm.get_size();
+  auto& row_comm           = handle.get_subcomm(cugraph::partition_2d::key_naming_t().row_name());
+  auto const row_comm_size = row_comm.get_size();
+  auto& col_comm           = handle.get_subcomm(cugraph::partition_2d::key_naming_t().col_name());
+  auto const col_comm_size = col_comm.get_size();
 
-  auto& row_comm = handle.get_subcomm(cugraph::partition_2d::key_naming_t().row_name());
-
-  auto& col_comm = handle.get_subcomm(cugraph::partition_2d::key_naming_t().col_name());
-
-  std::unique_ptr<major_minor_weights_t<vertex_t, weight_t>> ptr_ret =
-    std::make_unique<major_minor_weights_t<vertex_t, weight_t>>(handle);
+  std::unique_ptr<major_minor_weights_t<vertex_t, edge_t, weight_t>> ptr_ret =
+    std::make_unique<major_minor_weights_t<vertex_t, edge_t, weight_t>>(handle);
 
   if (edgelist_weights != nullptr) {
     auto zip_edge = thrust::make_zip_iterator(
@@ -778,10 +922,7 @@ std::unique_ptr<major_minor_weights_t<vertex_t, weight_t>> call_shuffle(
         zip_edge + num_edgelist_edges,
         [key_func =
            cugraph::experimental::detail::compute_gpu_id_from_edge_t<vertex_t>{
-             is_hypergraph_partitioned,
-             comm.get_size(),
-             row_comm.get_size(),
-             col_comm.get_size()}] __device__(auto val) {
+             comm.get_size(), row_comm.get_size(), col_comm.get_size()}] __device__(auto val) {
           return key_func(thrust::get<0>(val), thrust::get<1>(val));
         },
         handle.get_stream());
@@ -797,13 +938,44 @@ std::unique_ptr<major_minor_weights_t<vertex_t, weight_t>> call_shuffle(
         zip_edge + num_edgelist_edges,
         [key_func =
            cugraph::experimental::detail::compute_gpu_id_from_edge_t<vertex_t>{
-             is_hypergraph_partitioned,
-             comm.get_size(),
-             row_comm.get_size(),
-             col_comm.get_size()}] __device__(auto val) {
+             comm.get_size(), row_comm.get_size(), col_comm.get_size()}] __device__(auto val) {
           return key_func(thrust::get<0>(val), thrust::get<1>(val));
         },
         handle.get_stream());
+  }
+
+  auto local_partition_id_op =
+    [comm_size,
+     key_func = cugraph::experimental::detail::compute_partition_id_from_edge_t<vertex_t>{
+       comm_size, row_comm_size, col_comm_size}] __device__(auto pair) {
+      return key_func(thrust::get<0>(pair), thrust::get<1>(pair)) /
+             comm_size;  // global partition id to local partition id
+    };
+  auto pair_first = thrust::make_zip_iterator(
+    thrust::make_tuple(ptr_ret->get_major().data(), ptr_ret->get_minor().data()));
+
+  auto edge_counts =
+    (edgelist_weights != nullptr)
+      ? cugraph::experimental::groupby_and_count(pair_first,
+                                                 pair_first + ptr_ret->get_major().size(),
+                                                 ptr_ret->get_weights().data(),
+                                                 local_partition_id_op,
+                                                 col_comm_size,
+                                                 handle.get_stream())
+      : cugraph::experimental::groupby_and_count(pair_first,
+                                                 pair_first + ptr_ret->get_major().size(),
+                                                 local_partition_id_op,
+                                                 col_comm_size,
+                                                 handle.get_stream());
+
+  std::vector<size_t> h_edge_counts(edge_counts.size());
+  raft::update_host(
+    h_edge_counts.data(), edge_counts.data(), edge_counts.size(), handle.get_stream());
+  handle.get_stream_view().synchronize();
+
+  ptr_ret->get_edge_counts().resize(h_edge_counts.size());
+  for (size_t i = 0; i < h_edge_counts.size(); ++i) {
+    ptr_ret->get_edge_counts()[i] = static_cast<edge_t>(h_edge_counts[i]);
   }
 
   return ptr_ret;  // RVO-ed
@@ -817,8 +989,7 @@ std::unique_ptr<renum_quad_t<vertex_t, edge_t>> call_renumber(
   raft::handle_t const& handle,
   vertex_t* shuffled_edgelist_major_vertices /* [INOUT] */,
   vertex_t* shuffled_edgelist_minor_vertices /* [INOUT] */,
-  edge_t num_edgelist_edges,
-  bool is_hypergraph_partitioned,
+  std::vector<edge_t> const& edge_counts,
   bool do_expensive_check,
   bool multi_gpu)  // bc. cython cannot take non-type template params
 {
@@ -828,33 +999,31 @@ std::unique_ptr<renum_quad_t<vertex_t, edge_t>> call_renumber(
     std::make_unique<renum_quad_t<vertex_t, edge_t>>(handle);
 
   if (multi_gpu) {
+    std::vector<edge_t> displacements(edge_counts.size(), edge_t{0});
+    std::partial_sum(edge_counts.begin(), edge_counts.end() - 1, displacements.begin() + 1);
+    std::vector<vertex_t*> major_ptrs(edge_counts.size());
+    std::vector<vertex_t*> minor_ptrs(major_ptrs.size());
+    for (size_t i = 0; i < edge_counts.size(); ++i) {
+      major_ptrs[i] = shuffled_edgelist_major_vertices + displacements[i];
+      minor_ptrs[i] = shuffled_edgelist_minor_vertices + displacements[i];
+    }
+
     std::tie(
       p_ret->get_dv(), p_ret->get_partition(), p_ret->get_num_vertices(), p_ret->get_num_edges()) =
       cugraph::experimental::renumber_edgelist<vertex_t, edge_t, true>(
-        handle,
-        shuffled_edgelist_major_vertices,
-        shuffled_edgelist_minor_vertices,
-        num_edgelist_edges,
-        is_hypergraph_partitioned,
-        do_expensive_check);
+        handle, major_ptrs, minor_ptrs, edge_counts, do_expensive_check);
   } else {
-    auto ret_f = cugraph::experimental::renumber_edgelist<vertex_t, edge_t, false>(
+    p_ret->get_dv() = cugraph::experimental::renumber_edgelist<vertex_t, edge_t, false>(
       handle,
       shuffled_edgelist_major_vertices,
       shuffled_edgelist_minor_vertices,
-      num_edgelist_edges,
+      edge_counts[0],
       do_expensive_check);
 
-    auto tot_vertices = static_cast<vertex_t>(ret_f.size());
+    p_ret->get_partition() = cugraph::experimental::partition_t<vertex_t>{};  // dummy
 
-    p_ret->get_dv() = std::move(ret_f);
-    cugraph::experimental::partition_t<vertex_t> part_sg(
-      std::vector<vertex_t>{0, tot_vertices}, false, 1, 1, 0, 0);
-
-    p_ret->get_partition() = std::move(part_sg);
-
-    p_ret->get_num_vertices() = tot_vertices;
-    p_ret->get_num_edges()    = num_edgelist_edges;
+    p_ret->get_num_vertices() = static_cast<vertex_t>(p_ret->get_dv().size());
+    p_ret->get_num_edges()    = edge_counts[0];
   }
 
   return p_ret;  // RVO-ed (copy ellision)
@@ -1038,6 +1207,27 @@ template std::unique_ptr<cy_multi_edgelists_t> call_egonet<int64_t, double>(
   int64_t n_subgraphs,
   int64_t radius);
 
+template std::unique_ptr<random_walk_ret_t> call_random_walks<int32_t, int32_t>(
+  raft::handle_t const& handle,
+  graph_container_t const& graph_container,
+  int32_t const* ptr_start_set,
+  int32_t num_paths,
+  int32_t max_depth);
+
+template std::unique_ptr<random_walk_ret_t> call_random_walks<int32_t, int64_t>(
+  raft::handle_t const& handle,
+  graph_container_t const& graph_container,
+  int32_t const* ptr_start_set,
+  int64_t num_paths,
+  int64_t max_depth);
+
+template std::unique_ptr<random_walk_ret_t> call_random_walks<int64_t, int64_t>(
+  raft::handle_t const& handle,
+  graph_container_t const& graph_container,
+  int64_t const* ptr_start_set,
+  int64_t num_paths,
+  int64_t max_depth);
+
 template void call_sssp(raft::handle_t const& handle,
                         graph_container_t const& graph_container,
                         int32_t* identifiers,
@@ -1066,53 +1256,47 @@ template void call_sssp(raft::handle_t const& handle,
                         int64_t* predecessors,
                         const int64_t source_vertex);
 
-template std::unique_ptr<major_minor_weights_t<int32_t, float>> call_shuffle(
+template std::unique_ptr<major_minor_weights_t<int32_t, int32_t, float>> call_shuffle(
   raft::handle_t const& handle,
   int32_t* edgelist_major_vertices,
   int32_t* edgelist_minor_vertices,
   float* edgelist_weights,
-  int32_t num_edgelist_edges,
-  bool is_hypergraph_partitioned);
+  int32_t num_edgelist_edges);
 
-template std::unique_ptr<major_minor_weights_t<int32_t, float>> call_shuffle(
+template std::unique_ptr<major_minor_weights_t<int32_t, int64_t, float>> call_shuffle(
   raft::handle_t const& handle,
   int32_t* edgelist_major_vertices,
   int32_t* edgelist_minor_vertices,
   float* edgelist_weights,
-  int64_t num_edgelist_edges,
-  bool is_hypergraph_partitioned);
+  int64_t num_edgelist_edges);
 
-template std::unique_ptr<major_minor_weights_t<int32_t, double>> call_shuffle(
+template std::unique_ptr<major_minor_weights_t<int32_t, int32_t, double>> call_shuffle(
   raft::handle_t const& handle,
   int32_t* edgelist_major_vertices,
   int32_t* edgelist_minor_vertices,
   double* edgelist_weights,
-  int32_t num_edgelist_edges,
-  bool is_hypergraph_partitioned);
+  int32_t num_edgelist_edges);
 
-template std::unique_ptr<major_minor_weights_t<int32_t, double>> call_shuffle(
+template std::unique_ptr<major_minor_weights_t<int32_t, int64_t, double>> call_shuffle(
   raft::handle_t const& handle,
   int32_t* edgelist_major_vertices,
   int32_t* edgelist_minor_vertices,
   double* edgelist_weights,
-  int64_t num_edgelist_edges,
-  bool is_hypergraph_partitioned);
+  int64_t num_edgelist_edges);
 
-template std::unique_ptr<major_minor_weights_t<int64_t, float>> call_shuffle(
+template std::unique_ptr<major_minor_weights_t<int64_t, int64_t, float>> call_shuffle(
   raft::handle_t const& handle,
   int64_t* edgelist_major_vertices,
   int64_t* edgelist_minor_vertices,
   float* edgelist_weights,
-  int64_t num_edgelist_edges,
-  bool is_hypergraph_partitioned);
+  int64_t num_edgelist_edges);
 
-template std::unique_ptr<major_minor_weights_t<int64_t, double>> call_shuffle(
+template std::unique_ptr<major_minor_weights_t<int64_t, int64_t, double>> call_shuffle(
   raft::handle_t const& handle,
   int64_t* edgelist_major_vertices,
   int64_t* edgelist_minor_vertices,
   double* edgelist_weights,
-  int64_t num_edgelist_edges,
-  bool is_hypergraph_partitioned);
+  int64_t num_edgelist_edges);
 
 // TODO: add the remaining relevant EIDIr's:
 //
@@ -1120,8 +1304,7 @@ template std::unique_ptr<renum_quad_t<int32_t, int32_t>> call_renumber(
   raft::handle_t const& handle,
   int32_t* shuffled_edgelist_major_vertices /* [INOUT] */,
   int32_t* shuffled_edgelist_minor_vertices /* [INOUT] */,
-  int32_t num_edgelist_edges,
-  bool is_hypergraph_partitioned,
+  std::vector<int32_t> const& edge_counts,
   bool do_expensive_check,
   bool multi_gpu);
 
@@ -1129,8 +1312,7 @@ template std::unique_ptr<renum_quad_t<int32_t, int64_t>> call_renumber(
   raft::handle_t const& handle,
   int32_t* shuffled_edgelist_major_vertices /* [INOUT] */,
   int32_t* shuffled_edgelist_minor_vertices /* [INOUT] */,
-  int64_t num_edgelist_edges,
-  bool is_hypergraph_partitioned,
+  std::vector<int64_t> const& edge_counts,
   bool do_expensive_check,
   bool multi_gpu);
 
@@ -1138,8 +1320,7 @@ template std::unique_ptr<renum_quad_t<int64_t, int64_t>> call_renumber(
   raft::handle_t const& handle,
   int64_t* shuffled_edgelist_major_vertices /* [INOUT] */,
   int64_t* shuffled_edgelist_minor_vertices /* [INOUT] */,
-  int64_t num_edgelist_edges,
-  bool is_hypergraph_partitioned,
+  std::vector<int64_t> const& edge_counts,
   bool do_expensive_check,
   bool multi_gpu);
 

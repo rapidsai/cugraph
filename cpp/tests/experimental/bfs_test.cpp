@@ -14,11 +14,14 @@
  * limitations under the License.
  */
 
+#include <utilities/high_res_clock.h>
 #include <utilities/base_fixture.hpp>
 #include <utilities/test_utilities.hpp>
+#include <utilities/thrust_wrapper.hpp>
 
 #include <algorithms.hpp>
 #include <experimental/graph.hpp>
+#include <experimental/graph_functions.hpp>
 #include <experimental/graph_view.hpp>
 
 #include <raft/cudart_utils.h>
@@ -28,9 +31,15 @@
 
 #include <gtest/gtest.h>
 
+#include <algorithm>
 #include <iterator>
 #include <limits>
 #include <vector>
+
+// do the perf measurements
+// enabled by command line parameter s'--perf'
+//
+static int PERF = 0;
 
 template <typename vertex_t, typename edge_t>
 void bfs_reference(edge_t const* offsets,
@@ -74,9 +83,12 @@ void bfs_reference(edge_t const* offsets,
 
 typedef struct BFS_Usecase_t {
   cugraph::test::input_graph_specifier_t input_graph_specifier{};
-  size_t source{false};
 
-  BFS_Usecase_t(std::string const& graph_file_path, size_t source) : source(source)
+  size_t source{0};
+  bool check_correctness{false};
+
+  BFS_Usecase_t(std::string const& graph_file_path, size_t source, bool check_correctness = true)
+    : source(source), check_correctness(check_correctness)
   {
     std::string graph_file_full_path{};
     if ((graph_file_path.length() > 0) && (graph_file_path[0] != '/')) {
@@ -88,12 +100,42 @@ typedef struct BFS_Usecase_t {
     input_graph_specifier.graph_file_full_path = graph_file_full_path;
   };
 
-  BFS_Usecase_t(cugraph::test::rmat_params_t rmat_params, size_t source) : source(source)
+  BFS_Usecase_t(cugraph::test::rmat_params_t rmat_params,
+                size_t source,
+                bool check_correctness = true)
+    : source(source), check_correctness(check_correctness)
   {
     input_graph_specifier.tag         = cugraph::test::input_graph_specifier_t::RMAT_PARAMS;
     input_graph_specifier.rmat_params = rmat_params;
   }
 } BFS_Usecase;
+
+template <typename vertex_t, typename edge_t, typename weight_t>
+std::tuple<cugraph::experimental::graph_t<vertex_t, edge_t, weight_t, false, false>,
+           rmm::device_uvector<vertex_t>>
+read_graph(raft::handle_t const& handle, BFS_Usecase const& configuration, bool renumber)
+{
+  return configuration.input_graph_specifier.tag ==
+             cugraph::test::input_graph_specifier_t::MATRIX_MARKET_FILE_PATH
+           ? cugraph::test::
+               read_graph_from_matrix_market_file<vertex_t, edge_t, weight_t, false, false>(
+                 handle, configuration.input_graph_specifier.graph_file_full_path, false, renumber)
+           : cugraph::test::
+               generate_graph_from_rmat_params<vertex_t, edge_t, weight_t, false, false>(
+                 handle,
+                 configuration.input_graph_specifier.rmat_params.scale,
+                 configuration.input_graph_specifier.rmat_params.edge_factor,
+                 configuration.input_graph_specifier.rmat_params.a,
+                 configuration.input_graph_specifier.rmat_params.b,
+                 configuration.input_graph_specifier.rmat_params.c,
+                 configuration.input_graph_specifier.rmat_params.seed,
+                 configuration.input_graph_specifier.rmat_params.undirected,
+                 configuration.input_graph_specifier.rmat_params.scramble_vertex_ids,
+                 false,
+                 renumber,
+                 std::vector<size_t>{0},
+                 size_t{1});
+}
 
 class Tests_BFS : public ::testing::TestWithParam<BFS_Usecase> {
  public:
@@ -107,108 +149,164 @@ class Tests_BFS : public ::testing::TestWithParam<BFS_Usecase> {
   template <typename vertex_t, typename edge_t>
   void run_current_test(BFS_Usecase const& configuration)
   {
+    constexpr bool renumber = true;
+
     using weight_t = float;
 
     raft::handle_t handle{};
+    HighResClock hr_clock{};
 
+    if (PERF) {
+      CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
+      hr_clock.start();
+    }
     cugraph::experimental::graph_t<vertex_t, edge_t, weight_t, false, false> graph(handle);
-    std::tie(graph, std::ignore) =
-      configuration.input_graph_specifier.tag ==
-          cugraph::test::input_graph_specifier_t::MATRIX_MARKET_FILE_PATH
-        ? cugraph::test::
-            read_graph_from_matrix_market_file<vertex_t, edge_t, weight_t, false, false>(
-              handle, configuration.input_graph_specifier.graph_file_full_path, false, false)
-        : cugraph::test::generate_graph_from_rmat_params<vertex_t, edge_t, weight_t, false, false>(
-            handle,
-            configuration.input_graph_specifier.rmat_params.scale,
-            configuration.input_graph_specifier.rmat_params.edge_factor,
-            configuration.input_graph_specifier.rmat_params.a,
-            configuration.input_graph_specifier.rmat_params.b,
-            configuration.input_graph_specifier.rmat_params.c,
-            configuration.input_graph_specifier.rmat_params.seed,
-            configuration.input_graph_specifier.rmat_params.undirected,
-            configuration.input_graph_specifier.rmat_params.scramble_vertex_ids,
-            false,
-            false);
+    rmm::device_uvector<vertex_t> d_renumber_map_labels(0, handle.get_stream());
+    std::tie(graph, d_renumber_map_labels) =
+      read_graph<vertex_t, edge_t, weight_t>(handle, configuration, renumber);
+    if (PERF) {
+      CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
+      double elapsed_time{0.0};
+      hr_clock.stop(&elapsed_time);
+      std::cout << "read_graph took " << elapsed_time * 1e-6 << " s.\n";
+    }
     auto graph_view = graph.view();
 
-    std::vector<edge_t> h_offsets(graph_view.get_number_of_vertices() + 1);
-    std::vector<vertex_t> h_indices(graph_view.get_number_of_edges());
-    raft::update_host(h_offsets.data(),
-                      graph_view.offsets(),
-                      graph_view.get_number_of_vertices() + 1,
-                      handle.get_stream());
-    raft::update_host(h_indices.data(),
-                      graph_view.indices(),
-                      graph_view.get_number_of_edges(),
-                      handle.get_stream());
-    CUDA_TRY(cudaStreamSynchronize(handle.get_stream()));
-
-    ASSERT_TRUE(configuration.source >= 0 &&
-                configuration.source <= graph_view.get_number_of_vertices())
-      << "Starting sources should be >= 0 and"
-      << " less than the number of vertices in the graph.";
-
-    std::vector<vertex_t> h_reference_distances(graph_view.get_number_of_vertices());
-    std::vector<vertex_t> h_reference_predecessors(graph_view.get_number_of_vertices());
-
-    bfs_reference(h_offsets.data(),
-                  h_indices.data(),
-                  h_reference_distances.data(),
-                  h_reference_predecessors.data(),
-                  graph_view.get_number_of_vertices(),
-                  static_cast<vertex_t>(configuration.source),
-                  std::numeric_limits<vertex_t>::max());
+    ASSERT_TRUE(static_cast<vertex_t>(configuration.source) >= 0 &&
+                static_cast<vertex_t>(configuration.source) < graph_view.get_number_of_vertices())
+      << "Invalid starting source.";
 
     rmm::device_uvector<vertex_t> d_distances(graph_view.get_number_of_vertices(),
                                               handle.get_stream());
     rmm::device_uvector<vertex_t> d_predecessors(graph_view.get_number_of_vertices(),
                                                  handle.get_stream());
 
-    CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
+    if (PERF) {
+      CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
+      hr_clock.start();
+    }
 
     cugraph::experimental::bfs(handle,
                                graph_view,
-                               d_distances.begin(),
-                               d_predecessors.begin(),
+                               d_distances.data(),
+                               d_predecessors.data(),
                                static_cast<vertex_t>(configuration.source),
                                false,
-                               std::numeric_limits<vertex_t>::max(),
-                               false);
+                               std::numeric_limits<vertex_t>::max());
 
-    CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
+    if (PERF) {
+      CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
+      double elapsed_time{0.0};
+      hr_clock.stop(&elapsed_time);
+      std::cout << "BFS took " << elapsed_time * 1e-6 << " s.\n";
+    }
 
-    std::vector<vertex_t> h_cugraph_distances(graph_view.get_number_of_vertices());
-    std::vector<vertex_t> h_cugraph_predecessors(graph_view.get_number_of_vertices());
+    if (configuration.check_correctness) {
+      cugraph::experimental::graph_t<vertex_t, edge_t, weight_t, false, false> unrenumbered_graph(
+        handle);
+      if (renumber) {
+        std::tie(unrenumbered_graph, std::ignore) =
+          read_graph<vertex_t, edge_t, weight_t>(handle, configuration, false);
+      }
+      auto unrenumbered_graph_view = renumber ? unrenumbered_graph.view() : graph_view;
 
-    raft::update_host(
-      h_cugraph_distances.data(), d_distances.data(), d_distances.size(), handle.get_stream());
-    raft::update_host(h_cugraph_predecessors.data(),
-                      d_predecessors.data(),
-                      d_predecessors.size(),
-                      handle.get_stream());
-    CUDA_TRY(cudaStreamSynchronize(handle.get_stream()));
+      std::vector<edge_t> h_offsets(unrenumbered_graph_view.get_number_of_vertices() + 1);
+      std::vector<vertex_t> h_indices(unrenumbered_graph_view.get_number_of_edges());
+      raft::update_host(h_offsets.data(),
+                        unrenumbered_graph_view.offsets(),
+                        unrenumbered_graph_view.get_number_of_vertices() + 1,
+                        handle.get_stream());
+      raft::update_host(h_indices.data(),
+                        unrenumbered_graph_view.indices(),
+                        unrenumbered_graph_view.get_number_of_edges(),
+                        handle.get_stream());
 
-    ASSERT_TRUE(std::equal(
-      h_reference_distances.begin(), h_reference_distances.end(), h_cugraph_distances.begin()))
-      << "distances do not match with the reference values.";
+      handle.get_stream_view().synchronize();
 
-    for (auto it = h_cugraph_predecessors.begin(); it != h_cugraph_predecessors.end(); ++it) {
-      auto i = std::distance(h_cugraph_predecessors.begin(), it);
-      if (*it == cugraph::invalid_vertex_id<vertex_t>::value) {
-        ASSERT_TRUE(h_reference_predecessors[i] == *it)
-          << "vertex reachability do not match with the reference.";
+      auto unrenumbered_source = static_cast<vertex_t>(configuration.source);
+      if (renumber) {
+        std::vector<vertex_t> h_renumber_map_labels(d_renumber_map_labels.size());
+        raft::update_host(h_renumber_map_labels.data(),
+                          d_renumber_map_labels.data(),
+                          d_renumber_map_labels.size(),
+                          handle.get_stream());
+
+        handle.get_stream_view().synchronize();
+
+        unrenumbered_source = h_renumber_map_labels[configuration.source];
+      }
+
+      std::vector<vertex_t> h_reference_distances(unrenumbered_graph_view.get_number_of_vertices());
+      std::vector<vertex_t> h_reference_predecessors(
+        unrenumbered_graph_view.get_number_of_vertices());
+
+      bfs_reference(h_offsets.data(),
+                    h_indices.data(),
+                    h_reference_distances.data(),
+                    h_reference_predecessors.data(),
+                    unrenumbered_graph_view.get_number_of_vertices(),
+                    unrenumbered_source,
+                    std::numeric_limits<vertex_t>::max());
+
+      std::vector<vertex_t> h_cugraph_distances(graph_view.get_number_of_vertices());
+      std::vector<vertex_t> h_cugraph_predecessors(graph_view.get_number_of_vertices());
+      if (renumber) {
+        cugraph::experimental::unrenumber_local_int_vertices(handle,
+                                                             d_predecessors.data(),
+                                                             d_predecessors.size(),
+                                                             d_renumber_map_labels.data(),
+                                                             vertex_t{0},
+                                                             graph_view.get_number_of_vertices(),
+                                                             true);
+
+        auto d_unrenumbered_distances = cugraph::test::sort_by_key(
+          handle, d_renumber_map_labels.data(), d_distances.data(), d_renumber_map_labels.size());
+        auto d_unrenumbered_predecessors = cugraph::test::sort_by_key(handle,
+                                                                      d_renumber_map_labels.data(),
+                                                                      d_predecessors.data(),
+                                                                      d_renumber_map_labels.size());
+        raft::update_host(h_cugraph_distances.data(),
+                          d_unrenumbered_distances.data(),
+                          d_unrenumbered_distances.size(),
+                          handle.get_stream());
+        raft::update_host(h_cugraph_predecessors.data(),
+                          d_unrenumbered_predecessors.data(),
+                          d_unrenumbered_predecessors.size(),
+                          handle.get_stream());
+
+        handle.get_stream_view().synchronize();
       } else {
-        ASSERT_TRUE(h_reference_distances[*it] + 1 == h_reference_distances[i])
-          << "distance to this vertex != distance to the predecessor vertex + 1.";
-        bool found{false};
-        for (auto j = h_offsets[*it]; j < h_offsets[*it + 1]; ++j) {
-          if (h_indices[j] == i) {
-            found = true;
-            break;
+        raft::update_host(
+          h_cugraph_distances.data(), d_distances.data(), d_distances.size(), handle.get_stream());
+        raft::update_host(h_cugraph_predecessors.data(),
+                          d_predecessors.data(),
+                          d_predecessors.size(),
+                          handle.get_stream());
+
+        handle.get_stream_view().synchronize();
+      }
+
+      ASSERT_TRUE(std::equal(
+        h_reference_distances.begin(), h_reference_distances.end(), h_cugraph_distances.begin()))
+        << "distances do not match with the reference values.";
+
+      for (auto it = h_cugraph_predecessors.begin(); it != h_cugraph_predecessors.end(); ++it) {
+        auto i = std::distance(h_cugraph_predecessors.begin(), it);
+        if (*it == cugraph::invalid_vertex_id<vertex_t>::value) {
+          ASSERT_TRUE(h_reference_predecessors[i] == *it)
+            << "vertex reachability does not match with the reference.";
+        } else {
+          ASSERT_TRUE(h_reference_distances[*it] + 1 == h_reference_distances[i])
+            << "distance to this vertex != distance to the predecessor vertex + 1.";
+          bool found{false};
+          for (auto j = h_offsets[*it]; j < h_offsets[*it + 1]; ++j) {
+            if (h_indices[j] == i) {
+              found = true;
+              break;
+            }
           }
+          ASSERT_TRUE(found) << "no edge from the predecessor vertex to this vertex.";
         }
-        ASSERT_TRUE(found) << "no edge from the predecessor vertex to this vertex.";
       }
     }
   }
@@ -221,12 +319,17 @@ INSTANTIATE_TEST_CASE_P(
   simple_test,
   Tests_BFS,
   ::testing::Values(
+    // enable correctness checks
     BFS_Usecase("test/datasets/karate.mtx", 0),
     BFS_Usecase("test/datasets/polbooks.mtx", 0),
     BFS_Usecase("test/datasets/netscience.mtx", 0),
     BFS_Usecase("test/datasets/netscience.mtx", 100),
     BFS_Usecase("test/datasets/wiki2003.mtx", 1000),
     BFS_Usecase("test/datasets/wiki-Talk.mtx", 1000),
-    BFS_Usecase(cugraph::test::rmat_params_t{10, 16, 0.57, 0.19, 0.19, 0, false, false}, 0)));
+    BFS_Usecase(cugraph::test::rmat_params_t{10, 16, 0.57, 0.19, 0.19, 0, false, false}, 0),
+    // disable correctness checks for large graphs
+    BFS_Usecase(cugraph::test::rmat_params_t{20, 32, 0.57, 0.19, 0.19, 0, false, false},
+                0,
+                false)));
 
 CUGRAPH_TEST_PROGRAM_MAIN()

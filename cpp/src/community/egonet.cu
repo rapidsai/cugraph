@@ -79,7 +79,12 @@ extract(
 
   // Streams will allocate concurrently later
   std::vector<rmm::device_uvector<vertex_t>> reached{};
-  reached.reserve(handle.get_num_internal_streams());
+  reached.reserve(n_subgraphs);
+  for (vertex_t i = 0; i < n_subgraphs; i++) {
+    // Allocations and operations are attached to the worker stream
+    rmm::device_uvector<vertex_t> local_reach(v, handle.get_internal_stream_view(i));
+    reached.push_back(std::move(local_reach));
+  }
 
   // h_source_vertex[i] is used by other streams in the for loop
   user_stream_view.synchronize();
@@ -87,14 +92,11 @@ extract(
   HighResTimer hr_timer;
   hr_timer.start("ego_neighbors");
 #endif
+
   for (vertex_t i = 0; i < n_subgraphs; i++) {
     // get light handle from worker pool
     raft::handle_t light_handle(handle, i);
     auto worker_stream_view = light_handle.get_stream_view();
-
-    // Allocations and operations are attached to the worker stream
-    rmm::device_uvector<vertex_t> local_reach(v, worker_stream_view);
-    reached.push_back(std::move(local_reach));
 
     // BFS with cutoff
     // consider adding a device API to BFS (ie. accept source on the device)
@@ -151,8 +153,7 @@ extract(
 
   // Construct the neighboors list concurrently
   for (vertex_t i = 0; i < n_subgraphs; i++) {
-    raft::handle_t light_handle(handle, i);
-    auto worker_stream_view = light_handle.get_stream_view();
+    auto worker_stream_view = handle.get_internal_stream_view(i);
     thrust::copy(rmm::exec_policy(worker_stream_view),
                  reached[i].begin(),
                  reached[i].end(),

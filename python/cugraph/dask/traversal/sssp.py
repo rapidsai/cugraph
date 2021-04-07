@@ -14,8 +14,8 @@
 #
 
 from dask.distributed import wait, default_client
-from cugraph.dask.common.input_utils import get_distributed_data
-from cugraph.structure.shuffle import shuffle
+from cugraph.dask.common.input_utils import (get_distributed_data,
+                                             get_vertex_partition_offsets)
 from cugraph.dask.traversal import mg_sssp_wrapper as mg_sssp
 import cugraph.comms.comms as Comms
 import cudf
@@ -91,11 +91,9 @@ def sssp(graph,
     client = default_client()
 
     graph.compute_renumber_edge_list(transposed=False)
-    (ddf,
-     num_verts,
-     partition_row_size,
-     partition_col_size,
-     vertex_partition_offsets) = shuffle(graph, transposed=False)
+    ddf = graph.edgelist.edgelist_df
+    vertex_partition_offsets = get_vertex_partition_offsets(graph)
+    num_verts = vertex_partition_offsets.iloc[-1]
     num_edges = len(ddf)
     data = get_distributed_data(ddf)
 

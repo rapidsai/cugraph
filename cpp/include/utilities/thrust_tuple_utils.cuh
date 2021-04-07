@@ -61,13 +61,6 @@ struct compute_thrust_tuple_element_sizes_impl<TupleType, I, I> {
   void compute(std::array<size_t, thrust::tuple_size<TupleType>::value>& arr) const {}
 };
 
-template <typename TupleType, size_t... Is>
-__device__ constexpr auto remove_first_thrust_tuple_element_impl(TupleType const& tuple,
-                                                                 std::index_sequence<Is...>)
-{
-  return thrust::make_tuple(thrust::get<1 + Is>(tuple)...);
-}
-
 template <typename TupleType, size_t I, size_t N>
 struct plus_thrust_tuple_impl {
   __host__ __device__ constexpr void compute(TupleType& lhs, TupleType const& rhs) const
@@ -197,16 +190,6 @@ struct compute_thrust_tuple_element_sizes {
     detail::compute_thrust_tuple_element_sizes_impl<TupleType, size_t{0}, tuple_size>().compute(
       ret);
     return ret;
-  }
-};
-
-template <typename TupleType>
-struct remove_first_thrust_tuple_element {
-  __device__ constexpr auto operator()(TupleType const& tuple) const
-  {
-    size_t constexpr tuple_size = thrust::tuple_size<TupleType>::value;
-    return detail::remove_first_thrust_tuple_element_impl(
-      tuple, std::make_index_sequence<tuple_size - 1>());
   }
 };
 
