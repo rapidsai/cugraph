@@ -78,8 +78,6 @@ def test_mg_renumber(graph_file, client_connection):
     unrenumbered_df = unrenumbered_df.sort_values(by=["0_src", "1_src", "0_dst", "1_dst"])
     unrenumbered_df = unrenumbered_df.reset_index()
 
-    for i in range(len(gdf)): print(i, gdf['src'].iloc[i], unrenumbered_df['0_src'].iloc[i], (gdf['src'].iloc[i] == unrenumbered_df['0_src'].iloc[i]))
-
     assert gdf["src"].equals(unrenumbered_df["0_src"])
     assert gdf["src_old"].equals(unrenumbered_df["1_src"])
     assert gdf["dst"].equals(unrenumbered_df["0_dst"])
