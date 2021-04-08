@@ -52,7 +52,10 @@ def client_connection():
 @pytest.mark.skipif(
     is_single_gpu(), reason="skipping MG testing on Single GPU system"
 )
-@pytest.fixture(scope="module", params=utils.DATASETS_UNDIRECTED)
+@pytest.fixture(scope="module",
+                params=utils.DATASETS_UNDIRECTED,
+                ids=[f"dataset={d.as_posix()}"
+                     for d in utils.DATASETS_UNDIRECTED])
 def daskGraphFromDataset(request, client_connection):
     """
     Returns a new dask dataframe created from the dataset file param.
