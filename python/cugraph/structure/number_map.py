@@ -480,8 +480,6 @@ class NumberMap:
             renumber_type = 'legacy'
         else:
             renumber_type = 'experimental'
-            #df = df.rename(columns={src_col_names: "src",
-            #                        dst_col_names: "dst"})
 
         renumber_map = NumberMap()
         if not isinstance(src_col_names, list):
