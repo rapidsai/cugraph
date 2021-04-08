@@ -1,4 +1,4 @@
-# Copyright (c) 2019-2020, NVIDIA CORPORATION.
+# Copyright (c) 2019-2021, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -75,7 +75,8 @@ def test_mg_renumber(graph_file, client_connection):
     gdf = gdf.sort_values(by=["src", "src_old", "dst", "dst_old"])
     gdf = gdf.reset_index()
     unrenumbered_df = unrenumbered_df.compute()
-    unrenumbered_df = unrenumbered_df.sort_values(by=["0_src", "1_src", "0_dst", "1_dst"])
+    unrenumbered_df = unrenumbered_df.sort_values(by=["0_src", "1_src",
+                                                      "0_dst", "1_dst"])
     unrenumbered_df = unrenumbered_df.reset_index()
 
     assert gdf["src"].equals(unrenumbered_df["0_src"])
