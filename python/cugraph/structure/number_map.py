@@ -263,7 +263,6 @@ class NumberMap:
                             to_frame(name=newname)
                     else:
                         tmp_df[newname] = tmp[newname].append(tmp_dst[oldname])
-                    print(tmp_df.columns)
             else:
                 for newname in self.col_names:
                     tmp_df[newname] = tmp[newname]
