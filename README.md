@@ -82,6 +82,7 @@ As of Release 0.18 - including 0.18 nightly
 |              | Breadth First Search (BFS)             | Multi-GPU    | with cutoff support <br/> [C++ README](cpp/src/traversal/README.md#BFS) |
 |              | Single Source Shortest Path (SSSP)     | Multi-GPU    | [C++ README](cpp/src/traversal/README.md#SSSP) |
 |              | Traveling Salesperson Problem (TSP)    | Single-GPU   |                     |
+| Sampling     | Random Walks (RW)                      | Single-GPU   |                     |
 | Structure    |                                        |              |                     |
 |              | Renumbering                            | Single-GPU   | multiple columns, any data type  |
 |              | Symmetrize                             | Multi-GPU    |                     |
