@@ -263,7 +263,6 @@ class NumberMap:
                             to_frame(name=newname)
                     else:
                         tmp_df[newname] = tmp[newname].append(tmp_dst[oldname])
-                    print(tmp_df.columns)
             else:
                 for newname in self.col_names:
                     tmp_df[newname] = tmp[newname]
@@ -481,8 +480,6 @@ class NumberMap:
             renumber_type = 'legacy'
         else:
             renumber_type = 'experimental'
-            df = df.rename(columns={src_col_names: "src",
-                                    dst_col_names: "dst"})
 
         renumber_map = NumberMap()
         if not isinstance(src_col_names, list):
@@ -514,6 +511,9 @@ class NumberMap:
                 df, "dst", dst_col_names, drop=True,
                 preserve_order=preserve_order
             )
+        else:
+            df = df.rename(columns={src_col_names[0]: "src",
+                                    dst_col_names[0]: "dst"})
 
         num_edges = len(df)
 
