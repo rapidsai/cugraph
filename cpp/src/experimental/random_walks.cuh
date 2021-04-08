@@ -841,6 +841,9 @@ random_walks_impl(raft::handle_t const& handle,
   CUGRAPH_FAIL("Not implemented yet.");
 }
 
+// provides conversion to (coalesced) path to COO format:
+// (which in turn provides an API consistent with egonet)
+//
 template <typename vertex_t, typename weight_t, typename index_t>
 struct coo_convertor_t {
   coo_convertor_t(raft::handle_t const& handle, index_t num_paths)
@@ -1007,5 +1010,44 @@ random_walks(raft::handle_t const& handle,
                          std::move(std::get<1>(quad_tuple)),
                          std::move(std::get<2>(quad_tuple)));
 }
+
+/**
+ * @brief returns the COO format (src_vector, dst_vector, weight_vector) from the random walks (RW)
+ * paths.
+ *
+ * @tparam vertex_t Type of vertex indices.
+ * @tparam weight_t Type of edge weights.
+ * @tparam index_t Type used to store indexing and sizes.
+ * @param handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator, and
+ * handles to various CUDA libraries) to run graph algorithms.
+ * @param rw_path_tpl the tuple of coalesced vertex and weight paths along with the corresponding
+ * sizes for vertex paths. This is the return from random_walks() call.
+ * @return tuple of (src_vertex_vector, dst_Vertex_vector, edge_weight_vector, path_offsets), where
+ * path_offsets are the offsets where each path starts.
+ */
+template <typename vertex_t, typename weight_t, typename index_t>
+std::tuple<rmm::device_uvector<vertex_t>,
+           rmm::device_uvector<vertex_t>,
+           rmm::device_uvector<weight_t>,
+           rmm::device_uvector<index_t>>
+convert_paths_to_coo(raft::handle_t const& handle,
+                     std::tuple<rmm::device_uvector<vertex_t>,
+                                rmm::device_uvector<weight_t>,
+                                rmm::device_uvector<index_t>> const& rw_paths_tpl)
+{
+  auto const& d_coalesced_v = std::get<0>(rw_paths_tpl);
+  auto&& d_weights          = std::move(std::get<1>(rw_paths_tpl));
+  auto const& d_sizes       = std::get<2>(rw_paths_tpl);
+  index_t num_paths         = d_sizes.size();
+
+  detail::coo_convertor_t<vertex_t, weight_t, index_t> to_coo(handle, num_paths);
+
+  auto tpl_src_dst_offsets = to_coo(d_coalesced_v, d_sizes);
+  return std::make_tuple(std::move(thrust::get<0>(tpl_src_dst_offsets)),
+                         std::move(thrust::get<1>(tpl_src_dst_offsets)),
+                         d_weights,
+                         std::move(thrust::get<2>(tpl_src_dst_offsets)));
+}
+
 }  // namespace experimental
 }  // namespace cugraph
