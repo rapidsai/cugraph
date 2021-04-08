@@ -40,6 +40,7 @@
 #include <thrust/logical.h>
 #include <thrust/remove.h>
 #include <thrust/transform.h>
+#include <thrust/transform_scan.h>  //
 #include <thrust/tuple.h>
 
 #include <cassert>
@@ -839,6 +840,129 @@ random_walks_impl(raft::handle_t const& handle,
 {
   CUGRAPH_FAIL("Not implemented yet.");
 }
+
+template <typename vertex_t, typename weight_t, typename index_t>
+struct coo_convertor_t {
+  coo_convertor_t(raft::handle_t const& handle, index_t num_paths)
+    : handle_(handle), num_paths_(num_paths)
+  {
+  }
+
+  thrust::tuple<device_vec_t<vertex_t>, device_vec_t<vertex_t>, device_vec_t<index_t>> operator()(
+    device_vec_t<vertex_t> const& d_coalesced_v, device_vec_t<index_t> const& d_sizes) const
+  {
+    CUGRAPH_EXPECTS(static_cast<index_t>(d_sizes.size()) == num_paths_, "Invalid size vector.");
+
+    auto tupl_fill        = fill_stencil(d_sizes);
+    auto&& d_stencil      = std::move(thrust::get<0>(tupl_fill));
+    auto total_sz_v       = thrust::get<1>(tupl_fill);
+    auto&& d_sz_incl_scan = std::move(thrust::get<2>(tupl_fill));
+
+    CUGRAPH_EXPECTS(static_cast<index_t>(d_coalesced_v.size()) == total_sz_v,
+                    "Inconsistent vertex coalesced size data.");
+
+    auto src_dst_tpl = gather_pairs(d_coalesced_v, d_stencil, total_sz_v);
+
+    auto&& d_src = std::move(thrust::get<0>(src_dst_tpl));
+    auto&& d_dst = std::move(thrust::get<1>(src_dst_tpl));
+
+    device_vec_t<index_t> d_sz_w_scan(num_paths_, handle_.get_stream());
+    thrust::transform_exclusive_scan(
+      rmm::exec_policy(handle_.get_stream())->on(handle_.get_stream()),
+      d_sizes.begin(),
+      d_sizes.end(),
+      d_sz_w_scan.begin(),
+      [] __device__(auto sz) { return sz - 1; },
+      index_t{0},
+      thrust::plus<index_t>{});
+
+    return thrust::make_tuple(d_src, d_dst, std::move(d_sz_w_scan));
+  }
+
+  thrust::tuple<device_vec_t<int>, index_t, device_vec_t<index_t>> fill_stencil(
+    device_vec_t<index_t> const& d_sizes)
+  {
+    device_vec_t<index_t> d_scan(num_paths_, handle_.get_stream());
+    thrust::inclusive_scan(rmm::exec_policy(handle_.get_stream())->on(handle_.get_stream()),
+                           d_sizes.begin(),
+                           d_sizes.end(),
+                           d_scan.begin());
+
+    index_t total_sz{0};
+    CUDA_TRY(cudaMemcpy(
+      &total_sz, raw_ptr(d_scan) + num_paths_ - 1, sizeof(index_t), cudaMemcpyDeviceToHost));
+
+    device_vec_t<int> d_stencil(total_sz, handle_.get_stream());
+
+    // initialize stencil to all 1's:
+    //
+    thrust::copy_n(rmm::exec_policy(handle_.get_stream())->on(handle_.get_stream()),
+                   thrust::make_constant_iterator<int>(1),
+                   num_paths_,
+                   d_stencil.begin());
+
+    // set to 0 entries positioned at inclusive_scan(sizes[]),
+    // because those are path "breakpoints", where a path end
+    // and the next one starts, hence there cannot be an edge
+    // between a path ending vertex and next path starting vertex;
+    //
+    thrust::scatter(rmm::exec_policy(handle_.get_stream())->on(handle_.get_stream()),
+                    thrust::make_constant_iterator(0),
+                    thrust::make_constant_iterator(0) + num_paths_,
+                    d_scan.begin(),
+                    d_stencil.begin());
+
+    return thrust::make_tuple(std::move(d_stencil), total_sz, std::move(d_scan));
+  }
+
+  thrust::tuple<device_vec_t<vertex_t>, device_vec_t<vertex_t>> gather_pairs(
+    device_vec_t<vertex_t> const& d_coalesced_v,
+    device_vec_t<int> const& d_stencil,
+    index_t total_sz_v)
+  {
+    auto total_sz_w = total_sz_v - num_paths_;
+    device_vec_t<index_t> valid_src_indx(total_sz_w, handle_.get_stream());
+
+    // generate valid vertex src indices,
+    // which is any index in {0,...,total_sz_v - 2}
+    // provided the next index position; i.e., (index+1),
+    // in stencil is not 0; (if it is, there's no "next"
+    // or dst index, because the path has ended);
+    //
+    thrust::copy_if(rmm::exec_policy(handle_.get_stream())->on(handle_.get_stream()),
+                    thrust::make_counting_iterator<index_t>(0),
+                    thrust::make_counting_iterator<index_t>(total_sz_v - 1),
+                    valid_src_indx.begin(),
+                    [ptr_d_stencil = raw_const_ptr(d_stencil)] __device__(auto indx) {
+                      auto dst_indx = indx + 1;
+                      return ptr_d_stencil[dst_indx] == 1;
+                    });
+
+    device_vec_t<vertex_t> d_src_v(total_sz_w, handle_.get_stream());
+    device_vec_t<vertex_t> d_dst_v(total_sz_w, handle_.get_stream());
+
+    // construct pair of src[], dst[] by gathering
+    // from d_coalesced_v all pairs
+    // at entries (valid_src_indx, valid_src_indx+1),
+    // where the set of valid_src_indx was
+    // generated at the previous step;
+    //
+    thrust::transform(
+      rmm::exec_policy(handle_.get_stream())->on(handle_.get_stream()),
+      valid_src_indx.begin(),
+      valid_src_indx.end(),
+      thrust::make_zip_iterator(thrust::make_tuple(d_src_v.begin(), d_dst_v.begin())),  // start_zip
+      [ptr_d_vertex = raw_const_ptr(d_coalesced_v)] __device__(auto indx) {
+        return thrust::make_tuple(ptr_d_vertex[indx], ptr_d_vertex[indx + 1]);
+      });
+
+    return thrust::make_tuple(std::move(d_src_v), std::move(d_dst_v));
+  }
+
+ private:
+  raft::handle_t const& handle_;
+  index_t num_paths_;
+};
 
 }  // namespace detail
 
