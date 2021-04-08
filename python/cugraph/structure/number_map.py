@@ -273,7 +273,7 @@ class NumberMap:
             tmp_ddf = tmp_ddf.assign(idx=1)
             tmp_ddf['global_id'] = tmp_ddf.idx.cumsum() - 1
             tmp_ddf = tmp_ddf.drop(columns='idx')
-
+            tmp_ddf = tmp_ddf.persist()
             self.ddf = tmp_ddf
             return tmp_ddf
 
