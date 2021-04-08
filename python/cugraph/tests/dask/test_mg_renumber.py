@@ -75,7 +75,8 @@ def test_mg_renumber(graph_file, client_connection):
     gdf = gdf.sort_values(by=["src", "src_old", "dst", "dst_old"])
     gdf = gdf.reset_index()
     unrenumbered_df = unrenumbered_df.compute()
-    unrenumbered_df = unrenumbered_df.sort_values(by=["0_src", "1_src", "0_dst", "1_dst"])
+    unrenumbered_df = unrenumbered_df.sort_values(by=["0_src", "1_src",
+                                                      "0_dst", "1_dst"])
     unrenumbered_df = unrenumbered_df.reset_index()
 
     assert gdf["src"].equals(unrenumbered_df["0_src"])
