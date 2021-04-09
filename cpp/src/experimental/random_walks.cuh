@@ -40,7 +40,7 @@
 #include <thrust/logical.h>
 #include <thrust/remove.h>
 #include <thrust/transform.h>
-#include <thrust/transform_scan.h>  //
+#include <thrust/transform_scan.h>
 #include <thrust/tuple.h>
 
 #include <cassert>
@@ -851,23 +851,23 @@ struct coo_convertor_t {
   {
   }
 
-  thrust::tuple<device_vec_t<vertex_t>, device_vec_t<vertex_t>, device_vec_t<index_t>> operator()(
+  std::tuple<device_vec_t<vertex_t>, device_vec_t<vertex_t>, device_vec_t<index_t>> operator()(
     device_vec_t<vertex_t> const& d_coalesced_v, device_vec_t<index_t> const& d_sizes) const
   {
     CUGRAPH_EXPECTS(static_cast<index_t>(d_sizes.size()) == num_paths_, "Invalid size vector.");
 
     auto tupl_fill        = fill_stencil(d_sizes);
-    auto&& d_stencil      = std::move(thrust::get<0>(tupl_fill));
-    auto total_sz_v       = thrust::get<1>(tupl_fill);
-    auto&& d_sz_incl_scan = std::move(thrust::get<2>(tupl_fill));
+    auto&& d_stencil      = std::move(std::get<0>(tupl_fill));
+    auto total_sz_v       = std::get<1>(tupl_fill);
+    auto&& d_sz_incl_scan = std::move(std::get<2>(tupl_fill));
 
     CUGRAPH_EXPECTS(static_cast<index_t>(d_coalesced_v.size()) == total_sz_v,
                     "Inconsistent vertex coalesced size data.");
 
     auto src_dst_tpl = gather_pairs(d_coalesced_v, d_stencil, total_sz_v);
 
-    auto&& d_src = std::move(thrust::get<0>(src_dst_tpl));
-    auto&& d_dst = std::move(thrust::get<1>(src_dst_tpl));
+    auto&& d_src = std::move(std::get<0>(src_dst_tpl));
+    auto&& d_dst = std::move(std::get<1>(src_dst_tpl));
 
     device_vec_t<index_t> d_sz_w_scan(num_paths_, handle_.get_stream());
     thrust::transform_exclusive_scan(
@@ -879,11 +879,11 @@ struct coo_convertor_t {
       index_t{0},
       thrust::plus<index_t>{});
 
-    return thrust::make_tuple(d_src, d_dst, std::move(d_sz_w_scan));
+    return std::make_tuple(std::move(d_src), std::move(d_dst), std::move(d_sz_w_scan));
   }
 
-  thrust::tuple<device_vec_t<int>, index_t, device_vec_t<index_t>> fill_stencil(
-    device_vec_t<index_t> const& d_sizes)
+  std::tuple<device_vec_t<int>, index_t, device_vec_t<index_t>> fill_stencil(
+    device_vec_t<index_t> const& d_sizes) const
   {
     device_vec_t<index_t> d_scan(num_paths_, handle_.get_stream());
     thrust::inclusive_scan(rmm::exec_policy(handle_.get_stream())->on(handle_.get_stream()),
@@ -915,13 +915,13 @@ struct coo_convertor_t {
                     d_scan.begin(),
                     d_stencil.begin());
 
-    return thrust::make_tuple(std::move(d_stencil), total_sz, std::move(d_scan));
+    return std::make_tuple(std::move(d_stencil), total_sz, std::move(d_scan));
   }
 
-  thrust::tuple<device_vec_t<vertex_t>, device_vec_t<vertex_t>> gather_pairs(
+  std::tuple<device_vec_t<vertex_t>, device_vec_t<vertex_t>> gather_pairs(
     device_vec_t<vertex_t> const& d_coalesced_v,
     device_vec_t<int> const& d_stencil,
-    index_t total_sz_v)
+    index_t total_sz_v) const
   {
     auto total_sz_w = total_sz_v - num_paths_;
     device_vec_t<index_t> valid_src_indx(total_sz_w, handle_.get_stream());
@@ -959,7 +959,7 @@ struct coo_convertor_t {
         return thrust::make_tuple(ptr_d_vertex[indx], ptr_d_vertex[indx + 1]);
       });
 
-    return thrust::make_tuple(std::move(d_src_v), std::move(d_dst_v));
+    return std::make_tuple(std::move(d_src_v), std::move(d_dst_v));
   }
 
  private:
@@ -1033,7 +1033,7 @@ std::tuple<rmm::device_uvector<vertex_t>,
 convert_paths_to_coo(raft::handle_t const& handle,
                      std::tuple<rmm::device_uvector<vertex_t>,
                                 rmm::device_uvector<weight_t>,
-                                rmm::device_uvector<index_t>> const& rw_paths_tpl)
+                                rmm::device_uvector<index_t>>& rw_paths_tpl)
 {
   auto const& d_coalesced_v = std::get<0>(rw_paths_tpl);
   auto&& d_weights          = std::move(std::get<1>(rw_paths_tpl));
@@ -1043,10 +1043,10 @@ convert_paths_to_coo(raft::handle_t const& handle,
   detail::coo_convertor_t<vertex_t, weight_t, index_t> to_coo(handle, num_paths);
 
   auto tpl_src_dst_offsets = to_coo(d_coalesced_v, d_sizes);
-  return std::make_tuple(std::move(thrust::get<0>(tpl_src_dst_offsets)),
-                         std::move(thrust::get<1>(tpl_src_dst_offsets)),
-                         d_weights,
-                         std::move(thrust::get<2>(tpl_src_dst_offsets)));
+  return std::make_tuple(std::move(std::get<0>(tpl_src_dst_offsets)),
+                         std::move(std::get<1>(tpl_src_dst_offsets)),
+                         std::move(d_weights),
+                         std::move(std::get<2>(tpl_src_dst_offsets)));
 }
 
 }  // namespace experimental
