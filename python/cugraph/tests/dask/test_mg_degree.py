@@ -1,4 +1,4 @@
-# Copyright (c) 2018-2020, NVIDIA CORPORATION.
+# Copyright (c) 2018-2021, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -34,7 +34,10 @@ def client_connection():
 def test_dask_mg_degree(client_connection):
     gc.collect()
 
+    # FIXME: update this to allow dataset to be parameterized and have dataset
+    # part of test param id (see other tests)
     input_data_path = r"../datasets/karate.csv"
+    print(f"dataset={input_data_path}")
 
     chunksize = cugraph.dask.get_chunksize(input_data_path)
 
