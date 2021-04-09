@@ -42,7 +42,6 @@
 #include <thrust/transform.h>
 #include <thrust/transform_scan.h>
 #include <thrust/tuple.h>
-#include <thrust/unique.h>
 
 #include <cassert>
 #include <ctime>
@@ -870,35 +869,40 @@ struct coo_convertor_t {
     auto&& d_src = std::move(std::get<0>(src_dst_tpl));
     auto&& d_dst = std::move(std::get<1>(src_dst_tpl));
 
-    device_vec_t<index_t> d_offsets(num_paths_, handle_.get_stream());
     device_vec_t<index_t> d_sz_w_scan(num_paths_, handle_.get_stream());
 
+    // copy vertex path sizes that are > 1:
+    // (because vertex_path_sz translates
+    //  into edge_path_sz = vertex_path_sz - 1,
+    //  and edge_paths_sz == 0 don't contribute
+    //  anything):
+    //
+    auto new_end_it =
+      thrust::copy_if(rmm::exec_policy(handle_.get_stream())->on(handle_.get_stream()),
+                      d_sizes.begin(),
+                      d_sizes.end(),
+                      d_sz_w_scan.begin(),
+                      [] __device__(auto sz_value) { return sz_value > 1; });
+
+    // resize to new_end:
+    //
+    d_sz_w_scan.resize(thrust::distance(d_sz_w_scan.begin(), new_end_it), handle_.get_stream());
+
     // get paths' edge number exclusive scan
-    // by transforming paths' vertex numbers
+    // by transforming paths' vertex numbers that
+    // are > 1, via tranaformation:
+    // edge_path_sz = (vertex_path_sz-1):
     //
     thrust::transform_exclusive_scan(
       rmm::exec_policy(handle_.get_stream())->on(handle_.get_stream()),
-      d_sizes.begin(),
-      d_sizes.end(),
+      d_sz_w_scan.begin(),
+      d_sz_w_scan.end(),
       d_sz_w_scan.begin(),
       [] __device__(auto sz) { return sz - 1; },
       index_t{0},
       thrust::plus<index_t>{});
 
-    // remove duplicates
-    // from d_sz_w_scan
-    //
-    auto new_end_it =
-      thrust::unique_copy(rmm::exec_policy(handle_.get_stream())->on(handle_.get_stream()),
-                          d_sz_w_scan.begin(),
-                          d_sz_w_scan.end(),
-                          d_offsets.begin());
-
-    // resize to last unique - 1:
-    //
-    d_offsets.resize(thrust::distance(d_offsets.begin(), new_end_it - 1), handle_.get_stream());
-
-    return std::make_tuple(std::move(d_src), std::move(d_dst), std::move(d_offsets));
+    return std::make_tuple(std::move(d_src), std::move(d_dst), std::move(d_sz_w_scan));
   }
 
   std::tuple<device_vec_t<int>, index_t, device_vec_t<index_t>> fill_stencil(
