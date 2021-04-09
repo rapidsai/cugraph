@@ -869,6 +869,7 @@ struct coo_convertor_t {
     auto&& d_src = std::move(std::get<0>(src_dst_tpl));
     auto&& d_dst = std::move(std::get<1>(src_dst_tpl));
 
+    // WRONG: FIXME
     device_vec_t<index_t> d_sz_w_scan(num_paths_, handle_.get_stream());
     thrust::transform_exclusive_scan(
       rmm::exec_policy(handle_.get_stream())->on(handle_.get_stream()),
@@ -901,7 +902,7 @@ struct coo_convertor_t {
     //
     thrust::copy_n(rmm::exec_policy(handle_.get_stream())->on(handle_.get_stream()),
                    thrust::make_constant_iterator<int>(1),
-                   num_paths_,
+                   d_stencil.size(),
                    d_stencil.begin());
 
     // set to 0 entries positioned at inclusive_scan(sizes[]),
