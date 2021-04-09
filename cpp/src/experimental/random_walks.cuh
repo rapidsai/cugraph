@@ -894,7 +894,9 @@ struct coo_convertor_t {
                           d_sz_w_scan.end(),
                           d_offsets.begin());
 
-    d_offsets.resize(thrust::distance(d_offsets.begin(), new_end_it), handle_.get_stream());
+    // resize to last unique - 1:
+    //
+    d_offsets.resize(thrust::distance(d_offsets.begin(), new_end_it - 1), handle_.get_stream());
 
     return std::make_tuple(std::move(d_src), std::move(d_dst), std::move(d_offsets));
   }
