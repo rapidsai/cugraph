@@ -838,7 +838,7 @@ TEST_F(RandomWalksPrimsTest, PathsToCOO)
   raft::update_host(
     v_weights.data(), raw_const_ptr(d_weights), d_weights.size(), handle.get_stream());
   raft::update_host(
-    w_coalesced.data(), raw_const_ptr(d_coalesced_w), d_coalesced_w.size(), handle.get_stream());
+    v_offsets.data(), raw_const_ptr(d_offsets), d_offsets.size(), handle.get_stream());
 
   std::vector<vertex_t> v_src_exp{5, 9, 0, 6, 2, 7, 3};
   std::vector<vertex_t> v_dst_exp{3, 0, 1, 2, 7, 3, 2};
@@ -847,5 +847,5 @@ TEST_F(RandomWalksPrimsTest, PathsToCOO)
   EXPECT_EQ(v_src, v_src_exp);
   EXPECT_EQ(v_dst, v_dst_exp);
   EXPECT_EQ(v_weights, w_coalesced);
-  // EXPECT_EQ(v_offsets, v_offsets_exp);
+  EXPECT_EQ(v_offsets, v_offsets_exp);
 }
