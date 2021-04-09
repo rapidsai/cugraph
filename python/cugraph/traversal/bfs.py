@@ -136,8 +136,10 @@ def bfs(G,
         can be set, not both.
 
     directed : bool, optional
-        NOTE: For non-Graph-type (eg. sparse matrix) values of G only. Raises
-              TypeError if used with a Graph object.
+        NOTE
+            For non-Graph-type (eg. sparse matrix) values of G only. Raises
+            TypeError if used with a Graph object.
+
         If True (default), then convert the input matrix to a cugraph.DiGraph,
         otherwise a cugraph.Graph object will be used.
 
