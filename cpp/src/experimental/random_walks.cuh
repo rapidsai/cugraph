@@ -104,6 +104,12 @@ struct device_const_vector_view {
   index_t size_;
 };
 
+template <typename value_t>
+value_t const* raw_const_ptr(device_const_vector_view<value_t>& dv)
+{
+  return dv.begin();
+}
+
 // raft random generator:
 // (using upper-bound cached "map"
 //  giving out_deg(v) for each v in [0, |V|);
@@ -852,7 +858,8 @@ struct coo_convertor_t {
   }
 
   std::tuple<device_vec_t<vertex_t>, device_vec_t<vertex_t>, device_vec_t<index_t>> operator()(
-    device_vec_t<vertex_t> const& d_coalesced_v, device_vec_t<index_t> const& d_sizes) const
+    device_const_vector_view<vertex_t>& d_coalesced_v,
+    device_const_vector_view<index_t>& d_sizes) const
   {
     CUGRAPH_EXPECTS(static_cast<index_t>(d_sizes.size()) == num_paths_, "Invalid size vector.");
 
@@ -906,7 +913,7 @@ struct coo_convertor_t {
   }
 
   std::tuple<device_vec_t<int>, index_t, device_vec_t<index_t>> fill_stencil(
-    device_vec_t<index_t> const& d_sizes) const
+    device_const_vector_view<index_t>& d_sizes) const
   {
     device_vec_t<index_t> d_scan(num_paths_, handle_.get_stream());
     thrust::inclusive_scan(rmm::exec_policy(handle_.get_stream())->on(handle_.get_stream()),
@@ -942,7 +949,7 @@ struct coo_convertor_t {
   }
 
   std::tuple<device_vec_t<vertex_t>, device_vec_t<vertex_t>> gather_pairs(
-    device_vec_t<vertex_t> const& d_coalesced_v,
+    device_const_vector_view<vertex_t>& d_coalesced_v,
     device_vec_t<int> const& d_stencil,
     index_t total_sz_v) const
   {
@@ -1065,7 +1072,12 @@ convert_paths_to_coo(raft::handle_t const& handle,
 
   detail::coo_convertor_t<vertex_t, weight_t, index_t> to_coo(handle, num_paths);
 
-  auto tpl_src_dst_offsets = to_coo(d_coalesced_v, d_sizes);
+  detail::device_const_vector_view<vertex_t> d_v_view(detail::raw_const_ptr(d_coalesced_v),
+                                                      d_coalesced_v.size());
+
+  detail::device_const_vector_view<index_t> d_sz_view(detail::raw_const_ptr(d_sizes), num_paths);
+
+  auto tpl_src_dst_offsets = to_coo(d_v_view, d_sz_view);
   return std::make_tuple(std::move(std::get<0>(tpl_src_dst_offsets)),
                          std::move(std::get<1>(tpl_src_dst_offsets)),
                          std::move(d_weights),
