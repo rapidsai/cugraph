@@ -37,77 +37,14 @@
 //
 static int PERF = 0;
 
-typedef struct KatzCentrality_Usecase_t {
-  cugraph::test::input_graph_specifier_t input_graph_specifier{};
-
+struct KatzCentrality_Usecase {
   bool test_weighted{false};
   bool check_correctness{false};
+};
 
-  KatzCentrality_Usecase_t(std::string const& graph_file_path,
-                           bool test_weighted,
-                           bool check_correctness = true)
-    : test_weighted(test_weighted), check_correctness(check_correctness)
-  {
-    std::string graph_file_full_path{};
-    if ((graph_file_path.length() > 0) && (graph_file_path[0] != '/')) {
-      graph_file_full_path = cugraph::test::get_rapids_dataset_root_dir() + "/" + graph_file_path;
-    } else {
-      graph_file_full_path = graph_file_path;
-    }
-    input_graph_specifier.tag = cugraph::test::input_graph_specifier_t::MATRIX_MARKET_FILE_PATH;
-    input_graph_specifier.graph_file_full_path = graph_file_full_path;
-  };
-
-  KatzCentrality_Usecase_t(cugraph::test::rmat_params_t rmat_params,
-                           bool test_weighted,
-                           bool check_correctness = true)
-    : test_weighted(test_weighted), check_correctness(check_correctness)
-  {
-    input_graph_specifier.tag         = cugraph::test::input_graph_specifier_t::RMAT_PARAMS;
-    input_graph_specifier.rmat_params = rmat_params;
-  }
-} KatzCentrality_Usecase;
-
-template <typename vertex_t, typename edge_t, typename weight_t, bool multi_gpu>
-std::tuple<cugraph::experimental::graph_t<vertex_t, edge_t, weight_t, true, multi_gpu>,
-           rmm::device_uvector<vertex_t>>
-read_graph(raft::handle_t const& handle, KatzCentrality_Usecase const& configuration, bool renumber)
-{
-  auto& comm           = handle.get_comms();
-  auto const comm_size = comm.get_size();
-  auto const comm_rank = comm.get_rank();
-
-  std::vector<size_t> partition_ids(multi_gpu ? size_t{1} : static_cast<size_t>(comm_size));
-  std::iota(partition_ids.begin(),
-            partition_ids.end(),
-            multi_gpu ? static_cast<size_t>(comm_rank) : size_t{0});
-
-  return configuration.input_graph_specifier.tag ==
-             cugraph::test::input_graph_specifier_t::MATRIX_MARKET_FILE_PATH
-           ? cugraph::test::
-               read_graph_from_matrix_market_file<vertex_t, edge_t, weight_t, true, multi_gpu>(
-                 handle,
-                 configuration.input_graph_specifier.graph_file_full_path,
-                 configuration.test_weighted,
-                 renumber)
-           : cugraph::test::
-               generate_graph_from_rmat_params<vertex_t, edge_t, weight_t, true, multi_gpu>(
-                 handle,
-                 configuration.input_graph_specifier.rmat_params.scale,
-                 configuration.input_graph_specifier.rmat_params.edge_factor,
-                 configuration.input_graph_specifier.rmat_params.a,
-                 configuration.input_graph_specifier.rmat_params.b,
-                 configuration.input_graph_specifier.rmat_params.c,
-                 configuration.input_graph_specifier.rmat_params.seed,
-                 configuration.input_graph_specifier.rmat_params.undirected,
-                 configuration.input_graph_specifier.rmat_params.scramble_vertex_ids,
-                 configuration.test_weighted,
-                 renumber,
-                 partition_ids,
-                 static_cast<size_t>(comm_size));
-}
-
-class Tests_MGKatzCentrality : public ::testing::TestWithParam<KatzCentrality_Usecase> {
+template <typename input_usecase_t>
+class Tests_MGKatzCentrality
+  : public ::testing::TestWithParam<std::pair<KatzCentrality_Usecase, input_usecase_t>> {
  public:
   Tests_MGKatzCentrality() {}
   static void SetupTestCase() {}
@@ -118,7 +55,7 @@ class Tests_MGKatzCentrality : public ::testing::TestWithParam<KatzCentrality_Us
 
   // Compare the results of running Katz Centrality on multiple GPUs to that of a single-GPU run
   template <typename vertex_t, typename edge_t, typename weight_t, typename result_t>
-  void run_current_test(KatzCentrality_Usecase const& configuration)
+  void run_current_test(KatzCentrality_Usecase const &katz_usecase, input_usecase_t const &input_usecase)
   {
     // 1. initialize handle
 
@@ -144,12 +81,14 @@ class Tests_MGKatzCentrality : public ::testing::TestWithParam<KatzCentrality_Us
     cugraph::experimental::graph_t<vertex_t, edge_t, weight_t, true, true> mg_graph(handle);
     rmm::device_uvector<vertex_t> d_mg_renumber_map_labels(0, handle.get_stream());
     std::tie(mg_graph, d_mg_renumber_map_labels) =
-      read_graph<vertex_t, edge_t, weight_t, true>(handle, configuration, true);
+      input_usecase.template construct_graph<vertex_t, edge_t, weight_t, true, true>(
+        handle, true, true);
+
     if (PERF) {
       CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
       double elapsed_time{0.0};
       hr_clock.stop(&elapsed_time);
-      std::cout << "MG read_graph took " << elapsed_time * 1e-6 << " s.\n";
+      std::cout << "MG construct_graph took " << elapsed_time * 1e-6 << " s.\n";
     }
 
     auto mg_graph_view = mg_graph.view();
@@ -191,12 +130,13 @@ class Tests_MGKatzCentrality : public ::testing::TestWithParam<KatzCentrality_Us
 
     // 5. copmare SG & MG results
 
-    if (configuration.check_correctness) {
+    if (katz_usecase.check_correctness) {
       // 5-1. create SG graph
 
       cugraph::experimental::graph_t<vertex_t, edge_t, weight_t, true, false> sg_graph(handle);
       std::tie(sg_graph, std::ignore) =
-        read_graph<vertex_t, edge_t, weight_t, false>(handle, configuration, false);
+        input_usecase.template construct_graph<vertex_t, edge_t, weight_t, true, false>(
+          handle, true, false);
 
       auto sg_graph_view = sg_graph.view();
 
@@ -258,34 +198,51 @@ class Tests_MGKatzCentrality : public ::testing::TestWithParam<KatzCentrality_Us
   }
 };
 
-TEST_P(Tests_MGKatzCentrality, CheckInt32Int32FloatFloat)
+using cugraph::test::File_Usecase;
+using cugraph::test::Rmat_Usecase;
+
+using Tests_MGKatzCentrality_File = Tests_MGKatzCentrality<File_Usecase>;
+using Tests_MGKatzCentrality_Rmat = Tests_MGKatzCentrality<Rmat_Usecase>;
+
+TEST_P(Tests_MGKatzCentrality_File, CheckInt32Int32FloatFloat)
 {
-  run_current_test<int32_t, int32_t, float, float>(GetParam());
+  auto param = GetParam();
+  run_current_test<int32_t, int32_t, float, float>(std::get<0>(param), std::get<1>(param));
+}
+
+TEST_P(Tests_MGKatzCentrality_Rmat, CheckInt32Int32FloatFloat)
+{
+  auto param = GetParam();
+  run_current_test<int32_t, int32_t, float, float>(std::get<0>(param), std::get<1>(param));
 }
 
 INSTANTIATE_TEST_CASE_P(
   simple_test,
-  Tests_MGKatzCentrality,
+  Tests_MGKatzCentrality_File,
   ::testing::Values(
     // enable correctness checks
-    KatzCentrality_Usecase("test/datasets/karate.mtx", false),
-    KatzCentrality_Usecase("test/datasets/karate.mtx", true),
-    KatzCentrality_Usecase("test/datasets/web-Google.mtx", false),
-    KatzCentrality_Usecase("test/datasets/web-Google.mtx", true),
-    KatzCentrality_Usecase("test/datasets/ljournal-2008.mtx", false),
-    KatzCentrality_Usecase("test/datasets/ljournal-2008.mtx", true),
-    KatzCentrality_Usecase("test/datasets/webbase-1M.mtx", false),
-    KatzCentrality_Usecase("test/datasets/webbase-1M.mtx", true),
-    KatzCentrality_Usecase(cugraph::test::rmat_params_t{10, 16, 0.57, 0.19, 0.19, 0, false, false},
-                           false),
-    KatzCentrality_Usecase(cugraph::test::rmat_params_t{10, 16, 0.57, 0.19, 0.19, 0, false, false},
-                           true),
+    std::make_pair(KatzCentrality_Usecase{false}, File_Usecase("test/datasets/karate.mtx")),
+    std::make_pair(KatzCentrality_Usecase{true}, File_Usecase("test/datasets/karate.mtx")),
+    std::make_pair(KatzCentrality_Usecase{false}, File_Usecase("test/datasets/web-Google.mtx")),
+    std::make_pair(KatzCentrality_Usecase{true}, File_Usecase("test/datasets/web-Google.mtx")),
+    std::make_pair(KatzCentrality_Usecase{false}, File_Usecase("test/datasets/ljournal-2008.mtx")),
+    std::make_pair(KatzCentrality_Usecase{true}, File_Usecase("test/datasets/ljournal-2008.mtx")),
+    std::make_pair(KatzCentrality_Usecase{false}, File_Usecase("test/datasets/webbase-1M.mtx")),
+    std::make_pair(KatzCentrality_Usecase{true}, File_Usecase("test/datasets/webbase-1M.mtx"))));
+
+INSTANTIATE_TEST_CASE_P(
+  simple_test,
+  Tests_MGKatzCentrality_Rmat,
+  ::testing::Values(
+    // enable correctness checks
+    std::make_pair(KatzCentrality_Usecase{false},
+                   Rmat_Usecase(10, 16, 0.57, 0.19, 0.19, 0, false, false, true)),
+    std::make_pair(KatzCentrality_Usecase{true},
+                   Rmat_Usecase(10, 16, 0.57, 0.19, 0.19, 0, false, false, true)),
     // disable correctness checks for large graphs
-    KatzCentrality_Usecase(cugraph::test::rmat_params_t{20, 32, 0.57, 0.19, 0.19, 0, false, false},
-                           false,
-                           false),
-    KatzCentrality_Usecase(cugraph::test::rmat_params_t{20, 32, 0.57, 0.19, 0.19, 0, false, false},
-                           true,
-                           false)));
+    std::make_pair(KatzCentrality_Usecase{false, false},
+                   Rmat_Usecase(20, 32, 0.57, 0.19, 0.19, 0, false, false, true)),
+    std::make_pair(KatzCentrality_Usecase{true, false},
+                   Rmat_Usecase(20, 32, 0.57, 0.19, 0.19, 0, false, false, true))));
 
 CUGRAPH_MG_TEST_PROGRAM_MAIN()
