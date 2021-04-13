@@ -73,6 +73,30 @@ template std::
                int64_t const* ptr_d_start,
                int64_t num_paths,
                int64_t max_depth);
+
+template std::
+  tuple<rmm::device_uvector<int32_t>, rmm::device_uvector<int32_t>, rmm::device_uvector<int32_t>>
+  convert_paths_to_coo(raft::handle_t const& handle,
+                       int32_t coalesced_sz_v,
+                       int32_t num_paths,
+                       rmm::device_buffer&& d_coalesced_v,
+                       rmm::device_buffer&& d_sizes);
+
+template std::
+  tuple<rmm::device_uvector<int32_t>, rmm::device_uvector<int32_t>, rmm::device_uvector<int64_t>>
+  convert_paths_to_coo(raft::handle_t const& handle,
+                       int64_t coalesced_sz_v,
+                       int64_t num_paths,
+                       rmm::device_buffer&& d_coalesced_v,
+                       rmm::device_buffer&& d_sizes);
+
+template std::
+  tuple<rmm::device_uvector<int64_t>, rmm::device_uvector<int64_t>, rmm::device_uvector<int64_t>>
+  convert_paths_to_coo(raft::handle_t const& handle,
+                       int64_t coalesced_sz_v,
+                       int64_t num_paths,
+                       rmm::device_buffer&& d_coalesced_v,
+                       rmm::device_buffer&& d_sizes);
 //}
 }  // namespace experimental
 }  // namespace cugraph

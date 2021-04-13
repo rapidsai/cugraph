@@ -844,12 +844,12 @@ template <typename vertex_t, typename index_t>
 std::unique_ptr<random_walk_coo_t> random_walks_to_coo(raft::handle_t const& handle,
                                                        random_walk_ret_t& rw_tri)
 {
-  auto triplet =
-    cugraph::experimental::convert_paths_to_coo(handle,
-                                                static_cast<index_t>(rw_tri.coalesced_sz_v_),
-                                                static_cast<index_t>(rw_tri.num_paths_),
-                                                *rw_tri.d_coalesced_v_,
-                                                *rw_tri.d_sizes_);
+  auto triplet = cugraph::experimental::convert_paths_to_coo<vertex_t, index_t>(
+    handle,
+    static_cast<index_t>(rw_tri.coalesced_sz_v_),
+    static_cast<index_t>(rw_tri.num_paths_),
+    std::move(*rw_tri.d_coalesced_v_),
+    std::move(*rw_tri.d_sizes_));
 
   random_walk_coo_t rw_coo{std::get<0>(triplet).size(),
                            std::get<2>(triplet).size(),
@@ -1248,6 +1248,15 @@ template std::unique_ptr<random_walk_ret_t> call_random_walks<int64_t, int64_t>(
   int64_t const* ptr_start_set,
   int64_t num_paths,
   int64_t max_depth);
+
+template std::unique_ptr<random_walk_coo_t> random_walks_to_coo<int32_t, int32_t>(
+  raft::handle_t const& handle, random_walk_ret_t& rw_tri);
+
+template std::unique_ptr<random_walk_coo_t> random_walks_to_coo<int32_t, int64_t>(
+  raft::handle_t const& handle, random_walk_ret_t& rw_tri);
+
+template std::unique_ptr<random_walk_coo_t> random_walks_to_coo<int64_t, int64_t>(
+  raft::handle_t const& handle, random_walk_ret_t& rw_tri);
 
 template void call_sssp(raft::handle_t const& handle,
                         graph_container_t const& graph_container,
