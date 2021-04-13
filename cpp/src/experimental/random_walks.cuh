@@ -1073,10 +1073,7 @@ std::
   detail::device_const_vector_view<index_t> d_sz_view(static_cast<index_t const*>(d_sizes.data()),
                                                       num_paths);
 
-  auto tpl_src_dst_offsets = to_coo(d_v_view, d_sz_view);
-  return std::make_tuple(std::move(std::get<0>(tpl_src_dst_offsets)),
-                         std::move(std::get<1>(tpl_src_dst_offsets)),
-                         std::move(std::get<2>(tpl_src_dst_offsets)));
+  return to_coo(d_v_view, d_sz_view);
 }
 
 }  // namespace experimental
