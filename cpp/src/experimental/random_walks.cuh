@@ -850,7 +850,7 @@ random_walks_impl(raft::handle_t const& handle,
 // provides conversion to (coalesced) path to COO format:
 // (which in turn provides an API consistent with egonet)
 //
-template <typename vertex_t, typename weight_t, typename index_t>
+template <typename vertex_t, typename index_t>
 struct coo_convertor_t {
   coo_convertor_t(raft::handle_t const& handle, index_t num_paths)
     : handle_(handle), num_paths_(num_paths)
@@ -1042,45 +1042,40 @@ random_walks(raft::handle_t const& handle,
 }
 
 /**
- * @brief returns the COO format (src_vector, dst_vector, weight_vector) from the random walks (RW)
+ * @brief returns the COO format (src_vector, dst_vector) from the random walks (RW)
  * paths.
  *
  * @tparam vertex_t Type of vertex indices.
- * @tparam weight_t Type of edge weights.
  * @tparam index_t Type used to store indexing and sizes.
  * @param handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator, and
  * handles to various CUDA libraries) to run graph algorithms.
- * @param rw_path_tpl the tuple of coalesced vertex and weight paths along with the corresponding
- * sizes for vertex paths. This is the return from random_walks() call.
- * @return tuple of (src_vertex_vector, dst_Vertex_vector, edge_weight_vector, path_offsets), where
- * path_offsets are the offsets where each path starts.
+ * @param coalesced_sz_v coalesced vertex vector size.
+ * @param num_paths number of paths.
+ * @param d_coalesced_v coalesced vertex buffer.
+ * @param d_sizes paths size buffer.
+ * @return tuple of (src_vertex_vector, dst_Vertex_vector, path_offsets), where
+ * path_offsets are the offsets where the COO set of each path starts.
  */
-template <typename vertex_t, typename weight_t, typename index_t>
-std::tuple<rmm::device_uvector<vertex_t>,
-           rmm::device_uvector<vertex_t>,
-           rmm::device_uvector<weight_t>,
-           rmm::device_uvector<index_t>>
-convert_paths_to_coo(raft::handle_t const& handle,
-                     std::tuple<rmm::device_uvector<vertex_t>,
-                                rmm::device_uvector<weight_t>,
-                                rmm::device_uvector<index_t>>& rw_paths_tpl)
+template <typename vertex_t, typename index_t>
+std::
+  tuple<rmm::device_uvector<vertex_t>, rmm::device_uvector<vertex_t>, rmm::device_uvector<index_t>>
+  convert_paths_to_coo(raft::handle_t const& handle,
+                       index_t coalesced_sz_v,
+                       index_t num_paths,
+                       rmm::device_buffer&& d_coalesced_v,
+                       rmm::device_buffer&& d_sizes)
 {
-  auto const& d_coalesced_v = std::get<0>(rw_paths_tpl);
-  auto&& d_weights          = std::move(std::get<1>(rw_paths_tpl));
-  auto const& d_sizes       = std::get<2>(rw_paths_tpl);
-  index_t num_paths         = d_sizes.size();
+  detail::coo_convertor_t<vertex_t, index_t> to_coo(handle, num_paths);
 
-  detail::coo_convertor_t<vertex_t, weight_t, index_t> to_coo(handle, num_paths);
+  detail::device_const_vector_view<vertex_t> d_v_view(
+    static_cast<vertex_t const*>(d_coalesced_v.data()), coalesced_sz_v);
 
-  detail::device_const_vector_view<vertex_t> d_v_view(detail::raw_const_ptr(d_coalesced_v),
-                                                      d_coalesced_v.size());
-
-  detail::device_const_vector_view<index_t> d_sz_view(detail::raw_const_ptr(d_sizes), num_paths);
+  detail::device_const_vector_view<index_t> d_sz_view(static_cast<index_t const*>(d_sizes.data()),
+                                                      num_paths);
 
   auto tpl_src_dst_offsets = to_coo(d_v_view, d_sz_view);
   return std::make_tuple(std::move(std::get<0>(tpl_src_dst_offsets)),
                          std::move(std::get<1>(tpl_src_dst_offsets)),
-                         std::move(d_weights),
                          std::move(std::get<2>(tpl_src_dst_offsets)));
 }
 

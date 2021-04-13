@@ -805,38 +805,33 @@ TEST_F(RandomWalksPrimsTest, PathsToCOO)
   ASSERT_TRUE(num_edges == total_sz - num_paths);
 
   vector_test_t<vertex_t> d_coalesced_v(total_sz, handle.get_stream());
-  vector_test_t<weight_t> d_coalesced_w(num_edges, handle.get_stream());
   vector_test_t<index_t> d_sizes(num_paths, handle.get_stream());
 
   raft::update_device(
     d_coalesced_v.data(), v_coalesced.data(), d_coalesced_v.size(), handle.get_stream());
-  raft::update_device(
-    d_coalesced_w.data(), w_coalesced.data(), d_coalesced_w.size(), handle.get_stream());
   raft::update_device(d_sizes.data(), v_sizes.data(), d_sizes.size(), handle.get_stream());
 
-  auto rw_paths_tpl =
-    std::make_tuple(std::move(d_coalesced_v), std::move(d_coalesced_w), std::move(d_sizes));
+  index_t coalesced_v_sz = d_coalesced_v.size();
 
-  auto tpl_coo_offsets = convert_paths_to_coo(handle, rw_paths_tpl);
+  auto tpl_coo_offsets = convert_paths_to_coo<vertex_t>(handle,
+                                                        coalesced_v_sz,
+                                                        static_cast<index_t>(num_paths),
+                                                        d_coalesced_v.release(),
+                                                        d_sizes.release());
 
   auto&& d_src     = std::move(std::get<0>(tpl_coo_offsets));
   auto&& d_dst     = std::move(std::get<1>(tpl_coo_offsets));
-  auto&& d_weights = std::move(std::get<2>(tpl_coo_offsets));
-  auto&& d_offsets = std::move(std::get<3>(tpl_coo_offsets));
+  auto&& d_offsets = std::move(std::get<2>(tpl_coo_offsets));
 
   ASSERT_TRUE(d_src.size() == num_edges);
   ASSERT_TRUE(d_dst.size() == num_edges);
-  ASSERT_TRUE(d_weights.size() == num_edges);
 
   std::vector<vertex_t> v_src(num_edges, 0);
   std::vector<vertex_t> v_dst(num_edges, 0);
-  std::vector<weight_t> v_weights(num_edges, 0);
   std::vector<index_t> v_offsets(d_offsets.size(), 0);
 
   raft::update_host(v_src.data(), raw_const_ptr(d_src), d_src.size(), handle.get_stream());
   raft::update_host(v_dst.data(), raw_const_ptr(d_dst), d_dst.size(), handle.get_stream());
-  raft::update_host(
-    v_weights.data(), raw_const_ptr(d_weights), d_weights.size(), handle.get_stream());
   raft::update_host(
     v_offsets.data(), raw_const_ptr(d_offsets), d_offsets.size(), handle.get_stream());
 
@@ -846,6 +841,5 @@ TEST_F(RandomWalksPrimsTest, PathsToCOO)
 
   EXPECT_EQ(v_src, v_src_exp);
   EXPECT_EQ(v_dst, v_dst_exp);
-  EXPECT_EQ(v_weights, w_coalesced);
   EXPECT_EQ(v_offsets, v_offsets_exp);
 }
