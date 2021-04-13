@@ -85,6 +85,17 @@ class HighResTimer {
     timers.clear();
   }
 
+  double average_runtime(std::string const &label)
+  {
+    auto it = timers.find(label);
+    if (it != timers.end()) {
+      return (static_cast<double>(it->second.second) / (1000000.0 * it->second.first));
+    } else {
+      std::cerr << "ERROR: timing label: " << label << "not found.";
+      return 0.0;
+    }
+  }
+
  private:
   std::map<std::string, std::pair<int, int64_t>> timers;
   std::string open_label;  // should probably be a stack...

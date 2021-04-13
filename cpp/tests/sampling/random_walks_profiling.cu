@@ -18,6 +18,7 @@
 #include <gtest/gtest.h>
 
 #include <utilities/base_fixture.hpp>
+#include <utilities/high_res_timer.hpp>
 #include <utilities/test_utilities.hpp>
 
 #include <rmm/thrust_rmm_allocator.h>
@@ -30,13 +31,10 @@
 #include <raft/handle.hpp>
 #include <raft/random/rng.cuh>
 
-///#include "random_walks_utils.cuh"
-
 #include <algorithm>
 #include <iterator>
 #include <limits>
 #include <numeric>
-#include <utilities/high_res_timer.hpp>
 #include <vector>
 
 namespace {  // anonym.
@@ -122,25 +120,18 @@ class Tests_RandomWalksProfiling : public ::testing::TestWithParam<RandomWalks_U
     edge_t max_depth{10};
 
     HighResTimer hr_timer;
-    hr_timer.start("RandomWalks");
+    std::string label("RandomWalks");
+    hr_timer.start(label);
     cudaProfilerStart();
     auto ret_tuple =
       cugraph::experimental::detail::random_walks_impl(handle, graph_view, d_start_view, max_depth);
     cudaProfilerStop();
     hr_timer.stop();
-    std::cout << "RW for num_paths: " << num_paths << ":\n";
+    auto runtime = hr_timer.average_runtime(label);
     hr_timer.display(std::cout);
 
-    // check results:
-    //
-    // bool test_all_paths = cugraph::test::host_check_rw_paths(
-    //   handle, graph_view, std::get<0>(ret_tuple), std::get<1>(ret_tuple),
-    //   std::get<2>(ret_tuple));
-
-    // if (!test_all_paths)
-    //   std::cout << "starting seed on failure: " << std::get<3>(ret_tuple) << '\n';
-
-    // ASSERT_TRUE(test_all_paths);
+    std::cout << "RW for num_paths: " << num_paths
+              << ", runtime [ms] / path: " << runtime / num_paths << ":\n";
   }
 };
 
