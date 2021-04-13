@@ -57,7 +57,7 @@ class Tests_MGSSSP : public ::testing::TestWithParam<std::pair<SSSP_Usecase, inp
 
   // Compare the results of running SSSP on multiple GPUs to that of a single-GPU run
   template <typename vertex_t, typename edge_t, typename weight_t>
-  void run_current_test(SSSP_Usecase const &sssp_usecase, input_usecase_t const& input_usecase)
+  void run_current_test(SSSP_Usecase const& sssp_usecase, input_usecase_t const& input_usecase)
   {
     // 1. initialize handle
     raft::handle_t handle{};

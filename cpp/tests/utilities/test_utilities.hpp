@@ -243,7 +243,7 @@ class Rmat_Usecase {
 
     if (multi_gpu_usecase_) {
       auto& comm           = handle.get_comms();
-      comm_size = comm.get_size();
+      comm_size            = comm.get_size();
       auto const comm_rank = comm.get_rank();
 
       partition_ids.resize(multi_gpu ? size_t{1} : static_cast<size_t>(comm_size));
@@ -252,7 +252,7 @@ class Rmat_Usecase {
                 partition_ids.end(),
                 multi_gpu ? static_cast<size_t>(comm_rank) : size_t{0});
     } else {
-      comm_size = 1;
+      comm_size        = 1;
       partition_ids[0] = size_t{0};
     }
 

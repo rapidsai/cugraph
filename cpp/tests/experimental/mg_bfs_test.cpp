@@ -57,7 +57,7 @@ class Tests_MGBFS : public ::testing::TestWithParam<std::pair<BFS_Usecase, input
 
   // Compare the results of running BFS on multiple GPUs to that of a single-GPU run
   template <typename vertex_t, typename edge_t>
-  void run_current_test(BFS_Usecase const &bfs_usecase, input_usecase_t const& input_usecase)
+  void run_current_test(BFS_Usecase const& bfs_usecase, input_usecase_t const& input_usecase)
   {
     using weight_t = float;
 
@@ -255,12 +255,14 @@ using cugraph::test::Rmat_Usecase;
 using Tests_MGBFS_File = Tests_MGBFS<File_Usecase>;
 using Tests_MGBFS_Rmat = Tests_MGBFS<Rmat_Usecase>;
 
-TEST_P(Tests_MGBFS_File, CheckInt32Int32) {
+TEST_P(Tests_MGBFS_File, CheckInt32Int32)
+{
   auto param = GetParam();
   run_current_test<int32_t, int32_t>(std::get<0>(param), std::get<1>(param));
 }
 
-TEST_P(Tests_MGBFS_Rmat, CheckInt32Int32) {
+TEST_P(Tests_MGBFS_Rmat, CheckInt32Int32)
+{
   auto param = GetParam();
   run_current_test<int32_t, int32_t>(std::get<0>(param), std::get<1>(param));
 }
@@ -283,7 +285,6 @@ INSTANTIATE_TEST_CASE_P(
     std::make_pair(BFS_Usecase{0}, Rmat_Usecase(10, 16, 0.57, 0.19, 0.19, 0, false, false, true)),
     // disable correctness checks for large graphs
     std::make_pair(BFS_Usecase{0, false},
-                   Rmat_Usecase(20, 32, 0.57, 0.19, 0.19, 0, false, false, true))
-                    ));
+                   Rmat_Usecase(20, 32, 0.57, 0.19, 0.19, 0, false, false, true))));
 
 CUGRAPH_MG_TEST_PROGRAM_MAIN()

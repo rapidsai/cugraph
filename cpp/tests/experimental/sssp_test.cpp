@@ -103,7 +103,7 @@ class Tests_SSSP : public ::testing::TestWithParam<std::pair<SSSP_Usecase, input
   virtual void TearDown() {}
 
   template <typename vertex_t, typename edge_t, typename weight_t>
-  void run_current_test(SSSP_Usecase const &sssp_usecase, input_usecase_t const& input_usecase)
+  void run_current_test(SSSP_Usecase const& sssp_usecase, input_usecase_t const& input_usecase)
   {
     constexpr bool renumber = true;
 

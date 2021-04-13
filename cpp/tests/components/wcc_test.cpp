@@ -74,7 +74,7 @@ class Tests_WCC : public ::testing::TestWithParam<std::pair<WCC_Usecase, input_u
     rmm::device_uvector<vertex_t> component_labels_v(graph_view.get_number_of_vertices(),
                                                      handle.get_stream());
 
-    //cugraph::weakly_connected_components(handle, graph_view, component_labels_v.begin());
+    // cugraph::weakly_connected_components(handle, graph_view, component_labels_v.begin());
 
     // TODO: validate result
   }
@@ -83,8 +83,8 @@ class Tests_WCC : public ::testing::TestWithParam<std::pair<WCC_Usecase, input_u
 using cugraph::test::File_Usecase;
 using cugraph::test::Rmat_Usecase;
 
-using Tests_WCC_File = Tests_WCC<File_Usecase>;
-using Tests_WCC_Rmat = Tests_WCC<Rmat_Usecase>;
+using Tests_WCC_File      = Tests_WCC<File_Usecase>;
+using Tests_WCC_Rmat      = Tests_WCC<Rmat_Usecase>;
 using Tests_WCC_LineGraph = Tests_WCC<LineGraph_Usecase>;
 
 TEST_P(Tests_WCC_File, WCC)
@@ -109,12 +109,14 @@ INSTANTIATE_TEST_CASE_P(
   Tests_WCC_File,
   ::testing::Values(std::make_pair(WCC_Usecase{}, File_Usecase("test/datasets/dolphins.mtx")),
                     std::make_pair(WCC_Usecase{}, File_Usecase("test/datasets/coPapersDBLP.mtx")),
-                    std::make_pair(WCC_Usecase{}, File_Usecase("test/datasets/coPapersCiteseer.mtx")),
+                    std::make_pair(WCC_Usecase{},
+                                   File_Usecase("test/datasets/coPapersCiteseer.mtx")),
                     std::make_pair(WCC_Usecase{}, File_Usecase("test/datasets/hollywood.mtx"))));
 
 INSTANTIATE_TEST_CASE_P(simple_test,
                         Tests_WCC_LineGraph,
                         ::testing::Values(std::make_pair(WCC_Usecase{}, LineGraph_Usecase(1000)),
-                                          std::make_pair(WCC_Usecase{}, LineGraph_Usecase(100000))));
+                                          std::make_pair(WCC_Usecase{},
+                                                         LineGraph_Usecase(100000))));
 
 CUGRAPH_TEST_PROGRAM_MAIN()
