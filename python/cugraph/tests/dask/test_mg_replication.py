@@ -1,4 +1,4 @@
-# Copyright (c) 2020, NVIDIA CORPORATION.
+# Copyright (c) 2020-2021, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -34,7 +34,9 @@ MG_DEVICE_COUNT_OPTIONS = [pytest.param(1, marks=pytest.mark.preset_gpu_count),
 @pytest.mark.skipif(
     is_single_gpu(), reason="skipping MG testing on Single GPU system"
 )
-@pytest.mark.parametrize("input_data_path", DATASETS_OPTIONS)
+@pytest.mark.parametrize("input_data_path", DATASETS_OPTIONS,
+                         ids=[f"dataset={d.as_posix()}"
+                              for d in DATASETS_OPTIONS])
 @pytest.mark.parametrize("mg_device_count", MG_DEVICE_COUNT_OPTIONS)
 def test_replicate_cudf_dataframe_with_weights(
     input_data_path, mg_device_count
@@ -60,7 +62,9 @@ def test_replicate_cudf_dataframe_with_weights(
 @pytest.mark.skipif(
     is_single_gpu(), reason="skipping MG testing on Single GPU system"
 )
-@pytest.mark.parametrize("input_data_path", DATASETS_OPTIONS)
+@pytest.mark.parametrize("input_data_path", DATASETS_OPTIONS,
+                         ids=[f"dataset={d.as_posix()}"
+                              for d in DATASETS_OPTIONS])
 @pytest.mark.parametrize("mg_device_count", MG_DEVICE_COUNT_OPTIONS)
 def test_replicate_cudf_dataframe_no_weights(input_data_path, mg_device_count):
     gc.collect()
@@ -84,7 +88,9 @@ def test_replicate_cudf_dataframe_no_weights(input_data_path, mg_device_count):
 @pytest.mark.skipif(
     is_single_gpu(), reason="skipping MG testing on Single GPU system"
 )
-@pytest.mark.parametrize("input_data_path", DATASETS_OPTIONS)
+@pytest.mark.parametrize("input_data_path", DATASETS_OPTIONS,
+                         ids=[f"dataset={d.as_posix()}"
+                              for d in DATASETS_OPTIONS])
 @pytest.mark.parametrize("mg_device_count", MG_DEVICE_COUNT_OPTIONS)
 def test_replicate_cudf_series(input_data_path, mg_device_count):
     gc.collect()
@@ -114,7 +120,9 @@ def test_replicate_cudf_series(input_data_path, mg_device_count):
 @pytest.mark.skipif(
     is_single_gpu(), reason="skipping MG testing on Single GPU system"
 )
-@pytest.mark.parametrize("graph_file", DATASETS_OPTIONS)
+@pytest.mark.parametrize("graph_file", DATASETS_OPTIONS,
+                         ids=[f"dataset={d.as_posix()}"
+                              for d in DATASETS_OPTIONS])
 @pytest.mark.parametrize("directed", DIRECTED_GRAPH_OPTIONS)
 @pytest.mark.parametrize("mg_device_count", MG_DEVICE_COUNT_OPTIONS)
 def test_enable_batch_no_context(graph_file, directed, mg_device_count):
@@ -129,7 +137,9 @@ def test_enable_batch_no_context(graph_file, directed, mg_device_count):
 @pytest.mark.skipif(
     is_single_gpu(), reason="skipping MG testing on Single GPU system"
 )
-@pytest.mark.parametrize("graph_file", DATASETS_OPTIONS)
+@pytest.mark.parametrize("graph_file", DATASETS_OPTIONS,
+                         ids=[f"dataset={d.as_posix()}"
+                              for d in DATASETS_OPTIONS])
 @pytest.mark.parametrize("directed", DIRECTED_GRAPH_OPTIONS)
 @pytest.mark.parametrize("mg_device_count", MG_DEVICE_COUNT_OPTIONS)
 def test_enable_batch_no_context_view_adj(
@@ -145,7 +155,9 @@ def test_enable_batch_no_context_view_adj(
 @pytest.mark.skipif(
     is_single_gpu(), reason="skipping MG testing on Single GPU system"
 )
-@pytest.mark.parametrize("graph_file", DATASETS_OPTIONS)
+@pytest.mark.parametrize("graph_file", DATASETS_OPTIONS,
+                         ids=[f"dataset={d.as_posix()}"
+                              for d in DATASETS_OPTIONS])
 @pytest.mark.parametrize("directed", DIRECTED_GRAPH_OPTIONS)
 @pytest.mark.parametrize("mg_device_count", MG_DEVICE_COUNT_OPTIONS)
 def test_enable_batch_context_then_views(
@@ -174,7 +186,9 @@ def test_enable_batch_context_then_views(
 @pytest.mark.skipif(
     is_single_gpu(), reason="skipping MG testing on Single GPU system"
 )
-@pytest.mark.parametrize("graph_file", DATASETS_OPTIONS)
+@pytest.mark.parametrize("graph_file", DATASETS_OPTIONS,
+                         ids=[f"dataset={d.as_posix()}"
+                              for d in DATASETS_OPTIONS])
 @pytest.mark.parametrize("directed", DIRECTED_GRAPH_OPTIONS)
 @pytest.mark.parametrize("mg_device_count", MG_DEVICE_COUNT_OPTIONS)
 def test_enable_batch_view_then_context(graph_file, directed, mg_device_count):
@@ -205,7 +219,9 @@ def test_enable_batch_view_then_context(graph_file, directed, mg_device_count):
 @pytest.mark.skipif(
     is_single_gpu(), reason="skipping MG testing on Single GPU system"
 )
-@pytest.mark.parametrize("graph_file", DATASETS_OPTIONS)
+@pytest.mark.parametrize("graph_file", DATASETS_OPTIONS,
+                         ids=[f"dataset={d.as_posix()}"
+                              for d in DATASETS_OPTIONS])
 @pytest.mark.parametrize("directed", DIRECTED_GRAPH_OPTIONS)
 @pytest.mark.parametrize("mg_device_count", MG_DEVICE_COUNT_OPTIONS)
 def test_enable_batch_context_no_context_views(
@@ -230,7 +246,9 @@ def test_enable_batch_context_no_context_views(
 @pytest.mark.skipif(
     is_single_gpu(), reason="skipping MG testing on Single GPU system"
 )
-@pytest.mark.parametrize("graph_file", DATASETS_OPTIONS)
+@pytest.mark.parametrize("graph_file", DATASETS_OPTIONS,
+                         ids=[f"dataset={d.as_posix()}"
+                              for d in DATASETS_OPTIONS])
 @pytest.mark.parametrize("directed", DIRECTED_GRAPH_OPTIONS)
 @pytest.mark.parametrize("mg_device_count", MG_DEVICE_COUNT_OPTIONS)
 def test_enable_batch_edgelist_replication(
@@ -251,7 +269,9 @@ def test_enable_batch_edgelist_replication(
 @pytest.mark.skipif(
     is_single_gpu(), reason="skipping MG testing on Single GPU system"
 )
-@pytest.mark.parametrize("graph_file", DATASETS_OPTIONS)
+@pytest.mark.parametrize("graph_file", DATASETS_OPTIONS,
+                         ids=[f"dataset={d.as_posix()}"
+                              for d in DATASETS_OPTIONS])
 @pytest.mark.parametrize("directed", DIRECTED_GRAPH_OPTIONS)
 @pytest.mark.parametrize("mg_device_count", MG_DEVICE_COUNT_OPTIONS)
 def test_enable_batch_adjlist_replication_weights(
@@ -293,7 +313,9 @@ def test_enable_batch_adjlist_replication_weights(
 @pytest.mark.skipif(
     is_single_gpu(), reason="skipping MG testing on Single GPU system"
 )
-@pytest.mark.parametrize("graph_file", DATASETS_OPTIONS)
+@pytest.mark.parametrize("graph_file", DATASETS_OPTIONS,
+                         ids=[f"dataset={d.as_posix()}"
+                              for d in DATASETS_OPTIONS])
 @pytest.mark.parametrize("directed", DIRECTED_GRAPH_OPTIONS)
 @pytest.mark.parametrize("mg_device_count", MG_DEVICE_COUNT_OPTIONS)
 def test_enable_batch_adjlist_replication_no_weights(
