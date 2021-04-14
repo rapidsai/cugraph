@@ -25,8 +25,8 @@
 #include <thrust/random.h>
 
 #include <algorithms.hpp>
-#include <experimental/random_walks.cuh>
 #include <graph.hpp>
+#include <sampling/random_walks.cuh>
 
 #include <raft/handle.hpp>
 #include <raft/random/rng.cuh>
