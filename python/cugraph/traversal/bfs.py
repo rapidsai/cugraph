@@ -1,4 +1,4 @@
-# Copyright (c) 2019-2020, NVIDIA CORPORATION.
+# Copyright (c) 2019-2021, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -101,7 +101,7 @@ def _convert_df_to_output_type(df, input_type):
             else:
                 return (distances, preds)
     else:
-        raise TypeError(f"input type {input_type} is not a supported type.")
+        raise TypeError("input type {input_type} is not a supported type.")
 
 
 def bfs(G,
@@ -188,11 +188,6 @@ def bfs(G,
         G, nx_weight_attr="weight",
         matrix_graph_type=DiGraph if directed else Graph)
 
-    if type(G) is Graph:
-        is_directed = False
-    else:
-        is_directed = True
-
     if G.renumbered is True:
         if isinstance(start, cudf.DataFrame):
             start = G.lookup_internal_vertex_id(start, start.columns).iloc[0]
@@ -248,7 +243,7 @@ def bfs_edges(G, source, reverse=False, depth_limit=None, sort_neighbors=None):
           df['distance'] path distance for each vertex from the starting vertex
 
           df['predecessor'] for each i'th position in the column, the vertex ID
-          immediately preceding the vertex at position i in the 'vertex' column.
+          immediately preceding the vertex at position i in the 'vertex' column
 
     If G is a networkx.Graph, returns:
 
