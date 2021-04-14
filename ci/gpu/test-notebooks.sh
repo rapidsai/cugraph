@@ -18,9 +18,9 @@ set -o pipefail  # piped commands propagate their error
 set -E           # ERR traps are inherited by subcommands
 trap "EXITCODE=1" ERR
 
-NOTEBOOKS_DIR=${WORKSPACE}/notebooks
-NBTEST=${WORKSPACE}/ci/utils/nbtest.sh
-LIBCUDF_KERNEL_CACHE_PATH=${WORKSPACE}/.jitcache
+NOTEBOOKS_DIR="${WORKSPACE}/notebooks"
+NBTEST="${WORKSPACE}/ci/utils/nbtest.sh"
+LIBCUDF_KERNEL_CACHE_PATH="${WORKSPACE}/.jitcache"
 EXITCODE=0
 
 cd ${NOTEBOOKS_DIR}
@@ -41,7 +41,7 @@ for folder in ${TOPLEVEL_NB_FOLDERS}; do
     echo "FOLDER: ${folder}"
     echo "========================================"
     cd ${NOTEBOOKS_DIR}/${folder}
-    NBLIST=$(python ${WORKSPACE}/ci/gpu/notebook_list.py)
+    NBLIST=$(python "${WORKSPACE}/ci/gpu/notebook_list.py")
     for nb in ${NBLIST}; do
         nbBasename=$(basename ${nb})
         cd $(dirname ${nb})

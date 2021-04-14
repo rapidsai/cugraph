@@ -10,9 +10,9 @@ if [ -z "$PROJECT_WORKSPACE" ]; then
     exit 1
 fi
 
-export DOCS_WORKSPACE=$WORKSPACE/docs
+export DOCS_WORKSPACE="$WORKSPACE/docs"
 export PATH=/conda/bin:/usr/local/cuda/bin:$PATH
-export HOME=$WORKSPACE
+export HOME="$WORKSPACE"
 export PROJECT_WORKSPACE=/rapids/cugraph
 export LIBCUDF_KERNEL_CACHE_PATH="$HOME/.jitify-cache"
 export NIGHTLY_VERSION=$(echo $BRANCH_VERSION | awk -F. '{print $2}')
@@ -45,25 +45,25 @@ conda list --show-channel-urls
 
 # Build Doxygen docs
 gpuci_logger "Build Doxygen docs"
-cd $PROJECT_WORKSPACE/cpp/build
+cd "$PROJECT_WORKSPACE/cpp/build"
 make docs_cugraph
 	
 # Build Python docs
 gpuci_logger "Build Sphinx docs"
-cd $PROJECT_WORKSPACE/docs
+cd "$PROJECT_WORKSPACE/docs"
 make html
 
 #Commit to Website
-cd $DOCS_WORKSPACE
+cd "$DOCS_WORKSPACE"
 
 for PROJECT in ${PROJECTS[@]}; do
     if [ ! -d "api/$PROJECT/$BRANCH_VERSION" ]; then
         mkdir -p api/$PROJECT/$BRANCH_VERSION
     fi
-    rm -rf $DOCS_WORKSPACE/api/$PROJECT/$BRANCH_VERSION/*	
+    rm -rf "$DOCS_WORKSPACE/api/$PROJECT/$BRANCH_VERSION/*"	
 done
 
 
-mv $PROJECT_WORKSPACE/cpp/doxygen/html/* $DOCS_WORKSPACE/api/libcugraph/$BRANCH_VERSION
-mv $PROJECT_WORKSPACE/docs/build/html/* $DOCS_WORKSPACE/api/cugraph/$BRANCH_VERSION
+mv "$PROJECT_WORKSPACE/cpp/doxygen/html/*" "$DOCS_WORKSPACE/api/libcugraph/$BRANCH_VERSION"
+mv "$PROJECT_WORKSPACE/docs/build/html/*" "$DOCS_WORKSPACE/api/cugraph/$BRANCH_VERSION"
 

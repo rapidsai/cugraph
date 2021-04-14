@@ -16,12 +16,12 @@ function hasArg {
 export PATH=/opt/conda/bin:/usr/local/cuda/bin:$PATH
 export PARALLEL_LEVEL=${PARALLEL_LEVEL:-4}
 export CUDA_REL=${CUDA_VERSION%.*}
-export CONDA_ARTIFACT_PATH=${WORKSPACE}/ci/artifacts/cugraph/cpu/.conda-bld/
+export CONDA_ARTIFACT_PATH="${WORKSPACE}/ci/artifacts/cugraph/cpu/.conda-bld/"
 
 function cleanup {
   gpuci_logger "Removing datasets and temp files"
-  rm -rf $WORKSPACE/datasets/test
-  rm -rf $WORKSPACE/datasets/benchmark
+  rm -rf "$WORKSPACE/datasets/test"
+  rm -rf "$WORKSPACE/datasets/benchmark"
   rm -f testoutput.txt
 }
 
@@ -32,10 +32,10 @@ if [ ! -z "$JENKINS_HOME" ] ; then
 fi
 
 # Set home to the job's workspace
-export HOME=$WORKSPACE
+export HOME="$WORKSPACE"
 
 # Parse git describe
-cd $WORKSPACE
+cd "$WORKSPACE"
 export GIT_DESCRIBE_TAG=`git describe --tags`
 export MINOR_VERSION=`echo $GIT_DESCRIBE_TAG | grep -o -E '([0-9]+\.[0-9]+)'`
 
@@ -92,7 +92,7 @@ conda list --show-channel-urls
 
 if [[ -z "$PROJECT_FLASH" || "$PROJECT_FLASH" == "0" ]]; then
     gpuci_logger "Build from source"
-    $WORKSPACE/build.sh -v clean libcugraph cugraph
+    "$WORKSPACE/build.sh" -v clean libcugraph cugraph
 else
     export LIBCUGRAPH_BUILD_DIR="$WORKSPACE/ci/artifacts/cugraph/cpu/conda_work/cpp/build"
 
@@ -109,7 +109,7 @@ else
     conda install -c ${CONDA_ARTIFACT_PATH} "$CONDA_FILE"
 
     echo "Build cugraph..."
-    $WORKSPACE/build.sh cugraph
+    "$WORKSPACE/build.sh" cugraph
 fi
 
 ################################################################################
@@ -141,13 +141,13 @@ else
     fi
 
     gpuci_logger "Running cuGraph test.sh..."
-    ${WORKSPACE}/ci/test.sh ${TEST_MODE_FLAG} | tee testoutput.txt
+    "${WORKSPACE}/ci/test.sh" ${TEST_MODE_FLAG} | tee testoutput.txt
     gpuci_logger "Ran cuGraph test.sh : return code was: $?, gpu/build.sh exit code is now: $EXITCODE"
 
     gpuci_logger "Running cuGraph notebook test script..."
-    ${WORKSPACE}/ci/gpu/test-notebooks.sh 2>&1 | tee nbtest.log
+    "${WORKSPACE}/ci/gpu/test-notebooks.sh" 2>&1 | tee nbtest.log
     gpuci_logger "Ran cuGraph notebook test script : return code was: $?, gpu/build.sh exit code is now: $EXITCODE"
-    python ${WORKSPACE}/ci/utils/nbtestlog2junitxml.py nbtest.log
+    python "${WORKSPACE}/ci/utils/nbtestlog2junitxml.py" nbtest.log
 fi
 
 if [ -n "${CODECOV_TOKEN}" ]; then

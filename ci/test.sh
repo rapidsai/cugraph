@@ -58,7 +58,7 @@ if [[ -z "$PROJECT_FLASH" || "$PROJECT_FLASH" == "0" ]]; then
     cd ${CUGRAPH_ROOT}/cpp/build
 else
     export LD_LIBRARY_PATH="$WORKSPACE/ci/artifacts/cugraph/cpu/conda_work/cpp/build:$CONDA_PREFIX/lib:$LD_LIBRARY_PATH"
-    cd $WORKSPACE/ci/artifacts/cugraph/cpu/conda_work/cpp/build
+    cd "$WORKSPACE/ci/artifacts/cugraph/cpu/conda_work/cpp/build"
 fi
 
 # Do not abort the script on error from this point on. This allows all tests to

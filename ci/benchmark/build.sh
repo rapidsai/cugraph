@@ -15,13 +15,13 @@ function hasArg {
 
 function cleanup {
   gpuci_logger "Removing datasets and temp files"
-  rm -rf $WORKSPACE/datasets/test
-  rm -rf $WORKSPACE/datasets/benchmark
+  rm -rf "$WORKSPACE/datasets/test"
+  rm -rf "$WORKSPACE/datasets/benchmark"
   rm -f testoutput.txt
 }
 
 # Set path, build parallel level, and CUDA version
-cd $WORKSPACE
+cd "$WORKSPACE"
 export PATH=/opt/conda/bin:/usr/local/cuda/bin:$PATH
 export PARALLEL_LEVEL=${PARALLEL_LEVEL:-4}
 export CUDA_REL=${CUDA_VERSION%.*}
@@ -33,7 +33,7 @@ if [ ! -z "$JENKINS_HOME" ] ; then
 fi
 
 # Set home
-export HOME=$WORKSPACE
+export HOME="$WORKSPACE"
 
 # Parse git describe
 export GIT_DESCRIBE_TAG=`git describe --tags`
@@ -44,8 +44,8 @@ export GPUCI_CONDA_RETRY_MAX=1
 export GPUCI_CONDA_RETRY_SLEEP=30
 
 # Set Benchmark Vars
-export DATASETS_DIR=${WORKSPACE}/datasets
-export BENCHMARKS_DIR=${WORKSPACE}/benchmarks
+export DATASETS_DIR="${WORKSPACE}/datasets"
+export BENCHMARKS_DIR="${WORKSPACE}/benchmarks"
 
 ##########################################
 # Environment Setup                      #
@@ -98,7 +98,7 @@ conda list --show-channel-urls
 ##########################################
 
 gpuci_logger "Build libcugraph"
-$WORKSPACE/build.sh clean libcugraph cugraph
+"$WORKSPACE/build.sh" clean libcugraph cugraph
 
 ##########################################
 # Run Benchmarks                         #
