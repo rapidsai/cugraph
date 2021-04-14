@@ -144,8 +144,8 @@ TEST_P(Tests_Mst, CheckFP32_T) { run_current_test<float>(GetParam()); }
 
 TEST_P(Tests_Mst, CheckFP64_T) { run_current_test<double>(GetParam()); }
 
-INSTANTIATE_TEST_CASE_P(simple_test,
-                        Tests_Mst,
-                        ::testing::Values(Mst_Usecase("test/datasets/netscience.mtx")));
+INSTANTIATE_TEST_SUITE_P(simple_test,
+                         Tests_Mst,
+                         ::testing::Values(Mst_Usecase("test/datasets/netscience.mtx")));
 
 CUGRAPH_TEST_PROGRAM_MAIN()

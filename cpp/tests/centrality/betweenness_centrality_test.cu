@@ -399,12 +399,12 @@ TEST_P(Tests_BC, CheckFP64_NORMALIZE_ENDPOINTS)
   run_current_test<int, int, double, double, true, true>(GetParam());
 }
 
-INSTANTIATE_TEST_CASE_P(simple_test,
-                        Tests_BC,
-                        ::testing::Values(BC_Usecase("test/datasets/karate.mtx", 0),
-                                          BC_Usecase("test/datasets/netscience.mtx", 0),
-                                          BC_Usecase("test/datasets/netscience.mtx", 4),
-                                          BC_Usecase("test/datasets/wiki2003.mtx", 4),
-                                          BC_Usecase("test/datasets/wiki-Talk.mtx", 4)));
+INSTANTIATE_TEST_SUITE_P(simple_test,
+                         Tests_BC,
+                         ::testing::Values(BC_Usecase("test/datasets/karate.mtx", 0),
+                                           BC_Usecase("test/datasets/netscience.mtx", 0),
+                                           BC_Usecase("test/datasets/netscience.mtx", 4),
+                                           BC_Usecase("test/datasets/wiki2003.mtx", 4),
+                                           BC_Usecase("test/datasets/wiki-Talk.mtx", 4)));
 
 CUGRAPH_TEST_PROGRAM_MAIN()

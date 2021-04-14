@@ -178,11 +178,11 @@ TEST_P(Tests_WeightSum, CheckInt32Int32FloatUntransposed)
   run_current_test<int32_t, int32_t, float, false>(GetParam());
 }
 
-INSTANTIATE_TEST_CASE_P(simple_test,
-                        Tests_WeightSum,
-                        ::testing::Values(WeightSum_Usecase("test/datasets/karate.mtx"),
-                                          WeightSum_Usecase("test/datasets/web-Google.mtx"),
-                                          WeightSum_Usecase("test/datasets/ljournal-2008.mtx"),
-                                          WeightSum_Usecase("test/datasets/webbase-1M.mtx")));
+INSTANTIATE_TEST_SUITE_P(simple_test,
+                         Tests_WeightSum,
+                         ::testing::Values(WeightSum_Usecase("test/datasets/karate.mtx"),
+                                           WeightSum_Usecase("test/datasets/web-Google.mtx"),
+                                           WeightSum_Usecase("test/datasets/ljournal-2008.mtx"),
+                                           WeightSum_Usecase("test/datasets/webbase-1M.mtx")));
 
 CUGRAPH_TEST_PROGRAM_MAIN()

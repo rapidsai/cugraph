@@ -211,7 +211,7 @@ std::vector<int> Tests_Strongly_CC::strongly_cc_counts;
 TEST_P(Tests_Strongly_CC, Strongly_CC) { run_current_test(GetParam()); }
 
 // --gtest_filter=*simple_test*
-INSTANTIATE_TEST_CASE_P(
+INSTANTIATE_TEST_SUITE_P(
   simple_test,
   Tests_Strongly_CC,
   ::testing::Values(

@@ -242,5 +242,5 @@ class Tests_Tsp : public ::testing::TestWithParam<Tsp_Usecase> {
 
 TEST_P(Tests_Tsp, CheckFP32_T) { run_current_test(GetParam()); }
 
-INSTANTIATE_TEST_CASE_P(simple_test, Tests_Tsp, ::testing::ValuesIn(euc_2d));
+INSTANTIATE_TEST_SUITE_P(simple_test, Tests_Tsp, ::testing::ValuesIn(euc_2d));
 CUGRAPH_TEST_PROGRAM_MAIN()

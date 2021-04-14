@@ -141,11 +141,11 @@ std::vector<double> Tests_Weakly_CC::weakly_cc_time;
 TEST_P(Tests_Weakly_CC, Weakly_CC) { run_current_test(GetParam()); }
 
 // --gtest_filter=*simple_test*
-INSTANTIATE_TEST_CASE_P(simple_test,
-                        Tests_Weakly_CC,
-                        ::testing::Values(Usecase("test/datasets/dolphins.mtx"),
-                                          Usecase("test/datasets/coPapersDBLP.mtx"),
-                                          Usecase("test/datasets/coPapersCiteseer.mtx"),
-                                          Usecase("test/datasets/hollywood.mtx")));
+INSTANTIATE_TEST_SUITE_P(simple_test,
+                         Tests_Weakly_CC,
+                         ::testing::Values(Usecase("test/datasets/dolphins.mtx"),
+                                           Usecase("test/datasets/coPapersDBLP.mtx"),
+                                           Usecase("test/datasets/coPapersCiteseer.mtx"),
+                                           Usecase("test/datasets/hollywood.mtx")));
 
 CUGRAPH_TEST_PROGRAM_MAIN()

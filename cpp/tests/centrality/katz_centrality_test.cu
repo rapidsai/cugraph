@@ -156,7 +156,7 @@ class Tests_Katz : public ::testing::TestWithParam<Katz_Usecase> {
   }
 };
 
-INSTANTIATE_TEST_CASE_P(
+INSTANTIATE_TEST_SUITE_P(
   simple_test,
   Tests_Katz,
   ::testing::Values(Katz_Usecase("test/datasets/karate.mtx", "ref/katz/karate.csv"),
