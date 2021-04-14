@@ -36,5 +36,5 @@ class LineGraph_Usecase {
   size_t num_vertices_{0};
 };
 
-} // namespace test
-} // namespace cugraph
+}  // namespace test
+}  // namespace cugraph

@@ -225,20 +225,22 @@ INSTANTIATE_TEST_SUITE_P(
                       cugraph::test::File_Usecase("test/datasets/ljournal-2008.mtx"),
                       cugraph::test::File_Usecase("test/datasets/webbase-1M.mtx"))));
 
-INSTANTIATE_TEST_SUITE_P(
-  rmat_small_test,
-  Tests_MGKatzCentrality_Rmat,
-  ::testing::Combine(
-    // enable correctness checks
-    ::testing::Values(KatzCentrality_Usecase{false}, KatzCentrality_Usecase{true}),
-    ::testing::Values(cugraph::test::Rmat_Usecase(10, 16, 0.57, 0.19, 0.19, 0, false, false, true))));
+INSTANTIATE_TEST_SUITE_P(rmat_small_test,
+                         Tests_MGKatzCentrality_Rmat,
+                         ::testing::Combine(
+                           // enable correctness checks
+                           ::testing::Values(KatzCentrality_Usecase{false},
+                                             KatzCentrality_Usecase{true}),
+                           ::testing::Values(cugraph::test::Rmat_Usecase(
+                             10, 16, 0.57, 0.19, 0.19, 0, false, false, true))));
 
-INSTANTIATE_TEST_SUITE_P(
-  rmat_large_test,
-  Tests_MGKatzCentrality_Rmat,
-  ::testing::Combine(
-    // disable correctness checks for large graphs
-    ::testing::Values(KatzCentrality_Usecase{false, false}, KatzCentrality_Usecase{true, false}),
-    ::testing::Values(cugraph::test::Rmat_Usecase(20, 32, 0.57, 0.19, 0.19, 0, false, false, true))));
+INSTANTIATE_TEST_SUITE_P(rmat_large_test,
+                         Tests_MGKatzCentrality_Rmat,
+                         ::testing::Combine(
+                           // disable correctness checks for large graphs
+                           ::testing::Values(KatzCentrality_Usecase{false, false},
+                                             KatzCentrality_Usecase{true, false}),
+                           ::testing::Values(cugraph::test::Rmat_Usecase(
+                             20, 32, 0.57, 0.19, 0.19, 0, false, false, true))));
 
 CUGRAPH_MG_TEST_PROGRAM_MAIN()

@@ -81,16 +81,17 @@ TEST_P(Tests_WCC_LineGraph, WCC)
 INSTANTIATE_TEST_SUITE_P(
   file_test,
   Tests_WCC_File,
-  ::testing::Values(std::make_tuple(WCC_Usecase{}, cugraph::test::File_Usecase("test/datasets/dolphins.mtx")),
-                    std::make_tuple(WCC_Usecase{}, cugraph::test::File_Usecase("test/datasets/coPapersDBLP.mtx")),
-                    std::make_tuple(WCC_Usecase{},
-                                   cugraph::test::File_Usecase("test/datasets/coPapersCiteseer.mtx")),
-                    std::make_tuple(WCC_Usecase{}, cugraph::test::File_Usecase("test/datasets/hollywood.mtx"))));
+  ::testing::Values(
+    std::make_tuple(WCC_Usecase{}, cugraph::test::File_Usecase("test/datasets/dolphins.mtx")),
+    std::make_tuple(WCC_Usecase{}, cugraph::test::File_Usecase("test/datasets/coPapersDBLP.mtx")),
+    std::make_tuple(WCC_Usecase{},
+                    cugraph::test::File_Usecase("test/datasets/coPapersCiteseer.mtx")),
+    std::make_tuple(WCC_Usecase{}, cugraph::test::File_Usecase("test/datasets/hollywood.mtx"))));
 
-INSTANTIATE_TEST_SUITE_P(line_graph_test,
-                         Tests_WCC_LineGraph,
-                         ::testing::Values(std::make_tuple(WCC_Usecase{}, cugraph::test::LineGraph_Usecase(1000)),
-                                           std::make_tuple(WCC_Usecase{},
-                                                          cugraph::test::LineGraph_Usecase(100000))));
+INSTANTIATE_TEST_SUITE_P(
+  line_graph_test,
+  Tests_WCC_LineGraph,
+  ::testing::Values(std::make_tuple(WCC_Usecase{}, cugraph::test::LineGraph_Usecase(1000)),
+                    std::make_tuple(WCC_Usecase{}, cugraph::test::LineGraph_Usecase(100000))));
 
 CUGRAPH_TEST_PROGRAM_MAIN()
