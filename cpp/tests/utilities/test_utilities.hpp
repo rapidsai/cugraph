@@ -200,7 +200,7 @@ class File_Usecase {
   }
 
  private:
-  std::string graph_file_full_path_;
+  std::string graph_file_full_path_{};
 };
 
 class Rmat_Usecase {
@@ -273,15 +273,15 @@ class Rmat_Usecase {
   }
 
  private:
-  size_t scale_;
-  size_t edge_factor_;
-  double a_;
-  double b_;
-  double c_;
-  uint64_t seed_;
-  bool undirected_;
-  bool scramble_vertex_ids_;
-  bool multi_gpu_usecase_;
+  size_t scale_{};
+  size_t edge_factor_{};
+  double a_{};
+  double b_{};
+  double c_{};
+  uint64_t seed_{};
+  bool undirected_{};
+  bool scramble_vertex_ids_{};
+  bool multi_gpu_usecase_{};
 };
 
 }  // namespace test
