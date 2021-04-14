@@ -9,6 +9,7 @@
  *
  */
 
+#include <components/wcc_graphs.hpp>
 #include <utilities/base_fixture.hpp>
 #include <utilities/test_utilities.hpp>
 
@@ -18,36 +19,12 @@
 #include <raft/cudart_utils.h>
 #include <rmm/device_uvector.hpp>
 
-class LineGraph_Usecase {
- public:
-  LineGraph_Usecase() = delete;
-
-  LineGraph_Usecase(size_t num_vertices) : num_vertices_(num_vertices) {}
-
-  template <typename vertex_t,
-            typename edge_t,
-            typename weight_t,
-            bool store_transposed,
-            bool multi_gpu>
-  std::tuple<
-    cugraph::experimental::graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu>,
-    rmm::device_uvector<vertex_t>>
-  construct_graph(raft::handle_t const& handle, bool test_weighted, bool renumber = true) const
-  {
-    // TODO: Write an implementation here
-    CUGRAPH_FAIL("Not implemented");
-  }
-
- private:
-  size_t num_vertices_;
-};
-
 struct WCC_Usecase {
   bool validate_results{true};
 };
 
 template <typename input_usecase_t>
-class Tests_WCC : public ::testing::TestWithParam<std::pair<WCC_Usecase, input_usecase_t>> {
+class Tests_WCC : public ::testing::TestWithParam<std::tuple<WCC_Usecase, input_usecase_t>> {
  public:
   Tests_WCC() {}
   static void SetupTestCase() {}
@@ -80,12 +57,9 @@ class Tests_WCC : public ::testing::TestWithParam<std::pair<WCC_Usecase, input_u
   }
 };
 
-using cugraph::test::File_Usecase;
-using cugraph::test::Rmat_Usecase;
-
-using Tests_WCC_File      = Tests_WCC<File_Usecase>;
-using Tests_WCC_Rmat      = Tests_WCC<Rmat_Usecase>;
-using Tests_WCC_LineGraph = Tests_WCC<LineGraph_Usecase>;
+using Tests_WCC_File      = Tests_WCC<cugraph::test::File_Usecase>;
+using Tests_WCC_Rmat      = Tests_WCC<cugraph::test::Rmat_Usecase>;
+using Tests_WCC_LineGraph = Tests_WCC<cugraph::test::LineGraph_Usecase>;
 
 TEST_P(Tests_WCC_File, WCC)
 {
@@ -104,19 +78,19 @@ TEST_P(Tests_WCC_LineGraph, WCC)
 }
 
 // --gtest_filter=*simple_test*
-INSTANTIATE_TEST_CASE_P(
-  simple_test,
+INSTANTIATE_TEST_SUITE_P(
+  file_test,
   Tests_WCC_File,
-  ::testing::Values(std::make_pair(WCC_Usecase{}, File_Usecase("test/datasets/dolphins.mtx")),
-                    std::make_pair(WCC_Usecase{}, File_Usecase("test/datasets/coPapersDBLP.mtx")),
-                    std::make_pair(WCC_Usecase{},
-                                   File_Usecase("test/datasets/coPapersCiteseer.mtx")),
-                    std::make_pair(WCC_Usecase{}, File_Usecase("test/datasets/hollywood.mtx"))));
+  ::testing::Values(std::make_tuple(WCC_Usecase{}, cugraph::test::File_Usecase("test/datasets/dolphins.mtx")),
+                    std::make_tuple(WCC_Usecase{}, cugraph::test::File_Usecase("test/datasets/coPapersDBLP.mtx")),
+                    std::make_tuple(WCC_Usecase{},
+                                   cugraph::test::File_Usecase("test/datasets/coPapersCiteseer.mtx")),
+                    std::make_tuple(WCC_Usecase{}, cugraph::test::File_Usecase("test/datasets/hollywood.mtx"))));
 
-INSTANTIATE_TEST_CASE_P(simple_test,
-                        Tests_WCC_LineGraph,
-                        ::testing::Values(std::make_pair(WCC_Usecase{}, LineGraph_Usecase(1000)),
-                                          std::make_pair(WCC_Usecase{},
-                                                         LineGraph_Usecase(100000))));
+INSTANTIATE_TEST_SUITE_P(line_graph_test,
+                         Tests_WCC_LineGraph,
+                         ::testing::Values(std::make_tuple(WCC_Usecase{}, cugraph::test::LineGraph_Usecase(1000)),
+                                           std::make_tuple(WCC_Usecase{},
+                                                          cugraph::test::LineGraph_Usecase(100000))));
 
 CUGRAPH_TEST_PROGRAM_MAIN()

@@ -25,6 +25,7 @@ add_library(cugraphtestutil STATIC
             "${CMAKE_CURRENT_SOURCE_DIR}/utilities/generate_graph_from_edgelist.cu"
             "${CMAKE_CURRENT_SOURCE_DIR}/utilities/thrust_wrapper.cu"
             "${CMAKE_CURRENT_SOURCE_DIR}/utilities/misc_utilities.cpp"
+            "${CMAKE_CURRENT_SOURCE_DIR}/components/wcc_graphs.cu"
             "${CMAKE_CURRENT_SOURCE_DIR}/../../thirdparty/mmio/mmio.c")
 
 set_property(TARGET cugraphtestutil PROPERTY POSITION_INDEPENDENT_CODE ON)
@@ -302,6 +303,14 @@ set(SCC_TEST_SRC
     "${CMAKE_CURRENT_SOURCE_DIR}/components/scc_test.cu")
 
 ConfigureTest(SCC_TEST "${SCC_TEST_SRC}")
+
+###################################################################################################
+# - WEAKLY CONNECTED COMPONENTS  tests ----------------------------------------------------------
+
+set(WCC_TEST_SRC
+    "${CMAKE_CURRENT_SOURCE_DIR}/components/wcc_test.cpp")
+
+ConfigureTest(WCC_TEST "${WCC_TEST_SRC}")
 
 ###################################################################################################
 #-Hungarian (Linear Assignment Problem)  tests ---------------------------------------------------------------------
