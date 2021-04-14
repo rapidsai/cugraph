@@ -448,7 +448,7 @@ void call_bfs(raft::handle_t const& handle,
               vertex_t* identifiers,
               vertex_t* distances,
               vertex_t* predecessors,
-              double* sp_counters,
+              vertex_t depth_limit,
               const vertex_t start_vertex,
               bool directed);
 

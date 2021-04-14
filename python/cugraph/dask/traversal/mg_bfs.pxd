@@ -17,6 +17,8 @@
 from cugraph.structure.graph_utilities cimport *
 from libcpp cimport bool
 
+cdef extern from "limits.h":
+    cdef int INT_MAX
 
 cdef extern from "utilities/cython.hpp" namespace "cugraph::cython":
 
@@ -26,6 +28,6 @@ cdef extern from "utilities/cython.hpp" namespace "cugraph::cython":
         vertex_t *identifiers,
         vertex_t *distances,
         vertex_t *predecessors,
-        double *sp_counters,
+        vertex_t depth_limit,
         const vertex_t start_vertex,
         bool directed) except +

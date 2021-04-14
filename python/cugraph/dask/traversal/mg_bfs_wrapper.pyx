@@ -96,6 +96,7 @@ def mg_bfs(input_df,
     if (return_distances):
         c_distance_ptr = df['distance'].__cuda_array_interface__['data'][0]
 
+    depth_limit = c_bfs.INT_MAX
     cdef bool direction = <bool> 1
     # MG BFS path assumes directed is true
     c_bfs.call_bfs[int, float](handle_[0],
@@ -103,7 +104,7 @@ def mg_bfs(input_df,
                                <int*> NULL,
                                <int*> c_distance_ptr,
                                <int*> c_predecessor_ptr,
-                               <double*> NULL,
+                               <int> depth_limit,
                                <int> start,
                                direction)
     return df

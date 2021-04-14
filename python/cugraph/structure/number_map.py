@@ -343,11 +343,8 @@ class NumberMap:
 
         reply = self.implementation.to_internal_vertex_id(tmp_df,
                                                           tmp_col_names)
+        return reply
 
-        if type(df) in [cudf.DataFrame, dask_cudf.DataFrame]:
-            return reply["0"]
-        else:
-            return reply
 
     def add_internal_vertex_id(
         self, df, id_column_name="id", col_names=None, drop=False,

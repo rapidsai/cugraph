@@ -128,12 +128,13 @@ def sssp(input_graph, source):
         else: # This case should not happen
             raise NotImplementedError
     else:
+        cdef int depth_limit = c_bfs.INT_MAX
         c_bfs.call_bfs[int, float](handle_[0],
                                    graph_container,
                                    <int*> c_identifier_ptr,
                                    <int*> c_distance_ptr,
                                    <int*> c_predecessor_ptr,
-                                   <double*> NULL,
+                                   <int> depth_limit,
                                    <int> source,
                                    <bool> 1)
 
