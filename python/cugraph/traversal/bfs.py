@@ -65,7 +65,7 @@ def _ensure_args(G, start, i_start, directed):
     if directed is None:
         directed = True
 
-    return (start, return_sp_counter, directed)
+    return (start, directed)
 
 
 def _convert_df_to_output_type(df, input_type):
@@ -108,6 +108,7 @@ def bfs(G,
         start=None,
         depth_limit=None,
         i_start=None,
+        directed=None,
         direction_optimizing=None,
         return_predecessors=None):
     """Find the distances and predecessors for a breadth first traversal of a
@@ -177,8 +178,8 @@ def bfs(G,
     >>> df = cugraph.bfs(G, 0)
 
     """
-    (start, direction_optimizing) = \
-        _ensure_args(G, start, i_start, direction_optimizing)
+    (start, directed) = \
+        _ensure_args(G, start, i_start, directed)
 
     # FIXME: allow nx_weight_attr to be specified
     (G, input_type) = ensure_cugraph_obj(

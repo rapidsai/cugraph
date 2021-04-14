@@ -99,8 +99,8 @@ def bfs(input_graph, start, depth_limit, direction_optimizing=True):
                                <int*> c_identifier_ptr,
                                <int*> c_distance_ptr,
                                <int*> c_predecessor_ptr,
-                               <int> start,
                                <int> depth_limit,
+                               <int> start,
                                direction_optimizing)
 
     return df
