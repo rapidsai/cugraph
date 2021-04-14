@@ -783,7 +783,7 @@ TEST_F(RandomWalksPrimsTest, SimpleGraphRandomWalk)
   ASSERT_TRUE(test_all_paths);
 }
 
-TEST_F(RandomWalksPrimsTest, SingleRandomWalk)
+TEST(RandomWalksSpecialCase, SingleRandomWalk)
 {
   using vertex_t = int32_t;
   using edge_t   = vertex_t;
@@ -840,7 +840,7 @@ TEST_F(RandomWalksPrimsTest, SingleRandomWalk)
   ASSERT_TRUE(test_all_paths);
 }
 
-TEST_F(RandomWalksPrimsTest, PathsToCOO)
+TEST(RandomWalksUtility, PathsToCOO)
 {
   using namespace cugraph::experimental::detail;
 
