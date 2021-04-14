@@ -344,7 +344,6 @@ class NumberMap:
                                                           tmp_col_names)
         return reply
 
-
     def add_internal_vertex_id(
         self, df, id_column_name="id", col_names=None, drop=False,
         preserve_order=False
