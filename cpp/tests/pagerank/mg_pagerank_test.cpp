@@ -86,7 +86,6 @@ class Tests_MGPageRank
     rmm::device_uvector<vertex_t> d_mg_renumber_map_labels(0, handle.get_stream());
     std::tie(mg_graph, d_mg_renumber_map_labels) =
       input_usecase.template construct_graph<vertex_t, edge_t, weight_t, true, true>(handle, true);
-    // read_graph<vertex_t, edge_t, weight_t, true>(handle, configuration, true);
 
     if (PERF) {
       CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
@@ -320,7 +319,7 @@ TEST_P(Tests_MGPageRank_Rmat, CheckInt32Int32FloatFloat)
   run_current_test<int32_t, int32_t, float, float>(std::get<0>(param), std::get<1>(param));
 }
 
-INSTANTIATE_TEST_CASE_P(
+INSTANTIATE_TEST_SUITE_P(
   file_tests,
   Tests_MGPageRank_File,
   ::testing::Combine(
@@ -334,22 +333,22 @@ INSTANTIATE_TEST_CASE_P(
                       cugraph::test::File_Usecase("test/datasets/ljournal-2008.mtx"),
                       cugraph::test::File_Usecase("test/datasets/webbase-1M.mtx"))));
 
-INSTANTIATE_TEST_CASE_P(small_rmat_tests,
-                        Tests_MGPageRank_Rmat,
-                        ::testing::Combine(::testing::Values(PageRank_Usecase{0.0, false},
-                                                             PageRank_Usecase{0.5, false},
-                                                             PageRank_Usecase{0.0, true},
-                                                             PageRank_Usecase{0.5, true}),
-                                           ::testing::Values(cugraph::test::Rmat_Usecase(
-                                             10, 16, 0.57, 0.19, 0.19, 0, false, false, true))));
+INSTANTIATE_TEST_SUITE_P(small_rmat_tests,
+                         Tests_MGPageRank_Rmat,
+                         ::testing::Combine(::testing::Values(PageRank_Usecase{0.0, false},
+                                                              PageRank_Usecase{0.5, false},
+                                                              PageRank_Usecase{0.0, true},
+                                                              PageRank_Usecase{0.5, true}),
+                                            ::testing::Values(cugraph::test::Rmat_Usecase(
+                                              10, 16, 0.57, 0.19, 0.19, 0, false, false, true))));
 
-INSTANTIATE_TEST_CASE_P(large_rmat_tests,
-                        Tests_MGPageRank_Rmat,
-                        ::testing::Combine(::testing::Values(PageRank_Usecase{0.0, false, false},
-                                                             PageRank_Usecase{0.5, false, false},
-                                                             PageRank_Usecase{0.0, true, false},
-                                                             PageRank_Usecase{0.5, true, false}),
-                                           ::testing::Values(cugraph::test::Rmat_Usecase(
-                                             20, 32, 0.57, 0.19, 0.19, 0, false, false, true))));
+INSTANTIATE_TEST_SUITE_P(large_rmat_tests,
+                         Tests_MGPageRank_Rmat,
+                         ::testing::Combine(::testing::Values(PageRank_Usecase{0.0, false, false},
+                                                              PageRank_Usecase{0.5, false, false},
+                                                              PageRank_Usecase{0.0, true, false},
+                                                              PageRank_Usecase{0.5, true, false}),
+                                            ::testing::Values(cugraph::test::Rmat_Usecase(
+                                              20, 32, 0.57, 0.19, 0.19, 0, false, false, true))));
 
 CUGRAPH_MG_TEST_PROGRAM_MAIN()

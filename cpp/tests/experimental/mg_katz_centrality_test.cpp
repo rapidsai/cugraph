@@ -44,7 +44,7 @@ struct KatzCentrality_Usecase {
 
 template <typename input_usecase_t>
 class Tests_MGKatzCentrality
-  : public ::testing::TestWithParam<std::pair<KatzCentrality_Usecase, input_usecase_t>> {
+  : public ::testing::TestWithParam<std::tuple<KatzCentrality_Usecase, input_usecase_t>> {
  public:
   Tests_MGKatzCentrality() {}
   static void SetupTestCase() {}
@@ -199,11 +199,8 @@ class Tests_MGKatzCentrality
   }
 };
 
-using cugraph::test::File_Usecase;
-using cugraph::test::Rmat_Usecase;
-
-using Tests_MGKatzCentrality_File = Tests_MGKatzCentrality<File_Usecase>;
-using Tests_MGKatzCentrality_Rmat = Tests_MGKatzCentrality<Rmat_Usecase>;
+using Tests_MGKatzCentrality_File = Tests_MGKatzCentrality<cugraph::test::File_Usecase>;
+using Tests_MGKatzCentrality_Rmat = Tests_MGKatzCentrality<cugraph::test::Rmat_Usecase>;
 
 TEST_P(Tests_MGKatzCentrality_File, CheckInt32Int32FloatFloat)
 {
@@ -217,33 +214,31 @@ TEST_P(Tests_MGKatzCentrality_Rmat, CheckInt32Int32FloatFloat)
   run_current_test<int32_t, int32_t, float, float>(std::get<0>(param), std::get<1>(param));
 }
 
-INSTANTIATE_TEST_CASE_P(
-  simple_test,
+INSTANTIATE_TEST_SUITE_P(
+  file_test,
   Tests_MGKatzCentrality_File,
-  ::testing::Values(
+  ::testing::Combine(
     // enable correctness checks
-    std::make_pair(KatzCentrality_Usecase{false}, File_Usecase("test/datasets/karate.mtx")),
-    std::make_pair(KatzCentrality_Usecase{true}, File_Usecase("test/datasets/karate.mtx")),
-    std::make_pair(KatzCentrality_Usecase{false}, File_Usecase("test/datasets/web-Google.mtx")),
-    std::make_pair(KatzCentrality_Usecase{true}, File_Usecase("test/datasets/web-Google.mtx")),
-    std::make_pair(KatzCentrality_Usecase{false}, File_Usecase("test/datasets/ljournal-2008.mtx")),
-    std::make_pair(KatzCentrality_Usecase{true}, File_Usecase("test/datasets/ljournal-2008.mtx")),
-    std::make_pair(KatzCentrality_Usecase{false}, File_Usecase("test/datasets/webbase-1M.mtx")),
-    std::make_pair(KatzCentrality_Usecase{true}, File_Usecase("test/datasets/webbase-1M.mtx"))));
+    ::testing::Values(KatzCentrality_Usecase{false}, KatzCentrality_Usecase{true}),
+    ::testing::Values(cugraph::test::File_Usecase("test/datasets/karate.mtx"),
+                      cugraph::test::File_Usecase("test/datasets/web-Google.mtx"),
+                      cugraph::test::File_Usecase("test/datasets/ljournal-2008.mtx"),
+                      cugraph::test::File_Usecase("test/datasets/webbase-1M.mtx"))));
 
-INSTANTIATE_TEST_CASE_P(
-  simple_test,
+INSTANTIATE_TEST_SUITE_P(
+  rmat_small_test,
   Tests_MGKatzCentrality_Rmat,
-  ::testing::Values(
+  ::testing::Combine(
     // enable correctness checks
-    std::make_pair(KatzCentrality_Usecase{false},
-                   Rmat_Usecase(10, 16, 0.57, 0.19, 0.19, 0, false, false, true)),
-    std::make_pair(KatzCentrality_Usecase{true},
-                   Rmat_Usecase(10, 16, 0.57, 0.19, 0.19, 0, false, false, true)),
+    ::testing::Values(KatzCentrality_Usecase{false}, KatzCentrality_Usecase{true}),
+    ::testing::Values(cugraph::test::Rmat_Usecase(10, 16, 0.57, 0.19, 0.19, 0, false, false, true))));
+
+INSTANTIATE_TEST_SUITE_P(
+  rmat_large_test,
+  Tests_MGKatzCentrality_Rmat,
+  ::testing::Combine(
     // disable correctness checks for large graphs
-    std::make_pair(KatzCentrality_Usecase{false, false},
-                   Rmat_Usecase(20, 32, 0.57, 0.19, 0.19, 0, false, false, true)),
-    std::make_pair(KatzCentrality_Usecase{true, false},
-                   Rmat_Usecase(20, 32, 0.57, 0.19, 0.19, 0, false, false, true))));
+    ::testing::Values(KatzCentrality_Usecase{false, false}, KatzCentrality_Usecase{true, false}),
+    ::testing::Values(cugraph::test::Rmat_Usecase(20, 32, 0.57, 0.19, 0.19, 0, false, false, true))));
 
 CUGRAPH_MG_TEST_PROGRAM_MAIN()

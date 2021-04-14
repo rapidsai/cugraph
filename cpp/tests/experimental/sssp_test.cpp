@@ -93,7 +93,7 @@ struct SSSP_Usecase {
 };
 
 template <typename input_usecase_t>
-class Tests_SSSP : public ::testing::TestWithParam<std::pair<SSSP_Usecase, input_usecase_t>> {
+class Tests_SSSP : public ::testing::TestWithParam<std::tuple<SSSP_Usecase, input_usecase_t>> {
  public:
   Tests_SSSP() {}
   static void SetupTestCase() {}
@@ -283,11 +283,8 @@ class Tests_SSSP : public ::testing::TestWithParam<std::pair<SSSP_Usecase, input
   }
 };
 
-using cugraph::test::File_Usecase;
-using cugraph::test::Rmat_Usecase;
-
-using Tests_SSSP_File = Tests_SSSP<File_Usecase>;
-using Tests_SSSP_Rmat = Tests_SSSP<Rmat_Usecase>;
+using Tests_SSSP_File = Tests_SSSP<cugraph::test::File_Usecase>;
+using Tests_SSSP_Rmat = Tests_SSSP<cugraph::test::Rmat_Usecase>;
 
 // FIXME: add tests for type combinations
 TEST_P(Tests_SSSP_File, CheckInt32Int32Float)
@@ -301,22 +298,29 @@ TEST_P(Tests_SSSP_Rmat, CheckInt32Int32Float)
   run_current_test<int32_t, int32_t, float>(std::get<0>(param), std::get<1>(param));
 }
 
-INSTANTIATE_TEST_CASE_P(simple_test,
-                        Tests_SSSP_File,
-                        ::testing::Values(
-                          // enable correctness checks
-                          std::make_pair(SSSP_Usecase{0}, File_Usecase("test/datasets/karate.mtx")),
-                          std::make_pair(SSSP_Usecase{0}, File_Usecase("test/datasets/dblp.mtx")),
-                          std::make_pair(SSSP_Usecase{1000},
-                                         File_Usecase("test/datasets/wiki2003.mtx"))));
+INSTANTIATE_TEST_SUITE_P(
+  file_test,
+  Tests_SSSP_File,
+  // enable correctness checks
+  ::testing::Values(
+    std::make_tuple(SSSP_Usecase{0}, cugraph::test::File_Usecase("test/datasets/karate.mtx")),
+    std::make_tuple(SSSP_Usecase{0}, cugraph::test::File_Usecase("test/datasets/dblp.mtx")),
+    std::make_tuple(SSSP_Usecase{1000},
+                    cugraph::test::File_Usecase("test/datasets/wiki2003.mtx"))));
 
-INSTANTIATE_TEST_CASE_P(
-  simple_test,
+INSTANTIATE_TEST_SUITE_P(
+  rmat_small_test,
   Tests_SSSP_Rmat,
-  ::testing::Values(std::make_pair(SSSP_Usecase{0},
-                                   Rmat_Usecase(10, 16, 0.57, 0.19, 0.19, 0, false, false)),
-                    // disable correctness checks for large graphs
-                    std::make_pair(SSSP_Usecase{0, false},
-                                   Rmat_Usecase(20, 32, 0.57, 0.19, 0.19, 0, false, false))));
+  // enable correctness checks
+  ::testing::Values(std::make_tuple(
+    SSSP_Usecase{0}, cugraph::test::Rmat_Usecase(10, 16, 0.57, 0.19, 0.19, 0, false, false))));
+
+INSTANTIATE_TEST_SUITE_P(
+  rmat_large_test,
+  Tests_SSSP_Rmat,
+  // disable correctness checks for large graphs
+  ::testing::Values(
+    std::make_tuple(SSSP_Usecase{0, false},
+                    cugraph::test::Rmat_Usecase(20, 32, 0.57, 0.19, 0.19, 0, false, false))));
 
 CUGRAPH_TEST_PROGRAM_MAIN()

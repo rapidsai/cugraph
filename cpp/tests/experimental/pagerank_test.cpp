@@ -139,7 +139,7 @@ struct PageRank_Usecase {
 
 template <typename input_usecase_t>
 class Tests_PageRank
-  : public ::testing::TestWithParam<std::pair<PageRank_Usecase, input_usecase_t>> {
+  : public ::testing::TestWithParam<std::tuple<PageRank_Usecase, input_usecase_t>> {
  public:
   Tests_PageRank() {}
   static void SetupTestCase() {}
@@ -377,11 +377,8 @@ class Tests_PageRank
   }
 };
 
-using cugraph::test::File_Usecase;
-using cugraph::test::Rmat_Usecase;
-
-using Tests_PageRank_File = Tests_PageRank<File_Usecase>;
-using Tests_PageRank_Rmat = Tests_PageRank<Rmat_Usecase>;
+using Tests_PageRank_File = Tests_PageRank<cugraph::test::File_Usecase>;
+using Tests_PageRank_Rmat = Tests_PageRank<cugraph::test::Rmat_Usecase>;
 
 // FIXME: add tests for type combinations
 TEST_P(Tests_PageRank_File, CheckInt32Int32FloatFloat)
@@ -397,47 +394,40 @@ TEST_P(Tests_PageRank_Rmat, CheckInt32Int32FloatFloat)
   run_current_test<int32_t, int32_t, float, float>(std::get<0>(param), std::get<1>(param));
 }
 
-INSTANTIATE_TEST_CASE_P(
-  simple_test,
+INSTANTIATE_TEST_SUITE_P(
+  file_test,
   Tests_PageRank_File,
-  ::testing::Values(
+  ::testing::Combine(
     // enable correctness checks
-    std::make_pair(PageRank_Usecase{0.0, false}, File_Usecase("test/datasets/karate.mtx")),
-    std::make_pair(PageRank_Usecase{0.5, false}, File_Usecase("test/datasets/karate.mtx")),
-    std::make_pair(PageRank_Usecase{0.0, true}, File_Usecase("test/datasets/karate.mtx")),
-    std::make_pair(PageRank_Usecase{0.5, true}, File_Usecase("test/datasets/karate.mtx")),
-    std::make_pair(PageRank_Usecase{0.0, false}, File_Usecase("test/datasets/web-Google.mtx")),
-    std::make_pair(PageRank_Usecase{0.5, false}, File_Usecase("test/datasets/web-Google.mtx")),
-    std::make_pair(PageRank_Usecase{0.0, true}, File_Usecase("test/datasets/web-Google.mtx")),
-    std::make_pair(PageRank_Usecase{0.5, true}, File_Usecase("test/datasets/web-Google.mtx")),
-    std::make_pair(PageRank_Usecase{0.0, false}, File_Usecase("test/datasets/ljournal-2008.mtx")),
-    std::make_pair(PageRank_Usecase{0.5, false}, File_Usecase("test/datasets/ljournal-2008.mtx")),
-    std::make_pair(PageRank_Usecase{0.0, true}, File_Usecase("test/datasets/ljournal-2008.mtx")),
-    std::make_pair(PageRank_Usecase{0.5, true}, File_Usecase("test/datasets/ljournal-2008.mtx")),
-    std::make_pair(PageRank_Usecase{0.0, false}, File_Usecase("test/datasets/webbase-1M.mtx")),
-    std::make_pair(PageRank_Usecase{0.5, false}, File_Usecase("test/datasets/webbase-1M.mtx")),
-    std::make_pair(PageRank_Usecase{0.0, true}, File_Usecase("test/datasets/webbase-1M.mtx")),
-    std::make_pair(PageRank_Usecase{0.5, true}, File_Usecase("test/datasets/webbase-1M.mtx"))));
+    ::testing::Values(PageRank_Usecase{0.0, false},
+                      PageRank_Usecase{0.5, false},
+                      PageRank_Usecase{0.0, true},
+                      PageRank_Usecase{0.5, true}),
+    ::testing::Values(cugraph::test::File_Usecase("test/datasets/karate.mtx"),
+                      cugraph::test::File_Usecase("test/datasets/web-Google.mtx"),
+                      cugraph::test::File_Usecase("test/datasets/ljournal-2008.mtx"),
+                      cugraph::test::File_Usecase("test/datasets/webbase-1M.mtx"))));
 
-INSTANTIATE_TEST_CASE_P(
-  simple_test,
+INSTANTIATE_TEST_SUITE_P(
+  small_rmat_tests,
   Tests_PageRank_Rmat,
-  ::testing::Values(std::make_pair(PageRank_Usecase{0.0, false},
-                                   Rmat_Usecase(10, 16, 0.57, 0.19, 0.19, 0, false, false)),
-                    std::make_pair(PageRank_Usecase{0.5, false},
-                                   Rmat_Usecase(10, 16, 0.57, 0.19, 0.19, 0, false, false)),
-                    std::make_pair(PageRank_Usecase{0.0, true},
-                                   Rmat_Usecase(10, 16, 0.57, 0.19, 0.19, 0, false, false)),
-                    std::make_pair(PageRank_Usecase{0.5, true},
-                                   Rmat_Usecase(10, 16, 0.57, 0.19, 0.19, 0, false, false)),
-                    // disable correctness checks for large graphs
-                    std::make_pair(PageRank_Usecase{0.0, false, false},
-                                   Rmat_Usecase(20, 32, 0.57, 0.19, 0.19, 0, false, false)),
-                    std::make_pair(PageRank_Usecase{0.5, false, false},
-                                   Rmat_Usecase(20, 32, 0.57, 0.19, 0.19, 0, false, false)),
-                    std::make_pair(PageRank_Usecase{0.0, true, false},
-                                   Rmat_Usecase(20, 32, 0.57, 0.19, 0.19, 0, false, false)),
-                    std::make_pair(PageRank_Usecase{0.5, true, false},
-                                   Rmat_Usecase(20, 32, 0.57, 0.19, 0.19, 0, false, false))));
+  ::testing::Combine(
+    // enable correctness checks
+    ::testing::Values(PageRank_Usecase{0.0, false},
+                      PageRank_Usecase{0.5, false},
+                      PageRank_Usecase{0.0, true},
+                      PageRank_Usecase{0.5, true}),
+    ::testing::Values(cugraph::test::Rmat_Usecase(10, 16, 0.57, 0.19, 0.19, 0, false, false))));
+
+INSTANTIATE_TEST_SUITE_P(large_rmat_tests,
+                         Tests_PageRank_Rmat,
+                         ::testing::Combine(
+                           // disable correctness checks for large graphs
+                           ::testing::Values(PageRank_Usecase{0.0, false, false},
+                                             PageRank_Usecase{0.5, false, false},
+                                             PageRank_Usecase{0.0, true, false},
+                                             PageRank_Usecase{0.5, true, false}),
+                           ::testing::Values(cugraph::test::Rmat_Usecase(
+                             20, 32, 0.57, 0.19, 0.19, 0, false, false, true))));
 
 CUGRAPH_TEST_PROGRAM_MAIN()

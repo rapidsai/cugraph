@@ -87,7 +87,7 @@ struct BFS_Usecase {
 };
 
 template <typename input_usecase_t>
-class Tests_BFS : public ::testing::TestWithParam<std::pair<BFS_Usecase, input_usecase_t>> {
+class Tests_BFS : public ::testing::TestWithParam<std::tuple<BFS_Usecase, input_usecase_t>> {
  public:
   Tests_BFS() {}
   static void SetupTestCase() {}
@@ -265,11 +265,8 @@ class Tests_BFS : public ::testing::TestWithParam<std::pair<BFS_Usecase, input_u
   }
 };
 
-using cugraph::test::File_Usecase;
-using cugraph::test::Rmat_Usecase;
-
-using Tests_BFS_File = Tests_BFS<File_Usecase>;
-using Tests_BFS_Rmat = Tests_BFS<Rmat_Usecase>;
+using Tests_BFS_File = Tests_BFS<cugraph::test::File_Usecase>;
+using Tests_BFS_Rmat = Tests_BFS<cugraph::test::Rmat_Usecase>;
 
 // FIXME: add tests for type combinations
 TEST_P(Tests_BFS_File, CheckInt32Int32)
@@ -284,26 +281,33 @@ TEST_P(Tests_BFS_Rmat, CheckInt32Int32)
   run_current_test<int32_t, int32_t>(std::get<0>(param), std::get<1>(param));
 }
 
-INSTANTIATE_TEST_CASE_P(
-  simple_test,
+INSTANTIATE_TEST_SUITE_P(
+  file_test,
   Tests_BFS_File,
   ::testing::Values(
     // enable correctness checks
-    std::make_pair(BFS_Usecase{0}, File_Usecase("test/datasets/karate.mtx")),
-    std::make_pair(BFS_Usecase{0}, File_Usecase("test/datasets/polbooks.mtx")),
-    std::make_pair(BFS_Usecase{0}, File_Usecase("test/datasets/netscience.mtx")),
-    std::make_pair(BFS_Usecase{100}, File_Usecase("test/datasets/netscience.mtx")),
-    std::make_pair(BFS_Usecase{1000}, File_Usecase("test/datasets/wiki2003.mtx")),
-    std::make_pair(BFS_Usecase{1000}, File_Usecase("test/datasets/wiki-Talk.mtx"))));
+    std::make_tuple(BFS_Usecase{0}, cugraph::test::File_Usecase("test/datasets/karate.mtx")),
+    std::make_tuple(BFS_Usecase{0}, cugraph::test::File_Usecase("test/datasets/polbooks.mtx")),
+    std::make_tuple(BFS_Usecase{0}, cugraph::test::File_Usecase("test/datasets/netscience.mtx")),
+    std::make_tuple(BFS_Usecase{100}, cugraph::test::File_Usecase("test/datasets/netscience.mtx")),
+    std::make_tuple(BFS_Usecase{1000}, cugraph::test::File_Usecase("test/datasets/wiki2003.mtx")),
+    std::make_tuple(BFS_Usecase{1000},
+                    cugraph::test::File_Usecase("test/datasets/wiki-Talk.mtx"))));
 
-INSTANTIATE_TEST_CASE_P(simple_test,
-                        Tests_BFS_Rmat,
-                        ::testing::Values(
-                          // enable correctness checks
-                          std::make_pair(BFS_Usecase{0},
-                                         Rmat_Usecase(10, 16, 0.57, 0.19, 0.19, 0, false, false)),
-                          // disable correctness checks for large graphs
-                          std::make_pair(BFS_Usecase{0, false},
-                                         Rmat_Usecase(20, 32, 0.57, 0.19, 0.19, 0, false, false))));
+INSTANTIATE_TEST_SUITE_P(
+  rmat_small_test,
+  Tests_BFS_Rmat,
+  ::testing::Values(
+    // enable correctness checks
+    std::make_tuple(BFS_Usecase{0},
+                    cugraph::test::Rmat_Usecase(10, 16, 0.57, 0.19, 0.19, 0, false, false))));
+
+INSTANTIATE_TEST_SUITE_P(
+  rmat_large_test,
+  Tests_BFS_Rmat,
+  ::testing::Values(
+    // disable correctness checks for large graphs
+    std::make_pair(BFS_Usecase{0, false},
+                   cugraph::test::Rmat_Usecase(20, 32, 0.57, 0.19, 0.19, 0, false, false))));
 
 CUGRAPH_TEST_PROGRAM_MAIN()
