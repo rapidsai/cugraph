@@ -56,64 +56,31 @@ rmm::device_uvector<edge_t> compute_major_degrees(
   rmm::device_uvector<edge_t> degrees(0, handle.get_stream());
 
   vertex_t max_num_local_degrees{0};
-  for (int i = 0; i < (partition.is_hypergraph_partitioned() ? col_comm_size : row_comm_size);
-       ++i) {
-    auto vertex_partition_idx = partition.is_hypergraph_partitioned()
-                                  ? static_cast<size_t>(i * row_comm_size + row_comm_rank)
-                                  : static_cast<size_t>(col_comm_rank * row_comm_size + i);
+  for (int i = 0; i < col_comm_size; ++i) {
+    auto vertex_partition_idx  = static_cast<size_t>(i * row_comm_size + row_comm_rank);
     auto vertex_partition_size = partition.get_vertex_partition_size(vertex_partition_idx);
     max_num_local_degrees      = std::max(max_num_local_degrees, vertex_partition_size);
-    if (i == (partition.is_hypergraph_partitioned() ? col_comm_rank : row_comm_rank)) {
-      degrees.resize(vertex_partition_size, handle.get_stream());
-    }
+    if (i == col_comm_rank) { degrees.resize(vertex_partition_size, handle.get_stream()); }
   }
   local_degrees.resize(max_num_local_degrees, handle.get_stream());
-  for (int i = 0; i < (partition.is_hypergraph_partitioned() ? col_comm_size : row_comm_size);
-       ++i) {
-    auto vertex_partition_idx = partition.is_hypergraph_partitioned()
-                                  ? static_cast<size_t>(i * row_comm_size + row_comm_rank)
-                                  : static_cast<size_t>(col_comm_rank * row_comm_size + i);
+  for (int i = 0; i < col_comm_size; ++i) {
+    auto vertex_partition_idx = static_cast<size_t>(i * row_comm_size + row_comm_rank);
     vertex_t major_first{};
     vertex_t major_last{};
     std::tie(major_first, major_last) = partition.get_vertex_partition_range(vertex_partition_idx);
-    auto p_offsets =
-      partition.is_hypergraph_partitioned()
-        ? adj_matrix_partition_offsets[i]
-        : adj_matrix_partition_offsets[0] +
-            (major_first - partition.get_vertex_partition_first(col_comm_rank * row_comm_size));
+    auto p_offsets                    = adj_matrix_partition_offsets[i];
     thrust::transform(rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
                       thrust::make_counting_iterator(vertex_t{0}),
                       thrust::make_counting_iterator(major_last - major_first),
                       local_degrees.data(),
                       [p_offsets] __device__(auto i) { return p_offsets[i + 1] - p_offsets[i]; });
-    if (partition.is_hypergraph_partitioned()) {
-      col_comm.reduce(local_degrees.data(),
-                      i == col_comm_rank ? degrees.data() : static_cast<edge_t *>(nullptr),
-                      static_cast<size_t>(major_last - major_first),
-                      raft::comms::op_t::SUM,
-                      i,
-                      handle.get_stream());
-    } else {
-      row_comm.reduce(local_degrees.data(),
-                      i == row_comm_rank ? degrees.data() : static_cast<edge_t *>(nullptr),
-                      static_cast<size_t>(major_last - major_first),
-                      raft::comms::op_t::SUM,
-                      i,
-                      handle.get_stream());
-    }
+    col_comm.reduce(local_degrees.data(),
+                    i == col_comm_rank ? degrees.data() : static_cast<edge_t *>(nullptr),
+                    static_cast<size_t>(major_last - major_first),
+                    raft::comms::op_t::SUM,
+                    i,
+                    handle.get_stream());
   }
-
-  raft::comms::status_t status{};
-  if (partition.is_hypergraph_partitioned()) {
-    status =
-      col_comm.sync_stream(handle.get_stream());  // this is neessary as local_degrees will become
-                                                  // out-of-scope once this function returns.
-  } else {
-    status =
-      row_comm.sync_stream(handle.get_stream());  // this is neessary as local_degrees will become
-                                                  // out-of-scope once this function returns.
-  }
-  CUGRAPH_EXPECTS(status == raft::comms::status_t::SUCCESS, "sync_stream() failure.");
 
   return degrees;
 }
@@ -170,7 +137,6 @@ struct compute_gpu_id_from_vertex_t {
 
 template <typename vertex_t>
 struct compute_gpu_id_from_edge_t {
-  bool hypergraph_partitioned{false};
   int comm_size{0};
   int row_comm_size{0};
   int col_comm_size{0};
@@ -180,12 +146,22 @@ struct compute_gpu_id_from_edge_t {
     cuco::detail::MurmurHash3_32<vertex_t> hash_func{};
     auto major_comm_rank = static_cast<int>(hash_func(major) % comm_size);
     auto minor_comm_rank = static_cast<int>(hash_func(minor) % comm_size);
-    if (hypergraph_partitioned) {
-      return (minor_comm_rank / col_comm_size) * row_comm_size + (major_comm_rank % row_comm_size);
-    } else {
-      return (major_comm_rank - (major_comm_rank % row_comm_size)) +
-             (minor_comm_rank / col_comm_size);
-    }
+    return (minor_comm_rank / row_comm_size) * row_comm_size + (major_comm_rank % row_comm_size);
+  }
+};
+
+template <typename vertex_t>
+struct compute_partition_id_from_edge_t {
+  int comm_size{0};
+  int row_comm_size{0};
+  int col_comm_size{0};
+
+  __device__ int operator()(vertex_t major, vertex_t minor) const
+  {
+    cuco::detail::MurmurHash3_32<vertex_t> hash_func{};
+    auto major_comm_rank = static_cast<int>(hash_func(major) % comm_size);
+    auto minor_comm_rank = static_cast<int>(hash_func(minor) % comm_size);
+    return major_comm_rank * col_comm_size + minor_comm_rank / row_comm_size;
   }
 };
 

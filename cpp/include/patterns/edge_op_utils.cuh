@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020, NVIDIA CORPORATION.
+ * Copyright (c) 2020-2021, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -74,6 +74,42 @@ struct evaluate_edge_op {
   compute(V r, V c, W w, R rv, C cv, E e)
   {
     return e(r, c, rv, cv);
+  }
+};
+
+template <typename GraphViewType,
+          typename AdjMatrixRowValueInputIterator,
+          typename AdjMatrixColValueInputIterator,
+          typename EdgeOp,
+          typename T>
+struct cast_edge_op_bool_to_integer {
+  static_assert(std::is_integral<T>::value);
+  using vertex_type    = typename GraphViewType::vertex_type;
+  using weight_type    = typename GraphViewType::weight_type;
+  using row_value_type = typename std::iterator_traits<AdjMatrixRowValueInputIterator>::value_type;
+  using col_value_type = typename std::iterator_traits<AdjMatrixColValueInputIterator>::value_type;
+
+  EdgeOp e_op{};
+
+  template <typename V = vertex_type,
+            typename W = weight_type,
+            typename R = row_value_type,
+            typename C = col_value_type,
+            typename E = EdgeOp>
+  __device__ std::enable_if_t<is_valid_edge_op<typename std::result_of<E(V, V, W, R, C)>>::valid, T>
+  operator()(V r, V c, W w, R rv, C cv)
+  {
+    return e_op(r, c, w, rv, cv) ? T{1} : T{0};
+  }
+
+  template <typename V = vertex_type,
+            typename R = row_value_type,
+            typename C = col_value_type,
+            typename E = EdgeOp>
+  __device__ std::enable_if_t<is_valid_edge_op<typename std::result_of<E(V, V, R, C)>>::valid, T>
+  operator()(V r, V c, R rv, C cv)
+  {
+    return e_op(r, c, rv, cv) ? T{1} : T{0};
   }
 };
 

@@ -46,13 +46,13 @@ std::tuple<rmm::device_uvector<vertex_t>, rmm::device_uvector<vertex_t>> generat
   bool clip_and_flip,
   bool scramble_vertex_ids)
 {
-  CUGRAPH_EXPECTS(size_t{1} << scale <= std::numeric_limits<vertex_t>::max(),
+  CUGRAPH_EXPECTS((size_t{1} << scale) <= static_cast<size_t>(std::numeric_limits<vertex_t>::max()),
                   "Invalid input argument: scale too large for vertex_t.");
   CUGRAPH_EXPECTS((a >= 0.0) && (b >= 0.0) && (c >= 0.0) && (a + b + c <= 1.0),
                   "Invalid input argument: a, b, c should be non-negative and a + b + c should not "
                   "be larger than 1.0.");
 
-  raft::random::Rng rng(seed + 10);
+  raft::random::Rng rng(seed);
   // to limit memory footprint (1024 is a tuning parameter)
   auto max_edges_to_generate_per_iteration =
     static_cast<size_t>(handle.get_device_properties().multiProcessorCount) * 1024;

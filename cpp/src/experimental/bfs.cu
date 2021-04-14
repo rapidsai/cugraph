@@ -64,23 +64,30 @@ void bfs(raft::handle_t const &handle,
   auto const num_vertices = push_graph_view.get_number_of_vertices();
   if (num_vertices == 0) { return; }
   CUGRAPH_EXPECTS(sources != nullptr, "Invalid input argument: sources cannot be null");
-  CUGRAPH_EXPECTS(n_sources > 0, "Invalid input argument: input should have more than one source");
+
+  auto aggregate_n_sources =
+    GraphViewType::is_multi_gpu
+      ? host_scalar_allreduce(handle.get_comms(), n_source, handle.get_stream())
+      : n_source;
+  CUGRAPH_EXPECTS(aggregate_n_sources > 0,
+                  "Invalid input argument: input should have more than one source");
 
   // 1. check input arguments
   CUGRAPH_EXPECTS(
     push_graph_view.is_symmetric() || !direction_optimizing,
     "Invalid input argument: input graph should be symmetric for direction optimizing BFS.");
 
-  // Transfer sources to the device if needed
+  // Transfer single source to the device for single source case
   vertex_t *d_sources;
   rmm::device_uvector<vertex_t> d_sources_v(0, handle.get_stream());
-  cudaPointerAttributes s_att;
-  CUDA_CHECK(cudaPointerGetAttributes(&s_att, sources));
-  if (s_att.devicePointer == nullptr) {
-    d_sources_v.resize(n_sources, handle.get_stream());
-    d_sources = d_sources_v.data();
-    raft::copy(d_sources, sources, n_sources, handle.get_stream());
-
+  if (aggregate_n_sources == 1 && n_source) {
+    cudaPointerAttributes s_att;
+    CUDA_CHECK(cudaPointerGetAttributes(&s_att, sources));
+    if (s_att.devicePointer == nullptr) {
+      d_sources_v.resize(n_sources, handle.get_stream());
+      d_sources = d_sources_v.data();
+      raft::copy(d_sources, sources, n_sources, handle.get_stream());
+    }
   } else {
     d_sources = sources;
   }
@@ -114,54 +121,46 @@ void bfs(raft::handle_t const &handle,
                predecessor_first + push_graph_view.get_number_of_local_vertices(),
                invalid_vertex);
   vertex_partition_device_t<GraphViewType> vertex_partition(push_graph_view);
-  thrust::for_each(
-    rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
-    d_sources,
-    d_sources + n_sources,
-    [vertex_partition, distances, predecessor_first] __device__(auto v) {
-      *(distances + vertex_partition.get_local_vertex_offset_from_vertex_nocheck(v)) = vertex_t{0};
-    });
-  // raft::print_device_vector(
-  //  "distances", distances, push_graph_view.get_number_of_local_vertices(), std::cout);
+  if (n_sources)
+    thrust::for_each(
+      rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
+      d_sources,
+      d_sources + n_sources,
+      [vertex_partition, distances, predecessor_first] __device__(auto v) {
+        *(distances + vertex_partition.get_local_vertex_offset_from_vertex_nocheck(v)) =
+          vertex_t{0};
+      });
 
   // 3. initialize BFS frontier
-  enum class Bucket { cur, num_buckets };
-  std::vector<size_t> bucket_sizes(static_cast<size_t>(Bucket::num_buckets),
-                                   push_graph_view.get_number_of_local_vertices());
-  VertexFrontier<thrust::tuple<vertex_t>,
-                 vertex_t,
-                 GraphViewType::is_multi_gpu,
-                 static_cast<size_t>(Bucket::num_buckets)>
-    vertex_frontier(handle, bucket_sizes);
-  //  // if (push_graph_view.is_local_vertex_nocheck(sources)) {}
-  //  vertex_frontier.get_bucket(static_cast<size_t>(Bucket::cur)).insert(d_sources, n_sources);
-  if (n_sources == 1) {
-    vertex_t src;
-    raft::copy(&src, sources, n_sources, handle.get_stream());
-    if (push_graph_view.is_local_vertex_nocheck(src)) {
-      vertex_frontier.get_bucket(static_cast<size_t>(Bucket::cur)).insert(src);
-    }
-  }
+  enum class Bucket { cur, next, num_buckets };
+  VertexFrontier<vertex_t, GraphViewType::is_multi_gpu, static_cast<size_t>(Bucket::num_buckets)>
+    vertex_frontier(handle);
 
+  // insert local source(s) in the bucket
+  if (aggregate_n_sources == 1) {
+    vertex_t src;
+    // Fixme: this (cheap) transfer could be skiped when is_local_vertex_nocheck accpets device mem
+    raft::copy(&src, sources, n_sources, handle.get_stream());
+    if (push_graph_view.is_local_vertex_nocheck(src))
+      vertex_frontier.get_bucket(static_cast<size_t>(Bucket::cur)).insert(d_sources, n_sources);
+  } else {
+    // pre-shuffled
+    vertex_frontier.get_bucket(static_cast<size_t>(Bucket::cur)).insert(d_sources, n_sources);
+  }
   // 4. BFS iteration
   vertex_t depth{0};
-  auto cur_local_vertex_frontier_first =
-    vertex_frontier.get_bucket(static_cast<size_t>(Bucket::cur)).begin();
-  auto cur_vertex_frontier_aggregate_size =
-    vertex_frontier.get_bucket(static_cast<size_t>(Bucket::cur)).aggregate_size();
   while (true) {
     if (direction_optimizing) {
       CUGRAPH_FAIL("unimplemented.");
     } else {
       vertex_partition_device_t<GraphViewType> vertex_partition(push_graph_view);
 
-      auto cur_local_vertex_frontier_last =
-        vertex_frontier.get_bucket(static_cast<size_t>(Bucket::cur)).end();
       update_frontier_v_push_if_out_nbr(
         handle,
         push_graph_view,
-        cur_local_vertex_frontier_first,
-        cur_local_vertex_frontier_last,
+        vertex_frontier,
+        static_cast<size_t>(Bucket::cur),
+        std::vector<size_t>{static_cast<size_t>(Bucket::next)},
         thrust::make_constant_iterator(0) /* dummy */,
         thrust::make_constant_iterator(0) /* dummy */,
         [vertex_partition, distances] __device__(
@@ -172,28 +171,24 @@ void bfs(raft::handle_t const &handle,
               *(distances + vertex_partition.get_local_vertex_offset_from_vertex_nocheck(dst));
             if (distance != invalid_distance) { push = false; }
           }
-          // FIXME: need to test this works properly if payload size is 0 (returns a tuple of size
-          // 1)
           return thrust::make_tuple(push, src);
         },
-        reduce_op::any<thrust::tuple<vertex_t>>(),
+        reduce_op::any<vertex_t>(),
         distances,
         thrust::make_zip_iterator(thrust::make_tuple(distances, predecessor_first)),
-        vertex_frontier,
         [depth] __device__(auto v_val, auto pushed_val) {
-          auto idx = (v_val == invalid_distance)
-                       ? static_cast<size_t>(Bucket::cur)
-                       : VertexFrontier<thrust::tuple<vertex_t>, vertex_t>::kInvalidBucketIdx;
-          return thrust::make_tuple(idx, depth + 1, thrust::get<0>(pushed_val));
+          auto idx = (v_val == invalid_distance) ? static_cast<size_t>(Bucket::next)
+                                                 : VertexFrontier<vertex_t>::kInvalidBucketIdx;
+          return thrust::make_tuple(idx, thrust::make_tuple(depth + 1, pushed_val));
         });
 
-      auto new_vertex_frontier_aggregate_size =
-        vertex_frontier.get_bucket(static_cast<size_t>(Bucket::cur)).aggregate_size() -
-        cur_vertex_frontier_aggregate_size;
-      if (new_vertex_frontier_aggregate_size == 0) { break; }
-
-      cur_local_vertex_frontier_first = cur_local_vertex_frontier_last;
-      cur_vertex_frontier_aggregate_size += new_vertex_frontier_aggregate_size;
+      vertex_frontier.get_bucket(static_cast<size_t>(Bucket::cur)).clear();
+      vertex_frontier.get_bucket(static_cast<size_t>(Bucket::cur)).shrink_to_fit();
+      vertex_frontier.swap_buckets(static_cast<size_t>(Bucket::cur),
+                                   static_cast<size_t>(Bucket::next));
+      if (vertex_frontier.get_bucket(static_cast<size_t>(Bucket::cur)).aggregate_size() == 0) {
+        break;
+      }
     }
 
     depth++;

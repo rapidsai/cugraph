@@ -16,6 +16,7 @@
 from dask.distributed import wait, default_client
 from cugraph.dask.common.input_utils import get_distributed_data
 from cugraph.structure import renumber_wrapper as c_renumber
+from cugraph.utilities.utils import is_device_version_less_than
 import cugraph.comms.comms as Comms
 import dask_cudf
 import numpy as np
@@ -476,6 +477,8 @@ class NumberMap:
         elif not (df[src_col_names].dtype == np.int32 or
                   df[src_col_names].dtype == np.int64):
             renumber_type = 'legacy'
+        elif is_device_version_less_than((7, 0)):
+            renumber_type = 'legacy'
         else:
             renumber_type = 'experimental'
             df = df.rename(columns={src_col_names: "src",
@@ -562,6 +565,12 @@ class NumberMap:
             return renumbered_df, renumber_map
 
         else:
+            if is_device_version_less_than((7, 0)):
+                renumbered_df = df
+                renumber_map.implementation.df = indirection_map
+                renumber_map.implementation.numbered = True
+                return renumbered_df, renumber_map
+
             renumbering_map, renumbered_df = c_renumber.renumber(
                                              df,
                                              num_edges,
@@ -578,6 +587,7 @@ class NumberMap:
             else:
                 renumber_map.implementation.df = renumbering_map.rename(
                     columns={'original_ids': '0', 'new_ids': 'id'}, copy=False)
+
             renumber_map.implementation.numbered = True
             return renumbered_df, renumber_map
 

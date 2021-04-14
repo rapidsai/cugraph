@@ -17,8 +17,8 @@ import gc
 
 import pandas as pd
 import pytest
-
 import cudf
+
 from cugraph.structure.number_map import NumberMap
 from cugraph.tests import utils
 
@@ -167,7 +167,6 @@ def test_renumber_negative_col():
     assert check_dst.equals(gdf["dest_list"])
 
 
-# Test all combinations of default/managed and pooled/non-pooled allocation
 @pytest.mark.skip(reason="dropped renumbering from series support")
 @pytest.mark.parametrize("graph_file", utils.DATASETS)
 def test_renumber_series(graph_file):
@@ -238,7 +237,6 @@ def test_renumber_files(graph_file):
     assert exp_dst.equals(unrenumbered_df["dst"])
 
 
-# Test all combinations of default/managed and pooled/non-pooled allocation
 @pytest.mark.parametrize("graph_file", utils.DATASETS)
 def test_renumber_files_col(graph_file):
     gc.collect()
@@ -271,7 +269,6 @@ def test_renumber_files_col(graph_file):
     assert exp_dst.equals(unrenumbered_df["dst"])
 
 
-# Test all combinations of default/managed and pooled/non-pooled allocation
 @pytest.mark.parametrize("graph_file", utils.DATASETS)
 def test_renumber_files_multi_col(graph_file):
     gc.collect()

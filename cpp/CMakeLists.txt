@@ -116,6 +116,7 @@ set(FAISS_GPU_ARCHS "${FAISS_GPU_ARCHS} -gencode arch=compute_${ptx},code=comput
 set(CMAKE_CUDA_FLAGS "${CMAKE_CUDA_FLAGS} --expt-extended-lambda --expt-relaxed-constexpr")
 set(CMAKE_CUDA_FLAGS "${CMAKE_CUDA_FLAGS} -Werror=cross-execution-space-call -Wno-deprecated-declarations -Xptxas --disable-warnings")
 set(CMAKE_CUDA_FLAGS "${CMAKE_CUDA_FLAGS} -Xcompiler -Wall,-Wno-error=sign-compare,-Wno-error=unused-but-set-variable")
+set(CMAKE_CUDA_FLAGS "${CMAKE_CUDA_FLAGS} -Xfatbin=-compress-all")
 
 # Option to enable line info in CUDA device compilation to allow introspection when profiling /
 # memchecking
@@ -275,7 +276,7 @@ message("set LIBCUDACXX_INCLUDE_DIR to: ${LIBCUDACXX_INCLUDE_DIR}")
 FetchContent_Declare(
     cuhornet
     GIT_REPOSITORY    https://github.com/rapidsai/cuhornet.git
-    GIT_TAG           9cb8e8803852bd895a9c95c0fe778ad6eeefa7ad
+    GIT_TAG           e58d0ecdbc270fc28867d66c965787a62a7a882c
     GIT_SHALLOW       true
     SOURCE_SUBDIR     hornet
 )
@@ -301,7 +302,7 @@ else(DEFINED ENV{RAFT_PATH})
   FetchContent_Declare(
     raft
     GIT_REPOSITORY    https://github.com/rapidsai/raft.git
-    GIT_TAG           6455e05b3889db2b495cf3189b33c2b07bfbebf2
+    GIT_TAG           f0cd81fb49638eaddc9bf18998cc894f292bc293
 
     SOURCE_SUBDIR     raft
   )
@@ -401,6 +402,7 @@ endif(BUILD_STATIC_FAISS)
 add_library(cugraph SHARED
     src/utilities/spmv_1D.cu
     src/utilities/cython.cu
+    src/utilities/path_retrieval.cu
     src/structure/graph.cu
     src/linear_assignment/hungarian.cu
     src/link_analysis/gunrock_hits.cpp
@@ -431,6 +433,7 @@ add_library(cugraph SHARED
     src/experimental/graph_view.cu
     src/experimental/coarsen_graph.cu
     src/experimental/renumber_edgelist.cu
+    src/experimental/renumber_utils.cu
     src/experimental/relabel.cu
     src/experimental/induced_subgraph.cu
     src/experimental/bfs.cu

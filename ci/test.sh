@@ -66,13 +66,17 @@ fi
 # EXITCODE for the script.
 set +e
 
-echo "C++ gtests for cuGraph..."
-for gt in tests/*_TEST; do
-    test_name=$(basename $gt)
-    echo "Running gtest $test_name"
-    ${gt} ${GTEST_FILTER} ${GTEST_ARGS}
-    echo "Ran gtest $test_name : return code was: $?, test script exit code is now: $EXITCODE"
-done
+if (python ${CUGRAPH_ROOT}/ci/utils/is_pascal.py); then
+    echo "WARNING: skipping C++ tests on Pascal GPU arch."
+else
+    echo "C++ gtests for cuGraph..."
+    for gt in tests/*_TEST; do
+        test_name=$(basename $gt)
+        echo "Running gtest $test_name"
+        ${gt} ${GTEST_FILTER} ${GTEST_ARGS}
+        echo "Ran gtest $test_name : return code was: $?, test script exit code is now: $EXITCODE"
+    done
+fi
 
 echo "Python pytest for cuGraph..."
 cd ${CUGRAPH_ROOT}/python
