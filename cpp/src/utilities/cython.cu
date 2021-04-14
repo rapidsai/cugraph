@@ -715,9 +715,8 @@ void call_bfs(raft::handle_t const& handle,
                                  direction_optimizing,
                                  static_cast<vertex_t>(depth_limit));
     }
-  }
-  else {
-    if (graph_container.edgeType == numberTypeEnum::int32Type){
+  } else {
+    if (graph_container.edgeType == numberTypeEnum::int32Type) {
       auto graph =
         detail::create_graph<int32_t, int32_t, weight_t, false, false>(handle, graph_container);
       cugraph::experimental::bfs(handle,
