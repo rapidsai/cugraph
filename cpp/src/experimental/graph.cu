@@ -295,8 +295,8 @@ graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu, std::enable_if_
                   (detail::mid_degree_threshold <= std::numeric_limits<edge_t>::max()));
     rmm::device_uvector<edge_t> d_thresholds(detail::num_segments_per_vertex_partition - 1,
                                              default_stream);
-    std::vector<edge_t> h_thresholds = {static_cast<edge_t>(detail::low_degree_threshold),
-                                        static_cast<edge_t>(detail::mid_degree_threshold)};
+    std::vector<edge_t> h_thresholds = {static_cast<edge_t>(detail::mid_degree_threshold),
+                                        static_cast<edge_t>(detail::low_degree_threshold)};
     raft::update_device(
       d_thresholds.data(), h_thresholds.data(), h_thresholds.size(), default_stream);
 
@@ -317,7 +317,8 @@ graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu, std::enable_if_
                         degrees.end(),
                         d_thresholds.begin(),
                         d_thresholds.end(),
-                        segment_offsets.begin() + 1);
+                        segment_offsets.begin() + 1,
+                        thrust::greater<edge_t>{});
 
     rmm::device_uvector<vertex_t> aggregate_segment_offsets(col_comm_size * segment_offsets.size(),
                                                             default_stream);
@@ -326,8 +327,8 @@ graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu, std::enable_if_
                        segment_offsets.size(),
                        default_stream);
 
-    vertex_partition_segment_offsets_.resize(aggregate_segment_offsets.size());
-    raft::update_host(vertex_partition_segment_offsets_.data(),
+    adj_matrix_partition_segment_offsets_.resize(aggregate_segment_offsets.size());
+    raft::update_host(adj_matrix_partition_segment_offsets_.data(),
                       aggregate_segment_offsets.data(),
                       aggregate_segment_offsets.size(),
                       default_stream);
@@ -335,7 +336,7 @@ graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu, std::enable_if_
     auto status = col_comm.sync_stream(
       default_stream);  // this is necessary as degrees, d_thresholds, and segment_offsets will
                         // become out-of-scope once control flow exits this block and
-                        // vertex_partition_segment_offsets_ can be used right after return.
+                        // adj_matrix_partition_segment_offsets_ can be used right after return.
     CUGRAPH_EXPECTS(status == raft::comms::status_t::SUCCESS, "sync_stream() failure.");
   }
 
@@ -439,8 +440,8 @@ graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu, std::enable_if_
                   (detail::mid_degree_threshold <= std::numeric_limits<edge_t>::max()));
     rmm::device_uvector<edge_t> d_thresholds(detail::num_segments_per_vertex_partition - 1,
                                              default_stream);
-    std::vector<edge_t> h_thresholds = {static_cast<edge_t>(detail::low_degree_threshold),
-                                        static_cast<edge_t>(detail::mid_degree_threshold)};
+    std::vector<edge_t> h_thresholds = {static_cast<edge_t>(detail::mid_degree_threshold),
+                                        static_cast<edge_t>(detail::low_degree_threshold)};
     raft::update_device(
       d_thresholds.data(), h_thresholds.data(), h_thresholds.size(), default_stream);
 
@@ -462,7 +463,8 @@ graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu, std::enable_if_
                         degree_first + this->get_number_of_vertices(),
                         d_thresholds.begin(),
                         d_thresholds.end(),
-                        segment_offsets.begin() + 1);
+                        segment_offsets.begin() + 1,
+                        thrust::greater<edge_t>{});
 
     segment_offsets_.resize(segment_offsets.size());
     raft::update_host(

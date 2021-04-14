@@ -16,7 +16,7 @@
 
 cmake_minimum_required(VERSION 3.18...3.18 FATAL_ERROR)
 
-project(CUGRAPH VERSION 0.19.0 LANGUAGES C CXX CUDA)
+project(CUGRAPH VERSION 0.20.0 LANGUAGES C CXX CUDA)
 
 # Write the version header
 include(cmake/Modules/Version.cmake)
@@ -402,6 +402,7 @@ endif(BUILD_STATIC_FAISS)
 add_library(cugraph SHARED
     src/utilities/spmv_1D.cu
     src/utilities/cython.cu
+    src/utilities/path_retrieval.cu
     src/structure/graph.cu
     src/linear_assignment/hungarian.cu
     src/link_analysis/gunrock_hits.cpp

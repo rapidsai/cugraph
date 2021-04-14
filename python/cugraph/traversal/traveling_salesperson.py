@@ -29,6 +29,7 @@ def traveling_salesperson(pos_list,
     optimization.
 
     The current implementation does not support a weighted graph.
+
     Parameters
     ----------
     pos_list: cudf.DataFrame
