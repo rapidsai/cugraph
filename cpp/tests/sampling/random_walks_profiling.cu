@@ -127,11 +127,21 @@ class Tests_RandomWalksProfiling : public ::testing::TestWithParam<RandomWalks_U
       cugraph::experimental::detail::random_walks_impl(handle, graph_view, d_start_view, max_depth);
     cudaProfilerStop();
     hr_timer.stop();
-    auto runtime = hr_timer.average_runtime(label);
-    hr_timer.display(std::cout);
+    try {
+      auto runtime = hr_timer.get_average_runtime(label);
 
-    std::cout << "RW for num_paths: " << num_paths
-              << ", runtime [ms] / path: " << runtime / num_paths << ":\n";
+      std::cout << "RW for num_paths: " << num_paths
+                << ", runtime [ms] / path: " << runtime / num_paths << ":\n";
+
+    } catch (std::exception const& ex) {
+      std::cerr << ex.what() << '\n';
+      ASSERT_TRUE(false);  // test has failed.
+
+    } catch (...) {
+      std::cerr << "ERROR: Unknown exception on timer label search." << '\n';
+      ASSERT_TRUE(false);  // test has failed.
+    }
+    hr_timer.display(std::cout);
   }
 };
 
