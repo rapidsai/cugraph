@@ -256,9 +256,7 @@ void copy_v_transform_reduce_key_aggregated_out_nbr(
     kv_map_ptr.reset();
 
     kv_map_ptr = std::make_unique<cuco::static_map<vertex_t, value_t>>(
-      // FIXME: std::max(..., ...) as a temporary workaround for
-      // https://github.com/NVIDIA/cuCollections/issues/72 and
-      // https://github.com/NVIDIA/cuCollections/issues/73
+      // cuco::static_map requires at least one empty slot
       std::max(static_cast<size_t>(static_cast<double>(map_keys.size()) / load_factor),
                static_cast<size_t>(thrust::distance(map_key_first, map_key_last)) + 1),
       invalid_vertex_id<vertex_t>::value,
@@ -270,18 +268,14 @@ void copy_v_transform_reduce_key_aggregated_out_nbr(
       [] __device__(auto val) {
         return thrust::make_pair(thrust::get<0>(val), thrust::get<1>(val));
       });
-    // FIXME: a temporary workaround. cuco::static_map currently launches a kernel even if the grid
-    // size is 0; this leads to cudaErrorInvaildConfiguration.
-    if (map_keys.size()) { kv_map_ptr->insert(pair_first, pair_first + map_keys.size()); }
+    kv_map_ptr->insert(pair_first, pair_first + map_keys.size());
   } else {
     handle.get_stream_view().synchronize();  // cuco::static_map currently does not take stream
 
     kv_map_ptr.reset();
 
     kv_map_ptr = std::make_unique<cuco::static_map<vertex_t, value_t>>(
-      // FIXME: std::max(..., ...) as a temporary workaround for
-      // https://github.com/NVIDIA/cuCollections/issues/72 and
-      // https://github.com/NVIDIA/cuCollections/issues/73
+      // cuco::static_map requires at least one empty slot
       std::max(static_cast<size_t>(
                  static_cast<double>(thrust::distance(map_key_first, map_key_last)) / load_factor),
                static_cast<size_t>(thrust::distance(map_key_first, map_key_last)) + 1),
@@ -293,11 +287,7 @@ void copy_v_transform_reduce_key_aggregated_out_nbr(
       [] __device__(auto val) {
         return thrust::make_pair(thrust::get<0>(val), thrust::get<1>(val));
       });
-    // FIXME: a temporary workaround. cuco::static_map currently launches a kernel even if the grid
-    // size is 0; this leads to cudaErrorInvaildConfiguration.
-    if (thrust::distance(map_key_first, map_key_last) > 0) {
-      kv_map_ptr->insert(pair_first, pair_first + thrust::distance(map_key_first, map_key_last));
-    }
+    kv_map_ptr->insert(pair_first, pair_first + thrust::distance(map_key_first, map_key_last));
   }
 
   // 2. aggregate each vertex out-going edges based on keys and transform-reduce.
