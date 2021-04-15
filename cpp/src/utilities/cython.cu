@@ -694,7 +694,9 @@ void call_bfs(raft::handle_t const& handle,
               bool direction_optimizing)
 {
   if (graph_container.is_multi_gpu) {
+    std::cout<<"\n MULTI GPU";
     if (graph_container.edgeType == numberTypeEnum::int32Type) {
+      std::cout<<"\n INT32 EDGE TYPE";
       auto graph =
         detail::create_graph<int32_t, int32_t, weight_t, false, true>(handle, graph_container);
       cugraph::experimental::bfs(handle,

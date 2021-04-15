@@ -63,7 +63,7 @@ def test_dask_bfs(client_connection):
     dg.from_dask_cudf_edgelist(ddf, "src", "dst")
 
     expected_dist = cugraph.bfs(g, 0)
-    result_dist = dcg.bfs(dg, 0, True)
+    result_dist = dcg.bfs(dg, 0)
     result_dist = result_dist.compute()
 
     compare_dist = expected_dist.merge(

@@ -28,6 +28,7 @@ def mg_bfs(input_df,
            rank,
            handle,
            start,
+           depth_limit,
            return_distances=False):
     """
     Call pagerank
@@ -96,9 +97,10 @@ def mg_bfs(input_df,
     if (return_distances):
         c_distance_ptr = df['distance'].__cuda_array_interface__['data'][0]
 
-    depth_limit = c_bfs.INT_MAX
-    cdef bool direction = <bool> 1
-    # MG BFS path assumes directed is true
+    if depth_limit is None:
+        depth_limit = c_bfs.INT_MAX
+    cdef bool direction_optimizing = <bool> 0
+
     c_bfs.call_bfs[int, float](handle_[0],
                                graph_container,
                                <int*> NULL,
@@ -106,5 +108,5 @@ def mg_bfs(input_df,
                                <int*> c_predecessor_ptr,
                                <int> depth_limit,
                                <int> start,
-                               direction)
+                               direction_optimizing)
     return df
