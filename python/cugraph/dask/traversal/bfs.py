@@ -104,8 +104,10 @@ def bfs(graph,
     data = get_distributed_data(ddf)
 
     if graph.renumbered:
-        if isinstance(start, dask_cudf.DataFrame) or isinstance(start, cudf.DataFrame):
-            start = graph.lookup_internal_vertex_id(start, start.columns).compute()
+        if isinstance(start, dask_cudf.DataFrame)\
+          or isinstance(start, cudf.DataFrame):
+            start = graph.lookup_internal_vertex_id(start, start.columns).\
+                    compute()
             start = start.iloc[0]
         else:
             start = graph.lookup_internal_vertex_id(cudf.Series([start],
