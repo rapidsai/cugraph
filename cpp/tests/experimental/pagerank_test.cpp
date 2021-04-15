@@ -419,15 +419,15 @@ INSTANTIATE_TEST_SUITE_P(
                       PageRank_Usecase{0.5, true}),
     ::testing::Values(cugraph::test::Rmat_Usecase(10, 16, 0.57, 0.19, 0.19, 0, false, false))));
 
-INSTANTIATE_TEST_SUITE_P(rmat_large_tests,
-                         Tests_PageRank_Rmat,
-                         ::testing::Combine(
-                           // disable correctness checks for large graphs
-                           ::testing::Values(PageRank_Usecase{0.0, false, false},
-                                             PageRank_Usecase{0.5, false, false},
-                                             PageRank_Usecase{0.0, true, false},
-                                             PageRank_Usecase{0.5, true, false}),
-                           ::testing::Values(cugraph::test::Rmat_Usecase(
-                             20, 32, 0.57, 0.19, 0.19, 0, false, false))));
+INSTANTIATE_TEST_SUITE_P(
+  rmat_large_tests,
+  Tests_PageRank_Rmat,
+  ::testing::Combine(
+    // disable correctness checks for large graphs
+    ::testing::Values(PageRank_Usecase{0.0, false, false},
+                      PageRank_Usecase{0.5, false, false},
+                      PageRank_Usecase{0.0, true, false},
+                      PageRank_Usecase{0.5, true, false}),
+    ::testing::Values(cugraph::test::Rmat_Usecase(20, 32, 0.57, 0.19, 0.19, 0, false, false))));
 
 CUGRAPH_TEST_PROGRAM_MAIN()
