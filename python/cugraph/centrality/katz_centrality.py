@@ -42,13 +42,13 @@ def katz_centrality(
 
         NOTE
             The maximum acceptable value of alpha for convergence
-            alpha_max = 1/(lambda_max) where lambda_max is the largest eigenvalue
-            of the graph.
+            alpha_max = 1/(lambda_max) where lambda_max is the largest
+            eigenvalue of the graph.
             Since lambda_max is always lesser than or equal to degree_max for a
             graph, alpha_max will always be greater than or equal to
             (1/degree_max). Therefore, setting alpha to (1/degree_max) will
-            guarantee that it will never exceed alpha_max thus in turn fulfilling
-            the requirement for convergence.
+            guarantee that it will never exceed alpha_max thus in turn
+            fulfilling the requirement for convergence.
     beta : None
         A weight scalar - currently Not Supported
     max_iter : int
