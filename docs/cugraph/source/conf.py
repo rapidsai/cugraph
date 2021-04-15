@@ -42,17 +42,17 @@ from github_link import make_linkcode_resolve # noqa
 # extensions coming with Sphinx (named 'sphinx.ext.*') or your custom
 # ones.
 extensions = [
-    'numpydoc',
-    'sphinx.ext.autodoc',
-    'sphinx.ext.autosummary',
+    "sphinx.ext.intersphinx",
+    "sphinx.ext.autodoc",
+    "sphinx.ext.autosummary",
+    "numpydoc",
+    "sphinx_markdown_tables",
     'sphinx.ext.doctest',
-    'sphinx.ext.intersphinx',
     'sphinx.ext.linkcode',
     "IPython.sphinxext.ipython_console_highlighting",
     "IPython.sphinxext.ipython_directive",
     "nbsphinx",
     "recommonmark",
-    "sphinx_markdown_tables",
 ]
 
 
