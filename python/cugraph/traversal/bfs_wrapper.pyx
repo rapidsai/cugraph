@@ -24,7 +24,7 @@ from libc.stdint cimport uintptr_t
 import cudf
 import numpy as np
 
-def bfs(input_graph, start, depth_limit, direction_optimizing=True):
+def bfs(input_graph, start, depth_limit, direction_optimizing=False):
     """
     Call bfs
     """

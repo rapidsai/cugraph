@@ -189,7 +189,7 @@ def bfs(G,
         else:
             start = G.lookup_internal_vertex_id(cudf.Series([start]))[0]
 
-    df = bfs_wrapper.bfs(G, start, depth_limit, direction_optimizing)
+    df = bfs_wrapper.bfs(G, start, depth_limit)
     if G.renumbered:
         df = G.unrenumber(df, "vertex")
         df = G.unrenumber(df, "predecessor")
