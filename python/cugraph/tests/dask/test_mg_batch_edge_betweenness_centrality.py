@@ -1,4 +1,4 @@
-# Copyright (c) 2019-2020, NVIDIA CORPORATION.
+# Copyright (c) 2019-2021, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -48,7 +48,8 @@ RESULT_DTYPE_OPTIONS = [np.float64]
 @pytest.mark.skipif(
     is_single_gpu(), reason="skipping MG testing on Single GPU system"
 )
-@pytest.mark.parametrize("graph_file", DATASETS)
+@pytest.mark.parametrize("graph_file", DATASETS,
+                         ids=[f"dataset={d}" for d in DATASETS])
 @pytest.mark.parametrize("directed", DIRECTED_GRAPH_OPTIONS)
 @pytest.mark.parametrize("subset_size", SUBSET_SIZE_OPTIONS)
 @pytest.mark.parametrize("normalized", NORMALIZED_OPTIONS)
