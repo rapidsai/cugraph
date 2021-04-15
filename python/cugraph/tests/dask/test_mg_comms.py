@@ -1,4 +1,4 @@
-# Copyright (c) 2020, NVIDIA CORPORATION.
+# Copyright (c) 2020-2021, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -38,10 +38,14 @@ def test_dask_pagerank(client_connection):
     # Initialize and run pagerank on two distributed graphs
     # with same communicator
 
+    # FIXME: update this to allow dataset to be parameterized and have dataset
+    # part of test param id (see other tests)
     input_data_path1 = r"../datasets/karate.csv"
+    print(f"dataset1={input_data_path1}")
     chunksize1 = dcg.get_chunksize(input_data_path1)
 
     input_data_path2 = r"../datasets/dolphins.csv"
+    print(f"dataset2={input_data_path2}")
     chunksize2 = dcg.get_chunksize(input_data_path2)
 
     ddf1 = dask_cudf.read_csv(
