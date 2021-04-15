@@ -23,12 +23,15 @@
 #include <rmm/thrust_rmm_allocator.h>
 #include <raft/handle.hpp>
 #include <rmm/device_scalar.hpp>
+#include <rmm/device_uvector.hpp>
 
 #include <thrust/iterator/constant_iterator.h>
 #include <thrust/iterator/zip_iterator.h>
 #include <thrust/tuple.h>
 
 #include <cinttypes>
+#include <cstddef>
+#include <optional>
 #include <tuple>
 #include <type_traits>
 #include <vector>
@@ -36,19 +39,36 @@
 namespace cugraph {
 namespace experimental {
 
-template <typename vertex_t, bool is_multi_gpu = false>
+namespace detail {
+
+template <typename value_t, typename = typename std::enable_if_t<std::is_same<value_t, std::nullopt_t>::value>>
+std::nullopt_t get_empty_value_buffer(cudaStream_t stream) {
+  return std::nullopt;
+}
+
+template <typename value_t, typename = typename std::enable_if_t<!std::is_same<value_t, std::nullopt_t>::value>>
+auto get_empty_value_buffer(cudaStream_t stream) {
+  return allocate_dataframe_buffer<value_t>(0, stream);
+}
+
+}  // namespace detail
+
+template <typename vertex_t, typename value_t = std::nullopt_t, bool is_multi_gpu = false>
 class SortedUniqueElementBucket {
  public:
   SortedUniqueElementBucket(raft::handle_t const& handle)
-    : handle_ptr_(&handle), elements_(0, handle.get_stream())
+    : handle_ptr_(&handle), elements_(0, handle.get_stream()), values_(detail::get_empty_value_buffer<value_t>(handle.get_stream()))
   {
   }
 
-  void insert(vertex_t v)
+  insert(vertex_t vertex, value_t value)
   {
     if (elements_.size() > 0) {
-      rmm::device_scalar<vertex_t> vertex(v, handle_ptr_->get_stream());
-      insert(vertex.data(), vertex_t{1});
+      rmm::device_scalar<vertex_t> tmp(vertex, handle_ptr_->get_stream());
+      insert(tmp.data(), vertex_t{1});
+      if constexpr (std::is_same<value_t, std::nullopt_t>::value) {
+        // do something
+      }
     } else {
       elements_.resize(1, handle_ptr_->get_stream());
       raft::update_device(elements_.data(), &v, size_t{1}, handle_ptr_->get_stream());
@@ -126,9 +146,10 @@ class SortedUniqueElementBucket {
  private:
   raft::handle_t const* handle_ptr_{nullptr};
   rmm::device_uvector<vertex_t> elements_;
+  decltype(detail::get_empty_value_buffer<value_t>(cudaStream_t{nullptr})) values_;  // defined only if value_t != std::nullopt_t
 };
 
-template <typename vertex_t, bool is_multi_gpu = false, size_t num_buckets = 1>
+template <typename vertex_t, typename value_t = void, bool is_multi_gpu = false, size_t num_buckets = 1>
 class VertexFrontier {
  public:
   static size_t constexpr kNumBuckets = num_buckets;
@@ -139,12 +160,12 @@ class VertexFrontier {
     for (size_t i = 0; i < num_buckets; ++i) { buckets_.emplace_back(handle); }
   }
 
-  SortedUniqueElementBucket<vertex_t, is_multi_gpu>& get_bucket(size_t bucket_idx)
+  SortedUniqueElementBucket<vertex_t, value_t, is_multi_gpu>& get_bucket(size_t bucket_idx)
   {
     return buckets_[bucket_idx];
   }
 
-  SortedUniqueElementBucket<vertex_t, is_multi_gpu> const& get_bucket(size_t bucket_idx) const
+  SortedUniqueElementBucket<vertex_t, value_t, is_multi_gpu> const& get_bucket(size_t bucket_idx) const
   {
     return buckets_[bucket_idx];
   }
@@ -259,7 +280,7 @@ class VertexFrontier {
 
  private:
   raft::handle_t const* handle_ptr_{nullptr};
-  std::vector<SortedUniqueElementBucket<vertex_t, is_multi_gpu>> buckets_{};
+  std::vector<SortedUniqueElementBucket<vertex_t, value_t, is_multi_gpu>> buckets_{};
 };
 
 }  // namespace experimental
