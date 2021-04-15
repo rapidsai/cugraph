@@ -101,7 +101,6 @@ def bfs(G,
         depth_limit=None,
         i_start=None,
         directed=None,
-        direction_optimizing=None,
         return_predecessors=None):
     """
     Find the distances and predecessors for a breadth first traversal of a
