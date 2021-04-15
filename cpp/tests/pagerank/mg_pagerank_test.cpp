@@ -333,7 +333,7 @@ INSTANTIATE_TEST_SUITE_P(
                       cugraph::test::File_Usecase("test/datasets/ljournal-2008.mtx"),
                       cugraph::test::File_Usecase("test/datasets/webbase-1M.mtx"))));
 
-INSTANTIATE_TEST_SUITE_P(small_rmat_tests,
+INSTANTIATE_TEST_SUITE_P(rmat_small_tests,
                          Tests_MGPageRank_Rmat,
                          ::testing::Combine(::testing::Values(PageRank_Usecase{0.0, false},
                                                               PageRank_Usecase{0.5, false},
@@ -342,7 +342,7 @@ INSTANTIATE_TEST_SUITE_P(small_rmat_tests,
                                             ::testing::Values(cugraph::test::Rmat_Usecase(
                                               10, 16, 0.57, 0.19, 0.19, 0, false, false, true))));
 
-INSTANTIATE_TEST_SUITE_P(large_rmat_tests,
+INSTANTIATE_TEST_SUITE_P(rmat_large_tests,
                          Tests_MGPageRank_Rmat,
                          ::testing::Combine(::testing::Values(PageRank_Usecase{0.0, false, false},
                                                               PageRank_Usecase{0.5, false, false},
