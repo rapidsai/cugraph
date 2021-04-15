@@ -62,6 +62,8 @@ def bfs(graph,
     start : Integer
         Specify starting vertex for breadth-first search; this function
         iterates over edges in the component reachable from this node.
+    depth_limit : Integer or None
+        Limit the depth of the search
     return_distances : bool, optional, default=True
         Indicates if distances should be returned
 
