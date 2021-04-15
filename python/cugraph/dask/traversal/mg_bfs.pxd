@@ -30,4 +30,4 @@ cdef extern from "utilities/cython.hpp" namespace "cugraph::cython":
         vertex_t *predecessors,
         vertex_t depth_limit,
         const vertex_t start_vertex,
-        bool directed) except +
+        bool direction_optimizing) except +
