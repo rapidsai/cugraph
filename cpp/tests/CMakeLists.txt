@@ -166,6 +166,117 @@ function(ConfigureTest CMAKE_TEST_NAME CMAKE_TEST_SRC)
     add_test(NAME ${CMAKE_TEST_NAME} COMMAND ${CMAKE_TEST_NAME})
 endfunction()
 
+function(ConfigureTestMG CMAKE_TEST_NAME CMAKE_TEST_SRC)
+    add_executable(${CMAKE_TEST_NAME}
+        ${CMAKE_TEST_SRC})
+
+    target_include_directories(${CMAKE_TEST_NAME}
+        PRIVATE
+        "${CUB_INCLUDE_DIR}"
+        "${THRUST_INCLUDE_DIR}"
+	"${CUCO_INCLUDE_DIR}"
+	"${LIBCUDACXX_INCLUDE_DIR}"
+        "${CMAKE_CUDA_TOOLKIT_INCLUDE_DIRECTORIES}"
+        "${RMM_INCLUDE}"
+        "${NCCL_INCLUDE_DIRS}"
+        "${CMAKE_CURRENT_SOURCE_DIR}/../../thirdparty/mmio"
+        "${CMAKE_CURRENT_SOURCE_DIR}/../include"
+        "${CMAKE_CURRENT_SOURCE_DIR}/../src"
+        "${CMAKE_CURRENT_SOURCE_DIR}"
+        "${RAFT_DIR}/cpp/include"
+    )
+
+    target_link_directories(${CMAKE_TEST_NAME}
+        PRIVATE
+        # CMAKE_CUDA_IMPLICIT_LINK_DIRECTORIES is an undocumented/unsupported
+        # variable containing the link directories for nvcc.
+        "${CMAKE_CUDA_IMPLICIT_LINK_DIRECTORIES}")
+
+    target_link_libraries(${CMAKE_TEST_NAME}
+        PRIVATE
+        cugraphtestutil
+        cugraph
+        GTest::GTest
+        GTest::Main
+        ${NCCL_LIBRARIES}
+        cudart
+        cuda
+        cublas
+        cusparse
+        cusolver
+        curand)
+
+    if(OpenMP_CXX_FOUND)
+        target_link_libraries(${CMAKE_TEST_NAME} PRIVATE
+###################################################################################################
+###   Use ${OpenMP_CXX_LIB_NAMES} instead of OpenMP::OpenMP_CXX to avoid the following warnings.
+###
+###   Cannot generate a safe runtime search path for target TARGET_NAME
+###   because files in some directories may conflict with libraries in implicit
+###   directories:
+###   ...
+###
+###   libgomp.so is included in the conda base environment and copied to every new conda
+###   environment. If a full file path is provided (e.g ${CUDF_LIBRARY}), cmake
+###   extracts the directory path and adds the directory path to BUILD_RPATH (if BUILD_RPATH is not
+###   disabled).
+###
+###   cmake maintains a system specific implicit directories (e.g. /lib, /lib/x86_64-linux-gnu,
+###   /lib32, /lib32/x86_64-linux-gnu, /lib64, /lib64/x86_64-linux-gnu, /usr/lib,
+###   /usr/lib/gcc/x86_64-linux-gnu/7, /usr/lib/x86_64-linux-gnu, /usr/lib32,
+###   /usr/lib32/x86_64-linux-gnu, /usr/lib64, /usr/lib64/x86_64-linux-gnu,
+###   /usr/local/cuda-10.0/lib64", /usr/local/cuda-10.0/lib64/stubs).
+###
+###   If a full path to libgomp.so is provided (which is the case with OpenMP::OpenMP_CXX), cmake
+###   checks whether there is any other libgomp.so with the different full path (after resolving
+###   soft links) in the search paths (implicit directoires + BUILD_RAPTH). There is one in the
+###   path included in BUILD_RPATH when ${CUDF_LIBRARY} is added; this one can
+###   potentially hide the one in the provided full path and cmake generates a warning (and RPATH
+###   is searched before the directories in /etc/ld.so/conf; ld.so.conf does not coincide but
+###   overlaps with implicit directories).
+###
+###   If we provide just the library names (gomp;pthread), cmake does not generate warnings (we
+###   did not specify which libgomp.so should be loaded in runtime), and the one first found in
+###   the search order is loaded (we can change the loaded library by setting LD_LIBRARY_PATH or
+###   manually editing BUILD_RPATH).
+###
+###   Manually editing BUILD_RPATH:
+###   set(TARGET_BUILD_RPATH "")
+###   foreach(TMP_VAR_FULLPATH IN LISTS OpenMP_CXX_LIBRARIES)
+###       get_filename_component(TMP_VAR_DIR ${TMP_VAR_FULLPATH} DIRECTORY)
+###       string(APPEND TARGET_BUILD_RPATH "${TMP_VAR_DIR};")
+###       get_filename_component(TMP_VAR_REALPATH ${TMP_VAR_FULLPATH} REALPATH)
+###       get_filename_component(TMP_VAR_DIR ${TMP_VAR_REALPATH} DIRECTORY)
+###       # cmake automatically removes duplicates, so skip checking.
+###       string(APPEND TARGET_BUILD_RPATH "${TMP_VAR_DIR};")
+###   endforeach()
+###   string(APPEND TARGET_BUILD_RPATH "${CONDA_PREFIX}/lib")
+###   message(STATUS "TARGET_BUILD_RPATH=${TARGET_BUILD_RPATH}")
+###   set_target_properties(target PROPERTIES
+###       BUILD_RPATH "${TARGET_BUILD_RPATH}")
+        ${OpenMP_CXX_LIB_NAMES})
+    endif(OpenMP_CXX_FOUND)
+
+    # CUDA_ARCHITECTURES=OFF implies cmake will not pass arch flags to the
+    # compiler. CUDA_ARCHITECTURES must be set to a non-empty value to prevent
+    # cmake warnings about policy CMP0104. With this setting, arch flags must be
+    # manually set! ("evaluate_gpu_archs(GPU_ARCHS)" is the current mechanism
+    # used in cpp/CMakeLists.txt for setting arch options).
+    # Run "cmake --help-policy CMP0104" for policy details.
+    # NOTE: the CUDA_ARCHITECTURES=OFF setting may be removed after migrating to
+    # the findcudatoolkit features in cmake 3.17+
+    set_target_properties(${CMAKE_TEST_NAME} PROPERTIES
+        CUDA_ARCHITECTURES OFF)
+
+    add_test(NAME ${CMAKE_TEST_NAME}
+             COMMAND ${MPIEXEC_EXECUTABLE}
+             ${MPIEXEC_NUMPROC_FLAG}
+             ${GPU_COUNT}
+             ${MPIEXEC_PREFLAGS}
+             ${CMAKE_TEST_NAME}
+             ${MPIEXEC_POSTFLAGS})
+endfunction()
+
 ###################################################################################################
 # - set rapids dataset path ----------------------------------------------------------------------
 
@@ -444,6 +555,14 @@ ConfigureTest(EXPERIMENTAL_RANDOM_WALKS_LOW_LEVEL_TEST "${EXPERIMENTAL_RANDOM_WA
 # - MG tests --------------------------------------------------------------------------------------
 
 if(BUILD_CUGRAPH_MG_TESTS)
+    execute_process(
+      COMMAND nvidia-smi -L
+      COMMAND wc -l
+      OUTPUT_VARIABLE GPU_COUNT)
+
+    string(REGEX REPLACE "\n$" "" GPU_COUNT ${GPU_COUNT})
+    MESSAGE(STATUS "GPU_COUNT: " ${GPU_COUNT})
+
     if(MPI_CXX_FOUND)
         ###########################################################################################
         # - MG PAGERANK tests ---------------------------------------------------------------------
@@ -451,7 +570,7 @@ if(BUILD_CUGRAPH_MG_TESTS)
         set(MG_PAGERANK_TEST_SRCS
             "${CMAKE_CURRENT_SOURCE_DIR}/pagerank/mg_pagerank_test.cpp")
 
-        ConfigureTest(MG_PAGERANK_TEST "${MG_PAGERANK_TEST_SRCS}")
+        ConfigureTestMG(MG_PAGERANK_TEST "${MG_PAGERANK_TEST_SRCS}")
         target_link_libraries(MG_PAGERANK_TEST PRIVATE MPI::MPI_C MPI::MPI_CXX)
 
         ###########################################################################################
@@ -460,7 +579,7 @@ if(BUILD_CUGRAPH_MG_TESTS)
         set(MG_KATZ_CENTRALITY_TEST_SRCS
             "${CMAKE_CURRENT_SOURCE_DIR}/experimental/mg_katz_centrality_test.cpp")
 
-        ConfigureTest(MG_KATZ_CENTRALITY_TEST "${MG_KATZ_CENTRALITY_TEST_SRCS}")
+        ConfigureTestMG(MG_KATZ_CENTRALITY_TEST "${MG_KATZ_CENTRALITY_TEST_SRCS}")
         target_link_libraries(MG_KATZ_CENTRALITY_TEST PRIVATE MPI::MPI_C MPI::MPI_CXX)
 
         ###########################################################################################
@@ -469,7 +588,7 @@ if(BUILD_CUGRAPH_MG_TESTS)
         set(MG_BFS_TEST_SRCS
             "${CMAKE_CURRENT_SOURCE_DIR}/experimental/mg_bfs_test.cpp")
 
-        ConfigureTest(MG_BFS_TEST "${MG_BFS_TEST_SRCS}")
+        ConfigureTestMG(MG_BFS_TEST "${MG_BFS_TEST_SRCS}")
         target_link_libraries(MG_BFS_TEST PRIVATE MPI::MPI_C MPI::MPI_CXX)
 
         ###########################################################################################
@@ -478,7 +597,7 @@ if(BUILD_CUGRAPH_MG_TESTS)
         set(MG_SSSP_TEST_SRCS
             "${CMAKE_CURRENT_SOURCE_DIR}/experimental/mg_sssp_test.cpp")
 
-        ConfigureTest(MG_SSSP_TEST "${MG_SSSP_TEST_SRCS}")
+        ConfigureTestMG(MG_SSSP_TEST "${MG_SSSP_TEST_SRCS}")
         target_link_libraries(MG_SSSP_TEST PRIVATE MPI::MPI_C MPI::MPI_CXX)
 
         ###########################################################################################
@@ -488,7 +607,7 @@ if(BUILD_CUGRAPH_MG_TESTS)
 	    "${CMAKE_CURRENT_SOURCE_DIR}/community/mg_louvain_helper.cu"
             "${CMAKE_CURRENT_SOURCE_DIR}/community/mg_louvain_test.cpp")
 
-        ConfigureTest(MG_LOUVAIN_TEST "${MG_LOUVAIN_TEST_SRCS}")
+        ConfigureTestMG(MG_LOUVAIN_TEST "${MG_LOUVAIN_TEST_SRCS}")
         target_link_libraries(MG_LOUVAIN_TEST PRIVATE MPI::MPI_C MPI::MPI_CXX)
 
     else(MPI_CXX_FOUND)
