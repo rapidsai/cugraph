@@ -110,22 +110,21 @@ def sssp(input_graph, source):
                                     num_verts, num_edges,
                                     <int*>c_local_verts, <int*>c_local_edges, <int*>c_local_offsets)
 
-    if True:
-        if weight_t == np.float32:
-            c_sssp.call_sssp[int, float](handle_[0],
-                                         graph_container,
-                                         <int*> c_identifier_ptr,
-                                         <float*> c_distance_ptr,
-                                         <int*> c_predecessor_ptr,
-                                         <int> source)
-        elif weight_t == np.float64:
-            c_sssp.call_sssp[int, double](handle_[0],
-                                          graph_container,
-                                          <int*> c_identifier_ptr,
-                                          <double*> c_distance_ptr,
-                                          <int*> c_predecessor_ptr,
-                                          <int> source)
-        else: # This case should not happen
-            raise NotImplementedError
+    if weight_t == np.float32:
+        c_sssp.call_sssp[int, float](handle_[0],
+                                     graph_container,
+                                     <int*> c_identifier_ptr,
+                                     <float*> c_distance_ptr,
+                                     <int*> c_predecessor_ptr,
+                                     <int> source)
+    elif weight_t == np.float64:
+        c_sssp.call_sssp[int, double](handle_[0],
+                                      graph_container,
+                                      <int*> c_identifier_ptr,
+                                      <double*> c_distance_ptr,
+                                      <int*> c_predecessor_ptr,
+                                      <int> source)
+    else: # This case should not happen
+        raise NotImplementedError
 
     return df

@@ -87,21 +87,13 @@ def _convert_df_to_output_type(df, input_type):
         if is_cp_matrix_type(input_type):
             distances = cp.fromDlpack(sorted_df["distance"].to_dlpack())
             preds = cp.fromDlpack(sorted_df["predecessor"].to_dlpack())
-            if "sp_counter" in df.columns:
-                return (distances, preds,
-                        cp.fromDlpack(sorted_df["sp_counter"].to_dlpack()))
-            else:
-                return (distances, preds)
+            return (distances, preds)
         else:
             distances = sorted_df["distance"].to_array()
             preds = sorted_df["predecessor"].to_array()
-            if "sp_counter" in df.columns:
-                return (distances, preds,
-                        sorted_df["sp_counter"].to_array())
-            else:
-                return (distances, preds)
+            return (distances, preds)
     else:
-        raise TypeError("input type {input_type} is not a supported type.")
+        raise TypeError(f"input type {input_type} is not a supported type.")
 
 
 def bfs(G,
@@ -111,7 +103,8 @@ def bfs(G,
         directed=None,
         direction_optimizing=None,
         return_predecessors=None):
-    """Find the distances and predecessors for a breadth first traversal of a
+    """
+    Find the distances and predecessors for a breadth first traversal of a
     graph.
 
     Parameters
@@ -127,6 +120,9 @@ def bfs(G,
     i_start : Integer, optional
         Identical to start, added for API compatibility. Only start or i_start
         can be set, not both.
+
+    depth_limit : Integer or None
+        Limit the depth of the search
 
     directed : bool, optional
         NOTE
@@ -224,13 +220,9 @@ def bfs_edges(G, source, reverse=False, depth_limit=None, sort_neighbors=None):
 
     depth_limit : Int or None
         Limit the depth of the search
-        Currently not implemented
 
     sort_neighbors : None or Function
         Currently not implemented
-
-    return_sp_counter : bool, optional, default=False
-        Indicates if shortest path counters should be returned
 
     Returns
     -------
@@ -279,11 +271,6 @@ def bfs_edges(G, source, reverse=False, depth_limit=None, sort_neighbors=None):
     if reverse is True:
         raise NotImplementedError(
             "reverse processing of graph is currently not supported"
-        )
-
-    if depth_limit is not None:
-        raise NotImplementedError(
-            "depth limit implementation of BFS is not currently supported"
         )
 
     return bfs(G, source, depth_limit)
