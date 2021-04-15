@@ -1281,28 +1281,5 @@ random_walks(raft::handle_t const &handle,
              index_t num_paths,
              index_t max_depth);
 
-/**
- * @brief returns the COO format (src_vector, dst_vector) from the random walks (RW)
- * paths.
- *
- * @tparam vertex_t Type of vertex indices.
- * @tparam index_t Type used to store indexing and sizes.
- * @param handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator, and
- * handles to various CUDA libraries) to run graph algorithms.
- * @param coalesced_sz_v coalesced vertex vector size.
- * @param num_paths number of paths.
- * @param d_coalesced_v coalesced vertex buffer.
- * @param d_sizes paths size buffer.
- * @return tuple of (src_vertex_vector, dst_Vertex_vector, path_offsets), where
- * path_offsets are the offsets where the COO set of each path starts.
- */
-template <typename vertex_t, typename index_t>
-std::
-  tuple<rmm::device_uvector<vertex_t>, rmm::device_uvector<vertex_t>, rmm::device_uvector<index_t>>
-  convert_paths_to_coo(raft::handle_t const &handle,
-                       index_t coalesced_sz_v,
-                       index_t num_paths,
-                       rmm::device_buffer &&d_coalesced_v,
-                       rmm::device_buffer &&d_sizes);
 }  // namespace experimental
 }  // namespace cugraph

@@ -22,6 +22,7 @@
 #include <partition_manager.hpp>
 #include <utilities/cython.hpp>
 #include <utilities/error.hpp>
+#include <utilities/path_retrieval.hpp>
 #include <utilities/shuffle_comm.cuh>
 
 #include <rmm/thrust_rmm_allocator.h>
