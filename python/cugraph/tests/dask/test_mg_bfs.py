@@ -65,7 +65,6 @@ def test_dask_bfs(client_connection):
     expected_dist = cugraph.bfs(g, 0)
     result_dist = dcg.bfs(dg, 0, depth_limit=2)
     result_dist = result_dist.compute()
-    print(result_dist[result_dist['distance']<2])
     compare_dist = expected_dist.merge(
         result_dist, on="vertex", suffixes=["_local", "_dask"]
     )
@@ -111,7 +110,6 @@ def test_dask_bfs_multi_column_depthlimit(client_connection):
     )
     df['src_b'] = df['src_a'] + 1000
     df['dst_b'] = df['dst_a'] + 1000
-
 
     g = cugraph.DiGraph()
     g.from_cudf_edgelist(df, ["src_a", "src_b"], ["dst_a", "dst_b"])
