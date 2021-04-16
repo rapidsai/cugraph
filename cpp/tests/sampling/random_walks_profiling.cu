@@ -27,15 +27,14 @@
 
 #include <rmm/thrust_rmm_allocator.h>
 
-#include <thrust/random.h>
 #include <cuda_profiler_api.h>
+#include <thrust/random.h>
 
 #include <algorithm>
 #include <iterator>
 #include <limits>
 #include <numeric>
 #include <vector>
-
 
 // Populates the device vector d_start with the starting vertex indices to be
 // used for each RW path specified.
@@ -54,54 +53,52 @@ void fill_start(raft::handle_t const& handle,
                     [num_vertices] __device__(auto indx) { return indx % num_vertices; });
 }
 
-
 // Calls the random_walks algorithm and displays the time metrics (total time
 // for all requested paths, average time for each path).
 template <typename graph_vt>
 void output_random_walks_time(graph_vt const& graph_view, typename graph_vt::edge_type num_paths)
 {
-   using vertex_t = typename graph_vt::vertex_type;
-   using edge_t   = typename graph_vt::edge_type;
-   using weight_t = typename graph_vt::weight_type;
+  using vertex_t = typename graph_vt::vertex_type;
+  using edge_t   = typename graph_vt::edge_type;
+  using weight_t = typename graph_vt::weight_type;
 
-   raft::handle_t handle{};
-   rmm::device_uvector<vertex_t> d_start(num_paths, handle.get_stream());
+  raft::handle_t handle{};
+  rmm::device_uvector<vertex_t> d_start(num_paths, handle.get_stream());
 
-   vertex_t num_vertices = graph_view.get_number_of_vertices();
-   fill_start(handle, d_start, num_vertices);
+  vertex_t num_vertices = graph_view.get_number_of_vertices();
+  fill_start(handle, d_start, num_vertices);
 
-   // 0-copy const device view:
-   //
-   cugraph::experimental::detail::device_const_vector_view<vertex_t, edge_t> d_start_view{
-      d_start.data(), num_paths};
+  // 0-copy const device view:
+  //
+  cugraph::experimental::detail::device_const_vector_view<vertex_t, edge_t> d_start_view{
+    d_start.data(), num_paths};
 
-   edge_t max_depth{10};
+  edge_t max_depth{10};
 
-   HighResTimer hr_timer;
-   std::string label("RandomWalks");
-   hr_timer.start(label);
-   cudaProfilerStart();
-   auto ret_tuple =
-      cugraph::experimental::detail::random_walks_impl(handle, graph_view, d_start_view, max_depth);
-   cudaProfilerStop();
-   hr_timer.stop();
-   try {
-      auto runtime = hr_timer.get_average_runtime(label);
+  HighResTimer hr_timer;
+  std::string label("RandomWalks");
+  hr_timer.start(label);
+  cudaProfilerStart();
+  auto ret_tuple =
+    cugraph::experimental::detail::random_walks_impl(handle, graph_view, d_start_view, max_depth);
+  cudaProfilerStop();
+  hr_timer.stop();
+  try {
+    auto runtime = hr_timer.get_average_runtime(label);
 
-      std::cout << "RW for num_paths: " << num_paths
-                << ", runtime [ms] / path: " << runtime / num_paths << ":\n";
+    std::cout << "RW for num_paths: " << num_paths
+              << ", runtime [ms] / path: " << runtime / num_paths << ":\n";
 
-   } catch (std::exception const& ex) {
-      std::cerr << ex.what() << '\n';
-      return;
+  } catch (std::exception const& ex) {
+    std::cerr << ex.what() << '\n';
+    return;
 
-   } catch (...) {
-      std::cerr << "ERROR: Unknown exception on timer label search." << '\n';
-      return;
-   }
-   hr_timer.display(std::cout);
+  } catch (...) {
+    std::cerr << "ERROR: Unknown exception on timer label search." << '\n';
+    return;
+  }
+  hr_timer.display(std::cout);
 }
-
 
 /**
  * @struct RandomWalks_Usecase
@@ -130,7 +127,6 @@ struct RandomWalks_Usecase {
   };
 };
 
-
 /**
  * @brief Runs random_walks on a specified input and outputs time metrics
  *
@@ -149,21 +145,20 @@ struct RandomWalks_Usecase {
 template <typename vertex_t, typename edge_t, typename weight_t>
 void run(RandomWalks_Usecase const& configuration)
 {
-   raft::handle_t handle{};
+  raft::handle_t handle{};
 
-   cugraph::experimental::graph_t<vertex_t, edge_t, weight_t, false, false> graph(handle);
-   std::tie(graph, std::ignore) =
-      cugraph::test::read_graph_from_matrix_market_file<vertex_t, edge_t, weight_t, false, false>(
-        handle, configuration.graph_file_full_path, configuration.test_weighted, false);
+  cugraph::experimental::graph_t<vertex_t, edge_t, weight_t, false, false> graph(handle);
+  std::tie(graph, std::ignore) =
+    cugraph::test::read_graph_from_matrix_market_file<vertex_t, edge_t, weight_t, false, false>(
+      handle, configuration.graph_file_full_path, configuration.test_weighted, false);
 
-   auto graph_view = graph.view();
+  auto graph_view = graph.view();
 
-   // FIXME: the num_paths vector might be better specified via the
-   // configuration input instead of hardcoding here.
-   std::vector<edge_t> v_np{1, 10, 100};
-   for (auto&& num_paths : v_np) { output_random_walks_time(graph_view, num_paths); }
+  // FIXME: the num_paths vector might be better specified via the
+  // configuration input instead of hardcoding here.
+  std::vector<edge_t> v_np{1, 10, 100};
+  for (auto&& num_paths : v_np) { output_random_walks_time(graph_view, num_paths); }
 }
-
 
 /**
  * @brief  Performs the random_walks benchmark/profiling run
@@ -188,28 +183,28 @@ void run(RandomWalks_Usecase const& configuration)
  *
  * @return An int representing a successful run. 0 indicates success.
  */
-int main(int argc, char **argv)
+int main(int argc, char** argv)
 {
-   // Add command-line processing, provide defaults
-   cxxopts::Options options(argv[0], " - Random Walks benchmark command line options");
-   options.add_options()(
-      "rmm_mode", "RMM allocation mode", cxxopts::value<std::string>()->default_value("pool"));
-   options.add_options()(
-      "dataset", "dataset", cxxopts::value<std::string>()->default_value("test/datasets/karate.mtx"));
-   auto const cmd_options = options.parse(argc, argv);
-   auto const rmm_mode = cmd_options["rmm_mode"].as<std::string>();
-   auto const dataset = cmd_options["dataset"].as<std::string>();
+  // Add command-line processing, provide defaults
+  cxxopts::Options options(argv[0], " - Random Walks benchmark command line options");
+  options.add_options()(
+    "rmm_mode", "RMM allocation mode", cxxopts::value<std::string>()->default_value("pool"));
+  options.add_options()(
+    "dataset", "dataset", cxxopts::value<std::string>()->default_value("test/datasets/karate.mtx"));
+  auto const cmd_options = options.parse(argc, argv);
+  auto const rmm_mode    = cmd_options["rmm_mode"].as<std::string>();
+  auto const dataset     = cmd_options["dataset"].as<std::string>();
 
-   // Configure RMM
-   auto resource = cugraph::test::create_memory_resource(rmm_mode);
-   rmm::mr::set_current_device_resource(resource.get());
+  // Configure RMM
+  auto resource = cugraph::test::create_memory_resource(rmm_mode);
+  rmm::mr::set_current_device_resource(resource.get());
 
-   // Run benchmarks
-   std::cout << "Using dataset: " << dataset << std::endl;
-   run<int32_t, int32_t, float>(RandomWalks_Usecase(dataset, true));
+  // Run benchmarks
+  std::cout << "Using dataset: " << dataset << std::endl;
+  run<int32_t, int32_t, float>(RandomWalks_Usecase(dataset, true));
 
-   // FIXME: consider returning non-zero for situations that warrant it (eg. if
-   // the algo ran but the results are invalid, if a benchmark threshold is
-   // exceeded, etc.)
-   return 0;
+  // FIXME: consider returning non-zero for situations that warrant it (eg. if
+  // the algo ran but the results are invalid, if a benchmark threshold is
+  // exceeded, etc.)
+  return 0;
 }
