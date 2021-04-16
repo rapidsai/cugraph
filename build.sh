@@ -170,6 +170,6 @@ if buildAll || hasArg docs; then
     fi
     cd ${LIBCUGRAPH_BUILD_DIR}
     cmake --build "${LIBCUGRAPH_BUILD_DIR}" -j${PARALLEL_LEVEL} --target docs_cugraph ${VERBOSE_FLAG}
-    cd ${REPODIR}/docs
+    cd ${REPODIR}/docs/cugraph
     make html
 fi
