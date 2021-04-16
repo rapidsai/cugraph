@@ -173,12 +173,17 @@ class NumberMap:
             self.numbered = False
 
         def to_internal_vertex_id(self, ddf, col_names):
-            return self.ddf.merge(
-                ddf,
-                right_on=col_names,
-                left_on=self.col_names,
+            tmp_ddf = ddf[col_names].rename(
+                columns=dict(zip(col_names, self.col_names)))
+            for name in self.col_names:
+                tmp_ddf[name] = tmp_ddf[name].astype(self.ddf[name].dtype)
+            x = self.ddf.merge(
+                tmp_ddf,
+                on=self.col_names,
                 how="right",
-            )["global_id"]
+            )
+            print(x.compute())
+            return x['global_id']
 
         def from_internal_vertex_id(
             self, df, internal_column_name, external_column_names

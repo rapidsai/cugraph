@@ -19,6 +19,7 @@ from libcpp cimport bool
 
 cdef extern from "limits.h":
     cdef int INT_MAX
+    cdef long LONG_MAX
 
 cdef extern from "utilities/cython.hpp" namespace "cugraph::cython":
 
