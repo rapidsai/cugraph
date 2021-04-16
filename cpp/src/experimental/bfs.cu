@@ -67,8 +67,8 @@ void bfs(raft::handle_t const &handle,
 
   auto aggregate_n_sources =
     GraphViewType::is_multi_gpu
-      ? host_scalar_allreduce(handle.get_comms(), n_source, handle.get_stream())
-      : n_source;
+      ? host_scalar_allreduce(handle.get_comms(), n_sources, handle.get_stream())
+      : n_sources;
   CUGRAPH_EXPECTS(aggregate_n_sources > 0,
                   "Invalid input argument: input should have more than one source");
 
@@ -80,7 +80,7 @@ void bfs(raft::handle_t const &handle,
   // Transfer single source to the device for single source case
   vertex_t *d_sources;
   rmm::device_uvector<vertex_t> d_sources_v(0, handle.get_stream());
-  if (aggregate_n_sources == 1 && n_source) {
+  if (aggregate_n_sources == 1 && n_sources) {
     cudaPointerAttributes s_att;
     CUDA_CHECK(cudaPointerGetAttributes(&s_att, sources));
     if (s_att.devicePointer == nullptr) {
