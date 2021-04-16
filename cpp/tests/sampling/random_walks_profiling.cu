@@ -14,15 +14,9 @@
  * limitations under the License.
  */
 
-#include <cuda_profiler_api.h>
-#include <gtest/gtest.h>
-
-#include <utilities/base_fixture.hpp>
+#include <utilities/base_fixture.hpp>  // cugraph::test::create_memory_resource()
 #include <utilities/high_res_timer.hpp>
 #include <utilities/test_utilities.hpp>
-
-#include <rmm/thrust_rmm_allocator.h>
-#include <thrust/random.h>
 
 #include <algorithms.hpp>
 #include <graph.hpp>
@@ -31,13 +25,20 @@
 #include <raft/handle.hpp>
 #include <raft/random/rng.cuh>
 
+#include <rmm/thrust_rmm_allocator.h>
+
+#include <thrust/random.h>
+#include <cuda_profiler_api.h>
+
 #include <algorithm>
 #include <iterator>
 #include <limits>
 #include <numeric>
 #include <vector>
 
-namespace {  // anonym.
+
+// Populates the device vector d_start with the starting vertex indices to be
+// used for each RW path specified.
 template <typename vertex_t, typename index_t>
 void fill_start(raft::handle_t const& handle,
                 rmm::device_uvector<vertex_t>& d_start,
@@ -52,8 +53,68 @@ void fill_start(raft::handle_t const& handle,
                     d_start.begin(),
                     [num_vertices] __device__(auto indx) { return indx % num_vertices; });
 }
-}  // namespace
 
+
+// Calls the random_walks algorithm and displays the time metrics (total time
+// for all requested paths, average time for each path).
+template <typename graph_vt>
+void output_random_walks_time(graph_vt const& graph_view, typename graph_vt::edge_type num_paths)
+{
+   using vertex_t = typename graph_vt::vertex_type;
+   using edge_t   = typename graph_vt::edge_type;
+   using weight_t = typename graph_vt::weight_type;
+
+   raft::handle_t handle{};
+   rmm::device_uvector<vertex_t> d_start(num_paths, handle.get_stream());
+
+   vertex_t num_vertices = graph_view.get_number_of_vertices();
+   fill_start(handle, d_start, num_vertices);
+
+   // 0-copy const device view:
+   //
+   cugraph::experimental::detail::device_const_vector_view<vertex_t, edge_t> d_start_view{
+      d_start.data(), num_paths};
+
+   edge_t max_depth{10};
+
+   HighResTimer hr_timer;
+   std::string label("RandomWalks");
+   hr_timer.start(label);
+   cudaProfilerStart();
+   auto ret_tuple =
+      cugraph::experimental::detail::random_walks_impl(handle, graph_view, d_start_view, max_depth);
+   cudaProfilerStop();
+   hr_timer.stop();
+   try {
+      auto runtime = hr_timer.get_average_runtime(label);
+
+      std::cout << "RW for num_paths: " << num_paths
+                << ", runtime [ms] / path: " << runtime / num_paths << ":\n";
+
+   } catch (std::exception const& ex) {
+      std::cerr << ex.what() << '\n';
+      return;
+
+   } catch (...) {
+      std::cerr << "ERROR: Unknown exception on timer label search." << '\n';
+      return;
+   }
+   hr_timer.display(std::cout);
+}
+
+
+/**
+ * @struct RandomWalks_Usecase
+ * @brief  Used to specify input to a random_walks benchmark/profile run
+ *
+ * @var RandomWalks_Usecase::graph_file_full_path  Computed during construction
+ * to be an absolute path consisting of the value of the RAPIDS_DATASET_ROOT_DIR
+ * env var and the graph_file_path constructor arg. This is initialized to an
+ * empty string.
+ *
+ * @var RandomWalks_Usecase::test_weighted Bool representing if the specified
+ * graph is weighted or not. This is initialized to false (unweighted).
+ */
 struct RandomWalks_Usecase {
   std::string graph_file_full_path{};
   bool test_weighted{false};
@@ -69,89 +130,86 @@ struct RandomWalks_Usecase {
   };
 };
 
-class Tests_RandomWalksProfiling : public ::testing::TestWithParam<RandomWalks_Usecase> {
- public:
-  Tests_RandomWalksProfiling() {}
-  static void SetupTestCase() {}
-  static void TearDownTestCase() {}
 
-  virtual void SetUp() {}
-  virtual void TearDown() {}
+/**
+ * @brief Runs random_walks on a specified input and outputs time metrics
+ *
+ * Creates a graph_t instance from the configuration specified in the
+ * RandomWalks_Usecase instance passed in (currently by reading a dataset to
+ * populate the graph_t), then runs random_walks to generate 1, 10, and 100
+ * random paths and output statistics for each.
+ *
+ * @tparam vertex_t          Type of vertex identifiers.
+ * @tparam edge_t            Type of edge identifiers.
+ * @tparam weight_t          Type of weight identifiers.
+ *
+ * @param[in] configuration RandomWalks_Usecase instance containing the input
+ * file to read for constructing the graph_t.
+ */
+template <typename vertex_t, typename edge_t, typename weight_t>
+void run(RandomWalks_Usecase const& configuration)
+{
+   raft::handle_t handle{};
 
-  template <typename vertex_t, typename edge_t, typename weight_t>
-  void run_current_test(RandomWalks_Usecase const& configuration)
-  {
-    raft::handle_t handle{};
-
-    // debuf info:
-    //
-    // std::cout << "read graph file: " << configuration.graph_file_full_path << std::endl;
-
-    cugraph::experimental::graph_t<vertex_t, edge_t, weight_t, false, false> graph(handle);
-    std::tie(graph, std::ignore) =
+   cugraph::experimental::graph_t<vertex_t, edge_t, weight_t, false, false> graph(handle);
+   std::tie(graph, std::ignore) =
       cugraph::test::read_graph_from_matrix_market_file<vertex_t, edge_t, weight_t, false, false>(
         handle, configuration.graph_file_full_path, configuration.test_weighted, false);
 
-    auto graph_view = graph.view();
+   auto graph_view = graph.view();
 
-    // call random_walks:
-    std::vector<edge_t> v_np{1, 10, 100};
-    for (auto&& num_paths : v_np) { time_random_walks(graph_view, num_paths); }
-  }
-
-  template <typename graph_vt>
-  void time_random_walks(graph_vt const& graph_view, typename graph_vt::edge_type num_paths)
-  {
-    using vertex_t = typename graph_vt::vertex_type;
-    using edge_t   = typename graph_vt::edge_type;
-    using weight_t = typename graph_vt::weight_type;
-
-    raft::handle_t handle{};
-    rmm::device_uvector<vertex_t> d_start(num_paths, handle.get_stream());
-
-    vertex_t num_vertices = graph_view.get_number_of_vertices();
-    fill_start(handle, d_start, num_vertices);
-
-    // 0-copy const device view:
-    //
-    cugraph::experimental::detail::device_const_vector_view<vertex_t, edge_t> d_start_view{
-      d_start.data(), num_paths};
-
-    edge_t max_depth{10};
-
-    HighResTimer hr_timer;
-    std::string label("RandomWalks");
-    hr_timer.start(label);
-    cudaProfilerStart();
-    auto ret_tuple =
-      cugraph::experimental::detail::random_walks_impl(handle, graph_view, d_start_view, max_depth);
-    cudaProfilerStop();
-    hr_timer.stop();
-    try {
-      auto runtime = hr_timer.get_average_runtime(label);
-
-      std::cout << "RW for num_paths: " << num_paths
-                << ", runtime [ms] / path: " << runtime / num_paths << ":\n";
-
-    } catch (std::exception const& ex) {
-      std::cerr << ex.what() << '\n';
-      ASSERT_TRUE(false);  // test has failed.
-
-    } catch (...) {
-      std::cerr << "ERROR: Unknown exception on timer label search." << '\n';
-      ASSERT_TRUE(false);  // test has failed.
-    }
-    hr_timer.display(std::cout);
-  }
-};
-
-TEST_P(Tests_RandomWalksProfiling, Initialize_i32_i32_f)
-{
-  run_current_test<int32_t, int32_t, float>(GetParam());
+   // FIXME: the num_paths vector might be better specified via the
+   // configuration input instead of hardcoding here.
+   std::vector<edge_t> v_np{1, 10, 100};
+   for (auto&& num_paths : v_np) { output_random_walks_time(graph_view, num_paths); }
 }
 
-INSTANTIATE_TEST_CASE_P(simple_test,
-                        Tests_RandomWalksProfiling,
-                        ::testing::Values(RandomWalks_Usecase("test/datasets/karate.mtx", true)));
 
-CUGRAPH_TEST_PROGRAM_MAIN()
+/**
+ * @brief  Performs the random_walks benchmark/profiling run
+ *
+ * main function for performing the random_walks benchmark/profiling run. The
+ * resulting executable takes the following options: "rmm_mode" which can be one
+ * of "binning", "cuda", "pool", or "managed.  "dataset" which is a path
+ * relative to the env var RAPIDS_DATASET_ROOT_DIR to a input .mtx file to use
+ * to populate the graph_t instance.
+ *
+ * To use the default values of rmm_mode=pool and
+ * dataset=test/datasets/karate.mtx:
+ * @code
+ *   RANDOM_WALKS_PROFILING
+ * @endcode
+ *
+ * To specify managed memory and the netscience.mtx dataset (relative to a
+ * particular RAPIDS_DATASET_ROOT_DIR setting):
+ * @code
+ *   RANDOM_WALKS_PROFILING --rmm_mode=managed --dataset=test/datasets/netscience.mtx
+ * @endcode
+ *
+ * @return An int representing a successful run. 0 indicates success.
+ */
+int main(int argc, char **argv)
+{
+   // Add command-line processing, provide defaults
+   cxxopts::Options options(argv[0], " - Random Walks benchmark command line options");
+   options.add_options()(
+      "rmm_mode", "RMM allocation mode", cxxopts::value<std::string>()->default_value("pool"));
+   options.add_options()(
+      "dataset", "dataset", cxxopts::value<std::string>()->default_value("test/datasets/karate.mtx"));
+   auto const cmd_options = options.parse(argc, argv);
+   auto const rmm_mode = cmd_options["rmm_mode"].as<std::string>();
+   auto const dataset = cmd_options["dataset"].as<std::string>();
+
+   // Configure RMM
+   auto resource = cugraph::test::create_memory_resource(rmm_mode);
+   rmm::mr::set_current_device_resource(resource.get());
+
+   // Run benchmarks
+   std::cout << "Using dataset: " << dataset << std::endl;
+   run<int32_t, int32_t, float>(RandomWalks_Usecase(dataset, true));
+
+   // FIXME: consider returning non-zero for situations that warrant it (eg. if
+   // the algo ran but the results are invalid, if a benchmark threshold is
+   // exceeded, etc.)
+   return 0;
+}
