@@ -93,6 +93,10 @@ cdef extern from "utilities/cython.hpp" namespace "cugraph::cython":
         unique_ptr[device_buffer] d_coalesced_w_
         unique_ptr[device_buffer] d_sizes_
 
+    cdef cppclass graph_generator_t:
+        unique_ptr[device_buffer] d_source
+        unique_ptr[device_buffer] d_destination
+
 cdef extern from "<utility>" namespace "std" nogil:
     cdef device_buffer move(device_buffer)
     cdef unique_ptr[device_buffer] move(unique_ptr[device_buffer]) 

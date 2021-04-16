@@ -207,6 +207,11 @@ struct random_walk_ret_t {
   std::unique_ptr<rmm::device_buffer> d_sizes_;
 };
 
+struct graph_generator_t {
+  std::unique_ptr<rmm::device_buffer> d_source;
+  std::unique_ptr<rmm::device_buffer> d_destination;
+};
+
 // wrapper for renumber_edgelist() return
 // (unrenumbering maps, etc.)
 //
@@ -468,6 +473,22 @@ std::unique_ptr<cy_multi_edgelists_t> call_egonet(raft::handle_t const& handle,
                                                   vertex_t* source_vertex,
                                                   vertex_t n_subgraphs,
                                                   vertex_t radius);
+
+
+// Wrapper for calling graph generator 
+template <typename vertex_t>
+std::unique_ptr<graph_generator_t> call_generate_rmat_edgelist(raft::handle_t const& handle,
+                                                             size_t scale,
+                                                             size_t num_edges,
+                                                             double a,
+                                                             double b,
+                                                             double c,
+                                                             uint64_t seed,
+                                                             bool clip_and_flip,
+                                                             bool scramble_vertex_ids);
+
+
+
 // wrapper for random_walks.
 //
 template <typename vertex_t, typename edge_t>
@@ -478,6 +499,7 @@ call_random_walks(raft::handle_t const& handle,
                   vertex_t const* ptr_start_set,
                   edge_t num_paths,
                   edge_t max_depth);
+
 
 // wrapper for shuffling:
 //

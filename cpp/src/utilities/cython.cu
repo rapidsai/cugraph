@@ -13,7 +13,8 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
+#include <experimental/graph_generator.hpp> 
+//#include <experimental/generate_rmat_edgelist.cu>
 #include <algorithms.hpp>
 #include <experimental/detail/graph_utils.cuh>
 #include <experimental/graph_functions.hpp>
@@ -784,6 +785,29 @@ std::unique_ptr<cy_multi_edgelists_t> call_egonet(raft::handle_t const& handle,
     CUGRAPH_FAIL("vertexType/edgeType combination unsupported");
   }
 }
+// Wrapper for graph generate_rmat_edgelist()
+// to expose the API to cython
+template <typename vertex_t>
+std::unique_ptr<graph_generator_t> call_generate_rmat_edgelist(raft::handle_t const& handle,
+                                                             size_t scale,
+                                                             size_t num_edges,
+                                                             double a,
+                                                             double b,
+                                                             double c,
+                                                             uint64_t seed,
+                                                             bool clip_and_flip,
+                                                             bool scramble_vertex_ids)
+{
+  auto triplet = cugraph::experimental::generate_rmat_edgelist(handle, scale, num_edges, a, b,
+                                                               c, seed, clip_and_flip, scramble_vertex_ids);
+  
+  //graph_generator_t gg_tri{std::make_unique<rmm::device_buffer>(std::get<0>(triplet).release()),
+  //                         std::make_unique<rmm::device_buffer>(std::get<1>(triplet).release())};
+  
+  //return std::make_unique<graph_generator_t>(std::move(gg_tri));
+  }
+
+
 
 // Wrapper for random_walks() through a graph container
 // to expose the API to cython.
