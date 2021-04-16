@@ -36,8 +36,11 @@
 #include <numeric>
 #include <vector>
 
-// Populates the device vector d_start with the starting vertex indices to be
-// used for each RW path specified.
+/**
+ * @internal
+ * @brief Populates the device vector d_start with the starting vertex indices
+ * to be used for each RW path specified.
+ */
 template <typename vertex_t, typename index_t>
 void fill_start(raft::handle_t const& handle,
                 rmm::device_uvector<vertex_t>& d_start,
@@ -53,8 +56,11 @@ void fill_start(raft::handle_t const& handle,
                     [num_vertices] __device__(auto indx) { return indx % num_vertices; });
 }
 
-// Calls the random_walks algorithm and displays the time metrics (total time
-// for all requested paths, average time for each path).
+/**
+ * @internal
+ * @brief Calls the random_walks algorithm and displays the time metrics (total
+ * time for all requested paths, average time for each path).
+ */
 template <typename graph_vt>
 void output_random_walks_time(graph_vt const& graph_view, typename graph_vt::edge_type num_paths)
 {
@@ -102,7 +108,7 @@ void output_random_walks_time(graph_vt const& graph_view, typename graph_vt::edg
 
 /**
  * @struct RandomWalks_Usecase
- * @brief  Used to specify input to a random_walks benchmark/profile run
+ * @brief Used to specify input to a random_walks benchmark/profile run
  *
  * @var RandomWalks_Usecase::graph_file_full_path  Computed during construction
  * to be an absolute path consisting of the value of the RAPIDS_DATASET_ROOT_DIR
@@ -161,7 +167,7 @@ void run(RandomWalks_Usecase const& configuration)
 }
 
 /**
- * @brief  Performs the random_walks benchmark/profiling run
+ * @brief Performs the random_walks benchmark/profiling run
  *
  * main function for performing the random_walks benchmark/profiling run. The
  * resulting executable takes the following options: "rmm_mode" which can be one
