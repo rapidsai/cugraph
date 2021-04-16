@@ -69,8 +69,8 @@ function(ConfigureTest CMAKE_TEST_NAME CMAKE_TEST_SRC)
         PRIVATE
         "${CUB_INCLUDE_DIR}"
         "${THRUST_INCLUDE_DIR}"
-	"${CUCO_INCLUDE_DIR}"
-	"${LIBCUDACXX_INCLUDE_DIR}"
+        "${CUCO_INCLUDE_DIR}"
+        "${LIBCUDACXX_INCLUDE_DIR}"
         "${CMAKE_CUDA_TOOLKIT_INCLUDE_DIRECTORIES}"
         "${RMM_INCLUDE}"
         "${NCCL_INCLUDE_DIRS}"
@@ -174,8 +174,8 @@ function(ConfigureTestMG CMAKE_TEST_NAME CMAKE_TEST_SRC)
         PRIVATE
         "${CUB_INCLUDE_DIR}"
         "${THRUST_INCLUDE_DIR}"
-	"${CUCO_INCLUDE_DIR}"
-	"${LIBCUDACXX_INCLUDE_DIR}"
+        "${CUCO_INCLUDE_DIR}"
+        "${LIBCUDACXX_INCLUDE_DIR}"
         "${CMAKE_CUDA_TOOLKIT_INCLUDE_DIRECTORIES}"
         "${RMM_INCLUDE}"
         "${NCCL_INCLUDE_DIRS}"
@@ -604,7 +604,7 @@ if(BUILD_CUGRAPH_MG_TESTS)
         # - MG LOUVAIN tests ----------------------------------------------------------------------
 
         set(MG_LOUVAIN_TEST_SRCS
-	    "${CMAKE_CURRENT_SOURCE_DIR}/community/mg_louvain_helper.cu"
+            "${CMAKE_CURRENT_SOURCE_DIR}/community/mg_louvain_helper.cu"
             "${CMAKE_CURRENT_SOURCE_DIR}/community/mg_louvain_test.cpp")
 
         ConfigureTestMG(MG_LOUVAIN_TEST "${MG_LOUVAIN_TEST_SRCS}")
