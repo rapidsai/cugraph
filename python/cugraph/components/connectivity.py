@@ -139,7 +139,7 @@ def weakly_connected_components(G,
     directed : bool, optional
 
         NOTE
-            For non-Graph-type (eg. sparse matrix) values of G only. 
+            For non-Graph-type (eg. sparse matrix) values of G only.
             Raises TypeError if used with a Graph object.
 
         If True (default), then convert the input matrix to a cugraph.DiGraph

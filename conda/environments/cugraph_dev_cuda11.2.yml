@@ -5,7 +5,7 @@ channels:
 - rapidsai-nightly
 - conda-forge
 dependencies:
-- cudatoolkit=11.0
+- cudatoolkit=11.2
 - cudf=0.20.*
 - libcudf=0.20.*
 - rmm=0.20.*
