@@ -91,7 +91,11 @@ void bfs(raft::handle_t const &handle,
   // 3. initialize BFS frontier
 
   enum class Bucket { cur, next, num_buckets };
-  VertexFrontier<vertex_t, GraphViewType::is_multi_gpu, static_cast<size_t>(Bucket::num_buckets)>
+  VertexFrontier<vertex_t,
+                 void,
+                 void,
+                 GraphViewType::is_multi_gpu,
+                 static_cast<size_t>(Bucket::num_buckets)>
     vertex_frontier(handle);
 
   if (push_graph_view.is_local_vertex_nocheck(source_vertex)) {

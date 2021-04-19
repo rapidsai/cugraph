@@ -126,7 +126,11 @@ void sssp(raft::handle_t const &handle,
   // 4. initialize SSSP frontier
 
   enum class Bucket { cur_near, next_near, far, num_buckets };
-  VertexFrontier<vertex_t, GraphViewType::is_multi_gpu, static_cast<size_t>(Bucket::num_buckets)>
+  VertexFrontier<vertex_t,
+                 void,
+                 void,
+                 GraphViewType::is_multi_gpu,
+                 static_cast<size_t>(Bucket::num_buckets)>
     vertex_frontier(handle);
 
   // 5. SSSP iteration
