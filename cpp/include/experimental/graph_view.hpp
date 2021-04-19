@@ -40,32 +40,11 @@ namespace experimental {
  *
  * We need to partition 1D vertex arrays (storing per vertex values) and the 2D graph adjacency
  * matrix (or transposed 2D graph adjacency matrix) of G. An 1D vertex array of size V is divided to
- * P linear partitions; each partition has the size close to V / P. We consider two different
- * strategies to partition the 2D matrix: the default strategy and the hypergraph partitioning based
- * strategy (the latter is for future extension).
- * FIXME: in the future we may use the latter for both as this leads to simpler communication
- * patterns and better control over parallelism vs memory footprint trade-off.
+ * P linear partitions; each partition has the size close to V / P.
  *
- * In the default case, one GPU will be responsible for 1 rectangular partition. The matrix will be
- * horizontally partitioned first to P_row slabs. Each slab will be further vertically partitioned
- * to P_col rectangles. Each rectangular partition will have the size close to V / P_row by V /
- * P_col.
- *
- * To be more specific, a GPU with (col_comm_rank, row_comm_rank) will be responsible for one
- * rectangular partition [a,b) by [c,d) where a = vertex_partition_offsets[row_comm_size *
- * col_comm_rank], b = vertex_partition_offsets[row_comm_size * (col_comm_rank + 1)], c =
- * vertex_partition_offsets[col_comm_size * row_comm_rank], and d =
- * vertex_partition_offsets[col_comm_size * (row_comm_rank + 1)].
- *
- * In the future, we may apply hyper-graph partitioning to divide V vertices to P groups minimizing
- * edge cuts across groups while balancing the number of vertices in each group. We will also
- * renumber vertices so the vertices in each group are mapped to consecutive integers. Then, there
- * will be more non-zeros in the diagonal partitions of the 2D graph adjacency matrix (or the
- * transposed 2D graph adjacency matrix) than the off-diagonal partitions. The default strategy does
- * not balance the number of nonzeros if hyper-graph partitioning is applied. To solve this problem,
- * the matrix is first horizontally partitioned to P slabs, then each slab will be further
- * vertically partitioned to P_row (instead of P_col in the default case) rectangles. One GPU will
- * be responsible col_comm_size rectangular partitions in this case.
+ * The 2D graph adjacency matrix is first horizontally partitioned to P slabs, then each slab will
+ * be further vertically partitioned to P_row (instead of P_col in the default case) rectangles. One
+ * GPU will be responsible col_comm_size rectangular partitions.
  *
  * To be more specific, a GPU with (col_comm_rank, row_comm_rank) will be responsible for
  * col_comm_size rectangular partitions [a_i,b_i) by [c,d) where a_i =
@@ -85,13 +64,11 @@ class partition_t {
   partition_t() = default;
 
   partition_t(std::vector<vertex_t> const& vertex_partition_offsets,
-              bool hypergraph_partitioned,
               int row_comm_size,
               int col_comm_size,
               int row_comm_rank,
               int col_comm_rank)
     : vertex_partition_offsets_(vertex_partition_offsets),
-      hypergraph_partitioned_(hypergraph_partitioned),
       comm_rank_(col_comm_rank * row_comm_size + row_comm_rank),
       row_comm_size_(row_comm_size),
       col_comm_size_(col_comm_size),
@@ -159,10 +136,7 @@ class partition_t {
            get_vertex_partition_first(vertex_partition_idx);
   }
 
-  size_t get_number_of_matrix_partitions() const
-  {
-    return hypergraph_partitioned_ ? col_comm_size_ : 1;
-  }
+  size_t get_number_of_matrix_partitions() const { return col_comm_size_; }
 
   // major: row of the graph adjacency matrix (if the graph adjacency matrix is stored as is) or
   // column of the graph adjacency matrix (if the transposed graph adjacency matrix is stored).
@@ -175,16 +149,18 @@ class partition_t {
 
   vertex_t get_matrix_partition_major_first(size_t partition_idx) const
   {
-    return hypergraph_partitioned_
-             ? vertex_partition_offsets_[row_comm_size_ * partition_idx + row_comm_rank_]
-             : vertex_partition_offsets_[col_comm_rank_ * row_comm_size_];
+    return vertex_partition_offsets_[row_comm_size_ * partition_idx + row_comm_rank_];
   }
 
   vertex_t get_matrix_partition_major_last(size_t partition_idx) const
   {
-    return hypergraph_partitioned_
-             ? vertex_partition_offsets_[row_comm_size_ * partition_idx + row_comm_rank_ + 1]
-             : vertex_partition_offsets_[(col_comm_rank_ + 1) * row_comm_size_];
+    return vertex_partition_offsets_[row_comm_size_ * partition_idx + row_comm_rank_ + 1];
+  }
+
+  vertex_t get_matrix_partition_major_size(size_t partition_idx) const
+  {
+    return get_matrix_partition_major_last(partition_idx) -
+           get_matrix_partition_major_first(partition_idx);
   }
 
   vertex_t get_matrix_partition_major_value_start_offset(size_t partition_idx) const
@@ -204,24 +180,21 @@ class partition_t {
 
   vertex_t get_matrix_partition_minor_first() const
   {
-    return hypergraph_partitioned_ ? vertex_partition_offsets_[col_comm_rank_ * row_comm_size_]
-                                   : vertex_partition_offsets_[row_comm_rank_ * col_comm_size_];
+    return vertex_partition_offsets_[col_comm_rank_ * row_comm_size_];
   }
 
   vertex_t get_matrix_partition_minor_last() const
   {
-    return hypergraph_partitioned_
-             ? vertex_partition_offsets_[(col_comm_rank_ + 1) * row_comm_size_]
-             : vertex_partition_offsets_[(row_comm_rank_ + 1) * col_comm_size_];
+    return vertex_partition_offsets_[(col_comm_rank_ + 1) * row_comm_size_];
   }
 
-  // FIXME: this function may be removed if we use the same partitioning strategy whether hypergraph
-  // partitioning is applied or not
-  bool is_hypergraph_partitioned() const { return hypergraph_partitioned_; }
+  vertex_t get_matrix_partition_minor_size() const
+  {
+    return get_matrix_partition_minor_last() - get_matrix_partition_minor_first();
+  }
 
  private:
   std::vector<vertex_t> vertex_partition_offsets_{};  // size = P + 1
-  bool hypergraph_partitioned_{false};
 
   int comm_rank_{0};
   int row_comm_size_{0};
@@ -236,6 +209,7 @@ class partition_t {
 struct graph_properties_t {
   bool is_symmetric{false};
   bool is_multigraph{false};
+  bool is_weighted{false};
 };
 
 namespace detail {
@@ -277,6 +251,7 @@ class graph_base_t {
 
   bool is_symmetric() const { return properties_.is_symmetric; }
   bool is_multigraph() const { return properties_.is_multigraph; }
+  bool is_weighted() const { return properties_.is_weighted; }
 
  protected:
   raft::handle_t const* get_handle_ptr() const { return handle_ptr_; };
@@ -326,18 +301,13 @@ class graph_view_t<vertex_t,
                std::vector<edge_t const*> const& adj_matrix_partition_offsets,
                std::vector<vertex_t const*> const& adj_matrix_partition_indices,
                std::vector<weight_t const*> const& adj_matrix_partition_weights,
-               std::vector<vertex_t> const& vertex_partition_segment_offsets,
+               std::vector<vertex_t> const& adj_matrix_partition_segment_offsets,
                partition_t<vertex_t> const& partition,
                vertex_t number_of_vertices,
                edge_t number_of_edges,
                graph_properties_t properties,
                bool sorted_by_global_degree_within_vertex_partition,
                bool do_expensive_check = false);
-
-  bool is_weighted() const { return adj_matrix_partition_weights_.size() > 0; }
-
-  // FIXME: this should be removed once MNMG Louvain is updated to use graph primitives
-  partition_t<vertex_t> get_partition() const { return partition_; }
 
   vertex_t get_number_of_local_vertices() const
   {
@@ -421,6 +391,12 @@ class graph_view_t<vertex_t,
                             : partition_.get_matrix_partition_major_last(adj_matrix_partition_idx);
   }
 
+  vertex_t get_number_of_local_adj_matrix_partition_rows(size_t adj_matrix_partition_idx) const
+  {
+    return get_local_adj_matrix_partition_row_last(adj_matrix_partition_idx) -
+           get_local_adj_matrix_partition_row_first(adj_matrix_partition_idx);
+  }
+
   vertex_t get_local_adj_matrix_partition_row_value_start_offset(
     size_t adj_matrix_partition_idx) const
   {
@@ -441,6 +417,12 @@ class graph_view_t<vertex_t,
                             : partition_.get_matrix_partition_minor_last();
   }
 
+  vertex_t get_number_of_local_adj_matrix_partition_cols(size_t adj_matrix_partition_idx) const
+  {
+    return get_local_adj_matrix_partition_col_last(adj_matrix_partition_idx) -
+           get_local_adj_matrix_partition_col_first(adj_matrix_partition_idx);
+  }
+
   vertex_t get_local_adj_matrix_partition_col_value_start_offset(
     size_t adj_matrix_partition_idx) const
   {
@@ -449,7 +431,16 @@ class graph_view_t<vertex_t,
              : vertex_t{0};
   }
 
-  bool is_hypergraph_partitioned() const { return partition_.is_hypergraph_partitioned(); }
+  std::vector<vertex_t> get_local_adj_matrix_partition_segment_offsets(size_t partition_idx) const
+  {
+    return adj_matrix_partition_segment_offsets_.size() > 0
+             ? std::vector<vertex_t>(
+                 adj_matrix_partition_segment_offsets_.begin() +
+                   partition_idx * (detail::num_segments_per_vertex_partition + 1),
+                 adj_matrix_partition_segment_offsets_.begin() +
+                   (partition_idx + 1) * (detail::num_segments_per_vertex_partition + 1))
+             : std::vector<vertex_t>{};
+  }
 
   // FIXME: this function is not part of the public stable API. This function is mainly for pattern
   // accelerator implementation. This function is currently public to support the legacy
@@ -504,6 +495,12 @@ class graph_view_t<vertex_t,
   rmm::device_uvector<weight_t> compute_in_weight_sums(raft::handle_t const& handle) const;
   rmm::device_uvector<weight_t> compute_out_weight_sums(raft::handle_t const& handle) const;
 
+  edge_t compute_max_in_degree(raft::handle_t const& handle) const;
+  edge_t compute_max_out_degree(raft::handle_t const& handle) const;
+
+  weight_t compute_max_in_weight_sum(raft::handle_t const& handle) const;
+  weight_t compute_max_out_weight_sum(raft::handle_t const& handle) const;
+
  private:
   std::vector<edge_t const*> adj_matrix_partition_offsets_{};
   std::vector<vertex_t const*> adj_matrix_partition_indices_{};
@@ -513,9 +510,10 @@ class graph_view_t<vertex_t,
   partition_t<vertex_t> partition_{};
 
   std::vector<vertex_t>
-    vertex_partition_segment_offsets_{};  // segment offsets within the vertex partition based on
-                                          // vertex degree, relevant only if
-                                          // sorted_by_global_degree_within_vertex_partition is true
+    adj_matrix_partition_segment_offsets_{};  // segment offsets within the vertex partition based
+                                              // on vertex degree, relevant only if
+                                              // sorted_by_global_degree_within_vertex_partition is
+                                              // true
 };
 
 // single-GPU version
@@ -548,8 +546,6 @@ class graph_view_t<vertex_t,
                graph_properties_t properties,
                bool sorted_by_degree,
                bool do_expensive_check = false);
-
-  bool is_weighted() const { return weights_ != nullptr; }
 
   vertex_t get_number_of_local_vertices() const { return this->get_number_of_vertices(); }
 
@@ -628,7 +624,12 @@ class graph_view_t<vertex_t,
     return vertex_t{0};
   }
 
-  bool is_hypergraph_partitioned() const { return false; }
+  std::vector<vertex_t> get_local_adj_matrix_partition_segment_offsets(
+    size_t adj_matrix_partition_idx) const
+  {
+    assert(adj_matrix_partition_idx == 0);
+    return segment_offsets_.size() > 0 ? segment_offsets_ : std::vector<vertex_t>{};
+  }
 
   // FIXME: this function is not part of the public stable API.This function is mainly for pattern
   // accelerator implementation. This function is currently public to support the legacy
@@ -653,6 +654,12 @@ class graph_view_t<vertex_t,
 
   rmm::device_uvector<weight_t> compute_in_weight_sums(raft::handle_t const& handle) const;
   rmm::device_uvector<weight_t> compute_out_weight_sums(raft::handle_t const& handle) const;
+
+  edge_t compute_max_in_degree(raft::handle_t const& handle) const;
+  edge_t compute_max_out_degree(raft::handle_t const& handle) const;
+
+  weight_t compute_max_in_weight_sum(raft::handle_t const& handle) const;
+  weight_t compute_max_out_weight_sum(raft::handle_t const& handle) const;
 
  private:
   edge_t const* offsets_{nullptr};

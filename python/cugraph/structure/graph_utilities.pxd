@@ -46,10 +46,11 @@ cdef extern from "utilities/cython.hpp" namespace "cugraph::cython":
         numberTypeEnum vertexType,
         numberTypeEnum edgeType,
         numberTypeEnum weightType,
-        size_t num_partition_edges,
+        size_t num_local_edges,
         size_t num_global_vertices,
         size_t num_global_edges,
         bool sorted_by_degree,
+        bool is_weighted,
         bool transposed,
         bool multi_gpu) except +
 
@@ -82,6 +83,15 @@ cdef extern from "utilities/cython.hpp" namespace "cugraph::cython":
         unique_ptr[device_buffer] dst_indices
         unique_ptr[device_buffer] edge_data
         unique_ptr[device_buffer] subgraph_offsets
+    
+    cdef cppclass random_walk_ret_t:
+        size_t coalesced_sz_v_
+        size_t coalesced_sz_w_
+        size_t num_paths_
+        size_t max_depth_
+        unique_ptr[device_buffer] d_coalesced_v_
+        unique_ptr[device_buffer] d_coalesced_w_
+        unique_ptr[device_buffer] d_sizes_
 
 cdef extern from "<utility>" namespace "std" nogil:
     cdef device_buffer move(device_buffer)
@@ -106,18 +116,21 @@ cdef extern from "experimental/graph_view.hpp" namespace "cugraph::experimental"
 #
 cdef extern from "utilities/cython.hpp" namespace "cugraph::cython":
 
-    cdef cppclass major_minor_weights_t[vertex_t, weight_t]:
+    cdef cppclass major_minor_weights_t[vertex_t, edge_t, weight_t]:
         major_minor_weights_t(const handle_t &handle)
         pair[unique_ptr[device_buffer], size_t] get_major_wrap()
         pair[unique_ptr[device_buffer], size_t] get_minor_wrap()
         pair[unique_ptr[device_buffer], size_t] get_weights_wrap()
+        unique_ptr[vector[edge_t]] get_edge_counts_wrap()
 
 
 ctypedef fused shuffled_vertices_t:
-    major_minor_weights_t[int, float]
-    major_minor_weights_t[int, double]
-    major_minor_weights_t[long, float]
-    major_minor_weights_t[long, double]
+    major_minor_weights_t[int, int, float]
+    major_minor_weights_t[int, int, double]
+    major_minor_weights_t[int, long, float]
+    major_minor_weights_t[int, long, double]
+    major_minor_weights_t[long, long, float]
+    major_minor_weights_t[long, long, double]
     
 # 3. return type for renumber:
 #
@@ -151,13 +164,12 @@ cdef extern from "utilities/cython.hpp" namespace "cugraph::cython":
 #
 cdef extern from "utilities/cython.hpp" namespace "cugraph::cython":
 
-    cdef unique_ptr[major_minor_weights_t[vertex_t, weight_t]] call_shuffle[vertex_t, edge_t, weight_t](
+    cdef unique_ptr[major_minor_weights_t[vertex_t, edge_t, weight_t]] call_shuffle[vertex_t, edge_t, weight_t](
         const handle_t &handle,
         vertex_t *edgelist_major_vertices,
         vertex_t *edgelist_minor_vertices,
         weight_t* edgelist_weights,
-        edge_t num_edges,
-        bool is_hyper_partitioned) except +
+        edge_t num_edges) except +
 
 # 5. `renumber_edgelist()` wrapper
 #
@@ -167,7 +179,6 @@ cdef extern from "utilities/cython.hpp" namespace "cugraph::cython":
         const handle_t &handle,
         vertex_t *edgelist_major_vertices,
         vertex_t *edgelist_minor_vertices,
-        edge_t num_edges,
-        bool is_hyper_partitioned,
+        const vector[edge_t]& edge_counts,
         bool do_check,
         bool multi_gpu) except +

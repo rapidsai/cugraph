@@ -16,7 +16,7 @@
 
 cmake_minimum_required(VERSION 3.18...3.18 FATAL_ERROR)
 
-project(CUGRAPH VERSION 0.19.0 LANGUAGES C CXX CUDA)
+project(CUGRAPH VERSION 0.20.0 LANGUAGES C CXX CUDA)
 
 # Write the version header
 include(cmake/Modules/Version.cmake)
@@ -242,7 +242,7 @@ message("Fetching cuco")
 FetchContent_Declare(
     cuco
     GIT_REPOSITORY https://github.com/NVIDIA/cuCollections.git
-    GIT_TAG        2196040f0562a0280292eebef5295d914f615e63
+    GIT_TAG        7678a5ecaa192b8983b02a0191a140097171713e
 )
 
 FetchContent_GetProperties(cuco)
@@ -302,7 +302,7 @@ else(DEFINED ENV{RAFT_PATH})
   FetchContent_Declare(
     raft
     GIT_REPOSITORY    https://github.com/rapidsai/raft.git
-    GIT_TAG           6455e05b3889db2b495cf3189b33c2b07bfbebf2
+    GIT_TAG           f0cd81fb49638eaddc9bf18998cc894f292bc293
 
     SOURCE_SUBDIR     raft
   )
@@ -402,6 +402,7 @@ endif(BUILD_STATIC_FAISS)
 add_library(cugraph SHARED
     src/utilities/spmv_1D.cu
     src/utilities/cython.cu
+    src/utilities/path_retrieval.cu
     src/structure/graph.cu
     src/linear_assignment/hungarian.cu
     src/link_analysis/gunrock_hits.cpp
@@ -432,6 +433,7 @@ add_library(cugraph SHARED
     src/experimental/graph_view.cu
     src/experimental/coarsen_graph.cu
     src/experimental/renumber_edgelist.cu
+    src/experimental/renumber_utils.cu
     src/experimental/relabel.cu
     src/experimental/induced_subgraph.cu
     src/experimental/bfs.cu

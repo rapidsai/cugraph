@@ -139,7 +139,7 @@ class Tests_Graph : public ::testing::TestWithParam<Graph_Usecase> {
         handle,
         edgelist,
         number_of_vertices,
-        cugraph::experimental::graph_properties_t{is_symmetric, false},
+        cugraph::experimental::graph_properties_t{is_symmetric, false, configuration.test_weighted},
         false,
         true);
 
@@ -230,15 +230,15 @@ TEST_P(Tests_Graph, CheckStoreTransposedTrue)
   run_current_test<int64_t, int64_t, double, true>(GetParam());
 }
 
-INSTANTIATE_TEST_CASE_P(simple_test,
-                        Tests_Graph,
-                        ::testing::Values(Graph_Usecase("test/datasets/karate.mtx", false),
-                                          Graph_Usecase("test/datasets/karate.mtx", true),
-                                          Graph_Usecase("test/datasets/web-Google.mtx", false),
-                                          Graph_Usecase("test/datasets/web-Google.mtx", true),
-                                          Graph_Usecase("test/datasets/ljournal-2008.mtx", false),
-                                          Graph_Usecase("test/datasets/ljournal-2008.mtx", true),
-                                          Graph_Usecase("test/datasets/webbase-1M.mtx", false),
-                                          Graph_Usecase("test/datasets/webbase-1M.mtx", true)));
+INSTANTIATE_TEST_SUITE_P(simple_test,
+                         Tests_Graph,
+                         ::testing::Values(Graph_Usecase("test/datasets/karate.mtx", false),
+                                           Graph_Usecase("test/datasets/karate.mtx", true),
+                                           Graph_Usecase("test/datasets/web-Google.mtx", false),
+                                           Graph_Usecase("test/datasets/web-Google.mtx", true),
+                                           Graph_Usecase("test/datasets/ljournal-2008.mtx", false),
+                                           Graph_Usecase("test/datasets/ljournal-2008.mtx", true),
+                                           Graph_Usecase("test/datasets/webbase-1M.mtx", false),
+                                           Graph_Usecase("test/datasets/webbase-1M.mtx", true)));
 
 CUGRAPH_TEST_PROGRAM_MAIN()

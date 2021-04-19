@@ -32,6 +32,7 @@ def symmetrize_df(df, src_name, dst_name, multi=False, symmetrize=True):
     != data2 then this code will arbitrarily pick the smaller data
     element to keep, if this is not desired then the caller should
     should correct the data prior to calling symmetrize.
+
     Parameters
     ----------
     df : cudf.DataFrame

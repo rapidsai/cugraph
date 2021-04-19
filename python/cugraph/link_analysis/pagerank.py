@@ -46,7 +46,6 @@ def pagerank(
             Subset of vertices of graph for personalization
         personalization['values'] : cudf.Series
             Personalization values for vertices
-
     max_iter : int
         The maximum number of iterations before an answer is returned. This can
         be used to limit the execution time and do an early exit before the

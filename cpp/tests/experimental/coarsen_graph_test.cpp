@@ -54,13 +54,14 @@ void check_coarsened_graph_results(edge_t* org_offsets,
   ASSERT_TRUE(std::count_if(org_indices,
                             org_indices + org_offsets[num_org_vertices],
                             [num_org_vertices](auto nbr) {
-                              return !cugraph::test::is_valid_vertex(num_org_vertices, nbr);
+                              return !cugraph::experimental::is_valid_vertex(num_org_vertices, nbr);
                             }) == 0);
   ASSERT_TRUE(std::is_sorted(coarse_offsets, coarse_offsets + num_coarse_vertices));
   ASSERT_TRUE(std::count_if(coarse_indices,
                             coarse_indices + coarse_offsets[num_coarse_vertices],
                             [num_coarse_vertices](auto nbr) {
-                              return !cugraph::test::is_valid_vertex(num_coarse_vertices, nbr);
+                              return !cugraph::experimental::is_valid_vertex(num_coarse_vertices,
+                                                                             nbr);
                             }) == 0);
   ASSERT_TRUE(num_coarse_vertices <= num_org_vertices);
 
@@ -369,7 +370,7 @@ TEST_P(Tests_CoarsenGraph, CheckInt32Int32FloatUntransposed)
   run_current_test<int32_t, int32_t, float, false>(GetParam());
 }
 
-INSTANTIATE_TEST_CASE_P(
+INSTANTIATE_TEST_SUITE_P(
   simple_test,
   Tests_CoarsenGraph,
   ::testing::Values(CoarsenGraph_Usecase("test/datasets/karate.mtx", 0.2, false),

@@ -31,16 +31,19 @@
 
 #include <gtest/gtest.h>
 
-void compare(float modularity, float sg_modularity) { ASSERT_FLOAT_EQ(modularity, sg_modularity); }
-void compare(double modularity, double sg_modularity)
+void compare(float mg_modularity, float sg_modularity)
 {
-  ASSERT_DOUBLE_EQ(modularity, sg_modularity);
+  ASSERT_FLOAT_EQ(mg_modularity, sg_modularity);
+}
+void compare(double mg_modularity, double sg_modularity)
+{
+  ASSERT_DOUBLE_EQ(mg_modularity, sg_modularity);
 }
 
 ////////////////////////////////////////////////////////////////////////////////
 // Test param object. This defines the input and expected output for a test, and
 // will be instantiated as the parameter to the tests defined below using
-// INSTANTIATE_TEST_CASE_P()
+// INSTANTIATE_TEST_SUITE_P()
 //
 struct Louvain_Usecase {
   std::string graph_file_full_path{};
@@ -90,13 +93,13 @@ class Louvain_MG_Testfixture : public ::testing::TestWithParam<Louvain_Usecase> 
                           cugraph::Dendrogram<vertex_t> const& dendrogram,
                           weight_t resolution,
                           int rank,
-                          weight_t modularity)
+                          weight_t mg_modularity)
   {
     auto sg_graph =
       std::make_unique<cugraph::experimental::graph_t<vertex_t, edge_t, weight_t, false, false>>(
         handle);
     rmm::device_uvector<vertex_t> d_clustering_v(0, handle.get_stream());
-    weight_t sg_modularity;
+    weight_t sg_modularity{-1.0};
 
     if (rank == 0) {
       // Create initial SG graph, renumbered according to the MNMG renumber map
@@ -160,7 +163,7 @@ class Louvain_MG_Testfixture : public ::testing::TestWithParam<Louvain_Usecase> 
         }
       });
 
-    if (rank == 0) compare(modularity, sg_modularity);
+    if (rank == 0) compare(mg_modularity, sg_modularity);
   }
 
   // Compare the results of running louvain on multiple GPUs to that of a
@@ -197,9 +200,9 @@ class Louvain_MG_Testfixture : public ::testing::TestWithParam<Louvain_Usecase> 
     auto mg_graph_view = mg_graph.view();
 
     std::unique_ptr<cugraph::Dendrogram<vertex_t>> dendrogram;
-    weight_t modularity;
+    weight_t mg_modularity;
 
-    std::tie(dendrogram, modularity) =
+    std::tie(dendrogram, mg_modularity) =
       cugraph::louvain(handle, mg_graph_view, param.max_level, param.resolution);
 
     SCOPED_TRACE("compare modularity input: " + param.graph_file_full_path);
@@ -213,7 +216,7 @@ class Louvain_MG_Testfixture : public ::testing::TestWithParam<Louvain_Usecase> 
                                                    *dendrogram,
                                                    param.resolution,
                                                    comm_rank,
-                                                   modularity);
+                                                   mg_modularity);
   }
 };
 
@@ -223,7 +226,7 @@ TEST_P(Louvain_MG_Testfixture, CheckInt32Int32Float)
   run_test<int32_t, int32_t, float>(GetParam());
 }
 
-INSTANTIATE_TEST_CASE_P(
+INSTANTIATE_TEST_SUITE_P(
   simple_test,
   Louvain_MG_Testfixture,
   ::testing::Values(Louvain_Usecase("test/datasets/karate.mtx", true, 100, 1)

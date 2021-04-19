@@ -18,6 +18,7 @@
 #include <utilities/base_fixture.hpp>
 #include <utilities/test_utilities.hpp>
 
+#include <experimental/graph.hpp>
 #include <experimental/graph_generator.hpp>
 
 #include <raft/cudart_utils.h>
@@ -201,17 +202,19 @@ class Tests_GenerateRmat : public ::testing::TestWithParam<GenerateRmat_Usecase>
         (h_cugraph_srcs.size() == (size_t{1} << configuration.scale) * configuration.edge_factor) &&
         (h_cugraph_dsts.size() == (size_t{1} << configuration.scale) * configuration.edge_factor))
         << "Returned an invalid number of R-mat graph edges.";
-      ASSERT_TRUE(
-        std::count_if(h_cugraph_srcs.begin(),
-                      h_cugraph_srcs.end(),
-                      [num_vertices = static_cast<vertex_t>(size_t{1} << configuration.scale)](
-                        auto v) { return !cugraph::test::is_valid_vertex(num_vertices, v); }) == 0)
+      ASSERT_TRUE(std::count_if(h_cugraph_srcs.begin(),
+                                h_cugraph_srcs.end(),
+                                [num_vertices = static_cast<vertex_t>(
+                                   size_t{1} << configuration.scale)](auto v) {
+                                  return !cugraph::experimental::is_valid_vertex(num_vertices, v);
+                                }) == 0)
         << "Returned R-mat graph edges have invalid source vertex IDs.";
-      ASSERT_TRUE(
-        std::count_if(h_cugraph_dsts.begin(),
-                      h_cugraph_dsts.end(),
-                      [num_vertices = static_cast<vertex_t>(size_t{1} << configuration.scale)](
-                        auto v) { return !cugraph::test::is_valid_vertex(num_vertices, v); }) == 0)
+      ASSERT_TRUE(std::count_if(h_cugraph_dsts.begin(),
+                                h_cugraph_dsts.end(),
+                                [num_vertices = static_cast<vertex_t>(
+                                   size_t{1} << configuration.scale)](auto v) {
+                                  return !cugraph::experimental::is_valid_vertex(num_vertices, v);
+                                }) == 0)
         << "Returned R-mat graph edges have invalid destination vertex IDs.";
 
       if (!scramble) {
@@ -276,12 +279,12 @@ class Tests_GenerateRmat : public ::testing::TestWithParam<GenerateRmat_Usecase>
 
 TEST_P(Tests_GenerateRmat, CheckInt32) { run_current_test<int32_t>(GetParam()); }
 
-INSTANTIATE_TEST_CASE_P(simple_test,
-                        Tests_GenerateRmat,
-                        ::testing::Values(GenerateRmat_Usecase(20, 16, 0.57, 0.19, 0.19, true),
-                                          GenerateRmat_Usecase(20, 16, 0.57, 0.19, 0.19, false),
-                                          GenerateRmat_Usecase(20, 16, 0.45, 0.22, 0.22, true),
-                                          GenerateRmat_Usecase(20, 16, 0.45, 0.22, 0.22, false)));
+INSTANTIATE_TEST_SUITE_P(simple_test,
+                         Tests_GenerateRmat,
+                         ::testing::Values(GenerateRmat_Usecase(20, 16, 0.57, 0.19, 0.19, true),
+                                           GenerateRmat_Usecase(20, 16, 0.57, 0.19, 0.19, false),
+                                           GenerateRmat_Usecase(20, 16, 0.45, 0.22, 0.22, true),
+                                           GenerateRmat_Usecase(20, 16, 0.45, 0.22, 0.22, false)));
 typedef struct GenerateRmats_Usecase_t {
   size_t n_edgelists{0};
   size_t min_scale{0};
@@ -340,7 +343,7 @@ class Tests_GenerateRmats : public ::testing::TestWithParam<GenerateRmats_Usecas
 };
 TEST_P(Tests_GenerateRmats, CheckInt32) { run_current_test<int32_t>(GetParam()); }
 
-INSTANTIATE_TEST_CASE_P(
+INSTANTIATE_TEST_SUITE_P(
   simple_test,
   Tests_GenerateRmats,
   ::testing::Values(
