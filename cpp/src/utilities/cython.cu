@@ -798,13 +798,14 @@ std::unique_ptr<graph_generator_t> call_generate_rmat_edgelist(raft::handle_t co
                                                              bool clip_and_flip,
                                                              bool scramble_vertex_ids)
 {
-  auto triplet = cugraph::experimental::generate_rmat_edgelist(handle, scale, num_edges, a, b,
-                                                               c, seed, clip_and_flip, scramble_vertex_ids);
+  auto triplet = cugraph::experimental::generate_rmat_edgelist<vertex_t>(handle, scale, num_edges, a, b,
+                                                               c, seed, clip_and_flip, scramble_vertex_ids); //double, not triplet
   
-  //graph_generator_t gg_tri{std::make_unique<rmm::device_buffer>(std::get<0>(triplet).release()),
-  //                         std::make_unique<rmm::device_buffer>(std::get<1>(triplet).release())};
+  graph_generator_t gg_tri{std::make_unique<rmm::device_buffer>(std::get<0>(triplet).release()),
+                           std::make_unique<rmm::device_buffer>(std::get<1>(triplet).release())};
   
-  //return std::make_unique<graph_generator_t>(std::move(gg_tri));
+  return std::make_unique<graph_generator_t>(std::move(gg_tri));
+  
   }
 
 

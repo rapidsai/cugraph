@@ -13,6 +13,7 @@
 
 # from cugraph.utilities.grmat import grmat_gen
 # from cugraph.utilities.pointer_utils import device_of_gpu_pointer
+from cugraph.utilities.graph_generator import graph_generator
 from cugraph.utilities.nx_factory import convert_from_nx
 from cugraph.utilities.nx_factory import check_nx_graph
 from cugraph.utilities.nx_factory import df_score_to_dictionary

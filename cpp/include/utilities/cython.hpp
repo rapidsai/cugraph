@@ -500,6 +500,17 @@ call_random_walks(raft::handle_t const& handle,
                   edge_t num_paths,
                   edge_t max_depth);
 
+template <typename vertex_t>
+std::unique_ptr<graph_generator_t> call_generate_rmat_edgelist(raft::handle_t const& handle,
+                                                             size_t scale,
+                                                             size_t num_edges,
+                                                             double a,
+                                                             double b,
+                                                             double c,
+                                                             uint64_t seed,
+                                                             bool clip_and_flip,
+                                                             bool scramble_vertex_ids);
+
 
 // wrapper for shuffling:
 //

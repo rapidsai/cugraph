@@ -14,15 +14,15 @@ from libcpp.utility cimport pair
 from libcpp cimport bool
 from cugraph.structure.graph_utilities cimport * #this might be useless
 
-cdef extern from "experimental/graph_generator.hpp" namespace "cugraph::experimental":
-#cdef extern from "utilities/cython.hpp" namespace "cugraph::cython":
-    cdef unique_ptr[graph_generator_t] generate_rmat_edgelist[vertex_t] ( #vertex_t instead of int?
+#cdef extern from "experimental/graph_generator.hpp" namespace "cugraph::experimental":
+cdef extern from "utilities/cython.hpp" namespace "cugraph::cython":
+    cdef unique_ptr[graph_generator_t] call_generate_rmat_edgelist[vertex_t] ( #vertex_t instead of int?
         const handle_t &handle,
         size_t scale,
         size_t num_edges,
         double a,
         double b,
         double c,
-        long seed,   #Try to look more into this
+        int seed,   #Try to look more into this
         bool clip_and_flip,
         bool scramble_vertex_ids) except +

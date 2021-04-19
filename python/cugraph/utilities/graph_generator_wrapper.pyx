@@ -43,19 +43,30 @@ def graph_generator(
     handle_ = handle_ptr.get()
 
     
-
-    cdef tuple gg_ret_ptr
-
+    cdef unique_ptr[graph_generator_t] gg_ret_ptr 
+    #cdef tuple gg_ret_ptr
+    #"""
     move(call_generate_rmat_edgelist[int]( deref(handle_),
-                                                   <double>scale,
-                                                   <long>num_edges,
-                                                   <int>a,
-                                                   <int>b,
-                                                   <int>c,
-                                                   <int>seed,
-                                                   <bool>clip_and_flip,
-                                                   <bool>scramble_vertex_ids))
+                                                   scale,
+                                                   num_edges,
+                                                   a,
+                                                   b,
+                                                   c,
+                                                   seed,
+                                                   clip_and_flip,
+                                                   scramble_vertex_ids))
     
     #gg_ret_ptr = Buffer(gg_ret_ptr)
-    #return gg_ret_ptr
+    gg_ret= move(gg_ret_ptr.get()[0])
+    source_set = DeviceBuffer.c_from_unique_ptr(move(gg_ret.d_source))
+    destination_set = DeviceBuffer.c_from_unique_ptr(move(gg_ret.d_destination))
+    source_set = Buffer(source_set)
+    destination_set = Buffer(destination_set)
+
+    set_source = cudf.Series(data=source_set, dtype=np.dtype("int32"))
+    set_destination = cudf.Series(data=destination_set, dtype=np.dtype("int32"))
+    #"""
+    x= 1
+    y= 1
+    return x, y
 

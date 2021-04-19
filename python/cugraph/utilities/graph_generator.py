@@ -23,10 +23,12 @@ def graph_generator(
     clip_and_flip,
     scramble_vertex_ids
 ):
-    tuples = graph_generator_wrapper.graph_generator(scale, num_edges,
+    source, destination = graph_generator_wrapper.graph_generator(scale, num_edges,
     a,
     b,
     c,
     seed,
     clip_and_flip,
-    scramble_vertex_ids)                                        `                                                                           
+    scramble_vertex_ids)
+    
+    return source, destination
