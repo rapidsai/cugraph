@@ -707,7 +707,7 @@ void update_frontier_v_push_if_out_nbr(
     bucket_key_pair_first =
       thrust::make_zip_iterator(thrust::make_tuple(bucket_indices.begin(), keys.begin()));
     if (next_frontier_bucket_indices.size() == 1) {
-      vertex_frontier.get_bucket(next_frontier_bucket_indices[0]).insert(keys.begin(), keys.size());
+      vertex_frontier.get_bucket(next_frontier_bucket_indices[0]).insert(keys.begin(), keys.end());
     } else if (next_frontier_bucket_indices.size() == 2) {
       auto first_bucket_size = thrust::distance(
         bucket_key_pair_first,
@@ -718,10 +718,9 @@ void update_frontier_v_push_if_out_nbr(
           [first_bucket_idx = static_cast<uint8_t>(next_frontier_bucket_indices[0])] __device__(
             auto pair) { return thrust::get<0>(pair) == first_bucket_idx; }));
       vertex_frontier.get_bucket(next_frontier_bucket_indices[0])
-        .insert(keys.begin(), first_bucket_size);
+        .insert(keys.begin(), keys.begin() + first_bucket_size);
       vertex_frontier.get_bucket(next_frontier_bucket_indices[1])
-        .insert(keys.begin() + first_bucket_size,
-                thrust::distance(keys.begin() + first_bucket_size, keys.end()));
+        .insert(keys.begin() + first_bucket_size, keys.end());
     } else {
       thrust::sort(rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
                    bucket_key_pair_first,
@@ -748,7 +747,8 @@ void update_frontier_v_push_if_out_nbr(
       std::partial_sum(h_counts.begin(), h_counts.end() - 1, h_offsets.begin() + 1);
       for (size_t i = 0; i < h_indices.size(); ++i) {
         if (h_counts[i] > 0) {
-          vertex_frontier.get_bucket(h_indices[i]).insert(keys.begin() + h_offsets[i], h_counts[i]);
+          vertex_frontier.get_bucket(h_indices[i])
+            .insert(keys.begin() + h_offsets[i], keys.begin() + (h_offsets[i] + h_counts[i]));
         }
       }
     }
