@@ -14,10 +14,12 @@ As an example, the following Python snippet loads graph data and computes PageRa
 import cugraph
 
 # read data into a cuDF DataFrame using read_csv
+# here we are defining the column names and column data types
 gdf = cudf.read_csv("graph_data.csv", names=["src", "dst"], dtype=["int32", "int32"])
 
-# We now have data as edge pairs
+# We now have data as edge pairs (COO format)
 # create a Graph using the source (src) and destination (dst) vertex pairs
+# the column names must match what was defined in the DataFrame
 G = cugraph.Graph()
 G.from_cudf_edgelist(gdf, source='src', destination='dst')
 
@@ -39,69 +41,75 @@ There are 3 ways to get cuGraph :
 
 ---
 # Currently Supported Features
-As of Release 0.18 - including 0.18 nightly
+As of Release 0.19 - including 0.20 nightly
 
-
-## Supported Algorithms
-
-| Category     | Algorithm                              | Scale        |  Notes
-| ------------ | -------------------------------------- | ------------ | ------------------- |
-| Centrality   |                                        |              |                     |
-|              | Katz                                   | Multi-GPU    |                     |
-|              | Betweenness Centrality                 | Single-GPU   |                     |
-|              | Edge Betweenness Centrality            | Single-GPU   |                     |
-| Community    |                                        |              |                     |
-|              | EgoNet                                 | Single-GPU   |                     |
-|              | Leiden                                 | Single-GPU   |                     |
-|              | Louvain                                | Multi-GPU    |  [C++ README](cpp/src/community/README.md#Louvain) |
-|              | Ensemble Clustering for Graphs         | Single-GPU   |                     |
-|              | Spectral-Clustering - Balanced Cut     | Single-GPU   |                     |
-|              | Spectral-Clustering - Modularity       | Single-GPU   |                     |
-|              | Subgraph Extraction                    | Single-GPU   |                     |
-|              | Triangle Counting                      | Single-GPU   |                     |
-|              | K-Truss                                | Single-GPU   |                     |
-| Components   |                                        |              |                     |
-|              | Weakly Connected Components            | Single-GPU   |                     |
-|              | Strongly Connected Components          | Single-GPU   |                     |
-| Core         |                                        |              |                     |
-|              | K-Core                                 | Single-GPU   |                     |
-|              | Core Number                            | Single-GPU   |                     |
-| Layout       |                                        |              |                     |
-|              | Force Atlas 2                          | Single-GPU   |                     |
-| Linear Assignment|                                    |              |                     |
-|              | Hungarian                              | Single-GPU   | [README](cpp/src/linear_assignment/README-hungarian.md) |
-| Link Analysis|                                        |              |                     |
-|              | Pagerank                               | Multi-GPU    | [C++ README](cpp/src/centrality/README.md#Pagerank) |
-|              | Personal Pagerank                      | Multi-GPU    | [C++ README](cpp/src/centrality/README.md#Personalized-Pagerank) |
-|              | HITS                                   | Single-GPU   | leverages Gunrock   |
-| Link Prediction |                                     |              |                     |
-|              | Jaccard Similarity                     | Single-GPU   |                     |
-|              | Weighted Jaccard Similarity            | Single-GPU   |                     |
-|              | Overlap Similarity                     | Single-GPU   |                     |
-| Traversal    |                                        |              |                     |
-|              | Breadth First Search (BFS)             | Multi-GPU    | with cutoff support <br/> [C++ README](cpp/src/traversal/README.md#BFS) |
-|              | Single Source Shortest Path (SSSP)     | Multi-GPU    | [C++ README](cpp/src/traversal/README.md#SSSP) |
-|              | Traveling Salesperson Problem (TSP)    | Single-GPU   |                     |
-| Sampling     | Random Walks (RW)                      | Single-GPU   |                     |
-| Structure    |                                        |              |                     |
-|              | Renumbering                            | Single-GPU   | multiple columns, any data type  |
-|              | Symmetrize                             | Multi-GPU    |                     |
-| Other        |                                        |              |                     |
-|              | Minimum Spanning Tree                  | Single-GPU   |                     |
-|              | Maximum Spanning Tree                  | Single-GPU   |                     |
-|  |  |
-
-</br></br>
-## Supported Graph
+## Graph Types
 | Type            |  Description                                        |
 | --------------- | --------------------------------------------------- |
 | Graph           | An undirected Graph                                 |
 | DiGraph         | A Directed Graph                                    |
 | Multigraph      | A Graph with multiple edges between a vertex pair   |
 | MultiDigraph    | A Directed Graph with multiple edges between a vertex pair   |
+| _Bipartite_     | _Under Development_                                 | 
+| _Hypergraph_    | _Under Development_                                 |
+|  |  |
+
+
+</br></br>
+## Supported Algorithms
+And the Graph types that they work on.
+
+
+| Category     | Algorithm                              | Scale        | Self<br>Loops  | Isolated<br>Vertices | Undirected | Directed | Multigraph | Notes |
+| ------------ | -------------------------------------- | ------------ | ----- | -------- | ---------- | ------ | ------ | -------|
+| Centrality   |
+|              | Katz                                   | Multi-GPU    |  Yes | No  | Yes | Yes | Yes |   |
+|              | Betweenness Centrality                 | Single-GPU   |  Yes | No  | Yes | Yes | Yes |   |
+|              | Edge Betweenness Centrality            | Single-GPU   |  Yes | No  | Yes | Yes | Yes |   |
+| Community    |
+|              | EgoNet                                 | Single-GPU   |  No  | No  | Yes | Yes | Yes |   |
+|              | Leiden                                 | Single-GPU   |  Yes | No |  Yes | Yes | Yes |    |
+|              | Louvain                                | Multi-GPU    |  No  | No |  Yes | Yes | Yes | [C++ README](cpp/src/community/README.md#Louvain) |
+|              | Ensemble Clustering for Graphs         | Single-GPU   |  Yes | No |  Yes | Yes | Yes |   |
+|              | Spectral-Clustering - Balanced Cut     | Single-GPU   |  Yes | No |  Yes | Yes | Yes |   |
+|              | Spectral-Clustering - Modularity       | Single-GPU   |  Yes | No |  Yes | Yes | Yes |   |
+|              | Subgraph Extraction                    | Single-GPU   |  Yes | No |  Yes | Yes | Yes |   |
+|              | Triangle Counting                      | Single-GPU   |  No  | No |  Yes | Yes | No  |   |
+|              | K-Truss                                | Single-GPU   |  No  | No |  Yes | Yes | Yes |   |
+| Components   | |
+|              | Weakly Connected Components            | Single-GPU   |  Yes | No |  Yes | Yes | Yes |   |
+|              | Strongly Connected Components          | Single-GPU   |  Yes | No |  Yes | Yes | Yes |   |
+| Core         |
+|              | K-Core                                 | Single-GPU   |  No  | No |  Yes | Yes | Yes |   |
+|              | Core Number                            | Single-GPU   |  No  | No |  Yes | Yes | Yes |   |
+| Layout       |
+|              | Force Atlas 2                          | Single-GPU   |  Yes |    |  Yes | Yes | Yes |   |
+| Linear Assignment |
+|              | Hungarian                              | Single-GPU   |      |    | | |      | [README](cpp/src/linear_assignment/README-hungarian.md) |
+| Link Analysis |
+|              | Pagerank                               | Multi-GPU    |  Yes | No |  Yes | Yes | Yes | [C++ README](cpp/src/centrality/README.md#Pagerank) |
+|              | Personal Pagerank                      | Multi-GPU    |  Yes | No |  Yes | Yes | Yes | [C++ README](cpp/src/centrality/README.md#Personalized-Pagerank) |
+|              | HITS                                   | Single-GPU   |  Yes | No |  Yes | Yes | Yes |  Depricated, being dropped in 0.21 leverages Gunrock   |
+| Link Prediction |
+|              | Jaccard Similarity                     | Single-GPU   |  No  | No |  Yes | Yes | Yes |   |
+|              | Weighted Jaccard Similarity            | Single-GPU   |  No  | No |  Yes | Yes | Yes |   |
+|              | Overlap Similarity                     | Single-GPU   |  Yes | No |  Yes | Yes | Yes |   |
+| Traversal    |
+|              | Breadth First Search (BFS)             | Multi-GPU    |  Yes | No |  Yes | Yes | Yes |   with cutoff support <br/> [C++ README](cpp/src/traversal/README.md#BFS) |
+|              | Single Source Shortest Path (SSSP)     | Multi-GPU    |  Yes | No |  Yes | Yes | Yes |  [C++ README](cpp/src/traversal/README.md#SSSP) |
+|              | Traveling Salesperson Problem (TSP)    | Single-GPU   |      |    |  Yes | Yes |     |   |
+| Sampling     |
+|              | Random Walks (RW)                      | Single-GPU   |      |    |  Yes | Yes |     |   |
+| Other        |
+|              | Minimum Spanning Tree                  | Single-GPU   |  Yes | No |  Yes | Yes | Yes |   |
+|              | Maximum Spanning Tree                  | Single-GPU   |  Yes | No |  Yes | Yes | Yes |   |
+| Structure    |
+|              | Renumbering                            | Single-GPU   |  Yes  | Yes | Yes | Yes | Yes |   multiple columns, any data type  |
+|              | Symmetrize                             | Multi-GPU    |  Yes  | Yes | Yes | Yes | Yes |   |
 |  |  |
 
 </br></br>
+
 ## Supported Data Types
 cuGraph supports graph creation with Source and Destination being expressed as:
 * cuDF DataFrame
@@ -151,14 +159,14 @@ Install and update cuGraph using the conda command:
 
 ```bash
 
-# CUDA 10.1
-conda install -c nvidia -c rapidsai -c numba -c conda-forge -c defaults cugraph cudatoolkit=10.1
-
-# CUDA 10.2
-conda install -c nvidia -c rapidsai -c numba -c conda-forge -c defaults cugraph cudatoolkit=10.2
-
 # CUDA 11.0
 conda install -c nvidia -c rapidsai -c numba -c conda-forge -c defaults cugraph cudatoolkit=11.0
+
+# CUDA 11.1
+conda install -c nvidia -c rapidsai -c numba -c conda-forge -c defaults cugraph cudatoolkit=11.1
+
+# CUDA 11.2
+conda install -c nvidia -c rapidsai -c numba -c conda-forge -c defaults cugraph cudatoolkit=11.2
 ```
 
 Note: This conda installation only applies to Linux and Python versions 3.7/3.8.
