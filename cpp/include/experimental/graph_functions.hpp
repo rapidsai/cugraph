@@ -431,7 +431,7 @@ create_graph_from_edgelist(raft::handle_t const& handle,
                            weight_t *d_weights,
                            vertex_t number_of_vertices,
                            edge_t number_of_edges,
-                           graph_properties_t properties,
+                           experimental::graph_properties_t properties,
                            bool sorted_by_global_degree_within_vertex_partition,
                            bool do_expensive_check);
 

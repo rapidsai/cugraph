@@ -9,7 +9,7 @@
  *
  */
 
-#include <components/wcc_graphs.hpp>
+#include <utilities/test_graphs.hpp>
 #include <utilities/base_fixture.hpp>
 #include <utilities/test_utilities.hpp>
 
@@ -59,7 +59,7 @@ class Tests_WCC : public ::testing::TestWithParam<std::tuple<WCC_Usecase, input_
 
 using Tests_WCC_File      = Tests_WCC<cugraph::test::File_Usecase>;
 using Tests_WCC_Rmat      = Tests_WCC<cugraph::test::Rmat_Usecase>;
-using Tests_WCC_LineGraph = Tests_WCC<cugraph::test::LineGraph_Usecase>;
+using Tests_WCC_RandomPathGraph = Tests_WCC<cugraph::test::RandomPathGraph_Usecase>;
 
 TEST_P(Tests_WCC_File, WCC)
 {
@@ -71,7 +71,7 @@ TEST_P(Tests_WCC_Rmat, WCC)
   auto param = GetParam();
   run_current_test<int32_t, int32_t, float>(std::get<0>(param), std::get<1>(param));
 }
-TEST_P(Tests_WCC_LineGraph, WCC)
+TEST_P(Tests_WCC_RandomPathGraph, WCC)
 {
   auto param = GetParam();
   run_current_test<int32_t, int32_t, float>(std::get<0>(param), std::get<1>(param));
@@ -90,8 +90,8 @@ INSTANTIATE_TEST_SUITE_P(
 
 INSTANTIATE_TEST_SUITE_P(
   line_graph_test,
-  Tests_WCC_LineGraph,
-  ::testing::Values(std::make_tuple(WCC_Usecase{}, cugraph::test::LineGraph_Usecase(1000)),
-                    std::make_tuple(WCC_Usecase{}, cugraph::test::LineGraph_Usecase(100000))));
+  Tests_WCC_RandomPathGraph,
+  ::testing::Values(std::make_tuple(WCC_Usecase{}, cugraph::test::RandomPathGraph_Usecase(1000)),
+                    std::make_tuple(WCC_Usecase{}, cugraph::test::RandomPathGraph_Usecase(100000))));
 
 CUGRAPH_TEST_PROGRAM_MAIN()

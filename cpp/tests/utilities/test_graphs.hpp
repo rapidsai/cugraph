@@ -17,6 +17,8 @@
 
 #include <utilities/test_utilities.hpp>
 
+#include <graph_generators.hpp>
+
 namespace cugraph {
 namespace test {
 
@@ -24,7 +26,7 @@ class File_Usecase {
  public:
   File_Usecase() = delete;
 
-  File_Usecase(std::string const& graph_file_path, size_t base_vertex_id)
+  File_Usecase(std::string const& graph_file_path, size_t base_vertex_id = 0)
     : base_vertex_id_(base_vertex_id)
   {
     if ((graph_file_path.length() > 0) && (graph_file_path[0] != '/')) {
@@ -44,7 +46,21 @@ class File_Usecase {
              rmm::device_uvector<weight_t>,
              vertex_t,
              bool>
-  construct_edgelist(raft::handle_t const& handle, bool test_weighted) const;
+  construct_edgelist(raft::handle_t const& handle, bool test_weighted) const
+  {
+    auto edgelist = read_edgelist_from_matrix_market_file<vertex_t,
+                                                          edge_t,
+                                                          weight_t,
+                                                          store_transposed,
+                                                          multi_gpu>(
+      handle, graph_file_full_path_, test_weighted);
+
+    if (base_vertex_id_ > 0)
+      cugraph::translate_vertex_ids(
+        handle, std::get<0>(edgelist), std::get<1>(edgelist), base_vertex_id_);
+
+    return edgelist;
+  }
 
   template <typename vertex_t,
             typename edge_t,
@@ -56,6 +72,12 @@ class File_Usecase {
     rmm::device_uvector<vertex_t>>
   construct_graph(raft::handle_t const& handle, bool test_weighted, bool renumber = true) const
   {
+    // TODO:  Consider calling construct_edgelist and creating
+    //        a generic test function to take the edgelist and
+    //        do the graph construction.
+    //
+    //        Would be more reusable across tests
+    //
     return read_graph_from_matrix_market_file<vertex_t,
                                               edge_t,
                                               weight_t,
@@ -66,7 +88,7 @@ class File_Usecase {
 
  private:
   std::string graph_file_full_path_{};
-  vertex_t base_vertex_id_{};
+  size_t base_vertex_id_{};
 };
 
 class Rmat_Usecase {
@@ -106,7 +128,13 @@ class Rmat_Usecase {
              rmm::device_uvector<weight_t>,
              vertex_t,
              bool>
-  construct_edgelist(raft::handle_t const& handle, bool test_weighted) const;
+  construct_edgelist(raft::handle_t const& handle, bool test_weighted) const
+  {
+    // TODO: Tease through generate_graph_from_rmat_params
+    //       to extract the edgelist part
+    // Call cugraph::translate_vertex_ids(handle, d_src_v, d_dst_v, base_vertex_id_);
+    CUGRAPH_FAIL("Not implemented");
+  }
 
   template <typename vertex_t,
             typename edge_t,
@@ -136,6 +164,9 @@ class Rmat_Usecase {
       partition_ids[0] = size_t{0};
     }
 
+    // TODO: Need to offset by base_vertex_id_
+    //static_cast<vertex_t>(base_vertex_id_));
+    //    Consider using construct_edgelist like other options
     return generate_graph_from_rmat_params<vertex_t, edge_t, weight_t, store_transposed, multi_gpu>(
       handle,
       scale_,
@@ -149,8 +180,7 @@ class Rmat_Usecase {
       test_weighted,
       renumber,
       partition_ids,
-      comm_size,
-      static_cast<vertex_t>(base_vertex_id_));
+      comm_size);
   }
 
  private:
@@ -191,14 +221,16 @@ class RandomPathGraph_Usecase {
 
     constexpr bool symmetric{true};
 
-    auto edgelist = cugraph::generate_random_path_graph_edgelist(handle, num_vertices_, symmetric);
+    auto edgelist =
+      cugraph::generate_random_path_graph_edgelist<vertex_t>(handle, num_vertices_, symmetric);
 
     if (base_vertex_id_ > 0)
-      cugraph::translate_vertex_ids(handle, std::get<0>(edgelist), std::get<1>(edgelist), base_vertex_id_);
+      cugraph::translate_vertex_ids(
+        handle, std::get<0>(edgelist), std::get<1>(edgelist), base_vertex_id_);
 
     if (test_weighted) {
       auto length = std::get<0>(edgelist).size();
-      weights_v.resize(lengths, handle.get_stream());
+      weights_v.resize(length, handle.get_stream());
     }
 
     return std::make_tuple(
@@ -213,10 +245,14 @@ class RandomPathGraph_Usecase {
   std::tuple<
     cugraph::experimental::graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu>,
     rmm::device_uvector<vertex_t>>
-  construct_graph(raft::handle_t const& handle, bool test_weighted, bool renumber = true) const;
+  construct_graph(raft::handle_t const& handle, bool test_weighted, bool renumber = true) const
+  {
+    CUGRAPH_FAIL("not implemented");
+  }
 
  private:
   size_t num_vertices_{0};
+  bool weighted_{false};
   size_t base_vertex_id_{0};
 };
 
@@ -348,11 +384,13 @@ struct combined_construct_graph_tuple_impl {
                          rmm::device_uvector<weight_t>,
                          vertex_t,
                          bool>>
-  construct_edges(generator_tuple_t const& generator_tuple) const
+  construct_edges(raft::handle_t const& handle,
+                  bool test_weighted,
+                  generator_tuple_t const& generator_tuple) const
   {
     return combined_construct_graph_tuple_impl<generator_tuple_t, I + 1, N>()
       .construct_edges(generator_tuple)
-      .push_back(std::tuple::get<I>(generator_tuple).construct_edges(handle, test_weighted));
+      .push_back(std::get<I>(generator_tuple).construct_edges(handle, test_weighted));
   }
 };
 
@@ -368,7 +406,9 @@ struct combined_construct_graph_tuple_impl<generator_tuple_t, I, I> {
                          rmm::device_uvector<weight_t>,
                          vertex_t,
                          bool>>
-  construct_edges(generator_tuple_t const& generator_tuple) const
+  construct_edges(raft::handle_t const& handle,
+                  bool test_weighted,
+                  generator_tuple_t const& generator_tuple) const
   {
     return std::vector<std::tuple<rmm::device_uvector<vertex_t>,
                                   rmm::device_uvector<vertex_t>,
@@ -398,10 +438,11 @@ class CombinedGenerator_Usecase {
              bool>
   construct_edgelist(raft::handle_t const& handle, bool test_weighted) const
   {
-    size_t constexpr tuple_size std::tuple_size<generator_tuple_t>::value;
+    size_t constexpr tuple_size{std::tuple_size<generator_tuple_t>::value};
+
     auto edge_tuple_vector =
       detail::combined_construct_graph_tuple_impl<generator_tuple_t, 0, tuple_size>()
-        .construct_edges(generator_tuple_);
+        .construct_edges(handle, test_weighted, generator_tuple_);
 
     // Need to combine
     CUGRAPH_FAIL("not implemented");

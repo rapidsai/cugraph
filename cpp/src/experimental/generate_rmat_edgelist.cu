@@ -16,7 +16,7 @@
 
 #include <experimental/scramble.cuh>
 
-#include <experimental/graph_generator.hpp>
+#include <graph_generators.hpp>
 #include <utilities/error.hpp>
 
 #include <rmm/thrust_rmm_allocator.h>
@@ -32,7 +32,6 @@
 #include "rmm/detail/error.hpp"
 
 namespace cugraph {
-namespace experimental {
 
 template <typename vertex_t>
 std::tuple<rmm::device_uvector<vertex_t>, rmm::device_uvector<vertex_t>> generate_rmat_edgelist(
@@ -115,8 +114,8 @@ std::tuple<rmm::device_uvector<vertex_t>, rmm::device_uvector<vertex_t>> generat
                       pair_first + srcs.size(),
                       pair_first,
                       [scale] __device__(auto pair) {
-                        return thrust::make_tuple(detail::scramble(thrust::get<0>(pair), scale),
-                                                  detail::scramble(thrust::get<1>(pair), scale));
+                        return thrust::make_tuple(experimental::detail::scramble(thrust::get<0>(pair), scale),
+                                                  experimental::detail::scramble(thrust::get<1>(pair), scale));
                       });
   }
 
@@ -221,5 +220,4 @@ generate_rmat_edgelists<int64_t>(raft::handle_t const& handle,
                                  bool clip_and_flip,
                                  bool scramble_vertex_ids);
 
-}  // namespace experimental
 }  // namespace cugraph

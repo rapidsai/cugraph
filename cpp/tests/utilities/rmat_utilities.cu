@@ -17,7 +17,7 @@
 #include <utilities/test_utilities.hpp>
 
 #include <experimental/detail/graph_utils.cuh>
-#include <experimental/graph_generator.hpp>
+#include <graph_generators.hpp>
 #include <partition_manager.hpp>
 #include <utilities/error.hpp>
 #include <utilities/shuffle_comm.cuh>
@@ -93,15 +93,15 @@ generate_graph_from_rmat_params(raft::handle_t const& handle,
     rmm::device_uvector<vertex_t> d_tmp_rows(0, handle.get_stream());
     rmm::device_uvector<vertex_t> d_tmp_cols(0, handle.get_stream());
     std::tie(i == 0 ? d_edgelist_rows : d_tmp_rows, i == 0 ? d_edgelist_cols : d_tmp_cols) =
-      cugraph::experimental::generate_rmat_edgelist<vertex_t>(handle,
-                                                              scale,
-                                                              partition_edge_counts[i],
-                                                              a,
-                                                              b,
-                                                              c,
-                                                              base_seed + id,
-                                                              undirected ? true : false,
-                                                              scramble_vertex_ids);
+      cugraph::generate_rmat_edgelist<vertex_t>(handle,
+                                                scale,
+                                                partition_edge_counts[i],
+                                                a,
+                                                b,
+                                                c,
+                                                base_seed + id,
+                                                undirected ? true : false,
+                                                scramble_vertex_ids);
 
     rmm::device_uvector<weight_t> d_tmp_weights(0, handle.get_stream());
     if (test_weighted) {
