@@ -75,27 +75,27 @@ And the Graph types that they work on.
 |              | Spectral-Clustering - Modularity       | Single-GPU   |  Yes | No |  Yes | Yes | Yes |   |
 |              | Subgraph Extraction                    | Single-GPU   |  Yes | No |  Yes | Yes | Yes |   |
 |              | Triangle Counting                      | Single-GPU   |  No  | No |  Yes | Yes | No  |   |
-|              | K-Truss                                | Single-GPU   |  No  | No |  Yes | Yes | Yes |   |
+|              | K-Truss                                | Single-GPU   |  No  | No |  Yes | No | Yes |   |
 | Components   | |
 |              | Weakly Connected Components            | Single-GPU   |  Yes | No |  Yes | Yes | Yes |   |
 |              | Strongly Connected Components          | Single-GPU   |  Yes | No |  Yes | Yes | Yes |   |
 | Core         |
-|              | K-Core                                 | Single-GPU   |  No  | No |  Yes | Yes | Yes |   |
-|              | Core Number                            | Single-GPU   |  No  | No |  Yes | Yes | Yes |   |
+|              | K-Core                                 | Single-GPU   |  No  | No |  Yes | No  | Yes |   |
+|              | Core Number                            | Single-GPU   |  No  | No |  Yes | No  | Yes |   |
 | Layout       |
 |              | Force Atlas 2                          | Single-GPU   |  Yes |    |  Yes | Yes | Yes |   |
 | Linear Assignment |
 |              | Hungarian                              | Single-GPU   |      |    | | |      | [README](cpp/src/linear_assignment/README-hungarian.md) |
 | Link Analysis |
-|              | Pagerank                               | Multi-GPU    |  Yes | No |  Yes | Yes | Yes | [C++ README](cpp/src/centrality/README.md#Pagerank) |
+|              | Pagerank                               | Multi-GPU    |  Yes | No |  Yes | Yes | Yes | [C++ README](cpp/src/centrality/README.md#Pagerank) MG PageRAnl on Directed Graphs only|
 |              | Personal Pagerank                      | Multi-GPU    |  Yes | No |  Yes | Yes | Yes | [C++ README](cpp/src/centrality/README.md#Personalized-Pagerank) |
 |              | HITS                                   | Single-GPU   |  Yes | No |  Yes | Yes | Yes |  Depricated, being dropped in 0.21 leverages Gunrock   |
 | Link Prediction |
-|              | Jaccard Similarity                     | Single-GPU   |  No  | No |  Yes | Yes | Yes |   |
-|              | Weighted Jaccard Similarity            | Single-GPU   |  No  | No |  Yes | Yes | Yes |   |
+|              | Jaccard Similarity                     | Single-GPU   |  No  | No |  Yes | No  | Yes |   |
+|              | Weighted Jaccard Similarity            | Single-GPU   |  No  | No |  Yes | No  | Yes |   |
 |              | Overlap Similarity                     | Single-GPU   |  Yes | No |  Yes | Yes | Yes |   |
 | Traversal    |
-|              | Breadth First Search (BFS)             | Multi-GPU    |  Yes | No |  Yes | Yes | Yes |   with cutoff support <br/> [C++ README](cpp/src/traversal/README.md#BFS) |
+|              | Breadth First Search (BFS)             | Multi-GPU    |  Yes | No |  Yes | Yes | Yes |   with cutoff support <br/> [C++ README](cpp/src/traversal/README.md#BFS) MG BFS on Directed graphs only|
 |              | Single Source Shortest Path (SSSP)     | Multi-GPU    |  Yes | No |  Yes | Yes | Yes |  [C++ README](cpp/src/traversal/README.md#SSSP) |
 |              | Traveling Salesperson Problem (TSP)    | Single-GPU   |      |    |  Yes | Yes |     |   |
 | Sampling     |
