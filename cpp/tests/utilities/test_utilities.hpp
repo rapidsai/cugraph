@@ -21,6 +21,7 @@
 #include <raft/handle.hpp>
 #include <rmm/device_uvector.hpp>
 
+#include <numeric>
 #include <string>
 #include <vector>
 
