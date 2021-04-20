@@ -394,4 +394,45 @@ extract_induced_subgraphs(
   bool do_expensive_check = false);
 
 }  // namespace experimental
+
+/**
+ * @brief Create graph from edgelist
+ *
+ * @tparam vertex_t Type of vertex identifiers. Needs to be an integral type.
+ * @tparam edge_t Type of edge identifiers. Needs to be an integral type.
+ * @tparam weight_t Type of weight identifiers.
+ * @tparam tranposed If true, create transposed graph structure
+ * @tparam multi_gpu If true, create a multi-gpu graph
+ *
+ * @param handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator, and
+ * handles to various CUDA libraries) to run graph algorithms.
+ * @param d_src_vertices device pointer to source vertices
+ * @param d_dst_vertices device pointer to destination vertices
+ * @param d_weights device pointer to weights
+ * @param number_of_vertices Number of vertices in the graph
+ * @param number_of_edges Number of edges in the graph
+ * @param properties Graph properties
+ * @param sorted_by_global_degree_within_vertex_partition If true, vertices are sorted by global
+ *         degree (enables some optimizations)
+ * @param do_expensive_check If true, perform expensive validation of the graph 
+ *
+ * @return std::unique_ptr<experimental::graph_t<vertex_t, edge_t, weight_t, transposed, multi_gpu>>
+ *    the constructed graph object
+ */
+template <typename vertex_t,
+          typename edge_t,
+          typename weight_t,
+          bool transposed,
+          bool multi_gpu>
+std::unique_ptr<experimental::graph_t<vertex_t, edge_t, weight_t, transposed, multi_gpu>>
+create_graph_from_edgelist(raft::handle_t const& handle, 
+                           vertex_t *d_src_vertices,
+                           vertex_t *d_dst_vertices,
+                           weight_t *d_weights,
+                           vertex_t number_of_vertices,
+                           edge_t number_of_edges,
+                           graph_properties_t properties,
+                           bool sorted_by_global_degree_within_vertex_partition,
+                           bool do_expensive_check);
+
 }  // namespace cugraph
