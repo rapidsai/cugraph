@@ -30,6 +30,7 @@
 #include <thrust/iterator/counting_iterator.h>
 #include <thrust/iterator/discard_iterator.h>
 #include <thrust/iterator/zip_iterator.h>
+#include <thrust/optional.h>
 #include <thrust/transform.h>
 #include <thrust/tuple.h>
 
@@ -127,15 +128,18 @@ void bfs(raft::handle_t const &handle,
               *(distances + vertex_partition.get_local_vertex_offset_from_vertex_nocheck(dst));
             if (distance != invalid_distance) { push = false; }
           }
-          return thrust::make_tuple(push, src);
+          return push ? thrust::optional<vertex_t>{src} : thrust::nullopt;
         },
         reduce_op::any<vertex_t>(),
         distances,
         thrust::make_zip_iterator(thrust::make_tuple(distances, predecessor_first)),
         [depth] __device__(auto v_val, auto pushed_val) {
-          auto idx = (v_val == invalid_distance) ? static_cast<size_t>(Bucket::next)
-                                                 : VertexFrontier<vertex_t>::kInvalidBucketIdx;
-          return thrust::make_tuple(idx, thrust::make_tuple(depth + 1, pushed_val));
+          return (v_val == invalid_distance)
+                   ? thrust::optional<
+                       thrust::tuple<size_t, thrust::tuple<vertex_t, vertex_t>>>{thrust::make_tuple(
+                       static_cast<size_t>(Bucket::next),
+                       thrust::make_tuple(depth + 1, pushed_val))}
+                   : thrust::nullopt;
         });
 
       vertex_frontier.get_bucket(static_cast<size_t>(Bucket::cur)).clear();

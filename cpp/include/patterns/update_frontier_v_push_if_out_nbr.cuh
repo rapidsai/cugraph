@@ -107,7 +107,7 @@ __global__ void for_all_frontier_row_for_all_nbr_low_degree(
                                     *(adj_matrix_row_value_input_first + row_offset),
                                     *(adj_matrix_col_value_input_first + col_offset),
                                     e_op);
-      if (thrust::get<0>(e_op_result) == true) {
+      if (e_op_result) {
         // FIXME: This atomicAdd serializes execution. If we renumber vertices to insure that rows
         // within a partition are sorted by their out-degree in decreasing order, we can compute
         // a tight uppper bound for the maximum number of pushes per warp/block and use shared
@@ -116,7 +116,7 @@ __global__ void for_all_frontier_row_for_all_nbr_low_degree(
         auto buffer_idx = atomicAdd(reinterpret_cast<unsigned long long int*>(buffer_idx_ptr),
                                     static_cast<unsigned long long int>(1));
         *(buffer_key_output_first + buffer_idx)     = col;
-        *(buffer_payload_output_first + buffer_idx) = thrust::get<1>(e_op_result);
+        *(buffer_payload_output_first + buffer_idx) = *e_op_result;
       }
     }
     idx += gridDim.x * blockDim.x;
@@ -174,7 +174,7 @@ __global__ void for_all_frontier_row_for_all_nbr_mid_degree(
                                     *(adj_matrix_row_value_input_first + row_offset),
                                     *(adj_matrix_col_value_input_first + col_offset),
                                     e_op);
-      if (thrust::get<0>(e_op_result) == true) {
+      if (e_op_result) {
         // FIXME: This atomicAdd serializes execution. If we renumber vertices to insure that rows
         // within a partition are sorted by their out-degree in decreasing order, we can compute
         // a tight uppper bound for the maximum number of pushes per warp/block and use shared
@@ -183,7 +183,7 @@ __global__ void for_all_frontier_row_for_all_nbr_mid_degree(
         auto buffer_idx = atomicAdd(reinterpret_cast<unsigned long long int*>(buffer_idx_ptr),
                                     static_cast<unsigned long long int>(1));
         *(buffer_key_output_first + buffer_idx)     = col;
-        *(buffer_payload_output_first + buffer_idx) = thrust::get<1>(e_op_result);
+        *(buffer_payload_output_first + buffer_idx) = *e_op_result;
       }
     }
 
@@ -239,7 +239,7 @@ __global__ void for_all_frontier_row_for_all_nbr_high_degree(
                                     *(adj_matrix_row_value_input_first + row_offset),
                                     *(adj_matrix_col_value_input_first + col_offset),
                                     e_op);
-      if (thrust::get<0>(e_op_result) == true) {
+      if (e_op_result) {
         // FIXME: This atomicAdd serializes execution. If we renumber vertices to insure that rows
         // within a partition are sorted by their out-degree in decreasing order, we can compute
         // a tight uppper bound for the maximum number of pushes per warp/block and use shared
@@ -248,7 +248,7 @@ __global__ void for_all_frontier_row_for_all_nbr_high_degree(
         auto buffer_idx = atomicAdd(reinterpret_cast<unsigned long long int*>(buffer_idx_ptr),
                                     static_cast<unsigned long long int>(1));
         *(buffer_key_output_first + buffer_idx)     = col;
-        *(buffer_payload_output_first + buffer_idx) = thrust::get<1>(e_op_result);
+        *(buffer_payload_output_first + buffer_idx) = *e_op_result;
       }
     }
 
@@ -703,10 +703,9 @@ void update_frontier_v_push_if_out_nbr(
         auto key_offset  = vertex_partition.get_local_vertex_offset_from_vertex_nocheck(key);
         auto v_val       = *(vertex_value_input_first + key_offset);
         auto v_op_result = v_op(v_val, payload);
-        auto bucket_idx  = thrust::get<0>(v_op_result);
-        if (bucket_idx != invalid_bucket_idx) {
-          *(vertex_value_output_first + key_offset) = thrust::get<1>(v_op_result);
-          return static_cast<uint8_t>(bucket_idx);
+        if (v_op_result) {
+          *(vertex_value_output_first + key_offset) = thrust::get<1>(*v_op_result);
+          return static_cast<uint8_t>(thrust::get<0>(*v_op_result));
         } else {
           return std::numeric_limits<uint8_t>::max();
         }

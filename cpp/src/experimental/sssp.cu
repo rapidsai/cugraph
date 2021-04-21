@@ -32,6 +32,7 @@
 #include <thrust/iterator/counting_iterator.h>
 #include <thrust/iterator/discard_iterator.h>
 #include <thrust/iterator/zip_iterator.h>
+#include <thrust/optional.h>
 #include <thrust/transform.h>
 #include <thrust/tuple.h>
 
@@ -190,7 +191,9 @@ void sssp(raft::handle_t const &handle,
           threshold         = old_distance < threshold ? old_distance : threshold;
         }
         if (new_distance >= threshold) { push = false; }
-        return thrust::make_tuple(push, thrust::make_tuple(new_distance, src));
+        return push ? thrust::optional<thrust::tuple<weight_t, vertex_t>>{thrust::make_tuple(
+                        new_distance, src)}
+                    : thrust::nullopt;
       },
       reduce_op::min<thrust::tuple<weight_t, vertex_t>>(),
       distances,
@@ -201,7 +204,18 @@ void sssp(raft::handle_t const &handle,
                      ? (new_dist < near_far_threshold ? static_cast<size_t>(Bucket::next_near)
                                                       : static_cast<size_t>(Bucket::far))
                      : VertexFrontier<vertex_t>::kInvalidBucketIdx;
-        return thrust::make_tuple(idx, pushed_val);
+        return new_dist < v_val
+                 ? thrust::optional<
+                     thrust::tuple<size_t, decltype(pushed_val)>>{new_dist < near_far_threshold
+                                                                    ? thrust::make_tuple(
+                                                                        static_cast<size_t>(
+                                                                          Bucket::next_near),
+                                                                        pushed_val)
+                                                                    : thrust::make_tuple(
+                                                                        static_cast<size_t>(
+                                                                          Bucket::far),
+                                                                        pushed_val)}
+                 : thrust::nullopt;
       });
 
     vertex_frontier.get_bucket(static_cast<size_t>(Bucket::cur_near)).clear();
