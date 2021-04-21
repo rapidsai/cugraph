@@ -205,16 +205,10 @@ void sssp(raft::handle_t const &handle,
                                                       : static_cast<size_t>(Bucket::far))
                      : VertexFrontier<vertex_t>::kInvalidBucketIdx;
         return new_dist < v_val
-                 ? thrust::optional<
-                     thrust::tuple<size_t, decltype(pushed_val)>>{new_dist < near_far_threshold
-                                                                    ? thrust::make_tuple(
-                                                                        static_cast<size_t>(
-                                                                          Bucket::next_near),
-                                                                        pushed_val)
-                                                                    : thrust::make_tuple(
-                                                                        static_cast<size_t>(
-                                                                          Bucket::far),
-                                                                        pushed_val)}
+                 ? thrust::optional<thrust::tuple<size_t, decltype(pushed_val)>>{thrust::make_tuple(
+                     static_cast<size_t>(new_dist < near_far_threshold ? Bucket::next_near
+                                                                       : Bucket::far),
+                     pushed_val)}
                  : thrust::nullopt;
       });
 
