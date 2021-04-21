@@ -1,4 +1,4 @@
-# Copyright (c) 2020, NVIDIA CORPORATION.
+# Copyright (c) 2020-2021, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -17,18 +17,12 @@
 # cython: language_level = 3
 
 from cugraph.centrality.betweenness_centrality cimport betweenness_centrality as c_betweenness_centrality
-from cugraph.centrality.betweenness_centrality cimport handle_t
 from cugraph.structure.graph import DiGraph
 from cugraph.structure.graph_primtypes cimport *
 from libc.stdint cimport uintptr_t
 from libcpp cimport bool
 import cudf
 import numpy as np
-import numpy.ctypeslib as ctypeslib
-
-import dask_cudf
-import dask_cuda
-
 import cugraph.comms.comms as Comms
 from cugraph.dask.common.mg_utils import get_client
 import dask.distributed

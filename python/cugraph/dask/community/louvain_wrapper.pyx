@@ -1,4 +1,4 @@
-# Copyright (c) 2020, NVIDIA CORPORATION.
+# Copyright (c) 2020-2021, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -19,8 +19,7 @@
 from libc.stdint cimport uintptr_t
 
 from cugraph.dask.community cimport louvain as c_louvain
-from cugraph.structure.graph_primtypes cimport *
-
+from cugraph.structure.graph_utilities cimport *
 import cudf
 import numpy as np
 
@@ -57,12 +56,12 @@ def louvain(input_df,
 
     src = input_df['src']
     dst = input_df['dst']
-    num_partition_edges = len(src)
+    num_local_edges = len(src)
 
     if "value" in input_df.columns:
         weights = input_df['value']
     else:
-        weights = cudf.Series(np.full(num_partition_edges, 1.0, dtype=np.float32))
+        weights = cudf.Series(np.full(num_local_edges, 1.0, dtype=np.float32))
 
     vertex_t = src.dtype
     if num_global_edges > (2**31 - 1):
@@ -95,9 +94,10 @@ def louvain(input_df,
                              <numberTypeEnum>(<int>(numberTypeMap[vertex_t])),
                              <numberTypeEnum>(<int>(numberTypeMap[edge_t])),
                              <numberTypeEnum>(<int>(numberTypeMap[weight_t])),
-                             num_partition_edges,
+                             num_local_edges,
                              num_global_verts, num_global_edges,
                              sorted_by_degree,
+                             True,
                              False, True)  # store_transposed, multi_gpu
 
     # Create the output dataframe, column lengths must be equal to the number of

@@ -17,6 +17,47 @@
 #=============================================================================
 
 ###################################################################################################
+# - common test utils -----------------------------------------------------------------------------
+
+add_library(cugraphtestutil STATIC
+            "${CMAKE_CURRENT_SOURCE_DIR}/utilities/matrix_market_file_utilities.cu"
+            "${CMAKE_CURRENT_SOURCE_DIR}/utilities/rmat_utilities.cu"
+            "${CMAKE_CURRENT_SOURCE_DIR}/utilities/generate_graph_from_edgelist.cu"
+            "${CMAKE_CURRENT_SOURCE_DIR}/utilities/thrust_wrapper.cu"
+            "${CMAKE_CURRENT_SOURCE_DIR}/utilities/misc_utilities.cpp"
+            "${CMAKE_CURRENT_SOURCE_DIR}/../../thirdparty/mmio/mmio.c")
+
+set_property(TARGET cugraphtestutil PROPERTY POSITION_INDEPENDENT_CODE ON)
+
+target_include_directories(cugraphtestutil
+    PRIVATE
+    "${CUB_INCLUDE_DIR}"
+    "${THRUST_INCLUDE_DIR}"
+    "${CUCO_INCLUDE_DIR}"
+    "${LIBCUDACXX_INCLUDE_DIR}"
+    "${CMAKE_CUDA_TOOLKIT_INCLUDE_DIRECTORIES}"
+    "${RMM_INCLUDE}"
+    "${NCCL_INCLUDE_DIRS}"
+    "${CMAKE_CURRENT_SOURCE_DIR}/../../thirdparty/mmio"
+    "${CMAKE_CURRENT_SOURCE_DIR}/../include"
+    "${CMAKE_CURRENT_SOURCE_DIR}"
+    "${RAFT_DIR}/cpp/include"
+)
+
+target_link_libraries(cugraphtestutil cugraph)
+
+# CUDA_ARCHITECTURES=OFF implies cmake will not pass arch flags to the
+# compiler. CUDA_ARCHITECTURES must be set to a non-empty value to prevent
+# cmake warnings about policy CMP0104. With this setting, arch flags must be
+# manually set! ("evaluate_gpu_archs(GPU_ARCHS)" is the current mechanism
+# used in cpp/CMakeLists.txt for setting arch options).
+# Run "cmake --help-policy CMP0104" for policy details.
+# NOTE: the CUDA_ARCHITECTURES=OFF setting may be removed after migrating to
+# the findcudatoolkit features in cmake 3.17+
+set_target_properties(cugraphtestutil PROPERTIES
+        CUDA_ARCHITECTURES OFF)
+
+###################################################################################################
 # - compiler function -----------------------------------------------------------------------------
 
 function(ConfigureTest CMAKE_TEST_NAME CMAKE_TEST_SRC)
@@ -31,8 +72,6 @@ function(ConfigureTest CMAKE_TEST_NAME CMAKE_TEST_SRC)
 	"${LIBCUDACXX_INCLUDE_DIR}"
         "${CMAKE_CUDA_TOOLKIT_INCLUDE_DIRECTORIES}"
         "${RMM_INCLUDE}"
-        "${CUDF_INCLUDE}"
-        "${CUDF_INCLUDE}/libcudf/libcudacxx"
         "${NCCL_INCLUDE_DIRS}"
         "${CMAKE_CURRENT_SOURCE_DIR}/../../thirdparty/mmio"
         "${CMAKE_CURRENT_SOURCE_DIR}/../include"
@@ -49,10 +88,10 @@ function(ConfigureTest CMAKE_TEST_NAME CMAKE_TEST_SRC)
 
     target_link_libraries(${CMAKE_TEST_NAME}
         PRIVATE
+        cugraphtestutil
         cugraph
         GTest::GTest
         GTest::Main
-        ${CUDF_LIBRARY}
         ${NCCL_LIBRARIES}
         cudart
         cuda
@@ -140,16 +179,10 @@ endif(RAPIDS_DATASET_ROOT_DIR)
 ### test sources ##################################################################################
 ###################################################################################################
 
-# FIXME: consider adding a "add_library(cugraph_testing SHARED ...) instead of
-# adding the same test utility sources to each test target. There may need to be
-# an additional cugraph_mg_testing lib due to the optional inclusion of MPI.
-
 ###################################################################################################
 # - katz centrality tests -------------------------------------------------------------------------
 
 set(KATZ_TEST_SRC
-    "${CMAKE_CURRENT_SOURCE_DIR}/../../thirdparty/mmio/mmio.c"
-    "${CMAKE_CURRENT_SOURCE_DIR}/utilities/test_utilities.cpp"
     "${CMAKE_CURRENT_SOURCE_DIR}/centrality/katz_centrality_test.cu")
 
   ConfigureTest(KATZ_TEST "${KATZ_TEST_SRC}")
@@ -158,15 +191,11 @@ set(KATZ_TEST_SRC
 # - betweenness centrality tests ------------------------------------------------------------------
 
 set(BETWEENNESS_TEST_SRC
-    "${CMAKE_CURRENT_SOURCE_DIR}/../../thirdparty/mmio/mmio.c"
-    "${CMAKE_CURRENT_SOURCE_DIR}/utilities/test_utilities.cpp"
     "${CMAKE_CURRENT_SOURCE_DIR}/centrality/betweenness_centrality_test.cu")
 
   ConfigureTest(BETWEENNESS_TEST "${BETWEENNESS_TEST_SRC}")
 
 set(EDGE_BETWEENNESS_TEST_SRC
-    "${CMAKE_CURRENT_SOURCE_DIR}/../../thirdparty/mmio/mmio.c"
-    "${CMAKE_CURRENT_SOURCE_DIR}/utilities/test_utilities.cpp"
     "${CMAKE_CURRENT_SOURCE_DIR}/centrality/edge_betweenness_centrality_test.cu")
 
   ConfigureTest(EDGE_BETWEENNESS_TEST "${EDGE_BETWEENNESS_TEST_SRC}")
@@ -175,8 +204,6 @@ set(EDGE_BETWEENNESS_TEST_SRC
 # - SSSP tests ------------------------------------------------------------------------------------
 
 set(SSSP_TEST_SRCS
-    "${CMAKE_CURRENT_SOURCE_DIR}/../../thirdparty/mmio/mmio.c"
-    "${CMAKE_CURRENT_SOURCE_DIR}/utilities/test_utilities.cpp"
     "${CMAKE_CURRENT_SOURCE_DIR}/traversal/sssp_test.cu")
 
 ConfigureTest(SSSP_TEST "${SSSP_TEST_SRCS}")
@@ -185,8 +212,6 @@ ConfigureTest(SSSP_TEST "${SSSP_TEST_SRCS}")
 # - BFS tests -------------------------------------------------------------------------------------
 
 set(BFS_TEST_SRCS
-    "${CMAKE_CURRENT_SOURCE_DIR}/../../thirdparty/mmio/mmio.c"
-    "${CMAKE_CURRENT_SOURCE_DIR}/utilities/test_utilities.cpp"
     "${CMAKE_CURRENT_SOURCE_DIR}/traversal/bfs_test.cu")
 
 ConfigureTest(BFS_TEST "${BFS_TEST_SRCS}")
@@ -195,8 +220,6 @@ ConfigureTest(BFS_TEST "${BFS_TEST_SRCS}")
 # - LOUVAIN tests ---------------------------------------------------------------------------------
 
 set(LOUVAIN_TEST_SRC
-    "${CMAKE_CURRENT_SOURCE_DIR}/../../thirdparty/mmio/mmio.c"
-    "${CMAKE_CURRENT_SOURCE_DIR}/utilities/test_utilities.cpp"
     "${CMAKE_CURRENT_SOURCE_DIR}/community/louvain_test.cpp")
 
 ConfigureTest(LOUVAIN_TEST "${LOUVAIN_TEST_SRC}")
@@ -205,8 +228,6 @@ ConfigureTest(LOUVAIN_TEST "${LOUVAIN_TEST_SRC}")
 # - LEIDEN tests ---------------------------------------------------------------------------------
 
 set(LEIDEN_TEST_SRC
-    "${CMAKE_CURRENT_SOURCE_DIR}/../../thirdparty/mmio/mmio.c"
-    "${CMAKE_CURRENT_SOURCE_DIR}/utilities/test_utilities.cpp"
     "${CMAKE_CURRENT_SOURCE_DIR}/community/leiden_test.cpp")
 
 ConfigureTest(LEIDEN_TEST "${LEIDEN_TEST_SRC}")
@@ -215,8 +236,6 @@ ConfigureTest(LEIDEN_TEST "${LEIDEN_TEST_SRC}")
 # - ECG tests ---------------------------------------------------------------------------------
 
 set(ECG_TEST_SRC
-    "${CMAKE_CURRENT_SOURCE_DIR}/../../thirdparty/mmio/mmio.c"
-    "${CMAKE_CURRENT_SOURCE_DIR}/utilities/test_utilities.cpp"
     "${CMAKE_CURRENT_SOURCE_DIR}/community/ecg_test.cpp")
 
 ConfigureTest(ECG_TEST "${ECG_TEST_SRC}")
@@ -225,8 +244,6 @@ ConfigureTest(ECG_TEST "${ECG_TEST_SRC}")
 # - Balanced cut clustering tests -----------------------------------------------------------------
 
 set(BALANCED_TEST_SRC
-    "${CMAKE_CURRENT_SOURCE_DIR}/../../thirdparty/mmio/mmio.c"
-    "${CMAKE_CURRENT_SOURCE_DIR}/utilities/test_utilities.cpp"
     "${CMAKE_CURRENT_SOURCE_DIR}/community/balanced_edge_test.cpp")
 
 ConfigureTest(BALANCED_TEST "${BALANCED_TEST_SRC}")
@@ -235,8 +252,6 @@ ConfigureTest(BALANCED_TEST "${BALANCED_TEST_SRC}")
 # - TRIANGLE tests --------------------------------------------------------------------------------
 
 set(TRIANGLE_TEST_SRC
-    "${CMAKE_CURRENT_SOURCE_DIR}/../../thirdparty/mmio/mmio.c"
-    "${CMAKE_CURRENT_SOURCE_DIR}/utilities/test_utilities.cpp"
     "${CMAKE_CURRENT_SOURCE_DIR}/community/triangle_test.cu")
 
 ConfigureTest(TRIANGLE_TEST "${TRIANGLE_TEST_SRC}")
@@ -245,8 +260,6 @@ ConfigureTest(TRIANGLE_TEST "${TRIANGLE_TEST_SRC}")
 # - EGO tests --------------------------------------------------------------------------------
 
 set(EGO_TEST_SRC
-    "${CMAKE_SOURCE_DIR}/../thirdparty/mmio/mmio.c"
-    "${CMAKE_CURRENT_SOURCE_DIR}/utilities/test_utilities.cpp"
     "${CMAKE_CURRENT_SOURCE_DIR}/community/egonet_test.cu")
 
 ConfigureTest(EGO_TEST "${EGO_TEST_SRC}" "")
@@ -254,8 +267,6 @@ ConfigureTest(EGO_TEST "${EGO_TEST_SRC}" "")
 # - RENUMBERING tests -----------------------------------------------------------------------------
 
 set(RENUMBERING_TEST_SRC
-    "${CMAKE_CURRENT_SOURCE_DIR}/../../thirdparty/mmio/mmio.c"
-    "${CMAKE_CURRENT_SOURCE_DIR}/utilities/test_utilities.cpp"
     "${CMAKE_CURRENT_SOURCE_DIR}/renumber/renumber_test.cu")
 
 ConfigureTest(RENUMBERING_TEST "${RENUMBERING_TEST_SRC}")
@@ -264,8 +275,6 @@ ConfigureTest(RENUMBERING_TEST "${RENUMBERING_TEST_SRC}")
 # - FORCE ATLAS 2  tests --------------------------------------------------------------------------
 
 set(FA2_TEST_SRC
-    "${CMAKE_CURRENT_SOURCE_DIR}/../../thirdparty/mmio/mmio.c"
-    "${CMAKE_CURRENT_SOURCE_DIR}/utilities/test_utilities.cpp"
     "${CMAKE_CURRENT_SOURCE_DIR}/layout/force_atlas2_test.cu")
 
 ConfigureTest(FA2_TEST "${FA2_TEST_SRC}")
@@ -274,8 +283,6 @@ ConfigureTest(FA2_TEST "${FA2_TEST_SRC}")
 # - TSP  tests --------------------------------------------------------------------------
 
 set(TSP_TEST_SRC
-    "${CMAKE_CURRENT_SOURCE_DIR}/../../thirdparty/mmio/mmio.c"
-    "${CMAKE_CURRENT_SOURCE_DIR}/utilities/test_utilities.cpp"
     "${CMAKE_CURRENT_SOURCE_DIR}/traversal/tsp_test.cu")
 
   ConfigureTest(TSP_TEST "${TSP_TEST_SRC}" "")
@@ -284,8 +291,6 @@ set(TSP_TEST_SRC
 # - CONNECTED COMPONENTS  tests -------------------------------------------------------------------
 
 set(CONNECT_TEST_SRC
-    "${CMAKE_CURRENT_SOURCE_DIR}/../../thirdparty/mmio/mmio.c"
-    "${CMAKE_CURRENT_SOURCE_DIR}/utilities/test_utilities.cpp"
     "${CMAKE_CURRENT_SOURCE_DIR}/components/con_comp_test.cu")
 
 ConfigureTest(CONNECT_TEST "${CONNECT_TEST_SRC}")
@@ -294,8 +299,6 @@ ConfigureTest(CONNECT_TEST "${CONNECT_TEST_SRC}")
 # - STRONGLY CONNECTED COMPONENTS  tests ----------------------------------------------------------
 
 set(SCC_TEST_SRC
-    "${CMAKE_CURRENT_SOURCE_DIR}/../../thirdparty/mmio/mmio.c"
-    "${CMAKE_CURRENT_SOURCE_DIR}/utilities/test_utilities.cpp"
     "${CMAKE_CURRENT_SOURCE_DIR}/components/scc_test.cu")
 
 ConfigureTest(SCC_TEST "${SCC_TEST_SRC}")
@@ -304,8 +307,6 @@ ConfigureTest(SCC_TEST "${SCC_TEST_SRC}")
 #-Hungarian (Linear Assignment Problem)  tests ---------------------------------------------------------------------
 
 set(HUNGARIAN_TEST_SRC
-    "${CMAKE_CURRENT_SOURCE_DIR}/../../thirdparty/mmio/mmio.c"
-    "${CMAKE_CURRENT_SOURCE_DIR}/utilities/test_utilities.cpp"
     "${CMAKE_CURRENT_SOURCE_DIR}/linear_assignment/hungarian_test.cu")
 
 ConfigureTest(HUNGARIAN_TEST "${HUNGARIAN_TEST_SRC}")
@@ -314,29 +315,54 @@ ConfigureTest(HUNGARIAN_TEST "${HUNGARIAN_TEST_SRC}")
 # - MST tests ----------------------------------------------------------------------------
 
 set(MST_TEST_SRC
-    "${CMAKE_CURRENT_SOURCE_DIR}/../../thirdparty/mmio/mmio.c"
-    "${CMAKE_CURRENT_SOURCE_DIR}/utilities/test_utilities.cpp"
     "${CMAKE_CURRENT_SOURCE_DIR}/tree/mst_test.cu")
 
 ConfigureTest(MST_TEST "${MST_TEST_SRC}")
 
+###################################################################################################
+# - Experimental stream tests -----------------------------------------------------
+
+set(EXPERIMENTAL_STREAM_SRCS
+    "${CMAKE_CURRENT_SOURCE_DIR}/experimental/streams.cu")
+
+ConfigureTest(EXPERIMENTAL_STREAM "${EXPERIMENTAL_STREAM_SRCS}" "")
+
+###################################################################################################
+# - Experimental R-mat graph generation tests -----------------------------------------------------
+
+set(EXPERIMENTAL_GENERATE_RMAT_TEST_SRCS
+    "${CMAKE_CURRENT_SOURCE_DIR}/experimental/generate_rmat_test.cpp")
+
+ConfigureTest(EXPERIMENTAL_GENERATE_RMAT_TEST "${EXPERIMENTAL_GENERATE_RMAT_TEST_SRCS}" "")
 
 ###################################################################################################
 # - Experimental Graph tests ----------------------------------------------------------------------
 
 set(EXPERIMENTAL_GRAPH_TEST_SRCS
-    "${CMAKE_CURRENT_SOURCE_DIR}/../../thirdparty/mmio/mmio.c"
-    "${CMAKE_CURRENT_SOURCE_DIR}/utilities/test_utilities.cpp"
     "${CMAKE_CURRENT_SOURCE_DIR}/experimental/graph_test.cpp")
 
 ConfigureTest(EXPERIMENTAL_GRAPH_TEST "${EXPERIMENTAL_GRAPH_TEST_SRCS}")
 
 ###################################################################################################
+# - Experimental weight-sum tests -----------------------------------------------------------------
+
+set(EXPERIMENTAL_WEIGHT_SUM_TEST_SRCS
+    "${CMAKE_CURRENT_SOURCE_DIR}/experimental/weight_sum_test.cpp")
+
+ConfigureTest(EXPERIMENTAL_WEIGHT_SUM_TEST "${EXPERIMENTAL_WEIGHT_SUM_TEST_SRCS}")
+
+###################################################################################################
+# - Experimental degree tests ---------------------------------------------------------------------
+
+set(EXPERIMENTAL_DEGREE_TEST_SRCS
+    "${CMAKE_CURRENT_SOURCE_DIR}/experimental/degree_test.cpp")
+
+ConfigureTest(EXPERIMENTAL_DEGREE_TEST "${EXPERIMENTAL_DEGREE_TEST_SRCS}")
+
+###################################################################################################
 # - Experimental coarsening tests -----------------------------------------------------------------
 
 set(EXPERIMENTAL_COARSEN_GRAPH_TEST_SRCS
-    "${CMAKE_CURRENT_SOURCE_DIR}/../../thirdparty/mmio/mmio.c"
-    "${CMAKE_CURRENT_SOURCE_DIR}/utilities/test_utilities.cpp"
     "${CMAKE_CURRENT_SOURCE_DIR}/experimental/coarsen_graph_test.cpp")
 
 ConfigureTest(EXPERIMENTAL_COARSEN_GRAPH_TEST "${EXPERIMENTAL_COARSEN_GRAPH_TEST_SRCS}")
@@ -345,8 +371,6 @@ ConfigureTest(EXPERIMENTAL_COARSEN_GRAPH_TEST "${EXPERIMENTAL_COARSEN_GRAPH_TEST
 # - Experimental induced subgraph tests -----------------------------------------------------------
 
 set(EXPERIMENTAL_INDUCED_SUBGRAPH_TEST_SRCS
-    "${CMAKE_CURRENT_SOURCE_DIR}/../../thirdparty/mmio/mmio.c"
-    "${CMAKE_CURRENT_SOURCE_DIR}/utilities/test_utilities.cpp"
     "${CMAKE_CURRENT_SOURCE_DIR}/experimental/induced_subgraph_test.cpp")
 
 ConfigureTest(EXPERIMENTAL_INDUCED_SUBGRAPH_TEST "${EXPERIMENTAL_INDUCED_SUBGRAPH_TEST_SRCS}")
@@ -355,18 +379,23 @@ ConfigureTest(EXPERIMENTAL_INDUCED_SUBGRAPH_TEST "${EXPERIMENTAL_INDUCED_SUBGRAP
 # - Experimental BFS tests ------------------------------------------------------------------------
 
 set(EXPERIMENTAL_BFS_TEST_SRCS
-    "${CMAKE_CURRENT_SOURCE_DIR}/../../thirdparty/mmio/mmio.c"
-    "${CMAKE_CURRENT_SOURCE_DIR}/utilities/test_utilities.cpp"
     "${CMAKE_CURRENT_SOURCE_DIR}/experimental/bfs_test.cpp")
 
 ConfigureTest(EXPERIMENTAL_BFS_TEST "${EXPERIMENTAL_BFS_TEST_SRCS}")
 
 ###################################################################################################
+# - Experimental BFS tests ------------------------------------------------------------------------
+
+set(EXPERIMENTAL_MSBFS_TEST_SRCS
+    "${CMAKE_CURRENT_SOURCE_DIR}/experimental/ms_bfs_test.cpp")
+
+ConfigureTest(EXPERIMENTAL_MSBFS_TEST "${EXPERIMENTAL_MSBFS_TEST_SRCS}")
+
+
+###################################################################################################
 # - Experimental SSSP tests -----------------------------------------------------------------------
 
 set(EXPERIMENTAL_SSSP_TEST_SRCS
-    "${CMAKE_CURRENT_SOURCE_DIR}/../../thirdparty/mmio/mmio.c"
-    "${CMAKE_CURRENT_SOURCE_DIR}/utilities/test_utilities.cpp"
     "${CMAKE_CURRENT_SOURCE_DIR}/experimental/sssp_test.cpp")
 
 ConfigureTest(EXPERIMENTAL_SSSP_TEST "${EXPERIMENTAL_SSSP_TEST_SRCS}")
@@ -375,48 +404,83 @@ ConfigureTest(EXPERIMENTAL_SSSP_TEST "${EXPERIMENTAL_SSSP_TEST_SRCS}")
 # - Experimental PAGERANK tests -------------------------------------------------------------------
 
 set(EXPERIMENTAL_PAGERANK_TEST_SRCS
-    "${CMAKE_CURRENT_SOURCE_DIR}/../../thirdparty/mmio/mmio.c"
-    "${CMAKE_CURRENT_SOURCE_DIR}/utilities/test_utilities.cpp"
     "${CMAKE_CURRENT_SOURCE_DIR}/experimental/pagerank_test.cpp")
 
 ConfigureTest(EXPERIMENTAL_PAGERANK_TEST "${EXPERIMENTAL_PAGERANK_TEST_SRCS}")
 
 ###################################################################################################
-# - Experimental LOUVAIN tests -------------------------------------------------------------------
-
-set(EXPERIMENTAL_LOUVAIN_TEST_SRCS
-    "${CMAKE_CURRENT_SOURCE_DIR}/../../thirdparty/mmio/mmio.c"
-    "${CMAKE_CURRENT_SOURCE_DIR}/utilities/test_utilities.cpp"
-    "${CMAKE_CURRENT_SOURCE_DIR}/experimental/louvain_test.cu")
-
-ConfigureTest(EXPERIMENTAL_LOUVAIN_TEST "${EXPERIMENTAL_LOUVAIN_TEST_SRCS}")
-
-###################################################################################################
 # - Experimental KATZ_CENTRALITY tests ------------------------------------------------------------
 
 set(EXPERIMENTAL_KATZ_CENTRALITY_TEST_SRCS
-    "${CMAKE_CURRENT_SOURCE_DIR}/../../thirdparty/mmio/mmio.c"
-    "${CMAKE_CURRENT_SOURCE_DIR}/utilities/test_utilities.cpp"
     "${CMAKE_CURRENT_SOURCE_DIR}/experimental/katz_centrality_test.cpp")
 
 ConfigureTest(EXPERIMENTAL_KATZ_CENTRALITY_TEST "${EXPERIMENTAL_KATZ_CENTRALITY_TEST_SRCS}")
 
+###################################################################################################
+# - Experimental RANDOM_WALKS tests ------------------------------------------------------------
+
+set(EXPERIMENTAL_RANDOM_WALKS_TEST_SRCS
+    "${CMAKE_CURRENT_SOURCE_DIR}/experimental/random_walks_test.cu")
+
+ConfigureTest(EXPERIMENTAL_RANDOM_WALKS_TEST "${EXPERIMENTAL_RANDOM_WALKS_TEST_SRCS}")
+
+###################################################################################################
+set(EXPERIMENTAL_RANDOM_WALKS_LOW_LEVEL_SRCS
+    "${CMAKE_CURRENT_SOURCE_DIR}/experimental/rw_low_level_test.cu")
+
+ConfigureTest(EXPERIMENTAL_RANDOM_WALKS_LOW_LEVEL_TEST "${EXPERIMENTAL_RANDOM_WALKS_LOW_LEVEL_SRCS}")
+
 
 ###################################################################################################
 # - MG tests --------------------------------------------------------------------------------------
+
 if(BUILD_CUGRAPH_MG_TESTS)
     if(MPI_CXX_FOUND)
         ###########################################################################################
         # - MG PAGERANK tests ---------------------------------------------------------------------
 
         set(MG_PAGERANK_TEST_SRCS
-            "${CMAKE_CURRENT_SOURCE_DIR}/../../thirdparty/mmio/mmio.c"
-            "${CMAKE_CURRENT_SOURCE_DIR}/utilities/test_utilities.cpp"
-            "${CMAKE_CURRENT_SOURCE_DIR}/utilities/mg_test_utilities.cu"
-            "${CMAKE_CURRENT_SOURCE_DIR}/pagerank/pagerank_mg_test.cpp")
+            "${CMAKE_CURRENT_SOURCE_DIR}/pagerank/mg_pagerank_test.cpp")
 
         ConfigureTest(MG_PAGERANK_TEST "${MG_PAGERANK_TEST_SRCS}")
         target_link_libraries(MG_PAGERANK_TEST PRIVATE MPI::MPI_C MPI::MPI_CXX)
+
+        ###########################################################################################
+        # - MG KATZ CENTRALITY tests --------------------------------------------------------------
+
+        set(MG_KATZ_CENTRALITY_TEST_SRCS
+            "${CMAKE_CURRENT_SOURCE_DIR}/experimental/mg_katz_centrality_test.cpp")
+
+        ConfigureTest(MG_KATZ_CENTRALITY_TEST "${MG_KATZ_CENTRALITY_TEST_SRCS}")
+        target_link_libraries(MG_KATZ_CENTRALITY_TEST PRIVATE MPI::MPI_C MPI::MPI_CXX)
+
+        ###########################################################################################
+        # - MG BFS tests --------------------------------------------------------------------------
+
+        set(MG_BFS_TEST_SRCS
+            "${CMAKE_CURRENT_SOURCE_DIR}/experimental/mg_bfs_test.cpp")
+
+        ConfigureTest(MG_BFS_TEST "${MG_BFS_TEST_SRCS}")
+        target_link_libraries(MG_BFS_TEST PRIVATE MPI::MPI_C MPI::MPI_CXX)
+
+        ###########################################################################################
+        # - MG SSSP tests -------------------------------------------------------------------------
+
+        set(MG_SSSP_TEST_SRCS
+            "${CMAKE_CURRENT_SOURCE_DIR}/experimental/mg_sssp_test.cpp")
+
+        ConfigureTest(MG_SSSP_TEST "${MG_SSSP_TEST_SRCS}")
+        target_link_libraries(MG_SSSP_TEST PRIVATE MPI::MPI_C MPI::MPI_CXX)
+
+        ###########################################################################################
+        # - MG LOUVAIN tests ----------------------------------------------------------------------
+
+        set(MG_LOUVAIN_TEST_SRCS
+	    "${CMAKE_CURRENT_SOURCE_DIR}/community/mg_louvain_helper.cu"
+            "${CMAKE_CURRENT_SOURCE_DIR}/community/mg_louvain_test.cpp")
+
+        ConfigureTest(MG_LOUVAIN_TEST "${MG_LOUVAIN_TEST_SRCS}")
+        target_link_libraries(MG_LOUVAIN_TEST PRIVATE MPI::MPI_C MPI::MPI_CXX)
 
     else(MPI_CXX_FOUND)
        message(FATAL_ERROR "OpenMPI NOT found, cannot build MG tests.")

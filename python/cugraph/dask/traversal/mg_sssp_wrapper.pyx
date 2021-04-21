@@ -1,5 +1,5 @@
 #
-# Copyright (c) 2020, NVIDIA CORPORATION.
+# Copyright (c) 2020-2021, NVIDIA CORPORATION.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -17,7 +17,7 @@
 from cugraph.structure.utils_wrapper import *
 from cugraph.dask.traversal cimport mg_sssp as c_sssp
 import cudf
-from cugraph.structure.graph_primtypes cimport *
+from cugraph.structure.graph_utilities cimport *
 import cugraph.structure.graph_primtypes_wrapper as graph_primtypes_wrapper
 from libc.stdint cimport uintptr_t
 
@@ -46,9 +46,11 @@ def mg_sssp(input_df,
     if "value" in input_df.columns:
         weights = input_df['value']
         weight_t = weights.dtype
+        is_weighted = True
     else:
         weights = None
         weight_t = np.dtype("float32")
+        is_weighted = False
 
     # FIXME: Offsets and indices are currently hardcoded to int, but this may
     #        not be acceptable in the future.
@@ -58,7 +60,7 @@ def mg_sssp(input_df,
                      np.dtype("double") : <int>numberTypeEnum.doubleType}
 
     # FIXME: needs to be edge_t type not int
-    cdef int num_partition_edges = len(src)
+    cdef int num_local_edges = len(src)
 
     cdef uintptr_t c_src_vertices = src.__cuda_array_interface__['data'][0]
     cdef uintptr_t c_dst_vertices = dst.__cuda_array_interface__['data'][0]
@@ -79,9 +81,10 @@ def mg_sssp(input_df,
                              <numberTypeEnum>(<int>(numberTypeMap[vertex_t])),
                              <numberTypeEnum>(<int>(numberTypeMap[edge_t])),
                              <numberTypeEnum>(<int>(numberTypeMap[weight_t])),
-                             num_partition_edges,
+                             num_local_edges,
                              num_global_verts, num_global_edges,
                              True,
+                             is_weighted,
                              False, True) 
 
     # Generate the cudf.DataFrame result

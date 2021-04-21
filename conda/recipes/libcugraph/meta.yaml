@@ -21,34 +21,32 @@ build:
     - CUDAHOSTCXX
     - PARALLEL_LEVEL
     - VERSION_SUFFIX
+    - CCACHE_DIR
+    - CCACHE_NOHASHDIR
+    - CCACHE_COMPILERCHECK
+    - CMAKE_GENERATOR
+    - CMAKE_C_COMPILER_LAUNCHER
+    - CMAKE_CXX_COMPILER_LAUNCHER
+    - CMAKE_CUDA_COMPILER_LAUNCHER
 
 requirements:
   build:
     - cmake>=3.12.4
-    - libcudf={{ minor_version }}
     - cudatoolkit {{ cuda_version }}.*
+    - librmm {{ minor_version }}.*
     - boost-cpp>=1.66
-    - libcypher-parser
-    - nccl>=2.7
-    - ucx-py {{ minor_version }}
+    - nccl>=2.8.4
     - ucx-proc=*=gpu
     - gtest
-    - faiss-proc=*=cuda
-    - libfaiss=1.6.3
     - gmock
+    - faiss-proc=*=cuda
+    - conda-forge::libfaiss=1.7.0
   run:
-    - libcudf={{ minor_version }}
     - {{ pin_compatible('cudatoolkit', max_pin='x.x') }}
-    - nccl>=2.7
-    - ucx-py {{ minor_version }}
+    - nccl>=2.8.4
     - ucx-proc=*=gpu
     - faiss-proc=*=cuda
-    - libfaiss=1.6.3
-
-#test:
-#  commands:
-#    - test -f $PREFIX/include/cugraph.h
-
+    - conda-forge::libfaiss=1.7.0
 
 about:
   home: http://rapids.ai/

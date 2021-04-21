@@ -22,6 +22,9 @@
 #include <utility>
 
 #include <rmm/thrust_rmm_allocator.h>
+#include <rmm/cuda_stream_view.hpp>
+#include <rmm/exec_policy.hpp>
+
 #include <thrust/transform.h>
 #include <ctime>
 
@@ -33,6 +36,8 @@
 
 #include <experimental/graph_functions.hpp>
 #include <experimental/graph_view.hpp>
+
+#include <utilities/high_res_timer.hpp>
 
 namespace {
 
@@ -61,57 +66,111 @@ extract(
   vertex_t n_subgraphs,
   vertex_t radius)
 {
-  auto v           = csr_view.get_number_of_vertices();
-  auto e           = csr_view.get_number_of_edges();
-  auto stream      = handle.get_stream();
-  float avg_degree = e / v;
+  auto v                = csr_view.get_number_of_vertices();
+  auto e                = csr_view.get_number_of_edges();
+  auto user_stream_view = handle.get_stream_view();
   rmm::device_vector<size_t> neighbors_offsets(n_subgraphs + 1);
   rmm::device_vector<vertex_t> neighbors;
 
-  // It is the right thing to accept device memory for source_vertex
-  // FIXME consider adding a device API to BFS (ie. accept source on the device)
   std::vector<vertex_t> h_source_vertex(n_subgraphs);
-  raft::update_host(&h_source_vertex[0], source_vertex, n_subgraphs, stream);
+  std::vector<size_t> h_neighbors_offsets(n_subgraphs + 1);
 
-  // reserve some reasonable memory, but could grow larger than that
-  neighbors.reserve(v + avg_degree * n_subgraphs * radius);
-  neighbors_offsets[0] = 0;
-  // each source should be done concurently in the future
+  raft::update_host(&h_source_vertex[0], source_vertex, n_subgraphs, user_stream_view.value());
+
+  // Streams will allocate concurrently later
+  std::vector<rmm::device_uvector<vertex_t>> reached{};
+  reached.reserve(n_subgraphs);
   for (vertex_t i = 0; i < n_subgraphs; i++) {
+    // Allocations and operations are attached to the worker stream
+    rmm::device_uvector<vertex_t> local_reach(v, handle.get_internal_stream_view(i));
+    reached.push_back(std::move(local_reach));
+  }
+
+  // h_source_vertex[i] is used by other streams in the for loop
+  user_stream_view.synchronize();
+#ifdef TIMING
+  HighResTimer hr_timer;
+  hr_timer.start("ego_neighbors");
+#endif
+
+  for (vertex_t i = 0; i < n_subgraphs; i++) {
+    // get light handle from worker pool
+    raft::handle_t light_handle(handle, i);
+    auto worker_stream_view = light_handle.get_stream_view();
+
     // BFS with cutoff
-    rmm::device_vector<vertex_t> reached(v);
-    rmm::device_vector<vertex_t> predecessors(v);  // not used
+    // consider adding a device API to BFS (ie. accept source on the device)
+    rmm::device_uvector<vertex_t> predecessors(v, worker_stream_view);  // not used
     bool direction_optimizing = false;
-    cugraph::experimental::bfs<vertex_t, edge_t, weight_t, false>(handle,
+    thrust::fill(rmm::exec_policy(worker_stream_view),
+                 reached[i].begin(),
+                 reached[i].end(),
+                 std::numeric_limits<vertex_t>::max());
+    thrust::fill(
+      rmm::exec_policy(worker_stream_view), reached[i].begin(), reached[i].begin() + 100, 1.0);
+
+    cugraph::experimental::bfs<vertex_t, edge_t, weight_t, false>(light_handle,
                                                                   csr_view,
-                                                                  reached.data().get(),
-                                                                  predecessors.data().get(),
+                                                                  reached[i].data(),
+                                                                  predecessors.data(),
                                                                   h_source_vertex[i],
                                                                   direction_optimizing,
                                                                   radius);
 
     // identify reached vertex ids from distance array
-    thrust::transform(rmm::exec_policy(stream)->on(stream),
+    thrust::transform(rmm::exec_policy(worker_stream_view),
                       thrust::make_counting_iterator(vertex_t{0}),
                       thrust::make_counting_iterator(v),
-                      reached.begin(),
-                      reached.begin(),
+                      reached[i].begin(),
+                      reached[i].begin(),
                       [sentinel = std::numeric_limits<vertex_t>::max()] __device__(
                         auto id, auto val) { return val < sentinel ? id : sentinel; });
 
     // removes unreached data
-    auto reached_end = thrust::remove(rmm::exec_policy(stream)->on(stream),
-                                      reached.begin(),
-                                      reached.end(),
+    auto reached_end = thrust::remove(rmm::exec_policy(worker_stream_view),
+                                      reached[i].begin(),
+                                      reached[i].end(),
                                       std::numeric_limits<vertex_t>::max());
-
-    // update extraction input
-    size_t n_reached         = thrust::distance(reached.begin(), reached_end);
-    neighbors_offsets[i + 1] = neighbors_offsets[i] + n_reached;
-    if (neighbors_offsets[i + 1] > neighbors.capacity())
-      neighbors.reserve(neighbors_offsets[i + 1] * 2);
-    neighbors.insert(neighbors.end(), reached.begin(), reached_end);
+    // release temp storage
+    reached[i].resize(thrust::distance(reached[i].begin(), reached_end), worker_stream_view);
+    reached[i].shrink_to_fit(worker_stream_view);
   }
+
+  // wait on every one to identify their neighboors before proceeding to concatenation
+  handle.wait_on_internal_streams();
+
+  // Construct neighboors offsets (just a scan on neighborhod vector sizes)
+  h_neighbors_offsets[0] = 0;
+  for (vertex_t i = 0; i < n_subgraphs; i++) {
+    h_neighbors_offsets[i + 1] = h_neighbors_offsets[i] + reached[i].size();
+  }
+  raft::update_device(neighbors_offsets.data().get(),
+                      &h_neighbors_offsets[0],
+                      n_subgraphs + 1,
+                      user_stream_view.value());
+  neighbors.resize(h_neighbors_offsets[n_subgraphs]);
+  user_stream_view.synchronize();
+
+  // Construct the neighboors list concurrently
+  for (vertex_t i = 0; i < n_subgraphs; i++) {
+    auto worker_stream_view = handle.get_internal_stream_view(i);
+    thrust::copy(rmm::exec_policy(worker_stream_view),
+                 reached[i].begin(),
+                 reached[i].end(),
+                 neighbors.begin() + h_neighbors_offsets[i]);
+
+    // reached info is not needed anymore
+    reached[i].resize(0, worker_stream_view);
+    reached[i].shrink_to_fit(worker_stream_view);
+  }
+
+  // wait on every one before proceeding to grouped extraction
+  handle.wait_on_internal_streams();
+
+#ifdef TIMING
+  hr_timer.stop();
+  hr_timer.display(std::cout);
+#endif
 
   // extract
   return cugraph::experimental::extract_induced_subgraphs(

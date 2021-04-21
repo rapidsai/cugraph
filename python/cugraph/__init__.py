@@ -82,7 +82,9 @@ from cugraph.traversal import (
     shortest_path,
     filter_unreachable,
     shortest_path_length,
-    traveling_salesperson
+    traveling_salesperson,
+    concurrent_bfs,
+    multi_source_bfs,
 )
 
 from cugraph.tree import minimum_spanning_tree, maximum_spanning_tree
@@ -98,6 +100,8 @@ from cugraph.linear_assignment import hungarian, dense_hungarian
 from cugraph.layout import force_atlas2
 from cugraph.raft import raft_include_test
 from cugraph.comms import comms
+
+from cugraph.sampling import random_walks
 
 # Versioneer
 from ._version import get_versions

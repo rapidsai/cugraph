@@ -1,4 +1,4 @@
-# Copyright (c) 2019-2020, NVIDIA CORPORATION.
+# Copyright (c) 2019-2021, NVIDIA CORPORATION.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -14,8 +14,8 @@
 #
 
 from dask.distributed import wait, default_client
-from cugraph.dask.common.input_utils import get_distributed_data
-from cugraph.structure.shuffle import shuffle
+from cugraph.dask.common.input_utils import (get_distributed_data,
+                                             get_vertex_partition_offsets)
 from cugraph.dask.traversal import mg_sssp_wrapper as mg_sssp
 import cugraph.comms.comms as Comms
 import cudf
@@ -76,7 +76,8 @@ def sssp(graph,
     Examples
     --------
     >>> import cugraph.dask as dcg
-    >>> Comms.initialize(p2p=True)
+    >>> ... Init a DASK Cluster
+    >>    see https://docs.rapids.ai/api/cugraph/stable/dask-cugraph.html
     >>> chunksize = dcg.get_chunksize(input_data_path)
     >>> ddf = dask_cudf.read_csv(input_data_path, chunksize=chunksize,
                                  delimiter=' ',
@@ -85,17 +86,14 @@ def sssp(graph,
     >>> dg = cugraph.DiGraph()
     >>> dg.from_dask_cudf_edgelist(ddf, 'src', 'dst')
     >>> df = dcg.sssp(dg, 0)
-    >>> Comms.destroy()
     """
 
     client = default_client()
 
     graph.compute_renumber_edge_list(transposed=False)
-    (ddf,
-     num_verts,
-     partition_row_size,
-     partition_col_size,
-     vertex_partition_offsets) = shuffle(graph, transposed=False)
+    ddf = graph.edgelist.edgelist_df
+    vertex_partition_offsets = get_vertex_partition_offsets(graph)
+    num_verts = vertex_partition_offsets.iloc[-1]
     num_edges = len(ddf)
     data = get_distributed_data(ddf)
 

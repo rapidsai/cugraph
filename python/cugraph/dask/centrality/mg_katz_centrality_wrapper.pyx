@@ -1,5 +1,5 @@
 #
-# Copyright (c) 2020, NVIDIA CORPORATION.
+# Copyright (c) 2020-2021, NVIDIA CORPORATION.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -17,7 +17,7 @@
 from cugraph.structure.utils_wrapper import *
 from cugraph.dask.centrality cimport mg_katz_centrality as c_katz_centrality
 import cudf
-from cugraph.structure.graph_primtypes cimport *
+from cugraph.structure.graph_utilities cimport *
 import cugraph.structure.graph_primtypes_wrapper as graph_primtypes_wrapper
 from libc.stdint cimport uintptr_t
 from cython.operator cimport dereference as deref
@@ -52,8 +52,12 @@ def mg_katz_centrality(input_df,
     if "value" in input_df.columns:
         weights = input_df['value']
         weight_t = weights.dtype
+        is_weighted = True
+        raise NotImplementedError # FIXME: c_edge_weights is always set to NULL
     else:
+        weights = None
         weight_t = np.dtype("float32")
+        is_weighted = False
 
     if alpha is None:
         alpha = 0.1
@@ -67,11 +71,13 @@ def mg_katz_centrality(input_df,
                      np.dtype("double") : <int>numberTypeEnum.doubleType}
 
     # FIXME: needs to be edge_t type not int
-    cdef int num_partition_edges = len(src)
+    cdef int num_local_edges = len(src)
 
     cdef uintptr_t c_src_vertices = src.__cuda_array_interface__['data'][0]
     cdef uintptr_t c_dst_vertices = dst.__cuda_array_interface__['data'][0]
     cdef uintptr_t c_edge_weights = <uintptr_t>NULL
+    if weights is not None:
+      c_edge_weights = weights.__cuda_array_interface__['data'][0]
     
     # FIXME: data is on device, move to host (to_pandas()), convert to np array and access pointer to pass to C
     vertex_partition_offsets_host = vertex_partition_offsets.values_host
@@ -85,9 +91,10 @@ def mg_katz_centrality(input_df,
                              <numberTypeEnum>(<int>(numberTypeMap[vertex_t])),
                              <numberTypeEnum>(<int>(numberTypeMap[edge_t])),
                              <numberTypeEnum>(<int>(numberTypeMap[weight_t])),
-                             num_partition_edges,
+                             num_local_edges,
                              num_global_verts, num_global_edges,
                              True,
+                             is_weighted,
                              True, True) 
 
     df = cudf.DataFrame()

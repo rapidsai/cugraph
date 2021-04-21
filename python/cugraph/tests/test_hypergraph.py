@@ -1,4 +1,4 @@
-# Copyright (c) 2020, NVIDIA CORPORATION.
+# Copyright (c) 2020-2021, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -34,12 +34,14 @@
 # (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 # THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-import cudf
-from cudf.tests.utils import assert_eq
-import cugraph
 import datetime as dt
+
 import pandas as pd
 import pytest
+import cudf
+from cudf.tests.utils import assert_eq
+
+import cugraph
 
 
 simple_df = cudf.DataFrame.from_pandas(pd.DataFrame({

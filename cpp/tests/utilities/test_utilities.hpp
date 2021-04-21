@@ -18,7 +18,9 @@
 #include <experimental/graph.hpp>
 #include <graph.hpp>
 
-#include <cstdio>
+#include <raft/handle.hpp>
+#include <rmm/device_uvector.hpp>
+
 #include <string>
 #include <vector>
 
@@ -77,10 +79,6 @@ int mm_to_coo(FILE* f,
               ValueType_* cooRVal,
               ValueType_* cooIVal);
 
-int read_binary_vector(FILE* fpin, int n, std::vector<float>& val);
-
-int read_binary_vector(FILE* fpin, int n, std::vector<double>& val);
-
 // FIXME: A similar function could be useful for CSC format
 //        There are functions above that operate coo -> csr and coo->csc
 /**
@@ -108,24 +106,83 @@ static const std::string& get_rapids_dataset_root_dir()
   return rdrd;
 }
 
+template <typename vertex_t,
+          typename edge_t,
+          typename weight_t,
+          bool store_transposed,
+          bool multi_gpu>
+std::tuple<cugraph::experimental::graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu>,
+           rmm::device_uvector<vertex_t>>
+generate_graph_from_edgelist(raft::handle_t const& handle,
+                             rmm::device_uvector<vertex_t>&& vertices,
+                             rmm::device_uvector<vertex_t>&& edgelist_rows,
+                             rmm::device_uvector<vertex_t>&& edgelist_cols,
+                             rmm::device_uvector<weight_t>&& edgelist_weights,
+                             bool is_symmetric,
+                             bool test_weighted,
+                             bool renumber);
+
+// returns a tuple of (rows, columns, weights, number_of_vertices, is_symmetric)
 template <typename vertex_t, typename weight_t>
-struct edgelist_from_market_matrix_file_t {
-  std::vector<vertex_t> h_rows{};
-  std::vector<vertex_t> h_cols{};
-  std::vector<weight_t> h_weights{};
-  vertex_t number_of_vertices{};
-  bool is_symmetric{};
-};
+std::tuple<rmm::device_uvector<vertex_t>,
+           rmm::device_uvector<vertex_t>,
+           rmm::device_uvector<weight_t>,
+           vertex_t,
+           bool>
+read_edgelist_from_matrix_market_file(raft::handle_t const& handle,
+                                      std::string const& graph_file_full_path,
+                                      bool test_weighted);
 
-template <typename vertex_t, typename edge_t, typename weight_t>
-edgelist_from_market_matrix_file_t<vertex_t, weight_t> read_edgelist_from_matrix_market_file(
-  std::string const& graph_file_full_path);
-
-template <typename vertex_t, typename edge_t, typename weight_t, bool store_transposed>
-cugraph::experimental::graph_t<vertex_t, edge_t, weight_t, store_transposed, false>
+// renumber must be true if multi_gpu is true
+template <typename vertex_t,
+          typename edge_t,
+          typename weight_t,
+          bool store_transposed,
+          bool multi_gpu>
+std::tuple<cugraph::experimental::graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu>,
+           rmm::device_uvector<vertex_t>>
 read_graph_from_matrix_market_file(raft::handle_t const& handle,
                                    std::string const& graph_file_full_path,
-                                   bool test_weighted);
+                                   bool test_weighted,
+                                   bool renumber);
+
+template <typename vertex_t,
+          typename edge_t,
+          typename weight_t,
+          bool store_transposed,
+          bool multi_gpu>
+std::tuple<cugraph::experimental::graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu>,
+           rmm::device_uvector<vertex_t>>
+generate_graph_from_rmat_params(raft::handle_t const& handle,
+                                size_t scale,
+                                size_t edge_factor,
+                                double a,
+                                double b,
+                                double c,
+                                uint64_t seed,
+                                bool undirected,
+                                bool scramble_vertex_ids,
+                                bool test_weighted,
+                                bool renumber,
+                                std::vector<size_t> const& partition_ids,
+                                size_t num_partitions);
+
+struct rmat_params_t {
+  size_t scale{};
+  size_t edge_factor{};
+  double a{};
+  double b{};
+  double c{};
+  uint64_t seed{};
+  bool undirected{};
+  bool scramble_vertex_ids{};
+};
+
+struct input_graph_specifier_t {
+  enum { MATRIX_MARKET_FILE_PATH, RMAT_PARAMS } tag{};
+  std::string graph_file_full_path{};
+  rmat_params_t rmat_params{};
+};
 
 }  // namespace test
 }  // namespace cugraph

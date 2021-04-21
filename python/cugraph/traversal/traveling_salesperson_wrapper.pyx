@@ -22,7 +22,6 @@ from cugraph.structure.graph_primtypes cimport *
 from libcpp cimport bool
 from libc.stdint cimport uintptr_t
 from numba import cuda
-
 import cudf
 import numpy as np
 

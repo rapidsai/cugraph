@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020, NVIDIA CORPORATION.
+ * Copyright (c) 2020-2021, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -15,6 +15,7 @@
  */
 #pragma once
 
+#include <raft/cudart_utils.h>
 #include <raft/device_atomics.cuh>
 
 #include <thrust/iterator/discard_iterator.h>
@@ -59,13 +60,6 @@ template <typename TupleType, size_t I>
 struct compute_thrust_tuple_element_sizes_impl<TupleType, I, I> {
   void compute(std::array<size_t, thrust::tuple_size<TupleType>::value>& arr) const {}
 };
-
-template <typename TupleType, size_t... Is>
-__device__ constexpr auto remove_first_thrust_tuple_element_impl(TupleType const& tuple,
-                                                                 std::index_sequence<Is...>)
-{
-  return thrust::make_tuple(thrust::get<1 + Is>(tuple)...);
-}
 
 template <typename TupleType, size_t I, size_t N>
 struct plus_thrust_tuple_impl {
@@ -196,16 +190,6 @@ struct compute_thrust_tuple_element_sizes {
     detail::compute_thrust_tuple_element_sizes_impl<TupleType, size_t{0}, tuple_size>().compute(
       ret);
     return ret;
-  }
-};
-
-template <typename TupleType>
-struct remove_first_thrust_tuple_element {
-  __device__ constexpr auto operator()(TupleType const& tuple) const
-  {
-    size_t constexpr tuple_size = thrust::tuple_size<TupleType>::value;
-    return detail::remove_first_thrust_tuple_element_impl(
-      tuple, std::make_index_sequence<tuple_size - 1>());
   }
 };
 

@@ -16,16 +16,13 @@
 # cython: embedsignature = True
 # cython: language_level = 3
 
-#cimport cugraph.link_analysis.pagerank as c_pagerank
 from cugraph.link_analysis.pagerank cimport call_pagerank
-from cugraph.structure.graph_primtypes cimport *
+from cugraph.structure.graph_utilities cimport *
 from libcpp cimport bool
 from libc.stdint cimport uintptr_t
 from cugraph.structure import graph_primtypes_wrapper
 import cudf
-import rmm
 import numpy as np
-import numpy.ctypeslib as ctypeslib
 
 
 def pagerank(input_graph, alpha=0.85, personalization=None, max_iter=100, tol=1.0e-5, nstart=None):
@@ -45,7 +42,7 @@ def pagerank(input_graph, alpha=0.85, personalization=None, max_iter=100, tol=1.
     num_verts = input_graph.number_of_vertices()
     num_edges = input_graph.number_of_edges(directed_edges=True)
     # FIXME: needs to be edge_t type not int
-    cdef int num_partition_edges = len(src)
+    cdef int num_local_edges = len(src)
 
     df = cudf.DataFrame()
     df['vertex'] = cudf.Series(np.arange(num_verts, dtype=np.int32))
@@ -74,8 +71,10 @@ def pagerank(input_graph, alpha=0.85, personalization=None, max_iter=100, tol=1.
     if weights is not None:
         c_edge_weights = weights.__cuda_array_interface__['data'][0]
         weight_t = weights.dtype
+        is_weighted = True
     else:
         weight_t = np.dtype("float32")
+        is_weighted = False
 
     # FIXME: Offsets and indices are currently hardcoded to int, but this may
     #        not be acceptable in the future.
@@ -99,10 +98,10 @@ def pagerank(input_graph, alpha=0.85, personalization=None, max_iter=100, tol=1.
                              <numberTypeEnum>(<int>(numberTypeEnum.int32Type)),
                              <numberTypeEnum>(<int>(numberTypeEnum.int32Type)),
                              <numberTypeEnum>(<int>(numberTypeMap[weight_t])),
-                             #num_verts, num_edges,
-                             num_partition_edges,
+                             num_local_edges,
                              num_verts, num_edges,
                              False,
+                             is_weighted,
                              True,
                              False)
 

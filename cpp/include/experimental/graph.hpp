@@ -61,6 +61,8 @@ class graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu, std::enab
   static constexpr bool is_adj_matrix_transposed = store_transposed;
   static constexpr bool is_multi_gpu             = multi_gpu;
 
+  graph_t(raft::handle_t const &handle) : detail::graph_base_t<vertex_t, edge_t, weight_t>() {}
+
   graph_t(raft::handle_t const &handle,
           std::vector<edgelist_t<vertex_t, edge_t, weight_t>> const &edgelists,
           partition_t<vertex_t> const &partition,
@@ -86,12 +88,12 @@ class graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu, std::enab
       offsets,
       indices,
       weights,
-      vertex_partition_segment_offsets_,
+      adj_matrix_partition_segment_offsets_,
       partition_,
       this->get_number_of_vertices(),
       this->get_number_of_edges(),
       this->get_graph_properties(),
-      vertex_partition_segment_offsets_.size() > 0,
+      adj_matrix_partition_segment_offsets_.size() > 0,
       false);
   }
 
@@ -103,9 +105,10 @@ class graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu, std::enab
   partition_t<vertex_t> partition_{};
 
   std::vector<vertex_t>
-    vertex_partition_segment_offsets_{};  // segment offsets within the vertex partition based on
-                                          // vertex degree, relevant only if
-                                          // sorted_by_global_degree_within_vertex_partition is true
+    adj_matrix_partition_segment_offsets_{};  // segment offsets within the vertex partition based
+                                              // on vertex degree, relevant only if
+                                              // sorted_by_global_degree_within_vertex_partition is
+                                              // true
 };
 
 // single-GPU version
@@ -122,6 +125,12 @@ class graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu, std::enab
   using weight_type                              = weight_t;
   static constexpr bool is_adj_matrix_transposed = store_transposed;
   static constexpr bool is_multi_gpu             = multi_gpu;
+
+  graph_t(raft::handle_t const &handle)
+    : detail::graph_base_t<vertex_t, edge_t, weight_t>(),
+      offsets_(0, handle.get_stream()),
+      indices_(0, handle.get_stream()),
+      weights_(0, handle.get_stream()){};
 
   graph_t(raft::handle_t const &handle,
           edgelist_t<vertex_t, edge_t, weight_t> const &edgelist,
@@ -179,6 +188,20 @@ struct invalid_vertex_id : invalid_idx<vertex_t> {
 template <typename edge_t>
 struct invalid_edge_id : invalid_idx<edge_t> {
 };
+
+template <typename vertex_t>
+__host__ __device__ std::enable_if_t<std::is_signed<vertex_t>::value, bool> is_valid_vertex(
+  vertex_t num_vertices, vertex_t v)
+{
+  return (v >= 0) && (v < num_vertices);
+}
+
+template <typename vertex_t>
+__host__ __device__ std::enable_if_t<std::is_unsigned<vertex_t>::value, bool> is_valid_vertex(
+  vertex_t num_vertices, vertex_t v)
+{
+  return v < num_vertices;
+}
 
 }  // namespace experimental
 }  // namespace cugraph

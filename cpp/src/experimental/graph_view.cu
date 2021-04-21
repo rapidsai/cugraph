@@ -17,12 +17,14 @@
 #include <experimental/detail/graph_utils.cuh>
 #include <experimental/graph_view.hpp>
 #include <partition_manager.hpp>
+#include <patterns/copy_v_transform_reduce_in_out_nbr.cuh>
 #include <utilities/error.hpp>
 #include <utilities/host_scalar_comm.cuh>
 
 #include <raft/cudart_utils.h>
 #include <rmm/thrust_rmm_allocator.h>
 #include <raft/handle.hpp>
+#include <rmm/device_scalar.hpp>
 
 #include <thrust/count.h>
 #include <thrust/iterator/counting_iterator.h>
@@ -70,6 +72,83 @@ std::vector<edge_t> update_adj_matrix_partition_edge_counts(
   return adj_matrix_partition_edge_counts;
 }
 
+template <typename vertex_t,
+          typename edge_t,
+          typename weight_t,
+          bool store_transposed,
+          bool multi_gpu>
+rmm::device_uvector<edge_t> compute_minor_degrees(
+  raft::handle_t const& handle,
+  graph_view_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu> const& graph_view)
+{
+  rmm::device_uvector<edge_t> minor_degrees(graph_view.get_number_of_local_vertices(),
+                                            handle.get_stream());
+  if (store_transposed) {
+    copy_v_transform_reduce_out_nbr(
+      handle,
+      graph_view,
+      thrust::make_constant_iterator(0) /* dummy */,
+      thrust::make_constant_iterator(0) /* dummy */,
+      [] __device__(vertex_t src, vertex_t dst, weight_t w, auto src_val, auto dst_val) {
+        return edge_t{1};
+      },
+      edge_t{0},
+      minor_degrees.data());
+  } else {
+    copy_v_transform_reduce_in_nbr(
+      handle,
+      graph_view,
+      thrust::make_constant_iterator(0) /* dummy */,
+      thrust::make_constant_iterator(0) /* dummy */,
+      [] __device__(vertex_t src, vertex_t dst, weight_t w, auto src_val, auto dst_val) {
+        return edge_t{1};
+      },
+      edge_t{0},
+      minor_degrees.data());
+  }
+
+  return minor_degrees;
+}
+
+template <bool major,
+          typename vertex_t,
+          typename edge_t,
+          typename weight_t,
+          bool store_transposed,
+          bool multi_gpu>
+rmm::device_uvector<weight_t> compute_weight_sums(
+  raft::handle_t const& handle,
+  graph_view_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu> const& graph_view)
+{
+  rmm::device_uvector<weight_t> weight_sums(graph_view.get_number_of_local_vertices(),
+                                            handle.get_stream());
+  if (major == store_transposed) {
+    copy_v_transform_reduce_in_nbr(
+      handle,
+      graph_view,
+      thrust::make_constant_iterator(0) /* dummy */,
+      thrust::make_constant_iterator(0) /* dummy */,
+      [] __device__(vertex_t src, vertex_t dst, weight_t w, auto src_val, auto dst_val) {
+        return w;
+      },
+      weight_t{0.0},
+      weight_sums.data());
+  } else {
+    copy_v_transform_reduce_out_nbr(
+      handle,
+      graph_view,
+      thrust::make_constant_iterator(0) /* dummy */,
+      thrust::make_constant_iterator(0) /* dummy */,
+      [] __device__(vertex_t src, vertex_t dst, weight_t w, auto src_val, auto dst_val) {
+        return w;
+      },
+      weight_t{0.0},
+      weight_sums.data());
+  }
+
+  return weight_sums;
+}
+
 }  // namespace
 
 template <typename vertex_t,
@@ -82,7 +161,7 @@ graph_view_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu, std::enabl
                std::vector<edge_t const*> const& adj_matrix_partition_offsets,
                std::vector<vertex_t const*> const& adj_matrix_partition_indices,
                std::vector<weight_t const*> const& adj_matrix_partition_weights,
-               std::vector<vertex_t> const& vertex_partition_segment_offsets,
+               std::vector<vertex_t> const& adj_matrix_partition_segment_offsets,
                partition_t<vertex_t> const& partition,
                vertex_t number_of_vertices,
                edge_t number_of_edges,
@@ -97,7 +176,7 @@ graph_view_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu, std::enabl
     adj_matrix_partition_number_of_edges_(update_adj_matrix_partition_edge_counts(
       adj_matrix_partition_offsets, partition, handle.get_stream())),
     partition_(partition),
-    vertex_partition_segment_offsets_(vertex_partition_segment_offsets)
+    adj_matrix_partition_segment_offsets_(adj_matrix_partition_segment_offsets)
 {
   // cheap error checks
 
@@ -117,19 +196,15 @@ graph_view_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu, std::enabl
                   "Internal Error: adj_matrix_partition_weights.size() should coincide with "
                   "adj_matrix_partition_offsets.size() (if weighted) or 0 (if unweighted).");
 
-  CUGRAPH_EXPECTS(
-    (partition.is_hypergraph_partitioned() &&
-     (adj_matrix_partition_offsets.size() == static_cast<size_t>(row_comm_size))) ||
-      (!(partition.is_hypergraph_partitioned()) && (adj_matrix_partition_offsets.size() == 1)),
-    "Internal Error: erroneous adj_matrix_partition_offsets.size().");
+  CUGRAPH_EXPECTS(adj_matrix_partition_offsets.size() == static_cast<size_t>(col_comm_size),
+                  "Internal Error: erroneous adj_matrix_partition_offsets.size().");
 
   CUGRAPH_EXPECTS((sorted_by_global_degree_within_vertex_partition &&
-                   (vertex_partition_segment_offsets.size() ==
-                    (partition.is_hypergraph_partitioned() ? col_comm_size : row_comm_size) *
-                      (detail::num_segments_per_vertex_partition + 1))) ||
+                   (adj_matrix_partition_segment_offsets.size() ==
+                    col_comm_size * (detail::num_segments_per_vertex_partition + 1))) ||
                     (!sorted_by_global_degree_within_vertex_partition &&
-                     (vertex_partition_segment_offsets.size() == 0)),
-                  "Internal Error: vertex_partition_segment_offsets.size() does not match "
+                     (adj_matrix_partition_segment_offsets.size() == 0)),
+                  "Internal Error: adj_matrix_partition_segment_offsets.size() does not match "
                   "with sorted_by_global_degree_within_vertex_partition.");
 
   // optional expensive checks
@@ -180,7 +255,7 @@ graph_view_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu, std::enabl
                     "number_of_local_edges.");
 
     if (sorted_by_global_degree_within_vertex_partition) {
-      auto degrees = detail::compute_major_degree(handle, adj_matrix_partition_offsets, partition);
+      auto degrees = detail::compute_major_degrees(handle, adj_matrix_partition_offsets, partition);
       CUGRAPH_EXPECTS(
         thrust::is_sorted(rmm::exec_policy(default_stream)->on(default_stream),
                           degrees.begin(),
@@ -189,25 +264,22 @@ graph_view_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu, std::enabl
         "Invalid Invalid input argument: sorted_by_global_degree_within_vertex_partition is "
         "set to true, but degrees are not non-ascending.");
 
-      for (int i = 0; i < (partition.is_hypergraph_partitioned() ? col_comm_size : row_comm_size);
-           ++i) {
-        CUGRAPH_EXPECTS(std::is_sorted(vertex_partition_segment_offsets.begin() +
+      for (int i = 0; i < col_comm_size; ++i) {
+        CUGRAPH_EXPECTS(std::is_sorted(adj_matrix_partition_segment_offsets.begin() +
                                          (detail::num_segments_per_vertex_partition + 1) * i,
-                                       vertex_partition_segment_offsets.begin() +
+                                       adj_matrix_partition_segment_offsets.begin() +
                                          (detail::num_segments_per_vertex_partition + 1) * (i + 1)),
-                        "Internal Error: erroneous vertex_partition_segment_offsets.");
+                        "Internal Error: erroneous adj_matrix_partition_segment_offsets.");
         CUGRAPH_EXPECTS(
-          vertex_partition_segment_offsets[(detail::num_segments_per_vertex_partition + 1) * i] ==
-            0,
-          "Internal Error: erroneous vertex_partition_segment_offsets.");
-        auto vertex_partition_idx = partition.is_hypergraph_partitioned()
-                                      ? row_comm_size * i + row_comm_rank
-                                      : col_comm_rank * row_comm_size + i;
+          adj_matrix_partition_segment_offsets[(detail::num_segments_per_vertex_partition + 1) *
+                                               i] == 0,
+          "Internal Error: erroneous adj_matrix_partition_segment_offsets.");
+        auto vertex_partition_idx = row_comm_size * i + row_comm_rank;
         CUGRAPH_EXPECTS(
-          vertex_partition_segment_offsets[(detail::num_segments_per_vertex_partition + 1) * i +
-                                           detail::num_segments_per_vertex_partition] ==
+          adj_matrix_partition_segment_offsets[(detail::num_segments_per_vertex_partition + 1) * i +
+                                               detail::num_segments_per_vertex_partition] ==
             partition.get_vertex_partition_size(vertex_partition_idx),
-          "Internal Error: erroneous vertex_partition_segment_offsets.");
+          "Internal Error: erroneous adj_matrix_partition_segment_offsets.");
       }
     }
 
@@ -299,6 +371,322 @@ graph_view_t<vertex_t,
     // neighbor list or not.
     if (!this->is_multigraph()) {}
   }
+}
+
+template <typename vertex_t,
+          typename edge_t,
+          typename weight_t,
+          bool store_transposed,
+          bool multi_gpu>
+rmm::device_uvector<edge_t>
+graph_view_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu, std::enable_if_t<multi_gpu>>::
+  compute_in_degrees(raft::handle_t const& handle) const
+{
+  if (store_transposed) {
+    return detail::compute_major_degrees(
+      handle, this->adj_matrix_partition_offsets_, this->partition_);
+  } else {
+    return compute_minor_degrees(handle, *this);
+  }
+}
+
+template <typename vertex_t,
+          typename edge_t,
+          typename weight_t,
+          bool store_transposed,
+          bool multi_gpu>
+rmm::device_uvector<edge_t>
+graph_view_t<vertex_t,
+             edge_t,
+             weight_t,
+             store_transposed,
+             multi_gpu,
+             std::enable_if_t<!multi_gpu>>::compute_in_degrees(raft::handle_t const& handle) const
+{
+  if (store_transposed) {
+    return detail::compute_major_degrees(
+      handle, this->offsets_, this->get_number_of_local_vertices());
+  } else {
+    return compute_minor_degrees(handle, *this);
+  }
+}
+
+template <typename vertex_t,
+          typename edge_t,
+          typename weight_t,
+          bool store_transposed,
+          bool multi_gpu>
+rmm::device_uvector<edge_t>
+graph_view_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu, std::enable_if_t<multi_gpu>>::
+  compute_out_degrees(raft::handle_t const& handle) const
+{
+  if (store_transposed) {
+    return compute_minor_degrees(handle, *this);
+  } else {
+    return detail::compute_major_degrees(
+      handle, this->adj_matrix_partition_offsets_, this->partition_);
+  }
+}
+
+template <typename vertex_t,
+          typename edge_t,
+          typename weight_t,
+          bool store_transposed,
+          bool multi_gpu>
+rmm::device_uvector<edge_t>
+graph_view_t<vertex_t,
+             edge_t,
+             weight_t,
+             store_transposed,
+             multi_gpu,
+             std::enable_if_t<!multi_gpu>>::compute_out_degrees(raft::handle_t const& handle) const
+{
+  if (store_transposed) {
+    return compute_minor_degrees(handle, *this);
+  } else {
+    return detail::compute_major_degrees(
+      handle, this->offsets_, this->get_number_of_local_vertices());
+  }
+}
+
+template <typename vertex_t,
+          typename edge_t,
+          typename weight_t,
+          bool store_transposed,
+          bool multi_gpu>
+rmm::device_uvector<weight_t>
+graph_view_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu, std::enable_if_t<multi_gpu>>::
+  compute_in_weight_sums(raft::handle_t const& handle) const
+{
+  if (store_transposed) {
+    return compute_weight_sums<true>(handle, *this);
+  } else {
+    return compute_weight_sums<false>(handle, *this);
+  }
+}
+
+template <typename vertex_t,
+          typename edge_t,
+          typename weight_t,
+          bool store_transposed,
+          bool multi_gpu>
+rmm::device_uvector<weight_t> graph_view_t<
+  vertex_t,
+  edge_t,
+  weight_t,
+  store_transposed,
+  multi_gpu,
+  std::enable_if_t<!multi_gpu>>::compute_in_weight_sums(raft::handle_t const& handle) const
+{
+  if (store_transposed) {
+    return compute_weight_sums<true>(handle, *this);
+  } else {
+    return compute_weight_sums<false>(handle, *this);
+  }
+}
+
+template <typename vertex_t,
+          typename edge_t,
+          typename weight_t,
+          bool store_transposed,
+          bool multi_gpu>
+rmm::device_uvector<weight_t>
+graph_view_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu, std::enable_if_t<multi_gpu>>::
+  compute_out_weight_sums(raft::handle_t const& handle) const
+{
+  if (store_transposed) {
+    return compute_weight_sums<false>(handle, *this);
+  } else {
+    return compute_weight_sums<true>(handle, *this);
+  }
+}
+
+template <typename vertex_t,
+          typename edge_t,
+          typename weight_t,
+          bool store_transposed,
+          bool multi_gpu>
+rmm::device_uvector<weight_t> graph_view_t<
+  vertex_t,
+  edge_t,
+  weight_t,
+  store_transposed,
+  multi_gpu,
+  std::enable_if_t<!multi_gpu>>::compute_out_weight_sums(raft::handle_t const& handle) const
+{
+  if (store_transposed) {
+    return compute_weight_sums<false>(handle, *this);
+  } else {
+    return compute_weight_sums<true>(handle, *this);
+  }
+}
+
+template <typename vertex_t,
+          typename edge_t,
+          typename weight_t,
+          bool store_transposed,
+          bool multi_gpu>
+edge_t
+graph_view_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu, std::enable_if_t<multi_gpu>>::
+  compute_max_in_degree(raft::handle_t const& handle) const
+{
+  auto in_degrees = compute_in_degrees(handle);
+  auto it = thrust::max_element(rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
+                                in_degrees.begin(),
+                                in_degrees.end());
+  rmm::device_scalar<edge_t> ret(handle.get_stream());
+  device_allreduce(
+    handle.get_comms(), it, ret.data(), 1, raft::comms::op_t::MAX, handle.get_stream());
+  return ret.value(handle.get_stream());
+}
+
+template <typename vertex_t,
+          typename edge_t,
+          typename weight_t,
+          bool store_transposed,
+          bool multi_gpu>
+edge_t graph_view_t<vertex_t,
+                    edge_t,
+                    weight_t,
+                    store_transposed,
+                    multi_gpu,
+                    std::enable_if_t<!multi_gpu>>::compute_max_in_degree(raft::handle_t const&
+                                                                           handle) const
+{
+  auto in_degrees = compute_in_degrees(handle);
+  auto it = thrust::max_element(rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
+                                in_degrees.begin(),
+                                in_degrees.end());
+  edge_t ret{};
+  raft::update_host(&ret, it, 1, handle.get_stream());
+  handle.get_stream_view().synchronize();
+  return ret;
+}
+
+template <typename vertex_t,
+          typename edge_t,
+          typename weight_t,
+          bool store_transposed,
+          bool multi_gpu>
+edge_t
+graph_view_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu, std::enable_if_t<multi_gpu>>::
+  compute_max_out_degree(raft::handle_t const& handle) const
+{
+  auto out_degrees = compute_out_degrees(handle);
+  auto it = thrust::max_element(rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
+                                out_degrees.begin(),
+                                out_degrees.end());
+  rmm::device_scalar<edge_t> ret(handle.get_stream());
+  device_allreduce(
+    handle.get_comms(), it, ret.data(), 1, raft::comms::op_t::MAX, handle.get_stream());
+  return ret.value(handle.get_stream());
+}
+
+template <typename vertex_t,
+          typename edge_t,
+          typename weight_t,
+          bool store_transposed,
+          bool multi_gpu>
+edge_t graph_view_t<vertex_t,
+                    edge_t,
+                    weight_t,
+                    store_transposed,
+                    multi_gpu,
+                    std::enable_if_t<!multi_gpu>>::compute_max_out_degree(raft::handle_t const&
+                                                                            handle) const
+{
+  auto out_degrees = compute_out_degrees(handle);
+  auto it = thrust::max_element(rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
+                                out_degrees.begin(),
+                                out_degrees.end());
+  edge_t ret{};
+  raft::update_host(&ret, it, 1, handle.get_stream());
+  handle.get_stream_view().synchronize();
+  return ret;
+}
+
+template <typename vertex_t,
+          typename edge_t,
+          typename weight_t,
+          bool store_transposed,
+          bool multi_gpu>
+weight_t
+graph_view_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu, std::enable_if_t<multi_gpu>>::
+  compute_max_in_weight_sum(raft::handle_t const& handle) const
+{
+  auto in_weight_sums = compute_in_weight_sums(handle);
+  auto it = thrust::max_element(rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
+                                in_weight_sums.begin(),
+                                in_weight_sums.end());
+  rmm::device_scalar<weight_t> ret(handle.get_stream());
+  device_allreduce(
+    handle.get_comms(), it, ret.data(), 1, raft::comms::op_t::MAX, handle.get_stream());
+  return ret.value(handle.get_stream());
+}
+
+template <typename vertex_t,
+          typename edge_t,
+          typename weight_t,
+          bool store_transposed,
+          bool multi_gpu>
+weight_t graph_view_t<vertex_t,
+                      edge_t,
+                      weight_t,
+                      store_transposed,
+                      multi_gpu,
+                      std::enable_if_t<!multi_gpu>>::compute_max_in_weight_sum(raft::handle_t const&
+                                                                                 handle) const
+{
+  auto in_weight_sums = compute_in_weight_sums(handle);
+  auto it = thrust::max_element(rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
+                                in_weight_sums.begin(),
+                                in_weight_sums.end());
+  weight_t ret{};
+  raft::update_host(&ret, it, 1, handle.get_stream());
+  handle.get_stream_view().synchronize();
+  return ret;
+}
+
+template <typename vertex_t,
+          typename edge_t,
+          typename weight_t,
+          bool store_transposed,
+          bool multi_gpu>
+weight_t
+graph_view_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu, std::enable_if_t<multi_gpu>>::
+  compute_max_out_weight_sum(raft::handle_t const& handle) const
+{
+  auto out_weight_sums = compute_out_weight_sums(handle);
+  auto it = thrust::max_element(rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
+                                out_weight_sums.begin(),
+                                out_weight_sums.end());
+  rmm::device_scalar<weight_t> ret(handle.get_stream());
+  device_allreduce(
+    handle.get_comms(), it, ret.data(), 1, raft::comms::op_t::MAX, handle.get_stream());
+  return ret.value(handle.get_stream());
+}
+
+template <typename vertex_t,
+          typename edge_t,
+          typename weight_t,
+          bool store_transposed,
+          bool multi_gpu>
+weight_t graph_view_t<
+  vertex_t,
+  edge_t,
+  weight_t,
+  store_transposed,
+  multi_gpu,
+  std::enable_if_t<!multi_gpu>>::compute_max_out_weight_sum(raft::handle_t const& handle) const
+{
+  auto out_weight_sums = compute_out_weight_sums(handle);
+  auto it = thrust::max_element(rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
+                                out_weight_sums.begin(),
+                                out_weight_sums.end());
+  weight_t ret{};
+  raft::update_host(&ret, it, 1, handle.get_stream());
+  handle.get_stream_view().synchronize();
+  return ret;
 }
 
 // explicit instantiation

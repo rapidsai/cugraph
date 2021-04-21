@@ -1,5 +1,5 @@
 #!/bin/bash
-# Copyright (c) 2018-2020, NVIDIA CORPORATION.
+# Copyright (c) 2018-2021, NVIDIA CORPORATION.
 #########################################
 # cuGraph CPU conda build script for CI #
 #########################################
@@ -23,6 +23,10 @@ fi
 # Setup 'gpuci_conda_retry' for build retries (results in 2 total attempts)
 export GPUCI_CONDA_RETRY_MAX=1
 export GPUCI_CONDA_RETRY_SLEEP=30
+
+# Use Ninja to build
+export CMAKE_GENERATOR="Ninja"
+export CONDA_BLD_DIR="${WORKSPACE}/.conda-bld"
 
 ################################################################################
 # SETUP - Check environment
@@ -55,18 +59,20 @@ conda config --set ssl_verify False
 gpuci_logger "Build conda pkg for libcugraph"
 if [ "$BUILD_LIBCUGRAPH" == '1' ]; then
   if [[ -z "$PROJECT_FLASH" || "$PROJECT_FLASH" == "0" ]]; then
-    conda build conda/recipes/libcugraph
+    gpuci_conda_retry build --no-build-id --croot ${CONDA_BLD_DIR} conda/recipes/libcugraph
   else
-    conda build --dirty --no-remove-work-dir conda/recipes/libcugraph
+    gpuci_conda_retry build --no-build-id --croot ${CONDA_BLD_DIR} --dirty --no-remove-work-dir conda/recipes/libcugraph
+    mkdir -p ${CONDA_BLD_DIR}/libcugraph/work
+    cp -r ${CONDA_BLD_DIR}/work/* ${CONDA_BLD_DIR}/libcugraph/work
   fi
 fi
 
 gpuci_logger "Build conda pkg for cugraph"
 if [ "$BUILD_CUGRAPH" == "1" ]; then
   if [[ -z "$PROJECT_FLASH" || "$PROJECT_FLASH" == "0" ]]; then
-    conda build conda/recipes/cugraph --python=$PYTHON
+    gpuci_conda_retry build --croot ${CONDA_BLD_DIR} conda/recipes/cugraph --python=$PYTHON
   else
-    conda build conda/recipes/cugraph -c ci/artifacts/cugraph/cpu/conda-bld/ --dirty --no-remove-work-dir --python=$PYTHON
+    gpuci_conda_retry build --croot ${CONDA_BLD_DIR} conda/recipes/cugraph -c ci/artifacts/cugraph/cpu/.conda-bld/ --dirty --no-remove-work-dir --python=$PYTHON
   fi
 fi
 

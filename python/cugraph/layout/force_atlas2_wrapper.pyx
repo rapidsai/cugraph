@@ -1,4 +1,4 @@
-# Copyright (c) 2020, NVIDIA CORPORATION.
+# Copyright (c) 2020-2021, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -19,15 +19,11 @@
 from cugraph.layout.force_atlas2 cimport force_atlas2 as c_force_atlas2
 from cugraph.structure import graph_primtypes_wrapper
 from cugraph.structure.graph_primtypes cimport *
-from cugraph.structure import utils_wrapper
 from libcpp cimport bool
 from libc.stdint cimport uintptr_t
-
 import cudf
-import cudf._lib as libcudf
 from numba import cuda
 import numpy as np
-import numpy.ctypeslib as ctypeslib
 
 cdef extern from "internals.hpp" namespace "cugraph::internals":
     cdef cppclass GraphBasedDimRedCallback

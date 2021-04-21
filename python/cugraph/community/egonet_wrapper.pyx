@@ -12,14 +12,12 @@
 # limitations under the License.
 
 from cugraph.community.egonet cimport call_egonet
-from cugraph.structure.graph_primtypes cimport *
+from cugraph.structure.graph_utilities cimport *
 from libcpp cimport bool
 from libc.stdint cimport uintptr_t
 from cugraph.structure import graph_primtypes_wrapper
 import cudf
-import rmm
 import numpy as np
-import numpy.ctypeslib as ctypeslib
 from rmm._lib.device_buffer cimport DeviceBuffer
 from cudf.core.buffer import Buffer
 
@@ -35,7 +33,7 @@ def egonet(input_graph, vertices, radius=1):
                      np.dtype("float32") : <int>numberTypeEnum.floatType,
                      np.dtype("double") : <int>numberTypeEnum.doubleType}
 
-    [src, dst] = [input_graph.edgelist.edgelist_df['src'], input_graph.edgelist.edgelist_df['dst']]
+    [src, dst] = graph_primtypes_wrapper.datatype_cast([input_graph.edgelist.edgelist_df['src'], input_graph.edgelist.edgelist_df['dst']], [np.int32])
     vertex_t = src.dtype
     edge_t = np.dtype("int32")
     weights = None
@@ -44,7 +42,7 @@ def egonet(input_graph, vertices, radius=1):
 
     num_verts = input_graph.number_of_vertices()
     num_edges = input_graph.number_of_edges(directed_edges=True)
-    num_partition_edges = num_edges
+    num_local_edges = num_edges
 
     cdef uintptr_t c_src_vertices = src.__cuda_array_interface__['data'][0]
     cdef uintptr_t c_dst_vertices = dst.__cuda_array_interface__['data'][0]
@@ -52,15 +50,20 @@ def egonet(input_graph, vertices, radius=1):
     if weights is not None:
         c_edge_weights = weights.__cuda_array_interface__['data'][0]
         weight_t = weights.dtype
+        is_weighted = True
     else:
         weight_t = np.dtype("float32")
+        is_weighted = False
 
     # Pointers for egonet
+    vertices = vertices.astype('int32')
     cdef uintptr_t c_source_vertex_ptr = vertices.__cuda_array_interface__['data'][0]
     n_subgraphs = vertices.size
-
+    n_streams = 1
+    if n_subgraphs > 1 :
+        n_streams = min(n_subgraphs, 32)
     cdef unique_ptr[handle_t] handle_ptr
-    handle_ptr.reset(new handle_t())
+    handle_ptr.reset(new handle_t(n_streams))
     handle_ = handle_ptr.get();
 
     cdef graph_container_t graph_container
@@ -71,10 +74,11 @@ def egonet(input_graph, vertices, radius=1):
                              <numberTypeEnum>(<int>(numberTypeMap[vertex_t])),
                              <numberTypeEnum>(<int>(numberTypeMap[edge_t])),
                              <numberTypeEnum>(<int>(numberTypeMap[weight_t])),
-                             num_partition_edges,
+                             num_local_edges,
                              num_verts,
                              num_edges,
                              False,
+                             is_weighted,
                              False, False) 
 
     if(weight_t==np.dtype("float32")):

@@ -1,4 +1,4 @@
-# Copyright (c) 2018-2020, NVIDIA CORPORATION.
+# Copyright (c) 2018-2021, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -46,7 +46,10 @@ def client_connection():
     is_single_gpu(), reason="skipping MG testing on Single GPU system"
 )
 def test_from_edgelist(client_connection):
+    # FIXME: update this to allow dataset to be parameterized and have dataset
+    # part of test param id (see other tests)
     input_data_path = r"../datasets/karate.csv"
+    print(f"dataset={input_data_path}")
     chunksize = dcg.get_chunksize(input_data_path)
     ddf = dask_cudf.read_csv(
         input_data_path,
