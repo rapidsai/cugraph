@@ -60,52 +60,52 @@ As of Release 0.19 - including 0.20 nightly
 And the Graph types that they work on.
 
 
-| Category     | Algorithm                              | Scale        | Self<br>Loops  | Isolated<br>Vertices | Undirected | Directed | Multigraph | Notes |
-| ------------ | -------------------------------------- | ------------ | ----- | -------- | ---------- | ------ | ------ | -------|
+| Category     | Algorithm                              | Scale        | Self<br>Loops  | Isolated<br>Vertices |  Notes |
+| ------------ | -------------------------------------- | ------------ | ----- | -------- | -------|
 | Centrality   |
-|              | Katz                                   | Multi-GPU    |  Yes | No  | Yes | Yes | Yes |   |
-|              | Betweenness Centrality                 | Single-GPU   |  Yes | No  | Yes | Yes | Yes |   |
-|              | Edge Betweenness Centrality            | Single-GPU   |  Yes | No  | Yes | Yes | Yes |   |
+|              | Katz                                   | Multi-GPU    |  Yes | No  |    |
+|              | Betweenness Centrality                 | Single-GPU   |  Yes | No  |    |
+|              | Edge Betweenness Centrality            | Single-GPU   |  Yes | No  |    |
 | Community    |
-|              | EgoNet                                 | Single-GPU   |  No  | No  | Yes | Yes | Yes |   |
-|              | Leiden                                 | Single-GPU   |  Yes | No |  Yes | Yes | Yes |    |
-|              | Louvain                                | Multi-GPU    |  No  | No |  Yes | Yes | Yes | [C++ README](cpp/src/community/README.md#Louvain) |
-|              | Ensemble Clustering for Graphs         | Single-GPU   |  Yes | No |  Yes | Yes | Yes |   |
-|              | Spectral-Clustering - Balanced Cut     | Single-GPU   |  Yes | No |  Yes | Yes | Yes |   |
-|              | Spectral-Clustering - Modularity       | Single-GPU   |  Yes | No |  Yes | Yes | Yes |   |
-|              | Subgraph Extraction                    | Single-GPU   |  Yes | No |  Yes | Yes | Yes |   |
-|              | Triangle Counting                      | Single-GPU   |  No  | No |  Yes | Yes | No  |   |
-|              | K-Truss                                | Single-GPU   |  No  | No |  Yes | No | Yes |   |
+|              | EgoNet                                 | Single-GPU   |  No  | No  |    |
+|              | Leiden                                 | Single-GPU   |  Yes | No |     |
+|              | Louvain                                | Multi-GPU    |  No  | No |  C++ README](cpp/src/community/README.md#Louvain) |
+|              | Ensemble Clustering for Graphs         | Single-GPU   |  Yes | No |     |
+|              | Spectral-Clustering - Balanced Cut     | Single-GPU   |  Yes | No |     |
+|              | Spectral-Clustering - Modularity       | Single-GPU   |  Yes | No |     |
+|              | Subgraph Extraction                    | Single-GPU   |  Yes | No |     |
+|              | Triangle Counting                      | Single-GPU   |  No  | No |     |
+|              | K-Truss                                | Single-GPU   |  No  | No |     |
 | Components   | |
-|              | Weakly Connected Components            | Single-GPU   |  Yes | No |  Yes | Yes | Yes |   |
-|              | Strongly Connected Components          | Single-GPU   |  Yes | No |  Yes | Yes | Yes |   |
+|              | Weakly Connected Components            | Single-GPU   |  Yes | No |     |
+|              | Strongly Connected Components          | Single-GPU   |  Yes | No |     |
 | Core         |
-|              | K-Core                                 | Single-GPU   |  No  | No |  Yes | No  | Yes |   |
-|              | Core Number                            | Single-GPU   |  No  | No |  Yes | No  | Yes |   |
+|              | K-Core                                 | Single-GPU   |  No  | No |     |
+|              | Core Number                            | Single-GPU   |  No  | No |     |
 | Layout       |
-|              | Force Atlas 2                          | Single-GPU   |  Yes |    |  Yes | Yes | Yes |   |
+|              | Force Atlas 2                          | Single-GPU   |  Yes |    |     |
 | Linear Assignment |
-|              | Hungarian                              | Single-GPU   |      |    | | |      | [README](cpp/src/linear_assignment/README-hungarian.md) |
+|              | Hungarian                              | Single-GPU   |      |    | [README](cpp/src/linear_assignment/README-hungarian.md) |
 | Link Analysis |
-|              | Pagerank                               | Multi-GPU    |  Yes | No |  Yes | Yes | Yes | [C++ README](cpp/src/centrality/README.md#Pagerank) MG PageRAnl on Directed Graphs only|
-|              | Personal Pagerank                      | Multi-GPU    |  Yes | No |  Yes | Yes | Yes | [C++ README](cpp/src/centrality/README.md#Personalized-Pagerank) |
-|              | HITS                                   | Single-GPU   |  Yes | No |  Yes | Yes | Yes |  Depricated, being dropped in 0.21 leverages Gunrock   |
+|              | Pagerank                               | Multi-GPU    |  Yes | No |  [C++ README](cpp/src/centrality/README.md#Pagerank) MG PageRAnl on Directed Graphs only|
+|              | Personal Pagerank                      | Multi-GPU    |  Yes | No |  [C++ README](cpp/src/centrality/README.md#Personalized-Pagerank) |
+|              | HITS                                   | Single-GPU   |  Yes | No |   Depricated, being dropped in 0.21 leverages Gunrock   |
 | Link Prediction |
-|              | Jaccard Similarity                     | Single-GPU   |  No  | No |  Yes | No  | Yes |   |
-|              | Weighted Jaccard Similarity            | Single-GPU   |  No  | No |  Yes | No  | Yes |   |
-|              | Overlap Similarity                     | Single-GPU   |  Yes | No |  Yes | Yes | Yes |   |
+|              | Jaccard Similarity                     | Single-GPU   |  No  | No |     |
+|              | Weighted Jaccard Similarity            | Single-GPU   |  No  | No |     |
+|              | Overlap Similarity                     | Single-GPU   |  Yes | No |     |
 | Traversal    |
-|              | Breadth First Search (BFS)             | Multi-GPU    |  Yes | No |  Yes | Yes | Yes |   with cutoff support <br/> [C++ README](cpp/src/traversal/README.md#BFS) MG BFS on Directed graphs only|
-|              | Single Source Shortest Path (SSSP)     | Multi-GPU    |  Yes | No |  Yes | Yes | Yes |  [C++ README](cpp/src/traversal/README.md#SSSP) |
-|              | Traveling Salesperson Problem (TSP)    | Single-GPU   |      |    |  Yes | Yes |     |   |
+|              | Breadth First Search (BFS)             | Multi-GPU    |  Yes | No |   with cutoff support <br/> [C++ README](cpp/src/traversal/README.md#BFS) MG BFS on Directed graphs only|
+|              | Single Source Shortest Path (SSSP)     | Multi-GPU    |  Yes | No |   [C++ README](cpp/src/traversal/README.md#SSSP) |
+|              | Traveling Salesperson Problem (TSP)    | Single-GPU   |      |    |     |
 | Sampling     |
-|              | Random Walks (RW)                      | Single-GPU   |      |    |  Yes | Yes |     |   |
+|              | Random Walks (RW)                      | Single-GPU   |      |    |     |
 | Other        |
-|              | Minimum Spanning Tree                  | Single-GPU   |  Yes | No |  Yes | Yes | Yes |   |
-|              | Maximum Spanning Tree                  | Single-GPU   |  Yes | No |  Yes | Yes | Yes |   |
+|              | Minimum Spanning Tree                  | Single-GPU   |  Yes | No |     |
+|              | Maximum Spanning Tree                  | Single-GPU   |  Yes | No |     |
 | Structure    |
-|              | Renumbering                            | Single-GPU   |  Yes  | Yes | Yes | Yes | Yes |   multiple columns, any data type  |
-|              | Symmetrize                             | Multi-GPU    |  Yes  | Yes | Yes | Yes | Yes |   |
+|              | Renumbering                            | Single-GPU   |  Yes  | Yes |  multiple columns, any data type  |
+|              | Symmetrize                             | Multi-GPU    |  Yes  | Yes |   |
 |  |  |
 
 </br></br>
