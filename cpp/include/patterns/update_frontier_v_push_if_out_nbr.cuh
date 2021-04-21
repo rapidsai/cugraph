@@ -59,7 +59,7 @@ namespace detail {
 int32_t constexpr update_frontier_v_push_if_out_nbr_for_all_block_size = 512;
 
 template <typename GraphViewType,
-          typename RowIterator,
+          typename KeyIterator,
           typename AdjMatrixRowValueInputIterator,
           typename AdjMatrixColValueInputIterator,
           typename BufferKeyOutputIterator,
@@ -67,8 +67,8 @@ template <typename GraphViewType,
           typename EdgeOp>
 __global__ void for_all_frontier_row_for_all_nbr_low_degree(
   matrix_partition_device_t<GraphViewType> matrix_partition,
-  RowIterator row_first,
-  RowIterator row_last,
+  KeyIterator key_first,
+  KeyIterator key_last,
   AdjMatrixRowValueInputIterator adj_matrix_row_value_input_first,
   AdjMatrixColValueInputIterator adj_matrix_col_value_input_first,
   BufferKeyOutputIterator buffer_key_output_first,
@@ -86,8 +86,8 @@ __global__ void for_all_frontier_row_for_all_nbr_low_degree(
   auto const tid = threadIdx.x + blockIdx.x * blockDim.x;
   auto idx       = static_cast<size_t>(tid);
 
-  while (idx < static_cast<size_t>(thrust::distance(row_first, row_last))) {
-    vertex_t row    = *(row_first + idx);
+  while (idx < static_cast<size_t>(thrust::distance(key_first, key_last))) {
+    vertex_t row    = *(key_first + idx);
     auto row_offset = matrix_partition.get_major_offset_from_major_nocheck(row);
     vertex_t const* indices{nullptr};
     weight_t const* weights{nullptr};
@@ -124,7 +124,7 @@ __global__ void for_all_frontier_row_for_all_nbr_low_degree(
 }
 
 template <typename GraphViewType,
-          typename RowIterator,
+          typename KeyIterator,
           typename AdjMatrixRowValueInputIterator,
           typename AdjMatrixColValueInputIterator,
           typename BufferKeyOutputIterator,
@@ -132,8 +132,8 @@ template <typename GraphViewType,
           typename EdgeOp>
 __global__ void for_all_frontier_row_for_all_nbr_mid_degree(
   matrix_partition_device_t<GraphViewType> matrix_partition,
-  RowIterator row_first,
-  RowIterator row_last,
+  KeyIterator key_first,
+  KeyIterator key_last,
   AdjMatrixRowValueInputIterator adj_matrix_row_value_input_first,
   AdjMatrixColValueInputIterator adj_matrix_col_value_input_first,
   BufferKeyOutputIterator buffer_key_output_first,
@@ -153,8 +153,8 @@ __global__ void for_all_frontier_row_for_all_nbr_mid_degree(
   auto const lane_id = tid % raft::warp_size();
   auto idx           = static_cast<size_t>(tid / raft::warp_size());
 
-  while (idx < static_cast<size_t>(thrust::distance(row_first, row_last))) {
-    vertex_t row    = *(row_first + idx);
+  while (idx < static_cast<size_t>(thrust::distance(key_first, key_last))) {
+    vertex_t row    = *(key_first + idx);
     auto row_offset = matrix_partition.get_major_offset_from_major_nocheck(row);
     vertex_t const* indices{nullptr};
     weight_t const* weights{nullptr};
@@ -192,7 +192,7 @@ __global__ void for_all_frontier_row_for_all_nbr_mid_degree(
 }
 
 template <typename GraphViewType,
-          typename RowIterator,
+          typename KeyIterator,
           typename AdjMatrixRowValueInputIterator,
           typename AdjMatrixColValueInputIterator,
           typename BufferKeyOutputIterator,
@@ -200,8 +200,8 @@ template <typename GraphViewType,
           typename EdgeOp>
 __global__ void for_all_frontier_row_for_all_nbr_high_degree(
   matrix_partition_device_t<GraphViewType> matrix_partition,
-  RowIterator row_first,
-  RowIterator row_last,
+  KeyIterator key_first,
+  KeyIterator key_last,
   AdjMatrixRowValueInputIterator adj_matrix_row_value_input_first,
   AdjMatrixColValueInputIterator adj_matrix_col_value_input_first,
   BufferKeyOutputIterator buffer_key_output_first,
@@ -218,8 +218,8 @@ __global__ void for_all_frontier_row_for_all_nbr_high_degree(
 
   auto idx = static_cast<size_t>(blockIdx.x);
 
-  while (idx < static_cast<size_t>(thrust::distance(row_first, row_last))) {
-    vertex_t row    = *(row_first + idx);
+  while (idx < static_cast<size_t>(thrust::distance(key_first, key_last))) {
+    vertex_t row    = *(key_first + idx);
     auto row_offset = matrix_partition.get_major_offset_from_major_nocheck(row);
     vertex_t const* indices{nullptr};
     weight_t const* weights{nullptr};
@@ -396,68 +396,87 @@ void update_frontier_v_push_if_out_nbr(
   using vertex_t  = typename GraphViewType::vertex_type;
   using edge_t    = typename GraphViewType::edge_type;
   using weight_t  = typename GraphViewType::weight_type;
+  using key_t     = typename VertexFrontierType::key_type;
   using payload_t = typename ReduceOp::type;
 
-  auto cur_frontier_vertex_first = vertex_frontier.get_bucket(cur_frontier_bucket_idx).begin();
-  auto cur_frontier_vertex_last  = vertex_frontier.get_bucket(cur_frontier_bucket_idx).end();
+  auto frontier_key_first = vertex_frontier.get_bucket(cur_frontier_bucket_idx).key_begin();
+  auto frontier_key_last  = vertex_frontier.get_bucket(cur_frontier_bucket_idx).key_end();
 
   // 1. fill the buffer
 
-  rmm::device_uvector<vertex_t> keys(size_t{0}, handle.get_stream());
+  auto key_buffer     = allocate_dataframe_buffer<key_t>(size_t{0}, handle.get_stream());
   auto payload_buffer = allocate_dataframe_buffer<payload_t>(size_t{0}, handle.get_stream());
   rmm::device_scalar<size_t> buffer_idx(size_t{0}, handle.get_stream());
   for (size_t i = 0; i < graph_view.get_number_of_local_adj_matrix_partitions(); ++i) {
     matrix_partition_device_t<GraphViewType> matrix_partition(graph_view, i);
 
-    rmm::device_uvector<vertex_t> frontier_rows(0, handle.get_stream());
+    auto matrix_partition_frontier_key_buffer =
+      allocate_dataframe_buffer<key_t>(size_t{0}, handle.get_stream());
+    vertex_t matrix_partition_frontier_size{0};
     if (GraphViewType::is_multi_gpu) {
       auto& col_comm = handle.get_subcomm(cugraph::partition_2d::key_naming_t().col_name());
       auto const col_comm_rank = col_comm.get_rank();
 
-      auto frontier_size =
-        host_scalar_bcast(col_comm,
-                          (static_cast<size_t>(col_comm_rank) == i)
-                            ? thrust::distance(cur_frontier_vertex_first, cur_frontier_vertex_last)
-                            : size_t{0} /* dummy */,
-                          i,
-                          handle.get_stream());
-      frontier_rows.resize(frontier_size, handle.get_stream());
+      matrix_partition_frontier_size = host_scalar_bcast(
+        col_comm,
+        (static_cast<size_t>(col_comm_rank) == i)
+          ? static_cast<vertex_t>(thrust::distance(frontier_key_first, frontier_key_last))
+          : vertex_t{0} /* dummy */,
+        i,
+        handle.get_stream());
+      resize_dataframe_buffer<key_t>(
+        matrix_partition_frontier_key_buffer, matrix_partition_frontier_size, handle.get_stream());
 
       if (static_cast<size_t>(col_comm_rank) == i) {
         thrust::copy(rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
-                     cur_frontier_vertex_first,
-                     cur_frontier_vertex_last,
-                     frontier_rows.begin());
+                     frontier_key_first,
+                     frontier_key_last,
+                     get_dataframe_buffer_begin<key_t>(matrix_partition_frontier_key_buffer));
       }
 
       device_bcast(col_comm,
-                   cur_frontier_vertex_first,
-                   frontier_rows.begin(),
-                   frontier_size,
+                   frontier_key_first,
+                   get_dataframe_buffer_begin<key_t>(matrix_partition_frontier_key_buffer),
+                   matrix_partition_frontier_size,
                    i,
                    handle.get_stream());
     } else {
-      frontier_rows.resize(thrust::distance(cur_frontier_vertex_first, cur_frontier_vertex_last),
-                           handle.get_stream());
+      matrix_partition_frontier_size =
+        static_cast<vertex_t>(thrust::distance(frontier_key_first, frontier_key_last));
+      resize_dataframe_buffer<key_t>(
+        matrix_partition_frontier_key_buffer, matrix_partition_frontier_size, handle.get_stream());
       thrust::copy(rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
-                   cur_frontier_vertex_first,
-                   cur_frontier_vertex_last,
-                   frontier_rows.begin());
+                   frontier_key_first,
+                   frontier_key_last,
+                   get_dataframe_buffer_begin<key_t>(matrix_partition_frontier_key_buffer));
     }
 
-    auto max_pushes = frontier_rows.size() > 0
-                        ? thrust::transform_reduce(
-                            rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
-                            frontier_rows.begin(),
-                            frontier_rows.end(),
-                            [matrix_partition] __device__(auto row) {
-                              auto row_offset =
-                                matrix_partition.get_major_offset_from_major_nocheck(row);
-                              return matrix_partition.get_local_degree(row_offset);
-                            },
-                            edge_t{0},
-                            thrust::plus<edge_t>())
-                        : edge_t{0};
+    vertex_t const* matrix_partition_frontier_row_first{nullptr};
+    vertex_t const* matrix_partition_frontier_row_last{nullptr};
+    if constexpr (std::is_same_v<key_t, vertex_t>) {
+      matrix_partition_frontier_row_first =
+        get_dataframe_buffer_begin<key_t>(matrix_partition_frontier_key_buffer);
+      matrix_partition_frontier_row_last =
+        get_dataframe_buffer_end<key_t>(matrix_partition_frontier_key_buffer);
+    } else {
+      matrix_partition_frontier_row_first =
+        std::get<0>(get_dataframe_buffer_begin<key_t>(matrix_partition_frontier_key_buffer));
+      matrix_partition_frontier_row_last =
+        std::get<0>(get_dataframe_buffer_end<key_t>(matrix_partition_frontier_key_buffer));
+    }
+    auto max_pushes =
+      thrust::distance(matrix_partition_frontier_row_first, matrix_partition_frontier_row_last) > 0
+        ? thrust::transform_reduce(
+            rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
+            matrix_partition_frontier_row_first,
+            matrix_partition_frontier_row_last,
+            [matrix_partition] __device__(auto row) {
+              auto row_offset = matrix_partition.get_major_offset_from_major_nocheck(row);
+              return matrix_partition.get_local_degree(row_offset);
+            },
+            edge_t{0},
+            thrust::plus<edge_t>())
+        : edge_t{0};
 
     // FIXME: This is highly pessimistic for single GPU (and multi-GPU as well if we maintain
     // additional per column data for filtering in e_op). If we can pause & resume execution if
@@ -473,8 +492,9 @@ void update_frontier_v_push_if_out_nbr(
     // locking.
     // FIXME: if i != 0, this will require costly reallocation if we don't use the new CUDA feature
     // to reserve address space.
-    keys.resize(buffer_idx.value(handle.get_stream()) + max_pushes, handle.get_stream());
-    resize_dataframe_buffer<payload_t>(payload_buffer, keys.size(), handle.get_stream());
+    auto new_buffer_size = buffer_idx.value(handle.get_stream()) + max_pushes;
+    resize_dataframe_buffer<key_t>(key_buffer, new_buffer_size, handle.get_stream());
+    resize_dataframe_buffer<payload_t>(payload_buffer, new_buffer_size, handle.get_stream());
 
     auto row_value_input_offset = GraphViewType::is_adj_matrix_transposed
                                     ? vertex_t{0}
@@ -490,8 +510,8 @@ void update_frontier_v_push_if_out_nbr(
         d_thresholds.data(), h_thresholds.data(), h_thresholds.size(), handle.get_stream());
       rmm::device_uvector<vertex_t> d_offsets(d_thresholds.size(), handle.get_stream());
       thrust::lower_bound(rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
-                          frontier_rows.begin(),
-                          frontier_rows.end(),
+                          matrix_partition_frontier_row_first,
+                          matrix_partition_frontier_row_last,
                           d_thresholds.begin(),
                           d_thresholds.end(),
                           d_offsets.begin());
@@ -512,11 +532,11 @@ void update_frontier_v_push_if_out_nbr(
                                                                0,
                                                                handle.get_stream()>>>(
           matrix_partition,
-          frontier_rows.begin(),
-          frontier_rows.begin() + h_offsets[0],
+          get_dataframe_buffer_begin<key_t>(matrix_partition_frontier_key_buffer),
+          get_dataframe_buffer_begin<key_t>(matrix_partition_frontier_key_buffer) + h_offsets[0],
           adj_matrix_row_value_input_first + row_value_input_offset,
           adj_matrix_col_value_input_first,
-          keys.begin(),
+          get_dataframe_buffer_begin<key_t>(key_buffer),
           get_dataframe_buffer_begin<payload_t>(payload_buffer),
           buffer_idx.data(),
           e_op);
@@ -532,18 +552,18 @@ void update_frontier_v_push_if_out_nbr(
                                                               0,
                                                               handle.get_stream()>>>(
           matrix_partition,
-          frontier_rows.begin() + h_offsets[0],
-          frontier_rows.begin() + h_offsets[1],
+          get_dataframe_buffer_begin<key_t>(matrix_partition_frontier_key_buffer) + h_offsets[0],
+          get_dataframe_buffer_begin<key_t>(matrix_partition_frontier_key_buffer) + h_offsets[1],
           adj_matrix_row_value_input_first + row_value_input_offset,
           adj_matrix_col_value_input_first,
-          keys.begin(),
+          get_dataframe_buffer_begin<key_t>(key_buffer),
           get_dataframe_buffer_begin<payload_t>(payload_buffer),
           buffer_idx.data(),
           e_op);
       }
-      if (frontier_rows.size() - h_offsets[1] > 0) {
+      if (matrix_partition_frontier_size - h_offsets[1] > 0) {
         raft::grid_1d_thread_t update_grid(
-          frontier_rows.size() - h_offsets[1],
+          matrix_partition_frontier_size - h_offsets[1],
           detail::update_frontier_v_push_if_out_nbr_for_all_block_size,
           handle.get_device_properties().maxGridSize[0]);
 
@@ -552,19 +572,19 @@ void update_frontier_v_push_if_out_nbr(
                                                               0,
                                                               handle.get_stream()>>>(
           matrix_partition,
-          frontier_rows.begin() + h_offsets[1],
-          frontier_rows.end(),
+          get_dataframe_buffer_begin<key_t>(matrix_partition_frontier_key_buffer) + h_offsets[1],
+          get_dataframe_buffer_end<key_t>(matrix_partition_frontier_key_buffer),
           adj_matrix_row_value_input_first + row_value_input_offset,
           adj_matrix_col_value_input_first,
-          keys.begin(),
+          get_dataframe_buffer_begin<key_t>(key_buffer),
           get_dataframe_buffer_begin<payload_t>(payload_buffer),
           buffer_idx.data(),
           e_op);
       }
     } else {
-      if (frontier_rows.size() > 0) {
+      if (matrix_partition_frontier_size > 0) {
         raft::grid_1d_thread_t update_grid(
-          frontier_rows.size(),
+          matrix_partition_frontier_size,
           detail::update_frontier_v_push_if_out_nbr_for_all_block_size,
           handle.get_device_properties().maxGridSize[0]);
 
@@ -573,11 +593,11 @@ void update_frontier_v_push_if_out_nbr(
                                                               0,
                                                               handle.get_stream()>>>(
           matrix_partition,
-          frontier_rows.begin(),
-          frontier_rows.end(),
+          get_dataframe_buffer_begin<key_t>(matrix_partition_frontier_key_buffer),
+          get_dataframe_buffer_end<key_t>(matrix_partition_frontier_key_buffer),
           adj_matrix_row_value_input_first + row_value_input_offset,
           adj_matrix_col_value_input_first,
-          keys.begin(),
+          get_dataframe_buffer_begin<key_t>(key_buffer),
           get_dataframe_buffer_begin<payload_t>(payload_buffer),
           buffer_idx.data(),
           e_op);
@@ -589,7 +609,7 @@ void update_frontier_v_push_if_out_nbr(
 
   auto num_buffer_elements =
     detail::sort_and_reduce_buffer_elements(handle,
-                                            keys.begin(),
+                                            get_dataframe_buffer_begin<key_t>(key_buffer),
                                             get_dataframe_buffer_begin<payload_t>(payload_buffer),
                                             buffer_idx.value(handle.get_stream()),
                                             reduce_op);
@@ -614,9 +634,15 @@ void update_frontier_v_push_if_out_nbr(
       d_vertex_lasts.data(), h_vertex_lasts.data(), h_vertex_lasts.size(), handle.get_stream());
     rmm::device_uvector<edge_t> d_tx_buffer_last_boundaries(d_vertex_lasts.size(),
                                                             handle.get_stream());
+    vertex_t const* row_first{nullptr};
+    if constexpr (std::is_same_v<key_t, vertex_t>) {
+      row_first = get_dataframe_buffer_begin<key_t>(key_buffer);
+    } else {
+      row_first = std::get<0>(get_dataframe_buffer_begin<key_t>(key_buffer));
+    }
     thrust::lower_bound(rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
-                        keys.begin(),
-                        keys.begin() + num_buffer_elements,
+                        row_first,
+                        row_first + num_buffer_elements,
                         d_vertex_lasts.begin(),
                         d_vertex_lasts.end(),
                         d_tx_buffer_last_boundaries.begin());
@@ -630,10 +656,10 @@ void update_frontier_v_push_if_out_nbr(
     std::adjacent_difference(
       h_tx_buffer_last_boundaries.begin(), h_tx_buffer_last_boundaries.end(), tx_counts.begin());
 
-    rmm::device_uvector<vertex_t> rx_keys(size_t{0}, handle.get_stream());
-    std::tie(rx_keys, std::ignore) =
-      shuffle_values(row_comm, keys.begin(), tx_counts, handle.get_stream());
-    keys = std::move(rx_keys);
+    auto rx_key_buffer = allocate_dataframe_buffer<key_t>(size_t{0}, handle.get_stream());
+    std::tie(rx_key_buffer, std::ignore) = shuffle_values(
+      row_comm, get_dataframe_buffer_begin<key_t>(key_buffer), tx_counts, handle.get_stream());
+    key_buffer = std::move(rx_key_buffer);
 
     auto rx_payload_buffer = allocate_dataframe_buffer<payload_t>(size_t{0}, handle.get_stream());
     std::tie(rx_payload_buffer, std::ignore) =
@@ -645,9 +671,9 @@ void update_frontier_v_push_if_out_nbr(
 
     num_buffer_elements =
       detail::sort_and_reduce_buffer_elements(handle,
-                                              keys.begin(),
+                                              get_dataframe_buffer_begin<key_t>(key_buffer),
                                               get_dataframe_buffer_begin<payload_t>(payload_buffer),
-                                              keys.size(),
+                                              size_dataframe_buffer<key_t>(key_buffer),
                                               reduce_op);
   }
 
@@ -660,7 +686,8 @@ void update_frontier_v_push_if_out_nbr(
     vertex_partition_device_t<GraphViewType> vertex_partition(graph_view);
 
     auto key_payload_pair_first = thrust::make_zip_iterator(
-      thrust::make_tuple(keys.begin(), get_dataframe_buffer_begin<payload_t>(payload_buffer)));
+      thrust::make_tuple(get_dataframe_buffer_begin<key_t>(key_buffer),
+                         get_dataframe_buffer_begin<payload_t>(payload_buffer)));
     thrust::transform(
       rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
       key_payload_pair_first,
@@ -688,26 +715,34 @@ void update_frontier_v_push_if_out_nbr(
     resize_dataframe_buffer<payload_t>(payload_buffer, size_t{0}, handle.get_stream());
     shrink_to_fit_dataframe_buffer<payload_t>(payload_buffer, handle.get_stream());
 
-    auto bucket_key_pair_first =
-      thrust::make_zip_iterator(thrust::make_tuple(bucket_indices.begin(), keys.begin()));
-    keys.resize(thrust::distance(
-                  bucket_key_pair_first,
-                  thrust::remove_if(rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
-                                    bucket_key_pair_first,
-                                    bucket_key_pair_first + num_buffer_elements,
-                                    [] __device__(auto pair) {
-                                      return thrust::get<0>(pair) ==
-                                             std::numeric_limits<uint8_t>::max();
-                                    })),
-                handle.get_stream());
-    bucket_indices.resize(keys.size(), handle.get_stream());
-    keys.shrink_to_fit(handle.get_stream());
+    auto bucket_key_pair_first = thrust::make_zip_iterator(
+      thrust::make_tuple(bucket_indices.begin(), get_dataframe_buffer_begin<key_t>(key_buffer)));
+    bucket_indices.resize(
+      thrust::distance(
+        bucket_key_pair_first,
+        thrust::remove_if(rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
+                          bucket_key_pair_first,
+                          bucket_key_pair_first + num_buffer_elements,
+                          [] __device__(auto pair) {
+                            return thrust::get<0>(pair) == std::numeric_limits<uint8_t>::max();
+                          })),
+      handle.get_stream());
+    resize_dataframe_buffer<key_t>(key_buffer, bucket_indices.size(), handle.get_stream());
     bucket_indices.shrink_to_fit(handle.get_stream());
+    shrink_to_fit_dataframe_buffer<key_t>(key_buffer, handle.get_stream());
 
-    bucket_key_pair_first =
-      thrust::make_zip_iterator(thrust::make_tuple(bucket_indices.begin(), keys.begin()));
+    // FIXME: this code largely overlaps with split_bucket(); better refactor.
+    bucket_key_pair_first = thrust::make_zip_iterator(
+      thrust::make_tuple(bucket_indices.begin(), get_dataframe_buffer_begin<key_t>(key_buffer)));
+    auto key_first = get_dataframe_buffer_begin<key_t>(key_buffer);
+    auto key_last  = get_dataframe_buffer_end<key_t>(key_buffer);
     if (next_frontier_bucket_indices.size() == 1) {
-      vertex_frontier.get_bucket(next_frontier_bucket_indices[0]).insert(keys.begin(), keys.end());
+      if constexpr (std::is_same_v<key_t, vertex_t>) {
+        vertex_frontier.get_bucket(next_frontier_bucket_indices[0]).insert(key_first, key_last);
+      } else {
+        vertex_frontier.get_bucket(next_frontier_bucket_indices[0])
+          .insert(std::get<0>(key_first), std::get<0>(key_last), std::get<1>(key_first));
+      }
     } else if (next_frontier_bucket_indices.size() == 2) {
       auto first_bucket_size = thrust::distance(
         bucket_key_pair_first,
@@ -717,14 +752,27 @@ void update_frontier_v_push_if_out_nbr(
           bucket_key_pair_first + bucket_indices.size(),
           [first_bucket_idx = static_cast<uint8_t>(next_frontier_bucket_indices[0])] __device__(
             auto pair) { return thrust::get<0>(pair) == first_bucket_idx; }));
-      vertex_frontier.get_bucket(next_frontier_bucket_indices[0])
-        .insert(keys.begin(), keys.begin() + first_bucket_size);
-      vertex_frontier.get_bucket(next_frontier_bucket_indices[1])
-        .insert(keys.begin() + first_bucket_size, keys.end());
+      if constexpr (std::is_same_v<key_t, vertex_t>) {
+        vertex_frontier.get_bucket(next_frontier_bucket_indices[0])
+          .insert(key_first, key_first + first_bucket_size);
+        vertex_frontier.get_bucket(next_frontier_bucket_indices[1])
+          .insert(key_first + first_bucket_size, key_last);
+      } else {
+        vertex_frontier.get_bucket(next_frontier_bucket_indices[0])
+          .insert(std::get<0>(key_first),
+                  std::get<0>(key_first) + first_bucket_size,
+                  std::get<1>(key_first));
+        vertex_frontier.get_bucket(next_frontier_bucket_indices[1])
+          .insert(std::get<0>(key_first) + first_bucket_size,
+                  std::get<0>(key_last),
+                  std::get<1>(key_first) + first_bucket_size);
+      }
     } else {
-      thrust::sort(rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
-                   bucket_key_pair_first,
-                   bucket_key_pair_first + bucket_indices.size());
+      thrust::stable_sort(  // stable_sort to maintain sorted order within each bucket
+        rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
+        bucket_key_pair_first,
+        bucket_key_pair_first + bucket_indices.size(),
+        [] __device__(auto lhs, auto rhs) { return thrust::get<0>(lhs) < thrust::get<0>(rhs); });
       rmm::device_uvector<uint8_t> d_indices(next_frontier_bucket_indices.size(),
                                              handle.get_stream());
       rmm::device_uvector<size_t> d_counts(d_indices.size(), handle.get_stream());
@@ -747,8 +795,15 @@ void update_frontier_v_push_if_out_nbr(
       std::partial_sum(h_counts.begin(), h_counts.end() - 1, h_offsets.begin() + 1);
       for (size_t i = 0; i < h_indices.size(); ++i) {
         if (h_counts[i] > 0) {
-          vertex_frontier.get_bucket(h_indices[i])
-            .insert(keys.begin() + h_offsets[i], keys.begin() + (h_offsets[i] + h_counts[i]));
+          if constexpr (std::is_same_v<key_t, vertex_t>) {
+            vertex_frontier.get_bucket(h_indices[i])
+              .insert(key_first + h_offsets[i], key_first + (h_offsets[i] + h_counts[i]));
+          } else {
+            vertex_frontier.get_bucket(h_indices[i])
+              .insert(std::get<0>(key_first) + h_offsets[i],
+                      std::get<0>(key_first) + (h_offsets[i] + h_counts[i]),
+                      std::get<1>(key_first) + h_offsets[i]);
+          }
         }
       }
     }

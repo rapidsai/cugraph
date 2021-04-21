@@ -61,8 +61,9 @@ template <typename vertex_t,
           typename payload_t = void,
           bool is_multi_gpu  = false>
 class SortedUniqueElementBucket {
-  static_assert(std::is_same_v<tag_t, void> ||
-                is_arithmetic_or_thrust_tuple_of_arithmetic<tag_t>::value);
+  static_assert(std::is_same_v<tag_t, void> || std::is_arithmetic_v<tag_t>);
+  static_assert(std::is_same_v<payload_t, void> ||
+                is_arithmetic_or_thrust_tuple_of_arithmetic<payload_t>::value);
 
  public:
   SortedUniqueElementBucket(raft::handle_t const& handle)
@@ -559,47 +560,31 @@ class SortedUniqueElementBucket {
     }
   }
 
-  auto const end() const
+  auto const end() const { return begin() + vertices_.size(); }
+
+  auto end() { return begin() + vertices_.size(); }
+
+  auto key_begin()
   {
-#if 1
-    // auto first = begin();
-    return begin() + vertices_.size();
-#else
-    if constexpr (std::is_same_v<tag_t, void> && std::is_same_v<payload_t, void>) {
-      return vertices_.end();
-    } else if constexpr (!std::is_same_v<tag_t, void> && std::is_same_v<payload_t, void>) {
-      return std::make_tuple(vertices_.end(), get_dataframe_buffer_end<tag_t>(tags_.buffer));
-    } else if constexpr (std::is_same_v<tag_t, void> && !std::is_same_v<payload_t, void>) {
-      return std::make_tuple(vertices_.end(),
-                             get_dataframe_buffer_end<payload_t>(payloads_.buffer));
+    if constexpr (std::is_same_v<tag_t, void>) {
+      return vertices_.begin();
     } else {
-      return std::make_tuple(vertices_.end(),
-                             get_dataframe_buffer_end<tag_t>(tags_.buffer),
-                             get_dataframe_buffer_end<payload_t>(payloads_.buffer));
+      return std::make_tuple(vertices_.begin(), get_dataframe_buffer_begin<tag_t>(tags_.buffer));
     }
-#endif
   }
 
-  auto end()
+  auto const key_begin() const
   {
-#if 1
-    // auto first = begin();
-    return begin() + vertices_.size();
-#else
-    if constexpr (std::is_same_v<tag_t, void> && std::is_same_v<payload_t, void>) {
-      return vertices_.end();
-    } else if constexpr (!std::is_same_v<tag_t, void> && std::is_same_v<payload_t, void>) {
-      return std::make_tuple(vertices_.end(), get_dataframe_buffer_end<tag_t>(tags_.buffer));
-    } else if constexpr (std::is_same_v<tag_t, void> && !std::is_same_v<payload_t, void>) {
-      return std::make_tuple(vertices_.end(),
-                             get_dataframe_buffer_end<payload_t>(payloads_.buffer));
+    if constexpr (std::is_same_v<tag_t, void>) {
+      return vertices_.begin();
     } else {
-      return std::make_tuple(vertices_.end(),
-                             get_dataframe_buffer_end<tag_t>(tags_.buffer),
-                             get_dataframe_buffer_end<payload_t>(payloads_.buffer));
+      return std::make_tuple(vertices_.begin(), get_dataframe_buffer_begin<tag_t>(tags_.buffer));
     }
-#endif
   }
+
+  auto const key_end() const { return key_begin() + vertices_.size(); }
+
+  auto key_end() { return key_begin() + vertices_.size(); }
 
  private:
   raft::handle_t const* handle_ptr_{nullptr};
@@ -614,10 +599,14 @@ template <typename vertex_t,
           bool is_multi_gpu  = false,
           size_t num_buckets = 1>
 class VertexFrontier {
-  static_assert(std::is_same_v<tag_t, void> ||
-                is_arithmetic_or_thrust_tuple_of_arithmetic<tag_t>::value);
+  static_assert(std::is_same_v<tag_t, void> || std::is_arithmetic_v<tag_t>);
+  static_assert(std::is_same_v<payload_t, void> ||
+                is_arithmetic_or_thrust_tuple_of_arithmetic<payload_t>::value);
 
  public:
+  using key_type =
+    std::conditional_t<std::is_same_v<tag_t, void>, vertex_t, thrust::tuple<vertex_t, tag_t>>;
+  using payload_type                  = payload_t;
   static size_t constexpr kNumBuckets = num_buckets;
   static size_t constexpr kInvalidBucketIdx{std::numeric_limits<size_t>::max()};
 
@@ -799,7 +788,7 @@ class VertexFrontier {
         rmm::exec_policy(handle_ptr_->get_stream())->on(handle_ptr_->get_stream()),
         pair_first + new_this_bucket_size,
         pair_first + bucket_indices.size(),
-        [] __device__(auto lhs, auto rhs) { return thrust::get<0>(lhs) < thrust::get<1>(rhs); });
+        [] __device__(auto lhs, auto rhs) { return thrust::get<0>(lhs) < thrust::get<0>(rhs); });
       rmm::device_uvector<uint8_t> d_indices(move_to_bucket_indices.size(),
                                              handle_ptr_->get_stream());
       rmm::device_uvector<size_t> d_counts(d_indices.size(), handle_ptr_->get_stream());

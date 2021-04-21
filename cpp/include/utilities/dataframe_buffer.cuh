@@ -165,6 +165,22 @@ void shrink_to_fit_dataframe_buffer(BufferType& buffer, cudaStream_t stream)
 template <typename T,
           typename BufferType,
           typename std::enable_if_t<std::is_arithmetic<T>::value>* = nullptr>
+size_t size_dataframe_buffer(BufferType& buffer)
+{
+  return buffer.size();
+}
+
+template <typename T,
+          typename BufferType,
+          typename std::enable_if_t<is_thrust_tuple_of_arithmetic<T>::value>* = nullptr>
+size_t size_dataframe_buffer(BufferType& buffer)
+{
+  return std::get<0>(buffer).size();
+}
+
+template <typename T,
+          typename BufferType,
+          typename std::enable_if_t<std::is_arithmetic<T>::value>* = nullptr>
 auto get_dataframe_buffer_begin(BufferType& buffer)
 {
   return buffer.begin();
