@@ -370,7 +370,7 @@ TEST_P(Tests_CoarsenGraph, CheckInt32Int32FloatUntransposed)
   run_current_test<int32_t, int32_t, float, false>(GetParam());
 }
 
-INSTANTIATE_TEST_CASE_P(
+INSTANTIATE_TEST_SUITE_P(
   simple_test,
   Tests_CoarsenGraph,
   ::testing::Values(CoarsenGraph_Usecase("test/datasets/karate.mtx", 0.2, false),

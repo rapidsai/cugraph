@@ -43,7 +43,7 @@ void compare(double mg_modularity, double sg_modularity)
 ////////////////////////////////////////////////////////////////////////////////
 // Test param object. This defines the input and expected output for a test, and
 // will be instantiated as the parameter to the tests defined below using
-// INSTANTIATE_TEST_CASE_P()
+// INSTANTIATE_TEST_SUITE_P()
 //
 struct Louvain_Usecase {
   std::string graph_file_full_path{};
@@ -226,7 +226,7 @@ TEST_P(Louvain_MG_Testfixture, CheckInt32Int32Float)
   run_test<int32_t, int32_t, float>(GetParam());
 }
 
-INSTANTIATE_TEST_CASE_P(
+INSTANTIATE_TEST_SUITE_P(
   simple_test,
   Louvain_MG_Testfixture,
   ::testing::Values(Louvain_Usecase("test/datasets/karate.mtx", true, 100, 1)
