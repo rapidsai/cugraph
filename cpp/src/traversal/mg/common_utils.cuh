@@ -18,6 +18,7 @@
 
 #include <raft/integer_utils.h>
 #include <rmm/thrust_rmm_allocator.h>
+#include <thrust/host_vector.h>
 #include <cub/cub.cuh>
 #include "../traversal_common.cuh"
 

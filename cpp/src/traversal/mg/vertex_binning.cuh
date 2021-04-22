@@ -19,6 +19,8 @@
 #include "common_utils.cuh"
 #include "vertex_binning_kernels.cuh"
 
+#include <thrust/host_vector.h>
+
 namespace cugraph {
 
 namespace mg {

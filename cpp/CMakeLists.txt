@@ -225,8 +225,7 @@ message("Fetching Thrust")
 FetchContent_Declare(
     thrust
     GIT_REPOSITORY https://github.com/thrust/thrust.git
-    # August 28, 2020
-    GIT_TAG        52a8bda46c5c2128414d1d47f546b486ff0be2f0
+    GIT_TAG        1.12.0
 )
 
 FetchContent_GetProperties(thrust)
@@ -276,7 +275,7 @@ message("set LIBCUDACXX_INCLUDE_DIR to: ${LIBCUDACXX_INCLUDE_DIR}")
 FetchContent_Declare(
     cuhornet
     GIT_REPOSITORY    https://github.com/rapidsai/cuhornet.git
-    GIT_TAG           e58d0ecdbc270fc28867d66c965787a62a7a882c
+    GIT_TAG           6d2fc894cc56dd2ca8fc9d1523a18a6ec444b663
     GIT_SHALLOW       true
     SOURCE_SUBDIR     hornet
 )
