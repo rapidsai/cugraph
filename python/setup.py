@@ -111,7 +111,7 @@ EXTENSIONS = [
               runtime_library_dirs=[conda_lib_dir],
               libraries=['cugraph', 'nccl'],
               language='c++',
-              extra_compile_args=['-std=c++14'])
+              extra_compile_args=['-std=c++17'])
 ]
 
 for e in EXTENSIONS:
