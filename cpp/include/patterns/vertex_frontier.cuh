@@ -57,8 +57,6 @@ struct optional_buffer_t<void> {
 template <typename vertex_t, typename tag_t = void, bool is_multi_gpu = false>
 class SortedUniqueKeyBucket {
   static_assert(std::is_same_v<tag_t, void> || std::is_arithmetic_v<tag_t>);
-  // FIXME: unimplemented, we need a mechanism to optionally index adj_matrix_row_value_input_first and vertex_value_output_first using (vertex_t, tag) pair.
-  static_assert(std::is_same_v<tag_t, void>);
 
  public:
   SortedUniqueKeyBucket(raft::handle_t const& handle)
@@ -356,44 +354,62 @@ class VertexFrontier {
           return thrust::get<0>(pair) == this_bucket_idx;
         })));
 
-    // 4. group the remaining elements by their target bucket indices
+    // 4. insert to target buckets and resize this bucket
+
+    insert_to_buckets(bucket_indices.begin() + new_this_bucket_size,
+                      bucket_indices.end(),
+                      this_bucket.begin() + new_this_bucket_size,
+                      move_to_bucket_indices);
+
+    this_bucket.resize(new_this_bucket_size);
+    this_bucket.shrink_to_fit();
+  }
+
+  template <typename KeyIterator>
+  void insert_to_buckets(uint8_t* bucket_idx_first /* [INOUT] */,
+                         uint8_t* bucket_idx_last /* [INOUT] */,
+                         KeyIterator key_first /* [INOUT] */,
+                         std::vector<size_t> const& to_bucket_indices)
+  {
+    // 1. group the elements by their target bucket indices
+
+    auto pair_first = thrust::make_zip_iterator(thrust::make_tuple(bucket_idx_first, key_first));
+    auto pair_last  = pair_first + thrust::distance(bucket_idx_first, bucket_idx_last);
 
     std::vector<size_t> insert_bucket_indices{};
     std::vector<size_t> insert_offsets{};
     std::vector<size_t> insert_sizes{};
-    if (move_to_bucket_indices.size() == 1) {
-      insert_bucket_indices = move_to_bucket_indices;
-      insert_offsets        = {new_this_bucket_size};
-      insert_sizes          = {static_cast<size_t>(
-        thrust::distance(this_bucket.begin() + new_this_bucket_size, this_bucket.end()))};
-    } else if (move_to_bucket_indices.size() == 2) {
+    if (to_bucket_indices.size() == 1) {
+      insert_bucket_indices = to_bucket_indices;
+      insert_offsets        = {0};
+      insert_sizes          = {static_cast<size_t>(thrust::distance(pair_first, pair_last))};
+    } else if (to_bucket_indices.size() == 2) {
       auto next_bucket_size = static_cast<size_t>(thrust::distance(
-        pair_first + new_this_bucket_size,
+        pair_first,
         thrust::stable_partition(  // stalbe_partition to maintain sorted order within each bucket
           rmm::exec_policy(handle_ptr_->get_stream())->on(handle_ptr_->get_stream()),
-          pair_first + new_this_bucket_size,
-          pair_first + bucket_indices.size(),
-          [next_bucket_idx = static_cast<uint8_t>(move_to_bucket_indices[0])] __device__(
-            auto pair) { return thrust::get<0>(pair) == next_bucket_idx; })));
-      insert_bucket_indices = move_to_bucket_indices;
-      insert_offsets        = {new_this_bucket_size, new_this_bucket_size + next_bucket_size};
+          pair_first,
+          pair_last,
+          [next_bucket_idx = static_cast<uint8_t>(to_bucket_indices[0])] __device__(auto pair) {
+            return thrust::get<0>(pair) == next_bucket_idx;
+          })));
+      insert_bucket_indices = to_bucket_indices;
+      insert_offsets        = {0, next_bucket_size};
       insert_sizes          = {
         next_bucket_size,
-        static_cast<size_t>(thrust::distance(
-          this_bucket.begin() + (new_this_bucket_size + next_bucket_size), this_bucket.end()))};
+        static_cast<size_t>(thrust::distance(pair_first + next_bucket_size, pair_last))};
     } else {
       thrust::stable_sort(  // stalbe_sort to maintain sorted order within each bucket
         rmm::exec_policy(handle_ptr_->get_stream())->on(handle_ptr_->get_stream()),
-        pair_first + new_this_bucket_size,
-        pair_first + bucket_indices.size(),
+        pair_first,
+        pair_last,
         [] __device__(auto lhs, auto rhs) { return thrust::get<0>(lhs) < thrust::get<0>(rhs); });
-      rmm::device_uvector<uint8_t> d_indices(move_to_bucket_indices.size(),
-                                             handle_ptr_->get_stream());
+      rmm::device_uvector<uint8_t> d_indices(to_bucket_indices.size(), handle_ptr_->get_stream());
       rmm::device_uvector<size_t> d_counts(d_indices.size(), handle_ptr_->get_stream());
       auto it = thrust::reduce_by_key(
         rmm::exec_policy(handle_ptr_->get_stream())->on(handle_ptr_->get_stream()),
-        bucket_indices.begin() + new_this_bucket_size,
-        bucket_indices.end(),
+        bucket_idx_first,
+        bucket_idx_last,
         thrust::make_constant_iterator(size_t{1}),
         d_indices.begin(),
         d_counts.begin());
@@ -408,7 +424,7 @@ class VertexFrontier {
         h_counts.data(), d_counts.data(), d_counts.size(), handle_ptr_->get_stream());
       handle_ptr_->get_stream_view().synchronize();
 
-      auto offset = new_this_bucket_size;
+      size_t offset{0};
       for (size_t i = 0; i < h_indices.size(); ++i) {
         insert_bucket_indices[i] = static_cast<size_t>(h_indices[i]);
         insert_offsets[i]        = offset;
@@ -417,16 +433,12 @@ class VertexFrontier {
       }
     }
 
-    // 5. insert to the target buckets
+    // 2. insert to the target buckets
 
     for (size_t i = 0; i < insert_offsets.size(); ++i) {
       get_bucket(insert_bucket_indices[i])
-        .insert(this_bucket.begin() + insert_offsets[i],
-                this_bucket.begin() + (insert_offsets[i] + insert_sizes[i]));
+        .insert(key_first + insert_offsets[i], key_first + (insert_offsets[i] + insert_sizes[i]));
     }
-
-    this_bucket.resize(new_this_bucket_size);
-    this_bucket.shrink_to_fit();
   }
 
  private:

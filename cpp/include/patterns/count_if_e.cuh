@@ -66,13 +66,15 @@ typename GraphViewType::edge_type count_if_e(
   AdjMatrixColValueInputIterator adj_matrix_col_value_input_first,
   EdgeOp e_op)
 {
-  using edge_t = typename GraphViewType::edge_type;
+  using vertex_t = typename GraphViewType::vertex_type;
+  using edge_t   = typename GraphViewType::edge_type;
 
   return transform_reduce_e(handle,
                             graph_view,
                             adj_matrix_row_value_input_first,
                             adj_matrix_col_value_input_first,
                             cast_edge_op_bool_to_integer<GraphViewType,
+                                                         vertex_t*,
                                                          AdjMatrixRowValueInputIterator,
                                                          AdjMatrixColValueInputIterator,
                                                          EdgeOp,

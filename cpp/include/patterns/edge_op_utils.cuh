@@ -30,60 +30,71 @@
 namespace cugraph {
 namespace experimental {
 
-template <typename ResultOfEdgeOp, typename Enable = void>
+template <typename InvokeResultEdgeOp, typename Enable = void>
 struct is_valid_edge_op {
   static constexpr bool value = false;
 };
 
-template <typename ResultOfEdgeOp>
+template <typename InvokeResultEdgeOp>
 struct is_valid_edge_op<
-  ResultOfEdgeOp,
-  typename std::conditional<false, typename ResultOfEdgeOp::type, void>::type> {
+  InvokeResultEdgeOp,
+  typename std::conditional_t<false, typename InvokeResultEdgeOp::type, void>> {
   static constexpr bool valid = true;
 };
 
 template <typename GraphViewType,
+          typename KeyIterator,
           typename AdjMatrixRowValueInputIterator,
           typename AdjMatrixColValueInputIterator,
           typename EdgeOp>
 struct evaluate_edge_op {
+  using key_type =
+    typename std::iterator_traits<KeyIterator>::value_type;  // the first parameter of e_op can be
+                                                             // either vertex_t or (vertex_t, tag_t)
   using vertex_type    = typename GraphViewType::vertex_type;
   using weight_type    = typename GraphViewType::weight_type;
   using row_value_type = typename std::iterator_traits<AdjMatrixRowValueInputIterator>::value_type;
   using col_value_type = typename std::iterator_traits<AdjMatrixColValueInputIterator>::value_type;
 
-  template <typename V = vertex_type,
+  template <typename K = key_type,
+            typename V = vertex_type,
             typename W = weight_type,
             typename R = row_value_type,
             typename C = col_value_type,
             typename E = EdgeOp>
-  __device__ std::enable_if_t<is_valid_edge_op<typename std::result_of<E(V, V, W, R, C)>>::valid,
-                              typename std::result_of<E(V, V, W, R, C)>::type>
-  compute(V r, V c, W w, R rv, C cv, E e)
+  __device__
+    std::enable_if_t<is_valid_edge_op<typename std::invoke_result<E, K, V, W, R, C>>::valid,
+                     typename std::invoke_result<E, K, V, W, R, C>::type>
+    compute(K r, V c, W w, R rv, C cv, E e)
   {
     return e(r, c, w, rv, cv);
   }
 
-  template <typename V = vertex_type,
+  template <typename K = key_type,
+            typename V = vertex_type,
             typename W = weight_type,
             typename R = row_value_type,
             typename C = col_value_type,
             typename E = EdgeOp>
-  __device__ std::enable_if_t<is_valid_edge_op<typename std::result_of<E(V, V, R, C)>>::valid,
-                              typename std::result_of<E(V, V, R, C)>::type>
-  compute(V r, V c, W w, R rv, C cv, E e)
+  __device__ std::enable_if_t<is_valid_edge_op<typename std::invoke_result<E, K, V, R, C>>::valid,
+                              typename std::invoke_result<E, K, V, R, C>::type>
+  compute(K r, V c, W w, R rv, C cv, E e)
   {
     return e(r, c, rv, cv);
   }
 };
 
 template <typename GraphViewType,
+          typename KeyIterator,
           typename AdjMatrixRowValueInputIterator,
           typename AdjMatrixColValueInputIterator,
           typename EdgeOp,
           typename T>
 struct cast_edge_op_bool_to_integer {
   static_assert(std::is_integral<T>::value);
+  using key_type =
+    typename std::iterator_traits<KeyIterator>::value_type;  // the first parameter of e_op can be
+                                                             // either vertex_t or (vertex_t, tag_t)
   using vertex_type    = typename GraphViewType::vertex_type;
   using weight_type    = typename GraphViewType::weight_type;
   using row_value_type = typename std::iterator_traits<AdjMatrixRowValueInputIterator>::value_type;
@@ -91,23 +102,27 @@ struct cast_edge_op_bool_to_integer {
 
   EdgeOp e_op{};
 
-  template <typename V = vertex_type,
+  template <typename K = key_type,
+            typename V = vertex_type,
             typename W = weight_type,
             typename R = row_value_type,
             typename C = col_value_type,
             typename E = EdgeOp>
-  __device__ std::enable_if_t<is_valid_edge_op<typename std::result_of<E(V, V, W, R, C)>>::valid, T>
-  operator()(V r, V c, W w, R rv, C cv)
+  __device__
+    std::enable_if_t<is_valid_edge_op<typename std::invoke_result<E, K, V, W, R, C>>::valid, T>
+    operator()(K r, V c, W w, R rv, C cv)
   {
     return e_op(r, c, w, rv, cv) ? T{1} : T{0};
   }
 
-  template <typename V = vertex_type,
+  template <typename K = key_type,
+            typename V = vertex_type,
             typename R = row_value_type,
             typename C = col_value_type,
             typename E = EdgeOp>
-  __device__ std::enable_if_t<is_valid_edge_op<typename std::result_of<E(V, V, R, C)>>::valid, T>
-  operator()(V r, V c, R rv, C cv)
+  __device__
+    std::enable_if_t<is_valid_edge_op<typename std::invoke_result<E, K, V, R, C>>::valid, T>
+    operator()(K r, V c, R rv, C cv)
   {
     return e_op(r, c, rv, cv) ? T{1} : T{0};
   }

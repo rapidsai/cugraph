@@ -23,7 +23,11 @@ namespace reduce_op {
 // reducing N elements, any element can be a valid output.
 template <typename T>
 struct any {
-  using type                          = T;
+  using type = T;
+  // FIXME: actually every reduction operation should be side-effect free if reduction is performed
+  // by thrust; thrust reduction call rounds up the number of invocations based on the block size
+  // and discards the values outside the valid range; this does not work if the reduction operation
+  // has side-effects.
   static constexpr bool pure_function = true;  // this can be called in any process
 
   __host__ __device__ T operator()(T const& lhs, T const& rhs) const { return lhs; }
@@ -34,7 +38,11 @@ struct any {
 // should be selected.
 template <typename T>
 struct min {
-  using type                          = T;
+  using type = T;
+  // FIXME: actually every reduction operation should be side-effect free if reduction is performed
+  // by thrust; thrust reduction call rounds up the number of invocations based on the block size
+  // and discards the values outside the valid range; this does not work if the reduction operation
+  // has side-effects.
   static constexpr bool pure_function = true;  // this can be called in any process
 
   __host__ __device__ T operator()(T const& lhs, T const& rhs) const

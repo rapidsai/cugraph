@@ -79,6 +79,7 @@ __global__ void for_all_frontier_row_for_all_nbr_low_degree(
   using vertex_t = typename GraphViewType::vertex_type;
   using edge_t   = typename GraphViewType::edge_type;
   using weight_t = typename GraphViewType::weight_type;
+  using key_t    = typename std::iterator_traits<KeyIterator>::value_type;
 
   static_assert(!GraphViewType::is_adj_matrix_transposed,
                 "GraphViewType should support the push model.");
@@ -87,7 +88,13 @@ __global__ void for_all_frontier_row_for_all_nbr_low_degree(
   auto idx       = static_cast<size_t>(tid);
 
   while (idx < static_cast<size_t>(thrust::distance(key_first, key_last))) {
-    vertex_t row    = *(key_first + idx);
+    auto key = *(key_first + idx);
+    vertex_t row{};
+    if constexpr (std::is_same_v<key_t, vertex_t>) {
+      row = key;
+    } else {
+      row = thrust::get<0>(key);
+    }
     auto row_offset = matrix_partition.get_major_offset_from_major_nocheck(row);
     vertex_t const* indices{nullptr};
     weight_t const* weights{nullptr};
@@ -98,10 +105,11 @@ __global__ void for_all_frontier_row_for_all_nbr_low_degree(
       auto weight      = weights != nullptr ? weights[i] : 1.0;
       auto col_offset  = matrix_partition.get_minor_offset_from_minor_nocheck(col);
       auto e_op_result = evaluate_edge_op<GraphViewType,
+                                          KeyIterator,
                                           AdjMatrixRowValueInputIterator,
                                           AdjMatrixColValueInputIterator,
                                           EdgeOp>()
-                           .compute(row,
+                           .compute(key,
                                     col,
                                     weight,
                                     *(adj_matrix_row_value_input_first + row_offset),
@@ -144,6 +152,7 @@ __global__ void for_all_frontier_row_for_all_nbr_mid_degree(
   using vertex_t = typename GraphViewType::vertex_type;
   using edge_t   = typename GraphViewType::edge_type;
   using weight_t = typename GraphViewType::weight_type;
+  using key_t    = typename std::iterator_traits<KeyIterator>::value_type;
 
   static_assert(!GraphViewType::is_adj_matrix_transposed,
                 "GraphViewType should support the push model.");
@@ -154,7 +163,13 @@ __global__ void for_all_frontier_row_for_all_nbr_mid_degree(
   auto idx           = static_cast<size_t>(tid / raft::warp_size());
 
   while (idx < static_cast<size_t>(thrust::distance(key_first, key_last))) {
-    vertex_t row    = *(key_first + idx);
+    auto key = *(key_first + idx);
+    vertex_t row{};
+    if constexpr (std::is_same_v<key_t, vertex_t>) {
+      row = key;
+    } else {
+      row = thrust::get<0>(key);
+    }
     auto row_offset = matrix_partition.get_major_offset_from_major_nocheck(row);
     vertex_t const* indices{nullptr};
     weight_t const* weights{nullptr};
@@ -165,10 +180,11 @@ __global__ void for_all_frontier_row_for_all_nbr_mid_degree(
       auto weight      = weights != nullptr ? weights[i] : 1.0;
       auto col_offset  = matrix_partition.get_minor_offset_from_minor_nocheck(col);
       auto e_op_result = evaluate_edge_op<GraphViewType,
+                                          KeyIterator,
                                           AdjMatrixRowValueInputIterator,
                                           AdjMatrixColValueInputIterator,
                                           EdgeOp>()
-                           .compute(row,
+                           .compute(key,
                                     col,
                                     weight,
                                     *(adj_matrix_row_value_input_first + row_offset),
@@ -212,6 +228,7 @@ __global__ void for_all_frontier_row_for_all_nbr_high_degree(
   using vertex_t = typename GraphViewType::vertex_type;
   using edge_t   = typename GraphViewType::edge_type;
   using weight_t = typename GraphViewType::weight_type;
+  using key_t    = typename std::iterator_traits<KeyIterator>::value_type;
 
   static_assert(!GraphViewType::is_adj_matrix_transposed,
                 "GraphViewType should support the push model.");
@@ -219,7 +236,13 @@ __global__ void for_all_frontier_row_for_all_nbr_high_degree(
   auto idx = static_cast<size_t>(blockIdx.x);
 
   while (idx < static_cast<size_t>(thrust::distance(key_first, key_last))) {
-    vertex_t row    = *(key_first + idx);
+    auto key = *(key_first + idx);
+    vertex_t row{};
+    if constexpr (std::is_same_v<key_t, vertex_t>) {
+      row = key;
+    } else {
+      row = thrust::get<0>(key);
+    }
     auto row_offset = matrix_partition.get_major_offset_from_major_nocheck(row);
     vertex_t const* indices{nullptr};
     weight_t const* weights{nullptr};
@@ -230,10 +253,11 @@ __global__ void for_all_frontier_row_for_all_nbr_high_degree(
       auto weight      = weights != nullptr ? weights[i] : 1.0;
       auto col_offset  = matrix_partition.get_minor_offset_from_minor_nocheck(col);
       auto e_op_result = evaluate_edge_op<GraphViewType,
+                                          KeyIterator,
                                           AdjMatrixRowValueInputIterator,
                                           AdjMatrixColValueInputIterator,
                                           EdgeOp>()
-                           .compute(row,
+                           .compute(key,
                                     col,
                                     weight,
                                     *(adj_matrix_row_value_input_first + row_offset),
@@ -316,10 +340,12 @@ size_t sort_and_reduce_buffer_elements(raft::handle_t const& handle,
 }  // namespace detail
 
 /**
- * @brief Update vertex frontier and vertex property values iterating over the outgoing edges.
+ * @brief Update (tagged-)vertex frontier and (tagged-)vertex property values iterating over the
+ * outgoing edges from the frontier.
  *
  * @tparam GraphViewType Type of the passed non-owning graph object.
- * @tparam VertexIterator Type of the iterator for vertex identifiers.
+ * @tparam VertexFrontierType Type of the vertex frontier class which abstracts vertex frontier
+ * managements.
  * @tparam AdjMatrixRowValueInputIterator Type of the iterator for graph adjacency matrix row
  * input properties.
  * @tparam AdjMatrixColValueInputIterator Type of the iterator for graph adjacency matrix column
@@ -328,16 +354,14 @@ size_t sort_and_reduce_buffer_elements(raft::handle_t const& handle,
  * @tparam ReduceOp Type of the binary reduction operator.
  * @tparam VertexValueInputIterator Type of the iterator for vertex properties.
  * @tparam VertexValueOutputIterator Type of the iterator for vertex property variables.
- * @tparam VertexFrontierType Type of the vertex frontier class which abstracts vertex frontier
- * managements.
  * @tparam VertexOp Type of the binary vertex operator.
  * @param handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator, and
  * handles to various CUDA libraries) to run graph algorithms.
  * @param graph_view Non-owning graph object.
- * @param vertex_frontier VertexFrontier class object for vertex frontier managements. This object
- * includes multiple bucket objects.
- * @param cur_fontier_bucket_idx Index of the VertexFrontier bucket holding vertices for the current
- * iteration.
+ * @param frontier VertexFrontier class object for vertex frontier managements. This object includes
+ * multiple bucket objects.
+ * @param cur_frontier_bucket_idx Index of the VertexFrontier bucket holding vertices for the
+ * current iteration.
  * @param next_frontier_bucket_indices Indices of the VertexFrontier buckets to store new frontier
  * vertices for the next iteration.
  * @param adj_matrix_row_value_input_first Iterator pointing to the adjacency matrix row input
@@ -379,14 +403,26 @@ template <typename GraphViewType,
 void update_frontier_v_push_if_out_nbr(
   raft::handle_t const& handle,
   GraphViewType const& graph_view,
-  VertexFrontierType& vertex_frontier,
+  VertexFrontierType& frontier,
   size_t cur_frontier_bucket_idx,
   std::vector<size_t> const& next_frontier_bucket_indices,
+  // FIXME: if vertices in the frontier are tagged, we should have an option to access with (vertex,
+  // tag) pair (currently we can access only with vertex, we may use cuco::static_map for this
+  // purpose)
   AdjMatrixRowValueInputIterator adj_matrix_row_value_input_first,
   AdjMatrixColValueInputIterator adj_matrix_col_value_input_first,
   EdgeOp e_op,
   ReduceOp reduce_op,
+  // FIXME: if vertices in the frontier are tagged, we should have an option to access with (vertex,
+  // tag) pair (currently we can access only with vertex, we may use cuco::static_map for this
+  // purpose)
   VertexValueInputIterator vertex_value_input_first,
+  // FIXME: if vertices in the frontier are tagged, we should have an option to access with (vertex,
+  // tag) pair (currently we can access only with vertex, we may use cuco::static_map for this
+  // purpose)
+  // FIXME: currently, it is undefined behavior if vertices in the frontier are tagged and the same
+  // vertex property is updated by multiple v_op invocations with the same vertex but with different
+  // tags.
   VertexValueOutputIterator vertex_value_output_first,
   VertexOp v_op)
 {
@@ -399,8 +435,8 @@ void update_frontier_v_push_if_out_nbr(
   using key_t     = typename VertexFrontierType::key_type;
   using payload_t = typename ReduceOp::type;
 
-  auto frontier_key_first = vertex_frontier.get_bucket(cur_frontier_bucket_idx).begin();
-  auto frontier_key_last  = vertex_frontier.get_bucket(cur_frontier_bucket_idx).end();
+  auto frontier_key_first = frontier.get_bucket(cur_frontier_bucket_idx).begin();
+  auto frontier_key_last  = frontier.get_bucket(cur_frontier_bucket_idx).end();
 
   // 1. fill the buffer
 
@@ -677,7 +713,7 @@ void update_frontier_v_push_if_out_nbr(
                                               reduce_op);
   }
 
-  // 3. update vertex properties
+  // 3. update vertex properties and frontier
 
   if (num_buffer_elements > 0) {
     static_assert(VertexFrontierType::kNumBuckets <= std::numeric_limits<uint8_t>::max());
@@ -730,82 +766,10 @@ void update_frontier_v_push_if_out_nbr(
     bucket_indices.shrink_to_fit(handle.get_stream());
     shrink_to_fit_dataframe_buffer<key_t>(key_buffer, handle.get_stream());
 
-    // FIXME: this code largely overlaps with split_bucket(); better refactor.
-    bucket_key_pair_first = thrust::make_zip_iterator(
-      thrust::make_tuple(bucket_indices.begin(), get_dataframe_buffer_begin<key_t>(key_buffer)));
-    auto key_first = get_dataframe_buffer_begin<key_t>(key_buffer);
-    auto key_last  = get_dataframe_buffer_end<key_t>(key_buffer);
-    if (next_frontier_bucket_indices.size() == 1) {
-      if constexpr (std::is_same_v<key_t, vertex_t>) {
-        vertex_frontier.get_bucket(next_frontier_bucket_indices[0]).insert(key_first, key_last);
-      } else {
-        vertex_frontier.get_bucket(next_frontier_bucket_indices[0])
-          .insert(std::get<0>(key_first), std::get<0>(key_last), std::get<1>(key_first));
-      }
-    } else if (next_frontier_bucket_indices.size() == 2) {
-      auto first_bucket_size = thrust::distance(
-        bucket_key_pair_first,
-        thrust::stable_partition(  // stalbe_partition to maintain sorted order within each bucket
-          rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
-          bucket_key_pair_first,
-          bucket_key_pair_first + bucket_indices.size(),
-          [first_bucket_idx = static_cast<uint8_t>(next_frontier_bucket_indices[0])] __device__(
-            auto pair) { return thrust::get<0>(pair) == first_bucket_idx; }));
-      if constexpr (std::is_same_v<key_t, vertex_t>) {
-        vertex_frontier.get_bucket(next_frontier_bucket_indices[0])
-          .insert(key_first, key_first + first_bucket_size);
-        vertex_frontier.get_bucket(next_frontier_bucket_indices[1])
-          .insert(key_first + first_bucket_size, key_last);
-      } else {
-        vertex_frontier.get_bucket(next_frontier_bucket_indices[0])
-          .insert(std::get<0>(key_first),
-                  std::get<0>(key_first) + first_bucket_size,
-                  std::get<1>(key_first));
-        vertex_frontier.get_bucket(next_frontier_bucket_indices[1])
-          .insert(std::get<0>(key_first) + first_bucket_size,
-                  std::get<0>(key_last),
-                  std::get<1>(key_first) + first_bucket_size);
-      }
-    } else {
-      thrust::stable_sort(  // stable_sort to maintain sorted order within each bucket
-        rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
-        bucket_key_pair_first,
-        bucket_key_pair_first + bucket_indices.size(),
-        [] __device__(auto lhs, auto rhs) { return thrust::get<0>(lhs) < thrust::get<0>(rhs); });
-      rmm::device_uvector<uint8_t> d_indices(next_frontier_bucket_indices.size(),
-                                             handle.get_stream());
-      rmm::device_uvector<size_t> d_counts(d_indices.size(), handle.get_stream());
-      auto it =
-        thrust::reduce_by_key(rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
-                              bucket_indices.begin(),
-                              bucket_indices.end(),
-                              thrust::make_constant_iterator(size_t{1}),
-                              d_indices.begin(),
-                              d_counts.begin());
-      d_indices.resize(thrust::distance(d_indices.begin(), thrust::get<0>(it)),
-                       handle.get_stream());
-      d_counts.resize(d_indices.size(), handle.get_stream());
-      std::vector<uint8_t> h_indices(d_indices.size());
-      std::vector<size_t> h_counts(h_indices.size());
-      raft::update_host(h_indices.data(), d_indices.data(), d_indices.size(), handle.get_stream());
-      raft::update_host(h_counts.data(), d_counts.data(), d_counts.size(), handle.get_stream());
-      handle.get_stream_view().synchronize();
-      std::vector<size_t> h_offsets(h_indices.size(), 0);
-      std::partial_sum(h_counts.begin(), h_counts.end() - 1, h_offsets.begin() + 1);
-      for (size_t i = 0; i < h_indices.size(); ++i) {
-        if (h_counts[i] > 0) {
-          if constexpr (std::is_same_v<key_t, vertex_t>) {
-            vertex_frontier.get_bucket(h_indices[i])
-              .insert(key_first + h_offsets[i], key_first + (h_offsets[i] + h_counts[i]));
-          } else {
-            vertex_frontier.get_bucket(h_indices[i])
-              .insert(std::get<0>(key_first) + h_offsets[i],
-                      std::get<0>(key_first) + (h_offsets[i] + h_counts[i]),
-                      std::get<1>(key_first) + h_offsets[i]);
-          }
-        }
-      }
-    }
+    frontier.insert_to_buckets(bucket_indices.begin(),
+                               bucket_indices.end(),
+                               get_dataframe_buffer_begin<key_t>(key_buffer),
+                               next_frontier_bucket_indices);
   }
 }
 
