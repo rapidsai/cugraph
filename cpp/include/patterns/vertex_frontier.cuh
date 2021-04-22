@@ -43,7 +43,7 @@ namespace detail {
 
 template <typename T>
 struct optional_buffer_t {
-  decltype(allocate_dataframe_buffer<T>(0, cudaStream_t{nullptr})) buffer;
+  rmm::device_uvector<T> buffer;
 };
 
 template <>
@@ -52,29 +52,19 @@ struct optional_buffer_t<void> {
 
 }  // namespace detail
 
-// stores unique vertex_t (tag_t == void) or (vertex_t, tag_t) pair (tag_t != void) objects in the
-// sorted (non-descending) order
-// this class object can optionally store payload_t objects (payload_t != void) in addition to
-// vertex_t (tag_t == void) or (vertex_t, tag_t) pair (tag_t != void) objects.
-template <typename vertex_t,
-          typename tag_t     = void,
-          typename payload_t = void,
-          bool is_multi_gpu  = false>
-class SortedUniqueElementBucket {
+// stores unique key objects in the sorted (non-descending) order; key type is either vertex_t
+// (tag_t == void) or thrust::tuple<vertex_t, tag_t> (tag_t != void)
+template <typename vertex_t, typename tag_t = void, bool is_multi_gpu = false>
+class SortedUniqueKeyBucket {
   static_assert(std::is_same_v<tag_t, void> || std::is_arithmetic_v<tag_t>);
-  static_assert(std::is_same_v<payload_t, void> ||
-                is_arithmetic_or_thrust_tuple_of_arithmetic<payload_t>::value);
+  // FIXME: unimplemented, we need a mechanism to optionally index adj_matrix_row_value_input_first and vertex_value_output_first using (vertex_t, tag) pair.
+  static_assert(std::is_same_v<tag_t, void>);
 
  public:
-  SortedUniqueElementBucket(raft::handle_t const& handle)
+  SortedUniqueKeyBucket(raft::handle_t const& handle)
     : handle_ptr_(&handle), vertices_(0, handle.get_stream())
   {
-    if constexpr (!std::is_same<tag_t, void>::value) {
-      tags_.buffer = allocate_dataframe_buffer<tag_t>(0, handle.get_stream());
-    }
-    if constexpr (!std::is_same<payload_t, void>::value) {
-      payloads_.buffer = allocate_dataframe_buffer<payload_t>(0, handle.get_stream());
-    }
+    if constexpr (!std::is_same<tag_t, void>::value) { tags_.buffer(0, handle.get_stream()); }
   }
 
   /**
@@ -82,10 +72,7 @@ class SortedUniqueElementBucket {
    *
    * @param vertex vertex to insert
    */
-  template <typename tag_type                                     = tag_t,
-            typename payload_type                                 = payload_t,
-            std::enable_if_t<std::is_same_v<tag_type, void> &&
-                             std::is_same_v<payload_type, void>>* = nullptr>
+  template <typename tag_type = tag_t, std::enable_if_t<std::is_same_v<tag_type, void>>* = nullptr>
   void insert(vertex_t vertex)
   {
     if (vertices_.size() > 0) {
@@ -103,125 +90,38 @@ class SortedUniqueElementBucket {
    * @param vertex vertex of the (vertex, tag) pair to insert
    * @param tag tag of the (vertex, tag) pair to insert
    */
-  template <typename tag_type                                     = tag_t,
-            typename payload_type                                 = payload_t,
-            std::enable_if_t<!std::is_same_v<tag_type, void> &&
-                             std::is_same_v<payload_type, void>>* = nullptr>
-  void insert(vertex_t vertex, tag_type tag)
+  template <typename tag_type = tag_t, std::enable_if_t<!std::is_same_v<tag_type, void>>* = nullptr>
+  void insert(thrust::tuple<vertex_t, tag_type> key)
   {
     if (vertices_.size() > 0) {
-      rmm::device_scalar<vertex_t> tmp(vertex, handle_ptr_->get_stream());
-      auto tag_buffer = allocate_dataframe_buffer<tag_type>(1, handle_ptr_->get_stream());
-      thrust::fill(rmm::exec_policy(handle_ptr_->get_stream())->on(handle_ptr_->get_stream()),
-                   get_dataframe_buffer_begin<tag_type>(tag_buffer),
-                   get_dataframe_buffer_end<tag_type>(tag_buffer),
-                   tag);
-      insert(tmp.data(), tmp.data() + 1, get_dataframe_buffer_begin<tag_type>(tag_buffer));
+      rmm::device_scalar<vertex_t> tmp_vertex(thrust::get<0>(key), handle_ptr_->get_stream());
+      rmm::device_scalar<tag_t> tmp_tag(thrust::get<1>(key), handle_ptr_->get_stream());
+      auto pair_first =
+        thrust::make_zip_iterator(thrust::make_tuple(tmp_vertex.data(), tmp_tag.data()));
+      insert(pair_first, pair_first + 1);
     } else {
       vertices_.resize(1, handle_ptr_->get_stream());
-      raft::update_device(vertices_.data(), &vertex, size_t{1}, handle_ptr_->get_stream());
-      resize_dataframe_buffer<tag_type>(tags_.buffer, 1, handle_ptr_->get_stream());
+      tags_.buffer.resize(1, handle_ptr_->get_stream());
+      auto pair_first =
+        thrust::make_tuple(thrust::make_zip_iterator(vertices_.begin(), tags_.buffer.begin()));
       thrust::fill(rmm::exec_policy(handle_ptr_->get_stream())->on(handle_ptr_->get_stream()),
-                   get_dataframe_buffer_begin<tag_type>(tags_.buffer),
-                   get_dataframe_buffer_end<tag_type>(tags_.buffer),
-                   tag);
-    }
-  }
-
-  /**
-   * @ brief insert a vertex with a payload to the bucket
-   *
-   * @param vertex vertex to insert
-   * @param payload payload to insert with the vertex
-   * @param reduce_op Reduction operation to accumulate two payload_t variables, @reduce_op should
-   * be a pure function with no side effect.
-   */
-  template <typename ReduceOp,
-            typename tag_type                                      = tag_t,
-            typename payload_type                                  = payload_t,
-            std::enable_if_t<std::is_same_v<tag_type, void> &&
-                             !std::is_same_v<payload_type, void>>* = nullptr>
-  void insert(vertex_t vertex, payload_type payload, ReduceOp reduce_op)
-  {
-    if (vertices_.size() > 0) {
-      rmm::device_scalar<vertex_t> tmp(vertex, handle_ptr_->get_stream());
-      auto payload_buffer = allocate_dataframe_buffer<payload_type>(1, handle_ptr_->get_stream());
-      thrust::fill(rmm::exec_policy(handle_ptr_->get_stream())->on(handle_ptr_->get_stream()),
-                   get_dataframe_buffer_begin<payload_type>(payload_buffer),
-                   get_dataframe_buffer_end<payload_type>(payload_buffer),
-                   payload);
-      insert(tmp.data(), tmp.data() + 1, get_dataframe_buffer_begin<payload_type>(payload_buffer));
-    } else {
-      vertices_.resize(1, handle_ptr_->get_stream());
-      raft::update_device(vertices_.data(), &vertex, size_t{1}, handle_ptr_->get_stream());
-      resize_dataframe_buffer<payload_type>(payloads_.buffer, 1, handle_ptr_->get_stream());
-      thrust::fill(rmm::exec_policy(handle_ptr_->get_stream())->on(handle_ptr_->get_stream()),
-                   get_dataframe_buffer_begin<payload_type>(payloads_.buffer),
-                   get_dataframe_buffer_end<payload_type>(payloads_.buffer),
-                   payload);
-    }
-  }
-
-  /**
-   * @ brief insert a (vertex, tag) pair with a payload to the bucket
-   *
-   * @param vertex vertex of the (vertex, tag) pair to insert
-   * @param tag tag of the (vertex, tag) pair to insert
-   * @param payload payload to insert with the (vertex, tag) pair
-   * @param reduce_op Reduction operation to accumulate two payload_t variables, @reduce_op should
-   */
-  template <typename ReduceOp,
-            typename tag_type                                      = tag_t,
-            typename payload_type                                  = payload_t,
-            std::enable_if_t<!std::is_same_v<tag_type, void> &&
-                             !std::is_same_v<payload_type, void>>* = nullptr>
-  void insert(vertex_t vertex, tag_type tag, payload_type payload, ReduceOp reduce_op)
-  {
-    if (vertices_.size() > 0) {
-      rmm::device_scalar<vertex_t> tmp(vertex, handle_ptr_->get_stream());
-      auto tag_buffer = allocate_dataframe_buffer<tag_type>(1, handle_ptr_->get_stream());
-      thrust::fill(rmm::exec_policy(handle_ptr_->get_stream())->on(handle_ptr_->get_stream()),
-                   get_dataframe_buffer_begin<tag_type>(tag_buffer),
-                   get_dataframe_buffer_end<tag_type>(tag_buffer),
-                   tag);
-      auto payload_buffer = allocate_dataframe_buffer<payload_type>(1, handle_ptr_->get_stream());
-      thrust::fill(rmm::exec_policy(handle_ptr_->get_stream())->on(handle_ptr_->get_stream()),
-                   get_dataframe_buffer_begin<payload_type>(payload_buffer),
-                   get_dataframe_buffer_end<payload_type>(payload_buffer),
-                   payload);
-      insert(tmp.data(),
-             tmp.data() + 1,
-             get_dataframe_buffer_begin<tag_type>(tag_buffer),
-             get_dataframe_buffer_begin<payload_type>(payload_buffer));
-    } else {
-      vertices_.resize(1, handle_ptr_->get_stream());
-      raft::update_device(vertices_.data(), &vertex, size_t{1}, handle_ptr_->get_stream());
-      resize_dataframe_buffer<tag_type>(tags_.buffer, 1, handle_ptr_->get_stream());
-      thrust::fill(rmm::exec_policy(handle_ptr_->get_stream())->on(handle_ptr_->get_stream()),
-                   get_dataframe_buffer_begin<tag_type>(tags_.buffer),
-                   get_dataframe_buffer_end<tag_type>(tags_.buffer),
-                   tag);
-      resize_dataframe_buffer<payload_type>(payloads_.buffer, 1, handle_ptr_->get_stream());
-      thrust::fill(rmm::exec_policy(handle_ptr_->get_stream())->on(handle_ptr_->get_stream()),
-                   get_dataframe_buffer_begin<payload_type>(payloads_.buffer),
-                   get_dataframe_buffer_end<payload_type>(payloads_.buffer),
-                   payload);
+                   pair_first,
+                   pair_first + 1,
+                   key);
     }
   }
 
   /**
    * @ brief insert a list of vertices to the bucket
    *
-   * @param vertex_first Iterator pointing to the first (inclusive) element of the vertex list
-   * stored in device memory.
-   * @param vertex_last Iterator pointing to the last (exclusive) element of the vertex list stored
+   * @param vertex_first Iterator pointing to the first (inclusive) element of the vertices stored
    * in device memory.
+   * @param vertex_last Iterator pointing to the last (exclusive) element of the vertices stored in
+   * device memory. in device memory.
    */
   template <typename VertexIterator,
-            typename tag_type                                     = tag_t,
-            typename payload_type                                 = payload_t,
-            std::enable_if_t<std::is_same_v<tag_type, void> &&
-                             std::is_same_v<payload_type, void>>* = nullptr>
+            typename tag_type                                 = tag_t,
+            std::enable_if_t<std::is_same_v<tag_type, void>>* = nullptr>
   void insert(VertexIterator vertex_first, VertexIterator vertex_last)
   {
     static_assert(
@@ -255,42 +155,35 @@ class SortedUniqueElementBucket {
   }
 
   /**
-   * @ brief insert a list of vertices and vertx tags to the bucket
+   * @ brief insert a list of (vertex, tag) pairs to the bucket
    *
-   * @param vertex_first Iterator pointing to the first (inclusive) element of the vertex list
+   * @param key_first Iterator pointing to the first (inclusive) element of the (vertex,tag) pairs
    * stored in device memory.
-   * @param vertex_last Iterator pointing to the last (exclusive) element of the vertex list stored
-   * in device memory.
-   * @param tag_first Iterator pointing to the first (inclusive) element of the vertex tags stored
-   * in device memory.
+   * @param key_last Iterator pointing to the last (exclusive) element of the  (vertex,tag) pairs
+   * stored in device memory. in device memory.
    */
-  template <typename VertexIterator,
+  template <typename KeyIterator,
             typename TagIterator,
-            typename tag_type                                     = tag_t,
-            typename payload_type                                 = payload_t,
-            std::enable_if_t<!std::is_same_v<tag_type, void> &&
-                             std::is_same_v<payload_type, void>>* = nullptr>
-  void insert(VertexIterator vertex_first, VertexIterator vertex_last, TagIterator tag_first)
+            typename tag_type                                  = tag_t,
+            std::enable_if_t<!std::is_same_v<tag_type, void>>* = nullptr>
+  void insert(KeyIterator key_first, KeyIterator key_last)
   {
-    static_assert(
-      std::is_same_v<typename std::iterator_traits<VertexIterator>::value_type, vertex_t>);
-    static_assert(std::is_same_v<typename std::iterator_traits<TagIterator>::value_type, tag_type>);
+    static_assert(std::is_same_v<typename std::iterator_traits<KeyIterator>::value_type,
+                                 thrust::tuple<vertex_t, tag_t>>);
 
     if (vertices_.size() > 0) {
       rmm::device_uvector<vertex_t> merged_vertices(
-        vertices_.size() + thrust::distance(vertex_first, vertex_last), handle_ptr_->get_stream());
-      auto merged_tag_buffer =
-        allocate_dataframe_buffer<tag_type>(merged_vertices.size(), handle_ptr_->get_stream());
-      auto old_pair_first = thrust::make_zip_iterator(
-        thrust::make_tuple(vertices_.begin(), get_dataframe_buffer_begin<tag_type>(tags_.buffer)));
-      auto new_pair_first = thrust::make_zip_iterator(thrust::make_tuple(vertex_first, tag_first));
-      auto merged_pair_first = thrust::make_zip_iterator(thrust::make_tuple(
-        merged_vertices.begin(), get_dataframe_buffer_begin<tag_type>(merged_tag_buffer)));
+        vertices_.size() + thrust::distance(key_first, key_last), handle_ptr_->get_stream());
+      rmm::device_uvector<tag_t> merged_tags(merged_vertices.size(), handle_ptr_->get_stream());
+      auto old_pair_first =
+        thrust::make_zip_iterator(thrust::make_tuple(vertices_.begin(), tags_.buffer.begin()));
+      auto merged_pair_first =
+        thrust::make_zip_iterator(thrust::make_tuple(merged_vertices.begin(), merged_tags.begin()));
       thrust::merge(rmm::exec_policy(handle_ptr_->get_stream())->on(handle_ptr_->get_stream()),
                     old_pair_first,
                     old_pair_first + vertices_.size(),
-                    new_pair_first,
-                    new_pair_first + thrust::distance(vertex_first, vertex_last),
+                    key_first,
+                    key_last,
                     merged_pair_first);
       merged_vertices.resize(
         thrust::distance(
@@ -299,199 +192,19 @@ class SortedUniqueElementBucket {
                          merged_pair_first,
                          merged_pair_first + merged_vertices.size())),
         handle_ptr_->get_stream());
-      resize_dataframe_buffer<tag_type>(
-        merged_tag_buffer, merged_vertices.size(), handle_ptr_->get_stream());
+      merged_tags.resize(merged_vertices.size(), handle_ptr_->get_stream());
       merged_vertices.shrink_to_fit(handle_ptr_->get_stream());
-      shrink_to_fit_dataframe_buffer<tag_type>(merged_tag_buffer, handle_ptr_->get_stream());
+      merged_tags.shrink_to_fit(handle_ptr_->get_stream());
       vertices_    = std::move(merged_vertices);
-      tags_.buffer = std::move(merged_tag_buffer);
+      tags_.buffer = std::move(merged_tags);
     } else {
-      vertices_.resize(thrust::distance(vertex_first, vertex_last), handle_ptr_->get_stream());
-      resize_dataframe_buffer<tag_type>(tags_.buffer, vertices_.size(), handle_ptr_->get_stream());
-      auto pair_first = thrust::make_zip_iterator(thrust::make_tuple(vertex_first, tag_first));
-      thrust::copy(rmm::exec_policy(handle_ptr_->get_stream())->on(handle_ptr_->get_stream()),
-                   pair_first,
-                   pair_first + vertices_.size(),
-                   thrust::make_zip_iterator(thrust::make_tuple(
-                     vertices_.begin(), get_dataframe_buffer_begin<tag_type>(tags_.buffer))));
-    }
-  }
-
-  /**
-   * @ brief insert a list of vertices and vertx payloads to the bucket
-   *
-   * @param vertex_first Iterator pointing to the first (inclusive) element of the vertex list
-   * stored in device memory.
-   * @param vertex_last Iterator pointing to the last (exclusive) element of the vertex list stored
-   * in device memory.
-   * @param payload_first Iterator pointing to the first (inclusive) element of the vertex payloads
-   * stored in device memory.
-   * @param reduce_op Reduction operation to accumulate two payload_t variables, @reduce_op should
-   * be a pure function with no side effect.
-   */
-  template <typename VertexIterator,
-            typename PayloadIterator,
-            typename ReduceOp,
-            typename tag_type                                      = tag_t,
-            typename payload_type                                  = payload_t,
-            std::enable_if_t<std::is_same_v<tag_type, void> &&
-                             !std::is_same_v<payload_type, void>>* = nullptr>
-  void insert(VertexIterator vertex_first,
-              VertexIterator vertex_last,
-              PayloadIterator payload_first,
-              ReduceOp reduce_op)
-  {
-    static_assert(
-      std::is_same_v<typename std::iterator_traits<VertexIterator>::value_type, vertex_t>);
-    static_assert(
-      std::is_same_v<typename std::iterator_traits<PayloadIterator>::value_type, payload_type>);
-
-    if (vertices_.size() > 0) {
-      rmm::device_uvector<vertex_t> merged_vertices(
-        vertices_.size() + thrust::distance(vertex_first, vertex_last), handle_ptr_->get_stream());
-      auto merged_payload_buffer =
-        allocate_dataframe_buffer<payload_type>(merged_vertices.size(), handle_ptr_->get_stream());
-      thrust::merge_by_key(
-        rmm::exec_policy(handle_ptr_->get_stream())->on(handle_ptr_->get_stream()),
-        vertices_.begin(),
-        vertices_.end(),
-        vertex_first,
-        vertex_last,
-        get_dataframe_buffer_begin<payload_type>(payloads_.buffer),
-        payload_first,
-        merged_vertices.begin(),
-        get_dataframe_buffer_begin<payload_type>(merged_payload_buffer));
-
-      // FIXME: if reduce_op is picking any, thrust::unique is sufficient (and this may be faster)
-      vertices_.resize(merged_vertices.size(), handle_ptr_->get_stream());
-      resize_dataframe_buffer<payload_type>(
-        payloads_.buffer, vertices_.size(), handle_ptr_->get_stream());
-      vertices_.resize(
-        thrust::distance(
-          vertices_.begin(),
-          thrust::get<0>(thrust::reduce_by_key(
-            rmm::exec_policy(handle_ptr_->get_stream())->on(handle_ptr_->get_stream()),
-            merged_vertices.begin(),
-            merged_vertices.end(),
-            get_dataframe_buffer_begin<payload_type>(merged_payload_buffer),
-            vertices_.begin(),
-            get_dataframe_buffer_begin<payload_type>(payloads_.buffer),
-            thrust::equal_to<vertex_t>(),
-            reduce_op))),
-        handle_ptr_->get_stream());
-      resize_dataframe_buffer<payload_type>(
-        payloads_.buffer, vertices_.size(), handle_ptr_->get_stream());
-      vertices_.shrink_to_fit(handle_ptr_->get_stream());
-      shrink_to_fit_dataframe_buffer<payload_type>(payloads_.buffer, handle_ptr_->get_stream());
-    } else {
-      vertices_.resize(thrust::distance(vertex_first, vertex_last), handle_ptr_->get_stream());
-      resize_dataframe_buffer<payload_type>(
-        payloads_.buffer, vertices_.size(), handle_ptr_->get_stream());
-      auto pair_first = thrust::make_zip_iterator(thrust::make_tuple(vertex_first, payload_first));
+      vertices_.resize(thrust::distance(key_first, key_last), handle_ptr_->get_stream());
+      tags_.buffer.resize(thrust::distance(key_first, key_last), handle_ptr_->get_stream());
       thrust::copy(
         rmm::exec_policy(handle_ptr_->get_stream())->on(handle_ptr_->get_stream()),
-        pair_first,
-        pair_first + vertices_.size(),
-        thrust::make_zip_iterator(thrust::make_tuple(
-          vertices_.begin(), get_dataframe_buffer_begin<payload_type>(payloads_.buffer))));
-    }
-  }
-
-  /**
-   * @ brief insert a list of vertices, vertex tags, and vertx payloads to the bucket
-   *
-   * @param vertex_first Iterator pointing to the first (inclusive) element of the vertex list
-   * stored in device memory.
-   * @param vertex_last Iterator pointing to the last (exclusive) element of the vertex list stored
-   * in device memory.
-   * @param payload_first Iterator pointing to the first (inclusive) element of the vertex payloads
-   * stored in device memory.
-   * @param reduce_op Reduction operation to accumulate two payload_t variables, @reduce_op should
-   * be a pure function with no side effect.
-   */
-  template <typename VertexIterator,
-            typename TagIterator,
-            typename PayloadIterator,
-            typename ReduceOp,
-            typename tag_type                                      = tag_t,
-            typename payload_type                                  = payload_t,
-            std::enable_if_t<std::is_same_v<tag_type, void> &&
-                             !std::is_same_v<payload_type, void>>* = nullptr>
-  void insert(VertexIterator vertex_first,
-              VertexIterator vertex_last,
-              TagIterator tag_first,
-              PayloadIterator payload_first,
-              ReduceOp reduce_op)
-  {
-    static_assert(
-      std::is_same_v<typename std::iterator_traits<VertexIterator>::value_type, vertex_t>);
-    static_assert(std::is_same_v<typename std::iterator_traits<TagIterator>::value_type, tag_type>);
-    static_assert(
-      std::is_same_v<typename std::iterator_traits<PayloadIterator>::value_type, payload_type>);
-
-    if (vertices_.size() > 0) {
-      rmm::device_uvector<vertex_t> merged_vertices(
-        vertices_.size() + thrust::distance(vertex_first, vertex_last), handle_ptr_->get_stream());
-      auto merged_tag_buffer =
-        allocate_dataframe_buffer<tag_type>(merged_vertices.size(), handle_ptr_->get_stream());
-      auto merged_payload_buffer =
-        allocate_dataframe_buffer<payload_type>(merged_vertices.size(), handle_ptr_->get_stream());
-      auto old_pair_first = thrust::make_zip_iterator(
-        thrust::make_tuple(vertices_.begin(), get_dataframe_buffer_begin<tag_type>(tags_.buffer)));
-      auto new_pair_first = thrust::make_zip_iterator(thrust::make_tuple(vertex_first, tag_first));
-      auto merged_pair_first = thrust::make_zip_iterator(thrust::make_tuple(
-        merged_vertices.begin(), get_dataframe_buffer_begin<tag_type>(merged_tag_buffer)));
-      thrust::merge_by_key(
-        rmm::exec_policy(handle_ptr_->get_stream())->on(handle_ptr_->get_stream()),
-        old_pair_first,
-        old_pair_first + vertices_.size(),
-        new_pair_first,
-        new_pair_first + thrust::distance(vertex_first, vertex_last),
-        get_dataframe_buffer_begin<payload_type>(payloads_.buffer),
-        payload_first,
-        merged_pair_first,
-        get_dataframe_buffer_begin<payload_type>(merged_payload_buffer));
-
-      // FIXME: if reduce_op is picking any, thrust::unique is sufficient (and this may be faster)
-      vertices_.resize(merged_vertices.size(), handle_ptr_->get_stream());
-      resize_dataframe_buffer<tag_type>(tags_.buffer, vertices_.size(), handle_ptr_->get_stream());
-      resize_dataframe_buffer<payload_type>(
-        payloads_.buffer, vertices_.size(), handle_ptr_->get_stream());
-      auto reduced_pair_first = thrust::make_zip_iterator(
-        thrust::make_tuple(vertices_.begin(), get_dataframe_buffer_begin<tag_type>(tags_.buffer)));
-      vertices_.resize(
-        thrust::distance(
-          reduced_pair_first,
-          thrust::get<0>(thrust::reduce_by_key(
-            rmm::exec_policy(handle_ptr_->get_stream())->on(handle_ptr_->get_stream()),
-            merged_pair_first,
-            merged_pair_first + merged_vertices.size(),
-            get_dataframe_buffer_begin<payload_type>(merged_payload_buffer),
-            reduced_pair_first,
-            get_dataframe_buffer_begin<payload_type>(payloads_.buffer),
-            thrust::equal_to<thrust::tuple<vertex_t, tag_type>>(),
-            reduce_op))),
-        handle_ptr_->get_stream());
-      resize_dataframe_buffer<tag_type>(tags_.buffer, vertices_.size(), handle_ptr_->get_stream());
-      resize_dataframe_buffer<payload_type>(
-        payloads_.buffer, vertices_.size(), handle_ptr_->get_stream());
-      vertices_.shrink_to_fit(handle_ptr_->get_stream());
-      shrink_to_fit_dataframe_buffer<tag_type>(tags_.buffer, handle_ptr_->get_stream());
-      shrink_to_fit_dataframe_buffer<payload_type>(payloads_.buffer, handle_ptr_->get_stream());
-    } else {
-      vertices_.resize(thrust::distance(vertex_first, vertex_last), handle_ptr_->get_stream());
-      resize_dataframe_buffer<tag_type>(tags_.buffer, vertices_.size(), handle_ptr_->get_stream());
-      resize_dataframe_buffer<payload_type>(
-        payloads_.buffer, vertices_.size(), handle_ptr_->get_stream());
-      auto triplet_first =
-        thrust::make_zip_iterator(thrust::make_tuple(vertex_first, tag_first, payload_first));
-      thrust::copy(rmm::exec_policy(handle_ptr_->get_stream())->on(handle_ptr_->get_stream()),
-                   triplet_first,
-                   triplet_first + vertices_.size(),
-                   thrust::make_zip_iterator(thrust::make_tuple(
-                     vertices_.begin(),
-                     get_dataframe_buffer_begin<tag_type>(tags_.buffer),
-                     get_dataframe_buffer_begin<payload_type>(payloads_.buffer))));
+        key_first,
+        key_last,
+        thrust::make_zip_iterator(thrust::make_tuple(vertices_.begin(), tags_.buffer.begin())));
     }
   }
 
@@ -514,7 +227,7 @@ class SortedUniqueElementBucket {
   {
     vertices_.resize(size, handle_ptr_->get_stream());
     if constexpr (!std::is_same_v<tag_t, void>) {
-      resize_dataframe_buffer<tag_t>(tags_.buffer, size, handle_ptr_->get_stream());
+      tags_.buffer.resize(size, handle_ptr_->get_stream());
     }
   }
 
@@ -524,39 +237,25 @@ class SortedUniqueElementBucket {
   {
     vertices_.shrink_to_fit(handle_ptr_->get_stream());
     if constexpr (!std::is_same_v<tag_t, void>) {
-      shrink_to_fit_dataframe_buffer(tags_.buffer, handle_ptr_->get_stream());
+      tags_.buffer.shrink_to_fit(handle_ptr_->get_stream());
     }
   }
 
   auto const begin() const
   {
-    if constexpr (std::is_same_v<tag_t, void> && std::is_same_v<payload_t, void>) {
+    if constexpr (std::is_same_v<tag_t, void>) {
       return vertices_.begin();
-    } else if constexpr (!std::is_same_v<tag_t, void> && std::is_same_v<payload_t, void>) {
-      return std::make_tuple(vertices_.begin(), get_dataframe_buffer_begin<tag_t>(tags_.buffer));
-    } else if constexpr (std::is_same_v<tag_t, void> && !std::is_same_v<payload_t, void>) {
-      return std::make_tuple(vertices_.begin(),
-                             get_dataframe_buffer_begin<payload_t>(payloads_.buffer));
     } else {
-      return std::make_tuple(vertices_.begin(),
-                             get_dataframe_buffer_begin<tag_t>(tags_.buffer),
-                             get_dataframe_buffer_begin<payload_t>(payloads_.buffer));
+      return std::make_tuple(vertices_.begin(), tags_.buffer.begin());
     }
   }
 
   auto begin()
   {
-    if constexpr (std::is_same_v<tag_t, void> && std::is_same_v<payload_t, void>) {
+    if constexpr (std::is_same_v<tag_t, void>) {
       return vertices_.begin();
-    } else if constexpr (!std::is_same_v<tag_t, void> && std::is_same_v<payload_t, void>) {
-      return std::make_tuple(vertices_.begin(), get_dataframe_buffer_begin<tag_t>(tags_.buffer));
-    } else if constexpr (std::is_same_v<tag_t, void> && !std::is_same_v<payload_t, void>) {
-      return std::make_tuple(vertices_.begin(),
-                             get_dataframe_buffer_begin<payload_t>(payloads_.buffer));
     } else {
-      return std::make_tuple(vertices_.begin(),
-                             get_dataframe_buffer_begin<tag_t>(tags_.buffer),
-                             get_dataframe_buffer_begin<payload_t>(payloads_.buffer));
+      return std::make_tuple(vertices_.begin(), tags_.buffer.begin());
     }
   }
 
@@ -564,49 +263,22 @@ class SortedUniqueElementBucket {
 
   auto end() { return begin() + vertices_.size(); }
 
-  auto key_begin()
-  {
-    if constexpr (std::is_same_v<tag_t, void>) {
-      return vertices_.begin();
-    } else {
-      return std::make_tuple(vertices_.begin(), get_dataframe_buffer_begin<tag_t>(tags_.buffer));
-    }
-  }
-
-  auto const key_begin() const
-  {
-    if constexpr (std::is_same_v<tag_t, void>) {
-      return vertices_.begin();
-    } else {
-      return std::make_tuple(vertices_.begin(), get_dataframe_buffer_begin<tag_t>(tags_.buffer));
-    }
-  }
-
-  auto const key_end() const { return key_begin() + vertices_.size(); }
-
-  auto key_end() { return key_begin() + vertices_.size(); }
-
  private:
   raft::handle_t const* handle_ptr_{nullptr};
   rmm::device_uvector<vertex_t> vertices_;
   detail::optional_buffer_t<tag_t> tags_;
-  detail::optional_buffer_t<payload_t> payloads_;
 };
 
 template <typename vertex_t,
           typename tag_t     = void,
-          typename payload_t = void,
           bool is_multi_gpu  = false,
           size_t num_buckets = 1>
 class VertexFrontier {
   static_assert(std::is_same_v<tag_t, void> || std::is_arithmetic_v<tag_t>);
-  static_assert(std::is_same_v<payload_t, void> ||
-                is_arithmetic_or_thrust_tuple_of_arithmetic<payload_t>::value);
 
  public:
   using key_type =
     std::conditional_t<std::is_same_v<tag_t, void>, vertex_t, thrust::tuple<vertex_t, tag_t>>;
-  using payload_type                  = payload_t;
   static size_t constexpr kNumBuckets = num_buckets;
   static size_t constexpr kInvalidBucketIdx{std::numeric_limits<size_t>::max()};
 
@@ -615,13 +287,12 @@ class VertexFrontier {
     for (size_t i = 0; i < num_buckets; ++i) { buckets_.emplace_back(handle); }
   }
 
-  SortedUniqueElementBucket<vertex_t, tag_t, payload_t, is_multi_gpu>& get_bucket(size_t bucket_idx)
+  SortedUniqueKeyBucket<vertex_t, tag_t, is_multi_gpu>& get_bucket(size_t bucket_idx)
   {
     return buckets_[bucket_idx];
   }
 
-  SortedUniqueElementBucket<vertex_t, tag_t, payload_t, is_multi_gpu> const& get_bucket(
-    size_t bucket_idx) const
+  SortedUniqueKeyBucket<vertex_t, tag_t, is_multi_gpu> const& get_bucket(size_t bucket_idx) const
   {
     return buckets_[bucket_idx];
   }
@@ -631,9 +302,7 @@ class VertexFrontier {
     std::swap(buckets_[bucket_idx0], buckets_[bucket_idx1]);
   }
 
-  template <typename SplitOp,
-            typename payload_type                                 = payload_t,
-            std::enable_if_t<std::is_same_v<payload_type, void>>* = nullptr>
+  template <typename SplitOp>
   void split_bucket(size_t this_bucket_idx,
                     std::vector<size_t> const& move_to_bucket_indices,
                     SplitOp split_op)
@@ -641,108 +310,37 @@ class VertexFrontier {
     auto& this_bucket = get_bucket(this_bucket_idx);
     if (this_bucket.size() == 0) { return; }
 
-    auto [new_this_bucket_size, insert_bucket_indices, insert_offsets, insert_sizes] =
-      split_and_groupby_bucket(this_bucket_idx, move_to_bucket_indices, split_op);
-
-    if constexpr (std::is_same_v<tag_t, void>) {
-      for (size_t i = 0; i < insert_offsets.size(); ++i) {
-        get_bucket(insert_bucket_indices[i])
-          .insert(this_bucket.begin() + insert_offsets[i],
-                  this_bucket.begin() + (insert_offsets[i] + insert_sizes[i]));
-      }
-    } else if constexpr (!std::is_same_v<tag_t, void>) {
-      auto vertex_first = std::get<0>(this_bucket.begin());
-      auto tag_first    = std::get<1>(this_bucket.begin());
-      for (size_t i = 0; i < insert_offsets.size(); ++i) {
-        get_bucket(insert_bucket_indices[i])
-          .insert(vertex_first + insert_offsets[i],
-                  vertex_first + (insert_offsets[i] + insert_sizes[i]),
-                  tag_first + insert_offsets[i]);
-      }
-    }
-
-    this_bucket.resize(new_this_bucket_size);
-    this_bucket.shrink_to_fit();
-  }
-
-  template <typename SplitOp,
-            typename ReduceOp,
-            typename payload_type                                  = payload_t,
-            std::enable_if_t<!std::is_same_v<payload_type, void>>* = nullptr>
-  void split_bucket(size_t this_bucket_idx,
-                    std::vector<size_t> const& move_to_bucket_indices,
-                    SplitOp split_op,
-                    ReduceOp reduce_op)
-  {
-    auto& this_bucket = get_bucket(this_bucket_idx);
-    if (this_bucket.size() == 0) { return; }
-
-    auto [new_this_bucket_size, insert_bucket_indices, insert_offsets, insert_sizes] =
-      split_and_groupby_bucket(this_bucket_idx, move_to_bucket_indices, split_op);
-
-    if constexpr (std::is_same_v<tag_t, void>) {
-      auto vertex_first  = std::get<0>(this_bucket.begin());
-      auto payload_first = std::get<1>(this_bucket.begin());
-      for (size_t i = 0; i < insert_offsets.size(); ++i) {
-        get_bucket(insert_bucket_indices[i])
-          .insert(vertex_first + insert_offsets[i],
-                  vertex_first + (insert_offsets[i] + insert_sizes[i]),
-                  payload_first + insert_offsets[i],
-                  reduce_op);
-      }
-    } else {
-      auto vertex_first  = std::get<0>(this_bucket.begin());
-      auto tag_first     = std::get<1>(this_bucket.begin());
-      auto payload_first = std::get<2>(this_bucket.begin());
-      for (size_t i = 0; i < insert_offsets.size(); ++i) {
-        get_bucket(insert_bucket_indices[i])
-          .insert(vertex_first + insert_offsets[i],
-                  vertex_first + (insert_offsets[i] + insert_sizes[i]),
-                  tag_first + insert_offsets[i],
-                  payload_first + insert_offsets[i],
-                  reduce_op);
-      }
-    }
-
-    this_bucket.resize(new_this_bucket_size);
-    this_bucket.shrink_to_fit();
-  }
-
-  // FIXME: this function is not part of the public stable API. This function should be private, but
-  // nvcc currently disallows the enclosing parent function for an extended __device__ lambda to
-  // have private or protected access
-  template <typename SplitOp>
-  std::tuple<size_t, std::vector<size_t>, std::vector<size_t>, std::vector<size_t>>
-  split_and_groupby_bucket(size_t this_bucket_idx,
-                           std::vector<size_t> const& move_to_bucket_indices,
-                           SplitOp split_op)
-  {
-    auto& this_bucket = get_bucket(this_bucket_idx);
-
     // 1. apply split_op to each bucket element
 
     static_assert(kNumBuckets <= std::numeric_limits<uint8_t>::max());
     rmm::device_uvector<uint8_t> bucket_indices(this_bucket.size(), handle_ptr_->get_stream());
-    thrust::transform(rmm::exec_policy(handle_ptr_->get_stream())->on(handle_ptr_->get_stream()),
-                      this_bucket.begin(),
-                      this_bucket.end(),
-                      bucket_indices.begin(),
-                      [split_op] __device__(auto v) { return static_cast<uint8_t>(split_op(v)); });
+    thrust::transform(
+      rmm::exec_policy(handle_ptr_->get_stream())->on(handle_ptr_->get_stream()),
+      this_bucket.begin(),
+      this_bucket.end(),
+      bucket_indices.begin(),
+      [split_op] __device__(auto key) {
+        auto split_op_result = split_op(key);
+        return static_cast<uint8_t>(split_op_result ? *split_op_result : kInvalidBucketIdx);
+      });
 
     // 2. remove elements with the invalid bucket indices
 
     auto pair_first =
       thrust::make_zip_iterator(thrust::make_tuple(bucket_indices.begin(), this_bucket.begin()));
-    this_bucket.resize(thrust::distance(
-      pair_first,
-      thrust::remove_if(rmm::exec_policy(handle_ptr_->get_stream())->on(handle_ptr_->get_stream()),
-                        pair_first,
-                        pair_first + bucket_indices.size(),
-                        [invalid_bucket_idx = static_cast<uint8_t>(kInvalidBucketIdx)] __device__(
-                          auto pair) { return thrust::get<0>(pair) == invalid_bucket_idx; })));
-    bucket_indices.resize(this_bucket.size(), handle_ptr_->get_stream());
+    bucket_indices.resize(
+      thrust::distance(pair_first,
+                       thrust::remove_if(
+                         rmm::exec_policy(handle_ptr_->get_stream())->on(handle_ptr_->get_stream()),
+                         pair_first,
+                         pair_first + bucket_indices.size(),
+                         [] __device__(auto pair) {
+                           return thrust::get<0>(pair) == static_cast<uint8_t>(kInvalidBucketIdx);
+                         })),
+      handle_ptr_->get_stream());
+    this_bucket.resize(bucket_indices.size());
+    bucket_indices.shrink_to_fit(handle_ptr_->get_stream());
     this_bucket.shrink_to_fit();
-    bucket_indices.shrink_to_fit(handle_ptr_->get_stream_view());
 
     // 3. separte the elements to stay in this bucket from the elements to be moved to other buckets
 
@@ -819,13 +417,21 @@ class VertexFrontier {
       }
     }
 
-    return std::make_tuple(
-      new_this_bucket_size, insert_bucket_indices, insert_offsets, insert_sizes);
+    // 5. insert to the target buckets
+
+    for (size_t i = 0; i < insert_offsets.size(); ++i) {
+      get_bucket(insert_bucket_indices[i])
+        .insert(this_bucket.begin() + insert_offsets[i],
+                this_bucket.begin() + (insert_offsets[i] + insert_sizes[i]));
+    }
+
+    this_bucket.resize(new_this_bucket_size);
+    this_bucket.shrink_to_fit();
   }
 
  private:
   raft::handle_t const* handle_ptr_{nullptr};
-  std::vector<SortedUniqueElementBucket<vertex_t, tag_t, payload_t, is_multi_gpu>> buckets_{};
+  std::vector<SortedUniqueKeyBucket<vertex_t, tag_t, is_multi_gpu>> buckets_{};
 };
 
 }  // namespace experimental

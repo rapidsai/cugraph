@@ -399,8 +399,8 @@ void update_frontier_v_push_if_out_nbr(
   using key_t     = typename VertexFrontierType::key_type;
   using payload_t = typename ReduceOp::type;
 
-  auto frontier_key_first = vertex_frontier.get_bucket(cur_frontier_bucket_idx).key_begin();
-  auto frontier_key_last  = vertex_frontier.get_bucket(cur_frontier_bucket_idx).key_end();
+  auto frontier_key_first = vertex_frontier.get_bucket(cur_frontier_bucket_idx).begin();
+  auto frontier_key_last  = vertex_frontier.get_bucket(cur_frontier_bucket_idx).end();
 
   // 1. fill the buffer
 
