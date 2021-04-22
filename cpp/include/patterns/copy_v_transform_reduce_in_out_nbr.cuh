@@ -100,6 +100,7 @@ __global__ void for_all_major_for_all_nbr_low_degree(
                           ? static_cast<vertex_t>(major_offset)
                           : minor_offset;
       return evaluate_edge_op<GraphViewType,
+                              vertex_t*,
                               AdjMatrixRowValueInputIterator,
                               AdjMatrixColValueInputIterator,
                               EdgeOp>()
@@ -188,6 +189,7 @@ __global__ void for_all_major_for_all_nbr_mid_degree(
                           ? static_cast<vertex_t>(major_offset)
                           : minor_offset;
       auto e_op_result = evaluate_edge_op<GraphViewType,
+                                          vertex_t*,
                                           AdjMatrixRowValueInputIterator,
                                           AdjMatrixColValueInputIterator,
                                           EdgeOp>()
@@ -262,6 +264,7 @@ __global__ void for_all_major_for_all_nbr_high_degree(
                           ? static_cast<vertex_t>(major_offset)
                           : minor_offset;
       auto e_op_result = evaluate_edge_op<GraphViewType,
+                                          vertex_t*,
                                           AdjMatrixRowValueInputIterator,
                                           AdjMatrixColValueInputIterator,
                                           EdgeOp>()

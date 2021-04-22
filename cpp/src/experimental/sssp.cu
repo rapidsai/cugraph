@@ -32,6 +32,7 @@
 #include <thrust/iterator/counting_iterator.h>
 #include <thrust/iterator/discard_iterator.h>
 #include <thrust/iterator/zip_iterator.h>
+#include <thrust/optional.h>
 #include <thrust/transform.h>
 #include <thrust/tuple.h>
 
@@ -126,7 +127,10 @@ void sssp(raft::handle_t const &handle,
   // 4. initialize SSSP frontier
 
   enum class Bucket { cur_near, next_near, far, num_buckets };
-  VertexFrontier<vertex_t, GraphViewType::is_multi_gpu, static_cast<size_t>(Bucket::num_buckets)>
+  VertexFrontier<vertex_t,
+                 void,
+                 GraphViewType::is_multi_gpu,
+                 static_cast<size_t>(Bucket::num_buckets)>
     vertex_frontier(handle);
 
   // 5. SSSP iteration
@@ -186,7 +190,9 @@ void sssp(raft::handle_t const &handle,
           threshold         = old_distance < threshold ? old_distance : threshold;
         }
         if (new_distance >= threshold) { push = false; }
-        return thrust::make_tuple(push, thrust::make_tuple(new_distance, src));
+        return push ? thrust::optional<thrust::tuple<weight_t, vertex_t>>{thrust::make_tuple(
+                        new_distance, src)}
+                    : thrust::nullopt;
       },
       reduce_op::min<thrust::tuple<weight_t, vertex_t>>(),
       distances,
@@ -197,7 +203,12 @@ void sssp(raft::handle_t const &handle,
                      ? (new_dist < near_far_threshold ? static_cast<size_t>(Bucket::next_near)
                                                       : static_cast<size_t>(Bucket::far))
                      : VertexFrontier<vertex_t>::kInvalidBucketIdx;
-        return thrust::make_tuple(idx, pushed_val);
+        return new_dist < v_val
+                 ? thrust::optional<thrust::tuple<size_t, decltype(pushed_val)>>{thrust::make_tuple(
+                     static_cast<size_t>(new_dist < near_far_threshold ? Bucket::next_near
+                                                                       : Bucket::far),
+                     pushed_val)}
+                 : thrust::nullopt;
       });
 
     vertex_frontier.get_bucket(static_cast<size_t>(Bucket::cur_near)).clear();
@@ -220,13 +231,10 @@ void sssp(raft::handle_t const &handle,
             auto v) {
             auto dist =
               *(distances + vertex_partition.get_local_vertex_offset_from_vertex_nocheck(v));
-            if (dist < old_near_far_threshold) {
-              return VertexFrontier<vertex_t>::kInvalidBucketIdx;
-            } else if (dist < near_far_threshold) {
-              return static_cast<size_t>(Bucket::cur_near);
-            } else {
-              return static_cast<size_t>(Bucket::far);
-            }
+            return dist >= old_near_far_threshold
+                     ? thrust::optional<size_t>{static_cast<size_t>(
+                         dist < near_far_threshold ? Bucket::cur_near : Bucket::far)}
+                     : thrust::nullopt;
           });
         near_size =
           vertex_frontier.get_bucket(static_cast<size_t>(Bucket::cur_near)).aggregate_size();

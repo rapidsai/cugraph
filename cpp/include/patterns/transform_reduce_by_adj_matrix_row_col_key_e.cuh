@@ -98,6 +98,7 @@ __global__ void for_all_major_for_all_nbr_low_degree(
             ((GraphViewType::is_adj_matrix_transposed != adj_matrix_row_key) ? major_offset
                                                                              : minor_offset));
         auto e_op_result = evaluate_edge_op<GraphViewType,
+                                            vertex_t*,
                                             AdjMatrixRowValueInputIterator,
                                             AdjMatrixColValueInputIterator,
                                             EdgeOp>()
