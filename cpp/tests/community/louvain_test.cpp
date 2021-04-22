@@ -313,7 +313,7 @@ TEST_P(Tests_Louvain, CheckInt32Int32FloatFloat)
 }
 
 // FIXME: Expand testing once we evaluate RMM memory use
-INSTANTIATE_TEST_CASE_P(
+INSTANTIATE_TEST_SUITE_P(
   simple_test,
   Tests_Louvain,
   ::testing::Values(Louvain_Usecase("test/datasets/karate.mtx", true, 3, 0.408695)));
