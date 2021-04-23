@@ -228,12 +228,40 @@ class SortedUniqueKeyBucket {
     if constexpr (!std::is_same_v<tag_t, void>) { tags_.shrink_to_fit(handle_ptr_->get_stream()); }
   }
 
+// FIXME: to silence the spurious warning (missing return statement ...) due to the nvcc bug
+// (https://stackoverflow.com/questions/64523302/cuda-missing-return-statement-at-end-of-non-void-
+// function-in-constexpr-if-fun)
+#if 1
+  template <typename tag_type = tag_t, std::enable_if_t<std::is_same_v<tag_type, void>>* = nullptr>
+  auto const begin() const
+  {
+    return vertices_.begin();
+  }
+
+  template <typename tag_type = tag_t, std::enable_if_t<std::is_same_v<tag_type, void>>* = nullptr>
+  auto begin()
+  {
+    return vertices_.begin();
+  }
+
+  template <typename tag_type = tag_t, std::enable_if_t<!std::is_same_v<tag_type, void>>* = nullptr>
+  auto const begin() const
+  {
+    return thrust::make_zip_iterator(thrust::make_tuple(vertices_.begin(), tags_.begin()));
+  }
+
+  template <typename tag_type = tag_t, std::enable_if_t<!std::is_same_v<tag_type, void>>* = nullptr>
+  auto begin()
+  {
+    return thrust::make_zip_iterator(thrust::make_tuple(vertices_.begin(), tags_.begin()));
+  }
+#else
   auto const begin() const
   {
     if constexpr (std::is_same_v<tag_t, void>) {
       return vertices_.begin();
     } else {
-      return std::make_tuple(vertices_.begin(), tags_.begin());
+      return thrust::make_zip_iterator(thrust::make_tuple(vertices_.begin(), tags_.begin()));
     }
   }
 
@@ -242,9 +270,10 @@ class SortedUniqueKeyBucket {
     if constexpr (std::is_same_v<tag_t, void>) {
       return vertices_.begin();
     } else {
-      return std::make_tuple(vertices_.begin(), tags_.begin());
+      return thrust::make_zip_iterator(thrust::make_tuple(vertices_.begin(), tags_.begin()));
     }
   }
+#endif
 
   auto const end() const { return begin() + vertices_.size(); }
 
