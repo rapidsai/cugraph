@@ -20,7 +20,6 @@
 #include <utilities/thrust_tuple_utils.cuh>
 
 #include <raft/cudart_utils.h>
-#include <rmm/thrust_rmm_allocator.h>
 #include <raft/handle.hpp>
 #include <rmm/device_scalar.hpp>
 #include <rmm/device_uvector.hpp>
@@ -39,30 +38,26 @@
 namespace cugraph {
 namespace experimental {
 
-namespace detail {
-
-template <typename T>
-struct optional_buffer_t {
-  rmm::device_uvector<T> buffer;
-};
-
-template <>
-struct optional_buffer_t<void> {
-};
-
-}  // namespace detail
-
 // stores unique key objects in the sorted (non-descending) order; key type is either vertex_t
 // (tag_t == void) or thrust::tuple<vertex_t, tag_t> (tag_t != void)
 template <typename vertex_t, typename tag_t = void, bool is_multi_gpu = false>
 class SortedUniqueKeyBucket {
   static_assert(std::is_same_v<tag_t, void> || std::is_arithmetic_v<tag_t>);
 
+  using optional_buffer_type = std::
+    conditional_t<std::is_same_v<tag_t, void>, std::byte /* dummy */, rmm::device_uvector<tag_t>>;
+
  public:
+  template <typename tag_type = tag_t, std::enable_if_t<std::is_same_v<tag_type, void>>* = nullptr>
   SortedUniqueKeyBucket(raft::handle_t const& handle)
-    : handle_ptr_(&handle), vertices_(0, handle.get_stream())
+    : handle_ptr_(&handle), vertices_(0, handle.get_stream()), tags_(std::byte{0})
   {
-    if constexpr (!std::is_same<tag_t, void>::value) { tags_.buffer(0, handle.get_stream()); }
+  }
+
+  template <typename tag_type = tag_t, std::enable_if_t<!std::is_same_v<tag_type, void>>* = nullptr>
+  SortedUniqueKeyBucket(raft::handle_t const& handle)
+    : handle_ptr_(&handle), vertices_(0, handle.get_stream()), tags_(0, handle.get_stream())
+  {
   }
 
   /**
@@ -99,9 +94,9 @@ class SortedUniqueKeyBucket {
       insert(pair_first, pair_first + 1);
     } else {
       vertices_.resize(1, handle_ptr_->get_stream());
-      tags_.buffer.resize(1, handle_ptr_->get_stream());
+      tags_.resize(1, handle_ptr_->get_stream());
       auto pair_first =
-        thrust::make_tuple(thrust::make_zip_iterator(vertices_.begin(), tags_.buffer.begin()));
+        thrust::make_tuple(thrust::make_zip_iterator(vertices_.begin(), tags_.begin()));
       thrust::fill(rmm::exec_policy(handle_ptr_->get_stream())->on(handle_ptr_->get_stream()),
                    pair_first,
                    pair_first + 1,
@@ -115,7 +110,7 @@ class SortedUniqueKeyBucket {
    * @param vertex_first Iterator pointing to the first (inclusive) element of the vertices stored
    * in device memory.
    * @param vertex_last Iterator pointing to the last (exclusive) element of the vertices stored in
-   * device memory. in device memory.
+   * device memory.
    */
   template <typename VertexIterator,
             typename tag_type                                 = tag_t,
@@ -158,10 +153,9 @@ class SortedUniqueKeyBucket {
    * @param key_first Iterator pointing to the first (inclusive) element of the (vertex,tag) pairs
    * stored in device memory.
    * @param key_last Iterator pointing to the last (exclusive) element of the  (vertex,tag) pairs
-   * stored in device memory. in device memory.
+   * stored in device memory.
    */
   template <typename KeyIterator,
-            typename TagIterator,
             typename tag_type                                  = tag_t,
             std::enable_if_t<!std::is_same_v<tag_type, void>>* = nullptr>
   void insert(KeyIterator key_first, KeyIterator key_last)
@@ -174,7 +168,7 @@ class SortedUniqueKeyBucket {
         vertices_.size() + thrust::distance(key_first, key_last), handle_ptr_->get_stream());
       rmm::device_uvector<tag_t> merged_tags(merged_vertices.size(), handle_ptr_->get_stream());
       auto old_pair_first =
-        thrust::make_zip_iterator(thrust::make_tuple(vertices_.begin(), tags_.buffer.begin()));
+        thrust::make_zip_iterator(thrust::make_tuple(vertices_.begin(), tags_.begin()));
       auto merged_pair_first =
         thrust::make_zip_iterator(thrust::make_tuple(merged_vertices.begin(), merged_tags.begin()));
       thrust::merge(rmm::exec_policy(handle_ptr_->get_stream())->on(handle_ptr_->get_stream()),
@@ -193,16 +187,15 @@ class SortedUniqueKeyBucket {
       merged_tags.resize(merged_vertices.size(), handle_ptr_->get_stream());
       merged_vertices.shrink_to_fit(handle_ptr_->get_stream());
       merged_tags.shrink_to_fit(handle_ptr_->get_stream());
-      vertices_    = std::move(merged_vertices);
-      tags_.buffer = std::move(merged_tags);
+      vertices_ = std::move(merged_vertices);
+      tags_     = std::move(merged_tags);
     } else {
       vertices_.resize(thrust::distance(key_first, key_last), handle_ptr_->get_stream());
-      tags_.buffer.resize(thrust::distance(key_first, key_last), handle_ptr_->get_stream());
-      thrust::copy(
-        rmm::exec_policy(handle_ptr_->get_stream())->on(handle_ptr_->get_stream()),
-        key_first,
-        key_last,
-        thrust::make_zip_iterator(thrust::make_tuple(vertices_.begin(), tags_.buffer.begin())));
+      tags_.resize(thrust::distance(key_first, key_last), handle_ptr_->get_stream());
+      thrust::copy(rmm::exec_policy(handle_ptr_->get_stream())->on(handle_ptr_->get_stream()),
+                   key_first,
+                   key_last,
+                   thrust::make_zip_iterator(thrust::make_tuple(vertices_.begin(), tags_.begin())));
     }
   }
 
@@ -224,9 +217,7 @@ class SortedUniqueKeyBucket {
   void resize(size_t size)
   {
     vertices_.resize(size, handle_ptr_->get_stream());
-    if constexpr (!std::is_same_v<tag_t, void>) {
-      tags_.buffer.resize(size, handle_ptr_->get_stream());
-    }
+    if constexpr (!std::is_same_v<tag_t, void>) { tags_.resize(size, handle_ptr_->get_stream()); }
   }
 
   void clear() { resize(0); }
@@ -234,9 +225,7 @@ class SortedUniqueKeyBucket {
   void shrink_to_fit()
   {
     vertices_.shrink_to_fit(handle_ptr_->get_stream());
-    if constexpr (!std::is_same_v<tag_t, void>) {
-      tags_.buffer.shrink_to_fit(handle_ptr_->get_stream());
-    }
+    if constexpr (!std::is_same_v<tag_t, void>) { tags_.shrink_to_fit(handle_ptr_->get_stream()); }
   }
 
   auto const begin() const
@@ -244,7 +233,7 @@ class SortedUniqueKeyBucket {
     if constexpr (std::is_same_v<tag_t, void>) {
       return vertices_.begin();
     } else {
-      return std::make_tuple(vertices_.begin(), tags_.buffer.begin());
+      return std::make_tuple(vertices_.begin(), tags_.begin());
     }
   }
 
@@ -253,7 +242,7 @@ class SortedUniqueKeyBucket {
     if constexpr (std::is_same_v<tag_t, void>) {
       return vertices_.begin();
     } else {
-      return std::make_tuple(vertices_.begin(), tags_.buffer.begin());
+      return std::make_tuple(vertices_.begin(), tags_.begin());
     }
   }
 
@@ -264,7 +253,7 @@ class SortedUniqueKeyBucket {
  private:
   raft::handle_t const* handle_ptr_{nullptr};
   rmm::device_uvector<vertex_t> vertices_;
-  detail::optional_buffer_t<tag_t> tags_;
+  optional_buffer_type tags_;
 };
 
 template <typename vertex_t,
