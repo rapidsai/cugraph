@@ -39,27 +39,15 @@
 #include <tuple>
 #include <vector>
 
-typedef struct MsBfs_Usecase_t {
-  std::string graph_file_full_path{};
-  std::vector<int32_t> sources{};
+// todo remove
+typedef struct MsBfs_Usecase {
   int32_t radius;
   bool test_weighted{false};
+};
 
-  MsBfs_Usecase_t(std::string const& graph_file_path,
-                  std::vector<int32_t> const& sources,
-                  int32_t radius,
-                  bool test_weighted)
-    : sources(sources), radius(radius), test_weighted(test_weighted)
-  {
-    if ((graph_file_path.length() > 0) && (graph_file_path[0] != '/')) {
-      graph_file_full_path = cugraph::test::get_rapids_dataset_root_dir() + "/" + graph_file_path;
-    } else {
-      graph_file_full_path = graph_file_path;
-    }
-  };
-} MsBfs_Usecase;
+template <typename input_usecase_t>
 
-class Tests_MsBfs : public ::testing::TestWithParam<MsBfs_Usecase> {
+  class Tests_MsBfs : public ::testing::TestWithParam<MsBfs_Usecase, input_usecase_t>> {
  public:
   Tests_MsBfs() {}
   static void SetupTestCase() {}
@@ -68,30 +56,32 @@ class Tests_MsBfs : public ::testing::TestWithParam<MsBfs_Usecase> {
   virtual void SetUp() {}
   virtual void TearDown() {}
 
-  template <typename vertex_t, typename edge_t, typename weight_t, bool store_transposed>
-  void run_current_test(MsBfs_Usecase const& configuration)
+  template <typename vertex_t, typename edge_t>
+  void run_current_test(MsBfs_Usecase const& configuration, input_usecase_t const& input_usecase))
   {
-    auto n_seeds  = configuration.sources.size();
-    int n_streams = std::min(n_seeds, static_cast<std::size_t>(128));
-    raft::handle_t handle(n_streams);
+    constexpr bool renumber = true;
+    using weight_t          = float;
+    int n_streams           = std::min(n_sources, static_cast<std::size_t>(128));
+    raft::handle_t handle(16);
+    cugraph::experimental::graph_t<vertex_t, edge_t, weight_t, false, false> graph(handle);
+    rmm::device_uvector<vertex_t> d_renumber_map_labels(0, handle.get_stream());
+    std::tie(graph, d_renumber_map_labels) =
+      input_usecase.template construct_graph<vertex_t, edge_t, weight_t, false, false>(
+        handle, true, renumber);
 
-    // TODO RMAT multi component and ospc seeds
+    // translate
+    // auto n_sources = offsets.size();
 
-    cugraph::experimental::graph_t<vertex_t, edge_t, weight_t, store_transposed, false> graph(
-      handle);
-    std::tie(graph, std::ignore) = cugraph::test::
-      read_graph_from_matrix_market_file<vertex_t, edge_t, weight_t, store_transposed, false>(
-        handle, configuration.graph_file_full_path, configuration.test_weighted, false);
     auto graph_view = graph.view();
 
     std::vector<rmm::device_uvector<vertex_t>> d_distances_ref{};
     std::vector<rmm::device_uvector<vertex_t>> d_predecessors_ref{};
-    std::vector<std::vector<vertex_t>> h_distances_ref(n_seeds);
-    std::vector<std::vector<vertex_t>> h_predecessors_ref(n_seeds);
+    std::vector<std::vector<vertex_t>> h_distances_ref(n_sources);
+    std::vector<std::vector<vertex_t>> h_predecessors_ref(n_sources);
 
-    d_distances_ref.reserve(n_seeds);
-    d_predecessors_ref.reserve(n_seeds);
-    for (vertex_t i = 0; i < n_seeds; i++) {
+    d_distances_ref.reserve(n_sources);
+    d_predecessors_ref.reserve(n_sources);
+    for (vertex_t i = 0; i < n_sources; i++) {
       rmm::device_uvector<vertex_t> tmp_distances(graph_view.get_number_of_vertices(),
                                                   handle.get_internal_stream_view(i));
       rmm::device_uvector<vertex_t> tmp_predecessors(graph_view.get_number_of_vertices(),
@@ -110,7 +100,7 @@ class Tests_MsBfs : public ::testing::TestWithParam<MsBfs_Usecase> {
     HighResTimer hr_timer;
     hr_timer.start("bfs");
     cudaProfilerStart();
-    for (vertex_t i = 0; i < n_seeds; i++) {
+    for (vertex_t i = 0; i < n_sources; i++) {
       source = configuration.sources[i];
       cugraph::experimental::bfs(
         handle, graph_view, d_distances_ref[i].begin(), d_predecessors_ref[i].begin(), &source, 1);
@@ -142,7 +132,7 @@ class Tests_MsBfs : public ::testing::TestWithParam<MsBfs_Usecase> {
 
     // checksum
     vertex_t ref_sum = 0;
-    for (vertex_t i = 0; i < n_seeds; i++) {
+    for (vertex_t i = 0; i < n_sources; i++) {
       thrust::replace(rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
                       d_distances_ref.begin(),
                       d_distances_ref.end(),
@@ -168,9 +158,21 @@ class Tests_MsBfs : public ::testing::TestWithParam<MsBfs_Usecase> {
   }
 };
 
-TEST_P(Tests_MsBfs, CheckInt32Int32FloatUntransposed)
+using Tests_BFS_Rmat = Tests_BFS<cugraph::test::Rmat_Usecase>;
+
+TEST_P(Tests_BFS_Rmat, CheckInt32Int32)
 {
-  run_current_test<int32_t, int32_t, float, false>(GetParam());
+  auto param = GetParam();
+  run_current_test<int32_t, int32_t>(std::get<0>(param), std::get<1>(param));
 }
-// TODO
+
+// todo multi components accepting n component parameter
+INSTANTIATE_TEST_SUITE_P(
+  rmat_small_test,
+  Tests_MsBfs,
+  ::testing::Values(
+    // enable correctness checks
+    std::make_tuple(MsBfs_Usecase{2, false},
+                    cugraph::test::Rmat_Usecase(10, 16, 0.57, 0.19, 0.19, 0, false, false))));
+
 CUGRAPH_TEST_PROGRAM_MAIN()

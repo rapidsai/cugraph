@@ -448,10 +448,10 @@ void call_bfs(raft::handle_t const& handle,
               vertex_t* identifiers,
               vertex_t* distances,
               vertex_t* predecessors,
-              double* sp_counters,
+              vertex_t depth_limit,
               vertex_t* sources,
               size_t n_sources,
-              bool directed);
+              bool direction_optimizing);
 
 // Wrapper for calling SSSP through a graph container
 template <typename vertex_t, typename weight_t>

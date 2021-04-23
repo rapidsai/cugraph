@@ -225,8 +225,7 @@ message("Fetching Thrust")
 FetchContent_Declare(
     thrust
     GIT_REPOSITORY https://github.com/thrust/thrust.git
-    # August 28, 2020
-    GIT_TAG        52a8bda46c5c2128414d1d47f546b486ff0be2f0
+    GIT_TAG        1.12.0
 )
 
 FetchContent_GetProperties(thrust)
@@ -242,7 +241,7 @@ message("Fetching cuco")
 FetchContent_Declare(
     cuco
     GIT_REPOSITORY https://github.com/NVIDIA/cuCollections.git
-    GIT_TAG        2196040f0562a0280292eebef5295d914f615e63
+    GIT_TAG        7678a5ecaa192b8983b02a0191a140097171713e
 )
 
 FetchContent_GetProperties(cuco)
@@ -276,7 +275,7 @@ message("set LIBCUDACXX_INCLUDE_DIR to: ${LIBCUDACXX_INCLUDE_DIR}")
 FetchContent_Declare(
     cuhornet
     GIT_REPOSITORY    https://github.com/rapidsai/cuhornet.git
-    GIT_TAG           e58d0ecdbc270fc28867d66c965787a62a7a882c
+    GIT_TAG           6d2fc894cc56dd2ca8fc9d1523a18a6ec444b663
     GIT_SHALLOW       true
     SOURCE_SUBDIR     hornet
 )
@@ -302,8 +301,7 @@ else(DEFINED ENV{RAFT_PATH})
   FetchContent_Declare(
     raft
     GIT_REPOSITORY    https://github.com/rapidsai/raft.git
-    GIT_TAG           f0cd81fb49638eaddc9bf18998cc894f292bc293
-
+    GIT_TAG           66f82b4e79a3e268d0da3cc864ec7ce4ad065296
     SOURCE_SUBDIR     raft
   )
 
