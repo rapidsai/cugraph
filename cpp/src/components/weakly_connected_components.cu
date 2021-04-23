@@ -23,6 +23,7 @@
 
 #include <raft/handle.hpp>
 #include <rmm/device_uvector.hpp>
+#include <rmm/exec_policy.hpp>
 
 #include <thrust/copy.h>
 #include <thrust/iterator/constant_iterator.h>
@@ -46,13 +47,13 @@ namespace {
 // add new roots till the sum of the degrees first becomes no smaller than degree_sum_threshold and
 // returns a triplet of (new roots, number of scanned vertices, sum of the degrees of the new roots)
 template <typename vertex_t, typename edge_t>
-std::vector<rmm::device_uvector<vertex_t>, vertex_t, edge_t> accumulate_new_roots(
+std::tuple<rmm::device_uvector<vertex_t>, vertex_t, edge_t> accumulate_new_roots(
+  raft::handle_t const &handle,
   vertex_t const *components,
   edge_t const *degrees,
   vertex_t vertex_first,
   vertex_t vertex_last,
-  edge_t degree_sum_threshold,
-  vertex_t constexpr invalid_component)
+  edge_t degree_sum_threshold)
 {
   // FIXME: tuning parameter (time to scan max_scan_size elements should not take significantly
   // longer than scanning a single element)
@@ -73,10 +74,10 @@ std::vector<rmm::device_uvector<vertex_t>, vertex_t, edge_t> accumulate_new_root
                       component_degree_pair_first,
                       component_degree_pair_first + scan_size,
                       tmp_cumulative_degrees.begin(),
-                      [invalid_component] __device__(auto pair) {
+                      [] __device__(auto pair) {
                         auto c = thrust::get<0>(pair);
                         auto d = thrust::get<1>(pair);
-                        return c == invalid_component ? d : edge_t{0};
+                        return c == invalid_component_id<vertex_t>::value ? d : edge_t{0};
                       });
     thrust::inclusive_scan(rmm::exec_policy(handle.get_stream_view()),
                            tmp_cumulative_degrees.begin(),
@@ -94,31 +95,33 @@ std::vector<rmm::device_uvector<vertex_t>, vertex_t, edge_t> accumulate_new_root
                                  tmp_cumulative_degrees.begin(), component_degree_last)) +
                                  vertex_t{1};
     new_roots.resize(num_new_roots + tmp_num_scanned, handle.get_stream_view());
-    auto component_vertex_pair_first =
+    auto component_vertex_pair_input_first =
       thrust::make_zip_iterator(
         thrust::make_tuple(components, thrust::make_counting_iterator(vertex_first))) +
       num_scanned;
-    auto component_vertexx_last =
+    auto component_vertex_pair_output_first =
+      thrust::make_zip_iterator(
+        thrust::make_tuple(thrust::make_discard_iterator(), new_roots.begin())) +
+      num_new_roots;
+    auto component_vertex_pair_output_last =
       thrust::copy_if(rmm::exec_policy(handle.get_stream_view()),
-                      component_vertex_pair_first,
-                      component_vertex_pair_first + tmp_num_scanned,
-                      thrust::make_zip_iterator(
-                        thrust::make_tuple(thrust::make_discard_iterator(), new_roots.begin())) +
-                        num_new_roots,
+                      component_vertex_pair_input_first,
+                      component_vertex_pair_input_first + tmp_num_scanned,
+                      component_vertex_pair_output_first,
                       [] __device__(auto pair) {
                         auto c = thrust::get<0>(pair);
-                        return c == invalid_component;
+                        return c == invalid_component_id<vertex_t>::value;
                       });
 
-    num_new_roots +=
-      static_cast<vertex_t>(thrust::distance(component_vertex_pair_first, component_veretex_last));
+    num_new_roots += static_cast<vertex_t>(
+      thrust::distance(component_vertex_pair_output_first, component_vertex_pair_output_last));
     num_scanned += tmp_num_scanned;
     edge_t tmp_degree_sum{0};
     raft::update_host(&tmp_degree_sum,
                       tmp_cumulative_degrees.data() + (tmp_num_scanned - vertex_t{1}),
                       size_t{1},
-                      handle.get_stream_view());
-    handle.get_stream_view.synchronize();
+                      handle.get_stream());
+    handle.get_stream_view().synchronize();
     degree_sum += tmp_degree_sum;
 
     if (degree_sum >= degree_sum_threshold) { break; }
@@ -127,7 +130,7 @@ std::vector<rmm::device_uvector<vertex_t>, vertex_t, edge_t> accumulate_new_root
   new_roots.resize(num_new_roots, handle.get_stream_view());
   new_roots.shrink_to_fit(handle.get_stream_view());
 
-  return std::make_tuple(new_roots, num_scanned, degree_sum);
+  return std::make_tuple(std::move(new_roots), num_scanned, degree_sum);
 }
 
 template <typename GraphViewType>
@@ -166,23 +169,21 @@ void weakly_connected_components_impl(raft::handle_t const &handle,
   auto degree_sum_threshold =
     static_cast<edge_t>(handle.get_device_properties().multiProcessorCount) * edge_t{1024};
 
-  auto constexpr invalid_component = std::numeric_limits<vertex_t>::max();
-
   size_t level{0};
   graph_t<vertex_t,
           edge_t,
           typename GraphViewType::weight_type,
           GraphViewType::is_adj_matrix_transposed,
           GraphViewType::is_multi_gpu>
-    level_graph{};
-  Dendrogram<vertex_t> dendrogram{};
+    level_graph(handle);
+  std::vector<rmm::device_uvector<vertex_t>> level_component_vectors{};
   while (true) {
     auto level_graph_view = level == 0 ? push_graph_view : level_graph.view();
     vertex_partition_device_t<GraphViewType> vertex_partition(level_graph_view);
-    dendrogram.add_level(level_graph_view.get_local_vertex_first(),
-                         level == 0 ? vertex_t{0} : level_graph_view.get_number_of_local_vertices(),
-                         handle.get_stream_view());
-    auto level_components = level == 0 ? components : dendrogram.get_level_ptr_nocheck(level);
+    level_component_vectors.push_back(rmm::device_uvector<vertex_t>(
+      level == 0 ? vertex_t{0} : level_graph_view.get_number_of_local_vertices(),
+      handle.get_stream_view()));
+    auto level_components = level == 0 ? components : level_component_vectors[level].data();
     auto degrees          = level_graph_view.compute_out_degrees(handle);
 
     // 2-1. filter out isolated vertices
@@ -191,18 +192,15 @@ void weakly_connected_components_impl(raft::handle_t const &handle,
       thrust::make_counting_iterator(level_graph_view.get_local_vertex_first()), degrees.begin()));
     thrust::transform(rmm::exec_policy(handle.get_stream_view()),
                       pair_first,
-                      pair_first + level_graph_vew.get_number_of_local_vertices(),
+                      pair_first + level_graph_view.get_number_of_local_vertices(),
                       level_components,
                       [] __device__(auto pair) {
                         auto v      = thrust::get<0>(pair);
                         auto degree = thrust::get<1>(pair);
-                        return degree > 0 ? invalid_component : v;
+                        return degree > 0 ? invalid_component_id<vertex_t>::value : v;
                       });
 
     // 2-2. initialize vertex frontier
-    // FIXME: updates necessary for VertexFrontier
-    // * Each bucket needs to store (vertex_t, payload_t) pairs (instead of just vertex_t, ignore
-    // payload_t if std::is_same<payload_t, void>::value is true)
 
     VertexFrontier<vertex_t,
                    vertex_t,
@@ -210,33 +208,36 @@ void weakly_connected_components_impl(raft::handle_t const &handle,
                    static_cast<size_t>(Bucket::num_buckets)>
       vertex_frontier(handle);
     vertex_t next_local_vertex_offset{0};
-    edge_t edge_counts{0};
+    edge_t edge_count{0};
 
     {
       auto [new_roots, num_scanned, degree_sum] =
-        accumulate_new_roots(level_components + next_local_vertex_offset,
+        accumulate_new_roots(handle,
+                             level_components + next_local_vertex_offset,
                              degrees.begin() + next_local_vertex_offset,
                              level_graph_view.get_local_vertex_first() + next_local_vertex_offset,
                              level_graph_view.get_local_vertex_last(),
-                             degree_sum_threshold,
-                             invalid_component);
+                             degree_sum_threshold);
       next_local_vertex_offset += num_scanned;
-      edge_counts = degree_sum;
+      edge_count = degree_sum;
 
-      vertex_froniter.get_bucket(static_cast<size_t>(Bucket::cur))
-        .insert(new_roots.begin(), new_roots.begin(), new_roots.size());
+      auto pair_first =
+        thrust::make_zip_iterator(thrust::make_tuple(new_roots.begin(), new_roots.begin()));
+      vertex_frontier.get_bucket(static_cast<size_t>(Bucket::cur))
+        .insert(pair_first, pair_first + new_roots.size());
 
       thrust::for_each(
         rmm::exec_policy(handle.get_stream_view()),
         new_roots.begin(),
         new_roots.end(),
-        [vertex_partition, components = level_components.data()] __device__(auto c) {
-          level_components[vertex_partition.get_local_vertex_offset_from_vertex_nocheck(c)] = c;
+        [vertex_partition, components = level_components] __device__(auto c) {
+          components[vertex_partition.get_local_vertex_offset_from_vertex_nocheck(c)] = c;
         });
     }
 
     auto edge_buffer = allocate_dataframe_buffer<thrust::tuple<vertex_t, vertex_t>>(
-      edge_count, handle.get_stream_view());
+      edge_count, handle.get_stream());
+#if 0
     cuda::atomic<edge_t, cuda::thread_scope_device> num_edge_inserts{
       0};  // FIXME: need to check I am using this properly.
 
@@ -245,7 +246,7 @@ void weakly_connected_components_impl(raft::handle_t const &handle,
     thrust::fill(rmm::exec_policy(handle.get_stream_view()),
                  col_components.begin(),
                  col_components.end(),
-                 invalid_component);
+                 invalid_component_id<vertex_t>::value);
     copy_to_adj_matrix_col(handle,
                            level_graph_view,
                            vertex_frontier.get_bucket(static_cast<size_t>(Bucket::cur)).begin(),
@@ -257,7 +258,7 @@ void weakly_connected_components_impl(raft::handle_t const &handle,
 
     while (true) {
       // FIXME: updates necessary for update_frontier_v_push_if_out_nbr
-      // * Rename to or add update_frontier_kv_push_if_out_nbr. reduce_op will be applied per (k,v)
+      // * reduce_op will be applied per (k,v)
       // pair (instead of per vertex) and kv_op will be applied to the reduction output instead of
       // the v_op (unless key_t is set to void); this is unnecessary for weakly connected components
       // but necessary for multi-source BFS with cutoff (# source count is large and each BFS covers
@@ -287,9 +288,9 @@ void weakly_connected_components_impl(raft::handle_t const &handle,
           auto col_offset = dst - col_first;
           // FIXME: better switch to atomic_ref after
           // https://github.com/nvidia/libcudacxx/milestone/2
-          auto old  = atomicCAS(col_components + col_offset, invalid_component, src_val);
-          auto push = (old == invalid_component);
-          if (old != invalid_component && old != src_val) {
+          auto old  = atomicCAS(col_components + col_offset, invalid_component_id<vertex_t>::value, src_val);
+          auto push = (old == invalid_component_id<vertex_t>::value);
+          if (old != invalid_component_id<vertex_t>::value && old != src_val) {
             *(edge_buffer_first + (*num_edge_inserts)++) = thrust::make_tuple(src_val, old);
           }
           return thrust::make_tuple(push, src_val);
@@ -327,7 +328,7 @@ void weakly_connected_components_impl(raft::handle_t const &handle,
                                level_graph_view.get_local_vertex_first() + next_local_vertex_offset,
                                level_graph_view.get_local_vertex_last(),
                                degree_sum_threshold - degree_sum,
-                               invalid_component);
+                               invalid_component_id<vertex_t>::value);
         next_local_vertex_offset += num_scanned;
       }
 
@@ -347,11 +348,14 @@ void weakly_connected_components_impl(raft::handle_t const &handle,
       // FIXME: move generate_graph_from_edge_list from test/utilities
       std::tie(level_graph, ) = generate_graph_from_edgelist();
     }
+#endif
 
     ++level;
   }
 
+#if 0
   relabel<vertex_t, GraphViewType::is_multi_gpu>(handle, );
+#endif
 }
 
 }  // namespace
