@@ -385,11 +385,11 @@ size_t sort_and_reduce_buffer_elements(raft::handle_t const& handle,
  * (inclusive) vertex (assigned to tihs process in multi-GPU). `vertex_value_output_last`
  * (exclusive) is deduced as @p vertex_value_output_first + @p
  * graph_view.get_number_of_local_vertices().
- * @param v_op Binary operator takes *(@p vertex_value_input_first + i) (where i is [0, @p
- * graph_view.get_number_of_local_vertices())) and reduced value of the @p e_op outputs for
- * this vertex and returns the target bucket index (for frontier update) and new verrtex property
- * values (to update *(@p vertex_value_output_first + i)). The target bucket index should either be
- * VertexFrontier::kInvalidBucketIdx or an index in @p next_frontier_bucket_indices.
+ * @param v_op Ternary operator takes (tagged-)vertex ID, *(@p vertex_value_input_first + i) (where
+ * i is [0, @p graph_view.get_number_of_local_vertices())) and reduced value of the @p e_op outputs
+ * for this vertex and returns the target bucket index (for frontier update) and new verrtex
+ * property values (to update *(@p vertex_value_output_first + i)). The target bucket index should
+ * either be VertexFrontier::kInvalidBucketIdx or an index in @p next_frontier_bucket_indices.
  */
 template <typename GraphViewType,
           typename VertexFrontierType,
@@ -424,6 +424,8 @@ void update_frontier_v_push_if_out_nbr(
   // vertex property is updated by multiple v_op invocations with the same vertex but with different
   // tags.
   VertexValueOutputIterator vertex_value_output_first,
+  // FIXME: this takes (tagged-)vertex ID in addition, think about consistency with the other
+  // primitives.
   VertexOp v_op)
 {
   static_assert(!GraphViewType::is_adj_matrix_transposed,
@@ -738,7 +740,7 @@ void update_frontier_v_push_if_out_nbr(
         auto payload     = thrust::get<1>(pair);
         auto key_offset  = vertex_partition.get_local_vertex_offset_from_vertex_nocheck(key);
         auto v_val       = *(vertex_value_input_first + key_offset);
-        auto v_op_result = v_op(v_val, payload);
+        auto v_op_result = v_op(key, v_val, payload);
         if (v_op_result) {
           *(vertex_value_output_first + key_offset) = thrust::get<1>(*v_op_result);
           return static_cast<uint8_t>(thrust::get<0>(*v_op_result));
