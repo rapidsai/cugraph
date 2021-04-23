@@ -16,6 +16,7 @@
 
 #include <algorithms.hpp>
 #include <experimental/graph_view.hpp>
+#include <patterns/copy_to_adj_matrix_row_col.cuh>
 #include <patterns/update_frontier_v_push_if_out_nbr.cuh>
 #include <patterns/vertex_frontier.cuh>
 #include <utilities/error.hpp>
@@ -237,7 +238,6 @@ void weakly_connected_components_impl(raft::handle_t const &handle,
 
     auto edge_buffer = allocate_dataframe_buffer<thrust::tuple<vertex_t, vertex_t>>(
       edge_count, handle.get_stream());
-#if 0
     cuda::atomic<edge_t, cuda::thread_scope_device> num_edge_inserts{
       0};  // FIXME: need to check I am using this properly.
 
@@ -249,8 +249,8 @@ void weakly_connected_components_impl(raft::handle_t const &handle,
                  invalid_component_id<vertex_t>::value);
     copy_to_adj_matrix_col(handle,
                            level_graph_view,
-                           vertex_frontier.get_bucket(static_cast<size_t>(Bucket::cur)).begin(),
-                           vertex_frontier.get_bucket(static_cast<size_t>(Bucket::cur)).end(),
+                           thrust::get<0>(vertex_frontier.get_bucket(static_cast<size_t>(Bucket::cur)).begin().get_iterator_tuple()),
+                           thrust::get<0>(vertex_frontier.get_bucket(static_cast<size_t>(Bucket::cur)).end().get_iterator_tuple()),
                            level_components,
                            col_components.begin());
 
@@ -278,6 +278,7 @@ void weakly_connected_components_impl(raft::handle_t const &handle,
         vertex_frontier,
         static_cast<size_t>(Bucket::cur),
         std::vector<size_t>{static_cast<size_t>(Bucket::next)},
+        thrust::make_counting_iterator(0) /* dummy */,
         col_components,
         [col_components = col_components.data(),
          col_first      = level_graph_view.get_local_adj_matrix_partition_col_first(),
@@ -306,7 +307,9 @@ void weakly_connected_components_impl(raft::handle_t const &handle,
         },
         thrust::make_constant_iterator(0),  // dummy
         thrust::make_discard_iterator(),    // dummy
-        [] __device__(auto v_val, auto pushed_val) {
+        [] __device__(auto key, auto v_val, auto pushed_val) {
+          auto v = thrust::get<0>(key);
+          auto tag = thrust::get<1>(key);
           return thrust::make_tuple(static_cast<size_t>(Bucket::next), pushed_val);
         });
 
@@ -341,6 +344,7 @@ void weakly_connected_components_impl(raft::handle_t const &handle,
       }
     }
 
+#if 0
     // FIXME: may need some sync to ensure that device operations on num_edge_inserts are finished.
 
     if (num_edge_inserts.load(cuda::std::memory_order_relaxed) > 0) {
