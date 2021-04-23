@@ -132,7 +132,7 @@ void bfs(raft::handle_t const &handle,
         reduce_op::any<vertex_t>(),
         distances,
         thrust::make_zip_iterator(thrust::make_tuple(distances, predecessor_first)),
-        [depth] __device__(auto v_val, auto pushed_val) {
+        [depth] __device__(auto v, auto v_val, auto pushed_val) {
           return (v_val == invalid_distance)
                    ? thrust::optional<
                        thrust::tuple<size_t, thrust::tuple<vertex_t, vertex_t>>>{thrust::make_tuple(
