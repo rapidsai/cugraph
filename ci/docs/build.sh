@@ -47,10 +47,10 @@ conda list --show-channel-urls
 gpuci_logger "Build Doxygen docs"
 cd $PROJECT_WORKSPACE/cpp/build
 make docs_cugraph
-	
+
 # Build Python docs
 gpuci_logger "Build Sphinx docs"
-cd $PROJECT_WORKSPACE/docs
+cd $PROJECT_WORKSPACE/docs/cugraph
 make html
 
 #Commit to Website
@@ -60,10 +60,10 @@ for PROJECT in ${PROJECTS[@]}; do
     if [ ! -d "api/$PROJECT/$BRANCH_VERSION" ]; then
         mkdir -p api/$PROJECT/$BRANCH_VERSION
     fi
-    rm -rf $DOCS_WORKSPACE/api/$PROJECT/$BRANCH_VERSION/*	
+    rm -rf $DOCS_WORKSPACE/api/$PROJECT/$BRANCH_VERSION/*
 done
 
 
 mv $PROJECT_WORKSPACE/cpp/doxygen/html/* $DOCS_WORKSPACE/api/libcugraph/$BRANCH_VERSION
-mv $PROJECT_WORKSPACE/docs/build/html/* $DOCS_WORKSPACE/api/cugraph/$BRANCH_VERSION
+mv $PROJECT_WORKSPACE/docs/cugraph/build/html/* $DOCS_WORKSPACE/api/cugraph/$BRANCH_VERSION
 
