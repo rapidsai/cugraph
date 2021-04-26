@@ -92,8 +92,7 @@ def k_core(G, k=None, core_number=None):
                                             get_column_names=True)
         k_core_df, dst_names = G.unrenumber(k_core_df, "dst",
                                             get_column_names=True)
-    print(k_core_df)
-    print(src_names)
+
     if G.edgelist.weights:
         KCoreGraph.from_cudf_edgelist(
             k_core_df, source=src_names, destination=dst_names,
@@ -101,7 +100,7 @@ def k_core(G, k=None, core_number=None):
         )
     else:
         KCoreGraph.from_cudf_edgelist(
-            k_core_df, source="src", destination="dst"
+            k_core_df, source=src_names, destination=dst_names,
         )
 
     if isNx is True:

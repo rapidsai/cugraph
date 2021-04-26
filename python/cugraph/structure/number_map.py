@@ -642,11 +642,13 @@ class NumberMap:
         if len(self.implementation.col_names) == 1:
             # Output will be renamed to match input
             mapping = {"0": column_name}
+            col_names = column_name
         else:
             # Output will be renamed to ${i}_${column_name}
             mapping = {}
             for nm in self.implementation.col_names:
                 mapping[nm] = nm + "_" + column_name
+            col_names = list(mapping.values())
 
         if preserve_order:
             index_name = NumberMap.generate_unused_column_name(df)
@@ -666,6 +668,6 @@ class NumberMap:
         else:
             df = df.rename(columns=mapping, copy=False)
         if get_column_names:
-            return df, list(mapping.values())
+            return df, col_names
         else:
             return df
