@@ -155,7 +155,7 @@ def test_random_walks(
     check_random_walks(df, offsets, seeds, df_G)
 
 
-@pytest.mark.parametrize("graph_file", ['../datasets/netscience.csv'])
+@pytest.mark.parametrize("graph_file", utils.DATASETS_SMALL)
 @pytest.mark.parametrize("directed", DIRECTED_GRAPH_OPTIONS)
 def test_random_walks(
     graph_file,
