@@ -1,4 +1,4 @@
-# Copyright (c) 2018-2020, NVIDIA CORPORATION.
+# Copyright (c) 2018-2021, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -111,7 +111,7 @@ EXTENSIONS = [
               runtime_library_dirs=[conda_lib_dir],
               libraries=['cugraph', 'nccl'],
               language='c++',
-              extra_compile_args=['-std=c++14'])
+              extra_compile_args=['-std=c++17'])
 ]
 
 for e in EXTENSIONS:
