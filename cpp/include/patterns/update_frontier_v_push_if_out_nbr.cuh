@@ -160,8 +160,7 @@ __device__ void push_if_buffer_element(
 
   auto col_offset  = matrix_partition.get_minor_offset_from_minor_nocheck(col);
   auto e_op_result = evaluate_edge_op<GraphViewType,
-                                      // FIXME: better pass key_t
-                                      BufferKeyOutputIterator,
+                                      key_t,
                                       AdjMatrixRowValueInputIterator,
                                       AdjMatrixColValueInputIterator,
                                       EdgeOp>()

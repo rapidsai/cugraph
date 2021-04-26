@@ -74,7 +74,7 @@ typename GraphViewType::edge_type count_if_e(
                             adj_matrix_row_value_input_first,
                             adj_matrix_col_value_input_first,
                             cast_edge_op_bool_to_integer<GraphViewType,
-                                                         vertex_t*,
+                                                         vertex_t,
                                                          AdjMatrixRowValueInputIterator,
                                                          AdjMatrixColValueInputIterator,
                                                          EdgeOp,

@@ -43,20 +43,17 @@ struct is_valid_edge_op<
 };
 
 template <typename GraphViewType,
-          typename KeyIterator,
+          typename key_t,
           typename AdjMatrixRowValueInputIterator,
           typename AdjMatrixColValueInputIterator,
           typename EdgeOp>
 struct evaluate_edge_op {
-  using key_type =
-    typename std::iterator_traits<KeyIterator>::value_type;  // the first parameter of e_op can be
-                                                             // either vertex_t or (vertex_t, tag_t)
   using vertex_type    = typename GraphViewType::vertex_type;
   using weight_type    = typename GraphViewType::weight_type;
   using row_value_type = typename std::iterator_traits<AdjMatrixRowValueInputIterator>::value_type;
   using col_value_type = typename std::iterator_traits<AdjMatrixColValueInputIterator>::value_type;
 
-  template <typename K = key_type,
+  template <typename K = key_t,
             typename V = vertex_type,
             typename W = weight_type,
             typename R = row_value_type,
@@ -70,7 +67,7 @@ struct evaluate_edge_op {
     return e(r, c, w, rv, cv);
   }
 
-  template <typename K = key_type,
+  template <typename K = key_t,
             typename V = vertex_type,
             typename W = weight_type,
             typename R = row_value_type,
@@ -85,16 +82,13 @@ struct evaluate_edge_op {
 };
 
 template <typename GraphViewType,
-          typename KeyIterator,
+          typename key_t,
           typename AdjMatrixRowValueInputIterator,
           typename AdjMatrixColValueInputIterator,
           typename EdgeOp,
           typename T>
 struct cast_edge_op_bool_to_integer {
   static_assert(std::is_integral<T>::value);
-  using key_type =
-    typename std::iterator_traits<KeyIterator>::value_type;  // the first parameter of e_op can be
-                                                             // either vertex_t or (vertex_t, tag_t)
   using vertex_type    = typename GraphViewType::vertex_type;
   using weight_type    = typename GraphViewType::weight_type;
   using row_value_type = typename std::iterator_traits<AdjMatrixRowValueInputIterator>::value_type;
@@ -102,7 +96,7 @@ struct cast_edge_op_bool_to_integer {
 
   EdgeOp e_op{};
 
-  template <typename K = key_type,
+  template <typename K = key_t,
             typename V = vertex_type,
             typename W = weight_type,
             typename R = row_value_type,
@@ -115,7 +109,7 @@ struct cast_edge_op_bool_to_integer {
     return e_op(r, c, w, rv, cv) ? T{1} : T{0};
   }
 
-  template <typename K = key_type,
+  template <typename K = key_t,
             typename V = vertex_type,
             typename R = row_value_type,
             typename C = col_value_type,
