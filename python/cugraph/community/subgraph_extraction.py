@@ -12,7 +12,6 @@
 # limitations under the License.
 
 from cugraph.community import subgraph_extraction_wrapper
-from cugraph.structure.graph import null_check
 from cugraph.utilities import check_nx_graph
 import cudf
 from cugraph.utilities import cugraph_to_nx
@@ -53,8 +52,6 @@ def subgraph(G, vertices):
     >>> sverts = cudf.Series(verts)
     >>> Sg = cugraph.subgraph(G, sverts)
     """
-
-    #null_check(vertices)
 
     G, isNx = check_nx_graph(G)
 

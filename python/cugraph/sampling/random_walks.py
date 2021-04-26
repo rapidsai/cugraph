@@ -62,15 +62,16 @@ def random_walks(
     if start_vertices is int:
         start_vertices = [start_vertices]
 
-    if not isinstance(start_vertices, cudf.Series):
+    if isinstance(start_vertices, list):
         start_vertices = cudf.Series(start_vertices)
 
     if G.renumbered is True:
-        if isinstance(start, cudf.DataFrame):
+        if isinstance(start_vertices, cudf.DataFrame):
             start_vertices = G.lookup_internal_vertex_id(start_vertices,
                 start_vertices.columns)
         else:
             start_vertices = G.lookup_internal_vertex_id(start_vertices)
+
     vertex_set, edge_set, sizes = random_walks_wrapper.random_walks(
         G, start_vertices, max_depth)
 
