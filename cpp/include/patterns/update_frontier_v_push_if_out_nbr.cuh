@@ -58,6 +58,138 @@ namespace detail {
 
 int32_t constexpr update_frontier_v_push_if_out_nbr_for_all_block_size = 512;
 
+// we cannot use std::iterator_traits<Iterator>::value_type if Iterator is void* (reference to void
+// is not allowed)
+template <typename PayloadIterator, typename Enable = void>
+struct optional_payload_buffer_value_type_t;
+
+template <typename PayloadIterator>
+struct optional_payload_buffer_value_type_t<
+  PayloadIterator,
+  std::enable_if_t<!std::is_same_v<PayloadIterator, void*>>> {
+  using value = typename std::iterator_traits<PayloadIterator>::value_type;
+};
+
+template <typename PayloadIterator>
+struct optional_payload_buffer_value_type_t<
+  PayloadIterator,
+  std::enable_if_t<std::is_same_v<PayloadIterator, void*>>> {
+  using value = void;
+};
+
+// FIXME: to silence the spurious warning (missing return statement ...) due to the nvcc bug
+// (https://stackoverflow.com/questions/64523302/cuda-missing-return-statement-at-end-of-non-void-
+// function-in-constexpr-if-fun)
+#if 1
+template <typename payload_t, std::enable_if_t<std::is_same_v<payload_t, void>>* = nullptr>
+std::byte allocate_optional_payload_buffer(size_t size, cudaStream_t stream)
+{
+  return std::byte{0};  // dummy
+}
+
+template <typename payload_t, std::enable_if_t<!std::is_same_v<payload_t, void>>* = nullptr>
+auto allocate_optional_payload_buffer(size_t size, cudaStream_t stream)
+{
+  return allocate_dataframe_buffer<payload_t>(size, stream);
+}
+
+template <typename payload_t, std::enable_if_t<std::is_same_v<payload_t, void>>* = nullptr>
+void* get_optional_payload_buffer_begin(std::byte& optional_payload_buffer)
+{
+  return static_cast<void*>(nullptr);
+}
+
+template <typename payload_t, std::enable_if_t<!std::is_same_v<payload_t, void>>* = nullptr>
+auto get_optional_payload_buffer_begin(
+  std::add_lvalue_reference_t<decltype(allocate_dataframe_buffer<payload_t>(
+    size_t{0}, cudaStream_t{nullptr}))> optional_payload_buffer)
+{
+  return get_dataframe_buffer_begin<payload_t>(optional_payload_buffer);
+}
+#else
+auto allocate_optional_payload_buffer = [](size_t size, cudaStream_t stream) {
+  if constexpr (std::is_same_v<payload_t, void>) {
+    return std::byte{0};  // dummy
+  } else {
+    return allocate_dataframe_buffer<payload_t>(size, stream);
+  }
+};
+
+auto get_optional_payload_buffer_begin = [](auto& optional_payload_buffer) {
+  if constexpr (std::is_same_v<payload_t, void>) {
+    return static_cast<std::byte*>(nullptr);
+  } else {
+    return get_dataframe_buffer_begin<payload_t>(optional_payload_buffer);
+  }
+};
+#endif
+
+// FIXME: a temporary workaround for cudaErrorInvalidDeviceFunction error when device lambda is used
+// after if constexpr else statement that involves device lambda (bug report submitted)
+template <typename key_t>
+struct check_invalid_bucket_idx_t {
+  __device__ bool operator()(thrust::tuple<uint8_t, key_t> pair)
+  {
+    return thrust::get<0>(pair) == std::numeric_limits<uint8_t>::max();
+  }
+};
+
+template <typename GraphViewType,
+          typename AdjMatrixRowValueInputIterator,
+          typename AdjMatrixColValueInputIterator,
+          typename BufferKeyOutputIterator,
+          typename BufferPayloadOutputIterator,
+          typename EdgeOp>
+__device__ void push_if_buffer_element(
+  matrix_partition_device_t<GraphViewType>& matrix_partition,
+  typename std::iterator_traits<BufferKeyOutputIterator>::value_type key,
+  typename GraphViewType::vertex_type row_offset,
+  typename GraphViewType::vertex_type col,
+  typename GraphViewType::weight_type weight,
+  AdjMatrixRowValueInputIterator adj_matrix_row_value_input_first,
+  AdjMatrixColValueInputIterator adj_matrix_col_value_input_first,
+  BufferKeyOutputIterator buffer_key_output_first,
+  BufferPayloadOutputIterator buffer_payload_output_first,
+  size_t* buffer_idx_ptr,
+  EdgeOp e_op)
+{
+  using vertex_t = typename GraphViewType::vertex_type;
+  using key_t    = typename std::iterator_traits<BufferKeyOutputIterator>::value_type;
+  using payload_t =
+    typename optional_payload_buffer_value_type_t<BufferPayloadOutputIterator>::value;
+
+  auto col_offset  = matrix_partition.get_minor_offset_from_minor_nocheck(col);
+  auto e_op_result = evaluate_edge_op<GraphViewType,
+                                      // FIXME: better pass key_t
+                                      BufferKeyOutputIterator,
+                                      AdjMatrixRowValueInputIterator,
+                                      AdjMatrixColValueInputIterator,
+                                      EdgeOp>()
+                       .compute(key,
+                                col,
+                                weight,
+                                *(adj_matrix_row_value_input_first + row_offset),
+                                *(adj_matrix_col_value_input_first + col_offset),
+                                e_op);
+  if (e_op_result) {
+    static_assert(sizeof(unsigned long long int) == sizeof(size_t));
+    auto buffer_idx = atomicAdd(reinterpret_cast<unsigned long long int*>(buffer_idx_ptr),
+                                static_cast<unsigned long long int>(1));
+    if constexpr (std::is_same_v<key_t, vertex_t> && std::is_same_v<payload_t, void>) {
+      *(buffer_key_output_first + buffer_idx) = col;
+    } else if constexpr (std::is_same_v<key_t, vertex_t> && !std::is_same_v<payload_t, void>) {
+      *(buffer_key_output_first + buffer_idx)     = col;
+      *(buffer_payload_output_first + buffer_idx) = *e_op_result;
+    } else if constexpr (!std::is_same_v<key_t, vertex_t> && std::is_same_v<payload_t, void>) {
+      *(buffer_key_output_first + buffer_idx) = thrust::make_tuple(col, *e_op_result);
+    } else {
+      *(buffer_key_output_first + buffer_idx) =
+        thrust::make_tuple(col, thrust::get<0>(*e_op_result));
+      *(buffer_payload_output_first + buffer_idx) = thrust::get<1>(*e_op_result);
+    }
+  }
+}
+
 template <typename GraphViewType,
           typename KeyIterator,
           typename AdjMatrixRowValueInputIterator,
@@ -80,6 +212,10 @@ __global__ void for_all_frontier_row_for_all_nbr_low_degree(
   using edge_t   = typename GraphViewType::edge_type;
   using weight_t = typename GraphViewType::weight_type;
   using key_t    = typename std::iterator_traits<KeyIterator>::value_type;
+  static_assert(
+    std::is_same_v<key_t, typename std::iterator_traits<BufferKeyOutputIterator>::value_type>);
+  using payload_t =
+    typename optional_payload_buffer_value_type_t<BufferPayloadOutputIterator>::value;
 
   static_assert(!GraphViewType::is_adj_matrix_transposed,
                 "GraphViewType should support the push model.");
@@ -101,31 +237,17 @@ __global__ void for_all_frontier_row_for_all_nbr_low_degree(
     edge_t local_out_degree{};
     thrust::tie(indices, weights, local_out_degree) = matrix_partition.get_local_edges(row_offset);
     for (edge_t i = 0; i < local_out_degree; ++i) {
-      auto col         = indices[i];
-      auto weight      = weights != nullptr ? weights[i] : 1.0;
-      auto col_offset  = matrix_partition.get_minor_offset_from_minor_nocheck(col);
-      auto e_op_result = evaluate_edge_op<GraphViewType,
-                                          KeyIterator,
-                                          AdjMatrixRowValueInputIterator,
-                                          AdjMatrixColValueInputIterator,
-                                          EdgeOp>()
-                           .compute(key,
-                                    col,
-                                    weight,
-                                    *(adj_matrix_row_value_input_first + row_offset),
-                                    *(adj_matrix_col_value_input_first + col_offset),
-                                    e_op);
-      if (e_op_result) {
-        // FIXME: This atomicAdd serializes execution. If we renumber vertices to insure that rows
-        // within a partition are sorted by their out-degree in decreasing order, we can compute
-        // a tight uppper bound for the maximum number of pushes per warp/block and use shared
-        // memory buffer to reduce the number of atomicAdd operations.
-        static_assert(sizeof(unsigned long long int) == sizeof(size_t));
-        auto buffer_idx = atomicAdd(reinterpret_cast<unsigned long long int*>(buffer_idx_ptr),
-                                    static_cast<unsigned long long int>(1));
-        *(buffer_key_output_first + buffer_idx)     = col;
-        *(buffer_payload_output_first + buffer_idx) = *e_op_result;
-      }
+      push_if_buffer_element(matrix_partition,
+                             key,
+                             row_offset,
+                             indices[i],
+                             weights != nullptr ? weights[i] : weight_t{1.0},
+                             adj_matrix_row_value_input_first,
+                             adj_matrix_col_value_input_first,
+                             buffer_key_output_first,
+                             buffer_payload_output_first,
+                             buffer_idx_ptr,
+                             e_op);
     }
     idx += gridDim.x * blockDim.x;
   }
@@ -153,6 +275,10 @@ __global__ void for_all_frontier_row_for_all_nbr_mid_degree(
   using edge_t   = typename GraphViewType::edge_type;
   using weight_t = typename GraphViewType::weight_type;
   using key_t    = typename std::iterator_traits<KeyIterator>::value_type;
+  static_assert(
+    std::is_same_v<key_t, typename std::iterator_traits<BufferKeyOutputIterator>::value_type>);
+  using payload_t =
+    typename optional_payload_buffer_value_type_t<BufferPayloadOutputIterator>::value;
 
   static_assert(!GraphViewType::is_adj_matrix_transposed,
                 "GraphViewType should support the push model.");
@@ -176,31 +302,17 @@ __global__ void for_all_frontier_row_for_all_nbr_mid_degree(
     edge_t local_out_degree{};
     thrust::tie(indices, weights, local_out_degree) = matrix_partition.get_local_edges(row_offset);
     for (edge_t i = lane_id; i < local_out_degree; i += raft::warp_size()) {
-      auto col         = indices[i];
-      auto weight      = weights != nullptr ? weights[i] : 1.0;
-      auto col_offset  = matrix_partition.get_minor_offset_from_minor_nocheck(col);
-      auto e_op_result = evaluate_edge_op<GraphViewType,
-                                          KeyIterator,
-                                          AdjMatrixRowValueInputIterator,
-                                          AdjMatrixColValueInputIterator,
-                                          EdgeOp>()
-                           .compute(key,
-                                    col,
-                                    weight,
-                                    *(adj_matrix_row_value_input_first + row_offset),
-                                    *(adj_matrix_col_value_input_first + col_offset),
-                                    e_op);
-      if (e_op_result) {
-        // FIXME: This atomicAdd serializes execution. If we renumber vertices to insure that rows
-        // within a partition are sorted by their out-degree in decreasing order, we can compute
-        // a tight uppper bound for the maximum number of pushes per warp/block and use shared
-        // memory buffer to reduce the number of atomicAdd operations.
-        static_assert(sizeof(unsigned long long int) == sizeof(size_t));
-        auto buffer_idx = atomicAdd(reinterpret_cast<unsigned long long int*>(buffer_idx_ptr),
-                                    static_cast<unsigned long long int>(1));
-        *(buffer_key_output_first + buffer_idx)     = col;
-        *(buffer_payload_output_first + buffer_idx) = *e_op_result;
-      }
+      push_if_buffer_element(matrix_partition,
+                             key,
+                             row_offset,
+                             indices[i],
+                             weights != nullptr ? weights[i] : weight_t{1.0},
+                             adj_matrix_row_value_input_first,
+                             adj_matrix_col_value_input_first,
+                             buffer_key_output_first,
+                             buffer_payload_output_first,
+                             buffer_idx_ptr,
+                             e_op);
     }
 
     idx += gridDim.x * (blockDim.x / raft::warp_size());
@@ -229,6 +341,10 @@ __global__ void for_all_frontier_row_for_all_nbr_high_degree(
   using edge_t   = typename GraphViewType::edge_type;
   using weight_t = typename GraphViewType::weight_type;
   using key_t    = typename std::iterator_traits<KeyIterator>::value_type;
+  static_assert(
+    std::is_same_v<key_t, typename std::iterator_traits<BufferKeyOutputIterator>::value_type>);
+  using payload_t =
+    typename optional_payload_buffer_value_type_t<BufferPayloadOutputIterator>::value;
 
   static_assert(!GraphViewType::is_adj_matrix_transposed,
                 "GraphViewType should support the push model.");
@@ -249,31 +365,17 @@ __global__ void for_all_frontier_row_for_all_nbr_high_degree(
     edge_t local_out_degree{};
     thrust::tie(indices, weights, local_out_degree) = matrix_partition.get_local_edges(row_offset);
     for (edge_t i = threadIdx.x; i < local_out_degree; i += blockDim.x) {
-      auto col         = indices[i];
-      auto weight      = weights != nullptr ? weights[i] : 1.0;
-      auto col_offset  = matrix_partition.get_minor_offset_from_minor_nocheck(col);
-      auto e_op_result = evaluate_edge_op<GraphViewType,
-                                          KeyIterator,
-                                          AdjMatrixRowValueInputIterator,
-                                          AdjMatrixColValueInputIterator,
-                                          EdgeOp>()
-                           .compute(key,
-                                    col,
-                                    weight,
-                                    *(adj_matrix_row_value_input_first + row_offset),
-                                    *(adj_matrix_col_value_input_first + col_offset),
-                                    e_op);
-      if (e_op_result) {
-        // FIXME: This atomicAdd serializes execution. If we renumber vertices to insure that rows
-        // within a partition are sorted by their out-degree in decreasing order, we can compute
-        // a tight uppper bound for the maximum number of pushes per warp/block and use shared
-        // memory buffer to reduce the number of atomicAdd operations.
-        static_assert(sizeof(unsigned long long int) == sizeof(size_t));
-        auto buffer_idx = atomicAdd(reinterpret_cast<unsigned long long int*>(buffer_idx_ptr),
-                                    static_cast<unsigned long long int>(1));
-        *(buffer_key_output_first + buffer_idx)     = col;
-        *(buffer_payload_output_first + buffer_idx) = *e_op_result;
-      }
+      push_if_buffer_element(matrix_partition,
+                             key,
+                             row_offset,
+                             indices[i],
+                             weights != nullptr ? weights[i] : weight_t{1.0},
+                             adj_matrix_row_value_input_first,
+                             adj_matrix_col_value_input_first,
+                             buffer_key_output_first,
+                             buffer_payload_output_first,
+                             buffer_idx_ptr,
+                             e_op);
     }
 
     idx += gridDim.x;
@@ -287,22 +389,38 @@ size_t sort_and_reduce_buffer_elements(raft::handle_t const& handle,
                                        size_t num_buffer_elements,
                                        ReduceOp reduce_op)
 {
-  thrust::sort_by_key(rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
-                      buffer_key_output_first,
-                      buffer_key_output_first + num_buffer_elements,
-                      buffer_payload_output_first);
+  using key_t = typename std::iterator_traits<BufferKeyOutputIterator>::value_type;
+  using payload_t =
+    typename optional_payload_buffer_value_type_t<BufferPayloadOutputIterator>::value;
 
-  if (std::is_same<ReduceOp, reduce_op::any<typename ReduceOp::type>>::value) {
+  if constexpr (std::is_same_v<payload_t, void>) {
+    thrust::sort(rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
+                 buffer_key_output_first,
+                 buffer_key_output_first + num_buffer_elements);
+  } else {
+    thrust::sort_by_key(rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
+                        buffer_key_output_first,
+                        buffer_key_output_first + num_buffer_elements,
+                        buffer_payload_output_first);
+  }
+
+  size_t num_reduced_buffer_elements{};
+  if constexpr (std::is_same_v<payload_t, void>) {
+    auto it = thrust::unique(rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
+                             buffer_key_output_first,
+                             buffer_key_output_first + num_buffer_elements);
+    num_reduced_buffer_elements =
+      static_cast<size_t>(thrust::distance(buffer_key_output_first, it));
+  } else if constexpr (std::is_same<ReduceOp, reduce_op::any<typename ReduceOp::type>>::value) {
     // FIXME: if ReducOp is any, we may have a cheaper alternative than sort & uique (i.e. discard
     // non-first elements)
     auto it = thrust::unique_by_key(rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
                                     buffer_key_output_first,
                                     buffer_key_output_first + num_buffer_elements,
                                     buffer_payload_output_first);
-    return static_cast<size_t>(thrust::distance(buffer_key_output_first, thrust::get<0>(it)));
+    num_reduced_buffer_elements =
+      static_cast<size_t>(thrust::distance(buffer_key_output_first, thrust::get<0>(it)));
   } else {
-    using key_t     = typename std::iterator_traits<BufferKeyOutputIterator>::value_type;
-    using payload_t = typename std::iterator_traits<BufferPayloadOutputIterator>::value_type;
     // FIXME: better avoid temporary buffer or at least limit the maximum buffer size (if we adopt
     // CUDA cooperative group https://devblogs.nvidia.com/cooperative-groups and global sync(), we
     // can use aggregate shared memory as a temporary buffer, or we can limit the buffer size, and
@@ -323,8 +441,9 @@ size_t sort_and_reduce_buffer_elements(raft::handle_t const& handle,
                                     get_dataframe_buffer_begin<payload_t>(value_buffer),
                                     thrust::equal_to<key_t>(),
                                     reduce_op);
-    auto num_reduced_buffer_elements =
+    num_reduced_buffer_elements =
       static_cast<size_t>(thrust::distance(keys.begin(), thrust::get<0>(it)));
+    // FIXME: this copy can be replaced by move
     thrust::copy(rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
                  keys.begin(),
                  keys.begin() + num_reduced_buffer_elements,
@@ -333,8 +452,9 @@ size_t sort_and_reduce_buffer_elements(raft::handle_t const& handle,
                  get_dataframe_buffer_begin<payload_t>(value_buffer),
                  get_dataframe_buffer_begin<payload_t>(value_buffer) + num_reduced_buffer_elements,
                  buffer_payload_output_first);
-    return num_reduced_buffer_elements;
   }
+
+  return num_reduced_buffer_elements;
 }
 
 }  // namespace detail
@@ -442,8 +562,9 @@ void update_frontier_v_push_if_out_nbr(
 
   // 1. fill the buffer
 
-  auto key_buffer     = allocate_dataframe_buffer<key_t>(size_t{0}, handle.get_stream());
-  auto payload_buffer = allocate_dataframe_buffer<payload_t>(size_t{0}, handle.get_stream());
+  auto key_buffer = allocate_dataframe_buffer<key_t>(size_t{0}, handle.get_stream());
+  auto payload_buffer =
+    detail::allocate_optional_payload_buffer<payload_t>(size_t{0}, handle.get_stream());
   rmm::device_scalar<size_t> buffer_idx(size_t{0}, handle.get_stream());
   for (size_t i = 0; i < graph_view.get_number_of_local_adj_matrix_partitions(); ++i) {
     matrix_partition_device_t<GraphViewType> matrix_partition(graph_view, i);
@@ -498,9 +619,10 @@ void update_frontier_v_push_if_out_nbr(
         get_dataframe_buffer_end<key_t>(matrix_partition_frontier_key_buffer);
     } else {
       matrix_partition_frontier_row_first =
-        std::get<0>(get_dataframe_buffer_begin<key_t>(matrix_partition_frontier_key_buffer));
-      matrix_partition_frontier_row_last =
-        std::get<0>(get_dataframe_buffer_end<key_t>(matrix_partition_frontier_key_buffer));
+        thrust::get<0>(get_dataframe_buffer_begin<key_t>(matrix_partition_frontier_key_buffer)
+                         .get_iterator_tuple());
+      matrix_partition_frontier_row_last = thrust::get<0>(
+        get_dataframe_buffer_end<key_t>(matrix_partition_frontier_key_buffer).get_iterator_tuple());
     }
     auto max_pushes =
       thrust::distance(matrix_partition_frontier_row_first, matrix_partition_frontier_row_last) > 0
@@ -532,7 +654,9 @@ void update_frontier_v_push_if_out_nbr(
     // to reserve address space.
     auto new_buffer_size = buffer_idx.value(handle.get_stream()) + max_pushes;
     resize_dataframe_buffer<key_t>(key_buffer, new_buffer_size, handle.get_stream());
-    resize_dataframe_buffer<payload_t>(payload_buffer, new_buffer_size, handle.get_stream());
+    if constexpr (!std::is_same_v<payload_t, void>) {
+      resize_dataframe_buffer<payload_t>(payload_buffer, new_buffer_size, handle.get_stream());
+    }
 
     auto row_value_input_offset = GraphViewType::is_adj_matrix_transposed
                                     ? vertex_t{0}
@@ -575,7 +699,7 @@ void update_frontier_v_push_if_out_nbr(
           adj_matrix_row_value_input_first + row_value_input_offset,
           adj_matrix_col_value_input_first,
           get_dataframe_buffer_begin<key_t>(key_buffer),
-          get_dataframe_buffer_begin<payload_t>(payload_buffer),
+          detail::get_optional_payload_buffer_begin<payload_t>(payload_buffer),
           buffer_idx.data(),
           e_op);
       }
@@ -595,7 +719,7 @@ void update_frontier_v_push_if_out_nbr(
           adj_matrix_row_value_input_first + row_value_input_offset,
           adj_matrix_col_value_input_first,
           get_dataframe_buffer_begin<key_t>(key_buffer),
-          get_dataframe_buffer_begin<payload_t>(payload_buffer),
+          detail::get_optional_payload_buffer_begin<payload_t>(payload_buffer),
           buffer_idx.data(),
           e_op);
       }
@@ -615,7 +739,7 @@ void update_frontier_v_push_if_out_nbr(
           adj_matrix_row_value_input_first + row_value_input_offset,
           adj_matrix_col_value_input_first,
           get_dataframe_buffer_begin<key_t>(key_buffer),
-          get_dataframe_buffer_begin<payload_t>(payload_buffer),
+          detail::get_optional_payload_buffer_begin<payload_t>(payload_buffer),
           buffer_idx.data(),
           e_op);
       }
@@ -636,7 +760,7 @@ void update_frontier_v_push_if_out_nbr(
           adj_matrix_row_value_input_first + row_value_input_offset,
           adj_matrix_col_value_input_first,
           get_dataframe_buffer_begin<key_t>(key_buffer),
-          get_dataframe_buffer_begin<payload_t>(payload_buffer),
+          detail::get_optional_payload_buffer_begin<payload_t>(payload_buffer),
           buffer_idx.data(),
           e_op);
       }
@@ -645,12 +769,12 @@ void update_frontier_v_push_if_out_nbr(
 
   // 2. reduce the buffer
 
-  auto num_buffer_elements =
-    detail::sort_and_reduce_buffer_elements(handle,
-                                            get_dataframe_buffer_begin<key_t>(key_buffer),
-                                            get_dataframe_buffer_begin<payload_t>(payload_buffer),
-                                            buffer_idx.value(handle.get_stream()),
-                                            reduce_op);
+  auto num_buffer_elements = detail::sort_and_reduce_buffer_elements(
+    handle,
+    get_dataframe_buffer_begin<key_t>(key_buffer),
+    detail::get_optional_payload_buffer_begin<payload_t>(payload_buffer),
+    buffer_idx.value(handle.get_stream()),
+    reduce_op);
   if (GraphViewType::is_multi_gpu) {
     // FIXME: this step is unnecessary if row_comm_size== 1
     auto& comm               = handle.get_comms();
@@ -676,7 +800,8 @@ void update_frontier_v_push_if_out_nbr(
     if constexpr (std::is_same_v<key_t, vertex_t>) {
       row_first = get_dataframe_buffer_begin<key_t>(key_buffer);
     } else {
-      row_first = std::get<0>(get_dataframe_buffer_begin<key_t>(key_buffer));
+      row_first =
+        thrust::get<0>(get_dataframe_buffer_begin<key_t>(key_buffer).get_iterator_tuple());
     }
     thrust::lower_bound(rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
                         row_first,
@@ -699,20 +824,22 @@ void update_frontier_v_push_if_out_nbr(
       row_comm, get_dataframe_buffer_begin<key_t>(key_buffer), tx_counts, handle.get_stream());
     key_buffer = std::move(rx_key_buffer);
 
-    auto rx_payload_buffer = allocate_dataframe_buffer<payload_t>(size_t{0}, handle.get_stream());
-    std::tie(rx_payload_buffer, std::ignore) =
-      shuffle_values(row_comm,
-                     get_dataframe_buffer_begin<payload_t>(payload_buffer),
-                     tx_counts,
-                     handle.get_stream());
-    payload_buffer = std::move(rx_payload_buffer);
+    if constexpr (!std::is_same_v<payload_t, void>) {
+      auto rx_payload_buffer = allocate_dataframe_buffer<payload_t>(size_t{0}, handle.get_stream());
+      std::tie(rx_payload_buffer, std::ignore) =
+        shuffle_values(row_comm,
+                       get_dataframe_buffer_begin<payload_t>(payload_buffer),
+                       tx_counts,
+                       handle.get_stream());
+      payload_buffer = std::move(rx_payload_buffer);
+    }
 
-    num_buffer_elements =
-      detail::sort_and_reduce_buffer_elements(handle,
-                                              get_dataframe_buffer_begin<key_t>(key_buffer),
-                                              get_dataframe_buffer_begin<payload_t>(payload_buffer),
-                                              size_dataframe_buffer<key_t>(key_buffer),
-                                              reduce_op);
+    num_buffer_elements = detail::sort_and_reduce_buffer_elements(
+      handle,
+      get_dataframe_buffer_begin<key_t>(key_buffer),
+      detail::get_optional_payload_buffer_begin<payload_t>(payload_buffer),
+      size_dataframe_buffer<key_t>(key_buffer),
+      reduce_op);
   }
 
   // 3. update vertex properties and frontier
@@ -723,34 +850,69 @@ void update_frontier_v_push_if_out_nbr(
 
     vertex_partition_device_t<GraphViewType> vertex_partition(graph_view);
 
-    auto key_payload_pair_first = thrust::make_zip_iterator(
-      thrust::make_tuple(get_dataframe_buffer_begin<key_t>(key_buffer),
-                         get_dataframe_buffer_begin<payload_t>(payload_buffer)));
-    thrust::transform(
-      rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
-      key_payload_pair_first,
-      key_payload_pair_first + num_buffer_elements,
-      bucket_indices.begin(),
-      [vertex_value_input_first,
-       vertex_value_output_first,
-       v_op,
-       vertex_partition,
-       invalid_bucket_idx = VertexFrontierType::kInvalidBucketIdx] __device__(auto pair) {
-        auto key         = thrust::get<0>(pair);
-        auto payload     = thrust::get<1>(pair);
-        auto key_offset  = vertex_partition.get_local_vertex_offset_from_vertex_nocheck(key);
-        auto v_val       = *(vertex_value_input_first + key_offset);
-        auto v_op_result = v_op(key, v_val, payload);
-        if (v_op_result) {
-          *(vertex_value_output_first + key_offset) = thrust::get<1>(*v_op_result);
-          return static_cast<uint8_t>(thrust::get<0>(*v_op_result));
-        } else {
-          return std::numeric_limits<uint8_t>::max();
-        }
-      });
+    if constexpr (!std::is_same_v<payload_t, void>) {
+      auto key_payload_pair_first = thrust::make_zip_iterator(
+        thrust::make_tuple(get_dataframe_buffer_begin<key_t>(key_buffer),
+                           detail::get_optional_payload_buffer_begin<payload_t>(payload_buffer)));
+      thrust::transform(
+        rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
+        key_payload_pair_first,
+        key_payload_pair_first + num_buffer_elements,
+        bucket_indices.begin(),
+        [vertex_value_input_first,
+         vertex_value_output_first,
+         v_op,
+         vertex_partition,
+         invalid_bucket_idx = VertexFrontierType::kInvalidBucketIdx] __device__(auto pair) {
+          auto key     = thrust::get<0>(pair);
+          auto payload = thrust::get<1>(pair);
+          vertex_t v_offset{};
+          if constexpr (std::is_same_v<key_t, vertex_t>) {
+            v_offset = vertex_partition.get_local_vertex_offset_from_vertex_nocheck(key);
+          } else {
+            v_offset =
+              vertex_partition.get_local_vertex_offset_from_vertex_nocheck(thrust::get<0>(key));
+          }
+          auto v_val       = *(vertex_value_input_first + v_offset);
+          auto v_op_result = v_op(key, v_val, payload);
+          if (v_op_result) {
+            *(vertex_value_output_first + v_offset) = thrust::get<1>(*v_op_result);
+            return static_cast<uint8_t>(thrust::get<0>(*v_op_result));
+          } else {
+            return std::numeric_limits<uint8_t>::max();
+          }
+        });
 
-    resize_dataframe_buffer<payload_t>(payload_buffer, size_t{0}, handle.get_stream());
-    shrink_to_fit_dataframe_buffer<payload_t>(payload_buffer, handle.get_stream());
+      resize_dataframe_buffer<payload_t>(payload_buffer, size_t{0}, handle.get_stream());
+      shrink_to_fit_dataframe_buffer<payload_t>(payload_buffer, handle.get_stream());
+    } else {
+      thrust::transform(
+        rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
+        get_dataframe_buffer_begin<key_t>(key_buffer),
+        get_dataframe_buffer_begin<key_t>(key_buffer) + num_buffer_elements,
+        bucket_indices.begin(),
+        [vertex_value_input_first,
+         vertex_value_output_first,
+         v_op,
+         vertex_partition,
+         invalid_bucket_idx = VertexFrontierType::kInvalidBucketIdx] __device__(auto key) {
+          vertex_t v_offset{};
+          if constexpr (std::is_same_v<key_t, vertex_t>) {
+            v_offset = vertex_partition.get_local_vertex_offset_from_vertex_nocheck(key);
+          } else {
+            v_offset =
+              vertex_partition.get_local_vertex_offset_from_vertex_nocheck(thrust::get<0>(key));
+          }
+          auto v_val       = *(vertex_value_input_first + v_offset);
+          auto v_op_result = v_op(key, v_val);
+          if (v_op_result) {
+            *(vertex_value_output_first + v_offset) = thrust::get<1>(*v_op_result);
+            return static_cast<uint8_t>(thrust::get<0>(*v_op_result));
+          } else {
+            return std::numeric_limits<uint8_t>::max();
+          }
+        });
+    }
 
     auto bucket_key_pair_first = thrust::make_zip_iterator(
       thrust::make_tuple(bucket_indices.begin(), get_dataframe_buffer_begin<key_t>(key_buffer)));
@@ -760,9 +922,7 @@ void update_frontier_v_push_if_out_nbr(
         thrust::remove_if(rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
                           bucket_key_pair_first,
                           bucket_key_pair_first + num_buffer_elements,
-                          [] __device__(auto pair) {
-                            return thrust::get<0>(pair) == std::numeric_limits<uint8_t>::max();
-                          })),
+                          detail::check_invalid_bucket_idx_t<key_t>())),
       handle.get_stream());
     resize_dataframe_buffer<key_t>(key_buffer, bucket_indices.size(), handle.get_stream());
     bucket_indices.shrink_to_fit(handle.get_stream());
