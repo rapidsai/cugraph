@@ -1375,7 +1375,8 @@ class Graph:
         else:
             return neighbors
 
-    def unrenumber(self, df, column_name, preserve_order=False):
+    def unrenumber(self, df, column_name, preserve_order=False,
+                   get_column_names=False):
         """
         Given a DataFrame containing internal vertex ids in the identified
         column, replace this with external vertex ids.  If the renumbering
@@ -1409,7 +1410,8 @@ class Graph:
             vertex identifiers are added to the DataFrame, the internal
             vertex identifier column is removed from the dataframe.
         """
-        return self.renumber_map.unrenumber(df, column_name, preserve_order)
+        return self.renumber_map.unrenumber(df, column_name, preserve_order,
+                                            get_column_names)
 
     def lookup_internal_vertex_id(self, df, column_name=None):
         """
