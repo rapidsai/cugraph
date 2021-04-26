@@ -458,6 +458,7 @@ size_t sort_and_reduce_buffer_elements(raft::handle_t const& handle,
 
 }  // namespace detail
 
+// FIXME: this documentation needs to be updated due to (tagged-)vertex support
 /**
  * @brief Update (tagged-)vertex frontier and (tagged-)vertex property values iterating over the
  * outgoing edges from the frontier.
