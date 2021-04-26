@@ -98,7 +98,7 @@ void katz_centrality_reference(edge_t const* offsets,
 
 struct KatzCentrality_Usecase {
   bool test_weighted{false};
-  bool check_correctness{false};
+  bool check_correctness{true};
 };
 
 template <typename input_usecase_t>

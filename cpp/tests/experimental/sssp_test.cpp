@@ -89,7 +89,7 @@ void sssp_reference(edge_t const* offsets,
 
 struct SSSP_Usecase {
   size_t source{0};
-  bool check_correctness{false};
+  bool check_correctness{true};
 };
 
 template <typename input_usecase_t>
