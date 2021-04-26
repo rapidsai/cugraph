@@ -58,8 +58,10 @@ def ego_graph(G, n, radius=1, center=True, undirected=False, distance=None):
         Graph or matrix object, which should contain the connectivity
         information. Edge weights, if present, should be single or double
         precision floating point values.
-    n : integer
-        A single node
+    n : integer or cudf.DataFrame
+        A single node as integer or a cudf.DataFrame if nodes are
+        represented with multiple columns. If a cudf.DataFrame is provided,
+        only the first row is taken as the node input.
     radius: integer, optional
         Include all neighbors of distance<=radius from n.
     center: bool, optional
@@ -91,7 +93,10 @@ def ego_graph(G, n, radius=1, center=True, undirected=False, distance=None):
     result_graph = type(G)()
 
     if G.renumbered is True:
-        n = G.lookup_internal_vertex_id(cudf.Series([n]))
+        if isinstance(n, cudf.DataFrame):
+            n = G.lookup_internal_vertex_id(n, n.columns).iloc[0]
+        else:
+            n = G.lookup_internal_vertex_id(cudf.Series([n]))[0]
 
     df, offsets = egonet_wrapper.egonet(G, n, radius)
 

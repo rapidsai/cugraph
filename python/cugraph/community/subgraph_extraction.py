@@ -28,8 +28,9 @@ def subgraph(G, vertices):
     ----------
     G : cugraph.Graph
         cuGraph graph descriptor
-    vertices : cudf.Series
-        Specifies the vertices of the induced subgraph
+    vertices : cudf.Series or cudf.DataFrame
+        Specifies the vertices of the induced subgraph. For multi-column
+        vertices, vertices should be provided as a cudf.DataFrame
 
     Returns
     -------
@@ -57,7 +58,10 @@ def subgraph(G, vertices):
     G, isNx = check_nx_graph(G)
 
     if G.renumbered:
-        vertices = G.lookup_internal_vertex_id(vertices)
+        if isinstance(start, cudf.DataFrame):
+            vertices = G.lookup_internal_vertex_id(vertices, vertices.columns)
+        else:
+            vertices = G.lookup_internal_vertex_id(vertices)
 
     result_graph = type(G)()
 
