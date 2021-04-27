@@ -439,6 +439,7 @@ add_library(cugraph SHARED
     src/experimental/pagerank.cu
     src/experimental/katz_centrality.cu
     src/tree/mst.cu
+    src/components/weakly_connected_components.cu
 )
 
 target_link_directories(cugraph
