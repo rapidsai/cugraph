@@ -107,7 +107,9 @@ class simpleGraphImpl:
                 "destination parameters"
             )
 
-        # FIXME: update for smaller GPUs
+        # FIXME: check if the consolidated graph fits on the
+        # device before gathering all the edge lists
+
         # Consolidation
         if isinstance(input_df, cudf.DataFrame):
             if len(input_df[source]) > 2147483100:
