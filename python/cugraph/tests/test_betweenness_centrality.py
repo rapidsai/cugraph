@@ -334,6 +334,7 @@ def test_betweenness_centrality(
 @pytest.mark.parametrize("result_dtype", RESULT_DTYPE_OPTIONS)
 @pytest.mark.parametrize("use_k_full", [True])
 @pytest.mark.parametrize("edgevals", WEIGHTED_GRAPH_OPTIONS)
+@pytest.mark.skip(reason="Skipping large tests")
 def test_betweenness_centrality_k_full(
     graph_file,
     directed,
@@ -377,6 +378,7 @@ def test_betweenness_centrality_k_full(
 @pytest.mark.parametrize("subset_seed", [None])
 @pytest.mark.parametrize("result_dtype", RESULT_DTYPE_OPTIONS)
 @pytest.mark.parametrize("edgevals", WEIGHTED_GRAPH_OPTIONS)
+@pytest.mark.skip(reason="Skipping large tests")
 def test_betweenness_centrality_fixed_sample(
     graph_file,
     directed,
@@ -415,6 +417,7 @@ def test_betweenness_centrality_fixed_sample(
 @pytest.mark.parametrize("subset_seed", SUBSET_SEED_OPTIONS)
 @pytest.mark.parametrize("result_dtype", RESULT_DTYPE_OPTIONS)
 @pytest.mark.parametrize("edgevals", WEIGHTED_GRAPH_OPTIONS)
+@pytest.mark.skip(reason="Skipping large tests")
 def test_betweenness_centrality_weight_except(
     graph_file,
     directed,
