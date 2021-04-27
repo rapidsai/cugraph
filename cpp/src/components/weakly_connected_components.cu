@@ -55,6 +55,7 @@ std::tuple<rmm::device_uvector<vertex_t>, vertex_t, edge_t> accumulate_new_roots
   edge_t const *degrees,
   vertex_t vertex_first,
   vertex_t vertex_last,
+  vertex_t max_new_roots,
   edge_t degree_sum_threshold)
 {
   // FIXME: tuning parameter (time to scan max_scan_size elements should not take significantly
@@ -171,7 +172,7 @@ void weakly_connected_components_impl(raft::handle_t const &handle,
   auto degree_sum_threshold =
     static_cast<edge_t>(handle.get_device_properties().multiProcessorCount) * edge_t{1024};
 
-  size_t level{0};
+  size_t num_levels{0};
   graph_t<vertex_t,
           edge_t,
           typename GraphViewType::weight_type,
@@ -179,242 +180,263 @@ void weakly_connected_components_impl(raft::handle_t const &handle,
           GraphViewType::is_multi_gpu>
     level_graph(handle);
   std::vector<rmm::device_uvector<vertex_t>> level_component_vectors{};
+  // vertex ID in this level to the component ID in the finer level
+  std::vector<rmm::device_uvector<vertex_t>> level_renumber_map_vectors{};
   while (true) {
-    auto level_graph_view = level == 0 ? push_graph_view : level_graph.view();
+    auto level_graph_view = num_levels == 0 ? push_graph_view : level_graph.view();
     vertex_partition_device_t<GraphViewType> vertex_partition(level_graph_view);
     level_component_vectors.push_back(rmm::device_uvector<vertex_t>(
-      level == 0 ? vertex_t{0} : level_graph_view.get_number_of_local_vertices(),
+      num_levels == 0 ? vertex_t{0} : level_graph_view.get_number_of_local_vertices(),
       handle.get_stream_view()));
-    auto level_components = level == 0 ? components : level_component_vectors[level].data();
-    auto degrees          = level_graph_view.compute_out_degrees(handle);
-    auto local_vertex_in_degree_sum =
-      thrust::reduce(rmm::exec_policy(handle.get_stream_view()), degrees.begin(), degrees.end());
+    level_renumber_map_vectors.push_back(rmm::device_uvector<vertex_t>(size_t{0}, handle.get_stream_view()));
+    auto level_components = num_levels == 0 ? components : level_component_vectors[num_levels].data();
+    if (graph_is_small_enough) {
+      // label_prop + pointer jumping;
+      break;
+    } else {
+      auto degrees = level_graph_view.compute_out_degrees(handle);
+      auto local_vertex_in_degree_sum =
+        thrust::reduce(rmm::exec_policy(handle.get_stream_view()), degrees.begin(), degrees.end());
 
-    // 2-1. filter out isolated vertices
+      // 2-1. filter out isolated vertices
 
-    auto pair_first = thrust::make_zip_iterator(thrust::make_tuple(
-      thrust::make_counting_iterator(level_graph_view.get_local_vertex_first()), degrees.begin()));
-    thrust::transform(rmm::exec_policy(handle.get_stream_view()),
-                      pair_first,
-                      pair_first + level_graph_view.get_number_of_local_vertices(),
-                      level_components,
-                      [] __device__(auto pair) {
-                        auto v      = thrust::get<0>(pair);
-                        auto degree = thrust::get<1>(pair);
-                        return degree > 0 ? invalid_component_id<vertex_t>::value : v;
-                      });
+      auto pair_first = thrust::make_zip_iterator(thrust::make_tuple(
+        thrust::make_counting_iterator(level_graph_view.get_local_vertex_first()),
+        degrees.begin()));
+      thrust::transform(rmm::exec_policy(handle.get_stream_view()),
+                        pair_first,
+                        pair_first + level_graph_view.get_number_of_local_vertices(),
+                        level_components,
+                        [] __device__(auto pair) {
+                          auto v      = thrust::get<0>(pair);
+                          auto degree = thrust::get<1>(pair);
+                          return degree > 0 ? invalid_component_id<vertex_t>::value : v;
+                        });
 
-    // 2-2. initialize vertex frontier
+      // 2-2. initialize vertex frontier
 
-    VertexFrontier<vertex_t,
-                   vertex_t,
-                   GraphViewType::is_multi_gpu,
-                   static_cast<size_t>(Bucket::num_buckets)>
-      vertex_frontier(handle);
-    vertex_t next_local_vertex_offset{0};
-    edge_t edge_count{0};
+      VertexFrontier<vertex_t,
+                     vertex_t,
+                     GraphViewType::is_multi_gpu,
+                     static_cast<size_t>(Bucket::num_buckets)>
+        vertex_frontier(handle);
+      vertex_t next_local_vertex_offset{0};
+      edge_t edge_count{0};
 
-    {
-      auto [new_roots, num_scanned, degree_sum] =
-        accumulate_new_roots(handle,
-                             level_components + next_local_vertex_offset,
-                             degrees.begin() + next_local_vertex_offset,
-                             level_graph_view.get_local_vertex_first() + next_local_vertex_offset,
-                             level_graph_view.get_local_vertex_last(),
-                             degree_sum_threshold);
-      next_local_vertex_offset += num_scanned;
-      edge_count = degree_sum;
-
-      auto pair_first =
-        thrust::make_zip_iterator(thrust::make_tuple(new_roots.begin(), new_roots.begin()));
-      vertex_frontier.get_bucket(static_cast<size_t>(Bucket::cur))
-        .insert(pair_first, pair_first + new_roots.size());
-
-      thrust::for_each(
-        rmm::exec_policy(handle.get_stream_view()),
-        new_roots.begin(),
-        new_roots.end(),
-        [vertex_partition, components = level_components] __device__(auto c) {
-          components[vertex_partition.get_local_vertex_offset_from_vertex_nocheck(c)] = c;
-        });
-    }
-
-    // FIXME: if we use cuco::static_map (no duplicates, ideally we need static_set), edge_buffer
-    // size cannot exceed (# local roots * # aggregate roots)
-    auto edge_buffer = allocate_dataframe_buffer<thrust::tuple<vertex_t, vertex_t>>(
-      edge_count + (GraphViewType::is_multi_gpu ? local_vertex_in_degree_sum : edge_t{0}),
-      handle.get_stream());
-    cuda::atomic<edge_t, cuda::thread_scope_device> num_edge_inserts{
-      0};  // FIXME: need to check I am using this properly.
-
-    rmm::device_uvector<vertex_t> col_components(
-      GraphViewType::is_multi_gpu ? level_graph_view.get_number_of_local_adj_matrix_partition_cols()
-                                  : vertex_t{0},
-      handle.get_stream_view());
-    if (GraphViewType::is_multi_gpu) {
-      thrust::fill(rmm::exec_policy(handle.get_stream_view()),
-                   col_components.begin(),
-                   col_components.end(),
-                   invalid_component_id<vertex_t>::value);
-
-      copy_to_adj_matrix_col(
-        handle,
-        level_graph_view,
-        thrust::get<0>(vertex_frontier.get_bucket(static_cast<size_t>(Bucket::cur))
-                         .begin()
-                         .get_iterator_tuple()),
-        thrust::get<0>(
-          vertex_frontier.get_bucket(static_cast<size_t>(Bucket::cur)).end().get_iterator_tuple()),
-        level_components,
-        col_components.begin());
-    }
-
-    // 2.3 iterate till every vertex gets visited
-
-    while (true) {
-      update_frontier_v_push_if_out_nbr(
-        handle,
-        push_graph_view,
-        vertex_frontier,
-        static_cast<size_t>(Bucket::cur),
-        std::vector<size_t>{static_cast<size_t>(Bucket::next)},
-        thrust::make_counting_iterator(0) /* dummy */,
-        thrust::make_counting_iterator(0) /* dummy */,
-        [col_components = GraphViewType::is_multi_gpu ? col_components.data() : level_components,
-         col_first      = level_graph_view.get_local_adj_matrix_partition_col_first(),
-         edge_buffer_first =
-           get_dataframe_buffer_begin<thrust::tuple<vertex_t, vertex_t>>(edge_buffer),
-         num_edge_inserts = &num_edge_inserts] __device__(auto tagged_src,
-                                                          vertex_t dst,
-                                                          auto src_val,
-                                                          auto dst_val) {
-          auto tag        = thrust::get<1>(tagged_src);
-          auto col_offset = dst - col_first;
-          // FIXME: better switch to atomic_ref after
-          // https://github.com/nvidia/libcudacxx/milestone/2
-          auto old =
-            atomicCAS(col_components + col_offset, invalid_component_id<vertex_t>::value, tag);
-          if (old != invalid_component_id<vertex_t>::value && old != tag) {  // conflict
-            *(edge_buffer_first + (*num_edge_inserts)++) = thrust::make_tuple(tag, old);
-          }
-          return (old == invalid_component_id<vertex_t>::value) ? thrust::optional<vertex_t>{tag}
-                                                                : thrust::nullopt;
-        },
-        reduce_op::null(),
-        thrust::make_constant_iterator(0) /* dummy */,
-        thrust::make_discard_iterator() /* dummy */,
-        [vertex_partition,
-         level_components,
-         edge_buffer_first =
-           get_dataframe_buffer_begin<thrust::tuple<vertex_t, vertex_t>>(edge_buffer),
-         num_edge_inserts =
-           &num_edge_inserts] __device__(auto tagged_v, auto v_val) {
-          if (GraphViewType::is_multi_gpu) {
-            auto tag      = thrust::get<1>(tagged_v);
-            auto v_offset = vertex_partition.get_local_vertex_offset_from_vertex_nocheck(
-              thrust::get<0>(tagged_v));
-            // FIXME: better switch to atomic_ref after
-            // https://github.com/nvidia/libcudacxx/milestone/2
-            auto old =
-              atomicCAS(level_components + v_offset, invalid_component_id<vertex_t>::value, tag);
-            if (old != invalid_component_id<vertex_t>::value && old != tag) {  // conflict
-              // FIXME: potential overflow? we need to count dst for square root P GPUs then do
-              // reduction to figure out actual maximum... this is too pessimistic and also
-              // expensive, actually, we know the graph is symmetric and we alredy have in==out
-              // dgree, so just need to sum the degree for the vertices in this GPU... yeah... but
-              // that's 1 over square root P of the total edges so not small... (but still not
-              // prohibitive especially for large P so not a bad thing....)
-              *(edge_buffer_first + (*num_edge_inserts)++) = thrust::make_tuple(tag, old);
-            }
-            return (old == invalid_component_id<vertex_t>::value)
-                     ? thrust::optional<thrust::tuple<size_t, std::byte>>{thrust::make_tuple(static_cast<size_t>(Bucket::next), std::byte{0}/* dummy */)}
-                     : thrust::nullopt;
-          } else {
-            return thrust::optional<thrust::tuple<size_t, std::byte>>{thrust::make_tuple(static_cast<size_t>(Bucket::next), std::byte{0}/* dummy */)};
-          }
-        });
-
-      // FIXME: if we maintain sorted & unique edge_buffer elements, we can run sort & unique to the
-      // newly added edges and run merge & unique (this is unnecessary if we use cuco::static_map
-      // (no duplicates, ideally we need static_set)
-
-      // FIXME: what if I run pointer-jumping here to reduce # tags?
-
-      if (GraphViewType::is_multi_gpu) {
-        copy_to_adj_matrix_col(
-          handle,
-          level_graph_view,
-          thrust::get<0>(vertex_frontier.get_bucket(static_cast<size_t>(Bucket::next))
-                           .begin()
-                           .get_iterator_tuple()),
-          thrust::get<0>(vertex_frontier.get_bucket(static_cast<size_t>(Bucket::next))
-                           .end()
-                           .get_iterator_tuple()),
-          level_components,
-          col_components.begin());
-      }
-
-      edge_count = thrust::transform_reduce(
-        rmm::exec_policy(handle.get_stream_view()),
-        thrust::get<0>(vertex_frontier.get_bucket(static_cast<size_t>(Bucket::next))
-                         .begin()
-                         .get_iterator_tuple()),
-        thrust::get<0>(
-          vertex_frontier.get_bucket(static_cast<size_t>(Bucket::next)).end().get_iterator_tuple()),
-        [vertex_partition, degrees = degrees.data()] __device__(auto v) {
-          return degrees[vertex_partition.get_local_vertex_offset_from_vertex_nocheck(v)];
-        },
-        edge_t{0},
-        thrust::plus<edge_t>());
-
-      // FIXME: if the total number of edges from the frontier is too large, we really don't need to
-      // expand the entire frontier.
-      if (edge_count < degree_sum_threshold) {
+      {
+// Need to think about corner cases, the entire set of vertices in few components are selected as roots; no compression.
         auto [new_roots, num_scanned, degree_sum] =
           accumulate_new_roots(handle,
                                level_components + next_local_vertex_offset,
                                degrees.begin() + next_local_vertex_offset,
                                level_graph_view.get_local_vertex_first() + next_local_vertex_offset,
                                level_graph_view.get_local_vertex_last(),
-                               degree_sum_threshold - edge_count);
+                               degree_sum_threshold);
         next_local_vertex_offset += num_scanned;
-        edge_count += degree_sum;
-      }
+        edge_count = degree_sum;
 
-      // FIXME: no sync necessary before accessing num_edge_inserts?
+        auto pair_first =
+          thrust::make_zip_iterator(thrust::make_tuple(new_roots.begin(), new_roots.begin()));
+        vertex_frontier.get_bucket(static_cast<size_t>(Bucket::cur))
+          .insert(pair_first, pair_first + new_roots.size());
+
+        thrust::for_each(
+          rmm::exec_policy(handle.get_stream_view()),
+          new_roots.begin(),
+          new_roots.end(),
+          [vertex_partition, components = level_components] __device__(auto c) {
+            components[vertex_partition.get_local_vertex_offset_from_vertex_nocheck(c)] = c;
+          });
+      }
 
       // FIXME: if we use cuco::static_map (no duplicates, ideally we need static_set), edge_buffer
       // size cannot exceed (# local roots * # aggregate roots)
-      resize_dataframe_buffer<thrust::tuple<vertex_t, vertex_t>>(
-        edge_buffer,
-        num_edge_inserts.load(cuda::std::memory_order_relaxed) + edge_count +
-          (GraphViewType::is_multi_gpu ? local_vertex_in_degree_sum : edge_t{0}),
+      auto edge_buffer = allocate_dataframe_buffer<thrust::tuple<vertex_t, vertex_t>>(
+        edge_count + (GraphViewType::is_multi_gpu ? local_vertex_in_degree_sum : edge_t{0}),
         handle.get_stream());
+      cuda::atomic<edge_t, cuda::thread_scope_device> num_edge_inserts{0};
 
-      vertex_frontier.get_bucket(static_cast<size_t>(Bucket::cur)).clear();
-      vertex_frontier.get_bucket(static_cast<size_t>(Bucket::cur)).shrink_to_fit();
-      vertex_frontier.swap_buckets(static_cast<size_t>(Bucket::cur),
-                                   static_cast<size_t>(Bucket::next));
-      if (vertex_frontier.get_bucket(static_cast<size_t>(Bucket::cur)).aggregate_size() == 0) {
-        break;
+      rmm::device_uvector<vertex_t> col_components(
+        GraphViewType::is_multi_gpu
+          ? level_graph_view.get_number_of_local_adj_matrix_partition_cols()
+          : vertex_t{0},
+        handle.get_stream_view());
+      if (GraphViewType::is_multi_gpu) {
+        thrust::fill(rmm::exec_policy(handle.get_stream_view()),
+                     col_components.begin(),
+                     col_components.end(),
+                     invalid_component_id<vertex_t>::value);
+
+        copy_to_adj_matrix_col(
+          handle,
+          level_graph_view,
+          thrust::get<0>(vertex_frontier.get_bucket(static_cast<size_t>(Bucket::cur))
+                           .begin()
+                           .get_iterator_tuple()),
+          thrust::get<0>(vertex_frontier.get_bucket(static_cast<size_t>(Bucket::cur))
+                           .end()
+                           .get_iterator_tuple()),
+          level_components,
+          col_components.begin());
       }
-    }
 
+      // 2.3 iterate till every vertex gets visited
+
+      while (true) {
+        update_frontier_v_push_if_out_nbr(
+          handle,
+          push_graph_view,
+          vertex_frontier,
+          static_cast<size_t>(Bucket::cur),
+          std::vector<size_t>{static_cast<size_t>(Bucket::next)},
+          thrust::make_counting_iterator(0) /* dummy */,
+          thrust::make_counting_iterator(0) /* dummy */,
+          [col_components = GraphViewType::is_multi_gpu ? col_components.data() : level_components,
+           col_first      = level_graph_view.get_local_adj_matrix_partition_col_first(),
+           edge_buffer_first =
+             get_dataframe_buffer_begin<thrust::tuple<vertex_t, vertex_t>>(edge_buffer),
+           num_edge_inserts = &num_edge_inserts] __device__(auto tagged_src,
+                                                            vertex_t dst,
+                                                            auto src_val,
+                                                            auto dst_val) {
+            auto tag        = thrust::get<1>(tagged_src);
+            auto col_offset = dst - col_first;
+            // FIXME: better switch to atomic_ref after
+            // https://github.com/nvidia/libcudacxx/milestone/2
+            auto old =
+              atomicCAS(col_components + col_offset, invalid_component_id<vertex_t>::value, tag);
+            if (old != invalid_component_id<vertex_t>::value && old != tag) {  // conflict
+              auto edge_idx =
+                num_edge_inserts->fetch_and_add(edge_t{1}, cuda::std::memory_order_relaxed);
+              *(edge_buffer_first + edge_idx) = thrust::make_tuple(tag, old);
+            }
+            return (old == invalid_component_id<vertex_t>::value) ? thrust::optional<vertex_t>{tag}
+                                                                  : thrust::nullopt;
+          },
+          reduce_op::null(),
+          thrust::make_constant_iterator(0) /* dummy */,
+          thrust::make_discard_iterator() /* dummy */,
+          [vertex_partition,
+           level_components,
+           edge_buffer_first =
+             get_dataframe_buffer_begin<thrust::tuple<vertex_t, vertex_t>>(edge_buffer),
+           num_edge_inserts = &num_edge_inserts] __device__(auto tagged_v, auto v_val) {
+            if (GraphViewType::is_multi_gpu) {
+              auto tag      = thrust::get<1>(tagged_v);
+              auto v_offset = vertex_partition.get_local_vertex_offset_from_vertex_nocheck(
+                thrust::get<0>(tagged_v));
+              // FIXME: better switch to atomic_ref after
+              // https://github.com/nvidia/libcudacxx/milestone/2
+              auto old =
+                atomicCAS(level_components + v_offset, invalid_component_id<vertex_t>::value, tag);
+              if (old != invalid_component_id<vertex_t>::value && old != tag) {  // conflict
+                // FIXME: potential overflow? we need to count dst for square root P GPUs then do
+                // reduction to figure out actual maximum... this is too pessimistic and also
+                // expensive, actually, we know the graph is symmetric and we alredy have in==out
+                // dgree, so just need to sum the degree for the vertices in this GPU... yeah... but
+                // that's 1 over square root P of the total edges so not small... (but still not
+                // prohibitive especially for large P so not a bad thing....)
+                auto edge_idx =
+                  num_edge_inserts->fetch_and_add(edge_t{1}, cuda::std::memory_order_relaxed);
+                *(edge_buffer_first + edge_idx) = thrust::make_tuple(tag, old);
+              }
+              return (old == invalid_component_id<vertex_t>::value)
+                       ? thrust::optional<thrust::tuple<size_t, std::byte>>{thrust::make_tuple(
+                           static_cast<size_t>(Bucket::next), std::byte{0} /* dummy */)}
+                       : thrust::nullopt;
+            } else {
+              return thrust::optional<thrust::tuple<size_t, std::byte>>{
+                thrust::make_tuple(static_cast<size_t>(Bucket::next), std::byte{0} /* dummy */)};
+            }
+          });
+
+        // FIXME: if we maintain sorted & unique edge_buffer elements, we can run sort & unique to
+        // the newly added edges and run merge & unique (this is unnecessary if we use
+        // cuco::static_map (no duplicates, ideally we need static_set)
+
+        // FIXME: what if I run pointer-jumping here to reduce # tags?
+
+        if (GraphViewType::is_multi_gpu) {
+          copy_to_adj_matrix_col(
+            handle,
+            level_graph_view,
+            thrust::get<0>(vertex_frontier.get_bucket(static_cast<size_t>(Bucket::next))
+                             .begin()
+                             .get_iterator_tuple()),
+            thrust::get<0>(vertex_frontier.get_bucket(static_cast<size_t>(Bucket::next))
+                             .end()
+                             .get_iterator_tuple()),
+            level_components,
+            col_components.begin());
+        }
+
+        edge_count = thrust::transform_reduce(
+          rmm::exec_policy(handle.get_stream_view()),
+          thrust::get<0>(vertex_frontier.get_bucket(static_cast<size_t>(Bucket::next))
+                           .begin()
+                           .get_iterator_tuple()),
+          thrust::get<0>(vertex_frontier.get_bucket(static_cast<size_t>(Bucket::next))
+                           .end()
+                           .get_iterator_tuple()),
+          [vertex_partition, degrees = degrees.data()] __device__(auto v) {
+            return degrees[vertex_partition.get_local_vertex_offset_from_vertex_nocheck(v)];
+          },
+          edge_t{0},
+          thrust::plus<edge_t>());
+
+        // FIXME: if the total number of edges from the frontier is too large, we really don't need
+        // to expand the entire frontier.
+        if (edge_count < degree_sum_threshold) {
+          auto [new_roots, num_scanned, degree_sum] = accumulate_new_roots(
+            handle,
+            level_components + next_local_vertex_offset,
+            degrees.begin() + next_local_vertex_offset,
+            level_graph_view.get_local_vertex_first() + next_local_vertex_offset,
+            level_graph_view.get_local_vertex_last(),
+            degree_sum_threshold - edge_count);
+          next_local_vertex_offset += num_scanned;
+          edge_count += degree_sum;
+        }
+
+        // FIXME: this is actually unnecessry as sync happens when we update edge_count
+        handle.get_stream_view()
+          .synchronize();  // to ensure that fetch_and_add on num_edge_inserts are finished
+
+        // FIXME: if we use cuco::static_map (no duplicates, ideally we need static_set),
+        // edge_buffer size cannot exceed (# local roots * # aggregate roots)
+        resize_dataframe_buffer<thrust::tuple<vertex_t, vertex_t>>(
+          edge_buffer,
+          num_edge_inserts.load(cuda::std::memory_order_relaxed) + edge_count +
+            (GraphViewType::is_multi_gpu ? local_vertex_in_degree_sum : edge_t{0}),
+          handle.get_stream());
+
+        vertex_frontier.get_bucket(static_cast<size_t>(Bucket::cur)).clear();
+        vertex_frontier.get_bucket(static_cast<size_t>(Bucket::cur)).shrink_to_fit();
+        vertex_frontier.swap_buckets(static_cast<size_t>(Bucket::cur),
+                                     static_cast<size_t>(Bucket::next));
+        if (vertex_frontier.get_bucket(static_cast<size_t>(Bucket::cur)).aggregate_size() == 0) {
+          break;
+        }
+      }
+
+      if (num_edge_inserts.load(cuda::std::memory_order_relaxed) > 0) {
 #if 0
-    // FIXME: may need some sync to ensure that device operations on num_edge_inserts are finished.
-
-    if (num_edge_inserts.load(cuda::std::memory_order_relaxed) > 0) {
-      // FIXME: remove duplicates from edge list (we may use cuco::static_map to avoid this)
-      // FIXME: move generate_graph_from_edge_list from test/utilities
-      std::tie(level_graph, ) = generate_graph_from_edgelist();
-      if (graph is small enough) {  // don't care about work optimality if the graph is small
-        label_prop + pointer jumping
+        thrust::sort(rmm::exec_policy(handle.get_stream_view()),
+                     edge_first,
+                     edge_first + num_edge_inserts.load(cuda
+                                                        : std::memory_order_relaxed));
+        auto = thrust::unique();
+        // FIXME: remove duplicates from edge list (we may use cuco::static_map to avoid this)
+        // FIXME: move generate_graph_from_edge_list from test/utilities
+        std::tie(level_graph, ) = generate_graph_from_edgelist();
+#endif
+      }
+      else {
         break;
       }
     }
-#endif
 
-    ++level;
+    num_levels++;
   }
 
 #if 0
