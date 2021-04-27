@@ -110,7 +110,7 @@ def test_k_core_corenumber_multicolumn(graph_file):
                           destination="dst_0")
     ck_exp = cugraph.k_core(G2)
 
-    #FIXME: Replace with multi-column view_edge_list()
+    # FIXME: Replace with multi-column view_edge_list()
     edgelist_df = ck_res.edgelist.edgelist_df
     edgelist_df_res = ck_res.unrenumber(edgelist_df, "src")
     edgelist_df_res = ck_res.unrenumber(edgelist_df_res, "dst")

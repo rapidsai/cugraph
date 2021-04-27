@@ -71,7 +71,7 @@ def nx_call(M, verts, directed=True):
     return nx.subgraph(G, verts)
 
 
-"""@pytest.mark.parametrize("graph_file", utils.DATASETS)
+@pytest.mark.parametrize("graph_file", utils.DATASETS)
 def test_subgraph_extraction_DiGraph(graph_file):
     gc.collect()
 
@@ -126,10 +126,10 @@ def test_subgraph_extraction_Graph_nx(graph_file):
 
     for (u, v) in cu_sub.edges():
         assert nx_sub.has_edge(u, v)
-"""
+
 
 @pytest.mark.parametrize("graph_file", utils.DATASETS)
-def test_subgraph_extraction_Graph(graph_file):
+def test_subgraph_extraction_multi_column(graph_file):
     gc.collect()
 
     M = utils.read_csv_for_nx(graph_file)
@@ -155,11 +155,10 @@ def test_subgraph_extraction_Graph(graph_file):
 
     sG2 = cugraph.subgraph(G2, verts)
 
-    #FIXME: Replace with multi-column view_edge_list()
+    # FIXME: Replace with multi-column view_edge_list()
     edgelist_df = sG1.edgelist.edgelist_df
     edgelist_df_res = sG1.unrenumber(edgelist_df, "src")
     edgelist_df_res = sG1.unrenumber(edgelist_df_res, "dst")
     for i in range(len(edgelist_df_res)):
         assert sG2.has_edge(edgelist_df_res["0_src"].iloc[i],
                             edgelist_df_res["0_dst"].iloc[i])
-

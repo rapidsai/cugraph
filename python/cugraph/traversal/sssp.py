@@ -1,4 +1,4 @@
-# Copyright (c) 2019-2020, NVIDIA CORPORATION.
+# Copyright (c) 2019-2021, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -213,7 +213,8 @@ def sssp(G,
 
     if G.renumbered:
         if isinstance(source, cudf.DataFrame):
-            source = G.lookup_internal_vertex_id(source, source.columns).iloc[0]
+            source = G.lookup_internal_vertex_id(
+                source, source.columns).iloc[0]
         else:
             source = G.lookup_internal_vertex_id(cudf.Series([source]))[0]
 

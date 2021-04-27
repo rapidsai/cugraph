@@ -67,7 +67,8 @@ def random_walks(
 
     if G.renumbered is True:
         if isinstance(start_vertices, cudf.DataFrame):
-            start_vertices = G.lookup_internal_vertex_id(start_vertices,
+            start_vertices = G.lookup_internal_vertex_id(
+                start_vertices,
                 start_vertices.columns)
         else:
             start_vertices = G.lookup_internal_vertex_id(start_vertices)

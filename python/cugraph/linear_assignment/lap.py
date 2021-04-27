@@ -70,7 +70,8 @@ def hungarian(G, workers):
 
     if G.renumbered:
         if isinstance(workers, cudf.DataFrame):
-            local_workers = G.lookup_internal_vertex_id(workers, workers.columns)
+            local_workers = G.lookup_internal_vertex_id(workers,
+                                                        workers.columns)
         else:
             local_workers = G.lookup_internal_vertex_id(workers)
     else:

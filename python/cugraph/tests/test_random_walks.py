@@ -15,7 +15,6 @@ import gc
 
 import pytest
 
-import cudf
 from cugraph.tests import utils
 import cugraph
 import random

@@ -106,12 +106,13 @@ def katz_centrality(
 
     if nstart is not None:
         if G.renumbered is True:
+            print(G.renumber_map.implementation.col_names)
             if len(G.renumber_map.implementation.col_names) > 1:
                 cols = nstart.columns[:-2]
+                print(cols)
             else:
                 cols = 'vertex'
             nstart = G.add_internal_vertex_id(nstart, 'vertex', cols)
-
 
     df = katz_centrality_wrapper.katz_centrality(
         G, alpha, max_iter, tol, nstart, normalized

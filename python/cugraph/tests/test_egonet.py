@@ -78,14 +78,14 @@ def test_batched_ego_graphs(graph_file, seeds, radius):
     assert nx.is_isomorphic(ego_nx, ego_cugraph)
 
 
-@pytest.mark.parametrize("graph_file", ["../datasets/netscience.csv"]) #utils.DATASETS)
+@pytest.mark.parametrize("graph_file", utils.DATASETS)
 @pytest.mark.parametrize("seed", SEEDS)
 @pytest.mark.parametrize("radius", RADIUS)
 def test_multi_column_ego_graph(graph_file, seed, radius):
     gc.collect()
 
     df = utils.read_csv_file(graph_file, read_weights_in_sp=True)
-    df.rename(columns={'0':'src_0', '1':'dst_0'}, inplace=True)
+    df.rename(columns={'0': 'src_0', '1': 'dst_0'}, inplace=True)
     df['src_1'] = df['src_0'] + 1000
     df['dst_1'] = df['dst_0'] + 1000
 
@@ -108,7 +108,7 @@ def test_multi_column_ego_graph(graph_file, seed, radius):
     )
     ego_cugraph_exp = cugraph.ego_graph(G2, seed, radius=radius)
 
-    #FIXME: Replace with multi-column view_edge_list()
+    # FIXME: Replace with multi-column view_edge_list()
     edgelist_df = ego_cugraph_res.edgelist.edgelist_df
     edgelist_df_res = ego_cugraph_res.unrenumber(edgelist_df, "src")
     edgelist_df_res = ego_cugraph_res.unrenumber(edgelist_df_res, "dst")
