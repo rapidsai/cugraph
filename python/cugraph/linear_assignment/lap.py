@@ -11,6 +11,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import cudf
 from cugraph.linear_assignment import lap_wrapper
 
 
@@ -75,12 +76,12 @@ def hungarian(G, workers):
     else:
         local_workers = workers
 
-    df = lap_wrapper.sparse_hungarian(G, local_workers)
+    cost, df = lap_wrapper.sparse_hungarian(G, local_workers)
 
     if G.renumbered:
         df = G.unrenumber(df, 'vertex')
 
-    return df
+    return cost, df
 
 
 def dense_hungarian(costs, num_rows, num_columns):
