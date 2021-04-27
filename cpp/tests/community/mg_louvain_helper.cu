@@ -71,7 +71,7 @@ bool compare_renumbered_vectors(raft::handle_t const &handle,
                                     v1.end(),
                                     vertex_t{0});
 
-  rmm::device_uvector<size_t> map(max, cudaStream_t{nullptr});
+  rmm::device_uvector<size_t> map(max, handle.get_stream());
 
   auto iter = thrust::make_zip_iterator(thrust::make_tuple(v1.begin(), v2.begin()));
 
