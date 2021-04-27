@@ -20,6 +20,11 @@ namespace cugraph {
 namespace experimental {
 namespace reduce_op {
 
+// in case there is no payload to reduce
+struct null {
+  using type = void;
+};
+
 // reducing N elements, any element can be a valid output.
 template <typename T>
 struct any {

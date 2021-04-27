@@ -151,14 +151,14 @@ Install and update cuGraph using the conda command:
 
 ```bash
 
-# CUDA 10.1
-conda install -c nvidia -c rapidsai -c numba -c conda-forge -c defaults cugraph cudatoolkit=10.1
-
-# CUDA 10.2
-conda install -c nvidia -c rapidsai -c numba -c conda-forge -c defaults cugraph cudatoolkit=10.2
-
 # CUDA 11.0
 conda install -c nvidia -c rapidsai -c numba -c conda-forge -c defaults cugraph cudatoolkit=11.0
+
+# CUDA 11.1
+conda install -c nvidia -c rapidsai -c numba -c conda-forge -c defaults cugraph cudatoolkit=11.1
+
+# CUDA 11.2
+conda install -c nvidia -c rapidsai -c numba -c conda-forge -c defaults cugraph cudatoolkit=11.2
 ```
 
 Note: This conda installation only applies to Linux and Python versions 3.7/3.8.

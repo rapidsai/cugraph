@@ -398,7 +398,7 @@ struct device_bcast_tuple_iterator_element_impl {
                       count,
                       root,
                       stream);
-    device_bcast_tuple_iterator_element_impl<InputIterator, OutputIterator, I + 1, N>(
+    device_bcast_tuple_iterator_element_impl<InputIterator, OutputIterator, I + 1, N>().run(
       comm, input_first, output_first, count, root, stream);
   }
 };
@@ -458,7 +458,7 @@ struct device_allreduce_tuple_iterator_element_impl {
                           count,
                           op,
                           stream);
-    device_allreduce_tuple_iterator_element_impl<InputIterator, OutputIterator, I + 1, N>(
+    device_allreduce_tuple_iterator_element_impl<InputIterator, OutputIterator, I + 1, N>().run(
       comm, input_first, output_first, count, op, stream);
   }
 };
@@ -912,8 +912,8 @@ device_bcast(raft::comms::comms_t const& comm,
     thrust::tuple_size<typename thrust::iterator_traits<InputIterator>::value_type>::value;
 
   detail::
-    device_bcast_tuple_iterator_element_impl<InputIterator, OutputIterator, size_t{0}, tuple_size>(
-      comm, input_first, output_first, count, root, stream);
+    device_bcast_tuple_iterator_element_impl<InputIterator, OutputIterator, size_t{0}, tuple_size>()
+      .run(comm, input_first, output_first, count, root, stream);
 }
 
 template <typename InputIterator, typename OutputIterator>
@@ -952,8 +952,8 @@ device_allreduce(raft::comms::comms_t const& comm,
   detail::device_allreduce_tuple_iterator_element_impl<InputIterator,
                                                        OutputIterator,
                                                        size_t{0},
-                                                       tuple_size>(
-    comm, input_first, output_first, count, op, stream);
+                                                       tuple_size>()
+    .run(comm, input_first, output_first, count, op, stream);
 }
 
 template <typename InputIterator, typename OutputIterator>
