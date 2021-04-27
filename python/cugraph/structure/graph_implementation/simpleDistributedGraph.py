@@ -457,7 +457,7 @@ class simpleDistributedGraphImpl:
                 if self.properties.directed is False:
                     return
 
-                if self.store_transposed == transposed:
+                if self.properties.store_transposed == transposed:
                     return
 
                 del self.edgelist
