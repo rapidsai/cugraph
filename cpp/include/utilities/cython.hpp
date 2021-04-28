@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 #pragma once
-
+#include <experimental/graph_generator.hpp> 
 #include <experimental/graph.hpp>
 #include <graph.hpp>
 #include <raft/handle.hpp>
@@ -211,6 +211,8 @@ struct graph_generator_t {
   std::unique_ptr<rmm::device_buffer> d_source;
   std::unique_ptr<rmm::device_buffer> d_destination;
 };
+
+//enum class generator_distribution_t { POWER_LAW = 0, UNIFORM };
 
 // wrapper for renumber_edgelist() return
 // (unrenumbering maps, etc.)
@@ -486,8 +488,17 @@ std::unique_ptr<graph_generator_t> call_generate_rmat_edgelist(raft::handle_t co
                                                              uint64_t seed,
                                                              bool clip_and_flip,
                                                              bool scramble_vertex_ids);
-
-
+template <typename vertex_t>
+std::unique_ptr<graph_generator_t*> call_generate_rmat_edgelists(raft::handle_t const& handle,
+                                                              size_t n_edgelists,
+                                                              size_t min_scale,
+                                                              size_t max_scale,
+                                                              size_t edge_factor,
+                                                              cugraph::experimental::generator_distribution_t size_distribution,
+                                                              cugraph::experimental::generator_distribution_t edge_distribution,
+                                                              uint64_t seed,
+                                                              bool clip_and_flip,
+                                                              bool scramble_vertex_ids);
 
 // wrapper for random_walks.
 //
@@ -500,16 +511,7 @@ call_random_walks(raft::handle_t const& handle,
                   edge_t num_paths,
                   edge_t max_depth);
 
-template <typename vertex_t>
-std::unique_ptr<graph_generator_t> call_generate_rmat_edgelist(raft::handle_t const& handle,
-                                                             size_t scale,
-                                                             size_t num_edges,
-                                                             double a,
-                                                             double b,
-                                                             double c,
-                                                             uint64_t seed,
-                                                             bool clip_and_flip,
-                                                             bool scramble_vertex_ids);
+
 
 
 // wrapper for shuffling:

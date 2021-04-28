@@ -14,7 +14,12 @@ from libcpp.utility cimport pair
 from libcpp cimport bool
 from cugraph.structure.graph_utilities cimport * #this might be useless
 
-#cdef extern from "experimental/graph_generator.hpp" namespace "cugraph::experimental":
+cdef extern from "experimental/graph_generator.hpp" namespace "cugraph::experimental":
+    ctypedef enum generator_distribution_t:
+        POWER_LAW "cugraph::experimental::generator_distribution_t::POWER_LAW"
+        UNIFORM "cugraph::experimental::generator_distribution_t::UNIFORM"
+
+
 cdef extern from "utilities/cython.hpp" namespace "cugraph::cython":
     cdef unique_ptr[graph_generator_t] call_generate_rmat_edgelist[vertex_t] ( #vertex_t instead of int?
         const handle_t &handle,
@@ -23,6 +28,18 @@ cdef extern from "utilities/cython.hpp" namespace "cugraph::cython":
         double a,
         double b,
         double c,
-        int seed,   #Try to look more into this
+        int seed,   #Change this to long
+        bool clip_and_flip,
+        bool scramble_vertex_ids) except +
+
+    cdef unique_ptr[graph_generator_t*] call_generate_rmat_edgelists[vertex_t] ( #vertex_t instead of int?
+        const handle_t &handle,
+        size_t n_edgelists,
+        size_t min_scale,
+        size_t max_scale,
+        size_t edge_factor,
+        generator_distribution_t size_distribution,
+        generator_distribution_t edge_distribution,
+        int seed,   #change this to long
         bool clip_and_flip,
         bool scramble_vertex_ids) except +

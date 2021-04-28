@@ -787,6 +787,7 @@ std::unique_ptr<cy_multi_edgelists_t> call_egonet(raft::handle_t const& handle,
 }
 // Wrapper for graph generate_rmat_edgelist()
 // to expose the API to cython
+//enum class generator_distribution_t { POWER_LAW = 0, UNIFORM };
 template <typename vertex_t>
 std::unique_ptr<graph_generator_t> call_generate_rmat_edgelist(raft::handle_t const& handle,
                                                              size_t scale,
@@ -798,16 +799,42 @@ std::unique_ptr<graph_generator_t> call_generate_rmat_edgelist(raft::handle_t co
                                                              bool clip_and_flip,
                                                              bool scramble_vertex_ids)
 {
-  auto triplet = cugraph::experimental::generate_rmat_edgelist<vertex_t>(handle, scale, num_edges, a, b,
+  auto src_dst_tuple = cugraph::experimental::generate_rmat_edgelist<vertex_t>(handle, scale, num_edges, a, b,
                                                                c, seed, clip_and_flip, scramble_vertex_ids); //double, not triplet
   
-  graph_generator_t gg_tri{std::make_unique<rmm::device_buffer>(std::get<0>(triplet).release()),
-                           std::make_unique<rmm::device_buffer>(std::get<1>(triplet).release())};
+  graph_generator_t gg_vals{std::make_unique<rmm::device_buffer>(std::get<0>(src_dst_tuple).release()),
+                           std::make_unique<rmm::device_buffer>(std::get<1>(src_dst_tuple).release())};
   
-  return std::make_unique<graph_generator_t>(std::move(gg_tri));
+  return std::make_unique<graph_generator_t>(std::move(gg_vals));
   
   }
 
+  template <typename vertex_t>
+  std::unique_ptr<graph_generator_t*> call_generate_rmat_edgelists(raft::handle_t const& handle,
+                                                                size_t n_edgelists,
+                                                                size_t min_scale,
+                                                                size_t max_scale,
+                                                                size_t edge_factor,
+                                                                cugraph::experimental::generator_distribution_t size_distribution,
+                                                                cugraph::experimental::generator_distribution_t edge_distribution,
+                                                                uint64_t seed,
+                                                                bool clip_and_flip,
+                                                                bool scramble_vertex_ids)
+{
+  auto src_dst_vec_tuple = cugraph::experimental::generate_rmat_edgelists<vertex_t>(handle, n_edgelists, min_scale, max_scale,
+                                                            edge_factor, size_distribution, edge_distribution,
+                                                            seed, clip_and_flip, scramble_vertex_ids);
+  
+  graph_generator_t * gg_vals = new graph_generator_t[src_dst_vec_tuple.size()];
+  //std::unique_ptr<graph_generator_t> gg_valss = std::make_unique<graph_generator_t>(4); 
+  //std::shared_ptr<graph_generator_t> gg_valss(new graph_generator_t());
+  for(size_t i=0; i<src_dst_vec_tuple.size(); ++i){
+  gg_vals[i].d_source = std::make_unique<rmm::device_buffer>(std::get<0>(src_dst_vec_tuple[i]).release());
+  gg_vals[i].d_destination = std::make_unique<rmm::device_buffer>(std::get<1>(src_dst_vec_tuple[i]).release());
+  }
+
+  return std::make_unique<graph_generator_t*>(std::move(gg_vals));
+}
 
 
 // Wrapper for random_walks() through a graph container
@@ -1348,6 +1375,53 @@ template std::unique_ptr<renum_quad_t<int64_t, int64_t>> call_renumber(
   std::vector<int64_t> const& edge_counts,
   bool do_expensive_check,
   bool multi_gpu);
+
+template std::unique_ptr<graph_generator_t> call_generate_rmat_edgelist<int32_t>(
+  raft::handle_t const& handle,
+  size_t scale,
+  size_t num_edges,
+  double a,
+  double b,
+  double c,
+  uint64_t seed,
+  bool clip_and_flip,
+  bool scramble_vertex_ids);
+  
+template std::unique_ptr<graph_generator_t> call_generate_rmat_edgelist<int64_t>(
+  raft::handle_t const& handle,
+  size_t scale,
+  size_t num_edges,
+  double a,
+  double b,
+  double c,
+  uint64_t seed,
+  bool clip_and_flip,
+  bool scramble_vertex_ids);
+
+template std::unique_ptr<graph_generator_t*> call_generate_rmat_edgelists<int32_t>(
+  raft::handle_t const& handle,
+  size_t n_edgelists,
+  size_t min_scale,
+  size_t max_scale,
+  size_t edge_factor,
+  cugraph::experimental::generator_distribution_t size_distribution,
+  cugraph::experimental::generator_distribution_t edge_distribution,
+  uint64_t seed,
+  bool clip_and_flip,
+  bool scramble_vertex_ids);
+
+template std::unique_ptr<graph_generator_t*> call_generate_rmat_edgelists<int64_t>(
+  raft::handle_t const& handle,
+  size_t n_edgelists,
+  size_t min_scale,
+  size_t max_scale,
+  size_t edge_factor,
+  cugraph::experimental::generator_distribution_t size_distribution,
+  cugraph::experimental::generator_distribution_t edge_distribution,
+  uint64_t seed,
+  bool clip_and_flip,
+  bool scramble_vertex_ids);
+
 
 }  // namespace cython
 }  // namespace cugraph
