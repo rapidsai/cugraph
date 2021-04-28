@@ -179,6 +179,7 @@ void weakly_connected_components_impl(raft::handle_t const &handle,
           GraphViewType::is_adj_matrix_transposed,
           GraphViewType::is_multi_gpu>
     level_graph(handle);
+  rmm::device_uvector<vertex_t> level_renumber_map(0, handle.get_stream_view());
   std::vector<rmm::device_uvector<vertex_t>> level_component_vectors{};
   // vertex ID in this level to the component ID in the finer level
   std::vector<rmm::device_uvector<vertex_t>> level_renumber_map_vectors{};
@@ -188,8 +189,10 @@ void weakly_connected_components_impl(raft::handle_t const &handle,
     level_component_vectors.push_back(rmm::device_uvector<vertex_t>(
       num_levels == 0 ? vertex_t{0} : level_graph_view.get_number_of_local_vertices(),
       handle.get_stream_view()));
-    level_renumber_map_vectors.push_back(rmm::device_uvector<vertex_t>(size_t{0}, handle.get_stream_view()));
-    auto level_components = num_levels == 0 ? components : level_component_vectors[num_levels].data();
+    level_renumber_map_vectors.push_back(std::move(level_renumber_map));
+    auto level_components =
+      num_levels == 0 ? components : level_component_vectors[num_levels].data();
+    ++num_levels;
     if (graph_is_small_enough) {
       // label_prop + pointer jumping;
       break;
@@ -224,7 +227,8 @@ void weakly_connected_components_impl(raft::handle_t const &handle,
       edge_t edge_count{0};
 
       {
-// Need to think about corner cases, the entire set of vertices in few components are selected as roots; no compression.
+        // Need to think about corner cases, the entire set of vertices in few components are
+        // selected as roots; no compression.
         auto [new_roots, num_scanned, degree_sum] =
           accumulate_new_roots(handle,
                                level_components + next_local_vertex_offset,
@@ -420,28 +424,45 @@ void weakly_connected_components_impl(raft::handle_t const &handle,
       }
 
       if (num_edge_inserts.load(cuda::std::memory_order_relaxed) > 0) {
-#if 0
+        auto edge_first =
+          get_dataframe_buffer_begin<thrust::tuple<vertex_t, vertex_t>>(edge_buffer);
         thrust::sort(rmm::exec_policy(handle.get_stream_view()),
                      edge_first,
-                     edge_first + num_edge_inserts.load(cuda
-                                                        : std::memory_order_relaxed));
-        auto = thrust::unique();
-        // FIXME: remove duplicates from edge list (we may use cuco::static_map to avoid this)
-        // FIXME: move generate_graph_from_edge_list from test/utilities
-        std::tie(level_graph, ) = generate_graph_from_edgelist();
-#endif
-      }
-      else {
+                     edge_first + num_edge_inserts.load(cuda::std::memory_order_relaxed));
+        auto last =
+          thrust::unique(rmm::exec_policy(handle.get_stream_view()),
+                         edge_first,
+                         edge_first + num_edge_inesrts.load(cuda::std::memory_order_relaxed));
+        resize_dataframe_buffer<thrust::tuple<vertex_t, vertex_t>>(
+          edge_buffer,
+          static_cast<size_t>(thrust::distance(edge_first, last)),
+          handle.get_stream());
+        // FIXME: needs to symmetrize
+        std::tie(level_grpah, level_renumber_map) = generate_graph_from_edge_list(
+          handle,
+          std::nullopt,
+          std::move(std::get<0>(edge_buffer)),
+          std::move(std::get<1>(edge_buffer)),
+          rmm::device_uvector<weight_t>(size_t{0}, handle.get_stream_view()),
+          graph_properties_t{true, false, false},
+          true);
+      } else {
         break;
       }
     }
-
-    num_levels++;
   }
 
-#if 0
-  relabel<vertex_t, GraphViewType::is_multi_gpu>(handle, );
-#endif
+  for (size_t i = 0; i < num_levels - 1; ++i) {
+    size_t coarser_level = num_levels - 1 - i;
+    size_t finer_level   = coarser_level - 1;
+    relabel<vertex_t, GraphViewType::is_multi_gpu>(
+      handle,
+      std::make_tuple(level_renumber_map_vectors[coarser_level].data(),
+                      level_component_vectors[coarser - level].data()),
+      level_renumber_map_vectors[coarser_level].size(),
+      level_component_vectors[finer_level].data,
+      level_component_vectors[finer_level].size());
+  }
 }
 
 }  // namespace
