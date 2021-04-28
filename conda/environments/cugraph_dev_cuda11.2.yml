@@ -5,10 +5,10 @@ channels:
 - rapidsai-nightly
 - conda-forge
 dependencies:
+- cudatoolkit=11.2
 - cudf=0.20.*
 - libcudf=0.20.*
 - rmm=0.20.*
-- cuxfilter=0.20.*
 - librmm=0.20.*
 - dask>=2.12.0
 - distributed>=2.12.0
@@ -19,8 +19,6 @@ dependencies:
 - ucx-proc=*=gpu
 - scipy
 - networkx>=2.5.1
-- python-louvain
-- cudatoolkit=10.1
 - clang=8.0.1
 - clang-tools=8.0.1
 - cmake>=3.18
@@ -32,18 +30,16 @@ dependencies:
 - libfaiss=1.7.0
 - faiss-proc=*=cuda
 - scikit-learn>=0.23.1
-- colorcet
-- holoviews
 - sphinx
 - sphinx_rtd_theme
 - sphinxcontrib-websupport
 - sphinx-markdown-tables
+- sphinx-copybutton
 - nbsphinx
 - numpydoc
 - ipython
 - recommonmark
 - pip
-- libcypher-parser
 - rapids-pytest-benchmark
 - doxygen
 - pytest-cov

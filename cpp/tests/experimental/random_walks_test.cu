@@ -141,7 +141,7 @@ TEST_P(Tests_RandomWalks, Initialize_i32_i32_f)
   run_current_test<int32_t, int32_t, float>(GetParam());
 }
 
-INSTANTIATE_TEST_CASE_P(
+INSTANTIATE_TEST_SUITE_P(
   simple_test,
   Tests_RandomWalks,
   ::testing::Values(RandomWalks_Usecase("test/datasets/karate.mtx", true),
