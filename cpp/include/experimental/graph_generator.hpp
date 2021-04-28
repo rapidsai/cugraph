@@ -15,6 +15,8 @@
  */
 #pragma once
 
+#include <experimental/graph.hpp>
+
 #include <raft/handle.hpp>
 #include <rmm/device_uvector.hpp>
 
@@ -132,6 +134,21 @@ generate_rmat_edgelists(
   uint64_t seed                              = 0,
   bool clip_and_flip                         = false,
   bool scramble_vertex_ids                   = false);
+
+template <typename vertex_t,
+          typename edge_t,
+          typename weight_t,
+          bool store_transposed,
+          bool multi_gpu>
+std::tuple<cugraph::experimental::graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu>,
+           rmm::device_uvector<vertex_t>>
+generate_graph_from_edgelist(raft::handle_t const& handle,
+                             rmm::device_uvector<vertex_t>&& vertices,
+                             rmm::device_uvector<vertex_t>&& edgelist_rows,
+                             rmm::device_uvector<vertex_t>&& edgelist_cols,
+                             rmm::device_uvector<weight_t>&& edgelist_weights,
+                             graph_properties_t graph_properties,
+                             bool renumber);
 
 }  // namespace experimental
 }  // namespace cugraph

@@ -20,6 +20,7 @@
 #include <utilities/test_utilities.hpp>
 
 #include <algorithms.hpp>
+#include <experimental/graph_generator.hpp>
 #include <partition_manager.hpp>
 
 #include <raft/cudart_utils.h>
@@ -127,15 +128,14 @@ class Louvain_MG_Testfixture : public ::testing::TestWithParam<Louvain_Usecase> 
       cugraph::test::single_gpu_renumber_edgelist_given_number_map(
         handle, d_edgelist_rows, d_edgelist_cols, d_renumber_map_gathered_v);
 
-      std::tie(*sg_graph, std::ignore) =
-        cugraph::test::generate_graph_from_edgelist<vertex_t, edge_t, weight_t, false, false>(
+      std::tie(*sg_graph, std::ignore) = cugraph::experimental::
+        generate_graph_from_edgelist<vertex_t, edge_t, weight_t, false, false>(
           handle,
           std::move(d_vertices),
           std::move(d_edgelist_rows),
           std::move(d_edgelist_cols),
           std::move(d_edgelist_weights),
-          is_symmetric,
-          true,
+          cugraph::experimental::graph_properties_t{is_symmetric, false, true},
           false);
     }
 

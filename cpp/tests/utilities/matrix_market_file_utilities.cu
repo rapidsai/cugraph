@@ -17,6 +17,7 @@
 #include <utilities/test_utilities.hpp>
 
 #include <experimental/detail/graph_utils.cuh>
+#include <experimental/graph_generator.hpp>
 #include <functions.hpp>
 #include <partition_manager.hpp>
 #include <utilities/error.hpp>
@@ -409,15 +410,15 @@ read_graph_from_matrix_market_file(raft::handle_t const& handle,
   }
 
   handle.get_stream_view().synchronize();
-  return generate_graph_from_edgelist<vertex_t, edge_t, weight_t, store_transposed, multi_gpu>(
-    handle,
-    std::move(d_vertices),
-    std::move(d_edgelist_rows),
-    std::move(d_edgelist_cols),
-    std::move(d_edgelist_weights),
-    is_symmetric,
-    test_weighted,
-    renumber);
+  return cugraph::experimental::
+    generate_graph_from_edgelist<vertex_t, edge_t, weight_t, store_transposed, multi_gpu>(
+      handle,
+      std::move(d_vertices),
+      std::move(d_edgelist_rows),
+      std::move(d_edgelist_cols),
+      std::move(d_edgelist_weights),
+      cugraph::experimental::graph_properties_t{is_symmetric, false, test_weighted},
+      renumber);
 }
 
 // explicit instantiations
