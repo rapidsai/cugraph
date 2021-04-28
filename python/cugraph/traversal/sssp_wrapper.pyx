@@ -46,7 +46,7 @@ def sssp(input_graph, source):
     cdef uintptr_t c_local_verts = <uintptr_t> NULL;
     cdef uintptr_t c_local_edges = <uintptr_t> NULL;
     cdef uintptr_t c_local_offsets = <uintptr_t> NULL;
-    weight_t = np.dtype("int32")
+    weight_t = np.dtype("float32")
 
     # Pointers for SSSP / BFS
     cdef uintptr_t c_identifier_ptr     = <uintptr_t> NULL # Pointer to the DataFrame 'vertex' Series
@@ -110,31 +110,21 @@ def sssp(input_graph, source):
                                     num_verts, num_edges,
                                     <int*>c_local_verts, <int*>c_local_edges, <int*>c_local_offsets)
 
-    if weights is not None:
-        if weight_t == np.float32:
-            c_sssp.call_sssp[int, float](handle_[0],
-                                         graph_container,
-                                         <int*> c_identifier_ptr,
-                                         <float*> c_distance_ptr,
-                                         <int*> c_predecessor_ptr,
-                                         <int> source)
-        elif weight_t == np.float64:
-            c_sssp.call_sssp[int, double](handle_[0],
-                                          graph_container,
-                                          <int*> c_identifier_ptr,
-                                          <double*> c_distance_ptr,
-                                          <int*> c_predecessor_ptr,
-                                          <int> source)
-        else: # This case should not happen
-            raise NotImplementedError
-    else:
-        c_bfs.call_bfs[int, float](handle_[0],
-                                   graph_container,
-                                   <int*> c_identifier_ptr,
-                                   <int*> c_distance_ptr,
-                                   <int*> c_predecessor_ptr,
-                                   <double*> NULL,
-                                   <int> source,
-                                   <bool> 1)
+    if weight_t == np.float32:
+        c_sssp.call_sssp[int, float](handle_[0],
+                                     graph_container,
+                                     <int*> c_identifier_ptr,
+                                     <float*> c_distance_ptr,
+                                     <int*> c_predecessor_ptr,
+                                     <int> source)
+    elif weight_t == np.float64:
+        c_sssp.call_sssp[int, double](handle_[0],
+                                      graph_container,
+                                      <int*> c_identifier_ptr,
+                                      <double*> c_distance_ptr,
+                                      <int*> c_predecessor_ptr,
+                                      <int> source)
+    else: # This case should not happen
+        raise NotImplementedError
 
     return df

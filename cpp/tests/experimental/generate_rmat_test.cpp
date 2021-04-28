@@ -279,12 +279,12 @@ class Tests_GenerateRmat : public ::testing::TestWithParam<GenerateRmat_Usecase>
 
 TEST_P(Tests_GenerateRmat, CheckInt32) { run_current_test<int32_t>(GetParam()); }
 
-INSTANTIATE_TEST_CASE_P(simple_test,
-                        Tests_GenerateRmat,
-                        ::testing::Values(GenerateRmat_Usecase(20, 16, 0.57, 0.19, 0.19, true),
-                                          GenerateRmat_Usecase(20, 16, 0.57, 0.19, 0.19, false),
-                                          GenerateRmat_Usecase(20, 16, 0.45, 0.22, 0.22, true),
-                                          GenerateRmat_Usecase(20, 16, 0.45, 0.22, 0.22, false)));
+INSTANTIATE_TEST_SUITE_P(simple_test,
+                         Tests_GenerateRmat,
+                         ::testing::Values(GenerateRmat_Usecase(20, 16, 0.57, 0.19, 0.19, true),
+                                           GenerateRmat_Usecase(20, 16, 0.57, 0.19, 0.19, false),
+                                           GenerateRmat_Usecase(20, 16, 0.45, 0.22, 0.22, true),
+                                           GenerateRmat_Usecase(20, 16, 0.45, 0.22, 0.22, false)));
 typedef struct GenerateRmats_Usecase_t {
   size_t n_edgelists{0};
   size_t min_scale{0};
@@ -343,7 +343,7 @@ class Tests_GenerateRmats : public ::testing::TestWithParam<GenerateRmats_Usecas
 };
 TEST_P(Tests_GenerateRmats, CheckInt32) { run_current_test<int32_t>(GetParam()); }
 
-INSTANTIATE_TEST_CASE_P(
+INSTANTIATE_TEST_SUITE_P(
   simple_test,
   Tests_GenerateRmats,
   ::testing::Values(
