@@ -690,31 +690,11 @@ void call_bfs(raft::handle_t const& handle,
               vertex_t* identifiers,
               vertex_t* distances,
               vertex_t* predecessors,
-              double* sp_counters,
+              vertex_t depth_limit,
               const vertex_t start_vertex,
-              bool directed)
+              bool direction_optimizing)
 {
-  if (graph_container.graph_type == graphTypeEnum::GraphCSRViewFloat) {
-    graph_container.graph_ptr_union.GraphCSRViewFloatPtr->get_vertex_identifiers(
-      reinterpret_cast<int32_t*>(identifiers));
-    bfs(handle,
-        *(graph_container.graph_ptr_union.GraphCSRViewFloatPtr),
-        reinterpret_cast<int32_t*>(distances),
-        reinterpret_cast<int32_t*>(predecessors),
-        sp_counters,
-        static_cast<int32_t>(start_vertex),
-        directed);
-  } else if (graph_container.graph_type == graphTypeEnum::GraphCSRViewDouble) {
-    graph_container.graph_ptr_union.GraphCSRViewDoublePtr->get_vertex_identifiers(
-      reinterpret_cast<int32_t*>(identifiers));
-    bfs(handle,
-        *(graph_container.graph_ptr_union.GraphCSRViewDoublePtr),
-        reinterpret_cast<int32_t*>(distances),
-        reinterpret_cast<int32_t*>(predecessors),
-        sp_counters,
-        static_cast<int32_t>(start_vertex),
-        directed);
-  } else if (graph_container.graph_type == graphTypeEnum::graph_t) {
+  if (graph_container.is_multi_gpu) {
     if (graph_container.edgeType == numberTypeEnum::int32Type) {
       auto graph =
         detail::create_graph<int32_t, int32_t, weight_t, false, true>(handle, graph_container);
@@ -722,7 +702,9 @@ void call_bfs(raft::handle_t const& handle,
                                  graph->view(),
                                  reinterpret_cast<int32_t*>(distances),
                                  reinterpret_cast<int32_t*>(predecessors),
-                                 static_cast<int32_t>(start_vertex));
+                                 static_cast<int32_t>(start_vertex),
+                                 direction_optimizing,
+                                 static_cast<int32_t>(depth_limit));
     } else if (graph_container.edgeType == numberTypeEnum::int64Type) {
       auto graph =
         detail::create_graph<vertex_t, int64_t, weight_t, false, true>(handle, graph_container);
@@ -730,9 +712,31 @@ void call_bfs(raft::handle_t const& handle,
                                  graph->view(),
                                  reinterpret_cast<vertex_t*>(distances),
                                  reinterpret_cast<vertex_t*>(predecessors),
-                                 static_cast<vertex_t>(start_vertex));
-    } else {
-      CUGRAPH_FAIL("vertexType/edgeType combination unsupported");
+                                 static_cast<vertex_t>(start_vertex),
+                                 direction_optimizing,
+                                 static_cast<vertex_t>(depth_limit));
+    }
+  } else {
+    if (graph_container.edgeType == numberTypeEnum::int32Type) {
+      auto graph =
+        detail::create_graph<int32_t, int32_t, weight_t, false, false>(handle, graph_container);
+      cugraph::experimental::bfs(handle,
+                                 graph->view(),
+                                 reinterpret_cast<int32_t*>(distances),
+                                 reinterpret_cast<int32_t*>(predecessors),
+                                 static_cast<int32_t>(start_vertex),
+                                 direction_optimizing,
+                                 static_cast<int32_t>(depth_limit));
+    } else if (graph_container.edgeType == numberTypeEnum::int64Type) {
+      auto graph =
+        detail::create_graph<vertex_t, int64_t, weight_t, false, false>(handle, graph_container);
+      cugraph::experimental::bfs(handle,
+                                 graph->view(),
+                                 reinterpret_cast<vertex_t*>(distances),
+                                 reinterpret_cast<vertex_t*>(predecessors),
+                                 static_cast<vertex_t>(start_vertex),
+                                 direction_optimizing,
+                                 static_cast<vertex_t>(depth_limit));
     }
   }
 }
@@ -1171,36 +1175,37 @@ template void call_bfs<int32_t, float>(raft::handle_t const& handle,
                                        int32_t* identifiers,
                                        int32_t* distances,
                                        int32_t* predecessors,
-                                       double* sp_counters,
+                                       int32_t depth_limit,
                                        const int32_t start_vertex,
-                                       bool directed);
+                                       bool direction_optimizing);
 
 template void call_bfs<int32_t, double>(raft::handle_t const& handle,
                                         graph_container_t const& graph_container,
                                         int32_t* identifiers,
                                         int32_t* distances,
                                         int32_t* predecessors,
-                                        double* sp_counters,
+                                        int32_t depth_limit,
                                         const int32_t start_vertex,
-                                        bool directed);
+                                        bool direction_optimizing);
 
 template void call_bfs<int64_t, float>(raft::handle_t const& handle,
                                        graph_container_t const& graph_container,
                                        int64_t* identifiers,
                                        int64_t* distances,
                                        int64_t* predecessors,
-                                       double* sp_counters,
+                                       int64_t depth_limit,
                                        const int64_t start_vertex,
-                                       bool directed);
+                                       bool direction_optimizing);
 
 template void call_bfs<int64_t, double>(raft::handle_t const& handle,
                                         graph_container_t const& graph_container,
                                         int64_t* identifiers,
                                         int64_t* distances,
                                         int64_t* predecessors,
-                                        double* sp_counters,
+                                        int64_t depth_limit,
                                         const int64_t start_vertex,
-                                        bool directed);
+                                        bool direction_optimizing);
+
 template std::unique_ptr<cy_multi_edgelists_t> call_egonet<int32_t, float>(
   raft::handle_t const& handle,
   graph_container_t const& graph_container,

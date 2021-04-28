@@ -153,7 +153,7 @@ TEST_P(Tests_MsBfs, DISABLED_CheckInt32Int32FloatUntransposed)
   run_current_test<int32_t, int32_t, float, false>(GetParam());
 }
 /*
-INSTANTIATE_TEST_CASE_P(
+INSTANTIATE_TEST_SUITE_P(
   simple_test,
   Tests_MsBfs,
   ::testing::Values(
@@ -167,7 +167,7 @@ INSTANTIATE_TEST_CASE_P(
 */
 // For perf analysis
 
-INSTANTIATE_TEST_CASE_P(
+INSTANTIATE_TEST_SUITE_P(
   simple_test,
   Tests_MsBfs,
   ::testing::Values(
