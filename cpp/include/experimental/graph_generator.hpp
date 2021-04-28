@@ -142,13 +142,14 @@ template <typename vertex_t,
           bool multi_gpu>
 std::tuple<cugraph::experimental::graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu>,
            rmm::device_uvector<vertex_t>>
-generate_graph_from_edgelist(raft::handle_t const& handle,
-                             rmm::device_uvector<vertex_t>&& vertices,
-                             rmm::device_uvector<vertex_t>&& edgelist_rows,
-                             rmm::device_uvector<vertex_t>&& edgelist_cols,
-                             rmm::device_uvector<weight_t>&& edgelist_weights,
-                             graph_properties_t graph_properties,
-                             bool renumber);
+generate_graph_from_edgelist(
+  raft::handle_t const& handle,
+  std::optional<std::tuple<vertex_t const*, vertex_t>> optional_vertex_span,
+  rmm::device_uvector<vertex_t>&& edgelist_rows,
+  rmm::device_uvector<vertex_t>&& edgelist_cols,
+  rmm::device_uvector<weight_t>&& edgelist_weights,
+  graph_properties_t graph_properties,
+  bool renumber);
 
 }  // namespace experimental
 }  // namespace cugraph

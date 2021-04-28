@@ -48,8 +48,7 @@ namespace detail {
 template <typename vertex_t, typename edge_t, bool multi_gpu>
 rmm::device_uvector<vertex_t> compute_renumber_map(
   raft::handle_t const& handle,
-  vertex_t const* vertices,
-  vertex_t num_local_vertices /* relevant only if vertices != nullptr */,
+  std::optional<std::tuple<vertex_t const*, vertex_t>> optional_vertex_span,
   std::vector<vertex_t const*> const& edgelist_major_vertices,
   std::vector<vertex_t const*> const& edgelist_minor_vertices,
   std::vector<edge_t> const& edgelist_edge_counts)
@@ -236,18 +235,19 @@ rmm::device_uvector<vertex_t> compute_renumber_map(
   // 4. if vertices != nullptr, add isolated vertices
 
   rmm::device_uvector<vertex_t> isolated_vertices(0, handle.get_stream());
-  if (vertices != nullptr) {
-    auto num_isolated_vertices = thrust::count_if(
+  if (optional_vertex_span) {
+    auto [vertices, num_vertices] = *optional_vertex_span;
+    auto num_isolated_vertices    = thrust::count_if(
       rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
       vertices,
-      vertices + num_local_vertices,
+      vertices + num_vertices,
       [label_first = labels.begin(), label_last = labels.end()] __device__(auto v) {
         return !thrust::binary_search(thrust::seq, label_first, label_last, v);
       });
     isolated_vertices.resize(num_isolated_vertices, handle.get_stream());
     thrust::copy_if(rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
                     vertices,
-                    vertices + num_local_vertices,
+                    vertices + num_vertices,
                     isolated_vertices.begin(),
                     [label_first = labels.begin(), label_last = labels.end()] __device__(auto v) {
                       return !thrust::binary_search(thrust::seq, label_first, label_last, v);
@@ -281,27 +281,29 @@ rmm::device_uvector<vertex_t> compute_renumber_map(
 template <typename vertex_t, typename edge_t, bool multi_gpu>
 void expensive_check_edgelist(
   raft::handle_t const& handle,
-  vertex_t const* local_vertices,
-  vertex_t num_local_vertices /* relevant only if local_vertices != nullptr */,
+  std::optional<std::tuple<vertex_t const*, vertex_t>> optional_vertex_span,
   std::vector<vertex_t const*> const& edgelist_major_vertices,
   std::vector<vertex_t const*> const& edgelist_minor_vertices,
   std::vector<edge_t> const& edgelist_edge_counts)
 {
-  rmm::device_uvector<vertex_t> sorted_local_vertices(
-    local_vertices != nullptr ? num_local_vertices : vertex_t{0}, handle.get_stream());
-  thrust::copy(rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
-               local_vertices,
-               local_vertices + num_local_vertices,
-               sorted_local_vertices.begin());
-  thrust::sort(rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
-               sorted_local_vertices.begin(),
-               sorted_local_vertices.end());
-  CUGRAPH_EXPECTS(static_cast<size_t>(thrust::distance(
-                    sorted_local_vertices.begin(),
-                    thrust::unique(rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
-                                   sorted_local_vertices.begin(),
-                                   sorted_local_vertices.end()))) == sorted_local_vertices.size(),
-                  "Invalid input argument: local_vertices should not have duplicates.");
+  rmm::device_uvector<vertex_t> sorted_local_vertices(size_t{0}, handle.get_stream());
+  if (optional_vertex_span) {
+    auto [vertices, num_vertices] = *optional_vertex_span;
+    sorted_local_vertices.resize(num_vertices, handle.get_stream());
+    thrust::copy(rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
+                 vertices,
+                 vertices + num_vertices,
+                 sorted_local_vertices.begin());
+    thrust::sort(rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
+                 sorted_local_vertices.begin(),
+                 sorted_local_vertices.end());
+    CUGRAPH_EXPECTS(static_cast<size_t>(thrust::distance(
+                      sorted_local_vertices.begin(),
+                      thrust::unique(rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
+                                     sorted_local_vertices.begin(),
+                                     sorted_local_vertices.end()))) == sorted_local_vertices.size(),
+                    "Invalid input argument: local_vertices should not have duplicates.");
+  }
 
   if (multi_gpu) {
     auto& comm               = handle.get_comms();
@@ -319,6 +321,7 @@ void expensive_check_edgelist(
                     "Invalid input argument: both edgelist_major_vertices.size() & "
                     "edgelist_minor_vertices.size() should coincide with col_comm_size.");
 
+    auto [local_vertices, num_local_vertices] = *optional_vertex_span;
     CUGRAPH_EXPECTS(
       thrust::count_if(
         rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
@@ -357,12 +360,7 @@ void expensive_check_edgelist(
         "Invalid input argument: edgelist_major_vertices & edgelist_minor_vertices should be "
         "pre-shuffled.");
 
-      auto aggregate_vertexlist_size = host_scalar_allreduce(
-        comm,
-        local_vertices != nullptr ? num_local_vertices : vertex_t{0},
-        handle.get_stream());  // local_vertices != nullptr is insufficient in multi-GPU as only a
-                               // subset of GPUs may have a non-zero vertices
-      if (aggregate_vertexlist_size > 0) {
+      if (optional_vertex_span) {
         auto& row_comm = handle.get_subcomm(cugraph::partition_2d::key_naming_t().row_name());
         auto& col_comm = handle.get_subcomm(cugraph::partition_2d::key_naming_t().col_name());
 
@@ -432,24 +430,26 @@ void expensive_check_edgelist(
     assert(edgelist_major_vertices.size() == 1);
     assert(edgelist_minor_vertices.size() == 1);
 
-    if (local_vertices != nullptr) {
+    if (optional_vertex_span) {
       auto edge_first = thrust::make_zip_iterator(
         thrust::make_tuple(edgelist_major_vertices[0], edgelist_minor_vertices[0]));
       CUGRAPH_EXPECTS(
-        thrust::count_if(rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
-                         edge_first,
-                         edge_first + edgelist_edge_counts[0],
-                         [num_local_vertices,
-                          sorted_local_vertices = sorted_local_vertices.data()] __device__(auto e) {
-                           return !thrust::binary_search(thrust::seq,
-                                                         sorted_local_vertices,
-                                                         sorted_local_vertices + num_local_vertices,
-                                                         thrust::get<0>(e)) ||
-                                  !thrust::binary_search(thrust::seq,
-                                                         sorted_local_vertices,
-                                                         sorted_local_vertices + num_local_vertices,
-                                                         thrust::get<1>(e));
-                         }) == 0,
+        thrust::count_if(
+          rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
+          edge_first,
+          edge_first + edgelist_edge_counts[0],
+          [sorted_local_vertices = sorted_local_vertices.data(),
+           num_sorted_local_vertices =
+             static_cast<vertex_t>(sorted_local_vertices.size())] __device__(auto e) {
+            return !thrust::binary_search(thrust::seq,
+                                          sorted_local_vertices,
+                                          sorted_local_vertices + num_sorted_local_vertices,
+                                          thrust::get<0>(e)) ||
+                   !thrust::binary_search(thrust::seq,
+                                          sorted_local_vertices,
+                                          sorted_local_vertices + num_sorted_local_vertices,
+                                          thrust::get<1>(e));
+          }) == 0,
         "Invalid input argument: edgelist_major_vertices and/or edgelist_minor_vertices have "
         "invalid vertex ID(s).");
     }
@@ -461,8 +461,7 @@ template <typename vertex_t, typename edge_t, bool multi_gpu>
 std::enable_if_t<multi_gpu,
                  std::tuple<rmm::device_uvector<vertex_t>, partition_t<vertex_t>, vertex_t, edge_t>>
 renumber_edgelist(raft::handle_t const& handle,
-                  vertex_t const* local_vertices,
-                  vertex_t num_local_vertices /* relevant only if local_vertices != nullptr */,
+                  std::optional<std::tuple<vertex_t const*, vertex_t>> optional_local_vertex_span,
                   std::vector<vertex_t*> const& edgelist_major_vertices /* [INOUT] */,
                   std::vector<vertex_t*> const& edgelist_minor_vertices /* [INOUT] */,
                   std::vector<edge_t> const& edgelist_edge_counts,
@@ -493,8 +492,7 @@ renumber_edgelist(raft::handle_t const& handle,
 
   if (do_expensive_check) {
     expensive_check_edgelist<vertex_t, edge_t, multi_gpu>(handle,
-                                                          local_vertices,
-                                                          num_local_vertices,
+                                                          optional_local_vertex_span,
                                                           edgelist_const_major_vertices,
                                                           edgelist_const_minor_vertices,
                                                           edgelist_edge_counts);
@@ -504,8 +502,7 @@ renumber_edgelist(raft::handle_t const& handle,
 
   auto renumber_map_labels =
     detail::compute_renumber_map<vertex_t, edge_t, multi_gpu>(handle,
-                                                              local_vertices,
-                                                              num_local_vertices,
+                                                              optional_local_vertex_span,
                                                               edgelist_const_major_vertices,
                                                               edgelist_const_minor_vertices,
                                                               edgelist_edge_counts);
@@ -625,8 +622,7 @@ renumber_edgelist(raft::handle_t const& handle,
 template <typename vertex_t, typename edge_t, bool multi_gpu>
 std::enable_if_t<!multi_gpu, rmm::device_uvector<vertex_t>> renumber_edgelist(
   raft::handle_t const& handle,
-  vertex_t const* vertices,
-  vertex_t num_vertices /* relevant only if vertices != nullptr */,
+  std::optional<std::tuple<vertex_t const*, vertex_t>> optional_vertex_span,
   vertex_t* edgelist_major_vertices /* [INOUT] */,
   vertex_t* edgelist_minor_vertices /* [INOUT] */,
   edge_t num_edgelist_edges,
@@ -641,8 +637,7 @@ std::enable_if_t<!multi_gpu, rmm::device_uvector<vertex_t>> renumber_edgelist(
   if (do_expensive_check) {
     expensive_check_edgelist<vertex_t, edge_t, multi_gpu>(
       handle,
-      vertices,
-      num_vertices,
+      optional_vertex_span,
       std::vector<vertex_t const*>{edgelist_major_vertices},
       std::vector<vertex_t const*>{edgelist_minor_vertices},
       std::vector<edge_t>{num_edgelist_edges});
@@ -650,8 +645,7 @@ std::enable_if_t<!multi_gpu, rmm::device_uvector<vertex_t>> renumber_edgelist(
 
   auto renumber_map_labels = detail::compute_renumber_map<vertex_t, edge_t, multi_gpu>(
     handle,
-    vertices,
-    num_vertices,
+    optional_vertex_span,
     std::vector<vertex_t const*>{edgelist_major_vertices},
     std::vector<vertex_t const*>{edgelist_minor_vertices},
     std::vector<edge_t>{num_edgelist_edges});
@@ -691,6 +685,7 @@ template <typename vertex_t, typename edge_t, bool multi_gpu>
 std::enable_if_t<multi_gpu,
                  std::tuple<rmm::device_uvector<vertex_t>, partition_t<vertex_t>, vertex_t, edge_t>>
 renumber_edgelist(raft::handle_t const& handle,
+                  std::optional<std::tuple<vertex_t const*, vertex_t>> optional_local_vertex_span,
                   std::vector<vertex_t*> const& edgelist_major_vertices /* [INOUT] */,
                   std::vector<vertex_t*> const& edgelist_minor_vertices /* [INOUT] */,
                   std::vector<edge_t> const& edgelist_edge_counts,
@@ -701,8 +696,7 @@ renumber_edgelist(raft::handle_t const& handle,
     handle.get_device_properties().major >= 7,
     "This version of renumber_edgelist not supported on Pascal and older architectures.");
   return detail::renumber_edgelist<vertex_t, edge_t, multi_gpu>(handle,
-                                                                static_cast<vertex_t*>(nullptr),
-                                                                vertex_t{0},
+                                                                optional_local_vertex_span,
                                                                 edgelist_major_vertices,
                                                                 edgelist_minor_vertices,
                                                                 edgelist_edge_counts,
@@ -712,6 +706,7 @@ renumber_edgelist(raft::handle_t const& handle,
 template <typename vertex_t, typename edge_t, bool multi_gpu>
 std::enable_if_t<!multi_gpu, rmm::device_uvector<vertex_t>> renumber_edgelist(
   raft::handle_t const& handle,
+  std::optional<std::tuple<vertex_t const*, vertex_t>> optional_vertex_span,
   vertex_t* edgelist_major_vertices /* [INOUT] */,
   vertex_t* edgelist_minor_vertices /* [INOUT] */,
   edge_t num_edgelist_edges,
@@ -722,55 +717,7 @@ std::enable_if_t<!multi_gpu, rmm::device_uvector<vertex_t>> renumber_edgelist(
     handle.get_device_properties().major >= 7,
     "This version of renumber_edgelist not supported on Pascal and older architectures.");
   return detail::renumber_edgelist<vertex_t, edge_t, multi_gpu>(handle,
-                                                                static_cast<vertex_t*>(nullptr),
-                                                                vertex_t{0} /* dummy */,
-                                                                edgelist_major_vertices,
-                                                                edgelist_minor_vertices,
-                                                                num_edgelist_edges,
-                                                                do_expensive_check);
-}
-
-template <typename vertex_t, typename edge_t, bool multi_gpu>
-std::enable_if_t<multi_gpu,
-                 std::tuple<rmm::device_uvector<vertex_t>, partition_t<vertex_t>, vertex_t, edge_t>>
-renumber_edgelist(raft::handle_t const& handle,
-                  vertex_t const* local_vertices,
-                  vertex_t num_local_vertices,
-                  std::vector<vertex_t*> const& edgelist_major_vertices /* [INOUT] */,
-                  std::vector<vertex_t*> const& edgelist_minor_vertices /* [INOUT] */,
-                  std::vector<edge_t> const& edgelist_edge_counts,
-                  bool do_expensive_check)
-{
-  // FIXME: remove this check once we drop Pascal support
-  CUGRAPH_EXPECTS(
-    handle.get_device_properties().major >= 7,
-    "This version of renumber_edgelist not supported on Pascal and older architectures.");
-  return detail::renumber_edgelist<vertex_t, edge_t, multi_gpu>(handle,
-                                                                local_vertices,
-                                                                num_local_vertices,
-                                                                edgelist_major_vertices,
-                                                                edgelist_minor_vertices,
-                                                                edgelist_edge_counts,
-                                                                do_expensive_check);
-}
-
-template <typename vertex_t, typename edge_t, bool multi_gpu>
-std::enable_if_t<!multi_gpu, rmm::device_uvector<vertex_t>> renumber_edgelist(
-  raft::handle_t const& handle,
-  vertex_t const* vertices,
-  vertex_t num_vertices,
-  vertex_t* edgelist_major_vertices /* [INOUT] */,
-  vertex_t* edgelist_minor_vertices /* [INOUT] */,
-  edge_t num_edgelist_edges,
-  bool do_expensive_check)
-{
-  // FIXME: remove this check once we drop Pascal support
-  CUGRAPH_EXPECTS(
-    handle.get_device_properties().major >= 7,
-    "This version of renumber_edgelist not supported on Pascal and older architectures.");
-  return detail::renumber_edgelist<vertex_t, edge_t, multi_gpu>(handle,
-                                                                vertices,
-                                                                num_vertices,
+                                                                optional_vertex_span,
                                                                 edgelist_major_vertices,
                                                                 edgelist_minor_vertices,
                                                                 num_edgelist_edges,
@@ -779,11 +726,13 @@ std::enable_if_t<!multi_gpu, rmm::device_uvector<vertex_t>> renumber_edgelist(
 
 // explicit instantiation directives (EIDir's):
 //
+
 // instantiations for <vertex_t == int32_t, edge_t == int32_t>
 //
 template std::tuple<rmm::device_uvector<int32_t>, partition_t<int32_t>, int32_t, int32_t>
 renumber_edgelist<int32_t, int32_t, true>(
   raft::handle_t const& handle,
+  std::optional<std::tuple<int32_t const*, int32_t>> optional_local_vertex_span,
   std::vector<int32_t*> const& edgelist_major_vertices /* [INOUT] */,
   std::vector<int32_t*> const& edgelist_minor_vertices /* [INOUT] */,
   std::vector<int32_t> const& edgelist_edge_counts,
@@ -791,25 +740,7 @@ renumber_edgelist<int32_t, int32_t, true>(
 
 template rmm::device_uvector<int32_t> renumber_edgelist<int32_t, int32_t, false>(
   raft::handle_t const& handle,
-  int32_t* edgelist_major_vertices /* [INOUT] */,
-  int32_t* edgelist_minor_vertices /* [INOUT] */,
-  int32_t num_edgelist_edges,
-  bool do_expensive_check);
-
-template std::tuple<rmm::device_uvector<int32_t>, partition_t<int32_t>, int32_t, int32_t>
-renumber_edgelist<int32_t, int32_t, true>(
-  raft::handle_t const& handle,
-  int32_t const* local_vertices,
-  int32_t num_local_vertices,
-  std::vector<int32_t*> const& edgelist_major_vertices /* [INOUT] */,
-  std::vector<int32_t*> const& edgelist_minor_vertices /* [INOUT] */,
-  std::vector<int32_t> const& edgelist_edge_counts,
-  bool do_expensive_check);
-
-template rmm::device_uvector<int32_t> renumber_edgelist<int32_t, int32_t, false>(
-  raft::handle_t const& handle,
-  int32_t const* vertices,
-  int32_t num_vertices,
+  std::optional<std::tuple<int32_t const*, int32_t>> optional_vertex_span,
   int32_t* edgelist_major_vertices /* [INOUT] */,
   int32_t* edgelist_minor_vertices /* [INOUT] */,
   int32_t num_edgelist_edges,
@@ -820,6 +751,7 @@ template rmm::device_uvector<int32_t> renumber_edgelist<int32_t, int32_t, false>
 template std::tuple<rmm::device_uvector<int32_t>, partition_t<int32_t>, int32_t, int64_t>
 renumber_edgelist<int32_t, int64_t, true>(
   raft::handle_t const& handle,
+  std::optional<std::tuple<int32_t const*, int32_t>> optional_local_vertex_span,
   std::vector<int32_t*> const& edgelist_major_vertices /* [INOUT] */,
   std::vector<int32_t*> const& edgelist_minor_vertices /* [INOUT] */,
   std::vector<int64_t> const& edgelist_edge_counts,
@@ -827,25 +759,7 @@ renumber_edgelist<int32_t, int64_t, true>(
 
 template rmm::device_uvector<int32_t> renumber_edgelist<int32_t, int64_t, false>(
   raft::handle_t const& handle,
-  int32_t* edgelist_major_vertices /* [INOUT] */,
-  int32_t* edgelist_minor_vertices /* [INOUT] */,
-  int64_t num_edgelist_edges,
-  bool do_expensive_check);
-
-template std::tuple<rmm::device_uvector<int32_t>, partition_t<int32_t>, int32_t, int64_t>
-renumber_edgelist<int32_t, int64_t, true>(
-  raft::handle_t const& handle,
-  int32_t const* local_vertices,
-  int32_t num_local_vertices,
-  std::vector<int32_t*> const& edgelist_major_vertices /* [INOUT] */,
-  std::vector<int32_t*> const& edgelist_minor_vertices /* [INOUT] */,
-  std::vector<int64_t> const& edgelist_edge_counts,
-  bool do_expensive_check);
-
-template rmm::device_uvector<int32_t> renumber_edgelist<int32_t, int64_t, false>(
-  raft::handle_t const& handle,
-  int32_t const* vertices,
-  int32_t num_vertices,
+  std::optional<std::tuple<int32_t const*, int32_t>> optional_vertex_span,
   int32_t* edgelist_major_vertices /* [INOUT] */,
   int32_t* edgelist_minor_vertices /* [INOUT] */,
   int64_t num_edgelist_edges,
@@ -856,6 +770,7 @@ template rmm::device_uvector<int32_t> renumber_edgelist<int32_t, int64_t, false>
 template std::tuple<rmm::device_uvector<int64_t>, partition_t<int64_t>, int64_t, int64_t>
 renumber_edgelist<int64_t, int64_t, true>(
   raft::handle_t const& handle,
+  std::optional<std::tuple<int64_t const*, int64_t>> optional_local_vertex_span,
   std::vector<int64_t*> const& edgelist_major_vertices /* [INOUT] */,
   std::vector<int64_t*> const& edgelist_minor_vertices /* [INOUT] */,
   std::vector<int64_t> const& edgelist_edge_counts,
@@ -863,25 +778,7 @@ renumber_edgelist<int64_t, int64_t, true>(
 
 template rmm::device_uvector<int64_t> renumber_edgelist<int64_t, int64_t, false>(
   raft::handle_t const& handle,
-  int64_t* edgelist_major_vertices /* [INOUT] */,
-  int64_t* edgelist_minor_vertices /* [INOUT] */,
-  int64_t num_edgelist_edges,
-  bool do_expensive_check);
-
-template std::tuple<rmm::device_uvector<int64_t>, partition_t<int64_t>, int64_t, int64_t>
-renumber_edgelist<int64_t, int64_t, true>(
-  raft::handle_t const& handle,
-  int64_t const* local_vertices,
-  int64_t num_local_vertices,
-  std::vector<int64_t*> const& edgelist_major_vertices /* [INOUT] */,
-  std::vector<int64_t*> const& edgelist_minor_vertices /* [INOUT] */,
-  std::vector<int64_t> const& edgelist_edge_counts,
-  bool do_expensive_check);
-
-template rmm::device_uvector<int64_t> renumber_edgelist<int64_t, int64_t, false>(
-  raft::handle_t const& handle,
-  int64_t const* vertices,
-  int64_t num_vertices,
+  std::optional<std::tuple<int64_t const*, int64_t>> optional_vertex_span,
   int64_t* edgelist_major_vertices /* [INOUT] */,
   int64_t* edgelist_minor_vertices /* [INOUT] */,
   int64_t num_edgelist_edges,

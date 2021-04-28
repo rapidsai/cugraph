@@ -1015,10 +1015,11 @@ std::unique_ptr<renum_quad_t<vertex_t, edge_t>> call_renumber(
     std::tie(
       p_ret->get_dv(), p_ret->get_partition(), p_ret->get_num_vertices(), p_ret->get_num_edges()) =
       cugraph::experimental::renumber_edgelist<vertex_t, edge_t, true>(
-        handle, major_ptrs, minor_ptrs, edge_counts, do_expensive_check);
+        handle, std::nullopt, major_ptrs, minor_ptrs, edge_counts, do_expensive_check);
   } else {
     p_ret->get_dv() = cugraph::experimental::renumber_edgelist<vertex_t, edge_t, false>(
       handle,
+      std::nullopt,
       shuffled_edgelist_major_vertices,
       shuffled_edgelist_minor_vertices,
       edge_counts[0],
