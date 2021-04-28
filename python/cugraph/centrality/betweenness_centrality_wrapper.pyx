@@ -17,7 +17,7 @@
 # cython: language_level = 3
 
 from cugraph.centrality.betweenness_centrality cimport betweenness_centrality as c_betweenness_centrality
-from cugraph.structure.graph import DiGraph
+from cugraph.structure.graph_classes import DiGraph
 from cugraph.structure.graph_primtypes cimport *
 from libc.stdint cimport uintptr_t
 from libcpp cimport bool

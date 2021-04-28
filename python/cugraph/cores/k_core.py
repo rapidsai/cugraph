@@ -1,4 +1,4 @@
-# Copyright (c) 2019-2020, NVIDIA CORPORATION.
+# Copyright (c) 2019-2021, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -14,7 +14,7 @@
 from cugraph.cores import k_core_wrapper, core_number_wrapper
 from cugraph.utilities import cugraph_to_nx
 from cugraph.utilities import check_nx_graph
-from cugraph.structure.graph import Graph
+from cugraph.structure.graph_classes import Graph
 
 
 def k_core(G, k=None, core_number=None):
