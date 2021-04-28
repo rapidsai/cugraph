@@ -102,8 +102,7 @@ template <typename TupleType, size_t... Is, typename BufferType>
 auto get_dataframe_buffer_end_tuple_impl(std::index_sequence<Is...>, BufferType& buffer)
 {
   // thrust::make_tuple instead of std::make_tuple as this is fed to thrust::make_zip_iterator.
-  return thrust::make_tuple(
-    get_dataframe_buffer_end_tuple_element_impl<TupleType, Is>(buffer)...);
+  return thrust::make_tuple(get_dataframe_buffer_end_tuple_element_impl<TupleType, Is>(buffer)...);
 }
 
 }  // namespace detail
@@ -210,8 +209,8 @@ template <typename T,
 auto get_dataframe_buffer_end(BufferType& buffer)
 {
   size_t constexpr tuple_size = thrust::tuple_size<T>::value;
-  return thrust::make_zip_iterator(detail::get_dataframe_buffer_end_tuple_impl<T>(
-    std::make_index_sequence<tuple_size>(), buffer));
+  return thrust::make_zip_iterator(
+    detail::get_dataframe_buffer_end_tuple_impl<T>(std::make_index_sequence<tuple_size>(), buffer));
 }
 
 }  // namespace experimental
