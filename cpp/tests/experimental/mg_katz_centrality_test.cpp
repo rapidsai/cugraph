@@ -40,7 +40,7 @@ static int PERF = 0;
 
 struct KatzCentrality_Usecase {
   bool test_weighted{false};
-  bool check_correctness{false};
+  bool check_correctness{true};
 };
 
 template <typename input_usecase_t>

@@ -44,7 +44,7 @@ static int PERF = 0;
 struct PageRank_Usecase {
   double personalization_ratio{0.0};
   bool test_weighted{false};
-  bool check_correctness{false};
+  bool check_correctness{true};
 };
 
 template <typename input_usecase_t>

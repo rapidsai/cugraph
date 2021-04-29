@@ -33,6 +33,8 @@ from cugraph.structure import (
     DiGraph,
     MultiGraph,
     MultiDiGraph,
+    BiPartiteGraph,
+    BiPartiteDiGraph,
     from_edgelist,
     from_cudf_edgelist,
     from_pandas_edgelist,
@@ -48,7 +50,11 @@ from cugraph.structure import (
     symmetrize,
     symmetrize_df,
     symmetrize_ddf,
-)
+    is_weighted,
+    is_directed,
+    is_multigraph,
+    is_bipartite,
+    is_multipartite)
 
 from cugraph.centrality import (
     betweenness_centrality,

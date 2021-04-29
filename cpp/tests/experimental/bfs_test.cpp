@@ -84,7 +84,7 @@ void bfs_reference(edge_t const* offsets,
 
 struct BFS_Usecase {
   size_t source{0};
-  bool check_correctness{false};
+  bool check_correctness{true};
 };
 
 template <typename input_usecase_t>
