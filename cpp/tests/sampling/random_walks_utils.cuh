@@ -102,11 +102,15 @@ bool host_check_rw_paths(
 
   std::vector<edge_t> v_ro(num_vertices + 1);
   std::vector<vertex_t> v_ci(num_edges);
-  std::vector<weight_t> v_vals(num_edges);
+  std::vector<weight_t> v_vals(
+    num_edges, 1);  // account for unweighted graph, for which RW provides default weights{1}
 
   raft::update_host(v_ro.data(), offsets, v_ro.size(), handle.get_stream());
   raft::update_host(v_ci.data(), indices, v_ci.size(), handle.get_stream());
-  raft::update_host(v_vals.data(), values, v_vals.size(), handle.get_stream());
+
+  if (graph_view.is_weighted()) {
+    raft::update_host(v_vals.data(), values, v_vals.size(), handle.get_stream());
+  }
 
   std::vector<vertex_t> v_coalesced(d_coalesced_v.size());
   std::vector<weight_t> w_coalesced(d_coalesced_w.size());
