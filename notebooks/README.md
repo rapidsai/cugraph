@@ -10,6 +10,7 @@ This repository contains a collection of Jupyter Notebooks that outline how to r
 | Folder          | Notebook                                                     | Description                                                  |
 | --------------- | ------------------------------------------------------------ | ------------------------------------------------------------ |
 | Centrality      |                                                              |                                                              |
+|                 | [Centrality](centrality/Centrality.ipynb)                    | Compute and compare multiple centrality scores               |
 |                 | [Katz](centrality/Katz.ipynb)                                | Compute the Katz centrality for every vertex                 |
 |                 | [Betweenness](centrality/Betweenness.ipynb)                  | Compute both Edge and Vertex Betweenness centrality          |
 | Community       |                                                              |                                                              |
@@ -33,6 +34,8 @@ This repository contains a collection of Jupyter Notebooks that outline how to r
 | Traversal       |                                                              |                                                              |
 |                 | [BFS](traversal/BFS.ipynb)                                   | Compute the Breadth First Search path from a starting vertex to every other vertex in a graph |
 |                 | [SSSP](traversal/SSSP.ipynb)                                 | Single Source Shortest Path  - compute the shortest path from a starting vertex to every other vertex |
+| Sampling        |
+|                 | [Random Walk](sampling/RandomWalk.ipynb)                     | Compute Random Walk for a various number of seeds and path lengths |
 | Structure       |                                                              |                                                              |
 |                 | [Renumbering](structure/Renumber.ipynb) <br> [Renumbering 2](structure/Renumber-2.ipynb) | Renumber the vertex IDs in a graph (two sample notebooks)    |
 |                 | [Symmetrize](structure/Symmetrize.ipynb)                     | Symmetrize the edges in a graph                              |
@@ -49,22 +52,21 @@ Running the example in these notebooks requires:
   * Download via Docker, Conda (See [__Getting Started__](https://rapids.ai/start.html))
   
 * cuGraph is dependent on the latest version of cuDF.  Please install all components of RAPIDS 
-* Python 3.6+
+* Python 3.7+
 * A system with an NVIDIA GPU:  Pascal architecture or better
-* CUDA 9.2+
-* NVIDIA driver 396.44+
+* CUDA 11.0+
+* NVIDIA driver 450.51+
 
 
 
 #### Notebook Credits
 
 - Original Authors: Bradley Rees
-- Last Edit: 04/24/2020
+- Last Edit: 04/19/2021
 
-RAPIDS Versions: 0.14    
+RAPIDS Versions: 0.19  
 
 Test Hardware
-
 - GV100 32G, CUDA 9,2
 
 

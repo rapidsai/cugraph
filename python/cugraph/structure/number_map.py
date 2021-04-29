@@ -173,12 +173,16 @@ class NumberMap:
             self.numbered = False
 
         def to_internal_vertex_id(self, ddf, col_names):
-            return self.ddf.merge(
-                ddf,
-                right_on=col_names,
-                left_on=self.col_names,
+            tmp_ddf = ddf[col_names].rename(
+                columns=dict(zip(col_names, self.col_names)))
+            for name in self.col_names:
+                tmp_ddf[name] = tmp_ddf[name].astype(self.ddf[name].dtype)
+            x = self.ddf.merge(
+                tmp_ddf,
+                on=self.col_names,
                 how="right",
-            )["global_id"]
+            )
+            return x['global_id']
 
         def from_internal_vertex_id(
             self, df, internal_column_name, external_column_names
@@ -342,11 +346,7 @@ class NumberMap:
 
         reply = self.implementation.to_internal_vertex_id(tmp_df,
                                                           tmp_col_names)
-
-        if type(df) in [cudf.DataFrame, dask_cudf.DataFrame]:
-            return reply["0"]
-        else:
-            return reply
+        return reply
 
     def add_internal_vertex_id(
         self, df, id_column_name="id", col_names=None, drop=False,

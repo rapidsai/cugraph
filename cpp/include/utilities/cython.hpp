@@ -207,12 +207,34 @@ struct random_walk_ret_t {
   std::unique_ptr<rmm::device_buffer> d_sizes_;
 };
 
+<<<<<<< HEAD
 struct graph_generator_t {
   std::unique_ptr<rmm::device_buffer> d_source;
   std::unique_ptr<rmm::device_buffer> d_destination;
 };
 
 //enum class generator_distribution_t { POWER_LAW = 0, UNIFORM };
+=======
+// aggregate for random_walks() COO return type
+// to be exposed to cython:
+//
+struct random_walk_coo_t {
+  size_t num_edges_;    // total number of COO triplets (for all paths)
+  size_t num_offsets_;  // offsets of where each COO set starts for each path;
+                        // NOTE: this can differ than num_paths_,
+                        // because paths with 0 edges (one vertex)
+                        // don't participate to the COO
+
+  std::unique_ptr<rmm::device_buffer>
+    d_src_;  // coalesced set of COO source vertices; |d_src_| = num_edges_
+  std::unique_ptr<rmm::device_buffer>
+    d_dst_;  // coalesced set of COO destination vertices; |d_dst_| = num_edges_
+  std::unique_ptr<rmm::device_buffer>
+    d_weights_;  // coalesced set of COO edge weights; |d_weights_| = num_edges_
+  std::unique_ptr<rmm::device_buffer>
+    d_offsets_;  // offsets where each COO subset for each path starts; |d_offsets_| = num_offsets_
+};
+>>>>>>> upstream/branch-0.20
 
 // wrapper for renumber_edgelist() return
 // (unrenumbering maps, etc.)
@@ -455,9 +477,9 @@ void call_bfs(raft::handle_t const& handle,
               vertex_t* identifiers,
               vertex_t* distances,
               vertex_t* predecessors,
-              double* sp_counters,
+              vertex_t depth_limit,
               const vertex_t start_vertex,
-              bool directed);
+              bool direction_optimizing);
 
 // Wrapper for calling SSSP through a graph container
 template <typename vertex_t, typename weight_t>
@@ -511,8 +533,16 @@ call_random_walks(raft::handle_t const& handle,
                   edge_t num_paths,
                   edge_t max_depth);
 
+<<<<<<< HEAD
 
 
+=======
+// convertor from random_walks return type to COO:
+//
+template <typename vertex_t, typename index_t>
+std::unique_ptr<random_walk_coo_t> random_walks_to_coo(raft::handle_t const& handle,
+                                                       random_walk_ret_t& rw_ret);
+>>>>>>> upstream/branch-0.20
 
 // wrapper for shuffling:
 //

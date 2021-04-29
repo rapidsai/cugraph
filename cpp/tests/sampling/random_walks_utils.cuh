@@ -16,8 +16,8 @@
 #pragma once
 
 #include <rmm/thrust_rmm_allocator.h>
-#include <experimental/random_walks.cuh>
 #include <graph.hpp>
+#include <sampling/random_walks.cuh>
 
 #include <raft/handle.hpp>
 

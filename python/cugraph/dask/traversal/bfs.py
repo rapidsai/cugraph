@@ -28,6 +28,7 @@ def call_bfs(sID,
              num_edges,
              vertex_partition_offsets,
              start,
+             depth_limit,
              return_distances):
     wid = Comms.get_worker_id(sID)
     handle = Comms.get_handle(sID)
@@ -38,12 +39,14 @@ def call_bfs(sID,
                          wid,
                          handle,
                          start,
+                         depth_limit,
                          return_distances)
 
 
 def bfs(graph,
         start,
-        return_distances=False):
+        depth_limit=None,
+        return_distances=True):
     """
     Find the distances and predecessors for a breadth first traversal of a
     graph.
@@ -59,7 +62,9 @@ def bfs(graph,
     start : Integer
         Specify starting vertex for breadth-first search; this function
         iterates over edges in the component reachable from this node.
-    return_distances : bool, optional, default=False
+    depth_limit : Integer or None
+        Limit the depth of the search
+    return_distances : bool, optional, default=True
         Indicates if distances should be returned
 
     Returns
@@ -99,9 +104,15 @@ def bfs(graph,
     data = get_distributed_data(ddf)
 
     if graph.renumbered:
-        start = graph.lookup_internal_vertex_id(cudf.Series([start],
-                                                dtype='int32')).compute()
-        start = start.iloc[0]
+        if isinstance(start, dask_cudf.DataFrame)\
+          or isinstance(start, cudf.DataFrame):
+            start = graph.lookup_internal_vertex_id(start, start.columns).\
+                    compute()
+            start = start.iloc[0]
+        else:
+            start = graph.lookup_internal_vertex_id(cudf.Series([start],
+                                                    dtype='int32')).compute()
+            start = start.iloc[0]
 
     result = [client.submit(
               call_bfs,
@@ -111,6 +122,7 @@ def bfs(graph,
               num_edges,
               vertex_partition_offsets,
               start,
+              depth_limit,
               return_distances,
               workers=[wf[0]])
               for idx, wf in enumerate(data.worker_to_parts.items())]
@@ -120,5 +132,5 @@ def bfs(graph,
     if graph.renumbered:
         ddf = graph.unrenumber(ddf, 'vertex')
         ddf = graph.unrenumber(ddf, 'predecessor')
-        ddf["predecessor"] = ddf["predecessor"].fillna(-1)
+        ddf = ddf.fillna(-1)
     return ddf
