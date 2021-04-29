@@ -1280,5 +1280,6 @@ random_walks(raft::handle_t const &handle,
              typename graph_t::vertex_type const *ptr_d_start,
              index_t num_paths,
              index_t max_depth);
+
 }  // namespace experimental
 }  // namespace cugraph

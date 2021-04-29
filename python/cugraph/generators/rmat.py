@@ -11,7 +11,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from cugraph.utilities import graph_generator_wrapper
+from cugraph.generators import rmat_wrapper
 import cugraph
 
 
@@ -31,7 +31,7 @@ def _ensure_args_edgelist(scale, a, b, c, clip_and_flip, scramble_vertex_ids):
 
 #def _ensure_args_edgelists()
 
-def graph_generator_edgelist(
+def rmat(
     scale,
     num_edges,
     a,
@@ -42,48 +42,47 @@ def graph_generator_edgelist(
     scramble_vertex_ids
 ):
     """
-    generate an edge list for an R-mat graph
+    Generate a Graph object using a Recursive MATrix (R-MAT) graph generation algorithm.
 
     Parameters
     ----------
     scale : int
             Scale factor to set the number of verties in the graph
             Vertex IDs have values in [0, V), where V = 1 << 'scale'
-    
+
     num_edges : int
             Number of edges to generate
 
     a : float
             Probability of the first partition
-    
+
     b : float
             Probability of the second partition
-    
+
     c : float
             Probability of the thrid partition
-    
+
     seed : int
             Seed value for the random number generator
-    
+
     clip_and_flip : bool
             Flag controlling whether to generate edges only in the lower triangular part
             (including the diagonal) of the graph adjacency matrix (if set to 'true')
             or not (if set to 'false).
-    
+
     scramble_vertex_ids : bool
             Flag controlling whether to scramble vertex ID bits (if set to `true`)
-            or not (if set to `false`); scrambling vertx ID bits breaks correlation between 
+            or not (if set to `false`); scrambling vertx ID bits breaks correlation between
             vertex ID values and vertex degrees
 
 
     Returns
     -------
-    edge_list : cudf.DataFrame
-            GPU data frame containing all sources identifiers, destination identifiers
+    instance of cugraph.Graph
     """
     _ensure_args_edgelist(scale, a, b, c, clip_and_flip, scramble_vertex_ids)
-    
-    df = graph_generator_wrapper.graph_generator_edgelist(scale, num_edges,
+
+    df = rmat_wrapper.graph_generator_edgelist(scale, num_edges,
     a,
     b,
     c,
@@ -97,7 +96,8 @@ def graph_generator_edgelist(
 
     return G
 
-def graph_generator_edgelists(
+
+def multi_rmat(
     n_edgelists,
     min_scale,
     max_scale,
@@ -109,26 +109,26 @@ def graph_generator_edgelists(
     scramble_vertex_ids
 ):
     """
-    generate multiple edge lists using the R-mat graph generator
+    Generate multiple Graph objects using a Recursive MATrix (R-MAT) graph generation algorithm.
 
     Parameters
     ----------
     n_edgelists : int
         Number of edge lists (graphs) to generate
-        
+
     min_scale : int
         Scale factor to set the minimum number of vertices in the graph
-        
+
     max_scale : int
         Scale factor to set the maximum number of vertices in the graph
-        
+
     edge_factor : int
         Average number of edges per vertex to generate
-        
+
     size_distribution :
         Distribution of the graph sizes, impacts the scale parameter of the
         R-MAT generator
-        
+
     edge_distribution :
         Edges distribution for each graph, impacts how R-MAT parameters a,b,c,d,
         are set
@@ -148,12 +148,11 @@ def graph_generator_edgelists(
 
     Returns
     -------
-    edge_lists : cudf.DataFrame
-        GPU data frame containing all sources identifiers, destination identifiers
+    list of cugraph.Graph instances
     """
     #_ensure_args_edgelists(scale, a, b, c, clip_and_flip, scramble_vertex_ids)
-        
-    dfs = graph_generator_wrapper.graph_generator_edgelists(n_edgelists, min_scale,
+
+    dfs = rmat_wrapper.graph_generator_edgelists(n_edgelists, min_scale,
     max_scale,
     edge_factor,
     size_distribution,
@@ -167,6 +166,6 @@ def graph_generator_edgelists(
         G = cugraph.Graph()
         G.from_cudf_edgelist(df, source='src', destination='dst')
         list_G.append(G)
-        
+
 
     return list_G

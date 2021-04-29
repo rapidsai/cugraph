@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 #pragma once
-#include <experimental/graph_generator.hpp> 
+#include <experimental/graph_generator.hpp>
 #include <experimental/graph.hpp>
 #include <graph.hpp>
 #include <raft/handle.hpp>
@@ -207,12 +207,34 @@ struct random_walk_ret_t {
   std::unique_ptr<rmm::device_buffer> d_sizes_;
 };
 
+
 struct graph_generator_t {
   std::unique_ptr<rmm::device_buffer> d_source;
   std::unique_ptr<rmm::device_buffer> d_destination;
 };
 
 //enum class generator_distribution_t { POWER_LAW = 0, UNIFORM };
+
+// aggregate for random_walks() COO return type
+// to be exposed to cython:
+//
+struct random_walk_coo_t {
+  size_t num_edges_;    // total number of COO triplets (for all paths)
+  size_t num_offsets_;  // offsets of where each COO set starts for each path;
+                        // NOTE: this can differ than num_paths_,
+                        // because paths with 0 edges (one vertex)
+                        // don't participate to the COO
+
+  std::unique_ptr<rmm::device_buffer>
+    d_src_;  // coalesced set of COO source vertices; |d_src_| = num_edges_
+  std::unique_ptr<rmm::device_buffer>
+    d_dst_;  // coalesced set of COO destination vertices; |d_dst_| = num_edges_
+  std::unique_ptr<rmm::device_buffer>
+    d_weights_;  // coalesced set of COO edge weights; |d_weights_| = num_edges_
+  std::unique_ptr<rmm::device_buffer>
+    d_offsets_;  // offsets where each COO subset for each path starts; |d_offsets_| = num_offsets_
+};
+
 
 // wrapper for renumber_edgelist() return
 // (unrenumbering maps, etc.)
@@ -477,7 +499,7 @@ std::unique_ptr<cy_multi_edgelists_t> call_egonet(raft::handle_t const& handle,
                                                   vertex_t radius);
 
 
-// Wrapper for calling graph generator 
+// Wrapper for calling graph generator
 template <typename vertex_t>
 std::unique_ptr<graph_generator_t> call_generate_rmat_edgelist(raft::handle_t const& handle,
                                                              size_t scale,
@@ -511,8 +533,11 @@ call_random_walks(raft::handle_t const& handle,
                   edge_t num_paths,
                   edge_t max_depth);
 
-
-
+// convertor from random_walks return type to COO:
+//
+template <typename vertex_t, typename index_t>
+std::unique_ptr<random_walk_coo_t> random_walks_to_coo(raft::handle_t const& handle,
+                                                       random_walk_ret_t& rw_ret);
 
 // wrapper for shuffling:
 //
