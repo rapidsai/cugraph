@@ -201,8 +201,6 @@ auto shuffle_values(raft::comms::comms_t const &comm,
   rmm::device_uvector<size_t> d_tx_value_counts(comm_size, stream);
   raft::update_device(d_tx_value_counts.data(), tx_value_counts.data(), comm_size, stream);
 
-  CUDA_TRY(cudaStreamSynchronize(stream));  // tx_value_counts should be up-to-date
-
   std::vector<size_t> tx_counts{};
   std::vector<size_t> tx_offsets{};
   std::vector<int> tx_dst_ranks{};
