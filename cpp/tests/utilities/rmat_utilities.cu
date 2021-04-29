@@ -17,6 +17,7 @@
 #include <utilities/test_utilities.hpp>
 
 #include <experimental/detail/graph_utils.cuh>
+#include <experimental/graph_functions.hpp>
 #include <experimental/graph_generator.hpp>
 #include <partition_manager.hpp>
 #include <utilities/error.hpp>
@@ -232,7 +233,7 @@ generate_graph_from_rmat_params(raft::handle_t const& handle,
   }
 
   return cugraph::experimental::
-    generate_graph_from_edgelist<vertex_t, edge_t, weight_t, store_transposed, multi_gpu>(
+    create_graph_from_edgelist<vertex_t, edge_t, weight_t, store_transposed, multi_gpu>(
       handle,
       std::optional<std::tuple<vertex_t const*, vertex_t>>{
         std::make_tuple(d_vertices.data(), static_cast<vertex_t>(d_vertices.size()))},

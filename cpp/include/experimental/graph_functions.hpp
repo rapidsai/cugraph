@@ -318,5 +318,48 @@ extract_induced_subgraphs(
   size_t num_subgraphs,
   bool do_expensive_check = false);
 
+/**
+ * @brief create a graph from (the optional vertex list and) the given edge list.
+ *
+ * @tparam vertex_t Type of vertex identifiers. Needs to be an integral type.
+ * @tparam edge_t Type of edge identifiers. Needs to be an integral type.
+ * @tparam weight_t Type of edge weights. Needs to be a floating point type.
+ * @tparam store_transposed Flag indicating whether to store the graph adjacency matrix as is or as
+ * transposed.
+ * @tparam multi_gpu Flag indicating whether template instantiation should target single-GPU (false)
+ * or multi-GPU (true).
+ * @param handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator, and
+ * handles to various CUDA libraries) to run graph algorithms.
+ * @param optional_vertex_span  If valid, part of the entire set of vertices in the graph to be
+ * renumbered. The first tuple element is the pointer to the array and the second tuple element is
+ * the size of the array. This parameter can be used to include isolated vertices. If multi-GPU,
+ * applying the compute_gpu_id_from_vertex_t to every vertex should return the local GPU ID for this
+ * function to work (vertices should be pre-shuffled).
+ * @param edgelist_rows Vector of edge row (source) vertex IDs.
+ * @param edgelist_cols Vector of edge column (destination) vertex IDs.
+ * @param edgelist_weights Vector of edge weights.
+ * @param graph_properties Properties of the graph represented by the input (optional vertex list
+ * and) edge list.
+ * @param renumber Flag indicating whether to renumber vertices or not.
+ * @return std::tuple<cugraph::experimental::graph_t<vertex_t, edge_t, weight_t, store_transposed,
+ * multi_gpu>, rmm::device_uvector<vertex_t>> Pair of the generated graph and the renumber map. The
+ * szie of the renumber map is 0 if @p renumber is false.
+ */
+template <typename vertex_t,
+          typename edge_t,
+          typename weight_t,
+          bool store_transposed,
+          bool multi_gpu>
+std::tuple<cugraph::experimental::graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu>,
+           rmm::device_uvector<vertex_t>>
+create_graph_from_edgelist(
+  raft::handle_t const& handle,
+  std::optional<std::tuple<vertex_t const*, vertex_t>> optional_vertex_span,
+  rmm::device_uvector<vertex_t>&& edgelist_rows,
+  rmm::device_uvector<vertex_t>&& edgelist_cols,
+  rmm::device_uvector<weight_t>&& edgelist_weights,
+  graph_properties_t graph_properties,
+  bool renumber);
+
 }  // namespace experimental
 }  // namespace cugraph

@@ -439,7 +439,7 @@ add_library(cugraph SHARED
     src/experimental/pagerank.cu
     src/experimental/katz_centrality.cu
     src/tree/mst.cu
-    src/generator/generate_graph_from_edgelist.cu
+    src/structure/create_graph_from_edgelist.cu
 )
 
 target_link_directories(cugraph
