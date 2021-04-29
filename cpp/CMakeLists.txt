@@ -277,7 +277,7 @@ FetchContent_Declare(
     cuhornet
     GIT_REPOSITORY    https://github.com/rapidsai/cuhornet.git
     GIT_TAG           e58d0ecdbc270fc28867d66c965787a62a7a882c
-    GIT_SHALLOW       true
+    GIT_SHALLOW       false
     SOURCE_SUBDIR     hornet
 )
 
@@ -428,7 +428,10 @@ add_library(cugraph SHARED
     src/components/connectivity.cu
     src/centrality/katz_centrality.cu
     src/centrality/betweenness_centrality.cu
-    src/experimental/generate_rmat_edgelist.cu
+    src/generators/generate_rmat_edgelist.cu
+    src/generators/generator_tools.cu
+    src/generators/simple_generators.cu
+    src/generators/erdos_renyi_generator.cu
     src/experimental/graph.cu
     src/experimental/graph_view.cu
     src/experimental/coarsen_graph.cu

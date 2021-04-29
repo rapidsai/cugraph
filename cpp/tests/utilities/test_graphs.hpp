@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019-2021, NVIDIA CORPORATION.
+ * Copyright (c) 2021, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -22,12 +22,33 @@
 namespace cugraph {
 namespace test {
 
-class File_Usecase {
+namespace detail {
+
+class TranslateGraph_Usecase {
+ public:
+  TranslateGraph_Usecase() = delete;
+  TranslateGraph_Usecase(size_t base_vertex_id = 0) : base_vertex_id_(base_vertex_id) {}
+
+  template <typename vertex_t>
+  void translate(raft::handle_t const& handle,
+                 rmm::device_uvector<vertex_t>& d_src,
+                 rmm::device_uvector<vertex_t>& d_dst) const
+  {
+    if (base_vertex_id_ > 0)
+      cugraph::translate_vertex_ids(handle, d_src, d_dst, static_cast<vertex_t>(base_vertex_id_));
+  }
+
+  size_t base_vertex_id_{};
+};
+
+}  // namespace detail
+
+class File_Usecase : public detail::TranslateGraph_Usecase {
  public:
   File_Usecase() = delete;
 
   File_Usecase(std::string const& graph_file_path, size_t base_vertex_id = 0)
-    : base_vertex_id_(base_vertex_id)
+    : detail::TranslateGraph_Usecase(base_vertex_id)
   {
     if ((graph_file_path.length() > 0) && (graph_file_path[0] != '/')) {
       graph_file_full_path_ = cugraph::test::get_rapids_dataset_root_dir() + "/" + graph_file_path;
@@ -48,18 +69,30 @@ class File_Usecase {
              bool>
   construct_edgelist(raft::handle_t const& handle, bool test_weighted) const
   {
-    auto edgelist = read_edgelist_from_matrix_market_file<vertex_t,
-                                                          edge_t,
-                                                          weight_t,
-                                                          store_transposed,
-                                                          multi_gpu>(
-      handle, graph_file_full_path_, test_weighted);
+    rmm::device_uvector<vertex_t> d_src_v(0, handle.get_stream());
+    rmm::device_uvector<vertex_t> d_dst_v(0, handle.get_stream());
+    rmm::device_uvector<weight_t> d_weights_v(0, handle.get_stream());
+    vertex_t num_vertices;
+    bool is_symmetric;
 
-    if (base_vertex_id_ > 0)
-      cugraph::translate_vertex_ids(
-        handle, std::get<0>(edgelist), std::get<1>(edgelist), base_vertex_id_);
+    std::tie(d_src_v, d_dst_v, d_weights_v, num_vertices, is_symmetric) =
+      read_edgelist_from_matrix_market_file<vertex_t, weight_t>(
+        handle, graph_file_full_path_, test_weighted);
 
-    return edgelist;
+    translate(handle, d_src_v, d_dst_v);
+
+#if 0
+    if (multi_gpu) {
+      std::tie(d_src_v, d_dst_v) = filter_edgelist_by_gpu(handle, d_src_v, d_dst_v);
+    }
+#endif
+
+    return std::make_tuple(
+      std::move(d_src_v),
+      std::move(d_dst_v),
+      std::move(d_weights_v),
+      static_cast<vertex_t>(detail::TranslateGraph_Usecase::base_vertex_id_) + num_vertices,
+      is_symmetric);
   }
 
   template <typename vertex_t,
@@ -72,6 +105,16 @@ class File_Usecase {
     rmm::device_uvector<vertex_t>>
   construct_graph(raft::handle_t const& handle, bool test_weighted, bool renumber = true) const
   {
+    rmm::device_uvector<vertex_t> d_src_v(0, handle.get_stream());
+    rmm::device_uvector<vertex_t> d_dst_v(0, handle.get_stream());
+    rmm::device_uvector<weight_t> d_weights_v(0, handle.get_stream());
+    vertex_t num_vertices;
+    bool is_symmetric;
+
+    std::tie(d_src_v, d_dst_v, d_weights_v, num_vertices, is_symmetric) =
+      this->template construct_edgelist<vertex_t, edge_t, weight_t, store_transposed, multi_gpu>(
+        handle, test_weighted);
+
     // TODO:  Consider calling construct_edgelist and creating
     //        a generic test function to take the edgelist and
     //        do the graph construction.
@@ -88,10 +131,9 @@ class File_Usecase {
 
  private:
   std::string graph_file_full_path_{};
-  size_t base_vertex_id_{};
 };
 
-class Rmat_Usecase {
+class Rmat_Usecase : public detail::TranslateGraph_Usecase {
  public:
   Rmat_Usecase() = delete;
 
@@ -105,7 +147,8 @@ class Rmat_Usecase {
                bool scramble_vertex_ids,
                size_t base_vertex_id  = 0,
                bool multi_gpu_usecase = false)
-    : scale_(scale),
+    : detail::TranslateGraph_Usecase(base_vertex_id),
+      scale_(scale),
       edge_factor_(edge_factor),
       a_(a),
       b_(b),
@@ -113,7 +156,6 @@ class Rmat_Usecase {
       seed_(seed),
       undirected_(undirected),
       scramble_vertex_ids_(scramble_vertex_ids),
-      base_vertex_id_(base_vertex_id),
       multi_gpu_usecase_(multi_gpu_usecase)
   {
   }
@@ -133,6 +175,7 @@ class Rmat_Usecase {
     // TODO: Tease through generate_graph_from_rmat_params
     //       to extract the edgelist part
     // Call cugraph::translate_vertex_ids(handle, d_src_v, d_dst_v, base_vertex_id_);
+
     CUGRAPH_FAIL("Not implemented");
   }
 
@@ -165,7 +208,7 @@ class Rmat_Usecase {
     }
 
     // TODO: Need to offset by base_vertex_id_
-    //static_cast<vertex_t>(base_vertex_id_));
+    // static_cast<vertex_t>(base_vertex_id_));
     //    Consider using construct_edgelist like other options
     return generate_graph_from_rmat_params<vertex_t, edge_t, weight_t, store_transposed, multi_gpu>(
       handle,
@@ -192,16 +235,17 @@ class Rmat_Usecase {
   uint64_t seed_{};
   bool undirected_{};
   bool scramble_vertex_ids_{};
-  size_t base_vertex_id_{};
   bool multi_gpu_usecase_{};
 };
 
-class RandomPathGraph_Usecase {
+class RandomPathGraph_Usecase : public detail::TranslateGraph_Usecase {
  public:
   RandomPathGraph_Usecase() = delete;
 
   RandomPathGraph_Usecase(size_t num_vertices, bool weighted = false, size_t base_vertex_id = 0)
-    : num_vertices_(num_vertices), weighted_(weighted), base_vertex_id_(base_vertex_id)
+    : detail::TranslateGraph_Usecase(base_vertex_id),
+      num_vertices_(num_vertices),
+      weighted_(weighted)
   {
   }
 
@@ -222,19 +266,20 @@ class RandomPathGraph_Usecase {
     constexpr bool symmetric{true};
 
     auto edgelist =
-      cugraph::generate_random_path_graph_edgelist<vertex_t>(handle, num_vertices_, symmetric);
+      cugraph::generate_path_graph_edgelist<vertex_t>(handle, num_vertices_, symmetric);
 
-    if (base_vertex_id_ > 0)
-      cugraph::translate_vertex_ids(
-        handle, std::get<0>(edgelist), std::get<1>(edgelist), base_vertex_id_);
+    translate(handle, std::get<0>(edgelist), std::get<1>(edgelist));
 
     if (test_weighted) {
       auto length = std::get<0>(edgelist).size();
       weights_v.resize(length, handle.get_stream());
     }
 
-    return std::make_tuple(
-      std::get<0>(edgelist), std::get<1>(edgelist), weights_v, num_vertices_, symmetric);
+    return std::make_tuple(std::move(std::get<0>(edgelist)),
+                           std::move(std::get<1>(edgelist)),
+                           std::move(weights_v),
+                           num_vertices_,
+                           symmetric);
   }
 
   template <typename vertex_t,
@@ -253,15 +298,14 @@ class RandomPathGraph_Usecase {
  private:
   size_t num_vertices_{0};
   bool weighted_{false};
-  size_t base_vertex_id_{0};
 };
 
-class Mesh2DGraph_Usecase {
+class Mesh2DGraph_Usecase : public detail::TranslateGraph_Usecase {
  public:
   Mesh2DGraph_Usecase() = delete;
 
   Mesh2DGraph_Usecase(size_t x, size_t y, size_t num_meshes, size_t base_vertex_id)
-    : x_(x), y_(y), num_meshes_(num_meshes), base_vertex_id_(base_vertex_id)
+    : detail::TranslateGraph_Usecase(base_vertex_id), x_(x), y_(y), num_meshes_(num_meshes)
   {
   }
 
@@ -275,7 +319,9 @@ class Mesh2DGraph_Usecase {
              rmm::device_uvector<weight_t>,
              vertex_t,
              bool>
-  construct_edgelist(raft::handle_t const& handle, bool test_weighted) const;
+  construct_edgelist(raft::handle_t const& handle, bool test_weighted) const
+  {
+  }
 
   template <typename vertex_t,
             typename edge_t,
@@ -294,12 +340,12 @@ class Mesh2DGraph_Usecase {
   size_t base_vertex_id_{0};
 };
 
-class Mesh3DGraph_Usecase {
+class Mesh3DGraph_Usecase : public detail::TranslateGraph_Usecase {
  public:
   Mesh3DGraph_Usecase() = delete;
 
   Mesh3DGraph_Usecase(size_t x, size_t y, size_t z, size_t num_meshes, size_t base_vertex_id)
-    : x_(x), y_(y), z_(z), num_meshes_(num_meshes), base_vertex_id_(base_vertex_id)
+    : detail::TranslateGraph_Usecase(base_vertex_id), x_(x), y_(y), z_(z), num_meshes_(num_meshes)
   {
   }
 
@@ -333,12 +379,14 @@ class Mesh3DGraph_Usecase {
   size_t base_vertex_id_{0};
 };
 
-class CliqueGraph_Usecase {
+class CompleteGraph_Usecase : public detail::TranslateGraph_Usecase {
  public:
-  CliqueGraph_Usecase() = delete;
+  CompleteGraph_Usecase() = delete;
 
-  CliqueGraph_Usecase(size_t clique_size, size_t num_cliques, size_t base_vertex_id)
-    : clique_size_(clique_size), num_cliques_(num_cliques), base_vertex_id_(base_vertex_id)
+  CompleteGraph_Usecase(size_t num_vertices, size_t num_graphs, size_t base_vertex_id)
+    : detail::TranslateGraph_Usecase(base_vertex_id),
+      num_vertices_(num_vertices),
+      num_graphs_(num_graphs)
   {
   }
 
@@ -365,9 +413,8 @@ class CliqueGraph_Usecase {
   construct_graph(raft::handle_t const& handle, bool test_weighted, bool renumber = true) const;
 
  private:
-  size_t clique_size_{};
-  size_t num_cliques_{};
-  size_t base_vertex_id_{};
+  size_t num_vertices_{};
+  size_t num_graphs_{};
 };
 
 namespace detail {
@@ -466,6 +513,44 @@ class CombinedGenerator_Usecase {
  private:
   generator_tuple_t const& generator_tuple_;
 };
+
+template <typename vertex_t,
+          typename edge_t,
+          typename weight_t,
+          bool store_transposed,
+          bool multi_gpu,
+          typename input_usecase_t>
+std::tuple<cugraph::experimental::graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu>,
+           rmm::device_uvector<vertex_t>>
+construct_graph(raft::handle_t const& handle,
+                input_usecase_t const& input_usecase,
+                bool test_weighted,
+                bool renumber = true)
+{
+  rmm::device_uvector<vertex_t> d_vertices_v(0, handle.get_stream());
+  rmm::device_uvector<vertex_t> d_src_v(0, handle.get_stream());
+  rmm::device_uvector<vertex_t> d_dst_v(0, handle.get_stream());
+  rmm::device_uvector<weight_t> d_weights_v(0, handle.get_stream());
+  vertex_t num_vertices{0};
+  bool is_symmetric{false};
+
+  std::tie(d_src_v, d_dst_v, d_weights_v, num_vertices, is_symmetric) =
+    input_usecase
+      .template construct_edgelist<vertex_t, edge_t, weight_t, store_transposed, multi_gpu>(
+        handle, test_weighted);
+
+  // TODO: Populate d_vertices_v, we know num_vertices
+
+  return generate_graph_from_edgelist<vertex_t, edge_t, weight_t, store_transposed, multi_gpu>(
+    handle,
+    std::move(d_vertices_v),
+    std::move(d_src_v),
+    std::move(d_dst_v),
+    std::move(d_weights_v),
+    is_symmetric,
+    test_weighted,
+    renumber);
+}
 
 }  // namespace test
 }  // namespace cugraph

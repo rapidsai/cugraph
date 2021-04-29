@@ -133,30 +133,28 @@ generate_rmat_edgelists(
   bool scramble_vertex_ids                   = false);
 
 /**
- * @brief generate an edge list for randomly ordered path graph
+ * @brief generate an edge list for path graph
  *
- * Given @p num_vertices, the vertices are randomly ordered and a set of
- * @p num_vertices - 1 edges is constructed visiting each vertex in this
- * random order exactly once.
+ * Path graph connects the vertices from 0 to (@p num_vertices - 1)
+ * in a single long path: ((0,1), (1,2), ..., (@p num_vertices - 2, @p num_vertices - 1)
  *
  * If executed in a multi-gpu context (handle comms has been initialized)
- * the path will span all GPUs
+ * the path will span all GPUs including an edge from the last vertex on
+ * GPU i to the first vertex on GPU (i+1)
  *
  * @tparam vertex_t Type of vertex identifiers. Needs to be an integral type.
  * @param handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator, and
  * handles to various CUDA libraries) to run graph algorithms.
  * @param num_vertices Number of vertices to use in generation
  * @param symmetrize If true, symmetrize the edges
- * @param seed Seed value for the random number generator.
  * @return std::tuple<rmm::device_uvector<vertex_t>, rmm::device_uvector<vertex_t>> A tuple of
  * rmm::device_uvector objects for edge source vertex IDs and edge destination vertex IDs.
  */
 template <typename vertex_t>
 std::tuple<rmm::device_uvector<vertex_t>, rmm::device_uvector<vertex_t>>
-generate_random_path_graph_edgelist(raft::handle_t const& handle,
-                                    size_t num_vertices,
-                                    bool symmetrize = false,
-                                    uint64_t seed   = 0);
+generate_path_graph_edgelist(raft::handle_t const& handle,
+                             size_t num_vertices,
+                             bool symmetrize = false);
 
 /**
  * @brief generate an edge list for a 2D Mesh Graph
@@ -287,6 +285,27 @@ void translate_vertex_ids(raft::handle_t const &handle,
                           vertex_t vertex_id_offset);
 
 /**
+ * @brief scramble vertex ids in a graph
+ *
+ * Given an edgelist for a graph, scramble all vertex ids by the given offset.
+ * This translation is done in place.
+ *
+ * @tparam vertex_t Type of vertex identifiers. Needs to be an integral type.
+ * @param handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator, and
+ * handles to various CUDA libraries) to run graph algorithms.
+ * @param d_src_v Vector of source vertices
+ * @param d_dst_v Vector of destination vertices
+ * @param vertex_id_offset Offset to add to each vertex id
+ * @param seed Used to initialize random number generator
+ */
+template <typename vertex_t>
+void scramble_vertex_ids(raft::handle_t const &handle,
+                         rmm::device_uvector<vertex_t> &d_src_v,
+                         rmm::device_uvector<vertex_t> &d_dst_v,
+                         vertex_t vertex_id_offset,
+                         uint64_t seed = 0);
+
+/**
  * @brief Combine edgelists from multiple sources into a single edgelist
  *
  * If executed in a multi-gpu context (handle comms has been initialized)
@@ -306,9 +325,9 @@ void translate_vertex_ids(raft::handle_t const &handle,
 template <typename vertex_t, typename weight_t>
 std::tuple<rmm::device_uvector<vertex_t>, rmm::device_uvector<vertex_t>, rmm::device_uvector<weight_t>>
 combine_edgelists(raft::handle_t const& handle,
-                  std::vector<rmm::device_uvector<vertex_t>> const &sources,
-                  std::vector<rmm::device_uvector<vertex_t>> const &dests,
-                  std::vector<rmm::device_uvector<weight_t>> const &weights,
+                  std::vector<rmm::device_uvector<vertex_t>> &&sources,
+                  std::vector<rmm::device_uvector<vertex_t>> &&dests,
+                  std::vector<rmm::device_uvector<weight_t>> &&weights,
                   bool has_weights);
 
 }  // namespace cugraph

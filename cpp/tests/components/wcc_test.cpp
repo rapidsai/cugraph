@@ -9,8 +9,8 @@
  *
  */
 
-#include <utilities/test_graphs.hpp>
 #include <utilities/base_fixture.hpp>
+#include <utilities/test_graphs.hpp>
 #include <utilities/test_utilities.hpp>
 
 #include <algorithms.hpp>
@@ -43,8 +43,8 @@ class Tests_WCC : public ::testing::TestWithParam<std::tuple<WCC_Usecase, input_
     cugraph::experimental::graph_t<vertex_t, edge_t, weight_t, false, false> graph(handle);
 
     std::tie(graph, std::ignore) =
-      input_usecase.template construct_graph<vertex_t, edge_t, weight_t, false, false>(
-        handle, false, false);
+      cugraph::test::construct_graph<vertex_t, edge_t, weight_t, false, false>(
+        handle, input_usecase, false, false);
 
     auto graph_view = graph.view();
 
@@ -57,8 +57,8 @@ class Tests_WCC : public ::testing::TestWithParam<std::tuple<WCC_Usecase, input_
   }
 };
 
-using Tests_WCC_File      = Tests_WCC<cugraph::test::File_Usecase>;
-using Tests_WCC_Rmat      = Tests_WCC<cugraph::test::Rmat_Usecase>;
+using Tests_WCC_File            = Tests_WCC<cugraph::test::File_Usecase>;
+using Tests_WCC_Rmat            = Tests_WCC<cugraph::test::Rmat_Usecase>;
 using Tests_WCC_RandomPathGraph = Tests_WCC<cugraph::test::RandomPathGraph_Usecase>;
 
 TEST_P(Tests_WCC_File, WCC)
@@ -92,6 +92,7 @@ INSTANTIATE_TEST_SUITE_P(
   line_graph_test,
   Tests_WCC_RandomPathGraph,
   ::testing::Values(std::make_tuple(WCC_Usecase{}, cugraph::test::RandomPathGraph_Usecase(1000)),
-                    std::make_tuple(WCC_Usecase{}, cugraph::test::RandomPathGraph_Usecase(100000))));
+                    std::make_tuple(WCC_Usecase{},
+                                    cugraph::test::RandomPathGraph_Usecase(100000))));
 
 CUGRAPH_TEST_PROGRAM_MAIN()
