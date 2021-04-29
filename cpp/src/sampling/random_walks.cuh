@@ -31,6 +31,7 @@
 
 #include <thrust/copy.h>
 #include <thrust/count.h>
+#include <thrust/fill.h>
 #include <thrust/find.h>
 #include <thrust/gather.h>
 #include <thrust/iterator/constant_iterator.h>
@@ -222,44 +223,6 @@ struct col_indx_extract_t<graph_t, index_t, std::enable_if_t<graph_t::is_multi_g
   using weight_t = typename graph_t::weight_type;
 
   col_indx_extract_t(raft::handle_t const& handle,
-                     device_vec_t<vertex_t> const& d_indices,
-                     device_vec_t<edge_t> const& d_offsets,
-                     device_vec_t<weight_t> const& d_values,
-                     device_vec_t<edge_t> const& d_crt_out_degs,
-                     device_vec_t<index_t> const& d_sizes,
-                     index_t num_paths,
-                     index_t max_depth)
-    : handle_(handle),
-      col_indices_(raw_const_ptr(d_indices)),
-      row_offsets_(raw_const_ptr(d_offsets)),
-      values_(raw_const_ptr(d_values)),
-      out_degs_(raw_const_ptr(d_crt_out_degs)),
-      sizes_(raw_const_ptr(d_sizes)),
-      num_paths_(num_paths),
-      max_depth_(max_depth)
-  {
-  }
-
-  col_indx_extract_t(raft::handle_t const& handle,
-                     vertex_t const* p_d_indices,
-                     edge_t const* p_d_offsets,
-                     weight_t const* p_d_values,
-                     edge_t const* p_d_crt_out_degs,
-                     index_t const* p_d_sizes,
-                     index_t num_paths,
-                     index_t max_depth)
-    : handle_(handle),
-      col_indices_(p_d_indices),
-      row_offsets_(p_d_offsets),
-      values_(p_d_values),
-      out_degs_(p_d_crt_out_degs),
-      sizes_(p_d_sizes),
-      num_paths_(num_paths),
-      max_depth_(max_depth)
-  {
-  }
-
-  col_indx_extract_t(raft::handle_t const& handle,
                      graph_t const& graph,
                      edge_t const* p_d_crt_out_degs,
                      index_t const* p_d_sizes,
@@ -268,7 +231,9 @@ struct col_indx_extract_t<graph_t, index_t, std::enable_if_t<graph_t::is_multi_g
     : handle_(handle),
       col_indices_(graph.indices()),
       row_offsets_(graph.offsets()),
-      values_(graph.weights()),
+      values_(graph.weights() != nullptr
+                ? graph.weights()
+                : get_weights_scratch_pad(graph.get_number_of_edges(), handle)),
       out_degs_(p_d_crt_out_degs),
       sizes_(p_d_sizes),
       num_paths_(num_paths),
@@ -319,6 +284,28 @@ struct col_indx_extract_t<graph_t, index_t, std::enable_if_t<graph_t::is_multi_g
         return thrust::make_tuple(col_indices[start_row + col_indx], values[start_row + col_indx]);
       },
       [] __device__(auto crt_out_deg) { return crt_out_deg > 0; });
+  }
+
+  // singleton for handling the case of missing
+  // weights, in which case a device buffer filled with
+  // `weight_t{1}` should be used as scratch-pad;
+  // this is static data to avoid device memory fragmentation
+  // by (potentially needlesly) re-allocating this scratch-pad;
+  //
+  static weight_t const* get_weights_scratch_pad(index_t num_edges, raft::handle_t const& handle)
+  {
+    static device_vec_t<weight_t> d_missing_weights(num_edges, handle.get_stream());
+    static bool was_initialized{false};
+
+    if (!was_initialized) {
+      thrust::fill(rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
+                   d_missing_weights.begin(),
+                   d_missing_weights.end(),
+                   weight_t{1});
+      was_initialized = true;
+    }
+
+    return d_missing_weights.data();
   }
 
  private:
