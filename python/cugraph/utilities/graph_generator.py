@@ -95,7 +95,7 @@ def graph_generator_edgelist(
     G = cugraph.Graph()
     G.from_cudf_edgelist(df, source='src', destination='dst')
 
-    return G
+    return df #testing this for MG - not final output
 
 def graph_generator_edgelists(
     n_edgelists,
