@@ -41,7 +41,7 @@ def rmat(
     clip_and_flip,
     scramble_vertex_ids,
     create_using=cugraph.DiGraph,
-    mg=False,
+    mg=False
 ):
     """Generate a Graph object using a Recursive MATrix (R-MAT) graph generation algorithm.
 
@@ -77,14 +77,13 @@ def rmat(
             vertex ID values and vertex degrees
 
     create_using : cugraph Graph type
-            The graph type to construct containing the generated edges and vertices.
-            Default is cugraph.DiGraph.
-            NOTE: only cugraph.DiGraph types are supported for multi-GPU
+            The graph type to construct containing the generated edges and
+            vertices.  Default is cugraph.DiGraph.
+            NOTE: only the cugraph.DiGraph type is supported for multi-GPU
 
     mg : bool
-            If True, RMAT generation occurs across multiple GPUs and edges. If
-            False, only a single GPU is used.
-            Default is False (single-GPU)
+            If True, RMAT generation occurs across multiple GPUs. If False, only
+            a single GPU is used.  Default is False (single-GPU)
 
     Returns
     -------
