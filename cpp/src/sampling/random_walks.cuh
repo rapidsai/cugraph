@@ -231,9 +231,7 @@ struct col_indx_extract_t<graph_t, index_t, std::enable_if_t<graph_t::is_multi_g
     : handle_(handle),
       col_indices_(graph.indices()),
       row_offsets_(graph.offsets()),
-      values_(graph.weights() != nullptr
-                ? graph.weights()
-                : get_weights_scratch_pad(graph.get_number_of_edges(), handle)),
+      values_(graph.weights()),
       out_degs_(p_d_crt_out_degs),
       sizes_(p_d_sizes),
       num_paths_(num_paths),
@@ -281,31 +279,13 @@ struct col_indx_extract_t<graph_t, index_t, std::enable_if_t<graph_t::is_multi_g
         auto delta     = ptr_d_sizes[indx] - 1;
         auto v_indx    = ptr_d_coalesced_v[indx * max_depth + delta];
         auto start_row = row_offsets[v_indx];
-        return thrust::make_tuple(col_indices[start_row + col_indx], values[start_row + col_indx]);
+
+        auto weight_value =
+          (values == nullptr ? weight_t{1}
+                             : values[start_row + col_indx]);  // account for un-weighted graphs
+        return thrust::make_tuple(col_indices[start_row + col_indx], weight_value);
       },
       [] __device__(auto crt_out_deg) { return crt_out_deg > 0; });
-  }
-
-  // singleton for handling the case of missing
-  // weights, in which case a device buffer filled with
-  // `weight_t{1}` should be used as scratch-pad;
-  // this is static data to avoid device memory fragmentation
-  // by (potentially needlesly) re-allocating this scratch-pad;
-  //
-  static weight_t const* get_weights_scratch_pad(index_t num_edges, raft::handle_t const& handle)
-  {
-    static device_vec_t<weight_t> d_missing_weights(num_edges, handle.get_stream());
-    static bool was_initialized{false};
-
-    if (!was_initialized) {
-      thrust::fill(rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
-                   d_missing_weights.begin(),
-                   d_missing_weights.end(),
-                   weight_t{1});
-      was_initialized = true;
-    }
-
-    return d_missing_weights.data();
   }
 
  private:
