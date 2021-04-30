@@ -41,6 +41,9 @@ def mg_graph_generator_edgelist(
     scramble_vertex_ids
 ):
 
+    cdef size_t handle_size_t = <size_t>handle.getHandle()
+    handle_ = <c_graph_generator.handle_t*>handle_size_t
+
     vertex_t = np.dtype("int32")
     if num_edges > (2**31 - 1):
         vertex_t = np.dtype("int64")
@@ -53,7 +56,7 @@ def mg_graph_generator_edgelist(
     cdef unique_ptr[graph_generator_t] gg_ret_ptr 
     
     if (vertex_t==np.dtype("int32")):
-        gg_ret_ptr = move(call_generate_rmat_edgelist[int]( deref(handle_),
+        gg_ret_ptr = move(c_graph_generator.call_generate_edgelists[int](handle_[0],
                                                     scale,
                                                     num_edges,
                                                     a,
@@ -63,7 +66,7 @@ def mg_graph_generator_edgelist(
                                                     clip_and_flip,
                                                     scramble_vertex_ids))
     else: # (vertex_t == np.dtype("int64"))
-        gg_ret_ptr = move(call_generate_rmat_edgelist[long]( deref(handle_),
+        gg_ret_ptr = move(c_graph_generator.call_generate_edgelists[long](handle_[0],
                                                     scale,
                                                     num_edges,
                                                     a,
@@ -82,7 +85,7 @@ def mg_graph_generator_edgelist(
     set_source = cudf.Series(data=source_set, dtype=vertex_t)
     set_destination = cudf.Series(data=destination_set, dtype=vertex_t)
     
-    df = cudf.DataFrame()
+    df = dask.DataFrame()
     df['src'] = set_source
     df['dst'] = set_destination
     
