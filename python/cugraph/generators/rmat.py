@@ -39,10 +39,11 @@ def rmat(
     c,
     seed,
     clip_and_flip,
-    scramble_vertex_ids
+    scramble_vertex_ids,
+    create_using=cugraph.DiGraph,
+    mg=False,
 ):
-    """
-    Generate a Graph object using a Recursive MATrix (R-MAT) graph generation algorithm.
+    """Generate a Graph object using a Recursive MATrix (R-MAT) graph generation algorithm.
 
     Parameters
     ----------
@@ -75,11 +76,24 @@ def rmat(
             or not (if set to `false`); scrambling vertx ID bits breaks correlation between
             vertex ID values and vertex degrees
 
+    create_using : cugraph Graph type
+            The graph type to construct containing the generated edges and vertices.
+            Default is cugraph.DiGraph.
+            NOTE: only cugraph.DiGraph types are supported for multi-GPU
+
+    mg : bool
+            If True, RMAT generation occurs across multiple GPUs and edges. If
+            False, only a single GPU is used.
+            Default is False (single-GPU)
 
     Returns
     -------
     instance of cugraph.Graph
+
     """
+    if mg and create_using is not cugraph.DiGraph:
+        raise TypeError("Only cugraph.DiGraph can be used for multi-GPU RMAT")
+
     _ensure_args_edgelist(scale, a, b, c, clip_and_flip, scramble_vertex_ids)
 
     df = rmat_wrapper.generate_rmat_edgelist(scale, num_edges,
@@ -90,9 +104,11 @@ def rmat(
     clip_and_flip,
     scramble_vertex_ids)
 
-    #Convertion to Graph
-    G = cugraph.Graph()
-    G.from_cudf_edgelist(df, source='src', destination='dst')
+    G = create_using()
+    if mg:
+        G.from_dask_cudf_edgelist(df, source='src', destination='dst')
+    else:
+        G.from_cudf_edgelist(df, source='src', destination='dst')
 
     return G
 
