@@ -30,9 +30,6 @@ import cugraph.structure.graph_primtypes_wrapper as graph_primtypes_wrapper
 
 
 
-
-
-
 def mg_graph_generator_edgelist(
     scale,
     num_edges,

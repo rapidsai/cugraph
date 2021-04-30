@@ -34,26 +34,27 @@ def call_generate_edgelist(sID,
     wid = Comms.get_worker_id(sID)
     handle = Comms.get_handle(sID)
     return mg_graph_generator_edgelist.mg_graph_generator_edgelist(data[0],
-                                                 num_verts,
-                                                 num_edges,
-                                                 vertex_partition_offsets,
                                                  wid,
                                                  handle,
-                                                 alpha,
-                                                 beta,
-                                                 max_iter,
-                                                 tol,
-                                                 nstart,
-                                                 normalized)
+                                                 data,
+                                                 scale, 
+                                                 num_edges,
+                                                 a,
+                                                 b,
+                                                 c,
+                                                 seed,
+                                                 clip_and_flip,
+                                                 scramble_vertex_ids)
 
 
-def graph_generator_edgelist(input_graph,
-                    alpha=None,
-                    beta=None,
-                    max_iter=100,
-                    tol=1.0e-5,
-                    nstart=None,
-                    normalized=True):
+def graph_generator_edgelist(scale, 
+                             num_edges,
+                             a,
+                             b,
+                             c,
+                             seed,
+                             clip_and_flip,
+                             scramble_vertex_ids):
     
 
 
