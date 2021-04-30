@@ -15,14 +15,24 @@ from cugraph.generators import rmat_wrapper
 import cugraph
 
 
-def _ensure_args_rmat(scale, a, b, c, clip_and_flip, scramble_vertex_ids,
-                      create_using, mg):
+def _ensure_args_rmat(scale,
+                      a,
+                      b,
+                      c,
+                      clip_and_flip,
+                      scramble_vertex_ids,
+                      create_using,
+                      mg
+):
     """
     Ensures the args passed in are usable for the API api_name and raises TypeError
     or ValueError if incorrectly specified.
     """
     if mg and create_using is not cugraph.DiGraph:
         raise TypeError("Only cugraph.DiGraph can be used for multi-GPU RMAT")
+    if create_using not in [cugraph.Graph, cugraph.DiGraph]:
+        raise TypeError("Only cugraph.Graph and cugraph.DiGraph are supported"
+                        "types for 'create_using'")
     if not isinstance(scale, int):
         raise TypeError("'scale' must be an int")
     if (a+b+c > 1):
@@ -33,9 +43,16 @@ def _ensure_args_rmat(scale, a, b, c, clip_and_flip, scramble_vertex_ids,
         raise ValueError("'clip_and_flip' must be a bool")
 
 
-def _ensure_args_multi_rmat(n_edgelists, min_scale, max_scale, edge_factor,
-                            size_distribution, edge_distribution, seed,
-                            clip_and_flip, scramble_vertex_ids):
+def _ensure_args_multi_rmat(n_edgelists,
+                            min_scale,
+                            max_scale,
+                            edge_factor,
+                            size_distribution,
+                            edge_distribution,
+                            seed,
+                            clip_and_flip,
+                            scramble_vertex_ids
+):
     pass
 
 
