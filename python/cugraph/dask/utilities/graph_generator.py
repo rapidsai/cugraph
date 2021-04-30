@@ -15,7 +15,7 @@
 
 from dask.distributed import wait, default_client
 from cugraph.dask.common.input_utils #create some utils functions
-from cugraph.dask.centrality import\
+from cugraph.dask.utilities import\
     mg_generate_edgelist_wrapper as mg_generate_edgelist_wrapper
 import cugraph.comms.comms as Comms
 import dask_cudf
