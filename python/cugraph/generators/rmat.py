@@ -15,11 +15,14 @@ from cugraph.generators import rmat_wrapper
 import cugraph
 
 
-def _ensure_args_edgelist(scale, a, b, c, clip_and_flip, scramble_vertex_ids):
+def _ensure_args_rmat(scale, a, b, c, clip_and_flip, scramble_vertex_ids,
+                      create_using, mg):
     """
     Ensures the args passed in are usable for the API api_name and raises TypeError
     or ValueError if incorrectly specified.
     """
+    if mg and create_using is not cugraph.DiGraph:
+        raise TypeError("Only cugraph.DiGraph can be used for multi-GPU RMAT")
     if not isinstance(scale, int):
         raise TypeError("'scale' must be an int")
     if (a+b+c > 1):
@@ -29,7 +32,12 @@ def _ensure_args_edgelist(scale, a, b, c, clip_and_flip, scramble_vertex_ids):
     if (scramble_vertex_ids not in [True, False]):
         raise ValueError("'clip_and_flip' must be a bool")
 
-#def _ensure_args_edgelists()
+
+def _ensure_args_multi_rmat(n_edgelists, min_scale, max_scale, edge_factor,
+                            size_distribution, edge_distribution, seed,
+                            clip_and_flip, scramble_vertex_ids):
+    pass
+
 
 def rmat(
     scale,
@@ -90,10 +98,8 @@ def rmat(
     instance of cugraph.Graph
 
     """
-    if mg and create_using is not cugraph.DiGraph:
-        raise TypeError("Only cugraph.DiGraph can be used for multi-GPU RMAT")
-
-    _ensure_args_edgelist(scale, a, b, c, clip_and_flip, scramble_vertex_ids)
+    _ensure_args_rmat(scale, a, b, c, clip_and_flip,
+                      scramble_vertex_ids, create_using, mg)
 
     df = rmat_wrapper.generate_rmat_edgelist(scale, num_edges,
     a,
@@ -165,7 +171,9 @@ def multi_rmat(
     -------
     list of cugraph.Graph instances
     """
-    #_ensure_args_edgelists(scale, a, b, c, clip_and_flip, scramble_vertex_ids)
+    _ensure_args_multi_rmat(n_edgelists, min_scale, max_scale, edge_factor,
+                            size_distribution, edge_distribution, seed,
+                            clip_and_flip, scramble_vertex_ids)
 
     dfs = rmat_wrapper.generate_rmat_edgelists(n_edgelists, min_scale,
     max_scale,
