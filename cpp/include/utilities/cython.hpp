@@ -207,14 +207,12 @@ struct random_walk_ret_t {
   std::unique_ptr<rmm::device_buffer> d_sizes_;
 };
 
-<<<<<<< HEAD
 struct graph_generator_t {
   std::unique_ptr<rmm::device_buffer> d_source;
   std::unique_ptr<rmm::device_buffer> d_destination;
 };
 
 //enum class generator_distribution_t { POWER_LAW = 0, UNIFORM };
-=======
 // aggregate for random_walks() COO return type
 // to be exposed to cython:
 //
@@ -234,7 +232,6 @@ struct random_walk_coo_t {
   std::unique_ptr<rmm::device_buffer>
     d_offsets_;  // offsets where each COO subset for each path starts; |d_offsets_| = num_offsets_
 };
->>>>>>> upstream/branch-0.20
 
 // wrapper for renumber_edgelist() return
 // (unrenumbering maps, etc.)
@@ -533,16 +530,13 @@ call_random_walks(raft::handle_t const& handle,
                   edge_t num_paths,
                   edge_t max_depth);
 
-<<<<<<< HEAD
 
 
-=======
 // convertor from random_walks return type to COO:
 //
 template <typename vertex_t, typename index_t>
 std::unique_ptr<random_walk_coo_t> random_walks_to_coo(raft::handle_t const& handle,
                                                        random_walk_ret_t& rw_ret);
->>>>>>> upstream/branch-0.20
 
 // wrapper for shuffling:
 //

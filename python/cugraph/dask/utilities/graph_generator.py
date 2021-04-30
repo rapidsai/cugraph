@@ -57,8 +57,7 @@ def graph_generator_edgelist(scale,
 
     #edges = get_distributed_data() #call function to distribute the edge generation 
     #78 10
-    num_edges_per_workers = num_edges//num_workers #
-    num_edges_last_worker = num_edges//num_workers + num_edges%num_workers #8
+ 
     L=[client.submit(graph_generator,
                                scale, 
                                n_edges,
@@ -68,29 +67,8 @@ def graph_generator_edgelist(scale,
                                seed,
                                clip_and_flip,
                                scramble_vertex_ids) for seed, n_edges in enumerate(list_job)]
-    """
-    L.append(client.submit(graph_generator,
-                               scale, 
-                               num_edges_last_worker,
-                               a,
-                               b,
-                               c,
-                               num_workers,
-                               clip_and_flip,
-                               scramble_vertex_ids))
-    """
-    """
-    for seed in range(num_edges):
-        L.append(client.submit(graph_generator,
-                               scale, 
-                               1,
-                               a,
-                               b,
-                               c,
-                               seed,
-                               clip_and_flip,
-                               scramble_vertex_ids)
-    """
+    
+    
     #client.gather(L)
 
     return L
