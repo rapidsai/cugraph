@@ -82,7 +82,7 @@ def rmat(
     """
     _ensure_args_edgelist(scale, a, b, c, clip_and_flip, scramble_vertex_ids)
 
-    df = rmat_wrapper.graph_generator_edgelist(scale, num_edges,
+    df = rmat_wrapper.generate_rmat_edgelist(scale, num_edges,
     a,
     b,
     c,
@@ -152,7 +152,7 @@ def multi_rmat(
     """
     #_ensure_args_edgelists(scale, a, b, c, clip_and_flip, scramble_vertex_ids)
 
-    dfs = rmat_wrapper.graph_generator_edgelists(n_edgelists, min_scale,
+    dfs = rmat_wrapper.generate_rmat_edgelists(n_edgelists, min_scale,
     max_scale,
     edge_factor,
     size_distribution,

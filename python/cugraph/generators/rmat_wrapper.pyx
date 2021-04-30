@@ -28,7 +28,7 @@ from libcpp.utility cimport move  # This must be imported after graph_utilities
                                   # since graph_utilities also defines move
 
 
-def graph_generator_edgelist(
+def generate_rmat_edgelist(
     scale,
     num_edges,
     a,
@@ -86,7 +86,8 @@ def graph_generator_edgelist(
 
     return df
 
-def graph_generator_edgelists(
+
+def generate_rmat_edgelists(
     n_edgelists,
     min_scale,
     max_scale,
