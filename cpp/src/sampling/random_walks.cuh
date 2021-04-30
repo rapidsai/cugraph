@@ -353,11 +353,15 @@ struct random_walker_t {
   random_walker_t(raft::handle_t const& handle,
                   graph_t const& graph,
                   index_t num_paths,
-                  index_t max_depth)
+                  index_t max_depth,
+                  vertex_t v_padding_val = 0,
+                  weight_t w_padding_val = 0)
     : handle_(handle),
       num_paths_(num_paths),
       max_depth_(max_depth),
-      d_cached_out_degs_(graph.compute_out_degrees(handle_))
+      d_cached_out_degs_(graph.compute_out_degrees(handle_)),
+      vertex_padding_value_(v_padding_val != 0 ? v_padding_val : graph.get_number_of_vertices()),
+      weight_padding_value_(w_padding_val)
   {
   }
 
@@ -657,11 +661,31 @@ struct random_walker_t {
 
   device_vec_t<edge_t> const& get_out_degs(void) const { return d_cached_out_degs_; }
 
+  vertex_t get_vertex_padding_value(void) const { return vertex_padding_value_; }
+
+  weight_t get_weight_padding_value(void) const { return weight_padding_value_; }
+
+  void init_padding(device_vec_t<vertex_t>& d_coalesced_v,
+                    device_vec_t<weight_t>& d_coalesced_w) const
+  {
+    thrust::fill(rmm::exec_policy(handle_.get_stream())->on(handle_.get_stream()),
+                 d_coalesced_v.begin(),
+                 d_coalesced_v.end(),
+                 vertex_padding_value_);
+
+    thrust::fill(rmm::exec_policy(handle_.get_stream())->on(handle_.get_stream()),
+                 d_coalesced_w.begin(),
+                 d_coalesced_w.end(),
+                 weight_padding_value_);
+  }
+
  private:
   raft::handle_t const& handle_;
   index_t num_paths_;
   index_t max_depth_;
   device_vec_t<edge_t> d_cached_out_degs_;
+  vertex_t const vertex_padding_value_;
+  weight_t const weight_padding_value_;
 };
 
 /**
@@ -696,6 +720,7 @@ random_walks_impl(raft::handle_t const& handle,
                   graph_t const& graph,
                   device_const_vector_view<typename graph_t::vertex_type, index_t>& d_v_start,
                   index_t max_depth,
+                  bool use_padding        = false,
                   seeding_policy_t seeder = clock_seeding_t<typename random_engine_t::seed_type>{})
 {
   using vertex_t = typename graph_t::vertex_type;
@@ -739,6 +764,10 @@ random_walks_impl(raft::handle_t const& handle,
   //
   seed_t seed0 = static_cast<seed_t>(seeder());
 
+  // if padding used, initialize padding values:
+  //
+  if (use_padding) rand_walker.init_padding(d_coalesced_v, d_coalesced_w);
+
   // very first vertex, for each path:
   //
   rand_walker.start(d_v_start, d_coalesced_v, d_paths_sz);
@@ -766,15 +795,25 @@ random_walks_impl(raft::handle_t const& handle,
 
   // wrap-up, post-process:
   // truncate v_set, w_set to actual space used
+  // unless padding is used
   //
-  rand_walker.stop(d_coalesced_v, d_coalesced_w, d_paths_sz);
+  if (!use_padding) { rand_walker.stop(d_coalesced_v, d_coalesced_w, d_paths_sz); }
 
   // because device_uvector is not copy-cnstr-able:
   //
-  return std::make_tuple(std::move(d_coalesced_v),
-                         std::move(d_coalesced_w),
-                         std::move(d_paths_sz),
-                         seed0);  // also return seed for repro
+  if (!use_padding) {
+    return std::make_tuple(std::move(d_coalesced_v),
+                           std::move(d_coalesced_w),
+                           std::move(d_paths_sz),
+                           seed0);  // also return seed for repro
+  } else {
+    return std::make_tuple(
+      std::move(d_coalesced_v),
+      std::move(d_coalesced_w),
+      device_vec_t<index_t>(0, stream),  // purposely empty size array for the padded case, to avoid
+                                         // unnecessary allocations
+      seed0);                            // also return seed for repro
+  }
 }
 
 /**
@@ -809,6 +848,7 @@ random_walks_impl(raft::handle_t const& handle,
                   graph_t const& graph,
                   device_const_vector_view<typename graph_t::vertex_type, index_t>& d_v_start,
                   index_t max_depth,
+                  bool use_padding        = false,
                   seeding_policy_t seeder = clock_seeding_t<typename random_engine_t::seed_type>{})
 {
   CUGRAPH_FAIL("Not implemented yet.");
