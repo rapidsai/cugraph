@@ -15,7 +15,7 @@ from dask.distributed import wait, default_client, Client
 import dask_cudf
 
 from cugraph.generators import rmat_wrapper
-import cugraph.comms.comms as Comms
+from cugraph.comms import comms as Comms
 import cugraph
 
 
@@ -33,7 +33,7 @@ def _ensure_args_rmat(scale,
     appropriate exception if incorrect, else returns None.
     """
     if mg and create_using is not cugraph.DiGraph:
-        raise TypeError("Only cugraph.DiGraph can be used for multi-GPU RMAT")
+        raise TypeError("Only cugraph.DiGraph can be used for multi-GPU R-MAT")
     if create_using not in [cugraph.Graph, cugraph.DiGraph]:
         raise TypeError("Only cugraph.Graph and cugraph.DiGraph are supported"
                         "types for 'create_using'")
@@ -157,52 +157,52 @@ def rmat(scale,
          create_using=cugraph.DiGraph,
          mg=False
 ):
-    """Generate a Graph object using a Recursive MATrix (R-MAT) graph generation algorithm.
+    """
+    Generate a Graph object using a Recursive MATrix (R-MAT) graph generation algorithm.
 
     Parameters
     ----------
     scale : int
-            Scale factor to set the number of verties in the graph
-            Vertex IDs have values in [0, V), where V = 1 << 'scale'
+    Scale factor to set the number of verties in the graph Vertex IDs have
+    values in [0, V), where V = 1 << 'scale'
 
     num_edges : int
-            Number of edges to generate
+    Number of edges to generate
 
     a : float
-            Probability of the first partition
+    Probability of the first partition
 
     b : float
-            Probability of the second partition
+    Probability of the second partition
 
     c : float
-            Probability of the thrid partition
+    Probability of the thrid partition
 
     seed : int
-            Seed value for the random number generator
+    Seed value for the random number generator
 
     clip_and_flip : bool
-            Flag controlling whether to generate edges only in the lower triangular part
-            (including the diagonal) of the graph adjacency matrix (if set to 'true')
-            or not (if set to 'false).
+    Flag controlling whether to generate edges only in the lower triangular part
+    (including the diagonal) of the graph adjacency matrix (if set to 'true') or
+    not (if set to 'false).
 
     scramble_vertex_ids : bool
-            Flag controlling whether to scramble vertex ID bits (if set to `true`)
-            or not (if set to `false`); scrambling vertx ID bits breaks correlation between
-            vertex ID values and vertex degrees
+    Flag controlling whether to scramble vertex ID bits (if set to `true`) or
+    not (if set to `false`); scrambling vertx ID bits breaks correlation between
+    vertex ID values and vertex degrees
 
     create_using : cugraph Graph type
-            The graph type to construct containing the generated edges and
-            vertices.  Default is cugraph.DiGraph.
-            NOTE: only the cugraph.DiGraph type is supported for multi-GPU
+    The graph type to construct containing the generated edges and vertices.
+    Default is cugraph.DiGraph.  NOTE: only the cugraph.DiGraph type is
+    supported for multi-GPU
 
     mg : bool
-            If True, RMAT generation occurs across multiple GPUs. If False, only
-            a single GPU is used.  Default is False (single-GPU)
+    If True, R-MAT generation occurs across multiple GPUs. If False, only a
+    single GPU is used.  Default is False (single-GPU)
 
     Returns
     -------
     instance of cugraph.Graph
-
     """
     _ensure_args_rmat(scale, a, b, c, clip_and_flip,
                       scramble_vertex_ids, create_using, mg)
@@ -232,37 +232,37 @@ def multi_rmat(
     Parameters
     ----------
     n_edgelists : int
-        Number of edge lists (graphs) to generate
+    Number of edge lists (graphs) to generate
 
     min_scale : int
-        Scale factor to set the minimum number of vertices in the graph
+    Scale factor to set the minimum number of vertices in the graph
 
     max_scale : int
-        Scale factor to set the maximum number of vertices in the graph
+    Scale factor to set the maximum number of vertices in the graph
 
     edge_factor : int
-        Average number of edges per vertex to generate
+    Average number of edges per vertex to generate
 
     size_distribution :
-        Distribution of the graph sizes, impacts the scale parameter of the
-        R-MAT generator
+    Distribution of the graph sizes, impacts the scale parameter of the R-MAT
+    generator
 
     edge_distribution :
-        Edges distribution for each graph, impacts how R-MAT parameters a,b,c,d,
-        are set
+    Edges distribution for each graph, impacts how R-MAT parameters a,b,c,d, are
+    set
 
     seed : int
-        Seed value for the random number generator
+    Seed value for the random number generator
 
     clip_and_flip : bool
-        Flag controlling whether to generate edges only in the lower triangular
-        part (including the diagonal) of the graph adjacency matrix (if set to 'true')
-        or not (if set to 'false')
+    Flag controlling whether to generate edges only in the lower triangular part
+    (including the diagonal) of the graph adjacency matrix (if set to 'true') or
+    not (if set to 'false')
 
     scramble_vertex_ids : bool
-        Flag controlling whether to scramble vertex ID bits (if set to `true`)
-        or not (if set to `false`); scrambling vertx ID bits breaks correlation between vertex
-        ID values and vertex degrees
+    Flag controlling whether to scramble vertex ID bits (if set to `true`) or
+    not (if set to `false`); scrambling vertx ID bits breaks correlation between
+    vertex ID values and vertex degrees
 
     Returns
     -------
