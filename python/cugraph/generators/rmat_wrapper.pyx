@@ -40,7 +40,7 @@ def generate_rmat_edgelist(
 ):
 
     vertex_t = np.dtype("int32")
-    if num_edges > (2**31 - 1):
+    if (2**scale) > (2**31 - 1):
         vertex_t = np.dtype("int64")
 
     cdef unique_ptr[handle_t] handle_ptr

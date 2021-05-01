@@ -11,7 +11,11 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from dask.distributed import wait, default_client, Client
+import dask_cudf
+
 from cugraph.generators import rmat_wrapper
+import cugraph.comms.comms as Comms
 import cugraph
 
 
@@ -25,8 +29,8 @@ def _ensure_args_rmat(scale,
                       mg
 ):
     """
-    Ensures the args passed in are usable for the API api_name and raises TypeError
-    or ValueError if incorrectly specified.
+    Ensures the args passed in are usable for the rmat() API, raises the
+    appropriate exception if incorrect, else returns None.
     """
     if mg and create_using is not cugraph.DiGraph:
         raise TypeError("Only cugraph.DiGraph can be used for multi-GPU RMAT")
@@ -53,20 +57,105 @@ def _ensure_args_multi_rmat(n_edgelists,
                             clip_and_flip,
                             scramble_vertex_ids
 ):
+    """
+    Ensures the args passed in are usable for the multi_rmat() API, raises the
+    appropriate exception if incorrect, else returns None.
+    """
     pass
 
 
-def rmat(
-    scale,
-    num_edges,
-    a,
-    b,
-    c,
-    seed,
-    clip_and_flip,
-    scramble_vertex_ids,
-    create_using=cugraph.DiGraph,
-    mg=False
+def _sg_rmat(scale,
+             num_edges,
+             a,
+             b,
+             c,
+             seed,
+             clip_and_flip,
+             scramble_vertex_ids,
+             create_using=cugraph.DiGraph
+):
+    """
+    FIXME: add docstring
+    """
+    df = rmat_wrapper.generate_rmat_edgelist(scale,
+                                             num_edges,
+                                             a,
+                                             b,
+                                             c,
+                                             seed,
+                                             clip_and_flip,
+                                             scramble_vertex_ids)
+
+    G = create_using()
+    G.from_cudf_edgelist(df, source='src', destination='dst')
+
+    return G
+
+
+def _mg_rmat(scale,
+             num_edges,
+             a,
+             b,
+             c,
+             seed,
+             clip_and_flip,
+             scramble_vertex_ids,
+             create_using=cugraph.DiGraph
+):
+    #client = default_client()
+    client = Client() #change this
+    num_workers = len(client.scheduler_info()['workers'])
+
+    list_job = calc_num_edges_per_worker(num_workers, num_edges)
+
+    #edges = get_distributed_data() #call function to distribute the edge generation
+    #78 10
+
+    L=[client.submit(graph_generator,
+                               scale,
+                               n_edges,
+                               a,
+                               b,
+                               c,
+                               seed,
+                               clip_and_flip,
+                               scramble_vertex_ids) for seed, n_edges in enumerate(list_job)]
+
+
+    #client.gather(L)
+
+    # FIXME: need to return a Graph
+    return L
+
+
+def calc_num_edges_per_worker(num_workers, num_edges):
+    """
+    FIXME: add docstring
+    """
+    #48 and 10
+    L= []
+    w = num_edges//num_workers
+    r = num_edges%num_workers
+    for i in range (num_workers):
+        if (i<r):
+            L.append(w+1)
+        else:
+            L.append(w)
+    return L
+
+
+################################################################################
+
+def rmat(scale,
+         num_edges,
+         a,
+         b,
+         c,
+         seed,
+         clip_and_flip,
+         scramble_vertex_ids,
+         create_using=cugraph.DiGraph,
+         mg=False
 ):
     """Generate a Graph object using a Recursive MATrix (R-MAT) graph generation algorithm.
 
@@ -118,21 +207,12 @@ def rmat(
     _ensure_args_rmat(scale, a, b, c, clip_and_flip,
                       scramble_vertex_ids, create_using, mg)
 
-    df = rmat_wrapper.generate_rmat_edgelist(scale, num_edges,
-    a,
-    b,
-    c,
-    seed,
-    clip_and_flip,
-    scramble_vertex_ids)
-
-    G = create_using()
     if mg:
-        G.from_dask_cudf_edgelist(df, source='src', destination='dst')
+        return _sg_rmat(scale, a, b, c, clip_and_flip,
+                        scramble_vertex_ids, create_using)
     else:
-        G.from_cudf_edgelist(df, source='src', destination='dst')
-
-    return df #testing this for MG - not final output
+        return _mg_rmat(scale, a, b, c, clip_and_flip,
+                        scramble_vertex_ids, create_using)
 
 
 def multi_rmat(
