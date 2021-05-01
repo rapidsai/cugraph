@@ -207,14 +207,12 @@ struct random_walk_ret_t {
   std::unique_ptr<rmm::device_buffer> d_sizes_;
 };
 
-
 struct graph_generator_t {
   std::unique_ptr<rmm::device_buffer> d_source;
   std::unique_ptr<rmm::device_buffer> d_destination;
 };
 
 //enum class generator_distribution_t { POWER_LAW = 0, UNIFORM };
-
 // aggregate for random_walks() COO return type
 // to be exposed to cython:
 //
@@ -234,7 +232,6 @@ struct random_walk_coo_t {
   std::unique_ptr<rmm::device_buffer>
     d_offsets_;  // offsets where each COO subset for each path starts; |d_offsets_| = num_offsets_
 };
-
 
 // wrapper for renumber_edgelist() return
 // (unrenumbering maps, etc.)

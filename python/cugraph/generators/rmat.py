@@ -132,7 +132,7 @@ def rmat(
     else:
         G.from_cudf_edgelist(df, source='src', destination='dst')
 
-    return G
+    return df #testing this for MG - not final output
 
 
 def multi_rmat(

@@ -13,41 +13,31 @@
 # limitations under the License.
 #
 
-from dask.distributed import wait, default_client
-from cugraph.dask.common.input_utils #create some utils functions
-from cugraph.dask.utilities import\
-    mg_generate_edgelist_wrapper as mg_generate_edgelist_wrapper
+from dask.distributed import wait, default_client, Client
+
+#from cugraph.dask.common.input_utils #create some utils functions
+
+#from cugraph.dask.utilities import\
+#    mg_generate_edgelist_wrapper as mg_generate_edgelist
 import cugraph.comms.comms as Comms
+from cugraph.utilities.graph_generator import graph_generator_edgelist as graph_generator
 import dask_cudf
 
 
-def call_generate_edgelist(sID,
-                            data,
-                            scale, 
-                            num_edges,
-                            a,
-                            b,
-                            c,
-                            seed,
-                            clip_and_flip,
-                            scramble_vertex_ids):
-    wid = Comms.get_worker_id(sID)
-    handle = Comms.get_handle(sID)
-    return mg_graph_generator_edgelist.mg_graph_generator_edgelist(data[0],
-                                                 wid,
-                                                 handle,
-                                                 data,
-                                                 scale, 
-                                                 num_edges,
-                                                 a,
-                                                 b,
-                                                 c,
-                                                 seed,
-                                                 clip_and_flip,
-                                                 scramble_vertex_ids)
+def calc_num_edges_per_worker(num_workers, num_edges):
+    #48 and 10
+    L= []
+    w = num_edges//num_workers
+    r = num_edges%num_workers
+    for i in range (num_workers):
+        if (i<r):
+            L.append(w+1)
+        else:
+            L.append(w)
+    return L
 
 
-def graph_generator_edgelist(scale, 
+def graph_generator_edgelist(scale,
                              num_edges,
                              a,
                              b,
@@ -55,28 +45,29 @@ def graph_generator_edgelist(scale,
                              seed,
                              clip_and_flip,
                              scramble_vertex_ids):
-    
 
 
-    client = default_client()
+
+    #client = default_client()
+    client = Client() #change this
+    num_workers = len(client.scheduler_info()['workers'])
+
+    list_job = calc_num_edges_per_worker(num_workers, num_edges)
+
+    #edges = get_distributed_data() #call function to distribute the edge generation
+    #78 10
+
+    L=[client.submit(graph_generator,
+                               scale,
+                               n_edges,
+                               a,
+                               b,
+                               c,
+                               seed,
+                               clip_and_flip,
+                               scramble_vertex_ids) for seed, n_edges in enumerate(list_job)]
 
 
-    edges = get_distributed_data() #call function to distribute the edge generation 
-    
-    ddf = [client.submit(graph_generator_edgelist,
-                            Comms.get_session_id(),
-                            wf[1],
-                            scale, 
-                            num_edges,
-                            a,
-                            b,
-                            c,
-                            seed,
-                            clip_and_flip,
-                            scramble_vertex_ids,
-                            workers=[wf[0]])
-                for wf in (edges)]   #determine this parameter
-    wait(ddf)
-    ddf = dask_cudf.from_delayed(ddf)
+    #client.gather(L)
 
-    return ddf
+    return L
