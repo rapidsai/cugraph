@@ -36,7 +36,8 @@ def generate_rmat_edgelist(
     c,
     seed,
     clip_and_flip,
-    scramble_vertex_ids
+    scramble_vertex_ids,
+    handle=None
 ):
 
     vertex_t = np.dtype("int32")
@@ -44,9 +45,14 @@ def generate_rmat_edgelist(
         vertex_t = np.dtype("int64")
 
     cdef unique_ptr[handle_t] handle_ptr
-    handle_ptr.reset(new handle_t())
-    handle_ = handle_ptr.get()
+    cdef size_t handle_size_t
 
+    if handle is None:
+        handle_ptr.reset(new handle_t())
+        handle_ = handle_ptr.get()
+    else:
+        handle_size_t = <size_t>handle.getHandle()
+        handle_ = <handle_t*>handle_size_t
 
     cdef unique_ptr[graph_generator_t] gg_ret_ptr
 

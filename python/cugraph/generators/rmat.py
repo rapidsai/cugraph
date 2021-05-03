@@ -13,6 +13,7 @@
 
 from dask.distributed import wait, default_client, Client
 import dask_cudf
+import cudf
 
 from cugraph.generators import rmat_wrapper
 from cugraph.comms import comms as Comms
@@ -20,9 +21,11 @@ import cugraph
 
 
 def _ensure_args_rmat(scale,
+                      num_edges,
                       a,
                       b,
                       c,
+                      seed,
                       clip_and_flip,
                       scramble_vertex_ids,
                       create_using,
@@ -92,6 +95,30 @@ def _sg_rmat(scale,
     return G
 
 
+def call_rmat(sID,
+              scale,
+              num_edges_for_worker,
+              a,
+              b,
+              c,
+              unique_worker_seed,
+              clip_and_flip,
+              scramble_vertex_ids
+):
+    handle = Comms.get_handle(sID)
+
+    return rmat_wrapper.generate_rmat_edgelist(scale,
+                                               num_edges_for_worker,
+                                               a,
+                                               b,
+                                               c,
+                                               unique_worker_seed,
+                                               clip_and_flip,
+                                               scramble_vertex_ids,
+                                               handle=handle
+                                              )
+
+
 def _mg_rmat(scale,
              num_edges,
              a,
@@ -102,30 +129,41 @@ def _mg_rmat(scale,
              scramble_vertex_ids,
              create_using=cugraph.DiGraph
 ):
-    #client = default_client()
-    client = Client() #change this
+    client = default_client()
     num_workers = len(client.scheduler_info()['workers'])
 
-    list_job = calc_num_edges_per_worker(num_workers, num_edges)
+    num_edges_list = calc_num_edges_per_worker(num_workers, num_edges)
 
-    #edges = get_distributed_data() #call function to distribute the edge generation
-    #78 10
-
-    L=[client.submit(graph_generator,
+    futures = []
+    for (i, worker_num_edges) in enumerate(num_edges_list):
+        unique_worker_seed = seed + i
+        future = client.submit(call_rmat,
+                               Comms.get_session_id(),
                                scale,
-                               n_edges,
+                               worker_num_edges,
                                a,
                                b,
                                c,
-                               seed,
+                               unique_worker_seed,
                                clip_and_flip,
-                               scramble_vertex_ids) for seed, n_edges in enumerate(list_job)]
+                               scramble_vertex_ids,
+                              )
+        futures.append(future)
 
+    wait(futures)
 
-    #client.gather(L)
+    # Create the graph from the distributed dataframe(s), first by creating a
+    # dask_cudf DataFrame, then by populating a Graph object with it (making it
+    # a distributed graph)
+    # FIXME: verify if this is correct!
+    ddf = dask_cudf.from_cudf(futures[0].result(), npartitions=1)
+    for f in futures[1:]:
+        ddf = ddf.append(f.result())
 
-    # FIXME: need to return a Graph
-    return L
+    G = create_using()
+    G.from_dask_cudf_edgelist(ddf, source="src", destination="dst")
+
+    return G
 
 
 def calc_num_edges_per_worker(num_workers, num_edges):
@@ -204,14 +242,14 @@ def rmat(scale,
     -------
     instance of cugraph.Graph
     """
-    _ensure_args_rmat(scale, a, b, c, clip_and_flip,
+    _ensure_args_rmat(scale, num_edges, a, b, c, seed, clip_and_flip,
                       scramble_vertex_ids, create_using, mg)
 
     if mg:
-        return _sg_rmat(scale, a, b, c, clip_and_flip,
+        return _mg_rmat(scale, num_edges, a, b, c, seed, clip_and_flip,
                         scramble_vertex_ids, create_using)
     else:
-        return _mg_rmat(scale, a, b, c, clip_and_flip,
+        return _sg_rmat(scale, num_edges, a, b, c, seed, clip_and_flip,
                         scramble_vertex_ids, create_using)
 
 
