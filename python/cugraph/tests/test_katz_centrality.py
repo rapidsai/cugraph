@@ -1,3 +1,4 @@
+
 # Copyright (c) 2019-2021, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -15,6 +16,7 @@ import gc
 
 import pytest
 
+import cudf
 import cugraph
 from cugraph.tests import utils
 
@@ -70,7 +72,7 @@ def calc_katz(graph_file):
 # https://github.com/rapidsai/cugraph/issues/1042
 #
 # @pytest.mark.parametrize("graph_file", utils.DATASETS)
-@pytest.mark.parametrize("graph_file", utils.DATASETS_UNDIRECTED)
+"""@pytest.mark.parametrize("graph_file", utils.DATASETS_UNDIRECTED)
 def test_katz_centrality(graph_file):
     gc.collect()
 
@@ -112,3 +114,38 @@ def test_katz_centrality_nx(graph_file):
             err = err + 1
     print("Mismatches:", err)
     assert err < (0.1 * len(ck))
+"""
+
+@pytest.mark.parametrize("graph_file", utils.DATASETS_UNDIRECTED)
+def test_katz_centrality_multi_column(graph_file):
+    gc.collect()
+
+    cu_M = utils.read_csv_file(graph_file)
+    cu_M.rename(columns={'0': 'src_0', '1': 'dst_0'}, inplace=True)
+    cu_M['src_1'] = cu_M['src_0'] + 1000
+    cu_M['dst_1'] = cu_M['dst_0'] + 1000
+
+    G1 = cugraph.DiGraph()
+    G1.from_cudf_edgelist(cu_M, source=["src_0", "src_1"],
+                          destination=["dst_0", "dst_1"])
+
+    G2 = cugraph.DiGraph()
+    G2.from_cudf_edgelist(cu_M, source="src_0", destination="dst_0")
+
+    k_df_exp = cugraph.katz_centrality(G2, alpha=None, max_iter=1000)
+    k_df_exp = k_df_exp.sort_values("vertex").reset_index(drop=True)
+
+    nstart = cudf.DataFrame()
+    nstart['vertex_0'] = k_df_exp['vertex']
+    nstart['vertex_1'] = nstart['vertex_0'] + 1000
+    nstart['values'] = k_df_exp['katz_centrality']
+
+    k_df_res = cugraph.katz_centrality(G1, nstart=nstart,
+                                       alpha=None, max_iter=1000)
+    k_df_res = k_df_res.sort_values("0_vertex").reset_index(drop=True)
+    k_df_res.rename(columns={'0_vertex': 'vertex'}, inplace=True)
+
+    top_res = topKVertices(k_df_res, "katz_centrality", 10)
+    top_exp = topKVertices(k_df_exp, "katz_centrality", 10)
+
+    assert top_res.equals(top_exp)
