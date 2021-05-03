@@ -72,7 +72,7 @@ def calc_katz(graph_file):
 # https://github.com/rapidsai/cugraph/issues/1042
 #
 # @pytest.mark.parametrize("graph_file", utils.DATASETS)
-"""@pytest.mark.parametrize("graph_file", utils.DATASETS_UNDIRECTED)
+@pytest.mark.parametrize("graph_file", utils.DATASETS_UNDIRECTED)
 def test_katz_centrality(graph_file):
     gc.collect()
 
@@ -114,7 +114,7 @@ def test_katz_centrality_nx(graph_file):
             err = err + 1
     print("Mismatches:", err)
     assert err < (0.1 * len(ck))
-"""
+
 
 @pytest.mark.parametrize("graph_file", utils.DATASETS_UNDIRECTED)
 def test_katz_centrality_multi_column(graph_file):
