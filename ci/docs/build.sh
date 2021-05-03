@@ -1,5 +1,5 @@
 #!/bin/bash
-# Copyright (c) 2020, NVIDIA CORPORATION.
+# Copyright (c) 2021, NVIDIA CORPORATION.
 #################################
 # cuGraph Docs build script for CI #
 #################################
@@ -28,11 +28,6 @@ gpuci_logger "Activate conda env"
 . /opt/conda/etc/profile.d/conda.sh
 conda activate rapids
 
-# TODO: Move installs to docs-build-env meta package
-gpuci_conda_retry install -c anaconda markdown beautifulsoup4 jq
-pip install sphinx-markdown-tables
-
-
 gpuci_logger "Check versions"
 python --version
 $CC --version
@@ -47,10 +42,10 @@ conda list --show-channel-urls
 gpuci_logger "Build Doxygen docs"
 cd $PROJECT_WORKSPACE/cpp/build
 make docs_cugraph
-	
+
 # Build Python docs
 gpuci_logger "Build Sphinx docs"
-cd $PROJECT_WORKSPACE/docs
+cd $PROJECT_WORKSPACE/docs/cugraph
 make html
 
 #Commit to Website
@@ -60,10 +55,10 @@ for PROJECT in ${PROJECTS[@]}; do
     if [ ! -d "api/$PROJECT/$BRANCH_VERSION" ]; then
         mkdir -p api/$PROJECT/$BRANCH_VERSION
     fi
-    rm -rf $DOCS_WORKSPACE/api/$PROJECT/$BRANCH_VERSION/*	
+    rm -rf $DOCS_WORKSPACE/api/$PROJECT/$BRANCH_VERSION/*
 done
 
 
 mv $PROJECT_WORKSPACE/cpp/doxygen/html/* $DOCS_WORKSPACE/api/libcugraph/$BRANCH_VERSION
-mv $PROJECT_WORKSPACE/docs/build/html/* $DOCS_WORKSPACE/api/cugraph/$BRANCH_VERSION
+mv $PROJECT_WORKSPACE/docs/cugraph/build/html/* $DOCS_WORKSPACE/api/cugraph/$BRANCH_VERSION
 

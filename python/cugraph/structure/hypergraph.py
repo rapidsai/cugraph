@@ -1,4 +1,4 @@
-# Copyright (c) 2020, NVIDIA CORPORATION.
+# Copyright (c) 2020-2021, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -36,7 +36,7 @@
 
 import cudf
 import numpy as np
-from cugraph.structure.graph import Graph
+from cugraph.structure.graph_classes import Graph
 
 
 def hypergraph(
@@ -66,24 +66,20 @@ def hypergraph(
     components as dataframes. The transform reveals relationships between the
     rows and unique values. This transform is useful for lists of events,
     samples, relationships, and other structured high-dimensional data.
-
     The transform creates a node for every row, and turns a row's column
     entries into node attributes. If direct=False (default), every unique
     value within a column is also turned into a node. Edges are added to
     connect a row's nodes to each of its column nodes, or if direct=True, to
     one another. Nodes are given the attribute specified by ``NODETYPE``
     that corresponds to the originating column name, or if a row ``EVENTID``.
-
     Consider a list of events. Each row represents a distinct event, and each
     column some metadata about an event. If multiple events have common
     metadata, they will be transitively connected through those metadata
     values. Conversely, if an event has unique metadata, the unique metadata
     will turn into nodes that only have connections to the event node.
-
     For best results, set ``EVENTID`` to a row's unique ID, ``SKIP`` to all
     non-categorical columns (or ``columns`` to all categorical columns),
     and ``categories`` to group columns with the same kinds of values.
-
     Parameters
     ----------
     values : cudf.DataFrame
@@ -130,7 +126,6 @@ def hypergraph(
         The name to use as the node type column in the graph and node DFs.
     EDGETYPE : str, optional, default "edge_type"
         The name to use as the edge type column in the graph and edge DF.
-
     Returns
     -------
     result : dict {"nodes", "edges", "graph", "events", "entities"}

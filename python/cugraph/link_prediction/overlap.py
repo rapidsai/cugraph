@@ -1,4 +1,4 @@
-# Copyright (c) 2019-2020, NVIDIA CORPORATION.
+# Copyright (c) 2019-2021, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -13,7 +13,7 @@
 
 import pandas as pd
 from cugraph.link_prediction import overlap_wrapper
-from cugraph.structure.graph import null_check
+from cugraph.structure.graph_classes import null_check
 import cudf
 from cugraph.utilities import check_nx_graph
 from cugraph.utilities import df_edge_score_to_dictionary

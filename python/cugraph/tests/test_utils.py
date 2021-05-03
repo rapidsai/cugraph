@@ -73,6 +73,7 @@ def test_bfs_paths_array():
 
 
 @pytest.mark.parametrize("graph_file", utils.DATASETS)
+@pytest.mark.skip(reason="Skipping large tests")
 def test_get_traversed_cost(graph_file):
     cu_M = utils.read_csv_file(graph_file)
 
