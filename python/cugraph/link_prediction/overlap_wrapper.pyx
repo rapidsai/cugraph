@@ -68,8 +68,9 @@ def overlap(input_graph, weights_arr=None, vertex_pair=None):
         df = cudf.DataFrame()
         df['overlap_coeff'] = result
 
-        first = vertex_pair['first']
-        second = vertex_pair['second']
+        cols = vertex_pair.columns.to_list()
+        first = vertex_pair[cols[0]]
+        second = vertex_pair[cols[1]]
 
         # FIXME: multi column support
         df['source'] = first

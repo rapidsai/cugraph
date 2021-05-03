@@ -145,7 +145,7 @@ HAS_GUESS = [0, 1]
 # https://github.com/rapidsai/cugraph/issues/533
 #
 
-@pytest.mark.parametrize("graph_file", utils.DATASETS)
+"""@pytest.mark.parametrize("graph_file", utils.DATASETS)
 @pytest.mark.parametrize("max_iter", MAX_ITERATIONS)
 @pytest.mark.parametrize("tol", TOLERANCE)
 @pytest.mark.parametrize("alpha", ALPHA)
@@ -239,5 +239,90 @@ def test_pagerank_nx(
         ):
             err = err + 1
             print(f"{cugraph_pr[i][1]} and {cugraph_pr[i][1]}")
+    print("Mismatches:", err)
+    assert err < (0.01 * len(cugraph_pr))
+"""
+
+@pytest.mark.parametrize("graph_file", utils.DATASETS)
+@pytest.mark.parametrize("max_iter", MAX_ITERATIONS)
+@pytest.mark.parametrize("tol", TOLERANCE)
+@pytest.mark.parametrize("alpha", ALPHA)
+@pytest.mark.parametrize("personalization_perc", PERSONALIZATION_PERC)
+@pytest.mark.parametrize("has_guess", HAS_GUESS)
+def test_pagerank_multi_column(
+    graph_file, max_iter, tol, alpha, personalization_perc, has_guess
+):
+    gc.collect()
+
+    # NetworkX PageRank
+    M = utils.read_csv_for_nx(graph_file)
+    nnz_vtx = np.unique(M[['0', '1']])
+
+    Gnx = nx.from_pandas_edgelist(
+        M, source="0", target="1", edge_attr="weight",
+        create_using=nx.DiGraph()
+    )
+
+    networkx_pr, networkx_prsn = networkx_call(
+        Gnx, max_iter, tol, alpha, personalization_perc, nnz_vtx
+    )
+
+    cu_nstart = None
+    if has_guess == 1:
+        cu_nstart_temp = cudify(networkx_pr)
+        max_iter = 100
+        cu_nstart = cudf.DataFrame()
+        cu_nstart["vertex_0"] = cu_nstart_temp["vertex"]
+        cu_nstart["vertex_1"] = cu_nstart["vertex_0"] + 1000
+        cu_nstart["values"] = cu_nstart_temp["values"]
+
+    cu_prsn_temp = cudify(networkx_prsn)
+    if cu_prsn_temp is not None:
+        cu_prsn = cudf.DataFrame()
+        cu_prsn["vertex_0"] = cu_prsn_temp["vertex"]
+        cu_prsn["vertex_1"] = cu_prsn["vertex_0"] + 1000
+        cu_prsn["values"] = cu_prsn_temp["values"]
+    else:
+        cu_prsn = cu_prsn_temp
+
+    cu_M = cudf.DataFrame()
+    cu_M["src_0"] = cudf.Series(M["0"])
+    cu_M["dst_0"] = cudf.Series(M["1"])
+    cu_M["src_1"] = cu_M["src_0"] + 1000
+    cu_M["dst_1"] = cu_M["dst_0"] + 1000
+    cu_M["weights"] = cudf.Series(M["weight"])
+
+    cu_G = cugraph.DiGraph()
+    cu_G.from_cudf_edgelist(cu_M, source=["src_0", "src_1"],
+                            destination=["dst_0", "dst_1"],
+                            edge_attr = "weights")
+
+    df = cugraph.pagerank(
+        cu_G,
+        alpha=alpha,
+        max_iter=max_iter,
+        tol=tol,
+        personalization=cu_prsn,
+        nstart=cu_nstart,
+    )
+
+    cugraph_pr = []
+
+    df = df.sort_values("0_vertex").reset_index(drop=True)
+
+    pr_scores = df["pagerank"].to_array()
+    for i, rank in enumerate(pr_scores):
+        cugraph_pr.append((i, rank))
+
+    # Calculating mismatch
+    networkx_pr = sorted(networkx_pr.items(), key=lambda x: x[0])
+    err = 0
+    assert len(cugraph_pr) == len(networkx_pr)
+    for i in range(len(cugraph_pr)):
+        if (
+            abs(cugraph_pr[i][1] - networkx_pr[i][1]) > tol * 1.1
+            and cugraph_pr[i][0] == networkx_pr[i][0]
+        ):
+            err = err + 1
     print("Mismatches:", err)
     assert err < (0.01 * len(cugraph_pr))

@@ -108,13 +108,23 @@ def jaccard(input_graph, vertex_pair=None):
     if type(input_graph) is not Graph:
         raise Exception("input graph must be undirected")
 
-    # FIXME: Add support for multi-column vertices
     if type(vertex_pair) == cudf.DataFrame:
-        for col in vertex_pair.columns:
-            null_check(vertex_pair[col])
+        vertex_size = len(input_graph.renumber_map.implementation.col_names)
+        columns = vertex_pair.columns.to_list()
+        if vertex_size == 1:
+            for col in vertex_pair.columns:
+                null_check(vertex_pair[col])
+                if input_graph.renumbered:
+                    vertex_pair = input_graph.add_internal_vertex_id(
+                        vertex_pair, col, col
+                    )
+        else:
             if input_graph.renumbered:
                 vertex_pair = input_graph.add_internal_vertex_id(
-                    vertex_pair, col, col
+                    vertex_pair, "src", columns[:vertex_size]
+                )
+                vertex_pair = input_graph.add_internal_vertex_id(
+                    vertex_pair, "dst", columns[vertex_size:]
                 )
 
     elif vertex_pair is None:

@@ -94,17 +94,23 @@ def pagerank(
     G, isNx = cugraph.utilities.check_nx_graph(G, weight)
 
     if personalization is not None:
-        null_check(personalization["vertex"])
-        null_check(personalization["values"])
         if G.renumbered is True:
+            if len(G.renumber_map.implementation.col_names) > 1:
+                cols = personalization.columns[:-1].to_list()
+            else:
+                cols = 'vertex'
             personalization = G.add_internal_vertex_id(
-                personalization, "vertex", "vertex"
+                personalization, "vertex", cols
             )
 
     if nstart is not None:
         if G.renumbered is True:
+            if len(G.renumber_map.implementation.col_names) > 1:
+                cols = nstart.columns[:-1].to_list()
+            else:
+                cols = 'vertex'
             nstart = G.add_internal_vertex_id(
-                nstart, "vertex", "vertex"
+                nstart, "vertex", cols
             )
 
     df = pagerank_wrapper.pagerank(
