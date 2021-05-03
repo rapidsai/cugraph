@@ -904,6 +904,66 @@ TEST(RandomWalksSpecialCase, UnweightedGraph)
   ASSERT_TRUE(test_all_paths);
 }
 
+TEST(RandomWalksPadded, SimpleGraph)
+{
+  using vertex_t = int32_t;
+  using edge_t   = vertex_t;
+  using weight_t = float;
+  using index_t  = vertex_t;
+
+  raft::handle_t handle{};
+
+  edge_t num_edges      = 8;
+  vertex_t num_vertices = 6;
+
+  std::vector<vertex_t> v_src{0, 1, 1, 2, 2, 2, 3, 4};
+  std::vector<vertex_t> v_dst{1, 3, 4, 0, 1, 3, 5, 5};
+  std::vector<weight_t> v_w{0.1, 1.1, 2.1, 3.1, 4.1, 5.1, 6.1, 7.1};
+
+  auto graph = make_graph(handle, v_src, v_dst, v_w, num_vertices, num_edges, true);
+
+  auto graph_view = graph.view();
+
+  edge_t const* offsets   = graph_view.offsets();
+  vertex_t const* indices = graph_view.indices();
+  weight_t const* values  = graph_view.weights();
+
+  std::vector<edge_t> v_ro(num_vertices + 1);
+  std::vector<vertex_t> v_ci(num_edges);
+  std::vector<weight_t> v_vals(num_edges);
+
+  raft::update_host(v_ro.data(), offsets, v_ro.size(), handle.get_stream());
+  raft::update_host(v_ci.data(), indices, v_ci.size(), handle.get_stream());
+  raft::update_host(v_vals.data(), values, v_vals.size(), handle.get_stream());
+
+  std::vector<vertex_t> v_start{2};
+  vector_test_t<vertex_t> d_v_start(v_start.size(), handle.get_stream());
+  raft::update_device(d_v_start.data(), v_start.data(), d_v_start.size(), handle.get_stream());
+
+  index_t num_paths = v_start.size();
+  index_t max_depth = 5;
+
+  // 0-copy const device view:
+  //
+  detail::device_const_vector_view<vertex_t, index_t> d_start_view{d_v_start.data(), num_paths};
+  bool use_padding{true};
+  auto quad = detail::random_walks_impl(handle, graph_view, d_start_view, max_depth, use_padding);
+
+  auto& d_coalesced_v = std::get<0>(quad);
+  auto& d_coalesced_w = std::get<1>(quad);
+  auto& d_sizes       = std::get<2>(quad);
+  auto seed0          = std::get<3>(quad);
+
+  ASSERT_TRUE(d_sizes.size() == 0);
+
+  bool test_all_paths = cugraph::test::host_check_rw_paths(
+    handle, graph_view, d_coalesced_v, d_coalesced_w, d_sizes, num_paths);
+
+  if (!test_all_paths) std::cout << "starting seed on failure: " << seed0 << '\n';
+
+  ASSERT_TRUE(test_all_paths);
+}
+
 TEST(RandomWalksUtility, PathsToCOO)
 {
   using namespace cugraph::experimental::detail;
