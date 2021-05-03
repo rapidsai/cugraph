@@ -432,6 +432,7 @@ void expensive_check_edgelist(
         handle.get_stream_view().synchronize();
         comm.barrier();  // currently, this is ncclAllReduce
 #endif
+
         rmm::device_uvector<vertex_t> sorted_major_vertices(0, handle.get_stream());
         {
           auto recvcounts =
@@ -461,6 +462,7 @@ void expensive_check_edgelist(
         handle.get_stream_view().synchronize();
         comm.barrier();  // currently, this is ncclAllReduce
 #endif
+
         rmm::device_uvector<vertex_t> sorted_minor_vertices(0, handle.get_stream());
         {
           auto recvcounts =
@@ -479,6 +481,7 @@ void expensive_check_edgelist(
                        sorted_minor_vertices.begin(),
                        sorted_minor_vertices.end());
         }
+
         // barrier is necessary here to avoid potential overlap (which can leads to deadlock)
         // between two different communicators (end of row_comm)
 #if 1
@@ -631,6 +634,7 @@ renumber_edgelist(raft::handle_t const& handle,
   handle.get_stream_view().synchronize();
   comm.barrier();  // currently, this is ncclAllReduce
 #endif
+
   for (size_t i = 0; i < edgelist_major_vertices.size(); ++i) {
     rmm::device_uvector<vertex_t> renumber_map_major_labels(
       col_comm_rank == static_cast<int>(i) ? vertex_t{0}
