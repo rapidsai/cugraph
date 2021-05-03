@@ -16,6 +16,7 @@
 #pragma once
 
 #include <utilities/test_utilities.hpp>
+#include <utilities/thrust_wrapper.hpp>
 
 #include <graph_generators.hpp>
 
@@ -35,7 +36,8 @@ class TranslateGraph_Usecase {
                  rmm::device_uvector<vertex_t>& d_dst) const
   {
     if (base_vertex_id_ > 0)
-      cugraph::translate_vertex_ids(handle, d_src, d_dst, static_cast<vertex_t>(base_vertex_id_));
+      cugraph::test::translate_vertex_ids(
+        handle, d_src, d_dst, static_cast<vertex_t>(base_vertex_id_));
   }
 
   size_t base_vertex_id_{};
@@ -238,14 +240,14 @@ class Rmat_Usecase : public detail::TranslateGraph_Usecase {
   bool multi_gpu_usecase_{};
 };
 
-class RandomPathGraph_Usecase : public detail::TranslateGraph_Usecase {
+class PathGraph_Usecase {
  public:
-  RandomPathGraph_Usecase() = delete;
+  PathGraph_Usecase() = delete;
 
-  RandomPathGraph_Usecase(size_t num_vertices, bool weighted = false, size_t base_vertex_id = 0)
-    : detail::TranslateGraph_Usecase(base_vertex_id),
-      num_vertices_(num_vertices),
-      weighted_(weighted)
+  PathGraph_Usecase(std::vector<std::tuple<size_t, size_t>> parms,
+                    bool weighted = false,
+                    bool scramble = false)
+    : parms_(parms), weighted_(weighted)
   {
   }
 
@@ -265,10 +267,14 @@ class RandomPathGraph_Usecase : public detail::TranslateGraph_Usecase {
 
     constexpr bool symmetric{true};
 
-    auto edgelist =
-      cugraph::generate_path_graph_edgelist<vertex_t>(handle, num_vertices_, symmetric);
+    std::vector<std::tuple<vertex_t, vertex_t>> converted_parms{};
 
-    translate(handle, std::get<0>(edgelist), std::get<1>(edgelist));
+    std::transform(parms_.begin(), parms_.end(), converted_parms.begin(), [](auto p) {
+      return std::make_tuple(static_cast<vertex_t>(std::get<0>(p)),
+                             static_cast<vertex_t>(std::get<1>(p)));
+    });
+
+    auto edgelist = cugraph::generate_path_graph_edgelist<vertex_t>(handle, converted_parms);
 
     if (test_weighted) {
       auto length = std::get<0>(edgelist).size();
@@ -296,16 +302,17 @@ class RandomPathGraph_Usecase : public detail::TranslateGraph_Usecase {
   }
 
  private:
+  std::vector<std::tuple<size_t, size_t>> parms_{};
   size_t num_vertices_{0};
   bool weighted_{false};
 };
 
-class Mesh2DGraph_Usecase : public detail::TranslateGraph_Usecase {
+class Mesh2DGraph_Usecase {
  public:
   Mesh2DGraph_Usecase() = delete;
 
-  Mesh2DGraph_Usecase(size_t x, size_t y, size_t num_meshes, size_t base_vertex_id)
-    : detail::TranslateGraph_Usecase(base_vertex_id), x_(x), y_(y), num_meshes_(num_meshes)
+  Mesh2DGraph_Usecase(std::vector<std::tuple<size_t, size_t, size_t>> const& parms, bool weighted)
+    : parms_(parms), weighted_(weighted)
   {
   }
 
@@ -334,18 +341,17 @@ class Mesh2DGraph_Usecase : public detail::TranslateGraph_Usecase {
   construct_graph(raft::handle_t const& handle, bool test_weighted, bool renumber = true) const;
 
  private:
-  size_t x_{};
-  size_t y_{};
-  size_t num_meshes_{};
-  size_t base_vertex_id_{0};
+  std::vector<std::tuple<size_t, size_t, size_t>> parms_{};
+  bool weighted_{false};
 };
 
-class Mesh3DGraph_Usecase : public detail::TranslateGraph_Usecase {
+class Mesh3DGraph_Usecase {
  public:
   Mesh3DGraph_Usecase() = delete;
 
-  Mesh3DGraph_Usecase(size_t x, size_t y, size_t z, size_t num_meshes, size_t base_vertex_id)
-    : detail::TranslateGraph_Usecase(base_vertex_id), x_(x), y_(y), z_(z), num_meshes_(num_meshes)
+  Mesh3DGraph_Usecase(std::vector<std::tuple<size_t, size_t, size_t, size_t>> const& parms,
+                      bool weighted)
+    : parms_(parms), weighted_(weighted)
   {
   }
 
@@ -372,21 +378,16 @@ class Mesh3DGraph_Usecase : public detail::TranslateGraph_Usecase {
   construct_graph(raft::handle_t const& handle, bool test_weighted, bool renumber = true) const;
 
  private:
-  size_t x_{};
-  size_t y_{};
-  size_t z_{};
-  size_t num_meshes_{};
-  size_t base_vertex_id_{0};
+  std::vector<std::tuple<size_t, size_t, size_t, size_t>> parms_{};
+  bool weighted_{false};
 };
 
-class CompleteGraph_Usecase : public detail::TranslateGraph_Usecase {
+class CompleteGraph_Usecase {
  public:
   CompleteGraph_Usecase() = delete;
 
-  CompleteGraph_Usecase(size_t num_vertices, size_t num_graphs, size_t base_vertex_id)
-    : detail::TranslateGraph_Usecase(base_vertex_id),
-      num_vertices_(num_vertices),
-      num_graphs_(num_graphs)
+  CompleteGraph_Usecase(std::vector<std::tuple<size_t, size_t>> const& parms, bool weighted)
+    : parms_(parms), weighted_(weighted)
   {
   }
 
@@ -413,8 +414,8 @@ class CompleteGraph_Usecase : public detail::TranslateGraph_Usecase {
   construct_graph(raft::handle_t const& handle, bool test_weighted, bool renumber = true) const;
 
  private:
-  size_t num_vertices_{};
-  size_t num_graphs_{};
+  std::vector<std::tuple<size_t, size_t>> parms_{};
+  bool weighted_{false};
 };
 
 namespace detail {

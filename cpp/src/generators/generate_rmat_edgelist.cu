@@ -42,8 +42,7 @@ std::tuple<rmm::device_uvector<vertex_t>, rmm::device_uvector<vertex_t>> generat
   double b,
   double c,
   uint64_t seed,
-  bool clip_and_flip,
-  bool scramble_vertex_ids)
+  bool clip_and_flip)
 {
   CUGRAPH_EXPECTS((size_t{1} << scale) <= static_cast<size_t>(std::numeric_limits<vertex_t>::max()),
                   "Invalid input argument: scale too large for vertex_t.");
@@ -104,6 +103,7 @@ std::tuple<rmm::device_uvector<vertex_t>, rmm::device_uvector<vertex_t>> generat
     num_edges_generated += num_edges_to_generate;
   }
 
+#if 0
   if (scramble_vertex_ids) {
     rands.resize(0, handle.get_stream());
     rands.shrink_to_fit(handle.get_stream());
@@ -118,6 +118,7 @@ std::tuple<rmm::device_uvector<vertex_t>, rmm::device_uvector<vertex_t>> generat
                                                   experimental::detail::scramble(thrust::get<1>(pair), scale));
                       });
   }
+#endif
 
   return std::make_tuple(std::move(srcs), std::move(dsts));
 }
@@ -132,8 +133,7 @@ generate_rmat_edgelists(raft::handle_t const& handle,
                         generator_distribution_t component_distribution,
                         generator_distribution_t edge_distribution,
                         uint64_t seed,
-                        bool clip_and_flip,
-                        bool scramble_vertex_ids)
+                        bool clip_and_flip)
 {
   CUGRAPH_EXPECTS(min_scale > 0, "minimum graph scale is 1.");
   CUGRAPH_EXPECTS(size_t{1} << max_scale <= std::numeric_limits<vertex_t>::max(),
@@ -169,7 +169,7 @@ generate_rmat_edgelists(raft::handle_t const& handle,
 
   for (size_t i = 0; i < n_edgelists; i++) {
     output.push_back(generate_rmat_edgelist<vertex_t>(
-      handle, scale[i], scale[i] * edge_factor, a, b, c, i, clip_and_flip, scramble_vertex_ids));
+      handle, scale[i], scale[i] * edge_factor, a, b, c, i, clip_and_flip));
   }
   return output;
 }
@@ -182,8 +182,7 @@ generate_rmat_edgelist<int32_t>(raft::handle_t const& handle,
                                 double b,
                                 double c,
                                 uint64_t seed,
-                                bool clip_and_flip,
-                                bool scramble_vertex_ids);
+                                bool clip_and_flip);
 
 template std::tuple<rmm::device_uvector<int64_t>, rmm::device_uvector<int64_t>>
 generate_rmat_edgelist<int64_t>(raft::handle_t const& handle,
@@ -193,8 +192,7 @@ generate_rmat_edgelist<int64_t>(raft::handle_t const& handle,
                                 double b,
                                 double c,
                                 uint64_t seed,
-                                bool clip_and_flip,
-                                bool scramble_vertex_ids);
+                                bool clip_and_flip);
 
 template std::vector<std::tuple<rmm::device_uvector<int32_t>, rmm::device_uvector<int32_t>>>
 generate_rmat_edgelists<int32_t>(raft::handle_t const& handle,
@@ -205,8 +203,7 @@ generate_rmat_edgelists<int32_t>(raft::handle_t const& handle,
                                  generator_distribution_t component_distribution,
                                  generator_distribution_t edge_distribution,
                                  uint64_t seed,
-                                 bool clip_and_flip,
-                                 bool scramble_vertex_ids);
+                                 bool clip_and_flip);
 
 template std::vector<std::tuple<rmm::device_uvector<int64_t>, rmm::device_uvector<int64_t>>>
 generate_rmat_edgelists<int64_t>(raft::handle_t const& handle,
@@ -217,7 +214,6 @@ generate_rmat_edgelists<int64_t>(raft::handle_t const& handle,
                                  generator_distribution_t component_distribution,
                                  generator_distribution_t edge_distribution,
                                  uint64_t seed,
-                                 bool clip_and_flip,
-                                 bool scramble_vertex_ids);
+                                 bool clip_and_flip);
 
 }  // namespace cugraph

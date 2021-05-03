@@ -19,6 +19,7 @@
 #include <rmm/device_uvector.hpp>
 
 #include <cstdint>
+#include <optional>
 #include <tuple>
 
 namespace cugraph {
@@ -29,12 +30,12 @@ namespace cugraph {
  * This function allows multi-edges and self-loops similar to the Graph 500 reference
  * implementation.
  *
- * @p scramble_vertex_ids needs to be set to `true` to generate a graph conforming to the Graph 500
- * specification (note that scrambling does not affect cuGraph's graph construction performance, so
- * this is generally unnecessary). If `edge_factor` is given (e.g. Graph 500), set @p num_edges to
+ * If `edge_factor` is given (e.g. Graph 500), set @p num_edges to
  * (size_t{1} << @p scale) * `edge_factor`. To generate an undirected graph, set @p b == @p c and @p
  * clip_and_flip = true. All the resulting edges will be placed in the lower triangular part
  * (including the diagonal) of the graph adjacency matrix.
+ *
+ * To scramble edges (for Graph-500) follow this call with a call to cugraph::scramble_vertex_ids.
  *
  * For multi-GPU generation with `P` GPUs, @p seed should be set to different values in different
  * GPUs to avoid every GPU generating the same set of edges. @p num_edges should be adjusted as
@@ -60,24 +61,19 @@ namespace cugraph {
  * @param clip_and_flip Flag controlling whether to generate edges only in the lower triangular part
  * (including the diagonal) of the graph adjacency matrix (if set to `true`) or not (if set to
  * `false`).
- * @param scramble_vertex_ids Flag controlling whether to scramble vertex ID bits (if set to `true`)
- * or not (if set to `false`); scrambling vertx ID bits breaks correlation between vertex ID values
- * and vertex degrees. The scramble code here follows the algorithm in the Graph 500 reference
- * implementation version 3.0.0.
  * @return std::tuple<rmm::device_uvector<vertex_t>, rmm::device_uvector<vertex_t>> A tuple of
  * rmm::device_uvector objects for edge source vertex IDs and edge destination vertex IDs.
  */
 template <typename vertex_t>
 std::tuple<rmm::device_uvector<vertex_t>, rmm::device_uvector<vertex_t>> generate_rmat_edgelist(
-  raft::handle_t const& handle,
+  raft::handle_t const &handle,
   size_t scale,
   size_t num_edges,
-  double a                 = 0.57,
-  double b                 = 0.19,
-  double c                 = 0.19,
-  uint64_t seed            = 0,
-  bool clip_and_flip       = false,
-  bool scramble_vertex_ids = false);
+  double a           = 0.57,
+  double b           = 0.19,
+  double c           = 0.19,
+  uint64_t seed      = 0,
+  bool clip_and_flip = false);
 
 enum class generator_distribution_t { POWER_LAW = 0, UNIFORM };
 
@@ -87,13 +83,12 @@ enum class generator_distribution_t { POWER_LAW = 0, UNIFORM };
  * This function allows multi-edges and self-loops similar to the Graph 500 reference
  * implementation.
  *
- * @p scramble_vertex_ids needs to be set to `true` to generate a graph conforming to the Graph 500
- * specification (note that scrambling does not affect cuGraph's graph construction performance, so
- * this is generally unnecessary). If `edge_factor` is given (e.g. Graph 500), set @p num_edges to
+ * If `edge_factor` is given (e.g. Graph 500), set @p num_edges to
  * (size_t{1} << @p scale) * `edge_factor`. To generate an undirected graph, set @p b == @p c and @p
  * clip_and_flip = true. All the resulting edges will be placed in the lower triangular part
  * (including the diagonal) of the graph adjacency matrix.
  *
+ * To scramble edges (for Graph-500) follow this call with a call to cugraph::scramble_vertex_ids.
  *
  * @tparam vertex_t Type of vertex identifiers. Needs to be an integral type.
  * @param handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator, and
@@ -121,7 +116,7 @@ enum class generator_distribution_t { POWER_LAW = 0, UNIFORM };
 template <typename vertex_t>
 std::vector<std::tuple<rmm::device_uvector<vertex_t>, rmm::device_uvector<vertex_t>>>
 generate_rmat_edgelists(
-  raft::handle_t const& handle,
+  raft::handle_t const &handle,
   size_t n_edgelists,
   size_t min_scale,
   size_t max_scale,
@@ -129,94 +124,91 @@ generate_rmat_edgelists(
   generator_distribution_t size_distribution = generator_distribution_t::POWER_LAW,
   generator_distribution_t edge_distribution = generator_distribution_t::POWER_LAW,
   uint64_t seed                              = 0,
-  bool clip_and_flip                         = false,
-  bool scramble_vertex_ids                   = false);
+  bool clip_and_flip                         = false);
 
 /**
  * @brief generate an edge list for path graph
  *
- * Path graph connects the vertices from 0 to (@p num_vertices - 1)
- * in a single long path: ((0,1), (1,2), ..., (@p num_vertices - 2, @p num_vertices - 1)
+ * A path graph of size n connects the vertices from 0 to (n - 1)
+ * in a single long path: ((0,1), (1,2), ..., (n - 2, n - 1)
  *
  * If executed in a multi-gpu context (handle comms has been initialized)
  * the path will span all GPUs including an edge from the last vertex on
  * GPU i to the first vertex on GPU (i+1)
  *
+ * This function will generate a collection of path graphs.  @p component_parameters_v
+ * defines the parameters for generating each component.  Each element of
+ * @p component_parameters_v defines a tuple consisting of the number of vertices
+ * and the base vertex id for the component.
+ *
  * @tparam vertex_t Type of vertex identifiers. Needs to be an integral type.
  * @param handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator, and
  * handles to various CUDA libraries) to run graph algorithms.
- * @param num_vertices Number of vertices to use in generation
- * @param symmetrize If true, symmetrize the edges
+ * @param component_parameters_v A vector containing tuples consisting of the number of vertices and
+ * base vertex id for each component to generate.
  * @return std::tuple<rmm::device_uvector<vertex_t>, rmm::device_uvector<vertex_t>> A tuple of
  * rmm::device_uvector objects for edge source vertex IDs and edge destination vertex IDs.
  */
 template <typename vertex_t>
 std::tuple<rmm::device_uvector<vertex_t>, rmm::device_uvector<vertex_t>>
-generate_path_graph_edgelist(raft::handle_t const& handle,
-                             size_t num_vertices,
-                             bool symmetrize = false);
+generate_path_graph_edgelist(raft::handle_t const &handle,
+                             std::vector<std::tuple<vertex_t, vertex_t>> const &component_parameters_v);
 
 /**
  * @brief generate an edge list for a 2D Mesh Graph
  *
- * A 2D mesh graph will be constructed with dimension @p x by @p y.
- * @p num_graphs of this size will be constructed
+ * A sequence of 2D mesh graphs will be constructed according to the
+ * component specifications.  Each 2D mesh graph is configured with a tuple
+ * containing (x, y, base_vertex_id).  @p component_parameters_v will contain
+ * a tuple for each component.
  *
  * If executed in a multi-gpu context (handle comms has been initialized)
- * each GPU will generate disjoint mesh constructs of equal size.
+ * each GPU will generate disjoint 2D mesh constructs of equal size.
  *
  * @tparam vertex_t Type of vertex identifiers. Needs to be an integral type.
  * @param handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator, and
  * handles to various CUDA libraries) to run graph algorithms.
- * @param x Number of vertices in X dimension
- * @param y Number of vertices in Y dimension
- * @param num_graphs Number of mesh graphs to generate
- * @param symmetrize If true, symmetrize the edges
+ * @param component_parameters_v Vector containing tuple defining the configuration of each component
  * @return std::tuple<rmm::device_uvector<vertex_t>, rmm::device_uvector<vertex_t>> A tuple of
  * rmm::device_uvector objects for edge source vertex IDs and edge destination vertex IDs.
  */
 template <typename vertex_t>
 std::tuple<rmm::device_uvector<vertex_t>, rmm::device_uvector<vertex_t>>
-generate_2d_mesh_graph_edgelist(raft::handle_t const& handle,
-                                size_t x,
-                                size_t y,
-                                size_t num_graphs,
-                                bool symmetrize = false);
+generate_2d_mesh_graph_edgelist(
+  raft::handle_t const &handle,
+  std::vector<std::tuple<vertex_t, vertex_t, vertex_t>> const &component_parameters_v);
 
 /**
  * @brief generate an edge list for a 3D Mesh Graph
  *
- * A 3D mesh graph will be constructed with dimension @p x by @p y by @p z.
- * @p num_graphs of this size will be constructed
+ * A sequence of 3D mesh graphs will be constructed according to the
+ * component specifications.  Each 3D mesh graph is configured with a tuple
+ * containing (x, y, z, base_vertex_id).  @p component_parameters_v will contain
+ * a tuple for each component.
  *
  * If executed in a multi-gpu context (handle comms has been initialized)
- * each GPU will generate disjoint mesh constructs of equal size.
+ * each GPU will generate disjoint 3D mesh constructs of equal size.
  *
  * @tparam vertex_t Type of vertex identifiers. Needs to be an integral type.
  * @param handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator, and
  * handles to various CUDA libraries) to run graph algorithms.
- * @param x Number of vertices in X dimension
- * @param y Number of vertices in Y dimension
- * @param z Number of vertices in Z dimension
- * @param num_graphs Number of mesh graphs to generate
- * @param symmetrize If true, symmetrize the edges
+ * @param component_parameters_v Vector containing tuple defining the configuration of each component
  * @return std::tuple<rmm::device_uvector<vertex_t>, rmm::device_uvector<vertex_t>> A tuple of
  * rmm::device_uvector objects for edge source vertex IDs and edge destination vertex IDs.
  */
 template <typename vertex_t>
 std::tuple<rmm::device_uvector<vertex_t>, rmm::device_uvector<vertex_t>>
-generate_3d_mesh_graph_edgelist(raft::handle_t const& handle,
-                                size_t x,
-                                size_t y,
-                                size_t z,
-                                size_t num_graphs,
-                                bool symmetrize = false);
+generate_3d_mesh_graph_edgelist(
+  raft::handle_t const &handle,
+  std::vector<std::tuple<vertex_t, vertex_t, vertex_t, vertex_t>> const &component_parameters_v);
 
 /**
  * @brief generate an edge lists for some complete graphs
  *
- * A collection of @p num_graphs complete graphs, each containing
- * @p num_vertices is generated.
+ * A sequence of complete graphs will be constructed according to the
+ * component specifications.  Each complete graph is configured with a tuple
+ * containing (n, base_vertex_id).  @p component_parameters_v will contain
+ * a tuple for each component.
  *
  * If executed in a multi-gpu context (handle comms has been initialized)
  * each GPU will generate disjoint complete graph constructs of equal size.
@@ -224,21 +216,46 @@ generate_3d_mesh_graph_edgelist(raft::handle_t const& handle,
  * @tparam vertex_t Type of vertex identifiers. Needs to be an integral type.
  * @param handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator, and
  * handles to various CUDA libraries) to run graph algorithms.
- * @param num_vertices Number of vertices to use in each complete graph
- * @param num_graphs Number of graphs to generate
- * @param symmetrize If true, symmetrize the edges
+ * @param component_parameters_v Vector containing tuple defining the configuration of each component
  * @return std::tuple<rmm::device_uvector<vertex_t>, rmm::device_uvector<vertex_t>> A tuple of
  * rmm::device_uvector objects for edge source vertex IDs and edge destination vertex IDs.
  */
 template <typename vertex_t>
 std::tuple<rmm::device_uvector<vertex_t>, rmm::device_uvector<vertex_t>>
-generate_complete_graph_edgelist(raft::handle_t const& handle,
-                                 size_t num_vertices,
-                                 size_t num_graphs,
-                                 bool symmetrize = false);
+generate_complete_graph_edgelist(raft::handle_t const &handle,
+                                 std::vector<std::tuple<vertex_t, vertex_t>> const& component_parameters_v);
 
 /**
  * @brief generate an edge lists for an Erdos-Renyi graph
+ *
+ * This API supports the G(n,p) model which requires O(n^2) work.
+ *
+ * If executed in a multi-gpu context (handle comms has been initialized)
+ * each GPU will generate Erdos-Renyi edges for its portion of the 2D
+ * partitioning of the adjacency matrix.
+ *
+ * @tparam vertex_t Type of vertex identifiers. Needs to be an integral type.
+ * @param handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator, and
+ * handles to various CUDA libraries) to run graph algorithms.
+ * @param num_vertices Number of vertices to use in the generated graph
+ * @param p Probability for edge creation
+ * @param base_vertex_id Starting vertex id for the generated graph
+ * @param seed Seed value for the random number generator.
+ * @return std::tuple<rmm::device_uvector<vertex_t>, rmm::device_uvector<vertex_t>> A tuple of
+ * rmm::device_uvector objects for edge source vertex IDs and edge destination vertex IDs.
+ */
+template <typename vertex_t>
+std::tuple<rmm::device_uvector<vertex_t>, rmm::device_uvector<vertex_t>>
+generate_erdos_renyi_graph_edgelist(raft::handle_t const &handle,
+                                    vertex_t num_vertices,
+                                    float p,
+                                    vertex_t base_vertex_id,
+                                    uint64_t seed = 0);
+
+/**
+ * @brief generate an edge lists for an Erdos-Renyi graph
+ *
+ * This API supports the G(n,m) model
  *
  * If executed in a multi-gpu context (handle comms has been initialized)
  * each GPU will generate Erdos-Renyi edges for its portion of the 2D
@@ -248,41 +265,45 @@ generate_complete_graph_edgelist(raft::handle_t const& handle,
  * @param handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator, and
  * handles to various CUDA libraries) to run graph algorithms.
  * @param num_vertices Number of vertices to use in each complete graph
- * @param p Probability for edge creation
- * @param symmetrize If true, symmetrize the edges
+ * @param m Number of edges to generate
+ * @param base_vertex_id Starting vertex id for the generated graph
  * @param seed Seed value for the random number generator.
  * @return std::tuple<rmm::device_uvector<vertex_t>, rmm::device_uvector<vertex_t>> A tuple of
  * rmm::device_uvector objects for edge source vertex IDs and edge destination vertex IDs.
  */
 template <typename vertex_t>
 std::tuple<rmm::device_uvector<vertex_t>, rmm::device_uvector<vertex_t>>
-generate_erdos_renyi_graph_edgelist(raft::handle_t const& handle,
-                                    size_t num_vertices,
-                                    float p,
-                                    bool symmetrize = false,
+generate_erdos_renyi_graph_edgelist(raft::handle_t const &handle,
+                                    vertex_t num_vertices,
+                                    size_t m,
+                                    vertex_t base_vertex_id,
                                     uint64_t seed = 0);
 
 /**
- * @brief translate vertex ids in a graph by a specified offset
+ * @brief symmetrize an edgelist
  *
- * Given an edgelist for a graph, translate all vertex ids by the given offset.
- * This translation is done in place.
+ * Given an edgelist for a graph, symmetrize and deduplicate edges.
  *
- * If executed in a multi-gpu context (handle comms has been initialized)
- * each GPU will operate only on its subset of data.
+ * If a duplicate edge exists in a weighted graph, one of the weights is arbitrarily
+ * returned.
  *
  * @tparam vertex_t Type of vertex identifiers. Needs to be an integral type.
+ * @tparam weight_t Type of weights.
  * @param handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator, and
  * handles to various CUDA libraries) to run graph algorithms.
  * @param d_src_v Vector of source vertices
  * @param d_dst_v Vector of destination vertices
- * @param vertex_id_offset Offset to add to each vertex id
+ * @param d_weights_v Optional vector of edge weights
+ * @return std::tuple<rmm::device_uvector<vertex_t>, rmm::device_uvector<vertex_t>> A tuple of
+ * rmm::device_uvector objects for edge source vertex IDs and edge destination vertex IDs.
  */
-template <typename vertex_t>
-void translate_vertex_ids(raft::handle_t const &handle,
-                          rmm::device_uvector<vertex_t> &d_src_v,
-                          rmm::device_uvector<vertex_t> &d_dst_v,
-                          vertex_t vertex_id_offset);
+template <typename vertex_t, typename weight_t>
+std::
+  tuple<rmm::device_uvector<vertex_t>, rmm::device_uvector<vertex_t>, rmm::device_uvector<weight_t>>
+  symmetrize_edgelist(raft::handle_t const &handle,
+                      rmm::device_uvector<vertex_t> &&d_src_v,
+                      rmm::device_uvector<vertex_t> &&d_dst_v,
+                      std::optional<rmm::device_uvector<weight_t>> &&optional_d_weights_v);
 
 /**
  * @brief scramble vertex ids in a graph
@@ -290,18 +311,23 @@ void translate_vertex_ids(raft::handle_t const &handle,
  * Given an edgelist for a graph, scramble all vertex ids by the given offset.
  * This translation is done in place.
  *
+ * The scramble code here follows the algorithm in the Graph 500 reference
+ * implementation version 3.0.0.
+ *
  * @tparam vertex_t Type of vertex identifiers. Needs to be an integral type.
  * @param handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator, and
  * handles to various CUDA libraries) to run graph algorithms.
  * @param d_src_v Vector of source vertices
  * @param d_dst_v Vector of destination vertices
+ * @param optional_d_weights_v Optional vector of edge weights
  * @param vertex_id_offset Offset to add to each vertex id
  * @param seed Used to initialize random number generator
  */
-template <typename vertex_t>
+template <typename vertex_t, typename weight_t>
 void scramble_vertex_ids(raft::handle_t const &handle,
                          rmm::device_uvector<vertex_t> &d_src_v,
                          rmm::device_uvector<vertex_t> &d_dst_v,
+                         std::optional<rmm::device_uvector<weight_t> &> optional_d_weights_v,
                          vertex_t vertex_id_offset,
                          uint64_t seed = 0);
 
@@ -319,15 +345,16 @@ void scramble_vertex_ids(raft::handle_t const &handle,
  * @param dests The destination vertex ids to combine
  * @param weights The weights to combine
  * @param has_weight If true, combine the weights (addition).  If false then ignore the weights
- * @return std::tuple<rmm::device_uvector<vertex_t>, rmm::device_uvector<vertex_t>, rmm::device_uvector<weight_t>> A tuple of
- * rmm::device_uvector objects for edge source vertex IDs and edge destination vertex IDs and edge weights.
+ * @return std::tuple<rmm::device_uvector<vertex_t>, rmm::device_uvector<vertex_t>,
+ * rmm::device_uvector<weight_t>> A tuple of rmm::device_uvector objects for edge source vertex IDs
+ * and edge destination vertex IDs and edge weights.
  */
 template <typename vertex_t, typename weight_t>
-std::tuple<rmm::device_uvector<vertex_t>, rmm::device_uvector<vertex_t>, rmm::device_uvector<weight_t>>
-combine_edgelists(raft::handle_t const& handle,
-                  std::vector<rmm::device_uvector<vertex_t>> &&sources,
-                  std::vector<rmm::device_uvector<vertex_t>> &&dests,
-                  std::vector<rmm::device_uvector<weight_t>> &&weights,
-                  bool has_weights);
+std::
+  tuple<rmm::device_uvector<vertex_t>, rmm::device_uvector<vertex_t>, rmm::device_uvector<weight_t>>
+  combine_edgelists(raft::handle_t const &handle,
+                    std::vector<rmm::device_uvector<vertex_t>> &&d_sources,
+                    std::vector<rmm::device_uvector<vertex_t>> &&d_dests,
+                    std::optional<std::vector<rmm::device_uvector<weight_t>>> &&optional_d_weights);
 
 }  // namespace cugraph

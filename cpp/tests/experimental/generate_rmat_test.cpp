@@ -186,8 +186,8 @@ class Tests_GenerateRmat : public ::testing::TestWithParam<GenerateRmat_Usecase>
         configuration.b,
         configuration.c,
         uint64_t{0},
-        configuration.clip_and_flip,
-        static_cast<bool>(scramble));
+        configuration.clip_and_flip);
+        //static_cast<bool>(scramble));
 
       CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
 

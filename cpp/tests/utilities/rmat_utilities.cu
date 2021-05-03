@@ -100,8 +100,7 @@ generate_graph_from_rmat_params(raft::handle_t const& handle,
                                                 b,
                                                 c,
                                                 base_seed + id,
-                                                undirected ? true : false,
-                                                scramble_vertex_ids);
+                                                undirected ? true : false);
 
     rmm::device_uvector<weight_t> d_tmp_weights(0, handle.get_stream());
     if (test_weighted) {
