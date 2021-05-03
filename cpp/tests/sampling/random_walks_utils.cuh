@@ -54,7 +54,7 @@ bool host_check_path(std::vector<edge_t> const& row_offsets,
 
   bool assert3 = (nnz == static_cast<edge_t>(col_inds.size()));
   if (assert1 == false || assert2 == false || assert3 == false) {
-    std::cout << "CSR inconsistency\n";
+    std::cerr << "CSR inconsistency\n";
     return false;
   }
 
@@ -68,16 +68,16 @@ bool host_check_path(std::vector<edge_t> const& row_offsets,
     auto found_next = std::find_if(
       begin, end, [next_vertex](auto dst_vertex) { return dst_vertex == next_vertex; });
     if (found_next == end) {
-      std::cout << "vertex not found: " << next_vertex << " as neighbor of " << crt_vertex << '\n';
+      std::cerr << "vertex not found: " << next_vertex << " as neighbor of " << crt_vertex << '\n';
       return false;
     }
 
     auto delta = row_offsets[crt_vertex] + std::distance(begin, found_next);
 
-    // std::cout << "delta in ci: " << delta << '\n';
+    // std::cerr << "delta in ci: " << delta << '\n';
     auto found_edge = values.begin() + delta;
     if (*found_edge != *it_w) {
-      std::cout << "weight not found: " << *found_edge << " between " << crt_vertex << " and "
+      std::cerr << "weight not found: " << *found_edge << " between " << crt_vertex << " and "
                 << next_vertex << '\n';
       return false;
     }
@@ -91,7 +91,8 @@ bool host_check_rw_paths(
   cugraph::experimental::graph_view_t<vertex_t, edge_t, weight_t, false, false> const& graph_view,
   vector_test_t<vertex_t> const& d_coalesced_v,
   vector_test_t<weight_t> const& d_coalesced_w,
-  vector_test_t<index_t> const& d_sizes)
+  vector_test_t<index_t> const& d_sizes,
+  index_t num_paths = 0)  // only relevant for the padded case (in which case it must be non-zero)
 {
   edge_t num_edges      = graph_view.get_number_of_edges();
   vertex_t num_vertices = graph_view.get_number_of_vertices();
@@ -124,10 +125,39 @@ bool host_check_rw_paths(
                     cugraph::experimental::detail::raw_const_ptr(d_coalesced_w),
                     d_coalesced_w.size(),
                     handle.get_stream());
-  raft::update_host(v_sizes.data(),
-                    cugraph::experimental::detail::raw_const_ptr(d_sizes),
-                    d_sizes.size(),
-                    handle.get_stream());
+
+  if (v_sizes.size() > 0) {  // coalesced case
+    raft::update_host(v_sizes.data(),
+                      cugraph::experimental::detail::raw_const_ptr(d_sizes),
+                      d_sizes.size(),
+                      handle.get_stream());
+  } else {  // padded case
+    if (num_paths == 0) {
+      std::cerr << "ERROR: padded case requires `num_paths` info.\n";
+      return false;
+    }
+
+    // extract sizes from v_coalesced (which now contains padded info)
+    //
+    auto max_depth     = v_coalesced.size() / num_paths;
+    auto it_start_path = v_coalesced.begin();
+    for (index_t row_index = 0; row_index < num_paths; ++row_index) {
+      auto it_end_path      = it_start_path + max_depth;
+      auto it_padding_found = std::find(it_start_path, it_end_path, num_vertices);
+
+      v_sizes.push_back(std::distance(it_start_path, it_padding_found));
+
+      it_start_path = it_end_path;
+    }
+
+    // truncate padded vectors v_coalesced, w_coalesced:
+    //
+    v_coalesced.erase(std::remove(v_coalesced.begin(), v_coalesced.end(), num_vertices),
+                      v_coalesced.end());
+
+    w_coalesced.erase(std::remove(w_coalesced.begin(), w_coalesced.end(), weight_t{0}),
+                      w_coalesced.end());
+  }
 
   auto it_v_begin = v_coalesced.begin();
   auto it_w_begin = w_coalesced.begin();
@@ -140,11 +170,11 @@ bool host_check_rw_paths(
     it_w_begin += crt_sz - 1;
 
     if (!test_path) {  // something went wrong; print to debug (since it's random)
-      raft::print_host_vector("sizes", v_sizes.data(), v_sizes.size(), std::cout);
+      raft::print_host_vector("sizes", v_sizes.data(), v_sizes.size(), std::cerr);
 
-      raft::print_host_vector("coalesced v", v_coalesced.data(), v_coalesced.size(), std::cout);
+      raft::print_host_vector("coalesced v", v_coalesced.data(), v_coalesced.size(), std::cerr);
 
-      raft::print_host_vector("coalesced w", w_coalesced.data(), w_coalesced.size(), std::cout);
+      raft::print_host_vector("coalesced w", w_coalesced.data(), w_coalesced.size(), std::cerr);
 
       return false;
     }
