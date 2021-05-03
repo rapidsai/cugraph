@@ -231,17 +231,19 @@ rmm::device_uvector<vertex_t> compute_renumber_map(
                          rx_minor_labels.end())),
         handle.get_stream());
       minor_labels = std::move(rx_minor_labels);
-      // barrier is necessary here to avoid potential overlap (which can leads to deadlock) between
-      // two different communicators (end of row_comm)
-#if 1
-      // FIXME: temporary hack till UCC is integrated into RAFT (so we can use UCC barrier with DASK
-      // and MPI barrier with MPI)
-      host_barrier(comm, handle.get_stream_view());
-#else
-      handle.get_stream_view().synchronize();
-      comm.barrier();  // currently, this is ncclAllReduce
-#endif
     }
+
+    // barrier is necessary here to avoid potential overlap (which can leads to deadlock) between
+    // two different communicators (end of row_comm)
+#if 1
+    // FIXME: temporary hack till UCC is integrated into RAFT (so we can use UCC barrier with DASK
+    // and MPI barrier with MPI)
+    //
+    host_barrier(comm, handle.get_stream_view());
+#else
+    handle.get_stream_view().synchronize();
+    comm.barrier();  // currently, this is ncclAllReduce
+#endif
   }
   minor_labels.shrink_to_fit(handle.get_stream());
 
