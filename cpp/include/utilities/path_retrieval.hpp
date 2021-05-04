@@ -67,5 +67,21 @@ std::
                        index_t num_paths,
                        rmm::device_buffer &&d_coalesced_v,
                        rmm::device_buffer &&d_sizes);
+
+/**
+ * @brief returns additional RW information on vertex paths offsets and weight path sizes and
+ * offsets
+ *
+ * @tparam index_t Type used to store indexing and sizes.
+ * @param handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator, and
+ * handles to various CUDA libraries) to run graph algorithms.
+ * @param num_paths number of paths.
+ * @param ptr_d_sizes sizes of vertex paths.
+ * @return tuple of (vertex_path_offsets, weight_path_sizes, weight_path_offsets), where offsets are
+ * exclusive scan of corresponding sizes.
+ */
+template <typename index_t>
+std::tuple<rmm::device_uvector<index_t>, rmm::device_uvector<index_t>, rmm::device_uvector<index_t>>
+get_rw_sizes_offsets(raft::handle_t const &handle, index_t num_paths, index_t const *ptr_d_sizes);
 }  // namespace experimental
 }  // namespace cugraph
