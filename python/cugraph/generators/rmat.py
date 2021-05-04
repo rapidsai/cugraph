@@ -11,9 +11,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from dask.distributed import wait, default_client, Client
+from dask.distributed import default_client
 import dask_cudf
-import cudf
 
 from cugraph.generators import rmat_wrapper
 from cugraph.comms import comms as Comms
@@ -81,9 +80,9 @@ def _ensure_args_multi_rmat(
     if not isinstance(edge_factor, int):
         raise TypeError("'edge_factor' must be an int")
     if (size_distribution not in [0, 1]):
-        raise TypeError("'size_distribution' must be either 0 or 1"
+        raise TypeError("'size_distribution' must be either 0 or 1")
     if (edge_distribution not in [0, 1]):
-        raise TypeError("'edge_distribution' must be either 0 or 1"
+        raise TypeError("'edge_distribution' must be either 0 or 1")
     if (clip_and_flip not in [True, False]):
         raise ValueError("'clip_and_flip' must be a bool")
     if (scramble_vertex_ids not in [True, False]):
@@ -91,15 +90,17 @@ def _ensure_args_multi_rmat(
     if not isinstance(seed, int):
         raise TypeError("'seed' must be an int")
 
-def _sg_rmat(scale,
-             num_edges,
-             a,
-             b,
-             c,
-             seed,
-             clip_and_flip,
-             scramble_vertex_ids,
-             create_using=cugraph.DiGraph
+
+def _sg_rmat(
+    scale,
+    num_edges,
+    a,
+    b,
+    c,
+    seed,
+    clip_and_flip,
+    scramble_vertex_ids,
+    create_using=cugraph.DiGraph
 ):
     """
     Calls RMAT on a single GPU, used the resulting cuDF DataFrame to initialize
@@ -123,15 +124,16 @@ def _sg_rmat(scale,
     return G
 
 
-def _mg_rmat(scale,
-             num_edges,
-             a,
-             b,
-             c,
-             seed,
-             clip_and_flip,
-             scramble_vertex_ids,
-             create_using=cugraph.DiGraph
+def _mg_rmat(
+    scale,
+    num_edges,
+    a,
+    b,
+    c,
+    seed,
+    clip_and_flip,
+    scramble_vertex_ids,
+    create_using=cugraph.DiGraph
 ):
     """
     Calls RMAT on multiple GPUs, used the resulting Dask cuDF DataFrame to
@@ -149,17 +151,18 @@ def _mg_rmat(scale,
     futures = []
     for (i, worker_num_edges) in enumerate(num_edges_list):
         unique_worker_seed = seed + i
-        future = client.submit(_call_rmat,
-                               Comms.get_session_id(),
-                               scale,
-                               worker_num_edges,
-                               a,
-                               b,
-                               c,
-                               unique_worker_seed,
-                               clip_and_flip,
-                               scramble_vertex_ids,
-                              )
+        future = client.submit(
+            _call_rmat,
+            Comms.get_session_id(),
+            scale,
+            worker_num_edges,
+            a,
+            b,
+            c,
+            unique_worker_seed,
+            clip_and_flip,
+            scramble_vertex_ids,
+        )
         futures.append(future)
 
     ddf = dask_cudf.from_delayed(futures)
@@ -173,15 +176,16 @@ def _mg_rmat(scale,
     return G
 
 
-def _call_rmat(sID,
-               scale,
-               num_edges_for_worker,
-               a,
-               b,
-               c,
-               unique_worker_seed,
-               clip_and_flip,
-               scramble_vertex_ids
+def _call_rmat(
+    sID,
+    scale,
+    num_edges_for_worker,
+    a,
+    b,
+    c,
+    unique_worker_seed,
+    clip_and_flip,
+    scramble_vertex_ids
 ):
     """
     Callable passed to dask client.submit calls that extracts the individual
@@ -189,16 +193,17 @@ def _call_rmat(sID,
     """
     handle = Comms.get_handle(sID)
 
-    return rmat_wrapper.generate_rmat_edgelist(scale,
-                                               num_edges_for_worker,
-                                               a,
-                                               b,
-                                               c,
-                                               unique_worker_seed,
-                                               clip_and_flip,
-                                               scramble_vertex_ids,
-                                               handle=handle
-                                              )
+    return rmat_wrapper.generate_rmat_edgelist(
+        scale,
+        num_edges_for_worker,
+        a,
+        b,
+        c,
+        unique_worker_seed,
+        clip_and_flip,
+        scramble_vertex_ids,
+        handle=handle
+    )
 
 
 def _calc_num_edges_per_worker(num_workers, num_edges):
@@ -207,10 +212,10 @@ def _calc_num_edges_per_worker(num_workers, num_edges):
     each worker should generate. The sum of all edges in the list is num_edges.
     """
     L = []
-    w = num_edges//num_workers
-    r = num_edges%num_workers
+    w = num_edges // num_workers
+    r = num_edges % num_workers
     for i in range(num_workers):
-        if (i<r):
+        if (i < r):
             L.append(w+1)
         else:
             L.append(w)
@@ -219,16 +224,17 @@ def _calc_num_edges_per_worker(num_workers, num_edges):
 
 ###############################################################################
 
-def rmat(scale,
-         num_edges,
-         a,
-         b,
-         c,
-         seed,
-         clip_and_flip,
-         scramble_vertex_ids,
-         create_using=cugraph.DiGraph,
-         mg=False
+def rmat(
+    scale,
+    num_edges,
+    a,
+    b,
+    c,
+    seed,
+    clip_and_flip,
+    scramble_vertex_ids,
+    create_using=cugraph.DiGraph,
+    mg=False
 ):
     """
     Generate a Graph object using a Recursive MATrix (R-MAT) graph generation
@@ -280,11 +286,6 @@ def rmat(scale,
     Returns
     -------
     instance of cugraph.Graph
-
-    Example
-    --------
-    >>> G = cugraph.rmat(
-        scale=5, num_edges=512, a=0.57, b=0.19, c=0.19, seed=5, False, True)
     """
     _ensure_args_rmat(scale, num_edges, a, b, c, seed, clip_and_flip,
                       scramble_vertex_ids, create_using, mg)
@@ -352,25 +353,20 @@ def multi_rmat(
     Returns
     -------
     list of cugraph.Graph instances
-
-    Example
-    --------
-    >>> G = cugraph.multi_rmat(
-        scale=512, min_scale=3, max_scale=5, edge_factor=16,
-        size_distribution=0, edge_distribution=0, seed=5, True, True)
     """
     _ensure_args_multi_rmat(n_edgelists, min_scale, max_scale, edge_factor,
                             size_distribution, edge_distribution, seed,
                             clip_and_flip, scramble_vertex_ids)
 
-    dfs = rmat_wrapper.generate_rmat_edgelists(n_edgelists, min_scale,
-    max_scale,
-    edge_factor,
-    size_distribution,
-    edge_distribution,
-    seed,
-    clip_and_flip,
-    scramble_vertex_ids)
+    dfs = rmat_wrapper.generate_rmat_edgelists(
+        n_edgelists, min_scale,
+        max_scale,
+        edge_factor,
+        size_distribution,
+        edge_distribution,
+        seed,
+        clip_and_flip,
+        scramble_vertex_ids)
     list_G = []
 
     for df in dfs:
