@@ -22,7 +22,7 @@ from rmm._lib.device_buffer cimport DeviceBuffer
 import cudf
 from cudf.core.buffer import Buffer
 
-from cugraph.structure.graph_utilities cimport *  #This line should be determined as well
+from cugraph.structure.graph_utilities cimport *
 from cugraph.generators.rmat cimport *
 from libcpp.utility cimport move  # This must be imported after graph_utilities
                                   # since graph_utilities also defines move
@@ -137,7 +137,7 @@ def generate_rmat_edgelists(
                                                     clip_and_flip,
                                                     scramble_vertex_ids))
     else: # (vertex_t == np.dtype("int64"))
-        gg_ret_ptr = move(call_generate_rmat_edgelists[int]( deref(handle_),
+        gg_ret_ptr = move(call_generate_rmat_edgelists[long]( deref(handle_),
                                                     n_edgelists,
                                                     min_scale,
                                                     max_scale,

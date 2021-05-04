@@ -10,9 +10,8 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-from libcpp.utility cimport pair
 from libcpp cimport bool
-from cugraph.structure.graph_utilities cimport * #this might be useless
+from cugraph.structure.graph_utilities cimport *
 
 cdef extern from "experimental/graph_generator.hpp" namespace "cugraph::experimental":
     ctypedef enum generator_distribution_t:
@@ -21,18 +20,18 @@ cdef extern from "experimental/graph_generator.hpp" namespace "cugraph::experime
 
 
 cdef extern from "utilities/cython.hpp" namespace "cugraph::cython":
-    cdef unique_ptr[graph_generator_t] call_generate_rmat_edgelist[vertex_t] ( #vertex_t instead of int?
+    cdef unique_ptr[graph_generator_t] call_generate_rmat_edgelist[vertex_t] (
         const handle_t &handle,
         size_t scale,
         size_t num_edges,
         double a,
         double b,
         double c,
-        int seed,   #Change this to long
+        int seed,
         bool clip_and_flip,
         bool scramble_vertex_ids) except +
 
-    cdef unique_ptr[graph_generator_t*] call_generate_rmat_edgelists[vertex_t] ( #vertex_t instead of int?
+    cdef unique_ptr[graph_generator_t*] call_generate_rmat_edgelists[vertex_t] (
         const handle_t &handle,
         size_t n_edgelists,
         size_t min_scale,
@@ -40,6 +39,6 @@ cdef extern from "utilities/cython.hpp" namespace "cugraph::cython":
         size_t edge_factor,
         generator_distribution_t size_distribution,
         generator_distribution_t edge_distribution,
-        int seed,   #change this to long
+        int seed,
         bool clip_and_flip,
         bool scramble_vertex_ids) except +

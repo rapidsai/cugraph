@@ -20,16 +20,17 @@ from cugraph.comms import comms as Comms
 import cugraph
 
 
-def _ensure_args_rmat(scale,
-                      num_edges,
-                      a,
-                      b,
-                      c,
-                      seed,
-                      clip_and_flip,
-                      scramble_vertex_ids,
-                      create_using,
-                      mg
+def _ensure_args_rmat(
+    scale,
+    num_edges,
+    a,
+    b,
+    c,
+    seed,
+    clip_and_flip,
+    scramble_vertex_ids,
+    create_using,
+    mg
 ):
     """
     Ensures the args passed in are usable for the rmat() API, raises the
@@ -43,30 +44,52 @@ def _ensure_args_rmat(scale,
                         "supported types for 'create_using'")
     if not isinstance(scale, int):
         raise TypeError("'scale' must be an int")
+    if not isinstance(num_edges, int):
+        raise TypeError("'num_edges' must be an int")
     if (a+b+c > 1):
-        raise ValueError("a + b + c should be non-negative and no larger than 1.0")
+        raise ValueError(
+            "a + b + c should be non-negative and no larger than 1.0")
     if (clip_and_flip not in [True, False]):
         raise ValueError("'clip_and_flip' must be a bool")
     if (scramble_vertex_ids not in [True, False]):
         raise ValueError("'clip_and_flip' must be a bool")
+    if not isinstance(seed, int):
+        raise TypeError("'seed' must be an int")
 
 
-def _ensure_args_multi_rmat(n_edgelists,
-                            min_scale,
-                            max_scale,
-                            edge_factor,
-                            size_distribution,
-                            edge_distribution,
-                            seed,
-                            clip_and_flip,
-                            scramble_vertex_ids
+def _ensure_args_multi_rmat(
+    n_edgelists,
+    min_scale,
+    max_scale,
+    edge_factor,
+    size_distribution,
+    edge_distribution,
+    seed,
+    clip_and_flip,
+    scramble_vertex_ids
 ):
     """
     Ensures the args passed in are usable for the multi_rmat() API, raises the
     appropriate exception if incorrect, else returns None.
     """
-    pass
-
+    if not isinstance(n_edgelists, int):
+        raise TypeError("'n_edgelists' must be an int")
+    if not isinstance(min_scale, int):
+        raise TypeError("'min_scale' must be an int")
+    if not isinstance(max_scale, int):
+        raise TypeError("'max_scale' must be an int")
+    if not isinstance(edge_factor, int):
+        raise TypeError("'edge_factor' must be an int")
+    if size_distribution not in [0, 1]:
+        raise TypeError("'size_distribution' must be either 0 or 1"
+    if edge_distribution not in [0, 1]:
+        raise TypeError("'edge_distribution' must be either 0 or 1"
+    if (clip_and_flip not in [True, False]):
+        raise ValueError("'clip_and_flip' must be a bool")
+    if (scramble_vertex_ids not in [True, False]):
+        raise ValueError("'clip_and_flip' must be a bool")
+    if not isinstance(seed, int):
+        raise TypeError("'seed' must be an int")
 
 def _sg_rmat(scale,
              num_edges,
@@ -194,7 +217,7 @@ def _calc_num_edges_per_worker(num_workers, num_edges):
     return L
 
 
-################################################################################
+###############################################################################
 
 def rmat(scale,
          num_edges,
@@ -208,7 +231,8 @@ def rmat(scale,
          mg=False
 ):
     """
-    Generate a Graph object using a Recursive MATrix (R-MAT) graph generation algorithm.
+    Generate a Graph object using a Recursive MATrix (R-MAT) graph generation
+    algorithm.
 
     Parameters
     ----------
@@ -232,14 +256,14 @@ def rmat(scale,
     Seed value for the random number generator
 
     clip_and_flip : bool
-    Flag controlling whether to generate edges only in the lower triangular part
-    (including the diagonal) of the graph adjacency matrix (if set to 'true') or
-    not (if set to 'false).
+    Flag controlling whether to generate edges only in the lower triangular
+    part (including the diagonal) of the graph adjacency matrix
+    (if set to 'true') or not (if set to 'false).
 
     scramble_vertex_ids : bool
     Flag controlling whether to scramble vertex ID bits (if set to `true`) or
-    not (if set to `false`); scrambling vertx ID bits breaks correlation between
-    vertex ID values and vertex degrees
+    not (if set to `false`); scrambling vertx ID bits breaks correlation
+    between vertex ID values and vertex degrees
 
     create_using : cugraph Graph type or None The graph type to construct
     containing the generated edges and vertices.  If None is specified, the
@@ -256,6 +280,11 @@ def rmat(scale,
     Returns
     -------
     instance of cugraph.Graph
+
+    Example
+    --------
+    >>> G = cugraph.rmat(
+        scale=5, num_edges=512, a=0.57, b=0.19, c=0.19, seed=5, False, True)
     """
     _ensure_args_rmat(scale, num_edges, a, b, c, seed, clip_and_flip,
                       scramble_vertex_ids, create_using, mg)
@@ -280,7 +309,8 @@ def multi_rmat(
     scramble_vertex_ids
 ):
     """
-    Generate multiple Graph objects using a Recursive MATrix (R-MAT) graph generation algorithm.
+    Generate multiple Graph objects using a Recursive MATrix (R-MAT) graph
+    generation algorithm.
 
     Parameters
     ----------
@@ -296,30 +326,38 @@ def multi_rmat(
     edge_factor : int
     Average number of edges per vertex to generate
 
-    size_distribution :
+    size_distribution : int
     Distribution of the graph sizes, impacts the scale parameter of the R-MAT
-    generator
+    generator.
+    '0' for POWER_LAW distribution and '1' for UNIFORM distribution
 
-    edge_distribution :
-    Edges distribution for each graph, impacts how R-MAT parameters a,b,c,d, are
-    set
+    edge_distribution : int
+    Edges distribution for each graph, impacts how R-MAT parameters a,b,c,d,
+    are set.
+    '0' for POWER_LAW distribution and '1' for UNIFORM distribution
 
     seed : int
     Seed value for the random number generator
 
     clip_and_flip : bool
-    Flag controlling whether to generate edges only in the lower triangular part
-    (including the diagonal) of the graph adjacency matrix (if set to 'true') or
-    not (if set to 'false')
+    Flag controlling whether to generate edges only in the lower triangular
+    part (including the diagonal) of the graph adjacency matrix
+    (if set to 'true') or not (if set to 'false')
 
     scramble_vertex_ids : bool
-    Flag controlling whether to scramble vertex ID bits (if set to `true`) or
-    not (if set to `false`); scrambling vertx ID bits breaks correlation between
-    vertex ID values and vertex degrees
+    Flag controlling whether to scramble vertex ID bits (if set to 'true') or
+    not (if set to 'false'); scrambling vertx ID bits breaks correlation
+    between vertex ID values and vertex degrees
 
     Returns
     -------
     list of cugraph.Graph instances
+
+    Example
+    --------
+    >>> G = cugraph.multi_rmat(
+        scale=512, min_scale=3, max_scale=5, edge_factor=16,
+        size_distribution=0, edge_distribution=0, seed=5, True, True)
     """
     _ensure_args_multi_rmat(n_edgelists, min_scale, max_scale, edge_factor,
                             size_distribution, edge_distribution, seed,

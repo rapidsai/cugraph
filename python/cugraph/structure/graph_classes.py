@@ -91,8 +91,8 @@ class Graph:
         ----------
         input_df : cudf.DataFrame or dask_cudf.DataFrame
         A DataFrame that contains edge information If a dask_cudf.DataFrame is
-        passed it will be reinterpreted as a cudf.DataFrame. For the distributed
-        path please use from_dask_cudf_edgelist.
+        passed it will be reinterpreted as a cudf.DataFrame. For the
+        distributed path please use from_dask_cudf_edgelist.
 
         source : str or array-like
         source column name or array of column names
@@ -141,19 +141,20 @@ class Graph:
         ----------
         offset_col : cudf.Series
         This cudf.Series wraps a gdf_column of size V + 1 (V: number of
-        vertices).  The gdf column contains the offsets for the vertices in this
-        graph.  Offsets must be in the range [0, E] (E: number of edges).
+        vertices).  The gdf column contains the offsets for the vertices in
+        this graph.  Offsets must be in the range [0, E] (E: number of edges).
 
         index_col : cudf.Series
-        This cudf.Series wraps a gdf_column of size E (E: number of edges).  The
-        gdf column contains the destination index for each edge.  Destination
-        indices must be in the range [0, V) (V: number of vertices).
+        This cudf.Series wraps a gdf_column of size E (E: number of edges).
+        The gdf column contains the destination index for each edge.
+        Destination indices must be in the range [0, V)
+        (V: number of vertices).
 
         value_col : cudf.Series, optional
         This pointer can be ``None``.  If not, this cudf.Series wraps a
         gdf_column of size E (E: number of edges).  The gdf column contains the
-        weight value for each edge.  The expected type of the gdf_column element
-        is floating point number.
+        weight value for each edge.  The expected type of the gdf_column
+        element is floating point number.
 
         Examples
         --------
@@ -610,8 +611,8 @@ class NPartiteGraph(Graph):
         ----------
         input_df : cudf.DataFrame or dask_cudf.DataFrame
         A DataFrame that contains edge information. If a dask_cudf.DataFrame is
-        passed it will be reinterpreted as a cudf.DataFrame. For the distributed
-        path please use from_dask_cudf_edgelist.
+        passed it will be reinterpreted as a cudf.DataFrame. For the
+        distributed path please use from_dask_cudf_edgelist.
 
         source : str or array-like
         source column name or array of column names

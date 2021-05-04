@@ -25,7 +25,7 @@ from cugraph.generators import rmat
 import cugraph
 
 
-################################################################################
+##############################################################################
 _cluster = None
 _client = None
 _is_single_gpu = is_single_gpu()
@@ -53,11 +53,10 @@ def _call_rmat(scale, num_edges, create_using, mg):
                 clip_and_flip=False,
                 scramble_vertex_ids=True,
                 create_using=create_using,
-                mg=mg
-               )
+                mg=mg)
 
 
-################################################################################
+###############################################################################
 def setup_module():
     global _cluster
     global _client
@@ -70,7 +69,7 @@ def teardown_module():
         teardown_local_dask_cluster(_cluster, _client)
 
 
-################################################################################
+###############################################################################
 @pytest.mark.parametrize("scale", _scale_values, ids=_scale_test_ids)
 @pytest.mark.parametrize("mg", _mg_values, ids=_mg_test_ids)
 def test_rmat_edgelist(scale, mg):
