@@ -80,9 +80,9 @@ def _ensure_args_multi_rmat(
         raise TypeError("'max_scale' must be an int")
     if not isinstance(edge_factor, int):
         raise TypeError("'edge_factor' must be an int")
-    if size_distribution not in [0, 1]:
+    if (size_distribution not in [0, 1]):
         raise TypeError("'size_distribution' must be either 0 or 1"
-    if edge_distribution not in [0, 1]:
+    if (edge_distribution not in [0, 1]):
         raise TypeError("'edge_distribution' must be either 0 or 1"
     if (clip_and_flip not in [True, False]):
         raise ValueError("'clip_and_flip' must be a bool")
