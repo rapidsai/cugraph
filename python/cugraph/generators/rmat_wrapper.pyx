@@ -126,7 +126,8 @@ def generate_rmat_edgelists(
     cdef unique_ptr[graph_generator_t*] gg_ret_ptr
 
     if (vertex_t==np.dtype("int32")):
-        gg_ret_ptr = move(call_generate_rmat_edgelists[int]( deref(handle_),
+        #gg_ret_ptr = move(call_generate_rmat_edgelists[int]( deref(handle_),
+        move(call_generate_rmat_edgelists[int]( deref(handle_),
                                                     n_edgelists,
                                                     min_scale,
                                                     max_scale,
@@ -137,7 +138,8 @@ def generate_rmat_edgelists(
                                                     clip_and_flip,
                                                     scramble_vertex_ids))
     else: # (vertex_t == np.dtype("int64"))
-        gg_ret_ptr = move(call_generate_rmat_edgelists[long]( deref(handle_),
+        #gg_ret_ptr = move(call_generate_rmat_edgelists[long]( deref(handle_),
+        move(call_generate_rmat_edgelists[long]( deref(handle_),
                                                     n_edgelists,
                                                     min_scale,
                                                     max_scale,
@@ -148,6 +150,7 @@ def generate_rmat_edgelists(
                                                     clip_and_flip,
                                                     scramble_vertex_ids))
     list_df = []
+    """
     gg_ret= move(gg_ret_ptr.get()[0])
     for i in range(n_edgelists):
         source_set = DeviceBuffer.c_from_unique_ptr(move(gg_ret[i].d_source))
@@ -163,6 +166,6 @@ def generate_rmat_edgelists(
         df['dst'] = set_destination
 
         list_df.append(df)
-
+    """
     #Return a list of dataframes
     return list_df

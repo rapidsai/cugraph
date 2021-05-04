@@ -507,7 +507,7 @@ std::unique_ptr<graph_generator_t> call_generate_rmat_edgelist(raft::handle_t co
                                                                bool clip_and_flip,
                                                                bool scramble_vertex_ids);
 template <typename vertex_t>
-std::unique_ptr<graph_generator_t*> call_generate_rmat_edgelists(
+std::vector<std::pair<std::unique_ptr<rmm::device_uvector<vertex_t>>, std::unique_ptr<rmm::device_uvector<vertex_t>>>> call_generate_rmat_edgelists(
   raft::handle_t const& handle,
   size_t n_edgelists,
   size_t min_scale,
