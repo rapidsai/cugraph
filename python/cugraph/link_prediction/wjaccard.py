@@ -14,6 +14,7 @@
 from cugraph.structure.graph_classes import Graph, null_check
 from cugraph.link_prediction import jaccard_wrapper
 import cudf
+import numpy as np
 
 
 def jaccard_w(input_graph, weights, vertex_pair=None):
@@ -35,8 +36,15 @@ def jaccard_w(input_graph, weights, vertex_pair=None):
         as an edge list (edge weights are not used for this algorithm). The
         adjacency list will be computed if not already present.
 
-    weights : cudf.Series
+    weights : cudf.DataFrame
         Specifies the weights to be used for each vertex.
+        Vertex should be represented by multiple columns for multi-column
+        vertices.
+
+        weights['vertex'] : cudf.Series
+            Contains the vertex identifiers
+        weights['weight'] : cudf.Series
+            Contains the weights of vertices
 
     vertex_pair : cudf.DataFrame
         A GPU dataframe consisting of two columns representing pairs of
@@ -93,7 +101,21 @@ def jaccard_w(input_graph, weights, vertex_pair=None):
     else:
         raise ValueError("vertex_pair must be a cudf dataframe")
 
-    df = jaccard_wrapper.jaccard(input_graph, weights, vertex_pair)
+    if input_graph.renumbered:
+        vertex_size = len(input_graph.renumber_map.implementation.col_names)
+        if vertex_size == 1:
+            weights = input_graph.add_internal_vertex_id(
+                weights, 'vertex', 'vertex'
+            )
+        else:
+            cols = weights.columns[:vertex_size].to_list()
+            weights = input_graph.add_internal_vertex_id(
+                weights, 'vertex', cols
+            )
+    jaccard_weights = cudf.Series(np.ones(len(weights)))
+    for i in range(len(weights)):
+        jaccard_weights[weights['vertex'].iloc[i]] = weights['weight'].iloc[i]
+    df = jaccard_wrapper.jaccard(input_graph, jaccard_weights, vertex_pair)
 
     if input_graph.renumbered:
         df = input_graph.unrenumber(df, "source")

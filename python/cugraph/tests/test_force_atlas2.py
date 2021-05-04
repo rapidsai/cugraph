@@ -36,7 +36,7 @@ def cugraph_call(cu_M, max_iter, pos_list, outbound_attraction_distribution,
 
     G = cugraph.Graph()
     G.from_cudf_edgelist(
-        cu_M, source="0", destination="1", edge_attr="2", renumber = False
+        cu_M, source="0", destination="1", edge_attr="2", renumber=False
     )
 
     # cugraph Force Atlas 2 Call
@@ -200,4 +200,3 @@ def test_force_atlas2_multi_column_pos_list(graph_file, score, max_iter,
     cu_trust = trustworthiness(M, cu_pos[["x", "y"]].to_pandas())
     print(cu_trust, score)
     assert cu_trust > score
-

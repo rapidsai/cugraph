@@ -12,7 +12,6 @@
 # limitations under the License.
 
 from cugraph.link_analysis import pagerank_wrapper
-from cugraph.structure.graph_classes import null_check
 import cugraph
 
 

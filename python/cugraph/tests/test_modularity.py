@@ -93,9 +93,9 @@ def test_modularity_clustering_multi_column(graph_file, partitions):
     )
 
     cu_score = cugraph.analyzeClustering_modularity(G1, partitions, df1,
-                                                     ['0_vertex',
-                                                      '1_vertex'],
-                                                     'cluster')
+                                                    ['0_vertex',
+                                                     '1_vertex'],
+                                                    'cluster')
 
     G2 = cugraph.Graph()
     G2.from_cudf_edgelist(cu_M, source="src_0",

@@ -145,7 +145,7 @@ HAS_GUESS = [0, 1]
 # https://github.com/rapidsai/cugraph/issues/533
 #
 
-"""@pytest.mark.parametrize("graph_file", utils.DATASETS)
+@pytest.mark.parametrize("graph_file", utils.DATASETS)
 @pytest.mark.parametrize("max_iter", MAX_ITERATIONS)
 @pytest.mark.parametrize("tol", TOLERANCE)
 @pytest.mark.parametrize("alpha", ALPHA)
@@ -241,7 +241,7 @@ def test_pagerank_nx(
             print(f"{cugraph_pr[i][1]} and {cugraph_pr[i][1]}")
     print("Mismatches:", err)
     assert err < (0.01 * len(cugraph_pr))
-"""
+
 
 @pytest.mark.parametrize("graph_file", utils.DATASETS)
 @pytest.mark.parametrize("max_iter", MAX_ITERATIONS)
@@ -295,7 +295,7 @@ def test_pagerank_multi_column(
     cu_G = cugraph.DiGraph()
     cu_G.from_cudf_edgelist(cu_M, source=["src_0", "src_1"],
                             destination=["dst_0", "dst_1"],
-                            edge_attr = "weights")
+                            edge_attr="weights")
 
     df = cugraph.pagerank(
         cu_G,
