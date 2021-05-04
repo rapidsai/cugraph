@@ -62,8 +62,8 @@ def get_traversed_path(df, id):
     ----------
     df : cudf.DataFrame
         The dataframe containing the results of a BFS or SSSP call
-    id : Int
-        The vertex ID
+    id : vertex ID
+        most be the same data types as what is in the dataframe
 
     Returns
     ---------
@@ -97,8 +97,8 @@ def get_traversed_path(df, id):
             "DataFrame does not appear to be a BFS or "
             "SSP result - 'predecessor' column missing"
         )
-    if type(id) != int:
-        raise ValueError("The vertex 'id' needs to be an integer")
+    if type(id) != type(df['vertex'].iloc[0]):
+        raise ValueError("The vertex 'id' needs to be the same as df['vertex']")
 
     # There is no guarantee that the dataframe has not been filtered
     # or edited.  Therefore we cannot assume that using the vertex ID
@@ -161,8 +161,8 @@ def get_traversed_path_list(df, id):
             "DataFrame does not appear to be a BFS or "
             "SSP result - 'predecessor' column missing"
         )
-    if type(id) != int:
-        raise ValueError("The vertex 'id' needs to be an integer")
+    if type(id) != type(df['vertex'].iloc[0]):
+        raise ValueError("The vertex 'id' needs to be the same as df['vertex']")
 
     # There is no guarantee that the dataframe has not been filtered
     # or edited.  Therefore we cannot assume that using the vertex ID
