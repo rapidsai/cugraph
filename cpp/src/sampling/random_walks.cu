@@ -105,13 +105,15 @@ template std::
                        rmm::device_buffer&& d_coalesced_v,
                        rmm::device_buffer&& d_sizes);
 
-template std::
-  tuple<rmm::device_uvector<int32_t>, rmm::device_uvector<int32_t>, rmm::device_uvector<int32_t>>
-  get_rw_sizes_offsets(raft::handle_t const& handle, int32_t num_paths, int32_t const* ptr_d_sizes);
+template std::tuple<rmm::device_uvector<int32_t>,
+                    rmm::device_uvector<int32_t>,
+                    rmm::device_uvector<int32_t>>
+query_rw_sizes_offsets(raft::handle_t const& handle, int32_t num_paths, int32_t const* ptr_d_sizes);
 
-template std::
-  tuple<rmm::device_uvector<int64_t>, rmm::device_uvector<int64_t>, rmm::device_uvector<int64_t>>
-  get_rw_sizes_offsets(raft::handle_t const& handle, int64_t num_paths, int64_t const* ptr_d_sizes);
+template std::tuple<rmm::device_uvector<int64_t>,
+                    rmm::device_uvector<int64_t>,
+                    rmm::device_uvector<int64_t>>
+query_rw_sizes_offsets(raft::handle_t const& handle, int64_t num_paths, int64_t const* ptr_d_sizes);
 
 }  // namespace experimental
 }  // namespace cugraph

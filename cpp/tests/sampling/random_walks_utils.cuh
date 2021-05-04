@@ -182,5 +182,96 @@ bool host_check_rw_paths(
   return true;
 }
 
+template <typename index_t>
+bool host_check_query_rw(raft::handle_t const& handle,
+                         vector_test_t<index_t> const& d_v_sizes,
+                         vector_test_t<index_t> const& d_v_offsets,
+                         vector_test_t<index_t> const& d_w_sizes,
+                         vector_test_t<index_t> const& d_w_offsets)
+{
+  index_t num_paths = d_v_sizes.size();
+
+  if (num_paths == 0) return false;
+
+  std::vector<index_t> v_sizes(num_paths);
+  std::vector<index_t> v_offsets(num_paths);
+  std::vector<index_t> w_sizes(num_paths);
+  std::vector<index_t> w_offsets(num_paths);
+
+  raft::update_host(v_sizes.data(),
+                    cugraph::experimental::detail::raw_const_ptr(d_v_sizes),
+                    num_paths,
+                    handle.get_stream());
+
+  raft::update_host(v_offsets.data(),
+                    cugraph::experimental::detail::raw_const_ptr(d_v_offsets),
+                    num_paths,
+                    handle.get_stream());
+
+  raft::update_host(w_sizes.data(),
+                    cugraph::experimental::detail::raw_const_ptr(d_w_sizes),
+                    num_paths,
+                    handle.get_stream());
+
+  raft::update_host(w_offsets.data(),
+                    cugraph::experimental::detail::raw_const_ptr(d_w_offsets),
+                    num_paths,
+                    handle.get_stream());
+
+  index_t crt_v_offset = 0;
+  index_t crt_w_offset = 0;
+  auto it_v_sz         = v_sizes.begin();
+  auto it_w_sz         = w_sizes.begin();
+  auto it_v_offset     = v_offsets.begin();
+  auto it_w_offset     = w_offsets.begin();
+
+  bool flag_passed{true};
+
+  for (; it_v_sz != v_sizes.end(); ++it_v_sz, ++it_w_sz, ++it_v_offset, ++it_w_offset) {
+    if (*it_w_sz != (*it_v_sz) - 1) {
+      std::cerr << "ERROR: Incorrect weight path size: " << *it_w_sz << ", " << *it_v_sz << '\n';
+      flag_passed = false;
+      break;
+    }
+
+    if (*it_v_offset != crt_v_offset) {
+      std::cerr << "ERROR: Incorrect vertex path offset: " << *it_v_offset << ", " << crt_v_offset
+                << '\n';
+      flag_passed = false;
+      break;
+    }
+
+    if (*it_w_offset != crt_w_offset) {
+      std::cerr << "ERROR: Incorrect weight path offset: " << *it_w_offset << ", " << crt_w_offset
+                << '\n';
+      flag_passed = false;
+      break;
+    }
+
+    crt_v_offset += *it_v_sz;
+    crt_w_offset += *it_w_sz;
+  }
+
+  if (!flag_passed) {
+    std::cerr << "v sizes:";
+    std::copy(v_sizes.begin(), v_sizes.end(), std::ostream_iterator<index_t>(std::cerr, ", "));
+    std::cerr << '\n';
+
+    std::cerr << "v offsets:";
+    std::copy(v_offsets.begin(), v_offsets.end(), std::ostream_iterator<index_t>(std::cerr, ", "));
+    std::cerr << '\n';
+
+    std::cerr << "w sizes:";
+    std::copy(w_sizes.begin(), w_sizes.end(), std::ostream_iterator<index_t>(std::cerr, ", "));
+    std::cerr << '\n';
+
+    std::cerr << "w offsets:";
+    std::copy(w_offsets.begin(), w_offsets.end(), std::ostream_iterator<index_t>(std::cerr, ", "));
+    std::cerr << '\n';
+  }
+
+  return flag_passed;
+}
+
 }  // namespace test
 }  // namespace cugraph

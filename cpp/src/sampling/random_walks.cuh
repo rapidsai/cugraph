@@ -1116,7 +1116,7 @@ std::
 
 /**
  * @brief returns additional RW information on vertex paths offsets and weight path sizes and
- * offsets
+ * offsets, for the coalesced case (the padded case does not need or provide this information)
  *
  * @tparam index_t Type used to store indexing and sizes.
  * @param handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator, and
@@ -1128,7 +1128,7 @@ std::
  */
 template <typename index_t>
 std::tuple<rmm::device_uvector<index_t>, rmm::device_uvector<index_t>, rmm::device_uvector<index_t>>
-get_rw_sizes_offsets(raft::handle_t const& handle, index_t num_paths, index_t const* ptr_d_sizes)
+query_rw_sizes_offsets(raft::handle_t const& handle, index_t num_paths, index_t const* ptr_d_sizes)
 {
   rmm::device_uvector<index_t> d_vertex_offsets(num_paths, handle.get_stream());
   rmm::device_uvector<index_t> d_weight_sizes(num_paths, handle.get_stream());
