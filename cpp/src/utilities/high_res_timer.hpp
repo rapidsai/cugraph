@@ -18,6 +18,8 @@
 #include <ctime>
 #include <iostream>
 #include <map>
+#include <sstream>
+#include <stdexcept>
 #include <string>
 
 //#define TIMING
@@ -50,6 +52,19 @@ class HighResTimer {
     auto it = timers.find(open_label);
     it->second.first++;
     it->second.second += stop_time.tv_sec * 1000000000 + stop_time.tv_nsec;
+  }
+
+  double get_average_runtime(std::string const &label)
+  {
+    auto it = timers.find(label);
+    if (it != timers.end()) {
+      return (static_cast<double>(it->second.second) / (1000000.0 * it->second.first));
+    } else {
+      std::stringstream ss;
+      ss << "ERROR: timing label: " << label << "not found.";
+
+      throw std::runtime_error(ss.str());
+    }
   }
 
   //

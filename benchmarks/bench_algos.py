@@ -51,9 +51,9 @@ def createGraph(csvFileName, graphType=None):
         # complexity lower, and assume tests have coverage to verify
         # correctness for those combinations.
         if "/directed/" in csvFileName:
-            graphType = cugraph.structure.graph.DiGraph
+            graphType = cugraph.structure.graph_classes.DiGraph
         else:
-            graphType = cugraph.structure.graph.Graph
+            graphType = cugraph.structure.graph_classes.Graph
 
     return cugraph.from_cudf_edgelist(
         utils.read_csv_file(csvFileName),
@@ -122,7 +122,7 @@ def graphWithAdjListComputed(request):
     csvFileName = request.param[0]
     reinitRMM(request.param[1], request.param[2])
 
-    G = createGraph(csvFileName, cugraph.structure.graph.Graph)
+    G = createGraph(csvFileName, cugraph.structure.graph_classes.Graph)
     G.view_adj_list()
     return G
 
@@ -166,7 +166,7 @@ def bench_create_graph(gpubenchmark, edgelistCreated):
     gpubenchmark(cugraph.from_cudf_edgelist,
                  edgelistCreated,
                  source="0", destination="1",
-                 create_using=cugraph.structure.graph.Graph,
+                 create_using=cugraph.structure.graph_classes.Graph,
                  renumber=False)
 
 
@@ -183,7 +183,7 @@ def bench_create_digraph(gpubenchmark, edgelistCreated):
     gpubenchmark(cugraph.from_cudf_edgelist,
                  edgelistCreated,
                  source="0", destination="1",
-                 create_using=cugraph.structure.graph.DiGraph,
+                 create_using=cugraph.structure.graph_classes.DiGraph,
                  renumber=False)
 
 

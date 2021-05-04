@@ -12,7 +12,7 @@
 # limitations under the License.
 
 from cugraph.tree import minimum_spanning_tree_wrapper
-from cugraph.structure.graph import Graph
+from cugraph.structure.graph_classes import Graph
 from cugraph.utilities import check_nx_graph
 from cugraph.utilities import cugraph_to_nx
 

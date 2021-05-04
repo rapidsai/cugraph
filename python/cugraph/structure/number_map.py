@@ -182,7 +182,6 @@ class NumberMap:
                 on=self.col_names,
                 how="right",
             )
-            print(x.compute())
             return x['global_id']
 
         def from_internal_vertex_id(
