@@ -35,7 +35,8 @@ _scale_test_ids = [f"scale={x}" for x in _scale_values]
 _mg_values = [False, True]
 _mg_test_ids = [f"mg={x}" for x in _mg_values]
 _graph_types = [cugraph.Graph, cugraph.DiGraph, None, int]
-_graph_test_ids = [f"mg={getattr(x,'__name__',str(x))}" for x in _graph_types]
+_graph_test_ids = [f"create_using={getattr(x,'__name__',str(x))}"
+                   for x in _graph_types]
 
 
 def _call_rmat(scale, num_edges, create_using, mg):
