@@ -12,7 +12,6 @@
 # limitations under the License.
 
 from cugraph.layout import force_atlas2_wrapper
-from cugraph.structure.graph_classes import null_check
 
 
 def force_atlas2(
