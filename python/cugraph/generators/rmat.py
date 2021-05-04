@@ -35,11 +35,12 @@ def _ensure_args_rmat(scale,
     Ensures the args passed in are usable for the rmat() API, raises the
     appropriate exception if incorrect, else returns None.
     """
-    if mg and create_using is not cugraph.DiGraph:
-        raise TypeError("Only cugraph.DiGraph can be used for multi-GPU R-MAT")
-    if create_using not in [cugraph.Graph, cugraph.DiGraph]:
-        raise TypeError("Only cugraph.Graph and cugraph.DiGraph are supported"
-                        "types for 'create_using'")
+    if mg and create_using not in [None, cugraph.DiGraph]:
+        raise TypeError("Only cugraph.DiGraph and None are supported types "
+                        "for `create_using` for multi-GPU R-MAT")
+    if create_using not in [None, cugraph.Graph, cugraph.DiGraph]:
+        raise TypeError("Only cugraph.Graph, cugraph.DiGraph, and None are "
+                        "supported types for 'create_using'")
     if not isinstance(scale, int):
         raise TypeError("'scale' must be an int")
     if (a+b+c > 1):
@@ -78,7 +79,9 @@ def _sg_rmat(scale,
              create_using=cugraph.DiGraph
 ):
     """
-    FIXME: add docstring
+    Calls RMAT on a single GPU, used the resulting cuDF DataFrame to initialize
+    and return a cugraph Graph object specified with create_using. If
+    create_using is None, return the edgelist df as-is.
     """
     df = rmat_wrapper.generate_rmat_edgelist(scale,
                                              num_edges,
@@ -88,23 +91,79 @@ def _sg_rmat(scale,
                                              seed,
                                              clip_and_flip,
                                              scramble_vertex_ids)
+    if create_using is None:
+        return df
 
     G = create_using()
-    G.from_cudf_edgelist(df, source='src', destination='dst')
+    G.from_cudf_edgelist(df, source='src', destination='dst', renumber=False)
 
     return G
 
 
-def call_rmat(sID,
-              scale,
-              num_edges_for_worker,
-              a,
-              b,
-              c,
-              unique_worker_seed,
-              clip_and_flip,
-              scramble_vertex_ids
+def _mg_rmat(scale,
+             num_edges,
+             a,
+             b,
+             c,
+             seed,
+             clip_and_flip,
+             scramble_vertex_ids,
+             create_using=cugraph.DiGraph
 ):
+    """
+    Calls RMAT on multiple GPUs, used the resulting Dask cuDF DataFrame to
+    initialize and return a cugraph Graph object specified with create_using.
+    If create_using is None, returns the Dask DataFrame edgelist as-is.
+
+    seed is used as the initial seed for the first worker used (worker 0), then
+    each subsequent worker will receive seed+<worker num> as the seed value.
+    """
+    client = default_client()
+    num_workers = len(client.scheduler_info()['workers'])
+
+    num_edges_list = _calc_num_edges_per_worker(num_workers, num_edges)
+
+    futures = []
+    for (i, worker_num_edges) in enumerate(num_edges_list):
+        unique_worker_seed = seed + i
+        future = client.submit(_call_rmat,
+                               Comms.get_session_id(),
+                               scale,
+                               worker_num_edges,
+                               a,
+                               b,
+                               c,
+                               unique_worker_seed,
+                               clip_and_flip,
+                               scramble_vertex_ids,
+                              )
+        futures.append(future)
+
+    ddf = dask_cudf.from_delayed(futures)
+
+    if create_using is None:
+        return ddf
+
+    G = create_using()
+    G.from_dask_cudf_edgelist(ddf, source="src", destination="dst")
+
+    return G
+
+
+def _call_rmat(sID,
+               scale,
+               num_edges_for_worker,
+               a,
+               b,
+               c,
+               unique_worker_seed,
+               clip_and_flip,
+               scramble_vertex_ids
+):
+    """
+    Callable passed to dask client.submit calls that extracts the individual
+    worker handle based on the dask session ID
+    """
     handle = Comms.get_handle(sID)
 
     return rmat_wrapper.generate_rmat_edgelist(scale,
@@ -119,62 +178,15 @@ def call_rmat(sID,
                                               )
 
 
-def _mg_rmat(scale,
-             num_edges,
-             a,
-             b,
-             c,
-             seed,
-             clip_and_flip,
-             scramble_vertex_ids,
-             create_using=cugraph.DiGraph
-):
-    client = default_client()
-    num_workers = len(client.scheduler_info()['workers'])
-
-    num_edges_list = calc_num_edges_per_worker(num_workers, num_edges)
-
-    futures = []
-    for (i, worker_num_edges) in enumerate(num_edges_list):
-        unique_worker_seed = seed + i
-        future = client.submit(call_rmat,
-                               Comms.get_session_id(),
-                               scale,
-                               worker_num_edges,
-                               a,
-                               b,
-                               c,
-                               unique_worker_seed,
-                               clip_and_flip,
-                               scramble_vertex_ids,
-                              )
-        futures.append(future)
-
-    wait(futures)
-
-    # Create the graph from the distributed dataframe(s), first by creating a
-    # dask_cudf DataFrame, then by populating a Graph object with it (making it
-    # a distributed graph)
-    # FIXME: verify if this is correct!
-    ddf = dask_cudf.from_cudf(futures[0].result(), npartitions=1)
-    for f in futures[1:]:
-        ddf = ddf.append(f.result())
-
-    G = create_using()
-    G.from_dask_cudf_edgelist(ddf, source="src", destination="dst")
-
-    return G
-
-
-def calc_num_edges_per_worker(num_workers, num_edges):
+def _calc_num_edges_per_worker(num_workers, num_edges):
     """
-    FIXME: add docstring
+    Returns a list of length num_workers with the individual number of edges
+    each worker should generate. The sum of all edges in the list is num_edges.
     """
-    #48 and 10
-    L= []
+    L = []
     w = num_edges//num_workers
     r = num_edges%num_workers
-    for i in range (num_workers):
+    for i in range(num_workers):
         if (i<r):
             L.append(w+1)
         else:
@@ -229,9 +241,12 @@ def rmat(scale,
     not (if set to `false`); scrambling vertx ID bits breaks correlation between
     vertex ID values and vertex degrees
 
-    create_using : cugraph Graph type
-    The graph type to construct containing the generated edges and vertices.
-    Default is cugraph.DiGraph.  NOTE: only the cugraph.DiGraph type is
+    create_using : cugraph Graph type or None The graph type to construct
+    containing the generated edges and vertices.  If None is specified, the
+    edgelist cuDF DataFrame (or dask_cudf DataFrame for MG) is returned as-is.
+    This is useful for benchmarking Graph construction steps that require raw
+    data that includes potential self-loops, isolated vertices, and duplicated
+    edges.  Default is cugraph.DiGraph.  NOTE: only the cugraph.DiGraph type is
     supported for multi-GPU
 
     mg : bool
@@ -324,6 +339,5 @@ def multi_rmat(
         G = cugraph.Graph()
         G.from_cudf_edgelist(df, source='src', destination='dst')
         list_G.append(G)
-
 
     return list_G

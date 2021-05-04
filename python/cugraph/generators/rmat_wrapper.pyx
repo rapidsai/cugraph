@@ -77,7 +77,7 @@ def generate_rmat_edgelist(
                                                     clip_and_flip,
                                                     scramble_vertex_ids))
 
-    gg_ret= move(gg_ret_ptr.get()[0])
+    gg_ret = move(gg_ret_ptr.get()[0])
     source_set = DeviceBuffer.c_from_unique_ptr(move(gg_ret.d_source))
     destination_set = DeviceBuffer.c_from_unique_ptr(move(gg_ret.d_destination))
     source_set = Buffer(source_set)
