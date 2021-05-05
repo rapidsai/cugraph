@@ -31,6 +31,7 @@
 
 #include <thrust/copy.h>
 #include <thrust/count.h>
+#include <thrust/fill.h>
 #include <thrust/find.h>
 #include <thrust/gather.h>
 #include <thrust/iterator/constant_iterator.h>
@@ -39,6 +40,7 @@
 #include <thrust/iterator/zip_iterator.h>
 #include <thrust/logical.h>
 #include <thrust/remove.h>
+#include <thrust/scan.h>
 #include <thrust/transform.h>
 #include <thrust/transform_scan.h>
 #include <thrust/tuple.h>
@@ -222,44 +224,6 @@ struct col_indx_extract_t<graph_t, index_t, std::enable_if_t<graph_t::is_multi_g
   using weight_t = typename graph_t::weight_type;
 
   col_indx_extract_t(raft::handle_t const& handle,
-                     device_vec_t<vertex_t> const& d_indices,
-                     device_vec_t<edge_t> const& d_offsets,
-                     device_vec_t<weight_t> const& d_values,
-                     device_vec_t<edge_t> const& d_crt_out_degs,
-                     device_vec_t<index_t> const& d_sizes,
-                     index_t num_paths,
-                     index_t max_depth)
-    : handle_(handle),
-      col_indices_(raw_const_ptr(d_indices)),
-      row_offsets_(raw_const_ptr(d_offsets)),
-      values_(raw_const_ptr(d_values)),
-      out_degs_(raw_const_ptr(d_crt_out_degs)),
-      sizes_(raw_const_ptr(d_sizes)),
-      num_paths_(num_paths),
-      max_depth_(max_depth)
-  {
-  }
-
-  col_indx_extract_t(raft::handle_t const& handle,
-                     vertex_t const* p_d_indices,
-                     edge_t const* p_d_offsets,
-                     weight_t const* p_d_values,
-                     edge_t const* p_d_crt_out_degs,
-                     index_t const* p_d_sizes,
-                     index_t num_paths,
-                     index_t max_depth)
-    : handle_(handle),
-      col_indices_(p_d_indices),
-      row_offsets_(p_d_offsets),
-      values_(p_d_values),
-      out_degs_(p_d_crt_out_degs),
-      sizes_(p_d_sizes),
-      num_paths_(num_paths),
-      max_depth_(max_depth)
-  {
-  }
-
-  col_indx_extract_t(raft::handle_t const& handle,
                      graph_t const& graph,
                      edge_t const* p_d_crt_out_degs,
                      index_t const* p_d_sizes,
@@ -316,7 +280,11 @@ struct col_indx_extract_t<graph_t, index_t, std::enable_if_t<graph_t::is_multi_g
         auto delta     = ptr_d_sizes[indx] - 1;
         auto v_indx    = ptr_d_coalesced_v[indx * max_depth + delta];
         auto start_row = row_offsets[v_indx];
-        return thrust::make_tuple(col_indices[start_row + col_indx], values[start_row + col_indx]);
+
+        auto weight_value =
+          (values == nullptr ? weight_t{1}
+                             : values[start_row + col_indx]);  // account for un-weighted graphs
+        return thrust::make_tuple(col_indices[start_row + col_indx], weight_value);
       },
       [] __device__(auto crt_out_deg) { return crt_out_deg > 0; });
   }
@@ -386,11 +354,15 @@ struct random_walker_t {
   random_walker_t(raft::handle_t const& handle,
                   graph_t const& graph,
                   index_t num_paths,
-                  index_t max_depth)
+                  index_t max_depth,
+                  vertex_t v_padding_val = 0,
+                  weight_t w_padding_val = 0)
     : handle_(handle),
       num_paths_(num_paths),
       max_depth_(max_depth),
-      d_cached_out_degs_(graph.compute_out_degrees(handle_))
+      d_cached_out_degs_(graph.compute_out_degrees(handle_)),
+      vertex_padding_value_(v_padding_val != 0 ? v_padding_val : graph.get_number_of_vertices()),
+      weight_padding_value_(w_padding_val)
   {
   }
 
@@ -559,7 +531,7 @@ struct random_walker_t {
                         thrust::make_counting_iterator<index_t>(0),
                         predicate_w);
 
-    CUDA_TRY(cudaStreamSynchronize(handle_.get_stream()));
+    handle_.get_stream_view().synchronize();
 
     d_coalesced_v.resize(thrust::distance(d_coalesced_v.begin(), new_end_v), handle_.get_stream());
     d_coalesced_w.resize(thrust::distance(d_coalesced_w.begin(), new_end_w), handle_.get_stream());
@@ -690,11 +662,31 @@ struct random_walker_t {
 
   device_vec_t<edge_t> const& get_out_degs(void) const { return d_cached_out_degs_; }
 
+  vertex_t get_vertex_padding_value(void) const { return vertex_padding_value_; }
+
+  weight_t get_weight_padding_value(void) const { return weight_padding_value_; }
+
+  void init_padding(device_vec_t<vertex_t>& d_coalesced_v,
+                    device_vec_t<weight_t>& d_coalesced_w) const
+  {
+    thrust::fill(rmm::exec_policy(handle_.get_stream())->on(handle_.get_stream()),
+                 d_coalesced_v.begin(),
+                 d_coalesced_v.end(),
+                 vertex_padding_value_);
+
+    thrust::fill(rmm::exec_policy(handle_.get_stream())->on(handle_.get_stream()),
+                 d_coalesced_w.begin(),
+                 d_coalesced_w.end(),
+                 weight_padding_value_);
+  }
+
  private:
   raft::handle_t const& handle_;
   index_t num_paths_;
   index_t max_depth_;
   device_vec_t<edge_t> d_cached_out_degs_;
+  vertex_t const vertex_padding_value_;
+  weight_t const weight_padding_value_;
 };
 
 /**
@@ -709,11 +701,21 @@ struct random_walker_t {
  * @param d_v_start Device (view) set of starting vertex indices for the RW.
  * number(paths) == d_v_start.size().
  * @param max_depth maximum length of RWs.
+ * @param use_padding (optional) specifies if return uses padded format (true), or coalesced
+ * (compressed) format; when padding is used the output is a matrix of vertex paths and a matrix of
+ * edges paths (weights); in this case the matrices are stored in row major order; the vertex path
+ * matrix is padded with `num_vertices` values and the weight matrix is padded with `0` values;
+ * @param seeder (optional) is object providing the random seeding mechanism. Defaults to local
+ * clock time as initial seed.
  * @return std::tuple<device_vec_t<vertex_t>, device_vec_t<weight_t>,
- * device_vec_t<index_t>, seed> Quadruplet of coalesced RW paths, with corresponding edge weights
- * for each, and corresponding path sizes. This is meant to minimize the number of DF's to be passed
- * to the Python layer. Also returning seed for testing / debugging repro. The meaning of
- * "coalesced" here is that a 2D array of paths of different sizes is represented as a 1D array.
+ * device_vec_t<index_t>> Triplet of either padded or coalesced RW paths; in the coalesced case
+ * (default), the return consists of corresponding vertex and edge weights for each, and
+ * corresponding path sizes. This is meant to minimize the number of DF's to be passed to the Python
+ * layer. The meaning of "coalesced" here is that a 2D array of paths of different sizes is
+ * represented as a 1D contiguous array. In the padded case the return is a matrix of num_paths x
+ * max_depth vertex paths; and num_paths x (max_depth-1) edge (weight) paths, with an empty array of
+ * sizes. Note: if the graph is un-weighted the edge (weight) paths consists of `weight_t{1}`
+ * entries;
  */
 template <typename graph_t,
           typename random_engine_t =
@@ -729,6 +731,7 @@ random_walks_impl(raft::handle_t const& handle,
                   graph_t const& graph,
                   device_const_vector_view<typename graph_t::vertex_type, index_t>& d_v_start,
                   index_t max_depth,
+                  bool use_padding        = false,
                   seeding_policy_t seeder = clock_seeding_t<typename random_engine_t::seed_type>{})
 {
   using vertex_t = typename graph_t::vertex_type;
@@ -772,6 +775,10 @@ random_walks_impl(raft::handle_t const& handle,
   //
   seed_t seed0 = static_cast<seed_t>(seeder());
 
+  // if padding used, initialize padding values:
+  //
+  if (use_padding) rand_walker.init_padding(d_coalesced_v, d_coalesced_w);
+
   // very first vertex, for each path:
   //
   rand_walker.start(d_v_start, d_coalesced_v, d_paths_sz);
@@ -799,15 +806,25 @@ random_walks_impl(raft::handle_t const& handle,
 
   // wrap-up, post-process:
   // truncate v_set, w_set to actual space used
+  // unless padding is used
   //
-  rand_walker.stop(d_coalesced_v, d_coalesced_w, d_paths_sz);
+  if (!use_padding) { rand_walker.stop(d_coalesced_v, d_coalesced_w, d_paths_sz); }
 
   // because device_uvector is not copy-cnstr-able:
   //
-  return std::make_tuple(std::move(d_coalesced_v),
-                         std::move(d_coalesced_w),
-                         std::move(d_paths_sz),
-                         seed0);  // also return seed for repro
+  if (!use_padding) {
+    return std::make_tuple(std::move(d_coalesced_v),
+                           std::move(d_coalesced_w),
+                           std::move(d_paths_sz),
+                           seed0);  // also return seed for repro
+  } else {
+    return std::make_tuple(
+      std::move(d_coalesced_v),
+      std::move(d_coalesced_w),
+      device_vec_t<index_t>(0, stream),  // purposely empty size array for the padded case, to avoid
+                                         // unnecessary allocations
+      seed0);                            // also return seed for repro
+  }
 }
 
 /**
@@ -822,11 +839,21 @@ random_walks_impl(raft::handle_t const& handle,
  * @param d_v_start Device (view) set of starting vertex indices for the RW. number(RW) ==
  * d_v_start.size().
  * @param max_depth maximum length of RWs.
+ * @param use_padding (optional) specifies if return uses padded format (true), or coalesced
+ * (compressed) format; when padding is used the output is a matrix of vertex paths and a matrix of
+ * edges paths (weights); in this case the matrices are stored in row major order; the vertex path
+ * matrix is padded with `num_vertices` values and the weight matrix is padded with `0` values;
+ * @param seeder (optional) is object providing the random seeding mechanism. Defaults to local
+ * clock time as initial seed.
  * @return std::tuple<device_vec_t<vertex_t>, device_vec_t<weight_t>,
- * device_vec_t<index_t>, seed> Quadruplet of coalesced RW paths, with corresponding edge weights
- * for each, and coresponding path sizes. This is meant to minimize the number of DF's to be passed
- * to the Python layer. Also returning seed for testing / debugging repro. The meaning of
- * "coalesced" here is that a 2D array of paths of different sizes is represented as a 1D array.
+ * device_vec_t<index_t>> Triplet of either padded or coalesced RW paths; in the coalesced case
+ * (default), the return consists of corresponding vertex and edge weights for each, and
+ * corresponding path sizes. This is meant to minimize the number of DF's to be passed to the Python
+ * layer. The meaning of "coalesced" here is that a 2D array of paths of different sizes is
+ * represented as a 1D contiguous array. In the padded case the return is a matrix of num_paths x
+ * max_depth vertex paths; and num_paths x (max_depth-1) edge (weight) paths, with an empty array of
+ * sizes. Note: if the graph is un-weighted the edge (weight) paths consists of `weight_t{1}`
+ * entries;
  */
 template <typename graph_t,
           typename random_engine_t =
@@ -842,6 +869,7 @@ random_walks_impl(raft::handle_t const& handle,
                   graph_t const& graph,
                   device_const_vector_view<typename graph_t::vertex_type, index_t>& d_v_start,
                   index_t max_depth,
+                  bool use_padding        = false,
                   seeding_policy_t seeder = clock_seeding_t<typename random_engine_t::seed_type>{})
 {
   CUGRAPH_FAIL("Not implemented yet.");
@@ -1003,18 +1031,27 @@ struct coo_convertor_t {
  * @brief returns random walks (RW) from starting sources, where each path is of given maximum
  * length. Uniform distribution is assumed for the random engine.
  *
- * @tparam graph_t Type of graph (view).
+ * @tparam graph_t Type of graph/view (typically, graph_view_t).
  * @tparam index_t Type used to store indexing and sizes.
  * @param handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator, and
  * handles to various CUDA libraries) to run graph algorithms.
- * @param graph Graph object to generate RW on.
+ * @param graph Graph (view )object to generate RW on.
  * @param ptr_d_start Device pointer to set of starting vertex indices for the RW.
  * @param num_paths = number(paths).
  * @param max_depth maximum length of RWs.
- * @return std::tuple<device_vec_t<vertex_t>, device_vec_t<weight_t>,
- * device_vec_t<index_t>> Triplet of coalesced RW paths, with corresponding edge weights for
- * each, and coresponding path sizes. This is meant to minimize the number of DF's to be passed to
- * the Python layer.
+ * @param use_padding (optional) specifies if return uses padded format (true), or coalesced
+ * (compressed) format; when padding is used the output is a matrix of vertex paths and a matrix of
+ * edges paths (weights); in this case the matrices are stored in row major order; the vertex path
+ * matrix is padded with `num_vertices` values and the weight matrix is padded with `0` values;
+ * @return std::tuple<rmm::device_uvector<vertex_t>, rmm::device_uvector<weight_t>,
+ * rmm::device_uvector<index_t>> Triplet of either padded or coalesced RW paths; in the coalesced
+ * case (default), the return consists of corresponding vertex and edge weights for each, and
+ * corresponding path sizes. This is meant to minimize the number of DF's to be passed to the Python
+ * layer. The meaning of "coalesced" here is that a 2D array of paths of different sizes is
+ * represented as a 1D contiguous array. In the padded case the return is a matrix of num_paths x
+ * max_depth vertex paths; and num_paths x (max_depth-1) edge (weight) paths, with an empty array of
+ * sizes. Note: if the graph is un-weighted the edge (weight) paths consists of `weight_t{1}`
+ * entries;
  */
 template <typename graph_t, typename index_t>
 std::tuple<rmm::device_uvector<typename graph_t::vertex_type>,
@@ -1024,7 +1061,8 @@ random_walks(raft::handle_t const& handle,
              graph_t const& graph,
              typename graph_t::vertex_type const* ptr_d_start,
              index_t num_paths,
-             index_t max_depth)
+             index_t max_depth,
+             bool use_padding)
 {
   using vertex_t = typename graph_t::vertex_type;
 
@@ -1032,7 +1070,7 @@ random_walks(raft::handle_t const& handle,
   //
   detail::device_const_vector_view<vertex_t, index_t> d_v_start{ptr_d_start, num_paths};
 
-  auto quad_tuple = detail::random_walks_impl(handle, graph, d_v_start, max_depth);
+  auto quad_tuple = detail::random_walks_impl(handle, graph, d_v_start, max_depth, use_padding);
   // ignore last element of the quad, seed,
   // since it's meant for testing / debugging, only:
   //
@@ -1074,6 +1112,48 @@ std::
                                                       num_paths);
 
   return to_coo(d_v_view, d_sz_view);
+}
+
+/**
+ * @brief returns additional RW information on vertex paths offsets and weight path sizes and
+ * offsets, for the coalesced case (the padded case does not need or provide this information)
+ *
+ * @tparam index_t Type used to store indexing and sizes.
+ * @param handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator, and
+ * handles to various CUDA libraries) to run graph algorithms.
+ * @param num_paths number of paths.
+ * @param ptr_d_sizes sizes of vertex paths.
+ * @return tuple of (vertex_path_offsets, weight_path_sizes, weight_path_offsets), where offsets are
+ * exclusive scan of corresponding sizes.
+ */
+template <typename index_t>
+std::tuple<rmm::device_uvector<index_t>, rmm::device_uvector<index_t>, rmm::device_uvector<index_t>>
+query_rw_sizes_offsets(raft::handle_t const& handle, index_t num_paths, index_t const* ptr_d_sizes)
+{
+  rmm::device_uvector<index_t> d_vertex_offsets(num_paths, handle.get_stream());
+  rmm::device_uvector<index_t> d_weight_sizes(num_paths, handle.get_stream());
+  rmm::device_uvector<index_t> d_weight_offsets(num_paths, handle.get_stream());
+
+  thrust::exclusive_scan(rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
+                         ptr_d_sizes,
+                         ptr_d_sizes + num_paths,
+                         d_vertex_offsets.begin());
+
+  thrust::transform(rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
+                    ptr_d_sizes,
+                    ptr_d_sizes + num_paths,
+                    d_weight_sizes.begin(),
+                    [] __device__(auto vertex_path_sz) { return vertex_path_sz - 1; });
+
+  handle.get_stream_view().synchronize();
+
+  thrust::exclusive_scan(rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
+                         d_weight_sizes.begin(),
+                         d_weight_sizes.end(),
+                         d_weight_offsets.begin());
+
+  return std::make_tuple(
+    std::move(d_vertex_offsets), std::move(d_weight_sizes), std::move(d_weight_offsets));
 }
 
 }  // namespace experimental
