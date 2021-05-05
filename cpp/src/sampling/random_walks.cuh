@@ -531,7 +531,7 @@ struct random_walker_t {
                         thrust::make_counting_iterator<index_t>(0),
                         predicate_w);
 
-    CUDA_TRY(cudaStreamSynchronize(handle_.get_stream()));
+    handle_.get_stream_view().synchronize();
 
     d_coalesced_v.resize(thrust::distance(d_coalesced_v.begin(), new_end_v), handle_.get_stream());
     d_coalesced_w.resize(thrust::distance(d_coalesced_w.begin(), new_end_w), handle_.get_stream());
@@ -1145,7 +1145,7 @@ query_rw_sizes_offsets(raft::handle_t const& handle, index_t num_paths, index_t 
                     d_weight_sizes.begin(),
                     [] __device__(auto vertex_path_sz) { return vertex_path_sz - 1; });
 
-  CUDA_TRY(cudaStreamSynchronize(handle.get_stream()));
+  handle.get_stream_view().synchronize();
 
   thrust::exclusive_scan(rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
                          d_weight_sizes.begin(),
