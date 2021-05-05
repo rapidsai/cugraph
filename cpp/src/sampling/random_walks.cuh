@@ -1043,9 +1043,9 @@ struct coo_convertor_t {
  * (compressed) format; when padding is used the output is a matrix of vertex paths and a matrix of
  * edges paths (weights); in this case the matrices are stored in row major order; the vertex path
  * matrix is padded with `num_vertices` values and the weight matrix is padded with `0` values;
- * @return std::tuple<device_vec_t<vertex_t>, device_vec_t<weight_t>,
- * device_vec_t<index_t>> Triplet of either padded or coalesced RW paths; in the coalesced case
- * (default), the return consists of corresponding vertex and edge weights for each, and
+ * @return std::tuple<rmm::device_uvector<vertex_t>, rmm::device_uvector<weight_t>,
+ * rmm::device_uvector<index_t>> Triplet of either padded or coalesced RW paths; in the coalesced
+ * case (default), the return consists of corresponding vertex and edge weights for each, and
  * corresponding path sizes. This is meant to minimize the number of DF's to be passed to the Python
  * layer. The meaning of "coalesced" here is that a 2D array of paths of different sizes is
  * represented as a 1D contiguous array. In the padded case the return is a matrix of num_paths x
