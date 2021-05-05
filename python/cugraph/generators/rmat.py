@@ -103,9 +103,9 @@ def _sg_rmat(
     create_using=cugraph.DiGraph
 ):
     """
-    Calls RMAT on a single GPU, used the resulting cuDF DataFrame to initialize
-    and return a cugraph Graph object specified with create_using. If
-    create_using is None, return the edgelist df as-is.
+    Calls RMAT on a single GPU and uses the resulting cuDF DataFrame
+    to initialize and return a cugraph Graph object specified with
+    create_using. If create_using is None, returns the edgelist df as-is.
     """
     df = rmat_wrapper.generate_rmat_edgelist(scale,
                                              num_edges,
@@ -136,7 +136,7 @@ def _mg_rmat(
     create_using=cugraph.DiGraph
 ):
     """
-    Calls RMAT on multiple GPUs, used the resulting Dask cuDF DataFrame to
+    Calls RMAT on multiple GPUs and uses the resulting Dask cuDF DataFrame to
     initialize and return a cugraph Graph object specified with create_using.
     If create_using is None, returns the Dask DataFrame edgelist as-is.
 

@@ -13,7 +13,6 @@
 from libcpp cimport bool
 from cugraph.structure.graph_utilities cimport *
 from libcpp.vector cimport vector
-from libcpp.vector cimport pair
 
 cdef extern from "experimental/graph_generator.hpp" namespace "cugraph::experimental":
     ctypedef enum generator_distribution_t:
@@ -33,8 +32,7 @@ cdef extern from "utilities/cython.hpp" namespace "cugraph::cython":
         bool clip_and_flip,
         bool scramble_vertex_ids) except +
 
-    #cdef unique_ptr[graph_generator_t*] call_generate_rmat_edgelists[vertex_t] (
-    cdef vector[pair[unique_ptr[size_t, weight_t]]] call_generate_rmat_edgelists[vertex_t]
+    cdef vector[pair[unique_ptr[device_buffer], unique_ptr[device_buffer]]] call_generate_rmat_edgelists[vertex_t](
         const handle_t &handle,
         size_t n_edgelists,
         size_t min_scale,
