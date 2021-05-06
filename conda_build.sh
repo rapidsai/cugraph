@@ -1,13 +1,15 @@
 #!/usr/bin/env bash
+# Copyright (c) 2021, NVIDIA CORPORATION
+
 set -xe
 
 CUDA_REL=${CUDA_VERSION%.*}
 
 conda install conda-build anaconda-client conda-verify -y
-conda build -c nvidia -c rapidsai -c rapidsai-nightly/label/cuda${CUDA_REL} -c conda-forge -c defaults --python=${PYTHON} conda/recipes/cugraph
+conda build -c nvidia -c rapidsai -c rapidsai-nightly/label/cuda${CUDA_REL} -c conda-forge --python=${PYTHON} conda/recipes/cugraph
 
 if [ "$UPLOAD_PACKAGE" == '1' ]; then
-    export UPLOADFILE=`conda build -c nvidia -c rapidsai -c conda-forge -c defaults --python=${PYTHON} conda/recipes/cugraph --output`
+    export UPLOADFILE=`conda build -c nvidia -c rapidsai -c conda-forge --python=${PYTHON} conda/recipes/cugraph --output`
     SOURCE_BRANCH=main
 
     test -e ${UPLOADFILE}
@@ -26,7 +28,7 @@ if [ "$UPLOAD_PACKAGE" == '1' ]; then
 
     echo "Upload"
     echo ${UPLOADFILE}
-    anaconda -t ${MY_UPLOAD_KEY} upload -u ${CONDA_USERNAME:-rapidsai} ${LABEL_OPTION} --force ${UPLOADFILE}
+    anaconda -t ${MY_UPLOAD_KEY} upload -u ${CONDA_USERNAME:-rapidsai} ${LABEL_OPTION} --force ${UPLOADFILE} --no-progress
 else
     echo "Skipping upload"
 fi
