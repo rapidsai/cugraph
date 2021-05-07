@@ -144,10 +144,9 @@ def _mg_rmat(
     each subsequent worker will receive seed+<worker num> as the seed value.
     """
     client = default_client()
-    num_workers = len(client.scheduler_info()['workers'])
-
+    worker_list = list(client.scheduler_info()['workers'].keys())
+    num_workers = len(worker_list)
     num_edges_list = _calc_num_edges_per_worker(num_workers, num_edges)
-
     futures = []
     for (i, worker_num_edges) in enumerate(num_edges_list):
         unique_worker_seed = seed + i
@@ -162,6 +161,7 @@ def _mg_rmat(
             unique_worker_seed,
             clip_and_flip,
             scramble_vertex_ids,
+            workers=worker_list[i]
         )
         futures.append(future)
 
