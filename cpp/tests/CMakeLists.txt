@@ -564,6 +564,11 @@ ConfigureTest(RANDOM_WALKS_PROFILING "${RANDOM_WALKS_PROFILING_SRCS}")
 # - MG tests --------------------------------------------------------------------------------------
 
 if(BUILD_CUGRAPH_MG_TESTS)
+
+    ###############################################################################################
+    # - find MPI - only enabled if MG tests are to be built
+    find_package(MPI REQUIRED)
+
     execute_process(
       COMMAND nvidia-smi -L
       COMMAND wc -l
