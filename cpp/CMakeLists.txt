@@ -324,9 +324,12 @@ rapids_export(BUILD cugraph
 # from build directory, run make docs_cugraph
 
 # doc targets for cugraph
-add_custom_command(OUTPUT CUGRAPH_DOXYGEN
-                   WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/doxygen
-                   COMMAND doxygen Doxyfile
-                   VERBATIM)
+find_package(Doxygen 1.8.11)
+if(Doxygen_FOUND)
+    add_custom_command(OUTPUT CUGRAPH_DOXYGEN
+                       WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/doxygen
+                       COMMAND doxygen Doxyfile
+                       VERBATIM)
 
-add_custom_target(docs_cugraph DEPENDS CUGRAPH_DOXYGEN)
+    add_custom_target(docs_cugraph DEPENDS CUGRAPH_DOXYGEN)
+endif()
