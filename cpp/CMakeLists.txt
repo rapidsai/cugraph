@@ -172,6 +172,8 @@ add_library(cugraph SHARED
     src/tree/mst.cu
 )
 
+add_library(cugraph::cugraph ALIAS cugraph)
+
 set_target_properties(cugraph
     PROPERTIES BUILD_RPATH                         "\$ORIGIN"
                INSTALL_RPATH                       "\$ORIGIN"
