@@ -19,7 +19,7 @@
 from cugraph.structure.graph_primtypes cimport *
 
 
-cdef extern from "algorithms.hpp" namespace "cugraph::ext_raft":
+cdef extern from "cugraph/algorithms.hpp" namespace "cugraph::ext_raft":
 
     cdef void balancedCutClustering[VT,ET,WT](
         const GraphCSRView[VT,ET,WT] &graph,

@@ -21,11 +21,11 @@
  * @file ktruss.cu
  * --------------------------------------------------------------------------*/
 
-#include <utilities/error.hpp>
+#include <cugraph/utilities/error.hpp>
 
 #include <Hornet.hpp>
 #include <StandardAPI.hpp>
-#include <algorithms.hpp>
+#include <cugraph/algorithms.hpp>
 #include "Static/KTruss/KTruss.cuh"
 
 using namespace hornets_nest;

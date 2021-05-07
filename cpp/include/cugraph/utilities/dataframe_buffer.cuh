@@ -15,7 +15,7 @@
  */
 #pragma once
 
-#include <utilities/thrust_tuple_utils.cuh>
+#include <cugraph/utilities/thrust_tuple_utils.cuh>
 
 #include <raft/handle.hpp>
 #include <rmm/device_uvector.hpp>

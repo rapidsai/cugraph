@@ -18,7 +18,7 @@
 #include <raft/cudart_utils.h>
 #include <cub/cub.cuh>
 
-#include "graph.hpp"
+#include <cugraph/graph.hpp>
 #include "traversal_common.cuh"
 
 namespace cugraph {

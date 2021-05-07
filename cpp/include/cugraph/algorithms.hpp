@@ -15,12 +15,12 @@
  */
 #pragma once
 
-#include <dendrogram.hpp>
-#include <experimental/graph.hpp>
-#include <experimental/graph_view.hpp>
+#include <cugraph/dendrogram.hpp>
+#include <cugraph/experimental/graph.hpp>
+#include <cugraph/experimental/graph_view.hpp>
 
-#include <graph.hpp>
-#include <internals.hpp>
+#include <cugraph/graph.hpp>
+#include <cugraph/internals.hpp>
 
 #include <raft/handle.hpp>
 

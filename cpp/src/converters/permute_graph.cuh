@@ -14,10 +14,10 @@
  * limitations under the License.
  */
 #include <rmm/thrust_rmm_allocator.h>
-#include <graph.hpp>
-#include <utilities/error.hpp>
+#include <cugraph/graph.hpp>
+#include <cugraph/utilities/error.hpp>
+#include <utilities/graph_utils.cuh>
 #include "converters/COOtoCSR.cuh"
-#include "utilities/graph_utils.cuh"
 
 namespace cugraph {
 namespace detail {

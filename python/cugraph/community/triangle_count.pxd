@@ -20,7 +20,7 @@ from cugraph.structure.graph_primtypes cimport *
 from libc.stdint cimport uint64_t
 
 
-cdef extern from "algorithms.hpp" namespace "cugraph::triangle":
+cdef extern from "cugraph/algorithms.hpp" namespace "cugraph::triangle":
 
     cdef uint64_t triangle_count[VT,ET,WT](
         const GraphCSRView[VT,ET,WT] &graph) except +

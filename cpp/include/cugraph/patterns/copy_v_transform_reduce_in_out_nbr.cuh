@@ -15,14 +15,14 @@
  */
 #pragma once
 
-#include <experimental/graph_view.hpp>
-#include <matrix_partition_device.cuh>
-#include <patterns/edge_op_utils.cuh>
-#include <patterns/reduce_op.cuh>
-#include <utilities/dataframe_buffer.cuh>
-#include <utilities/device_comm.cuh>
-#include <utilities/error.hpp>
-#include <utilities/host_barrier.hpp>
+#include <cugraph/experimental/graph_view.hpp>
+#include <cugraph/matrix_partition_device.cuh>
+#include <cugraph/patterns/edge_op_utils.cuh>
+#include <cugraph/patterns/reduce_op.cuh>
+#include <cugraph/utilities/dataframe_buffer.cuh>
+#include <cugraph/utilities/device_comm.cuh>
+#include <cugraph/utilities/error.hpp>
+#include <cugraph/utilities/host_barrier.hpp>
 
 #include <raft/cudart_utils.h>
 #include <rmm/thrust_rmm_allocator.h>

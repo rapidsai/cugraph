@@ -10,8 +10,8 @@
  */
 #include <gtest/gtest.h>
 
-#include <algorithms.hpp>
-#include <graph.hpp>
+#include <cugraph/algorithms.hpp>
+#include <cugraph/graph.hpp>
 
 #include <thrust/extrema.h>
 

@@ -23,8 +23,8 @@
 
 #include <Hornet.hpp>
 #include <Static/KatzCentrality/Katz.cuh>
-#include <graph.hpp>
-#include "utilities/error.hpp"
+#include <cugraph/graph.hpp>
+#include <cugraph/utilities/error.hpp>
 
 namespace cugraph {
 

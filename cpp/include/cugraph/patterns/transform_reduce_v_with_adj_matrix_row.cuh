@@ -15,9 +15,9 @@
  */
 #pragma once
 
-#include <experimental/graph_view.hpp>
-#include <utilities/error.hpp>
-#include <utilities/host_scalar_comm.cuh>
+#include <cugraph/experimental/graph_view.hpp>
+#include <cugraph/utilities/error.hpp>
+#include <cugraph/utilities/host_scalar_comm.cuh>
 
 #include <raft/handle.hpp>
 

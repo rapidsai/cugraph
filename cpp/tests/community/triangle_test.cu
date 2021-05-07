@@ -10,8 +10,8 @@
  */
 #include <utilities/base_fixture.hpp>
 
-#include <algorithms.hpp>
-#include <graph.hpp>
+#include <cugraph/algorithms.hpp>
+#include <cugraph/graph.hpp>
 
 #include <rmm/thrust_rmm_allocator.h>
 

@@ -21,7 +21,7 @@ from libcpp.utility cimport pair
 from cugraph.structure.graph_primtypes cimport *
 
 
-cdef extern from "algorithms.hpp" namespace "cugraph":
+cdef extern from "cugraph/algorithms.hpp" namespace "cugraph":
 
     cdef pair[size_t, weight_t] leiden[vertex_t,edge_t,weight_t](
         const handle_t &handle,

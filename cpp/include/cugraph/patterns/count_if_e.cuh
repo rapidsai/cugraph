@@ -15,9 +15,9 @@
  */
 #pragma once
 
-#include <experimental/graph_view.hpp>
-#include <patterns/edge_op_utils.cuh>
-#include <patterns/transform_reduce_e.cuh>
+#include <cugraph/experimental/graph_view.hpp>
+#include <cugraph/patterns/edge_op_utils.cuh>
+#include <cugraph/patterns/transform_reduce_e.cuh>
 
 #include <raft/handle.hpp>
 

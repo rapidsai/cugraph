@@ -14,9 +14,9 @@
  * limitations under the License.
  */
 
-#include <graph.hpp>
-#include "utilities/error.hpp"
-#include "utilities/graph_utils.cuh"
+#include <cugraph/graph.hpp>
+#include <cugraph/utilities/error.hpp>
+#include <utilities/graph_utils.cuh>
 
 #include <raft/device_atomics.cuh>
 
@@ -149,4 +149,4 @@ template class GraphCompressedSparseBaseView<int32_t, int32_t, float>;
 template class GraphCompressedSparseBaseView<int32_t, int32_t, double>;
 }  // namespace cugraph
 
-#include "utilities/eidir_graph_utils.hpp"
+#include <utilities/eidir_graph_utils.hpp>

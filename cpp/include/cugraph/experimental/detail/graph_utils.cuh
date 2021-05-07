@@ -15,10 +15,10 @@
  */
 #pragma once
 
-#include <experimental/graph_view.hpp>
-#include <partition_manager.hpp>
-#include <utilities/dataframe_buffer.cuh>
-#include <utilities/device_comm.cuh>
+#include <cugraph/experimental/graph_view.hpp>
+#include <cugraph/partition_manager.hpp>
+#include <cugraph/utilities/dataframe_buffer.cuh>
+#include <cugraph/utilities/device_comm.cuh>
 
 #include <rmm/thrust_rmm_allocator.h>
 #include <raft/handle.hpp>

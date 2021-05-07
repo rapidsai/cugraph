@@ -15,8 +15,8 @@
  */
 #pragma once
 
-#include <experimental/graph_view.hpp>
-#include <utilities/error.hpp>
+#include <cugraph/experimental/graph_view.hpp>
+#include <cugraph/utilities/error.hpp>
 
 #include <raft/handle.hpp>
 #include <rmm/device_uvector.hpp>

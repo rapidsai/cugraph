@@ -15,13 +15,13 @@
  */
 #pragma once
 
-#include <experimental/detail/graph_utils.cuh>
-#include <experimental/graph_view.hpp>
-#include <matrix_partition_device.cuh>
-#include <patterns/edge_op_utils.cuh>
-#include <utilities/dataframe_buffer.cuh>
-#include <utilities/error.hpp>
-#include <utilities/shuffle_comm.cuh>
+#include <cugraph/experimental/detail/graph_utils.cuh>
+#include <cugraph/experimental/graph_view.hpp>
+#include <cugraph/matrix_partition_device.cuh>
+#include <cugraph/patterns/edge_op_utils.cuh>
+#include <cugraph/utilities/dataframe_buffer.cuh>
+#include <cugraph/utilities/error.hpp>
+#include <cugraph/utilities/shuffle_comm.cuh>
 
 #include <raft/handle.hpp>
 

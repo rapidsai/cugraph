@@ -19,7 +19,7 @@
 from cugraph.structure.graph_primtypes cimport *
 
 
-cdef extern from "algorithms.hpp" namespace "cugraph":
+cdef extern from "cugraph/algorithms.hpp" namespace "cugraph":
 
     cdef unique_ptr[GraphCOO[VT,ET,WT]] k_truss_subgraph[VT,ET,WT](
         const GraphCOOView[VT,ET,WT] &graph,

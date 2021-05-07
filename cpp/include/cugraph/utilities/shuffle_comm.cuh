@@ -15,8 +15,8 @@
  */
 #pragma once
 
-#include <utilities/dataframe_buffer.cuh>
-#include <utilities/device_comm.cuh>
+#include <cugraph/utilities/dataframe_buffer.cuh>
+#include <cugraph/utilities/device_comm.cuh>
 
 #include <rmm/thrust_rmm_allocator.h>
 #include <raft/handle.hpp>

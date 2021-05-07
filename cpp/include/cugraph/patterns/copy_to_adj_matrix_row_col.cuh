@@ -15,16 +15,16 @@
  */
 #pragma once
 
-#include <experimental/graph_view.hpp>
-#include <matrix_partition_device.cuh>
-#include <partition_manager.hpp>
-#include <utilities/dataframe_buffer.cuh>
-#include <utilities/device_comm.cuh>
-#include <utilities/error.hpp>
-#include <utilities/host_barrier.hpp>
-#include <utilities/host_scalar_comm.cuh>
-#include <utilities/thrust_tuple_utils.cuh>
-#include <vertex_partition_device.cuh>
+#include <cugraph/experimental/graph_view.hpp>
+#include <cugraph/matrix_partition_device.cuh>
+#include <cugraph/partition_manager.hpp>
+#include <cugraph/utilities/dataframe_buffer.cuh>
+#include <cugraph/utilities/device_comm.cuh>
+#include <cugraph/utilities/error.hpp>
+#include <cugraph/utilities/host_barrier.hpp>
+#include <cugraph/utilities/host_scalar_comm.cuh>
+#include <cugraph/utilities/thrust_tuple_utils.cuh>
+#include <cugraph/vertex_partition_device.cuh>
 
 #include <rmm/thrust_rmm_allocator.h>
 #include <raft/handle.hpp>

@@ -16,11 +16,11 @@
 
 #include "mg_louvain_helper.hpp"
 
-#include <experimental/graph.hpp>
+#include <cugraph/experimental/graph.hpp>
 
-#include <utilities/device_comm.cuh>
-#include <utilities/error.hpp>
-#include <utilities/host_scalar_comm.cuh>
+#include <cugraph/utilities/device_comm.cuh>
+#include <cugraph/utilities/error.hpp>
+#include <cugraph/utilities/host_scalar_comm.cuh>
 
 #include <rmm/thrust_rmm_allocator.h>
 

@@ -30,9 +30,9 @@
 #include <raft/cudart_utils.h>
 #include <rmm/device_buffer.hpp>
 
-#include <utilities/error.hpp>
+#include <cugraph/utilities/error.hpp>
+#include <utilities/graph_utils.cuh>
 #include "sort/bitonic.cuh"
-#include "utilities/graph_utils.cuh"
 
 namespace cugraph {
 namespace detail {

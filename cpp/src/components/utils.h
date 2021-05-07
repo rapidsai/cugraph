@@ -27,7 +27,7 @@
 
 #include <raft/cudart_utils.h>
 
-#include <utilities/error.hpp>
+#include <cugraph/utilities/error.hpp>
 
 namespace MLCommon {
 

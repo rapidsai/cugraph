@@ -15,10 +15,10 @@
  */
 #pragma once
 
-#include <experimental/graph.hpp>
-#include <experimental/include_cuco_static_map.cuh>
-#include <utilities/dataframe_buffer.cuh>
-#include <utilities/shuffle_comm.cuh>
+#include <cugraph/experimental/graph.hpp>
+#include <cugraph/experimental/include_cuco_static_map.cuh>
+#include <cugraph/utilities/dataframe_buffer.cuh>
+#include <cugraph/utilities/shuffle_comm.cuh>
 
 #include <raft/handle.hpp>
 #include <rmm/device_uvector.hpp>

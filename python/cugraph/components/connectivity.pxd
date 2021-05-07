@@ -19,7 +19,7 @@
 from cugraph.structure.graph_primtypes cimport *
 
 
-cdef extern from "algorithms.hpp" namespace "cugraph":
+cdef extern from "cugraph/algorithms.hpp" namespace "cugraph":
 
     ctypedef enum cugraph_cc_t:
         CUGRAPH_WEAK "cugraph::cugraph_cc_t::CUGRAPH_WEAK"

@@ -19,7 +19,7 @@
 from cugraph.structure.graph_primtypes cimport *
 
 
-cdef extern from "algorithms.hpp" namespace "cugraph":
+cdef extern from "cugraph/algorithms.hpp" namespace "cugraph":
 
     cdef void jaccard[VT,ET,WT](
         const GraphCSRView[VT,ET,WT] &graph,

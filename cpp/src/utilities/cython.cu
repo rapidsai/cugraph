@@ -14,16 +14,16 @@
  * limitations under the License.
  */
 
-#include <algorithms.hpp>
-#include <experimental/detail/graph_utils.cuh>
-#include <experimental/graph_functions.hpp>
-#include <experimental/graph_view.hpp>
-#include <graph.hpp>
-#include <partition_manager.hpp>
-#include <utilities/cython.hpp>
-#include <utilities/error.hpp>
-#include <utilities/path_retrieval.hpp>
-#include <utilities/shuffle_comm.cuh>
+#include <cugraph/algorithms.hpp>
+#include <cugraph/experimental/detail/graph_utils.cuh>
+#include <cugraph/experimental/graph_functions.hpp>
+#include <cugraph/experimental/graph_view.hpp>
+#include <cugraph/graph.hpp>
+#include <cugraph/partition_manager.hpp>
+#include <cugraph/utilities/cython.hpp>
+#include <cugraph/utilities/error.hpp>
+#include <cugraph/utilities/path_retrieval.hpp>
+#include <cugraph/utilities/shuffle_comm.cuh>
 
 #include <rmm/thrust_rmm_allocator.h>
 #include <raft/handle.hpp>

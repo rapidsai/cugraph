@@ -20,7 +20,7 @@ from cugraph.structure.graph_utilities cimport *
 from libcpp cimport bool
 
 
-cdef extern from "utilities/cython.hpp" namespace "cugraph::cython":
+cdef extern from "cugraph/utilities/cython.hpp" namespace "cugraph::cython":
 
     cdef void call_pagerank[VT,WT](
         const handle_t &handle,

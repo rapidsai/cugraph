@@ -26,8 +26,8 @@
 
 #include <gmock/gmock.h>
 
-#include <algorithms.hpp>
-#include <graph.hpp>
+#include <cugraph/algorithms.hpp>
+#include <cugraph/graph.hpp>
 
 #include <fstream>
 #include <queue>

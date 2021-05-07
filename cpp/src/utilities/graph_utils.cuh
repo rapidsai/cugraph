@@ -13,7 +13,7 @@
 // Author: Alex Fender afender@nvidia.com
 #pragma once
 
-#include <utilities/error.hpp>
+#include <cugraph/utilities/error.hpp>
 
 #include <raft/cudart_utils.h>
 #include <rmm/thrust_rmm_allocator.h>

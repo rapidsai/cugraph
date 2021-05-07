@@ -17,7 +17,7 @@
 #pragma once
 
 #include <cub/cub.cuh>
-#include "utilities/error.hpp"
+#include <cugraph/utilities/error.hpp>
 
 #define MAXBLOCKS 65535
 #define WARP_SIZE 32

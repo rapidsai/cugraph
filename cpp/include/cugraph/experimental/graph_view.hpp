@@ -15,7 +15,7 @@
  */
 #pragma once
 
-#include <utilities/error.hpp>
+#include <cugraph/utilities/error.hpp>
 
 #include <raft/handle.hpp>
 #include <rmm/device_uvector.hpp>

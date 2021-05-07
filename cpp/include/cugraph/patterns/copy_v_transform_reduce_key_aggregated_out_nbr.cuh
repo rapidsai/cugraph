@@ -15,21 +15,21 @@
  */
 #pragma once
 
-#include <experimental/detail/graph_utils.cuh>
-#include <experimental/graph.hpp>
-#include <experimental/graph_view.hpp>
-#include <matrix_partition_device.cuh>
-#include <utilities/collect_comm.cuh>
-#include <utilities/dataframe_buffer.cuh>
-#include <utilities/error.hpp>
-#include <utilities/host_barrier.hpp>
-#include <utilities/host_scalar_comm.cuh>
-#include <utilities/shuffle_comm.cuh>
-#include <vertex_partition_device.cuh>
+#include <cugraph/experimental/detail/graph_utils.cuh>
+#include <cugraph/experimental/graph.hpp>
+#include <cugraph/experimental/graph_view.hpp>
+#include <cugraph/matrix_partition_device.cuh>
+#include <cugraph/utilities/collect_comm.cuh>
+#include <cugraph/utilities/dataframe_buffer.cuh>
+#include <cugraph/utilities/error.hpp>
+#include <cugraph/utilities/host_barrier.hpp>
+#include <cugraph/utilities/host_scalar_comm.cuh>
+#include <cugraph/utilities/shuffle_comm.cuh>
+#include <cugraph/vertex_partition_device.cuh>
 
 #include <raft/handle.hpp>
 
-#include <experimental/include_cuco_static_map.cuh>
+#include <cugraph/experimental/include_cuco_static_map.cuh>
 
 #include <type_traits>
 

@@ -17,10 +17,10 @@
 #include <cuda_runtime.h>
 
 #include <raft/cudart_utils.h>
-#include <algorithms.hpp>
-#include <graph.hpp>
+#include <cugraph/algorithms.hpp>
+#include <cugraph/graph.hpp>
 
-#include <utilities/error.hpp>
+#include <cugraph/utilities/error.hpp>
 
 #include <rmm/thrust_rmm_allocator.h>
 #include <rmm/device_buffer.hpp>
