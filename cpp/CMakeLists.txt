@@ -302,7 +302,7 @@ cuGraph library is a collection of GPU accelerated graph algorithms that process
 
 ]=])
 
- rapids_export(INSTALL cuGraph
+ rapids_export(INSTALL cugraph
     EXPORT_SET cugraph-exports
     GLOBAL_TARGETS cugraph
     NAMESPACE cugraph::
@@ -311,7 +311,7 @@ cuGraph library is a collection of GPU accelerated graph algorithms that process
 
 ################################################################################################
 # - build export -------------------------------------------------------------------------------
-rapids_export(BUILD cuGraph
+rapids_export(BUILD cugraph
     EXPORT_SET cugraph-exports
     GLOBAL_TARGETS cugraph
     NAMESPACE cugraph::
@@ -323,7 +323,7 @@ rapids_export(BUILD cuGraph
 # requires doxygen and graphviz to be installed
 # from build directory, run make docs_cugraph
 
-# doc targets for cuGraph
+# doc targets for cugraph
 add_custom_command(OUTPUT CUGRAPH_DOXYGEN
                    WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/doxygen
                    COMMAND doxygen Doxyfile
