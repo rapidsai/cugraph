@@ -170,6 +170,7 @@ add_library(cugraph SHARED
     src/experimental/pagerank.cu
     src/experimental/katz_centrality.cu
     src/tree/mst.cu
+    src/utilities/host_barrier.cpp
 )
 
 add_library(cugraph::cugraph ALIAS cugraph)

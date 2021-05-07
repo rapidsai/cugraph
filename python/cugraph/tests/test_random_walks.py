@@ -126,7 +126,6 @@ def test_random_walks_invalid_max_dept(
     directed,
     max_depth
 ):
-    """Test calls random_walks an invalid type"""
     prepare_test()
     with pytest.raises(TypeError):
         df, offsets, seeds = calc_random_walks(
@@ -152,3 +151,37 @@ def test_random_walks(
         max_depth=max_depth
     )
     check_random_walks(df, offsets, seeds, df_G)
+
+
+"""@pytest.mark.parametrize("graph_file", utils.DATASETS_SMALL)
+@pytest.mark.parametrize("directed", DIRECTED_GRAPH_OPTIONS)
+def test_random_walks(
+    graph_file,
+    directed
+):
+    max_depth = random.randint(2, 10)
+    df_G = utils.read_csv_file(graph_file)
+    df_G.rename(
+        columns={"0": "src", "1": "dst", "2": "weight"}, inplace=True)
+    df_G['src_0'] = df_G['src'] + 1000
+    df_G['dst_0'] = df_G['dst'] + 1000
+
+    if directed:
+        G = cugraph.DiGraph()
+    else:
+        G = cugraph.Graph()
+    G.from_cudf_edgelist(df_G, source=['src', 'src_0'],
+                         destination=['dst', 'dst_0'],
+                         edge_attr="weight")
+
+    k = random.randint(1, 10)
+    start_vertices = random.sample(G.nodes().to_array().tolist(), k)
+
+    seeds = cudf.DataFrame()
+    seeds['v'] = start_vertices
+    seeds['v_0'] = seeds['v'] + 1000
+
+    df, offsets = cugraph.random_walks(G, seeds, max_depth)
+
+    check_random_walks(df, offsets, seeds, df_G)
+"""

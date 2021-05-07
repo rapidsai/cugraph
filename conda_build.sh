@@ -28,7 +28,7 @@ if [ "$UPLOAD_PACKAGE" == '1' ]; then
 
     echo "Upload"
     echo ${UPLOADFILE}
-    anaconda -t ${MY_UPLOAD_KEY} upload -u ${CONDA_USERNAME:-rapidsai} ${LABEL_OPTION} --force ${UPLOADFILE}
+    anaconda -t ${MY_UPLOAD_KEY} upload -u ${CONDA_USERNAME:-rapidsai} ${LABEL_OPTION} --force ${UPLOADFILE} --no-progress
 else
     echo "Skipping upload"
 fi

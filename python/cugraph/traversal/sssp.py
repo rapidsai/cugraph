@@ -1,4 +1,4 @@
-# Copyright (c) 2019-2020, NVIDIA CORPORATION.
+# Copyright (c) 2019-2021, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -212,7 +212,11 @@ def sssp(G,
         matrix_graph_type=DiGraph if directed else Graph)
 
     if G.renumbered:
-        source = G.lookup_internal_vertex_id(cudf.Series([source]))[0]
+        if isinstance(source, cudf.DataFrame):
+            source = G.lookup_internal_vertex_id(
+                source, source.columns).iloc[0]
+        else:
+            source = G.lookup_internal_vertex_id(cudf.Series([source]))[0]
 
     if source is cudf.NA:
         raise ValueError(
@@ -223,7 +227,7 @@ def sssp(G,
     if G.renumbered:
         df = G.unrenumber(df, "vertex")
         df = G.unrenumber(df, "predecessor")
-        df["predecessor"].fillna(-1, inplace=True)
+        df.fillna(-1, inplace=True)
 
     return _convert_df_to_output_type(df, input_type, return_predecessors)
 
