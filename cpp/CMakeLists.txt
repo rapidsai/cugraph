@@ -437,6 +437,7 @@ add_library(cugraph SHARED
     src/experimental/sssp.cu
     src/experimental/pagerank.cu
     src/experimental/katz_centrality.cu
+    src/serialization/serializer.cu
     src/tree/mst.cu
     src/utilities/host_barrier.cpp
 )
