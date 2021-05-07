@@ -91,8 +91,8 @@ function(ConfigureTest CMAKE_TEST_NAME CMAKE_TEST_SRC)
         PRIVATE
         cugraphtestutil
         cugraph
-        GTest::GTest
-        GTest::Main
+        GTest::gtest
+        GTest::gtest_main
         ${NCCL_LIBRARIES}
         cudart
         cuda
@@ -196,8 +196,8 @@ function(ConfigureTestMG CMAKE_TEST_NAME CMAKE_TEST_SRC)
         PRIVATE
         cugraphtestutil
         cugraph
-        GTest::GTest
-        GTest::Main
+        GTest::gtest
+        GTest::gtest_main
         ${NCCL_LIBRARIES}
         cudart
         cuda
