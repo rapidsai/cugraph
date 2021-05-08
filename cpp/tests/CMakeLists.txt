@@ -507,7 +507,7 @@ ConfigureTest(EXPERIMENTAL_BFS_TEST "${EXPERIMENTAL_BFS_TEST_SRCS}")
 # - Experimental BFS tests ------------------------------------------------------------------------
 
 set(EXPERIMENTAL_MSBFS_TEST_SRCS
-    "${CMAKE_CURRENT_SOURCE_DIR}/experimental/ms_bfs_test.cpp")
+    "${CMAKE_CURRENT_SOURCE_DIR}/experimental/ms_bfs_test.cu")
 
 ConfigureTest(EXPERIMENTAL_MSBFS_TEST "${EXPERIMENTAL_MSBFS_TEST_SRCS}")
 
