@@ -25,9 +25,47 @@
 
 #include <rmm/thrust_rmm_allocator.h>
 
+#include <rmm/exec_policy.hpp>
+
 #include <thrust/copy.h>
 
 namespace cugraph {
 namespace serializer {
+template <typename value_t>
+serializer::device_byte_it serializer::serialize(raft::handle_t const& handle,
+                                                 rmm::device_uvector<value_t> const& src,
+                                                 serializer::device_byte_it it_dev_dest) const
+{
+  auto byte_buff_sz     = src.size() * sizeof(value_t);
+  auto it_end           = it_dev_dest + byte_buff_sz;
+  auto const* byte_buff = static_cast<value_t const*>(src.data());
+
+  thrust::copy_n(rmm::exec_policy(handle.get_stream_view()), byte_buff, byte_buff_sz, it_dev_dest);
+
+  return it_end;
+}
+
+// Manual template instantiations (EIDir's):
+//
+template serializer::device_byte_it serializer::serialize(
+  raft::handle_t const& handle,
+  rmm::device_uvector<int32_t> const& src,
+  serializer::device_byte_it it_dev_dest) const;
+
+template serializer::device_byte_it serializer::serialize(
+  raft::handle_t const& handle,
+  rmm::device_uvector<int64_t> const& src,
+  serializer::device_byte_it it_dev_dest) const;
+
+template serializer::device_byte_it serializer::serialize(
+  raft::handle_t const& handle,
+  rmm::device_uvector<float> const& src,
+  serializer::device_byte_it it_dev_dest) const;
+
+template serializer::device_byte_it serializer::serialize(
+  raft::handle_t const& handle,
+  rmm::device_uvector<double> const& src,
+  serializer::device_byte_it it_dev_dest) const;
+
 }  // namespace serializer
 }  // namespace cugraph
