@@ -23,6 +23,7 @@
 #include <utilities/dataframe_buffer.cuh>
 #include <utilities/device_comm.cuh>
 #include <utilities/error.hpp>
+#include <utilities/host_barrier.hpp>
 #include <utilities/host_scalar_comm.cuh>
 #include <utilities/shuffle_comm.cuh>
 #include <utilities/thrust_tuple_utils.cuh>
@@ -123,6 +124,52 @@ auto get_optional_payload_buffer_begin = [](auto& optional_payload_buffer) {
   }
 };
 #endif
+
+// FIXME: a temporary workaround for cudaErrorInvalidDeviceFunction error when device lambda is used
+// in the else part in if constexpr else statement that involves device lambda
+template <typename GraphViewType,
+          typename VertexValueInputIterator,
+          typename VertexValueOutputIterator,
+          typename VertexOp,
+          typename key_t>
+struct call_v_op_t {
+  VertexValueInputIterator vertex_value_input_first{};
+  VertexValueOutputIterator vertex_value_output_first{};
+  VertexOp v_op{};
+  vertex_partition_device_t<GraphViewType> vertex_partition{};
+  size_t invalid_bucket_idx;
+
+  template <typename key_type = key_t, typename vertex_type = typename GraphViewType::vertex_type>
+  __device__ std::enable_if_t<std::is_same_v<key_type, vertex_type>, uint8_t> operator()(
+    key_t key) const
+  {
+    auto v_offset    = vertex_partition.get_local_vertex_offset_from_vertex_nocheck(key);
+    auto v_val       = *(vertex_value_input_first + v_offset);
+    auto v_op_result = v_op(key, v_val);
+    if (v_op_result) {
+      *(vertex_value_output_first + v_offset) = thrust::get<1>(*v_op_result);
+      return static_cast<uint8_t>(thrust::get<0>(*v_op_result));
+    } else {
+      return std::numeric_limits<uint8_t>::max();
+    }
+  }
+
+  template <typename key_type = key_t, typename vertex_type = typename GraphViewType::vertex_type>
+  __device__ std::enable_if_t<!std::is_same_v<key_type, vertex_type>, uint8_t> operator()(
+    key_t key) const
+  {
+    auto v_offset =
+      vertex_partition.get_local_vertex_offset_from_vertex_nocheck(thrust::get<0>(key));
+    auto v_val       = *(vertex_value_input_first + v_offset);
+    auto v_op_result = v_op(key, v_val);
+    if (v_op_result) {
+      *(vertex_value_output_first + v_offset) = thrust::get<1>(*v_op_result);
+      return static_cast<uint8_t>(thrust::get<0>(*v_op_result));
+    } else {
+      return std::numeric_limits<uint8_t>::max();
+    }
+  }
+};
 
 // FIXME: a temporary workaround for cudaErrorInvalidDeviceFunction error when device lambda is used
 // after if constexpr else statement that involves device lambda (bug report submitted)
@@ -509,7 +556,7 @@ size_t sort_and_reduce_buffer_elements(raft::handle_t const& handle,
  * i is [0, @p graph_view.get_number_of_local_vertices())) and reduced value of the @p e_op outputs
  * for this vertex and returns the target bucket index (for frontier update) and new verrtex
  * property values (to update *(@p vertex_value_output_first + i)). The target bucket index should
- * either be VertexFrontier::kInvalidBucketIdx or an index in @p next_frontier_bucket_indices.
+ * either be VertexFrontierType::kInvalidBucketIdx or an index in @p next_frontier_bucket_indices.
  */
 template <typename GraphViewType,
           typename VertexFrontierType,
@@ -561,6 +608,21 @@ void update_frontier_v_push_if_out_nbr(
   auto frontier_key_last  = frontier.get_bucket(cur_frontier_bucket_idx).end();
 
   // 1. fill the buffer
+
+  if (GraphViewType::is_multi_gpu) {
+    auto& comm = handle.get_comms();
+
+    // barrier is necessary here to avoid potential overlap (which can leads to deadlock) between
+    // two different communicators (beginning of col_comm)
+#if 1
+    // FIXME: temporary hack till UCC is integrated into RAFT (so we can use UCC barrier with DASK
+    // and MPI barrier with MPI)
+    host_barrier(comm, handle.get_stream_view());
+#else
+    handle.get_stream_view().synchronize();
+    comm.barrier();  // currently, this is ncclAllReduce
+#endif
+  }
 
   auto key_buffer = allocate_dataframe_buffer<key_t>(size_t{0}, handle.get_stream());
   auto payload_buffer =
@@ -767,6 +829,21 @@ void update_frontier_v_push_if_out_nbr(
     }
   }
 
+  if (GraphViewType::is_multi_gpu) {
+    auto& comm = handle.get_comms();
+
+    // barrier is necessary here to avoid potential overlap (which can leads to deadlock) between
+    // two different communicators (beginning of col_comm)
+#if 1
+    // FIXME: temporary hack till UCC is integrated into RAFT (so we can use UCC barrier with DASK
+    // and MPI barrier with MPI)
+    host_barrier(comm, handle.get_stream_view());
+#else
+    handle.get_stream_view().synchronize();
+    comm.barrier();  // currently, this is ncclAllReduce
+#endif
+  }
+
   // 2. reduce the buffer
 
   auto num_buffer_elements = detail::sort_and_reduce_buffer_elements(
@@ -778,13 +855,21 @@ void update_frontier_v_push_if_out_nbr(
   if (GraphViewType::is_multi_gpu) {
     // FIXME: this step is unnecessary if row_comm_size== 1
     auto& comm               = handle.get_comms();
-    auto const comm_rank     = comm.get_rank();
     auto& row_comm           = handle.get_subcomm(cugraph::partition_2d::key_naming_t().row_name());
-    auto const row_comm_rank = row_comm.get_rank();
     auto const row_comm_size = row_comm.get_size();
     auto& col_comm           = handle.get_subcomm(cugraph::partition_2d::key_naming_t().col_name());
     auto const col_comm_rank = col_comm.get_rank();
-    auto const col_comm_size = col_comm.get_size();
+
+    // barrier is necessary here to avoid potential overlap (which can leads to deadlock) between
+    // two different communicators (beginning of row_comm)
+#if 1
+    // FIXME: temporary hack till UCC is integrated into RAFT (so we can use UCC barrier with DASK
+    // and MPI barrier with MPI)
+    host_barrier(comm, handle.get_stream_view());
+#else
+    handle.get_stream_view().synchronize();
+    comm.barrier();  // currently, this is ncclAllReduce
+#endif
 
     std::vector<vertex_t> h_vertex_lasts(row_comm_size);
     for (size_t i = 0; i < h_vertex_lasts.size(); ++i) {
@@ -840,6 +925,17 @@ void update_frontier_v_push_if_out_nbr(
       detail::get_optional_payload_buffer_begin<payload_t>(payload_buffer),
       size_dataframe_buffer<key_t>(key_buffer),
       reduce_op);
+
+    // barrier is necessary here to avoid potential overlap (which can leads to deadlock) between
+    // two different communicators (end of row_comm)
+#if 1
+    // FIXME: temporary hack till UCC is integrated into RAFT (so we can use UCC barrier with DASK
+    // and MPI barrier with MPI)
+    host_barrier(comm, handle.get_stream_view());
+#else
+    handle.get_stream_view().synchronize();
+    comm.barrier();  // currently, this is ncclAllReduce
+#endif
   }
 
   // 3. update vertex properties and frontier
@@ -886,32 +982,19 @@ void update_frontier_v_push_if_out_nbr(
       resize_dataframe_buffer<payload_t>(payload_buffer, size_t{0}, handle.get_stream());
       shrink_to_fit_dataframe_buffer<payload_t>(payload_buffer, handle.get_stream());
     } else {
-      thrust::transform(
-        rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
-        get_dataframe_buffer_begin<key_t>(key_buffer),
-        get_dataframe_buffer_begin<key_t>(key_buffer) + num_buffer_elements,
-        bucket_indices.begin(),
-        [vertex_value_input_first,
-         vertex_value_output_first,
-         v_op,
-         vertex_partition,
-         invalid_bucket_idx = VertexFrontierType::kInvalidBucketIdx] __device__(auto key) {
-          vertex_t v_offset{};
-          if constexpr (std::is_same_v<key_t, vertex_t>) {
-            v_offset = vertex_partition.get_local_vertex_offset_from_vertex_nocheck(key);
-          } else {
-            v_offset =
-              vertex_partition.get_local_vertex_offset_from_vertex_nocheck(thrust::get<0>(key));
-          }
-          auto v_val       = *(vertex_value_input_first + v_offset);
-          auto v_op_result = v_op(key, v_val);
-          if (v_op_result) {
-            *(vertex_value_output_first + v_offset) = thrust::get<1>(*v_op_result);
-            return static_cast<uint8_t>(thrust::get<0>(*v_op_result));
-          } else {
-            return std::numeric_limits<uint8_t>::max();
-          }
-        });
+      thrust::transform(rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
+                        get_dataframe_buffer_begin<key_t>(key_buffer),
+                        get_dataframe_buffer_begin<key_t>(key_buffer) + num_buffer_elements,
+                        bucket_indices.begin(),
+                        detail::call_v_op_t<GraphViewType,
+                                            VertexValueInputIterator,
+                                            VertexValueOutputIterator,
+                                            VertexOp,
+                                            key_t>{vertex_value_input_first,
+                                                   vertex_value_output_first,
+                                                   v_op,
+                                                   vertex_partition,
+                                                   VertexFrontierType::kInvalidBucketIdx});
     }
 
     auto bucket_key_pair_first = thrust::make_zip_iterator(
@@ -933,7 +1016,7 @@ void update_frontier_v_push_if_out_nbr(
                                get_dataframe_buffer_begin<key_t>(key_buffer),
                                next_frontier_bucket_indices);
   }
-}
+}  // namespace experimental
 
 }  // namespace experimental
 }  // namespace cugraph
