@@ -504,7 +504,7 @@ set(EXPERIMENTAL_BFS_TEST_SRCS
 ConfigureTest(EXPERIMENTAL_BFS_TEST "${EXPERIMENTAL_BFS_TEST_SRCS}")
 
 ###################################################################################################
-# - Experimental BFS tests ------------------------------------------------------------------------
+# - Experimental Multi-source BFS tests -----------------------------------------------------------
 
 set(EXPERIMENTAL_MSBFS_TEST_SRCS
     "${CMAKE_CURRENT_SOURCE_DIR}/experimental/ms_bfs_test.cpp")
@@ -535,6 +535,14 @@ set(EXPERIMENTAL_KATZ_CENTRALITY_TEST_SRCS
     "${CMAKE_CURRENT_SOURCE_DIR}/experimental/katz_centrality_test.cpp")
 
 ConfigureTest(EXPERIMENTAL_KATZ_CENTRALITY_TEST "${EXPERIMENTAL_KATZ_CENTRALITY_TEST_SRCS}")
+
+###################################################################################################
+# - WEAKLY CONNECTED COMPONENTS tests -------------------------------------------------------------
+
+set(WEAKLY_CONNECTED_COMPONENTS_TEST_SRCS
+    "${CMAKE_CURRENT_SOURCE_DIR}/components/weakly_connected_components_test.cpp")
+
+ConfigureTest(WEAKLY_CONNECTED_COMPONENTS_TEST "${WEAKLY_CONNECTED_COMPONENTS_TEST_SRCS}")
 
 ###################################################################################################
 # - Experimental RANDOM_WALKS tests ------------------------------------------------------------

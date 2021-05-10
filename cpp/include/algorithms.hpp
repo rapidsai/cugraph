@@ -1281,5 +1281,13 @@ random_walks(raft::handle_t const &handle,
              index_t num_paths,
              index_t max_depth);
 
+// FIXME: add documentation
+template <typename vertex_t, typename edge_t, typename weight_t, bool multi_gpu>
+void weakly_connected_components(
+  raft::handle_t const &handle,
+  graph_view_t<vertex_t, edge_t, weight_t, false, multi_gpu> const &graph_view,
+  vertex_t *components,
+  bool do_expensive_check = false);
+
 }  // namespace experimental
 }  // namespace cugraph
