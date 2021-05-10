@@ -322,7 +322,6 @@ ConfigureTest(EXPERIMENTAL_BFS_TEST experimental/bfs_test.cpp)
 # - Experimental BFS tests ------------------------------------------------------------------------
 ConfigureTest(EXPERIMENTAL_MSBFS_TEST experimental/ms_bfs_test.cpp)
 
-
 ###################################################################################################
 # - Experimental SSSP tests -----------------------------------------------------------------------
 ConfigureTest(EXPERIMENTAL_SSSP_TEST experimental/sssp_test.cpp)
