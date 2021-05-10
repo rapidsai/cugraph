@@ -245,9 +245,7 @@ class simpleDistributedGraphImpl:
         >>> G.from_cudf_edgelist(M, '0', '1')
         >>> df = G.out_degree([0,9,12])
         """
-        # TODO: Add support
         return self._degree(vertex_subset, x=2)
-        #raise Exception("Not supported for distributed graph")
 
     def degree(self, vertex_subset=None):
         """
@@ -462,7 +460,7 @@ class simpleDistributedGraphImpl:
                     return
 
                 del self.edgelist
-            print("CALC AGAIN")
+
             renumbered_ddf, number_map = NumberMap.renumber(
                 self.input_df,
                 self.source_columns,
