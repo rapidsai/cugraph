@@ -539,13 +539,14 @@ coarsen_graph(
       counts[i]     = static_cast<edge_t>(coarsened_edgelist_major_vertices[i].size());
     }
     std::tie(renumber_map_labels, partition, number_of_vertices, number_of_edges) =
-      renumber_edgelist<vertex_t, edge_t, multi_gpu>(handle,
-                                                     unique_labels.data(),
-                                                     static_cast<vertex_t>(unique_labels.size()),
-                                                     major_ptrs,
-                                                     minor_ptrs,
-                                                     counts,
-                                                     do_expensive_check);
+      renumber_edgelist<vertex_t, edge_t, multi_gpu>(
+        handle,
+        std::optional<std::tuple<vertex_t const *, vertex_t>>{
+          std::make_tuple(unique_labels.data(), static_cast<vertex_t>(unique_labels.size()))},
+        major_ptrs,
+        minor_ptrs,
+        counts,
+        do_expensive_check);
   }
 
   // 5. build a graph
@@ -631,8 +632,8 @@ coarsen_graph(
 
   auto renumber_map_labels = renumber_edgelist<vertex_t, edge_t, multi_gpu>(
     handle,
-    unique_labels.data(),
-    static_cast<vertex_t>(unique_labels.size()),
+    std::optional<std::tuple<vertex_t const *, vertex_t>>{
+      std::make_tuple(unique_labels.data(), static_cast<vertex_t>(unique_labels.size()))},
     coarsened_edgelist_major_vertices.data(),
     coarsened_edgelist_minor_vertices.data(),
     static_cast<edge_t>(coarsened_edgelist_major_vertices.size()),
