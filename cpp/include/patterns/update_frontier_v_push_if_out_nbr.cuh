@@ -23,6 +23,7 @@
 #include <utilities/dataframe_buffer.cuh>
 #include <utilities/device_comm.cuh>
 #include <utilities/error.hpp>
+#include <utilities/host_barrier.hpp>
 #include <utilities/host_scalar_comm.cuh>
 #include <utilities/shuffle_comm.cuh>
 #include <utilities/thrust_tuple_utils.cuh>
@@ -403,6 +404,21 @@ void update_frontier_v_push_if_out_nbr(
 
   // 1. fill the buffer
 
+  if (GraphViewType::is_multi_gpu) {
+    auto& comm = handle.get_comms();
+
+    // barrier is necessary here to avoid potential overlap (which can leads to deadlock) between
+    // two different communicators (beginning of col_comm)
+#if 1
+    // FIXME: temporary hack till UCC is integrated into RAFT (so we can use UCC barrier with DASK
+    // and MPI barrier with MPI)
+    host_barrier(comm, handle.get_stream_view());
+#else
+    handle.get_stream_view().synchronize();
+    comm.barrier();  // currently, this is ncclAllReduce
+#endif
+  }
+
   rmm::device_uvector<vertex_t> keys(size_t{0}, handle.get_stream());
   auto payload_buffer = allocate_dataframe_buffer<payload_t>(size_t{0}, handle.get_stream());
   rmm::device_scalar<size_t> buffer_idx(size_t{0}, handle.get_stream());
@@ -585,6 +601,21 @@ void update_frontier_v_push_if_out_nbr(
     }
   }
 
+  if (GraphViewType::is_multi_gpu) {
+    auto& comm = handle.get_comms();
+
+    // barrier is necessary here to avoid potential overlap (which can leads to deadlock) between
+    // two different communicators (beginning of col_comm)
+#if 1
+    // FIXME: temporary hack till UCC is integrated into RAFT (so we can use UCC barrier with DASK
+    // and MPI barrier with MPI)
+    host_barrier(comm, handle.get_stream_view());
+#else
+    handle.get_stream_view().synchronize();
+    comm.barrier();  // currently, this is ncclAllReduce
+#endif
+  }
+
   // 2. reduce the buffer
 
   auto num_buffer_elements =
@@ -596,13 +627,21 @@ void update_frontier_v_push_if_out_nbr(
   if (GraphViewType::is_multi_gpu) {
     // FIXME: this step is unnecessary if row_comm_size== 1
     auto& comm               = handle.get_comms();
-    auto const comm_rank     = comm.get_rank();
     auto& row_comm           = handle.get_subcomm(cugraph::partition_2d::key_naming_t().row_name());
-    auto const row_comm_rank = row_comm.get_rank();
     auto const row_comm_size = row_comm.get_size();
     auto& col_comm           = handle.get_subcomm(cugraph::partition_2d::key_naming_t().col_name());
     auto const col_comm_rank = col_comm.get_rank();
-    auto const col_comm_size = col_comm.get_size();
+
+    // barrier is necessary here to avoid potential overlap (which can leads to deadlock) between
+    // two different communicators (beginning of row_comm)
+#if 1
+    // FIXME: temporary hack till UCC is integrated into RAFT (so we can use UCC barrier with DASK
+    // and MPI barrier with MPI)
+    host_barrier(comm, handle.get_stream_view());
+#else
+    handle.get_stream_view().synchronize();
+    comm.barrier();  // currently, this is ncclAllReduce
+#endif
 
     std::vector<vertex_t> h_vertex_lasts(row_comm_size);
     for (size_t i = 0; i < h_vertex_lasts.size(); ++i) {
@@ -649,6 +688,17 @@ void update_frontier_v_push_if_out_nbr(
                                               get_dataframe_buffer_begin<payload_t>(payload_buffer),
                                               keys.size(),
                                               reduce_op);
+
+    // barrier is necessary here to avoid potential overlap (which can leads to deadlock) between
+    // two different communicators (end of row_comm)
+#if 1
+    // FIXME: temporary hack till UCC is integrated into RAFT (so we can use UCC barrier with DASK
+    // and MPI barrier with MPI)
+    host_barrier(comm, handle.get_stream_view());
+#else
+    handle.get_stream_view().synchronize();
+    comm.barrier();  // currently, this is ncclAllReduce
+#endif
   }
 
   // 3. update vertex properties
@@ -753,7 +803,7 @@ void update_frontier_v_push_if_out_nbr(
       }
     }
   }
-}
+}  // namespace experimental
 
 }  // namespace experimental
 }  // namespace cugraph

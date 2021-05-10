@@ -42,4 +42,46 @@ void get_traversed_cost(raft::handle_t const &handle,
                         weight_t *out,
                         vertex_t stop_vertex,
                         vertex_t num_vertices);
+
+namespace experimental {
+/**
+ * @brief returns the COO format (src_vector, dst_vector) from the random walks (RW)
+ * paths.
+ *
+ * @tparam vertex_t Type of vertex indices.
+ * @tparam index_t Type used to store indexing and sizes.
+ * @param handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator, and
+ * handles to various CUDA libraries) to run graph algorithms.
+ * @param coalesced_sz_v coalesced vertex vector size.
+ * @param num_paths number of paths.
+ * @param d_coalesced_v coalesced vertex buffer.
+ * @param d_sizes paths size buffer.
+ * @return tuple of (src_vertex_vector, dst_Vertex_vector, path_offsets), where
+ * path_offsets are the offsets where the COO set of each path starts.
+ */
+template <typename vertex_t, typename index_t>
+std::
+  tuple<rmm::device_uvector<vertex_t>, rmm::device_uvector<vertex_t>, rmm::device_uvector<index_t>>
+  convert_paths_to_coo(raft::handle_t const &handle,
+                       index_t coalesced_sz_v,
+                       index_t num_paths,
+                       rmm::device_buffer &&d_coalesced_v,
+                       rmm::device_buffer &&d_sizes);
+
+/**
+ * @brief returns additional RW information on vertex paths offsets and weight path sizes and
+ * offsets, for the coalesced case (the padded case does not need or provide this information)
+ *
+ * @tparam index_t Type used to store indexing and sizes.
+ * @param handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator, and
+ * handles to various CUDA libraries) to run graph algorithms.
+ * @param num_paths number of paths.
+ * @param ptr_d_sizes sizes of vertex paths.
+ * @return tuple of (vertex_path_offsets, weight_path_sizes, weight_path_offsets), where offsets are
+ * exclusive scan of corresponding sizes.
+ */
+template <typename index_t>
+std::tuple<rmm::device_uvector<index_t>, rmm::device_uvector<index_t>, rmm::device_uvector<index_t>>
+query_rw_sizes_offsets(raft::handle_t const &handle, index_t num_paths, index_t const *ptr_d_sizes);
+}  // namespace experimental
 }  // namespace cugraph

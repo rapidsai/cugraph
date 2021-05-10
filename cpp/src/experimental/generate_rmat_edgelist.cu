@@ -137,8 +137,9 @@ generate_rmat_edgelists(raft::handle_t const& handle,
                         bool scramble_vertex_ids)
 {
   CUGRAPH_EXPECTS(min_scale > 0, "minimum graph scale is 1.");
-  CUGRAPH_EXPECTS(size_t{1} << max_scale <= std::numeric_limits<vertex_t>::max(),
-                  "Invalid input argument: scale too large for vertex_t.");
+  CUGRAPH_EXPECTS(
+    size_t{1} << max_scale <= static_cast<size_t>(std::numeric_limits<vertex_t>::max()),
+    "Invalid input argument: scale too large for vertex_t.");
 
   std::vector<std::tuple<rmm::device_uvector<vertex_t>, rmm::device_uvector<vertex_t>>> output{};
   output.reserve(n_edgelists);

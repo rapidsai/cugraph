@@ -119,7 +119,7 @@ def pagerank(input_graph,
                                    edge_attr='value')
     >>> pr = dcg.pagerank(dg)
     """
-    from cugraph.structure.graph import null_check
+    from cugraph.structure.graph_classes import null_check
 
     nstart = None
 

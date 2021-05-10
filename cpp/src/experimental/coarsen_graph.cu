@@ -20,6 +20,7 @@
 #include <experimental/graph_view.hpp>
 #include <patterns/copy_to_adj_matrix_row_col.cuh>
 #include <utilities/error.hpp>
+#include <utilities/host_barrier.hpp>
 #include <utilities/shuffle_comm.cuh>
 
 #include <rmm/thrust_rmm_allocator.h>
@@ -269,6 +270,16 @@ coarsen_graph(
   for (size_t i = 0; i < graph_view.get_number_of_local_adj_matrix_partitions(); ++i) {
     // 1-1. locally construct coarsened edge list
 
+    // barrier is necessary here to avoid potential overlap (which can leads to deadlock) between
+    // two different communicators (beginning of col_comm)
+#if 1
+    // FIXME: temporary hack till UCC is integrated into RAFT (so we can use UCC barrier with DASK
+    // and MPI barrier with MPI)
+    host_barrier(comm, handle.get_stream_view());
+#else
+    handle.get_stream_view().synchronize();
+    comm.barrier();  // currently, this is ncclAllReduce
+#endif
     rmm::device_uvector<vertex_t> major_labels(
       store_transposed ? graph_view.get_number_of_local_adj_matrix_partition_cols(i)
                        : graph_view.get_number_of_local_adj_matrix_partition_rows(i),
@@ -285,6 +296,16 @@ coarsen_graph(
                  major_labels.size(),
                  static_cast<int>(i),
                  handle.get_stream());
+    // barrier is necessary here to avoid potential overlap (which can leads to deadlock) between
+    // two different communicators (end of col_comm)
+#if 1
+    // FIXME: temporary hack till UCC is integrated into RAFT (so we can use UCC barrier with DASK
+    // and MPI barrier with MPI)
+    host_barrier(comm, handle.get_stream_view());
+#else
+    handle.get_stream_view().synchronize();
+    comm.barrier();  // currently, this is ncclAllReduce
+#endif
 
     rmm::device_uvector<vertex_t> edgelist_major_vertices(0, handle.get_stream());
     rmm::device_uvector<vertex_t> edgelist_minor_vertices(0, handle.get_stream());
