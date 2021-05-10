@@ -1,5 +1,5 @@
 #!/bin/bash
-# Copyright (c) 2020, NVIDIA CORPORATION.
+# Copyright (c) 2021, NVIDIA CORPORATION.
 #################################
 # cuGraph Docs build script for CI #
 #################################
@@ -27,11 +27,6 @@ nvidia-smi
 gpuci_logger "Activate conda env"
 . /opt/conda/etc/profile.d/conda.sh
 conda activate rapids
-
-# TODO: Move installs to docs-build-env meta package
-gpuci_conda_retry install -c anaconda markdown beautifulsoup4 jq
-pip install sphinx-markdown-tables
-
 
 gpuci_logger "Check versions"
 python --version

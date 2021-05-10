@@ -24,8 +24,8 @@
 #include <thrust/random.h>
 
 #include <algorithms.hpp>
-#include <experimental/random_walks.cuh>
 #include <graph.hpp>
+#include <sampling/random_walks.cuh>
 
 #include <raft/handle.hpp>
 #include <raft/random/rng.cuh>
@@ -62,10 +62,16 @@ graph_t<vertex_t, edge_t, weight_t, false, false> make_graph(raft::handle_t cons
 
   raft::update_device(d_src.data(), v_src.data(), d_src.size(), handle.get_stream());
   raft::update_device(d_dst.data(), v_dst.data(), d_dst.size(), handle.get_stream());
-  raft::update_device(d_weights.data(), v_w.data(), d_weights.size(), handle.get_stream());
+
+  weight_t* ptr_d_weights{nullptr};
+  if (is_weighted) {
+    raft::update_device(d_weights.data(), v_w.data(), d_weights.size(), handle.get_stream());
+
+    ptr_d_weights = d_weights.data();
+  }
 
   edgelist_t<vertex_t, edge_t, weight_t> edgelist{
-    d_src.data(), d_dst.data(), d_weights.data(), num_edges};
+    d_src.data(), d_dst.data(), ptr_d_weights, num_edges};
 
   graph_t<vertex_t, edge_t, weight_t, false, false> graph(
     handle, edgelist, num_vertices, graph_properties_t{false, false, is_weighted}, false);
@@ -781,4 +787,301 @@ TEST_F(RandomWalksPrimsTest, SimpleGraphRandomWalk)
   if (!test_all_paths) std::cout << "starting seed on failure: " << seed0 << '\n';
 
   ASSERT_TRUE(test_all_paths);
+}
+
+TEST(RandomWalksQuery, GraphRWQueryOffsets)
+{
+  using vertex_t = int32_t;
+  using edge_t   = vertex_t;
+  using weight_t = float;
+  using index_t  = vertex_t;
+
+  raft::handle_t handle{};
+
+  edge_t num_edges      = 8;
+  vertex_t num_vertices = 6;
+
+  std::vector<vertex_t> v_src{0, 1, 1, 2, 2, 2, 3, 4};
+  std::vector<vertex_t> v_dst{1, 3, 4, 0, 1, 3, 5, 5};
+  std::vector<weight_t> v_w{0.1, 1.1, 2.1, 3.1, 4.1, 5.1, 6.1, 7.1};
+
+  auto graph = make_graph(handle, v_src, v_dst, v_w, num_vertices, num_edges, true);
+
+  auto graph_view = graph.view();
+
+  edge_t const* offsets   = graph_view.offsets();
+  vertex_t const* indices = graph_view.indices();
+  weight_t const* values  = graph_view.weights();
+
+  std::vector<edge_t> v_ro(num_vertices + 1);
+  std::vector<vertex_t> v_ci(num_edges);
+  std::vector<weight_t> v_vals(num_edges);
+
+  raft::update_host(v_ro.data(), offsets, v_ro.size(), handle.get_stream());
+  raft::update_host(v_ci.data(), indices, v_ci.size(), handle.get_stream());
+  raft::update_host(v_vals.data(), values, v_vals.size(), handle.get_stream());
+
+  std::vector<vertex_t> v_start{1, 0, 4, 2};
+  vector_test_t<vertex_t> d_v_start(v_start.size(), handle.get_stream());
+  raft::update_device(d_v_start.data(), v_start.data(), d_v_start.size(), handle.get_stream());
+
+  index_t num_paths = v_start.size();
+  index_t max_depth = 5;
+
+  // 0-copy const device view:
+  //
+  detail::device_const_vector_view<vertex_t, index_t> d_start_view{d_v_start.data(), num_paths};
+  auto quad = detail::random_walks_impl(handle, graph_view, d_start_view, max_depth);
+
+  auto& d_v_sizes = std::get<2>(quad);
+  auto seed0      = std::get<3>(quad);
+
+  auto triplet = query_rw_sizes_offsets(handle, num_paths, detail::raw_const_ptr(d_v_sizes));
+
+  auto& d_v_offsets = std::get<0>(triplet);
+  auto& d_w_sizes   = std::get<1>(triplet);
+  auto& d_w_offsets = std::get<2>(triplet);
+
+  bool test_paths_sz =
+    cugraph::test::host_check_query_rw(handle, d_v_sizes, d_v_offsets, d_w_sizes, d_w_offsets);
+
+  if (!test_paths_sz) std::cout << "starting seed on failure: " << seed0 << '\n';
+
+  ASSERT_TRUE(test_paths_sz);
+}
+
+TEST(RandomWalksSpecialCase, SingleRandomWalk)
+{
+  using vertex_t = int32_t;
+  using edge_t   = vertex_t;
+  using weight_t = float;
+  using index_t  = vertex_t;
+
+  raft::handle_t handle{};
+
+  edge_t num_edges      = 8;
+  vertex_t num_vertices = 6;
+
+  std::vector<vertex_t> v_src{0, 1, 1, 2, 2, 2, 3, 4};
+  std::vector<vertex_t> v_dst{1, 3, 4, 0, 1, 3, 5, 5};
+  std::vector<weight_t> v_w{0.1, 1.1, 2.1, 3.1, 4.1, 5.1, 6.1, 7.1};
+
+  auto graph = make_graph(handle, v_src, v_dst, v_w, num_vertices, num_edges, true);
+
+  auto graph_view = graph.view();
+
+  edge_t const* offsets   = graph_view.offsets();
+  vertex_t const* indices = graph_view.indices();
+  weight_t const* values  = graph_view.weights();
+
+  std::vector<edge_t> v_ro(num_vertices + 1);
+  std::vector<vertex_t> v_ci(num_edges);
+  std::vector<weight_t> v_vals(num_edges);
+
+  raft::update_host(v_ro.data(), offsets, v_ro.size(), handle.get_stream());
+  raft::update_host(v_ci.data(), indices, v_ci.size(), handle.get_stream());
+  raft::update_host(v_vals.data(), values, v_vals.size(), handle.get_stream());
+
+  std::vector<vertex_t> v_start{2};
+  vector_test_t<vertex_t> d_v_start(v_start.size(), handle.get_stream());
+  raft::update_device(d_v_start.data(), v_start.data(), d_v_start.size(), handle.get_stream());
+
+  index_t num_paths = v_start.size();
+  index_t max_depth = 5;
+
+  // 0-copy const device view:
+  //
+  detail::device_const_vector_view<vertex_t, index_t> d_start_view{d_v_start.data(), num_paths};
+  auto quad = detail::random_walks_impl(handle, graph_view, d_start_view, max_depth);
+
+  auto& d_coalesced_v = std::get<0>(quad);
+  auto& d_coalesced_w = std::get<1>(quad);
+  auto& d_sizes       = std::get<2>(quad);
+  auto seed0          = std::get<3>(quad);
+
+  bool test_all_paths =
+    cugraph::test::host_check_rw_paths(handle, graph_view, d_coalesced_v, d_coalesced_w, d_sizes);
+
+  if (!test_all_paths) std::cout << "starting seed on failure: " << seed0 << '\n';
+
+  ASSERT_TRUE(test_all_paths);
+}
+
+TEST(RandomWalksSpecialCase, UnweightedGraph)
+{
+  using vertex_t = int32_t;
+  using edge_t   = vertex_t;
+  using weight_t = float;
+  using index_t  = vertex_t;
+
+  raft::handle_t handle{};
+
+  edge_t num_edges      = 8;
+  vertex_t num_vertices = 6;
+
+  std::vector<vertex_t> v_src{0, 1, 1, 2, 2, 2, 3, 4};
+  std::vector<vertex_t> v_dst{1, 3, 4, 0, 1, 3, 5, 5};
+  std::vector<weight_t> v_w;
+
+  auto graph =
+    make_graph(handle, v_src, v_dst, v_w, num_vertices, num_edges, false);  // un-weighted
+
+  auto graph_view = graph.view();
+
+  edge_t const* offsets   = graph_view.offsets();
+  vertex_t const* indices = graph_view.indices();
+  weight_t const* values  = graph_view.weights();
+
+  ASSERT_TRUE(values == nullptr);
+
+  std::vector<edge_t> v_ro(num_vertices + 1);
+  std::vector<vertex_t> v_ci(num_edges);
+
+  raft::update_host(v_ro.data(), offsets, v_ro.size(), handle.get_stream());
+  raft::update_host(v_ci.data(), indices, v_ci.size(), handle.get_stream());
+
+  std::vector<vertex_t> v_start{2};
+  vector_test_t<vertex_t> d_v_start(v_start.size(), handle.get_stream());
+  raft::update_device(d_v_start.data(), v_start.data(), d_v_start.size(), handle.get_stream());
+
+  index_t num_paths = v_start.size();
+  index_t max_depth = 5;
+
+  // 0-copy const device view:
+  //
+  detail::device_const_vector_view<vertex_t, index_t> d_start_view{d_v_start.data(), num_paths};
+  auto quad = detail::random_walks_impl(handle, graph_view, d_start_view, max_depth);
+
+  auto& d_coalesced_v = std::get<0>(quad);
+  auto& d_coalesced_w = std::get<1>(quad);
+  auto& d_sizes       = std::get<2>(quad);
+  auto seed0          = std::get<3>(quad);
+
+  bool test_all_paths =
+    cugraph::test::host_check_rw_paths(handle, graph_view, d_coalesced_v, d_coalesced_w, d_sizes);
+
+  if (!test_all_paths) std::cout << "starting seed on failure: " << seed0 << '\n';
+
+  ASSERT_TRUE(test_all_paths);
+}
+
+TEST(RandomWalksPadded, SimpleGraph)
+{
+  using vertex_t = int32_t;
+  using edge_t   = vertex_t;
+  using weight_t = float;
+  using index_t  = vertex_t;
+
+  raft::handle_t handle{};
+
+  edge_t num_edges      = 8;
+  vertex_t num_vertices = 6;
+
+  std::vector<vertex_t> v_src{0, 1, 1, 2, 2, 2, 3, 4};
+  std::vector<vertex_t> v_dst{1, 3, 4, 0, 1, 3, 5, 5};
+  std::vector<weight_t> v_w{0.1, 1.1, 2.1, 3.1, 4.1, 5.1, 6.1, 7.1};
+
+  auto graph = make_graph(handle, v_src, v_dst, v_w, num_vertices, num_edges, true);
+
+  auto graph_view = graph.view();
+
+  edge_t const* offsets   = graph_view.offsets();
+  vertex_t const* indices = graph_view.indices();
+  weight_t const* values  = graph_view.weights();
+
+  std::vector<edge_t> v_ro(num_vertices + 1);
+  std::vector<vertex_t> v_ci(num_edges);
+  std::vector<weight_t> v_vals(num_edges);
+
+  raft::update_host(v_ro.data(), offsets, v_ro.size(), handle.get_stream());
+  raft::update_host(v_ci.data(), indices, v_ci.size(), handle.get_stream());
+  raft::update_host(v_vals.data(), values, v_vals.size(), handle.get_stream());
+
+  std::vector<vertex_t> v_start{2};
+  vector_test_t<vertex_t> d_v_start(v_start.size(), handle.get_stream());
+  raft::update_device(d_v_start.data(), v_start.data(), d_v_start.size(), handle.get_stream());
+
+  index_t num_paths = v_start.size();
+  index_t max_depth = 5;
+
+  // 0-copy const device view:
+  //
+  detail::device_const_vector_view<vertex_t, index_t> d_start_view{d_v_start.data(), num_paths};
+  bool use_padding{true};
+  auto quad = detail::random_walks_impl(handle, graph_view, d_start_view, max_depth, use_padding);
+
+  auto& d_coalesced_v = std::get<0>(quad);
+  auto& d_coalesced_w = std::get<1>(quad);
+  auto& d_sizes       = std::get<2>(quad);
+  auto seed0          = std::get<3>(quad);
+
+  ASSERT_TRUE(d_sizes.size() == 0);
+
+  bool test_all_paths = cugraph::test::host_check_rw_paths(
+    handle, graph_view, d_coalesced_v, d_coalesced_w, d_sizes, num_paths);
+
+  if (!test_all_paths) std::cout << "starting seed on failure: " << seed0 << '\n';
+
+  ASSERT_TRUE(test_all_paths);
+}
+
+TEST(RandomWalksUtility, PathsToCOO)
+{
+  using namespace cugraph::experimental::detail;
+
+  using vertex_t = int32_t;
+  using edge_t   = vertex_t;
+  using weight_t = float;
+  using index_t  = vertex_t;
+
+  raft::handle_t handle{};
+
+  std::vector<index_t> v_sizes{2, 1, 3, 5, 1};
+  std::vector<vertex_t> v_coalesced{5, 3, 4, 9, 0, 1, 6, 2, 7, 3, 2, 5};
+  std::vector<weight_t> w_coalesced{0.1, 2.1, 3.1, 4.1, 5.1, 6.1, 7.1};
+
+  auto num_paths = v_sizes.size();
+  auto total_sz  = v_coalesced.size();
+  auto num_edges = w_coalesced.size();
+
+  ASSERT_TRUE(num_edges == total_sz - num_paths);
+
+  vector_test_t<vertex_t> d_coalesced_v(total_sz, handle.get_stream());
+  vector_test_t<index_t> d_sizes(num_paths, handle.get_stream());
+
+  raft::update_device(
+    d_coalesced_v.data(), v_coalesced.data(), d_coalesced_v.size(), handle.get_stream());
+  raft::update_device(d_sizes.data(), v_sizes.data(), d_sizes.size(), handle.get_stream());
+
+  index_t coalesced_v_sz = d_coalesced_v.size();
+
+  auto tpl_coo_offsets = convert_paths_to_coo<vertex_t>(handle,
+                                                        coalesced_v_sz,
+                                                        static_cast<index_t>(num_paths),
+                                                        d_coalesced_v.release(),
+                                                        d_sizes.release());
+
+  auto&& d_src     = std::move(std::get<0>(tpl_coo_offsets));
+  auto&& d_dst     = std::move(std::get<1>(tpl_coo_offsets));
+  auto&& d_offsets = std::move(std::get<2>(tpl_coo_offsets));
+
+  ASSERT_TRUE(d_src.size() == num_edges);
+  ASSERT_TRUE(d_dst.size() == num_edges);
+
+  std::vector<vertex_t> v_src(num_edges, 0);
+  std::vector<vertex_t> v_dst(num_edges, 0);
+  std::vector<index_t> v_offsets(d_offsets.size(), 0);
+
+  raft::update_host(v_src.data(), raw_const_ptr(d_src), d_src.size(), handle.get_stream());
+  raft::update_host(v_dst.data(), raw_const_ptr(d_dst), d_dst.size(), handle.get_stream());
+  raft::update_host(
+    v_offsets.data(), raw_const_ptr(d_offsets), d_offsets.size(), handle.get_stream());
+
+  std::vector<vertex_t> v_src_exp{5, 9, 0, 6, 2, 7, 3};
+  std::vector<vertex_t> v_dst_exp{3, 0, 1, 2, 7, 3, 2};
+  std::vector<index_t> v_offsets_exp{0, 1, 3};
+
+  EXPECT_EQ(v_src, v_src_exp);
+  EXPECT_EQ(v_dst, v_dst_exp);
+  EXPECT_EQ(v_offsets, v_offsets_exp);
 }

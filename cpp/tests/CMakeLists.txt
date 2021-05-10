@@ -539,16 +539,25 @@ ConfigureTest(EXPERIMENTAL_KATZ_CENTRALITY_TEST "${EXPERIMENTAL_KATZ_CENTRALITY_
 ###################################################################################################
 # - Experimental RANDOM_WALKS tests ------------------------------------------------------------
 
-set(EXPERIMENTAL_RANDOM_WALKS_TEST_SRCS
-    "${CMAKE_CURRENT_SOURCE_DIR}/experimental/random_walks_test.cu")
+set(RANDOM_WALKS_TEST_SRCS
+    "${CMAKE_CURRENT_SOURCE_DIR}/sampling/random_walks_test.cu")
 
-ConfigureTest(EXPERIMENTAL_RANDOM_WALKS_TEST "${EXPERIMENTAL_RANDOM_WALKS_TEST_SRCS}")
+ConfigureTest(RANDOM_WALKS_TEST "${RANDOM_WALKS_TEST_SRCS}")
 
 ###################################################################################################
-set(EXPERIMENTAL_RANDOM_WALKS_LOW_LEVEL_SRCS
-    "${CMAKE_CURRENT_SOURCE_DIR}/experimental/rw_low_level_test.cu")
+set(RANDOM_WALKS_LOW_LEVEL_SRCS
+    "${CMAKE_CURRENT_SOURCE_DIR}/sampling/rw_low_level_test.cu")
 
-ConfigureTest(EXPERIMENTAL_RANDOM_WALKS_LOW_LEVEL_TEST "${EXPERIMENTAL_RANDOM_WALKS_LOW_LEVEL_SRCS}")
+ConfigureTest(RANDOM_WALKS_LOW_LEVEL_TEST "${RANDOM_WALKS_LOW_LEVEL_SRCS}")
+
+###################################################################################################
+set(RANDOM_WALKS_PROFILING_SRCS
+    "${CMAKE_CURRENT_SOURCE_DIR}/sampling/random_walks_profiling.cu")
+
+# FIXME: since this is technically not a test, consider refactoring the the
+# ConfigureTest function to share common code with a new ConfigureBenchmark
+# function (which would not link gtest, etc.)
+ConfigureTest(RANDOM_WALKS_PROFILING "${RANDOM_WALKS_PROFILING_SRCS}")
 
 
 ###################################################################################################

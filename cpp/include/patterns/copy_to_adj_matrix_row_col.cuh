@@ -21,6 +21,7 @@
 #include <utilities/dataframe_buffer.cuh>
 #include <utilities/device_comm.cuh>
 #include <utilities/error.hpp>
+#include <utilities/host_barrier.hpp>
 #include <utilities/host_scalar_comm.cuh>
 #include <utilities/thrust_tuple_utils.cuh>
 #include <vertex_partition_device.cuh>
@@ -60,6 +61,17 @@ void copy_to_matrix_major(raft::handle_t const& handle,
     auto const col_comm_rank = col_comm.get_rank();
     auto const col_comm_size = col_comm.get_size();
 
+    // barrier is necessary here to avoid potential overlap (which can leads to deadlock) between
+    // two different communicators (beginning of col_comm)
+#if 1
+    // FIXME: temporary hack till UCC is integrated into RAFT (so we can use UCC barrier with DASK
+    // and MPI barrier with MPI)
+    host_barrier(comm, handle.get_stream_view());
+#else
+    handle.get_stream_view().synchronize();
+    comm.barrier();  // currently, this is ncclAllReduce
+#endif
+
     std::vector<size_t> rx_counts(col_comm_size, size_t{0});
     std::vector<size_t> displacements(col_comm_size, size_t{0});
     for (int i = 0; i < col_comm_size; ++i) {
@@ -72,6 +84,17 @@ void copy_to_matrix_major(raft::handle_t const& handle,
                       rx_counts,
                       displacements,
                       handle.get_stream());
+
+    // barrier is necessary here to avoid potential overlap (which can leads to deadlock) between
+    // two different communicators (end of col_comm)
+#if 1
+    // FIXME: temporary hack till UCC is integrated into RAFT (so we can use UCC barrier with DASK
+    // and MPI barrier with MPI)
+    host_barrier(comm, handle.get_stream_view());
+#else
+    handle.get_stream_view().synchronize();
+    comm.barrier();  // currently, this is ncclAllReduce
+#endif
   } else {
     assert(graph_view.get_number_of_local_vertices() == GraphViewType::is_adj_matrix_transposed
              ? graph_view.get_number_of_local_adj_matrix_partition_cols()
@@ -105,6 +128,17 @@ void copy_to_matrix_major(raft::handle_t const& handle,
     auto& col_comm           = handle.get_subcomm(cugraph::partition_2d::key_naming_t().col_name());
     auto const col_comm_rank = col_comm.get_rank();
     auto const col_comm_size = col_comm.get_size();
+
+    // barrier is necessary here to avoid potential overlap (which can leads to deadlock) between
+    // two different communicators (beginning of col_comm)
+#if 1
+    // FIXME: temporary hack till UCC is integrated into RAFT (so we can use UCC barrier with DASK
+    // and MPI barrier with MPI)
+    host_barrier(comm, handle.get_stream_view());
+#else
+    handle.get_stream_view().synchronize();
+    comm.barrier();  // currently, this is ncclAllReduce
+#endif
 
     auto rx_counts =
       host_scalar_allgather(col_comm,
@@ -171,6 +205,17 @@ void copy_to_matrix_major(raft::handle_t const& handle,
           matrix_major_value_output_first + matrix_partition.get_major_value_start_offset());
       }
     }
+
+    // barrier is necessary here to avoid potential overlap (which can leads to deadlock) between
+    // two different communicators (end of col_comm)
+#if 1
+    // FIXME: temporary hack till UCC is integrated into RAFT (so we can use UCC barrier with DASK
+    // and MPI barrier with MPI)
+    host_barrier(comm, handle.get_stream_view());
+#else
+    handle.get_stream_view().synchronize();
+    comm.barrier();  // currently, this is ncclAllReduce
+#endif
   } else {
     assert(graph_view.get_number_of_local_vertices() == GraphViewType::is_adj_matrix_transposed
              ? graph_view.get_number_of_local_adj_matrix_partition_cols()
@@ -202,6 +247,17 @@ void copy_to_matrix_minor(raft::handle_t const& handle,
     auto const col_comm_rank = col_comm.get_rank();
     auto const col_comm_size = col_comm.get_size();
 
+    // barrier is necessary here to avoid potential overlap (which can leads to deadlock) between
+    // two different communicators (beginning of row_comm)
+#if 1
+    // FIXME: temporary hack till UCC is integrated into RAFT (so we can use UCC barrier with DASK
+    // and MPI barrier with MPI)
+    host_barrier(comm, handle.get_stream_view());
+#else
+    handle.get_stream_view().synchronize();
+    comm.barrier();  // currently, this is ncclAllReduce
+#endif
+
     std::vector<size_t> rx_counts(row_comm_size, size_t{0});
     std::vector<size_t> displacements(row_comm_size, size_t{0});
     for (int i = 0; i < row_comm_size; ++i) {
@@ -214,6 +270,17 @@ void copy_to_matrix_minor(raft::handle_t const& handle,
                       rx_counts,
                       displacements,
                       handle.get_stream());
+
+    // barrier is necessary here to avoid potential overlap (which can leads to deadlock) between
+    // two different communicators (end of row_comm)
+#if 1
+    // FIXME: temporary hack till UCC is integrated into RAFT (so we can use UCC barrier with DASK
+    // and MPI barrier with MPI)
+    host_barrier(comm, handle.get_stream_view());
+#else
+    handle.get_stream_view().synchronize();
+    comm.barrier();  // currently, this is ncclAllReduce
+#endif
   } else {
     assert(graph_view.get_number_of_local_vertices() == GraphViewType::is_adj_matrix_transposed
              ? graph_view.get_number_of_local_adj_matrix_partition_rows()
@@ -247,6 +314,17 @@ void copy_to_matrix_minor(raft::handle_t const& handle,
     auto& col_comm           = handle.get_subcomm(cugraph::partition_2d::key_naming_t().col_name());
     auto const col_comm_rank = col_comm.get_rank();
     auto const col_comm_size = col_comm.get_size();
+
+    // barrier is necessary here to avoid potential overlap (which can leads to deadlock) between
+    // two different communicators (beginning of row_comm)
+#if 1
+    // FIXME: temporary hack till UCC is integrated into RAFT (so we can use UCC barrier with DASK
+    // and MPI barrier with MPI)
+    host_barrier(comm, handle.get_stream_view());
+#else
+    handle.get_stream_view().synchronize();
+    comm.barrier();  // currently, this is ncclAllReduce
+#endif
 
     auto rx_counts =
       host_scalar_allgather(row_comm,
@@ -310,6 +388,17 @@ void copy_to_matrix_minor(raft::handle_t const& handle,
                         matrix_minor_value_output_first);
       }
     }
+
+    // barrier is necessary here to avoid potential overlap (which can leads to deadlock) between
+    // two different communicators (end of row_comm)
+#if 1
+    // FIXME: temporary hack till UCC is integrated into RAFT (so we can use UCC barrier with DASK
+    // and MPI barrier with MPI)
+    host_barrier(comm, handle.get_stream_view());
+#else
+    handle.get_stream_view().synchronize();
+    comm.barrier();  // currently, this is ncclAllReduce
+#endif
   } else {
     assert(graph_view.get_number_of_local_vertices() ==
            graph_view.get_number_of_local_adj_matrix_partition_rows());

@@ -58,8 +58,10 @@ def ego_graph(G, n, radius=1, center=True, undirected=False, distance=None):
         Graph or matrix object, which should contain the connectivity
         information. Edge weights, if present, should be single or double
         precision floating point values.
-    n : integer
-        A single node
+    n : integer or cudf.DataFrame
+        A single node as integer or a cudf.DataFrame if nodes are
+        represented with multiple columns. If a cudf.DataFrame is provided,
+        only the first row is taken as the node input.
     radius: integer, optional
         Include all neighbors of distance<=radius from n.
     center: bool, optional
@@ -91,20 +93,25 @@ def ego_graph(G, n, radius=1, center=True, undirected=False, distance=None):
     result_graph = type(G)()
 
     if G.renumbered is True:
-        n = G.lookup_internal_vertex_id(cudf.Series([n]))
+        if isinstance(n, cudf.DataFrame):
+            n = G.lookup_internal_vertex_id(n, n.columns)
+        else:
+            n = G.lookup_internal_vertex_id(cudf.Series([n]))
 
     df, offsets = egonet_wrapper.egonet(G, n, radius)
 
     if G.renumbered:
-        df = G.unrenumber(df, "src")
-        df = G.unrenumber(df, "dst")
+        df, src_names = G.unrenumber(df, "src", get_column_names=True)
+        df, dst_names = G.unrenumber(df, "dst", get_column_names=True)
 
     if G.edgelist.weights:
         result_graph.from_cudf_edgelist(
-            df, source="src", destination="dst", edge_attr="weight"
+            df, source=src_names, destination=dst_names,
+            edge_attr="weight"
         )
     else:
-        result_graph.from_cudf_edgelist(df, source="src", destination="dst")
+        result_graph.from_cudf_edgelist(df, source=src_names,
+                                        destination=dst_names)
     return _convert_graph_to_output_type(result_graph, input_type)
 
 
@@ -121,8 +128,8 @@ def batched_ego_graphs(
         Graph or matrix object, which should contain the connectivity
         information. Edge weights, if present, should be single or double
         precision floating point values.
-    seeds : cudf.Series or list
-        Specifies the seeds of the induced egonet subgraphs
+    seeds : cudf.Series or list or cudf.DataFrame
+        Specifies the seeds of the induced egonet subgraphs.
     radius: integer, optional
         Include all neighbors of distance<=radius from n.
     center: bool, optional
@@ -145,7 +152,10 @@ def batched_ego_graphs(
     (G, input_type) = ensure_cugraph_obj(G, nx_weight_attr="weight")
 
     if G.renumbered is True:
-        seeds = G.lookup_internal_vertex_id(cudf.Series(seeds))
+        if isinstance(seeds, cudf.DataFrame):
+            seeds = G.lookup_internal_vertex_id(seeds, seeds.columns)
+        else:
+            seeds = G.lookup_internal_vertex_id(cudf.Series(seeds))
 
     df, offsets = egonet_wrapper.egonet(G, seeds, radius)
 

@@ -182,7 +182,6 @@ class NumberMap:
                 on=self.col_names,
                 how="right",
             )
-            print(x.compute())
             return x['global_id']
 
         def from_internal_vertex_id(
@@ -592,7 +591,8 @@ class NumberMap:
             renumber_map.implementation.numbered = True
             return renumbered_df, renumber_map
 
-    def unrenumber(self, df, column_name, preserve_order=False):
+    def unrenumber(self, df, column_name, preserve_order=False,
+                   get_column_names=False):
         """
         Given a DataFrame containing internal vertex ids in the identified
         column, replace this with external vertex ids.  If the renumbering
@@ -612,12 +612,17 @@ class NumberMap:
         preserve_order: (optional) bool
             If True, preserve the ourder of the rows in the output
             DataFrame to match the input DataFrame
+        get_column_names: (optional) bool
+            If True, the unrenumbered column names are returned.
         Returns
         ---------
         df : cudf.DataFrame or dask_cudf.DataFrame
             The original DataFrame columns exist unmodified.  The external
             vertex identifiers are added to the DataFrame, the internal
             vertex identifier column is removed from the dataframe.
+        column_names: string or list of strings
+            If get_column_names is True, the unrenumbered column names are
+            returned.
         Examples
         --------
         >>> M = cudf.read_csv('datasets/karate.csv', delimiter=' ',
@@ -637,11 +642,13 @@ class NumberMap:
         if len(self.implementation.col_names) == 1:
             # Output will be renamed to match input
             mapping = {"0": column_name}
+            col_names = column_name
         else:
             # Output will be renamed to ${i}_${column_name}
             mapping = {}
             for nm in self.implementation.col_names:
                 mapping[nm] = nm + "_" + column_name
+            col_names = list(mapping.values())
 
         if preserve_order:
             index_name = NumberMap.generate_unused_column_name(df)
@@ -655,8 +662,12 @@ class NumberMap:
             ).drop(columns=index_name).reset_index(drop=True)
 
         if type(df) is dask_cudf.DataFrame:
-            return df.map_partitions(
+            df = df.map_partitions(
                 lambda df: df.rename(columns=mapping, copy=False)
             )
         else:
-            return df.rename(columns=mapping, copy=False)
+            df = df.rename(columns=mapping, copy=False)
+        if get_column_names:
+            return df, col_names
+        else:
+            return df

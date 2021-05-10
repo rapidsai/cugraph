@@ -1265,11 +1265,19 @@ extract_ego(raft::handle_t const &handle,
  * @param ptr_d_start Device pointer to set of starting vertex indices for the RW.
  * @param num_paths = number(paths).
  * @param max_depth maximum length of RWs.
- * @return std::tuple<device_vec_t<vertex_t>, device_vec_t<weight_t>,
- * device_vec_t<index_t>> Triplet of coalesced RW paths, with corresponding edge weights for
- * each, and corresponding path sizes. This is meant to minimize the number of DF's to be passed to
- * the Python layer. The meaning of "coalesced" here is that a 2D array of paths of different sizes
- * is represented as a 1D array.
+ * @param use_padding (optional) specifies if return uses padded format (true), or coalesced
+ * (compressed) format; when padding is used the output is a matrix of vertex paths and a matrix of
+ * edges paths (weights); in this case the matrices are stored in row major order; the vertex path
+ * matrix is padded with `num_vertices` values and the weight matrix is padded with `0` values;
+ * @return std::tuple<rmm::device_uvector<vertex_t>, rmm::device_uvector<weight_t>,
+ * rmm::device_uvector<index_t>> Triplet of either padded or coalesced RW paths; in the coalesced
+ * case (default), the return consists of corresponding vertex and edge weights for each, and
+ * corresponding path sizes. This is meant to minimize the number of DF's to be passed to the Python
+ * layer. The meaning of "coalesced" here is that a 2D array of paths of different sizes is
+ * represented as a 1D contiguous array. In the padded case the return is a matrix of num_paths x
+ * max_depth vertex paths; and num_paths x (max_depth-1) edge (weight) paths, with an empty array of
+ * sizes. Note: if the graph is un-weighted the edge (weight) paths consists of `weight_t{1}`
+ * entries;
  */
 template <typename graph_t, typename index_t>
 std::tuple<rmm::device_uvector<typename graph_t::vertex_type>,
@@ -1279,6 +1287,8 @@ random_walks(raft::handle_t const &handle,
              graph_t const &graph,
              typename graph_t::vertex_type const *ptr_d_start,
              index_t num_paths,
-             index_t max_depth);
+             index_t max_depth,
+             bool use_padding = false);
+
 }  // namespace experimental
 }  // namespace cugraph
