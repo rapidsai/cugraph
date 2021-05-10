@@ -31,7 +31,7 @@ build:
 
 requirements:
   build:
-    - cmake>=3.12.4
+    - cmake>=3.20.1
     - cudatoolkit {{ cuda_version }}.*
     - librmm {{ minor_version }}.*
     - boost-cpp>=1.66
