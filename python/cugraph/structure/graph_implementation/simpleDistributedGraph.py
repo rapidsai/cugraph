@@ -246,7 +246,8 @@ class simpleDistributedGraphImpl:
         >>> df = G.out_degree([0,9,12])
         """
         # TODO: Add support
-        raise Exception("Not supported for distributed graph")
+        return self._degree(vertex_subset, x=2)
+        #raise Exception("Not supported for distributed graph")
 
     def degree(self, vertex_subset=None):
         """
@@ -320,13 +321,13 @@ class simpleDistributedGraphImpl:
         raise Exception("Not supported for distributed graph")
 
     def _degree(self, vertex_subset, x=0):
-        vertex_col, degree_col = graph_primtypes_wrapper._degree(self, x)
+        vertex_col, degree_col = graph_primtypes_wrapper._degree(self, x, True)
         df = cudf.DataFrame()
         df["vertex"] = vertex_col
         df["degree"] = degree_col
 
-        if self.renumbered is True:
-            df = self.unrenumber(df, "vertex")
+        if self.properties.renumbered is True:
+            df = self.renumber_map.unrenumber(df, "vertex")
 
         if vertex_subset is not None:
             df = df[df['vertex'].isin(vertex_subset)]
@@ -461,7 +462,7 @@ class simpleDistributedGraphImpl:
                     return
 
                 del self.edgelist
-
+            print("CALC AGAIN")
             renumbered_ddf, number_map = NumberMap.renumber(
                 self.input_df,
                 self.source_columns,

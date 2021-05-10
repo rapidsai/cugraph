@@ -220,10 +220,26 @@ def _degree_csr(offsets, indices, x=0):
     return vertex_col, degree_col
 
 
-def _degree(input_graph, x=0):
+def _degree(input_graph, x=0, mnmg=False):
     transpose_x = { 0: 0,
                     2: 1,
                     1: 2 }
+
+    if mnmg:
+        if input_graph.edgelist is None:
+            input_graph.compute_renumber_edge_list(transposed=False)
+        input_ddf = input_graph.edgelist.edgelist_df
+        num_verts = input_ddf[['src', 'dst']].max().max().compute() + 1
+        data = DistributedDataHandler.create(data=input_ddf)
+        comms = Comms.get_comms()
+        client = default_client()
+        data.calculate_parts_to_sizes(comms)
+        if x==1:
+            degree_ddf = [client.submit(_degree_coo, wf[1][0], 'src', 'dst', 1, num_verts, comms.sessionId, workers=[wf[0]]) for idx, wf in enumerate(data.worker_to_parts.items())]
+        if x==2:
+            degree_ddf = [client.submit(_degree_coo, wf[1][0], 'dst', 'src', 1, num_verts, comms.sessionId, workers=[wf[0]]) for idx, wf in enumerate(data.worker_to_parts.items())]
+        wait(degree_ddf)
+        return degree_ddf[0].result()
 
     if input_graph.adjlist is not None:
         return _degree_csr(input_graph.adjlist.offsets,
@@ -235,20 +251,7 @@ def _degree(input_graph, x=0):
                            input_graph.transposedadjlist.indices,
                            transpose_x[x])
 
-    if input_graph.edgelist is None and input_graph.distributed:
-        input_graph.compute_renumber_edge_list(transposed=False)
-
     if input_graph.edgelist is not None:
-        if isinstance(input_graph.edgelist.edgelist_df, dc.DataFrame):
-            input_ddf = input_graph.edgelist.edgelist_df
-            num_verts = input_ddf[['src', 'dst']].max().max().compute() + 1
-            data = DistributedDataHandler.create(data=input_ddf)
-            comms = Comms.get_comms()
-            client = default_client()
-            data.calculate_parts_to_sizes(comms)
-            degree_ddf = [client.submit(_degree_coo, wf[1][0], 'src', 'dst', x, num_verts, comms.sessionId, workers=[wf[0]]) for idx, wf in enumerate(data.worker_to_parts.items())]
-            wait(degree_ddf)
-            return degree_ddf[0].result()
         return _degree_coo(input_graph.edgelist.edgelist_df,
                            'src', 'dst', x)
 
