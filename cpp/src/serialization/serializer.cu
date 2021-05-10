@@ -36,9 +36,9 @@ serializer::device_byte_it serializer::serialize(raft::handle_t const& handle,
                                                  rmm::device_uvector<value_t> const& src,
                                                  serializer::device_byte_it it_dev_dest) const
 {
-  auto byte_buff_sz     = src.size() * sizeof(value_t);
-  auto it_end           = it_dev_dest + byte_buff_sz;
-  auto const* byte_buff = static_cast<value_t const*>(src.data());
+  auto byte_buff_sz       = src.size() * sizeof(value_t);
+  auto it_end             = it_dev_dest + byte_buff_sz;
+  byte_t const* byte_buff = reinterpret_cast<byte_t const*>(src.data());
 
   thrust::copy_n(rmm::exec_policy(handle.get_stream_view()), byte_buff, byte_buff_sz, it_dev_dest);
 
