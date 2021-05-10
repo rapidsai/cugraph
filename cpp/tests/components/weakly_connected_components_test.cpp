@@ -119,7 +119,7 @@ class Tests_WeaklyConnectedComponent
     rmm::device_uvector<vertex_t> d_renumber_map_labels(0, handle.get_stream());
     std::tie(graph, d_renumber_map_labels) =
       input_usecase.template construct_graph<vertex_t, edge_t, weight_t, false, false>(
-        handle, true, renumber);
+        handle, false, renumber);
 
     if (PERF) {
       CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
@@ -149,15 +149,12 @@ class Tests_WeaklyConnectedComponent
     }
 
     if (weakly_connected_component_usecase.check_correctness) {
-#if 1
-      ASSERT_TRUE(false) << "unimplemented.";
-#else
       cugraph::experimental::graph_t<vertex_t, edge_t, weight_t, false, false> unrenumbered_graph(
         handle);
       if (renumber) {
         std::tie(unrenumbered_graph, std::ignore) =
           input_usecase.template construct_graph<vertex_t, edge_t, weight_t, false, false>(
-            handle, true, false);
+            handle, false, false);
       }
       auto unrenumbered_graph_view = renumber ? unrenumbered_graph.view() : graph_view;
 
@@ -174,92 +171,32 @@ class Tests_WeaklyConnectedComponent
 
       handle.get_stream_view().synchronize();
 
-      auto unrenumbered_source = static_cast<vertex_t>(weakly_connected_component_usecase.source);
-      if (renumber) {
-        std::vector<vertex_t> h_renumber_map_labels(d_renumber_map_labels.size());
-        raft::update_host(h_renumber_map_labels.data(),
-                          d_renumber_map_labels.data(),
-                          d_renumber_map_labels.size(),
-                          handle.get_stream());
+      std::vector<vertex_t> h_reference_components(unrenumbered_graph_view.get_number_of_vertices());
 
-        handle.get_stream_view().synchronize();
-
-        unrenumbered_source = h_renumber_map_labels[weakly_connected_component_usecase.source];
-      }
-
-      std::vector<vertex_t> h_reference_distances(unrenumbered_graph_view.get_number_of_vertices());
-      std::vector<vertex_t> h_reference_predecessors(
-        unrenumbered_graph_view.get_number_of_vertices());
-
-      weakly_connected_component_reference(h_offsets.data(),
+      weakly_connected_components_reference(h_offsets.data(),
                                            h_indices.data(),
-                                           h_reference_distances.data(),
-                                           h_reference_predecessors.data(),
-                                           unrenumbered_graph_view.get_number_of_vertices(),
-                                           unrenumbered_source,
-                                           std::numeric_limits<vertex_t>::max());
+                                           h_reference_components.data(),
+                                           unrenumbered_graph_view.get_number_of_vertices());
 
-      std::vector<vertex_t> h_cugraph_distances(graph_view.get_number_of_vertices());
-      std::vector<vertex_t> h_cugraph_predecessors(graph_view.get_number_of_vertices());
+      std::vector<vertex_t> h_cugraph_components(graph_view.get_number_of_vertices());
       if (renumber) {
-        cugraph::experimental::unrenumber_local_int_vertices(handle,
-                                                             d_predecessors.data(),
-                                                             d_predecessors.size(),
-                                                             d_renumber_map_labels.data(),
-                                                             vertex_t{0},
-                                                             graph_view.get_number_of_vertices(),
-                                                             true);
-
-        auto d_unrenumbered_distances = cugraph::test::sort_by_key(
-          handle, d_renumber_map_labels.data(), d_distances.data(), d_renumber_map_labels.size());
-        auto d_unrenumbered_predecessors = cugraph::test::sort_by_key(handle,
-                                                                      d_renumber_map_labels.data(),
-                                                                      d_predecessors.data(),
-                                                                      d_renumber_map_labels.size());
-        raft::update_host(h_cugraph_distances.data(),
-                          d_unrenumbered_distances.data(),
-                          d_unrenumbered_distances.size(),
+        auto d_unrenumbered_components = cugraph::test::sort_by_key(
+          handle, d_renumber_map_labels.data(), d_components.data(), d_renumber_map_labels.size());
+        raft::update_host(h_cugraph_components.data(),
+                          d_unrenumbered_components.data(),
+                          d_unrenumbered_components.size(),
                           handle.get_stream());
-        raft::update_host(h_cugraph_predecessors.data(),
-                          d_unrenumbered_predecessors.data(),
-                          d_unrenumbered_predecessors.size(),
-                          handle.get_stream());
-
-        handle.get_stream_view().synchronize();
       } else {
         raft::update_host(
-          h_cugraph_distances.data(), d_distances.data(), d_distances.size(), handle.get_stream());
-        raft::update_host(h_cugraph_predecessors.data(),
-                          d_predecessors.data(),
-                          d_predecessors.size(),
-                          handle.get_stream());
-
-        handle.get_stream_view().synchronize();
+          h_cugraph_components.data(), d_components.data(), d_components.size(), handle.get_stream());
       }
+      handle.get_stream_view().synchronize();
 
+      raft::print_host_vector("cugraph", h_cugraph_components.data(), h_cugraph_components.size(), std::cout);  // DEBUG
+      raft::print_host_vector("reference", h_reference_components.data(), h_reference_components.size(), std::cout);  // DEBUG
       ASSERT_TRUE(std::equal(
-        h_reference_distances.begin(), h_reference_distances.end(), h_cugraph_distances.begin()))
-        << "distances do not match with the reference values.";
-
-      for (auto it = h_cugraph_predecessors.begin(); it != h_cugraph_predecessors.end(); ++it) {
-        auto i = std::distance(h_cugraph_predecessors.begin(), it);
-        if (*it == cugraph::invalid_vertex_id<vertex_t>::value) {
-          ASSERT_TRUE(h_reference_predecessors[i] == *it)
-            << "vertex reachability does not match with the reference.";
-        } else {
-          ASSERT_TRUE(h_reference_distances[*it] + 1 == h_reference_distances[i])
-            << "distance to this vertex != distance to the predecessor vertex + 1.";
-          bool found{false};
-          for (auto j = h_offsets[*it]; j < h_offsets[*it + 1]; ++j) {
-            if (h_indices[j] == i) {
-              found = true;
-              break;
-            }
-          }
-          ASSERT_TRUE(found) << "no edge from the predecessor vertex to this vertex.";
-        }
-      }
-#endif
+        h_reference_components.begin(), h_reference_components.end(), h_cugraph_components.begin()))
+        << "components do not match with the reference values.";
     }
   }
 };
@@ -283,7 +220,11 @@ INSTANTIATE_TEST_SUITE_P(
     // enable correctness checks
 #if 1
     std::make_tuple(WeaklyConnectedComponent_Usecase{},
-                    cugraph::test::File_Usecase("test/datasets/karate.mtx")))
+                    cugraph::test::File_Usecase("test/datasets/karate.mtx")),
+    std::make_tuple(WeaklyConnectedComponent_Usecase{},
+                    cugraph::test::File_Usecase("test/datasets/polbooks.mtx")),
+    std::make_tuple(WeaklyConnectedComponent_Usecase{},
+                    cugraph::test::File_Usecase("test/datasets/netscience.mtx")))
 #else
     std::make_tuple(WeaklyConnectedComponent_Usecase{},
                     cugraph::test::File_Usecase("test/datasets/karate.mtx")),

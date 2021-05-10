@@ -346,14 +346,11 @@ void weakly_connected_components_impl(raft::handle_t const &handle,
                     high_degree_partition_last,
                     new_root_candidates.end(),
                     thrust::default_random_engine());
-    raft::print_device_vector("new_root_candidates after shuffle",
-                              new_root_candidates.data(),
-                              new_root_candidates.size(),
-                              std::cout);
 
     double constexpr max_new_roots_ratio =
       0.1;  // to avoid selecting all the vertices as roots leading to zero compression
-    auto max_new_roots = static_cast<vertex_t>(new_root_candidates.size() * max_new_roots_ratio);
+    auto max_new_roots = std::max(
+      static_cast<vertex_t>(new_root_candidates.size() * max_new_roots_ratio), vertex_t{1});
 
     // 2-3. initialize vertex frontier
 
@@ -443,7 +440,7 @@ void weakly_connected_components_impl(raft::handle_t const &handle,
 
       update_frontier_v_push_if_out_nbr(
         handle,
-        push_graph_view,
+        level_graph_view,
         vertex_frontier,
         static_cast<size_t>(Bucket::cur),
         std::vector<size_t>{static_cast<size_t>(Bucket::next)},
@@ -505,26 +502,39 @@ void weakly_connected_components_impl(raft::handle_t const &handle,
     }
 
     if (auto num_inserts = num_edge_inserts.value(handle.get_stream_view()); num_inserts > 0) {
+      resize_dataframe_buffer<thrust::tuple<vertex_t, vertex_t>>(
+        edge_buffer, static_cast<size_t>(num_inserts * 2), handle.get_stream());
+      auto input_first = get_dataframe_buffer_begin<thrust::tuple<vertex_t, vertex_t>>(edge_buffer);
+      auto output_first = thrust::make_zip_iterator(
+                            thrust::make_tuple(thrust::get<1>(input_first.get_iterator_tuple()),
+                                               thrust::get<0>(input_first.get_iterator_tuple()))) +
+                          num_inserts;
+      thrust::copy(rmm::exec_policy(handle.get_stream_view()),
+                   input_first,
+                   input_first + num_inserts,
+                   output_first);
       auto edge_first = get_dataframe_buffer_begin<thrust::tuple<vertex_t, vertex_t>>(edge_buffer);
       thrust::sort(
-        rmm::exec_policy(handle.get_stream_view()), edge_first, edge_first + num_inserts);
+        rmm::exec_policy(handle.get_stream_view()), edge_first, edge_first + num_inserts * 2);
       auto last = thrust::unique(
-        rmm::exec_policy(handle.get_stream_view()), edge_first, edge_first + num_inserts);
+        rmm::exec_policy(handle.get_stream_view()), edge_first, edge_first + num_inserts * 2);
       resize_dataframe_buffer<thrust::tuple<vertex_t, vertex_t>>(
         edge_buffer, static_cast<size_t>(thrust::distance(edge_first, last)), handle.get_stream());
-      // FIXME: needs to symmetrize
-#if 1
-      CUGRAPH_FAIL("unimplemented.");
-#else
-      std::tie(level_graph, level_renumber_map) = generate_graph_from_edge_list(
-        handle,
-        std::nullopt,
-        std::move(std::get<0>(edge_buffer)),
-        std::move(std::get<1>(edge_buffer)),
-        rmm::device_uvector<weight_t>(size_t{0}, handle.get_stream_view()),
-        graph_properties_t{true, false, false},
-        true);
-#endif
+      shrink_to_fit_dataframe_buffer<thrust::tuple<vertex_t, vertex_t>>(edge_buffer,
+                                                                        handle.get_stream());
+      std::tie(level_graph, level_renumber_map) =
+        create_graph_from_edgelist<vertex_t,
+                                   edge_t,
+                                   weight_t,
+                                   GraphViewType::is_adj_matrix_transposed,
+                                   GraphViewType::is_multi_gpu>(
+          handle,
+          std::nullopt,
+          std::move(std::get<0>(edge_buffer)),
+          std::move(std::get<1>(edge_buffer)),
+          rmm::device_uvector<weight_t>(size_t{0}, handle.get_stream_view()),
+          graph_properties_t{true, false, false},
+          true);
     } else {
       break;
     }
@@ -538,8 +548,9 @@ void weakly_connected_components_impl(raft::handle_t const &handle,
       std::make_tuple(level_renumber_map_vectors[coarser_level].data(),
                       level_component_vectors[coarser_level].data()),
       level_renumber_map_vectors[coarser_level].size(),
-      level_component_vectors[finer_level].data(),
-      level_component_vectors[finer_level].size());
+      finer_level == 0 ? components : level_component_vectors[finer_level].data(),
+      finer_level == 0 ? push_graph_view.get_number_of_local_vertices()
+                       : level_component_vectors[finer_level].size());
   }
 }
 
