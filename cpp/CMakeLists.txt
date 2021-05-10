@@ -108,6 +108,7 @@ endif()
 
 rapids_cpm_init()
 
+
 include(cmake/thirdparty/get_thrust.cmake)
 include(cmake/thirdparty/get_faiss.cmake)
 include(cmake/thirdparty/get_nccl.cmake)
@@ -193,7 +194,6 @@ target_compile_definitions(cugraph PUBLIC CUDA_API_PER_THREAD_DEFAULT_STREAM)
 # - include paths ---------------------------------------------------------------------------------
 target_include_directories(cugraph
     PRIVATE
-        "${CUCO_INCLUDE_DIR}"
         "${CMAKE_CURRENT_SOURCE_DIR}/../thirdparty"
         "${CMAKE_CURRENT_SOURCE_DIR}/src"
         "${NCCL_INCLUDE_DIRS}"
@@ -205,21 +205,21 @@ target_include_directories(cugraph
 ###################################################################################################
 # - link libraries --------------------------------------------------------------------------------
 target_link_libraries(cugraph
-  PUBLIC
-    rmm::rmm
-    cugraph::Thrust
-    raft::raft
-  PRIVATE
-    cuco::cuco
-    CUDA::cublas
-    CUDA::curand
-    CUDA::cusolver
-    CUDA::cusparse
-    cugraph::cuHornet
-    FAISS::FAISS
-    gunrock
-    NCCL::NCCL
-  )
+    PUBLIC
+        rmm::rmm
+        cugraph::Thrust
+        raft::raft
+    PRIVATE
+        cuco::cuco
+        CUDA::cublas
+        CUDA::curand
+        CUDA::cusolver
+        CUDA::cusparse
+        cugraph::cuHornet
+        FAISS::FAISS
+        gunrock
+        NCCL::NCCL
+)
 
 if(OpenMP_CXX_FOUND)
 target_link_libraries(cugraph PRIVATE

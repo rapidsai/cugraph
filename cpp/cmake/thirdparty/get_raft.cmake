@@ -26,6 +26,7 @@ function(find_and_configure_raft VERSION)
             GIT_REPOSITORY https://github.com/robertmaynard/raft.git
             GIT_TAG        use_rapids_cmake
             SOURCE_SUBDIR  cpp
+            OPTIONS "BUILD_TESTS OFF"
 
     )
 

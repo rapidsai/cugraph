@@ -20,43 +20,30 @@
 # - common test utils -----------------------------------------------------------------------------
 
 add_library(cugraphtestutil STATIC
-            "${CMAKE_CURRENT_SOURCE_DIR}/utilities/matrix_market_file_utilities.cu"
-            "${CMAKE_CURRENT_SOURCE_DIR}/utilities/rmat_utilities.cu"
-            "${CMAKE_CURRENT_SOURCE_DIR}/utilities/generate_graph_from_edgelist.cu"
-            "${CMAKE_CURRENT_SOURCE_DIR}/utilities/thrust_wrapper.cu"
-            "${CMAKE_CURRENT_SOURCE_DIR}/utilities/misc_utilities.cpp"
-            "${CMAKE_CURRENT_SOURCE_DIR}/components/wcc_graphs.cu"
+            utilities/matrix_market_file_utilities.cu
+            utilities/rmat_utilities.cu
+            utilities/generate_graph_from_edgelist.cu
+            utilities/thrust_wrapper.cu
+            utilities/misc_utilities.cpp
+            components/wcc_graphs.cu
             "${CMAKE_CURRENT_SOURCE_DIR}/../../thirdparty/mmio/mmio.c")
 
 set_property(TARGET cugraphtestutil PROPERTY POSITION_INDEPENDENT_CODE ON)
 
 target_include_directories(cugraphtestutil
-    PRIVATE
-    "${CUB_INCLUDE_DIR}"
-    "${THRUST_INCLUDE_DIR}"
-    "${CUCO_INCLUDE_DIR}"
-    "${LIBCUDACXX_INCLUDE_DIR}"
-    "${CMAKE_CUDA_TOOLKIT_INCLUDE_DIRECTORIES}"
-    "${RMM_INCLUDE}"
-    "${NCCL_INCLUDE_DIRS}"
-    "${CMAKE_CURRENT_SOURCE_DIR}/../../thirdparty/mmio"
-    "${CMAKE_CURRENT_SOURCE_DIR}/../include"
-    "${CMAKE_CURRENT_SOURCE_DIR}"
-    "${RAFT_DIR}/cpp/include"
+    PUBLIC
+        "${CMAKE_CURRENT_SOURCE_DIR}/../../thirdparty/mmio"
+        "${CMAKE_CURRENT_SOURCE_DIR}"
+        "${CUGRAPH_SOURCE_DIR}/src"
 )
 
-target_link_libraries(cugraphtestutil cugraph)
+target_link_libraries(cugraphtestutil
+    PUBLIC
+        cugraph
+        cuco::cuco
+        NCCL::NCCL
+)
 
-# CUDA_ARCHITECTURES=OFF implies cmake will not pass arch flags to the
-# compiler. CUDA_ARCHITECTURES must be set to a non-empty value to prevent
-# cmake warnings about policy CMP0104. With this setting, arch flags must be
-# manually set! ("evaluate_gpu_archs(GPU_ARCHS)" is the current mechanism
-# used in cpp/CMakeLists.txt for setting arch options).
-# Run "cmake --help-policy CMP0104" for policy details.
-# NOTE: the CUDA_ARCHITECTURES=OFF setting may be removed after migrating to
-# the findcudatoolkit features in cmake 3.17+
-set_target_properties(cugraphtestutil PROPERTIES
-        CUDA_ARCHITECTURES OFF)
 
 ###################################################################################################
 # - compiler function -----------------------------------------------------------------------------
@@ -65,41 +52,20 @@ function(ConfigureTest CMAKE_TEST_NAME CMAKE_TEST_SRC)
     add_executable(${CMAKE_TEST_NAME}
         ${CMAKE_TEST_SRC})
 
-    target_include_directories(${CMAKE_TEST_NAME}
-        PRIVATE
-        "${CUB_INCLUDE_DIR}"
-        "${THRUST_INCLUDE_DIR}"
-        "${CUCO_INCLUDE_DIR}"
-        "${LIBCUDACXX_INCLUDE_DIR}"
-        "${CMAKE_CUDA_TOOLKIT_INCLUDE_DIRECTORIES}"
-        "${RMM_INCLUDE}"
-        "${NCCL_INCLUDE_DIRS}"
-        "${CMAKE_CURRENT_SOURCE_DIR}/../../thirdparty/mmio"
-        "${CMAKE_CURRENT_SOURCE_DIR}/../include"
-        "${CMAKE_CURRENT_SOURCE_DIR}/../src"
-        "${CMAKE_CURRENT_SOURCE_DIR}"
-        "${RAFT_DIR}/cpp/include"
-    )
-
-    target_link_directories(${CMAKE_TEST_NAME}
-        PRIVATE
-        # CMAKE_CUDA_IMPLICIT_LINK_DIRECTORIES is an undocumented/unsupported
-        # variable containing the link directories for nvcc.
-        "${CMAKE_CUDA_IMPLICIT_LINK_DIRECTORIES}")
-
     target_link_libraries(${CMAKE_TEST_NAME}
         PRIVATE
-        cugraphtestutil
-        cugraph
-        GTest::gtest
-        GTest::gtest_main
-        ${NCCL_LIBRARIES}
-        cudart
-        cuda
-        cublas
-        cusparse
-        cusolver
-        curand)
+            cugraphtestutil
+            cugraph
+            GTest::gmock
+            GTest::gmock_main
+            GTest::gtest
+            GTest::gtest_main
+            NCCL::NCCL
+            CUDA::cublas
+            CUDA::cusparse
+            CUDA::cusolver
+            CUDA::curand
+    )
 
     if(OpenMP_CXX_FOUND)
         target_link_libraries(${CMAKE_TEST_NAME} PRIVATE
@@ -151,17 +117,6 @@ function(ConfigureTest CMAKE_TEST_NAME CMAKE_TEST_SRC)
 ###       BUILD_RPATH "${TARGET_BUILD_RPATH}")
         ${OpenMP_CXX_LIB_NAMES})
     endif(OpenMP_CXX_FOUND)
-
-    # CUDA_ARCHITECTURES=OFF implies cmake will not pass arch flags to the
-    # compiler. CUDA_ARCHITECTURES must be set to a non-empty value to prevent
-    # cmake warnings about policy CMP0104. With this setting, arch flags must be
-    # manually set! ("evaluate_gpu_archs(GPU_ARCHS)" is the current mechanism
-    # used in cpp/CMakeLists.txt for setting arch options).
-    # Run "cmake --help-policy CMP0104" for policy details.
-    # NOTE: the CUDA_ARCHITECTURES=OFF setting may be removed after migrating to
-    # the findcudatoolkit features in cmake 3.17+
-    set_target_properties(${CMAKE_TEST_NAME} PROPERTIES
-        CUDA_ARCHITECTURES OFF)
 
     add_test(NAME ${CMAKE_TEST_NAME} COMMAND ${CMAKE_TEST_NAME})
 endfunction()
@@ -170,41 +125,20 @@ function(ConfigureTestMG CMAKE_TEST_NAME CMAKE_TEST_SRC)
     add_executable(${CMAKE_TEST_NAME}
         ${CMAKE_TEST_SRC})
 
-    target_include_directories(${CMAKE_TEST_NAME}
-        PRIVATE
-        "${CUB_INCLUDE_DIR}"
-        "${THRUST_INCLUDE_DIR}"
-        "${CUCO_INCLUDE_DIR}"
-        "${LIBCUDACXX_INCLUDE_DIR}"
-        "${CMAKE_CUDA_TOOLKIT_INCLUDE_DIRECTORIES}"
-        "${RMM_INCLUDE}"
-        "${NCCL_INCLUDE_DIRS}"
-        "${CMAKE_CURRENT_SOURCE_DIR}/../../thirdparty/mmio"
-        "${CMAKE_CURRENT_SOURCE_DIR}/../include"
-        "${CMAKE_CURRENT_SOURCE_DIR}/../src"
-        "${CMAKE_CURRENT_SOURCE_DIR}"
-        "${RAFT_DIR}/cpp/include"
-    )
-
-    target_link_directories(${CMAKE_TEST_NAME}
-        PRIVATE
-        # CMAKE_CUDA_IMPLICIT_LINK_DIRECTORIES is an undocumented/unsupported
-        # variable containing the link directories for nvcc.
-        "${CMAKE_CUDA_IMPLICIT_LINK_DIRECTORIES}")
-
     target_link_libraries(${CMAKE_TEST_NAME}
         PRIVATE
         cugraphtestutil
         cugraph
+        GTest::gmock
+        GTest::gmock_main
         GTest::gtest
         GTest::gtest_main
-        ${NCCL_LIBRARIES}
-        cudart
-        cuda
-        cublas
-        cusparse
-        cusolver
-        curand)
+        NCCL::NCCL
+        CUDA::cublas
+        CUDA::cusparse
+        CUDA::cusolver
+        CUDA::curand
+    )
 
     if(OpenMP_CXX_FOUND)
         target_link_libraries(${CMAKE_TEST_NAME} PRIVATE
@@ -256,17 +190,6 @@ function(ConfigureTestMG CMAKE_TEST_NAME CMAKE_TEST_SRC)
 ###       BUILD_RPATH "${TARGET_BUILD_RPATH}")
         ${OpenMP_CXX_LIB_NAMES})
     endif(OpenMP_CXX_FOUND)
-
-    # CUDA_ARCHITECTURES=OFF implies cmake will not pass arch flags to the
-    # compiler. CUDA_ARCHITECTURES must be set to a non-empty value to prevent
-    # cmake warnings about policy CMP0104. With this setting, arch flags must be
-    # manually set! ("evaluate_gpu_archs(GPU_ARCHS)" is the current mechanism
-    # used in cpp/CMakeLists.txt for setting arch options).
-    # Run "cmake --help-policy CMP0104" for policy details.
-    # NOTE: the CUDA_ARCHITECTURES=OFF setting may be removed after migrating to
-    # the findcudatoolkit features in cmake 3.17+
-    set_target_properties(${CMAKE_TEST_NAME} PROPERTIES
-        CUDA_ARCHITECTURES OFF)
 
     add_test(NAME ${CMAKE_TEST_NAME}
              COMMAND ${MPIEXEC_EXECUTABLE}
