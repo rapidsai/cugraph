@@ -45,6 +45,20 @@ serializer::device_byte_it serializer::serialize(raft::handle_t const& handle,
   return it_end;
 }
 
+template <typename value_t>
+rmm::device_uvector<value_t> serializer::unserialize(raft::handle_t const& handle,
+                                                     serializer::device_byte_it it_dev_src,
+                                                     size_t size) const
+{
+  auto byte_buff_sz = size * sizeof(value_t);
+  rmm::device_uvector<value_t> d_dest(size, handle.get_stream());
+  byte_t* byte_buff = reinterpret_cast<byte_t*>(d_dest.data());
+
+  thrust::copy_n(rmm::exec_policy(handle.get_stream_view()), it_dev_src, byte_buff_sz, byte_buff);
+
+  return d_dest;
+}
+
 // Manual template instantiations (EIDir's):
 //
 template serializer::device_byte_it serializer::serialize(
@@ -66,6 +80,22 @@ template serializer::device_byte_it serializer::serialize(
   raft::handle_t const& handle,
   rmm::device_uvector<double> const& src,
   serializer::device_byte_it it_dev_dest) const;
+
+template rmm::device_uvector<int32_t> serializer::unserialize(raft::handle_t const& handle,
+                                                              serializer::device_byte_it it_dev_src,
+                                                              size_t size) const;
+
+template rmm::device_uvector<int64_t> serializer::unserialize(raft::handle_t const& handle,
+                                                              serializer::device_byte_it it_dev_src,
+                                                              size_t size) const;
+
+template rmm::device_uvector<float> serializer::unserialize(raft::handle_t const& handle,
+                                                            serializer::device_byte_it it_dev_src,
+                                                            size_t size) const;
+
+template rmm::device_uvector<double> serializer::unserialize(raft::handle_t const& handle,
+                                                             serializer::device_byte_it it_dev_src,
+                                                             size_t size) const;
 
 }  // namespace serializer
 }  // namespace cugraph
