@@ -83,7 +83,7 @@ cdef extern from "utilities/cython.hpp" namespace "cugraph::cython":
         unique_ptr[device_buffer] dst_indices
         unique_ptr[device_buffer] edge_data
         unique_ptr[device_buffer] subgraph_offsets
-    
+
     cdef cppclass random_walk_ret_t:
         size_t coalesced_sz_v_
         size_t coalesced_sz_w_
@@ -93,13 +93,15 @@ cdef extern from "utilities/cython.hpp" namespace "cugraph::cython":
         unique_ptr[device_buffer] d_coalesced_w_
         unique_ptr[device_buffer] d_sizes_
 
+    cdef cppclass graph_generator_t:
+        unique_ptr[device_buffer] d_source
+        unique_ptr[device_buffer] d_destination
+
 cdef extern from "<utility>" namespace "std" nogil:
     cdef device_buffer move(device_buffer)
-    cdef unique_ptr[device_buffer] move(unique_ptr[device_buffer]) 
+    cdef unique_ptr[device_buffer] move(unique_ptr[device_buffer])
     cdef cy_multi_edgelists_t move(cy_multi_edgelists_t)
     cdef unique_ptr[cy_multi_edgelists_t] move(unique_ptr[cy_multi_edgelists_t])
-    #cdef device_buffer move(device_buffer)
-    #cdef unique_ptr[device_buffer] move(unique_ptr[device_buffer])
 
 # renumber_edgelist() interface utilities:
 #
@@ -131,7 +133,7 @@ ctypedef fused shuffled_vertices_t:
     major_minor_weights_t[int, long, double]
     major_minor_weights_t[long, long, float]
     major_minor_weights_t[long, long, double]
-    
+
 # 3. return type for renumber:
 #
 cdef extern from "utilities/cython.hpp" namespace "cugraph::cython":
@@ -158,7 +160,7 @@ cdef extern from "utilities/cython.hpp" namespace "cugraph::cython":
         vertex_t get_part_matrix_partition_major_value_start_offset(size_t partition_idx)
         pair[vertex_t, vertex_t] get_part_matrix_partition_minor_range()
         vertex_t get_part_matrix_partition_minor_first()
-        vertex_t get_part_matrix_partition_minor_last()        
+        vertex_t get_part_matrix_partition_minor_last()
 
 # 4. `sort_and_shuffle_values()` wrapper:
 #
