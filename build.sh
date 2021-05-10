@@ -52,7 +52,7 @@ INSTALL_TARGET=install
 BUILD_DISABLE_DEPRECATION_WARNING=ON
 BUILD_CPP_MG_TESTS=OFF
 BUILD_STATIC_FAISS=OFF
-GPU_ARCH=""
+BUILD_ALL_GPU_ARCH=0
 
 # Set defaults for vars that may not have been defined externally
 #  FIXME: if PREFIX is not set, check CONDA_PREFIX, but there is no fallback
@@ -95,7 +95,7 @@ if hasArg -n; then
     INSTALL_TARGET=""
 fi
 if hasArg --allgpuarch; then
-    GPU_ARCH="-DGPU_ARCHS=ALL"
+    BUILD_ALL_GPU_ARCH=1
 fi
 if hasArg --buildfaiss; then
         BUILD_STATIC_FAISS=ON
@@ -129,15 +129,17 @@ fi
 ################################################################################
 # Configure, build, and install libcugraph
 if buildAll || hasArg libcugraph; then
-    if [[ ${GPU_ARCH} == "" ]]; then
+    if (( ${BUILD_ALL_GPU_ARCH} == 0 )); then
+        CUGRAPH_CMAKE_CUDA_ARCHITECTURES="NATIVE"
         echo "Building for the architecture of the GPU in the system..."
     else
+        CUGRAPH_CMAKE_CUDA_ARCHITECTURES="ALL"
         echo "Building for *ALL* supported GPU architectures..."
     fi
     mkdir -p ${LIBCUGRAPH_BUILD_DIR}
     cd ${LIBCUGRAPH_BUILD_DIR}
     cmake -DCMAKE_INSTALL_PREFIX=${INSTALL_PREFIX} \
-          ${GPU_ARCH} \
+          -DCMAKE_CUDA_ARCHITECTURES=${CUGRAPH_CMAKE_CUDA_ARCHITECTURES} \
           -DDISABLE_DEPRECATION_WARNING=${BUILD_DISABLE_DEPRECATION_WARNING} \
           -DCMAKE_BUILD_TYPE=${BUILD_TYPE} \
           -DBUILD_STATIC_FAISS=${BUILD_STATIC_FAISS} \
