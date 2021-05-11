@@ -20,7 +20,6 @@ import re
 import shutil
 import subprocess
 import sys
-import warnings
 
 from pathlib import Path
 
