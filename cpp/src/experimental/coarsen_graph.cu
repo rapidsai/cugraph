@@ -455,7 +455,7 @@ coarsen_graph(
                               cur_size;
         thrust::copy(rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
                      src_edge_first,
-                     src_edge_first + edgelist_major_vertices.size(),
+                     src_edge_first + number_of_partition_edges,
                      dst_edge_first);
       }
     }
