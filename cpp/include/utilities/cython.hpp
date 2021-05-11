@@ -207,6 +207,12 @@ struct random_walk_ret_t {
   std::unique_ptr<rmm::device_buffer> d_sizes_;
 };
 
+struct random_walk_path_t {
+  std::unique_ptr<rmm::device_buffer> d_v_offsets;
+  std::unique_ptr<rmm::device_buffer> d_w_sizes;
+  std::unique_ptr<rmm::device_buffer> d_w_offsets;
+};
+
 struct graph_generator_t {
   std::unique_ptr<rmm::device_buffer> d_source;
   std::unique_ptr<rmm::device_buffer> d_destination;
@@ -528,7 +534,13 @@ call_random_walks(raft::handle_t const& handle,
                   graph_container_t const& graph_container,
                   vertex_t const* ptr_start_set,
                   edge_t num_paths,
-                  edge_t max_depth);
+                  edge_t max_depth,
+		  bool use_padding);
+
+template <typename index_t>
+std::unique_ptr<random_walk_path_t> call_rw_paths(raft::handle_t const& handle,
+		                                  index_t num_paths,
+						  index_t const* vertex_path_sizes);
 
 // convertor from random_walks return type to COO:
 //

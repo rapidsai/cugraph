@@ -10,7 +10,7 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-from cugraph.sampling.random_walks cimport call_random_walks
+from cugraph.sampling.random_walks cimport call_random_walks, call_rw_paths
 #from cugraph.structure.graph_primtypes cimport *
 from cugraph.structure.graph_utilities cimport *
 from libcpp cimport bool
@@ -24,7 +24,9 @@ import numpy.ctypeslib as ctypeslib
 from rmm._lib.device_buffer cimport DeviceBuffer
 from cudf.core.buffer import Buffer
 from cython.operator cimport dereference as deref
-def random_walks(input_graph, start_vertices, max_depth):
+
+
+def random_walks(input_graph, start_vertices, max_depth, use_padding):
     """
     Call random_walks
     """
@@ -85,32 +87,71 @@ def random_walks(input_graph, start_vertices, max_depth):
                                                            graph_container,
                                                            <int*> c_start_vertex_ptr,
                                                            <int> num_paths,
-                                                           <int> max_depth))
+                                                           <int> max_depth,
+                                                           <bool> use_padding))
         else: # (edge_t == np.dtype("int64")):
             rw_ret_ptr = move(call_random_walks[int, long]( deref(handle_),
                                                            graph_container,
                                                            <int*> c_start_vertex_ptr,
                                                            <long> num_paths,
-                                                           <long> max_depth))
+                                                           <long> max_depth,
+                                                           <bool> use_padding))
     else: # (vertex_t == edge_t == np.dtype("int64")):
         rw_ret_ptr = move(call_random_walks[long, long]( deref(handle_),
                                                            graph_container,
                                                            <long*> c_start_vertex_ptr,
                                                            <long> num_paths,
-                                                           <long> max_depth))
+                                                           <long> max_depth,
+                                                           <bool> use_padding))
 
     
     rw_ret= move(rw_ret_ptr.get()[0])
     vertex_set = DeviceBuffer.c_from_unique_ptr(move(rw_ret.d_coalesced_v_))
     edge_set = DeviceBuffer.c_from_unique_ptr(move(rw_ret.d_coalesced_w_))
-    sizes = DeviceBuffer.c_from_unique_ptr(move(rw_ret.d_sizes_))
     vertex_set = Buffer(vertex_set)
     edge_set = Buffer(edge_set)
-    sizes = Buffer(sizes)
 
     set_vertex = cudf.Series(data=vertex_set, dtype=vertex_t)
     set_edge = cudf.Series(data=edge_set, dtype=weight_t)
-    set_sizes = cudf.Series(data=sizes, dtype=edge_t)
+
+    if not use_padding:
+        sizes = DeviceBuffer.c_from_unique_ptr(move(rw_ret.d_sizes_))
+        sizes = Buffer(sizes)
+        set_sizes = cudf.Series(data=sizes, dtype=edge_t)
+    else:
+        set_sizes = None
 
     return set_vertex, set_edge, set_sizes
-    
+
+
+def rw_path_retrieval(num_paths, sizes):
+    cdef unique_ptr[handle_t] handle_ptr
+    handle_ptr.reset(new handle_t())
+    handle_ = handle_ptr.get()
+    index_t = sizes.dtype
+
+    cdef unique_ptr[random_walk_path_t] rw_path_ptr
+    cdef uintptr_t c_sizes = sizes.__cuda_array_interface__['data'][0]
+
+    if index_t == np.dtype("int32"):
+        rw_path_ptr = move(call_rw_paths[int](deref(handle_),
+                                              <int>num_paths,
+                                              <int*>c_sizes))
+    else: # index_t == np.dtype("int64"):
+        rw_path_ptr = move(call_rw_paths[long](deref(handle_),
+                                               <long>num_paths,
+                                               <long*>c_sizes))
+
+    rw_path = move(rw_path_ptr.get()[0])
+    vertex_offsets = DeviceBuffer.c_from_unique_ptr(move(rw_path.d_v_offsets))
+    weight_sizes = DeviceBuffer.c_from_unique_ptr(move(rw_path.d_w_sizes))
+    weight_offsets = DeviceBuffer.c_from_unique_ptr(move(rw_path.d_w_offsets))
+    vertex_offsets = Buffer(vertex_offsets)
+    weight_sizes = Buffer(weight_sizes)
+    weight_offsets = Buffer(weight_offsets)
+
+    df = cudf.DataFrame()
+    df['vertex_offsets'] = cudf.Series(data=vertex_offsets, dtype=index_t)
+    df['weight_sizes'] = cudf.Series(data=weight_sizes, dtype=index_t)
+    df['weight_offsets'] = cudf.Series(data=weight_offsets, dtype=index_t)
+    return df

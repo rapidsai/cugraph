@@ -22,8 +22,8 @@ from collections import defaultdict
 def random_walks(
     G,
     start_vertices,
-    max_depth=None
-):
+    max_depth=None,
+    use_padding = False):
     """
     compute random walks for each nodes in 'start_vertices'
 
@@ -74,7 +74,7 @@ def random_walks(
             start_vertices = G.lookup_internal_vertex_id(start_vertices)
 
     vertex_set, edge_set, sizes = random_walks_wrapper.random_walks(
-        G, start_vertices, max_depth)
+        G, start_vertices, max_depth, use_padding)
 
     if G.renumbered:
         df_ = cudf.DataFrame()
@@ -82,21 +82,8 @@ def random_walks(
         df_ = G.unrenumber(df_, 'vertex_set', preserve_order=True)
         vertex_set = cudf.Series(df_['vertex_set'])
 
-    edge_list = defaultdict(list)
-    next_path_idx = 0
-    offsets = [0]
+    return vertex_set, edge_set, sizes
 
-    df = cudf.DataFrame()
-    for s in sizes.values_host:
-        for i in range(next_path_idx, s+next_path_idx-1):
-            edge_list['src'].append(vertex_set.values_host[i])
-            edge_list['dst'].append(vertex_set.values_host[i+1])
-        next_path_idx += s
-        df = df.append(edge_list, ignore_index=True)
-        offsets.append(df.index[-1]+1)
-        edge_list['src'].clear()
-        edge_list['dst'].clear()
-    df['weight'] = edge_set
-    offsets = cudf.Series(offsets)
 
-    return df, offsets
+def rw_path(num_paths, sizes):
+    return random_walks_wrapper.rw_path_retrieval(num_paths, sizes)
