@@ -21,7 +21,7 @@ function(find_and_configure_gtest VERSION)
     endif()
 
     rapids_cpm_find(GTest ${VERSION}
-        GLOBAL_TARGETS  gest gtest_main GTest::gtest GTest::gtest_main
+        GLOBAL_TARGETS  gmock gmock_main gtest gtest_main GTest::gmock GTest::gtest GTest::gtest_main
         CPM_ARGS
             GIT_REPOSITORY  https://github.com/google/googletest.git
             GIT_TAG         release-${VERSION}
@@ -32,6 +32,8 @@ function(find_and_configure_gtest VERSION)
     )
 
     if(NOT TARGET GTest::gtest)
+        add_library(GTest::gmock ALIAS gmock)
+        add_library(GTest::gmock_main ALIAS gmock_main)
         add_library(GTest::gtest ALIAS gtest)
         add_library(GTest::gtest_main ALIAS gtest_main)
     endif()

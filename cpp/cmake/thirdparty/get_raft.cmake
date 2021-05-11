@@ -28,9 +28,7 @@ function(find_and_configure_raft)
             GIT_REPOSITORY https://github.com/${PKG_FORK}/raft.git
             GIT_TAG        ${PKG_PINNED_TAG}
             SOURCE_SUBDIR  cpp
-            OPTIONS
-              "BUILD_TESTS OFF"
-
+            OPTIONS "BUILD_TESTS OFF"
     )
 
     message(VERBOSE "CUML: Using RAFT located in ${raft_SOURCE_DIR}")
