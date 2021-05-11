@@ -71,7 +71,7 @@ def clean_folder(path):
 
 
 def use_raft_package(raft_path, cpp_build_path,
-                     git_info_file='../cpp/cmake/Dependencies.cmake'):
+                     git_info_file=None):
     """
     Function to use the python code in RAFT in package.raft
 
@@ -139,10 +139,13 @@ def use_raft_package(raft_path, cpp_build_path,
 def clone_repo_if_needed(name, cpp_build_path=None,
                          git_info_file=None):
     if git_info_file is None:
-        git_info_file = _get_repo_path() + '/cpp/CMakeLists.txt'
+        git_info_file = \
+            _get_repo_path() + '/cpp/cmake/thirdparty/get_{}.cmake'.format(
+                name
+            )
 
     if cpp_build_path is None or cpp_build_path is False:
-        cpp_build_path = _get_repo_path() + '/cpp/build/'
+        cpp_build_path = _get_repo_path() + '/cpp/build/_deps/'
 
     repo_cloned = get_submodule_dependency(name,
                                            cpp_build_path=cpp_build_path,
@@ -152,7 +155,7 @@ def clone_repo_if_needed(name, cpp_build_path=None,
         repo_path = (
             _get_repo_path() + '/python/_external_repositories/' + name + '/')
     else:
-        repo_path = os.path.join(cpp_build_path, '_deps', name + '-src')
+        repo_path = os.path.join(cpp_build_path, name + '-src/')
 
     return repo_path, repo_cloned
 
@@ -192,7 +195,7 @@ def get_submodule_dependency(repo,
 
     repo_info = get_repo_cmake_info(repos, git_info_file)
 
-    if os.path.exists(cpp_build_path):
+    if os.path.exists(os.path.join(cpp_build_path, repos[0] + '-src/')):
         print("-- Third party modules found succesfully in the libcugraph++ "
               "build folder.")
 
@@ -200,11 +203,11 @@ def get_submodule_dependency(repo,
 
     else:
 
-        warnings.warn("-- Third party repositories have not been found so they"
-                      "will be cloned. To avoid this set the environment "
-                      "variable CUGRAPH_BUILD_PATH, containing the relative "
-                      "path of the root of the repository to the folder "
-                      "where libcugraph++ was built.")
+        print("-- Third party repositories have not been found so they"
+              "will be cloned. To avoid this set the environment "
+              "variable CUGRAPH_BUILD_PATH, containing the relative "
+              "path of the root of the repository to the folder "
+              "where libcugraph++ was built.")
 
         for repo in repos:
             clone_repo(repo, repo_info[repo][0], repo_info[repo][1])
@@ -262,8 +265,8 @@ def get_repo_cmake_info(names, file_path):
         `ExternalProject_Add(name`
     file_path : String
         Relative path of the location of the CMakeLists.txt (or the cmake
-        module which contains FetchContent_Declare or ExternalProject_Add
-        definitions) to extract the information.
+        module which contains ExternalProject_Add definitions) to extract
+        the information.
 
     Returns
     -------
@@ -272,31 +275,22 @@ def get_repo_cmake_info(names, file_path):
         where results[name][0] is the url of the repo and
         repo_info[repo][1] is the tag/commit hash to be cloned as
         specified by cmake.
+
     """
-    with open(file_path, encoding='utf-8') as f:
+    with open(file_path) as f:
         s = f.read()
 
     results = {}
 
-    cmake_ext_proj_decls = ["FetchContent_Declare", "ExternalProject_Add"]
-
     for name in names:
-        res = None
-        for decl in cmake_ext_proj_decls:
-            res = re.search(f'{decl}\(\s*'                        # noqa: W605
-                            + '(' + re.escape(name) + ')'
-                            + '\s+.*GIT_REPOSITORY\s+(\S+)\s+.+'  # noqa: W605
-                            + '\s+.*GIT_TAG\s+(\S+)',             # noqa: W605
-                            s)
-            if res:
-                break
-        if res is None:
-            raise RuntimeError('Could not find any of the following '
-                               f'statements: {cmake_ext_proj_decls}, for '
-                               f'module "{name}" in file "{file_path}" with '
-                               'GIT_REPOSITORY and GIT_TAG settings')
-
-        results[res.group(1)] = [res.group(2), res.group(3)]
+        repo = re.findall(r'\s.*GIT_REPOSITORY.*', s)
+        repo = repo[-1].split()[-1]
+        fork = re.findall(r'\s.*FORK.*', s)
+        fork = fork[-1].split()[-1]
+        repo = repo.replace("${PKG_FORK}", fork)
+        tag = re.findall(r'\s.*PINNED_TAG.*', s)
+        tag = tag[-1].split()[-1]
+        results[name] = [repo, tag]
 
     return results
 

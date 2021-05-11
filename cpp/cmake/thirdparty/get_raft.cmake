@@ -14,24 +14,35 @@
 # limitations under the License.
 #=============================================================================
 
-function(find_and_configure_raft VERSION)
+function(find_and_configure_raft)
 
-    rapids_cpm_find(raft ${VERSION}
-      GLOBAL_TARGETS raft::raft
-      BUILD_EXPORT_SET    cugraph-exports
-      INSTALL_EXPORT_SET  cugraph-exports
+    set(oneValueArgs VERSION FORK PINNED_TAG)
+    cmake_parse_arguments(PKG "${options}" "${oneValueArgs}"
+                          "${multiValueArgs}" ${ARGN} )
+
+    rapids_cpm_find(raft ${PKG_VERSION}
+      GLOBAL_TARGETS      raft::raft
+      BUILD_EXPORT_SET    cuml-exports
+      INSTALL_EXPORT_SET  cuml-exports
         CPM_ARGS
-            # GIT_REPOSITORY https://github.com/rapidsai/raft.git
-            # GIT_TAG        branch-${VERSION}
-            GIT_REPOSITORY https://github.com/robertmaynard/raft.git
-            GIT_TAG        use_rapids_cmake
+            GIT_REPOSITORY https://github.com/${PKG_FORK}/raft.git
+            GIT_TAG        ${PKG_PINNED_TAG}
             SOURCE_SUBDIR  cpp
             OPTIONS "BUILD_TESTS OFF"
-
     )
+
+    message(VERBOSE "CUML: Using RAFT located in ${raft_SOURCE_DIR}")
 
 endfunction()
 
-set(CUGRAPH_MIN_VERSION_raft "${CUGRAPH_VERSION_MAJOR}.${CUGRAPH_VERSION_MINOR}")
+set(CUML_MIN_VERSION_raft "${CUML_VERSION_MAJOR}.${CUML_VERSION_MINOR}")
 
-find_and_configure_raft(${CUGRAPH_MIN_VERSION_raft})
+# Change pinned tag and fork here to test a commit in CI
+# To use a different RAFT locally, set the CMake variable
+# RPM_raft_SOURCE=/path/to/local/raft
+find_and_configure_raft(VERSION    ${CUML_MIN_VERSION_raft}
+                        FORK       dantegd
+                        PINNED_TAG 020-fea-cpm
+                        )
+
+
