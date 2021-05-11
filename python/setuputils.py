@@ -282,8 +282,6 @@ def get_repo_cmake_info(names, file_path):
 
     results = {}
 
-    print(file_path)
-
     for name in names:
         repo = re.findall(r'\s.*GIT_REPOSITORY.*', s)
         repo = repo[-1].split()[-1]
