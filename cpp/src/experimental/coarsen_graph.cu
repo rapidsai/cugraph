@@ -284,12 +284,14 @@ coarsen_graph(
       store_transposed ? graph_view.get_number_of_local_adj_matrix_partition_cols(i)
                        : graph_view.get_number_of_local_adj_matrix_partition_rows(i),
       handle.get_stream());
-    // FIXME: this copy is unnecessary, beter fix RAFT comm's bcast to take const iterators for
-    // input
-    thrust::copy(rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
-                 labels,
-                 labels + major_labels.size(),
-                 major_labels.begin());
+    if (col_comm_rank == i) {
+      // FIXME: this copy is unnecessary, beter fix RAFT comm's bcast to take const iterators for
+      // input
+      thrust::copy(rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
+                   labels,
+                   labels + major_labels.size(),
+                   major_labels.begin());
+    }
     device_bcast(col_comm,
                  major_labels.data(),
                  major_labels.data(),
