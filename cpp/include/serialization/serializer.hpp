@@ -30,11 +30,32 @@
 namespace cugraph {
 namespace serializer {
 
+using namespace cugraph::experimental;
+
 class serializer {
  public:
   using byte_t = uint8_t;
 
   using device_byte_it = typename rmm::device_uvector<byte_t>::iterator;
+
+  template <typename graph_view_t, typename Enable = void>
+  struct graph_meta_t;
+
+  template <typename graph_view_t>
+  struct graph_meta_t<graph_view_t, std::enable_if_t<graph_view_t::is_multi_gpu>> {
+    // purposely empty, for now;
+    // FIXME: provide implementation for multi-gpu version
+  };
+
+  template <typename graph_view_t>
+  struct graph_meta_t<graph_view_t, std::enable_if_t<!graph_view_t::is_multi_gpu>> {
+    using vertex_t = typename graph_view_t::vertex_type;
+
+    size_t num_vertices_;
+    size_t num_edges_;
+    graph_properties_t properties_{};
+    std::vector<vertex_t> segment_offsets_{};
+  };
 
   // device vector serialization:
   //
@@ -58,8 +79,8 @@ class serializer {
   // with device storage and host metadata:
   // (associated with target; e.g., num_vertices, etc.)
   //
-  template <typename graph_view_t, typename metadata_t>
-  std::pair<device_byte_it, metadata_t> serialize(
+  template <typename graph_view_t>
+  std::pair<device_byte_it, graph_meta_t<graph_view_t>> serialize(
     raft::handle_t const& handle,
     graph_view_t const& gview,   // serialization target
     device_byte_it it_dev_dest)  // device serialization destination: iterator into

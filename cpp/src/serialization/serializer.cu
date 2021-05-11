@@ -59,6 +59,36 @@ rmm::device_uvector<value_t> serializer::unserialize(raft::handle_t const& handl
   return d_dest;
 }
 
+template <typename graph_view_t>
+std::pair<serializer::device_byte_it, serializer::graph_meta_t<graph_view_t>> serializer::serialize(
+  raft::handle_t const& handle,
+  graph_view_t const& gview,
+  serializer::device_byte_it it_dev_dest) const
+{
+  using vertex_t = typename graph_view_t::vertex_type;
+  using edge_t   = typename graph_view_t::edge_type;
+  using weight_t = typename graph_view_t::weight_type;
+
+  if constexpr (!graph_view_t::is_multi_gpu) {
+    graph_meta_t<graph_view_t> gvmeta{gview.get_number_of_vertices(),
+                                      gview.get_number_of_edges(),
+                                      gview.get_graph_properties(),
+                                      gview.get_local_adj_matrix_partition_segment_offsets()};
+
+    // TODO:
+    //
+
+    return std::make_pair(it_dev_dest, gvmeta);  // for now; FIXME
+
+  } else {
+    graph_meta_t<graph_view_t> gvmeta{};
+
+    CUGRAPH_FAIL("Unsupported graph_view type for serialization.");
+
+    return std::make_pair(it_dev_dest, gvmeta);  // for now; FIXME
+  }
+}
+
 // Manual template instantiations (EIDir's):
 //
 template serializer::device_byte_it serializer::serialize(
