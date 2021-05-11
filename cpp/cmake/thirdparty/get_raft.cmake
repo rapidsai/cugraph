@@ -17,8 +17,7 @@
 function(find_and_configure_raft)
 
     set(oneValueArgs VERSION FORK PINNED_TAG)
-    cmake_parse_arguments(PKG "${options}" "${oneValueArgs}"
-                          "${multiValueArgs}" ${ARGN} )
+    cmake_parse_arguments(PKG "" "${oneValueArgs}" "" ${ARGN} )
 
     rapids_cpm_find(raft ${PKG_VERSION}
       GLOBAL_TARGETS      raft::raft
