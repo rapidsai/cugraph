@@ -36,7 +36,22 @@ class serializer {
  public:
   using byte_t = uint8_t;
 
-  using device_byte_it = typename rmm::device_uvector<byte_t>::iterator;
+  using device_byte_it  = typename rmm::device_uvector<byte_t>::iterator;
+  using device_byte_cit = typename rmm::device_uvector<byte_t>::const_iterator;
+
+  // cnstr. for serialize() path:
+  //
+  serializer(raft::handle_t const& handle, size_t total_sz_bytes)
+    : handle_(handle), d_storage_(total_sz_bytes, handle.get_stream()), begin_(d_storage_.begin())
+  {
+  }
+
+  // cnstr. for unserialize() path:
+  //
+  serializer(raft::handle_t const& handle, byte_t const* ptr_d_storage)
+    : handle_(handle), d_storage_(0, handle.get_stream()), cbegin_(ptr_d_storage)
+  {
+  }
 
   template <typename graph_view_t, typename Enable = void>
   struct graph_meta_t;
@@ -57,35 +72,24 @@ class serializer {
     std::vector<vertex_t> segment_offsets_{};
   };
 
-  // device vector serialization:
+  // device array serialization:
   //
   template <typename value_t>
-  device_byte_it serialize(
-    raft::handle_t const& handle,
-    rmm::device_uvector<value_t> const& src,  // serialization target
-    device_byte_it it_dev_dest)               // device serialization destination: iterator
-                                              // into pre-allocated device byte buffer
-    const;                                    // append src_to_bytes to it_dest
+  void serialize(value_t const* p_d_src, size_t size);
 
-  // device vector unserialization:
+  // device vector unserialization;
+  // extracts device_uvector of `size` bytes_to_value_t elements:
   //
   template <typename value_t>
-  rmm::device_uvector<value_t> unserialize(raft::handle_t const& handle,
-                                           device_byte_it it_dev_src,  // unserialization src
-                                           size_t size)  // size of device vector to be unserialized
-    const;  // extracts device_uvector of `size` bytes_to_value_t elements
+  rmm::device_uvector<value_t> unserialize(
+    size_t size);  // size of device vector to be unserialized
 
   // more complex object (e.g., graph_view) serialization,
   // with device storage and host metadata:
   // (associated with target; e.g., num_vertices, etc.)
   //
   template <typename graph_view_t>
-  std::pair<device_byte_it, graph_meta_t<graph_view_t>> serialize(
-    raft::handle_t const& handle,
-    graph_view_t const& gview,   // serialization target
-    device_byte_it it_dev_dest)  // device serialization destination: iterator into
-                                 // pre-allocated device byte buffer
-    const;  // serialize more complex object that has both device and metadata host representation
+  graph_meta_t<graph_view_t> serialize(graph_view_t const& gview);  // serialization target
 
   // more complex object (e.g., graph_view) unserialization,
   // with device storage and host metadata:
@@ -97,6 +101,12 @@ class serializer {
     device_byte_it it_dev_src,  // unserialization src
     metadata_t const& meta)     // associated with target; e.g., num_vertices, etc.
     const;
+
+ private:
+  raft::handle_t const& handle_;
+  rmm::device_uvector<byte_t> d_storage_;
+  device_byte_it begin_{nullptr};    // advances on serialize()
+  device_byte_cit cbegin_{nullptr};  // advances on unserialize()
 };
 
 namespace detail {
