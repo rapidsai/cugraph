@@ -14,21 +14,22 @@
  * limitations under the License.
  */
 
-#include <cugraph/experimental/graph_generator.hpp>
-//#include <cugraph/experimental/generate_rmat_edgelist.cu>
 #include <cugraph/algorithms.hpp>
 #include <cugraph/experimental/detail/graph_utils.cuh>
 #include <cugraph/experimental/graph_functions.hpp>
+#include <cugraph/experimental/graph_generator.hpp>
 #include <cugraph/experimental/graph_view.hpp>
 #include <cugraph/graph.hpp>
 #include <cugraph/partition_manager.hpp>
 #include <cugraph/utilities/cython.hpp>
 #include <cugraph/utilities/error.hpp>
+#include <cugraph/utilities/graph_traits.hpp>
 #include <cugraph/utilities/path_retrieval.hpp>
 #include <cugraph/utilities/shuffle_comm.cuh>
 
-#include <rmm/thrust_rmm_allocator.h>
 #include <raft/handle.hpp>
+
+#include <rmm/thrust_rmm_allocator.h>
 #include <rmm/device_uvector.hpp>
 
 #include <thrust/copy.h>
