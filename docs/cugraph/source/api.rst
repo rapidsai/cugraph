@@ -10,7 +10,7 @@ Structure
 Graph
 -----
 
-.. autoclass:: cugraph.structure.graph.Graph
+.. autoclass:: cugraph.structure.graph_classes.Graph
     :members:
     :undoc-members:
 
@@ -143,7 +143,7 @@ Core Number
 .. automodule:: cugraph.cores.core_number
     :members:
     :undoc-members:
-    
+
 K-Core
 ------
 
@@ -196,7 +196,7 @@ Pagerank (MG)
 
 .. automodule:: cugraph.dask.link_analysis.pagerank
     :members: pagerank
-    :undoc-members: 
+    :undoc-members:
 
 
 Link Prediction

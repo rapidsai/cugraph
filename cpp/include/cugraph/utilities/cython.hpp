@@ -16,9 +16,11 @@
 #pragma once
 
 #include <cugraph/experimental/graph.hpp>
+#include <cugraph/experimental/graph_generator.hpp>
 #include <cugraph/graph.hpp>
-#include <cugraph/utilities/graph_traits.hpp>
+
 #include <raft/handle.hpp>
+
 #include <rmm/device_uvector.hpp>
 
 namespace cugraph {
@@ -207,6 +209,12 @@ struct random_walk_ret_t {
   std::unique_ptr<rmm::device_buffer> d_sizes_;
 };
 
+struct graph_generator_t {
+  std::unique_ptr<rmm::device_buffer> d_source;
+  std::unique_ptr<rmm::device_buffer> d_destination;
+};
+
+// enum class generator_distribution_t { POWER_LAW = 0, UNIFORM };
 // aggregate for random_walks() COO return type
 // to be exposed to cython:
 //
@@ -488,6 +496,31 @@ std::unique_ptr<cy_multi_edgelists_t> call_egonet(raft::handle_t const& handle,
                                                   vertex_t* source_vertex,
                                                   vertex_t n_subgraphs,
                                                   vertex_t radius);
+
+// Wrapper for calling graph generator
+template <typename vertex_t>
+std::unique_ptr<graph_generator_t> call_generate_rmat_edgelist(raft::handle_t const& handle,
+                                                               size_t scale,
+                                                               size_t num_edges,
+                                                               double a,
+                                                               double b,
+                                                               double c,
+                                                               uint64_t seed,
+                                                               bool clip_and_flip,
+                                                               bool scramble_vertex_ids);
+template <typename vertex_t>
+std::vector<std::pair<std::unique_ptr<rmm::device_buffer>, std::unique_ptr<rmm::device_buffer>>>
+call_generate_rmat_edgelists(raft::handle_t const& handle,
+                             size_t n_edgelists,
+                             size_t min_scale,
+                             size_t max_scale,
+                             size_t edge_factor,
+                             cugraph::experimental::generator_distribution_t size_distribution,
+                             cugraph::experimental::generator_distribution_t edge_distribution,
+                             uint64_t seed,
+                             bool clip_and_flip,
+                             bool scramble_vertex_ids);
+
 // wrapper for random_walks.
 //
 template <typename vertex_t, typename edge_t>
