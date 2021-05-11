@@ -158,15 +158,16 @@ void relabel(raft::handle_t const& handle,
           handle.get_stream()));  // cuco::static_map currently does not take stream
 
         if (skip_missing_labels) {
-          thrust::transform(
-            rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
-            rx_unique_old_labels.begin(),
-            rx_unique_old_labels.end(),
-            rx_unique_old_labels.begin(),
-            [view = relabel_map.get_device_view()] __device__(auto old_label) {
-              auto new_label = view.find(old_label)->second.load(cuda::std::memory_order_relaxed);
-              return new_label != invalid_vertex_id<vertex_t>::value ? new_label : old_label;
-            });
+          thrust::transform(rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
+                            rx_unique_old_labels.begin(),
+                            rx_unique_old_labels.end(),
+                            rx_unique_old_labels.begin(),
+                            [view = relabel_map.get_device_view()] __device__(auto old_label) {
+                              auto found = view.find(old_label);
+                              return found != view.end() ? view.find(old_label)->second.load(
+                                                             cuda::std::memory_order_relaxed)
+                                                         : old_label;
+                            });
         } else {
           relabel_map.find(
             rx_unique_old_labels.begin(),
@@ -215,15 +216,16 @@ void relabel(raft::handle_t const& handle,
 
     relabel_map.insert(pair_first, pair_first + num_label_pairs);
     if (skip_missing_labels) {
-      thrust::transform(
-        rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
-        labels,
-        labels + num_labels,
-        labels,
-        [view = relabel_map.get_device_view()] __device__(auto old_label) {
-          auto new_label = view.find(old_label)->second.load(cuda::std::memory_order_relaxed);
-          return new_label != invalid_vertex_id<vertex_t>::value ? new_label : old_label;
-        });
+      thrust::transform(rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
+                        labels,
+                        labels + num_labels,
+                        labels,
+                        [view = relabel_map.get_device_view()] __device__(auto old_label) {
+                          auto found = view.find(old_label);
+                          return found != view.end() ? view.find(old_label)->second.load(
+                                                         cuda::std::memory_order_relaxed)
+                                                     : old_label;
+                        });
     } else {
       relabel_map.find(labels, labels + num_labels, labels);
     }
