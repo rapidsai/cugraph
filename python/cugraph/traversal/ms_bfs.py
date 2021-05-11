@@ -14,8 +14,6 @@
 import numpy as np
 import cudf
 
-# from cugraph.structure.graph import Graph, DiGraph
-# from cugraph.utilities.utils import get_device_memory_info
 import warnings
 
 

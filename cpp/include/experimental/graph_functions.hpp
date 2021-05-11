@@ -263,6 +263,10 @@ coarsen_graph(
  * @param labels Labels to be relabeled. This initially holds old labels. Old labels are updated to
  * new labels in-place ([INOUT] parameter).
  * @param num_labels Number of labels to be relabeled.
+ * @param skip_missing_labels Flag dictating the behavior on missing labels (@p labels contains old
+ * labels missing in @p old_new_label_pairs). If set to true, missing elements are skipped (not
+ * relabeled). If set to false, undefined behavior (if @p do_expensive_check is set to true, this
+ * function will throw an exception).
  * @param do_expensive_check A flag to run expensive checks for input arguments (if set to `true`).
  * @return rmm::device_uvector<vertex_t> New labels corresponding to the @p old_labels.
  */
@@ -272,6 +276,7 @@ void relabel(raft::handle_t const& handle,
              vertex_t num_label_pairs,
              vertex_t* labels /* [INOUT] */,
              vertex_t num_labels,
+             bool skip_missing_labels,
              bool do_expensive_check = false);
 
 /**
