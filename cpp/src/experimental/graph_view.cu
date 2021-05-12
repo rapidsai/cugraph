@@ -14,12 +14,12 @@
  * limitations under the License.
  */
 
-#include <experimental/detail/graph_utils.cuh>
-#include <experimental/graph_view.hpp>
-#include <partition_manager.hpp>
-#include <patterns/copy_v_transform_reduce_in_out_nbr.cuh>
-#include <utilities/error.hpp>
-#include <utilities/host_scalar_comm.cuh>
+#include <cugraph/experimental/detail/graph_utils.cuh>
+#include <cugraph/experimental/graph_view.hpp>
+#include <cugraph/partition_manager.hpp>
+#include <cugraph/patterns/copy_v_transform_reduce_in_out_nbr.cuh>
+#include <cugraph/utilities/error.hpp>
+#include <cugraph/utilities/host_scalar_comm.cuh>
 
 #include <raft/cudart_utils.h>
 #include <rmm/thrust_rmm_allocator.h>

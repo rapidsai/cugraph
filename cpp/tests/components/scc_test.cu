@@ -16,10 +16,10 @@
 #include <utilities/base_fixture.hpp>
 #include <utilities/test_utilities.hpp>
 
-#include <algorithms.hpp>
 #include <components/scc_matrix.cuh>
 #include <converters/COOtoCSR.cuh>
-#include <graph.hpp>
+#include <cugraph/algorithms.hpp>
+#include <cugraph/graph.hpp>
 #include <topology/topology.cuh>
 
 #include <cuda_profiler_api.h>

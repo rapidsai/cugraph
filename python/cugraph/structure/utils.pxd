@@ -20,7 +20,7 @@ from cugraph.structure.graph_primtypes cimport *
 from libcpp.memory cimport unique_ptr
 
 
-cdef extern from "functions.hpp" namespace "cugraph":
+cdef extern from "cugraph/functions.hpp" namespace "cugraph":
 
     cdef unique_ptr[GraphCSR[VT,ET,WT]] coo_to_csr[VT,ET,WT](
             const GraphCOOView[VT,ET,WT] &graph) except +

@@ -19,8 +19,8 @@
 #include <utilities/test_utilities.hpp>
 #include <utilities/thrust_wrapper.hpp>
 
-#include <algorithms.hpp>
-#include <partition_manager.hpp>
+#include <cugraph/algorithms.hpp>
+#include <cugraph/partition_manager.hpp>
 
 #include <raft/comms/comms.hpp>
 #include <raft/comms/mpi_comms.hpp>
