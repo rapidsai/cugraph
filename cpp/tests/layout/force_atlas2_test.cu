@@ -17,8 +17,8 @@
 #include <utilities/test_utilities.hpp>
 
 #include <layout/trust_worthiness.h>
-#include <algorithms.hpp>
-#include <graph.hpp>
+#include <cugraph/algorithms.hpp>
+#include <cugraph/graph.hpp>
 
 #include <rmm/thrust_rmm_allocator.h>
 #include <raft/error.hpp>

@@ -18,7 +18,7 @@
 
 from cugraph.structure.graph_utilities cimport *
 
-cdef extern from "utilities/cython.hpp" namespace "cugraph::cython":
+cdef extern from "cugraph/utilities/cython.hpp" namespace "cugraph::cython":
 
     cdef void call_sssp[vertex_t, weight_t](
         const handle_t &handle,

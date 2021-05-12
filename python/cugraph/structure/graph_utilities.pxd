@@ -25,7 +25,7 @@ from libcpp.vector cimport vector
 from rmm._lib.device_buffer cimport device_buffer
 
 # C++ graph utilities
-cdef extern from "utilities/cython.hpp" namespace "cugraph::cython":
+cdef extern from "cugraph/utilities/cython.hpp" namespace "cugraph::cython":
 
     ctypedef enum numberTypeEnum:
         int32Type "cugraph::cython::numberTypeEnum::int32Type"
@@ -113,7 +113,7 @@ cdef extern from "<utility>" namespace "std" nogil:
 #
 # 1. `cdef extern partition_t`:
 #
-cdef extern from "experimental/graph_view.hpp" namespace "cugraph::experimental":
+cdef extern from "cugraph/experimental/graph_view.hpp" namespace "cugraph::experimental":
 
     cdef cppclass partition_t[vertex_t]:
         pass
@@ -121,7 +121,7 @@ cdef extern from "experimental/graph_view.hpp" namespace "cugraph::experimental"
 
 # 2. return type for shuffle:
 #
-cdef extern from "utilities/cython.hpp" namespace "cugraph::cython":
+cdef extern from "cugraph/utilities/cython.hpp" namespace "cugraph::cython":
 
     cdef cppclass major_minor_weights_t[vertex_t, edge_t, weight_t]:
         major_minor_weights_t(const handle_t &handle)
@@ -141,7 +141,7 @@ ctypedef fused shuffled_vertices_t:
 
 # 3. return type for renumber:
 #
-cdef extern from "utilities/cython.hpp" namespace "cugraph::cython":
+cdef extern from "cugraph/utilities/cython.hpp" namespace "cugraph::cython":
 
     cdef cppclass renum_quad_t[vertex_t, edge_t]:
         renum_quad_t(const handle_t &handle)
@@ -169,7 +169,7 @@ cdef extern from "utilities/cython.hpp" namespace "cugraph::cython":
 
 # 4. `sort_and_shuffle_values()` wrapper:
 #
-cdef extern from "utilities/cython.hpp" namespace "cugraph::cython":
+cdef extern from "cugraph/utilities/cython.hpp" namespace "cugraph::cython":
 
     cdef unique_ptr[major_minor_weights_t[vertex_t, edge_t, weight_t]] call_shuffle[vertex_t, edge_t, weight_t](
         const handle_t &handle,
@@ -180,7 +180,7 @@ cdef extern from "utilities/cython.hpp" namespace "cugraph::cython":
 
 # 5. `renumber_edgelist()` wrapper
 #
-cdef extern from "utilities/cython.hpp" namespace "cugraph::cython":
+cdef extern from "cugraph/utilities/cython.hpp" namespace "cugraph::cython":
 
     cdef unique_ptr[renum_quad_t[vertex_t, edge_t]] call_renumber[vertex_t, edge_t](
         const handle_t &handle,

@@ -18,7 +18,7 @@
 
 from cugraph.structure.graph_primtypes cimport *
 
-cdef extern from "utilities/path_retrieval.hpp" namespace "cugraph":
+cdef extern from "cugraph/utilities/path_retrieval.hpp" namespace "cugraph":
 
     cdef void get_traversed_cost[vertex_t, weight_t](const handle_t &handle,
             const vertex_t *vertices,
@@ -27,4 +27,3 @@ cdef extern from "utilities/path_retrieval.hpp" namespace "cugraph":
             weight_t *out,
             vertex_t stop_vertex,
             vertex_t num_vertices) except +
-

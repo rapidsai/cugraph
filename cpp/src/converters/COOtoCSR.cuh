@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019-2020, NVIDIA CORPORATION.
+ * Copyright (c) 2019-2021, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -31,14 +31,14 @@
 #include <algorithm>
 
 #include <rmm/thrust_rmm_allocator.h>
-#include <utilities/error.hpp>
+#include <cugraph/utilities/error.hpp>
 
 #include <cub/device/device_radix_sort.cuh>
 #include <cub/device/device_run_length_encode.cuh>
 
-#include <functions.hpp>
+#include <cugraph/functions.hpp>
 
-#include <graph.hpp>
+#include <cugraph/graph.hpp>
 
 namespace cugraph {
 namespace detail {

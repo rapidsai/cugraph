@@ -13,7 +13,7 @@
 #from cugraph.structure.graph_primtypes cimport *
 from cugraph.structure.graph_utilities cimport *
 
-cdef extern from "utilities/cython.hpp" namespace "cugraph::cython":
+cdef extern from "cugraph/utilities/cython.hpp" namespace "cugraph::cython":
     cdef unique_ptr[random_walk_ret_t] call_random_walks[vertex_t, edge_t](
       const handle_t &handle,
       const graph_container_t &g,

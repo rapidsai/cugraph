@@ -20,8 +20,8 @@
 
 #include <converters/COOtoCSR.cuh>
 
-#include <algorithms.hpp>
-#include <graph.hpp>
+#include <cugraph/algorithms.hpp>
+#include <cugraph/graph.hpp>
 
 #include <gmock/gmock-generated-matchers.h>
 #include <gmock/gmock.h>
