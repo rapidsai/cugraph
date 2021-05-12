@@ -14,16 +14,16 @@
  * limitations under the License.
  */
 
-#include <algorithms.hpp>
-#include <experimental/graph_view.hpp>
-#include <patterns/copy_to_adj_matrix_row_col.cuh>
-#include <patterns/count_if_e.cuh>
-#include <patterns/reduce_op.cuh>
-#include <patterns/transform_reduce_e.cuh>
-#include <patterns/update_frontier_v_push_if_out_nbr.cuh>
-#include <patterns/vertex_frontier.cuh>
-#include <utilities/error.hpp>
-#include <vertex_partition_device.cuh>
+#include <cugraph/algorithms.hpp>
+#include <cugraph/experimental/graph_view.hpp>
+#include <cugraph/patterns/copy_to_adj_matrix_row_col.cuh>
+#include <cugraph/patterns/count_if_e.cuh>
+#include <cugraph/patterns/reduce_op.cuh>
+#include <cugraph/patterns/transform_reduce_e.cuh>
+#include <cugraph/patterns/update_frontier_v_push_if_out_nbr.cuh>
+#include <cugraph/patterns/vertex_frontier.cuh>
+#include <cugraph/utilities/error.hpp>
+#include <cugraph/vertex_partition_device.cuh>
 
 #include <raft/cudart_utils.h>
 #include <rmm/thrust_rmm_allocator.h>

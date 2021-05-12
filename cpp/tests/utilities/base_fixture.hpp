@@ -16,8 +16,8 @@
 
 #pragma once
 
+#include <cugraph/utilities/error.hpp>
 #include <utilities/cxxopts.hpp>
-#include <utilities/error.hpp>
 
 #include <gtest/gtest.h>
 

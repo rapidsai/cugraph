@@ -23,7 +23,7 @@ from libcpp.vector cimport vector
 from cugraph.raft.common.handle cimport *
 from rmm._lib.device_buffer cimport device_buffer
 
-cdef extern from "graph.hpp" namespace "cugraph":
+cdef extern from "cugraph/graph.hpp" namespace "cugraph":
 
     ctypedef enum PropType:
         PROP_UNDEF "cugraph::PROP_UNDEF"
@@ -123,12 +123,12 @@ cdef extern from "graph.hpp" namespace "cugraph":
         GraphCSRView[VT,ET,WT] view()
 
 
-cdef extern from "algorithms.hpp" namespace "cugraph":
+cdef extern from "cugraph/algorithms.hpp" namespace "cugraph":
 
     cdef unique_ptr[GraphCOO[VT, ET, WT]] get_two_hop_neighbors[VT,ET,WT](
         const GraphCSRView[VT, ET, WT] &graph) except +
 
-cdef extern from "functions.hpp" namespace "cugraph":
+cdef extern from "cugraph/functions.hpp" namespace "cugraph":
 
     cdef unique_ptr[device_buffer] renumber_vertices[VT_IN,VT_OUT,ET](
         ET number_of_edges,

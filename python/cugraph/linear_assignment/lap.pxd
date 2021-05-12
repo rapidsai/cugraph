@@ -18,7 +18,7 @@
 
 from cugraph.structure.graph_primtypes cimport *
 
-cdef extern from "algorithms.hpp" namespace "cugraph":
+cdef extern from "cugraph/algorithms.hpp" namespace "cugraph":
 
     cdef weight_t hungarian[vertex_t,edge_t,weight_t](
         const handle_t &handle,
@@ -28,7 +28,7 @@ cdef extern from "algorithms.hpp" namespace "cugraph":
         vertex_t *assignment) except +
 
 
-cdef extern from "algorithms.hpp":
+cdef extern from "cugraph/algorithms.hpp":
 
     cdef weight_t dense_hungarian "cugraph::dense::hungarian" [vertex_t,weight_t](
         const handle_t &handle,

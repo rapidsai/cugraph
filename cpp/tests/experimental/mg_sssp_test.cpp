@@ -19,11 +19,11 @@
 #include <utilities/test_utilities.hpp>
 #include <utilities/thrust_wrapper.hpp>
 
-#include <algorithms.hpp>
-#include <experimental/graph.hpp>
-#include <experimental/graph_functions.hpp>
-#include <experimental/graph_view.hpp>
-#include <partition_manager.hpp>
+#include <cugraph/algorithms.hpp>
+#include <cugraph/experimental/graph.hpp>
+#include <cugraph/experimental/graph_functions.hpp>
+#include <cugraph/experimental/graph_view.hpp>
+#include <cugraph/partition_manager.hpp>
 
 #include <raft/comms/comms.hpp>
 #include <raft/comms/mpi_comms.hpp>

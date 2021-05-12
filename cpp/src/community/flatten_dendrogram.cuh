@@ -15,8 +15,8 @@
  */
 #pragma once
 
-#include <dendrogram.hpp>
-#include <experimental/graph_functions.hpp>
+#include <cugraph/dendrogram.hpp>
+#include <cugraph/experimental/graph_functions.hpp>
 
 #include <rmm/thrust_rmm_allocator.h>
 #include <raft/handle.hpp>

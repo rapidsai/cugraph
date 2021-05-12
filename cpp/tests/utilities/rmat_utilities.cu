@@ -16,11 +16,11 @@
 
 #include <utilities/test_utilities.hpp>
 
-#include <experimental/detail/graph_utils.cuh>
-#include <experimental/graph_generator.hpp>
-#include <partition_manager.hpp>
-#include <utilities/error.hpp>
-#include <utilities/shuffle_comm.cuh>
+#include <cugraph/experimental/detail/graph_utils.cuh>
+#include <cugraph/experimental/graph_generator.hpp>
+#include <cugraph/partition_manager.hpp>
+#include <cugraph/utilities/error.hpp>
+#include <cugraph/utilities/shuffle_comm.cuh>
 
 #include <rmm/thrust_rmm_allocator.h>
 #include <raft/random/rng.cuh>
