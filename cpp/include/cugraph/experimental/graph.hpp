@@ -157,6 +157,27 @@ class graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu, std::enab
   }
 
  private:
+  friend class cugraph::serializer::serializer;
+
+  // cnstr. to be used _only_ for un/serialization purposes:
+  //
+  graph_t(raft::handle_t const &handle,
+          vertex_t number_of_vertices,
+          edge_t number_of_edges,
+          graph_properties_t properties,
+          rmm::device_uvector<edge_t> &&offsets,
+          rmm::device_uvector<vertex_t> &&indices,
+          rmm::device_uvector<weight_t> &&weights,
+          std::vector<vertex_t> &&segment_offsets)
+    : detail::graph_base_t<vertex_t, edge_t, weight_t>(
+        handle, number_of_vertices, number_of_edges, properties),
+      offsets_(std::move(offsets)),
+      indices_(std::move(indices)),
+      weights_(std::move(weights)),
+      segment_offsets_(std::move(segment_offsets))
+  {
+  }
+
   rmm::device_uvector<edge_t> offsets_;
   rmm::device_uvector<vertex_t> indices_;
   rmm::device_uvector<weight_t> weights_;

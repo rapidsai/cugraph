@@ -88,6 +88,40 @@ serializer::graph_meta_t<graph_t> serializer::serialize(graph_t const& graph)
   }
 }
 
+template <typename graph_t>
+graph_t serializer::unserialize(serializer::graph_meta_t<graph_t> const& gvmeta)
+{
+  using vertex_t = typename graph_t::vertex_type;
+  using edge_t   = typename graph_t::edge_type;
+  using weight_t = typename graph_t::weight_type;
+
+  if constexpr (!graph_t::is_multi_gpu) {
+    vertex_t num_vertices = gvmeta.num_vertices_;
+    edge_t num_edges      = gvmeta.num_edges_;
+    auto g_props          = gvmeta.properties_;
+    auto seg_offsets      = gvmeta.segment_offsets_;
+
+    auto d_offsets = unserialize<edge_t>(num_vertices + 1);
+    auto d_indices = unserialize<vertex_t>(num_edges);
+    auto d_weights = unserialize<weight_t>(num_edges);
+
+    return  // std::make_unique<
+      graph_t(handle_,
+              num_vertices,
+              num_edges,
+              g_props,
+              std::move(d_offsets),
+              std::move(d_indices),
+              std::move(d_weights),
+              std::move(seg_offsets));  // RVO-ed
+
+  } else {
+    CUGRAPH_FAIL("Unsupported graph_view type for unserialization.");
+
+    return graph_t{handle_};
+  }
+}
+
 // Manual template instantiations (EIDir's):
 //
 template void serializer::serialize(int32_t const* p_d_src, size_t size);
@@ -100,6 +134,8 @@ template rmm::device_uvector<int64_t> serializer::unserialize(size_t size);
 template rmm::device_uvector<float> serializer::unserialize(size_t size);
 template rmm::device_uvector<double> serializer::unserialize(size_t size);
 
+// serialize graph:
+//
 template serializer::graph_meta_t<graph_t<int32_t, int32_t, float, false, false>>
 serializer::serialize(graph_t<int32_t, int32_t, float, false, false> const& graph);
 
@@ -117,6 +153,26 @@ serializer::serialize(graph_t<int32_t, int64_t, double, false, false> const& gra
 
 template serializer::graph_meta_t<graph_t<int64_t, int64_t, double, false, false>>
 serializer::serialize(graph_t<int64_t, int64_t, double, false, false> const& graph);
+
+// unserialize graph:
+//
+template graph_t<int32_t, int32_t, float, false, false> serializer::unserialize(
+  serializer::graph_meta_t<graph_t<int32_t, int32_t, float, false, false>> const& gvmeta);
+
+template graph_t<int32_t, int64_t, float, false, false> serializer::unserialize(
+  serializer::graph_meta_t<graph_t<int32_t, int64_t, float, false, false>> const& gvmeta);
+
+template graph_t<int64_t, int64_t, float, false, false> serializer::unserialize(
+  serializer::graph_meta_t<graph_t<int64_t, int64_t, float, false, false>> const& gvmeta);
+
+template graph_t<int32_t, int32_t, double, false, false> serializer::unserialize(
+  serializer::graph_meta_t<graph_t<int32_t, int32_t, double, false, false>> const& gvmeta);
+
+template graph_t<int32_t, int64_t, double, false, false> serializer::unserialize(
+  serializer::graph_meta_t<graph_t<int32_t, int64_t, double, false, false>> const& gvmeta);
+
+template graph_t<int64_t, int64_t, double, false, false> serializer::unserialize(
+  serializer::graph_meta_t<graph_t<int64_t, int64_t, double, false, false>> const& gvmeta);
 
 }  // namespace serializer
 }  // namespace cugraph

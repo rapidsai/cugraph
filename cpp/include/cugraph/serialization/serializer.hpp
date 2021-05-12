@@ -49,13 +49,6 @@ class serializer {
   {
   }
 
-  // cnstr. for unserialize() path:
-  //
-  serializer(raft::handle_t const& handle, byte_t const* ptr_d_storage)
-    : handle_(handle), d_storage_(0, handle.get_stream()), cbegin_(ptr_d_storage)
-  {
-  }
-
   template <typename graph_t, typename Enable = void>
   struct graph_meta_t;
 
@@ -99,7 +92,7 @@ class serializer {
   // (associated with target; e.g., num_vertices, etc.)
   //
   template <typename graph_t>
-  std::unique_ptr<graph_t> unserialize(graph_meta_t<graph_t> const& meta);
+  graph_t unserialize(graph_meta_t<graph_t> const& meta);
 
  private:
   raft::handle_t const& handle_;
