@@ -17,9 +17,9 @@
 // Author: Prasun Gera pgera@nvidia.com
 
 #include <algorithm>
-#include <utilities/error.hpp>
+#include <cugraph/utilities/error.hpp>
 
-#include "graph.hpp"
+#include <cugraph/graph.hpp>
 
 #include "sssp.cuh"
 #include "sssp_kernels.cuh"

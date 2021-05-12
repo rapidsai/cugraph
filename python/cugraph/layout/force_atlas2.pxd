@@ -1,4 +1,4 @@
-# Copyright (c) 2020, NVIDIA CORPORATION.
+# Copyright (c) 2020-2021, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -19,10 +19,10 @@
 from cugraph.structure.graph_primtypes cimport *
 from libcpp cimport bool
 
-cdef extern from "internals.hpp" namespace "cugraph::internals":
+cdef extern from "cugraph/internals.hpp" namespace "cugraph::internals":
     cdef cppclass GraphBasedDimRedCallback
 
-cdef extern from "algorithms.hpp" namespace "cugraph":
+cdef extern from "cugraph/algorithms.hpp" namespace "cugraph":
 
     cdef void force_atlas2[vertex_t, edge_t, weight_t](
         GraphCOOView[vertex_t, edge_t, weight_t] &graph,

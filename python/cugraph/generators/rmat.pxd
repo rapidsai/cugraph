@@ -14,13 +14,13 @@ from libcpp cimport bool
 from cugraph.structure.graph_utilities cimport *
 from libcpp.vector cimport vector
 
-cdef extern from "experimental/graph_generator.hpp" namespace "cugraph::experimental":
+cdef extern from "cugraph/experimental/graph_generator.hpp" namespace "cugraph::experimental":
     ctypedef enum generator_distribution_t:
         POWER_LAW "cugraph::experimental::generator_distribution_t::POWER_LAW"
         UNIFORM "cugraph::experimental::generator_distribution_t::UNIFORM"
 
 
-cdef extern from "utilities/cython.hpp" namespace "cugraph::cython":
+cdef extern from "cugraph/utilities/cython.hpp" namespace "cugraph::cython":
     cdef unique_ptr[graph_generator_t] call_generate_rmat_edgelist[vertex_t] (
         const handle_t &handle,
         size_t scale,

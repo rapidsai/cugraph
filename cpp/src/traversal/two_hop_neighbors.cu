@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019-2020, NVIDIA CORPORATION.
+ * Copyright (c) 2019-2021, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -20,9 +20,9 @@
  * ---------------------------------------------------------------------------**/
 
 #include <rmm/thrust_rmm_allocator.h>
-#include <algorithms.hpp>
-#include <graph.hpp>
-#include <utilities/error.hpp>
+#include <cugraph/algorithms.hpp>
+#include <cugraph/graph.hpp>
+#include <cugraph/utilities/error.hpp>
 #include "two_hop_neighbors.cuh"
 
 #include <thrust/execution_policy.h>

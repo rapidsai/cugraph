@@ -13,21 +13,23 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-#include <experimental/graph_generator.hpp>
-//#include <experimental/generate_rmat_edgelist.cu>
-#include <algorithms.hpp>
-#include <experimental/detail/graph_utils.cuh>
-#include <experimental/graph_functions.hpp>
-#include <experimental/graph_view.hpp>
-#include <graph.hpp>
-#include <partition_manager.hpp>
-#include <utilities/cython.hpp>
-#include <utilities/error.hpp>
-#include <utilities/path_retrieval.hpp>
-#include <utilities/shuffle_comm.cuh>
+
+#include <cugraph/algorithms.hpp>
+#include <cugraph/experimental/detail/graph_utils.cuh>
+#include <cugraph/experimental/graph_functions.hpp>
+#include <cugraph/experimental/graph_generator.hpp>
+#include <cugraph/experimental/graph_view.hpp>
+#include <cugraph/graph.hpp>
+#include <cugraph/partition_manager.hpp>
+#include <cugraph/utilities/cython.hpp>
+#include <cugraph/utilities/error.hpp>
+#include <cugraph/utilities/graph_traits.hpp>
+#include <cugraph/utilities/path_retrieval.hpp>
+#include <cugraph/utilities/shuffle_comm.cuh>
+
+#include <raft/handle.hpp>
 
 #include <rmm/thrust_rmm_allocator.h>
-#include <raft/handle.hpp>
 #include <rmm/device_uvector.hpp>
 
 #include <thrust/copy.h>

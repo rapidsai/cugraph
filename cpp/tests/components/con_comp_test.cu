@@ -18,9 +18,9 @@
 
 #include <cuda_profiler_api.h>
 
-#include <algorithms.hpp>
 #include <converters/COOtoCSR.cuh>
-#include <graph.hpp>
+#include <cugraph/algorithms.hpp>
+#include <cugraph/graph.hpp>
 
 #include <algorithm>
 #include <iterator>

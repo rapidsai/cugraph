@@ -18,8 +18,8 @@
 #include <utilities/high_res_timer.hpp>
 #include <utilities/test_utilities.hpp>
 
-#include <algorithms.hpp>
-#include <graph.hpp>
+#include <cugraph/algorithms.hpp>
+#include <cugraph/graph.hpp>
 #include <sampling/random_walks.cuh>
 
 #include <raft/handle.hpp>
