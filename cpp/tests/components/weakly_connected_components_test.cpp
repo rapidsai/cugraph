@@ -85,13 +85,14 @@ void weakly_connected_components_reference(edge_t const* offsets,
   return;
 }
 
-struct WeaklyConnectedComponent_Usecase {
+struct WeaklyConnectedComponents_Usecase {
   bool check_correctness{true};
 };
 
 template <typename input_usecase_t>
 class Tests_WeaklyConnectedComponent
-  : public ::testing::TestWithParam<std::tuple<WeaklyConnectedComponent_Usecase, input_usecase_t>> {
+  : public ::testing::TestWithParam<
+      std::tuple<WeaklyConnectedComponents_Usecase, input_usecase_t>> {
  public:
   Tests_WeaklyConnectedComponent() {}
   static void SetupTestCase() {}
@@ -101,8 +102,9 @@ class Tests_WeaklyConnectedComponent
   virtual void TearDown() {}
 
   template <typename vertex_t, typename edge_t>
-  void run_current_test(WeaklyConnectedComponent_Usecase const& weakly_connected_components_usecase,
-                        input_usecase_t const& input_usecase)
+  void run_current_test(
+    WeaklyConnectedComponents_Usecase const& weakly_connected_components_usecase,
+    input_usecase_t const& input_usecase)
   {
     constexpr bool renumber = true;
 
@@ -147,7 +149,7 @@ class Tests_WeaklyConnectedComponent
       CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
       double elapsed_time{0.0};
       hr_clock.stop(&elapsed_time);
-      std::cout << "Weakly connected components took " << elapsed_time * 1e-6 << " s.\n";
+      std::cout << "weakly_connected_components took " << elapsed_time * 1e-6 << " s.\n";
     }
 
     if (weakly_connected_components_usecase.check_correctness) {
@@ -214,13 +216,13 @@ class Tests_WeaklyConnectedComponent
   }
 };
 
-using Tests_WeaklyConnectedComponent_File =
+using Tests_WeaklyConnectedComponents_File =
   Tests_WeaklyConnectedComponent<cugraph::test::File_Usecase>;
-using Tests_WeaklyConnectedComponent_Rmat =
+using Tests_WeaklyConnectedComponents_Rmat =
   Tests_WeaklyConnectedComponent<cugraph::test::Rmat_Usecase>;
 
 // FIXME: add tests for type combinations
-TEST_P(Tests_WeaklyConnectedComponent_File, CheckInt32Int32)
+TEST_P(Tests_WeaklyConnectedComponents_File, CheckInt32Int32)
 {
   auto param = GetParam();
   run_current_test<int32_t, int32_t>(std::get<0>(param), std::get<1>(param));
@@ -228,14 +230,14 @@ TEST_P(Tests_WeaklyConnectedComponent_File, CheckInt32Int32)
 
 INSTANTIATE_TEST_SUITE_P(
   file_test,
-  Tests_WeaklyConnectedComponent_File,
+  Tests_WeaklyConnectedComponents_File,
   ::testing::Values(
     // enable correctness checks
-    std::make_tuple(WeaklyConnectedComponent_Usecase{},
+    std::make_tuple(WeaklyConnectedComponents_Usecase{},
                     cugraph::test::File_Usecase("test/datasets/karate.mtx")),
-    std::make_tuple(WeaklyConnectedComponent_Usecase{},
+    std::make_tuple(WeaklyConnectedComponents_Usecase{},
                     cugraph::test::File_Usecase("test/datasets/polbooks.mtx")),
-    std::make_tuple(WeaklyConnectedComponent_Usecase{},
+    std::make_tuple(WeaklyConnectedComponents_Usecase{},
                     cugraph::test::File_Usecase("test/datasets/netscience.mtx"))));
 
 CUGRAPH_TEST_PROGRAM_MAIN()
