@@ -56,19 +56,20 @@ rmm::device_uvector<value_t> serializer::unserialize(size_t size)
   return d_dest;
 }
 
-template <typename graph_view_t>
-serializer::graph_meta_t<graph_view_t> serializer::serialize(graph_view_t const& gview)
+template <typename graph_t>
+serializer::graph_meta_t<graph_t> serializer::serialize(graph_t const& graph)
 {
-  using vertex_t = typename graph_view_t::vertex_type;
-  using edge_t   = typename graph_view_t::edge_type;
-  using weight_t = typename graph_view_t::weight_type;
+  using vertex_t = typename graph_t::vertex_type;
+  using edge_t   = typename graph_t::edge_type;
+  using weight_t = typename graph_t::weight_type;
 
-  if constexpr (!graph_view_t::is_multi_gpu) {
-    size_t num_vertices = gview.get_number_of_vertices();
-    size_t num_edges    = gview.get_number_of_edges();
-    auto g_props        = gview.get_graph_properties();
+  if constexpr (!graph_t::is_multi_gpu) {
+    size_t num_vertices = graph.get_number_of_vertices();
+    size_t num_edges    = graph.get_number_of_edges();
+    auto g_props        = graph.get_graph_properties();
+    auto&& gview        = graph.view();
     auto seg_offsets    = gview.get_local_adj_matrix_partition_segment_offsets(0);
-    graph_meta_t<graph_view_t> gvmeta{num_vertices, num_edges, g_props, seg_offsets};
+    graph_meta_t<graph_t> gvmeta{num_vertices, num_edges, g_props, seg_offsets};
 
     edge_t const* offsets   = gview.offsets();
     vertex_t const* indices = gview.indices();
@@ -83,7 +84,7 @@ serializer::graph_meta_t<graph_view_t> serializer::serialize(graph_view_t const&
   } else {
     CUGRAPH_FAIL("Unsupported graph_view type for serialization.");
 
-    return graph_meta_t<graph_view_t>{};
+    return graph_meta_t<graph_t>{};
   }
 }
 
@@ -99,23 +100,23 @@ template rmm::device_uvector<int64_t> serializer::unserialize(size_t size);
 template rmm::device_uvector<float> serializer::unserialize(size_t size);
 template rmm::device_uvector<double> serializer::unserialize(size_t size);
 
-template serializer::graph_meta_t<graph_view_t<int32_t, int32_t, float, false, false>>
-serializer::serialize(graph_view_t<int32_t, int32_t, float, false, false> const& gview);
+template serializer::graph_meta_t<graph_t<int32_t, int32_t, float, false, false>>
+serializer::serialize(graph_t<int32_t, int32_t, float, false, false> const& graph);
 
-template serializer::graph_meta_t<graph_view_t<int32_t, int64_t, float, false, false>>
-serializer::serialize(graph_view_t<int32_t, int64_t, float, false, false> const& gview);
+template serializer::graph_meta_t<graph_t<int32_t, int64_t, float, false, false>>
+serializer::serialize(graph_t<int32_t, int64_t, float, false, false> const& graph);
 
-template serializer::graph_meta_t<graph_view_t<int64_t, int64_t, float, false, false>>
-serializer::serialize(graph_view_t<int64_t, int64_t, float, false, false> const& gview);
+template serializer::graph_meta_t<graph_t<int64_t, int64_t, float, false, false>>
+serializer::serialize(graph_t<int64_t, int64_t, float, false, false> const& graph);
 
-template serializer::graph_meta_t<graph_view_t<int32_t, int32_t, double, false, false>>
-serializer::serialize(graph_view_t<int32_t, int32_t, double, false, false> const& gview);
+template serializer::graph_meta_t<graph_t<int32_t, int32_t, double, false, false>>
+serializer::serialize(graph_t<int32_t, int32_t, double, false, false> const& graph);
 
-template serializer::graph_meta_t<graph_view_t<int32_t, int64_t, double, false, false>>
-serializer::serialize(graph_view_t<int32_t, int64_t, double, false, false> const& gview);
+template serializer::graph_meta_t<graph_t<int32_t, int64_t, double, false, false>>
+serializer::serialize(graph_t<int32_t, int64_t, double, false, false> const& graph);
 
-template serializer::graph_meta_t<graph_view_t<int64_t, int64_t, double, false, false>>
-serializer::serialize(graph_view_t<int64_t, int64_t, double, false, false> const& gview);
+template serializer::graph_meta_t<graph_t<int64_t, int64_t, double, false, false>>
+serializer::serialize(graph_t<int64_t, int64_t, double, false, false> const& graph);
 
 }  // namespace serializer
 }  // namespace cugraph

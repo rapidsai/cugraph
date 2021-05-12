@@ -42,7 +42,10 @@ class serializer {
   // cnstr. for serialize() path:
   //
   serializer(raft::handle_t const& handle, size_t total_sz_bytes)
-    : handle_(handle), d_storage_(total_sz_bytes, handle.get_stream()), begin_(d_storage_.begin())
+    : handle_(handle),
+      d_storage_(total_sz_bytes, handle.get_stream()),
+      begin_(d_storage_.begin()),
+      cbegin_(d_storage_.begin())
   {
   }
 
@@ -53,18 +56,18 @@ class serializer {
   {
   }
 
-  template <typename graph_view_t, typename Enable = void>
+  template <typename graph_t, typename Enable = void>
   struct graph_meta_t;
 
-  template <typename graph_view_t>
-  struct graph_meta_t<graph_view_t, std::enable_if_t<graph_view_t::is_multi_gpu>> {
+  template <typename graph_t>
+  struct graph_meta_t<graph_t, std::enable_if_t<graph_t::is_multi_gpu>> {
     // purposely empty, for now;
     // FIXME: provide implementation for multi-gpu version
   };
 
-  template <typename graph_view_t>
-  struct graph_meta_t<graph_view_t, std::enable_if_t<!graph_view_t::is_multi_gpu>> {
-    using vertex_t = typename graph_view_t::vertex_type;
+  template <typename graph_t>
+  struct graph_meta_t<graph_t, std::enable_if_t<!graph_t::is_multi_gpu>> {
+    using vertex_t = typename graph_t::vertex_type;
 
     size_t num_vertices_;
     size_t num_edges_;
@@ -84,23 +87,19 @@ class serializer {
   rmm::device_uvector<value_t> unserialize(
     size_t size);  // size of device vector to be unserialized
 
-  // more complex object (e.g., graph_view) serialization,
+  // more complex object (e.g., graph) serialization,
   // with device storage and host metadata:
   // (associated with target; e.g., num_vertices, etc.)
   //
-  template <typename graph_view_t>
-  graph_meta_t<graph_view_t> serialize(graph_view_t const& gview);  // serialization target
+  template <typename graph_t>
+  graph_meta_t<graph_t> serialize(graph_t const& gview);  // serialization target
 
-  // more complex object (e.g., graph_view) unserialization,
+  // more complex object (e.g., graph) unserialization,
   // with device storage and host metadata:
   // (associated with target; e.g., num_vertices, etc.)
   //
-  template <typename graph_view_t, typename metadata_t>
-  std::unique_ptr<graph_view_t> unserialize(
-    raft::handle_t const& handle,
-    device_byte_it it_dev_src,  // unserialization src
-    metadata_t const& meta)     // associated with target; e.g., num_vertices, etc.
-    const;
+  template <typename graph_t>
+  std::unique_ptr<graph_t> unserialize(graph_meta_t<graph_t> const& meta);
 
  private:
   raft::handle_t const& handle_;
