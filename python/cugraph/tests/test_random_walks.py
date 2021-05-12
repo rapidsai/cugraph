@@ -29,11 +29,10 @@ DATASETS = [pytest.param(d) for d in utils.DATASETS]
 DATASETS_SMALL = [pytest.param(d) for d in utils.DATASETS_SMALL]
 
 
-def calc_random_walks(
-    graph_file,
-    directed=False,
-    max_depth=None,
-    use_padding=False):
+def calc_random_walks(graph_file,
+                      directed=False,
+                      max_depth=None,
+                      use_padding=False):
     """
     compute random walks for each nodes in 'start_vertices'
 
@@ -69,7 +68,8 @@ def calc_random_walks(
 
     k = random.randint(1, 10)
     start_vertices = random.sample(range(G.number_of_vertices()), k)
-    vertex_paths, edge_weights, vertex_path_sizes = cugraph.random_walks(G, start_vertices, max_depth, use_padding)
+    vertex_paths, edge_weights, vertex_path_sizes = cugraph.random_walks(
+            G, start_vertices, max_depth, use_padding)
 
     return (vertex_paths, edge_weights, vertex_path_sizes), start_vertices
 
@@ -83,7 +83,7 @@ def check_random_walks(path_data, seeds, df_G=None):
     sizes = path_data[2].to_array().tolist()
 
     for s in sizes:
-        for i in range(next_path_idx, next_path_idx+s-1): 
+        for i in range(next_path_idx, next_path_idx+s-1):
             src, dst = v_paths.iloc[i],  v_paths.iloc[i+1]
             if i == next_path_idx and src != seeds[offsets_idx]:
                 invalid_seeds += 1
@@ -99,13 +99,13 @@ def check_random_walks(path_data, seeds, df_G=None):
             (df_G['src'] == (src)) & (
                 df_G['dst'] == (dst))].reset_index(drop=True)
 
-        if not (exp_edge['src'].iloc[0], exp_edge['dst'].iloc[0]) == (src, dst):
+        if not (exp_edge['src'].loc[0], exp_edge['dst'].loc[0]) == (src, dst):
             print(
                     "[ERR] Invalid edge: "
                     "There is no edge src {} dst {}"
                     .format(src, dst)
                 )
-            invalid_weight += 1
+            invalid_edge += 1
 
     assert invalid_edge == 0
     assert invalid_seeds == 0
@@ -122,11 +122,9 @@ def prepare_test():
 @pytest.mark.parametrize("graph_file", utils.DATASETS_SMALL)
 @pytest.mark.parametrize("directed", DIRECTED_GRAPH_OPTIONS)
 @pytest.mark.parametrize("max_depth", [None])
-def test_random_walks_invalid_max_dept(
-    graph_file,
-    directed,
-    max_depth
-):
+def test_random_walks_invalid_max_dept(graph_file,
+                                       directed,
+                                       max_depth):
     prepare_test()
     with pytest.raises(TypeError):
         df, offsets, seeds = calc_random_walks(

@@ -14,16 +14,12 @@
 import cudf
 from cugraph.sampling import random_walks_wrapper
 import cugraph
-from collections import defaultdict
-
-# FIXME might be more efficient to return either (df + offset) or 3 cudf.Series
 
 
-def random_walks(
-    G,
-    start_vertices,
-    max_depth=None,
-    use_padding = False):
+def random_walks(G,
+                 start_vertices,
+                 max_depth=None,
+                 use_padding=False):
     """
     compute random walks for each nodes in 'start_vertices'
 
@@ -83,7 +79,7 @@ def random_walks(
         vertex_set = cudf.Series(df_['vertex_set'])
 
     if use_padding:
-        edge_set_sz = (max_depth-1)*len(start_vertices) 
+        edge_set_sz = (max_depth-1)*len(start_vertices)
         return vertex_set, edge_set[:edge_set_sz], sizes
 
     vertex_set_sz = sizes.sum()

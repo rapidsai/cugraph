@@ -538,12 +538,12 @@ call_random_walks(raft::handle_t const& handle,
                   vertex_t const* ptr_start_set,
                   edge_t num_paths,
                   edge_t max_depth,
-		  bool use_padding);
+                  bool use_padding);
 
 template <typename index_t>
 std::unique_ptr<random_walk_path_t> call_rw_paths(raft::handle_t const& handle,
-		                                  index_t num_paths,
-						  index_t const* vertex_path_sizes);
+                                                  index_t num_paths,
+                                                  index_t const* vertex_path_sizes);
 
 // convertor from random_walks return type to COO:
 //
