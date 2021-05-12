@@ -19,7 +19,7 @@
 #include <utilities/base_fixture.hpp>
 #include <utilities/test_utilities.hpp>
 
-#include <algorithms.hpp>
+#include <cugraph/algorithms.hpp>
 
 #include <rmm/thrust_rmm_allocator.h>
 

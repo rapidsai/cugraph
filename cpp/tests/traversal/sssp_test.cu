@@ -13,9 +13,9 @@
 #include <utilities/base_fixture.hpp>
 #include <utilities/test_utilities.hpp>
 
-#include <algorithms.hpp>
 #include <converters/COOtoCSR.cuh>
-#include <graph.hpp>
+#include <cugraph/algorithms.hpp>
+#include <cugraph/graph.hpp>
 
 #include <thrust/fill.h>
 

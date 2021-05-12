@@ -14,11 +14,11 @@
  * limitations under the License.
  */
 
-#include <experimental/detail/graph_utils.cuh>
-#include <experimental/graph.hpp>
-#include <partition_manager.hpp>
-#include <utilities/error.hpp>
-#include <utilities/host_scalar_comm.cuh>
+#include <cugraph/experimental/detail/graph_utils.cuh>
+#include <cugraph/experimental/graph.hpp>
+#include <cugraph/partition_manager.hpp>
+#include <cugraph/utilities/error.hpp>
+#include <cugraph/utilities/host_scalar_comm.cuh>
 
 #include <rmm/thrust_rmm_allocator.h>
 #include <raft/device_atomics.cuh>
@@ -516,4 +516,4 @@ template class graph_t<int64_t, int64_t, double, false, false>;
 }  // namespace experimental
 }  // namespace cugraph
 
-#include <experimental/eidir_graph.hpp>
+#include <cugraph/experimental/eidir_graph.hpp>

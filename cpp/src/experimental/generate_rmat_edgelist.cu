@@ -16,8 +16,8 @@
 
 #include <experimental/scramble.cuh>
 
-#include <experimental/graph_generator.hpp>
-#include <utilities/error.hpp>
+#include <cugraph/experimental/graph_generator.hpp>
+#include <cugraph/utilities/error.hpp>
 
 #include <rmm/thrust_rmm_allocator.h>
 #include <raft/handle.hpp>

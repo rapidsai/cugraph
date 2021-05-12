@@ -16,7 +16,7 @@
 
 #pragma once
 
-#include <algorithms.hpp>
+#include <cugraph/algorithms.hpp>
 
 #include <raft/cudart_utils.h>
 #include <raft/handle.hpp>
