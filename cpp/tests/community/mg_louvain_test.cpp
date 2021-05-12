@@ -17,6 +17,7 @@
 #include "mg_louvain_helper.hpp"
 
 #include <utilities/base_fixture.hpp>
+#include <utilities/device_comm_wrapper.hpp>
 #include <utilities/test_utilities.hpp>
 
 #include <cugraph/algorithms.hpp>
@@ -144,7 +145,7 @@ class Louvain_MG_Testfixture : public ::testing::TestWithParam<Louvain_Usecase> 
       thrust::make_counting_iterator<size_t>(dendrogram.num_levels()),
       [&dendrogram, &sg_graph, &d_clustering_v, &sg_modularity, &handle, resolution, rank](
         size_t i) {
-        auto d_dendrogram_gathered_v = cugraph::test::gather_distributed_vector(
+        auto d_dendrogram_gathered_v = cugraph::test::device_gatherv(
           handle, dendrogram.get_level_ptr_nocheck(i), dendrogram.get_level_size_nocheck(i));
 
         if (rank == 0) {
@@ -207,7 +208,7 @@ class Louvain_MG_Testfixture : public ::testing::TestWithParam<Louvain_Usecase> 
 
     SCOPED_TRACE("compare modularity input: " + param.graph_file_full_path);
 
-    auto d_renumber_map_gathered_v = cugraph::test::gather_distributed_vector(
+    auto d_renumber_map_gathered_v = cugraph::test::device_gatherv(
       handle, d_renumber_map_labels.data(), d_renumber_map_labels.size());
 
     compare_sg_results<vertex_t, edge_t, weight_t>(handle,
