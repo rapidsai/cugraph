@@ -23,8 +23,8 @@
 #include <rmm/thrust_rmm_allocator.h>
 #include <thrust/random.h>
 
-#include <algorithms.hpp>
-#include <graph.hpp>
+#include <cugraph/algorithms.hpp>
+#include <cugraph/graph.hpp>
 #include <sampling/random_walks.cuh>
 
 #include <raft/handle.hpp>

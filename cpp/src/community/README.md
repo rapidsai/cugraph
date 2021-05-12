@@ -31,7 +31,7 @@ The API itself is very simple.  There are two variations:
 The example assumes that you create an SG or MG graph somehow.  The caller must create the clustering vector in device memory and pass in the raw pointer to that vector into the louvain function.
 
 ```cpp
-#include <algorithms.hpp>
+#include <cugraph/algorithms.hpp>
 ...
 using vertex_t = int32_t;       // or int64_t, whichever is appropriate
 using weight_t = float;         // or double, whichever is appropriate
@@ -54,7 +54,7 @@ std::tie(level, modularity) = cugraph::louvain(handle, graph_view, clustering_v.
 The Dendrogram represents the levels of hierarchical clustering that the Louvain algorithm computes.  There is a separate function that will flatten the clustering into the same result as above.  Returning the Dendrogram, however, provides a finer level of detail on the intermediate results which can be helpful in more fully understanding the data.
 
 ```cpp
-#include <algorithms.hpp>
+#include <cugraph/algorithms.hpp>
 ...
 using vertex_t = int32_t;       // or int64_t, whichever is appropriate
 using weight_t = float;         // or double, whichever is appropriate

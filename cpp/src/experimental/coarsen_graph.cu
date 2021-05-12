@@ -14,14 +14,14 @@
  * limitations under the License.
  */
 
-#include <experimental/detail/graph_utils.cuh>
-#include <experimental/graph.hpp>
-#include <experimental/graph_functions.hpp>
-#include <experimental/graph_view.hpp>
-#include <patterns/copy_to_adj_matrix_row_col.cuh>
-#include <utilities/error.hpp>
-#include <utilities/host_barrier.hpp>
-#include <utilities/shuffle_comm.cuh>
+#include <cugraph/experimental/detail/graph_utils.cuh>
+#include <cugraph/experimental/graph.hpp>
+#include <cugraph/experimental/graph_functions.hpp>
+#include <cugraph/experimental/graph_view.hpp>
+#include <cugraph/patterns/copy_to_adj_matrix_row_col.cuh>
+#include <cugraph/utilities/error.hpp>
+#include <cugraph/utilities/host_barrier.hpp>
+#include <cugraph/utilities/shuffle_comm.cuh>
 
 #include <rmm/thrust_rmm_allocator.h>
 #include <raft/handle.hpp>

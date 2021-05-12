@@ -16,11 +16,11 @@
 
 #include <utilities/test_utilities.hpp>
 
-#include <experimental/detail/graph_utils.cuh>
-#include <experimental/graph_functions.hpp>
-#include <functions.hpp>
-#include <partition_manager.hpp>
-#include <utilities/error.hpp>
+#include <cugraph/experimental/detail/graph_utils.cuh>
+#include <cugraph/experimental/graph_functions.hpp>
+#include <cugraph/functions.hpp>
+#include <cugraph/partition_manager.hpp>
+#include <cugraph/utilities/error.hpp>
 
 #include <raft/cudart_utils.h>
 #include <rmm/thrust_rmm_allocator.h>

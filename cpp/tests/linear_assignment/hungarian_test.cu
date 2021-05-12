@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020, NVIDIA CORPORATION.  All rights reserved.
+ * Copyright (c) 2020-2021, NVIDIA CORPORATION.  All rights reserved.
  *
  * NVIDIA CORPORATION and its licensors retain all intellectual property
  * and proprietary rights in and to this software, related documentation
@@ -15,8 +15,8 @@
 #include <rmm/thrust_rmm_allocator.h>
 #include <thrust/random.h>
 
-#include <algorithms.hpp>
-#include <graph.hpp>
+#include <cugraph/algorithms.hpp>
+#include <cugraph/graph.hpp>
 
 #include <raft/handle.hpp>
 
@@ -261,7 +261,7 @@ void random_test(int32_t num_rows, int32_t num_cols, int32_t upper_bound, int re
   int32_t *d_data = data_v.data().get();
   //int64_t seed{85};
   int64_t seed{time(nullptr)};
-  
+
   thrust::for_each(rmm::exec_policy(stream)->on(stream),
                    thrust::make_counting_iterator<int32_t>(0),
                    thrust::make_counting_iterator<int32_t>(num_rows * num_cols),
@@ -287,8 +287,8 @@ void random_test(int32_t num_rows, int32_t num_cols, int32_t upper_bound, int re
   std::cout << "cost = " << r << std::endl;
   hr_timer.display(std::cout);
 
-  
-  for (int i = 0 ; i < num_cols ; ++i) 
+
+  for (int i = 0 ; i < num_cols ; ++i)
     validate[i] = 0;
 
   int32_t assignment_out_of_range{0};
@@ -303,8 +303,8 @@ void random_test(int32_t num_rows, int32_t num_cols, int32_t upper_bound, int re
 
   EXPECT_EQ(assignment_out_of_range, 0);
 
-  int32_t assignment_missed = 0; 
-  
+  int32_t assignment_missed = 0;
+
   for (int32_t i = 0 ; i < num_cols ; ++i) {
     if (validate[i] != 1) {
       ++assignment_missed;
