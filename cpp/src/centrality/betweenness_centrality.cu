@@ -20,10 +20,10 @@
 
 #include <raft/cudart_utils.h>
 
-#include <algorithms.hpp>
-#include <graph.hpp>
+#include <cugraph/algorithms.hpp>
+#include <cugraph/graph.hpp>
+#include <cugraph/utilities/error.hpp>
 #include <rmm/device_scalar.hpp>
-#include <utilities/error.hpp>
 
 #include <raft/handle.hpp>
 #include "betweenness_centrality.cuh"

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020, NVIDIA CORPORATION.
+ * Copyright (c) 2020-2021, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -20,7 +20,7 @@
  * @file mst.cu
  * ---------------------------------------------------------------------------**/
 
-#include <algorithms.hpp>
+#include <cugraph/algorithms.hpp>
 #include <memory>
 #include <utility>
 
@@ -28,8 +28,8 @@
 #include <thrust/transform.h>
 #include <ctime>
 
-#include <graph.hpp>
-#include <utilities/error.hpp>
+#include <cugraph/graph.hpp>
+#include <cugraph/utilities/error.hpp>
 
 #include <raft/sparse/mst/mst.cuh>
 

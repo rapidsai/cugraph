@@ -14,9 +14,9 @@
  * limitations under the License.
  */
 
-#include <algorithms.hpp>
-#include <graph.hpp>
-#include <utilities/error.hpp>
+#include <cugraph/algorithms.hpp>
+#include <cugraph/graph.hpp>
+#include <cugraph/utilities/error.hpp>
 
 #include <rmm/thrust_rmm_allocator.h>
 #include <raft/device_atomics.cuh>

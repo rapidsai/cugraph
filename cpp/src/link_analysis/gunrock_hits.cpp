@@ -19,10 +19,10 @@
  * @brief wrapper calling gunrock's HITS analytic
  * --------------------------------------------------------------------------*/
 
-#include <algorithms.hpp>
-#include <graph.hpp>
+#include <cugraph/algorithms.hpp>
+#include <cugraph/graph.hpp>
 
-#include <utilities/error.hpp>
+#include <cugraph/utilities/error.hpp>
 
 #include <gunrock/gunrock.h>
 

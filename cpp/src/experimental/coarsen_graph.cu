@@ -14,14 +14,14 @@
  * limitations under the License.
  */
 
-#include <experimental/detail/graph_utils.cuh>
-#include <experimental/graph.hpp>
-#include <experimental/graph_functions.hpp>
-#include <experimental/graph_view.hpp>
-#include <patterns/copy_to_adj_matrix_row_col.cuh>
-#include <utilities/error.hpp>
-#include <utilities/host_barrier.hpp>
-#include <utilities/shuffle_comm.cuh>
+#include <cugraph/experimental/detail/graph_utils.cuh>
+#include <cugraph/experimental/graph.hpp>
+#include <cugraph/experimental/graph_functions.hpp>
+#include <cugraph/experimental/graph_view.hpp>
+#include <cugraph/patterns/copy_to_adj_matrix_row_col.cuh>
+#include <cugraph/utilities/error.hpp>
+#include <cugraph/utilities/host_barrier.hpp>
+#include <cugraph/utilities/shuffle_comm.cuh>
 
 #include <rmm/thrust_rmm_allocator.h>
 #include <raft/handle.hpp>
@@ -284,12 +284,14 @@ coarsen_graph(
       store_transposed ? graph_view.get_number_of_local_adj_matrix_partition_cols(i)
                        : graph_view.get_number_of_local_adj_matrix_partition_rows(i),
       handle.get_stream());
-    // FIXME: this copy is unnecessary, beter fix RAFT comm's bcast to take const iterators for
-    // input
-    thrust::copy(rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
-                 labels,
-                 labels + major_labels.size(),
-                 major_labels.begin());
+    if (col_comm_rank == i) {
+      // FIXME: this copy is unnecessary, beter fix RAFT comm's bcast to take const iterators for
+      // input
+      thrust::copy(rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
+                   labels,
+                   labels + major_labels.size(),
+                   major_labels.begin());
+    }
     device_bcast(col_comm,
                  major_labels.data(),
                  major_labels.data(),
@@ -455,7 +457,7 @@ coarsen_graph(
                               cur_size;
         thrust::copy(rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
                      src_edge_first,
-                     src_edge_first + edgelist_major_vertices.size(),
+                     src_edge_first + number_of_partition_edges,
                      dst_edge_first);
       }
     }

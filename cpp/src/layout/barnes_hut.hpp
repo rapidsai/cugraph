@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020, NVIDIA CORPORATION.
+ * Copyright (c) 2020-2021, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -17,16 +17,16 @@
 #pragma once
 
 #include <rmm/thrust_rmm_allocator.h>
-#include <utilities/error.hpp>
+#include <cugraph/utilities/error.hpp>
 
 #include <stdio.h>
 #include <converters/COOtoCSR.cuh>
-#include <graph.hpp>
-#include <internals.hpp>
+#include <cugraph/graph.hpp>
+#include <cugraph/internals.hpp>
 
+#include <utilities/graph_utils.cuh>
 #include "bh_kernels.hpp"
 #include "fa2_kernels.hpp"
-#include "utilities/graph_utils.cuh"
 #include "utils.hpp"
 
 namespace cugraph {

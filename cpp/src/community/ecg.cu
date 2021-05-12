@@ -14,10 +14,10 @@
  * limitations under the License.
  */
 
-#include <algorithms.hpp>
 #include <community/louvain.cuh>
 #include <converters/permute_graph.cuh>
-#include <utilities/error.hpp>
+#include <cugraph/algorithms.hpp>
+#include <cugraph/utilities/error.hpp>
 #include <utilities/graph_utils.cuh>
 
 #include <rmm/thrust_rmm_allocator.h>
