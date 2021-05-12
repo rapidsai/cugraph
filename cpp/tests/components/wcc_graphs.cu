@@ -12,7 +12,7 @@
 #include <components/wcc_graphs.hpp>
 #include <utilities/test_utilities.hpp>
 
-#include <experimental/graph_functions.hpp>
+#include <cugraph/experimental/graph_functions.hpp>
 
 #include <raft/random/rng.cuh>
 
