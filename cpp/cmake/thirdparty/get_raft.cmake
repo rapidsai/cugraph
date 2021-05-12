@@ -34,12 +34,12 @@ function(find_and_configure_raft)
 
 endfunction()
 
-set(CUML_MIN_VERSION_raft "${CUML_VERSION_MAJOR}.${CUML_VERSION_MINOR}")
+set(CUGRAPH_MIN_VERSION_raft "${CUGRAPH_VERSION_MAJOR}.${CUGRAPH_VERSION_MINOR}")
 
 # Change pinned tag and fork here to test a commit in CI
 # To use a different RAFT locally, set the CMake variable
 # RPM_raft_SOURCE=/path/to/local/raft
-find_and_configure_raft(VERSION    ${CUML_MIN_VERSION_raft}
+find_and_configure_raft(VERSION    ${CUGRAPH_MIN_VERSION_raft}
                         FORK       dantegd
                         PINNED_TAG 020-fea-cpm
                         )
