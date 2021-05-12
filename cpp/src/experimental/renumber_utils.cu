@@ -14,13 +14,13 @@
  * limitations under the License.
  */
 
-#include <experimental/include_cuco_static_map.cuh>
+#include <cugraph/experimental/include_cuco_static_map.cuh>
 
-#include <experimental/detail/graph_utils.cuh>
-#include <experimental/graph.hpp>
-#include <experimental/graph_functions.hpp>
-#include <utilities/collect_comm.cuh>
-#include <utilities/error.hpp>
+#include <cugraph/experimental/detail/graph_utils.cuh>
+#include <cugraph/experimental/graph.hpp>
+#include <cugraph/experimental/graph_functions.hpp>
+#include <cugraph/utilities/collect_comm.cuh>
+#include <cugraph/utilities/error.hpp>
 
 #include <thrust/binary_search.h>
 #include <thrust/copy.h>

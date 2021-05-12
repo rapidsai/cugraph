@@ -14,16 +14,16 @@
  * limitations under the License.
  */
 
-#include <experimental/include_cuco_static_map.cuh>
+#include <cugraph/experimental/include_cuco_static_map.cuh>
 
-#include <experimental/detail/graph_utils.cuh>
-#include <experimental/graph_functions.hpp>
-#include <experimental/graph_view.hpp>
-#include <utilities/device_comm.cuh>
-#include <utilities/error.hpp>
-#include <utilities/host_barrier.hpp>
-#include <utilities/host_scalar_comm.cuh>
-#include <utilities/shuffle_comm.cuh>
+#include <cugraph/experimental/detail/graph_utils.cuh>
+#include <cugraph/experimental/graph_functions.hpp>
+#include <cugraph/experimental/graph_view.hpp>
+#include <cugraph/utilities/device_comm.cuh>
+#include <cugraph/utilities/error.hpp>
+#include <cugraph/utilities/host_barrier.hpp>
+#include <cugraph/utilities/host_scalar_comm.cuh>
+#include <cugraph/utilities/shuffle_comm.cuh>
 
 #include <rmm/thrust_rmm_allocator.h>
 #include <raft/handle.hpp>
