@@ -18,7 +18,7 @@
 //
 #pragma once
 
-#include <experimental/graph.hpp>
+#include <cugraph/experimental/graph.hpp>
 
 #include <rmm/device_uvector.hpp>
 

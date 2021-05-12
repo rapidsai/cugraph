@@ -17,7 +17,7 @@
 // Andrei Schaffer, aschaffer@nvidia.com
 //
 
-#include <serialization/serializer.hpp>
+#include <cugraph/serialization/serializer.hpp>
 
 #include <utilities/graph_utils.cuh>
 
