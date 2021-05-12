@@ -22,6 +22,7 @@ FetchContent_Declare(
   GIT_TAG        origin/branch-0.20
   )
 FetchContent_MakeAvailable(rapids-cmake)
+
 include(rapids-cmake)
 include(rapids-cpm)
 include(rapids-cuda)
