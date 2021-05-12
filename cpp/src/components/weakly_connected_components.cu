@@ -276,6 +276,7 @@ void weakly_connected_components_impl(raft::handle_t const &handle,
   std::vector<rmm::device_uvector<vertex_t>> level_component_vectors{};
   // vertex ID in this level to the component ID in the finer level
   std::vector<rmm::device_uvector<vertex_t>> level_renumber_map_vectors{};
+  std::vector<vertex_t> level_local_vertex_first_vectors{};
   while (true) {
     auto level_graph_view = num_levels == 0 ? push_graph_view : level_graph.view();
     vertex_partition_device_t<GraphViewType> vertex_partition(level_graph_view);
@@ -283,6 +284,7 @@ void weakly_connected_components_impl(raft::handle_t const &handle,
       num_levels == 0 ? vertex_t{0} : level_graph_view.get_number_of_local_vertices(),
       handle.get_stream_view()));
     level_renumber_map_vectors.push_back(std::move(level_renumber_map));
+    level_local_vertex_first_vectors.push_back(level_graph_view.get_local_vertex_first());
     auto level_components =
       num_levels == 0 ? components : level_component_vectors[num_levels].data();
     ++num_levels;
@@ -543,6 +545,21 @@ void weakly_connected_components_impl(raft::handle_t const &handle,
   for (size_t i = 0; i < num_levels - 1; ++i) {
     size_t coarser_level = num_levels - 1 - i;
     size_t finer_level   = coarser_level - 1;
+
+    rmm::device_uvector<vertex_t> coarser_local_vertices(
+      level_renumber_map_vectors[coarser_level].size(), handle.get_stream_view());
+    thrust::sequence(rmm::exec_policy(handle.get_stream_view()),
+                     coarser_local_vertices.begin(),
+                     coarser_local_vertices.end(),
+                     level_local_vertex_first_vectors[coarser_level]);
+    relabel<vertex_t, GraphViewType::is_multi_gpu>(
+      handle,
+      std::make_tuple(coarser_local_vertices.data(),
+                      level_renumber_map_vectors[coarser_level].data()),
+      coarser_local_vertices.size(),
+      level_component_vectors[coarser_level].data(),
+      level_component_vectors[coarser_level].size(),
+      false);
     relabel<vertex_t, GraphViewType::is_multi_gpu>(
       handle,
       std::make_tuple(level_renumber_map_vectors[coarser_level].data(),
@@ -550,7 +567,8 @@ void weakly_connected_components_impl(raft::handle_t const &handle,
       level_renumber_map_vectors[coarser_level].size(),
       finer_level == 0 ? components : level_component_vectors[finer_level].data(),
       finer_level == 0 ? push_graph_view.get_number_of_local_vertices()
-                       : level_component_vectors[finer_level].size());
+                       : level_component_vectors[finer_level].size(),
+      true);
   }
 }
 

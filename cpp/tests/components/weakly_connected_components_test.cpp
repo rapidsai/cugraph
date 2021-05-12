@@ -101,7 +101,7 @@ class Tests_WeaklyConnectedComponent
   virtual void TearDown() {}
 
   template <typename vertex_t, typename edge_t>
-  void run_current_test(WeaklyConnectedComponent_Usecase const& weakly_connected_component_usecase,
+  void run_current_test(WeaklyConnectedComponent_Usecase const& weakly_connected_components_usecase,
                         input_usecase_t const& input_usecase)
   {
     constexpr bool renumber = true;
@@ -115,6 +115,7 @@ class Tests_WeaklyConnectedComponent
       CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
       hr_clock.start();
     }
+
     cugraph::experimental::graph_t<vertex_t, edge_t, weight_t, false, false> graph(handle);
     rmm::device_uvector<vertex_t> d_renumber_map_labels(0, handle.get_stream());
     std::tie(graph, d_renumber_map_labels) =
@@ -127,6 +128,7 @@ class Tests_WeaklyConnectedComponent
       hr_clock.stop(&elapsed_time);
       std::cout << "construct_graph took " << elapsed_time * 1e-6 << " s.\n";
     }
+
     auto graph_view = graph.view();
     ASSERT_TRUE(graph_view.is_symmetric())
       << "Weakly connected components works only on undirected (symmetric) graphs.";
@@ -145,10 +147,10 @@ class Tests_WeaklyConnectedComponent
       CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
       double elapsed_time{0.0};
       hr_clock.stop(&elapsed_time);
-      std::cout << "WeaklyConnectedComponent took " << elapsed_time * 1e-6 << " s.\n";
+      std::cout << "Weakly connected components took " << elapsed_time * 1e-6 << " s.\n";
     }
 
-    if (weakly_connected_component_usecase.check_correctness) {
+    if (weakly_connected_components_usecase.check_correctness) {
       cugraph::experimental::graph_t<vertex_t, edge_t, weight_t, false, false> unrenumbered_graph(
         handle);
       if (renumber) {
@@ -171,12 +173,13 @@ class Tests_WeaklyConnectedComponent
 
       handle.get_stream_view().synchronize();
 
-      std::vector<vertex_t> h_reference_components(unrenumbered_graph_view.get_number_of_vertices());
+      std::vector<vertex_t> h_reference_components(
+        unrenumbered_graph_view.get_number_of_vertices());
 
       weakly_connected_components_reference(h_offsets.data(),
-                                           h_indices.data(),
-                                           h_reference_components.data(),
-                                           unrenumbered_graph_view.get_number_of_vertices());
+                                            h_indices.data(),
+                                            h_reference_components.data(),
+                                            unrenumbered_graph_view.get_number_of_vertices());
 
       std::vector<vertex_t> h_cugraph_components(graph_view.get_number_of_vertices());
       if (renumber) {
@@ -187,13 +190,23 @@ class Tests_WeaklyConnectedComponent
                           d_unrenumbered_components.size(),
                           handle.get_stream());
       } else {
-        raft::update_host(
-          h_cugraph_components.data(), d_components.data(), d_components.size(), handle.get_stream());
+        raft::update_host(h_cugraph_components.data(),
+                          d_components.data(),
+                          d_components.size(),
+                          handle.get_stream());
       }
       handle.get_stream_view().synchronize();
 
-      raft::print_host_vector("cugraph", h_cugraph_components.data(), h_cugraph_components.size(), std::cout);  // DEBUG
-      raft::print_host_vector("reference", h_reference_components.data(), h_reference_components.size(), std::cout);  // DEBUG
+      std::unordered_map<vertex_t, vertex_t> cuda_to_reference_map{};
+      for (size_t i = 0; i < h_reference_components.size(); ++i) {
+        cuda_to_reference_map.insert({h_cugraph_components[i], h_reference_components[i]});
+      }
+      std::transform(
+        h_cugraph_components.begin(),
+        h_cugraph_components.end(),
+        h_cugraph_components.begin(),
+        [&cuda_to_reference_map](auto cugraph_c) { return cuda_to_reference_map[cugraph_c]; });
+
       ASSERT_TRUE(std::equal(
         h_reference_components.begin(), h_reference_components.end(), h_cugraph_components.begin()))
         << "components do not match with the reference values.";
@@ -218,27 +231,11 @@ INSTANTIATE_TEST_SUITE_P(
   Tests_WeaklyConnectedComponent_File,
   ::testing::Values(
     // enable correctness checks
-#if 1
     std::make_tuple(WeaklyConnectedComponent_Usecase{},
                     cugraph::test::File_Usecase("test/datasets/karate.mtx")),
     std::make_tuple(WeaklyConnectedComponent_Usecase{},
                     cugraph::test::File_Usecase("test/datasets/polbooks.mtx")),
     std::make_tuple(WeaklyConnectedComponent_Usecase{},
-                    cugraph::test::File_Usecase("test/datasets/netscience.mtx")))
-#else
-    std::make_tuple(WeaklyConnectedComponent_Usecase{},
-                    cugraph::test::File_Usecase("test/datasets/karate.mtx")),
-    std::make_tuple(WeaklyConnectedComponent_Usecase{},
-                    cugraph::test::File_Usecase("test/datasets/polbooks.mtx")),
-    std::make_tuple(WeaklyConnectedComponent_Usecase{},
-                    cugraph::test::File_Usecase("test/datasets/netscience.mtx")),
-    std::make_tuple(WeaklyConnectedComponent_Usecase{},
-                    cugraph::test::File_Usecase("test/datasets/netscience.mtx")),
-    std::make_tuple(WeaklyConnectedComponent_Usecase{},
-                    cugraph::test::File_Usecase("test/datasets/wiki2003.mtx")),
-    std::make_tuple(WeaklyConnectedComponent_Usecase{},
-                    cugraph::test::File_Usecase("test/datasets/wiki-Talk.mtx")))
-#endif
-);
+                    cugraph::test::File_Usecase("test/datasets/netscience.mtx"))));
 
 CUGRAPH_TEST_PROGRAM_MAIN()
