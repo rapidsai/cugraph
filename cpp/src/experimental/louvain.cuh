@@ -201,6 +201,8 @@ class Louvain {
     timer_start("compute_vertex_and_cluster_weights");
 
     vertex_weights_v_ = current_graph_view_.compute_out_weight_sums(handle_);
+    cluster_keys_v_.resize(vertex_weights_v_.size(), handle_.get_stream());
+    cluster_weights_v_.resize(vertex_weights_v_.size(), handle_.get_stream());
 
     thrust::sequence(rmm::exec_policy(handle_.get_stream())->on(handle_.get_stream()),
                      cluster_keys_v_.begin(),
