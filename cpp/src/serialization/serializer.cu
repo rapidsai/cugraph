@@ -105,15 +105,14 @@ graph_t serializer::unserialize(serializer::graph_meta_t<graph_t> const& gvmeta)
     auto d_indices = unserialize<vertex_t>(num_edges);
     auto d_weights = unserialize<weight_t>(num_edges);
 
-    return  // std::make_unique<
-      graph_t(handle_,
-              num_vertices,
-              num_edges,
-              g_props,
-              std::move(d_offsets),
-              std::move(d_indices),
-              std::move(d_weights),
-              std::move(seg_offsets));  // RVO-ed
+    return graph_t(handle_,
+                   num_vertices,
+                   num_edges,
+                   g_props,
+                   std::move(d_offsets),
+                   std::move(d_indices),
+                   std::move(d_weights),
+                   std::move(seg_offsets));  // RVO-ed
 
   } else {
     CUGRAPH_FAIL("Unsupported graph_view type for unserialization.");
