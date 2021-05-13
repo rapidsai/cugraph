@@ -242,10 +242,11 @@ class Tests_MGPageRank
                         displacements.data(),
                         handle.get_stream());
 
-        cugraph::test::sort_by_key(handle,
-                                   d_unrenumbered_personalization_vertices.data(),
-                                   d_unrenumbered_personalization_values.data(),
-                                   d_unrenumbered_personalization_vertices.size());
+        std::tie(d_unrenumbered_personalization_vertices, d_unrenumbered_personalization_values) =
+          cugraph::test::sort_by_key(handle,
+                                     d_unrenumbered_personalization_vertices.data(),
+                                     d_unrenumbered_personalization_values.data(),
+                                     d_unrenumbered_personalization_vertices.size());
       }
 
       // 5-3. run SG PageRank
