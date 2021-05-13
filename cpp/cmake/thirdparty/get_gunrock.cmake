@@ -25,7 +25,7 @@ function(find_and_configure_gunrock VERSION)
         set(GUNROCK_GENCODE_SM80 OFF)
 
         foreach(arch IN LISTS CMAKE_CUDA_ARCHITECTURES)
-            string(REPLACE "-real" "" ${arch} arch)
+            string(REPLACE "-real" "" arch ${arch})
             set(GUNROCK_GENCODE_SM${arch} "ON")
         endforeach()
 
