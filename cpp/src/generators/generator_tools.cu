@@ -14,8 +14,11 @@
  * limitations under the License.
  */
 
-#include <graph_generators.hpp>
-#include <utilities/error.hpp>
+#include <cugraph/graph_generator.hpp>
+#include <cugraph/utilities/error.hpp>
+#include <experimental/scramble.cuh>
+
+#include <raft/cuda_utils.cuh>
 
 #include <rmm/device_uvector.hpp>
 #include <rmm/exec_policy.hpp>
@@ -51,7 +54,17 @@ void scramble_vertex_ids(raft::handle_t const &handle,
                          vertex_t vertex_id_offset,
                          uint64_t seed)
 {
-  CUGRAPH_FAIL("Not currently implemented");
+  vertex_t scale = raft::log2(d_src_v.size());
+
+  auto pair_first = thrust::make_zip_iterator(thrust::make_tuple(d_src_v.begin(), d_dst_v.begin()));
+  thrust::transform(rmm::exec_policy(handle.get_stream()),
+                    pair_first,
+                    pair_first + d_src_v.size(),
+                    pair_first,
+                    [scale] __device__(auto pair) {
+                      return thrust::make_tuple(experimental::detail::scramble(thrust::get<0>(pair), scale),
+                                                experimental::detail::scramble(thrust::get<1>(pair), scale));
+                    });
 }
 
 

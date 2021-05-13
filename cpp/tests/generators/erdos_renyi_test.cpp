@@ -17,8 +17,8 @@
 #include <utilities/base_fixture.hpp>
 #include <utilities/test_utilities.hpp>
 
-#include <experimental/graph.hpp>
-#include <graph_generators.hpp>
+#include <cugraph/experimental/graph.hpp>
+#include <cugraph/graph_generator.hpp>
 
 #include <thrust/sort.h>
 
@@ -49,14 +49,14 @@ void test_symmetric(std::vector<vertex_t> &h_src_v, std::vector<vertex_t> &h_dst
 }
 
 template <typename vertex_t>
-void er_test(size_t num_vertices, float p, bool symmetrize)
+void er_test(size_t num_vertices, float p)
 {
   raft::handle_t handle;
   rmm::device_uvector<vertex_t> d_src_v(0, handle.get_stream());
   rmm::device_uvector<vertex_t> d_dst_v(0, handle.get_stream());
 
   std::tie(d_src_v, d_dst_v) =
-    cugraph::generate_erdos_renyi_graph_edgelist<vertex_t>(handle, num_vertices, p, symmetrize, 0);
+    cugraph::generate_erdos_renyi_graph_edgelist<vertex_t>(handle, num_vertices, p, 0);
 
   handle.get_stream_view().synchronize();
 
@@ -80,24 +80,14 @@ void er_test(size_t num_vertices, float p, bool symmetrize)
                 h_dst_v.begin(), h_dst_v.end(), [n = static_cast<vertex_t>(num_vertices)](auto v) {
                   return !cugraph::experimental::is_valid_vertex(n, v);
                 }), 0);
-
-  if (symmetrize) test_symmetric(h_src_v, h_dst_v);
 }
 
 TEST_F(GenerateErdosRenyiTest, ERTest)
 {
-  er_test<int32_t>(size_t{10}, float{0.1}, false);
-  er_test<int32_t>(size_t{20}, float{0.1}, false);
-  er_test<int32_t>(size_t{50}, float{0.1}, false);
-  er_test<int32_t>(size_t{10000}, float{0.1}, false);
-}
-
-TEST_F(GenerateErdosRenyiTest, ERTestSymmetrics)
-{
-  er_test<int32_t>(size_t{10}, float{0.1}, true);
-  er_test<int32_t>(size_t{20}, float{0.1}, true);
-  er_test<int32_t>(size_t{50}, float{0.1}, true);
-  er_test<int32_t>(size_t{10000}, float{0.1}, true);
+  er_test<int32_t>(size_t{10}, float{0.1});
+  er_test<int32_t>(size_t{20}, float{0.1});
+  er_test<int32_t>(size_t{50}, float{0.1});
+  er_test<int32_t>(size_t{10000}, float{0.1});
 }
 
 CUGRAPH_TEST_PROGRAM_MAIN()

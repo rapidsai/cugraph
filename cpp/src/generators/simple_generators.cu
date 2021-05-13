@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-#include <graph_generators.hpp>
+#include <cugraph/graph_generator.hpp>
 
 #include <rmm/device_uvector.hpp>
 #include <rmm/exec_policy.hpp>

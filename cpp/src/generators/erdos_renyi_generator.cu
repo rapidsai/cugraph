@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 
-#include <graph_generators.hpp>
-#include <utilities/error.hpp>
+#include <cugraph/graph_generator.hpp>
+#include <cugraph/utilities/error.hpp>
 
 #include <rmm/device_uvector.hpp>
 #include <rmm/exec_policy.hpp>
@@ -37,18 +37,11 @@ generate_erdos_renyi_graph_edgelist(raft::handle_t const& handle,
                                     uint64_t seed)
 {
   auto random_iterator = thrust::make_transform_iterator(
-    thrust::make_counting_iterator<size_t>(0), [seed, num_vertices] __device__(size_t index) {
-      auto src = index / num_vertices;
-      auto dst = index % num_vertices;
-
-      if (src < dst) {
-        thrust::default_random_engine rng(seed);
-        thrust::uniform_real_distribution<float> dist(0.0, 1.0);
-        rng.discard(index);
-        return dist(rng);
-      } else {
-        return float{1.1};
-      }
+    thrust::make_counting_iterator<size_t>(0), [seed] __device__(size_t index) {
+      thrust::default_random_engine rng(seed);
+      thrust::uniform_real_distribution<float> dist(0.0, 1.0);
+      rng.discard(index);
+      return dist(rng);
     });
 
   size_t count = thrust::count_if(rmm::exec_policy(handle.get_stream()),

@@ -30,12 +30,13 @@ namespace cugraph {
  * This function allows multi-edges and self-loops similar to the Graph 500 reference
  * implementation.
  *
- * @p scramble_vertex_ids needs to be set to `true` to generate a graph conforming to the Graph 500
- * specification (note that scrambling does not affect cuGraph's graph construction performance, so
- * this is generally unnecessary). If `edge_factor` is given (e.g. Graph 500), set @p num_edges to
+ * NOTE: The scramble_vertex_ids function needs to be called in order to generate a
+ * graph conforming to the Graph 500 specification (note that scrambling does not
+ * affect cuGraph's graph construction performance, so this is generally unnecessary).
+ * If `edge_factor` is given (e.g. Graph 500), set @p num_edges to
  * (size_t{1} << @p scale) * `edge_factor`. To generate an undirected graph, set @p b == @p c and @p
  * clip_and_flip = true. All the resulting edges will be placed in the lower triangular part
- * (inculding the diagonal) of the graph adjacency matrix.
+ * (including the diagonal) of the graph adjacency matrix.
  *
  * For multi-GPU generation with `P` GPUs, @p seed should be set to different values in different
  * GPUs to avoid every GPU generating the same set of edges. @p num_edges should be adjusted as
@@ -61,10 +62,6 @@ namespace cugraph {
  * @param clip_and_flip Flag controlling whether to generate edges only in the lower triangular part
  * (including the diagonal) of the graph adjacency matrix (if set to `true`) or not (if set to
  * `false`).
- * @param scramble_vertex_ids Flag controlling whether to scramble vertex ID bits (if set to `true`)
- * or not (if set to `false`); scrambling vertx ID bits breaks correlation between vertex ID values
- * and vertex degrees. The scramble code here follows the algorithm in the Graph 500 reference
- * implementation version 3.0.0.
  * @return std::tuple<rmm::device_uvector<vertex_t>, rmm::device_uvector<vertex_t>> A tuple of
  * rmm::device_uvector objects for edge source vertex IDs and edge destination vertex IDs.
  */
@@ -77,8 +74,7 @@ std::tuple<rmm::device_uvector<vertex_t>, rmm::device_uvector<vertex_t>> generat
   double b                 = 0.19,
   double c                 = 0.19,
   uint64_t seed            = 0,
-  bool clip_and_flip       = false,
-  bool scramble_vertex_ids = false);
+  bool clip_and_flip       = false);
 
 enum class generator_distribution_t { POWER_LAW = 0, UNIFORM };
 
@@ -88,13 +84,13 @@ enum class generator_distribution_t { POWER_LAW = 0, UNIFORM };
  * This function allows multi-edges and self-loops similar to the Graph 500 reference
  * implementation.
  *
- * @p scramble_vertex_ids needs to be set to `true` to generate a graph conforming to the Graph 500
- * specification (note that scrambling does not affect cuGraph's graph construction performance, so
- * this is generally unnecessary). If `edge_factor` is given (e.g. Graph 500), set @p num_edges to
+ * NOTE: The scramble_vertex_ids function needs to be called in order to generate a
+ * graph conforming to the Graph 500 specification (note that scrambling does not
+ * affect cuGraph's graph construction performance, so this is generally unnecessary).
+ * If `edge_factor` is given (e.g. Graph 500), set @p num_edges to
  * (size_t{1} << @p scale) * `edge_factor`. To generate an undirected graph, set @p b == @p c and @p
  * clip_and_flip = true. All the resulting edges will be placed in the lower triangular part
- * (inculding the diagonal) of the graph adjacency matrix.
- *
+ * (including the diagonal) of the graph adjacency matrix.
  *
  * @tparam vertex_t Type of vertex identifiers. Needs to be an integral type.
  * @param handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator, and
@@ -111,10 +107,6 @@ enum class generator_distribution_t { POWER_LAW = 0, UNIFORM };
  * @param clip_and_flip Flag controlling whether to generate edges only in the lower triangular part
  * (including the diagonal) of the graph adjacency matrix (if set to `true`) or not (if set to
  * `false`).
- * @param scramble_vertex_ids Flag controlling whether to scramble vertex ID bits (if set to `true`)
- * or not (if set to `false`); scrambling vertx ID bits breaks correlation between vertex ID values
- * and vertex degrees. The scramble code here follows the algorithm in the Graph 500 reference
- * implementation version 3.0.0.
  * @return A vector of std::tuple<rmm::device_uvector<vertex_t>, rmm::device_uvector<vertex_t>> of
  *size @p n_edgelists, each vector element being a tuple of rmm::device_uvector objects for edge
  *source vertex IDs and edge destination vertex IDs.
@@ -130,8 +122,7 @@ generate_rmat_edgelists(
   generator_distribution_t size_distribution = generator_distribution_t::POWER_LAW,
   generator_distribution_t edge_distribution = generator_distribution_t::POWER_LAW,
   uint64_t seed                              = 0,
-  bool clip_and_flip                         = false,
-  bool scramble_vertex_ids                   = false);
+  bool clip_and_flip                         = false);
 
 /**
  * @brief generate an edge list for path graph
@@ -326,15 +317,13 @@ std::
  * handles to various CUDA libraries) to run graph algorithms.
  * @param d_src_v Vector of source vertices
  * @param d_dst_v Vector of destination vertices
- * @param optional_d_weights_v Optional vector of edge weights
  * @param vertex_id_offset Offset to add to each vertex id
  * @param seed Used to initialize random number generator
  */
-template <typename vertex_t, typename weight_t>
+template <typename vertex_t>
 void scramble_vertex_ids(raft::handle_t const &handle,
                          rmm::device_uvector<vertex_t> &d_src_v,
                          rmm::device_uvector<vertex_t> &d_dst_v,
-                         std::optional<rmm::device_uvector<weight_t>> &optional_d_weights_v,
                          vertex_t vertex_id_offset,
                          uint64_t seed = 0);
 

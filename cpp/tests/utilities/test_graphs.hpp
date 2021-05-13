@@ -15,10 +15,10 @@
  */
 #pragma once
 
+#include <cugraph/graph_generator.hpp>
+
 #include <utilities/test_utilities.hpp>
 #include <utilities/thrust_wrapper.hpp>
-
-#include <graph_generators.hpp>
 
 namespace cugraph {
 namespace test {
@@ -267,22 +267,27 @@ class PathGraph_Usecase {
 
     constexpr bool symmetric{true};
 
-    std::vector<std::tuple<vertex_t, vertex_t>> converted_parms{};
+    std::vector<std::tuple<vertex_t, vertex_t>> converted_parms(parms_.size());
 
     std::transform(parms_.begin(), parms_.end(), converted_parms.begin(), [](auto p) {
       return std::make_tuple(static_cast<vertex_t>(std::get<0>(p)),
                              static_cast<vertex_t>(std::get<1>(p)));
     });
 
-    auto edgelist = cugraph::generate_path_graph_edgelist<vertex_t>(handle, converted_parms);
+    rmm::device_uvector<vertex_t> src_v(0, handle.get_stream());
+    rmm::device_uvector<vertex_t> dst_v(0, handle.get_stream());
+
+    std::tie(src_v, dst_v) = cugraph::generate_path_graph_edgelist<vertex_t>(handle, converted_parms);
+    std::tie(src_v, dst_v, std::ignore) = cugraph::symmetrize_edgelist<vertex_t, weight_t>(
+      handle, std::move(src_v), std::move(dst_v), std::nullopt);
 
     if (test_weighted) {
-      auto length = std::get<0>(edgelist).size();
+      auto length = src_v.size();
       weights_v.resize(length, handle.get_stream());
     }
 
-    return std::make_tuple(std::move(std::get<0>(edgelist)),
-                           std::move(std::get<1>(edgelist)),
+    return std::make_tuple(std::move(src_v),
+                           std::move(dst_v),
                            std::move(weights_v),
                            num_vertices_,
                            symmetric);
@@ -540,7 +545,8 @@ construct_graph(raft::handle_t const& handle,
       .template construct_edgelist<vertex_t, edge_t, weight_t, store_transposed, multi_gpu>(
         handle, test_weighted);
 
-  // TODO: Populate d_vertices_v, we know num_vertices
+  d_vertices_v.resize(num_vertices, handle.get_stream());
+  populate_vertex_ids(handle, d_vertices_v, vertex_t{0});
 
   return generate_graph_from_edgelist<vertex_t, edge_t, weight_t, store_transposed, multi_gpu>(
     handle,

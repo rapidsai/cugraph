@@ -19,7 +19,7 @@
 #include <utilities/test_utilities.hpp>
 
 #include <cugraph/experimental/graph.hpp>
-#include <cugraph/experimental/graph_generator.hpp>
+#include <cugraph/graph_generator.hpp>
 
 #include <raft/cudart_utils.h>
 #include <raft/handle.hpp>

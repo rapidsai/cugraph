@@ -14,9 +14,7 @@
  * limitations under the License.
  */
 
-#include <experimental/scramble.cuh>
-
-#include <cugraph/experimental/graph_generator.hpp>
+#include <cugraph/graph_generator.hpp>
 #include <cugraph/utilities/error.hpp>
 
 #include <rmm/thrust_rmm_allocator.h>
@@ -102,23 +100,6 @@ std::tuple<rmm::device_uvector<vertex_t>, rmm::device_uvector<vertex_t>> generat
       });
     num_edges_generated += num_edges_to_generate;
   }
-
-#if 0
-  if (scramble_vertex_ids) {
-    rands.resize(0, handle.get_stream());
-    rands.shrink_to_fit(handle.get_stream());
-
-    auto pair_first = thrust::make_zip_iterator(thrust::make_tuple(srcs.begin(), dsts.begin()));
-    thrust::transform(rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
-                      pair_first,
-                      pair_first + srcs.size(),
-                      pair_first,
-                      [scale] __device__(auto pair) {
-                        return thrust::make_tuple(experimental::detail::scramble(thrust::get<0>(pair), scale),
-                                                  experimental::detail::scramble(thrust::get<1>(pair), scale));
-                      });
-  }
-#endif
 
   return std::make_tuple(std::move(srcs), std::move(dsts));
 }

@@ -14,7 +14,8 @@
  * limitations under the License.
  */
 
-#include <graph_generators.hpp>
+#include <cugraph/graph_generator.hpp>
+
 #include <utilities/base_fixture.hpp>
 
 #include <thrust/execution_policy.h>
