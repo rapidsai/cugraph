@@ -67,14 +67,14 @@ namespace cugraph {
  */
 template <typename vertex_t>
 std::tuple<rmm::device_uvector<vertex_t>, rmm::device_uvector<vertex_t>> generate_rmat_edgelist(
-  raft::handle_t const& handle,
+  raft::handle_t const &handle,
   size_t scale,
   size_t num_edges,
-  double a                 = 0.57,
-  double b                 = 0.19,
-  double c                 = 0.19,
-  uint64_t seed            = 0,
-  bool clip_and_flip       = false);
+  double a           = 0.57,
+  double b           = 0.19,
+  double c           = 0.19,
+  uint64_t seed      = 0,
+  bool clip_and_flip = false);
 
 enum class generator_distribution_t { POWER_LAW = 0, UNIFORM };
 
@@ -114,7 +114,7 @@ enum class generator_distribution_t { POWER_LAW = 0, UNIFORM };
 template <typename vertex_t>
 std::vector<std::tuple<rmm::device_uvector<vertex_t>, rmm::device_uvector<vertex_t>>>
 generate_rmat_edgelists(
-  raft::handle_t const& handle,
+  raft::handle_t const &handle,
   size_t n_edgelists,
   size_t min_scale,
   size_t max_scale,
@@ -149,8 +149,9 @@ generate_rmat_edgelists(
  */
 template <typename vertex_t>
 std::tuple<rmm::device_uvector<vertex_t>, rmm::device_uvector<vertex_t>>
-generate_path_graph_edgelist(raft::handle_t const &handle,
-                             std::vector<std::tuple<vertex_t, vertex_t>> const &component_parameters_v);
+generate_path_graph_edgelist(
+  raft::handle_t const &handle,
+  std::vector<std::tuple<vertex_t, vertex_t>> const &component_parameters_v);
 
 /**
  * @brief generate an edge list for a 2D Mesh Graph
@@ -166,7 +167,8 @@ generate_path_graph_edgelist(raft::handle_t const &handle,
  * @tparam vertex_t Type of vertex identifiers. Needs to be an integral type.
  * @param handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator, and
  * handles to various CUDA libraries) to run graph algorithms.
- * @param component_parameters_v Vector containing tuple defining the configuration of each component
+ * @param component_parameters_v Vector containing tuple defining the configuration of each
+ * component
  * @return std::tuple<rmm::device_uvector<vertex_t>, rmm::device_uvector<vertex_t>> A tuple of
  * rmm::device_uvector objects for edge source vertex IDs and edge destination vertex IDs.
  */
@@ -190,7 +192,8 @@ generate_2d_mesh_graph_edgelist(
  * @tparam vertex_t Type of vertex identifiers. Needs to be an integral type.
  * @param handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator, and
  * handles to various CUDA libraries) to run graph algorithms.
- * @param component_parameters_v Vector containing tuple defining the configuration of each component
+ * @param component_parameters_v Vector containing tuple defining the configuration of each
+ * component
  * @return std::tuple<rmm::device_uvector<vertex_t>, rmm::device_uvector<vertex_t>> A tuple of
  * rmm::device_uvector objects for edge source vertex IDs and edge destination vertex IDs.
  */
@@ -214,14 +217,16 @@ generate_3d_mesh_graph_edgelist(
  * @tparam vertex_t Type of vertex identifiers. Needs to be an integral type.
  * @param handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator, and
  * handles to various CUDA libraries) to run graph algorithms.
- * @param component_parameters_v Vector containing tuple defining the configuration of each component
+ * @param component_parameters_v Vector containing tuple defining the configuration of each
+ * component
  * @return std::tuple<rmm::device_uvector<vertex_t>, rmm::device_uvector<vertex_t>> A tuple of
  * rmm::device_uvector objects for edge source vertex IDs and edge destination vertex IDs.
  */
 template <typename vertex_t>
 std::tuple<rmm::device_uvector<vertex_t>, rmm::device_uvector<vertex_t>>
-generate_complete_graph_edgelist(raft::handle_t const &handle,
-                                 std::vector<std::tuple<vertex_t, vertex_t>> const& component_parameters_v);
+generate_complete_graph_edgelist(
+  raft::handle_t const &handle,
+  std::vector<std::tuple<vertex_t, vertex_t>> const &component_parameters_v);
 
 /**
  * @brief generate an edge lists for an Erdos-Renyi graph

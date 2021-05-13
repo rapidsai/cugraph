@@ -26,8 +26,8 @@
 #include <thrust/tuple.h>
 
 #include <random>
-#include <tuple>
 #include <rmm/detail/error.hpp>
+#include <tuple>
 
 namespace cugraph {
 

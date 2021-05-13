@@ -62,11 +62,11 @@ void scramble_vertex_ids(raft::handle_t const &handle,
                     pair_first + d_src_v.size(),
                     pair_first,
                     [scale] __device__(auto pair) {
-                      return thrust::make_tuple(experimental::detail::scramble(thrust::get<0>(pair), scale),
-                                                experimental::detail::scramble(thrust::get<1>(pair), scale));
+                      return thrust::make_tuple(
+                        experimental::detail::scramble(thrust::get<0>(pair), scale),
+                        experimental::detail::scramble(thrust::get<1>(pair), scale));
                     });
 }
-
 
 template <typename vertex_t, typename weight_t>
 std::
@@ -127,14 +127,15 @@ std::
   if (optional_d_weights) {
     thrust::sort(
       rmm::exec_policy(handle.get_stream()),
-      thrust::make_zip_iterator(thrust::make_tuple(srcs_v.begin(), dsts_v.begin(), weights_v.begin())),
+      thrust::make_zip_iterator(
+        thrust::make_tuple(srcs_v.begin(), dsts_v.begin(), weights_v.begin())),
       thrust::make_zip_iterator(thrust::make_tuple(srcs_v.end(), dsts_v.end(), weights_v.end())));
 
     auto pair_first = thrust::make_zip_iterator(thrust::make_tuple(srcs_v.begin(), dsts_v.begin()));
     auto end_iter   = thrust::unique_by_key(rmm::exec_policy(handle.get_stream()),
-                                            pair_first,
-                                            pair_first + srcs_v.size(),
-                                            weights_v.begin());
+                                          pair_first,
+                                          pair_first + srcs_v.size(),
+                                          weights_v.begin());
 
     number_of_edges = thrust::distance(pair_first, thrust::get<0>(end_iter));
   } else {
@@ -194,14 +195,17 @@ std::
     rmm::device_uvector<weight_t> d_weights_v = std::move(optional_d_weights_v.value());
     rmm::device_uvector<weight_t> copy_weights_v(d_weights_v.size(), handle.get_stream());
 
-    raft::copy(copy_weights_v.begin(), d_weights_v.begin(), d_weights_v.size(), handle.get_stream());
+    raft::copy(
+      copy_weights_v.begin(), d_weights_v.begin(), d_weights_v.size(), handle.get_stream());
 
     weights_v.push_back(std::move(d_weights_v));
     weights_v.push_back(std::move(copy_weights_v));
 
-    return combine_edgelists<vertex_t, weight_t>(handle, std::move(srcs_v), std::move(dsts_v), std::move(weights_v));
+    return combine_edgelists<vertex_t, weight_t>(
+      handle, std::move(srcs_v), std::move(dsts_v), std::move(weights_v));
   } else {
-    return combine_edgelists<vertex_t, weight_t>(handle, std::move(srcs_v), std::move(dsts_v), std::nullopt);
+    return combine_edgelists<vertex_t, weight_t>(
+      handle, std::move(srcs_v), std::move(dsts_v), std::nullopt);
   }
 }
 
@@ -245,30 +249,26 @@ template std::
                     std::vector<rmm::device_uvector<int64_t>> &&dests,
                     std::optional<std::vector<rmm::device_uvector<double>>> &&optional_d_weights);
 
-template
-std::
+template std::
   tuple<rmm::device_uvector<int32_t>, rmm::device_uvector<int32_t>, rmm::device_uvector<float>>
   symmetrize_edgelist(raft::handle_t const &handle,
                       rmm::device_uvector<int32_t> &&d_src_v,
                       rmm::device_uvector<int32_t> &&d_dst_v,
                       std::optional<rmm::device_uvector<float>> &&optional_d_weights_v);
-template
-std::
+template std::
   tuple<rmm::device_uvector<int64_t>, rmm::device_uvector<int64_t>, rmm::device_uvector<float>>
   symmetrize_edgelist(raft::handle_t const &handle,
                       rmm::device_uvector<int64_t> &&d_src_v,
                       rmm::device_uvector<int64_t> &&d_dst_v,
                       std::optional<rmm::device_uvector<float>> &&optional_d_weights_v);
 
-template
-std::
+template std::
   tuple<rmm::device_uvector<int32_t>, rmm::device_uvector<int32_t>, rmm::device_uvector<double>>
   symmetrize_edgelist(raft::handle_t const &handle,
                       rmm::device_uvector<int32_t> &&d_src_v,
                       rmm::device_uvector<int32_t> &&d_dst_v,
                       std::optional<rmm::device_uvector<double>> &&optional_d_weights_v);
-template
-std::
+template std::
   tuple<rmm::device_uvector<int64_t>, rmm::device_uvector<int64_t>, rmm::device_uvector<double>>
   symmetrize_edgelist(raft::handle_t const &handle,
                       rmm::device_uvector<int64_t> &&d_src_v,

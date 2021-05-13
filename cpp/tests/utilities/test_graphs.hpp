@@ -277,7 +277,8 @@ class PathGraph_Usecase {
     rmm::device_uvector<vertex_t> src_v(0, handle.get_stream());
     rmm::device_uvector<vertex_t> dst_v(0, handle.get_stream());
 
-    std::tie(src_v, dst_v) = cugraph::generate_path_graph_edgelist<vertex_t>(handle, converted_parms);
+    std::tie(src_v, dst_v) =
+      cugraph::generate_path_graph_edgelist<vertex_t>(handle, converted_parms);
     std::tie(src_v, dst_v, std::ignore) = cugraph::symmetrize_edgelist<vertex_t, weight_t>(
       handle, std::move(src_v), std::move(dst_v), std::nullopt);
 
@@ -286,11 +287,8 @@ class PathGraph_Usecase {
       weights_v.resize(length, handle.get_stream());
     }
 
-    return std::make_tuple(std::move(src_v),
-                           std::move(dst_v),
-                           std::move(weights_v),
-                           num_vertices_,
-                           symmetric);
+    return std::make_tuple(
+      std::move(src_v), std::move(dst_v), std::move(weights_v), num_vertices_, symmetric);
   }
 
   template <typename vertex_t,

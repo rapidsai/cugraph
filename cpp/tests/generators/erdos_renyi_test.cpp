@@ -40,9 +40,10 @@ void test_symmetric(std::vector<vertex_t> &h_src_v, std::vector<vertex_t> &h_dst
                thrust::make_zip_iterator(thrust::make_tuple(h_src_v.begin(), h_dst_v.begin())),
                thrust::make_zip_iterator(thrust::make_tuple(h_src_v.end(), h_dst_v.end())));
 
-  thrust::sort(thrust::host,
-               thrust::make_zip_iterator(thrust::make_tuple(reverse_src_v.begin(), reverse_dst_v.begin())),
-               thrust::make_zip_iterator(thrust::make_tuple(reverse_src_v.end(), reverse_dst_v.end())));
+  thrust::sort(
+    thrust::host,
+    thrust::make_zip_iterator(thrust::make_tuple(reverse_src_v.begin(), reverse_dst_v.begin())),
+    thrust::make_zip_iterator(thrust::make_tuple(reverse_src_v.end(), reverse_dst_v.end())));
 
   EXPECT_EQ(reverse_src_v, h_src_v);
   EXPECT_EQ(reverse_dst_v, h_dst_v);
@@ -72,14 +73,18 @@ void er_test(size_t num_vertices, float p)
 
   ASSERT_GE(h_src_v.size(), static_cast<size_t>(expected_edge_count * 0.8));
   ASSERT_LE(h_src_v.size(), static_cast<size_t>(expected_edge_count * 1.2));
-  ASSERT_EQ(std::count_if(
-                h_src_v.begin(), h_src_v.end(), [n = static_cast<vertex_t>(num_vertices)](auto v) {
-                  return !cugraph::experimental::is_valid_vertex(n, v);
-                }), 0);
-  ASSERT_EQ(std::count_if(
-                h_dst_v.begin(), h_dst_v.end(), [n = static_cast<vertex_t>(num_vertices)](auto v) {
-                  return !cugraph::experimental::is_valid_vertex(n, v);
-                }), 0);
+  ASSERT_EQ(std::count_if(h_src_v.begin(),
+                          h_src_v.end(),
+                          [n = static_cast<vertex_t>(num_vertices)](auto v) {
+                            return !cugraph::experimental::is_valid_vertex(n, v);
+                          }),
+            0);
+  ASSERT_EQ(std::count_if(h_dst_v.begin(),
+                          h_dst_v.end(),
+                          [n = static_cast<vertex_t>(num_vertices)](auto v) {
+                            return !cugraph::experimental::is_valid_vertex(n, v);
+                          }),
+            0);
 }
 
 TEST_F(GenerateErdosRenyiTest, ERTest)

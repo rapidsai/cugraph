@@ -846,7 +846,7 @@ call_generate_rmat_edgelists(raft::handle_t const& handle,
 
   if (scramble_vertex_ids) {
     std::for_each(
-      src_dst_vec_tuple.begin(), src_dst_vec_tuple.end(), [&handle, seed](auto &src_dst_tuple) {
+      src_dst_vec_tuple.begin(), src_dst_vec_tuple.end(), [&handle, seed](auto& src_dst_tuple) {
         cugraph::scramble_vertex_ids<vertex_t>(
           handle, std::get<0>(src_dst_tuple), std::get<1>(src_dst_tuple), vertex_t{0}, seed);
       });
