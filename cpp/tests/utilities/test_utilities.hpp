@@ -284,5 +284,44 @@ class Rmat_Usecase {
   bool multi_gpu_usecase_{};
 };
 
+// alias for easy customization for debug purposes:
+//
+template <typename value_t>
+using vector_test_t = rmm::device_uvector<value_t>;
+
+template <typename vertex_t, typename edge_t, typename weight_t>
+decltype(auto) make_graph(raft::handle_t const& handle,
+                          std::vector<vertex_t> const& v_src,
+                          std::vector<vertex_t> const& v_dst,
+                          std::vector<weight_t> const& v_w,
+                          vertex_t num_vertices,
+                          edge_t num_edges,
+                          bool is_weighted)
+{
+  using namespace cugraph::experimental;
+
+  vector_test_t<vertex_t> d_src(num_edges, handle.get_stream());
+  vector_test_t<vertex_t> d_dst(num_edges, handle.get_stream());
+  vector_test_t<weight_t> d_weights(num_edges, handle.get_stream());
+
+  raft::update_device(d_src.data(), v_src.data(), d_src.size(), handle.get_stream());
+  raft::update_device(d_dst.data(), v_dst.data(), d_dst.size(), handle.get_stream());
+
+  weight_t* ptr_d_weights{nullptr};
+  if (is_weighted) {
+    raft::update_device(d_weights.data(), v_w.data(), d_weights.size(), handle.get_stream());
+
+    ptr_d_weights = d_weights.data();
+  }
+
+  edgelist_t<vertex_t, edge_t, weight_t> edgelist{
+    d_src.data(), d_dst.data(), ptr_d_weights, num_edges};
+
+  graph_t<vertex_t, edge_t, weight_t, false, false> graph(
+    handle, edgelist, num_vertices, graph_properties_t{false, false, is_weighted}, false);
+
+  return graph;
+}
+
 }  // namespace test
 }  // namespace cugraph

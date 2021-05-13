@@ -157,7 +157,7 @@ class graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu, std::enab
   }
 
  private:
-  friend class cugraph::serializer::serializer;
+  friend class cugraph::serializer::serializer_t;
 
   // cnstr. to be used _only_ for un/serialization purposes:
   //

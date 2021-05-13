@@ -30,7 +30,7 @@
 
 namespace cugraph {
 namespace serializer {
-class serializer;  // forward...
+class serializer_t;  // forward...
 }
 namespace experimental {
 
@@ -257,7 +257,7 @@ class graph_base_t {
   bool is_weighted() const { return properties_.is_weighted; }
 
  protected:
-  friend class cugraph::serializer::serializer;
+  friend class cugraph::serializer::serializer_t;
 
   raft::handle_t const* get_handle_ptr() const { return handle_ptr_; };
   graph_properties_t get_graph_properties() const { return properties_; }

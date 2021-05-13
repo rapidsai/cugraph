@@ -32,7 +32,7 @@
 namespace cugraph {
 namespace serializer {
 template <typename value_t>
-void serializer::serialize(value_t const* p_d_src, size_t size)
+void serializer_t::serialize(value_t const* p_d_src, size_t size)
 {
   auto byte_buff_sz       = size * sizeof(value_t);
   auto it_end             = begin_ + byte_buff_sz;
@@ -44,7 +44,7 @@ void serializer::serialize(value_t const* p_d_src, size_t size)
 }
 
 template <typename value_t>
-rmm::device_uvector<value_t> serializer::unserialize(size_t size)
+rmm::device_uvector<value_t> serializer_t::unserialize(size_t size)
 {
   auto byte_buff_sz = size * sizeof(value_t);
   rmm::device_uvector<value_t> d_dest(size, handle_.get_stream());
@@ -57,7 +57,7 @@ rmm::device_uvector<value_t> serializer::unserialize(size_t size)
 }
 
 template <typename graph_t>
-serializer::graph_meta_t<graph_t> serializer::serialize(graph_t const& graph)
+serializer_t::graph_meta_t<graph_t> serializer_t::serialize(graph_t const& graph)
 {
   using vertex_t = typename graph_t::vertex_type;
   using edge_t   = typename graph_t::edge_type;
@@ -89,7 +89,7 @@ serializer::graph_meta_t<graph_t> serializer::serialize(graph_t const& graph)
 }
 
 template <typename graph_t>
-graph_t serializer::unserialize(serializer::graph_meta_t<graph_t> const& gvmeta)
+graph_t serializer_t::unserialize(serializer_t::graph_meta_t<graph_t> const& gvmeta)
 {
   using vertex_t = typename graph_t::vertex_type;
   using edge_t   = typename graph_t::edge_type;
@@ -123,55 +123,55 @@ graph_t serializer::unserialize(serializer::graph_meta_t<graph_t> const& gvmeta)
 
 // Manual template instantiations (EIDir's):
 //
-template void serializer::serialize(int32_t const* p_d_src, size_t size);
-template void serializer::serialize(int64_t const* p_d_src, size_t size);
-template void serializer::serialize(float const* p_d_src, size_t size);
-template void serializer::serialize(double const* p_d_src, size_t size);
+template void serializer_t::serialize(int32_t const* p_d_src, size_t size);
+template void serializer_t::serialize(int64_t const* p_d_src, size_t size);
+template void serializer_t::serialize(float const* p_d_src, size_t size);
+template void serializer_t::serialize(double const* p_d_src, size_t size);
 
-template rmm::device_uvector<int32_t> serializer::unserialize(size_t size);
-template rmm::device_uvector<int64_t> serializer::unserialize(size_t size);
-template rmm::device_uvector<float> serializer::unserialize(size_t size);
-template rmm::device_uvector<double> serializer::unserialize(size_t size);
+template rmm::device_uvector<int32_t> serializer_t::unserialize(size_t size);
+template rmm::device_uvector<int64_t> serializer_t::unserialize(size_t size);
+template rmm::device_uvector<float> serializer_t::unserialize(size_t size);
+template rmm::device_uvector<double> serializer_t::unserialize(size_t size);
 
 // serialize graph:
 //
-template serializer::graph_meta_t<graph_t<int32_t, int32_t, float, false, false>>
-serializer::serialize(graph_t<int32_t, int32_t, float, false, false> const& graph);
+template serializer_t::graph_meta_t<graph_t<int32_t, int32_t, float, false, false>>
+serializer_t::serialize(graph_t<int32_t, int32_t, float, false, false> const& graph);
 
-template serializer::graph_meta_t<graph_t<int32_t, int64_t, float, false, false>>
-serializer::serialize(graph_t<int32_t, int64_t, float, false, false> const& graph);
+template serializer_t::graph_meta_t<graph_t<int32_t, int64_t, float, false, false>>
+serializer_t::serialize(graph_t<int32_t, int64_t, float, false, false> const& graph);
 
-template serializer::graph_meta_t<graph_t<int64_t, int64_t, float, false, false>>
-serializer::serialize(graph_t<int64_t, int64_t, float, false, false> const& graph);
+template serializer_t::graph_meta_t<graph_t<int64_t, int64_t, float, false, false>>
+serializer_t::serialize(graph_t<int64_t, int64_t, float, false, false> const& graph);
 
-template serializer::graph_meta_t<graph_t<int32_t, int32_t, double, false, false>>
-serializer::serialize(graph_t<int32_t, int32_t, double, false, false> const& graph);
+template serializer_t::graph_meta_t<graph_t<int32_t, int32_t, double, false, false>>
+serializer_t::serialize(graph_t<int32_t, int32_t, double, false, false> const& graph);
 
-template serializer::graph_meta_t<graph_t<int32_t, int64_t, double, false, false>>
-serializer::serialize(graph_t<int32_t, int64_t, double, false, false> const& graph);
+template serializer_t::graph_meta_t<graph_t<int32_t, int64_t, double, false, false>>
+serializer_t::serialize(graph_t<int32_t, int64_t, double, false, false> const& graph);
 
-template serializer::graph_meta_t<graph_t<int64_t, int64_t, double, false, false>>
-serializer::serialize(graph_t<int64_t, int64_t, double, false, false> const& graph);
+template serializer_t::graph_meta_t<graph_t<int64_t, int64_t, double, false, false>>
+serializer_t::serialize(graph_t<int64_t, int64_t, double, false, false> const& graph);
 
 // unserialize graph:
 //
-template graph_t<int32_t, int32_t, float, false, false> serializer::unserialize(
-  serializer::graph_meta_t<graph_t<int32_t, int32_t, float, false, false>> const& gvmeta);
+template graph_t<int32_t, int32_t, float, false, false> serializer_t::unserialize(
+  serializer_t::graph_meta_t<graph_t<int32_t, int32_t, float, false, false>> const& gvmeta);
 
-template graph_t<int32_t, int64_t, float, false, false> serializer::unserialize(
-  serializer::graph_meta_t<graph_t<int32_t, int64_t, float, false, false>> const& gvmeta);
+template graph_t<int32_t, int64_t, float, false, false> serializer_t::unserialize(
+  serializer_t::graph_meta_t<graph_t<int32_t, int64_t, float, false, false>> const& gvmeta);
 
-template graph_t<int64_t, int64_t, float, false, false> serializer::unserialize(
-  serializer::graph_meta_t<graph_t<int64_t, int64_t, float, false, false>> const& gvmeta);
+template graph_t<int64_t, int64_t, float, false, false> serializer_t::unserialize(
+  serializer_t::graph_meta_t<graph_t<int64_t, int64_t, float, false, false>> const& gvmeta);
 
-template graph_t<int32_t, int32_t, double, false, false> serializer::unserialize(
-  serializer::graph_meta_t<graph_t<int32_t, int32_t, double, false, false>> const& gvmeta);
+template graph_t<int32_t, int32_t, double, false, false> serializer_t::unserialize(
+  serializer_t::graph_meta_t<graph_t<int32_t, int32_t, double, false, false>> const& gvmeta);
 
-template graph_t<int32_t, int64_t, double, false, false> serializer::unserialize(
-  serializer::graph_meta_t<graph_t<int32_t, int64_t, double, false, false>> const& gvmeta);
+template graph_t<int32_t, int64_t, double, false, false> serializer_t::unserialize(
+  serializer_t::graph_meta_t<graph_t<int32_t, int64_t, double, false, false>> const& gvmeta);
 
-template graph_t<int64_t, int64_t, double, false, false> serializer::unserialize(
-  serializer::graph_meta_t<graph_t<int64_t, int64_t, double, false, false>> const& gvmeta);
+template graph_t<int64_t, int64_t, double, false, false> serializer_t::unserialize(
+  serializer_t::graph_meta_t<graph_t<int64_t, int64_t, double, false, false>> const& gvmeta);
 
 }  // namespace serializer
 }  // namespace cugraph

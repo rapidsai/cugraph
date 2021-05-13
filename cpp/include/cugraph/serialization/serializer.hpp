@@ -32,7 +32,7 @@ namespace serializer {
 
 using namespace cugraph::experimental;
 
-class serializer {
+class serializer_t {
  public:
   using byte_t = uint8_t;
 
@@ -41,7 +41,7 @@ class serializer {
 
   // cnstr. for serialize() path:
   //
-  serializer(raft::handle_t const& handle, size_t total_sz_bytes)
+  serializer_t(raft::handle_t const& handle, size_t total_sz_bytes)
     : handle_(handle),
       d_storage_(total_sz_bytes, handle.get_stream()),
       begin_(d_storage_.begin()),
@@ -101,7 +101,5 @@ class serializer {
   device_byte_cit cbegin_{nullptr};  // advances on unserialize()
 };
 
-namespace detail {
-}
 }  // namespace serializer
 }  // namespace cugraph
