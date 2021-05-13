@@ -19,10 +19,11 @@ ARGS=$*
 REPODIR=$(cd $(dirname $0); pwd)
 LIBCUGRAPH_BUILD_DIR=${LIBCUGRAPH_BUILD_DIR:=${REPODIR}/cpp/build}
 
-VALIDARGS="clean libcugraph cugraph docs -v -g -n --allgpuarch --buildfaiss --show_depr_warn -h --help"
+VALIDARGS="clean scrub libcugraph cugraph docs -v -g -n --allgpuarch --buildfaiss --show_depr_warn -h --help"
 HELP="$0 [<target> ...] [<flag> ...]
  where <target> is:
-   clean            - remove all existing build artifacts and configuration (start over)
+   clean            - remove build dirs
+   scrub            - remove all existing build artifacts, configuration, and installed files (start over)
    libcugraph       - build the cugraph C++ code
    cugraph          - build the cugraph Python package
    cpp-mgtests      - build libcugraph mnmg tests. Builds MPI communicator, adding MPI as a dependency.
@@ -108,11 +109,34 @@ if hasArg cpp-mgtests; then
 fi
 
 # If clean given, run it prior to any other steps
-if hasArg clean; then
-    # FIXME: ideally the "setup.py clean" command below would also be run to
-    # remove all the "inplace" python build artifacts, but currently, running
-    # any setup.py command has side effects (eg. cloning repos).
-    #(cd ${REPODIR}/python && python setup.py clean)
+if hasArg clean || hasArg scrub; then
+    if hasArg scrub; then
+        # uninstall libcugraph
+        if [[ "$INSTALL_PREFIX" != "" ]]; then
+            rm -rf ${INSTALL_PREFIX}/include/cugraph
+            rm -f ${INSTALL_PREFIX}/lib/libcugraph.so
+        fi
+        # This may be redundant given the above, but can also be used in case
+        # there are other installed files outside of the locations above.
+        if [ -e ${LIBCUGRAPH_BUILD_DIR}/install_manifest.txt ]; then
+            xargs rm -f < ${LIBCUGRAPH_BUILD_DIR}/install_manifest.txt > /dev/null 2>&1
+        fi
+        # remove artifacts generated inplace
+        # FIXME: ideally the "setup.py clean" command would be used for this,
+        # but currently running any setup.py command has side effects
+        # (eg. cloning repos).
+        # (cd ${REPODIR}/python && python setup.py clean)
+        if [[ -d ${REPODIR}/python ]]; then
+            pushd ${REPODIR}/python > /dev/null
+            rm -rf dist dask-worker-space cugraph/raft *.egg-info
+            find . -name "__pycache__" -type d -exec rm -rf {} \; > /dev/null 2>&1
+            find . -name "*.cpp" -type f -delete
+            find . -name "*.cpython*.so" -type f -delete
+            popd > /dev/null
+        fi
+        # uninstall cugraph installed from a prior "setup.py install"
+        pip uninstall -y cugraph
+    fi
 
     # If the dirs to clean are mounted dirs in a container, the contents should
     # be removed but the mounted dirs will remain.  The find removes all
