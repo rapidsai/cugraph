@@ -209,7 +209,7 @@ void unrenumber_int_vertices(raft::handle_t const& handle,
                              vertex_t const* renumber_map_labels,
                              vertex_t local_int_vertex_first,
                              vertex_t local_int_vertex_last,
-                             std::vector<vertex_t>& vertex_partition_lasts,
+                             std::vector<vertex_t> const& vertex_partition_lasts,
                              bool do_expensive_check = false);
 
 /**
