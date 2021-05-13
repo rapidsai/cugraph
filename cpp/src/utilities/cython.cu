@@ -17,9 +17,9 @@
 #include <cugraph/algorithms.hpp>
 #include <cugraph/experimental/detail/graph_utils.cuh>
 #include <cugraph/experimental/graph_functions.hpp>
-#include <cugraph/graph_generators.hpp>
 #include <cugraph/experimental/graph_view.hpp>
 #include <cugraph/graph.hpp>
+#include <cugraph/graph_generators.hpp>
 #include <cugraph/partition_manager.hpp>
 #include <cugraph/utilities/cython.hpp>
 #include <cugraph/utilities/error.hpp>
@@ -806,8 +806,13 @@ std::unique_ptr<graph_generator_t> call_generate_rmat_edgelist(raft::handle_t co
                                                                bool clip_and_flip,
                                                                bool scramble_vertex_ids)
 {
-  auto src_dst_tuple = cugraph::experimental::generate_rmat_edgelist<vertex_t>(
-    handle, scale, num_edges, a, b, c, seed, clip_and_flip, scramble_vertex_ids);
+  auto src_dst_tuple = cugraph::generate_rmat_edgelist<vertex_t>(
+    handle, scale, num_edges, a, b, c, seed, clip_and_flip);
+
+  if (scramble_vertex_ids) {
+    cugraph::scramble_vertex_ids<vertex_t>(
+      handle, std::get<0>(src_dst_tuple), std::get<1>(src_dst_tuple), vertex_t{0}, seed);
+  }
 
   graph_generator_t gg_vals{
     std::make_unique<rmm::device_buffer>(std::get<0>(src_dst_tuple).release()),
@@ -823,23 +828,29 @@ call_generate_rmat_edgelists(raft::handle_t const& handle,
                              size_t min_scale,
                              size_t max_scale,
                              size_t edge_factor,
-                             cugraph::experimental::generator_distribution_t size_distribution,
-                             cugraph::experimental::generator_distribution_t edge_distribution,
+                             cugraph::generator_distribution_t size_distribution,
+                             cugraph::generator_distribution_t edge_distribution,
                              uint64_t seed,
                              bool clip_and_flip,
                              bool scramble_vertex_ids)
 {
-  auto src_dst_vec_tuple =
-    cugraph::experimental::generate_rmat_edgelists<vertex_t>(handle,
-                                                             n_edgelists,
-                                                             min_scale,
-                                                             max_scale,
-                                                             edge_factor,
-                                                             size_distribution,
-                                                             edge_distribution,
-                                                             seed,
-                                                             clip_and_flip,
-                                                             scramble_vertex_ids);
+  auto src_dst_vec_tuple = cugraph::generate_rmat_edgelists<vertex_t>(handle,
+                                                                      n_edgelists,
+                                                                      min_scale,
+                                                                      max_scale,
+                                                                      edge_factor,
+                                                                      size_distribution,
+                                                                      edge_distribution,
+                                                                      seed,
+                                                                      clip_and_flip);
+
+  if (scramble_vertex_ids) {
+    std::for_each(
+      src_dst_vec_tuple.begin(), src_dst_vec_tuple.end(), [&handle, seed](auto &src_dst_tuple) {
+        cugraph::scramble_vertex_ids<vertex_t>(
+          handle, std::get<0>(src_dst_tuple), std::get<1>(src_dst_tuple), vertex_t{0}, seed);
+      });
+  }
 
   std::vector<std::pair<std::unique_ptr<rmm::device_buffer>, std::unique_ptr<rmm::device_buffer>>>
     gg_vec;
@@ -1451,31 +1462,29 @@ template std::unique_ptr<graph_generator_t> call_generate_rmat_edgelist<int64_t>
 
 template std::vector<
   std::pair<std::unique_ptr<rmm::device_buffer>, std::unique_ptr<rmm::device_buffer>>>
-call_generate_rmat_edgelists<int32_t>(
-  raft::handle_t const& handle,
-  size_t n_edgelists,
-  size_t min_scale,
-  size_t max_scale,
-  size_t edge_factor,
-  cugraph::experimental::generator_distribution_t size_distribution,
-  cugraph::experimental::generator_distribution_t edge_distribution,
-  uint64_t seed,
-  bool clip_and_flip,
-  bool scramble_vertex_ids);
+call_generate_rmat_edgelists<int32_t>(raft::handle_t const& handle,
+                                      size_t n_edgelists,
+                                      size_t min_scale,
+                                      size_t max_scale,
+                                      size_t edge_factor,
+                                      cugraph::generator_distribution_t size_distribution,
+                                      cugraph::generator_distribution_t edge_distribution,
+                                      uint64_t seed,
+                                      bool clip_and_flip,
+                                      bool scramble_vertex_ids);
 
 template std::vector<
   std::pair<std::unique_ptr<rmm::device_buffer>, std::unique_ptr<rmm::device_buffer>>>
-call_generate_rmat_edgelists<int64_t>(
-  raft::handle_t const& handle,
-  size_t n_edgelists,
-  size_t min_scale,
-  size_t max_scale,
-  size_t edge_factor,
-  cugraph::experimental::generator_distribution_t size_distribution,
-  cugraph::experimental::generator_distribution_t edge_distribution,
-  uint64_t seed,
-  bool clip_and_flip,
-  bool scramble_vertex_ids);
+call_generate_rmat_edgelists<int64_t>(raft::handle_t const& handle,
+                                      size_t n_edgelists,
+                                      size_t min_scale,
+                                      size_t max_scale,
+                                      size_t edge_factor,
+                                      cugraph::generator_distribution_t size_distribution,
+                                      cugraph::generator_distribution_t edge_distribution,
+                                      uint64_t seed,
+                                      bool clip_and_flip,
+                                      bool scramble_vertex_ids);
 
 }  // namespace cython
 }  // namespace cugraph

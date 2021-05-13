@@ -18,6 +18,7 @@
 #include <utilities/base_fixture.hpp>
 #include <utilities/test_utilities.hpp>
 #include <utilities/thrust_wrapper.hpp>
+#include <utilities/test_graphs.hpp>
 
 #include <cugraph/algorithms.hpp>
 #include <cugraph/experimental/graph.hpp>

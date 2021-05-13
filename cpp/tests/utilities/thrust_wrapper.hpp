@@ -26,5 +26,16 @@ rmm::device_uvector<value_t> sort_by_key(raft::handle_t const& handle,
                                          value_t const* values,
                                          size_t num_pairs);
 
+template <typename vertex_t>
+void translate_vertex_ids(raft::handle_t const& handle,
+                          rmm::device_uvector<vertex_t>& d_src_v,
+                          rmm::device_uvector<vertex_t>& d_dst_v,
+                          vertex_t vertex_id_offset);
+
+template <typename vertex_t>
+void populate_vertex_ids(raft::handle_t const& handle,
+                         rmm::device_uvector<vertex_t>& d_vertices_v,
+                         vertex_t vertex_id_offset);
+
 }  // namespace test
 }  // namespace cugraph

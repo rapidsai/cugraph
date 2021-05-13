@@ -19,7 +19,7 @@
 #include <utilities/test_utilities.hpp>
 
 #include <cugraph/experimental/graph.hpp>
-#include <cugraph/experimental/graph_generator.hpp>
+#include <cugraph/graph_generators.hpp>
 
 #include <raft/cudart_utils.h>
 #include <raft/handle.hpp>
@@ -178,7 +178,7 @@ class Tests_GenerateRmat : public ::testing::TestWithParam<GenerateRmat_Usecase>
 
       CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
 
-      std::tie(d_srcs, d_dsts) = cugraph::experimental::generate_rmat_edgelist<vertex_t>(
+      std::tie(d_srcs, d_dsts) = cugraph::generate_rmat_edgelist<vertex_t>(
         handle,
         configuration.scale,
         (size_t{1} << configuration.scale) * configuration.edge_factor,
@@ -186,8 +186,8 @@ class Tests_GenerateRmat : public ::testing::TestWithParam<GenerateRmat_Usecase>
         configuration.b,
         configuration.c,
         uint64_t{0},
-        configuration.clip_and_flip,
-        static_cast<bool>(scramble));
+        configuration.clip_and_flip);
+        //static_cast<bool>(scramble));
 
       CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
 
@@ -290,15 +290,15 @@ typedef struct GenerateRmats_Usecase_t {
   size_t min_scale{0};
   size_t max_scale{0};
   size_t edge_factor{0};
-  cugraph::experimental::generator_distribution_t component_distribution;
-  cugraph::experimental::generator_distribution_t edge_distribution;
+  cugraph::generator_distribution_t component_distribution;
+  cugraph::generator_distribution_t edge_distribution;
 
   GenerateRmats_Usecase_t(size_t n_edgelists,
                           size_t min_scale,
                           size_t max_scale,
                           size_t edge_factor,
-                          cugraph::experimental::generator_distribution_t component_distribution,
-                          cugraph::experimental::generator_distribution_t edge_distribution)
+                          cugraph::generator_distribution_t component_distribution,
+                          cugraph::generator_distribution_t edge_distribution)
     : n_edgelists(n_edgelists),
       min_scale(min_scale),
       max_scale(max_scale),
@@ -323,14 +323,14 @@ class Tests_GenerateRmats : public ::testing::TestWithParam<GenerateRmats_Usecas
     CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
 
     auto outputs =
-      cugraph::experimental::generate_rmat_edgelists<vertex_t>(handle,
-                                                               configuration.n_edgelists,
-                                                               configuration.min_scale,
-                                                               configuration.max_scale,
-                                                               configuration.edge_factor,
-                                                               configuration.component_distribution,
-                                                               configuration.edge_distribution,
-                                                               uint64_t{0});
+      cugraph::generate_rmat_edgelists<vertex_t>(handle,
+                                                 configuration.n_edgelists,
+                                                 configuration.min_scale,
+                                                 configuration.max_scale,
+                                                 configuration.edge_factor,
+                                                 configuration.component_distribution,
+                                                 configuration.edge_distribution,
+                                                 uint64_t{0});
 
     CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
     ASSERT_EQ(configuration.n_edgelists, outputs.size());
@@ -351,24 +351,24 @@ INSTANTIATE_TEST_SUITE_P(
                           1,
                           16,
                           32,
-                          cugraph::experimental::generator_distribution_t::UNIFORM,
-                          cugraph::experimental::generator_distribution_t::UNIFORM),
+                          cugraph::generator_distribution_t::UNIFORM,
+                          cugraph::generator_distribution_t::UNIFORM),
     GenerateRmats_Usecase(8,
                           1,
                           16,
                           32,
-                          cugraph::experimental::generator_distribution_t::UNIFORM,
-                          cugraph::experimental::generator_distribution_t::POWER_LAW),
+                          cugraph::generator_distribution_t::UNIFORM,
+                          cugraph::generator_distribution_t::POWER_LAW),
     GenerateRmats_Usecase(8,
                           3,
                           16,
                           32,
-                          cugraph::experimental::generator_distribution_t::POWER_LAW,
-                          cugraph::experimental::generator_distribution_t::UNIFORM),
+                          cugraph::generator_distribution_t::POWER_LAW,
+                          cugraph::generator_distribution_t::UNIFORM),
     GenerateRmats_Usecase(8,
                           3,
                           16,
                           32,
-                          cugraph::experimental::generator_distribution_t::POWER_LAW,
-                          cugraph::experimental::generator_distribution_t::POWER_LAW)));
+                          cugraph::generator_distribution_t::POWER_LAW,
+                          cugraph::generator_distribution_t::POWER_LAW)));
 CUGRAPH_TEST_PROGRAM_MAIN()
