@@ -21,6 +21,7 @@ from cugraph.structure.graph_primtypes cimport get_two_hop_neighbors as c_get_tw
 from cugraph.structure.graph_primtypes cimport renumber_vertices as c_renumber_vertices
 from cugraph.structure.utils_wrapper import *
 from libcpp cimport bool
+import enum
 from libc.stdint cimport uintptr_t
 
 from rmm._lib.device_buffer cimport device_buffer, DeviceBuffer
@@ -43,6 +44,12 @@ def datatype_cast(cols, dtypes):
         else:
             cols_out.append(col.astype(dtypes[0]))
     return cols_out
+
+
+class Direction(enum.Enum):
+    ALL = 0
+    IN = 1
+    OUT = 2
 
 
 def renumber(source_col, dest_col):
@@ -137,7 +144,7 @@ def view_edge_list(input_graph):
     return src_indices, indices, weights
 
 
-def _degree_coo(edgelist_df, src_name, dst_name, x=0, num_verts=None, sID=None):
+def _degree_coo(edgelist_df, src_name, dst_name, direction=Direction.ALL, num_verts=None, sID=None):
     #
     #  Computing the degree of the input graph from COO
     #
@@ -146,11 +153,11 @@ def _degree_coo(edgelist_df, src_name, dst_name, x=0, num_verts=None, sID=None):
     src = edgelist_df[src_name]
     dst = edgelist_df[dst_name]
 
-    if x == 0:
+    if direction == Direction.ALL:
         dir = DIRECTION_IN_PLUS_OUT
-    elif x == 1:
+    elif direction == Direction.IN:
         dir = DIRECTION_IN
-    elif x == 2:
+    elif direction == Direction.OUT:
         dir = DIRECTION_OUT
     else:
         raise Exception("x should be 0, 1 or 2")
@@ -185,17 +192,17 @@ def _degree_coo(edgelist_df, src_name, dst_name, x=0, num_verts=None, sID=None):
     return vertex_col, degree_col
 
 
-def _degree_csr(offsets, indices, x=0):
+def _degree_csr(offsets, indices, direction=Direction.ALL):
     cdef DegreeDirection dir
 
-    if x == 0:
+    if direction == Direction.ALL:
         dir = DIRECTION_IN_PLUS_OUT
-    elif x == 1:
+    elif direction == Direction.IN:
         dir = DIRECTION_IN
-    elif x == 2:
+    elif direction == Direction.OUT:
         dir = DIRECTION_OUT
     else:
-        raise Exception("x should be 0, 1 or 2")
+        raise Exception("direction should be 0, 1 or 2")
 
     [offsets, indices] = datatype_cast([offsets, indices], [np.int32])
 
@@ -220,47 +227,48 @@ def _degree_csr(offsets, indices, x=0):
     return vertex_col, degree_col
 
 
-def _degree(input_graph, x=0, mnmg=False):
-    transpose_x = { 0: 0,
-                    2: 1,
-                    1: 2 }
+def _mg_degree(input_graph, direction=Direction.ALL):
+    if input_graph.edgelist is None:
+        input_graph.compute_renumber_edge_list(transposed=False)
+    input_ddf = input_graph.edgelist.edgelist_df
+    num_verts = input_ddf[['src', 'dst']].max().max().compute() + 1
+    data = DistributedDataHandler.create(data=input_ddf)
+    comms = Comms.get_comms()
+    client = default_client()
+    data.calculate_parts_to_sizes(comms)
+    if direction==Direction.IN:
+        degree_ddf = [client.submit(_degree_coo, wf[1][0], 'src', 'dst', Direction.IN, num_verts, comms.sessionId, workers=[wf[0]]) for idx, wf in enumerate(data.worker_to_parts.items())]
+    if direction==Direction.OUT:
+        degree_ddf = [client.submit(_degree_coo, wf[1][0], 'dst', 'src', Direction.IN, num_verts, comms.sessionId, workers=[wf[0]]) for idx, wf in enumerate(data.worker_to_parts.items())]
+    wait(degree_ddf)
+    return degree_ddf[0].result()
 
-    if mnmg:
-        if input_graph.edgelist is None:
-            input_graph.compute_renumber_edge_list(transposed=False)
-        input_ddf = input_graph.edgelist.edgelist_df
-        num_verts = input_ddf[['src', 'dst']].max().max().compute() + 1
-        data = DistributedDataHandler.create(data=input_ddf)
-        comms = Comms.get_comms()
-        client = default_client()
-        data.calculate_parts_to_sizes(comms)
-        if x==1:
-            degree_ddf = [client.submit(_degree_coo, wf[1][0], 'src', 'dst', 1, num_verts, comms.sessionId, workers=[wf[0]]) for idx, wf in enumerate(data.worker_to_parts.items())]
-        if x==2:
-            degree_ddf = [client.submit(_degree_coo, wf[1][0], 'dst', 'src', 1, num_verts, comms.sessionId, workers=[wf[0]]) for idx, wf in enumerate(data.worker_to_parts.items())]
-        wait(degree_ddf)
-        return degree_ddf[0].result()
+
+def _degree(input_graph, direction=Direction.ALL):
+    transpose_direction = { Direction.ALL: Direction.ALL,
+                            Direction.IN: Direction.OUT,
+                            Direction.OUT: Direction.IN }
 
     if input_graph.adjlist is not None:
         return _degree_csr(input_graph.adjlist.offsets,
                            input_graph.adjlist.indices,
-                           x)
+                           direction)
 
     if input_graph.transposedadjlist is not None:
         return _degree_csr(input_graph.transposedadjlist.offsets,
                            input_graph.transposedadjlist.indices,
-                           transpose_x[x])
+                           transpose_direction[direction])
 
     if input_graph.edgelist is not None:
         return _degree_coo(input_graph.edgelist.edgelist_df,
-                           'src', 'dst', x)
+                           'src', 'dst', direction)
 
     raise Exception("input_graph not COO, CSR or CSC")
 
 
 def _degrees(input_graph):
-    verts, indegrees = _degree(input_graph,1)
-    verts, outdegrees = _degree(input_graph, 2)
+    verts, indegrees = _degree(input_graph, Direction.IN)
+    verts, outdegrees = _degree(input_graph, Direction.OUT)
 
     return verts, indegrees, outdegrees
 
