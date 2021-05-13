@@ -81,6 +81,7 @@ class Tests_MGPageRank
 
     if (PERF) {
       CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
+      handle.get_comms().barrier();
       hr_clock.start();
     }
     cugraph::experimental::graph_t<vertex_t, edge_t, weight_t, true, true> mg_graph(handle);
@@ -90,6 +91,7 @@ class Tests_MGPageRank
 
     if (PERF) {
       CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
+      handle.get_comms().barrier();
       double elapsed_time{0.0};
       hr_clock.stop(&elapsed_time);
       std::cout << "MG construct_graph took " << elapsed_time * 1e-6 << " s.\n";
@@ -147,6 +149,7 @@ class Tests_MGPageRank
 
     if (PERF) {
       CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
+      handle.get_comms().barrier();
       hr_clock.start();
     }
 
@@ -164,6 +167,7 @@ class Tests_MGPageRank
 
     if (PERF) {
       CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
+      handle.get_comms().barrier();
       double elapsed_time{0.0};
       hr_clock.stop(&elapsed_time);
       std::cout << "MG PageRank took " << elapsed_time * 1e-6 << " s.\n";
