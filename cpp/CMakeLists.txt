@@ -328,11 +328,17 @@ cuGraph library is a collection of GPU accelerated graph algorithms that process
 
 ]=])
 
+set(code_string
+[=[
+thrust_create_target(cugraph::Thrust FROM_OPTIONS)
+]=])
+
  rapids_export(INSTALL cugraph
     EXPORT_SET cugraph-exports
     GLOBAL_TARGETS cugraph
     NAMESPACE cugraph::
     DOCUMENTATION doc_string
+    FINAL_CODE_BLOCK code_string
     )
 
 ################################################################################################
@@ -342,6 +348,7 @@ rapids_export(BUILD cugraph
     GLOBAL_TARGETS cugraph
     NAMESPACE cugraph::
     DOCUMENTATION doc_string
+    FINAL_CODE_BLOCK code_string
     )
 
 ###################################################################################################
