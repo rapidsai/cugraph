@@ -284,7 +284,7 @@ coarsen_graph(
       store_transposed ? graph_view.get_number_of_local_adj_matrix_partition_cols(i)
                        : graph_view.get_number_of_local_adj_matrix_partition_rows(i),
       handle.get_stream());
-    if (col_comm_rank == i) {
+    if (col_comm_rank == static_cast<int>(i)) {
       // FIXME: this copy is unnecessary, beter fix RAFT comm's bcast to take const iterators for
       // input
       thrust::copy(rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
