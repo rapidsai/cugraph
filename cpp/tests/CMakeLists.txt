@@ -292,6 +292,22 @@ endif(RAPIDS_DATASET_ROOT_DIR)
 ###################################################################################################
 
 ###################################################################################################
+# - graph generator tests -------------------------------------------------------------------------
+
+set(GRAPH_GENERATORS_TEST_SRC
+    "${CMAKE_CURRENT_SOURCE_DIR}/generators/generators_test.cpp")
+
+  ConfigureTest(GRAPH_GENERATORS_TEST "${GRAPH_GENERATORS_TEST_SRC}")
+
+###################################################################################################
+# - erdos renyi graph generator tests -------------------------------------------------------------
+
+set(ERDOS_RENYI_GENERATOR_TEST_SRC
+    "${CMAKE_CURRENT_SOURCE_DIR}/generators/erdos_renyi_test.cpp")
+
+  ConfigureTest(ERDOS_RENYI_GENERATOR_TEST "${ERDOS_RENYI_GENERATOR_TEST_SRC}")
+
+###################################################################################################
 # - katz centrality tests -------------------------------------------------------------------------
 
 set(KATZ_TEST_SRC

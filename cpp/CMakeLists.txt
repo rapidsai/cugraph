@@ -425,7 +425,10 @@ add_library(cugraph SHARED
     src/components/connectivity.cu
     src/centrality/katz_centrality.cu
     src/centrality/betweenness_centrality.cu
-    src/experimental/generate_rmat_edgelist.cu
+    src/generators/generate_rmat_edgelist.cu
+    src/generators/generator_tools.cu
+    src/generators/simple_generators.cu
+    src/generators/erdos_renyi_generator.cu
     src/experimental/graph.cu
     src/experimental/graph_view.cu
     src/experimental/coarsen_graph.cu

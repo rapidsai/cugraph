@@ -16,7 +16,7 @@
 #pragma once
 
 #include <cugraph/experimental/graph.hpp>
-#include <cugraph/experimental/graph_generator.hpp>
+#include <cugraph/graph_generators.hpp>
 #include <cugraph/graph.hpp>
 #include <cugraph/utilities/graph_traits.hpp>
 
