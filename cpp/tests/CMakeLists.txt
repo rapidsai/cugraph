@@ -537,7 +537,7 @@ set(EXPERIMENTAL_KATZ_CENTRALITY_TEST_SRCS
 ConfigureTest(EXPERIMENTAL_KATZ_CENTRALITY_TEST "${EXPERIMENTAL_KATZ_CENTRALITY_TEST_SRCS}")
 
 ###################################################################################################
-# - Experimental RANDOM_WALKS tests ------------------------------------------------------------
+# - Experimental RANDOM_WALKS tests ---------------------------------------------------------------
 
 set(RANDOM_WALKS_TEST_SRCS
     "${CMAKE_CURRENT_SOURCE_DIR}/sampling/random_walks_test.cu")
@@ -558,6 +558,14 @@ set(RANDOM_WALKS_PROFILING_SRCS
 # ConfigureTest function to share common code with a new ConfigureBenchmark
 # function (which would not link gtest, etc.)
 ConfigureTest(RANDOM_WALKS_PROFILING "${RANDOM_WALKS_PROFILING_SRCS}")
+
+###################################################################################################
+# - Serialization tests ---------------------------------------------------------------------------
+
+set(SERIALIZATION_TEST_SRCS
+    "${CMAKE_CURRENT_SOURCE_DIR}/serialization/un_serialize_test.cpp")
+
+ConfigureTest(SERIALIZATION_TEST "${SERIALIZATION_TEST_SRCS}")
 
 
 ###################################################################################################
