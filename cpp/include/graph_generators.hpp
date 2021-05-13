@@ -327,7 +327,7 @@ template <typename vertex_t, typename weight_t>
 void scramble_vertex_ids(raft::handle_t const &handle,
                          rmm::device_uvector<vertex_t> &d_src_v,
                          rmm::device_uvector<vertex_t> &d_dst_v,
-                         std::optional<rmm::device_uvector<weight_t> &> optional_d_weights_v,
+                         std::optional<rmm::device_uvector<weight_t>> &optional_d_weights_v,
                          vertex_t vertex_id_offset,
                          uint64_t seed = 0);
 

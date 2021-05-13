@@ -125,10 +125,10 @@ generate_2d_mesh_graph_edgelist(
                                       x_iterator,
                                       x_iterator + num_vertices - 1,
                                       output_iterator,
-                                      [x] __device__(auto pair) {
+                                      [base_vertex_id, x] __device__(auto pair) {
                                         vertex_t dst = thrust::get<1>(pair);
                                         // Want to skip if dst is in the last column of a graph
-                                        return (dst % x) != 0;
+                                        return ((dst - base_vertex_id) % x) != 0;
                                       });
 
     auto y_iterator = thrust::make_zip_iterator(
@@ -139,11 +139,11 @@ generate_2d_mesh_graph_edgelist(
                                       y_iterator,
                                       y_iterator + num_vertices - x,
                                       output_iterator,
-                                      [x, y] __device__(auto pair) {
+                                      [base_vertex_id, x, y] __device__(auto pair) {
                                         vertex_t dst = thrust::get<1>(pair);
 
                                         // Want to skip if dst is in the first row of a new graph
-                                        return (dst % (x * y)) >= x;
+                                        return ((dst - base_vertex_id) % (x * y)) >= x;
                                       });
   }
 
@@ -191,10 +191,10 @@ generate_3d_mesh_graph_edgelist(
                                       x_iterator,
                                       x_iterator + num_vertices - 1,
                                       output_iterator,
-                                      [x] __device__(auto pair) {
+                                      [base_vertex_id, x] __device__(auto pair) {
                                         vertex_t dst = thrust::get<1>(pair);
                                         // Want to skip if dst is in the last column of a graph
-                                        return (dst % x) != 0;
+                                        return ((dst - base_vertex_id) % x) != 0;
                                       });
 
     auto y_iterator = thrust::make_zip_iterator(
@@ -205,10 +205,10 @@ generate_3d_mesh_graph_edgelist(
                                       y_iterator,
                                       y_iterator + num_vertices - x,
                                       output_iterator,
-                                      [x, y] __device__(auto pair) {
+                                      [base_vertex_id, x, y] __device__(auto pair) {
                                         vertex_t dst = thrust::get<1>(pair);
                                         // Want to skip if dst is in the first row of a new graph
-                                        return (dst % (x * y)) >= x;
+                                        return ((dst - base_vertex_id) % (x * y)) >= x;
                                       });
 
     auto z_iterator = thrust::make_zip_iterator(
@@ -219,10 +219,10 @@ generate_3d_mesh_graph_edgelist(
                                       z_iterator,
                                       z_iterator + num_vertices - x * y,
                                       output_iterator,
-                                      [x, y, z] __device__(auto pair) {
+                                      [base_vertex_id, x, y, z] __device__(auto pair) {
                                         vertex_t dst = thrust::get<1>(pair);
                                         // Want to skip if dst is in the first row of a new graph
-                                        return (dst % (x * y * z)) >= (x * y);
+                                        return ((dst - base_vertex_id) % (x * y * z)) >= (x * y);
                                       });
   }
 

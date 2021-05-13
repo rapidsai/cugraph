@@ -68,7 +68,8 @@ TEST_F(GeneratorsTest, Mesh2DGraphTest)
   rmm::device_uvector<vertex_t> src_v(0, handle.get_stream());
   rmm::device_uvector<vertex_t> dst_v(0, handle.get_stream());
 
-  std::vector<std::tuple<vertex_t, vertex_t, vertex_t>> parameters({{4, 2, 0}, {4, 2, 8}, {4, 2, 16}});
+  std::vector<std::tuple<vertex_t, vertex_t, vertex_t>> parameters(
+    {{4, 2, 0}, {4, 2, 8}, {4, 2, 16}});
 
   std::tie(src_v, dst_v) = cugraph::generate_2d_mesh_graph_edgelist<vertex_t>(handle, parameters);
 
@@ -254,8 +255,8 @@ TEST_F(GeneratorsTest, LineGraphTestSymmetric)
   std::vector<std::tuple<vertex_t, vertex_t>> parameters({{5, 0}});
 
   std::tie(src_v, dst_v) = cugraph::generate_path_graph_edgelist<vertex_t>(handle, parameters);
-  std::tie(src_v, dst_v, std::ignore) =
-    cugraph::symmetrize_edgelist(handle, std::move(src_v), std::move(dst_v), std::move(std::nullopt));
+  std::tie(src_v, dst_v, std::ignore) = cugraph::symmetrize_edgelist<vertex_t, float>(
+    handle, std::move(src_v), std::move(dst_v), std::nullopt);
 
   actual_src_v.resize(src_v.size());
   actual_dst_v.resize(src_v.size());
@@ -303,10 +304,12 @@ TEST_F(GeneratorsTest, Mesh2DGraphTestSymmetric)
   rmm::device_uvector<vertex_t> src_v(0, handle.get_stream());
   rmm::device_uvector<vertex_t> dst_v(0, handle.get_stream());
 
-  std::vector<std::tuple<vertex_t, vertex_t, vertex_t>> parameters({{4, 2, 0}, {4, 2, 8}, {4, 2, 16}});
+  std::vector<std::tuple<vertex_t, vertex_t, vertex_t>> parameters(
+    {{4, 2, 0}, {4, 2, 8}, {4, 2, 16}});
 
   std::tie(src_v, dst_v) = cugraph::generate_2d_mesh_graph_edgelist<vertex_t>(handle, parameters);
-  // TODO: symmetrize
+  std::tie(src_v, dst_v, std::ignore) = cugraph::symmetrize_edgelist<vertex_t, float>(
+    handle, std::move(src_v), std::move(dst_v), std::nullopt);
 
   actual_src_v.resize(src_v.size());
   actual_dst_v.resize(src_v.size());
@@ -383,7 +386,8 @@ TEST_F(GeneratorsTest, Mesh3DGraphTestSymmetric)
     {{3, 3, 3, 0}, {3, 3, 3, 27}, {3, 3, 3, 54}});
 
   std::tie(src_v, dst_v) = cugraph::generate_3d_mesh_graph_edgelist<vertex_t>(handle, parameters);
-  // TODO:  symmetrize
+  std::tie(src_v, dst_v, std::ignore) = cugraph::symmetrize_edgelist<vertex_t, float>(
+    handle, std::move(src_v), std::move(dst_v), std::nullopt);
 
   actual_src_v.resize(src_v.size());
   actual_dst_v.resize(src_v.size());
@@ -427,7 +431,8 @@ TEST_F(GeneratorsTest, CompleteGraphTestTrianglesSymmetric)
   std::vector<std::tuple<vertex_t, vertex_t>> parameters({{3, 0}, {3, 3}, {3, 6}});
 
   std::tie(src_v, dst_v) = cugraph::generate_complete_graph_edgelist<vertex_t>(handle, parameters);
-  // TODO:  symmetrize
+  std::tie(src_v, dst_v, std::ignore) = cugraph::symmetrize_edgelist<vertex_t, float>(
+    handle, std::move(src_v), std::move(dst_v), std::nullopt);
 
   actual_src_v.resize(src_v.size());
   actual_dst_v.resize(src_v.size());
@@ -477,7 +482,8 @@ TEST_F(GeneratorsTest, CompleteGraphTest5Symmetric)
   std::vector<std::tuple<vertex_t, vertex_t>> parameters({{5, 0}, {5, 5}, {5, 10}});
 
   std::tie(src_v, dst_v) = cugraph::generate_complete_graph_edgelist<vertex_t>(handle, parameters);
-  // TODO:  symmetrize
+  std::tie(src_v, dst_v, std::ignore) = cugraph::symmetrize_edgelist<vertex_t, float>(
+    handle, std::move(src_v), std::move(dst_v), std::nullopt);
 
   actual_src_v.resize(src_v.size());
   actual_dst_v.resize(src_v.size());
@@ -509,9 +515,6 @@ TEST_F(GeneratorsTest, CombineGraphsTest)
   raft::handle_t handle;
 
   size_t num_vertices{8};
-  size_t x{4};
-  size_t y{2};
-  size_t num_graphs{3};
 
   std::vector<vertex_t> expected_src_v({0,  1,  2,  3, 4, 5, 6, 8, 9, 10, 12, 13, 14, 16, 17, 18,
                                         20, 21, 22, 0, 1, 2, 3, 8, 9, 10, 11, 16, 17, 18, 19});
@@ -526,7 +529,8 @@ TEST_F(GeneratorsTest, CombineGraphsTest)
   rmm::device_uvector<vertex_t> dst_v(0, handle.get_stream());
 
   std::vector<std::tuple<vertex_t, vertex_t>> parameters1({{num_vertices, 0}});
-  std::vector<std::tuple<vertex_t, vertex_t, vertex_t>> parameters2({{4, 2, 0}, {4, 2, 8}, {4, 2, 16}});
+  std::vector<std::tuple<vertex_t, vertex_t, vertex_t>> parameters2(
+    {{4, 2, 0}, {4, 2, 8}, {4, 2, 16}});
 
   std::tie(src_graph_1_v, dst_graph_1_v) =
     cugraph::generate_path_graph_edgelist<vertex_t>(handle, parameters1);
@@ -541,8 +545,8 @@ TEST_F(GeneratorsTest, CombineGraphsTest)
   dests.push_back(std::move(dst_graph_1_v));
   dests.push_back(std::move(dst_graph_2_v));
 
-  std::tie(src_v, dst_v, std::ignore) =
-    cugraph::combine_edgelists<vertex_t, weight_t>(handle, std::move(sources), std::move(dests), std::move(std::nullopt));
+  std::tie(src_v, dst_v, std::ignore) = cugraph::combine_edgelists<vertex_t, weight_t>(
+    handle, std::move(sources), std::move(dests), std::nullopt);
 
   std::vector<vertex_t> actual_src_v;
   std::vector<vertex_t> actual_dst_v;
@@ -577,9 +581,6 @@ TEST_F(GeneratorsTest, CombineGraphsOffsetsTest)
   raft::handle_t handle;
 
   size_t num_vertices{8};
-  size_t x{4};
-  size_t y{2};
-  size_t num_graphs{3};
   vertex_t offset{10};
 
   std::vector<vertex_t> expected_src_v({0,  1,  2,  3,  4,  5,  6,  10, 11, 12, 14, 15, 16,
@@ -613,8 +614,8 @@ TEST_F(GeneratorsTest, CombineGraphsOffsetsTest)
   dests.push_back(std::move(dst_graph_1_v));
   dests.push_back(std::move(dst_graph_2_v));
 
-  std::tie(src_v, dst_v, std::ignore) =
-    cugraph::combine_edgelists<vertex_t, weight_t>(handle, std::move(sources), std::move(dests), std::nullopt);
+  std::tie(src_v, dst_v, std::ignore) = cugraph::combine_edgelists<vertex_t, weight_t>(
+    handle, std::move(sources), std::move(dests), std::nullopt);
 
   std::vector<vertex_t> actual_src_v;
   std::vector<vertex_t> actual_dst_v;
