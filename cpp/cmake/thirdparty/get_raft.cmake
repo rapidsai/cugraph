@@ -21,8 +21,8 @@ function(find_and_configure_raft)
 
     rapids_cpm_find(raft ${PKG_VERSION}
       GLOBAL_TARGETS      raft::raft
-      BUILD_EXPORT_SET    cuml-exports
-      INSTALL_EXPORT_SET  cuml-exports
+      BUILD_EXPORT_SET    cugraph-exports
+      INSTALL_EXPORT_SET  cugraph-exports
         CPM_ARGS
             GIT_REPOSITORY https://github.com/${PKG_FORK}/raft.git
             GIT_TAG        ${PKG_PINNED_TAG}
