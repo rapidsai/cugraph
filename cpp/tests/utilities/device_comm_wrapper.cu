@@ -60,5 +60,13 @@ template rmm::device_uvector<int64_t> device_gatherv(raft::handle_t const &handl
                                                      int64_t const *d_input,
                                                      size_t size);
 
+template rmm::device_uvector<float> device_gatherv(raft::handle_t const &handle,
+                                                     float const *d_input,
+                                                     size_t size);
+
+template rmm::device_uvector<double> device_gatherv(raft::handle_t const &handle,
+                                                     double const *d_input,
+                                                     size_t size);
+
 }  // namespace test
 }  // namespace cugraph
