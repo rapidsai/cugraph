@@ -14,15 +14,16 @@
  * limitations under the License.
  */
 
-#include <experimental/include_cuco_static_map.cuh>
+#include <cugraph/experimental/include_cuco_static_map.cuh>
 
-#include <experimental/detail/graph_utils.cuh>
-#include <experimental/graph_functions.hpp>
-#include <experimental/graph_view.hpp>
-#include <utilities/device_comm.cuh>
-#include <utilities/error.hpp>
-#include <utilities/host_scalar_comm.cuh>
-#include <utilities/shuffle_comm.cuh>
+#include <cugraph/experimental/detail/graph_utils.cuh>
+#include <cugraph/experimental/graph_functions.hpp>
+#include <cugraph/experimental/graph_view.hpp>
+#include <cugraph/utilities/device_comm.cuh>
+#include <cugraph/utilities/error.hpp>
+#include <cugraph/utilities/host_barrier.hpp>
+#include <cugraph/utilities/host_scalar_comm.cuh>
+#include <cugraph/utilities/shuffle_comm.cuh>
 
 #include <rmm/thrust_rmm_allocator.h>
 #include <raft/handle.hpp>
@@ -59,6 +60,22 @@ rmm::device_uvector<vertex_t> compute_renumber_map(
 
   // 1. acquire (unique major label, count) pairs
 
+  if (multi_gpu) {
+    auto& comm = handle.get_comms();
+
+    // barrier is necessary here to avoid potential overlap (which can leads to deadlock) between
+    // two different communicators (beginning of col_comm)
+#if 1
+    // FIXME: temporary hack till UCC is integrated into RAFT (so we can use UCC barrier with DASK
+    // and MPI barrier with MPI)
+    host_barrier(comm, handle.get_stream_view());
+#else
+    handle.get_stream_view().synchronize();
+    ;
+    comm.barrier();  // currently, this is ncclAllReduce
+#endif
+  }
+
   rmm::device_uvector<vertex_t> major_labels(0, handle.get_stream());
   rmm::device_uvector<edge_t> major_counts(0, handle.get_stream());
   for (size_t i = 0; i < edgelist_major_vertices.size(); ++i) {
@@ -71,6 +88,7 @@ rmm::device_uvector<vertex_t> compute_renumber_map(
                    edgelist_major_vertices[i],
                    edgelist_major_vertices[i] + edgelist_edge_counts[i],
                    sorted_major_labels.begin());
+      // FIXME: better refactor this sort-count_if-reduce_by_key routine for reuse
       thrust::sort(rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
                    sorted_major_labels.begin(),
                    sorted_major_labels.end());
@@ -98,6 +116,9 @@ rmm::device_uvector<vertex_t> compute_renumber_map(
 
       rmm::device_uvector<vertex_t> rx_major_labels(0, handle.get_stream());
       rmm::device_uvector<edge_t> rx_major_counts(0, handle.get_stream());
+      // FIXME: a temporary workaround for a NCCL (2.9.6) bug that causes a hang on DGX1 (due to
+      // remote memory allocation), this barrier is unnecessary otherwise.
+      col_comm.barrier();
       auto rx_sizes = host_scalar_gather(
         col_comm, tmp_major_labels.size(), static_cast<int>(i), handle.get_stream());
       std::vector<size_t> rx_displs{};
@@ -118,31 +139,38 @@ rmm::device_uvector<vertex_t> compute_renumber_map(
                      static_cast<int>(i),
                      handle.get_stream());
       if (static_cast<int>(i) == col_comm_rank) {
-        thrust::sort_by_key(rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
-                            rx_major_labels.begin(),
-                            rx_major_labels.end(),
-                            rx_major_counts.begin());
-        major_labels.resize(rx_major_labels.size(), handle.get_stream());
-        major_counts.resize(major_labels.size(), handle.get_stream());
-        auto pair_it =
-          thrust::reduce_by_key(rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
-                                rx_major_labels.begin(),
-                                rx_major_labels.end(),
-                                rx_major_counts.begin(),
-                                major_labels.begin(),
-                                major_counts.begin());
-        major_labels.resize(thrust::distance(major_labels.begin(), thrust::get<0>(pair_it)),
-                            handle.get_stream());
-        major_counts.resize(major_labels.size(), handle.get_stream());
-        major_labels.shrink_to_fit(handle.get_stream());
-        major_counts.shrink_to_fit(handle.get_stream());
+        major_labels = std::move(rx_major_labels);
+        major_counts = std::move(rx_major_counts);
       }
     } else {
-      tmp_major_labels.shrink_to_fit(handle.get_stream());
-      tmp_major_counts.shrink_to_fit(handle.get_stream());
+      assert(i == 0);
       major_labels = std::move(tmp_major_labels);
       major_counts = std::move(tmp_major_counts);
     }
+  }
+  if (multi_gpu) {
+    // FIXME: better refactor this sort-count_if-reduce_by_key routine for reuse
+    thrust::sort_by_key(rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
+                        major_labels.begin(),
+                        major_labels.end(),
+                        major_counts.begin());
+    auto num_unique_labels =
+      thrust::count_if(rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
+                       thrust::make_counting_iterator(size_t{0}),
+                       thrust::make_counting_iterator(major_labels.size()),
+                       [labels = major_labels.data()] __device__(auto i) {
+                         return (i == 0) || (labels[i - 1] != labels[i]);
+                       });
+    rmm::device_uvector<vertex_t> tmp_major_labels(num_unique_labels, handle.get_stream());
+    rmm::device_uvector<edge_t> tmp_major_counts(tmp_major_labels.size(), handle.get_stream());
+    thrust::reduce_by_key(rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
+                          major_labels.begin(),
+                          major_labels.end(),
+                          major_counts.begin(),
+                          tmp_major_labels.begin(),
+                          tmp_major_counts.begin());
+    major_labels = std::move(tmp_major_labels);
+    major_counts = std::move(tmp_major_counts);
   }
 
   // 2. acquire unique minor labels
@@ -168,28 +196,54 @@ rmm::device_uvector<vertex_t> compute_renumber_map(
                                     minor_labels.end())),
     handle.get_stream());
   if (multi_gpu) {
+    auto& comm               = handle.get_comms();
     auto& row_comm           = handle.get_subcomm(cugraph::partition_2d::key_naming_t().row_name());
     auto const row_comm_size = row_comm.get_size();
 
-    rmm::device_uvector<vertex_t> rx_minor_labels(0, handle.get_stream());
-    std::tie(rx_minor_labels, std::ignore) = groupby_gpuid_and_shuffle_values(
-      row_comm,
-      minor_labels.begin(),
-      minor_labels.end(),
-      [key_func = detail::compute_gpu_id_from_vertex_t<vertex_t>{row_comm_size}] __device__(
-        auto val) { return key_func(val); },
-      handle.get_stream());
-    thrust::sort(rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
-                 rx_minor_labels.begin(),
-                 rx_minor_labels.end());
-    rx_minor_labels.resize(
-      thrust::distance(
-        rx_minor_labels.begin(),
-        thrust::unique(rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
-                       rx_minor_labels.begin(),
-                       rx_minor_labels.end())),
-      handle.get_stream());
-    minor_labels = std::move(rx_minor_labels);
+    // barrier is necessary here to avoid potential overlap (which can leads to deadlock) between
+    // two different communicators (beginning of row_comm)
+#if 1
+    // FIXME: temporary hack till UCC is integrated into RAFT (so we can use UCC barrier with DASK
+    // and MPI barrier with MPI)
+    host_barrier(comm, handle.get_stream_view());
+#else
+    handle.get_stream_view().synchronize();
+    comm.barrier();  // currently, this is ncclAllReduce
+#endif
+
+    if (row_comm_size > 1) {
+      rmm::device_uvector<vertex_t> rx_minor_labels(0, handle.get_stream());
+      std::tie(rx_minor_labels, std::ignore) = groupby_gpuid_and_shuffle_values(
+        row_comm,
+        minor_labels.begin(),
+        minor_labels.end(),
+        [key_func = detail::compute_gpu_id_from_vertex_t<vertex_t>{row_comm_size}] __device__(
+          auto val) { return key_func(val); },
+        handle.get_stream());
+      thrust::sort(rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
+                   rx_minor_labels.begin(),
+                   rx_minor_labels.end());
+      rx_minor_labels.resize(
+        thrust::distance(
+          rx_minor_labels.begin(),
+          thrust::unique(rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
+                         rx_minor_labels.begin(),
+                         rx_minor_labels.end())),
+        handle.get_stream());
+      minor_labels = std::move(rx_minor_labels);
+    }
+
+    // barrier is necessary here to avoid potential overlap (which can leads to deadlock) between
+    // two different communicators (end of row_comm)
+#if 1
+    // FIXME: temporary hack till UCC is integrated into RAFT (so we can use UCC barrier with DASK
+    // and MPI barrier with MPI)
+    //
+    host_barrier(comm, handle.get_stream_view());
+#else
+    handle.get_stream_view().synchronize();
+    comm.barrier();  // currently, this is ncclAllReduce
+#endif
   }
   minor_labels.shrink_to_fit(handle.get_stream());
 
@@ -366,6 +420,19 @@ void expensive_check_edgelist(
         auto& row_comm = handle.get_subcomm(cugraph::partition_2d::key_naming_t().row_name());
         auto& col_comm = handle.get_subcomm(cugraph::partition_2d::key_naming_t().col_name());
 
+        // FIXME: this barrier is unnecessary if the above host_scalar_allreduce is a true host
+        // operation (as it serves as a barrier) barrier is necessary here to avoid potential
+        // overlap (which can leads to deadlock) between two different communicators (beginning of
+        // col_comm)
+#if 1
+        // FIXME: temporary hack till UCC is integrated into RAFT (so we can use UCC barrier with
+        // DASK and MPI barrier with MPI)
+        host_barrier(comm, handle.get_stream_view());
+#else
+        handle.get_stream_view().synchronize();
+        comm.barrier();  // currently, this is ncclAllReduce
+#endif
+
         rmm::device_uvector<vertex_t> sorted_major_vertices(0, handle.get_stream());
         {
           auto recvcounts =
@@ -385,6 +452,17 @@ void expensive_check_edgelist(
                        sorted_major_vertices.end());
         }
 
+        // barrier is necessary here to avoid potential overlap (which can leads to deadlock)
+        // between two different communicators (beginning of row_comm)
+#if 1
+        // FIXME: temporary hack till UCC is integrated into RAFT (so we can use UCC barrier with
+        // DASK and MPI barrier with MPI)
+        host_barrier(comm, handle.get_stream_view());
+#else
+        handle.get_stream_view().synchronize();
+        comm.barrier();  // currently, this is ncclAllReduce
+#endif
+
         rmm::device_uvector<vertex_t> sorted_minor_vertices(0, handle.get_stream());
         {
           auto recvcounts =
@@ -403,6 +481,17 @@ void expensive_check_edgelist(
                        sorted_minor_vertices.begin(),
                        sorted_minor_vertices.end());
         }
+
+        // barrier is necessary here to avoid potential overlap (which can leads to deadlock)
+        // between two different communicators (end of row_comm)
+#if 1
+        // FIXME: temporary hack till UCC is integrated into RAFT (so we can use UCC barrier with
+        // DASK and MPI barrier with MPI)
+        host_barrier(comm, handle.get_stream_view());
+#else
+        handle.get_stream_view().synchronize();
+        comm.barrier();  // currently, this is ncclAllReduce
+#endif
 
         auto edge_first = thrust::make_zip_iterator(
           thrust::make_tuple(edgelist_major_vertices[i], edgelist_minor_vertices[i]));
@@ -509,7 +598,6 @@ renumber_edgelist(raft::handle_t const& handle,
                                                               edgelist_const_major_vertices,
                                                               edgelist_const_minor_vertices,
                                                               edgelist_edge_counts);
-
   // 2. initialize partition_t object, number_of_vertices, and number_of_edges for the coarsened
   // graph
 
@@ -534,6 +622,18 @@ renumber_edgelist(raft::handle_t const& handle,
 
   // FIXME: compare this hash based approach with a binary search based approach in both memory
   // footprint and execution time
+
+  // FIXME: this barrier is unnecessary if the above host_scalar_allgather is a true host operation
+  // (as it serves as a barrier) barrier is necessary here to avoid potential overlap (which can
+  // leads to deadlock) between two different communicators (beginning of col_comm)
+#if 1
+  // FIXME: temporary hack till UCC is integrated into RAFT (so we can use UCC barrier with DASK and
+  // MPI barrier with MPI)
+  host_barrier(comm, handle.get_stream_view());
+#else
+  handle.get_stream_view().synchronize();
+  comm.barrier();  // currently, this is ncclAllReduce
+#endif
 
   for (size_t i = 0; i < edgelist_major_vertices.size(); ++i) {
     rmm::device_uvector<vertex_t> renumber_map_major_labels(
@@ -571,6 +671,16 @@ renumber_edgelist(raft::handle_t const& handle,
                       edgelist_major_vertices[i]);
   }
 
+  // barrier is necessary here to avoid potential overlap (which can leads to deadlock) between two
+  // different communicators (beginning of row_comm)
+#if 1
+  // FIXME: temporary hack till UCC is integrated into RAFT (so we can use UCC barrier with DASK and
+  // MPI barrier with MPI)
+  host_barrier(comm, handle.get_stream_view());
+#else
+  handle.get_stream_view().synchronize();
+  comm.barrier();  // currently, this is ncclAllReduce
+#endif
   {
     rmm::device_uvector<vertex_t> renumber_map_minor_labels(
       partition.get_matrix_partition_minor_size(), handle.get_stream());
@@ -611,6 +721,16 @@ renumber_edgelist(raft::handle_t const& handle,
                         edgelist_minor_vertices[i]);
     }
   }
+  // barrier is necessary here to avoid potential overlap (which can leads to deadlock) between two
+  // different communicators (end of row_comm)
+#if 1
+  // FIXME: temporary hack till UCC is integrated into RAFT (so we can use UCC barrier with DASK and
+  // MPI barrier with MPI)
+  host_barrier(comm, handle.get_stream_view());
+#else
+  handle.get_stream_view().synchronize();
+  comm.barrier();  // currently, this is ncclAllReduce
+#endif
 
   return std::make_tuple(
     std::move(renumber_map_labels), partition, number_of_vertices, number_of_edges);

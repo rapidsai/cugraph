@@ -19,13 +19,13 @@
 
 #include <thrust/sequence.h>
 
-#include <algorithms.hpp>
 #include <cstdint>
-#include <graph.hpp>
+#include <cugraph/algorithms.hpp>
+#include <cugraph/graph.hpp>
+#include <cugraph/utilities/error.hpp>
 #include <iostream>
 #include <type_traits>
-#include "utilities/error.hpp"
-#include "utilities/graph_utils.cuh"
+#include <utilities/graph_utils.cuh>
 
 #include "topology/topology.cuh"
 

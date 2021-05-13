@@ -18,8 +18,8 @@
 #include <utilities/base_fixture.hpp>
 #include <utilities/test_utilities.hpp>
 
-#include <experimental/graph.hpp>
-#include <graph_generators.hpp>
+#include <cugraph/experimental/graph.hpp>
+#include <cugraph/experimental/graph_generator.hpp>
 
 #include <raft/cudart_utils.h>
 #include <raft/handle.hpp>

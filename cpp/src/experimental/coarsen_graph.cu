@@ -14,13 +14,14 @@
  * limitations under the License.
  */
 
-#include <experimental/detail/graph_utils.cuh>
-#include <experimental/graph.hpp>
-#include <experimental/graph_functions.hpp>
-#include <experimental/graph_view.hpp>
-#include <patterns/copy_to_adj_matrix_row_col.cuh>
-#include <utilities/error.hpp>
-#include <utilities/shuffle_comm.cuh>
+#include <cugraph/experimental/detail/graph_utils.cuh>
+#include <cugraph/experimental/graph.hpp>
+#include <cugraph/experimental/graph_functions.hpp>
+#include <cugraph/experimental/graph_view.hpp>
+#include <cugraph/patterns/copy_to_adj_matrix_row_col.cuh>
+#include <cugraph/utilities/error.hpp>
+#include <cugraph/utilities/host_barrier.hpp>
+#include <cugraph/utilities/shuffle_comm.cuh>
 
 #include <rmm/thrust_rmm_allocator.h>
 #include <raft/handle.hpp>
@@ -269,22 +270,44 @@ coarsen_graph(
   for (size_t i = 0; i < graph_view.get_number_of_local_adj_matrix_partitions(); ++i) {
     // 1-1. locally construct coarsened edge list
 
+    // barrier is necessary here to avoid potential overlap (which can leads to deadlock) between
+    // two different communicators (beginning of col_comm)
+#if 1
+    // FIXME: temporary hack till UCC is integrated into RAFT (so we can use UCC barrier with DASK
+    // and MPI barrier with MPI)
+    host_barrier(comm, handle.get_stream_view());
+#else
+    handle.get_stream_view().synchronize();
+    comm.barrier();  // currently, this is ncclAllReduce
+#endif
     rmm::device_uvector<vertex_t> major_labels(
       store_transposed ? graph_view.get_number_of_local_adj_matrix_partition_cols(i)
                        : graph_view.get_number_of_local_adj_matrix_partition_rows(i),
       handle.get_stream());
-    // FIXME: this copy is unnecessary, beter fix RAFT comm's bcast to take const iterators for
-    // input
-    thrust::copy(rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
-                 labels,
-                 labels + major_labels.size(),
-                 major_labels.begin());
+    if (col_comm_rank == i) {
+      // FIXME: this copy is unnecessary, beter fix RAFT comm's bcast to take const iterators for
+      // input
+      thrust::copy(rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
+                   labels,
+                   labels + major_labels.size(),
+                   major_labels.begin());
+    }
     device_bcast(col_comm,
                  major_labels.data(),
                  major_labels.data(),
                  major_labels.size(),
                  static_cast<int>(i),
                  handle.get_stream());
+    // barrier is necessary here to avoid potential overlap (which can leads to deadlock) between
+    // two different communicators (end of col_comm)
+#if 1
+    // FIXME: temporary hack till UCC is integrated into RAFT (so we can use UCC barrier with DASK
+    // and MPI barrier with MPI)
+    host_barrier(comm, handle.get_stream_view());
+#else
+    handle.get_stream_view().synchronize();
+    comm.barrier();  // currently, this is ncclAllReduce
+#endif
 
     rmm::device_uvector<vertex_t> edgelist_major_vertices(0, handle.get_stream());
     rmm::device_uvector<vertex_t> edgelist_minor_vertices(0, handle.get_stream());
@@ -434,7 +457,7 @@ coarsen_graph(
                               cur_size;
         thrust::copy(rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
                      src_edge_first,
-                     src_edge_first + edgelist_major_vertices.size(),
+                     src_edge_first + number_of_partition_edges,
                      dst_edge_first);
       }
     }

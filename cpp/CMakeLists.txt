@@ -276,7 +276,6 @@ FetchContent_Declare(
     cuhornet
     GIT_REPOSITORY    https://github.com/rapidsai/cuhornet.git
     GIT_TAG           6d2fc894cc56dd2ca8fc9d1523a18a6ec444b663
-    GIT_SHALLOW       true
     SOURCE_SUBDIR     hornet
 )
 
@@ -442,6 +441,7 @@ add_library(cugraph SHARED
     src/experimental/pagerank.cu
     src/experimental/katz_centrality.cu
     src/tree/mst.cu
+    src/utilities/host_barrier.cpp
 )
 
 target_link_directories(cugraph

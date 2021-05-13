@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019-2020, NVIDIA CORPORATION.  All rights reserved.
+ * Copyright (c) 2019-2021, NVIDIA CORPORATION.  All rights reserved.
  *
  * NVIDIA CORPORATION and its licensors retain all intellectual property
  * and proprietary rights in and to this software, related documentation
@@ -14,14 +14,14 @@
 #include <limits>
 #include "bfs.cuh"
 
-#include "graph.hpp"
+#include <cugraph/graph.hpp>
 
-#include <utilities/error.hpp>
+#include <cugraph/utilities/error.hpp>
+#include <utilities/graph_utils.cuh>
 #include "bfs_kernels.cuh"
 #include "mg/bfs.cuh"
 #include "mg/common_utils.cuh"
 #include "traversal_common.cuh"
-#include "utilities/graph_utils.cuh"
 
 namespace cugraph {
 namespace detail {

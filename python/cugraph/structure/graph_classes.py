@@ -86,22 +86,27 @@ class Graph:
         in the range [0, V), renumbering can be disabled and the original
         external vertex ids will be used.
         If weights are present, edge_attr argument is the weights column name.
+
         Parameters
         ----------
         input_df : cudf.DataFrame or dask_cudf.DataFrame
-            A DataFrame that contains edge information
-            If a dask_cudf.DataFrame is passed it will be reinterpreted as
-            a cudf.DataFrame. For the distributed path please use
-            from_dask_cudf_edgelist.
+        A DataFrame that contains edge information If a dask_cudf.DataFrame is
+        passed it will be reinterpreted as a cudf.DataFrame. For the
+        distributed path please use from_dask_cudf_edgelist.
+
         source : str or array-like
-            source column name or array of column names
+        source column name or array of column names
+
         destination : str or array-like
-            destination column name or array of column names
+        destination column name or array of column names
+
         edge_attr : str or None
-            the weights column name. Default is None
+        the weights column name. Default is None
+
         renumber : bool
-            Indicate whether or not to renumber the source and destination
-            vertex IDs. Default is True.
+        Indicate whether or not to renumber the source and destination vertex
+        IDs. Default is True.
+
         Examples
         --------
         >>> df = cudf.read_csv('datasets/karate.csv', delimiter=' ',
@@ -135,22 +140,22 @@ class Graph:
         Parameters
         ----------
         offset_col : cudf.Series
-            This cudf.Series wraps a gdf_column of size V + 1 (V: number of
-            vertices).
-            The gdf column contains the offsets for the vertices in this graph.
-            Offsets must be in the range [0, E] (E: number of edges).
+        This cudf.Series wraps a gdf_column of size V + 1 (V: number of
+        vertices).  The gdf column contains the offsets for the vertices in
+        this graph.  Offsets must be in the range [0, E] (E: number of edges).
+
         index_col : cudf.Series
-            This cudf.Series wraps a gdf_column of size E (E: number of edges).
-            The gdf column contains the destination index for each edge.
-            Destination indices must be in the range [0, V) (V: number of
-            vertices).
+        This cudf.Series wraps a gdf_column of size E (E: number of edges).
+        The gdf column contains the destination index for each edge.
+        Destination indices must be in the range [0, V)
+        (V: number of vertices).
+
         value_col : cudf.Series, optional
-            This pointer can be ``None``.
-            If not, this cudf.Series wraps a gdf_column of size E (E: number of
-            edges).
-            The gdf column contains the weight value for each edge.
-            The expected type of the gdf_column element is floating point
-            number.
+        This pointer can be ``None``.  If not, this cudf.Series wraps a
+        gdf_column of size E (E: number of edges).  The gdf column contains the
+        weight value for each edge.  The expected type of the gdf_column
+        element is floating point number.
+
         Examples
         --------
         >>> gdf = cudf.read_csv('datasets/karate.csv', delimiter=' ',
@@ -192,19 +197,24 @@ class Graph:
         external vertex ids will be used.
         Note that the graph object will store a reference to the
         dask_cudf.DataFrame provided.
+
         Parameters
         ----------
         input_ddf : dask_cudf.DataFrame
-            The edgelist as a dask_cudf.DataFrame
+        The edgelist as a dask_cudf.DataFrame
+
         source : str or array-like
-            source column name or array of column names
+        source column name or array of column names
+
         destination : str
-            destination column name or array of column names
+        destination column name or array of column names
+
         edge_attr : str
-            weights column name.
+        weights column name.
+
         renumber : bool
-            If source and destination indices are not in range 0 to V where V
-            is number of vertices, renumber argument should be True.
+        If source and destination indices are not in range 0 to V where V is
+        number of vertices, renumber argument should be True.
         """
         if self._Impl is None:
             self._Impl = simpleDistributedGraphImpl(self.graph_properties)
@@ -237,19 +247,25 @@ class Graph:
         in the range [0, V), renumbering can be disabled and the original
         external vertex ids will be used.
         If weights are present, edge_attr argument is the weights column name.
+
         Parameters
         ----------
         input_df : pandas.DataFrame
-            A DataFrame that contains edge information
+        A DataFrame that contains edge information
+
         source : str or array-like
-            source column name or array of column names
+        source column name or array of column names
+
         destination : str or array-like
-            destination column name or array of column names
+        destination column name or array of column names
+
         edge_attr : str or None
-            the weights column name. Default is None
+        the weights column name. Default is None
+
         renumber : bool
-            Indicate whether or not to renumber the source and destination
-            vertex IDs. Default is True.
+        Indicate whether or not to renumber the source and destination vertex
+        IDs. Default is True.
+
         Examples
         --------
         >>> df = pandas.read_csv('datasets/karate.csv', delimiter=' ',
@@ -293,7 +309,8 @@ class Graph:
         np_array = np.asarray(np_matrix)
         self.from_numpy_array(np_array)
 
-    def unrenumber(self, df, column_name, preserve_order=False):
+    def unrenumber(self, df, column_name, preserve_order=False,
+                   get_column_names=False):
         """
         Given a DataFrame containing internal vertex ids in the identified
         column, replace this with external vertex ids.  If the renumbering
@@ -305,24 +322,29 @@ class Graph:
         and does not guarantee order or partitioning in multi-GPU mode.  If you
         wish to preserve ordering, add an index column to df and sort the
         return by that index column.
+
         Parameters
         ----------
         df: cudf.DataFrame or dask_cudf.DataFrame
-            A DataFrame containing internal vertex identifiers that will be
-            converted into external vertex identifiers.
+        A DataFrame containing internal vertex identifiers that will be
+        converted into external vertex identifiers.
+
         column_name: string
-            Name of the column containing the internal vertex id.
+        Name of the column containing the internal vertex id.
+
         preserve_order: (optional) bool
-            If True, preserve the order of the rows in the output
-            DataFrame to match the input DataFrame
+        If True, preserve the order of the rows in the output DataFrame to
+        match the input DataFrame
+
         Returns
         ---------
         df : cudf.DataFrame or dask_cudf.DataFrame
-            The original DataFrame columns exist unmodified.  The external
-            vertex identifiers are added to the DataFrame, the internal
-            vertex identifier column is removed from the dataframe.
+        The original DataFrame columns exist unmodified.  The external vertex
+        identifiers are added to the DataFrame, the internal vertex identifier
+        column is removed from the dataframe.
         """
-        return self.renumber_map.unrenumber(df, column_name, preserve_order)
+        return self.renumber_map.unrenumber(df, column_name, preserve_order,
+                                            get_column_names)
 
     def lookup_internal_vertex_id(self, df, column_name=None):
         """
@@ -331,13 +353,16 @@ class Graph:
         Series with the internal vertex ids.
         Note that this function does not guarantee order in single GPU mode,
         and does not guarantee order or partitioning in multi-GPU mode.
+
         Parameters
         ----------
         df: cudf.DataFrame, cudf.Series, dask_cudf.DataFrame, dask_cudf.Series
-            A DataFrame containing external vertex identifiers that will be
-            converted into internal vertex identifiers.
+        A DataFrame containing external vertex identifiers that will be
+        converted into internal vertex identifiers.
+
         column_name: (optional) string
-            Name of the column containing the external vertex ids
+        Name of the column containing the external vertex ids
+
         Returns
         ---------
         series : cudf.Series or dask_cudf.Series
@@ -361,21 +386,27 @@ class Graph:
         Parameters
         ----------
         df: cudf.DataFrame or dask_cudf.DataFrame
-            A DataFrame containing external vertex identifiers that will be
-            converted into internal vertex identifiers.
+        A DataFrame containing external vertex identifiers that will be
+        converted into internal vertex identifiers.
+
         internal_column_name: string
-            Name of column to contain the internal vertex id
+        Name of column to contain the internal vertex id
+
         external_column_name: string or list of strings
-            Name of the column(s) containing the external vertex ids
+        Name of the column(s) containing the external vertex ids
+
         drop: (optional) bool, defaults to True
-            Drop the external columns from the returned DataFrame
+        Drop the external columns from the returned DataFrame
+
         preserve_order: (optional) bool, defaults to False
-            Preserve the order of the data frame (requires an extra sort)
+        Preserve the order of the data frame (requires an extra sort)
+
         Returns
         ---------
         df : cudf.DataFrame or dask_cudf.DataFrame
             Original DataFrame with new column containing internal vertex
             id
+
         """
         return self.renumber_map.add_internal_vertex_id(
             df,
@@ -446,11 +477,13 @@ class Graph:
         Return a directed representation of the graph.
         This function sets the type of graph as DiGraph() and returns the
         directed view.
+
         Returns
         -------
         G : DiGraph
-            A directed graph with the same nodes, and each edge (u,v,weights)
-            replaced by two directed edges (u,v,weights) and (v,u,weights).
+        A directed graph with the same nodes, and each edge (u,v,weights)
+        replaced by two directed edges (u,v,weights) and (v,u,weights).
+
         Examples
         --------
         >>> M = cudf.read_csv('datasets/karate.csv', delimiter=' ',
@@ -459,6 +492,7 @@ class Graph:
         >>> G.from_cudf_edgelist(M, '0', '1')
         >>> DiG = G.to_directed()
         """
+
         directed_graph = type(self)()
         directed_graph.graph_properties.directed = True
         directed_graph._Impl = type(self._Impl)(directed_graph.
@@ -469,11 +503,13 @@ class Graph:
     def to_undirected(self):
         """
         Return an undirected copy of the graph.
+
         Returns
         -------
         G : Graph
-            A undirected graph with the same nodes, and each directed edge
-            (u,v,weights) replaced by an undirected edge (u,v,weights).
+        A undirected graph with the same nodes, and each directed edge
+        (u,v,weights) replaced by an undirected edge (u,v,weights).
+
         Examples
         --------
         >>> M = cudf.read_csv('datasets/karate.csv', delimiter=' ',
@@ -500,7 +536,7 @@ class Graph:
         Parameters
         ----------
         nodes : list or cudf.Series
-            The nodes of the graph to be stored.
+        The nodes of the graph to be stored.
         """
         self._Impl._nodes["all_nodes"] = cudf.Series(nodes)
 
@@ -572,22 +608,27 @@ class NPartiteGraph(Graph):
         in the range [0, V), renumbering can be disabled and the original
         external vertex ids will be used.
         If weights are present, edge_attr argument is the weights column name.
+
         Parameters
         ----------
         input_df : cudf.DataFrame or dask_cudf.DataFrame
-            A DataFrame that contains edge information
-            If a dask_cudf.DataFrame is passed it will be reinterpreted as
-            a cudf.DataFrame. For the distributed path please use
-            from_dask_cudf_edgelist.
+        A DataFrame that contains edge information. If a dask_cudf.DataFrame is
+        passed it will be reinterpreted as a cudf.DataFrame. For the
+        distributed path please use from_dask_cudf_edgelist.
+
         source : str or array-like
-            source column name or array of column names
+        source column name or array of column names
+
         destination : str or array-like
-            destination column name or array of column names
+        destination column name or array of column names
+
         edge_attr : str or None
-            the weights column name. Default is None
+        the weights column name. Default is None
+
         renumber : bool
-            Indicate whether or not to renumber the source and destination
-            vertex IDs. Default is True.
+        Indicate whether or not to renumber the source and destination vertex
+        IDs. Default is True.
+
         Examples
         --------
         >>> df = cudf.read_csv('datasets/karate.csv', delimiter=' ',
@@ -623,19 +664,24 @@ class NPartiteGraph(Graph):
         external vertex ids will be used.
         Note that the graph object will store a reference to the
         dask_cudf.DataFrame provided.
+
         Parameters
         ----------
         input_ddf : dask_cudf.DataFrame
-            The edgelist as a dask_cudf.DataFrame
+        The edgelist as a dask_cudf.DataFrame
+
         source : str or array-like
-            source column name or array of column names
+        source column name or array of column names
+
         destination : str
-            destination column name or array of column names
+        destination column name or array of column names
+
         edge_attr : str
-            weights column name.
+        weights column name.
+
         renumber : bool
-            If source and destination indices are not in range 0 to V where V
-            is number of vertices, renumber argument should be True.
+        If source and destination indices are not in range 0 to V where V is
+        number of vertices, renumber argument should be True.
         """
         raise Exception("Distributed N-partite graph not supported")
 
@@ -654,6 +700,7 @@ class NPartiteGraph(Graph):
         multipartite : str
             Sets the Graph as multipartite. The nodes are stored as a set of
             nodes of the partition named as multipartite argument.
+
         """
         if self._Impl is None:
             self._Impl = npartiteGraphImpl(self.graph_properties)

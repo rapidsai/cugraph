@@ -43,13 +43,13 @@ if [[ "$BUILD_LIBCUGRAPH" == "1" && "$UPLOAD_LIBCUGRAPH" == "1" ]]; then
   test -e ${LIBCUGRAPH_FILE}
   echo "Upload libcugraph"
   echo ${LIBCUGRAPH_FILE}
-  gpuci_retry anaconda -t ${MY_UPLOAD_KEY} upload -u ${CONDA_USERNAME:-rapidsai} ${LABEL_OPTION} --skip-existing ${LIBCUGRAPH_FILE}
+  gpuci_retry anaconda -t ${MY_UPLOAD_KEY} upload -u ${CONDA_USERNAME:-rapidsai} ${LABEL_OPTION} --skip-existing ${LIBCUGRAPH_FILE} --no-progress
 fi
 
 if [[ "$BUILD_CUGRAPH" == "1" && "$UPLOAD_CUGRAPH" == "1" ]]; then
   test -e ${CUGRAPH_FILE}
   echo "Upload cugraph"
   echo ${CUGRAPH_FILE}
-  gpuci_retry anaconda -t ${MY_UPLOAD_KEY} upload -u ${CONDA_USERNAME:-rapidsai} ${LABEL_OPTION} --skip-existing ${CUGRAPH_FILE}
+  gpuci_retry anaconda -t ${MY_UPLOAD_KEY} upload -u ${CONDA_USERNAME:-rapidsai} ${LABEL_OPTION} --skip-existing ${CUGRAPH_FILE} --no-progress
 fi
 

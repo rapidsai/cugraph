@@ -126,3 +126,39 @@ def test_subgraph_extraction_Graph_nx(graph_file):
 
     for (u, v) in cu_sub.edges():
         assert nx_sub.has_edge(u, v)
+
+
+@pytest.mark.parametrize("graph_file", utils.DATASETS)
+def test_subgraph_extraction_multi_column(graph_file):
+    gc.collect()
+
+    M = utils.read_csv_for_nx(graph_file)
+
+    cu_M = cudf.DataFrame()
+    cu_M["src_0"] = cudf.Series(M["0"])
+    cu_M["dst_0"] = cudf.Series(M["1"])
+    cu_M["src_1"] = cu_M["src_0"] + 1000
+    cu_M["dst_1"] = cu_M["dst_0"] + 1000
+    G1 = cugraph.Graph()
+    G1.from_cudf_edgelist(cu_M, source=["src_0", "src_1"],
+                          destination=["dst_0", "dst_1"])
+
+    verts = cudf.Series([0, 1, 17])
+    verts_G1 = cudf.DataFrame()
+    verts_G1['v_0'] = verts
+    verts_G1['v_1'] = verts + 1000
+
+    sG1 = cugraph.subgraph(G1, verts_G1)
+
+    G2 = cugraph.Graph()
+    G2.from_cudf_edgelist(cu_M, source="src_0", destination="dst_0")
+
+    sG2 = cugraph.subgraph(G2, verts)
+
+    # FIXME: Replace with multi-column view_edge_list()
+    edgelist_df = sG1.edgelist.edgelist_df
+    edgelist_df_res = sG1.unrenumber(edgelist_df, "src")
+    edgelist_df_res = sG1.unrenumber(edgelist_df_res, "dst")
+    for i in range(len(edgelist_df_res)):
+        assert sG2.has_edge(edgelist_df_res["0_src"].iloc[i],
+                            edgelist_df_res["0_dst"].iloc[i])

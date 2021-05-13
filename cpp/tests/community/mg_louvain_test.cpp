@@ -19,8 +19,8 @@
 #include <utilities/base_fixture.hpp>
 #include <utilities/test_utilities.hpp>
 
-#include <algorithms.hpp>
-#include <partition_manager.hpp>
+#include <cugraph/algorithms.hpp>
+#include <cugraph/partition_manager.hpp>
 
 #include <raft/cudart_utils.h>
 #include <raft/comms/comms.hpp>

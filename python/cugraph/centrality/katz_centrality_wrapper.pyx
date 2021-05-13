@@ -34,7 +34,7 @@ def get_output_df(input_graph, nstart):
         if len(nstart) != num_verts:
             raise ValueError('nstart must have initial guess for all vertices')
 
-        nstart['values'] = graph_primtypes_wrapper.datatype_cast([nstart['values']], [np.float64])
+        nstart['values'] = graph_primtypes_wrapper.datatype_cast([nstart['values']], [np.float64])[0]
         df['katz_centrality'][nstart['vertex']] = nstart['values']
 
     return df

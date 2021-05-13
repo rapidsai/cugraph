@@ -18,7 +18,7 @@
 
 from cugraph.structure.graph_primtypes cimport *
 
-cdef extern from "algorithms.hpp" namespace "cugraph":
+cdef extern from "cugraph/algorithms.hpp" namespace "cugraph":
 
     cdef float traveling_salesperson(const handle_t &handle,
             int *vtx_ptr,
@@ -31,4 +31,3 @@ cdef extern from "algorithms.hpp" namespace "cugraph":
             int nstart,
             bool verbose,
             int *route) except +
-
