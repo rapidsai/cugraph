@@ -660,6 +660,16 @@ if(BUILD_CUGRAPH_MG_TESTS)
         ConfigureTestMG(MG_LOUVAIN_TEST "${MG_LOUVAIN_TEST_SRCS}")
         target_link_libraries(MG_LOUVAIN_TEST PRIVATE MPI::MPI_C MPI::MPI_CXX)
 
+        ###########################################################################################
+        # - MG WEAKLY CONNECTED COMPONENTS tests --------------------------------------------------
+
+        set(MG_WEAKLY_CONNECTED_COMPONENTS_TEST_SRCS
+            "${CMAKE_CURRENT_SOURCE_DIR}/components/mg_weakly_connected_components_test.cpp")
+
+        ConfigureTestMG(MG_WEAKLY_CONNECTED_COMPONENTS_TEST
+                        "${MG_WEAKLY_CONNECTED_COMPONENTS_TEST_SRCS}")
+        target_link_libraries(MG_WEAKLY_CONNECTED_COMPONENTS_TEST PRIVATE MPI::MPI_C MPI::MPI_CXX)
+
     else(MPI_CXX_FOUND)
        message(FATAL_ERROR "OpenMPI NOT found, cannot build MG tests.")
     endif(MPI_CXX_FOUND)
