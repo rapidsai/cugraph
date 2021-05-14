@@ -376,8 +376,7 @@ void weakly_connected_components_impl(raft::handle_t const &handle,
         std::shuffle(gpuids.begin(), gpuids.end(), std::mt19937(rd()));
         gpuids.resize(
           std::max(static_cast<vertex_t>(gpuids.size() * max_new_roots_ratio), vertex_t{1}));
-        std::vector<vertex_t> init_max_new_root_counts(comm_size,
-                                                       vertex_t{0});
+        std::vector<vertex_t> init_max_new_root_counts(comm_size, vertex_t{0});
         for (size_t i = 0; i < gpuids.size(); ++i) { ++init_max_new_root_counts[gpuids[i]]; }
         // FIXME: we need to add host_scalar_scatter
 #if 1
@@ -560,7 +559,7 @@ void weakly_connected_components_impl(raft::handle_t const &handle,
         edge_t{0},
         thrust::plus<edge_t>());
 
-        ++iter;
+      ++iter;
     }
 
     // 2-5. construct the next level graph from the edges emitted on conflicts
@@ -641,19 +640,18 @@ void weakly_connected_components_impl(raft::handle_t const &handle,
   // 3. recursive update the current level component IDs from the next level component IDs
 
   for (size_t i = 0; i < num_levels - 1; ++i) {
-    size_t next_level = num_levels - 1 - i;
-    size_t current_level   = next_level - 1;
+    size_t next_level    = num_levels - 1 - i;
+    size_t current_level = next_level - 1;
 
-    rmm::device_uvector<vertex_t> next_local_vertices(
-      level_renumber_map_vectors[next_level].size(), handle.get_stream_view());
+    rmm::device_uvector<vertex_t> next_local_vertices(level_renumber_map_vectors[next_level].size(),
+                                                      handle.get_stream_view());
     thrust::sequence(rmm::exec_policy(handle.get_stream_view()),
                      next_local_vertices.begin(),
                      next_local_vertices.end(),
                      level_local_vertex_first_vectors[next_level]);
     relabel<vertex_t, GraphViewType::is_multi_gpu>(
       handle,
-      std::make_tuple(next_local_vertices.data(),
-                      level_renumber_map_vectors[next_level].data()),
+      std::make_tuple(next_local_vertices.data(), level_renumber_map_vectors[next_level].data()),
       next_local_vertices.size(),
       level_component_vectors[next_level].data(),
       level_component_vectors[next_level].size(),
@@ -665,7 +663,7 @@ void weakly_connected_components_impl(raft::handle_t const &handle,
       level_renumber_map_vectors[next_level].size(),
       current_level == 0 ? components : level_component_vectors[current_level].data(),
       current_level == 0 ? push_graph_view.get_number_of_local_vertices()
-                       : level_component_vectors[current_level].size(),
+                         : level_component_vectors[current_level].size(),
       true);
   }
 }
