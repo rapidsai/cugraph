@@ -208,12 +208,6 @@ struct v_op_t {
     auto old =
       atomicCAS(level_components + v_offset, invalid_component_id<vertex_type>::value, tag);
     if (old != invalid_component_id<vertex_type>::value && old != tag) {  // conflict
-      // FIXME: potential overflow? we need to count dst for square root P GPUs then do
-      // reduction to figure out actual maximum... this is too pessimistic and also
-      // expensive, actually, we know the graph is symmetric and we alredy have in==out
-      // dgree, so just need to sum the degree for the vertices in this GPU... yeah... but
-      // that's 1 over square root P of the total edges so not small... (but still not
-      // prohibitive especially for large P so not a bad thing....)
       static_assert(sizeof(unsigned long long int) == sizeof(size_t));
       auto edge_idx = atomicAdd(reinterpret_cast<unsigned long long int *>(num_edge_inserts),
                                 static_cast<unsigned long long int>(1));
@@ -280,7 +274,7 @@ void weakly_connected_components_impl(raft::handle_t const &handle,
     level_graph(handle);
   rmm::device_uvector<vertex_t> level_renumber_map(0, handle.get_stream_view());
   std::vector<rmm::device_uvector<vertex_t>> level_component_vectors{};
-  // vertex ID in this level to the component ID in the finer level
+  // vertex ID in this level to the component ID in the previous level
   std::vector<rmm::device_uvector<vertex_t>> level_renumber_map_vectors{};
   std::vector<vertex_t> level_local_vertex_first_vectors{};
   while (true) {
@@ -297,11 +291,6 @@ void weakly_connected_components_impl(raft::handle_t const &handle,
     auto degrees = level_graph_view.compute_out_degrees(handle);
     auto local_vertex_in_degree_sum =
       thrust::reduce(rmm::exec_policy(handle.get_stream_view()), degrees.begin(), degrees.end());
-    if (!GraphViewType::is_multi_gpu || handle.get_comms().get_rank() == 0) {
-      std::cout << "V=" << level_graph_view.get_number_of_vertices()
-                << " E=" << level_graph_view.get_number_of_edges()
-                << " V_0=" << level_graph_view.get_number_of_local_vertices() << std::endl;
-    }
 
     // 2-1. filter out isolated vertices
 
@@ -421,7 +410,7 @@ void weakly_connected_components_impl(raft::handle_t const &handle,
       handle.get_stream_view().synchronize();
     }
 
-    // 2-3. initialize vertex frontier
+    // 2-3. initialize vertex frontier, edge_buffer, and col_components (if multi-gpu)
 
     VertexFrontier<vertex_t,
                    vertex_t,
@@ -502,6 +491,7 @@ void weakly_connected_components_impl(raft::handle_t const &handle,
 
       // FIXME: if we use cuco::static_map (no duplicates, ideally we need static_set),
       // edge_buffer size cannot exceed (# local roots * # aggregate roots)
+      // FIXME: this is highly pessimistic and lazy in multi-gpu. we can tighten the upper bound.
       resize_dataframe_buffer<thrust::tuple<vertex_t, vertex_t>>(
         edge_buffer,
         num_edge_inserts.value(handle.get_stream_view()) + edge_count +
@@ -572,6 +562,8 @@ void weakly_connected_components_impl(raft::handle_t const &handle,
 
         ++iter;
     }
+
+    // 2-5. construct the next level graph from the edges emitted on conflicts
 
     if (auto num_inserts = num_edge_inserts.value(handle.get_stream_view()); num_inserts > 0) {
       resize_dataframe_buffer<thrust::tuple<vertex_t, vertex_t>>(
@@ -646,32 +638,34 @@ void weakly_connected_components_impl(raft::handle_t const &handle,
     }
   }
 
-  for (size_t i = 0; i < num_levels - 1; ++i) {
-    size_t coarser_level = num_levels - 1 - i;
-    size_t finer_level   = coarser_level - 1;
+  // 3. recursive update the current level component IDs from the next level component IDs
 
-    rmm::device_uvector<vertex_t> coarser_local_vertices(
-      level_renumber_map_vectors[coarser_level].size(), handle.get_stream_view());
+  for (size_t i = 0; i < num_levels - 1; ++i) {
+    size_t next_level = num_levels - 1 - i;
+    size_t current_level   = next_level - 1;
+
+    rmm::device_uvector<vertex_t> next_local_vertices(
+      level_renumber_map_vectors[next_level].size(), handle.get_stream_view());
     thrust::sequence(rmm::exec_policy(handle.get_stream_view()),
-                     coarser_local_vertices.begin(),
-                     coarser_local_vertices.end(),
-                     level_local_vertex_first_vectors[coarser_level]);
+                     next_local_vertices.begin(),
+                     next_local_vertices.end(),
+                     level_local_vertex_first_vectors[next_level]);
     relabel<vertex_t, GraphViewType::is_multi_gpu>(
       handle,
-      std::make_tuple(coarser_local_vertices.data(),
-                      level_renumber_map_vectors[coarser_level].data()),
-      coarser_local_vertices.size(),
-      level_component_vectors[coarser_level].data(),
-      level_component_vectors[coarser_level].size(),
+      std::make_tuple(next_local_vertices.data(),
+                      level_renumber_map_vectors[next_level].data()),
+      next_local_vertices.size(),
+      level_component_vectors[next_level].data(),
+      level_component_vectors[next_level].size(),
       false);
     relabel<vertex_t, GraphViewType::is_multi_gpu>(
       handle,
-      std::make_tuple(level_renumber_map_vectors[coarser_level].data(),
-                      level_component_vectors[coarser_level].data()),
-      level_renumber_map_vectors[coarser_level].size(),
-      finer_level == 0 ? components : level_component_vectors[finer_level].data(),
-      finer_level == 0 ? push_graph_view.get_number_of_local_vertices()
-                       : level_component_vectors[finer_level].size(),
+      std::make_tuple(level_renumber_map_vectors[next_level].data(),
+                      level_component_vectors[next_level].data()),
+      level_renumber_map_vectors[next_level].size(),
+      current_level == 0 ? components : level_component_vectors[current_level].data(),
+      current_level == 0 ? push_graph_view.get_number_of_local_vertices()
+                       : level_component_vectors[current_level].size(),
       true);
   }
 }
@@ -700,6 +694,66 @@ template void weakly_connected_components(
   raft::handle_t const &handle,
   graph_view_t<int32_t, int32_t, float, false, true> const &graph_view,
   int32_t *components,
+  bool do_expensive_check);
+
+template void weakly_connected_components(
+  raft::handle_t const &handle,
+  graph_view_t<int32_t, int32_t, double, false, false> const &graph_view,
+  int32_t *components,
+  bool do_expensive_check);
+
+template void weakly_connected_components(
+  raft::handle_t const &handle,
+  graph_view_t<int32_t, int32_t, double, false, true> const &graph_view,
+  int32_t *components,
+  bool do_expensive_check);
+
+template void weakly_connected_components(
+  raft::handle_t const &handle,
+  graph_view_t<int32_t, int64_t, float, false, false> const &graph_view,
+  int32_t *components,
+  bool do_expensive_check);
+
+template void weakly_connected_components(
+  raft::handle_t const &handle,
+  graph_view_t<int32_t, int64_t, float, false, true> const &graph_view,
+  int32_t *components,
+  bool do_expensive_check);
+
+template void weakly_connected_components(
+  raft::handle_t const &handle,
+  graph_view_t<int32_t, int64_t, double, false, false> const &graph_view,
+  int32_t *components,
+  bool do_expensive_check);
+
+template void weakly_connected_components(
+  raft::handle_t const &handle,
+  graph_view_t<int32_t, int64_t, double, false, true> const &graph_view,
+  int32_t *components,
+  bool do_expensive_check);
+
+template void weakly_connected_components(
+  raft::handle_t const &handle,
+  graph_view_t<int64_t, int64_t, float, false, false> const &graph_view,
+  int64_t *components,
+  bool do_expensive_check);
+
+template void weakly_connected_components(
+  raft::handle_t const &handle,
+  graph_view_t<int64_t, int64_t, float, false, true> const &graph_view,
+  int64_t *components,
+  bool do_expensive_check);
+
+template void weakly_connected_components(
+  raft::handle_t const &handle,
+  graph_view_t<int64_t, int64_t, double, false, false> const &graph_view,
+  int64_t *components,
+  bool do_expensive_check);
+
+template void weakly_connected_components(
+  raft::handle_t const &handle,
+  graph_view_t<int64_t, int64_t, double, false, true> const &graph_view,
+  int64_t *components,
   bool do_expensive_check);
 
 }  // namespace experimental
