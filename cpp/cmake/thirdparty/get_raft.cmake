@@ -40,8 +40,8 @@ set(CUGRAPH_MIN_VERSION_raft "${CUGRAPH_VERSION_MAJOR}.${CUGRAPH_VERSION_MINOR}"
 # To use a different RAFT locally, set the CMake variable
 # RPM_raft_SOURCE=/path/to/local/raft
 find_and_configure_raft(VERSION    ${CUGRAPH_MIN_VERSION_raft}
-                        FORK       dantegd
-                        PINNED_TAG 020-fea-cpm
+                        FORK       rapidsai
+                        PINNED_TAG branch-${CUGRAPH_MIN_VERSION_raft}
                         )
 
 
