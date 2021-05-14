@@ -242,7 +242,7 @@ target_include_directories(cugraph
         "${NCCL_INCLUDE_DIRS}"
     PUBLIC
         "$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>"
-        "$<INSTALL_INTERFACE:include/cugraph>"
+        "$<INSTALL_INTERFACE:include>"
 )
 
 ###################################################################################################
