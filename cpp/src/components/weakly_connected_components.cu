@@ -21,6 +21,7 @@
 #include <cugraph/patterns/copy_to_adj_matrix_row_col.cuh>
 #include <cugraph/patterns/update_frontier_v_push_if_out_nbr.cuh>
 #include <cugraph/patterns/vertex_frontier.cuh>
+#include <cugraph/utilities/device_comm.cuh>
 #include <cugraph/utilities/error.hpp>
 #include <cugraph/utilities/shuffle_comm.cuh>
 #include <cugraph/vertex_partition_device.cuh>
@@ -38,8 +39,11 @@
 #include <thrust/shuffle.h>
 #include <thrust/tuple.h>
 
+#include <algorithm>
 #include <limits>
+#include <random>
 #include <type_traits>
+#include <vector>
 
 namespace cugraph {
 namespace experimental {
@@ -293,6 +297,11 @@ void weakly_connected_components_impl(raft::handle_t const &handle,
     auto degrees = level_graph_view.compute_out_degrees(handle);
     auto local_vertex_in_degree_sum =
       thrust::reduce(rmm::exec_policy(handle.get_stream_view()), degrees.begin(), degrees.end());
+    if (!GraphViewType::is_multi_gpu || handle.get_comms().get_rank() == 0) {
+      std::cout << "V=" << level_graph_view.get_number_of_vertices()
+                << " E=" << level_graph_view.get_number_of_edges()
+                << " V_0=" << level_graph_view.get_number_of_local_vertices() << std::endl;
+    }
 
     // 2-1. filter out isolated vertices
 
@@ -356,6 +365,62 @@ void weakly_connected_components_impl(raft::handle_t const &handle,
     auto max_new_roots = std::max(
       static_cast<vertex_t>(new_root_candidates.size() * max_new_roots_ratio), vertex_t{1});
 
+    auto init_max_new_roots = max_new_roots;
+    // to avoid selecting too many (possibly all) vertices as initial roots leading to no
+    // compression in the worst case.
+    if (GraphViewType::is_multi_gpu &&
+        (level_graph_view.get_number_of_vertices() <= handle.get_comms().get_size() * 2)) {
+      auto &comm           = handle.get_comms();
+      auto const comm_rank = comm.get_rank();
+      auto const comm_size = comm.get_size();
+
+      auto new_root_candidate_counts =
+        host_scalar_gather(comm, new_root_candidates.size(), int{0}, handle.get_stream());
+      if (comm_rank == 0) {
+        std::vector<int> gpuids{};
+        gpuids.reserve(
+          std::reduce(new_root_candidate_counts.begin(), new_root_candidate_counts.end()));
+        for (size_t i = 0; i < new_root_candidate_counts.size(); ++i) {
+          gpuids.insert(gpuids.end(), new_root_candidate_counts[i], static_cast<int>(i));
+        }
+        std::random_device rd{};
+        std::shuffle(gpuids.begin(), gpuids.end(), std::mt19937(rd()));
+        gpuids.resize(
+          std::max(static_cast<vertex_t>(gpuids.size() * max_new_roots_ratio), vertex_t{1}));
+        std::vector<vertex_t> init_max_new_root_counts(comm_size,
+                                                       vertex_t{0});
+        for (size_t i = 0; i < gpuids.size(); ++i) { ++init_max_new_root_counts[gpuids[i]]; }
+        // FIXME: we need to add host_scalar_scatter
+#if 1
+        rmm::device_uvector<vertex_t> d_counts(comm_size, handle.get_stream_view());
+        raft::update_device(d_counts.data(),
+                            init_max_new_root_counts.data(),
+                            init_max_new_root_counts.size(),
+                            handle.get_stream());
+        device_bcast(
+          comm, d_counts.data(), d_counts.data(), d_counts.size(), int{0}, handle.get_stream());
+        raft::update_host(
+          &init_max_new_roots, d_counts.data() + comm_rank, size_t{1}, handle.get_stream());
+#else
+        iinit_max_new_roots =
+          host_scalar_scatter(comm, init_max_new_root_counts.data(), int{0}, handle.get_stream());
+#endif
+      } else {
+        // FIXME: we need to add host_scalar_scatter
+#if 1
+        rmm::device_uvector<vertex_t> d_counts(comm_size, handle.get_stream_view());
+        device_bcast(
+          comm, d_counts.data(), d_counts.data(), d_counts.size(), int{0}, handle.get_stream());
+        raft::update_host(
+          &init_max_new_roots, d_counts.data() + comm_rank, size_t{1}, handle.get_stream());
+#else
+        iinit_max_new_roots =
+          host_scalar_scatter(comm, init_max_new_root_counts.data(), int{0}, handle.get_stream());
+#endif
+      }
+      handle.get_stream_view().synchronize();
+    }
+
     // 2-3. initialize vertex frontier
 
     VertexFrontier<vertex_t,
@@ -383,8 +448,9 @@ void weakly_connected_components_impl(raft::handle_t const &handle,
                    invalid_component_id<vertex_t>::value);
     }
 
-    // 2.3 iterate till every vertex gets visited
+    // 2.4 iterate till every vertex gets visited
 
+    size_t iter{0};
     while (true) {
       if (edge_count < degree_sum_threshold) {
         auto [new_roots, num_scanned, degree_sum] =
@@ -394,7 +460,7 @@ void weakly_connected_components_impl(raft::handle_t const &handle,
                                degrees.data(),
                                new_root_candidates.data() + next_candidate_offset,
                                new_root_candidates.data() + new_root_candidates.size(),
-                               max_new_roots,
+                               iter == 0 ? init_max_new_roots : max_new_roots,
                                degree_sum_threshold - edge_count);
         next_candidate_offset += num_scanned;
         edge_count += degree_sum;
@@ -503,6 +569,8 @@ void weakly_connected_components_impl(raft::handle_t const &handle,
         },
         edge_t{0},
         thrust::plus<edge_t>());
+
+        ++iter;
     }
 
     if (auto num_inserts = num_edge_inserts.value(handle.get_stream_view()); num_inserts > 0) {
