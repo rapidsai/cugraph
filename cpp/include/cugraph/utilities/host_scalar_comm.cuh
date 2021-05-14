@@ -15,6 +15,7 @@
  */
 #pragma once
 
+#include <cugraph/utilities/error.hpp>
 #include <cugraph/utilities/thrust_tuple_utils.cuh>
 
 #include <raft/handle.hpp>

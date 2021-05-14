@@ -14,17 +14,16 @@
  * limitations under the License.
  */
 
+#pragma once
+
 #include <raft/handle.hpp>
 #include <rmm/device_uvector.hpp>
-
-#include <tuple>
 
 namespace cugraph {
 namespace test {
 
-template <typename vertex_t, typename value_t>
-std::tuple<rmm::device_uvector<vertex_t>, rmm::device_uvector<value_t>> sort_by_key(
-  raft::handle_t const& handle, vertex_t const* keys, value_t const* values, size_t num_pairs);
+template <typename T>
+rmm::device_uvector<T> device_gatherv(raft::handle_t const &handle, T const *d_input, size_t size);
 
 }  // namespace test
 }  // namespace cugraph
