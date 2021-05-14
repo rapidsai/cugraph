@@ -15,12 +15,14 @@
  */
 
 #include <cugraph/algorithms.hpp>
+#include <cugraph/experimental/detail/graph_utils.cuh>
 #include <cugraph/experimental/graph_functions.hpp>
 #include <cugraph/experimental/graph_view.hpp>
 #include <cugraph/patterns/copy_to_adj_matrix_row_col.cuh>
 #include <cugraph/patterns/update_frontier_v_push_if_out_nbr.cuh>
 #include <cugraph/patterns/vertex_frontier.cuh>
 #include <cugraph/utilities/error.hpp>
+#include <cugraph/utilities/shuffle_comm.cuh>
 #include <cugraph/vertex_partition_device.cuh>
 
 #include <raft/handle.hpp>
@@ -182,7 +184,7 @@ struct v_op_t {
   using vertex_type = typename GraphViewType::vertex_type;
 
   vertex_partition_device_t<GraphViewType> vertex_partition{};
-  vertex_type const *level_components{};
+  vertex_type *level_components{};
   decltype(thrust::make_zip_iterator(thrust::make_tuple(
     static_cast<vertex_type *>(nullptr), static_cast<vertex_type *>(nullptr)))) edge_buffer_first{};
   // FIXME: we can use cuda::atomic instead but currently on a system with x86 + GPU, this requires
@@ -524,6 +526,40 @@ void weakly_connected_components_impl(raft::handle_t const &handle,
         edge_buffer, static_cast<size_t>(thrust::distance(edge_first, last)), handle.get_stream());
       shrink_to_fit_dataframe_buffer<thrust::tuple<vertex_t, vertex_t>>(edge_buffer,
                                                                         handle.get_stream());
+
+      if (GraphViewType::is_multi_gpu) {
+        auto &comm           = handle.get_comms();
+        auto const comm_size = comm.get_size();
+        auto &row_comm       = handle.get_subcomm(cugraph::partition_2d::key_naming_t().row_name());
+        auto const row_comm_size = row_comm.get_size();
+        auto &col_comm = handle.get_subcomm(cugraph::partition_2d::key_naming_t().col_name());
+        auto const col_comm_size = col_comm.get_size();
+
+        std::tie(edge_buffer, std::ignore) =
+          cugraph::experimental::groupby_gpuid_and_shuffle_values(
+            comm,
+            get_dataframe_buffer_begin<thrust::tuple<vertex_t, vertex_t>>(edge_buffer),
+            get_dataframe_buffer_end<thrust::tuple<vertex_t, vertex_t>>(edge_buffer),
+            [key_func =
+               cugraph::experimental::detail::compute_gpu_id_from_edge_t<vertex_t>{
+                 comm_size, row_comm_size, col_comm_size}] __device__(auto val) {
+              return key_func(thrust::get<0>(val), thrust::get<1>(val));
+            },
+            handle.get_stream());
+        auto edge_first =
+          get_dataframe_buffer_begin<thrust::tuple<vertex_t, vertex_t>>(edge_buffer);
+        auto edge_last = get_dataframe_buffer_end<thrust::tuple<vertex_t, vertex_t>>(edge_buffer);
+        thrust::sort(rmm::exec_policy(handle.get_stream_view()), edge_first, edge_last);
+        auto unique_edge_last =
+          thrust::unique(rmm::exec_policy(handle.get_stream_view()), edge_first, edge_last);
+        resize_dataframe_buffer<thrust::tuple<vertex_t, vertex_t>>(
+          edge_buffer,
+          static_cast<size_t>(thrust::distance(edge_first, unique_edge_last)),
+          handle.get_stream());
+        shrink_to_fit_dataframe_buffer<thrust::tuple<vertex_t, vertex_t>>(edge_buffer,
+                                                                          handle.get_stream());
+      }
+
       std::tie(level_graph, level_renumber_map) =
         create_graph_from_edgelist<vertex_t,
                                    edge_t,
@@ -589,6 +625,12 @@ void weakly_connected_components(
 template void weakly_connected_components(
   raft::handle_t const &handle,
   graph_view_t<int32_t, int32_t, float, false, false> const &graph_view,
+  int32_t *components,
+  bool do_expensive_check);
+
+template void weakly_connected_components(
+  raft::handle_t const &handle,
+  graph_view_t<int32_t, int32_t, float, false, true> const &graph_view,
   int32_t *components,
   bool do_expensive_check);
 

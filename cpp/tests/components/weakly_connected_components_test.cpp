@@ -185,7 +185,9 @@ class Tests_WeaklyConnectedComponent
 
       std::vector<vertex_t> h_cugraph_components(graph_view.get_number_of_vertices());
       if (renumber) {
-        auto d_unrenumbered_components = cugraph::test::sort_by_key(
+        rmm::device_uvector<vertex_t> d_unrenumbered_components(size_t{0},
+                                                                handle.get_stream_view());
+        std::tie(std::ignore, d_unrenumbered_components) = cugraph::test::sort_by_key(
           handle, d_renumber_map_labels.data(), d_components.data(), d_renumber_map_labels.size());
         raft::update_host(h_cugraph_components.data(),
                           d_unrenumbered_components.data(),
