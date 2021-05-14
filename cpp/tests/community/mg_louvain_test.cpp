@@ -20,6 +20,7 @@
 #include <utilities/test_utilities.hpp>
 
 #include <cugraph/algorithms.hpp>
+#include <cugraph/experimental/graph_functions.hpp>
 #include <cugraph/partition_manager.hpp>
 
 #include <raft/cudart_utils.h>
@@ -128,14 +129,14 @@ class Louvain_MG_Testfixture : public ::testing::TestWithParam<Louvain_Usecase> 
         handle, d_edgelist_rows, d_edgelist_cols, d_renumber_map_gathered_v);
 
       std::tie(*sg_graph, std::ignore) =
-        cugraph::test::generate_graph_from_edgelist<vertex_t, edge_t, weight_t, false, false>(
+        cugraph::experimental::create_graph_from_edgelist<vertex_t, edge_t, weight_t, false, false>(
           handle,
-          std::move(d_vertices),
+          std::optional<std::tuple<vertex_t const*, vertex_t>>{
+            std::make_tuple(d_vertices.data(), static_cast<vertex_t>(d_vertices.size()))},
           std::move(d_edgelist_rows),
           std::move(d_edgelist_cols),
           std::move(d_edgelist_weights),
-          is_symmetric,
-          true,
+          cugraph::experimental::graph_properties_t{is_symmetric, false, true},
           false);
     }
 
