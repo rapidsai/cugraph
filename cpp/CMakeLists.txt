@@ -197,6 +197,16 @@ add_library(cugraph SHARED
     src/utilities/host_barrier.cpp
 )
 
+file(WRITE "${CUGRAPH_BINARY_DIR}/fatbin.ld"
+[=[
+SECTIONS
+{
+  .nvFatBinSegment : { *(.nvFatBinSegment) }
+  .nv_fatbin : { *(.nv_fatbin) }
+}
+]=])
+target_link_options(cugraph PRIVATE "${CUGRAPH_BINARY_DIR}/fatbin.ld")
+
 add_library(cugraph::cugraph ALIAS cugraph)
 
 set_target_properties(cugraph
