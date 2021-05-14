@@ -218,6 +218,8 @@ set_target_properties(cugraph
                CUDA_STANDARD                       17
                CUDA_STANDARD_REQUIRED              ON
                NO_SYSTEM_FROM_IMPORTED             ON
+               POSITION_INDEPENDENT_CODE           ON
+               INTERFACE_POSITION_INDEPENDENT_CODE ON
 )
 
 # Per-thread default stream option see https://docs.nvidia.com/cuda/cuda-runtime-api/stream-sync-behavior.html
