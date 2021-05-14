@@ -28,6 +28,11 @@ add_library(cugraphtestutil STATIC
             components/wcc_graphs.cu
             "${CMAKE_CURRENT_SOURCE_DIR}/../../thirdparty/mmio/mmio.c")
 
+target_compile_options(cugraphtestutil
+            PUBLIC "$<$<COMPILE_LANGUAGE:CXX>:${CUGRAPH_CXX_FLAGS}>"
+                   "$<BUILD_INTERFACE:$<$<COMPILE_LANGUAGE:CUDA>:${CUGRAPH_CUDA_FLAGS}>>"
+)
+
 set_property(TARGET cugraphtestutil PROPERTY POSITION_INDEPENDENT_CODE ON)
 
 target_include_directories(cugraphtestutil
