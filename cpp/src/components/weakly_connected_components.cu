@@ -76,105 +76,88 @@ accumulate_new_roots(raft::handle_t const &handle,
   vertex_t max_scan_size =
     static_cast<vertex_t>(handle.get_device_properties().multiProcessorCount) * vertex_t{1024};
 
-  rmm::device_uvector<vertex_t> new_roots(0, handle.get_stream_view());
+  rmm::device_uvector<vertex_t> new_roots(max_new_roots, handle.get_stream_view());
+  vertex_t num_new_roots{0};
   vertex_t num_scanned{0};
   edge_t degree_sum{0};
-  while (candidate_first + num_scanned < candidate_last) {
+  while ((candidate_first + num_scanned < candidate_last) && (degree_sum < degree_sum_threshold) &&
+         (num_new_roots < max_new_roots)) {
     auto scan_size = std::min(
       max_scan_size,
       static_cast<vertex_t>(thrust::distance(candidate_first + num_scanned, candidate_last)));
 
-    auto num_new_roots = static_cast<vertex_t>(new_roots.size());
-    new_roots.resize(num_new_roots + scan_size, handle.get_stream_view());
-    rmm::device_uvector<vertex_t> scan_counts(0, handle.get_stream_view());
-    {
-      rmm::device_uvector<vertex_t> indices(scan_size, handle.get_stream_view());
-      auto input_pair_first = thrust::make_zip_iterator(thrust::make_tuple(
-                                candidate_first, thrust::make_counting_iterator(vertex_t{0}))) +
-                              num_scanned;
-      auto output_pair_first = thrust::make_zip_iterator(
-        thrust::make_tuple(new_roots.begin() + num_new_roots, indices.begin()));
-      new_roots.resize(
-        static_cast<vertex_t>(thrust::distance(
+    rmm::device_uvector<vertex_t> tmp_new_roots(scan_size, handle.get_stream_view());
+    rmm::device_uvector<vertex_t> tmp_indices(tmp_new_roots.size(), handle.get_stream_view());
+    auto input_pair_first = thrust::make_zip_iterator(thrust::make_tuple(
+      candidate_first + num_scanned, thrust::make_counting_iterator(vertex_t{0})));
+    auto output_pair_first =
+      thrust::make_zip_iterator(thrust::make_tuple(tmp_new_roots.begin(), tmp_indices.begin()));
+    tmp_new_roots.resize(
+      static_cast<vertex_t>(thrust::distance(
+        output_pair_first,
+        thrust::copy_if(
+          rmm::exec_policy(handle.get_stream_view()),
+          input_pair_first,
+          input_pair_first + scan_size,
           output_pair_first,
-          thrust::copy_if(
-            rmm::exec_policy(handle.get_stream_view()),
-            input_pair_first,
-            input_pair_first + scan_size,
-            output_pair_first,
-            [vertex_partition, components] __device__(auto pair) {
-              auto v = thrust::get<0>(pair);
-              return (components[vertex_partition.get_local_vertex_offset_from_vertex_nocheck(v)] ==
-                      invalid_component_id<vertex_t>::value);
-            }))),
-        handle.get_stream_view());
-      indices.resize(new_roots.size(), handle.get_stream_view());
+          [vertex_partition, components] __device__(auto pair) {
+            auto v = thrust::get<0>(pair);
+            return (components[vertex_partition.get_local_vertex_offset_from_vertex_nocheck(v)] ==
+                    invalid_component_id<vertex_t>::value);
+          }))),
+      handle.get_stream_view());
+    tmp_indices.resize(tmp_new_roots.size(), handle.get_stream_view());
 
-      scan_counts.resize(new_roots.size() - num_new_roots, handle.get_stream_view());
-      thrust::tabulate(
-        rmm::exec_policy(handle.get_stream_view()),
-        scan_counts.begin(),
-        scan_counts.end(),
-        [scan_size, indices = indices.data(), num_indices = indices.size()] __device__(auto i) {
-          return i < num_indices - 1 ? indices[i + 1] : scan_size;
-        });
-
-      if (static_cast<vertex_t>(new_roots.size()) > max_new_roots) {
-        new_roots.resize(max_new_roots, handle.get_stream_view());
-        scan_counts.resize(new_roots.size() - num_new_roots, handle.get_stream_view());
-      }
-    }
-
-    if (static_cast<vertex_t>(new_roots.size()) > num_new_roots) {
-      rmm::device_uvector<edge_t> cumulative_degrees(new_roots.size() - num_new_roots,
-                                                     handle.get_stream_view());
+    if (tmp_new_roots.size() > 0) {
+      rmm::device_uvector<edge_t> tmp_cumulative_degrees(tmp_new_roots.size(),
+                                                         handle.get_stream_view());
       thrust::transform(
         rmm::exec_policy(handle.get_stream_view()),
-        new_roots.begin() + num_new_roots,
-        new_roots.end(),
-        cumulative_degrees.begin(),
+        tmp_new_roots.begin(),
+        tmp_new_roots.end(),
+        tmp_cumulative_degrees.begin(),
         [vertex_partition, degrees] __device__(auto v) {
           return degrees[vertex_partition.get_local_vertex_offset_from_vertex_nocheck(v)];
         });
       thrust::inclusive_scan(rmm::exec_policy(handle.get_stream_view()),
-                             cumulative_degrees.begin(),
-                             cumulative_degrees.end(),
-                             cumulative_degrees.begin());
-
+                             tmp_cumulative_degrees.begin(),
+                             tmp_cumulative_degrees.end(),
+                             tmp_cumulative_degrees.begin());
       auto last = thrust::lower_bound(rmm::exec_policy(handle.get_stream_view()),
-                                      cumulative_degrees.begin(),
-                                      cumulative_degrees.end(),
+                                      tmp_cumulative_degrees.begin(),
+                                      tmp_cumulative_degrees.end(),
                                       degree_sum_threshold - degree_sum);
-      if (last == cumulative_degrees.end()) {
-        last = cumulative_degrees.begin() + (cumulative_degrees.size() - 1);
-      }
+      if (last != tmp_cumulative_degrees.end()) { ++last; }
+      auto tmp_num_new_roots =
+        std::min(static_cast<vertex_t>(thrust::distance(tmp_cumulative_degrees.begin(), last)),
+                 max_new_roots - num_new_roots);
 
-      new_roots.resize(num_new_roots + thrust::distance(cumulative_degrees.begin(), last) + 1,
-                       handle.get_stream_view());
+      thrust::copy(rmm::exec_policy(handle.get_stream_view()),
+                   tmp_new_roots.begin(),
+                   tmp_new_roots.begin() + tmp_num_new_roots,
+                   new_roots.begin() + num_new_roots);
+      num_new_roots += tmp_num_new_roots;
       vertex_t tmp_num_scanned{0};
       edge_t tmp_degree_sum{0};
-      raft::update_host(&tmp_num_scanned,
-                        scan_counts.data() + thrust::distance(cumulative_degrees.begin(), last),
+      if (tmp_num_new_roots == static_cast<vertex_t>(tmp_new_roots.size())) {
+        tmp_num_scanned = scan_size;
+      } else {
+        raft::update_host(
+          &tmp_num_scanned, tmp_indices.data() + tmp_num_new_roots, size_t{1}, handle.get_stream());
+      }
+      raft::update_host(&tmp_degree_sum,
+                        tmp_cumulative_degrees.data() + (tmp_num_new_roots - 1),
                         size_t{1},
                         handle.get_stream());
-      raft::update_host(
-        &tmp_degree_sum,
-        cumulative_degrees.data() + thrust::distance(cumulative_degrees.begin(), last),
-        size_t{1},
-        handle.get_stream());
       handle.get_stream_view().synchronize();
       num_scanned += tmp_num_scanned;
       degree_sum += tmp_degree_sum;
     } else {
       num_scanned += scan_size;
     }
-
-    if (static_cast<vertex_t>(new_roots.size()) >= max_new_roots ||
-        degree_sum >= degree_sum_threshold) {
-      break;
-    }
   }
 
+  new_roots.resize(num_new_roots, handle.get_stream_view());
   new_roots.shrink_to_fit(handle.get_stream_view());
 
   return std::make_tuple(std::move(new_roots), num_scanned, degree_sum);
