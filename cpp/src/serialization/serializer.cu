@@ -82,7 +82,7 @@ serializer_t::graph_meta_t<graph_t> serializer_t::serialize(graph_t const& graph
     return gvmeta;
 
   } else {
-    CUGRAPH_FAIL("Unsupported graph_view type for serialization.");
+    CUGRAPH_FAIL("Unsupported graph type for serialization.");
 
     return graph_meta_t<graph_t>{};
   }
@@ -115,7 +115,7 @@ graph_t serializer_t::unserialize(serializer_t::graph_meta_t<graph_t> const& gvm
                    std::move(seg_offsets));  // RVO-ed
 
   } else {
-    CUGRAPH_FAIL("Unsupported graph_view type for unserialization.");
+    CUGRAPH_FAIL("Unsupported graph type for unserialization.");
 
     return graph_t{handle_};
   }

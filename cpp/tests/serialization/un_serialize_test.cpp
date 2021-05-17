@@ -60,8 +60,15 @@ TEST(SerializationTest, GraphSerUnser)
   size_t total_ser_sz = (num_vertices + 1) * sizeof(edge_t) + num_edges * sizeof(vertex_t) +
                         num_edges * sizeof(weight_t);
 
+  auto evaluated_sz = serializer_t::get_device_graph_sz_bytes(graph);
+  EXPECT_EQ(total_ser_sz, evaluated_sz);
+
   serializer_t ser(handle, total_ser_sz);
   auto graph_meta = ser.serialize(graph);
+
+  total_ser_sz = serializer_t::get_device_graph_sz_bytes(graph_meta);
+  EXPECT_EQ(total_ser_sz, evaluated_sz);
+
   auto graph_copy = ser.unserialize(graph_meta);
 
   auto graph_copy_view   = graph_copy.view();

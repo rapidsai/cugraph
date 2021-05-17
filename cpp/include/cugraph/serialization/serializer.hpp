@@ -94,6 +94,48 @@ class serializer_t {
   template <typename graph_t>
   graph_t unserialize(graph_meta_t<graph_t> const& meta);
 
+  template <typename graph_t>
+  static size_t get_device_graph_sz_bytes(graph_t const& graph)
+  {
+    using vertex_t = typename graph_t::vertex_type;
+    using edge_t   = typename graph_t::edge_type;
+    using weight_t = typename graph_t::weight_type;
+
+    if constexpr (!graph_t::is_multi_gpu) {
+      size_t num_edges     = graph.get_number_of_edges();
+      size_t device_ser_sz = (graph.get_number_of_vertices() + 1) * sizeof(edge_t) +
+                             num_edges * sizeof(vertex_t) + num_edges * sizeof(weight_t);
+
+      return device_ser_sz;
+    } else {
+      CUGRAPH_FAIL("Unsupported graph type for un/serialization.");
+
+      return 0;
+    }
+  }
+
+  template <typename graph_t>
+  static size_t get_device_graph_sz_bytes(graph_meta_t<graph_t> const& graph_meta)
+  {
+    using vertex_t = typename graph_t::vertex_type;
+    using edge_t   = typename graph_t::edge_type;
+    using weight_t = typename graph_t::weight_type;
+
+    if constexpr (!graph_t::is_multi_gpu) {
+      size_t num_vertices = graph_meta.num_vertices_;
+      size_t num_edges    = graph_meta.num_edges_;
+
+      size_t device_ser_sz = (num_vertices + 1) * sizeof(edge_t) + num_edges * sizeof(vertex_t) +
+                             num_edges * sizeof(weight_t);
+
+      return device_ser_sz;
+    } else {
+      CUGRAPH_FAIL("Unsupported graph type for un/serialization.");
+
+      return 0;
+    }
+  }
+
  private:
   raft::handle_t const& handle_;
   rmm::device_uvector<byte_t> d_storage_;
