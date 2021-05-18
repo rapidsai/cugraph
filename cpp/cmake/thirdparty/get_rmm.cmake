@@ -36,6 +36,6 @@ function(find_and_configure_rmm VERSION)
 
 endfunction()
 
-set(CUGRAPH_MIN_VERSION_rmm "${CUGRAPH_VERSION_MAJOR}.${CUGRAPH_VERSION_MINOR}")
+set(CUGRAPH_MIN_VERSION_rmm "${CUGRAPH_VERSION_MAJOR}.${CUGRAPH_VERSION_MINOR}.00")
 
 find_and_configure_rmm(${CUGRAPH_MIN_VERSION_rmm})
