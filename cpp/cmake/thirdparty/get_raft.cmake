@@ -34,7 +34,7 @@ function(find_and_configure_raft)
 
 endfunction()
 
-set(CUGRAPH_MIN_VERSION_raft "${CUGRAPH_VERSION_MAJOR}.${CUGRAPH_VERSION_MINOR}")
+set(CUGRAPH_MIN_VERSION_raft "${CUGRAPH_VERSION_MAJOR}.${CUGRAPH_VERSION_MINOR}.00")
 
 # Change pinned tag and fork here to test a commit in CI
 # To use a different RAFT locally, set the CMake variable
@@ -43,5 +43,4 @@ find_and_configure_raft(VERSION    ${CUGRAPH_MIN_VERSION_raft}
                         FORK       rapidsai
                         PINNED_TAG branch-${CUGRAPH_MIN_VERSION_raft}
                         )
-
 
