@@ -16,6 +16,12 @@
 
 function(find_and_configure_rmm VERSION)
 
+    if(${VERSION} MATCHES [=[([0-9]+)\.([0-9]+)\.([0-9]+)]=])
+        set(MAJOR_AND_MINOR "${CMAKE_MATCH_1}.${CMAKE_MATCH_2}")
+    else()
+        set(MAJOR_AND_MINOR "${VERSION}")
+    endif()
+
     if(TARGET rmm::rmm)
         return()
     endif()
@@ -26,7 +32,7 @@ function(find_and_configure_rmm VERSION)
         INSTALL_EXPORT_SET  cugraph-exports
         CPM_ARGS
             GIT_REPOSITORY  https://github.com/rapidsai/rmm.git
-            GIT_TAG         branch-${VERSION}
+            GIT_TAG         branch-${MAJOR_AND_MINOR}
             GIT_SHALLOW     TRUE
             OPTIONS         "BUILD_TESTS OFF"
                             "BUILD_BENCHMARKS OFF"
