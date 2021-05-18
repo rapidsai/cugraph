@@ -17,6 +17,7 @@
 #include <utilities/test_utilities.hpp>
 
 #include <cugraph/experimental/detail/graph_utils.cuh>
+#include <cugraph/experimental/graph_functions.hpp>
 #include <cugraph/experimental/graph_generator.hpp>
 #include <cugraph/partition_manager.hpp>
 #include <cugraph/utilities/error.hpp>
@@ -231,15 +232,16 @@ generate_graph_from_rmat_params(raft::handle_t const& handle,
     d_vertices = std::move(d_rx_vertices);
   }
 
-  return generate_graph_from_edgelist<vertex_t, edge_t, weight_t, store_transposed, multi_gpu>(
-    handle,
-    std::move(d_vertices),
-    std::move(d_edgelist_rows),
-    std::move(d_edgelist_cols),
-    std::move(d_edgelist_weights),
-    false,
-    test_weighted,
-    renumber);
+  return cugraph::experimental::
+    create_graph_from_edgelist<vertex_t, edge_t, weight_t, store_transposed, multi_gpu>(
+      handle,
+      std::optional<std::tuple<vertex_t const*, vertex_t>>{
+        std::make_tuple(d_vertices.data(), static_cast<vertex_t>(d_vertices.size()))},
+      std::move(d_edgelist_rows),
+      std::move(d_edgelist_cols),
+      std::move(d_edgelist_weights),
+      cugraph::experimental::graph_properties_t{false, false, test_weighted},
+      renumber);
 }
 
 // explicit instantiations

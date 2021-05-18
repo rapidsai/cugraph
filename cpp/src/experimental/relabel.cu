@@ -49,6 +49,7 @@ void relabel(raft::handle_t const& handle,
              vertex_t num_label_pairs,
              vertex_t* labels /* [INOUT] */,
              vertex_t num_labels,
+             bool skip_missing_labels,
              bool do_expensive_check)
 {
   double constexpr load_factor = 0.7;
@@ -156,11 +157,24 @@ void relabel(raft::handle_t const& handle,
         CUDA_TRY(cudaStreamSynchronize(
           handle.get_stream()));  // cuco::static_map currently does not take stream
 
-        relabel_map.find(
-          rx_unique_old_labels.begin(),
-          rx_unique_old_labels.end(),
-          rx_unique_old_labels
-            .begin());  // now rx_unique_old_lables hold new labels for the corresponding old labels
+        if (skip_missing_labels) {
+          thrust::transform(rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
+                            rx_unique_old_labels.begin(),
+                            rx_unique_old_labels.end(),
+                            rx_unique_old_labels.begin(),
+                            [view = relabel_map.get_device_view()] __device__(auto old_label) {
+                              auto found = view.find(old_label);
+                              return found != view.end() ? view.find(old_label)->second.load(
+                                                             cuda::std::memory_order_relaxed)
+                                                         : old_label;
+                            });
+        } else {
+          relabel_map.find(
+            rx_unique_old_labels.begin(),
+            rx_unique_old_labels.end(),
+            rx_unique_old_labels.begin());  // now rx_unique_old_lables hold new labels for the
+                                            // corresponding old labels
+        }
 
         std::tie(new_labels_for_unique_old_labels, std::ignore) = shuffle_values(
           handle.get_comms(), rx_unique_old_labels.begin(), rx_value_counts, handle.get_stream());
@@ -201,10 +215,23 @@ void relabel(raft::handle_t const& handle,
       });
 
     relabel_map.insert(pair_first, pair_first + num_label_pairs);
-    relabel_map.find(labels, labels + num_labels, labels);
+    if (skip_missing_labels) {
+      thrust::transform(rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
+                        labels,
+                        labels + num_labels,
+                        labels,
+                        [view = relabel_map.get_device_view()] __device__(auto old_label) {
+                          auto found = view.find(old_label);
+                          return found != view.end() ? view.find(old_label)->second.load(
+                                                         cuda::std::memory_order_relaxed)
+                                                     : old_label;
+                        });
+    } else {
+      relabel_map.find(labels, labels + num_labels, labels);
+    }
   }
 
-  if (do_expensive_check) {
+  if (do_expensive_check && !skip_missing_labels) {
     CUGRAPH_EXPECTS(
       thrust::count(rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
                     labels,
@@ -224,6 +251,7 @@ template void relabel<int32_t, true>(raft::handle_t const& handle,
                                      int32_t num_label_pairs,
                                      int32_t* labels,
                                      int32_t num_labels,
+                                     bool skip_missing_labels,
                                      bool do_expensive_check);
 
 template void relabel<int32_t, false>(
@@ -232,6 +260,7 @@ template void relabel<int32_t, false>(
   int32_t num_label_pairs,
   int32_t* labels,
   int32_t num_labels,
+  bool skip_missing_labels,
   bool do_expensive_check);
 
 template void relabel<int64_t, true>(raft::handle_t const& handle,
@@ -239,6 +268,7 @@ template void relabel<int64_t, true>(raft::handle_t const& handle,
                                      int64_t num_label_pairs,
                                      int64_t* labels,
                                      int64_t num_labels,
+                                     bool skip_missing_labels,
                                      bool do_expensive_check);
 
 template void relabel<int64_t, false>(
@@ -247,6 +277,7 @@ template void relabel<int64_t, false>(
   int64_t num_label_pairs,
   int64_t* labels,
   int64_t num_labels,
+  bool skip_missing_labels,
   bool do_expensive_check);
 
 }  // namespace experimental

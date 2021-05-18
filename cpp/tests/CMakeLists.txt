@@ -22,11 +22,10 @@
 add_library(cugraphtestutil STATIC
             utilities/matrix_market_file_utilities.cu
             utilities/rmat_utilities.cu
-            utilities/generate_graph_from_edgelist.cu
             utilities/thrust_wrapper.cu
             utilities/misc_utilities.cpp
             components/wcc_graphs.cu
-            "${CMAKE_CURRENT_SOURCE_DIR}/../../thirdparty/mmio/mmio.c")
+            ../../thirdparty/mmio/mmio.c)
 
 target_compile_options(cugraphtestutil
             PUBLIC "$<$<COMPILE_LANGUAGE:CXX>:${CUGRAPH_CXX_FLAGS}>"
@@ -49,6 +48,39 @@ target_link_libraries(cugraphtestutil
         NCCL::NCCL
 )
 
+
+add_library(cugraphmgtestutil STATIC
+            "${CMAKE_CURRENT_SOURCE_DIR}/utilities/device_comm_wrapper.cu")
+
+set_property(TARGET cugraphmgtestutil PROPERTY POSITION_INDEPENDENT_CODE ON)
+
+target_include_directories(cugraphmgtestutil
+    PRIVATE
+    "${CUB_INCLUDE_DIR}"
+    "${THRUST_INCLUDE_DIR}"
+    "${CUCO_INCLUDE_DIR}"
+    "${LIBCUDACXX_INCLUDE_DIR}"
+    "${CMAKE_CUDA_TOOLKIT_INCLUDE_DIRECTORIES}"
+    "${RMM_INCLUDE}"
+    "${NCCL_INCLUDE_DIRS}"
+    "${CMAKE_CURRENT_SOURCE_DIR}/../../thirdparty/mmio"
+    "${CMAKE_CURRENT_SOURCE_DIR}/../include"
+    "${CMAKE_CURRENT_SOURCE_DIR}"
+    "${RAFT_DIR}/cpp/include"
+)
+
+target_link_libraries(cugraphmgtestutil cugraph)
+
+# CUDA_ARCHITECTURES=OFF implies cmake will not pass arch flags to the
+# compiler. CUDA_ARCHITECTURES must be set to a non-empty value to prevent
+# cmake warnings about policy CMP0104. With this setting, arch flags must be
+# manually set! ("evaluate_gpu_archs(GPU_ARCHS)" is the current mechanism
+# used in cpp/CMakeLists.txt for setting arch options).
+# Run "cmake --help-policy CMP0104" for policy details.
+# NOTE: the CUDA_ARCHITECTURES=OFF setting may be removed after migrating to
+# the findcudatoolkit features in cmake 3.17+
+set_target_properties(cugraphmgtestutil PROPERTIES
+        CUDA_ARCHITECTURES OFF)
 
 ###################################################################################################
 # - compiler function -----------------------------------------------------------------------------
@@ -130,6 +162,7 @@ function(ConfigureTestMG CMAKE_TEST_NAME)
 
     target_link_libraries(${CMAKE_TEST_NAME}
         PRIVATE
+        cugraphmgtestutil
         cugraphtestutil
         cugraph
         GTest::gmock

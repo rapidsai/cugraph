@@ -16,6 +16,7 @@
 
 #include <utilities/high_res_clock.h>
 #include <utilities/base_fixture.hpp>
+#include <utilities/device_comm_wrapper.hpp>
 #include <utilities/test_utilities.hpp>
 #include <utilities/thrust_wrapper.hpp>
 
@@ -77,6 +78,7 @@ class Tests_MGKatzCentrality
 
     if (PERF) {
       CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
+      handle.get_comms().barrier();
       hr_clock.start();
     }
     cugraph::experimental::graph_t<vertex_t, edge_t, weight_t, true, true> mg_graph(handle);
@@ -87,6 +89,7 @@ class Tests_MGKatzCentrality
 
     if (PERF) {
       CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
+      handle.get_comms().barrier();
       double elapsed_time{0.0};
       hr_clock.stop(&elapsed_time);
       std::cout << "MG construct_graph took " << elapsed_time * 1e-6 << " s.\n";
@@ -109,6 +112,7 @@ class Tests_MGKatzCentrality
 
     if (PERF) {
       CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
+      handle.get_comms().barrier();
       hr_clock.start();
     }
 
@@ -124,6 +128,7 @@ class Tests_MGKatzCentrality
 
     if (PERF) {
       CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
+      handle.get_comms().barrier();
       double elapsed_time{0.0};
       hr_clock.stop(&elapsed_time);
       std::cout << "MG Katz Centrality took " << elapsed_time * 1e-6 << " s.\n";
@@ -132,68 +137,81 @@ class Tests_MGKatzCentrality
     // 5. copmare SG & MG results
 
     if (katz_usecase.check_correctness) {
-      // 5-1. create SG graph
+      // 5-1. aggregate MG results
 
-      cugraph::experimental::graph_t<vertex_t, edge_t, weight_t, true, false> sg_graph(handle);
-      std::tie(sg_graph, std::ignore) =
-        input_usecase.template construct_graph<vertex_t, edge_t, weight_t, true, false>(
-          handle, true, false);
+      auto d_mg_aggregate_renumber_map_labels = cugraph::test::device_gatherv(
+        handle, d_mg_renumber_map_labels.data(), d_mg_renumber_map_labels.size());
+      auto d_mg_aggregate_katz_centralities = cugraph::test::device_gatherv(
+        handle, d_mg_katz_centralities.data(), d_mg_katz_centralities.size());
 
-      auto sg_graph_view = sg_graph.view();
+      if (handle.get_comms().get_rank() == int{0}) {
+        // 5-2. unrenumbr MG results
 
-      // 5-3. run SG Katz Centrality
+        std::tie(std::ignore, d_mg_aggregate_katz_centralities) =
+          cugraph::test::sort_by_key(handle,
+                                     d_mg_aggregate_renumber_map_labels.data(),
+                                     d_mg_aggregate_katz_centralities.data(),
+                                     d_mg_aggregate_renumber_map_labels.size());
 
-      rmm::device_uvector<result_t> d_sg_katz_centralities(sg_graph_view.get_number_of_vertices(),
-                                                           handle.get_stream());
+        // 5-3. create SG graph
 
-      cugraph::experimental::katz_centrality(handle,
-                                             sg_graph_view,
-                                             static_cast<result_t *>(nullptr),
-                                             d_sg_katz_centralities.data(),
-                                             alpha,
-                                             beta,
-                                             epsilon,
-                                             std::numeric_limits<size_t>::max(),  // max_iterations
-                                             false);
+        cugraph::experimental::graph_t<vertex_t, edge_t, weight_t, true, false> sg_graph(handle);
+        std::tie(sg_graph, std::ignore) =
+          input_usecase.template construct_graph<vertex_t, edge_t, weight_t, true, false>(
+            handle, true, false);
 
-      // 5-4. compare
+        auto sg_graph_view = sg_graph.view();
 
-      std::vector<result_t> h_sg_katz_centralities(sg_graph_view.get_number_of_vertices());
-      raft::update_host(h_sg_katz_centralities.data(),
-                        d_sg_katz_centralities.data(),
-                        d_sg_katz_centralities.size(),
-                        handle.get_stream());
+        ASSERT_TRUE(mg_graph_view.get_number_of_vertices() ==
+                    sg_graph_view.get_number_of_vertices());
 
-      std::vector<result_t> h_mg_katz_centralities(mg_graph_view.get_number_of_local_vertices());
-      raft::update_host(h_mg_katz_centralities.data(),
-                        d_mg_katz_centralities.data(),
-                        d_mg_katz_centralities.size(),
-                        handle.get_stream());
+        // 5-4. run SG Katz Centrality
 
-      std::vector<vertex_t> h_mg_renumber_map_labels(d_mg_renumber_map_labels.size());
-      raft::update_host(h_mg_renumber_map_labels.data(),
-                        d_mg_renumber_map_labels.data(),
-                        d_mg_renumber_map_labels.size(),
-                        handle.get_stream());
+        rmm::device_uvector<result_t> d_sg_katz_centralities(sg_graph_view.get_number_of_vertices(),
+                                                             handle.get_stream());
 
-      handle.get_stream_view().synchronize();
+        cugraph::experimental::katz_centrality(
+          handle,
+          sg_graph_view,
+          static_cast<result_t *>(nullptr),
+          d_sg_katz_centralities.data(),
+          alpha,
+          beta,
+          epsilon,
+          std::numeric_limits<size_t>::max(),  // max_iterations
+          false);
 
-      auto threshold_ratio = 1e-3;
-      auto threshold_magnitude =
-        (1.0 / static_cast<result_t>(mg_graph_view.get_number_of_vertices())) *
-        threshold_ratio;  // skip comparison for low KatzCentrality verties (lowly ranked vertices)
-      auto nearly_equal = [threshold_ratio, threshold_magnitude](auto lhs, auto rhs) {
-        return std::abs(lhs - rhs) <
-               std::max(std::max(lhs, rhs) * threshold_ratio, threshold_magnitude);
-      };
+        // 5-5. compare
 
-      for (vertex_t i = 0; i < mg_graph_view.get_number_of_local_vertices(); ++i) {
-        auto mapped_vertex = h_mg_renumber_map_labels[i];
-        ASSERT_TRUE(nearly_equal(h_mg_katz_centralities[i], h_sg_katz_centralities[mapped_vertex]))
-          << "MG KatzCentrality value for vertex: " << mapped_vertex << " in rank: " << comm_rank
-          << " has value: " << h_mg_katz_centralities[i]
-          << " which exceeds the error margin for comparing to SG value: "
-          << h_sg_katz_centralities[mapped_vertex];
+        std::vector<result_t> h_mg_aggregate_katz_centralities(
+          mg_graph_view.get_number_of_vertices());
+        raft::update_host(h_mg_aggregate_katz_centralities.data(),
+                          d_mg_aggregate_katz_centralities.data(),
+                          d_mg_aggregate_katz_centralities.size(),
+                          handle.get_stream());
+
+        std::vector<result_t> h_sg_katz_centralities(sg_graph_view.get_number_of_vertices());
+        raft::update_host(h_sg_katz_centralities.data(),
+                          d_sg_katz_centralities.data(),
+                          d_sg_katz_centralities.size(),
+                          handle.get_stream());
+
+        handle.get_stream_view().synchronize();
+
+        auto threshold_ratio = 1e-3;
+        auto threshold_magnitude =
+          (1.0 / static_cast<result_t>(mg_graph_view.get_number_of_vertices())) *
+          threshold_ratio;  // skip comparison for low KatzCentrality verties (lowly ranked
+                            // vertices)
+        auto nearly_equal = [threshold_ratio, threshold_magnitude](auto lhs, auto rhs) {
+          return std::abs(lhs - rhs) <
+                 std::max(std::max(lhs, rhs) * threshold_ratio, threshold_magnitude);
+        };
+
+        ASSERT_TRUE(std::equal(h_mg_aggregate_katz_centralities.begin(),
+                               h_mg_aggregate_katz_centralities.end(),
+                               h_sg_katz_centralities.begin(),
+                               nearly_equal));
       }
     }
   }

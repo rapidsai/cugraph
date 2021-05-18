@@ -31,7 +31,7 @@ include(rapids-find)
 
 rapids_cuda_init_architectures(CUGRAPH)
 
-project(CUGRAPH VERSION 0.20.0 LANGUAGES C CXX CUDA)
+project(CUGRAPH VERSION 21.06.00 LANGUAGES C CXX CUDA)
 
 # Remove the following archs from CMAKE_CUDA_ARCHITECTURES that
 # cuhornet currently doesn't support
@@ -197,6 +197,7 @@ add_library(cugraph SHARED
     src/experimental/pagerank.cu
     src/experimental/katz_centrality.cu
     src/tree/mst.cu
+    src/structure/create_graph_from_edgelist.cu
     src/utilities/host_barrier.cpp
 )
 
