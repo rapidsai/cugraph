@@ -60,12 +60,27 @@ class serializer_t {
 
   template <typename graph_t>
   struct graph_meta_t<graph_t, std::enable_if_t<!graph_t::is_multi_gpu>> {
-    using vertex_t = typename graph_t::vertex_type;
+    using vertex_t   = typename graph_t::vertex_type;
+    using bool_ser_t = uint8_t;
+
+    explicit graph_meta_t(graph_t const& graph)
+      : num_vertices_(graph.get_number_of_vertices()),
+        num_edges_(graph.get_number_of_edges()),
+        properties_(graph.get_graph_properties()),
+        segment_offsets_(graph.view().get_local_adj_matrix_partition_segment_offsets(0))
+    {
+    }
 
     size_t num_vertices_;
     size_t num_edges_;
     graph_properties_t properties_{};
     std::vector<vertex_t> segment_offsets_{};
+
+    size_t get_device_sz_bytes(void) const
+    {
+      return (num_vertices_ + num_edges_) * sizeof(size_t) +
+             segment_offsets_.size() * sizeof(vertex_t) + 3 * sizeof(bool_ser_t);
+    }
   };
 
   // device array serialization:

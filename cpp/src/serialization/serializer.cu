@@ -66,10 +66,9 @@ serializer_t::graph_meta_t<graph_t> serializer_t::serialize(graph_t const& graph
   if constexpr (!graph_t::is_multi_gpu) {
     size_t num_vertices = graph.get_number_of_vertices();
     size_t num_edges    = graph.get_number_of_edges();
-    auto g_props        = graph.get_graph_properties();
     auto&& gview        = graph.view();
-    auto seg_offsets    = gview.get_local_adj_matrix_partition_segment_offsets(0);
-    graph_meta_t<graph_t> gvmeta{num_vertices, num_edges, g_props, seg_offsets};
+
+    graph_meta_t<graph_t> gvmeta{graph};
 
     edge_t const* offsets   = gview.offsets();
     vertex_t const* indices = gview.indices();
