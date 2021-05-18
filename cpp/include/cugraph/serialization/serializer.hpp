@@ -49,6 +49,13 @@ class serializer_t {
   {
   }
 
+  // cnstr. for unserialize() path:
+  //
+  serializer_t(raft::handle_t const& handle, byte_t const* ptr_d_storage)
+    : handle_(handle), d_storage_(0, handle.get_stream()), cbegin_(ptr_d_storage)
+  {
+  }
+
   template <typename graph_t, typename Enable = void>
   struct graph_meta_t;
 
