@@ -15,6 +15,7 @@
  */
 #pragma once
 
+#include <cugraph/experimental/graph_functions.hpp>
 #include <cugraph/graph_generators.hpp>
 
 #include <utilities/test_utilities.hpp>
@@ -531,7 +532,6 @@ construct_graph(raft::handle_t const& handle,
                 bool test_weighted,
                 bool renumber = true)
 {
-  rmm::device_uvector<vertex_t> d_vertices_v(0, handle.get_stream());
   rmm::device_uvector<vertex_t> d_src_v(0, handle.get_stream());
   rmm::device_uvector<vertex_t> d_dst_v(0, handle.get_stream());
   rmm::device_uvector<weight_t> d_weights_v(0, handle.get_stream());
@@ -543,18 +543,15 @@ construct_graph(raft::handle_t const& handle,
       .template construct_edgelist<vertex_t, edge_t, weight_t, store_transposed, multi_gpu>(
         handle, test_weighted);
 
-  d_vertices_v.resize(num_vertices, handle.get_stream());
-  populate_vertex_ids(handle, d_vertices_v, vertex_t{0});
-
-  return generate_graph_from_edgelist<vertex_t, edge_t, weight_t, store_transposed, multi_gpu>(
-    handle,
-    std::move(d_vertices_v),
-    std::move(d_src_v),
-    std::move(d_dst_v),
-    std::move(d_weights_v),
-    is_symmetric,
-    test_weighted,
-    renumber);
+  return cugraph::experimental::
+    create_graph_from_edgelist<vertex_t, edge_t, weight_t, store_transposed, multi_gpu>(
+      handle,
+      std::nullopt,
+      std::move(d_src_v),
+      std::move(d_dst_v),
+      std::move(d_weights_v),
+      cugraph::experimental::graph_properties_t{is_symmetric, false, test_weighted},
+      renumber);
 }
 
 }  // namespace test

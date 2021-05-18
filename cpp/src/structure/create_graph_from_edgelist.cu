@@ -13,8 +13,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-#include <utilities/test_utilities.hpp>
-
 #include <cugraph/experimental/detail/graph_utils.cuh>
 #include <cugraph/experimental/graph_functions.hpp>
 #include <cugraph/utilities/error.hpp>
@@ -22,12 +20,13 @@
 
 #include <rmm/thrust_rmm_allocator.h>
 
-#include <thrust/remove.h>
+#include <thrust/functional.h>
+#include <thrust/transform_reduce.h>
 
 #include <cstdint>
 
 namespace cugraph {
-namespace test {
+namespace experimental {
 
 namespace {
 
@@ -41,14 +40,14 @@ std::enable_if_t<
   std::tuple<
     cugraph::experimental::graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu>,
     rmm::device_uvector<vertex_t>>>
-generate_graph_from_edgelist_impl(raft::handle_t const& handle,
-                                  rmm::device_uvector<vertex_t>&& vertices,
-                                  rmm::device_uvector<vertex_t>&& edgelist_rows,
-                                  rmm::device_uvector<vertex_t>&& edgelist_cols,
-                                  rmm::device_uvector<weight_t>&& edgelist_weights,
-                                  bool is_symmetric,
-                                  bool test_weighted,
-                                  bool renumber)
+create_graph_from_edgelist_impl(
+  raft::handle_t const& handle,
+  std::optional<std::tuple<vertex_t const*, vertex_t>> optional_local_vertex_span,
+  rmm::device_uvector<vertex_t>&& edgelist_rows,
+  rmm::device_uvector<vertex_t>&& edgelist_cols,
+  rmm::device_uvector<weight_t>&& edgelist_weights,
+  graph_properties_t graph_properties,
+  bool renumber)
 {
   CUGRAPH_EXPECTS(renumber, "renumber should be true if multi_gpu is true.");
 
@@ -71,7 +70,7 @@ generate_graph_from_edgelist_impl(raft::handle_t const& handle,
     store_transposed
       ? thrust::make_zip_iterator(thrust::make_tuple(edgelist_cols.begin(), edgelist_rows.begin()))
       : thrust::make_zip_iterator(thrust::make_tuple(edgelist_rows.begin(), edgelist_cols.begin()));
-  auto edge_counts = test_weighted
+  auto edge_counts = graph_properties.is_weighted
                        ? cugraph::experimental::groupby_and_count(pair_first,
                                                                   pair_first + edgelist_rows.size(),
                                                                   edgelist_weights.begin(),
@@ -111,12 +110,7 @@ generate_graph_from_edgelist_impl(raft::handle_t const& handle,
     }
     std::tie(renumber_map_labels, partition, number_of_vertices, number_of_edges) =
       cugraph::experimental::renumber_edgelist<vertex_t, edge_t, multi_gpu>(
-        handle,
-        vertices.data(),
-        static_cast<vertex_t>(vertices.size()),
-        major_ptrs,
-        minor_ptrs,
-        counts);
+        handle, optional_local_vertex_span, major_ptrs, minor_ptrs, counts);
   }
 
   // 4. create a graph
@@ -127,20 +121,14 @@ generate_graph_from_edgelist_impl(raft::handle_t const& handle,
     edgelists[i] = cugraph::experimental::edgelist_t<vertex_t, edge_t, weight_t>{
       edgelist_rows.data() + h_displacements[i],
       edgelist_cols.data() + h_displacements[i],
-      test_weighted ? edgelist_weights.data() + h_displacements[i]
-                    : static_cast<weight_t*>(nullptr),
+      graph_properties.is_weighted ? edgelist_weights.data() + h_displacements[i]
+                                   : static_cast<weight_t*>(nullptr),
       static_cast<edge_t>(h_edge_counts[i])};
   }
 
   return std::make_tuple(
     cugraph::experimental::graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu>(
-      handle,
-      edgelists,
-      partition,
-      number_of_vertices,
-      number_of_edges,
-      cugraph::experimental::graph_properties_t{is_symmetric, false, test_weighted},
-      true),
+      handle, edgelists, partition, number_of_vertices, number_of_edges, graph_properties, true),
     std::move(renumber_map_labels));
 }
 
@@ -154,26 +142,43 @@ std::enable_if_t<
   std::tuple<
     cugraph::experimental::graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu>,
     rmm::device_uvector<vertex_t>>>
-generate_graph_from_edgelist_impl(raft::handle_t const& handle,
-                                  rmm::device_uvector<vertex_t>&& vertices,
-                                  rmm::device_uvector<vertex_t>&& edgelist_rows,
-                                  rmm::device_uvector<vertex_t>&& edgelist_cols,
-                                  rmm::device_uvector<weight_t>&& edgelist_weights,
-                                  bool is_symmetric,
-                                  bool test_weighted,
-                                  bool renumber)
+create_graph_from_edgelist_impl(
+  raft::handle_t const& handle,
+  std::optional<std::tuple<vertex_t const*, vertex_t>> optional_vertex_span,
+  rmm::device_uvector<vertex_t>&& edgelist_rows,
+  rmm::device_uvector<vertex_t>&& edgelist_cols,
+  rmm::device_uvector<weight_t>&& edgelist_weights,
+  graph_properties_t graph_properties,
+  bool renumber)
 {
-  vertex_t number_of_vertices = static_cast<vertex_t>(vertices.size());
-
   auto renumber_map_labels =
     renumber ? cugraph::experimental::renumber_edgelist<vertex_t, edge_t, multi_gpu>(
                  handle,
-                 vertices.data(),
-                 static_cast<vertex_t>(vertices.size()),
+                 optional_vertex_span,
                  store_transposed ? edgelist_cols.data() : edgelist_rows.data(),
                  store_transposed ? edgelist_rows.data() : edgelist_cols.data(),
                  static_cast<edge_t>(edgelist_rows.size()))
              : rmm::device_uvector<vertex_t>(0, handle.get_stream());
+  vertex_t num_vertices{};
+  if (renumber) {
+    num_vertices = static_cast<vertex_t>(renumber_map_labels.size());
+  } else {
+    if (optional_vertex_span) {
+      num_vertices = std::get<1>(*optional_vertex_span);
+    } else {
+      auto edge_first =
+        thrust::make_zip_iterator(thrust::make_tuple(edgelist_rows.begin(), edgelist_cols.begin()));
+      num_vertices =
+        thrust::transform_reduce(
+          rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
+          edge_first,
+          edge_first + edgelist_rows.size(),
+          [] __device__(auto e) { return std::max(thrust::get<0>(e), thrust::get<1>(e)); },
+          vertex_t{0},
+          thrust::maximum<vertex_t>()) +
+        1;
+    }
+  }
 
   return std::make_tuple(
     cugraph::experimental::graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu>(
@@ -181,10 +186,10 @@ generate_graph_from_edgelist_impl(raft::handle_t const& handle,
       cugraph::experimental::edgelist_t<vertex_t, edge_t, weight_t>{
         edgelist_rows.data(),
         edgelist_cols.data(),
-        test_weighted ? edgelist_weights.data() : nullptr,
+        graph_properties.is_weighted ? edgelist_weights.data() : static_cast<weight_t*>(nullptr),
         static_cast<edge_t>(edgelist_rows.size())},
-      number_of_vertices,
-      cugraph::experimental::graph_properties_t{is_symmetric, false, test_weighted},
+      num_vertices,
+      graph_properties,
       renumber ? true : false),
     std::move(renumber_map_labels));
 }
@@ -198,23 +203,22 @@ template <typename vertex_t,
           bool multi_gpu>
 std::tuple<cugraph::experimental::graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu>,
            rmm::device_uvector<vertex_t>>
-generate_graph_from_edgelist(raft::handle_t const& handle,
-                             rmm::device_uvector<vertex_t>&& vertices,
-                             rmm::device_uvector<vertex_t>&& edgelist_rows,
-                             rmm::device_uvector<vertex_t>&& edgelist_cols,
-                             rmm::device_uvector<weight_t>&& edgelist_weights,
-                             bool is_symmetric,
-                             bool test_weighted,
-                             bool renumber)
+create_graph_from_edgelist(
+  raft::handle_t const& handle,
+  std::optional<std::tuple<vertex_t const*, vertex_t>> optional_vertex_span,
+  rmm::device_uvector<vertex_t>&& edgelist_rows,
+  rmm::device_uvector<vertex_t>&& edgelist_cols,
+  rmm::device_uvector<weight_t>&& edgelist_weights,
+  graph_properties_t graph_properties,
+  bool renumber)
 {
-  return generate_graph_from_edgelist_impl<vertex_t, edge_t, weight_t, store_transposed, multi_gpu>(
+  return create_graph_from_edgelist_impl<vertex_t, edge_t, weight_t, store_transposed, multi_gpu>(
     handle,
-    std::move(vertices),
+    optional_vertex_span,
     std::move(edgelist_rows),
     std::move(edgelist_cols),
     std::move(edgelist_weights),
-    is_symmetric,
-    test_weighted,
+    graph_properties,
     renumber);
 }
 
@@ -222,291 +226,267 @@ generate_graph_from_edgelist(raft::handle_t const& handle,
 
 template std::tuple<cugraph::experimental::graph_t<int32_t, int32_t, float, false, false>,
                     rmm::device_uvector<int32_t>>
-generate_graph_from_edgelist<int32_t, int32_t, float, false, false>(
+create_graph_from_edgelist<int32_t, int32_t, float, false, false>(
   raft::handle_t const& handle,
-  rmm::device_uvector<int32_t>&& vertices,
+  std::optional<std::tuple<int32_t const*, int32_t>> optional_vertex_span,
   rmm::device_uvector<int32_t>&& edgelist_rows,
   rmm::device_uvector<int32_t>&& edgelist_cols,
   rmm::device_uvector<float>&& edgelist_weights,
-  bool is_symmetric,
-  bool test_weighted,
+  graph_properties_t graph_properties,
   bool renumber);
 
 template std::tuple<cugraph::experimental::graph_t<int32_t, int32_t, float, false, true>,
                     rmm::device_uvector<int32_t>>
-generate_graph_from_edgelist<int32_t, int32_t, float, false, true>(
+create_graph_from_edgelist<int32_t, int32_t, float, false, true>(
   raft::handle_t const& handle,
-  rmm::device_uvector<int32_t>&& vertices,
+  std::optional<std::tuple<int32_t const*, int32_t>> optional_vertex_span,
   rmm::device_uvector<int32_t>&& edgelist_rows,
   rmm::device_uvector<int32_t>&& edgelist_cols,
   rmm::device_uvector<float>&& edgelist_weights,
-  bool is_symmetric,
-  bool test_weighted,
+  graph_properties_t graph_properties,
   bool renumber);
 
 template std::tuple<cugraph::experimental::graph_t<int32_t, int32_t, float, true, false>,
                     rmm::device_uvector<int32_t>>
-generate_graph_from_edgelist<int32_t, int32_t, float, true, false>(
+create_graph_from_edgelist<int32_t, int32_t, float, true, false>(
   raft::handle_t const& handle,
-  rmm::device_uvector<int32_t>&& vertices,
+  std::optional<std::tuple<int32_t const*, int32_t>> optional_vertex_span,
   rmm::device_uvector<int32_t>&& edgelist_rows,
   rmm::device_uvector<int32_t>&& edgelist_cols,
   rmm::device_uvector<float>&& edgelist_weights,
-  bool is_symmetric,
-  bool test_weighted,
+  graph_properties_t graph_properties,
   bool renumber);
 
 template std::tuple<cugraph::experimental::graph_t<int32_t, int32_t, float, true, true>,
                     rmm::device_uvector<int32_t>>
-generate_graph_from_edgelist<int32_t, int32_t, float, true, true>(
+create_graph_from_edgelist<int32_t, int32_t, float, true, true>(
   raft::handle_t const& handle,
-  rmm::device_uvector<int32_t>&& vertices,
+  std::optional<std::tuple<int32_t const*, int32_t>> optional_vertex_span,
   rmm::device_uvector<int32_t>&& edgelist_rows,
   rmm::device_uvector<int32_t>&& edgelist_cols,
   rmm::device_uvector<float>&& edgelist_weights,
-  bool is_symmetric,
-  bool test_weighted,
+  graph_properties_t graph_properties,
   bool renumber);
 
 template std::tuple<cugraph::experimental::graph_t<int32_t, int32_t, double, false, false>,
                     rmm::device_uvector<int32_t>>
-generate_graph_from_edgelist<int32_t, int32_t, double, false, false>(
+create_graph_from_edgelist<int32_t, int32_t, double, false, false>(
   raft::handle_t const& handle,
-  rmm::device_uvector<int32_t>&& vertices,
+  std::optional<std::tuple<int32_t const*, int32_t>> optional_vertex_span,
   rmm::device_uvector<int32_t>&& edgelist_rows,
   rmm::device_uvector<int32_t>&& edgelist_cols,
   rmm::device_uvector<double>&& edgelist_weights,
-  bool is_symmetric,
-  bool test_weighted,
+  graph_properties_t graph_properties,
   bool renumber);
 
 template std::tuple<cugraph::experimental::graph_t<int32_t, int32_t, double, false, true>,
                     rmm::device_uvector<int32_t>>
-generate_graph_from_edgelist<int32_t, int32_t, double, false, true>(
+create_graph_from_edgelist<int32_t, int32_t, double, false, true>(
   raft::handle_t const& handle,
-  rmm::device_uvector<int32_t>&& vertices,
+  std::optional<std::tuple<int32_t const*, int32_t>> optional_vertex_span,
   rmm::device_uvector<int32_t>&& edgelist_rows,
   rmm::device_uvector<int32_t>&& edgelist_cols,
   rmm::device_uvector<double>&& edgelist_weights,
-  bool is_symmetric,
-  bool test_weighted,
+  graph_properties_t graph_properties,
   bool renumber);
 
 template std::tuple<cugraph::experimental::graph_t<int32_t, int32_t, double, true, false>,
                     rmm::device_uvector<int32_t>>
-generate_graph_from_edgelist<int32_t, int32_t, double, true, false>(
+create_graph_from_edgelist<int32_t, int32_t, double, true, false>(
   raft::handle_t const& handle,
-  rmm::device_uvector<int32_t>&& vertices,
+  std::optional<std::tuple<int32_t const*, int32_t>> optional_vertex_span,
   rmm::device_uvector<int32_t>&& edgelist_rows,
   rmm::device_uvector<int32_t>&& edgelist_cols,
   rmm::device_uvector<double>&& edgelist_weights,
-  bool is_symmetric,
-  bool test_weighted,
+  graph_properties_t graph_properties,
   bool renumber);
 
 template std::tuple<cugraph::experimental::graph_t<int32_t, int32_t, double, true, true>,
                     rmm::device_uvector<int32_t>>
-generate_graph_from_edgelist<int32_t, int32_t, double, true, true>(
+create_graph_from_edgelist<int32_t, int32_t, double, true, true>(
   raft::handle_t const& handle,
-  rmm::device_uvector<int32_t>&& vertices,
+  std::optional<std::tuple<int32_t const*, int32_t>> optional_vertex_span,
   rmm::device_uvector<int32_t>&& edgelist_rows,
   rmm::device_uvector<int32_t>&& edgelist_cols,
   rmm::device_uvector<double>&& edgelist_weights,
-  bool is_symmetric,
-  bool test_weighted,
+  graph_properties_t graph_properties,
   bool renumber);
 
 template std::tuple<cugraph::experimental::graph_t<int32_t, int64_t, float, false, false>,
                     rmm::device_uvector<int32_t>>
-generate_graph_from_edgelist<int32_t, int64_t, float, false, false>(
+create_graph_from_edgelist<int32_t, int64_t, float, false, false>(
   raft::handle_t const& handle,
-  rmm::device_uvector<int32_t>&& vertices,
+  std::optional<std::tuple<int32_t const*, int32_t>> optional_vertex_span,
   rmm::device_uvector<int32_t>&& edgelist_rows,
   rmm::device_uvector<int32_t>&& edgelist_cols,
   rmm::device_uvector<float>&& edgelist_weights,
-  bool is_symmetric,
-  bool test_weighted,
+  graph_properties_t graph_properties,
   bool renumber);
 
 template std::tuple<cugraph::experimental::graph_t<int32_t, int64_t, float, false, true>,
                     rmm::device_uvector<int32_t>>
-generate_graph_from_edgelist<int32_t, int64_t, float, false, true>(
+create_graph_from_edgelist<int32_t, int64_t, float, false, true>(
   raft::handle_t const& handle,
-  rmm::device_uvector<int32_t>&& vertices,
+  std::optional<std::tuple<int32_t const*, int32_t>> optional_vertex_span,
   rmm::device_uvector<int32_t>&& edgelist_rows,
   rmm::device_uvector<int32_t>&& edgelist_cols,
   rmm::device_uvector<float>&& edgelist_weights,
-  bool is_symmetric,
-  bool test_weighted,
+  graph_properties_t graph_properties,
   bool renumber);
 
 template std::tuple<cugraph::experimental::graph_t<int32_t, int64_t, float, true, false>,
                     rmm::device_uvector<int32_t>>
-generate_graph_from_edgelist<int32_t, int64_t, float, true, false>(
+create_graph_from_edgelist<int32_t, int64_t, float, true, false>(
   raft::handle_t const& handle,
-  rmm::device_uvector<int32_t>&& vertices,
+  std::optional<std::tuple<int32_t const*, int32_t>> optional_vertex_span,
   rmm::device_uvector<int32_t>&& edgelist_rows,
   rmm::device_uvector<int32_t>&& edgelist_cols,
   rmm::device_uvector<float>&& edgelist_weights,
-  bool is_symmetric,
-  bool test_weighted,
+  graph_properties_t graph_properties,
   bool renumber);
 
 template std::tuple<cugraph::experimental::graph_t<int32_t, int64_t, float, true, true>,
                     rmm::device_uvector<int32_t>>
-generate_graph_from_edgelist<int32_t, int64_t, float, true, true>(
+create_graph_from_edgelist<int32_t, int64_t, float, true, true>(
   raft::handle_t const& handle,
-  rmm::device_uvector<int32_t>&& vertices,
+  std::optional<std::tuple<int32_t const*, int32_t>> optional_vertex_span,
   rmm::device_uvector<int32_t>&& edgelist_rows,
   rmm::device_uvector<int32_t>&& edgelist_cols,
   rmm::device_uvector<float>&& edgelist_weights,
-  bool is_symmetric,
-  bool test_weighted,
+  graph_properties_t graph_properties,
   bool renumber);
 
 template std::tuple<cugraph::experimental::graph_t<int32_t, int64_t, double, false, false>,
                     rmm::device_uvector<int32_t>>
-generate_graph_from_edgelist<int32_t, int64_t, double, false, false>(
+create_graph_from_edgelist<int32_t, int64_t, double, false, false>(
   raft::handle_t const& handle,
-  rmm::device_uvector<int32_t>&& vertices,
+  std::optional<std::tuple<int32_t const*, int32_t>> optional_vertex_span,
   rmm::device_uvector<int32_t>&& edgelist_rows,
   rmm::device_uvector<int32_t>&& edgelist_cols,
   rmm::device_uvector<double>&& edgelist_weights,
-  bool is_symmetric,
-  bool test_weighted,
+  graph_properties_t graph_properties,
   bool renumber);
 
 template std::tuple<cugraph::experimental::graph_t<int32_t, int64_t, double, false, true>,
                     rmm::device_uvector<int32_t>>
-generate_graph_from_edgelist<int32_t, int64_t, double, false, true>(
+create_graph_from_edgelist<int32_t, int64_t, double, false, true>(
   raft::handle_t const& handle,
-  rmm::device_uvector<int32_t>&& vertices,
+  std::optional<std::tuple<int32_t const*, int32_t>> optional_vertex_span,
   rmm::device_uvector<int32_t>&& edgelist_rows,
   rmm::device_uvector<int32_t>&& edgelist_cols,
   rmm::device_uvector<double>&& edgelist_weights,
-  bool is_symmetric,
-  bool test_weighted,
+  graph_properties_t graph_properties,
   bool renumber);
 
 template std::tuple<cugraph::experimental::graph_t<int32_t, int64_t, double, true, false>,
                     rmm::device_uvector<int32_t>>
-generate_graph_from_edgelist<int32_t, int64_t, double, true, false>(
+create_graph_from_edgelist<int32_t, int64_t, double, true, false>(
   raft::handle_t const& handle,
-  rmm::device_uvector<int32_t>&& vertices,
+  std::optional<std::tuple<int32_t const*, int32_t>> optional_vertex_span,
   rmm::device_uvector<int32_t>&& edgelist_rows,
   rmm::device_uvector<int32_t>&& edgelist_cols,
   rmm::device_uvector<double>&& edgelist_weights,
-  bool is_symmetric,
-  bool test_weighted,
+  graph_properties_t graph_properties,
   bool renumber);
 
 template std::tuple<cugraph::experimental::graph_t<int32_t, int64_t, double, true, true>,
                     rmm::device_uvector<int32_t>>
-generate_graph_from_edgelist<int32_t, int64_t, double, true, true>(
+create_graph_from_edgelist<int32_t, int64_t, double, true, true>(
   raft::handle_t const& handle,
-  rmm::device_uvector<int32_t>&& vertices,
+  std::optional<std::tuple<int32_t const*, int32_t>> optional_vertex_span,
   rmm::device_uvector<int32_t>&& edgelist_rows,
   rmm::device_uvector<int32_t>&& edgelist_cols,
   rmm::device_uvector<double>&& edgelist_weights,
-  bool is_symmetric,
-  bool test_weighted,
+  graph_properties_t graph_properties,
   bool renumber);
 
 template std::tuple<cugraph::experimental::graph_t<int64_t, int64_t, float, false, false>,
                     rmm::device_uvector<int64_t>>
-generate_graph_from_edgelist<int64_t, int64_t, float, false, false>(
+create_graph_from_edgelist<int64_t, int64_t, float, false, false>(
   raft::handle_t const& handle,
-  rmm::device_uvector<int64_t>&& vertices,
+  std::optional<std::tuple<int64_t const*, int64_t>> optional_vertex_span,
   rmm::device_uvector<int64_t>&& edgelist_rows,
   rmm::device_uvector<int64_t>&& edgelist_cols,
   rmm::device_uvector<float>&& edgelist_weights,
-  bool is_symmetric,
-  bool test_weighted,
+  graph_properties_t graph_properties,
   bool renumber);
 
 template std::tuple<cugraph::experimental::graph_t<int64_t, int64_t, float, false, true>,
                     rmm::device_uvector<int64_t>>
-generate_graph_from_edgelist<int64_t, int64_t, float, false, true>(
+create_graph_from_edgelist<int64_t, int64_t, float, false, true>(
   raft::handle_t const& handle,
-  rmm::device_uvector<int64_t>&& vertices,
+  std::optional<std::tuple<int64_t const*, int64_t>> optional_vertex_span,
   rmm::device_uvector<int64_t>&& edgelist_rows,
   rmm::device_uvector<int64_t>&& edgelist_cols,
   rmm::device_uvector<float>&& edgelist_weights,
-  bool is_symmetric,
-  bool test_weighted,
+  graph_properties_t graph_properties,
   bool renumber);
 
 template std::tuple<cugraph::experimental::graph_t<int64_t, int64_t, float, true, false>,
                     rmm::device_uvector<int64_t>>
-generate_graph_from_edgelist<int64_t, int64_t, float, true, false>(
+create_graph_from_edgelist<int64_t, int64_t, float, true, false>(
   raft::handle_t const& handle,
-  rmm::device_uvector<int64_t>&& vertices,
+  std::optional<std::tuple<int64_t const*, int64_t>> optional_vertex_span,
   rmm::device_uvector<int64_t>&& edgelist_rows,
   rmm::device_uvector<int64_t>&& edgelist_cols,
   rmm::device_uvector<float>&& edgelist_weights,
-  bool is_symmetric,
-  bool test_weighted,
+  graph_properties_t graph_properties,
   bool renumber);
 
 template std::tuple<cugraph::experimental::graph_t<int64_t, int64_t, float, true, true>,
                     rmm::device_uvector<int64_t>>
-generate_graph_from_edgelist<int64_t, int64_t, float, true, true>(
+create_graph_from_edgelist<int64_t, int64_t, float, true, true>(
   raft::handle_t const& handle,
-  rmm::device_uvector<int64_t>&& vertices,
+  std::optional<std::tuple<int64_t const*, int64_t>> optional_vertex_span,
   rmm::device_uvector<int64_t>&& edgelist_rows,
   rmm::device_uvector<int64_t>&& edgelist_cols,
   rmm::device_uvector<float>&& edgelist_weights,
-  bool is_symmetric,
-  bool test_weighted,
+  graph_properties_t graph_properties,
   bool renumber);
 
 template std::tuple<cugraph::experimental::graph_t<int64_t, int64_t, double, false, false>,
                     rmm::device_uvector<int64_t>>
-generate_graph_from_edgelist<int64_t, int64_t, double, false, false>(
+create_graph_from_edgelist<int64_t, int64_t, double, false, false>(
   raft::handle_t const& handle,
-  rmm::device_uvector<int64_t>&& vertices,
+  std::optional<std::tuple<int64_t const*, int64_t>> optional_vertex_span,
   rmm::device_uvector<int64_t>&& edgelist_rows,
   rmm::device_uvector<int64_t>&& edgelist_cols,
   rmm::device_uvector<double>&& edgelist_weights,
-  bool is_symmetric,
-  bool test_weighted,
+  graph_properties_t graph_properties,
   bool renumber);
 
 template std::tuple<cugraph::experimental::graph_t<int64_t, int64_t, double, false, true>,
                     rmm::device_uvector<int64_t>>
-generate_graph_from_edgelist<int64_t, int64_t, double, false, true>(
+create_graph_from_edgelist<int64_t, int64_t, double, false, true>(
   raft::handle_t const& handle,
-  rmm::device_uvector<int64_t>&& vertices,
+  std::optional<std::tuple<int64_t const*, int64_t>> optional_vertex_span,
   rmm::device_uvector<int64_t>&& edgelist_rows,
   rmm::device_uvector<int64_t>&& edgelist_cols,
   rmm::device_uvector<double>&& edgelist_weights,
-  bool is_symmetric,
-  bool test_weighted,
+  graph_properties_t graph_properties,
   bool renumber);
 
 template std::tuple<cugraph::experimental::graph_t<int64_t, int64_t, double, true, false>,
                     rmm::device_uvector<int64_t>>
-generate_graph_from_edgelist<int64_t, int64_t, double, true, false>(
+create_graph_from_edgelist<int64_t, int64_t, double, true, false>(
   raft::handle_t const& handle,
-  rmm::device_uvector<int64_t>&& vertices,
+  std::optional<std::tuple<int64_t const*, int64_t>> optional_vertex_span,
   rmm::device_uvector<int64_t>&& edgelist_rows,
   rmm::device_uvector<int64_t>&& edgelist_cols,
   rmm::device_uvector<double>&& edgelist_weights,
-  bool is_symmetric,
-  bool test_weighted,
+  graph_properties_t graph_properties,
   bool renumber);
 
 template std::tuple<cugraph::experimental::graph_t<int64_t, int64_t, double, true, true>,
                     rmm::device_uvector<int64_t>>
-generate_graph_from_edgelist<int64_t, int64_t, double, true, true>(
+create_graph_from_edgelist<int64_t, int64_t, double, true, true>(
   raft::handle_t const& handle,
-  rmm::device_uvector<int64_t>&& vertices,
+  std::optional<std::tuple<int64_t const*, int64_t>> optional_vertex_span,
   rmm::device_uvector<int64_t>&& edgelist_rows,
   rmm::device_uvector<int64_t>&& edgelist_cols,
   rmm::device_uvector<double>&& edgelist_weights,
-  bool is_symmetric,
-  bool test_weighted,
+  graph_properties_t graph_properties,
   bool renumber);
 
-}  // namespace test
+}  // namespace experimental
 }  // namespace cugraph

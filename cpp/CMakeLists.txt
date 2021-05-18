@@ -16,7 +16,7 @@
 
 cmake_minimum_required(VERSION 3.18...3.18 FATAL_ERROR)
 
-project(CUGRAPH VERSION 0.20.0 LANGUAGES C CXX CUDA)
+project(CUGRAPH VERSION 21.06.00 LANGUAGES C CXX CUDA)
 
 # Write the version header
 include(cmake/Modules/Version.cmake)
@@ -441,6 +441,7 @@ add_library(cugraph SHARED
     src/experimental/pagerank.cu
     src/experimental/katz_centrality.cu
     src/tree/mst.cu
+    src/structure/create_graph_from_edgelist.cu
     src/utilities/host_barrier.cpp
 )
 

@@ -226,7 +226,9 @@ class Tests_KatzCentrality
 
       std::vector<result_t> h_cugraph_katz_centralities(graph_view.get_number_of_vertices());
       if (renumber) {
-        auto d_unrenumbered_katz_centralities =
+        rmm::device_uvector<result_t> d_unrenumbered_katz_centralities(size_t{0},
+                                                                       handle.get_stream());
+        std::tie(std::ignore, d_unrenumbered_katz_centralities) =
           cugraph::test::sort_by_key(handle,
                                      d_renumber_map_labels.data(),
                                      d_katz_centralities.data(),

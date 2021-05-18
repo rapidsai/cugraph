@@ -214,7 +214,7 @@ void unrenumber_int_vertices(raft::handle_t const& handle,
                              vertex_t const* renumber_map_labels,
                              vertex_t local_int_vertex_first,
                              vertex_t local_int_vertex_last,
-                             std::vector<vertex_t>& vertex_partition_lasts,
+                             std::vector<vertex_t> const& vertex_partition_lasts,
                              bool do_expensive_check)
 {
   double constexpr load_factor = 0.7;
@@ -385,41 +385,45 @@ template void unrenumber_local_int_vertices<int64_t>(raft::handle_t const& handl
                                                      int64_t local_int_vertex_last,
                                                      bool do_expensive_check);
 
-template void unrenumber_int_vertices<int32_t, false>(raft::handle_t const& handle,
-                                                      int32_t* vertices,
-                                                      size_t num_vertices,
-                                                      int32_t const* renumber_map_labels,
-                                                      int32_t local_int_vertex_first,
-                                                      int32_t local_int_vertex_last,
-                                                      std::vector<int32_t>& vertex_partition_lasts,
-                                                      bool do_expensive_check);
+template void unrenumber_int_vertices<int32_t, false>(
+  raft::handle_t const& handle,
+  int32_t* vertices,
+  size_t num_vertices,
+  int32_t const* renumber_map_labels,
+  int32_t local_int_vertex_first,
+  int32_t local_int_vertex_last,
+  std::vector<int32_t> const& vertex_partition_lasts,
+  bool do_expensive_check);
 
-template void unrenumber_int_vertices<int32_t, true>(raft::handle_t const& handle,
-                                                     int32_t* vertices,
-                                                     size_t num_vertices,
-                                                     int32_t const* renumber_map_labels,
-                                                     int32_t local_int_vertex_first,
-                                                     int32_t local_int_vertex_last,
-                                                     std::vector<int32_t>& vertex_partition_lasts,
-                                                     bool do_expensive_check);
+template void unrenumber_int_vertices<int32_t, true>(
+  raft::handle_t const& handle,
+  int32_t* vertices,
+  size_t num_vertices,
+  int32_t const* renumber_map_labels,
+  int32_t local_int_vertex_first,
+  int32_t local_int_vertex_last,
+  std::vector<int32_t> const& vertex_partition_lasts,
+  bool do_expensive_check);
 
-template void unrenumber_int_vertices<int64_t, false>(raft::handle_t const& handle,
-                                                      int64_t* vertices,
-                                                      size_t num_vertices,
-                                                      int64_t const* renumber_map_labels,
-                                                      int64_t local_int_vertex_first,
-                                                      int64_t local_int_vertex_last,
-                                                      std::vector<int64_t>& vertex_partition_lasts,
-                                                      bool do_expensive_check);
+template void unrenumber_int_vertices<int64_t, false>(
+  raft::handle_t const& handle,
+  int64_t* vertices,
+  size_t num_vertices,
+  int64_t const* renumber_map_labels,
+  int64_t local_int_vertex_first,
+  int64_t local_int_vertex_last,
+  std::vector<int64_t> const& vertex_partition_lasts,
+  bool do_expensive_check);
 
-template void unrenumber_int_vertices<int64_t, true>(raft::handle_t const& handle,
-                                                     int64_t* vertices,
-                                                     size_t num_vertices,
-                                                     int64_t const* renumber_map_labels,
-                                                     int64_t local_int_vertex_first,
-                                                     int64_t local_int_vertex_last,
-                                                     std::vector<int64_t>& vertex_partition_lasts,
-                                                     bool do_expensive_check);
+template void unrenumber_int_vertices<int64_t, true>(
+  raft::handle_t const& handle,
+  int64_t* vertices,
+  size_t num_vertices,
+  int64_t const* renumber_map_labels,
+  int64_t local_int_vertex_first,
+  int64_t local_int_vertex_last,
+  std::vector<int64_t> const& vertex_partition_lasts,
+  bool do_expensive_check);
 
 }  // namespace experimental
 }  // namespace cugraph

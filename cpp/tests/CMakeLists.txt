@@ -22,7 +22,6 @@
 add_library(cugraphtestutil STATIC
             "${CMAKE_CURRENT_SOURCE_DIR}/utilities/matrix_market_file_utilities.cu"
             "${CMAKE_CURRENT_SOURCE_DIR}/utilities/rmat_utilities.cu"
-            "${CMAKE_CURRENT_SOURCE_DIR}/utilities/generate_graph_from_edgelist.cu"
             "${CMAKE_CURRENT_SOURCE_DIR}/utilities/thrust_wrapper.cu"
             "${CMAKE_CURRENT_SOURCE_DIR}/utilities/misc_utilities.cpp"
             "${CMAKE_CURRENT_SOURCE_DIR}/components/wcc_graphs.cu"
@@ -56,6 +55,39 @@ target_link_libraries(cugraphtestutil cugraph)
 # NOTE: the CUDA_ARCHITECTURES=OFF setting may be removed after migrating to
 # the findcudatoolkit features in cmake 3.17+
 set_target_properties(cugraphtestutil PROPERTIES
+        CUDA_ARCHITECTURES OFF)
+
+add_library(cugraphmgtestutil STATIC
+            "${CMAKE_CURRENT_SOURCE_DIR}/utilities/device_comm_wrapper.cu")
+
+set_property(TARGET cugraphmgtestutil PROPERTY POSITION_INDEPENDENT_CODE ON)
+
+target_include_directories(cugraphmgtestutil
+    PRIVATE
+    "${CUB_INCLUDE_DIR}"
+    "${THRUST_INCLUDE_DIR}"
+    "${CUCO_INCLUDE_DIR}"
+    "${LIBCUDACXX_INCLUDE_DIR}"
+    "${CMAKE_CUDA_TOOLKIT_INCLUDE_DIRECTORIES}"
+    "${RMM_INCLUDE}"
+    "${NCCL_INCLUDE_DIRS}"
+    "${CMAKE_CURRENT_SOURCE_DIR}/../../thirdparty/mmio"
+    "${CMAKE_CURRENT_SOURCE_DIR}/../include"
+    "${CMAKE_CURRENT_SOURCE_DIR}"
+    "${RAFT_DIR}/cpp/include"
+)
+
+target_link_libraries(cugraphmgtestutil cugraph)
+
+# CUDA_ARCHITECTURES=OFF implies cmake will not pass arch flags to the
+# compiler. CUDA_ARCHITECTURES must be set to a non-empty value to prevent
+# cmake warnings about policy CMP0104. With this setting, arch flags must be
+# manually set! ("evaluate_gpu_archs(GPU_ARCHS)" is the current mechanism
+# used in cpp/CMakeLists.txt for setting arch options).
+# Run "cmake --help-policy CMP0104" for policy details.
+# NOTE: the CUDA_ARCHITECTURES=OFF setting may be removed after migrating to
+# the findcudatoolkit features in cmake 3.17+
+set_target_properties(cugraphmgtestutil PROPERTIES
         CUDA_ARCHITECTURES OFF)
 
 ###################################################################################################
@@ -194,6 +226,7 @@ function(ConfigureTestMG CMAKE_TEST_NAME CMAKE_TEST_SRC)
 
     target_link_libraries(${CMAKE_TEST_NAME}
         PRIVATE
+        cugraphmgtestutil
         cugraphtestutil
         cugraph
         GTest::GTest
