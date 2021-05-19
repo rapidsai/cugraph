@@ -325,7 +325,7 @@ void barnes_hut(raft::handle_t const &handle,
 
     if (verbose) {
       std::cout << "iteration: " << iter + 1 << ", speed: " << speed
-                << ", speed_efficiency: " << speed_efficiency << " jt: " << jt
+                << ", speed_efficiency: " << speed_efficiency << ", jt: " << jt
                 << ", swinging: " << s << ", traction: " << t << "\n";
     }
   }
