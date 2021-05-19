@@ -184,8 +184,8 @@ void exact_fa2(raft::handle_t const &handle,
 
     if (verbose) {
       std::cout << "iteration: " << iter + 1 << ", speed: " << speed
-                << ", speed_efficiency: " << speed_efficiency;
-      std::cout << " jt: " << jt << ", swinging: " << s << ", traction: " << t << "\n";
+                << ", speed_efficiency: " << speed_efficiency << " jt: " << jt
+                << ", swinging: " << s << ", traction: " << t << "\n";
     }
   }
 
