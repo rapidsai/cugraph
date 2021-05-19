@@ -98,13 +98,15 @@ void serializer_t::serialize(serializer_t::graph_meta_t<graph_t> const& gmeta)
     serialize(static_cast<bool_t>(gmeta.properties_.is_multigraph));
     serialize(static_cast<bool_t>(gmeta.properties_.is_weighted));
 
-    auto total_sz_meta = gmeta.get_device_sz_bytes();
-    rmm::device_uvector<byte_t> d_ser_from_host(total_sz_meta, handle_.get_stream());
+    auto total_sz_meta_bytes = gmeta.get_device_sz_bytes();
+    auto it_end              = begin_ + total_sz_meta_bytes;
 
-    raft::update_device(
-      d_ser_from_host.data(), gmeta.segment_offsets_.data(), total_sz_meta, handle_.get_stream());
+    raft::update_device(begin_,
+                        reinterpret_cast<byte_t const*>(gmeta.segment_offsets_.data()),
+                        total_sz_meta_bytes,
+                        handle_.get_stream());
 
-    serialize(d_ser_from_host.data(), total_sz_meta);
+    begin_ = it_end;
 
   } else {
     CUGRAPH_FAIL("Unsupported graph type for serialization.");
