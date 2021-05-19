@@ -70,6 +70,8 @@ class serializer_t {
     using vertex_t   = typename graph_t::vertex_type;
     using bool_ser_t = uint8_t;
 
+    graph_meta_t(void) {}
+
     explicit graph_meta_t(graph_t const& graph)
       : num_vertices_(graph.get_number_of_vertices()),
         num_edges_(graph.get_number_of_edges()),
@@ -90,6 +92,16 @@ class serializer_t {
     }
   };
 
+  // POD-type serialization:
+  //
+  template <typename value_t>
+  void serialize(value_t val);
+
+  // POD-type unserialization:
+  //
+  template <typename value_t>
+  value_t unserialize(void);
+
   // device array serialization:
   //
   template <typename value_t>
@@ -107,7 +119,7 @@ class serializer_t {
   // (associated with target; e.g., num_vertices, etc.)
   //
   template <typename graph_t>
-  graph_meta_t<graph_t> serialize(graph_t const& gview);  // serialization target
+  void serialize(graph_t const& graph, graph_meta_t<graph_t>& gmeta);  // serialization target
 
   // more complex object (e.g., graph) unserialization,
   // with device storage and host metadata:
@@ -158,7 +170,16 @@ class serializer_t {
     }
   }
 
+  byte_t const* get_storage(void) const { return d_storage_.begin(); }
+
  private:
+  template <typename graph_t>
+  void serialize(graph_meta_t<graph_t> const& graph_meta);
+
+  template <typename graph_t>
+  graph_meta_t<graph_t> unserialize(graph_meta_t<graph_t> const& empty_meta,
+                                    size_t graph_meta_sz_bytes);
+
   raft::handle_t const& handle_;
   rmm::device_uvector<byte_t> d_storage_;
   device_byte_it begin_{nullptr};    // advances on serialize()

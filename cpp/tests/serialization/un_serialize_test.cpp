@@ -64,7 +64,8 @@ TEST(SerializationTest, GraphSerUnser)
   EXPECT_EQ(total_ser_sz, evaluated_sz);
 
   serializer_t ser(handle, total_ser_sz);
-  auto graph_meta = ser.serialize(graph);
+  serializer_t::graph_meta_t<decltype(graph)> graph_meta{};
+  ser.serialize(graph, graph_meta);
 
   total_ser_sz = serializer_t::get_device_graph_sz_bytes(graph_meta);
   EXPECT_EQ(total_ser_sz, evaluated_sz);
