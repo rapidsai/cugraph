@@ -357,7 +357,7 @@ ConfigureTest(EXPERIMENTAL_INDUCED_SUBGRAPH_TEST experimental/induced_subgraph_t
 ConfigureTest(EXPERIMENTAL_BFS_TEST experimental/bfs_test.cpp)
 
 ###################################################################################################
-# - Experimental BFS tests ------------------------------------------------------------------------
+# - Experimental Multi-source BFS tests -----------------------------------------------------------
 ConfigureTest(EXPERIMENTAL_MSBFS_TEST experimental/ms_bfs_test.cpp)
 
 ###################################################################################################
@@ -371,6 +371,14 @@ ConfigureTest(EXPERIMENTAL_PAGERANK_TEST experimental/pagerank_test.cpp)
 ###################################################################################################
 # - Experimental KATZ_CENTRALITY tests ------------------------------------------------------------
 ConfigureTest(EXPERIMENTAL_KATZ_CENTRALITY_TEST experimental/katz_centrality_test.cpp)
+
+###################################################################################################
+# - WEAKLY CONNECTED COMPONENTS tests -------------------------------------------------------------
+
+set(WEAKLY_CONNECTED_COMPONENTS_TEST_SRCS
+    "${CMAKE_CURRENT_SOURCE_DIR}/components/weakly_connected_components_test.cpp")
+
+ConfigureTest(WEAKLY_CONNECTED_COMPONENTS_TEST "${WEAKLY_CONNECTED_COMPONENTS_TEST_SRCS}")
 
 ###################################################################################################
 # - Experimental RANDOM_WALKS tests ------------------------------------------------------------
@@ -425,6 +433,11 @@ if(BUILD_CUGRAPH_MG_TESTS)
         ConfigureTestMG(MG_LOUVAIN_TEST
             community/mg_louvain_helper.cu
             community/mg_louvain_test.cpp)
+
+        ###########################################################################################
+        # - MG WEAKLY CONNECTED COMPONENTS tests --------------------------------------------------
+        ConfigureTestMG(MG_WEAKLY_CONNECTED_COMPONENTS_TEST
+                        components/mg_weakly_connected_components_test.cpp)
     else()
        message(FATAL_ERROR "OpenMPI NOT found, cannot build MG tests.")
     endif()
