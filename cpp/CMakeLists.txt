@@ -438,6 +438,7 @@ add_library(cugraph SHARED
     src/experimental/pagerank.cu
     src/experimental/katz_centrality.cu
     src/tree/mst.cu
+    src/components/weakly_connected_components.cu
     src/structure/create_graph_from_edgelist.cu
     src/utilities/host_barrier.cpp
 )
