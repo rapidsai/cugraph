@@ -100,15 +100,17 @@ void serializer_t::serialize(serializer_t::graph_meta_t<graph_t> const& gmeta)
     serialize(static_cast<bool_t>(gmeta.properties_.is_multigraph));
     serialize(static_cast<bool_t>(gmeta.properties_.is_weighted));
 
-    auto total_sz_meta_bytes = gmeta.get_device_sz_bytes();
-    auto it_end              = begin_ + total_sz_meta_bytes;
+    auto seg_off_sz_bytes = gmeta.segment_offsets_.size() * sizeof(vertex_t);
+    if (seg_off_sz_bytes > 0) {
+      auto it_end = begin_ + seg_off_sz_bytes;
 
-    raft::update_device(begin_,
-                        reinterpret_cast<byte_t const*>(gmeta.segment_offsets_.data()),
-                        total_sz_meta_bytes,
-                        handle_.get_stream());
+      raft::update_device(begin_,
+                          reinterpret_cast<byte_t const*>(gmeta.segment_offsets_.data()),
+                          seg_off_sz_bytes,
+                          handle_.get_stream());
 
-    begin_ = it_end;
+      begin_ = it_end;
+    }
 
   } else {
     CUGRAPH_FAIL("Unsupported graph type for serialization.");
@@ -129,7 +131,33 @@ serializer_t::graph_meta_t<graph_t> serializer_t::unserialize(
   if constexpr (!graph_t::is_multi_gpu) {
     using bool_t = typename graph_meta_t<graph_t>::bool_ser_t;
 
-    return graph_meta_t<graph_t>{};  // TODO:
+    CUGRAPH_EXPECTS(graph_meta_sz_bytes >= 2 * sizeof(size_t) + 3 * sizeof(bool_t),
+                    "Un/serialization meta size mismatch.");
+
+    size_t num_vertices  = unserialize<size_t>();
+    size_t num_edges     = unserialize<size_t>();
+    bool_t is_symmetric  = unserialize<bool_t>();
+    bool_t is_multigraph = unserialize<bool_t>();
+    bool_t is_weighted   = unserialize<bool_t>();
+
+    graph_properties_t properties{static_cast<bool>(is_symmetric),
+                                  static_cast<bool>(is_multigraph),
+                                  static_cast<bool>(is_weighted)};
+
+    std::vector<vertex_t> segment_offsets{};
+
+    size_t seg_off_sz_bytes = graph_meta_sz_bytes - 2 * sizeof(size_t) - 3 * sizeof(bool_t);
+
+    if (seg_off_sz_bytes > 0) {
+      raft::update_host(segment_offsets.data(),
+                        reinterpret_cast<vertex_t const*>(cbegin_),
+                        seg_off_sz_bytes,
+                        handle_.get_stream());
+
+      cbegin_ += seg_off_sz_bytes;
+    }
+
+    return graph_meta_t<graph_t>{num_vertices, num_edges, properties, segment_offsets};
 
   } else {
     CUGRAPH_FAIL("Unsupported graph type for unserialization.");

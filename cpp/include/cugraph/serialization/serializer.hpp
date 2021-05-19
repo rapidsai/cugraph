@@ -80,6 +80,17 @@ class serializer_t {
     {
     }
 
+    graph_meta_t(size_t num_vertices,
+                 size_t num_edges,
+                 graph_properties_t const& properties,
+                 std::vector<vertex_t> const& segment_offsets)
+      : num_vertices_(num_vertices),
+        num_edges_(num_edges),
+        properties_(properties),
+        segment_offsets_(segment_offsets)
+    {
+    }
+
     size_t num_vertices_;
     size_t num_edges_;
     graph_properties_t properties_{};
@@ -87,8 +98,8 @@ class serializer_t {
 
     size_t get_device_sz_bytes(void) const
     {
-      return (num_vertices_ + num_edges_) * sizeof(size_t) +
-             segment_offsets_.size() * sizeof(vertex_t) + 3 * sizeof(bool_ser_t);
+      return 2 * sizeof(size_t) + segment_offsets_.size() * sizeof(vertex_t) +
+             3 * sizeof(bool_ser_t);
     }
   };
 
