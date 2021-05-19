@@ -28,13 +28,20 @@
 namespace cugraph {
 namespace broadcast {
 
-using namespace cugraph::experimental;
-
+/**
+ * @brief broadcasts graph_t object (only the single GPU version).
+ *
+ * @tparam graph_t Type of graph (view).
+ * @param handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator, and
+ * handles to various CUDA libraries) to run graph algorithms.
+ * @param graph_ptr pointer to graph object: not `nullptr` on send, `nullptr` (ignored) on receive.
+ * @return graph_t object that was sent/received
+ */
 template <typename graph_t>
 graph_t graph_broadcast(raft::handle_t const& handle, graph_t* graph_ptr)
 {
   using namespace cugraph::serializer;
-  using namespace cugrap::experimental;
+  using namespace cugraph::experimental;
 
   using vertex_t = typename graph_t::vertex_type;
   using edge_t   = typename graph_t::edge_type;
@@ -51,8 +58,8 @@ graph_t graph_broadcast(raft::handle_t const& handle, graph_t* graph_ptr)
       auto total_graph_dev_sz = pair.first + pair.second;
 
       serializer_t ser(handle, total_graph_dev_sz);
-      graph_meta_t<graph_t> graph_meta{};
-      ser.serialize(graph, graph_meta);
+      serializer_t::graph_meta_t<graph_t> graph_meta{};
+      ser.serialize(*graph_ptr, graph_meta);
 
       int root{0};
       host_scalar_bcast(handle.get_comms(), dev_sz_host_sz_bytes, root, handle.get_stream());
@@ -87,8 +94,8 @@ graph_t graph_broadcast(raft::handle_t const& handle, graph_t* graph_ptr)
                    handle.get_stream());
 
       serializer_t ser(handle, data_buffer.data());
-      auto graph =
-        ser.unserialize(thrust::get<0>(dev_sz_host_sz_bytes), thrust::get<1>(dev_sz_host_sz_bytes));
+      auto graph = ser.unserialize<graph_t>(thrust::get<0>(dev_sz_host_sz_bytes),
+                                            thrust::get<1>(dev_sz_host_sz_bytes));
 
       return graph;
     }
