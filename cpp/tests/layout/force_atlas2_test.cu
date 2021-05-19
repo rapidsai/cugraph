@@ -111,6 +111,7 @@ class Tests_Force_Atlas2 : public ::testing::TestWithParam<Force_Atlas2_Usecase>
     std::vector<std::vector<int>> adj_matrix(m, std::vector<int>(m));
     std::vector<float> force_atlas2(m * 2);
 
+    raft::handle_t const handle;
     // device alloc
     rmm::device_vector<float> force_atlas2_vector(m * 2);
     float* d_force_atlas2 = force_atlas2_vector.data().get();
@@ -163,7 +164,8 @@ class Tests_Force_Atlas2 : public ::testing::TestWithParam<Force_Atlas2_Usecase>
     if (PERF) {
       hr_clock.start();
       for (int i = 0; i < PERF_MULTIPLIER; ++i) {
-        cugraph::force_atlas2<int, int, T>(G,
+        cugraph::force_atlas2<int, int, T>(handle,
+                                           G,
                                            d_force_atlas2,
                                            max_iter,
                                            x_start,
@@ -185,7 +187,8 @@ class Tests_Force_Atlas2 : public ::testing::TestWithParam<Force_Atlas2_Usecase>
       force_atlas2_time.push_back(time_tmp);
     } else {
       cudaProfilerStart();
-      cugraph::force_atlas2<int, int, T>(G,
+      cugraph::force_atlas2<int, int, T>(handle,
+                                         G,
                                          d_force_atlas2,
                                          max_iter,
                                          x_start,

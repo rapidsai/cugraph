@@ -33,7 +33,8 @@ namespace cugraph {
 namespace detail {
 
 template <typename vertex_t, typename edge_t, typename weight_t>
-void barnes_hut(GraphCOOView<vertex_t, edge_t, weight_t> &graph,
+void barnes_hut(raft::handle_t const &handle,
+                GraphCOOView<vertex_t, edge_t, weight_t> &graph,
                 float *pos,
                 const int max_iter                            = 500,
                 float *x_start                                = nullptr,
@@ -50,7 +51,7 @@ void barnes_hut(GraphCOOView<vertex_t, edge_t, weight_t> &graph,
                 bool verbose                                  = false,
                 internals::GraphBasedDimRedCallback *callback = nullptr)
 {
-  cudaStream_t stream = {nullptr};
+  cudaStream_t stream = handle.get_stream();
   const edge_t e      = graph.number_of_edges;
   const vertex_t n    = graph.number_of_vertices;
 

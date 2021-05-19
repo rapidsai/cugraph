@@ -49,6 +49,10 @@ def force_atlas2(input_graph,
     Call force_atlas2
     """
 
+    cdef unique_ptr[handle_t] handle_ptr
+    handle_ptr.reset(new handle_t())
+    handle_ = handle_ptr.get();
+
     if not input_graph.edgelist:
         input_graph.view_edge_list()
 
@@ -107,7 +111,8 @@ def force_atlas2(input_graph,
         graph_double = GraphCOOView[int,int, double](<int*>c_src_indices,
                         <int*>c_dst_indices, <double*>c_weights, num_verts, num_edges)
 
-        c_force_atlas2[int, int, double](graph_double,
+        c_force_atlas2[int, int, double](handle_[0],
+                        graph_double,
                         <float*>pos_ptr,
                         <int>max_iter,
                         <float*>x_start,
@@ -128,7 +133,8 @@ def force_atlas2(input_graph,
         graph_float = GraphCOOView[int,int,float](<int*>c_src_indices,
                 <int*>c_dst_indices, <float*>c_weights, num_verts,
                 num_edges)
-        c_force_atlas2[int, int, float](graph_float,
+        c_force_atlas2[int, int, float](handle_[0],
+                graph_float,
                 <float*>pos_ptr,
                 <int>max_iter,
                 <float*>x_start,
