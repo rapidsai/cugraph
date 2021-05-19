@@ -82,6 +82,8 @@ rmm::device_uvector<value_t> serializer_t::unserialize(size_t size)
   return d_dest;
 }
 
+// serialization of graph metadata, via device orchestration:
+//
 template <typename graph_t>
 void serializer_t::serialize(serializer_t::graph_meta_t<graph_t> const& gmeta)
 {
@@ -113,6 +115,31 @@ void serializer_t::serialize(serializer_t::graph_meta_t<graph_t> const& gmeta)
   }
 }
 
+// unserialization of graph metadata, via device orchestration:
+//
+template <typename graph_t>
+serializer_t::graph_meta_t<graph_t> serializer_t::unserialize(
+  size_t graph_meta_sz_bytes,
+  serializer_t::graph_meta_t<graph_t> const& empty_meta)  // tag dispatching parameter
+{
+  using vertex_t = typename graph_t::vertex_type;
+  using edge_t   = typename graph_t::edge_type;
+  using weight_t = typename graph_t::weight_type;
+
+  if constexpr (!graph_t::is_multi_gpu) {
+    using bool_t = typename graph_meta_t<graph_t>::bool_ser_t;
+
+    return graph_meta_t<graph_t>{};  // TODO:
+
+  } else {
+    CUGRAPH_FAIL("Unsupported graph type for unserialization.");
+    return graph_meta_t<graph_t>{};
+  }
+}
+
+// graph serialization:
+// metadata argument (gvmeta) can be used for checking / testing;
+//
 template <typename graph_t>
 void serializer_t::serialize(graph_t const& graph, serializer_t::graph_meta_t<graph_t>& gvmeta)
 {
@@ -131,22 +158,48 @@ void serializer_t::serialize(graph_t const& graph, serializer_t::graph_meta_t<gr
     vertex_t const* indices = gview.indices();
     weight_t const* weights = gview.weights();
 
+    // FIXME: remove when host_bcast() becomes available for vectors;
+    //
+    // for now, this must come first, because unserialize()
+    // needs it at the beginning to extract graph metadata
+    // to be able to finish the rest of the graph unserialization;
+    //
+    serialize(gvmeta);
+
     serialize(offsets, num_vertices + 1);
     serialize(indices, num_edges);
     serialize(weights, num_edges);
+
   } else {
     CUGRAPH_FAIL("Unsupported graph type for serialization.");
   }
 }
 
+// graph unserialization:
+//
 template <typename graph_t>
-graph_t serializer_t::unserialize(serializer_t::graph_meta_t<graph_t> const& gvmeta)
+graph_t serializer_t::unserialize(size_t device_sz_bytes, size_t host_sz_bytes)
 {
   using vertex_t = typename graph_t::vertex_type;
   using edge_t   = typename graph_t::edge_type;
   using weight_t = typename graph_t::weight_type;
 
   if constexpr (!graph_t::is_multi_gpu) {
+    graph_meta_t<graph_t> empty_meta{};  // tag-dispatching only
+
+    // FIXME: remove when host_bcast() becomes available for vectors;
+    //
+    // for now, this must come first, because unserialize()
+    // needs it at the beginning to extract graph metadata
+    // to be able to finish the rest of the graph unserialization;
+    //
+    auto gvmeta = unserialize(host_sz_bytes, empty_meta);
+
+    auto pair_sz = get_device_graph_sz_bytes(gvmeta);
+
+    CUGRAPH_EXPECTS((pair_sz.first == device_sz_bytes) && (pair_sz.second == host_sz_bytes),
+                    "Un/serialization size mismatch.");
+
     vertex_t num_vertices = gvmeta.num_vertices_;
     edge_t num_edges      = gvmeta.num_edges_;
     auto g_props          = gvmeta.properties_;
@@ -212,23 +265,17 @@ template void serializer_t::serialize(
 
 // unserialize graph:
 //
-template graph_t<int32_t, int32_t, float, false, false> serializer_t::unserialize(
-  serializer_t::graph_meta_t<graph_t<int32_t, int32_t, float, false, false>> const& gvmeta);
+template graph_t<int32_t, int32_t, float, false, false> serializer_t::unserialize(size_t, size_t);
 
-template graph_t<int32_t, int64_t, float, false, false> serializer_t::unserialize(
-  serializer_t::graph_meta_t<graph_t<int32_t, int64_t, float, false, false>> const& gvmeta);
+template graph_t<int32_t, int64_t, float, false, false> serializer_t::unserialize(size_t, size_t);
 
-template graph_t<int64_t, int64_t, float, false, false> serializer_t::unserialize(
-  serializer_t::graph_meta_t<graph_t<int64_t, int64_t, float, false, false>> const& gvmeta);
+template graph_t<int64_t, int64_t, float, false, false> serializer_t::unserialize(size_t, size_t);
 
-template graph_t<int32_t, int32_t, double, false, false> serializer_t::unserialize(
-  serializer_t::graph_meta_t<graph_t<int32_t, int32_t, double, false, false>> const& gvmeta);
+template graph_t<int32_t, int32_t, double, false, false> serializer_t::unserialize(size_t, size_t);
 
-template graph_t<int32_t, int64_t, double, false, false> serializer_t::unserialize(
-  serializer_t::graph_meta_t<graph_t<int32_t, int64_t, double, false, false>> const& gvmeta);
+template graph_t<int32_t, int64_t, double, false, false> serializer_t::unserialize(size_t, size_t);
 
-template graph_t<int64_t, int64_t, double, false, false> serializer_t::unserialize(
-  serializer_t::graph_meta_t<graph_t<int64_t, int64_t, double, false, false>> const& gvmeta);
+template graph_t<int64_t, int64_t, double, false, false> serializer_t::unserialize(size_t, size_t);
 
 }  // namespace serializer
 }  // namespace cugraph

@@ -38,10 +38,10 @@ graph_t graph_broadcast(raft::handle_t const& handle, graph_t* graph_ptr)
     if (handle.get_comms().get_rank() == 0) {
       CUGRAPH_EXPECTS(graph_ptr != nullptr, "Cannot serialize nullptr graph pointer.");
 
-      thrust::tuple<size_t, size_t> dev_sz_host_sz_bytes;
-      dev_sz_host_sz_bytes = serializer_t::get_device_graph_sz_bytes(*graph_ptr);
+      auto pair = serializer_t::get_device_graph_sz_bytes(*graph_ptr);
+      thrust::tuple<size_t, size_t> dev_sz_host_sz_bytes(pair);
 
-      auto total_graph_dev_sz = dev_sz_host_sz_bytes.first + dev_sz_host_sz_bytes.second;
+      auto total_graph_dev_sz = pair.first + pair.second;
 
       serializer_t ser(handle, total_graph_dev_sz);
       graph_meta_t<graph_t> graph_meta{};
@@ -61,7 +61,8 @@ graph_t graph_broadcast(raft::handle_t const& handle, graph_t* graph_ptr)
       //
       // host_scalar_bcast(..., &dev_sz_host_sz_bytes, ...);
       //
-      auto total_graph_dev_sz = dev_sz_host_sz_bytes.first + dev_sz_host_sz_bytes.second;
+      auto total_graph_dev_sz =
+        thrust::get<0>(dev_sz_host_sz_bytes) + thrust::get<1>(dev_sz_host_sz_bytes);
 
       rmm::device_uvector<std::byte> data_buffer(total_graph_dev_sz, handle.get_stream_view());
 
@@ -70,7 +71,8 @@ graph_t graph_broadcast(raft::handle_t const& handle, graph_t* graph_ptr)
       // device_bcast(..., data_buffer.data(), ...);
       //
       serializer_t ser(handle, data_buffer.data());
-      auto graph = ser.unserialize(dev_sz_host_sz_bytes.first, dev_sz_host_sz_bytes.second);
+      auto graph =
+        ser.unserialize(thrust::get<0>(dev_sz_host_sz_bytes), thrust::get<1>(dev_sz_host_sz_bytes));
 
       return graph;
     }

@@ -57,20 +57,19 @@ TEST(SerializationTest, GraphSerUnser)
   raft::update_host(v_ci.data(), indices, num_edges, handle.get_stream());
   raft::update_host(v_vs.data(), values, num_edges, handle.get_stream());
 
-  size_t total_ser_sz = (num_vertices + 1) * sizeof(edge_t) + num_edges * sizeof(vertex_t) +
-                        num_edges * sizeof(weight_t);
-
-  auto evaluated_sz = serializer_t::get_device_graph_sz_bytes(graph);
-  EXPECT_EQ(total_ser_sz, evaluated_sz);
+  auto pair_sz      = serializer_t::get_device_graph_sz_bytes(graph);
+  auto total_ser_sz = pair_sz.first + pair_sz.second;
 
   serializer_t ser(handle, total_ser_sz);
   serializer_t::graph_meta_t<decltype(graph)> graph_meta{};
   ser.serialize(graph, graph_meta);
 
-  total_ser_sz = serializer_t::get_device_graph_sz_bytes(graph_meta);
-  EXPECT_EQ(total_ser_sz, evaluated_sz);
+  pair_sz          = serializer_t::get_device_graph_sz_bytes(graph_meta);
+  auto post_ser_sz = pair_sz.first + pair_sz.second;
 
-  auto graph_copy = ser.unserialize(graph_meta);
+  EXPECT_EQ(total_ser_sz, post_ser_sz);
+
+  auto graph_copy = ser.unserialize<decltype(graph)>(pair_sz.first, pair_sz.second);
 
   auto graph_copy_view   = graph_copy.view();
   auto num_vertices_copy = graph_copy_view.get_number_of_vertices();

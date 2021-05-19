@@ -114,42 +114,23 @@ class serializer_t {
   rmm::device_uvector<value_t> unserialize(
     size_t size);  // size of device vector to be unserialized
 
-  // more complex object (e.g., graph) serialization,
+  // graph serialization,
   // with device storage and host metadata:
   // (associated with target; e.g., num_vertices, etc.)
   //
   template <typename graph_t>
   void serialize(graph_t const& graph, graph_meta_t<graph_t>& gmeta);  // serialization target
 
-  // more complex object (e.g., graph) unserialization,
+  // graph unserialization,
   // with device storage and host metadata:
   // (associated with target; e.g., num_vertices, etc.)
   //
   template <typename graph_t>
-  graph_t unserialize(graph_meta_t<graph_t> const& meta);
+  graph_t unserialize(size_t device_sz_bytes, size_t host_sz_bytes);
 
   template <typename graph_t>
-  static size_t get_device_graph_sz_bytes(graph_t const& graph)
-  {
-    using vertex_t = typename graph_t::vertex_type;
-    using edge_t   = typename graph_t::edge_type;
-    using weight_t = typename graph_t::weight_type;
-
-    if constexpr (!graph_t::is_multi_gpu) {
-      size_t num_edges     = graph.get_number_of_edges();
-      size_t device_ser_sz = (graph.get_number_of_vertices() + 1) * sizeof(edge_t) +
-                             num_edges * sizeof(vertex_t) + num_edges * sizeof(weight_t);
-
-      return device_ser_sz;
-    } else {
-      CUGRAPH_FAIL("Unsupported graph type for un/serialization.");
-
-      return 0;
-    }
-  }
-
-  template <typename graph_t>
-  static size_t get_device_graph_sz_bytes(graph_meta_t<graph_t> const& graph_meta)
+  static std::pair<size_t, size_t> get_device_graph_sz_bytes(
+    graph_meta_t<graph_t> const& graph_meta)
   {
     using vertex_t = typename graph_t::vertex_type;
     using edge_t   = typename graph_t::edge_type;
@@ -162,23 +143,41 @@ class serializer_t {
       size_t device_ser_sz = (num_vertices + 1) * sizeof(edge_t) + num_edges * sizeof(vertex_t) +
                              num_edges * sizeof(weight_t);
 
-      return device_ser_sz;
+      size_t host_ser_sz = graph_meta.get_device_sz_bytes();
+
+      return std::make_pair(
+        device_ser_sz,
+        host_ser_sz);  // FIXME: remove when host_bcast() becomes available for host vectors
+
     } else {
       CUGRAPH_FAIL("Unsupported graph type for un/serialization.");
 
-      return 0;
+      return std::pair<size_t, size_t>{};
     }
+  }
+
+  template <typename graph_t>
+  static std::pair<size_t, size_t> get_device_graph_sz_bytes(graph_t const& graph)
+  {
+    graph_meta_t<graph_t> gmeta{graph};
+    return get_device_graph_sz_bytes(gmeta);
   }
 
   byte_t const* get_storage(void) const { return d_storage_.begin(); }
 
  private:
+  // serialization of graph metadata, via device orchestration:
+  //
   template <typename graph_t>
   void serialize(graph_meta_t<graph_t> const& graph_meta);
 
+  // unserialization of graph metadata, via device orchestration:
+  //
   template <typename graph_t>
-  graph_meta_t<graph_t> unserialize(graph_meta_t<graph_t> const& empty_meta,
-                                    size_t graph_meta_sz_bytes);
+  graph_meta_t<graph_t> unserialize(
+    size_t graph_meta_sz_bytes,
+    graph_meta_t<graph_t> const& empty_meta);  // tag dispatching to avoid conflict with
+                                               // `unserialize(size_t)` for device vectors
 
   raft::handle_t const& handle_;
   rmm::device_uvector<byte_t> d_storage_;
