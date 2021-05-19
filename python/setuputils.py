@@ -290,6 +290,16 @@ def get_repo_cmake_info(names, file_path):
         tag = re.findall(r'\s.*PINNED_TAG.*', s)
         tag = tag[-1].split()[-1]
         results[name] = [repo, tag]
+        if tag == 'branch-${CUGRAPH_BRANCH_VERSION_raft}':
+            loc = _get_repo_path() + '/cpp/CMakeLists.txt'
+            with open(loc) as f:
+                cmakelists = f.read()
+                tag = re.findall(r'\s.*project\(CUGRAPH VERSION.*', cmakelists)
+                print(tag)
+                tag = tag[-1].split()[2].split('.')
+                tag = 'branch-{}.{}'.format(tag[0], tag[1])
+
+        results[name] = [repo, tag]
 
     return results
 
