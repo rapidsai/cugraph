@@ -35,6 +35,7 @@ function(find_and_configure_raft)
 endfunction()
 
 set(CUGRAPH_MIN_VERSION_raft "${CUGRAPH_VERSION_MAJOR}.${CUGRAPH_VERSION_MINOR}.00")
+set(CUGRAPH_BRANCH_VERSION_raft "${CUGRAPH_VERSION_MAJOR}.${CUGRAPH_VERSION_MINOR}")
 
 
 # Change pinned tag and fork here to test a commit in CI
@@ -42,6 +43,6 @@ set(CUGRAPH_MIN_VERSION_raft "${CUGRAPH_VERSION_MAJOR}.${CUGRAPH_VERSION_MINOR}.
 # RPM_raft_SOURCE=/path/to/local/raft
 find_and_configure_raft(VERSION    ${CUGRAPH_MIN_VERSION_raft}
                         FORK       rapidsai
-                        PINNED_TAG branch-21.06
+                        PINNED_TAG PINNED_TAG branch-${CUGRAPH_BRANCH_VERSION_raft}
                         )
 
