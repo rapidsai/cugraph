@@ -16,15 +16,18 @@
 
 #pragma once
 
+#include <rmm/device_uvector.hpp>
 #include <rmm/thrust_rmm_allocator.h>
+
+#include <converters/COOtoCSR.cuh>
+#include <utilities/graph_utils.cuh>
+
+#include <cugraph/graph.hpp>
+#include <cugraph/internals.hpp>
 #include <cugraph/utilities/error.hpp>
 
 #include <stdio.h>
-#include <converters/COOtoCSR.cuh>
-#include <cugraph/graph.hpp>
-#include <cugraph/internals.hpp>
 
-#include <utilities/graph_utils.cuh>
 #include "bh_kernels.hpp"
 #include "fa2_kernels.hpp"
 #include "utils.hpp"
@@ -66,15 +69,15 @@ void barnes_hut(raft::handle_t const &handle,
 
   // Allocate more space
   //---------------------------------------------------
-  rmm::device_vector<unsigned> d_limiter(1);
-  rmm::device_vector<int> d_maxdepthd(1);
-  rmm::device_vector<int> d_bottomd(1);
-  rmm::device_vector<float> d_radiusd(1);
+  rmm::device_uvector<unsigned> d_limiter(1, stream);
+  rmm::device_uvector<int> d_maxdepthd(1, stream);
+  rmm::device_uvector<int> d_bottomd(1, stream);
+  rmm::device_uvector<float> d_radiusd(1, stream);
 
-  unsigned *limiter = d_limiter.data().get();
-  int *maxdepthd    = d_maxdepthd.data().get();
-  int *bottomd      = d_bottomd.data().get();
-  float *radiusd    = d_radiusd.data().get();
+  unsigned *limiter = d_limiter.data();
+  int *maxdepthd    = d_maxdepthd.data();
+  int *bottomd      = d_bottomd.data();
+  float *radiusd    = d_radiusd.data();
 
   InitializationKernel<<<1, 1, 0, stream>>>(limiter, maxdepthd, radiusd);
   CHECK_CUDA(stream);
@@ -84,51 +87,53 @@ void barnes_hut(raft::handle_t const &handle,
   const float theta_squared = theta * theta;
   const int NNODES          = nnodes;
 
-  rmm::device_vector<int> d_startl(nnodes + 1, 0);
-  rmm::device_vector<int> d_childl((nnodes + 1) * 4, 0);
+  rmm::device_uvector<int> d_startl(nnodes + 1, stream);
+  rmm::device_uvector<int> d_childl((nnodes + 1) * 4, stream);
   // FA2 requires degree + 1
-  rmm::device_vector<int> d_massl(nnodes + 1, 1.f);
+  rmm::device_uvector<int> d_massl(nnodes + 1, stream);
+    thrust::fill(rmm::exec_policy(stream)->on(stream),
+     d_massl.begin(), d_massl.end(), 1.f);
 
-  rmm::device_vector<float> d_maxxl(blocks * FACTOR1, 0);
-  rmm::device_vector<float> d_maxyl(blocks * FACTOR1, 0);
-  rmm::device_vector<float> d_minxl(blocks * FACTOR1, 0);
-  rmm::device_vector<float> d_minyl(blocks * FACTOR1, 0);
+  rmm::device_uvector<float> d_maxxl(blocks * FACTOR1, stream);
+  rmm::device_uvector<float> d_maxyl(blocks * FACTOR1, stream);
+  rmm::device_uvector<float> d_minxl(blocks * FACTOR1, stream);
+  rmm::device_uvector<float> d_minyl(blocks * FACTOR1, stream);
 
   // Actual mallocs
-  int *startl = d_startl.data().get();
-  int *childl = d_childl.data().get();
-  int *massl  = d_massl.data().get();
+  int *startl = d_startl.data();
+  int *childl = d_childl.data();
+  int *massl  = d_massl.data();
 
-  float *maxxl = d_maxxl.data().get();
-  float *maxyl = d_maxyl.data().get();
-  float *minxl = d_minxl.data().get();
-  float *minyl = d_minyl.data().get();
+  float *maxxl = d_maxxl.data();
+  float *maxyl = d_maxyl.data();
+  float *minxl = d_minxl.data();
+  float *minyl = d_minyl.data();
 
   // SummarizationKernel
-  rmm::device_vector<int> d_countl(nnodes + 1, 0);
-  int *countl = d_countl.data().get();
+  rmm::device_uvector<int> d_countl(nnodes + 1, stream);
+  int *countl = d_countl.data();
 
   // SortKernel
-  rmm::device_vector<int> d_sortl(nnodes + 1, 0);
-  int *sortl = d_sortl.data().get();
+  rmm::device_uvector<int> d_sortl(nnodes + 1, stream);
+  int *sortl = d_sortl.data();
 
   // RepulsionKernel
-  rmm::device_vector<float> d_rep_forces((nnodes + 1) * 2, 0);
-  float *rep_forces = d_rep_forces.data().get();
+  rmm::device_uvector<float> d_rep_forces((nnodes + 1) * 2, stream);
+  float *rep_forces = d_rep_forces.data();
 
-  rmm::device_vector<float> d_radius_squared(1, 0);
-  float *radiusd_squared = d_radius_squared.data().get();
+  rmm::device_uvector<float> d_radius_squared(1, stream);
+  float *radiusd_squared = d_radius_squared.data();
 
-  rmm::device_vector<float> d_nodes_pos((nnodes + 1) * 2, 0);
-  float *nodes_pos = d_nodes_pos.data().get();
+  rmm::device_uvector<float> d_nodes_pos((nnodes + 1) * 2, stream);
+  float *nodes_pos = d_nodes_pos.data();
 
   // Initialize positions with random values
   int random_state = 0;
 
   // Copy start x and y positions.
   if (x_start && y_start) {
-    copy(n, x_start, nodes_pos);
-    copy(n, y_start, nodes_pos + nnodes + 1);
+    raft::copy(nodes_pos, x_start, n, stream);
+    raft::copy(nodes_pos + nnodes + 1, y_start, n, stream);
   } else {
     random_vector(nodes_pos, (nnodes + 1) * 2, random_state, stream);
   }
@@ -139,15 +144,15 @@ void barnes_hut(raft::handle_t const &handle,
   float *swinging{nullptr};
   float *traction{nullptr};
 
-  rmm::device_vector<float> d_attract(n * 2, 0);
-  rmm::device_vector<float> d_old_forces(n * 2, 0);
-  rmm::device_vector<float> d_swinging(n, 0);
-  rmm::device_vector<float> d_traction(n, 0);
+  rmm::device_uvector<float> d_attract(n * 2, stream);
+  rmm::device_uvector<float> d_old_forces(n * 2, stream);
+  rmm::device_uvector<float> d_swinging(n, stream);
+  rmm::device_uvector<float> d_traction(n, stream);
 
-  attract    = d_attract.data().get();
-  old_forces = d_old_forces.data().get();
-  swinging   = d_swinging.data().get();
-  traction   = d_traction.data().get();
+  attract    = d_attract.data();
+  old_forces = d_old_forces.data();
+  swinging   = d_swinging.data();
+  traction   = d_traction.data();
 
   // Sort COO for coalesced memory access.
   sort(graph, stream);
@@ -192,10 +197,10 @@ void barnes_hut(raft::handle_t const &handle,
 
   for (int iter = 0; iter < max_iter; ++iter) {
     // Reset force values
-    fill((nnodes + 1) * 2, rep_forces, 0.f);
-    fill(n * 2, attract, 0.f);
-    fill(n, swinging, 0.f);
-    fill(n, traction, 0.f);
+    thrust::fill(rmm::exec_policy(stream)->on(stream), d_rep_forces.begin(), d_rep_forces.end(), 0.f);
+    thrust::fill(rmm::exec_policy(stream)->on(stream), d_attract.begin(), d_attract.end(), 0.f);
+    thrust::fill(rmm::exec_policy(stream)->on(stream), d_swinging.begin(), d_swinging.end(), 0.f);
+    thrust::fill(rmm::exec_policy(stream)->on(stream), d_traction.begin(), d_traction.end(), 0.f);
 
     ResetKernel<<<1, 1, 0, stream>>>(radiusd_squared, bottomd, NNODES, radiusd);
     CHECK_CUDA(stream);
@@ -328,8 +333,8 @@ void barnes_hut(raft::handle_t const &handle,
   }
 
   // Copy nodes positions into final output pos
-  copy(n, nodes_pos, pos);
-  copy(n, nodes_pos + nnodes + 1, pos + n);
+  raft::copy(pos, nodes_pos, n, stream);
+  raft::copy(pos + n, nodes_pos + nnodes + 1, n, stream);
 
   if (callback) callback->on_train_end(nodes_pos);
 }
