@@ -16,8 +16,8 @@
 
 #pragma once
 
-#include <rmm/device_uvector.hpp>
 #include <rmm/thrust_rmm_allocator.h>
+#include <rmm/device_uvector.hpp>
 
 #include <converters/COOtoCSR.cuh>
 #include <utilities/graph_utils.cuh>
@@ -89,8 +89,7 @@ void barnes_hut(raft::handle_t const &handle,
   rmm::device_uvector<int> d_childl((nnodes + 1) * 4, stream);
   // FA2 requires degree + 1
   rmm::device_uvector<int> d_massl(nnodes + 1, stream);
-    thrust::fill(rmm::exec_policy(stream)->on(stream),
-     d_massl.begin(), d_massl.end(), 1.f);
+  thrust::fill(rmm::exec_policy(stream)->on(stream), d_massl.begin(), d_massl.end(), 1.f);
 
   rmm::device_uvector<float> d_maxxl(blocks * FACTOR1, stream);
   rmm::device_uvector<float> d_maxyl(blocks * FACTOR1, stream);
@@ -195,7 +194,8 @@ void barnes_hut(raft::handle_t const &handle,
 
   for (int iter = 0; iter < max_iter; ++iter) {
     // Reset force values
-    thrust::fill(rmm::exec_policy(stream)->on(stream), d_rep_forces.begin(), d_rep_forces.end(), 0.f);
+    thrust::fill(
+      rmm::exec_policy(stream)->on(stream), d_rep_forces.begin(), d_rep_forces.end(), 0.f);
     thrust::fill(rmm::exec_policy(stream)->on(stream), d_attract.begin(), d_attract.end(), 0.f);
     thrust::fill(rmm::exec_policy(stream)->on(stream), d_swinging.begin(), d_swinging.end(), 0.f);
     thrust::fill(rmm::exec_policy(stream)->on(stream), d_traction.begin(), d_traction.end(), 0.f);
@@ -324,7 +324,8 @@ void barnes_hut(raft::handle_t const &handle,
     if (callback) callback->on_epoch_end(nodes_pos);
 
     if (verbose) {
-      std::cout << "iteration: " << iter + 1 << ", speed: " << speed << ", speed_efficiency: " << speed_efficiency;
+      std::cout << "iteration: " << iter + 1 << ", speed: " << speed
+                << ", speed_efficiency: " << speed_efficiency;
       std::cout << " jt: " << jt << ", swinging: " << s << ", traction: " << t << "\n";
     }
   }

@@ -21,9 +21,9 @@
 
 #include <converters/COOtoCSR.cuh>
 
-#include <cugraph/utilities/error.hpp>
 #include <cugraph/graph.hpp>
 #include <cugraph/internals.hpp>
+#include <cugraph/utilities/error.hpp>
 
 #include "exact_repulsion.hpp"
 #include "fa2_kernels.hpp"
@@ -66,12 +66,9 @@ void exact_fa2(raft::handle_t const &handle,
   rmm::device_uvector<float> old_forces(n * 2, stream);
   // FA2 requires degree + 1.
   rmm::device_uvector<int> mass(n, stream);
-  thrust::fill(rmm::exec_policy(stream)->on(stream),
-      mass.begin(), mass.end(), 1.f);
+  thrust::fill(rmm::exec_policy(stream)->on(stream), mass.begin(), mass.end(), 1.f);
   rmm::device_uvector<float> swinging(n, stream);
   rmm::device_uvector<float> traction(n, stream);
-
-
 
   d_repel      = repel.data();
   d_attract    = attract.data();
@@ -186,10 +183,10 @@ void exact_fa2(raft::handle_t const &handle,
     if (callback) callback->on_epoch_end(pos);
 
     if (verbose) {
-      std::cout << "iteration: " << iter + 1 << ", speed: " << speed << ", speed_efficiency: " << speed_efficiency;
+      std::cout << "iteration: " << iter + 1 << ", speed: " << speed
+                << ", speed_efficiency: " << speed_efficiency;
       std::cout << " jt: " << jt << ", swinging: " << s << ", traction: " << t << "\n";
     }
-
   }
 
   if (callback) callback->on_train_end(pos);
