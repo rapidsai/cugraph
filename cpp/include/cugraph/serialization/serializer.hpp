@@ -175,6 +175,7 @@ class serializer_t {
   }
 
   byte_t const* get_storage(void) const { return d_storage_.begin(); }
+  byte_t* get_storage(void) { return d_storage_.begin(); }
 
  private:
   // serialization of graph metadata, via device orchestration:

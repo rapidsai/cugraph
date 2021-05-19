@@ -20,6 +20,11 @@
 
 #include <cugraph/serialization/serializer.hpp>
 
+#include <cugraph/utilities/device_comm.cuh>
+#include <cugraph/utilities/host_scalar_comm.cuh>
+
+#include <thrust/tuple.h>
+
 namespace cugraph {
 namespace broadcast {
 
@@ -29,6 +34,7 @@ template <typename graph_t>
 graph_t graph_broadcast(raft::handle_t const& handle, graph_t* graph_ptr)
 {
   using namespace cugraph::serializer;
+  using namespace cugrap::experimental;
 
   using vertex_t = typename graph_t::vertex_type;
   using edge_t   = typename graph_t::edge_type;
@@ -39,7 +45,8 @@ graph_t graph_broadcast(raft::handle_t const& handle, graph_t* graph_ptr)
       CUGRAPH_EXPECTS(graph_ptr != nullptr, "Cannot serialize nullptr graph pointer.");
 
       auto pair = serializer_t::get_device_graph_sz_bytes(*graph_ptr);
-      thrust::tuple<size_t, size_t> dev_sz_host_sz_bytes(pair);
+      thrust::tuple<size_t, size_t> dev_sz_host_sz_bytes =
+        thrust::make_tuple(pair.first, pair.second);
 
       auto total_graph_dev_sz = pair.first + pair.second;
 
@@ -47,29 +54,38 @@ graph_t graph_broadcast(raft::handle_t const& handle, graph_t* graph_ptr)
       graph_meta_t<graph_t> graph_meta{};
       ser.serialize(graph, graph_meta);
 
-      // TODO:
-      //
-      // host_scalar_bcast(..., &dev_sz_host_sz_bytes, ...);
-      //
-      // device_bcast(..., ser.get_storage(), ...);
+      int root{0};
+      host_scalar_bcast(handle.get_comms(), dev_sz_host_sz_bytes, root, handle.get_stream());
+      device_bcast(handle.get_comms(),
+                   ser.get_storage(),
+                   ser.get_storage(),
+                   total_graph_dev_sz,
+                   root,
+                   handle.get_stream());
 
       return std::move(*graph_ptr);
     } else {
-      thrust::tuple<size_t, size_t> dev_sz_host_sz_bytes;
+      thrust::tuple<size_t, size_t> dev_sz_host_sz_bytes(0, 0);
 
-      // TODO:
-      //
-      // host_scalar_bcast(..., &dev_sz_host_sz_bytes, ...);
+      int root{0};
+      dev_sz_host_sz_bytes =
+        host_scalar_bcast(handle.get_comms(), dev_sz_host_sz_bytes, root, handle.get_stream());
       //
       auto total_graph_dev_sz =
         thrust::get<0>(dev_sz_host_sz_bytes) + thrust::get<1>(dev_sz_host_sz_bytes);
 
-      rmm::device_uvector<std::byte> data_buffer(total_graph_dev_sz, handle.get_stream_view());
+      CUGRAPH_EXPECTS(total_graph_dev_sz > 0, "Graph size comm failure.");
 
-      // TODO:
-      //
-      // device_bcast(..., data_buffer.data(), ...);
-      //
+      rmm::device_uvector<serializer_t::byte_t> data_buffer(total_graph_dev_sz,
+                                                            handle.get_stream_view());
+
+      device_bcast(handle.get_comms(),
+                   data_buffer.data(),
+                   data_buffer.data(),
+                   total_graph_dev_sz,
+                   root,
+                   handle.get_stream());
+
       serializer_t ser(handle, data_buffer.data());
       auto graph =
         ser.unserialize(thrust::get<0>(dev_sz_host_sz_bytes), thrust::get<1>(dev_sz_host_sz_bytes));
