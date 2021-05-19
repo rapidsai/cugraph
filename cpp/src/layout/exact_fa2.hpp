@@ -25,8 +25,6 @@
 #include <cugraph/graph.hpp>
 #include <cugraph/internals.hpp>
 
-#include <stdio.h>
-
 #include "exact_repulsion.hpp"
 #include "fa2_kernels.hpp"
 #include "utils.hpp"
@@ -188,10 +186,10 @@ void exact_fa2(raft::handle_t const &handle,
     if (callback) callback->on_epoch_end(pos);
 
     if (verbose) {
-      printf("iteration %i, speed: %f, speed_efficiency: %f, ", iter + 1, speed, speed_efficiency);
-      printf("jt: %f, ", jt);
-      printf("swinging: %f, traction: %f\n", s, t);
+      std::cout << "iteration: " << iter + 1 << ", speed: " << speed << ", speed_efficiency: " << speed_efficiency;
+      std::cout << " jt: " << jt << ", swinging: " << s << ", traction: " << t << "\n";
     }
+
   }
 
   if (callback) callback->on_train_end(pos);

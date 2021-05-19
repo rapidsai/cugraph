@@ -26,8 +26,6 @@
 #include <cugraph/internals.hpp>
 #include <cugraph/utilities/error.hpp>
 
-#include <stdio.h>
-
 #include "bh_kernels.hpp"
 #include "fa2_kernels.hpp"
 #include "utils.hpp"
@@ -326,9 +324,8 @@ void barnes_hut(raft::handle_t const &handle,
     if (callback) callback->on_epoch_end(nodes_pos);
 
     if (verbose) {
-      printf("iteration %i, speed: %f, speed_efficiency: %f, ", iter + 1, speed, speed_efficiency);
-      printf("jt: %f, ", jt);
-      printf("swinging: %f, traction: %f\n", s, t);
+      std::cout << "iteration: " << iter + 1 << ", speed: " << speed << ", speed_efficiency: " << speed_efficiency;
+      std::cout << " jt: " << jt << ", swinging: " << s << ", traction: " << t << "\n";
     }
   }
 
