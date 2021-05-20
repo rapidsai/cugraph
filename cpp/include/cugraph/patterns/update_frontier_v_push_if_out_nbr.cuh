@@ -638,6 +638,7 @@ void update_frontier_v_push_if_out_nbr(
       auto& col_comm = handle.get_subcomm(cugraph::partition_2d::key_naming_t().col_name());
       auto const col_comm_rank = col_comm.get_rank();
 
+      // FIXME: better use host_scalar_allgather instead to cut latency
       matrix_partition_frontier_size = host_scalar_bcast(
         col_comm,
         (static_cast<size_t>(col_comm_rank) == i)
