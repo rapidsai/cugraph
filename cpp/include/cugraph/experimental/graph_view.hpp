@@ -384,6 +384,24 @@ class graph_view_t<vertex_t,
     return adj_matrix_partition_number_of_edges_[adj_matrix_partition_idx];
   }
 
+  template <bool transposed = is_adj_matrix_transposed>
+  std::enable_if_t<transposed, vertex_t> get_local_adj_matrix_partition_row_first() const
+  {
+    return partition_.get_matrix_partition_minor_first();
+  }
+
+  template <bool transposed = is_adj_matrix_transposed>
+  std::enable_if_t<transposed, vertex_t> get_local_adj_matrix_partition_row_last() const
+  {
+    return partition_.get_matrix_partition_minor_last();
+  }
+
+  template <bool transposed = is_adj_matrix_transposed>
+  std::enable_if_t<transposed, vertex_t> get_number_of_local_adj_matrix_partition_rows() const
+  {
+    return get_local_adj_matrix_partition_row_last() - get_local_adj_matrix_partition_row_first();
+  }
+
   vertex_t get_local_adj_matrix_partition_row_first(size_t adj_matrix_partition_idx) const
   {
     return store_transposed ? partition_.get_matrix_partition_minor_first()
@@ -408,6 +426,24 @@ class graph_view_t<vertex_t,
     return store_transposed
              ? vertex_t{0}
              : partition_.get_matrix_partition_major_value_start_offset(adj_matrix_partition_idx);
+  }
+
+  template <bool transposed = is_adj_matrix_transposed>
+  std::enable_if_t<!transposed, vertex_t> get_local_adj_matrix_partition_col_first() const
+  {
+    return partition_.get_matrix_partition_minor_first();
+  }
+
+  template <bool transposed = is_adj_matrix_transposed>
+  std::enable_if_t<!transposed, vertex_t> get_local_adj_matrix_partition_col_last() const
+  {
+    return partition_.get_matrix_partition_minor_last();
+  }
+
+  template <bool transposed = is_adj_matrix_transposed>
+  std::enable_if_t<!transposed, vertex_t> get_number_of_local_adj_matrix_partition_cols() const
+  {
+    return get_local_adj_matrix_partition_col_last() - get_local_adj_matrix_partition_col_first();
   }
 
   vertex_t get_local_adj_matrix_partition_col_first(size_t adj_matrix_partition_idx) const
@@ -591,6 +627,24 @@ class graph_view_t<vertex_t,
     return this->get_number_of_edges();
   }
 
+  template <bool transposed = is_adj_matrix_transposed>
+  std::enable_if_t<transposed, vertex_t> get_local_adj_matrix_partition_row_first() const
+  {
+    return get_local_adj_matrix_partition_row_first(0);
+  }
+
+  template <bool transposed = is_adj_matrix_transposed>
+  std::enable_if_t<transposed, vertex_t> get_local_adj_matrix_partition_row_last() const
+  {
+    return get_local_adj_matrix_partition_row_last(0);
+  }
+
+  template <bool transposed = is_adj_matrix_transposed>
+  std::enable_if_t<transposed, vertex_t> get_number_of_local_adj_matrix_partition_rows() const
+  {
+    return get_number_of_local_adj_matrix_partition_rows(0);
+  }
+
   vertex_t get_local_adj_matrix_partition_row_first(size_t adj_matrix_partition_idx) const
   {
     assert(adj_matrix_partition_idx == 0);
@@ -608,6 +662,24 @@ class graph_view_t<vertex_t,
   {
     assert(adj_matrix_partition_idx == 0);
     return vertex_t{0};
+  }
+
+  template <bool transposed = is_adj_matrix_transposed>
+  std::enable_if_t<!transposed, vertex_t> get_local_adj_matrix_partition_col_first() const
+  {
+    return get_local_adj_matrix_partition_col_first(0);
+  }
+
+  template <bool transposed = is_adj_matrix_transposed>
+  std::enable_if_t<!transposed, vertex_t> get_local_adj_matrix_partition_col_last() const
+  {
+    return get_local_adj_matrix_partition_col_last(0);
+  }
+
+  template <bool transposed = is_adj_matrix_transposed>
+  std::enable_if_t<!transposed, vertex_t> get_number_of_local_adj_matrix_partition_cols() const
+  {
+    return get_number_of_local_adj_matrix_partition_cols(0);
   }
 
   vertex_t get_local_adj_matrix_partition_col_first(size_t adj_matrix_partition_idx) const

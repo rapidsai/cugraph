@@ -440,6 +440,7 @@ add_library(cugraph SHARED
     src/experimental/katz_centrality.cu
     src/serialization/serializer.cu
     src/tree/mst.cu
+    src/structure/create_graph_from_edgelist.cu
     src/utilities/host_barrier.cpp
 )
 

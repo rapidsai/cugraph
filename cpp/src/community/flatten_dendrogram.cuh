@@ -51,7 +51,8 @@ void partition_at_level(raft::handle_t const &handle,
                                                        dendrogram.get_level_ptr_nocheck(l)),
         dendrogram.get_level_size_nocheck(l),
         d_partition,
-        local_num_verts);
+        local_num_verts,
+        false);
     });
 }
 
