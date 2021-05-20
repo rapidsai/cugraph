@@ -150,17 +150,8 @@ TEST(SerializationTest, GraphDecoupledSerUnser)
 
     EXPECT_EQ(total_ser_sz, post_ser_sz);
 
-    // device-to-device copy via host buffer orchestration,
-    // to avoid *.cu extension
-    // (without which thrust::copy(...) doesn't link):
-    //
-    std::vector<serializer_t::byte_t> v_temp_buff(total_ser_sz);
-    raft::update_host(v_temp_buff.data(), ser.get_storage(), total_ser_sz, handle.get_stream());
-
     d_storage_comm.resize(total_ser_sz, handle.get_stream());
-
-    raft::update_device(
-      d_storage_comm.data(), v_temp_buff.data(), total_ser_sz, handle.get_stream());
+    raft::copy(d_storage_comm.data(), ser.get_storage(), total_ser_sz, handle.get_stream());
   }
 
   {
