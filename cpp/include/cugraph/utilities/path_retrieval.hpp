@@ -84,4 +84,19 @@ template <typename index_t>
 std::tuple<rmm::device_uvector<index_t>, rmm::device_uvector<index_t>, rmm::device_uvector<index_t>>
 query_rw_sizes_offsets(raft::handle_t const &handle, index_t num_paths, index_t const *ptr_d_sizes);
 }  // namespace experimental
+
+namespace broadcast {
+/**
+ * @brief broadcasts graph_t object (only the single GPU version).
+ *
+ * @tparam graph_t Type of graph (view).
+ * @param handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator, and
+ * handles to various CUDA libraries) to run graph algorithms.
+ * @param graph_ptr pointer to graph object: not `nullptr` on send, `nullptr` (ignored) on receive.
+ * @return graph_t object that was sent/received
+ */
+template <typename graph_t>
+graph_t graph_broadcast(raft::handle_t const &handle, graph_t *graph_ptr);
+};  // namespace broadcast
+
 }  // namespace cugraph

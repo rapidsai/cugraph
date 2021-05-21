@@ -30,7 +30,7 @@
 
 #include <gtest/gtest.h>
 
-#include <utilities/graph_bcast.cuh>
+#include <cugraph/utilities/path_retrieval.hpp>
 
 ////////////////////////////////////////////////////////////////////////////////
 // Test param object. This defines the input and expected output for a test, and
@@ -94,6 +94,7 @@ class GraphBcast_MG_Testfixture : public ::testing::TestWithParam<GraphBcast_Use
   void run_test(const GraphBcast_Usecase& param)
   {
     using namespace cugraph::broadcast;
+    using sg_graph_t = cugraph::experimental::graph_t<vertex_t, edge_t, weight_t, false, false>;
 
     raft::handle_t handle;
 
@@ -105,7 +106,7 @@ class GraphBcast_MG_Testfixture : public ::testing::TestWithParam<GraphBcast_Use
 
     cudaStream_t stream = handle.get_stream();
 
-    cugraph::experimental::graph_t<vertex_t, edge_t, weight_t, false, false> sg_graph(handle);
+    sg_graph_t sg_graph(handle);
 
     // TODO: do I need this?
     //
@@ -117,8 +118,10 @@ class GraphBcast_MG_Testfixture : public ::testing::TestWithParam<GraphBcast_Use
 
     if (comm_rank == 0) {
       graph_broadcast(handle, &sg_graph);
+      ;
     } else {
-      auto graph_copy = graph_broadcast(handle, nullptr);
+      sg_graph_t* g_ignore{nullptr};
+      auto graph_copy = graph_broadcast(handle, g_ignore);
       bool same       = compare_graphs(sg_graph, graph_copy);
       ASSERT_TRUE(same);
     }
