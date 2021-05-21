@@ -230,6 +230,12 @@ TEST_P(Tests_WeaklyConnectedComponents_File, CheckInt32Int32)
   run_current_test<int32_t, int32_t>(std::get<0>(param), std::get<1>(param));
 }
 
+TEST_P(Tests_WeaklyConnectedComponents_Rmat, CheckInt32Int32)
+{
+  auto param = GetParam();
+  run_current_test<int32_t, int32_t>(std::get<0>(param), std::get<1>(param));
+}
+
 INSTANTIATE_TEST_SUITE_P(
   file_test,
   Tests_WeaklyConnectedComponents_File,
@@ -241,5 +247,21 @@ INSTANTIATE_TEST_SUITE_P(
                     cugraph::test::File_Usecase("test/datasets/polbooks.mtx")),
     std::make_tuple(WeaklyConnectedComponents_Usecase{},
                     cugraph::test::File_Usecase("test/datasets/netscience.mtx"))));
+
+INSTANTIATE_TEST_SUITE_P(
+  rmat_small_test,
+  Tests_WeaklyConnectedComponents_Rmat,
+  ::testing::Values(
+    // enable correctness checks
+    std::make_tuple(WeaklyConnectedComponents_Usecase{},
+                    cugraph::test::Rmat_Usecase(10, 16, 0.57, 0.19, 0.19, 0, true, false))));
+
+INSTANTIATE_TEST_SUITE_P(
+  rmat_large_test,
+  Tests_WeaklyConnectedComponents_Rmat,
+  ::testing::Values(
+    // disable correctness checks
+    std::make_tuple(WeaklyConnectedComponents_Usecase{false},
+                    cugraph::test::Rmat_Usecase(20, 16, 0.57, 0.19, 0.19, 0, true, false))));
 
 CUGRAPH_TEST_PROGRAM_MAIN()
