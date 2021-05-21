@@ -275,7 +275,7 @@ message("set LIBCUDACXX_INCLUDE_DIR to: ${LIBCUDACXX_INCLUDE_DIR}")
 FetchContent_Declare(
     cuhornet
     GIT_REPOSITORY    https://github.com/rapidsai/cuhornet.git
-    GIT_TAG           6d2fc894cc56dd2ca8fc9d1523a18a6ec444b663
+    GIT_TAG           261399356e62bd76fa7628880f1a847aee713eed
     SOURCE_SUBDIR     hornet
 )
 
