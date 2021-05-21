@@ -113,7 +113,7 @@ class GraphBcast_MG_Testfixture : public ::testing::TestWithParam<GraphBcast_Use
 
     std::tie(sg_graph, d_renumber_map_labels) =
       cugraph::test::read_graph_from_matrix_market_file<vertex_t, edge_t, weight_t, false, false>(
-        handle, param.graph_file_full_path, true, true);
+        handle, param.graph_file_full_path, true, /*renumber=*/false);
 
     if (comm_rank == 0) {
       graph_broadcast(handle, &sg_graph);
