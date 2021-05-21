@@ -295,8 +295,9 @@ graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu, std::enable_if_
                   (detail::mid_degree_threshold <= std::numeric_limits<edge_t>::max()));
     rmm::device_uvector<edge_t> d_thresholds(detail::num_segments_per_vertex_partition - 1,
                                              default_stream);
-    std::vector<edge_t> h_thresholds = {static_cast<edge_t>(detail::mid_degree_threshold),
-                                        static_cast<edge_t>(detail::low_degree_threshold)};
+    std::vector<edge_t> h_thresholds = {
+      static_cast<edge_t>(detail::mid_degree_threshold * col_comm_size),
+      static_cast<edge_t>(detail::low_degree_threshold * col_comm_size)};
     raft::update_device(
       d_thresholds.data(), h_thresholds.data(), h_thresholds.size(), default_stream);
 
