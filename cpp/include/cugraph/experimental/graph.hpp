@@ -211,6 +211,10 @@ struct invalid_edge_id : invalid_idx<edge_t> {
 };
 
 template <typename vertex_t>
+struct invalid_component_id : invalid_idx<vertex_t> {
+};
+
+template <typename vertex_t>
 __host__ __device__ std::enable_if_t<std::is_signed<vertex_t>::value, bool> is_valid_vertex(
   vertex_t num_vertices, vertex_t v)
 {
