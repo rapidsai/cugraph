@@ -39,18 +39,11 @@
 //
 struct GraphBcast_Usecase {
   std::string graph_file_full_path{};
-  bool weighted{false};
-  size_t max_level;
-  double resolution;
 
   // FIXME:  We really should have a Graph_Testparms_Base class or something
   //         like that which can handle this graph_full_path thing.
   //
-  GraphBcast_Usecase(std::string const& graph_file_path,
-                     bool weighted,
-                     size_t max_level,
-                     double resolution)
-    : weighted(weighted), max_level(max_level), resolution(resolution)
+  explicit GraphBcast_Usecase(std::string const& graph_file_path)
   {
     if ((graph_file_path.length() > 0) && (graph_file_path[0] != '/')) {
       graph_file_full_path = cugraph::test::get_rapids_dataset_root_dir() + "/" + graph_file_path;
@@ -134,11 +127,10 @@ TEST_P(GraphBcast_MG_Testfixture, CheckInt32Int32Float)
   run_test<int32_t, int32_t, float>(GetParam());
 }
 
-INSTANTIATE_TEST_SUITE_P(
-  simple_test,
-  GraphBcast_MG_Testfixture,
-  ::testing::Values(GraphBcast_Usecase("test/datasets/karate.mtx", true, 100, 1)
-                    //,GraphBcast_Usecase("test/datasets/smallworld.mtx", true, 100, 1)
-                    ));
+INSTANTIATE_TEST_SUITE_P(simple_test,
+                         GraphBcast_MG_Testfixture,
+                         ::testing::Values(GraphBcast_Usecase("test/datasets/karate.mtx")
+                                           //,GraphBcast_Usecase("test/datasets/smallworld.mtx")
+                                           ));
 
 CUGRAPH_MG_TEST_PROGRAM_MAIN()
