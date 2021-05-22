@@ -151,8 +151,11 @@ class serializer_t {
       size_t num_vertices = graph_meta.num_vertices_;
       size_t num_edges    = graph_meta.num_edges_;
 
-      size_t device_ser_sz = (num_vertices + 1) * sizeof(edge_t) + num_edges * sizeof(vertex_t) +
-                             num_edges * sizeof(weight_t);
+      size_t weight_storage_sz =
+        graph_meta.properties_.is_weighted ? num_edges * sizeof(weight_t) : 0;
+
+      size_t device_ser_sz =
+        (num_vertices + 1) * sizeof(edge_t) + num_edges * sizeof(vertex_t) + weight_storage_sz;
 
       size_t host_ser_sz = graph_meta.get_device_sz_bytes();
 

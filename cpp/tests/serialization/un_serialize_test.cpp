@@ -185,3 +185,91 @@ TEST(SerializationTest, GraphDecoupledSerUnser)
               graph_copy_view.get_local_adj_matrix_partition_segment_offsets(0));
   }
 }
+
+TEST(SerializationTest, UnweightedGraphDecoupledSerUnser)
+{
+  using namespace cugraph::serializer;
+
+  using vertex_t = int32_t;
+  using edge_t   = vertex_t;
+  using weight_t = double;
+  using index_t  = vertex_t;
+
+  raft::handle_t handle{};
+
+  edge_t num_edges      = 8;
+  vertex_t num_vertices = 6;
+
+  std::vector<vertex_t> v_src{0, 1, 1, 2, 2, 2, 3, 4};
+  std::vector<vertex_t> v_dst{1, 3, 4, 0, 1, 3, 5, 5};
+  std::vector<weight_t> v_w{};
+
+  auto graph = cugraph::test::make_graph(
+    handle, v_src, v_dst, v_w, num_vertices, num_edges, /*weighted=*/false);
+
+  auto graph_view = graph.view();
+
+  edge_t const* offsets   = graph_view.offsets();
+  vertex_t const* indices = graph_view.indices();
+  weight_t const* values  = graph_view.weights();
+
+  ASSERT_TRUE(values == nullptr);
+
+  std::vector<edge_t> v_ro(num_vertices + 1);
+  std::vector<vertex_t> v_ci(num_edges);
+
+  raft::update_host(v_ro.data(), offsets, num_vertices + 1, handle.get_stream());
+  raft::update_host(v_ci.data(), indices, num_edges, handle.get_stream());
+
+  auto pair_sz      = serializer_t::get_device_graph_sz_bytes(graph);
+  auto total_ser_sz = pair_sz.first + pair_sz.second;
+
+  // use the following buffer to simulate communication between
+  // sender and reciever of the serialization:
+  //
+  rmm::device_uvector<serializer_t::byte_t> d_storage_comm(0, handle.get_stream());
+
+  {
+    serializer_t ser(handle, total_ser_sz);
+    serializer_t::graph_meta_t<decltype(graph)> graph_meta{};
+    ser.serialize(graph, graph_meta);
+
+    pair_sz          = serializer_t::get_device_graph_sz_bytes(graph_meta);
+    auto post_ser_sz = pair_sz.first + pair_sz.second;
+
+    EXPECT_EQ(total_ser_sz, post_ser_sz);
+
+    d_storage_comm.resize(total_ser_sz, handle.get_stream());
+    raft::copy(d_storage_comm.data(), ser.get_storage(), total_ser_sz, handle.get_stream());
+  }
+
+  {
+    serializer_t ser(handle, d_storage_comm.data());
+
+    auto graph_copy = ser.unserialize<decltype(graph)>(pair_sz.first, pair_sz.second);
+
+    auto graph_copy_view   = graph_copy.view();
+    auto num_vertices_copy = graph_copy_view.get_number_of_vertices();
+    auto num_edges_copy    = graph_copy_view.get_number_of_edges();
+
+    EXPECT_EQ(num_vertices, num_vertices_copy);
+    EXPECT_EQ(num_edges, num_edges_copy);
+    EXPECT_EQ(graph.is_symmetric(), graph_copy.is_symmetric());
+    EXPECT_EQ(graph.is_multigraph(), graph_copy.is_multigraph());
+    EXPECT_EQ(graph.is_weighted(), graph_copy.is_weighted());
+
+    std::vector<edge_t> v_ro_copy(num_vertices + 1);
+    std::vector<vertex_t> v_ci_copy(num_edges);
+
+    ASSERT_TRUE(graph_copy_view.weights() == nullptr);
+
+    raft::update_host(
+      v_ro_copy.data(), graph_copy_view.offsets(), num_vertices + 1, handle.get_stream());
+    raft::update_host(v_ci_copy.data(), graph_copy_view.indices(), num_edges, handle.get_stream());
+
+    EXPECT_EQ(v_ro, v_ro_copy);
+    EXPECT_EQ(v_ci, v_ci_copy);
+    EXPECT_EQ(graph_view.get_local_adj_matrix_partition_segment_offsets(0),
+              graph_copy_view.get_local_adj_matrix_partition_segment_offsets(0));
+  }
+}
