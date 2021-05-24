@@ -498,6 +498,13 @@ std::unique_ptr<cy_multi_edgelists_t> call_egonet(raft::handle_t const& handle,
                                                   vertex_t n_subgraphs,
                                                   vertex_t radius);
 
+
+// Wrapper for calling WCC through a graph container
+template <typename vertex_t, typename weight_t>
+void call_wcc(raft::handle_t const& handle,
+              graph_container_t const& graph_container,
+              vertex_t* components);
+
 // Wrapper for calling graph generator
 template <typename vertex_t>
 std::unique_ptr<graph_generator_t> call_generate_rmat_edgelist(raft::handle_t const& handle,
