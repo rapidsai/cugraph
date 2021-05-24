@@ -211,6 +211,7 @@ void populate_graph_container(graph_container_t& graph_container,
                               size_t num_global_edges,
                               bool sorted_by_degree,
                               bool is_weighted,
+                              bool is_symmetric,
                               bool transposed,
                               bool multi_gpu)
 {
@@ -248,7 +249,7 @@ void populate_graph_container(graph_container_t& graph_container,
   graph_container.do_expensive_check       = do_expensive_check;
 
   experimental::graph_properties_t graph_props{
-    .is_symmetric = false, .is_multigraph = false, .is_weighted = is_weighted};
+    .is_symmetric = is_symmetric, .is_multigraph = false, .is_weighted = is_weighted};
   graph_container.graph_props = graph_props;
 
   graph_container.graph_type = graphTypeEnum::graph_t;
@@ -992,34 +993,26 @@ void call_wcc(raft::handle_t const& handle,
     if (graph_container.edgeType == numberTypeEnum::int32Type) {
       auto graph =
         detail::create_graph<int32_t, int32_t, weight_t, false, true>(handle, graph_container);
-      cugraph::experimental::weakly_connected_components(handle,
-                                                         graph->view(),
-                                                         reinterpret_cast<int32_t*>(components),
-                                                         false);
+      cugraph::experimental::weakly_connected_components(
+        handle, graph->view(), reinterpret_cast<int32_t*>(components), false);
 
     } else if (graph_container.edgeType == numberTypeEnum::int64Type) {
       auto graph =
         detail::create_graph<vertex_t, int64_t, weight_t, false, true>(handle, graph_container);
-      cugraph::experimental::weakly_connected_components(handle,
-                                                         graph->view(),
-                                                         reinterpret_cast<vertex_t*>(components),
-                                                         false);
+      cugraph::experimental::weakly_connected_components(
+        handle, graph->view(), reinterpret_cast<vertex_t*>(components), false);
     }
   } else {
     if (graph_container.edgeType == numberTypeEnum::int32Type) {
       auto graph =
         detail::create_graph<int32_t, int32_t, weight_t, false, false>(handle, graph_container);
-      cugraph::experimental::weakly_connected_components(handle,
-                                                         graph->view(),
-                                                         reinterpret_cast<int32_t*>(components),
-                                                         false);
+      cugraph::experimental::weakly_connected_components(
+        handle, graph->view(), reinterpret_cast<int32_t*>(components), false);
     } else if (graph_container.edgeType == numberTypeEnum::int64Type) {
       auto graph =
         detail::create_graph<vertex_t, int64_t, weight_t, false, false>(handle, graph_container);
-      cugraph::experimental::weakly_connected_components(handle,
-                                                         graph->view(),
-                                                         reinterpret_cast<vertex_t*>(components),
-                                                         false);
+      cugraph::experimental::weakly_connected_components(
+        handle, graph->view(), reinterpret_cast<vertex_t*>(components), false);
     }
   }
 }

@@ -58,6 +58,9 @@ def random_walks(input_graph, start_vertices, max_depth):
     else:
         weight_t = np.dtype("float32")
         is_weighted = False
+
+    is_symmetric = not input_graph.is_directed()
+
     # Pointers for random_walks
     start_vertices = start_vertices.astype('int32')
     cdef uintptr_t c_start_vertex_ptr = start_vertices.__cuda_array_interface__['data'][0]
@@ -78,6 +81,7 @@ def random_walks(input_graph, start_vertices, max_depth):
                              num_edges,
                              False,
                              is_weighted,
+                             is_symmetric,
                              False, False)
     if(vertex_t == np.dtype("int32")):
         if(edge_t == np.dtype("int32")):

@@ -77,6 +77,7 @@ def weakly_connected_components(input_graph):
                              num_verts, num_edges,
                              False,
                              False,
+                             True,
                              False,
                              False)
 

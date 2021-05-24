@@ -77,6 +77,7 @@ def mg_wcc(input_df,
                              num_global_verts, num_global_edges,
                              True,
                              is_weighted,
+                             True,
                              False,
                              True) 
 

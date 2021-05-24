@@ -35,7 +35,6 @@ def call_wcc(sID,
 
 
 def weakly_connected_components(input_graph):
-    from cugraph.structure.graph_classes import null_check
 
     client = default_client()
 
@@ -54,7 +53,7 @@ def weakly_connected_components(input_graph):
                             num_edges,
                             vertex_partition_offsets,
                             workers=[wf[0]])
-                  for idx, wf in enumerate(data.worker_to_parts.items())]
+              for idx, wf in enumerate(data.worker_to_parts.items())]
     wait(result)
     ddf = dask_cudf.from_delayed(result)
     if input_graph.renumbered:
