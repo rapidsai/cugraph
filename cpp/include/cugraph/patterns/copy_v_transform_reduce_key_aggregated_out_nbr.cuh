@@ -28,6 +28,8 @@
 #include <cugraph/vertex_partition_device.cuh>
 
 #include <raft/handle.hpp>
+#include <rmm/mr/device/per_device_resource.hpp>
+#include <rmm/mr/device/polymorphic_allocator.hpp>
 
 #include <cugraph/experimental/include_cuco_static_map.cuh>
 
@@ -209,8 +211,14 @@ void copy_v_transform_reduce_key_aggregated_out_nbr(
 
   // 1. build a cuco::static_map object for the k, v pairs.
 
-  auto kv_map_ptr = std::make_unique<cuco::static_map<vertex_t, value_t>>(
-    size_t{0}, invalid_vertex_id<vertex_t>::value, invalid_vertex_id<vertex_t>::value);
+  auto poly_alloc = rmm::mr::polymorphic_allocator<char>(rmm::mr::get_current_device_resource());
+  auto stream_adapter = rmm::mr::make_stream_allocator_adaptor(poly_alloc, cudaStream_t{nullptr});
+  auto kv_map_ptr     = std::make_unique<
+    cuco::static_map<vertex_t, value_t, cuda::thread_scope_device, decltype(stream_adapter)>>(
+    size_t{0},
+    invalid_vertex_id<vertex_t>::value,
+    invalid_vertex_id<vertex_t>::value,
+    stream_adapter);
   if (GraphViewType::is_multi_gpu) {
     auto& comm               = handle.get_comms();
     auto& row_comm           = handle.get_subcomm(cugraph::partition_2d::key_naming_t().row_name());
@@ -268,12 +276,14 @@ void copy_v_transform_reduce_key_aggregated_out_nbr(
 
     kv_map_ptr.reset();
 
-    kv_map_ptr = std::make_unique<cuco::static_map<vertex_t, value_t>>(
+    kv_map_ptr = std::make_unique<
+      cuco::static_map<vertex_t, value_t, cuda::thread_scope_device, decltype(stream_adapter)>>(
       // cuco::static_map requires at least one empty slot
       std::max(static_cast<size_t>(static_cast<double>(map_keys.size()) / load_factor),
                static_cast<size_t>(thrust::distance(map_key_first, map_key_last)) + 1),
       invalid_vertex_id<vertex_t>::value,
-      invalid_vertex_id<vertex_t>::value);
+      invalid_vertex_id<vertex_t>::value,
+      stream_adapter);
 
     auto pair_first = thrust::make_transform_iterator(
       thrust::make_zip_iterator(thrust::make_tuple(
@@ -287,13 +297,15 @@ void copy_v_transform_reduce_key_aggregated_out_nbr(
 
     kv_map_ptr.reset();
 
-    kv_map_ptr = std::make_unique<cuco::static_map<vertex_t, value_t>>(
+    kv_map_ptr = std::make_unique<
+      cuco::static_map<vertex_t, value_t, cuda::thread_scope_device, decltype(stream_adapter)>>(
       // cuco::static_map requires at least one empty slot
       std::max(static_cast<size_t>(
                  static_cast<double>(thrust::distance(map_key_first, map_key_last)) / load_factor),
                static_cast<size_t>(thrust::distance(map_key_first, map_key_last)) + 1),
       invalid_vertex_id<vertex_t>::value,
-      invalid_vertex_id<vertex_t>::value);
+      invalid_vertex_id<vertex_t>::value,
+      stream_adapter);
 
     auto pair_first = thrust::make_transform_iterator(
       thrust::make_zip_iterator(thrust::make_tuple(map_key_first, map_value_first)),
