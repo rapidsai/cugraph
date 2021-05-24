@@ -1066,6 +1066,8 @@ namespace experimental {
  * @tparam vertex_t Type of vertex identifiers. Needs to be an integral type.
  * @tparam edge_t Type of edge identifiers. Needs to be an integral type.
  * @tparam weight_t Type of edge weights. Needs to be a floating point type.
+ * @tparam multi_gpu Flag indicating whether template instantiation should target single-GPU (false)
+ * or multi-GPU (true).
  * @param handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator, and
  * handles to various CUDA libraries) to run graph algorithms.
  * @param graph_view Graph view object.
@@ -1104,6 +1106,8 @@ void bfs(raft::handle_t const &handle,
  * @tparam vertex_t Type of vertex identifiers. Needs to be an integral type.
  * @tparam edge_t Type of edge identifiers. Needs to be an integral type.
  * @tparam weight_t Type of edge weights. Needs to be a floating point type.
+ * @tparam multi_gpu Flag indicating whether template instantiation should target single-GPU (false)
+ * or multi-GPU (true).
  * @param handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator, and
  * handles to various CUDA libraries) to run graph algorithms.
  * @param graph_view Graph view object.
@@ -1136,6 +1140,8 @@ void sssp(raft::handle_t const &handle,
  * @tparam edge_t Type of edge identifiers. Needs to be an integral type.
  * @tparam weight_t Type of edge weights. Needs to be a floating point type.
  * @tparam result_t Type of PageRank scores.
+ * @tparam multi_gpu Flag indicating whether template instantiation should target single-GPU (false)
+ * or multi-GPU (true).
  * @param handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator, and
  * handles to various CUDA libraries) to run graph algorithms.
  * @param graph_view Graph view object.
@@ -1188,6 +1194,8 @@ void pagerank(raft::handle_t const &handle,
  * @tparam edge_t Type of edge identifiers. Needs to be an integral type.
  * @tparam weight_t Type of edge weights. Needs to be a floating point type.
  * @tparam result_t Type of Katz Centrality scores.
+ * @tparam multi_gpu Flag indicating whether template instantiation should target single-GPU (false)
+ * or multi-GPU (true).
  * @param handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator, and
  * handles to various CUDA libraries) to run graph algorithms.
  * @param graph_view Graph view object.
@@ -1289,6 +1297,29 @@ random_walks(raft::handle_t const &handle,
              index_t num_paths,
              index_t max_depth,
              bool use_padding = false);
+
+/**
+ * @brief Finds (weakly-connected-)component IDs of each vertices in the input graph.
+ *
+ * The input graph must be symmetric. Component IDs can be arbitrary integers (they can be
+ * non-consecutive and are not ordered by component size or any other criterion).
+ *
+ * @tparam vertex_t Type of vertex identifiers. Needs to be an integral type.
+ * @tparam edge_t Type of edge identifiers. Needs to be an integral type.
+ * @tparam weight_t Type of edge weights. Needs to be a floating point type.
+ * @tparam multi_gpu Flag indicating whether template instantiation should target single-GPU (false)
+ * or multi-GPU (true).
+ * @param handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator, and
+ * @param graph_view Graph view object.
+ * @param components Pointer to the output component ID array.
+ * @param do_expensive_check A flag to run expensive checks for input arguments (if set to `true`).
+ */
+template <typename vertex_t, typename edge_t, typename weight_t, bool multi_gpu>
+void weakly_connected_components(
+  raft::handle_t const &handle,
+  graph_view_t<vertex_t, edge_t, weight_t, false, multi_gpu> const &graph_view,
+  vertex_t *components,
+  bool do_expensive_check = false);
 
 }  // namespace experimental
 }  // namespace cugraph

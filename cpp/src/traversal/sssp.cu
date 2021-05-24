@@ -47,7 +47,7 @@ void SSSP<IndexType, DistType>::setup()
 
   // Allocate buffer for data that need to be reset every iteration
   iter_buffer_size = sizeof(int) * (edges_bmap_size + vertices_bmap_size) + sizeof(IndexType);
-  iter_buffer.resize(iter_buffer_size);
+  iter_buffer.resize(iter_buffer_size, stream);
   // ith bit of relaxed_edges_bmap <=> ith edge was relaxed
   relaxed_edges_bmap = static_cast<int *>(iter_buffer.data());
   // ith bit of next_frontier_bmap <=> vertex is active in the next frontier
