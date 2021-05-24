@@ -69,16 +69,6 @@ class GraphBcast_MG_Testfixture : public ::testing::TestWithParam<GraphBcast_Use
   virtual void SetUp() {}
   virtual void TearDown() {}
 
-  // Compare 2 SG graphs:
-  //
-  template <typename graph_t>
-  bool compare_graphs(graph_t const& graph1, graph_t const& graph2)
-  {
-    // TODO:
-    //
-    return true;  // for now...<- FIXME
-  }
-
   // Compare the results of broadcasting a graph,
   // by comparing the graph that was sent (`sg_graph`)
   // with th eone that was received (`graph-copy`):
@@ -114,8 +104,8 @@ class GraphBcast_MG_Testfixture : public ::testing::TestWithParam<GraphBcast_Use
       ;
     } else {
       sg_graph_t* g_ignore{nullptr};
-      auto graph_copy = graph_broadcast(handle, g_ignore);
-      bool same       = compare_graphs(sg_graph, graph_copy);
+      auto graph_copy       = graph_broadcast(handle, g_ignore);
+      auto [same, str_fail] = cugraph::test::compare_graphs(handle, sg_graph, graph_copy);
       ASSERT_TRUE(same);
     }
   }
