@@ -91,8 +91,6 @@ class GraphBcast_MG_Testfixture : public ::testing::TestWithParam<GraphBcast_Use
 
     sg_graph_t sg_graph(handle);
 
-    // TODO: do I need this?
-    //
     rmm::device_uvector<vertex_t> d_renumber_map_labels(0, stream);
 
     std::tie(sg_graph, d_renumber_map_labels) =
@@ -106,6 +104,9 @@ class GraphBcast_MG_Testfixture : public ::testing::TestWithParam<GraphBcast_Use
       sg_graph_t* g_ignore{nullptr};
       auto graph_copy       = graph_broadcast(handle, g_ignore);
       auto [same, str_fail] = cugraph::test::compare_graphs(handle, sg_graph, graph_copy);
+
+      if (!same) std::cerr << "Graph comparison failed on " << str_fail << '\n';
+
       ASSERT_TRUE(same);
     }
   }
