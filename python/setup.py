@@ -65,8 +65,9 @@ libcugraph_path = get_environment_option('CUGRAPH_BUILD_PATH')
 raft_path = get_environment_option('RAFT_PATH')
 
 # FIXME: This could clone RAFT, even if it's not needed (eg. running --clean).
-raft_include_dir = use_raft_package(raft_path, libcugraph_path,
-                                    git_info_file='../cpp/CMakeLists.txt')
+# deprecated: This functionality will go away after
+# https://github.com/rapidsai/raft/issues/83
+raft_include_dir = use_raft_package(raft_path, libcugraph_path)
 
 
 class CleanCommand(Command):
