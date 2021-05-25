@@ -28,6 +28,8 @@
 #include <rmm/thrust_rmm_allocator.h>
 #include <raft/handle.hpp>
 #include <rmm/device_uvector.hpp>
+#include <rmm/mr/device/per_device_resource.hpp>
+#include <rmm/mr/device/polymorphic_allocator.hpp>
 
 #include <thrust/binary_search.h>
 #include <thrust/copy.h>
@@ -647,13 +649,17 @@ renumber_edgelist(raft::handle_t const& handle,
     CUDA_TRY(cudaStreamSynchronize(
       handle.get_stream()));  // cuco::static_map currently does not take stream
 
-    cuco::static_map<vertex_t, vertex_t> renumber_map{
-      // cuco::static_map requires at least one empty slot
-      std::max(static_cast<size_t>(
-                 static_cast<double>(partition.get_matrix_partition_major_size(i)) / load_factor),
-               static_cast<size_t>(partition.get_matrix_partition_major_size(i)) + 1),
-      invalid_vertex_id<vertex_t>::value,
-      invalid_vertex_id<vertex_t>::value};
+    auto poly_alloc = rmm::mr::polymorphic_allocator<char>(rmm::mr::get_current_device_resource());
+    auto stream_adapter = rmm::mr::make_stream_allocator_adaptor(poly_alloc, cudaStream_t{nullptr});
+    cuco::static_map<vertex_t, vertex_t, cuda::thread_scope_device, decltype(stream_adapter)>
+      renumber_map{
+        // cuco::static_map requires at least one empty slot
+        std::max(static_cast<size_t>(
+                   static_cast<double>(partition.get_matrix_partition_major_size(i)) / load_factor),
+                 static_cast<size_t>(partition.get_matrix_partition_major_size(i)) + 1),
+        invalid_vertex_id<vertex_t>::value,
+        invalid_vertex_id<vertex_t>::value,
+        stream_adapter};
     auto pair_first = thrust::make_transform_iterator(
       thrust::make_zip_iterator(thrust::make_tuple(
         col_comm_rank == static_cast<int>(i) ? renumber_map_labels.begin()
@@ -697,13 +703,16 @@ renumber_edgelist(raft::handle_t const& handle,
     CUDA_TRY(cudaStreamSynchronize(
       handle.get_stream()));  // cuco::static_map currently does not take stream
 
-    cuco::static_map<vertex_t, vertex_t> renumber_map{
-      // cuco::static_map requires at least one empty slot
-      std::max(
-        static_cast<size_t>(static_cast<double>(renumber_map_minor_labels.size()) / load_factor),
-        renumber_map_minor_labels.size() + 1),
-      invalid_vertex_id<vertex_t>::value,
-      invalid_vertex_id<vertex_t>::value};
+    auto poly_alloc = rmm::mr::polymorphic_allocator<char>(rmm::mr::get_current_device_resource());
+    auto stream_adapter = rmm::mr::make_stream_allocator_adaptor(poly_alloc, cudaStream_t{nullptr});
+    cuco::static_map<vertex_t, vertex_t, cuda::thread_scope_device, decltype(stream_adapter)>
+      renumber_map{// cuco::static_map requires at least one empty slot
+                   std::max(static_cast<size_t>(
+                              static_cast<double>(renumber_map_minor_labels.size()) / load_factor),
+                            renumber_map_minor_labels.size() + 1),
+                   invalid_vertex_id<vertex_t>::value,
+                   invalid_vertex_id<vertex_t>::value,
+                   stream_adapter};
     auto pair_first = thrust::make_transform_iterator(
       thrust::make_zip_iterator(thrust::make_tuple(
         renumber_map_minor_labels.begin(),
@@ -775,12 +784,16 @@ std::enable_if_t<!multi_gpu, rmm::device_uvector<vertex_t>> renumber_edgelist(
   // FIXME: compare this hash based approach with a binary search based approach in both memory
   // footprint and execution time
 
-  cuco::static_map<vertex_t, vertex_t> renumber_map{
-    // cuco::static_map requires at least one empty slot
-    std::max(static_cast<size_t>(static_cast<double>(renumber_map_labels.size()) / load_factor),
-             renumber_map_labels.size() + 1),
-    invalid_vertex_id<vertex_t>::value,
-    invalid_vertex_id<vertex_t>::value};
+  auto poly_alloc = rmm::mr::polymorphic_allocator<char>(rmm::mr::get_current_device_resource());
+  auto stream_adapter = rmm::mr::make_stream_allocator_adaptor(poly_alloc, cudaStream_t{nullptr});
+  cuco::static_map<vertex_t, vertex_t, cuda::thread_scope_device, decltype(stream_adapter)>
+    renumber_map{
+      // cuco::static_map requires at least one empty slot
+      std::max(static_cast<size_t>(static_cast<double>(renumber_map_labels.size()) / load_factor),
+               renumber_map_labels.size() + 1),
+      invalid_vertex_id<vertex_t>::value,
+      invalid_vertex_id<vertex_t>::value,
+      stream_adapter};
   auto pair_first = thrust::make_transform_iterator(
     thrust::make_zip_iterator(
       thrust::make_tuple(renumber_map_labels.begin(), thrust::make_counting_iterator(vertex_t{0}))),

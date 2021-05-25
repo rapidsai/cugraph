@@ -25,6 +25,7 @@ cdef extern from "cugraph/internals.hpp" namespace "cugraph::internals":
 cdef extern from "cugraph/algorithms.hpp" namespace "cugraph":
 
     cdef void force_atlas2[vertex_t, edge_t, weight_t](
+        const handle_t &handle,
         GraphCOOView[vertex_t, edge_t, weight_t] &graph,
         float *pos,
         const int max_iter,
