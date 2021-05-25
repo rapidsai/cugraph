@@ -27,6 +27,8 @@
 #include <rmm/thrust_rmm_allocator.h>
 #include <raft/handle.hpp>
 #include <rmm/device_uvector.hpp>
+#include <rmm/mr/device/per_device_resource.hpp>
+#include <rmm/mr/device/polymorphic_allocator.hpp>
 
 #include <thrust/copy.h>
 #include <thrust/iterator/discard_iterator.h>
@@ -121,13 +123,18 @@ void relabel(raft::handle_t const& handle,
       CUDA_TRY(cudaStreamSynchronize(
         handle.get_stream()));  // cuco::static_map currently does not take stream
 
-      cuco::static_map<vertex_t, vertex_t> relabel_map{
-        // cuco::static_map requires at least one empty slot
-        std::max(
-          static_cast<size_t>(static_cast<double>(rx_label_pair_old_labels.size()) / load_factor),
-          rx_label_pair_old_labels.size() + 1),
-        invalid_vertex_id<vertex_t>::value,
-        invalid_vertex_id<vertex_t>::value};
+      auto poly_alloc =
+        rmm::mr::polymorphic_allocator<char>(rmm::mr::get_current_device_resource());
+      auto stream_adapter =
+        rmm::mr::make_stream_allocator_adaptor(poly_alloc, cudaStream_t{nullptr});
+      cuco::static_map<vertex_t, vertex_t, cuda::thread_scope_device, decltype(stream_adapter)>
+        relabel_map{// cuco::static_map requires at least one empty slot
+                    std::max(static_cast<size_t>(
+                               static_cast<double>(rx_label_pair_old_labels.size()) / load_factor),
+                             rx_label_pair_old_labels.size() + 1),
+                    invalid_vertex_id<vertex_t>::value,
+                    invalid_vertex_id<vertex_t>::value,
+                    stream_adapter};
 
       auto pair_first = thrust::make_transform_iterator(
         thrust::make_zip_iterator(
@@ -183,22 +190,30 @@ void relabel(raft::handle_t const& handle,
 
     handle.get_stream_view().synchronize();  // cuco::static_map currently does not take stream
 
-    cuco::static_map<vertex_t, vertex_t> relabel_map(
-      // cuco::static_map requires at least one empty slot
-      std::max(static_cast<size_t>(static_cast<double>(unique_old_labels.size()) / load_factor),
-               unique_old_labels.size() + 1),
-      invalid_vertex_id<vertex_t>::value,
-      invalid_vertex_id<vertex_t>::value);
+    {
+      auto poly_alloc =
+        rmm::mr::polymorphic_allocator<char>(rmm::mr::get_current_device_resource());
+      auto stream_adapter =
+        rmm::mr::make_stream_allocator_adaptor(poly_alloc, cudaStream_t{nullptr});
+      cuco::static_map<vertex_t, vertex_t, cuda::thread_scope_device, decltype(stream_adapter)>
+        relabel_map{
+          // cuco::static_map requires at least one empty slot
+          std::max(static_cast<size_t>(static_cast<double>(unique_old_labels.size()) / load_factor),
+                   unique_old_labels.size() + 1),
+          invalid_vertex_id<vertex_t>::value,
+          invalid_vertex_id<vertex_t>::value,
+          stream_adapter};
 
-    auto pair_first = thrust::make_transform_iterator(
-      thrust::make_zip_iterator(
-        thrust::make_tuple(unique_old_labels.begin(), new_labels_for_unique_old_labels.begin())),
-      [] __device__(auto val) {
-        return thrust::make_pair(thrust::get<0>(val), thrust::get<1>(val));
-      });
+      auto pair_first = thrust::make_transform_iterator(
+        thrust::make_zip_iterator(
+          thrust::make_tuple(unique_old_labels.begin(), new_labels_for_unique_old_labels.begin())),
+        [] __device__(auto val) {
+          return thrust::make_pair(thrust::get<0>(val), thrust::get<1>(val));
+        });
 
-    relabel_map.insert(pair_first, pair_first + unique_old_labels.size());
-    relabel_map.find(labels, labels + num_labels, labels);
+      relabel_map.insert(pair_first, pair_first + unique_old_labels.size());
+      relabel_map.find(labels, labels + num_labels, labels);
+    }
   } else {
     cuco::static_map<vertex_t, vertex_t> relabel_map(
       // cuco::static_map requires at least one empty slot
