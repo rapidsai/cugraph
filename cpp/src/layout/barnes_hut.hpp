@@ -151,6 +151,8 @@ void barnes_hut(raft::handle_t const &handle,
   swinging   = d_swinging.data();
   traction   = d_traction.data();
 
+  thrust::fill(rmm::exec_policy(stream)->on(stream), d_old_forces.begin(), d_old_forces.end(), 0.f);
+
   // Sort COO for coalesced memory access.
   sort(graph, stream);
   CHECK_CUDA(stream);
