@@ -659,3 +659,6 @@ class NumberMap:
             )
         else:
             return df.rename(columns=mapping, copy=False)
+
+    def vertex_column_size(self):
+        return len(self.implementation.col_names)

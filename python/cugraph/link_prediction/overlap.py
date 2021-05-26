@@ -92,7 +92,7 @@ def overlap(input_graph, vertex_pair=None):
     """
 
     if type(vertex_pair) == cudf.DataFrame:
-        vertex_size = len(input_graph.renumber_map.implementation.col_names)
+        vertex_size = input_graph.vertex_column_size()
         columns = vertex_pair.columns.to_list()
         if vertex_size == 1:
             for col in vertex_pair.columns:

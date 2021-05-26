@@ -471,3 +471,9 @@ class simpleDistributedGraphImpl:
             self.edgelist = self.EdgeList(renumbered_ddf)
             self.renumber_map = number_map
             self.properties.store_transposed = transposed
+
+    def vertex_column_size(self):
+        if self.properties.renumbered:
+            return self.renumber_map.multi_column_size()
+        else:
+            return 1

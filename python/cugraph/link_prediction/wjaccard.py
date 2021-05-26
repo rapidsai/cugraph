@@ -79,7 +79,7 @@ def jaccard_w(input_graph, weights, vertex_pair=None):
         raise Exception("input graph must be undirected")
 
     if type(vertex_pair) == cudf.DataFrame:
-        vertex_size = len(input_graph.renumber_map.implementation.col_names)
+        vertex_size = input_graph.vertex_column_size()
         columns = vertex_pair.columns.to_list()
         if vertex_size == 1:
             for col in vertex_pair.columns:
@@ -102,7 +102,7 @@ def jaccard_w(input_graph, weights, vertex_pair=None):
         raise ValueError("vertex_pair must be a cudf dataframe")
 
     if input_graph.renumbered:
-        vertex_size = len(input_graph.renumber_map.implementation.col_names)
+        vertex_size = input_graph.vertex_column_size
         if vertex_size == 1:
             weights = input_graph.add_internal_vertex_id(
                 weights, 'vertex', 'vertex'

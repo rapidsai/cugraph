@@ -66,6 +66,10 @@ def pagerank(
             Subset of vertices of graph for initial guess for pagerank values
         nstart['values'] : cudf.Series
             Pagerank values for vertices
+    weight: str
+        The attribute column to be used as edge weights if Graph is a NetworkX
+        Graph. This parameter is here for NetworkX compatibility and is ignored
+        in case of a cugraph.Graph
     dangling : dict
         This parameter is here for NetworkX compatibility and ignored
 

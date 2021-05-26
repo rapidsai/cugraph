@@ -109,7 +109,7 @@ def force_atlas2(
 
     if pos_list is not None:
         if input_graph.renumbered is True:
-            if len(input_graph.renumber_map.implementation.col_names) > 1:
+            if input_graph.vertex_column_size() > 1:
                 cols = pos_list.columns[:-2].to_list()
             else:
                 cols = 'vertex'

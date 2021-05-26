@@ -821,3 +821,9 @@ class simpleGraphImpl:
             return self.renumber_map.from_internal_vertex_id(neighbors)["0"]
         else:
             return neighbors
+
+    def vertex_column_size(self):
+        if self.properties.renumbered:
+            return self.renumber_map.multi_column_size()
+        else:
+            return 1
