@@ -16,18 +16,13 @@
 
 #pragma once
 
-#include <experimental/graph.hpp>
+#include <cugraph/experimental/graph.hpp>
 
 #include <raft/handle.hpp>
 #include <rmm/device_uvector.hpp>
 
 namespace cugraph {
 namespace test {
-
-template <typename T>
-rmm::device_uvector<T> gather_distributed_vector(raft::handle_t const &handle,
-                                                 T const *d_input,
-                                                 size_t size);
 
 template <typename vertex_t>
 bool compare_renumbered_vectors(raft::handle_t const &handle,

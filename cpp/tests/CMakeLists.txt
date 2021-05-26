@@ -20,17 +20,41 @@
 # - common test utils -----------------------------------------------------------------------------
 
 add_library(cugraphtestutil STATIC
-            "${CMAKE_CURRENT_SOURCE_DIR}/utilities/matrix_market_file_utilities.cu"
-            "${CMAKE_CURRENT_SOURCE_DIR}/utilities/rmat_utilities.cu"
-            "${CMAKE_CURRENT_SOURCE_DIR}/utilities/generate_graph_from_edgelist.cu"
-            "${CMAKE_CURRENT_SOURCE_DIR}/utilities/thrust_wrapper.cu"
-            "${CMAKE_CURRENT_SOURCE_DIR}/utilities/misc_utilities.cpp"
-            "${CMAKE_CURRENT_SOURCE_DIR}/components/wcc_graphs.cu"
-            "${CMAKE_CURRENT_SOURCE_DIR}/../../thirdparty/mmio/mmio.c")
+            utilities/matrix_market_file_utilities.cu
+            utilities/rmat_utilities.cu
+            utilities/thrust_wrapper.cu
+            utilities/misc_utilities.cpp
+            components/wcc_graphs.cu
+            ../../thirdparty/mmio/mmio.c)
+
+target_compile_options(cugraphtestutil
+            PUBLIC "$<$<COMPILE_LANGUAGE:CXX>:${CUGRAPH_CXX_FLAGS}>"
+                   "$<BUILD_INTERFACE:$<$<COMPILE_LANGUAGE:CUDA>:${CUGRAPH_CUDA_FLAGS}>>"
+)
 
 set_property(TARGET cugraphtestutil PROPERTY POSITION_INDEPENDENT_CODE ON)
 
 target_include_directories(cugraphtestutil
+    PUBLIC
+        "${CMAKE_CURRENT_SOURCE_DIR}/../../thirdparty/mmio"
+        "${CMAKE_CURRENT_SOURCE_DIR}"
+        "${CUGRAPH_SOURCE_DIR}/src"
+)
+
+target_link_libraries(cugraphtestutil
+    PUBLIC
+        cugraph
+        cuco::cuco
+        NCCL::NCCL
+)
+
+
+add_library(cugraphmgtestutil STATIC
+            "${CMAKE_CURRENT_SOURCE_DIR}/utilities/device_comm_wrapper.cu")
+
+set_property(TARGET cugraphmgtestutil PROPERTY POSITION_INDEPENDENT_CODE ON)
+
+target_include_directories(cugraphmgtestutil
     PRIVATE
     "${CUB_INCLUDE_DIR}"
     "${THRUST_INCLUDE_DIR}"
@@ -45,7 +69,7 @@ target_include_directories(cugraphtestutil
     "${RAFT_DIR}/cpp/include"
 )
 
-target_link_libraries(cugraphtestutil cugraph)
+target_link_libraries(cugraphmgtestutil cugraph)
 
 # CUDA_ARCHITECTURES=OFF implies cmake will not pass arch flags to the
 # compiler. CUDA_ARCHITECTURES must be set to a non-empty value to prevent
@@ -55,51 +79,29 @@ target_link_libraries(cugraphtestutil cugraph)
 # Run "cmake --help-policy CMP0104" for policy details.
 # NOTE: the CUDA_ARCHITECTURES=OFF setting may be removed after migrating to
 # the findcudatoolkit features in cmake 3.17+
-set_target_properties(cugraphtestutil PROPERTIES
+set_target_properties(cugraphmgtestutil PROPERTIES
         CUDA_ARCHITECTURES OFF)
 
 ###################################################################################################
 # - compiler function -----------------------------------------------------------------------------
 
-function(ConfigureTest CMAKE_TEST_NAME CMAKE_TEST_SRC)
-    add_executable(${CMAKE_TEST_NAME}
-        ${CMAKE_TEST_SRC})
-
-    target_include_directories(${CMAKE_TEST_NAME}
-        PRIVATE
-        "${CUB_INCLUDE_DIR}"
-        "${THRUST_INCLUDE_DIR}"
-        "${CUCO_INCLUDE_DIR}"
-        "${LIBCUDACXX_INCLUDE_DIR}"
-        "${CMAKE_CUDA_TOOLKIT_INCLUDE_DIRECTORIES}"
-        "${RMM_INCLUDE}"
-        "${NCCL_INCLUDE_DIRS}"
-        "${CMAKE_CURRENT_SOURCE_DIR}/../../thirdparty/mmio"
-        "${CMAKE_CURRENT_SOURCE_DIR}/../include"
-        "${CMAKE_CURRENT_SOURCE_DIR}/../src"
-        "${CMAKE_CURRENT_SOURCE_DIR}"
-        "${RAFT_DIR}/cpp/include"
-    )
-
-    target_link_directories(${CMAKE_TEST_NAME}
-        PRIVATE
-        # CMAKE_CUDA_IMPLICIT_LINK_DIRECTORIES is an undocumented/unsupported
-        # variable containing the link directories for nvcc.
-        "${CMAKE_CUDA_IMPLICIT_LINK_DIRECTORIES}")
+function(ConfigureTest CMAKE_TEST_NAME)
+    add_executable(${CMAKE_TEST_NAME} ${ARGN})
 
     target_link_libraries(${CMAKE_TEST_NAME}
         PRIVATE
-        cugraphtestutil
-        cugraph
-        GTest::GTest
-        GTest::Main
-        ${NCCL_LIBRARIES}
-        cudart
-        cuda
-        cublas
-        cusparse
-        cusolver
-        curand)
+            cugraphtestutil
+            cugraph
+            GTest::gmock
+            GTest::gmock_main
+            GTest::gtest
+            GTest::gtest_main
+            NCCL::NCCL
+            CUDA::cublas
+            CUDA::cusparse
+            CUDA::cusolver
+            CUDA::curand
+    )
 
     if(OpenMP_CXX_FOUND)
         target_link_libraries(${CMAKE_TEST_NAME} PRIVATE
@@ -151,60 +153,29 @@ function(ConfigureTest CMAKE_TEST_NAME CMAKE_TEST_SRC)
 ###       BUILD_RPATH "${TARGET_BUILD_RPATH}")
         ${OpenMP_CXX_LIB_NAMES})
     endif(OpenMP_CXX_FOUND)
-
-    # CUDA_ARCHITECTURES=OFF implies cmake will not pass arch flags to the
-    # compiler. CUDA_ARCHITECTURES must be set to a non-empty value to prevent
-    # cmake warnings about policy CMP0104. With this setting, arch flags must be
-    # manually set! ("evaluate_gpu_archs(GPU_ARCHS)" is the current mechanism
-    # used in cpp/CMakeLists.txt for setting arch options).
-    # Run "cmake --help-policy CMP0104" for policy details.
-    # NOTE: the CUDA_ARCHITECTURES=OFF setting may be removed after migrating to
-    # the findcudatoolkit features in cmake 3.17+
-    set_target_properties(${CMAKE_TEST_NAME} PROPERTIES
-        CUDA_ARCHITECTURES OFF)
 
     add_test(NAME ${CMAKE_TEST_NAME} COMMAND ${CMAKE_TEST_NAME})
 endfunction()
 
-function(ConfigureTestMG CMAKE_TEST_NAME CMAKE_TEST_SRC)
-    add_executable(${CMAKE_TEST_NAME}
-        ${CMAKE_TEST_SRC})
-
-    target_include_directories(${CMAKE_TEST_NAME}
-        PRIVATE
-        "${CUB_INCLUDE_DIR}"
-        "${THRUST_INCLUDE_DIR}"
-        "${CUCO_INCLUDE_DIR}"
-        "${LIBCUDACXX_INCLUDE_DIR}"
-        "${CMAKE_CUDA_TOOLKIT_INCLUDE_DIRECTORIES}"
-        "${RMM_INCLUDE}"
-        "${NCCL_INCLUDE_DIRS}"
-        "${CMAKE_CURRENT_SOURCE_DIR}/../../thirdparty/mmio"
-        "${CMAKE_CURRENT_SOURCE_DIR}/../include"
-        "${CMAKE_CURRENT_SOURCE_DIR}/../src"
-        "${CMAKE_CURRENT_SOURCE_DIR}"
-        "${RAFT_DIR}/cpp/include"
-    )
-
-    target_link_directories(${CMAKE_TEST_NAME}
-        PRIVATE
-        # CMAKE_CUDA_IMPLICIT_LINK_DIRECTORIES is an undocumented/unsupported
-        # variable containing the link directories for nvcc.
-        "${CMAKE_CUDA_IMPLICIT_LINK_DIRECTORIES}")
+function(ConfigureTestMG CMAKE_TEST_NAME)
+    add_executable(${CMAKE_TEST_NAME} ${ARGN})
 
     target_link_libraries(${CMAKE_TEST_NAME}
         PRIVATE
+        cugraphmgtestutil
         cugraphtestutil
         cugraph
-        GTest::GTest
-        GTest::Main
-        ${NCCL_LIBRARIES}
-        cudart
-        cuda
-        cublas
-        cusparse
-        cusolver
-        curand)
+        GTest::gmock
+        GTest::gmock_main
+        GTest::gtest
+        GTest::gtest_main
+        NCCL::NCCL
+        CUDA::cublas
+        CUDA::cusparse
+        CUDA::cusolver
+        CUDA::curand
+        MPI::MPI_CXX
+    )
 
     if(OpenMP_CXX_FOUND)
         target_link_libraries(${CMAKE_TEST_NAME} PRIVATE
@@ -256,17 +227,6 @@ function(ConfigureTestMG CMAKE_TEST_NAME CMAKE_TEST_SRC)
 ###       BUILD_RPATH "${TARGET_BUILD_RPATH}")
         ${OpenMP_CXX_LIB_NAMES})
     endif(OpenMP_CXX_FOUND)
-
-    # CUDA_ARCHITECTURES=OFF implies cmake will not pass arch flags to the
-    # compiler. CUDA_ARCHITECTURES must be set to a non-empty value to prevent
-    # cmake warnings about policy CMP0104. With this setting, arch flags must be
-    # manually set! ("evaluate_gpu_archs(GPU_ARCHS)" is the current mechanism
-    # used in cpp/CMakeLists.txt for setting arch options).
-    # Run "cmake --help-policy CMP0104" for policy details.
-    # NOTE: the CUDA_ARCHITECTURES=OFF setting may be removed after migrating to
-    # the findcudatoolkit features in cmake 3.17+
-    set_target_properties(${CMAKE_TEST_NAME} PROPERTIES
-        CUDA_ARCHITECTURES OFF)
 
     add_test(NAME ${CMAKE_TEST_NAME}
              COMMAND ${MPIEXEC_EXECUTABLE}
@@ -293,277 +253,156 @@ endif(RAPIDS_DATASET_ROOT_DIR)
 
 ###################################################################################################
 # - katz centrality tests -------------------------------------------------------------------------
-
-set(KATZ_TEST_SRC
-    "${CMAKE_CURRENT_SOURCE_DIR}/centrality/katz_centrality_test.cu")
-
-  ConfigureTest(KATZ_TEST "${KATZ_TEST_SRC}")
+ConfigureTest(KATZ_TEST centrality/katz_centrality_test.cu)
 
 ###################################################################################################
 # - betweenness centrality tests ------------------------------------------------------------------
-
-set(BETWEENNESS_TEST_SRC
-    "${CMAKE_CURRENT_SOURCE_DIR}/centrality/betweenness_centrality_test.cu")
-
-  ConfigureTest(BETWEENNESS_TEST "${BETWEENNESS_TEST_SRC}")
-
-set(EDGE_BETWEENNESS_TEST_SRC
-    "${CMAKE_CURRENT_SOURCE_DIR}/centrality/edge_betweenness_centrality_test.cu")
-
-  ConfigureTest(EDGE_BETWEENNESS_TEST "${EDGE_BETWEENNESS_TEST_SRC}")
+ConfigureTest(BETWEENNESS_TEST centrality/betweenness_centrality_test.cu)
+ConfigureTest(EDGE_BETWEENNESS_TEST centrality/edge_betweenness_centrality_test.cu)
 
 ###################################################################################################
 # - SSSP tests ------------------------------------------------------------------------------------
-
-set(SSSP_TEST_SRCS
-    "${CMAKE_CURRENT_SOURCE_DIR}/traversal/sssp_test.cu")
-
-ConfigureTest(SSSP_TEST "${SSSP_TEST_SRCS}")
+ConfigureTest(SSSP_TEST traversal/sssp_test.cu)
 
 ###################################################################################################
 # - BFS tests -------------------------------------------------------------------------------------
-
-set(BFS_TEST_SRCS
-    "${CMAKE_CURRENT_SOURCE_DIR}/traversal/bfs_test.cu")
-
-ConfigureTest(BFS_TEST "${BFS_TEST_SRCS}")
+ConfigureTest(BFS_TEST traversal/bfs_test.cu)
 
 ###################################################################################################
 # - LOUVAIN tests ---------------------------------------------------------------------------------
-
-set(LOUVAIN_TEST_SRC
-    "${CMAKE_CURRENT_SOURCE_DIR}/community/louvain_test.cpp")
-
-ConfigureTest(LOUVAIN_TEST "${LOUVAIN_TEST_SRC}")
+ConfigureTest(LOUVAIN_TEST community/louvain_test.cpp)
 
 ###################################################################################################
 # - LEIDEN tests ---------------------------------------------------------------------------------
-
-set(LEIDEN_TEST_SRC
-    "${CMAKE_CURRENT_SOURCE_DIR}/community/leiden_test.cpp")
-
-ConfigureTest(LEIDEN_TEST "${LEIDEN_TEST_SRC}")
+ConfigureTest(LEIDEN_TEST community/leiden_test.cpp)
 
 ###################################################################################################
 # - ECG tests ---------------------------------------------------------------------------------
-
-set(ECG_TEST_SRC
-    "${CMAKE_CURRENT_SOURCE_DIR}/community/ecg_test.cpp")
-
-ConfigureTest(ECG_TEST "${ECG_TEST_SRC}")
+ConfigureTest(ECG_TEST community/ecg_test.cpp)
 
 ###################################################################################################
 # - Balanced cut clustering tests -----------------------------------------------------------------
-
-set(BALANCED_TEST_SRC
-    "${CMAKE_CURRENT_SOURCE_DIR}/community/balanced_edge_test.cpp")
-
-ConfigureTest(BALANCED_TEST "${BALANCED_TEST_SRC}")
+ConfigureTest(BALANCED_TEST community/balanced_edge_test.cpp)
 
 ###################################################################################################
 # - TRIANGLE tests --------------------------------------------------------------------------------
-
-set(TRIANGLE_TEST_SRC
-    "${CMAKE_CURRENT_SOURCE_DIR}/community/triangle_test.cu")
-
-ConfigureTest(TRIANGLE_TEST "${TRIANGLE_TEST_SRC}")
+ConfigureTest(TRIANGLE_TEST community/triangle_test.cu)
 
 ###################################################################################################
 # - EGO tests --------------------------------------------------------------------------------
+ConfigureTest(EGO_TEST community/egonet_test.cu)
 
-set(EGO_TEST_SRC
-    "${CMAKE_CURRENT_SOURCE_DIR}/community/egonet_test.cu")
-
-ConfigureTest(EGO_TEST "${EGO_TEST_SRC}" "")
 ###################################################################################################
 # - RENUMBERING tests -----------------------------------------------------------------------------
-
-set(RENUMBERING_TEST_SRC
-    "${CMAKE_CURRENT_SOURCE_DIR}/renumber/renumber_test.cu")
-
-ConfigureTest(RENUMBERING_TEST "${RENUMBERING_TEST_SRC}")
+ConfigureTest(RENUMBERING_TEST renumber/renumber_test.cu)
 
 ###################################################################################################
 # - FORCE ATLAS 2  tests --------------------------------------------------------------------------
-
-set(FA2_TEST_SRC
-    "${CMAKE_CURRENT_SOURCE_DIR}/layout/force_atlas2_test.cu")
-
-ConfigureTest(FA2_TEST "${FA2_TEST_SRC}")
+ConfigureTest(FA2_TEST layout/force_atlas2_test.cu)
 
 ###################################################################################################
 # - TSP  tests --------------------------------------------------------------------------
-
-set(TSP_TEST_SRC
-    "${CMAKE_CURRENT_SOURCE_DIR}/traversal/tsp_test.cu")
-
-  ConfigureTest(TSP_TEST "${TSP_TEST_SRC}" "")
+ConfigureTest(TSP_TEST traversal/tsp_test.cu)
 
 ###################################################################################################
 # - CONNECTED COMPONENTS  tests -------------------------------------------------------------------
-
-set(CONNECT_TEST_SRC
-    "${CMAKE_CURRENT_SOURCE_DIR}/components/con_comp_test.cu")
-
-ConfigureTest(CONNECT_TEST "${CONNECT_TEST_SRC}")
+ConfigureTest(CONNECT_TEST components/con_comp_test.cu)
 
 ###################################################################################################
 # - STRONGLY CONNECTED COMPONENTS  tests ----------------------------------------------------------
-
-set(SCC_TEST_SRC
-    "${CMAKE_CURRENT_SOURCE_DIR}/components/scc_test.cu")
-
-ConfigureTest(SCC_TEST "${SCC_TEST_SRC}")
+ConfigureTest(SCC_TEST components/scc_test.cu)
 
 ###################################################################################################
 # - WEAKLY CONNECTED COMPONENTS  tests ----------------------------------------------------------
-
-set(WCC_TEST_SRC
-    "${CMAKE_CURRENT_SOURCE_DIR}/components/wcc_test.cpp")
-
-ConfigureTest(WCC_TEST "${WCC_TEST_SRC}")
+ConfigureTest(WCC_TEST components/wcc_test.cpp)
 
 ###################################################################################################
-#-Hungarian (Linear Assignment Problem)  tests ---------------------------------------------------------------------
-
-set(HUNGARIAN_TEST_SRC
-    "${CMAKE_CURRENT_SOURCE_DIR}/linear_assignment/hungarian_test.cu")
-
-ConfigureTest(HUNGARIAN_TEST "${HUNGARIAN_TEST_SRC}")
+#-Hungarian (Linear Assignment Problem)  tests ----------------------------------------------------
+ConfigureTest(HUNGARIAN_TEST linear_assignment/hungarian_test.cu)
 
 ###################################################################################################
 # - MST tests ----------------------------------------------------------------------------
-
-set(MST_TEST_SRC
-    "${CMAKE_CURRENT_SOURCE_DIR}/tree/mst_test.cu")
-
-ConfigureTest(MST_TEST "${MST_TEST_SRC}")
+ConfigureTest(MST_TEST tree/mst_test.cu)
 
 ###################################################################################################
 # - Experimental stream tests -----------------------------------------------------
-
-set(EXPERIMENTAL_STREAM_SRCS
-    "${CMAKE_CURRENT_SOURCE_DIR}/experimental/streams.cu")
-
-ConfigureTest(EXPERIMENTAL_STREAM "${EXPERIMENTAL_STREAM_SRCS}" "")
+ConfigureTest(EXPERIMENTAL_STREAM experimental/streams.cu)
 
 ###################################################################################################
 # - Experimental R-mat graph generation tests -----------------------------------------------------
-
-set(EXPERIMENTAL_GENERATE_RMAT_TEST_SRCS
-    "${CMAKE_CURRENT_SOURCE_DIR}/experimental/generate_rmat_test.cpp")
-
-ConfigureTest(EXPERIMENTAL_GENERATE_RMAT_TEST "${EXPERIMENTAL_GENERATE_RMAT_TEST_SRCS}" "")
+ConfigureTest(EXPERIMENTAL_GENERATE_RMAT_TEST experimental/generate_rmat_test.cpp)
 
 ###################################################################################################
 # - Experimental Graph tests ----------------------------------------------------------------------
-
-set(EXPERIMENTAL_GRAPH_TEST_SRCS
-    "${CMAKE_CURRENT_SOURCE_DIR}/experimental/graph_test.cpp")
-
-ConfigureTest(EXPERIMENTAL_GRAPH_TEST "${EXPERIMENTAL_GRAPH_TEST_SRCS}")
+ConfigureTest(EXPERIMENTAL_GRAPH_TEST experimental/graph_test.cpp)
 
 ###################################################################################################
 # - Experimental weight-sum tests -----------------------------------------------------------------
-
-set(EXPERIMENTAL_WEIGHT_SUM_TEST_SRCS
-    "${CMAKE_CURRENT_SOURCE_DIR}/experimental/weight_sum_test.cpp")
-
-ConfigureTest(EXPERIMENTAL_WEIGHT_SUM_TEST "${EXPERIMENTAL_WEIGHT_SUM_TEST_SRCS}")
+ConfigureTest(EXPERIMENTAL_WEIGHT_SUM_TEST experimental/weight_sum_test.cpp)
 
 ###################################################################################################
 # - Experimental degree tests ---------------------------------------------------------------------
-
-set(EXPERIMENTAL_DEGREE_TEST_SRCS
-    "${CMAKE_CURRENT_SOURCE_DIR}/experimental/degree_test.cpp")
-
-ConfigureTest(EXPERIMENTAL_DEGREE_TEST "${EXPERIMENTAL_DEGREE_TEST_SRCS}")
+ConfigureTest(EXPERIMENTAL_DEGREE_TEST experimental/degree_test.cpp)
 
 ###################################################################################################
 # - Experimental coarsening tests -----------------------------------------------------------------
-
-set(EXPERIMENTAL_COARSEN_GRAPH_TEST_SRCS
-    "${CMAKE_CURRENT_SOURCE_DIR}/experimental/coarsen_graph_test.cpp")
-
-ConfigureTest(EXPERIMENTAL_COARSEN_GRAPH_TEST "${EXPERIMENTAL_COARSEN_GRAPH_TEST_SRCS}")
+ConfigureTest(EXPERIMENTAL_COARSEN_GRAPH_TEST experimental/coarsen_graph_test.cpp)
 
 ###################################################################################################
 # - Experimental induced subgraph tests -----------------------------------------------------------
-
-set(EXPERIMENTAL_INDUCED_SUBGRAPH_TEST_SRCS
-    "${CMAKE_CURRENT_SOURCE_DIR}/experimental/induced_subgraph_test.cpp")
-
-ConfigureTest(EXPERIMENTAL_INDUCED_SUBGRAPH_TEST "${EXPERIMENTAL_INDUCED_SUBGRAPH_TEST_SRCS}")
+ConfigureTest(EXPERIMENTAL_INDUCED_SUBGRAPH_TEST experimental/induced_subgraph_test.cpp)
 
 ###################################################################################################
 # - Experimental BFS tests ------------------------------------------------------------------------
-
-set(EXPERIMENTAL_BFS_TEST_SRCS
-    "${CMAKE_CURRENT_SOURCE_DIR}/experimental/bfs_test.cpp")
-
-ConfigureTest(EXPERIMENTAL_BFS_TEST "${EXPERIMENTAL_BFS_TEST_SRCS}")
+ConfigureTest(EXPERIMENTAL_BFS_TEST experimental/bfs_test.cpp)
 
 ###################################################################################################
-# - Experimental BFS tests ------------------------------------------------------------------------
-
-set(EXPERIMENTAL_MSBFS_TEST_SRCS
-    "${CMAKE_CURRENT_SOURCE_DIR}/experimental/ms_bfs_test.cpp")
-
-ConfigureTest(EXPERIMENTAL_MSBFS_TEST "${EXPERIMENTAL_MSBFS_TEST_SRCS}")
-
+# - Experimental Multi-source BFS tests -----------------------------------------------------------
+ConfigureTest(EXPERIMENTAL_MSBFS_TEST experimental/ms_bfs_test.cpp)
 
 ###################################################################################################
 # - Experimental SSSP tests -----------------------------------------------------------------------
-
-set(EXPERIMENTAL_SSSP_TEST_SRCS
-    "${CMAKE_CURRENT_SOURCE_DIR}/experimental/sssp_test.cpp")
-
-ConfigureTest(EXPERIMENTAL_SSSP_TEST "${EXPERIMENTAL_SSSP_TEST_SRCS}")
+ConfigureTest(EXPERIMENTAL_SSSP_TEST experimental/sssp_test.cpp)
 
 ###################################################################################################
 # - Experimental PAGERANK tests -------------------------------------------------------------------
-
-set(EXPERIMENTAL_PAGERANK_TEST_SRCS
-    "${CMAKE_CURRENT_SOURCE_DIR}/experimental/pagerank_test.cpp")
-
-ConfigureTest(EXPERIMENTAL_PAGERANK_TEST "${EXPERIMENTAL_PAGERANK_TEST_SRCS}")
+ConfigureTest(EXPERIMENTAL_PAGERANK_TEST experimental/pagerank_test.cpp)
 
 ###################################################################################################
 # - Experimental KATZ_CENTRALITY tests ------------------------------------------------------------
+ConfigureTest(EXPERIMENTAL_KATZ_CENTRALITY_TEST experimental/katz_centrality_test.cpp)
 
-set(EXPERIMENTAL_KATZ_CENTRALITY_TEST_SRCS
-    "${CMAKE_CURRENT_SOURCE_DIR}/experimental/katz_centrality_test.cpp")
+###################################################################################################
+# - WEAKLY CONNECTED COMPONENTS tests -------------------------------------------------------------
 
-ConfigureTest(EXPERIMENTAL_KATZ_CENTRALITY_TEST "${EXPERIMENTAL_KATZ_CENTRALITY_TEST_SRCS}")
+set(WEAKLY_CONNECTED_COMPONENTS_TEST_SRCS
+    "${CMAKE_CURRENT_SOURCE_DIR}/components/weakly_connected_components_test.cpp")
+
+ConfigureTest(WEAKLY_CONNECTED_COMPONENTS_TEST "${WEAKLY_CONNECTED_COMPONENTS_TEST_SRCS}")
 
 ###################################################################################################
 # - Experimental RANDOM_WALKS tests ------------------------------------------------------------
-
-set(RANDOM_WALKS_TEST_SRCS
-    "${CMAKE_CURRENT_SOURCE_DIR}/sampling/random_walks_test.cu")
-
-ConfigureTest(RANDOM_WALKS_TEST "${RANDOM_WALKS_TEST_SRCS}")
+ConfigureTest(RANDOM_WALKS_TEST sampling/random_walks_test.cu)
 
 ###################################################################################################
-set(RANDOM_WALKS_LOW_LEVEL_SRCS
-    "${CMAKE_CURRENT_SOURCE_DIR}/sampling/rw_low_level_test.cu")
-
-ConfigureTest(RANDOM_WALKS_LOW_LEVEL_TEST "${RANDOM_WALKS_LOW_LEVEL_SRCS}")
+ConfigureTest(RANDOM_WALKS_LOW_LEVEL_TEST sampling/rw_low_level_test.cu)
 
 ###################################################################################################
-set(RANDOM_WALKS_PROFILING_SRCS
-    "${CMAKE_CURRENT_SOURCE_DIR}/sampling/random_walks_profiling.cu")
-
 # FIXME: since this is technically not a test, consider refactoring the the
 # ConfigureTest function to share common code with a new ConfigureBenchmark
 # function (which would not link gtest, etc.)
-ConfigureTest(RANDOM_WALKS_PROFILING "${RANDOM_WALKS_PROFILING_SRCS}")
+ConfigureTest(RANDOM_WALKS_PROFILING sampling/random_walks_profiling.cu)
 
 
 ###################################################################################################
 # - MG tests --------------------------------------------------------------------------------------
 
 if(BUILD_CUGRAPH_MG_TESTS)
+
+    ###############################################################################################
+    # - find MPI - only enabled if MG tests are to be built
+    find_package(MPI REQUIRED)
+
     execute_process(
       COMMAND nvidia-smi -L
       COMMAND wc -l
@@ -575,54 +414,34 @@ if(BUILD_CUGRAPH_MG_TESTS)
     if(MPI_CXX_FOUND)
         ###########################################################################################
         # - MG PAGERANK tests ---------------------------------------------------------------------
-
-        set(MG_PAGERANK_TEST_SRCS
-            "${CMAKE_CURRENT_SOURCE_DIR}/pagerank/mg_pagerank_test.cpp")
-
-        ConfigureTestMG(MG_PAGERANK_TEST "${MG_PAGERANK_TEST_SRCS}")
-        target_link_libraries(MG_PAGERANK_TEST PRIVATE MPI::MPI_C MPI::MPI_CXX)
+        ConfigureTestMG(MG_PAGERANK_TEST pagerank/mg_pagerank_test.cpp)
 
         ###########################################################################################
         # - MG KATZ CENTRALITY tests --------------------------------------------------------------
-
-        set(MG_KATZ_CENTRALITY_TEST_SRCS
-            "${CMAKE_CURRENT_SOURCE_DIR}/experimental/mg_katz_centrality_test.cpp")
-
-        ConfigureTestMG(MG_KATZ_CENTRALITY_TEST "${MG_KATZ_CENTRALITY_TEST_SRCS}")
-        target_link_libraries(MG_KATZ_CENTRALITY_TEST PRIVATE MPI::MPI_C MPI::MPI_CXX)
+        ConfigureTestMG(MG_KATZ_CENTRALITY_TEST experimental/mg_katz_centrality_test.cpp)
 
         ###########################################################################################
         # - MG BFS tests --------------------------------------------------------------------------
-
-        set(MG_BFS_TEST_SRCS
-            "${CMAKE_CURRENT_SOURCE_DIR}/experimental/mg_bfs_test.cpp")
-
-        ConfigureTestMG(MG_BFS_TEST "${MG_BFS_TEST_SRCS}")
-        target_link_libraries(MG_BFS_TEST PRIVATE MPI::MPI_C MPI::MPI_CXX)
+        ConfigureTestMG(MG_BFS_TEST experimental/mg_bfs_test.cpp)
 
         ###########################################################################################
         # - MG SSSP tests -------------------------------------------------------------------------
-
-        set(MG_SSSP_TEST_SRCS
-            "${CMAKE_CURRENT_SOURCE_DIR}/experimental/mg_sssp_test.cpp")
-
-        ConfigureTestMG(MG_SSSP_TEST "${MG_SSSP_TEST_SRCS}")
-        target_link_libraries(MG_SSSP_TEST PRIVATE MPI::MPI_C MPI::MPI_CXX)
+        ConfigureTestMG(MG_SSSP_TEST experimental/mg_sssp_test.cpp)
 
         ###########################################################################################
         # - MG LOUVAIN tests ----------------------------------------------------------------------
+        ConfigureTestMG(MG_LOUVAIN_TEST
+            community/mg_louvain_helper.cu
+            community/mg_louvain_test.cpp)
 
-        set(MG_LOUVAIN_TEST_SRCS
-            "${CMAKE_CURRENT_SOURCE_DIR}/community/mg_louvain_helper.cu"
-            "${CMAKE_CURRENT_SOURCE_DIR}/community/mg_louvain_test.cpp")
-
-        ConfigureTestMG(MG_LOUVAIN_TEST "${MG_LOUVAIN_TEST_SRCS}")
-        target_link_libraries(MG_LOUVAIN_TEST PRIVATE MPI::MPI_C MPI::MPI_CXX)
-
-    else(MPI_CXX_FOUND)
+        ###########################################################################################
+        # - MG WEAKLY CONNECTED COMPONENTS tests --------------------------------------------------
+        ConfigureTestMG(MG_WEAKLY_CONNECTED_COMPONENTS_TEST
+                        components/mg_weakly_connected_components_test.cpp)
+    else()
        message(FATAL_ERROR "OpenMPI NOT found, cannot build MG tests.")
-    endif(MPI_CXX_FOUND)
-endif(BUILD_CUGRAPH_MG_TESTS)
+    endif()
+endif()
 
 ###################################################################################################
 ### enable testing ################################################################################

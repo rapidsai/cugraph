@@ -13,8 +13,8 @@
 #include <utilities/base_fixture.hpp>
 #include <utilities/test_utilities.hpp>
 
-#include <algorithms.hpp>
-#include <experimental/graph.hpp>
+#include <cugraph/algorithms.hpp>
+#include <cugraph/experimental/graph.hpp>
 
 #include <raft/cudart_utils.h>
 #include <rmm/device_uvector.hpp>

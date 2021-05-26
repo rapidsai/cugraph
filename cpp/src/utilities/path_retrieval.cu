@@ -19,8 +19,8 @@
 
 #include <raft/handle.hpp>
 
-#include <utilities/error.hpp>
-#include <utilities/path_retrieval.hpp>
+#include <cugraph/utilities/error.hpp>
+#include <cugraph/utilities/path_retrieval.hpp>
 
 namespace cugraph {
 namespace detail {

@@ -19,10 +19,11 @@ ARGS=$*
 REPODIR=$(cd $(dirname $0); pwd)
 LIBCUGRAPH_BUILD_DIR=${LIBCUGRAPH_BUILD_DIR:=${REPODIR}/cpp/build}
 
-VALIDARGS="clean libcugraph cugraph docs -v -g -n --allgpuarch --buildfaiss --show_depr_warn -h --help"
+VALIDARGS="clean uninstall libcugraph cugraph docs -v -g -n --allgpuarch --buildfaiss --show_depr_warn -h --help"
 HELP="$0 [<target> ...] [<flag> ...]
  where <target> is:
    clean            - remove all existing build artifacts and configuration (start over)
+   uninstall        - uninstall libcugraph and cugraph from a prior build/install (see also -n)
    libcugraph       - build the cugraph C++ code
    cugraph          - build the cugraph Python package
    cpp-mgtests      - build libcugraph mnmg tests. Builds MPI communicator, adding MPI as a dependency.
@@ -30,7 +31,7 @@ HELP="$0 [<target> ...] [<flag> ...]
  and <flag> is:
    -v               - verbose build mode
    -g               - build for debug
-   -n               - no install step
+   -n               - do not install after a successful build
    --allgpuarch     - build for all supported GPU architectures
    --buildfaiss     - build faiss statically into cugraph
    --show_depr_warn - show cmake deprecation warnings
@@ -52,7 +53,7 @@ INSTALL_TARGET=install
 BUILD_DISABLE_DEPRECATION_WARNING=ON
 BUILD_CPP_MG_TESTS=OFF
 BUILD_STATIC_FAISS=OFF
-GPU_ARCH=""
+BUILD_ALL_GPU_ARCH=0
 
 # Set defaults for vars that may not have been defined externally
 #  FIXME: if PREFIX is not set, check CONDA_PREFIX, but there is no fallback
@@ -95,7 +96,7 @@ if hasArg -n; then
     INSTALL_TARGET=""
 fi
 if hasArg --allgpuarch; then
-    GPU_ARCH="-DGPU_ARCHS=ALL"
+    BUILD_ALL_GPU_ARCH=1
 fi
 if hasArg --buildfaiss; then
         BUILD_STATIC_FAISS=ON
@@ -107,12 +108,36 @@ if hasArg cpp-mgtests; then
     BUILD_CPP_MG_TESTS=ON
 fi
 
-# If clean given, run it prior to any other steps
+# If clean or uninstall given, run them prior to any other steps
+if hasArg uninstall; then
+    # uninstall libcugraph
+    if [[ "$INSTALL_PREFIX" != "" ]]; then
+        rm -rf ${INSTALL_PREFIX}/include/cugraph
+        rm -f ${INSTALL_PREFIX}/lib/libcugraph.so
+    fi
+    # This may be redundant given the above, but can also be used in case
+    # there are other installed files outside of the locations above.
+    if [ -e ${LIBCUGRAPH_BUILD_DIR}/install_manifest.txt ]; then
+        xargs rm -f < ${LIBCUGRAPH_BUILD_DIR}/install_manifest.txt > /dev/null 2>&1
+    fi
+    # uninstall cugraph installed from a prior "setup.py install"
+    pip uninstall -y cugraph
+fi
+
 if hasArg clean; then
-    # FIXME: ideally the "setup.py clean" command below would also be run to
-    # remove all the "inplace" python build artifacts, but currently, running
-    # any setup.py command has side effects (eg. cloning repos).
-    #(cd ${REPODIR}/python && python setup.py clean)
+    # remove artifacts generated inplace
+    # FIXME: ideally the "setup.py clean" command would be used for this, but
+    # currently running any setup.py command has side effects (eg. cloning
+    # repos).
+    # (cd ${REPODIR}/python && python setup.py clean)
+    if [[ -d ${REPODIR}/python ]]; then
+        pushd ${REPODIR}/python > /dev/null
+        rm -rf dist dask-worker-space cugraph/raft *.egg-info
+        find . -name "__pycache__" -type d -exec rm -rf {} \; > /dev/null 2>&1
+        find . -name "*.cpp" -type f -delete
+        find . -name "*.cpython*.so" -type f -delete
+        popd > /dev/null
+    fi
 
     # If the dirs to clean are mounted dirs in a container, the contents should
     # be removed but the mounted dirs will remain.  The find removes all
@@ -129,15 +154,17 @@ fi
 ################################################################################
 # Configure, build, and install libcugraph
 if buildAll || hasArg libcugraph; then
-    if [[ ${GPU_ARCH} == "" ]]; then
+    if (( ${BUILD_ALL_GPU_ARCH} == 0 )); then
+        CUGRAPH_CMAKE_CUDA_ARCHITECTURES="NATIVE"
         echo "Building for the architecture of the GPU in the system..."
     else
+        CUGRAPH_CMAKE_CUDA_ARCHITECTURES="ALL"
         echo "Building for *ALL* supported GPU architectures..."
     fi
     mkdir -p ${LIBCUGRAPH_BUILD_DIR}
     cd ${LIBCUGRAPH_BUILD_DIR}
     cmake -DCMAKE_INSTALL_PREFIX=${INSTALL_PREFIX} \
-          ${GPU_ARCH} \
+          -DCMAKE_CUDA_ARCHITECTURES=${CUGRAPH_CMAKE_CUDA_ARCHITECTURES} \
           -DDISABLE_DEPRECATION_WARNING=${BUILD_DISABLE_DEPRECATION_WARNING} \
           -DCMAKE_BUILD_TYPE=${BUILD_TYPE} \
           -DBUILD_STATIC_FAISS=${BUILD_STATIC_FAISS} \

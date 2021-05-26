@@ -15,12 +15,12 @@
  */
 #pragma once
 
-#include <graph.hpp>
+#include <cugraph/graph.hpp>
 
 #include <converters/COOtoCSR.cuh>
 #include <utilities/graph_utils.cuh>
 
-#include <dendrogram.hpp>
+#include <cugraph/dendrogram.hpp>
 
 #include <rmm/device_uvector.hpp>
 

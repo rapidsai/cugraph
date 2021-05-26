@@ -16,7 +16,7 @@
 
 #include <community/flatten_dendrogram.cuh>
 #include <community/louvain.cuh>
-#include <experimental/graph.hpp>
+#include <cugraph/experimental/graph.hpp>
 #include <experimental/louvain.cuh>
 
 #include <rmm/device_uvector.hpp>
@@ -297,4 +297,4 @@ template std::pair<size_t, double> louvain(
 
 }  // namespace cugraph
 
-#include <eidir_graph.hpp>
+#include <cugraph/eidir_graph.hpp>

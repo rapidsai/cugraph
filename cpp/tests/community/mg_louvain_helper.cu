@@ -16,11 +16,11 @@
 
 #include "mg_louvain_helper.hpp"
 
-#include <experimental/graph.hpp>
+#include <cugraph/experimental/graph.hpp>
 
-#include <utilities/device_comm.cuh>
-#include <utilities/error.hpp>
-#include <utilities/host_scalar_comm.cuh>
+#include <cugraph/utilities/device_comm.cuh>
+#include <cugraph/utilities/error.hpp>
+#include <cugraph/utilities/host_scalar_comm.cuh>
 
 #include <rmm/thrust_rmm_allocator.h>
 
@@ -30,36 +30,6 @@
 
 namespace cugraph {
 namespace test {
-
-template <typename T>
-rmm::device_uvector<T> gather_distributed_vector(raft::handle_t const &handle,
-                                                 T const *d_input,
-                                                 size_t size)
-{
-  auto rx_sizes =
-    cugraph::experimental::host_scalar_gather(handle.get_comms(), size, 0, handle.get_stream());
-  std::vector<size_t> rx_displs(static_cast<size_t>(handle.get_comms().get_rank()) == 0
-                                  ? handle.get_comms().get_size()
-                                  : int{0},
-                                size_t{0});
-  if (static_cast<size_t>(handle.get_comms().get_rank()) == 0) {
-    std::partial_sum(rx_sizes.begin(), rx_sizes.end() - 1, rx_displs.begin() + 1);
-  }
-
-  auto total_size = thrust::reduce(thrust::host, rx_sizes.begin(), rx_sizes.end());
-  rmm::device_uvector<T> gathered_v(total_size, handle.get_stream());
-
-  cugraph::experimental::device_gatherv(handle.get_comms(),
-                                        d_input,
-                                        gathered_v.data(),
-                                        size,
-                                        rx_sizes,
-                                        rx_displs,
-                                        0,
-                                        handle.get_stream());
-
-  return gathered_v;
-}
 
 template <typename vertex_t>
 bool compare_renumbered_vectors(raft::handle_t const &handle,
@@ -335,10 +305,6 @@ template void single_gpu_renumber_edgelist_given_number_map(
   rmm::device_uvector<int> &d_edgelist_rows,
   rmm::device_uvector<int> &d_edgelist_cols,
   rmm::device_uvector<int> &d_renumber_map_gathered_v);
-
-template rmm::device_uvector<int> gather_distributed_vector(raft::handle_t const &handle,
-                                                            int const *d_input,
-                                                            size_t size);
 
 template bool compare_renumbered_vectors(raft::handle_t const &handle,
                                          rmm::device_uvector<int> const &v1,

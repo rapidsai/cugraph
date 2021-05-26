@@ -146,9 +146,9 @@ Allocates a specified number of bytes of untyped, uninitialized device memory us
 `device_memory_resource`. If no resource is explicitly provided, uses 
 `rmm::mr::get_current_device_resource()`. 
 
-`rmm::device_buffer` is copyable and movable. A copy performs a deep copy of the `device_buffer`'s 
-device memory, whereas a move moves ownership of the device memory from one `device_buffer` to 
-another.
+`rmm::device_buffer` is movable and copyable on a stream. A copy performs a deep copy of the 
+`device_buffer`'s device memory on the specified stream, whereas a move moves ownership of the 
+device memory from one `device_buffer` to another.
 
 ```c++
 // Allocates at least 100 bytes of uninitialized device memory 
@@ -156,17 +156,21 @@ another.
 rmm::device_buffer buff(100, stream, mr); 
 void * raw_data = buff.data(); // Raw pointer to underlying device memory
 
-rmm::device_buffer copy(buff); // Deep copies `buff` into `copy`
-rmm::device_buffer moved_to(std::move(buff)); // Moves contents of `buff` into `moved_to`
+// Deep copies `buff` into `copy` on `stream`
+rmm::device_buffer copy(buff, stream); 
+
+// Moves contents of `buff` into `moved_to`
+rmm::device_buffer moved_to(std::move(buff)); 
 
 custom_memory_resource *mr...;
-rmm::device_buffer custom_buff(100, mr); // Allocates 100 bytes from the custom_memory_resource
+// Allocates 100 bytes from the custom_memory_resource
+rmm::device_buffer custom_buff(100, mr, stream); 
 ```
 
 #### `rmm::device_uvector<T>`
 
-Similar to a `rmm::device_vector`, allocates a contiguous set of elements in device memory but with key 
-differences:
+Similar to a `rmm::device_vector`, allocates a contiguous set of elements in device memory but with
+key differences:
 - As an optimization, elements are uninitialized and no synchronization occurs at construction.
 This limits the types `T` to trivially copyable types.
 - All operations are stream ordered (i.e., they accept a `cuda_stream_view` specifying the stream 

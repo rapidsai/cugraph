@@ -15,8 +15,8 @@
  */
 #pragma once
 
-#include <dendrogram.hpp>
-#include <experimental/graph_functions.hpp>
+#include <cugraph/dendrogram.hpp>
+#include <cugraph/experimental/graph_functions.hpp>
 
 #include <rmm/thrust_rmm_allocator.h>
 #include <raft/handle.hpp>
@@ -51,7 +51,8 @@ void partition_at_level(raft::handle_t const &handle,
                                                        dendrogram.get_level_ptr_nocheck(l)),
         dendrogram.get_level_size_nocheck(l),
         d_partition,
-        local_num_verts);
+        local_num_verts,
+        false);
     });
 }
 

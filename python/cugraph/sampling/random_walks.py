@@ -35,9 +35,10 @@ def random_walks(
         Use weight parameter if weights need to be considered
         (currently not supported)
 
-    start_vertices : int or list or cudf.Series
+    start_vertices : int or list or cudf.Series or cudf.DataFrame
         A single node or a list or a cudf.Series of nodes from which to run
-        the random walks
+        the random walks. In case of multi-column vertices it should be
+        a cudf.DataFrame
 
     max_depth : int
         The maximum depth of the random walks
@@ -61,11 +62,17 @@ def random_walks(
     if start_vertices is int:
         start_vertices = [start_vertices]
 
-    if not isinstance(start_vertices, cudf.Series):
+    if isinstance(start_vertices, list):
         start_vertices = cudf.Series(start_vertices)
 
     if G.renumbered is True:
-        start_vertices = G.lookup_internal_vertex_id(start_vertices)
+        if isinstance(start_vertices, cudf.DataFrame):
+            start_vertices = G.lookup_internal_vertex_id(
+                start_vertices,
+                start_vertices.columns)
+        else:
+            start_vertices = G.lookup_internal_vertex_id(start_vertices)
+
     vertex_set, edge_set, sizes = random_walks_wrapper.random_walks(
         G, start_vertices, max_depth)
 
