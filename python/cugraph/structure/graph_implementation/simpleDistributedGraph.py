@@ -474,6 +474,6 @@ class simpleDistributedGraphImpl:
 
     def vertex_column_size(self):
         if self.properties.renumbered:
-            return self.renumber_map.multi_column_size()
+            return self.renumber_map.vertex_column_size()
         else:
             return 1

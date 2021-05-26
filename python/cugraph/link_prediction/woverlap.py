@@ -15,6 +15,7 @@ from cugraph.link_prediction import overlap_wrapper
 from cugraph.structure.graph_classes import null_check
 import cudf
 import numpy as np
+from cugraph.utilities import renumber_vertex_pair
 
 
 def overlap_w(input_graph, weights, vertex_pair=None):
@@ -70,23 +71,7 @@ def overlap_w(input_graph, weights, vertex_pair=None):
     """
 
     if type(vertex_pair) == cudf.DataFrame:
-        vertex_size = input_graph.vertex_column_size()
-        columns = vertex_pair.columns.to_list()
-        if vertex_size == 1:
-            for col in vertex_pair.columns:
-                null_check(vertex_pair[col])
-                if input_graph.renumbered:
-                    vertex_pair = input_graph.add_internal_vertex_id(
-                        vertex_pair, col, col
-                    )
-        else:
-            if input_graph.renumbered:
-                vertex_pair = input_graph.add_internal_vertex_id(
-                    vertex_pair, "src", columns[:vertex_size]
-                )
-                vertex_pair = input_graph.add_internal_vertex_id(
-                    vertex_pair, "dst", columns[vertex_size:]
-                )
+        vertex_pair = renumber_vertex_pair(input_graph, vertex_pair)
     elif vertex_pair is None:
         pass
     else:
