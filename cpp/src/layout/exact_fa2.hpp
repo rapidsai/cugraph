@@ -67,7 +67,7 @@ void exact_fa2(raft::handle_t const &handle,
   thrust::fill(rmm::exec_policy(stream), old_forces.begin(), old_forces.end(), 0.f);
   // FA2 requires degree + 1.
   rmm::device_uvector<int> mass(n, stream);
-  thrust::fill(rmm::exec_policy(stream), mass.begin(), mass.end(), 1.f);
+  thrust::fill(rmm::exec_policy(stream), mass.begin(), mass.end(), 1);
   rmm::device_uvector<float> swinging(n, stream);
   rmm::device_uvector<float> traction(n, stream);
 
