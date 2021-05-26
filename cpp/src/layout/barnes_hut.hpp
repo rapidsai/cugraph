@@ -89,7 +89,7 @@ void barnes_hut(raft::handle_t const &handle,
   rmm::device_uvector<int> d_childl((nnodes + 1) * 4, stream);
   // FA2 requires degree + 1
   rmm::device_uvector<int> d_massl(nnodes + 1, stream);
-  thrust::fill(rmm::exec_policy(stream), d_massl.begin(), d_massl.end(), 1.f);
+  thrust::fill(rmm::exec_policy(stream), d_massl.begin(), d_massl.end(), 1);
 
   rmm::device_uvector<float> d_maxxl(blocks * FACTOR1, stream);
   rmm::device_uvector<float> d_maxyl(blocks * FACTOR1, stream);
