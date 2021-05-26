@@ -117,9 +117,6 @@ rmm::device_uvector<vertex_t> compute_renumber_map(
 
       rmm::device_uvector<vertex_t> rx_major_labels(0, handle.get_stream());
       rmm::device_uvector<edge_t> rx_major_counts(0, handle.get_stream());
-      // FIXME: a temporary workaround for a NCCL (2.9.6) bug that causes a hang on DGX1 (due to
-      // remote memory allocation), this barrier is unnecessary otherwise.
-      col_comm.barrier();
       auto rx_sizes = host_scalar_gather(
         col_comm, tmp_major_labels.size(), static_cast<int>(i), handle.get_stream());
       std::vector<size_t> rx_displs{};

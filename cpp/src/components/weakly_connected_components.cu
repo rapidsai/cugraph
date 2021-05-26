@@ -351,15 +351,8 @@ void weakly_connected_components_impl(raft::handle_t const &handle,
       auto const comm_rank = comm.get_rank();
       auto const comm_size = comm.get_size();
 
-      // FIXME: a temporary workaround for a NCCL(2.9.6) bug that causes a hang on DGX1 (due to
-      // remote memory allocation), host_scalar_gather is sufficient otherwise.
-#if 1
-      auto new_root_candidate_counts =
-        host_scalar_allgather(comm, new_root_candidates.size(), handle.get_stream());
-#else
       auto new_root_candidate_counts =
         host_scalar_gather(comm, new_root_candidates.size(), int{0}, handle.get_stream());
-#endif
       if (comm_rank == 0) {
         std::vector<int> gpuids{};
         gpuids.reserve(
