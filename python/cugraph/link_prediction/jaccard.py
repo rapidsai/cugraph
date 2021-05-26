@@ -13,7 +13,7 @@
 
 import pandas as pd
 import cudf
-from cugraph.structure.graph_classes import Graph, null_check
+from cugraph.structure.graph_classes import Graph
 from cugraph.link_prediction import jaccard_wrapper
 from cugraph.utilities import check_nx_graph
 from cugraph.utilities import df_edge_score_to_dictionary

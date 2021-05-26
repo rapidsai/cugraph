@@ -11,7 +11,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from cugraph.structure.graph_classes import Graph, null_check
+from cugraph.structure.graph_classes import Graph
 from cugraph.link_prediction import jaccard_wrapper
 import cudf
 import numpy as np

@@ -12,7 +12,6 @@
 # limitations under the License.
 
 from cugraph.link_prediction import overlap_wrapper
-from cugraph.structure.graph_classes import null_check
 import cudf
 import numpy as np
 from cugraph.utilities import renumber_vertex_pair

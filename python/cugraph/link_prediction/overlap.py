@@ -13,7 +13,6 @@
 
 import pandas as pd
 from cugraph.link_prediction import overlap_wrapper
-from cugraph.structure.graph_classes import null_check
 import cudf
 from cugraph.utilities import check_nx_graph
 from cugraph.utilities import df_edge_score_to_dictionary
