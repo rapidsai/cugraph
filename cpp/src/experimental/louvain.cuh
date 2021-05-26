@@ -15,18 +15,18 @@
  */
 #pragma once
 
-#include <dendrogram.hpp>
+#include <cugraph/dendrogram.hpp>
 
-#include <experimental/graph.hpp>
-#include <experimental/graph_functions.hpp>
+#include <cugraph/experimental/graph.hpp>
+#include <cugraph/experimental/graph_functions.hpp>
 
-#include <patterns/copy_to_adj_matrix_row_col.cuh>
-#include <patterns/copy_v_transform_reduce_in_out_nbr.cuh>
-#include <patterns/copy_v_transform_reduce_key_aggregated_out_nbr.cuh>
-#include <patterns/transform_reduce_by_adj_matrix_row_col_key_e.cuh>
-#include <patterns/transform_reduce_e.cuh>
-#include <patterns/transform_reduce_v.cuh>
-#include <utilities/collect_comm.cuh>
+#include <cugraph/patterns/copy_to_adj_matrix_row_col.cuh>
+#include <cugraph/patterns/copy_v_transform_reduce_in_out_nbr.cuh>
+#include <cugraph/patterns/copy_v_transform_reduce_key_aggregated_out_nbr.cuh>
+#include <cugraph/patterns/transform_reduce_by_adj_matrix_row_col_key_e.cuh>
+#include <cugraph/patterns/transform_reduce_e.cuh>
+#include <cugraph/patterns/transform_reduce_v.cuh>
+#include <cugraph/utilities/collect_comm.cuh>
 
 #include <thrust/binary_search.h>
 #include <thrust/transform_reduce.h>
@@ -201,6 +201,8 @@ class Louvain {
     timer_start("compute_vertex_and_cluster_weights");
 
     vertex_weights_v_ = current_graph_view_.compute_out_weight_sums(handle_);
+    cluster_keys_v_.resize(vertex_weights_v_.size(), handle_.get_stream());
+    cluster_weights_v_.resize(vertex_weights_v_.size(), handle_.get_stream());
 
     thrust::sequence(rmm::exec_policy(handle_.get_stream())->on(handle_.get_stream()),
                      cluster_keys_v_.begin(),
@@ -525,7 +527,8 @@ class Louvain {
                       static_cast<vertex_t const *>(numbering_indices.begin())),
       current_graph_view_.get_number_of_local_vertices(),
       dendrogram_->current_level_begin(),
-      dendrogram_->current_level_size());
+      dendrogram_->current_level_size(),
+      false);
 
     timer_stop(handle_.get_stream());
   }

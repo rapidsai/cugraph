@@ -16,11 +16,12 @@
 
 #include <utilities/test_utilities.hpp>
 
-#include <experimental/detail/graph_utils.cuh>
-#include <experimental/graph_generator.hpp>
-#include <partition_manager.hpp>
-#include <utilities/error.hpp>
-#include <utilities/shuffle_comm.cuh>
+#include <cugraph/experimental/detail/graph_utils.cuh>
+#include <cugraph/experimental/graph_functions.hpp>
+#include <cugraph/experimental/graph_generator.hpp>
+#include <cugraph/partition_manager.hpp>
+#include <cugraph/utilities/error.hpp>
+#include <cugraph/utilities/shuffle_comm.cuh>
 
 #include <rmm/thrust_rmm_allocator.h>
 #include <raft/random/rng.cuh>
@@ -142,8 +143,29 @@ generate_graph_from_rmat_params(raft::handle_t const& handle,
   }
 
   if (undirected) {
-    // FIXME: need to symmetrize
-    CUGRAPH_FAIL("unimplemented.");
+// FIXME: may need to undo this and handle symmetrization elsewhere once the new test graph
+// generation API gets integrated
+#if 1
+    auto offset = d_edgelist_rows.size();
+    d_edgelist_rows.resize(offset * 2, handle.get_stream());
+    d_edgelist_cols.resize(d_edgelist_rows.size(), handle.get_stream());
+    d_edgelist_weights.resize(test_weighted ? d_edgelist_rows.size() : size_t{0},
+                              handle.get_stream());
+    thrust::copy(rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
+                 d_edgelist_cols.begin(),
+                 d_edgelist_cols.begin() + offset,
+                 d_edgelist_rows.begin() + offset);
+    thrust::copy(rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
+                 d_edgelist_rows.begin(),
+                 d_edgelist_rows.begin() + offset,
+                 d_edgelist_cols.begin() + offset);
+    if (test_weighted) {
+      thrust::copy(rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
+                   d_edgelist_weights.begin(),
+                   d_edgelist_weights.begin() + offset,
+                   d_edgelist_weights.begin() + offset);
+    }
+#endif
   }
 
   if (multi_gpu) {
@@ -231,15 +253,16 @@ generate_graph_from_rmat_params(raft::handle_t const& handle,
     d_vertices = std::move(d_rx_vertices);
   }
 
-  return generate_graph_from_edgelist<vertex_t, edge_t, weight_t, store_transposed, multi_gpu>(
-    handle,
-    std::move(d_vertices),
-    std::move(d_edgelist_rows),
-    std::move(d_edgelist_cols),
-    std::move(d_edgelist_weights),
-    false,
-    test_weighted,
-    renumber);
+  return cugraph::experimental::
+    create_graph_from_edgelist<vertex_t, edge_t, weight_t, store_transposed, multi_gpu>(
+      handle,
+      std::optional<std::tuple<vertex_t const*, vertex_t>>{
+        std::make_tuple(d_vertices.data(), static_cast<vertex_t>(d_vertices.size()))},
+      std::move(d_edgelist_rows),
+      std::move(d_edgelist_cols),
+      std::move(d_edgelist_weights),
+      cugraph::experimental::graph_properties_t{undirected, true, test_weighted},
+      renumber);
 }
 
 // explicit instantiations

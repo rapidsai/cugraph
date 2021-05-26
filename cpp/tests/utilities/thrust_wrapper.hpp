@@ -17,14 +17,14 @@
 #include <raft/handle.hpp>
 #include <rmm/device_uvector.hpp>
 
+#include <tuple>
+
 namespace cugraph {
 namespace test {
 
 template <typename vertex_t, typename value_t>
-rmm::device_uvector<value_t> sort_by_key(raft::handle_t const& handle,
-                                         vertex_t const* keys,
-                                         value_t const* values,
-                                         size_t num_pairs);
+std::tuple<rmm::device_uvector<vertex_t>, rmm::device_uvector<value_t>> sort_by_key(
+  raft::handle_t const& handle, vertex_t const* keys, value_t const* values, size_t num_pairs);
 
 }  // namespace test
 }  // namespace cugraph

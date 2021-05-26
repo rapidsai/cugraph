@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020, NVIDIA CORPORATION.
+ * Copyright (c) 2020-2021, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -17,12 +17,13 @@
 #pragma once
 
 #include <rmm/thrust_rmm_allocator.h>
-#include <utilities/error.hpp>
+#include <rmm/device_uvector.hpp>
 
-#include <stdio.h>
 #include <converters/COOtoCSR.cuh>
-#include <graph.hpp>
-#include <internals.hpp>
+
+#include <cugraph/graph.hpp>
+#include <cugraph/internals.hpp>
+#include <cugraph/utilities/error.hpp>
 
 #include "exact_repulsion.hpp"
 #include "fa2_kernels.hpp"
@@ -32,7 +33,8 @@ namespace cugraph {
 namespace detail {
 
 template <typename vertex_t, typename edge_t, typename weight_t>
-void exact_fa2(GraphCOOView<vertex_t, edge_t, weight_t> &graph,
+void exact_fa2(raft::handle_t const &handle,
+               GraphCOOView<vertex_t, edge_t, weight_t> &graph,
                float *pos,
                const int max_iter                            = 500,
                float *x_start                                = nullptr,
@@ -48,7 +50,7 @@ void exact_fa2(GraphCOOView<vertex_t, edge_t, weight_t> &graph,
                bool verbose                                  = false,
                internals::GraphBasedDimRedCallback *callback = nullptr)
 {
-  cudaStream_t stream = {nullptr};
+  cudaStream_t stream = handle.get_stream();
   const edge_t e      = graph.number_of_edges;
   const vertex_t n    = graph.number_of_vertices;
 
@@ -59,27 +61,28 @@ void exact_fa2(GraphCOOView<vertex_t, edge_t, weight_t> &graph,
   float *d_swinging{nullptr};
   float *d_traction{nullptr};
 
-  rmm::device_vector<float> repel(n * 2, 0);
-  rmm::device_vector<float> attract(n * 2, 0);
-  rmm::device_vector<float> old_forces(n * 2, 0);
+  rmm::device_uvector<float> repel(n * 2, stream);
+  rmm::device_uvector<float> attract(n * 2, stream);
+  rmm::device_uvector<float> old_forces(n * 2, stream);
   // FA2 requires degree + 1.
-  rmm::device_vector<int> mass(n, 1);
-  rmm::device_vector<float> swinging(n, 0);
-  rmm::device_vector<float> traction(n, 0);
+  rmm::device_uvector<int> mass(n, stream);
+  thrust::fill(rmm::exec_policy(stream)->on(stream), mass.begin(), mass.end(), 1.f);
+  rmm::device_uvector<float> swinging(n, stream);
+  rmm::device_uvector<float> traction(n, stream);
 
-  d_repel      = repel.data().get();
-  d_attract    = attract.data().get();
-  d_old_forces = old_forces.data().get();
-  d_mass       = mass.data().get();
-  d_swinging   = swinging.data().get();
-  d_traction   = traction.data().get();
+  d_repel      = repel.data();
+  d_attract    = attract.data();
+  d_old_forces = old_forces.data();
+  d_mass       = mass.data();
+  d_swinging   = swinging.data();
+  d_traction   = traction.data();
 
   int random_state = 0;
   random_vector(pos, n * 2, random_state, stream);
 
   if (x_start && y_start) {
-    copy(n, x_start, pos);
-    copy(n, y_start, pos + n);
+    raft::copy(pos, x_start, n, stream);
+    raft::copy(pos + n, y_start, n, stream);
   }
 
   // Sort COO for coalesced memory access.
@@ -110,10 +113,10 @@ void exact_fa2(GraphCOOView<vertex_t, edge_t, weight_t> &graph,
 
   for (int iter = 0; iter < max_iter; ++iter) {
     // Reset force arrays
-    fill(n * 2, d_repel, 0.f);
-    fill(n * 2, d_attract, 0.f);
-    fill(n, d_swinging, 0.f);
-    fill(n, d_traction, 0.f);
+    thrust::fill(rmm::exec_policy(stream)->on(stream), repel.begin(), repel.end(), 0.f);
+    thrust::fill(rmm::exec_policy(stream)->on(stream), attract.begin(), attract.end(), 0.f);
+    thrust::fill(rmm::exec_policy(stream)->on(stream), swinging.begin(), swinging.end(), 0.f);
+    thrust::fill(rmm::exec_policy(stream)->on(stream), traction.begin(), traction.end(), 0.f);
 
     // Exact repulsion
     apply_repulsion<vertex_t>(pos, pos + n, d_repel, d_repel + n, d_mass, scaling_ratio, n, stream);
@@ -180,9 +183,9 @@ void exact_fa2(GraphCOOView<vertex_t, edge_t, weight_t> &graph,
     if (callback) callback->on_epoch_end(pos);
 
     if (verbose) {
-      printf("iteration %i, speed: %f, speed_efficiency: %f, ", iter + 1, speed, speed_efficiency);
-      printf("jt: %f, ", jt);
-      printf("swinging: %f, traction: %f\n", s, t);
+      std::cout << "iteration: " << iter + 1 << ", speed: " << speed
+                << ", speed_efficiency: " << speed_efficiency << ", jt: " << jt
+                << ", swinging: " << s << ", traction: " << t << "\n";
     }
   }
 

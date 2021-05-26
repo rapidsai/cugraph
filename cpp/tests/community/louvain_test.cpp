@@ -16,9 +16,9 @@
 #include <rmm/device_uvector.hpp>
 #include <rmm/mr/device/cuda_memory_resource.hpp>
 
-#include <experimental/graph.hpp>
+#include <cugraph/experimental/graph.hpp>
 
-#include <algorithms.hpp>
+#include <cugraph/algorithms.hpp>
 
 #include <raft/cudart_utils.h>
 #include <raft/handle.hpp>

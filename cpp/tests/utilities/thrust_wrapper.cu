@@ -26,10 +26,8 @@ namespace cugraph {
 namespace test {
 
 template <typename vertex_t, typename value_t>
-rmm::device_uvector<value_t> sort_by_key(raft::handle_t const& handle,
-                                         vertex_t const* keys,
-                                         value_t const* values,
-                                         size_t num_pairs)
+std::tuple<rmm::device_uvector<vertex_t>, rmm::device_uvector<value_t>> sort_by_key(
+  raft::handle_t const& handle, vertex_t const* keys, value_t const* values, size_t num_pairs)
 {
   rmm::device_uvector<vertex_t> sorted_keys(num_pairs, handle.get_stream_view());
   rmm::device_uvector<value_t> sorted_values(num_pairs, handle.get_stream_view());
@@ -44,38 +42,44 @@ rmm::device_uvector<value_t> sort_by_key(raft::handle_t const& handle,
                       sorted_keys.end(),
                       sorted_values.begin());
 
-  return sorted_values;
+  return std::make_tuple(std::move(sorted_keys), std::move(sorted_values));
 }
 
-template rmm::device_uvector<float> sort_by_key<int32_t, float>(raft::handle_t const& handle,
-                                                                int32_t const* keys,
-                                                                float const* values,
-                                                                size_t num_pairs);
+template std::tuple<rmm::device_uvector<int32_t>, rmm::device_uvector<float>>
+sort_by_key<int32_t, float>(raft::handle_t const& handle,
+                            int32_t const* keys,
+                            float const* values,
+                            size_t num_pairs);
 
-template rmm::device_uvector<double> sort_by_key<int32_t, double>(raft::handle_t const& handle,
-                                                                  int32_t const* keys,
-                                                                  double const* values,
-                                                                  size_t num_pairs);
+template std::tuple<rmm::device_uvector<int32_t>, rmm::device_uvector<double>>
+sort_by_key<int32_t, double>(raft::handle_t const& handle,
+                             int32_t const* keys,
+                             double const* values,
+                             size_t num_pairs);
 
-template rmm::device_uvector<int32_t> sort_by_key<int32_t, int32_t>(raft::handle_t const& handle,
-                                                                    int32_t const* keys,
-                                                                    int32_t const* values,
-                                                                    size_t num_pairs);
+template std::tuple<rmm::device_uvector<int32_t>, rmm::device_uvector<int32_t>>
+sort_by_key<int32_t, int32_t>(raft::handle_t const& handle,
+                              int32_t const* keys,
+                              int32_t const* values,
+                              size_t num_pairs);
 
-template rmm::device_uvector<float> sort_by_key<int64_t, float>(raft::handle_t const& handle,
-                                                                int64_t const* keys,
-                                                                float const* values,
-                                                                size_t num_pairs);
+template std::tuple<rmm::device_uvector<int64_t>, rmm::device_uvector<float>>
+sort_by_key<int64_t, float>(raft::handle_t const& handle,
+                            int64_t const* keys,
+                            float const* values,
+                            size_t num_pairs);
 
-template rmm::device_uvector<double> sort_by_key<int64_t, double>(raft::handle_t const& handle,
-                                                                  int64_t const* keys,
-                                                                  double const* values,
-                                                                  size_t num_pairs);
+template std::tuple<rmm::device_uvector<int64_t>, rmm::device_uvector<double>>
+sort_by_key<int64_t, double>(raft::handle_t const& handle,
+                             int64_t const* keys,
+                             double const* values,
+                             size_t num_pairs);
 
-template rmm::device_uvector<int64_t> sort_by_key<int64_t, int64_t>(raft::handle_t const& handle,
-                                                                    int64_t const* keys,
-                                                                    int64_t const* values,
-                                                                    size_t num_pairs);
+template std::tuple<rmm::device_uvector<int64_t>, rmm::device_uvector<int64_t>>
+sort_by_key<int64_t, int64_t>(raft::handle_t const& handle,
+                              int64_t const* keys,
+                              int64_t const* values,
+                              size_t num_pairs);
 
 }  // namespace test
 }  // namespace cugraph
