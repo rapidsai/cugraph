@@ -35,14 +35,20 @@
 struct Louvain_Usecase {
   std::string graph_file_full_path_{};
   bool test_weighted_{false};
+  int expected_level_legacy_{0};
+  float expected_modularity_legacy_{0};
   int expected_level_{0};
   float expected_modularity_{0};
 
   Louvain_Usecase(std::string const& graph_file_path,
                   bool test_weighted,
+                  int expected_level_legacy,
+                  float expected_modularity_legacy,
                   int expected_level,
                   float expected_modularity)
     : test_weighted_(test_weighted),
+      expected_level_legacy_(expected_level_legacy),
+      expected_modularity_legacy_(expected_modularity_legacy),
       expected_level_(expected_level),
       expected_modularity_(expected_modularity)
   {
@@ -86,13 +92,13 @@ class Tests_Louvain : public ::testing::TestWithParam<Louvain_Usecase> {
       EXPECT_THROW(louvain(graph_view,
                            graph_view.get_number_of_vertices(),
                            configuration.expected_level_,
-                           configuration.expected_modularity_),
+                           configuration.expected_modularity_legacy_),
                    cugraph::logic_error);
     } else {
       louvain(graph_view,
               graph_view.get_number_of_vertices(),
-              configuration.expected_level_,
-              configuration.expected_modularity_);
+              configuration.expected_level_legacy_,
+              configuration.expected_modularity_legacy_);
     }
   }
 
@@ -152,7 +158,12 @@ class Tests_Louvain : public ::testing::TestWithParam<Louvain_Usecase> {
 
     float compare_modularity = static_cast<float>(modularity);
 
-    ASSERT_FLOAT_EQ(compare_modularity, expected_modularity);
+    // NOTE: Legacy louvain is deterministic.  Experimental louvain
+    //   is deterministic on each level, but renumbering (which occurs when
+    //   the graph shrinks) is not deterministic, so we might get different
+    //   answers.
+    // ASSERT_FLOAT_EQ(compare_modularity, expected_modularity);
+    ASSERT_GE(compare_modularity, expected_modularity*0.95);
     ASSERT_EQ(level, expected_level);
   }
 };
@@ -316,6 +327,7 @@ TEST_P(Tests_Louvain, CheckInt32Int32FloatFloat)
 INSTANTIATE_TEST_SUITE_P(
   simple_test,
   Tests_Louvain,
-  ::testing::Values(Louvain_Usecase("test/datasets/karate.mtx", true, 3, 0.408695)));
+  ::testing::Values(Louvain_Usecase("test/datasets/hollywood.mtx", true, 10, 0.75522721, 6, 0.75522721),
+                    Louvain_Usecase("test/datasets/citationCiteseer.mtx", true, 12, 0.80679649, 5, 0.80679649)));
 
 CUGRAPH_TEST_PROGRAM_MAIN()
