@@ -56,6 +56,7 @@ def weakly_connected_components(input_graph):
               for idx, wf in enumerate(data.worker_to_parts.items())]
     wait(result)
     ddf = dask_cudf.from_delayed(result)
+
     if input_graph.renumbered:
         return input_graph.unrenumber(ddf, 'vertex')
 

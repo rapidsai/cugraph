@@ -34,7 +34,7 @@ def mg_wcc(input_df,
     cdef size_t handle_size_t = <size_t>handle.getHandle()
     handle_ = <c_connectivity.handle_t*>handle_size_t
 
-    """src = input_df['src']
+    src = input_df['src']
     dst = input_df['dst']
     vertex_t = src.dtype
     if num_global_edges > (2**31 - 1):
@@ -83,7 +83,7 @@ def mg_wcc(input_df,
 
     df = cudf.DataFrame()
     df['vertex'] = cudf.Series(np.arange(vertex_partition_offsets.iloc[rank], vertex_partition_offsets.iloc[rank+1]), dtype=vertex_t)
-    df['labels'] = cudf.Series(np.zeros(len(df['vertex']), dtype=weight_t))
+    df['labels'] = cudf.Series(np.zeros(len(df['vertex']), dtype=vertex_t))
 
     cdef uintptr_t c_labels_val = df['labels'].__cuda_array_interface__['data'][0];
 
@@ -97,4 +97,3 @@ def mg_wcc(input_df,
                                              <long*>c_labels_val)
 
     return df
-    """
