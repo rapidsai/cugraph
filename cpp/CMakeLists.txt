@@ -159,6 +159,7 @@ add_library(cugraph SHARED
     src/utilities/spmv_1D.cu
     src/utilities/cython.cu
     src/utilities/path_retrieval.cu
+    src/utilities/graph_bcast.cu
     src/structure/graph.cu
     src/linear_assignment/hungarian.cu
     src/link_analysis/gunrock_hits.cpp
@@ -196,6 +197,7 @@ add_library(cugraph SHARED
     src/experimental/sssp.cu
     src/experimental/pagerank.cu
     src/experimental/katz_centrality.cu
+    src/serialization/serializer.cu
     src/tree/mst.cu
     src/components/weakly_connected_components.cu
     src/structure/create_graph_from_edgelist.cu
