@@ -73,6 +73,6 @@ def test_dask_wcc(client_connection):
     unique_local_labels = compare_dist['labels_local'].unique()
 
     for label in unique_local_labels.values.tolist():
-        dask_labels_df = compare_dist[compare_dist['labels_local']==label]
+        dask_labels_df = compare_dist[compare_dist['labels_local'] == label]
         dask_labels = dask_labels_df['labels_dask']
         assert (dask_labels.iloc[0] == dask_labels).all()
