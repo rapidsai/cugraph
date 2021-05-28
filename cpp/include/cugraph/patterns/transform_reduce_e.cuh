@@ -88,10 +88,12 @@ __global__ void for_all_major_for_all_nbr_low_degree(
         auto col = GraphViewType::is_adj_matrix_transposed
                      ? matrix_partition.get_major_from_major_offset_nocheck(major_offset)
                      : minor;
-        auto row_offset =
-          GraphViewType::is_adj_matrix_transposed ? minor_offset : static_cast<vertex_t>(major_offset);
-        auto col_offset =
-          GraphViewType::is_adj_matrix_transposed ? static_cast<vertex_t>(major_offset) : minor_offset;
+        auto row_offset = GraphViewType::is_adj_matrix_transposed
+                            ? minor_offset
+                            : static_cast<vertex_t>(major_offset);
+        auto col_offset = GraphViewType::is_adj_matrix_transposed
+                            ? static_cast<vertex_t>(major_offset)
+                            : minor_offset;
         return evaluate_edge_op<GraphViewType,
                                 vertex_t,
                                 AdjMatrixRowValueInputIterator,
@@ -159,10 +161,12 @@ __global__ void for_all_major_for_all_nbr_mid_degree(
       auto col = GraphViewType::is_adj_matrix_transposed
                    ? matrix_partition.get_major_from_major_offset_nocheck(major_offset)
                    : minor;
-      auto row_offset =
-        GraphViewType::is_adj_matrix_transposed ? minor_offset : static_cast<vertex_t>(major_offset);
-      auto col_offset =
-        GraphViewType::is_adj_matrix_transposed ? static_cast<vertex_t>(major_offset) : minor_offset;
+      auto row_offset = GraphViewType::is_adj_matrix_transposed
+                          ? minor_offset
+                          : static_cast<vertex_t>(major_offset);
+      auto col_offset = GraphViewType::is_adj_matrix_transposed
+                          ? static_cast<vertex_t>(major_offset)
+                          : minor_offset;
       auto e_op_result = evaluate_edge_op<GraphViewType,
                                           vertex_t,
                                           AdjMatrixRowValueInputIterator,
@@ -224,10 +228,12 @@ __global__ void for_all_major_for_all_nbr_high_degree(
       auto col = GraphViewType::is_adj_matrix_transposed
                    ? matrix_partition.get_major_from_major_offset_nocheck(major_offset)
                    : minor;
-      auto row_offset =
-        GraphViewType::is_adj_matrix_transposed ? minor_offset : static_cast<vertex_t>(major_offset);
-      auto col_offset =
-        GraphViewType::is_adj_matrix_transposed ? static_cast<vertex_t>(major_offset) : minor_offset;
+      auto row_offset = GraphViewType::is_adj_matrix_transposed
+                          ? minor_offset
+                          : static_cast<vertex_t>(major_offset);
+      auto col_offset = GraphViewType::is_adj_matrix_transposed
+                          ? static_cast<vertex_t>(major_offset)
+                          : minor_offset;
       auto e_op_result = evaluate_edge_op<GraphViewType,
                                           vertex_t,
                                           AdjMatrixRowValueInputIterator,
