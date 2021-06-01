@@ -15,7 +15,7 @@ dependencies:
 - dask-cuda=21.08.*
 - dask-cudf=21.08.*
 - nccl>=2.8.4
-- ucx-py=0.20.*
+- ucx-py=0.21.*
 - ucx-proc=*=gpu
 - scipy
 - networkx>=2.5.1
