@@ -230,7 +230,7 @@ INSTANTIATE_TEST_SUITE_P(
   ::testing::Values(
     // enable correctness checks
     std::make_tuple(WeaklyConnectedComponents_Usecase{},
-                    cugraph::test::Rmat_Usecase(10, 16, 0.57, 0.19, 0.19, 0, true, false, true))));
+                    cugraph::test::Rmat_Usecase(10, 16, 0.57, 0.19, 0.19, 0, true, false, 0, true))));
 
 INSTANTIATE_TEST_SUITE_P(
   rmat_large_test,
@@ -238,6 +238,6 @@ INSTANTIATE_TEST_SUITE_P(
   ::testing::Values(
     // disable correctness checks
     std::make_tuple(WeaklyConnectedComponents_Usecase{false},
-                    cugraph::test::Rmat_Usecase(20, 16, 0.57, 0.19, 0.19, 0, true, false, true))));
+                    cugraph::test::Rmat_Usecase(20, 16, 0.57, 0.19, 0.19, 0, true, false, 0, true))));
 
 CUGRAPH_MG_TEST_PROGRAM_MAIN()
