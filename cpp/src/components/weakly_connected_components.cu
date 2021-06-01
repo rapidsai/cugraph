@@ -342,30 +342,69 @@ void weakly_connected_components_impl(raft::handle_t const &handle,
       static_cast<vertex_t>(new_root_candidates.size() * max_new_roots_ratio), vertex_t{1});
 
     auto init_max_new_roots = max_new_roots;
-    // to avoid selecting too many (possibly all) vertices as initial roots leading to no
-    // compression in the worst case.
-    if (GraphViewType::is_multi_gpu &&
-        (level_graph_view.get_number_of_vertices() <=
-         static_cast<vertex_t>(handle.get_comms().get_size() * ceil(1.0 / max_new_roots_ratio)))) {
+    if (GraphViewType::is_multi_gpu) {
       auto &comm           = handle.get_comms();
       auto const comm_rank = comm.get_rank();
       auto const comm_size = comm.get_size();
 
+      auto first_candidate_degree = thrust::transform_reduce(
+        rmm::exec_policy(handle.get_stream_view()),
+        new_root_candidates.begin(),
+        new_root_candidates.begin() + (new_root_candidates.size() > 0 ? 1 : 0),
+        [vertex_partition, degrees = degrees.data()] __device__(auto v) {
+          return degrees[vertex_partition.get_local_vertex_offset_from_vertex_nocheck(v)];
+        },
+        edge_t{0},
+        thrust::plus<edge_t>{});
+
+      auto first_candidate_degrees =
+        host_scalar_gather(comm, first_candidate_degree, int{0}, handle.get_stream());
       auto new_root_candidate_counts =
         host_scalar_gather(comm, new_root_candidates.size(), int{0}, handle.get_stream());
+
       if (comm_rank == 0) {
-        std::vector<int> gpuids{};
-        gpuids.reserve(
-          std::reduce(new_root_candidate_counts.begin(), new_root_candidate_counts.end()));
-        for (size_t i = 0; i < new_root_candidate_counts.size(); ++i) {
-          gpuids.insert(gpuids.end(), new_root_candidate_counts[i], static_cast<int>(i));
-        }
-        std::random_device rd{};
-        std::shuffle(gpuids.begin(), gpuids.end(), std::mt19937(rd()));
-        gpuids.resize(
-          std::max(static_cast<vertex_t>(gpuids.size() * max_new_roots_ratio), vertex_t{1}));
         std::vector<vertex_t> init_max_new_root_counts(comm_size, vertex_t{0});
-        for (size_t i = 0; i < gpuids.size(); ++i) { ++init_max_new_root_counts[gpuids[i]]; }
+
+        // if there exists very high degree vertices, we can exceed degree_sum_threshold * comm_size
+        // with fewer than one root per GPU
+        if (std::reduce(first_candidate_degrees.begin(), first_candidate_degrees.end()) >
+            degree_sum_threshold * comm_size) {
+          std::vector<std::tuple<edge_t, int>> degree_gpuid_pairs(comm_size);
+          for (int i = 0; i < comm_size; ++i) {
+            degree_gpuid_pairs[i] = std::make_tuple(first_candidate_degrees[i], i);
+          }
+          std::sort(degree_gpuid_pairs.begin(), degree_gpuid_pairs.end(), [](auto lhs, auto rhs) {
+            return std::get<0>(lhs) > std::get<0>(rhs);
+          });
+          edge_t sum{0};
+          for (size_t i = 0; i < degree_gpuid_pairs.size(); ++i) {
+            sum += std::get<0>(degree_gpuid_pairs[i]);
+            init_max_new_root_counts[std::get<1>(degree_gpuid_pairs[i])] = 1;
+            if (sum > degree_sum_threshold * comm_size) { break; }
+          }
+        }
+        // to avoid selecting too many (possibly all) vertices as initial roots leading to no
+        // compression in the worst case.
+        else if (level_graph_view.get_number_of_vertices() <=
+                 static_cast<vertex_t>(handle.get_comms().get_size() *
+                                       ceil(1.0 / max_new_roots_ratio))) {
+          std::vector<int> gpuids{};
+          gpuids.reserve(
+            std::reduce(new_root_candidate_counts.begin(), new_root_candidate_counts.end()));
+          for (size_t i = 0; i < new_root_candidate_counts.size(); ++i) {
+            gpuids.insert(gpuids.end(), new_root_candidate_counts[i], static_cast<int>(i));
+          }
+          std::random_device rd{};
+          std::shuffle(gpuids.begin(), gpuids.end(), std::mt19937(rd()));
+          gpuids.resize(
+            std::max(static_cast<vertex_t>(gpuids.size() * max_new_roots_ratio), vertex_t{1}));
+          for (size_t i = 0; i < gpuids.size(); ++i) { ++init_max_new_root_counts[gpuids[i]]; }
+        } else {
+          std::fill(init_max_new_root_counts.begin(),
+                    init_max_new_root_counts.end(),
+                    std::numeric_limits<vertex_t>::max());
+        }
+
         // FIXME: we need to add host_scalar_scatter
 #if 1
         rmm::device_uvector<vertex_t> d_counts(comm_size, handle.get_stream_view());
@@ -394,7 +433,9 @@ void weakly_connected_components_impl(raft::handle_t const &handle,
           host_scalar_scatter(comm, init_max_new_root_counts.data(), int{0}, handle.get_stream());
 #endif
       }
+
       handle.get_stream_view().synchronize();
+      init_max_new_roots = std::min(init_max_new_roots, max_new_roots);
     }
 
     // 2-3. initialize vertex frontier, edge_buffer, and col_components (if multi-gpu)
