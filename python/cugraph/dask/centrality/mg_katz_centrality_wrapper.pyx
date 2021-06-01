@@ -95,6 +95,7 @@ def mg_katz_centrality(input_df,
                              num_global_verts, num_global_edges,
                              True,
                              is_weighted,
+                             False,
                              True, True) 
 
     df = cudf.DataFrame()
