@@ -19,6 +19,7 @@
 
 #include <utilities/high_res_timer.hpp>
 
+#include "rmm/cuda_stream_view.hpp"
 #include "tsp.hpp"
 #include "tsp_solver.hpp"
 
@@ -53,6 +54,8 @@ TSP::TSP(raft::handle_t const &handle,
     warp_size_(handle_.get_device_properties().warpSize),
     sm_count_(handle_.get_device_properties().multiProcessorCount),
     restart_batch_(8192),
+    mylock_scalar_(stream_),
+    best_cost_scalar_(stream_),
     neighbors_vec_((k_ + 1) * nodes_, stream_),
     work_vec_(restart_batch_ * ((4 * nodes_ + 3 + warp_size_ - 1) / warp_size_ * warp_size_),
               stream_),
@@ -81,9 +84,9 @@ void TSP::setup()
 
 void TSP::reset_batch()
 {
-  mylock_scalar_.set_value_zero(stream_);
+  mylock_scalar_.set_value_to_zero_async(stream_);
   auto const max{std::numeric_limits<int>::max()};
-  best_cost_scalar_.set_value(max, stream_);
+  best_cost_scalar_.set_value_async(max, stream_);
 }
 
 void TSP::get_initial_solution(int const batch)
