@@ -381,7 +381,7 @@ set(WEAKLY_CONNECTED_COMPONENTS_TEST_SRCS
 ConfigureTest(WEAKLY_CONNECTED_COMPONENTS_TEST "${WEAKLY_CONNECTED_COMPONENTS_TEST_SRCS}")
 
 ###################################################################################################
-# - Experimental RANDOM_WALKS tests ------------------------------------------------------------
+# - Experimental RANDOM_WALKS tests ---------------------------------------------------------------
 ConfigureTest(RANDOM_WALKS_TEST sampling/random_walks_test.cu)
 
 ###################################################################################################
@@ -392,6 +392,14 @@ ConfigureTest(RANDOM_WALKS_LOW_LEVEL_TEST sampling/rw_low_level_test.cu)
 # ConfigureTest function to share common code with a new ConfigureBenchmark
 # function (which would not link gtest, etc.)
 ConfigureTest(RANDOM_WALKS_PROFILING sampling/random_walks_profiling.cu)
+
+###################################################################################################
+# - Serialization tests ---------------------------------------------------------------------------
+
+set(SERIALIZATION_TEST_SRCS
+    "${CMAKE_CURRENT_SOURCE_DIR}/serialization/un_serialize_test.cpp")
+
+ConfigureTest(SERIALIZATION_TEST "${SERIALIZATION_TEST_SRCS}")
 
 
 ###################################################################################################
@@ -438,6 +446,10 @@ if(BUILD_CUGRAPH_MG_TESTS)
         # - MG WEAKLY CONNECTED COMPONENTS tests --------------------------------------------------
         ConfigureTestMG(MG_WEAKLY_CONNECTED_COMPONENTS_TEST
                         components/mg_weakly_connected_components_test.cpp)
+
+        ###########################################################################################
+        # - MG GRAPH BROADCAST tests --------------------------------------------------------------
+        ConfigureTestMG(MG_GRAPH_BROADCAST_TEST bcast/mg_graph_bcast.cpp)
     else()
        message(FATAL_ERROR "OpenMPI NOT found, cannot build MG tests.")
     endif()
