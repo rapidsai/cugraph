@@ -23,6 +23,8 @@
 #include <raft/handle.hpp>
 #include <rmm/device_uvector.hpp>
 #include <rmm/exec_policy.hpp>
+#include <rmm/mr/device/per_device_resource.hpp>
+#include <rmm/mr/device/polymorphic_allocator.hpp>
 
 #include <thrust/distance.h>
 
@@ -63,13 +65,17 @@ collect_values_for_keys(raft::comms::comms_t const &comm,
 
   // 1. build a cuco::static_map object for the map k, v pairs.
 
-  auto kv_map_ptr = std::make_unique<cuco::static_map<vertex_t, value_t>>(
+  auto poly_alloc = rmm::mr::polymorphic_allocator<char>(rmm::mr::get_current_device_resource());
+  auto stream_adapter = rmm::mr::make_stream_allocator_adaptor(poly_alloc, cudaStream_t{nullptr});
+  auto kv_map_ptr     = std::make_unique<
+    cuco::static_map<vertex_t, value_t, cuda::thread_scope_device, decltype(stream_adapter)>>(
     // cuco::static_map requires at least one empty slot
     std::max(static_cast<size_t>(
                static_cast<double>(thrust::distance(map_key_first, map_key_last)) / load_factor),
              static_cast<size_t>(thrust::distance(map_key_first, map_key_last)) + 1),
     invalid_vertex_id<vertex_t>::value,
-    invalid_vertex_id<vertex_t>::value);
+    invalid_vertex_id<vertex_t>::value,
+    stream_adapter);
   {
     auto pair_first = thrust::make_transform_iterator(
       thrust::make_zip_iterator(thrust::make_tuple(map_key_first, map_value_first)),
@@ -124,12 +130,14 @@ collect_values_for_keys(raft::comms::comms_t const &comm,
 
   kv_map_ptr.reset();
 
-  kv_map_ptr = std::make_unique<cuco::static_map<vertex_t, value_t>>(
+  kv_map_ptr = std::make_unique<
+    cuco::static_map<vertex_t, value_t, cuda::thread_scope_device, decltype(stream_adapter)>>(
     // cuco::static_map requires at least one empty slot
     std::max(static_cast<size_t>(static_cast<double>(unique_keys.size()) / load_factor),
              unique_keys.size() + 1),
     invalid_vertex_id<vertex_t>::value,
-    invalid_vertex_id<vertex_t>::value);
+    invalid_vertex_id<vertex_t>::value,
+    stream_adapter);
   {
     auto pair_first = thrust::make_transform_iterator(
       thrust::make_zip_iterator(
@@ -181,13 +189,17 @@ collect_values_for_unique_keys(raft::comms::comms_t const &comm,
 
   // 1. build a cuco::static_map object for the map k, v pairs.
 
-  auto kv_map_ptr = std::make_unique<cuco::static_map<vertex_t, value_t>>(
+  auto poly_alloc = rmm::mr::polymorphic_allocator<char>(rmm::mr::get_current_device_resource());
+  auto stream_adapter = rmm::mr::make_stream_allocator_adaptor(poly_alloc, cudaStream_t{nullptr});
+  auto kv_map_ptr     = std::make_unique<
+    cuco::static_map<vertex_t, value_t, cuda::thread_scope_device, decltype(stream_adapter)>>(
     // cuco::static_map requires at least one empty slot
     std::max(static_cast<size_t>(
                static_cast<double>(thrust::distance(map_key_first, map_key_last)) / load_factor),
              static_cast<size_t>(thrust::distance(map_key_first, map_key_last)) + 1),
     invalid_vertex_id<vertex_t>::value,
-    invalid_vertex_id<vertex_t>::value);
+    invalid_vertex_id<vertex_t>::value,
+    stream_adapter);
   {
     auto pair_first = thrust::make_transform_iterator(
       thrust::make_zip_iterator(thrust::make_tuple(map_key_first, map_value_first)),
@@ -238,12 +250,14 @@ collect_values_for_unique_keys(raft::comms::comms_t const &comm,
 
   kv_map_ptr.reset();
 
-  kv_map_ptr = std::make_unique<cuco::static_map<vertex_t, value_t>>(
+  kv_map_ptr = std::make_unique<
+    cuco::static_map<vertex_t, value_t, cuda::thread_scope_device, decltype(stream_adapter)>>(
     // cuco::static_map requires at least one empty slot
     std::max(static_cast<size_t>(static_cast<double>(unique_keys.size()) / load_factor),
              unique_keys.size() + 1),
     invalid_vertex_id<vertex_t>::value,
-    invalid_vertex_id<vertex_t>::value);
+    invalid_vertex_id<vertex_t>::value,
+    stream_adapter);
   {
     auto pair_first = thrust::make_transform_iterator(
       thrust::make_zip_iterator(

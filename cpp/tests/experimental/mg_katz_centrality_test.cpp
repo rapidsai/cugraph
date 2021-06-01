@@ -16,8 +16,8 @@
 
 #include <utilities/high_res_clock.h>
 #include <utilities/base_fixture.hpp>
-#include <utilities/test_graphs.hpp>
 #include <utilities/device_comm_wrapper.hpp>
+#include <utilities/test_graphs.hpp>
 #include <utilities/test_utilities.hpp>
 #include <utilities/thrust_wrapper.hpp>
 
@@ -251,7 +251,7 @@ INSTANTIATE_TEST_SUITE_P(rmat_small_test,
                            ::testing::Values(KatzCentrality_Usecase{false},
                                              KatzCentrality_Usecase{true}),
                            ::testing::Values(cugraph::test::Rmat_Usecase(
-                             10, 16, 0.57, 0.19, 0.19, 0, false, false, true))));
+                             10, 16, 0.57, 0.19, 0.19, 0, false, false, 0, true))));
 
 INSTANTIATE_TEST_SUITE_P(rmat_large_test,
                          Tests_MGKatzCentrality_Rmat,
@@ -260,6 +260,6 @@ INSTANTIATE_TEST_SUITE_P(rmat_large_test,
                            ::testing::Values(KatzCentrality_Usecase{false, false},
                                              KatzCentrality_Usecase{true, false}),
                            ::testing::Values(cugraph::test::Rmat_Usecase(
-                             20, 32, 0.57, 0.19, 0.19, 0, false, false, true))));
+                             20, 32, 0.57, 0.19, 0.19, 0, false, false, 0, true))));
 
 CUGRAPH_MG_TEST_PROGRAM_MAIN()

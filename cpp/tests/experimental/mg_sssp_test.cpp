@@ -305,7 +305,7 @@ INSTANTIATE_TEST_SUITE_P(
   ::testing::Values(
     // enable correctness checks
     std::make_tuple(SSSP_Usecase{0},
-                    cugraph::test::Rmat_Usecase(10, 16, 0.57, 0.19, 0.19, 0, false, false, true))));
+                    cugraph::test::Rmat_Usecase(10, 16, 0.57, 0.19, 0.19, 0, false, false, 0, true))));
 
 INSTANTIATE_TEST_SUITE_P(
   rmat_large_test,
@@ -313,6 +313,6 @@ INSTANTIATE_TEST_SUITE_P(
   ::testing::Values(
     // disable correctness checks for large graphs
     std::make_tuple(SSSP_Usecase{0, false},
-                    cugraph::test::Rmat_Usecase(20, 32, 0.57, 0.19, 0.19, 0, false, false, true))));
+                    cugraph::test::Rmat_Usecase(20, 32, 0.57, 0.19, 0.19, 0, false, false, 0, true))));
 
 CUGRAPH_MG_TEST_PROGRAM_MAIN()

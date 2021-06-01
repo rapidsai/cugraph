@@ -36,7 +36,7 @@ def test_dask_mg_degree(client_connection):
 
     # FIXME: update this to allow dataset to be parameterized and have dataset
     # part of test param id (see other tests)
-    input_data_path = r"../datasets/karate.csv"
+    input_data_path = r"../datasets/karate-asymmetric.csv"
     print(f"dataset={input_data_path}")
 
     chunksize = cugraph.dask.get_chunksize(input_data_path)
@@ -62,10 +62,18 @@ def test_dask_mg_degree(client_connection):
     g = cugraph.DiGraph()
     g.from_cudf_edgelist(df, "src", "dst")
 
-    merge_df = (
+    merge_df_in = (
         dg.in_degree()
         .merge(g.in_degree(), on="vertex", suffixes=["_dg", "_g"])
         .compute()
     )
 
-    assert merge_df["degree_dg"].equals(merge_df["degree_g"])
+    merge_df_out = (
+        dg.out_degree()
+        .merge(g.out_degree(), on="vertex", suffixes=["_dg", "_g"])
+        .compute()
+    )
+
+    assert merge_df_in["degree_dg"].equals(merge_df_in["degree_g"])
+    assert merge_df_out["degree_dg"].equals(
+            merge_df_out["degree_g"])

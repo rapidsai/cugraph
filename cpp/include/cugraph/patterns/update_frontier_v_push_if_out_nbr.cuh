@@ -505,6 +505,121 @@ size_t sort_and_reduce_buffer_elements(raft::handle_t const& handle,
 
 }  // namespace detail
 
+template <typename GraphViewType, typename VertexFrontierType>
+typename GraphViewType::edge_type compute_num_out_nbrs_from_frontier(
+  raft::handle_t const& handle,
+  GraphViewType const& graph_view,
+  VertexFrontierType const& frontier,
+  size_t cur_frontier_bucket_idx)
+{
+  static_assert(!GraphViewType::is_adj_matrix_transposed,
+                "GraphViewType should support the push model.");
+
+  using vertex_t = typename GraphViewType::vertex_type;
+  using edge_t   = typename GraphViewType::edge_type;
+  using key_t    = typename VertexFrontierType::key_type;
+
+  edge_t ret{0};
+
+  if (GraphViewType::is_multi_gpu) {
+    auto& comm = handle.get_comms();
+    // barrier is necessary here to avoid potential overlap (which can leads to deadlock) between
+    // two different communicators (beginning of col_comm)
+#if 1
+    // FIXME: temporary hack till UCC is integrated into RAFT (so we can use UCC barrier with DASK
+    // and MPI barrier with MPI)
+    host_barrier(comm, handle.get_stream_view());
+#else
+    handle.get_stream_view().synchronize();
+    comm.barrier();  // currently, this is ncclAllReduce
+#endif
+  }
+
+  auto const& cur_frontier_bucket = frontier.get_bucket(cur_frontier_bucket_idx);
+  vertex_t const* local_frontier_vertex_first{nullptr};
+  vertex_t const* local_frontier_vertex_last{nullptr};
+  if constexpr (std::is_same_v<key_t, vertex_t>) {
+    local_frontier_vertex_first = cur_frontier_bucket.begin();
+    local_frontier_vertex_last  = cur_frontier_bucket.end();
+  } else {
+    local_frontier_vertex_first = thrust::get<0>(cur_frontier_bucket.begin().get_iterator_tuple());
+    local_frontier_vertex_last  = thrust::get<0>(cur_frontier_bucket.end().get_iterator_tuple());
+  }
+
+  std::vector<size_t> local_frontier_sizes{};
+  if (GraphViewType::is_multi_gpu) {
+    auto& col_comm = handle.get_subcomm(cugraph::partition_2d::key_naming_t().col_name());
+    local_frontier_sizes =
+      host_scalar_allgather(col_comm, cur_frontier_bucket.size(), handle.get_stream());
+  } else {
+    local_frontier_sizes = std::vector<size_t>{static_cast<size_t>(cur_frontier_bucket.size())};
+  }
+  for (size_t i = 0; i < graph_view.get_number_of_local_adj_matrix_partitions(); ++i) {
+    matrix_partition_device_t<GraphViewType> matrix_partition(graph_view, i);
+
+    if (GraphViewType::is_multi_gpu) {
+      auto& col_comm = handle.get_subcomm(cugraph::partition_2d::key_naming_t().col_name());
+      auto const col_comm_rank = col_comm.get_rank();
+
+      rmm::device_uvector<vertex_t> frontier_vertices(local_frontier_sizes[i],
+                                                      handle.get_stream_view());
+      // FIXME: this copy is unnecessary, better fix RAFT comm's bcast to take const iterators for
+      // input
+      if (col_comm_rank == static_cast<int>(i)) {
+        thrust::copy(rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
+                     local_frontier_vertex_first,
+                     local_frontier_vertex_last,
+                     frontier_vertices.begin());
+      }
+      device_bcast(col_comm,
+                   frontier_vertices.data(),
+                   frontier_vertices.data(),
+                   frontier_vertices.size(),
+                   static_cast<int>(i),
+                   handle.get_stream());
+
+      ret += thrust::transform_reduce(
+        rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
+        frontier_vertices.begin(),
+        frontier_vertices.end(),
+        [matrix_partition] __device__(auto major) {
+          auto major_offset = matrix_partition.get_major_offset_from_major_nocheck(major);
+          return matrix_partition.get_local_degree(major_offset);
+        },
+        edge_t{0},
+        thrust::plus<edge_t>());
+    } else {
+      assert(i == 0);
+      ret += thrust::transform_reduce(
+        rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
+        local_frontier_vertex_first,
+        local_frontier_vertex_last,
+        [matrix_partition] __device__(auto major) {
+          auto major_offset = matrix_partition.get_major_offset_from_major_nocheck(major);
+          return matrix_partition.get_local_degree(major_offset);
+        },
+        edge_t{0},
+        thrust::plus<edge_t>());
+    }
+  }
+
+  if (GraphViewType::is_multi_gpu) {
+    auto& comm = handle.get_comms();
+    // barrier is necessary here to avoid potential overlap (which can leads to deadlock) between
+    // two different communicators (end of col_comm)
+#if 1
+    // FIXME: temporary hack till UCC is integrated into RAFT (so we can use UCC barrier with DASK
+    // and MPI barrier with MPI)
+    host_barrier(comm, handle.get_stream_view());
+#else
+    handle.get_stream_view().synchronize();
+    comm.barrier();  // currently, this is ncclAllReduce
+#endif
+  }
+
+  return ret;
+}
+
 // FIXME: this documentation needs to be updated due to (tagged-)vertex support
 /**
  * @brief Update (tagged-)vertex frontier and (tagged-)vertex property values iterating over the
@@ -628,23 +743,27 @@ void update_frontier_v_push_if_out_nbr(
   auto payload_buffer =
     detail::allocate_optional_payload_buffer<payload_t>(size_t{0}, handle.get_stream());
   rmm::device_scalar<size_t> buffer_idx(size_t{0}, handle.get_stream());
+  std::vector<size_t> local_frontier_sizes{};
+  if (GraphViewType::is_multi_gpu) {
+    auto& col_comm       = handle.get_subcomm(cugraph::partition_2d::key_naming_t().col_name());
+    local_frontier_sizes = host_scalar_allgather(
+      col_comm,
+      static_cast<size_t>(thrust::distance(frontier_key_first, frontier_key_last)),
+      handle.get_stream());
+  } else {
+    local_frontier_sizes = std::vector<size_t>{static_cast<size_t>(
+      static_cast<vertex_t>(thrust::distance(frontier_key_first, frontier_key_last)))};
+  }
   for (size_t i = 0; i < graph_view.get_number_of_local_adj_matrix_partitions(); ++i) {
     matrix_partition_device_t<GraphViewType> matrix_partition(graph_view, i);
 
     auto matrix_partition_frontier_key_buffer =
       allocate_dataframe_buffer<key_t>(size_t{0}, handle.get_stream());
-    vertex_t matrix_partition_frontier_size{0};
+    vertex_t matrix_partition_frontier_size = static_cast<vertex_t>(local_frontier_sizes[i]);
     if (GraphViewType::is_multi_gpu) {
       auto& col_comm = handle.get_subcomm(cugraph::partition_2d::key_naming_t().col_name());
       auto const col_comm_rank = col_comm.get_rank();
 
-      matrix_partition_frontier_size = host_scalar_bcast(
-        col_comm,
-        (static_cast<size_t>(col_comm_rank) == i)
-          ? static_cast<vertex_t>(thrust::distance(frontier_key_first, frontier_key_last))
-          : vertex_t{0} /* dummy */,
-        i,
-        handle.get_stream());
       resize_dataframe_buffer<key_t>(
         matrix_partition_frontier_key_buffer, matrix_partition_frontier_size, handle.get_stream());
 
@@ -662,8 +781,6 @@ void update_frontier_v_push_if_out_nbr(
                    i,
                    handle.get_stream());
     } else {
-      matrix_partition_frontier_size =
-        static_cast<vertex_t>(thrust::distance(frontier_key_first, frontier_key_last));
       resize_dataframe_buffer<key_t>(
         matrix_partition_frontier_key_buffer, matrix_partition_frontier_size, handle.get_stream());
       thrust::copy(rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
@@ -1016,7 +1133,7 @@ void update_frontier_v_push_if_out_nbr(
                                get_dataframe_buffer_begin<key_t>(key_buffer),
                                next_frontier_bucket_indices);
   }
-}  // namespace experimental
+}
 
 }  // namespace experimental
 }  // namespace cugraph
