@@ -63,7 +63,7 @@ void bfs(raft::handle_t const &handle,
 
   auto const num_vertices = push_graph_view.get_number_of_vertices();
   if (num_vertices == 0) { return; }
-  CUGRAPH_EXPECTS(sources != nullptr, "Invalid input argument: sources cannot be null");
+  //CUGRAPH_EXPECTS(sources != nullptr, "Invalid input argument: sources cannot be null");
 
   auto aggregate_n_sources =
     GraphViewType::is_multi_gpu
@@ -78,7 +78,7 @@ void bfs(raft::handle_t const &handle,
     "Invalid input argument: input graph should be symmetric for direction optimizing BFS.");
 
   // Transfer single source to the device for single source case
-  vertex_t *d_sources;
+  vertex_t *d_sources = sources;
   rmm::device_uvector<vertex_t> d_sources_v(0, handle.get_stream());
   if (aggregate_n_sources == 1 && n_sources) {
     cudaPointerAttributes s_att;
@@ -88,8 +88,6 @@ void bfs(raft::handle_t const &handle,
       d_sources = d_sources_v.data();
       raft::copy(d_sources, sources, n_sources, handle.get_stream());
     }
-  } else {
-    d_sources = sources;
   }
 
   if (do_expensive_check) {

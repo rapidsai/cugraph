@@ -37,7 +37,7 @@ def test_dask_bfs(client_connection):
 
     # FIXME: update this to allow dataset to be parameterized and have dataset
     # part of test param id (see other tests)
-    input_data_path = r"../datasets/netscience.csv"
+    input_data_path = r"../datasets/karate.csv"
     print(f"dataset={input_data_path}")
     chunksize = dcg.get_chunksize(input_data_path)
 
@@ -49,6 +49,16 @@ def test_dask_bfs(client_connection):
         dtype=["int32", "int32", "float32"],
     )
 
+    def modify_dataset(df):
+        temp_df = cudf.DataFrame()
+        temp_df['src'] = df['src']+1000
+        temp_df['dst'] = df['dst']+1000
+        temp_df['value'] = df['value']
+        return cudf.concat([df,temp_df])
+
+    meta = ddf._meta
+    ddf=ddf.map_partitions(modify_dataset, meta = meta)
+
     df = cudf.read_csv(
         input_data_path,
         delimiter=" ",
@@ -57,14 +67,15 @@ def test_dask_bfs(client_connection):
     )
 
     g = cugraph.DiGraph()
-    g.from_cudf_edgelist(df, "src", "dst", renumber=True)
+    g.from_cudf_edgelist(df, "src", "dst")
 
     dg = cugraph.DiGraph()
     dg.from_dask_cudf_edgelist(ddf, "src", "dst")
 
     expected_dist = cugraph.bfs(g, 0)
-    result_dist = dcg.bfs(dg, 0, depth_limit=2)
+    result_dist = dcg.bfs(dg, [0])
     result_dist = result_dist.compute()
+
     compare_dist = expected_dist.merge(
         result_dist, on="vertex", suffixes=["_local", "_dask"]
     )
@@ -140,3 +151,4 @@ def test_dask_bfs_multi_column_depthlimit(client_connection):
         ):
             err = err + 1
     assert err == 0
+
