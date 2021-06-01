@@ -112,6 +112,7 @@ def renumber(input_df,           # maybe use cpdef ?
     cdef uintptr_t shuffled_major = <uintptr_t>NULL
     cdef uintptr_t shuffled_minor = <uintptr_t>NULL
     
+    # FIXME: Fix fails when do_check = True
     cdef bool do_check = False # ? for now...
     cdef bool mg_flag = is_multi_gpu # run Single-GPU or MNMG
 
@@ -175,7 +176,7 @@ def renumber(input_df,           # maybe use cpdef ?
                                                                    <int*>shuffled_major,
                                                                    <int*>shuffled_minor,
                                                                    deref(edge_counts_32.get()),
-                                                                   1,
+                                                                   do_check,
                                                                    mg_flag).release())
                 
                 pair_original = ptr_renum_quad_32_32.get().get_dv_wrap() # original vertices: see helper

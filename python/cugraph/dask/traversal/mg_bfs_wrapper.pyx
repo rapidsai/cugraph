@@ -50,6 +50,7 @@ def mg_bfs(input_df,
     else:
         weight_t = np.dtype("float32")
 
+
     # FIXME: Offsets and indices are currently hardcoded to int, but this may
     #        not be acceptable in the future.
     numberTypeMap = {np.dtype("int32") : <int>numberTypeEnum.int32Type,
@@ -81,6 +82,7 @@ def mg_bfs(input_df,
                              num_global_verts, num_global_edges,
                              True,
                              False, # BFS runs on unweighted graphs
+                             False,
                              False, True) 
 
     # Generate the cudf.DataFrame result

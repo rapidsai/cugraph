@@ -23,6 +23,7 @@
 
 #include <numeric>
 #include <string>
+#include <type_traits>
 #include <vector>
 
 extern "C" {
@@ -267,6 +268,128 @@ class Rmat_Usecase {
   bool scramble_vertex_ids_{};
   bool multi_gpu_usecase_{};
 };
+
+// alias for easy customization for debug purposes:
+//
+template <typename value_t>
+using vector_test_t = rmm::device_uvector<value_t>;
+
+template <typename vertex_t, typename edge_t, typename weight_t>
+decltype(auto) make_graph(raft::handle_t const& handle,
+                          std::vector<vertex_t> const& v_src,
+                          std::vector<vertex_t> const& v_dst,
+                          std::vector<weight_t> const& v_w,
+                          vertex_t num_vertices,
+                          edge_t num_edges,
+                          bool is_weighted)
+{
+  using namespace cugraph::experimental;
+
+  vector_test_t<vertex_t> d_src(num_edges, handle.get_stream());
+  vector_test_t<vertex_t> d_dst(num_edges, handle.get_stream());
+  vector_test_t<weight_t> d_weights(num_edges, handle.get_stream());
+
+  raft::update_device(d_src.data(), v_src.data(), d_src.size(), handle.get_stream());
+  raft::update_device(d_dst.data(), v_dst.data(), d_dst.size(), handle.get_stream());
+
+  weight_t* ptr_d_weights{nullptr};
+  if (is_weighted) {
+    raft::update_device(d_weights.data(), v_w.data(), d_weights.size(), handle.get_stream());
+
+    ptr_d_weights = d_weights.data();
+  }
+
+  edgelist_t<vertex_t, edge_t, weight_t> edgelist{
+    d_src.data(), d_dst.data(), ptr_d_weights, num_edges};
+
+  graph_t<vertex_t, edge_t, weight_t, false, false> graph(
+    handle, edgelist, num_vertices, graph_properties_t{false, false, is_weighted}, false);
+
+  return graph;
+}
+
+// compares single GPU CSR graph data:
+// (for testing / debugging);
+// on first == false, second == brief description of what is different;
+//
+template <typename left_graph_t, typename right_graph_t>
+std::pair<bool, std::string> compare_graphs(raft::handle_t const& handle,
+                                            left_graph_t const& lgraph,
+                                            right_graph_t const& rgraph)
+{
+  if constexpr (left_graph_t::is_multi_gpu && right_graph_t::is_multi_gpu) {
+    // no support for comparing distributed graphs, yet:
+    //
+    CUGRAPH_FAIL("Unsupported graph type for comparison.");
+    return std::make_pair(false, std::string("unsupported"));
+  } else if constexpr (!std::is_same_v<left_graph_t, right_graph_t>) {
+    return std::make_pair(false, std::string("type"));
+  } else {
+    // both graphs are single GPU:
+    //
+    using graph_t = left_graph_t;
+
+    using vertex_t = typename graph_t::vertex_type;
+    using edge_t   = typename graph_t::edge_type;
+    using weight_t = typename graph_t::weight_type;
+
+    size_t num_vertices = lgraph.get_number_of_vertices();
+    size_t num_edges    = lgraph.get_number_of_edges();
+
+    {
+      size_t r_num_vertices = rgraph.get_number_of_vertices();
+      size_t r_num_edges    = rgraph.get_number_of_edges();
+
+      if (num_vertices != r_num_vertices) return std::make_pair(false, std::string("num_vertices"));
+
+      if (num_edges != r_num_edges) return std::make_pair(false, std::string("num_edges"));
+    }
+
+    if (lgraph.is_symmetric() != rgraph.is_symmetric())
+      return std::make_pair(false, std::string("symmetric"));
+
+    if (lgraph.is_multigraph() != rgraph.is_multigraph())
+      return std::make_pair(false, std::string("multigraph"));
+
+    bool is_weighted = lgraph.is_weighted();
+    if (is_weighted != rgraph.is_weighted()) return std::make_pair(false, std::string("weighted"));
+
+    auto lgraph_view = lgraph.view();
+    auto rgraph_view = rgraph.view();
+
+    std::vector<edge_t> lv_ro(num_vertices + 1);
+    std::vector<vertex_t> lv_ci(num_edges);
+
+    raft::update_host(lv_ro.data(), lgraph_view.offsets(), num_vertices + 1, handle.get_stream());
+    raft::update_host(lv_ci.data(), lgraph_view.indices(), num_edges, handle.get_stream());
+
+    std::vector<edge_t> rv_ro(num_vertices + 1);
+    std::vector<vertex_t> rv_ci(num_edges);
+
+    raft::update_host(rv_ro.data(), rgraph_view.offsets(), num_vertices + 1, handle.get_stream());
+    raft::update_host(rv_ci.data(), rgraph_view.indices(), num_edges, handle.get_stream());
+
+    if (lv_ro != rv_ro) return std::make_pair(false, std::string("offsets"));
+
+    if (lv_ci != rv_ci) return std::make_pair(false, std::string("indices"));
+
+    if (is_weighted) {
+      std::vector<weight_t> lv_vs(num_edges);
+      raft::update_host(lv_vs.data(), lgraph_view.weights(), num_edges, handle.get_stream());
+
+      std::vector<weight_t> rv_vs(num_edges);
+      raft::update_host(rv_vs.data(), rgraph_view.weights(), num_edges, handle.get_stream());
+
+      if (lv_vs != rv_vs) return std::make_pair(false, std::string("values"));
+    }
+
+    if (lgraph_view.get_local_adj_matrix_partition_segment_offsets(0) !=
+        rgraph_view.get_local_adj_matrix_partition_segment_offsets(0))
+      return std::make_pair(false, std::string("segment offsets"));
+
+    return std::make_pair(true, std::string{});
+  }
+}
 
 }  // namespace test
 }  // namespace cugraph
