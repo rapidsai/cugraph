@@ -14,8 +14,6 @@
  * limitations under the License.
  */
 
-#include <cugraph/experimental/include_cuco_static_map.cuh>
-
 #include <cugraph/experimental/detail/graph_utils.cuh>
 #include <cugraph/experimental/graph_functions.hpp>
 #include <cugraph/experimental/graph_view.hpp>
@@ -26,6 +24,7 @@
 #include <cugraph/utilities/shuffle_comm.cuh>
 
 #include <rmm/thrust_rmm_allocator.h>
+#include <cuco/static_map.cuh>
 #include <raft/handle.hpp>
 #include <rmm/device_uvector.hpp>
 #include <rmm/mr/device/per_device_resource.hpp>
@@ -47,7 +46,6 @@ namespace cugraph {
 namespace experimental {
 namespace detail {
 
-#ifdef CUCO_STATIC_MAP_DEFINED
 template <typename vertex_t, typename edge_t, bool multi_gpu>
 rmm::device_uvector<vertex_t> compute_renumber_map(
   raft::handle_t const& handle,
@@ -546,7 +544,6 @@ void expensive_check_edgelist(
     }
   }
 }
-#endif
 
 template <typename vertex_t, typename edge_t, bool multi_gpu>
 std::enable_if_t<multi_gpu,
@@ -558,12 +555,6 @@ renumber_edgelist(raft::handle_t const& handle,
                   std::vector<edge_t> const& edgelist_edge_counts,
                   bool do_expensive_check)
 {
-  // FIXME: remove this check once we drop Pascal support
-  CUGRAPH_EXPECTS(
-    handle.get_device_properties().major >= 7,
-    "This version of enumber_edgelist not supported on Pascal and older architectures.");
-
-#ifdef CUCO_STATIC_MAP_DEFINED
   auto& comm               = handle.get_comms();
   auto const comm_size     = comm.get_size();
   auto const comm_rank     = comm.get_rank();
@@ -740,12 +731,6 @@ renumber_edgelist(raft::handle_t const& handle,
 
   return std::make_tuple(
     std::move(renumber_map_labels), partition, number_of_vertices, number_of_edges);
-#else
-  return std::make_tuple(rmm::device_uvector<vertex_t>(0, handle.get_stream()),
-                         partition_t<vertex_t>{},
-                         vertex_t{0},
-                         edge_t{0});
-#endif
 }
 
 template <typename vertex_t, typename edge_t, bool multi_gpu>
@@ -757,12 +742,6 @@ std::enable_if_t<!multi_gpu, rmm::device_uvector<vertex_t>> renumber_edgelist(
   edge_t num_edgelist_edges,
   bool do_expensive_check)
 {
-  // FIXME: remove this check once we drop Pascal support
-  CUGRAPH_EXPECTS(
-    handle.get_device_properties().major >= 7,
-    "This version of renumber_edgelist not supported on Pascal and older architectures.");
-
-#ifdef CUCO_STATIC_MAP_DEFINED
   if (do_expensive_check) {
     expensive_check_edgelist<vertex_t, edge_t, multi_gpu>(
       handle,
@@ -807,9 +786,6 @@ std::enable_if_t<!multi_gpu, rmm::device_uvector<vertex_t>> renumber_edgelist(
     edgelist_minor_vertices, edgelist_minor_vertices + num_edgelist_edges, edgelist_minor_vertices);
 
   return renumber_map_labels;
-#else
-  return rmm::device_uvector<vertex_t>(0, handle.get_stream());
-#endif
 }
 
 }  // namespace detail

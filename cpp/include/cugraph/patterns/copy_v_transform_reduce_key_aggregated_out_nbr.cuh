@@ -27,11 +27,10 @@
 #include <cugraph/utilities/shuffle_comm.cuh>
 #include <cugraph/vertex_partition_device.cuh>
 
+#include <cuco/static_map.cuh>
 #include <raft/handle.hpp>
 #include <rmm/mr/device/per_device_resource.hpp>
 #include <rmm/mr/device/polymorphic_allocator.hpp>
-
-#include <cugraph/experimental/include_cuco_static_map.cuh>
 
 #include <type_traits>
 

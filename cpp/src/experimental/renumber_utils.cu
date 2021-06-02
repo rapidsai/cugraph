@@ -14,14 +14,13 @@
  * limitations under the License.
  */
 
-#include <cugraph/experimental/include_cuco_static_map.cuh>
-
 #include <cugraph/experimental/detail/graph_utils.cuh>
 #include <cugraph/experimental/graph.hpp>
 #include <cugraph/experimental/graph_functions.hpp>
 #include <cugraph/utilities/collect_comm.cuh>
 #include <cugraph/utilities/error.hpp>
 
+#include <cuco/static_map.cuh>
 #include <rmm/mr/device/per_device_resource.hpp>
 #include <rmm/mr/device/polymorphic_allocator.hpp>
 
@@ -49,11 +48,6 @@ void renumber_ext_vertices(raft::handle_t const& handle,
 {
   double constexpr load_factor = 0.7;
 
-  // FIXME: remove this check once we drop Pascal support
-  CUGRAPH_EXPECTS(handle.get_device_properties().major >= 7,
-                  "renumber_vertices() not supported on Pascal and older architectures.");
-
-#ifdef CUCO_STATIC_MAP_DEFINED
   if (do_expensive_check) {
     rmm::device_uvector<vertex_t> labels(local_int_vertex_last - local_int_vertex_first,
                                          handle.get_stream());
@@ -177,7 +171,6 @@ void renumber_ext_vertices(raft::handle_t const& handle,
   }
 
   renumber_map_ptr->find(vertices, vertices + num_vertices, vertices);
-#endif
 }
 
 template <typename vertex_t>
@@ -190,11 +183,6 @@ void unrenumber_local_int_vertices(
   vertex_t local_int_vertex_last,
   bool do_expensive_check)
 {
-  // FIXME: remove this check once we drop Pascal support
-  CUGRAPH_EXPECTS(handle.get_device_properties().major >= 7,
-                  "unrenumber_local_vertices() not supported on Pascal and older architectures.");
-
-#ifdef CUCO_STATIC_MAP_DEFINED
   if (do_expensive_check) {
     CUGRAPH_EXPECTS(
       thrust::count_if(rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
@@ -217,7 +205,6 @@ void unrenumber_local_int_vertices(
                                ? v
                                : renumber_map_labels[v - local_int_vertex_first];
                     });
-#endif
 }
 
 template <typename vertex_t, bool multi_gpu>
