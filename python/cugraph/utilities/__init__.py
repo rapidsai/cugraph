@@ -24,5 +24,6 @@ from cugraph.utilities.utils import (import_optional,
                                      is_matrix_type,
                                      is_cp_matrix_type,
                                      is_sp_matrix_type,
+                                     renumber_vertex_pair
                                      )
 from cugraph.utilities.path_retrieval import get_traversed_cost
