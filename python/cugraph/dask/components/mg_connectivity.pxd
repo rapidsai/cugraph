@@ -1,4 +1,6 @@
-# Copyright (c) 2020-2021, NVIDIA CORPORATION.
+#
+# Copyright (c) 2021, NVIDIA CORPORATION.
+#
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -10,11 +12,15 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+#
 
-from .link_analysis.pagerank import pagerank
-from .traversal.bfs import bfs
-from .traversal.sssp import sssp
-from .common.read_utils import get_chunksize
-from .community.louvain import louvain
-from .centrality.katz_centrality import katz_centrality
-from .components.connectivity import weakly_connected_components
+from cugraph.structure.graph_utilities cimport *
+from libcpp cimport bool
+
+
+cdef extern from "cugraph/utilities/cython.hpp" namespace "cugraph::cython":
+
+    cdef void call_wcc[vertex_t, weight_t](
+        const handle_t &handle,
+        const graph_container_t &g,
+        vertex_t * components)
