@@ -249,11 +249,11 @@ generate_complete_graph_edgelist(
  */
 template <typename vertex_t>
 std::tuple<rmm::device_uvector<vertex_t>, rmm::device_uvector<vertex_t>>
-generate_erdos_renyi_graph_edgelist(raft::handle_t const &handle,
-                                    vertex_t num_vertices,
-                                    float p,
-                                    vertex_t base_vertex_id,
-                                    uint64_t seed = 0);
+generate_erdos_renyi_graph_edgelist_gnp(raft::handle_t const &handle,
+                                        vertex_t num_vertices,
+                                        float p,
+                                        vertex_t base_vertex_id,
+                                        uint64_t seed = 0);
 
 /**
  * @brief generate an edge lists for an Erdos-Renyi graph
@@ -276,11 +276,11 @@ generate_erdos_renyi_graph_edgelist(raft::handle_t const &handle,
  */
 template <typename vertex_t>
 std::tuple<rmm::device_uvector<vertex_t>, rmm::device_uvector<vertex_t>>
-generate_erdos_renyi_graph_edgelist(raft::handle_t const &handle,
-                                    vertex_t num_vertices,
-                                    size_t m,
-                                    vertex_t base_vertex_id,
-                                    uint64_t seed = 0);
+generate_erdos_renyi_graph_edgelist_gnm(raft::handle_t const &handle,
+                                        vertex_t num_vertices,
+                                        size_t m,
+                                        vertex_t base_vertex_id,
+                                        uint64_t seed = 0);
 
 /**
  * @brief symmetrize an edgelist
@@ -301,12 +301,13 @@ generate_erdos_renyi_graph_edgelist(raft::handle_t const &handle,
  * rmm::device_uvector objects for edge source vertex IDs and edge destination vertex IDs.
  */
 template <typename vertex_t, typename weight_t>
-std::
-  tuple<rmm::device_uvector<vertex_t>, rmm::device_uvector<vertex_t>, rmm::device_uvector<weight_t>>
-  symmetrize_edgelist(raft::handle_t const &handle,
-                      rmm::device_uvector<vertex_t> &&d_src_v,
-                      rmm::device_uvector<vertex_t> &&d_dst_v,
-                      std::optional<rmm::device_uvector<weight_t>> &&optional_d_weights_v);
+std::tuple<rmm::device_uvector<vertex_t>,
+           rmm::device_uvector<vertex_t>,
+           std::optional<rmm::device_uvector<weight_t>>>
+symmetrize_edgelist(raft::handle_t const &handle,
+                    rmm::device_uvector<vertex_t> &&d_src_v,
+                    rmm::device_uvector<vertex_t> &&d_dst_v,
+                    std::optional<rmm::device_uvector<weight_t>> &&optional_d_weights_v);
 
 /**
  * @brief scramble vertex ids in a graph
@@ -344,18 +345,19 @@ void scramble_vertex_ids(raft::handle_t const &handle,
  * handles to various CUDA libraries) to run graph algorithms.
  * @param sources The source vertex ids to combine
  * @param dests The destination vertex ids to combine
- * @param weights The weights to combine
- * @param has_weight If true, combine the weights (addition).  If false then ignore the weights
+ * @param weights Optional vector of weights to combine
+ * @param remove_multi_edges If true (the default) then remove multi edges, if false leave them in
  * @return std::tuple<rmm::device_uvector<vertex_t>, rmm::device_uvector<vertex_t>,
  * rmm::device_uvector<weight_t>> A tuple of rmm::device_uvector objects for edge source vertex IDs
  * and edge destination vertex IDs and edge weights.
  */
 template <typename vertex_t, typename weight_t>
 std::
-  tuple<rmm::device_uvector<vertex_t>, rmm::device_uvector<vertex_t>, rmm::device_uvector<weight_t>>
+tuple<rmm::device_uvector<vertex_t>, rmm::device_uvector<vertex_t>, std::optional<rmm::device_uvector<weight_t>>>
   combine_edgelists(raft::handle_t const &handle,
                     std::vector<rmm::device_uvector<vertex_t>> &&d_sources,
                     std::vector<rmm::device_uvector<vertex_t>> &&d_dests,
-                    std::optional<std::vector<rmm::device_uvector<weight_t>>> &&optional_d_weights);
+                    std::optional<std::vector<rmm::device_uvector<weight_t>>> &&optional_d_weights,
+                    bool remove_multi_edges = true);
 
 }  // namespace cugraph

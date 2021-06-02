@@ -15,6 +15,7 @@
  */
 
 #include <cugraph/graph_generators.hpp>
+#include <cugraph/utilities/error.hpp>
 
 #include <rmm/device_uvector.hpp>
 #include <rmm/exec_policy.hpp>
@@ -237,6 +238,12 @@ generate_complete_graph_edgelist(
   raft::handle_t const& handle,
   std::vector<std::tuple<vertex_t, vertex_t>> const& component_parms_v)
 {
+  std::for_each(component_parms_v.begin(), component_parms_v.end(), [](auto tuple) {
+    vertex_t num_vertices = std::get<0>(tuple);
+    CUGRAPH_EXPECTS(num_vertices < std::numeric_limits<int32_t>::max(),
+                    "Implementation cannot support specified value");
+  });
+
   size_t num_edges = thrust::transform_reduce(
     thrust::host,
     component_parms_v.begin(),

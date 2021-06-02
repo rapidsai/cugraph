@@ -17,10 +17,13 @@
 #include <cugraph/graph_generators.hpp>
 
 #include <utilities/base_fixture.hpp>
+#include <utilities/test_utilities.hpp>
 
 #include <thrust/execution_policy.h>
 #include <thrust/iterator/zip_iterator.h>
 #include <thrust/sort.h>
+
+#include <random>
 
 struct GeneratorsTest : public ::testing::Test {
 };
@@ -641,6 +644,42 @@ TEST_F(GeneratorsTest, CombineGraphsOffsetsTest)
 
   EXPECT_EQ(expected_src_v, actual_src_v);
   EXPECT_EQ(expected_dst_v, actual_dst_v);
+}
+
+TEST_F(GeneratorsTest, ScrambleTest)
+{
+  using vertex_t = int32_t;
+  using edge_t = int32_t;
+
+  edge_t num_vertices{30};
+  edge_t num_edges{100};
+
+  raft::handle_t handle;
+
+  std::vector<vertex_t> input_src_v(num_edges);
+  std::vector<vertex_t> input_dst_v(num_edges);
+
+  std::default_random_engine generator{};
+  std::uniform_int_distribution<vertex_t> distribution{0, num_vertices - 1};
+
+  std::generate(input_src_v.begin(), input_src_v.end(), [&distribution, &generator]() { return distribution(generator); });
+  std::generate(input_dst_v.begin(), input_dst_v.end(), [&distribution, &generator]() { return distribution(generator); });
+
+  rmm::device_uvector<vertex_t> d_src_v(input_src_v.size(), handle.get_stream());
+  rmm::device_uvector<vertex_t> d_dst_v(input_src_v.size(), handle.get_stream());
+  std::vector<vertex_t> output_src_v(input_src_v.size());
+  std::vector<vertex_t> output_dst_v(input_src_v.size());
+
+  raft::update_device(d_src_v.data(), input_src_v.data(), input_src_v.size(), handle.get_stream());
+  raft::update_device(d_dst_v.data(), input_dst_v.data(), input_dst_v.size(), handle.get_stream());
+
+  cugraph::scramble_vertex_ids(handle, d_src_v, d_dst_v, 5, 0);
+
+  raft::update_host(output_src_v.data(), d_src_v.data(), d_src_v.size(), handle.get_stream());
+  raft::update_host(output_dst_v.data(), d_dst_v.data(), d_dst_v.size(), handle.get_stream());
+
+  EXPECT_TRUE(cugraph::test::renumbered_vectors_same(handle, input_src_v, output_src_v));
+  EXPECT_TRUE(cugraph::test::renumbered_vectors_same(handle, input_dst_v, output_dst_v));
 }
 
 CUGRAPH_TEST_PROGRAM_MAIN()

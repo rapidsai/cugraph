@@ -30,12 +30,15 @@ namespace cugraph {
 
 template <typename vertex_t>
 std::tuple<rmm::device_uvector<vertex_t>, rmm::device_uvector<vertex_t>>
-generate_erdos_renyi_graph_edgelist(raft::handle_t const& handle,
-                                    vertex_t num_vertices,
-                                    float p,
-                                    vertex_t base_vertex_id,
-                                    uint64_t seed)
+generate_erdos_renyi_graph_edgelist_gnp(raft::handle_t const& handle,
+                                        vertex_t num_vertices,
+                                        float p,
+                                        vertex_t base_vertex_id,
+                                        uint64_t seed)
 {
+  CUGRAPH_EXPECTS(num_vertices < std::numeric_limits<int32_t>::max(),
+                  "Implementation cannot support specified value");
+
   auto random_iterator = thrust::make_transform_iterator(
     thrust::make_counting_iterator<size_t>(0), [seed] __device__(size_t index) {
       thrust::default_random_engine rng(seed);
@@ -50,8 +53,6 @@ generate_erdos_renyi_graph_edgelist(raft::handle_t const& handle,
                                   [p] __device__(float prob) { return prob < p; });
 
   rmm::device_uvector<size_t> indices_v(count, handle.get_stream());
-
-  handle.get_stream_view().synchronize();
 
   thrust::copy_if(rmm::exec_policy(handle.get_stream()),
                   random_iterator,
@@ -81,41 +82,41 @@ generate_erdos_renyi_graph_edgelist(raft::handle_t const& handle,
 
 template <typename vertex_t>
 std::tuple<rmm::device_uvector<vertex_t>, rmm::device_uvector<vertex_t>>
-generate_erdos_renyi_graph_edgelist(raft::handle_t const& handle,
-                                    vertex_t num_vertices,
-                                    size_t m,
-                                    vertex_t base_vertex_id,
-                                    uint64_t seed)
+generate_erdos_renyi_graph_edgelist_gnm(raft::handle_t const& handle,
+                                        vertex_t num_vertices,
+                                        size_t m,
+                                        vertex_t base_vertex_id,
+                                        uint64_t seed)
 {
   CUGRAPH_FAIL("Not implemented");
 }
 
 template std::tuple<rmm::device_uvector<int32_t>, rmm::device_uvector<int32_t>>
-generate_erdos_renyi_graph_edgelist(raft::handle_t const& handle,
-                                    int32_t num_vertices,
-                                    float p,
-                                    int32_t base_vertex_id,
-                                    uint64_t seed);
+generate_erdos_renyi_graph_edgelist_gnp(raft::handle_t const& handle,
+                                        int32_t num_vertices,
+                                        float p,
+                                        int32_t base_vertex_id,
+                                        uint64_t seed);
 
 template std::tuple<rmm::device_uvector<int64_t>, rmm::device_uvector<int64_t>>
-generate_erdos_renyi_graph_edgelist(raft::handle_t const& handle,
-                                    int64_t num_vertices,
-                                    float p,
-                                    int64_t base_vertex_id,
-                                    uint64_t seed);
+generate_erdos_renyi_graph_edgelist_gnp(raft::handle_t const& handle,
+                                        int64_t num_vertices,
+                                        float p,
+                                        int64_t base_vertex_id,
+                                        uint64_t seed);
 
 template std::tuple<rmm::device_uvector<int32_t>, rmm::device_uvector<int32_t>>
-generate_erdos_renyi_graph_edgelist(raft::handle_t const& handle,
-                                    int32_t num_vertices,
-                                    size_t m,
-                                    int32_t base_vertex_id,
-                                    uint64_t seed);
+generate_erdos_renyi_graph_edgelist_gnm(raft::handle_t const& handle,
+                                        int32_t num_vertices,
+                                        size_t m,
+                                        int32_t base_vertex_id,
+                                        uint64_t seed);
 
 template std::tuple<rmm::device_uvector<int64_t>, rmm::device_uvector<int64_t>>
-generate_erdos_renyi_graph_edgelist(raft::handle_t const& handle,
-                                    int64_t num_vertices,
-                                    size_t m,
-                                    int64_t base_vertex_id,
-                                    uint64_t seed);
+generate_erdos_renyi_graph_edgelist_gnm(raft::handle_t const& handle,
+                                        int64_t num_vertices,
+                                        size_t m,
+                                        int64_t base_vertex_id,
+                                        uint64_t seed);
 
 }  // namespace cugraph

@@ -57,7 +57,7 @@ void er_test(size_t num_vertices, float p)
   rmm::device_uvector<vertex_t> d_dst_v(0, handle.get_stream());
 
   std::tie(d_src_v, d_dst_v) =
-    cugraph::generate_erdos_renyi_graph_edgelist<vertex_t>(handle, num_vertices, p, 0);
+    cugraph::generate_erdos_renyi_graph_edgelist_gnp<vertex_t>(handle, num_vertices, p, 0);
 
   handle.get_stream_view().synchronize();
 
