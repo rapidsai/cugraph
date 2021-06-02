@@ -651,14 +651,10 @@ renumber_edgelist(raft::handle_t const& handle,
         invalid_vertex_id<vertex_t>::value,
         invalid_vertex_id<vertex_t>::value,
         stream_adapter};
-    auto pair_first = thrust::make_transform_iterator(
-      thrust::make_zip_iterator(thrust::make_tuple(
-        col_comm_rank == static_cast<int>(i) ? renumber_map_labels.begin()
-                                             : renumber_map_major_labels.begin(),
-        thrust::make_counting_iterator(partition.get_matrix_partition_major_first(i)))),
-      [] __device__(auto val) {
-        return thrust::make_pair(thrust::get<0>(val), thrust::get<1>(val));
-      });
+    auto pair_first = thrust::make_zip_iterator(thrust::make_tuple(
+      col_comm_rank == static_cast<int>(i) ? renumber_map_labels.begin()
+                                           : renumber_map_major_labels.begin(),
+      thrust::make_counting_iterator(partition.get_matrix_partition_major_first(i))));
     renumber_map.insert(pair_first, pair_first + partition.get_matrix_partition_major_size(i));
     renumber_map.find(edgelist_major_vertices[i],
                       edgelist_major_vertices[i] + edgelist_edge_counts[i],
@@ -704,13 +700,9 @@ renumber_edgelist(raft::handle_t const& handle,
                    invalid_vertex_id<vertex_t>::value,
                    invalid_vertex_id<vertex_t>::value,
                    stream_adapter};
-    auto pair_first = thrust::make_transform_iterator(
-      thrust::make_zip_iterator(thrust::make_tuple(
-        renumber_map_minor_labels.begin(),
-        thrust::make_counting_iterator(partition.get_matrix_partition_minor_first()))),
-      [] __device__(auto val) {
-        return thrust::make_pair(thrust::get<0>(val), thrust::get<1>(val));
-      });
+    auto pair_first = thrust::make_zip_iterator(thrust::make_tuple(
+      renumber_map_minor_labels.begin(),
+      thrust::make_counting_iterator(partition.get_matrix_partition_minor_first())));
     renumber_map.insert(pair_first, pair_first + renumber_map_minor_labels.size());
     for (size_t i = 0; i < edgelist_major_vertices.size(); ++i) {
       renumber_map.find(edgelist_minor_vertices[i],
@@ -773,12 +765,8 @@ std::enable_if_t<!multi_gpu, rmm::device_uvector<vertex_t>> renumber_edgelist(
       invalid_vertex_id<vertex_t>::value,
       invalid_vertex_id<vertex_t>::value,
       stream_adapter};
-  auto pair_first = thrust::make_transform_iterator(
-    thrust::make_zip_iterator(
-      thrust::make_tuple(renumber_map_labels.begin(), thrust::make_counting_iterator(vertex_t{0}))),
-    [] __device__(auto val) {
-      return thrust::make_pair(thrust::get<0>(val), thrust::get<1>(val));
-    });
+  auto pair_first = thrust::make_zip_iterator(
+    thrust::make_tuple(renumber_map_labels.begin(), thrust::make_counting_iterator(vertex_t{0})));
   renumber_map.insert(pair_first, pair_first + renumber_map_labels.size());
   renumber_map.find(
     edgelist_major_vertices, edgelist_major_vertices + num_edgelist_edges, edgelist_major_vertices);

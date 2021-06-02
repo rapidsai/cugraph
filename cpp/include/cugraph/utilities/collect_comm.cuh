@@ -77,11 +77,7 @@ collect_values_for_keys(raft::comms::comms_t const &comm,
     invalid_vertex_id<vertex_t>::value,
     stream_adapter);
   {
-    auto pair_first = thrust::make_transform_iterator(
-      thrust::make_zip_iterator(thrust::make_tuple(map_key_first, map_value_first)),
-      [] __device__(auto val) {
-        return thrust::make_pair(thrust::get<0>(val), thrust::get<1>(val));
-      });
+    auto pair_first = thrust::make_zip_iterator(thrust::make_tuple(map_key_first, map_value_first));
     kv_map_ptr->insert(pair_first, pair_first + thrust::distance(map_key_first, map_key_last));
   }
 
@@ -139,13 +135,8 @@ collect_values_for_keys(raft::comms::comms_t const &comm,
     invalid_vertex_id<vertex_t>::value,
     stream_adapter);
   {
-    auto pair_first = thrust::make_transform_iterator(
-      thrust::make_zip_iterator(
-        thrust::make_tuple(unique_keys.begin(), values_for_unique_keys.begin())),
-      [] __device__(auto val) {
-        return thrust::make_pair(thrust::get<0>(val), thrust::get<1>(val));
-      });
-
+    auto pair_first = thrust::make_zip_iterator(
+      thrust::make_tuple(unique_keys.begin(), values_for_unique_keys.begin()));
     kv_map_ptr->insert(pair_first, pair_first + unique_keys.size());
   }
 
@@ -201,11 +192,7 @@ collect_values_for_unique_keys(raft::comms::comms_t const &comm,
     invalid_vertex_id<vertex_t>::value,
     stream_adapter);
   {
-    auto pair_first = thrust::make_transform_iterator(
-      thrust::make_zip_iterator(thrust::make_tuple(map_key_first, map_value_first)),
-      [] __device__(auto val) {
-        return thrust::make_pair(thrust::get<0>(val), thrust::get<1>(val));
-      });
+    auto pair_first = thrust::make_zip_iterator(thrust::make_tuple(map_key_first, map_value_first));
     kv_map_ptr->insert(pair_first, pair_first + thrust::distance(map_key_first, map_key_last));
   }
 
@@ -259,13 +246,8 @@ collect_values_for_unique_keys(raft::comms::comms_t const &comm,
     invalid_vertex_id<vertex_t>::value,
     stream_adapter);
   {
-    auto pair_first = thrust::make_transform_iterator(
-      thrust::make_zip_iterator(
-        thrust::make_tuple(unique_keys.begin(), values_for_unique_keys.begin())),
-      [] __device__(auto val) {
-        return thrust::make_pair(thrust::get<0>(val), thrust::get<1>(val));
-      });
-
+    auto pair_first = thrust::make_zip_iterator(
+      thrust::make_tuple(unique_keys.begin(), values_for_unique_keys.begin()));
     kv_map_ptr->insert(pair_first, pair_first + unique_keys.size());
   }
 

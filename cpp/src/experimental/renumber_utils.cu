@@ -120,12 +120,8 @@ void renumber_ext_vertices(raft::handle_t const& handle,
       invalid_vertex_id<vertex_t>::value,
       stream_adapter);
 
-    auto kv_pair_first = thrust::make_transform_iterator(
-      thrust::make_zip_iterator(thrust::make_tuple(
-        sorted_unique_ext_vertices.begin(), int_vertices_for_sorted_unique_ext_vertices.begin())),
-      [] __device__(auto val) {
-        return thrust::make_pair(thrust::get<0>(val), thrust::get<1>(val));
-      });
+    auto kv_pair_first = thrust::make_zip_iterator(thrust::make_tuple(
+      sorted_unique_ext_vertices.begin(), int_vertices_for_sorted_unique_ext_vertices.begin()));
     renumber_map_ptr->insert(kv_pair_first, kv_pair_first + sorted_unique_ext_vertices.size());
   } else {
     handle.get_stream_view().synchronize();  // cuco::static_map currently does not take stream
@@ -142,12 +138,8 @@ void renumber_ext_vertices(raft::handle_t const& handle,
       invalid_vertex_id<vertex_t>::value,
       stream_adapter);
 
-    auto pair_first = thrust::make_transform_iterator(
-      thrust::make_zip_iterator(
-        thrust::make_tuple(renumber_map_labels, thrust::make_counting_iterator(vertex_t{0}))),
-      [] __device__(auto val) {
-        return thrust::make_pair(thrust::get<0>(val), thrust::get<1>(val));
-      });
+    auto pair_first = thrust::make_zip_iterator(
+      thrust::make_tuple(renumber_map_labels, thrust::make_counting_iterator(vertex_t{0})));
     renumber_map_ptr->insert(pair_first,
                              pair_first + (local_int_vertex_last - local_int_vertex_first));
   }
@@ -313,13 +305,8 @@ void unrenumber_int_vertices(raft::handle_t const& handle,
         invalid_vertex_id<vertex_t>::value,
         stream_adapter};
 
-    auto pair_first = thrust::make_transform_iterator(
-      thrust::make_zip_iterator(
-        thrust::make_tuple(sorted_unique_int_vertices.begin(),
-                           rx_ext_vertices_for_sorted_unique_int_vertices.begin())),
-      [] __device__(auto val) {
-        return thrust::make_pair(thrust::get<0>(val), thrust::get<1>(val));
-      });
+    auto pair_first = thrust::make_zip_iterator(thrust::make_tuple(
+      sorted_unique_int_vertices.begin(), rx_ext_vertices_for_sorted_unique_int_vertices.begin()));
     unrenumber_map.insert(pair_first, pair_first + sorted_unique_int_vertices.size());
     unrenumber_map.find(vertices, vertices + num_vertices, vertices);
   } else {

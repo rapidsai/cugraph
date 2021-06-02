@@ -21,6 +21,9 @@
 
 #include <rmm/device_uvector.hpp>
 
+CUCO_DECLARE_BITWISE_COMPARABLE(float)
+CUCO_DECLARE_BITWISE_COMPARABLE(double)
+
 namespace cugraph {
 
 namespace detail {

@@ -130,12 +130,8 @@ void relabel(raft::handle_t const& handle,
                     invalid_vertex_id<vertex_t>::value,
                     stream_adapter};
 
-      auto pair_first = thrust::make_transform_iterator(
-        thrust::make_zip_iterator(
-          thrust::make_tuple(rx_label_pair_old_labels.begin(), rx_label_pair_new_labels.begin())),
-        [] __device__(auto val) {
-          return thrust::make_pair(thrust::get<0>(val), thrust::get<1>(val));
-        });
+      auto pair_first = thrust::make_zip_iterator(
+        thrust::make_tuple(rx_label_pair_old_labels.begin(), rx_label_pair_new_labels.begin()));
       relabel_map.insert(pair_first, pair_first + rx_label_pair_old_labels.size());
 
       rx_label_pair_old_labels.resize(0, handle.get_stream());
@@ -198,13 +194,8 @@ void relabel(raft::handle_t const& handle,
           invalid_vertex_id<vertex_t>::value,
           stream_adapter};
 
-      auto pair_first = thrust::make_transform_iterator(
-        thrust::make_zip_iterator(
-          thrust::make_tuple(unique_old_labels.begin(), new_labels_for_unique_old_labels.begin())),
-        [] __device__(auto val) {
-          return thrust::make_pair(thrust::get<0>(val), thrust::get<1>(val));
-        });
-
+      auto pair_first = thrust::make_zip_iterator(
+        thrust::make_tuple(unique_old_labels.begin(), new_labels_for_unique_old_labels.begin()));
       relabel_map.insert(pair_first, pair_first + unique_old_labels.size());
       relabel_map.find(labels, labels + num_labels, labels);
     }
@@ -216,13 +207,8 @@ void relabel(raft::handle_t const& handle,
       invalid_vertex_id<vertex_t>::value,
       invalid_vertex_id<vertex_t>::value);
 
-    auto pair_first = thrust::make_transform_iterator(
-      thrust::make_zip_iterator(
-        thrust::make_tuple(std::get<0>(old_new_label_pairs), std::get<1>(old_new_label_pairs))),
-      [] __device__(auto val) {
-        return thrust::make_pair(thrust::get<0>(val), thrust::get<1>(val));
-      });
-
+    auto pair_first = thrust::make_zip_iterator(
+      thrust::make_tuple(std::get<0>(old_new_label_pairs), std::get<1>(old_new_label_pairs)));
     relabel_map.insert(pair_first, pair_first + num_label_pairs);
     if (skip_missing_labels) {
       thrust::transform(rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
