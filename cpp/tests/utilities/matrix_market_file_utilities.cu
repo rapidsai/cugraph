@@ -17,6 +17,7 @@
 #include <utilities/test_utilities.hpp>
 
 #include <cugraph/experimental/detail/graph_utils.cuh>
+#include <cugraph/experimental/graph_functions.hpp>
 #include <cugraph/functions.hpp>
 #include <cugraph/partition_manager.hpp>
 #include <cugraph/utilities/error.hpp>
@@ -273,7 +274,7 @@ read_edgelist_from_matrix_market_file(raft::handle_t const& handle,
   size_t nnz{};
 
   FILE* file = fopen(graph_file_full_path.c_str(), "r");
-  CUGRAPH_EXPECTS(file != nullptr, "fopen failure.");
+  CUGRAPH_EXPECTS(file != nullptr, "fopen (%s) failure.", graph_file_full_path.c_str());
 
   size_t tmp_m{};
   size_t tmp_k{};
@@ -409,15 +410,16 @@ read_graph_from_matrix_market_file(raft::handle_t const& handle,
   }
 
   handle.get_stream_view().synchronize();
-  return generate_graph_from_edgelist<vertex_t, edge_t, weight_t, store_transposed, multi_gpu>(
-    handle,
-    std::move(d_vertices),
-    std::move(d_edgelist_rows),
-    std::move(d_edgelist_cols),
-    std::move(d_edgelist_weights),
-    is_symmetric,
-    test_weighted,
-    renumber);
+  return cugraph::experimental::
+    create_graph_from_edgelist<vertex_t, edge_t, weight_t, store_transposed, multi_gpu>(
+      handle,
+      std::optional<std::tuple<vertex_t const*, vertex_t>>{
+        std::make_tuple(d_vertices.data(), static_cast<vertex_t>(d_vertices.size()))},
+      std::move(d_edgelist_rows),
+      std::move(d_edgelist_cols),
+      std::move(d_edgelist_weights),
+      cugraph::experimental::graph_properties_t{is_symmetric, false, test_weighted},
+      renumber);
 }
 
 // explicit instantiations

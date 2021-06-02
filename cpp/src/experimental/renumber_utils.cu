@@ -22,6 +22,9 @@
 #include <cugraph/utilities/collect_comm.cuh>
 #include <cugraph/utilities/error.hpp>
 
+#include <rmm/mr/device/per_device_resource.hpp>
+#include <rmm/mr/device/polymorphic_allocator.hpp>
+
 #include <thrust/binary_search.h>
 #include <thrust/copy.h>
 #include <thrust/count.h>
@@ -66,8 +69,14 @@ void renumber_ext_vertices(raft::handle_t const& handle,
                     "Invalid input arguments: renumber_map_labels have duplicate elements.");
   }
 
-  auto renumber_map_ptr = std::make_unique<cuco::static_map<vertex_t, vertex_t>>(
-    size_t{0}, invalid_vertex_id<vertex_t>::value, invalid_vertex_id<vertex_t>::value);
+  auto poly_alloc = rmm::mr::polymorphic_allocator<char>(rmm::mr::get_current_device_resource());
+  auto stream_adapter   = rmm::mr::make_stream_allocator_adaptor(poly_alloc, cudaStream_t{nullptr});
+  auto renumber_map_ptr = std::make_unique<
+    cuco::static_map<vertex_t, vertex_t, cuda::thread_scope_device, decltype(stream_adapter)>>(
+    size_t{0},
+    invalid_vertex_id<vertex_t>::value,
+    invalid_vertex_id<vertex_t>::value,
+    stream_adapter);
   if (multi_gpu) {
     auto& comm           = handle.get_comms();
     auto const comm_size = comm.get_size();
@@ -107,13 +116,15 @@ void renumber_ext_vertices(raft::handle_t const& handle,
 
     renumber_map_ptr.reset();
 
-    renumber_map_ptr = std::make_unique<cuco::static_map<vertex_t, vertex_t>>(
+    renumber_map_ptr = std::make_unique<
+      cuco::static_map<vertex_t, vertex_t, cuda::thread_scope_device, decltype(stream_adapter)>>(
       // cuco::static_map requires at least one empty slot
       std::max(
         static_cast<size_t>(static_cast<double>(sorted_unique_ext_vertices.size()) / load_factor),
         sorted_unique_ext_vertices.size() + 1),
       invalid_vertex_id<vertex_t>::value,
-      invalid_vertex_id<vertex_t>::value);
+      invalid_vertex_id<vertex_t>::value,
+      stream_adapter);
 
     auto kv_pair_first = thrust::make_transform_iterator(
       thrust::make_zip_iterator(thrust::make_tuple(
@@ -127,13 +138,15 @@ void renumber_ext_vertices(raft::handle_t const& handle,
 
     renumber_map_ptr.reset();
 
-    renumber_map_ptr = std::make_unique<cuco::static_map<vertex_t, vertex_t>>(
+    renumber_map_ptr = std::make_unique<
+      cuco::static_map<vertex_t, vertex_t, cuda::thread_scope_device, decltype(stream_adapter)>>(
       // cuco::static_map requires at least one empty slot
       std::max(static_cast<size_t>(
                  static_cast<double>(local_int_vertex_last - local_int_vertex_first) / load_factor),
                static_cast<size_t>(local_int_vertex_last - local_int_vertex_first) + 1),
       invalid_vertex_id<vertex_t>::value,
-      invalid_vertex_id<vertex_t>::value);
+      invalid_vertex_id<vertex_t>::value,
+      stream_adapter);
 
     auto pair_first = thrust::make_transform_iterator(
       thrust::make_zip_iterator(
@@ -214,7 +227,7 @@ void unrenumber_int_vertices(raft::handle_t const& handle,
                              vertex_t const* renumber_map_labels,
                              vertex_t local_int_vertex_first,
                              vertex_t local_int_vertex_last,
-                             std::vector<vertex_t>& vertex_partition_lasts,
+                             std::vector<vertex_t> const& vertex_partition_lasts,
                              bool do_expensive_check)
 {
   double constexpr load_factor = 0.7;
@@ -306,13 +319,17 @@ void unrenumber_int_vertices(raft::handle_t const& handle,
 
     handle.get_stream_view().synchronize();  // cuco::static_map currently does not take stream
 
-    cuco::static_map<vertex_t, vertex_t> unrenumber_map(
-      // cuco::static_map requires at least one empty slot
-      std::max(
-        static_cast<size_t>(static_cast<double>(sorted_unique_int_vertices.size()) / load_factor),
-        sorted_unique_int_vertices.size() + 1),
-      invalid_vertex_id<vertex_t>::value,
-      invalid_vertex_id<vertex_t>::value);
+    auto poly_alloc = rmm::mr::polymorphic_allocator<char>(rmm::mr::get_current_device_resource());
+    auto stream_adapter = rmm::mr::make_stream_allocator_adaptor(poly_alloc, cudaStream_t{nullptr});
+    cuco::static_map<vertex_t, vertex_t, cuda::thread_scope_device, decltype(stream_adapter)>
+      unrenumber_map{
+        // cuco::static_map requires at least one empty slot
+        std::max(
+          static_cast<size_t>(static_cast<double>(sorted_unique_int_vertices.size()) / load_factor),
+          sorted_unique_int_vertices.size() + 1),
+        invalid_vertex_id<vertex_t>::value,
+        invalid_vertex_id<vertex_t>::value,
+        stream_adapter};
 
     auto pair_first = thrust::make_transform_iterator(
       thrust::make_zip_iterator(
@@ -385,41 +402,45 @@ template void unrenumber_local_int_vertices<int64_t>(raft::handle_t const& handl
                                                      int64_t local_int_vertex_last,
                                                      bool do_expensive_check);
 
-template void unrenumber_int_vertices<int32_t, false>(raft::handle_t const& handle,
-                                                      int32_t* vertices,
-                                                      size_t num_vertices,
-                                                      int32_t const* renumber_map_labels,
-                                                      int32_t local_int_vertex_first,
-                                                      int32_t local_int_vertex_last,
-                                                      std::vector<int32_t>& vertex_partition_lasts,
-                                                      bool do_expensive_check);
+template void unrenumber_int_vertices<int32_t, false>(
+  raft::handle_t const& handle,
+  int32_t* vertices,
+  size_t num_vertices,
+  int32_t const* renumber_map_labels,
+  int32_t local_int_vertex_first,
+  int32_t local_int_vertex_last,
+  std::vector<int32_t> const& vertex_partition_lasts,
+  bool do_expensive_check);
 
-template void unrenumber_int_vertices<int32_t, true>(raft::handle_t const& handle,
-                                                     int32_t* vertices,
-                                                     size_t num_vertices,
-                                                     int32_t const* renumber_map_labels,
-                                                     int32_t local_int_vertex_first,
-                                                     int32_t local_int_vertex_last,
-                                                     std::vector<int32_t>& vertex_partition_lasts,
-                                                     bool do_expensive_check);
+template void unrenumber_int_vertices<int32_t, true>(
+  raft::handle_t const& handle,
+  int32_t* vertices,
+  size_t num_vertices,
+  int32_t const* renumber_map_labels,
+  int32_t local_int_vertex_first,
+  int32_t local_int_vertex_last,
+  std::vector<int32_t> const& vertex_partition_lasts,
+  bool do_expensive_check);
 
-template void unrenumber_int_vertices<int64_t, false>(raft::handle_t const& handle,
-                                                      int64_t* vertices,
-                                                      size_t num_vertices,
-                                                      int64_t const* renumber_map_labels,
-                                                      int64_t local_int_vertex_first,
-                                                      int64_t local_int_vertex_last,
-                                                      std::vector<int64_t>& vertex_partition_lasts,
-                                                      bool do_expensive_check);
+template void unrenumber_int_vertices<int64_t, false>(
+  raft::handle_t const& handle,
+  int64_t* vertices,
+  size_t num_vertices,
+  int64_t const* renumber_map_labels,
+  int64_t local_int_vertex_first,
+  int64_t local_int_vertex_last,
+  std::vector<int64_t> const& vertex_partition_lasts,
+  bool do_expensive_check);
 
-template void unrenumber_int_vertices<int64_t, true>(raft::handle_t const& handle,
-                                                     int64_t* vertices,
-                                                     size_t num_vertices,
-                                                     int64_t const* renumber_map_labels,
-                                                     int64_t local_int_vertex_first,
-                                                     int64_t local_int_vertex_last,
-                                                     std::vector<int64_t>& vertex_partition_lasts,
-                                                     bool do_expensive_check);
+template void unrenumber_int_vertices<int64_t, true>(
+  raft::handle_t const& handle,
+  int64_t* vertices,
+  size_t num_vertices,
+  int64_t const* renumber_map_labels,
+  int64_t local_int_vertex_first,
+  int64_t local_int_vertex_last,
+  std::vector<int64_t> const& vertex_partition_lasts,
+  bool do_expensive_check);
 
 }  // namespace experimental
 }  // namespace cugraph

@@ -78,6 +78,8 @@ def bfs(input_graph, start, depth_limit, direction_optimizing=False):
     c_distance_ptr = df['distance'].__cuda_array_interface__['data'][0]
     c_predecessor_ptr = df['predecessor'].__cuda_array_interface__['data'][0]
 
+    is_symmetric = not input_graph.is_directed()
+
     # Step 8: Proceed to BFS
     populate_graph_container(graph_container,
                              handle_[0],
@@ -90,6 +92,7 @@ def bfs(input_graph, start, depth_limit, direction_optimizing=False):
                              num_verts, num_edges,
                              False,
                              False,
+                             is_symmetric,
                              False,
                              False)
 

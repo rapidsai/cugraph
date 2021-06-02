@@ -98,6 +98,7 @@ def louvain(input_df,
                              num_global_verts, num_global_edges,
                              sorted_by_degree,
                              True,
+                             False,
                              False, True)  # store_transposed, multi_gpu
 
     # Create the output dataframe, column lengths must be equal to the number of

@@ -527,7 +527,8 @@ class Louvain {
                       static_cast<vertex_t const *>(numbering_indices.begin())),
       current_graph_view_.get_number_of_local_vertices(),
       dendrogram_->current_level_begin(),
-      dendrogram_->current_level_size());
+      dendrogram_->current_level_size(),
+      false);
 
     timer_stop(handle_.get_stream());
   }

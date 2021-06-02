@@ -85,6 +85,7 @@ def mg_sssp(input_df,
                              num_global_verts, num_global_edges,
                              True,
                              is_weighted,
+                             False,
                              False, True) 
 
     # Generate the cudf.DataFrame result

@@ -420,6 +420,7 @@ void populate_graph_container(graph_container_t& graph_container,
                               size_t num_global_edges,
                               bool sorted_by_degree,
                               bool is_weighted,
+                              bool is_symmetric,
                               bool transposed,
                               bool multi_gpu);
 
@@ -503,6 +504,12 @@ std::unique_ptr<cy_multi_edgelists_t> call_egonet(raft::handle_t const& handle,
                                                   vertex_t* source_vertex,
                                                   vertex_t n_subgraphs,
                                                   vertex_t radius);
+
+// Wrapper for calling WCC through a graph container
+template <typename vertex_t, typename weight_t>
+void call_wcc(raft::handle_t const& handle,
+              graph_container_t const& graph_container,
+              vertex_t* components);
 
 // Wrapper for calling graph generator
 template <typename vertex_t>
