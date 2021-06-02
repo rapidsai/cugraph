@@ -800,10 +800,6 @@ renumber_edgelist(raft::handle_t const& handle,
                   std::vector<edge_t> const& edgelist_edge_counts,
                   bool do_expensive_check)
 {
-  // FIXME: remove this check once we drop Pascal support
-  CUGRAPH_EXPECTS(
-    handle.get_device_properties().major >= 7,
-    "This version of renumber_edgelist not supported on Pascal and older architectures.");
   return detail::renumber_edgelist<vertex_t, edge_t, multi_gpu>(handle,
                                                                 optional_local_vertex_span,
                                                                 edgelist_major_vertices,
@@ -821,10 +817,6 @@ std::enable_if_t<!multi_gpu, rmm::device_uvector<vertex_t>> renumber_edgelist(
   edge_t num_edgelist_edges,
   bool do_expensive_check)
 {
-  // FIXME: remove this check once we drop Pascal support
-  CUGRAPH_EXPECTS(
-    handle.get_device_properties().major >= 7,
-    "This version of renumber_edgelist not supported on Pascal and older architectures.");
   return detail::renumber_edgelist<vertex_t, edge_t, multi_gpu>(handle,
                                                                 optional_vertex_span,
                                                                 edgelist_major_vertices,

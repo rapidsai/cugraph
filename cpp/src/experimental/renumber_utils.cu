@@ -219,11 +219,6 @@ void unrenumber_int_vertices(raft::handle_t const& handle,
 {
   double constexpr load_factor = 0.7;
 
-  // FIXME: remove this check once we drop Pascal support
-  CUGRAPH_EXPECTS(handle.get_device_properties().major >= 7,
-                  "unrenumber_vertices() not supported on Pascal and older architectures.");
-
-#ifdef CUCO_STATIC_MAP_DEFINED
   if (do_expensive_check) {
     CUGRAPH_EXPECTS(
       thrust::count_if(rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
@@ -336,7 +331,6 @@ void unrenumber_int_vertices(raft::handle_t const& handle,
                                   local_int_vertex_last,
                                   do_expensive_check);
   }
-#endif
 }
 
 // explicit instantiation
