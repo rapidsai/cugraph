@@ -224,20 +224,20 @@ INSTANTIATE_TEST_SUITE_P(
                       cugraph::test::File_Usecase("test/datasets/polbooks.mtx"),
                       cugraph::test::File_Usecase("test/datasets/netscience.mtx"))));
 
-INSTANTIATE_TEST_SUITE_P(
-  rmat_small_test,
-  Tests_MGWeaklyConnectedComponents_Rmat,
-  ::testing::Values(
-    // enable correctness checks
-    std::make_tuple(WeaklyConnectedComponents_Usecase{},
-                    cugraph::test::Rmat_Usecase(10, 16, 0.57, 0.19, 0.19, 0, true, false, 0, true))));
+INSTANTIATE_TEST_SUITE_P(rmat_small_test,
+                         Tests_MGWeaklyConnectedComponents_Rmat,
+                         ::testing::Values(
+                           // enable correctness checks
+                           std::make_tuple(WeaklyConnectedComponents_Usecase{},
+                                           cugraph::test::Rmat_Usecase(
+                                             10, 16, 0.57, 0.19, 0.19, 0, true, false, 0, true))));
 
-INSTANTIATE_TEST_SUITE_P(
-  rmat_large_test,
-  Tests_MGWeaklyConnectedComponents_Rmat,
-  ::testing::Values(
-    // disable correctness checks
-    std::make_tuple(WeaklyConnectedComponents_Usecase{false},
-                    cugraph::test::Rmat_Usecase(20, 16, 0.57, 0.19, 0.19, 0, true, false, 0, true))));
+INSTANTIATE_TEST_SUITE_P(rmat_large_test,
+                         Tests_MGWeaklyConnectedComponents_Rmat,
+                         ::testing::Values(
+                           // disable correctness checks
+                           std::make_tuple(WeaklyConnectedComponents_Usecase{false},
+                                           cugraph::test::Rmat_Usecase(
+                                             20, 16, 0.57, 0.19, 0.19, 0, true, false, 0, true))));
 
 CUGRAPH_MG_TEST_PROGRAM_MAIN()

@@ -649,7 +649,7 @@ TEST_F(GeneratorsTest, CombineGraphsOffsetsTest)
 TEST_F(GeneratorsTest, ScrambleTest)
 {
   using vertex_t = int32_t;
-  using edge_t = int32_t;
+  using edge_t   = int32_t;
 
   edge_t num_vertices{30};
   edge_t num_edges{100};
@@ -662,8 +662,12 @@ TEST_F(GeneratorsTest, ScrambleTest)
   std::default_random_engine generator{};
   std::uniform_int_distribution<vertex_t> distribution{0, num_vertices - 1};
 
-  std::generate(input_src_v.begin(), input_src_v.end(), [&distribution, &generator]() { return distribution(generator); });
-  std::generate(input_dst_v.begin(), input_dst_v.end(), [&distribution, &generator]() { return distribution(generator); });
+  std::generate(input_src_v.begin(), input_src_v.end(), [&distribution, &generator]() {
+    return distribution(generator);
+  });
+  std::generate(input_dst_v.begin(), input_dst_v.end(), [&distribution, &generator]() {
+    return distribution(generator);
+  });
 
   rmm::device_uvector<vertex_t> d_src_v(input_src_v.size(), handle.get_stream());
   rmm::device_uvector<vertex_t> d_dst_v(input_src_v.size(), handle.get_stream());

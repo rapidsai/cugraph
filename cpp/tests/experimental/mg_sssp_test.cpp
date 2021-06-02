@@ -16,8 +16,8 @@
 
 #include <utilities/high_res_clock.h>
 #include <utilities/base_fixture.hpp>
-#include <utilities/test_graphs.hpp>
 #include <utilities/device_comm_wrapper.hpp>
+#include <utilities/test_graphs.hpp>
 #include <utilities/test_utilities.hpp>
 #include <utilities/thrust_wrapper.hpp>
 
@@ -299,20 +299,20 @@ INSTANTIATE_TEST_SUITE_P(
     std::make_tuple(SSSP_Usecase{1000},
                     cugraph::test::File_Usecase("test/datasets/wiki2003.mtx"))));
 
-INSTANTIATE_TEST_SUITE_P(
-  rmat_small_test,
-  Tests_MGSSSP_Rmat,
-  ::testing::Values(
-    // enable correctness checks
-    std::make_tuple(SSSP_Usecase{0},
-                    cugraph::test::Rmat_Usecase(10, 16, 0.57, 0.19, 0.19, 0, false, false, 0, true))));
+INSTANTIATE_TEST_SUITE_P(rmat_small_test,
+                         Tests_MGSSSP_Rmat,
+                         ::testing::Values(
+                           // enable correctness checks
+                           std::make_tuple(SSSP_Usecase{0},
+                                           cugraph::test::Rmat_Usecase(
+                                             10, 16, 0.57, 0.19, 0.19, 0, false, false, 0, true))));
 
-INSTANTIATE_TEST_SUITE_P(
-  rmat_large_test,
-  Tests_MGSSSP_Rmat,
-  ::testing::Values(
-    // disable correctness checks for large graphs
-    std::make_tuple(SSSP_Usecase{0, false},
-                    cugraph::test::Rmat_Usecase(20, 32, 0.57, 0.19, 0.19, 0, false, false, 0, true))));
+INSTANTIATE_TEST_SUITE_P(rmat_large_test,
+                         Tests_MGSSSP_Rmat,
+                         ::testing::Values(
+                           // disable correctness checks for large graphs
+                           std::make_tuple(SSSP_Usecase{0, false},
+                                           cugraph::test::Rmat_Usecase(
+                                             20, 32, 0.57, 0.19, 0.19, 0, false, false, 0, true))));
 
 CUGRAPH_MG_TEST_PROGRAM_MAIN()

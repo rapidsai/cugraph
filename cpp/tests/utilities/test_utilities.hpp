@@ -18,10 +18,10 @@
 #include <cugraph/experimental/graph.hpp>
 #include <cugraph/graph.hpp>
 
-#include <raft/handle.hpp>
-#include <rmm/device_uvector.hpp>
 #include <thrust/iterator/zip_iterator.h>
 #include <thrust/tuple.h>
+#include <raft/handle.hpp>
+#include <rmm/device_uvector.hpp>
 
 #include <numeric>
 #include <string>
@@ -278,47 +278,40 @@ std::pair<bool, std::string> compare_graphs(raft::handle_t const& handle,
 }
 
 template <typename vertex_t>
-bool renumbered_vectors_same(raft::handle_t const &handle,
-                             std::vector<vertex_t> const &v1,
-                             std::vector<vertex_t> const &v2)
+bool renumbered_vectors_same(raft::handle_t const& handle,
+                             std::vector<vertex_t> const& v1,
+                             std::vector<vertex_t> const& v2)
 {
-  if (v1.size() != v2.size())
-    return false;
+  if (v1.size() != v2.size()) return false;
 
   std::map<vertex_t, vertex_t> map;
 
   auto iter = thrust::make_zip_iterator(thrust::make_tuple(v1.begin(), v2.begin()));
 
-  std::for_each(iter,
-                iter + v1.size(),
-                [&map] (auto pair) {
-                  vertex_t e1 = thrust::get<0>(pair);
-                  vertex_t e2 = thrust::get<1>(pair);
+  std::for_each(iter, iter + v1.size(), [&map](auto pair) {
+    vertex_t e1 = thrust::get<0>(pair);
+    vertex_t e2 = thrust::get<1>(pair);
 
-                  map[e1] = e2;
-                });
+    map[e1] = e2;
+  });
 
-  auto error_count =
-    std::count_if(iter,
-                  iter + v1.size(),
-                  [&map] (auto pair) {
-                    vertex_t e1 = thrust::get<0>(pair);
-                    vertex_t e2 = thrust::get<1>(pair);
+  auto error_count = std::count_if(iter, iter + v1.size(), [&map](auto pair) {
+    vertex_t e1 = thrust::get<0>(pair);
+    vertex_t e2 = thrust::get<1>(pair);
 
-                    return (map[e1] != e2);
-                  });
+    return (map[e1] != e2);
+  });
 
   return (error_count == 0);
 }
 
 template <typename vertex_t>
-bool renumbered_vectors_same(raft::handle_t const &handle,
-                             rmm::device_uvector<vertex_t> const &v1,
-                             rmm::device_uvector<vertex_t> const &v2)
+bool renumbered_vectors_same(raft::handle_t const& handle,
+                             rmm::device_uvector<vertex_t> const& v1,
+                             rmm::device_uvector<vertex_t> const& v2)
 {
-  if (v1.size() != v2.size())
-    return false;
-  
+  if (v1.size() != v2.size()) return false;
+
   std::vector<vertex_t> h_v1(v1.size());
   std::vector<vertex_t> h_v2(v1.size());
 

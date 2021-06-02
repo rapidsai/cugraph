@@ -17,8 +17,8 @@
 #include <utilities/test_utilities.hpp>
 
 #include <cugraph/experimental/detail/graph_utils.cuh>
-#include <cugraph/graph_generators.hpp>
 #include <cugraph/experimental/graph_functions.hpp>
+#include <cugraph/graph_generators.hpp>
 #include <cugraph/partition_manager.hpp>
 #include <cugraph/utilities/error.hpp>
 #include <cugraph/utilities/shuffle_comm.cuh>

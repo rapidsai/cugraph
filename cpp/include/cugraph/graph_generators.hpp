@@ -352,12 +352,13 @@ void scramble_vertex_ids(raft::handle_t const &handle,
  * and edge destination vertex IDs and edge weights.
  */
 template <typename vertex_t, typename weight_t>
-std::
-tuple<rmm::device_uvector<vertex_t>, rmm::device_uvector<vertex_t>, std::optional<rmm::device_uvector<weight_t>>>
-  combine_edgelists(raft::handle_t const &handle,
-                    std::vector<rmm::device_uvector<vertex_t>> &&d_sources,
-                    std::vector<rmm::device_uvector<vertex_t>> &&d_dests,
-                    std::optional<std::vector<rmm::device_uvector<weight_t>>> &&optional_d_weights,
-                    bool remove_multi_edges = true);
+std::tuple<rmm::device_uvector<vertex_t>,
+           rmm::device_uvector<vertex_t>,
+           std::optional<rmm::device_uvector<weight_t>>>
+combine_edgelists(raft::handle_t const &handle,
+                  std::vector<rmm::device_uvector<vertex_t>> &&d_sources,
+                  std::vector<rmm::device_uvector<vertex_t>> &&d_dests,
+                  std::optional<std::vector<rmm::device_uvector<weight_t>>> &&optional_d_weights,
+                  bool remove_multi_edges = true);
 
 }  // namespace cugraph
