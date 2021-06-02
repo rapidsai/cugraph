@@ -15,6 +15,7 @@ import gc
 import time
 import pytest
 
+import cudf
 import cugraph
 from cugraph.tests import utils
 from pathlib import PurePath
@@ -222,3 +223,32 @@ def test_jaccard_nx(graph_file):
     # FIXME:  Nx does a full all-pair Jaccard.
     # cuGraph does a limited 1-hop Jaccard
     # assert nx_j == cg_j
+
+
+@pytest.mark.parametrize("graph_file", utils.DATASETS_UNDIRECTED)
+def test_jaccard_multi_column(graph_file):
+    gc.collect()
+
+    M = utils.read_csv_for_nx(graph_file)
+
+    cu_M = cudf.DataFrame()
+    cu_M["src_0"] = cudf.Series(M["0"])
+    cu_M["dst_0"] = cudf.Series(M["1"])
+    cu_M["src_1"] = cu_M["src_0"] + 1000
+    cu_M["dst_1"] = cu_M["dst_0"] + 1000
+    G1 = cugraph.Graph()
+    G1.from_cudf_edgelist(cu_M, source=["src_0", "src_1"],
+                          destination=["dst_0", "dst_1"])
+
+    vertex_pair = cu_M[["src_0", "src_1", "dst_0", "dst_1"]]
+    vertex_pair = vertex_pair[:5]
+
+    df_res = cugraph.jaccard(G1, vertex_pair)
+
+    G2 = cugraph.Graph()
+    G2.from_cudf_edgelist(cu_M, source="src_0",
+                          destination="dst_0")
+    df_exp = cugraph.jaccard(G2, vertex_pair[["src_0", "dst_0"]])
+
+    # Calculating mismatch
+    assert df_res["jaccard_coeff"].equals(df_exp["jaccard_coeff"])

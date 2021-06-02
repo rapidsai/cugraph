@@ -335,3 +335,23 @@ def import_optional(mod, import_from=None):
         pass
 
     return namespace.get(mod)
+
+
+def renumber_vertex_pair(input_graph, vertex_pair):
+    vertex_size = input_graph.vertex_column_size()
+    columns = vertex_pair.columns.to_list()
+    if vertex_size == 1:
+        for col in vertex_pair.columns:
+            if input_graph.renumbered:
+                vertex_pair = input_graph.add_internal_vertex_id(
+                    vertex_pair, col, col
+                )
+    else:
+        if input_graph.renumbered:
+            vertex_pair = input_graph.add_internal_vertex_id(
+                vertex_pair, "src", columns[:vertex_size]
+            )
+            vertex_pair = input_graph.add_internal_vertex_id(
+                vertex_pair, "dst", columns[vertex_size:]
+            )
+    return vertex_pair
