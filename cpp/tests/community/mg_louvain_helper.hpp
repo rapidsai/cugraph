@@ -26,6 +26,11 @@ namespace test {
 
 template <typename vertex_t>
 bool compare_renumbered_vectors(raft::handle_t const &handle,
+                                std::vector<vertex_t> const &v1,
+                                std::vector<vertex_t> const &v2);
+
+template <typename vertex_t>
+bool compare_renumbered_vectors(raft::handle_t const &handle,
                                 rmm::device_uvector<vertex_t> const &v1,
                                 rmm::device_uvector<vertex_t> const &v2);
 
