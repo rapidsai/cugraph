@@ -14,8 +14,6 @@
  * limitations under the License.
  */
 
-#include <cugraph/experimental/include_cuco_static_map.cuh>
-
 #include <cugraph/experimental/detail/graph_utils.cuh>
 #include <cugraph/experimental/graph.hpp>
 #include <cugraph/experimental/graph_functions.hpp>
@@ -25,6 +23,7 @@
 #include <cugraph/utilities/shuffle_comm.cuh>
 
 #include <rmm/thrust_rmm_allocator.h>
+#include <cuco/static_map.cuh>
 #include <raft/handle.hpp>
 #include <rmm/device_uvector.hpp>
 #include <rmm/mr/device/per_device_resource.hpp>
@@ -56,11 +55,6 @@ void relabel(raft::handle_t const& handle,
 {
   double constexpr load_factor = 0.7;
 
-  // FIXME: remove this check once we drop Pascal support
-  CUGRAPH_EXPECTS(handle.get_device_properties().major >= 7,
-                  "Relabel not supported on Pascal and older architectures.");
-
-#ifdef CUCO_STATIC_MAP_DEFINED
   if (multi_gpu) {
     auto& comm           = handle.get_comms();
     auto const comm_size = comm.get_size();
@@ -136,12 +130,8 @@ void relabel(raft::handle_t const& handle,
                     invalid_vertex_id<vertex_t>::value,
                     stream_adapter};
 
-      auto pair_first = thrust::make_transform_iterator(
-        thrust::make_zip_iterator(
-          thrust::make_tuple(rx_label_pair_old_labels.begin(), rx_label_pair_new_labels.begin())),
-        [] __device__(auto val) {
-          return thrust::make_pair(thrust::get<0>(val), thrust::get<1>(val));
-        });
+      auto pair_first = thrust::make_zip_iterator(
+        thrust::make_tuple(rx_label_pair_old_labels.begin(), rx_label_pair_new_labels.begin()));
       relabel_map.insert(pair_first, pair_first + rx_label_pair_old_labels.size());
 
       rx_label_pair_old_labels.resize(0, handle.get_stream());
@@ -204,13 +194,8 @@ void relabel(raft::handle_t const& handle,
           invalid_vertex_id<vertex_t>::value,
           stream_adapter};
 
-      auto pair_first = thrust::make_transform_iterator(
-        thrust::make_zip_iterator(
-          thrust::make_tuple(unique_old_labels.begin(), new_labels_for_unique_old_labels.begin())),
-        [] __device__(auto val) {
-          return thrust::make_pair(thrust::get<0>(val), thrust::get<1>(val));
-        });
-
+      auto pair_first = thrust::make_zip_iterator(
+        thrust::make_tuple(unique_old_labels.begin(), new_labels_for_unique_old_labels.begin()));
       relabel_map.insert(pair_first, pair_first + unique_old_labels.size());
       relabel_map.find(labels, labels + num_labels, labels);
     }
@@ -222,13 +207,8 @@ void relabel(raft::handle_t const& handle,
       invalid_vertex_id<vertex_t>::value,
       invalid_vertex_id<vertex_t>::value);
 
-    auto pair_first = thrust::make_transform_iterator(
-      thrust::make_zip_iterator(
-        thrust::make_tuple(std::get<0>(old_new_label_pairs), std::get<1>(old_new_label_pairs))),
-      [] __device__(auto val) {
-        return thrust::make_pair(thrust::get<0>(val), thrust::get<1>(val));
-      });
-
+    auto pair_first = thrust::make_zip_iterator(
+      thrust::make_tuple(std::get<0>(old_new_label_pairs), std::get<1>(old_new_label_pairs)));
     relabel_map.insert(pair_first, pair_first + num_label_pairs);
     if (skip_missing_labels) {
       thrust::transform(rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
@@ -254,7 +234,6 @@ void relabel(raft::handle_t const& handle,
                     invalid_vertex_id<vertex_t>::value) == 0,
       "Invalid input argument: labels include old label values missing in old_new_label_pairs.");
   }
-#endif
 
   return;
 }
