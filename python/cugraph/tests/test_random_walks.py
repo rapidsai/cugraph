@@ -53,7 +53,7 @@ def calc_random_walks(graph_file,
 
     use_padding : bool
         If True, padded paths are returned else coalesced paths are returned.
-        
+
     Returns
     -------
     vertex_paths : cudf.Series or cudf.DataFrame
@@ -62,7 +62,7 @@ def calc_random_walks(graph_file,
     edge_weight_paths: cudf.Series
         Series containing the edge weights of edges represented by the
         returned vertex_paths
-        
+
     sizes: int
         The path size in case of coalesced paths.
     """
