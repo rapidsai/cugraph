@@ -27,11 +27,10 @@
 #include <cugraph/utilities/shuffle_comm.cuh>
 #include <cugraph/vertex_partition_device.cuh>
 
+#include <cuco/static_map.cuh>
 #include <raft/handle.hpp>
 #include <rmm/mr/device/per_device_resource.hpp>
 #include <rmm/mr/device/polymorphic_allocator.hpp>
-
-#include <cugraph/experimental/include_cuco_static_map.cuh>
 
 #include <type_traits>
 
@@ -202,12 +201,8 @@ void copy_v_transform_reduce_key_aggregated_out_nbr(
       invalid_vertex_id<vertex_t>::value,
       stream_adapter);
 
-    auto pair_first = thrust::make_transform_iterator(
-      thrust::make_zip_iterator(thrust::make_tuple(
-        map_keys.begin(), get_dataframe_buffer_begin<value_t>(map_value_buffer))),
-      [] __device__(auto val) {
-        return thrust::make_pair(thrust::get<0>(val), thrust::get<1>(val));
-      });
+    auto pair_first = thrust::make_zip_iterator(
+      thrust::make_tuple(map_keys.begin(), get_dataframe_buffer_begin<value_t>(map_value_buffer)));
     kv_map_ptr->insert(pair_first, pair_first + map_keys.size());
   } else {
     handle.get_stream_view().synchronize();  // cuco::static_map currently does not take stream
@@ -224,11 +219,7 @@ void copy_v_transform_reduce_key_aggregated_out_nbr(
       invalid_vertex_id<vertex_t>::value,
       stream_adapter);
 
-    auto pair_first = thrust::make_transform_iterator(
-      thrust::make_zip_iterator(thrust::make_tuple(map_key_first, map_value_first)),
-      [] __device__(auto val) {
-        return thrust::make_pair(thrust::get<0>(val), thrust::get<1>(val));
-      });
+    auto pair_first = thrust::make_zip_iterator(thrust::make_tuple(map_key_first, map_value_first));
     kv_map_ptr->insert(pair_first, pair_first + thrust::distance(map_key_first, map_key_last));
   }
 

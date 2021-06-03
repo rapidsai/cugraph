@@ -71,6 +71,43 @@ def test_modularity_clustering(graph_file, partitions):
     assert cu_score > rand_score
 
 
+# Test all combinations of default/managed and pooled/non-pooled allocation
+@pytest.mark.parametrize("graph_file", utils.DATASETS)
+@pytest.mark.parametrize("partitions", PARTITIONS)
+def test_modularity_clustering_multi_column(graph_file, partitions):
+    gc.collect()
+
+    # Read in the graph and get a cugraph object
+    cu_M = utils.read_csv_file(graph_file, read_weights_in_sp=False)
+    cu_M.rename(columns={'0': 'src_0', '1': 'dst_0'}, inplace=True)
+    cu_M['src_1'] = cu_M['src_0'] + 1000
+    cu_M['dst_1'] = cu_M['dst_0'] + 1000
+
+    G1 = cugraph.Graph()
+    G1.from_cudf_edgelist(cu_M, source=["src_0", "src_1"],
+                          destination=["dst_0", "dst_1"],
+                          edge_attr="2")
+
+    df1 = cugraph.spectralModularityMaximizationClustering(
+        G1, partitions, num_eigen_vects=(partitions - 1)
+    )
+
+    cu_score = cugraph.analyzeClustering_modularity(G1, partitions, df1,
+                                                    ['0_vertex',
+                                                     '1_vertex'],
+                                                    'cluster')
+
+    G2 = cugraph.Graph()
+    G2.from_cudf_edgelist(cu_M, source="src_0",
+                          destination="dst_0",
+                          edge_attr="2")
+
+    rand_score = random_call(G2, partitions)
+    # Assert that the partitioning has better modularity than the random
+    # assignment
+    assert cu_score > rand_score
+
+
 # Test to ensure DiGraph objs are not accepted
 # Test all combinations of default/managed and pooled/non-pooled allocation
 
