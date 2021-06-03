@@ -878,7 +878,7 @@ call_random_walks(raft::handle_t const& handle,
       detail::create_graph<vertex_t, edge_t, weight_t, false, false>(handle, graph_container);
 
     auto triplet = cugraph::experimental::random_walks(
-      handle, graph->view(), ptr_start_set, num_paths, max_depth);
+      handle, graph->view(), ptr_start_set, num_paths, max_depth, use_padding);
 
     random_walk_ret_t rw_tri{std::get<0>(triplet).size(),
                              std::get<1>(triplet).size(),
