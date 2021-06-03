@@ -39,16 +39,20 @@ def random_walks(G,
     max_depth : int
         The maximum depth of the random walks
 
+    use_padding : bool
+        If True, padded paths are returned else coalesced paths are returned.
 
     Returns
     -------
-    random_walks_edge_lists : cudf.DataFrame
-        GPU data frame containing all random walks sources identifiers,
-        destination identifiers, edge weights
+    vertex_paths : cudf.Series or cudf.DataFrame
+        Series containing the vertices of edges/paths in the random walk.
 
-    seeds_offsets: cudf.Series
-        Series containing the starting offset in the returned edge list
-        for each vertex in start_vertices.
+    edge_weight_paths: cudf.Series
+        Series containing the edge weights of edges represented by the
+        returned vertex_paths
+        
+    sizes: int
+        The path size in case of coalesced paths.
     """
     if max_depth is None:
         raise TypeError("must specify a 'max_depth'")
@@ -88,4 +92,22 @@ def random_walks(G,
 
 
 def rw_path(num_paths, sizes):
+    """
+    Retrieve more information on the obtained paths in case use_padding
+    is False.
+    
+    parameters
+    ----------
+    num_paths: int
+        Number of paths in the random walk output.
+        
+    sizes: int
+        Path size returned in random walk output.
+
+    Returns
+    -------
+    path_data : cudf.DataFrame
+        Dataframe containing vetex path offsets, edge weight offsets and
+        edge weight sizes for each path.
+    """
     return random_walks_wrapper.rw_path_retrieval(num_paths, sizes)
