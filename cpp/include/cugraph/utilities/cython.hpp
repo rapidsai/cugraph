@@ -16,8 +16,8 @@
 #pragma once
 
 #include <cugraph/experimental/graph.hpp>
-#include <cugraph/experimental/graph_generator.hpp>
 #include <cugraph/graph.hpp>
+#include <cugraph/graph_generators.hpp>
 #include <cugraph/utilities/graph_traits.hpp>
 
 #include <raft/handle.hpp>
@@ -523,8 +523,8 @@ call_generate_rmat_edgelists(raft::handle_t const& handle,
                              size_t min_scale,
                              size_t max_scale,
                              size_t edge_factor,
-                             cugraph::experimental::generator_distribution_t size_distribution,
-                             cugraph::experimental::generator_distribution_t edge_distribution,
+                             cugraph::generator_distribution_t size_distribution,
+                             cugraph::generator_distribution_t edge_distribution,
                              uint64_t seed,
                              bool clip_and_flip,
                              bool scramble_vertex_ids);
