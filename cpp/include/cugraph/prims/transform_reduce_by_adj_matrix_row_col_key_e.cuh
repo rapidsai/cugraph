@@ -18,7 +18,7 @@
 #include <cugraph/experimental/detail/graph_utils.cuh>
 #include <cugraph/experimental/graph_view.hpp>
 #include <cugraph/matrix_partition_device.cuh>
-#include <cugraph/patterns/edge_op_utils.cuh>
+#include <cugraph/prims/edge_op_utils.cuh>
 #include <cugraph/utilities/dataframe_buffer.cuh>
 #include <cugraph/utilities/error.hpp>
 #include <cugraph/utilities/shuffle_comm.cuh>

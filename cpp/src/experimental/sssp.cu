@@ -16,12 +16,12 @@
 
 #include <cugraph/algorithms.hpp>
 #include <cugraph/experimental/graph_view.hpp>
-#include <cugraph/patterns/copy_to_adj_matrix_row_col.cuh>
-#include <cugraph/patterns/count_if_e.cuh>
-#include <cugraph/patterns/reduce_op.cuh>
-#include <cugraph/patterns/transform_reduce_e.cuh>
-#include <cugraph/patterns/update_frontier_v_push_if_out_nbr.cuh>
-#include <cugraph/patterns/vertex_frontier.cuh>
+#include <cugraph/prims/copy_to_adj_matrix_row_col.cuh>
+#include <cugraph/prims/count_if_e.cuh>
+#include <cugraph/prims/reduce_op.cuh>
+#include <cugraph/prims/transform_reduce_e.cuh>
+#include <cugraph/prims/update_frontier_v_push_if_out_nbr.cuh>
+#include <cugraph/prims/vertex_frontier.cuh>
 #include <cugraph/utilities/error.hpp>
 #include <cugraph/vertex_partition_device.cuh>
 

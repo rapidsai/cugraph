@@ -20,12 +20,12 @@
 #include <cugraph/experimental/graph.hpp>
 #include <cugraph/experimental/graph_functions.hpp>
 
-#include <cugraph/patterns/copy_to_adj_matrix_row_col.cuh>
-#include <cugraph/patterns/copy_v_transform_reduce_in_out_nbr.cuh>
-#include <cugraph/patterns/copy_v_transform_reduce_key_aggregated_out_nbr.cuh>
-#include <cugraph/patterns/transform_reduce_by_adj_matrix_row_col_key_e.cuh>
-#include <cugraph/patterns/transform_reduce_e.cuh>
-#include <cugraph/patterns/transform_reduce_v.cuh>
+#include <cugraph/prims/copy_to_adj_matrix_row_col.cuh>
+#include <cugraph/prims/copy_v_transform_reduce_in_out_nbr.cuh>
+#include <cugraph/prims/copy_v_transform_reduce_key_aggregated_out_nbr.cuh>
+#include <cugraph/prims/transform_reduce_by_adj_matrix_row_col_key_e.cuh>
+#include <cugraph/prims/transform_reduce_e.cuh>
+#include <cugraph/prims/transform_reduce_v.cuh>
 #include <cugraph/utilities/collect_comm.cuh>
 
 #include <thrust/binary_search.h>
