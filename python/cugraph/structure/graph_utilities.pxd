@@ -94,6 +94,11 @@ cdef extern from "cugraph/utilities/cython.hpp" namespace "cugraph::cython":
         unique_ptr[device_buffer] d_coalesced_w_
         unique_ptr[device_buffer] d_sizes_
 
+    cdef cppclass random_walk_path_t:
+        unique_ptr[device_buffer] d_v_offsets
+        unique_ptr[device_buffer] d_w_sizes
+        unique_ptr[device_buffer] d_w_offsets
+
     cdef cppclass graph_generator_t:
         unique_ptr[device_buffer] d_source
         unique_ptr[device_buffer] d_destination

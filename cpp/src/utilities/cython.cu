@@ -879,7 +879,8 @@ call_random_walks(raft::handle_t const& handle,
                   graph_container_t const& graph_container,
                   vertex_t const* ptr_start_set,
                   edge_t num_paths,
-                  edge_t max_depth)
+                  edge_t max_depth,
+                  bool use_padding)
 {
   if (graph_container.weightType == numberTypeEnum::floatType) {
     using weight_t = float;
@@ -888,7 +889,7 @@ call_random_walks(raft::handle_t const& handle,
       detail::create_graph<vertex_t, edge_t, weight_t, false, false>(handle, graph_container);
 
     auto triplet = cugraph::experimental::random_walks(
-      handle, graph->view(), ptr_start_set, num_paths, max_depth);
+      handle, graph->view(), ptr_start_set, num_paths, max_depth, use_padding);
 
     random_walk_ret_t rw_tri{std::get<0>(triplet).size(),
                              std::get<1>(triplet).size(),
@@ -907,7 +908,7 @@ call_random_walks(raft::handle_t const& handle,
       detail::create_graph<vertex_t, edge_t, weight_t, false, false>(handle, graph_container);
 
     auto triplet = cugraph::experimental::random_walks(
-      handle, graph->view(), ptr_start_set, num_paths, max_depth);
+      handle, graph->view(), ptr_start_set, num_paths, max_depth, use_padding);
 
     random_walk_ret_t rw_tri{std::get<0>(triplet).size(),
                              std::get<1>(triplet).size(),
@@ -922,6 +923,20 @@ call_random_walks(raft::handle_t const& handle,
   } else {
     CUGRAPH_FAIL("Unsupported weight type.");
   }
+}
+
+template <typename index_t>
+std::unique_ptr<random_walk_path_t> call_rw_paths(raft::handle_t const& handle,
+                                                  index_t num_paths,
+                                                  index_t const* vertex_path_sizes)
+{
+  auto triplet =
+    cugraph::experimental::query_rw_sizes_offsets<index_t>(handle, num_paths, vertex_path_sizes);
+  random_walk_path_t rw_path_tri{
+    std::make_unique<rmm::device_buffer>(std::get<0>(triplet).release()),
+    std::make_unique<rmm::device_buffer>(std::get<1>(triplet).release()),
+    std::make_unique<rmm::device_buffer>(std::get<2>(triplet).release())};
+  return std::make_unique<random_walk_path_t>(std::move(rw_path_tri));
 }
 
 template <typename vertex_t, typename index_t>
@@ -1354,21 +1369,30 @@ template std::unique_ptr<random_walk_ret_t> call_random_walks<int32_t, int32_t>(
   graph_container_t const& graph_container,
   int32_t const* ptr_start_set,
   int32_t num_paths,
-  int32_t max_depth);
+  int32_t max_depth,
+  bool use_padding);
 
 template std::unique_ptr<random_walk_ret_t> call_random_walks<int32_t, int64_t>(
   raft::handle_t const& handle,
   graph_container_t const& graph_container,
   int32_t const* ptr_start_set,
   int64_t num_paths,
-  int64_t max_depth);
+  int64_t max_depth,
+  bool use_padding);
 
 template std::unique_ptr<random_walk_ret_t> call_random_walks<int64_t, int64_t>(
   raft::handle_t const& handle,
   graph_container_t const& graph_container,
   int64_t const* ptr_start_set,
   int64_t num_paths,
-  int64_t max_depth);
+  int64_t max_depth,
+  bool use_padding);
+
+template std::unique_ptr<random_walk_path_t> call_rw_paths<int32_t>(
+  raft::handle_t const& handle, int32_t num_paths, int32_t const* vertex_path_sizes);
+
+template std::unique_ptr<random_walk_path_t> call_rw_paths<int64_t>(
+  raft::handle_t const& handle, int64_t num_paths, int64_t const* vertex_path_sizes);
 
 template std::unique_ptr<random_walk_coo_t> random_walks_to_coo<int32_t, int32_t>(
   raft::handle_t const& handle, random_walk_ret_t& rw_tri);
