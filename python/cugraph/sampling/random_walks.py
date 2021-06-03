@@ -50,7 +50,7 @@ def random_walks(G,
     edge_weight_paths: cudf.Series
         Series containing the edge weights of edges represented by the
         returned vertex_paths
-        
+
     sizes: int
         The path size in case of coalesced paths.
     """
@@ -95,12 +95,12 @@ def rw_path(num_paths, sizes):
     """
     Retrieve more information on the obtained paths in case use_padding
     is False.
-    
+
     parameters
     ----------
     num_paths: int
         Number of paths in the random walk output.
-        
+
     sizes: int
         Path size returned in random walk output.
 
