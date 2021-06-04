@@ -138,8 +138,8 @@ def test_force_atlas2(graph_file, score, max_iter,
     assert test_callback.on_train_end_called_count == 1
 
 
-# FIXME: this test occasionally fails - skipping to prevent CI failures but need
-# to revisit ASAP
+# FIXME: this test occasionally fails - skipping to prevent CI failures but
+# need to revisit ASAP
 @pytest.mark.skip(reason="non-deterministric - needs fixing!")
 @pytest.mark.parametrize('graph_file, score', DATASETS[:-1])
 @pytest.mark.parametrize('max_iter', MAX_ITERATIONS)
