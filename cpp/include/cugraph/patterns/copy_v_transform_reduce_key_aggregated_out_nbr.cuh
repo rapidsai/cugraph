@@ -431,9 +431,6 @@ void copy_v_transform_reduce_key_aggregated_out_nbr(
       // FIXME: additional optimization is possible if reduce_op is a pure function (and reduce_op
       // can be mapped to ncclRedOp_t).
 
-      // FIXME: a temporary workaround for a NCCL (2.9.6) bug that causes a hang on DGX1 (due to
-      // remote memory allocation), this barrier is unnecessary otherwise.
-      col_comm.barrier();
       auto rx_sizes =
         host_scalar_gather(col_comm, tmp_major_vertices.size(), i, handle.get_stream());
       std::vector<size_t> rx_displs{};

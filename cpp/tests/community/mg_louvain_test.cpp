@@ -157,7 +157,7 @@ class Louvain_MG_Testfixture : public ::testing::TestWithParam<Louvain_Usecase> 
           std::tie(std::ignore, sg_modularity) =
             cugraph::louvain(handle, graph_view, d_clustering_v.data(), size_t{1}, resolution);
 
-          EXPECT_TRUE(cugraph::test::compare_renumbered_vectors(
+          EXPECT_TRUE(cugraph::test::renumbered_vectors_same(
             handle, d_clustering_v, d_dendrogram_gathered_v));
 
           sg_graph =
