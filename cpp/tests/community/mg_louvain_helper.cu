@@ -31,44 +31,6 @@
 namespace cugraph {
 namespace test {
 
-template <typename vertex_t>
-bool compare_renumbered_vectors(raft::handle_t const &handle,
-                                rmm::device_uvector<vertex_t> const &v1,
-                                rmm::device_uvector<vertex_t> const &v2)
-{
-  vertex_t max = 1 + thrust::reduce(rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
-                                    v1.begin(),
-                                    v1.end(),
-                                    vertex_t{0});
-
-  rmm::device_uvector<size_t> map(max, handle.get_stream());
-
-  auto iter = thrust::make_zip_iterator(thrust::make_tuple(v1.begin(), v2.begin()));
-
-  thrust::for_each(rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
-                   iter,
-                   iter + v1.size(),
-                   [d_map = map.data()] __device__(auto pair) {
-                     vertex_t e1 = thrust::get<0>(pair);
-                     vertex_t e2 = thrust::get<1>(pair);
-
-                     d_map[e1] = e2;
-                   });
-
-  auto error_count =
-    thrust::count_if(rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
-                     iter,
-                     iter + v1.size(),
-                     [d_map = map.data()] __device__(auto pair) {
-                       vertex_t e1 = thrust::get<0>(pair);
-                       vertex_t e2 = thrust::get<1>(pair);
-
-                       return (d_map[e1] != e2);
-                     });
-
-  return (error_count == 0);
-}
-
 template <typename T>
 void single_gpu_renumber_edgelist_given_number_map(raft::handle_t const &handle,
                                                    rmm::device_uvector<T> &edgelist_rows_v,
@@ -305,10 +267,6 @@ template void single_gpu_renumber_edgelist_given_number_map(
   rmm::device_uvector<int> &d_edgelist_rows,
   rmm::device_uvector<int> &d_edgelist_cols,
   rmm::device_uvector<int> &d_renumber_map_gathered_v);
-
-template bool compare_renumbered_vectors(raft::handle_t const &handle,
-                                         rmm::device_uvector<int> const &v1,
-                                         rmm::device_uvector<int> const &v2);
 
 template std::unique_ptr<cugraph::experimental::graph_t<int32_t, int32_t, float, false, false>>
 coarsen_graph(

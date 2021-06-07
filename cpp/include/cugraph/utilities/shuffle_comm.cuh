@@ -73,10 +73,6 @@ compute_tx_rx_counts_offsets_ranks(raft::comms::comms_t const &comm,
                             rx_offsets,
                             rx_src_ranks,
                             stream_view);
-  // FIXME: temporary unverified work-around for a NCCL (2.9.6) bug that causes a hang on DGX1 (due
-  // to remote memory allocation), this synchronization is unnecessary otherwise but seems like
-  // suppress the hange issue. Need to be revisited once NCCL 2.10 is released.
-  CUDA_TRY(cudaDeviceSynchronize());
 
   raft::update_host(tx_counts.data(), d_tx_value_counts.data(), comm_size, stream_view.value());
   raft::update_host(rx_counts.data(), d_rx_value_counts.data(), comm_size, stream_view.value());
