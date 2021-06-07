@@ -30,7 +30,7 @@
 #include <thrust/tuple.h>
 #include <algorithm>
 
-#include <rmm/thrust_rmm_allocator.h>
+#include <rmm/exec_policy.hpp>
 #include <cugraph/utilities/error.hpp>
 
 #include <cub/device/device_radix_sort.cuh>
@@ -55,38 +55,38 @@ namespace detail {
  * @tparam WT              Type of edge weights. Supported value : float or double.
  *
  * @param[in] graph        The input graph object
- * @param[in] stream       The cuda stream for kernel calls
+ * @param[in] stream_view  The cuda stream for kernel calls
  *
  * @param[out] result      Total number of vertices
  */
 template <typename VT, typename ET, typename WT>
-VT sort(GraphCOOView<VT, ET, WT> &graph, cudaStream_t stream)
+VT sort(GraphCOOView<VT, ET, WT> &graph, rmm::cuda_stream_view const &stream_view)
 {
   VT max_src_id;
   VT max_dst_id;
   if (graph.has_data()) {
     thrust::stable_sort_by_key(
-      rmm::exec_policy(stream)->on(stream),
+      rmm::exec_policy(stream_view),
       graph.dst_indices,
       graph.dst_indices + graph.number_of_edges,
       thrust::make_zip_iterator(thrust::make_tuple(graph.src_indices, graph.edge_data)));
     CUDA_TRY(cudaMemcpy(
       &max_dst_id, &(graph.dst_indices[graph.number_of_edges - 1]), sizeof(VT), cudaMemcpyDefault));
     thrust::stable_sort_by_key(
-      rmm::exec_policy(stream)->on(stream),
+      rmm::exec_policy(stream_view),
       graph.src_indices,
       graph.src_indices + graph.number_of_edges,
       thrust::make_zip_iterator(thrust::make_tuple(graph.dst_indices, graph.edge_data)));
     CUDA_TRY(cudaMemcpy(
       &max_src_id, &(graph.src_indices[graph.number_of_edges - 1]), sizeof(VT), cudaMemcpyDefault));
   } else {
-    thrust::stable_sort_by_key(rmm::exec_policy(stream)->on(stream),
+    thrust::stable_sort_by_key(rmm::exec_policy(stream_view),
                                graph.dst_indices,
                                graph.dst_indices + graph.number_of_edges,
                                graph.src_indices);
     CUDA_TRY(cudaMemcpy(
       &max_dst_id, &(graph.dst_indices[graph.number_of_edges - 1]), sizeof(VT), cudaMemcpyDefault));
-    thrust::stable_sort_by_key(rmm::exec_policy(stream)->on(stream),
+    thrust::stable_sort_by_key(rmm::exec_policy(stream_view),
                                graph.src_indices,
                                graph.src_indices + graph.number_of_edges,
                                graph.dst_indices);
@@ -98,13 +98,13 @@ VT sort(GraphCOOView<VT, ET, WT> &graph, cudaStream_t stream)
 
 template <typename VT, typename ET>
 void fill_offset(
-  VT *source, ET *offsets, VT number_of_vertices, ET number_of_edges, cudaStream_t stream)
+  VT *source, ET *offsets, VT number_of_vertices, ET number_of_edges, rmm::cuda_stream_view const &stream_view)
 {
-  thrust::fill(rmm::exec_policy(stream)->on(stream),
+  thrust::fill(rmm::exec_policy(stream_view),
                offsets,
                offsets + number_of_vertices + 1,
                number_of_edges);
-  thrust::for_each(rmm::exec_policy(stream)->on(stream),
+  thrust::for_each(rmm::exec_policy(stream_view),
                    thrust::make_counting_iterator<ET>(1),
                    thrust::make_counting_iterator<ET>(number_of_edges),
                    [source, offsets] __device__(ET index) {
@@ -116,7 +116,7 @@ void fill_offset(
   off[src[0]]                = ET{0};
 
   auto iter = thrust::make_reverse_iterator(offsets + number_of_vertices + 1);
-  thrust::inclusive_scan(rmm::exec_policy(stream)->on(stream),
+  thrust::inclusive_scan(rmm::exec_policy(stream_view),
                          iter,
                          iter + number_of_vertices + 1,
                          iter,
@@ -127,15 +127,15 @@ template <typename VT, typename ET>
 rmm::device_buffer create_offset(VT *source,
                                  VT number_of_vertices,
                                  ET number_of_edges,
-                                 cudaStream_t stream,
+                                 rmm::cuda_stream_view const &stream_view,
                                  rmm::mr::device_memory_resource *mr)
 {
   // Offset array needs an extra element at the end to contain the ending offsets
   // of the last vertex
-  rmm::device_buffer offsets_buffer(sizeof(ET) * (number_of_vertices + 1), stream, mr);
+  rmm::device_buffer offsets_buffer(sizeof(ET) * (number_of_vertices + 1), stream_view, mr);
   ET *offsets = static_cast<ET *>(offsets_buffer.data());
 
-  fill_offset(source, offsets, number_of_vertices, number_of_edges, stream);
+  fill_offset(source, offsets, number_of_vertices, number_of_edges, stream_view);
 
   return offsets_buffer;
 }
@@ -146,13 +146,13 @@ template <typename VT, typename ET, typename WT>
 std::unique_ptr<GraphCSR<VT, ET, WT>> coo_to_csr(GraphCOOView<VT, ET, WT> const &graph,
                                                  rmm::mr::device_memory_resource *mr)
 {
-  cudaStream_t stream{nullptr};
+  rmm::cuda_stream_view stream_view;
 
-  GraphCOO<VT, ET, WT> temp_graph(graph, stream, mr);
+  GraphCOO<VT, ET, WT> temp_graph(graph, stream_view.value(), mr);
   GraphCOOView<VT, ET, WT> temp_graph_view = temp_graph.view();
-  VT total_vertex_count                    = detail::sort(temp_graph_view, stream);
+  VT total_vertex_count                    = detail::sort(temp_graph_view, stream_view);
   rmm::device_buffer offsets               = detail::create_offset(
-    temp_graph.src_indices(), total_vertex_count, temp_graph.number_of_edges(), stream, mr);
+    temp_graph.src_indices(), total_vertex_count, temp_graph.number_of_edges(), stream_view, mr);
   auto coo_contents = temp_graph.release();
   GraphSparseContents<VT, ET, WT> csr_contents{
     total_vertex_count,
@@ -167,11 +167,11 @@ std::unique_ptr<GraphCSR<VT, ET, WT>> coo_to_csr(GraphCOOView<VT, ET, WT> const 
 template <typename VT, typename ET, typename WT>
 void coo_to_csr_inplace(GraphCOOView<VT, ET, WT> &graph, GraphCSRView<VT, ET, WT> &result)
 {
-  cudaStream_t stream{nullptr};
+  rmm::cuda_stream_view stream_view;
 
-  detail::sort(graph, stream);
+  detail::sort(graph, stream_view);
   detail::fill_offset(
-    graph.src_indices, result.offsets, graph.number_of_vertices, graph.number_of_edges, stream);
+    graph.src_indices, result.offsets, graph.number_of_vertices, graph.number_of_edges, stream_view);
 
   CUDA_TRY(cudaMemcpy(
     result.indices, graph.dst_indices, sizeof(VT) * graph.number_of_edges, cudaMemcpyDefault));

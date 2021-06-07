@@ -23,6 +23,8 @@
 namespace cugraph {
 namespace detail {
 
+#if 0
+  // Replace with raft
 struct prg {
   __host__ __device__ float operator()(int n)
   {
@@ -33,11 +35,12 @@ struct prg {
   }
 };
 
-void random_vector(float *vec, int n, int seed, cudaStream_t stream)
+void random_vector(float *vec, int n, int seed, rmm::cuda_stream_view const &stream_view)
 {
   thrust::counting_iterator<uint32_t> index(seed);
-  thrust::transform(rmm::exec_policy(stream)->on(stream), index, index + n, vec, prg());
+  thrust::transform(rmm::exec_policy(stream_view), index, index + n, vec, prg());
 }
+#endif
 
 /** helper method to get multi-processor count parameter */
 inline int getMultiProcessorCount()

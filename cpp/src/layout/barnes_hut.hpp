@@ -16,8 +16,9 @@
 
 #pragma once
 
-#include <rmm/device_uvector.hpp>
-#include <rmm/exec_policy.hpp>
+#include "bh_kernels.hpp"
+#include "fa2_kernels.hpp"
+#include "utils.hpp"
 
 #include <converters/COOtoCSR.cuh>
 #include <utilities/graph_utils.cuh>
@@ -26,9 +27,10 @@
 #include <cugraph/internals.hpp>
 #include <cugraph/utilities/error.hpp>
 
-#include "bh_kernels.hpp"
-#include "fa2_kernels.hpp"
-#include "utils.hpp"
+#include <raft/random/rng.cuh>
+
+#include <rmm/device_uvector.hpp>
+#include <rmm/exec_policy.hpp>
 
 namespace cugraph {
 namespace detail {
@@ -52,7 +54,7 @@ void barnes_hut(raft::handle_t const &handle,
                 bool verbose                                  = false,
                 internals::GraphBasedDimRedCallback *callback = nullptr)
 {
-  rmm::cuda_stream_view stream(handle.get_stream());
+  rmm::cuda_stream_view stream_view(handle.get_stream_view());
   const edge_t e   = graph.number_of_edges;
   const vertex_t n = graph.number_of_vertices;
 
@@ -67,34 +69,34 @@ void barnes_hut(raft::handle_t const &handle,
 
   // Allocate more space
   //---------------------------------------------------
-  rmm::device_uvector<unsigned> d_limiter(1, stream);
-  rmm::device_uvector<int> d_maxdepthd(1, stream);
-  rmm::device_uvector<int> d_bottomd(1, stream);
-  rmm::device_uvector<float> d_radiusd(1, stream);
+  rmm::device_uvector<unsigned> d_limiter(1, stream_view);
+  rmm::device_uvector<int> d_maxdepthd(1, stream_view);
+  rmm::device_uvector<int> d_bottomd(1, stream_view);
+  rmm::device_uvector<float> d_radiusd(1, stream_view);
 
   unsigned *limiter = d_limiter.data();
   int *maxdepthd    = d_maxdepthd.data();
   int *bottomd      = d_bottomd.data();
   float *radiusd    = d_radiusd.data();
 
-  InitializationKernel<<<1, 1, 0, stream.value()>>>(limiter, maxdepthd, radiusd);
-  CHECK_CUDA(stream.value());
+  InitializationKernel<<<1, 1, 0, stream_view.value()>>>(limiter, maxdepthd, radiusd);
+  CHECK_CUDA(stream_view.value());
 
   const int FOUR_NNODES     = 4 * nnodes;
   const int FOUR_N          = 4 * n;
   const float theta_squared = theta * theta;
   const int NNODES          = nnodes;
 
-  rmm::device_uvector<int> d_startl(nnodes + 1, stream);
-  rmm::device_uvector<int> d_childl((nnodes + 1) * 4, stream);
+  rmm::device_uvector<int> d_startl(nnodes + 1, stream_view);
+  rmm::device_uvector<int> d_childl((nnodes + 1) * 4, stream_view);
   // FA2 requires degree + 1
-  rmm::device_uvector<int> d_massl(nnodes + 1, stream);
-  thrust::fill(rmm::exec_policy(stream), d_massl.begin(), d_massl.end(), 1);
+  rmm::device_uvector<int> d_massl(nnodes + 1, stream_view);
+  thrust::fill(rmm::exec_policy(stream_view), d_massl.begin(), d_massl.end(), 1);
 
-  rmm::device_uvector<float> d_maxxl(blocks * FACTOR1, stream);
-  rmm::device_uvector<float> d_maxyl(blocks * FACTOR1, stream);
-  rmm::device_uvector<float> d_minxl(blocks * FACTOR1, stream);
-  rmm::device_uvector<float> d_minyl(blocks * FACTOR1, stream);
+  rmm::device_uvector<float> d_maxxl(blocks * FACTOR1, stream_view);
+  rmm::device_uvector<float> d_maxyl(blocks * FACTOR1, stream_view);
+  rmm::device_uvector<float> d_minxl(blocks * FACTOR1, stream_view);
+  rmm::device_uvector<float> d_minyl(blocks * FACTOR1, stream_view);
 
   // Actual mallocs
   int *startl = d_startl.data();
@@ -107,21 +109,21 @@ void barnes_hut(raft::handle_t const &handle,
   float *minyl = d_minyl.data();
 
   // SummarizationKernel
-  rmm::device_uvector<int> d_countl(nnodes + 1, stream);
+  rmm::device_uvector<int> d_countl(nnodes + 1, stream_view);
   int *countl = d_countl.data();
 
   // SortKernel
-  rmm::device_uvector<int> d_sortl(nnodes + 1, stream);
+  rmm::device_uvector<int> d_sortl(nnodes + 1, stream_view);
   int *sortl = d_sortl.data();
 
   // RepulsionKernel
-  rmm::device_uvector<float> d_rep_forces((nnodes + 1) * 2, stream);
+  rmm::device_uvector<float> d_rep_forces((nnodes + 1) * 2, stream_view);
   float *rep_forces = d_rep_forces.data();
 
-  rmm::device_uvector<float> d_radius_squared(1, stream);
+  rmm::device_uvector<float> d_radius_squared(1, stream_view);
   float *radiusd_squared = d_radius_squared.data();
 
-  rmm::device_uvector<float> d_nodes_pos((nnodes + 1) * 2, stream);
+  rmm::device_uvector<float> d_nodes_pos((nnodes + 1) * 2, stream_view);
   float *nodes_pos = d_nodes_pos.data();
 
   // Initialize positions with random values
@@ -129,10 +131,12 @@ void barnes_hut(raft::handle_t const &handle,
 
   // Copy start x and y positions.
   if (x_start && y_start) {
-    raft::copy(nodes_pos, x_start, n, stream.value());
-    raft::copy(nodes_pos + nnodes + 1, y_start, n, stream.value());
+    raft::copy(nodes_pos, x_start, n, stream_view.value());
+    raft::copy(nodes_pos + nnodes + 1, y_start, n, stream_view.value());
   } else {
-    random_vector(nodes_pos, (nnodes + 1) * 2, random_state, stream.value());
+    raft::random::Rng rng(random_state);
+    rng.uniform<float, size_t>(
+      nodes_pos, (nnodes + 1) * 2, -100.0f, 100.0f, stream_view.value());
   }
 
   // Allocate arrays for force computation
@@ -141,24 +145,24 @@ void barnes_hut(raft::handle_t const &handle,
   float *swinging{nullptr};
   float *traction{nullptr};
 
-  rmm::device_uvector<float> d_attract(n * 2, stream);
-  rmm::device_uvector<float> d_old_forces(n * 2, stream);
-  rmm::device_uvector<float> d_swinging(n, stream);
-  rmm::device_uvector<float> d_traction(n, stream);
+  rmm::device_uvector<float> d_attract(n * 2, stream_view);
+  rmm::device_uvector<float> d_old_forces(n * 2, stream_view);
+  rmm::device_uvector<float> d_swinging(n, stream_view);
+  rmm::device_uvector<float> d_traction(n, stream_view);
 
   attract    = d_attract.data();
   old_forces = d_old_forces.data();
   swinging   = d_swinging.data();
   traction   = d_traction.data();
 
-  thrust::fill(rmm::exec_policy(stream), d_old_forces.begin(), d_old_forces.end(), 0.f);
+  thrust::fill(rmm::exec_policy(stream_view), d_old_forces.begin(), d_old_forces.end(), 0.f);
 
   // Sort COO for coalesced memory access.
-  sort(graph, stream.value());
-  CHECK_CUDA(stream.value());
+  sort(graph, stream_view.value());
+  CHECK_CUDA(stream_view.value());
 
   graph.degree(massl, cugraph::DegreeDirection::OUT);
-  CHECK_CUDA(stream.value());
+  CHECK_CUDA(stream_view.value());
 
   const vertex_t *row = graph.src_indices;
   const vertex_t *col = graph.dst_indices;
@@ -172,7 +176,7 @@ void barnes_hut(raft::handle_t const &handle,
 
   // If outboundAttractionDistribution active, compensate.
   if (outbound_attraction_distribution) {
-    int sum = thrust::reduce(rmm::exec_policy(stream), d_massl.begin(), d_massl.begin() + n);
+    int sum = thrust::reduce(rmm::exec_policy(stream_view), d_massl.begin(), d_massl.begin() + n);
     outbound_att_compensation = sum / (float)n;
   }
 
@@ -195,16 +199,16 @@ void barnes_hut(raft::handle_t const &handle,
 
   for (int iter = 0; iter < max_iter; ++iter) {
     // Reset force values
-    thrust::fill(rmm::exec_policy(stream), d_rep_forces.begin(), d_rep_forces.end(), 0.f);
-    thrust::fill(rmm::exec_policy(stream), d_attract.begin(), d_attract.end(), 0.f);
-    thrust::fill(rmm::exec_policy(stream), d_swinging.begin(), d_swinging.end(), 0.f);
-    thrust::fill(rmm::exec_policy(stream), d_traction.begin(), d_traction.end(), 0.f);
+    thrust::fill(rmm::exec_policy(stream_view), d_rep_forces.begin(), d_rep_forces.end(), 0.f);
+    thrust::fill(rmm::exec_policy(stream_view), d_attract.begin(), d_attract.end(), 0.f);
+    thrust::fill(rmm::exec_policy(stream_view), d_swinging.begin(), d_swinging.end(), 0.f);
+    thrust::fill(rmm::exec_policy(stream_view), d_traction.begin(), d_traction.end(), 0.f);
 
-    ResetKernel<<<1, 1, 0, stream.value()>>>(radiusd_squared, bottomd, NNODES, radiusd);
-    CHECK_CUDA(stream.value());
+    ResetKernel<<<1, 1, 0, stream_view.value()>>>(radiusd_squared, bottomd, NNODES, radiusd);
+    CHECK_CUDA(stream_view.value());
 
     // Compute bounding box arround all bodies
-    BoundingBoxKernel<<<blocks * FACTOR1, THREADS1, 0, stream.value()>>>(startl,
+    BoundingBoxKernel<<<blocks * FACTOR1, THREADS1, 0, stream_view.value()>>>(startl,
                                                                          childl,
                                                                          massl,
                                                                          nodes_pos,
@@ -218,31 +222,31 @@ void barnes_hut(raft::handle_t const &handle,
                                                                          n,
                                                                          limiter,
                                                                          radiusd);
-    CHECK_CUDA(stream.value());
+    CHECK_CUDA(stream_view.value());
 
-    ClearKernel1<<<blocks, 1024, 0, stream.value()>>>(childl, FOUR_NNODES, FOUR_N);
-    CHECK_CUDA(stream.value());
+    ClearKernel1<<<blocks, 1024, 0, stream_view.value()>>>(childl, FOUR_NNODES, FOUR_N);
+    CHECK_CUDA(stream_view.value());
 
     // Build quadtree
-    TreeBuildingKernel<<<blocks * FACTOR2, THREADS2, 0, stream.value()>>>(
+    TreeBuildingKernel<<<blocks * FACTOR2, THREADS2, 0, stream_view.value()>>>(
       childl, nodes_pos, nodes_pos + nnodes + 1, NNODES, n, maxdepthd, bottomd, radiusd);
-    CHECK_CUDA(stream.value());
+    CHECK_CUDA(stream_view.value());
 
-    ClearKernel2<<<blocks, 1024, 0, stream.value()>>>(startl, massl, NNODES, bottomd);
-    CHECK_CUDA(stream.value());
+    ClearKernel2<<<blocks, 1024, 0, stream_view.value()>>>(startl, massl, NNODES, bottomd);
+    CHECK_CUDA(stream_view.value());
 
     // Summarizes mass and position for each cell, bottom up approach
-    SummarizationKernel<<<blocks * FACTOR3, THREADS3, 0, stream.value()>>>(
+    SummarizationKernel<<<blocks * FACTOR3, THREADS3, 0, stream_view.value()>>>(
       countl, childl, massl, nodes_pos, nodes_pos + nnodes + 1, NNODES, n, bottomd);
-    CHECK_CUDA(stream.value());
+    CHECK_CUDA(stream_view.value());
 
     // Group closed bodies together, used to speed up Repulsion kernel
-    SortKernel<<<blocks * FACTOR4, THREADS4, 0, stream.value()>>>(
+    SortKernel<<<blocks * FACTOR4, THREADS4, 0, stream_view.value()>>>(
       sortl, countl, startl, childl, NNODES, n, bottomd);
-    CHECK_CUDA(stream.value());
+    CHECK_CUDA(stream_view.value());
 
     // Force computation O(n . log(n))
-    RepulsionKernel<<<blocks * FACTOR5, THREADS5, 0, stream.value()>>>(scaling_ratio,
+    RepulsionKernel<<<blocks * FACTOR5, THREADS5, 0, stream_view.value()>>>(scaling_ratio,
                                                                        theta,
                                                                        epssq,
                                                                        sortl,
@@ -258,7 +262,7 @@ void barnes_hut(raft::handle_t const &handle,
                                                                        n,
                                                                        radiusd_squared,
                                                                        maxdepthd);
-    CHECK_CUDA(stream.value());
+    CHECK_CUDA(stream_view.value());
 
     apply_gravity<vertex_t>(nodes_pos,
                             nodes_pos + nnodes + 1,
@@ -269,7 +273,7 @@ void barnes_hut(raft::handle_t const &handle,
                             strong_gravity_mode,
                             scaling_ratio,
                             n,
-                            stream.value());
+                            stream_view.value());
 
     apply_attraction<vertex_t, edge_t, weight_t>(row,
                                                  col,
@@ -284,7 +288,7 @@ void barnes_hut(raft::handle_t const &handle,
                                                  lin_log_mode,
                                                  edge_weight_influence,
                                                  outbound_att_compensation,
-                                                 stream.value());
+                                                 stream_view.value());
 
     compute_local_speed(rep_forces,
                         rep_forces + nnodes + 1,
@@ -296,18 +300,18 @@ void barnes_hut(raft::handle_t const &handle,
                         swinging,
                         traction,
                         n,
-                        stream.value());
+                        stream_view.value());
 
     // Compute global swinging and traction values
-    const float s = thrust::reduce(rmm::exec_policy(stream), d_swinging.begin(), d_swinging.end());
+    const float s = thrust::reduce(rmm::exec_policy(stream_view), d_swinging.begin(), d_swinging.end());
 
-    const float t = thrust::reduce(rmm::exec_policy(stream), d_traction.begin(), d_traction.end());
+    const float t = thrust::reduce(rmm::exec_policy(stream_view), d_traction.begin(), d_traction.end());
 
     // Compute global speed based on gloab and local swinging and traction.
     adapt_speed<vertex_t>(jitter_tolerance, &jt, &speed, &speed_efficiency, s, t, n);
 
     // Update positions
-    apply_forces_bh<<<blocks * FACTOR6, THREADS6, 0, stream.value()>>>(nodes_pos,
+    apply_forces_bh<<<blocks * FACTOR6, THREADS6, 0, stream_view.value()>>>(nodes_pos,
                                                                        nodes_pos + nnodes + 1,
                                                                        attract,
                                                                        attract + n,
@@ -329,8 +333,8 @@ void barnes_hut(raft::handle_t const &handle,
   }
 
   // Copy nodes positions into final output pos
-  raft::copy(pos, nodes_pos, n, stream.value());
-  raft::copy(pos + n, nodes_pos + nnodes + 1, n, stream.value());
+  raft::copy(pos, nodes_pos, n, stream_view.value());
+  raft::copy(pos + n, nodes_pos + nnodes + 1, n, stream_view.value());
 
   if (callback) callback->on_train_end(nodes_pos);
 }

@@ -19,10 +19,12 @@
  * @file jaccard.cu
  * ---------------------------------------------------------------------------**/
 
-#include <rmm/thrust_rmm_allocator.h>
 #include <cugraph/graph.hpp>
 #include <cugraph/utilities/error.hpp>
 #include <utilities/graph_utils.cuh>
+
+#include <rmm/device_vector.hpp>
+#include <rmm/exec_policy.hpp>
 
 namespace cugraph {
 namespace detail {
@@ -208,6 +210,7 @@ int jaccard(vertex_t n,
             weight_t *weight_s,
             weight_t *weight_j)
 {
+  rmm::cuda_stream_view stream_view;
   dim3 nthreads, nblocks;
   int y = 4;
 
@@ -221,9 +224,12 @@ int jaccard(vertex_t n,
 
   // launch kernel
   jaccard_row_sum<weighted, vertex_t, edge_t, weight_t>
-    <<<nblocks, nthreads>>>(n, csrPtr, csrInd, weight_in, work);
-  cudaDeviceSynchronize();
-  fill(e, weight_i, weight_t{0.0});
+    <<<nblocks, nthreads, 0, stream_view.value()>>>(n, csrPtr, csrInd, weight_in, work);
+
+  thrust::fill(rmm::exec_policy(stream_view),
+               weight_i,
+               weight_i + e,
+               weight_t{0.0});
 
   // setup launch configuration
   nthreads.x = 32 / y;
@@ -235,7 +241,7 @@ int jaccard(vertex_t n,
 
   // launch kernel
   jaccard_is<weighted, vertex_t, edge_t, weight_t>
-    <<<nblocks, nthreads>>>(n, csrPtr, csrInd, weight_in, work, weight_i, weight_s);
+    <<<nblocks, nthreads, 0, stream_view.value()>>>(n, csrPtr, csrInd, weight_in, work, weight_i, weight_s);
 
   // setup launch configuration
   nthreads.x = min(e, edge_t{CUDA_MAX_KERNEL_THREADS});
@@ -247,7 +253,7 @@ int jaccard(vertex_t n,
 
   // launch kernel
   jaccard_jw<weighted, vertex_t, edge_t, weight_t>
-    <<<nblocks, nthreads>>>(e, weight_i, weight_s, weight_j);
+    <<<nblocks, nthreads, 0, stream_view.value()>>>(e, weight_i, weight_s, weight_j);
 
   return 0;
 }

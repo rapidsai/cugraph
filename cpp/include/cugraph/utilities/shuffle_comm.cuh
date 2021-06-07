@@ -18,7 +18,7 @@
 #include <cugraph/utilities/dataframe_buffer.cuh>
 #include <cugraph/utilities/device_comm.cuh>
 
-#include <rmm/thrust_rmm_allocator.h>
+#include <rmm/exec_policy.hpp>
 #include <raft/handle.hpp>
 #include <rmm/device_uvector.hpp>
 
@@ -46,11 +46,11 @@ inline std::tuple<std::vector<size_t>,
                   std::vector<int>>
 compute_tx_rx_counts_offsets_ranks(raft::comms::comms_t const &comm,
                                    rmm::device_uvector<size_t> const &d_tx_value_counts,
-                                   cudaStream_t stream)
+                                   rmm::cuda_stream_view const &stream_view)
 {
   auto const comm_size = comm.get_size();
 
-  rmm::device_uvector<size_t> d_rx_value_counts(comm_size, stream);
+  rmm::device_uvector<size_t> d_rx_value_counts(comm_size, stream_view);
 
   // FIXME: this needs to be replaced with AlltoAll once NCCL 2.8 is released.
   std::vector<size_t> tx_counts(comm_size, size_t{1});
@@ -72,16 +72,16 @@ compute_tx_rx_counts_offsets_ranks(raft::comms::comms_t const &comm,
                             rx_counts,
                             rx_offsets,
                             rx_src_ranks,
-                            stream);
+                            stream_view);
   // FIXME: temporary unverified work-around for a NCCL (2.9.6) bug that causes a hang on DGX1 (due
   // to remote memory allocation), this synchronization is unnecessary otherwise but seems like
   // suppress the hange issue. Need to be revisited once NCCL 2.10 is released.
   CUDA_TRY(cudaDeviceSynchronize());
 
-  raft::update_host(tx_counts.data(), d_tx_value_counts.data(), comm_size, stream);
-  raft::update_host(rx_counts.data(), d_rx_value_counts.data(), comm_size, stream);
+  raft::update_host(tx_counts.data(), d_tx_value_counts.data(), comm_size, stream_view.value());
+  raft::update_host(rx_counts.data(), d_rx_value_counts.data(), comm_size, stream_view.value());
 
-  CUDA_TRY(cudaStreamSynchronize(stream));  // rx_counts should be up-to-date
+  stream_view.synchronize();
 
   std::partial_sum(tx_counts.begin(), tx_counts.end() - 1, tx_offsets.begin() + 1);
   std::partial_sum(rx_counts.begin(), rx_counts.end() - 1, rx_offsets.begin() + 1);
@@ -119,9 +119,9 @@ rmm::device_uvector<size_t> groupby_and_count(ValueIterator tx_value_first /* [I
                                               ValueIterator tx_value_last /* [INOUT */,
                                               ValueToGPUIdOp value_to_group_id_op,
                                               int num_groups,
-                                              cudaStream_t stream)
+                                              rmm::cuda_stream_view const &stream_view)
 {
-  thrust::sort(rmm::exec_policy(stream)->on(stream),
+  thrust::sort(rmm::exec_policy(stream_view),
                tx_value_first,
                tx_value_last,
                [value_to_group_id_op] __device__(auto lhs, auto rhs) {
@@ -131,19 +131,19 @@ rmm::device_uvector<size_t> groupby_and_count(ValueIterator tx_value_first /* [I
   auto group_id_first = thrust::make_transform_iterator(
     tx_value_first,
     [value_to_group_id_op] __device__(auto value) { return value_to_group_id_op(value); });
-  rmm::device_uvector<int> d_tx_dst_ranks(num_groups, stream);
-  rmm::device_uvector<size_t> d_tx_value_counts(d_tx_dst_ranks.size(), stream);
+  rmm::device_uvector<int> d_tx_dst_ranks(num_groups, stream_view);
+  rmm::device_uvector<size_t> d_tx_value_counts(d_tx_dst_ranks.size(), stream_view);
   auto last =
-    thrust::reduce_by_key(rmm::exec_policy(stream)->on(stream),
+    thrust::reduce_by_key(rmm::exec_policy(stream_view),
                           group_id_first,
                           group_id_first + thrust::distance(tx_value_first, tx_value_last),
                           thrust::make_constant_iterator(size_t{1}),
                           d_tx_dst_ranks.begin(),
                           d_tx_value_counts.begin());
   if (thrust::distance(d_tx_dst_ranks.begin(), thrust::get<0>(last)) < num_groups) {
-    rmm::device_uvector<size_t> d_counts(num_groups, stream);
-    thrust::fill(rmm::exec_policy(stream)->on(stream), d_counts.begin(), d_counts.end(), size_t{0});
-    thrust::scatter(rmm::exec_policy(stream)->on(stream),
+    rmm::device_uvector<size_t> d_counts(num_groups, stream_view);
+    thrust::fill(rmm::exec_policy(stream_view), d_counts.begin(), d_counts.end(), size_t{0});
+    thrust::scatter(rmm::exec_policy(stream_view),
                     d_tx_value_counts.begin(),
                     thrust::get<1>(last),
                     d_tx_dst_ranks.begin(),
@@ -160,9 +160,9 @@ rmm::device_uvector<size_t> groupby_and_count(VertexIterator tx_key_first /* [IN
                                               ValueIterator tx_value_first /* [INOUT */,
                                               KeyToGPUIdOp key_to_group_id_op,
                                               int num_groups,
-                                              cudaStream_t stream)
+                                              rmm::cuda_stream_view const &stream_view)
 {
-  thrust::sort_by_key(rmm::exec_policy(stream)->on(stream),
+  thrust::sort_by_key(rmm::exec_policy(stream_view),
                       tx_key_first,
                       tx_key_last,
                       tx_value_first,
@@ -172,18 +172,18 @@ rmm::device_uvector<size_t> groupby_and_count(VertexIterator tx_key_first /* [IN
 
   auto group_id_first = thrust::make_transform_iterator(
     tx_key_first, [key_to_group_id_op] __device__(auto key) { return key_to_group_id_op(key); });
-  rmm::device_uvector<int> d_tx_dst_ranks(num_groups, stream);
-  rmm::device_uvector<size_t> d_tx_value_counts(d_tx_dst_ranks.size(), stream);
-  auto last = thrust::reduce_by_key(rmm::exec_policy(stream)->on(stream),
+  rmm::device_uvector<int> d_tx_dst_ranks(num_groups, stream_view);
+  rmm::device_uvector<size_t> d_tx_value_counts(d_tx_dst_ranks.size(), stream_view);
+  auto last = thrust::reduce_by_key(rmm::exec_policy(stream_view),
                                     group_id_first,
                                     group_id_first + thrust::distance(tx_key_first, tx_key_last),
                                     thrust::make_constant_iterator(size_t{1}),
                                     d_tx_dst_ranks.begin(),
                                     d_tx_value_counts.begin());
   if (thrust::distance(d_tx_dst_ranks.begin(), thrust::get<0>(last)) < num_groups) {
-    rmm::device_uvector<size_t> d_counts(num_groups, stream);
-    thrust::fill(rmm::exec_policy(stream)->on(stream), d_counts.begin(), d_counts.end(), size_t{0});
-    thrust::scatter(rmm::exec_policy(stream)->on(stream),
+    rmm::device_uvector<size_t> d_counts(num_groups, stream_view);
+    thrust::fill(rmm::exec_policy(stream_view), d_counts.begin(), d_counts.end(), size_t{0});
+    thrust::scatter(rmm::exec_policy(stream_view),
                     d_tx_value_counts.begin(),
                     thrust::get<1>(last),
                     d_tx_dst_ranks.begin(),
@@ -198,12 +198,12 @@ template <typename TxValueIterator>
 auto shuffle_values(raft::comms::comms_t const &comm,
                     TxValueIterator tx_value_first,
                     std::vector<size_t> const &tx_value_counts,
-                    cudaStream_t stream)
+                    rmm::cuda_stream_view const &stream_view)
 {
   auto const comm_size = comm.get_size();
 
-  rmm::device_uvector<size_t> d_tx_value_counts(comm_size, stream);
-  raft::update_device(d_tx_value_counts.data(), tx_value_counts.data(), comm_size, stream);
+  rmm::device_uvector<size_t> d_tx_value_counts(comm_size, stream_view);
+  raft::update_device(d_tx_value_counts.data(), tx_value_counts.data(), comm_size, stream_view.value());
 
   std::vector<size_t> tx_counts{};
   std::vector<size_t> tx_offsets{};
@@ -212,11 +212,11 @@ auto shuffle_values(raft::comms::comms_t const &comm,
   std::vector<size_t> rx_offsets{};
   std::vector<int> rx_src_ranks{};
   std::tie(tx_counts, tx_offsets, tx_dst_ranks, rx_counts, rx_offsets, rx_src_ranks) =
-    detail::compute_tx_rx_counts_offsets_ranks(comm, d_tx_value_counts, stream);
+    detail::compute_tx_rx_counts_offsets_ranks(comm, d_tx_value_counts, stream_view);
 
   auto rx_value_buffer =
     allocate_dataframe_buffer<typename std::iterator_traits<TxValueIterator>::value_type>(
-      rx_offsets.size() > 0 ? rx_offsets.back() + rx_counts.back() : size_t{0}, stream);
+      rx_offsets.size() > 0 ? rx_offsets.back() + rx_counts.back() : size_t{0}, stream_view);
 
   // FIXME: this needs to be replaced with AlltoAll once NCCL 2.8 is released
   // (if num_tx_dst_ranks == num_rx_src_ranks == comm_size).
@@ -231,7 +231,7 @@ auto shuffle_values(raft::comms::comms_t const &comm,
     rx_counts,
     rx_offsets,
     rx_src_ranks,
-    stream);
+    stream_view);
 
   if (rx_counts.size() < static_cast<size_t>(comm_size)) {
     std::vector<size_t> tmp_rx_counts(comm_size, size_t{0});
@@ -250,12 +250,12 @@ auto groupby_gpuid_and_shuffle_values(raft::comms::comms_t const &comm,
                                       ValueIterator tx_value_first /* [INOUT */,
                                       ValueIterator tx_value_last /* [INOUT */,
                                       ValueToGPUIdOp value_to_gpu_id_op,
-                                      cudaStream_t stream)
+                                      rmm::cuda_stream_view const &stream_view)
 {
   auto const comm_size = comm.get_size();
 
   auto d_tx_value_counts =
-    groupby_and_count(tx_value_first, tx_value_last, value_to_gpu_id_op, comm.get_size(), stream);
+    groupby_and_count(tx_value_first, tx_value_last, value_to_gpu_id_op, comm.get_size(), stream_view);
 
   std::vector<size_t> tx_counts{};
   std::vector<size_t> tx_offsets{};
@@ -264,11 +264,11 @@ auto groupby_gpuid_and_shuffle_values(raft::comms::comms_t const &comm,
   std::vector<size_t> rx_offsets{};
   std::vector<int> rx_src_ranks{};
   std::tie(tx_counts, tx_offsets, tx_dst_ranks, rx_counts, rx_offsets, rx_src_ranks) =
-    detail::compute_tx_rx_counts_offsets_ranks(comm, d_tx_value_counts, stream);
+    detail::compute_tx_rx_counts_offsets_ranks(comm, d_tx_value_counts, stream_view);
 
   auto rx_value_buffer =
     allocate_dataframe_buffer<typename std::iterator_traits<ValueIterator>::value_type>(
-      rx_offsets.size() > 0 ? rx_offsets.back() + rx_counts.back() : size_t{0}, stream);
+      rx_offsets.size() > 0 ? rx_offsets.back() + rx_counts.back() : size_t{0}, stream_view);
 
   // FIXME: this needs to be replaced with AlltoAll once NCCL 2.8 is released
   // (if num_tx_dst_ranks == num_rx_src_ranks == comm_size).
@@ -283,7 +283,7 @@ auto groupby_gpuid_and_shuffle_values(raft::comms::comms_t const &comm,
     rx_counts,
     rx_offsets,
     rx_src_ranks,
-    stream);
+    stream_view);
 
   if (rx_counts.size() < static_cast<size_t>(comm_size)) {
     std::vector<size_t> tmp_rx_counts(comm_size, size_t{0});
@@ -302,12 +302,12 @@ auto groupby_gpuid_and_shuffle_kv_pairs(raft::comms::comms_t const &comm,
                                         VertexIterator tx_key_last /* [INOUT */,
                                         ValueIterator tx_value_first /* [INOUT */,
                                         KeyToGPUIdOp key_to_gpu_id_op,
-                                        cudaStream_t stream)
+                                        rmm::cuda_stream_view const &stream_view)
 {
   auto const comm_size = comm.get_size();
 
   auto d_tx_value_counts = groupby_and_count(
-    tx_key_first, tx_key_last, tx_value_first, key_to_gpu_id_op, comm.get_size(), stream);
+    tx_key_first, tx_key_last, tx_value_first, key_to_gpu_id_op, comm.get_size(), stream_view);
 
   std::vector<size_t> tx_counts{};
   std::vector<size_t> tx_offsets{};
@@ -316,13 +316,13 @@ auto groupby_gpuid_and_shuffle_kv_pairs(raft::comms::comms_t const &comm,
   std::vector<size_t> rx_offsets{};
   std::vector<int> rx_src_ranks{};
   std::tie(tx_counts, tx_offsets, tx_dst_ranks, rx_counts, rx_offsets, rx_src_ranks) =
-    detail::compute_tx_rx_counts_offsets_ranks(comm, d_tx_value_counts, stream);
+    detail::compute_tx_rx_counts_offsets_ranks(comm, d_tx_value_counts, stream_view);
 
   rmm::device_uvector<typename std::iterator_traits<VertexIterator>::value_type> rx_keys(
-    rx_offsets.size() > 0 ? rx_offsets.back() + rx_counts.back() : size_t{0}, stream);
+    rx_offsets.size() > 0 ? rx_offsets.back() + rx_counts.back() : size_t{0}, stream_view);
   auto rx_value_buffer =
     allocate_dataframe_buffer<typename std::iterator_traits<ValueIterator>::value_type>(
-      rx_keys.size(), stream);
+      rx_keys.size(), stream_view);
 
   // FIXME: this needs to be replaced with AlltoAll once NCCL 2.8 is released
   // (if num_tx_dst_ranks == num_rx_src_ranks == comm_size).
@@ -335,7 +335,7 @@ auto groupby_gpuid_and_shuffle_kv_pairs(raft::comms::comms_t const &comm,
                             rx_counts,
                             rx_offsets,
                             rx_src_ranks,
-                            stream);
+                            stream_view);
 
   // FIXME: this needs to be replaced with AlltoAll once NCCL 2.8 is released
   // (if num_tx_dst_ranks == num_rx_src_ranks == comm_size).
@@ -350,7 +350,7 @@ auto groupby_gpuid_and_shuffle_kv_pairs(raft::comms::comms_t const &comm,
     rx_counts,
     rx_offsets,
     rx_src_ranks,
-    stream);
+    stream_view);
 
   if (rx_counts.size() < static_cast<size_t>(comm_size)) {
     std::vector<size_t> tmp_rx_counts(comm_size, size_t{0});
