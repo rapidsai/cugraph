@@ -19,7 +19,7 @@ ARGS=$*
 REPODIR=$(cd $(dirname $0); pwd)
 LIBCUGRAPH_BUILD_DIR=${LIBCUGRAPH_BUILD_DIR:=${REPODIR}/cpp/build}
 
-VALIDARGS="clean uninstall libcugraph cugraph docs -v -g -n --allgpuarch --buildfaiss --show_depr_warn -h --help"
+VALIDARGS="clean uninstall libcugraph cugraph cpp-mgtests docs -v -g -n --allgpuarch --buildfaiss --show_depr_warn -h --help"
 HELP="$0 [<target> ...] [<flag> ...]
  where <target> is:
    clean            - remove all existing build artifacts and configuration (start over)
@@ -99,7 +99,7 @@ if hasArg --allgpuarch; then
     BUILD_ALL_GPU_ARCH=1
 fi
 if hasArg --buildfaiss; then
-        BUILD_STATIC_FAISS=ON
+    BUILD_STATIC_FAISS=ON
 fi
 if hasArg --show_depr_warn; then
     BUILD_DISABLE_DEPRECATION_WARNING=OFF
