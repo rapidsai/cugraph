@@ -20,9 +20,9 @@
 #include <cugraph/utilities/error.hpp>
 #include <cugraph/vertex_partition_device.cuh>
 
-#include <rmm/exec_policy.hpp>
 #include <raft/handle.hpp>
 #include <rmm/device_uvector.hpp>
+#include <rmm/exec_policy.hpp>
 
 #include <thrust/binary_search.h>
 #include <thrust/copy.h>
@@ -77,11 +77,10 @@ extract_induced_subgraphs(
     CUGRAPH_EXPECTS(should_be_zero == 0,
                     "Invalid input argument: subgraph_offsets[0] should be 0.");
 
-    CUGRAPH_EXPECTS(
-                    thrust::is_sorted(rmm::exec_policy(handle.get_stream_view()),
-                        subgraph_offsets,
-                        subgraph_offsets + (num_subgraphs + 1)),
-      "Invalid input argument: subgraph_offsets is not sorted.");
+    CUGRAPH_EXPECTS(thrust::is_sorted(rmm::exec_policy(handle.get_stream_view()),
+                                      subgraph_offsets,
+                                      subgraph_offsets + (num_subgraphs + 1)),
+                    "Invalid input argument: subgraph_offsets is not sorted.");
     vertex_partition_device_t<graph_view_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu>>
       vertex_partition(graph_view);
     CUGRAPH_EXPECTS(thrust::count_if(rmm::exec_policy(handle.get_stream_view()),

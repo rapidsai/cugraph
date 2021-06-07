@@ -107,7 +107,7 @@ collect_values_for_keys(raft::comms::comms_t const &comm,
 
     rmm::device_uvector<value_t> values_for_rx_unique_keys(rx_unique_keys.size(), stream_view);
 
-    stream_view.synchronize(); // cuco::static_map currently does not take stream
+    stream_view.synchronize();  // cuco::static_map currently does not take stream
 
     kv_map_ptr->find(
       rx_unique_keys.begin(), rx_unique_keys.end(), values_for_rx_unique_keys.begin());
@@ -122,7 +122,7 @@ collect_values_for_keys(raft::comms::comms_t const &comm,
   // 3. re-build a cuco::static_map object for the k, v pairs in unique_keys,
   // values_for_unique_keys.
 
-  stream_view.synchronize(); // cuco::static_map currently does not take stream
+  stream_view.synchronize();  // cuco::static_map currently does not take stream
 
   kv_map_ptr.reset();
 
@@ -218,7 +218,7 @@ collect_values_for_unique_keys(raft::comms::comms_t const &comm,
 
     rmm::device_uvector<value_t> values_for_rx_unique_keys(rx_unique_keys.size(), stream_view);
 
-    stream_view.synchronize(); // cuco::static_map currently does not take stream
+    stream_view.synchronize();  // cuco::static_map currently does not take stream
 
     kv_map_ptr->find(
       rx_unique_keys.begin(), rx_unique_keys.end(), values_for_rx_unique_keys.begin());
@@ -233,7 +233,7 @@ collect_values_for_unique_keys(raft::comms::comms_t const &comm,
   // 3. re-build a cuco::static_map object for the k, v pairs in unique_keys,
   // values_for_unique_keys.
 
-  stream_view.synchronize(); // cuco::static_map currently does not take stream
+  stream_view.synchronize();  // cuco::static_map currently does not take stream
 
   kv_map_ptr.reset();
 

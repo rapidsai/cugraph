@@ -22,10 +22,10 @@
 #include <cugraph/utilities/error.hpp>
 #include <cugraph/utilities/shuffle_comm.cuh>
 
-#include <rmm/exec_policy.hpp>
 #include <cuco/static_map.cuh>
 #include <raft/handle.hpp>
 #include <rmm/device_uvector.hpp>
+#include <rmm/exec_policy.hpp>
 #include <rmm/mr/device/per_device_resource.hpp>
 #include <rmm/mr/device/polymorphic_allocator.hpp>
 
@@ -72,11 +72,10 @@ void relabel(raft::handle_t const& handle,
                  unique_old_labels.begin(),
                  unique_old_labels.end());
     unique_old_labels.resize(
-      thrust::distance(
-        unique_old_labels.begin(),
-        thrust::unique(rmm::exec_policy(handle.get_stream_view()),
-                       unique_old_labels.begin(),
-                       unique_old_labels.end())),
+      thrust::distance(unique_old_labels.begin(),
+                       thrust::unique(rmm::exec_policy(handle.get_stream_view()),
+                                      unique_old_labels.begin(),
+                                      unique_old_labels.end())),
       handle.get_stream_view());
     unique_old_labels.shrink_to_fit(handle.get_stream_view());
 
@@ -90,8 +89,10 @@ void relabel(raft::handle_t const& handle,
       rmm::device_uvector<vertex_t> rx_label_pair_old_labels(0, handle.get_stream_view());
       rmm::device_uvector<vertex_t> rx_label_pair_new_labels(0, handle.get_stream_view());
       {
-        rmm::device_uvector<vertex_t> label_pair_old_labels(num_label_pairs, handle.get_stream_view());
-        rmm::device_uvector<vertex_t> label_pair_new_labels(num_label_pairs, handle.get_stream_view());
+        rmm::device_uvector<vertex_t> label_pair_old_labels(num_label_pairs,
+                                                            handle.get_stream_view());
+        rmm::device_uvector<vertex_t> label_pair_new_labels(num_label_pairs,
+                                                            handle.get_stream_view());
         thrust::copy(rmm::exec_policy(handle.get_stream_view()),
                      std::get<0>(old_new_label_pairs),
                      std::get<0>(old_new_label_pairs) + num_label_pairs,
@@ -114,7 +115,7 @@ void relabel(raft::handle_t const& handle,
 
       // update intermediate relabel map
 
-      handle.get_stream_view().synchronize(); // cuco::static_map currently does not take stream
+      handle.get_stream_view().synchronize();  // cuco::static_map currently does not take stream
 
       auto poly_alloc =
         rmm::mr::polymorphic_allocator<char>(rmm::mr::get_current_device_resource());
@@ -150,7 +151,7 @@ void relabel(raft::handle_t const& handle,
           [key_func] __device__(auto val) { return key_func(val); },
           handle.get_stream_view());
 
-        handle.get_stream_view().synchronize(); // cuco::static_map currently does not take stream
+        handle.get_stream_view().synchronize();  // cuco::static_map currently does not take stream
 
         if (skip_missing_labels) {
           thrust::transform(rmm::exec_policy(handle.get_stream_view()),
@@ -171,8 +172,11 @@ void relabel(raft::handle_t const& handle,
                                             // corresponding old labels
         }
 
-        std::tie(new_labels_for_unique_old_labels, std::ignore) = shuffle_values(
-          handle.get_comms(), rx_unique_old_labels.begin(), rx_value_counts, handle.get_stream_view());
+        std::tie(new_labels_for_unique_old_labels, std::ignore) =
+          shuffle_values(handle.get_comms(),
+                         rx_unique_old_labels.begin(),
+                         rx_value_counts,
+                         handle.get_stream_view());
       }
     }
 
@@ -226,7 +230,7 @@ void relabel(raft::handle_t const& handle,
 
   if (do_expensive_check && !skip_missing_labels) {
     CUGRAPH_EXPECTS(
-                    thrust::count(rmm::exec_policy(handle.get_stream_view()),
+      thrust::count(rmm::exec_policy(handle.get_stream_view()),
                     labels,
                     labels + num_labels,
                     invalid_vertex_id<vertex_t>::value) == 0,

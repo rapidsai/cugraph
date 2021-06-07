@@ -234,10 +234,8 @@ void BC<vertex_t, edge_t, weight_t, result_t>::compute_single_source(vertex_t so
                   distances_ + number_of_vertices_,
                   std::numeric_limits<vertex_t>::max(),
                   static_cast<vertex_t>(-1));
-  auto current_max_depth =
-    thrust::max_element(rmm::exec_policy(handle_.get_stream_view()),
-                        distances_,
-                        distances_ + number_of_vertices_);
+  auto current_max_depth = thrust::max_element(
+    rmm::exec_policy(handle_.get_stream_view()), distances_, distances_ + number_of_vertices_);
   vertex_t max_depth = 0;
   CUDA_TRY(cudaMemcpy(&max_depth, current_max_depth, sizeof(vertex_t), cudaMemcpyDeviceToHost));
   // Step 2) Dependency accumulation
@@ -317,11 +315,8 @@ template <typename vertex_t, typename edge_t, typename weight_t, typename result
 void BC<vertex_t, edge_t, weight_t, result_t>::add_reached_endpoints_to_source_betweenness(
   vertex_t source_vertex)
 {
-  vertex_t number_of_unvisited_vertices =
-    thrust::count(rmm::exec_policy(handle_.get_stream_view()),
-                  distances_,
-                  distances_ + number_of_vertices_,
-                  -1);
+  vertex_t number_of_unvisited_vertices = thrust::count(
+    rmm::exec_policy(handle_.get_stream_view()), distances_, distances_ + number_of_vertices_, -1);
   vertex_t number_of_visited_vertices_except_source =
     number_of_vertices_ - number_of_unvisited_vertices - 1;
   rmm::device_vector<vertex_t> buffer(1);

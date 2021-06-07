@@ -128,7 +128,8 @@ void GraphCompressedSparseBaseView<VT, ET, WT>::degree(ET *degree, DegreeDirecti
                                                                  // source indexing for
                                                                  // the allreduce to work
     }
-    degree_from_offsets(GraphViewBase<VT, ET, WT>::number_of_vertices, offsets, degree, stream_view);
+    degree_from_offsets(
+      GraphViewBase<VT, ET, WT>::number_of_vertices, offsets, degree, stream_view);
   }
 
   if (direction != DegreeDirection::OUT) {

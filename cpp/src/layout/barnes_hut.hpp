@@ -135,8 +135,7 @@ void barnes_hut(raft::handle_t const &handle,
     raft::copy(nodes_pos + nnodes + 1, y_start, n, stream_view.value());
   } else {
     raft::random::Rng rng(random_state);
-    rng.uniform<float, size_t>(
-      nodes_pos, (nnodes + 1) * 2, -100.0f, 100.0f, stream_view.value());
+    rng.uniform<float, size_t>(nodes_pos, (nnodes + 1) * 2, -100.0f, 100.0f, stream_view.value());
   }
 
   // Allocate arrays for force computation
@@ -208,20 +207,21 @@ void barnes_hut(raft::handle_t const &handle,
     CHECK_CUDA(stream_view.value());
 
     // Compute bounding box arround all bodies
-    BoundingBoxKernel<<<blocks * FACTOR1, THREADS1, 0, stream_view.value()>>>(startl,
-                                                                         childl,
-                                                                         massl,
-                                                                         nodes_pos,
-                                                                         nodes_pos + nnodes + 1,
-                                                                         maxxl,
-                                                                         maxyl,
-                                                                         minxl,
-                                                                         minyl,
-                                                                         FOUR_NNODES,
-                                                                         NNODES,
-                                                                         n,
-                                                                         limiter,
-                                                                         radiusd);
+    BoundingBoxKernel<<<blocks * FACTOR1, THREADS1, 0, stream_view.value()>>>(
+      startl,
+      childl,
+      massl,
+      nodes_pos,
+      nodes_pos + nnodes + 1,
+      maxxl,
+      maxyl,
+      minxl,
+      minyl,
+      FOUR_NNODES,
+      NNODES,
+      n,
+      limiter,
+      radiusd);
     CHECK_CUDA(stream_view.value());
 
     ClearKernel1<<<blocks, 1024, 0, stream_view.value()>>>(childl, FOUR_NNODES, FOUR_N);
@@ -247,21 +247,21 @@ void barnes_hut(raft::handle_t const &handle,
 
     // Force computation O(n . log(n))
     RepulsionKernel<<<blocks * FACTOR5, THREADS5, 0, stream_view.value()>>>(scaling_ratio,
-                                                                       theta,
-                                                                       epssq,
-                                                                       sortl,
-                                                                       childl,
-                                                                       massl,
-                                                                       nodes_pos,
-                                                                       nodes_pos + nnodes + 1,
-                                                                       rep_forces,
-                                                                       rep_forces + nnodes + 1,
-                                                                       theta_squared,
-                                                                       NNODES,
-                                                                       FOUR_NNODES,
-                                                                       n,
-                                                                       radiusd_squared,
-                                                                       maxdepthd);
+                                                                            theta,
+                                                                            epssq,
+                                                                            sortl,
+                                                                            childl,
+                                                                            massl,
+                                                                            nodes_pos,
+                                                                            nodes_pos + nnodes + 1,
+                                                                            rep_forces,
+                                                                            rep_forces + nnodes + 1,
+                                                                            theta_squared,
+                                                                            NNODES,
+                                                                            FOUR_NNODES,
+                                                                            n,
+                                                                            radiusd_squared,
+                                                                            maxdepthd);
     CHECK_CUDA(stream_view.value());
 
     apply_gravity<vertex_t>(nodes_pos,
@@ -303,25 +303,27 @@ void barnes_hut(raft::handle_t const &handle,
                         stream_view.value());
 
     // Compute global swinging and traction values
-    const float s = thrust::reduce(rmm::exec_policy(stream_view), d_swinging.begin(), d_swinging.end());
+    const float s =
+      thrust::reduce(rmm::exec_policy(stream_view), d_swinging.begin(), d_swinging.end());
 
-    const float t = thrust::reduce(rmm::exec_policy(stream_view), d_traction.begin(), d_traction.end());
+    const float t =
+      thrust::reduce(rmm::exec_policy(stream_view), d_traction.begin(), d_traction.end());
 
     // Compute global speed based on gloab and local swinging and traction.
     adapt_speed<vertex_t>(jitter_tolerance, &jt, &speed, &speed_efficiency, s, t, n);
 
     // Update positions
     apply_forces_bh<<<blocks * FACTOR6, THREADS6, 0, stream_view.value()>>>(nodes_pos,
-                                                                       nodes_pos + nnodes + 1,
-                                                                       attract,
-                                                                       attract + n,
-                                                                       rep_forces,
-                                                                       rep_forces + nnodes + 1,
-                                                                       old_forces,
-                                                                       old_forces + n,
-                                                                       swinging,
-                                                                       speed,
-                                                                       n);
+                                                                            nodes_pos + nnodes + 1,
+                                                                            attract,
+                                                                            attract + n,
+                                                                            rep_forces,
+                                                                            rep_forces + nnodes + 1,
+                                                                            old_forces,
+                                                                            old_forces + n,
+                                                                            swinging,
+                                                                            speed,
+                                                                            n);
 
     if (callback) callback->on_epoch_end(nodes_pos);
 

@@ -18,9 +18,9 @@
 #include <cugraph/utilities/dataframe_buffer.cuh>
 #include <cugraph/utilities/device_comm.cuh>
 
-#include <rmm/exec_policy.hpp>
 #include <raft/handle.hpp>
 #include <rmm/device_uvector.hpp>
+#include <rmm/exec_policy.hpp>
 
 #include <thrust/distance.h>
 #include <thrust/fill.h>
@@ -199,7 +199,8 @@ auto shuffle_values(raft::comms::comms_t const &comm,
   auto const comm_size = comm.get_size();
 
   rmm::device_uvector<size_t> d_tx_value_counts(comm_size, stream_view);
-  raft::update_device(d_tx_value_counts.data(), tx_value_counts.data(), comm_size, stream_view.value());
+  raft::update_device(
+    d_tx_value_counts.data(), tx_value_counts.data(), comm_size, stream_view.value());
 
   std::vector<size_t> tx_counts{};
   std::vector<size_t> tx_offsets{};
@@ -250,8 +251,8 @@ auto groupby_gpuid_and_shuffle_values(raft::comms::comms_t const &comm,
 {
   auto const comm_size = comm.get_size();
 
-  auto d_tx_value_counts =
-    groupby_and_count(tx_value_first, tx_value_last, value_to_gpu_id_op, comm.get_size(), stream_view);
+  auto d_tx_value_counts = groupby_and_count(
+    tx_value_first, tx_value_last, value_to_gpu_id_op, comm.get_size(), stream_view);
 
   std::vector<size_t> tx_counts{};
   std::vector<size_t> tx_offsets{};

@@ -26,8 +26,8 @@
 #include <raft/handle.hpp>
 #include <raft/random/rng.cuh>
 
-#include <rmm/exec_policy.hpp>
 #include <rmm/device_uvector.hpp>
+#include <rmm/exec_policy.hpp>
 
 #include <thrust/copy.h>
 #include <thrust/count.h>

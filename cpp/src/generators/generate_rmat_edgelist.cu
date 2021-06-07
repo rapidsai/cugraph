@@ -17,10 +17,10 @@
 #include <cugraph/graph_generators.hpp>
 #include <cugraph/utilities/error.hpp>
 
-#include <rmm/exec_policy.hpp>
 #include <raft/handle.hpp>
 #include <raft/random/rng.cuh>
 #include <rmm/device_uvector.hpp>
+#include <rmm/exec_policy.hpp>
 
 #include <thrust/iterator/zip_iterator.h>
 #include <thrust/tuple.h>

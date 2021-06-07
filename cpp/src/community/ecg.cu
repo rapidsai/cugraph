@@ -121,8 +121,10 @@ class EcgLouvain : public cugraph::Louvain<graph_type> {
   {
     this->dendrogram_->add_level(0, num_vertices, this->handle_.get_stream_view());
 
-    get_permutation_vector(
-      num_vertices, seed_, this->dendrogram_->current_level_begin(), this->handle_.get_stream_view());
+    get_permutation_vector(num_vertices,
+                           seed_,
+                           this->dendrogram_->current_level_begin(),
+                           this->handle_.get_stream_view());
   }
 
  private:

@@ -23,10 +23,10 @@
 #include <cugraph/utilities/host_scalar_comm.cuh>
 #include <cugraph/utilities/shuffle_comm.cuh>
 
-#include <rmm/exec_policy.hpp>
 #include <cuco/static_map.cuh>
 #include <raft/handle.hpp>
 #include <rmm/device_uvector.hpp>
+#include <rmm/exec_policy.hpp>
 #include <rmm/mr/device/per_device_resource.hpp>
 #include <rmm/mr/device/polymorphic_allocator.hpp>
 
@@ -150,13 +150,12 @@ rmm::device_uvector<vertex_t> compute_renumber_map(
                         major_labels.begin(),
                         major_labels.end(),
                         major_counts.begin());
-    auto num_unique_labels =
-      thrust::count_if(rmm::exec_policy(handle.get_stream_view()),
-                       thrust::make_counting_iterator(size_t{0}),
-                       thrust::make_counting_iterator(major_labels.size()),
-                       [labels = major_labels.data()] __device__(auto i) {
-                         return (i == 0) || (labels[i - 1] != labels[i]);
-                       });
+    auto num_unique_labels = thrust::count_if(rmm::exec_policy(handle.get_stream_view()),
+                                              thrust::make_counting_iterator(size_t{0}),
+                                              thrust::make_counting_iterator(major_labels.size()),
+                                              [labels = major_labels.data()] __device__(auto i) {
+                                                return (i == 0) || (labels[i - 1] != labels[i]);
+                                              });
     rmm::device_uvector<vertex_t> tmp_major_labels(num_unique_labels, handle.get_stream());
     rmm::device_uvector<edge_t> tmp_major_counts(tmp_major_labels.size(), handle.get_stream());
     thrust::reduce_by_key(rmm::exec_policy(handle.get_stream_view()),
@@ -182,15 +181,13 @@ rmm::device_uvector<vertex_t> compute_renumber_map(
                  edgelist_minor_vertices[i] + edgelist_edge_counts[i],
                  minor_labels.begin() + minor_displs[i]);
   }
-  thrust::sort(rmm::exec_policy(handle.get_stream_view()),
-               minor_labels.begin(),
-               minor_labels.end());
-  minor_labels.resize(
-    thrust::distance(minor_labels.begin(),
-                     thrust::unique(rmm::exec_policy(handle.get_stream_view()),
-                                    minor_labels.begin(),
-                                    minor_labels.end())),
-    handle.get_stream());
+  thrust::sort(
+    rmm::exec_policy(handle.get_stream_view()), minor_labels.begin(), minor_labels.end());
+  minor_labels.resize(thrust::distance(minor_labels.begin(),
+                                       thrust::unique(rmm::exec_policy(handle.get_stream_view()),
+                                                      minor_labels.begin(),
+                                                      minor_labels.end())),
+                      handle.get_stream());
   if (multi_gpu) {
     auto& comm               = handle.get_comms();
     auto& row_comm           = handle.get_subcomm(cugraph::partition_2d::key_naming_t().row_name());
@@ -216,15 +213,13 @@ rmm::device_uvector<vertex_t> compute_renumber_map(
         [key_func = detail::compute_gpu_id_from_vertex_t<vertex_t>{row_comm_size}] __device__(
           auto val) { return key_func(val); },
         handle.get_stream());
-      thrust::sort(rmm::exec_policy(handle.get_stream_view()),
-                   rx_minor_labels.begin(),
-                   rx_minor_labels.end());
+      thrust::sort(
+        rmm::exec_policy(handle.get_stream_view()), rx_minor_labels.begin(), rx_minor_labels.end());
       rx_minor_labels.resize(
-        thrust::distance(
-          rx_minor_labels.begin(),
-          thrust::unique(rmm::exec_policy(handle.get_stream_view()),
-                         rx_minor_labels.begin(),
-                         rx_minor_labels.end())),
+        thrust::distance(rx_minor_labels.begin(),
+                         thrust::unique(rmm::exec_policy(handle.get_stream_view()),
+                                        rx_minor_labels.begin(),
+                                        rx_minor_labels.end())),
         handle.get_stream());
       minor_labels = std::move(rx_minor_labels);
     }
@@ -267,13 +262,12 @@ rmm::device_uvector<vertex_t> compute_renumber_map(
 
   rmm::device_uvector<vertex_t> labels(merged_labels.size(), handle.get_stream());
   rmm::device_uvector<edge_t> counts(labels.size(), handle.get_stream());
-  auto pair_it =
-    thrust::reduce_by_key(rmm::exec_policy(handle.get_stream_view()),
-                          merged_labels.begin(),
-                          merged_labels.end(),
-                          merged_counts.begin(),
-                          labels.begin(),
-                          counts.begin());
+  auto pair_it = thrust::reduce_by_key(rmm::exec_policy(handle.get_stream_view()),
+                                       merged_labels.begin(),
+                                       merged_labels.end(),
+                                       merged_counts.begin(),
+                                       labels.begin(),
+                                       counts.begin());
   merged_labels.resize(0, handle.get_stream());
   merged_counts.resize(0, handle.get_stream());
   merged_labels.shrink_to_fit(handle.get_stream());

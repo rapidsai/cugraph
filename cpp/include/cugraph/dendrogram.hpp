@@ -30,7 +30,8 @@ class Dendrogram {
                  rmm::cuda_stream_view const &stream_view,
                  rmm::mr::device_memory_resource *mr = rmm::mr::get_current_device_resource())
   {
-    level_ptr_.push_back(std::make_unique<rmm::device_uvector<vertex_t>>(num_verts, stream_view, mr));
+    level_ptr_.push_back(
+      std::make_unique<rmm::device_uvector<vertex_t>>(num_verts, stream_view, mr));
     level_first_index_.push_back(first_index);
   }
 

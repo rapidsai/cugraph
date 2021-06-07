@@ -44,8 +44,10 @@ class Leiden : public Louvain<graph_type> {
     rmm::device_uvector<vertex_t> next_cluster_v(this->dendrogram_->current_level_size(),
                                                  this->handle_.get_stream_view());
     rmm::device_uvector<weight_t> delta_Q_v(graph.number_of_edges, this->handle_.get_stream_view());
-    rmm::device_uvector<vertex_t> cluster_hash_v(graph.number_of_edges, this->handle_.get_stream_view());
-    rmm::device_uvector<weight_t> old_cluster_sum_v(graph.number_of_vertices, this->handle_.get_stream_view());
+    rmm::device_uvector<vertex_t> cluster_hash_v(graph.number_of_edges,
+                                                 this->handle_.get_stream_view());
+    rmm::device_uvector<weight_t> old_cluster_sum_v(graph.number_of_vertices,
+                                                    this->handle_.get_stream_view());
 
     vertex_t const *d_src_indices    = this->src_indices_v_.data();
     vertex_t const *d_dst_indices    = graph.indices;
@@ -79,7 +81,7 @@ class Leiden : public Louvain<graph_type> {
 
       // Filter out positive delta_Q values for nodes not in the same constraint group
       thrust::for_each(
-                       rmm::exec_policy(this->handle_.get_stream_view()),
+        rmm::exec_policy(this->handle_.get_stream_view()),
         thrust::make_counting_iterator(0),
         thrust::make_counting_iterator(graph.number_of_edges),
         [d_src_indices, d_dst_indices, d_constraint, d_delta_Q] __device__(vertex_t i) {
@@ -132,7 +134,8 @@ class Leiden : public Louvain<graph_type> {
       //
       //  Initialize every cluster to reference each vertex to itself
       //
-      this->dendrogram_->add_level(0, current_graph.number_of_vertices, this->handle_.get_stream_view());
+      this->dendrogram_->add_level(
+        0, current_graph.number_of_vertices, this->handle_.get_stream_view());
 
       thrust::sequence(rmm::exec_policy(this->handle_.get_stream_view()),
                        this->dendrogram_->current_level_begin(),

@@ -467,8 +467,10 @@ graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu, std::enable_if_
                         thrust::greater<edge_t>{});
 
     segment_offsets_.resize(segment_offsets.size());
-    raft::update_host(
-      segment_offsets_.data(), segment_offsets.data(), segment_offsets.size(), default_stream_view.value());
+    raft::update_host(segment_offsets_.data(),
+                      segment_offsets.data(),
+                      segment_offsets.size(),
+                      default_stream_view.value());
 
     default_stream_view
       .synchronize();  // this is necessary as segment_offsets_ can be used right after return.

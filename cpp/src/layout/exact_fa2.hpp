@@ -81,8 +81,7 @@ void exact_fa2(raft::handle_t const &handle,
 
   int seed{0};
   raft::random::Rng rng(seed);
-  rng.uniform<float, size_t>(
-      pos, n * 2, -100.0f, 100.0f, handle.get_stream());
+  rng.uniform<float, size_t>(pos, n * 2, -100.0f, 100.0f, handle.get_stream());
 
   if (x_start && y_start) {
     raft::copy(pos, x_start, n, stream_view.value());
@@ -106,7 +105,7 @@ void exact_fa2(raft::handle_t const &handle,
   float jt                        = 0.f;
 
   if (outbound_attraction_distribution) {
-    int sum                   = thrust::reduce(rmm::exec_policy(stream_view), mass.begin(), mass.end());
+    int sum = thrust::reduce(rmm::exec_policy(stream_view), mass.begin(), mass.end());
     outbound_att_compensation = sum / (float)n;
   }
 

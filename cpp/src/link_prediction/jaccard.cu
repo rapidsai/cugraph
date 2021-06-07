@@ -226,10 +226,7 @@ int jaccard(vertex_t n,
   jaccard_row_sum<weighted, vertex_t, edge_t, weight_t>
     <<<nblocks, nthreads, 0, stream_view.value()>>>(n, csrPtr, csrInd, weight_in, work);
 
-  thrust::fill(rmm::exec_policy(stream_view),
-               weight_i,
-               weight_i + e,
-               weight_t{0.0});
+  thrust::fill(rmm::exec_policy(stream_view), weight_i, weight_i + e, weight_t{0.0});
 
   // setup launch configuration
   nthreads.x = 32 / y;
@@ -240,8 +237,8 @@ int jaccard(vertex_t n,
   nblocks.z  = min((n + nthreads.z - 1) / nthreads.z, vertex_t{CUDA_MAX_BLOCKS});  // 1;
 
   // launch kernel
-  jaccard_is<weighted, vertex_t, edge_t, weight_t>
-    <<<nblocks, nthreads, 0, stream_view.value()>>>(n, csrPtr, csrInd, weight_in, work, weight_i, weight_s);
+  jaccard_is<weighted, vertex_t, edge_t, weight_t><<<nblocks, nthreads, 0, stream_view.value()>>>(
+    n, csrPtr, csrInd, weight_in, work, weight_i, weight_s);
 
   // setup launch configuration
   nthreads.x = min(e, edge_t{CUDA_MAX_KERNEL_THREADS});

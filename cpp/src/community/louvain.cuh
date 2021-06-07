@@ -92,8 +92,10 @@ class Louvain {
     rmm::device_uvector<weight_t> inc(n_verts, handle_.get_stream_view());
     rmm::device_uvector<weight_t> deg(n_verts, handle_.get_stream_view());
 
-    thrust::fill(rmm::exec_policy(handle_.get_stream_view()), inc.begin(), inc.end(), weight_t{0.0});
-    thrust::fill(rmm::exec_policy(handle_.get_stream_view()), deg.begin(), deg.end(), weight_t{0.0});
+    thrust::fill(
+      rmm::exec_policy(handle_.get_stream_view()), inc.begin(), inc.end(), weight_t{0.0});
+    thrust::fill(
+      rmm::exec_policy(handle_.get_stream_view()), deg.begin(), deg.end(), weight_t{0.0});
 
     // FIXME:  Already have weighted degree computed in main loop,
     //         could pass that in rather than computing d_deg... which
@@ -146,8 +148,8 @@ class Louvain {
 
   virtual weight_t operator()(size_t max_level, weight_t resolution)
   {
-    weight_t total_edge_weight =
-      thrust::reduce(rmm::exec_policy(handle_.get_stream_view()), weights_v_.begin(), weights_v_.end());
+    weight_t total_edge_weight = thrust::reduce(
+      rmm::exec_policy(handle_.get_stream_view()), weights_v_.begin(), weights_v_.end());
 
     weight_t best_modularity = weight_t{-1};
 
@@ -253,10 +255,12 @@ class Louvain {
   {
     timer_start("update_clustering");
 
-    rmm::device_uvector<vertex_t> next_cluster_v(dendrogram_->current_level_size(), handle_.get_stream_view());
+    rmm::device_uvector<vertex_t> next_cluster_v(dendrogram_->current_level_size(),
+                                                 handle_.get_stream_view());
     rmm::device_uvector<weight_t> delta_Q_v(graph.number_of_edges, handle_.get_stream_view());
     rmm::device_uvector<vertex_t> cluster_hash_v(graph.number_of_edges, handle_.get_stream_view());
-    rmm::device_uvector<weight_t> old_cluster_sum_v(graph.number_of_vertices, handle_.get_stream_view());
+    rmm::device_uvector<weight_t> old_cluster_sum_v(graph.number_of_vertices,
+                                                    handle_.get_stream_view());
 
     vertex_t *d_cluster              = dendrogram_->current_level_begin();
     weight_t const *d_vertex_weights = vertex_weights_v_.data();
@@ -324,8 +328,10 @@ class Louvain {
                  cluster_hash_v.begin(),
                  cluster_hash_v.end(),
                  vertex_t{-1});
-    thrust::fill(
-      rmm::exec_policy(handle_.get_stream_view()), delta_Q_v.begin(), delta_Q_v.end(), weight_t{0.0});
+    thrust::fill(rmm::exec_policy(handle_.get_stream_view()),
+                 delta_Q_v.begin(),
+                 delta_Q_v.end(),
+                 weight_t{0.0});
     thrust::fill(rmm::exec_policy(handle_.get_stream_view()),
                  old_cluster_sum_v.begin(),
                  old_cluster_sum_v.end(),
@@ -409,9 +415,12 @@ class Louvain {
                     rmm::device_uvector<weight_t> &delta_Q_v,
                     bool up_down)
   {
-    rmm::device_uvector<vertex_t> temp_vertices_v(graph.number_of_vertices, handle_.get_stream_view());
-    rmm::device_uvector<vertex_t> temp_cluster_v(graph.number_of_vertices, handle_.get_stream_view());
-    rmm::device_uvector<weight_t> temp_delta_Q_v(graph.number_of_vertices, handle_.get_stream_view());
+    rmm::device_uvector<vertex_t> temp_vertices_v(graph.number_of_vertices,
+                                                  handle_.get_stream_view());
+    rmm::device_uvector<vertex_t> temp_cluster_v(graph.number_of_vertices,
+                                                 handle_.get_stream_view());
+    rmm::device_uvector<weight_t> temp_delta_Q_v(graph.number_of_vertices,
+                                                 handle_.get_stream_view());
 
     thrust::fill(rmm::exec_policy(handle_.get_stream_view()),
                  temp_cluster_v.begin(),
@@ -606,8 +615,11 @@ class Louvain {
     graph.number_of_edges    = thrust::distance(new_start, new_end.first);
     graph.number_of_vertices = num_clusters;
 
-    detail::fill_offset(
-      src_indices_v_.data(), graph.offsets, num_clusters, graph.number_of_edges, handle_.get_stream_view());
+    detail::fill_offset(src_indices_v_.data(),
+                        graph.offsets,
+                        num_clusters,
+                        graph.number_of_edges,
+                        handle_.get_stream_view());
 
     src_indices_v_.resize(graph.number_of_edges, handle_.get_stream_view());
     indices_v_.resize(graph.number_of_edges, handle_.get_stream_view());
