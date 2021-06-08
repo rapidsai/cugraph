@@ -63,4 +63,47 @@ TEST(triangle, dolphin)
   ASSERT_EQ(count, expected);
 }
 
+TEST(triangle, karate)
+{
+  using vertex_t = int32_t;
+  using edge_t = int32_t;
+  using weight_t = float;
+ 
+  std::vector<vertex_t> off_h = {0,  16,  25,  35,  41,  44,  48,  52,  56,  61,  63, 66,
+                            67, 69,  74,  76,  78,  80,  82,  84,  87,  89,  91, 93,
+                            98, 101, 104, 106, 110, 113, 117, 121, 127, 139, 156};
+  std::vector<vertex_t> ind_h = {
+    1,  2,  3,  4,  5,  6,  7,  8,  10, 11, 12, 13, 17, 19, 21, 31, 0,  2,  3,  7,  13, 17, 19,
+    21, 30, 0,  1,  3,  7,  8,  9,  13, 27, 28, 32, 0,  1,  2,  7,  12, 13, 0,  6,  10, 0,  6,
+    10, 16, 0,  4,  5,  16, 0,  1,  2,  3,  0,  2,  30, 32, 33, 2,  33, 0,  4,  5,  0,  0,  3,
+    0,  1,  2,  3,  33, 32, 33, 32, 33, 5,  6,  0,  1,  32, 33, 0,  1,  33, 32, 33, 0,  1,  32,
+    33, 25, 27, 29, 32, 33, 25, 27, 31, 23, 24, 31, 29, 33, 2,  23, 24, 33, 2,  31, 33, 23, 26,
+    32, 33, 1,  8,  32, 33, 0,  24, 25, 28, 32, 33, 2,  8,  14, 15, 18, 20, 22, 23, 29, 30, 31,
+    33, 8,  9,  13, 14, 15, 18, 19, 20, 22, 23, 26, 27, 28, 29, 30, 31, 32};
+
+  std::vector<weight_t> w_h(ind_h.size(), weight_t{1.0});
+
+  vertex_t num_verts = off_h.size() - 1;
+  int num_edges = ind_h.size();
+
+  uint64_t expected{135};
+
+  rmm::device_vector<vertex_t> offsets_v(off_h);
+  rmm::device_vector<vertex_t> indices_v(ind_h);
+  rmm::device_vector<weight_t> weights_v(w_h);
+
+  cugraph::GraphCSRView<vertex_t, vertex_t, weight_t> graph_csr(
+    offsets_v.data().get(), indices_v.data().get(), weights_v.data().get(), num_verts, num_edges);
+
+  uint64_t count{0};
+
+  try {
+    count = cugraph::triangle::triangle_count<vertex_t, vertex_t, weight_t>(graph_csr);
+  } catch (std::exception& e) {
+    std::cout << "Exception: " << e.what() << std::endl;
+  }
+
+  ASSERT_EQ(count, expected);
+}
+
 CUGRAPH_TEST_PROGRAM_MAIN()
