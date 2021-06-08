@@ -12,7 +12,6 @@
 # limitations under the License.
 
 from cugraph.layout import force_atlas2_wrapper
-from cugraph.structure.graph_classes import null_check
 
 
 def force_atlas2(
@@ -109,13 +108,14 @@ def force_atlas2(
     """
 
     if pos_list is not None:
-        null_check(pos_list["vertex"])
-        null_check(pos_list["x"])
-        null_check(pos_list["y"])
         if input_graph.renumbered is True:
+            if input_graph.vertex_column_size() > 1:
+                cols = pos_list.columns[:-2].to_list()
+            else:
+                cols = 'vertex'
             pos_list = input_graph.add_internal_vertex_id(pos_list,
                                                           "vertex",
-                                                          "vertex")
+                                                          cols)
 
     if prevent_overlapping:
         raise Exception("Feature not supported")

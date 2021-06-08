@@ -14,8 +14,6 @@
  * limitations under the License.
  */
 
-#include <cugraph/experimental/include_cuco_static_map.cuh>
-
 #include <cugraph/experimental/detail/graph_utils.cuh>
 #include <cugraph/experimental/graph_functions.hpp>
 #include <cugraph/experimental/graph_view.hpp>
@@ -26,6 +24,7 @@
 #include <cugraph/utilities/shuffle_comm.cuh>
 
 #include <rmm/thrust_rmm_allocator.h>
+#include <cuco/static_map.cuh>
 #include <raft/handle.hpp>
 #include <rmm/device_uvector.hpp>
 #include <rmm/mr/device/per_device_resource.hpp>
@@ -47,7 +46,6 @@ namespace cugraph {
 namespace experimental {
 namespace detail {
 
-#ifdef CUCO_STATIC_MAP_DEFINED
 template <typename vertex_t, typename edge_t, bool multi_gpu>
 rmm::device_uvector<vertex_t> compute_renumber_map(
   raft::handle_t const& handle,
@@ -117,9 +115,6 @@ rmm::device_uvector<vertex_t> compute_renumber_map(
 
       rmm::device_uvector<vertex_t> rx_major_labels(0, handle.get_stream());
       rmm::device_uvector<edge_t> rx_major_counts(0, handle.get_stream());
-      // FIXME: a temporary workaround for a NCCL (2.9.6) bug that causes a hang on DGX1 (due to
-      // remote memory allocation), this barrier is unnecessary otherwise.
-      col_comm.barrier();
       auto rx_sizes = host_scalar_gather(
         col_comm, tmp_major_labels.size(), static_cast<int>(i), handle.get_stream());
       std::vector<size_t> rx_displs{};
@@ -546,7 +541,6 @@ void expensive_check_edgelist(
     }
   }
 }
-#endif
 
 template <typename vertex_t, typename edge_t, bool multi_gpu>
 std::enable_if_t<multi_gpu,
@@ -558,12 +552,6 @@ renumber_edgelist(raft::handle_t const& handle,
                   std::vector<edge_t> const& edgelist_edge_counts,
                   bool do_expensive_check)
 {
-  // FIXME: remove this check once we drop Pascal support
-  CUGRAPH_EXPECTS(
-    handle.get_device_properties().major >= 7,
-    "This version of enumber_edgelist not supported on Pascal and older architectures.");
-
-#ifdef CUCO_STATIC_MAP_DEFINED
   auto& comm               = handle.get_comms();
   auto const comm_size     = comm.get_size();
   auto const comm_rank     = comm.get_rank();
@@ -660,14 +648,10 @@ renumber_edgelist(raft::handle_t const& handle,
         invalid_vertex_id<vertex_t>::value,
         invalid_vertex_id<vertex_t>::value,
         stream_adapter};
-    auto pair_first = thrust::make_transform_iterator(
-      thrust::make_zip_iterator(thrust::make_tuple(
-        col_comm_rank == static_cast<int>(i) ? renumber_map_labels.begin()
-                                             : renumber_map_major_labels.begin(),
-        thrust::make_counting_iterator(partition.get_matrix_partition_major_first(i)))),
-      [] __device__(auto val) {
-        return thrust::make_pair(thrust::get<0>(val), thrust::get<1>(val));
-      });
+    auto pair_first = thrust::make_zip_iterator(thrust::make_tuple(
+      col_comm_rank == static_cast<int>(i) ? renumber_map_labels.begin()
+                                           : renumber_map_major_labels.begin(),
+      thrust::make_counting_iterator(partition.get_matrix_partition_major_first(i))));
     renumber_map.insert(pair_first, pair_first + partition.get_matrix_partition_major_size(i));
     renumber_map.find(edgelist_major_vertices[i],
                       edgelist_major_vertices[i] + edgelist_edge_counts[i],
@@ -713,13 +697,9 @@ renumber_edgelist(raft::handle_t const& handle,
                    invalid_vertex_id<vertex_t>::value,
                    invalid_vertex_id<vertex_t>::value,
                    stream_adapter};
-    auto pair_first = thrust::make_transform_iterator(
-      thrust::make_zip_iterator(thrust::make_tuple(
-        renumber_map_minor_labels.begin(),
-        thrust::make_counting_iterator(partition.get_matrix_partition_minor_first()))),
-      [] __device__(auto val) {
-        return thrust::make_pair(thrust::get<0>(val), thrust::get<1>(val));
-      });
+    auto pair_first = thrust::make_zip_iterator(thrust::make_tuple(
+      renumber_map_minor_labels.begin(),
+      thrust::make_counting_iterator(partition.get_matrix_partition_minor_first())));
     renumber_map.insert(pair_first, pair_first + renumber_map_minor_labels.size());
     for (size_t i = 0; i < edgelist_major_vertices.size(); ++i) {
       renumber_map.find(edgelist_minor_vertices[i],
@@ -740,12 +720,6 @@ renumber_edgelist(raft::handle_t const& handle,
 
   return std::make_tuple(
     std::move(renumber_map_labels), partition, number_of_vertices, number_of_edges);
-#else
-  return std::make_tuple(rmm::device_uvector<vertex_t>(0, handle.get_stream()),
-                         partition_t<vertex_t>{},
-                         vertex_t{0},
-                         edge_t{0});
-#endif
 }
 
 template <typename vertex_t, typename edge_t, bool multi_gpu>
@@ -757,12 +731,6 @@ std::enable_if_t<!multi_gpu, rmm::device_uvector<vertex_t>> renumber_edgelist(
   edge_t num_edgelist_edges,
   bool do_expensive_check)
 {
-  // FIXME: remove this check once we drop Pascal support
-  CUGRAPH_EXPECTS(
-    handle.get_device_properties().major >= 7,
-    "This version of renumber_edgelist not supported on Pascal and older architectures.");
-
-#ifdef CUCO_STATIC_MAP_DEFINED
   if (do_expensive_check) {
     expensive_check_edgelist<vertex_t, edge_t, multi_gpu>(
       handle,
@@ -794,12 +762,8 @@ std::enable_if_t<!multi_gpu, rmm::device_uvector<vertex_t>> renumber_edgelist(
       invalid_vertex_id<vertex_t>::value,
       invalid_vertex_id<vertex_t>::value,
       stream_adapter};
-  auto pair_first = thrust::make_transform_iterator(
-    thrust::make_zip_iterator(
-      thrust::make_tuple(renumber_map_labels.begin(), thrust::make_counting_iterator(vertex_t{0}))),
-    [] __device__(auto val) {
-      return thrust::make_pair(thrust::get<0>(val), thrust::get<1>(val));
-    });
+  auto pair_first = thrust::make_zip_iterator(
+    thrust::make_tuple(renumber_map_labels.begin(), thrust::make_counting_iterator(vertex_t{0})));
   renumber_map.insert(pair_first, pair_first + renumber_map_labels.size());
   renumber_map.find(
     edgelist_major_vertices, edgelist_major_vertices + num_edgelist_edges, edgelist_major_vertices);
@@ -807,9 +771,6 @@ std::enable_if_t<!multi_gpu, rmm::device_uvector<vertex_t>> renumber_edgelist(
     edgelist_minor_vertices, edgelist_minor_vertices + num_edgelist_edges, edgelist_minor_vertices);
 
   return renumber_map_labels;
-#else
-  return rmm::device_uvector<vertex_t>(0, handle.get_stream());
-#endif
 }
 
 }  // namespace detail
@@ -824,10 +785,6 @@ renumber_edgelist(raft::handle_t const& handle,
                   std::vector<edge_t> const& edgelist_edge_counts,
                   bool do_expensive_check)
 {
-  // FIXME: remove this check once we drop Pascal support
-  CUGRAPH_EXPECTS(
-    handle.get_device_properties().major >= 7,
-    "This version of renumber_edgelist not supported on Pascal and older architectures.");
   return detail::renumber_edgelist<vertex_t, edge_t, multi_gpu>(handle,
                                                                 optional_local_vertex_span,
                                                                 edgelist_major_vertices,
@@ -845,10 +802,6 @@ std::enable_if_t<!multi_gpu, rmm::device_uvector<vertex_t>> renumber_edgelist(
   edge_t num_edgelist_edges,
   bool do_expensive_check)
 {
-  // FIXME: remove this check once we drop Pascal support
-  CUGRAPH_EXPECTS(
-    handle.get_device_properties().major >= 7,
-    "This version of renumber_edgelist not supported on Pascal and older architectures.");
   return detail::renumber_edgelist<vertex_t, edge_t, multi_gpu>(handle,
                                                                 optional_vertex_span,
                                                                 edgelist_major_vertices,

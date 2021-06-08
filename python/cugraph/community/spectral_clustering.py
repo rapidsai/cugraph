@@ -190,8 +190,8 @@ def analyzeClustering_modularity(G, n_clusters, clustering,
         Specifies the number of clusters in the given clustering
     clustering : cudf.DataFrame
         The cluster assignment to analyze.
-    vertex_col_name : str
-        The name of the column in the clustering dataframe identifying
+    vertex_col_name : str or list of str
+        The names of the column in the clustering dataframe identifying
         the external vertex id
     cluster_col_name : str
         The name of the column in the clustering dataframe identifying
@@ -213,8 +213,10 @@ def analyzeClustering_modularity(G, n_clusters, clustering,
     >>> df = cugraph.spectralBalancedCutClustering(G, 5)
     >>> score = cugraph.analyzeClustering_modularity(G, 5, df)
     """
-
-    if type(vertex_col_name) is not str:
+    if type(vertex_col_name) is list:
+        if not all(isinstance(name, str) for name in vertex_col_name):
+            raise Exception("vertex_col_name must be list of string")
+    elif type(vertex_col_name) is not str:
         raise Exception("vertex_col_name must be a string")
 
     if type(cluster_col_name) is not str:
@@ -224,11 +226,11 @@ def analyzeClustering_modularity(G, n_clusters, clustering,
 
     if G.renumbered:
         clustering = G.add_internal_vertex_id(clustering,
-                                              vertex_col_name,
+                                              'vertex',
                                               vertex_col_name,
                                               drop=True)
 
-    clustering = clustering.sort_values(vertex_col_name)
+    clustering = clustering.sort_values('vertex')
 
     score = spectral_clustering_wrapper.analyzeClustering_modularity(
         G, n_clusters, clustering[cluster_col_name]
@@ -277,8 +279,10 @@ def analyzeClustering_edge_cut(G, n_clusters, clustering,
     >>> df = cugraph.spectralBalancedCutClustering(G, 5)
     >>> score = cugraph.analyzeClustering_edge_cut(G, 5, df)
     """
-
-    if type(vertex_col_name) is not str:
+    if type(vertex_col_name) is list:
+        if not all(isinstance(name, str) for name in vertex_col_name):
+            raise Exception("vertex_col_name must be list of string")
+    elif type(vertex_col_name) is not str:
         raise Exception("vertex_col_name must be a string")
 
     if type(cluster_col_name) is not str:
@@ -288,11 +292,11 @@ def analyzeClustering_edge_cut(G, n_clusters, clustering,
 
     if G.renumbered:
         clustering = G.add_internal_vertex_id(clustering,
-                                              vertex_col_name,
+                                              'vertex',
                                               vertex_col_name,
                                               drop=True)
 
-    clustering = clustering.sort_values(vertex_col_name).reset_index(drop=True)
+    clustering = clustering.sort_values('vertex').reset_index(drop=True)
 
     score = spectral_clustering_wrapper.analyzeClustering_edge_cut(
         G, n_clusters, clustering[cluster_col_name]
@@ -339,8 +343,10 @@ def analyzeClustering_ratio_cut(G, n_clusters, clustering,
     >>> score = cugraph.analyzeClustering_ratio_cut(G, 5, df,
     >>>   'vertex', 'cluster')
     """
-
-    if type(vertex_col_name) is not str:
+    if type(vertex_col_name) is list:
+        if not all(isinstance(name, str) for name in vertex_col_name):
+            raise Exception("vertex_col_name must be list of string")
+    elif type(vertex_col_name) is not str:
         raise Exception("vertex_col_name must be a string")
 
     if type(cluster_col_name) is not str:
@@ -348,11 +354,11 @@ def analyzeClustering_ratio_cut(G, n_clusters, clustering,
 
     if G.renumbered:
         clustering = G.add_internal_vertex_id(clustering,
-                                              vertex_col_name,
+                                              'vertex',
                                               vertex_col_name,
                                               drop=True)
 
-    clustering = clustering.sort_values(vertex_col_name)
+    clustering = clustering.sort_values('vertex')
 
     score = spectral_clustering_wrapper.analyzeClustering_ratio_cut(
         G, n_clusters, clustering[cluster_col_name]

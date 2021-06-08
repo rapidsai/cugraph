@@ -27,7 +27,7 @@ requirements:
     - cython>=0.29,<0.30
     - libcugraph={{ version }}
     - cudf={{ minor_version }}
-    - ucx-py {{ minor_version }}
+    - ucx-py 0.21
     - ucx-proc=*=gpu
   run:
     - python x.x
@@ -37,8 +37,7 @@ requirements:
     - dask-cuda {{ minor_version }}
     - dask>=2.12.0
     - distributed>=2.12.0
-    - nccl>=2.8.4
-    - ucx-py {{ minor_version }}
+    - ucx-py 0.21
     - ucx-proc=*=gpu
 
 #test:

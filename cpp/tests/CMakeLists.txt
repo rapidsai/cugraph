@@ -71,17 +71,6 @@ target_include_directories(cugraphmgtestutil
 
 target_link_libraries(cugraphmgtestutil cugraph)
 
-# CUDA_ARCHITECTURES=OFF implies cmake will not pass arch flags to the
-# compiler. CUDA_ARCHITECTURES must be set to a non-empty value to prevent
-# cmake warnings about policy CMP0104. With this setting, arch flags must be
-# manually set! ("evaluate_gpu_archs(GPU_ARCHS)" is the current mechanism
-# used in cpp/CMakeLists.txt for setting arch options).
-# Run "cmake --help-policy CMP0104" for policy details.
-# NOTE: the CUDA_ARCHITECTURES=OFF setting may be removed after migrating to
-# the findcudatoolkit features in cmake 3.17+
-set_target_properties(cugraphmgtestutil PROPERTIES
-        CUDA_ARCHITECTURES OFF)
-
 ###################################################################################################
 # - compiler function -----------------------------------------------------------------------------
 
@@ -252,6 +241,22 @@ endif(RAPIDS_DATASET_ROOT_DIR)
 ###################################################################################################
 
 ###################################################################################################
+# - graph generator tests -------------------------------------------------------------------------
+
+set(GRAPH_GENERATORS_TEST_SRC
+    "${CMAKE_CURRENT_SOURCE_DIR}/generators/generators_test.cpp")
+
+  ConfigureTest(GRAPH_GENERATORS_TEST "${GRAPH_GENERATORS_TEST_SRC}")
+
+###################################################################################################
+# - erdos renyi graph generator tests -------------------------------------------------------------
+
+set(ERDOS_RENYI_GENERATOR_TEST_SRC
+    "${CMAKE_CURRENT_SOURCE_DIR}/generators/erdos_renyi_test.cpp")
+
+  ConfigureTest(ERDOS_RENYI_GENERATOR_TEST "${ERDOS_RENYI_GENERATOR_TEST_SRC}")
+
+###################################################################################################
 # - katz centrality tests -------------------------------------------------------------------------
 ConfigureTest(KATZ_TEST centrality/katz_centrality_test.cu)
 
@@ -381,7 +386,7 @@ set(WEAKLY_CONNECTED_COMPONENTS_TEST_SRCS
 ConfigureTest(WEAKLY_CONNECTED_COMPONENTS_TEST "${WEAKLY_CONNECTED_COMPONENTS_TEST_SRCS}")
 
 ###################################################################################################
-# - Experimental RANDOM_WALKS tests ------------------------------------------------------------
+# - Experimental RANDOM_WALKS tests ---------------------------------------------------------------
 ConfigureTest(RANDOM_WALKS_TEST sampling/random_walks_test.cu)
 
 ###################################################################################################
@@ -392,6 +397,14 @@ ConfigureTest(RANDOM_WALKS_LOW_LEVEL_TEST sampling/rw_low_level_test.cu)
 # ConfigureTest function to share common code with a new ConfigureBenchmark
 # function (which would not link gtest, etc.)
 ConfigureTest(RANDOM_WALKS_PROFILING sampling/random_walks_profiling.cu)
+
+###################################################################################################
+# - Serialization tests ---------------------------------------------------------------------------
+
+set(SERIALIZATION_TEST_SRCS
+    "${CMAKE_CURRENT_SOURCE_DIR}/serialization/un_serialize_test.cpp")
+
+ConfigureTest(SERIALIZATION_TEST "${SERIALIZATION_TEST_SRCS}")
 
 
 ###################################################################################################
@@ -438,6 +451,10 @@ if(BUILD_CUGRAPH_MG_TESTS)
         # - MG WEAKLY CONNECTED COMPONENTS tests --------------------------------------------------
         ConfigureTestMG(MG_WEAKLY_CONNECTED_COMPONENTS_TEST
                         components/mg_weakly_connected_components_test.cpp)
+
+        ###########################################################################################
+        # - MG GRAPH BROADCAST tests --------------------------------------------------------------
+        ConfigureTestMG(MG_GRAPH_BROADCAST_TEST bcast/mg_graph_bcast.cpp)
     else()
        message(FATAL_ERROR "OpenMPI NOT found, cannot build MG tests.")
     endif()

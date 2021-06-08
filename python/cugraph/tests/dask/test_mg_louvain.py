@@ -17,7 +17,6 @@ import cugraph.dask as dcg
 import cugraph
 import dask_cudf
 from cugraph.tests import utils
-from cugraph.utilities.utils import is_device_version_less_than
 from cugraph.dask.common.mg_utils import (is_single_gpu,
                                           setup_local_dask_cluster,
                                           teardown_local_dask_cluster)
@@ -88,15 +87,11 @@ def test_mg_louvain_with_edgevals(daskGraphFromDataset):
     # FIXME: daskGraphFromDataset returns a DiGraph, which Louvain is currently
     # accepting. In the future, an MNMG symmeterize will need to be called to
     # create a Graph for Louvain.
-    if is_device_version_less_than((7, 0)):
-        with pytest.raises(RuntimeError):
-            parts, mod = dcg.louvain(daskGraphFromDataset)
-    else:
-        parts, mod = dcg.louvain(daskGraphFromDataset)
+    parts, mod = dcg.louvain(daskGraphFromDataset)
 
-        # FIXME: either call Nx with the same dataset and compare results, or
-        # hardcode golden results to compare to.
-        print()
-        print(parts.compute())
-        print(mod)
-        print()
+    # FIXME: either call Nx with the same dataset and compare results, or
+    # hardcode golden results to compare to.
+    print()
+    print(parts.compute())
+    print(mod)
+    print()

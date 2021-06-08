@@ -671,3 +671,6 @@ class NumberMap:
             return df, col_names
         else:
             return df
+
+    def vertex_column_size(self):
+        return len(self.implementation.col_names)

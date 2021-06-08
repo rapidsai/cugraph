@@ -365,7 +365,6 @@ class Louvain {
                                   rmm::device_uvector<vertex_t> &next_cluster_v,
                                   bool up_down)
   {
-#ifdef CUCO_STATIC_MAP_DEFINED
     rmm::device_uvector<weight_t> old_cluster_sum_v(
       current_graph_view_.get_number_of_local_vertices(), handle_.get_stream());
     rmm::device_uvector<weight_t> cluster_subtract_v(
@@ -501,7 +500,6 @@ class Louvain {
         d_src_cluster_cache_,
         [] __device__(auto src, auto dst, auto wt, auto x, auto y) { return wt; },
         weight_t{0});
-#endif
   }
 
   void shrink_graph()

@@ -9,8 +9,8 @@
  *
  */
 
-#include <components/wcc_graphs.hpp>
 #include <utilities/base_fixture.hpp>
+#include <utilities/test_graphs.hpp>
 #include <utilities/test_utilities.hpp>
 
 #include <cugraph/algorithms.hpp>
@@ -42,9 +42,13 @@ class Tests_WCC : public ::testing::TestWithParam<std::tuple<WCC_Usecase, input_
 
     cugraph::experimental::graph_t<vertex_t, edge_t, weight_t, false, false> graph(handle);
 
+    std::cout << "calling construct_graph" << std::endl;
+
     std::tie(graph, std::ignore) =
-      input_usecase.template construct_graph<vertex_t, edge_t, weight_t, false, false>(
-        handle, false, false);
+      cugraph::test::construct_graph<vertex_t, edge_t, weight_t, false, false>(
+        handle, input_usecase, false, false);
+
+    std::cout << "back from construct_graph" << std::endl;
 
     auto graph_view = graph.view();
 
@@ -59,7 +63,7 @@ class Tests_WCC : public ::testing::TestWithParam<std::tuple<WCC_Usecase, input_
 
 using Tests_WCC_File      = Tests_WCC<cugraph::test::File_Usecase>;
 using Tests_WCC_Rmat      = Tests_WCC<cugraph::test::Rmat_Usecase>;
-using Tests_WCC_LineGraph = Tests_WCC<cugraph::test::LineGraph_Usecase>;
+using Tests_WCC_PathGraph = Tests_WCC<cugraph::test::PathGraph_Usecase>;
 
 TEST_P(Tests_WCC_File, WCC)
 {
@@ -71,7 +75,7 @@ TEST_P(Tests_WCC_Rmat, WCC)
   auto param = GetParam();
   run_current_test<int32_t, int32_t, float>(std::get<0>(param), std::get<1>(param));
 }
-TEST_P(Tests_WCC_LineGraph, WCC)
+TEST_P(Tests_WCC_PathGraph, WCC)
 {
   auto param = GetParam();
   run_current_test<int32_t, int32_t, float>(std::get<0>(param), std::get<1>(param));
@@ -89,9 +93,13 @@ INSTANTIATE_TEST_SUITE_P(
     std::make_tuple(WCC_Usecase{}, cugraph::test::File_Usecase("test/datasets/hollywood.mtx"))));
 
 INSTANTIATE_TEST_SUITE_P(
-  line_graph_test,
-  Tests_WCC_LineGraph,
-  ::testing::Values(std::make_tuple(WCC_Usecase{}, cugraph::test::LineGraph_Usecase(1000)),
-                    std::make_tuple(WCC_Usecase{}, cugraph::test::LineGraph_Usecase(100000))));
+  path_graph_test,
+  Tests_WCC_PathGraph,
+  ::testing::Values(std::make_tuple(WCC_Usecase{},
+                                    cugraph::test::PathGraph_Usecase(
+                                      std::vector<std::tuple<size_t, size_t>>({{1000, 0}}))),
+                    std::make_tuple(WCC_Usecase{},
+                                    cugraph::test::PathGraph_Usecase(
+                                      std::vector<std::tuple<size_t, size_t>>({{100000, 0}})))));
 
 CUGRAPH_TEST_PROGRAM_MAIN()

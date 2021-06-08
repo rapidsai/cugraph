@@ -11,9 +11,11 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from cugraph.structure.graph_classes import Graph, null_check
+from cugraph.structure.graph_classes import Graph
 from cugraph.link_prediction import jaccard_wrapper
 import cudf
+import numpy as np
+from cugraph.utilities import renumber_vertex_pair
 
 
 def jaccard_w(input_graph, weights, vertex_pair=None):
@@ -35,8 +37,15 @@ def jaccard_w(input_graph, weights, vertex_pair=None):
         as an edge list (edge weights are not used for this algorithm). The
         adjacency list will be computed if not already present.
 
-    weights : cudf.Series
+    weights : cudf.DataFrame
         Specifies the weights to be used for each vertex.
+        Vertex should be represented by multiple columns for multi-column
+        vertices.
+
+        weights['vertex'] : cudf.Series
+            Contains the vertex identifiers
+        weights['weight'] : cudf.Series
+            Contains the weights of vertices
 
     vertex_pair : cudf.DataFrame
         A GPU dataframe consisting of two columns representing pairs of
@@ -70,20 +79,28 @@ def jaccard_w(input_graph, weights, vertex_pair=None):
     if type(input_graph) is not Graph:
         raise Exception("input graph must be undirected")
 
-    # FIXME: Add support for multi-column vertices
     if type(vertex_pair) == cudf.DataFrame:
-        for col in vertex_pair.columns:
-            null_check(vertex_pair[col])
-            if input_graph.renumbered:
-                vertex_pair = input_graph.add_internal_vertex_id(
-                    vertex_pair, col, col,
-                )
+        vertex_pair = renumber_vertex_pair(input_graph, vertex_pair)
     elif vertex_pair is None:
         pass
     else:
         raise ValueError("vertex_pair must be a cudf dataframe")
 
-    df = jaccard_wrapper.jaccard(input_graph, weights, vertex_pair)
+    if input_graph.renumbered:
+        vertex_size = input_graph.vertex_column_size()
+        if vertex_size == 1:
+            weights = input_graph.add_internal_vertex_id(
+                weights, 'vertex', 'vertex'
+            )
+        else:
+            cols = weights.columns[:vertex_size].to_list()
+            weights = input_graph.add_internal_vertex_id(
+                weights, 'vertex', cols
+            )
+    jaccard_weights = cudf.Series(np.ones(len(weights)))
+    for i in range(len(weights)):
+        jaccard_weights[weights['vertex'].iloc[i]] = weights['weight'].iloc[i]
+    df = jaccard_wrapper.jaccard(input_graph, jaccard_weights, vertex_pair)
 
     if input_graph.renumbered:
         df = input_graph.unrenumber(df, "source")

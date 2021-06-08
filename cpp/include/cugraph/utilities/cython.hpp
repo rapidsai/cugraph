@@ -16,8 +16,8 @@
 #pragma once
 
 #include <cugraph/experimental/graph.hpp>
-#include <cugraph/experimental/graph_generator.hpp>
 #include <cugraph/graph.hpp>
+#include <cugraph/graph_generators.hpp>
 #include <cugraph/utilities/graph_traits.hpp>
 
 #include <raft/handle.hpp>
@@ -208,6 +208,12 @@ struct random_walk_ret_t {
   std::unique_ptr<rmm::device_buffer> d_coalesced_v_;
   std::unique_ptr<rmm::device_buffer> d_coalesced_w_;
   std::unique_ptr<rmm::device_buffer> d_sizes_;
+};
+
+struct random_walk_path_t {
+  std::unique_ptr<rmm::device_buffer> d_v_offsets;
+  std::unique_ptr<rmm::device_buffer> d_w_sizes;
+  std::unique_ptr<rmm::device_buffer> d_w_offsets;
 };
 
 struct graph_generator_t {
@@ -414,6 +420,7 @@ void populate_graph_container(graph_container_t& graph_container,
                               size_t num_global_edges,
                               bool sorted_by_degree,
                               bool is_weighted,
+                              bool is_symmetric,
                               bool transposed,
                               bool multi_gpu);
 
@@ -498,6 +505,12 @@ std::unique_ptr<cy_multi_edgelists_t> call_egonet(raft::handle_t const& handle,
                                                   vertex_t n_subgraphs,
                                                   vertex_t radius);
 
+// Wrapper for calling WCC through a graph container
+template <typename vertex_t, typename weight_t>
+void call_wcc(raft::handle_t const& handle,
+              graph_container_t const& graph_container,
+              vertex_t* components);
+
 // Wrapper for calling graph generator
 template <typename vertex_t>
 std::unique_ptr<graph_generator_t> call_generate_rmat_edgelist(raft::handle_t const& handle,
@@ -516,8 +529,8 @@ call_generate_rmat_edgelists(raft::handle_t const& handle,
                              size_t min_scale,
                              size_t max_scale,
                              size_t edge_factor,
-                             cugraph::experimental::generator_distribution_t size_distribution,
-                             cugraph::experimental::generator_distribution_t edge_distribution,
+                             cugraph::generator_distribution_t size_distribution,
+                             cugraph::generator_distribution_t edge_distribution,
                              uint64_t seed,
                              bool clip_and_flip,
                              bool scramble_vertex_ids);
@@ -531,7 +544,13 @@ call_random_walks(raft::handle_t const& handle,
                   graph_container_t const& graph_container,
                   vertex_t const* ptr_start_set,
                   edge_t num_paths,
-                  edge_t max_depth);
+                  edge_t max_depth,
+                  bool use_padding);
+
+template <typename index_t>
+std::unique_ptr<random_walk_path_t> call_rw_paths(raft::handle_t const& handle,
+                                                  index_t num_paths,
+                                                  index_t const* vertex_path_sizes);
 
 // convertor from random_walks return type to COO:
 //
