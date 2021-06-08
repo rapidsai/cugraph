@@ -66,12 +66,12 @@ TEST(triangle, dolphin)
 TEST(triangle, karate)
 {
   using vertex_t = int32_t;
-  using edge_t = int32_t;
+  using edge_t   = int32_t;
   using weight_t = float;
- 
+
   std::vector<vertex_t> off_h = {0,  16,  25,  35,  41,  44,  48,  52,  56,  61,  63, 66,
-                            67, 69,  74,  76,  78,  80,  82,  84,  87,  89,  91, 93,
-                            98, 101, 104, 106, 110, 113, 117, 121, 127, 139, 156};
+                                 67, 69,  74,  76,  78,  80,  82,  84,  87,  89,  91, 93,
+                                 98, 101, 104, 106, 110, 113, 117, 121, 127, 139, 156};
   std::vector<vertex_t> ind_h = {
     1,  2,  3,  4,  5,  6,  7,  8,  10, 11, 12, 13, 17, 19, 21, 31, 0,  2,  3,  7,  13, 17, 19,
     21, 30, 0,  1,  3,  7,  8,  9,  13, 27, 28, 32, 0,  1,  2,  7,  12, 13, 0,  6,  10, 0,  6,
@@ -84,7 +84,7 @@ TEST(triangle, karate)
   std::vector<weight_t> w_h(ind_h.size(), weight_t{1.0});
 
   vertex_t num_verts = off_h.size() - 1;
-  int num_edges = ind_h.size();
+  int num_edges      = ind_h.size();
 
   uint64_t expected{135};
 
