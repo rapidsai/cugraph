@@ -65,14 +65,19 @@ namespace experimental {
  * @param edgelist_edge_counts Edge counts (one count per local graph adjacency matrix partition
  * assigned to this process).
  * @param do_expensive_check A flag to run expensive checks for input arguments (if set to `true`).
- * @return std::tuple<rmm::device_uvector<vertex_t>, partition_t<vertex_t>, vertex_t, edge_t>
- * Quadruplet of labels (vertex IDs before renumbering) for the entire set of vertices (assigned to
- * this process in multi-GPU), partition_t object storing graph partitioning information, total
- * number of vertices, and total number of edges.
+ * @return std::tuple<rmm::device_uvector<vertex_t>, partition_t<vertex_t>, vertex_t, edge_t,
+ * std::vector<vertex_t>> Tuple of labels (vertex IDs before renumbering) for the entire set of
+ * vertices (assigned to this process in multi-GPU), partition_t object storing graph partitioning
+ * information, total number of vertices, total number of edges, and vertex partition segment
+ * offsets (a vertex partition is partitioned to multiple segments based on vertex degrees).
  */
 template <typename vertex_t, typename edge_t, bool multi_gpu>
 std::enable_if_t<multi_gpu,
-                 std::tuple<rmm::device_uvector<vertex_t>, partition_t<vertex_t>, vertex_t, edge_t>>
+                 std::tuple<rmm::device_uvector<vertex_t>,
+                            partition_t<vertex_t>,
+                            vertex_t,
+                            edge_t,
+                            std::vector<vertex_t>>>
 renumber_edgelist(raft::handle_t const& handle,
                   std::optional<std::tuple<vertex_t const*, vertex_t>> optional_local_vertex_span,
                   std::vector<vertex_t*> const& edgelist_major_vertices /* [INOUT] */,
@@ -102,17 +107,18 @@ renumber_edgelist(raft::handle_t const& handle,
  * Vertex IDs are updated in-place ([INOUT] parameter).
  * @param num_edgelist_edges Number of edges in the edgelist.
  * @param do_expensive_check A flag to run expensive checks for input arguments (if set to `true`).
- * @return rmm::device_uvector<vertex_t> Labels (vertex IDs before renumbering) for the entire set
- * of vertices.
+ * @return std::tuple<rmm::device_uvector<vertex_t>, std::vector<vertex_t>> Tuple of abels (vertex
+ * IDs before renumbering) for the entire set of vertices and vertex partition segment offsets (a
+ * vertex partition is partitioned to multiple segments based on vertex degrees).
  */
 template <typename vertex_t, typename edge_t, bool multi_gpu>
-std::enable_if_t<!multi_gpu, rmm::device_uvector<vertex_t>> renumber_edgelist(
-  raft::handle_t const& handle,
-  std::optional<std::tuple<vertex_t const*, vertex_t>> optional_vertex_span,
-  vertex_t* edgelist_major_vertices /* [INOUT] */,
-  vertex_t* edgelist_minor_vertices /* [INOUT] */,
-  edge_t num_edgelist_edges,
-  bool do_expensive_check = false);
+std::enable_if_t<!multi_gpu, std::tuple<rmm::device_uvector<vertex_t>, std::vector<vertex_t>>>
+renumber_edgelist(raft::handle_t const& handle,
+                  std::optional<std::tuple<vertex_t const*, vertex_t>> optional_vertex_span,
+                  vertex_t* edgelist_major_vertices /* [INOUT] */,
+                  vertex_t* edgelist_minor_vertices /* [INOUT] */,
+                  edge_t num_edgelist_edges,
+                  bool do_expensive_check = false);
 
 /**
  * @brief Renumber external vertices to internal vertices based on the provoided @p

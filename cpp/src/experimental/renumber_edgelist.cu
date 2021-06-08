@@ -47,7 +47,7 @@ namespace experimental {
 namespace detail {
 
 template <typename vertex_t, typename edge_t, bool multi_gpu>
-rmm::device_uvector<vertex_t> compute_renumber_map(
+std::tuple<rmm::device_uvector<vertex_t>, std::vector<vertex_t>> compute_renumber_map(
   raft::handle_t const& handle,
   std::optional<std::tuple<vertex_t const*, vertex_t>> optional_vertex_span,
   std::vector<vertex_t const*> const& edgelist_major_vertices,
@@ -326,7 +326,61 @@ rmm::device_uvector<vertex_t> compute_renumber_map(
                       labels.begin(),
                       thrust::greater<edge_t>());
 
-  return labels;
+  // 7. compute segment_offsets
+
+  static_assert(detail::num_sparse_segments_per_vertex_partition == 3);
+  static_assert((detail::low_degree_threshold <= detail::mid_degree_threshold) &&
+                (detail::mid_degree_threshold <= std::numeric_limits<edge_t>::max()));
+  size_t mid_degree_threshold{detail::mid_degree_threshold};
+  size_t low_degree_threshold{detail::low_degree_threshold};
+  size_t hypersparse_degree_threshold{0};
+  if (multi_gpu) {
+    auto& col_comm           = handle.get_subcomm(cugraph::partition_2d::key_naming_t().col_name());
+    auto const col_comm_size = col_comm.get_size();
+    mid_degree_threshold *= col_comm_size;
+    low_degree_threshold *= col_comm_size;
+    hypersparse_degree_threshold =
+      static_cast<size_t>(col_comm_size * detail::hypersparse_threshold_ratio);
+  }
+  auto num_segments_per_vertex_partition =
+    detail::num_sparse_segments_per_vertex_partition +
+    (hypersparse_degree_threshold > 0 ? size_t{1} : size_t{0});
+  rmm::device_uvector<edge_t> d_thresholds(num_segments_per_vertex_partition - 1,
+                                           handle.get_stream());
+  auto h_thresholds = hypersparse_degree_threshold > 0
+                        ? std::vector<edge_t>{static_cast<edge_t>(mid_degree_threshold),
+                                              static_cast<edge_t>(low_degree_threshold),
+                                              static_cast<edge_t>(hypersparse_degree_threshold)}
+                        : std::vector<edge_t>{static_cast<edge_t>(mid_degree_threshold),
+                                              static_cast<edge_t>(low_degree_threshold)};
+  raft::update_device(
+    d_thresholds.data(), h_thresholds.data(), h_thresholds.size(), handle.get_stream());
+
+  rmm::device_uvector<vertex_t> d_segment_offsets(num_segments_per_vertex_partition + 1,
+                                                  handle.get_stream());
+
+  auto zero_vertex  = vertex_t{0};
+  auto vertex_count = static_cast<vertex_t>(counts.size());
+  d_segment_offsets.set_element_async(0, zero_vertex, handle.get_stream());
+  d_segment_offsets.set_element_async(
+    num_segments_per_vertex_partition, vertex_count, handle.get_stream());
+
+  thrust::upper_bound(rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
+                      counts.begin(),
+                      counts.end(),
+                      d_thresholds.begin(),
+                      d_thresholds.end(),
+                      d_segment_offsets.begin() + 1,
+                      thrust::greater<edge_t>{});
+
+  std::vector<vertex_t> h_segment_offsets(d_segment_offsets.size());
+  raft::update_host(h_segment_offsets.data(),
+                    d_segment_offsets.data(),
+                    d_segment_offsets.size(),
+                    handle.get_stream());
+  handle.get_stream_view().synchronize();
+
+  return std::make_tuple(std::move(labels), h_segment_offsets);
 }
 
 template <typename vertex_t, typename edge_t, bool multi_gpu>
@@ -544,7 +598,11 @@ void expensive_check_edgelist(
 
 template <typename vertex_t, typename edge_t, bool multi_gpu>
 std::enable_if_t<multi_gpu,
-                 std::tuple<rmm::device_uvector<vertex_t>, partition_t<vertex_t>, vertex_t, edge_t>>
+                 std::tuple<rmm::device_uvector<vertex_t>,
+                            partition_t<vertex_t>,
+                            vertex_t,
+                            edge_t,
+                            std::vector<vertex_t>>>
 renumber_edgelist(raft::handle_t const& handle,
                   std::optional<std::tuple<vertex_t const*, vertex_t>> optional_local_vertex_span,
                   std::vector<vertex_t*> const& edgelist_major_vertices /* [INOUT] */,
@@ -579,7 +637,7 @@ renumber_edgelist(raft::handle_t const& handle,
 
   // 1. compute renumber map
 
-  auto renumber_map_labels =
+  auto [renumber_map_labels, segment_offsets] =
     detail::compute_renumber_map<vertex_t, edge_t, multi_gpu>(handle,
                                                               optional_local_vertex_span,
                                                               edgelist_const_major_vertices,
@@ -718,18 +776,21 @@ renumber_edgelist(raft::handle_t const& handle,
   comm.barrier();  // currently, this is ncclAllReduce
 #endif
 
-  return std::make_tuple(
-    std::move(renumber_map_labels), partition, number_of_vertices, number_of_edges);
+  return std::make_tuple(std::move(renumber_map_labels),
+                         partition,
+                         number_of_vertices,
+                         number_of_edges,
+                         segment_offsets);
 }
 
 template <typename vertex_t, typename edge_t, bool multi_gpu>
-std::enable_if_t<!multi_gpu, rmm::device_uvector<vertex_t>> renumber_edgelist(
-  raft::handle_t const& handle,
-  std::optional<std::tuple<vertex_t const*, vertex_t>> optional_vertex_span,
-  vertex_t* edgelist_major_vertices /* [INOUT] */,
-  vertex_t* edgelist_minor_vertices /* [INOUT] */,
-  edge_t num_edgelist_edges,
-  bool do_expensive_check)
+std::enable_if_t<!multi_gpu, std::tuple<rmm::device_uvector<vertex_t>, std::vector<vertex_t>>>
+renumber_edgelist(raft::handle_t const& handle,
+                  std::optional<std::tuple<vertex_t const*, vertex_t>> optional_vertex_span,
+                  vertex_t* edgelist_major_vertices /* [INOUT] */,
+                  vertex_t* edgelist_minor_vertices /* [INOUT] */,
+                  edge_t num_edgelist_edges,
+                  bool do_expensive_check)
 {
   if (do_expensive_check) {
     expensive_check_edgelist<vertex_t, edge_t, multi_gpu>(
@@ -740,12 +801,13 @@ std::enable_if_t<!multi_gpu, rmm::device_uvector<vertex_t>> renumber_edgelist(
       std::vector<edge_t>{num_edgelist_edges});
   }
 
-  auto renumber_map_labels = detail::compute_renumber_map<vertex_t, edge_t, multi_gpu>(
-    handle,
-    optional_vertex_span,
-    std::vector<vertex_t const*>{edgelist_major_vertices},
-    std::vector<vertex_t const*>{edgelist_minor_vertices},
-    std::vector<edge_t>{num_edgelist_edges});
+  auto [renumber_map_labels, segment_offsets] =
+    detail::compute_renumber_map<vertex_t, edge_t, multi_gpu>(
+      handle,
+      optional_vertex_span,
+      std::vector<vertex_t const*>{edgelist_major_vertices},
+      std::vector<vertex_t const*>{edgelist_minor_vertices},
+      std::vector<edge_t>{num_edgelist_edges});
 
   double constexpr load_factor = 0.7;
 
@@ -770,14 +832,18 @@ std::enable_if_t<!multi_gpu, rmm::device_uvector<vertex_t>> renumber_edgelist(
   renumber_map.find(
     edgelist_minor_vertices, edgelist_minor_vertices + num_edgelist_edges, edgelist_minor_vertices);
 
-  return renumber_map_labels;
+  return std::make_tuple(std::move(renumber_map_labels), segment_offsets);
 }
 
 }  // namespace detail
 
 template <typename vertex_t, typename edge_t, bool multi_gpu>
 std::enable_if_t<multi_gpu,
-                 std::tuple<rmm::device_uvector<vertex_t>, partition_t<vertex_t>, vertex_t, edge_t>>
+                 std::tuple<rmm::device_uvector<vertex_t>,
+                            partition_t<vertex_t>,
+                            vertex_t,
+                            edge_t,
+                            std::vector<vertex_t>>>
 renumber_edgelist(raft::handle_t const& handle,
                   std::optional<std::tuple<vertex_t const*, vertex_t>> optional_local_vertex_span,
                   std::vector<vertex_t*> const& edgelist_major_vertices /* [INOUT] */,
@@ -794,13 +860,13 @@ renumber_edgelist(raft::handle_t const& handle,
 }
 
 template <typename vertex_t, typename edge_t, bool multi_gpu>
-std::enable_if_t<!multi_gpu, rmm::device_uvector<vertex_t>> renumber_edgelist(
-  raft::handle_t const& handle,
-  std::optional<std::tuple<vertex_t const*, vertex_t>> optional_vertex_span,
-  vertex_t* edgelist_major_vertices /* [INOUT] */,
-  vertex_t* edgelist_minor_vertices /* [INOUT] */,
-  edge_t num_edgelist_edges,
-  bool do_expensive_check)
+std::enable_if_t<!multi_gpu, std::tuple<rmm::device_uvector<vertex_t>, std::vector<vertex_t>>>
+renumber_edgelist(raft::handle_t const& handle,
+                  std::optional<std::tuple<vertex_t const*, vertex_t>> optional_vertex_span,
+                  vertex_t* edgelist_major_vertices /* [INOUT] */,
+                  vertex_t* edgelist_minor_vertices /* [INOUT] */,
+                  edge_t num_edgelist_edges,
+                  bool do_expensive_check)
 {
   return detail::renumber_edgelist<vertex_t, edge_t, multi_gpu>(handle,
                                                                 optional_vertex_span,
@@ -815,16 +881,18 @@ std::enable_if_t<!multi_gpu, rmm::device_uvector<vertex_t>> renumber_edgelist(
 
 // instantiations for <vertex_t == int32_t, edge_t == int32_t>
 //
-template std::tuple<rmm::device_uvector<int32_t>, partition_t<int32_t>, int32_t, int32_t>
-renumber_edgelist<int32_t, int32_t, true>(
-  raft::handle_t const& handle,
-  std::optional<std::tuple<int32_t const*, int32_t>> optional_local_vertex_span,
-  std::vector<int32_t*> const& edgelist_major_vertices /* [INOUT] */,
-  std::vector<int32_t*> const& edgelist_minor_vertices /* [INOUT] */,
-  std::vector<int32_t> const& edgelist_edge_counts,
-  bool do_expensive_check);
+template std::
+  tuple<rmm::device_uvector<int32_t>, partition_t<int32_t>, int32_t, int32_t, std::vector<int32_t>>
+  renumber_edgelist<int32_t, int32_t, true>(
+    raft::handle_t const& handle,
+    std::optional<std::tuple<int32_t const*, int32_t>> optional_local_vertex_span,
+    std::vector<int32_t*> const& edgelist_major_vertices /* [INOUT] */,
+    std::vector<int32_t*> const& edgelist_minor_vertices /* [INOUT] */,
+    std::vector<int32_t> const& edgelist_edge_counts,
+    bool do_expensive_check);
 
-template rmm::device_uvector<int32_t> renumber_edgelist<int32_t, int32_t, false>(
+template std::tuple<rmm::device_uvector<int32_t>, std::vector<int32_t>>
+renumber_edgelist<int32_t, int32_t, false>(
   raft::handle_t const& handle,
   std::optional<std::tuple<int32_t const*, int32_t>> optional_vertex_span,
   int32_t* edgelist_major_vertices /* [INOUT] */,
@@ -834,16 +902,18 @@ template rmm::device_uvector<int32_t> renumber_edgelist<int32_t, int32_t, false>
 
 // instantiations for <vertex_t == int32_t, edge_t == int64_t>
 //
-template std::tuple<rmm::device_uvector<int32_t>, partition_t<int32_t>, int32_t, int64_t>
-renumber_edgelist<int32_t, int64_t, true>(
-  raft::handle_t const& handle,
-  std::optional<std::tuple<int32_t const*, int32_t>> optional_local_vertex_span,
-  std::vector<int32_t*> const& edgelist_major_vertices /* [INOUT] */,
-  std::vector<int32_t*> const& edgelist_minor_vertices /* [INOUT] */,
-  std::vector<int64_t> const& edgelist_edge_counts,
-  bool do_expensive_check);
+template std::
+  tuple<rmm::device_uvector<int32_t>, partition_t<int32_t>, int32_t, int64_t, std::vector<int32_t>>
+  renumber_edgelist<int32_t, int64_t, true>(
+    raft::handle_t const& handle,
+    std::optional<std::tuple<int32_t const*, int32_t>> optional_local_vertex_span,
+    std::vector<int32_t*> const& edgelist_major_vertices /* [INOUT] */,
+    std::vector<int32_t*> const& edgelist_minor_vertices /* [INOUT] */,
+    std::vector<int64_t> const& edgelist_edge_counts,
+    bool do_expensive_check);
 
-template rmm::device_uvector<int32_t> renumber_edgelist<int32_t, int64_t, false>(
+template std::tuple<rmm::device_uvector<int32_t>, std::vector<int32_t>>
+renumber_edgelist<int32_t, int64_t, false>(
   raft::handle_t const& handle,
   std::optional<std::tuple<int32_t const*, int32_t>> optional_vertex_span,
   int32_t* edgelist_major_vertices /* [INOUT] */,
@@ -853,16 +923,18 @@ template rmm::device_uvector<int32_t> renumber_edgelist<int32_t, int64_t, false>
 
 // instantiations for <vertex_t == int64_t, edge_t == int64_t>
 //
-template std::tuple<rmm::device_uvector<int64_t>, partition_t<int64_t>, int64_t, int64_t>
-renumber_edgelist<int64_t, int64_t, true>(
-  raft::handle_t const& handle,
-  std::optional<std::tuple<int64_t const*, int64_t>> optional_local_vertex_span,
-  std::vector<int64_t*> const& edgelist_major_vertices /* [INOUT] */,
-  std::vector<int64_t*> const& edgelist_minor_vertices /* [INOUT] */,
-  std::vector<int64_t> const& edgelist_edge_counts,
-  bool do_expensive_check);
+template std::
+  tuple<rmm::device_uvector<int64_t>, partition_t<int64_t>, int64_t, int64_t, std::vector<int64_t>>
+  renumber_edgelist<int64_t, int64_t, true>(
+    raft::handle_t const& handle,
+    std::optional<std::tuple<int64_t const*, int64_t>> optional_local_vertex_span,
+    std::vector<int64_t*> const& edgelist_major_vertices /* [INOUT] */,
+    std::vector<int64_t*> const& edgelist_minor_vertices /* [INOUT] */,
+    std::vector<int64_t> const& edgelist_edge_counts,
+    bool do_expensive_check);
 
-template rmm::device_uvector<int64_t> renumber_edgelist<int64_t, int64_t, false>(
+template std::tuple<rmm::device_uvector<int64_t>, std::vector<int64_t>>
+renumber_edgelist<int64_t, int64_t, false>(
   raft::handle_t const& handle,
   std::optional<std::tuple<int64_t const*, int64_t>> optional_vertex_span,
   int64_t* edgelist_major_vertices /* [INOUT] */,
