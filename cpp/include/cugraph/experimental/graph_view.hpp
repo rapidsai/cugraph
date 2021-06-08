@@ -218,9 +218,11 @@ struct graph_properties_t {
 namespace detail {
 
 // FIXME: threshold values require tuning
+// use the hypersparse format (currently, DCSR or DCSC) for the vertices with their degrees smaller than col_comm_size * hypersparse_threshold_ratio, should be less than 1.0
+double constexpr hypersparse_threshold_ratio = 0.5;
 size_t constexpr low_degree_threshold{raft::warp_size()};
 size_t constexpr mid_degree_threshold{1024};
-size_t constexpr num_segments_per_vertex_partition{3};
+size_t constexpr num_sparse_segments_per_vertex_partition{3};
 
 // Common for both graph_view_t & graph_t and both single-GPU & multi-GPU versions
 template <typename vertex_t, typename edge_t, typename weight_t>
@@ -474,12 +476,13 @@ class graph_view_t<vertex_t,
 
   std::vector<vertex_t> get_local_adj_matrix_partition_segment_offsets(size_t partition_idx) const
   {
+    auto size_per_partition =
+      adj_matrix_partition_segment_offsets_.size() / partition_.get_col_size();
     return adj_matrix_partition_segment_offsets_.size() > 0
              ? std::vector<vertex_t>(
+                 adj_matrix_partition_segment_offsets_.begin() + partition_idx * size_per_partition,
                  adj_matrix_partition_segment_offsets_.begin() +
-                   partition_idx * (detail::num_segments_per_vertex_partition + 1),
-                 adj_matrix_partition_segment_offsets_.begin() +
-                   (partition_idx + 1) * (detail::num_segments_per_vertex_partition + 1))
+                   (partition_idx + 1) * size_per_partition)
              : std::vector<vertex_t>{};
   }
 
@@ -550,11 +553,9 @@ class graph_view_t<vertex_t,
 
   partition_t<vertex_t> partition_{};
 
-  std::vector<vertex_t>
-    adj_matrix_partition_segment_offsets_{};  // segment offsets within the vertex partition based
-                                              // on vertex degree, relevant only if
-                                              // sorted_by_global_degree_within_vertex_partition is
-                                              // true
+  // segment offsets within the vertex partition based on vertex degree, relevant only if
+  // sorted_by_global_degree_within_vertex_partition is true
+  std::vector<vertex_t> adj_matrix_partition_segment_offsets_{};
 };
 
 // single-GPU version
@@ -743,8 +744,8 @@ class graph_view_t<vertex_t,
   vertex_t const* indices_{nullptr};
   weight_t const* weights_{nullptr};
 
-  std::vector<vertex_t> segment_offsets_{};  // segment offsets based on vertex degree, relevant
-                                             // only if sorted_by_global_degree is true
+  // segment offsets based on vertex degree, relevant only if sorted_by_global_degree is true
+  std::vector<vertex_t> segment_offsets_{};
 };
 
 }  // namespace experimental
