@@ -29,11 +29,10 @@ DATASETS = [pytest.param(d) for d in utils.DATASETS]
 DATASETS_SMALL = [pytest.param(d) for d in utils.DATASETS_SMALL]
 
 
-def calc_random_walks(
-    graph_file,
-    directed=False,
-    max_depth=None
-):
+def calc_random_walks(graph_file,
+                      directed=False,
+                      max_depth=None,
+                      use_padding=False):
     """
     compute random walks for each nodes in 'start_vertices'
 
@@ -52,16 +51,20 @@ def calc_random_walks(
     max_depth : int
         The maximum depth of the random walks
 
+    use_padding : bool
+        If True, padded paths are returned else coalesced paths are returned.
 
     Returns
     -------
-    random_walks_edge_lists : cudf.DataFrame
-        GPU data frame containing all random walks sources identifiers,
-        destination identifiers, edge weights
+    vertex_paths : cudf.Series or cudf.DataFrame
+        Series containing the vertices of edges/paths in the random walk.
 
-    seeds_offsets: cudf.Series
-        Series containing the starting offset in the returned edge list
-        for each vertex in start_vertices.
+    edge_weight_paths: cudf.Series
+        Series containing the edge weights of edges represented by the
+        returned vertex_paths
+
+    sizes: int
+        The path size in case of coalesced paths.
     """
     G = utils.generate_cugraph_graph_from_file(
         graph_file, directed=directed, edgevals=True)
@@ -69,45 +72,47 @@ def calc_random_walks(
 
     k = random.randint(1, 10)
     start_vertices = random.sample(range(G.number_of_vertices()), k)
-    df, offsets = cugraph.random_walks(G, start_vertices, max_depth)
+    vertex_paths, edge_weights, vertex_path_sizes = cugraph.random_walks(
+            G, start_vertices, max_depth, use_padding)
 
-    return df, offsets, start_vertices
+    return (vertex_paths, edge_weights, vertex_path_sizes), start_vertices
 
 
-def check_random_walks(df, offsets, seeds, df_G=None):
+def check_random_walks(path_data, seeds, df_G=None):
     invalid_edge = 0
     invalid_seeds = 0
-    invalid_weight = 0
     offsets_idx = 0
-    for i in range(len(df.index)):
-        src, dst, weight = df.iloc[i].to_array()
-        if i == offsets[offsets_idx]:
-            if df['src'].iloc[i] != seeds[offsets_idx]:
+    next_path_idx = 0
+    v_paths = path_data[0]
+    sizes = path_data[2].to_array().tolist()
+
+    for s in sizes:
+        for i in range(next_path_idx, next_path_idx+s-1):
+            src, dst = v_paths.iloc[i],  v_paths.iloc[i+1]
+            if i == next_path_idx and src != seeds[offsets_idx]:
                 invalid_seeds += 1
                 print(
                         "[ERR] Invalid seed: "
                         " src {} != src {}"
-                        .format(df['src'].iloc[i], offsets[offsets_idx])
+                        .format(src, seeds[offsets_idx])
                     )
-            offsets_idx += 1
+        offsets_idx += 1
+        next_path_idx += s
 
-        edge = df.loc[(df['src'] == (src)) & (df['dst'] == (dst))].reset_index(
-            drop=True)
         exp_edge = df_G.loc[
             (df_G['src'] == (src)) & (
                 df_G['dst'] == (dst))].reset_index(drop=True)
 
-        if not exp_edge.equals(edge[:1]):
+        if not (exp_edge['src'].loc[0], exp_edge['dst'].loc[0]) == (src, dst):
             print(
                     "[ERR] Invalid edge: "
-                    "There is no edge src {} dst {} weight {}"
-                    .format(src, dst, weight)
+                    "There is no edge src {} dst {}"
+                    .format(src, dst)
                 )
-            invalid_weight += 1
+            invalid_edge += 1
 
     assert invalid_edge == 0
     assert invalid_seeds == 0
-    assert invalid_weight == 0
 
 # =============================================================================
 # Pytest Setup / Teardown - called for each test function
@@ -121,11 +126,9 @@ def prepare_test():
 @pytest.mark.parametrize("graph_file", utils.DATASETS_SMALL)
 @pytest.mark.parametrize("directed", DIRECTED_GRAPH_OPTIONS)
 @pytest.mark.parametrize("max_depth", [None])
-def test_random_walks_invalid_max_dept(
-    graph_file,
-    directed,
-    max_depth
-):
+def test_random_walks_invalid_max_dept(graph_file,
+                                       directed,
+                                       max_depth):
     prepare_test()
     with pytest.raises(TypeError):
         df, offsets, seeds = calc_random_walks(
@@ -137,7 +140,7 @@ def test_random_walks_invalid_max_dept(
 
 @pytest.mark.parametrize("graph_file", utils.DATASETS_SMALL)
 @pytest.mark.parametrize("directed", DIRECTED_GRAPH_OPTIONS)
-def test_random_walks(
+def test_random_walks_coalesced(
     graph_file,
     directed
 ):
@@ -145,12 +148,43 @@ def test_random_walks(
     df_G = utils.read_csv_file(graph_file)
     df_G.rename(
         columns={"0": "src", "1": "dst", "2": "weight"}, inplace=True)
-    df, offsets, seeds = calc_random_walks(
+    path_data, seeds = calc_random_walks(
         graph_file,
         directed,
         max_depth=max_depth
     )
-    check_random_walks(df, offsets, seeds, df_G)
+    check_random_walks(path_data, seeds, df_G)
+
+    # Check path query output
+    df = cugraph.rw_path(len(seeds), path_data[2])
+    v_offsets = [0] + path_data[2].cumsum()[:-1].to_array().tolist()
+    w_offsets = [0] + (path_data[2]-1).cumsum()[:-1].to_array().tolist()
+
+    assert df['weight_sizes'].equals(path_data[2]-1)
+    assert df['vertex_offsets'].to_array().tolist() == v_offsets
+    assert df['weight_offsets'].to_array().tolist() == w_offsets
+
+
+@pytest.mark.parametrize("graph_file", utils.DATASETS_SMALL)
+@pytest.mark.parametrize("directed", DIRECTED_GRAPH_OPTIONS)
+def test_random_walks_padded(
+    graph_file,
+    directed
+):
+    max_depth = random.randint(2, 10)
+    df_G = utils.read_csv_file(graph_file)
+    df_G.rename(
+        columns={"0": "src", "1": "dst", "2": "weight"}, inplace=True)
+    path_data, seeds = calc_random_walks(
+        graph_file,
+        directed,
+        max_depth=max_depth,
+        use_padding=True
+    )
+    v_paths = path_data[0]
+    e_weights = path_data[1]
+    assert len(v_paths) == max_depth*len(seeds)
+    assert len(e_weights) == (max_depth - 1)*len(seeds)
 
 
 """@pytest.mark.parametrize("graph_file", utils.DATASETS_SMALL)

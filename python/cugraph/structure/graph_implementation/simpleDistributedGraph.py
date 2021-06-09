@@ -12,6 +12,7 @@
 # limitations under the License.
 
 from cugraph.structure import graph_primtypes_wrapper
+from cugraph.structure.graph_primtypes_wrapper import Direction
 from cugraph.structure.number_map import NumberMap
 import cudf
 import dask_cudf
@@ -211,7 +212,7 @@ class simpleDistributedGraphImpl:
         >>> G.from_cudf_edgelist(M, '0', '1')
         >>> df = G.in_degree([0,9,12])
         """
-        return self._degree(vertex_subset, x=1)
+        return self._degree(vertex_subset, direction=Direction.IN)
 
     def out_degree(self, vertex_subset=None):
         """
@@ -245,8 +246,7 @@ class simpleDistributedGraphImpl:
         >>> G.from_cudf_edgelist(M, '0', '1')
         >>> df = G.out_degree([0,9,12])
         """
-        # TODO: Add support
-        raise Exception("Not supported for distributed graph")
+        return self._degree(vertex_subset, direction=Direction.OUT)
 
     def degree(self, vertex_subset=None):
         """
@@ -319,14 +319,15 @@ class simpleDistributedGraphImpl:
         """
         raise Exception("Not supported for distributed graph")
 
-    def _degree(self, vertex_subset, x=0):
-        vertex_col, degree_col = graph_primtypes_wrapper._degree(self, x)
+    def _degree(self, vertex_subset, direction=Direction.ALL):
+        vertex_col, degree_col = graph_primtypes_wrapper._mg_degree(self,
+                                                                    direction)
         df = cudf.DataFrame()
         df["vertex"] = vertex_col
         df["degree"] = degree_col
 
-        if self.renumbered is True:
-            df = self.unrenumber(df, "vertex")
+        if self.properties.renumbered is True:
+            df = self.renumber_map.unrenumber(df, "vertex")
 
         if vertex_subset is not None:
             df = df[df['vertex'].isin(vertex_subset)]
@@ -471,3 +472,9 @@ class simpleDistributedGraphImpl:
             self.edgelist = self.EdgeList(renumbered_ddf)
             self.renumber_map = number_map
             self.properties.store_transposed = transposed
+
+    def vertex_column_size(self):
+        if self.properties.renumbered:
+            return self.renumber_map.vertex_column_size()
+        else:
+            return 1

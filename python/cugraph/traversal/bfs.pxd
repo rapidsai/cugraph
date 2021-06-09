@@ -22,7 +22,7 @@ from libcpp cimport bool
 cdef extern from "limits.h":
     cdef int INT_MAX
 
-cdef extern from "utilities/cython.hpp" namespace "cugraph::cython":
+cdef extern from "cugraph/utilities/cython.hpp" namespace "cugraph::cython":
     cdef void call_bfs[vertex_t, weight_t](
         const handle_t &handle,
         const graph_container_t &g,

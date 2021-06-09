@@ -14,19 +14,20 @@
  * limitations under the License.
  */
 
-#include <experimental/include_cuco_static_map.cuh>
-
-#include <experimental/detail/graph_utils.cuh>
-#include <experimental/graph.hpp>
-#include <experimental/graph_functions.hpp>
-#include <experimental/graph_view.hpp>
-#include <patterns/copy_to_adj_matrix_row_col.cuh>
-#include <utilities/error.hpp>
-#include <utilities/shuffle_comm.cuh>
+#include <cugraph/experimental/detail/graph_utils.cuh>
+#include <cugraph/experimental/graph.hpp>
+#include <cugraph/experimental/graph_functions.hpp>
+#include <cugraph/experimental/graph_view.hpp>
+#include <cugraph/patterns/copy_to_adj_matrix_row_col.cuh>
+#include <cugraph/utilities/error.hpp>
+#include <cugraph/utilities/shuffle_comm.cuh>
 
 #include <rmm/thrust_rmm_allocator.h>
+#include <cuco/static_map.cuh>
 #include <raft/handle.hpp>
 #include <rmm/device_uvector.hpp>
+#include <rmm/mr/device/per_device_resource.hpp>
+#include <rmm/mr/device/polymorphic_allocator.hpp>
 
 #include <thrust/copy.h>
 #include <thrust/iterator/discard_iterator.h>
@@ -49,15 +50,11 @@ void relabel(raft::handle_t const& handle,
              vertex_t num_label_pairs,
              vertex_t* labels /* [INOUT] */,
              vertex_t num_labels,
+             bool skip_missing_labels,
              bool do_expensive_check)
 {
   double constexpr load_factor = 0.7;
 
-  // FIXME: remove this check once we drop Pascal support
-  CUGRAPH_EXPECTS(handle.get_device_properties().major >= 7,
-                  "Relabel not supported on Pascal and older architectures.");
-
-#ifdef CUCO_STATIC_MAP_DEFINED
   if (multi_gpu) {
     auto& comm           = handle.get_comms();
     auto const comm_size = comm.get_size();
@@ -120,20 +117,21 @@ void relabel(raft::handle_t const& handle,
       CUDA_TRY(cudaStreamSynchronize(
         handle.get_stream()));  // cuco::static_map currently does not take stream
 
-      cuco::static_map<vertex_t, vertex_t> relabel_map{
-        // cuco::static_map requires at least one empty slot
-        std::max(
-          static_cast<size_t>(static_cast<double>(rx_label_pair_old_labels.size()) / load_factor),
-          rx_label_pair_old_labels.size() + 1),
-        invalid_vertex_id<vertex_t>::value,
-        invalid_vertex_id<vertex_t>::value};
+      auto poly_alloc =
+        rmm::mr::polymorphic_allocator<char>(rmm::mr::get_current_device_resource());
+      auto stream_adapter =
+        rmm::mr::make_stream_allocator_adaptor(poly_alloc, cudaStream_t{nullptr});
+      cuco::static_map<vertex_t, vertex_t, cuda::thread_scope_device, decltype(stream_adapter)>
+        relabel_map{// cuco::static_map requires at least one empty slot
+                    std::max(static_cast<size_t>(
+                               static_cast<double>(rx_label_pair_old_labels.size()) / load_factor),
+                             rx_label_pair_old_labels.size() + 1),
+                    invalid_vertex_id<vertex_t>::value,
+                    invalid_vertex_id<vertex_t>::value,
+                    stream_adapter};
 
-      auto pair_first = thrust::make_transform_iterator(
-        thrust::make_zip_iterator(
-          thrust::make_tuple(rx_label_pair_old_labels.begin(), rx_label_pair_new_labels.begin())),
-        [] __device__(auto val) {
-          return thrust::make_pair(thrust::get<0>(val), thrust::get<1>(val));
-        });
+      auto pair_first = thrust::make_zip_iterator(
+        thrust::make_tuple(rx_label_pair_old_labels.begin(), rx_label_pair_new_labels.begin()));
       relabel_map.insert(pair_first, pair_first + rx_label_pair_old_labels.size());
 
       rx_label_pair_old_labels.resize(0, handle.get_stream());
@@ -156,11 +154,24 @@ void relabel(raft::handle_t const& handle,
         CUDA_TRY(cudaStreamSynchronize(
           handle.get_stream()));  // cuco::static_map currently does not take stream
 
-        relabel_map.find(
-          rx_unique_old_labels.begin(),
-          rx_unique_old_labels.end(),
-          rx_unique_old_labels
-            .begin());  // now rx_unique_old_lables hold new labels for the corresponding old labels
+        if (skip_missing_labels) {
+          thrust::transform(rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
+                            rx_unique_old_labels.begin(),
+                            rx_unique_old_labels.end(),
+                            rx_unique_old_labels.begin(),
+                            [view = relabel_map.get_device_view()] __device__(auto old_label) {
+                              auto found = view.find(old_label);
+                              return found != view.end() ? view.find(old_label)->second.load(
+                                                             cuda::std::memory_order_relaxed)
+                                                         : old_label;
+                            });
+        } else {
+          relabel_map.find(
+            rx_unique_old_labels.begin(),
+            rx_unique_old_labels.end(),
+            rx_unique_old_labels.begin());  // now rx_unique_old_lables hold new labels for the
+                                            // corresponding old labels
+        }
 
         std::tie(new_labels_for_unique_old_labels, std::ignore) = shuffle_values(
           handle.get_comms(), rx_unique_old_labels.begin(), rx_value_counts, handle.get_stream());
@@ -169,22 +180,25 @@ void relabel(raft::handle_t const& handle,
 
     handle.get_stream_view().synchronize();  // cuco::static_map currently does not take stream
 
-    cuco::static_map<vertex_t, vertex_t> relabel_map(
-      // cuco::static_map requires at least one empty slot
-      std::max(static_cast<size_t>(static_cast<double>(unique_old_labels.size()) / load_factor),
-               unique_old_labels.size() + 1),
-      invalid_vertex_id<vertex_t>::value,
-      invalid_vertex_id<vertex_t>::value);
+    {
+      auto poly_alloc =
+        rmm::mr::polymorphic_allocator<char>(rmm::mr::get_current_device_resource());
+      auto stream_adapter =
+        rmm::mr::make_stream_allocator_adaptor(poly_alloc, cudaStream_t{nullptr});
+      cuco::static_map<vertex_t, vertex_t, cuda::thread_scope_device, decltype(stream_adapter)>
+        relabel_map{
+          // cuco::static_map requires at least one empty slot
+          std::max(static_cast<size_t>(static_cast<double>(unique_old_labels.size()) / load_factor),
+                   unique_old_labels.size() + 1),
+          invalid_vertex_id<vertex_t>::value,
+          invalid_vertex_id<vertex_t>::value,
+          stream_adapter};
 
-    auto pair_first = thrust::make_transform_iterator(
-      thrust::make_zip_iterator(
-        thrust::make_tuple(unique_old_labels.begin(), new_labels_for_unique_old_labels.begin())),
-      [] __device__(auto val) {
-        return thrust::make_pair(thrust::get<0>(val), thrust::get<1>(val));
-      });
-
-    relabel_map.insert(pair_first, pair_first + unique_old_labels.size());
-    relabel_map.find(labels, labels + num_labels, labels);
+      auto pair_first = thrust::make_zip_iterator(
+        thrust::make_tuple(unique_old_labels.begin(), new_labels_for_unique_old_labels.begin()));
+      relabel_map.insert(pair_first, pair_first + unique_old_labels.size());
+      relabel_map.find(labels, labels + num_labels, labels);
+    }
   } else {
     cuco::static_map<vertex_t, vertex_t> relabel_map(
       // cuco::static_map requires at least one empty slot
@@ -193,18 +207,26 @@ void relabel(raft::handle_t const& handle,
       invalid_vertex_id<vertex_t>::value,
       invalid_vertex_id<vertex_t>::value);
 
-    auto pair_first = thrust::make_transform_iterator(
-      thrust::make_zip_iterator(
-        thrust::make_tuple(std::get<0>(old_new_label_pairs), std::get<1>(old_new_label_pairs))),
-      [] __device__(auto val) {
-        return thrust::make_pair(thrust::get<0>(val), thrust::get<1>(val));
-      });
-
+    auto pair_first = thrust::make_zip_iterator(
+      thrust::make_tuple(std::get<0>(old_new_label_pairs), std::get<1>(old_new_label_pairs)));
     relabel_map.insert(pair_first, pair_first + num_label_pairs);
-    relabel_map.find(labels, labels + num_labels, labels);
+    if (skip_missing_labels) {
+      thrust::transform(rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
+                        labels,
+                        labels + num_labels,
+                        labels,
+                        [view = relabel_map.get_device_view()] __device__(auto old_label) {
+                          auto found = view.find(old_label);
+                          return found != view.end() ? view.find(old_label)->second.load(
+                                                         cuda::std::memory_order_relaxed)
+                                                     : old_label;
+                        });
+    } else {
+      relabel_map.find(labels, labels + num_labels, labels);
+    }
   }
 
-  if (do_expensive_check) {
+  if (do_expensive_check && !skip_missing_labels) {
     CUGRAPH_EXPECTS(
       thrust::count(rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
                     labels,
@@ -212,7 +234,6 @@ void relabel(raft::handle_t const& handle,
                     invalid_vertex_id<vertex_t>::value) == 0,
       "Invalid input argument: labels include old label values missing in old_new_label_pairs.");
   }
-#endif
 
   return;
 }
@@ -224,6 +245,7 @@ template void relabel<int32_t, true>(raft::handle_t const& handle,
                                      int32_t num_label_pairs,
                                      int32_t* labels,
                                      int32_t num_labels,
+                                     bool skip_missing_labels,
                                      bool do_expensive_check);
 
 template void relabel<int32_t, false>(
@@ -232,6 +254,7 @@ template void relabel<int32_t, false>(
   int32_t num_label_pairs,
   int32_t* labels,
   int32_t num_labels,
+  bool skip_missing_labels,
   bool do_expensive_check);
 
 template void relabel<int64_t, true>(raft::handle_t const& handle,
@@ -239,6 +262,7 @@ template void relabel<int64_t, true>(raft::handle_t const& handle,
                                      int64_t num_label_pairs,
                                      int64_t* labels,
                                      int64_t num_labels,
+                                     bool skip_missing_labels,
                                      bool do_expensive_check);
 
 template void relabel<int64_t, false>(
@@ -247,6 +271,7 @@ template void relabel<int64_t, false>(
   int64_t num_label_pairs,
   int64_t* labels,
   int64_t num_labels,
+  bool skip_missing_labels,
   bool do_expensive_check);
 
 }  // namespace experimental

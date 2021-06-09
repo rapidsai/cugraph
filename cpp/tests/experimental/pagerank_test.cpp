@@ -16,13 +16,14 @@
 
 #include <utilities/high_res_clock.h>
 #include <utilities/base_fixture.hpp>
+#include <utilities/test_graphs.hpp>
 #include <utilities/test_utilities.hpp>
 #include <utilities/thrust_wrapper.hpp>
 
-#include <algorithms.hpp>
-#include <experimental/graph.hpp>
-#include <experimental/graph_functions.hpp>
-#include <experimental/graph_view.hpp>
+#include <cugraph/algorithms.hpp>
+#include <cugraph/experimental/graph.hpp>
+#include <cugraph/experimental/graph_functions.hpp>
+#include <cugraph/experimental/graph_view.hpp>
 
 #include <raft/cudart_utils.h>
 #include <raft/handle.hpp>
@@ -303,10 +304,11 @@ class Tests_PageRank
           d_renumber_map_labels.data(),
           vertex_t{0},
           graph_view.get_number_of_vertices());
-        cugraph::test::sort_by_key(handle,
-                                   d_unrenumbered_personalization_vertices.data(),
-                                   d_unrenumbered_personalization_values.data(),
-                                   d_unrenumbered_personalization_vertices.size());
+        std::tie(d_unrenumbered_personalization_vertices, d_unrenumbered_personalization_values) =
+          cugraph::test::sort_by_key(handle,
+                                     d_unrenumbered_personalization_vertices.data(),
+                                     d_unrenumbered_personalization_values.data(),
+                                     d_unrenumbered_personalization_vertices.size());
 
         raft::update_host(h_unrenumbered_personalization_vertices.data(),
                           d_unrenumbered_personalization_vertices.data(),
@@ -346,7 +348,8 @@ class Tests_PageRank
 
       std::vector<result_t> h_cugraph_pageranks(graph_view.get_number_of_vertices());
       if (renumber) {
-        auto d_unrenumbered_pageranks = cugraph::test::sort_by_key(
+        rmm::device_uvector<result_t> d_unrenumbered_pageranks(size_t{0}, handle.get_stream());
+        std::tie(std::ignore, d_unrenumbered_pageranks) = cugraph::test::sort_by_key(
           handle, d_renumber_map_labels.data(), d_pageranks.data(), d_renumber_map_labels.size());
         raft::update_host(h_cugraph_pageranks.data(),
                           d_unrenumbered_pageranks.data(),

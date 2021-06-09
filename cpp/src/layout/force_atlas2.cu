@@ -20,7 +20,8 @@
 namespace cugraph {
 
 template <typename vertex_t, typename edge_t, typename weight_t>
-void force_atlas2(GraphCOOView<vertex_t, edge_t, weight_t> &graph,
+void force_atlas2(raft::handle_t const &handle,
+                  GraphCOOView<vertex_t, edge_t, weight_t> &graph,
                   float *pos,
                   const int max_iter,
                   float *x_start,
@@ -42,7 +43,8 @@ void force_atlas2(GraphCOOView<vertex_t, edge_t, weight_t> &graph,
   CUGRAPH_EXPECTS(graph.number_of_vertices != 0, "Invalid input: Graph is empty");
 
   if (!barnes_hut_optimize) {
-    cugraph::detail::exact_fa2<vertex_t, edge_t, weight_t>(graph,
+    cugraph::detail::exact_fa2<vertex_t, edge_t, weight_t>(handle,
+                                                           graph,
                                                            pos,
                                                            max_iter,
                                                            x_start,
@@ -58,7 +60,8 @@ void force_atlas2(GraphCOOView<vertex_t, edge_t, weight_t> &graph,
                                                            verbose,
                                                            callback);
   } else {
-    cugraph::detail::barnes_hut<vertex_t, edge_t, weight_t>(graph,
+    cugraph::detail::barnes_hut<vertex_t, edge_t, weight_t>(handle,
+                                                            graph,
                                                             pos,
                                                             max_iter,
                                                             x_start,
@@ -77,7 +80,8 @@ void force_atlas2(GraphCOOView<vertex_t, edge_t, weight_t> &graph,
   }
 }
 
-template void force_atlas2<int, int, float>(GraphCOOView<int, int, float> &graph,
+template void force_atlas2<int, int, float>(raft::handle_t const &handle,
+                                            GraphCOOView<int, int, float> &graph,
                                             float *pos,
                                             const int max_iter,
                                             float *x_start,
@@ -95,7 +99,8 @@ template void force_atlas2<int, int, float>(GraphCOOView<int, int, float> &graph
                                             bool verbose,
                                             internals::GraphBasedDimRedCallback *callback);
 
-template void force_atlas2<int, int, double>(GraphCOOView<int, int, double> &graph,
+template void force_atlas2<int, int, double>(raft::handle_t const &handle,
+                                             GraphCOOView<int, int, double> &graph,
                                              float *pos,
                                              const int max_iter,
                                              float *x_start,

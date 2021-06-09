@@ -18,8 +18,8 @@
 #include <utilities/base_fixture.hpp>
 #include <utilities/test_utilities.hpp>
 
-#include <algorithms.hpp>
-#include <graph.hpp>
+#include <cugraph/algorithms.hpp>
+#include <cugraph/graph.hpp>
 
 #include <raft/error.hpp>
 #include <raft/handle.hpp>

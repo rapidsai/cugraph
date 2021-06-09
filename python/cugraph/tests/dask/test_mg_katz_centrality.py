@@ -50,21 +50,12 @@ def test_dask_katz_centrality(client_connection):
         dtype=["int32", "int32", "float32"],
     )
 
-    df = cudf.read_csv(
-        input_data_path,
-        delimiter=" ",
-        names=["src", "dst", "value"],
-        dtype=["int32", "int32", "float32"],
-    )
-
-    g = cugraph.DiGraph()
-    g.from_cudf_edgelist(df, "src", "dst")
-
     dg = cugraph.DiGraph()
     dg.from_dask_cudf_edgelist(ddf, "src", "dst")
 
-    largest_out_degree = g.degrees().nlargest(n=1, columns="out_degree")
-    largest_out_degree = largest_out_degree["out_degree"].iloc[0]
+    largest_out_degree = dg.out_degree().compute().\
+        nlargest(n=1, columns="degree")
+    largest_out_degree = largest_out_degree["degree"].iloc[0]
     katz_alpha = 1 / (largest_out_degree + 1)
 
     mg_res = dcg.katz_centrality(dg, alpha=katz_alpha, tol=1e-6)

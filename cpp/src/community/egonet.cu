@@ -15,8 +15,8 @@
  */
 
 // Alex Fender afender@nvida.com
-#include <algorithms.hpp>
 #include <cstddef>
+#include <cugraph/algorithms.hpp>
 #include <memory>
 #include <tuple>
 #include <utility>
@@ -28,14 +28,14 @@
 #include <thrust/transform.h>
 #include <ctime>
 
-#include <graph.hpp>
+#include <cugraph/graph.hpp>
 
-#include <utilities/error.hpp>
-#include "experimental/graph.hpp"
-#include "utilities/graph_utils.cuh"
+#include <cugraph/experimental/graph.hpp>
+#include <cugraph/utilities/error.hpp>
+#include <utilities/graph_utils.cuh>
 
-#include <experimental/graph_functions.hpp>
-#include <experimental/graph_view.hpp>
+#include <cugraph/experimental/graph_functions.hpp>
+#include <cugraph/experimental/graph_view.hpp>
 
 #include <utilities/high_res_timer.hpp>
 

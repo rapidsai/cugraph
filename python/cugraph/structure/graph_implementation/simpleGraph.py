@@ -12,6 +12,7 @@
 # limitations under the License.
 
 from cugraph.structure import graph_primtypes_wrapper
+from cugraph.structure.graph_primtypes_wrapper import Direction
 from cugraph.structure.symmetrize import symmetrize
 from cugraph.structure.number_map import NumberMap
 import cugraph.dask.common.mg_utils as mg_utils
@@ -566,7 +567,7 @@ class simpleGraphImpl:
         >>> G.from_cudf_edgelist(M, '0', '1')
         >>> df = G.in_degree([0,9,12])
         """
-        return self._degree(vertex_subset, x=1)
+        return self._degree(vertex_subset, direction=Direction.IN)
 
     def out_degree(self, vertex_subset=None):
         """
@@ -600,7 +601,7 @@ class simpleGraphImpl:
         >>> G.from_cudf_edgelist(M, '0', '1')
         >>> df = G.out_degree([0,9,12])
         """
-        return self._degree(vertex_subset, x=2)
+        return self._degree(vertex_subset, direction=Direction.OUT)
 
     def degree(self, vertex_subset=None):
         """
@@ -690,8 +691,9 @@ class simpleGraphImpl:
 
         return df
 
-    def _degree(self, vertex_subset, x=0):
-        vertex_col, degree_col = graph_primtypes_wrapper._degree(self, x)
+    def _degree(self, vertex_subset, direction=Direction.ALL):
+        vertex_col, degree_col = graph_primtypes_wrapper._degree(self,
+                                                                 direction)
         df = cudf.DataFrame()
         df["vertex"] = vertex_col
         df["degree"] = degree_col
@@ -821,3 +823,9 @@ class simpleGraphImpl:
             return self.renumber_map.from_internal_vertex_id(neighbors)["0"]
         else:
             return neighbors
+
+    def vertex_column_size(self):
+        if self.properties.renumbered:
+            return self.renumber_map.vertex_column_size()
+        else:
+            return 1

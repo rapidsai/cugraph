@@ -25,7 +25,7 @@ import cudf
 from numba import cuda
 import numpy as np
 
-cdef extern from "internals.hpp" namespace "cugraph::internals":
+cdef extern from "cugraph/internals.hpp" namespace "cugraph::internals":
     cdef cppclass GraphBasedDimRedCallback
 
 
@@ -49,6 +49,10 @@ def force_atlas2(input_graph,
     Call force_atlas2
     """
 
+    cdef unique_ptr[handle_t] handle_ptr
+    handle_ptr.reset(new handle_t())
+    handle_ = handle_ptr.get();
+
     if not input_graph.edgelist:
         input_graph.view_edge_list()
 
@@ -61,12 +65,19 @@ def force_atlas2(input_graph,
     df = cudf.DataFrame()
     df['vertex'] = cudf.Series(np.arange(num_verts, dtype=np.int32))
 
-    cdef uintptr_t c_src_indices = input_graph.edgelist.edgelist_df['src'].__cuda_array_interface__['data'][0]
-    cdef uintptr_t c_dst_indices = input_graph.edgelist.edgelist_df['dst'].__cuda_array_interface__['data'][0]
+    src = input_graph.edgelist.edgelist_df['src']
+    dst = input_graph.edgelist.edgelist_df['dst']
+
+    [src, dst] = graph_primtypes_wrapper.datatype_cast([src, dst], [np.int32])
+
+    cdef uintptr_t c_src_indices = src.__cuda_array_interface__['data'][0]
+    cdef uintptr_t c_dst_indices = dst.__cuda_array_interface__['data'][0]
     cdef uintptr_t c_weights = <uintptr_t> NULL
 
     if input_graph.edgelist.weights:
-        c_weights = input_graph.edgelist.edgelist_df['weights'].__cuda_array_interface__['data'][0]
+        weights = input_graph.edgelist.edgelist_df["weights"]
+        [weights] = graph_primtypes_wrapper.datatype_cast([weights], [np.float32, np.float64])
+        c_weights = weights.__cuda_array_interface__['data'][0]
 
     cdef uintptr_t x_start = <uintptr_t>NULL
     cdef uintptr_t y_start = <uintptr_t>NULL
@@ -100,7 +111,8 @@ def force_atlas2(input_graph,
         graph_double = GraphCOOView[int,int, double](<int*>c_src_indices,
                         <int*>c_dst_indices, <double*>c_weights, num_verts, num_edges)
 
-        c_force_atlas2[int, int, double](graph_double,
+        c_force_atlas2[int, int, double](handle_[0],
+                        graph_double,
                         <float*>pos_ptr,
                         <int>max_iter,
                         <float*>x_start,
@@ -121,7 +133,8 @@ def force_atlas2(input_graph,
         graph_float = GraphCOOView[int,int,float](<int*>c_src_indices,
                 <int*>c_dst_indices, <float*>c_weights, num_verts,
                 num_edges)
-        c_force_atlas2[int, int, float](graph_float,
+        c_force_atlas2[int, int, float](handle_[0],
+                graph_float,
                 <float*>pos_ptr,
                 <int>max_iter,
                 <float*>x_start,

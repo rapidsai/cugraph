@@ -17,8 +17,8 @@
 #include <rmm/thrust_rmm_allocator.h>
 #include <Hornet.hpp>
 #include <Static/CoreNumber/CoreNumber.cuh>
-#include <graph.hpp>
-#include <utilities/error.hpp>
+#include <cugraph/graph.hpp>
+#include <cugraph/utilities/error.hpp>
 //#include <nvgraph_gdf.h>
 
 namespace cugraph {

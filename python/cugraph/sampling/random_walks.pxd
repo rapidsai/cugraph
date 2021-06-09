@@ -13,10 +13,16 @@
 #from cugraph.structure.graph_primtypes cimport *
 from cugraph.structure.graph_utilities cimport *
 
-cdef extern from "utilities/cython.hpp" namespace "cugraph::cython":
+cdef extern from "cugraph/utilities/cython.hpp" namespace "cugraph::cython":
     cdef unique_ptr[random_walk_ret_t] call_random_walks[vertex_t, edge_t](
       const handle_t &handle,
       const graph_container_t &g,
       const vertex_t *ptr_d_start,
       edge_t num_paths,
-      edge_t max_depth) except +
+      edge_t max_depth,
+      bool use_padding) except +
+
+    cdef unique_ptr[random_walk_path_t] call_rw_paths[index_t](
+      const handle_t &handle,
+      index_t num_paths,
+      const index_t* sizes) except +
