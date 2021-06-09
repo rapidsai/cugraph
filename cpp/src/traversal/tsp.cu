@@ -19,7 +19,8 @@
 
 #include <utilities/high_res_timer.hpp>
 
-#include "rmm/cuda_stream_view.hpp"
+#include <rmm/cuda_stream_view.hpp>
+
 #include "tsp.hpp"
 #include "tsp_solver.hpp"
 
