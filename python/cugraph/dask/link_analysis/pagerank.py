@@ -73,6 +73,7 @@ def pagerank(input_graph,
     personalization : cudf.Dataframe
         GPU Dataframe containing the personalization information.
         Currently not supported.
+
         personalization['vertex'] : cudf.Series
             Subset of vertices of graph for personalization
         personalization['values'] : cudf.Series
@@ -91,6 +92,7 @@ def pagerank(input_graph,
         acceptable.
     nstart : not supported
         initial guess for pagerank
+
     Returns
     -------
     PageRank : dask_cudf.DataFrame
@@ -117,7 +119,7 @@ def pagerank(input_graph,
                                    edge_attr='value')
     >>> pr = dcg.pagerank(dg)
     """
-    from cugraph.structure.graph import null_check
+    from cugraph.structure.graph_classes import null_check
 
     nstart = None
 

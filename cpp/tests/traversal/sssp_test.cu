@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019-2020, NVIDIA CORPORATION.  All rights reserved.
+ * Copyright (c) 2019-2021, NVIDIA CORPORATION.  All rights reserved.
  *
  * NVIDIA CORPORATION and its licensors retain all intellectual property
  * and proprietary rights in and to this software, related documentation
@@ -13,9 +13,9 @@
 #include <utilities/base_fixture.hpp>
 #include <utilities/test_utilities.hpp>
 
-#include <algorithms.hpp>
 #include <converters/COOtoCSR.cuh>
-#include <graph.hpp>
+#include <cugraph/algorithms.hpp>
+#include <cugraph/graph.hpp>
 
 #include <thrust/fill.h>
 
@@ -425,10 +425,10 @@ TEST_P(Tests_SSSP, CheckFP64_RANDOM_DIST_PREDS)
 
 // --gtest_filter=*simple_test*
 
-INSTANTIATE_TEST_CASE_P(simple_test,
-                        Tests_SSSP,
-                        ::testing::Values(SSSP_Usecase(MTX, "test/datasets/dblp.mtx", 100),
-                                          SSSP_Usecase(MTX, "test/datasets/wiki2003.mtx", 100000),
-                                          SSSP_Usecase(MTX, "test/datasets/karate.mtx", 1)));
+INSTANTIATE_TEST_SUITE_P(simple_test,
+                         Tests_SSSP,
+                         ::testing::Values(SSSP_Usecase(MTX, "test/datasets/dblp.mtx", 100),
+                                           SSSP_Usecase(MTX, "test/datasets/wiki2003.mtx", 100000),
+                                           SSSP_Usecase(MTX, "test/datasets/karate.mtx", 1)));
 
 CUGRAPH_TEST_PROGRAM_MAIN()

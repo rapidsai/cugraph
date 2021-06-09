@@ -28,11 +28,11 @@ def mg_bfs(input_df,
            rank,
            handle,
            start,
+           depth_limit,
            return_distances=False):
     """
-    Call pagerank
+    Call BFS
     """
-
     cdef size_t handle_size_t = <size_t>handle.getHandle()
     handle_ = <c_bfs.handle_t*>handle_size_t
 
@@ -43,12 +43,13 @@ def mg_bfs(input_df,
     if num_global_edges > (2**31 - 1):
         edge_t = np.dtype("int64")
     else:
-        edge_t = np.dtype("int32")
+        edge_t = vertex_t
     if "value" in input_df.columns:
         weights = input_df['value']
         weight_t = weights.dtype
     else:
         weight_t = np.dtype("float32")
+
 
     # FIXME: Offsets and indices are currently hardcoded to int, but this may
     #        not be acceptable in the future.
@@ -81,14 +82,15 @@ def mg_bfs(input_df,
                              num_global_verts, num_global_edges,
                              True,
                              False, # BFS runs on unweighted graphs
+                             False,
                              False, True) 
 
     # Generate the cudf.DataFrame result
     df = cudf.DataFrame()
     df['vertex'] = cudf.Series(np.arange(vertex_partition_offsets.iloc[rank], vertex_partition_offsets.iloc[rank+1]), dtype=vertex_t)
-    df['predecessor'] = cudf.Series(np.zeros(len(df['vertex']), dtype=np.int32))
+    df['predecessor'] = cudf.Series(np.zeros(len(df['vertex']), dtype=vertex_t))
     if (return_distances):
-        df['distance'] = cudf.Series(np.zeros(len(df['vertex']), dtype=np.int32))
+        df['distance'] = cudf.Series(np.zeros(len(df['vertex']), dtype=vertex_t))
 
     # Associate <uintptr_t> to cudf Series
     cdef uintptr_t c_distance_ptr    = <uintptr_t> NULL # Pointer to the DataFrame 'distance' Series
@@ -96,14 +98,28 @@ def mg_bfs(input_df,
     if (return_distances):
         c_distance_ptr = df['distance'].__cuda_array_interface__['data'][0]
 
-    cdef bool direction = <bool> 1
-    # MG BFS path assumes directed is true
-    c_bfs.call_bfs[int, float](handle_[0],
-                               graph_container,
-                               <int*> NULL,
-                               <int*> c_distance_ptr,
-                               <int*> c_predecessor_ptr,
-                               <double*> NULL,
-                               <int> start,
-                               direction)
+    cdef bool direction_optimizing = <bool> 0
+
+    if vertex_t == np.int32:    
+        if depth_limit is None:
+            depth_limit = c_bfs.INT_MAX
+        c_bfs.call_bfs[int, float](handle_[0],
+                                   graph_container,
+                                   <int*> NULL,
+                                   <int*> c_distance_ptr,
+                                   <int*> c_predecessor_ptr,
+                                   <int> depth_limit,
+                                   <int> start,
+                                   direction_optimizing)
+    else:
+        if depth_limit is None:
+            depth_limit = c_bfs.LONG_MAX
+        c_bfs.call_bfs[long, float](handle_[0],
+                                   graph_container,
+                                   <long*> NULL,
+                                   <long*> c_distance_ptr,
+                                   <long*> c_predecessor_ptr,
+                                   <long> depth_limit,
+                                   <long> start,
+                                   direction_optimizing)
     return df

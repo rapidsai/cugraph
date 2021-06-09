@@ -17,12 +17,12 @@
 #include <limits>
 
 #include <rmm/thrust_rmm_allocator.h>
-#include <graph.hpp>
+#include <cugraph/graph.hpp>
 
 #include <thrust/for_each.h>
 #include <thrust/random.h>
 
-#include <utilities/error.hpp>
+#include <cugraph/utilities/error.hpp>
 
 #include <raft/lap/lap.cuh>
 

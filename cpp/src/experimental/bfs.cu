@@ -14,13 +14,13 @@
  * limitations under the License.
  */
 
-#include <algorithms.hpp>
-#include <experimental/graph_view.hpp>
-#include <patterns/reduce_op.cuh>
-#include <patterns/update_frontier_v_push_if_out_nbr.cuh>
-#include <patterns/vertex_frontier.cuh>
-#include <utilities/error.hpp>
-#include <vertex_partition_device.cuh>
+#include <cugraph/algorithms.hpp>
+#include <cugraph/experimental/graph_view.hpp>
+#include <cugraph/patterns/reduce_op.cuh>
+#include <cugraph/patterns/update_frontier_v_push_if_out_nbr.cuh>
+#include <cugraph/patterns/vertex_frontier.cuh>
+#include <cugraph/utilities/error.hpp>
+#include <cugraph/vertex_partition_device.cuh>
 
 #include <rmm/thrust_rmm_allocator.h>
 #include <raft/handle.hpp>
@@ -30,6 +30,7 @@
 #include <thrust/iterator/counting_iterator.h>
 #include <thrust/iterator/discard_iterator.h>
 #include <thrust/iterator/zip_iterator.h>
+#include <thrust/optional.h>
 #include <thrust/transform.h>
 #include <thrust/tuple.h>
 
@@ -91,7 +92,10 @@ void bfs(raft::handle_t const &handle,
   // 3. initialize BFS frontier
 
   enum class Bucket { cur, next, num_buckets };
-  VertexFrontier<vertex_t, GraphViewType::is_multi_gpu, static_cast<size_t>(Bucket::num_buckets)>
+  VertexFrontier<vertex_t,
+                 void,
+                 GraphViewType::is_multi_gpu,
+                 static_cast<size_t>(Bucket::num_buckets)>
     vertex_frontier(handle);
 
   if (push_graph_view.is_local_vertex_nocheck(source_vertex)) {
@@ -123,15 +127,18 @@ void bfs(raft::handle_t const &handle,
               *(distances + vertex_partition.get_local_vertex_offset_from_vertex_nocheck(dst));
             if (distance != invalid_distance) { push = false; }
           }
-          return thrust::make_tuple(push, src);
+          return push ? thrust::optional<vertex_t>{src} : thrust::nullopt;
         },
         reduce_op::any<vertex_t>(),
         distances,
         thrust::make_zip_iterator(thrust::make_tuple(distances, predecessor_first)),
-        [depth] __device__(auto v_val, auto pushed_val) {
-          auto idx = (v_val == invalid_distance) ? static_cast<size_t>(Bucket::next)
-                                                 : VertexFrontier<vertex_t>::kInvalidBucketIdx;
-          return thrust::make_tuple(idx, thrust::make_tuple(depth + 1, pushed_val));
+        [depth] __device__(auto v, auto v_val, auto pushed_val) {
+          return (v_val == invalid_distance)
+                   ? thrust::optional<
+                       thrust::tuple<size_t, thrust::tuple<vertex_t, vertex_t>>>{thrust::make_tuple(
+                       static_cast<size_t>(Bucket::next),
+                       thrust::make_tuple(depth + 1, pushed_val))}
+                   : thrust::nullopt;
         });
 
       vertex_frontier.get_bucket(static_cast<size_t>(Bucket::cur)).clear();

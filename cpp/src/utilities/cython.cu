@@ -14,18 +14,22 @@
  * limitations under the License.
  */
 
-#include <algorithms.hpp>
-#include <experimental/detail/graph_utils.cuh>
-#include <experimental/graph_functions.hpp>
-#include <experimental/graph_view.hpp>
-#include <graph.hpp>
-#include <partition_manager.hpp>
-#include <utilities/cython.hpp>
-#include <utilities/error.hpp>
-#include <utilities/shuffle_comm.cuh>
+#include <cugraph/algorithms.hpp>
+#include <cugraph/experimental/detail/graph_utils.cuh>
+#include <cugraph/experimental/graph_functions.hpp>
+#include <cugraph/experimental/graph_view.hpp>
+#include <cugraph/graph.hpp>
+#include <cugraph/graph_generators.hpp>
+#include <cugraph/partition_manager.hpp>
+#include <cugraph/utilities/cython.hpp>
+#include <cugraph/utilities/error.hpp>
+#include <cugraph/utilities/graph_traits.hpp>
+#include <cugraph/utilities/path_retrieval.hpp>
+#include <cugraph/utilities/shuffle_comm.cuh>
+
+#include <raft/handle.hpp>
 
 #include <rmm/thrust_rmm_allocator.h>
-#include <raft/handle.hpp>
 #include <rmm/device_uvector.hpp>
 
 #include <thrust/copy.h>
@@ -207,6 +211,7 @@ void populate_graph_container(graph_container_t& graph_container,
                               size_t num_global_edges,
                               bool sorted_by_degree,
                               bool is_weighted,
+                              bool is_symmetric,
                               bool transposed,
                               bool multi_gpu)
 {
@@ -244,7 +249,7 @@ void populate_graph_container(graph_container_t& graph_container,
   graph_container.do_expensive_check       = do_expensive_check;
 
   experimental::graph_properties_t graph_props{
-    .is_symmetric = false, .is_multigraph = false, .is_weighted = is_weighted};
+    .is_symmetric = is_symmetric, .is_multigraph = false, .is_weighted = is_weighted};
   graph_container.graph_props = graph_props;
 
   graph_container.graph_type = graphTypeEnum::graph_t;
@@ -689,31 +694,11 @@ void call_bfs(raft::handle_t const& handle,
               vertex_t* identifiers,
               vertex_t* distances,
               vertex_t* predecessors,
-              double* sp_counters,
+              vertex_t depth_limit,
               const vertex_t start_vertex,
-              bool directed)
+              bool direction_optimizing)
 {
-  if (graph_container.graph_type == graphTypeEnum::GraphCSRViewFloat) {
-    graph_container.graph_ptr_union.GraphCSRViewFloatPtr->get_vertex_identifiers(
-      reinterpret_cast<int32_t*>(identifiers));
-    bfs(handle,
-        *(graph_container.graph_ptr_union.GraphCSRViewFloatPtr),
-        reinterpret_cast<int32_t*>(distances),
-        reinterpret_cast<int32_t*>(predecessors),
-        sp_counters,
-        static_cast<int32_t>(start_vertex),
-        directed);
-  } else if (graph_container.graph_type == graphTypeEnum::GraphCSRViewDouble) {
-    graph_container.graph_ptr_union.GraphCSRViewDoublePtr->get_vertex_identifiers(
-      reinterpret_cast<int32_t*>(identifiers));
-    bfs(handle,
-        *(graph_container.graph_ptr_union.GraphCSRViewDoublePtr),
-        reinterpret_cast<int32_t*>(distances),
-        reinterpret_cast<int32_t*>(predecessors),
-        sp_counters,
-        static_cast<int32_t>(start_vertex),
-        directed);
-  } else if (graph_container.graph_type == graphTypeEnum::graph_t) {
+  if (graph_container.is_multi_gpu) {
     if (graph_container.edgeType == numberTypeEnum::int32Type) {
       auto graph =
         detail::create_graph<int32_t, int32_t, weight_t, false, true>(handle, graph_container);
@@ -721,7 +706,9 @@ void call_bfs(raft::handle_t const& handle,
                                  graph->view(),
                                  reinterpret_cast<int32_t*>(distances),
                                  reinterpret_cast<int32_t*>(predecessors),
-                                 static_cast<int32_t>(start_vertex));
+                                 static_cast<int32_t>(start_vertex),
+                                 direction_optimizing,
+                                 static_cast<int32_t>(depth_limit));
     } else if (graph_container.edgeType == numberTypeEnum::int64Type) {
       auto graph =
         detail::create_graph<vertex_t, int64_t, weight_t, false, true>(handle, graph_container);
@@ -729,9 +716,31 @@ void call_bfs(raft::handle_t const& handle,
                                  graph->view(),
                                  reinterpret_cast<vertex_t*>(distances),
                                  reinterpret_cast<vertex_t*>(predecessors),
-                                 static_cast<vertex_t>(start_vertex));
-    } else {
-      CUGRAPH_FAIL("vertexType/edgeType combination unsupported");
+                                 static_cast<vertex_t>(start_vertex),
+                                 direction_optimizing,
+                                 static_cast<vertex_t>(depth_limit));
+    }
+  } else {
+    if (graph_container.edgeType == numberTypeEnum::int32Type) {
+      auto graph =
+        detail::create_graph<int32_t, int32_t, weight_t, false, false>(handle, graph_container);
+      cugraph::experimental::bfs(handle,
+                                 graph->view(),
+                                 reinterpret_cast<int32_t*>(distances),
+                                 reinterpret_cast<int32_t*>(predecessors),
+                                 static_cast<int32_t>(start_vertex),
+                                 direction_optimizing,
+                                 static_cast<int32_t>(depth_limit));
+    } else if (graph_container.edgeType == numberTypeEnum::int64Type) {
+      auto graph =
+        detail::create_graph<vertex_t, int64_t, weight_t, false, false>(handle, graph_container);
+      cugraph::experimental::bfs(handle,
+                                 graph->view(),
+                                 reinterpret_cast<vertex_t*>(distances),
+                                 reinterpret_cast<vertex_t*>(predecessors),
+                                 static_cast<vertex_t>(start_vertex),
+                                 direction_optimizing,
+                                 static_cast<vertex_t>(depth_limit));
     }
   }
 }
@@ -784,6 +793,81 @@ std::unique_ptr<cy_multi_edgelists_t> call_egonet(raft::handle_t const& handle,
     CUGRAPH_FAIL("vertexType/edgeType combination unsupported");
   }
 }
+// Wrapper for graph generate_rmat_edgelist()
+// to expose the API to cython
+// enum class generator_distribution_t { POWER_LAW = 0, UNIFORM };
+template <typename vertex_t>
+std::unique_ptr<graph_generator_t> call_generate_rmat_edgelist(raft::handle_t const& handle,
+                                                               size_t scale,
+                                                               size_t num_edges,
+                                                               double a,
+                                                               double b,
+                                                               double c,
+                                                               uint64_t seed,
+                                                               bool clip_and_flip,
+                                                               bool scramble_vertex_ids)
+{
+  auto src_dst_tuple = cugraph::generate_rmat_edgelist<vertex_t>(
+    handle, scale, num_edges, a, b, c, seed, clip_and_flip);
+
+  if (scramble_vertex_ids) {
+    cugraph::scramble_vertex_ids<vertex_t>(
+      handle, std::get<0>(src_dst_tuple), std::get<1>(src_dst_tuple), vertex_t{0}, seed);
+  }
+
+  graph_generator_t gg_vals{
+    std::make_unique<rmm::device_buffer>(std::get<0>(src_dst_tuple).release()),
+    std::make_unique<rmm::device_buffer>(std::get<1>(src_dst_tuple).release())};
+
+  return std::make_unique<graph_generator_t>(std::move(gg_vals));
+}
+
+template <typename vertex_t>
+std::vector<std::pair<std::unique_ptr<rmm::device_buffer>, std::unique_ptr<rmm::device_buffer>>>
+call_generate_rmat_edgelists(raft::handle_t const& handle,
+                             size_t n_edgelists,
+                             size_t min_scale,
+                             size_t max_scale,
+                             size_t edge_factor,
+                             cugraph::generator_distribution_t size_distribution,
+                             cugraph::generator_distribution_t edge_distribution,
+                             uint64_t seed,
+                             bool clip_and_flip,
+                             bool scramble_vertex_ids)
+{
+  auto src_dst_vec_tuple = cugraph::generate_rmat_edgelists<vertex_t>(handle,
+                                                                      n_edgelists,
+                                                                      min_scale,
+                                                                      max_scale,
+                                                                      edge_factor,
+                                                                      size_distribution,
+                                                                      edge_distribution,
+                                                                      seed,
+                                                                      clip_and_flip);
+
+  if (scramble_vertex_ids) {
+    std::for_each(
+      src_dst_vec_tuple.begin(), src_dst_vec_tuple.end(), [&handle, seed](auto& src_dst_tuple) {
+        cugraph::scramble_vertex_ids<vertex_t>(
+          handle, std::get<0>(src_dst_tuple), std::get<1>(src_dst_tuple), vertex_t{0}, seed);
+      });
+  }
+
+  std::vector<std::pair<std::unique_ptr<rmm::device_buffer>, std::unique_ptr<rmm::device_buffer>>>
+    gg_vec;
+
+  std::transform(
+    src_dst_vec_tuple.begin(),
+    src_dst_vec_tuple.end(),
+    std::back_inserter(gg_vec),
+    [](auto& tpl_dev_uvec) {
+      return std::make_pair(
+        std::move(std::make_unique<rmm::device_buffer>(std::get<0>(tpl_dev_uvec).release())),
+        std::move(std::make_unique<rmm::device_buffer>(std::get<1>(tpl_dev_uvec).release())));
+    });
+
+  return gg_vec;
+}
 
 // Wrapper for random_walks() through a graph container
 // to expose the API to cython.
@@ -795,7 +879,8 @@ call_random_walks(raft::handle_t const& handle,
                   graph_container_t const& graph_container,
                   vertex_t const* ptr_start_set,
                   edge_t num_paths,
-                  edge_t max_depth)
+                  edge_t max_depth,
+                  bool use_padding)
 {
   if (graph_container.weightType == numberTypeEnum::floatType) {
     using weight_t = float;
@@ -804,7 +889,7 @@ call_random_walks(raft::handle_t const& handle,
       detail::create_graph<vertex_t, edge_t, weight_t, false, false>(handle, graph_container);
 
     auto triplet = cugraph::experimental::random_walks(
-      handle, graph->view(), ptr_start_set, num_paths, max_depth);
+      handle, graph->view(), ptr_start_set, num_paths, max_depth, use_padding);
 
     random_walk_ret_t rw_tri{std::get<0>(triplet).size(),
                              std::get<1>(triplet).size(),
@@ -823,7 +908,7 @@ call_random_walks(raft::handle_t const& handle,
       detail::create_graph<vertex_t, edge_t, weight_t, false, false>(handle, graph_container);
 
     auto triplet = cugraph::experimental::random_walks(
-      handle, graph->view(), ptr_start_set, num_paths, max_depth);
+      handle, graph->view(), ptr_start_set, num_paths, max_depth, use_padding);
 
     random_walk_ret_t rw_tri{std::get<0>(triplet).size(),
                              std::get<1>(triplet).size(),
@@ -838,6 +923,41 @@ call_random_walks(raft::handle_t const& handle,
   } else {
     CUGRAPH_FAIL("Unsupported weight type.");
   }
+}
+
+template <typename index_t>
+std::unique_ptr<random_walk_path_t> call_rw_paths(raft::handle_t const& handle,
+                                                  index_t num_paths,
+                                                  index_t const* vertex_path_sizes)
+{
+  auto triplet =
+    cugraph::experimental::query_rw_sizes_offsets<index_t>(handle, num_paths, vertex_path_sizes);
+  random_walk_path_t rw_path_tri{
+    std::make_unique<rmm::device_buffer>(std::get<0>(triplet).release()),
+    std::make_unique<rmm::device_buffer>(std::get<1>(triplet).release()),
+    std::make_unique<rmm::device_buffer>(std::get<2>(triplet).release())};
+  return std::make_unique<random_walk_path_t>(std::move(rw_path_tri));
+}
+
+template <typename vertex_t, typename index_t>
+std::unique_ptr<random_walk_coo_t> random_walks_to_coo(raft::handle_t const& handle,
+                                                       random_walk_ret_t& rw_tri)
+{
+  auto triplet = cugraph::experimental::convert_paths_to_coo<vertex_t, index_t>(
+    handle,
+    static_cast<index_t>(rw_tri.coalesced_sz_v_),
+    static_cast<index_t>(rw_tri.num_paths_),
+    std::move(*rw_tri.d_coalesced_v_),
+    std::move(*rw_tri.d_sizes_));
+
+  random_walk_coo_t rw_coo{std::get<0>(triplet).size(),
+                           std::get<2>(triplet).size(),
+                           std::make_unique<rmm::device_buffer>(std::get<0>(triplet).release()),
+                           std::make_unique<rmm::device_buffer>(std::get<1>(triplet).release()),
+                           std::move(rw_tri.d_coalesced_w_),  // pass-through
+                           std::make_unique<rmm::device_buffer>(std::get<2>(triplet).release())};
+
+  return std::make_unique<random_walk_coo_t>(std::move(rw_coo));
 }
 
 // Wrapper for calling SSSP through a graph container
@@ -884,6 +1004,41 @@ void call_sssp(raft::handle_t const& handle,
                                   static_cast<vertex_t>(source_vertex));
     } else {
       CUGRAPH_FAIL("vertexType/edgeType combination unsupported");
+    }
+  }
+}
+
+// wrapper for weakly connected components:
+//
+template <typename vertex_t, typename weight_t>
+void call_wcc(raft::handle_t const& handle,
+              graph_container_t const& graph_container,
+              vertex_t* components)
+{
+  if (graph_container.is_multi_gpu) {
+    if (graph_container.edgeType == numberTypeEnum::int32Type) {
+      auto graph =
+        detail::create_graph<int32_t, int32_t, weight_t, false, true>(handle, graph_container);
+      cugraph::experimental::weakly_connected_components(
+        handle, graph->view(), reinterpret_cast<int32_t*>(components), false);
+
+    } else if (graph_container.edgeType == numberTypeEnum::int64Type) {
+      auto graph =
+        detail::create_graph<vertex_t, int64_t, weight_t, false, true>(handle, graph_container);
+      cugraph::experimental::weakly_connected_components(
+        handle, graph->view(), reinterpret_cast<vertex_t*>(components), false);
+    }
+  } else {
+    if (graph_container.edgeType == numberTypeEnum::int32Type) {
+      auto graph =
+        detail::create_graph<int32_t, int32_t, weight_t, false, false>(handle, graph_container);
+      cugraph::experimental::weakly_connected_components(
+        handle, graph->view(), reinterpret_cast<int32_t*>(components), false);
+    } else if (graph_container.edgeType == numberTypeEnum::int64Type) {
+      auto graph =
+        detail::create_graph<vertex_t, int64_t, weight_t, false, false>(handle, graph_container);
+      cugraph::experimental::weakly_connected_components(
+        handle, graph->view(), reinterpret_cast<vertex_t*>(components), false);
     }
   }
 }
@@ -1011,10 +1166,11 @@ std::unique_ptr<renum_quad_t<vertex_t, edge_t>> call_renumber(
     std::tie(
       p_ret->get_dv(), p_ret->get_partition(), p_ret->get_num_vertices(), p_ret->get_num_edges()) =
       cugraph::experimental::renumber_edgelist<vertex_t, edge_t, true>(
-        handle, major_ptrs, minor_ptrs, edge_counts, do_expensive_check);
+        handle, std::nullopt, major_ptrs, minor_ptrs, edge_counts, do_expensive_check);
   } else {
     p_ret->get_dv() = cugraph::experimental::renumber_edgelist<vertex_t, edge_t, false>(
       handle,
+      std::nullopt,
       shuffled_edgelist_major_vertices,
       shuffled_edgelist_minor_vertices,
       edge_counts[0],
@@ -1149,36 +1305,37 @@ template void call_bfs<int32_t, float>(raft::handle_t const& handle,
                                        int32_t* identifiers,
                                        int32_t* distances,
                                        int32_t* predecessors,
-                                       double* sp_counters,
+                                       int32_t depth_limit,
                                        const int32_t start_vertex,
-                                       bool directed);
+                                       bool direction_optimizing);
 
 template void call_bfs<int32_t, double>(raft::handle_t const& handle,
                                         graph_container_t const& graph_container,
                                         int32_t* identifiers,
                                         int32_t* distances,
                                         int32_t* predecessors,
-                                        double* sp_counters,
+                                        int32_t depth_limit,
                                         const int32_t start_vertex,
-                                        bool directed);
+                                        bool direction_optimizing);
 
 template void call_bfs<int64_t, float>(raft::handle_t const& handle,
                                        graph_container_t const& graph_container,
                                        int64_t* identifiers,
                                        int64_t* distances,
                                        int64_t* predecessors,
-                                       double* sp_counters,
+                                       int64_t depth_limit,
                                        const int64_t start_vertex,
-                                       bool directed);
+                                       bool direction_optimizing);
 
 template void call_bfs<int64_t, double>(raft::handle_t const& handle,
                                         graph_container_t const& graph_container,
                                         int64_t* identifiers,
                                         int64_t* distances,
                                         int64_t* predecessors,
-                                        double* sp_counters,
+                                        int64_t depth_limit,
                                         const int64_t start_vertex,
-                                        bool directed);
+                                        bool direction_optimizing);
+
 template std::unique_ptr<cy_multi_edgelists_t> call_egonet<int32_t, float>(
   raft::handle_t const& handle,
   graph_container_t const& graph_container,
@@ -1212,21 +1369,39 @@ template std::unique_ptr<random_walk_ret_t> call_random_walks<int32_t, int32_t>(
   graph_container_t const& graph_container,
   int32_t const* ptr_start_set,
   int32_t num_paths,
-  int32_t max_depth);
+  int32_t max_depth,
+  bool use_padding);
 
 template std::unique_ptr<random_walk_ret_t> call_random_walks<int32_t, int64_t>(
   raft::handle_t const& handle,
   graph_container_t const& graph_container,
   int32_t const* ptr_start_set,
   int64_t num_paths,
-  int64_t max_depth);
+  int64_t max_depth,
+  bool use_padding);
 
 template std::unique_ptr<random_walk_ret_t> call_random_walks<int64_t, int64_t>(
   raft::handle_t const& handle,
   graph_container_t const& graph_container,
   int64_t const* ptr_start_set,
   int64_t num_paths,
-  int64_t max_depth);
+  int64_t max_depth,
+  bool use_padding);
+
+template std::unique_ptr<random_walk_path_t> call_rw_paths<int32_t>(
+  raft::handle_t const& handle, int32_t num_paths, int32_t const* vertex_path_sizes);
+
+template std::unique_ptr<random_walk_path_t> call_rw_paths<int64_t>(
+  raft::handle_t const& handle, int64_t num_paths, int64_t const* vertex_path_sizes);
+
+template std::unique_ptr<random_walk_coo_t> random_walks_to_coo<int32_t, int32_t>(
+  raft::handle_t const& handle, random_walk_ret_t& rw_tri);
+
+template std::unique_ptr<random_walk_coo_t> random_walks_to_coo<int32_t, int64_t>(
+  raft::handle_t const& handle, random_walk_ret_t& rw_tri);
+
+template std::unique_ptr<random_walk_coo_t> random_walks_to_coo<int64_t, int64_t>(
+  raft::handle_t const& handle, random_walk_ret_t& rw_tri);
 
 template void call_sssp(raft::handle_t const& handle,
                         graph_container_t const& graph_container,
@@ -1255,6 +1430,22 @@ template void call_sssp(raft::handle_t const& handle,
                         double* distances,
                         int64_t* predecessors,
                         const int64_t source_vertex);
+
+template void call_wcc<int32_t, float>(raft::handle_t const& handle,
+                                       graph_container_t const& graph_container,
+                                       int32_t* components);
+
+template void call_wcc<int32_t, double>(raft::handle_t const& handle,
+                                        graph_container_t const& graph_container,
+                                        int32_t* components);
+
+template void call_wcc<int64_t, float>(raft::handle_t const& handle,
+                                       graph_container_t const& graph_container,
+                                       int64_t* components);
+
+template void call_wcc<int64_t, double>(raft::handle_t const& handle,
+                                        graph_container_t const& graph_container,
+                                        int64_t* components);
 
 template std::unique_ptr<major_minor_weights_t<int32_t, int32_t, float>> call_shuffle(
   raft::handle_t const& handle,
@@ -1323,6 +1514,54 @@ template std::unique_ptr<renum_quad_t<int64_t, int64_t>> call_renumber(
   std::vector<int64_t> const& edge_counts,
   bool do_expensive_check,
   bool multi_gpu);
+
+template std::unique_ptr<graph_generator_t> call_generate_rmat_edgelist<int32_t>(
+  raft::handle_t const& handle,
+  size_t scale,
+  size_t num_edges,
+  double a,
+  double b,
+  double c,
+  uint64_t seed,
+  bool clip_and_flip,
+  bool scramble_vertex_ids);
+
+template std::unique_ptr<graph_generator_t> call_generate_rmat_edgelist<int64_t>(
+  raft::handle_t const& handle,
+  size_t scale,
+  size_t num_edges,
+  double a,
+  double b,
+  double c,
+  uint64_t seed,
+  bool clip_and_flip,
+  bool scramble_vertex_ids);
+
+template std::vector<
+  std::pair<std::unique_ptr<rmm::device_buffer>, std::unique_ptr<rmm::device_buffer>>>
+call_generate_rmat_edgelists<int32_t>(raft::handle_t const& handle,
+                                      size_t n_edgelists,
+                                      size_t min_scale,
+                                      size_t max_scale,
+                                      size_t edge_factor,
+                                      cugraph::generator_distribution_t size_distribution,
+                                      cugraph::generator_distribution_t edge_distribution,
+                                      uint64_t seed,
+                                      bool clip_and_flip,
+                                      bool scramble_vertex_ids);
+
+template std::vector<
+  std::pair<std::unique_ptr<rmm::device_buffer>, std::unique_ptr<rmm::device_buffer>>>
+call_generate_rmat_edgelists<int64_t>(raft::handle_t const& handle,
+                                      size_t n_edgelists,
+                                      size_t min_scale,
+                                      size_t max_scale,
+                                      size_t edge_factor,
+                                      cugraph::generator_distribution_t size_distribution,
+                                      cugraph::generator_distribution_t edge_distribution,
+                                      uint64_t seed,
+                                      bool clip_and_flip,
+                                      bool scramble_vertex_ids);
 
 }  // namespace cython
 }  // namespace cugraph

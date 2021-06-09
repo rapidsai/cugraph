@@ -16,10 +16,10 @@
 #include <utilities/base_fixture.hpp>
 #include <utilities/test_utilities.hpp>
 
-#include <algorithms.hpp>
 #include <components/scc_matrix.cuh>
 #include <converters/COOtoCSR.cuh>
-#include <graph.hpp>
+#include <cugraph/algorithms.hpp>
+#include <cugraph/graph.hpp>
 #include <topology/topology.cuh>
 
 #include <cuda_profiler_api.h>
@@ -211,7 +211,7 @@ std::vector<int> Tests_Strongly_CC::strongly_cc_counts;
 TEST_P(Tests_Strongly_CC, Strongly_CC) { run_current_test(GetParam()); }
 
 // --gtest_filter=*simple_test*
-INSTANTIATE_TEST_CASE_P(
+INSTANTIATE_TEST_SUITE_P(
   simple_test,
   Tests_Strongly_CC,
   ::testing::Values(

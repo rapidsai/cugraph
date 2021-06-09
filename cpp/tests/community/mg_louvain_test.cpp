@@ -17,10 +17,12 @@
 #include "mg_louvain_helper.hpp"
 
 #include <utilities/base_fixture.hpp>
+#include <utilities/device_comm_wrapper.hpp>
 #include <utilities/test_utilities.hpp>
 
-#include <algorithms.hpp>
-#include <partition_manager.hpp>
+#include <cugraph/algorithms.hpp>
+#include <cugraph/experimental/graph_functions.hpp>
+#include <cugraph/partition_manager.hpp>
 
 #include <raft/cudart_utils.h>
 #include <raft/comms/comms.hpp>
@@ -43,7 +45,7 @@ void compare(double mg_modularity, double sg_modularity)
 ////////////////////////////////////////////////////////////////////////////////
 // Test param object. This defines the input and expected output for a test, and
 // will be instantiated as the parameter to the tests defined below using
-// INSTANTIATE_TEST_CASE_P()
+// INSTANTIATE_TEST_SUITE_P()
 //
 struct Louvain_Usecase {
   std::string graph_file_full_path{};
@@ -128,14 +130,14 @@ class Louvain_MG_Testfixture : public ::testing::TestWithParam<Louvain_Usecase> 
         handle, d_edgelist_rows, d_edgelist_cols, d_renumber_map_gathered_v);
 
       std::tie(*sg_graph, std::ignore) =
-        cugraph::test::generate_graph_from_edgelist<vertex_t, edge_t, weight_t, false, false>(
+        cugraph::experimental::create_graph_from_edgelist<vertex_t, edge_t, weight_t, false, false>(
           handle,
-          std::move(d_vertices),
+          std::optional<std::tuple<vertex_t const*, vertex_t>>{
+            std::make_tuple(d_vertices.data(), static_cast<vertex_t>(d_vertices.size()))},
           std::move(d_edgelist_rows),
           std::move(d_edgelist_cols),
           std::move(d_edgelist_weights),
-          is_symmetric,
-          true,
+          cugraph::experimental::graph_properties_t{is_symmetric, false, true},
           false);
     }
 
@@ -144,7 +146,7 @@ class Louvain_MG_Testfixture : public ::testing::TestWithParam<Louvain_Usecase> 
       thrust::make_counting_iterator<size_t>(dendrogram.num_levels()),
       [&dendrogram, &sg_graph, &d_clustering_v, &sg_modularity, &handle, resolution, rank](
         size_t i) {
-        auto d_dendrogram_gathered_v = cugraph::test::gather_distributed_vector(
+        auto d_dendrogram_gathered_v = cugraph::test::device_gatherv(
           handle, dendrogram.get_level_ptr_nocheck(i), dendrogram.get_level_size_nocheck(i));
 
         if (rank == 0) {
@@ -155,7 +157,7 @@ class Louvain_MG_Testfixture : public ::testing::TestWithParam<Louvain_Usecase> 
           std::tie(std::ignore, sg_modularity) =
             cugraph::louvain(handle, graph_view, d_clustering_v.data(), size_t{1}, resolution);
 
-          EXPECT_TRUE(cugraph::test::compare_renumbered_vectors(
+          EXPECT_TRUE(cugraph::test::renumbered_vectors_same(
             handle, d_clustering_v, d_dendrogram_gathered_v));
 
           sg_graph =
@@ -207,7 +209,7 @@ class Louvain_MG_Testfixture : public ::testing::TestWithParam<Louvain_Usecase> 
 
     SCOPED_TRACE("compare modularity input: " + param.graph_file_full_path);
 
-    auto d_renumber_map_gathered_v = cugraph::test::gather_distributed_vector(
+    auto d_renumber_map_gathered_v = cugraph::test::device_gatherv(
       handle, d_renumber_map_labels.data(), d_renumber_map_labels.size());
 
     compare_sg_results<vertex_t, edge_t, weight_t>(handle,
@@ -226,7 +228,7 @@ TEST_P(Louvain_MG_Testfixture, CheckInt32Int32Float)
   run_test<int32_t, int32_t, float>(GetParam());
 }
 
-INSTANTIATE_TEST_CASE_P(
+INSTANTIATE_TEST_SUITE_P(
   simple_test,
   Louvain_MG_Testfixture,
   ::testing::Values(Louvain_Usecase("test/datasets/karate.mtx", true, 100, 1)

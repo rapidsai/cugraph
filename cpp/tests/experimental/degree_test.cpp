@@ -17,9 +17,9 @@
 #include <utilities/base_fixture.hpp>
 #include <utilities/test_utilities.hpp>
 
-#include <algorithms.hpp>
-#include <experimental/graph.hpp>
-#include <experimental/graph_view.hpp>
+#include <cugraph/algorithms.hpp>
+#include <cugraph/experimental/graph.hpp>
+#include <cugraph/experimental/graph_view.hpp>
 
 #include <raft/cudart_utils.h>
 #include <raft/handle.hpp>
@@ -157,11 +157,11 @@ TEST_P(Tests_Degree, CheckInt32Int32FloatUntransposed)
   run_current_test<int32_t, int32_t, float, false>(GetParam());
 }
 
-INSTANTIATE_TEST_CASE_P(simple_test,
-                        Tests_Degree,
-                        ::testing::Values(Degree_Usecase("test/datasets/karate.mtx"),
-                                          Degree_Usecase("test/datasets/web-Google.mtx"),
-                                          Degree_Usecase("test/datasets/ljournal-2008.mtx"),
-                                          Degree_Usecase("test/datasets/webbase-1M.mtx")));
+INSTANTIATE_TEST_SUITE_P(simple_test,
+                         Tests_Degree,
+                         ::testing::Values(Degree_Usecase("test/datasets/karate.mtx"),
+                                           Degree_Usecase("test/datasets/web-Google.mtx"),
+                                           Degree_Usecase("test/datasets/ljournal-2008.mtx"),
+                                           Degree_Usecase("test/datasets/webbase-1M.mtx")));
 
 CUGRAPH_TEST_PROGRAM_MAIN()

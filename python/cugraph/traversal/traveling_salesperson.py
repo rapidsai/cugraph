@@ -12,7 +12,7 @@
 # limitations under the License.
 
 from cugraph.traversal import traveling_salesperson_wrapper
-from cugraph.structure.graph import null_check
+from cugraph.structure.graph_classes import null_check
 import cudf
 
 
@@ -29,6 +29,7 @@ def traveling_salesperson(pos_list,
     optimization.
 
     The current implementation does not support a weighted graph.
+
     Parameters
     ----------
     pos_list: cudf.DataFrame

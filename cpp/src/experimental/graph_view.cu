@@ -14,12 +14,12 @@
  * limitations under the License.
  */
 
-#include <experimental/detail/graph_utils.cuh>
-#include <experimental/graph_view.hpp>
-#include <partition_manager.hpp>
-#include <patterns/copy_v_transform_reduce_in_out_nbr.cuh>
-#include <utilities/error.hpp>
-#include <utilities/host_scalar_comm.cuh>
+#include <cugraph/experimental/detail/graph_utils.cuh>
+#include <cugraph/experimental/graph_view.hpp>
+#include <cugraph/partition_manager.hpp>
+#include <cugraph/patterns/copy_v_transform_reduce_in_out_nbr.cuh>
+#include <cugraph/utilities/error.hpp>
+#include <cugraph/utilities/host_scalar_comm.cuh>
 
 #include <raft/cudart_utils.h>
 #include <rmm/thrust_rmm_allocator.h>
@@ -534,9 +534,13 @@ graph_view_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu, std::enabl
   auto it = thrust::max_element(rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
                                 in_degrees.begin(),
                                 in_degrees.end());
-  rmm::device_scalar<edge_t> ret(handle.get_stream());
-  device_allreduce(
-    handle.get_comms(), it, ret.data(), 1, raft::comms::op_t::MAX, handle.get_stream());
+  rmm::device_scalar<edge_t> ret(edge_t{0}, handle.get_stream());
+  device_allreduce(handle.get_comms(),
+                   it != in_degrees.end() ? it : ret.data(),
+                   ret.data(),
+                   1,
+                   raft::comms::op_t::MAX,
+                   handle.get_stream());
   return ret.value(handle.get_stream());
 }
 
@@ -557,8 +561,8 @@ edge_t graph_view_t<vertex_t,
   auto it = thrust::max_element(rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
                                 in_degrees.begin(),
                                 in_degrees.end());
-  edge_t ret{};
-  raft::update_host(&ret, it, 1, handle.get_stream());
+  edge_t ret{0};
+  if (it != in_degrees.end()) { raft::update_host(&ret, it, 1, handle.get_stream()); }
   handle.get_stream_view().synchronize();
   return ret;
 }
@@ -576,9 +580,13 @@ graph_view_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu, std::enabl
   auto it = thrust::max_element(rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
                                 out_degrees.begin(),
                                 out_degrees.end());
-  rmm::device_scalar<edge_t> ret(handle.get_stream());
-  device_allreduce(
-    handle.get_comms(), it, ret.data(), 1, raft::comms::op_t::MAX, handle.get_stream());
+  rmm::device_scalar<edge_t> ret(edge_t{0}, handle.get_stream());
+  device_allreduce(handle.get_comms(),
+                   it != out_degrees.end() ? it : ret.data(),
+                   ret.data(),
+                   1,
+                   raft::comms::op_t::MAX,
+                   handle.get_stream());
   return ret.value(handle.get_stream());
 }
 
@@ -599,8 +607,8 @@ edge_t graph_view_t<vertex_t,
   auto it = thrust::max_element(rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
                                 out_degrees.begin(),
                                 out_degrees.end());
-  edge_t ret{};
-  raft::update_host(&ret, it, 1, handle.get_stream());
+  edge_t ret{0};
+  if (it != out_degrees.end()) { raft::update_host(&ret, it, 1, handle.get_stream()); }
   handle.get_stream_view().synchronize();
   return ret;
 }
@@ -618,9 +626,13 @@ graph_view_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu, std::enabl
   auto it = thrust::max_element(rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
                                 in_weight_sums.begin(),
                                 in_weight_sums.end());
-  rmm::device_scalar<weight_t> ret(handle.get_stream());
-  device_allreduce(
-    handle.get_comms(), it, ret.data(), 1, raft::comms::op_t::MAX, handle.get_stream());
+  rmm::device_scalar<weight_t> ret(weight_t{0.0}, handle.get_stream());
+  device_allreduce(handle.get_comms(),
+                   it != in_weight_sums.end() ? it : ret.data(),
+                   ret.data(),
+                   1,
+                   raft::comms::op_t::MAX,
+                   handle.get_stream());
   return ret.value(handle.get_stream());
 }
 
@@ -641,8 +653,8 @@ weight_t graph_view_t<vertex_t,
   auto it = thrust::max_element(rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
                                 in_weight_sums.begin(),
                                 in_weight_sums.end());
-  weight_t ret{};
-  raft::update_host(&ret, it, 1, handle.get_stream());
+  weight_t ret{0.0};
+  if (it != in_weight_sums.end()) { raft::update_host(&ret, it, 1, handle.get_stream()); }
   handle.get_stream_view().synchronize();
   return ret;
 }
@@ -660,9 +672,13 @@ graph_view_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu, std::enabl
   auto it = thrust::max_element(rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
                                 out_weight_sums.begin(),
                                 out_weight_sums.end());
-  rmm::device_scalar<weight_t> ret(handle.get_stream());
-  device_allreduce(
-    handle.get_comms(), it, ret.data(), 1, raft::comms::op_t::MAX, handle.get_stream());
+  rmm::device_scalar<weight_t> ret(weight_t{0.0}, handle.get_stream());
+  device_allreduce(handle.get_comms(),
+                   it != out_weight_sums.end() ? it : ret.data(),
+                   ret.data(),
+                   1,
+                   raft::comms::op_t::MAX,
+                   handle.get_stream());
   return ret.value(handle.get_stream());
 }
 
@@ -683,8 +699,8 @@ weight_t graph_view_t<
   auto it = thrust::max_element(rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
                                 out_weight_sums.begin(),
                                 out_weight_sums.end());
-  weight_t ret{};
-  raft::update_host(&ret, it, 1, handle.get_stream());
+  weight_t ret{0.0};
+  if (it != out_weight_sums.end()) { raft::update_host(&ret, it, 1, handle.get_stream()); }
   handle.get_stream_view().synchronize();
   return ret;
 }

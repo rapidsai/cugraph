@@ -16,13 +16,14 @@
 
 #include <utilities/high_res_clock.h>
 #include <utilities/base_fixture.hpp>
+#include <utilities/test_graphs.hpp>
 #include <utilities/test_utilities.hpp>
 #include <utilities/thrust_wrapper.hpp>
 
-#include <algorithms.hpp>
-#include <experimental/graph.hpp>
-#include <experimental/graph_functions.hpp>
-#include <experimental/graph_view.hpp>
+#include <cugraph/algorithms.hpp>
+#include <cugraph/experimental/graph.hpp>
+#include <cugraph/experimental/graph_functions.hpp>
+#include <cugraph/experimental/graph_view.hpp>
 
 #include <raft/cudart_utils.h>
 #include <raft/handle.hpp>
@@ -81,63 +82,13 @@ void bfs_reference(edge_t const* offsets,
   return;
 }
 
-typedef struct BFS_Usecase_t {
-  cugraph::test::input_graph_specifier_t input_graph_specifier{};
-
+struct BFS_Usecase {
   size_t source{0};
-  bool check_correctness{false};
+  bool check_correctness{true};
+};
 
-  BFS_Usecase_t(std::string const& graph_file_path, size_t source, bool check_correctness = true)
-    : source(source), check_correctness(check_correctness)
-  {
-    std::string graph_file_full_path{};
-    if ((graph_file_path.length() > 0) && (graph_file_path[0] != '/')) {
-      graph_file_full_path = cugraph::test::get_rapids_dataset_root_dir() + "/" + graph_file_path;
-    } else {
-      graph_file_full_path = graph_file_path;
-    }
-    input_graph_specifier.tag = cugraph::test::input_graph_specifier_t::MATRIX_MARKET_FILE_PATH;
-    input_graph_specifier.graph_file_full_path = graph_file_full_path;
-  };
-
-  BFS_Usecase_t(cugraph::test::rmat_params_t rmat_params,
-                size_t source,
-                bool check_correctness = true)
-    : source(source), check_correctness(check_correctness)
-  {
-    input_graph_specifier.tag         = cugraph::test::input_graph_specifier_t::RMAT_PARAMS;
-    input_graph_specifier.rmat_params = rmat_params;
-  }
-} BFS_Usecase;
-
-template <typename vertex_t, typename edge_t, typename weight_t>
-std::tuple<cugraph::experimental::graph_t<vertex_t, edge_t, weight_t, false, false>,
-           rmm::device_uvector<vertex_t>>
-read_graph(raft::handle_t const& handle, BFS_Usecase const& configuration, bool renumber)
-{
-  return configuration.input_graph_specifier.tag ==
-             cugraph::test::input_graph_specifier_t::MATRIX_MARKET_FILE_PATH
-           ? cugraph::test::
-               read_graph_from_matrix_market_file<vertex_t, edge_t, weight_t, false, false>(
-                 handle, configuration.input_graph_specifier.graph_file_full_path, false, renumber)
-           : cugraph::test::
-               generate_graph_from_rmat_params<vertex_t, edge_t, weight_t, false, false>(
-                 handle,
-                 configuration.input_graph_specifier.rmat_params.scale,
-                 configuration.input_graph_specifier.rmat_params.edge_factor,
-                 configuration.input_graph_specifier.rmat_params.a,
-                 configuration.input_graph_specifier.rmat_params.b,
-                 configuration.input_graph_specifier.rmat_params.c,
-                 configuration.input_graph_specifier.rmat_params.seed,
-                 configuration.input_graph_specifier.rmat_params.undirected,
-                 configuration.input_graph_specifier.rmat_params.scramble_vertex_ids,
-                 false,
-                 renumber,
-                 std::vector<size_t>{0},
-                 size_t{1});
-}
-
-class Tests_BFS : public ::testing::TestWithParam<BFS_Usecase> {
+template <typename input_usecase_t>
+class Tests_BFS : public ::testing::TestWithParam<std::tuple<BFS_Usecase, input_usecase_t>> {
  public:
   Tests_BFS() {}
   static void SetupTestCase() {}
@@ -147,7 +98,7 @@ class Tests_BFS : public ::testing::TestWithParam<BFS_Usecase> {
   virtual void TearDown() {}
 
   template <typename vertex_t, typename edge_t>
-  void run_current_test(BFS_Usecase const& configuration)
+  void run_current_test(BFS_Usecase const& bfs_usecase, input_usecase_t const& input_usecase)
   {
     constexpr bool renumber = true;
 
@@ -163,17 +114,19 @@ class Tests_BFS : public ::testing::TestWithParam<BFS_Usecase> {
     cugraph::experimental::graph_t<vertex_t, edge_t, weight_t, false, false> graph(handle);
     rmm::device_uvector<vertex_t> d_renumber_map_labels(0, handle.get_stream());
     std::tie(graph, d_renumber_map_labels) =
-      read_graph<vertex_t, edge_t, weight_t>(handle, configuration, renumber);
+      input_usecase.template construct_graph<vertex_t, edge_t, weight_t, false, false>(
+        handle, true, renumber);
+
     if (PERF) {
       CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
       double elapsed_time{0.0};
       hr_clock.stop(&elapsed_time);
-      std::cout << "read_graph took " << elapsed_time * 1e-6 << " s.\n";
+      std::cout << "construct_graph took " << elapsed_time * 1e-6 << " s.\n";
     }
     auto graph_view = graph.view();
 
-    ASSERT_TRUE(static_cast<vertex_t>(configuration.source) >= 0 &&
-                static_cast<vertex_t>(configuration.source) < graph_view.get_number_of_vertices())
+    ASSERT_TRUE(static_cast<vertex_t>(bfs_usecase.source) >= 0 &&
+                static_cast<vertex_t>(bfs_usecase.source) < graph_view.get_number_of_vertices())
       << "Invalid starting source.";
 
     rmm::device_uvector<vertex_t> d_distances(graph_view.get_number_of_vertices(),
@@ -190,7 +143,7 @@ class Tests_BFS : public ::testing::TestWithParam<BFS_Usecase> {
                                graph_view,
                                d_distances.data(),
                                d_predecessors.data(),
-                               static_cast<vertex_t>(configuration.source),
+                               static_cast<vertex_t>(bfs_usecase.source),
                                false,
                                std::numeric_limits<vertex_t>::max());
 
@@ -201,12 +154,13 @@ class Tests_BFS : public ::testing::TestWithParam<BFS_Usecase> {
       std::cout << "BFS took " << elapsed_time * 1e-6 << " s.\n";
     }
 
-    if (configuration.check_correctness) {
+    if (bfs_usecase.check_correctness) {
       cugraph::experimental::graph_t<vertex_t, edge_t, weight_t, false, false> unrenumbered_graph(
         handle);
       if (renumber) {
         std::tie(unrenumbered_graph, std::ignore) =
-          read_graph<vertex_t, edge_t, weight_t>(handle, configuration, false);
+          input_usecase.template construct_graph<vertex_t, edge_t, weight_t, false, false>(
+            handle, true, false);
       }
       auto unrenumbered_graph_view = renumber ? unrenumbered_graph.view() : graph_view;
 
@@ -223,7 +177,7 @@ class Tests_BFS : public ::testing::TestWithParam<BFS_Usecase> {
 
       handle.get_stream_view().synchronize();
 
-      auto unrenumbered_source = static_cast<vertex_t>(configuration.source);
+      auto unrenumbered_source = static_cast<vertex_t>(bfs_usecase.source);
       if (renumber) {
         std::vector<vertex_t> h_renumber_map_labels(d_renumber_map_labels.size());
         raft::update_host(h_renumber_map_labels.data(),
@@ -233,7 +187,7 @@ class Tests_BFS : public ::testing::TestWithParam<BFS_Usecase> {
 
         handle.get_stream_view().synchronize();
 
-        unrenumbered_source = h_renumber_map_labels[configuration.source];
+        unrenumbered_source = h_renumber_map_labels[bfs_usecase.source];
       }
 
       std::vector<vertex_t> h_reference_distances(unrenumbered_graph_view.get_number_of_vertices());
@@ -259,12 +213,15 @@ class Tests_BFS : public ::testing::TestWithParam<BFS_Usecase> {
                                                              graph_view.get_number_of_vertices(),
                                                              true);
 
-        auto d_unrenumbered_distances = cugraph::test::sort_by_key(
+        rmm::device_uvector<vertex_t> d_unrenumbered_distances(size_t{0}, handle.get_stream());
+        std::tie(std::ignore, d_unrenumbered_distances) = cugraph::test::sort_by_key(
           handle, d_renumber_map_labels.data(), d_distances.data(), d_renumber_map_labels.size());
-        auto d_unrenumbered_predecessors = cugraph::test::sort_by_key(handle,
-                                                                      d_renumber_map_labels.data(),
-                                                                      d_predecessors.data(),
-                                                                      d_renumber_map_labels.size());
+        rmm::device_uvector<vertex_t> d_unrenumbered_predecessors(size_t{0}, handle.get_stream());
+        std::tie(std::ignore, d_unrenumbered_predecessors) =
+          cugraph::test::sort_by_key(handle,
+                                     d_renumber_map_labels.data(),
+                                     d_predecessors.data(),
+                                     d_renumber_map_labels.size());
         raft::update_host(h_cugraph_distances.data(),
                           d_unrenumbered_distances.data(),
                           d_unrenumbered_distances.size(),
@@ -312,24 +269,49 @@ class Tests_BFS : public ::testing::TestWithParam<BFS_Usecase> {
   }
 };
 
-// FIXME: add tests for type combinations
-TEST_P(Tests_BFS, CheckInt32Int32) { run_current_test<int32_t, int32_t>(GetParam()); }
+using Tests_BFS_File = Tests_BFS<cugraph::test::File_Usecase>;
+using Tests_BFS_Rmat = Tests_BFS<cugraph::test::Rmat_Usecase>;
 
-INSTANTIATE_TEST_CASE_P(
-  simple_test,
-  Tests_BFS,
+// FIXME: add tests for type combinations
+TEST_P(Tests_BFS_File, CheckInt32Int32)
+{
+  auto param = GetParam();
+  run_current_test<int32_t, int32_t>(std::get<0>(param), std::get<1>(param));
+}
+
+TEST_P(Tests_BFS_Rmat, CheckInt32Int32)
+{
+  auto param = GetParam();
+  run_current_test<int32_t, int32_t>(std::get<0>(param), std::get<1>(param));
+}
+
+INSTANTIATE_TEST_SUITE_P(
+  file_test,
+  Tests_BFS_File,
   ::testing::Values(
     // enable correctness checks
-    BFS_Usecase("test/datasets/karate.mtx", 0),
-    BFS_Usecase("test/datasets/polbooks.mtx", 0),
-    BFS_Usecase("test/datasets/netscience.mtx", 0),
-    BFS_Usecase("test/datasets/netscience.mtx", 100),
-    BFS_Usecase("test/datasets/wiki2003.mtx", 1000),
-    BFS_Usecase("test/datasets/wiki-Talk.mtx", 1000),
-    BFS_Usecase(cugraph::test::rmat_params_t{10, 16, 0.57, 0.19, 0.19, 0, false, false}, 0),
+    std::make_tuple(BFS_Usecase{0}, cugraph::test::File_Usecase("test/datasets/karate.mtx")),
+    std::make_tuple(BFS_Usecase{0}, cugraph::test::File_Usecase("test/datasets/polbooks.mtx")),
+    std::make_tuple(BFS_Usecase{0}, cugraph::test::File_Usecase("test/datasets/netscience.mtx")),
+    std::make_tuple(BFS_Usecase{100}, cugraph::test::File_Usecase("test/datasets/netscience.mtx")),
+    std::make_tuple(BFS_Usecase{1000}, cugraph::test::File_Usecase("test/datasets/wiki2003.mtx")),
+    std::make_tuple(BFS_Usecase{1000},
+                    cugraph::test::File_Usecase("test/datasets/wiki-Talk.mtx"))));
+
+INSTANTIATE_TEST_SUITE_P(
+  rmat_small_test,
+  Tests_BFS_Rmat,
+  ::testing::Values(
+    // enable correctness checks
+    std::make_tuple(BFS_Usecase{0},
+                    cugraph::test::Rmat_Usecase(10, 16, 0.57, 0.19, 0.19, 0, false, false))));
+
+INSTANTIATE_TEST_SUITE_P(
+  rmat_large_test,
+  Tests_BFS_Rmat,
+  ::testing::Values(
     // disable correctness checks for large graphs
-    BFS_Usecase(cugraph::test::rmat_params_t{20, 32, 0.57, 0.19, 0.19, 0, false, false},
-                0,
-                false)));
+    std::make_pair(BFS_Usecase{0, false},
+                   cugraph::test::Rmat_Usecase(20, 32, 0.57, 0.19, 0.19, 0, false, false))));
 
 CUGRAPH_TEST_PROGRAM_MAIN()

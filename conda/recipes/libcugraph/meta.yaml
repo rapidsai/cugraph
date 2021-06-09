@@ -1,7 +1,7 @@
 # Copyright (c) 2018-2021, NVIDIA CORPORATION.
 
 # Usage:
-#   conda build -c nvidia -c rapidsai -c conda-forge -c defaults .
+#   conda build -c nvidia -c rapidsai -c conda-forge .
 {% set version = environ.get('GIT_DESCRIBE_TAG', '0.0.0.dev').lstrip('v') + environ.get('VERSION_SUFFIX', '') %}
 {% set minor_version =  version.split('.')[0] + '.' + version.split('.')[1] %}
 {% set cuda_version='.'.join(environ.get('CUDA', '9.2').split('.')[:2]) %}
@@ -31,11 +31,11 @@ build:
 
 requirements:
   build:
-    - cmake>=3.12.4
+    - cmake>=3.20.1
     - cudatoolkit {{ cuda_version }}.*
     - librmm {{ minor_version }}.*
     - boost-cpp>=1.66
-    - nccl>=2.8.4
+    - nccl>=2.9.9
     - ucx-proc=*=gpu
     - gtest
     - gmock
@@ -43,7 +43,7 @@ requirements:
     - conda-forge::libfaiss=1.7.0
   run:
     - {{ pin_compatible('cudatoolkit', max_pin='x.x') }}
-    - nccl>=2.8.4
+    - nccl>=2.9.9
     - ucx-proc=*=gpu
     - faiss-proc=*=cuda
     - conda-forge::libfaiss=1.7.0

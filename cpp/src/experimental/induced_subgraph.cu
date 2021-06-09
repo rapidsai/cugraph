@@ -14,11 +14,11 @@
  * limitations under the License.
  */
 
-#include <experimental/graph_functions.hpp>
-#include <experimental/graph_view.hpp>
-#include <matrix_partition_device.cuh>
-#include <utilities/error.hpp>
-#include <vertex_partition_device.cuh>
+#include <cugraph/experimental/graph_functions.hpp>
+#include <cugraph/experimental/graph_view.hpp>
+#include <cugraph/matrix_partition_device.cuh>
+#include <cugraph/utilities/error.hpp>
+#include <cugraph/vertex_partition_device.cuh>
 
 #include <rmm/thrust_rmm_allocator.h>
 #include <raft/handle.hpp>

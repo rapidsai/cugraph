@@ -16,8 +16,8 @@
 
 #pragma once
 
+#include <cugraph/utilities/error.hpp>
 #include <utilities/cxxopts.hpp>
-#include <utilities/error.hpp>
 
 #include <gtest/gtest.h>
 
@@ -95,7 +95,7 @@ inline std::shared_ptr<rmm::mr::device_memory_resource> create_memory_resource(
   if (allocation_mode == "binning") return make_binning();
   if (allocation_mode == "cuda") return make_cuda();
   if (allocation_mode == "pool") return make_pool();
-  if (allocation_mode == "managed") make_managed();
+  if (allocation_mode == "managed") return make_managed();
   CUGRAPH_FAIL("Invalid RMM allocation mode");
 }
 
@@ -160,11 +160,6 @@ inline auto parse_test_options(int argc, char **argv)
     auto const cmd_opts = parse_test_options(argc, argv);                             \
     auto const rmm_mode = cmd_opts["rmm_mode"].as<std::string>();                     \
     auto resource       = cugraph::test::create_memory_resource(rmm_mode);            \
-                                                                                      \
-    if (comm_rank != 0) {                                                             \
-      auto &listeners = ::testing::UnitTest::GetInstance()->listeners();              \
-      delete listeners.Release(listeners.default_result_printer());                   \
-    }                                                                                 \
     rmm::mr::set_current_device_resource(resource.get());                             \
     auto ret = RUN_ALL_TESTS();                                                       \
     MPI_TRY(MPI_Finalize());                                                          \

@@ -1,4 +1,4 @@
-# Copyright (c) 2019-2020, NVIDIA CORPORATION.
+# Copyright (c) 2019-2021, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -13,11 +13,11 @@
 
 import pandas as pd
 import cudf
-from cugraph.structure.graph import Graph
+from cugraph.structure.graph_classes import Graph
 from cugraph.link_prediction import jaccard_wrapper
-from cugraph.structure.graph import null_check
 from cugraph.utilities import check_nx_graph
 from cugraph.utilities import df_edge_score_to_dictionary
+from cugraph.utilities import renumber_vertex_pair
 
 
 def jaccard(input_graph, vertex_pair=None):
@@ -109,15 +109,8 @@ def jaccard(input_graph, vertex_pair=None):
     if type(input_graph) is not Graph:
         raise Exception("input graph must be undirected")
 
-    # FIXME: Add support for multi-column vertices
     if type(vertex_pair) == cudf.DataFrame:
-        for col in vertex_pair.columns:
-            null_check(vertex_pair[col])
-            if input_graph.renumbered:
-                vertex_pair = input_graph.add_internal_vertex_id(
-                    vertex_pair, col, col
-                )
-
+        vertex_pair = renumber_vertex_pair(input_graph, vertex_pair)
     elif vertex_pair is None:
         pass
     else:

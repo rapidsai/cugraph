@@ -18,7 +18,7 @@
 
 from cugraph.centrality.betweenness_centrality cimport edge_betweenness_centrality as c_edge_betweenness_centrality
 from cugraph.structure import graph_primtypes_wrapper
-from cugraph.structure.graph import DiGraph, Graph
+from cugraph.structure.graph_classes import DiGraph, Graph
 from cugraph.structure.graph_primtypes cimport *
 from libc.stdint cimport uintptr_t
 from libcpp cimport bool

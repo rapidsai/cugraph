@@ -14,11 +14,11 @@
  * limitations under the License.
  */
 
-#include <experimental/detail/graph_utils.cuh>
-#include <experimental/graph.hpp>
-#include <partition_manager.hpp>
-#include <utilities/error.hpp>
-#include <utilities/host_scalar_comm.cuh>
+#include <cugraph/experimental/detail/graph_utils.cuh>
+#include <cugraph/experimental/graph.hpp>
+#include <cugraph/partition_manager.hpp>
+#include <cugraph/utilities/error.hpp>
+#include <cugraph/utilities/host_scalar_comm.cuh>
 
 #include <rmm/thrust_rmm_allocator.h>
 #include <raft/device_atomics.cuh>
@@ -295,8 +295,9 @@ graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu, std::enable_if_
                   (detail::mid_degree_threshold <= std::numeric_limits<edge_t>::max()));
     rmm::device_uvector<edge_t> d_thresholds(detail::num_segments_per_vertex_partition - 1,
                                              default_stream);
-    std::vector<edge_t> h_thresholds = {static_cast<edge_t>(detail::mid_degree_threshold),
-                                        static_cast<edge_t>(detail::low_degree_threshold)};
+    std::vector<edge_t> h_thresholds = {
+      static_cast<edge_t>(detail::mid_degree_threshold * col_comm_size),
+      static_cast<edge_t>(detail::low_degree_threshold * col_comm_size)};
     raft::update_device(
       d_thresholds.data(), h_thresholds.data(), h_thresholds.size(), default_stream);
 
@@ -516,4 +517,4 @@ template class graph_t<int64_t, int64_t, double, false, false>;
 }  // namespace experimental
 }  // namespace cugraph
 
-#include <experimental/eidir_graph.hpp>
+#include <cugraph/experimental/eidir_graph.hpp>

@@ -16,10 +16,13 @@
 
 #include <community/flatten_dendrogram.cuh>
 #include <community/louvain.cuh>
-#include <experimental/graph.hpp>
+#include <cugraph/experimental/graph.hpp>
 #include <experimental/louvain.cuh>
 
 #include <rmm/device_uvector.hpp>
+
+CUCO_DECLARE_BITWISE_COMPARABLE(float)
+CUCO_DECLARE_BITWISE_COMPARABLE(double)
 
 namespace cugraph {
 
@@ -48,25 +51,12 @@ std::pair<std::unique_ptr<Dendrogram<vertex_t>>, weight_t> louvain(
   size_t max_level,
   weight_t resolution)
 {
-  // "FIXME": remove this check and the guards below
-  //
-  // Disable louvain(experimental::graph_view_t,...)
-  // versions for GPU architectures < 700
-  // (cuco/static_map.cuh depends on features not supported on or before Pascal)
-  //
-  cudaDeviceProp device_prop;
-  CUDA_CHECK(cudaGetDeviceProperties(&device_prop, 0));
+  experimental::Louvain<experimental::graph_view_t<vertex_t, edge_t, weight_t, false, multi_gpu>>
+    runner(handle, graph_view);
 
-  if (device_prop.major < 7) {
-    CUGRAPH_FAIL("Louvain not supported on Pascal and older architectures");
-  } else {
-    experimental::Louvain<experimental::graph_view_t<vertex_t, edge_t, weight_t, false, multi_gpu>>
-      runner(handle, graph_view);
+  weight_t wt = runner(max_level, resolution);
 
-    weight_t wt = runner(max_level, resolution);
-
-    return std::make_pair(runner.move_dendrogram(), wt);
-  }
+  return std::make_pair(runner.move_dendrogram(), wt);
 }
 
 template <typename vertex_t, typename edge_t, typename weight_t>
@@ -297,4 +287,4 @@ template std::pair<size_t, double> louvain(
 
 }  // namespace cugraph
 
-#include <eidir_graph.hpp>
+#include <cugraph/eidir_graph.hpp>

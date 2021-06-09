@@ -1,4 +1,4 @@
-# Copyright (c) 2019-2020, NVIDIA CORPORATION.
+# Copyright (c) 2019-2021, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -39,14 +39,16 @@ def katz_centrality(
         Attenuation factor defaulted to None. If alpha is not specified then
         it is internally calculated as 1/(degree_max) where degree_max is the
         maximum out degree.
-        NOTE : The maximum acceptable value of alpha for convergence
-        alpha_max = 1/(lambda_max) where lambda_max is the largest eigenvalue
-        of the graph.
-        Since lambda_max is always lesser than or equal to degree_max for a
-        graph, alpha_max will always be greater than or equal to
-        (1/degree_max). Therefore, setting alpha to (1/degree_max) will
-        guarantee that it will never exceed alpha_max thus in turn fulfilling
-        the requirement for convergence.
+
+        NOTE
+            The maximum acceptable value of alpha for convergence
+            alpha_max = 1/(lambda_max) where lambda_max is the largest
+            eigenvalue of the graph.
+            Since lambda_max is always lesser than or equal to degree_max for a
+            graph, alpha_max will always be greater than or equal to
+            (1/degree_max). Therefore, setting alpha to (1/degree_max) will
+            guarantee that it will never exceed alpha_max thus in turn
+            fulfilling the requirement for convergence.
     beta : None
         A weight scalar - currently Not Supported
     max_iter : int
@@ -104,7 +106,11 @@ def katz_centrality(
 
     if nstart is not None:
         if G.renumbered is True:
-            nstart = G.add_internal_vertex_id(nstart, 'vertex', 'vertex')
+            if len(G.renumber_map.implementation.col_names) > 1:
+                cols = nstart.columns[:-1].to_list()
+            else:
+                cols = 'vertex'
+            nstart = G.add_internal_vertex_id(nstart, 'vertex', cols)
 
     df = katz_centrality_wrapper.katz_centrality(
         G, alpha, max_iter, tol, nstart, normalized

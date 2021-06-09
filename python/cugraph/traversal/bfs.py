@@ -1,4 +1,4 @@
-# Copyright (c) 2019-2020, NVIDIA CORPORATION.
+# Copyright (c) 2019-2021, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -14,7 +14,7 @@
 import cudf
 
 from cugraph.traversal import bfs_wrapper
-from cugraph.structure.graph import Graph, DiGraph
+from cugraph.structure.graph_classes import Graph, DiGraph
 from cugraph.utilities import (ensure_cugraph_obj,
                                is_matrix_type,
                                is_cp_matrix_type,
@@ -41,7 +41,7 @@ sp_csc_matrix = import_optional("csc_matrix",
                                 import_from="scipy.sparse.csc")
 
 
-def _ensure_args(G, start, return_sp_counter, i_start, directed):
+def _ensure_args(G, start, i_start, directed):
     """
     Ensures the args passed in are usable for the API api_name and returns the
     args with proper defaults if not specified, or raises TypeError or
@@ -52,9 +52,6 @@ def _ensure_args(G, start, return_sp_counter, i_start, directed):
         raise TypeError("cannot specify both 'start' and 'i_start'")
     if (start is None) and (i_start is None):
         raise TypeError("must specify 'start' or 'i_start', but not both")
-    if (return_sp_counter is not None) and \
-       (return_sp_counter not in [True, False]):
-        raise ValueError("'return_sp_counter' must be a bool")
 
     G_type = type(G)
     # Check for Graph-type inputs
@@ -67,10 +64,8 @@ def _ensure_args(G, start, return_sp_counter, i_start, directed):
     start = start if start is not None else i_start
     if directed is None:
         directed = True
-    if return_sp_counter is None:
-        return_sp_counter = False
 
-    return (start, return_sp_counter, directed)
+    return (start, directed)
 
 
 def _convert_df_to_output_type(df, input_type):
@@ -92,30 +87,23 @@ def _convert_df_to_output_type(df, input_type):
         if is_cp_matrix_type(input_type):
             distances = cp.fromDlpack(sorted_df["distance"].to_dlpack())
             preds = cp.fromDlpack(sorted_df["predecessor"].to_dlpack())
-            if "sp_counter" in df.columns:
-                return (distances, preds,
-                        cp.fromDlpack(sorted_df["sp_counter"].to_dlpack()))
-            else:
-                return (distances, preds)
+            return (distances, preds)
         else:
             distances = sorted_df["distance"].to_array()
             preds = sorted_df["predecessor"].to_array()
-            if "sp_counter" in df.columns:
-                return (distances, preds,
-                        sorted_df["sp_counter"].to_array())
-            else:
-                return (distances, preds)
+            return (distances, preds)
     else:
         raise TypeError(f"input type {input_type} is not a supported type.")
 
 
 def bfs(G,
         start=None,
-        return_sp_counter=None,
+        depth_limit=None,
         i_start=None,
         directed=None,
         return_predecessors=None):
-    """Find the distances and predecessors for a breadth first traversal of a
+    """
+    Find the distances and predecessors for a breadth first traversal of a
     graph.
 
     Parameters
@@ -128,16 +116,18 @@ def bfs(G,
     start : Integer
         The index of the graph vertex from which the traversal begins
 
-    return_sp_counter : bool, optional, default=False
-        Indicates if shortest path counters should be returned
-
     i_start : Integer, optional
         Identical to start, added for API compatibility. Only start or i_start
         can be set, not both.
 
+    depth_limit : Integer or None
+        Limit the depth of the search
+
     directed : bool, optional
-        NOTE: For non-Graph-type (eg. sparse matrix) values of G only. Raises
-              TypeError if used with a Graph object.
+        NOTE
+            For non-Graph-type (eg. sparse matrix) values of G only. Raises
+            TypeError if used with a Graph object.
+
         If True (default), then convert the input matrix to a cugraph.DiGraph,
         otherwise a cugraph.Graph object will be used.
 
@@ -153,10 +143,6 @@ def bfs(G,
 
           df['predecessor'] for each i'th position in the column, the vertex ID
           immediately preceding the vertex at position i in the 'vertex' column
-
-          df['sp_counter'] for each i'th position in the column, the number of
-          shortest paths leading to the vertex at position i in the 'vertex'
-          column (Only if retrun_sp_counter is True)
 
     If G is a networkx.Graph, returns:
 
@@ -189,34 +175,30 @@ def bfs(G,
     >>> df = cugraph.bfs(G, 0)
 
     """
-    (start, return_sp_counter, directed) = \
-        _ensure_args(G, start, return_sp_counter, i_start, directed)
+    (start, directed) = \
+        _ensure_args(G, start, i_start, directed)
 
     # FIXME: allow nx_weight_attr to be specified
     (G, input_type) = ensure_cugraph_obj(
         G, nx_weight_attr="weight",
         matrix_graph_type=DiGraph if directed else Graph)
 
-    if type(G) is Graph:
-        is_directed = False
-    else:
-        is_directed = True
-
     if G.renumbered is True:
-        start = G.lookup_internal_vertex_id(cudf.Series([start]))[0]
+        if isinstance(start, cudf.DataFrame):
+            start = G.lookup_internal_vertex_id(start, start.columns).iloc[0]
+        else:
+            start = G.lookup_internal_vertex_id(cudf.Series([start]))[0]
 
-    df = bfs_wrapper.bfs(G, start, is_directed, return_sp_counter)
-
+    df = bfs_wrapper.bfs(G, start, depth_limit)
     if G.renumbered:
         df = G.unrenumber(df, "vertex")
         df = G.unrenumber(df, "predecessor")
-        df["predecessor"].fillna(-1, inplace=True)
+        df.fillna(-1, inplace=True)
 
     return _convert_df_to_output_type(df, input_type)
 
 
-def bfs_edges(G, source, reverse=False, depth_limit=None, sort_neighbors=None,
-              return_sp_counter=False):
+def bfs_edges(G, source, reverse=False, depth_limit=None, sort_neighbors=None):
     """
     Find the distances and predecessors for a breadth first traversal of a
     graph.
@@ -237,13 +219,9 @@ def bfs_edges(G, source, reverse=False, depth_limit=None, sort_neighbors=None,
 
     depth_limit : Int or None
         Limit the depth of the search
-        Currently not implemented
 
     sort_neighbors : None or Function
         Currently not implemented
-
-    return_sp_counter : bool, optional, default=False
-        Indicates if shortest path counters should be returned
 
     Returns
     -------
@@ -257,10 +235,6 @@ def bfs_edges(G, source, reverse=False, depth_limit=None, sort_neighbors=None,
 
           df['predecessor'] for each i'th position in the column, the vertex ID
           immediately preceding the vertex at position i in the 'vertex' column
-
-          df['sp_counter'] for each i'th position in the column, the number of
-          shortest paths leading to the vertex at position i in the 'vertex'
-          column (Only if retrun_sp_counter is True)
 
     If G is a networkx.Graph, returns:
 
@@ -298,9 +272,4 @@ def bfs_edges(G, source, reverse=False, depth_limit=None, sort_neighbors=None,
             "reverse processing of graph is currently not supported"
         )
 
-    if depth_limit is not None:
-        raise NotImplementedError(
-            "depth limit implementation of BFS is not currently supported"
-        )
-
-    return bfs(G, source, return_sp_counter)
+    return bfs(G, source, depth_limit)

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020, NVIDIA CORPORATION.
+ * Copyright (c) 2020-2021, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,8 +16,8 @@
 
 #pragma once
 #include <rmm/thrust_rmm_allocator.h>
+#include <cugraph/utilities/error.hpp>
 #include <raft/handle.hpp>
-#include "utilities/error.hpp"
 
 namespace cugraph {
 namespace mg {

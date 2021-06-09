@@ -20,9 +20,9 @@
  * ---------------------------------------------------------------------------**/
 
 #include <rmm/thrust_rmm_allocator.h>
-#include <utilities/error.hpp>
-#include "graph.hpp"
-#include "utilities/graph_utils.cuh"
+#include <cugraph/graph.hpp>
+#include <cugraph/utilities/error.hpp>
+#include <utilities/graph_utils.cuh>
 
 namespace cugraph {
 namespace detail {

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019-2020, NVIDIA CORPORATION.
+ * Copyright (c) 2019-2021, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -17,10 +17,10 @@
 #include <cuda_runtime.h>
 
 #include <raft/cudart_utils.h>
-#include <algorithms.hpp>
-#include <graph.hpp>
+#include <cugraph/algorithms.hpp>
+#include <cugraph/graph.hpp>
 
-#include <utilities/error.hpp>
+#include <cugraph/utilities/error.hpp>
 
 #include <rmm/thrust_rmm_allocator.h>
 #include <rmm/device_buffer.hpp>
@@ -759,8 +759,9 @@ void TrianglesCount<IndexType>::tcount_b2b()
   cudaMemGetInfo(&free_bytes, &total_bytes);
   CHECK_CUDA(m_stream);
 
-  int nblock = (free_bytes * 95 / 100) / (sizeof(uint32_t) * bmldL1);  //@TODO: what?
-  nblock     = MIN(nblock, m_mat.nrows);
+  size_t nblock_available = (free_bytes * 95 / 100) / (sizeof(uint32_t) * bmldL1);
+
+  int nblock = static_cast<int>(MIN(nblock_available, static_cast<size_t>(m_mat.nrows)));
 
   // allocate level 1 bitmap
   rmm::device_vector<uint32_t> bmapL1_d(bmldL1 * nblock, uint32_t{0});
@@ -793,8 +794,10 @@ void TrianglesCount<IndexType>::tcount_wrp()
   cudaMemGetInfo(&free_bytes, &total_bytes);
   CHECK_CUDA(m_stream);
 
-  int nblock = (free_bytes * 95 / 100) / (sizeof(uint32_t) * bmld * (THREADS / 32));
-  nblock     = MIN(nblock, DIV_UP(m_mat.nrows, (THREADS / 32)));
+  size_t nblock_available = (free_bytes * 95 / 100) / (sizeof(uint32_t) * bmld * (THREADS / 32));
+
+  int nblock = static_cast<int>(
+    MIN(nblock_available, static_cast<size_t>(DIV_UP(m_mat.nrows, (THREADS / 32)))));
 
   size_t bmap_sz = bmld * nblock * (THREADS / 32);
 
@@ -827,7 +830,8 @@ void TrianglesCount<IndexType>::count()
     tcount_wrp();
   else {
     const int shMinBlkXSM = 6;
-    if (size_t{m_shared_mem_per_block * 8 / shMinBlkXSM} < (size_t)m_mat.N)
+    if (static_cast<size_t>(m_shared_mem_per_block * 8 / shMinBlkXSM) <
+        static_cast<size_t>(m_mat.N))
       tcount_b2b();
     else
       tcount_bsh();
