@@ -15,7 +15,7 @@
  */
 #pragma once
 
-#include <cugraph/experimental/graph_view.hpp>
+#include <cugraph/graph_view.hpp>
 #include <cugraph/utilities/error.hpp>
 
 #include <thrust/tuple.h>
@@ -26,12 +26,12 @@ namespace cugraph {
 namespace experimental {
 
 template <typename vertex_t, typename edge_t, typename weight_t>
-class matrix_partition_device_base_t {
+class matrix_partition_device_view_base_t {
  public:
-  matrix_partition_device_base_t(edge_t const* offsets,
-                                 vertex_t const* indices,
-                                 weight_t const* weights,
-                                 edge_t number_of_edges)
+  matrix_partition_device_view_base_t(edge_t const* offsets,
+                                      vertex_t const* indices,
+                                      weight_t const* weights,
+                                      edge_t number_of_edges)
     : offsets_(offsets), indices_(indices), weights_(weights), number_of_edges_(number_of_edges)
   {
   }
@@ -70,17 +70,18 @@ class matrix_partition_device_base_t {
 };
 
 template <typename GraphViewType, typename Enable = void>
-class matrix_partition_device_t;
+class matrix_partition_device_view_t;
 
 // multi-GPU version
 template <typename GraphViewType>
-class matrix_partition_device_t<GraphViewType, std::enable_if_t<GraphViewType::is_multi_gpu>>
-  : public matrix_partition_device_base_t<typename GraphViewType::vertex_type,
-                                          typename GraphViewType::edge_type,
-                                          typename GraphViewType::weight_type> {
+class matrix_partition_device_view_t<GraphViewType, std::enable_if_t<GraphViewType::is_multi_gpu>>
+  : public matrix_partition_device_view_base_t<typename GraphViewType::vertex_type,
+                                               typename GraphViewType::edge_type,
+                                               typename GraphViewType::weight_type> {
  public:
-  matrix_partition_device_t(GraphViewType const& graph_view, size_t partition_idx)
-    : matrix_partition_device_base_t<typename GraphViewType::vertex_type,
+#if 0
+  matrix_partition_device_view_t(GraphViewType const& graph_view, size_t partition_idx)
+    : matrix_partition_device_view_base_t<typename GraphViewType::vertex_type,
                                      typename GraphViewType::edge_type,
                                      typename GraphViewType::weight_type>(
         graph_view.offsets(partition_idx),
@@ -105,6 +106,7 @@ class matrix_partition_device_t<GraphViewType, std::enable_if_t<GraphViewType::i
           : graph_view.get_local_adj_matrix_partition_row_value_start_offset(partition_idx))
   {
   }
+#endif
 
   __host__ __device__ typename GraphViewType::vertex_type get_major_value_start_offset() const
   {
@@ -177,15 +179,15 @@ class matrix_partition_device_t<GraphViewType, std::enable_if_t<GraphViewType::i
 
 // single-GPU version
 template <typename GraphViewType>
-class matrix_partition_device_t<GraphViewType, std::enable_if_t<!GraphViewType::is_multi_gpu>>
-  : public matrix_partition_device_base_t<typename GraphViewType::vertex_type,
-                                          typename GraphViewType::edge_type,
-                                          typename GraphViewType::weight_type> {
+class matrix_partition_device_view_t<GraphViewType, std::enable_if_t<!GraphViewType::is_multi_gpu>>
+  : public matrix_partition_device_view_base_t<typename GraphViewType::vertex_type,
+                                               typename GraphViewType::edge_type,
+                                               typename GraphViewType::weight_type> {
  public:
-  matrix_partition_device_t(GraphViewType const& graph_view, size_t partition_idx)
-    : matrix_partition_device_base_t<typename GraphViewType::vertex_type,
-                                     typename GraphViewType::edge_type,
-                                     typename GraphViewType::weight_type>(
+  matrix_partition_device_view_t(GraphViewType const& graph_view, size_t partition_idx)
+    : matrix_partition_device_view_base_t<typename GraphViewType::vertex_type,
+                                          typename GraphViewType::edge_type,
+                                          typename GraphViewType::weight_type>(
         graph_view.offsets(),
         graph_view.indices(),
         graph_view.weights(),

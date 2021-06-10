@@ -15,7 +15,7 @@
  */
 #pragma once
 
-#include <cugraph/experimental/graph_view.hpp>
+#include <cugraph/graph_view.hpp>
 #include <cugraph/utilities/error.hpp>
 
 #include <type_traits>
@@ -24,9 +24,9 @@ namespace cugraph {
 namespace experimental {
 
 template <typename vertex_t>
-class vertex_partition_device_base_t {
+class vertex_partition_device_view_base_t {
  public:
-  vertex_partition_device_base_t(vertex_t number_of_vertices)
+  vertex_partition_device_view_base_t(vertex_t number_of_vertices)
     : number_of_vertices_(number_of_vertices)
   {
   }
@@ -51,15 +51,15 @@ class vertex_partition_device_base_t {
 };
 
 template <typename GraphViewType, typename Enable = void>
-class vertex_partition_device_t;
+class vertex_partition_device_view_t;
 
 // multi-GPU version
 template <typename GraphViewType>
-class vertex_partition_device_t<GraphViewType, std::enable_if_t<GraphViewType::is_multi_gpu>>
-  : public vertex_partition_device_base_t<typename GraphViewType::vertex_type> {
+class vertex_partition_device_view_t<GraphViewType, std::enable_if_t<GraphViewType::is_multi_gpu>>
+  : public vertex_partition_device_view_base_t<typename GraphViewType::vertex_type> {
  public:
-  vertex_partition_device_t(GraphViewType const& graph_view)
-    : vertex_partition_device_base_t<typename GraphViewType::vertex_type>(
+  vertex_partition_device_view_t(GraphViewType const& graph_view)
+    : vertex_partition_device_view_base_t<typename GraphViewType::vertex_type>(
         graph_view.get_number_of_vertices()),
       first_(graph_view.get_local_vertex_first()),
       last_(graph_view.get_local_vertex_last())
@@ -86,11 +86,11 @@ class vertex_partition_device_t<GraphViewType, std::enable_if_t<GraphViewType::i
 
 // single-GPU version
 template <typename GraphViewType>
-class vertex_partition_device_t<GraphViewType, std::enable_if_t<!GraphViewType::is_multi_gpu>>
-  : public vertex_partition_device_base_t<typename GraphViewType::vertex_type> {
+class vertex_partition_device_view_t<GraphViewType, std::enable_if_t<!GraphViewType::is_multi_gpu>>
+  : public vertex_partition_device_view_base_t<typename GraphViewType::vertex_type> {
  public:
-  vertex_partition_device_t(GraphViewType const& graph_view)
-    : vertex_partition_device_base_t<typename GraphViewType::vertex_type>(
+  vertex_partition_device_view_t(GraphViewType const& graph_view)
+    : vertex_partition_device_view_base_t<typename GraphViewType::vertex_type>(
         graph_view.get_number_of_vertices())
   {
   }
