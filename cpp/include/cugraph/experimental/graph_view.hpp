@@ -218,7 +218,8 @@ struct graph_properties_t {
 namespace detail {
 
 // FIXME: threshold values require tuning
-// use the hypersparse format (currently, DCSR or DCSC) for the vertices with their degrees smaller than col_comm_size * hypersparse_threshold_ratio, should be less than 1.0
+// use the hypersparse format (currently, DCSR or DCSC) for the vertices with their degrees smaller
+// than col_comm_size * hypersparse_threshold_ratio, should be less than 1.0
 double constexpr hypersparse_threshold_ratio = 0.5;
 size_t constexpr low_degree_threshold{raft::warp_size()};
 size_t constexpr mid_degree_threshold{1024};
@@ -308,12 +309,13 @@ class graph_view_t<vertex_t,
                std::vector<edge_t const*> const& adj_matrix_partition_offsets,
                std::vector<vertex_t const*> const& adj_matrix_partition_indices,
                std::vector<weight_t const*> const& adj_matrix_partition_weights,
-               std::vector<vertex_t> const& adj_matrix_partition_segment_offsets,
+               std::vector<vertex_t const*> const& adj_matrix_partition_dcs_nzd_vertices,
+               std::vector<vertex_t> const& adj_matrix_partition_dcs_nzd_vertex_counts,
                partition_t<vertex_t> const& partition,
                vertex_t number_of_vertices,
                edge_t number_of_edges,
                graph_properties_t properties,
-               bool sorted_by_global_degree_within_vertex_partition,
+               std::vector<vertex_t> const& adj_matrix_partition_segment_offsets,
                bool do_expensive_check = false);
 
   vertex_t get_number_of_local_vertices() const
@@ -486,6 +488,8 @@ class graph_view_t<vertex_t,
              : std::vector<vertex_t>{};
   }
 
+  // FIXME: delete, no longer valid with the CSR(CSC) + DCSR(DCSC) hybrid model
+#if 0
   // FIXME: this function is not part of the public stable API. This function is mainly for pattern
   // accelerator implementation. This function is currently public to support the legacy
   // implementations directly accessing CSR/CSC data, but this function will eventually become
@@ -532,6 +536,7 @@ class graph_view_t<vertex_t,
              ? adj_matrix_partition_weights_[adj_matrix_partition_idx]
              : static_cast<weight_t const*>(nullptr);
   }
+#endif
 
   rmm::device_uvector<edge_t> compute_in_degrees(raft::handle_t const& handle) const;
   rmm::device_uvector<edge_t> compute_out_degrees(raft::handle_t const& handle) const;
@@ -549,6 +554,11 @@ class graph_view_t<vertex_t,
   std::vector<edge_t const*> adj_matrix_partition_offsets_{};
   std::vector<vertex_t const*> adj_matrix_partition_indices_{};
   std::vector<weight_t const*> adj_matrix_partition_weights_{};
+
+  // relevant only if sorted_by_global_degree_within_vertex_partition is true
+  std::vector<vertex_t const*> adj_matrix_partition_dcs_nzd_vertices_{};
+  std::vector<vertex_t> adj_matrix_partition_dcs_nzd_vertex_counts_{};
+
   std::vector<edge_t> adj_matrix_partition_number_of_edges_{};
 
   partition_t<vertex_t> partition_{};
@@ -582,11 +592,10 @@ class graph_view_t<vertex_t,
                edge_t const* offsets,
                vertex_t const* indices,
                weight_t const* weights,
-               std::vector<vertex_t> const& segment_offsets,
                vertex_t number_of_vertices,
                edge_t number_of_edges,
                graph_properties_t properties,
-               bool sorted_by_degree,
+               std::vector<vertex_t> const& segment_offsets,
                bool do_expensive_check = false);
 
   vertex_t get_number_of_local_vertices() const { return this->get_number_of_vertices(); }
@@ -709,6 +718,8 @@ class graph_view_t<vertex_t,
     return segment_offsets_.size() > 0 ? segment_offsets_ : std::vector<vertex_t>{};
   }
 
+  // FIXME: delete
+#if 0
   // FIXME: this function is not part of the public stable API.This function is mainly for pattern
   // accelerator implementation. This function is currently public to support the legacy
   // implementations directly accessing CSR/CSC data, but this function will eventually become
@@ -726,6 +737,7 @@ class graph_view_t<vertex_t,
   // implementations directly accessing CSR/CSC data, but this function will eventually become
   // private.
   weight_t const* weights() const { return weights_; }
+#endif
 
   rmm::device_uvector<edge_t> compute_in_degrees(raft::handle_t const& handle) const;
   rmm::device_uvector<edge_t> compute_out_degrees(raft::handle_t const& handle) const;
