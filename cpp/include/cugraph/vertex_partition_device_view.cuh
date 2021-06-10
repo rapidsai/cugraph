@@ -15,7 +15,6 @@
  */
 #pragma once
 
-#include <cugraph/graph_view.hpp>
 #include <cugraph/utilities/error.hpp>
 
 #include <type_traits>
@@ -50,59 +49,57 @@ class vertex_partition_device_view_base_t {
   vertex_t number_of_vertices_{0};
 };
 
-template <typename GraphViewType, typename Enable = void>
+template <typename GraphViewType, bool multi_gpu, typename Enable = void>
 class vertex_partition_device_view_t;
 
 // multi-GPU version
-template <typename GraphViewType>
-class vertex_partition_device_view_t<GraphViewType, std::enable_if_t<GraphViewType::is_multi_gpu>>
-  : public vertex_partition_device_view_base_t<typename GraphViewType::vertex_type> {
+template <typename vertex_t, bool multi_gpu>
+class vertex_partition_device_view_t<vertex_t, multi_gpu, std::enable_if_t<multi_gpu>>
+  : public vertex_partition_device_view_base_t<vertex_t> {
  public:
-  vertex_partition_device_view_t(GraphViewType const& graph_view)
-    : vertex_partition_device_view_base_t<typename GraphViewType::vertex_type>(
-        graph_view.get_number_of_vertices()),
-      first_(graph_view.get_local_vertex_first()),
-      last_(graph_view.get_local_vertex_last())
+  vertex_partition_device_view_t(vertex_t number_of_vertices,
+                                 vertex_t local_vertex_first,
+                                 vertex_t local_vertex_last)
+    : vertex_partition_device_view_base_t<vertex_t>(number_of_vertices),
+      first_(local_vertex_first),
+      last_(local_vertex_last)
   {
   }
 
-  __host__ __device__ bool is_local_vertex_nocheck(typename GraphViewType::vertex_type v) const
-    noexcept
+  __host__ __device__ bool is_local_vertex_nocheck(vertex_t v) const noexcept
   {
     return (v >= first_) && (v < last_);
   }
 
-  __host__ __device__ typename GraphViewType::vertex_type
-  get_local_vertex_offset_from_vertex_nocheck(typename GraphViewType::vertex_type v) const noexcept
+  __host__ __device__ vertex_t get_local_vertex_offset_from_vertex_nocheck(vertex_t v) const
+    noexcept
   {
     return v - first_;
   }
 
  private:
   // should be trivially copyable to device
-  typename GraphViewType::vertex_type first_{0};
-  typename GraphViewType::vertex_type last_{0};
+  vertex_t first_{0};
+  vertex_t last_{0};
 };
 
 // single-GPU version
-template <typename GraphViewType>
-class vertex_partition_device_view_t<GraphViewType, std::enable_if_t<!GraphViewType::is_multi_gpu>>
-  : public vertex_partition_device_view_base_t<typename GraphViewType::vertex_type> {
+template <typename vertex_t, bool multi_gpu>
+class vertex_partition_device_view_t<vertex_t, multi_gpu, std::enable_if_t<!multi_gpu>>
+  : public vertex_partition_device_view_base_t<vertex_t> {
  public:
-  vertex_partition_device_view_t(GraphViewType const& graph_view)
-    : vertex_partition_device_view_base_t<typename GraphViewType::vertex_type>(
-        graph_view.get_number_of_vertices())
+  vertex_partition_device_view_t(vertex_t number_of_vertices)
+    : vertex_partition_device_view_base_t<vertex_t>(number_of_vertices)
   {
   }
 
-  __host__ __device__ constexpr bool is_local_vertex_nocheck(
-    typename GraphViewType::vertex_type v) const noexcept
+  __host__ __device__ constexpr bool is_local_vertex_nocheck(vertex_t v) const noexcept
   {
     return true;
   }
 
-  __host__ __device__ constexpr typename GraphViewType::vertex_type
-  get_local_vertex_offset_from_vertex_nocheck(typename GraphViewType::vertex_type v) const noexcept
+  __host__ __device__ constexpr vertex_t get_local_vertex_offset_from_vertex_nocheck(
+    vertex_t v) const noexcept
   {
     return v;
   }

@@ -341,9 +341,10 @@ graph_view_t<vertex_t,
 {
   // cheap error checks
 
-  CUGRAPH_EXPECTS((segment_offsets.size() == (detail::num_segments_per_vertex_partition + 1)) ||
-                    (segment_offsets.size() == 0),
-                  "Internal Error: segment_offsets.size() does not match with sorted_by_degree.");
+  CUGRAPH_EXPECTS(
+    (segment_offsets.size() == (detail::num_sparse_segments_per_vertex_partition + 1)) ||
+      (segment_offsets.size() == 0),
+    "Internal Error: segment_offsets.size() does not match with sorted_by_degree.");
 
   // optional expensive checks
 

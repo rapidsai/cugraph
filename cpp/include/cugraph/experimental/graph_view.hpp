@@ -15,7 +15,9 @@
  */
 #pragma once
 
+#include <cugraph/matrix_partition_device_view.cuh>
 #include <cugraph/utilities/error.hpp>
+#include <cugraph/vertex_partition_device_view.cuh>
 
 #include <raft/handle.hpp>
 #include <rmm/device_uvector.hpp>
@@ -488,55 +490,35 @@ class graph_view_t<vertex_t,
              : std::vector<vertex_t>{};
   }
 
-  // FIXME: delete, no longer valid with the CSR(CSC) + DCSR(DCSC) hybrid model
-#if 0
-  // FIXME: this function is not part of the public stable API. This function is mainly for pattern
-  // accelerator implementation. This function is currently public to support the legacy
-  // implementations directly accessing CSR/CSC data, but this function will eventually become
-  // private or even disappear if we switch to CSR + DCSR (or CSC + DCSC).
-  edge_t const* offsets() const { return offsets(0); }
-
-  // FIXME: this function is not part of the public stable API. This function is mainly for pattern
-  // accelerator implementation. This function is currently public to support the legacy
-  // implementations directly accessing CSR/CSC data, but this function will eventually become
-  // private or even disappear if we switch to CSR + DCSR (or CSC + DCSC).
-  vertex_t const* indices() const { return indices(0); }
-
-  // FIXME: this function is not part of the public stable API. This function is mainly for pattern
-  // accelerator implementation. This function is currently public to support the legacy
-  // implementations directly accessing CSR/CSC data, but this function will eventually become
-  // private or even disappear if we switch to CSR + DCSR (or CSC + DCSC).
-  weight_t const* weights() const { return weights(0); }
-
-  // FIXME: this function is not part of the public stable API. This function is mainly for pattern
-  // accelerator implementation. This function is currently public to support the legacy
-  // implementations directly accessing CSR/CSC data, but this function will eventually become
-  // private or even disappear if we switch to CSR + DCSR (or CSC + DCSC).
-  edge_t const* offsets(size_t adj_matrix_partition_idx) const
+  vertex_partition_device_view_t<vertex_t, true> get_vertex_partition_device_view() const
   {
-    return adj_matrix_partition_offsets_[adj_matrix_partition_idx];
+    return vertex_partition_device_view_t<vertex_t, true>(this->get_number_of_vertices(),
+                                                          this->get_local_vertex_first(),
+                                                          this->get_local_vertex_last());
   }
 
-  // FIXME: this function is not part of the public stable API. This function is mainly for pattern
-  // accelerator implementation. This function is currently public to support the legacy
-  // implementations directly accessing CSR/CSC data, but this function will eventually become
-  // private or even disappear if we switch to CSR + DCSR (or CSC + DCSC).
-  vertex_t const* indices(size_t adj_matrix_partition_idx) const
+  matrix_partition_device_view_t<vertex_t, edge_t, weight_t, true> get_matrix_partition_device_view(
+    size_t adj_matrix_partition_idx) const
   {
-    return adj_matrix_partition_indices_[adj_matrix_partition_idx];
+    return matrix_partition_device_view_t<vertex_t, edge_t, weight_t, true>(
+      adj_matrix_partition_offsets_[adj_matrix_partition_idx],
+      adj_matrix_partition_indices_[adj_matrix_partition_idx],
+      adj_matrix_partition_weights_.size() > 0
+        ? adj_matrix_partition_weights_[adj_matrix_partition_idx]
+        : static_cast<weight_t const*>(nullptr),
+      this->get_number_of_local_adj_matrix_partition_edges(adj_matrix_partition_idx),
+      store_transposed ? this->get_local_adj_matrix_partition_col_first(adj_matrix_partition_idx)
+                       : this->get_local_adj_matrix_partition_row_first(adj_matrix_partition_idx),
+      store_transposed ? this->get_local_adj_matrix_partition_col_last(adj_matrix_partition_idx)
+                       : this->get_local_adj_matrix_partition_row_last(adj_matrix_partition_idx),
+      store_transposed ? this->get_local_adj_matrix_partition_row_first(adj_matrix_partition_idx)
+                       : this->get_local_adj_matrix_partition_col_first(adj_matrix_partition_idx),
+      store_transposed ? this->get_local_adj_matrix_partition_row_last(adj_matrix_partition_idx)
+                       : this->get_local_adj_matrix_partition_col_last(adj_matrix_partition_idx),
+      store_transposed
+        ? this->get_local_adj_matrix_partition_col_value_start_offset(adj_matrix_partition_idx)
+        : this->get_local_adj_matrix_partition_row_value_start_offset(adj_matrix_partition_idx));
   }
-
-  // FIXME: this function is not part of the public stable API. This function is mainly for pattern
-  // accelerator implementation. This function is currently public to support the legacy
-  // implementations directly accessing CSR/CSC data, but this function will eventually become
-  // private or even disappear if we switch to CSR + DCSR (or CSC + DCSC).
-  weight_t const* weights(size_t adj_matrix_partition_idx) const
-  {
-    return adj_matrix_partition_weights_.size() > 0
-             ? adj_matrix_partition_weights_[adj_matrix_partition_idx]
-             : static_cast<weight_t const*>(nullptr);
-  }
-#endif
 
   rmm::device_uvector<edge_t> compute_in_degrees(raft::handle_t const& handle) const;
   rmm::device_uvector<edge_t> compute_out_degrees(raft::handle_t const& handle) const;
@@ -718,26 +700,18 @@ class graph_view_t<vertex_t,
     return segment_offsets_.size() > 0 ? segment_offsets_ : std::vector<vertex_t>{};
   }
 
-  // FIXME: delete
-#if 0
-  // FIXME: this function is not part of the public stable API.This function is mainly for pattern
-  // accelerator implementation. This function is currently public to support the legacy
-  // implementations directly accessing CSR/CSC data, but this function will eventually become
-  // private.
-  edge_t const* offsets() const { return offsets_; }
+  vertex_partition_device_view_t<vertex_t, false> get_vertex_partition_device_view() const
+  {
+    return vertex_partition_device_view_t<vertex_t, false>(this->get_number_of_vertices());
+  }
 
-  // FIXME: this function is not part of the public stable API.This function is mainly for pattern
-  // accelerator implementation. This function is currently public to support the legacy
-  // implementations directly accessing CSR/CSC data, but this function will eventually become
-  // private.
-  vertex_t const* indices() const { return indices_; }
-
-  // FIXME: this function is not part of the public stable API.This function is mainly for pattern
-  // accelerator implementation. This function is currently public to support the legacy
-  // implementations directly accessing CSR/CSC data, but this function will eventually become
-  // private.
-  weight_t const* weights() const { return weights_; }
-#endif
+  matrix_partition_device_view_t<vertex_t, edge_t, weight_t, false>
+  get_matrix_partition_device_view(size_t adj_matrix_partition_idx) const
+  {
+    assert(adj_matrix_partition_idx == 0);
+    return matrix_partition_device_view_t<vertex_t, edge_t, weight_t, false>(
+      offsets_, indices_, weights_, this->get_number_of_vertices(), this->get_number_of_edges());
+  }
 
   rmm::device_uvector<edge_t> compute_in_degrees(raft::handle_t const& handle) const;
   rmm::device_uvector<edge_t> compute_out_degrees(raft::handle_t const& handle) const;
