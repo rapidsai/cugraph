@@ -2,39 +2,39 @@
 
 ## 🐛 Bug Fixes
 
-- Delete CUDA_ARCHITECTURES=OFF ([#1638](https://github.com/rapidsai/cugraph/pull/1638)) [@seunghwak](https://github.com/seunghwak)
-- tansfom_educe_e bug fixes ([#1633](https://github.com/rapidsai/cugraph/pull/1633)) [@ChuckHastings](https://github.com/ChuckHastings)
-- Coect install path fo include folde to avoid double nesting ([#1630](https://github.com/rapidsai/cugraph/pull/1630)) [@dantegd](https://github.com/dantegd)
-- Remove thead local thust::sot (thust::sot with the execution policy thust::seq) fom copy_v_tansfom_educe_key_aggegated_out_nb ([#1627](https://github.com/rapidsai/cugraph/pull/1627)) [@seunghwak](https://github.com/seunghwak)
+- Delete CUDA_ARCHITECTURES=OFF ([#1638](https://github.com/rapidsai//pull/1638)) [@seunghwak](https://github.com/seunghwak)
+- transform_reduce_e bug fixes ([#1633](https://github.com/rapidsai//pull/1633)) [@ChuckHastings](https://github.com/ChuckHastings)
+- Correct install path for include folder to avoid double nesting ([#1630](https://github.com/rapidsai//pull/1630)) [@dantegd](https://github.com/dantegd)
+- Remove thread local thrust::sort (thrust::sort with the execution policy thrust::seq) from copy_v_transform_reduce_key_aggregated_out_nbr ([#1627](https://github.com/rapidsai//pull/1627)) [@seunghwak](https://github.com/seunghwak)
 
-## 🚀 New Featues
+## 🚀 New Features
 
-- SG &amp; MG Weakly Connected Components ([#1604](https://github.com/rapidsai/cugraph/pull/1604)) [@seunghwak](https://github.com/seunghwak)
+- SG &amp; MG Weakly Connected Components ([#1604](https://github.com/rapidsai//pull/1604)) [@seunghwak](https://github.com/seunghwak)
 
-## 🛠️ Impovements
+## 🛠️ Improvements
 
-- Remove Pascal guad and test cuGaph use of cuco::static_map on Pascal ([#1640](https://github.com/rapidsai/cugraph/pull/1640)) [@seunghwak](https://github.com/seunghwak)
-- Upgaded ecipe and dev envs to NCCL 2.9.9 ([#1636](https://github.com/rapidsai/cugraph/pull/1636)) [@latzel](https://github.com/latzel)
-- Use UCX-Py 0.20 ([#1634](https://github.com/rapidsai/cugraph/pull/1634)) [@jakikham](https://github.com/jakikham)
-- Updated dependencies fo CalVe ([#1629](https://github.com/rapidsai/cugraph/pull/1629)) [@latzel](https://github.com/latzel)
-- MG WCC impovements ([#1628](https://github.com/rapidsai/cugraph/pull/1628)) [@seunghwak](https://github.com/seunghwak)
-- Initialize foce_atlas2 `old_foces` device_uvecto, use new `mm::exec_policy` ([#1625](https://github.com/rapidsai/cugraph/pull/1625)) [@txcllnt](https://github.com/txcllnt)
-- Fix develope guide examples fo device_buffe ([#1619](https://github.com/rapidsai/cugraph/pull/1619)) [@haism](https://github.com/haism)
-- Pass mm memoy allocato to cuco::static_map ([#1617](https://github.com/rapidsai/cugraph/pull/1617)) [@seunghwak](https://github.com/seunghwak)
-- Undo disabling MG C++ testing outputs fo non-oot pocesses ([#1615](https://github.com/rapidsai/cugraph/pull/1615)) [@seunghwak](https://github.com/seunghwak)
-- WCC bindings ([#1612](https://github.com/rapidsai/cugraph/pull/1612)) [@Ioy30](https://github.com/Ioy30)
-- addess &#39;ValueEo: Seies contains NULL values&#39; fom fom_cudf_edge… ([#1610](https://github.com/rapidsai/cugraph/pull/1610)) [@mattf](https://github.com/mattf)
-- Fea mm device buffe change ([#1609](https://github.com/rapidsai/cugraph/pull/1609)) [@ChuckHastings](https://github.com/ChuckHastings)
-- Update `CHANGELOG.md` links fo calve ([#1608](https://github.com/rapidsai/cugraph/pull/1608)) [@ajschmidt8](https://github.com/ajschmidt8)
-- Handle int64 in foce atlas wappe and update to uvecto ([#1607](https://github.com/rapidsai/cugraph/pull/1607)) [@hlinsen](https://github.com/hlinsen)
-- Update docs build scipt ([#1606](https://github.com/rapidsai/cugraph/pull/1606)) [@ajschmidt8](https://github.com/ajschmidt8)
-- WCC pefomance/memoy footpint optimization ([#1605](https://github.com/rapidsai/cugraph/pull/1605)) [@seunghwak](https://github.com/seunghwak)
-- adding test gaphs - pat 2 ([#1603](https://github.com/rapidsai/cugraph/pull/1603)) [@ChuckHastings](https://github.com/ChuckHastings)
-- Update the Random Walk binding ([#1599](https://github.com/rapidsai/cugraph/pull/1599)) [@Ioy30](https://github.com/Ioy30)
-- Add mnmg out degee ([#1592](https://github.com/rapidsai/cugraph/pull/1592)) [@Ioy30](https://github.com/Ioy30)
-- Update `cugaph` to with newest CMake featues, including CPM fo dependencies ([#1585](https://github.com/rapidsai/cugraph/pull/1585)) [@obetmaynad](https://github.com/obetmaynad)
-- Implement Gaph Batching functionality ([#1580](https://github.com/rapidsai/cugraph/pull/1580)) [@aschaffe](https://github.com/aschaffe)
-- add multi-column suppot in algoithms - pat 2 ([#1571](https://github.com/rapidsai/cugraph/pull/1571)) [@Ioy30](https://github.com/Ioy30)
+- Remove Pascal guard and test cuGraph use of cuco::static_map on Pascal ([#1640](https://github.com/rapidsai//pull/1640)) [@seunghwak](https://github.com/seunghwak)
+- Upgraded recipe and dev envs to NCCL 2.9.9 ([#1636](https://github.com/rapidsai//pull/1636)) [@rlratzel](https://github.com/rlratzel)
+- Use UCX-Py 0.20 ([#1634](https://github.com/rapidsai//pull/1634)) [@jakirkham](https://github.com/jakirkham)
+- Updated dependencies for CalVer ([#1629](https://github.com/rapidsai//pull/1629)) [@rlratzel](https://github.com/rlratzel)
+- MG WCC improvements ([#1628](https://github.com/rapidsai//pull/1628)) [@seunghwak](https://github.com/seunghwak)
+- Initialize force_atlas2 `old_forces` device_uvector, use new `rmm::exec_policy` ([#1625](https://github.com/rapidsai//pull/1625)) [@trxcllnt](https://github.com/trxcllnt)
+- Fix developer guide examples for device_buffer ([#1619](https://github.com/rapidsai//pull/1619)) [@harrism](https://github.com/harrism)
+- Pass rmm memory allocator to cuco::static_map ([#1617](https://github.com/rapidsai//pull/1617)) [@seunghwak](https://github.com/seunghwak)
+- Undo disabling MG C++ testing outputs for non-root processes ([#1615](https://github.com/rapidsai//pull/1615)) [@seunghwak](https://github.com/seunghwak)
+- WCC bindings ([#1612](https://github.com/rapidsai//pull/1612)) [@Iroy30](https://github.com/Iroy30)
+- address &#39;ValueError: Series contains NULL values&#39; from from_cudf_edge… ([#1610](https://github.com/rapidsai//pull/1610)) [@mattf](https://github.com/mattf)
+- Fea rmm device buffer change ([#1609](https://github.com/rapidsai//pull/1609)) [@ChuckHastings](https://github.com/ChuckHastings)
+- Update `CHANGELOG.md` links for calver ([#1608](https://github.com/rapidsai//pull/1608)) [@ajschmidt8](https://github.com/ajschmidt8)
+- Handle int64 in force atlas wrapper and update to uvector ([#1607](https://github.com/rapidsai//pull/1607)) [@hlinsen](https://github.com/hlinsen)
+- Update docs build script ([#1606](https://github.com/rapidsai//pull/1606)) [@ajschmidt8](https://github.com/ajschmidt8)
+- WCC performance/memory footprint optimization ([#1605](https://github.com/rapidsai//pull/1605)) [@seunghwak](https://github.com/seunghwak)
+- adding test graphs - part 2 ([#1603](https://github.com/rapidsai//pull/1603)) [@ChuckHastings](https://github.com/ChuckHastings)
+- Update the Random Walk binding ([#1599](https://github.com/rapidsai//pull/1599)) [@Iroy30](https://github.com/Iroy30)
+- Add mnmg out degree ([#1592](https://github.com/rapidsai//pull/1592)) [@Iroy30](https://github.com/Iroy30)
+- Update `cugraph` to with newest CMake features, including CPM for dependencies ([#1585](https://github.com/rapidsai//pull/1585)) [@robertmaynard](https://github.com/robertmaynard)
+- Implement Graph Batching functionality ([#1580](https://github.com/rapidsai//pull/1580)) [@aschaffer](https://github.com/aschaffer)
+- add multi-column support in algorithms - part 2 ([#1571](https://github.com/rapidsai//pull/1571)) [@Iroy30](https://github.com/Iroy30)
 
 # cuGraph 0.19.0 (21 Apr 2021)
 
