@@ -16,7 +16,7 @@
 #pragma once
 
 #include <cugraph/experimental/graph_view.hpp>
-#include <cugraph/patterns/edge_op_utils.cuh>
+#include <cugraph/prims/edge_op_utils.cuh>
 #include <cugraph/utilities/error.hpp>
 #include <cugraph/utilities/host_scalar_comm.cuh>
 

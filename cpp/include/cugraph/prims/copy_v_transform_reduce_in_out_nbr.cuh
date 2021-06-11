@@ -16,8 +16,8 @@
 #pragma once
 
 #include <cugraph/experimental/graph_view.hpp>
-#include <cugraph/patterns/edge_op_utils.cuh>
-#include <cugraph/patterns/reduce_op.cuh>
+#include <cugraph/prims/edge_op_utils.cuh>
+#include <cugraph/prims/reduce_op.cuh>
 #include <cugraph/utilities/dataframe_buffer.cuh>
 #include <cugraph/utilities/device_comm.cuh>
 #include <cugraph/utilities/error.hpp>

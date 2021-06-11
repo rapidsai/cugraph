@@ -18,7 +18,7 @@
 #include <cugraph/experimental/graph.hpp>
 #include <cugraph/experimental/graph_functions.hpp>
 #include <cugraph/experimental/graph_view.hpp>
-#include <cugraph/patterns/copy_to_adj_matrix_row_col.cuh>
+#include <cugraph/prims/copy_to_adj_matrix_row_col.cuh>
 #include <cugraph/utilities/error.hpp>
 #include <cugraph/utilities/host_barrier.hpp>
 #include <cugraph/utilities/shuffle_comm.cuh>
