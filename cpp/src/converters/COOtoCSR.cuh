@@ -60,7 +60,7 @@ namespace detail {
  * @param[out] result      Total number of vertices
  */
 template <typename VT, typename ET, typename WT>
-VT sort(GraphCOOView<VT, ET, WT> &graph, rmm::cuda_stream_view const &stream_view)
+VT sort(GraphCOOView<VT, ET, WT> &graph, rmm::cuda_stream_view stream_view)
 {
   VT max_src_id;
   VT max_dst_id;
@@ -101,7 +101,7 @@ void fill_offset(VT *source,
                  ET *offsets,
                  VT number_of_vertices,
                  ET number_of_edges,
-                 rmm::cuda_stream_view const &stream_view)
+                 rmm::cuda_stream_view stream_view)
 {
   thrust::fill(
     rmm::exec_policy(stream_view), offsets, offsets + number_of_vertices + 1, number_of_edges);
@@ -128,7 +128,7 @@ template <typename VT, typename ET>
 rmm::device_buffer create_offset(VT *source,
                                  VT number_of_vertices,
                                  ET number_of_edges,
-                                 rmm::cuda_stream_view const &stream_view,
+                                 rmm::cuda_stream_view stream_view,
                                  rmm::mr::device_memory_resource *mr)
 {
   // Offset array needs an extra element at the end to contain the ending offsets

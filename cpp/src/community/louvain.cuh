@@ -195,7 +195,7 @@ class Louvain {
 #endif
   }
 
-  void timer_stop(rmm::cuda_stream_view const &stream_view)
+  void timer_stop(rmm::cuda_stream_view stream_view)
   {
 #ifdef TIMING
     stream_view.synchronize();

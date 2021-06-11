@@ -50,7 +50,7 @@ collect_values_for_keys(raft::comms::comms_t const &comm,
                         VertexIterator1 collect_key_first,
                         VertexIterator1 collect_key_last,
                         KeyToGPUIdOp key_to_gpu_id_op,
-                        rmm::cuda_stream_view const &stream_view)
+                        rmm::cuda_stream_view stream_view)
 {
   using vertex_t = typename std::iterator_traits<VertexIterator0>::value_type;
   static_assert(
@@ -165,7 +165,7 @@ collect_values_for_unique_keys(raft::comms::comms_t const &comm,
                                VertexIterator1 collect_unique_key_first,
                                VertexIterator1 collect_unique_key_last,
                                KeyToGPUIdOp key_to_gpu_id_op,
-                               rmm::cuda_stream_view const &stream_view)
+                               rmm::cuda_stream_view stream_view)
 {
   using vertex_t = typename std::iterator_traits<VertexIterator0>::value_type;
   static_assert(

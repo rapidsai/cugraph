@@ -68,7 +68,7 @@ std::
                                 vertex_t minor_first,
                                 vertex_t minor_last,
                                 bool is_weighted,
-                                rmm::cuda_stream_view &stream_view)
+                                rmm::cuda_stream_view stream_view)
 {
   rmm::device_uvector<edge_t> offsets((major_last - major_first) + 1, stream_view);
   rmm::device_uvector<vertex_t> indices(edgelist.number_of_edges, stream_view);

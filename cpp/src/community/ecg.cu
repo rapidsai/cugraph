@@ -93,7 +93,7 @@ template <typename T>
 void get_permutation_vector(T size,
                             T seed,
                             T *permutation,
-                            rmm::cuda_stream_view const &stream_view)
+                            rmm::cuda_stream_view stream_view)
 {
   rmm::device_uvector<float> randoms_v(size, stream_view);
 

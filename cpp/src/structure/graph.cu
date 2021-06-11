@@ -27,7 +27,7 @@ template <typename vertex_t, typename edge_t>
 void degree_from_offsets(vertex_t number_of_vertices,
                          edge_t const *offsets,
                          edge_t *degree,
-                         rmm::cuda_stream_view const &stream_view)
+                         rmm::cuda_stream_view stream_view)
 {
   // Computes out-degree for x = 0 and x = 2
   thrust::for_each(
@@ -43,7 +43,7 @@ void degree_from_vertex_ids(const raft::handle_t *handle,
                             edge_t number_of_edges,
                             vertex_t const *indices,
                             edge_t *degree,
-                            rmm::cuda_stream_view const &stream_view)
+                            rmm::cuda_stream_view stream_view)
 {
   thrust::for_each(rmm::exec_policy(stream_view),
                    thrust::make_counting_iterator<edge_t>(0),

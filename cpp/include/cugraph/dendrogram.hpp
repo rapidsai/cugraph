@@ -27,7 +27,7 @@ class Dendrogram {
  public:
   void add_level(vertex_t first_index,
                  vertex_t num_verts,
-                 rmm::cuda_stream_view const &stream_view,
+                 rmm::cuda_stream_view stream_view,
                  rmm::mr::device_memory_resource *mr = rmm::mr::get_current_device_resource())
   {
     level_ptr_.push_back(

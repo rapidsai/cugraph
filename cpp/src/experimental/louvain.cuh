@@ -122,7 +122,7 @@ class Louvain {
 #endif
   }
 
-  void timer_stop(rmm::cuda_stream_view const &stream_view)
+  void timer_stop(rmm::cuda_stream_view stream_view)
   {
 #ifdef TIMING
     if (graph_view_t::is_multi_gpu) {

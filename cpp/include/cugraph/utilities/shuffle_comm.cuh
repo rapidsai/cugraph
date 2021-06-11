@@ -46,7 +46,7 @@ inline std::tuple<std::vector<size_t>,
                   std::vector<int>>
 compute_tx_rx_counts_offsets_ranks(raft::comms::comms_t const &comm,
                                    rmm::device_uvector<size_t> const &d_tx_value_counts,
-                                   rmm::cuda_stream_view const &stream_view)
+                                   rmm::cuda_stream_view stream_view)
 {
   auto const comm_size = comm.get_size();
 
@@ -115,7 +115,7 @@ rmm::device_uvector<size_t> groupby_and_count(ValueIterator tx_value_first /* [I
                                               ValueIterator tx_value_last /* [INOUT */,
                                               ValueToGPUIdOp value_to_group_id_op,
                                               int num_groups,
-                                              rmm::cuda_stream_view const &stream_view)
+                                              rmm::cuda_stream_view stream_view)
 {
   thrust::sort(rmm::exec_policy(stream_view),
                tx_value_first,
@@ -156,7 +156,7 @@ rmm::device_uvector<size_t> groupby_and_count(VertexIterator tx_key_first /* [IN
                                               ValueIterator tx_value_first /* [INOUT */,
                                               KeyToGPUIdOp key_to_group_id_op,
                                               int num_groups,
-                                              rmm::cuda_stream_view const &stream_view)
+                                              rmm::cuda_stream_view stream_view)
 {
   thrust::sort_by_key(rmm::exec_policy(stream_view),
                       tx_key_first,
@@ -194,7 +194,7 @@ template <typename TxValueIterator>
 auto shuffle_values(raft::comms::comms_t const &comm,
                     TxValueIterator tx_value_first,
                     std::vector<size_t> const &tx_value_counts,
-                    rmm::cuda_stream_view const &stream_view)
+                    rmm::cuda_stream_view stream_view)
 {
   auto const comm_size = comm.get_size();
 
@@ -247,7 +247,7 @@ auto groupby_gpuid_and_shuffle_values(raft::comms::comms_t const &comm,
                                       ValueIterator tx_value_first /* [INOUT */,
                                       ValueIterator tx_value_last /* [INOUT */,
                                       ValueToGPUIdOp value_to_gpu_id_op,
-                                      rmm::cuda_stream_view const &stream_view)
+                                      rmm::cuda_stream_view stream_view)
 {
   auto const comm_size = comm.get_size();
 
@@ -299,7 +299,7 @@ auto groupby_gpuid_and_shuffle_kv_pairs(raft::comms::comms_t const &comm,
                                         VertexIterator tx_key_last /* [INOUT */,
                                         ValueIterator tx_value_first /* [INOUT */,
                                         KeyToGPUIdOp key_to_gpu_id_op,
-                                        rmm::cuda_stream_view const &stream_view)
+                                        rmm::cuda_stream_view stream_view)
 {
   auto const comm_size = comm.get_size();
 
