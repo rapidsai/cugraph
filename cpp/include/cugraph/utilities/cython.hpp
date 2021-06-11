@@ -95,6 +95,8 @@ struct graph_container_t {
   void* dst_vertices;
   void* weights;
   void* vertex_partition_offsets;
+  void* segment_offsets;
+  size_t num_segments;
 
   size_t num_local_edges;
   size_t num_global_vertices;
@@ -246,8 +248,8 @@ struct random_walk_coo_t {
 // (unrenumbering maps, etc.)
 //
 template <typename vertex_t, typename edge_t>
-struct renum_quad_t {
-  explicit renum_quad_t(raft::handle_t const& handle) : dv_(0, handle.get_stream()), part_() {}
+struct renum_tuple_t {
+  explicit renum_tuple_t(raft::handle_t const& handle) : dv_(0, handle.get_stream()), part_() {}
 
   rmm::device_uvector<vertex_t>& get_dv(void) { return dv_; }
 
@@ -260,6 +262,8 @@ struct renum_quad_t {
   cugraph::experimental::partition_t<vertex_t>& get_partition(void) { return part_; }
   vertex_t& get_num_vertices(void) { return nv_; }
   edge_t& get_num_edges(void) { return ne_; }
+
+  std::vector<vertex_t>& get_segment_offsets(void) { return segment_offsets_; }
 
   // `partition_t` pass-through getters
   //
@@ -354,7 +358,9 @@ struct renum_quad_t {
   cugraph::experimental::partition_t<vertex_t> part_;
   vertex_t nv_{0};
   edge_t ne_{0};
+  std::vector<vertex_t> segment_offsets_;
 };
+
 // FIXME: finish description for vertex_partition_offsets
 //
 // Factory function for populating an empty graph container with a new graph
@@ -412,6 +418,8 @@ void populate_graph_container(graph_container_t& graph_container,
                               void* dst_vertices,
                               void* weights,
                               void* vertex_partition_offsets,
+                              void* segment_offsets,
+                              size_t num_segments,
                               numberTypeEnum vertexType,
                               numberTypeEnum edgeType,
                               numberTypeEnum weightType,
@@ -572,7 +580,7 @@ std::unique_ptr<major_minor_weights_t<vertex_t, edge_t, weight_t>> call_shuffle(
 // Wrapper for calling renumber_edeglist() inplace:
 //
 template <typename vertex_t, typename edge_t>
-std::unique_ptr<renum_quad_t<vertex_t, edge_t>> call_renumber(
+std::unique_ptr<renum_tuple_t<vertex_t, edge_t>> call_renumber(
   raft::handle_t const& handle,
   vertex_t* shuffled_edgelist_major_vertices /* [INOUT] */,
   vertex_t* shuffled_edgelist_minor_vertices /* [INOUT] */,

@@ -23,7 +23,6 @@
 #include <cugraph/patterns/update_frontier_v_push_if_out_nbr.cuh>
 #include <cugraph/patterns/vertex_frontier.cuh>
 #include <cugraph/utilities/error.hpp>
-#include <cugraph/vertex_partition_device.cuh>
 
 #include <raft/cudart_utils.h>
 #include <rmm/thrust_rmm_allocator.h>
@@ -168,7 +167,7 @@ void sssp(raft::handle_t const &handle,
         row_distances);
     }
 
-    vertex_partition_device_t<GraphViewType> vertex_partition(push_graph_view);
+    auto vertex_partition = push_graph_view.get_vertex_partition_device_view();
 
     update_frontier_v_push_if_out_nbr(
       handle,

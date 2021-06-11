@@ -97,6 +97,7 @@ create_graph_from_edgelist_impl(
   cugraph::experimental::partition_t<vertex_t> partition{};
   vertex_t number_of_vertices{};
   edge_t number_of_edges{};
+  std::vector<vertex_t> segment_offsets{};
   {
     std::vector<vertex_t*> major_ptrs(h_edge_counts.size());
     std::vector<vertex_t*> minor_ptrs(major_ptrs.size());
@@ -108,7 +109,7 @@ create_graph_from_edgelist_impl(
         (store_transposed ? edgelist_rows.begin() : edgelist_cols.begin()) + h_displacements[i];
       counts[i] = static_cast<edge_t>(h_edge_counts[i]);
     }
-    std::tie(renumber_map_labels, partition, number_of_vertices, number_of_edges) =
+    std::tie(renumber_map_labels, partition, number_of_vertices, number_of_edges, segment_offsets) =
       cugraph::experimental::renumber_edgelist<vertex_t, edge_t, multi_gpu>(
         handle, optional_local_vertex_span, major_ptrs, minor_ptrs, counts);
   }
@@ -128,7 +129,13 @@ create_graph_from_edgelist_impl(
 
   return std::make_tuple(
     cugraph::experimental::graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu>(
-      handle, edgelists, partition, number_of_vertices, number_of_edges, graph_properties, true),
+      handle,
+      edgelists,
+      partition,
+      number_of_vertices,
+      number_of_edges,
+      graph_properties,
+      segment_offsets),
     std::move(renumber_map_labels));
 }
 
@@ -151,14 +158,18 @@ create_graph_from_edgelist_impl(
   graph_properties_t graph_properties,
   bool renumber)
 {
-  auto renumber_map_labels =
-    renumber ? cugraph::experimental::renumber_edgelist<vertex_t, edge_t, multi_gpu>(
-                 handle,
-                 optional_vertex_span,
-                 store_transposed ? edgelist_cols.data() : edgelist_rows.data(),
-                 store_transposed ? edgelist_rows.data() : edgelist_cols.data(),
-                 static_cast<edge_t>(edgelist_rows.size()))
-             : rmm::device_uvector<vertex_t>(0, handle.get_stream());
+  rmm::device_uvector<vertex_t> renumber_map_labels(0, handle.get_stream());
+  std::vector<vertex_t> segment_offsets{};
+  if (renumber) {
+    std::tie(renumber_map_labels, segment_offsets) =
+      cugraph::experimental::renumber_edgelist<vertex_t, edge_t, multi_gpu>(
+        handle,
+        optional_vertex_span,
+        store_transposed ? edgelist_cols.data() : edgelist_rows.data(),
+        store_transposed ? edgelist_rows.data() : edgelist_cols.data(),
+        static_cast<edge_t>(edgelist_rows.size()));
+  }
+
   vertex_t num_vertices{};
   if (renumber) {
     num_vertices = static_cast<vertex_t>(renumber_map_labels.size());
@@ -190,7 +201,7 @@ create_graph_from_edgelist_impl(
         static_cast<edge_t>(edgelist_rows.size())},
       num_vertices,
       graph_properties,
-      renumber ? true : false),
+      segment_offsets),
     std::move(renumber_map_labels));
 }
 

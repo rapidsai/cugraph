@@ -20,7 +20,6 @@
 #include <cugraph/patterns/update_frontier_v_push_if_out_nbr.cuh>
 #include <cugraph/patterns/vertex_frontier.cuh>
 #include <cugraph/utilities/error.hpp>
-#include <cugraph/vertex_partition_device.cuh>
 
 #include <rmm/thrust_rmm_allocator.h>
 #include <raft/handle.hpp>
@@ -109,7 +108,7 @@ void bfs(raft::handle_t const &handle,
     if (direction_optimizing) {
       CUGRAPH_FAIL("unimplemented.");
     } else {
-      vertex_partition_device_t<GraphViewType> vertex_partition(push_graph_view);
+      auto vertex_partition = push_graph_view.get_vertex_partition_device_view();
 
       update_frontier_v_push_if_out_nbr(
         handle,

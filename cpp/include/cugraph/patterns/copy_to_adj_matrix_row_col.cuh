@@ -16,7 +16,6 @@
 #pragma once
 
 #include <cugraph/experimental/graph_view.hpp>
-#include <cugraph/matrix_partition_device.cuh>
 #include <cugraph/partition_manager.hpp>
 #include <cugraph/utilities/dataframe_buffer.cuh>
 #include <cugraph/utilities/device_comm.cuh>
@@ -24,7 +23,6 @@
 #include <cugraph/utilities/host_barrier.hpp>
 #include <cugraph/utilities/host_scalar_comm.cuh>
 #include <cugraph/utilities/thrust_tuple_utils.cuh>
-#include <cugraph/vertex_partition_device.cuh>
 
 #include <rmm/thrust_rmm_allocator.h>
 #include <raft/handle.hpp>
@@ -146,7 +144,7 @@ void copy_to_matrix_major(raft::handle_t const& handle,
                             handle.get_stream());
 
     for (int i = 0; i < col_comm_size; ++i) {
-      matrix_partition_device_t<GraphViewType> matrix_partition(graph_view, i);
+      auto matrix_partition = graph_view.get_matrix_partition_device_view(i);
 
       rmm::device_uvector<vertex_t> rx_vertices(col_comm_rank == i ? size_t{0} : rx_counts[i],
                                                 handle.get_stream());
@@ -157,7 +155,7 @@ void copy_to_matrix_major(raft::handle_t const& handle,
         typename std::iterator_traits<VertexValueInputIterator>::value_type>(rx_tmp_buffer);
 
       if (col_comm_rank == i) {
-        vertex_partition_device_t<GraphViewType> vertex_partition(graph_view);
+        auto vertex_partition = graph_view.get_vertex_partition_device_view();
         auto map_first =
           thrust::make_transform_iterator(vertex_first, [vertex_partition] __device__(auto v) {
             return vertex_partition.get_local_vertex_offset_from_vertex_nocheck(v);
@@ -331,7 +329,7 @@ void copy_to_matrix_minor(raft::handle_t const& handle,
                             static_cast<size_t>(thrust::distance(vertex_first, vertex_last)),
                             handle.get_stream());
 
-    matrix_partition_device_t<GraphViewType> matrix_partition(graph_view, 0);
+    auto matrix_partition = graph_view.get_matrix_partition_device_view(size_t{0});
     for (int i = 0; i < row_comm_size; ++i) {
       rmm::device_uvector<vertex_t> rx_vertices(row_comm_rank == i ? size_t{0} : rx_counts[i],
                                                 handle.get_stream());
@@ -342,7 +340,7 @@ void copy_to_matrix_minor(raft::handle_t const& handle,
         typename std::iterator_traits<VertexValueInputIterator>::value_type>(rx_tmp_buffer);
 
       if (row_comm_rank == i) {
-        vertex_partition_device_t<GraphViewType> vertex_partition(graph_view);
+        auto vertex_partition = graph_view.get_vertex_partition_device_view();
         auto map_first =
           thrust::make_transform_iterator(vertex_first, [vertex_partition] __device__(auto v) {
             return vertex_partition.get_local_vertex_offset_from_vertex_nocheck(v);

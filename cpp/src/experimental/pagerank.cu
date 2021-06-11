@@ -24,7 +24,6 @@
 #include <cugraph/patterns/reduce_v.cuh>
 #include <cugraph/patterns/transform_reduce_v.cuh>
 #include <cugraph/utilities/error.hpp>
-#include <cugraph/vertex_partition_device.cuh>
 
 #include <rmm/thrust_rmm_allocator.h>
 #include <raft/handle.hpp>
@@ -118,7 +117,7 @@ void pagerank(raft::handle_t const& handle,
     }
 
     if (aggregate_personalization_vector_size > 0) {
-      vertex_partition_device_t<GraphViewType> vertex_partition(pull_graph_view);
+      auto vertex_partition = pull_graph_view.get_vertex_partition_device_view();
       auto num_invalid_vertices =
         count_if_v(handle,
                    pull_graph_view,
@@ -240,7 +239,7 @@ void pagerank(raft::handle_t const& handle,
       pageranks);
 
     if (aggregate_personalization_vector_size > 0) {
-      vertex_partition_device_t<GraphViewType> vertex_partition(pull_graph_view);
+      auto vertex_partition = pull_graph_view.get_vertex_partition_device_view();
       auto val_first = thrust::make_zip_iterator(
         thrust::make_tuple(personalization_vertices, personalization_values));
       thrust::for_each(

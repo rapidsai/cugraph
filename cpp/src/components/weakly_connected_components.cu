@@ -24,7 +24,6 @@
 #include <cugraph/utilities/device_comm.cuh>
 #include <cugraph/utilities/error.hpp>
 #include <cugraph/utilities/shuffle_comm.cuh>
-#include <cugraph/vertex_partition_device.cuh>
 
 #include <raft/handle.hpp>
 #include <rmm/device_uvector.hpp>
@@ -60,7 +59,8 @@ std::tuple<rmm::device_uvector<typename GraphViewType::vertex_type>,
            typename GraphViewType::vertex_type,
            typename GraphViewType::edge_type>
 accumulate_new_roots(raft::handle_t const &handle,
-                     vertex_partition_device_t<GraphViewType> vertex_partition,
+                     vertex_partition_device_view_t<typename GraphViewType::vertex_type,
+                                                    GraphViewType::is_multi_gpu> vertex_partition,
                      typename GraphViewType::vertex_type const *components,
                      typename GraphViewType::edge_type const *degrees,
                      typename GraphViewType::vertex_type const *candidate_first,
@@ -170,7 +170,8 @@ template <typename GraphViewType>
 struct v_op_t {
   using vertex_type = typename GraphViewType::vertex_type;
 
-  vertex_partition_device_t<GraphViewType> vertex_partition{};
+  vertex_partition_device_view_t<typename GraphViewType::vertex_type, GraphViewType::is_multi_gpu>
+    vertex_partition{};
   vertex_type *level_components{};
   decltype(thrust::make_zip_iterator(thrust::make_tuple(
     static_cast<vertex_type *>(nullptr), static_cast<vertex_type *>(nullptr)))) edge_buffer_first{};
@@ -267,7 +268,7 @@ void weakly_connected_components_impl(raft::handle_t const &handle,
   std::vector<vertex_t> level_local_vertex_first_vectors{};
   while (true) {
     auto level_graph_view = num_levels == 0 ? push_graph_view : level_graph.view();
-    vertex_partition_device_t<GraphViewType> vertex_partition(level_graph_view);
+    auto vertex_partition = level_graph_view.get_vertex_partition_device_view();
     level_component_vectors.push_back(rmm::device_uvector<vertex_t>(
       num_levels == 0 ? vertex_t{0} : level_graph_view.get_number_of_local_vertices(),
       handle.get_stream_view()));

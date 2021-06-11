@@ -16,7 +16,6 @@
 #pragma once
 
 #include <cugraph/experimental/graph_view.hpp>
-#include <cugraph/matrix_partition_device.cuh>
 #include <cugraph/patterns/edge_op_utils.cuh>
 #include <cugraph/patterns/reduce_op.cuh>
 #include <cugraph/utilities/dataframe_buffer.cuh>
@@ -53,7 +52,10 @@ template <bool update_major,
           typename EdgeOp,
           typename T>
 __global__ void for_all_major_for_all_nbr_low_degree(
-  matrix_partition_device_t<GraphViewType> matrix_partition,
+  matrix_partition_device_view_t<typename GraphViewType::vertex_type,
+                                 typename GraphViewType::edge_type,
+                                 typename GraphViewType::weight_type,
+                                 GraphViewType::is_multi_gpu> matrix_partition,
   typename GraphViewType::vertex_type major_first,
   typename GraphViewType::vertex_type major_last,
   AdjMatrixRowValueInputIterator adj_matrix_row_value_input_first,
@@ -145,7 +147,10 @@ template <bool update_major,
           typename EdgeOp,
           typename T>
 __global__ void for_all_major_for_all_nbr_mid_degree(
-  matrix_partition_device_t<GraphViewType> matrix_partition,
+  matrix_partition_device_view_t<typename GraphViewType::vertex_type,
+                                 typename GraphViewType::edge_type,
+                                 typename GraphViewType::weight_type,
+                                 GraphViewType::is_multi_gpu> matrix_partition,
   typename GraphViewType::vertex_type major_first,
   typename GraphViewType::vertex_type major_last,
   AdjMatrixRowValueInputIterator adj_matrix_row_value_input_first,
@@ -223,7 +228,10 @@ template <bool update_major,
           typename EdgeOp,
           typename T>
 __global__ void for_all_major_for_all_nbr_high_degree(
-  matrix_partition_device_t<GraphViewType> matrix_partition,
+  matrix_partition_device_view_t<typename GraphViewType::vertex_type,
+                                 typename GraphViewType::edge_type,
+                                 typename GraphViewType::weight_type,
+                                 GraphViewType::is_multi_gpu> matrix_partition,
   typename GraphViewType::vertex_type major_first,
   typename GraphViewType::vertex_type major_last,
   AdjMatrixRowValueInputIterator adj_matrix_row_value_input_first,
@@ -345,7 +353,7 @@ void copy_v_transform_reduce_nbr(raft::handle_t const& handle,
   }
 
   for (size_t i = 0; i < graph_view.get_number_of_local_adj_matrix_partitions(); ++i) {
-    matrix_partition_device_t<GraphViewType> matrix_partition(graph_view, i);
+    auto matrix_partition = graph_view.get_matrix_partition_device_view(i);
 
     auto major_tmp_buffer_size =
       GraphViewType::is_multi_gpu && update_major ? matrix_partition.get_major_size() : vertex_t{0};
@@ -375,7 +383,7 @@ void copy_v_transform_reduce_nbr(raft::handle_t const& handle,
       // FIXME: we may further improve performance by 1) concurrently running kernels on different
       // segments; 2) individually tuning block sizes for different segments; and 3) adding one more
       // segment for very high degree vertices and running segmented reduction
-      static_assert(detail::num_segments_per_vertex_partition == 3);
+      static_assert(detail::num_sparse_segments_per_vertex_partition == 3);
       if (segment_offsets[1] > 0) {
         raft::grid_1d_block_t update_grid(segment_offsets[1],
                                           detail::copy_v_transform_reduce_nbr_for_all_block_size,
@@ -383,7 +391,7 @@ void copy_v_transform_reduce_nbr(raft::handle_t const& handle,
         // FIXME: with C++17 we can collapse the if-else statement below with a functor with "if
         // constexpr" that returns either a multi-GPU output buffer or a single-GPU output buffer.
         if (GraphViewType::is_multi_gpu) {
-          detail::for_all_major_for_all_nbr_high_degree<update_major>
+          detail::for_all_major_for_all_nbr_high_degree<update_major, GraphViewType>
             <<<update_grid.num_blocks, update_grid.block_size, 0, handle.get_stream()>>>(
               matrix_partition,
               matrix_partition.get_major_first(),
@@ -394,7 +402,7 @@ void copy_v_transform_reduce_nbr(raft::handle_t const& handle,
               e_op,
               major_init);
         } else {
-          detail::for_all_major_for_all_nbr_high_degree<update_major>
+          detail::for_all_major_for_all_nbr_high_degree<update_major, GraphViewType>
             <<<update_grid.num_blocks, update_grid.block_size, 0, handle.get_stream()>>>(
               matrix_partition,
               matrix_partition.get_major_first(),
@@ -413,7 +421,7 @@ void copy_v_transform_reduce_nbr(raft::handle_t const& handle,
         // FIXME: with C++17 we can collapse the if-else statement below with a functor with "if
         // constexpr" that returns either a multi-GPU output buffer or a single-GPU output buffer.
         if (GraphViewType::is_multi_gpu) {
-          detail::for_all_major_for_all_nbr_mid_degree<update_major>
+          detail::for_all_major_for_all_nbr_mid_degree<update_major, GraphViewType>
             <<<update_grid.num_blocks, update_grid.block_size, 0, handle.get_stream()>>>(
               matrix_partition,
               matrix_partition.get_major_first() + segment_offsets[1],
@@ -424,7 +432,7 @@ void copy_v_transform_reduce_nbr(raft::handle_t const& handle,
               e_op,
               major_init);
         } else {
-          detail::for_all_major_for_all_nbr_mid_degree<update_major>
+          detail::for_all_major_for_all_nbr_mid_degree<update_major, GraphViewType>
             <<<update_grid.num_blocks, update_grid.block_size, 0, handle.get_stream()>>>(
               matrix_partition,
               matrix_partition.get_major_first() + segment_offsets[1],
@@ -443,7 +451,7 @@ void copy_v_transform_reduce_nbr(raft::handle_t const& handle,
         // FIXME: with C++17 we can collapse the if-else statement below with a functor with "if
         // constexpr" that returns either a multi-GPU output buffer or a single-GPU output buffer.
         if (GraphViewType::is_multi_gpu) {
-          detail::for_all_major_for_all_nbr_low_degree<update_major>
+          detail::for_all_major_for_all_nbr_low_degree<update_major, GraphViewType>
             <<<update_grid.num_blocks, update_grid.block_size, 0, handle.get_stream()>>>(
               matrix_partition,
               matrix_partition.get_major_first() + segment_offsets[2],
@@ -454,7 +462,7 @@ void copy_v_transform_reduce_nbr(raft::handle_t const& handle,
               e_op,
               major_init);
         } else {
-          detail::for_all_major_for_all_nbr_low_degree<update_major>
+          detail::for_all_major_for_all_nbr_low_degree<update_major, GraphViewType>
             <<<update_grid.num_blocks, update_grid.block_size, 0, handle.get_stream()>>>(
               matrix_partition,
               matrix_partition.get_major_first() + segment_offsets[2],
@@ -474,7 +482,7 @@ void copy_v_transform_reduce_nbr(raft::handle_t const& handle,
         // FIXME: with C++17 we can collapse the if-else statement below with a functor with "if
         // constexpr" that returns either a multi-GPU output buffer or a single-GPU output buffer.
         if (GraphViewType::is_multi_gpu) {
-          detail::for_all_major_for_all_nbr_low_degree<update_major>
+          detail::for_all_major_for_all_nbr_low_degree<update_major, GraphViewType>
             <<<update_grid.num_blocks, update_grid.block_size, 0, handle.get_stream()>>>(
               matrix_partition,
               matrix_partition.get_major_first(),
@@ -485,7 +493,7 @@ void copy_v_transform_reduce_nbr(raft::handle_t const& handle,
               e_op,
               major_init);
         } else {
-          detail::for_all_major_for_all_nbr_low_degree<update_major>
+          detail::for_all_major_for_all_nbr_low_degree<update_major, GraphViewType>
             <<<update_grid.num_blocks, update_grid.block_size, 0, handle.get_stream()>>>(
               matrix_partition,
               matrix_partition.get_major_first(),

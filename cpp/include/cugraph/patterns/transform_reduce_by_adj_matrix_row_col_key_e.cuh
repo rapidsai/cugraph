@@ -17,7 +17,6 @@
 
 #include <cugraph/experimental/detail/graph_utils.cuh>
 #include <cugraph/experimental/graph_view.hpp>
-#include <cugraph/matrix_partition_device.cuh>
 #include <cugraph/patterns/edge_op_utils.cuh>
 #include <cugraph/utilities/dataframe_buffer.cuh>
 #include <cugraph/utilities/error.hpp>
@@ -43,7 +42,10 @@ template <bool adj_matrix_row_key,
           typename EdgeOp,
           typename T>
 __global__ void for_all_major_for_all_nbr_low_degree(
-  matrix_partition_device_t<GraphViewType> matrix_partition,
+  matrix_partition_device_view_t<typename GraphViewType::vertex_type,
+                                 typename GraphViewType::edge_type,
+                                 typename GraphViewType::weight_type,
+                                 GraphViewType::is_multi_gpu> matrix_partition,
   typename GraphViewType::vertex_type major_first,
   typename GraphViewType::vertex_type major_last,
   AdjMatrixRowValueInputIterator adj_matrix_row_value_input_first,
@@ -183,7 +185,7 @@ transform_reduce_by_adj_matrix_row_col_key_e(
   rmm::device_uvector<vertex_t> keys(0, handle.get_stream());
   auto value_buffer = allocate_dataframe_buffer<T>(0, handle.get_stream());
   for (size_t i = 0; i < graph_view.get_number_of_local_adj_matrix_partitions(); ++i) {
-    matrix_partition_device_t<GraphViewType> matrix_partition(graph_view, i);
+    auto matrix_partition = graph_view.get_matrix_partition_device_view(i);
 
     int comm_root_rank = 0;
     if (GraphViewType::is_multi_gpu) {
@@ -224,7 +226,7 @@ transform_reduce_by_adj_matrix_row_col_key_e(
       // FIXME: This is highly inefficient for graphs with high-degree vertices. If we renumber
       // vertices to insure that rows within a partition are sorted by their out-degree in
       // decreasing order, we will apply this kernel only to low out-degree vertices.
-      detail::for_all_major_for_all_nbr_low_degree<adj_matrix_row_key>
+      detail::for_all_major_for_all_nbr_low_degree<adj_matrix_row_key, GraphViewType>
         <<<update_grid.num_blocks, update_grid.block_size, 0, handle.get_stream()>>>(
           matrix_partition,
           graph_view.get_vertex_partition_first(comm_root_rank),

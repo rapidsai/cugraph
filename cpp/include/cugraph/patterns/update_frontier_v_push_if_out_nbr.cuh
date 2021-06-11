@@ -16,7 +16,6 @@
 #pragma once
 
 #include <cugraph/experimental/graph_view.hpp>
-#include <cugraph/matrix_partition_device.cuh>
 #include <cugraph/partition_manager.hpp>
 #include <cugraph/patterns/edge_op_utils.cuh>
 #include <cugraph/patterns/reduce_op.cuh>
@@ -27,7 +26,6 @@
 #include <cugraph/utilities/host_scalar_comm.cuh>
 #include <cugraph/utilities/shuffle_comm.cuh>
 #include <cugraph/utilities/thrust_tuple_utils.cuh>
-#include <cugraph/vertex_partition_device.cuh>
 
 #include <raft/cudart_utils.h>
 #include <rmm/thrust_rmm_allocator.h>
@@ -127,19 +125,20 @@ auto get_optional_payload_buffer_begin = [](auto& optional_payload_buffer) {
 
 // FIXME: a temporary workaround for cudaErrorInvalidDeviceFunction error when device lambda is used
 // in the else part in if constexpr else statement that involves device lambda
-template <typename GraphViewType,
+template <typename vertex_t,
           typename VertexValueInputIterator,
           typename VertexValueOutputIterator,
           typename VertexOp,
-          typename key_t>
+          typename key_t,
+          bool multi_gpu>
 struct call_v_op_t {
   VertexValueInputIterator vertex_value_input_first{};
   VertexValueOutputIterator vertex_value_output_first{};
   VertexOp v_op{};
-  vertex_partition_device_t<GraphViewType> vertex_partition{};
+  vertex_partition_device_view_t<vertex_t, multi_gpu> vertex_partition{};
   size_t invalid_bucket_idx;
 
-  template <typename key_type = key_t, typename vertex_type = typename GraphViewType::vertex_type>
+  template <typename key_type = key_t, typename vertex_type = vertex_t>
   __device__ std::enable_if_t<std::is_same_v<key_type, vertex_type>, uint8_t> operator()(
     key_t key) const
   {
@@ -154,7 +153,7 @@ struct call_v_op_t {
     }
   }
 
-  template <typename key_type = key_t, typename vertex_type = typename GraphViewType::vertex_type>
+  template <typename key_type = key_t, typename vertex_type = vertex_t>
   __device__ std::enable_if_t<!std::is_same_v<key_type, vertex_type>, uint8_t> operator()(
     key_t key) const
   {
@@ -188,7 +187,10 @@ template <typename GraphViewType,
           typename BufferPayloadOutputIterator,
           typename EdgeOp>
 __device__ void push_if_buffer_element(
-  matrix_partition_device_t<GraphViewType>& matrix_partition,
+  matrix_partition_device_view_t<typename GraphViewType::vertex_type,
+                                 typename GraphViewType::edge_type,
+                                 typename GraphViewType::weight_type,
+                                 GraphViewType::is_multi_gpu>& matrix_partition,
   typename std::iterator_traits<BufferKeyOutputIterator>::value_type key,
   typename GraphViewType::vertex_type row_offset,
   typename GraphViewType::vertex_type col,
@@ -244,7 +246,10 @@ template <typename GraphViewType,
           typename BufferPayloadOutputIterator,
           typename EdgeOp>
 __global__ void for_all_frontier_row_for_all_nbr_low_degree(
-  matrix_partition_device_t<GraphViewType> matrix_partition,
+  matrix_partition_device_view_t<typename GraphViewType::vertex_type,
+                                 typename GraphViewType::edge_type,
+                                 typename GraphViewType::weight_type,
+                                 GraphViewType::is_multi_gpu> matrix_partition,
   KeyIterator key_first,
   KeyIterator key_last,
   AdjMatrixRowValueInputIterator adj_matrix_row_value_input_first,
@@ -283,17 +288,17 @@ __global__ void for_all_frontier_row_for_all_nbr_low_degree(
     edge_t local_out_degree{};
     thrust::tie(indices, weights, local_out_degree) = matrix_partition.get_local_edges(row_offset);
     for (edge_t i = 0; i < local_out_degree; ++i) {
-      push_if_buffer_element(matrix_partition,
-                             key,
-                             row_offset,
-                             indices[i],
-                             weights != nullptr ? weights[i] : weight_t{1.0},
-                             adj_matrix_row_value_input_first,
-                             adj_matrix_col_value_input_first,
-                             buffer_key_output_first,
-                             buffer_payload_output_first,
-                             buffer_idx_ptr,
-                             e_op);
+      push_if_buffer_element<GraphViewType>(matrix_partition,
+                                            key,
+                                            row_offset,
+                                            indices[i],
+                                            weights != nullptr ? weights[i] : weight_t{1.0},
+                                            adj_matrix_row_value_input_first,
+                                            adj_matrix_col_value_input_first,
+                                            buffer_key_output_first,
+                                            buffer_payload_output_first,
+                                            buffer_idx_ptr,
+                                            e_op);
     }
     idx += gridDim.x * blockDim.x;
   }
@@ -307,7 +312,10 @@ template <typename GraphViewType,
           typename BufferPayloadOutputIterator,
           typename EdgeOp>
 __global__ void for_all_frontier_row_for_all_nbr_mid_degree(
-  matrix_partition_device_t<GraphViewType> matrix_partition,
+  matrix_partition_device_view_t<typename GraphViewType::vertex_type,
+                                 typename GraphViewType::edge_type,
+                                 typename GraphViewType::weight_type,
+                                 GraphViewType::is_multi_gpu> matrix_partition,
   KeyIterator key_first,
   KeyIterator key_last,
   AdjMatrixRowValueInputIterator adj_matrix_row_value_input_first,
@@ -348,17 +356,17 @@ __global__ void for_all_frontier_row_for_all_nbr_mid_degree(
     edge_t local_out_degree{};
     thrust::tie(indices, weights, local_out_degree) = matrix_partition.get_local_edges(row_offset);
     for (edge_t i = lane_id; i < local_out_degree; i += raft::warp_size()) {
-      push_if_buffer_element(matrix_partition,
-                             key,
-                             row_offset,
-                             indices[i],
-                             weights != nullptr ? weights[i] : weight_t{1.0},
-                             adj_matrix_row_value_input_first,
-                             adj_matrix_col_value_input_first,
-                             buffer_key_output_first,
-                             buffer_payload_output_first,
-                             buffer_idx_ptr,
-                             e_op);
+      push_if_buffer_element<GraphViewType>(matrix_partition,
+                                            key,
+                                            row_offset,
+                                            indices[i],
+                                            weights != nullptr ? weights[i] : weight_t{1.0},
+                                            adj_matrix_row_value_input_first,
+                                            adj_matrix_col_value_input_first,
+                                            buffer_key_output_first,
+                                            buffer_payload_output_first,
+                                            buffer_idx_ptr,
+                                            e_op);
     }
 
     idx += gridDim.x * (blockDim.x / raft::warp_size());
@@ -373,7 +381,10 @@ template <typename GraphViewType,
           typename BufferPayloadOutputIterator,
           typename EdgeOp>
 __global__ void for_all_frontier_row_for_all_nbr_high_degree(
-  matrix_partition_device_t<GraphViewType> matrix_partition,
+  matrix_partition_device_view_t<typename GraphViewType::vertex_type,
+                                 typename GraphViewType::edge_type,
+                                 typename GraphViewType::weight_type,
+                                 GraphViewType::is_multi_gpu> matrix_partition,
   KeyIterator key_first,
   KeyIterator key_last,
   AdjMatrixRowValueInputIterator adj_matrix_row_value_input_first,
@@ -411,17 +422,17 @@ __global__ void for_all_frontier_row_for_all_nbr_high_degree(
     edge_t local_out_degree{};
     thrust::tie(indices, weights, local_out_degree) = matrix_partition.get_local_edges(row_offset);
     for (edge_t i = threadIdx.x; i < local_out_degree; i += blockDim.x) {
-      push_if_buffer_element(matrix_partition,
-                             key,
-                             row_offset,
-                             indices[i],
-                             weights != nullptr ? weights[i] : weight_t{1.0},
-                             adj_matrix_row_value_input_first,
-                             adj_matrix_col_value_input_first,
-                             buffer_key_output_first,
-                             buffer_payload_output_first,
-                             buffer_idx_ptr,
-                             e_op);
+      push_if_buffer_element<GraphViewType>(matrix_partition,
+                                            key,
+                                            row_offset,
+                                            indices[i],
+                                            weights != nullptr ? weights[i] : weight_t{1.0},
+                                            adj_matrix_row_value_input_first,
+                                            adj_matrix_col_value_input_first,
+                                            buffer_key_output_first,
+                                            buffer_payload_output_first,
+                                            buffer_idx_ptr,
+                                            e_op);
     }
 
     idx += gridDim.x;
@@ -555,7 +566,7 @@ typename GraphViewType::edge_type compute_num_out_nbrs_from_frontier(
     local_frontier_sizes = std::vector<size_t>{static_cast<size_t>(cur_frontier_bucket.size())};
   }
   for (size_t i = 0; i < graph_view.get_number_of_local_adj_matrix_partitions(); ++i) {
-    matrix_partition_device_t<GraphViewType> matrix_partition(graph_view, i);
+    auto matrix_partition = graph_view.get_matrix_partition_device_view(i);
 
     if (GraphViewType::is_multi_gpu) {
       auto& col_comm = handle.get_subcomm(cugraph::partition_2d::key_naming_t().col_name());
@@ -755,7 +766,7 @@ void update_frontier_v_push_if_out_nbr(
       static_cast<vertex_t>(thrust::distance(frontier_key_first, frontier_key_last)))};
   }
   for (size_t i = 0; i < graph_view.get_number_of_local_adj_matrix_partitions(); ++i) {
-    matrix_partition_device_t<GraphViewType> matrix_partition(graph_view, i);
+    auto matrix_partition = graph_view.get_matrix_partition_device_view(i);
 
     auto matrix_partition_frontier_key_buffer =
       allocate_dataframe_buffer<key_t>(size_t{0}, handle.get_stream());
@@ -842,8 +853,8 @@ void update_frontier_v_push_if_out_nbr(
                                     : matrix_partition.get_major_value_start_offset();
     auto segment_offsets = graph_view.get_local_adj_matrix_partition_segment_offsets(i);
     if (segment_offsets.size() > 0) {
-      static_assert(detail::num_segments_per_vertex_partition == 3);
-      std::vector<vertex_t> h_thresholds(detail::num_segments_per_vertex_partition - 1);
+      static_assert(detail::num_sparse_segments_per_vertex_partition == 3);
+      std::vector<vertex_t> h_thresholds(detail::num_sparse_segments_per_vertex_partition - 1);
       h_thresholds[0] = matrix_partition.get_major_first() + segment_offsets[1];
       h_thresholds[1] = matrix_partition.get_major_first() + segment_offsets[2];
       rmm::device_uvector<vertex_t> d_thresholds(h_thresholds.size(), handle.get_stream());
@@ -868,19 +879,17 @@ void update_frontier_v_push_if_out_nbr(
           detail::update_frontier_v_push_if_out_nbr_for_all_block_size,
           handle.get_device_properties().maxGridSize[0]);
 
-        detail::for_all_frontier_row_for_all_nbr_high_degree<<<update_grid.num_blocks,
-                                                               update_grid.block_size,
-                                                               0,
-                                                               handle.get_stream()>>>(
-          matrix_partition,
-          get_dataframe_buffer_begin<key_t>(matrix_partition_frontier_key_buffer),
-          get_dataframe_buffer_begin<key_t>(matrix_partition_frontier_key_buffer) + h_offsets[0],
-          adj_matrix_row_value_input_first + row_value_input_offset,
-          adj_matrix_col_value_input_first,
-          get_dataframe_buffer_begin<key_t>(key_buffer),
-          detail::get_optional_payload_buffer_begin<payload_t>(payload_buffer),
-          buffer_idx.data(),
-          e_op);
+        detail::for_all_frontier_row_for_all_nbr_high_degree<GraphViewType>
+          <<<update_grid.num_blocks, update_grid.block_size, 0, handle.get_stream()>>>(
+            matrix_partition,
+            get_dataframe_buffer_begin<key_t>(matrix_partition_frontier_key_buffer),
+            get_dataframe_buffer_begin<key_t>(matrix_partition_frontier_key_buffer) + h_offsets[0],
+            adj_matrix_row_value_input_first + row_value_input_offset,
+            adj_matrix_col_value_input_first,
+            get_dataframe_buffer_begin<key_t>(key_buffer),
+            detail::get_optional_payload_buffer_begin<payload_t>(payload_buffer),
+            buffer_idx.data(),
+            e_op);
       }
       if (h_offsets[1] - h_offsets[0] > 0) {
         raft::grid_1d_warp_t update_grid(
@@ -888,19 +897,17 @@ void update_frontier_v_push_if_out_nbr(
           detail::update_frontier_v_push_if_out_nbr_for_all_block_size,
           handle.get_device_properties().maxGridSize[0]);
 
-        detail::for_all_frontier_row_for_all_nbr_mid_degree<<<update_grid.num_blocks,
-                                                              update_grid.block_size,
-                                                              0,
-                                                              handle.get_stream()>>>(
-          matrix_partition,
-          get_dataframe_buffer_begin<key_t>(matrix_partition_frontier_key_buffer) + h_offsets[0],
-          get_dataframe_buffer_begin<key_t>(matrix_partition_frontier_key_buffer) + h_offsets[1],
-          adj_matrix_row_value_input_first + row_value_input_offset,
-          adj_matrix_col_value_input_first,
-          get_dataframe_buffer_begin<key_t>(key_buffer),
-          detail::get_optional_payload_buffer_begin<payload_t>(payload_buffer),
-          buffer_idx.data(),
-          e_op);
+        detail::for_all_frontier_row_for_all_nbr_mid_degree<GraphViewType>
+          <<<update_grid.num_blocks, update_grid.block_size, 0, handle.get_stream()>>>(
+            matrix_partition,
+            get_dataframe_buffer_begin<key_t>(matrix_partition_frontier_key_buffer) + h_offsets[0],
+            get_dataframe_buffer_begin<key_t>(matrix_partition_frontier_key_buffer) + h_offsets[1],
+            adj_matrix_row_value_input_first + row_value_input_offset,
+            adj_matrix_col_value_input_first,
+            get_dataframe_buffer_begin<key_t>(key_buffer),
+            detail::get_optional_payload_buffer_begin<payload_t>(payload_buffer),
+            buffer_idx.data(),
+            e_op);
       }
       if (matrix_partition_frontier_size - h_offsets[1] > 0) {
         raft::grid_1d_thread_t update_grid(
@@ -908,19 +915,17 @@ void update_frontier_v_push_if_out_nbr(
           detail::update_frontier_v_push_if_out_nbr_for_all_block_size,
           handle.get_device_properties().maxGridSize[0]);
 
-        detail::for_all_frontier_row_for_all_nbr_low_degree<<<update_grid.num_blocks,
-                                                              update_grid.block_size,
-                                                              0,
-                                                              handle.get_stream()>>>(
-          matrix_partition,
-          get_dataframe_buffer_begin<key_t>(matrix_partition_frontier_key_buffer) + h_offsets[1],
-          get_dataframe_buffer_end<key_t>(matrix_partition_frontier_key_buffer),
-          adj_matrix_row_value_input_first + row_value_input_offset,
-          adj_matrix_col_value_input_first,
-          get_dataframe_buffer_begin<key_t>(key_buffer),
-          detail::get_optional_payload_buffer_begin<payload_t>(payload_buffer),
-          buffer_idx.data(),
-          e_op);
+        detail::for_all_frontier_row_for_all_nbr_low_degree<GraphViewType>
+          <<<update_grid.num_blocks, update_grid.block_size, 0, handle.get_stream()>>>(
+            matrix_partition,
+            get_dataframe_buffer_begin<key_t>(matrix_partition_frontier_key_buffer) + h_offsets[1],
+            get_dataframe_buffer_end<key_t>(matrix_partition_frontier_key_buffer),
+            adj_matrix_row_value_input_first + row_value_input_offset,
+            adj_matrix_col_value_input_first,
+            get_dataframe_buffer_begin<key_t>(key_buffer),
+            detail::get_optional_payload_buffer_begin<payload_t>(payload_buffer),
+            buffer_idx.data(),
+            e_op);
       }
     } else {
       if (matrix_partition_frontier_size > 0) {
@@ -929,19 +934,17 @@ void update_frontier_v_push_if_out_nbr(
           detail::update_frontier_v_push_if_out_nbr_for_all_block_size,
           handle.get_device_properties().maxGridSize[0]);
 
-        detail::for_all_frontier_row_for_all_nbr_low_degree<<<update_grid.num_blocks,
-                                                              update_grid.block_size,
-                                                              0,
-                                                              handle.get_stream()>>>(
-          matrix_partition,
-          get_dataframe_buffer_begin<key_t>(matrix_partition_frontier_key_buffer),
-          get_dataframe_buffer_end<key_t>(matrix_partition_frontier_key_buffer),
-          adj_matrix_row_value_input_first + row_value_input_offset,
-          adj_matrix_col_value_input_first,
-          get_dataframe_buffer_begin<key_t>(key_buffer),
-          detail::get_optional_payload_buffer_begin<payload_t>(payload_buffer),
-          buffer_idx.data(),
-          e_op);
+        detail::for_all_frontier_row_for_all_nbr_low_degree<GraphViewType>
+          <<<update_grid.num_blocks, update_grid.block_size, 0, handle.get_stream()>>>(
+            matrix_partition,
+            get_dataframe_buffer_begin<key_t>(matrix_partition_frontier_key_buffer),
+            get_dataframe_buffer_end<key_t>(matrix_partition_frontier_key_buffer),
+            adj_matrix_row_value_input_first + row_value_input_offset,
+            adj_matrix_col_value_input_first,
+            get_dataframe_buffer_begin<key_t>(key_buffer),
+            detail::get_optional_payload_buffer_begin<payload_t>(payload_buffer),
+            buffer_idx.data(),
+            e_op);
       }
     }
   }
@@ -1061,7 +1064,7 @@ void update_frontier_v_push_if_out_nbr(
     static_assert(VertexFrontierType::kNumBuckets <= std::numeric_limits<uint8_t>::max());
     rmm::device_uvector<uint8_t> bucket_indices(num_buffer_elements, handle.get_stream());
 
-    vertex_partition_device_t<GraphViewType> vertex_partition(graph_view);
+    auto vertex_partition = graph_view.get_vertex_partition_device_view();
 
     if constexpr (!std::is_same_v<payload_t, void>) {
       auto key_payload_pair_first = thrust::make_zip_iterator(
@@ -1099,19 +1102,21 @@ void update_frontier_v_push_if_out_nbr(
       resize_dataframe_buffer<payload_t>(payload_buffer, size_t{0}, handle.get_stream());
       shrink_to_fit_dataframe_buffer<payload_t>(payload_buffer, handle.get_stream());
     } else {
-      thrust::transform(rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
-                        get_dataframe_buffer_begin<key_t>(key_buffer),
-                        get_dataframe_buffer_begin<key_t>(key_buffer) + num_buffer_elements,
-                        bucket_indices.begin(),
-                        detail::call_v_op_t<GraphViewType,
-                                            VertexValueInputIterator,
-                                            VertexValueOutputIterator,
-                                            VertexOp,
-                                            key_t>{vertex_value_input_first,
-                                                   vertex_value_output_first,
-                                                   v_op,
-                                                   vertex_partition,
-                                                   VertexFrontierType::kInvalidBucketIdx});
+      thrust::transform(
+        rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
+        get_dataframe_buffer_begin<key_t>(key_buffer),
+        get_dataframe_buffer_begin<key_t>(key_buffer) + num_buffer_elements,
+        bucket_indices.begin(),
+        detail::call_v_op_t<vertex_t,
+                            VertexValueInputIterator,
+                            VertexValueOutputIterator,
+                            VertexOp,
+                            key_t,
+                            GraphViewType::is_multi_gpu>{vertex_value_input_first,
+                                                         vertex_value_output_first,
+                                                         v_op,
+                                                         vertex_partition,
+                                                         VertexFrontierType::kInvalidBucketIdx});
     }
 
     auto bucket_key_pair_first = thrust::make_zip_iterator(

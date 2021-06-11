@@ -16,9 +16,7 @@
 
 #include <cugraph/experimental/graph_functions.hpp>
 #include <cugraph/experimental/graph_view.hpp>
-#include <cugraph/matrix_partition_device.cuh>
 #include <cugraph/utilities/error.hpp>
-#include <cugraph/vertex_partition_device.cuh>
 
 #include <rmm/thrust_rmm_allocator.h>
 #include <raft/handle.hpp>
@@ -82,8 +80,7 @@ extract_induced_subgraphs(
                         subgraph_offsets,
                         subgraph_offsets + (num_subgraphs + 1)),
       "Invalid input argument: subgraph_offsets is not sorted.");
-    vertex_partition_device_t<graph_view_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu>>
-      vertex_partition(graph_view);
+    auto vertex_partition = graph_view.get_vertex_partition_device_view();
     CUGRAPH_EXPECTS(thrust::count_if(rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
                                      subgraph_vertices,
                                      subgraph_vertices + num_aggregate_subgraph_vertices,
@@ -135,8 +132,7 @@ extract_induced_subgraphs(
       num_aggregate_subgraph_vertices + 1,
       handle.get_stream());  // for each element of subgraph_vertices
 
-    matrix_partition_device_t<graph_view_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu>>
-      matrix_partition(graph_view, 0);
+    auto matrix_partition = graph_view.get_matrix_partition_device_view(size_t{0});
     // count the numbers of the induced subgraph edges for each vertex in the aggregate subgraph
     // vertex list.
     thrust::transform(
