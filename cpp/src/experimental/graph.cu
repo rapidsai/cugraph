@@ -20,10 +20,10 @@
 #include <cugraph/utilities/error.hpp>
 #include <cugraph/utilities/host_scalar_comm.cuh>
 
-#include <rmm/thrust_rmm_allocator.h>
 #include <raft/device_atomics.cuh>
 #include <raft/handle.hpp>
 #include <rmm/device_uvector.hpp>
+#include <rmm/exec_policy.hpp>
 
 #include <thrust/adjacent_difference.h>
 #include <thrust/binary_search.h>
@@ -72,16 +72,16 @@ compress_edgelist(edgelist_t<vertex_t, edge_t, weight_t> const &edgelist,
                   vertex_t minor_first,
                   vertex_t minor_last,
                   bool is_weighted,
-                  cudaStream_t stream)
+                  rmm::cuda_stream_view stream_view)
 {
-  rmm::device_uvector<edge_t> offsets((major_last - major_first) + 1, stream);
-  rmm::device_uvector<vertex_t> indices(edgelist.number_of_edges, stream);
-  rmm::device_uvector<weight_t> weights(is_weighted ? edgelist.number_of_edges : 0, stream);
-  thrust::fill(rmm::exec_policy(stream)->on(stream), offsets.begin(), offsets.end(), edge_t{0});
-  thrust::fill(rmm::exec_policy(stream)->on(stream), indices.begin(), indices.end(), vertex_t{0});
+  rmm::device_uvector<edge_t> offsets((major_last - major_first) + 1, stream_view);
+  rmm::device_uvector<vertex_t> indices(edgelist.number_of_edges, stream_view);
+  rmm::device_uvector<weight_t> weights(is_weighted ? edgelist.number_of_edges : 0, stream_view);
+  thrust::fill(rmm::exec_policy(stream_view), offsets.begin(), offsets.end(), edge_t{0});
+  thrust::fill(rmm::exec_policy(stream_view), indices.begin(), indices.end(), vertex_t{0});
 
   auto p_offsets = offsets.data();
-  thrust::for_each(rmm::exec_policy(stream)->on(stream),
+  thrust::for_each(rmm::exec_policy(stream_view),
                    store_transposed ? edgelist.p_dst_vertices : edgelist.p_src_vertices,
                    store_transposed ? edgelist.p_dst_vertices + edgelist.number_of_edges
                                     : edgelist.p_src_vertices + edgelist.number_of_edges,
@@ -89,7 +89,7 @@ compress_edgelist(edgelist_t<vertex_t, edge_t, weight_t> const &edgelist,
                      atomicAdd(p_offsets + (v - major_first), edge_t{1});
                    });
   thrust::exclusive_scan(
-    rmm::exec_policy(stream)->on(stream), offsets.begin(), offsets.end(), offsets.begin());
+    rmm::exec_policy(stream_view), offsets.begin(), offsets.end(), offsets.begin());
 
   auto p_indices = indices.data();
   if (is_weighted) {
@@ -97,7 +97,7 @@ compress_edgelist(edgelist_t<vertex_t, edge_t, weight_t> const &edgelist,
 
     auto edge_first = thrust::make_zip_iterator(thrust::make_tuple(
       edgelist.p_src_vertices, edgelist.p_dst_vertices, edgelist.p_edge_weights));
-    thrust::for_each(rmm::exec_policy(stream)->on(stream),
+    thrust::for_each(rmm::exec_policy(stream_view),
                      edge_first,
                      edge_first + edgelist.number_of_edges,
                      [p_offsets, p_indices, p_weights, major_first] __device__(auto e) {
@@ -120,7 +120,7 @@ compress_edgelist(edgelist_t<vertex_t, edge_t, weight_t> const &edgelist,
   } else {
     auto edge_first = thrust::make_zip_iterator(
       thrust::make_tuple(edgelist.p_src_vertices, edgelist.p_dst_vertices));
-    thrust::for_each(rmm::exec_policy(stream)->on(stream),
+    thrust::for_each(rmm::exec_policy(stream_view),
                      edge_first,
                      edge_first + edgelist.number_of_edges,
                      [p_offsets, p_indices, major_first] __device__(auto e) {
@@ -215,7 +215,7 @@ graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu, std::enable_if_
     this->get_handle_ptr()->get_subcomm(cugraph::partition_2d::key_naming_t().col_name());
   auto const col_comm_rank = col_comm.get_rank();
   auto const col_comm_size = col_comm.get_size();
-  auto default_stream      = this->get_handle_ptr()->get_stream();
+  auto default_stream_view = this->get_handle_ptr()->get_stream_view();
 
   CUGRAPH_EXPECTS(edgelists.size() > 0,
                   "Invalid input argument: edgelists.size() should be non-zero.");
@@ -256,7 +256,7 @@ graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu, std::enable_if_
         store_transposed ? edgelists[i].p_dst_vertices : edgelists[i].p_src_vertices,
         store_transposed ? edgelists[i].p_src_vertices : edgelists[i].p_dst_vertices));
       // better use thrust::any_of once https://github.com/thrust/thrust/issues/1016 is resolved
-      CUGRAPH_EXPECTS(thrust::count_if(rmm::exec_policy(default_stream)->on(default_stream),
+      CUGRAPH_EXPECTS(thrust::count_if(rmm::exec_policy(default_stream_view),
                                        edge_first,
                                        edge_first + edgelists[i].number_of_edges,
                                        out_of_range_t<vertex_t>{
@@ -264,7 +264,7 @@ graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu, std::enable_if_
                       "Invalid input argument: edgelists[] have out-of-range values.");
     }
     number_of_local_edges_sum =
-      host_scalar_allreduce(comm, number_of_local_edges_sum, default_stream);
+      host_scalar_allreduce(comm, number_of_local_edges_sum, default_stream_view.value());
     CUGRAPH_EXPECTS(
       number_of_local_edges_sum == this->get_number_of_edges(),
       "Invalid input argument: the sum of local edge counts does not match with number_of_edges.");
@@ -278,26 +278,23 @@ graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu, std::enable_if_
 
   if (segment_offsets.size() > 0) {
     // FIXME: we need to add host_allgather
-    rmm::device_uvector<vertex_t> d_segment_offsets(segment_offsets.size(), default_stream);
+    rmm::device_uvector<vertex_t> d_segment_offsets(segment_offsets.size(), default_stream_view);
     raft::update_device(
-      d_segment_offsets.data(), segment_offsets.data(), segment_offsets.size(), default_stream);
+      d_segment_offsets.data(), segment_offsets.data(), segment_offsets.size(), default_stream_view.value());
     rmm::device_uvector<vertex_t> d_aggregate_segment_offsets(
-      col_comm_size * d_segment_offsets.size(), default_stream);
+      col_comm_size * d_segment_offsets.size(), default_stream_view);
     col_comm.allgather(d_segment_offsets.data(),
                        d_aggregate_segment_offsets.data(),
                        d_segment_offsets.size(),
-                       default_stream);
+                       default_stream_view.value());
 
     adj_matrix_partition_segment_offsets_.resize(d_aggregate_segment_offsets.size());
     raft::update_host(adj_matrix_partition_segment_offsets_.data(),
                       d_aggregate_segment_offsets.data(),
                       d_aggregate_segment_offsets.size(),
-                      default_stream);
+                      default_stream_view.value());
 
-    auto status = col_comm.sync_stream(
-      default_stream);  // this is necessary as adj_matrix_partition_segment_offsets_ can be used
-                        // right after return.
-    CUGRAPH_EXPECTS(status == raft::comms::status_t::SUCCESS, "sync_stream() failure.");
+    default_stream_view.synchronize();  // this is necessary as adj_matrix_partition_segment_offsets_ can be used right after return.
   }
 
   // compress edge list (COO) to CSR (or CSC) or CSR + DCSR (CSC + DCSC) hybrid
@@ -362,14 +359,14 @@ graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu, std::enable_if_
           bool do_expensive_check)
   : detail::graph_base_t<vertex_t, edge_t, weight_t>(
       handle, number_of_vertices, edgelist.number_of_edges, properties),
-    offsets_(rmm::device_uvector<edge_t>(0, handle.get_stream())),
-    indices_(rmm::device_uvector<vertex_t>(0, handle.get_stream())),
-    weights_(rmm::device_uvector<weight_t>(0, handle.get_stream())),
+    offsets_(rmm::device_uvector<edge_t>(0, handle.get_stream_view())),
+    indices_(rmm::device_uvector<vertex_t>(0, handle.get_stream_view())),
+    weights_(rmm::device_uvector<weight_t>(0, handle.get_stream_view()))
     segment_offsets_(segment_offsets)
 {
   // cheap error checks
 
-  auto default_stream = this->get_handle_ptr()->get_stream();
+  auto default_stream_view = this->get_handle_ptr()->get_stream_view();
 
   CUGRAPH_EXPECTS(
     ((edgelist.number_of_edges == 0) || (edgelist.p_src_vertices != nullptr)) &&
@@ -389,7 +386,7 @@ graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu, std::enable_if_
                          store_transposed ? edgelist.p_src_vertices : edgelist.p_dst_vertices));
     // better use thrust::any_of once https://github.com/thrust/thrust/issues/1016 is resolved
     CUGRAPH_EXPECTS(thrust::count_if(
-                      rmm::exec_policy(default_stream)->on(default_stream),
+                      rmm::exec_policy(default_stream_view),
                       edge_first,
                       edge_first + edgelist.number_of_edges,
                       out_of_range_t<vertex_t>{
@@ -413,7 +410,7 @@ graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu, std::enable_if_
                                         vertex_t{0},
                                         this->get_number_of_vertices(),
                                         properties.is_weighted,
-                                        this->get_handle_ptr()->get_stream());
+                                        default_stream_view);
 
   // optional expensive checks (part 3/3)
 

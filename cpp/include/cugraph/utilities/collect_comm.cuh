@@ -50,7 +50,7 @@ collect_values_for_keys(raft::comms::comms_t const &comm,
                         VertexIterator1 collect_key_first,
                         VertexIterator1 collect_key_last,
                         KeyToGPUIdOp key_to_gpu_id_op,
-                        cudaStream_t stream)
+                        rmm::cuda_stream_view stream_view)
 {
   using vertex_t = typename std::iterator_traits<VertexIterator0>::value_type;
   static_assert(
@@ -66,7 +66,7 @@ collect_values_for_keys(raft::comms::comms_t const &comm,
   // 1. build a cuco::static_map object for the map k, v pairs.
 
   auto poly_alloc = rmm::mr::polymorphic_allocator<char>(rmm::mr::get_current_device_resource());
-  auto stream_adapter = rmm::mr::make_stream_allocator_adaptor(poly_alloc, cudaStream_t{nullptr});
+  auto stream_adapter = rmm::mr::make_stream_allocator_adaptor(poly_alloc, stream_view);
   auto kv_map_ptr     = std::make_unique<
     cuco::static_map<vertex_t, value_t, cuda::thread_scope_device, decltype(stream_adapter)>>(
     // cuco::static_map requires at least one empty slot
@@ -84,37 +84,37 @@ collect_values_for_keys(raft::comms::comms_t const &comm,
   // 2. collect values for the unique keys in [collect_key_first, collect_key_last)
 
   rmm::device_uvector<vertex_t> unique_keys(thrust::distance(collect_key_first, collect_key_last),
-                                            stream);
+                                            stream_view);
   thrust::copy(
-    rmm::exec_policy(stream)->on(stream), collect_key_first, collect_key_last, unique_keys.begin());
-  thrust::sort(rmm::exec_policy(stream)->on(stream), unique_keys.begin(), unique_keys.end());
+    rmm::exec_policy(stream_view), collect_key_first, collect_key_last, unique_keys.begin());
+  thrust::sort(rmm::exec_policy(stream_view), unique_keys.begin(), unique_keys.end());
   unique_keys.resize(
     thrust::distance(
       unique_keys.begin(),
-      thrust::unique(rmm::exec_policy(stream)->on(stream), unique_keys.begin(), unique_keys.end())),
-    stream);
+      thrust::unique(rmm::exec_policy(stream_view), unique_keys.begin(), unique_keys.end())),
+    stream_view);
 
-  rmm::device_uvector<value_t> values_for_unique_keys(0, stream);
+  rmm::device_uvector<value_t> values_for_unique_keys(0, stream_view);
   {
-    rmm::device_uvector<vertex_t> rx_unique_keys(0, stream);
+    rmm::device_uvector<vertex_t> rx_unique_keys(0, stream_view);
     std::vector<size_t> rx_value_counts{};
     std::tie(rx_unique_keys, rx_value_counts) = groupby_gpuid_and_shuffle_values(
       comm,
       unique_keys.begin(),
       unique_keys.end(),
       [key_to_gpu_id_op] __device__(auto val) { return key_to_gpu_id_op(val); },
-      stream);
+      stream_view);
 
-    rmm::device_uvector<value_t> values_for_rx_unique_keys(rx_unique_keys.size(), stream);
+    rmm::device_uvector<value_t> values_for_rx_unique_keys(rx_unique_keys.size(), stream_view);
 
-    CUDA_TRY(cudaStreamSynchronize(stream));  // cuco::static_map currently does not take stream
+    stream_view.synchronize();  // cuco::static_map currently does not take stream
 
     kv_map_ptr->find(
       rx_unique_keys.begin(), rx_unique_keys.end(), values_for_rx_unique_keys.begin());
 
-    rmm::device_uvector<value_t> rx_values_for_unique_keys(0, stream);
+    rmm::device_uvector<value_t> rx_values_for_unique_keys(0, stream_view);
     std::tie(rx_values_for_unique_keys, std::ignore) =
-      shuffle_values(comm, values_for_rx_unique_keys.begin(), rx_value_counts, stream);
+      shuffle_values(comm, values_for_rx_unique_keys.begin(), rx_value_counts, stream_view);
 
     values_for_unique_keys = std::move(rx_values_for_unique_keys);
   }
@@ -122,7 +122,7 @@ collect_values_for_keys(raft::comms::comms_t const &comm,
   // 3. re-build a cuco::static_map object for the k, v pairs in unique_keys,
   // values_for_unique_keys.
 
-  CUDA_TRY(cudaStreamSynchronize(stream));  // cuco::static_map currently does not take stream
+  stream_view.synchronize();  // cuco::static_map currently does not take stream
 
   kv_map_ptr.reset();
 
@@ -143,7 +143,7 @@ collect_values_for_keys(raft::comms::comms_t const &comm,
   // 4. find values for [collect_key_first, collect_key_last)
 
   auto value_buffer = allocate_dataframe_buffer<value_t>(
-    thrust::distance(collect_key_first, collect_key_last), stream);
+    thrust::distance(collect_key_first, collect_key_last), stream_view);
   kv_map_ptr->find(
     collect_key_first, collect_key_last, get_dataframe_buffer_begin<value_t>(value_buffer));
 
@@ -165,7 +165,7 @@ collect_values_for_unique_keys(raft::comms::comms_t const &comm,
                                VertexIterator1 collect_unique_key_first,
                                VertexIterator1 collect_unique_key_last,
                                KeyToGPUIdOp key_to_gpu_id_op,
-                               cudaStream_t stream)
+                               rmm::cuda_stream_view stream_view)
 {
   using vertex_t = typename std::iterator_traits<VertexIterator0>::value_type;
   static_assert(
@@ -181,7 +181,7 @@ collect_values_for_unique_keys(raft::comms::comms_t const &comm,
   // 1. build a cuco::static_map object for the map k, v pairs.
 
   auto poly_alloc = rmm::mr::polymorphic_allocator<char>(rmm::mr::get_current_device_resource());
-  auto stream_adapter = rmm::mr::make_stream_allocator_adaptor(poly_alloc, cudaStream_t{nullptr});
+  auto stream_adapter = rmm::mr::make_stream_allocator_adaptor(poly_alloc, stream_view);
   auto kv_map_ptr     = std::make_unique<
     cuco::static_map<vertex_t, value_t, cuda::thread_scope_device, decltype(stream_adapter)>>(
     // cuco::static_map requires at least one empty slot
@@ -199,33 +199,33 @@ collect_values_for_unique_keys(raft::comms::comms_t const &comm,
   // 2. collect values for the unique keys in [collect_unique_key_first, collect_unique_key_last)
 
   rmm::device_uvector<vertex_t> unique_keys(
-    thrust::distance(collect_unique_key_first, collect_unique_key_last), stream);
-  thrust::copy(rmm::exec_policy(stream)->on(stream),
+    thrust::distance(collect_unique_key_first, collect_unique_key_last), stream_view);
+  thrust::copy(rmm::exec_policy(stream_view),
                collect_unique_key_first,
                collect_unique_key_last,
                unique_keys.begin());
 
-  rmm::device_uvector<value_t> values_for_unique_keys(0, stream);
+  rmm::device_uvector<value_t> values_for_unique_keys(0, stream_view);
   {
-    rmm::device_uvector<vertex_t> rx_unique_keys(0, stream);
+    rmm::device_uvector<vertex_t> rx_unique_keys(0, stream_view);
     std::vector<size_t> rx_value_counts{};
     std::tie(rx_unique_keys, rx_value_counts) = groupby_gpuid_and_shuffle_values(
       comm,
       unique_keys.begin(),
       unique_keys.end(),
       [key_to_gpu_id_op] __device__(auto val) { return key_to_gpu_id_op(val); },
-      stream);
+      stream_view);
 
-    rmm::device_uvector<value_t> values_for_rx_unique_keys(rx_unique_keys.size(), stream);
+    rmm::device_uvector<value_t> values_for_rx_unique_keys(rx_unique_keys.size(), stream_view);
 
-    CUDA_TRY(cudaStreamSynchronize(stream));  // cuco::static_map currently does not take stream
+    stream_view.synchronize();  // cuco::static_map currently does not take stream
 
     kv_map_ptr->find(
       rx_unique_keys.begin(), rx_unique_keys.end(), values_for_rx_unique_keys.begin());
 
-    rmm::device_uvector<value_t> rx_values_for_unique_keys(0, stream);
+    rmm::device_uvector<value_t> rx_values_for_unique_keys(0, stream_view);
     std::tie(rx_values_for_unique_keys, std::ignore) =
-      shuffle_values(comm, values_for_rx_unique_keys.begin(), rx_value_counts, stream);
+      shuffle_values(comm, values_for_rx_unique_keys.begin(), rx_value_counts, stream_view);
 
     values_for_unique_keys = std::move(rx_values_for_unique_keys);
   }
@@ -233,7 +233,7 @@ collect_values_for_unique_keys(raft::comms::comms_t const &comm,
   // 3. re-build a cuco::static_map object for the k, v pairs in unique_keys,
   // values_for_unique_keys.
 
-  CUDA_TRY(cudaStreamSynchronize(stream));  // cuco::static_map currently does not take stream
+  stream_view.synchronize();  // cuco::static_map currently does not take stream
 
   kv_map_ptr.reset();
 
@@ -254,7 +254,7 @@ collect_values_for_unique_keys(raft::comms::comms_t const &comm,
   // 4. find values for [collect_unique_key_first, collect_unique_key_last)
 
   auto value_buffer = allocate_dataframe_buffer<value_t>(
-    thrust::distance(collect_unique_key_first, collect_unique_key_last), stream);
+    thrust::distance(collect_unique_key_first, collect_unique_key_last), stream_view);
   kv_map_ptr->find(collect_unique_key_first,
                    collect_unique_key_last,
                    get_dataframe_buffer_begin<value_t>(value_buffer));

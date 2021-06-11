@@ -18,6 +18,7 @@
 #include <cugraph/utilities/thrust_tuple_utils.cuh>
 
 #include <raft/handle.hpp>
+#include <rmm/cuda_stream_view.hpp>
 #include <rmm/device_uvector.hpp>
 
 #include <thrust/detail/type_traits/iterator/is_discard_iterator.h>
@@ -175,7 +176,7 @@ device_sendrecv_impl(raft::comms::comms_t const& comm,
                      OutputIterator output_first,
                      size_t rx_count,
                      int src,
-                     cudaStream_t stream)
+                     rmm::cuda_stream_view stream_view)
 {
   // no-op
 }
@@ -191,7 +192,7 @@ device_sendrecv_impl(raft::comms::comms_t const& comm,
                      OutputIterator output_first,
                      size_t rx_count,
                      int src,
-                     cudaStream_t stream)
+                     rmm::cuda_stream_view stream_view)
 {
   using value_type = typename std::iterator_traits<InputIterator>::value_type;
   static_assert(
@@ -202,7 +203,7 @@ device_sendrecv_impl(raft::comms::comms_t const& comm,
                        iter_to_raw_ptr(output_first),
                        rx_count,
                        src,
-                       stream);
+                       stream_view.value());
 }
 
 template <typename InputIterator, typename OutputIterator, size_t I, size_t N>
@@ -214,7 +215,7 @@ struct device_sendrecv_tuple_iterator_element_impl {
            OutputIterator output_first,
            size_t rx_count,
            int src,
-           cudaStream_t stream) const
+           rmm::cuda_stream_view stream_view) const
   {
     using output_value_t = typename thrust::
       tuple_element<I, typename std::iterator_traits<OutputIterator>::value_type>::type;
@@ -228,9 +229,9 @@ struct device_sendrecv_tuple_iterator_element_impl {
       tuple_element_output_first,
       rx_count,
       src,
-      stream);
+      stream_view.value());
     device_sendrecv_tuple_iterator_element_impl<InputIterator, OutputIterator, I + 1, N>().run(
-      comm, input_first, tx_count, dst, output_first, rx_count, src, stream);
+      comm, input_first, tx_count, dst, output_first, rx_count, src, stream_view);
   }
 };
 
@@ -243,7 +244,7 @@ struct device_sendrecv_tuple_iterator_element_impl<InputIterator, OutputIterator
            OutputIterator output_first,
            size_t rx_count,
            int src,
-           cudaStream_t stream) const
+           rmm::cuda_stream_view stream_view) const
   {
   }
 };
@@ -259,7 +260,7 @@ device_multicast_sendrecv_impl(raft::comms::comms_t const& comm,
                                std::vector<size_t> const& rx_counts,
                                std::vector<size_t> const& rx_offsets,
                                std::vector<int> const& rx_src_ranks,
-                               cudaStream_t stream)
+                               rmm::cuda_stream_view stream_view)
 {
   // no-op
 }
@@ -277,7 +278,7 @@ device_multicast_sendrecv_impl(raft::comms::comms_t const& comm,
                                std::vector<size_t> const& rx_counts,
                                std::vector<size_t> const& rx_offsets,
                                std::vector<int> const& rx_src_ranks,
-                               cudaStream_t stream)
+                               rmm::cuda_stream_view stream_view)
 {
   using value_type = typename std::iterator_traits<InputIterator>::value_type;
   static_assert(
@@ -290,7 +291,7 @@ device_multicast_sendrecv_impl(raft::comms::comms_t const& comm,
                                  rx_counts,
                                  rx_offsets,
                                  rx_src_ranks,
-                                 stream);
+                                 stream_view.value());
 }
 
 template <typename InputIterator, typename OutputIterator, size_t I, size_t N>
@@ -304,7 +305,7 @@ struct device_multicast_sendrecv_tuple_iterator_element_impl {
            std::vector<size_t> const& rx_counts,
            std::vector<size_t> const& rx_offsets,
            std::vector<int> const& rx_src_ranks,
-           cudaStream_t stream) const
+           rmm::cuda_stream_view stream_view) const
   {
     using output_value_t = typename thrust::
       tuple_element<I, typename std::iterator_traits<OutputIterator>::value_type>::type;
@@ -320,7 +321,7 @@ struct device_multicast_sendrecv_tuple_iterator_element_impl {
                                                                          rx_counts,
                                                                          rx_offsets,
                                                                          rx_src_ranks,
-                                                                         stream);
+                                                                         stream_view);
     device_multicast_sendrecv_tuple_iterator_element_impl<InputIterator, OutputIterator, I + 1, N>()
       .run(comm,
            input_first,
@@ -331,7 +332,7 @@ struct device_multicast_sendrecv_tuple_iterator_element_impl {
            rx_counts,
            rx_offsets,
            rx_src_ranks,
-           stream);
+           stream_view);
   }
 };
 
@@ -346,7 +347,7 @@ struct device_multicast_sendrecv_tuple_iterator_element_impl<InputIterator, Outp
            std::vector<size_t> const& rx_counts,
            std::vector<size_t> const& rx_offsets,
            std::vector<int> const& rx_src_ranks,
-           cudaStream_t stream) const
+           rmm::cuda_stream_view stream_view) const
   {
   }
 };
@@ -358,7 +359,7 @@ device_bcast_impl(raft::comms::comms_t const& comm,
                   OutputIterator output_first,
                   size_t count,
                   int root,
-                  cudaStream_t stream)
+                  rmm::cuda_stream_view stream_view)
 {
   // no-op
 }
@@ -372,14 +373,14 @@ device_bcast_impl(raft::comms::comms_t const& comm,
                   OutputIterator output_first,
                   size_t count,
                   int root,
-                  cudaStream_t stream)
+                  rmm::cuda_stream_view stream_view)
 {
   static_assert(std::is_same<typename std::iterator_traits<InputIterator>::value_type,
                              typename std::iterator_traits<OutputIterator>::value_type>::value);
   if (comm.get_rank() == root) {
-    comm.bcast(iter_to_raw_ptr(input_first), count, root, stream);
+    comm.bcast(iter_to_raw_ptr(input_first), count, root, stream_view.value());
   } else {
-    comm.bcast(iter_to_raw_ptr(output_first), count, root, stream);
+    comm.bcast(iter_to_raw_ptr(output_first), count, root, stream_view.value());
   }
 }
 
@@ -390,16 +391,16 @@ struct device_bcast_tuple_iterator_element_impl {
            OutputIterator output_first,
            size_t count,
            int root,
-           cudaStream_t stream) const
+           rmm::cuda_stream_view stream_view) const
   {
     device_bcast_impl(comm,
                       thrust::get<I>(input_first.get_iterator_tuple()),
                       thrust::get<I>(output_first.get_iterator_tuple()),
                       count,
                       root,
-                      stream);
+                      stream_view);
     device_bcast_tuple_iterator_element_impl<InputIterator, OutputIterator, I + 1, N>().run(
-      comm, input_first, output_first, count, root, stream);
+      comm, input_first, output_first, count, root, stream_view);
   }
 };
 
@@ -410,7 +411,7 @@ struct device_bcast_tuple_iterator_element_impl<InputIterator, OutputIterator, I
            OutputIterator output_first,
            size_t count,
            int root,
-           cudaStream_t stream) const
+           rmm::cuda_stream_view stream_view) const
   {
   }
 };
@@ -422,7 +423,7 @@ device_allreduce_impl(raft::comms::comms_t const& comm,
                       OutputIterator output_first,
                       size_t count,
                       raft::comms::op_t op,
-                      cudaStream_t stream)
+                      rmm::cuda_stream_view stream_view)
 {
   // no-op
 }
@@ -436,11 +437,12 @@ device_allreduce_impl(raft::comms::comms_t const& comm,
                       OutputIterator output_first,
                       size_t count,
                       raft::comms::op_t op,
-                      cudaStream_t stream)
+                      rmm::cuda_stream_view stream_view)
 {
   static_assert(std::is_same<typename std::iterator_traits<InputIterator>::value_type,
                              typename std::iterator_traits<OutputIterator>::value_type>::value);
-  comm.allreduce(iter_to_raw_ptr(input_first), iter_to_raw_ptr(output_first), count, op, stream);
+  comm.allreduce(
+    iter_to_raw_ptr(input_first), iter_to_raw_ptr(output_first), count, op, stream_view.value());
 }
 
 template <typename InputIterator, typename OutputIterator, size_t I, size_t N>
@@ -450,16 +452,16 @@ struct device_allreduce_tuple_iterator_element_impl {
            OutputIterator output_first,
            size_t count,
            raft::comms::op_t op,
-           cudaStream_t stream) const
+           rmm::cuda_stream_view stream_view) const
   {
     device_allreduce_impl(comm,
                           thrust::get<I>(input_first.get_iterator_tuple()),
                           thrust::get<I>(output_first.get_iterator_tuple()),
                           count,
                           op,
-                          stream);
+                          stream_view);
     device_allreduce_tuple_iterator_element_impl<InputIterator, OutputIterator, I + 1, N>().run(
-      comm, input_first, output_first, count, op, stream);
+      comm, input_first, output_first, count, op, stream_view);
   }
 };
 
@@ -470,7 +472,7 @@ struct device_allreduce_tuple_iterator_element_impl<InputIterator, OutputIterato
            OutputIterator output_first,
            size_t count,
            raft::comms::op_t op,
-           cudaStream_t stream) const
+           rmm::cuda_stream_view stream_view) const
   {
   }
 };
@@ -483,7 +485,7 @@ device_reduce_impl(raft::comms::comms_t const& comm,
                    size_t count,
                    raft::comms::op_t op,
                    int root,
-                   cudaStream_t stream)
+                   rmm::cuda_stream_view stream_view)
 {
   // no-op
 }
@@ -498,11 +500,16 @@ device_reduce_impl(raft::comms::comms_t const& comm,
                    size_t count,
                    raft::comms::op_t op,
                    int root,
-                   cudaStream_t stream)
+                   rmm::cuda_stream_view stream_view)
 {
   static_assert(std::is_same<typename std::iterator_traits<InputIterator>::value_type,
                              typename std::iterator_traits<OutputIterator>::value_type>::value);
-  comm.reduce(iter_to_raw_ptr(input_first), iter_to_raw_ptr(output_first), count, op, root, stream);
+  comm.reduce(iter_to_raw_ptr(input_first),
+              iter_to_raw_ptr(output_first),
+              count,
+              op,
+              root,
+              stream_view.value());
 }
 
 template <typename InputIterator, typename OutputIterator, size_t I, size_t N>
@@ -513,7 +520,7 @@ struct device_reduce_tuple_iterator_element_impl {
            size_t count,
            raft::comms::op_t op,
            int root,
-           cudaStream_t stream) const
+           rmm::cuda_stream_view stream_view) const
   {
     device_reduce_impl(comm,
                        thrust::get<I>(input_first.get_iterator_tuple()),
@@ -521,9 +528,9 @@ struct device_reduce_tuple_iterator_element_impl {
                        count,
                        op,
                        root,
-                       stream);
+                       stream_view);
     device_reduce_tuple_iterator_element_impl<InputIterator, OutputIterator, I + 1, N>().run(
-      comm, input_first, output_first, count, op, root, stream);
+      comm, input_first, output_first, count, op, root, stream_view);
   }
 };
 
@@ -535,7 +542,7 @@ struct device_reduce_tuple_iterator_element_impl<InputIterator, OutputIterator, 
            size_t count,
            raft::comms::op_t op,
            int root,
-           cudaStream_t stream) const
+           rmm::cuda_stream_view stream_view) const
   {
   }
 };
@@ -547,7 +554,7 @@ device_allgatherv_impl(raft::comms::comms_t const& comm,
                        OutputIterator output_first,
                        std::vector<size_t> const& recvcounts,
                        std::vector<size_t> const& displacements,
-                       cudaStream_t stream)
+                       rmm::cuda_stream_view stream_view)
 {
   // no-op
 }
@@ -561,7 +568,7 @@ device_allgatherv_impl(raft::comms::comms_t const& comm,
                        OutputIterator output_first,
                        std::vector<size_t> const& recvcounts,
                        std::vector<size_t> const& displacements,
-                       cudaStream_t stream)
+                       rmm::cuda_stream_view stream_view)
 {
   static_assert(std::is_same<typename std::iterator_traits<InputIterator>::value_type,
                              typename std::iterator_traits<OutputIterator>::value_type>::value);
@@ -569,7 +576,7 @@ device_allgatherv_impl(raft::comms::comms_t const& comm,
                   iter_to_raw_ptr(output_first),
                   recvcounts.data(),
                   displacements.data(),
-                  stream);
+                  stream_view.value());
 }
 
 template <typename InputIterator, typename OutputIterator, size_t I, size_t N>
@@ -579,16 +586,16 @@ struct device_allgatherv_tuple_iterator_element_impl {
            OutputIterator output_first,
            std::vector<size_t> const& recvcounts,
            std::vector<size_t> const& displacements,
-           cudaStream_t stream) const
+           rmm::cuda_stream_view stream_view) const
   {
     device_allgatherv_impl(comm,
                            thrust::get<I>(input_first.get_iterator_tuple()),
                            thrust::get<I>(output_first.get_iterator_tuple()),
                            recvcounts,
                            displacements,
-                           stream);
+                           stream_view);
     device_allgatherv_tuple_iterator_element_impl<InputIterator, OutputIterator, I + 1, N>().run(
-      comm, input_first, output_first, recvcounts, displacements, stream);
+      comm, input_first, output_first, recvcounts, displacements, stream_view);
   }
 };
 
@@ -599,7 +606,7 @@ struct device_allgatherv_tuple_iterator_element_impl<InputIterator, OutputIterat
            OutputIterator output_first,
            std::vector<size_t> const& recvcounts,
            std::vector<size_t> const& displacements,
-           cudaStream_t stream) const
+           rmm::cuda_stream_view stream_view) const
   {
   }
 };
@@ -613,7 +620,7 @@ device_gatherv_impl(raft::comms::comms_t const& comm,
                     std::vector<size_t> const& recvcounts,
                     std::vector<size_t> const& displacements,
                     int root,
-                    cudaStream_t stream)
+                    rmm::cuda_stream_view stream_view)
 {
   // no-op
 }
@@ -629,7 +636,7 @@ device_gatherv_impl(raft::comms::comms_t const& comm,
                     std::vector<size_t> const& recvcounts,
                     std::vector<size_t> const& displacements,
                     int root,
-                    cudaStream_t stream)
+                    rmm::cuda_stream_view stream_view)
 {
   static_assert(std::is_same<typename std::iterator_traits<InputIterator>::value_type,
                              typename std::iterator_traits<OutputIterator>::value_type>::value);
@@ -639,7 +646,7 @@ device_gatherv_impl(raft::comms::comms_t const& comm,
                recvcounts.data(),
                displacements.data(),
                root,
-               stream);
+               stream_view.value());
 }
 
 template <typename InputIterator, typename OutputIterator, size_t I, size_t N>
@@ -651,7 +658,7 @@ struct device_gatherv_tuple_iterator_element_impl {
            std::vector<size_t> const& recvcounts,
            std::vector<size_t> const& displacements,
            int root,
-           cudaStream_t stream) const
+           rmm::cuda_stream_view stream_view) const
   {
     device_gatherv_impl(comm,
                         thrust::get<I>(input_first.get_iterator_tuple()),
@@ -660,9 +667,9 @@ struct device_gatherv_tuple_iterator_element_impl {
                         recvcounts,
                         displacements,
                         root,
-                        stream);
+                        stream_view);
     device_gatherv_tuple_iterator_element_impl<InputIterator, OutputIterator, I + 1, N>().run(
-      comm, input_first, output_first, sendcount, recvcounts, displacements, root, stream);
+      comm, input_first, output_first, sendcount, recvcounts, displacements, root, stream_view);
   }
 };
 
@@ -675,7 +682,7 @@ struct device_gatherv_tuple_iterator_element_impl<InputIterator, OutputIterator,
            std::vector<size_t> const& recvcounts,
            std::vector<size_t> const& displacements,
            int root,
-           cudaStream_t stream) const
+           rmm::cuda_stream_view stream_view) const
   {
   }
 };
@@ -772,10 +779,10 @@ device_sendrecv(raft::comms::comms_t const& comm,
                 OutputIterator output_first,
                 size_t rx_count,
                 int src,
-                cudaStream_t stream)
+                rmm::cuda_stream_view stream_view)
 {
   detail::device_sendrecv_impl<InputIterator, OutputIterator>(
-    comm, input_first, tx_count, dst, output_first, rx_count, src, stream);
+    comm, input_first, tx_count, dst, output_first, rx_count, src, stream_view);
 }
 
 template <typename InputIterator, typename OutputIterator>
@@ -790,7 +797,7 @@ device_sendrecv(raft::comms::comms_t const& comm,
                 OutputIterator output_first,
                 size_t rx_count,
                 int src,
-                cudaStream_t stream)
+                rmm::cuda_stream_view stream_view)
 {
   static_assert(
     thrust::tuple_size<typename thrust::iterator_traits<InputIterator>::value_type>::value ==
@@ -806,7 +813,7 @@ device_sendrecv(raft::comms::comms_t const& comm,
                                                       OutputIterator,
                                                       size_t{0},
                                                       tuple_size>()
-    .run(comm, input_first, tx_count, dst, output_first, rx_count, src, stream);
+    .run(comm, input_first, tx_count, dst, output_first, rx_count, src, stream_view);
 }
 
 template <typename InputIterator, typename OutputIterator>
@@ -822,7 +829,7 @@ device_multicast_sendrecv(raft::comms::comms_t const& comm,
                           std::vector<size_t> const& rx_counts,
                           std::vector<size_t> const& rx_offsets,
                           std::vector<int> const& rx_src_ranks,
-                          cudaStream_t stream)
+                          rmm::cuda_stream_view stream_view)
 {
   detail::device_multicast_sendrecv_impl<InputIterator, OutputIterator>(comm,
                                                                         input_first,
@@ -833,7 +840,7 @@ device_multicast_sendrecv(raft::comms::comms_t const& comm,
                                                                         rx_counts,
                                                                         rx_offsets,
                                                                         rx_src_ranks,
-                                                                        stream);
+                                                                        stream_view);
 }
 
 template <typename InputIterator, typename OutputIterator>
@@ -850,7 +857,7 @@ device_multicast_sendrecv(raft::comms::comms_t const& comm,
                           std::vector<size_t> const& rx_counts,
                           std::vector<size_t> const& rx_offsets,
                           std::vector<int> const& rx_src_ranks,
-                          cudaStream_t stream)
+                          rmm::cuda_stream_view stream_view)
 {
   static_assert(
     thrust::tuple_size<typename thrust::iterator_traits<InputIterator>::value_type>::value ==
@@ -875,7 +882,7 @@ device_multicast_sendrecv(raft::comms::comms_t const& comm,
          rx_counts,
          rx_offsets,
          rx_src_ranks,
-         stream);
+         stream_view);
 }
 
 template <typename InputIterator, typename OutputIterator>
@@ -887,9 +894,9 @@ device_bcast(raft::comms::comms_t const& comm,
              OutputIterator output_first,
              size_t count,
              int root,
-             cudaStream_t stream)
+             rmm::cuda_stream_view stream_view)
 {
-  detail::device_bcast_impl(comm, input_first, output_first, count, root, stream);
+  detail::device_bcast_impl(comm, input_first, output_first, count, root, stream_view);
 }
 
 template <typename InputIterator, typename OutputIterator>
@@ -902,7 +909,7 @@ device_bcast(raft::comms::comms_t const& comm,
              OutputIterator output_first,
              size_t count,
              int root,
-             cudaStream_t stream)
+             rmm::cuda_stream_view stream_view)
 {
   static_assert(
     thrust::tuple_size<typename thrust::iterator_traits<InputIterator>::value_type>::value ==
@@ -913,7 +920,7 @@ device_bcast(raft::comms::comms_t const& comm,
 
   detail::
     device_bcast_tuple_iterator_element_impl<InputIterator, OutputIterator, size_t{0}, tuple_size>()
-      .run(comm, input_first, output_first, count, root, stream);
+      .run(comm, input_first, output_first, count, root, stream_view);
 }
 
 template <typename InputIterator, typename OutputIterator>
@@ -925,9 +932,9 @@ device_allreduce(raft::comms::comms_t const& comm,
                  OutputIterator output_first,
                  size_t count,
                  raft::comms::op_t op,
-                 cudaStream_t stream)
+                 rmm::cuda_stream_view stream_view)
 {
-  detail::device_allreduce_impl(comm, input_first, output_first, count, op, stream);
+  detail::device_allreduce_impl(comm, input_first, output_first, count, op, stream_view);
 }
 
 template <typename InputIterator, typename OutputIterator>
@@ -940,7 +947,7 @@ device_allreduce(raft::comms::comms_t const& comm,
                  OutputIterator output_first,
                  size_t count,
                  raft::comms::op_t op,
-                 cudaStream_t stream)
+                 rmm::cuda_stream_view stream_view)
 {
   static_assert(
     thrust::tuple_size<typename thrust::iterator_traits<InputIterator>::value_type>::value ==
@@ -953,7 +960,7 @@ device_allreduce(raft::comms::comms_t const& comm,
                                                        OutputIterator,
                                                        size_t{0},
                                                        tuple_size>()
-    .run(comm, input_first, output_first, count, op, stream);
+    .run(comm, input_first, output_first, count, op, stream_view);
 }
 
 template <typename InputIterator, typename OutputIterator>
@@ -966,9 +973,9 @@ device_reduce(raft::comms::comms_t const& comm,
               size_t count,
               raft::comms::op_t op,
               int root,
-              cudaStream_t stream)
+              rmm::cuda_stream_view stream_view)
 {
-  detail::device_reduce_impl(comm, input_first, output_first, count, op, root, stream);
+  detail::device_reduce_impl(comm, input_first, output_first, count, op, root, stream_view);
 }
 
 template <typename InputIterator, typename OutputIterator>
@@ -982,7 +989,7 @@ device_reduce(raft::comms::comms_t const& comm,
               size_t count,
               raft::comms::op_t op,
               int root,
-              cudaStream_t stream)
+              rmm::cuda_stream_view stream_view)
 {
   static_assert(
     thrust::tuple_size<typename thrust::iterator_traits<InputIterator>::value_type>::value ==
@@ -995,7 +1002,7 @@ device_reduce(raft::comms::comms_t const& comm,
                                                     OutputIterator,
                                                     size_t{0},
                                                     tuple_size>()
-    .run(comm, input_first, output_first, count, op, root, stream);
+    .run(comm, input_first, output_first, count, op, root, stream_view);
 }
 
 template <typename InputIterator, typename OutputIterator>
@@ -1007,10 +1014,10 @@ device_allgatherv(raft::comms::comms_t const& comm,
                   OutputIterator output_first,
                   std::vector<size_t> const& recvcounts,
                   std::vector<size_t> const& displacements,
-                  cudaStream_t stream)
+                  rmm::cuda_stream_view stream_view)
 {
   detail::device_allgatherv_impl(
-    comm, input_first, output_first, recvcounts, displacements, stream);
+    comm, input_first, output_first, recvcounts, displacements, stream_view);
 }
 
 template <typename InputIterator, typename OutputIterator>
@@ -1023,7 +1030,7 @@ device_allgatherv(raft::comms::comms_t const& comm,
                   OutputIterator output_first,
                   std::vector<size_t> const& recvcounts,
                   std::vector<size_t> const& displacements,
-                  cudaStream_t stream)
+                  rmm::cuda_stream_view stream_view)
 {
   static_assert(
     thrust::tuple_size<typename thrust::iterator_traits<InputIterator>::value_type>::value ==
@@ -1036,7 +1043,7 @@ device_allgatherv(raft::comms::comms_t const& comm,
                                                         OutputIterator,
                                                         size_t{0},
                                                         tuple_size>()
-    .run(comm, input_first, output_first, recvcounts, displacements, stream);
+    .run(comm, input_first, output_first, recvcounts, displacements, stream_view);
 }
 
 template <typename InputIterator, typename OutputIterator>
@@ -1050,10 +1057,10 @@ device_gatherv(raft::comms::comms_t const& comm,
                std::vector<size_t> const& recvcounts,
                std::vector<size_t> const& displacements,
                int root,
-               cudaStream_t stream)
+               rmm::cuda_stream_view stream_view)
 {
   detail::device_gatherv_impl(
-    comm, input_first, output_first, sendcount, recvcounts, displacements, root, stream);
+    comm, input_first, output_first, sendcount, recvcounts, displacements, root, stream_view);
 }
 
 template <typename InputIterator, typename OutputIterator>
@@ -1068,7 +1075,7 @@ device_gatherv(raft::comms::comms_t const& comm,
                std::vector<size_t> const& recvcounts,
                std::vector<size_t> const& displacements,
                int root,
-               cudaStream_t stream)
+               rmm::cuda_stream_view stream_view)
 {
   static_assert(
     thrust::tuple_size<typename thrust::iterator_traits<InputIterator>::value_type>::value ==
@@ -1081,7 +1088,7 @@ device_gatherv(raft::comms::comms_t const& comm,
                                                      OutputIterator,
                                                      size_t{0},
                                                      tuple_size>()
-    .run(comm, input_first, output_first, sendcount, recvcounts, displacements, root, stream);
+    .run(comm, input_first, output_first, sendcount, recvcounts, displacements, root, stream_view);
 }
 
 }  // namespace experimental

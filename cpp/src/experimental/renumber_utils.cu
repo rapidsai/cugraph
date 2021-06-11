@@ -50,17 +50,16 @@ void renumber_ext_vertices(raft::handle_t const& handle,
 
   if (do_expensive_check) {
     rmm::device_uvector<vertex_t> labels(local_int_vertex_last - local_int_vertex_first,
-                                         handle.get_stream());
-    thrust::copy(rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
+                                         handle.get_stream_view());
+    thrust::copy(rmm::exec_policy(handle.get_stream_view()),
                  renumber_map_labels,
                  renumber_map_labels + labels.size(),
                  labels.begin());
-    thrust::sort(
-      rmm::exec_policy(handle.get_stream())->on(handle.get_stream()), labels.begin(), labels.end());
-    CUGRAPH_EXPECTS(thrust::unique(rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
-                                   labels.begin(),
-                                   labels.end()) == labels.end(),
-                    "Invalid input arguments: renumber_map_labels have duplicate elements.");
+    thrust::sort(rmm::exec_policy(handle.get_stream_view()), labels.begin(), labels.end());
+    CUGRAPH_EXPECTS(
+      thrust::unique(rmm::exec_policy(handle.get_stream_view()), labels.begin(), labels.end()) ==
+        labels.end(),
+      "Invalid input arguments: renumber_map_labels have duplicate elements.");
   }
 
   auto poly_alloc = rmm::mr::polymorphic_allocator<char>(rmm::mr::get_current_device_resource());
@@ -75,26 +74,26 @@ void renumber_ext_vertices(raft::handle_t const& handle,
     auto& comm           = handle.get_comms();
     auto const comm_size = comm.get_size();
 
-    rmm::device_uvector<vertex_t> sorted_unique_ext_vertices(num_vertices, handle.get_stream());
+    rmm::device_uvector<vertex_t> sorted_unique_ext_vertices(num_vertices,
+                                                             handle.get_stream_view());
     sorted_unique_ext_vertices.resize(
       thrust::distance(
         sorted_unique_ext_vertices.begin(),
-        thrust::copy_if(rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
+        thrust::copy_if(rmm::exec_policy(handle.get_stream_view()),
                         vertices,
                         vertices + num_vertices,
                         sorted_unique_ext_vertices.begin(),
                         [] __device__(auto v) { return v != invalid_vertex_id<vertex_t>::value; })),
-      handle.get_stream());
-    thrust::sort(rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
+      handle.get_stream_view());
+    thrust::sort(rmm::exec_policy(handle.get_stream_view()),
                  sorted_unique_ext_vertices.begin(),
                  sorted_unique_ext_vertices.end());
     sorted_unique_ext_vertices.resize(
-      thrust::distance(
-        sorted_unique_ext_vertices.begin(),
-        thrust::unique(rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
-                       sorted_unique_ext_vertices.begin(),
-                       sorted_unique_ext_vertices.end())),
-      handle.get_stream());
+      thrust::distance(sorted_unique_ext_vertices.begin(),
+                       thrust::unique(rmm::exec_policy(handle.get_stream_view()),
+                                      sorted_unique_ext_vertices.begin(),
+                                      sorted_unique_ext_vertices.end())),
+      handle.get_stream_view());
 
     auto int_vertices_for_sorted_unique_ext_vertices = collect_values_for_unique_keys(
       comm,
@@ -104,7 +103,7 @@ void renumber_ext_vertices(raft::handle_t const& handle,
       sorted_unique_ext_vertices.begin(),
       sorted_unique_ext_vertices.end(),
       detail::compute_gpu_id_from_vertex_t<vertex_t>{comm_size},
-      handle.get_stream());
+      handle.get_stream_view());
 
     handle.get_stream_view().synchronize();  // cuco::static_map currently does not take stream
 
@@ -145,10 +144,10 @@ void renumber_ext_vertices(raft::handle_t const& handle,
   }
 
   if (do_expensive_check) {
-    rmm::device_uvector<bool> contains(num_vertices, handle.get_stream());
+    rmm::device_uvector<bool> contains(num_vertices, handle.get_stream_view());
     renumber_map_ptr->contains(vertices, vertices + num_vertices, contains.begin());
     auto vc_pair_first = thrust::make_zip_iterator(thrust::make_tuple(vertices, contains.begin()));
-    CUGRAPH_EXPECTS(thrust::count_if(rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
+    CUGRAPH_EXPECTS(thrust::count_if(rmm::exec_policy(handle.get_stream_view()),
                                      vc_pair_first,
                                      vc_pair_first + num_vertices,
                                      [] __device__(auto pair) {
@@ -177,7 +176,7 @@ void unrenumber_local_int_vertices(
 {
   if (do_expensive_check) {
     CUGRAPH_EXPECTS(
-      thrust::count_if(rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
+      thrust::count_if(rmm::exec_policy(handle.get_stream_view()),
                        vertices,
                        vertices + num_vertices,
                        [local_int_vertex_first, local_int_vertex_last] __device__(auto v) {
@@ -188,7 +187,7 @@ void unrenumber_local_int_vertices(
       "+ num_vertices).");
   }
 
-  thrust::transform(rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
+  thrust::transform(rmm::exec_policy(handle.get_stream_view()),
                     vertices,
                     vertices + num_vertices,
                     vertices,
@@ -213,7 +212,7 @@ void unrenumber_int_vertices(raft::handle_t const& handle,
 
   if (do_expensive_check) {
     CUGRAPH_EXPECTS(
-      thrust::count_if(rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
+      thrust::count_if(rmm::exec_policy(handle.get_stream_view()),
                        vertices,
                        vertices + num_vertices,
                        [int_vertex_last = vertex_partition_lasts.back()] __device__(auto v) {
@@ -228,36 +227,36 @@ void unrenumber_int_vertices(raft::handle_t const& handle,
     auto& comm           = handle.get_comms();
     auto const comm_size = comm.get_size();
 
-    rmm::device_uvector<vertex_t> sorted_unique_int_vertices(num_vertices, handle.get_stream());
+    rmm::device_uvector<vertex_t> sorted_unique_int_vertices(num_vertices,
+                                                             handle.get_stream_view());
     sorted_unique_int_vertices.resize(
       thrust::distance(
         sorted_unique_int_vertices.begin(),
-        thrust::copy_if(rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
+        thrust::copy_if(rmm::exec_policy(handle.get_stream_view()),
                         vertices,
                         vertices + num_vertices,
                         sorted_unique_int_vertices.begin(),
                         [] __device__(auto v) { return v != invalid_vertex_id<vertex_t>::value; })),
-      handle.get_stream());
-    thrust::sort(rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
+      handle.get_stream_view());
+    thrust::sort(rmm::exec_policy(handle.get_stream_view()),
                  sorted_unique_int_vertices.begin(),
                  sorted_unique_int_vertices.end());
     sorted_unique_int_vertices.resize(
-      thrust::distance(
-        sorted_unique_int_vertices.begin(),
-        thrust::unique(rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
-                       sorted_unique_int_vertices.begin(),
-                       sorted_unique_int_vertices.end())),
-      handle.get_stream());
+      thrust::distance(sorted_unique_int_vertices.begin(),
+                       thrust::unique(rmm::exec_policy(handle.get_stream_view()),
+                                      sorted_unique_int_vertices.begin(),
+                                      sorted_unique_int_vertices.end())),
+      handle.get_stream_view());
 
     rmm::device_uvector<vertex_t> d_vertex_partition_lasts(vertex_partition_lasts.size(),
-                                                           handle.get_stream());
+                                                           handle.get_stream_view());
     raft::update_device(d_vertex_partition_lasts.data(),
                         vertex_partition_lasts.data(),
                         vertex_partition_lasts.size(),
                         handle.get_stream());
     rmm::device_uvector<size_t> d_tx_int_vertex_offsets(d_vertex_partition_lasts.size(),
-                                                        handle.get_stream());
-    thrust::lower_bound(rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
+                                                        handle.get_stream_view());
+    thrust::lower_bound(rmm::exec_policy(handle.get_stream_view()),
                         sorted_unique_int_vertices.begin(),
                         sorted_unique_int_vertices.end(),
                         d_vertex_partition_lasts.begin(),
@@ -272,13 +271,13 @@ void unrenumber_int_vertices(raft::handle_t const& handle,
     std::adjacent_difference(
       h_tx_int_vertex_counts.begin(), h_tx_int_vertex_counts.end(), h_tx_int_vertex_counts.begin());
 
-    rmm::device_uvector<vertex_t> rx_int_vertices(0, handle.get_stream());
+    rmm::device_uvector<vertex_t> rx_int_vertices(0, handle.get_stream_view());
     std::vector<size_t> rx_int_vertex_counts{};
     std::tie(rx_int_vertices, rx_int_vertex_counts) = shuffle_values(
-      comm, sorted_unique_int_vertices.begin(), h_tx_int_vertex_counts, handle.get_stream());
+      comm, sorted_unique_int_vertices.begin(), h_tx_int_vertex_counts, handle.get_stream_view());
 
     auto tx_ext_vertices = std::move(rx_int_vertices);
-    thrust::transform(rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
+    thrust::transform(rmm::exec_policy(handle.get_stream_view()),
                       tx_ext_vertices.begin(),
                       tx_ext_vertices.end(),
                       tx_ext_vertices.begin(),
@@ -287,9 +286,9 @@ void unrenumber_int_vertices(raft::handle_t const& handle,
                       });
 
     rmm::device_uvector<vertex_t> rx_ext_vertices_for_sorted_unique_int_vertices(
-      0, handle.get_stream());
+      0, handle.get_stream_view());
     std::tie(rx_ext_vertices_for_sorted_unique_int_vertices, std::ignore) =
-      shuffle_values(comm, tx_ext_vertices.begin(), rx_int_vertex_counts, handle.get_stream());
+      shuffle_values(comm, tx_ext_vertices.begin(), rx_int_vertex_counts, handle.get_stream_view());
 
     handle.get_stream_view().synchronize();  // cuco::static_map currently does not take stream
 
