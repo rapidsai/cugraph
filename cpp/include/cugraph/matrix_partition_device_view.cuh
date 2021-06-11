@@ -37,6 +37,7 @@ class matrix_partition_device_view_base_t {
 
   __host__ __device__ edge_t get_number_of_edges() const { return number_of_edges_; }
 
+  __host__ __device__ edge_t const* get_offsets() const { return offsets_; }
   __host__ __device__ vertex_t const* get_indices() const { return indices_; }
   __host__ __device__ weight_t const* get_weights() const { return weights_; }
 
