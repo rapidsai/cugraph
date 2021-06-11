@@ -90,10 +90,7 @@ struct update_functor {
  * responsible for freeing the allocated memory using ALLOC_FREE_TRY().
  */
 template <typename T>
-void get_permutation_vector(T size,
-                            T seed,
-                            T *permutation,
-                            rmm::cuda_stream_view stream_view)
+void get_permutation_vector(T size, T seed, T *permutation, rmm::cuda_stream_view stream_view)
 {
   rmm::device_uvector<float> randoms_v(size, stream_view);
 
