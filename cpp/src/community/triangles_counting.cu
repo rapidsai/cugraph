@@ -827,7 +827,8 @@ void TrianglesCount<IndexType>::count()
     tcount_wrp();
   else {
     const int shMinBlkXSM = 6;
-    if (size_t{m_shared_mem_per_block * 8 / shMinBlkXSM} < (size_t)m_mat.N)
+    if (static_cast<size_t>(m_shared_mem_per_block * 8 / shMinBlkXSM) <
+        static_cast<size_t>(m_mat.N))
       tcount_b2b();
     else
       tcount_bsh();
