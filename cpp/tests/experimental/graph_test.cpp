@@ -140,7 +140,7 @@ class Tests_Graph : public ::testing::TestWithParam<Graph_Usecase> {
         edgelist,
         number_of_vertices,
         cugraph::experimental::graph_properties_t{is_symmetric, false, configuration.test_weighted},
-        false,
+        std::vector<vertex_t>{},
         true);
 
     auto graph_view = graph.view();
@@ -156,16 +156,16 @@ class Tests_Graph : public ::testing::TestWithParam<Graph_Usecase> {
       configuration.test_weighted ? graph_view.get_number_of_edges() : 0);
 
     raft::update_host(h_cugraph_offsets.data(),
-                      graph_view.offsets(),
+                      graph_view.get_matrix_partition_device_view(size_t{0}).get_offsets(),
                       graph_view.get_number_of_vertices() + 1,
                       handle.get_stream());
     raft::update_host(h_cugraph_indices.data(),
-                      graph_view.indices(),
+                      graph_view.get_matrix_partition_device_view(size_t{0}).get_indices(),
                       graph_view.get_number_of_edges(),
                       handle.get_stream());
     if (configuration.test_weighted) {
       raft::update_host(h_cugraph_weights.data(),
-                        graph_view.weights(),
+                        graph_view.get_matrix_partition_device_view(size_t{0}).get_weights(),
                         graph_view.get_number_of_edges(),
                         handle.get_stream());
     }

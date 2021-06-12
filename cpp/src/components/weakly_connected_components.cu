@@ -472,15 +472,15 @@ void weakly_connected_components_impl(raft::handle_t const &handle,
     while (true) {
       if ((edge_count < degree_sum_threshold) &&
           (next_candidate_offset < static_cast<vertex_t>(new_root_candidates.size()))) {
-        auto [new_roots, num_scanned, degree_sum] =
-          accumulate_new_roots(handle,
-                               vertex_partition,
-                               level_components,
-                               degrees.data(),
-                               new_root_candidates.data() + next_candidate_offset,
-                               new_root_candidates.data() + new_root_candidates.size(),
-                               iter == 0 ? init_max_new_roots : max_new_roots,
-                               degree_sum_threshold - edge_count);
+        auto [new_roots, num_scanned, degree_sum] = accumulate_new_roots<GraphViewType>(
+          handle,
+          vertex_partition,
+          level_components,
+          degrees.data(),
+          new_root_candidates.data() + next_candidate_offset,
+          new_root_candidates.data() + new_root_candidates.size(),
+          iter == 0 ? init_max_new_roots : max_new_roots,
+          degree_sum_threshold - edge_count);
         next_candidate_offset += num_scanned;
         edge_count += degree_sum;
 

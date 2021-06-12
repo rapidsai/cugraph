@@ -97,9 +97,9 @@ bool host_check_rw_paths(
   edge_t num_edges      = graph_view.get_number_of_edges();
   vertex_t num_vertices = graph_view.get_number_of_vertices();
 
-  edge_t const* offsets   = graph_view.offsets();
-  vertex_t const* indices = graph_view.indices();
-  weight_t const* values  = graph_view.weights();
+  edge_t const* offsets   = graph_view.get_matrix_partition_device_view(size_t{0}).get_offsets();
+  vertex_t const* indices = graph_view.get_matrix_partition_device_view(size_t{0}).get_indices();
+  weight_t const* values  = graph_view.get_matrix_partition_device_view(size_t{0}).get_weights();
 
   std::vector<edge_t> v_ro(num_vertices + 1);
   std::vector<vertex_t> v_ci(num_edges);

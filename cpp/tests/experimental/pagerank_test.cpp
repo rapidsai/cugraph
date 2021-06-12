@@ -264,20 +264,23 @@ class Tests_PageRank
       std::vector<edge_t> h_offsets(unrenumbered_graph_view.get_number_of_vertices() + 1);
       std::vector<vertex_t> h_indices(unrenumbered_graph_view.get_number_of_edges());
       std::vector<weight_t> h_weights{};
-      raft::update_host(h_offsets.data(),
-                        unrenumbered_graph_view.offsets(),
-                        unrenumbered_graph_view.get_number_of_vertices() + 1,
-                        handle.get_stream());
-      raft::update_host(h_indices.data(),
-                        unrenumbered_graph_view.indices(),
-                        unrenumbered_graph_view.get_number_of_edges(),
-                        handle.get_stream());
+      raft::update_host(
+        h_offsets.data(),
+        unrenumbered_graph_view.get_matrix_partition_device_view(size_t{0}).get_offsets(),
+        unrenumbered_graph_view.get_number_of_vertices() + 1,
+        handle.get_stream());
+      raft::update_host(
+        h_indices.data(),
+        unrenumbered_graph_view.get_matrix_partition_device_view(size_t{0}).get_indices(),
+        unrenumbered_graph_view.get_number_of_edges(),
+        handle.get_stream());
       if (unrenumbered_graph_view.is_weighted()) {
         h_weights.assign(unrenumbered_graph_view.get_number_of_edges(), weight_t{0.0});
-        raft::update_host(h_weights.data(),
-                          unrenumbered_graph_view.weights(),
-                          unrenumbered_graph_view.get_number_of_edges(),
-                          handle.get_stream());
+        raft::update_host(
+          h_weights.data(),
+          unrenumbered_graph_view.get_matrix_partition_device_view(size_t{0}).get_weights(),
+          unrenumbered_graph_view.get_number_of_edges(),
+          handle.get_stream());
       }
 
       std::vector<vertex_t> h_unrenumbered_personalization_vertices(

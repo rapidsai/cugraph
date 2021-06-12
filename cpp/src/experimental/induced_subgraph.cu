@@ -75,13 +75,12 @@ extract_induced_subgraphs(
     CUGRAPH_EXPECTS(should_be_zero == 0,
                     "Invalid input argument: subgraph_offsets[0] should be 0.");
 
-    CUGRAPH_EXPECTS(
-      thrust::is_sorted(rmm::exec_policy(handle.get_stream_view()),
-                        subgraph_offsets,
-                        subgraph_offsets + (num_subgraphs + 1)),
-      "Invalid input argument: subgraph_offsets is not sorted.");
+    CUGRAPH_EXPECTS(thrust::is_sorted(rmm::exec_policy(handle.get_stream_view()),
+                                      subgraph_offsets,
+                                      subgraph_offsets + (num_subgraphs + 1)),
+                    "Invalid input argument: subgraph_offsets is not sorted.");
     auto vertex_partition = graph_view.get_vertex_partition_device_view();
-    CUGRAPH_EXPECTS(thrust::count_if(rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
+    CUGRAPH_EXPECTS(thrust::count_if(rmm::exec_policy(handle.get_stream_view()),
                                      subgraph_vertices,
                                      subgraph_vertices + num_aggregate_subgraph_vertices,
                                      [vertex_partition] __device__(auto v) {

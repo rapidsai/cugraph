@@ -189,7 +189,11 @@ decltype(auto) make_graph(raft::handle_t const& handle,
     d_src.data(), d_dst.data(), ptr_d_weights, num_edges};
 
   graph_t<vertex_t, edge_t, weight_t, false, false> graph(
-    handle, edgelist, num_vertices, graph_properties_t{false, false, is_weighted}, false);
+    handle,
+    edgelist,
+    num_vertices,
+    graph_properties_t{false, false, is_weighted},
+    std::vector<vertex_t>{});
 
   return graph;
 }
@@ -246,14 +250,26 @@ std::pair<bool, std::string> compare_graphs(raft::handle_t const& handle,
     std::vector<edge_t> lv_ro(num_vertices + 1);
     std::vector<vertex_t> lv_ci(num_edges);
 
-    raft::update_host(lv_ro.data(), lgraph_view.offsets(), num_vertices + 1, handle.get_stream());
-    raft::update_host(lv_ci.data(), lgraph_view.indices(), num_edges, handle.get_stream());
+    raft::update_host(lv_ro.data(),
+                      lgraph_view.get_matrix_partition_device_view(size_t{0}).get_offsets(),
+                      num_vertices + 1,
+                      handle.get_stream());
+    raft::update_host(lv_ci.data(),
+                      lgraph_view.get_matrix_partition_device_view(size_t{0}).get_indices(),
+                      num_edges,
+                      handle.get_stream());
 
     std::vector<edge_t> rv_ro(num_vertices + 1);
     std::vector<vertex_t> rv_ci(num_edges);
 
-    raft::update_host(rv_ro.data(), rgraph_view.offsets(), num_vertices + 1, handle.get_stream());
-    raft::update_host(rv_ci.data(), rgraph_view.indices(), num_edges, handle.get_stream());
+    raft::update_host(rv_ro.data(),
+                      rgraph_view.get_matrix_partition_device_view(size_t{0}).get_offsets(),
+                      num_vertices + 1,
+                      handle.get_stream());
+    raft::update_host(rv_ci.data(),
+                      rgraph_view.get_matrix_partition_device_view(size_t{0}).get_indices(),
+                      num_edges,
+                      handle.get_stream());
 
     if (lv_ro != rv_ro) return std::make_pair(false, std::string("offsets"));
 
@@ -261,10 +277,16 @@ std::pair<bool, std::string> compare_graphs(raft::handle_t const& handle,
 
     if (is_weighted) {
       std::vector<weight_t> lv_vs(num_edges);
-      raft::update_host(lv_vs.data(), lgraph_view.weights(), num_edges, handle.get_stream());
+      raft::update_host(lv_vs.data(),
+                        lgraph_view.get_matrix_partition_device_view(size_t{0}).get_weights(),
+                        num_edges,
+                        handle.get_stream());
 
       std::vector<weight_t> rv_vs(num_edges);
-      raft::update_host(rv_vs.data(), rgraph_view.weights(), num_edges, handle.get_stream());
+      raft::update_host(rv_vs.data(),
+                        rgraph_view.get_matrix_partition_device_view(size_t{0}).get_weights(),
+                        num_edges,
+                        handle.get_stream());
 
       if (lv_vs != rv_vs) return std::make_pair(false, std::string("values"));
     }

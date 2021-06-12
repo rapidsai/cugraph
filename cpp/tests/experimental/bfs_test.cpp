@@ -166,14 +166,16 @@ class Tests_BFS : public ::testing::TestWithParam<std::tuple<BFS_Usecase, input_
 
       std::vector<edge_t> h_offsets(unrenumbered_graph_view.get_number_of_vertices() + 1);
       std::vector<vertex_t> h_indices(unrenumbered_graph_view.get_number_of_edges());
-      raft::update_host(h_offsets.data(),
-                        unrenumbered_graph_view.offsets(),
-                        unrenumbered_graph_view.get_number_of_vertices() + 1,
-                        handle.get_stream());
-      raft::update_host(h_indices.data(),
-                        unrenumbered_graph_view.indices(),
-                        unrenumbered_graph_view.get_number_of_edges(),
-                        handle.get_stream());
+      raft::update_host(
+        h_offsets.data(),
+        unrenumbered_graph_view.get_matrix_partition_device_view(size_t{0}).get_offsets(),
+        unrenumbered_graph_view.get_number_of_vertices() + 1,
+        handle.get_stream());
+      raft::update_host(
+        h_indices.data(),
+        unrenumbered_graph_view.get_matrix_partition_device_view(size_t{0}).get_indices(),
+        unrenumbered_graph_view.get_number_of_edges(),
+        handle.get_stream());
 
       handle.get_stream_view().synchronize();
 

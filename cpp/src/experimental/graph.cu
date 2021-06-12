@@ -140,12 +140,12 @@ compress_edgelist(edgelist_t<vertex_t, edge_t, weight_t> const &edgelist,
                      });
   }
 
-  rmm::device_uvector<vertex_t> dcs_nzd_vertices(major_last - major_hypersparse_first, stream);
+  rmm::device_uvector<vertex_t> dcs_nzd_vertices(major_last - major_hypersparse_first, stream_view);
   if (major_hypersparse_first < major_last) {
     auto constexpr invalid_vertex = invalid_vertex_id<vertex_t>::value;
 
     thrust::transform(
-      rmm::exec_policy(stream)->on(stream),
+      rmm::exec_policy(stream_view),
       thrust::make_counting_iterator(major_hypersparse_first),
       thrust::make_counting_iterator(major_last),
       dcs_nzd_vertices.begin(),
@@ -157,23 +157,24 @@ compress_edgelist(edgelist_t<vertex_t, edge_t, weight_t> const &edgelist,
     auto pair_first = thrust::make_zip_iterator(thrust::make_tuple(
       dcs_nzd_vertices.begin(), offsets.begin() + (major_hypersparse_first - major_first)));
     dcs_nzd_vertices.resize(thrust::distance(pair_first,
-                                             thrust::remove_if(rmm::exec_policy(stream)->on(stream),
+                                             thrust::remove_if(rmm::exec_policy(stream_view),
                                                                pair_first,
                                                                pair_first + dcs_nzd_vertices.size(),
                                                                [] __device__(auto pair) {
                                                                  return thrust::get<0>(pair) ==
                                                                         invalid_vertex;
                                                                })),
-                            stream);
-    dcs_nzd_vertices.shrink_to_fit(stream);
+                            stream_view);
+    dcs_nzd_vertices.shrink_to_fit(stream_view);
     if (static_cast<vertex_t>(dcs_nzd_vertices.size()) < major_last - major_hypersparse_first) {
       thrust::copy(
-        rmm::exec_policy(stream)->on(stream),
+        rmm::exec_policy(stream_view),
         offsets.begin() + (major_last - major_first),
         offsets.end(),
         offsets.begin() + (major_hypersparse_first - major_first) + dcs_nzd_vertices.size());
-      offsets.resize((major_hypersparse_first - major_first) + dcs_nzd_vertices.size() + 1, stream);
-      offsets.shrink_to_fit(stream);
+      offsets.resize((major_hypersparse_first - major_first) + dcs_nzd_vertices.size() + 1,
+                     stream_view);
+      offsets.shrink_to_fit(stream_view);
     }
   }
 
@@ -279,8 +280,10 @@ graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu, std::enable_if_
   if (segment_offsets.size() > 0) {
     // FIXME: we need to add host_allgather
     rmm::device_uvector<vertex_t> d_segment_offsets(segment_offsets.size(), default_stream_view);
-    raft::update_device(
-      d_segment_offsets.data(), segment_offsets.data(), segment_offsets.size(), default_stream_view.value());
+    raft::update_device(d_segment_offsets.data(),
+                        segment_offsets.data(),
+                        segment_offsets.size(),
+                        default_stream_view.value());
     rmm::device_uvector<vertex_t> d_aggregate_segment_offsets(
       col_comm_size * d_segment_offsets.size(), default_stream_view);
     col_comm.allgather(d_segment_offsets.data(),
@@ -294,7 +297,9 @@ graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu, std::enable_if_
                       d_aggregate_segment_offsets.size(),
                       default_stream_view.value());
 
-    default_stream_view.synchronize();  // this is necessary as adj_matrix_partition_segment_offsets_ can be used right after return.
+    default_stream_view
+      .synchronize();  // this is necessary as adj_matrix_partition_segment_offsets_ can be used
+                       // right after return.
   }
 
   // compress edge list (COO) to CSR (or CSC) or CSR + DCSR (CSC + DCSC) hybrid
@@ -361,7 +366,7 @@ graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu, std::enable_if_
       handle, number_of_vertices, edgelist.number_of_edges, properties),
     offsets_(rmm::device_uvector<edge_t>(0, handle.get_stream_view())),
     indices_(rmm::device_uvector<vertex_t>(0, handle.get_stream_view())),
-    weights_(rmm::device_uvector<weight_t>(0, handle.get_stream_view()))
+    weights_(rmm::device_uvector<weight_t>(0, handle.get_stream_view())),
     segment_offsets_(segment_offsets)
 {
   // cheap error checks

@@ -224,9 +224,9 @@ coarsen_graph(
            coarsened_edgelist_minor_vertices,
            coarsened_edgelist_weights) =
     compressed_sparse_to_relabeled_and_sorted_and_coarsened_edgelist(
-      graph_view.offsets(),
-      graph_view.indices(),
-      graph_view.weights(),
+      graph_view.get_matrix_partition_device_view(size_t{0}).get_offsets(),
+      graph_view.get_matrix_partition_device_view(size_t{0}).get_indices(),
+      graph_view.get_matrix_partition_device_view(size_t{0}).get_weights(),
       labels,
       labels,
       vertex_t{0},

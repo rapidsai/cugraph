@@ -96,15 +96,15 @@ class Tests_WeightSum : public ::testing::TestWithParam<WeightSum_Usecase> {
     std::vector<vertex_t> h_indices(graph_view.get_number_of_edges());
     std::vector<weight_t> h_weights(graph_view.get_number_of_edges());
     raft::update_host(h_offsets.data(),
-                      graph_view.offsets(),
+                      graph_view.get_matrix_partition_device_view(size_t{0}).get_offsets(),
                       graph_view.get_number_of_vertices() + 1,
                       handle.get_stream());
     raft::update_host(h_indices.data(),
-                      graph_view.indices(),
+                      graph_view.get_matrix_partition_device_view(size_t{0}).get_indices(),
                       graph_view.get_number_of_edges(),
                       handle.get_stream());
     raft::update_host(h_weights.data(),
-                      graph_view.weights(),
+                      graph_view.get_matrix_partition_device_view(size_t{0}).get_weights(),
                       graph_view.get_number_of_edges(),
                       handle.get_stream());
     CUDA_TRY(cudaStreamSynchronize(handle.get_stream()));
