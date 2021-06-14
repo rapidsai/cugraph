@@ -18,9 +18,9 @@
 
 #include <raft/lap/lap.cuh>
 
-#include <rmm/exec_policy.hpp>
 #include <rmm/cuda_stream_view.hpp>
 #include <rmm/device_uvector.hpp>
+#include <rmm/exec_policy.hpp>
 
 #include <thrust/for_each.h>
 #include <thrust/random.h>
@@ -38,17 +38,20 @@ namespace cugraph {
 namespace detail {
 
 template <typename weight_t>
-weight_t default_precision() {
+weight_t default_precision()
+{
   return 0;
 }
 
 template <>
-float default_precision() {
+float default_precision()
+{
   return float{1e-6};
 }
 
 template <>
-double default_precision() {
+double default_precision()
+{
   return double{1e-6};
 }
 
@@ -141,10 +144,8 @@ weight_t hungarian_sparse(raft::handle_t const &handle,
   //
   // Now we'll assign costs into the dense array
   //
-  thrust::fill(rmm::exec_policy(stream_view),
-               temp_workers_v.begin(),
-               temp_workers_v.end(),
-               vertex_t{-1});
+  thrust::fill(
+    rmm::exec_policy(stream_view), temp_workers_v.begin(), temp_workers_v.end(), vertex_t{-1});
   thrust::fill(
     rmm::exec_policy(stream_view), temp_tasks_v.begin(), temp_tasks_v.end(), vertex_t{-1});
   thrust::fill(rmm::exec_policy(stream_view), cost_v.begin(), cost_v.end(), weight_t{0});
@@ -231,7 +232,13 @@ weight_t hungarian(raft::handle_t const &handle,
 {
   rmm::cuda_stream_view stream_view{};
 
-  return detail::hungarian_sparse(handle, graph, num_workers, workers, assignment, detail::default_precision<weight_t>(), stream_view);
+  return detail::hungarian_sparse(handle,
+                                  graph,
+                                  num_workers,
+                                  workers,
+                                  assignment,
+                                  detail::default_precision<weight_t>(),
+                                  stream_view);
 }
 
 template <typename vertex_t, typename edge_t, typename weight_t>
@@ -244,7 +251,8 @@ weight_t hungarian(raft::handle_t const &handle,
 {
   rmm::cuda_stream_view stream_view{};
 
-  return detail::hungarian_sparse(handle, graph, num_workers, workers, assignment, precision, stream_view);
+  return detail::hungarian_sparse(
+    handle, graph, num_workers, workers, assignment, precision, stream_view);
 }
 
 template int32_t hungarian<int32_t, int32_t, int32_t>(
@@ -297,7 +305,13 @@ weight_t hungarian(raft::handle_t const &handle,
 {
   rmm::cuda_stream_view stream_view{};
 
-  return detail::hungarian(handle, num_rows, num_cols, costs, assignment, detail::default_precision<weight_t>(), stream_view);
+  return detail::hungarian(handle,
+                           num_rows,
+                           num_cols,
+                           costs,
+                           assignment,
+                           detail::default_precision<weight_t>(),
+                           stream_view);
 }
 
 template <typename index_t, typename weight_t>

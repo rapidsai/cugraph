@@ -1116,7 +1116,7 @@ weight_t hungarian(raft::handle_t const &handle,
                    vertex_t num_rows,
                    vertex_t num_columns,
                    vertex_t *assignment,
-		   weight_t precision);
+                   weight_t precision);
 
 }  // namespace dense
 
