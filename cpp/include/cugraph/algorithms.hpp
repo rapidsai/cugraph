@@ -607,6 +607,40 @@ weight_t hungarian(raft::handle_t const &handle,
                    vertex_t *assignment);
 
 /**
+ * @brief      Compute Hungarian algorithm on a weighted bipartite graph
+ *
+ * The Hungarian algorithm computes an assigment of "jobs" to "workers".  This function accepts
+ * a weighted graph and a vertex list identifying the "workers".  The weights in the weighted
+ * graph identify the cost of assigning a particular job to a worker.  The algorithm computes
+ * a minimum cost assignment and returns the cost as well as a vector identifying the assignment.
+ *
+ * @throws     cugraph::logic_error when an error occurs.
+ *
+ * @tparam vertex_t                  Type of vertex identifiers. Supported value : int (signed,
+ * 32-bit)
+ * @tparam edge_t                    Type of edge identifiers.  Supported value : int (signed,
+ * 32-bit)
+ * @tparam weight_t                  Type of edge weights. Supported values : float or double.
+ *
+ * @param[in]  handle                Library handle (RAFT). If a communicator is set in the handle,
+ * @param[in]  graph                 cuGRAPH COO graph
+ * @param[in]  num_workers           number of vertices in the worker set
+ * @param[in]  workers               device pointer to an array of worker vertex ids
+ * @param[out] assignment            device pointer to an array to which the assignment will be
+ * written. The array should be num_workers long, and will identify which vertex id (job) is
+ * assigned to that worker
+ * @param[in]  precision             parameter to define precision of comparisons
+ *                                   in reducing weights to zero.
+ */
+template <typename vertex_t, typename edge_t, typename weight_t>
+weight_t hungarian(raft::handle_t const &handle,
+                   GraphCOOView<vertex_t, edge_t, weight_t> const &graph,
+                   vertex_t num_workers,
+                   vertex_t const *workers,
+                   vertex_t *assignment,
+                   weight_t precision);
+
+/**
  * @brief      Louvain implementation
  *
  * Compute a clustering of the graph by maximizing modularity
@@ -1051,6 +1085,38 @@ weight_t hungarian(raft::handle_t const &handle,
                    vertex_t num_rows,
                    vertex_t num_columns,
                    vertex_t *assignment);
+
+/**
+ * @brief      Compute Hungarian algorithm on a weighted bipartite graph
+ *
+ * The Hungarian algorithm computes an assigment of "jobs" to "workers".  This function accepts
+ * a weighted graph and a vertex list identifying the "workers".  The weights in the weighted
+ * graph identify the cost of assigning a particular job to a worker.  The algorithm computes
+ * a minimum cost assignment and returns the cost as well as a vector identifying the assignment.
+ *
+ * @throws     cugraph::logic_error when an error occurs.
+ *
+ * @tparam vertex_t                  Type of vertex identifiers. Supported value : int (signed,
+ * 32-bit)
+ * @tparam weight_t                  Type of edge weights. Supported values : float or double.
+ *
+ * @param[in]  handle                Library handle (RAFT). If a communicator is set in the handle,
+ * @param[in]  costs                 pointer to array of costs, stored in row major order
+ * @param[in]  num_rows              number of rows in dense matrix
+ * @param[in]  num_cols              number of cols in dense matrix
+ * @param[out] assignment            device pointer to an array to which the assignment will be
+ *                                   written. The array should be num_cols long, and will identify
+ *                                   which vertex id (job) is assigned to that worker
+ * @param[in]  precision             parameter to define precision of comparisons
+ *                                   in reducing weights to zero.
+ */
+template <typename vertex_t, typename weight_t>
+weight_t hungarian(raft::handle_t const &handle,
+                   weight_t const *costs,
+                   vertex_t num_rows,
+                   vertex_t num_columns,
+                   vertex_t *assignment,
+		   weight_t precision);
 
 }  // namespace dense
 
