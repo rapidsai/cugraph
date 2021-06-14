@@ -706,9 +706,9 @@ class graph_view_t<vertex_t,
   }
 
   matrix_partition_device_view_t<vertex_t, edge_t, weight_t, false>
-  get_matrix_partition_device_view(size_t adj_matrix_partition_idx) const
+  get_matrix_partition_device_view(size_t adj_matrix_partition_idx = 0) const
   {
-    assert(adj_matrix_partition_idx == 0);
+    assert(adj_matrix_partition_idx == 0);  // there is only one matrix partition in single-GPU
     return matrix_partition_device_view_t<vertex_t, edge_t, weight_t, false>(
       offsets_, indices_, weights_, this->get_number_of_vertices(), this->get_number_of_edges());
   }

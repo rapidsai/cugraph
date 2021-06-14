@@ -131,7 +131,7 @@ extract_induced_subgraphs(
       num_aggregate_subgraph_vertices + 1,
       handle.get_stream_view());  // for each element of subgraph_vertices
 
-    auto matrix_partition = graph_view.get_matrix_partition_device_view(size_t{0});
+    auto matrix_partition = graph_view.get_matrix_partition_device_view();
     // count the numbers of the induced subgraph edges for each vertex in the aggregate subgraph
     // vertex list.
     thrust::transform(

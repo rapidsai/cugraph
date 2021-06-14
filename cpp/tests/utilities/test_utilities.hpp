@@ -251,11 +251,11 @@ std::pair<bool, std::string> compare_graphs(raft::handle_t const& handle,
     std::vector<vertex_t> lv_ci(num_edges);
 
     raft::update_host(lv_ro.data(),
-                      lgraph_view.get_matrix_partition_device_view(size_t{0}).get_offsets(),
+                      lgraph_view.get_matrix_partition_device_view().get_offsets(),
                       num_vertices + 1,
                       handle.get_stream());
     raft::update_host(lv_ci.data(),
-                      lgraph_view.get_matrix_partition_device_view(size_t{0}).get_indices(),
+                      lgraph_view.get_matrix_partition_device_view().get_indices(),
                       num_edges,
                       handle.get_stream());
 
@@ -263,11 +263,11 @@ std::pair<bool, std::string> compare_graphs(raft::handle_t const& handle,
     std::vector<vertex_t> rv_ci(num_edges);
 
     raft::update_host(rv_ro.data(),
-                      rgraph_view.get_matrix_partition_device_view(size_t{0}).get_offsets(),
+                      rgraph_view.get_matrix_partition_device_view().get_offsets(),
                       num_vertices + 1,
                       handle.get_stream());
     raft::update_host(rv_ci.data(),
-                      rgraph_view.get_matrix_partition_device_view(size_t{0}).get_indices(),
+                      rgraph_view.get_matrix_partition_device_view().get_indices(),
                       num_edges,
                       handle.get_stream());
 
@@ -278,13 +278,13 @@ std::pair<bool, std::string> compare_graphs(raft::handle_t const& handle,
     if (is_weighted) {
       std::vector<weight_t> lv_vs(num_edges);
       raft::update_host(lv_vs.data(),
-                        lgraph_view.get_matrix_partition_device_view(size_t{0}).get_weights(),
+                        lgraph_view.get_matrix_partition_device_view().get_weights(),
                         num_edges,
                         handle.get_stream());
 
       std::vector<weight_t> rv_vs(num_edges);
       raft::update_host(rv_vs.data(),
-                        rgraph_view.get_matrix_partition_device_view(size_t{0}).get_weights(),
+                        rgraph_view.get_matrix_partition_device_view().get_weights(),
                         num_edges,
                         handle.get_stream());
 

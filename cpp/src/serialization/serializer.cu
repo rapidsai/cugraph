@@ -182,9 +182,9 @@ void serializer_t::serialize(graph_t const& graph, serializer_t::graph_meta_t<gr
 
     gvmeta = graph_meta_t<graph_t>{graph};
 
-    edge_t const* offsets   = gview.get_matrix_partition_device_view(size_t{0}).get_offsets();
-    vertex_t const* indices = gview.get_matrix_partition_device_view(size_t{0}).get_indices();
-    weight_t const* weights = gview.get_matrix_partition_device_view(size_t{0}).get_weights();
+    edge_t const* offsets   = gview.get_matrix_partition_device_view().get_offsets();
+    vertex_t const* indices = gview.get_matrix_partition_device_view().get_indices();
+    weight_t const* weights = gview.get_matrix_partition_device_view().get_weights();
 
     // FIXME: remove when host_bcast() becomes available for vectors;
     //

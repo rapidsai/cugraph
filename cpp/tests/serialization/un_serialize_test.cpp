@@ -139,7 +139,7 @@ TEST(SerializationTest, UnweightedGraphDecoupledSerUnser)
   auto graph = cugraph::test::make_graph(
     handle, v_src, v_dst, v_w, num_vertices, num_edges, /*weighted=*/false);
 
-  ASSERT_TRUE(graph.view().get_matrix_partition_device_view(size_t{0}).get_weights() == nullptr);
+  ASSERT_TRUE(graph.view().get_matrix_partition_device_view().get_weights() == nullptr);
 
   auto pair_sz      = serializer_t::get_device_graph_sz_bytes(graph);
   auto total_ser_sz = pair_sz.first + pair_sz.second;
@@ -168,8 +168,7 @@ TEST(SerializationTest, UnweightedGraphDecoupledSerUnser)
 
     auto graph_copy = ser.unserialize<decltype(graph)>(pair_sz.first, pair_sz.second);
 
-    ASSERT_TRUE(graph_copy.view().get_matrix_partition_device_view(size_t{0}).get_weights() ==
-                nullptr);
+    ASSERT_TRUE(graph_copy.view().get_matrix_partition_device_view().get_weights() == nullptr);
 
     auto pair = cugraph::test::compare_graphs(handle, graph, graph_copy);
     if (pair.first == false) std::cerr << "Test failed with " << pair.second << ".\n";

@@ -208,11 +208,11 @@ class Tests_MGBFS : public ::testing::TestWithParam<std::tuple<BFS_Usecase, inpu
         std::vector<edge_t> h_sg_offsets(sg_graph_view.get_number_of_vertices() + 1);
         std::vector<vertex_t> h_sg_indices(sg_graph_view.get_number_of_edges());
         raft::update_host(h_sg_offsets.data(),
-                          sg_graph_view.get_matrix_partition_device_view(size_t{0}).get_offsets(),
+                          sg_graph_view.get_matrix_partition_device_view().get_offsets(),
                           sg_graph_view.get_number_of_vertices() + 1,
                           handle.get_stream());
         raft::update_host(h_sg_indices.data(),
-                          sg_graph_view.get_matrix_partition_device_view(size_t{0}).get_indices(),
+                          sg_graph_view.get_matrix_partition_device_view().get_indices(),
                           sg_graph_view.get_number_of_edges(),
                           handle.get_stream());
 
