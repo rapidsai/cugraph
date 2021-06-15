@@ -24,6 +24,7 @@
 #include <cugraph/graph.hpp>
 #include <cugraph/internals.hpp>
 #include <cugraph/utilities/error.hpp>
+#include <raft/random/rng.cuh>
 
 #include "exact_repulsion.hpp"
 #include "fa2_kernels.hpp"
@@ -50,7 +51,7 @@ void exact_fa2(raft::handle_t const &handle,
                bool verbose                                  = false,
                internals::GraphBasedDimRedCallback *callback = nullptr)
 {
-  rmm::cuda_stream_view stream(handle.get_stream());
+  auto stream_view = handle.get_stream_view();
   const edge_t e   = graph.number_of_edges;
   const vertex_t n = graph.number_of_vertices;
 
@@ -61,15 +62,15 @@ void exact_fa2(raft::handle_t const &handle,
   float *d_swinging{nullptr};
   float *d_traction{nullptr};
 
-  rmm::device_uvector<float> repel(n * 2, stream);
-  rmm::device_uvector<float> attract(n * 2, stream);
-  rmm::device_uvector<float> old_forces(n * 2, stream);
-  thrust::fill(rmm::exec_policy(stream), old_forces.begin(), old_forces.end(), 0.f);
+  rmm::device_uvector<float> repel(n * 2, stream_view);
+  rmm::device_uvector<float> attract(n * 2, stream_view);
+  rmm::device_uvector<float> old_forces(n * 2, stream_view);
+  thrust::fill(rmm::exec_policy(stream_view), old_forces.begin(), old_forces.end(), 0.f);
   // FA2 requires degree + 1.
-  rmm::device_uvector<int> mass(n, stream);
-  thrust::fill(rmm::exec_policy(stream), mass.begin(), mass.end(), 1);
-  rmm::device_uvector<float> swinging(n, stream);
-  rmm::device_uvector<float> traction(n, stream);
+  rmm::device_uvector<int> mass(n, stream_view);
+  thrust::fill(rmm::exec_policy(stream_view), mass.begin(), mass.end(), 1);
+  rmm::device_uvector<float> swinging(n, stream_view);
+  rmm::device_uvector<float> traction(n, stream_view);
 
   d_repel      = repel.data();
   d_attract    = attract.data();
@@ -78,20 +79,21 @@ void exact_fa2(raft::handle_t const &handle,
   d_swinging   = swinging.data();
   d_traction   = traction.data();
 
-  int random_state = 0;
-  random_vector(pos, n * 2, random_state, stream.value());
+  int seed{0};
+  raft::random::Rng rng(seed);
+  rng.uniform<float, size_t>(pos, n * 2, -100.0f, 100.0f, handle.get_stream());
 
   if (x_start && y_start) {
-    raft::copy(pos, x_start, n, stream.value());
-    raft::copy(pos + n, y_start, n, stream.value());
+    raft::copy(pos, x_start, n, stream_view.value());
+    raft::copy(pos + n, y_start, n, stream_view.value());
   }
 
   // Sort COO for coalesced memory access.
-  sort(graph, stream.value());
-  CHECK_CUDA(stream.value());
+  sort(graph, stream_view.value());
+  CHECK_CUDA(stream_view.value());
 
   graph.degree(d_mass, cugraph::DegreeDirection::OUT);
-  CHECK_CUDA(stream.value());
+  CHECK_CUDA(stream_view.value());
 
   const vertex_t *row = graph.src_indices;
   const vertex_t *col = graph.dst_indices;
@@ -103,7 +105,7 @@ void exact_fa2(raft::handle_t const &handle,
   float jt                        = 0.f;
 
   if (outbound_attraction_distribution) {
-    int sum                   = thrust::reduce(rmm::exec_policy(stream), mass.begin(), mass.end());
+    int sum = thrust::reduce(rmm::exec_policy(stream_view), mass.begin(), mass.end());
     outbound_att_compensation = sum / (float)n;
   }
 
@@ -114,14 +116,14 @@ void exact_fa2(raft::handle_t const &handle,
 
   for (int iter = 0; iter < max_iter; ++iter) {
     // Reset force arrays
-    thrust::fill(rmm::exec_policy(stream), repel.begin(), repel.end(), 0.f);
-    thrust::fill(rmm::exec_policy(stream), attract.begin(), attract.end(), 0.f);
-    thrust::fill(rmm::exec_policy(stream), swinging.begin(), swinging.end(), 0.f);
-    thrust::fill(rmm::exec_policy(stream), traction.begin(), traction.end(), 0.f);
+    thrust::fill(rmm::exec_policy(stream_view), repel.begin(), repel.end(), 0.f);
+    thrust::fill(rmm::exec_policy(stream_view), attract.begin(), attract.end(), 0.f);
+    thrust::fill(rmm::exec_policy(stream_view), swinging.begin(), swinging.end(), 0.f);
+    thrust::fill(rmm::exec_policy(stream_view), traction.begin(), traction.end(), 0.f);
 
     // Exact repulsion
     apply_repulsion<vertex_t>(
-      pos, pos + n, d_repel, d_repel + n, d_mass, scaling_ratio, n, stream.value());
+      pos, pos + n, d_repel, d_repel + n, d_mass, scaling_ratio, n, stream_view.value());
 
     apply_gravity<vertex_t>(pos,
                             pos + n,
@@ -132,7 +134,7 @@ void exact_fa2(raft::handle_t const &handle,
                             strong_gravity_mode,
                             scaling_ratio,
                             n,
-                            stream.value());
+                            stream_view.value());
 
     apply_attraction<vertex_t, edge_t, weight_t>(row,
                                                  col,
@@ -147,7 +149,7 @@ void exact_fa2(raft::handle_t const &handle,
                                                  lin_log_mode,
                                                  edge_weight_influence,
                                                  outbound_att_compensation,
-                                                 stream.value());
+                                                 stream_view.value());
 
     compute_local_speed(d_repel,
                         d_repel + n,
@@ -159,11 +161,11 @@ void exact_fa2(raft::handle_t const &handle,
                         d_swinging,
                         d_traction,
                         n,
-                        stream.value());
+                        stream_view.value());
 
     // Compute global swinging and traction values.
-    const float s = thrust::reduce(rmm::exec_policy(stream), swinging.begin(), swinging.end());
-    const float t = thrust::reduce(rmm::exec_policy(stream), traction.begin(), traction.end());
+    const float s = thrust::reduce(rmm::exec_policy(stream_view), swinging.begin(), swinging.end());
+    const float t = thrust::reduce(rmm::exec_policy(stream_view), traction.begin(), traction.end());
 
     adapt_speed<vertex_t>(jitter_tolerance, &jt, &speed, &speed_efficiency, s, t, n);
 
@@ -178,7 +180,7 @@ void exact_fa2(raft::handle_t const &handle,
                            d_swinging,
                            speed,
                            n,
-                           stream.value());
+                           stream_view.value());
 
     if (callback) callback->on_epoch_end(pos);
 
