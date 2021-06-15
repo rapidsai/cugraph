@@ -20,8 +20,8 @@
 #include <cugraph/utilities/error.hpp>
 #include <utilities/graph_utils.cuh>
 
-#include <rmm/thrust_rmm_allocator.h>
 #include <thrust/random.h>
+#include <rmm/exec_policy.hpp>
 
 #include <ctime>
 
@@ -90,16 +90,15 @@ struct update_functor {
  * responsible for freeing the allocated memory using ALLOC_FREE_TRY().
  */
 template <typename T>
-void get_permutation_vector(T size, T seed, T *permutation, cudaStream_t stream)
+void get_permutation_vector(T size, T seed, T *permutation, rmm::cuda_stream_view stream_view)
 {
-  rmm::device_uvector<float> randoms_v(size, stream);
+  rmm::device_uvector<float> randoms_v(size, stream_view);
 
   thrust::counting_iterator<uint32_t> index(seed);
-  thrust::transform(
-    rmm::exec_policy(stream)->on(stream), index, index + size, randoms_v.begin(), prg());
-  thrust::sequence(rmm::exec_policy(stream)->on(stream), permutation, permutation + size, 0);
+  thrust::transform(rmm::exec_policy(stream_view), index, index + size, randoms_v.begin(), prg());
+  thrust::sequence(rmm::exec_policy(stream_view), permutation, permutation + size, 0);
   thrust::sort_by_key(
-    rmm::exec_policy(stream)->on(stream), randoms_v.begin(), randoms_v.end(), permutation);
+    rmm::exec_policy(stream_view), randoms_v.begin(), randoms_v.end(), permutation);
 }
 
 template <typename graph_type>
@@ -117,10 +116,12 @@ class EcgLouvain : public cugraph::Louvain<graph_type> {
 
   void initialize_dendrogram_level(vertex_t num_vertices) override
   {
-    this->dendrogram_->add_level(0, num_vertices, this->stream_);
+    this->dendrogram_->add_level(0, num_vertices, this->handle_.get_stream_view());
 
-    get_permutation_vector(
-      num_vertices, seed_, this->dendrogram_->current_level_begin(), this->stream_);
+    get_permutation_vector(num_vertices,
+                           seed_,
+                           this->dendrogram_->current_level_begin(),
+                           this->handle_.get_stream_view());
   }
 
  private:
@@ -146,11 +147,9 @@ void ecg(raft::handle_t const &handle,
                   "Invalid input argument: clustering is NULL, should be a device pointer to "
                   "memory for storing the result");
 
-  cudaStream_t stream{0};
+  rmm::device_uvector<weight_t> ecg_weights_v(graph.number_of_edges, handle.get_stream_view());
 
-  rmm::device_uvector<weight_t> ecg_weights_v(graph.number_of_edges, handle.get_stream());
-
-  thrust::copy(rmm::exec_policy(stream)->on(stream),
+  thrust::copy(rmm::exec_policy(handle.get_stream_view()),
                graph.edge_data,
                graph.edge_data + graph.number_of_edges,
                ecg_weights_v.data());
@@ -172,17 +171,18 @@ void ecg(raft::handle_t const &handle,
     dim3 grid, block;
     block.x = 512;
     grid.x  = min(vertex_t{CUDA_MAX_BLOCKS}, (graph.number_of_edges / 512 + 1));
-    match_check_kernel<<<grid, block, 0, stream>>>(graph.number_of_edges,
-                                                   graph.number_of_vertices,
-                                                   graph.offsets,
-                                                   graph.indices,
-                                                   runner.get_dendrogram().get_level_ptr_nocheck(0),
-                                                   ecg_weights_v.data());
+    match_check_kernel<<<grid, block, 0, handle.get_stream()>>>(
+      graph.number_of_edges,
+      graph.number_of_vertices,
+      graph.offsets,
+      graph.indices,
+      runner.get_dendrogram().get_level_ptr_nocheck(0),
+      ecg_weights_v.data());
   }
 
   // Set weights = min_weight + (1 - min-weight)*sum/ensemble_size
   update_functor<weight_t> uf(min_weight, ensemble_size);
-  thrust::transform(rmm::exec_policy(stream)->on(stream),
+  thrust::transform(rmm::exec_policy(handle.get_stream_view()),
                     ecg_weights_v.begin(),
                     ecg_weights_v.end(),
                     ecg_weights_v.begin(),
