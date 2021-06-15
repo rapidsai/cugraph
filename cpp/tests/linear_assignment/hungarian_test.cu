@@ -181,7 +181,8 @@ TEST_F(HungarianTest, Bipartite4x4_multiple_answers)
 
   EXPECT_EQ(min_cost, r);
 
-  raft::update_host(assignment.data(), assignment_v.data(), assignment_v.size(), handle.get_stream());
+  raft::update_host(
+    assignment.data(), assignment_v.data(), assignment_v.size(), handle.get_stream());
 
   EXPECT_TRUE(std::equal(assignment.begin(), assignment.end(), expected1.begin()) ||
               std::equal(assignment.begin(), assignment.end(), expected2.begin()) ||
@@ -210,7 +211,8 @@ TEST_F(HungarianTest, May29InfLoop)
   float r =
     cugraph::dense::hungarian(handle, cost_v.data(), num_rows, num_cols, assignment_v.data());
 
-  raft::update_host(assignment.data(), assignment_v.data(), assignment_v.size(), handle.get_stream());
+  raft::update_host(
+    assignment.data(), assignment_v.data(), assignment_v.size(), handle.get_stream());
 
   EXPECT_EQ(min_cost, r);
   EXPECT_EQ(assignment, expected);
@@ -238,7 +240,8 @@ TEST_F(HungarianTest, Dense4x6)
   float r =
     cugraph::dense::hungarian(handle, cost_v.data(), num_rows, num_cols, assignment_v.data());
 
-  raft::update_host(assignment.data(), assignment_v.data(), assignment_v.size(), handle.get_stream());
+  raft::update_host(
+    assignment.data(), assignment_v.data(), assignment_v.size(), handle.get_stream());
 
   EXPECT_EQ(min_cost, r);
   EXPECT_EQ(assignment, expected);
@@ -267,7 +270,8 @@ TEST_F(HungarianTest, Dense6x4)
   float r =
     cugraph::dense::hungarian(handle, cost_v.data(), num_rows, num_cols, assignment_v.data());
 
-  raft::update_host(assignment.data(), assignment_v.data(), assignment_v.size(), handle.get_stream());
+  raft::update_host(
+    assignment.data(), assignment_v.data(), assignment_v.size(), handle.get_stream());
 
   EXPECT_EQ(min_cost, r);
   EXPECT_TRUE(std::equal(assignment.begin(), assignment.end(), expected1.begin()) ||
@@ -324,7 +328,8 @@ TEST_F(HungarianTest, PythonTestFailure)
   float r =
     cugraph::dense::hungarian(handle, cost_v.data(), num_rows, num_cols, assignment_v.data());
 
-  raft::update_host(assignment.data(), assignment_v.data(), assignment_v.size(), handle.get_stream());
+  raft::update_host(
+    assignment.data(), assignment_v.data(), assignment_v.size(), handle.get_stream());
 
   EXPECT_EQ(min_cost, r);
   EXPECT_EQ(assignment, expected);
