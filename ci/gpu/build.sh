@@ -62,7 +62,7 @@ gpuci_conda_retry install -y \
       "cudatoolkit=$CUDA_REL" \
       "dask-cudf=${MINOR_VERSION}" \
       "dask-cuda=${MINOR_VERSION}" \
-      "ucx-py=0.20.*" \
+      "ucx-py=0.21.*" \
       "ucx-proc=*=gpu" \
       "rapids-build-env=$MINOR_VERSION.*" \
       "rapids-notebook-env=$MINOR_VERSION.*" \
@@ -71,10 +71,6 @@ gpuci_conda_retry install -y \
 # https://docs.rapids.ai/maintainers/depmgmt/
 # gpuci_conda_retry remove --force rapids-build-env rapids-notebook-env
 # gpuci_conda_retry install -y "your-pkg=1.0.0"
-
-gpuci_logger "Install the master version of dask and distributed"
-pip install "git+https://github.com/dask/distributed.git" --upgrade --no-deps
-pip install "git+https://github.com/dask/dask.git" --upgrade --no-deps
 
 gpuci_logger "Check versions"
 python --version
@@ -107,6 +103,10 @@ else
     CONDA_FILE=${CONDA_FILE//-/=} #convert to conda install
     echo "Installing $CONDA_FILE"
     conda install -c ${CONDA_ARTIFACT_PATH} "$CONDA_FILE"
+
+    gpuci_logger "Install the master version of dask and distributed"
+    pip install "git+https://github.com/dask/distributed.git" --upgrade --no-deps
+    pip install "git+https://github.com/dask/dask.git" --upgrade --no-deps
 
     echo "Build cugraph..."
     $WORKSPACE/build.sh cugraph

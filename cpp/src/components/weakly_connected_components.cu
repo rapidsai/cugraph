@@ -18,9 +18,9 @@
 #include <cugraph/experimental/detail/graph_utils.cuh>
 #include <cugraph/experimental/graph_functions.hpp>
 #include <cugraph/experimental/graph_view.hpp>
-#include <cugraph/patterns/copy_to_adj_matrix_row_col.cuh>
-#include <cugraph/patterns/update_frontier_v_push_if_out_nbr.cuh>
-#include <cugraph/patterns/vertex_frontier.cuh>
+#include <cugraph/prims/copy_to_adj_matrix_row_col.cuh>
+#include <cugraph/prims/update_frontier_v_push_if_out_nbr.cuh>
+#include <cugraph/prims/vertex_frontier.cuh>
 #include <cugraph/utilities/device_comm.cuh>
 #include <cugraph/utilities/error.hpp>
 #include <cugraph/utilities/shuffle_comm.cuh>
@@ -632,7 +632,7 @@ void weakly_connected_components_impl(raft::handle_t const &handle,
                                                edge_first,
                                                edge_first + new_num_edge_inserts);
         auto num_unique_edges = static_cast<size_t>(thrust::distance(edge_first, unique_edge_last));
-        num_edge_inserts.set_value(num_unique_edges, handle.get_stream_view());
+        num_edge_inserts.set_value_async(num_unique_edges, handle.get_stream_view());
       }
 
       vertex_frontier.get_bucket(static_cast<size_t>(Bucket::cur)).clear();
