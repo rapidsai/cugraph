@@ -48,8 +48,8 @@ def hungarian(G, workers, epsilon=None):
 
     epsilon : float or double (matching weight type in graph)
         Used for determining when value is close enough to zero to consider 0.
-        Defaults (if not specified) to 1e-6 in the C++ code.  Unused for integer
-        weight types.
+        Defaults (if not specified) to 1e-6 in the C++ code.  Unused for
+        integer weight types.
 
     Returns
     -------
@@ -114,8 +114,8 @@ def dense_hungarian(costs, num_rows, num_columns, epsilon=None):
         Number of columns in the matrix
     epsilon : float or double (matching weight type in graph)
         Used for determining when value is close enough to zero to consider 0.
-        Defaults (if not specified) to 1e-6 in the C++ code.  Unused for integer
-        weight types.
+        Defaults (if not specified) to 1e-6 in the C++ code.  Unused for
+        integer weight types.
 
     Returns
     -------
