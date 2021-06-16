@@ -50,67 +50,12 @@
 #include <tuple>
 #include <type_traits>
 
+#include "rw_traversals.hpp"
+
 namespace cugraph {
 namespace experimental {
 
 namespace detail {
-
-template <typename T>
-using device_vec_t = rmm::device_uvector<T>;
-
-template <typename T>
-using device_v_it = typename device_vec_t<T>::iterator;
-
-template <typename value_t>
-value_t* raw_ptr(device_vec_t<value_t>& dv)
-{
-  return dv.data();
-}
-
-template <typename value_t>
-value_t const* raw_const_ptr(device_vec_t<value_t> const& dv)
-{
-  return dv.data();
-}
-
-template <typename value_t, typename index_t = size_t>
-struct device_const_vector_view {
-  device_const_vector_view(value_t const* d_buffer, index_t size) : d_buffer_(d_buffer), size_(size)
-  {
-  }
-
-  device_const_vector_view(device_const_vector_view const& other) = delete;
-  device_const_vector_view& operator=(device_const_vector_view const& other) = delete;
-
-  device_const_vector_view(device_const_vector_view&& other)
-  {
-    d_buffer_ = other.d_buffer_;
-    size_     = other.size_;
-  }
-  device_const_vector_view& operator=(device_const_vector_view&& other)
-  {
-    d_buffer_ = other.d_buffer_;
-    size_     = other.size_;
-
-    return *this;
-  }
-
-  value_t const* begin(void) const { return d_buffer_; }
-
-  value_t const* end() const { return d_buffer_ + size_; }
-
-  index_t size(void) const { return size_; }
-
- private:
-  value_t const* d_buffer_{nullptr};
-  index_t size_;
-};
-
-template <typename value_t>
-value_t const* raw_const_ptr(device_const_vector_view<value_t>& dv)
-{
-  return dv.begin();
-}
 
 // raft random generator:
 // (using upper-bound cached "map"
@@ -716,6 +661,7 @@ struct random_walker_t {
  * entries;
  */
 template <typename graph_t,
+          typename traversal_t = vertical_traversal_t,
           typename random_engine_t =
             rrandom_gen_t<typename graph_t::vertex_type, typename graph_t::edge_type>,
           typename seeding_policy_t = clock_seeding_t<typename random_engine_t::seed_type>,
@@ -763,11 +709,20 @@ random_walks_impl(raft::handle_t const& handle,
   device_vec_t<weight_t> d_coalesced_w(coalesced_sz, stream);  // coalesced weight set
   device_vec_t<index_t> d_paths_sz(num_paths, stream);         // paths sizes
   device_vec_t<edge_t> d_crt_out_degs(num_paths, stream);  // out-degs for current set of vertices
-  device_vec_t<real_t> d_random(num_paths, stream);
   device_vec_t<vertex_t> d_col_indx(num_paths, stream);
   device_vec_t<vertex_t> d_next_v(num_paths, stream);
   device_vec_t<weight_t> d_next_w(num_paths, stream);
 
+  // traversal policy:
+  // fixed to vertical, for now (FIXME!)
+  //
+  traversal_t traversor(num_paths, max_depth);
+
+  // random data handling:
+  //
+  auto rnd_data_sz = traversor.get_random_buff_sz();
+
+  device_vec_t<real_t> d_random(rnd_data_sz, stream);
   // abstracted out seed initialization:
   //
   seed_t seed0 = static_cast<seed_t>(seeder());
@@ -780,26 +735,19 @@ random_walks_impl(raft::handle_t const& handle,
   //
   rand_walker.start(d_v_start, d_coalesced_v, d_paths_sz);
 
-  // start from 1, as 0-th was initialized above:
+  // traverse paths:
   //
-  for (decltype(max_depth) step_indx = 1; step_indx < max_depth; ++step_indx) {
-    // take one-step in-sync for each path in parallel:
-    //
-    rand_walker.step(graph,
-                     seed0 + static_cast<seed_t>(step_indx),
-                     d_coalesced_v,
-                     d_coalesced_w,
-                     d_paths_sz,
-                     d_crt_out_degs,
-                     d_random,
-                     d_col_indx,
-                     d_next_v,
-                     d_next_w);
-
-    // early exit: all paths have reached sinks:
-    //
-    if (rand_walker.all_paths_stopped(d_crt_out_degs)) break;
-  }
+  traversor(graph,
+            rand_walker,
+            seed0,
+            d_coalesced_v,
+            d_coalesced_w,
+            d_paths_sz,
+            d_crt_out_degs,
+            d_random,
+            d_col_indx,
+            d_next_v,
+            d_next_w);
 
   // wrap-up, post-process:
   // truncate v_set, w_set to actual space used
@@ -853,6 +801,7 @@ random_walks_impl(raft::handle_t const& handle,
  * entries;
  */
 template <typename graph_t,
+          typename traversal_t = vertical_traversal_t,
           typename random_engine_t =
             rrandom_gen_t<typename graph_t::vertex_type, typename graph_t::edge_type>,
           typename seeding_policy_t = clock_seeding_t<typename random_engine_t::seed_type>,
