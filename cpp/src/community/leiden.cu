@@ -23,7 +23,7 @@ namespace cugraph {
 
 template <typename vertex_t, typename edge_t, typename weight_t>
 std::pair<size_t, weight_t> leiden(raft::handle_t const &handle,
-                                   GraphCSRView<vertex_t, edge_t, weight_t> const &graph,
+                                   legacy::GraphCSRView<vertex_t, edge_t, weight_t> const &graph,
                                    vertex_t *clustering,
                                    size_t max_level,
                                    weight_t resolution)
@@ -34,7 +34,7 @@ std::pair<size_t, weight_t> leiden(raft::handle_t const &handle,
                   "Invalid input argument: clustering is null, should be a device pointer to "
                   "memory for storing the result");
 
-  Leiden<GraphCSRView<vertex_t, edge_t, weight_t>> runner(handle, graph);
+  Leiden<legacy::GraphCSRView<vertex_t, edge_t, weight_t>> runner(handle, graph);
   weight_t wt = runner(max_level, resolution);
 
   rmm::device_uvector<vertex_t> vertex_ids_v(graph.number_of_vertices, handle.get_stream());
@@ -57,10 +57,10 @@ std::pair<size_t, weight_t> leiden(raft::handle_t const &handle,
 
 // Explicit template instantations
 template std::pair<size_t, float> leiden(
-  raft::handle_t const &, GraphCSRView<int32_t, int32_t, float> const &, int32_t *, size_t, float);
+  raft::handle_t const &, legacy::GraphCSRView<int32_t, int32_t, float> const &, int32_t *, size_t, float);
 
 template std::pair<size_t, double> leiden(raft::handle_t const &,
-                                          GraphCSRView<int32_t, int32_t, double> const &,
+                                          legacy::GraphCSRView<int32_t, int32_t, double> const &,
                                           int32_t *,
                                           size_t,
                                           double);

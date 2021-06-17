@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-#include <cugraph/graph.hpp>
+#include <cugraph/legacy/graph.hpp>
 #include <cugraph/utilities/error.hpp>
 
 #include <raft/lap/lap.cuh>
@@ -117,7 +117,7 @@ weight_t hungarian(raft::handle_t const &handle,
 
 template <typename vertex_t, typename edge_t, typename weight_t>
 weight_t hungarian_sparse(raft::handle_t const &handle,
-                          GraphCOOView<vertex_t, edge_t, weight_t> const &graph,
+                          legacy::GraphCOOView<vertex_t, edge_t, weight_t> const &graph,
                           vertex_t num_workers,
                           vertex_t const *workers,
                           vertex_t *assignment,
@@ -266,7 +266,7 @@ weight_t hungarian_sparse(raft::handle_t const &handle,
 
 template <typename vertex_t, typename edge_t, typename weight_t>
 weight_t hungarian(raft::handle_t const &handle,
-                   GraphCOOView<vertex_t, edge_t, weight_t> const &graph,
+                   legacy::GraphCOOView<vertex_t, edge_t, weight_t> const &graph,
                    vertex_t num_workers,
                    vertex_t const *workers,
                    vertex_t *assignment)
@@ -277,7 +277,7 @@ weight_t hungarian(raft::handle_t const &handle,
 
 template <typename vertex_t, typename edge_t, typename weight_t>
 weight_t hungarian(raft::handle_t const &handle,
-                   GraphCOOView<vertex_t, edge_t, weight_t> const &graph,
+                   legacy::GraphCOOView<vertex_t, edge_t, weight_t> const &graph,
                    vertex_t num_workers,
                    vertex_t const *workers,
                    vertex_t *assignment,
@@ -288,20 +288,20 @@ weight_t hungarian(raft::handle_t const &handle,
 
 template int32_t hungarian<int32_t, int32_t, int32_t>(
   raft::handle_t const &,
-  GraphCOOView<int32_t, int32_t, int32_t> const &,
+  legacy::GraphCOOView<int32_t, int32_t, int32_t> const &,
   int32_t,
   int32_t const *,
   int32_t *,
   int32_t);
 
 template float hungarian<int32_t, int32_t, float>(raft::handle_t const &,
-                                                  GraphCOOView<int32_t, int32_t, float> const &,
+                                                  legacy::GraphCOOView<int32_t, int32_t, float> const &,
                                                   int32_t,
                                                   int32_t const *,
                                                   int32_t *,
                                                   float);
 template double hungarian<int32_t, int32_t, double>(raft::handle_t const &,
-                                                    GraphCOOView<int32_t, int32_t, double> const &,
+                                                    legacy::GraphCOOView<int32_t, int32_t, double> const &,
                                                     int32_t,
                                                     int32_t const *,
                                                     int32_t *,
@@ -309,18 +309,18 @@ template double hungarian<int32_t, int32_t, double>(raft::handle_t const &,
 
 template int32_t hungarian<int32_t, int32_t, int32_t>(
   raft::handle_t const &,
-  GraphCOOView<int32_t, int32_t, int32_t> const &,
+  legacy::GraphCOOView<int32_t, int32_t, int32_t> const &,
   int32_t,
   int32_t const *,
   int32_t *);
 
 template float hungarian<int32_t, int32_t, float>(raft::handle_t const &,
-                                                  GraphCOOView<int32_t, int32_t, float> const &,
+                                                  legacy::GraphCOOView<int32_t, int32_t, float> const &,
                                                   int32_t,
                                                   int32_t const *,
                                                   int32_t *);
 template double hungarian<int32_t, int32_t, double>(raft::handle_t const &,
-                                                    GraphCOOView<int32_t, int32_t, double> const &,
+                                                    legacy::GraphCOOView<int32_t, int32_t, double> const &,
                                                     int32_t,
                                                     int32_t const *,
                                                     int32_t *);

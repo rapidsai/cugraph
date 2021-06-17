@@ -18,7 +18,7 @@
 #include <cugraph/experimental/detail/graph_utils.cuh>
 #include <cugraph/experimental/graph_functions.hpp>
 #include <cugraph/experimental/graph_view.hpp>
-#include <cugraph/graph.hpp>
+#include <cugraph/legacy/graph.hpp>
 #include <cugraph/graph_generators.hpp>
 #include <cugraph/partition_manager.hpp>
 #include <cugraph/utilities/cython.hpp>
@@ -281,7 +281,7 @@ void populate_graph_container_legacy(graph_container_t& graph_container,
     switch (legacyType) {
       case graphTypeEnum::LegacyCSR: {
         graph_container.graph_ptr_union.GraphCSRViewFloatPtr =
-          std::make_unique<GraphCSRView<int, int, float>>(reinterpret_cast<int*>(offsets),
+          std::make_unique<legacy::GraphCSRView<int, int, float>>(reinterpret_cast<int*>(offsets),
                                                           reinterpret_cast<int*>(indices),
                                                           reinterpret_cast<float*>(weights),
                                                           num_global_vertices,
@@ -294,7 +294,7 @@ void populate_graph_container_legacy(graph_container_t& graph_container,
       } break;
       case graphTypeEnum::LegacyCSC: {
         graph_container.graph_ptr_union.GraphCSCViewFloatPtr =
-          std::make_unique<GraphCSCView<int, int, float>>(reinterpret_cast<int*>(offsets),
+          std::make_unique<legacy::GraphCSCView<int, int, float>>(reinterpret_cast<int*>(offsets),
                                                           reinterpret_cast<int*>(indices),
                                                           reinterpret_cast<float*>(weights),
                                                           num_global_vertices,
@@ -307,7 +307,7 @@ void populate_graph_container_legacy(graph_container_t& graph_container,
       } break;
       case graphTypeEnum::LegacyCOO: {
         graph_container.graph_ptr_union.GraphCOOViewFloatPtr =
-          std::make_unique<GraphCOOView<int, int, float>>(reinterpret_cast<int*>(offsets),
+          std::make_unique<legacy::GraphCOOView<int, int, float>>(reinterpret_cast<int*>(offsets),
                                                           reinterpret_cast<int*>(indices),
                                                           reinterpret_cast<float*>(weights),
                                                           num_global_vertices,
@@ -325,7 +325,7 @@ void populate_graph_container_legacy(graph_container_t& graph_container,
     switch (legacyType) {
       case graphTypeEnum::LegacyCSR: {
         graph_container.graph_ptr_union.GraphCSRViewDoublePtr =
-          std::make_unique<GraphCSRView<int, int, double>>(reinterpret_cast<int*>(offsets),
+          std::make_unique<legacy::GraphCSRView<int, int, double>>(reinterpret_cast<int*>(offsets),
                                                            reinterpret_cast<int*>(indices),
                                                            reinterpret_cast<double*>(weights),
                                                            num_global_vertices,
@@ -338,7 +338,7 @@ void populate_graph_container_legacy(graph_container_t& graph_container,
       } break;
       case graphTypeEnum::LegacyCSC: {
         graph_container.graph_ptr_union.GraphCSCViewDoublePtr =
-          std::make_unique<GraphCSCView<int, int, double>>(reinterpret_cast<int*>(offsets),
+          std::make_unique<legacy::GraphCSCView<int, int, double>>(reinterpret_cast<int*>(offsets),
                                                            reinterpret_cast<int*>(indices),
                                                            reinterpret_cast<double*>(weights),
                                                            num_global_vertices,
@@ -351,7 +351,7 @@ void populate_graph_container_legacy(graph_container_t& graph_container,
       } break;
       case graphTypeEnum::LegacyCOO: {
         graph_container.graph_ptr_union.GraphCOOViewDoublePtr =
-          std::make_unique<GraphCOOView<int, int, double>>(reinterpret_cast<int*>(offsets),
+          std::make_unique<legacy::GraphCOOView<int, int, double>>(reinterpret_cast<int*>(offsets),
                                                            reinterpret_cast<int*>(indices),
                                                            reinterpret_cast<double*>(weights),
                                                            num_global_vertices,

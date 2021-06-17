@@ -134,12 +134,12 @@ namespace cugraph {
 
 template <typename vertex_t, typename edge_t, typename weight_t>
 void ecg(raft::handle_t const &handle,
-         GraphCSRView<vertex_t, edge_t, weight_t> const &graph,
+         legacy::GraphCSRView<vertex_t, edge_t, weight_t> const &graph,
          weight_t min_weight,
          vertex_t ensemble_size,
          vertex_t *clustering)
 {
-  using graph_type = GraphCSRView<vertex_t, edge_t, weight_t>;
+  using graph_type = legacy::GraphCSRView<vertex_t, edge_t, weight_t>;
 
   CUGRAPH_EXPECTS(graph.edge_data != nullptr,
                   "Invalid input argument: ecg expects a weighted graph");
@@ -190,7 +190,7 @@ void ecg(raft::handle_t const &handle,
 
   // Run Louvain on the original graph using the computed weights
   // (pass max_level = 100 for a "full run")
-  GraphCSRView<vertex_t, edge_t, weight_t> louvain_graph;
+  legacy::GraphCSRView<vertex_t, edge_t, weight_t> louvain_graph;
   louvain_graph.indices            = graph.indices;
   louvain_graph.offsets            = graph.offsets;
   louvain_graph.edge_data          = ecg_weights_v.data();
@@ -202,12 +202,12 @@ void ecg(raft::handle_t const &handle,
 
 // Explicit template instantiations.
 template void ecg<int32_t, int32_t, float>(raft::handle_t const &,
-                                           GraphCSRView<int32_t, int32_t, float> const &graph,
+                                           legacy::GraphCSRView<int32_t, int32_t, float> const &graph,
                                            float min_weight,
                                            int32_t ensemble_size,
                                            int32_t *clustering);
 template void ecg<int32_t, int32_t, double>(raft::handle_t const &,
-                                            GraphCSRView<int32_t, int32_t, double> const &graph,
+                                            legacy::GraphCSRView<int32_t, int32_t, double> const &graph,
                                             double min_weight,
                                             int32_t ensemble_size,
                                             int32_t *clustering);

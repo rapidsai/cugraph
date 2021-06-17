@@ -15,7 +15,7 @@
  */
 #pragma once
 
-#include <cugraph/graph.hpp>
+#include <cugraph/legacy/graph.hpp>
 
 #include <converters/COOtoCSR.cuh>
 #include <utilities/graph_utils.cuh>
@@ -157,7 +157,7 @@ class Louvain {
     //  Our copy of the graph.  Each iteration of the outer loop will
     //  shrink this copy of the graph.
     //
-    GraphCSRView<vertex_t, edge_t, weight_t> current_graph(offsets_v_.data(),
+    legacy::GraphCSRView<vertex_t, edge_t, weight_t> current_graph(offsets_v_.data(),
                                                            indices_v_.data(),
                                                            weights_v_.data(),
                                                            number_of_vertices_,

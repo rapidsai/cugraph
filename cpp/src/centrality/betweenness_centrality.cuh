@@ -23,7 +23,7 @@ namespace cugraph {
 namespace detail {
 template <typename vertex_t, typename edge_t, typename weight_t, typename result_t>
 void betweenness_centrality(raft::handle_t const &handle,
-                            GraphCSRView<vertex_t, edge_t, weight_t> const &graph,
+                            legacy::GraphCSRView<vertex_t, edge_t, weight_t> const &graph,
                             result_t *result,
                             bool normalize,
                             bool endpoints,
@@ -32,7 +32,7 @@ void betweenness_centrality(raft::handle_t const &handle,
                             vertex_t const *sources);
 
 template <typename vertex_t, typename edge_t, typename weight_t, typename result_t>
-void edge_betweenness_centrality(GraphCSRView<vertex_t, edge_t, weight_t> const &graph,
+void edge_betweenness_centrality(legacy::GraphCSRView<vertex_t, edge_t, weight_t> const &graph,
                                  result_t *result,
                                  bool normalize,
                                  weight_t const *weight,
@@ -53,7 +53,7 @@ class BC {
  public:
   virtual ~BC(void) {}
   BC(raft::handle_t const &handle,
-     GraphCSRView<vertex_t, edge_t, weight_t> const &graph,
+     legacy::GraphCSRView<vertex_t, edge_t, weight_t> const &graph,
      cudaStream_t stream = 0)
     : handle_(handle), graph_(graph)
   {
@@ -79,7 +79,7 @@ class BC {
   // --- RAFT handle ---
   raft::handle_t const &handle_;
   // --- Information concerning the graph ---
-  const GraphCSRView<vertex_t, edge_t, weight_t> &graph_;
+  const legacy::GraphCSRView<vertex_t, edge_t, weight_t> &graph_;
   // --- These information are extracted on setup ---
   vertex_t number_of_vertices_;  // Number of vertices in the graph
   vertex_t number_of_edges_;     // Number of edges in the graph

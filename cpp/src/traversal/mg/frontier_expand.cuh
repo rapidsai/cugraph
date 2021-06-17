@@ -16,7 +16,7 @@
 
 #pragma once
 
-#include <cugraph/graph.hpp>
+#include <cugraph/legacy/graph.hpp>
 #include "frontier_expand_kernels.cuh"
 #include "vertex_binning.cuh"
 
@@ -29,7 +29,7 @@ namespace detail {
 template <typename vertex_t, typename edge_t, typename weight_t>
 class FrontierExpand {
   raft::handle_t const &handle_;
-  cugraph::GraphCSRView<vertex_t, edge_t, weight_t> const &graph_;
+  cugraph::legacy::GraphCSRView<vertex_t, edge_t, weight_t> const &graph_;
   VertexBinner<vertex_t, edge_t> dist_;
   rmm::device_vector<vertex_t> reorganized_vertices_;
   edge_t vertex_begin_;
@@ -38,7 +38,7 @@ class FrontierExpand {
 
  public:
   FrontierExpand(raft::handle_t const &handle,
-                 cugraph::GraphCSRView<vertex_t, edge_t, weight_t> const &graph)
+                 cugraph::legacy::GraphCSRView<vertex_t, edge_t, weight_t> const &graph)
     : handle_(handle), graph_(graph)
   {
     bool is_mg = (handle.comms_initialized() && (graph.local_vertices != nullptr) &&

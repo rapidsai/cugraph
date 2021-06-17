@@ -14,7 +14,7 @@
 #include <limits>
 #include "bfs.cuh"
 
-#include <cugraph/graph.hpp>
+#include <cugraph/legacy/graph.hpp>
 
 #include <cugraph/utilities/error.hpp>
 #include <utilities/graph_utils.cuh>
@@ -474,7 +474,7 @@ template class BFS<int64_t>;
 //       It can easily reach 1e40~1e70 on GAP-road.mtx
 template <typename VT, typename ET, typename WT>
 void bfs(raft::handle_t const &handle,
-         GraphCSRView<VT, ET, WT> const &graph,
+         legacy::GraphCSRView<VT, ET, WT> const &graph,
          VT *distances,
          VT *predecessors,
          double *sp_counters,
@@ -512,7 +512,7 @@ void bfs(raft::handle_t const &handle,
 
 // Explicit Instantiation
 template void bfs<uint32_t, uint32_t, float>(raft::handle_t const &handle,
-                                             GraphCSRView<uint32_t, uint32_t, float> const &graph,
+                                             legacy::GraphCSRView<uint32_t, uint32_t, float> const &graph,
                                              uint32_t *distances,
                                              uint32_t *predecessors,
                                              double *sp_counters,
@@ -522,7 +522,7 @@ template void bfs<uint32_t, uint32_t, float>(raft::handle_t const &handle,
 
 // Explicit Instantiation
 template void bfs<uint32_t, uint32_t, double>(raft::handle_t const &handle,
-                                              GraphCSRView<uint32_t, uint32_t, double> const &graph,
+                                              legacy::GraphCSRView<uint32_t, uint32_t, double> const &graph,
                                               uint32_t *distances,
                                               uint32_t *predecessors,
                                               double *sp_counters,
@@ -532,7 +532,7 @@ template void bfs<uint32_t, uint32_t, double>(raft::handle_t const &handle,
 
 // Explicit Instantiation
 template void bfs<int32_t, int32_t, float>(raft::handle_t const &handle,
-                                           GraphCSRView<int32_t, int32_t, float> const &graph,
+                                           legacy::GraphCSRView<int32_t, int32_t, float> const &graph,
                                            int32_t *distances,
                                            int32_t *predecessors,
                                            double *sp_counters,
@@ -542,7 +542,7 @@ template void bfs<int32_t, int32_t, float>(raft::handle_t const &handle,
 
 // Explicit Instantiation
 template void bfs<int32_t, int32_t, double>(raft::handle_t const &handle,
-                                            GraphCSRView<int32_t, int32_t, double> const &graph,
+                                            legacy::GraphCSRView<int32_t, int32_t, double> const &graph,
                                             int32_t *distances,
                                             int32_t *predecessors,
                                             double *sp_counters,
@@ -552,7 +552,7 @@ template void bfs<int32_t, int32_t, double>(raft::handle_t const &handle,
 
 // Explicit Instantiation
 template void bfs<int64_t, int64_t, float>(raft::handle_t const &handle,
-                                           GraphCSRView<int64_t, int64_t, float> const &graph,
+                                           legacy::GraphCSRView<int64_t, int64_t, float> const &graph,
                                            int64_t *distances,
                                            int64_t *predecessors,
                                            double *sp_counters,
@@ -562,7 +562,7 @@ template void bfs<int64_t, int64_t, float>(raft::handle_t const &handle,
 
 // Explicit Instantiation
 template void bfs<int64_t, int64_t, double>(raft::handle_t const &handle,
-                                            GraphCSRView<int64_t, int64_t, double> const &graph,
+                                            legacy::GraphCSRView<int64_t, int64_t, double> const &graph,
                                             int64_t *distances,
                                             int64_t *predecessors,
                                             double *sp_counters,

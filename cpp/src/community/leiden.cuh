@@ -122,7 +122,7 @@ class Leiden : public Louvain<graph_type> {
     //  Our copy of the graph.  Each iteration of the outer loop will
     //  shrink this copy of the graph.
     //
-    GraphCSRView<vertex_t, edge_t, weight_t> current_graph(this->offsets_v_.data(),
+    legacy::GraphCSRView<vertex_t, edge_t, weight_t> current_graph(this->offsets_v_.data(),
                                                            this->indices_v_.data(),
                                                            this->weights_v_.data(),
                                                            this->number_of_vertices_,

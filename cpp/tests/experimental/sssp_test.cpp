@@ -58,7 +58,7 @@ void sssp_reference(edge_t const* offsets,
   using queue_item_t = std::tuple<weight_t, vertex_t>;
 
   std::fill(distances, distances + num_vertices, std::numeric_limits<weight_t>::max());
-  std::fill(predecessors, predecessors + num_vertices, cugraph::invalid_vertex_id<vertex_t>::value);
+  std::fill(predecessors, predecessors + num_vertices, cugraph::experimental::invalid_vertex_id<vertex_t>::value);
 
   *(distances + source) = weight_t{0.0};
   std::priority_queue<queue_item_t, std::vector<queue_item_t>, std::greater<queue_item_t>> queue{};
@@ -264,7 +264,7 @@ class Tests_SSSP : public ::testing::TestWithParam<std::tuple<SSSP_Usecase, inpu
 
       for (auto it = h_cugraph_predecessors.begin(); it != h_cugraph_predecessors.end(); ++it) {
         auto i = std::distance(h_cugraph_predecessors.begin(), it);
-        if (*it == cugraph::invalid_vertex_id<vertex_t>::value) {
+        if (*it == cugraph::experimental::invalid_vertex_id<vertex_t>::value) {
           ASSERT_TRUE(h_reference_predecessors[i] == *it)
             << "vertex reachability do not match with the reference.";
         } else {

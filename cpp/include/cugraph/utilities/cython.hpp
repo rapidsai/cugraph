@@ -16,7 +16,7 @@
 #pragma once
 
 #include <cugraph/experimental/graph.hpp>
-#include <cugraph/graph.hpp>
+#include <cugraph/legacy/graph.hpp>
 #include <cugraph/graph_generators.hpp>
 #include <cugraph/utilities/graph_traits.hpp>
 
@@ -67,12 +67,12 @@ struct graph_container_t {
     ~graphPtrUnion() {}
 
     void* null;
-    std::unique_ptr<GraphCSRView<int32_t, int32_t, float>> GraphCSRViewFloatPtr;
-    std::unique_ptr<GraphCSRView<int32_t, int32_t, double>> GraphCSRViewDoublePtr;
-    std::unique_ptr<GraphCSCView<int32_t, int32_t, float>> GraphCSCViewFloatPtr;
-    std::unique_ptr<GraphCSCView<int32_t, int32_t, double>> GraphCSCViewDoublePtr;
-    std::unique_ptr<GraphCOOView<int32_t, int32_t, float>> GraphCOOViewFloatPtr;
-    std::unique_ptr<GraphCOOView<int32_t, int32_t, double>> GraphCOOViewDoublePtr;
+    std::unique_ptr<legacy::GraphCSRView<int32_t, int32_t, float>> GraphCSRViewFloatPtr;
+    std::unique_ptr<legacy::GraphCSRView<int32_t, int32_t, double>> GraphCSRViewDoublePtr;
+    std::unique_ptr<legacy::GraphCSCView<int32_t, int32_t, float>> GraphCSCViewFloatPtr;
+    std::unique_ptr<legacy::GraphCSCView<int32_t, int32_t, double>> GraphCSCViewDoublePtr;
+    std::unique_ptr<legacy::GraphCOOView<int32_t, int32_t, float>> GraphCOOViewFloatPtr;
+    std::unique_ptr<legacy::GraphCOOView<int32_t, int32_t, double>> GraphCOOViewDoublePtr;
   };
 
   graph_container_t() : graph_ptr_union{nullptr}, graph_type{graphTypeEnum::null} {}

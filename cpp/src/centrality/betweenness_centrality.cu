@@ -21,7 +21,7 @@
 #include <raft/cudart_utils.h>
 
 #include <cugraph/algorithms.hpp>
-#include <cugraph/graph.hpp>
+#include <cugraph/legacy/graph.hpp>
 #include <cugraph/utilities/error.hpp>
 
 #include <rmm/device_scalar.hpp>
@@ -36,7 +36,7 @@ namespace detail {
 namespace {
 template <typename vertex_t, typename edge_t, typename weight_t, typename result_t>
 void betweenness_centrality_impl(raft::handle_t const &handle,
-                                 GraphCSRView<vertex_t, edge_t, weight_t> const &graph,
+                                 legacy::GraphCSRView<vertex_t, edge_t, weight_t> const &graph,
                                  result_t *result,
                                  bool normalize,
                                  bool endpoints,
@@ -60,7 +60,7 @@ void betweenness_centrality_impl(raft::handle_t const &handle,
 
 template <typename vertex_t, typename edge_t, typename weight_t, typename result_t>
 void edge_betweenness_centrality_impl(raft::handle_t const &handle,
-                                      GraphCSRView<vertex_t, edge_t, weight_t> const &graph,
+                                      legacy::GraphCSRView<vertex_t, edge_t, weight_t> const &graph,
                                       result_t *result,
                                       bool normalize,
                                       weight_t const *weight,
@@ -449,7 +449,7 @@ void BC<vertex_t, edge_t, weight_t, result_t>::rescale_by_total_sources_used(
 
 template <typename vertex_t, typename edge_t, typename weight_t, typename result_t>
 void betweenness_centrality(raft::handle_t const &handle,
-                            GraphCSRView<vertex_t, edge_t, weight_t> const &graph,
+                            legacy::GraphCSRView<vertex_t, edge_t, weight_t> const &graph,
                             result_t *result,
                             bool normalize,
                             bool endpoints,
@@ -489,7 +489,7 @@ void betweenness_centrality(raft::handle_t const &handle,
 }
 
 template void betweenness_centrality<int, int, float, float>(const raft::handle_t &,
-                                                             GraphCSRView<int, int, float> const &,
+                                                             legacy::GraphCSRView<int, int, float> const &,
                                                              float *,
                                                              bool,
                                                              bool,
@@ -498,7 +498,7 @@ template void betweenness_centrality<int, int, float, float>(const raft::handle_
                                                              int const *);
 template void betweenness_centrality<int, int, double, double>(
   const raft::handle_t &,
-  GraphCSRView<int, int, double> const &,
+  legacy::GraphCSRView<int, int, double> const &,
   double *,
   bool,
   bool,
@@ -508,7 +508,7 @@ template void betweenness_centrality<int, int, double, double>(
 
 template <typename vertex_t, typename edge_t, typename weight_t, typename result_t>
 void edge_betweenness_centrality(raft::handle_t const &handle,
-                                 GraphCSRView<vertex_t, edge_t, weight_t> const &graph,
+                                 legacy::GraphCSRView<vertex_t, edge_t, weight_t> const &graph,
                                  result_t *result,
                                  bool normalize,
                                  weight_t const *weight,
@@ -540,7 +540,7 @@ void edge_betweenness_centrality(raft::handle_t const &handle,
 
 template void edge_betweenness_centrality<int, int, float, float>(
   const raft::handle_t &,
-  GraphCSRView<int, int, float> const &,
+  legacy::GraphCSRView<int, int, float> const &,
   float *,
   bool,
   float const *,
@@ -549,7 +549,7 @@ template void edge_betweenness_centrality<int, int, float, float>(
 
 template void edge_betweenness_centrality<int, int, double, double>(
   raft::handle_t const &handle,
-  GraphCSRView<int, int, double> const &,
+  legacy::GraphCSRView<int, int, double> const &,
   double *,
   bool,
   double const *,

@@ -18,7 +18,7 @@
 #include <raft/cudart_utils.h>
 #include <cub/cub.cuh>
 
-#include <cugraph/graph.hpp>
+#include <cugraph/legacy/graph.hpp>
 #include "traversal_common.cuh"
 
 namespace cugraph {
@@ -292,7 +292,7 @@ __global__ void main_bottomup_kernel(const IndexType *unvisited,
   // When this kernel is converted to support different VT and ET, this
   // will likely split into invalid_vid and invalid_eid
   // This is equivalent to ~IndexType(0) (i.e., all bits set to 1)
-  constexpr IndexType invalid_idx = cugraph::invalid_idx<IndexType>::value;
+  constexpr IndexType invalid_idx = cugraph::legacy::invalid_idx<IndexType>::value;
 
   // we will call __syncthreads inside the loop
   // we need to keep complete block active
@@ -550,7 +550,7 @@ __global__ void bottom_up_large_degree_kernel(IndexType *left_unvisited,
   // When this kernel is converted to support different VT and ET, this
   // will likely split into invalid_vid and invalid_eid
   // This is equivalent to ~IndexType(0) (i.e., all bits set to 1)
-  constexpr IndexType invalid_idx = cugraph::invalid_idx<IndexType>::value;
+  constexpr IndexType invalid_idx = cugraph::legacy::invalid_idx<IndexType>::value;
 
   // Inactive threads are not a pb for __ballot (known behaviour)
   for (IndexType idx = logical_warps_per_block * blockIdx.x + logical_warp_id;
@@ -728,7 +728,7 @@ __global__ void topdown_expand_kernel(
   // When this kernel is converted to support different VT and ET, this
   // will likely split into invalid_vid and invalid_eid
   // This is equivalent to ~IndexType(0) (i.e., all bits set to 1)
-  constexpr IndexType invalid_idx = cugraph::invalid_idx<IndexType>::value;
+  constexpr IndexType invalid_idx = cugraph::legacy::invalid_idx<IndexType>::value;
 
   IndexType n_items_per_thread_left =
     (totaldegree > block_offset)

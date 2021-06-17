@@ -27,7 +27,7 @@
 #include <gmock/gmock.h>
 
 #include <cugraph/algorithms.hpp>
-#include <cugraph/graph.hpp>
+#include <cugraph/legacy/graph.hpp>
 
 #include <fstream>
 #include <queue>
@@ -155,7 +155,7 @@ void reference_rescale(result_t *result,
 
 template <typename vertex_t, typename edge_t, typename weight_t, typename result_t>
 void reference_edge_betweenness_centrality(
-  cugraph::GraphCSRView<vertex_t, edge_t, weight_t> const &graph,
+  cugraph::legacy::GraphCSRView<vertex_t, edge_t, weight_t> const &graph,
   result_t *result,
   bool normalize,
   vertex_t const number_of_sources,
@@ -244,7 +244,7 @@ class Tests_EdgeBC : public ::testing::TestWithParam<EdgeBC_Usecase> {
     auto csr         = cugraph::test::generate_graph_csr_from_mm<vertex_t, edge_t, weight_t>(
       is_directed, configuration.file_path_);
     cudaDeviceSynchronize();
-    cugraph::GraphCSRView<vertex_t, edge_t, weight_t> G = csr->view();
+    cugraph::legacy::GraphCSRView<vertex_t, edge_t, weight_t> G = csr->view();
     G.prop.directed                                     = is_directed;
     CUDA_TRY(cudaGetLastError());
     std::vector<result_t> result(G.number_of_edges, 0);

@@ -35,7 +35,7 @@ namespace cugraph {
 namespace detail {
 
 template <typename VT, typename ET, typename WT>
-std::unique_ptr<GraphCOO<VT, ET, WT>> ktruss_subgraph_impl(GraphCOOView<VT, ET, WT> const &graph,
+std::unique_ptr<legacy::GraphCOO<VT, ET, WT>> ktruss_subgraph_impl(legacy::GraphCOOView<VT, ET, WT> const &graph,
                                                            int k,
                                                            rmm::mr::device_memory_resource *mr)
 {
@@ -68,7 +68,7 @@ std::unique_ptr<GraphCOO<VT, ET, WT>> ktruss_subgraph_impl(GraphCOOView<VT, ET, 
   kt.runForK(k);
   CUGRAPH_EXPECTS(cudaPeekAtLastError() == cudaSuccess, "KTruss : Failed to run");
 
-  auto out_graph = std::make_unique<GraphCOO<VT, ET, WT>>(
+  auto out_graph = std::make_unique<legacy::GraphCOO<VT, ET, WT>>(
     graph.number_of_vertices, kt.getGraphEdgeCount(), graph.has_data(), stream, mr);
 
   kt.copyGraph(out_graph->src_indices(), out_graph->dst_indices());
@@ -79,8 +79,8 @@ std::unique_ptr<GraphCOO<VT, ET, WT>> ktruss_subgraph_impl(GraphCOOView<VT, ET, 
   return out_graph;
 }
 template <typename VT, typename ET, typename WT>
-std::unique_ptr<GraphCOO<VT, ET, WT>> weighted_ktruss_subgraph_impl(
-  GraphCOOView<VT, ET, WT> const &graph, int k, rmm::mr::device_memory_resource *mr)
+std::unique_ptr<legacy::GraphCOO<VT, ET, WT>> weighted_ktruss_subgraph_impl(
+  legacy::GraphCOOView<VT, ET, WT> const &graph, int k, rmm::mr::device_memory_resource *mr)
 {
   using HornetGraph = hornet::gpu::Hornet<VT, hornet::EMPTY, hornet::TypeList<WT>>;
   using UpdatePtr   = hornet::BatchUpdatePtr<VT, hornet::TypeList<WT>, hornet::DeviceType::DEVICE>;
@@ -111,7 +111,7 @@ std::unique_ptr<GraphCOO<VT, ET, WT>> weighted_ktruss_subgraph_impl(
   kt.runForK(k);
   CUGRAPH_EXPECTS(cudaPeekAtLastError() == cudaSuccess, "KTruss : Failed to run");
 
-  auto out_graph = std::make_unique<GraphCOO<VT, ET, WT>>(
+  auto out_graph = std::make_unique<legacy::GraphCOO<VT, ET, WT>>(
     graph.number_of_vertices, kt.getGraphEdgeCount(), graph.has_data(), stream, mr);
 
   kt.copyGraph(out_graph->src_indices(), out_graph->dst_indices(), out_graph->edge_data());
@@ -125,7 +125,7 @@ std::unique_ptr<GraphCOO<VT, ET, WT>> weighted_ktruss_subgraph_impl(
 }  // namespace detail
 
 template <typename VT, typename ET, typename WT>
-std::unique_ptr<GraphCOO<VT, ET, WT>> k_truss_subgraph(GraphCOOView<VT, ET, WT> const &graph,
+std::unique_ptr<legacy::GraphCOO<VT, ET, WT>> k_truss_subgraph(legacy::GraphCOOView<VT, ET, WT> const &graph,
                                                        int k,
                                                        rmm::mr::device_memory_resource *mr)
 {
@@ -139,10 +139,10 @@ std::unique_ptr<GraphCOO<VT, ET, WT>> k_truss_subgraph(GraphCOOView<VT, ET, WT> 
   }
 }
 
-template std::unique_ptr<GraphCOO<int32_t, int32_t, float>> k_truss_subgraph<int, int, float>(
-  GraphCOOView<int, int, float> const &, int, rmm::mr::device_memory_resource *);
+template std::unique_ptr<legacy::GraphCOO<int32_t, int32_t, float>> k_truss_subgraph<int, int, float>(
+  legacy::GraphCOOView<int, int, float> const &, int, rmm::mr::device_memory_resource *);
 
-template std::unique_ptr<GraphCOO<int32_t, int32_t, double>> k_truss_subgraph<int, int, double>(
-  GraphCOOView<int, int, double> const &, int, rmm::mr::device_memory_resource *);
+template std::unique_ptr<legacy::GraphCOO<int32_t, int32_t, double>> k_truss_subgraph<int, int, double>(
+  legacy::GraphCOOView<int, int, double> const &, int, rmm::mr::device_memory_resource *);
 
 }  // namespace cugraph

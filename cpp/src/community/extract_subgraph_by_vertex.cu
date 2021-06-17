@@ -15,7 +15,7 @@
  */
 
 #include <cugraph/algorithms.hpp>
-#include <cugraph/graph.hpp>
+#include <cugraph/legacy/graph.hpp>
 #include <cugraph/utilities/error.hpp>
 
 #include <rmm/thrust_rmm_allocator.h>
@@ -24,8 +24,8 @@
 namespace {
 
 template <typename vertex_t, typename edge_t, typename weight_t, bool has_weight>
-std::unique_ptr<cugraph::GraphCOO<vertex_t, edge_t, weight_t>> extract_subgraph_by_vertices(
-  cugraph::GraphCOOView<vertex_t, edge_t, weight_t> const &graph,
+std::unique_ptr<cugraph::legacy::GraphCOO<vertex_t, edge_t, weight_t>> extract_subgraph_by_vertices(
+  cugraph::legacy::GraphCOOView<vertex_t, edge_t, weight_t> const &graph,
   vertex_t const *vertices,
   vertex_t num_vertices,
   cudaStream_t stream)
@@ -70,7 +70,7 @@ std::unique_ptr<cugraph::GraphCOO<vertex_t, edge_t, weight_t>> extract_subgraph_
     });
 
   if (count > 0) {
-    auto result = std::make_unique<cugraph::GraphCOO<vertex_t, edge_t, weight_t>>(
+    auto result = std::make_unique<cugraph::legacy::GraphCOO<vertex_t, edge_t, weight_t>>(
       num_vertices, count, has_weight);
 
     vertex_t *d_new_src    = result->src_indices();
@@ -106,7 +106,7 @@ std::unique_ptr<cugraph::GraphCOO<vertex_t, edge_t, weight_t>> extract_subgraph_
 
     return result;
   } else {
-    return std::make_unique<cugraph::GraphCOO<vertex_t, edge_t, weight_t>>(0, 0, has_weight);
+    return std::make_unique<cugraph::legacy::GraphCOO<vertex_t, edge_t, weight_t>>(0, 0, has_weight);
   }
 }
 }  // namespace
@@ -115,7 +115,7 @@ namespace cugraph {
 namespace subgraph {
 
 template <typename VT, typename ET, typename WT>
-std::unique_ptr<GraphCOO<VT, ET, WT>> extract_subgraph_vertex(GraphCOOView<VT, ET, WT> const &graph,
+std::unique_ptr<legacy::GraphCOO<VT, ET, WT>> extract_subgraph_vertex(legacy::GraphCOOView<VT, ET, WT> const &graph,
                                                               VT const *vertices,
                                                               VT num_vertices)
 {
@@ -130,12 +130,12 @@ std::unique_ptr<GraphCOO<VT, ET, WT>> extract_subgraph_vertex(GraphCOOView<VT, E
   }
 }
 
-template std::unique_ptr<GraphCOO<int32_t, int32_t, float>>
-extract_subgraph_vertex<int32_t, int32_t, float>(GraphCOOView<int32_t, int32_t, float> const &,
+template std::unique_ptr<legacy::GraphCOO<int32_t, int32_t, float>>
+extract_subgraph_vertex<int32_t, int32_t, float>(legacy::GraphCOOView<int32_t, int32_t, float> const &,
                                                  int32_t const *,
                                                  int32_t);
-template std::unique_ptr<GraphCOO<int32_t, int32_t, double>>
-extract_subgraph_vertex<int32_t, int32_t, double>(GraphCOOView<int32_t, int32_t, double> const &,
+template std::unique_ptr<legacy::GraphCOO<int32_t, int32_t, double>>
+extract_subgraph_vertex<int32_t, int32_t, double>(legacy::GraphCOOView<int32_t, int32_t, double> const &,
                                                   int32_t const *,
                                                   int32_t);
 

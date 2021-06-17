@@ -29,7 +29,7 @@ namespace detail {
 
 template <typename vertex_t, typename edge_t, typename weight_t, typename operator_t>
 void bfs_traverse(raft::handle_t const &handle,
-                  cugraph::GraphCSRView<vertex_t, edge_t, weight_t> const &graph,
+                  cugraph::legacy::GraphCSRView<vertex_t, edge_t, weight_t> const &graph,
                   const vertex_t start_vertex,
                   rmm::device_vector<uint32_t> &visited_bmap,
                   rmm::device_vector<uint32_t> &output_frontier_bmap,
@@ -111,7 +111,7 @@ void bfs_traverse(raft::handle_t const &handle,
 
 template <typename vertex_t, typename edge_t, typename weight_t>
 void bfs(raft::handle_t const &handle,
-         cugraph::GraphCSRView<vertex_t, edge_t, weight_t> const &graph,
+         cugraph::legacy::GraphCSRView<vertex_t, edge_t, weight_t> const &graph,
          vertex_t *distances,
          vertex_t *predecessors,
          const vertex_t start_vertex)
@@ -132,7 +132,7 @@ void bfs(raft::handle_t const &handle,
   thrust::fill(rmm::exec_policy(stream)->on(stream),
                predecessors,
                predecessors + global_number_of_vertices,
-               cugraph::invalid_idx<vertex_t>::value);
+               cugraph::legacy::invalid_idx<vertex_t>::value);
 
   if (distances == nullptr) {
     detail::BFSStepNoDist<vertex_t, edge_t> bfs_op(
