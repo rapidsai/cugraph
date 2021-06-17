@@ -29,6 +29,8 @@
 #include <rmm/device_uvector.hpp>
 #include <rmm/exec_policy.hpp>
 
+#include <thrust/for_each.h>
+
 #include <algorithm>
 
 namespace cugraph {
@@ -154,6 +156,7 @@ struct vertical_traversal_t {
   }
 
   size_t get_random_buff_sz(void) const { return num_paths_; }
+  size_t get_tmp_buff_sz(void) const { return num_paths_; }
 
  private:
   size_t num_paths_;
@@ -203,14 +206,15 @@ struct horizontal_traversal_t {
     using weight_t = typename graph_t::weight_type;
 
     auto const& handle = rand_walker.get_handle();
-    auto* d_ptr_random = raw_ptr(d_random);
+    auto* ptr_d_random = raw_ptr(d_random);
     raft::random::Rng rng(seed0);
     rng.uniform<real_t, index_t>(
-      d_ptr_random, d_random.size(), real_t{0.0}, real_t{1.0}, handle.get_stream());
+      ptr_d_random, d_random.size(), real_t{0.0}, real_t{1.0}, handle.get_stream());
 
     auto const* col_indices       = graph.indices();
     auto const* row_offsets       = graph.offsets();
     auto const* values            = graph.weights();
+    auto* ptr_d_sizes             = raw_ptr(d_paths_sz);
     auto const& d_cached_out_degs = rand_walker.get_out_degs();
 
     auto rnd_to_indx_convertor = [] __device__(real_t rnd_vindx, edge_t crt_out_deg) {
@@ -221,27 +225,65 @@ struct horizontal_traversal_t {
     };
 
     auto next_vw =
-      [max_depth = max_depth_, ptr_d_sizes = raw_ptr(d_paths_sz), ptr_d_coalesced_v = raw_const_ptr(d_coalesced_v), row_offsets, col_indices, values] __device__(
-        auto path_indx,
-        auto
-          col_indx /*column index, in {0,...,out_deg(v_indx)-1}, extracted 
-                     from random value in [0..1]*/) {
-        auto delta     = ptr_d_sizes[path_indx] - 1;
-        auto v_indx    = ptr_d_coalesced_v[path_indx * max_depth + delta];
+      [row_offsets,
+       col_indices,
+       values] __device__(auto v_indx,      // src vertex to find dst from
+                          auto col_indx) {  // column index, in {0,...,out_deg(v_indx)-1},
+        // extracted from random value in [0..1]
         auto start_row = row_offsets[v_indx];
 
         auto weight_value =
           (values == nullptr ? weight_t{1}
                              : values[start_row + col_indx]);  // account for un-weighted graphs
         return thrust::make_tuple(col_indices[start_row + col_indx], weight_value);
-    };
+      };
 
     // start from 1, as 0-th was initialized above:
     //
-    /// thrust::for_each(rmm::exec_policy(handle.get_stream_view()),...);
+    thrust::for_each(rmm::exec_policy(handle.get_stream_view()),
+                     thrust::make_counting_iterator<index_t>(0),
+                     thrust::make_counting_iterator<index_t>(num_paths_),
+                     [max_depth            = max_depth_,
+                      ptr_d_cache_out_degs = raw_const_ptr(d_cached_out_degs),
+                      ptr_coalesced_v      = raw_ptr(d_coalesced_v),
+                      ptr_coalesced_w      = raw_ptr(d_coalesced_w),
+                      ptr_d_random,
+                      ptr_d_sizes,
+                      rnd_to_indx_convertor,
+                      next_vw] __device__(auto path_index) {
+                       auto chunk_offset   = path_index * max_depth;
+                       vertex_t src_vertex = ptr_coalesced_v[chunk_offset];
+
+                       for (index_t step_indx = 1; step_indx < max_depth; ++step_indx) {
+                         auto crt_out_deg = ptr_d_cache_out_degs[src_vertex];
+                         if (crt_out_deg == 0) break;
+
+                         // indexing into coalesced arrays of size num_paths x (max_depth -1):
+                         // (d_random, d_coalesced_w)
+                         //
+                         auto stepping_index = chunk_offset - path_index + step_indx - 1;
+
+                         auto real_rnd_indx = ptr_d_random[stepping_index];
+
+                         auto col_indx = rnd_to_indx_convertor(real_rnd_indx, crt_out_deg);
+                         auto pair_vw  = next_vw(src_vertex, col_indx);
+
+                         src_vertex      = thrust::get<0>(pair_vw);
+                         auto crt_weight = thrust::get<1>(pair_vw);
+
+                         ptr_coalesced_v[chunk_offset + step_indx] = src_vertex;
+                         ptr_coalesced_w[stepping_index]           = crt_weight;
+                         ptr_d_sizes[path_index]++;
+                       }
+                     });
   }
 
-  size_t get_random_buff_sz(void) const { return num_paths_ * max_depth_; }
+  size_t get_random_buff_sz(void) const { return num_paths_ * (max_depth_ - 1); }
+  size_t get_tmp_buff_sz(void) const
+  {
+    return 0;
+  }  // no need for tmp buffers
+     //(see "ignored" above)
 
  private:
   size_t num_paths_;
@@ -318,6 +360,7 @@ struct vertical_pipelined_t {
   }
 
   size_t get_random_buff_sz(void) const { return 2 * num_paths_; }
+  size_t get_tmp_buff_sz(void) const { return num_paths_; }
 
   template <typename real_t>
   void generate_async_rnd(real_t* p_d_rnd_next) const;

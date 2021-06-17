@@ -710,20 +710,21 @@ random_walks_impl(raft::handle_t const& handle,
   device_vec_t<vertex_t> d_coalesced_v(coalesced_sz, stream);  // coalesced vertex set
   device_vec_t<weight_t> d_coalesced_w(coalesced_sz, stream);  // coalesced weight set
   device_vec_t<index_t> d_paths_sz(num_paths, stream);         // paths sizes
-  device_vec_t<edge_t> d_crt_out_degs(num_paths, stream);  // out-degs for current set of vertices
-  device_vec_t<vertex_t> d_col_indx(num_paths, stream);
-  device_vec_t<vertex_t> d_next_v(num_paths, stream);
-  device_vec_t<weight_t> d_next_w(num_paths, stream);
 
   // traversal policy:
-  // fixed to vertical, for now (FIXME!)
   //
   traversal_t traversor(num_paths, max_depth);
+
+  auto tmp_buff_sz = traversor.get_tmp_buff_sz();
+
+  device_vec_t<edge_t> d_crt_out_degs(tmp_buff_sz, stream);  // crt vertex set out-degs
+  device_vec_t<vertex_t> d_col_indx(tmp_buff_sz, stream);    // \in {0,..,out-deg(v)}
+  device_vec_t<vertex_t> d_next_v(tmp_buff_sz, stream);      // crt set of next vertices
+  device_vec_t<weight_t> d_next_w(tmp_buff_sz, stream);      // crt set of next weights
 
   // random data handling:
   //
   auto rnd_data_sz = traversor.get_random_buff_sz();
-
   device_vec_t<real_t> d_random(rnd_data_sz, stream);
   // abstracted out seed initialization:
   //
