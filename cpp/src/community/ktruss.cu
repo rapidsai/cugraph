@@ -35,9 +35,8 @@ namespace cugraph {
 namespace detail {
 
 template <typename VT, typename ET, typename WT>
-std::unique_ptr<legacy::GraphCOO<VT, ET, WT>> ktruss_subgraph_impl(legacy::GraphCOOView<VT, ET, WT> const &graph,
-                                                           int k,
-                                                           rmm::mr::device_memory_resource *mr)
+std::unique_ptr<legacy::GraphCOO<VT, ET, WT>> ktruss_subgraph_impl(
+  legacy::GraphCOOView<VT, ET, WT> const &graph, int k, rmm::mr::device_memory_resource *mr)
 {
   using HornetGraph = hornet::gpu::Hornet<VT>;
   using UpdatePtr   = hornet::BatchUpdatePtr<VT, hornet::EMPTY, hornet::DeviceType::DEVICE>;
@@ -125,9 +124,8 @@ std::unique_ptr<legacy::GraphCOO<VT, ET, WT>> weighted_ktruss_subgraph_impl(
 }  // namespace detail
 
 template <typename VT, typename ET, typename WT>
-std::unique_ptr<legacy::GraphCOO<VT, ET, WT>> k_truss_subgraph(legacy::GraphCOOView<VT, ET, WT> const &graph,
-                                                       int k,
-                                                       rmm::mr::device_memory_resource *mr)
+std::unique_ptr<legacy::GraphCOO<VT, ET, WT>> k_truss_subgraph(
+  legacy::GraphCOOView<VT, ET, WT> const &graph, int k, rmm::mr::device_memory_resource *mr)
 {
   CUGRAPH_EXPECTS(graph.src_indices != nullptr, "Graph source indices cannot be a nullptr");
   CUGRAPH_EXPECTS(graph.dst_indices != nullptr, "Graph destination indices cannot be a nullptr");
@@ -139,10 +137,14 @@ std::unique_ptr<legacy::GraphCOO<VT, ET, WT>> k_truss_subgraph(legacy::GraphCOOV
   }
 }
 
-template std::unique_ptr<legacy::GraphCOO<int32_t, int32_t, float>> k_truss_subgraph<int, int, float>(
-  legacy::GraphCOOView<int, int, float> const &, int, rmm::mr::device_memory_resource *);
+template std::unique_ptr<legacy::GraphCOO<int32_t, int32_t, float>>
+k_truss_subgraph<int, int, float>(legacy::GraphCOOView<int, int, float> const &,
+                                  int,
+                                  rmm::mr::device_memory_resource *);
 
-template std::unique_ptr<legacy::GraphCOO<int32_t, int32_t, double>> k_truss_subgraph<int, int, double>(
-  legacy::GraphCOOView<int, int, double> const &, int, rmm::mr::device_memory_resource *);
+template std::unique_ptr<legacy::GraphCOO<int32_t, int32_t, double>>
+k_truss_subgraph<int, int, double>(legacy::GraphCOOView<int, int, double> const &,
+                                   int,
+                                   rmm::mr::device_memory_resource *);
 
 }  // namespace cugraph

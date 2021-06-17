@@ -176,8 +176,9 @@ struct Tests_Strongly_CC : ::testing::TestWithParam<Usecase> {
       << "\n";
     ASSERT_EQ(fclose(fpin), 0);
 
-    cugraph::legacy::GraphCOOView<int, int, float> G_coo(&cooRowInd[0], &cooColInd[0], nullptr, nrows, nnz);
-    auto G_unique                            = cugraph::coo_to_csr(G_coo);
+    cugraph::legacy::GraphCOOView<int, int, float> G_coo(
+      &cooRowInd[0], &cooColInd[0], nullptr, nrows, nnz);
+    auto G_unique                                    = cugraph::coo_to_csr(G_coo);
     cugraph::legacy::GraphCSRView<int, int, float> G = G_unique->view();
 
     rmm::device_vector<int> d_labels(nrows);
@@ -246,8 +247,9 @@ TEST_F(SCCSmallTest, CustomGraphSimpleLoops)
 
   EXPECT_EQ(nnz, cooColInd.size());
 
-  cugraph::legacy::GraphCOOView<int, int, float> G_coo(&cooRowInd[0], &cooColInd[0], nullptr, nrows, nnz);
-  auto G_unique                            = cugraph::coo_to_csr(G_coo);
+  cugraph::legacy::GraphCOOView<int, int, float> G_coo(
+    &cooRowInd[0], &cooColInd[0], nullptr, nrows, nnz);
+  auto G_unique                                    = cugraph::coo_to_csr(G_coo);
   cugraph::legacy::GraphCSRView<int, int, float> G = G_unique->view();
 
   rmm::device_vector<IndexT> d_labels(nrows);
@@ -296,8 +298,9 @@ TEST_F(SCCSmallTest, /*DISABLED_*/ CustomGraphWithSelfLoops)
 
   EXPECT_EQ(nnz, cooColInd.size());
 
-  cugraph::legacy::GraphCOOView<int, int, float> G_coo(&cooRowInd[0], &cooColInd[0], nullptr, nrows, nnz);
-  auto G_unique                            = cugraph::coo_to_csr(G_coo);
+  cugraph::legacy::GraphCOOView<int, int, float> G_coo(
+    &cooRowInd[0], &cooColInd[0], nullptr, nrows, nnz);
+  auto G_unique                                    = cugraph::coo_to_csr(G_coo);
   cugraph::legacy::GraphCSRView<int, int, float> G = G_unique->view();
 
   rmm::device_vector<IndexT> d_labels(nrows);
@@ -341,8 +344,9 @@ TEST_F(SCCSmallTest, SmallGraphWithSelfLoops1)
 
   EXPECT_EQ(nnz, cooColInd.size());
 
-  cugraph::legacy::GraphCOOView<int, int, float> G_coo(&cooRowInd[0], &cooColInd[0], nullptr, nrows, nnz);
-  auto G_unique                            = cugraph::coo_to_csr(G_coo);
+  cugraph::legacy::GraphCOOView<int, int, float> G_coo(
+    &cooRowInd[0], &cooColInd[0], nullptr, nrows, nnz);
+  auto G_unique                                    = cugraph::coo_to_csr(G_coo);
   cugraph::legacy::GraphCSRView<int, int, float> G = G_unique->view();
 
   rmm::device_vector<IndexT> d_labels(nrows);
@@ -381,9 +385,8 @@ TEST_F(SCCSmallTest, SmallGraphWithIsolated)
   // Note: there seems to be a BUG in coo_to_csr() or view()
   // COO format doesn't account for isolated vertices;
   //
-  // cugraph::legacy::GraphCOOView<int, int, float> G_coo(&cooRowInd[0], &cooColInd[0], nullptr, nrows,
-  // nnz);
-  // auto G_unique                            = cugraph::coo_to_csr(G_coo);
+  // cugraph::legacy::GraphCOOView<int, int, float> G_coo(&cooRowInd[0], &cooColInd[0], nullptr,
+  // nrows, nnz); auto G_unique                            = cugraph::coo_to_csr(G_coo);
   // cugraph::legacy::GraphCSRView<int, int, float> G = G_unique->view();
   //
   //

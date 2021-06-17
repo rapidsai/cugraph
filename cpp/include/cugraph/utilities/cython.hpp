@@ -16,8 +16,8 @@
 #pragma once
 
 #include <cugraph/experimental/graph.hpp>
-#include <cugraph/legacy/graph.hpp>
 #include <cugraph/graph_generators.hpp>
+#include <cugraph/legacy/graph.hpp>
 #include <cugraph/utilities/graph_traits.hpp>
 
 #include <raft/handle.hpp>

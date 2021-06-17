@@ -261,7 +261,7 @@ class Tests_SSSP : public ::testing::TestWithParam<SSSP_Usecase> {
       (DoRandomWeights ? &cooVal[0] : nullptr),
       num_vertices,
       num_edges);
-    auto G_unique                                         = cugraph::coo_to_csr(G_coo);
+    auto G_unique                                                 = cugraph::coo_to_csr(G_coo);
     cugraph::legacy::GraphCSRView<MaxVType, MaxEType, DistType> G = G_unique->view();
     cudaDeviceSynchronize();
 

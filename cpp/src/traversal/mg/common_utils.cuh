@@ -137,9 +137,10 @@ struct BFSStep {
 };
 
 template <typename vertex_t, typename edge_t, typename weight_t>
-vertex_t populate_isolated_vertices(raft::handle_t const &handle,
-                                    cugraph::legacy::GraphCSRView<vertex_t, edge_t, weight_t> const &graph,
-                                    rmm::device_vector<vertex_t> &isolated_vertex_ids)
+vertex_t populate_isolated_vertices(
+  raft::handle_t const &handle,
+  cugraph::legacy::GraphCSRView<vertex_t, edge_t, weight_t> const &graph,
+  rmm::device_vector<vertex_t> &isolated_vertex_ids)
 {
   bool is_mg          = (handle.comms_initialized() && (graph.local_vertices != nullptr) &&
                 (graph.local_offsets != nullptr));
@@ -383,13 +384,14 @@ return_t remove_duplicates(raft::handle_t const &handle,
 }
 
 template <typename vertex_t, typename edge_t, typename weight_t>
-vertex_t preprocess_input_frontier(raft::handle_t const &handle,
-                                   cugraph::legacy::GraphCSRView<vertex_t, edge_t, weight_t> const &graph,
-                                   rmm::device_vector<uint32_t> &bmap,
-                                   rmm::device_vector<uint32_t> &isolated_bmap,
-                                   rmm::device_vector<vertex_t> &input_frontier,
-                                   vertex_t input_frontier_len,
-                                   rmm::device_vector<vertex_t> &output_frontier)
+vertex_t preprocess_input_frontier(
+  raft::handle_t const &handle,
+  cugraph::legacy::GraphCSRView<vertex_t, edge_t, weight_t> const &graph,
+  rmm::device_vector<uint32_t> &bmap,
+  rmm::device_vector<uint32_t> &isolated_bmap,
+  rmm::device_vector<vertex_t> &input_frontier,
+  vertex_t input_frontier_len,
+  rmm::device_vector<vertex_t> &output_frontier)
 {
   cudaStream_t stream = handle.get_stream();
 
@@ -415,12 +417,13 @@ vertex_t preprocess_input_frontier(raft::handle_t const &handle,
 }
 
 template <typename vertex_t, typename edge_t, typename weight_t>
-vertex_t preprocess_input_frontier(raft::handle_t const &handle,
-                                   cugraph::legacy::GraphCSRView<vertex_t, edge_t, weight_t> const &graph,
-                                   rmm::device_vector<uint32_t> &bmap,
-                                   rmm::device_vector<vertex_t> &input_frontier,
-                                   vertex_t input_frontier_len,
-                                   rmm::device_vector<vertex_t> &output_frontier)
+vertex_t preprocess_input_frontier(
+  raft::handle_t const &handle,
+  cugraph::legacy::GraphCSRView<vertex_t, edge_t, weight_t> const &graph,
+  rmm::device_vector<uint32_t> &bmap,
+  rmm::device_vector<vertex_t> &input_frontier,
+  vertex_t input_frontier_len,
+  rmm::device_vector<vertex_t> &output_frontier)
 {
   cudaStream_t stream = handle.get_stream();
 
@@ -471,8 +474,9 @@ void fill_max_dist(raft::handle_t const &handle,
 }
 
 template <typename vertex_t, typename edge_t, typename weight_t>
-vertex_t get_global_vertex_count(raft::handle_t const &handle,
-                                 cugraph::legacy::GraphCSRView<vertex_t, edge_t, weight_t> const &graph)
+vertex_t get_global_vertex_count(
+  raft::handle_t const &handle,
+  cugraph::legacy::GraphCSRView<vertex_t, edge_t, weight_t> const &graph)
 {
   rmm::device_vector<vertex_t> id(1);
   id[0] = *thrust::max_element(rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),

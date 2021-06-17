@@ -56,8 +56,11 @@ std::pair<size_t, weight_t> leiden(raft::handle_t const &handle,
 }
 
 // Explicit template instantations
-template std::pair<size_t, float> leiden(
-  raft::handle_t const &, legacy::GraphCSRView<int32_t, int32_t, float> const &, int32_t *, size_t, float);
+template std::pair<size_t, float> leiden(raft::handle_t const &,
+                                         legacy::GraphCSRView<int32_t, int32_t, float> const &,
+                                         int32_t *,
+                                         size_t,
+                                         float);
 
 template std::pair<size_t, double> leiden(raft::handle_t const &,
                                           legacy::GraphCSRView<int32_t, int32_t, double> const &,

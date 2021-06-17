@@ -80,8 +80,8 @@ template std::unique_ptr<legacy::GraphCOO<int, int, float>> minimum_spanning_tre
   raft::handle_t const &handle,
   legacy::GraphCSRView<int, int, float> const &graph,
   rmm::mr::device_memory_resource *mr);
-template std::unique_ptr<legacy::GraphCOO<int, int, double>> minimum_spanning_tree<int, int, double>(
-  raft::handle_t const &handle,
-  legacy::GraphCSRView<int, int, double> const &graph,
-  rmm::mr::device_memory_resource *mr);
+template std::unique_ptr<legacy::GraphCOO<int, int, double>>
+minimum_spanning_tree<int, int, double>(raft::handle_t const &handle,
+                                        legacy::GraphCSRView<int, int, double> const &graph,
+                                        rmm::mr::device_memory_resource *mr);
 }  // namespace cugraph

@@ -488,14 +488,15 @@ void betweenness_centrality(raft::handle_t const &handle,
   }
 }
 
-template void betweenness_centrality<int, int, float, float>(const raft::handle_t &,
-                                                             legacy::GraphCSRView<int, int, float> const &,
-                                                             float *,
-                                                             bool,
-                                                             bool,
-                                                             float const *,
-                                                             int,
-                                                             int const *);
+template void betweenness_centrality<int, int, float, float>(
+  const raft::handle_t &,
+  legacy::GraphCSRView<int, int, float> const &,
+  float *,
+  bool,
+  bool,
+  float const *,
+  int,
+  int const *);
 template void betweenness_centrality<int, int, double, double>(
   const raft::handle_t &,
   legacy::GraphCSRView<int, int, double> const &,

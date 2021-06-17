@@ -105,13 +105,14 @@ class Tests_Mst : public ::testing::TestWithParam<Mst_Usecase> {
     raft::handle_t handle;
 
     std::cout << std::endl;
-    cugraph::legacy::GraphCOOView<int, int, T> G_coo(&cooRowInd[0], &cooColInd[0], &cooVal[0], m, nnz);
+    cugraph::legacy::GraphCOOView<int, int, T> G_coo(
+      &cooRowInd[0], &cooColInd[0], &cooVal[0], m, nnz);
     auto G_unique = cugraph::coo_to_csr(G_coo);
     cugraph::legacy::GraphCSRView<int, int, T> G(G_unique->view().offsets,
-                                         G_unique->view().indices,
-                                         G_unique->view().edge_data,
-                                         G_unique->view().number_of_vertices,
-                                         G_unique->view().number_of_edges);
+                                                 G_unique->view().indices,
+                                                 G_unique->view().edge_data,
+                                                 G_unique->view().number_of_vertices,
+                                                 G_unique->view().number_of_edges);
 
     cudaDeviceSynchronize();
 

@@ -21,8 +21,8 @@
 
 #include <converters/COOtoCSR.cuh>
 
-#include <cugraph/legacy/graph.hpp>
 #include <cugraph/internals.hpp>
+#include <cugraph/legacy/graph.hpp>
 #include <cugraph/utilities/error.hpp>
 #include <raft/random/rng.cuh>
 

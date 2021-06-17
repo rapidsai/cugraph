@@ -106,7 +106,8 @@ std::unique_ptr<cugraph::legacy::GraphCOO<vertex_t, edge_t, weight_t>> extract_s
 
     return result;
   } else {
-    return std::make_unique<cugraph::legacy::GraphCOO<vertex_t, edge_t, weight_t>>(0, 0, has_weight);
+    return std::make_unique<cugraph::legacy::GraphCOO<vertex_t, edge_t, weight_t>>(
+      0, 0, has_weight);
   }
 }
 }  // namespace
@@ -115,9 +116,8 @@ namespace cugraph {
 namespace subgraph {
 
 template <typename VT, typename ET, typename WT>
-std::unique_ptr<legacy::GraphCOO<VT, ET, WT>> extract_subgraph_vertex(legacy::GraphCOOView<VT, ET, WT> const &graph,
-                                                              VT const *vertices,
-                                                              VT num_vertices)
+std::unique_ptr<legacy::GraphCOO<VT, ET, WT>> extract_subgraph_vertex(
+  legacy::GraphCOOView<VT, ET, WT> const &graph, VT const *vertices, VT num_vertices)
 {
   CUGRAPH_EXPECTS(vertices != nullptr, "Invalid input argument: vertices must be non null");
 
@@ -131,13 +131,11 @@ std::unique_ptr<legacy::GraphCOO<VT, ET, WT>> extract_subgraph_vertex(legacy::Gr
 }
 
 template std::unique_ptr<legacy::GraphCOO<int32_t, int32_t, float>>
-extract_subgraph_vertex<int32_t, int32_t, float>(legacy::GraphCOOView<int32_t, int32_t, float> const &,
-                                                 int32_t const *,
-                                                 int32_t);
+extract_subgraph_vertex<int32_t, int32_t, float>(
+  legacy::GraphCOOView<int32_t, int32_t, float> const &, int32_t const *, int32_t);
 template std::unique_ptr<legacy::GraphCOO<int32_t, int32_t, double>>
-extract_subgraph_vertex<int32_t, int32_t, double>(legacy::GraphCOOView<int32_t, int32_t, double> const &,
-                                                  int32_t const *,
-                                                  int32_t);
+extract_subgraph_vertex<int32_t, int32_t, double>(
+  legacy::GraphCOOView<int32_t, int32_t, double> const &, int32_t const *, int32_t);
 
 }  // namespace subgraph
 }  // namespace cugraph

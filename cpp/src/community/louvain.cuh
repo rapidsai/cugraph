@@ -158,10 +158,10 @@ class Louvain {
     //  shrink this copy of the graph.
     //
     legacy::GraphCSRView<vertex_t, edge_t, weight_t> current_graph(offsets_v_.data(),
-                                                           indices_v_.data(),
-                                                           weights_v_.data(),
-                                                           number_of_vertices_,
-                                                           number_of_edges_);
+                                                                   indices_v_.data(),
+                                                                   weights_v_.data(),
+                                                                   number_of_vertices_,
+                                                                   number_of_edges_);
 
     current_graph.get_source_indices(src_indices_v_.data());
 

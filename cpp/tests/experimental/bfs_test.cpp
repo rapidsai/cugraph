@@ -54,7 +54,9 @@ void bfs_reference(edge_t const* offsets,
   vertex_t depth{0};
 
   std::fill(distances, distances + num_vertices, std::numeric_limits<vertex_t>::max());
-  std::fill(predecessors, predecessors + num_vertices, cugraph::experimental::invalid_vertex_id<vertex_t>::value);
+  std::fill(predecessors,
+            predecessors + num_vertices,
+            cugraph::experimental::invalid_vertex_id<vertex_t>::value);
 
   *(distances + source) = depth;
   std::vector<vertex_t> cur_frontier_rows{source};

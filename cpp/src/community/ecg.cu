@@ -201,14 +201,16 @@ void ecg(raft::handle_t const &handle,
 }
 
 // Explicit template instantiations.
-template void ecg<int32_t, int32_t, float>(raft::handle_t const &,
-                                           legacy::GraphCSRView<int32_t, int32_t, float> const &graph,
-                                           float min_weight,
-                                           int32_t ensemble_size,
-                                           int32_t *clustering);
-template void ecg<int32_t, int32_t, double>(raft::handle_t const &,
-                                            legacy::GraphCSRView<int32_t, int32_t, double> const &graph,
-                                            double min_weight,
-                                            int32_t ensemble_size,
-                                            int32_t *clustering);
+template void ecg<int32_t, int32_t, float>(
+  raft::handle_t const &,
+  legacy::GraphCSRView<int32_t, int32_t, float> const &graph,
+  float min_weight,
+  int32_t ensemble_size,
+  int32_t *clustering);
+template void ecg<int32_t, int32_t, double>(
+  raft::handle_t const &,
+  legacy::GraphCSRView<int32_t, int32_t, double> const &graph,
+  double min_weight,
+  int32_t ensemble_size,
+  int32_t *clustering);
 }  // namespace cugraph

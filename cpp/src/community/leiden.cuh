@@ -123,10 +123,10 @@ class Leiden : public Louvain<graph_type> {
     //  shrink this copy of the graph.
     //
     legacy::GraphCSRView<vertex_t, edge_t, weight_t> current_graph(this->offsets_v_.data(),
-                                                           this->indices_v_.data(),
-                                                           this->weights_v_.data(),
-                                                           this->number_of_vertices_,
-                                                           this->number_of_edges_);
+                                                                   this->indices_v_.data(),
+                                                                   this->weights_v_.data(),
+                                                                   this->number_of_vertices_,
+                                                                   this->number_of_edges_);
 
     current_graph.get_source_indices(this->src_indices_v_.data());
 

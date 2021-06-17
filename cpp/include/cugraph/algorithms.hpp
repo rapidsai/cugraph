@@ -19,8 +19,8 @@
 #include <cugraph/experimental/graph.hpp>
 #include <cugraph/experimental/graph_view.hpp>
 
-#include <cugraph/legacy/graph.hpp>
 #include <cugraph/internals.hpp>
+#include <cugraph/legacy/graph.hpp>
 
 #include <raft/handle.hpp>
 
@@ -498,7 +498,8 @@ std::unique_ptr<legacy::GraphCOO<VT, ET, WT>> k_core(
  * @return                  Graph in COO format
  */
 template <typename VT, typename ET, typename WT>
-std::unique_ptr<legacy::GraphCOO<VT, ET, WT>> get_two_hop_neighbors(legacy::GraphCSRView<VT, ET, WT> const &graph);
+std::unique_ptr<legacy::GraphCOO<VT, ET, WT>> get_two_hop_neighbors(
+  legacy::GraphCSRView<VT, ET, WT> const &graph);
 
 /**
  * @Synopsis   Performs a single source shortest path traversal of a graph starting from a vertex.
@@ -880,9 +881,8 @@ namespace subgraph {
  * @param[out] result                a graph in COO format containing the edges in the subgraph
  */
 template <typename VT, typename ET, typename WT>
-std::unique_ptr<legacy::GraphCOO<VT, ET, WT>> extract_subgraph_vertex(legacy::GraphCOOView<VT, ET, WT> const &graph,
-                                                              VT const *vertices,
-                                                              VT num_vertices);
+std::unique_ptr<legacy::GraphCOO<VT, ET, WT>> extract_subgraph_vertex(
+  legacy::GraphCOOView<VT, ET, WT> const &graph, VT const *vertices, VT num_vertices);
 }  // namespace subgraph
 
 /**

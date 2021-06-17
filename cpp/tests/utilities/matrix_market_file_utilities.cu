@@ -448,17 +448,17 @@ template int32_t mm_to_coo(FILE* f,
                            float* cooRVal,
                            float* cooIVal);
 
-template std::unique_ptr<cugraph::legacy::GraphCSR<int32_t, int32_t, float>> generate_graph_csr_from_mm(
-  bool& directed, std::string mm_file);
+template std::unique_ptr<cugraph::legacy::GraphCSR<int32_t, int32_t, float>>
+generate_graph_csr_from_mm(bool& directed, std::string mm_file);
 
-template std::unique_ptr<cugraph::legacy::GraphCSR<uint32_t, uint32_t, float>> generate_graph_csr_from_mm(
-  bool& directed, std::string mm_file);
+template std::unique_ptr<cugraph::legacy::GraphCSR<uint32_t, uint32_t, float>>
+generate_graph_csr_from_mm(bool& directed, std::string mm_file);
 
-template std::unique_ptr<cugraph::legacy::GraphCSR<int32_t, int32_t, double>> generate_graph_csr_from_mm(
-  bool& directed, std::string mm_file);
+template std::unique_ptr<cugraph::legacy::GraphCSR<int32_t, int32_t, double>>
+generate_graph_csr_from_mm(bool& directed, std::string mm_file);
 
-template std::unique_ptr<cugraph::legacy::GraphCSR<int64_t, int64_t, float>> generate_graph_csr_from_mm(
-  bool& directed, std::string mm_file);
+template std::unique_ptr<cugraph::legacy::GraphCSR<int64_t, int64_t, float>>
+generate_graph_csr_from_mm(bool& directed, std::string mm_file);
 
 template std::tuple<cugraph::experimental::graph_t<int32_t, int32_t, float, false, false>,
                     rmm::device_uvector<int32_t>>

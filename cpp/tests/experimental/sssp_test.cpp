@@ -58,7 +58,9 @@ void sssp_reference(edge_t const* offsets,
   using queue_item_t = std::tuple<weight_t, vertex_t>;
 
   std::fill(distances, distances + num_vertices, std::numeric_limits<weight_t>::max());
-  std::fill(predecessors, predecessors + num_vertices, cugraph::experimental::invalid_vertex_id<vertex_t>::value);
+  std::fill(predecessors,
+            predecessors + num_vertices,
+            cugraph::experimental::invalid_vertex_id<vertex_t>::value);
 
   *(distances + source) = weight_t{0.0};
   std::priority_queue<queue_item_t, std::vector<queue_item_t>, std::greater<queue_item_t>> queue{};

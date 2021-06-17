@@ -309,7 +309,7 @@ class Tests_BC : public ::testing::TestWithParam<BC_Usecase> {
       is_directed, configuration.file_path_);
     cudaDeviceSynchronize();
     cugraph::legacy::GraphCSRView<vertex_t, edge_t, weight_t> G = csr->view();
-    G.prop.directed                                     = is_directed;
+    G.prop.directed                                             = is_directed;
     CUDA_TRY(cudaGetLastError());
     std::vector<result_t> result(G.number_of_vertices, 0);
     std::vector<result_t> expected(G.number_of_vertices, 0);

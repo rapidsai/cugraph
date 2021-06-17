@@ -202,8 +202,11 @@ template std::pair<std::unique_ptr<Dendrogram<int64_t>>, double> louvain(
   size_t,
   double);
 
-template std::pair<size_t, float> louvain(
-  raft::handle_t const &, legacy::GraphCSRView<int32_t, int32_t, float> const &, int32_t *, size_t, float);
+template std::pair<size_t, float> louvain(raft::handle_t const &,
+                                          legacy::GraphCSRView<int32_t, int32_t, float> const &,
+                                          int32_t *,
+                                          size_t,
+                                          float);
 template std::pair<size_t, double> louvain(raft::handle_t const &,
                                            legacy::GraphCSRView<int32_t, int32_t, double> const &,
                                            int32_t *,

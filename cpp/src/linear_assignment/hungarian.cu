@@ -294,18 +294,20 @@ template int32_t hungarian<int32_t, int32_t, int32_t>(
   int32_t *,
   int32_t);
 
-template float hungarian<int32_t, int32_t, float>(raft::handle_t const &,
-                                                  legacy::GraphCOOView<int32_t, int32_t, float> const &,
-                                                  int32_t,
-                                                  int32_t const *,
-                                                  int32_t *,
-                                                  float);
-template double hungarian<int32_t, int32_t, double>(raft::handle_t const &,
-                                                    legacy::GraphCOOView<int32_t, int32_t, double> const &,
-                                                    int32_t,
-                                                    int32_t const *,
-                                                    int32_t *,
-                                                    double);
+template float hungarian<int32_t, int32_t, float>(
+  raft::handle_t const &,
+  legacy::GraphCOOView<int32_t, int32_t, float> const &,
+  int32_t,
+  int32_t const *,
+  int32_t *,
+  float);
+template double hungarian<int32_t, int32_t, double>(
+  raft::handle_t const &,
+  legacy::GraphCOOView<int32_t, int32_t, double> const &,
+  int32_t,
+  int32_t const *,
+  int32_t *,
+  double);
 
 template int32_t hungarian<int32_t, int32_t, int32_t>(
   raft::handle_t const &,
@@ -314,16 +316,18 @@ template int32_t hungarian<int32_t, int32_t, int32_t>(
   int32_t const *,
   int32_t *);
 
-template float hungarian<int32_t, int32_t, float>(raft::handle_t const &,
-                                                  legacy::GraphCOOView<int32_t, int32_t, float> const &,
-                                                  int32_t,
-                                                  int32_t const *,
-                                                  int32_t *);
-template double hungarian<int32_t, int32_t, double>(raft::handle_t const &,
-                                                    legacy::GraphCOOView<int32_t, int32_t, double> const &,
-                                                    int32_t,
-                                                    int32_t const *,
-                                                    int32_t *);
+template float hungarian<int32_t, int32_t, float>(
+  raft::handle_t const &,
+  legacy::GraphCOOView<int32_t, int32_t, float> const &,
+  int32_t,
+  int32_t const *,
+  int32_t *);
+template double hungarian<int32_t, int32_t, double>(
+  raft::handle_t const &,
+  legacy::GraphCOOView<int32_t, int32_t, double> const &,
+  int32_t,
+  int32_t const *,
+  int32_t *);
 
 namespace dense {
 
