@@ -663,7 +663,7 @@ struct random_walker_t {
  * entries;
  */
 template <typename graph_t,
-          typename traversal_t = vertical_traversal_t,
+          typename traversal_t = horizontal_traversal_t,
           typename random_engine_t =
             rrandom_gen_t<typename graph_t::vertex_type, typename graph_t::edge_type>,
           typename seeding_policy_t = clock_seeding_t<typename random_engine_t::seed_type>,
@@ -804,7 +804,7 @@ random_walks_impl(raft::handle_t const& handle,
  * entries;
  */
 template <typename graph_t,
-          typename traversal_t = vertical_traversal_t,
+          typename traversal_t = horizontal_traversal_t,
           typename random_engine_t =
             rrandom_gen_t<typename graph_t::vertex_type, typename graph_t::edge_type>,
           typename seeding_policy_t = clock_seeding_t<typename random_engine_t::seed_type>,
