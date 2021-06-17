@@ -127,7 +127,9 @@ struct vertical_traversal_t {
       d_col_indx,  // crt col col indices to be used for retrieving next step
     device_vec_t<typename graph_t::vertex_type>&
       d_next_v,  // crt set of destination vertices, for next step
-    device_vec_t<typename graph_t::weight_type>& d_next_w) const
+    device_vec_t<typename graph_t::weight_type>&
+      d_next_w)  // set of weights between src and destination vertices, for next step
+    const
   {
     // start from 1, as 0-th was initialized above:
     //
@@ -158,12 +160,100 @@ struct vertical_traversal_t {
   size_t max_depth_;
 };
 
+// horizontal traversal proxy:
+// each path is generated independently from start to finish;
+// when a vertex is a sink the corresponding path doesn't advance anymore;
+// requires (num_paths x max_depth) precomputed real random values in [0,1];
+//
+// larger memory footprint, but potentially more efficient;
+//
+struct horizontal_traversal_t {
+  horizontal_traversal_t(size_t num_paths, size_t max_depth)
+    : num_paths_(num_paths), max_depth_(max_depth)
+  {
+  }
+
+  template <typename graph_t,
+            typename random_walker_t,
+            typename index_t,
+            typename real_t,
+            typename seed_t>
+  void operator()(
+    graph_t const& graph,                // graph being traversed
+    random_walker_t const& rand_walker,  // random walker object for which traversal is driven
+    seed_t seed0,                        // initial seed value
+    device_vec_t<typename graph_t::vertex_type>& d_coalesced_v,  // crt coalesced vertex set
+    device_vec_t<typename graph_t::weight_type>& d_coalesced_w,  // crt coalesced weight set
+    device_vec_t<index_t>& d_paths_sz,                           // crt paths sizes
+    device_vec_t<typename graph_t::edge_type>&
+      d_crt_out_degs,                // ignored: out-degs for the current set of vertices
+    device_vec_t<real_t>& d_random,  // _entire_ set of random real values
+    device_vec_t<typename graph_t::vertex_type>&
+      d_col_indx,  // ignored: crt col indices to be used for retrieving next step
+    device_vec_t<typename graph_t::vertex_type>&
+      d_next_v,  // ignored: crt set of destination vertices, for next step (coalesced set
+                 // updated directly, instead)
+    device_vec_t<typename graph_t::weight_type>&
+      d_next_w)  // ignored: set of weights between src and destination vertices, for next step
+                 // (coalesced set updated directly, instead)
+    const
+  {
+    using vertex_t = typename graph_t::vertex_type;
+    using edge_t   = typename graph_t::edge_type;
+    using weight_t = typename graph_t::weight_type;
+
+    auto const& handle = rand_walker.get_handle();
+    auto* d_ptr_random = raw_ptr(d_random);
+    raft::random::Rng rng(seed0);
+    rng.uniform<real_t, index_t>(
+      d_ptr_random, d_random.size(), real_t{0.0}, real_t{1.0}, handle.get_stream());
+
+    auto const* col_indices       = graph.indices();
+    auto const* row_offsets       = graph.offsets();
+    auto const* values            = graph.weights();
+    auto const& d_cached_out_degs = rand_walker.get_out_degs();
+
+    auto rnd_to_indx_convertor = [] __device__(real_t rnd_vindx, edge_t crt_out_deg) {
+      real_t max_ub     = static_cast<real_t>(crt_out_deg - 1);
+      auto interp_vindx = rnd_vindx * max_ub + real_t{.5};
+      vertex_t v_indx   = static_cast<vertex_t>(interp_vindx);
+      return (v_indx >= crt_out_deg ? crt_out_deg - 1 : v_indx);
+    };
+
+    auto next_vw =
+      [max_depth = max_depth_, ptr_d_sizes = raw_ptr(d_paths_sz), ptr_d_coalesced_v = raw_const_ptr(d_coalesced_v), row_offsets, col_indices, values] __device__(
+        auto path_indx,
+        auto
+          col_indx /*column index, in {0,...,out_deg(v_indx)-1}, extracted 
+                     from random value in [0..1]*/) {
+        auto delta     = ptr_d_sizes[path_indx] - 1;
+        auto v_indx    = ptr_d_coalesced_v[path_indx * max_depth + delta];
+        auto start_row = row_offsets[v_indx];
+
+        auto weight_value =
+          (values == nullptr ? weight_t{1}
+                             : values[start_row + col_indx]);  // account for un-weighted graphs
+        return thrust::make_tuple(col_indices[start_row + col_indx], weight_value);
+    };
+
+    // start from 1, as 0-th was initialized above:
+    //
+    /// thrust::for_each(rmm::exec_policy(handle.get_stream_view()),...);
+  }
+
+  size_t get_random_buff_sz(void) const { return num_paths_ * max_depth_; }
+
+ private:
+  size_t num_paths_;
+  size_t max_depth_;
+};  // namespace detail
+
 // vertical pipelined traversal proxy:
 // a device vector of next vertices is generated for each path;
 // when a vertex is a sink the corresponding path doesn't advance anymore;
 // random vertex source is generated in parallel on CPU in a pipelined way;
 //
-// somewhat larger memory footprint but more efficient;
+// somewhat larger memory footprint but more efficient than vertical_traversal_t;
 //
 struct vertical_pipelined_t {
   vertical_pipelined_t(size_t num_paths, size_t max_depth)
@@ -190,7 +280,9 @@ struct vertical_pipelined_t {
       d_col_indx,  // crt col col indices to be used for retrieving next step
     device_vec_t<typename graph_t::vertex_type>&
       d_next_v,  // crt set of destination vertices, for next step
-    device_vec_t<typename graph_t::weight_type>& d_next_w) const
+    device_vec_t<typename graph_t::weight_type>&
+      d_next_w)  // set of weights between src and destination vertices, for next step
+    const
   {
     // random buffers:
     //

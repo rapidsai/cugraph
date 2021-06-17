@@ -623,6 +623,8 @@ struct random_walker_t {
                  weight_padding_value_);
   }
 
+  decltype(auto) get_handle(void) const { return handle_; }
+
  private:
   raft::handle_t const& handle_;
   index_t num_paths_;
