@@ -337,8 +337,8 @@ install(TARGETS cugraph
         DESTINATION lib
         EXPORT cugraph-exports)
 
-install(DIRECTORY include/
-        DESTINATION include)
+install(DIRECTORY include/cugraph/
+        DESTINATION include/cugraph)
 
 install(FILES ${CMAKE_CURRENT_BINARY_DIR}/include/cugraph/version_config.hpp
         DESTINATION include/cugraph)

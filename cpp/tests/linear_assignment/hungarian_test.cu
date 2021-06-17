@@ -9,20 +9,22 @@
  *
  */
 
-#include "cuda_profiler_api.h"
-#include "gtest/gtest.h"
-
-#include <rmm/thrust_rmm_allocator.h>
-#include <thrust/random.h>
+#include <utilities/high_res_timer.hpp>
 
 #include <cugraph/algorithms.hpp>
 #include <cugraph/graph.hpp>
 
 #include <raft/handle.hpp>
 
-#include <utilities/high_res_timer.hpp>
-
 #include <curand_kernel.h>
+
+#include <rmm/device_uvector.hpp>
+
+#include "cuda_profiler_api.h"
+#include "gtest/gtest.h"
+
+#include <thrust/equal.h>
+#include <thrust/random.h>
 
 __global__ void setup_generator(curandState *state)
 {
@@ -64,29 +66,35 @@ TEST_F(HungarianTest, Bipartite4x4)
 
   int32_t workers[] = {0, 1, 2, 3};
 
-  float min_cost     = 18.0;
-  int32_t expected[] = {6, 7, 5, 4};
+  float min_cost = 18.0;
+  std::vector<int32_t> expected({6, 7, 5, 4});
+  std::vector<int32_t> assignment({0, 0, 0, 0});
 
   int32_t length         = sizeof(src_data) / sizeof(src_data[0]);
   int32_t length_workers = sizeof(workers) / sizeof(workers[0]);
   int32_t num_vertices   = 1 + std::max(*std::max_element(src_data, src_data + length),
                                       *std::max_element(dst_data, dst_data + length));
 
-  rmm::device_vector<int32_t> src_v(src_data, src_data + length);
-  rmm::device_vector<int32_t> dst_v(dst_data, dst_data + length);
-  rmm::device_vector<float> cost_v(cost, cost + length);
-  rmm::device_vector<int32_t> workers_v(workers, workers + length_workers);
-  rmm::device_vector<int32_t> expected_v(expected, expected + length_workers);
-  rmm::device_vector<int32_t> assignment_v(length_workers);
+  rmm::device_uvector<int32_t> src_v(length, handle.get_stream_view());
+  rmm::device_uvector<int32_t> dst_v(length, handle.get_stream_view());
+  rmm::device_uvector<float> cost_v(length, handle.get_stream_view());
+  rmm::device_uvector<int32_t> workers_v(length_workers, handle.get_stream_view());
+  rmm::device_uvector<int32_t> assignment_v(length_workers, handle.get_stream_view());
+
+  raft::update_device(src_v.begin(), src_data, length, handle.get_stream());
+  raft::update_device(dst_v.begin(), dst_data, length, handle.get_stream());
+  raft::update_device(cost_v.begin(), cost, length, handle.get_stream());
+  raft::update_device(workers_v.begin(), workers, length_workers, handle.get_stream());
 
   cugraph::GraphCOOView<int32_t, int32_t, float> g(
-    src_v.data().get(), dst_v.data().get(), cost_v.data().get(), num_vertices, length);
+    src_v.data(), dst_v.data(), cost_v.data(), num_vertices, length);
 
-  float r = cugraph::hungarian(
-    handle, g, length_workers, workers_v.data().get(), assignment_v.data().get());
+  float r = cugraph::hungarian(handle, g, length_workers, workers_v.data(), assignment_v.data());
+
+  raft::update_host(assignment.data(), assignment_v.begin(), length_workers, handle.get_stream());
 
   EXPECT_EQ(min_cost, r);
-  EXPECT_EQ(expected_v, assignment_v);
+  EXPECT_EQ(assignment, expected);
 }
 
 TEST_F(HungarianTest, Bipartite5x5)
@@ -100,29 +108,36 @@ TEST_F(HungarianTest, Bipartite5x5)
 
   int32_t workers[] = {0, 1, 2, 3, 4};
 
-  float min_cost     = 51.0;
-  int32_t expected[] = {5, 7, 8, 6, 9};
+  float min_cost = 51.0;
+  std::vector<int32_t> expected({5, 7, 8, 6, 9});
+  std::vector<int32_t> assignment({0, 0, 0, 0, 0});
 
   int32_t length         = sizeof(src_data) / sizeof(src_data[0]);
   int32_t length_workers = sizeof(workers) / sizeof(workers[0]);
   int32_t num_vertices   = 1 + std::max(*std::max_element(src_data, src_data + length),
                                       *std::max_element(dst_data, dst_data + length));
 
-  rmm::device_vector<int32_t> src_v(src_data, src_data + length);
-  rmm::device_vector<int32_t> dst_v(dst_data, dst_data + length);
-  rmm::device_vector<float> cost_v(cost, cost + length);
-  rmm::device_vector<int32_t> workers_v(workers, workers + length_workers);
-  rmm::device_vector<int32_t> expected_v(expected, expected + length_workers);
-  rmm::device_vector<int32_t> assignment_v(length_workers);
+  rmm::device_uvector<int32_t> src_v(length, handle.get_stream_view());
+  rmm::device_uvector<int32_t> dst_v(length, handle.get_stream_view());
+  rmm::device_uvector<float> cost_v(length, handle.get_stream_view());
+  rmm::device_uvector<int32_t> workers_v(length_workers, handle.get_stream_view());
+  rmm::device_uvector<int32_t> assignment_v(length_workers, handle.get_stream_view());
+
+  raft::update_device(src_v.begin(), src_data, length, handle.get_stream());
+  raft::update_device(dst_v.begin(), dst_data, length, handle.get_stream());
+  raft::update_device(cost_v.begin(), cost, length, handle.get_stream());
+  raft::update_device(workers_v.begin(), workers, length_workers, handle.get_stream());
 
   cugraph::GraphCOOView<int32_t, int32_t, float> g(
-    src_v.data().get(), dst_v.data().get(), cost_v.data().get(), num_vertices, length);
+    src_v.data(), dst_v.data(), cost_v.data(), num_vertices, length);
 
-  float r = cugraph::hungarian(
-    handle, g, length_workers, workers_v.data().get(), assignment_v.data().get());
+  float r = cugraph::hungarian(handle, g, length_workers, workers_v.data(), assignment_v.data());
+
+  raft::update_host(
+    assignment.data(), assignment_v.begin(), assignment_v.size(), handle.get_stream());
 
   EXPECT_EQ(min_cost, r);
-  EXPECT_EQ(expected_v, assignment_v);
+  EXPECT_EQ(assignment, expected);
 }
 
 TEST_F(HungarianTest, Bipartite4x4_multiple_answers)
@@ -135,40 +150,44 @@ TEST_F(HungarianTest, Bipartite4x4_multiple_answers)
 
   int32_t workers[] = {0, 1, 2, 3};
 
-  float min_cost      = 13.0;
-  int32_t expected1[] = {7, 6, 5, 4};
-  int32_t expected2[] = {6, 7, 5, 4};
-  int32_t expected3[] = {7, 6, 4, 5};
-  int32_t expected4[] = {6, 7, 4, 5};
+  float min_cost = 13.0;
+
+  std::vector<int32_t> expected1({7, 6, 5, 4});
+  std::vector<int32_t> expected2({6, 7, 5, 4});
+  std::vector<int32_t> expected3({7, 6, 4, 5});
+  std::vector<int32_t> expected4({6, 7, 4, 5});
+  std::vector<int32_t> assignment({0, 0, 0, 0});
 
   int32_t length         = sizeof(src_data) / sizeof(src_data[0]);
   int32_t length_workers = sizeof(workers) / sizeof(workers[0]);
   int32_t num_vertices   = 1 + std::max(*std::max_element(src_data, src_data + length),
                                       *std::max_element(dst_data, dst_data + length));
 
-  rmm::device_vector<int32_t> src_v(src_data, src_data + length);
-  rmm::device_vector<int32_t> dst_v(dst_data, dst_data + length);
-  rmm::device_vector<float> cost_v(cost, cost + length);
-  rmm::device_vector<int32_t> workers_v(workers, workers + length_workers);
-  rmm::device_vector<int32_t> assignment_v(length_workers);
+  rmm::device_uvector<int32_t> src_v(length, handle.get_stream_view());
+  rmm::device_uvector<int32_t> dst_v(length, handle.get_stream_view());
+  rmm::device_uvector<float> cost_v(length, handle.get_stream_view());
+  rmm::device_uvector<int32_t> workers_v(length_workers, handle.get_stream_view());
+  rmm::device_uvector<int32_t> assignment_v(length_workers, handle.get_stream_view());
 
-  rmm::device_vector<int32_t> expected1_v(expected1, expected1 + length_workers);
-  rmm::device_vector<int32_t> expected2_v(expected2, expected2 + length_workers);
-  rmm::device_vector<int32_t> expected3_v(expected3, expected3 + length_workers);
-  rmm::device_vector<int32_t> expected4_v(expected4, expected4 + length_workers);
+  raft::update_device(src_v.begin(), src_data, length, handle.get_stream());
+  raft::update_device(dst_v.begin(), dst_data, length, handle.get_stream());
+  raft::update_device(cost_v.begin(), cost, length, handle.get_stream());
+  raft::update_device(workers_v.begin(), workers, length_workers, handle.get_stream());
 
   cugraph::GraphCOOView<int32_t, int32_t, float> g(
-    src_v.data().get(), dst_v.data().get(), cost_v.data().get(), num_vertices, length);
+    src_v.data(), dst_v.data(), cost_v.data(), num_vertices, length);
 
-  float r = cugraph::hungarian(
-    handle, g, length_workers, workers_v.data().get(), assignment_v.data().get());
+  float r = cugraph::hungarian(handle, g, length_workers, workers_v.data(), assignment_v.data());
 
   EXPECT_EQ(min_cost, r);
 
-  EXPECT_TRUE(thrust::equal(assignment_v.begin(), assignment_v.end(), expected1_v.begin()) ||
-              thrust::equal(assignment_v.begin(), assignment_v.end(), expected2_v.begin()) ||
-              thrust::equal(assignment_v.begin(), assignment_v.end(), expected3_v.begin()) ||
-              thrust::equal(assignment_v.begin(), assignment_v.end(), expected4_v.begin()));
+  raft::update_host(
+    assignment.data(), assignment_v.data(), assignment_v.size(), handle.get_stream());
+
+  EXPECT_TRUE(std::equal(assignment.begin(), assignment.end(), expected1.begin()) ||
+              std::equal(assignment.begin(), assignment.end(), expected2.begin()) ||
+              std::equal(assignment.begin(), assignment.end(), expected3.begin()) ||
+              std::equal(assignment.begin(), assignment.end(), expected4.begin()));
 }
 
 TEST_F(HungarianTest, May29InfLoop)
@@ -181,13 +200,82 @@ TEST_F(HungarianTest, May29InfLoop)
 
   float min_cost = 2;
 
-  rmm::device_vector<float> cost_v(cost, cost + num_rows * num_cols);
-  rmm::device_vector<int32_t> assignment_v(num_rows);
+  std::vector<int32_t> expected({3, 2, 1, 0});
+  std::vector<int32_t> assignment({0, 0, 0, 0});
 
-  float r = cugraph::dense::hungarian(
-    handle, cost_v.data().get(), num_rows, num_cols, assignment_v.data().get());
+  rmm::device_uvector<float> cost_v(num_rows * num_cols, handle.get_stream_view());
+  rmm::device_uvector<int32_t> assignment_v(num_rows, handle.get_stream_view());
+
+  raft::update_device(cost_v.begin(), cost, num_rows * num_cols, handle.get_stream());
+
+  float r =
+    cugraph::dense::hungarian(handle, cost_v.data(), num_rows, num_cols, assignment_v.data());
+
+  raft::update_host(
+    assignment.data(), assignment_v.data(), assignment_v.size(), handle.get_stream());
 
   EXPECT_EQ(min_cost, r);
+  EXPECT_EQ(assignment, expected);
+}
+
+TEST_F(HungarianTest, Dense4x6)
+{
+  raft::handle_t handle{};
+
+  int32_t num_rows = 4;
+  int32_t num_cols = 6;
+  float cost[]     = {0,  16, 1,    0,    90, 100, 33, 45, 0,    4,    90, 100,
+                  22, 0,  1000, 2000, 90, 100, 2,  0,  3000, 4000, 90, 100};
+
+  float min_cost = 2;
+
+  std::vector<int32_t> expected({3, 2, 1, 0});
+  std::vector<int32_t> assignment({0, 0, 0, 0});
+
+  rmm::device_uvector<float> cost_v(num_rows * num_cols, handle.get_stream_view());
+  rmm::device_uvector<int32_t> assignment_v(num_rows, handle.get_stream_view());
+
+  raft::update_device(cost_v.begin(), cost, num_rows * num_cols, handle.get_stream());
+
+  float r =
+    cugraph::dense::hungarian(handle, cost_v.data(), num_rows, num_cols, assignment_v.data());
+
+  raft::update_host(
+    assignment.data(), assignment_v.data(), assignment_v.size(), handle.get_stream());
+
+  EXPECT_EQ(min_cost, r);
+  EXPECT_EQ(assignment, expected);
+}
+
+TEST_F(HungarianTest, Dense6x4)
+{
+  raft::handle_t handle{};
+
+  int32_t num_rows = 6;
+  int32_t num_cols = 4;
+  float cost[]     = {0,  16, 1,    0,    33, 45,  0,   4,   90, 100, 110,  120,
+                  22, 0,  1000, 2000, 90, 100, 110, 120, 2,  0,   3000, 4000};
+
+  float min_cost = 2;
+
+  std::vector<int32_t> expected1({3, 2, 4, 1, 5, 0});
+  std::vector<int32_t> expected2({3, 2, 5, 1, 4, 0});
+  std::vector<int32_t> assignment({0, 0, 0, 0, 0, 0});
+
+  rmm::device_uvector<float> cost_v(num_rows * num_cols, handle.get_stream_view());
+  rmm::device_uvector<int32_t> assignment_v(num_rows, handle.get_stream_view());
+
+  raft::update_device(cost_v.begin(), cost, num_rows * num_cols, handle.get_stream());
+
+  float r =
+    cugraph::dense::hungarian(handle, cost_v.data(), num_rows, num_cols, assignment_v.data());
+
+  raft::update_host(
+    assignment.data(), assignment_v.data(), assignment_v.size(), handle.get_stream());
+
+  EXPECT_EQ(min_cost, r);
+  EXPECT_TRUE(std::equal(assignment.begin(), assignment.end(), expected1.begin()) ||
+              std::equal(assignment.begin(), assignment.end(), expected2.begin()));
 }
 
 TEST_F(HungarianTest, PythonTestFailure)
@@ -229,13 +317,22 @@ TEST_F(HungarianTest, PythonTestFailure)
 
   float min_cost = 16;
 
-  rmm::device_vector<float> cost_v(cost, cost + num_rows * num_cols);
-  rmm::device_vector<int32_t> assignment_v(num_rows);
+  std::vector<int32_t> expected({0, 2, 1, 4, 3});
+  std::vector<int32_t> assignment({0, 0, 0, 0, 0});
 
-  float r = cugraph::dense::hungarian(
-    handle, cost_v.data().get(), num_rows, num_cols, assignment_v.data().get());
+  rmm::device_uvector<float> cost_v(num_rows * num_cols, handle.get_stream_view());
+  rmm::device_uvector<int32_t> assignment_v(num_rows, handle.get_stream_view());
+
+  raft::update_device(cost_v.begin(), cost, num_rows * num_cols, handle.get_stream());
+
+  float r =
+    cugraph::dense::hungarian(handle, cost_v.data(), num_rows, num_cols, assignment_v.data());
+
+  raft::update_host(
+    assignment.data(), assignment_v.data(), assignment_v.size(), handle.get_stream());
 
   EXPECT_EQ(min_cost, r);
+  EXPECT_EQ(assignment, expected);
 }
 
 // FIXME:  Need to have tests with nxm (e.g. 4x5 and 5x4) to test those conditions
@@ -249,16 +346,16 @@ void random_test(int32_t num_rows, int32_t num_cols, int32_t upper_bound, int re
 
   HighResTimer hr_timer;
 
-  rmm::device_vector<int32_t>  data_v(num_rows * num_cols);
-  rmm::device_vector<curandState> state_vals_v(num_threads);
-  rmm::device_vector<int32_t> assignment_v(num_rows);
+  rmm::device_uvector<int32_t>  data_v(num_rows * num_cols, handle.get_stream_view());
+  rmm::device_uvector<curandState> state_vals_v(num_threads, handle.get_stream_view());
+  rmm::device_uvector<int32_t> assignment_v(num_rows, handle.get_stream_view());
 
   std::vector<int32_t> validate(num_cols);
 
   hr_timer.start("initialization");
 
   cudaStream_t stream{0};
-  int32_t *d_data = data_v.data().get();
+  int32_t *d_data = data_v.data();
   //int64_t seed{85};
   int64_t seed{time(nullptr)};
 
@@ -280,7 +377,7 @@ void random_test(int32_t num_rows, int32_t num_cols, int32_t upper_bound, int re
 
   for (int i = 0 ; i < repetitions ; ++i) {
     hr_timer.start("hungarian");
-    r = cugraph::hungarian_dense(cost_v.data().get(), num_rows, num_cols, assignment_v.data().get());
+    r = cugraph::hungarian_dense(cost_v.data(), num_rows, num_cols, assignment_v.data());
     hr_timer.stop();
   }
 
